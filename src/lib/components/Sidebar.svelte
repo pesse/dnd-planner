@@ -4,11 +4,13 @@
   import { activeCampaign, activeFile, fileContent, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
+  import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
   const VAULT_BASE = './vault/campaigns';
   const CHARACTERS_PATH = './vault/characters';
+  const MONSTERS_PATH = './vault/monsters';
 
   const sections: { label: string; subdir: string; type: FileEntry['type'] }[] = [
     { label: 'Akte', subdir: 'acts', type: 'act' },
@@ -188,6 +190,166 @@
     if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
   }
 
+  // --- Monster (global) ---
+  let monstersExpanded = $state(false);
+  let monsterFiles = $state<string[]>([]);
+  let monsterNames: Record<string, string> = $state({});
+  let showNewMonsterInput = $state(false);
+  let newMonsterInput = $state('');
+
+  async function loadMonsters() {
+    try {
+      monsterFiles = await invoke<string[]>('list_json_files', { path: MONSTERS_PATH });
+      monsterFiles.forEach(async (filename) => {
+        const path = `${MONSTERS_PATH}/${filename}`;
+        try {
+          const content = await invoke<string>('read_file_content', { path });
+          const data = JSON.parse(content);
+          monsterNames[filename] = data.name ?? filename.replace('.json', '');
+        } catch {
+          monsterNames[filename] = filename.replace('.json', '');
+        }
+      });
+    } catch {
+      monsterFiles = [];
+    }
+  }
+
+  async function toggleMonsters() {
+    monstersExpanded = !monstersExpanded;
+    if (monstersExpanded) await loadMonsters();
+  }
+
+  async function openMonster(filename: string) {
+    const path = `${MONSTERS_PATH}/${filename}`;
+    activeFile.set({ name: filename.replace('.json', ''), path, type: 'monster' });
+    try {
+      const content = await invoke<string>('read_file_content', { path });
+      setFileContent(content);
+    } catch (e) {
+      setFileContent('{}');
+    }
+  }
+
+  async function createMonster(e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const raw = newMonsterInput.trim();
+    if (!raw) return;
+
+    const slug = slugify(raw);
+    const filename = slug + '.json';
+    const path = `${MONSTERS_PATH}/${filename}`;
+    const template = { ...monsterTemplate, name: raw.charAt(0).toUpperCase() + raw.slice(1) };
+
+    try {
+      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
+      showNewMonsterInput = false;
+      newMonsterInput = '';
+      await loadMonsters();
+      await openMonster(filename);
+    } catch (err) {
+      console.error('Monster konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewMonster(e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; }
+  }
+
+  // --- Encounter (pro Kampagne, als Unterpunkt von Akten) ---
+  const ENCOUNTERS_SUBDIR = 'encounters';
+  let encounterFiles: Record<string, string[]> = $state({});
+  let encounterNames: Record<string, string> = $state({});
+  let encounterTags: Record<string, string[]> = $state({});
+  let showNewActEncounterInput: Record<string, boolean> = $state({});
+  let newActEncounterInput: Record<string, string> = $state({});
+
+  function getActKey(filename: string): string {
+    const match = filename.match(/^(akt-[ivxlcdm]+)/i);
+    return match ? match[1].toLowerCase() : '';
+  }
+
+  function getEncountersForAct(campaignPath: string, actFilename: string): string[] {
+    const actKey = getActKey(actFilename);
+    if (!actKey) return [];
+    return (encounterFiles[campaignPath] ?? []).filter(filename =>
+      (encounterTags[`${campaignPath}/${filename}`] ?? []).includes(actKey)
+    );
+  }
+
+  async function loadEncounters(campaignPath: string) {
+    const key = campaignPath;
+    const dir = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}`;
+    try {
+      const files = await invoke<string[]>('list_json_files', { path: dir });
+      encounterFiles[key] = files;
+      files.forEach(async (filename) => {
+        const path = `${dir}/${filename}`;
+        try {
+          const content = await invoke<string>('read_file_content', { path });
+          const data = JSON.parse(content);
+          encounterNames[`${key}/${filename}`] = data.name ?? filename.replace('.json', '');
+          encounterTags[`${key}/${filename}`] = data.tags ?? [];
+        } catch {
+          encounterNames[`${key}/${filename}`] = filename.replace('.json', '');
+          encounterTags[`${key}/${filename}`] = [];
+        }
+      });
+    } catch {
+      encounterFiles[key] = [];
+    }
+  }
+
+  async function openEncounter(campaignPath: string, filename: string) {
+    const path = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}/${filename}`;
+    activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
+    try {
+      const content = await invoke<string>('read_file_content', { path });
+      setFileContent(content);
+    } catch {
+      setFileContent('{}');
+    }
+  }
+
+  async function createActEncounter(campaignPath: string, actFilename: string, e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const actKey = `${campaignPath}/${actFilename}`;
+    const raw = newActEncounterInput[actKey]?.trim();
+    if (!raw) return;
+
+    const actTag = getActKey(actFilename);
+    const slug = slugify(raw);
+    const filename = (actTag ? `${actTag}-` : '') + slug + '.json';
+    const path = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}/${filename}`;
+    const template = {
+      name: raw.charAt(0).toUpperCase() + raw.slice(1),
+      description: '',
+      monsters: [],
+      difficulty: 'mittel',
+      xp_total: 0,
+      party_size: 4,
+      party_level: 1,
+      location: '',
+      loot: '',
+      tags: actTag ? [actTag] : [],
+      notes: '',
+    };
+
+    try {
+      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
+      showNewActEncounterInput[actKey] = false;
+      newActEncounterInput[actKey] = '';
+      await loadEncounters(campaignPath);
+      await openEncounter(campaignPath, filename);
+    } catch (err) {
+      console.error('Encounter konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewActEncounter(actKey: string, e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewActEncounterInput[actKey] = false; }
+  }
+
   // --- Kampagnen ---
   async function loadSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
@@ -207,6 +369,9 @@
       });
     } catch {
       sectionFiles[key] = [];
+    }
+    if (section.type === 'act') {
+      await loadEncounters(campaignPath);
     }
   }
 
@@ -336,6 +501,50 @@
     {/if}
   </div>
 
+  <!-- Monster (global) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleMonsters}>
+        <span class="arrow" class:open={monstersExpanded}>›</span>
+        Monster
+      </button>
+      <button class="add-btn" title="Neues Monster" onclick={() => { monstersExpanded = true; loadMonsters(); showNewMonsterInput = true; newMonsterInput = ''; }}>
+        +
+      </button>
+    </div>
+
+    {#if monstersExpanded}
+      <div class="file-list">
+        {#if monsterFiles.length}
+          {#each monsterFiles as filename}
+            <button
+              class="file-entry"
+              class:active={$activeFile?.path?.endsWith(filename)}
+              onclick={() => openMonster(filename)}
+            >
+              {monsterNames[filename] ?? filename.replace('.json', '')}
+            </button>
+          {/each}
+        {:else if !showNewMonsterInput}
+          <span class="empty">Keine Monster</span>
+        {/if}
+
+        {#if showNewMonsterInput}
+          <div class="new-file-row">
+            <input
+              class="new-file-input"
+              bind:value={newMonsterInput}
+              placeholder="Name…"
+              onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
+              autofocus
+            />
+            <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
   <div class="divider"></div>
 
   <!-- Kampagnen Header -->
@@ -387,14 +596,56 @@
                 {#if sectionFiles[key]?.length}
                   {#each sectionFiles[key] as filename}
                     {@const filePath = `${VAULT_BASE}/${campaign.path}/${section.subdir}/${filename}`}
-                    <button
-                      class="file-entry"
-                      class:active={$activeFile?.path?.endsWith(filename)}
-                      onclick={() => openFile(campaign.path, section, filename)}
-                      title={filename.replace('.md', '')}
-                    >
-                      {fileTitles[filePath] ?? filename.replace('.md', '')}
-                    </button>
+                    {#if section.type === 'act'}
+                      {@const actEncKey = `${campaign.path}/${filename}`}
+                      {@const actEncs = getEncountersForAct(campaign.path, filename)}
+                      <div class="act-row">
+                        <button
+                          class="file-entry act-entry"
+                          class:active={$activeFile?.path?.endsWith(filename)}
+                          onclick={() => openFile(campaign.path, section, filename)}
+                          title={filename.replace('.md', '')}
+                        >
+                          {fileTitles[filePath] ?? filename.replace('.md', '')}
+                        </button>
+                        <button
+                          class="add-btn"
+                          title="Encounter hinzufügen"
+                          onclick={() => { showNewActEncounterInput[actEncKey] = true; newActEncounterInput[actEncKey] = ''; }}
+                        >+</button>
+                      </div>
+                      {#each actEncs as encFilename}
+                        <button
+                          class="file-entry encounter-entry act-enc-entry"
+                          class:active={$activeFile?.path?.endsWith(encFilename)}
+                          onclick={() => openEncounter(campaign.path, encFilename)}
+                          title={encFilename.replace('.json', '')}
+                        >
+                          ⚡ {encounterNames[`${campaign.path}/${encFilename}`] ?? encFilename.replace('.json', '')}
+                        </button>
+                      {/each}
+                      {#if showNewActEncounterInput[actEncKey]}
+                        <div class="new-file-row act-enc-input">
+                          <input
+                            class="new-file-input"
+                            bind:value={newActEncounterInput[actEncKey]}
+                            placeholder="Encounter…"
+                            onkeydown={(e) => { createActEncounter(campaign.path, filename, e); cancelNewActEncounter(actEncKey, e); }}
+                            autofocus
+                          />
+                          <button class="confirm-btn" onclick={(e) => createActEncounter(campaign.path, filename, e)}>✓</button>
+                        </div>
+                      {/if}
+                    {:else}
+                      <button
+                        class="file-entry"
+                        class:active={$activeFile?.path?.endsWith(filename)}
+                        onclick={() => openFile(campaign.path, section, filename)}
+                        title={filename.replace('.md', '')}
+                      >
+                        {fileTitles[filePath] ?? filename.replace('.md', '')}
+                      </button>
+                    {/if}
                   {/each}
                 {:else if !showNewFileInput[key]}
                   <span class="empty">Keine Dateien</span>
@@ -416,6 +667,7 @@
             {/if}
           </div>
         {/each}
+
       {/if}
     </div>
   {/each}
@@ -581,6 +833,33 @@
   .file-entry.active {
     background: #45475a;
     color: #cba6f7;
+  }
+
+  .encounter-entry { color: #89dceb88; }
+  .encounter-entry:hover { color: #89dceb; }
+  .encounter-entry.active { color: #89dceb; }
+
+  .act-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .act-entry {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .act-row:hover .add-btn {
+    opacity: 1;
+  }
+
+  .act-enc-entry {
+    padding-left: 3.5rem;
+    font-size: 0.8rem;
+  }
+
+  .act-enc-input {
+    padding-left: 3rem;
   }
 
   .empty {

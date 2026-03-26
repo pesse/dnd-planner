@@ -178,6 +178,27 @@ fn write_file_content(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+/// Listet .json-Dateien in einem Verzeichnis — für Monster- und Encounter-Bibliothek
+#[tauri::command]
+fn list_json_files(path: String) -> Result<Vec<String>, String> {
+    let path = resolve_path(&path);
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let mut files: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let name = e.file_name();
+            let name_str = name.to_string_lossy();
+            e.path().is_file() && name_str.ends_with(".json")
+        })
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
+    files.sort();
+    Ok(files)
+}
+
 #[tauri::command]
 fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     let old = resolve_path(&old_path);
@@ -231,6 +252,7 @@ pub fn run() {
             read_file_content,
             read_file_base64,
             write_file_content,
+            list_json_files,
             rename_file,
             save_api_key,
             load_api_key,

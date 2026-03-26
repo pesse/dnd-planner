@@ -3,6 +3,8 @@
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import MarkdownViewer from '$lib/components/MarkdownViewer.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
+  import MonsterCard from '$lib/components/MonsterCard.svelte';
+  import EncounterCard from '$lib/components/EncounterCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
@@ -14,6 +16,8 @@
   let isPdfCharacter = $derived(
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
   );
+  let isMonster = $derived($activeFile?.type === 'monster');
+  let isEncounter = $derived($activeFile?.type === 'encounter');
 
   // Titel aus dem Markdown-Inhalt extrahieren (erste # Zeile)
   let docTitle = $derived(() => {
@@ -135,6 +139,24 @@
   <div class="main">
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
+    {:else if isMonster}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title monster-title">⚔ {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <MonsterCard />
+    {:else if isEncounter}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title encounter-title">⚡ {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <EncounterCard />
     {:else}
       <div class="toolbar">
         <button class:active={!showPreview} onclick={() => (showPreview = false)}>Editor</button>
@@ -289,6 +311,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 500;
+  }
+
+  .monster-title {
+    color: #f38ba8;
+  }
+
+  .encounter-title {
+    color: #89dceb;
   }
 
   .rename-btn {
