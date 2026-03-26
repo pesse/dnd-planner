@@ -23,6 +23,8 @@
 
   let expanded: Record<string, boolean> = $state({});
   let sectionFiles: Record<string, string[]> = $state({});
+  /** Maps full vault path → extracted document title (# Heading) */
+  let fileTitles: Record<string, string> = $state({});
   let newFileInput: Record<string, string> = $state({});
   let showNewFileInput: Record<string, boolean> = $state({});
 
@@ -190,7 +192,19 @@
   async function loadSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
     try {
-      sectionFiles[key] = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
+      const files = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
+      sectionFiles[key] = files;
+      // Load titles concurrently — UI updates as they arrive
+      files.forEach(async (filename) => {
+        const path = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
+        try {
+          const content = await invoke<string>('read_file_content', { path });
+          const match = content.match(/^#\s+(.+)$/m);
+          fileTitles[path] = match ? match[1].trim() : filename.replace('.md', '');
+        } catch {
+          fileTitles[path] = filename.replace('.md', '');
+        }
+      });
     } catch {
       sectionFiles[key] = [];
     }
@@ -372,12 +386,14 @@
               <div class="file-list">
                 {#if sectionFiles[key]?.length}
                   {#each sectionFiles[key] as filename}
+                    {@const filePath = `${VAULT_BASE}/${campaign.path}/${section.subdir}/${filename}`}
                     <button
                       class="file-entry"
                       class:active={$activeFile?.path?.endsWith(filename)}
                       onclick={() => openFile(campaign.path, section, filename)}
+                      title={filename.replace('.md', '')}
                     >
-                      {filename.replace('.md', '')}
+                      {fileTitles[filePath] ?? filename.replace('.md', '')}
                     </button>
                   {/each}
                 {:else if !showNewFileInput[key]}

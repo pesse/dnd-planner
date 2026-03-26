@@ -178,6 +178,16 @@ fn write_file_content(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    let old = resolve_path(&old_path);
+    let new = resolve_path(&new_path);
+    if let Some(parent) = new.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&old, &new).map_err(|e| e.to_string())
+}
+
 /// Speichert einen API-Key im OS-Keychain (Windows Credential Manager / macOS Keychain / libsecret).
 /// `provider` ist der Service-Name, z.B. "anthropic" oder "groq".
 #[tauri::command]
@@ -221,6 +231,7 @@ pub fn run() {
             read_file_content,
             read_file_base64,
             write_file_content,
+            rename_file,
             save_api_key,
             load_api_key,
             delete_api_key,

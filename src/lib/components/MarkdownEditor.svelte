@@ -20,13 +20,11 @@
     }
   }
 
-  function handleInput(e: Event) {
-    const target = e.target as HTMLTextAreaElement;
-    const newValue = target.value;
-    fileContent.set(newValue);
+  function handleInput() {
+    fileContent.set(value);
     saveStatus = 'unsaved';
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => save(newValue), 800);
+    debounceTimer = setTimeout(() => save(value), 800);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -53,7 +51,7 @@
   </div>
   <textarea
     class="editor"
-    {value}
+    bind:value
     oninput={handleInput}
     onkeydown={handleKeydown}
     placeholder="Markdown hier eingeben..."

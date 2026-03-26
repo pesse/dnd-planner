@@ -5,7 +5,7 @@
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
-  import { fileContent, activeFile, historyState, undoContent, redoContent } from '$lib/stores/campaign';
+  import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
 
@@ -14,6 +14,72 @@
   let isPdfCharacter = $derived(
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
   );
+
+  // Titel aus dem Markdown-Inhalt extrahieren (erste # Zeile)
+  let docTitle = $derived(() => {
+    if (!$fileContent) return $activeFile?.name?.replace('.md', '') ?? '';
+    const match = $fileContent.match(/^#\s+(.+)$/m);
+    return match ? match[1].trim() : ($activeFile?.name?.replace('.md', '') ?? '');
+  });
+
+  // Rename-State
+  let renaming = $state(false);
+  let renameValue = $state('');
+
+  function startRename() {
+    if ($activeFile?.type === 'campaign') {
+      renameValue = $activeCampaign?.name ?? '';
+    } else {
+      renameValue = $activeFile?.name?.replace('.md', '') ?? '';
+    }
+    renaming = true;
+  }
+
+  async function commitRename() {
+    if (!renaming) return;
+    renaming = false;
+    const file = $activeFile;
+    if (!file || !renameValue.trim()) return;
+
+    if (file.type === 'campaign') {
+      const newName = renameValue.trim();
+      const newSlug = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const campaign = $activeCampaign;
+      if (!campaign || newSlug === campaign.path) return;
+
+      const oldFolder = `./vault/campaigns/${campaign.path}`;
+      const newFolder = `./vault/campaigns/${newSlug}`;
+      const newFilePath = `${newFolder}/campaign.md`;
+
+      try {
+        await invoke('rename_file', { oldPath: oldFolder, newPath: newFolder });
+        activeCampaign.set({ ...campaign, path: newSlug, name: newName });
+        activeFile.set({ ...file, path: newFilePath });
+        invalidateVault();
+      } catch (e) {
+        alert(`Umbenennen fehlgeschlagen: ${e}`);
+      }
+    } else {
+      const newName = renameValue.trim() + '.md';
+      if (newName === file.name) return;
+
+      const dir = file.path.substring(0, file.path.lastIndexOf('/'));
+      const newPath = `${dir}/${newName}`;
+
+      try {
+        await invoke('rename_file', { oldPath: file.path, newPath });
+        activeFile.set({ ...file, name: newName, path: newPath });
+        invalidateVault();
+      } catch (e) {
+        console.error('Umbenennen fehlgeschlagen:', e);
+      }
+    }
+  }
+
+  function handleRenameKey(e: KeyboardEvent) {
+    if (e.key === 'Enter') commitRename();
+    if (e.key === 'Escape') renaming = false;
+  }
 
   const MIN_W = 140;
   const MAX_SIDEBAR = 520;
@@ -73,6 +139,26 @@
       <div class="toolbar">
         <button class:active={!showPreview} onclick={() => (showPreview = false)}>Editor</button>
         <button class:active={showPreview} onclick={() => (showPreview = true)}>Vorschau</button>
+
+        {#if $activeFile}
+          <div class="file-title-area">
+            {#if renaming}
+              <input
+                class="rename-input"
+                bind:value={renameValue}
+                onkeydown={handleRenameKey}
+                onblur={commitRename}
+                autofocus
+              />
+            {:else}
+              <span class="file-title">
+                {$activeFile.type === 'campaign' ? ($activeCampaign?.path ?? '') : $activeFile.name.replace('.md', '')}
+              </span>
+              <button class="rename-btn" onclick={startRename} title="Datei umbenennen">✏</button>
+            {/if}
+          </div>
+        {/if}
+
         <div class="toolbar-sep"></div>
         <button
           class="history-btn"
@@ -185,6 +271,50 @@
 
   .toolbar-sep {
     flex: 1;
+  }
+
+  .file-title-area {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: 0.5rem;
+    min-width: 0;
+    max-width: 40%;
+  }
+
+  .file-title {
+    font-size: 0.82rem;
+    color: #cdd6f4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+
+  .rename-btn {
+    background: transparent;
+    border: none;
+    color: #45475a;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.2rem;
+    flex-shrink: 0;
+    border-radius: 3px;
+  }
+
+  .rename-btn:hover { color: #89b4fa; background: #313244; }
+
+  .rename-input {
+    background: #1e1e2e;
+    border: 1px solid #89b4fa;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.82rem;
+    padding: 0.2rem 0.4rem;
+    outline: none;
+    min-width: 0;
+    width: 220px;
+    font-family: inherit;
   }
 
   .history-btn {
