@@ -1,27 +1,98 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { activeCampaign, activeFile, fileContent } from '../stores/campaign';
-  import type { FileEntry } from '../types';
+  import { onMount } from 'svelte';
+  import { activeCampaign, activeFile, fileContent, setFileContent } from '../stores/campaign';
+  import { loadActSummaries } from '../stores/context';
+  import type { Campaign, FileEntry } from '../types';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
   const VAULT_BASE = './vault/campaigns';
   const CHARACTERS_PATH = './vault/characters';
 
-  const campaigns = [
-    { id: '1', name: 'Beispiel-Kampagne', path: 'beispiel-kampagne' }
-  ];
-
   const sections: { label: string; subdir: string; type: FileEntry['type'] }[] = [
+    { label: 'Akte', subdir: 'acts', type: 'act' },
     { label: 'Sessions', subdir: 'sessions', type: 'session' },
     { label: 'NPCs', subdir: 'npcs', type: 'npc' },
     { label: 'Welt', subdir: 'world', type: 'world' },
   ];
 
+  let campaigns = $state<Campaign[]>([]);
+  let showNewCampaignInput = $state(false);
+  let newCampaignInput = $state('');
+
   let expanded: Record<string, boolean> = $state({});
   let sectionFiles: Record<string, string[]> = $state({});
   let newFileInput: Record<string, string> = $state({});
   let showNewFileInput: Record<string, boolean> = $state({});
+
+  function slugify(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+  }
+
+  function slugToName(slug: string): string {
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  async function loadCampaigns() {
+    try {
+      const entries = await invoke<EntryInfo[]>('list_entries', { path: VAULT_BASE });
+      campaigns = entries
+        .filter((e) => e.is_dir)
+        .map((e, i) => ({ id: String(i), name: slugToName(e.name), path: e.name }));
+    } catch {
+      campaigns = [];
+    }
+  }
+
+  async function createCampaign(e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const raw = newCampaignInput.trim();
+    if (!raw) return;
+
+    const slug = slugify(raw);
+    const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+    const campaignMd = `${VAULT_BASE}/${slug}/campaign.md`;
+
+    const template = `# ${name}
+
+## Beschreibung
+
+
+## Hintergrund
+
+
+## Hauptziele
+
+
+## Wichtige Orte
+
+
+## Notizen
+
+`;
+    try {
+      await invoke('write_file_content', { path: campaignMd, content: template });
+      showNewCampaignInput = false;
+      newCampaignInput = '';
+      await loadCampaigns();
+      // Neue Kampagne gleich öffnen
+      const newCampaign = campaigns.find((c) => c.path === slug);
+      if (newCampaign) {
+        activeCampaign.set(newCampaign);
+        activeFile.set({ name: 'campaign', path: campaignMd, type: 'campaign' });
+        setFileContent(template);
+      }
+    } catch (err) {
+      console.error('Kampagne konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewCampaign(e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewCampaignInput = false; newCampaignInput = ''; }
+  }
+
+  onMount(loadCampaigns);
 
   // --- Charaktere (global) ---
   let charactersExpanded = $state(false);
@@ -46,15 +117,15 @@
     if (entry.is_dir) {
       const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
       activeFile.set({ name: entry.name, path: dirPath, type: 'character', dirPath });
-      fileContent.set('');
+      setFileContent('');
     } else {
       const fullPath = `${CHARACTERS_PATH}/${entry.name}`;
       activeFile.set({ name: entry.name.replace('.md', ''), path: fullPath, type: 'character' });
       try {
         const content = await invoke<string>('read_file_content', { path: fullPath });
-        fileContent.set(content);
+        setFileContent(content);
       } catch (e) {
-        fileContent.set(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
+        setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
       }
     }
   }
@@ -136,9 +207,9 @@
     activeFile.set({ name: filename.replace('.md', ''), path: fullPath, type: section.type });
     try {
       const content = await invoke<string>('read_file_content', { path: fullPath });
-      fileContent.set(content);
+      setFileContent(content);
     } catch (e) {
-      fileContent.set(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
+      setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
     }
   }
 
@@ -147,9 +218,9 @@
     activeFile.set({ name: 'campaign', path: fullPath, type: 'campaign' });
     try {
       const content = await invoke<string>('read_file_content', { path: fullPath });
-      fileContent.set(content);
+      setFileContent(content);
     } catch (e) {
-      fileContent.set(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
+      setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
     }
   }
 
@@ -169,14 +240,18 @@
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
     try {
-      const sectionTemplate = section.type === 'session'
-        ? `# ${title}\n\n**Datum:**\n\n## Charaktere\n- \n\n## Was passierte\n\n## Wichtige Ereignisse\n\n## Nächste Sitzung\n\n`
-        : `# ${title}\n\n`;
+      const sectionTemplate =
+        section.type === 'act'
+          ? `# ${title}\n\n## Summary\nKurze Beschreibung dieses Aktes und erwartetes Outcome.\n\n## Details\n\n### Encounter / Szenen\n\n### NSCs & Motivationen\n\n### Mögliche Outcomes\n\n`
+          : section.type === 'session'
+          ? `# ${title}\n\n**Datum:**\n\n## Charaktere\n- \n\n## Was passierte\n\n## Wichtige Ereignisse\n\n## Nächste Sitzung\n\n`
+          : `# ${title}\n\n`;
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       showNewFileInput[key] = false;
       newFileInput[key] = '';
       await loadSection(campaignPath, section);
       await openFile(campaignPath, section, filename);
+      if (section.type === 'act') loadActSummaries(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
     }
@@ -238,13 +313,32 @@
 
   <div class="divider"></div>
 
-  <!-- Kampagnen -->
+  <!-- Kampagnen Header -->
+  <div class="section-row campaigns-header">
+    <span class="campaigns-label">Kampagnen</span>
+    <button class="add-btn" style="opacity:1" title="Neue Kampagne" onclick={() => { showNewCampaignInput = true; newCampaignInput = ''; }}>+</button>
+  </div>
+
+  {#if showNewCampaignInput}
+    <div class="new-file-row" style="padding-left: 1rem">
+      <input
+        class="new-file-input"
+        bind:value={newCampaignInput}
+        placeholder="Kampagnenname…"
+        onkeydown={(e) => { createCampaign(e); cancelNewCampaign(e); }}
+        autofocus
+      />
+      <button class="confirm-btn" onclick={(e) => createCampaign(e)}>✓</button>
+    </div>
+  {/if}
+
+  <!-- Kampagnen Liste -->
   {#each campaigns as campaign}
     <div class="campaign-section">
       <button
         class="campaign-title"
         class:active={$activeCampaign?.id === campaign.id}
-        onclick={() => { activeCampaign.set({ ...campaign }); openCampaignFile(campaign.path); }}
+        onclick={() => { activeCampaign.set({ ...campaign }); openCampaignFile(campaign.path); loadActSummaries(campaign.path); }}
       >
         {campaign.name}
       </button>
@@ -335,8 +429,20 @@
     margin: 0.25rem 0;
   }
 
+  .campaigns-header {
+    padding: 0.4rem 0.5rem 0.4rem 1rem;
+  }
+
+  .campaigns-label {
+    flex: 1;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c7086;
+  }
+
   .campaign-section {
-    padding: 0.5rem 0;
+    padding: 0.25rem 0;
   }
 
   .campaign-title {

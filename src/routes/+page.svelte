@@ -4,7 +4,7 @@
   import MarkdownViewer from '$lib/components/MarkdownViewer.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
-  import { fileContent, activeFile } from '$lib/stores/campaign';
+  import { fileContent, activeFile, historyState, undoContent, redoContent } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
 
@@ -28,14 +28,21 @@
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
     {:else}
       <div class="toolbar">
+        <button class:active={!showPreview} onclick={() => (showPreview = false)}>Editor</button>
+        <button class:active={showPreview} onclick={() => (showPreview = true)}>Vorschau</button>
+        <div class="toolbar-sep"></div>
         <button
-          class:active={!showPreview}
-          onclick={() => (showPreview = false)}
-        >Editor</button>
+          class="history-btn"
+          onclick={undoContent}
+          disabled={!$historyState.canUndo}
+          title="Rückgängig (Ctrl+Z)"
+        >↩</button>
         <button
-          class:active={showPreview}
-          onclick={() => (showPreview = true)}
-        >Vorschau</button>
+          class="history-btn"
+          onclick={redoContent}
+          disabled={!$historyState.canRedo}
+          title="Wiederherstellen (Ctrl+Y)"
+        >↪</button>
       </div>
 
       <div class="content">
@@ -97,6 +104,20 @@
   .toolbar button.active {
     background: #313244;
     color: #cdd6f4;
+  }
+
+  .toolbar-sep {
+    flex: 1;
+  }
+
+  .history-btn {
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .history-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .content {

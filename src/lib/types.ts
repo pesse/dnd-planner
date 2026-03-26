@@ -20,12 +20,12 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'session' | 'npc' | 'world' | 'character';
+  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character';
   /** Set for directory-based characters (with PDF sheet) */
   dirPath?: string;
 }
 
-export type LlmProvider = 'ollama' | 'anthropic';
+export type LlmProvider = 'ollama' | 'anthropic' | 'groq';
 
 export interface LlmConfig {
   provider: LlmProvider;

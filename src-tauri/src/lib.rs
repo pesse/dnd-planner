@@ -1,6 +1,44 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::Serialize;
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+use keyring::Entry;
+
+#[derive(Deserialize)]
+pub struct HttpRequest {
+    url: String,
+    method: String,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+/// Führt einen HTTP-Request aus Rust heraus durch (umgeht WebView CORS/TLS-Probleme).
+/// Gibt den Response-Body als String zurück.
+#[tauri::command]
+async fn http_request(req: HttpRequest) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .use_rustls_tls()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let method = reqwest::Method::from_bytes(req.method.as_bytes())
+        .map_err(|e| e.to_string())?;
+
+    let mut builder = client.request(method, &req.url);
+    for (k, v) in &req.headers {
+        builder = builder.header(k, v);
+    }
+    builder = builder.body(req.body);
+
+    let res = builder.send().await.map_err(|e| format!("Netzwerkfehler: {}", e))?;
+    let status = res.status().as_u16();
+    let text = res.text().await.map_err(|e| e.to_string())?;
+
+    if status >= 400 {
+        return Err(format!("HTTP {}: {}", status, text));
+    }
+    Ok(text)
+}
 
 /// Findet das Projekt-Root (das Verzeichnis das "vault/" enthält)
 fn project_root() -> PathBuf {
@@ -140,10 +178,41 @@ fn write_file_content(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+/// Speichert einen API-Key im OS-Keychain (Windows Credential Manager / macOS Keychain / libsecret).
+/// `provider` ist der Service-Name, z.B. "anthropic" oder "groq".
+#[tauri::command]
+fn save_api_key(provider: String, key: String) -> Result<(), String> {
+    Entry::new("dnd-planner", &provider)
+        .map_err(|e| e.to_string())?
+        .set_password(&key)
+        .map_err(|e| e.to_string())
+}
+
+/// Lädt einen API-Key aus dem OS-Keychain. Gibt None zurück wenn kein Key gespeichert ist.
+#[tauri::command]
+fn load_api_key(provider: String) -> Result<Option<String>, String> {
+    match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.get_password() {
+        Ok(key) => Ok(Some(key)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Löscht einen API-Key aus dem OS-Keychain.
+#[tauri::command]
+fn delete_api_key(provider: String) -> Result<(), String> {
+    match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.delete_password() {
+        Ok(_) => Ok(()),
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             get_current_dir,
             list_directory,
@@ -151,7 +220,11 @@ pub fn run() {
             find_pdf_in_dir,
             read_file_content,
             read_file_base64,
-            write_file_content
+            write_file_content,
+            save_api_key,
+            load_api_key,
+            delete_api_key,
+            http_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

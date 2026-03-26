@@ -5,6 +5,16 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "http://localhost:*/**" },
+        { "url": "http://127.0.0.1:*/**" },
+        { "url": "https://api.anthropic.com/**" },
+        { "url": "https://api.groq.com/**" }
+      ]
+    },
+    "http:allow-fetch-send"
   ]
 }
