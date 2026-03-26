@@ -2,12 +2,17 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import MarkdownViewer from '$lib/components/MarkdownViewer.svelte';
+  import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
-  import { fileContent } from '$lib/stores/campaign';
+  import { fileContent, activeFile } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
 
   let showPreview = $state(true);
+
+  let isPdfCharacter = $derived(
+    $activeFile?.type === 'character' && !!$activeFile?.dirPath
+  );
 
   onMount(async () => {
     const cwd = await invoke<string>('get_current_dir');
@@ -19,24 +24,28 @@
   <Sidebar />
 
   <div class="main">
-    <div class="toolbar">
-      <button
-        class:active={!showPreview}
-        onclick={() => (showPreview = false)}
-      >Editor</button>
-      <button
-        class:active={showPreview}
-        onclick={() => (showPreview = true)}
-      >Vorschau</button>
-    </div>
+    {#if isPdfCharacter}
+      <CharacterSheet dirPath={$activeFile!.dirPath!} />
+    {:else}
+      <div class="toolbar">
+        <button
+          class:active={!showPreview}
+          onclick={() => (showPreview = false)}
+        >Editor</button>
+        <button
+          class:active={showPreview}
+          onclick={() => (showPreview = true)}
+        >Vorschau</button>
+      </div>
 
-    <div class="content">
-      {#if showPreview}
-        <MarkdownViewer />
-      {:else}
-        <MarkdownEditor />
-      {/if}
-    </div>
+      <div class="content">
+        {#if showPreview}
+          <MarkdownViewer />
+        {:else}
+          <MarkdownEditor />
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <LlmPanel />

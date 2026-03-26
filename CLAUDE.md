@@ -22,6 +22,10 @@ For UI-only work without Tauri commands (FS, etc.), use the browser dev server f
 npm run dev   # opens http://localhost:1420
 ```
 
+## Package Management
+
+**`npm install` must be run on Windows**, not in WSL — the app runs from Windows and uses the Windows `node_modules`. When new packages are added (e.g. via `npm install` in WSL to update `package.json`/`package-lock.json`), the user must run `npm install` in a Windows PowerShell. This can be done while `dev-windows.ps1` is running; Vite's Hot-Reload picks up the new package automatically. Never instruct the user to stop the dev server just to install packages.
+
 ## Architecture
 
 **Stack:** Tauri 2 (Rust backend) + SvelteKit (SPA mode, no SSR) + Svelte 5 + Vite + TypeScript

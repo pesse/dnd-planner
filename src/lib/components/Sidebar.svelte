@@ -3,7 +3,10 @@
   import { activeCampaign, activeFile, fileContent } from '../stores/campaign';
   import type { FileEntry } from '../types';
 
+  interface EntryInfo { name: string; is_dir: boolean; }
+
   const VAULT_BASE = './vault/campaigns';
+  const CHARACTERS_PATH = './vault/characters';
 
   const campaigns = [
     { id: '1', name: 'Beispiel-Kampagne', path: 'beispiel-kampagne' }
@@ -20,11 +23,103 @@
   let newFileInput: Record<string, string> = $state({});
   let showNewFileInput: Record<string, boolean> = $state({});
 
+  // --- Charaktere (global) ---
+  let charactersExpanded = $state(false);
+  let characterEntries: EntryInfo[] = $state([]);
+  let showNewCharInput = $state(false);
+  let newCharInput = $state('');
+
+  async function loadCharacters() {
+    try {
+      characterEntries = await invoke<EntryInfo[]>('list_entries', { path: CHARACTERS_PATH });
+    } catch {
+      characterEntries = [];
+    }
+  }
+
+  async function toggleCharacters() {
+    charactersExpanded = !charactersExpanded;
+    if (charactersExpanded) await loadCharacters();
+  }
+
+  async function openCharacter(entry: EntryInfo) {
+    if (entry.is_dir) {
+      const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
+      activeFile.set({ name: entry.name, path: dirPath, type: 'character', dirPath });
+      fileContent.set('');
+    } else {
+      const fullPath = `${CHARACTERS_PATH}/${entry.name}`;
+      activeFile.set({ name: entry.name.replace('.md', ''), path: fullPath, type: 'character' });
+      try {
+        const content = await invoke<string>('read_file_content', { path: fullPath });
+        fileContent.set(content);
+      } catch (e) {
+        fileContent.set(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
+      }
+    }
+  }
+
+  async function createCharacter(e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const raw = newCharInput.trim();
+    if (!raw) return;
+
+    const filename = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '') + '.md';
+    const fullPath = `${CHARACTERS_PATH}/${filename}`;
+    const title = raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    const template = `# ${title}
+
+## Spieler
+
+
+## Klasse & Level
+
+
+## Hintergrund
+
+
+## Attribute
+| Attribut | Wert | Mod |
+|----------|------|-----|
+| STR | 10 | +0 |
+| DEX | 10 | +0 |
+| CON | 10 | +0 |
+| INT | 10 | +0 |
+| WIS | 10 | +0 |
+| CHA | 10 | +0 |
+
+**TP:** | **RK:** | **Initiative:**
+
+## Fähigkeiten & Zauber
+
+
+## Entscheidungen
+
+
+## Notizen
+
+`;
+    try {
+      await invoke('write_file_content', { path: fullPath, content: template });
+      showNewCharInput = false;
+      newCharInput = '';
+      await loadCharacters();
+      await openCharacter({ name: filename, is_dir: false });
+    } catch (err) {
+      console.error('Charakter konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewChar(e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
+  }
+
+  // --- Kampagnen ---
   async function loadSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
     try {
-      const fullPath = `${VAULT_BASE}/${campaignPath}/${section.subdir}`;
-      sectionFiles[key] = await invoke<string[]>('list_directory', { path: fullPath });
+      sectionFiles[key] = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
     } catch {
       sectionFiles[key] = [];
     }
@@ -33,9 +128,7 @@
   async function toggleSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
     expanded[key] = !expanded[key];
-    if (expanded[key]) {
-      await loadSection(campaignPath, section);
-    }
+    if (expanded[key]) await loadSection(campaignPath, section);
   }
 
   async function openFile(campaignPath: string, section: typeof sections[0], filename: string) {
@@ -68,21 +161,21 @@
   async function createFile(campaignPath: string, section: typeof sections[0], e: KeyboardEvent | MouseEvent) {
     const key = `${campaignPath}/${section.subdir}`;
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-
     const raw = newFileInput[key]?.trim();
     if (!raw) return;
 
-    // Dateiname säubern und .md anhängen
     const filename = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '') + '.md';
     const fullPath = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
     try {
-      await invoke('write_file_content', { path: fullPath, content: `# ${title}\n\n` });
+      const sectionTemplate = section.type === 'session'
+        ? `# ${title}\n\n**Datum:**\n\n## Charaktere\n- \n\n## Was passierte\n\n## Wichtige Ereignisse\n\n## Nächste Sitzung\n\n`
+        : `# ${title}\n\n`;
+      await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       showNewFileInput[key] = false;
       newFileInput[key] = '';
       await loadSection(campaignPath, section);
-      // Neue Datei direkt öffnen
       await openFile(campaignPath, section, filename);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
@@ -90,10 +183,7 @@
   }
 
   function cancelNewFile(key: string, e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      showNewFileInput[key] = false;
-      newFileInput[key] = '';
-    }
+    if (e.key === 'Escape') { showNewFileInput[key] = false; newFileInput[key] = ''; }
   }
 </script>
 
@@ -102,6 +192,53 @@
     <h2>DnD Planner</h2>
   </div>
 
+  <!-- Charaktere (global) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleCharacters}>
+        <span class="arrow" class:open={charactersExpanded}>›</span>
+        Charaktere
+      </button>
+      <button class="add-btn" title="Neuer Charakter" onclick={() => { charactersExpanded = true; loadCharacters(); showNewCharInput = true; newCharInput = ''; }}>
+        +
+      </button>
+    </div>
+
+    {#if charactersExpanded}
+      <div class="file-list">
+        {#if characterEntries.length}
+          {#each characterEntries as entry}
+            <button
+              class="file-entry"
+              class:active={$activeFile?.path?.endsWith(entry.name)}
+              onclick={() => openCharacter(entry)}
+            >
+              {entry.name.replace('.md', '')}
+            </button>
+          {/each}
+        {:else if !showNewCharInput}
+          <span class="empty">Keine Charaktere</span>
+        {/if}
+
+        {#if showNewCharInput}
+          <div class="new-file-row">
+            <input
+              class="new-file-input"
+              bind:value={newCharInput}
+              placeholder="Name…"
+              onkeydown={(e) => { createCharacter(e); cancelNewChar(e); }}
+              autofocus
+            />
+            <button class="confirm-btn" onclick={(e) => createCharacter(e)}>✓</button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Kampagnen -->
   {#each campaigns as campaign}
     <div class="campaign-section">
       <button
@@ -188,6 +325,16 @@
     color: #cba6f7;
   }
 
+  .top-section {
+    padding: 0.5rem 0;
+  }
+
+  .divider {
+    height: 1px;
+    background: #313244;
+    margin: 0.25rem 0;
+  }
+
   .campaign-section {
     padding: 0.5rem 0;
   }
@@ -233,6 +380,10 @@
     display: flex;
     align-items: center;
     gap: 0.3rem;
+  }
+
+  .chars-toggle {
+    padding-left: 1rem;
   }
 
   .section-toggle:hover {

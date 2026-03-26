@@ -20,7 +20,9 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'session' | 'npc' | 'world';
+  type: 'campaign' | 'session' | 'npc' | 'world' | 'character';
+  /** Set for directory-based characters (with PDF sheet) */
+  dirPath?: string;
 }
 
 export type LlmProvider = 'ollama' | 'anthropic';

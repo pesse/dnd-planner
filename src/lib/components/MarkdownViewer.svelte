@@ -1,22 +1,10 @@
 <script lang="ts">
+  import { marked } from 'marked';
   import { fileContent } from '../stores/campaign';
-
-  // Einfaches Markdown-Rendering ohne externe Deps (wird später durch unified ersetzt)
-  function renderMarkdown(md: string): string {
-    return md
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code>$1</code>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^(?!<[h|p|u|o])(.+)$/gm, '<p>$1</p>');
-  }
 </script>
 
 <div class="viewer">
-  {@html renderMarkdown($fileContent)}
+  {@html marked($fileContent)}
 </div>
 
 <style>
@@ -33,4 +21,7 @@
   .viewer :global(h3) { color: #94e2d5; font-size: 1.1rem; margin-top: 1rem; }
   .viewer :global(code) { background: #313244; padding: 0.1em 0.4em; border-radius: 4px; font-family: monospace; }
   .viewer :global(strong) { color: #f38ba8; }
+  .viewer :global(p) { margin: 0 0 1rem; }
+  .viewer :global(ul), .viewer :global(ol) { padding-left: 1.5rem; margin-bottom: 1rem; }
+  .viewer :global(li) { margin-bottom: 0.25rem; }
 </style>
