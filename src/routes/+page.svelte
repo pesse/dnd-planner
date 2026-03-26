@@ -4,6 +4,7 @@
   import MarkdownViewer from '$lib/components/MarkdownViewer.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
+  import StructureHint from '$lib/components/StructureHint.svelte';
   import { fileContent, activeFile, historyState, undoContent, redoContent } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
@@ -14,6 +15,39 @@
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
   );
 
+  const MIN_W = 140;
+  const MAX_SIDEBAR = 520;
+  const MAX_LLM = 760;
+
+  let sidebarWidth = $state(parseInt(localStorage.getItem('sidebar-width') ?? '220'));
+  let llmWidth = $state(parseInt(localStorage.getItem('llm-width') ?? '460'));
+
+  function startResize(side: 'sidebar' | 'llm', e: MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = side === 'sidebar' ? sidebarWidth : llmWidth;
+
+    function onMove(mv: MouseEvent) {
+      const delta = mv.clientX - startX;
+      if (side === 'sidebar') {
+        sidebarWidth = Math.max(MIN_W, Math.min(MAX_SIDEBAR, startW + delta));
+      } else {
+        // LLM-Panel ist rechts — nach links ziehen vergrößert
+        llmWidth = Math.max(MIN_W, Math.min(MAX_LLM, startW - delta));
+      }
+    }
+
+    function onUp() {
+      localStorage.setItem('sidebar-width', String(sidebarWidth));
+      localStorage.setItem('llm-width', String(llmWidth));
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
   onMount(async () => {
     const cwd = await invoke<string>('get_current_dir');
     console.log('Tauri CWD:', cwd);
@@ -21,7 +55,16 @@
 </script>
 
 <div class="app">
-  <Sidebar />
+  <div class="panel-wrap" style="width: {sidebarWidth}px">
+    <Sidebar />
+  </div>
+
+  <div
+    class="resize-handle"
+    role="separator"
+    aria-label="Sidebar-Breite ändern"
+    onmousedown={(e) => startResize('sidebar', e)}
+  ></div>
 
   <div class="main">
     {#if isPdfCharacter}
@@ -45,6 +88,8 @@
         >↪</button>
       </div>
 
+      <StructureHint />
+
       <div class="content">
         {#if showPreview}
           <MarkdownViewer />
@@ -55,7 +100,16 @@
     {/if}
   </div>
 
-  <LlmPanel />
+  <div
+    class="resize-handle"
+    role="separator"
+    aria-label="LLM-Panel-Breite ändern"
+    onmousedown={(e) => startResize('llm', e)}
+  ></div>
+
+  <div class="panel-wrap" style="width: {llmWidth}px">
+    <LlmPanel />
+  </div>
 </div>
 
 <style>
@@ -74,6 +128,29 @@
     display: flex;
     height: 100vh;
     overflow: hidden;
+  }
+
+  .panel-wrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .resize-handle {
+    width: 4px;
+    flex-shrink: 0;
+    background: #313244;
+    cursor: col-resize;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+  }
+
+  .resize-handle:hover,
+  .resize-handle:active {
+    background: #89b4fa;
   }
 
   .main {

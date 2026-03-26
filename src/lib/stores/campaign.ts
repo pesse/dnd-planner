@@ -3,6 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Campaign, FileEntry } from '../types';
 
 export const activeCampaign = writable<Campaign | null>(null);
+
+/** Increment to signal that vault files have changed (e.g. after an agent write). */
+export const vaultVersion = writable(0);
+export function invalidateVault() { vaultVersion.update((v) => v + 1); }
 export const openFiles = writable<FileEntry[]>([]);
 export const activeFile = writable<FileEntry | null>(null);
 export const fileContent = writable<string>('');

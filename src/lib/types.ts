@@ -25,7 +25,7 @@ export interface FileEntry {
   dirPath?: string;
 }
 
-export type LlmProvider = 'ollama' | 'anthropic' | 'groq';
+export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'xai';
 
 export interface LlmConfig {
   provider: LlmProvider;

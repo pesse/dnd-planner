@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { llmLoading, llmMessages, llmConfig, loadSavedConfig, saveConfig, deleteApiKey, loadApiKeyForProvider } from '../stores/llm';
+  import { llmLoading, llmMessages, llmConfig, loadSavedConfig, saveConfig, deleteApiKey, loadApiKeyForProvider, tokenStats, resetTokenStats } from '../stores/llm';
   import { onMount } from 'svelte';
   import {
     contextScope,
@@ -10,7 +10,7 @@
     unpinEntry,
     setPinDetailLevel,
   } from '../stores/context';
-  import { activeFile, fileContent, appendContent, replaceContent } from '../stores/campaign';
+  import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
   import type { ContextScope } from '../stores/context';
   import {
     ollamaChat,
@@ -19,15 +19,27 @@
     anthropicGenerate,
     groqChat,
     groqGenerate,
+    xaiChat,
+    xaiGenerate,
+    agentLoop,
   } from '../services/llmService';
+  import type { AgentStep, AgentOptions } from '../services/llmService';
+  import { debugLog, clearDebugLog } from '../stores/debug';
+  import { invoke } from '@tauri-apps/api/core';
 
-  type LlmMode = 'chat' | 'generate';
+  type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
 
   let input = $state('');
   let mode = $state<LlmMode>('generate');
   let showPrompt = $state(false);
   let showSettings = $state(false);
   let generateResult = $state('');
+  let expandedDebugId = $state<number | null>(null);
+
+  // Agent-Modus State
+  let agentSteps = $state<AgentStep[]>([]);
+  let agentRunning = $state(false);
+  let agentError = $state('');
 
   // Lokale Kopien für das Settings-Formular
   let settingsProvider = $state($llmConfig.provider);
@@ -46,6 +58,12 @@
     'llama-3.1-8b-instant',
     'mixtral-8x7b-32768',
     'gemma2-9b-it',
+  ];
+
+  const XAI_MODELS = [
+    'grok-3',
+    'grok-3-mini',
+    'grok-2',
   ];
 
   onMount(() => {
@@ -78,12 +96,80 @@
       settingsModel = 'claude-sonnet-4-6';
     } else if (settingsProvider === 'groq') {
       settingsModel = 'llama-3.3-70b-versatile';
+    } else if (settingsProvider === 'xai') {
+      settingsModel = 'grok-3';
     } else {
       settingsModel = 'llama3.2';
     }
     // Gespeicherten Key für den neuen Provider laden
     const stored = await loadApiKeyForProvider(settingsProvider);
     settingsApiKey = stored ?? '';
+  }
+
+  function buildAgentSystemPrompt(): string {
+    const campaign = $activeCampaign;
+    const campaignHint = campaign
+      ? `\nActive campaign: "${campaign.name}" — vault path: ./vault/campaigns/${campaign.path}/`
+      : '';
+
+    return (
+      $systemPrompt +
+      `\n\n## Vault Agent Mode\n` +
+      `You have access to the vault filesystem via three tools:\n` +
+      `- **list_files(path)**: Lists .md files in a vault directory\n` +
+      `- **read_file(path)**: Reads a vault file\n` +
+      `- **write_file(path, content)**: Creates or overwrites a vault file (parent dirs auto-created)\n\n` +
+      `Vault structure:\n` +
+      `\`\`\`\nvault/campaigns/{slug}/\n  campaign.md\n  acts/*.md\n  sessions/*.md\n  npcs/*.md\n  world/*.md\n\`\`\`` +
+      campaignHint +
+      `\n\n## Document Templates\n` +
+      `Always use these structures when creating or editing files:\n\n` +
+      `**Acts** (acts/*.md):\n` +
+      `# Act Title\n## Summary\n2-3 sentence overview.\n## Ergebnis\nWhat players accomplished/changed.\n## Details\n### Challenges\n### NPC Motivations\n### Player Choices & Consequences\n\n` +
+      `**NPCs** (npcs/*.md):\n` +
+      `# NPC Name\n## Summary\nRole + one-liner.\n## Motivations\nWhat they want.\n## Details\n### Personality\n### Secrets\n### Connections\n\n` +
+      `**Sessions** (sessions/*.md):\n` +
+      `# Session N: Title\n## Summary\nWhat happened.\n## Ergebnis\nWorld changes / player achievements.\n## Details\n### Events\n### Open Threads\n\n` +
+      `**World entries** (world/*.md):\n` +
+      `# Name\n## Summary\nBrief overview.\n## Details\n### History\n### Current Situation\n\n` +
+      `Workflow: read relevant files first to understand current state, then act. ` +
+      `Write complete, well-structured markdown. Summarize what you did at the end.`
+    );
+  }
+
+  async function agentWriteFile(path: string, content: string): Promise<void> {
+    const active = $activeFile;
+    if (active && path === active.path) {
+      // Active file: use replaceContent for full undo support
+      replaceContent(content);
+    } else {
+      // Other files: write directly (not in undo stack)
+      await invoke('write_file_content', { path, content });
+    }
+    // Signal sidebar to reload expanded sections
+    invalidateVault();
+  }
+
+  async function runAgent() {
+    if (!input.trim() || agentRunning) return;
+    const task = input.trim();
+    input = '';
+    agentSteps = [];
+    agentError = '';
+    agentRunning = true;
+
+    const options: AgentOptions = {
+      onStep: (step) => { agentSteps = [...agentSteps, step]; },
+      writeFile: agentWriteFile,
+    };
+
+    try {
+      await agentLoop($llmConfig, task, buildAgentSystemPrompt(), options);
+    } catch (e) {
+      agentError = e instanceof Error ? e.message : String(e);
+    } finally {
+      agentRunning = false;
+    }
   }
 
   async function sendMessage() {
@@ -110,6 +196,7 @@
         const response =
           config.provider === 'anthropic' ? await anthropicChat(config, messages)
           : config.provider === 'groq' ? await groqChat(config, messages)
+          : config.provider === 'xai' ? await xaiChat(config, messages)
           : await ollamaChat(config, messages);
         llmMessages.update((msgs) => [...msgs, { role: 'assistant', content: response }]);
       } else {
@@ -117,6 +204,7 @@
         const response =
           config.provider === 'anthropic' ? await anthropicGenerate(config, userMsg, $systemPrompt)
           : config.provider === 'groq' ? await groqGenerate(config, userMsg, $systemPrompt)
+          : config.provider === 'xai' ? await xaiGenerate(config, userMsg, $systemPrompt)
           : await ollamaGenerate(config, userMsg, $systemPrompt);
         generateResult = response;
       }
@@ -153,6 +241,10 @@
   function clearGenerate() {
     generateResult = '';
   }
+
+  function fmtTokens(n: number): string {
+    return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  }
 </script>
 
 <div class="llm-panel">
@@ -164,8 +256,14 @@
     <button class="mode-btn" class:active={mode === 'generate'} onclick={() => (mode = 'generate')}>
       Generieren
     </button>
+    <button class="mode-btn agent-tab" class:active={mode === 'agent'} onclick={() => (mode = 'agent')}>
+      Agent
+    </button>
+    <button class="mode-btn debug-tab" class:active={mode === 'debug'} onclick={() => (mode = 'debug')}>
+      Debug {#if $debugLog.length > 0}<span class="debug-badge">{$debugLog.length}</span>{/if}
+    </button>
     <span class="mode-hint">
-      {mode === 'chat' ? 'mit History' : 'einmaliger Output'}
+      {mode === 'chat' ? 'mit History' : mode === 'generate' ? 'einmaliger Output' : mode === 'agent' ? 'Vault-Zugriff' : 'API-Log'}
     </span>
     <button
       class="settings-btn"
@@ -177,10 +275,23 @@
 
   <!-- Provider-Badge -->
   <div class="provider-badge">
-    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'}>
-      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : '✦ Anthropic'}
+    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'} class:xai={$llmConfig.provider === 'xai'}>
+      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : $llmConfig.provider === 'xai' ? '✶ xAI' : '✦ Anthropic'}
     </span>
     <span class="model-name">{$llmConfig.model}</span>
+    <div class="token-stats">
+      <span class="token-item" title="Zuletzt gesendet / empfangen">
+        ↑{$tokenStats.last.sent > 0 ? fmtTokens($tokenStats.last.sent) : '–'}
+        ↓{$tokenStats.last.received > 0 ? fmtTokens($tokenStats.last.received) : '–'}
+      </span>
+      {#if $tokenStats.session.sent > 0}
+        <span class="token-sep">|</span>
+        <span class="token-item token-session" title="Session gesamt">
+          Σ ↑{fmtTokens($tokenStats.session.sent)} ↓{fmtTokens($tokenStats.session.received)}
+        </span>
+        <button class="token-reset" onclick={resetTokenStats} title="Session-Zähler zurücksetzen">↺</button>
+      {/if}
+    </div>
   </div>
 
   <!-- Settings-Panel -->
@@ -190,8 +301,9 @@
         <label>Provider</label>
         <select bind:value={settingsProvider} onchange={onProviderChange}>
           <option value="ollama">Ollama (lokal)</option>
-          <option value="groq">Groq (kostenlos)</option>
+          <option value="groq">Groq (schnelle Inference)</option>
           <option value="anthropic">Anthropic (Claude)</option>
+          <option value="xai">xAI (Grok)</option>
         </select>
       </div>
 
@@ -217,6 +329,19 @@
           <label>API-Key</label>
           <input type="password" bind:value={settingsApiKey} placeholder="gsk_..." />
         </div>
+      {:else if settingsProvider === 'xai'}
+        <div class="settings-row">
+          <label>Modell</label>
+          <select bind:value={settingsModel}>
+            {#each XAI_MODELS as m}
+              <option value={m}>{m}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>API-Key</label>
+          <input type="password" bind:value={settingsApiKey} placeholder="xai-..." />
+        </div>
       {:else}
         <div class="settings-row">
           <label>Modell</label>
@@ -241,7 +366,8 @@
     </div>
   {/if}
 
-  <!-- Context-Bar -->
+  <!-- Context-Bar (nicht im Debug-Modus) -->
+  {#if mode !== 'debug' && mode !== 'agent'}
   <div class="context-bar">
     <div class="context-info">
       <span class="context-label">Kontext:</span>
@@ -312,6 +438,8 @@
     </div>
   {/if}
 
+  {/if}<!-- end mode !== debug -->
+
   <!-- Chat -->
   {#if mode === 'chat'}
     <div class="messages">
@@ -337,7 +465,7 @@
     </div>
 
   <!-- Generate -->
-  {:else}
+  {:else if mode === 'generate'}
     <div class="generate-output">
       {#if generateResult}
         <div class="generate-result">
@@ -365,32 +493,150 @@
         </div>
       {/if}
     </div>
+
+  <!-- Agent -->
+  {:else if mode === 'agent'}
+    <div class="agent-output">
+      {#if agentSteps.length === 0 && !agentRunning && !agentError}
+        <div class="agent-placeholder">
+          <p>Beschreibe eine Aufgabe — der Agent liest und schreibt selbstständig Vault-Dateien.</p>
+          <p class="agent-hint">Beispiele:<br>
+            "Erstelle Akt 3: Die Verräter"<br>
+            "Füge NSC Mira die Händlerin hinzu"<br>
+            "Passe Akt 2 an — Spieler haben den Turm übersprungen"
+          </p>
+          {#if $llmConfig.provider === 'ollama'}
+            <p class="agent-warning">⚠ Ollama unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.</p>
+          {/if}
+        </div>
+      {:else}
+        <div class="agent-log">
+          {#each agentSteps as step, i (i)}
+            {#if step.type === 'tool_call'}
+              <div class="agent-step tool-call">
+                <span class="step-icon">{step.tool === 'list_files' ? '📋' : step.tool === 'read_file' ? '📖' : '✏'}</span>
+                <span class="step-tool">{step.tool}</span>
+                <span class="step-args">
+                  {#if step.tool === 'write_file'}
+                    <span class="step-path">{(step.args as Record<string,string>)?.path}</span>
+                  {:else}
+                    <span class="step-path">{Object.values(step.args ?? {}).join(', ')}</span>
+                  {/if}
+                </span>
+              </div>
+            {:else if step.type === 'tool_result'}
+              <div class="agent-step tool-result">
+                <span class="step-icon">↳</span>
+                <span class="step-result">{
+                  step.result && step.result.length > 120
+                    ? step.result.slice(0, 120) + '…'
+                    : step.result
+                }</span>
+              </div>
+            {:else if step.type === 'done'}
+              <div class="agent-step done">
+                <span class="step-icon">✓</span>
+                <span class="step-done-text">{step.text}</span>
+              </div>
+            {/if}
+          {/each}
+
+          {#if agentRunning}
+            <div class="agent-step running">
+              <span class="step-icon spin">⟳</span>
+              <span>Agent arbeitet…</span>
+            </div>
+          {/if}
+
+          {#if agentError}
+            <div class="agent-step agent-err">
+              <span class="step-icon">⚠</span>
+              <span>{agentError}</span>
+            </div>
+          {/if}
+        </div>
+
+        {#if !agentRunning && (agentSteps.length > 0 || agentError)}
+          <button class="agent-clear-btn" onclick={() => { agentSteps = []; agentError = ''; }}>
+            Neuer Auftrag
+          </button>
+        {/if}
+      {/if}
+    </div>
+
+  <!-- Debug -->
+  {:else if mode === 'debug'}
+    <div class="debug-output">
+      <div class="debug-toolbar">
+        <span class="debug-count">{$debugLog.length} Einträge</span>
+        <button class="icon-btn" onclick={clearDebugLog} title="Log leeren">✕ Leeren</button>
+      </div>
+      {#if $debugLog.length === 0}
+        <div class="debug-empty">Noch keine API-Calls — Chat oder Generieren nutzen.</div>
+      {:else}
+        {#each [...$debugLog].reverse() as entry (entry.id)}
+          <div
+            class="debug-entry"
+            class:req={entry.type === 'request'}
+            class:res={entry.type === 'response'}
+            class:err={entry.type === 'error'}
+          >
+            <button
+              class="debug-entry-header"
+              onclick={() => (expandedDebugId = expandedDebugId === entry.id ? null : entry.id)}
+            >
+              <span class="debug-type {entry.type}">{entry.type}</span>
+              <span class="debug-provider-label">{entry.provider}</span>
+              <span class="debug-label-text">{entry.label}</span>
+              <span class="debug-meta">
+                {#if entry.durationMs !== undefined}{entry.durationMs}ms · {/if}{entry.timestamp.toLocaleTimeString()}
+              </span>
+              <span class="debug-chevron">{expandedDebugId === entry.id ? '▲' : '▼'}</span>
+            </button>
+            {#if expandedDebugId === entry.id}
+              <pre class="debug-data">{JSON.stringify(entry.data, null, 2)}</pre>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+    </div>
   {/if}
 
-  <!-- Input -->
+  <!-- Input (nicht im Debug-Modus) -->
+  {#if mode !== 'debug'}
   <div class="input-row">
     <textarea
       bind:value={input}
-      onkeydown={handleKeydown}
+      onkeydown={mode !== 'agent' ? handleKeydown : undefined}
       placeholder={mode === 'chat'
         ? 'Frage an die KI (Enter = senden)'
+        : mode === 'agent'
+        ? 'Aufgabe beschreiben (der Agent erledigt sie selbstständig)'
         : 'Was soll generiert werden?'}
       rows="3"
+      disabled={agentRunning}
     ></textarea>
     <div class="input-buttons">
       {#if mode === 'chat'}
         <button class="clear-btn" onclick={clearChat} disabled={$llmLoading}>Leeren</button>
       {/if}
-      <button onclick={sendMessage} disabled={$llmLoading}>
-        {mode === 'chat' ? 'Senden' : 'Generieren'}
-      </button>
+      {#if mode === 'agent'}
+        <button onclick={runAgent} disabled={agentRunning || !input.trim()} class="agent-run-btn">
+          {agentRunning ? 'Läuft…' : 'Starten'}
+        </button>
+      {:else}
+        <button onclick={sendMessage} disabled={$llmLoading}>
+          {mode === 'chat' ? 'Senden' : 'Generieren'}
+        </button>
+      {/if}
     </div>
   </div>
+  {/if}<!-- end mode !== debug -->
 </div>
 
 <style>
   .llm-panel {
-    width: 320px;
+    width: 100%;
     display: flex;
     flex-direction: column;
     background: #181825;
@@ -465,11 +711,42 @@
   .badge.ollama    { background: #2a3a2a; color: #a6e3a1; }
   .badge.anthropic { background: #2a2a3a; color: #cba6f7; }
   .badge.groq      { background: #3a2a1a; color: #fab387; }
+  .badge.xai       { background: #1a2a3a; color: #89dceb; }
 
   .model-name {
     font-size: 0.68rem;
     color: #45475a;
   }
+
+  .token-stats {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .token-item {
+    font-size: 0.65rem;
+    color: #45475a;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .token-session { color: #585b70; }
+  .token-sep { font-size: 0.6rem; color: #313244; }
+
+  .token-reset {
+    background: transparent;
+    border: none;
+    color: #45475a;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0;
+    line-height: 1;
+    border-radius: 0;
+  }
+
+  .token-reset:hover { color: #6c7086; }
 
   /* Settings panel */
   .settings-panel {
@@ -861,4 +1138,264 @@
   }
 
   .input-buttons button:last-child { flex: 1; }
+
+  /* Agent-Tab Button */
+  .mode-btn.agent-tab.active {
+    background: #a6e3a1;
+    color: #1e1e2e;
+    border-color: #a6e3a1;
+  }
+
+  /* Agent Output */
+  .agent-output {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .agent-placeholder {
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .agent-placeholder p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #6c7086;
+    line-height: 1.5;
+  }
+
+  .agent-hint {
+    font-size: 0.72rem !important;
+    color: #45475a !important;
+    font-style: italic;
+    background: #11111b;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem !important;
+    line-height: 1.8 !important;
+  }
+
+  .agent-warning {
+    font-size: 0.75rem !important;
+    color: #f9e2af !important;
+    background: #2a2a1a;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem !important;
+  }
+
+  .agent-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
+
+  .agent-step {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    border-bottom: 1px solid #1e1e2e;
+  }
+
+  .step-icon {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    width: 1.1rem;
+    text-align: center;
+  }
+
+  .agent-step.tool-call { background: #181825; }
+  .agent-step.tool-result { background: #11111b; padding-left: 2.1rem; }
+  .agent-step.done { background: #1a2a1a; border-top: 1px solid #2a4a2a; margin-top: 0.25rem; align-items: flex-start; }
+  .agent-step.running { color: #6c7086; font-style: italic; }
+  .agent-step.agent-err { color: #f38ba8; background: #2a1a1a; }
+
+  .step-tool {
+    color: #89b4fa;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .step-path {
+    color: #a6adc8;
+    font-size: 0.7rem;
+    font-family: monospace;
+    word-break: break-all;
+  }
+
+  .step-result {
+    color: #585b70;
+    font-size: 0.7rem;
+    font-style: italic;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .step-done-text {
+    color: #a6e3a1;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  .agent-clear-btn {
+    margin: 0.75rem;
+    background: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
+
+  .agent-run-btn {
+    flex: 1;
+    background: #a6e3a1;
+    color: #1e1e2e;
+  }
+
+  .agent-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 1s linear infinite; }
+
+  /* Debug-Tab Button */
+  .debug-tab { position: relative; }
+
+  .debug-badge {
+    display: inline-block;
+    background: #f38ba8;
+    color: #1e1e2e;
+    border-radius: 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0 0.3rem;
+    margin-left: 0.2rem;
+    vertical-align: middle;
+    line-height: 1.4;
+  }
+
+  .mode-btn.debug-tab.active {
+    background: #f38ba8;
+    color: #1e1e2e;
+    border-color: #f38ba8;
+  }
+
+  /* Debug Output */
+  .debug-output {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .debug-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid #313244;
+    background: #11111b;
+    flex-shrink: 0;
+  }
+
+  .debug-count {
+    font-size: 0.7rem;
+    color: #6c7086;
+    font-weight: 600;
+  }
+
+  .debug-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: #45475a;
+    line-height: 1.5;
+  }
+
+  .debug-entry {
+    border-bottom: 1px solid #252535;
+  }
+
+  .debug-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: #cdd6f4;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.72rem;
+    font-family: inherit;
+  }
+
+  .debug-entry-header:hover { background: #1e1e2e; }
+
+  .debug-type {
+    font-size: 0.62rem;
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .debug-type.request  { background: #2a3a2a; color: #a6e3a1; }
+  .debug-type.response { background: #2a2a3a; color: #89b4fa; }
+  .debug-type.error    { background: #3a1a1a; color: #f38ba8; }
+
+  .debug-provider-label {
+    font-size: 0.68rem;
+    color: #89b4fa;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .debug-label-text {
+    flex: 1;
+    color: #cdd6f4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .debug-meta {
+    font-size: 0.65rem;
+    color: #45475a;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .debug-chevron {
+    font-size: 0.6rem;
+    color: #45475a;
+    flex-shrink: 0;
+  }
+
+  .debug-data {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.68rem;
+    color: #a6adc8;
+    background: #11111b;
+    white-space: pre-wrap;
+    word-break: break-all;
+    border-top: 1px solid #252535;
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+  }
 </style>

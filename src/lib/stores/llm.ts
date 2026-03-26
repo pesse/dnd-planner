@@ -11,6 +11,24 @@ export const llmConfig = writable<LlmConfig>({
 export const llmLoading = writable<boolean>(false);
 export const llmMessages = writable<{ role: 'user' | 'assistant'; content: string }[]>([]);
 
+export interface TokenUsage { sent: number; received: number; }
+
+export const tokenStats = writable<{ last: TokenUsage; session: TokenUsage }>({
+  last:    { sent: 0, received: 0 },
+  session: { sent: 0, received: 0 },
+});
+
+export function addTokenUsage(usage: TokenUsage): void {
+  tokenStats.update((s) => ({
+    last: usage,
+    session: { sent: s.session.sent + usage.sent, received: s.session.received + usage.received },
+  }));
+}
+
+export function resetTokenStats(): void {
+  tokenStats.set({ last: { sent: 0, received: 0 }, session: { sent: 0, received: 0 } });
+}
+
 /** Lädt den gespeicherten API-Key für einen bestimmten Provider aus dem OS-Keychain. */
 export async function loadApiKeyForProvider(provider: LlmProvider): Promise<string | null> {
   return invoke<string | null>('load_api_key', { provider }).catch(() => null);

@@ -52,40 +52,88 @@ export async function loadActSummaries(campaignPath: string): Promise<void> {
   }
 }
 
+function getFileTypeFocus(type: FileEntry['type'] | undefined): string {
+  switch (type) {
+    case 'campaign':
+      return (
+        'You are working on the **campaign overview**. ' +
+        'Focus: overarching themes, main plot arc, factions, key NPCs. ' +
+        'Keep it as a living overview document — concise, no session-level details.'
+      );
+    case 'act':
+      return (
+        'You are working on an **act**. ' +
+        'Structure: ## Summary (2-3 sentences), ## Ergebnis (what players achieved), ' +
+        '## Details (challenges, NPC motivations, player choices & consequences). ' +
+        'Always maintain this structure when editing.'
+      );
+    case 'session':
+      return (
+        'You are working on a **session note**. ' +
+        'Structure: ## Summary (what happened), ## Ergebnis (world changes, player achievements), ' +
+        '## Details (events, NPC interactions, open threads). ' +
+        'Always maintain this structure when editing.'
+      );
+    case 'npc':
+      return (
+        'You are working on an **NPC**. ' +
+        'Structure: ## Summary (role + one-liner), ## Motivations (what they want), ' +
+        '## Details (personality, secrets, connections to plot and other NPCs, reactions to players). ' +
+        'Always maintain this structure when editing.'
+      );
+    case 'world':
+      return (
+        'You are working on a **world-building entry**. ' +
+        'Structure: ## Summary (brief overview), ## Details (history, geography, factions, culture, ' +
+        'game-relevant specifics). Always maintain this structure when editing.'
+      );
+    case 'character':
+      return (
+        'You are working on a **player character**. ' +
+        'Focus: background, personality, connections to the world, open story hooks.'
+      );
+    default:
+      return '';
+  }
+}
+
 export const systemPrompt = derived(
   [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, contextScope],
   ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $contextScope]) => {
     const parts: string[] = [];
 
     parts.push(
-      'Du bist ein hilfreicher Assistent für einen Dungeon Master. ' +
-        'Du hilfst beim Erstellen und Verwalten von D&D-Kampagnen, Szenarien, NPCs und Weltenbau. ' +
-        'Antworte auf Deutsch, außer der Nutzer schreibt in einer anderen Sprache.'
+      'You are a helpful assistant for a Dungeon Master. ' +
+        'You help create and manage D&D campaigns, scenarios, NPCs, and world-building. ' +
+        'Always respond in the same language the user writes in.'
     );
+
+    const focus = getFileTypeFocus($activeFile?.type);
+    if (focus) parts.push(`\n## Current Focus\n${focus}`);
 
     if ($contextScope !== 'none') {
       if ($activeCampaign) {
-        parts.push(`\n## Aktive Kampagne\nName: ${$activeCampaign.name}`);
+        parts.push(`\n## Active Campaign\nName: ${$activeCampaign.name}`);
       }
 
-      // Akt-Summaries — aktiver Akt wird als vollständige Datei eingebunden, andere nur als Summary
+      // Other acts: Summary + Ergebnis only. Active act: full content below.
       if ($actSummaries.length > 0) {
         const activeActPath = $activeFile?.type === 'act' ? $activeFile.path : null;
         const summaryLines = $actSummaries.map((act) => {
-          if (act.path === activeActPath) return null; // wird unten als volle Datei eingebunden
+          if (act.path === activeActPath) return null;
           return `### ${act.title}\n${act.summary}`;
         }).filter(Boolean);
 
         if (summaryLines.length > 0) {
-          parts.push(`\n## Akt-Übersichten\n${summaryLines.join('\n\n---\n\n')}`);
+          parts.push(`\n## Act Overviews\n${summaryLines.join('\n\n---\n\n')}`);
         }
       }
 
-      // Aktive Datei (vollständig)
+      // Active file (full content)
       if ($activeFile && $fileContent) {
         const label = $activeFile.type === 'act'
-          ? `Aktiver Akt: ${$activeFile.name}`
-          : `Aktuelle Datei: ${$activeFile.name} (${$activeFile.type})`;
+          ? `Active Act: ${$activeFile.name}`
+          : `Current File: ${$activeFile.name} (${$activeFile.type})`;
         parts.push(`\n## ${label}\n\`\`\`markdown\n${$fileContent}\n\`\`\``);
       }
     }

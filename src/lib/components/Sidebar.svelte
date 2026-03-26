@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
-  import { activeCampaign, activeFile, fileContent, setFileContent } from '../stores/campaign';
+  import { activeCampaign, activeFile, fileContent, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
 
@@ -195,6 +195,17 @@
       sectionFiles[key] = [];
     }
   }
+
+  // Reload all currently expanded sections when vault files change (e.g. after agent writes).
+  $effect(() => {
+    const _v = $vaultVersion;
+    const campaign = $activeCampaign;
+    if (!campaign) return;
+    for (const section of sections) {
+      const key = `${campaign.path}/${section.subdir}`;
+      if (expanded[key]) loadSection(campaign.path, section);
+    }
+  });
 
   async function toggleSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
@@ -396,7 +407,7 @@
 
 <style>
   .sidebar {
-    width: 220px;
+    width: 100%;
     min-height: 100vh;
     background: #1e1e2e;
     color: #cdd6f4;
