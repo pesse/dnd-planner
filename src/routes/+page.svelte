@@ -63,6 +63,21 @@
       } catch (e) {
         alert(`Umbenennen fehlgeschlagen: ${e}`);
       }
+    } else if (file.type === 'act') {
+      // Akte sind Verzeichnisse — das Verzeichnis umbenennen, index.md bleibt
+      const newSlug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const oldActDir = file.path.substring(0, file.path.lastIndexOf('/index.md'));
+      const actsDir = oldActDir.substring(0, oldActDir.lastIndexOf('/'));
+      const newActDir = `${actsDir}/${newSlug}`;
+      if (newActDir === oldActDir) return;
+
+      try {
+        await invoke('rename_file', { oldPath: oldActDir, newPath: newActDir });
+        activeFile.set({ ...file, name: newSlug, path: `${newActDir}/index.md` });
+        invalidateVault();
+      } catch (e) {
+        console.error('Umbenennen fehlgeschlagen:', e);
+      }
     } else {
       const newName = renameValue.trim() + '.md';
       if (newName === file.name) return;
@@ -87,7 +102,7 @@
 
   const MIN_W = 140;
   const MAX_SIDEBAR = 520;
-  const MAX_LLM = 760;
+  const MAX_LLM = 1400;
 
   let sidebarWidth = $state(parseInt(localStorage.getItem('sidebar-width') ?? '220'));
   let llmWidth = $state(parseInt(localStorage.getItem('llm-width') ?? '460'));

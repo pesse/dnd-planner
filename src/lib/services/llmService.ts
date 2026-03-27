@@ -39,8 +39,22 @@ const TOOL_LIST = [
     },
   },
   {
+    name: 'list_json_files',
+    description:
+      'Listet alle .json-Dateien in einem Vault-Verzeichnis. ' +
+      'Verwenden für Encounter-Dateien (./vault/campaigns/{slug}/encounters/) ' +
+      'und Monster-Bibliothek (./vault/monsters/).',
+    params: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Vault-Verzeichnis, z.B. ./vault/campaigns/meine-kampagne/encounters/' },
+      },
+      required: ['path'],
+    },
+  },
+  {
     name: 'read_file',
-    description: 'Liest den vollständigen Inhalt einer Vault-Datei als Markdown-Text.',
+    description: 'Liest den vollständigen Inhalt einer Vault-Datei (Markdown oder JSON).',
     params: {
       type: 'object',
       properties: {
@@ -52,14 +66,14 @@ const TOOL_LIST = [
   {
     name: 'write_file',
     description:
-      'Erstellt oder überschreibt eine Vault-Datei mit Markdown-Inhalt. ' +
-      'Übergeordnete Verzeichnisse werden automatisch angelegt. ' +
-      'Verwende strukturiertes, vollständiges Markdown.',
+      'Erstellt oder überschreibt eine Vault-Datei. Übergeordnete Verzeichnisse werden automatisch angelegt. ' +
+      'Für .md-Dateien: vollständiges Markdown. ' +
+      'Für .json-Dateien (Encounters, Monster): valides JSON im vorgegebenen Schema.',
     params: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Vault-Pfad der Datei' },
-        content: { type: 'string', description: 'Vollständiger Markdown-Inhalt' },
+        path: { type: 'string', description: 'Vault-Pfad der Datei (.md oder .json)' },
+        content: { type: 'string', description: 'Vollständiger Dateiinhalt (Markdown oder JSON)' },
       },
       required: ['path', 'content'],
     },
@@ -87,6 +101,10 @@ async function executeTool(
   switch (name) {
     case 'list_files': {
       const files = await invoke<string[]>('list_directory', { path: args.path });
+      return JSON.stringify(files);
+    }
+    case 'list_json_files': {
+      const files = await invoke<string[]>('list_json_files', { path: args.path });
       return JSON.stringify(files);
     }
     case 'read_file': {

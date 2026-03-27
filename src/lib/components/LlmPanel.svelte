@@ -2,16 +2,22 @@
   import { llmLoading, llmMessages, llmConfig, loadSavedConfig, saveConfig, deleteApiKey, loadApiKeyForProvider, tokenStats, resetTokenStats } from '../stores/llm';
   import { onMount } from 'svelte';
   import {
-    contextScope,
-    contextSummary,
+    contextFlags,
     systemPrompt,
     pinnedEntries,
+    actSummaries,
+    encounterSummaries,
+    monsterLibrary,
+    encounterMonsterDefs,
+    campaignContent,
     pinEntry,
     unpinEntry,
     setPinDetailLevel,
+    loadEncounterContext,
+    loadEncounterMonsters,
   } from '../stores/context';
+  import type { ContextFlags } from '../stores/context';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
-  import type { ContextScope } from '../stores/context';
   import {
     ollamaChat,
     ollamaGenerate,
@@ -115,25 +121,28 @@
     return (
       $systemPrompt +
       `\n\n## Vault Agent Mode\n` +
-      `You have access to the vault filesystem via three tools:\n` +
+      `You have access to the vault filesystem via these tools:\n` +
       `- **list_files(path)**: Lists .md files in a vault directory\n` +
-      `- **read_file(path)**: Reads a vault file\n` +
+      `- **list_json_files(path)**: Lists .json files (encounters, monsters)\n` +
+      `- **read_file(path)**: Reads any vault file (markdown or JSON)\n` +
       `- **write_file(path, content)**: Creates or overwrites a vault file (parent dirs auto-created)\n\n` +
       `Vault structure:\n` +
-      `\`\`\`\nvault/campaigns/{slug}/\n  campaign.md\n  acts/*.md\n  sessions/*.md\n  npcs/*.md\n  world/*.md\n\`\`\`` +
+      `\`\`\`\nvault/\n  monsters/*.json              ← global monster library\n  campaigns/{slug}/\n    campaign.md\n    sessions/*.md\n    npcs/*.md\n    world/*.md\n    acts/{act-slug}/\n      index.md                 ← the act itself\n      encounters/*.json        ← act encounters\n      monsters/*.json          ← act-specific monster variants\n\`\`\`` +
       campaignHint +
       `\n\n## Document Templates\n` +
-      `Always use these structures when creating or editing files:\n\n` +
-      `**Acts** (acts/*.md):\n` +
-      `# Act Title\n## Summary\n2-3 sentence overview.\n## Ergebnis\nWhat players accomplished/changed.\n## Details\n### Challenges\n### NPC Motivations\n### Player Choices & Consequences\n\n` +
-      `**NPCs** (npcs/*.md):\n` +
-      `# NPC Name\n## Summary\nRole + one-liner.\n## Motivations\nWhat they want.\n## Details\n### Personality\n### Secrets\n### Connections\n\n` +
-      `**Sessions** (sessions/*.md):\n` +
-      `# Session N: Title\n## Summary\nWhat happened.\n## Ergebnis\nWorld changes / player achievements.\n## Details\n### Events\n### Open Threads\n\n` +
-      `**World entries** (world/*.md):\n` +
-      `# Name\n## Summary\nBrief overview.\n## Details\n### History\n### Current Situation\n\n` +
+      `Canonical templates for all document types are in \`./vault/templates/\`:\n` +
+      `- \`campaign.md\` — campaign overview (Prämisse, Hauptkonflikt, Fraktionen, SCs, Ton, Geheimnisse)\n` +
+      `- \`act.md\` — act structure (Summary, Ergebnis, Details)\n` +
+      `- \`session.md\` — session notes (Summary, Ergebnis, Details)\n` +
+      `- \`npc.md\` — NPC profile (Summary, Motivationen, Details)\n` +
+      `- \`world.md\` — world entry (Summary, Details)\n` +
+      `- \`encounter.json\` — encounter schema\n` +
+      `- \`monster.json\` — monster schema\n\n` +
+      `When creating a new file, read the matching template first and follow its structure. ` +
+      `Filenames use kebab-case slugs. ` +
       `Workflow: read relevant files first to understand current state, then act. ` +
-      `Write complete, well-structured markdown. Summarize what you did at the end.`
+      `When a task involves an act and its encounter, update BOTH files. ` +
+      `Write complete, well-structured content. Summarize what you did at the end.`
     );
   }
 
@@ -227,6 +236,10 @@
     pinEntry(file, content);
   }
 
+  function toggleFlag(key: keyof ContextFlags) {
+    contextFlags.update((f) => ({ ...f, [key]: !f[key] }));
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -245,6 +258,65 @@
   function fmtTokens(n: number): string {
     return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
   }
+
+  // ── JSON-Block-Erkennung (Phase 3b) ───────────────────────────────────────
+
+  interface DetectedJson {
+    type: 'monster' | 'encounter';
+    data: Record<string, unknown>;
+    raw: string;
+  }
+
+  function extractJsonBlocks(text: string): DetectedJson[] {
+    const results: DetectedJson[] = [];
+    const regex = /```json\n([\s\S]*?)\n```/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      try {
+        const data = JSON.parse(match[1]) as Record<string, unknown>;
+        if ('cr' in data && 'stats' in data) {
+          results.push({ type: 'monster', data, raw: match[1] });
+        } else if ('monsters' in data && 'difficulty' in data) {
+          results.push({ type: 'encounter', data, raw: match[1] });
+        }
+      } catch { /* ignorieren */ }
+    }
+    return results;
+  }
+
+  function slugify(name: string): string {
+    const umlautMap: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
+    return name
+      .toLowerCase()
+      .replace(/[äöüß]/g, (c) => umlautMap[c] ?? c)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  let saveStatus = $state<Record<number, 'saving' | 'saved' | 'error'>>({});
+
+  async function saveJsonBlock(block: DetectedJson, index: number): Promise<void> {
+    const campaign = $activeCampaign;
+    if (!campaign) return;
+    saveStatus = { ...saveStatus, [index]: 'saving' };
+    try {
+      const name = (block.data.name as string) || 'unbekannt';
+      const slug = slugify(name);
+      const path =
+        block.type === 'monster'
+          ? `./vault/monsters/${slug}.json`
+          : `./vault/campaigns/${campaign.path}/encounters/${slug}.json`;
+      await invoke('write_file_content', { path, content: JSON.stringify(block.data, null, 2) });
+      invalidateVault();
+      if (block.type === 'encounter') loadEncounterContext(campaign.path);
+      saveStatus = { ...saveStatus, [index]: 'saved' };
+    } catch {
+      saveStatus = { ...saveStatus, [index]: 'error' };
+    }
+  }
+
+  // Reaktiv: JSON-Blöcke aus dem generate-Ergebnis extrahieren
+  let detectedBlocks = $derived(generateResult ? extractJsonBlocks(generateResult) : []);
 </script>
 
 <div class="llm-panel">
@@ -366,40 +438,59 @@
     </div>
   {/if}
 
-  <!-- Context-Bar (nicht im Debug-Modus) -->
+  <!-- Context-Badges (nicht im Debug-Modus) -->
   {#if mode !== 'debug' && mode !== 'agent'}
   <div class="context-bar">
-    <div class="context-info">
-      <span class="context-label">Kontext:</span>
-      <span class="context-value" title={$contextSummary}>{$contextSummary}</span>
+    <div class="ctx-badges">
+      {#if $campaignContent}
+        <button class="ctx-badge narrative" class:off={!$contextFlags.campaign} onclick={() => toggleFlag('campaign')}>
+          Kampagne
+        </button>
+      {/if}
+      {#if $actSummaries.length > 0}
+        <button class="ctx-badge narrative" class:off={!$contextFlags.acts} onclick={() => toggleFlag('acts')}>
+          {$actSummaries.length} Akte
+        </button>
+      {/if}
+      {#if $encounterSummaries.length > 0}
+        <button class="ctx-badge narrative" class:off={!$contextFlags.encounters} onclick={() => toggleFlag('encounters')}>
+          {$encounterSummaries.length} Enc
+        </button>
+      {/if}
+      {#if $monsterLibrary.length > 0}
+        <button class="ctx-badge level-library" class:off={!$contextFlags.monsters} onclick={() => toggleFlag('monsters')}
+          title="Monster-Bibliothek (Name, CR, Typ)">
+          {$monsterLibrary.length} Mon
+        </button>
+      {/if}
+      {#if $activeFile}
+        {@const fileLevelClass = {
+          campaign: 'level-campaign', npc: 'level-campaign', world: 'level-campaign', character: 'level-campaign',
+          act: 'level-act',
+          session: 'level-session',
+          encounter: 'level-encounter',
+          monster: 'level-library',
+        }[$activeFile.type] ?? 'level-campaign'}
+        <button class="ctx-badge {fileLevelClass}" class:off={!$contextFlags.activeFile} onclick={() => toggleFlag('activeFile')}
+          title={$activeFile.name}>
+          📄 {$activeFile.name.length > 14 ? $activeFile.name.slice(0, 13) + '…' : $activeFile.name}
+        </button>
+      {/if}
+      {#if $activeFile?.type === 'encounter'}
+        <button class="ctx-badge level-encounter" class:off={!$contextFlags.encounterMonsters} onclick={() => toggleFlag('encounterMonsters')}
+          title="Vollständige Monster-Definitionen dieses Encounters">
+          {$encounterMonsterDefs.length > 0 ? $encounterMonsterDefs.length : '?'} Mon↑
+        </button>
+      {/if}
+      {#if $activeFile}
+        <button class="ctx-badge pin-badge" onclick={handlePinActive} title="Anpinnen">+ Pin</button>
+      {/if}
     </div>
-    <div class="context-actions">
-      <div class="scope-buttons">
-        <button
-          class="scope-btn"
-          class:active={$contextScope === 'none'}
-          onclick={() => contextScope.set('none')}
-          title="Aktive Datei nicht einbinden">–</button
-        >
-        <button
-          class="scope-btn"
-          class:active={$contextScope === 'file'}
-          onclick={() => contextScope.set('file')}
-          title="Aktive Datei einbinden">Datei</button
-        >
-        <button
-          class="scope-btn"
-          onclick={handlePinActive}
-          title="Aktive Datei anpinnen"
-          disabled={!$activeFile}>+ Pin</button
-        >
-      </div>
-      <button
-        class="icon-btn"
-        onclick={() => (showPrompt = !showPrompt)}
-        title="System-Prompt anzeigen">{showPrompt ? '▲' : '▼'}</button
-      >
-    </div>
+    <button
+      class="icon-btn"
+      onclick={() => (showPrompt = !showPrompt)}
+      title="System-Prompt anzeigen">{showPrompt ? '▲' : '▼'}</button
+    >
   </div>
 
   <!-- Gepinnte Einträge -->
@@ -484,12 +575,44 @@
               </button>
             </div>
           {/if}
+          {#if detectedBlocks.length > 0}
+            <div class="json-save-row">
+              {#each detectedBlocks as block, i}
+                <button
+                  class="json-save-btn"
+                  class:saved={saveStatus[i] === 'saved'}
+                  class:error={saveStatus[i] === 'error'}
+                  disabled={saveStatus[i] === 'saving' || saveStatus[i] === 'saved'}
+                  onclick={() => saveJsonBlock(block, i)}
+                >
+                  {#if saveStatus[i] === 'saving'}…
+                  {:else if saveStatus[i] === 'saved'}✓ Gespeichert
+                  {:else if saveStatus[i] === 'error'}✕ Fehler
+                  {:else}{block.type === 'monster' ? '🐉 Monster speichern' : '⚔ Encounter speichern'}: {block.data.name as string}
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {:else if $llmLoading}
         <div class="generate-result loading"><p>Generiere...</p></div>
       {:else}
         <div class="generate-placeholder">
-          Prompt eingeben → direkt generierten Content erhalten (kein History-Overhead)
+          <span>Prompt eingeben → direkt generierten Content erhalten (kein History-Overhead)</span>
+          {#if $activeCampaign}
+            <div class="template-buttons">
+              <button class="template-btn" onclick={() => (input = `Erstelle einen Encounter für 2 Spieler auf Level 6 mit Schwierigkeit schwer. Gib das JSON im Encounter-Format aus.`)}>
+                ⚔ Encounter
+              </button>
+              <button class="template-btn" onclick={() => (input = `Erstelle ein Monster: Goblin-Anführer, HG 2. Gib das JSON im Monster-Format aus.`)}>
+                🐉 Monster
+              </button>
+              <button class="template-btn" onclick={() => (input = `Erstelle einen Boss-Gegner, HG 8, passend zur aktiven Kampagne. Gib das JSON im Monster-Format aus.`)}>
+                💀 Boss
+              </button>
+            </div>
+          {/if}
         </div>
       {/if}
     </div>
@@ -503,7 +626,9 @@
           <p class="agent-hint">Beispiele:<br>
             "Erstelle Akt 3: Die Verräter"<br>
             "Füge NSC Mira die Händlerin hinzu"<br>
-            "Passe Akt 2 an — Spieler haben den Turm übersprungen"
+            "Passe Akt 2 an — Spieler haben den Turm übersprungen"<br>
+            "Erstelle einen Encounter für Akt 2, Schwierigkeit schwer, 2 Spieler Level 6"<br>
+            "Harlon wurde enttarnt — passe Akt 3 und seinen Encounter an"
           </p>
           {#if $llmConfig.provider === 'ollama'}
             <p class="agent-warning">⚠ Ollama unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.</p>
@@ -822,69 +947,73 @@
 
   /* Context bar */
   .context-bar {
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.75rem;
     border-bottom: 1px solid #313244;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 0.4rem;
     background: #1e1e2e;
     flex-shrink: 0;
   }
 
-  .context-info {
+  .ctx-badges {
     display: flex;
-    gap: 0.4rem;
-    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    flex: 1;
     min-width: 0;
   }
 
-  .context-label {
-    font-size: 0.7rem;
-    color: #6c7086;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .context-value {
-    font-size: 0.72rem;
-    color: #a6e3a1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .context-actions {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .scope-buttons {
-    display: flex;
-    gap: 0.25rem;
-  }
-
-  .scope-btn {
+  .ctx-badge {
     background: #313244;
     color: #cdd6f4;
     border: 1px solid #45475a;
-    border-radius: 4px;
-    padding: 0.15rem 0.4rem;
-    font-size: 0.72rem;
+    border-radius: 10px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 600;
     cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+    white-space: nowrap;
   }
 
-  .scope-btn.active {
-    background: #cba6f7;
-    color: #1e1e2e;
-    border-color: #cba6f7;
+  .ctx-badge:hover { background: #45475a; }
+
+  .ctx-badge.off {
+    opacity: 0.35;
+    text-decoration: line-through;
   }
 
-  .scope-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  /* Kampagnen-Ebene: Kampagne, Akte, Enc + campaign/npc/world/character-Dateien */
+  .ctx-badge.narrative,
+  .ctx-badge.level-campaign { border-color: #a6e3a1; color: #a6e3a1; }
+  .ctx-badge.narrative.off,
+  .ctx-badge.level-campaign.off { border-color: #45475a; color: #6c7086; }
+
+  /* Akt-Ebene */
+  .ctx-badge.level-act { border-color: #89b4fa; color: #89b4fa; }
+  .ctx-badge.level-act.off { border-color: #45475a; color: #6c7086; }
+
+  /* Session-Ebene (Chronik) */
+  .ctx-badge.level-session { border-color: #94e2d5; color: #94e2d5; }
+  .ctx-badge.level-session.off { border-color: #45475a; color: #6c7086; }
+
+  /* Encounter-Ebene: encounter-Datei + Mon↑ */
+  .ctx-badge.level-encounter { border-color: #cba6f7; color: #cba6f7; }
+  .ctx-badge.level-encounter.off { border-color: #45475a; color: #6c7086; }
+
+  /* Bibliotheks-Ebene: monster-Datei + Mon-Bibliothek */
+  .ctx-badge.mechanic,
+  .ctx-badge.level-library { border-color: #fab387; color: #fab387; }
+  .ctx-badge.mechanic.off,
+  .ctx-badge.level-library.off { border-color: #45475a; color: #6c7086; }
+
+  .ctx-badge.pin-badge {
+    border-color: #6c7086;
+    color: #6c7086;
+    background: transparent;
   }
+  .ctx-badge.pin-badge:hover { background: #313244; }
 
   .icon-btn {
     background: transparent;
@@ -966,8 +1095,10 @@
     background: #11111b;
     border-bottom: 1px solid #313244;
     padding: 0.5rem 0.75rem;
-    max-height: 150px;
-    overflow-y: auto;
+    resize: vertical;
+    overflow: auto;
+    height: 150px;
+    min-height: 60px;
     flex-shrink: 0;
   }
 
@@ -1050,6 +1181,10 @@
     text-align: center;
     padding: 2rem 1rem;
     line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .generate-result {
@@ -1088,6 +1223,52 @@
 
   .apply-btn.append  { background: #a6e3a1; color: #1e1e2e; }
   .apply-btn.replace { background: #f9e2af; color: #1e1e2e; }
+
+  .json-save-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #313244;
+  }
+
+  .json-save-btn {
+    border: 1px solid #cba6f7;
+    background: transparent;
+    color: #cba6f7;
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .json-save-btn:hover:not(:disabled) { background: #313244; }
+  .json-save-btn.saved { border-color: #a6e3a1; color: #a6e3a1; cursor: default; }
+  .json-save-btn.error { border-color: #f38ba8; color: #f38ba8; }
+  .json-save-btn:disabled { opacity: 0.7; cursor: default; }
+
+  .template-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+  }
+
+  .template-btn {
+    background: #313244;
+    border: 1px solid #45475a;
+    color: #cdd6f4;
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .template-btn:hover { background: #45475a; }
 
   /* Input */
   .input-row {

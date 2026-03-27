@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
   import { activeCampaign, activeFile, fileContent, setFileContent, vaultVersion } from '../stores/campaign';
-  import { loadActSummaries } from '../stores/context';
+  import { loadActSummaries, loadEncounterContext, loadCampaignContent, loadEncounterMonsters, encounterMonsterDefs } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
 
@@ -29,6 +29,14 @@
   let fileTitles: Record<string, string> = $state({});
   let newFileInput: Record<string, string> = $state({});
   let showNewFileInput: Record<string, boolean> = $state({});
+
+  async function loadTemplate(type: string): Promise<string | null> {
+    try {
+      return await invoke<string>('read_file_content', { path: `./vault/templates/${type}.md` });
+    } catch {
+      return null;
+    }
+  }
 
   function slugify(name: string): string {
     return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
@@ -58,23 +66,8 @@
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
     const campaignMd = `${VAULT_BASE}/${slug}/campaign.md`;
 
-    const template = `# ${name}
-
-## Beschreibung
-
-
-## Hintergrund
-
-
-## Hauptziele
-
-
-## Wichtige Orte
-
-
-## Notizen
-
-`;
+    const tmpl = await loadTemplate('campaign');
+    const template = `# ${name}\n\n` + (tmpl ?? `## Beschreibung\n\n\n## Hintergrund\n\n\n## Hauptziele\n\n\n## Wichtige Orte\n\n\n## Notizen\n\n`);
     try {
       await invoke('write_file_content', { path: campaignMd, content: template });
       showNewCampaignInput = false;
@@ -97,6 +90,17 @@
   }
 
   onMount(loadCampaigns);
+
+  // Reaktives Laden: immer wenn activeCampaign sich ändert, Kontext neu laden.
+  // Fixes: (1) HMR-Store-Reset, (2) Code-Pfade die activeCampaign.set() ohne Lade-Calls aufrufen.
+  $effect(() => {
+    const campaign = $activeCampaign;
+    if (campaign?.path) {
+      loadCampaignContent(campaign.path);
+      loadActSummaries(campaign.path);
+      loadEncounterContext(campaign.path);
+    }
+  });
 
   // --- Charaktere (global) ---
   let charactersExpanded = $state(false);
@@ -143,38 +147,8 @@
     const fullPath = `${CHARACTERS_PATH}/${filename}`;
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
-    const template = `# ${title}
-
-## Spieler
-
-
-## Klasse & Level
-
-
-## Hintergrund
-
-
-## Attribute
-| Attribut | Wert | Mod |
-|----------|------|-----|
-| STR | 10 | +0 |
-| DEX | 10 | +0 |
-| CON | 10 | +0 |
-| INT | 10 | +0 |
-| WIS | 10 | +0 |
-| CHA | 10 | +0 |
-
-**TP:** | **RK:** | **Initiative:**
-
-## Fähigkeiten & Zauber
-
-
-## Entscheidungen
-
-
-## Notizen
-
-`;
+    const tmpl = await loadTemplate('character');
+    const template = `# ${title}\n\n` + (tmpl ?? `## Spieler\n\n\n## Klasse & Level\n\n\n## Hintergrund\n\n\n## Notizen\n\n`);
     try {
       await invoke('write_file_content', { path: fullPath, content: template });
       showNewCharInput = false;
@@ -256,30 +230,17 @@
     if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; }
   }
 
-  // --- Encounter (pro Kampagne, als Unterpunkt von Akten) ---
-  const ENCOUNTERS_SUBDIR = 'encounters';
+  // --- Encounter (pro Akt-Verzeichnis) ---
+  // Key: `${campaignPath}/${actDirName}`
   let encounterFiles: Record<string, string[]> = $state({});
+  // Key: `${campaignPath}/${actDirName}/${filename}`
   let encounterNames: Record<string, string> = $state({});
-  let encounterTags: Record<string, string[]> = $state({});
   let showNewActEncounterInput: Record<string, boolean> = $state({});
   let newActEncounterInput: Record<string, string> = $state({});
 
-  function getActKey(filename: string): string {
-    const match = filename.match(/^(akt-[ivxlcdm]+)/i);
-    return match ? match[1].toLowerCase() : '';
-  }
-
-  function getEncountersForAct(campaignPath: string, actFilename: string): string[] {
-    const actKey = getActKey(actFilename);
-    if (!actKey) return [];
-    return (encounterFiles[campaignPath] ?? []).filter(filename =>
-      (encounterTags[`${campaignPath}/${filename}`] ?? []).includes(actKey)
-    );
-  }
-
-  async function loadEncounters(campaignPath: string) {
-    const key = campaignPath;
-    const dir = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}`;
+  async function loadEncountersForAct(campaignPath: string, actDirName: string) {
+    const key = `${campaignPath}/${actDirName}`;
+    const dir = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters`;
     try {
       const files = await invoke<string[]>('list_json_files', { path: dir });
       encounterFiles[key] = files;
@@ -289,10 +250,8 @@
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
           encounterNames[`${key}/${filename}`] = data.name ?? filename.replace('.json', '');
-          encounterTags[`${key}/${filename}`] = data.tags ?? [];
         } catch {
           encounterNames[`${key}/${filename}`] = filename.replace('.json', '');
-          encounterTags[`${key}/${filename}`] = [];
         }
       });
     } catch {
@@ -300,27 +259,28 @@
     }
   }
 
-  async function openEncounter(campaignPath: string, filename: string) {
-    const path = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}/${filename}`;
+  async function openEncounter(campaignPath: string, actDirName: string, filename: string) {
+    const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
     try {
       const content = await invoke<string>('read_file_content', { path });
       setFileContent(content);
+      loadEncounterMonsters(content);
     } catch {
       setFileContent('{}');
+      encounterMonsterDefs.set([]);
     }
   }
 
-  async function createActEncounter(campaignPath: string, actFilename: string, e: KeyboardEvent | MouseEvent) {
+  async function createActEncounter(campaignPath: string, actDirName: string, e: KeyboardEvent | MouseEvent) {
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const actKey = `${campaignPath}/${actFilename}`;
+    const actKey = `${campaignPath}/${actDirName}`;
     const raw = newActEncounterInput[actKey]?.trim();
     if (!raw) return;
 
-    const actTag = getActKey(actFilename);
     const slug = slugify(raw);
-    const filename = (actTag ? `${actTag}-` : '') + slug + '.json';
-    const path = `${VAULT_BASE}/${campaignPath}/${ENCOUNTERS_SUBDIR}/${filename}`;
+    const filename = slug + '.json';
+    const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     const template = {
       name: raw.charAt(0).toUpperCase() + raw.slice(1),
       description: '',
@@ -331,16 +291,18 @@
       party_level: 1,
       location: '',
       loot: '',
-      tags: actTag ? [actTag] : [],
+      tags: [],
       notes: '',
+      status: 'planned',
     };
 
     try {
       await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
       showNewActEncounterInput[actKey] = false;
       newActEncounterInput[actKey] = '';
-      await loadEncounters(campaignPath);
-      await openEncounter(campaignPath, filename);
+      await loadEncountersForAct(campaignPath, actDirName);
+      await openEncounter(campaignPath, actDirName, filename);
+      loadEncounterContext(campaignPath);
     } catch (err) {
       console.error('Encounter konnte nicht erstellt werden:', err);
     }
@@ -353,25 +315,42 @@
   // --- Kampagnen ---
   async function loadSection(campaignPath: string, section: typeof sections[0]) {
     const key = `${campaignPath}/${section.subdir}`;
-    try {
-      const files = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
-      sectionFiles[key] = files;
-      // Load titles concurrently — UI updates as they arrive
-      files.forEach(async (filename) => {
-        const path = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
-        try {
-          const content = await invoke<string>('read_file_content', { path });
-          const match = content.match(/^#\s+(.+)$/m);
-          fileTitles[path] = match ? match[1].trim() : filename.replace('.md', '');
-        } catch {
-          fileTitles[path] = filename.replace('.md', '');
-        }
-      });
-    } catch {
-      sectionFiles[key] = [];
-    }
     if (section.type === 'act') {
-      await loadEncounters(campaignPath);
+      try {
+        const entries = await invoke<EntryInfo[]>('list_entries', { path: `${VAULT_BASE}/${campaignPath}/acts` });
+        const actDirs = entries.filter((e) => e.is_dir).map((e) => e.name);
+        sectionFiles[key] = actDirs;
+        for (const dirName of actDirs) {
+          const indexPath = `${VAULT_BASE}/${campaignPath}/acts/${dirName}/index.md`;
+          try {
+            const content = await invoke<string>('read_file_content', { path: indexPath });
+            const match = content.match(/^#\s+(.+)$/m);
+            fileTitles[indexPath] = match ? match[1].trim() : dirName;
+          } catch {
+            fileTitles[indexPath] = dirName;
+          }
+          await loadEncountersForAct(campaignPath, dirName);
+        }
+      } catch {
+        sectionFiles[key] = [];
+      }
+    } else {
+      try {
+        const files = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
+        sectionFiles[key] = files;
+        files.forEach(async (filename) => {
+          const path = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
+          try {
+            const content = await invoke<string>('read_file_content', { path });
+            const match = content.match(/^#\s+(.+)$/m);
+            fileTitles[path] = match ? match[1].trim() : filename.replace('.md', '');
+          } catch {
+            fileTitles[path] = filename.replace('.md', '');
+          }
+        });
+      } catch {
+        sectionFiles[key] = [];
+      }
     }
   }
 
@@ -392,9 +371,11 @@
     if (expanded[key]) await loadSection(campaignPath, section);
   }
 
-  async function openFile(campaignPath: string, section: typeof sections[0], filename: string) {
-    const fullPath = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
-    activeFile.set({ name: filename.replace('.md', ''), path: fullPath, type: section.type });
+  async function openFile(campaignPath: string, section: typeof sections[0], filenameOrDir: string) {
+    const fullPath = section.type === 'act'
+      ? `${VAULT_BASE}/${campaignPath}/acts/${filenameOrDir}/index.md`
+      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filenameOrDir}`;
+    activeFile.set({ name: filenameOrDir.replace('.md', ''), path: fullPath, type: section.type });
     try {
       const content = await invoke<string>('read_file_content', { path: fullPath });
       setFileContent(content);
@@ -425,22 +406,21 @@
     const raw = newFileInput[key]?.trim();
     if (!raw) return;
 
-    const filename = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '') + '.md';
-    const fullPath = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
+    const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '');
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
+    const fullPath = section.type === 'act'
+      ? `${VAULT_BASE}/${campaignPath}/acts/${slug}/index.md`
+      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${slug}.md`;
+
     try {
-      const sectionTemplate =
-        section.type === 'act'
-          ? `# ${title}\n\n## Summary\nKurze Beschreibung dieses Aktes und erwartetes Outcome.\n\n## Details\n\n### Encounter / Szenen\n\n### NSCs & Motivationen\n\n### Mögliche Outcomes\n\n`
-          : section.type === 'session'
-          ? `# ${title}\n\n**Datum:**\n\n## Charaktere\n- \n\n## Was passierte\n\n## Wichtige Ereignisse\n\n## Nächste Sitzung\n\n`
-          : `# ${title}\n\n`;
+      const tmpl = await loadTemplate(section.type);
+      const sectionTemplate = `# ${title}\n\n` + (tmpl ?? '');
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       showNewFileInput[key] = false;
       newFileInput[key] = '';
       await loadSection(campaignPath, section);
-      await openFile(campaignPath, section, filename);
+      await openFile(campaignPath, section, slug);
       if (section.type === 'act') loadActSummaries(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
@@ -572,7 +552,7 @@
       <button
         class="campaign-title"
         class:active={$activeCampaign?.id === campaign.id}
-        onclick={() => { activeCampaign.set({ ...campaign }); openCampaignFile(campaign.path); loadActSummaries(campaign.path); }}
+        onclick={() => { activeCampaign.set({ ...campaign }); openCampaignFile(campaign.path); }}
       >
         {campaign.name}
       </button>
@@ -595,18 +575,20 @@
               <div class="file-list">
                 {#if sectionFiles[key]?.length}
                   {#each sectionFiles[key] as filename}
-                    {@const filePath = `${VAULT_BASE}/${campaign.path}/${section.subdir}/${filename}`}
+                    {@const filePath = section.type === 'act'
+                      ? `${VAULT_BASE}/${campaign.path}/acts/${filename}/index.md`
+                      : `${VAULT_BASE}/${campaign.path}/${section.subdir}/${filename}`}
                     {#if section.type === 'act'}
                       {@const actEncKey = `${campaign.path}/${filename}`}
-                      {@const actEncs = getEncountersForAct(campaign.path, filename)}
+                      {@const actEncs = encounterFiles[actEncKey] ?? []}
                       <div class="act-row">
                         <button
                           class="file-entry act-entry"
-                          class:active={$activeFile?.path?.endsWith(filename)}
+                          class:active={$activeFile?.path === filePath}
                           onclick={() => openFile(campaign.path, section, filename)}
-                          title={filename.replace('.md', '')}
+                          title={filename}
                         >
-                          {fileTitles[filePath] ?? filename.replace('.md', '')}
+                          {fileTitles[filePath] ?? filename}
                         </button>
                         <button
                           class="add-btn"
@@ -615,13 +597,14 @@
                         >+</button>
                       </div>
                       {#each actEncs as encFilename}
+                        {@const encPath = `${VAULT_BASE}/${campaign.path}/acts/${filename}/encounters/${encFilename}`}
                         <button
                           class="file-entry encounter-entry act-enc-entry"
-                          class:active={$activeFile?.path?.endsWith(encFilename)}
-                          onclick={() => openEncounter(campaign.path, encFilename)}
+                          class:active={$activeFile?.path === encPath}
+                          onclick={() => openEncounter(campaign.path, filename, encFilename)}
                           title={encFilename.replace('.json', '')}
                         >
-                          ⚡ {encounterNames[`${campaign.path}/${encFilename}`] ?? encFilename.replace('.json', '')}
+                          ⚡ {encounterNames[`${actEncKey}/${encFilename}`] ?? encFilename.replace('.json', '')}
                         </button>
                       {/each}
                       {#if showNewActEncounterInput[actEncKey]}
@@ -639,7 +622,7 @@
                     {:else}
                       <button
                         class="file-entry"
-                        class:active={$activeFile?.path?.endsWith(filename)}
+                        class:active={$activeFile?.path === filePath}
                         onclick={() => openFile(campaign.path, section, filename)}
                         title={filename.replace('.md', '')}
                       >

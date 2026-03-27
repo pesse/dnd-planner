@@ -69,11 +69,16 @@
 
       character = parseCharacterData(fields);
 
-      // GM-Notizen laden (optional)
+      // GM-Notizen laden — bei fehlender Datei Template anlegen
       try {
         gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
       } catch {
-        gmNotes = `# GM-Notizen: ${character.name}\n\n## Beziehungen\n\n## Entscheidungen\n\n## Notizen\n\n`;
+        let tmpl = '';
+        try {
+          tmpl = await invoke<string>('read_file_content', { path: './vault/templates/character.md' });
+        } catch { /* kein Template vorhanden */ }
+        gmNotes = `# GM-Notizen: ${character.name}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
+        await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
       }
 
       fileContent.set(gmNotes);

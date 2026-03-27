@@ -20,6 +20,18 @@
     tödlich: '#f38ba8',
   };
 
+  const STATUS_LABEL: Record<string, string> = {
+    planned: 'Geplant',
+    done: 'Gespielt',
+    skipped: 'Übersprungen',
+  };
+
+  const STATUS_COLOR: Record<string, string> = {
+    planned: '#89b4fa',
+    done: '#a6e3a1',
+    skipped: '#f9e2af',
+  };
+
   function diffColor(d: string): string {
     return DIFFICULTY_COLOR[d] ?? '#a6adc8';
   }
@@ -137,6 +149,16 @@
           <option value="schwer">SCHWER</option>
           <option value="tödlich">TÖDLICH</option>
         </select>
+        <div class="status-toggle">
+          {#each (['planned', 'done', 'skipped'] as const) as s}
+            <button
+              class="status-btn"
+              class:active={( draft.status ?? 'planned') === s}
+              style="--sc: {STATUS_COLOR[s]}"
+              onclick={() => { draft!.status = s; mark(); }}
+            >{STATUS_LABEL[s]}</button>
+          {/each}
+        </div>
       </div>
 
       <textarea
@@ -371,6 +393,30 @@
   }
 
   .diff-select option { background: #1e1e2e; color: #cdd6f4; }
+
+  .status-toggle {
+    display: flex;
+    gap: 0.2rem;
+    margin-left: auto;
+  }
+
+  .status-btn {
+    background: transparent;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    color: #6c7086;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .status-btn.active {
+    border-color: var(--sc);
+    color: var(--sc);
+    background: color-mix(in srgb, var(--sc) 12%, transparent);
+  }
 
   .enc-desc-input {
     width: 100%;

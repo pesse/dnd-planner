@@ -113,4 +113,5 @@ export interface Encounter {
   loot: string;
   tags: string[];
   notes: string;
+  status: 'planned' | 'done' | 'skipped';
 }
