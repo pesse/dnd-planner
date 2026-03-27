@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { fileContent, activeFile, setFileContent } from '../stores/campaign';
+  import { fileContent, activeFile, setFileContent, activeCampaign } from '../stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
-  import type { Encounter, EncounterMonster } from '../types';
+  import type { Encounter, EncounterMonster, Monster } from '../types';
   import MonsterMiniCard from './MonsterMiniCard.svelte';
+  import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -96,6 +97,55 @@
     }
   }
 
+  // Akt-lokaler Monsters-Pfad aus dem Encounter-Pfad ableiten
+  let actMonsterBasePath = $derived((() => {
+    const match = $activeFile?.path?.match(/^(.*\/acts\/[^/]+)\/encounters\//);
+    return match ? `${match[1]}/monsters` : undefined;
+  })());
+
+  // ── Print ──────────────────────────────────────────────────────────────────
+  let printLoading = $state(false);
+
+  async function openPrint() {
+    if (!draft) return;
+    printLoading = true;
+
+    const monsters: PrintMonster[] = await Promise.all(
+      draft.monsters.filter(m => m.slug).map(async (m) => {
+        if (actMonsterBasePath) {
+          try {
+            const content = await invoke<string>('read_file_content', { path: `${actMonsterBasePath}/${m.slug}.json` });
+            return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
+          } catch { /* weiter */ }
+        }
+        try {
+          const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
+          return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
+        } catch {
+          return { monster: null, count: m.count, notes: m.notes, slug: m.slug };
+        }
+      })
+    );
+
+    const html = buildPrintHtml(draft, monsters);
+
+    // Self-contained HTML in unsichtbarem iframe drucken — umgeht Svelte CSS-Scoping
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument!;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.onload = () => {
+      iframe.contentWindow!.focus();
+      iframe.contentWindow!.print();
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    };
+
+    printLoading = false;
+  }
+
   function addMonster() {
     draft!.monsters.push({ slug: '', count: 1, notes: '' });
     mark();
@@ -166,7 +216,7 @@
         bind:value={draft.description}
         oninput={mark}
         placeholder="Beschreibung…"
-        rows="2"
+        rows="5"
       ></textarea>
 
       <!-- Meta -->
@@ -195,11 +245,13 @@
       <div class="enc-monster-list">
         {#each draft.monsters as m, i}
           <div class="enc-monster-row">
-            <input class="editable-field mon-count-input" type="number" bind:value={m.count} oninput={mark} min="1" />
-            <span class="mon-sep">×</span>
-            <input class="editable-field mon-slug-input" bind:value={m.slug} oninput={mark} placeholder="monster-slug" />
-            <input class="editable-field mon-notes-input" bind:value={m.notes} oninput={mark} placeholder="Notizen…" />
-            <button class="row-remove" onclick={() => removeMonster(i)}>×</button>
+            <div class="mon-top-row">
+              <input class="editable-field mon-count-input" type="number" bind:value={m.count} oninput={mark} min="1" />
+              <span class="mon-sep">×</span>
+              <input class="editable-field mon-slug-input" bind:value={m.slug} oninput={mark} placeholder="monster-slug" />
+              <button class="row-remove" onclick={() => removeMonster(i)}>×</button>
+            </div>
+            <textarea class="editable-field mon-notes-input" bind:value={m.notes} oninput={mark} placeholder="Notizen…" rows="2"></textarea>
           </div>
         {/each}
         <button class="add-row-btn" onclick={addMonster}>+ Monster</button>
@@ -244,6 +296,9 @@
 
       <div class="enc-footer">
         <button class="json-btn" onclick={openJson}>JSON</button>
+        <button class="print-btn" onclick={openPrint} disabled={printLoading}>
+          {printLoading ? '…' : '🖨 PDF'}
+        </button>
       </div>
     </div>
     </div><!-- enc-main-col -->
@@ -256,16 +311,18 @@
             {#if m.count > 1}
               <div class="mini-count-badge">{m.count}×</div>
             {/if}
-            <MonsterMiniCard slug={m.slug} />
+            <MonsterMiniCard slug={m.slug} {actMonsterBasePath} />
           </div>
         {/each}
       </div>
     {/if}
 
     </div><!-- enc-layout -->
+
   {:else}
     <div class="parse-error">Ungültiges Encounter-JSON. <button onclick={openJson}>JSON bearbeiten</button></div>
   {/if}
+
 </div>
 
 <style>
@@ -474,6 +531,12 @@
 
   .enc-monster-row {
     display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .mon-top-row {
+    display: flex;
     align-items: center;
     gap: 0.3rem;
   }
@@ -481,7 +544,14 @@
   .mon-sep { color: #f9e2af; font-weight: 700; }
   .mon-count-input { width: 44px; text-align: center; font-weight: 700; color: #f9e2af; }
   .mon-slug-input { width: 180px; font-weight: 600; }
-  .mon-notes-input { flex: 1; color: #6c7086; font-style: italic; font-size: 0.82rem; }
+  .mon-notes-input {
+    width: 100%;
+    color: #6c7086;
+    font-style: italic;
+    font-size: 0.82rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
 
   .row-remove {
     background: none;
@@ -556,4 +626,17 @@
 
   .parse-error { color: #f38ba8; font-size: 0.9rem; }
   .parse-error button { background: none; border: none; color: #89b4fa; cursor: pointer; text-decoration: underline; }
+
+  .print-btn {
+    background: transparent;
+    border: 1px solid #45475a;
+    color: #6c7086;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+  .print-btn:hover { border-color: #89b4fa; color: #89b4fa; }
+  .print-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 </style>

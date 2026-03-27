@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import type { Monster, MonsterAction } from '../types';
 
-  let { slug }: { slug: string } = $props();
+  let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
 
   let status = $state<'loading' | 'ok' | 'missing'>('loading');
   let saved = $state<Monster | null>(null);
@@ -10,22 +10,50 @@
   let editMode = $state(false);
   let dirty = $state(false);
   let saveError = $state('');
+  let source = $state<'global' | 'act'>('global');
+  let savePath = $state('');
+  let promoteError = $state('');
 
-  const MONSTERS_PATH = './vault/monsters';
+  const GLOBAL_MONSTERS_PATH = './vault/monsters';
 
   let loadError = $state('');
+
+  function normalizeMonster(m: Monster): Monster {
+    m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
+    m.tags ??= []; m.damage_resistances ??= []; m.damage_immunities ??= [];
+    m.condition_immunities ??= []; m.saving_throws ??= {}; m.skills ??= {};
+    return m;
+  }
 
   async function load(s: string) {
     status = 'loading';
     loadError = '';
+    promoteError = '';
+
+    // Akt-lokal zuerst
+    if (actMonsterBasePath) {
+      const actPath = `${actMonsterBasePath}/${s}.json`;
+      try {
+        const content = await invoke<string>('read_file_content', { path: actPath });
+        const parsed = normalizeMonster(JSON.parse(content) as Monster);
+        saved = parsed;
+        draft = structuredClone(parsed);
+        savePath = actPath;
+        source = 'act';
+        status = 'ok';
+        return;
+      } catch { /* nicht akt-lokal vorhanden */ }
+    }
+
+    // Global fallback
+    const globalPath = `${GLOBAL_MONSTERS_PATH}/${s}.json`;
     try {
-      const content = await invoke<string>('read_file_content', { path: `${MONSTERS_PATH}/${s}.json` });
-      const parsed = JSON.parse(content) as Monster;
-      parsed.traits ??= []; parsed.actions ??= []; parsed.reactions ??= []; parsed.legendary_actions ??= [];
-      parsed.tags ??= []; parsed.damage_resistances ??= []; parsed.damage_immunities ??= [];
-      parsed.condition_immunities ??= []; parsed.saving_throws ??= {}; parsed.skills ??= {};
+      const content = await invoke<string>('read_file_content', { path: globalPath });
+      const parsed = normalizeMonster(JSON.parse(content) as Monster);
       saved = parsed;
       draft = structuredClone(parsed);
+      savePath = globalPath;
+      source = 'global';
       status = 'ok';
     } catch (e) {
       loadError = String(e);
@@ -39,19 +67,51 @@
   // structuredClone cannot handle Svelte $state Proxies — use JSON round-trip instead
   function snap<T>(val: T): T { return JSON.parse(JSON.stringify(val)); }
 
-  function startEdit() { draft = snap(saved); dirty = false; editMode = true; saveError = ''; }
+  async function startEdit() {
+    // Copy-on-write: globales Monster → erst akt-lokale Kopie anlegen
+    if (source === 'global' && actMonsterBasePath && saved) {
+      const actPath = `${actMonsterBasePath}/${slug}.json`;
+      const json = JSON.stringify(saved, null, 2);
+      try {
+        await invoke('write_file_content', { path: actPath, content: json });
+        savePath = actPath;
+        source = 'act';
+      } catch (e) {
+        saveError = `Lokale Kopie konnte nicht angelegt werden: ${e}`;
+        return;
+      }
+    }
+    draft = snap(saved);
+    dirty = false;
+    editMode = true;
+    saveError = '';
+  }
+
   function cancelEdit() { draft = snap(saved); dirty = false; editMode = false; saveError = ''; }
 
   async function save() {
     if (!draft) return;
     try {
       const json = JSON.stringify(draft, null, 2);
-      await invoke('write_file_content', { path: `${MONSTERS_PATH}/${slug}.json`, content: json });
+      await invoke('write_file_content', { path: savePath, content: json });
       saved = JSON.parse(json);
       dirty = false;
       saveError = '';
     } catch (e) {
       saveError = `${e}`;
+    }
+  }
+
+  async function promoteToLibrary() {
+    if (source !== 'act') return;
+    promoteError = '';
+    const globalPath = `${GLOBAL_MONSTERS_PATH}/${slug}.json`;
+    try {
+      await invoke('rename_file', { oldPath: savePath, newPath: globalPath });
+      savePath = globalPath;
+      source = 'global';
+    } catch (e) {
+      promoteError = `${e}`;
     }
   }
 
@@ -83,7 +143,7 @@
   function removeAction(arr: MonsterAction[], i: number) { arr.splice(i, 1); mark(); }
 </script>
 
-<div class="mini-card" class:edit-mode={editMode}>
+<div class="mini-card" class:edit-mode={editMode} class:act-local={source === 'act'}>
   {#if status === 'loading'}
     <div class="mini-placeholder">…</div>
 
@@ -97,6 +157,7 @@
     {#if editMode}
       <!-- ── Full edit view ── -->
       <div class="edit-header">
+        <span class="source-badge source-{source}">{source === 'act' ? 'akt-lokal' : 'bibliothek'}</span>
         {#if dirty}
           <button class="save-btn" onclick={save}>Speichern</button>
           {#if saveError}<span class="save-error">{saveError}</span>{/if}
@@ -282,6 +343,7 @@
         <div class="c-header">
           <span class="c-name">{saved.name}</span>
           <span class="c-cr">HG {saved.cr}</span>
+          <span class="source-badge source-{source}">{source === 'act' ? 'akt' : ''}</span>
         </div>
         <div class="c-meta">{saved.size} {saved.type}</div>
 
@@ -315,7 +377,15 @@
           </div>
         {/if}
 
-        <button class="edit-btn" onclick={startEdit}>✏ Bearbeiten</button>
+        <div class="c-action-row">
+          <button class="edit-btn" onclick={startEdit}>
+            {source === 'global' && actMonsterBasePath ? '✏ Lokal bearbeiten' : '✏ Bearbeiten'}
+          </button>
+          {#if source === 'act'}
+            <button class="promote-btn" onclick={promoteToLibrary} title="In globale Bibliothek verschieben">→ Bibliothek</button>
+          {/if}
+        </div>
+        {#if promoteError}<span class="promote-error">{promoteError}</span>{/if}
       </div>
     {/if}
   {/if}
@@ -331,6 +401,26 @@
     width: 210px;
     flex-shrink: 0;
   }
+
+  /* Akt-lokale Monster: amber statt rot */
+  .mini-card.act-local {
+    background: #241e10;
+    border-color: #7a5c1a;
+  }
+  .mini-card.act-local .c-divider,
+  .mini-card.act-local .divider { background: #7a5c1a44; }
+  .mini-card.act-local .edit-header { background: #1a1508; border-bottom-color: #7a5c1a; }
+  .mini-card.act-local .c-lbl,
+  .mini-card.act-local .lbl,
+  .mini-card.act-local .c-stat-lbl,
+  .mini-card.act-local .stat-lbl,
+  .mini-card.act-local .section-title { color: #f9e2af; }
+  .mini-card.act-local .c-name,
+  .mini-card.act-local .sb-name-input { color: #f9e2af; }
+  .mini-card.act-local .ef:hover,
+  .mini-card.act-local .ef:focus { border-color: #f9e2af; background: #1a1508; }
+  .mini-card.act-local .action-block { border-left-color: #7a5c1a44; }
+  .mini-card.act-local .section-title { border-bottom-color: #7a5c1a44; }
 
   .mini-card.edit-mode {
     width: 460px;
@@ -457,8 +547,15 @@
     text-overflow: ellipsis;
   }
 
-  .edit-btn {
+  .c-action-row {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
     margin-top: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  .edit-btn {
     background: transparent;
     border: 1px solid #45475a;
     color: #6c7086;
@@ -466,9 +563,41 @@
     padding: 0.2rem 0.5rem;
     cursor: pointer;
     font-size: 0.75rem;
-    align-self: flex-start;
   }
   .edit-btn:hover { border-color: #f38ba8; color: #f38ba8; }
+
+  .promote-btn {
+    background: transparent;
+    border: 1px solid #45475a;
+    color: #6c7086;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.72rem;
+  }
+  .promote-btn:hover { border-color: #a6e3a1; color: #a6e3a1; }
+
+  .promote-error {
+    font-size: 0.72rem;
+    color: #f38ba8;
+  }
+
+  .source-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .source-act {
+    background: color-mix(in srgb, #f9e2af 15%, transparent);
+    color: #f9e2af;
+    border: 1px solid #f9e2af44;
+  }
+  /* global badge ist unsichtbar in compact view (leerer Text) */
+  .source-global { display: none; }
 
   /* ── Edit view ── */
   .edit-header {

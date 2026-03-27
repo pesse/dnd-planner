@@ -106,6 +106,28 @@ export const encounterMonsterDefs = writable<Monster[]>([]);
 
 /** Lädt Encounter-Summaries und Monster-Namen für eine Kampagne. */
 export async function loadEncounterContext(campaignPath: string): Promise<void> {
+  // Monster-Bibliothek zuerst laden, damit Encounter-Listen Name+CR anreichern können
+  let libraryMap = new Map<string, { name: string; cr: string }>();
+  try {
+    const globalFiles = await invoke<string[]>('list_json_files', { path: './vault/monsters' });
+    const library = await Promise.all(
+      globalFiles.map(async (filename) => {
+        const slug = filename.replace('.json', '');
+        try {
+          const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${filename}` });
+          const m = JSON.parse(content);
+          return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string };
+        } catch {
+          return { slug, name: slug, cr: '?', size: '?', type: '?' };
+        }
+      })
+    );
+    monsterLibrary.set(library);
+    libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.cr }]));
+  } catch {
+    monsterLibrary.set([]);
+  }
+
   try {
     const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
       path: `./vault/campaigns/${campaignPath}/acts`,
@@ -114,6 +136,26 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
 
     const allEncounters: EncounterSummaryEntry[] = [];
     for (const actDirName of actDirs) {
+      // Akt-lokale Monster laden (überschreiben globale Einträge für diesen Akt)
+      const actMap = new Map(libraryMap);
+      try {
+        const localFiles = await invoke<string[]>('list_json_files', {
+          path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters`,
+        });
+        await Promise.all(
+          localFiles.map(async (filename) => {
+            const slug = filename.replace('.json', '');
+            try {
+              const content = await invoke<string>('read_file_content', {
+                path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters/${filename}`,
+              });
+              const m = JSON.parse(content);
+              actMap.set(slug, { name: m.name as string, cr: m.cr as string });
+            } catch { /* ignorieren */ }
+          })
+        );
+      } catch { /* kein lokaler monsters-Ordner */ }
+
       try {
         const files = await invoke<string[]>('list_json_files', {
           path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters`,
@@ -124,7 +166,11 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
             const content = await invoke<string>('read_file_content', { path });
             const enc = JSON.parse(content);
             const monsterList = (enc.monsters as Array<{ count: number; slug: string }>)
-              .map((m) => `${m.count}× ${m.slug}`)
+              .map((m) => {
+                const lib = actMap.get(m.slug);
+                const label = lib ? `${lib.name} (CR ${lib.cr})` : m.slug;
+                return `${m.count}× ${label}`;
+              })
               .join(', ');
             return {
               slug: filename.replace('.json', ''),
@@ -144,33 +190,29 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
   } catch {
     encounterSummaries.set([]);
   }
-
-  try {
-    const globalFiles = await invoke<string[]>('list_json_files', { path: './vault/monsters' });
-    const library = await Promise.all(
-      globalFiles.map(async (filename) => {
-        const slug = filename.replace('.json', '');
-        try {
-          const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${filename}` });
-          const m = JSON.parse(content);
-          return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string };
-        } catch {
-          return { slug, name: slug, cr: '?', size: '?', type: '?' };
-        }
-      })
-    );
-    monsterLibrary.set(library);
-  } catch {
-    monsterLibrary.set([]);
-  }
 }
 
-/** Lädt die vollständigen Monster-Definitionen für einen geöffneten Encounter. */
-export async function loadEncounterMonsters(encounterContent: string): Promise<void> {
+/** Lädt die vollständigen Monster-Definitionen für einen geöffneten Encounter.
+ *  Lookup-Reihenfolge: akt-lokal (acts/{akt}/monsters/) → global (vault/monsters/)
+ */
+export async function loadEncounterMonsters(encounterContent: string, encounterPath?: string): Promise<void> {
+  // Akt-lokalen Monsters-Ordner aus dem Encounter-Pfad ableiten
+  const actMonsterBase = encounterPath
+    ? encounterPath.replace(/\/encounters\/[^/]+\.json$/, '/monsters')
+    : null;
+
   try {
     const enc = JSON.parse(encounterContent) as { monsters: Array<{ slug: string }> };
     const defs = await Promise.all(
       enc.monsters.map(async (m) => {
+        // Akt-lokal zuerst
+        if (actMonsterBase) {
+          try {
+            const content = await invoke<string>('read_file_content', { path: `${actMonsterBase}/${m.slug}.json` });
+            return JSON.parse(content) as Monster;
+          } catch { /* nicht gefunden, global versuchen */ }
+        }
+        // Global fallback
         try {
           const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
           return JSON.parse(content) as Monster;
@@ -337,22 +379,67 @@ export const systemPrompt = derived(
         const showMonster = $activeFile.type === 'monster' || $activeFile.type === 'act';
         const showEncounter = $activeFile.type === 'encounter' || $activeFile.type === 'act';
         const lines: string[] = ['\n## JSON Format for Generation',
-          'When creating a monster or encounter, output the JSON in a ```json ... ``` block:'];
-        if (showMonster) lines.push(
-          '\n**Monster:** `{ name, size, type, alignment, ac: {value, note}, hp: {average, formula}, speed,\n' +
-          '  stats: {str,dex,con,int,wis,cha}, saving_throws, skills, damage_resistances, damage_immunities,\n' +
-          '  condition_immunities, senses, languages, cr, xp, traits, actions, reactions, legendary_actions, tags }`'
-        );
+          'When outputting a monster or encounter, wrap it in a single ```json ... ``` block.',
+          '**CRITICAL rules — violation will break the app:**',
+          '- Output EXACTLY the fields listed below — no extra fields, no omissions.',
+          '- Use the exact field names (snake_case, lowercase).',
+          '- Respect the listed types strictly (number vs string, array vs object).',
+          '- Enum values must match exactly (case-sensitive).',
+          '- Never add markdown, prose, or comments inside the JSON block.',
+          '- Output only ONE JSON object per block (no arrays at top level).',
+        ];
         if (showEncounter) lines.push(
-          '\n**Encounter:** `{ name, description, monsters: [{slug, count, notes}],\n' +
-          '  difficulty (leicht|mittel|schwer|tödlich), xp_total, party_size, party_level,\n' +
-          '  location, loot, tags, notes, status (planned|done|skipped) }`'
+          '\n**Encounter schema** (all fields required):\n```\n' +
+          '{\n' +
+          '  "name": string,\n' +
+          '  "description": string,\n' +
+          '  "monsters": [ { "slug": string, "count": number, "notes": string } ],\n' +
+          '  "difficulty": "leicht" | "mittel" | "schwer" | "tödlich",\n' +
+          '  "xp_total": number,\n' +
+          '  "party_size": number,\n' +
+          '  "party_level": number,\n' +
+          '  "location": string,\n' +
+          '  "loot": string,\n' +
+          '  "tags": string[],\n' +
+          '  "notes": string,\n' +
+          '  "status": "planned" | "done" | "skipped"\n' +
+          '}\n```\n' +
+          'Notes: `monsters[].slug` must match an existing monster filename (without .json). ' +
+          'Use empty string "" for unknown slugs, 0 for unknown numbers, [] for empty arrays. ' +
+          'The same slug may appear multiple times in the array (e.g. two separate waves of the same monster type).'
+        );
+        if (showMonster) lines.push(
+          '\n**Monster schema** (all fields required):\n```\n' +
+          '{\n' +
+          '  "name": string,\n' +
+          '  "size": string,\n' +
+          '  "type": string,\n' +
+          '  "alignment": string,\n' +
+          '  "ac": { "value": number, "note": string },\n' +
+          '  "hp": { "average": number, "formula": string },\n' +
+          '  "speed": string,\n' +
+          '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
+          '  "saving_throws": { [ability: string]: string },\n' +
+          '  "skills": { [skill: string]: string },\n' +
+          '  "damage_resistances": string[],\n' +
+          '  "damage_immunities": string[],\n' +
+          '  "condition_immunities": string[],\n' +
+          '  "senses": string,\n' +
+          '  "languages": string,\n' +
+          '  "cr": string,\n' +
+          '  "xp": number,\n' +
+          '  "traits": [ { "name": string, "description": string } ],\n' +
+          '  "actions": [ { "name": string, "description": string, "attack_bonus"?: number, "damage"?: string } ],\n' +
+          '  "reactions": [ { "name": string, "description": string } ],\n' +
+          '  "legendary_actions": [ { "name": string, "description": string } ],\n' +
+          '  "tags": string[]\n' +
+          '}\n```'
         );
         parts.push(lines.join('\n'));
       }
 
-      // Active file (full content)
-      if ($activeFile && $fileContent && $contextFlags.activeFile) {
+      // Active file (full content) — notes werden nie auto-inkludiert
+      if ($activeFile && $fileContent && $contextFlags.activeFile && $activeFile.type !== 'notes') {
         const label = $activeFile.type === 'act'
           ? `Active Act: ${$activeFile.name}`
           : `Current File: ${$activeFile.name} (${$activeFile.type})`;
@@ -387,7 +474,7 @@ export const contextSummary = derived(
     if ($encounterSummaries.length > 0 && $contextFlags.encounters) items.push(`${$encounterSummaries.length} Encounters`);
     if ($monsterLibrary.length > 0 && $contextFlags.monsters) items.push(`${$monsterLibrary.length} Monster`);
     if ($encounterMonsterDefs.length > 0 && $contextFlags.encounterMonsters && $activeFile?.type === 'encounter') items.push(`${$encounterMonsterDefs.length} Mon↑`);
-    if ($activeFile && $contextFlags.activeFile) items.push($activeFile.name);
+    if ($activeFile && $contextFlags.activeFile && $activeFile.type !== 'notes') items.push($activeFile.name);
     for (const pin of $pinnedEntries) {
       const icon = pin.isCharacter ? '⚔' : '📌';
       const detail = pin.isCharacter ? ` (${pin.detailLevel.toUpperCase()})` : '';

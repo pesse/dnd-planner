@@ -22,6 +22,8 @@ export interface AgentOptions {
   onStep: (step: AgentStep) => void;
   /** Custom write handler — allows the caller to intercept file writes for undo support. */
   writeFile?: (path: string, content: string) => Promise<void>;
+  /** Abort signal — wenn abgebrochen, wirft der Loop einen Fehler. */
+  signal?: AbortSignal;
 }
 
 // ── Tool-Definitionen ─────────────────────────────────────────────────────────
@@ -286,7 +288,7 @@ async function openAiAgentLoop(
   systemPromptText: string,
   options: AgentOptions
 ): Promise<string> {
-  const { onStep, writeFile } = options;
+  const { onStep, writeFile, signal } = options;
   const msgs: unknown[] = [
     { role: 'system', content: systemPromptText },
     { role: 'user', content: userMessage },
@@ -295,6 +297,7 @@ async function openAiAgentLoop(
   let toolUseFailedRetries = 0;
 
   for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
+    if (signal?.aborted) throw new Error('Agent abgebrochen.');
     let data: Record<string, unknown>;
     try {
       data = await rustFetch(
@@ -364,10 +367,11 @@ async function anthropicAgentLoop(
   systemPromptText: string,
   options: AgentOptions
 ): Promise<string> {
-  const { onStep, writeFile } = options;
+  const { onStep, writeFile, signal } = options;
   const msgs: unknown[] = [{ role: 'user', content: userMessage }];
 
   for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
+    if (signal?.aborted) throw new Error('Agent abgebrochen.');
     const data = await rustFetch(
       `${ANTHROPIC_API}/messages`,
       { 'x-api-key': config.apiKey!, 'anthropic-version': '2023-06-01' },
@@ -380,15 +384,12 @@ async function anthropicAgentLoop(
 
     msgs.push({ role: 'assistant', content });
 
-    if (stopReason === 'end_turn') {
-      const text = (content.find((b) => b.type === 'text')?.text as string) ?? '';
-      onStep({ type: 'done', text });
-      return text;
-    }
+    const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
 
-    if (stopReason === 'tool_use') {
+    if (toolUseBlocks.length > 0) {
+      // Tool-Calls verarbeiten — unabhängig von stop_reason (deckt auch 'max_tokens' ab)
       const toolResults: unknown[] = [];
-      for (const block of content.filter((b) => b.type === 'tool_use')) {
+      for (const block of toolUseBlocks) {
         const toolName = block.name as string;
         const toolArgs = block.input as Record<string, string>;
         const toolId = block.id as string;
@@ -404,6 +405,13 @@ async function anthropicAgentLoop(
         toolResults.push({ type: 'tool_result', tool_use_id: toolId, content: result });
       }
       msgs.push({ role: 'user', content: toolResults });
+    } else if (stopReason === 'end_turn' || stopReason === 'stop_sequence') {
+      const text = (content.find((b) => b.type === 'text')?.text as string) ?? '';
+      onStep({ type: 'done', text });
+      return text;
+    } else {
+      // max_tokens oder anderer unerwarteter stop_reason ohne Tool-Calls
+      throw new Error(`Agent stopped unexpectedly (stop_reason: ${stopReason})`);
     }
   }
 

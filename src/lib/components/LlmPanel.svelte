@@ -32,6 +32,7 @@
   import type { AgentStep, AgentOptions } from '../services/llmService';
   import { debugLog, clearDebugLog } from '../stores/debug';
   import { invoke } from '@tauri-apps/api/core';
+  import { marked } from 'marked';
 
   type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
 
@@ -46,6 +47,7 @@
   let agentSteps = $state<AgentStep[]>([]);
   let agentRunning = $state(false);
   let agentError = $state('');
+  let agentAbortController = $state<AbortController | null>(null);
 
   // Lokale Kopien für das Settings-Formular
   let settingsProvider = $state($llmConfig.provider);
@@ -80,6 +82,11 @@
       settingsBaseUrl = $llmConfig.baseUrl ?? 'http://localhost:11434';
       settingsApiKey = $llmConfig.apiKey ?? '';
     });
+    generateResult = localStorage.getItem('llm-generate-result') ?? '';
+  });
+
+  $effect(() => {
+    localStorage.setItem('llm-generate-result', generateResult);
   });
 
   async function saveSettings() {
@@ -127,7 +134,9 @@
       `- **read_file(path)**: Reads any vault file (markdown or JSON)\n` +
       `- **write_file(path, content)**: Creates or overwrites a vault file (parent dirs auto-created)\n\n` +
       `Vault structure:\n` +
-      `\`\`\`\nvault/\n  monsters/*.json              ← global monster library\n  campaigns/{slug}/\n    campaign.md\n    sessions/*.md\n    npcs/*.md\n    world/*.md\n    acts/{act-slug}/\n      index.md                 ← the act itself\n      encounters/*.json        ← act encounters\n      monsters/*.json          ← act-specific monster variants\n\`\`\`` +
+      `\`\`\`\nvault/\n  monsters/*.json              ← global monster library\n  campaigns/{slug}/\n    campaign.md\n    sessions/*.md\n    npcs/*.md\n    world/*.md\n    acts/{act-slug}/\n      index.md                 ← the act itself\n      encounters/*.json        ← act encounters\n      monsters/*.json          ← act-specific monster variants (override global)\n\`\`\`\n\nMonster lookup order: act-local → global library. ` +
+      `Use act-local monsters (acts/{act}/monsters/{slug}.json) for encounter-specific variants or new creatures specific to this act. ` +
+      `Use the global library (vault/monsters/{slug}.json) for reusable monsters that appear across campaigns.` +
       campaignHint +
       `\n\n## Document Templates\n` +
       `Canonical templates for all document types are in \`./vault/templates/\`:\n` +
@@ -167,9 +176,13 @@
     agentError = '';
     agentRunning = true;
 
+    const controller = new AbortController();
+    agentAbortController = controller;
+
     const options: AgentOptions = {
       onStep: (step) => { agentSteps = [...agentSteps, step]; },
       writeFile: agentWriteFile,
+      signal: controller.signal,
     };
 
     try {
@@ -178,7 +191,12 @@
       agentError = e instanceof Error ? e.message : String(e);
     } finally {
       agentRunning = false;
+      agentAbortController = null;
     }
+  }
+
+  function stopAgent() {
+    agentAbortController?.abort();
   }
 
   async function sendMessage() {
@@ -253,6 +271,8 @@
 
   function clearGenerate() {
     generateResult = '';
+    showNewFile = false;
+    newFileSaveStatus = 'idle';
   }
 
   function fmtTokens(n: number): string {
@@ -295,6 +315,90 @@
 
   let saveStatus = $state<Record<number, 'saving' | 'saved' | 'error'>>({});
 
+  // ── Markdown-Erkennung ───────────────────────────────────────────────────────
+
+  function looksLikeMarkdown(text: string): boolean {
+    return /^#{1,6}\s/m.test(text) ||
+      /\*\*.+?\*\*/s.test(text) ||
+      /```[\s\S]*?```/.test(text) ||
+      /^[-*]\s/m.test(text) ||
+      /^\d+\.\s/m.test(text) ||
+      /^>\s/m.test(text);
+  }
+
+  let generateIsMarkdown = $derived(generateResult ? looksLikeMarkdown(generateResult) : false);
+
+  // ── Antwort-Aktionen ─────────────────────────────────────────────────────────
+
+  let copied = $state(false);
+  let copiedMsgIndex = $state<number | null>(null);
+  let showNewFile = $state(false);
+  let newFilePath = $state('');
+  let newFileSaveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  let newFileMsgIndex = $state<number | null>(null);
+  let newFileMsgPath = $state('');
+  let newFileMsgStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  async function copyText(text: string) {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+    setTimeout(() => { copied = false; }, 1500);
+  }
+
+  async function copyMessage(text: string, idx: number) {
+    await navigator.clipboard.writeText(text);
+    copiedMsgIndex = idx;
+    setTimeout(() => { copiedMsgIndex = null; }, 1500);
+  }
+
+  function suggestNewFilePath(): string {
+    const file = $activeFile;
+    const campaign = $activeCampaign;
+
+    if (file) {
+      const lastSlash = file.path.lastIndexOf('/');
+      const dir = lastSlash >= 0 ? file.path.slice(0, lastSlash + 1) : './vault/';
+      const defaultNames: Record<string, string> = {
+        session:   'neue-session.md',
+        npc:       'neuer-npc.md',
+        world:     'neuer-ort.md',
+        encounter: 'neuer-encounter.json',
+        monster:   'neues-monster.json',
+        character: 'neuer-charakter.md',
+        act:       'neuer-akt/index.md',
+        campaign:  'neue-kampagne.md',
+      };
+      return `${dir}${defaultNames[file.type] ?? 'neue-datei.md'}`;
+    }
+
+    if (campaign) return `./vault/campaigns/${campaign.path}/sessions/neue-session.md`;
+    return './vault/neue-datei.md';
+  }
+
+  async function saveAsNewFile(content: string): Promise<void> {
+    if (!newFilePath.trim()) return;
+    newFileSaveStatus = 'saving';
+    try {
+      await invoke('write_file_content', { path: newFilePath.trim(), content });
+      invalidateVault();
+      newFileSaveStatus = 'saved';
+    } catch {
+      newFileSaveStatus = 'error';
+    }
+  }
+
+  async function saveAsNewFileMsg(content: string): Promise<void> {
+    if (!newFileMsgPath.trim()) return;
+    newFileMsgStatus = 'saving';
+    try {
+      await invoke('write_file_content', { path: newFileMsgPath.trim(), content });
+      invalidateVault();
+      newFileMsgStatus = 'saved';
+    } catch {
+      newFileMsgStatus = 'error';
+    }
+  }
+
   async function saveJsonBlock(block: DetectedJson, index: number): Promise<void> {
     const campaign = $activeCampaign;
     if (!campaign) return;
@@ -317,6 +421,70 @@
 
   // Reaktiv: JSON-Blöcke aus dem generate-Ergebnis extrahieren
   let detectedBlocks = $derived(generateResult ? extractJsonBlocks(generateResult) : []);
+
+  // ── Code-Block-Parsing für Aktions-Buttons ────────────────────────────────
+
+  interface Segment {
+    type: 'text' | 'code';
+    content: string;
+    lang?: string;
+  }
+
+  function parseSegments(text: string): Segment[] {
+    const segments: Segment[] = [];
+    const regex = /```([\w]*)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      }
+      segments.push({ type: 'code', lang: match[1] ?? '', content: match[2] });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      segments.push({ type: 'text', content: text.slice(lastIndex) });
+    }
+    return segments;
+  }
+
+  function hasCodeBlock(text: string): boolean {
+    return /```[\w]*\n[\s\S]*?```/.test(text);
+  }
+
+  // State für Code-Block-Aktionen (Key: z.B. "msg-3-block-1" oder "gen-block-0")
+  let blockCopied = $state<Record<string, boolean>>({});
+  let blockNewFile = $state<Record<string, boolean>>({});
+  let blockNewFilePath = $state<Record<string, string>>({});
+  let blockNewFileStatus = $state<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+
+  async function copyBlock(key: string, content: string) {
+    await navigator.clipboard.writeText(content);
+    blockCopied[key] = true;
+    setTimeout(() => { blockCopied[key] = false; }, 1500);
+  }
+
+  function toggleBlockFile(key: string) {
+    if (blockNewFile[key]) {
+      blockNewFile[key] = false;
+    } else {
+      blockNewFile[key] = true;
+      if (!blockNewFilePath[key]) blockNewFilePath[key] = suggestNewFilePath();
+      blockNewFileStatus[key] = 'idle';
+    }
+  }
+
+  async function saveBlock(key: string, content: string) {
+    if (!blockNewFilePath[key]?.trim()) return;
+    blockNewFileStatus[key] = 'saving';
+    try {
+      await invoke('write_file_content', { path: blockNewFilePath[key].trim(), content });
+      invalidateVault();
+      blockNewFileStatus[key] = 'saved';
+    } catch {
+      blockNewFileStatus[key] = 'error';
+    }
+  }
 </script>
 
 <div class="llm-panel">
@@ -534,15 +702,71 @@
   <!-- Chat -->
   {#if mode === 'chat'}
     <div class="messages">
-      {#each $llmMessages as msg}
+      {#each $llmMessages as msg, i}
         <div class="message {msg.role}">
           <span class="role">{msg.role === 'user' ? 'Du' : 'KI'}</span>
-          <p>{msg.content}</p>
-          {#if msg.role === 'assistant' && $activeFile}
+          {#if msg.role === 'assistant' && hasCodeBlock(msg.content)}
+            {#each parseSegments(msg.content) as seg, si}
+              {#if seg.type === 'code'}
+                {@const bk = `msg-${i}-${si}`}
+                <div class="code-block-wrap">
+                  <div class="block-action-bar">
+                    {#if seg.lang}<span class="block-lang">{seg.lang}</span>{/if}
+                    <button class="block-btn" onclick={() => copyBlock(bk, seg.content)} title="Kopieren">{blockCopied[bk] ? '✓' : '⎘'}</button>
+                    {#if $activeFile}
+                      <button class="block-btn" onclick={() => appendContent(seg.content)}>+ Anhängen</button>
+                      <button class="block-btn" onclick={() => replaceContent(seg.content)}>↺ Ersetzen</button>
+                    {/if}
+                    <button class="block-btn" onclick={() => toggleBlockFile(bk)}>+ Datei</button>
+                  </div>
+                  <pre class="code-block"><code>{seg.content}</code></pre>
+                  {#if blockNewFile[bk]}
+                    <div class="block-file-row">
+                      <input class="new-file-input" bind:value={blockNewFilePath[bk]} placeholder="./vault/campaigns/.../datei.md" />
+                      <button class="new-file-save-btn" disabled={blockNewFileStatus[bk] === 'saving' || !blockNewFilePath[bk]?.trim()} onclick={() => saveBlock(bk, seg.content)}>
+                        {blockNewFileStatus[bk] === 'saving' ? '…' : blockNewFileStatus[bk] === 'saved' ? '✓' : blockNewFileStatus[bk] === 'error' ? '✕' : 'Speichern'}
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              {:else if seg.content.trim()}
+                {#if looksLikeMarkdown(seg.content)}
+                  <div class="md-response">{@html marked(seg.content)}</div>
+                {:else}
+                  <p>{seg.content}</p>
+                {/if}
+              {/if}
+            {/each}
+          {:else if msg.role === 'assistant' && looksLikeMarkdown(msg.content)}
+            <div class="md-response">{@html marked(msg.content)}</div>
+          {:else}
+            <p>{msg.content}</p>
+          {/if}
+          {#if msg.role === 'assistant'}
             <div class="msg-apply-row">
-              <button class="msg-apply-btn append" onclick={() => appendContent(msg.content)}>+ Anhängen</button>
-              <button class="msg-apply-btn replace" onclick={() => replaceContent(msg.content)}>↺ Ersetzen</button>
+              <button class="msg-apply-btn copy" onclick={() => copyMessage(msg.content, i)} title="Kopieren">
+                {copiedMsgIndex === i ? '✓' : '⎘'}
+              </button>
+              {#if $activeFile}
+                <button class="msg-apply-btn append" onclick={() => appendContent(msg.content)}>+ Anhängen</button>
+                <button class="msg-apply-btn replace" onclick={() => replaceContent(msg.content)}>↺ Ersetzen</button>
+              {/if}
+              <button class="msg-apply-btn new-file" onclick={() => { if (newFileMsgIndex === i) { newFileMsgIndex = null; } else { newFileMsgIndex = i; newFileMsgPath = suggestNewFilePath(); newFileMsgStatus = 'idle'; } }}>
+                + Datei
+              </button>
             </div>
+            {#if newFileMsgIndex === i}
+              <div class="new-file-row">
+                <input class="new-file-input" bind:value={newFileMsgPath} placeholder="./vault/campaigns/.../neue-datei.md" />
+                <button
+                  class="new-file-save-btn"
+                  disabled={newFileMsgStatus === 'saving' || !newFileMsgPath.trim()}
+                  onclick={() => saveAsNewFileMsg(msg.content)}
+                >
+                  {newFileMsgStatus === 'saving' ? '…' : newFileMsgStatus === 'saved' ? '✓' : newFileMsgStatus === 'error' ? '✕' : 'Speichern'}
+                </button>
+              </div>
+            {/if}
           {/if}
         </div>
       {/each}
@@ -562,16 +786,74 @@
         <div class="generate-result">
           <div class="generate-header">
             <span>Ergebnis</span>
-            <button class="icon-btn" onclick={clearGenerate}>✕</button>
-          </div>
-          <p>{generateResult}</p>
-          {#if $activeFile}
-            <div class="apply-row">
-              <button class="apply-btn append" onclick={() => { appendContent(generateResult); clearGenerate(); }}>
-                + Anhängen
+            <div class="header-actions">
+              <button class="icon-btn" onclick={() => copyText(generateResult)} title="In Zwischenablage kopieren">
+                {copied ? '✓' : '⎘'}
               </button>
-              <button class="apply-btn replace" onclick={() => { replaceContent(generateResult); clearGenerate(); }}>
-                ↺ Ersetzen
+              <button class="icon-btn" onclick={clearGenerate}>✕</button>
+            </div>
+          </div>
+          {#if hasCodeBlock(generateResult)}
+            {#each parseSegments(generateResult) as seg, si}
+              {#if seg.type === 'code'}
+                {@const bk = `gen-${si}`}
+                <div class="code-block-wrap">
+                  <div class="block-action-bar">
+                    {#if seg.lang}<span class="block-lang">{seg.lang}</span>{/if}
+                    <button class="block-btn" onclick={() => copyBlock(bk, seg.content)} title="Kopieren">{blockCopied[bk] ? '✓' : '⎘'}</button>
+                    {#if $activeFile}
+                      <button class="block-btn" onclick={() => appendContent(seg.content)}>+ Anhängen</button>
+                      <button class="block-btn" onclick={() => replaceContent(seg.content)}>↺ Ersetzen</button>
+                    {/if}
+                    <button class="block-btn" onclick={() => toggleBlockFile(bk)}>+ Datei</button>
+                  </div>
+                  <pre class="code-block"><code>{seg.content}</code></pre>
+                  {#if blockNewFile[bk]}
+                    <div class="block-file-row">
+                      <input class="new-file-input" bind:value={blockNewFilePath[bk]} placeholder="./vault/campaigns/.../datei.md" />
+                      <button class="new-file-save-btn" disabled={blockNewFileStatus[bk] === 'saving' || !blockNewFilePath[bk]?.trim()} onclick={() => saveBlock(bk, seg.content)}>
+                        {blockNewFileStatus[bk] === 'saving' ? '…' : blockNewFileStatus[bk] === 'saved' ? '✓' : blockNewFileStatus[bk] === 'error' ? '✕' : 'Speichern'}
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              {:else if seg.content.trim()}
+                {#if looksLikeMarkdown(seg.content)}
+                  <div class="md-response">{@html marked(seg.content)}</div>
+                {:else}
+                  <p>{seg.content}</p>
+                {/if}
+              {/if}
+            {/each}
+          {:else if generateIsMarkdown}
+            <div class="md-response">{@html marked(generateResult)}</div>
+          {:else}
+            <p>{generateResult}</p>
+          {/if}
+          <div class="apply-row">
+            <button class="apply-btn append" disabled={!$activeFile} onclick={() => { appendContent(generateResult); clearGenerate(); }}>
+              + Anhängen
+            </button>
+            <button class="apply-btn replace" disabled={!$activeFile} onclick={() => { replaceContent(generateResult); clearGenerate(); }}>
+              ↺ Ersetzen
+            </button>
+            <button class="apply-btn new-file" onclick={() => { showNewFile = !showNewFile; if (showNewFile) { newFilePath = suggestNewFilePath(); newFileSaveStatus = 'idle'; } }}>
+              + Datei
+            </button>
+          </div>
+          {#if showNewFile}
+            <div class="new-file-row">
+              <input
+                class="new-file-input"
+                bind:value={newFilePath}
+                placeholder="./vault/campaigns/.../neue-datei.md"
+              />
+              <button
+                class="new-file-save-btn"
+                disabled={newFileSaveStatus === 'saving' || !newFilePath.trim()}
+                onclick={() => saveAsNewFile(generateResult)}
+              >
+                {newFileSaveStatus === 'saving' ? '…' : newFileSaveStatus === 'saved' ? '✓' : newFileSaveStatus === 'error' ? '✕' : 'Speichern'}
               </button>
             </div>
           {/if}
@@ -749,6 +1031,9 @@
         <button onclick={runAgent} disabled={agentRunning || !input.trim()} class="agent-run-btn">
           {agentRunning ? 'Läuft…' : 'Starten'}
         </button>
+        {#if agentRunning}
+          <button onclick={stopAgent} class="agent-stop-btn">Stop</button>
+        {/if}
       {:else}
         <button onclick={sendMessage} disabled={$llmLoading}>
           {mode === 'chat' ? 'Senden' : 'Generieren'}
@@ -766,8 +1051,9 @@
     flex-direction: column;
     background: #181825;
     border-left: 1px solid #313244;
-    flex-shrink: 0;
+    flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   /* Mode bar */
@@ -1144,6 +1430,27 @@
     white-space: pre-wrap;
   }
 
+  .md-response {
+    font-size: 0.88rem;
+    color: #cdd6f4;
+    line-height: 1.6;
+  }
+
+  .md-response :global(h1) { color: #cba6f7; font-size: 1.05rem; font-weight: 700; margin: 0.5rem 0 0.3rem; }
+  .md-response :global(h2) { color: #89b4fa; font-size: 0.95rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+  .md-response :global(h3) { color: #94e2d5; font-size: 0.88rem; font-weight: 700; margin: 0.5rem 0 0.2rem; }
+  .md-response :global(p) { margin: 0 0 0.5rem; }
+  .md-response :global(p:last-child) { margin-bottom: 0; }
+  .md-response :global(ul), .md-response :global(ol) { padding-left: 1.25rem; margin: 0 0 0.5rem; }
+  .md-response :global(li) { margin-bottom: 0.15rem; }
+  .md-response :global(code) { background: #313244; padding: 0.1em 0.35em; border-radius: 3px; font-family: monospace; font-size: 0.82em; }
+  .md-response :global(pre) { background: #11111b; border-radius: 5px; padding: 0.5rem 0.7rem; overflow-x: auto; margin: 0 0 0.5rem; }
+  .md-response :global(pre code) { background: none; padding: 0; font-size: 0.8rem; }
+  .md-response :global(strong) { color: #f38ba8; font-weight: 700; }
+  .md-response :global(em) { color: #cba6f7; }
+  .md-response :global(blockquote) { border-left: 3px solid #45475a; padding-left: 0.6rem; color: #6c7086; margin: 0.4rem 0; font-style: italic; }
+  .md-response :global(hr) { border: none; border-top: 1px solid #313244; margin: 0.6rem 0; }
+
   .loading p { color: #6c7086; }
 
   .msg-apply-row {
@@ -1164,8 +1471,10 @@
     cursor: pointer;
   }
 
+  .msg-apply-btn.copy     { background: #313244; color: #cdd6f4; border: 1px solid #45475a; flex: 0 0 auto; min-width: 2rem; }
   .msg-apply-btn.append  { background: #a6e3a1; color: #1e1e2e; }
   .msg-apply-btn.replace { background: #f9e2af; color: #1e1e2e; }
+  .msg-apply-btn.new-file { background: #89b4fa; color: #1e1e2e; }
 
   /* Generate */
   .generate-output {
@@ -1203,6 +1512,12 @@
     font-weight: 600;
   }
 
+  .header-actions {
+    display: flex;
+    gap: 0.1rem;
+    align-items: center;
+  }
+
   .apply-row {
     display: flex;
     gap: 0.4rem;
@@ -1223,6 +1538,102 @@
 
   .apply-btn.append  { background: #a6e3a1; color: #1e1e2e; }
   .apply-btn.replace { background: #f9e2af; color: #1e1e2e; }
+  .apply-btn.new-file { background: #89b4fa; color: #1e1e2e; }
+  .apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .new-file-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .new-file-input {
+    flex: 1;
+    background: #1e1e2e;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    color: #cdd6f4;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.7rem;
+    font-family: monospace;
+    outline: none;
+    min-width: 0;
+  }
+
+  .new-file-input:focus { border-color: #89b4fa; }
+
+  .new-file-save-btn {
+    background: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .new-file-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Code-Block mit Aktions-Bar ── */
+  .code-block-wrap {
+    margin: 0.5rem 0;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .block-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    background: #1e1e2e;
+    border-bottom: 1px solid #313244;
+    flex-wrap: wrap;
+  }
+
+  .block-lang {
+    font-size: 0.7rem;
+    color: #6c7086;
+    font-family: monospace;
+    flex: 1;
+  }
+
+  .block-btn {
+    background: none;
+    border: 1px solid #45475a;
+    border-radius: 3px;
+    color: #a6adc8;
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.4rem;
+    white-space: nowrap;
+  }
+
+  .block-btn:hover {
+    background: #313244;
+    color: #cdd6f4;
+  }
+
+  .code-block {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    background: #11111b;
+    color: #cdd6f4;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .block-file-row {
+    display: flex;
+    gap: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    background: #1e1e2e;
+    border-top: 1px solid #313244;
+  }
 
   .json-save-row {
     display: flex;
@@ -1443,6 +1854,18 @@
   }
 
   .agent-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .agent-stop-btn {
+    background: transparent;
+    border: 1px solid #f38ba8;
+    color: #f38ba8;
+    border-radius: 4px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .agent-stop-btn:hover { background: color-mix(in srgb, #f38ba8 15%, transparent); }
 
   @keyframes spin { to { transform: rotate(360deg); } }
   .spin { display: inline-block; animation: spin 1s linear infinite; }

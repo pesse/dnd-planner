@@ -89,6 +89,19 @@
     if (e.key === 'Escape') { showNewCampaignInput = false; newCampaignInput = ''; }
   }
 
+  async function reloadAll() {
+    await loadCampaigns();
+    if (charactersExpanded) await loadCharacters();
+    if (monstersExpanded) await loadMonsters();
+    const campaign = $activeCampaign;
+    if (campaign) {
+      for (const section of sections) {
+        const key = `${campaign.path}/${section.subdir}`;
+        if (expanded[key]) await loadSection(campaign.path, section);
+      }
+    }
+  }
+
   onMount(loadCampaigns);
 
   // Reaktives Laden: immer wenn activeCampaign sich ändert, Kontext neu laden.
@@ -265,7 +278,7 @@
     try {
       const content = await invoke<string>('read_file_content', { path });
       setFileContent(content);
-      loadEncounterMonsters(content);
+      loadEncounterMonsters(content, path);
     } catch {
       setFileContent('{}');
       encounterMonsterDefs.set([]);
@@ -395,6 +408,19 @@
     }
   }
 
+  async function openNotesFile(campaignPath: string) {
+    const fullPath = `${VAULT_BASE}/${campaignPath}/notes.md`;
+    activeFile.set({ name: 'Notizen', path: fullPath, type: 'notes' });
+    try {
+      const content = await invoke<string>('read_file_content', { path: fullPath });
+      setFileContent(content);
+    } catch {
+      const template = '# Notizen\n\n';
+      await invoke('write_file_content', { path: fullPath, content: template });
+      setFileContent(template);
+    }
+  }
+
   function startNewFile(key: string) {
     showNewFileInput[key] = true;
     newFileInput[key] = '';
@@ -435,6 +461,7 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <h2>DnD Planner</h2>
+    <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
   </div>
 
   <!-- Charaktere (global) -->
@@ -558,6 +585,15 @@
       </button>
 
       {#if $activeCampaign?.id === campaign.id}
+        <button
+          class="section-toggle notes-entry"
+          class:active={$activeFile?.path === `${VAULT_BASE}/${campaign.path}/notes.md`}
+          onclick={() => openNotesFile(campaign.path)}
+        >
+          <span class="arrow"></span>
+          Notizen
+        </button>
+
         {#each sections as section}
           {@const key = `${campaign.path}/${section.subdir}`}
           <div class="section">
@@ -670,14 +706,37 @@
   }
 
   .sidebar-header {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid #313244;
+    display: flex;
+    align-items: center;
   }
 
   .sidebar-header h2 {
     margin: 0;
+    flex: 1;
     font-size: 1rem;
     font-weight: 600;
+    color: #cba6f7;
+  }
+
+  .reload-all-btn {
+    background: none;
+    border: none;
+    color: #6c7086;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.1rem 0.3rem;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.1s, color 0.1s;
+  }
+
+  .sidebar-header:hover .reload-all-btn {
+    opacity: 1;
+  }
+
+  .reload-all-btn:hover {
     color: #cba6f7;
   }
 
@@ -756,6 +815,14 @@
 
   .section-toggle:hover {
     color: #cdd6f4;
+  }
+
+  .notes-entry {
+    width: 100%;
+  }
+
+  .notes-entry.active {
+    color: #cba6f7;
   }
 
   .add-btn {
