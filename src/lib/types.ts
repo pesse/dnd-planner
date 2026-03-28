@@ -104,6 +104,7 @@ export interface EncounterMonster {
 export interface Encounter {
   name: string;
   description: string;
+  read_aloud?: string;
   monsters: EncounterMonster[];
   difficulty: 'leicht' | 'mittel' | 'schwer' | 'tödlich';
   xp_total: number;
@@ -111,7 +112,6 @@ export interface Encounter {
   party_level: number;
   location: string;
   loot: string;
-  tags: string[];
   notes: string;
   status: 'planned' | 'done' | 'skipped';
 }

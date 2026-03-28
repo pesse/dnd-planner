@@ -17,6 +17,39 @@
   const GLOBAL_MONSTERS_PATH = './vault/monsters';
 
   let loadError = $state('');
+  let schemaWarnings = $state<string[]>([]);
+  let loadSeq = 0;
+
+  function validateMonster(m: unknown): string[] {
+    const obj = m as Record<string, unknown>;
+    const warns: string[] = [];
+    if (!obj || typeof obj !== 'object') return ['Kein Objekt'];
+
+    // ac
+    if (typeof obj['ac'] !== 'object' || obj['ac'] === null || !('value' in (obj['ac'] as object)))
+      warns.push('ac: erwartet { value, note }, gefunden: ' + JSON.stringify(obj['ac']));
+
+    // hp
+    if (typeof obj['hp'] !== 'object' || obj['hp'] === null || !('average' in (obj['hp'] as object)))
+      warns.push('hp: erwartet { average, formula }, gefunden: ' + JSON.stringify(obj['hp']));
+
+    // cr
+    if (typeof obj['cr'] !== 'string')
+      warns.push('cr: erwartet string, gefunden: ' + typeof obj['cr'] + ' (' + obj['cr'] + ')');
+
+    // saving_throws vs saves
+    if (!('saving_throws' in obj) && 'saves' in obj)
+      warns.push('saving_throws fehlt — heißt das Feld "saves"?');
+
+    // skills values should be strings
+    if (obj['skills'] && typeof obj['skills'] === 'object') {
+      const badSkills = Object.entries(obj['skills'] as Record<string, unknown>)
+        .filter(([, v]) => typeof v !== 'string').map(([k]) => k);
+      if (badSkills.length) warns.push('skills: Werte sollten Strings sein, nicht Zahlen (' + badSkills.join(', ') + ')');
+    }
+
+    return warns;
+  }
 
   function normalizeMonster(m: Monster): Monster {
     m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
@@ -25,17 +58,22 @@
     return m;
   }
 
-  async function load(s: string) {
+  async function load(s: string, basePath: string | undefined) {
+    const seq = ++loadSeq;
     status = 'loading';
     loadError = '';
+    schemaWarnings = [];
     promoteError = '';
 
     // Akt-lokal zuerst
-    if (actMonsterBasePath) {
-      const actPath = `${actMonsterBasePath}/${s}.json`;
+    if (basePath) {
+      const actPath = `${basePath}/${s}.json`;
       try {
         const content = await invoke<string>('read_file_content', { path: actPath });
-        const parsed = normalizeMonster(JSON.parse(content) as Monster);
+        if (seq !== loadSeq) return;
+        const raw = JSON.parse(content);
+        schemaWarnings = validateMonster(raw);
+        const parsed = normalizeMonster(raw as Monster);
         saved = parsed;
         draft = structuredClone(parsed);
         savePath = actPath;
@@ -45,24 +83,33 @@
       } catch { /* nicht akt-lokal vorhanden */ }
     }
 
+    if (seq !== loadSeq) return;
+
     // Global fallback
     const globalPath = `${GLOBAL_MONSTERS_PATH}/${s}.json`;
     try {
       const content = await invoke<string>('read_file_content', { path: globalPath });
-      const parsed = normalizeMonster(JSON.parse(content) as Monster);
+      if (seq !== loadSeq) return;
+      const raw = JSON.parse(content);
+      schemaWarnings = validateMonster(raw);
+      const parsed = normalizeMonster(raw as Monster);
       saved = parsed;
       draft = structuredClone(parsed);
       savePath = globalPath;
       source = 'global';
       status = 'ok';
     } catch (e) {
+      if (seq !== loadSeq) return;
       loadError = String(e);
       console.error(`MonsterMiniCard [${s}]:`, e);
       status = 'missing';
     }
   }
 
-  $effect(() => { if (slug) load(slug); });
+  $effect(() => {
+    const basePath = actMonsterBasePath; // explicit dep: re-run when path changes
+    if (slug) load(slug, basePath);
+  });
 
   // structuredClone cannot handle Svelte $state Proxies — use JSON round-trip instead
   function snap<T>(val: T): T { return JSON.parse(JSON.stringify(val)); }
@@ -377,6 +424,15 @@
           </div>
         {/if}
 
+        {#if schemaWarnings.length}
+          <div class="schema-warning">
+            <span class="schema-warn-icon">⚠ Schema-Fehler</span>
+            <ul class="schema-warn-list">
+              {#each schemaWarnings as w}<li>{w}</li>{/each}
+            </ul>
+          </div>
+        {/if}
+
         <div class="c-action-row">
           <button class="edit-btn" onclick={startEdit}>
             {source === 'global' && actMonsterBasePath ? '✏ Lokal bearbeiten' : '✏ Bearbeiten'}
@@ -581,6 +637,17 @@
     font-size: 0.72rem;
     color: #f38ba8;
   }
+
+  .schema-warning {
+    background: color-mix(in srgb, #f9e2af 10%, transparent);
+    border: 1px solid #f9e2af55;
+    border-radius: 3px;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.72rem;
+  }
+  .schema-warn-icon { font-weight: 700; color: #f9e2af; }
+  .schema-warn-list { margin: 0.2rem 0 0; padding-left: 1rem; color: #f9e2af99; line-height: 1.5; }
+  .schema-warn-list li { margin: 0; }
 
   .source-badge {
     font-size: 0.62rem;

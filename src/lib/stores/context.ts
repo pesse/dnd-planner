@@ -393,6 +393,7 @@ export const systemPrompt = derived(
           '{\n' +
           '  "name": string,\n' +
           '  "description": string,\n' +
+          '  "read_aloud": string,\n' +
           '  "monsters": [ { "slug": string, "count": number, "notes": string } ],\n' +
           '  "difficulty": "leicht" | "mittel" | "schwer" | "tödlich",\n' +
           '  "xp_total": number,\n' +
@@ -400,13 +401,13 @@ export const systemPrompt = derived(
           '  "party_level": number,\n' +
           '  "location": string,\n' +
           '  "loot": string,\n' +
-          '  "tags": string[],\n' +
           '  "notes": string,\n' +
           '  "status": "planned" | "done" | "skipped"\n' +
           '}\n```\n' +
           'Notes: `monsters[].slug` must match an existing monster filename (without .json). ' +
           'Use empty string "" for unknown slugs, 0 for unknown numbers, [] for empty arrays. ' +
-          'The same slug may appear multiple times in the array (e.g. two separate waves of the same monster type).'
+          'The same slug may appear multiple times in the array (e.g. two separate waves of the same monster type). ' +
+          '`read_aloud` is an optional atmospheric text for the DM to read aloud to players; use "" if not applicable.'
         );
         if (showMonster) lines.push(
           '\n**Monster schema** (all fields required):\n```\n' +

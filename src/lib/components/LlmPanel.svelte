@@ -37,7 +37,11 @@
   type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
 
   let input = $state('');
-  let mode = $state<LlmMode>('generate');
+  const VALID_MODES: LlmMode[] = ['chat', 'generate', 'agent', 'debug'];
+  const savedMode = localStorage.getItem('llm-mode') as LlmMode | null;
+  let mode = $state<LlmMode>(savedMode && VALID_MODES.includes(savedMode) ? savedMode : 'generate');
+
+  $effect(() => { localStorage.setItem('llm-mode', mode); });
   let showPrompt = $state(false);
   let showSettings = $state(false);
   let generateResult = $state('');

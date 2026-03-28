@@ -9,7 +9,7 @@
     try {
       const obj = JSON.parse(json);
       if (!obj || typeof obj !== 'object' || !('monsters' in obj) || !('difficulty' in obj)) return null;
-      obj.monsters ??= []; obj.tags ??= [];
+      obj.monsters ??= [];
       return obj as Encounter;
     } catch { return null; }
   }
@@ -38,6 +38,7 @@
   }
 
   let draft = $state<Encounter | null>(null);
+  let actMonsterBasePath = $state<string | undefined>(undefined);
   let dirty = $state(false);
   let saveError = $state('');
   let showJson = $state(false);
@@ -47,9 +48,13 @@
 
   $effect(() => {
     const content = $fileContent;
+    const filePath = $activeFile?.path;
     if (content !== lastSavedContent) {
       const parsed = parseEncounter(content);
       draft = parsed ? structuredClone(parsed) : null;
+      // Atomisch mit draft aktualisieren — verhindert inkonsistenten Zwischenzustand
+      const match = filePath?.match(/^(.*\/acts\/[^/]+)\/encounters\//);
+      actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
       dirty = false;
       saveError = '';
       lastSavedContent = content;
@@ -97,51 +102,55 @@
     }
   }
 
-  // Akt-lokaler Monsters-Pfad aus dem Encounter-Pfad ableiten
-  let actMonsterBasePath = $derived((() => {
-    const match = $activeFile?.path?.match(/^(.*\/acts\/[^/]+)\/encounters\//);
-    return match ? `${match[1]}/monsters` : undefined;
-  })());
-
   // ── Print ──────────────────────────────────────────────────────────────────
   let printLoading = $state(false);
+  let printError = $state('');
 
   async function openPrint() {
     if (!draft) return;
     printLoading = true;
+    saveError = '';
 
-    const monsters: PrintMonster[] = await Promise.all(
-      draft.monsters.filter(m => m.slug).map(async (m) => {
-        if (actMonsterBasePath) {
+    printError = '';
+    try {
+      const monsters: PrintMonster[] = await Promise.all(
+        draft.monsters.filter(m => m.slug).map(async (m) => {
+          if (actMonsterBasePath) {
+            try {
+              const content = await invoke<string>('read_file_content', { path: `${actMonsterBasePath}/${m.slug}.json` });
+              return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
+            } catch { /* weiter */ }
+          }
           try {
-            const content = await invoke<string>('read_file_content', { path: `${actMonsterBasePath}/${m.slug}.json` });
+            const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
             return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
-          } catch { /* weiter */ }
-        }
-        try {
-          const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
-          return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
-        } catch {
-          return { monster: null, count: m.count, notes: m.notes, slug: m.slug };
-        }
-      })
-    );
+          } catch {
+            return { monster: null, count: m.count, notes: m.notes, slug: m.slug };
+          }
+        })
+      );
 
-    const html = buildPrintHtml(draft, monsters);
+      const html = buildPrintHtml(draft, monsters);
 
-    // Self-contained HTML in unsichtbarem iframe drucken — umgeht Svelte CSS-Scoping
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument!;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    iframe.onload = () => {
-      iframe.contentWindow!.focus();
-      iframe.contentWindow!.print();
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    };
+      // Self-contained HTML in unsichtbarem iframe drucken — umgeht Svelte CSS-Scoping
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument!;
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        const prev = document.title;
+        document.title = `${$activeCampaign?.name ? $activeCampaign.name + ' – ' : ''}Encounter: ${draft!.name}`;
+        iframe.contentWindow!.focus();
+        iframe.contentWindow!.print();
+        document.title = prev;
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 0);
+    } catch (e) {
+      printError = `Druckfehler: ${e}`;
+    }
 
     printLoading = false;
   }
@@ -219,6 +228,18 @@
         rows="5"
       ></textarea>
 
+      <!-- Read-aloud -->
+      <div class="read-aloud-section">
+        <h3 class="enc-section-title read-aloud-title">Vorlesetext</h3>
+        <textarea
+          class="editable-field enc-read-aloud-input"
+          bind:value={draft.read_aloud}
+          oninput={mark}
+          placeholder="Atmosphärischer Text zum Vorlesen…"
+          rows="3"
+        ></textarea>
+      </div>
+
       <!-- Meta -->
       <div class="enc-meta">
         <div class="enc-meta-item">
@@ -281,20 +302,8 @@
         rows="4"
       ></textarea>
 
-      <div class="enc-divider"></div>
-
-      <!-- Tags -->
-      <div class="enc-tags-row">
-        <span class="meta-label">Tags</span>
-        <input
-          class="editable-field tags-input"
-          value={draft.tags.join(', ')}
-          oninput={(e) => { draft!.tags = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }}
-          placeholder="tag1, tag2"
-        />
-      </div>
-
       <div class="enc-footer">
+        {#if printError}<span class="print-error">{printError}</span>{/if}
         <button class="json-btn" onclick={openJson}>JSON</button>
         <button class="print-btn" onclick={openPrint} disabled={printLoading}>
           {printLoading ? '…' : '🖨 PDF'}
@@ -306,13 +315,15 @@
     <!-- Monster mini cards -->
     {#if draft.monsters.some(m => m.slug)}
       <div class="enc-monsters-col">
-        {#each draft.monsters.filter(m => m.slug) as m}
-          <div class="mini-card-wrap">
-            {#if m.count > 1}
-              <div class="mini-count-badge">{m.count}×</div>
-            {/if}
-            <MonsterMiniCard slug={m.slug} {actMonsterBasePath} />
-          </div>
+        {#each draft.monsters as m, i (i)}
+          {#if m.slug}
+            <div class="mini-card-wrap">
+              {#if m.count > 1}
+                <div class="mini-count-badge">{m.count}×</div>
+              {/if}
+              <MonsterMiniCard slug={m.slug} {actMonsterBasePath} />
+            </div>
+          {/if}
         {/each}
       </div>
     {/if}
@@ -482,7 +493,24 @@
     resize: vertical;
     line-height: 1.6;
     font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .read-aloud-section {
+    border-left: 3px solid #cba6f7;
+    padding-left: 0.75rem;
     margin-bottom: 0.75rem;
+  }
+
+  .read-aloud-title { color: #cba6f7; }
+
+  .enc-read-aloud-input {
+    width: 100%;
+    color: #d0b9f5;
+    font-style: italic;
+    resize: vertical;
+    line-height: 1.7;
+    font-size: 0.85rem;
   }
 
   /* ── Meta ── */
@@ -586,15 +614,6 @@
 
   .enc-notes-input { white-space: pre-wrap; font-size: 0.82rem; }
 
-  /* ── Tags ── */
-  .enc-tags-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .tags-input { flex: 1; }
-
   /* ── Footer ── */
   .enc-footer {
     display: flex;
@@ -638,5 +657,6 @@
   }
   .print-btn:hover { border-color: #89b4fa; color: #89b4fa; }
   .print-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .print-error { color: #f38ba8; font-size: 0.75rem; flex: 1; }
 
 </style>

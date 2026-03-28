@@ -1,7 +1,6 @@
 <script lang="ts">
   import Sidebar from '$lib/components/Sidebar.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
-  import MarkdownViewer from '$lib/components/MarkdownViewer.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import MonsterCard from '$lib/components/MonsterCard.svelte';
   import EncounterCard from '$lib/components/EncounterCard.svelte';
@@ -10,14 +9,45 @@
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
-
-  let showPreview = $state(true);
+  import { marked } from 'marked';
+  import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
 
   let isPdfCharacter = $derived(
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
   );
   let isMonster = $derived($activeFile?.type === 'monster');
   let isEncounter = $derived($activeFile?.type === 'encounter');
+  let isMarkdownPrintable = $derived(
+    $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
+  );
+
+  function openMarkdownPrint() {
+    if (!$fileContent || !$activeFile) return;
+    const campaign = $activeCampaign?.name ?? '';
+    const docName = (() => {
+      const match = $fileContent.match(/^#\s+(.+)$/m);
+      return match ? match[1].trim() : $activeFile!.name.replace('.md', '');
+    })();
+    const typeLabel: Partial<Record<string, string>> = { campaign: 'Kampagne', act: 'Akt', notes: 'Notiz' };
+    const label = typeLabel[$activeFile.type] ?? $activeFile.type;
+    const title = $activeFile.type === 'campaign'
+      ? `${campaign} – ${label}`
+      : `${campaign} – ${label}: ${docName}`;
+    const html = buildPrintHtmlMarkdown(title, marked($fileContent) as string);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument!;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      const prev = document.title;
+      document.title = title;
+      iframe.contentWindow!.focus();
+      iframe.contentWindow!.print();
+      document.title = prev;
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    }, 0);
+  }
 
   // Titel aus dem Markdown-Inhalt extrahieren (erste # Zeile)
   let docTitle = $derived(() => {
@@ -174,9 +204,6 @@
       <EncounterCard />
     {:else}
       <div class="toolbar">
-        <button class:active={!showPreview} onclick={() => (showPreview = false)}>Editor</button>
-        <button class:active={showPreview} onclick={() => (showPreview = true)}>Vorschau</button>
-
         {#if $activeFile}
           <div class="file-title-area">
             {#if renaming}
@@ -197,6 +224,9 @@
         {/if}
 
         <div class="toolbar-sep"></div>
+        {#if isMarkdownPrintable}
+          <button class="history-btn" onclick={openMarkdownPrint} title="Drucken / PDF">🖨</button>
+        {/if}
         <button
           class="history-btn"
           onclick={undoContent}
@@ -214,11 +244,7 @@
       <StructureHint />
 
       <div class="content">
-        {#if showPreview}
-          <MarkdownViewer />
-        {:else}
-          <MarkdownEditor />
-        {/if}
+        <MarkdownEditor />
       </div>
     {/if}
   </div>

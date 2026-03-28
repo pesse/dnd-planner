@@ -93,6 +93,41 @@ const STATUS_LABEL: Record<string, string> = {
   planned: 'Geplant', done: 'Gespielt', skipped: 'Übersprungen',
 };
 
+export function buildPrintHtmlMarkdown(title: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>${esc(title)}</title>
+<style>
+@page { margin: 2cm; }
+* { box-sizing: border-box; }
+body { font-family: 'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif; color: #1a1008; background: white; font-size: 11pt; line-height: 1.7; margin: 0; }
+h1 { font-size: 20pt; font-variant: small-caps; color: #5c1a00; border-bottom: 3px solid #8c6a1a; padding-bottom: 0.3rem; margin-bottom: 0.8rem; }
+h2 { font-size: 14pt; font-variant: small-caps; color: #5c1a00; border-bottom: 1px solid #8c6a1a88; margin-top: 1.5rem; margin-bottom: 0.4rem; }
+h3 { font-size: 12pt; color: #3a2000; margin-top: 1.2rem; margin-bottom: 0.3rem; }
+h4, h5, h6 { color: #3a2000; margin-top: 1rem; margin-bottom: 0.2rem; }
+p { margin: 0 0 0.8rem; }
+ul, ol { padding-left: 1.5rem; margin: 0 0 0.8rem; }
+li { margin-bottom: 0.2rem; }
+strong { color: #5c1a00; }
+em { color: #3a2000; }
+code { font-family: 'Courier New',monospace; background: #f5edd8; padding: 0.1em 0.35em; border-radius: 2px; font-size: 9.5pt; }
+pre { background: #f5edd8; border: 1px solid #8c6a1a66; border-radius: 4px; padding: 0.8rem 1rem; white-space: pre-wrap; font-size: 9pt; margin: 0 0 0.8rem; }
+pre code { background: none; padding: 0; }
+blockquote { border-left: 3px solid #8c6a1a; margin: 0 0 0.8rem; padding: 0.3rem 0 0.3rem 1rem; color: #3a2000; font-style: italic; }
+hr { border: none; border-top: 2px solid #8c6a1a; margin: 1.2rem 0; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 0.8rem; font-size: 10pt; }
+th { background: #f0e0b8; color: #5c1a00; font-weight: 700; border: 1px solid #8c6a1a88; padding: 0.3rem 0.6rem; text-align: left; }
+td { border: 1px solid #8c6a1a55; padding: 0.25rem 0.6rem; vertical-align: top; }
+</style>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>`;
+}
+
 export function buildPrintHtml(draft: Encounter, printMonsters: PrintMonster[]): string {
   const monsterRows = draft.monsters.filter(m => m.slug).map(m =>
     `<tr><td class="mon-count">${m.count}×</td><td class="mon-slug">${esc(m.slug)}</td><td class="mon-notes">${esc(m.notes)}</td></tr>`
@@ -117,11 +152,13 @@ h1 { font-size: 18pt; font-variant: small-caps; color: #5c1a00; margin: 0; }
 .meta { font-size: 9pt; margin-bottom: 0.4rem; }
 .section-title { font-size: 11pt; font-weight: 700; font-variant: small-caps; color: #5c1a00; border-bottom: 1px solid #8c6a1a88; margin-top: 0.8rem; margin-bottom: 0.3rem; padding-bottom: 0.1rem; }
 .text { white-space: pre-wrap; margin-bottom: 0.3rem; }
+.read-aloud { background: #f5edd8; border-left: 4px solid #8c6a1a; border-radius: 3px; padding: 0.5rem 0.8rem; margin: 0.6rem 0; }
+.read-aloud-label { font-size: 8pt; font-weight: 700; color: #5c1a00; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem; }
+.read-aloud-text { font-style: italic; white-space: pre-wrap; line-height: 1.7; color: #2a1800; }
 .monster-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
 .mon-count { width: 2rem; font-weight: 700; color: #5c1a00; vertical-align: top; padding: 0.15rem 0.3rem 0.15rem 0; }
 .mon-slug { width: 10rem; font-weight: 600; vertical-align: top; padding: 0.15rem 0.5rem 0.15rem 0; }
 .mon-notes { color: #3a2000; font-style: italic; vertical-align: top; padding: 0.15rem 0; }
-.tags { margin-top: 0.5rem; font-size: 8.5pt; color: #6c5a3a; font-style: italic; }
 .statblocks-title { font-size: 13pt; font-weight: 700; font-variant: small-caps; color: #5c1a00; border-top: 3px solid #8c6a1a; margin-top: 1.2rem; padding-top: 0.5rem; margin-bottom: 0.8rem; }
 .statblocks { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; align-items: start; }
 .stat-block { background: #fdf1dc; border: 2px solid #8c6a1a; border-radius: 4px; padding: 0.6rem 0.75rem; font-size: 8.5pt; break-inside: avoid; }
@@ -164,11 +201,11 @@ hr.thin { border-top: 1px solid #8c6a1a66; }
 </div>
 ${draft.location ? `<div class="meta"><span class="lbl">Ort</span> ${esc(draft.location)}</div>` : ''}
 ${draft.description ? `<div class="section-title">Beschreibung</div><div class="text">${esc(draft.description)}</div>` : ''}
+${draft.read_aloud ? `<div class="read-aloud"><div class="read-aloud-label">📖 Vorlesetext</div><div class="read-aloud-text">${esc(draft.read_aloud)}</div></div>` : ''}
 <div class="section-title">Monster</div>
 <table class="monster-table">${monsterRows}</table>
 ${draft.loot ? `<div class="section-title">Beute</div><div class="text">${esc(draft.loot)}</div>` : ''}
 ${draft.notes ? `<div class="section-title">Notizen</div><div class="text">${esc(draft.notes)}</div>` : ''}
-${draft.tags.length ? `<div class="tags">${esc(draft.tags.join(' · '))}</div>` : ''}
 ${printMonsters.length ? `<div class="statblocks-title">Stat Blocks</div><div class="statblocks">${statBlocks}</div>` : ''}
 </body>
 </html>`;

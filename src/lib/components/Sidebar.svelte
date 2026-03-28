@@ -17,6 +17,7 @@
     { label: 'Sessions', subdir: 'sessions', type: 'session' },
     { label: 'NPCs', subdir: 'npcs', type: 'npc' },
     { label: 'Welt', subdir: 'world', type: 'world' },
+    { label: 'Notizen', subdir: 'notes', type: 'notes' },
   ];
 
   let campaigns = $state<Campaign[]>([]);
@@ -304,7 +305,6 @@
       party_level: 1,
       location: '',
       loot: '',
-      tags: [],
       notes: '',
       status: 'planned',
     };
@@ -405,19 +405,6 @@
       setFileContent(content);
     } catch (e) {
       setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
-    }
-  }
-
-  async function openNotesFile(campaignPath: string) {
-    const fullPath = `${VAULT_BASE}/${campaignPath}/notes.md`;
-    activeFile.set({ name: 'Notizen', path: fullPath, type: 'notes' });
-    try {
-      const content = await invoke<string>('read_file_content', { path: fullPath });
-      setFileContent(content);
-    } catch {
-      const template = '# Notizen\n\n';
-      await invoke('write_file_content', { path: fullPath, content: template });
-      setFileContent(template);
     }
   }
 
@@ -585,15 +572,6 @@
       </button>
 
       {#if $activeCampaign?.id === campaign.id}
-        <button
-          class="section-toggle notes-entry"
-          class:active={$activeFile?.path === `${VAULT_BASE}/${campaign.path}/notes.md`}
-          onclick={() => openNotesFile(campaign.path)}
-        >
-          <span class="arrow"></span>
-          Notizen
-        </button>
-
         {#each sections as section}
           {@const key = `${campaign.path}/${section.subdir}`}
           <div class="section">
