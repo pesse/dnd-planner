@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import { Markdown } from 'tiptap-markdown';
@@ -33,17 +33,6 @@
   let isBlockquote = $derived(tick >= 0 && (editor?.isActive('blockquote') ?? false));
   let isCode       = $derived(tick >= 0 && (editor?.isActive('code') ?? false));
   let isCodeBlock  = $derived(tick >= 0 && (editor?.isActive('codeBlock') ?? false));
-
-  // Externe Änderungen (Undo/Redo, LLM-Panel) in den Editor übernehmen
-  fileContent.subscribe((content) => {
-    if (content === lastMarkdown) return;
-    lastMarkdown = content;
-    if (editor) {
-      editor.commands.setContent(content, /* emitUpdate */ false);
-      tick++;
-    }
-    if (showSource) sourceValue = content;
-  });
 
   onMount(() => {
     const ed = new Editor({
@@ -86,12 +75,29 @@
     editor = ed;
     lastMarkdown = $fileContent;
 
-    return () => ed.destroy();
+    // Externe Änderungen (Undo/Redo, LLM-Panel) in den Editor übernehmen.
+    // Subscription hier im onMount, damit sie nur aktiv ist solange die Komponente
+    // gemountet ist — und beim Destroy sauber aufgeräumt wird.
+    const unsubscribe = fileContent.subscribe((content) => {
+      if (content === lastMarkdown) return;
+      lastMarkdown = content;
+      ed.commands.setContent(content, /* emitUpdate */ false);
+      if (showSource) sourceValue = content;
+      tick++;
+    });
+
+    return () => {
+      unsubscribe();
+      ed.destroy();
+      editor = null;
+    };
   });
+
+  const MARKDOWN_TYPES = new Set(['campaign', 'act', 'session', 'npc', 'world', 'notes']);
 
   async function save(content: string) {
     const file = $activeFile;
-    if (!file?.path || file.type === 'character') return;
+    if (!file?.path || !MARKDOWN_TYPES.has(file.type)) return;
     try {
       saveStatus = 'saving';
       await invoke('write_file_content', { path: file.path, content });
@@ -105,6 +111,11 @@
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => save(content), 800);
   }
+
+  onDestroy(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = null;
+  });
 
   // ── Quelle-Toggle ──────────────────────────────────────────────────────────
 

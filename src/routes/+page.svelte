@@ -7,6 +7,8 @@
   import SpellCard from '$lib/components/SpellCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
+  import ErrorToast from '$lib/components/ErrorToast.svelte';
+  import { pushError } from '$lib/stores/errors';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
@@ -19,6 +21,7 @@
   let isMonster = $derived($activeFile?.type === 'monster');
   let isEncounter = $derived($activeFile?.type === 'encounter');
   let isSpell = $derived($activeFile?.type === 'spell');
+
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
   );
@@ -168,6 +171,21 @@
   onMount(async () => {
     const cwd = await invoke<string>('get_current_dir');
     console.log('Tauri CWD:', cwd);
+
+    function onError(e: ErrorEvent) {
+      pushError(e.message || String(e));
+    }
+    function onUnhandled(e: PromiseRejectionEvent) {
+      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+      pushError(msg);
+    }
+
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandled);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandled);
+    };
   });
 </script>
 
@@ -271,6 +289,8 @@
     <LlmPanel />
   </div>
 </div>
+
+<ErrorToast />
 
 <style>
   :global(*, *::before, *::after) {

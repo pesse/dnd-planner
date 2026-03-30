@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { fileContent, activeFile, setFileContent } from '$lib/stores/campaign';
+  import { activeFile, setFileContent } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
+  import { get } from 'svelte/store';
+  import { onMount } from 'svelte';
+  import { pushError } from '$lib/stores/errors';
   import type { Spell } from '$lib/types';
 
   const SCHOOL_COLORS: Record<string, string> = {
@@ -49,10 +52,39 @@
     ...Array.from({ length: 9 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}. Grad` })),
   ];
 
-  let spell = $derived.by<Spell | null>(() => {
-    if (!$fileContent) return null;
-    try { return JSON.parse($fileContent) as Spell; } catch { return null; }
+  let rawJson = $state('');
+
+  onMount(() => {
+    async function load(path: string) {
+      try {
+        const content = await invoke<string>('read_file_content', { path });
+        rawJson = content;
+        setFileContent(content);
+      } catch (e) {
+        pushError(`Zauber konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
+        rawJson = '{}';
+      }
+    }
+
+    const initial = get(activeFile);
+    if (initial?.type === 'spell' && initial.path) load(initial.path);
+
+    const unsub = activeFile.subscribe(file => {
+      if (file?.type === 'spell' && file.path) load(file.path);
+    });
+    return unsub;
   });
+
+  let parsed = $derived.by(() => {
+    if (!rawJson) return { spell: null as Spell | null, parseError: null as string | null };
+    try {
+      return { spell: JSON.parse(rawJson) as Spell, parseError: null };
+    } catch (e) {
+      return { spell: null, parseError: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  let spell = $derived(parsed.spell);
+  let parseError = $derived(parsed.parseError);
 
   let color = $derived(spell ? (SCHOOL_COLORS[spell.school] ?? '#cba6f7') : '#cba6f7');
 
@@ -75,6 +107,7 @@
     const json = JSON.stringify(draft, null, 2);
     try {
       await invoke('write_file_content', { path: $activeFile.path, content: json });
+      rawJson = json;
       setFileContent(json);
       editing = false;
       draft = null;
@@ -252,6 +285,11 @@
       </div>
     </div>
 
+  {:else if parseError}
+    <div class="error">
+      <div class="error-title">Ungültiges JSON — Zauber kann nicht angezeigt werden</div>
+      <pre class="error-detail">{parseError}</pre>
+    </div>
   {:else}
     <div class="error">Zauber konnte nicht geladen werden.</div>
   {/if}
@@ -524,4 +562,17 @@
   }
 
   .error { color: #f38ba8; padding: 2rem; font-size: 0.9rem; }
+  .error-title { font-weight: 600; margin-bottom: 0.6rem; }
+  .error-detail {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #fab387;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+  }
 </style>

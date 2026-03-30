@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { fileContent, activeFile, setFileContent } from '../stores/campaign';
+  import { activeFile, setFileContent } from '../stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
+  import { get } from 'svelte/store';
+  import { onMount } from 'svelte';
+  import { pushError } from '../stores/errors';
   import type { Monster, MonsterAction } from '../types';
 
   function parseMonster(json: string): Monster | null {
@@ -30,15 +33,30 @@
   let jsonError = $state('');
   let lastSavedContent = $state('');
 
-  $effect(() => {
-    const content = $fileContent;
-    if (content !== lastSavedContent) {
-      const parsed = parseMonster(content);
-      draft = parsed ? structuredClone(parsed) : null;
-      dirty = false;
-      saveError = '';
-      lastSavedContent = content;
+  onMount(() => {
+    async function load(path: string) {
+      try {
+        const content = await invoke<string>('read_file_content', { path });
+        lastSavedContent = content;
+        const parsed = parseMonster(content);
+        draft = parsed ? structuredClone(parsed) : null;
+        dirty = false;
+        saveError = '';
+        setFileContent(content);
+      } catch (e) {
+        pushError(`Monster konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
+        draft = null;
+        lastSavedContent = '';
+      }
     }
+
+    const initial = get(activeFile);
+    if (initial?.type === 'monster' && initial.path) load(initial.path);
+
+    const unsub = activeFile.subscribe(file => {
+      if (file?.type === 'monster' && file.path) load(file.path);
+    });
+    return unsub;
   });
 
   function mark() { dirty = true; }
@@ -57,7 +75,7 @@
   }
 
   function discard() {
-    const parsed = parseMonster($fileContent);
+    const parsed = parseMonster(lastSavedContent);
     draft = parsed ? structuredClone(parsed) : null;
     dirty = false;
     saveError = '';

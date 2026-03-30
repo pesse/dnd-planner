@@ -1,8 +1,8 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
-  import { activeCampaign, activeFile, fileContent, setFileContent, vaultVersion } from '../stores/campaign';
-  import { loadActSummaries, loadEncounterContext, loadCampaignContent, loadEncounterMonsters, encounterMonsterDefs } from '../stores/context';
+  import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
+  import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
 
@@ -253,15 +253,10 @@
     if (monstersExpanded) await loadMonsters();
   }
 
-  async function openMonster(filename: string) {
+  function openMonster(filename: string) {
     const path = `${MONSTERS_PATH}/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'monster' });
-    try {
-      const content = await invoke<string>('read_file_content', { path });
-      setFileContent(content);
-    } catch (e) {
-      setFileContent('{}');
-    }
+    // MonsterCard lädt den Inhalt selbst via $effect
   }
 
   async function createMonster(e: KeyboardEvent | MouseEvent) {
@@ -363,14 +358,8 @@
     if (openSpellSchools[school]) await loadSpellSchool(school);
   }
 
-  async function openSpell(school: string, filename: string) {
+  function openSpell(school: string, filename: string) {
     const path = `${SPELLS_PATH}/${school}/${filename}`;
-    try {
-      const content = await invoke<string>('read_file_content', { path });
-      setFileContent(content);
-    } catch {
-      setFileContent('{}');
-    }
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'spell' });
   }
 
@@ -446,17 +435,10 @@
     }
   }
 
-  async function openEncounter(campaignPath: string, actDirName: string, filename: string) {
+  function openEncounter(campaignPath: string, actDirName: string, filename: string) {
     const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
-    try {
-      const content = await invoke<string>('read_file_content', { path });
-      setFileContent(content);
-      loadEncounterMonsters(content, path);
-    } catch {
-      setFileContent('{}');
-      encounterMonsterDefs.set([]);
-    }
+    // EncounterCard lädt den Inhalt + Monster selbst via $effect
   }
 
   async function createActEncounter(campaignPath: string, actDirName: string, e: KeyboardEvent | MouseEvent) {

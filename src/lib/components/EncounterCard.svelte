@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { fileContent, activeFile, setFileContent, activeCampaign } from '../stores/campaign';
+  import { activeFile, setFileContent, activeCampaign } from '../stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
+  import { get } from 'svelte/store';
+  import { onMount } from 'svelte';
+  import { pushError } from '../stores/errors';
   import type { Encounter, EncounterMonster, Monster } from '../types';
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
-  import { monsterLibrary } from '../stores/context';
+  import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -47,19 +50,33 @@
   let jsonError = $state('');
   let lastSavedContent = $state('');
 
-  $effect(() => {
-    const content = $fileContent;
-    const filePath = $activeFile?.path;
-    if (content !== lastSavedContent) {
-      const parsed = parseEncounter(content);
-      draft = parsed ? structuredClone(parsed) : null;
-      // Atomisch mit draft aktualisieren — verhindert inkonsistenten Zwischenzustand
-      const match = filePath?.match(/^(.*\/acts\/[^/]+)\/encounters\//);
-      actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
-      dirty = false;
-      saveError = '';
-      lastSavedContent = content;
+  onMount(() => {
+    async function load(path: string) {
+      try {
+        const content = await invoke<string>('read_file_content', { path });
+        lastSavedContent = content;
+        const parsed = parseEncounter(content);
+        draft = parsed ? structuredClone(parsed) : null;
+        const match = path.match(/^(.*\/acts\/[^/]+)\/encounters\//);
+        actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
+        dirty = false;
+        saveError = '';
+        setFileContent(content);
+        loadEncounterMonsters(content, path);
+      } catch (e) {
+        pushError(`Encounter konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
+        draft = null;
+        lastSavedContent = '';
+      }
     }
+
+    const initial = get(activeFile);
+    if (initial?.type === 'encounter' && initial.path) load(initial.path);
+
+    const unsub = activeFile.subscribe(file => {
+      if (file?.type === 'encounter' && file.path) load(file.path);
+    });
+    return unsub;
   });
 
   function mark() { dirty = true; }
@@ -78,7 +95,7 @@
   }
 
   function discard() {
-    const parsed = parseEncounter($fileContent);
+    const parsed = parseEncounter(lastSavedContent);
     draft = parsed ? structuredClone(parsed) : null;
     dirty = false;
     saveError = '';
