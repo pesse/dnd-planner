@@ -1,0 +1,10 @@
+# Alle Textdateien mit LF normalisieren
+* text=auto eol=lf
+
+# JSON explizit LF
+*.json text eol=lf
+
+# Binärdateien unverändert lassen
+*.png binary
+*.jpg binary
+*.pdf binary
