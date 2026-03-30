@@ -7,7 +7,9 @@
   import CharacterEditForm from './CharacterEditForm.svelte';
   import { fileContent } from '../stores/campaign';
   import { marked } from 'marked';
-  import { getSpellLibrary, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { prepareMultiSpellPrint } from '../utils/printSpell';
+  import type { Spell } from '../types';
 
   interface Props {
     dirPath: string;   // z.B. "./vault/characters/carric_galanodel"
@@ -31,10 +33,104 @@
 
   $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
 
+  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
   const spellSchoolMap = $derived(new Map(spellLibrary.map(s => [s.name, s.school])));
   function spellColor(name: string): string {
     const school = spellSchoolMap.get(name);
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
+  }
+
+  // ─── Zauberkarten: Expand/Collapse + Daten-Cache ────────
+  let expandedSpells = $state(new Set<string>());
+  let spellDataCache = $state(new Map<string, Spell | null>());
+  let loadingSpells = $state(new Set<string>());
+
+  async function toggleSpellCard(name: string) {
+    if (expandedSpells.has(name)) {
+      expandedSpells.delete(name);
+      expandedSpells = new Set(expandedSpells);
+      return;
+    }
+    expandedSpells.add(name);
+    expandedSpells = new Set(expandedSpells);
+    if (!spellDataCache.has(name) && !loadingSpells.has(name)) {
+      const info = spellInfoMap.get(name);
+      if (info?.path) {
+        loadingSpells.add(name);
+        loadingSpells = new Set(loadingSpells);
+        const data = await loadSpellByPath(info.path);
+        spellDataCache.set(name, data);
+        spellDataCache = new Map(spellDataCache);
+        loadingSpells.delete(name);
+        loadingSpells = new Set(loadingSpells);
+      }
+    }
+  }
+
+  const SCHOOL_LABELS: Record<string, string> = {
+    abjuration: 'Bannmagie', conjuration: 'Beschwörung', divination: 'Erkenntnismagie',
+    enchantment: 'Verzauberung', evocation: 'Hervorrufung', illusion: 'Illusionsmagie',
+    necromancy: 'Nekromantie', transmutation: 'Verwandlung',
+  };
+
+  function componentStr(s: Spell): string {
+    const parts: string[] = [];
+    if (s.components.verbal)   parts.push('V');
+    if (s.components.somatic)  parts.push('G');
+    if (s.components.material) parts.push('M');
+    return parts.join(', ') || '—';
+  }
+
+  let printingSpells = $state(false);
+
+  async function printSpellList() {
+    if (!character?.spells) return;
+    printingSpells = true;
+
+    try {
+      // Alle Zaubernamen sammeln: Zaubertricks + Stufe 1-9
+      const names: string[] = [
+        ...(character.spells.cantrips ?? []),
+        ...(['1','2','3','4','5','6','7','8','9'].flatMap(
+          lvl => (character.spells.byLevel[lvl] ?? []).map(s => s.name)
+        )),
+      ];
+
+      // Für jeden Namen: Pfad aus Index, dann Daten laden (Cache nutzen)
+      const spellObjects: Spell[] = [];
+      for (const name of names) {
+        let data = spellDataCache.get(name) ?? null;
+        if (!data) {
+          const info = spellInfoMap.get(name);
+          if (info?.path) {
+            data = await loadSpellByPath(info.path);
+            spellDataCache.set(name, data);
+            spellDataCache = new Map(spellDataCache);
+          }
+        }
+        if (data) spellObjects.push(data);
+      }
+
+      if (!spellObjects.length) return;
+
+      const html = prepareMultiSpellPrint(spellObjects, document);
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument!;
+      doc.open(); doc.write(html); doc.close();
+      const charName = character.name || 'Charakter';
+      setTimeout(() => {
+        const prev = document.title;
+        document.title = `${charName} – Zauberkarten`;
+        iframe.contentWindow!.focus();
+        iframe.contentWindow!.print();
+        document.title = prev;
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 0);
+    } finally {
+      printingSpells = false;
+    }
   }
 
   const gmNotesPath = $derived(`${dirPath}/gm-notes.md`);
@@ -534,7 +630,13 @@
         <!-- Zauber -->
         {#if character.spells?.cantrips.length || Object.keys(character.spells?.byLevel ?? {}).length || character.spells?.spellcastingClass}
           <div class="section">
-            <h3>Zauberwirken</h3>
+            <div class="section-head-row">
+              <h3>Zauberwirken</h3>
+              <button class="btn-spell-pdf" onclick={printSpellList} disabled={printingSpells}
+                title="Alle Zauber als druckbare Karten (A6, 9/Seite)">
+                {printingSpells ? '…' : '🖨 PDF'}
+              </button>
+            </div>
             {#if character.spells.spellcastingClass || character.spells.saveDC}
               <div class="stats-grid" style="margin-bottom:0.6rem">
                 {#if character.spells.spellcastingClass}<div class="stat"><span class="sl">Klasse</span><span class="sv">{character.spells.spellcastingClass}</span></div>{/if}
@@ -546,28 +648,101 @@
 
             {#if character.spells.cantrips.length}
               <div class="spell-level-header"><span>Zaubertricks</span></div>
-              <div class="spell-list">
-                {#each character.spells.cantrips as cantrip}
-                  <div class="spell-row cantrip"><span class="spell-name" style="color:{spellColor(cantrip) || 'inherit'}">{cantrip}</span></div>
+              <div class="spell-cards">
+                {#each character.spells.cantrips as name}
+                  {@const info = spellInfoMap.get(name)}
+                  {@const color = spellColor(name)}
+                  {@const expanded = expandedSpells.has(name)}
+                  {@const data = spellDataCache.get(name) ?? null}
+                  <div class="scard" class:expanded style="--sc:{color || '#585b70'}"
+                    role="button" tabindex="0"
+                    onclick={() => toggleSpellCard(name)}
+                    onkeydown={(e) => e.key === 'Enter' && toggleSpellCard(name)}>
+                    <div class="scard-head">
+                      <span class="scard-name">{name}</span>
+                      <span class="scard-badges">
+                        {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                      </span>
+                      <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
+                    </div>
+                    {#if expanded}
+                      <div class="scard-body" onclick={(e) => e.stopPropagation()}>
+                        {#if loadingSpells.has(name)}
+                          <span class="scard-loading">Lädt…</span>
+                        {:else if data}
+                          <div class="scard-props">
+                            <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
+                            <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
+                            <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
+                            <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
+                          </div>
+                          <div class="scard-divider"></div>
+                          <div class="scard-desc">{data.description}</div>
+                          {#if data.higher_levels}
+                            <div class="scard-divider"></div>
+                            <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{data.higher_levels}</div>
+                          {/if}
+                        {:else}
+                          <span class="scard-loading">Nicht in Bibliothek</span>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
                 {/each}
               </div>
             {/if}
 
             {#each ['1','2','3','4','5','6','7','8','9'] as lvl}
               {@const slots = character.spells.slots[Number(lvl) - 1]}
-              {@const spells = character.spells.byLevel[lvl] ?? []}
-              {#if spells.length || (slots?.total ?? 0) > 0}
+              {@const lvlSpells = character.spells.byLevel[lvl] ?? []}
+              {#if lvlSpells.length || (slots?.total ?? 0) > 0}
                 <div class="spell-level-header">
                   <span>{LEVEL_LABEL[lvl]}</span>
                   {#if slots?.total}
                     <span class="slot-badge">{slots.total} Slots</span>
                   {/if}
                 </div>
-                <div class="spell-list">
-                  {#each spells as spell}
-                    <div class="spell-row" class:prepared={spell.prepared}>
-                      <span class="prep-dot">{spell.prepared ? '●' : '○'}</span>
-                      <span class="spell-name" style="color:{spellColor(spell.name) || 'inherit'}">{spell.name}</span>
+                <div class="spell-cards">
+                  {#each lvlSpells as spell}
+                    {@const info = spellInfoMap.get(spell.name)}
+                    {@const color = spellColor(spell.name)}
+                    {@const expanded = expandedSpells.has(spell.name)}
+                    {@const data = spellDataCache.get(spell.name) ?? null}
+                    <div class="scard" class:expanded class:prepared={spell.prepared}
+                      style="--sc:{color || '#585b70'}"
+                      role="button" tabindex="0"
+                      onclick={() => toggleSpellCard(spell.name)}
+                      onkeydown={(e) => e.key === 'Enter' && toggleSpellCard(spell.name)}>
+                      <div class="scard-head">
+                        <span class="scard-prep">{spell.prepared ? '●' : '○'}</span>
+                        <span class="scard-name">{spell.name}</span>
+                        <span class="scard-badges">
+                          {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                        </span>
+                        <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
+                      </div>
+                      {#if expanded}
+                        <div class="scard-body" onclick={(e) => e.stopPropagation()}>
+                          {#if loadingSpells.has(spell.name)}
+                            <span class="scard-loading">Lädt…</span>
+                          {:else if data}
+                            <div class="scard-props">
+                              <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
+                              <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
+                              <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
+                              <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
+                            </div>
+                            <div class="scard-divider"></div>
+                            <div class="scard-desc">{data.description}</div>
+                            {#if data.higher_levels}
+                              <div class="scard-divider"></div>
+                              <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{data.higher_levels}</div>
+                            {/if}
+                          {:else}
+                            <span class="scard-loading">Nicht in Bibliothek</span>
+                          {/if}
+                        </div>
+                      {/if}
                     </div>
                   {/each}
                 </div>
@@ -882,6 +1057,112 @@
 
   .prep-dot { font-size: 0.62rem; color: #45475a; width: 0.8rem; }
   .spell-row.prepared .prep-dot { color: #a6e3a1; }
+
+  .section-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+  }
+  .section-head-row h3 { margin-bottom: 0; }
+
+  .btn-spell-pdf {
+    background: #313244;
+    border: 1px solid #45475a;
+    color: #a6adc8;
+    border-radius: 5px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-spell-pdf:hover:not(:disabled) { color: #89b4fa; border-color: #89b4fa; }
+  .btn-spell-pdf:disabled { opacity: 0.5; cursor: default; }
+
+  /* ── Zauberkarten ─────────────────────────────────────── */
+  .spell-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .scard {
+    border-left: 3px solid var(--sc);
+    background: #1e1e2e;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .scard:hover { background: #252535; }
+  .scard.expanded { background: #181825; }
+
+  .scard-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.5rem 0.3rem 0.6rem;
+    font-size: 0.83rem;
+  }
+
+  .scard-prep { font-size: 0.6rem; color: #45475a; flex-shrink: 0; }
+  .scard.prepared .scard-prep { color: #a6e3a1; }
+
+  .scard-name { flex: 1; color: var(--sc); font-weight: 500; }
+
+  .scard-badges { display: flex; gap: 0.3rem; align-items: center; }
+  .scard-school {
+    font-size: 0.68rem;
+    color: #45475a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .scard-chevron { font-size: 0.55rem; color: #45475a; flex-shrink: 0; }
+
+  .scard-body {
+    padding: 0 0.6rem 0.6rem 0.6rem;
+    cursor: default;
+  }
+
+  .scard-props {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .sp-label {
+    color: #6c7086;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    align-self: start;
+    padding-top: 0.05rem;
+  }
+  .sp-val { color: #cdd6f4; line-height: 1.4; }
+
+  .scard-divider { height: 1px; background: #313244; margin: 0.4rem 0; }
+
+  .scard-desc {
+    font-size: 0.82rem;
+    color: #cdd6f4;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .scard-higher {
+    font-size: 0.8rem;
+    color: #a6adc8;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
+
+  .scard-loading { font-size: 0.78rem; color: #45475a; font-style: italic; }
 
   /* GM-Notizen */
   .notes-area {

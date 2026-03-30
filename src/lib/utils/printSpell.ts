@@ -460,6 +460,56 @@ function higherLevelsFits(descText: string, higherLevels: string, heightPx: numb
 }
 
 /**
+ * Druckt mehrere Zauber als eine Seite (9 Karten/A4, wie bei Einzelzauber).
+ * Lädt für jeden Zauber die Chunks und packt sie in gemeinsame Seiten.
+ */
+export function prepareMultiSpellPrint(spells: Spell[], doc: Document): string {
+  const allCards: string[] = [];
+
+  for (const spell of spells) {
+    const { firstH, contH } = measureDescHeights(spell, doc);
+    const chunks = splitDescription(spell.description ?? '', firstH, contH, doc);
+
+    if (spell.higher_levels) {
+      const lastIdx = chunks.length - 1;
+      const lastCardH = lastIdx === 0 ? firstH : contH;
+      if (!higherLevelsFits(chunks[lastIdx], spell.higher_levels, lastCardH, doc)) {
+        chunks.push('');
+      }
+    }
+
+    chunks.forEach((chunk, i) => {
+      const isLast = i === chunks.length - 1;
+      allCards.push(
+        i === 0
+          ? renderFirstCard(spell, chunk, isLast)
+          : renderContCard(spell, chunk, i + 1, isLast),
+      );
+    });
+  }
+
+  const pages: string[] = [];
+  for (let i = 0; i < allCards.length; i += 9) {
+    const batch = allCards.slice(i, i + 9);
+    while (batch.length < 9) batch.push(renderEmptyCard());
+    pages.push(`<div class="page">\n${batch.join('\n')}\n</div>`);
+  }
+
+  const title = spells[0] ? `${esc(spells[0].name)} u.a. – Zauberkarten` : 'Zauberkarten';
+  return `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>${CARD_CSS}</style>
+</head>
+<body>
+${pages.join('\n')}
+</body>
+</html>`;
+}
+
+/**
  * Misst per DOM den tatsächlichen Textüberlauf, teilt den Beschreibungstext
  * auf und gibt fertiges Druck-HTML zurück.
  * Muss im Browser-Kontext aufgerufen werden (benötigt `document`).

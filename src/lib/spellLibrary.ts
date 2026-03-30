@@ -9,6 +9,7 @@ export interface SpellInfo {
   level: number;
   classes: string[];
   school: string;
+  path: string;
 }
 
 /** Farbe pro Zauberschule (Catppuccin Mocha Palette) */
@@ -35,6 +36,16 @@ export async function getSpellLibrary(): Promise<SpellInfo[]> {
       .catch(() => { loading = null; return []; });
   }
   return loading;
+}
+
+/** Lädt die vollständigen Zauberdaten für einen bekannten Pfad. */
+export async function loadSpellByPath(path: string): Promise<import('./types').Spell | null> {
+  try {
+    const content = await invoke<string>('read_file_content', { path });
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
 }
 
 /**

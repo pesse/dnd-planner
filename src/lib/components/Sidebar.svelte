@@ -187,18 +187,38 @@
     const raw = newCharInput.trim();
     if (!raw) return;
 
-    const filename = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '') + '.md';
-    const fullPath = `${CHARACTERS_PATH}/${filename}`;
-    const title = raw.charAt(0).toUpperCase() + raw.slice(1);
+    const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '');
+    const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+    const dirPath = `${CHARACTERS_PATH}/${slug}`;
 
-    const tmpl = await loadTemplate('character');
-    const template = `# ${title}\n\n` + (tmpl ?? `## Spieler\n\n\n## Klasse & Level\n\n\n## Hintergrund\n\n\n## Notizen\n\n`);
+    const json: CharacterJSON = {
+      _version: 1,
+      name,
+      classLevel: '', playerName: '', background: '', race: '', xp: '',
+      str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
+      strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
+      ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
+      proficiencyBonus: 2, passivePerception: '', hitDice: '',
+      strSaveProf: false, gesSaveProf: false, konSaveProf: false,
+      intSaveProf: false, weiSaveProf: false, chaSaveProf: false,
+      skills: {},
+      attacks: [],
+      classFeatures: '', traits: '', ideals: '', bonds: '', flaws: '',
+      languages: [], tools: [], alleskoenner: false,
+      currency: { km: '', sm: '', em: '', gm: '', pm: '' },
+      inventory: [], inventoryNotes: '', totalWeight: '',
+      spells: emptySpells(),
+    };
+
+    const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
+
     try {
-      await invoke('write_file_content', { path: fullPath, content: template });
+      await invoke('write_file_content', { path: `${dirPath}/character.json`, content: JSON.stringify(json, null, 2) });
+      await invoke('write_file_content', { path: `${dirPath}/gm-notes.md`, content: gmNotes });
       showNewCharInput = false;
       newCharInput = '';
       await loadCharacters();
-      await openCharacter({ name: filename, is_dir: false });
+      await openCharacter({ name: slug, is_dir: true });
     } catch (err) {
       console.error('Charakter konnte nicht erstellt werden:', err);
     }

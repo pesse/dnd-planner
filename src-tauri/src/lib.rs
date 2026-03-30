@@ -270,6 +270,7 @@ pub struct SpellInfo {
     level: u8,
     classes: Vec<String>,
     school: String,
+    path: String,
 }
 
 /// Lädt alle Zauber aus vault/spells/** als kompakten Index (Name, Stufe, Klassen).
@@ -303,7 +304,11 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                         .map(|arr| arr.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect())
                         .unwrap_or_default();
                     let school = v["school"].as_str().unwrap_or("").to_string();
-                    out.push(SpellInfo { name, level, classes, school });
+                    // Relativer Pfad ab Projekt-Root: ./vault/spells/...
+                    let rel = path.strip_prefix(&project_root())
+                        .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
+                        .unwrap_or_else(|_| path.to_string_lossy().to_string());
+                    out.push(SpellInfo { name, level, classes, school, path: rel });
                 }
             }
         }
