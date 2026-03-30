@@ -23,13 +23,14 @@ export interface MonsterLibraryEntry {
   cr: string;
   size: string;
   type: string;
+  group: string;
 }
 
 export interface ContextFlags {
   campaign: boolean;
   acts: boolean;
   encounters: boolean;
-  monsters: boolean;
+  monsterGroups: string[];
   encounterMonsters: boolean;
   activeFile: boolean;
 }
@@ -38,7 +39,7 @@ const FLAG_DEFAULTS: ContextFlags = {
   campaign: true,
   acts: true,
   encounters: true,
-  monsters: false,
+  monsterGroups: [],
   encounterMonsters: true,
   activeFile: true,
 };
@@ -109,19 +110,34 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
   // Monster-Bibliothek zuerst laden, damit Encounter-Listen Name+CR anreichern können
   let libraryMap = new Map<string, { name: string; cr: string }>();
   try {
-    const globalFiles = await invoke<string[]>('list_json_files', { path: './vault/monsters' });
-    const library = await Promise.all(
-      globalFiles.map(async (filename) => {
-        const slug = filename.replace('.json', '');
+    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
+    const groups = entries.filter((e) => e.is_dir).map((e) => e.name);
+    const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
+
+    async function loadMonsterFile(path: string, group: string, filename: string): Promise<MonsterLibraryEntry> {
+      const slug = filename.replace('.json', '');
+      try {
+        const content = await invoke<string>('read_file_content', { path });
+        const m = JSON.parse(content);
+        return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string, group };
+      } catch {
+        return { slug, name: slug, cr: '?', size: '?', type: '?', group };
+      }
+    }
+
+    const groupedEntries = await Promise.all(
+      groups.flatMap(async (group) => {
         try {
-          const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${filename}` });
-          const m = JSON.parse(content);
-          return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string };
-        } catch {
-          return { slug, name: slug, cr: '?', size: '?', type: '?' };
-        }
+          const files = await invoke<string[]>('list_json_files', { path: `./vault/monsters/${group}` });
+          return Promise.all(files.map((f) => loadMonsterFile(`./vault/monsters/${group}/${f}`, group, f)));
+        } catch { return []; }
       })
     );
+    const rootEntries = await Promise.all(
+      rootFiles.map((f) => loadMonsterFile(`./vault/monsters/${f}`, 'Sonstige', f))
+    );
+
+    const library = [...groupedEntries.flat(), ...rootEntries];
     monsterLibrary.set(library);
     libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.cr }]));
   } catch {
@@ -365,9 +381,12 @@ export const systemPrompt = derived(
         }
       }
 
-      if ($monsterLibrary.length > 0 && $contextFlags.monsters) {
-        const lines = $monsterLibrary.map((m) => `- ${m.name} (CR ${m.cr}, ${m.size} ${m.type})`);
-        parts.push(`\n## Monster Library\n${lines.join('\n')}`);
+      if ($contextFlags.monsterGroups.length > 0) {
+        const filtered = $monsterLibrary.filter((m) => $contextFlags.monsterGroups.includes(m.group));
+        if (filtered.length > 0) {
+          const lines = filtered.map((m) => `- ${m.name} (CR ${m.cr}, ${m.size} ${m.type})`);
+          parts.push(`\n## Monster Library\n${lines.join('\n')}`);
+        }
       }
 
       if ($encounterMonsterDefs.length > 0 && $contextFlags.encounterMonsters && $activeFile?.type === 'encounter') {
@@ -473,7 +492,10 @@ export const contextSummary = derived(
     if ($activeCampaign && $contextFlags.campaign) items.push($activeCampaign.name);
     if ($actSummaries.length > 0 && $contextFlags.acts) items.push(`${$actSummaries.length} Akte`);
     if ($encounterSummaries.length > 0 && $contextFlags.encounters) items.push(`${$encounterSummaries.length} Encounters`);
-    if ($monsterLibrary.length > 0 && $contextFlags.monsters) items.push(`${$monsterLibrary.length} Monster`);
+    if ($contextFlags.monsterGroups.length > 0) {
+      const count = $monsterLibrary.filter((m) => $contextFlags.monsterGroups.includes(m.group)).length;
+      items.push(`${count} Monster`);
+    }
     if ($encounterMonsterDefs.length > 0 && $contextFlags.encounterMonsters && $activeFile?.type === 'encounter') items.push(`${$encounterMonsterDefs.length} Mon↑`);
     if ($activeFile && $contextFlags.activeFile && $activeFile.type !== 'notes') items.push($activeFile.name);
     for (const pin of $pinnedEntries) {

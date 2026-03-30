@@ -20,9 +20,31 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes';
+  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell';
   /** Set for directory-based characters (with PDF sheet) */
   dirPath?: string;
+}
+
+// --- Spell ---
+
+export interface Spell {
+  name: string;
+  level: string;
+  school: string;
+  casting_time: string;
+  range: string;
+  components: {
+    verbal: boolean;
+    somatic: boolean;
+    material: boolean;
+    materials_needed: string | null;
+  };
+  duration: string;
+  ritual: boolean;
+  classes: string[];
+  description: string;
+  higher_levels: string | null;
+  source: string;
 }
 
 export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'xai';

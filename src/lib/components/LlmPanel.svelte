@@ -262,6 +262,23 @@
     contextFlags.update((f) => ({ ...f, [key]: !f[key] }));
   }
 
+  function toggleMonsterGroup(group: string) {
+    contextFlags.update((f) => {
+      const active = f.monsterGroups.includes(group)
+        ? f.monsterGroups.filter((g) => g !== group)
+        : [...f.monsterGroups, group];
+      return { ...f, monsterGroups: active };
+    });
+  }
+
+  let monsterGroupList = $derived.by(() => {
+    const groups = new Map<string, number>();
+    for (const m of $monsterLibrary) {
+      groups.set(m.group, (groups.get(m.group) ?? 0) + 1);
+    }
+    return [...groups.entries()].map(([group, count]) => ({ group, count }));
+  });
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -629,12 +646,14 @@
           {$encounterSummaries.length} Enc
         </button>
       {/if}
-      {#if $monsterLibrary.length > 0}
-        <button class="ctx-badge level-library" class:off={!$contextFlags.monsters} onclick={() => toggleFlag('monsters')}
-          title="Monster-Bibliothek (Name, CR, Typ)">
-          {$monsterLibrary.length} Mon
-        </button>
-      {/if}
+      {#each monsterGroupList as { group, count }}
+        <button
+          class="ctx-badge level-library"
+          class:off={!$contextFlags.monsterGroups.includes(group)}
+          title="Monster-Gruppe: {group}"
+          onclick={() => toggleMonsterGroup(group)}
+        >{group} ({count})</button>
+      {/each}
       {#if $activeFile}
         {@const fileLevelClass = {
           campaign: 'level-campaign', npc: 'level-campaign', world: 'level-campaign', character: 'level-campaign',

@@ -4,6 +4,7 @@
   import type { Encounter, EncounterMonster, Monster } from '../types';
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
+  import { monsterLibrary } from '../stores/context';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -164,6 +165,35 @@
     draft!.monsters.splice(i, 1);
     mark();
   }
+
+  // ── Monster-Picker ──────────────────────────────────────────────────────────
+  let showPicker = $state(false);
+  let pickerTag = $state<string | null>(null);
+
+  let pickerGroups = $derived.by(() => {
+    const groups: Record<string, typeof $monsterLibrary> = {};
+    for (const entry of $monsterLibrary) {
+      if (!groups[entry.group]) groups[entry.group] = [];
+      groups[entry.group].push(entry);
+    }
+    return groups;
+  });
+
+  let pickerMonsters = $derived.by(() => {
+    if (pickerTag === null) return $monsterLibrary;
+    return pickerGroups[pickerTag] ?? [];
+  });
+
+  function addFromPicker(slug: string) {
+    if (!draft) return;
+    const existing = draft.monsters.find(m => m.slug === slug);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      draft.monsters.push({ slug, count: 1, notes: '' });
+    }
+    mark();
+  }
 </script>
 
 <div class="encounter-panel">
@@ -275,7 +305,41 @@
             <textarea class="editable-field mon-notes-input" bind:value={m.notes} oninput={mark} placeholder="Notizen…" rows="2"></textarea>
           </div>
         {/each}
-        <button class="add-row-btn" onclick={addMonster}>+ Monster</button>
+        <div class="monster-add-row">
+          <button class="add-row-btn" onclick={addMonster}>+ Leer</button>
+          <button class="add-row-btn picker-toggle-btn" onclick={() => { showPicker = !showPicker; pickerTag = null; }}>
+            {showPicker ? '▲ Bibliothek' : '▼ Bibliothek'}
+          </button>
+        </div>
+
+        {#if showPicker}
+          <div class="monster-picker">
+            <div class="picker-tags">
+              <button
+                class="picker-tag-btn"
+                class:active={pickerTag === null}
+                onclick={() => pickerTag = null}
+              >Alle</button>
+              {#each Object.keys(pickerGroups) as group}
+                <button
+                  class="picker-tag-btn"
+                  class:active={pickerTag === group}
+                  onclick={() => pickerTag = group}
+                >{group} ({pickerGroups[group].length})</button>
+              {/each}
+            </div>
+            <div class="picker-list">
+              {#each pickerMonsters as entry}
+                <button class="picker-monster-btn" onclick={() => addFromPicker(entry.slug)}>
+                  <span class="picker-mon-name">{entry.name}</span>
+                  <span class="picker-mon-cr">CR {entry.cr}</span>
+                </button>
+              {:else}
+                <span class="picker-empty">Keine Monster geladen</span>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
 
       <div class="enc-divider"></div>
@@ -603,6 +667,72 @@
     align-self: flex-start;
   }
   .add-row-btn:hover { border-color: #89dceb; color: #89dceb; }
+
+  .monster-add-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .picker-toggle-btn { color: #89b4fa; border-color: #2a3a5b; }
+  .picker-toggle-btn:hover { border-color: #89b4fa; color: #cdd6f4; }
+
+  .monster-picker {
+    border: 1px solid #313244;
+    border-radius: 4px;
+    background: #1e1e2e;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+  }
+
+  .picker-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .picker-tag-btn {
+    background: #313244;
+    border: 1px solid #45475a;
+    color: #a6adc8;
+    border-radius: 3px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .picker-tag-btn:hover { background: #45475a; color: #cdd6f4; }
+  .picker-tag-btn.active { background: #383860; border-color: #89b4fa; color: #89b4fa; }
+
+  .picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .picker-monster-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: none;
+    color: #cdd6f4;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    text-align: left;
+  }
+
+  .picker-monster-btn:hover { background: #313244; }
+
+  .picker-mon-name { flex: 1; }
+  .picker-mon-cr { color: #f9e2af; font-size: 0.75rem; margin-left: 0.5rem; }
+  .picker-empty { color: #6c7086; font-size: 0.8rem; padding: 0.2rem 0.4rem; }
 
   /* ── Text areas ── */
   .enc-text-input {

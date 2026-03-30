@@ -125,6 +125,28 @@ fn list_entries(path: String) -> Result<Vec<EntryInfo>, String> {
     Ok(result)
 }
 
+/// Listet .json-Dateien UND Unterverzeichnisse — für die Monster-Bibliothek
+#[tauri::command]
+fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
+    let path = resolve_path(&path);
+    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let mut result: Vec<EntryInfo> = entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            let is_dir = e.path().is_dir();
+            let is_json = e.path().is_file() && name.ends_with(".json");
+            if is_dir || is_json {
+                Some(EntryInfo { name, is_dir })
+            } else {
+                None
+            }
+        })
+        .collect();
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(result)
+}
+
 /// Sucht die erste .pdf-Datei in einem Verzeichnis
 #[tauri::command]
 fn find_pdf_in_dir(path: String) -> Result<Option<String>, String> {
@@ -253,6 +275,7 @@ pub fn run() {
             read_file_base64,
             write_file_content,
             list_json_files,
+            list_json_entries,
             rename_file,
             save_api_key,
             load_api_key,

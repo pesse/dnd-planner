@@ -11,6 +11,30 @@
   const VAULT_BASE = './vault/campaigns';
   const CHARACTERS_PATH = './vault/characters';
   const MONSTERS_PATH = './vault/monsters';
+  const SPELLS_PATH = './vault/spells';
+
+  const SPELL_SCHOOL_COLORS: Record<string, string> = {
+    'bannmagie':       '#89b4fa',
+    'beschwörung':     '#a6e3a1',
+    'erkenntnismagie': '#f9e2af',
+    'hervorrufung':    '#f38ba8',
+    'illusionsmagie':  '#89dceb',
+    'nekromantie':     '#cba6f7',
+    'verwandlung':     '#fab387',
+    'verzauberung':    '#f5c2e7',
+  };
+
+  // Ordnername → englischer Schulschlüssel (für neuen Zauber-JSON)
+  const SCHOOL_DIR_TO_KEY: Record<string, string> = {
+    'bannmagie':       'abjuration',
+    'beschwörung':     'conjuration',
+    'erkenntnismagie': 'divination',
+    'verzauberung':    'enchantment',
+    'hervorrufung':    'evocation',
+    'illusionsmagie':  'illusion',
+    'nekromantie':     'necromancy',
+    'verwandlung':     'transmutation',
+  };
 
   const sections: { label: string; subdir: string; type: FileEntry['type'] }[] = [
     { label: 'Akte', subdir: 'acts', type: 'act' },
@@ -94,6 +118,7 @@
     await loadCampaigns();
     if (charactersExpanded) await loadCharacters();
     if (monstersExpanded) await loadMonsters();
+    if (spellsExpanded) { spellsBySchool = {}; await loadSpells(); }
     const campaign = $activeCampaign;
     if (campaign) {
       for (const section of sections) {
@@ -180,27 +205,47 @@
 
   // --- Monster (global) ---
   let monstersExpanded = $state(false);
-  let monsterFiles = $state<string[]>([]);
-  let monsterNames: Record<string, string> = $state({});
+  // group → { filename, name }[]
+  let monsterGroups: Record<string, { filename: string; name: string }[]> = $state({});
+  let openMonsterGroups: Record<string, boolean> = $state({});
   let showNewMonsterInput = $state(false);
   let newMonsterInput = $state('');
+  let newMonsterGroup = $state('');
 
   async function loadMonsters() {
     try {
-      monsterFiles = await invoke<string[]>('list_json_files', { path: MONSTERS_PATH });
-      monsterFiles.forEach(async (filename) => {
-        const path = `${MONSTERS_PATH}/${filename}`;
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: MONSTERS_PATH });
+      const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
+      const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
+      const newGroups: Record<string, { filename: string; name: string }[]> = {};
+
+      async function loadName(path: string, filename: string): Promise<string> {
         try {
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
-          monsterNames[filename] = data.name ?? filename.replace('.json', '');
-        } catch {
-          monsterNames[filename] = filename.replace('.json', '');
-        }
-      });
+          return data.name ?? filename.replace('.json', '');
+        } catch { return filename.replace('.json', ''); }
+      }
+
+      for (const dir of dirs) {
+        const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${dir}` }).catch(() => [] as string[]);
+        newGroups[dir] = await Promise.all(
+          files.map(async (f) => ({ filename: `${dir}/${f}`, name: await loadName(`${MONSTERS_PATH}/${dir}/${f}`, f) }))
+        );
+      }
+      if (rootFiles.length) {
+        newGroups['Sonstige'] = await Promise.all(
+          rootFiles.map(async (f) => ({ filename: f, name: await loadName(`${MONSTERS_PATH}/${f}`, f) }))
+        );
+      }
+      monsterGroups = newGroups;
     } catch {
-      monsterFiles = [];
+      monsterGroups = {};
     }
+  }
+
+  function toggleMonsterGroup(group: string) {
+    openMonsterGroups[group] = !openMonsterGroups[group];
   }
 
   async function toggleMonsters() {
@@ -225,23 +270,151 @@
     if (!raw) return;
 
     const slug = slugify(raw);
-    const filename = slug + '.json';
-    const path = `${MONSTERS_PATH}/${filename}`;
+    const group = newMonsterGroup.trim();
+    const relPath = group ? `${slugify(group)}/${slug}.json` : `${slug}.json`;
+    const path = `${MONSTERS_PATH}/${relPath}`;
     const template = { ...monsterTemplate, name: raw.charAt(0).toUpperCase() + raw.slice(1) };
 
     try {
       await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
       showNewMonsterInput = false;
       newMonsterInput = '';
+      newMonsterGroup = '';
       await loadMonsters();
-      await openMonster(filename);
+      await openMonster(relPath);
     } catch (err) {
       console.error('Monster konnte nicht erstellt werden:', err);
     }
   }
 
   function cancelNewMonster(e: KeyboardEvent) {
-    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; }
+    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; newMonsterGroup = ''; }
+  }
+
+  // --- Zauber (global, nach Schule) ---
+  let spellsExpanded = $state(false);
+  let spellSchools: string[] = $state([]);
+  let spellsBySchool: Record<string, { filename: string; name: string }[]> = $state({});
+  let openSpellSchools: Record<string, boolean> = $state({});
+  let spellSearch = $state('');
+  let showNewSpellInput = $state(false);
+  let newSpellName = $state('');
+  let newSpellSchool = $state('');
+
+  // Wenn Suchbegriff eingegeben, alle Schulen laden und gefiltert anzeigen
+  $effect(() => {
+    if (spellSearch.trim() && spellSchools.length) {
+      for (const school of spellSchools) {
+        if (!spellsBySchool[school]) loadSpellSchool(school);
+      }
+    }
+  });
+
+  let spellSearchResults = $derived.by(() => {
+    const q = spellSearch.trim().toLowerCase();
+    if (!q) return null;
+    const results: { school: string; filename: string; name: string }[] = [];
+    for (const school of spellSchools) {
+      for (const spell of spellsBySchool[school] ?? []) {
+        if (spell.name.toLowerCase().includes(q)) results.push({ school, ...spell });
+      }
+    }
+    return results;
+  });
+
+  async function loadSpells() {
+    try {
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: SPELLS_PATH });
+      spellSchools = entries.filter((e) => e.is_dir).map((e) => e.name).sort();
+    } catch {
+      spellSchools = [];
+    }
+  }
+
+  async function loadSpellSchool(school: string) {
+    if (spellsBySchool[school]) return;
+    try {
+      const files = await invoke<string[]>('list_json_files', { path: `${SPELLS_PATH}/${school}` });
+      spellsBySchool[school] = await Promise.all(
+        files.map(async (f) => {
+          const path = `${SPELLS_PATH}/${school}/${f}`;
+          try {
+            const content = await invoke<string>('read_file_content', { path });
+            const data = JSON.parse(content);
+            return { filename: f, name: data.name ?? f.replace('.json', '') };
+          } catch {
+            return { filename: f, name: f.replace('.json', '') };
+          }
+        })
+      );
+      spellsBySchool[school].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    } catch {
+      spellsBySchool[school] = [];
+    }
+  }
+
+  async function toggleSpells() {
+    spellsExpanded = !spellsExpanded;
+    if (spellsExpanded) await loadSpells();
+  }
+
+  async function toggleSpellSchool(school: string) {
+    openSpellSchools[school] = !openSpellSchools[school];
+    if (openSpellSchools[school]) await loadSpellSchool(school);
+  }
+
+  async function openSpell(school: string, filename: string) {
+    const path = `${SPELLS_PATH}/${school}/${filename}`;
+    try {
+      const content = await invoke<string>('read_file_content', { path });
+      setFileContent(content);
+    } catch {
+      setFileContent('{}');
+    }
+    activeFile.set({ name: filename.replace('.json', ''), path, type: 'spell' });
+  }
+
+  async function createSpell(e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const raw = newSpellName.trim();
+    const school = newSpellSchool || spellSchools[0];
+    if (!raw || !school) return;
+
+    const slug = slugify(raw);
+    const filename = slug + '.json';
+    const path = `${SPELLS_PATH}/${school}/${filename}`;
+    const template = {
+      name: raw.charAt(0).toUpperCase() + raw.slice(1),
+      level: '1',
+      school: SCHOOL_DIR_TO_KEY[school] ?? 'evocation',
+      casting_time: '1 Aktion',
+      range: '9 Meter',
+      components: { verbal: true, somatic: false, material: false, materials_needed: null },
+      duration: 'Unmittelbar',
+      ritual: false,
+      classes: [],
+      description: '',
+      higher_levels: null,
+      source: 'eigen',
+    };
+
+    try {
+      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
+      showNewSpellInput = false;
+      newSpellName = '';
+      // Schule aufklappen und Cache leeren damit neu geladen wird
+      delete spellsBySchool[school];
+      spellsBySchool = { ...spellsBySchool };
+      openSpellSchools[school] = true;
+      await loadSpellSchool(school);
+      await openSpell(school, filename);
+    } catch (err) {
+      console.error('Zauber konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewSpell(e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewSpellInput = false; newSpellName = ''; }
   }
 
   // --- Encounter (pro Akt-Verzeichnis) ---
@@ -509,30 +682,152 @@
 
     {#if monstersExpanded}
       <div class="file-list">
-        {#if monsterFiles.length}
-          {#each monsterFiles as filename}
+        {#if Object.keys(monsterGroups).length}
+          {#each Object.entries(monsterGroups) as [group, monsters]}
             <button
-              class="file-entry"
-              class:active={$activeFile?.path?.endsWith(filename)}
-              onclick={() => openMonster(filename)}
+              class="monster-group-header"
+              onclick={() => toggleMonsterGroup(group)}
             >
-              {monsterNames[filename] ?? filename.replace('.json', '')}
+              <span class="arrow" class:open={openMonsterGroups[group]}>›</span>
+              {group} <span class="group-count">({monsters.length})</span>
             </button>
+            {#if openMonsterGroups[group]}
+              {#each monsters as { filename, name }}
+                <button
+                  class="file-entry monster-subentry"
+                  class:active={$activeFile?.path?.endsWith(filename)}
+                  onclick={() => openMonster(filename)}
+                >
+                  {name}
+                </button>
+              {/each}
+            {/if}
           {/each}
         {:else if !showNewMonsterInput}
           <span class="empty">Keine Monster</span>
         {/if}
 
         {#if showNewMonsterInput}
-          <div class="new-file-row">
+          <div class="new-monster-form">
             <input
               class="new-file-input"
-              bind:value={newMonsterInput}
-              placeholder="Name…"
-              onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
-              autofocus
+              bind:value={newMonsterGroup}
+              placeholder="Gruppe (Ordner)…"
+              list="monster-group-suggestions"
             />
-            <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
+            <datalist id="monster-group-suggestions">
+              {#each Object.keys(monsterGroups).filter(g => g !== 'Sonstige') as g}
+                <option value={g}></option>
+              {/each}
+            </datalist>
+            <div class="new-file-row">
+              <input
+                class="new-file-input"
+                bind:value={newMonsterInput}
+                placeholder="Name…"
+                onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
+                autofocus
+              />
+              <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Zauber (global) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleSpells}>
+        <span class="arrow" class:open={spellsExpanded}>›</span>
+        Zauber
+      </button>
+      <button class="add-btn" title="Neuer Zauber" onclick={() => { spellsExpanded = true; loadSpells(); showNewSpellInput = true; newSpellName = ''; newSpellSchool = spellSchools[0] ?? ''; }}>
+        +
+      </button>
+    </div>
+
+    {#if spellsExpanded}
+      <div class="spell-search-row">
+        <input
+          class="spell-search-input"
+          bind:value={spellSearch}
+          placeholder="Suchen…"
+          type="search"
+        />
+      </div>
+      <div class="file-list">
+        {#if spellSearchResults !== null}
+          <!-- Suchergebnisse (flach) -->
+          {#if spellSearchResults.length}
+            {#each spellSearchResults as { school, filename, name }}
+              <button
+                class="file-entry monster-subentry"
+                class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
+                onclick={() => openSpell(school, filename)}
+                title={school}
+              >
+                {name}
+              </button>
+            {/each}
+          {:else}
+            <span class="empty">Keine Treffer</span>
+          {/if}
+        {:else if spellSchools.length}
+          <!-- Gruppierte Ansicht nach Schule -->
+          {#each spellSchools as school}
+            {@const color = SPELL_SCHOOL_COLORS[school] ?? '#cdd6f4'}
+            {@const spells = spellsBySchool[school]}
+            <button
+              class="monster-group-header"
+              style="color: {color}"
+              onclick={() => toggleSpellSchool(school)}
+            >
+              <span class="arrow" class:open={openSpellSchools[school]}>›</span>
+              {school.charAt(0).toUpperCase() + school.slice(1)}
+              {#if spells}<span class="group-count">({spells.length})</span>{/if}
+            </button>
+            {#if openSpellSchools[school]}
+              {#if spells}
+                {#each spells as { filename, name }}
+                  <button
+                    class="file-entry monster-subentry"
+                    class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
+                    onclick={() => openSpell(school, filename)}
+                  >
+                    {name}
+                  </button>
+                {/each}
+              {:else}
+                <span class="empty">Laden…</span>
+              {/if}
+            {/if}
+          {/each}
+        {:else}
+          <span class="empty">Keine Zauber</span>
+        {/if}
+
+        {#if showNewSpellInput}
+          <div class="new-monster-form">
+            <select
+              class="new-file-input"
+              bind:value={newSpellSchool}
+            >
+              {#each spellSchools as s}
+                <option value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              {/each}
+            </select>
+            <div class="new-file-row">
+              <input
+                class="new-file-input"
+                bind:value={newSpellName}
+                placeholder="Name…"
+                onkeydown={(e) => { createSpell(e); cancelNewSpell(e); }}
+                autofocus
+              />
+              <button class="confirm-btn" onclick={(e) => createSpell(e)}>✓</button>
+            </div>
           </div>
         {/if}
       </div>
@@ -673,7 +968,7 @@
 <style>
   .sidebar {
     width: 100%;
-    min-height: 100vh;
+    height: 100%;
     background: #1e1e2e;
     color: #cdd6f4;
     display: flex;
@@ -863,6 +1158,56 @@
     color: #cba6f7;
   }
 
+  .monster-group-header {
+    width: 100%;
+    text-align: left;
+    padding: 0.2rem 1rem 0.2rem 1.5rem;
+    background: none;
+    border: none;
+    color: #89b4fa;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .monster-group-header:hover { color: #cdd6f4; }
+
+  .monster-group-header .arrow {
+    display: inline-block;
+    font-size: 0.9rem;
+    transition: transform 0.15s;
+    transform: rotate(0deg);
+    color: #6c7086;
+  }
+
+  .monster-group-header .arrow.open {
+    transform: rotate(90deg);
+  }
+
+  .group-count {
+    color: #6c7086;
+    font-weight: 400;
+  }
+
+  .monster-subentry {
+    padding-left: 3.5rem;
+  }
+
+  .new-monster-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.25rem 1rem;
+  }
+
+  .new-monster-form .new-file-input {
+    width: 100%;
+  }
+
   .encounter-entry { color: #89dceb88; }
   .encounter-entry:hover { color: #89dceb; }
   .encounter-entry.active { color: #89dceb; }
@@ -927,5 +1272,29 @@
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 0.2rem;
+  }
+
+  .spell-search-row {
+    padding: 0.3rem 0.75rem 0.2rem;
+  }
+
+  .spell-search-input {
+    width: 100%;
+    background: #313244;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    color: #cdd6f4;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.82rem;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .spell-search-input:focus {
+    border-color: #cba6f7;
+  }
+
+  .spell-search-input::placeholder {
+    color: #45475a;
   }
 </style>

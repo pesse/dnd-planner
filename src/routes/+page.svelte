@@ -4,6 +4,7 @@
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import MonsterCard from '$lib/components/MonsterCard.svelte';
   import EncounterCard from '$lib/components/EncounterCard.svelte';
+  import SpellCard from '$lib/components/SpellCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
@@ -17,6 +18,7 @@
   );
   let isMonster = $derived($activeFile?.type === 'monster');
   let isEncounter = $derived($activeFile?.type === 'encounter');
+  let isSpell = $derived($activeFile?.type === 'spell');
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
   );
@@ -202,6 +204,15 @@
         {/if}
       </div>
       <EncounterCard />
+    {:else if isSpell}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title spell-title">✦ {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <SpellCard />
     {:else}
       <div class="toolbar">
         {#if $activeFile}
@@ -360,6 +371,10 @@
 
   .encounter-title {
     color: #89dceb;
+  }
+
+  .spell-title {
+    color: #cba6f7;
   }
 
   .rename-btn {
