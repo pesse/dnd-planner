@@ -326,9 +326,9 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
 .prop-row { font-size: 6pt; line-height: 1.3; }
 .pc {
   display: inline;
-  white-space: nowrap;
   margin-right: 2.5mm;
 }
+.pc .icon { margin-right: 0.7mm; }
 /* Komponenten-Zeile */
 .prop {
   font-size: 6pt; line-height: 1.3;
