@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import { pushError } from '$lib/stores/errors';
   import type { Spell } from '$lib/types';
+  import { prepareSpellPrint } from '$lib/utils/printSpell';
 
   const SCHOOL_COLORS: Record<string, string> = {
     abjuration:    '#89b4fa',
@@ -121,6 +122,24 @@
     return `${level}. Grad`;
   }
 
+  function printSpell() {
+    if (!spell) return;
+    const html = prepareSpellPrint(spell, document);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument!;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      const prev = document.title;
+      document.title = spell!.name;
+      iframe.contentWindow!.focus();
+      iframe.contentWindow!.print();
+      document.title = prev;
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    }, 0);
+  }
+
   function componentStr(s: Spell): string {
     const parts: string[] = [];
     if (s.components.verbal)   parts.push('V');
@@ -137,7 +156,10 @@
       <div class="card-header">
         <div class="header-top">
           <div class="header-name">{spell.name}</div>
-          <button class="edit-btn" onclick={startEdit}>✏ Bearbeiten</button>
+          <div class="header-actions">
+            <button class="print-btn" onclick={printSpell}>🖨 PDF</button>
+            <button class="edit-btn" onclick={startEdit}>✏ Bearbeiten</button>
+          </div>
         </div>
         <div class="header-sub">
           <span class="header-level">{levelLabel(spell.level)}</span>
@@ -338,6 +360,13 @@
     line-height: 1.2;
   }
 
+  .header-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+  }
+
   .edit-btn {
     background: #313244;
     border: 1px solid #45475a;
@@ -346,11 +375,21 @@
     font-size: 0.78rem;
     padding: 0.25rem 0.65rem;
     border-radius: 5px;
-    margin-top: 0.15rem;
-    flex-shrink: 0;
     white-space: nowrap;
   }
   .edit-btn:hover { color: #cba6f7; border-color: #cba6f7; }
+
+  .print-btn {
+    background: #313244;
+    border: 1px solid #45475a;
+    color: #a6adc8;
+    cursor: pointer;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .print-btn:hover { color: #89b4fa; border-color: #89b4fa; }
 
   .header-sub {
     display: flex;
