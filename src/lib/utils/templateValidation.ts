@@ -4,7 +4,6 @@ import type { FileEntry } from '../types';
 const REQUIRED_SECTIONS: Partial<Record<FileEntry['type'], string[]>> = {
   act:     ['Summary', 'Ergebnis', 'Details'],
   npc:     ['Summary', 'Motivations', 'Details'],
-  session: ['Summary', 'Ergebnis', 'Details'],
   world:   ['Summary', 'Details'],
 };
 

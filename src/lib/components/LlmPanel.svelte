@@ -10,6 +10,7 @@
     monsterLibrary,
     encounterMonsterDefs,
     campaignContent,
+    campaignCharacterData,
     pinEntry,
     unpinEntry,
     setPinDetailLevel,
@@ -157,6 +158,20 @@
       `When a task involves an act and its encounter, update BOTH files. ` +
       `Write complete, well-structured content. Summarize what you did at the end.`
     );
+  }
+
+  const JSON_FILE_TYPES = new Set(['monster', 'encounter', 'npc']);
+
+  function stripJsonFences(content: string): string {
+    const match = content.trim().match(/^```json\s*\n([\s\S]*?)\n```\s*$/);
+    return match ? match[1] : content;
+  }
+
+  function applyReplace(content: string) {
+    const cleaned = $activeFile && JSON_FILE_TYPES.has($activeFile.type)
+      ? stripJsonFences(content)
+      : content;
+    replaceContent(cleaned);
   }
 
   async function agentWriteFile(path: string, content: string): Promise<void> {
@@ -636,6 +651,12 @@
           Kampagne
         </button>
       {/if}
+      {#if $campaignCharacterData.length > 0}
+        <button class="ctx-badge narrative" class:off={!$contextFlags.characters} onclick={() => toggleFlag('characters')}
+          title={$campaignCharacterData.map((c) => c.name).join(', ')}>
+          {$campaignCharacterData.length === 1 ? $campaignCharacterData[0].name : `${$campaignCharacterData.length} Chars`}
+        </button>
+      {/if}
       {#if $actSummaries.length > 0}
         <button class="ctx-badge narrative" class:off={!$contextFlags.acts} onclick={() => toggleFlag('acts')}>
           {$actSummaries.length} Akte
@@ -738,7 +759,7 @@
                     <button class="block-btn" onclick={() => copyBlock(bk, seg.content)} title="Kopieren">{blockCopied[bk] ? '✓' : '⎘'}</button>
                     {#if $activeFile}
                       <button class="block-btn" onclick={() => appendContent(seg.content)}>+ Anhängen</button>
-                      <button class="block-btn" onclick={() => replaceContent(seg.content)}>↺ Ersetzen</button>
+                      <button class="block-btn" onclick={() => applyReplace(seg.content)}>↺ Ersetzen</button>
                     {/if}
                     <button class="block-btn" onclick={() => toggleBlockFile(bk)}>+ Datei</button>
                   </div>
@@ -772,7 +793,7 @@
               </button>
               {#if $activeFile}
                 <button class="msg-apply-btn append" onclick={() => appendContent(msg.content)}>+ Anhängen</button>
-                <button class="msg-apply-btn replace" onclick={() => replaceContent(msg.content)}>↺ Ersetzen</button>
+                <button class="msg-apply-btn replace" onclick={() => applyReplace(msg.content)}>↺ Ersetzen</button>
               {/if}
               <button class="msg-apply-btn new-file" onclick={() => { if (newFileMsgIndex === i) { newFileMsgIndex = null; } else { newFileMsgIndex = i; newFileMsgPath = suggestNewFilePath(); newFileMsgStatus = 'idle'; } }}>
                 + Datei
@@ -826,7 +847,7 @@
                     <button class="block-btn" onclick={() => copyBlock(bk, seg.content)} title="Kopieren">{blockCopied[bk] ? '✓' : '⎘'}</button>
                     {#if $activeFile}
                       <button class="block-btn" onclick={() => appendContent(seg.content)}>+ Anhängen</button>
-                      <button class="block-btn" onclick={() => replaceContent(seg.content)}>↺ Ersetzen</button>
+                      <button class="block-btn" onclick={() => applyReplace(seg.content)}>↺ Ersetzen</button>
                     {/if}
                     <button class="block-btn" onclick={() => toggleBlockFile(bk)}>+ Datei</button>
                   </div>
@@ -857,7 +878,7 @@
             <button class="apply-btn append" disabled={!$activeFile} onclick={() => { appendContent(generateResult); clearGenerate(); }}>
               + Anhängen
             </button>
-            <button class="apply-btn replace" disabled={!$activeFile} onclick={() => { replaceContent(generateResult); clearGenerate(); }}>
+            <button class="apply-btn replace" disabled={!$activeFile} onclick={() => { applyReplace(generateResult); clearGenerate(); }}>
               ↺ Ersetzen
             </button>
             <button class="apply-btn new-file" onclick={() => { showNewFile = !showNewFile; if (showNewFile) { newFilePath = suggestNewFilePath(); newFileSaveStatus = 'idle'; } }}>

@@ -59,8 +59,9 @@
   let showNewFileInput: Record<string, boolean> = $state({});
 
   async function loadTemplate(type: string): Promise<string | null> {
+    const ext = type === 'npc' ? 'json' : 'md';
     try {
-      return await invoke<string>('read_file_content', { path: `./vault/templates/${type}.md` });
+      return await invoke<string>('read_file_content', { path: `./vault/templates/${type}.${ext}` });
     } catch {
       return null;
     }
@@ -589,6 +590,23 @@
       } catch {
         sectionFiles[key] = [];
       }
+    } else if (section.type === 'npc') {
+      try {
+        const files = await invoke<string[]>('list_json_files', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
+        sectionFiles[key] = files;
+        files.forEach(async (filename) => {
+          const path = `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
+          try {
+            const content = await invoke<string>('read_file_content', { path });
+            const data = JSON.parse(content);
+            fileTitles[path] = (data.name as string) || filename.replace('.json', '');
+          } catch {
+            fileTitles[path] = filename.replace('.json', '');
+          }
+        });
+      } catch {
+        sectionFiles[key] = [];
+      }
     } else {
       try {
         const files = await invoke<string[]>('list_directory', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
@@ -630,7 +648,8 @@
     const fullPath = section.type === 'act'
       ? `${VAULT_BASE}/${campaignPath}/acts/${filenameOrDir}/index.md`
       : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filenameOrDir}`;
-    activeFile.set({ name: filenameOrDir.replace('.md', ''), path: fullPath, type: section.type });
+    const displayName = filenameOrDir.replace(/\.(md|json)$/, '');
+    activeFile.set({ name: displayName, path: fullPath, type: section.type });
     try {
       const content = await invoke<string>('read_file_content', { path: fullPath });
       setFileContent(content);
@@ -664,18 +683,27 @@
     const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '');
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
+    const isNpc = section.type === 'npc';
+    const ext = isNpc ? '.json' : '.md';
     const fullPath = section.type === 'act'
       ? `${VAULT_BASE}/${campaignPath}/acts/${slug}/index.md`
-      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${slug}.md`;
+      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${slug}${ext}`;
 
     try {
       const tmpl = await loadTemplate(section.type);
-      const sectionTemplate = `# ${title}\n\n` + (tmpl ?? '');
+      let sectionTemplate: string;
+      if (isNpc) {
+        const obj = tmpl ? JSON.parse(tmpl) : {};
+        obj.name = title;
+        sectionTemplate = JSON.stringify(obj, null, 2);
+      } else {
+        sectionTemplate = `# ${title}\n\n` + (tmpl ?? '');
+      }
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       showNewFileInput[key] = false;
       newFileInput[key] = '';
       await loadSection(campaignPath, section);
-      await openFile(campaignPath, section, slug);
+      await openFile(campaignPath, section, slug + ext);
       if (section.type === 'act') loadActSummaries(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
@@ -1009,9 +1037,9 @@
                         class="file-entry"
                         class:active={$activeFile?.path === filePath}
                         onclick={() => openFile(campaign.path, section, filename)}
-                        title={filename.replace('.md', '')}
+                        title={fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
                       >
-                        {fileTitles[filePath] ?? filename.replace('.md', '')}
+                        {fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
                       </button>
                     {/if}
                   {/each}

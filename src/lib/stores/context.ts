@@ -4,6 +4,7 @@ import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
 import { extractCharacterInfo, formatCharacterForContext } from '../utils/characterExtract';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
+import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
 
 export interface EncounterSummaryEntry {
   slug: string;
@@ -28,6 +29,7 @@ export interface MonsterLibraryEntry {
 
 export interface ContextFlags {
   campaign: boolean;
+  characters: boolean;
   acts: boolean;
   encounters: boolean;
   monsterGroups: string[];
@@ -37,6 +39,7 @@ export interface ContextFlags {
 
 const FLAG_DEFAULTS: ContextFlags = {
   campaign: true,
+  characters: true,
   acts: true,
   encounters: true,
   monsterGroups: [],
@@ -85,15 +88,63 @@ export const actSummaries = writable<ActSummaryEntry[]>([]);
 /** Inhalt der campaign.md der aktiven Kampagne. */
 export const campaignContent = writable<string>('');
 
+export interface CharacterCompact {
+  slug: string;
+  name: string;
+  classLevel: string;
+  race: string;
+  playerName: string;
+}
+
+/** Geladene Charakterdaten aus dem Frontmatter der campaign.md. */
+export const campaignCharacterData = writable<CharacterCompact[]>([]);
+
 export async function loadCampaignContent(campaignPath: string): Promise<void> {
   try {
     const content = await invoke<string>('read_file_content', {
       path: `./vault/campaigns/${campaignPath}/campaign.md`,
     });
     campaignContent.set(content);
+    await loadCampaignCharacters(content);
   } catch {
     campaignContent.set('');
+    campaignCharacterData.set([]);
   }
+}
+
+/** Neu-laden der Charakterdaten aus einem gegebenen campaign.md-Inhalt (z.B. nach Frontmatter-Edit). */
+export async function reloadCampaignCharacters(campaignMd: string): Promise<void> {
+  campaignContent.set(campaignMd);
+  await loadCampaignCharacters(campaignMd);
+}
+
+async function loadCampaignCharacters(campaignMd: string): Promise<void> {
+  const { frontmatter } = parseFrontmatter(campaignMd);
+  const slugs = frontmatter.characters ?? [];
+  if (slugs.length === 0) {
+    campaignCharacterData.set([]);
+    return;
+  }
+  const results = await Promise.all(
+    slugs.map(async (slug): Promise<CharacterCompact | null> => {
+      try {
+        const raw = await invoke<string>('read_file_content', {
+          path: `./vault/characters/${slug}/character.json`,
+        });
+        const data = JSON.parse(raw);
+        return {
+          slug,
+          name: (data.name as string) ?? slug,
+          classLevel: (data.classLevel as string) ?? '',
+          race: (data.race as string) ?? '',
+          playerName: (data.playerName as string) ?? '',
+        };
+      } catch {
+        return null;
+      }
+    })
+  );
+  campaignCharacterData.set(results.filter((c): c is CharacterCompact => c !== null));
 }
 
 /** Encounter-Summaries der aktiven Kampagne. */
@@ -288,19 +339,9 @@ function getFileTypeFocus(type: FileEntry['type'] | undefined): string {
         'Always maintain this structure when editing.'
       );
     case 'session':
-      return (
-        'You are working on a **session note**. ' +
-        'Structure: ## Summary (what happened), ## Ergebnis (world changes, player achievements), ' +
-        '## Details (events, NPC interactions, open threads). ' +
-        'Always maintain this structure when editing.'
-      );
+      return 'You are working on a **session note** — short, informal DM notes. No fixed structure.';
     case 'npc':
-      return (
-        'You are working on an **NPC**. ' +
-        'Structure: ## Summary (role + one-liner), ## Motivations (what they want), ' +
-        '## Details (personality, secrets, connections to plot and other NPCs, reactions to players). ' +
-        'Always maintain this structure when editing.'
-      );
+      return 'You are working on an **NPC**. Output as a single ```json ... ``` block matching the schema.';
     case 'world':
       return (
         'You are working on a **world-building entry**. ' +
@@ -318,8 +359,8 @@ function getFileTypeFocus(type: FileEntry['type'] | undefined): string {
 }
 
 export const systemPrompt = derived(
-  [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, encounterSummaries, monsterLibrary, encounterMonsterDefs, campaignContent, contextFlags],
-  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags]) => {
+  [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, encounterSummaries, monsterLibrary, encounterMonsterDefs, campaignContent, contextFlags, campaignCharacterData],
+  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags, $campaignCharacterData]) => {
     const parts: string[] = [];
 
     parts.push(
@@ -334,9 +375,33 @@ export const systemPrompt = derived(
     if (true) {
       if ($activeCampaign && $contextFlags.campaign) {
         if ($campaignContent && $activeFile?.type !== 'campaign') {
-          parts.push(`\n## Campaign Overview\n\`\`\`markdown\n${$campaignContent}\n\`\`\``);
+          const campaignBody = stripFrontmatter($campaignContent);
+          parts.push(`\n## Campaign Overview\n\`\`\`markdown\n${campaignBody}\n\`\`\``);
         } else {
           parts.push(`\n## Active Campaign\nName: ${$activeCampaign.name}`);
+        }
+      }
+
+      // Partycharaktere aus campaign.md Frontmatter
+      if ($campaignCharacterData.length > 0 && $contextFlags.characters) {
+        // Bei Session: nur die im Frontmatter genannten Charaktere zeigen
+        let partyToShow = $campaignCharacterData;
+        if ($activeFile?.type === 'session' && $fileContent) {
+          const { frontmatter: sessionFm } = parseFrontmatter($fileContent);
+          if (sessionFm.characters && sessionFm.characters.length > 0) {
+            const slugSet = new Set(sessionFm.characters);
+            partyToShow = $campaignCharacterData.filter((c) => slugSet.has(c.slug));
+          }
+        }
+        if (partyToShow.length > 0) {
+          const lines = partyToShow.map((c) => {
+            const fields: string[] = [c.name];
+            if (c.race) fields.push(c.race);
+            if (c.classLevel) fields.push(c.classLevel);
+            if (c.playerName) fields.push(`Spieler: ${c.playerName}`);
+            return `- ${fields.join(', ')}`;
+          });
+          parts.push(`\n## Partycharaktere\n${lines.join('\n')}`);
         }
       }
 
@@ -394,11 +459,12 @@ export const systemPrompt = derived(
         parts.push(`\n## Monsters in This Encounter\n\`\`\`json\n[${monsterJsons}]\n\`\`\``);
       }
 
-      if ($activeFile?.type === 'encounter' || $activeFile?.type === 'monster' || $activeFile?.type === 'act') {
+      if ($activeFile?.type === 'encounter' || $activeFile?.type === 'monster' || $activeFile?.type === 'act' || $activeFile?.type === 'npc') {
+        const showNpc = $activeFile.type === 'npc';
         const showMonster = $activeFile.type === 'monster' || $activeFile.type === 'act';
         const showEncounter = $activeFile.type === 'encounter' || $activeFile.type === 'act';
         const lines: string[] = ['\n## JSON Format for Generation',
-          'When outputting a monster or encounter, wrap it in a single ```json ... ``` block.',
+          'When outputting a monster, encounter, or NPC, wrap it in a single ```json ... ``` block.',
           '**CRITICAL rules — violation will break the app:**',
           '- Output EXACTLY the fields listed below — no extra fields, no omissions.',
           '- Use the exact field names (snake_case, lowercase).',
@@ -455,6 +521,29 @@ export const systemPrompt = derived(
           '  "tags": string[]\n' +
           '}\n```'
         );
+        if (showNpc) lines.push(
+          '\n**NPC schema** (all fields required):\n```\n' +
+          '{\n' +
+          '  "name": string,\n' +
+          '  "role": string,\n' +
+          '  "status": "lebendig" | "tot" | "vermisst" | "unbekannt",\n' +
+          '  "appearance": string,\n' +
+          '  "personality": string,\n' +
+          '  "motivation": string,\n' +
+          '  "secret": string,\n' +
+          '  "notes": string,\n' +
+          '  "ac": number,\n' +
+          '  "hp": string,\n' +
+          '  "speed": string,\n' +
+          '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
+          '  "skills": { [skill: string]: string },\n' +
+          '  "spells": string[],\n' +
+          '  "inventory": string[],\n' +
+          '  "tags": string[]\n' +
+          '}\n```\n' +
+          'Notes: `hp` is a string like "27 (5W8+5)". `skills` maps skill name to modifier string e.g. {"Wahrnehmung": "+4"}. ' +
+          '`spells` is a list of spell names. `inventory` is a list of notable items. Use "" for unknown strings, 0 for unknown numbers, [] for empty arrays.'
+        );
         parts.push(lines.join('\n'));
       }
 
@@ -463,8 +552,10 @@ export const systemPrompt = derived(
         const label = $activeFile.type === 'act'
           ? `Active Act: ${$activeFile.name}`
           : `Current File: ${$activeFile.name} (${$activeFile.type})`;
-        const lang = ($activeFile.type === 'encounter' || $activeFile.type === 'monster') ? 'json' : 'markdown';
-        parts.push(`\n## ${label}\n\`\`\`${lang}\n${$fileContent}\n\`\`\``);
+        const lang = ($activeFile.type === 'encounter' || $activeFile.type === 'monster' || $activeFile.type === 'npc') ? 'json' : 'markdown';
+        const isMarkdown = lang === 'markdown';
+        const displayContent = isMarkdown ? stripFrontmatter($fileContent) : $fileContent;
+        parts.push(`\n## ${label}\n\`\`\`${lang}\n${displayContent}\n\`\`\``);
       }
     }
 

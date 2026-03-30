@@ -5,6 +5,7 @@
   import { Markdown } from 'tiptap-markdown';
   import { invoke } from '@tauri-apps/api/core';
   import { fileContent, activeFile, historyState, undoContent, redoContent } from '../stores/campaign';
+  import { parseFrontmatter } from '../utils/frontmatter';
 
   // DOM-Ref für TipTap (kein $state nötig, bind:this reicht)
   let editorEl: HTMLElement | null = null;
@@ -18,8 +19,19 @@
   // Reaktiver Zähler: incrementiert bei jedem TipTap-Event → Button-States neu auswerten
   let tick = $state(0);
 
-  // Letzte bekannte Markdown-Version (verhindert Update-Loop)
-  let lastMarkdown = '';
+  // Frontmatter wird aus dem TipTap-Inhalt herausgehalten und separat gespeichert,
+  // damit es beim Speichern wieder vorangestellt wird.
+  let rawFrontmatterBlock = ''; // der "---...---\n"-Block (leer wenn kein Frontmatter)
+  let lastBody = '';             // letzter Körper (ohne Frontmatter) im Editor
+
+  function splitFull(content: string): { block: string; body: string } {
+    const { rawBlock, body } = parseFrontmatter(content);
+    return { block: rawBlock, body };
+  }
+
+  function toFull(body: string): string {
+    return rawFrontmatterBlock ? rawFrontmatterBlock + body : body;
+  }
 
   // Button-Aktiv-States (abhängig von tick)
   let isBold       = $derived(tick >= 0 && (editor?.isActive('bold') ?? false));
@@ -35,20 +47,24 @@
   let isCodeBlock  = $derived(tick >= 0 && (editor?.isActive('codeBlock') ?? false));
 
   onMount(() => {
+    const { block, body } = splitFull($fileContent);
+    rawFrontmatterBlock = block;
+    lastBody = body;
+
     const ed = new Editor({
       element: editorEl!,
       extensions: [
         StarterKit,
         Markdown.configure({ html: false, transformPastedText: true }),
       ],
-      content: $fileContent,
+      content: body,
       editorProps: {
         attributes: { spellcheck: 'false' },
         handleKeyDown: (_view, e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             if (debounceTimer) clearTimeout(debounceTimer);
-            save(lastMarkdown);
+            save(toFull(lastBody));
             return true;
           }
           if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z' && $historyState.canUndo) {
@@ -61,27 +77,27 @@
         },
       },
       onUpdate: ({ editor: ed }) => {
-        const md = ed.storage.markdown.getMarkdown();
-        if (md === lastMarkdown) return;
-        lastMarkdown = md;
-        fileContent.set(md);
+        const body = ed.storage.markdown.getMarkdown();
+        if (body === lastBody) return;
+        lastBody = body;
+        const full = toFull(body);
+        fileContent.set(full);
         saveStatus = 'unsaved';
-        scheduleAutoSave(md);
+        scheduleAutoSave(full);
       },
       onSelectionUpdate: () => { tick++; },
       onTransaction:    () => { tick++; },
     });
 
     editor = ed;
-    lastMarkdown = $fileContent;
 
     // Externe Änderungen (Undo/Redo, LLM-Panel) in den Editor übernehmen.
-    // Subscription hier im onMount, damit sie nur aktiv ist solange die Komponente
-    // gemountet ist — und beim Destroy sauber aufgeräumt wird.
     const unsubscribe = fileContent.subscribe((content) => {
-      if (content === lastMarkdown) return;
-      lastMarkdown = content;
-      ed.commands.setContent(content, /* emitUpdate */ false);
+      const { block, body } = splitFull(content);
+      if (body === lastBody && block === rawFrontmatterBlock) return;
+      rawFrontmatterBlock = block;
+      lastBody = body;
+      ed.commands.setContent(body, /* emitUpdate */ false);
       if (showSource) sourceValue = content;
       tick++;
     });
@@ -121,14 +137,19 @@
 
   function toggleSource() {
     if (!showSource) {
-      sourceValue = editor ? editor.storage.markdown.getMarkdown() : $fileContent;
+      // Quellansicht zeigt den vollen Inhalt inkl. Frontmatter
+      sourceValue = toFull(editor ? editor.storage.markdown.getMarkdown() : lastBody);
     } else {
       if (editor) {
-        lastMarkdown = sourceValue;
-        editor.commands.setContent(sourceValue);
-        fileContent.set(sourceValue);
+        // Aus Quelltext: Frontmatter neu extrahieren, Körper in TipTap laden
+        const { block, body } = splitFull(sourceValue);
+        rawFrontmatterBlock = block;
+        lastBody = body;
+        const full = toFull(body);
+        editor.commands.setContent(body);
+        fileContent.set(full);
         saveStatus = 'unsaved';
-        scheduleAutoSave(sourceValue);
+        scheduleAutoSave(full);
       }
       requestAnimationFrame(() => editor?.commands.focus());
     }
@@ -137,8 +158,11 @@
 
   function handleSourceInput(e: Event) {
     sourceValue = (e.currentTarget as HTMLTextAreaElement).value;
+    // Sofort in fileContent schreiben (Frontmatter bleibt im sourceValue)
+    const { block, body } = splitFull(sourceValue);
+    rawFrontmatterBlock = block;
+    lastBody = body;
     fileContent.set(sourceValue);
-    lastMarkdown = sourceValue;
     saveStatus = 'unsaved';
     scheduleAutoSave(sourceValue);
   }

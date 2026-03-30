@@ -1,10 +1,11 @@
 <script lang="ts">
   import { marked } from 'marked';
   import { fileContent } from '../stores/campaign';
+  import { stripFrontmatter } from '../utils/frontmatter';
 </script>
 
 <div class="viewer">
-  {@html marked($fileContent)}
+  {@html marked(stripFrontmatter($fileContent))}
 </div>
 
 <style>
