@@ -1,10 +1,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
+  import { PDFDocument } from 'pdf-lib';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
+  import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { parseCharacterData, emptySpells, type CharacterJSON } from '../pdf/characterFields';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -146,6 +149,8 @@
   let characterEntries: EntryInfo[] = $state([]);
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
+  let pdfImporting = $state(false);
+  let pdfImportError = $state('');
 
   async function loadCharacters() {
     try {
@@ -201,6 +206,68 @@
 
   function cancelNewChar(e: KeyboardEvent) {
     if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
+  }
+
+  async function importFromPdf() {
+    pdfImportError = '';
+    let path: string;
+    try {
+      const defaultPath = await invoke<string>('get_absolute_path', { path: CHARACTERS_PATH }).catch(() => undefined);
+      const selected = await openFileDialog({
+        multiple: false,
+        defaultPath,
+        filters: [{ name: 'PDF Charakterbogen', extensions: ['pdf'] }],
+      });
+      if (!selected) return;
+      path = selected as string;
+    } catch (e) {
+      pdfImportError = `Dateiauswahl fehlgeschlagen: ${e}`;
+      return;
+    }
+
+    pdfImporting = true;
+    try {
+      const base64 = await invoke<string>('read_file_base64', { path });
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+      const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const form = pdf.getForm();
+      const fields: Record<string, string> = {};
+      for (const field of form.getFields()) {
+        const name = field.getName();
+        try { fields[name] = form.getTextField(name).getText() ?? ''; }
+        catch { try { fields[name] = form.getCheckBox(name).isChecked() ? 'On' : 'Off'; } catch { fields[name] = ''; } }
+      }
+
+      const data = parseCharacterData(fields);
+      if (!data.spells) data.spells = emptySpells();
+
+      const charName = data.name || path.split(/[/\\]/).pop()?.replace(/\.pdf$/i, '') || 'unbekannt';
+      const slug = charName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      const dirPath = `${CHARACTERS_PATH}/${slug}`;
+      const pdfFilename = path.split(/[/\\]/).pop() ?? path;
+
+      const json: CharacterJSON = {
+        _version: 1,
+        _importedFrom: pdfFilename,
+        _importedAt: new Date().toISOString(),
+        ...data,
+      };
+      await invoke('write_file_content', {
+        path: `${dirPath}/character.json`,
+        content: JSON.stringify(json, null, 2),
+      });
+
+      charactersExpanded = true;
+      await loadCharacters();
+      await openCharacter({ name: slug, is_dir: true });
+    } catch (e) {
+      pdfImportError = `Import fehlgeschlagen: ${e}`;
+    } finally {
+      pdfImporting = false;
+    }
   }
 
   // --- Monster (global) ---
@@ -613,6 +680,9 @@
         <span class="arrow" class:open={charactersExpanded}>›</span>
         Charaktere
       </button>
+      <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
+        {pdfImporting ? '…' : 'PDF'}
+      </button>
       <button class="add-btn" title="Neuer Charakter" onclick={() => { charactersExpanded = true; loadCharacters(); showNewCharInput = true; newCharInput = ''; }}>
         +
       </button>
@@ -632,6 +702,10 @@
           {/each}
         {:else if !showNewCharInput}
           <span class="empty">Keine Charaktere</span>
+        {/if}
+
+        {#if pdfImportError}
+          <span class="pdf-error">{pdfImportError}</span>
         {/if}
 
         {#if showNewCharInput}
@@ -1229,6 +1303,21 @@
     align-items: center;
     padding: 0.25rem 0.5rem 0.25rem 2rem;
     gap: 0.25rem;
+  }
+
+  .pdf-import-block {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.25rem 0.5rem 0.25rem 2rem;
+    gap: 0.25rem;
+  }
+
+  .pdf-error {
+    width: 100%;
+    font-size: 0.72rem;
+    color: #f38ba8;
+    padding-left: 0.1rem;
   }
 
   .new-file-input {

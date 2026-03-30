@@ -161,6 +161,12 @@ fn find_pdf_in_dir(path: String) -> Result<Option<String>, String> {
     Ok(None)
 }
 
+/// Gibt den absoluten Pfad eines (ggf. relativen) Vault-Pfades zurück.
+#[tauri::command]
+fn get_absolute_path(path: String) -> Result<String, String> {
+    Ok(resolve_path(&path).to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn read_file_content(path: String) -> Result<String, String> {
     let path = resolve_path(&path);
@@ -173,6 +179,43 @@ fn read_file_base64(path: String) -> Result<String, String> {
     let path = resolve_path(&path);
     let bytes = fs::read(&path).map_err(|e| e.to_string())?;
     Ok(base64_encode(&bytes))
+}
+
+/// Schreibt eine Binärdatei aus einem Base64-String (z.B. exportiertes PDF)
+#[tauri::command]
+fn write_file_base64(path: String, data: String) -> Result<(), String> {
+    let path = resolve_path(&path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let bytes = base64_decode(&data).map_err(|e| e)?;
+    fs::write(&path, bytes).map_err(|e| e.to_string())
+}
+
+fn base64_decode(data: &str) -> Result<Vec<u8>, String> {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut table = [0xffu8; 256];
+    for (i, &c) in CHARS.iter().enumerate() {
+        table[c as usize] = i as u8;
+    }
+    let input: Vec<u8> = data.bytes().filter(|&c| c != b'=' && c != b'\n' && c != b'\r').collect();
+    let mut out = Vec::with_capacity(input.len() * 3 / 4);
+    for chunk in input.chunks(4) {
+        let v: Vec<u8> = chunk.iter().map(|&c| {
+            let v = table[c as usize];
+            if v == 0xff { 0 } else { v }
+        }).collect();
+        let n = match v.len() {
+            4 => ((v[0] as u32) << 18) | ((v[1] as u32) << 12) | ((v[2] as u32) << 6) | (v[3] as u32),
+            3 => ((v[0] as u32) << 18) | ((v[1] as u32) << 12) | ((v[2] as u32) << 6),
+            2 => ((v[0] as u32) << 18) | ((v[1] as u32) << 12),
+            _ => continue,
+        };
+        out.push(((n >> 16) & 0xff) as u8);
+        if v.len() > 2 { out.push(((n >> 8) & 0xff) as u8); }
+        if v.len() > 3 { out.push((n & 0xff) as u8); }
+    }
+    Ok(out)
 }
 
 fn base64_encode(data: &[u8]) -> String {
@@ -221,6 +264,52 @@ fn list_json_files(path: String) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+#[derive(Serialize)]
+pub struct SpellInfo {
+    name: String,
+    level: u8,
+    classes: Vec<String>,
+    school: String,
+}
+
+/// Lädt alle Zauber aus vault/spells/** als kompakten Index (Name, Stufe, Klassen).
+#[tauri::command]
+fn load_spells_index(path: String) -> Result<Vec<SpellInfo>, String> {
+    let base = resolve_path(&path);
+    let mut spells: Vec<SpellInfo> = Vec::new();
+    collect_spells(&base, &mut spells);
+    spells.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(spells)
+}
+
+fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_spells(&path, out);
+        } else if path.extension().map(|e| e == "json").unwrap_or(false) {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let name = v["name"].as_str().unwrap_or("").to_string();
+                    if name.is_empty() { continue; }
+                    let level = v["level"].as_u64()
+                        .or_else(|| v["level"].as_str().and_then(|s| s.parse().ok()))
+                        .unwrap_or(0) as u8;
+                    let classes = v["classes"].as_array()
+                        .map(|arr| arr.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect())
+                        .unwrap_or_default();
+                    let school = v["school"].as_str().unwrap_or("").to_string();
+                    out.push(SpellInfo { name, level, classes, school });
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     let old = resolve_path(&old_path);
@@ -266,8 +355,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_current_dir,
+            get_absolute_path,
             list_directory,
             list_entries,
             find_pdf_in_dir,
@@ -277,6 +368,8 @@ pub fn run() {
             list_json_files,
             list_json_entries,
             rename_file,
+            write_file_base64,
+            load_spells_index,
             save_api_key,
             load_api_key,
             delete_api_key,

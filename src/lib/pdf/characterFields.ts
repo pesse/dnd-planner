@@ -1,6 +1,22 @@
 // Mapping der PDF-Feldnamen (Taendler v2.8.x) auf unser Datenmodell
 // Formeln aus dem extrahierten PDF-JavaScript
 
+export interface SpellEntry {
+  name: string;
+  prepared: boolean;
+}
+
+export interface CharacterSpells {
+  spellcastingClass: string;
+  spellcastingAbility: string;
+  saveDC: number;
+  attackBonus: number;
+  /** Index 0 = Stufe 1, Index 8 = Stufe 9 */
+  slots: Array<{ total: number; used: number }>;
+  cantrips: string[];
+  byLevel: Record<string, SpellEntry[]>;
+}
+
 export interface CharacterData {
   // Kopf
   name: string;
@@ -46,6 +62,27 @@ export interface CharacterData {
   inventory: { name: string; count: string; weight: string }[];
   inventoryNotes: string;
   totalWeight: string;
+  // Zauber
+  spells: CharacterSpells;
+}
+
+/** JSON-Speicherformat für Charaktere (primäres Format, ersetzt PDF als Datenquelle) */
+export interface CharacterJSON extends CharacterData {
+  _version: 1;
+  _importedFrom?: string;
+  _importedAt?: string;
+}
+
+export function emptySpells(): CharacterSpells {
+  return {
+    spellcastingClass: '',
+    spellcastingAbility: '',
+    saveDC: 0,
+    attackBonus: 0,
+    slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
+    cantrips: [],
+    byLevel: {},
+  };
 }
 
 export const SKILL_DEFS = [
@@ -139,6 +176,41 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     }
   }
 
+  // Zauber (Taendler v2.8.x — echte Feldnamen aus PDF-Dump)
+  const spellClass = f('Zauberklasse');
+  const spellAbility = f('AttributZauberwirken');
+  const spellSaveDC = num('ZauberRettungswurfSG');
+  const spellAttackBonus = num('ZauberAngriffsbonus');
+
+  const spellSlots: CharacterSpells['slots'] = [];
+  for (let lvl = 1; lvl <= 9; lvl++) {
+    const total = num(`ZauberplätzeGesamt${lvl}`);
+    const used = num(`ZauberplätzeVerbraucht${lvl}`);
+    spellSlots.push({ total, used });
+  }
+
+  const cantrips: string[] = [];
+  for (let i = 1; i <= 8; i++) {
+    const name = f(`Zaubertrick${i}`);
+    if (name) cantrips.push(name);
+  }
+
+  // Spell count per level in Taendler v2.8.x: 1-4 → 13, 5-7 → 9, 8-9 → 7
+  const spellCountPerLevel: Record<number, number> = { 1:13, 2:13, 3:13, 4:13, 5:9, 6:9, 7:9, 8:7, 9:7 };
+  const spellsByLevel: CharacterSpells['byLevel'] = {};
+  for (let lvl = 1; lvl <= 9; lvl++) {
+    const lvlSpells: SpellEntry[] = [];
+    const count = spellCountPerLevel[lvl];
+    for (let i = 1; i <= count; i++) {
+      const name = f(`Zauber${lvl}_${i}`);
+      if (name) {
+        const prepared = prof(`ZauberActive${lvl}_${i}`);
+        lvlSpells.push({ name, prepared });
+      }
+    }
+    if (lvlSpells.length) spellsByLevel[String(lvl)] = lvlSpells;
+  }
+
   return {
     name: f('Charaktername_page1'),
     classLevel: f('KlasseUndStufe'),
@@ -174,5 +246,14 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     inventory,
     inventoryNotes: f('SonstigeWaffen'),
     totalWeight: f('Gesamtlast'),
+    spells: {
+      spellcastingClass: spellClass,
+      spellcastingAbility: spellAbility,
+      saveDC: spellSaveDC,
+      attackBonus: spellAttackBonus,
+      slots: spellSlots,
+      cantrips,
+      byLevel: spellsByLevel,
+    },
   };
 }

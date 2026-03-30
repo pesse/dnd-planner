@@ -1,9 +1,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
-  import { parseCharacterData, SKILL_DEFS, type CharacterData } from '../pdf/characterFields';
+  import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { exportCharacterToPdf } from '../pdf/characterExport';
+  import CharacterEditForm from './CharacterEditForm.svelte';
   import { fileContent } from '../stores/campaign';
   import { marked } from 'marked';
+  import { getSpellLibrary, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
 
   interface Props {
     dirPath: string;   // z.B. "./vault/characters/carric_galanodel"
@@ -17,9 +21,24 @@
   let gmNotesEditing = $state(false);
   let loading = $state(true);
   let error = $state('');
-  let activeTab = $state<'sheet' | 'notes'>('sheet');
+  let activeTab = $state<'sheet' | 'edit' | 'notes'>('sheet');
+  let jsonSource = $state(false);  // true = aus character.json geladen
+  let saving = $state(false);
+  let importingPdf = $state(false);
+  let dumpingFields = $state(false);
+  let exportingPdf = $state(false);
+  let spellLibrary = $state<SpellInfo[]>([]);
+
+  $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
+
+  const spellSchoolMap = $derived(new Map(spellLibrary.map(s => [s.name, s.school])));
+  function spellColor(name: string): string {
+    const school = spellSchoolMap.get(name);
+    return school ? (SCHOOL_COLORS[school] ?? '') : '';
+  }
 
   const gmNotesPath = $derived(`${dirPath}/gm-notes.md`);
+  const jsonPath = $derived(`${dirPath}/character.json`);
 
   $effect(() => {
     if (dirPath) {
@@ -27,57 +46,61 @@
       error = '';
       character = null;
       pdfName = '';
+      jsonSource = false;
       loadCharacter();
     }
   });
 
   async function loadCharacter() {
     try {
-      // PDF-Datei im Verzeichnis suchen
-      const foundPdf = await invoke<string | null>('find_pdf_in_dir', { path: dirPath });
-      if (!foundPdf) {
-        error = 'Keine PDF-Datei im Verzeichnis gefunden.';
-        loading = false;
-        return;
-      }
-      pdfName = foundPdf;
+      // 1. Versuche character.json zu laden (primäres Format)
+      try {
+        const jsonStr = await invoke<string>('read_file_content', { path: jsonPath });
+        const data = JSON.parse(jsonStr) as CharacterJSON;
+        // Sicherstellen dass spells vorhanden ist (Rückwärtskompatibilität)
+        if (!data.spells) data.spells = emptySpells();
+        character = data;
+        jsonSource = true;
+      } catch {
+        // 2. Fallback: PDF parsen
+        jsonSource = false;
+        const foundPdf = await invoke<string | null>('find_pdf_in_dir', { path: dirPath });
+        if (!foundPdf) {
+          error = 'Keine PDF-Datei und kein character.json im Verzeichnis gefunden.';
+          loading = false;
+          return;
+        }
+        pdfName = foundPdf;
+        const base64 = await invoke<string>('read_file_base64', { path: `${dirPath}/${pdfName}` });
+        const bytes = base64ToBytes(base64);
+        const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+        const form = pdf.getForm();
 
-      // PDF als Base64 laden
-      const base64 = await invoke<string>('read_file_base64', {
-        path: `${dirPath}/${pdfName}`,
-      });
-      const bytes = base64ToBytes(base64);
-      const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      const form = pdf.getForm();
-
-      // Alle Felder als Record auslesen
-      const fields: Record<string, string> = {};
-      for (const field of form.getFields()) {
-        const name = field.getName();
-        try {
-          const tf = form.getTextField(name);
-          fields[name] = tf.getText() ?? '';
-        } catch {
+        const fields: Record<string, string> = {};
+        for (const field of form.getFields()) {
+          const name = field.getName();
           try {
-            const cb = form.getCheckBox(name);
-            fields[name] = cb.isChecked() ? 'On' : 'Off';
+            fields[name] = form.getTextField(name).getText() ?? '';
           } catch {
-            fields[name] = '';
+            try {
+              fields[name] = form.getCheckBox(name).isChecked() ? 'On' : 'Off';
+            } catch {
+              fields[name] = '';
+            }
           }
         }
+        character = parseCharacterData(fields);
       }
 
-      character = parseCharacterData(fields);
-
-      // GM-Notizen laden — bei fehlender Datei Template anlegen
+      // GM-Notizen laden
       try {
         gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
       } catch {
         let tmpl = '';
         try {
           tmpl = await invoke<string>('read_file_content', { path: './vault/templates/character.md' });
-        } catch { /* kein Template vorhanden */ }
-        gmNotes = `# GM-Notizen: ${character.name}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
+        } catch { /* kein Template */ }
+        gmNotes = `# GM-Notizen: ${character!.name}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
         await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
       }
 
@@ -86,6 +109,135 @@
       error = `Fehler beim Laden: ${e}`;
     } finally {
       loading = false;
+    }
+  }
+
+  async function saveAsJson() {
+    if (!character) return;
+    saving = true;
+    try {
+      const json: CharacterJSON = {
+        _version: 1,
+        _importedFrom: pdfName || undefined,
+        _importedAt: new Date().toISOString(),
+        ...character,
+      };
+      await invoke('write_file_content', { path: jsonPath, content: JSON.stringify(json, null, 2) });
+      jsonSource = true;
+    } catch (e) {
+      error = `Speichern fehlgeschlagen: ${e}`;
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function importPdfIntoExisting() {
+    if (!character) return;
+    const defaultPath = await invoke<string>('get_absolute_path', { path: dirPath }).catch(() => undefined);
+    const selected = await openFileDialog({
+      multiple: false,
+      defaultPath,
+      filters: [{ name: 'PDF Charakterbogen', extensions: ['pdf'] }],
+    });
+    if (!selected) return;
+
+    importingPdf = true;
+    error = '';
+    try {
+      const path = selected as string;
+      const base64 = await invoke<string>('read_file_base64', { path });
+      const bytes = base64ToBytes(base64);
+      const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const form = pdf.getForm();
+
+      const fields: Record<string, string> = {};
+      for (const field of form.getFields()) {
+        const n = field.getName();
+        try { fields[n] = form.getTextField(n).getText() ?? ''; }
+        catch { try { fields[n] = form.getCheckBox(n).isChecked() ? 'On' : 'Off'; } catch { fields[n] = ''; } }
+      }
+
+      const imported = parseCharacterData(fields);
+      // Zauber aus dem aktuellen Charakter behalten (manuell gepflegt)
+      imported.spells = character.spells ?? emptySpells();
+
+      const pdfFilename = (selected as string).split(/[/\\]/).pop() ?? '';
+      const json: CharacterJSON = {
+        _version: 1,
+        _importedFrom: pdfFilename,
+        _importedAt: new Date().toISOString(),
+        ...imported,
+      };
+      await invoke('write_file_content', { path: jsonPath, content: JSON.stringify(json, null, 2) });
+      character = imported;
+      pdfName = pdfFilename;
+      jsonSource = true;
+    } catch (e) {
+      error = `PDF-Import fehlgeschlagen: ${e}`;
+    } finally {
+      importingPdf = false;
+    }
+  }
+
+  async function handleEditSave(updated: CharacterData) {
+    character = updated;
+    await saveAsJson();
+    activeTab = 'sheet';
+  }
+
+  async function dumpPdfFields() {
+    dumpingFields = true;
+    error = '';
+    try {
+      const foundPdf = await invoke<string | null>('find_pdf_in_dir', { path: dirPath });
+      if (!foundPdf) { error = 'Keine PDF im Verzeichnis gefunden.'; return; }
+      const base64 = await invoke<string>('read_file_base64', { path: `${dirPath}/${foundPdf}` });
+      const bytes = base64ToBytes(base64);
+      const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const form = pdf.getForm();
+
+      const dump: Record<string, { type: string; value: string }> = {};
+      for (const field of form.getFields()) {
+        const n = field.getName();
+        let type = 'other'; let value = '';
+        try { value = form.getTextField(n).getText() ?? ''; type = 'text'; }
+        catch { try { value = form.getCheckBox(n).isChecked() ? 'On' : 'Off'; type = 'checkbox'; } catch {} }
+        dump[n] = { type, value };
+      }
+      await invoke('write_file_content', {
+        path: `${dirPath}/pdf-fields-dump.json`,
+        content: JSON.stringify(dump, null, 2),
+      });
+    } catch (e) {
+      error = `Felder-Dump fehlgeschlagen: ${e}`;
+    } finally {
+      dumpingFields = false;
+    }
+  }
+
+  async function exportToPdf() {
+    if (!character) return;
+    exportingPdf = true;
+    error = '';
+    try {
+      const templateB64 = await invoke<string>('read_file_base64', { path: './vault/templates/ataendler_v2.8.2.pdf' });
+      const templateBytes = base64ToBytes(templateB64);
+      const json = {
+        _version: 1 as const,
+        _importedFrom: pdfName || undefined,
+        _importedAt: new Date().toISOString(),
+        ...character,
+      };
+      const pdfBytes = await exportCharacterToPdf(json, templateBytes);
+      // Base64-Encode und als Datei speichern
+      const b64 = bytesToBase64(pdfBytes);
+      const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
+      const outPath = `${dirPath}/${safeName}-export.pdf`;
+      await invoke('write_file_base64', { path: outPath, data: b64 });
+    } catch (e) {
+      error = `PDF-Export fehlgeschlagen: ${e}`;
+    } finally {
+      exportingPdf = false;
     }
   }
 
@@ -102,6 +254,12 @@
     return bytes;
   }
 
+  function bytesToBase64(bytes: Uint8Array): string {
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+  }
+
   function sign(n: number): string {
     return n >= 0 ? `+${n}` : `${n}`;
   }
@@ -113,17 +271,12 @@
     const v = typeof val === 'number' ? sign(val) : val;
     return `<span class="tip-row"><span class="tip-lbl">${label}</span><span class="tip-val">${v}</span></span>`;
   }
-  function divider(): string {
-    return `<span class="tip-div"></span>`;
-  }
+  function divider(): string { return `<span class="tip-div"></span>`; }
   function total(val: string | number): string {
     const v = typeof val === 'number' ? sign(val) : val;
     return `<span class="tip-row tip-total"><span class="tip-lbl"></span><span class="tip-val">${v}</span></span>`;
   }
-
-  function step(label: string): string {
-    return `<span class="tip-step">${label}</span>`;
-  }
+  function step(label: string): string { return `<span class="tip-step">${label}</span>`; }
 
   function attrModTip(attr: string, score: number): string {
     const m = Math.floor((score - 10) / 2);
@@ -134,9 +287,7 @@
     if (!character) return '';
     const attrMod = (character as any)[modKey] as number;
     const pb = character.proficiencyBonus;
-    if (proficient) {
-      return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(attrMod + pb);
-    }
+    if (proficient) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(attrMod + pb);
     return row(`${attrLabel}-Mod`, attrMod) + divider() + total(attrMod);
   }
 
@@ -147,20 +298,15 @@
     const attrLabel = ATTR_LABEL[attr] ?? attr.toUpperCase();
     const attrMod = (character as any)[`${attr}Mod`] as number;
     const pb = character.proficiencyBonus;
-    if (skill.exp) {
-      return row(`${attrLabel}-Mod`, attrMod) + row('2× Übungsbonus', pb * 2) + divider() + total(skill.value);
-    } else if (skill.prof) {
-      return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(skill.value);
-    } else if (character.alleskoenner) {
-      return row(`${attrLabel}-Mod`, attrMod) + row('½ Übungsbonus', Math.floor(pb / 2)) + divider() + total(skill.value);
-    }
+    if (skill.exp) return row(`${attrLabel}-Mod`, attrMod) + row('2× Übungsbonus', pb * 2) + divider() + total(skill.value);
+    if (skill.prof) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(skill.value);
+    if (character.alleskoenner) return row(`${attrLabel}-Mod`, attrMod) + row('½ Übungsbonus', Math.floor(pb / 2)) + divider() + total(skill.value);
     return row(`${attrLabel}-Mod`, attrMod) + divider() + total(attrMod);
   }
 
   function attackBonusTip(bonus: string): string {
     return row('Angriffswurf', '1W20 + ' + bonus) + row('gegen', 'RK des Ziels');
   }
-
   function attackDamageTip(damage: string, type: string): string {
     return row('Schaden', damage) + (type ? row('Typ', type) : '');
   }
@@ -182,6 +328,11 @@
     { label: 'WEI', modKey: 'weiMod', profKey: 'weiSaveProf' },
     { label: 'CHA', modKey: 'chaMod', profKey: 'chaSaveProf' },
   ] as const;
+
+  const LEVEL_LABEL: Record<string, string> = {
+    '1': 'Stufe 1', '2': 'Stufe 2', '3': 'Stufe 3', '4': 'Stufe 4', '5': 'Stufe 5',
+    '6': 'Stufe 6', '7': 'Stufe 7', '8': 'Stufe 8', '9': 'Stufe 9',
+  };
 </script>
 
 <div class="sheet">
@@ -201,8 +352,27 @@
         <span>Hintergrund: <strong>{character.background}</strong></span>
         <span>EP: <strong>{character.xp}</strong></span>
       </div>
+      <div class="header-actions">
+        {#if !jsonSource}
+          <button class="btn-import" onclick={saveAsJson} disabled={saving}>
+            {saving ? '…' : 'Als JSON speichern'}
+          </button>
+        {:else}
+          <span class="json-badge">JSON</span>
+        {/if}
+        <button class="btn-pdf-import" onclick={importPdfIntoExisting} disabled={importingPdf} title="Werte aus PDF überschreiben (Zauber bleiben erhalten)">
+          {importingPdf ? '…' : 'PDF importieren'}
+        </button>
+        <button class="btn-dump" onclick={dumpPdfFields} disabled={dumpingFields} title="Alle PDF-Feldnamen in pdf-fields-dump.json schreiben">
+          {dumpingFields ? '…' : 'Felder analysieren'}
+        </button>
+        <button class="btn-export-pdf" onclick={exportToPdf} disabled={exportingPdf} title="Charakter als ausgefülltes Taendler-PDF exportieren">
+          {exportingPdf ? '…' : 'Als PDF exportieren'}
+        </button>
+      </div>
       <div class="tabs">
-        <button class:active={activeTab === 'sheet'} onclick={() => (activeTab = 'sheet')}>Charakterbogen</button>
+        <button class:active={activeTab === 'sheet'} onclick={() => (activeTab = 'sheet')}>Bogen</button>
+        <button class:active={activeTab === 'edit'} onclick={() => (activeTab = 'edit')}>Bearbeiten</button>
         <button class:active={activeTab === 'notes'} onclick={() => (activeTab = 'notes')}>GM-Notizen</button>
       </div>
     </div>
@@ -326,8 +496,6 @@
         <!-- Inventar -->
         <div class="section">
           <h3>Inventar</h3>
-
-          <!-- Währung -->
           <div class="currency-row">
             {#each [['KM','Kupfer'],['SM','Silber'],['EM','Elektrum'],['GM','Gold'],['PM','Platin']] as [key, label]}
               {@const val = (character.currency as any)[key.toLowerCase()]}
@@ -338,16 +506,9 @@
             {/each}
           </div>
 
-          <!-- Gegenstände -->
           {#if character.inventory.length}
             <table class="inv-table">
-              <thead>
-                <tr>
-                  <th>Gegenstand</th>
-                  <th>Anz.</th>
-                  <th>Gew.</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
               <tbody>
                 {#each character.inventory as item}
                   <tr>
@@ -369,6 +530,61 @@
             <p class="preformatted" style="margin-top: 0.5rem">{character.inventoryNotes}</p>
           {/if}
         </div>
+
+        <!-- Zauber -->
+        {#if character.spells?.cantrips.length || Object.keys(character.spells?.byLevel ?? {}).length || character.spells?.spellcastingClass}
+          <div class="section">
+            <h3>Zauberwirken</h3>
+            {#if character.spells.spellcastingClass || character.spells.saveDC}
+              <div class="stats-grid" style="margin-bottom:0.6rem">
+                {#if character.spells.spellcastingClass}<div class="stat"><span class="sl">Klasse</span><span class="sv">{character.spells.spellcastingClass}</span></div>{/if}
+                {#if character.spells.spellcastingAbility}<div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{character.spells.spellcastingAbility}</span></div>{/if}
+                {#if character.spells.saveDC}<div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{character.spells.saveDC}</span></div>{/if}
+                {#if character.spells.attackBonus}<div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(character.spells.attackBonus)}</span></div>{/if}
+              </div>
+            {/if}
+
+            {#if character.spells.cantrips.length}
+              <div class="spell-level-header"><span>Zaubertricks</span></div>
+              <div class="spell-list">
+                {#each character.spells.cantrips as cantrip}
+                  <div class="spell-row cantrip"><span class="spell-name" style="color:{spellColor(cantrip) || 'inherit'}">{cantrip}</span></div>
+                {/each}
+              </div>
+            {/if}
+
+            {#each ['1','2','3','4','5','6','7','8','9'] as lvl}
+              {@const slots = character.spells.slots[Number(lvl) - 1]}
+              {@const spells = character.spells.byLevel[lvl] ?? []}
+              {#if spells.length || (slots?.total ?? 0) > 0}
+                <div class="spell-level-header">
+                  <span>{LEVEL_LABEL[lvl]}</span>
+                  {#if slots?.total}
+                    <span class="slot-badge">{slots.total} Slots</span>
+                  {/if}
+                </div>
+                <div class="spell-list">
+                  {#each spells as spell}
+                    <div class="spell-row" class:prepared={spell.prepared}>
+                      <span class="prep-dot">{spell.prepared ? '●' : '○'}</span>
+                      <span class="spell-name" style="color:{spellColor(spell.name) || 'inherit'}">{spell.name}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+    {:else if activeTab === 'edit'}
+      <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
+      <div class="edit-wrapper">
+        <CharacterEditForm
+          character={character}
+          onSave={handleEditSave}
+          onCancel={() => (activeTab = 'sheet')}
+        />
       </div>
 
     {:else}
@@ -434,6 +650,74 @@
     color: #a6adc8;
   }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-import {
+    background: #f9e2af;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 4px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-import:disabled { opacity: 0.6; cursor: default; }
+
+  .btn-pdf-import {
+    background: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .btn-pdf-import:hover { border-color: #cba6f7; color: #cba6f7; }
+  .btn-pdf-import:disabled { opacity: 0.6; cursor: default; }
+
+  .btn-dump {
+    background: #313244;
+    color: #a6adc8;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .btn-dump:hover { border-color: #f9e2af; color: #f9e2af; }
+  .btn-dump:disabled { opacity: 0.6; cursor: default; }
+
+  .btn-export-pdf {
+    background: #313244;
+    color: #6c7086;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .btn-export-pdf:disabled { cursor: not-allowed; }
+
+  .edit-wrapper {
+    min-height: 0;
+  }
+
+  .json-badge {
+    background: #a6e3a1;
+    color: #1e1e2e;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
   .tabs {
     margin-left: auto;
     display: flex;
@@ -494,6 +778,20 @@
     color: #6c7086;
     border-bottom: 1px solid #313244;
     padding-bottom: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .slot-badge {
+    font-size: 0.7rem;
+    background: #313244;
+    color: #89b4fa;
+    border-radius: 4px;
+    padding: 0.05rem 0.4rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .stats-grid {
@@ -552,6 +850,39 @@
 
   .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: #a6adc8; }
 
+  /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
+  .spell-level-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c7086;
+    border-bottom: 1px solid #313244;
+    padding-bottom: 0.2rem;
+    margin: 0.5rem 0 0.25rem;
+  }
+
+  .spell-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .spell-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+  }
+
+  .spell-name { flex: 1; }
+
+  .prep-dot { font-size: 0.62rem; color: #45475a; width: 0.8rem; }
+  .spell-row.prepared .prep-dot { color: #a6e3a1; }
+
   /* GM-Notizen */
   .notes-area {
     display: flex;
@@ -573,6 +904,7 @@
   }
   .btn-edit { background: #313244; color: #cdd6f4; }
   .btn-save { background: #a6e3a1; color: #1e1e2e; font-weight: 600; }
+  .btn-save:disabled { opacity: 0.6; cursor: default; }
   .btn-cancel { background: none; color: #6c7086; }
 
   .notes-editor {
@@ -647,15 +979,12 @@
     display: flex;
   }
 
-  /* rows inside tooltip */
   .tip :global(.tip-row) {
     display: flex;
     justify-content: space-between;
     gap: 1.5rem;
   }
-  .tip :global(.tip-lbl) {
-    color: #6c7086;
-  }
+  .tip :global(.tip-lbl) { color: #6c7086; }
   .tip :global(.tip-val) {
     font-weight: 600;
     color: #cba6f7;
