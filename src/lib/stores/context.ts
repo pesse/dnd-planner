@@ -536,13 +536,17 @@ export const systemPrompt = derived(
           '  "hp": string,\n' +
           '  "speed": string,\n' +
           '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
-          '  "skills": { [skill: string]: string },\n' +
-          '  "spells": string[],\n' +
+          '  "savingThrows": { "<ability>": { "bonus": number, "prof": boolean } },\n' +
+          '  "skills": { "<skill>": { "bonus": number, "prof": boolean } },\n' +
+          '  "spells": [ { "name": string, "level": number } ],\n' +
           '  "inventory": string[],\n' +
           '  "tags": string[]\n' +
           '}\n```\n' +
-          'Notes: `hp` is a string like "27 (5W8+5)". `skills` maps skill name to modifier string e.g. {"Wahrnehmung": "+4"}. ' +
-          '`spells` is a list of spell names. `inventory` is a list of notable items. Use "" for unknown strings, 0 for unknown numbers, [] for empty arrays.'
+          'Notes: `hp` is a string like "27 (5W8+5)". ' +
+          '`savingThrows` uses ability keys: str, dex, con, int, wis, cha — only include saves with proficiency or a bonus deviating from the plain ability modifier. ' +
+          '`skills` uses ONLY these valid D&D 5e skill names: Akrobatik, ArkaneKunde, Athletik, Auftreten, Einschüchtern, Fingerfertigkeit, Geschichte, Heilkunde, Heimlichkeit, MitTierenUmgehen, MotivErkennen, Nachforschungen, Naturkunde, Religion, Täuschen, Überlebenskunst, Überzeugen, Wahrnehmung — only include skills with proficiency or a notable bonus. ' +
+          '`speed` uses meters (e.g. "9 m"), NOT feet. ' +
+          '`spells` level 0 = Zaubertrick, 1–9 = Zaubergrad. `inventory` is a list of notable items as individual strings. Use "" for unknown strings, 0 for unknown numbers, [] for empty arrays.'
         );
         parts.push(lines.join('\n'));
       }
