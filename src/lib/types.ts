@@ -27,10 +27,42 @@ export interface FileEntry {
 
 // --- Spell ---
 
+export const SPELL_SCHOOLS = {
+  abjuration:    'Bannmagie',
+  conjuration:   'Beschwörung',
+  divination:    'Erkenntnismagie',
+  enchantment:   'Verzauberung',
+  evocation:     'Hervorrufung',
+  illusion:      'Illusionsmagie',
+  necromancy:    'Nekromantie',
+  transmutation: 'Verwandlung',
+} as const;
+export type SpellSchool = keyof typeof SPELL_SCHOOLS;
+
+export const SPELL_CLASS_LABELS: Record<string, string> = {
+  sorcerer:  'Zauberer',
+  wizard:    'Magier',
+  bard:      'Barde',
+  druid:     'Druide',
+  ranger:    'Waldläufer',
+  cleric:    'Kleriker',
+  warlock:   'Hexenmeister',
+  paladin:   'Paladin',
+  artificer: 'Erfinder',
+};
+export const SPELL_CLASS_KEYS = ['sorcerer', 'wizard', 'bard', 'druid', 'ranger', 'cleric', 'warlock', 'paladin', 'artificer'] as const;
+
+export interface SpellDamage {
+  damage_type: { index: string; name: string };
+  damage_at_slot_level?: Record<string, string>;
+  damage_at_character_level?: Record<string, string>;
+}
+
 export interface Spell {
+  index?: string;          // API-Slug (leer bei Homebrew)
   name: string;
-  level: string;
-  school: string;
+  level: number;           // 0 = Zaubertrick, 1–9
+  school: SpellSchool;
   casting_time: string;
   range: string;
   components: {
@@ -40,12 +72,98 @@ export interface Spell {
     materials_needed: string | null;
   };
   duration: string;
+  concentration: boolean;
   ritual: boolean;
   classes: string[];
-  description: string;
-  higher_levels: string | null;
+  desc: string[];          // Englische Beschreibung (Absätze, aus API)
+  desc_de?: string[];      // Deutsche Übersetzung
+  higher_level?: string[] | null;
+  higher_level_de?: string[] | null;
+  damage?: SpellDamage;
+  dc?: {
+    dc_type: { index: string; name: string };
+    dc_success: string;    // 'half' | 'none' | 'other'
+  };
+  area_of_effect?: {
+    type: string;          // 'sphere' | 'cone' | 'cube' | 'line' | 'cylinder'
+    size: number;          // in Fuß
+  };
   source: string;
 }
+
+export function spellLevelLabel(level: number): string {
+  return level === 0 ? 'Zaubertrick' : `${level}. Grad`;
+}
+
+/** Zeigt deutsche Beschreibung, fällt auf Englisch zurück. */
+export function spellDesc(spell: Spell): string {
+  const arr = spell.desc_de?.length ? spell.desc_de : spell.desc;
+  return (arr ?? []).join('\n\n');
+}
+
+/** Zeigt deutsche Aufwertung, fällt auf Englisch zurück. Null wenn leer. */
+export function spellHigherLevel(spell: Spell): string | null {
+  const arr = spell.higher_level_de?.length ? spell.higher_level_de
+            : spell.higher_level?.length    ? spell.higher_level
+            : null;
+  return arr ? arr.join('\n\n') : null;
+}
+
+/** Migriert alte Felder auf das neue Schema. Idempotent. */
+export function normalizeSpell(raw: Record<string, unknown>): Spell {
+  const s = raw as unknown as Spell & {
+    description?: string;
+    higher_levels?: string | null;
+    level?: number | string;
+  };
+
+  // level: string → number
+  if (typeof s.level === 'string') {
+    s.level = (s.level === 'cantrip' || s.level === '0') ? 0 : (parseInt(s.level as string) || 0);
+  }
+  s.level ??= 0;
+
+  // description (alt) → desc_de
+  if (typeof (s as unknown as Record<string, unknown>)['description'] === 'string') {
+    const d = (s as unknown as Record<string, unknown>)['description'] as string;
+    s.desc_de = s.desc_de ?? [d];
+    delete (s as unknown as Record<string, unknown>)['description'];
+  }
+
+  // higher_levels (alt) → higher_level_de
+  if ('higher_levels' in (s as unknown as Record<string, unknown>)) {
+    const hl = (s as unknown as Record<string, unknown>)['higher_levels'] as string | null;
+    if (hl) s.higher_level_de = s.higher_level_de ?? [hl];
+    delete (s as unknown as Record<string, unknown>)['higher_levels'];
+  }
+
+  // Defaults
+  s.desc          ??= [];
+  s.concentration ??= false;
+  s.classes       ??= [];
+  s.school        ??= 'evocation' as SpellSchool;
+  s.components    ??= { verbal: false, somatic: false, material: false, materials_needed: null };
+  s.components.materials_needed ??= null;
+  s.source        ??= 'Homebrew';
+
+  return s as Spell;
+}
+
+export const SPELL_TEMPLATE: Spell = {
+  name: 'Neuer Zauber',
+  level: 1,
+  school: 'evocation',
+  casting_time: '1 Aktion',
+  range: '9 m',
+  components: { verbal: true, somatic: true, material: false, materials_needed: null },
+  duration: 'Unmittelbar',
+  concentration: false,
+  ritual: false,
+  classes: [],
+  desc: [],
+  desc_de: ['Zauberbeschreibung…'],
+  source: 'Homebrew',
+};
 
 export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'xai';
 

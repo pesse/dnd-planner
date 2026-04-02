@@ -30,6 +30,7 @@
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
   import DndApiSearch from './DndApiSearch.svelte';
   import LlmTranslate from './LlmTranslate.svelte';
+  import EditorPanel from './EditorPanel.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -128,8 +129,16 @@
 
   // ── Bearbeiten ───────────────────────────────────────────────────────────────
 
+  type Tab = 'karte' | 'bearbeiten' | 'json';
+  let tab     = $state<Tab>('karte');
   let editing = $state(false);
-  let draft = $state<Item | null>(null);
+  let draft   = $state<Item | null>(null);
+  let dirty   = $derived(editing && draft !== null);
+
+  // Beim Wechsel auf Bearbeiten-Tab Draft initialisieren
+  $effect(() => {
+    if (tab === 'bearbeiten' && !editing && item) startEdit();
+  });
   let draftDescText  = $state('');
   let draftDescDeText = $state('');
   let draftPropsText = $state('');
@@ -150,6 +159,7 @@
     draft = null;
     apiRawResponse = null;
     importError = '';
+    tab = 'karte';
   }
 
   async function save() {
@@ -178,9 +188,22 @@
       draft = null;
       apiRawResponse = null;
       importError = '';
+      tab = 'karte';
     } catch (e) {
       pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
     }
+  }
+
+  async function saveJson(json: string) {
+    const file = $activeFile;
+    if (!file?.path) return;
+    await invoke('write_file_content', { path: file.path, content: json });
+    const dir = file.path.split('/').at(-2) ?? '';
+    if (dir) invalidateItemCache(dir);
+    rawJson = json;
+    setFileContent(json);
+    editing = false;
+    draft = null;
   }
 
   // ── DnD-API-Import ───────────────────────────────────────────────────────────
@@ -317,16 +340,23 @@
   }
 </script>
 
-<div class="item-area">
-  {#if item && !editing}
+<EditorPanel
+  bind:tab
+  {dirty}
+  onsave={save}
+  ondiscard={discard}
+  onsavejson={saveJson}
+  getJson={() => draft ? JSON.stringify($state.snapshot(draft), null, 2) : rawJson}
+  style="--ep-accent: {color}"
+>
+
+{#snippet karte()}
+  {#if item}
     <!-- ── Anzeigemodus ── -->
     <div class="item-card" style="--cat-color: {color}">
       <div class="card-header">
         <div class="header-top">
           <div class="header-name">{item.name_de ?? item.name}</div>
-          <div class="header-actions">
-            <button class="edit-btn" onclick={startEdit}>✏ Bearbeiten</button>
-          </div>
         </div>
         {#if item.name_de}
           <div class="header-original">{item.name}</div>
@@ -485,17 +515,23 @@
         {/if}
       </div>
     </div>
+  {:else if parseError}
+    <div class="error">
+      <div class="error-title">Ungültiges JSON — Gegenstand kann nicht angezeigt werden</div>
+      <pre class="error-detail">{parseError}</pre>
+    </div>
+  {:else}
+    <div class="error">Gegenstand konnte nicht geladen werden.</div>
+  {/if}
+{/snippet}
 
-  {:else if draft}
+{#snippet bearbeiten()}
+  {#if draft}
     <!-- ── Bearbeitungsmodus ── -->
     <div class="item-card edit-mode" style="--cat-color: {categoryColor(draft)}">
       <div class="card-header">
         <div class="edit-header-top">
           <input class="edit-name" bind:value={draft.name_de} placeholder="Name (Deutsch)" />
-          <div class="edit-actions">
-            <button class="save-btn" onclick={save}>Speichern</button>
-            <button class="discard-btn" onclick={discard}>Verwerfen</button>
-          </div>
         </div>
         <input class="edit-name-original" bind:value={draft.name} placeholder="Original (Englisch)" />
         <div class="edit-header-meta">
@@ -780,25 +816,14 @@
       </div>
     </div>
 
-  {:else if parseError}
-    <div class="error">
-      <div class="error-title">Ungültiges JSON — Gegenstand kann nicht angezeigt werden</div>
-      <pre class="error-detail">{parseError}</pre>
-    </div>
   {:else}
-    <div class="error">Gegenstand konnte nicht geladen werden.</div>
+    <div class="error">Kein Gegenstand geladen.</div>
   {/if}
-</div>
+{/snippet}
+
+</EditorPanel>
 
 <style>
-  .item-area {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    justify-content: center;
-    padding: 2rem 1rem;
-    background: #1e1e2e;
-  }
 
   .item-card {
     width: 100%;

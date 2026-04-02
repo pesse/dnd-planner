@@ -1,4 +1,5 @@
 import type { Spell } from '../types';
+import { spellDesc, spellHigherLevel, spellLevelLabel } from '../types';
 
 // ── Konstanten ────────────────────────────────────────────────────────────────
 
@@ -52,9 +53,8 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function levelLabel(level: string): string {
-  if (level === 'cantrip' || level === '0') return 'Zaubertrick';
-  return `${level}. Grad`;
+function levelLabel(level: number): string {
+  return spellLevelLabel(level);
 }
 
 function componentStr(s: Spell): string {
@@ -189,8 +189,9 @@ function renderFirstCard(spell: Spell, descText: string, isLast: boolean): strin
   const matNote = spell.components.materials_needed
     ? ` <span class="mat">(${esc(spell.components.materials_needed)})</span>` : '';
   const classes = spell.classes.map(c => CLASS_LABELS[c] ?? c).join(' · ');
-  const higherHtml = (isLast && spell.higher_levels)
-    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(spell.higher_levels)}</div>`
+  const higherLvl = spellHigherLevel(spell);
+  const higherHtml = (isLast && higherLvl)
+    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(higherLvl)}</div>`
     : '';
 
   return `<div class="card" style="--c:${color}">
@@ -212,8 +213,9 @@ function renderFirstCard(spell: Spell, descText: string, isLast: boolean): strin
 
 function renderContCard(spell: Spell, descText: string, pageNum: number, isLast: boolean): string {
   const color = SCHOOL_COLORS[spell.school] ?? '#888';
-  const higherHtml = (isLast && spell.higher_levels)
-    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(spell.higher_levels)}</div>`
+  const higherLvl = spellHigherLevel(spell);
+  const higherHtml = (isLast && higherLvl)
+    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(higherLvl)}</div>`
     : '';
 
   return `<div class="card cont" style="--c:${color}">
@@ -468,12 +470,13 @@ export function prepareMultiSpellPrint(spells: Spell[], doc: Document): string {
 
   for (const spell of spells) {
     const { firstH, contH } = measureDescHeights(spell, doc);
-    const chunks = splitDescription(spell.description ?? '', firstH, contH, doc);
+    const chunks = splitDescription(spellDesc(spell), firstH, contH, doc);
 
-    if (spell.higher_levels) {
+    const higherLvl = spellHigherLevel(spell);
+    if (higherLvl) {
       const lastIdx = chunks.length - 1;
       const lastCardH = lastIdx === 0 ? firstH : contH;
-      if (!higherLevelsFits(chunks[lastIdx], spell.higher_levels, lastCardH, doc)) {
+      if (!higherLevelsFits(chunks[lastIdx], higherLvl, lastCardH, doc)) {
         chunks.push('');
       }
     }
@@ -516,15 +519,13 @@ ${pages.join('\n')}
  */
 export function prepareSpellPrint(spell: Spell, doc: Document): string {
   const { firstH, contH } = measureDescHeights(spell, doc);
-  const chunks = splitDescription(spell.description, firstH, contH, doc);
+  const chunks = splitDescription(spellDesc(spell), firstH, contH, doc);
 
-  // Prüfen ob higher_levels noch auf die letzte Karte passt.
-  // Falls nicht: leeren Extra-Chunk anhängen — renderContCard zeigt dann
-  // nur den higher_levels-Block (isLast = true).
-  if (spell.higher_levels) {
+  const higherLvl = spellHigherLevel(spell);
+  if (higherLvl) {
     const lastIdx = chunks.length - 1;
     const lastCardH = lastIdx === 0 ? firstH : contH;
-    if (!higherLevelsFits(chunks[lastIdx], spell.higher_levels, lastCardH, doc)) {
+    if (!higherLevelsFits(chunks[lastIdx], higherLvl, lastCardH, doc)) {
       chunks.push('');
     }
   }
