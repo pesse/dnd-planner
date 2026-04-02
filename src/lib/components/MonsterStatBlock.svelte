@@ -76,7 +76,7 @@
       <div class="sb-action">
         <span class="sb-action-name">{a.name}.</span>
         {#if a.attack_bonus !== undefined} Angriffswurf: +{a.attack_bonus}.{/if}
-        {#if a.damage} Schaden: {a.damage}.{/if}
+        {#if a.damage?.length} Schaden: {a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + ')}.{/if}
         {a.description}
       </div>
     {/each}

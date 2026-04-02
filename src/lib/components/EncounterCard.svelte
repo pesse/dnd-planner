@@ -8,7 +8,7 @@
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
   import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
-  import { monsterTypeLabel } from '../types';
+  import { monsterTypeLabel, normalizeMonster } from '../types';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -137,12 +137,12 @@
           if (actMonsterBasePath) {
             try {
               const content = await invoke<string>('read_file_content', { path: `${actMonsterBasePath}/${m.slug}.json` });
-              return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
+              return { monster: normalizeMonster(JSON.parse(content) as Monster), count: m.count, notes: m.notes, slug: m.slug };
             } catch { /* weiter */ }
           }
           try {
             const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
-            return { monster: JSON.parse(content) as Monster, count: m.count, notes: m.notes, slug: m.slug };
+            return { monster: normalizeMonster(JSON.parse(content) as Monster), count: m.count, notes: m.notes, slug: m.slug };
           } catch {
             return { monster: null, count: m.count, notes: m.notes, slug: m.slug };
           }

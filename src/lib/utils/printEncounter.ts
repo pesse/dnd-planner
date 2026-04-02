@@ -39,7 +39,7 @@ function renderStatBlock(pm: PrintMonster): string {
 
   const renderActions = (arr: Monster['actions']) =>
     (arr ?? []).map(a =>
-      `<div class="sb-action"><span class="action-name">${esc(a.name)}.</span>${a.attack_bonus !== undefined ? ` Angriff +${a.attack_bonus}.` : ''}${a.damage ? ` Schaden: ${esc(a.damage)}.` : ''} ${esc(a.description)}</div>`
+      `<div class="sb-action"><span class="action-name">${esc(a.name)}.</span>${a.attack_bonus !== undefined ? ` Angriff +${a.attack_bonus}.` : ''}${a.damage?.length ? ` Schaden: ${esc(a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + '))}.` : ''} ${esc(a.description)}</div>`
     ).join('');
   const renderSimple = (arr: Monster['traits']) =>
     (arr ?? []).map(t =>

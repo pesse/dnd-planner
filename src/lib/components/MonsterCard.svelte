@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import { pushError } from '../stores/errors';
   import type { Monster } from '../types';
+  import { normalizeMonster } from '../types';
   import MonsterStatBlock from './MonsterStatBlock.svelte';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
@@ -13,12 +14,7 @@
       const obj = JSON.parse(json);
       if (!obj || typeof obj !== 'object' || !('stats' in obj) || !('cr' in obj)) return null;
       // Ensure all array/object fields exist so the template never crashes
-      obj.traits ??= []; obj.actions ??= []; obj.reactions ??= []; obj.legendary_actions ??= [];
-      obj.damage_resistances ??= []; obj.damage_immunities ??= [];
-      obj.condition_immunities ??= []; obj.saving_throws ??= {}; obj.skills ??= {};
-      obj.ac ??= { value: 10, note: '' }; obj.hp ??= { average: 0, formula: '' };
-      obj.stats ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-      return obj as Monster;
+      return normalizeMonster(obj as Monster);
     } catch { return null; }
   }
 

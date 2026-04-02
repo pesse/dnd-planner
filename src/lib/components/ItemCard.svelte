@@ -1,6 +1,5 @@
 <script lang="ts">
   import { activeFile, setFileContent } from '$lib/stores/campaign';
-  import { llmConfig, loadApiKeyForProvider } from '$lib/stores/llm';
   import { invoke } from '@tauri-apps/api/core';
   import { get } from 'svelte/store';
   import { onMount } from 'svelte';
@@ -28,14 +27,9 @@
     ftToMVal,
     mToFt,
   } from '$lib/itemLibrary';
-  import {
-    ollamaGenerate,
-    anthropicGenerate,
-    groqGenerate,
-    xaiGenerate,
-  } from '$lib/services/llmService';
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
   import DndApiSearch from './DndApiSearch.svelte';
+  import LlmTranslate from './LlmTranslate.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -300,70 +294,25 @@
 
   // ── LLM-Übersetzung ──────────────────────────────────────────────────────────
 
-  const PROVIDERS = [
-    { value: 'anthropic', label: 'Anthropic' },
-    { value: 'groq',      label: 'Groq' },
-    { value: 'ollama',    label: 'Ollama' },
-    { value: 'xai',       label: 'xAI' },
-  ] as const;
-
-  const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-    anthropic: 'claude-sonnet-4-6',
-    groq:      'llama-3.3-70b-versatile',
-    xai:       'grok-3-mini',
-    ollama:    'llama3.2',
-  };
-
-  let translateProvider = $state(get(llmConfig).provider);
-  const DEFAULT_SYSTEM_PROMPT = TRANSLATION_SYSTEM_PROMPT;
-  let translateSystemPrompt = $state(DEFAULT_SYSTEM_PROMPT);
-  let showSystemPrompt = $state(false);
-  let translating = $state(false);
-  let translateError = $state('');
-
-  async function translateFields() {
-    if (!draft) return;
-    translating = true;
-    translateError = '';
-
-    const globalCfg = get(llmConfig);
-    const apiKey = await loadApiKeyForProvider(translateProvider);
-    const cfg = {
-      provider: translateProvider as typeof globalCfg.provider,
-      model:    translateProvider === globalCfg.provider
-                  ? globalCfg.model
-                  : (PROVIDER_DEFAULT_MODELS[translateProvider] ?? ''),
-      apiKey:   apiKey ?? undefined,
-      baseUrl:  globalCfg.baseUrl,
-    };
-
+  function buildTranslationPrompt(): string | null {
+    if (!draft) return null;
     const toTranslate: Record<string, unknown> = {};
     if (draft.name) toTranslate.name = draft.name;
     const desc = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
     if (desc.length) toTranslate.desc = desc;
-    if (Object.keys(toTranslate).length === 0) { translating = false; return; }
+    if (Object.keys(toTranslate).length === 0) return null;
+    return `Translate these D&D item fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
+  }
 
-    const prompt = `Translate these D&D item fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
-
-    try {
-      let raw: string;
-      if (cfg.provider === 'anthropic')     raw = await anthropicGenerate(cfg, prompt, translateSystemPrompt);
-      else if (cfg.provider === 'groq')     raw = await groqGenerate(cfg, prompt, translateSystemPrompt);
-      else if (cfg.provider === 'xai')      raw = await xaiGenerate(cfg, prompt, translateSystemPrompt);
-      else                                  raw = await ollamaGenerate(cfg, prompt, translateSystemPrompt);
-
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
-      const translated = JSON.parse(match[0]) as Record<string, unknown>;
-      if (translated.name_de) draft.name_de = translated.name_de as string;
-      if (Array.isArray(translated.desc_de)) {
-        draft.desc_de = translated.desc_de as string[];
-        draftDescDeText = (translated.desc_de as string[]).join('\n\n');
-      }
-    } catch (e) {
-      translateError = e instanceof Error ? e.message : String(e);
-    } finally {
-      translating = false;
+  function applyTranslation(raw: string) {
+    if (!draft) return;
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
+    const translated = JSON.parse(match[0]) as Record<string, unknown>;
+    if (translated.name_de) draft.name_de = translated.name_de as string;
+    if (Array.isArray(translated.desc_de)) {
+      draft.desc_de = translated.desc_de as string[];
+      draftDescDeText = (translated.desc_de as string[]).join('\n\n');
     }
   }
 </script>
@@ -794,28 +743,11 @@
 
       <!-- LLM-Übersetzung -->
       <div class="edit-section translate-section">
-        <div class="translate-label-row">
-          <span class="edit-section-label">Aus Original übersetzen</span>
-          <button class="system-prompt-toggle" onclick={() => { showSystemPrompt = !showSystemPrompt; }}>
-            System-Prompt {showSystemPrompt ? '▲' : '▼'}
-          </button>
-        </div>
-        {#if showSystemPrompt}
-          <textarea class="edit-textarea system-prompt-textarea" bind:value={translateSystemPrompt} rows={4}></textarea>
-          <button class="reset-prompt-btn" onclick={() => { translateSystemPrompt = DEFAULT_SYSTEM_PROMPT; }}>Zurücksetzen</button>
-        {/if}
-        <div class="translate-row">
-          <div class="provider-pills">
-            {#each PROVIDERS as p}
-              <button class="provider-pill" class:active={translateProvider === p.value}
-                onclick={() => { translateProvider = p.value; }}>{p.label}</button>
-            {/each}
-          </div>
-          <button class="translate-btn" onclick={translateFields} disabled={translating}>
-            {translating ? 'Übersetze…' : '🌐 Übersetzen'}
-          </button>
-        </div>
-        {#if translateError}<span class="translate-error">{translateError}</span>{/if}
+        <LlmTranslate
+          systemPrompt={TRANSLATION_SYSTEM_PROMPT}
+          buildPrompt={buildTranslationPrompt}
+          onresult={applyTranslation}
+        />
       </div>
 
       <div class="card-divider"></div>
@@ -1115,47 +1047,10 @@
   .edit-textarea:focus { border-color: var(--cat-color); }
   .edit-textarea-secondary { color: #6c7086; font-style: italic; }
 
-  .translate-label-row { display: flex; align-items: center; justify-content: space-between; }
-
   .translate-section {
     background: color-mix(in srgb, #89b4fa 5%, #181825);
     border-top: 1px solid #313244;
   }
-
-  .system-prompt-toggle {
-    background: none; border: none; color: #45475a; font-size: 0.72rem;
-    cursor: pointer; padding: 0; font-family: inherit;
-  }
-  .system-prompt-toggle:hover { color: #89b4fa; }
-
-  .system-prompt-textarea { font-size: 0.78rem; line-height: 1.5; color: #a6adc8; }
-
-  .reset-prompt-btn {
-    background: none; border: none; color: #45475a; font-size: 0.72rem;
-    cursor: pointer; padding: 0; font-family: inherit; align-self: flex-start;
-  }
-  .reset-prompt-btn:hover { color: #f38ba8; }
-
-  .translate-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-  .provider-pills { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
-
-  .provider-pill {
-    background: #313244; border: 1px solid #45475a; border-radius: 99px;
-    color: #6c7086; font-size: 0.75rem; padding: 0.2rem 0.6rem;
-    cursor: pointer; white-space: nowrap; font-family: inherit;
-  }
-  .provider-pill:hover { color: #cdd6f4; border-color: #585b70; }
-  .provider-pill.active { background: #45475a; color: #cdd6f4; border-color: #89b4fa; }
-
-  .translate-btn {
-    background: #313244; border: 1px solid #45475a; border-radius: 4px;
-    color: #a6adc8; font-size: 0.8rem; padding: 0.2rem 0.65rem;
-    cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  }
-  .translate-btn:hover:not(:disabled) { color: #89b4fa; border-color: #89b4fa; }
-  .translate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .translate-error { font-size: 0.78rem; color: #f38ba8; }
 
   /* API-Import */
   .api-section {

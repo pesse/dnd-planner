@@ -2,7 +2,7 @@ import { derived, writable, type Writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
-import { monsterSizeLabel, monsterTypeLabel } from '../types';
+import { monsterSizeLabel, monsterTypeLabel, normalizeMonster } from '../types';
 import { extractCharacterInfo, formatCharacterForContext } from '../utils/characterExtract';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
 import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
@@ -277,13 +277,13 @@ export async function loadEncounterMonsters(encounterContent: string, encounterP
         if (actMonsterBase) {
           try {
             const content = await invoke<string>('read_file_content', { path: `${actMonsterBase}/${m.slug}.json` });
-            return JSON.parse(content) as Monster;
+            return normalizeMonster(JSON.parse(content) as Monster);
           } catch { /* nicht gefunden, global versuchen */ }
         }
         // Global fallback
         try {
           const content = await invoke<string>('read_file_content', { path: `./vault/monsters/${m.slug}.json` });
-          return JSON.parse(content) as Monster;
+          return normalizeMonster(JSON.parse(content) as Monster);
         } catch {
           return null;
         }

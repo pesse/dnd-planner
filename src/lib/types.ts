@@ -118,11 +118,16 @@ export function monsterAlignmentLabel(alignment: string): string {
   return MONSTER_ALIGNMENTS[alignment as MonsterAlignment] ?? alignment;
 }
 
+export interface MonsterDamage {
+  dice: string;        // z.B. "2d6+3"
+  type: string;        // z.B. "Feuer" (übersetzbar)
+}
+
 export interface MonsterAction {
   name: string;
   description: string;
   attack_bonus?: number;
-  damage?: string;
+  damage?: MonsterDamage[];
 }
 
 export interface Monster {
@@ -149,6 +154,25 @@ export interface Monster {
   actions: MonsterAction[];
   reactions: MonsterAction[];
   legendary_actions: MonsterAction[];
+}
+
+/** Migriert alte String-Schadensfelder in MonsterDamage[]. Idempotent. */
+export function normalizeMonster(m: Monster): Monster {
+  m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
+  m.damage_resistances ??= []; m.damage_immunities ??= [];
+  m.condition_immunities ??= []; m.saving_throws ??= {}; m.skills ??= {};
+  m.ac ??= { value: 10, note: '' }; m.hp ??= { average: 0, formula: '' };
+  m.stats ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  for (const arr of [m.traits, m.actions, m.reactions, m.legendary_actions]) {
+    for (const a of arr) {
+      if (typeof a.damage === 'string') {
+        const s = a.damage as string;
+        const last = s.lastIndexOf(' ');
+        a.damage = last === -1 ? [{ dice: s, type: '' }] : [{ dice: s.slice(0, last), type: s.slice(last + 1) }];
+      }
+    }
+  }
+  return m;
 }
 
 export const MONSTER_TEMPLATE: Monster = {

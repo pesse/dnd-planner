@@ -1,8 +1,10 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import type { Monster, MonsterAction } from '../types';
+  import type { Monster, MonsterAction, MonsterDamage } from '../types';
   import { MONSTER_SIZES, MONSTER_TYPES, MONSTER_ALIGNMENTS } from '../types';
+  import { MONSTER_TRANSLATION_SYSTEM_PROMPT } from '../prompts';
   import DndApiSearch from './DndApiSearch.svelte';
+  import LlmTranslate from './LlmTranslate.svelte';
 
   let {
     monster = $bindable<Monster>(),
@@ -20,6 +22,23 @@
   const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
   const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
+  // ── Schadens-Lookup ──────────────────────────────────────────────────────────
+
+  const DAMAGE_TYPE_DE: Record<string, string> = {
+    acid: 'Säure', bludgeoning: 'Wucht', cold: 'Kälte', fire: 'Feuer',
+    force: 'Energie', lightning: 'Blitz', necrotic: 'Nekrose', piercing: 'Stich',
+    poison: 'Gift', psychic: 'Psyche', radiant: 'Strahlung', slashing: 'Hieb',
+    thunder: 'Donner',
+  };
+
+  function translateDamageType(name: string): string {
+    return DAMAGE_TYPE_DE[name.toLowerCase()] ?? name;
+  }
+
+  function translateDice(dice: string): string {
+    return dice.replace(/d(\d)/g, 'W$1');
+  }
 
   // ── DnD-API-Import ───────────────────────────────────────────────────────────
 
@@ -115,8 +134,11 @@
         description: String(a.desc ?? ''),
       };
       if (a.attack_bonus != null) action.attack_bonus = Number(a.attack_bonus);
-      const dmg = (a.damage as Array<{ damage_dice: string; damage_type: { name: string } }> | undefined)?.[0];
-      if (dmg) action.damage = `${dmg.damage_dice} ${dmg.damage_type.name}`;
+      const dmgArr = (a.damage as Array<{ damage_dice: string; damage_type: { name: string } }> | undefined) ?? [];
+      if (dmgArr.length) action.damage = dmgArr.map(d => ({
+        dice: translateDice(d.damage_dice),
+        type: translateDamageType(d.damage_type.name),
+      }));
       return action;
     });
   }
@@ -159,6 +181,47 @@
       reactions:           mapActions((d.reactions as Array<Record<string, unknown>>) ?? []),
       legendary_actions:   mapActions((d.legendary_actions as Array<Record<string, unknown>>) ?? []),
     });
+    onchange();
+  }
+
+  // ── LLM-Übersetzung ──────────────────────────────────────────────────────────
+
+  function buildTranslationPrompt(): string | null {
+    const toTranslate: Record<string, unknown> = {};
+    if (monster.name) toTranslate.name = monster.name;
+    if (monster.languages) toTranslate.languages = monster.languages;
+    if (monster.damage_resistances.length)  toTranslate.damage_resistances  = monster.damage_resistances;
+    if (monster.damage_immunities.length)   toTranslate.damage_immunities   = monster.damage_immunities;
+    if (monster.condition_immunities.length) toTranslate.condition_immunities = monster.condition_immunities;
+    for (const key of ['traits', 'actions', 'reactions', 'legendary_actions'] as const) {
+      if (monster[key].length > 0)
+        toTranslate[key] = monster[key].map(a => ({ name: a.name, description: a.description }));
+    }
+    if (Object.keys(toTranslate).length === 0) return null;
+    return `Translate these D&D monster fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
+  }
+
+  function applyTranslation(raw: string) {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
+    const translated = JSON.parse(match[0]) as Record<string, unknown>;
+    if (typeof translated.name === 'string') monster.name = translated.name;
+    if (typeof translated.languages === 'string') monster.languages = translated.languages;
+    if (Array.isArray(translated.damage_resistances))
+      monster.damage_resistances = translated.damage_resistances as string[];
+    if (Array.isArray(translated.damage_immunities))
+      monster.damage_immunities = translated.damage_immunities as string[];
+    if (Array.isArray(translated.condition_immunities))
+      monster.condition_immunities = translated.condition_immunities as string[];
+    for (const key of ['traits', 'actions', 'reactions', 'legendary_actions'] as const) {
+      const arr = translated[key] as Array<{ name: string; description: string }> | undefined;
+      if (!Array.isArray(arr)) continue;
+      arr.forEach((t, i) => {
+        if (!monster[key][i]) return;
+        if (t.name) monster[key][i].name = t.name;
+        if (t.description) monster[key][i].description = t.description;
+      });
+    }
     onchange();
   }
 
@@ -332,8 +395,22 @@
         <input class="ef num-sm" type="number"
           value={action.attack_bonus ?? ''}
           oninput={(e) => { action.attack_bonus = e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value); onchange(); }} />
-        <span class="lbl-sm">Schaden</span>
-        <input class="ef wide-sm" bind:value={action.damage} oninput={onchange} placeholder="1W6+2 Stich" />
+        {#each (action.damage ?? [{ dice: '', type: '' }]) as dmg, di}
+          <input class="ef num-sm" value={dmg.dice}
+            oninput={(e) => { if (!action.damage) action.damage = [{ dice: '', type: '' }]; action.damage[di].dice = e.currentTarget.value; onchange(); }}
+            placeholder="2W6+3" />
+          <select class="ef dmg-type-sel" value={dmg.type}
+            onchange={(e) => { if (!action.damage) action.damage = [{ dice: '', type: '' }]; action.damage[di].type = e.currentTarget.value; onchange(); }}>
+            <option value="">—</option>
+            {#each Object.values(DAMAGE_TYPE_DE) as label}
+              <option value={label}>{label}</option>
+            {/each}
+          </select>
+        {/each}
+        <button class="kv-add" onclick={() => { action.damage = [...(action.damage ?? []), { dice: '', type: '' }]; onchange(); }}>+</button>
+        {#if action.damage && action.damage.length > 1}
+          <button class="kv-del" onclick={() => { action.damage = action.damage!.slice(0, -1); onchange(); }}>×</button>
+        {/if}
       </div>
       <textarea class="ef ability-desc" bind:value={action.description} oninput={onchange} rows="2"></textarea>
     </div>
@@ -376,6 +453,12 @@
     <button class="add-btn" onclick={() => addAction(monster.legendary_actions)}>+ Legendäre Aktion</button>
   </div>
 {/if}
+
+<LlmTranslate
+  systemPrompt={MONSTER_TRANSLATION_SYSTEM_PROMPT}
+  buildPrompt={buildTranslationPrompt}
+  onresult={applyTranslation}
+/>
 
 <DndApiSearch
   placeholder="Englischer Monstername (z.B. Goblin)"
@@ -462,6 +545,19 @@
   .note { min-width: 80px; color: #a6adc8; font-style: italic; }
   .wide { flex: 1; min-width: 120px; }
   .wide-sm { flex: 1; min-width: 80px; font-size: 0.82rem; }
+  .dmg-type-sel {
+    font-style: normal;
+    color: #a6adc8;
+    font-size: 0.82rem;
+    background: #1a1a2a;
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    width: 80px;
+  }
+  .dmg-type-sel:hover { border-color: #45475a; }
+  .dmg-type-sel:focus { border-color: var(--mef-accent, #f38ba8); outline: none; }
   .cr   { width: 40px; text-align: center; }
 
   /* ── Ability scores ── */

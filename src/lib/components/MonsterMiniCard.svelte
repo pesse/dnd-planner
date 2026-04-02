@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import type { Monster } from '../types';
-  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel, normalizeMonster } from '../types';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
@@ -53,12 +53,6 @@
     return warns;
   }
 
-  function normalizeMonster(m: Monster): Monster {
-    m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
-    m.damage_resistances ??= []; m.damage_immunities ??= [];
-    m.condition_immunities ??= []; m.saving_throws ??= {}; m.skills ??= {};
-    return m;
-  }
 
   async function load(s: string, basePath: string | undefined) {
     const seq = ++loadSeq;
