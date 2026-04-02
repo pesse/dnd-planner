@@ -35,6 +35,7 @@
     xaiGenerate,
   } from '$lib/services/llmService';
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import DndApiSearch from './DndApiSearch.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -153,9 +154,8 @@
   function discard() {
     editing = false;
     draft = null;
-    apiSearch = '';
-    apiResults = [];
     apiRawResponse = null;
+    importError = '';
   }
 
   async function save() {
@@ -182,9 +182,8 @@
       setFileContent(json);
       editing = false;
       draft = null;
-      apiSearch = '';
-      apiResults = [];
       apiRawResponse = null;
+      importError = '';
     } catch (e) {
       pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
     }
@@ -201,12 +200,9 @@
     source: 'magic' | 'equipment';
   }
 
-  let apiSearch = $state('');
-  let apiResults = $state<ApiResult[]>([]);
-  let apiSearching = $state(false);
-  let apiError = $state('');
   let apiRawResponse = $state<string | null>(null);
   let showApiRaw = $state(false);
+  let importError = $state('');
 
   async function apiGet(url: string): Promise<unknown> {
     const text = await invoke<string>('http_request', {
@@ -215,31 +211,16 @@
     return JSON.parse(text);
   }
 
-  async function searchApi() {
-    const q = apiSearch.trim();
-    if (!q) return;
-    apiSearching = true;
-    apiError = '';
-    apiResults = [];
-    try {
-      const [magicRaw, equipRaw] = await Promise.all([
-        apiGet(`${DND_API}/magic-items?name=${encodeURIComponent(q)}`),
-        apiGet(`${DND_API}/equipment?name=${encodeURIComponent(q)}`),
-      ]);
-      const magic = ((magicRaw as Record<string, unknown>).results as ApiResult[] ?? [])
-        .map((r) => ({ ...r, source: 'magic' as const }));
-      const equip = ((equipRaw as Record<string, unknown>).results as ApiResult[] ?? [])
-        .map((r) => ({ ...r, source: 'equipment' as const }));
-      apiResults = [...magic, ...equip].slice(0, 15);
-    } catch (e) {
-      apiError = `API-Fehler: ${e instanceof Error ? e.message : String(e)}`;
-    } finally {
-      apiSearching = false;
-    }
-  }
-
-  function apiSearchKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') searchApi();
+  async function searchItems(q: string): Promise<(ApiResult & { tag: string })[]> {
+    const [magicRaw, equipRaw] = await Promise.all([
+      apiGet(`${DND_API}/magic-items?name=${encodeURIComponent(q)}`),
+      apiGet(`${DND_API}/equipment?name=${encodeURIComponent(q)}`),
+    ]);
+    const magic = ((magicRaw as Record<string, unknown>).results as ApiResult[] ?? [])
+      .map((r) => ({ ...r, source: 'magic' as const, tag: 'magisch' }));
+    const equip = ((equipRaw as Record<string, unknown>).results as ApiResult[] ?? [])
+      .map((r) => ({ ...r, source: 'equipment' as const, tag: 'ausrüstung' }));
+    return [...magic, ...equip].slice(0, 15);
   }
 
   async function importFromApi(result: ApiResult) {
@@ -311,10 +292,9 @@
         .map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
       draftRarityName = (data.rarity as {name: string} | undefined)?.name ?? '';
 
-      apiSearch  = '';
-      apiResults = [];
+      importError = '';
     } catch (e) {
-      apiError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`;
+      importError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 
@@ -851,26 +831,12 @@
 
       <!-- DnD-API-Import -->
       <div class="edit-section api-section">
-        <span class="edit-section-label">Aus DnD-API laden</span>
-        <div class="api-search-row">
-          <input class="edit-input api-input" bind:value={apiSearch}
-            placeholder="Name suchen…" onkeydown={apiSearchKey} />
-          <button class="api-search-btn" onclick={searchApi} disabled={apiSearching}>
-            {apiSearching ? '…' : 'Suchen'}
-          </button>
-        </div>
-        {#if apiError}<span class="translate-error">{apiError}</span>{/if}
-        {#if apiResults.length}
-          <div class="api-results">
-            {#each apiResults as result}
-              <button class="api-result-item" onclick={() => importFromApi(result)}
-                title={result.source === 'magic' ? 'Magischer Gegenstand' : 'Ausrüstung'}>
-                <span class="api-result-name">{result.name}</span>
-                <span class="api-result-tag">{result.source === 'magic' ? 'magisch' : 'ausrüstung'}</span>
-              </button>
-            {/each}
-          </div>
-        {/if}
+        <DndApiSearch
+          placeholder="Name suchen…"
+          onsearch={searchItems}
+          onselect={importFromApi}
+        />
+        {#if importError}<span class="translate-error">{importError}</span>{/if}
         {#if apiRawResponse}
           <button class="api-raw-toggle" onclick={() => { showApiRaw = !showApiRaw; }}>
             API-Antwort {showApiRaw ? '▲' : '▼'}
@@ -1196,33 +1162,6 @@
     background: color-mix(in srgb, var(--cat-color) 5%, #181825);
     border-top: 1px solid #313244;
   }
-
-  .api-search-row { display: flex; gap: 0.4rem; }
-  .api-input { flex: 1; }
-
-  .api-search-btn {
-    background: #313244; border: 1px solid #45475a; border-radius: 4px;
-    color: #a6adc8; font-size: 0.82rem; padding: 0.2rem 0.7rem;
-    cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  }
-  .api-search-btn:hover:not(:disabled) { color: var(--cat-color); border-color: var(--cat-color); }
-  .api-search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .api-results {
-    display: flex; flex-direction: column; gap: 0.2rem;
-    max-height: 200px; overflow-y: auto; margin-top: 0.2rem;
-  }
-
-  .api-result-item {
-    display: flex; justify-content: space-between; align-items: center;
-    background: #313244; border: 1px solid #45475a; border-radius: 4px;
-    color: #cdd6f4; font-size: 0.82rem; padding: 0.3rem 0.6rem;
-    cursor: pointer; text-align: left;
-  }
-  .api-result-item:hover { border-color: var(--cat-color); color: var(--cat-color); }
-
-  .api-result-name { font-weight: 500; }
-  .api-result-tag { font-size: 0.7rem; color: #6c7086; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
 
   .api-raw-toggle {
     background: none; border: none; color: #45475a; font-size: 0.72rem;
