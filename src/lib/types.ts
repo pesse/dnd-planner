@@ -20,7 +20,7 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell';
+  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item';
   /** Set for directory-based characters (with PDF sheet) */
   dirPath?: string;
 }
@@ -54,6 +54,7 @@ export interface LlmConfig {
   model: string;
   apiKey?: string;
   baseUrl?: string;
+  maxTokens?: number;
 }
 
 // --- Monster ---
@@ -114,6 +115,63 @@ export const MONSTER_TEMPLATE: Monster = {
   legendary_actions: [],
   tags: [],
 };
+
+// --- Item ---
+// Lehnt sich ans DnD-API-Schema an. item_type entspricht der API-Trennung:
+//   weapon / armor  → /api/2014/equipment
+//   magic           → /api/2014/magic-items
+//   gear            → sonstiges Equipment (Werkzeug, Ausrüstung, …)
+
+export interface Item {
+  // Identifikation
+  index?: string;          // API-Slug, leer bei Homebrew
+  name: string;            // Originalname (Englisch oder Deutsch bei Homebrew)
+  name_de?: string;        // Übersetzter Name (nur wenn aus API importiert)
+
+  // Typ-Diskriminante — analog DnD-API-Kategorien
+  item_type?: 'weapon' | 'armor' | 'magic' | 'gear';
+
+  equipment_category?: { index: string; name: string };
+
+  // Magische Gegenstände (item_type === 'magic')
+  rarity?: { name: string };   // z.B. { name: "Uncommon" }
+  attunement?: boolean;
+  attunement_by?: string | null;  // z.B. "a wizard"
+  variant?: boolean;
+  variants?: string[];
+
+  // Waffen (item_type === 'weapon')
+  weapon_category?: string;   // "Martial" | "Simple"
+  weapon_range?: string;      // "Melee" | "Ranged"
+  damage?: {
+    damage_dice: string;
+    damage_type: { index: string; name: string };
+  };
+  two_handed_damage?: {
+    damage_dice: string;
+    damage_type: { index: string; name: string };
+  };
+  range?: { normal: number; long?: number };
+  throw_range?: { normal: number; long: number };
+  properties?: Array<{ index: string; name: string }>;
+
+  // Rüstungen (item_type === 'armor')
+  armor_category?: string;   // "Light" | "Medium" | "Heavy" | "Shield"
+  armor_class?: { base: number; dex_bonus: boolean; max_bonus: number | null };
+  str_minimum?: number;
+  stealth_disadvantage?: boolean;
+
+  // Beschreibung
+  desc: string[];          // Absätze auf Englisch
+  desc_de?: string[];      // Übersetzte Absätze
+
+  // Allgemein
+  cost?: { quantity: number; unit: string };
+  weight?: number;         // in lbs (Originalwert)
+
+  source: string;          // "SRD" | "Homebrew" | "eigen"
+  url?: string;            // API-URL wenn aus SRD
+}
 
 // --- Encounter ---
 

@@ -8,6 +8,12 @@
   import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, type CharacterJSON } from '../pdf/characterFields';
+  import {
+    ITEMS_PATH,
+    CATEGORY_COLORS as ITEM_CAT_COLORS,
+    DIR_TO_CATEGORY,
+    invalidateItemCache,
+  } from '../itemLibrary';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -494,6 +500,135 @@
     if (e.key === 'Escape') { showNewSpellInput = false; newSpellName = ''; }
   }
 
+  // --- Gegenstände (global, nach Kategorie) ---
+
+  const ITEM_CAT_DIR_LABELS: Record<string, string> = {
+    waffen:        'Waffen',
+    rüstungen:     'Rüstungen',
+    wundersame:    'Wundersame',
+    tränke:        'Tränke',
+    ringe:         'Ringe',
+    stäbe:         'Stäbe',
+    schriftrollen: 'Schriftrollen',
+    munition:      'Munition',
+    sonstiges:     'Sonstiges',
+  };
+
+  let itemsExpanded = $state(false);
+  let itemDirs: string[] = $state([]);
+  let itemsByDir: Record<string, { filename: string; name: string }[]> = $state({});
+  let openItemDirs: Record<string, boolean> = $state({});
+  let itemSearch = $state('');
+  let showNewItemInput = $state(false);
+  let newItemName = $state('');
+  let newItemDir = $state('');
+
+  $effect(() => {
+    if (itemSearch.trim() && itemDirs.length) {
+      for (const dir of itemDirs) {
+        if (!itemsByDir[dir]) loadItemDir(dir);
+      }
+    }
+  });
+
+  let itemSearchResults = $derived.by(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return null;
+    const results: { dir: string; filename: string; name: string }[] = [];
+    for (const dir of itemDirs) {
+      for (const item of itemsByDir[dir] ?? []) {
+        if (item.name.toLowerCase().includes(q)) results.push({ dir, ...item });
+      }
+    }
+    return results;
+  });
+
+  async function loadItems() {
+    try {
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: ITEMS_PATH });
+      itemDirs = entries.filter((e) => e.is_dir).map((e) => e.name).sort();
+    } catch {
+      itemDirs = [];
+    }
+  }
+
+  async function loadItemDir(dir: string) {
+    if (itemsByDir[dir]) return;
+    try {
+      const files = await invoke<string[]>('list_json_files', { path: `${ITEMS_PATH}/${dir}` });
+      itemsByDir[dir] = await Promise.all(
+        files.map(async (f) => {
+          const path = `${ITEMS_PATH}/${dir}/${f}`;
+          try {
+            const content = await invoke<string>('read_file_content', { path });
+            const data = JSON.parse(content);
+            return { filename: f, name: data.name ?? f.replace('.json', '') };
+          } catch {
+            return { filename: f, name: f.replace('.json', '') };
+          }
+        })
+      );
+      itemsByDir[dir].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    } catch {
+      itemsByDir[dir] = [];
+    }
+  }
+
+  async function toggleItems() {
+    itemsExpanded = !itemsExpanded;
+    if (itemsExpanded) await loadItems();
+  }
+
+  async function toggleItemDir(dir: string) {
+    openItemDirs[dir] = !openItemDirs[dir];
+    if (openItemDirs[dir]) await loadItemDir(dir);
+  }
+
+  function openItem(dir: string, filename: string) {
+    const path = `${ITEMS_PATH}/${dir}/${filename}`;
+    activeFile.set({ name: filename.replace('.json', ''), path, type: 'item' });
+  }
+
+  async function createItem(e: KeyboardEvent | MouseEvent) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    const raw = newItemName.trim();
+    const dir = newItemDir || itemDirs[0];
+    if (!raw || !dir) return;
+
+    const slug = slugify(raw);
+    const filename = slug + '.json';
+    const path = `${ITEMS_PATH}/${dir}/${filename}`;
+    const template = {
+      name: raw.charAt(0).toUpperCase() + raw.slice(1),
+      category: DIR_TO_CATEGORY[dir] ?? 'sonstiges',
+      rarity: '—',
+      attunement: false,
+      attunement_requirements: null,
+      description: '',
+      weight: null,
+      cost: null,
+      source: 'eigen',
+    };
+
+    try {
+      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
+      showNewItemInput = false;
+      newItemName = '';
+      invalidateItemCache(dir);
+      delete itemsByDir[dir];
+      itemsByDir = { ...itemsByDir };
+      openItemDirs[dir] = true;
+      await loadItemDir(dir);
+      openItem(dir, filename);
+    } catch (err) {
+      console.error('Gegenstand konnte nicht erstellt werden:', err);
+    }
+  }
+
+  function cancelNewItem(e: KeyboardEvent) {
+    if (e.key === 'Escape') { showNewItemInput = false; newItemName = ''; }
+  }
+
   // --- Encounter (pro Akt-Verzeichnis) ---
   // Key: `${campaignPath}/${actDirName}`
   let encounterFiles: Record<string, string[]> = $state({});
@@ -931,6 +1066,100 @@
                 autofocus
               />
               <button class="confirm-btn" onclick={(e) => createSpell(e)}>✓</button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Gegenstände (global) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleItems}>
+        <span class="arrow" class:open={itemsExpanded}>›</span>
+        Gegenstände
+      </button>
+      <button class="add-btn" title="Neuer Gegenstand" onclick={() => { itemsExpanded = true; loadItems(); showNewItemInput = true; newItemName = ''; newItemDir = itemDirs[0] ?? ''; }}>
+        +
+      </button>
+    </div>
+
+    {#if itemsExpanded}
+      <div class="spell-search-row">
+        <input
+          class="spell-search-input"
+          bind:value={itemSearch}
+          placeholder="Suchen…"
+          type="search"
+        />
+      </div>
+      <div class="file-list">
+        {#if itemSearchResults !== null}
+          {#if itemSearchResults.length}
+            {#each itemSearchResults as { dir, filename, name }}
+              <button
+                class="file-entry monster-subentry"
+                class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
+                onclick={() => openItem(dir, filename)}
+                title={dir}
+              >
+                {name}
+              </button>
+            {/each}
+          {:else}
+            <span class="empty">Keine Treffer</span>
+          {/if}
+        {:else if itemDirs.length}
+          {#each itemDirs as dir}
+            {@const catKey = DIR_TO_CATEGORY[dir] ?? 'sonstiges'}
+            {@const catColor = ITEM_CAT_COLORS[catKey] ?? '#cdd6f4'}
+            {@const dirItems = itemsByDir[dir]}
+            <button
+              class="monster-group-header"
+              style="color: {catColor}"
+              onclick={() => toggleItemDir(dir)}
+            >
+              <span class="arrow" class:open={openItemDirs[dir]}>›</span>
+              {ITEM_CAT_DIR_LABELS[dir] ?? dir}
+              {#if dirItems}<span class="group-count">({dirItems.length})</span>{/if}
+            </button>
+            {#if openItemDirs[dir]}
+              {#if dirItems}
+                {#each dirItems as { filename, name }}
+                  <button
+                    class="file-entry monster-subentry"
+                    class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
+                    onclick={() => openItem(dir, filename)}
+                  >
+                    {name}
+                  </button>
+                {/each}
+              {:else}
+                <span class="empty">Laden…</span>
+              {/if}
+            {/if}
+          {/each}
+        {:else}
+          <span class="empty">Keine Gegenstände</span>
+        {/if}
+
+        {#if showNewItemInput}
+          <div class="new-monster-form">
+            <select class="new-file-input" bind:value={newItemDir}>
+              {#each itemDirs as d}
+                <option value={d}>{ITEM_CAT_DIR_LABELS[d] ?? d}</option>
+              {/each}
+            </select>
+            <div class="new-file-row">
+              <input
+                class="new-file-input"
+                bind:value={newItemName}
+                placeholder="Name…"
+                onkeydown={(e) => { createItem(e); cancelNewItem(e); }}
+                autofocus
+              />
+              <button class="confirm-btn" onclick={(e) => createItem(e)}>✓</button>
             </div>
           </div>
         {/if}

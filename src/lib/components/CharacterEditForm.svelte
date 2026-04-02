@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SKILL_DEFS, type CharacterData, type SpellEntry } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
+  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
 
   let { character, onSave, onCancel }: {
     character: CharacterData;
@@ -79,6 +80,50 @@
   let spellInput = $state('');
   let spellInputLvl = $state('1');
   let spellInputPrepared = $state(false);
+
+  // ─── Inventar-Autocomplete ───────────────────────────────
+  let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
+  let itemSuggestions = $state<ItemSuggestion[]>([]);
+  let itemSugIndex = $state(-1);
+  let activeItemRow = $state(-1);
+
+  $effect(() => {
+    Promise.all(
+      Object.keys(DIR_TO_CATEGORY).map(dir =>
+        getItemsByDir(dir).then(items => ({ dir, items }))
+      )
+    ).then(results => {
+      const map: Record<string, ItemInfo[]> = {};
+      for (const { dir, items } of results) map[dir] = items;
+      itemLoadedByDir = map;
+    });
+  });
+
+  function onInventoryNameInput(i: number, value: string) {
+    activeItemRow = i;
+    itemSuggestions = searchItems(itemLoadedByDir, value, 8);
+    itemSugIndex = -1;
+  }
+
+  function selectInventoryItem(i: number, sug: ItemSuggestion) {
+    inventory[i].name = sug.item.name; // englischer Originalname → JSON
+    if (sug.item.weight != null && !inventory[i].weight) {
+      inventory[i].weight = String(sug.item.weight);
+    }
+    itemSuggestions = [];
+    activeItemRow = -1;
+    itemSugIndex = -1;
+  }
+
+  function onInventoryNameKey(e: KeyboardEvent, i: number) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); itemSugIndex = Math.min(itemSugIndex + 1, itemSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); itemSugIndex = Math.max(itemSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { itemSuggestions = []; activeItemRow = -1; }
+    else if (e.key === 'Enter' && itemSugIndex >= 0 && itemSuggestions[itemSugIndex]) {
+      e.preventDefault();
+      selectInventoryItem(i, itemSuggestions[itemSugIndex]);
+    }
+  }
 
   // ─── Zauber-Autocomplete ─────────────────────────────────
   let spellLibrary = $state<SpellInfo[]>([]);
@@ -476,7 +521,28 @@
       <tbody>
         {#each inventory as item, i}
           <tr>
-            <td><input bind:value={item.name} placeholder="Seil (15m)" /></td>
+            <td class="inv-name-cell">
+              <div class="autocomplete-wrap">
+                <input
+                  value={item.name}
+                  placeholder="Seil (15m)"
+                  oninput={(e) => { item.name = (e.currentTarget as HTMLInputElement).value; onInventoryNameInput(i, item.name); }}
+                  onkeydown={(e) => onInventoryNameKey(e, i)}
+                  onblur={() => setTimeout(() => { if (activeItemRow === i) { itemSuggestions = []; activeItemRow = -1; } }, 150)}
+                />
+                {#if activeItemRow === i && itemSuggestions.length > 0}
+                  <ul class="suggestions">
+                    {#each itemSuggestions as sug, si}
+                      <li class:active={si === itemSugIndex}
+                        onmousedown={() => selectInventoryItem(i, sug)}>
+                        <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
+                        <span class="sug-cat">{sug.dir}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            </td>
             <td><input bind:value={item.count} placeholder="1" /></td>
             <td><input bind:value={item.weight} placeholder="2" /></td>
             <td><button class="remove-btn" onclick={() => removeInventoryItem(i)}>✕</button></td>
@@ -839,6 +905,42 @@
   }
   .inv-table td { padding: 0.15rem 0.2rem; }
   .inv-table input { width: 100%; min-width: 40px; }
+
+  .inv-name-cell { position: relative; }
+
+  .autocomplete-wrap {
+    position: relative;
+  }
+  .autocomplete-wrap input { width: 100%; box-sizing: border-box; }
+
+  .suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #1e1e2e;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0.2rem 0;
+    max-height: 180px;
+    overflow-y: auto;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .suggestions li {
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #cdd6f4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+  .suggestions li:hover, .suggestions li.active { background: #313244; }
+  .sug-cat { color: #6c7086; font-size: 0.75rem; flex-shrink: 0; }
 
   .ta-large {
     width: 100%;

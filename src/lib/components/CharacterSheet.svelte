@@ -5,11 +5,17 @@
   import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import CharacterEditForm from './CharacterEditForm.svelte';
-  import { fileContent } from '../stores/campaign';
+  import { activeFile, fileContent } from '../stores/campaign';
   import { marked } from 'marked';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import {
+    getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
+    formatCost, formatRarity, formatDamageDice, ftToM,
+    DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
+    type ItemInfo,
+  } from '../itemLibrary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
-  import type { Spell } from '../types';
+  import type { Spell, Item } from '../types';
 
   interface Props {
     dirPath: string;   // z.B. "./vault/characters/carric_galanodel"
@@ -30,8 +36,84 @@
   let dumpingFields = $state(false);
   let exportingPdf = $state(false);
   let spellLibrary = $state<SpellInfo[]>([]);
+  let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
 
   $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
+
+  $effect(() => {
+    Promise.all(
+      Object.keys(DIR_TO_CATEGORY).map(dir =>
+        getItemsByDir(dir).then(items => ({ dir, items }))
+      )
+    ).then(results => {
+      const map: Record<string, ItemInfo[]> = {};
+      for (const { dir, items } of results) map[dir] = items;
+      itemLoadedByDir = map;
+    });
+  });
+
+  const itemByName = $derived(
+    Object.values(itemLoadedByDir).flat().reduce<Record<string, ItemInfo>>((acc, item) => {
+      acc[displayName(item).toLowerCase()] = item;
+      if (item.name_de) acc[item.name.toLowerCase()] = item;
+      return acc;
+    }, {})
+  );
+
+  // ─── Item-Volldata-Cache + Tooltip ──────────────────────
+  let itemDataRecord = $state<Record<string, Item | null>>({});
+  let tooltipItem = $state<Item | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
+  $effect(() => {
+    if (!character) return;
+    for (const invItem of character.inventory) {
+      const libItem = itemByName[invItem.name.toLowerCase()];
+      if (libItem && !(libItem.path in itemDataRecord)) {
+        itemDataRecord[libItem.path] = null;
+        invoke<string>('read_file_content', { path: libItem.path })
+          .then(content => { itemDataRecord[libItem.path] = JSON.parse(content) as Item; })
+          .catch(() => {});
+      }
+    }
+  });
+
+  function showItemTooltip(e: MouseEvent, libItem: ItemInfo) {
+    const data = itemDataRecord[libItem.path];
+    if (!data) return;
+    tooltipItem = data;
+    updateTooltipPos(e);
+  }
+  function updateTooltipPos(e: MouseEvent) {
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function hideItemTooltip() { tooltipItem = null; }
+
+  function openItemPage(libItem: ItemInfo) {
+    const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
+    activeFile.set({ name, path: libItem.path, type: 'item' });
+  }
+
+  function inlineWeaponInfo(item: Item): string {
+    if (!item.damage) return '';
+    const dice = formatDamageDice(item.damage.damage_dice);
+    const typeKey = item.damage.damage_type.index;
+    const typeLabel = (DAMAGE_TYPE_LABELS[typeKey] ?? item.damage.damage_type.name).replace('schaden', '');
+    let s = `${dice} ${typeLabel}`;
+    if (item.two_handed_damage) {
+      const d2 = formatDamageDice(item.two_handed_damage.damage_dice);
+      s += ` / ${d2}`;
+    }
+    return s;
+  }
+
+  function tooltipProperties(item: Item): string {
+    return (item.properties ?? [])
+      .map(p => PROPERTY_LABELS[p.index] ?? p.name)
+      .join(', ');
+  }
 
   const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
   const spellSchoolMap = $derived(new Map(spellLibrary.map(s => [s.name, s.school])));
@@ -607,8 +689,28 @@
               <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
               <tbody>
                 {#each character.inventory as item}
-                  <tr>
-                    <td>{item.name}</td>
+                  {@const libItem = itemByName[item.name.toLowerCase()]}
+                  {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
+                  <tr
+                    class:inv-linked={!!libItem}
+                    onclick={() => libItem && openItemPage(libItem)}
+                    onmouseenter={(e) => libItem && showItemTooltip(e, libItem)}
+                    onmousemove={(e) => tooltipItem && updateTooltipPos(e)}
+                    onmouseleave={hideItemTooltip}
+                  >
+                    <td>
+                      {#if libItem}
+                        <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? '#585b70'}"></span>
+                      {/if}
+                      {libItem ? displayName(libItem) : item.name}
+                      {#if fullItem?.item_type === 'weapon' && fullItem.damage}
+                        <span class="inv-weapon-info">{inlineWeaponInfo(fullItem)}</span>
+                      {:else if fullItem?.item_type === 'armor' && fullItem.armor_class}
+                        <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
+                      {:else if fullItem?.rarity}
+                        <span class="inv-weapon-info">{formatRarity(fullItem.rarity)}</span>
+                      {/if}
+                    </td>
                     <td class="num">{item.count || '—'}</td>
                     <td class="num">{item.weight ? item.weight + ' kg' : '—'}</td>
                   </tr>
@@ -783,6 +885,96 @@
     {/if}
   {/if}
 </div>
+
+{#if tooltipItem}
+  <div class="item-tooltip" style="left:{tooltipX}px;top:{tooltipY}px">
+    <div class="tt-name">
+      {tooltipItem.name_de ?? tooltipItem.name}
+      {#if tooltipItem.name_de}
+        <span class="tt-name-en">{tooltipItem.name}</span>
+      {/if}
+      {#if tooltipItem.attunement}
+        <span class="tt-badge tt-attune">Einstellung</span>
+      {/if}
+    </div>
+
+    <div class="tt-meta">
+      {#if tooltipItem.item_type === 'weapon'}
+        {WEAPON_CATEGORY_LABELS[tooltipItem.weapon_category ?? ''] ?? tooltipItem.weapon_category}
+        · {WEAPON_RANGE_LABELS[tooltipItem.weapon_range ?? ''] ?? tooltipItem.weapon_range}
+      {:else if tooltipItem.item_type === 'armor'}
+        {ARMOR_CATEGORY_LABELS[tooltipItem.armor_category ?? ''] ?? tooltipItem.armor_category}
+      {:else if tooltipItem.rarity}
+        {formatRarity(tooltipItem.rarity)}
+        {#if tooltipItem.attunement_by}· für {tooltipItem.attunement_by}{/if}
+      {/if}
+    </div>
+
+    {#if tooltipItem.item_type === 'weapon' && tooltipItem.damage}
+      <div class="tt-section">
+        <span class="tt-label">Schaden</span>
+        <span>{formatDamageDice(tooltipItem.damage.damage_dice)}
+          {DAMAGE_TYPE_LABELS[tooltipItem.damage.damage_type.index] ?? tooltipItem.damage.damage_type.name}
+          {#if tooltipItem.two_handed_damage}
+            · Zweihändig: {formatDamageDice(tooltipItem.two_handed_damage.damage_dice)}
+          {/if}
+        </span>
+      </div>
+      {#if tooltipItem.range}
+        <div class="tt-section">
+          <span class="tt-label">Reichweite</span>
+          <span>{ftToM(tooltipItem.range.normal)}{tooltipItem.range.long ? ` / ${ftToM(tooltipItem.range.long)}` : ''}</span>
+        </div>
+      {/if}
+      {#if tooltipItem.throw_range}
+        <div class="tt-section">
+          <span class="tt-label">Wurfweite</span>
+          <span>{ftToM(tooltipItem.throw_range.normal)} / {ftToM(tooltipItem.throw_range.long)}</span>
+        </div>
+      {/if}
+      {#if tooltipProperties(tooltipItem)}
+        <div class="tt-section">
+          <span class="tt-label">Eigenschaften</span>
+          <span>{tooltipProperties(tooltipItem)}</span>
+        </div>
+      {/if}
+    {:else if tooltipItem.item_type === 'armor' && tooltipItem.armor_class}
+      <div class="tt-section">
+        <span class="tt-label">Rüstungsklasse</span>
+        <span>{tooltipItem.armor_class.base}{tooltipItem.armor_class.dex_bonus ? ' + GES-Mod' : ''}{tooltipItem.armor_class.max_bonus != null ? ` (max. ${tooltipItem.armor_class.max_bonus})` : ''}</span>
+      </div>
+      {#if tooltipItem.str_minimum}
+        <div class="tt-section">
+          <span class="tt-label">Mindest-STR</span>
+          <span>{tooltipItem.str_minimum}</span>
+        </div>
+      {/if}
+      {#if tooltipItem.stealth_disadvantage}
+        <div class="tt-note">Nachteil auf Heimlichkeit</div>
+      {/if}
+    {/if}
+
+    {#if tooltipItem.cost || tooltipItem.weight}
+      <div class="tt-section tt-footer">
+        {#if tooltipItem.cost}<span>{formatCost(tooltipItem.cost)}</span>{/if}
+        {#if tooltipItem.cost && tooltipItem.weight}<span class="tt-sep">·</span>{/if}
+        {#if tooltipItem.weight}<span>{tooltipItem.weight} lb</span>{/if}
+      </div>
+    {/if}
+
+    {#if tooltipItem.desc_de?.length}
+      <div class="tt-divider"></div>
+      {#each tooltipItem.desc_de as para}
+        <p class="tt-desc">{para}</p>
+      {/each}
+    {:else if tooltipItem.desc?.length}
+      <div class="tt-divider"></div>
+      {#each tooltipItem.desc as para}
+        <p class="tt-desc">{para}</p>
+      {/each}
+    {/if}
+  </div>
+{/if}
 
 <style>
   .sheet {
@@ -1319,6 +1511,94 @@
     padding: 0.15rem 0.4rem 0.15rem 0;
     border-bottom: 1px solid #313244;
   }
+  .inv-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  .inv-linked { cursor: pointer; }
+  .inv-linked:hover td { background: #1e1e2e; filter: brightness(1.15); }
+
+  .inv-weapon-info {
+    margin-left: 0.4rem;
+    font-size: 0.74rem;
+    color: #6c7086;
+    font-style: italic;
+  }
+
+  /* ── Item-Tooltip ──────────────────────────────────────── */
+  .item-tooltip {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    background: #181825;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    min-width: 200px;
+    max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    font-size: 0.8rem;
+    color: #cdd6f4;
+  }
+  .tt-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #cdd6f4;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.2rem;
+  }
+  .tt-name-en {
+    font-size: 0.72rem;
+    color: #6c7086;
+    font-weight: 400;
+    font-style: italic;
+  }
+  .tt-badge {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .tt-attune { background: #cba6f720; color: #cba6f7; border: 1px solid #cba6f740; }
+  .tt-meta {
+    font-size: 0.74rem;
+    color: #89b4fa;
+    margin-bottom: 0.45rem;
+  }
+  .tt-section {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    margin-bottom: 0.15rem;
+    align-items: baseline;
+  }
+  .tt-label {
+    color: #6c7086;
+    flex-shrink: 0;
+    min-width: 70px;
+    font-size: 0.72rem;
+  }
+  .tt-footer { margin-top: 0.35rem; color: #6c7086; flex-wrap: wrap; }
+  .tt-sep { color: #45475a; }
+  .tt-note { font-size: 0.74rem; color: #f38ba8; margin-bottom: 0.1rem; }
+  .tt-divider { border-top: 1px solid #313244; margin: 0.45rem 0; }
+  .tt-desc {
+    margin: 0 0 0.3rem;
+    font-size: 0.77rem;
+    color: #a6adc8;
+    line-height: 1.45;
+  }
+
   .inv-table td {
     padding: 0.2rem 0.4rem 0.2rem 0;
     color: #cdd6f4;
