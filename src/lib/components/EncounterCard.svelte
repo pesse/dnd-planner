@@ -8,6 +8,7 @@
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
   import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
+  import { monsterTypeLabel } from '../types';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -342,7 +343,7 @@
                   class="picker-tag-btn"
                   class:active={pickerTag === group}
                   onclick={() => pickerTag = group}
-                >{group} ({pickerGroups[group].length})</button>
+                >{monsterTypeLabel(group)} ({pickerGroups[group].length})</button>
               {/each}
             </div>
             <div class="picker-list">

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import type { Monster, MonsterAction } from '../types';
+  import type { Monster } from '../types';
+  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
 
@@ -53,7 +55,7 @@
 
   function normalizeMonster(m: Monster): Monster {
     m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
-    m.tags ??= []; m.damage_resistances ??= []; m.damage_immunities ??= [];
+    m.damage_resistances ??= []; m.damage_immunities ??= [];
     m.condition_immunities ??= []; m.saving_throws ??= {}; m.skills ??= {};
     return m;
   }
@@ -164,30 +166,11 @@
 
   function mark() { dirty = true; }
 
-  function mod(n: number): string {
-    const m = Math.floor((n - 10) / 2);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
-
+  const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
   const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-  const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
 
-  function kvKeys(obj: Record<string, string>) { return Object.keys(obj); }
-  function addKv(obj: Record<string, string>) { obj[`neu_${Date.now()}`] = ''; mark(); }
-  function removeKv(obj: Record<string, string>, key: string) { delete obj[key]; mark(); }
-  function renameKv(obj: Record<string, string>, oldKey: string, newKey: string) {
-    if (oldKey === newKey || newKey in obj) return;
-    const val = obj[oldKey];
-    const entries = Object.entries(obj);
-    const idx = entries.findIndex(([k]) => k === oldKey);
-    entries[idx] = [newKey, val];
-    for (const k of Object.keys(obj)) delete obj[k];
-    for (const [k, v] of entries) obj[k] = v;
-    mark();
-  }
-  function addAction(arr: MonsterAction[]) { arr.push({ name: 'Neu', description: '' }); mark(); }
-  function removeAction(arr: MonsterAction[], i: number) { arr.splice(i, 1); mark(); }
+  function mod(v: number): string { const m = Math.floor((v - 10) / 2); return m >= 0 ? `+${m}` : `${m}`; }
 </script>
 
 <div class="mini-card" class:edit-mode={editMode} class:act-local={source === 'act'}>
@@ -213,175 +196,7 @@
       </div>
 
       <div class="sb-full">
-        <!-- Name / meta -->
-        <input class="ef sb-name-input" bind:value={draft.name} oninput={mark} placeholder="Name" />
-        <div class="meta-row">
-          <input class="ef meta-in" bind:value={draft.size} oninput={mark} placeholder="Größe" />
-          <input class="ef meta-in" bind:value={draft.type} oninput={mark} placeholder="Typ" />
-          <span class="sep">,</span>
-          <input class="ef meta-in" bind:value={draft.alignment} oninput={mark} placeholder="Gesinnung" />
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- AC / HP / Speed -->
-        <div class="prop-row"><span class="lbl">RK</span>
-          <input class="ef num-in" type="number" bind:value={draft.ac.value} oninput={mark} />
-          <input class="ef note-in" bind:value={draft.ac.note} oninput={mark} placeholder="(Notiz)" />
-        </div>
-        <div class="prop-row"><span class="lbl">TP</span>
-          <input class="ef num-in" type="number" bind:value={draft.hp.average} oninput={mark} />
-          <input class="ef note-in" bind:value={draft.hp.formula} oninput={mark} placeholder="Formel" />
-        </div>
-        <div class="prop-row"><span class="lbl">BW</span>
-          <input class="ef wide-in" bind:value={draft.speed} oninput={mark} />
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- Stats -->
-        <div class="stats-grid">
-          {#each STAT_KEYS as key, i}
-            <div class="stat-cell">
-              <span class="stat-lbl">{STAT_LABELS[i]}</span>
-              <input class="ef stat-in" type="number" bind:value={draft.stats[key]} oninput={mark} />
-              <span class="stat-mod">({mod(draft.stats[key])})</span>
-            </div>
-          {/each}
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- KV fields -->
-        <div class="kv-row"><span class="lbl">Rettung</span>
-          <div class="kv-list">
-            {#each kvKeys(draft.saving_throws) as key}
-              <span class="kv-pair">
-                <input class="ef kv-key" value={key} onblur={(e) => renameKv(draft!.saving_throws, key, e.currentTarget.value)} />
-                <input class="ef kv-val" bind:value={draft.saving_throws[key]} oninput={mark} />
-                <button class="kv-del" onclick={() => removeKv(draft!.saving_throws, key)}>×</button>
-              </span>
-            {/each}
-            <button class="kv-add" onclick={() => addKv(draft!.saving_throws)}>+</button>
-          </div>
-        </div>
-        <div class="kv-row"><span class="lbl">Fertigk.</span>
-          <div class="kv-list">
-            {#each kvKeys(draft.skills) as key}
-              <span class="kv-pair">
-                <input class="ef kv-key" value={key} onblur={(e) => renameKv(draft!.skills, key, e.currentTarget.value)} />
-                <input class="ef kv-val" bind:value={draft.skills[key]} oninput={mark} />
-                <button class="kv-del" onclick={() => removeKv(draft!.skills, key)}>×</button>
-              </span>
-            {/each}
-            <button class="kv-add" onclick={() => addKv(draft!.skills)}>+</button>
-          </div>
-        </div>
-
-        <div class="prop-row"><span class="lbl">Resistenzen</span>
-          <input class="ef wide-in" value={draft.damage_resistances.join(', ')}
-            oninput={(e) => { draft!.damage_resistances = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
-        <div class="prop-row"><span class="lbl">Immun.</span>
-          <input class="ef wide-in" value={draft.damage_immunities.join(', ')}
-            oninput={(e) => { draft!.damage_immunities = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
-        <div class="prop-row"><span class="lbl">Sinne</span>
-          <input class="ef wide-in" bind:value={draft.senses} oninput={mark} />
-        </div>
-        <div class="prop-row"><span class="lbl">Sprachen</span>
-          <input class="ef wide-in" bind:value={draft.languages} oninput={mark} />
-        </div>
-        <div class="prop-row"><span class="lbl">HG</span>
-          <input class="ef cr-in" bind:value={draft.cr} oninput={mark} />
-          <span class="sep">(</span>
-          <input class="ef num-in" type="number" bind:value={draft.xp} oninput={mark} />
-          <span class="sep"> EP)</span>
-        </div>
-
-        <!-- Traits -->
-        {#if draft.traits.length || true}
-          <div class="divider"></div>
-          <div class="action-list">
-            {#each draft.traits as t, i}
-              <div class="action-block">
-                <div class="action-hdr">
-                  <input class="ef action-name-in" bind:value={t.name} oninput={mark} />
-                  <button class="act-del" onclick={() => removeAction(draft!.traits, i)}>×</button>
-                </div>
-                <textarea class="ef action-desc-ta" bind:value={t.description} oninput={mark} rows="2"></textarea>
-              </div>
-            {/each}
-            <button class="add-action-btn" onclick={() => addAction(draft!.traits)}>+ Eigenschaft</button>
-          </div>
-        {/if}
-
-        <!-- Actions -->
-        <div class="divider"></div>
-        <h4 class="section-title">Aktionen</h4>
-        <div class="action-list">
-          {#each draft.actions as a, i}
-            <div class="action-block">
-              <div class="action-hdr">
-                <input class="ef action-name-in" bind:value={a.name} oninput={mark} />
-                <button class="act-del" onclick={() => removeAction(draft!.actions, i)}>×</button>
-              </div>
-              <div class="action-attack-row">
-                <span class="lbl-sm">Bonus</span>
-                <input class="ef num-in-sm" type="number"
-                  value={a.attack_bonus ?? ''}
-                  oninput={(e) => { a.attack_bonus = e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value); mark(); }} />
-                <span class="lbl-sm">Schaden</span>
-                <input class="ef wide-in-sm" bind:value={a.damage} oninput={mark} />
-              </div>
-              <textarea class="ef action-desc-ta" bind:value={a.description} oninput={mark} rows="2"></textarea>
-            </div>
-          {/each}
-          <button class="add-action-btn" onclick={() => addAction(draft!.actions)}>+ Aktion</button>
-        </div>
-
-        <!-- Reactions -->
-        {#if draft.reactions.length || true}
-          <div class="divider"></div>
-          <h4 class="section-title">Reaktionen</h4>
-          <div class="action-list">
-            {#each draft.reactions as r, i}
-              <div class="action-block">
-                <div class="action-hdr">
-                  <input class="ef action-name-in" bind:value={r.name} oninput={mark} />
-                  <button class="act-del" onclick={() => removeAction(draft!.reactions, i)}>×</button>
-                </div>
-                <textarea class="ef action-desc-ta" bind:value={r.description} oninput={mark} rows="2"></textarea>
-              </div>
-            {/each}
-            <button class="add-action-btn" onclick={() => addAction(draft!.reactions)}>+ Reaktion</button>
-          </div>
-        {/if}
-
-        <!-- Legendary -->
-        {#if draft.legendary_actions.length || true}
-          <div class="divider"></div>
-          <h4 class="section-title">Legendäre Aktionen</h4>
-          <div class="action-list">
-            {#each draft.legendary_actions as la, i}
-              <div class="action-block">
-                <div class="action-hdr">
-                  <input class="ef action-name-in" bind:value={la.name} oninput={mark} />
-                  <button class="act-del" onclick={() => removeAction(draft!.legendary_actions, i)}>×</button>
-                </div>
-                <textarea class="ef action-desc-ta" bind:value={la.description} oninput={mark} rows="2"></textarea>
-              </div>
-            {/each}
-            <button class="add-action-btn" onclick={() => addAction(draft!.legendary_actions)}>+ Legendäre Aktion</button>
-          </div>
-        {/if}
-
-        <!-- Tags -->
-        <div class="divider"></div>
-        <div class="prop-row"><span class="lbl">Tags</span>
-          <input class="ef wide-in" value={draft.tags.join(', ')}
-            oninput={(e) => { draft!.tags = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
+        <MonsterEditForm bind:monster={draft} onchange={mark} />
       </div>
 
     {:else}
@@ -392,7 +207,7 @@
           <span class="c-cr">HG {saved.cr}</span>
           <span class="source-badge source-{source}">{source === 'act' ? 'akt' : ''}</span>
         </div>
-        <div class="c-meta">{saved.size} {saved.type}</div>
+        <div class="c-meta">{monsterSizeLabel(saved.size)} {monsterTypeLabel(saved.type)}</div>
 
         <div class="c-divider"></div>
 
@@ -463,20 +278,15 @@
     background: #241e10;
     border-color: #7a5c1a;
   }
-  .mini-card.act-local .c-divider,
-  .mini-card.act-local .divider { background: #7a5c1a44; }
+  .mini-card.act-local .c-divider { background: #7a5c1a44; }
   .mini-card.act-local .edit-header { background: #1a1508; border-bottom-color: #7a5c1a; }
-  .mini-card.act-local .c-lbl,
-  .mini-card.act-local .lbl,
-  .mini-card.act-local .c-stat-lbl,
-  .mini-card.act-local .stat-lbl,
-  .mini-card.act-local .section-title { color: #f9e2af; }
-  .mini-card.act-local .c-name,
-  .mini-card.act-local .sb-name-input { color: #f9e2af; }
-  .mini-card.act-local .ef:hover,
-  .mini-card.act-local .ef:focus { border-color: #f9e2af; background: #1a1508; }
-  .mini-card.act-local .action-block { border-left-color: #7a5c1a44; }
-  .mini-card.act-local .section-title { border-bottom-color: #7a5c1a44; }
+  .mini-card.act-local .c-lbl { color: #f9e2af; }
+  .mini-card.act-local .c-name { color: #f9e2af; }
+  /* Formularfarben via CSS Custom Property — cascadiert in MonsterEditForm */
+  .mini-card.act-local .sb-full {
+    --mef-accent: #f9e2af;
+    --mef-dim: #7a5c1a44;
+  }
 
   .mini-card.edit-mode {
     width: 460px;
@@ -709,82 +519,4 @@
     max-height: calc(100vh - 160px);
   }
 
-  /* ── Editable field ── */
-  .ef {
-    background: transparent;
-    border: 1px solid transparent;
-    color: inherit;
-    font: inherit;
-    padding: 0.08rem 0.2rem;
-    border-radius: 3px;
-    outline: none;
-    transition: border-color 0.1s, background 0.1s;
-  }
-  .ef:hover { border-color: #45475a; background: #1a1020; }
-  .ef:focus { border-color: #f38ba8; background: #1a1020; }
-
-  .sb-name-input {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #f38ba8;
-    font-variant: small-caps;
-    width: 100%;
-  }
-
-  .meta-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.1rem;
-    font-style: italic;
-    color: #a6adc8;
-    font-size: 0.8rem;
-  }
-
-  .meta-in { font-style: italic; color: #a6adc8; font-size: 0.8rem; min-width: 50px; }
-  .sep { color: #6c7086; padding: 0 0.05rem; }
-
-  .divider { height: 1px; background: #6b3a3a55; margin: 0.3rem 0; }
-
-  .prop-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.2rem; line-height: 1.7; }
-  .lbl { font-weight: 700; color: #f38ba8; white-space: nowrap; font-size: 0.78rem; }
-  .lbl-sm { font-weight: 700; color: #f38ba866; font-size: 0.72rem; white-space: nowrap; }
-
-  .num-in { width: 48px; text-align: center; }
-  .num-in-sm { width: 40px; text-align: center; font-size: 0.78rem; }
-  .note-in { min-width: 60px; color: #a6adc8; font-style: italic; }
-  .wide-in { flex: 1; min-width: 80px; }
-  .wide-in-sm { flex: 1; min-width: 60px; font-size: 0.78rem; }
-  .cr-in { width: 36px; text-align: center; }
-
-  /* Stats */
-  .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.2rem; text-align: center; }
-  .stat-cell { display: flex; flex-direction: column; align-items: center; gap: 0.02rem; }
-  .stat-lbl { font-size: 0.62rem; font-weight: 700; color: #f38ba8; text-transform: uppercase; }
-  .stat-in { width: 38px; text-align: center; font-size: 0.88rem; font-weight: 600; padding: 0.05rem; }
-  .stat-mod { font-size: 0.65rem; color: #a6adc8; }
-
-  /* KV */
-  .kv-row { display: flex; align-items: flex-start; gap: 0.3rem; flex-wrap: wrap; line-height: 1.7; }
-  .kv-list { display: flex; flex-wrap: wrap; gap: 0.15rem; align-items: center; }
-  .kv-pair { display: flex; align-items: center; gap: 0.05rem; }
-  .kv-key { width: 72px; font-size: 0.78rem; }
-  .kv-val { width: 38px; font-size: 0.78rem; color: #a6e3a1; }
-  .kv-del { background: none; border: none; color: #45475a; cursor: pointer; padding: 0 0.15rem; line-height: 1; }
-  .kv-del:hover { color: #f38ba8; }
-  .kv-add { background: none; border: 1px dashed #45475a; color: #6c7086; cursor: pointer; font-size: 0.72rem; padding: 0.02rem 0.3rem; border-radius: 3px; }
-  .kv-add:hover { border-color: #f38ba8; color: #f38ba8; }
-
-  /* Actions */
-  .section-title { font-size: 0.78rem; font-weight: 700; color: #f38ba8; font-variant: small-caps; margin: 0.2rem 0 0.1rem; border-bottom: 1px solid #6b3a3a55; padding-bottom: 0.1rem; }
-  .action-list { display: flex; flex-direction: column; gap: 0.35rem; }
-  .action-block { border-left: 2px solid #6b3a3a44; padding-left: 0.4rem; display: flex; flex-direction: column; gap: 0.1rem; }
-  .action-hdr { display: flex; align-items: center; gap: 0.2rem; }
-  .action-name-in { flex: 1; font-weight: 700; font-style: italic; min-width: 0; }
-  .action-attack-row { display: flex; align-items: center; gap: 0.2rem; flex-wrap: wrap; }
-  .action-desc-ta { width: 100%; resize: vertical; line-height: 1.4; font-size: 0.78rem; min-height: 2rem; }
-  .act-del { background: none; border: none; color: #45475a; cursor: pointer; font-size: 0.9rem; padding: 0 0.15rem; flex-shrink: 0; }
-  .act-del:hover { color: #f38ba8; }
-  .add-action-btn { background: none; border: 1px dashed #45475a; color: #6c7086; cursor: pointer; font-size: 0.72rem; padding: 0.1rem 0.4rem; border-radius: 3px; align-self: flex-start; }
-  .add-action-btn:hover { border-color: #f38ba8; color: #f38ba8; }
 </style>

@@ -5,7 +5,7 @@
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
-  import { MONSTER_TEMPLATE as monsterTemplate } from '../types';
+  import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, type CharacterJSON } from '../pdf/characterFields';
   import {
@@ -304,35 +304,38 @@
   let openMonsterGroups: Record<string, boolean> = $state({});
   let showNewMonsterInput = $state(false);
   let newMonsterInput = $state('');
-  let newMonsterGroup = $state('');
 
   async function loadMonsters() {
     try {
       const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: MONSTERS_PATH });
       const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
       const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
-      const newGroups: Record<string, { filename: string; name: string }[]> = {};
 
-      async function loadName(path: string, filename: string): Promise<string> {
+      async function loadEntry(path: string, relFilename: string): Promise<{ filename: string; name: string; typeKey: string }> {
         try {
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
-          return data.name ?? filename.replace('.json', '');
-        } catch { return filename.replace('.json', ''); }
+          return { filename: relFilename, name: data.name ?? relFilename.replace('.json', ''), typeKey: data.type ?? '' };
+        } catch { return { filename: relFilename, name: relFilename.replace('.json', ''), typeKey: '' }; }
       }
 
+      const allEntries: { filename: string; name: string; typeKey: string }[] = [];
       for (const dir of dirs) {
         const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${dir}` }).catch(() => [] as string[]);
-        newGroups[dir] = await Promise.all(
-          files.map(async (f) => ({ filename: `${dir}/${f}`, name: await loadName(`${MONSTERS_PATH}/${dir}/${f}`, f) }))
-        );
+        allEntries.push(...await Promise.all(files.map((f) => loadEntry(`${MONSTERS_PATH}/${dir}/${f}`, `${dir}/${f}`))));
       }
-      if (rootFiles.length) {
-        newGroups['Sonstige'] = await Promise.all(
-          rootFiles.map(async (f) => ({ filename: f, name: await loadName(`${MONSTERS_PATH}/${f}`, f) }))
-        );
+      allEntries.push(...await Promise.all(rootFiles.map((f) => loadEntry(`${MONSTERS_PATH}/${f}`, f))));
+
+      const newGroups: Record<string, { filename: string; name: string }[]> = {};
+      for (const e of allEntries) {
+        const key = e.typeKey || 'unknown';
+        if (!newGroups[key]) newGroups[key] = [];
+        newGroups[key].push({ filename: e.filename, name: e.name });
       }
-      monsterGroups = newGroups;
+      // Gruppen alphabetisch nach deutschem Label sortieren
+      monsterGroups = Object.fromEntries(
+        Object.entries(newGroups).sort(([a], [b]) => monsterTypeLabel(a).localeCompare(monsterTypeLabel(b), 'de'))
+      );
     } catch {
       monsterGroups = {};
     }
@@ -359,8 +362,7 @@
     if (!raw) return;
 
     const slug = slugify(raw);
-    const group = newMonsterGroup.trim();
-    const relPath = group ? `${slugify(group)}/${slug}.json` : `${slug}.json`;
+    const relPath = `${slug}.json`;
     const path = `${MONSTERS_PATH}/${relPath}`;
     const template = { ...monsterTemplate, name: raw.charAt(0).toUpperCase() + raw.slice(1) };
 
@@ -368,7 +370,6 @@
       await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
       showNewMonsterInput = false;
       newMonsterInput = '';
-      newMonsterGroup = '';
       await loadMonsters();
       await openMonster(relPath);
     } catch (err) {
@@ -928,7 +929,7 @@
               onclick={() => toggleMonsterGroup(group)}
             >
               <span class="arrow" class:open={openMonsterGroups[group]}>›</span>
-              {group} <span class="group-count">({monsters.length})</span>
+              {monsterTypeLabel(group)} <span class="group-count">({monsters.length})</span>
             </button>
             {#if openMonsterGroups[group]}
               {#each monsters as { filename, name }}
@@ -947,28 +948,15 @@
         {/if}
 
         {#if showNewMonsterInput}
-          <div class="new-monster-form">
+          <div class="new-file-row">
             <input
               class="new-file-input"
-              bind:value={newMonsterGroup}
-              placeholder="Gruppe (Ordner)…"
-              list="monster-group-suggestions"
+              bind:value={newMonsterInput}
+              placeholder="Name…"
+              onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
+              autofocus
             />
-            <datalist id="monster-group-suggestions">
-              {#each Object.keys(monsterGroups).filter(g => g !== 'Sonstige') as g}
-                <option value={g}></option>
-              {/each}
-            </datalist>
-            <div class="new-file-row">
-              <input
-                class="new-file-input"
-                bind:value={newMonsterInput}
-                placeholder="Name…"
-                onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
-                autofocus
-              />
-              <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
-            </div>
+            <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
           </div>
         {/if}
       </div>

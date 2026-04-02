@@ -1,4 +1,5 @@
 import type { Encounter, Monster } from '../types';
+import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
 
@@ -59,7 +60,7 @@ function renderStatBlock(pm: PrintMonster): string {
     <span class="sb-name">${pm.count > 1 ? `${pm.count}× ` : ''}${esc(m.name)}</span>
     <span class="sb-cr">HG ${esc(m.cr)} (${m.xp} EP)</span>
   </div>
-  <div class="sb-type">${esc(m.size)} ${esc(m.type)}, ${esc(m.alignment)}</div>
+  <div class="sb-type">${esc(monsterSizeLabel(m.size))}, ${esc(monsterTypeLabel(m.type))}, ${esc(monsterAlignmentLabel(m.alignment))}</div>
   <hr class="orange">
   <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> ${m.ac.value}${m.ac.note ? ` (${esc(m.ac.note)})` : ''}</div>
   <div class="sb-prop"><span class="lbl">Trefferpunkte</span> ${m.hp.average} (${esc(m.hp.formula)})</div>

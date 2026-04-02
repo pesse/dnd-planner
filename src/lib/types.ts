@@ -59,6 +59,65 @@ export interface LlmConfig {
 
 // --- Monster ---
 
+export const MONSTER_SIZES = {
+  Tiny:        'Winzig',
+  Small:       'Klein',
+  Medium:      'Mittelgroß',
+  Large:       'Groß',
+  Huge:        'Riesig',
+  Gargantuan:  'Gigantisch',
+} as const;
+export type MonsterSize = keyof typeof MONSTER_SIZES;
+
+export const MONSTER_TYPES = {
+  aberration:  'Aberration',
+  beast:       'Tier',
+  celestial:   'Himmlisches',
+  construct:   'Konstrukt',
+  dragon:      'Drache',
+  elemental:   'Elementar',
+  fey:         'Fee',
+  fiend:       'Teuflisches',
+  giant:       'Riese',
+  humanoid:    'Humanoid',
+  monstrosity: 'Ungeheuer',
+  ooze:        'Schleim',
+  plant:       'Pflanze',
+  undead:      'Untote',
+} as const;
+export type MonsterType = keyof typeof MONSTER_TYPES;
+
+export const MONSTER_ALIGNMENTS = {
+  'lawful good':              'Rechtschaffen Gut',
+  'neutral good':             'Neutral Gut',
+  'chaotic good':             'Chaotisch Gut',
+  'lawful neutral':           'Rechtschaffen Neutral',
+  'neutral':                  'Neutral',
+  'chaotic neutral':          'Chaotisch Neutral',
+  'lawful evil':              'Rechtschaffen Böse',
+  'neutral evil':             'Neutral Böse',
+  'chaotic evil':             'Chaotisch Böse',
+  'unaligned':                'Unausgerichtet',
+  'any alignment':            'Beliebige Gesinnung',
+  'any good alignment':       'Beliebige gute Gesinnung',
+  'any evil alignment':       'Beliebige böse Gesinnung',
+  'any non-good alignment':   'Beliebige nicht-gute Gesinnung',
+  'any non-lawful alignment': 'Beliebige nicht-rechtschaffene Gesinnung',
+  'any chaotic alignment':    'Beliebige chaotische Gesinnung',
+  'any lawful alignment':     'Beliebige rechtschaffene Gesinnung',
+} as const;
+export type MonsterAlignment = keyof typeof MONSTER_ALIGNMENTS;
+
+export function monsterSizeLabel(size: string): string {
+  return MONSTER_SIZES[size as MonsterSize] ?? size;
+}
+export function monsterTypeLabel(type: string): string {
+  return MONSTER_TYPES[type as MonsterType] ?? type;
+}
+export function monsterAlignmentLabel(alignment: string): string {
+  return MONSTER_ALIGNMENTS[alignment as MonsterAlignment] ?? alignment;
+}
+
 export interface MonsterAction {
   name: string;
   description: string;
@@ -67,10 +126,12 @@ export interface MonsterAction {
 }
 
 export interface Monster {
+  index?: string;       // API-Slug (leer bei Homebrew)
+  source?: string;      // 'SRD' | 'Homebrew'
   name: string;
-  size: string;
-  type: string;
-  alignment: string;
+  size: MonsterSize;
+  type: MonsterType;
+  alignment: MonsterAlignment;
   ac: { value: number; note: string };
   hp: { average: number; formula: string };
   speed: string;
@@ -88,14 +149,13 @@ export interface Monster {
   actions: MonsterAction[];
   reactions: MonsterAction[];
   legendary_actions: MonsterAction[];
-  tags: string[];
 }
 
 export const MONSTER_TEMPLATE: Monster = {
   name: 'Neues Monster',
-  size: 'Mittelgroß',
-  type: 'Humanoide',
-  alignment: 'Neutral',
+  size: 'Medium',
+  type: 'humanoid',
+  alignment: 'neutral',
   ac: { value: 10, note: '' },
   hp: { average: 11, formula: '2d8+2' },
   speed: '9 m',
@@ -113,7 +173,6 @@ export const MONSTER_TEMPLATE: Monster = {
   actions: [{ name: 'Angriff', description: 'Nahkampfwaffenangriff: +2 zum Angriff, Reichweite 1,5 m, ein Ziel. Treffer: 3 (1W4+1) Stichschaden.' }],
   reactions: [],
   legendary_actions: [],
-  tags: [],
 };
 
 // --- Item ---

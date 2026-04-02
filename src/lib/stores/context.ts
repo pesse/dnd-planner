@@ -2,6 +2,7 @@ import { derived, writable, type Writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
+import { monsterSizeLabel, monsterTypeLabel } from '../types';
 import { extractCharacterInfo, formatCharacterForContext } from '../utils/characterExtract';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
 import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
@@ -170,7 +171,7 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
       try {
         const content = await invoke<string>('read_file_content', { path });
         const m = JSON.parse(content);
-        return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string, group };
+        return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string, group: m.type as string || group };
       } catch {
         return { slug, name: slug, cr: '?', size: '?', type: '?', group };
       }
@@ -455,7 +456,7 @@ export const systemPrompt = derived(
       if ($contextFlags.monsterGroups.length > 0) {
         const filtered = $monsterLibrary.filter((m) => $contextFlags.monsterGroups.includes(m.group));
         if (filtered.length > 0) {
-          const lines = filtered.map((m) => `- ${m.name} (CR ${m.cr}, ${m.size} ${m.type})`);
+          const lines = filtered.map((m) => `- ${m.name} (CR ${m.cr}, ${monsterSizeLabel(m.size)} ${monsterTypeLabel(m.type)})`);
           parts.push(`\n## Monster Library\n${lines.join('\n')}`);
         }
       }

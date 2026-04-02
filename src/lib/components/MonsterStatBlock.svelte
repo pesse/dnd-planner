@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Monster } from '../types';
+  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
 
@@ -17,7 +18,7 @@
     <span class="sb-name">{count > 1 ? `${count}× ` : ''}{monster.name}</span>
     <span class="sb-cr">HG {monster.cr} ({monster.xp} EP)</span>
   </div>
-  <div class="sb-type">{monster.size} {monster.type}, {monster.alignment}</div>
+  <div class="sb-type">{monsterSizeLabel(monster.size)}, {monsterTypeLabel(monster.type)}, {monsterAlignmentLabel(monster.alignment)}</div>
 
   <div class="sb-rule orange"></div>
 

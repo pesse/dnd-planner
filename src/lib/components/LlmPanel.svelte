@@ -18,6 +18,7 @@
     loadEncounterMonsters,
   } from '../stores/context';
   import type { ContextFlags } from '../stores/context';
+  import { monsterTypeLabel } from '../types';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
   import {
     ollamaChat,
@@ -679,9 +680,9 @@
         <button
           class="ctx-badge level-library"
           class:off={!$contextFlags.monsterGroups.includes(group)}
-          title="Monster-Gruppe: {group}"
+          title="Monster-Gruppe: {monsterTypeLabel(group)}"
           onclick={() => toggleMonsterGroup(group)}
-        >{group} ({count})</button>
+        >{monsterTypeLabel(group)} ({count})</button>
       {/each}
       {#if $activeFile}
         {@const fileLevelClass = {

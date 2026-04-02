@@ -5,6 +5,8 @@
   import { onMount } from 'svelte';
   import { pushError } from '../stores/errors';
   import type { Monster, MonsterAction } from '../types';
+  import MonsterStatBlock from './MonsterStatBlock.svelte';
+  import MonsterEditForm from './MonsterEditForm.svelte';
 
   function parseMonster(json: string): Monster | null {
     try {
@@ -12,7 +14,7 @@
       if (!obj || typeof obj !== 'object' || !('stats' in obj) || !('cr' in obj)) return null;
       // Ensure all array/object fields exist so the template never crashes
       obj.traits ??= []; obj.actions ??= []; obj.reactions ??= []; obj.legendary_actions ??= [];
-      obj.tags ??= []; obj.damage_resistances ??= []; obj.damage_immunities ??= [];
+      obj.damage_resistances ??= []; obj.damage_immunities ??= [];
       obj.condition_immunities ??= []; obj.saving_throws ??= {}; obj.skills ??= {};
       obj.ac ??= { value: 10, note: '' }; obj.hp ??= { average: 0, formula: '' };
       obj.stats ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
@@ -25,13 +27,22 @@
     return m >= 0 ? `+${m}` : `${m}`;
   }
 
+  type Tab = 'karte' | 'bearbeiten' | 'json';
+  let tab = $state<Tab>('bearbeiten');
   let draft = $state<Monster | null>(null);
   let dirty = $state(false);
   let saveError = $state('');
-  let showJson = $state(false);
   let rawJson = $state('');
   let jsonError = $state('');
   let lastSavedContent = $state('');
+
+  function switchTab(t: Tab) {
+    if (t === 'json') {
+      rawJson = draft ? JSON.stringify(draft, null, 2) : lastSavedContent;
+      jsonError = '';
+    }
+    tab = t;
+  }
 
   onMount(() => {
     async function load(path: string) {
@@ -42,6 +53,7 @@
         draft = parsed ? structuredClone(parsed) : null;
         dirty = false;
         saveError = '';
+        tab = 'bearbeiten';
         setFileContent(content);
       } catch (e) {
         pushError(`Monster konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
@@ -81,9 +93,6 @@
     saveError = '';
   }
 
-  // JSON editor
-  function openJson() { rawJson = JSON.stringify(draft, null, 2); jsonError = ''; showJson = true; }
-  function cancelJson() { showJson = false; }
   async function saveJson() {
     try {
       JSON.parse(rawJson);
@@ -93,285 +102,256 @@
         lastSavedContent = rawJson;
         await invoke('write_file_content', { path: file.path, content: rawJson });
         setFileContent(rawJson);
+        draft = parseMonster(rawJson);
       }
-      showJson = false;
+      tab = 'bearbeiten';
       dirty = false;
     } catch (e) {
       jsonError = `Ungültiges JSON: ${e}`;
     }
   }
 
-  // Array helpers
-  function addAction(arr: MonsterAction[]) {
-    arr.push({ name: 'Neue Aktion', description: '' });
-    mark();
-  }
-  function removeAction(arr: MonsterAction[], i: number) {
-    arr.splice(i, 1);
-    mark();
+  // ── DnD-API-Import ───────────────────────────────────────────────────────────
+
+  const DND_API = 'https://www.dnd5eapi.co/api/2014';
+
+  interface MonsterApiResult { index: string; name: string; url: string; }
+
+  let apiSearch = $state('');
+  let apiResults = $state<MonsterApiResult[]>([]);
+  let apiSearching = $state(false);
+  let apiError = $state('');
+  let showApiPanel = $state(false);
+
+  async function apiGet(url: string): Promise<unknown> {
+    const text = await invoke<string>('http_request', {
+      req: { url, method: 'GET', headers: {}, body: '' },
+    });
+    return JSON.parse(text);
   }
 
-  // KV helpers
-  function kvKeys(obj: Record<string, string>): string[] { return Object.keys(obj); }
-  function addKv(obj: Record<string, string>) {
-    obj[`neu_${Date.now()}`] = '';
-    mark();
-  }
-  function removeKv(obj: Record<string, string>, key: string) {
-    delete obj[key];
-    mark();
-  }
-  function renameKv(obj: Record<string, string>, oldKey: string, newKey: string) {
-    if (oldKey === newKey || newKey in obj) return;
-    const val = obj[oldKey];
-    const keys = Object.keys(obj);
-    const idx = keys.indexOf(oldKey);
-    const entries = keys.map(k => [k, obj[k]] as [string, string]);
-    entries[idx] = [newKey, val];
-    for (const k of Object.keys(obj)) delete obj[k];
-    for (const [k, v] of entries) obj[k] = v;
-    mark();
+  async function searchApi() {
+    const q = apiSearch.trim();
+    if (!q) return;
+    apiSearching = true;
+    apiError = '';
+    apiResults = [];
+    try {
+      const raw = await apiGet(`${DND_API}/monsters?name=${encodeURIComponent(q)}`);
+      apiResults = ((raw as Record<string, unknown>).results as MonsterApiResult[] ?? []).slice(0, 15);
+    } catch (e) {
+      apiError = `API-Fehler: ${e instanceof Error ? e.message : String(e)}`;
+    } finally {
+      apiSearching = false;
+    }
   }
 
-  const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
-  type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
-  const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+  function crFromNumber(n: number): string {
+    if (n === 0.125) return '1/8';
+    if (n === 0.25)  return '1/4';
+    if (n === 0.5)   return '1/2';
+    return String(n);
+  }
+
+  function ftToM(val: string | number): string {
+    const n = typeof val === 'string' ? parseInt(val) : val;
+    const m = Math.round(n * 3) / 10;
+    return `${m} m`.replace('.', ',');
+  }
+
+  function buildSpeed(speed: Record<string, string | number>): string {
+    const parts: string[] = [];
+    if (speed.walk)   parts.push(ftToM(speed.walk));
+    if (speed.fly)    parts.push(`Fliegen ${ftToM(speed.fly)}`);
+    if (speed.swim)   parts.push(`Schwimmen ${ftToM(speed.swim)}`);
+    if (speed.climb)  parts.push(`Klettern ${ftToM(speed.climb)}`);
+    if (speed.burrow) parts.push(`Graben ${ftToM(speed.burrow)}`);
+    return parts.join(', ') || '—';
+  }
+
+  function buildSenses(senses: Record<string, string | number>): string {
+    const NAMES: Record<string, string> = {
+      blindsight: 'Blindsicht', darkvision: 'Dunkelsicht',
+      tremorsense: 'Erschütterungssinn', truesight: 'Wahre Sicht',
+    };
+    const parts: string[] = [];
+    for (const [k, label] of Object.entries(NAMES)) {
+      if (senses[k]) parts.push(`${label} ${ftToM(String(senses[k]).replace(' ft.', ''))}`);
+    }
+    if (senses.passive_perception) parts.push(`passive Wahrnehmung ${senses.passive_perception}`);
+    return parts.join(', ') || '—';
+  }
+
+  type ProfEntry = { value: number; proficiency: { index: string; name: string } };
+
+  const SKILL_DE: Record<string, string> = {
+    'skill-athletics': 'Athletik', 'skill-acrobatics': 'Akrobatik',
+    'skill-sleight-of-hand': 'Fingerfertigkeit', 'skill-stealth': 'Heimlichkeit',
+    'skill-arcana': 'Arkanes', 'skill-history': 'Geschichte',
+    'skill-investigation': 'Nachforschung', 'skill-nature': 'Naturkunde',
+    'skill-religion': 'Religion', 'skill-animal-handling': 'Tierführung',
+    'skill-insight': 'Einsicht', 'skill-medicine': 'Medizin',
+    'skill-perception': 'Wahrnehmung', 'skill-survival': 'Überlebenskunst',
+    'skill-deception': 'Täuschung', 'skill-intimidation': 'Einschüchterung',
+    'skill-performance': 'Auftreten', 'skill-persuasion': 'Überredung',
+  };
+
+  function extractSavingThrows(profs: ProfEntry[]): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const p of profs) {
+      const m = p.proficiency.index.match(/^saving-throw-(.+)$/);
+      if (m) result[m[1].toUpperCase()] = p.value >= 0 ? `+${p.value}` : `${p.value}`;
+    }
+    return result;
+  }
+
+  function extractSkills(profs: ProfEntry[]): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const p of profs) {
+      if (!p.proficiency.index.startsWith('skill-')) continue;
+      const name = SKILL_DE[p.proficiency.index] ?? p.proficiency.name.replace('Skill: ', '');
+      result[name] = p.value >= 0 ? `+${p.value}` : `${p.value}`;
+    }
+    return result;
+  }
+
+  function mapActions(arr: Array<Record<string, unknown>>): MonsterAction[] {
+    return arr.map(a => {
+      const action: MonsterAction = {
+        name: String(a.name ?? ''),
+        description: String(a.desc ?? ''),
+      };
+      if (a.attack_bonus != null) action.attack_bonus = Number(a.attack_bonus);
+      const dmg = (a.damage as Array<{ damage_dice: string; damage_type: { name: string } }> | undefined)?.[0];
+      if (dmg) action.damage = `${dmg.damage_dice} ${dmg.damage_type.name}`;
+      return action;
+    });
+  }
+
+  async function importFromApi(result: MonsterApiResult) {
+    if (!draft) return;
+    try {
+      const d = await apiGet(`https://www.dnd5eapi.co${result.url}`) as Record<string, unknown>;
+      const profs = (d.proficiencies as ProfEntry[]) ?? [];
+      const acArr = (d.armor_class as Array<{ value: number; type: string }> | undefined) ?? [];
+      const acNote = acArr.length > 1
+        ? acArr.slice(1).map(a => a.type).join(', ')
+        : (acArr[0]?.type !== 'dex' ? (acArr[0]?.type ?? '') : '');
+
+      Object.assign(draft, {
+        index:               d.index,
+        source:              'SRD',
+        name:                d.name,
+        size:                d.size,
+        type:                d.type,
+        alignment:           d.alignment,
+        ac:                  { value: acArr[0]?.value ?? 10, note: acNote },
+        hp:                  { average: d.hit_points as number, formula: (d.hit_dice as string) ?? '' },
+        speed:               buildSpeed((d.speed as Record<string, string | number>) ?? {}),
+        stats:               {
+          str: d.strength as number, dex: d.dexterity as number,
+          con: d.constitution as number, int: d.intelligence as number,
+          wis: d.wisdom as number, cha: d.charisma as number,
+        },
+        saving_throws:       extractSavingThrows(profs),
+        skills:              extractSkills(profs),
+        damage_resistances:  (d.damage_resistances as string[]) ?? [],
+        damage_immunities:   (d.damage_immunities as string[]) ?? [],
+        condition_immunities:(d.condition_immunities as Array<{ name: string }> | string[])
+                               ?.map(c => typeof c === 'string' ? c : c.name) ?? [],
+        senses:              buildSenses((d.senses as Record<string, string | number>) ?? {}),
+        languages:           d.languages as string ?? '—',
+        cr:                  crFromNumber(d.challenge_rating as number),
+        xp:                  d.xp as number ?? 0,
+        traits:              mapActions((d.special_abilities as Array<Record<string, unknown>>) ?? []),
+        actions:             mapActions((d.actions as Array<Record<string, unknown>>) ?? []),
+        reactions:           mapActions((d.reactions as Array<Record<string, unknown>>) ?? []),
+        legendary_actions:   mapActions((d.legendary_actions as Array<Record<string, unknown>>) ?? []),
+      });
+
+      dirty = true;
+      showApiPanel = false;
+      apiSearch = '';
+      apiResults = [];
+    } catch (e) {
+      apiError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
 </script>
 
 <div class="monster-panel">
-  {#if showJson}
-    <div class="json-editor">
-      <div class="json-toolbar">
-        <span class="json-label">JSON bearbeiten</span>
-        {#if jsonError}<span class="json-error">{jsonError}</span>{/if}
-        <button class="save-btn" onclick={saveJson}>Speichern</button>
-        <button class="cancel-btn" onclick={cancelJson}>Abbrechen</button>
-      </div>
-      <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"></textarea>
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn" class:active={tab === 'karte'} onclick={() => switchTab('karte')}>Karte</button>
+    <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
+    <button class="tab-btn" class:active={tab === 'json'} onclick={() => switchTab('json')}>JSON</button>
+  </div>
+
+  <!-- Save bar (Bearbeiten + JSON) -->
+  {#if dirty && tab !== 'karte'}
+    <div class="save-bar">
+      {#if saveError}<span class="save-error">{saveError}</span>{/if}
+      <button class="save-btn" onclick={tab === 'json' ? saveJson : save}>Speichern</button>
+      <button class="cancel-btn" onclick={discard}>Verwerfen</button>
     </div>
-  {:else if draft}
-    <!-- Save bar -->
-    {#if dirty}
-      <div class="save-bar">
-        {#if saveError}<span class="save-error">{saveError}</span>{/if}
-        <button class="save-btn" onclick={save}>Speichern</button>
-        <button class="cancel-btn" onclick={discard}>Verwerfen</button>
-      </div>
+  {/if}
+
+  {#if tab === 'karte'}
+    {#if draft}
+      <MonsterStatBlock monster={draft} />
+    {:else}
+      <div class="parse-error">Kein gültiger Monster-Datensatz.</div>
     {/if}
 
+  {:else if tab === 'bearbeiten'}
+    {#if draft}
     <div class="stat-block">
-      <!-- Header -->
-      <div class="sb-header">
-        <input
-          class="editable-field sb-name-input"
-          bind:value={draft.name}
-          oninput={mark}
-          placeholder="Name"
-        />
-        <div class="sb-meta-row">
-          <input class="editable-field sb-meta-input" bind:value={draft.size} oninput={mark} placeholder="Größe" />
-          <input class="editable-field sb-meta-input" bind:value={draft.type} oninput={mark} placeholder="Typ" />
-          <span class="sb-meta-sep">,</span>
-          <input class="editable-field sb-meta-input" bind:value={draft.alignment} oninput={mark} placeholder="Gesinnung" />
-        </div>
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- AC / HP / Speed -->
-      <div class="sb-section">
-        <div class="sb-prop">
-          <span class="sb-label">Rüstungsklasse</span>
-          <input class="editable-field num-input" type="number" bind:value={draft.ac.value} oninput={mark} />
-          <input class="editable-field sb-note-input" bind:value={draft.ac.note} oninput={mark} placeholder="(z.B. natürliche Rüstung)" />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Trefferpunkte</span>
-          <input class="editable-field num-input" type="number" bind:value={draft.hp.average} oninput={mark} />
-          <input class="editable-field sb-note-input" bind:value={draft.hp.formula} oninput={mark} placeholder="Formel" />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Bewegungsrate</span>
-          <input class="editable-field sb-wide-input" bind:value={draft.speed} oninput={mark} placeholder="9 m" />
-        </div>
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- Stats grid -->
-      <div class="sb-stats">
-        {#each STAT_LABELS as label, i}
-          <div class="sb-stat">
-            <div class="sb-stat-label">{label}</div>
-            <input
-              class="editable-field sb-stat-input"
-              type="number"
-              bind:value={draft.stats[STAT_KEYS[i]]}
-              oninput={mark}
-            />
-            <div class="sb-stat-mod">({mod(draft.stats[STAT_KEYS[i]])})</div>
-          </div>
-        {/each}
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- Secondary props -->
-      <div class="sb-section">
-        <!-- Saving throws -->
-        <div class="sb-kv-row">
-          <span class="sb-label">Rettungswürfe</span>
-          <div class="kv-list">
-            {#each kvKeys(draft.saving_throws) as key}
-              <span class="kv-pair">
-                <input class="editable-field kv-key-input" value={key}
-                  onblur={(e) => renameKv(draft!.saving_throws, key, e.currentTarget.value)} />
-                <input class="editable-field kv-val-input" bind:value={draft.saving_throws[key]} oninput={mark} />
-                <button class="kv-remove" onclick={() => removeKv(draft!.saving_throws, key)}>×</button>
-              </span>
-            {/each}
-            <button class="kv-add" onclick={() => addKv(draft!.saving_throws)}>+</button>
-          </div>
-        </div>
-        <!-- Skills -->
-        <div class="sb-kv-row">
-          <span class="sb-label">Fertigkeiten</span>
-          <div class="kv-list">
-            {#each kvKeys(draft.skills) as key}
-              <span class="kv-pair">
-                <input class="editable-field kv-key-input" value={key}
-                  onblur={(e) => renameKv(draft!.skills, key, e.currentTarget.value)} />
-                <input class="editable-field kv-val-input" bind:value={draft.skills[key]} oninput={mark} />
-                <button class="kv-remove" onclick={() => removeKv(draft!.skills, key)}>×</button>
-              </span>
-            {/each}
-            <button class="kv-add" onclick={() => addKv(draft!.skills)}>+</button>
-          </div>
-        </div>
-        <!-- Resistances / Immunities -->
-        <div class="sb-prop">
-          <span class="sb-label">Resistenzen</span>
-          <input class="editable-field sb-wide-input" value={draft.damage_resistances.join(', ')}
-            oninput={(e) => { draft!.damage_resistances = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Schadensimmunitäten</span>
-          <input class="editable-field sb-wide-input" value={draft.damage_immunities.join(', ')}
-            oninput={(e) => { draft!.damage_immunities = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Zustandsimmunitäten</span>
-          <input class="editable-field sb-wide-input" value={draft.condition_immunities.join(', ')}
-            oninput={(e) => { draft!.condition_immunities = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Sinne</span>
-          <input class="editable-field sb-wide-input" bind:value={draft.senses} oninput={mark} />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">Sprachen</span>
-          <input class="editable-field sb-wide-input" bind:value={draft.languages} oninput={mark} />
-        </div>
-        <div class="sb-prop">
-          <span class="sb-label">HG</span>
-          <input class="editable-field sb-cr-input" bind:value={draft.cr} oninput={mark} />
-          <span class="sb-meta-sep">(</span>
-          <input class="editable-field num-input" type="number" bind:value={draft.xp} oninput={mark} />
-          <span class="sb-meta-sep"> EP)</span>
-        </div>
-      </div>
-
-      <!-- Traits -->
-      {#if draft.traits.length || true}
-        <div class="sb-divider"></div>
-        <div class="sb-abilities">
-          {#each draft.traits as trait, i}
-            <div class="sb-action-block">
-              <div class="sb-action-header">
-                <input class="editable-field sb-action-name-input" bind:value={trait.name} oninput={mark} placeholder="Eigenschaft" />
-                <button class="action-remove" onclick={() => removeAction(draft!.traits, i)}>×</button>
-              </div>
-              <textarea class="editable-field sb-action-desc" bind:value={trait.description} oninput={mark} rows="2"></textarea>
-            </div>
-          {/each}
-          <button class="add-action-btn" onclick={() => addAction(draft!.traits)}>+ Eigenschaft</button>
-        </div>
-      {/if}
-
-      <!-- Actions -->
-      <div class="sb-divider"></div>
-      <h3 class="sb-section-title">Aktionen</h3>
-      <div class="sb-abilities">
-        {#each draft.actions as action, i}
-          <div class="sb-action-block">
-            <div class="sb-action-header">
-              <input class="editable-field sb-action-name-input" bind:value={action.name} oninput={mark} placeholder="Aktion" />
-              <button class="action-remove" onclick={() => removeAction(draft!.actions, i)}>×</button>
-            </div>
-            <div class="sb-action-attack-row">
-              <span class="sb-label-sm">Angriffsbonus</span>
-              <input class="editable-field num-input-sm" type="number"
-                value={action.attack_bonus ?? ''}
-                oninput={(e) => { action.attack_bonus = e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value); mark(); }} />
-              <span class="sb-label-sm">Schaden</span>
-              <input class="editable-field sb-wide-input-sm" bind:value={action.damage} oninput={mark} placeholder="1W6+2 Stich" />
-            </div>
-            <textarea class="editable-field sb-action-desc" bind:value={action.description} oninput={mark} rows="2"></textarea>
-          </div>
-        {/each}
-        <button class="add-action-btn" onclick={() => addAction(draft!.actions)}>+ Aktion</button>
-      </div>
-
-      <!-- Reactions -->
-      {#if draft.reactions.length || true}
-        <div class="sb-divider"></div>
-        <h3 class="sb-section-title">Reaktionen</h3>
-        <div class="sb-abilities">
-          {#each draft.reactions as reaction, i}
-            <div class="sb-action-block">
-              <div class="sb-action-header">
-                <input class="editable-field sb-action-name-input" bind:value={reaction.name} oninput={mark} placeholder="Reaktion" />
-                <button class="action-remove" onclick={() => removeAction(draft!.reactions, i)}>×</button>
-              </div>
-              <textarea class="editable-field sb-action-desc" bind:value={reaction.description} oninput={mark} rows="2"></textarea>
-            </div>
-          {/each}
-          <button class="add-action-btn" onclick={() => addAction(draft!.reactions)}>+ Reaktion</button>
-        </div>
-      {/if}
-
-      <!-- Legendary Actions -->
-      {#if draft.legendary_actions.length || true}
-        <div class="sb-divider"></div>
-        <h3 class="sb-section-title">Legendäre Aktionen</h3>
-        <div class="sb-abilities">
-          {#each draft.legendary_actions as la, i}
-            <div class="sb-action-block">
-              <div class="sb-action-header">
-                <input class="editable-field sb-action-name-input" bind:value={la.name} oninput={mark} placeholder="Legendäre Aktion" />
-                <button class="action-remove" onclick={() => removeAction(draft!.legendary_actions, i)}>×</button>
-              </div>
-              <textarea class="editable-field sb-action-desc" bind:value={la.description} oninput={mark} rows="2"></textarea>
-            </div>
-          {/each}
-          <button class="add-action-btn" onclick={() => addAction(draft!.legendary_actions)}>+ Legendäre Aktion</button>
-        </div>
-      {/if}
-
-      <!-- Tags -->
-      <div class="sb-divider"></div>
-      <div class="sb-prop">
-        <span class="sb-label">Tags</span>
-        <input class="editable-field sb-wide-input" value={draft.tags.join(', ')}
-          oninput={(e) => { draft!.tags = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); mark(); }} />
-      </div>
+      <MonsterEditForm bind:monster={draft} onchange={mark} />
 
       <div class="sb-footer">
-        <button class="json-btn" onclick={openJson}>JSON</button>
+        <button class="api-btn" onclick={() => { showApiPanel = !showApiPanel; apiError = ''; }}>DnD-API</button>
+      </div>
+
+      {#if showApiPanel}
+        <div class="api-panel">
+          <div class="api-search-row">
+            <input
+              class="api-input"
+              bind:value={apiSearch}
+              onkeydown={(e) => { if (e.key === 'Enter') searchApi(); }}
+              placeholder="Englischer Monsternam (z.B. Goblin)"
+            />
+            <button class="api-search-btn" onclick={searchApi} disabled={apiSearching}>
+              {apiSearching ? '…' : 'Suchen'}
+            </button>
+          </div>
+          {#if apiError}<div class="api-error">{apiError}</div>{/if}
+          {#if apiResults.length > 0}
+            <div class="api-results">
+              {#each apiResults as r}
+                <button class="api-result-btn" onclick={() => importFromApi(r)}>
+                  {r.name} <span class="api-result-index">({r.index})</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+    {:else}
+      <div class="parse-error">Ungültiges Monster-JSON. <button onclick={() => switchTab('json')}>JSON bearbeiten</button></div>
+    {/if}
+
+  {:else if tab === 'json'}
+    <div class="json-editor">
+      {#if jsonError}<div class="json-error-bar">{jsonError}</div>{/if}
+      <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"></textarea>
+      <div class="json-actions">
+        <button class="save-btn" onclick={saveJson}>Speichern</button>
+        <button class="cancel-btn" onclick={() => switchTab('bearbeiten')}>Abbrechen</button>
       </div>
     </div>
-  {:else}
-    <div class="parse-error">Ungültiges Monster-JSON. <button onclick={openJson}>JSON bearbeiten</button></div>
+
   {/if}
 </div>
 
@@ -379,7 +359,7 @@
   .monster-panel {
     flex: 1;
     overflow-y: auto;
-    padding: 1.5rem;
+    padding: 0.75rem 1.5rem 1.5rem;
     background: #1e1e2e;
     display: flex;
     flex-direction: column;
@@ -417,277 +397,6 @@
     color: #cdd6f4;
   }
 
-  /* ── Editable field base ── */
-  .editable-field {
-    background: transparent;
-    border: 1px solid transparent;
-    color: inherit;
-    font: inherit;
-    padding: 0.1rem 0.25rem;
-    border-radius: 3px;
-    outline: none;
-    transition: border-color 0.1s, background 0.1s;
-  }
-
-  .editable-field:hover {
-    border-color: #45475a;
-    background: #1a1a2a;
-  }
-
-  .editable-field:focus {
-    border-color: #f38ba8;
-    background: #1a1a2a;
-  }
-
-  /* ── Header ── */
-  .sb-header { margin-bottom: 0.4rem; }
-
-  .sb-name-input {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #f38ba8;
-    font-variant: small-caps;
-    width: 100%;
-    margin-bottom: 0.1rem;
-  }
-
-  .sb-meta-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.1rem;
-    font-style: italic;
-    color: #a6adc8;
-    font-size: 0.85rem;
-  }
-
-  .sb-meta-input {
-    font-style: italic;
-    color: #a6adc8;
-    font-size: 0.85rem;
-    width: auto;
-    min-width: 60px;
-  }
-
-  .sb-meta-sep {
-    color: #a6adc8;
-    padding: 0 0.1rem;
-  }
-
-  /* ── Divider ── */
-  .sb-divider {
-    height: 2px;
-    background: linear-gradient(to right, #7f3f3f, #6b3a3a55);
-    margin: 0.6rem 0;
-    border-radius: 1px;
-  }
-
-  /* ── Section ── */
-  .sb-section { display: flex; flex-direction: column; gap: 0.15rem; }
-
-  .sb-prop {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.2rem;
-    line-height: 1.8;
-  }
-
-  .sb-label {
-    font-weight: 700;
-    color: #f38ba8;
-    white-space: nowrap;
-  }
-
-  .sb-label-sm {
-    font-weight: 700;
-    color: #f38ba888;
-    font-size: 0.78rem;
-    white-space: nowrap;
-  }
-
-  .num-input {
-    width: 52px;
-    text-align: center;
-  }
-
-  .num-input-sm {
-    width: 44px;
-    text-align: center;
-    font-size: 0.82rem;
-  }
-
-  .sb-note-input { min-width: 80px; color: #a6adc8; font-style: italic; }
-  .sb-wide-input { flex: 1; min-width: 120px; }
-  .sb-wide-input-sm { flex: 1; min-width: 80px; font-size: 0.82rem; }
-  .sb-cr-input { width: 40px; text-align: center; }
-
-  /* ── Stats ── */
-  .sb-stats {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    text-align: center;
-    gap: 0.25rem;
-  }
-
-  .sb-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.05rem;
-  }
-
-  .sb-stat-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #f38ba8;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .sb-stat-input {
-    width: 46px;
-    text-align: center;
-    font-size: 1rem;
-    font-weight: 600;
-    padding: 0.1rem;
-  }
-
-  .sb-stat-mod { font-size: 0.78rem; color: #a6adc8; }
-
-  /* ── KV pairs ── */
-  .sb-kv-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    line-height: 1.8;
-  }
-
-  .kv-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.2rem;
-    align-items: center;
-  }
-
-  .kv-pair {
-    display: flex;
-    align-items: center;
-    gap: 0.1rem;
-  }
-
-  .kv-key-input {
-    width: 80px;
-    font-size: 0.85rem;
-  }
-
-  .kv-val-input {
-    width: 44px;
-    font-size: 0.85rem;
-    color: #a6e3a1;
-  }
-
-  .kv-remove {
-    background: none;
-    border: none;
-    color: #45475a;
-    cursor: pointer;
-    font-size: 0.85rem;
-    padding: 0 0.2rem;
-    line-height: 1;
-  }
-  .kv-remove:hover { color: #f38ba8; }
-
-  .kv-add {
-    background: none;
-    border: 1px dashed #45475a;
-    color: #6c7086;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0.05rem 0.35rem;
-    border-radius: 3px;
-  }
-  .kv-add:hover { border-color: #f38ba8; color: #f38ba8; }
-
-  /* ── Actions / Traits ── */
-  .sb-section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #f38ba8;
-    margin: 0 0 0.3rem;
-    font-variant: small-caps;
-    border-bottom: 1px solid #6b3a3a;
-    padding-bottom: 0.15rem;
-  }
-
-  .sb-abilities {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .sb-action-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    border-left: 2px solid #6b3a3a44;
-    padding-left: 0.5rem;
-  }
-
-  .sb-action-header {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .sb-action-name-input {
-    font-weight: 700;
-    font-style: italic;
-    color: #cdd6f4;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .sb-action-attack-row {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    flex-wrap: wrap;
-  }
-
-  .sb-action-desc {
-    width: 100%;
-    resize: vertical;
-    line-height: 1.5;
-    font-size: 0.85rem;
-    color: #cdd6f4;
-    min-height: 2.5rem;
-  }
-
-  .action-remove {
-    background: none;
-    border: none;
-    color: #45475a;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 0 0.2rem;
-    flex-shrink: 0;
-  }
-  .action-remove:hover { color: #f38ba8; }
-
-  .add-action-btn {
-    background: none;
-    border: 1px dashed #45475a;
-    color: #6c7086;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 3px;
-    align-self: flex-start;
-  }
-  .add-action-btn:hover { border-color: #f38ba8; color: #f38ba8; }
-
   /* ── Footer ── */
   .sb-footer {
     display: flex;
@@ -697,7 +406,43 @@
     border-top: 1px solid #45475a33;
   }
 
-  .json-btn {
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    width: 100%;
+    max-width: 560px;
+    border-bottom: 1px solid #313244;
+    margin-bottom: 0.25rem;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6c7086;
+    cursor: pointer;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.85rem;
+    margin-bottom: -1px;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .tab-btn:hover { color: #cdd6f4; }
+  .tab-btn.active { color: #f38ba8; border-bottom-color: #f38ba8; }
+
+  /* ── JSON Editor ── */
+  .json-editor { display: flex; flex-direction: column; width: 100%; max-width: 700px; gap: 0.5rem; }
+  .json-error-bar { color: #f38ba8; font-size: 0.8rem; padding: 0.2rem 0; }
+  .json-textarea { min-height: 560px; background: #181825; border: 1px solid #313244; border-radius: 4px; color: #cdd6f4; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; padding: 1rem; outline: none; resize: vertical; line-height: 1.6; }
+  .json-actions { display: flex; gap: 0.5rem; }
+
+  .save-btn { background: #a6e3a1; color: #1e1e2e; border: none; border-radius: 4px; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+  .cancel-btn { background: transparent; border: 1px solid #45475a; color: #6c7086; border-radius: 4px; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.82rem; }
+
+  .parse-error { color: #f38ba8; font-size: 0.9rem; }
+  .parse-error button { background: none; border: none; color: #89b4fa; cursor: pointer; text-decoration: underline; }
+
+  .api-btn {
     background: transparent;
     border: 1px solid #45475a;
     color: #45475a;
@@ -705,19 +450,59 @@
     padding: 0.2rem 0.5rem;
     cursor: pointer;
     font-size: 0.75rem;
+    margin-right: auto;
   }
-  .json-btn:hover { border-color: #6c7086; color: #6c7086; }
+  .api-btn:hover { border-color: #89b4fa; color: #89b4fa; }
 
-  /* ── JSON Editor ── */
-  .json-editor { display: flex; flex-direction: column; width: 100%; max-width: 700px; gap: 0.5rem; }
-  .json-toolbar { display: flex; align-items: center; gap: 0.5rem; }
-  .json-label { flex: 1; font-size: 0.85rem; color: #6c7086; }
-  .json-error { color: #f38ba8; font-size: 0.8rem; }
-  .json-textarea { flex: 1; min-height: 600px; background: #181825; border: 1px solid #313244; border-radius: 4px; color: #cdd6f4; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; padding: 1rem; outline: none; resize: vertical; line-height: 1.6; }
+  .api-panel {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+  }
 
-  .save-btn { background: #a6e3a1; color: #1e1e2e; border: none; border-radius: 4px; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
-  .cancel-btn { background: transparent; border: 1px solid #45475a; color: #6c7086; border-radius: 4px; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.82rem; }
+  .api-search-row { display: flex; gap: 0.4rem; }
 
-  .parse-error { color: #f38ba8; font-size: 0.9rem; }
-  .parse-error button { background: none; border: none; color: #89b4fa; cursor: pointer; text-decoration: underline; }
+  .api-input {
+    flex: 1;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.82rem;
+    padding: 0.25rem 0.5rem;
+    outline: none;
+  }
+  .api-input:focus { border-color: #89b4fa; }
+
+  .api-search-btn {
+    background: #89b4fa22;
+    border: 1px solid #89b4fa;
+    color: #89b4fa;
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+  }
+  .api-search-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .api-error { color: #f38ba8; font-size: 0.78rem; }
+
+  .api-results { display: flex; flex-direction: column; gap: 0.2rem; }
+
+  .api-result-btn {
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    color: #cdd6f4;
+    font-size: 0.82rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    text-align: left;
+  }
+  .api-result-btn:hover { border-color: #89b4fa; background: #1a1a2e; }
+
+  .api-result-index { color: #6c7086; font-size: 0.75rem; }
 </style>
