@@ -59,6 +59,7 @@
   let settingsModel = $state($llmConfig.model);
   let settingsBaseUrl = $state($llmConfig.baseUrl ?? 'http://localhost:11434');
   let settingsApiKey = $state($llmConfig.apiKey ?? '');
+  let settingsMaxTokens = $state($llmConfig.maxTokens ?? 4096);
 
   const ANTHROPIC_MODELS = [
     'claude-opus-4-6',
@@ -86,6 +87,7 @@
       settingsModel = $llmConfig.model;
       settingsBaseUrl = $llmConfig.baseUrl ?? 'http://localhost:11434';
       settingsApiKey = $llmConfig.apiKey ?? '';
+      settingsMaxTokens = $llmConfig.maxTokens ?? 4096;
     });
     generateResult = localStorage.getItem('llm-generate-result') ?? '';
   });
@@ -100,6 +102,7 @@
       model: settingsModel,
       baseUrl: settingsProvider === 'ollama' ? settingsBaseUrl : undefined,
       apiKey: settingsProvider !== 'ollama' ? settingsApiKey : undefined,
+      maxTokens: settingsMaxTokens,
     });
     showSettings = false;
   }
@@ -632,6 +635,11 @@
           <input type="password" bind:value={settingsApiKey} placeholder="sk-ant-..." />
         </div>
       {/if}
+
+      <div class="settings-row">
+        <label>Max Tokens</label>
+        <input type="number" bind:value={settingsMaxTokens} min="256" max="32000" step="256" />
+      </div>
 
       <div class="settings-footer">
         {#if settingsProvider !== 'ollama' && $llmConfig.apiKey}

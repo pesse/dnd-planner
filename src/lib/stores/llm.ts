@@ -40,7 +40,7 @@ export async function loadSavedConfig(): Promise<void> {
     const saved = localStorage.getItem('llm-config');
     if (!saved) return;
 
-    const { provider, model, baseUrl } = JSON.parse(saved) as Partial<LlmConfig>;
+    const { provider, model, baseUrl, maxTokens } = JSON.parse(saved) as Partial<LlmConfig>;
     if (!provider) return;
 
     const apiKey = await loadApiKeyForProvider(provider as LlmProvider);
@@ -50,6 +50,7 @@ export async function loadSavedConfig(): Promise<void> {
       model: model ?? 'llama3.2',
       baseUrl: baseUrl,
       apiKey: apiKey ?? undefined,
+      maxTokens: maxTokens,
     });
   } catch {
     // Kein gespeicherter Config — Defaults bleiben
@@ -63,7 +64,7 @@ export async function loadSavedConfig(): Promise<void> {
 export async function saveConfig(config: LlmConfig): Promise<void> {
   localStorage.setItem(
     'llm-config',
-    JSON.stringify({ provider: config.provider, model: config.model, baseUrl: config.baseUrl })
+    JSON.stringify({ provider: config.provider, model: config.model, baseUrl: config.baseUrl, maxTokens: config.maxTokens })
   );
 
   if (config.apiKey) {

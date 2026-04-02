@@ -231,7 +231,7 @@ export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]):
   if (!config.apiKey) throw new Error('Kein Anthropic API-Key konfiguriert. Bitte unter ⚙ eintragen.');
   const system = messages.find((m) => m.role === 'system')?.content;
   const conversation = messages.filter((m) => m.role !== 'system');
-  const body: Record<string, unknown> = { model: config.model, max_tokens: 4096, messages: conversation };
+  const body: Record<string, unknown> = { model: config.model, max_tokens: config.maxTokens ?? 4096, messages: conversation };
   if (system) body.system = system;
   const data = await rustFetch(
     `${ANTHROPIC_API}/messages`,
@@ -243,7 +243,7 @@ export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]):
 
 export async function anthropicGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
   if (!config.apiKey) throw new Error('Kein Anthropic API-Key konfiguriert. Bitte unter ⚙ eintragen.');
-  const body: Record<string, unknown> = { model: config.model, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] };
+  const body: Record<string, unknown> = { model: config.model, max_tokens: config.maxTokens ?? 4096, messages: [{ role: 'user', content: prompt }] };
   if (system) body.system = system;
   const data = await rustFetch(
     `${ANTHROPIC_API}/messages`,
@@ -375,7 +375,7 @@ async function anthropicAgentLoop(
     const data = await rustFetch(
       `${ANTHROPIC_API}/messages`,
       { 'x-api-key': config.apiKey!, 'anthropic-version': '2023-06-01' },
-      { model: config.model, max_tokens: 4096, system: systemPromptText, messages: msgs, tools: VAULT_TOOLS_ANTHROPIC },
+      { model: config.model, max_tokens: config.maxTokens ?? 4096, system: systemPromptText, messages: msgs, tools: VAULT_TOOLS_ANTHROPIC },
       { provider: 'anthropic', label: `agent[${i}]` }
     ) as Record<string, unknown>;
 
