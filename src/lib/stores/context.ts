@@ -426,8 +426,14 @@ export const systemPrompt = derived(
         const currentActIndex = currentActSlug ? sortedActNames.indexOf(currentActSlug) : -1;
         const pastActSlugs = new Set(currentActIndex >= 0 ? sortedActNames.slice(0, currentActIndex) : []);
 
-        const pastEnc = $encounterSummaries.filter((e) => pastActSlugs.has(e.actSlug));
-        const upcomingEnc = $encounterSummaries.filter((e) => !pastActSlugs.has(e.actSlug));
+        // Aktuell geöffneten Encounter aus der Liste ausblenden (Inhalt ist bereits als Active File enthalten)
+        const activeEncSlug = $activeFile?.type === 'encounter' ? $activeFile.name : null;
+        const activeEncActSlug = $activeFile?.path?.match(/\/acts\/([^/]+)\/encounters\//)?.[1] ?? null;
+        const isActiveEnc = (e: { slug: string; actSlug: string }) =>
+          e.slug === activeEncSlug && e.actSlug === activeEncActSlug;
+
+        const pastEnc = $encounterSummaries.filter((e) => pastActSlugs.has(e.actSlug) && !isActiveEnc(e));
+        const upcomingEnc = $encounterSummaries.filter((e) => !pastActSlugs.has(e.actSlug) && !isActiveEnc(e));
 
         if (pastEnc.length > 0) {
           const lines = pastEnc.map((e) => {
@@ -551,8 +557,8 @@ export const systemPrompt = derived(
         parts.push(lines.join('\n'));
       }
 
-      // Active file (full content) — notes werden nie auto-inkludiert
-      if ($activeFile && $fileContent && $contextFlags.activeFile && $activeFile.type !== 'notes') {
+      // Active file (full content)
+      if ($activeFile && $fileContent && $contextFlags.activeFile) {
         const label = $activeFile.type === 'act'
           ? `Active Act: ${$activeFile.name}`
           : `Current File: ${$activeFile.name} (${$activeFile.type})`;
