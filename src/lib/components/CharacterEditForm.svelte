@@ -1,10 +1,14 @@
 <script lang="ts">
-  import { SKILL_DEFS, type CharacterData, type SpellEntry } from '../pdf/characterFields';
+  import { invoke } from '@tauri-apps/api/core';
+  import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type CharacterData, type SpellEntry } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
-  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import type { Item } from '../types';
 
-  let { character, onSave, onCancel }: {
+  let { character, dirPath, onSave, onCancel }: {
     character: CharacterData;
+    dirPath: string;
     onSave: (data: CharacterData) => void;
     onCancel: () => void;
   } = $props();
@@ -25,12 +29,85 @@
   let cha = $state(character.cha ?? 10);
 
   let ac = $state(character.ac ?? '');
+  let initiative = $state(character.initiative ?? '');
   let speed = $state(character.speed ?? '');
   let hpMax = $state(character.hpMax ?? '');
   let hpCurrent = $state(character.hpCurrent ?? '');
   let hpTemp = $state(character.hpTemp ?? '');
   let proficiencyBonus = $state(character.proficiencyBonus ?? 2);
   let hitDice = $state(character.hitDice ?? '');
+
+  // ─── Profizienzen (Waffen/Rüstung/Schild) ────────────────
+  const profInit = character.proficiencies ?? emptyProficiencies();
+  let profSimpleWeapons = $state(profInit.simpleWeapons);
+  let profMartialWeapons = $state(profInit.martialWeapons);
+  let profOtherWeapons = $state(profInit.otherWeapons ?? '');
+  let profLightArmor = $state(profInit.lightArmor);
+  let profMediumArmor = $state(profInit.mediumArmor);
+  let profHeavyArmor = $state(profInit.heavyArmor);
+  let profShields = $state(profInit.shields);
+
+  // ─── Persönliches ────────────────────────────────────────
+  const personalInit = character.personal ?? emptyPersonal();
+  let rassenmerkmale = $state(personalInit.rassenmerkmale ?? '');
+  let alter = $state(personalInit.alter ?? '');
+  let geschlecht = $state(personalInit.geschlecht ?? '');
+  let sizeCat = $state(personalInit.sizeCat ?? '');
+  let gesinnung = $state(personalInit.gesinnung ?? '');
+  let glaube = $state(personalInit.glaube ?? '');
+  let lebensstil = $state(personalInit.lebensstil ?? '');
+  let taeglicheKosten = $state(personalInit.taeglicheKosten ?? '');
+  let augenfarbe = $state(personalInit.augenfarbe ?? '');
+  let haarfarbe = $state(personalInit.haarfarbe ?? '');
+  let hautfarbe = $state(personalInit.hautfarbe ?? '');
+  let gewicht = $state(personalInit.gewicht ?? '');
+  let koerpergroesse = $state(personalInit.koerpergroesse ?? '');
+  let aussehen = $state(personalInit.aussehen ?? '');
+
+  // ─── Portrait ────────────────────────────────────────────
+  let portraitFile = $state(character.portraitFile ?? '');
+  let portraitPreview = $state<string>('');  // data URL für Vorschau
+  let portraitError = $state('');
+  let portraitBusy = $state(false);
+
+  $effect(() => {
+    if (!portraitFile) { portraitPreview = ''; return; }
+    invoke<string>('read_file_base64', { path: `${dirPath}/${portraitFile}` })
+      .then(b64 => {
+        const mime = portraitFile.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        portraitPreview = `data:${mime};base64,${b64}`;
+      })
+      .catch(() => { portraitPreview = ''; });
+  });
+
+  async function pickPortrait() {
+    portraitError = '';
+    try {
+      const selected = await openFileDialog({
+        multiple: false,
+        filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg'] }],
+      });
+      if (!selected || Array.isArray(selected)) return;
+      portraitBusy = true;
+      const src = selected as string;
+      const ext = src.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+      const b64 = await invoke<string>('read_file_base64', { path: src });
+      const targetName = `portrait.${ext}`;
+      await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
+      portraitFile = targetName;
+      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+      portraitPreview = `data:${mime};base64,${b64}`;
+    } catch (e) {
+      portraitError = `Portrait konnte nicht geladen werden: ${e}`;
+    } finally {
+      portraitBusy = false;
+    }
+  }
+
+  function clearPortrait() {
+    portraitFile = '';
+    portraitPreview = '';
+  }
 
   let strSaveProf = $state(character.strSaveProf ?? false);
   let gesSaveProf = $state(character.gesSaveProf ?? false);
@@ -87,6 +164,95 @@
   let itemSugIndex = $state(-1);
   let activeItemRow = $state(-1);
 
+  // ─── Waffen-Picker für Angriffe ──────────────────────────
+  let weaponSearch = $state('');
+  let weaponSuggestions = $state<ItemSuggestion[]>([]);
+  let weaponSugIndex = $state(-1);
+
+  $effect(() => {
+    if (!weaponSearch.trim()) { weaponSuggestions = []; weaponSugIndex = -1; return; }
+    const weaponsOnly = { waffen: itemLoadedByDir.waffen ?? [] };
+    weaponSuggestions = searchItems(weaponsOnly, weaponSearch, 8);
+    weaponSugIndex = -1;
+  });
+
+  /**
+   * Baut einen Attack-Eintrag aus einem geladenen Waffen-Item.
+   * Wählt automatisch STR/GES je nach Reichweite und Finesse-Eigenschaft,
+   * addiert Übungsbonus bei passender Waffenprofizienz.
+   */
+  function buildAttackFromWeapon(item: Item) {
+    const name = item.name_de ?? item.name;
+    const isRanged = item.weapon_range === 'Ranged';
+    const isFinesse = (item.properties ?? []).some(p => p.index === 'finesse');
+    const useGes = isRanged || (isFinesse && gesMod > strMod);
+    const abilityMod = useGes ? gesMod : strMod;
+
+    const proficient = (item.weapon_category === 'Simple' && profSimpleWeapons) ||
+                       (item.weapon_category === 'Martial' && profMartialWeapons);
+    const bonus = abilityMod + (proficient ? proficiencyBonus : 0);
+
+    // Schaden: 1d6 → 1W6 (+mod, falls != 0)
+    const baseDice = item.damage?.damage_dice ?? '';
+    const damageText = baseDice
+      ? formatDamageDice(baseDice) + (abilityMod !== 0 ? sign(abilityMod) : '')
+      : '';
+    const damageTypeIdx = item.damage?.damage_type?.index ?? '';
+    const damageTypeLabel = DAMAGE_TYPE_LABELS[damageTypeIdx] ?? item.damage?.damage_type?.name ?? '';
+    // Kurzform für PDF-Spalte: "Hieb" / "Stich" / "Wucht"
+    const damageTypeShort = damageTypeLabel.replace(/schaden$/i, '').trim();
+
+    // Reichweite
+    let range = '';
+    if (isRanged && item.range) {
+      const n = ftToMVal(item.range.normal);
+      const l = item.range.long ? ftToMVal(item.range.long) : null;
+      range = l ? `${n}/${l} m` : `${n} m`;
+    } else if (item.throw_range) {
+      const n = ftToMVal(item.throw_range.normal);
+      const l = ftToMVal(item.throw_range.long);
+      range = `Nah (Wurf ${n}/${l} m)`;
+    } else {
+      range = 'Nah';
+    }
+
+    return {
+      name,
+      bonus: sign(bonus),
+      damage: damageText,
+      type: damageTypeShort,
+      range,
+    };
+  }
+
+  async function selectWeaponSuggestion(sug: ItemSuggestion) {
+    try {
+      const content = await invoke<string>('read_file_content', { path: sug.item.path });
+      const data = JSON.parse(content) as Item;
+      attacks.push(buildAttackFromWeapon(data));
+      weaponSearch = '';
+      weaponSuggestions = [];
+      weaponSugIndex = -1;
+    } catch {
+      // Item nicht ladbar → leeren Angriff mit dem Namen anlegen
+      attacks.push({ name: displayName(sug.item), bonus: '', damage: '', type: '', range: 'Nah' });
+      weaponSearch = '';
+      weaponSuggestions = [];
+    }
+  }
+
+  function onWeaponSearchKey(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); weaponSugIndex = Math.min(weaponSugIndex + 1, weaponSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); weaponSugIndex = Math.max(weaponSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { weaponSuggestions = []; weaponSugIndex = -1; }
+    else if (e.key === 'Enter') {
+      if (weaponSugIndex >= 0 && weaponSuggestions[weaponSugIndex]) {
+        e.preventDefault();
+        selectWeaponSuggestion(weaponSuggestions[weaponSugIndex]);
+      }
+    }
+  }
+
   $effect(() => {
     Promise.all(
       Object.keys(DIR_TO_CATEGORY).map(dir =>
@@ -106,7 +272,7 @@
   }
 
   function selectInventoryItem(i: number, sug: ItemSuggestion) {
-    inventory[i].name = sug.item.name; // englischer Originalname → JSON
+    inventory[i].name = displayName(sug.item); // deutscher Name, fällt auf Original zurück
     if (sug.item.weight != null && !inventory[i].weight) {
       inventory[i].weight = String(sug.item.weight);
     }
@@ -277,7 +443,7 @@
       name, classLevel, playerName, background, race, xp,
       str, ges, kon, int, wei, cha,
       strMod, gesMod, konMod, intMod, weiMod, chaMod,
-      ac, initiative: character.initiative, speed, hpMax, hpCurrent, hpTemp,
+      ac, initiative, speed, hpMax, hpCurrent, hpTemp,
       proficiencyBonus, passivePerception: character.passivePerception, hitDice,
       strSaveProf, gesSaveProf, konSaveProf, intSaveProf, weiSaveProf, chaSaveProf,
       skills: computedSkills,
@@ -297,6 +463,21 @@
         cantrips,
         byLevel: Object.fromEntries(Object.entries(spellsByLevel).filter(([, v]) => v.length > 0)),
       },
+      personal: {
+        rassenmerkmale, alter, geschlecht, sizeCat, gesinnung, glaube,
+        lebensstil, taeglicheKosten, augenfarbe, haarfarbe, hautfarbe,
+        gewicht, koerpergroesse, aussehen,
+      },
+      proficiencies: {
+        simpleWeapons: profSimpleWeapons,
+        martialWeapons: profMartialWeapons,
+        otherWeapons: profOtherWeapons,
+        lightArmor: profLightArmor,
+        mediumArmor: profMediumArmor,
+        heavyArmor: profHeavyArmor,
+        shields: profShields,
+      },
+      portraitFile: portraitFile || undefined,
     });
   }
 
@@ -365,6 +546,7 @@
     <h3>Kampfwerte</h3>
     <div class="grid-3">
       <label>RK<input bind:value={ac} placeholder="15" /></label>
+      <label>Initiative<input bind:value={initiative} placeholder="+2" /></label>
       <label>Bewegung (m)<input bind:value={speed} placeholder="9" /></label>
       <label>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
       <label>TP Maximum<input bind:value={hpMax} placeholder="45" /></label>
@@ -430,6 +612,31 @@
   <!-- ── Angriffe ─── -->
   <section>
     <h3>Angriffe</h3>
+
+    <div class="autocomplete-wrap weapon-picker">
+      <input
+        placeholder="Waffe aus Bibliothek hinzufügen…"
+        bind:value={weaponSearch}
+        onkeydown={onWeaponSearchKey}
+      />
+      {#if weaponSuggestions.length}
+        <ul class="suggestions">
+          {#each weaponSuggestions as sug, i}
+            <li
+              class:active={i === weaponSugIndex}
+              onclick={() => selectWeaponSuggestion(sug)}
+              onmouseenter={() => (weaponSugIndex = i)}
+            >
+              <span>{displayName(sug.item)}</span>
+              <span class="sug-cat" style:color={CATEGORY_COLORS[sug.item.category] ?? '#6c7086'}>
+                {sug.item.category}
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+
     <table class="attack-table">
       <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>Typ</th><th>RW</th><th></th></tr></thead>
       <tbody>
@@ -465,6 +672,51 @@
     </div>
   </section>
 
+  <!-- ── Persönliches & Portrait ─── -->
+  <section>
+    <h3>Persönliches</h3>
+    <div class="personal-grid">
+      <div class="portrait-block">
+        {#if portraitPreview}
+          <img class="portrait-preview" src={portraitPreview} alt="Portrait" />
+        {:else}
+          <div class="portrait-placeholder">Kein Portrait</div>
+        {/if}
+        <div class="portrait-actions">
+          <button class="btn-add" onclick={pickPortrait} disabled={portraitBusy}>
+            {portraitBusy ? '…' : (portraitFile ? 'Ersetzen' : 'Bild wählen')}
+          </button>
+          {#if portraitFile}
+            <button class="remove-btn" onclick={clearPortrait} title="Portrait-Verknüpfung entfernen">✕</button>
+          {/if}
+        </div>
+        {#if portraitError}<div class="error-sm">{portraitError}</div>{/if}
+      </div>
+      <div class="personal-fields">
+        <label>Alter<input bind:value={alter} placeholder="32" /></label>
+        <label>Geschlecht<input bind:value={geschlecht} placeholder="männlich" /></label>
+        <label>Gesinnung<input bind:value={gesinnung} placeholder="rechtschaffen neutral" /></label>
+        <label>Glaube<input bind:value={glaube} placeholder="Moradin" /></label>
+        <label>Größenkategorie<input bind:value={sizeCat} placeholder="Mittelgroß" /></label>
+        <label>Körpergröße<input bind:value={koerpergroesse} placeholder="1,30 m" /></label>
+        <label>Gewicht<input bind:value={gewicht} placeholder="65 kg" /></label>
+        <label>Augenfarbe<input bind:value={augenfarbe} placeholder="braun" /></label>
+        <label>Haarfarbe<input bind:value={haarfarbe} placeholder="schwarz" /></label>
+        <label>Hautfarbe<input bind:value={hautfarbe} placeholder="hell" /></label>
+        <label>Lebensstil<input bind:value={lebensstil} placeholder="bescheiden" /></label>
+        <label>Tägliche Kosten<input bind:value={taeglicheKosten} placeholder="1 GM" /></label>
+      </div>
+    </div>
+    <label class="block-label">
+      Volksmerkmale
+      <textarea class="ta-small" bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
+    </label>
+    <label class="block-label">
+      Aussehen
+      <textarea class="ta-small" bind:value={aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
+    </label>
+  </section>
+
   <!-- ── Sprachen & Werkzeuge ─── -->
   <section>
     <h3>Sprachen</h3>
@@ -494,6 +746,23 @@
       />
       <button class="btn-add-sm" onclick={addTool}>+</button>
     </div>
+  </section>
+
+  <!-- ── Profizienzen (Waffen / Rüstung / Schilde) ─── -->
+  <section>
+    <h3>Profizienzen</h3>
+    <div class="prof-grid">
+      <label class="check-row"><input type="checkbox" bind:checked={profSimpleWeapons} /><span class="check-label">Einfache Waffen</span></label>
+      <label class="check-row"><input type="checkbox" bind:checked={profMartialWeapons} /><span class="check-label">Kriegswaffen</span></label>
+      <label class="check-row"><input type="checkbox" bind:checked={profLightArmor} /><span class="check-label">Leichte Rüstung</span></label>
+      <label class="check-row"><input type="checkbox" bind:checked={profMediumArmor} /><span class="check-label">Mittlere Rüstung</span></label>
+      <label class="check-row"><input type="checkbox" bind:checked={profHeavyArmor} /><span class="check-label">Schwere Rüstung</span></label>
+      <label class="check-row"><input type="checkbox" bind:checked={profShields} /><span class="check-label">Schilde</span></label>
+    </div>
+    <label class="block-label">
+      Weitere Waffen
+      <input bind:value={profOtherWeapons} placeholder="z.B. Steinhammer, Wurfdolch" />
+    </label>
   </section>
 
   <!-- ── Währung ─── -->
@@ -1116,4 +1385,62 @@
     width: 0.9rem;
   }
   .spell-edit-row .prep-toggle:hover { color: #a6e3a1; }
+
+  /* Persönliches / Portrait */
+  .personal-grid {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+  .portrait-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .portrait-preview {
+    width: 160px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #1e1e2e;
+    border: 1px solid #45475a;
+  }
+  .portrait-placeholder {
+    width: 160px;
+    height: 200px;
+    border: 1px dashed #45475a;
+    border-radius: 6px;
+    color: #6c7086;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+  }
+  .portrait-actions {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  .personal-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+  .block-label {
+    display: block;
+    margin-top: 0.7rem;
+  }
+  .error-sm {
+    color: #f38ba8;
+    font-size: 0.75rem;
+  }
+
+  .prof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.2rem 0.5rem;
+  }
+
+  .weapon-picker { margin-bottom: 0.5rem; max-width: 320px; }
 </style>

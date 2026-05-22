@@ -17,6 +17,50 @@ export interface CharacterSpells {
   byLevel: Record<string, SpellEntry[]>;
 }
 
+export interface ProficiencyFlags {
+  simpleWeapons: boolean;
+  martialWeapons: boolean;
+  /** Freitext: weitere Waffen, in denen der Charakter geübt ist (z.B. „Steinhammer") */
+  otherWeapons: string;
+  lightArmor: boolean;
+  mediumArmor: boolean;
+  heavyArmor: boolean;
+  shields: boolean;
+}
+
+export function emptyProficiencies(): ProficiencyFlags {
+  return {
+    simpleWeapons: false, martialWeapons: false, otherWeapons: '',
+    lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
+  };
+}
+
+export interface PersonalData {
+  rassenmerkmale: string;
+  alter: string;
+  geschlecht: string;
+  sizeCat: string;
+  gesinnung: string;
+  glaube: string;
+  lebensstil: string;
+  taeglicheKosten: string;
+  augenfarbe: string;
+  haarfarbe: string;
+  hautfarbe: string;
+  gewicht: string;
+  koerpergroesse: string;
+  aussehen: string;
+}
+
+export function emptyPersonal(): PersonalData {
+  return {
+    rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '',
+    gesinnung: '', glaube: '', lebensstil: '', taeglicheKosten: '',
+    augenfarbe: '', haarfarbe: '', hautfarbe: '', gewicht: '',
+    koerpergroesse: '', aussehen: '',
+  };
+}
+
 export interface CharacterData {
   // Kopf
   name: string;
@@ -64,6 +108,12 @@ export interface CharacterData {
   totalWeight: string;
   // Zauber
   spells: CharacterSpells;
+  // Persönliches (optional — Migration-friendly)
+  personal?: PersonalData;
+  // Waffen- & Rüstungsprofizienzen (optional)
+  proficiencies?: ProficiencyFlags;
+  // Portrait (Datei im Charakter-Ordner)
+  portraitFile?: string;
 }
 
 /** JSON-Speicherformat für Charaktere (primäres Format, ersetzt PDF als Datenquelle) */
@@ -244,7 +294,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     alleskoenner,
     currency: { km: f('KM'), sm: f('SM'), em: f('EM'), gm: f('GM'), pm: f('PM') },
     inventory,
-    inventoryNotes: f('SonstigeWaffen'),
+    inventoryNotes: '',
     totalWeight: f('Gesamtlast'),
     spells: {
       spellcastingClass: spellClass,
@@ -254,6 +304,31 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       slots: spellSlots,
       cantrips,
       byLevel: spellsByLevel,
+    },
+    proficiencies: {
+      simpleWeapons: prof('EinfachWaffenProf'),
+      martialWeapons: prof('KriegswaffenProf'),
+      otherWeapons: f('SonstigeWaffen'),
+      lightArmor: prof('LeichteRüstungProf'),
+      mediumArmor: prof('MittlereRüstungProf'),
+      heavyArmor: prof('SchwereRüstungProf'),
+      shields: prof('SchildeProf'),
+    },
+    personal: {
+      rassenmerkmale: f('Rassenmerkmale'),
+      alter: f('Alter'),
+      geschlecht: f('Geschlecht'),
+      sizeCat: f('SizeCat'),
+      gesinnung: f('Gesinnung'),
+      glaube: f('Glaube'),
+      lebensstil: f('Lebensstil'),
+      taeglicheKosten: f('TäglicheKosten'),
+      augenfarbe: f('Augenfarbe'),
+      haarfarbe: f('Haarfarbe'),
+      hautfarbe: f('Hautfarbe'),
+      gewicht: f('Gewicht'),
+      koerpergroesse: f('Körpergrösse'),
+      aussehen: f('Aussehen'),
     },
   };
 }

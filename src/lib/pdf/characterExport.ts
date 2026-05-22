@@ -2,9 +2,15 @@
  * PDF-Export für Charaktere — Taendler v2.8.x Format.
  * Füllt die Blanko-Vorlage vault/templates/ataendler_v2.8.2.pdf per Form-Filling (pdf-lib).
  */
-import { PDFDocument, PDFCheckBox, PDFTextField } from 'pdf-lib';
+import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
 import { SKILL_DEFS } from './characterFields';
+
+export interface PortraitInput {
+  bytes: Uint8Array;
+  /** 'png' oder 'jpg' — entscheidet, welcher pdf-lib Embed-Aufruf genutzt wird */
+  format: 'png' | 'jpg';
+}
 
 export type PdfExportFormat = 'taendler_v2_8';
 
@@ -20,6 +26,22 @@ function setText(doc: PDFDocument, fieldName: string, value: string) {
   } catch { /* Feld nicht vorhanden → ignorieren */ }
 }
 
+/**
+ * Setzt Text in einem mehrzeiligen Feld mit fester Schriftgröße.
+ * Das Taendler-PDF nutzt /Sz 0 (Auto-Fit). pdf-lib bäckt jedoch beim Speichern
+ * Appearance-Streams ein und wählt bei wenig Text + großem Feld eine riesige
+ * Schrift. Eine explizite Größe verhindert das.
+ */
+function setMultilineText(doc: PDFDocument, fieldName: string, value: string, fontSize = 9) {
+  try {
+    const field = doc.getForm().getField(fieldName);
+    if (field instanceof PDFTextField) {
+      field.setText(value ?? '');
+      field.setFontSize(fontSize);
+    }
+  } catch { /* ignorieren */ }
+}
+
 function setCheck(doc: PDFDocument, fieldName: string, checked: boolean) {
   try {
     const field = doc.getForm().getField(fieldName);
@@ -30,6 +52,19 @@ function setCheck(doc: PDFDocument, fieldName: string, checked: boolean) {
 }
 
 /**
+ * Splittet einen Text so, dass Feld 1 zuerst gefüllt wird (bis ~limit Zeichen
+ * am nächsten Absatzumbruch); Rest landet in Feld 2.
+ */
+function splitClassFeatures(text: string, limit = 1200): [string, string] {
+  if (!text) return ['', ''];
+  if (text.length <= limit) return [text, ''];
+  // Nach dem Limit am nächsten doppelten Zeilenumbruch trennen
+  const splitIdx = text.indexOf('\n\n', limit);
+  if (splitIdx === -1) return [text, ''];
+  return [text.slice(0, splitIdx).trim(), text.slice(splitIdx).trim()];
+}
+
+/**
  * Exportiert einen Charakter als ausgefülltes Taendler-PDF.
  * @param character  Der zu exportierende Charakter
  * @param templateBytes  Bytes der Blanko-Vorlage (ataendler_v2.8.2.pdf)
@@ -37,11 +72,12 @@ function setCheck(doc: PDFDocument, fieldName: string, checked: boolean) {
 export async function exportCharacterToPdf(
   character: CharacterJSON,
   templateBytes: Uint8Array,
-  _format: PdfExportFormat = 'taendler_v2_8',
+  options: { portrait?: PortraitInput; format?: PdfExportFormat } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
 
   const t = (k: string, v: string | number) => setText(pdf, k, String(v ?? ''));
+  const m = (k: string, v: string, size = 9) => setMultilineText(pdf, k, v ?? '', size);
   const c = (k: string, v: boolean) => setCheck(pdf, k, v);
 
   // --- Kopf ---
@@ -108,22 +144,61 @@ export async function exportCharacterToPdf(
     t(`Reichweite${i+1}`, atk?.range ?? '');
   }
 
-  // --- Klassenmerkmale ---
-  const features = character.classFeatures ?? '';
-  const half = Math.ceil(features.length / 2);
-  const splitIdx = features.indexOf('\n\n', half);
-  if (splitIdx !== -1) {
-    t('Klassenmerkmale1', features.slice(0, splitIdx).trim());
-    t('Klassenmerkmale2', features.slice(splitIdx).trim());
-  } else {
-    t('Klassenmerkmale1', features);
-  }
+  // --- Klassenmerkmale (Feld 1 zuerst füllen, dann Feld 2 als Überlauf) ---
+  const [klmA, klmB] = splitClassFeatures(character.classFeatures ?? '');
+  m('Klassenmerkmale1', klmA, 9);
+  m('Klassenmerkmale2', klmB, 9);
 
   // --- Persönlichkeit ---
-  t('Persönlichkeitsmerkmale', character.traits);
-  t('Ideale', character.ideals);
-  t('Bindungen', character.bonds);
-  t('Makel', character.flaws);
+  m('Persönlichkeitsmerkmale', character.traits ?? '', 9);
+  m('Ideale', character.ideals ?? '', 9);
+  m('Bindungen', character.bonds ?? '', 9);
+  m('Makel', character.flaws ?? '', 9);
+
+  // --- Persönliches (Personalbogen-Block) ---
+  const p = character.personal;
+  if (p) {
+    m('Rassenmerkmale', p.rassenmerkmale ?? '', 9);
+    t('Alter', p.alter);
+    t('Geschlecht', p.geschlecht);
+    t('SizeCat', p.sizeCat);
+    t('Gesinnung', p.gesinnung);
+    t('Glaube', p.glaube);
+    t('Lebensstil', p.lebensstil);
+    t('TäglicheKosten', p.taeglicheKosten);
+    t('Augenfarbe', p.augenfarbe);
+    t('Haarfarbe', p.haarfarbe);
+    t('Hautfarbe', p.hautfarbe);
+    t('Gewicht', p.gewicht);
+    t('Körpergrösse', p.koerpergroesse);
+    m('Aussehen', p.aussehen ?? '', 9);
+  }
+
+  // --- Waffen- & Rüstungsprofizienzen ---
+  const pr = character.proficiencies;
+  if (pr) {
+    c('EinfachWaffenProf', pr.simpleWeapons);
+    c('KriegswaffenProf', pr.martialWeapons);
+    t('SonstigeWaffen', pr.otherWeapons ?? '');
+    c('SonstigeWaffenProf', (pr.otherWeapons ?? '').trim() !== '');
+    c('LeichteRüstungProf', pr.lightArmor);
+    c('MittlereRüstungProf', pr.mediumArmor);
+    c('SchwereRüstungProf', pr.heavyArmor);
+    c('SchildeProf', pr.shields);
+  }
+
+  // --- Portrait (AussehenBild) ---
+  if (options.portrait) {
+    try {
+      const image = options.portrait.format === 'png'
+        ? await pdf.embedPng(options.portrait.bytes)
+        : await pdf.embedJpg(options.portrait.bytes);
+      const field = pdf.getForm().getField('AussehenBild');
+      if (field instanceof PDFButton) {
+        field.setImage(image);
+      }
+    } catch { /* Portrait-Embed fehlgeschlagen → ignorieren */ }
+  }
 
   // --- Sprachen & Werkzeuge ---
   for (let i = 0; i < 6; i++) {
@@ -138,7 +213,6 @@ export async function exportCharacterToPdf(
   t('GM', character.currency?.gm ?? '');
   t('PM', character.currency?.pm ?? '');
   t('Gesamtlast', character.totalWeight ?? '');
-  t('SonstigeWaffen', character.inventoryNotes ?? '');
 
   // --- Inventar (55 Slots) ---
   for (let i = 0; i < 55; i++) {

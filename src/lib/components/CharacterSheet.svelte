@@ -35,8 +35,20 @@
   let importingPdf = $state(false);
   let dumpingFields = $state(false);
   let exportingPdf = $state(false);
+  let portraitUrl = $state('');
   let spellLibrary = $state<SpellInfo[]>([]);
   let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
+
+  $effect(() => {
+    const file = character?.portraitFile;
+    if (!file) { portraitUrl = ''; return; }
+    invoke<string>('read_file_base64', { path: `${dirPath}/${file}` })
+      .then(b64 => {
+        const mime = file.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        portraitUrl = `data:${mime};base64,${b64}`;
+      })
+      .catch(() => { portraitUrl = ''; });
+  });
 
   $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
 
@@ -406,8 +418,22 @@
         _importedAt: new Date().toISOString(),
         ...character,
       };
-      const pdfBytes = await exportCharacterToPdf(json, templateBytes);
-      // Base64-Encode und als Datei speichern
+
+      // Portrait laden, falls vorhanden
+      let portrait: { bytes: Uint8Array; format: 'png' | 'jpg' } | undefined;
+      if (character.portraitFile) {
+        try {
+          const portraitB64 = await invoke<string>('read_file_base64', {
+            path: `${dirPath}/${character.portraitFile}`,
+          });
+          portrait = {
+            bytes: base64ToBytes(portraitB64),
+            format: character.portraitFile.toLowerCase().endsWith('.png') ? 'png' : 'jpg',
+          };
+        } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
+      }
+
+      const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
       const outPath = `${dirPath}/${safeName}-export.pdf`;
@@ -521,6 +547,9 @@
   {:else if character}
     <!-- Header -->
     <div class="header">
+      {#if portraitUrl}
+        <img class="portrait-thumb" src={portraitUrl} alt="Portrait von {character.name}" />
+      {/if}
       <div class="name-block">
         <h1>{character.name}</h1>
         <span class="sub">{character.classLevel} · {character.race}</span>
@@ -638,6 +667,25 @@
                 {#each character.tools as tool}<span class="tag">{tool}</span>{/each}
               </div>
             {/if}
+
+            {#if character.proficiencies}
+              {@const pf = character.proficiencies}
+              {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
+              {#if anyProf}
+                <h3>Profizienzen</h3>
+                <div class="tag-list">
+                  {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
+                  {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
+                  {#if pf.lightArmor}<span class="tag">Leichte Rüstung</span>{/if}
+                  {#if pf.mediumArmor}<span class="tag">Mittlere Rüstung</span>{/if}
+                  {#if pf.heavyArmor}<span class="tag">Schwere Rüstung</span>{/if}
+                  {#if pf.shields}<span class="tag">Schilde</span>{/if}
+                </div>
+                {#if pf.otherWeapons && pf.otherWeapons.trim()}
+                  <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
+                {/if}
+              {/if}
+            {/if}
           </div>
         </div>
 
@@ -670,6 +718,40 @@
             <p class="preformatted">{character.classFeatures}</p>
           </div>
         </div>
+
+        <!-- Persönliches -->
+        {#if character.personal}
+          {@const p = character.personal}
+          {@const hasAnyPersonal = p.alter || p.geschlecht || p.sizeCat || p.koerpergroesse || p.gewicht || p.gesinnung || p.glaube || p.lebensstil || p.taeglicheKosten || p.augenfarbe || p.haarfarbe || p.hautfarbe || p.aussehen || p.rassenmerkmale}
+          {#if hasAnyPersonal}
+            <div class="two-col">
+              <div class="section">
+                <h3>Persönliches</h3>
+                <div class="personal-stats">
+                  {#if p.alter}<div class="stat"><span class="sl">Alter</span><span class="sv">{p.alter}</span></div>{/if}
+                  {#if p.geschlecht}<div class="stat"><span class="sl">Geschlecht</span><span class="sv">{p.geschlecht}</span></div>{/if}
+                  {#if p.gesinnung}<div class="stat"><span class="sl">Gesinnung</span><span class="sv">{p.gesinnung}</span></div>{/if}
+                  {#if p.glaube}<div class="stat"><span class="sl">Glaube</span><span class="sv">{p.glaube}</span></div>{/if}
+                  {#if p.sizeCat}<div class="stat"><span class="sl">Größe</span><span class="sv">{p.sizeCat}</span></div>{/if}
+                  {#if p.koerpergroesse}<div class="stat"><span class="sl">Körpergröße</span><span class="sv">{p.koerpergroesse}</span></div>{/if}
+                  {#if p.gewicht}<div class="stat"><span class="sl">Gewicht</span><span class="sv">{p.gewicht}</span></div>{/if}
+                  {#if p.augenfarbe}<div class="stat"><span class="sl">Augen</span><span class="sv">{p.augenfarbe}</span></div>{/if}
+                  {#if p.haarfarbe}<div class="stat"><span class="sl">Haar</span><span class="sv">{p.haarfarbe}</span></div>{/if}
+                  {#if p.hautfarbe}<div class="stat"><span class="sl">Haut</span><span class="sv">{p.hautfarbe}</span></div>{/if}
+                  {#if p.lebensstil}<div class="stat"><span class="sl">Lebensstil</span><span class="sv">{p.lebensstil}</span></div>{/if}
+                  {#if p.taeglicheKosten}<div class="stat"><span class="sl">Tägl. Kosten</span><span class="sv">{p.taeglicheKosten}</span></div>{/if}
+                </div>
+                {#if p.aussehen}<p class="preformatted"><strong>Aussehen:</strong> {p.aussehen}</p>{/if}
+              </div>
+              {#if p.rassenmerkmale}
+                <div class="section">
+                  <h3>Volksmerkmale</h3>
+                  <p class="preformatted">{p.rassenmerkmale}</p>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        {/if}
 
         <!-- Inventar -->
         <div class="section">
@@ -859,6 +941,7 @@
       <div class="edit-wrapper">
         <CharacterEditForm
           character={character}
+          dirPath={dirPath}
           onSave={handleEditSave}
           onCancel={() => (activeTab = 'sheet')}
         />
@@ -1001,6 +1084,15 @@
     gap: 1rem;
   }
 
+  .portrait-thumb {
+    width: 64px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #45475a;
+    background: #1e1e2e;
+  }
+
   .name-block h1 {
     margin: 0;
     font-size: 1.4rem;
@@ -1061,15 +1153,15 @@
 
   .btn-export-pdf {
     background: #313244;
-    color: #6c7086;
+    color: #cdd6f4;
     border: 1px solid #45475a;
     border-radius: 4px;
     padding: 0.3rem 0.75rem;
     font-size: 0.8rem;
-    cursor: not-allowed;
-    opacity: 0.7;
+    cursor: pointer;
   }
-  .btn-export-pdf:disabled { cursor: not-allowed; }
+  .btn-export-pdf:hover { border-color: #a6e3a1; color: #a6e3a1; }
+  .btn-export-pdf:disabled { opacity: 0.6; cursor: default; }
 
   .edit-wrapper {
     min-height: 0;
@@ -1168,6 +1260,13 @@
     margin-bottom: 0.75rem;
   }
 
+  .personal-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.2rem 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
   .stat { display: flex; justify-content: space-between; }
   .sl { color: #6c7086; font-size: 0.8rem; }
   .sv { font-weight: 600; color: #cdd6f4; }
@@ -1207,6 +1306,7 @@
   .proficient .prof-dot, .expertise .prof-dot { color: #a6e3a1; }
 
   .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+  .prof-extra { font-size: 0.8rem; color: #a6adc8; margin: 0.2rem 0 0.4rem; }
   .tag {
     background: #313244;
     border-radius: 4px;

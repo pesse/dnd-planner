@@ -5,16 +5,15 @@
   import { onMount } from 'svelte';
   import { pushError } from '../stores/errors';
   import type { Monster } from '../types';
-  import { normalizeMonster } from '../types';
   import MonsterStatBlock from './MonsterStatBlock.svelte';
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import { parseMonster as _parseMonster } from '../utils/schemaValidation';
 
   function parseMonster(json: string): Monster | null {
     try {
-      const obj = JSON.parse(json);
-      if (!obj || typeof obj !== 'object' || !('stats' in obj) || !('cr' in obj)) return null;
-      return normalizeMonster(obj as Monster);
+      const result = _parseMonster(JSON.parse(json));
+      return result.ok ? result.data : null;
     } catch { return null; }
   }
 

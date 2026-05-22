@@ -5,8 +5,9 @@
   import { onMount } from 'svelte';
   import { pushError } from '$lib/stores/errors';
   import type { Spell } from '$lib/types';
-  import { normalizeSpell, spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
+  import { spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
+  import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
 
@@ -34,9 +35,8 @@
 
   function parseSpell(json: string): Spell | null {
     try {
-      const obj = JSON.parse(json);
-      if (!obj || typeof obj !== 'object' || !('school' in obj)) return null;
-      return normalizeSpell(obj as Record<string, unknown>);
+      const result = _parseSpell(JSON.parse(json));
+      return result.ok ? result.data : null;
     } catch { return null; }
   }
 

@@ -159,7 +159,7 @@
       type:                d.type,
       alignment:           d.alignment,
       ac:                  { value: acArr[0]?.value ?? 10, note: acNote },
-      hp:                  { average: d.hit_points as number, formula: (d.hit_dice as string) ?? '' },
+      hp:                  { average: d.hit_points as number, formula: (d.hit_points_roll as string) ?? (d.hit_dice as string) ?? '' },
       speed:               buildSpeed((d.speed as Record<string, string | number>) ?? {}),
       stats:               {
         str: d.strength as number, dex: d.dexterity as number,

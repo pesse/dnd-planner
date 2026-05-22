@@ -28,6 +28,7 @@
     mToFt,
   } from '$lib/itemLibrary';
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import { normalizeItem } from '$lib/utils/schemaValidation';
   import DndApiSearch from './DndApiSearch.svelte';
   import LlmTranslate from './LlmTranslate.svelte';
   import EditorPanel from './EditorPanel.svelte';
@@ -75,45 +76,6 @@
     });
     return unsub;
   });
-
-  /** Migriert alte Formate und leitet item_type aus Feldern ab. */
-  function normalizeItem(raw: Record<string, unknown>): Item {
-    // Altes Format: rarity als String
-    if (typeof raw.rarity === 'string') raw.rarity = { name: raw.rarity };
-    // Altes Format: description statt desc
-    if (!raw.desc && typeof raw.description === 'string') {
-      raw.desc = raw.description ? [raw.description as string] : [];
-      delete raw.description;
-    }
-    // Altes Format: category statt equipment_category
-    if (!raw.equipment_category && typeof raw.category === 'string') {
-      const cat = raw.category as string;
-      raw.equipment_category = { index: cat, name: cat };
-      delete raw.category;
-    }
-    // Altes Format: attunement_requirements statt attunement_by
-    if ('attunement_requirements' in raw && !('attunement_by' in raw)) {
-      raw.attunement_by = raw.attunement_requirements ?? null;
-      delete raw.attunement_requirements;
-    }
-    if (!Array.isArray(raw.desc)) raw.desc = [];
-
-    // item_type aus Feldern ableiten wenn nicht gesetzt
-    if (!raw.item_type) {
-      const cat = (raw.equipment_category as { index?: string } | undefined)?.index ?? '';
-      if (raw.weapon_category || raw.damage || ['weapon','martial-melee','martial-ranged','simple-melee','simple-ranged','ammunition'].includes(cat)) {
-        raw.item_type = 'weapon';
-      } else if (raw.armor_category || raw.armor_class || ['armor','light-armor','medium-armor','heavy-armor','shields'].includes(cat)) {
-        raw.item_type = 'armor';
-      } else if (raw.rarity || ['ring','wundersam','trank','stab','schriftrolle','wondrous-items','potion','rod','staff','wand','scroll'].includes(cat)) {
-        raw.item_type = 'magic';
-      } else {
-        raw.item_type = 'gear';
-      }
-    }
-
-    return raw as unknown as Item;
-  }
 
   let parsed = $derived.by(() => {
     if (!rawJson) return { item: null as Item | null, parseError: null as string | null };
