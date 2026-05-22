@@ -8,6 +8,7 @@
   import {
     CATEGORY_COLORS,
     CATEGORY_LABELS,
+    CATEGORY_TO_DIR,
     RARITY_LABELS,
     DAMAGE_TYPE_LABELS,
     PROPERTY_LABELS,
@@ -38,18 +39,39 @@
   const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'];
   const COST_UNITS = ['gp', 'sp', 'cp', 'ep', 'pp'];
   const ARMOR_CATEGORIES = ['Light', 'Medium', 'Heavy', 'Shield'];
-  const ITEM_TYPES = ['weapon', 'armor', 'magic', 'gear'] as const;
+
+  /** Aktueller Kategorie-Schlüssel (= Ordnername). */
+  function categoryKeyOf(item: Item): string {
+    const idx = item.equipment_category?.index;
+    if (idx) return API_CATEGORY_MAP[idx] ?? 'other';
+    if (item.item_type === 'weapon') return 'weapon';
+    if (item.item_type === 'armor')  return 'armor';
+    if (item.item_type === 'magic')  return 'wondrous-items';
+    return 'other';
+  }
+
+  /** Kategorie → item_type (steuert die Formularfelder). */
+  function categoryToItemType(catKey: string): 'weapon' | 'armor' | 'magic' | 'gear' {
+    if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
+    if (catKey === 'armor') return 'armor';
+    if (['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-items'].includes(catKey)) return 'magic';
+    return 'gear';
+  }
+
+  /** Kategorie-Schlüssel → DnD-API-konformer Anzeigename (z.B. "wondrous-items" → "Wondrous Items"). */
+  function categoryApiName(catKey: string): string {
+    return catKey.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  function setDraftCategory(catKey: string) {
+    if (!draft) return;
+    draft.equipment_category = { index: catKey, name: categoryApiName(catKey) };
+    draft.item_type = categoryToItemType(catKey);
+  }
 
   // Farbe aus equipment_category oder item_type ableiten
   function categoryColor(item: Item): string {
-    if (item.equipment_category) {
-      const cat = API_CATEGORY_MAP[item.equipment_category.index] ?? 'sonstiges';
-      return CATEGORY_COLORS[cat] ?? '#cba6f7';
-    }
-    if (item.item_type === 'weapon') return CATEGORY_COLORS['waffe'];
-    if (item.item_type === 'armor')  return CATEGORY_COLORS['rüstung'];
-    if (item.item_type === 'magic')  return CATEGORY_COLORS['wundersam'];
-    return CATEGORY_COLORS['sonstiges'];
+    return CATEGORY_COLORS[categoryKeyOf(item)] ?? '#cba6f7';
   }
 
   // ── State ────────────────────────────────────────────────────────────────────
@@ -124,6 +146,38 @@
     tab = 'karte';
   }
 
+  /** Schreibt JSON; verschiebt die Datei in den Kategorie-Ordner, falls sich die Kategorie geändert hat. */
+  async function persistItem(json: string, newCatKey: string): Promise<boolean> {
+    const file = $activeFile;
+    if (!file?.path) return false;
+
+    const oldPath = file.path;
+    const filename = oldPath.split('/').pop() ?? '';
+    const oldDir = oldPath.split('/').at(-2) ?? '';
+    const newDir = CATEGORY_TO_DIR[newCatKey] ?? oldDir;
+    const moveNeeded = !!newDir && newDir !== oldDir;
+    const newPath = moveNeeded ? `${ITEMS_PATH}/${newDir}/${filename}` : oldPath;
+
+    try {
+      if (moveNeeded) {
+        await invoke('rename_file', { oldPath, newPath });
+      }
+      await invoke('write_file_content', { path: newPath, content: json });
+
+      if (oldDir) invalidateItemCache(oldDir);
+      if (moveNeeded) {
+        invalidateItemCache(newDir);
+        activeFile.set({ ...file, path: newPath });
+      }
+      rawJson = json;
+      setFileContent(json);
+      return true;
+    } catch (e) {
+      pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
+      return false;
+    }
+  }
+
   async function save() {
     if (!draft || !$activeFile) return;
     draft.desc    = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
@@ -140,32 +194,24 @@
       draft.properties = undefined;
     }
     const json = JSON.stringify($state.snapshot(draft), null, 2);
-    try {
-      await invoke('write_file_content', { path: $activeFile.path, content: json });
-      const dir = $activeFile.path.split('/').at(-2) ?? '';
-      if (dir) invalidateItemCache(dir);
-      rawJson = json;
-      setFileContent(json);
+    if (await persistItem(json, categoryKeyOf(draft))) {
       editing = false;
       draft = null;
       apiRawResponse = null;
       importError = '';
       tab = 'karte';
-    } catch (e) {
-      pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
     }
   }
 
   async function saveJson(json: string) {
-    const file = $activeFile;
-    if (!file?.path) return;
-    await invoke('write_file_content', { path: file.path, content: json });
-    const dir = file.path.split('/').at(-2) ?? '';
-    if (dir) invalidateItemCache(dir);
-    rawJson = json;
-    setFileContent(json);
-    editing = false;
-    draft = null;
+    let catKey = '';
+    try {
+      catKey = categoryKeyOf(JSON.parse(json) as Item);
+    } catch { /* leave folder unchanged */ }
+    if (await persistItem(json, catKey)) {
+      editing = false;
+      draft = null;
+    }
   }
 
   // ── DnD-API-Import ───────────────────────────────────────────────────────────
@@ -497,9 +543,11 @@
         </div>
         <input class="edit-name-original" bind:value={draft.name} placeholder="Original (Englisch)" />
         <div class="edit-header-meta">
-          <select class="edit-select" bind:value={draft.item_type}>
-            {#each ITEM_TYPES as t}
-              <option value={t}>{ITEM_TYPE_LABELS[t]}</option>
+          <select class="edit-select"
+            value={categoryKeyOf(draft)}
+            onchange={(e) => setDraftCategory((e.target as HTMLSelectElement).value)}>
+            {#each Object.entries(CATEGORY_LABELS) as [key, label]}
+              <option value={key}>{label}</option>
             {/each}
           </select>
           <select class="edit-select" bind:value={draft.source}>

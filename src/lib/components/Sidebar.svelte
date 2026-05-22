@@ -11,6 +11,7 @@
   import {
     ITEMS_PATH,
     CATEGORY_COLORS as ITEM_CAT_COLORS,
+    CATEGORY_LABELS as ITEM_CAT_LABELS,
     DIR_TO_CATEGORY,
     invalidateItemCache,
   } from '../itemLibrary';
@@ -502,18 +503,7 @@
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
-
-  const ITEM_CAT_DIR_LABELS: Record<string, string> = {
-    waffen:        'Waffen',
-    rüstungen:     'Rüstungen',
-    wundersame:    'Wundersame',
-    tränke:        'Tränke',
-    ringe:         'Ringe',
-    stäbe:         'Stäbe',
-    schriftrollen: 'Schriftrollen',
-    munition:      'Munition',
-    sonstiges:     'Sonstiges',
-  };
+  // Anzeige-Labels kommen direkt aus ITEM_CAT_LABELS (dir === category).
 
   let itemsExpanded = $state(false);
   let itemDirs: string[] = $state([]);
@@ -601,7 +591,7 @@
     const path = `${ITEMS_PATH}/${dir}/${filename}`;
     const template = {
       name: raw.charAt(0).toUpperCase() + raw.slice(1),
-      category: DIR_TO_CATEGORY[dir] ?? 'sonstiges',
+      category: DIR_TO_CATEGORY[dir] ?? 'other',
       rarity: '—',
       attunement: false,
       attunement_requirements: null,
@@ -1100,7 +1090,7 @@
           {/if}
         {:else if itemDirs.length}
           {#each itemDirs as dir}
-            {@const catKey = DIR_TO_CATEGORY[dir] ?? 'sonstiges'}
+            {@const catKey = DIR_TO_CATEGORY[dir] ?? 'other'}
             {@const catColor = ITEM_CAT_COLORS[catKey] ?? '#cdd6f4'}
             {@const dirItems = itemsByDir[dir]}
             <button
@@ -1109,7 +1099,7 @@
               onclick={() => toggleItemDir(dir)}
             >
               <span class="arrow" class:open={openItemDirs[dir]}>›</span>
-              {ITEM_CAT_DIR_LABELS[dir] ?? dir}
+              {ITEM_CAT_LABELS[dir] ?? dir}
               {#if dirItems}<span class="group-count">({dirItems.length})</span>{/if}
             </button>
             {#if openItemDirs[dir]}
@@ -1136,7 +1126,7 @@
           <div class="new-monster-form">
             <select class="new-file-input" bind:value={newItemDir}>
               {#each itemDirs as d}
-                <option value={d}>{ITEM_CAT_DIR_LABELS[d] ?? d}</option>
+                <option value={d}>{ITEM_CAT_LABELS[d] ?? d}</option>
               {/each}
             </select>
             <div class="new-file-row">

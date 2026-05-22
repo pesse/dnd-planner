@@ -12,6 +12,7 @@
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import { pushError } from '$lib/stores/errors';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
+  import { invalidateItemCache } from '$lib/itemLibrary';
   import { campaignCharacterData, reloadCampaignCharacters } from '$lib/stores/context';
   import { parseFrontmatter, replaceFrontmatterCharacters } from '$lib/utils/frontmatter';
   import { invoke } from '@tauri-apps/api/core';
@@ -157,6 +158,8 @@
   function startRename() {
     if ($activeFile?.type === 'campaign') {
       renameValue = $activeCampaign?.name ?? '';
+    } else if ($activeFile?.type === 'item') {
+      renameValue = $activeFile?.name?.replace(/\.json$/, '') ?? '';
     } else {
       renameValue = $activeFile?.name?.replace('.md', '') ?? '';
     }
@@ -186,6 +189,23 @@
         invalidateVault();
       } catch (e) {
         alert(`Umbenennen fehlgeschlagen: ${e}`);
+      }
+    } else if (file.type === 'item') {
+      const slug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const newName = `${slug}.json`;
+      if (!slug || newName === file.name) return;
+
+      const dir = file.path.substring(0, file.path.lastIndexOf('/'));
+      const newPath = `${dir}/${newName}`;
+      const itemDir = dir.split('/').pop() ?? '';
+
+      try {
+        await invoke('rename_file', { oldPath: file.path, newPath });
+        activeFile.set({ ...file, name: newName, path: newPath });
+        if (itemDir) invalidateItemCache(itemDir);
+        invalidateVault();
+      } catch (e) {
+        pushError(`Umbenennen fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
       }
     } else if (file.type === 'act') {
       // Akte sind Verzeichnisse — das Verzeichnis umbenennen, index.md bleibt
@@ -333,7 +353,18 @@
       <div class="toolbar">
         {#if $activeFile}
           <div class="file-title-area">
-            <span class="file-title item-title">◆ {$activeFile.name}</span>
+            {#if renaming}
+              <input
+                class="rename-input"
+                bind:value={renameValue}
+                onkeydown={handleRenameKey}
+                onblur={commitRename}
+                autofocus
+              />
+            {:else}
+              <span class="file-title item-title">◆ {$activeFile.name.replace(/\.json$/, '')}</span>
+              <button class="rename-btn" onclick={startRename} title="Datei umbenennen">✏</button>
+            {/if}
           </div>
         {/if}
       </div>

@@ -20,47 +20,52 @@ export function displayName(item: ItemInfo): string {
   return item.name_de ?? item.name;
 }
 
+/**
+ * Kategorie-Schlüssel = Ordnername = DnD-API equipment_category.index.
+ * Identity-Mapping: vault/items/{key}/ enthält Items dieser Kategorie.
+ */
+
 /** Farbe pro Kategorie (Catppuccin Mocha Palette) */
 export const CATEGORY_COLORS: Record<string, string> = {
-  waffe:        '#f38ba8', // red
-  rüstung:      '#89b4fa', // blue
-  wundersam:    '#cba6f7', // mauve
-  trank:        '#a6e3a1', // green
-  ring:         '#f9e2af', // yellow
-  stab:         '#fab387', // peach
-  schriftrolle: '#89dceb', // sky
-  munition:     '#94e2d5', // teal
-  sonstiges:    '#585b70', // overlay
+  'weapon':              '#f38ba8', // red
+  'armor':               '#89b4fa', // blue
+  'ammunition':          '#94e2d5', // teal
+  'adventuring-gear':    '#f2cdcd', // flamingo
+  'tools':               '#74c7ec', // sapphire
+  'mounts-and-vehicles': '#b4befe', // lavender
+  'wondrous-items':      '#cba6f7', // mauve
+  'ring':                '#f9e2af', // yellow
+  'rod':                 '#fab387', // peach
+  'staff':               '#eba0ac', // maroon
+  'wand':                '#f5c2e7', // pink
+  'scroll':              '#89dceb', // sky
+  'potion':              '#a6e3a1', // green
+  'other':               '#585b70', // overlay
 };
 
-/** Ordnername → Kategorie-Schlüssel */
-export const DIR_TO_CATEGORY: Record<string, string> = {
-  waffen:        'waffe',
-  rüstungen:     'rüstung',
-  wundersame:    'wundersam',
-  tränke:        'trank',
-  ringe:         'ring',
-  stäbe:         'stab',
-  schriftrollen: 'schriftrolle',
-  munition:      'munition',
-  sonstiges:     'sonstiges',
-};
-
-/** Kategorie-Schlüssel → Ordnername */
-export const CATEGORY_TO_DIR: Record<string, string> = Object.fromEntries(
-  Object.entries(DIR_TO_CATEGORY).map(([dir, cat]) => [cat, dir])
+/** Ordnername → Kategorie-Schlüssel (identity). */
+export const DIR_TO_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.keys(CATEGORY_COLORS).map((k) => [k, k])
 );
 
+/** Kategorie-Schlüssel → Ordnername (identity). */
+export const CATEGORY_TO_DIR: Record<string, string> = { ...DIR_TO_CATEGORY };
+
 export const CATEGORY_LABELS: Record<string, string> = {
-  waffe:        'Waffe',
-  rüstung:      'Rüstung',
-  wundersam:    'Wundersamer Gegenstand',
-  trank:        'Trank',
-  ring:         'Ring',
-  stab:         'Stab / Zauberstab',
-  schriftrolle: 'Schriftrolle',
-  munition:     'Munition',
-  sonstiges:    'Sonstiges',
+  'weapon':              'Waffe',
+  'armor':               'Rüstung',
+  'ammunition':          'Munition',
+  'adventuring-gear':    'Ausrüstung',
+  'tools':               'Werkzeug',
+  'mounts-and-vehicles': 'Reittiere & Fahrzeuge',
+  'wondrous-items':      'Wundersamer Gegenstand',
+  'ring':                'Ring',
+  'rod':                 'Rute',
+  'staff':               'Stab',
+  'wand':                'Zauberstab',
+  'scroll':              'Schriftrolle',
+  'potion':              'Trank',
+  'other':               'Sonstiges',
 };
 
 export const RARITY_LABELS: Record<string, string> = {
@@ -169,26 +174,40 @@ export function formatDamageDice(dice: string): string {
   return dice.replace(/\bd(\d+)\b/gi, (_, n) => `W${n}`);
 }
 
-/** DnD-API equipment_category.index → unsere Kategorie */
+/** DnD-API equipment_category.index → unsere Kategorie (= Ordnername). */
 export const API_CATEGORY_MAP: Record<string, string> = {
-  'wondrous-items': 'wundersam',
-  'weapon':         'waffe',
-  'armor':          'rüstung',
-  'potion':         'trank',
-  'ring':           'ring',
-  'rod':            'stab',
-  'staff':          'stab',
-  'wand':           'stab',
-  'scroll':         'schriftrolle',
-  'ammunition':     'munition',
-  'heavy-armor':    'rüstung',
-  'medium-armor':   'rüstung',
-  'light-armor':    'rüstung',
-  'martial-melee':  'waffe',
-  'martial-ranged': 'waffe',
-  'simple-melee':   'waffe',
-  'simple-ranged':  'waffe',
-  'shields':        'rüstung',
+  // Waffen
+  'weapon':              'weapon',
+  'martial-melee':       'weapon',
+  'martial-ranged':      'weapon',
+  'simple-melee':        'weapon',
+  'simple-ranged':       'weapon',
+  'martial-weapons':     'weapon',
+  'simple-weapons':      'weapon',
+  // Rüstung
+  'armor':               'armor',
+  'heavy-armor':         'armor',
+  'medium-armor':        'armor',
+  'light-armor':         'armor',
+  'shields':             'armor',
+  // Ausrüstung & Werkzeuge
+  'ammunition':          'ammunition',
+  'adventuring-gear':    'adventuring-gear',
+  'tools':               'tools',
+  'artisans-tools':      'tools',
+  'gaming-sets':         'tools',
+  'musical-instruments': 'tools',
+  'other-tools':         'tools',
+  'mounts-and-vehicles': 'mounts-and-vehicles',
+  // Magische Gegenstände
+  'wondrous-items':      'wondrous-items',
+  'wundersam':           'wondrous-items', // legacy / Homebrew
+  'ring':                'ring',
+  'rod':                 'rod',
+  'staff':               'staff',
+  'wand':                'wand',
+  'scroll':              'scroll',
+  'potion':              'potion',
 };
 
 // Singleton-Cache: category dir → items
@@ -217,13 +236,13 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
           return {
             name: data.name ?? filename.replace('.json', ''),
             name_de: data.name_de,
-            category: data.category ?? DIR_TO_CATEGORY[dir] ?? 'sonstiges',
+            category: data.category ?? DIR_TO_CATEGORY[dir] ?? 'other',
             rarity: data.rarity ?? '—',
             weight: typeof data.weight === 'number' ? data.weight : undefined,
             path,
           };
         } catch {
-          return { name: filename.replace('.json', ''), category: DIR_TO_CATEGORY[dir] ?? 'sonstiges', rarity: '—', path };
+          return { name: filename.replace('.json', ''), category: DIR_TO_CATEGORY[dir] ?? 'other', rarity: '—', path };
         }
       })
     );

@@ -171,7 +171,7 @@
 
   $effect(() => {
     if (!weaponSearch.trim()) { weaponSuggestions = []; weaponSugIndex = -1; return; }
-    const weaponsOnly = { waffen: itemLoadedByDir.waffen ?? [] };
+    const weaponsOnly = { weapon: itemLoadedByDir.weapon ?? [] };
     weaponSuggestions = searchItems(weaponsOnly, weaponSearch, 8);
     weaponSugIndex = -1;
   });
