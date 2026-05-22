@@ -553,7 +553,7 @@
           try {
             const content = await invoke<string>('read_file_content', { path });
             const data = JSON.parse(content);
-            return { filename: f, name: data.name ?? f.replace('.json', '') };
+            return { filename: f, name: data.name_de ?? data.name ?? f.replace('.json', '') };
           } catch {
             return { filename: f, name: f.replace('.json', '') };
           }
