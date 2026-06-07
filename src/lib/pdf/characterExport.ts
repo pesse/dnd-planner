@@ -2,7 +2,7 @@
  * PDF-Export für Charaktere — Taendler v2.8.x Format.
  * Füllt die Blanko-Vorlage vault/templates/ataendler_v2.8.2.pdf per Form-Filling (pdf-lib).
  */
-import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton } from 'pdf-lib';
+import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
 import { SKILL_DEFS } from './characterFields';
 
@@ -52,16 +52,67 @@ function setCheck(doc: PDFDocument, fieldName: string, checked: boolean) {
 }
 
 /**
+ * Zeichnet ein Bild direkt als Seiteninhalt an die Position eines Button-Feldes
+ * (Seitenverhältnis erhalten, zentriert) und entfernt anschließend den Button.
+ *
+ * Robuster als PDFButton.setImage: Button-Icon-Appearances werden von vielen
+ * Viewern (Adobe, Browser, Preview) nicht gerendert — direkt gezeichneter
+ * Seiteninhalt dagegen immer, auch beim Drucken/Flatten.
+ */
+function drawImageIntoButtonField(doc: PDFDocument, fieldName: string, image: PDFImage) {
+  const form = doc.getForm();
+  const field = form.getField(fieldName);
+  if (!(field instanceof PDFButton)) return;
+  const widget = field.acroField.getWidgets()[0];
+  if (!widget) return;
+  const rect = widget.getRectangle();
+  // Seite finden, auf der das Widget liegt
+  const widgetDict = widget.dict;
+  let targetPage: PDFPage | undefined;
+  for (const page of doc.getPages()) {
+    const annots = page.node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      if (annots.lookup(i) === widgetDict) { targetPage = page; break; }
+    }
+    if (targetPage) break;
+  }
+  if (!targetPage) return;
+  // In das Feld einpassen (Seitenverhältnis erhalten), zentriert
+  const fit = image.scaleToFit(rect.width, rect.height);
+  targetPage.drawImage(image, {
+    x: rect.x + (rect.width - fit.width) / 2,
+    y: rect.y + (rect.height - fit.height) / 2,
+    width: fit.width,
+    height: fit.height,
+  });
+  // Button (inkl. Platzhalter "Hier klicken um Bild auszuwählen") entfernen
+  form.removeField(field);
+}
+
+/**
  * Splittet einen Text so, dass Feld 1 zuerst gefüllt wird (bis ~limit Zeichen
  * am nächsten Absatzumbruch); Rest landet in Feld 2.
+ *
+ * Das Limit entspricht der ungefähren sichtbaren Kapazität von Feld 1 in der
+ * Taendler-Vorlage. Getrennt wird ab dem Limit an der nächsten Leerzeile
+ * (auch mit Whitespace, z.B. "\n \n"); fehlt eine, wird auf einfachen
+ * Zeilenumbruch bzw. Wortgrenze zurückgefallen, damit auch ein langer
+ * Block ohne Absätze nicht komplett in Feld 1 überläuft.
  */
-function splitClassFeatures(text: string, limit = 1200): [string, string] {
+function splitClassFeatures(text: string, limit = 700): [string, string] {
   if (!text) return ['', ''];
   if (text.length <= limit) return [text, ''];
-  // Nach dem Limit am nächsten doppelten Zeilenumbruch trennen
-  const splitIdx = text.indexOf('\n\n', limit);
-  if (splitIdx === -1) return [text, ''];
-  return [text.slice(0, splitIdx).trim(), text.slice(splitIdx).trim()];
+  const breakAt = (re: RegExp): number => {
+    re.lastIndex = limit;
+    const m = re.exec(text);
+    return m ? m.index : -1;
+  };
+  let idx = breakAt(/\n[ \t]*\n/g);            // Leerzeile (Absatz, auch mit Whitespace)
+  if (idx === -1) idx = breakAt(/\n/g);         // einfacher Zeilenumbruch
+  if (idx === -1) idx = text.indexOf(' ', limit); // Wortgrenze
+  if (idx === -1) return [text, ''];            // keine Trennstelle → alles in Feld 1
+  return [text.slice(0, idx).trim(), text.slice(idx).trim()];
 }
 
 /**
@@ -188,15 +239,14 @@ export async function exportCharacterToPdf(
   }
 
   // --- Portrait (AussehenBild) ---
+  // Bild direkt als Seiteninhalt an die Feld-Position zeichnen (statt als
+  // Button-Icon, das viele Viewer nicht anzeigen) und den Button entfernen.
   if (options.portrait) {
     try {
       const image = options.portrait.format === 'png'
         ? await pdf.embedPng(options.portrait.bytes)
         : await pdf.embedJpg(options.portrait.bytes);
-      const field = pdf.getForm().getField('AussehenBild');
-      if (field instanceof PDFButton) {
-        field.setImage(image);
-      }
+      drawImageIntoButtonField(pdf, 'AussehenBild', image);
     } catch { /* Portrait-Embed fehlgeschlagen → ignorieren */ }
   }
 

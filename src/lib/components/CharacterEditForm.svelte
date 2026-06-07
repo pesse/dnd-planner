@@ -602,7 +602,7 @@
             disabled={!flags.prof}
             onchange={(e) => { skillFlags[def.key].exp = (e.target as HTMLInputElement).checked; }}
           />
-          <span class="skill-name" class:proficient={flags.prof} class:expertise={flags.exp}>{def.key}</span>
+          <span class="skill-name" class:proficient={flags.prof} class:expertise={flags.exp}>{def.label}</span>
           <span class="skill-val">{sign(computed.value)}</span>
         </div>
       {/each}
@@ -1083,10 +1083,10 @@
     gap: 0.3rem;
     font-size: 0.8rem;
   }
-  .skill-name { flex: 1; color: #a6adc8; }
+  .skill-name { color: #a6adc8; }
   .skill-name.proficient { color: #a6e3a1; }
   .skill-name.expertise { color: #89dceb; }
-  .skill-val { font-weight: 600; min-width: 2rem; text-align: right; }
+  .skill-val { font-weight: 600; }
 
   /* Angriffe */
   .attack-table {

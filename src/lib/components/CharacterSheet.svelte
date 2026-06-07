@@ -470,6 +470,7 @@
 
   const ATTR_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };
   const skillAttrMap = new Map(SKILL_DEFS.map(s => [s.key, s.attr]));
+  const skillLabelMap = new Map(SKILL_DEFS.map(s => [s.key, s.label]));
 
   function row(label: string, val: string | number): string {
     const v = typeof val === 'number' ? sign(val) : val;
@@ -696,7 +697,7 @@
             {#each Object.entries(character.skills) as [name, skill]}
               <div class="skill-row has-tip" class:proficient={skill.prof} class:expertise={skill.exp}>
                 <span class="prof-dot">{skill.exp ? '★' : skill.prof ? '●' : '○'}</span>
-                <span class="skill-name">{name}</span>
+                <span class="skill-name">{skillLabelMap.get(name) ?? name}</span>
                 <span class="skill-val">{sign(skill.value)}</span>
                 <span class="tip">{@html skillTip(name, skill)}</span>
               </div>
@@ -1299,8 +1300,8 @@
   .skill-row { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
   .skill-row.proficient .skill-val { color: #a6e3a1; }
   .skill-row.expertise .skill-val { color: #89dceb; }
-  .skill-name { flex: 1; color: #a6adc8; }
-  .skill-val { font-weight: 600; min-width: 2rem; text-align: right; }
+  .skill-name { color: #a6adc8; }
+  .skill-val { font-weight: 600; }
 
   .prof-dot { font-size: 0.65rem; color: #6c7086; width: 0.8rem; }
   .proficient .prof-dot, .expertise .prof-dot { color: #a6e3a1; }

@@ -93,6 +93,7 @@
 <style>
   .editor-panel {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 0.75rem 1.5rem 1.5rem;
     background: #1e1e2e;
@@ -101,6 +102,16 @@
     align-items: center;
     gap: 0.5rem;
   }
+
+  /*
+   * Direkte Kinder (Karten via Snippet, JSON-Editor) dürfen im Flex-Container
+   * nicht schrumpfen: Karten haben `overflow: hidden`, wodurch ihre automatische
+   * Mindesthöhe auf 0 fällt und sie bei kleiner Fensterhöhe zusammengedrückt
+   * würden — der untere Karteninhalt (z.B. DnD-API/Übersetzen) verschwände,
+   * ohne dass der Scroll-Container überläuft. flex-shrink:0 erhält die volle
+   * Kartenhöhe, sodass overflow-y des Panels greift und vertikal gescrollt wird.
+   */
+  .editor-panel > :global(*) { flex-shrink: 0; }
 
   /* ── Tab-Leiste ── */
   .tab-bar {
