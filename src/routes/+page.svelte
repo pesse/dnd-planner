@@ -9,6 +9,7 @@
   import ItemCard from '$lib/components/ItemCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
+  import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import { pushError } from '$lib/stores/errors';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
@@ -277,9 +278,9 @@
     window.addEventListener('mouseup', onUp);
   }
 
-  onMount(async () => {
-    const cwd = await invoke<string>('get_current_dir');
-    console.log('Tauri CWD:', cwd);
+  onMount(() => {
+    // Debug-CWD asynchron loggen, ohne den (synchron erwarteten) Cleanup-Return zu blockieren
+    void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
 
     function onError(e: ErrorEvent) {
       pushError(e.message || String(e));
@@ -311,6 +312,7 @@
   ></div>
 
   <div class="main">
+    <div class="dragon-watermark"><DragonMark size={240} title="" /></div>
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
     {:else if isNpc}
@@ -468,7 +470,7 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    background: #1e1e2e;
+    background: var(--bg);
     font-family: Inter, system-ui, sans-serif;
   }
 
@@ -489,7 +491,7 @@
   .resize-handle {
     width: 4px;
     flex-shrink: 0;
-    background: #313244;
+    background: var(--surface);
     cursor: col-resize;
     transition: background 0.15s;
     position: relative;
@@ -498,7 +500,7 @@
 
   .resize-handle:hover,
   .resize-handle:active {
-    background: #89b4fa;
+    background: var(--red);
   }
 
   .main {
@@ -507,29 +509,62 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    position: relative;
+  }
+
+  /* Dezentes Drachen-Wasserzeichen unten rechts im Arbeitsbereich */
+  .dragon-watermark {
+    position: absolute;
+    right: 2.5rem;
+    bottom: 1.5rem;
+    color: var(--ink);
+    opacity: 0.05;
+    pointer-events: none;
+    z-index: 0;
   }
 
   .toolbar {
     display: flex;
     gap: 0.25rem;
     padding: 0.5rem 1rem;
-    background: #181825;
-    border-bottom: 1px solid #313244;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--surface);
+    position: relative;
+  }
+
+  /* Gold/Rot-Zierleiste am oberen Toolbar-Rand */
+  .toolbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      var(--gold) 18%,
+      var(--red) 50%,
+      var(--gold) 82%,
+      transparent 100%
+    );
+    opacity: 0.7;
+    pointer-events: none;
   }
 
   .toolbar button {
     background: none;
-    border: 1px solid #313244;
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #6c7086;
+    color: var(--ink-muted);
     padding: 0.25rem 0.75rem;
     cursor: pointer;
     font-size: 0.85rem;
   }
 
   .toolbar button.active {
-    background: #313244;
-    color: #cdd6f4;
+    background: var(--surface);
+    color: var(--ink);
   }
 
   .toolbar-sep {
@@ -547,7 +582,7 @@
 
   .file-title {
     font-size: 0.82rem;
-    color: #cdd6f4;
+    color: var(--ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -555,29 +590,29 @@
   }
 
   .npc-title {
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
   .monster-title {
-    color: #f38ba8;
+    color: var(--danger);
   }
 
   .encounter-title {
-    color: #89dceb;
+    color: var(--steel);
   }
 
   .spell-title {
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
   .item-title {
-    color: #fab387;
+    color: var(--copper);
   }
 
   .rename-btn {
     background: transparent;
     border: none;
-    color: #45475a;
+    color: var(--border);
     cursor: pointer;
     font-size: 0.75rem;
     padding: 0.1rem 0.2rem;
@@ -585,13 +620,13 @@
     border-radius: 3px;
   }
 
-  .rename-btn:hover { color: #89b4fa; background: #313244; }
+  .rename-btn:hover { color: var(--red); background: var(--surface); }
 
   .rename-input {
-    background: #1e1e2e;
-    border: 1px solid #89b4fa;
+    background: var(--bg);
+    border: 1px solid var(--red);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.82rem;
     padding: 0.2rem 0.4rem;
     outline: none;
@@ -616,8 +651,8 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.35rem 1.5rem;
-    background: #181825;
-    border-bottom: 1px solid #313244;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--surface);
   }
 
   .char-badge {
@@ -627,16 +662,16 @@
     font-size: 0.72rem;
     padding: 0.15rem 0.4rem 0.15rem 0.55rem;
     border-radius: 99px;
-    background: #313244;
-    color: #cba6f7;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    color: var(--arcane);
+    border: 1px solid var(--border);
     white-space: nowrap;
   }
 
   .char-remove {
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.85rem;
     line-height: 1;
@@ -644,7 +679,7 @@
     border-radius: 99px;
     transition: color 0.1s;
   }
-  .char-remove:hover { color: #f38ba8; }
+  .char-remove:hover { color: var(--danger); }
 
   .char-picker-wrap {
     position: relative;
@@ -652,23 +687,23 @@
 
   .char-add-btn {
     background: none;
-    border: 1px dashed #45475a;
+    border: 1px dashed var(--border);
     border-radius: 99px;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.85rem;
     line-height: 1;
     padding: 0.1rem 0.45rem;
     transition: color 0.1s, border-color 0.1s;
   }
-  .char-add-btn:hover { color: #cba6f7; border-color: #cba6f7; }
+  .char-add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
 
   .char-picker {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.25rem;
     z-index: 50;
@@ -682,7 +717,7 @@
   .picker-item {
     background: none;
     border: none;
-    color: #cdd6f4;
+    color: var(--ink);
     cursor: pointer;
     font-size: 0.78rem;
     padding: 0.3rem 0.6rem;
@@ -690,11 +725,11 @@
     text-align: left;
     transition: background 0.1s;
   }
-  .picker-item:hover { background: #313244; color: #cba6f7; }
+  .picker-item:hover { background: var(--surface); color: var(--arcane); }
 
   .picker-empty {
     font-size: 0.75rem;
-    color: #45475a;
+    color: var(--border);
     padding: 0.3rem 0.6rem;
   }
 

@@ -14,10 +14,13 @@
     karte,
     bearbeiten,
     tabactions,
+    style = '',
   }: {
     tab?: Tab;
     dirty?: boolean;
     saveError?: string;
+    /** Inline-Styles für den Wurzel-Container (z. B. --ep-accent) */
+    style?: string;
     onsave?: () => void;
     ondiscard?: () => void;
     /** Wird mit validiertem JSON aufgerufen; wirft bei Fehler → zeigt jsonError */
@@ -53,7 +56,7 @@
   }
 </script>
 
-<div class="editor-panel">
+<div class="editor-panel" {style}>
   <!-- Tab-Leiste -->
   <div class="tab-bar">
     <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
@@ -96,7 +99,7 @@
     min-height: 0;
     overflow-y: auto;
     padding: 0.75rem 1.5rem 1.5rem;
-    background: #1e1e2e;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -119,7 +122,7 @@
     align-items: center;
     width: 100%;
     max-width: 560px;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
     margin-bottom: 0.25rem;
   }
 
@@ -134,7 +137,7 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.82rem;
     padding: 0.3rem 0.85rem;
@@ -142,10 +145,10 @@
     transition: color 0.1s, border-color 0.1s;
     font-family: inherit;
   }
-  .tab-btn:hover { color: #cdd6f4; }
+  .tab-btn:hover { color: var(--ink); }
   .tab-btn.active {
-    color: var(--ep-accent, #89b4fa);
-    border-bottom-color: var(--ep-accent, #89b4fa);
+    color: var(--ep-accent, var(--red));
+    border-bottom-color: var(--ep-accent, var(--red));
   }
 
   /* ── Speichern-Leiste ── */
@@ -153,19 +156,19 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    background: #2a2a3e;
-    border: 1px solid #6b3a3a;
+    background: var(--bg-raised);
+    border: 1px solid var(--red);
     border-radius: 4px;
     padding: 0.4rem 0.75rem;
     width: 100%;
     max-width: 560px;
   }
 
-  .save-error { flex: 1; color: #f38ba8; font-size: 0.8rem; }
+  .save-error { flex: 1; color: var(--danger); font-size: 0.8rem; }
 
   .save-btn {
-    background: #a6e3a1;
-    color: #1e1e2e;
+    background: var(--green);
+    color: var(--bg);
     border: none;
     border-radius: 4px;
     padding: 0.25rem 0.75rem;
@@ -174,19 +177,19 @@
     font-weight: 600;
     font-family: inherit;
   }
-  .save-btn:hover { background: #94d3a2; }
+  .save-btn:hover { background: var(--green); }
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid #45475a;
-    color: #6c7086;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
     border-radius: 4px;
     padding: 0.25rem 0.75rem;
     cursor: pointer;
     font-size: 0.82rem;
     font-family: inherit;
   }
-  .cancel-btn:hover { color: #f38ba8; }
+  .cancel-btn:hover { color: var(--danger); }
 
   /* ── JSON-Editor ── */
   .json-editor {
@@ -197,14 +200,14 @@
     gap: 0.5rem;
   }
 
-  .json-error-bar { color: #f38ba8; font-size: 0.8rem; padding: 0.2rem 0; }
+  .json-error-bar { color: var(--danger); font-size: 0.8rem; padding: 0.2rem 0; }
 
   .json-textarea {
     min-height: 560px;
-    background: #181825;
-    border: 1px solid #313244;
+    background: var(--bg-panel);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.82rem;
     padding: 1rem;

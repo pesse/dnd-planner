@@ -9,7 +9,14 @@
 
   // DOM-Ref für TipTap (kein $state nötig, bind:this reicht)
   let editorEl: HTMLElement | null = null;
-  let editor: Editor | null = null;
+  let editor = $state<Editor | null>(null);
+
+  // tiptap-markdown (v0.9) ist für TipTap v2 geschrieben; seine Storage-
+  // Augmentation greift unter @tiptap/core v3 nicht. Schmaler typisierter
+  // Zugriff statt verstreuter any-Casts.
+  function markdownStorage(ed: Editor): { getMarkdown(): string } {
+    return (ed.storage as unknown as { markdown: { getMarkdown(): string } }).markdown;
+  }
 
   let saveStatus = $state<'saved' | 'saving' | 'unsaved'>('saved');
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -77,7 +84,7 @@
         },
       },
       onUpdate: ({ editor: ed }) => {
-        const body = ed.storage.markdown.getMarkdown();
+        const body = markdownStorage(ed).getMarkdown();
         if (body === lastBody) return;
         lastBody = body;
         const full = toFull(body);
@@ -97,7 +104,7 @@
       if (body === lastBody && block === rawFrontmatterBlock) return;
       rawFrontmatterBlock = block;
       lastBody = body;
-      ed.commands.setContent(body, /* emitUpdate */ false);
+      ed.commands.setContent(body, { emitUpdate: false });
       if (showSource) sourceValue = content;
       tick++;
     });
@@ -138,7 +145,7 @@
   function toggleSource() {
     if (!showSource) {
       // Quellansicht zeigt den vollen Inhalt inkl. Frontmatter
-      sourceValue = toFull(editor ? editor.storage.markdown.getMarkdown() : lastBody);
+      sourceValue = toFull(editor ? markdownStorage(editor).getMarkdown() : lastBody);
     } else {
       if (editor) {
         // Aus Quelltext: Frontmatter neu extrahieren, Körper in TipTap laden
@@ -232,7 +239,7 @@
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
-    background: #1e1e2e;
+    background: var(--bg);
   }
 
   /* ── Toolbar ── */
@@ -241,8 +248,8 @@
     align-items: center;
     gap: 0.05rem;
     padding: 0.3rem 0.75rem;
-    background: #181825;
-    border-bottom: 1px solid #313244;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--surface);
     flex-shrink: 0;
     flex-wrap: wrap;
   }
@@ -250,7 +257,7 @@
   .tb {
     background: transparent;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.82rem;
     padding: 0.25rem 0.4rem;
@@ -260,11 +267,11 @@
     line-height: 1;
     transition: color 0.1s, background 0.1s;
   }
-  .tb:hover { color: #cdd6f4; background: #313244; }
-  .tb.on    { color: #89b4fa; background: color-mix(in srgb, #89b4fa 12%, transparent); }
+  .tb:hover { color: var(--ink); background: var(--surface); }
+  .tb.on    { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
   .tb.mono  { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.74rem; }
 
-  .tb-sep  { width: 1px; height: 1rem; background: #313244; margin: 0 0.2rem; flex-shrink: 0; }
+  .tb-sep  { width: 1px; height: 1rem; background: var(--surface); margin: 0 0.2rem; flex-shrink: 0; }
   .tb-flex { flex: 1; }
 
   .save-indicator {
@@ -273,21 +280,21 @@
     margin-right: 0.3rem;
     white-space: nowrap;
   }
-  .save-indicator.unsaved { color: #f38ba8; }
-  .save-indicator.saving  { color: #6c7086; }
+  .save-indicator.unsaved { color: var(--danger); }
+  .save-indicator.saving  { color: var(--ink-muted); }
 
   .source-btn {
     background: transparent;
-    border: 1px solid #313244;
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 0.75rem;
     padding: 0.2rem 0.55rem;
     cursor: pointer;
     transition: all 0.1s;
   }
-  .source-btn:hover  { border-color: #6c7086; color: #cdd6f4; }
-  .source-btn.active { border-color: #89b4fa; color: #89b4fa; background: color-mix(in srgb, #89b4fa 10%, transparent); }
+  .source-btn:hover  { border-color: var(--ink-muted); color: var(--ink); }
+  .source-btn.active { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 
   /* ── TipTap-Mount ── */
   .editor-mount {
@@ -302,54 +309,54 @@
     min-height: 100%;
     padding: 1.5rem 2rem;
     outline: none;
-    color: #cdd6f4;
+    color: var(--ink);
     line-height: 1.8;
     font-family: Inter, system-ui, sans-serif;
     font-size: 0.95rem;
   }
 
-  .md-editor :global(.ProseMirror h1) { color: #cba6f7; font-size: 1.8rem; margin: 0.5rem 0; }
-  .md-editor :global(.ProseMirror h2) { color: #89b4fa; font-size: 1.4rem; margin: 1.5rem 0 0.4rem; }
-  .md-editor :global(.ProseMirror h3) { color: #94e2d5; font-size: 1.1rem; margin: 1rem 0 0.3rem; }
+  .md-editor :global(.ProseMirror h1) { color: var(--arcane); font-size: 1.8rem; margin: 0.5rem 0; }
+  .md-editor :global(.ProseMirror h2) { color: var(--red); font-size: 1.4rem; margin: 1.5rem 0 0.4rem; }
+  .md-editor :global(.ProseMirror h3) { color: var(--teal); font-size: 1.1rem; margin: 1rem 0 0.3rem; }
   .md-editor :global(.ProseMirror h4),
   .md-editor :global(.ProseMirror h5),
-  .md-editor :global(.ProseMirror h6) { color: #a6e3a1; margin: 0.8rem 0 0.2rem; }
+  .md-editor :global(.ProseMirror h6) { color: var(--green); margin: 0.8rem 0 0.2rem; }
   .md-editor :global(.ProseMirror p)  { margin: 0 0 0.9rem; }
-  .md-editor :global(.ProseMirror strong) { color: #f38ba8; font-weight: 700; }
-  .md-editor :global(.ProseMirror em)    { color: #cba6f7; font-style: italic; }
-  .md-editor :global(.ProseMirror s)     { color: #6c7086; }
+  .md-editor :global(.ProseMirror strong) { color: var(--danger); font-weight: 700; }
+  .md-editor :global(.ProseMirror em)    { color: var(--arcane); font-style: italic; }
+  .md-editor :global(.ProseMirror s)     { color: var(--ink-muted); }
   .md-editor :global(.ProseMirror ul),
   .md-editor :global(.ProseMirror ol)   { padding-left: 1.5rem; margin: 0 0 0.9rem; }
   .md-editor :global(.ProseMirror li)   { margin-bottom: 0.2rem; }
   .md-editor :global(.ProseMirror blockquote) {
-    border-left: 3px solid #45475a;
+    border-left: 3px solid var(--border);
     margin: 0 0 0.9rem;
     padding: 0.3rem 0 0.3rem 1rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-style: italic;
   }
   .md-editor :global(.ProseMirror code) {
-    background: #313244;
+    background: var(--surface);
     padding: 0.1em 0.4em;
     border-radius: 4px;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 0.88em;
-    color: #a6e3a1;
+    color: var(--green);
   }
   .md-editor :global(.ProseMirror pre) {
-    background: #313244;
+    background: var(--surface);
     border-radius: 6px;
     padding: 1rem;
     overflow-x: auto;
     margin: 0 0 0.9rem;
   }
   .md-editor :global(.ProseMirror pre code) { background: none; padding: 0; }
-  .md-editor :global(.ProseMirror hr)  { border: none; border-top: 1px solid #313244; margin: 1.5rem 0; }
+  .md-editor :global(.ProseMirror hr)  { border: none; border-top: 1px solid var(--surface); margin: 1.5rem 0; }
 
   /* Cursor-Linie beim Tippen */
   .md-editor :global(.ProseMirror .is-empty::before) {
     content: attr(data-placeholder);
-    color: #45475a;
+    color: var(--border);
     pointer-events: none;
     float: left;
     height: 0;
@@ -359,8 +366,8 @@
   .source-ta {
     flex: 1;
     padding: 1.5rem;
-    background: #1e1e2e;
-    color: #cdd6f4;
+    background: var(--bg);
+    color: var(--ink);
     border: none;
     outline: none;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;

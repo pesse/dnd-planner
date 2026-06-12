@@ -13,6 +13,7 @@
   } from '../itemLibrary';
   import type { Item } from '../types';
   import type { Spell } from '../types';
+  import { spellDesc, spellHigherLevel } from '../types';
   import { SKILL_DEFS } from '../pdf/characterFields';
 
   interface NpcStats {
@@ -529,7 +530,7 @@
         <div class="spell-cards">
           {#each draft.spells as spell, i}
             {@const info = spellInfoMap.get(spell.name)}
-            {@const color = info ? (SCHOOL_COLORS[info.school] ?? '#585b70') : '#585b70'}
+            {@const color = info ? (SCHOOL_COLORS[info.school] ?? 'var(--border-strong)') : 'var(--border-strong)'}
             {@const expanded = expandedSpells.has(spell.name)}
             {@const data = spellDataCache.get(spell.name) ?? null}
             <div class="scard" class:expanded style="--sc:{color}"
@@ -557,10 +558,10 @@
                       <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
                     </div>
                     <div class="scard-divider"></div>
-                    <div class="scard-desc">{data.description}</div>
-                    {#if data.higher_levels}
+                    <div class="scard-desc">{spellDesc(data)}</div>
+                    {#if spellHigherLevel(data)}
                       <div class="scard-divider"></div>
-                      <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{data.higher_levels}</div>
+                      <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{spellHigherLevel(data)}</div>
                     {/if}
                   {:else}
                     <span class="scard-loading">Nicht in Bibliothek</span>
@@ -606,7 +607,7 @@
               onmouseleave={hideItemTooltip}
             >
               {#if libItem}
-                <span class="item-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? '#585b70'}"></span>
+                <span class="item-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
               {/if}
               <span
                 class="item-name"
@@ -655,7 +656,7 @@
               <label>{field.label}</label>
               <textarea
                 value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -668,7 +669,7 @@
               <label>{field.label}</label>
               <textarea
                 value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -747,21 +748,21 @@
 {/if}
 
 <style>
-  .npc-empty { padding: 2rem; color: #6c7086; }
+  .npc-empty { padding: 2rem; color: var(--ink-muted); }
 
   /* ── Sheet container ─────────────────────────────── */
   .npc-sheet {
     flex: 1;
     overflow-y: auto;
-    background: #1e1e2e;
-    color: #cdd6f4;
+    background: var(--bg);
+    color: var(--ink);
     font-size: 0.9rem;
   }
 
   /* ── Header ──────────────────────────────────────── */
   .npc-header {
     padding: 0.9rem 1.5rem 0.6rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
     display: flex;
     align-items: flex-start;
     gap: 1rem;
@@ -772,7 +773,7 @@
   .npc-name {
     background: none;
     border: none;
-    color: #cba6f7;
+    color: var(--arcane);
     font-size: 1.4rem;
     font-weight: 700;
     padding: 0;
@@ -780,12 +781,12 @@
     font-family: inherit;
     width: 100%;
   }
-  .npc-name:focus { border-bottom: 1px solid #89b4fa; }
+  .npc-name:focus { border-bottom: 1px solid var(--red); }
 
   .npc-role {
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 0.85rem;
     font-style: italic;
     padding: 0;
@@ -793,7 +794,7 @@
     font-family: inherit;
     width: 100%;
   }
-  .npc-role:focus { border-bottom: 1px solid #313244; }
+  .npc-role:focus { border-bottom: 1px solid var(--surface); }
 
   .header-right {
     display: flex;
@@ -804,20 +805,20 @@
   }
 
   .npc-status {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 99px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
     cursor: pointer;
     outline: none;
     font-family: inherit;
   }
-  .npc-status.status-lebendig { color: #a6e3a1; border-color: #a6e3a1; }
-  .npc-status.status-tot      { color: #6c7086; border-color: #45475a; }
-  .npc-status.status-vermisst { color: #fab387; border-color: #fab387; }
-  .npc-status.status-unbekannt{ color: #89b4fa; border-color: #89b4fa; }
+  .npc-status.status-lebendig { color: var(--green); border-color: var(--green); }
+  .npc-status.status-tot      { color: var(--ink-muted); border-color: var(--border); }
+  .npc-status.status-vermisst { color: var(--copper); border-color: var(--copper); }
+  .npc-status.status-unbekannt{ color: var(--red); border-color: var(--red); }
 
   .header-foot {
     display: flex;
@@ -825,20 +826,20 @@
     gap: 0.4rem;
   }
 
-  .dirty-dot { font-size: 0.7rem; color: #f38ba8; width: 0.8rem; }
-  .save-error-msg { font-size: 0.72rem; color: #f38ba8; }
+  .dirty-dot { font-size: 0.7rem; color: var(--danger); width: 0.8rem; }
+  .save-error-msg { font-size: 0.72rem; color: var(--danger); }
 
   .json-btn {
     background: none;
-    border: 1px solid #313244;
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 0.75rem;
     padding: 0.2rem 0.55rem;
     cursor: pointer;
     font-family: inherit;
   }
-  .json-btn:hover { border-color: #6c7086; color: #cdd6f4; }
+  .json-btn:hover { border-color: var(--ink-muted); color: var(--ink); }
 
   /* ── Content area ────────────────────────────────── */
   .npc-content {
@@ -854,8 +855,8 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
-    border-bottom: 1px solid #313244;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--surface);
     padding-bottom: 0.2rem;
     display: flex;
     align-items: center;
@@ -864,7 +865,7 @@
 
   .h3-hint {
     font-size: 0.65rem;
-    color: #45475a;
+    color: var(--border);
     text-transform: none;
     letter-spacing: 0;
     font-weight: 400;
@@ -877,7 +878,7 @@
   }
 
   .attr-box {
-    background: #313244;
+    background: var(--surface);
     border-radius: 6px;
     padding: 0.4rem 0.6rem;
     text-align: center;
@@ -888,21 +889,21 @@
     gap: 0.1rem;
   }
 
-  .attr-label { font-size: 0.65rem; color: #6c7086; text-transform: uppercase; }
-  .attr-mod   { font-size: 1.15rem; font-weight: 700; color: #cba6f7; line-height: 1.2; }
+  .attr-label { font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; }
+  .attr-mod   { font-size: 1.15rem; font-weight: 700; color: var(--arcane); line-height: 1.2; }
   .attr-score {
     width: 2.5rem;
     background: none;
     border: none;
-    border-top: 1px solid #45475a;
-    color: #a6adc8;
+    border-top: 1px solid var(--border);
+    color: var(--ink-soft);
     font-size: 0.75rem;
     font-family: inherit;
     text-align: center;
     outline: none;
     padding: 0.1rem 0 0;
   }
-  .attr-score:focus { border-top-color: #89b4fa; }
+  .attr-score:focus { border-top-color: var(--red); }
 
   /* ── Two-column layout ───────────────────────────── */
   .two-col {
@@ -919,14 +920,14 @@
   }
 
   .stat { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .sl { color: #6c7086; font-size: 0.8rem; white-space: nowrap; }
-  .sv { font-weight: 600; color: #cdd6f4; }
+  .sl { color: var(--ink-muted); font-size: 0.8rem; white-space: nowrap; }
+  .sv { font-weight: 600; color: var(--ink); }
 
   .sv-input {
-    background: #181825;
-    border: 1px solid #313244;
+    background: var(--bg-panel);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.82rem;
     font-weight: 600;
     font-family: inherit;
@@ -936,7 +937,7 @@
     text-align: right;
   }
   .sv-input.wide { width: 8rem; text-align: left; }
-  .sv-input:focus { border-color: #89b4fa; }
+  .sv-input:focus { border-color: var(--red); }
 
   /* ── Saving throws ───────────────────────────────── */
   .save-list { display: flex; flex-direction: column; gap: 0.15rem; }
@@ -947,21 +948,21 @@
     gap: 0.4rem;
     font-size: 0.82rem;
   }
-  .save-row.proficient .save-val { color: #a6e3a1; }
+  .save-row.proficient .save-val { color: var(--green); }
 
   .prof-dot {
     background: none;
     border: none;
     padding: 0;
     font-size: 0.65rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     width: 0.8rem;
     cursor: pointer;
     line-height: 1;
   }
-  .proficient .prof-dot { color: #a6e3a1; }
+  .proficient .prof-dot { color: var(--green); }
 
-  .save-label { flex: 1; color: #a6adc8; }
+  .save-label { flex: 1; color: var(--ink-soft); }
   .save-val   { font-weight: 600; min-width: 2rem; text-align: right; }
 
   /* ── Skills ──────────────────────────────────────── */
@@ -978,12 +979,12 @@
     gap: 0.3rem;
     font-size: 0.8rem;
   }
-  .skill-row.proficient .skill-val { color: #a6e3a1; }
+  .skill-row.proficient .skill-val { color: var(--green); }
 
-  .prof-dot-static { font-size: 0.65rem; color: #6c7086; width: 0.8rem; }
-  .proficient .prof-dot-static { color: #a6e3a1; }
+  .prof-dot-static { font-size: 0.65rem; color: var(--ink-muted); width: 0.8rem; }
+  .proficient .prof-dot-static { color: var(--green); }
 
-  .skill-name { flex: 1; color: #a6adc8; }
+  .skill-name { flex: 1; color: var(--ink-soft); }
   .skill-val  { font-weight: 600; min-width: 2rem; text-align: right; }
 
   /* ── Spell cards ─────────────────────────────────── */
@@ -996,14 +997,14 @@
 
   .scard {
     border-left: 3px solid var(--sc);
-    background: #1e1e2e;
+    background: var(--bg);
     border-radius: 0 5px 5px 0;
     cursor: pointer;
     user-select: none;
     transition: background 0.1s;
   }
-  .scard:hover { background: #252535; }
-  .scard.expanded { background: #181825; }
+  .scard:hover { background: var(--bg-raised); }
+  .scard.expanded { background: var(--bg-panel); }
 
   .scard-head {
     display: flex;
@@ -1017,7 +1018,7 @@
     font-size: 0.65rem;
     font-weight: 700;
     color: var(--sc);
-    background: color-mix(in srgb, var(--sc) 12%, #1e1e2e);
+    background: color-mix(in srgb, var(--sc) 12%, var(--bg));
     border-radius: 3px;
     padding: 0.05rem 0.28rem;
     min-width: 1.4rem;
@@ -1029,23 +1030,23 @@
   .scard-badges { display: flex; gap: 0.3rem; align-items: center; }
   .scard-school {
     font-size: 0.68rem;
-    color: #45475a;
+    color: var(--border);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .scard-chevron { font-size: 0.55rem; color: #45475a; flex-shrink: 0; }
+  .scard-chevron { font-size: 0.55rem; color: var(--border); flex-shrink: 0; }
 
   .scard-remove {
     background: none;
     border: none;
-    color: #45475a;
+    color: var(--border);
     cursor: pointer;
     font-size: 0.8rem;
     padding: 0 0.15rem;
     line-height: 1;
     flex-shrink: 0;
   }
-  .scard-remove:hover { color: #f38ba8; }
+  .scard-remove:hover { color: var(--danger); }
 
   .scard-body { padding: 0 0.6rem 0.6rem 0.6rem; cursor: default; }
 
@@ -1057,7 +1058,7 @@
     padding-bottom: 0.5rem;
   }
   .sp-label {
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -1065,13 +1066,13 @@
     align-self: start;
     padding-top: 0.05rem;
   }
-  .sp-val { color: #cdd6f4; line-height: 1.4; }
+  .sp-val { color: var(--ink); line-height: 1.4; }
 
-  .scard-divider { height: 1px; background: #313244; margin: 0.4rem 0; }
-  .scard-desc { font-size: 0.82rem; color: #cdd6f4; line-height: 1.6; white-space: pre-wrap; }
-  .scard-higher { font-size: 0.8rem; color: #a6adc8; line-height: 1.55; white-space: pre-wrap; }
+  .scard-divider { height: 1px; background: var(--surface); margin: 0.4rem 0; }
+  .scard-desc { font-size: 0.82rem; color: var(--ink); line-height: 1.6; white-space: pre-wrap; }
+  .scard-higher { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
   .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
-  .scard-loading { font-size: 0.78rem; color: #45475a; font-style: italic; }
+  .scard-loading { font-size: 0.78rem; color: var(--border); font-style: italic; }
 
   /* ── Inventory list ──────────────────────────────── */
   .item-list {
@@ -1088,9 +1089,9 @@
     font-size: 0.82rem;
   }
 
-  .item-name { flex: 1; color: #cdd6f4; }
+  .item-name { flex: 1; color: var(--ink); }
   .item-linked { cursor: pointer; }
-  .item-linked:hover { color: #89b4fa; text-decoration: underline; text-decoration-style: dotted; }
+  .item-linked:hover { color: var(--red); text-decoration: underline; text-decoration-style: dotted; }
 
   .item-dot {
     width: 7px;
@@ -1101,7 +1102,7 @@
 
   .item-inline-info {
     font-size: 0.72rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-style: italic;
     flex-shrink: 0;
   }
@@ -1111,15 +1112,15 @@
     position: fixed;
     z-index: 9999;
     pointer-events: none;
-    background: #181825;
-    border: 1px solid #45475a;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.7rem 0.9rem;
     min-width: 200px;
     max-width: 320px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     font-size: 0.8rem;
-    color: #cdd6f4;
+    color: var(--ink);
   }
   .tt-name {
     font-weight: 600;
@@ -1130,29 +1131,29 @@
     gap: 0.3rem;
     margin-bottom: 0.2rem;
   }
-  .tt-name-en { font-size: 0.72rem; color: #6c7086; font-weight: 400; font-style: italic; }
+  .tt-name-en { font-size: 0.72rem; color: var(--ink-muted); font-weight: 400; font-style: italic; }
   .tt-badge { font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 500; line-height: 1.4; }
-  .tt-attune { background: #cba6f720; color: #cba6f7; border: 1px solid #cba6f740; }
-  .tt-meta { font-size: 0.74rem; color: #89b4fa; margin-bottom: 0.45rem; }
+  .tt-attune { background: color-mix(in srgb, var(--arcane) 13%, transparent); color: var(--arcane); border: 1px solid color-mix(in srgb, var(--arcane) 25%, transparent); }
+  .tt-meta { font-size: 0.74rem; color: var(--red); margin-bottom: 0.45rem; }
   .tt-section { display: flex; gap: 0.5rem; font-size: 0.78rem; margin-bottom: 0.15rem; align-items: baseline; }
-  .tt-label { color: #6c7086; flex-shrink: 0; min-width: 70px; font-size: 0.72rem; }
-  .tt-footer { margin-top: 0.35rem; color: #6c7086; flex-wrap: wrap; }
-  .tt-sep { color: #45475a; }
-  .tt-note { font-size: 0.74rem; color: #f38ba8; margin-bottom: 0.1rem; }
-  .tt-divider { border-top: 1px solid #313244; margin: 0.45rem 0; }
-  .tt-desc { margin: 0 0 0.3rem; font-size: 0.77rem; color: #a6adc8; line-height: 1.45; }
+  .tt-label { color: var(--ink-muted); flex-shrink: 0; min-width: 70px; font-size: 0.72rem; }
+  .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
+  .tt-sep { color: var(--border); }
+  .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
+  .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
+  .tt-desc { margin: 0 0 0.3rem; font-size: 0.77rem; color: var(--ink-soft); line-height: 1.45; }
 
   .row-remove {
     background: none;
     border: none;
-    color: #45475a;
+    color: var(--border);
     cursor: pointer;
     font-size: 0.8rem;
     line-height: 1;
     padding: 0 0.1rem;
     flex-shrink: 0;
   }
-  .row-remove:hover { color: #f38ba8; }
+  .row-remove:hover { color: var(--danger); }
 
   /* ── Add row ─────────────────────────────────────── */
   .add-row {
@@ -1163,16 +1164,16 @@
 
   .add-input {
     flex: 1;
-    background: #181825;
-    border: 1px solid #313244;
+    background: var(--bg-panel);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.8rem;
     padding: 0.2rem 0.45rem;
     outline: none;
     font-family: inherit;
   }
-  .add-input:focus { border-color: #89b4fa; }
+  .add-input:focus { border-color: var(--red); }
   .add-num { flex: 0 0 3.5rem; text-align: right; }
 
   .autocomplete-wrap {
@@ -1188,8 +1189,8 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 6px 6px;
     margin: 0;
@@ -1203,18 +1204,18 @@
     padding: 0.3rem 0.6rem;
     cursor: pointer;
     font-size: 0.82rem;
-    color: #cdd6f4;
+    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
   }
   .suggestions li:hover,
-  .suggestions li.active { background: #313244; }
+  .suggestions li.active { background: var(--surface); }
 
   .sug-level {
     font-size: 0.68rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     white-space: nowrap;
   }
 
@@ -1223,7 +1224,7 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.75rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     white-space: nowrap;
     cursor: pointer;
   }
@@ -1231,15 +1232,15 @@
 
   .add-btn {
     background: none;
-    border: 1px dashed #45475a;
+    border: 1px dashed var(--border);
     border-radius: 4px;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 1rem;
     line-height: 1;
     padding: 0.15rem 0.45rem;
     cursor: pointer;
   }
-  .add-btn:hover { color: #cba6f7; border-color: #cba6f7; }
+  .add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
 
   /* ── Narrative fields ────────────────────────────── */
   .npc-field { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.35rem; }
@@ -1247,16 +1248,16 @@
   .npc-field label {
     font-size: 0.68rem;
     font-weight: 600;
-    color: #6c7086;
+    color: var(--ink-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .npc-field textarea {
-    background: #181825;
-    border: 1px solid #313244;
+    background: var(--bg-panel);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.85rem;
     line-height: 1.5;
     padding: 0.3rem 0.5rem;
@@ -1264,17 +1265,17 @@
     resize: vertical;
     font-family: inherit;
   }
-  .npc-field textarea:focus { border-color: #89b4fa; }
+  .npc-field textarea:focus { border-color: var(--red); }
 
-  .secret-section h3 { color: #f38ba8; border-bottom-color: #f38ba8; }
+  .secret-section h3 { color: var(--danger); border-bottom-color: var(--danger); }
 
   .secret-ta {
     width: 100%;
     box-sizing: border-box;
-    background: #181825;
-    border: 1px solid #45475a;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.85rem;
     line-height: 1.5;
     padding: 0.3rem 0.5rem;
@@ -1282,21 +1283,21 @@
     resize: vertical;
     font-family: inherit;
   }
-  .secret-ta:focus { border-color: #f38ba8; }
+  .secret-ta:focus { border-color: var(--danger); }
 
   .tags-input {
     width: 100%;
     box-sizing: border-box;
-    background: #181825;
-    border: 1px solid #313244;
+    background: var(--bg-panel);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.85rem;
     padding: 0.3rem 0.5rem;
     outline: none;
     font-family: inherit;
   }
-  .tags-input:focus { border-color: #89b4fa; }
+  .tags-input:focus { border-color: var(--red); }
 
   /* ── JSON view ───────────────────────────────────── */
   .npc-json-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -1306,28 +1307,28 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 1rem;
-    background: #181825;
-    border-bottom: 1px solid #313244;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--surface);
   }
-  .json-label { font-size: 0.75rem; color: #6c7086; }
-  .json-error { font-size: 0.75rem; color: #f38ba8; }
+  .json-label { font-size: 0.75rem; color: var(--ink-muted); }
+  .json-error { font-size: 0.75rem; color: var(--danger); }
   .json-toolbar button {
     background: none;
-    border: 1px solid #313244;
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.8rem;
     padding: 0.2rem 0.6rem;
     cursor: pointer;
     font-family: inherit;
   }
-  .json-toolbar button:hover { border-color: #89b4fa; color: #89b4fa; }
+  .json-toolbar button:hover { border-color: var(--red); color: var(--red); }
 
   .json-ta {
     flex: 1;
     padding: 1rem 1.5rem;
-    background: #1e1e2e;
-    color: #cdd6f4;
+    background: var(--bg);
+    color: var(--ink);
     border: none;
     outline: none;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;

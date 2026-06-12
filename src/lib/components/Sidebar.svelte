@@ -370,7 +370,7 @@
   }
 
   function cancelNewMonster(e: KeyboardEvent) {
-    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; newMonsterGroup = ''; }
+    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; }
   }
 
   // --- Zauber (global, nach Schule) ---
