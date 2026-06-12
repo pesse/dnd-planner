@@ -14,3 +14,6 @@ src-tauri/target/
 
 # Logs
 tauri-dev.log
+
+# Playwright MCP — Session-Artefakte (Console-Logs, Page-Dumps)
+.playwright-mcp/
