@@ -5,6 +5,7 @@
   import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import CharacterEditForm from './CharacterEditForm.svelte';
+  import SpellTooltip from './SpellTooltip.svelte';
   import { activeFile, fileContent } from '../stores/campaign';
   import { marked } from 'marked';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
@@ -108,6 +109,13 @@
     activeFile.set({ name, path: libItem.path, type: 'item' });
   }
 
+  function openSpellPage(spellName: string) {
+    const info = spellInfoMap.get(spellName);
+    if (!info?.path) return;
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
+    activeFile.set({ name, path: info.path, type: 'spell' });
+  }
+
   function inlineWeaponInfo(item: Item): string {
     if (!item.damage) return '';
     const dice = formatDamageDice(item.damage.damage_dice);
@@ -134,32 +142,41 @@
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
   }
 
-  // ─── Zauberkarten: Expand/Collapse + Daten-Cache ────────
-  let expandedSpells = $state(new Set<string>());
+  // ─── Zauber-Daten-Cache + Hover-Tooltip (analog Item-Tooltip) ────────
   let spellDataCache = $state(new Map<string, Spell | null>());
-  let loadingSpells = $state(new Set<string>());
+  let spellTooltip = $state<Spell | null>(null);
 
-  async function toggleSpellCard(name: string) {
-    if (expandedSpells.has(name)) {
-      expandedSpells.delete(name);
-      expandedSpells = new Set(expandedSpells);
-      return;
-    }
-    expandedSpells.add(name);
-    expandedSpells = new Set(expandedSpells);
-    if (!spellDataCache.has(name) && !loadingSpells.has(name)) {
+  // Alle Zauber des Charakters vorab laden, damit beim Hover sofort ein
+  // Tooltip erscheint (kein Toggle, kein Ladezustand).
+  $effect(() => {
+    const spells = character?.spells;
+    if (!spells) return;
+    const names = [
+      ...(spells.cantrips ?? []),
+      ...['1','2','3','4','5','6','7','8','9'].flatMap(
+        lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
+      ),
+    ];
+    for (const name of names) {
+      if (spellDataCache.has(name)) continue;
       const info = spellInfoMap.get(name);
-      if (info?.path) {
-        loadingSpells.add(name);
-        loadingSpells = new Set(loadingSpells);
-        const data = await loadSpellByPath(info.path);
+      if (!info?.path) continue;
+      spellDataCache.set(name, null);  // als „in Arbeit" markieren
+      spellDataCache = new Map(spellDataCache);
+      loadSpellByPath(info.path).then(data => {
         spellDataCache.set(name, data);
         spellDataCache = new Map(spellDataCache);
-        loadingSpells.delete(name);
-        loadingSpells = new Set(loadingSpells);
-      }
+      });
     }
+  });
+
+  function showSpellTooltip(e: MouseEvent, name: string) {
+    const data = spellDataCache.get(name);
+    if (!data) return;
+    spellTooltip = data;
+    updateTooltipPos(e);
   }
+  function hideSpellTooltip() { spellTooltip = null; }
 
   const SCHOOL_LABELS: Record<string, string> = {
     abjuration: 'Bannmagie', conjuration: 'Beschwörung', divination: 'Erkenntnismagie',
@@ -167,26 +184,20 @@
     necromancy: 'Nekromantie', transmutation: 'Verwandlung',
   };
 
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
-  }
-
   let printingSpells = $state(false);
 
   async function printSpellList() {
-    if (!character?.spells) return;
+    const char = character;
+    const spells = char?.spells;
+    if (!spells) return;
     printingSpells = true;
 
     try {
       // Alle Zaubernamen sammeln: Zaubertricks + Stufe 1-9
       const names: string[] = [
-        ...(character.spells.cantrips ?? []),
+        ...(spells.cantrips ?? []),
         ...(['1','2','3','4','5','6','7','8','9'].flatMap(
-          lvl => (character.spells.byLevel[lvl] ?? []).map(s => s.name)
+          lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
         )),
       ];
 
@@ -213,7 +224,7 @@
       document.body.appendChild(iframe);
       const doc = iframe.contentDocument!;
       doc.open(); doc.write(html); doc.close();
-      const charName = character.name || 'Charakter';
+      const charName = char.name || 'Charakter';
       setTimeout(() => {
         const prev = document.title;
         document.title = `${charName} – Zauberkarten`;
@@ -783,7 +794,7 @@
                   >
                     <td>
                       {#if libItem}
-                        <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? '#585b70'}"></span>
+                        <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
                       {/if}
                       {libItem ? displayName(libItem) : item.name}
                       {#if fullItem?.item_type === 'weapon' && fullItem.damage}
@@ -837,41 +848,20 @@
                 {#each character.spells.cantrips as name}
                   {@const info = spellInfoMap.get(name)}
                   {@const color = spellColor(name)}
-                  {@const expanded = expandedSpells.has(name)}
-                  {@const data = spellDataCache.get(name) ?? null}
-                  <div class="scard" class:expanded style="--sc:{color || '#585b70'}"
+                  <div class="scard" class:scard-linked={!!info?.path}
+                    style="--sc:{color || 'var(--border-strong)'}"
                     role="button" tabindex="0"
-                    onclick={() => toggleSpellCard(name)}
-                    onkeydown={(e) => e.key === 'Enter' && toggleSpellCard(name)}>
+                    onclick={() => openSpellPage(name)}
+                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(name)}
+                    onmouseenter={(e) => showSpellTooltip(e, name)}
+                    onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
+                    onmouseleave={hideSpellTooltip}>
                     <div class="scard-head">
                       <span class="scard-name">{name}</span>
                       <span class="scard-badges">
                         {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
                       </span>
-                      <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
                     </div>
-                    {#if expanded}
-                      <div class="scard-body" onclick={(e) => e.stopPropagation()}>
-                        {#if loadingSpells.has(name)}
-                          <span class="scard-loading">Lädt…</span>
-                        {:else if data}
-                          <div class="scard-props">
-                            <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
-                            <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
-                            <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
-                            <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
-                          </div>
-                          <div class="scard-divider"></div>
-                          <div class="scard-desc">{data.description}</div>
-                          {#if data.higher_levels}
-                            <div class="scard-divider"></div>
-                            <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{data.higher_levels}</div>
-                          {/if}
-                        {:else}
-                          <span class="scard-loading">Nicht in Bibliothek</span>
-                        {/if}
-                      </div>
-                    {/if}
                   </div>
                 {/each}
               </div>
@@ -891,43 +881,21 @@
                   {#each lvlSpells as spell}
                     {@const info = spellInfoMap.get(spell.name)}
                     {@const color = spellColor(spell.name)}
-                    {@const expanded = expandedSpells.has(spell.name)}
-                    {@const data = spellDataCache.get(spell.name) ?? null}
-                    <div class="scard" class:expanded class:prepared={spell.prepared}
-                      style="--sc:{color || '#585b70'}"
+                    <div class="scard" class:prepared={spell.prepared} class:scard-linked={!!info?.path}
+                      style="--sc:{color || 'var(--border-strong)'}"
                       role="button" tabindex="0"
-                      onclick={() => toggleSpellCard(spell.name)}
-                      onkeydown={(e) => e.key === 'Enter' && toggleSpellCard(spell.name)}>
+                      onclick={() => openSpellPage(spell.name)}
+                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.name)}
+                      onmouseenter={(e) => showSpellTooltip(e, spell.name)}
+                      onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
+                      onmouseleave={hideSpellTooltip}>
                       <div class="scard-head">
                         <span class="scard-prep">{spell.prepared ? '●' : '○'}</span>
                         <span class="scard-name">{spell.name}</span>
                         <span class="scard-badges">
                           {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
                         </span>
-                        <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
                       </div>
-                      {#if expanded}
-                        <div class="scard-body" onclick={(e) => e.stopPropagation()}>
-                          {#if loadingSpells.has(spell.name)}
-                            <span class="scard-loading">Lädt…</span>
-                          {:else if data}
-                            <div class="scard-props">
-                              <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
-                              <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
-                              <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
-                              <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
-                            </div>
-                            <div class="scard-divider"></div>
-                            <div class="scard-desc">{data.description}</div>
-                            {#if data.higher_levels}
-                              <div class="scard-divider"></div>
-                              <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{data.higher_levels}</div>
-                            {/if}
-                          {:else}
-                            <span class="scard-loading">Nicht in Bibliothek</span>
-                          {/if}
-                        </div>
-                      {/if}
                     </div>
                   {/each}
                 </div>
@@ -1060,25 +1028,27 @@
   </div>
 {/if}
 
+<SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
+
 <style>
   .sheet {
     flex: 1;
     overflow-y: auto;
-    background: #1e1e2e;
-    color: #cdd6f4;
+    background: var(--bg);
+    color: var(--ink);
     font-size: 0.9rem;
   }
 
   .loading, .error {
     padding: 2rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     text-align: center;
   }
-  .error { color: #f38ba8; }
+  .error { color: var(--danger); }
 
   .header {
     padding: 1rem 1.5rem 0;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
@@ -1090,24 +1060,24 @@
     height: 80px;
     object-fit: cover;
     border-radius: 4px;
-    border: 1px solid #45475a;
-    background: #1e1e2e;
+    border: 1px solid var(--border);
+    background: var(--bg);
   }
 
   .name-block h1 {
     margin: 0;
     font-size: 1.4rem;
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
-  .sub { color: #6c7086; font-size: 0.85rem; }
+  .sub { color: var(--ink-muted); font-size: 0.85rem; }
 
   .header-meta {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
     font-size: 0.8rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
   }
 
   .header-actions {
@@ -1117,8 +1087,8 @@
   }
 
   .btn-import {
-    background: #f9e2af;
-    color: #1e1e2e;
+    background: var(--gold);
+    color: var(--bg);
     border: none;
     border-radius: 4px;
     padding: 0.3rem 0.75rem;
@@ -1129,39 +1099,39 @@
   .btn-import:disabled { opacity: 0.6; cursor: default; }
 
   .btn-pdf-import {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.3rem 0.75rem;
     font-size: 0.8rem;
     cursor: pointer;
   }
-  .btn-pdf-import:hover { border-color: #cba6f7; color: #cba6f7; }
+  .btn-pdf-import:hover { border-color: var(--arcane); color: var(--arcane); }
   .btn-pdf-import:disabled { opacity: 0.6; cursor: default; }
 
   .btn-dump {
-    background: #313244;
-    color: #a6adc8;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.3rem 0.75rem;
     font-size: 0.75rem;
     cursor: pointer;
   }
-  .btn-dump:hover { border-color: #f9e2af; color: #f9e2af; }
+  .btn-dump:hover { border-color: var(--gold); color: var(--gold); }
   .btn-dump:disabled { opacity: 0.6; cursor: default; }
 
   .btn-export-pdf {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.3rem 0.75rem;
     font-size: 0.8rem;
     cursor: pointer;
   }
-  .btn-export-pdf:hover { border-color: #a6e3a1; color: #a6e3a1; }
+  .btn-export-pdf:hover { border-color: var(--green); color: var(--green); }
   .btn-export-pdf:disabled { opacity: 0.6; cursor: default; }
 
   .edit-wrapper {
@@ -1169,8 +1139,8 @@
   }
 
   .json-badge {
-    background: #a6e3a1;
-    color: #1e1e2e;
+    background: var(--green);
+    color: var(--bg);
     border-radius: 4px;
     padding: 0.15rem 0.4rem;
     font-size: 0.7rem;
@@ -1189,14 +1159,14 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     padding: 0.4rem 0.75rem;
     font-size: 0.85rem;
   }
   .tabs button.active {
-    color: #cba6f7;
-    border-bottom-color: #cba6f7;
+    color: var(--arcane);
+    border-bottom-color: var(--arcane);
   }
 
   .content {
@@ -1213,16 +1183,16 @@
   }
 
   .attr-box {
-    background: #313244;
+    background: var(--surface);
     border-radius: 6px;
     padding: 0.4rem 0.6rem;
     text-align: center;
     min-width: 52px;
   }
 
-  .attr-label { font-size: 0.7rem; color: #6c7086; text-transform: uppercase; }
-  .attr-mod { font-size: 1.2rem; font-weight: 700; color: #cba6f7; }
-  .attr-score { font-size: 0.75rem; color: #a6adc8; }
+  .attr-label { font-size: 0.7rem; color: var(--ink-muted); text-transform: uppercase; }
+  .attr-mod { font-size: 1.2rem; font-weight: 700; color: var(--arcane); }
+  .attr-score { font-size: 0.75rem; color: var(--ink-soft); }
 
   .two-col {
     display: grid;
@@ -1235,8 +1205,8 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
-    border-bottom: 1px solid #313244;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--surface);
     padding-bottom: 0.2rem;
     display: flex;
     align-items: center;
@@ -1245,8 +1215,8 @@
 
   .slot-badge {
     font-size: 0.7rem;
-    background: #313244;
-    color: #89b4fa;
+    background: var(--surface);
+    color: var(--red);
     border-radius: 4px;
     padding: 0.05rem 0.4rem;
     font-weight: 400;
@@ -1269,8 +1239,8 @@
   }
 
   .stat { display: flex; justify-content: space-between; }
-  .sl { color: #6c7086; font-size: 0.8rem; }
-  .sv { font-weight: 600; color: #cdd6f4; }
+  .sl { color: var(--ink-muted); font-size: 0.8rem; }
+  .sv { font-weight: 600; color: var(--ink); }
 
   .attack-table {
     width: 100%;
@@ -1279,17 +1249,17 @@
   }
   .attack-table th {
     text-align: left;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
     padding: 0.15rem 0.3rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
   }
-  .attack-table td { padding: 0.15rem 0.3rem; color: #cdd6f4; }
+  .attack-table td { padding: 0.15rem 0.3rem; color: var(--ink); }
 
   .save-list { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.75rem; }
   .save-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; }
-  .save-row.proficient .save-val { color: #a6e3a1; }
-  .save-label { flex: 1; color: #a6adc8; }
+  .save-row.proficient .save-val { color: var(--green); }
+  .save-label { flex: 1; color: var(--ink-soft); }
   .save-val { font-weight: 600; }
 
   .skill-grid {
@@ -1298,25 +1268,25 @@
     gap: 0.1rem 0.5rem;
   }
   .skill-row { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
-  .skill-row.proficient .skill-val { color: #a6e3a1; }
-  .skill-row.expertise .skill-val { color: #89dceb; }
-  .skill-name { color: #a6adc8; }
+  .skill-row.proficient .skill-val { color: var(--green); }
+  .skill-row.expertise .skill-val { color: var(--steel); }
+  .skill-name { color: var(--ink-soft); }
   .skill-val { font-weight: 600; }
 
-  .prof-dot { font-size: 0.65rem; color: #6c7086; width: 0.8rem; }
-  .proficient .prof-dot, .expertise .prof-dot { color: #a6e3a1; }
+  .prof-dot { font-size: 0.65rem; color: var(--ink-muted); width: 0.8rem; }
+  .proficient .prof-dot, .expertise .prof-dot { color: var(--green); }
 
   .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
-  .prof-extra { font-size: 0.8rem; color: #a6adc8; margin: 0.2rem 0 0.4rem; }
+  .prof-extra { font-size: 0.8rem; color: var(--ink-soft); margin: 0.2rem 0 0.4rem; }
   .tag {
-    background: #313244;
+    background: var(--surface);
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
     font-size: 0.75rem;
-    color: #cdd6f4;
+    color: var(--ink);
   }
 
-  .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: #a6adc8; }
+  .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
 
   /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
   .spell-level-header {
@@ -1326,8 +1296,8 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
-    border-bottom: 1px solid #313244;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--surface);
     padding-bottom: 0.2rem;
     margin: 0.5rem 0 0.25rem;
   }
@@ -1348,8 +1318,8 @@
 
   .spell-name { flex: 1; }
 
-  .prep-dot { font-size: 0.62rem; color: #45475a; width: 0.8rem; }
-  .spell-row.prepared .prep-dot { color: #a6e3a1; }
+  .prep-dot { font-size: 0.62rem; color: var(--border); width: 0.8rem; }
+  .spell-row.prepared .prep-dot { color: var(--green); }
 
   .section-head-row {
     display: flex;
@@ -1360,16 +1330,16 @@
   .section-head-row h3 { margin-bottom: 0; }
 
   .btn-spell-pdf {
-    background: #313244;
-    border: 1px solid #45475a;
-    color: #a6adc8;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
     border-radius: 5px;
     padding: 0.2rem 0.6rem;
     font-size: 0.75rem;
     cursor: pointer;
     white-space: nowrap;
   }
-  .btn-spell-pdf:hover:not(:disabled) { color: #89b4fa; border-color: #89b4fa; }
+  .btn-spell-pdf:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
   .btn-spell-pdf:disabled { opacity: 0.5; cursor: default; }
 
   /* ── Zauberkarten ─────────────────────────────────────── */
@@ -1382,14 +1352,14 @@
 
   .scard {
     border-left: 3px solid var(--sc);
-    background: #1e1e2e;
+    background: var(--bg);
     border-radius: 0 5px 5px 0;
-    cursor: pointer;
+    cursor: help;
     user-select: none;
     transition: background 0.1s;
   }
-  .scard:hover { background: #252535; }
-  .scard.expanded { background: #181825; }
+  .scard.scard-linked { cursor: pointer; }
+  .scard:hover { background: var(--bg-raised); }
 
   .scard-head {
     display: flex;
@@ -1399,63 +1369,18 @@
     font-size: 0.83rem;
   }
 
-  .scard-prep { font-size: 0.6rem; color: #45475a; flex-shrink: 0; }
-  .scard.prepared .scard-prep { color: #a6e3a1; }
+  .scard-prep { font-size: 0.6rem; color: var(--border); flex-shrink: 0; }
+  .scard.prepared .scard-prep { color: var(--green); }
 
   .scard-name { flex: 1; color: var(--sc); font-weight: 500; }
 
   .scard-badges { display: flex; gap: 0.3rem; align-items: center; }
   .scard-school {
     font-size: 0.68rem;
-    color: #45475a;
+    color: var(--border);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-
-  .scard-chevron { font-size: 0.55rem; color: #45475a; flex-shrink: 0; }
-
-  .scard-body {
-    padding: 0 0.6rem 0.6rem 0.6rem;
-    cursor: default;
-  }
-
-  .scard-props {
-    display: grid;
-    grid-template-columns: 7rem 1fr;
-    gap: 0.2rem 0.4rem;
-    font-size: 0.8rem;
-    padding-bottom: 0.5rem;
-  }
-
-  .sp-label {
-    color: #6c7086;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    align-self: start;
-    padding-top: 0.05rem;
-  }
-  .sp-val { color: #cdd6f4; line-height: 1.4; }
-
-  .scard-divider { height: 1px; background: #313244; margin: 0.4rem 0; }
-
-  .scard-desc {
-    font-size: 0.82rem;
-    color: #cdd6f4;
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-
-  .scard-higher {
-    font-size: 0.8rem;
-    color: #a6adc8;
-    line-height: 1.55;
-    white-space: pre-wrap;
-  }
-  .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
-
-  .scard-loading { font-size: 0.78rem; color: #45475a; font-style: italic; }
 
   /* GM-Notizen */
   .notes-area {
@@ -1467,7 +1392,7 @@
     display: flex;
     gap: 0.5rem;
     padding: 0.5rem 1.5rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
   }
   .btn-edit, .btn-save, .btn-cancel {
     padding: 0.25rem 0.75rem;
@@ -1476,15 +1401,15 @@
     cursor: pointer;
     font-size: 0.82rem;
   }
-  .btn-edit { background: #313244; color: #cdd6f4; }
-  .btn-save { background: #a6e3a1; color: #1e1e2e; font-weight: 600; }
+  .btn-edit { background: var(--surface); color: var(--ink); }
+  .btn-save { background: var(--green); color: var(--bg); font-weight: 600; }
   .btn-save:disabled { opacity: 0.6; cursor: default; }
-  .btn-cancel { background: none; color: #6c7086; }
+  .btn-cancel { background: none; color: var(--ink-muted); }
 
   .notes-editor {
     flex: 1;
-    background: #181825;
-    color: #cdd6f4;
+    background: var(--bg-panel);
+    color: var(--ink);
     border: none;
     padding: 1.5rem;
     font-family: 'JetBrains Mono', monospace;
@@ -1498,10 +1423,10 @@
     overflow-y: auto;
     line-height: 1.8;
   }
-  .notes-preview :global(h1) { color: #cba6f7; }
-  .notes-preview :global(h2) { color: #89b4fa; }
-  .notes-preview :global(h3) { color: #94e2d5; }
-  .notes-preview :global(strong) { color: #f38ba8; }
+  .notes-preview :global(h1) { color: var(--arcane); }
+  .notes-preview :global(h2) { color: var(--red); }
+  .notes-preview :global(h3) { color: var(--teal); }
+  .notes-preview :global(strong) { color: var(--danger); }
 
   /* ── Tooltips ─────────────────────────────── */
   .has-tip {
@@ -1517,14 +1442,14 @@
     bottom: calc(100% + 7px);
     left: 50%;
     transform: translateX(-50%);
-    background: #181825;
-    border: 1px solid #45475a;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.45rem 0.7rem;
     font-size: 0.75rem;
     font-weight: 400;
     white-space: nowrap;
-    color: #a6adc8;
+    color: var(--ink-soft);
     z-index: 50;
     pointer-events: none;
     box-shadow: 0 4px 14px rgba(0,0,0,0.5);
@@ -1537,7 +1462,7 @@
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-top-color: #45475a;
+    border-top-color: var(--border);
   }
 
   .tip.tip-left {
@@ -1558,24 +1483,24 @@
     justify-content: space-between;
     gap: 1.5rem;
   }
-  .tip :global(.tip-lbl) { color: #6c7086; }
+  .tip :global(.tip-lbl) { color: var(--ink-muted); }
   .tip :global(.tip-val) {
     font-weight: 600;
-    color: #cba6f7;
+    color: var(--arcane);
     text-align: right;
   }
   .tip :global(.tip-div) {
     display: block;
-    border-top: 1px solid #45475a;
+    border-top: 1px solid var(--border);
     margin: 0.1rem 0;
   }
   .tip :global(.tip-total .tip-val) {
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.85rem;
   }
   .tip :global(.tip-step) {
     display: block;
-    color: #585b70;
+    color: var(--ink-muted);
     font-size: 0.72rem;
     padding-left: 0.15rem;
   }
@@ -1589,15 +1514,15 @@
   }
 
   .coin {
-    background: #313244;
+    background: var(--surface);
     border-radius: 6px;
     padding: 0.3rem 0.6rem;
     text-align: center;
     min-width: 46px;
   }
   .coin.empty { opacity: 0.4; }
-  .coin-val { display: block; font-weight: 700; font-size: 0.95rem; color: #f9e2af; }
-  .coin-lbl { display: block; font-size: 0.65rem; color: #6c7086; text-transform: uppercase; }
+  .coin-val { display: block; font-weight: 700; font-size: 0.95rem; color: var(--gold); }
+  .coin-lbl { display: block; font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; }
 
   .inv-table {
     width: 100%;
@@ -1607,10 +1532,10 @@
   }
   .inv-table th {
     text-align: left;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
     padding: 0.15rem 0.4rem 0.15rem 0;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
   }
   .inv-dot {
     display: inline-block;
@@ -1623,12 +1548,12 @@
   }
 
   .inv-linked { cursor: pointer; }
-  .inv-linked:hover td { background: #1e1e2e; filter: brightness(1.15); }
+  .inv-linked:hover td { background: var(--bg); filter: brightness(1.15); }
 
   .inv-weapon-info {
     margin-left: 0.4rem;
     font-size: 0.74rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-style: italic;
   }
 
@@ -1637,20 +1562,20 @@
     position: fixed;
     z-index: 9999;
     pointer-events: none;
-    background: #181825;
-    border: 1px solid #45475a;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.7rem 0.9rem;
     min-width: 200px;
     max-width: 320px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     font-size: 0.8rem;
-    color: #cdd6f4;
+    color: var(--ink);
   }
   .tt-name {
     font-weight: 600;
     font-size: 0.88rem;
-    color: #cdd6f4;
+    color: var(--ink);
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
@@ -1659,7 +1584,7 @@
   }
   .tt-name-en {
     font-size: 0.72rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
     font-style: italic;
   }
@@ -1670,10 +1595,10 @@
     font-weight: 500;
     line-height: 1.4;
   }
-  .tt-attune { background: #cba6f720; color: #cba6f7; border: 1px solid #cba6f740; }
+  .tt-attune { background: color-mix(in srgb, var(--arcane) 13%, transparent); color: var(--arcane); border: 1px solid color-mix(in srgb, var(--arcane) 25%, transparent); }
   .tt-meta {
     font-size: 0.74rem;
-    color: #89b4fa;
+    color: var(--red);
     margin-bottom: 0.45rem;
   }
   .tt-section {
@@ -1684,40 +1609,40 @@
     align-items: baseline;
   }
   .tt-label {
-    color: #6c7086;
+    color: var(--ink-muted);
     flex-shrink: 0;
     min-width: 70px;
     font-size: 0.72rem;
   }
-  .tt-footer { margin-top: 0.35rem; color: #6c7086; flex-wrap: wrap; }
-  .tt-sep { color: #45475a; }
-  .tt-note { font-size: 0.74rem; color: #f38ba8; margin-bottom: 0.1rem; }
-  .tt-divider { border-top: 1px solid #313244; margin: 0.45rem 0; }
+  .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
+  .tt-sep { color: var(--border); }
+  .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
+  .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
   .tt-desc {
     margin: 0 0 0.3rem;
     font-size: 0.77rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
     line-height: 1.45;
   }
 
   .inv-table td {
     padding: 0.2rem 0.4rem 0.2rem 0;
-    color: #cdd6f4;
-    border-bottom: 1px solid #1e1e2e;
+    color: var(--ink);
+    border-bottom: 1px solid var(--bg);
   }
-  .inv-table td.num { color: #a6adc8; text-align: right; padding-right: 0.75rem; }
+  .inv-table td.num { color: var(--ink-soft); text-align: right; padding-right: 0.75rem; }
 
   .weight-total {
     font-size: 0.78rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     text-align: right;
     margin-top: 0.2rem;
   }
-  .weight-total strong { color: #a6adc8; }
+  .weight-total strong { color: var(--ink-soft); }
 
   .empty-hint {
     font-size: 0.8rem;
-    color: #45475a;
+    color: var(--border);
     font-style: italic;
   }
 </style>

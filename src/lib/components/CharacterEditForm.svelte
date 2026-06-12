@@ -1,10 +1,12 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { activeFile } from '../stores/campaign';
   import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type CharacterData, type SpellEntry } from '../pdf/characterFields';
-  import { getSpellLibrary, searchSpells, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
+  import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
-  import type { Item } from '../types';
+  import type { Item, Spell } from '../types';
+  import SpellTooltip from './SpellTooltip.svelte';
 
   let { character, dirPath, onSave, onCancel }: {
     character: CharacterData;
@@ -309,6 +311,53 @@
   function spellColor(name: string): string {
     const school = spellSchoolMap.get(name);
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
+  }
+
+  // ─── Zauber-Hover-Tooltip (analog Gegenstands-Tooltip) ───
+  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
+  let spellDataCache = $state(new Map<string, Spell | null>());
+  let spellTooltip = $state<Spell | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
+  // Alle aktuell eingetragenen Zauber vorab laden → sofortiger Tooltip beim Hover.
+  $effect(() => {
+    const names = [
+      ...cantrips,
+      ...Object.values(spellsByLevel).flat().map(s => s.name),
+    ];
+    for (const name of names) {
+      if (spellDataCache.has(name)) continue;
+      const info = spellInfoMap.get(name);
+      if (!info?.path) continue;
+      spellDataCache.set(name, null);
+      spellDataCache = new Map(spellDataCache);
+      loadSpellByPath(info.path).then(data => {
+        spellDataCache.set(name, data);
+        spellDataCache = new Map(spellDataCache);
+      });
+    }
+  });
+
+  function showSpellTooltip(e: MouseEvent, name: string) {
+    const data = spellDataCache.get(name);
+    if (!data) return;
+    spellTooltip = data;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function moveSpellTooltip(e: MouseEvent) {
+    if (!spellTooltip) return;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function hideSpellTooltip() { spellTooltip = null; }
+
+  function openSpellPage(spellName: string) {
+    const info = spellInfoMap.get(spellName);
+    if (!info?.path) return;
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
+    activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
   $effect(() => {
@@ -628,7 +677,7 @@
               onmouseenter={() => (weaponSugIndex = i)}
             >
               <span>{displayName(sug.item)}</span>
-              <span class="sug-cat" style:color={CATEGORY_COLORS[sug.item.category] ?? '#6c7086'}>
+              <span class="sug-cat" style:color={CATEGORY_COLORS[sug.item.category] ?? 'var(--ink-muted)'}>
                 {sug.item.category}
               </span>
             </li>
@@ -846,7 +895,14 @@
     <h3 style="margin-top:0.75rem">Zaubertricks</h3>
     <div class="tag-editor">
       {#each cantrips as c}
-        <span class="tag" style="color:{spellColor(c) || 'inherit'}">{c}<button onclick={() => { cantrips = cantrips.filter(x => x !== c); }}>✕</button></span>
+        <span class="tag" style="color:{spellColor(c) || 'inherit'}"><span
+          class="spell-link" class:linked={!!spellInfoMap.get(c)?.path}
+          role="button" tabindex="0"
+          onclick={() => openSpellPage(c)}
+          onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
+          onmouseenter={(e) => showSpellTooltip(e, c)}
+          onmousemove={moveSpellTooltip}
+          onmouseleave={hideSpellTooltip}>{c}</span><button onclick={() => { cantrips = cantrips.filter(x => x !== c); }}>✕</button></span>
       {/each}
       <div class="autocomplete-wrap">
         <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
@@ -906,7 +962,14 @@
                 {spell.prepared ? '●' : '○'}
               </button>
               <span class="spell-item-name" class:prepared={spell.prepared}
-                style="color:{spellColor(spell.name) || 'inherit'}">{spell.name}</span>
+                class:linked={!!spellInfoMap.get(spell.name)?.path}
+                style="color:{spellColor(spell.name) || 'inherit'}"
+                role="button" tabindex="0"
+                onclick={() => openSpellPage(spell.name)}
+                onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.name)}
+                onmouseenter={(e) => showSpellTooltip(e, spell.name)}
+                onmousemove={moveSpellTooltip}
+                onmouseleave={hideSpellTooltip}>{spell.name}</span>
               <button class="remove-btn" onclick={() => { spellsByLevel[lvl] = spells.filter((_, j) => j !== i); }}>✕</button>
             </div>
           {/each}
@@ -922,13 +985,15 @@
   </div>
 </div>
 
+<SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
+
 <style>
   .edit-form {
     padding: 1rem 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.85rem;
   }
 
@@ -936,17 +1001,17 @@
     display: flex;
     gap: 0.5rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
     margin-bottom: 0.75rem;
     position: sticky;
     top: 0;
-    background: #1e1e2e;
+    background: var(--bg);
     z-index: 10;
     padding-top: 0.25rem;
   }
   .toolbar-bottom {
     position: static;
-    border-top: 1px solid #313244;
+    border-top: 1px solid var(--surface);
     border-bottom: none;
     margin-top: 1rem;
     padding-top: 0.75rem;
@@ -955,8 +1020,8 @@
   }
 
   .btn-save {
-    background: #a6e3a1;
-    color: #1e1e2e;
+    background: var(--green);
+    color: var(--bg);
     border: none;
     border-radius: 4px;
     padding: 0.3rem 0.9rem;
@@ -967,7 +1032,7 @@
   .btn-cancel {
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.82rem;
     padding: 0.3rem 0.5rem;
@@ -982,8 +1047,8 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
-    border-bottom: 1px solid #313244;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--surface);
     padding-bottom: 0.2rem;
   }
 
@@ -992,20 +1057,20 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.75rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
   }
 
   input, textarea, select {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     padding: 0.25rem 0.4rem;
     font-size: 0.82rem;
     outline: none;
     font-family: inherit;
   }
-  input:focus, textarea:focus { border-color: #cba6f7; }
+  input:focus, textarea:focus { border-color: var(--arcane); }
   input[type="number"] { width: 4rem; }
   input[type="checkbox"] { width: auto; }
 
@@ -1027,7 +1092,7 @@
     flex-wrap: wrap;
   }
   .attr-box {
-    background: #313244;
+    background: var(--surface);
     border-radius: 6px;
     padding: 0.4rem 0.6rem;
     text-align: center;
@@ -1040,11 +1105,11 @@
   .attr-mod-display {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #cba6f7;
+    color: var(--arcane);
   }
   .attr-label {
     font-size: 0.65rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     text-transform: uppercase;
   }
   .attr-input {
@@ -1065,10 +1130,10 @@
     align-items: center;
     gap: 0.35rem;
     font-size: 0.82rem;
-    color: #cdd6f4;
+    color: var(--ink);
   }
   .check-label { flex: 1; }
-  .check-val { font-weight: 600; min-width: 2rem; text-align: right; color: #a6adc8; }
+  .check-val { font-weight: 600; min-width: 2rem; text-align: right; color: var(--ink-soft); }
   .alleskoenner { margin-bottom: 0.5rem; }
 
   /* Fertigkeiten */
@@ -1083,9 +1148,9 @@
     gap: 0.3rem;
     font-size: 0.8rem;
   }
-  .skill-name { color: #a6adc8; }
-  .skill-name.proficient { color: #a6e3a1; }
-  .skill-name.expertise { color: #89dceb; }
+  .skill-name { color: var(--ink-soft); }
+  .skill-name.proficient { color: var(--green); }
+  .skill-name.expertise { color: var(--steel); }
   .skill-val { font-weight: 600; }
 
   /* Angriffe */
@@ -1097,10 +1162,10 @@
   }
   .attack-table th {
     text-align: left;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
     padding: 0.1rem 0.3rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
   }
   .attack-table td {
     padding: 0.15rem 0.2rem;
@@ -1118,7 +1183,7 @@
     align-items: center;
   }
   .tag {
-    background: #313244;
+    background: var(--surface);
     border-radius: 4px;
     padding: 0.1rem 0.3rem 0.1rem 0.5rem;
     font-size: 0.78rem;
@@ -1130,12 +1195,12 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #45475a;
+    color: var(--border);
     font-size: 0.7rem;
     padding: 0;
     line-height: 1;
   }
-  .tag button:hover { color: #f38ba8; }
+  .tag button:hover { color: var(--danger); }
   .tag-input {
     flex: 1;
     min-width: 80px;
@@ -1151,7 +1216,7 @@
   .coin-label {
     flex-direction: column;
     font-size: 0.72rem;
-    color: #6c7086;
+    color: var(--ink-muted);
   }
   .coin-input {
     width: 4rem;
@@ -1167,10 +1232,10 @@
   }
   .inv-table th {
     text-align: left;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
     padding: 0.1rem 0.3rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
   }
   .inv-table td { padding: 0.15rem 0.2rem; }
   .inv-table input { width: 100%; min-width: 40px; }
@@ -1188,8 +1253,8 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
     list-style: none;
     margin: 0;
@@ -1202,14 +1267,14 @@
     padding: 0.25rem 0.5rem;
     cursor: pointer;
     font-size: 0.8rem;
-    color: #cdd6f4;
+    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.4rem;
   }
-  .suggestions li:hover, .suggestions li.active { background: #313244; }
-  .sug-cat { color: #6c7086; font-size: 0.75rem; flex-shrink: 0; }
+  .suggestions li:hover, .suggestions li.active { background: var(--surface); }
+  .sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
 
   .ta-large {
     width: 100%;
@@ -1227,26 +1292,26 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #45475a;
+    color: var(--border);
     font-size: 0.75rem;
     padding: 0.1rem 0.2rem;
   }
-  .remove-btn:hover { color: #f38ba8; }
+  .remove-btn:hover { color: var(--danger); }
 
   .btn-add {
-    background: #313244;
-    color: #cdd6f4;
+    background: var(--surface);
+    color: var(--ink);
     border: none;
     border-radius: 4px;
     padding: 0.2rem 0.6rem;
     font-size: 0.78rem;
     cursor: pointer;
   }
-  .btn-add:hover { background: #45475a; }
+  .btn-add:hover { background: var(--border); }
 
   .btn-add-sm {
-    background: #313244;
-    color: #cdd6f4;
+    background: var(--surface);
+    color: var(--ink);
     border: none;
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
@@ -1266,7 +1331,7 @@
     flex-direction: column;
     align-items: center;
     font-size: 0.7rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     gap: 0.1rem;
   }
   .slot-label input { width: 2.8rem; text-align: center; }
@@ -1279,9 +1344,9 @@
     margin-bottom: 0.5rem;
   }
   .spell-level-select {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.2rem 0.3rem;
     font-size: 0.8rem;
@@ -1306,8 +1371,8 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 6px 6px;
     margin: 0;
@@ -1321,7 +1386,7 @@
     padding: 0.3rem 0.6rem;
     cursor: pointer;
     font-size: 0.82rem;
-    color: #cdd6f4;
+    color: var(--ink);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -1329,19 +1394,19 @@
   }
   .suggestions li:hover,
   .suggestions li.active {
-    background: #313244;
+    background: var(--surface);
   }
   .suggestions li.out-of-class {
-    color: #585b70;
+    color: var(--ink-muted);
   }
   .suggestions li.out-of-class:hover,
   .suggestions li.out-of-class.active {
-    background: #2a2b3d;
-    color: #7f849c;
+    background: var(--bg-raised);
+    color: var(--ink-faint);
   }
   .sug-hint {
     font-size: 0.7rem;
-    color: #45475a;
+    color: var(--border);
     white-space: nowrap;
   }
   .prep-check {
@@ -1350,7 +1415,7 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.78rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
     cursor: pointer;
   }
 
@@ -1362,7 +1427,7 @@
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #6c7086;
+    color: var(--ink-muted);
     margin-bottom: 0.2rem;
   }
   .spell-edit-row {
@@ -1372,19 +1437,25 @@
     font-size: 0.82rem;
     padding: 0.05rem 0;
   }
-  .spell-item-name { flex: 1; color: #a6adc8; }
+  .spell-item-name { flex: 1; color: var(--ink-soft); }
   .spell-item-name.prepared { font-weight: 600; }
+  .spell-item-name.linked { cursor: pointer; }
+  .spell-item-name.linked:hover { text-decoration: underline; }
+
+  .spell-link { cursor: help; }
+  .spell-link.linked { cursor: pointer; }
+  .spell-link.linked:hover { text-decoration: underline; }
 
   .prep-toggle {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 0.62rem;
-    color: #45475a;
+    color: var(--border);
     padding: 0;
     width: 0.9rem;
   }
-  .spell-edit-row .prep-toggle:hover { color: #a6e3a1; }
+  .spell-edit-row .prep-toggle:hover { color: var(--green); }
 
   /* Persönliches / Portrait */
   .personal-grid {
@@ -1403,15 +1474,15 @@
     height: 200px;
     object-fit: cover;
     border-radius: 6px;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
   }
   .portrait-placeholder {
     width: 160px;
     height: 200px;
-    border: 1px dashed #45475a;
+    border: 1px dashed var(--border);
     border-radius: 6px;
-    color: #6c7086;
+    color: var(--ink-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1432,7 +1503,7 @@
     margin-top: 0.7rem;
   }
   .error-sm {
-    color: #f38ba8;
+    color: var(--danger);
     font-size: 0.75rem;
   }
 

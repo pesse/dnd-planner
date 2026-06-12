@@ -33,19 +33,19 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.3rem 1rem;
-    background: #2a2a1a;
-    border-bottom: 1px solid #45452a;
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--bg-raised);
     font-size: 0.75rem;
     flex-shrink: 0;
   }
 
   .hint-icon {
-    color: #f9e2af;
+    color: var(--gold);
     flex-shrink: 0;
   }
 
   .hint-label {
-    color: #6c7086;
+    color: var(--ink-muted);
     flex-shrink: 0;
   }
 
@@ -57,8 +57,8 @@
   }
 
   code {
-    background: #313244;
-    color: #f9e2af;
+    background: var(--surface);
+    color: var(--gold);
     border-radius: 3px;
     padding: 0.05rem 0.3rem;
     font-size: 0.7rem;
@@ -66,13 +66,13 @@
   }
 
   .sep {
-    color: #45475a;
+    color: var(--border);
   }
 
   .hint-fix {
     margin-left: auto;
-    background: #f9e2af;
-    color: #1e1e2e;
+    background: var(--gold);
+    color: var(--bg);
     border: none;
     border-radius: 4px;
     padding: 0.2rem 0.6rem;
@@ -83,6 +83,6 @@
   }
 
   .hint-fix:hover {
-    background: #fae3b0;
+    background: var(--gold);
   }
 </style>

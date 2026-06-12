@@ -1,0 +1,114 @@
+/*
+ * D&D Parchment Theme — zentrale Design-Tokens.
+ *
+ * Die Palette ist aus den bereits im Pergament-Look gestalteten Komponenten
+ * (MonsterStatBlock, SpellCard) abgeleitet, damit die ganze App einheitlich
+ * wie ein altes Regelwerk wirkt: helles Pergament, Tinten-Schrift, heraldisches
+ * Rot & Gold als Akzente.
+ *
+ * Alle Komponenten referenzieren NUR diese Variablen — keine hartcodierten
+ * Farbwerte mehr. Wer das Theme ändern will, ändert hier.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap');
+
+:root {
+  /* ---- Pergament-Hintergründe (hell → dunkler = tieferliegend) ---- */
+  --bg:          #f6ecd4; /* Haupt-Inhaltsfläche */
+  --bg-panel:    #ece0c2; /* Sidebar / Toolbar / Panels */
+  --bg-deep:     #e4d5b0; /* tiefste Einlassungen, Wells */
+  --bg-raised:   #f1e7cf; /* leicht erhabene Flächen */
+  --surface:     #e7d9b4; /* Buttons / Badges (dezenter Untergrund) */
+
+  /* ---- Ränder ---- */
+  --border:        #cdb784; /* Standard-Rand */
+  --border-strong: #b89f6a; /* kräftigere Trennlinie */
+
+  /* ---- Tinte (Text) ---- */
+  --ink:        #2f2110; /* Haupttext */
+  --ink-soft:   #5a4a30; /* Sekundärtext */
+  --ink-muted:  #897149; /* gedämpft / Platzhalter */
+  --ink-faint:  #9c855a; /* schwächste Schrift */
+
+  /* ---- Heraldische Akzente ----
+     Alle Werte sind so dunkel gewählt, dass sie als TEXT auf Pergament
+     (--bg / --bg-panel) den WCAG-AA-Kontrast (≥4.5:1) erreichen — die
+     Kategorie-/Zauberfarben werden auch als farbiger Text verwendet. */
+  --red:         #8a2012; /* PRIMÄR-Akzent: interaktiv, Links, Überschriften */
+  --red-bright:  #9c2a18; /* Hover / Betonung */
+  --gold:        #786012; /* Gold-Verzierung / Akzent (antik, textlesbar) */
+  --gold-bright: #735b0d; /* zweiter Goldton (Transmutation), textlesbar */
+  --green:       #356a28; /* Erfolg / Anfügen */
+  --copper:      #9a4e16; /* Item / Peach */
+  --steel:       #2c6483; /* Encounter / Sky */
+  --teal:        #205c50;
+  --arcane:      #6d3b8e; /* NPC / Zauber / Charakter (Mauve) */
+  --magenta:     #9c3a74; /* Pink */
+  --danger:      #a32114; /* Löschen / Fehler */
+
+  /* Text auf gesättigten Akzent-Flächen (= Pergamentton) */
+  --on-accent:  #f6ecd4;
+
+  /* ---- Typografie ---- */
+  --font-display: 'Cinzel', 'Trajan Pro', 'Palatino Linotype', Georgia, serif;
+  --font-ui: Inter, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+/* D&D-Display-Schrift für Überschriften & Titel (dezent) */
+h1, h2, h3, .file-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Pergament-Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 2px solid var(--bg);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
+ * Dezente Verzierungs-Helfer.
+ * .ornament-top  — schmale Gold/Rot-Zierleiste am oberen Rand eines Panels.
+ * .dragon-mark   — schwaches Drachen-Wasserzeichen (als ::after platzieren).
+ */
+.ornament-top {
+  position: relative;
+}
+.ornament-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--gold) 18%,
+    var(--red) 50%,
+    var(--gold) 82%,
+    transparent 100%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}

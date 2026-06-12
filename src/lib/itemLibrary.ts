@@ -27,20 +27,20 @@ export function displayName(item: ItemInfo): string {
 
 /** Farbe pro Kategorie (Catppuccin Mocha Palette) */
 export const CATEGORY_COLORS: Record<string, string> = {
-  'weapon':              '#f38ba8', // red
-  'armor':               '#89b4fa', // blue
-  'ammunition':          '#94e2d5', // teal
-  'adventuring-gear':    '#f2cdcd', // flamingo
-  'tools':               '#74c7ec', // sapphire
-  'mounts-and-vehicles': '#b4befe', // lavender
-  'wondrous-items':      '#cba6f7', // mauve
-  'ring':                '#f9e2af', // yellow
-  'rod':                 '#fab387', // peach
-  'staff':               '#eba0ac', // maroon
-  'wand':                '#f5c2e7', // pink
-  'scroll':              '#89dceb', // sky
-  'potion':              '#a6e3a1', // green
-  'other':               '#585b70', // overlay
+  'weapon':              'var(--danger)',
+  'armor':               'var(--red)',
+  'ammunition':          'var(--teal)',
+  'adventuring-gear':    'var(--magenta)',
+  'tools':               'var(--steel)',
+  'mounts-and-vehicles': 'var(--red-bright)',
+  'wondrous-items':      'var(--arcane)',
+  'ring':                'var(--gold)',
+  'rod':                 'var(--copper)',
+  'staff':               'var(--danger)',
+  'wand':                'var(--magenta)',
+  'scroll':              'var(--steel)',
+  'potion':              'var(--green)',
+  'other':               'var(--ink-muted)',
 };
 
 /** Ordnername → Kategorie-Schlüssel (identity). */

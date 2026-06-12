@@ -101,13 +101,13 @@
 
 <style>
   .stat-block {
-    background: #fdf1dc;
-    border: 2px solid #8c6a1a;
+    background: var(--bg);
+    border: 2px solid var(--gold);
     border-radius: 4px;
     padding: 0.6rem 0.75rem;
     font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
     font-size: 0.82rem;
-    color: #1a1008;
+    color: var(--ink);
     break-inside: avoid;
     width: 100%;
     box-sizing: border-box;
@@ -123,13 +123,13 @@
   .sb-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #5c1a00;
+    color: var(--red);
     font-variant: small-caps;
   }
 
   .sb-cr {
     font-size: 0.78rem;
-    color: #5c1a00;
+    color: var(--red);
     font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
@@ -138,7 +138,7 @@
   .sb-type {
     font-style: italic;
     font-size: 0.78rem;
-    color: #3a2000;
+    color: var(--ink);
     margin-bottom: 0.2rem;
   }
 
@@ -146,8 +146,8 @@
     height: 2px;
     margin: 0.3rem 0;
   }
-  .sb-rule.orange { background: #8c6a1a; }
-  .sb-rule.thin { height: 1px; background: #8c6a1a66; }
+  .sb-rule.orange { background: var(--gold); }
+  .sb-rule.thin { height: 1px; background: color-mix(in srgb, var(--gold) 40%, transparent); }
 
   .sb-prop {
     margin: 0.1rem 0;
@@ -156,12 +156,12 @@
 
   .sb-notes {
     font-style: italic;
-    color: #3a2000;
+    color: var(--ink);
   }
 
   .lbl {
     font-weight: 700;
-    color: #5c1a00;
+    color: var(--red);
   }
 
   .sb-stats {
@@ -173,13 +173,13 @@
   }
 
   .sb-stat { display: flex; flex-direction: column; gap: 0.05rem; }
-  .sb-stat-lbl { font-size: 0.68rem; font-weight: 700; color: #5c1a00; text-transform: uppercase; }
+  .sb-stat-lbl { font-size: 0.68rem; font-weight: 700; color: var(--red); text-transform: uppercase; }
   .sb-stat-val { font-size: 0.8rem; }
 
   .sb-section-title {
     font-size: 1rem;
     font-variant: small-caps;
-    color: #5c1a00;
+    color: var(--red);
     font-weight: 700;
     margin-top: 0.4rem;
     margin-bottom: 0.1rem;

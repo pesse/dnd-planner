@@ -90,7 +90,7 @@
   ondiscard={discard}
   onsavejson={saveJson}
   getJson={() => draft ? JSON.stringify(draft, null, 2) : lastSavedContent}
-  style="--ep-accent: #f38ba8"
+  style="--ep-accent: var(--danger)"
 >
   {#snippet karte()}
     {#if draft}
@@ -119,19 +119,19 @@
 
 <style>
   .stat-block {
-    background: #2a1f35;
-    border: 1px solid #6b3a3a;
+    background: var(--bg-raised);
+    border: 1px solid var(--red);
     border-radius: 6px;
     padding: 1rem 1.25rem;
     max-width: 560px;
     width: 100%;
     font-size: 0.88rem;
-    color: #cdd6f4;
+    color: var(--ink);
   }
 
-  .parse-error { color: #f38ba8; font-size: 0.9rem; }
+  .parse-error { color: var(--danger); font-size: 0.9rem; }
   .parse-error button {
-    background: none; border: none; color: #89b4fa;
+    background: none; border: none; color: var(--red);
     cursor: pointer; text-decoration: underline; font-family: inherit;
   }
 </style>

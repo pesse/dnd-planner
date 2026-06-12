@@ -478,8 +478,8 @@
     outline: none;
     transition: border-color 0.1s, background 0.1s;
   }
-  .ef:hover { border-color: #45475a; background: #1a1a2a; }
-  .ef:focus { border-color: var(--mef-accent, #f38ba8); background: #1a1a2a; }
+  .ef:hover { border-color: var(--border); background: var(--bg-panel); }
+  .ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
 
   /* ── Header ── */
   .sb-header { margin-bottom: 0.4rem; }
@@ -487,7 +487,7 @@
   .sb-name {
     font-size: 1.3rem;
     font-weight: 700;
-    color: var(--mef-accent, #f38ba8);
+    color: var(--mef-accent, var(--danger));
     font-variant: small-caps;
     width: 100%;
     margin-bottom: 0.1rem;
@@ -499,29 +499,29 @@
     flex-wrap: wrap;
     gap: 0.15rem;
     font-style: italic;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.85rem;
   }
 
   .meta-sel {
     font-style: italic;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.85rem;
-    background: #1a1a2a;
+    background: var(--bg-panel);
     cursor: pointer;
     padding: 0.1rem 0.2rem;
     border: 1px solid transparent;
     border-radius: 3px;
   }
-  .meta-sel:hover { border-color: #45475a; }
-  .meta-sel:focus { border-color: var(--mef-accent, #f38ba8); outline: none; }
+  .meta-sel:hover { border-color: var(--border); }
+  .meta-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
 
-  .sep { color: #a6adc8; padding: 0 0.1rem; }
+  .sep { color: var(--ink-soft); padding: 0 0.1rem; }
 
   /* ── Divider ── */
   .divider {
     height: 2px;
-    background: linear-gradient(to right, #7f3f3f, var(--mef-accent, #f38ba8)55);
+    background: linear-gradient(to right, var(--red), color-mix(in srgb, var(--mef-accent, var(--danger)) 33%, transparent));
     margin: 0.6rem 0;
     border-radius: 1px;
   }
@@ -537,27 +537,27 @@
     line-height: 1.8;
   }
 
-  .lbl { font-weight: 700; color: var(--mef-accent, #f38ba8); white-space: nowrap; }
-  .lbl-sm { font-weight: 700; color: var(--mef-accent, #f38ba8)88; font-size: 0.78rem; white-space: nowrap; }
+  .lbl { font-weight: 700; color: var(--mef-accent, var(--danger)); white-space: nowrap; }
+  .lbl-sm { font-weight: 700; color: var(--mef-accent, var(--danger)); opacity: 0.7; font-size: 0.78rem; white-space: nowrap; }
 
   .num  { width: 52px; text-align: center; }
   .num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
-  .note { min-width: 80px; color: #a6adc8; font-style: italic; }
+  .note { min-width: 80px; color: var(--ink-soft); font-style: italic; }
   .wide { flex: 1; min-width: 120px; }
   .wide-sm { flex: 1; min-width: 80px; font-size: 0.82rem; }
   .dmg-type-sel {
     font-style: normal;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.82rem;
-    background: #1a1a2a;
+    background: var(--bg-panel);
     cursor: pointer;
     padding: 0.1rem 0.2rem;
     border: 1px solid transparent;
     border-radius: 3px;
     width: 80px;
   }
-  .dmg-type-sel:hover { border-color: #45475a; }
-  .dmg-type-sel:focus { border-color: var(--mef-accent, #f38ba8); outline: none; }
+  .dmg-type-sel:hover { border-color: var(--border); }
+  .dmg-type-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
   .cr   { width: 40px; text-align: center; }
 
   /* ── Ability scores ── */
@@ -573,13 +573,13 @@
   .stat-lbl {
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--mef-accent, #f38ba8);
+    color: var(--mef-accent, var(--danger));
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .stat-in { width: 46px; text-align: center; font-size: 1rem; font-weight: 600; padding: 0.1rem; }
-  .stat-mod { font-size: 0.78rem; color: #a6adc8; }
+  .stat-mod { font-size: 0.78rem; color: var(--ink-soft); }
 
   /* ── KV pairs ── */
   .kv-row {
@@ -595,28 +595,28 @@
   .kv-pair { display: flex; align-items: center; gap: 0.1rem; }
 
   .kv-key { width: 80px; font-size: 0.85rem; }
-  .kv-val { width: 44px; font-size: 0.85rem; color: #a6e3a1; }
+  .kv-val { width: 44px; font-size: 0.85rem; color: var(--green); }
 
   .kv-del {
-    background: none; border: none; color: #45475a;
+    background: none; border: none; color: var(--border);
     cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; line-height: 1;
   }
-  .kv-del:hover { color: var(--mef-accent, #f38ba8); }
+  .kv-del:hover { color: var(--mef-accent, var(--danger)); }
 
   .kv-add {
-    background: none; border: 1px dashed #45475a; color: #6c7086;
+    background: none; border: 1px dashed var(--border); color: var(--ink-muted);
     cursor: pointer; font-size: 0.8rem; padding: 0.05rem 0.35rem; border-radius: 3px;
   }
-  .kv-add:hover { border-color: var(--mef-accent, #f38ba8); color: var(--mef-accent, #f38ba8); }
+  .kv-add:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
 
   /* ── Abilities / Actions ── */
   .section-title {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--mef-accent, #f38ba8);
+    color: var(--mef-accent, var(--danger));
     margin: 0 0 0.3rem;
     font-variant: small-caps;
-    border-bottom: 1px solid var(--mef-accent, #f38ba8);
+    border-bottom: 1px solid var(--mef-accent, var(--danger));
     padding-bottom: 0.15rem;
   }
 
@@ -626,7 +626,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    border-left: 2px solid var(--mef-dim, var(--mef-accent, #f38ba8)44);
+    border-left: 2px solid var(--mef-dim, color-mix(in srgb, var(--mef-accent, var(--danger)) 27%, transparent));
     padding-left: 0.5rem;
   }
 
@@ -635,7 +635,7 @@
   .ability-name {
     font-weight: 700;
     font-style: italic;
-    color: #cdd6f4;
+    color: var(--ink);
     flex: 1;
     min-width: 0;
   }
@@ -647,20 +647,20 @@
     resize: vertical;
     line-height: 1.5;
     font-size: 0.85rem;
-    color: #cdd6f4;
+    color: var(--ink);
     min-height: 2.5rem;
   }
 
   .del-btn {
-    background: none; border: none; color: #45475a;
+    background: none; border: none; color: var(--border);
     cursor: pointer; font-size: 1rem; padding: 0 0.2rem; flex-shrink: 0;
   }
-  .del-btn:hover { color: var(--mef-accent, #f38ba8); }
+  .del-btn:hover { color: var(--mef-accent, var(--danger)); }
 
   .add-btn {
-    background: none; border: 1px dashed #45475a; color: #6c7086;
+    background: none; border: 1px dashed var(--border); color: var(--ink-muted);
     cursor: pointer; font-size: 0.8rem; padding: 0.15rem 0.5rem;
     border-radius: 3px; align-self: flex-start;
   }
-  .add-btn:hover { border-color: var(--mef-accent, #f38ba8); color: var(--mef-accent, #f38ba8); }
+  .add-btn:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
 </style>

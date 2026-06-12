@@ -375,17 +375,17 @@
 <style>
   /* ── Basis-Input ── */
   .ef {
-    background: #1a1a2a;
+    background: var(--bg-panel);
     border: 1px solid transparent;
     border-radius: 3px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-family: inherit;
     font-size: 0.88rem;
     padding: 0.15rem 0.3rem;
     outline: none;
   }
-  .ef:hover { border-color: #45475a; background: #1a1a2a; }
-  .ef:focus { border-color: var(--mef-accent, #cba6f7); background: #1a1a2a; }
+  .ef:hover { border-color: var(--border); background: var(--bg-panel); }
+  .ef:focus { border-color: var(--mef-accent, var(--arcane)); background: var(--bg-panel); }
 
   /* ── Header ── */
   .sb-header { margin-bottom: 0.4rem; }
@@ -393,7 +393,7 @@
   .sb-name {
     font-size: 1.3rem;
     font-weight: 700;
-    color: var(--mef-accent, #cba6f7);
+    color: var(--mef-accent, var(--arcane));
     font-variant: small-caps;
     width: 100%;
     margin-bottom: 0.1rem;
@@ -405,22 +405,22 @@
     flex-wrap: wrap;
     gap: 0.15rem;
     font-style: italic;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.85rem;
   }
 
   .meta-sel {
     font-style: italic;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.85rem;
-    background: #1a1a2a;
+    background: var(--bg-panel);
     cursor: pointer;
     padding: 0.1rem 0.2rem;
     border: 1px solid transparent;
     border-radius: 3px;
   }
-  .meta-sel:hover { border-color: #45475a; }
-  .meta-sel:focus { border-color: var(--mef-accent, #cba6f7); outline: none; }
+  .meta-sel:hover { border-color: var(--border); }
+  .meta-sel:focus { border-color: var(--mef-accent, var(--arcane)); outline: none; }
 
   .chk-inline {
     display: inline-flex;
@@ -431,12 +431,12 @@
     font-size: 0.82rem;
   }
 
-  .sep { color: #a6adc8; padding: 0 0.1rem; }
+  .sep { color: var(--ink-soft); padding: 0 0.1rem; }
 
   /* ── Divider ── */
   .divider {
     height: 2px;
-    background: linear-gradient(to right, #3a2f4a, var(--mef-accent, #cba6f7) 55%);
+    background: linear-gradient(to right, var(--bg-raised), var(--mef-accent, var(--arcane)) 55%);
     margin: 0.6rem 0;
     border-radius: 1px;
   }
@@ -447,10 +447,10 @@
   .section-title {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--mef-accent, #cba6f7);
+    color: var(--mef-accent, var(--arcane));
     margin: 0 0 0.3rem;
     font-variant: small-caps;
-    border-bottom: 1px solid var(--mef-accent, #cba6f7);
+    border-bottom: 1px solid var(--mef-accent, var(--arcane));
     padding-bottom: 0.15rem;
   }
 
@@ -462,8 +462,8 @@
     line-height: 1.8;
   }
 
-  .lbl    { font-weight: 700; color: var(--mef-accent, #cba6f7); white-space: nowrap; }
-  .lbl-sm { font-weight: 700; color: var(--mef-accent, #cba6f7); font-size: 0.78rem; white-space: nowrap; opacity: 0.7; }
+  .lbl    { font-weight: 700; color: var(--mef-accent, var(--arcane)); white-space: nowrap; }
+  .lbl-sm { font-weight: 700; color: var(--mef-accent, var(--arcane)); font-size: 0.78rem; white-space: nowrap; opacity: 0.7; }
 
   .wide { flex: 1; min-width: 120px; }
   .num  { width: 52px; text-align: center; }
@@ -474,7 +474,7 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.82rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -492,23 +492,23 @@
     resize: vertical;
     line-height: 1.5;
     font-size: 0.85rem;
-    color: #cdd6f4;
+    color: var(--ink);
     min-height: 2.5rem;
   }
 
   /* ── Original-Anzeige ── */
   .toggle-orig {
-    background: none; border: none; color: #45475a;
+    background: none; border: none; color: var(--border);
     font-size: 0.75rem; cursor: pointer; padding: 0;
     font-family: inherit; align-self: flex-start;
   }
-  .toggle-orig:hover { color: var(--mef-accent, #cba6f7); }
+  .toggle-orig:hover { color: var(--mef-accent, var(--arcane)); }
 
   .orig-text {
-    background: #141420;
-    border: 1px solid #313244;
+    background: var(--bg-deep);
+    border: 1px solid var(--surface);
     border-radius: 4px;
-    color: #585b70;
+    color: var(--ink-muted);
     font-size: 0.8rem;
     line-height: 1.6;
     padding: 0.5rem 0.7rem;

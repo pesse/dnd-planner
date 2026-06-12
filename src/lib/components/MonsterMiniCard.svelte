@@ -258,28 +258,28 @@
 
 <style>
   .mini-card {
-    background: #2a1f35;
-    border: 1px solid #6b3a3a;
+    background: var(--bg-raised);
+    border: 1px solid var(--red);
     border-radius: 6px;
     font-size: 0.82rem;
-    color: #cdd6f4;
+    color: var(--ink);
     width: 210px;
     flex-shrink: 0;
   }
 
   /* Akt-lokale Monster: amber statt rot */
   .mini-card.act-local {
-    background: #241e10;
-    border-color: #7a5c1a;
+    background: var(--ink);
+    border-color: var(--gold);
   }
-  .mini-card.act-local .c-divider { background: #7a5c1a44; }
-  .mini-card.act-local .edit-header { background: #1a1508; border-bottom-color: #7a5c1a; }
-  .mini-card.act-local .c-lbl { color: #f9e2af; }
-  .mini-card.act-local .c-name { color: #f9e2af; }
+  .mini-card.act-local .c-divider { background: color-mix(in srgb, var(--gold) 27%, transparent); }
+  .mini-card.act-local .edit-header { background: var(--ink); border-bottom-color: var(--gold); }
+  .mini-card.act-local .c-lbl { color: var(--gold); }
+  .mini-card.act-local .c-name { color: var(--gold); }
   /* Formularfarben via CSS Custom Property — cascadiert in MonsterEditForm */
   .mini-card.act-local .sb-full {
-    --mef-accent: #f9e2af;
-    --mef-dim: #7a5c1a44;
+    --mef-accent: var(--gold);
+    --mef-dim: color-mix(in srgb, var(--gold) 27%, transparent);
   }
 
   .mini-card.edit-mode {
@@ -289,7 +289,7 @@
   /* ── Loading / Missing ── */
   .mini-placeholder {
     padding: 0.5rem 0.75rem;
-    color: #45475a;
+    color: var(--border);
     font-style: italic;
     font-size: 0.78rem;
   }
@@ -302,13 +302,13 @@
   }
 
   .missing-slug {
-    color: #f38ba888;
+    color: color-mix(in srgb, var(--danger) 53%, transparent);
     font-family: monospace;
     font-size: 0.78rem;
   }
 
   .missing-note {
-    color: #45475a;
+    color: var(--border);
     font-size: 0.75rem;
     font-style: italic;
   }
@@ -331,7 +331,7 @@
   .c-name {
     font-size: 0.9rem;
     font-weight: 700;
-    color: #f38ba8;
+    color: var(--danger);
     font-variant: small-caps;
     white-space: nowrap;
     overflow: hidden;
@@ -341,7 +341,7 @@
 
   .c-cr {
     font-size: 0.72rem;
-    color: #f9e2af;
+    color: var(--gold);
     font-weight: 700;
     white-space: nowrap;
     flex-shrink: 0;
@@ -349,7 +349,7 @@
 
   .c-meta {
     font-size: 0.75rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-style: italic;
     white-space: nowrap;
     overflow: hidden;
@@ -358,7 +358,7 @@
 
   .c-divider {
     height: 1px;
-    background: #6b3a3a55;
+    background: color-mix(in srgb, var(--red) 33%, transparent);
     margin: 0.15rem 0;
   }
 
@@ -371,7 +371,7 @@
 
   .c-lbl {
     font-weight: 700;
-    color: #f38ba8;
+    color: var(--danger);
   }
 
   .c-stats {
@@ -388,9 +388,9 @@
     gap: 0.02rem;
   }
 
-  .c-stat-lbl { font-size: 0.62rem; color: #f38ba8; font-weight: 700; text-transform: uppercase; }
+  .c-stat-lbl { font-size: 0.62rem; color: var(--danger); font-weight: 700; text-transform: uppercase; }
   .c-stat-val { font-size: 0.82rem; font-weight: 600; }
-  .c-stat-mod { font-size: 0.65rem; color: #a6adc8; }
+  .c-stat-mod { font-size: 0.65rem; color: var(--ink-soft); }
 
   .c-abilities {
     display: flex;
@@ -400,7 +400,7 @@
 
   .c-ability-name {
     font-size: 0.75rem;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-style: italic;
     white-space: nowrap;
     overflow: hidden;
@@ -417,40 +417,40 @@
 
   .edit-btn {
     background: transparent;
-    border: 1px solid #45475a;
-    color: #6c7086;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
     border-radius: 4px;
     padding: 0.2rem 0.5rem;
     cursor: pointer;
     font-size: 0.75rem;
   }
-  .edit-btn:hover { border-color: #f38ba8; color: #f38ba8; }
+  .edit-btn:hover { border-color: var(--danger); color: var(--danger); }
 
   .promote-btn {
     background: transparent;
-    border: 1px solid #45475a;
-    color: #6c7086;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
     border-radius: 4px;
     padding: 0.2rem 0.5rem;
     cursor: pointer;
     font-size: 0.72rem;
   }
-  .promote-btn:hover { border-color: #a6e3a1; color: #a6e3a1; }
+  .promote-btn:hover { border-color: var(--green); color: var(--green); }
 
   .promote-error {
     font-size: 0.72rem;
-    color: #f38ba8;
+    color: var(--danger);
   }
 
   .schema-warning {
-    background: color-mix(in srgb, #f9e2af 10%, transparent);
-    border: 1px solid #f9e2af55;
+    background: color-mix(in srgb, var(--gold) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 33%, transparent);
     border-radius: 3px;
     padding: 0.3rem 0.4rem;
     font-size: 0.72rem;
   }
-  .schema-warn-icon { font-weight: 700; color: #f9e2af; }
-  .schema-warn-list { margin: 0.2rem 0 0; padding-left: 1rem; color: #f9e2af99; line-height: 1.5; }
+  .schema-warn-icon { font-weight: 700; color: var(--gold); }
+  .schema-warn-list { margin: 0.2rem 0 0; padding-left: 1rem; color: color-mix(in srgb, var(--gold) 60%, transparent); line-height: 1.5; }
   .schema-warn-list li { margin: 0; }
 
   .source-badge {
@@ -463,9 +463,9 @@
     flex-shrink: 0;
   }
   .source-act {
-    background: color-mix(in srgb, #f9e2af 15%, transparent);
-    color: #f9e2af;
-    border: 1px solid #f9e2af44;
+    background: color-mix(in srgb, var(--gold) 15%, transparent);
+    color: var(--gold);
+    border: 1px solid color-mix(in srgb, var(--gold) 27%, transparent);
   }
   /* global badge ist unsichtbar in compact view (leerer Text) */
   .source-global { display: none; }
@@ -476,16 +476,16 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.5rem 0.75rem;
-    background: #1a1020;
-    border-bottom: 1px solid #6b3a3a;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--red);
     flex-wrap: wrap;
   }
 
-  .save-error { color: #f38ba8; font-size: 0.75rem; flex: 1; }
+  .save-error { color: var(--danger); font-size: 0.75rem; flex: 1; }
 
   .save-btn {
-    background: #a6e3a1;
-    color: #1e1e2e;
+    background: var(--green);
+    color: var(--bg);
     border: none;
     border-radius: 4px;
     padding: 0.2rem 0.6rem;
@@ -496,8 +496,8 @@
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid #45475a;
-    color: #6c7086;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
     border-radius: 4px;
     padding: 0.2rem 0.6rem;
     cursor: pointer;

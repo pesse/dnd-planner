@@ -72,7 +72,7 @@
     flex-direction: column;
     gap: 0.4rem;
     padding-top: 0.5rem;
-    border-top: 1px solid #313244;
+    border-top: 1px solid var(--surface);
     margin-top: 0.25rem;
   }
 
@@ -81,29 +81,29 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
+    color: var(--ink-muted);
   }
 
   .dnas-search-row { display: flex; gap: 0.4rem; }
 
   .dnas-input {
     flex: 1;
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.82rem;
     padding: 0.25rem 0.5rem;
     outline: none;
     font-family: inherit;
   }
-  .dnas-input:focus { border-color: var(--cat-color, #89b4fa); }
+  .dnas-input:focus { border-color: var(--cat-color, var(--red)); }
 
   .dnas-search-btn {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.82rem;
     padding: 0.2rem 0.7rem;
     cursor: pointer;
@@ -111,10 +111,10 @@
     flex-shrink: 0;
     font-family: inherit;
   }
-  .dnas-search-btn:hover:not(:disabled) { color: var(--cat-color, #89b4fa); border-color: var(--cat-color, #89b4fa); }
+  .dnas-search-btn:hover:not(:disabled) { color: var(--cat-color, var(--red)); border-color: var(--cat-color, var(--red)); }
   .dnas-search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .dnas-error { font-size: 0.78rem; color: #f38ba8; }
+  .dnas-error { font-size: 0.78rem; color: var(--danger); }
 
   .dnas-results {
     display: flex;
@@ -128,10 +128,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #1e1e2e;
-    border: 1px solid #45475a;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     font-size: 0.82rem;
     padding: 0.3rem 0.6rem;
     cursor: pointer;
@@ -139,15 +139,15 @@
     font-family: inherit;
     gap: 0.5rem;
   }
-  .dnas-result:hover { border-color: var(--cat-color, #89b4fa); color: var(--cat-color, #89b4fa); }
+  .dnas-result:hover { border-color: var(--cat-color, var(--red)); color: var(--cat-color, var(--red)); }
 
   .dnas-result-name { font-weight: 500; flex: 1; }
   .dnas-result-tag {
     font-size: 0.7rem;
-    color: #6c7086;
+    color: var(--ink-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     flex-shrink: 0;
   }
-  .dnas-result-index { color: #6c7086; font-size: 0.75rem; flex-shrink: 0; }
+  .dnas-result-index { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
 </style>

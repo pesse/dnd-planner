@@ -103,7 +103,7 @@
     flex-direction: column;
     gap: 0.4rem;
     padding-top: 0.5rem;
-    border-top: 1px solid #313244;
+    border-top: 1px solid var(--surface);
     margin-top: 0.25rem;
   }
 
@@ -118,25 +118,25 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
+    color: var(--ink-muted);
   }
 
   .llt-prompt-toggle {
     background: none;
     border: none;
-    color: #45475a;
+    color: var(--border);
     font-size: 0.72rem;
     cursor: pointer;
     padding: 0;
     font-family: inherit;
   }
-  .llt-prompt-toggle:hover { color: var(--cat-color, #89b4fa); }
+  .llt-prompt-toggle:hover { color: var(--cat-color, var(--red)); }
 
   .llt-prompt-textarea {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.78rem;
     font-style: italic;
     line-height: 1.5;
@@ -146,19 +146,19 @@
     font-family: inherit;
     width: 100%;
   }
-  .llt-prompt-textarea:focus { border-color: var(--cat-color, #89b4fa); }
+  .llt-prompt-textarea:focus { border-color: var(--cat-color, var(--red)); }
 
   .llt-reset-btn {
     background: none;
     border: none;
-    color: #45475a;
+    color: var(--border);
     font-size: 0.72rem;
     cursor: pointer;
     padding: 0;
     font-family: inherit;
     align-self: flex-start;
   }
-  .llt-reset-btn:hover { color: #f38ba8; }
+  .llt-reset-btn:hover { color: var(--danger); }
 
   .llt-row {
     display: flex;
@@ -175,24 +175,24 @@
   }
 
   .llt-pill {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 99px;
-    color: #6c7086;
+    color: var(--ink-muted);
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
     cursor: pointer;
     white-space: nowrap;
     font-family: inherit;
   }
-  .llt-pill:hover { color: #cdd6f4; border-color: #585b70; }
-  .llt-pill.active { background: #45475a; color: #cdd6f4; border-color: var(--cat-color, #89b4fa); }
+  .llt-pill:hover { color: var(--ink); border-color: var(--border-strong); }
+  .llt-pill.active { background: var(--border); color: var(--ink); border-color: var(--cat-color, var(--red)); }
 
   .llt-btn {
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #a6adc8;
+    color: var(--ink-soft);
     font-size: 0.8rem;
     padding: 0.2rem 0.65rem;
     cursor: pointer;
@@ -200,8 +200,8 @@
     flex-shrink: 0;
     font-family: inherit;
   }
-  .llt-btn:hover:not(:disabled) { color: var(--cat-color, #89b4fa); border-color: var(--cat-color, #89b4fa); }
+  .llt-btn:hover:not(:disabled) { color: var(--cat-color, var(--red)); border-color: var(--cat-color, var(--red)); }
   .llt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .llt-error { font-size: 0.78rem; color: #f38ba8; }
+  .llt-error { font-size: 0.78rem; color: var(--danger); }
 </style>
