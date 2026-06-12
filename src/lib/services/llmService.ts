@@ -2,138 +2,22 @@ import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
+import { VAULT_TOOLS_OPENAI, executeTool } from './vaultTools';
+import type { ChatMessage, AgentOptions } from './vaultTools';
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
+import { anthropicChat, anthropicGenerate, anthropicAgentLoop } from './anthropicService';
 
-export type AgentStepType = 'tool_call' | 'tool_result' | 'done' | 'error';
-
-export interface AgentStep {
-  type: AgentStepType;
-  tool?: string;
-  args?: Record<string, unknown>;
-  result?: string;
-  text?: string;
-}
-
-export interface AgentOptions {
-  onStep: (step: AgentStep) => void;
-  /** Custom write handler — allows the caller to intercept file writes for undo support. */
-  writeFile?: (path: string, content: string) => Promise<void>;
-  /** Abort signal — wenn abgebrochen, wirft der Loop einen Fehler. */
-  signal?: AbortSignal;
-}
-
-// ── Tool-Definitionen ─────────────────────────────────────────────────────────
-
-const TOOL_LIST = [
-  {
-    name: 'list_files',
-    description: 'Listet alle .md-Dateien in einem Vault-Verzeichnis. Pfade beginnen mit ./vault/',
-    params: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Vault-Verzeichnis, z.B. ./vault/campaigns/meine-kampagne/acts/' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'list_json_files',
-    description:
-      'Listet alle .json-Dateien in einem Vault-Verzeichnis. ' +
-      'Verwenden für Encounter-Dateien (./vault/campaigns/{slug}/encounters/) ' +
-      'und Monster-Bibliothek (./vault/monsters/).',
-    params: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Vault-Verzeichnis, z.B. ./vault/campaigns/meine-kampagne/encounters/' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'read_file',
-    description: 'Liest den vollständigen Inhalt einer Vault-Datei (Markdown oder JSON).',
-    params: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Vault-Pfad zur Datei' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'write_file',
-    description:
-      'Erstellt oder überschreibt eine Vault-Datei. Übergeordnete Verzeichnisse werden automatisch angelegt. ' +
-      'Für .md-Dateien: vollständiges Markdown. ' +
-      'Für .json-Dateien (Encounters, Monster): valides JSON im vorgegebenen Schema.',
-    params: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Vault-Pfad der Datei (.md oder .json)' },
-        content: { type: 'string', description: 'Vollständiger Dateiinhalt (Markdown oder JSON)' },
-      },
-      required: ['path', 'content'],
-    },
-  },
-];
-
-const VAULT_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-const VAULT_TOOLS_ANTHROPIC = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
-
-// ── Tool-Ausführung (Tauri) ───────────────────────────────────────────────────
-
-async function executeTool(
-  name: string,
-  args: Record<string, string>,
-  writeFile?: (path: string, content: string) => Promise<void>
-): Promise<string> {
-  switch (name) {
-    case 'list_files': {
-      const files = await invoke<string[]>('list_directory', { path: args.path });
-      return JSON.stringify(files);
-    }
-    case 'list_json_files': {
-      const files = await invoke<string[]>('list_json_files', { path: args.path });
-      return JSON.stringify(files);
-    }
-    case 'read_file': {
-      return await invoke<string>('read_file_content', { path: args.path });
-    }
-    case 'write_file': {
-      if (writeFile) {
-        await writeFile(args.path, args.content);
-      } else {
-        await invoke('write_file_content', { path: args.path, content: args.content });
-      }
-      return `File saved: ${args.path}`;
-    }
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
+// Geteilte Typen + der Anthropic-Pfad leben in eigenen Modulen; hier
+// re-exportiert, damit `llmService` die stabile Fassade für alle Consumer bleibt.
+export type { ChatMessage, AgentStep, AgentStepType, AgentOptions } from './vaultTools';
+export { anthropicChat, anthropicGenerate, anthropicAgentLoop };
 
 // ── HTTP via Rust ─────────────────────────────────────────────────────────────
 
 interface DebugMeta { provider: string; label: string; }
 
 function extractTokenUsage(provider: string, data: Record<string, unknown>): { sent: number; received: number } | null {
-  if (provider === 'anthropic') {
-    const u = data.usage as Record<string, number> | undefined;
-    if (u?.input_tokens != null) return { sent: u.input_tokens, received: u.output_tokens ?? 0 };
-  } else if (provider === 'groq' || provider === 'xai') {
+  if (provider === 'groq' || provider === 'xai') {
     const u = data.usage as Record<string, number> | undefined;
     if (u?.prompt_tokens != null) return { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
   } else if (provider === 'ollama') {
@@ -221,36 +105,6 @@ export async function groqGenerate(config: LlmConfig, prompt: string, system?: s
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
   return groqChat(config, messages);
-}
-
-// ── Anthropic ─────────────────────────────────────────────────────────────────
-
-const ANTHROPIC_API = 'https://api.anthropic.com/v1';
-
-export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]): Promise<string> {
-  if (!config.apiKey) throw new Error('Kein Anthropic API-Key konfiguriert. Bitte unter ⚙ eintragen.');
-  const system = messages.find((m) => m.role === 'system')?.content;
-  const conversation = messages.filter((m) => m.role !== 'system');
-  const body: Record<string, unknown> = { model: config.model, max_tokens: config.maxTokens ?? 4096, messages: conversation };
-  if (system) body.system = system;
-  const data = await rustFetch(
-    `${ANTHROPIC_API}/messages`,
-    { 'x-api-key': config.apiKey, 'anthropic-version': '2023-06-01' },
-    body, { provider: 'anthropic', label: 'chat' }
-  ) as Record<string, unknown>;
-  return (data.content as Array<Record<string, string>>)?.[0]?.text ?? '';
-}
-
-export async function anthropicGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
-  if (!config.apiKey) throw new Error('Kein Anthropic API-Key konfiguriert. Bitte unter ⚙ eintragen.');
-  const body: Record<string, unknown> = { model: config.model, max_tokens: config.maxTokens ?? 4096, messages: [{ role: 'user', content: prompt }] };
-  if (system) body.system = system;
-  const data = await rustFetch(
-    `${ANTHROPIC_API}/messages`,
-    { 'x-api-key': config.apiKey, 'anthropic-version': '2023-06-01' },
-    body, { provider: 'anthropic', label: 'generate' }
-  ) as Record<string, unknown>;
-  return (data.content as Array<Record<string, string>>)?.[0]?.text ?? '';
 }
 
 // ── xAI (Grok) ────────────────────────────────────────────────────────────────
@@ -355,63 +209,6 @@ async function openAiAgentLoop(
         onStep({ type: 'tool_result', tool: toolName, result });
         msgs.push({ role: 'tool', tool_call_id: tc.id as string, content: result });
       }
-    }
-  }
-
-  throw new Error(`Agent reached ${AGENT_MAX_ITERATIONS} iterations without finishing.`);
-}
-
-async function anthropicAgentLoop(
-  config: LlmConfig,
-  userMessage: string,
-  systemPromptText: string,
-  options: AgentOptions
-): Promise<string> {
-  const { onStep, writeFile, signal } = options;
-  const msgs: unknown[] = [{ role: 'user', content: userMessage }];
-
-  for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
-    if (signal?.aborted) throw new Error('Agent abgebrochen.');
-    const data = await rustFetch(
-      `${ANTHROPIC_API}/messages`,
-      { 'x-api-key': config.apiKey!, 'anthropic-version': '2023-06-01' },
-      { model: config.model, max_tokens: config.maxTokens ?? 4096, system: systemPromptText, messages: msgs, tools: VAULT_TOOLS_ANTHROPIC },
-      { provider: 'anthropic', label: `agent[${i}]` }
-    ) as Record<string, unknown>;
-
-    const stopReason = data.stop_reason as string;
-    const content = data.content as Array<Record<string, unknown>>;
-
-    msgs.push({ role: 'assistant', content });
-
-    const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
-
-    if (toolUseBlocks.length > 0) {
-      // Tool-Calls verarbeiten — unabhängig von stop_reason (deckt auch 'max_tokens' ab)
-      const toolResults: unknown[] = [];
-      for (const block of toolUseBlocks) {
-        const toolName = block.name as string;
-        const toolArgs = block.input as Record<string, string>;
-        const toolId = block.id as string;
-
-        onStep({ type: 'tool_call', tool: toolName, args: toolArgs });
-        let result: string;
-        try {
-          result = await executeTool(toolName, toolArgs, writeFile);
-        } catch (e) {
-          result = `Error: ${e instanceof Error ? e.message : String(e)}`;
-        }
-        onStep({ type: 'tool_result', tool: toolName, result });
-        toolResults.push({ type: 'tool_result', tool_use_id: toolId, content: result });
-      }
-      msgs.push({ role: 'user', content: toolResults });
-    } else if (stopReason === 'end_turn' || stopReason === 'stop_sequence') {
-      const text = (content.find((b) => b.type === 'text')?.text as string) ?? '';
-      onStep({ type: 'done', text });
-      return text;
-    } else {
-      // max_tokens oder anderer unerwarteter stop_reason ohne Tool-Calls
-      throw new Error(`Agent stopped unexpectedly (stop_reason: ${stopReason})`);
     }
   }
 
