@@ -2,6 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
   import { PDFDocument } from 'pdf-lib';
+  import DragonMark from './DragonMark.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
@@ -15,6 +16,7 @@
     DIR_TO_CATEGORY,
     invalidateItemCache,
   } from '../itemLibrary';
+  import { SCHOOL_COLORS } from '../spellLibrary';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -22,17 +24,6 @@
   const CHARACTERS_PATH = './vault/characters';
   const MONSTERS_PATH = './vault/monsters';
   const SPELLS_PATH = './vault/spells';
-
-  const SPELL_SCHOOL_COLORS: Record<string, string> = {
-    'bannmagie':       '#89b4fa',
-    'beschwörung':     '#a6e3a1',
-    'erkenntnismagie': '#f9e2af',
-    'hervorrufung':    '#f38ba8',
-    'illusionsmagie':  '#89dceb',
-    'nekromantie':     '#cba6f7',
-    'verwandlung':     '#fab387',
-    'verzauberung':    '#f5c2e7',
-  };
 
   // Ordnername → englischer Schulschlüssel (für neuen Zauber-JSON)
   const SCHOOL_DIR_TO_KEY: Record<string, string> = {
@@ -842,8 +833,8 @@
 </script>
 
 <aside class="sidebar">
-  <div class="sidebar-header">
-    <h2>DnD Planner</h2>
+  <div class="sidebar-header ornament-top">
+    <h2><DragonMark size={18} /> DnD Planner</h2>
     <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
   </div>
 
@@ -994,7 +985,7 @@
         {:else if spellSchools.length}
           <!-- Gruppierte Ansicht nach Schule -->
           {#each spellSchools as school}
-            {@const color = SPELL_SCHOOL_COLORS[school] ?? '#cdd6f4'}
+            {@const color = SCHOOL_COLORS[SCHOOL_DIR_TO_KEY[school]] ?? 'var(--ink)'}
             {@const spells = spellsBySchool[school]}
             <button
               class="monster-group-header"
@@ -1091,7 +1082,7 @@
         {:else if itemDirs.length}
           {#each itemDirs as dir}
             {@const catKey = DIR_TO_CATEGORY[dir] ?? 'other'}
-            {@const catColor = ITEM_CAT_COLORS[catKey] ?? '#cdd6f4'}
+            {@const catColor = ITEM_CAT_COLORS[catKey] ?? 'var(--ink)'}
             {@const dirItems = itemsByDir[dir]}
             <button
               class="monster-group-header"
@@ -1280,18 +1271,18 @@
   .sidebar {
     width: 100%;
     height: 100%;
-    background: #1e1e2e;
-    color: #cdd6f4;
+    background: var(--bg);
+    color: var(--ink);
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #313244;
+    border-right: 1px solid var(--surface);
     flex-shrink: 0;
     overflow-y: auto;
   }
 
   .sidebar-header {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--surface);
     display: flex;
     align-items: center;
   }
@@ -1299,15 +1290,21 @@
   .sidebar-header h2 {
     margin: 0;
     flex: 1;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #cba6f7;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .sidebar-header h2 :global(.dragon-mark) {
+    color: var(--red);
   }
 
   .reload-all-btn {
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 1rem;
     padding: 0.1rem 0.3rem;
@@ -1321,7 +1318,7 @@
   }
 
   .reload-all-btn:hover {
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
   .top-section {
@@ -1330,7 +1327,7 @@
 
   .divider {
     height: 1px;
-    background: #313244;
+    background: var(--surface);
     margin: 0.25rem 0;
   }
 
@@ -1343,7 +1340,7 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6c7086;
+    color: var(--ink-muted);
   }
 
   .campaign-section {
@@ -1356,7 +1353,7 @@
     padding: 0.4rem 1rem;
     background: none;
     border: none;
-    color: #cdd6f4;
+    color: var(--ink);
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
@@ -1364,8 +1361,8 @@
 
   .campaign-title:hover,
   .campaign-title.active {
-    background: #313244;
-    color: #cba6f7;
+    background: var(--surface);
+    color: var(--arcane);
   }
 
   .section {
@@ -1383,7 +1380,7 @@
     padding: 0.25rem 0.5rem 0.25rem 1.5rem;
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -1398,7 +1395,7 @@
   }
 
   .section-toggle:hover {
-    color: #cdd6f4;
+    color: var(--ink);
   }
 
   .notes-entry {
@@ -1406,14 +1403,14 @@
   }
 
   .notes-entry.active {
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
   .add-btn {
     padding: 0 0.6rem;
     background: none;
     border: none;
-    color: #6c7086;
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 1rem;
     line-height: 1;
@@ -1426,7 +1423,7 @@
   }
 
   .add-btn:hover {
-    color: #cba6f7;
+    color: var(--arcane);
   }
 
   .arrow {
@@ -1451,7 +1448,7 @@
     padding: 0.25rem 1rem 0.25rem 2.5rem;
     background: none;
     border: none;
-    color: #a6adc8;
+    color: var(--ink-soft);
     cursor: pointer;
     font-size: 0.85rem;
     white-space: nowrap;
@@ -1460,13 +1457,13 @@
   }
 
   .file-entry:hover {
-    background: #313244;
-    color: #cdd6f4;
+    background: var(--surface);
+    color: var(--ink);
   }
 
   .file-entry.active {
-    background: #45475a;
-    color: #cba6f7;
+    background: var(--border);
+    color: var(--arcane);
   }
 
   .monster-group-header {
@@ -1475,7 +1472,7 @@
     padding: 0.2rem 1rem 0.2rem 1.5rem;
     background: none;
     border: none;
-    color: #89b4fa;
+    color: var(--red);
     cursor: pointer;
     font-size: 0.78rem;
     font-weight: 600;
@@ -1485,14 +1482,14 @@
     gap: 0.3rem;
   }
 
-  .monster-group-header:hover { color: #cdd6f4; }
+  .monster-group-header:hover { color: var(--ink); }
 
   .monster-group-header .arrow {
     display: inline-block;
     font-size: 0.9rem;
     transition: transform 0.15s;
     transform: rotate(0deg);
-    color: #6c7086;
+    color: var(--ink-muted);
   }
 
   .monster-group-header .arrow.open {
@@ -1500,7 +1497,7 @@
   }
 
   .group-count {
-    color: #6c7086;
+    color: var(--ink-muted);
     font-weight: 400;
   }
 
@@ -1519,9 +1516,9 @@
     width: 100%;
   }
 
-  .encounter-entry { color: #89dceb88; }
-  .encounter-entry:hover { color: #89dceb; }
-  .encounter-entry.active { color: #89dceb; }
+  .encounter-entry { color: color-mix(in srgb, var(--steel) 53%, transparent); }
+  .encounter-entry:hover { color: var(--steel); }
+  .encounter-entry.active { color: var(--steel); }
 
   .act-row {
     display: flex;
@@ -1549,7 +1546,7 @@
   .empty {
     padding: 0.2rem 1rem 0.2rem 2.5rem;
     font-size: 0.8rem;
-    color: #45475a;
+    color: var(--border);
     font-style: italic;
   }
 
@@ -1571,16 +1568,16 @@
   .pdf-error {
     width: 100%;
     font-size: 0.72rem;
-    color: #f38ba8;
+    color: var(--danger);
     padding-left: 0.1rem;
   }
 
   .new-file-input {
     flex: 1;
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     padding: 0.2rem 0.4rem;
     font-size: 0.85rem;
     outline: none;
@@ -1588,13 +1585,13 @@
   }
 
   .new-file-input:focus {
-    border-color: #cba6f7;
+    border-color: var(--arcane);
   }
 
   .confirm-btn {
     background: none;
     border: none;
-    color: #a6e3a1;
+    color: var(--green);
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 0.2rem;
@@ -1606,10 +1603,10 @@
 
   .spell-search-input {
     width: 100%;
-    background: #313244;
-    border: 1px solid #45475a;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #cdd6f4;
+    color: var(--ink);
     padding: 0.2rem 0.5rem;
     font-size: 0.82rem;
     outline: none;
@@ -1617,10 +1614,10 @@
   }
 
   .spell-search-input:focus {
-    border-color: #cba6f7;
+    border-color: var(--arcane);
   }
 
   .spell-search-input::placeholder {
-    color: #45475a;
+    color: var(--border);
   }
 </style>

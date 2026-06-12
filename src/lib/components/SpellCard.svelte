@@ -7,31 +7,10 @@
   import type { Spell } from '$lib/types';
   import { spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
+  import { SCHOOL_COLORS } from '$lib/spellLibrary';
   import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
-
-  const SCHOOL_COLORS: Record<string, string> = {
-    abjuration:    '#89b4fa',
-    conjuration:   '#a6e3a1',
-    divination:    '#f9e2af',
-    enchantment:   '#f5c2e7',
-    evocation:     '#f38ba8',
-    illusion:      '#89dceb',
-    necromancy:    '#cba6f7',
-    transmutation: '#fab387',
-  };
-
-  const PRINT_SCHOOL_COLORS: Record<string, string> = {
-    abjuration:    '#6a9fd8',
-    conjuration:   '#5aaa6a',
-    divination:    '#c8a020',
-    enchantment:   '#c060a0',
-    evocation:     '#c83030',
-    illusion:      '#30a0b8',
-    necromancy:    '#8858c8',
-    transmutation: '#c07030',
-  };
 
   function parseSpell(json: string): Spell | null {
     try {
@@ -215,7 +194,7 @@
 </script>
 
 {#if draft}
-  {@const color = SCHOOL_COLORS[draft.school] ?? '#cba6f7'}
+  {@const color = SCHOOL_COLORS[draft.school] ?? 'var(--arcane)'}
   <EditorPanel
     bind:tab
     {dirty}
@@ -232,7 +211,7 @@
     {#snippet karte()}
       {@const higherLevel = spellHigherLevel(draft!)}
       {@const comps = componentStr(draft!)}
-      {@const pc = PRINT_SCHOOL_COLORS[draft!.school] ?? '#888'}
+      {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
       <div class="cards-wrap">
         {#each descChunks as chunk, i}
           {@const isLast = i === descChunks.length - 1}
@@ -317,14 +296,14 @@
   .spell-card {
     width: 100%;
     max-width: 380px;
-    background: #fef8ec;
-    border: 1.5px solid #9a7a3a;
+    background: var(--bg);
+    border: 1.5px solid var(--gold);
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 3px 16px #0000003a;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.23);
     display: flex;
     flex-direction: column;
-    color: #1a0a00;
+    color: var(--ink);
     font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
     position: relative;
   }
@@ -332,7 +311,7 @@
     content: '';
     position: absolute;
     inset: 3px;
-    border: 1px solid #c4a050;
+    border: 1px solid var(--gold);
     border-radius: 5px;
     pointer-events: none;
     z-index: 5;
@@ -343,14 +322,14 @@
     text-align: center;
     flex-shrink: 0;
     background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--c) 55%, #fef8ec) 0%,
-      color-mix(in srgb, var(--c) 10%, #fef8ec) 100%);
+      color-mix(in srgb, var(--c) 55%, var(--bg)) 0%,
+      color-mix(in srgb, var(--c) 10%, var(--bg)) 100%);
   }
   .name {
     font-size: 1.05rem;
     font-weight: 700;
     font-variant: small-caps;
-    color: #1a0a00;
+    color: var(--ink);
     line-height: 1.2;
     letter-spacing: 0.02em;
   }
@@ -368,7 +347,7 @@
   }
   .meta {
     font-size: 0.75rem;
-    color: color-mix(in srgb, var(--c) 80%, #333);
+    color: color-mix(in srgb, var(--c) 80%, var(--ink));
     margin-top: 0.2rem;
     font-style: italic;
   }
@@ -382,18 +361,18 @@
     justify-content: center;
     flex-shrink: 0;
     background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--c) 30%, #fef8ec) 0%,
-      color-mix(in srgb, var(--c) 6%, #fef8ec) 100%);
+      color-mix(in srgb, var(--c) 30%, var(--bg)) 0%,
+      color-mix(in srgb, var(--c) 6%, var(--bg)) 100%);
   }
   .name-sm {
     font-size: 0.95rem;
     font-weight: 700;
     font-variant: small-caps;
-    color: #1a0a00;
+    color: var(--ink);
   }
   .cont-lbl {
     font-size: 0.68rem;
-    color: #aaa;
+    color: var(--ink-soft);
     font-style: italic;
   }
 
@@ -444,7 +423,7 @@
     display: inline-block;
   }
   .mat {
-    color: #888;
+    color: var(--ink-muted);
     font-style: italic;
   }
 
@@ -452,7 +431,7 @@
     padding: 0.55rem 1.1rem;
     font-size: 0.82rem;
     line-height: 1.55;
-    color: #1a0a00;
+    color: var(--ink);
     white-space: pre-wrap;
   }
 
@@ -460,7 +439,7 @@
     padding: 0 1.1rem 0.55rem;
     font-size: 0.77rem;
     line-height: 1.45;
-    color: #3a2800;
+    color: var(--ink-soft);
     white-space: pre-wrap;
   }
   .higher-lbl {
@@ -473,17 +452,17 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.4rem 1.1rem;
-    border-top: 1px solid #c4a050;
-    background: color-mix(in srgb, var(--c) 6%, #fef8ec);
+    border-top: 1px solid var(--gold);
+    background: color-mix(in srgb, var(--c) 6%, var(--bg));
     font-size: 0.72rem;
-    color: #888;
+    color: var(--ink-muted);
     font-style: italic;
     flex-shrink: 0;
   }
   .pdf-tab-btn {
     background: none;
-    border: 1px solid #45475a;
-    color: #6c7086;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
     cursor: pointer;
     font-size: 0.75rem;
     padding: 0.15rem 0.55rem;
@@ -491,23 +470,23 @@
     font-family: inherit;
   }
   .pdf-tab-btn:hover {
-    color: #cdd6f4;
-    border-color: #6c7086;
+    color: var(--ink);
+    border-color: var(--ink-muted);
   }
 
   /* ── Bearbeiten-Container ── */
   .edit-wrap {
-    background: #1e1e2e;
-    border: 1px solid color-mix(in srgb, var(--mef-accent, #cba6f7) 25%, #313244);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--mef-accent, var(--arcane)) 25%, var(--surface));
     border-radius: 6px;
     padding: 1rem 1.25rem;
     max-width: 560px;
     width: 100%;
   }
 
-  .parse-error { color: #f38ba8; font-size: 0.9rem; }
+  .parse-error { color: var(--danger); font-size: 0.9rem; }
   .parse-error button {
-    background: none; border: none; color: #89b4fa;
+    background: none; border: none; color: var(--red);
     cursor: pointer; text-decoration: underline; font-family: inherit;
   }
 </style>

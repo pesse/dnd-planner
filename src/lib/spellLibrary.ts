@@ -14,14 +14,14 @@ export interface SpellInfo {
 
 /** Farbe pro Zauberschule (Catppuccin Mocha Palette) */
 export const SCHOOL_COLORS: Record<string, string> = {
-  abjuration:    '#89b4fa', // blue
-  conjuration:   '#cba6f7', // mauve
-  divination:    '#f9e2af', // yellow
-  enchantment:   '#f38ba8', // red/pink
-  evocation:     '#fab387', // peach
-  illusion:      '#89dceb', // sky
-  necromancy:    '#a6e3a1', // green
-  transmutation: '#e6c384', // yellow/gold
+  abjuration:    'var(--steel)',
+  conjuration:   'var(--green)',
+  divination:    'var(--gold)',
+  enchantment:   'var(--magenta)',
+  evocation:     'var(--red)',
+  illusion:      'var(--teal)',
+  necromancy:    'var(--arcane)',
+  transmutation: 'var(--copper)',
 };
 
 // Singleton-Cache
