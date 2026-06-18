@@ -20,17 +20,8 @@
   import type { ContextFlags } from '../stores/context';
   import { monsterTypeLabel } from '../types';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
-  import {
-    ollamaChat,
-    ollamaGenerate,
-    anthropicChat,
-    anthropicGenerate,
-    groqChat,
-    groqGenerate,
-    xaiChat,
-    xaiGenerate,
-    agentLoop,
-  } from '../services/llmService';
+  import { modelSupportsTemperature } from '../services/llmService';
+  import { getClient } from '../services/llmClient';
   import type { AgentStep, AgentOptions } from '../services/llmService';
   import { debugLog, clearDebugLog } from '../stores/debug';
   import { invoke } from '@tauri-apps/api/core';
@@ -44,6 +35,10 @@
   let mode = $state<LlmMode>(savedMode && VALID_MODES.includes(savedMode) ? savedMode : 'generate');
 
   $effect(() => { localStorage.setItem('llm-mode', mode); });
+
+  // Aktueller LLM-Client (Provider-Adapter + Capabilities) — reaktiv zur Config.
+  let client = $derived(getClient($llmConfig));
+
   let showPrompt = $state(false);
   let showSettings = $state(false);
   let generateResult = $state('');
@@ -61,6 +56,9 @@
   let settingsBaseUrl = $state($llmConfig.baseUrl ?? 'http://localhost:11434');
   let settingsApiKey = $state($llmConfig.apiKey ?? '');
   let settingsMaxTokens = $state($llmConfig.maxTokens ?? 4096);
+  // Temperature: optionaler globaler Override. Aus → Task-Presets je Kontext greifen.
+  let settingsTempOverride = $state($llmConfig.temperature != null);
+  let settingsTemperature = $state($llmConfig.temperature ?? 0.7);
 
   const ANTHROPIC_MODELS = [
     'claude-opus-4-6',
@@ -89,6 +87,8 @@
       settingsBaseUrl = $llmConfig.baseUrl ?? 'http://localhost:11434';
       settingsApiKey = $llmConfig.apiKey ?? '';
       settingsMaxTokens = $llmConfig.maxTokens ?? 4096;
+      settingsTempOverride = $llmConfig.temperature != null;
+      settingsTemperature = $llmConfig.temperature ?? 0.7;
     });
     generateResult = localStorage.getItem('llm-generate-result') ?? '';
   });
@@ -104,6 +104,7 @@
       baseUrl: settingsProvider === 'ollama' ? settingsBaseUrl : undefined,
       apiKey: settingsProvider !== 'ollama' ? settingsApiKey : undefined,
       maxTokens: settingsMaxTokens,
+      temperature: settingsTempOverride ? settingsTemperature : undefined,
     });
     showSettings = false;
   }
@@ -209,7 +210,10 @@
     };
 
     try {
-      await agentLoop($llmConfig, task, buildAgentSystemPrompt(), options);
+      if (!client.agentLoop) {
+        throw new Error('Dieser Provider unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.');
+      }
+      await client.agentLoop(task, buildAgentSystemPrompt(), options);
     } catch (e) {
       agentError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -230,8 +234,6 @@
     llmLoading.set(true);
 
     try {
-      const config = $llmConfig;
-
       if (mode === 'chat') {
         // History VOR dem Update snapshot — dann userMsg anhängen
         const history = $llmMessages;
@@ -243,20 +245,11 @@
           { role: 'user' as const, content: userMsg },
         ];
 
-        const response =
-          config.provider === 'anthropic' ? await anthropicChat(config, messages)
-          : config.provider === 'groq' ? await groqChat(config, messages)
-          : config.provider === 'xai' ? await xaiChat(config, messages)
-          : await ollamaChat(config, messages);
+        const response = await client.chat(messages, 'chat');
         llmMessages.update((msgs) => [...msgs, { role: 'assistant', content: response }]);
       } else {
         generateResult = '...';
-        const response =
-          config.provider === 'anthropic' ? await anthropicGenerate(config, userMsg, $systemPrompt)
-          : config.provider === 'groq' ? await groqGenerate(config, userMsg, $systemPrompt)
-          : config.provider === 'xai' ? await xaiGenerate(config, userMsg, $systemPrompt)
-          : await ollamaGenerate(config, userMsg, $systemPrompt);
-        generateResult = response;
+        generateResult = await client.generate(userMsg, $systemPrompt, 'creative');
       }
     } catch (e) {
       const errMsg = `⚠️ Fehler: ${e instanceof Error ? e.message : JSON.stringify(e)}`;
@@ -642,6 +635,25 @@
         <input type="number" bind:value={settingsMaxTokens} min="256" max="32000" step="256" />
       </div>
 
+      <div class="settings-row temp-row">
+        <label class="temp-toggle">
+          <input type="checkbox" bind:checked={settingsTempOverride} />
+          Temperatur überschreiben
+        </label>
+        {#if settingsTempOverride}
+          <input class="temp-value" type="number" bind:value={settingsTemperature} min="0" max="1" step="0.1" />
+        {/if}
+      </div>
+      {#if settingsTempOverride}
+        <p class="settings-hint">
+          {#if settingsProvider === 'anthropic' && !modelSupportsTemperature(settingsModel)}
+            ⚠ {settingsModel} ignoriert Temperatur — Steuerung erfolgt über effort/Prompting.
+          {:else}
+            Überschreibt die kontextabhängigen Presets (Übersetzung, Agent, …) global.
+          {/if}
+        </p>
+      {/if}
+
       <div class="settings-footer">
         {#if settingsProvider !== 'ollama' && $llmConfig.apiKey}
           <button class="delete-key-btn" onclick={handleDeleteKey}>Key löschen</button>
@@ -965,8 +977,8 @@
             "Erstelle einen Encounter für Akt 2, Schwierigkeit schwer, 2 Spieler Level 6"<br>
             "Harlon wurde enttarnt — passe Akt 3 und seinen Encounter an"
           </p>
-          {#if $llmConfig.provider === 'ollama'}
-            <p class="agent-warning">⚠ Ollama unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.</p>
+          {#if !client.capabilities.tools}
+            <p class="agent-warning">⚠ Dieser Provider unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.</p>
           {/if}
         </div>
       {:else}
@@ -1248,6 +1260,34 @@
     font-family: inherit;
     outline: none;
     min-width: 0;
+  }
+
+  .temp-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: auto;
+    cursor: pointer;
+  }
+
+  .temp-toggle input[type='checkbox'] {
+    flex: none;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .temp-value {
+    flex: none !important;
+    max-width: 64px;
+  }
+
+  .settings-hint {
+    font-size: 0.65rem;
+    color: var(--ink-muted);
+    margin: 0.1rem 0 0;
+    line-height: 1.3;
   }
 
   .settings-footer {

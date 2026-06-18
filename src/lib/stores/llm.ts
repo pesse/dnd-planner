@@ -40,7 +40,7 @@ export async function loadSavedConfig(): Promise<void> {
     const saved = localStorage.getItem('llm-config');
     if (!saved) return;
 
-    const { provider, model, baseUrl, maxTokens } = JSON.parse(saved) as Partial<LlmConfig>;
+    const { provider, model, baseUrl, maxTokens, temperature } = JSON.parse(saved) as Partial<LlmConfig>;
     if (!provider) return;
 
     const apiKey = await loadApiKeyForProvider(provider as LlmProvider);
@@ -51,6 +51,7 @@ export async function loadSavedConfig(): Promise<void> {
       baseUrl: baseUrl,
       apiKey: apiKey ?? undefined,
       maxTokens: maxTokens,
+      temperature: temperature,
     });
   } catch {
     // Kein gespeicherter Config — Defaults bleiben
@@ -64,7 +65,7 @@ export async function loadSavedConfig(): Promise<void> {
 export async function saveConfig(config: LlmConfig): Promise<void> {
   localStorage.setItem(
     'llm-config',
-    JSON.stringify({ provider: config.provider, model: config.model, baseUrl: config.baseUrl, maxTokens: config.maxTokens })
+    JSON.stringify({ provider: config.provider, model: config.model, baseUrl: config.baseUrl, maxTokens: config.maxTokens, temperature: config.temperature })
   );
 
   if (config.apiKey) {

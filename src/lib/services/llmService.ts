@@ -2,15 +2,20 @@ import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
-import { VAULT_TOOLS_OPENAI, executeTool } from './vaultTools';
+import { VAULT_TOOLS_OPENAI, executeTool, TASK_TEMPERATURE } from './vaultTools';
 import type { ChatMessage, AgentOptions } from './vaultTools';
 
-import { anthropicChat, anthropicGenerate, anthropicAgentLoop } from './anthropicService';
+import { anthropicChat, anthropicGenerate, anthropicAgentLoop, modelSupportsTemperature } from './anthropicService';
 
 // Geteilte Typen + der Anthropic-Pfad leben in eigenen Modulen; hier
 // re-exportiert, damit `llmService` die stabile Fassade für alle Consumer bleibt.
-export type { ChatMessage, AgentStep, AgentStepType, AgentOptions } from './vaultTools';
-export { anthropicChat, anthropicGenerate, anthropicAgentLoop };
+export type { ChatMessage, AgentStep, AgentStepType, AgentOptions, TaskKind } from './vaultTools';
+export { anthropicChat, anthropicGenerate, anthropicAgentLoop, modelSupportsTemperature, TASK_TEMPERATURE };
+
+/** Effektive Temperatur: globaler Override (config.temperature) gewinnt gegen das Call-Site-Preset. */
+function effTemp(config: LlmConfig, perCall?: number): number | undefined {
+  return config.temperature ?? perCall;
+}
 
 // ── HTTP via Rust ─────────────────────────────────────────────────────────────
 
@@ -68,18 +73,19 @@ async function rustFetch(
 
 // ── Ollama ────────────────────────────────────────────────────────────────────
 
-export async function ollamaChat(config: LlmConfig, messages: ChatMessage[]): Promise<string> {
-  const data = await rustFetch(
-    `${config.baseUrl}/api/chat`, {},
-    { model: config.model, messages, stream: false },
-    { provider: 'ollama', label: 'chat' }
-  ) as Record<string, unknown>;
+export async function ollamaChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
+  const temp = effTemp(config, temperature);
+  const body: Record<string, unknown> = { model: config.model, messages, stream: false };
+  if (temp != null) body.options = { temperature: temp };
+  const data = await rustFetch(`${config.baseUrl}/api/chat`, {}, body, { provider: 'ollama', label: 'chat' }) as Record<string, unknown>;
   return (data.message as Record<string, string>)?.content ?? '';
 }
 
-export async function ollamaGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
+export async function ollamaGenerate(config: LlmConfig, prompt: string, system?: string, temperature?: number): Promise<string> {
+  const temp = effTemp(config, temperature);
   const body: Record<string, unknown> = { model: config.model, prompt, stream: false };
   if (system) body.system = system;
+  if (temp != null) body.options = { temperature: temp };
   const data = await rustFetch(`${config.baseUrl}/api/generate`, {}, body, { provider: 'ollama', label: 'generate' }) as Record<string, unknown>;
   return (data.response as string) ?? '';
 }
@@ -88,46 +94,48 @@ export async function ollamaGenerate(config: LlmConfig, prompt: string, system?:
 
 const GROQ_API = 'https://api.groq.com/openai/v1';
 
-export async function groqChat(config: LlmConfig, messages: ChatMessage[]): Promise<string> {
+export async function groqChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
   if (!config.apiKey) throw new Error('Kein Groq API-Key konfiguriert. Bitte unter ⚙ eintragen.');
+  const temp = effTemp(config, temperature);
   const data = await rustFetch(
     `${GROQ_API}/chat/completions`,
     { Authorization: `Bearer ${config.apiKey}` },
-    { model: config.model, messages },
+    { model: config.model, messages, ...(temp != null ? { temperature: temp } : {}) },
     { provider: 'groq', label: 'chat' }
   ) as Record<string, unknown>;
   const choices = data.choices as Array<Record<string, unknown>>;
   return (choices?.[0]?.message as Record<string, string>)?.content ?? '';
 }
 
-export async function groqGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
+export async function groqGenerate(config: LlmConfig, prompt: string, system?: string, temperature?: number): Promise<string> {
   const messages: ChatMessage[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
-  return groqChat(config, messages);
+  return groqChat(config, messages, temperature);
 }
 
 // ── xAI (Grok) ────────────────────────────────────────────────────────────────
 
 const XAI_API = 'https://api.x.ai/v1';
 
-export async function xaiChat(config: LlmConfig, messages: ChatMessage[]): Promise<string> {
+export async function xaiChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
   if (!config.apiKey) throw new Error('Kein xAI API-Key konfiguriert. Bitte unter ⚙ eintragen.');
+  const temp = effTemp(config, temperature);
   const data = await rustFetch(
     `${XAI_API}/chat/completions`,
     { Authorization: `Bearer ${config.apiKey}` },
-    { model: config.model, messages },
+    { model: config.model, messages, ...(temp != null ? { temperature: temp } : {}) },
     { provider: 'xai', label: 'chat' }
   ) as Record<string, unknown>;
   const choices = data.choices as Array<Record<string, unknown>>;
   return (choices?.[0]?.message as Record<string, string>)?.content ?? '';
 }
 
-export async function xaiGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
+export async function xaiGenerate(config: LlmConfig, prompt: string, system?: string, temperature?: number): Promise<string> {
   const messages: ChatMessage[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
-  return xaiChat(config, messages);
+  return xaiChat(config, messages, temperature);
 }
 
 // ── Agentic Loop ──────────────────────────────────────────────────────────────
@@ -143,6 +151,7 @@ async function openAiAgentLoop(
   options: AgentOptions
 ): Promise<string> {
   const { onStep, writeFile, signal } = options;
+  const temp = effTemp(config, options.temperature ?? TASK_TEMPERATURE.agent);
   const msgs: unknown[] = [
     { role: 'system', content: systemPromptText },
     { role: 'user', content: userMessage },
@@ -158,7 +167,7 @@ async function openAiAgentLoop(
         `${apiBase}/chat/completions`,
         authHeader,
         // parallel_tool_calls: false verbessert Zuverlässigkeit bei llama-Modellen erheblich
-        { model: config.model, messages: msgs, tools: VAULT_TOOLS_OPENAI, parallel_tool_calls: false },
+        { model: config.model, messages: msgs, tools: VAULT_TOOLS_OPENAI, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
         { provider: config.provider, label: `agent[${i}]` }
       ) as Record<string, unknown>;
     } catch (e) {

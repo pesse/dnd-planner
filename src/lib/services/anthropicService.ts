@@ -6,6 +6,7 @@ import { addTokenUsage } from '../stores/llm';
 import {
   VAULT_TOOLS_ANTHROPIC,
   executeTool,
+  TASK_TEMPERATURE,
   type ChatMessage,
   type AgentOptions,
 } from './vaultTools';
@@ -41,6 +42,33 @@ function requireApiKey(config: LlmConfig): string {
   return config.apiKey;
 }
 
+// Modelle, die sampling-Parameter (temperature/top_p/top_k) nicht mehr akzeptieren —
+// ab Opus 4.7 (inkl. 4.8) und Fable/Mythos 5. Dort steuert man über effort + Prompting.
+const NO_SAMPLING = /opus-4-(7|8)|fable-5|mythos-5/;
+
+/** True, wenn das Modell `temperature` unterstützt (Opus 4.6 & älter, Sonnet 4.6, Haiku 4.5). */
+export function modelSupportsTemperature(model: string): boolean {
+  return !NO_SAMPLING.test(model);
+}
+
+/**
+ * Effektive Sampling-Parameter: globaler Override (config.temperature) gewinnt gegen
+ * das per-Call-Preset; auf Modellen ohne sampling-Support wird Temperature still
+ * verworfen (würde sonst einen 400 auslösen) — mit Debug-Hinweis.
+ */
+function samplingParams(config: LlmConfig, perCall: number | undefined, label: string): { temperature?: number } {
+  const temp = config.temperature ?? perCall;
+  if (temp == null) return {};
+  if (!modelSupportsTemperature(config.model)) {
+    logDebug({
+      provider: 'anthropic', type: 'request', label,
+      data: { note: `temperature=${temp} verworfen — ${config.model} ignoriert sampling-Parameter` },
+    });
+    return {};
+  }
+  return { temperature: temp };
+}
+
 /** Erstes Text-Block-Ergebnis einer Antwort (Tool-Use-Blöcke werden übersprungen). */
 function firstText(message: Anthropic.Message): string {
   const block = message.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
@@ -74,7 +102,11 @@ async function createMessage(
 
 // ── Chat / Generate ─────────────────────────────────────────────────────────
 
-export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]): Promise<string> {
+export async function anthropicChat(
+  config: LlmConfig,
+  messages: ChatMessage[],
+  temperature?: number
+): Promise<string> {
   const client = createClient(requireApiKey(config));
   const system = messages.find((m) => m.role === 'system')?.content;
   const conversation: Anthropic.MessageParam[] = messages
@@ -86,6 +118,7 @@ export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]):
     {
       model: config.model,
       max_tokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
+      ...samplingParams(config, temperature, 'chat'),
       ...(system ? { system } : {}),
       messages: conversation,
     },
@@ -94,13 +127,19 @@ export async function anthropicChat(config: LlmConfig, messages: ChatMessage[]):
   return firstText(message);
 }
 
-export async function anthropicGenerate(config: LlmConfig, prompt: string, system?: string): Promise<string> {
+export async function anthropicGenerate(
+  config: LlmConfig,
+  prompt: string,
+  system?: string,
+  temperature?: number
+): Promise<string> {
   const client = createClient(requireApiKey(config));
   const message = await createMessage(
     client,
     {
       model: config.model,
       max_tokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
+      ...samplingParams(config, temperature, 'generate'),
       ...(system ? { system } : {}),
       messages: [{ role: 'user', content: prompt }],
     },
@@ -118,6 +157,7 @@ export async function anthropicAgentLoop(
   options: AgentOptions
 ): Promise<string> {
   const { onStep, writeFile, signal } = options;
+  const temperature = options.temperature ?? TASK_TEMPERATURE.agent;
   const client = createClient(requireApiKey(config));
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userMessage }];
 
@@ -129,6 +169,7 @@ export async function anthropicAgentLoop(
       {
         model: config.model,
         max_tokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
+        ...samplingParams(config, temperature, `agent[${i}]`),
         system: systemPromptText,
         messages,
         tools: VAULT_TOOLS_ANTHROPIC,

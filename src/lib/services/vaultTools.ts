@@ -24,7 +24,24 @@ export interface AgentOptions {
   writeFile?: (path: string, content: string) => Promise<void>;
   /** Abort signal — wenn abgebrochen, wirft der Loop einen Fehler. */
   signal?: AbortSignal;
+  /** Task-Temperatur für den Agent-Lauf (Default: TASK_TEMPERATURE.agent). */
+  temperature?: number;
 }
+
+// ── Temperatur-Presets je Kontext ──────────────────────────────────────────────
+// Pro Call-Site gewählt; ein gesetzter config.temperature überschreibt sie global.
+// Hinweis: Auf Anthropic-Modellen ab Opus 4.7 (inkl. 4.8 / Fable 5) wird Temperature
+// serverseitig ignoriert bzw. abgelehnt — dort steuert effort + Prompting (siehe anthropicService).
+
+export const TASK_TEMPERATURE = {
+  agent: 0.0,       // Tool-Calling — maximale Reproduzierbarkeit
+  translate: 0.2,   // Übersetzung — nah am Original, deterministisch
+  structured: 0.3,  // JSON-Generierung (Monster/Encounter) — wenig Streuung
+  chat: 0.7,        // Konversation
+  creative: 0.8,    // freie Generierung (NPCs, Story-Text)
+} as const;
+
+export type TaskKind = keyof typeof TASK_TEMPERATURE;
 
 // ── Tool-Definitionen ─────────────────────────────────────────────────────────
 

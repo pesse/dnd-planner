@@ -173,6 +173,8 @@ export interface LlmConfig {
   apiKey?: string;
   baseUrl?: string;
   maxTokens?: number;
+  /** Globaler Temperature-Override. Wenn gesetzt, gewinnt er gegen das Task-Preset des Call-Sites. */
+  temperature?: number;
 }
 
 // --- Monster ---

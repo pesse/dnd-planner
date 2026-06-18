@@ -1,12 +1,7 @@
 <script lang="ts">
   import { get } from 'svelte/store';
   import { llmConfig, loadApiKeyForProvider } from '../stores/llm';
-  import {
-    ollamaGenerate,
-    anthropicGenerate,
-    groqGenerate,
-    xaiGenerate,
-  } from '../services/llmService';
+  import { getClient } from '../services/llmClient';
 
   let {
     systemPrompt: defaultSystemPrompt,
@@ -57,12 +52,7 @@
         baseUrl:  globalCfg.baseUrl,
       };
 
-      let raw: string;
-      if (cfg.provider === 'anthropic')     raw = await anthropicGenerate(cfg, prompt, translateSystemPrompt);
-      else if (cfg.provider === 'groq')     raw = await groqGenerate(cfg, prompt, translateSystemPrompt);
-      else if (cfg.provider === 'xai')      raw = await xaiGenerate(cfg, prompt, translateSystemPrompt);
-      else                                  raw = await ollamaGenerate(cfg, prompt, translateSystemPrompt);
-
+      const raw = await getClient(cfg).generate(prompt, translateSystemPrompt, 'translate');
       onresult(raw);
     } catch (e) {
       translateError = e instanceof Error ? e.message : String(e);
