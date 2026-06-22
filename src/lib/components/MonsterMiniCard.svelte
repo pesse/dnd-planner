@@ -81,25 +81,37 @@
 
     if (seq !== loadSeq) return;
 
-    // Global fallback
-    const globalPath = `${GLOBAL_MONSTERS_PATH}/${s}.json`;
+    // Global fallback: Monster liegen entweder flach oder in Gruppen-Unterordnern
+    // (z.B. vault/monsters/goblinoide/…). Erst flach, dann jede Gruppe durchsuchen.
+    const tryPaths = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
     try {
-      const content = await invoke<string>('read_file_content', { path: globalPath });
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
       if (seq !== loadSeq) return;
-      const raw = JSON.parse(content);
-      schemaWarnings = validateMonster(raw);
-      const parsed = normalizeMonster(raw as Monster);
-      saved = parsed;
-      draft = structuredClone(parsed);
-      savePath = globalPath;
-      source = 'global';
-      status = 'ok';
-    } catch (e) {
-      if (seq !== loadSeq) return;
-      loadError = String(e);
-      console.error(`MonsterMiniCard [${s}]:`, e);
-      status = 'missing';
+      for (const e of entries) {
+        if (e.is_dir) tryPaths.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
+      }
+    } catch { /* Verzeichnisliste nicht verfügbar → nur flacher Pfad */ }
+
+    for (const globalPath of tryPaths) {
+      try {
+        const content = await invoke<string>('read_file_content', { path: globalPath });
+        if (seq !== loadSeq) return;
+        const raw = JSON.parse(content);
+        schemaWarnings = validateMonster(raw);
+        const parsed = normalizeMonster(raw as Monster);
+        saved = parsed;
+        draft = structuredClone(parsed);
+        savePath = globalPath;
+        source = 'global';
+        status = 'ok';
+        return;
+      } catch { /* nächsten Pfad versuchen */ }
     }
+
+    if (seq !== loadSeq) return;
+    loadError = 'nicht in Bibliothek gefunden';
+    console.error(`MonsterMiniCard [${s}]: in vault/monsters (inkl. Untergruppen) nicht gefunden`);
+    status = 'missing';
   }
 
   $effect(() => {
@@ -267,13 +279,14 @@
     flex-shrink: 0;
   }
 
-  /* Akt-lokale Monster: amber statt rot */
+  /* Akt-lokale Monster: heller Gold-Tint + goldener Rahmen (themekonform, statt
+     die Textfarbe --ink als fast-schwarzen Hintergrund zu missbrauchen). */
   .mini-card.act-local {
-    background: var(--ink);
+    background: color-mix(in srgb, var(--gold) 10%, var(--bg-raised));
     border-color: var(--gold);
   }
-  .mini-card.act-local .c-divider { background: color-mix(in srgb, var(--gold) 27%, transparent); }
-  .mini-card.act-local .edit-header { background: var(--ink); border-bottom-color: var(--gold); }
+  .mini-card.act-local .c-divider { background: color-mix(in srgb, var(--gold) 40%, transparent); }
+  .mini-card.act-local .edit-header { background: color-mix(in srgb, var(--gold) 12%, var(--bg-deep)); border-bottom-color: var(--gold); }
   .mini-card.act-local .c-lbl { color: var(--gold); }
   .mini-card.act-local .c-name { color: var(--gold); }
   /* Formularfarben via CSS Custom Property — cascadiert in MonsterEditForm */
