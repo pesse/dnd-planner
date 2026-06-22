@@ -157,9 +157,30 @@
     }
   }
 
+  /** Sucht ein Monster in der globalen Bibliothek (flach + Gruppen-Unterordner). Liefert den Pfad oder null. */
+  async function findGlobalPath(s: string): Promise<string | null> {
+    const candidates = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
+    try {
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
+      for (const e of entries) if (e.is_dir) candidates.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
+    } catch { /* nur flacher Pfad prüfbar */ }
+    for (const path of candidates) {
+      try { await invoke<string>('read_file_content', { path }); return path; }
+      catch { /* nicht hier */ }
+    }
+    return null;
+  }
+
   async function promoteToLibrary() {
     if (source !== 'act') return;
     promoteError = '';
+    // Guard: existiert der Slug bereits global (flach ODER in einer Gruppe),
+    // würde rename_file ein Duplikat anlegen → abbrechen.
+    const existing = await findGlobalPath(slug);
+    if (existing) {
+      promoteError = `„${slug}" existiert bereits in der Bibliothek (${existing}). Verschieben abgebrochen.`;
+      return;
+    }
     const globalPath = `${GLOBAL_MONSTERS_PATH}/${slug}.json`;
     try {
       await invoke('rename_file', { oldPath: savePath, newPath: globalPath });
