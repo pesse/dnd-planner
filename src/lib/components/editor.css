@@ -1,0 +1,151 @@
+/*
+ * Gemeinsame Styles für die TipTap-basierten Editoren (MarkdownEditor &
+ * RichTextEditor). Beide Komponenten setzen die Wurzelklasse `editor-shell`
+ * und importieren diese Datei – so existiert das ProseMirror-/Toolbar-CSS nur
+ * einmal, ohne die Editor-Logik der Komponenten zu koppeln.
+ */
+
+.editor-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Toolbar ── */
+.editor-shell .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.05rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.editor-shell .tb {
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  min-width: 1.8rem;
+  text-align: center;
+  line-height: 1;
+  transition: color 0.1s, background 0.1s;
+}
+.editor-shell .tb:hover { color: var(--ink); background: var(--surface); }
+.editor-shell .tb.on    { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.editor-shell .tb.mono  { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.74rem; }
+
+.editor-shell .tb-sep  { width: 1px; height: 1rem; background: var(--surface); margin: 0 0.2rem; flex-shrink: 0; }
+.editor-shell .tb-flex { flex: 1; }
+
+.editor-shell .save-indicator {
+  font-size: 0.7rem;
+  color: transparent;
+  margin-right: 0.3rem;
+  white-space: nowrap;
+}
+.editor-shell .save-indicator.unsaved { color: var(--danger); }
+.editor-shell .save-indicator.saving  { color: var(--ink-muted); }
+
+.editor-shell .source-btn {
+  background: transparent;
+  border: 1px solid var(--surface);
+  border-radius: 4px;
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.editor-shell .source-btn:hover  { border-color: var(--ink-muted); color: var(--ink); }
+.editor-shell .source-btn.active { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+
+/* ── TipTap-Mount ── */
+.editor-shell .editor-mount {
+  flex: 1;
+  overflow-y: auto;
+  cursor: text;
+}
+.editor-shell .editor-mount.hidden { display: none; }
+
+/* ── ProseMirror-Inhalt ── */
+.editor-shell .ProseMirror {
+  min-height: 100%;
+  padding: 1.5rem 2rem;
+  outline: none;
+  color: var(--ink);
+  line-height: 1.8;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+
+.editor-shell .ProseMirror h1 { color: var(--arcane); font-size: 1.8rem; margin: 0.5rem 0; }
+.editor-shell .ProseMirror h2 { color: var(--red); font-size: 1.4rem; margin: 1.5rem 0 0.4rem; }
+.editor-shell .ProseMirror h3 { color: var(--teal); font-size: 1.1rem; margin: 1rem 0 0.3rem; }
+.editor-shell .ProseMirror h4,
+.editor-shell .ProseMirror h5,
+.editor-shell .ProseMirror h6 { color: var(--green); margin: 0.8rem 0 0.2rem; }
+.editor-shell .ProseMirror p  { margin: 0 0 0.9rem; }
+.editor-shell .ProseMirror strong { color: var(--danger); font-weight: 700; }
+.editor-shell .ProseMirror em    { color: var(--arcane); font-style: italic; }
+.editor-shell .ProseMirror s     { color: var(--ink-muted); }
+.editor-shell .ProseMirror ul,
+.editor-shell .ProseMirror ol   { padding-left: 1.5rem; margin: 0 0 0.9rem; }
+.editor-shell .ProseMirror li   { margin-bottom: 0.2rem; }
+.editor-shell .ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  margin: 0 0 0.9rem;
+  padding: 0.3rem 0 0.3rem 1rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.editor-shell .ProseMirror code {
+  background: var(--surface);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.88em;
+  color: var(--green);
+}
+.editor-shell .ProseMirror pre {
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0 0 0.9rem;
+}
+.editor-shell .ProseMirror pre code { background: none; padding: 0; }
+.editor-shell .ProseMirror hr  { border: none; border-top: 1px solid var(--surface); margin: 1.5rem 0; }
+
+/* Platzhalter für leeren Editor */
+.editor-shell .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--border);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ── Quelltext-Textarea ── */
+.editor-shell .source-ta {
+  flex: 1;
+  padding: 1.5rem;
+  background: var(--bg);
+  color: var(--ink);
+  border: none;
+  outline: none;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  resize: none;
+  width: 100%;
+  box-sizing: border-box;
+}
