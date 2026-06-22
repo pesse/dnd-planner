@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeFile, setFileContent } from '$lib/stores/campaign';
+  import { activeFile, setFileContent, newItemDraft, invalidateVault } from '$lib/stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
   import { get } from 'svelte/store';
   import { onMount } from 'svelte';
@@ -33,6 +33,8 @@
   import DndApiSearch from './DndApiSearch.svelte';
   import LlmTranslate from './LlmTranslate.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import { DND_API, apiGet, getResource } from '$lib/services/dndApi';
+  import ItemEditModal from './ItemEditModal.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -78,6 +80,14 @@
 
   let rawJson = $state('');
 
+  // Noch nicht gespeicherter Entwurf (KI- oder manuelle Anlage). Ist er gesetzt,
+  // startet die Card direkt im Bearbeiten-Modus; gespeichert wird erst per "Speichern".
+  let newDraft = $state<{ item: Item; dir: string } | null>(null);
+
+  function slugify(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+  }
+
   onMount(() => {
     async function load(path: string) {
       try {
@@ -93,10 +103,23 @@
     const initial = get(activeFile);
     if (initial?.type === 'item' && initial.path) load(initial.path);
 
-    const unsub = activeFile.subscribe((file) => {
+    const unsubFile = activeFile.subscribe((file) => {
       if (file?.type === 'item' && file.path) load(file.path);
     });
-    return unsub;
+
+    // Entwurf: rohes JSON setzen und direkt in den Bearbeiten-Modus wechseln.
+    const unsubDraft = newItemDraft.subscribe((d) => {
+      newDraft = d;
+      if (d) {
+        rawJson = JSON.stringify(d.item, null, 2);
+        setFileContent(rawJson);
+        editing = false;       // erzwingt frisches startEdit über den $effect
+        draft = null;
+        tab = 'bearbeiten';
+      }
+    });
+
+    return () => { unsubFile(); unsubDraft(); };
   });
 
   let parsed = $derived.by(() => {
@@ -138,11 +161,21 @@
     editing = true;
   }
 
+  // Speichern-unter-State für noch nicht gespeicherte Entwürfe.
+  let showSaveAs = $state(false);
+  let newFilename = $state('');
+
   function discard() {
+    if (newDraft) {
+      // Ungespeicherten Entwurf verwerfen → Card schließen.
+      newItemDraft.set(null);
+      activeFile.set(null);
+    }
     editing = false;
     draft = null;
     apiRawResponse = null;
     importError = '';
+    showSaveAs = false;
     tab = 'karte';
   }
 
@@ -178,8 +211,9 @@
     }
   }
 
-  async function save() {
-    if (!draft || !$activeFile) return;
+  /** Überträgt die Text-Spiegel (Beschreibung, Eigenschaften, Seltenheit) in den Draft. */
+  function applyDraftFields() {
+    if (!draft) return;
     draft.desc    = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
     draft.desc_de = draftDescDeText ? draftDescDeText.split(/\n\n+/).map(s => s.trim()).filter(Boolean) : undefined;
     draft.rarity  = draftRarityName ? { name: draftRarityName } : undefined;
@@ -193,6 +227,18 @@
     } else {
       draft.properties = undefined;
     }
+  }
+
+  async function save() {
+    if (!draft) return;
+    applyDraftFields();
+    if (newDraft) {
+      // Neuer Entwurf: Dateiname abfragen (vorausgefüllt), noch nicht schreiben.
+      newFilename = slugify(draft.name_de || draft.name || 'gegenstand');
+      showSaveAs = true;
+      return;
+    }
+    if (!$activeFile) return;
     const json = JSON.stringify($state.snapshot(draft), null, 2);
     if (await persistItem(json, categoryKeyOf(draft))) {
       editing = false;
@@ -203,7 +249,49 @@
     }
   }
 
+  /** Legt die Datei für einen neuen Entwurf unter dem gewählten Namen an. */
+  async function confirmSaveAs() {
+    if (!draft || !newDraft) return;
+    const name = slugify(newFilename || draft.name_de || draft.name || 'gegenstand');
+    if (!name) return;
+    const dir = categoryKeyOf(draft);   // folgt der (ggf. geänderten) Kategorie im Editor
+    const filename = `${name}.json`;
+    const path = `${ITEMS_PATH}/${dir}/${filename}`;
+    const json = JSON.stringify($state.snapshot(draft), null, 2);
+    try {
+      await invoke('write_file_content', { path, content: json });
+    } catch (e) {
+      pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
+      return;
+    }
+    invalidateItemCache(dir);
+    invalidateVault();
+    newItemDraft.set(null);   // löscht den Entwurf → Subscription setzt newDraft = null
+    showSaveAs = false;
+    editing = false;
+    draft = null;
+    apiRawResponse = null;
+    importError = '';
+    rawJson = json;
+    setFileContent(json);
+    tab = 'karte';
+    activeFile.set({ name: filename, path, type: 'item' });  // ab jetzt echte Datei
+  }
+
   async function saveJson(json: string) {
+    if (newDraft) {
+      // JSON-Tab bei neuem Entwurf: als Draft übernehmen, dann Dateiname abfragen.
+      const parsedItem = JSON.parse(json) as Item;
+      draft = parsedItem;
+      draftDescText   = (parsedItem.desc    ?? []).join('\n\n');
+      draftDescDeText = (parsedItem.desc_de ?? []).join('\n\n');
+      draftPropsText  = (parsedItem.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
+      draftRarityName = parsedItem.rarity?.name ?? '';
+      newFilename = slugify(parsedItem.name_de || parsedItem.name || 'gegenstand');
+      showSaveAs = true;
+      tab = 'bearbeiten';
+      return;
+    }
     let catKey = '';
     try {
       catKey = categoryKeyOf(JSON.parse(json) as Item);
@@ -216,8 +304,6 @@
 
   // ── DnD-API-Import ───────────────────────────────────────────────────────────
 
-  const DND_API = 'https://www.dnd5eapi.co/api/2014';
-
   interface ApiResult {
     index: string;
     name: string;
@@ -228,13 +314,6 @@
   let apiRawResponse = $state<string | null>(null);
   let showApiRaw = $state(false);
   let importError = $state('');
-
-  async function apiGet(url: string): Promise<unknown> {
-    const text = await invoke<string>('http_request', {
-      req: { url, method: 'GET', headers: {}, body: '' },
-    });
-    return JSON.parse(text);
-  }
 
   async function searchItems(q: string): Promise<(ApiResult & { tag: string })[]> {
     const [magicRaw, equipRaw] = await Promise.all([
@@ -251,7 +330,7 @@
   async function importFromApi(result: ApiResult) {
     if (!draft) return;
     try {
-      const data = await apiGet(`https://www.dnd5eapi.co${result.url}`) as Record<string, unknown>;
+      const data = await getResource(result.url);
       apiRawResponse = JSON.stringify(data, null, 2);
       showApiRaw = false;
 
@@ -345,6 +424,20 @@
       draft.desc_de = translated.desc_de as string[];
       draftDescDeText = (translated.desc_de as string[]).join('\n\n');
     }
+  }
+
+  // ── KI-Überarbeitung (Dialog) ────────────────────────────────────────────────
+
+  let showAiModal = $state(false);
+
+  /** Übernimmt das vom KI-Dialog überarbeitete Item in den Draft (überschreibt bestehende Werte). */
+  function applyAiResult(result: Item) {
+    if (!draft) return;
+    Object.assign(draft, result);
+    draftDescText   = (result.desc ?? []).join('\n\n');
+    draftDescDeText = (result.desc_de ?? []).join('\n\n');
+    draftPropsText  = (result.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
+    draftRarityName = result.rarity?.name ?? '';
   }
 </script>
 
@@ -537,6 +630,22 @@
   {#if draft}
     <!-- ── Bearbeitungsmodus ── -->
     <div class="item-card edit-mode" style="--cat-color: {categoryColor(draft)}">
+      {#if newDraft}
+        <div class="new-banner">Neuer Gegenstand — noch nicht gespeichert.</div>
+      {/if}
+      {#if showSaveAs}
+        <div class="saveas">
+          <span class="saveas-label">Speichern als</span>
+          <div class="saveas-row">
+            <span class="saveas-dir">{CATEGORY_LABELS[categoryKeyOf(draft)] ?? categoryKeyOf(draft)}/</span>
+            <input class="edit-input saveas-name" bind:value={newFilename}
+              onkeydown={(e) => { if (e.key === 'Enter') confirmSaveAs(); }} />
+            <span class="saveas-ext">.json</span>
+            <button class="saveas-confirm" onclick={confirmSaveAs} disabled={!newFilename.trim()}>Speichern</button>
+            <button class="saveas-cancel" onclick={() => (showSaveAs = false)} title="Abbrechen">×</button>
+          </div>
+        </div>
+      {/if}
       <div class="card-header">
         <div class="edit-header-top">
           <input class="edit-name" bind:value={draft.name_de} placeholder="Name (Deutsch)" />
@@ -807,6 +916,16 @@
 
       <div class="card-divider"></div>
 
+      <!-- KI-Überarbeitung -->
+      <div class="edit-section ai-section">
+        <div class="ai-row">
+          <span class="ai-label">Per KI überarbeiten</span>
+          <button class="ai-btn" onclick={() => (showAiModal = true)}>KI überarbeiten…</button>
+        </div>
+      </div>
+
+      <div class="card-divider"></div>
+
       <!-- DnD-API-Import -->
       <div class="edit-section api-section">
         <DndApiSearch
@@ -832,6 +951,14 @@
 {/snippet}
 
 </EditorPanel>
+
+{#if showAiModal && draft}
+  <ItemEditModal
+    item={$state.snapshot(draft)}
+    onresult={applyAiResult}
+    onclose={() => (showAiModal = false)}
+  />
+{/if}
 
 <style>
 
@@ -1086,6 +1213,57 @@
     background: color-mix(in srgb, var(--red) 5%, var(--bg-panel));
     border-top: 1px solid var(--surface);
   }
+
+  /* Neuer Entwurf / Speichern-unter */
+  .new-banner {
+    font-size: 0.78rem; color: var(--gold, #c89b3c);
+    background: color-mix(in srgb, var(--gold, #c89b3c) 12%, var(--bg-panel));
+    border-radius: 4px; padding: 0.3rem 0.5rem; margin-bottom: 0.5rem;
+  }
+  .saveas {
+    display: flex; flex-direction: column; gap: 0.3rem;
+    background: color-mix(in srgb, var(--arcane) 8%, var(--bg-panel));
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.5rem; margin-bottom: 0.6rem;
+  }
+  .saveas-label {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-muted);
+  }
+  .saveas-row { display: flex; align-items: center; gap: 0.3rem; }
+  .saveas-dir { font-size: 0.8rem; color: var(--ink-muted); white-space: nowrap; }
+  .saveas-name { flex: 1; min-width: 0; }
+  .saveas-ext { font-size: 0.8rem; color: var(--ink-muted); }
+  .saveas-confirm {
+    background: var(--arcane); border: none; border-radius: 4px; color: #fff;
+    font-size: 0.8rem; padding: 0.25rem 0.7rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .saveas-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+  .saveas-cancel {
+    background: none; border: none; color: var(--ink-muted); font-size: 1.1rem; cursor: pointer; line-height: 1;
+  }
+  .saveas-cancel:hover { color: var(--ink); }
+
+  /* KI-Ausfüllen */
+  .ai-section {
+    background: color-mix(in srgb, var(--arcane) 6%, var(--bg-panel));
+    border-top: 1px solid var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .ai-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .ai-label {
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-muted);
+  }
+  .ai-btn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink-soft); font-size: 0.82rem; padding: 0.2rem 0.7rem; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  .ai-btn:hover:not(:disabled) { color: var(--arcane); border-color: var(--arcane); }
+  .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* API-Import */
   .api-section {

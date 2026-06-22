@@ -4,14 +4,14 @@ import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
 import {
-  VAULT_TOOLS_ANTHROPIC,
-  executeTool,
+  VAULT_TOOLSET,
   TASK_TEMPERATURE,
   type ChatMessage,
   type AgentOptions,
+  type AgentToolset,
 } from './vaultTools';
 
-const DEFAULT_MAX_TOKENS = 4096;
+export const DEFAULT_MAX_TOKENS = 4096;
 const AGENT_MAX_ITERATIONS = 12;
 
 /**
@@ -25,7 +25,7 @@ const AGENT_MAX_ITERATIONS = 12;
  * Die `anthropic-version` setzt das SDK selbst; Retries (429/5xx) erledigt es
  * ebenfalls automatisch.
  */
-function createClient(apiKey: string): Anthropic {
+export function createClient(apiKey: string): Anthropic {
   return new Anthropic({
     apiKey,
     // Signatur des Tauri-`fetch` weicht minimal von `typeof fetch` ab (ClientOptions
@@ -35,7 +35,7 @@ function createClient(apiKey: string): Anthropic {
   });
 }
 
-function requireApiKey(config: LlmConfig): string {
+export function requireApiKey(config: LlmConfig): string {
   if (!config.apiKey) {
     throw new Error('Kein Anthropic API-Key konfiguriert. Bitte unter ⚙ eintragen.');
   }
@@ -70,7 +70,7 @@ function samplingParams(config: LlmConfig, perCall: number | undefined, label: s
 }
 
 /** Erstes Text-Block-Ergebnis einer Antwort (Tool-Use-Blöcke werden übersprungen). */
-function firstText(message: Anthropic.Message): string {
+export function firstText(message: Anthropic.Message): string {
   const block = message.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
   return block?.text ?? '';
 }
@@ -81,7 +81,7 @@ function firstText(message: Anthropic.Message): string {
  * JSON-Parsing. `signal` wird an das SDK durchgereicht, sodass laufende
  * Requests beim Abbruch tatsächlich gecancelt werden.
  */
-async function createMessage(
+export async function createMessage(
   client: Anthropic,
   params: Anthropic.MessageCreateParamsNonStreaming,
   label: string,
@@ -154,7 +154,8 @@ export async function anthropicAgentLoop(
   config: LlmConfig,
   userMessage: string,
   systemPromptText: string,
-  options: AgentOptions
+  options: AgentOptions,
+  toolset: AgentToolset = VAULT_TOOLSET
 ): Promise<string> {
   const { onStep, writeFile, signal } = options;
   const temperature = options.temperature ?? TASK_TEMPERATURE.agent;
@@ -172,7 +173,7 @@ export async function anthropicAgentLoop(
         ...samplingParams(config, temperature, `agent[${i}]`),
         system: systemPromptText,
         messages,
-        tools: VAULT_TOOLS_ANTHROPIC,
+        tools: toolset.anthropicTools,
       },
       `agent[${i}]`,
       signal
@@ -192,7 +193,7 @@ export async function anthropicAgentLoop(
         onStep({ type: 'tool_call', tool: block.name, args: toolArgs });
         let result: string;
         try {
-          result = await executeTool(block.name, toolArgs, writeFile);
+          result = await toolset.execute(block.name, toolArgs, writeFile);
         } catch (e) {
           result = `Error: ${e instanceof Error ? e.message : String(e)}`;
         }

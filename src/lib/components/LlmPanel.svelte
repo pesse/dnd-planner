@@ -26,6 +26,7 @@
   import { debugLog, clearDebugLog } from '../stores/debug';
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
+  import { ANTHROPIC_MODELS, GROQ_MODELS, XAI_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
 
   type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
 
@@ -59,25 +60,6 @@
   // Temperature: optionaler globaler Override. Aus → Task-Presets je Kontext greifen.
   let settingsTempOverride = $state($llmConfig.temperature != null);
   let settingsTemperature = $state($llmConfig.temperature ?? 0.7);
-
-  const ANTHROPIC_MODELS = [
-    'claude-opus-4-6',
-    'claude-sonnet-4-6',
-    'claude-haiku-4-5-20251001',
-  ];
-
-  const GROQ_MODELS = [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'mixtral-8x7b-32768',
-    'gemma2-9b-it',
-  ];
-
-  const XAI_MODELS = [
-    'grok-3',
-    'grok-3-mini',
-    'grok-2',
-  ];
 
   onMount(() => {
     loadSavedConfig().then(() => {
@@ -115,15 +97,9 @@
   }
 
   async function onProviderChange() {
-    if (settingsProvider === 'anthropic') {
-      settingsModel = 'claude-sonnet-4-6';
-    } else if (settingsProvider === 'groq') {
-      settingsModel = 'llama-3.3-70b-versatile';
-    } else if (settingsProvider === 'xai') {
-      settingsModel = 'grok-3';
-    } else {
-      settingsModel = 'llama3.2';
-    }
+    settingsModel = defaultModelFor(settingsProvider);
+    const url = defaultBaseUrlFor(settingsProvider);
+    if (url) settingsBaseUrl = url;
     // Gespeicherten Key für den neuen Provider laden
     const stored = await loadApiKeyForProvider(settingsProvider);
     settingsApiKey = stored ?? '';
@@ -548,8 +524,8 @@
 
   <!-- Provider-Badge -->
   <div class="provider-badge">
-    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'} class:xai={$llmConfig.provider === 'xai'}>
-      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : $llmConfig.provider === 'xai' ? '✶ xAI' : '✦ Anthropic'}
+    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'} class:xai={$llmConfig.provider === 'xai'} class:qualityminds={$llmConfig.provider === 'qualityminds'}>
+      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : $llmConfig.provider === 'xai' ? '✶ xAI' : $llmConfig.provider === 'qualityminds' ? '🟣 QualityMinds' : '✦ Anthropic'}
     </span>
     <span class="model-name">{$llmConfig.model}</span>
     <div class="token-stats">
@@ -577,6 +553,7 @@
           <option value="groq">Groq (schnelle Inference)</option>
           <option value="anthropic">Anthropic (Claude)</option>
           <option value="xai">xAI (Grok)</option>
+          <option value="qualityminds">QualityMinds (Qwen)</option>
         </select>
       </div>
 
@@ -614,6 +591,19 @@
         <div class="settings-row">
           <label>API-Key</label>
           <input type="password" bind:value={settingsApiKey} placeholder="xai-..." />
+        </div>
+      {:else if settingsProvider === 'qualityminds'}
+        <div class="settings-row">
+          <label>Modell</label>
+          <select bind:value={settingsModel}>
+            {#each QUALITYMINDS_MODELS as m}
+              <option value={m}>{m}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>API-Key</label>
+          <input type="password" bind:value={settingsApiKey} placeholder="sk-..." />
         </div>
       {:else}
         <div class="settings-row">
@@ -1188,6 +1178,7 @@
   .badge.anthropic { background: var(--bg-raised); color: var(--arcane); }
   .badge.groq      { background: var(--bg-deep); color: var(--copper); }
   .badge.xai       { background: var(--bg-raised); color: var(--steel); }
+  .badge.qualityminds { background: var(--bg-raised); color: var(--arcane); }
 
   .model-name {
     font-size: 0.68rem;

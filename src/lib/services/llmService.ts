@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
-import { VAULT_TOOLS_OPENAI, executeTool, TASK_TEMPERATURE } from './vaultTools';
-import type { ChatMessage, AgentOptions } from './vaultTools';
+import { VAULT_TOOLSET, TASK_TEMPERATURE } from './vaultTools';
+import type { ChatMessage, AgentOptions, AgentToolset } from './vaultTools';
 
 import { anthropicChat, anthropicGenerate, anthropicAgentLoop, modelSupportsTemperature } from './anthropicService';
 
@@ -22,7 +22,7 @@ function effTemp(config: LlmConfig, perCall?: number): number | undefined {
 interface DebugMeta { provider: string; label: string; }
 
 function extractTokenUsage(provider: string, data: Record<string, unknown>): { sent: number; received: number } | null {
-  if (provider === 'groq' || provider === 'xai') {
+  if (provider === 'groq' || provider === 'xai' || provider === 'qualityminds') {
     const u = data.usage as Record<string, number> | undefined;
     if (u?.prompt_tokens != null) return { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
   } else if (provider === 'ollama') {
@@ -90,53 +90,43 @@ export async function ollamaGenerate(config: LlmConfig, prompt: string, system?:
   return (data.response as string) ?? '';
 }
 
-// ── Groq ──────────────────────────────────────────────────────────────────────
+// ── OpenAI-kompatible Provider (Groq, xAI, QualityMinds) ────────────────────────
+// Identische Technik (OpenAI /chat/completions), getrennte Identität: jeder
+// Provider hat eigene Base-URL, eigenen Keychain-Slot und eigenes UI-Label.
 
 const GROQ_API = 'https://api.groq.com/openai/v1';
-
-export async function groqChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
-  if (!config.apiKey) throw new Error('Kein Groq API-Key konfiguriert. Bitte unter ⚙ eintragen.');
-  const temp = effTemp(config, temperature);
-  const data = await rustFetch(
-    `${GROQ_API}/chat/completions`,
-    { Authorization: `Bearer ${config.apiKey}` },
-    { model: config.model, messages, ...(temp != null ? { temperature: temp } : {}) },
-    { provider: 'groq', label: 'chat' }
-  ) as Record<string, unknown>;
-  const choices = data.choices as Array<Record<string, unknown>>;
-  return (choices?.[0]?.message as Record<string, string>)?.content ?? '';
-}
-
-export async function groqGenerate(config: LlmConfig, prompt: string, system?: string, temperature?: number): Promise<string> {
-  const messages: ChatMessage[] = [];
-  if (system) messages.push({ role: 'system', content: system });
-  messages.push({ role: 'user', content: prompt });
-  return groqChat(config, messages, temperature);
-}
-
-// ── xAI (Grok) ────────────────────────────────────────────────────────────────
-
 const XAI_API = 'https://api.x.ai/v1';
+const QUALITYMINDS_API = 'https://code.qualityminds.ai/v1';
 
-export async function xaiChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
-  if (!config.apiKey) throw new Error('Kein xAI API-Key konfiguriert. Bitte unter ⚙ eintragen.');
+/** Gemeinsame Chat-Implementierung. `apiBase` + Key bestimmen den konkreten Provider. */
+async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number): Promise<string> {
+  if (!config.apiKey) throw new Error(`Kein API-Key für ${config.provider} konfiguriert. Bitte unter ⚙ eintragen.`);
   const temp = effTemp(config, temperature);
   const data = await rustFetch(
-    `${XAI_API}/chat/completions`,
+    `${apiBase}/chat/completions`,
     { Authorization: `Bearer ${config.apiKey}` },
     { model: config.model, messages, ...(temp != null ? { temperature: temp } : {}) },
-    { provider: 'xai', label: 'chat' }
+    { provider: config.provider, label: 'chat' }
   ) as Record<string, unknown>;
   const choices = data.choices as Array<Record<string, unknown>>;
   return (choices?.[0]?.message as Record<string, string>)?.content ?? '';
 }
 
-export async function xaiGenerate(config: LlmConfig, prompt: string, system?: string, temperature?: number): Promise<string> {
+function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string, system?: string, temperature?: number): Promise<string> {
   const messages: ChatMessage[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
-  return xaiChat(config, messages, temperature);
+  return openAiCompatChat(config, apiBase, messages, temperature);
 }
+
+export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, GROQ_API, m, t);
+export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, GROQ_API, p, s, t);
+
+export const xaiChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, XAI_API, m, t);
+export const xaiGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, XAI_API, p, s, t);
+
+export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, QUALITYMINDS_API, m, t);
+export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t);
 
 // ── Agentic Loop ──────────────────────────────────────────────────────────────
 
@@ -148,7 +138,8 @@ async function openAiAgentLoop(
   authHeader: Record<string, string>,
   userMessage: string,
   systemPromptText: string,
-  options: AgentOptions
+  options: AgentOptions,
+  toolset: AgentToolset
 ): Promise<string> {
   const { onStep, writeFile, signal } = options;
   const temp = effTemp(config, options.temperature ?? TASK_TEMPERATURE.agent);
@@ -167,7 +158,7 @@ async function openAiAgentLoop(
         `${apiBase}/chat/completions`,
         authHeader,
         // parallel_tool_calls: false verbessert Zuverlässigkeit bei llama-Modellen erheblich
-        { model: config.model, messages: msgs, tools: VAULT_TOOLS_OPENAI, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
+        { model: config.model, messages: msgs, tools: toolset.openAiTools, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
         { provider: config.provider, label: `agent[${i}]` }
       ) as Record<string, unknown>;
     } catch (e) {
@@ -211,7 +202,7 @@ async function openAiAgentLoop(
         onStep({ type: 'tool_call', tool: toolName, args: toolArgs });
         let result: string;
         try {
-          result = await executeTool(toolName, toolArgs, writeFile);
+          result = await toolset.execute(toolName, toolArgs, writeFile);
         } catch (e) {
           result = `Error: ${e instanceof Error ? e.message : String(e)}`;
         }
@@ -232,19 +223,24 @@ export async function agentLoop(
   config: LlmConfig,
   userMessage: string,
   systemPromptText: string,
-  options: AgentOptions
+  options: AgentOptions,
+  toolset: AgentToolset = VAULT_TOOLSET
 ): Promise<string> {
   if (config.provider === 'anthropic') {
     if (!config.apiKey) throw new Error('No Anthropic API key configured.');
-    return anthropicAgentLoop(config, userMessage, systemPromptText, options);
+    return anthropicAgentLoop(config, userMessage, systemPromptText, options, toolset);
   }
   if (config.provider === 'groq') {
     if (!config.apiKey) throw new Error('No Groq API key configured.');
-    return openAiAgentLoop(config, GROQ_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options);
+    return openAiAgentLoop(config, GROQ_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
   }
   if (config.provider === 'xai') {
     if (!config.apiKey) throw new Error('No xAI API key configured.');
-    return openAiAgentLoop(config, XAI_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options);
+    return openAiAgentLoop(config, XAI_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
   }
-  throw new Error('Ollama does not support tool calling. Please use Groq, xAI, or Anthropic.');
+  if (config.provider === 'qualityminds') {
+    if (!config.apiKey) throw new Error('No QualityMinds API key configured.');
+    return openAiAgentLoop(config, QUALITYMINDS_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
+  }
+  throw new Error('Ollama does not support tool calling. Please use Groq, xAI, QualityMinds, or Anthropic.');
 }

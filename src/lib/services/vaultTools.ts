@@ -118,6 +118,29 @@ export const VAULT_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
   input_schema: t.params,
 }));
 
+// ── Generisches Toolset für den Agent-Loop ──────────────────────────────────
+// Erlaubt es, denselben Loop mit anderen Tools (z.B. DnD-API) zu betreiben.
+
+export interface AgentToolset {
+  /** Anthropic-native Tool-Defs. */
+  anthropicTools: Anthropic.Tool[];
+  /** OpenAI-/Groq-/xAI-kompatible Tool-Defs. */
+  openAiTools: unknown[];
+  /** Führt einen Tool-Aufruf aus. `writeFile` ist nur für Vault-Tools relevant. */
+  execute(
+    name: string,
+    args: Record<string, unknown>,
+    writeFile?: (path: string, content: string) => Promise<void>
+  ): Promise<string>;
+}
+
+/** Standard-Toolset: Vault-Dateioperationen (bisheriges Verhalten des Agent-Loops). */
+export const VAULT_TOOLSET: AgentToolset = {
+  anthropicTools: VAULT_TOOLS_ANTHROPIC,
+  openAiTools: VAULT_TOOLS_OPENAI,
+  execute: (name, args, writeFile) => executeTool(name, args as Record<string, string>, writeFile),
+};
+
 // ── Tool-Ausführung (Tauri) ─────────────────────────────────────────────────
 
 export async function executeTool(

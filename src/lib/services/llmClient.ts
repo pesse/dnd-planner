@@ -6,6 +6,8 @@ import {
   groqGenerate,
   xaiChat,
   xaiGenerate,
+  qualitymindsChat,
+  qualitymindsGenerate,
   anthropicChat,
   anthropicGenerate,
   agentLoop as agentLoopDispatch,
@@ -109,6 +111,16 @@ export function getClient(config: LlmConfig): LlmClient {
         capabilities: OPENAI_CAPS,
         chat: (messages, task) => xaiChat(config, messages, tempFor(task)),
         generate: (prompt, system, task) => xaiGenerate(config, prompt, system, tempFor(task)),
+        agentLoop: (userMessage, systemPromptText, options) =>
+          agentLoopDispatch(config, userMessage, systemPromptText, options),
+      };
+
+    case 'qualityminds':
+      return {
+        provider: 'qualityminds',
+        capabilities: OPENAI_CAPS,
+        chat: (messages, task) => qualitymindsChat(config, messages, tempFor(task)),
+        generate: (prompt, system, task) => qualitymindsGenerate(config, prompt, system, tempFor(task)),
         agentLoop: (userMessage, systemPromptText, options) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options),
       };

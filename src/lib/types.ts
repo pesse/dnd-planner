@@ -165,7 +165,7 @@ export const SPELL_TEMPLATE: Spell = {
   source: 'Homebrew',
 };
 
-export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'xai';
+export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'xai' | 'qualityminds';
 
 export interface LlmConfig {
   provider: LlmProvider;

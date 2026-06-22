@@ -17,6 +17,7 @@
  */
 import type { LlmConfig } from '../types';
 import type { ChatMessage } from './vaultTools';
+import { createClient, createMessage, firstText, requireApiKey, DEFAULT_MAX_TOKENS } from './anthropicService';
 
 const NOT_IMPLEMENTED = (name: string) =>
   new Error(`anthropicExtras.${name} ist noch nicht implementiert.`);
@@ -34,12 +35,24 @@ const NOT_IMPLEMENTED = (name: string) =>
  * @capability structuredOutput
  */
 export async function generateStructured<T>(
-  _config: LlmConfig,
-  _prompt: string,
-  _schema: object,
-  _system?: string,
+  config: LlmConfig,
+  prompt: string,
+  schema: object,
+  system?: string,
 ): Promise<T> {
-  throw NOT_IMPLEMENTED('generateStructured');
+  const client = createClient(requireApiKey(config));
+  const message = await createMessage(
+    client,
+    {
+      model: config.model,
+      max_tokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
+      ...(system ? { system } : {}),
+      messages: [{ role: 'user', content: prompt }],
+      output_config: { format: { type: 'json_schema', schema: schema as Record<string, unknown> } },
+    },
+    'structured',
+  );
+  return JSON.parse(firstText(message)) as T;
 }
 
 /**

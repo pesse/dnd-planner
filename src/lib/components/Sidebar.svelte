@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
+  import ItemCreateModal from './ItemCreateModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
@@ -501,9 +502,7 @@
   let itemsByDir: Record<string, { filename: string; name: string }[]> = $state({});
   let openItemDirs: Record<string, boolean> = $state({});
   let itemSearch = $state('');
-  let showNewItemInput = $state(false);
-  let newItemName = $state('');
-  let newItemDir = $state('');
+  let showItemModal = $state(false);
 
   $effect(() => {
     if (itemSearch.trim() && itemDirs.length) {
@@ -571,44 +570,28 @@
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'item' });
   }
 
-  async function createItem(e: KeyboardEvent | MouseEvent) {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const raw = newItemName.trim();
-    const dir = newItemDir || itemDirs[0];
-    if (!raw || !dir) return;
-
-    const slug = slugify(raw);
-    const filename = slug + '.json';
-    const path = `${ITEMS_PATH}/${dir}/${filename}`;
-    const template = {
-      name: raw.charAt(0).toUpperCase() + raw.slice(1),
-      category: DIR_TO_CATEGORY[dir] ?? 'other',
-      rarity: '—',
-      attunement: false,
-      attunement_requirements: null,
-      description: '',
-      weight: null,
-      cost: null,
-      source: 'eigen',
-    };
-
-    try {
-      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
-      showNewItemInput = false;
-      newItemName = '';
-      invalidateItemCache(dir);
-      delete itemsByDir[dir];
-      itemsByDir = { ...itemsByDir };
-      openItemDirs[dir] = true;
-      await loadItemDir(dir);
-      openItem(dir, filename);
-    } catch (err) {
-      console.error('Gegenstand konnte nicht erstellt werden:', err);
-    }
+  async function openItemModal() {
+    itemsExpanded = true;
+    await loadItems();
+    showItemModal = true;
   }
 
-  function cancelNewItem(e: KeyboardEvent) {
-    if (e.key === 'Escape') { showNewItemInput = false; newItemName = ''; }
+  // Gegenstands-Liste neu laden, wenn sich Vault-Dateien ändern (z.B. nach Speichern eines neuen Items).
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (!itemsExpanded) return;
+    void reloadOpenItemDirs();
+  });
+
+  async function reloadOpenItemDirs() {
+    await loadItems();
+    for (const d of itemDirs) {
+      if (openItemDirs[d]) {
+        invalidateItemCache(d);
+        delete itemsByDir[d];
+        await loadItemDir(d);
+      }
+    }
   }
 
   // --- Encounter (pro Akt-Verzeichnis) ---
@@ -1049,7 +1032,7 @@
         <span class="arrow" class:open={itemsExpanded}>›</span>
         Gegenstände
       </button>
-      <button class="add-btn" title="Neuer Gegenstand" onclick={() => { itemsExpanded = true; loadItems(); showNewItemInput = true; newItemName = ''; newItemDir = itemDirs[0] ?? ''; }}>
+      <button class="add-btn" title="Neuer Gegenstand" onclick={openItemModal}>
         +
       </button>
     </div>
@@ -1113,28 +1096,17 @@
           <span class="empty">Keine Gegenstände</span>
         {/if}
 
-        {#if showNewItemInput}
-          <div class="new-monster-form">
-            <select class="new-file-input" bind:value={newItemDir}>
-              {#each itemDirs as d}
-                <option value={d}>{ITEM_CAT_LABELS[d] ?? d}</option>
-              {/each}
-            </select>
-            <div class="new-file-row">
-              <input
-                class="new-file-input"
-                bind:value={newItemName}
-                placeholder="Name…"
-                onkeydown={(e) => { createItem(e); cancelNewItem(e); }}
-                autofocus
-              />
-              <button class="confirm-btn" onclick={(e) => createItem(e)}>✓</button>
-            </div>
-          </div>
-        {/if}
       </div>
     {/if}
   </div>
+
+  {#if showItemModal}
+    <ItemCreateModal
+      dirs={itemDirs}
+      defaultDir={itemDirs[0] ?? ''}
+      onclose={() => (showItemModal = false)}
+    />
+  {/if}
 
   <div class="divider"></div>
 
