@@ -357,6 +357,9 @@ export interface Item {
   range?: { normal: number; long?: number };
   throw_range?: { normal: number; long: number };
   properties?: Array<{ index: string; name: string }>;
+  /** Magischer Bonus auf Angriffs- und Schadenswürfe (+1, +2, +3). Strukturiert,
+   *  da die DnD-API/SRD den Wert nur im Beschreibungstext führt. */
+  magic_bonus?: number;
 
   // Rüstungen (item_type === 'armor')
   armor_category?: string;   // "Light" | "Medium" | "Heavy" | "Shield"

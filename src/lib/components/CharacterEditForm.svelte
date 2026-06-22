@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type CharacterData, type SpellEntry } from '../pdf/characterFields';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type CharacterData, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import type { Item, Spell } from '../types';
@@ -148,6 +148,7 @@
   let spellAbility = $state(character.spells?.spellcastingAbility ?? '');
   let spellSaveDC = $state(character.spells?.saveDC ?? 0);
   let spellAttackBonus = $state(character.spells?.attackBonus ?? 0);
+  let spellAutoCalc = $state(character.spells?.autoCalc ?? false);
   let slotTotals = $state(Array.from({ length: 9 }, (_, i) => character.spells?.slots[i]?.total ?? 0));
   let cantrips = $state([...(character.spells?.cantrips ?? [])]);
   let cantripInput = $state('');
@@ -179,26 +180,23 @@
   });
 
   /**
-   * Baut einen Attack-Eintrag aus einem geladenen Waffen-Item.
-   * Wählt automatisch STR/GES je nach Reichweite und Finesse-Eigenschaft,
-   * addiert Übungsbonus bei passender Waffenprofizienz.
+   * Baut einen reaktiven Attack-Eintrag aus einem geladenen Waffen-Item.
+   * Wählt das Attribut nach Reichweite/Finesse, übernimmt Waffenprofizienz,
+   * Schadenswürfel und magischen Bonus (item.magic_bonus). Bonus/Schaden werden
+   * danach reaktiv aus den Attributen berechnet (auto = true).
    */
-  function buildAttackFromWeapon(item: Item) {
+  function buildAttackFromWeapon(item: Item): Attack {
     const name = item.name_de ?? item.name;
     const isRanged = item.weapon_range === 'Ranged';
     const isFinesse = (item.properties ?? []).some(p => p.index === 'finesse');
-    const useGes = isRanged || (isFinesse && gesMod > strMod);
-    const abilityMod = useGes ? gesMod : strMod;
+    const ability: Attack['ability'] = isRanged ? 'ges' : (isFinesse ? 'finesse' : 'str');
 
     const proficient = (item.weapon_category === 'Simple' && profSimpleWeapons) ||
                        (item.weapon_category === 'Martial' && profMartialWeapons);
-    const bonus = abilityMod + (proficient ? proficiencyBonus : 0);
 
-    // Schaden: 1d6 → 1W6 (+mod, falls != 0)
-    const baseDice = item.damage?.damage_dice ?? '';
-    const damageText = baseDice
-      ? formatDamageDice(baseDice) + (abilityMod !== 0 ? sign(abilityMod) : '')
-      : '';
+    const baseDamage = item.damage?.damage_dice ? formatDamageDice(item.damage.damage_dice) : '';
+    const magicBonus = item.magic_bonus ?? 0;
+
     const damageTypeIdx = item.damage?.damage_type?.index ?? '';
     const damageTypeLabel = DAMAGE_TYPE_LABELS[damageTypeIdx] ?? item.damage?.damage_type?.name ?? '';
     // Kurzform für PDF-Spalte: "Hieb" / "Stich" / "Wucht"
@@ -218,13 +216,53 @@
       range = 'Nah';
     }
 
-    return {
-      name,
-      bonus: sign(bonus),
-      damage: damageText,
-      type: damageTypeShort,
-      range,
+    const atk: Attack = {
+      name, bonus: '', damage: '', type: damageTypeShort, range,
+      auto: true, ability, proficient, baseDamage, magicBonus,
     };
+    atk.bonus = computeAttackBonus(atk);
+    atk.damage = computeAttackDamage(atk);
+    return atk;
+  }
+
+  // ─── Angriffe: reaktive Berechnung ───────────────────────
+  /** Attributsmodifikator eines Angriffs (str/ges/finesse). */
+  function attackAbilityMod(a: Pick<Attack, 'ability'>): number {
+    if (a.ability === 'ges') return gesMod;
+    if (a.ability === 'finesse') return Math.max(strMod, gesMod);
+    return strMod;
+  }
+  /** Angriffsbonus = Attributsmod + (geübt ? Übungsbonus) + magischer Bonus. */
+  function computeAttackBonus(a: Attack): string {
+    return sign(attackAbilityMod(a) + (a.proficient ? proficiencyBonus : 0) + (a.magicBonus ?? 0));
+  }
+  /** Schaden = Würfel + Attributsmod + magischer Bonus (Übungsbonus zählt NICHT). */
+  function computeAttackDamage(a: Attack): string {
+    const base = (a.baseDamage ?? '').trim();
+    if (!base) return '';
+    const m = attackAbilityMod(a) + (a.magicBonus ?? 0);
+    return base + (m !== 0 ? sign(m) : '');
+  }
+
+  /** Schaltet einen Angriff zwischen reaktiver Berechnung und manueller Eingabe um. */
+  function toggleAttackMode(i: number) {
+    const a = attacks[i];
+    if (a.auto) {
+      // → manuell: aktuelle Werte als Freitext einfrieren
+      a.bonus = computeAttackBonus(a);
+      a.damage = computeAttackDamage(a);
+      a.auto = false;
+    } else {
+      // → auto: Felder initialisieren, Würfel aus vorhandenem Schaden ableiten
+      a.ability ??= 'str';
+      a.proficient ??= false;
+      a.magicBonus ??= 0;
+      if (a.baseDamage == null || a.baseDamage === '') {
+        const m = a.damage.match(/^\s*(\d*\s*[WwDd]\s*\d+)/);
+        a.baseDamage = m ? m[1].replace(/\s/g, '').replace(/[dD]/, 'W') : '';
+      }
+      a.auto = true;
+    }
   }
 
   async function selectWeaponSuggestion(sug: ItemSuggestion) {
@@ -460,6 +498,26 @@
 
   function sign(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
+  // ─── Zauber-SG / -Angriffsbonus: reaktive Berechnung ─────
+  // Zauberattribut (Freitext, z.B. "INT" / "Weisheit") → Modifikator.
+  const ABILITY_ALIASES: Record<string, 'str' | 'ges' | 'kon' | 'int' | 'wei' | 'cha'> = {
+    str: 'str', stä: 'str', staerke: 'str', stärke: 'str', strength: 'str',
+    ges: 'ges', geschicklichkeit: 'ges', dex: 'ges', dexterity: 'ges',
+    kon: 'kon', konstitution: 'kon', con: 'kon', constitution: 'kon',
+    int: 'int', intelligenz: 'int', intelligence: 'int',
+    wei: 'wei', weisheit: 'wei', wis: 'wei', wisdom: 'wei',
+    cha: 'cha', charisma: 'cha',
+  };
+  const spellAbilityMod = $derived.by(() => {
+    const key = ABILITY_ALIASES[spellAbility.trim().toLowerCase()];
+    if (!key) return null;
+    return ({ str: strMod, ges: gesMod, kon: konMod, int: intMod, wei: weiMod, cha: chaMod })[key];
+  });
+  /** true, wenn Auto aktiv UND das Zauberattribut erkannt wurde. */
+  const spellAutoActive = $derived(spellAutoCalc && spellAbilityMod !== null);
+  const computedSpellSaveDC = $derived(spellAbilityMod === null ? null : 8 + proficiencyBonus + spellAbilityMod);
+  const computedSpellAttack = $derived(spellAbilityMod === null ? null : proficiencyBonus + spellAbilityMod);
+
   // ─── Aktionen ────────────────────────────────────────────
   function addAttack() {
     attacks.push({ name: '', bonus: '', damage: '', type: '', range: '' });
@@ -496,7 +554,9 @@
       proficiencyBonus, passivePerception: character.passivePerception, hitDice,
       strSaveProf, gesSaveProf, konSaveProf, intSaveProf, weiSaveProf, chaSaveProf,
       skills: computedSkills,
-      attacks: attacks.filter(a => a.name.trim() !== ''),
+      attacks: attacks
+        .filter(a => a.name.trim() !== '')
+        .map(a => a.auto ? { ...a, bonus: computeAttackBonus(a), damage: computeAttackDamage(a) } : a),
       classFeatures, traits, ideals, bonds, flaws,
       languages, tools, alleskoenner,
       currency,
@@ -506,8 +566,9 @@
       spells: {
         spellcastingClass: spellClass,
         spellcastingAbility: spellAbility,
-        saveDC: spellSaveDC,
-        attackBonus: spellAttackBonus,
+        saveDC: spellAutoActive ? computedSpellSaveDC! : spellSaveDC,
+        attackBonus: spellAutoActive ? computedSpellAttack! : spellAttackBonus,
+        autoCalc: spellAutoCalc,
         slots: slotTotals.map((total, i) => ({ total, used: character.spells?.slots[i]?.used ?? 0 })),
         cantrips,
         byLevel: Object.fromEntries(Object.entries(spellsByLevel).filter(([, v]) => v.length > 0)),
@@ -687,17 +748,53 @@
     </div>
 
     <table class="attack-table">
-      <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>Typ</th><th>RW</th><th></th></tr></thead>
+      <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>Typ</th><th>RW</th><th></th><th></th></tr></thead>
       <tbody>
         {#each attacks as atk, i}
           <tr>
             <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
-            <td><input bind:value={atk.bonus} placeholder="+5" /></td>
-            <td><input bind:value={atk.damage} placeholder="1W8+3" /></td>
+            {#if atk.auto}
+              <td><span class="computed-cell" title="Reaktiv berechnet">{computeAttackBonus(atk)}</span></td>
+              <td><span class="computed-cell" title="Reaktiv berechnet">{computeAttackDamage(atk) || '—'}</span></td>
+            {:else}
+              <td><input bind:value={atk.bonus} placeholder="+5" /></td>
+              <td><input bind:value={atk.damage} placeholder="1W8+3" /></td>
+            {/if}
             <td><input bind:value={atk.type} placeholder="Hieb" /></td>
             <td><input bind:value={atk.range} placeholder="Nah" /></td>
+            <td>
+              <button type="button" class="mode-btn" class:active={atk.auto}
+                title={atk.auto ? 'Reaktiv berechnet – klicken für manuelle Eingabe' : 'Manuell – klicken für automatische Berechnung'}
+                onclick={() => toggleAttackMode(i)}>{atk.auto ? '🔗' : '✎'}</button>
+            </td>
             <td><button class="remove-btn" onclick={() => removeAttack(i)}>✕</button></td>
           </tr>
+          {#if atk.auto}
+            <tr class="attack-auto-row">
+              <td colspan="7">
+                <div class="auto-controls">
+                  <label class="ac-field">Attribut
+                    <select bind:value={atk.ability}>
+                      <option value="str">STR ({sign(strMod)})</option>
+                      <option value="ges">GES ({sign(gesMod)})</option>
+                      <option value="finesse">Finesse ({sign(Math.max(strMod, gesMod))})</option>
+                    </select>
+                  </label>
+                  <label class="ac-check">
+                    <input type="checkbox" bind:checked={atk.proficient} /> geübt (+{proficiencyBonus})
+                  </label>
+                  <label class="ac-field">Würfel
+                    <input class="ac-dice" bind:value={atk.baseDamage} placeholder="1W8" />
+                  </label>
+                  <label class="ac-field">Magie
+                    <input class="ac-magic" type="number" step="1"
+                      value={atk.magicBonus ?? 0}
+                      oninput={(e) => (atk.magicBonus = parseInt((e.target as HTMLInputElement).value) || 0)} />
+                  </label>
+                </div>
+              </td>
+            </tr>
+          {/if}
         {/each}
       </tbody>
     </table>
@@ -881,9 +978,25 @@
     <div class="grid-3">
       <label>Zauberklasse<input bind:value={spellClass} placeholder="Zauberer" /></label>
       <label>Fähigkeit<input bind:value={spellAbility} placeholder="INT" /></label>
-      <label>Zauber-SG<input type="number" min="0" bind:value={spellSaveDC} /></label>
-      <label>Angriffsbonus<input type="number" bind:value={spellAttackBonus} /></label>
+      {#if spellAutoActive}
+        <label title="8 + Übungsbonus + Zauberattribut-Mod">Zauber-SG
+          <span class="computed-cell computed-block">{computedSpellSaveDC}</span>
+        </label>
+        <label title="Übungsbonus + Zauberattribut-Mod">Angriffsbonus
+          <span class="computed-cell computed-block">{sign(computedSpellAttack ?? 0)}</span>
+        </label>
+      {:else}
+        <label>Zauber-SG<input type="number" min="0" bind:value={spellSaveDC} /></label>
+        <label>Angriffsbonus<input type="number" bind:value={spellAttackBonus} /></label>
+      {/if}
     </div>
+    <label class="check-row spell-auto-toggle">
+      <input type="checkbox" bind:checked={spellAutoCalc} />
+      <span>Zauber-SG &amp; Angriffsbonus automatisch berechnen</span>
+    </label>
+    {#if spellAutoCalc && spellAbilityMod === null}
+      <p class="auto-hint">Zauberattribut nicht erkannt – nutze ein Kürzel wie „INT“, „WEI“ oder „CHA“, damit die Berechnung greift.</p>
+    {/if}
 
     <h3 style="margin-top:0.75rem">Slots je Stufe</h3>
     <div class="slot-edit-row">
@@ -1173,6 +1286,69 @@
   .attack-table input {
     width: 100%;
     min-width: 40px;
+  }
+  .computed-cell {
+    display: inline-block;
+    font-weight: 600;
+    color: var(--arcane);
+    padding: 0.15rem 0.1rem;
+  }
+  .computed-block {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.4rem;
+    width: 4rem;
+    text-align: center;
+  }
+  .mode-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.1rem 0.2rem;
+    opacity: 0.55;
+    line-height: 1;
+  }
+  .mode-btn:hover { opacity: 1; }
+  .mode-btn.active { opacity: 1; }
+
+  .attack-auto-row td {
+    padding: 0 0.2rem 0.4rem;
+  }
+  .auto-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    background: var(--surface);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    margin-top: -0.1rem;
+  }
+  .ac-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+  }
+  .ac-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    color: var(--ink);
+  }
+  .ac-check input, .ac-field input[type="checkbox"] { width: auto; }
+  .ac-dice { width: 5rem !important; }
+  .ac-magic { width: 3.5rem !important; }
+
+  .spell-auto-toggle { margin-top: 0.5rem; }
+  .auto-hint {
+    font-size: 0.72rem;
+    color: var(--gold);
+    margin: 0.3rem 0 0;
   }
 
   /* Tags */

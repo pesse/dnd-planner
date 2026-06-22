@@ -79,6 +79,7 @@ export const ITEM_SCHEMA = {
         properties: { index: { type: 'string' }, name: { type: 'string' } },
       },
     },
+    magic_bonus: { type: 'integer', description: 'Magischer Bonus auf Angriffs- UND Schadenswürfe (z.B. 1, 2, 3). Nur für magische Waffen; sonst weglassen.' },
     armor_category: { type: 'string', description: 'Light | Medium | Heavy | Shield' },
     armor_class: {
       type: 'object',
@@ -133,7 +134,7 @@ export function createItemAction(categoryKey?: string): AiAction<Item> {
 1. Leite aus der Beschreibung den passenden ENGLISCHEN Basis-Gegenstand ab (z.B. „Kriegshammer aus Obsidian“ → Suchbegriff "warhammer").
 2. Rufe \`search_dnd_api\` (category "equipment" für gewöhnliche Gegenstände/Waffen/Rüstung, "magic-items" für magische) mit dem englischen Begriff auf und wähle das passendste Ergebnis.
 3. Lade es mit \`get_dnd_api_resource\` und übernimm die Spielwerte als Basis (damage, two_handed_damage, properties, range, armor_class, weapon_category, equipment_category, cost, weight, item_type).
-4. Ergänze die spezifischen Änderungen aus der Beschreibung: setze \`name\` (englischer Name), \`name_de\` (deutscher Name), \`desc\` (englische Beschreibung) und \`desc_de\` (deutsche Beschreibung). Wenn es ein magischer Gegenstand ist, setze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`.
+4. Ergänze die spezifischen Änderungen aus der Beschreibung: setze \`name\` (englischer Name), \`name_de\` (deutscher Name), \`desc\` (englische Beschreibung) und \`desc_de\` (deutsche Beschreibung). Wenn es ein magischer Gegenstand ist, setze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`. Gewährt eine magische Waffe einen Bonus auf Angriff/Schaden (z.B. „+1“), setze \`magic_bonus\` als Zahl (1, 2, 3).
 5. Setze \`source\` immer auf "KI". Übernimm Zahlenwerte (Gewicht, Reichweite) unverändert aus der Basis, soweit die Beschreibung nichts anderes sagt.
 
 Wenn die DnD-API nichts Passendes liefert, baue den Gegenstand plausibel selbst (Homebrew) und lasse \`index\` leer.${catHint}`;
@@ -167,7 +168,7 @@ ${JSON.stringify(current, null, 2)}
 1. Wende AUSSCHLIESSLICH die gewünschten Änderungen an. Alle nicht betroffenen Felder (Spielwerte, Kategorie, Kosten, Gewicht, Quelle …) bleiben UNVERÄNDERT erhalten.
 2. Pflege Beschreibungs-Änderungen konsistent in \`desc\` (Englisch) UND \`desc_de\` (Deutsch) ein.
 3. Erfordert die Änderung neue Spielwerte oder eine Basis, recherchiere über \`search_dnd_api\` (category "equipment" oder "magic-items") und \`get_dnd_api_resource\`.
-4. Wird der Gegenstand dadurch magisch, ergänze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`.
+4. Wird der Gegenstand dadurch magisch, ergänze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`. Gewährt er einen Angriffs-/Schadensbonus (z.B. „+1“), setze \`magic_bonus\` als Zahl.
 5. Behalte \`source\` unverändert bei, sofern der Nutzer nichts anderes verlangt.
 6. Gib IMMER das VOLLSTÄNDIGE Item-JSON aus — nicht nur die geänderten Felder.`;
     },

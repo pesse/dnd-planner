@@ -6,11 +6,38 @@ export interface SpellEntry {
   prepared: boolean;
 }
 
+/**
+ * Ein Angriff/eine Waffe auf dem Charakterbogen.
+ * `bonus` und `damage` sind immer als fertige Strings vorhanden (für Anzeige &
+ * PDF-Export). Sind die strukturierten Felder gesetzt und `auto` true, werden
+ * `bonus`/`damage` reaktiv aus den Attributen berechnet und beim Speichern neu
+ * geschrieben. Fehlen die Felder (Altbestand / manuell), bleibt es reiner Freitext.
+ */
+export interface Attack {
+  name: string;
+  bonus: string;
+  damage: string;
+  type: string;
+  range: string;
+  /** true = bonus/damage werden aus den Feldern unten berechnet. */
+  auto?: boolean;
+  /** Welcher Attributsmodifikator zählt: 'str', 'ges' oder 'finesse' (besserer von beiden). */
+  ability?: 'str' | 'ges' | 'finesse';
+  /** Übungsbonus auf den Angriffswurf addieren? */
+  proficient?: boolean;
+  /** Schadenswürfel ohne Modifikator, z.B. "1W8". */
+  baseDamage?: string;
+  /** Magischer Bonus (+X) auf Angriff UND Schaden. */
+  magicBonus?: number;
+}
+
 export interface CharacterSpells {
   spellcastingClass: string;
   spellcastingAbility: string;
   saveDC: number;
   attackBonus: number;
+  /** true = saveDC/attackBonus werden aus Übungsbonus + Zauberattribut-Mod berechnet. */
+  autoCalc?: boolean;
   /** Index 0 = Stufe 1, Index 8 = Stufe 9 */
   slots: Array<{ total: number; used: number }>;
   cantrips: string[];
@@ -91,7 +118,7 @@ export interface CharacterData {
   // Fertigkeiten (Profizienzen + Expertise)
   skills: Record<string, { value: number; prof: boolean; exp: boolean }>;
   // Angriffe
-  attacks: { name: string; bonus: string; damage: string; type: string; range: string }[];
+  attacks: Attack[];
   // Klassenmerkmale
   classFeatures: string;
   // Persönlichkeit

@@ -529,6 +529,12 @@
                 </span>
               </div>
             {/if}
+            {#if item.magic_bonus}
+              <div class="prop-row">
+                <span class="prop-label">Magischer Bonus</span>
+                <span class="prop-value">+{item.magic_bonus} auf Angriff &amp; Schaden</span>
+              </div>
+            {/if}
             {#if item.cost}
               <div class="prop-row"><span class="prop-label">Kosten</span><span class="prop-value">{formatCost(item.cost)}</span></div>
             {/if}
@@ -791,6 +797,16 @@
           <div class="prop-row">
             <span class="prop-label">Eigenschaften</span>
             <input class="edit-input" bind:value={draftPropsText} placeholder="kommagetrennt, z.B. Finesse, Light" />
+          </div>
+          <div class="prop-row">
+            <span class="prop-label" title="Magischer Bonus auf Angriffs- und Schadenswürfe">Magischer Bonus</span>
+            <input class="edit-input" type="number" min="0" step="1"
+              value={draft.magic_bonus ?? ''}
+              oninput={(e) => {
+                const v = (e.target as HTMLInputElement).value;
+                draft!.magic_bonus = v ? parseInt(v) : undefined;
+              }}
+              placeholder="z.B. 1 (leer = keiner)" />
           </div>
 
         {:else if draft.item_type === 'armor'}
