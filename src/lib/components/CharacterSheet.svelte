@@ -5,6 +5,7 @@
   import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import CharacterEditForm from './CharacterEditForm.svelte';
+  import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
   import { activeFile, fileContent } from '../stores/campaign';
   import { marked } from 'marked';
@@ -28,13 +29,14 @@
   let character = $state<CharacterData | null>(null);
   let gmNotes = $state('');
   let gmNotesEditing = $state(false);
+  let freitext = $state('');
+  let freitextSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
   let loading = $state(true);
   let error = $state('');
-  let activeTab = $state<'sheet' | 'edit' | 'notes'>('sheet');
+  let activeTab = $state<'sheet' | 'edit' | 'notes' | 'freetext'>('sheet');
   let jsonSource = $state(false);  // true = aus character.json geladen
   let saving = $state(false);
   let importingPdf = $state(false);
-  let dumpingFields = $state(false);
   let exportingPdf = $state(false);
   let portraitUrl = $state('');
   let spellLibrary = $state<SpellInfo[]>([]);
@@ -239,15 +241,19 @@
   }
 
   const gmNotesPath = $derived(`${dirPath}/gm-notes.md`);
+  const detailsPath = $derived(`${dirPath}/details.md`);
+  const legacyDetailsPath = $derived(`${dirPath}/freitext.md`);  // Migration: altes Format
   const jsonPath = $derived(`${dirPath}/character.json`);
 
   $effect(() => {
     if (dirPath) {
+      if (freitextTimer) { clearTimeout(freitextTimer); freitextTimer = null; }
       loading = true;
       error = '';
       character = null;
       pdfName = '';
       jsonSource = false;
+      freitext = '';
       loadCharacter();
     }
   });
@@ -304,6 +310,19 @@
         gmNotes = `# GM-Notizen: ${character!.name}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
         await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
       }
+
+      // Details laden (optional — leer, wenn noch nicht vorhanden).
+      // Migration: alte freitext.md weiterlesen, solange noch keine details.md existiert.
+      try {
+        freitext = await invoke<string>('read_file_content', { path: detailsPath });
+      } catch {
+        try {
+          freitext = await invoke<string>('read_file_content', { path: legacyDetailsPath });
+        } catch {
+          freitext = '';
+        }
+      }
+      freitextSaving = 'saved';
 
       fileContent.set(gmNotes);
     } catch (e) {
@@ -386,36 +405,6 @@
     activeTab = 'sheet';
   }
 
-  async function dumpPdfFields() {
-    dumpingFields = true;
-    error = '';
-    try {
-      const foundPdf = await invoke<string | null>('find_pdf_in_dir', { path: dirPath });
-      if (!foundPdf) { error = 'Keine PDF im Verzeichnis gefunden.'; return; }
-      const base64 = await invoke<string>('read_file_base64', { path: `${dirPath}/${foundPdf}` });
-      const bytes = base64ToBytes(base64);
-      const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      const form = pdf.getForm();
-
-      const dump: Record<string, { type: string; value: string }> = {};
-      for (const field of form.getFields()) {
-        const n = field.getName();
-        let type = 'other'; let value = '';
-        try { value = form.getTextField(n).getText() ?? ''; type = 'text'; }
-        catch { try { value = form.getCheckBox(n).isChecked() ? 'On' : 'Off'; type = 'checkbox'; } catch {} }
-        dump[n] = { type, value };
-      }
-      await invoke('write_file_content', {
-        path: `${dirPath}/pdf-fields-dump.json`,
-        content: JSON.stringify(dump, null, 2),
-      });
-    } catch (e) {
-      error = `Felder-Dump fehlgeschlagen: ${e}`;
-    } finally {
-      dumpingFields = false;
-    }
-  }
-
   async function exportToPdf() {
     if (!character) return;
     exportingPdf = true;
@@ -444,7 +433,7 @@
         } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
       }
 
-      const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait });
+      const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait, freitext });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
       const outPath = `${dirPath}/${safeName}-export.pdf`;
@@ -460,6 +449,29 @@
     await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
     fileContent.set(gmNotes);
     gmNotesEditing = false;
+  }
+
+  // ─── Freitext (auto-save mit Debounce, wie der Kampagnen-Editor) ──────────
+  let freitextTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Pfad beim Planen festhalten, damit ein noch laufender Timer nach einem
+  // Charakterwechsel nicht den falschen Charakter überschreibt.
+  async function writeFreitext(path: string, content: string) {
+    try {
+      freitextSaving = 'saving';
+      await invoke('write_file_content', { path, content });
+      freitextSaving = 'saved';
+    } catch {
+      freitextSaving = 'unsaved';
+    }
+  }
+
+  function onFreitextChange(md: string) {
+    freitext = md;
+    freitextSaving = 'unsaved';
+    const path = detailsPath;
+    if (freitextTimer) clearTimeout(freitextTimer);
+    freitextTimer = setTimeout(() => writeFreitext(path, md), 800);
   }
 
   function base64ToBytes(b64: string): Uint8Array {
@@ -576,14 +588,9 @@
           <button class="btn-import" onclick={saveAsJson} disabled={saving}>
             {saving ? '…' : 'Als JSON speichern'}
           </button>
-        {:else}
-          <span class="json-badge">JSON</span>
         {/if}
         <button class="btn-pdf-import" onclick={importPdfIntoExisting} disabled={importingPdf} title="Werte aus PDF überschreiben (Zauber bleiben erhalten)">
           {importingPdf ? '…' : 'PDF importieren'}
-        </button>
-        <button class="btn-dump" onclick={dumpPdfFields} disabled={dumpingFields} title="Alle PDF-Feldnamen in pdf-fields-dump.json schreiben">
-          {dumpingFields ? '…' : 'Felder analysieren'}
         </button>
         <button class="btn-export-pdf" onclick={exportToPdf} disabled={exportingPdf} title="Charakter als ausgefülltes Taendler-PDF exportieren">
           {exportingPdf ? '…' : 'Als PDF exportieren'}
@@ -592,6 +599,7 @@
       <div class="tabs">
         <button class:active={activeTab === 'sheet'} onclick={() => (activeTab = 'sheet')}>Bogen</button>
         <button class:active={activeTab === 'edit'} onclick={() => (activeTab = 'edit')}>Bearbeiten</button>
+        <button class:active={activeTab === 'freetext'} onclick={() => (activeTab = 'freetext')}>Details</button>
         <button class:active={activeTab === 'notes'} onclick={() => (activeTab = 'notes')}>GM-Notizen</button>
       </div>
     </div>
@@ -916,7 +924,7 @@
         />
       </div>
 
-    {:else}
+    {:else if activeTab === 'notes'}
       <!-- GM-Notizen Tab -->
       <div class="notes-area">
         {#if gmNotesEditing}
@@ -933,6 +941,18 @@
             {@html marked(gmNotes)}
           </div>
         {/if}
+      </div>
+
+    {:else}
+      <!-- Details Tab (Freitext) — wird beim PDF-Export als weitere Seite(n) angehängt -->
+      <div class="freetext-area">
+        <div class="freetext-hint">
+          <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
+          <span class="freetext-status" class:unsaved={freitextSaving === 'unsaved'} class:saving={freitextSaving === 'saving'}>
+            {freitextSaving === 'saving' ? 'Speichert…' : freitextSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+          </span>
+        </div>
+        <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
       </div>
     {/if}
   {/if}
@@ -1110,18 +1130,6 @@
   .btn-pdf-import:hover { border-color: var(--arcane); color: var(--arcane); }
   .btn-pdf-import:disabled { opacity: 0.6; cursor: default; }
 
-  .btn-dump {
-    background: var(--surface);
-    color: var(--ink-soft);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.75rem;
-    cursor: pointer;
-  }
-  .btn-dump:hover { border-color: var(--gold); color: var(--gold); }
-  .btn-dump:disabled { opacity: 0.6; cursor: default; }
-
   .btn-export-pdf {
     background: var(--surface);
     color: var(--ink);
@@ -1136,16 +1144,6 @@
 
   .edit-wrapper {
     min-height: 0;
-  }
-
-  .json-badge {
-    background: var(--green);
-    color: var(--bg);
-    border-radius: 4px;
-    padding: 0.15rem 0.4rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
   }
 
   .tabs {
@@ -1427,6 +1425,26 @@
   .notes-preview :global(h2) { color: var(--red); }
   .notes-preview :global(h3) { color: var(--teal); }
   .notes-preview :global(strong) { color: var(--danger); }
+
+  /* Freitext */
+  .freetext-area {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 80px);
+  }
+  .freetext-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4rem 1.5rem;
+    border-bottom: 1px solid var(--surface);
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+  }
+  .freetext-status { color: var(--ink-muted); white-space: nowrap; }
+  .freetext-status.unsaved { color: var(--danger); }
+  .freetext-status.saving  { color: var(--ink-soft); }
 
   /* ── Tooltips ─────────────────────────────── */
   .has-tip {

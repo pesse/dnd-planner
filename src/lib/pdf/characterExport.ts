@@ -5,6 +5,7 @@
 import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
 import { SKILL_DEFS } from './characterFields';
+import { appendMarkdownPages } from './markdownPdf';
 
 export interface PortraitInput {
   bytes: Uint8Array;
@@ -123,7 +124,7 @@ function splitClassFeatures(text: string, limit = 700): [string, string] {
 export async function exportCharacterToPdf(
   character: CharacterJSON,
   templateBytes: Uint8Array,
-  options: { portrait?: PortraitInput; format?: PdfExportFormat } = {},
+  options: { portrait?: PortraitInput; format?: PdfExportFormat; freitext?: string } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
 
@@ -299,6 +300,11 @@ export async function exportCharacterToPdf(
         c(`ZauberActive${lvl}_${i+1}`, spell?.prepared ?? false);
       }
     }
+  }
+
+  // --- Freitext als zusätzliche Seite(n) anhängen ---
+  if (options.freitext?.trim()) {
+    await appendMarkdownPages(pdf, options.freitext, { title: character.name });
   }
 
   const bytes = await pdf.save();
