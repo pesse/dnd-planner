@@ -252,10 +252,21 @@
   let sidebarWidth = $state(parseInt(localStorage.getItem('sidebar-width') ?? '220'));
   let llmWidth = $state(parseInt(localStorage.getItem('llm-width') ?? '460'));
 
+  // KI-Panel ein-/ausklappbar, standardmäßig zugeklappt.
+  let llmCollapsed = $state(localStorage.getItem('llm-collapsed') !== '0');
+  let llmDragging = $state(false);
+  let effLlmWidth = $derived(llmCollapsed ? 0 : llmWidth);
+
+  function toggleLlm() {
+    llmCollapsed = !llmCollapsed;
+    localStorage.setItem('llm-collapsed', llmCollapsed ? '1' : '0');
+  }
+
   function startResize(side: 'sidebar' | 'llm', e: MouseEvent) {
     e.preventDefault();
     const startX = e.clientX;
     const startW = side === 'sidebar' ? sidebarWidth : llmWidth;
+    if (side === 'llm') llmDragging = true;
 
     function onMove(mv: MouseEvent) {
       const delta = mv.clientX - startX;
@@ -270,6 +281,7 @@
     function onUp() {
       localStorage.setItem('sidebar-width', String(sidebarWidth));
       localStorage.setItem('llm-width', String(llmWidth));
+      llmDragging = false;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     }
@@ -450,14 +462,28 @@
 
   <div
     class="resize-handle"
+    class:hidden={llmCollapsed}
     role="separator"
     aria-label="LLM-Panel-Breite ändern"
     onmousedown={(e) => startResize('llm', e)}
   ></div>
 
-  <div class="panel-wrap" style="width: {llmWidth}px">
+  <div
+    class="panel-wrap llm-wrap"
+    class:no-transition={llmDragging}
+    style="width: {effLlmWidth}px"
+  >
     <LlmPanel />
   </div>
+
+  <button
+    class="llm-toggle"
+    class:no-transition={llmDragging}
+    style="right: {effLlmWidth}px"
+    onclick={toggleLlm}
+    title={llmCollapsed ? 'KI-Panel öffnen' : 'KI-Panel schließen'}
+    aria-label={llmCollapsed ? 'KI-Panel öffnen' : 'KI-Panel schließen'}
+  >{llmCollapsed ? '✦' : '›'}</button>
 </div>
 
 <ErrorToast />
@@ -478,6 +504,7 @@
     display: flex;
     height: 100vh;
     overflow: hidden;
+    position: relative;
   }
 
   .panel-wrap {
@@ -501,6 +528,48 @@
   .resize-handle:hover,
   .resize-handle:active {
     background: var(--red);
+  }
+
+  .resize-handle.hidden {
+    display: none;
+  }
+
+  /* KI-Panel: weiche Breiten-Transition beim Auf-/Zuklappen */
+  .llm-wrap {
+    transition: width 0.2s ease;
+  }
+  .llm-wrap.no-transition {
+    transition: none;
+  }
+
+  /* Lasche am linken Rand des KI-Panels zum Auf-/Zuklappen */
+  .llm-toggle {
+    position: absolute;
+    top: 50%;
+    z-index: 20;
+    width: 18px;
+    height: 64px;
+    transform: translate(-100%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-panel);
+    color: var(--ink-muted);
+    border: 1px solid var(--surface);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    box-shadow: -2px 0 6px rgba(0, 0, 0, 0.15);
+    transition: right 0.2s ease, color 0.1s, background 0.1s;
+  }
+  .llm-toggle.no-transition {
+    transition: color 0.1s, background 0.1s;
+  }
+  .llm-toggle:hover {
+    color: var(--red);
+    background: var(--surface);
   }
 
   .main {

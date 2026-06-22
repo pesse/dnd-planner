@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
@@ -355,6 +356,284 @@ fn delete_api_key(provider: String) -> Result<(), String> {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Vault Import / Export (ZIP)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Auswahl der zu im-/exportierenden Vault-Bereiche. `campaigns`/`characters`
+/// enthalten die Ordner-Slugs; `items`/`monsters`/`spells` sind ganze Kategorien.
+#[derive(Deserialize)]
+pub struct TransferSelection {
+    #[serde(default)]
+    campaigns: Vec<String>,
+    #[serde(default)]
+    characters: Vec<String>,
+    #[serde(default)]
+    items: bool,
+    #[serde(default)]
+    monsters: bool,
+    #[serde(default)]
+    spells: bool,
+}
+
+/// Inhaltsübersicht eines Vaults bzw. eines Export-ZIPs.
+#[derive(Serialize)]
+pub struct VaultContents {
+    campaigns: Vec<String>,
+    characters: Vec<String>,
+    items: bool,
+    monsters: bool,
+    spells: bool,
+}
+
+#[derive(Serialize)]
+pub struct ExportSummary {
+    files: usize,
+    bytes: u64,
+}
+
+#[derive(Serialize)]
+pub struct ImportSummary {
+    written: usize,
+    skipped: usize,
+}
+
+/// Direkte Unterverzeichnisse (Slugs) eines Pfades, alphabetisch sortiert.
+fn subdirs(path: &Path) -> Vec<String> {
+    let mut v: Vec<String> = match fs::read_dir(path) {
+        Ok(rd) => rd
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect(),
+        Err(_) => vec![],
+    };
+    v.sort();
+    v
+}
+
+/// True, wenn `path` (rekursiv) mindestens eine Datei enthält.
+fn dir_has_files(path: &Path) -> bool {
+    if let Ok(rd) = fs::read_dir(path) {
+        for e in rd.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.is_file() {
+                return true;
+            }
+            if p.is_dir() && dir_has_files(&p) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Sammelt rekursiv alle Dateien unter `base` als (Festplatten-Pfad, ZIP-Name).
+fn collect_files(base: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) {
+    let entries = match fs::read_dir(base) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let zip_name = if prefix.is_empty() {
+            name
+        } else {
+            format!("{}/{}", prefix, name)
+        };
+        if path.is_dir() {
+            collect_files(&path, &zip_name, out);
+        } else if path.is_file() {
+            out.push((path, zip_name));
+        }
+    }
+}
+
+/// Übersicht über die exportierbaren Inhalte des aktuellen Vaults.
+#[tauri::command]
+fn get_vault_overview() -> VaultContents {
+    let vault = project_root().join("vault");
+    VaultContents {
+        campaigns: subdirs(&vault.join("campaigns")),
+        characters: subdirs(&vault.join("characters")),
+        items: dir_has_files(&vault.join("items")),
+        monsters: dir_has_files(&vault.join("monsters")),
+        spells: dir_has_files(&vault.join("spells")),
+    }
+}
+
+/// Exportiert die gewählten Vault-Bereiche als ZIP nach `dest_path` (absoluter Pfad).
+#[tauri::command]
+fn export_vault(selection: TransferSelection, dest_path: String) -> Result<ExportSummary, String> {
+    let vault = project_root().join("vault");
+    let mut files: Vec<(PathBuf, String)> = Vec::new();
+
+    for slug in &selection.campaigns {
+        collect_files(
+            &vault.join("campaigns").join(slug),
+            &format!("campaigns/{}", slug),
+            &mut files,
+        );
+    }
+    for slug in &selection.characters {
+        collect_files(
+            &vault.join("characters").join(slug),
+            &format!("characters/{}", slug),
+            &mut files,
+        );
+    }
+    if selection.items {
+        collect_files(&vault.join("items"), "items", &mut files);
+    }
+    if selection.monsters {
+        collect_files(&vault.join("monsters"), "monsters", &mut files);
+    }
+    if selection.spells {
+        collect_files(&vault.join("spells"), "spells", &mut files);
+    }
+
+    let file = fs::File::create(&dest_path)
+        .map_err(|e| format!("ZIP konnte nicht erstellt werden: {}", e))?;
+    let mut zip = zip::ZipWriter::new(file);
+    let opts = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    let mut total_bytes: u64 = 0;
+    for (fs_path, zip_name) in &files {
+        let bytes = fs::read(fs_path).map_err(|e| e.to_string())?;
+        zip.start_file(zip_name.as_str(), opts).map_err(|e| e.to_string())?;
+        zip.write_all(&bytes).map_err(|e| e.to_string())?;
+        total_bytes += bytes.len() as u64;
+    }
+
+    let manifest = serde_json::json!({
+        "generator": "dnd-planner",
+        "version": 1,
+        "campaigns": selection.campaigns,
+        "characters": selection.characters,
+        "items": selection.items,
+        "monsters": selection.monsters,
+        "spells": selection.spells,
+    });
+    zip.start_file("manifest.json", opts).map_err(|e| e.to_string())?;
+    zip.write_all(
+        serde_json::to_string_pretty(&manifest)
+            .unwrap_or_default()
+            .as_bytes(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    zip.finish().map_err(|e| e.to_string())?;
+    Ok(ExportSummary {
+        files: files.len(),
+        bytes: total_bytes,
+    })
+}
+
+/// Liest ein Export-ZIP und meldet, welche Bereiche darin enthalten sind.
+#[tauri::command]
+fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
+    let file = fs::File::open(&zip_path).map_err(|e| e.to_string())?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("Kein gültiges ZIP: {}", e))?;
+
+    let mut campaigns = std::collections::BTreeSet::new();
+    let mut characters = std::collections::BTreeSet::new();
+    let (mut items, mut monsters, mut spells) = (false, false, false);
+
+    for i in 0..archive.len() {
+        let f = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = f.name().replace('\\', "/");
+        let segs: Vec<&str> = name.split('/').filter(|s| !s.is_empty()).collect();
+        match segs.as_slice() {
+            ["campaigns", slug, ..] => {
+                campaigns.insert(slug.to_string());
+            }
+            ["characters", slug, ..] => {
+                characters.insert(slug.to_string());
+            }
+            ["items", ..] => items = true,
+            ["monsters", ..] => monsters = true,
+            ["spells", ..] => spells = true,
+            _ => {}
+        }
+    }
+
+    Ok(VaultContents {
+        campaigns: campaigns.into_iter().collect(),
+        characters: characters.into_iter().collect(),
+        items,
+        monsters,
+        spells,
+    })
+}
+
+/// Importiert die gewählten Bereiche aus einem Export-ZIP in den Vault.
+/// Vorhandene Dateien werden nur bei `overwrite == true` ersetzt.
+#[tauri::command]
+fn import_vault(
+    zip_path: String,
+    selection: TransferSelection,
+    overwrite: bool,
+) -> Result<ImportSummary, String> {
+    let file = fs::File::open(&zip_path).map_err(|e| e.to_string())?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("Kein gültiges ZIP: {}", e))?;
+
+    let vault = project_root().join("vault");
+    let camp_set: std::collections::HashSet<String> =
+        selection.campaigns.iter().cloned().collect();
+    let char_set: std::collections::HashSet<String> =
+        selection.characters.iter().cloned().collect();
+
+    let mut written = 0usize;
+    let mut skipped = 0usize;
+
+    for i in 0..archive.len() {
+        let mut f = archive.by_index(i).map_err(|e| e.to_string())?;
+        if f.is_dir() {
+            continue;
+        }
+        // enclosed_name() schützt vor Zip-Slip (../ und absolute Pfade).
+        // Sofort in einen String auflösen, damit kein Borrow auf `f` offen bleibt.
+        let name_str = match f.enclosed_name() {
+            Some(p) => p.to_string_lossy().replace('\\', "/"),
+            None => continue,
+        };
+        if name_str == "manifest.json" {
+            continue;
+        }
+        let segs: Vec<&str> = name_str.split('/').filter(|s| !s.is_empty()).collect();
+        let selected = match segs.as_slice() {
+            ["campaigns", slug, ..] => camp_set.contains(*slug),
+            ["characters", slug, ..] => char_set.contains(*slug),
+            ["items", ..] => selection.items,
+            ["monsters", ..] => selection.monsters,
+            ["spells", ..] => selection.spells,
+            _ => false,
+        };
+        if !selected {
+            continue;
+        }
+
+        let target = vault.join(&name_str);
+        if target.exists() && !overwrite {
+            skipped += 1;
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+        fs::write(&target, &buf).map_err(|e| e.to_string())?;
+        written += 1;
+    }
+
+    Ok(ImportSummary { written, skipped })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -378,7 +657,11 @@ pub fn run() {
             save_api_key,
             load_api_key,
             delete_api_key,
-            http_request
+            http_request,
+            get_vault_overview,
+            export_vault,
+            inspect_import_zip,
+            import_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

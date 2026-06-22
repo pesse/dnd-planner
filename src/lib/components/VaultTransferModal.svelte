@@ -1,0 +1,422 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
+  import { invalidateVault } from '../stores/campaign';
+
+  let { onclose }: { onclose: () => void } = $props();
+
+  interface VaultContents {
+    campaigns: string[];
+    characters: string[];
+    items: boolean;
+    monsters: boolean;
+    spells: boolean;
+  }
+
+  type Tab = 'export' | 'import';
+  let tab = $state<Tab>('export');
+
+  /** slug → mit Unterstrichen lesbarer machen */
+  const pretty = (slug: string) => slug.replace(/[_-]+/g, ' ');
+
+  function buildSelection(
+    camps: Record<string, boolean>,
+    chars: Record<string, boolean>,
+    items: boolean,
+    monsters: boolean,
+    spells: boolean,
+  ) {
+    return {
+      campaigns: Object.keys(camps).filter((k) => camps[k]),
+      characters: Object.keys(chars).filter((k) => chars[k]),
+      items,
+      monsters,
+      spells,
+    };
+  }
+
+  function countSelected(sel: ReturnType<typeof buildSelection>): number {
+    return (
+      sel.campaigns.length +
+      sel.characters.length +
+      (sel.items ? 1 : 0) +
+      (sel.monsters ? 1 : 0) +
+      (sel.spells ? 1 : 0)
+    );
+  }
+
+  function initMap(keys: string[], value: boolean): Record<string, boolean> {
+    return Object.fromEntries(keys.map((k) => [k, value]));
+  }
+
+  // ── Export ──────────────────────────────────────────────────────────────
+  let overview = $state<VaultContents | null>(null);
+  let expCampaigns = $state<Record<string, boolean>>({});
+  let expCharacters = $state<Record<string, boolean>>({});
+  let expItems = $state(false);
+  let expMonsters = $state(false);
+  let expSpells = $state(false);
+  let exporting = $state(false);
+  let exportResult = $state('');
+  let exportError = $state('');
+
+  let exportSelection = $derived(
+    buildSelection(expCampaigns, expCharacters, expItems, expMonsters, expSpells),
+  );
+
+  onMount(async () => {
+    try {
+      overview = await invoke<VaultContents>('get_vault_overview');
+      expCampaigns = initMap(overview.campaigns, true);
+      expCharacters = initMap(overview.characters, true);
+      expItems = overview.items;
+      expMonsters = overview.monsters;
+      expSpells = overview.spells;
+    } catch (e) {
+      exportError = `Vault konnte nicht gelesen werden: ${e}`;
+    }
+  });
+
+  async function doExport() {
+    exportResult = '';
+    exportError = '';
+    const selection = exportSelection;
+    if (countSelected(selection) === 0) return;
+
+    let dest: string | null;
+    try {
+      dest = await saveFileDialog({
+        defaultPath: 'vault-export.zip',
+        filters: [{ name: 'ZIP-Archiv', extensions: ['zip'] }],
+      });
+    } catch (e) {
+      exportError = `Speicherort-Auswahl fehlgeschlagen: ${e}`;
+      return;
+    }
+    if (!dest) return;
+
+    exporting = true;
+    try {
+      const res = await invoke<{ files: number; bytes: number }>('export_vault', {
+        selection,
+        destPath: dest,
+      });
+      const kb = Math.max(1, Math.round(res.bytes / 1024));
+      exportResult = `${res.files} Datei(en) exportiert (${kb} KB).`;
+    } catch (e) {
+      exportError = `Export fehlgeschlagen: ${e}`;
+    } finally {
+      exporting = false;
+    }
+  }
+
+  // ── Import ──────────────────────────────────────────────────────────────
+  let zipPath = $state<string | null>(null);
+  let manifest = $state<VaultContents | null>(null);
+  let impCampaigns = $state<Record<string, boolean>>({});
+  let impCharacters = $state<Record<string, boolean>>({});
+  let impItems = $state(false);
+  let impMonsters = $state(false);
+  let impSpells = $state(false);
+  let overwrite = $state(true);
+  let importing = $state(false);
+  let importResult = $state('');
+  let importError = $state('');
+
+  let importSelection = $derived(
+    buildSelection(impCampaigns, impCharacters, impItems, impMonsters, impSpells),
+  );
+
+  async function pickZip() {
+    importResult = '';
+    importError = '';
+    let selected: string | null;
+    try {
+      const picked = await openFileDialog({
+        multiple: false,
+        filters: [{ name: 'ZIP-Archiv', extensions: ['zip'] }],
+      });
+      selected = (picked as string) ?? null;
+    } catch (e) {
+      importError = `Dateiauswahl fehlgeschlagen: ${e}`;
+      return;
+    }
+    if (!selected) return;
+    zipPath = selected;
+
+    try {
+      manifest = await invoke<VaultContents>('inspect_import_zip', { zipPath: selected });
+      impCampaigns = initMap(manifest.campaigns, true);
+      impCharacters = initMap(manifest.characters, true);
+      impItems = manifest.items;
+      impMonsters = manifest.monsters;
+      impSpells = manifest.spells;
+    } catch (e) {
+      manifest = null;
+      importError = `ZIP konnte nicht gelesen werden: ${e}`;
+    }
+  }
+
+  async function doImport() {
+    importResult = '';
+    importError = '';
+    if (!zipPath) return;
+    const selection = importSelection;
+    if (countSelected(selection) === 0) return;
+
+    importing = true;
+    try {
+      const res = await invoke<{ written: number; skipped: number }>('import_vault', {
+        zipPath,
+        selection,
+        overwrite,
+      });
+      const skipped = res.skipped > 0 ? `, ${res.skipped} übersprungen` : '';
+      importResult = `${res.written} Datei(en) importiert${skipped}.`;
+      invalidateVault();
+    } catch (e) {
+      importError = `Import fehlgeschlagen: ${e}`;
+    } finally {
+      importing = false;
+    }
+  }
+</script>
+
+<div class="backdrop" role="presentation" onclick={onclose}></div>
+
+<div class="dialog" role="dialog" aria-label="Vault Import / Export">
+  <div class="modal-header">
+    <span class="modal-title">Vault Import / Export</span>
+    <button class="close-btn" onclick={onclose} title="Schließen">×</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" class:active={tab === 'export'} onclick={() => (tab = 'export')}>Export</button>
+    <button class="tab" class:active={tab === 'import'} onclick={() => (tab = 'import')}>Import</button>
+  </div>
+
+  {#if tab === 'export'}
+    {#if !overview}
+      <p class="hint">Lade Vault-Inhalt…</p>
+    {:else}
+      <p class="hint">Wähle, was in das ZIP-Archiv exportiert werden soll.</p>
+
+      {#if overview.campaigns.length}
+        <fieldset class="group">
+          <legend>Kampagnen</legend>
+          {#each overview.campaigns as slug}
+            <label class="check">
+              <input type="checkbox" bind:checked={expCampaigns[slug]} />
+              <span>{pretty(slug)}</span>
+            </label>
+          {/each}
+        </fieldset>
+      {/if}
+
+      {#if overview.characters.length}
+        <fieldset class="group">
+          <legend>Charaktere</legend>
+          {#each overview.characters as slug}
+            <label class="check">
+              <input type="checkbox" bind:checked={expCharacters[slug]} />
+              <span>{pretty(slug)}</span>
+            </label>
+          {/each}
+        </fieldset>
+      {/if}
+
+      <fieldset class="group">
+        <legend>Bibliotheken</legend>
+        <label class="check" class:disabled={!overview.items}>
+          <input type="checkbox" bind:checked={expItems} disabled={!overview.items} />
+          <span>Items</span>
+        </label>
+        <label class="check" class:disabled={!overview.monsters}>
+          <input type="checkbox" bind:checked={expMonsters} disabled={!overview.monsters} />
+          <span>Monster</span>
+        </label>
+        <label class="check" class:disabled={!overview.spells}>
+          <input type="checkbox" bind:checked={expSpells} disabled={!overview.spells} />
+          <span>Zauber</span>
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button
+          class="primary-btn"
+          onclick={doExport}
+          disabled={exporting || countSelected(exportSelection) === 0}
+        >
+          {exporting ? 'Exportiere…' : 'Als ZIP exportieren'}
+        </button>
+      </div>
+
+      {#if exportResult}<p class="hint ok">{exportResult}</p>{/if}
+      {#if exportError}<p class="hint err">{exportError}</p>{/if}
+    {/if}
+
+  {:else}
+    <p class="hint">Wähle ein Export-ZIP und entscheide, was importiert wird.</p>
+
+    <div class="actions left">
+      <button class="secondary-btn" onclick={pickZip}>ZIP auswählen…</button>
+      {#if zipPath}<span class="path" title={zipPath}>{zipPath.split(/[/\\]/).pop()}</span>{/if}
+    </div>
+
+    {#if manifest}
+      {#if manifest.campaigns.length}
+        <fieldset class="group">
+          <legend>Kampagnen</legend>
+          {#each manifest.campaigns as slug}
+            <label class="check">
+              <input type="checkbox" bind:checked={impCampaigns[slug]} />
+              <span>{pretty(slug)}</span>
+            </label>
+          {/each}
+        </fieldset>
+      {/if}
+
+      {#if manifest.characters.length}
+        <fieldset class="group">
+          <legend>Charaktere</legend>
+          {#each manifest.characters as slug}
+            <label class="check">
+              <input type="checkbox" bind:checked={impCharacters[slug]} />
+              <span>{pretty(slug)}</span>
+            </label>
+          {/each}
+        </fieldset>
+      {/if}
+
+      {#if manifest.items || manifest.monsters || manifest.spells}
+        <fieldset class="group">
+          <legend>Bibliotheken</legend>
+          {#if manifest.items}
+            <label class="check">
+              <input type="checkbox" bind:checked={impItems} /><span>Items</span>
+            </label>
+          {/if}
+          {#if manifest.monsters}
+            <label class="check">
+              <input type="checkbox" bind:checked={impMonsters} /><span>Monster</span>
+            </label>
+          {/if}
+          {#if manifest.spells}
+            <label class="check">
+              <input type="checkbox" bind:checked={impSpells} /><span>Zauber</span>
+            </label>
+          {/if}
+        </fieldset>
+      {/if}
+
+      <label class="check overwrite">
+        <input type="checkbox" bind:checked={overwrite} />
+        <span>Vorhandene Dateien überschreiben</span>
+      </label>
+
+      <div class="actions">
+        <button
+          class="primary-btn"
+          onclick={doImport}
+          disabled={importing || countSelected(importSelection) === 0}
+        >
+          {importing ? 'Importiere…' : 'Importieren'}
+        </button>
+      </div>
+    {/if}
+
+    {#if importResult}<p class="hint ok">{importResult}</p>{/if}
+    {#if importError}<p class="hint err">{importError}</p>{/if}
+  {/if}
+</div>
+
+<style>
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 999;
+  }
+  .dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, 92vw);
+    max-height: 84vh;
+    overflow-y: auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 1.1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    margin: 0 -1.1rem 0.2rem;
+    padding: 0.6rem 1.1rem;
+    border-bottom: 1px solid var(--surface);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+  }
+  .modal-title { font-weight: 700; font-size: 1rem; color: var(--ink); }
+  .close-btn { background: none; border: none; color: var(--ink-muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .close-btn:hover { color: var(--ink); }
+
+  .tabs { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--surface); }
+  .tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--ink-muted); padding: 0.35rem 0.7rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--red); }
+
+  .group {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.4rem 0.7rem 0.6rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .group legend {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-muted); padding: 0 0.3rem;
+  }
+  .check {
+    display: flex; align-items: center; gap: 0.45rem;
+    font-size: 0.85rem; color: var(--ink-soft); cursor: pointer;
+  }
+  .check span { text-transform: capitalize; }
+  .check.disabled { opacity: 0.4; cursor: not-allowed; }
+  .check.overwrite { margin-top: 0.2rem; }
+  .check.overwrite span { text-transform: none; }
+  .check input { accent-color: var(--red); cursor: pointer; }
+
+  .path { font-size: 0.78rem; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; align-items: center; }
+  .actions.left { justify-content: flex-start; }
+  .primary-btn {
+    background: var(--red); border: none; border-radius: 4px; color: #fff;
+    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+  }
+  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .secondary-btn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft);
+    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+  }
+
+  .hint { font-size: 0.78rem; margin: 0; color: var(--ink-muted); }
+  .hint.ok { color: var(--gold, #c89b3c); }
+  .hint.err { color: var(--danger); }
+</style>

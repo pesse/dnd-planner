@@ -4,6 +4,7 @@
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import ItemCreateModal from './ItemCreateModal.svelte';
+  import VaultTransferModal from './VaultTransferModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
@@ -503,6 +504,7 @@
   let openItemDirs: Record<string, boolean> = $state({});
   let itemSearch = $state('');
   let showItemModal = $state(false);
+  let showTransferModal = $state(false);
 
   $effect(() => {
     if (itemSearch.trim() && itemDirs.length) {
@@ -818,7 +820,10 @@
 <aside class="sidebar">
   <div class="sidebar-header ornament-top">
     <h2><DragonMark size={18} /> DnD Planner</h2>
-    <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
+    <div class="header-actions">
+      <button class="header-btn" title="Vault importieren / exportieren" onclick={() => (showTransferModal = true)}>⇅</button>
+      <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
+    </div>
   </div>
 
   <!-- Charaktere (global) -->
@@ -1108,6 +1113,10 @@
     />
   {/if}
 
+  {#if showTransferModal}
+    <VaultTransferModal onclose={() => (showTransferModal = false)} />
+  {/if}
+
   <div class="divider"></div>
 
   <!-- Kampagnen Header -->
@@ -1273,7 +1282,14 @@
     color: var(--red);
   }
 
-  .reload-all-btn {
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+  }
+
+  .reload-all-btn,
+  .header-btn {
     background: none;
     border: none;
     color: var(--ink-muted);
@@ -1285,11 +1301,13 @@
     transition: opacity 0.1s, color 0.1s;
   }
 
-  .sidebar-header:hover .reload-all-btn {
+  .sidebar-header:hover .reload-all-btn,
+  .sidebar-header:hover .header-btn {
     opacity: 1;
   }
 
-  .reload-all-btn:hover {
+  .reload-all-btn:hover,
+  .header-btn:hover {
     color: var(--arcane);
   }
 
