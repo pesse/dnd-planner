@@ -192,6 +192,7 @@
       const userInput = description.trim() || 'Erstelle den Datensatz gemäß den Vorgaben.';
       const draft = await runAiAction<T>($llmConfig, action, userInput, {
         onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
+        onActivity: () => { lastActivityMs = Date.now(); },
         signal: abort.signal,
       });
       openDraft(draft);

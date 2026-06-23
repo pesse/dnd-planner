@@ -21,6 +21,8 @@ import type { AiAction } from './types';
 export interface RunOptions {
   onStep?: (step: AgentStep) => void;
   signal?: AbortSignal;
+  /** Lebenszeichen pro Iteration/Streaming-Delta (für die Stuck-Erkennung der UI). */
+  onActivity?: () => void;
 }
 
 /** Versucht, ein JSON-Objekt aus Freitext zu extrahieren (roh, ```json-Fence, erstes {…}). */
@@ -70,7 +72,7 @@ export async function runAiAction<T>(
     config,
     userInput,
     system,
-    { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured },
+    { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured, onActivity: opts.onActivity },
     toolset,
   );
 

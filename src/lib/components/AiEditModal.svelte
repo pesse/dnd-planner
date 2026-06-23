@@ -107,6 +107,7 @@
     try {
       const revised = await runAiAction<T>($llmConfig, buildAction(), instruction.trim(), {
         onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
+        onActivity: () => { lastActivityMs = Date.now(); },
         signal: abort.signal,
       });
       onresult(revised);

@@ -85,12 +85,21 @@ export async function createMessage(
   client: Anthropic,
   params: Anthropic.MessageCreateParamsNonStreaming,
   label: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** Wenn gesetzt, wird gestreamt und pro Text-Delta aufgerufen (für Live-/Stuck-Status). */
+  onDelta?: (text: string) => void
 ): Promise<Anthropic.Message> {
   const start = Date.now();
   logDebug({ provider: 'anthropic', type: 'request', label, data: { body: params } });
   try {
-    const message = await client.messages.create(params, signal ? { signal } : undefined);
+    let message: Anthropic.Message;
+    if (onDelta) {
+      const stream = client.messages.stream(params as Anthropic.MessageStreamParams, signal ? { signal } : undefined);
+      stream.on('text', (t) => onDelta(t));
+      message = await stream.finalMessage();
+    } else {
+      message = await client.messages.create(params, signal ? { signal } : undefined);
+    }
     logDebug({ provider: 'anthropic', type: 'response', label, data: message, durationMs: Date.now() - start });
     addTokenUsage({ sent: message.usage.input_tokens, received: message.usage.output_tokens });
     return message;
@@ -164,6 +173,7 @@ export async function anthropicAgentLoop(
 
   for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
     if (signal?.aborted) throw new Error('Agent abgebrochen.');
+    options.onActivity?.();
 
     const response = await createMessage(
       client,
@@ -176,7 +186,8 @@ export async function anthropicAgentLoop(
         tools: toolset.anthropicTools,
       },
       `agent[${i}]`,
-      signal
+      signal,
+      options.onActivity ? () => options.onActivity!() : undefined
     );
 
     messages.push({ role: 'assistant', content: response.content });

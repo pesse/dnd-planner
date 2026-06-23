@@ -260,6 +260,7 @@ async function openAiAgentLoop(
 
   for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
     if (signal?.aborted) throw new Error('Agent abgebrochen.');
+    options.onActivity?.();
     let stream: StreamResult;
     try {
       stream = await rustFetchStream(
@@ -268,7 +269,7 @@ async function openAiAgentLoop(
         // parallel_tool_calls: false verbessert Zuverlässigkeit bei llama-Modellen erheblich
         { model: config.model, messages: msgs, tools: toolset.openAiTools, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
         { provider: config.provider, label: `agent[${i}]` },
-        undefined,
+        () => options.onActivity?.(),
         signal,
       );
     } catch (e) {

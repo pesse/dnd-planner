@@ -107,6 +107,7 @@
       const action = editItemAction($state.snapshot(item) as Item);
       const revised = await runAiAction<Item>($llmConfig, action, instruction.trim(), {
         onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
+        onActivity: () => { lastActivityMs = Date.now(); },
         signal: abort.signal,
       });
       onresult(revised);

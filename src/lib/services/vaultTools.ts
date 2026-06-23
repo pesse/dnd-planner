@@ -26,6 +26,9 @@ export interface AgentOptions {
   signal?: AbortSignal;
   /** Task-Temperatur für den Agent-Lauf (Default: TASK_TEMPERATURE.agent). */
   temperature?: number;
+  /** Lebenszeichen: zu Beginn jeder Iteration und pro Streaming-Delta. Setzt die
+   *  „Stuck"-Erkennung der UI nach jeder Antwort/Aktivität zurück. */
+  onActivity?: () => void;
 }
 
 // ── Temperatur-Presets je Kontext ──────────────────────────────────────────────

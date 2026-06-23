@@ -280,6 +280,7 @@
       const userInput = description.trim() || 'Erstelle den Gegenstand gemäß den Vorgaben.';
       const item = await runAiAction<Item>($llmConfig, action, userInput, {
         onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
+        onActivity: () => { lastActivityMs = Date.now(); },
         signal: abort.signal,
       });
       item.source = 'KI';
