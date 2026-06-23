@@ -4,7 +4,8 @@
 import type { Spell, SpellDamage } from './schemas/spell';
 import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
 import type { Item } from './schemas/item';
-export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item };
+import type { Encounter, EncounterMonster } from './schemas/encounter';
+export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 
 export interface Campaign {
   id: string;
@@ -211,25 +212,4 @@ export const MONSTER_TEMPLATE: Monster = {
 
 // --- Item --- (Typ + Schema in schemas/item.ts)
 
-// --- Encounter ---
-
-export interface EncounterMonster {
-  slug: string;
-  count: number;
-  notes: string;
-}
-
-export interface Encounter {
-  name: string;
-  description: string;
-  read_aloud?: string;
-  monsters: EncounterMonster[];
-  difficulty: 'leicht' | 'mittel' | 'schwer' | 'tödlich';
-  xp_total: number;
-  party_size: number;
-  party_level: number;
-  location: string;
-  loot: string;
-  notes: string;
-  status: 'planned' | 'done' | 'skipped';
-}
+// --- Encounter --- (Typ + Schema in schemas/encounter.ts)

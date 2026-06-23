@@ -7,10 +7,11 @@
  *   Rendern von Vault-Dateien robust bleibt.
  * - `parseX(raw)`      → Validierungs-Gate mit `ParseResult` (z.B. für Editoren).
  */
-import type { Spell, Monster, Item } from '../types';
+import type { Spell, Monster, Item, Encounter } from '../types';
 import { spellSchema, migrateSpellLegacy } from '../schemas/spell';
 import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
+import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =
@@ -50,3 +51,7 @@ export const parseMonster = (raw: unknown): ParseResult<Monster> => parse(monste
 // ── Item ───────────────────────────────────────────────────────────────────────
 export const normalizeItem = (raw: unknown): Item => normalize(itemSchema, migrateItemLegacy, raw);
 export const parseItem = (raw: unknown): ParseResult<Item> => parse(itemSchema, migrateItemLegacy, raw);
+
+// ── Encounter ────────────────────────────────────────────────────────────────────
+export const normalizeEncounter = (raw: unknown): Encounter => normalize(encounterSchema, migrateEncounterLegacy, raw);
+export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(encounterSchema, migrateEncounterLegacy, raw);

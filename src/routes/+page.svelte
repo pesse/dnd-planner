@@ -13,6 +13,8 @@
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
+  import ContextActionModal from '$lib/components/ContextActionModal.svelte';
+  import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { pushError } from '$lib/stores/errors';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
   import { invalidateItemCache } from '$lib/itemLibrary';
@@ -118,6 +120,10 @@
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
   );
+
+  // Kontextsensitive KI-Aktionen für den gerade geöffneten Entity-Typ
+  let contextActions = $derived(actionsFor($activeFile?.type));
+  let activeContextAction = $state<ContextAction | null>(null);
 
   function openMarkdownPrint() {
     if (!$fileContent || !$activeFile) return;
@@ -407,6 +413,11 @@
         {/if}
 
         <div class="toolbar-sep"></div>
+        {#each contextActions as ca}
+          <button class="context-action-btn" onclick={() => (activeContextAction = ca)} title={ca.label}>
+            {ca.icon} {ca.label}
+          </button>
+        {/each}
         {#if isMarkdownPrintable}
           <button class="history-btn" onclick={openMarkdownPrint} title="Drucken / PDF">🖨</button>
         {/if}
@@ -491,6 +502,9 @@
 <ErrorToast />
 <UnsavedChangesDialog />
 <SaveAsDialog />
+{#if activeContextAction}
+  <ContextActionModal action={activeContextAction} onclose={() => (activeContextAction = null)} />
+{/if}
 
 <style>
   :global(*, *::before, *::after) {
@@ -716,6 +730,22 @@
   .history-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+  }
+
+  .context-action-btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.7rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .context-action-btn:hover {
+    border-color: var(--red);
+    color: var(--red);
   }
 
   .char-badges-bar {
