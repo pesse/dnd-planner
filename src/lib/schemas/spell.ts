@@ -1,0 +1,82 @@
+/**
+ * Single Source of Truth für Zauber: Zod-Schema → TS-Type + Runtime-Validator +
+ * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
+ */
+import { z } from 'zod';
+import { SPELL_SCHOOLS, type SpellSchool } from '../types';
+import { namedRef } from './shared';
+
+const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
+
+export const spellSchema = z.object({
+  index: z.string().optional().describe('API-Slug (leer bei Homebrew).'),
+  name: z.string(),
+  level: z.number().int().default(0).describe('0 = Zaubertrick, 1–9'),
+  school: schoolEnum
+    .default('evocation')
+    .describe('engl. Schule: abjuration, conjuration, divination, enchantment, evocation, illusion, necromancy, transmutation'),
+  casting_time: z.string().default(''),
+  range: z.string().default(''),
+  components: z
+    .object({
+      verbal: z.boolean().default(false),
+      somatic: z.boolean().default(false),
+      material: z.boolean().default(false),
+      materials_needed: z.string().nullable().default(null),
+    })
+    .default({ verbal: false, somatic: false, material: false, materials_needed: null }),
+  duration: z.string().default(''),
+  concentration: z.boolean().default(false),
+  ritual: z.boolean().default(false),
+  classes: z.array(z.string()).default([]),
+  desc: z.array(z.string()).default([]).describe('Beschreibung (Absätze).'),
+  desc_de: z.array(z.string()).optional().describe('Deutsche Beschreibung.'),
+  higher_level: z.array(z.string()).nullable().optional(),
+  higher_level_de: z.array(z.string()).nullable().optional(),
+  damage: z
+    .object({
+      damage_type: namedRef(),
+      damage_at_slot_level: z.record(z.string(), z.string()).optional(),
+      damage_at_character_level: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
+  dc: z
+    .object({
+      dc_type: namedRef(),
+      dc_success: z.string().describe("'half' | 'none' | 'other'"),
+    })
+    .optional(),
+  area_of_effect: z
+    .object({
+      type: z.string().describe("'sphere' | 'cone' | 'cube' | 'line' | 'cylinder'"),
+      size: z.number().describe('in Fuß'),
+    })
+    .optional(),
+  source: z.string().default('Homebrew'),
+});
+
+export type Spell = z.infer<typeof spellSchema>;
+export type SpellDamage = NonNullable<z.infer<typeof spellSchema>['damage']>;
+
+/** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
+export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== 'object') return {};
+  const s = { ...(raw as Record<string, unknown>) };
+
+  // level: string → number
+  if (typeof s.level === 'string') {
+    s.level = s.level === 'cantrip' || s.level === '0' ? 0 : parseInt(s.level, 10) || 0;
+  }
+  // description (alt) → desc_de
+  if (typeof s.description === 'string') {
+    s.desc_de ??= [s.description];
+    delete s.description;
+  }
+  // higher_levels (alt) → higher_level_de
+  if ('higher_levels' in s) {
+    const hl = s.higher_levels as string | null;
+    if (hl) s.higher_level_de ??= [hl];
+    delete s.higher_levels;
+  }
+  return s;
+}

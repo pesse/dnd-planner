@@ -5,7 +5,8 @@
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
   import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
-  import { monsterTypeLabel, normalizeMonster } from '../types';
+  import { monsterTypeLabel } from '../types';
+  import { normalizeMonster } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
 
   function parseEncounter(json: string): Encounter | null {

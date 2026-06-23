@@ -1,3 +1,11 @@
+// Entity-Typen kommen aus den Zod-Schemas (Single Source of Truth, siehe schemas/).
+// Label-Maps, Helper und Templates bleiben hier. normalize*/parse* leben in
+// utils/schemaValidation.ts.
+import type { Spell, SpellDamage } from './schemas/spell';
+import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
+import type { Item } from './schemas/item';
+export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item };
+
 export interface Campaign {
   id: string;
   name: string;
@@ -52,45 +60,6 @@ export const SPELL_CLASS_LABELS: Record<string, string> = {
 };
 export const SPELL_CLASS_KEYS = ['sorcerer', 'wizard', 'bard', 'druid', 'ranger', 'cleric', 'warlock', 'paladin', 'artificer'] as const;
 
-export interface SpellDamage {
-  damage_type: { index: string; name: string };
-  damage_at_slot_level?: Record<string, string>;
-  damage_at_character_level?: Record<string, string>;
-}
-
-export interface Spell {
-  index?: string;          // API-Slug (leer bei Homebrew)
-  name: string;
-  level: number;           // 0 = Zaubertrick, 1–9
-  school: SpellSchool;
-  casting_time: string;
-  range: string;
-  components: {
-    verbal: boolean;
-    somatic: boolean;
-    material: boolean;
-    materials_needed: string | null;
-  };
-  duration: string;
-  concentration: boolean;
-  ritual: boolean;
-  classes: string[];
-  desc: string[];          // Englische Beschreibung (Absätze, aus API)
-  desc_de?: string[];      // Deutsche Übersetzung
-  higher_level?: string[] | null;
-  higher_level_de?: string[] | null;
-  damage?: SpellDamage;
-  dc?: {
-    dc_type: { index: string; name: string };
-    dc_success: string;    // 'half' | 'none' | 'other'
-  };
-  area_of_effect?: {
-    type: string;          // 'sphere' | 'cone' | 'cube' | 'line' | 'cylinder'
-    size: number;          // in Fuß
-  };
-  source: string;
-}
-
 export function spellLevelLabel(level: number): string {
   return level === 0 ? 'Zaubertrick' : `${level}. Grad`;
 }
@@ -107,46 +76,6 @@ export function spellHigherLevel(spell: Spell): string | null {
             : spell.higher_level?.length    ? spell.higher_level
             : null;
   return arr ? arr.join('\n\n') : null;
-}
-
-/** Migriert alte Felder auf das neue Schema. Idempotent. */
-export function normalizeSpell(raw: Record<string, unknown>): Spell {
-  const s = raw as unknown as Spell & {
-    description?: string;
-    higher_levels?: string | null;
-    level?: number | string;
-  };
-
-  // level: string → number
-  if (typeof s.level === 'string') {
-    s.level = (s.level === 'cantrip' || s.level === '0') ? 0 : (parseInt(s.level as string) || 0);
-  }
-  s.level ??= 0;
-
-  // description (alt) → desc_de
-  if (typeof (s as unknown as Record<string, unknown>)['description'] === 'string') {
-    const d = (s as unknown as Record<string, unknown>)['description'] as string;
-    s.desc_de = s.desc_de ?? [d];
-    delete (s as unknown as Record<string, unknown>)['description'];
-  }
-
-  // higher_levels (alt) → higher_level_de
-  if ('higher_levels' in (s as unknown as Record<string, unknown>)) {
-    const hl = (s as unknown as Record<string, unknown>)['higher_levels'] as string | null;
-    if (hl) s.higher_level_de = s.higher_level_de ?? [hl];
-    delete (s as unknown as Record<string, unknown>)['higher_levels'];
-  }
-
-  // Defaults
-  s.desc          ??= [];
-  s.concentration ??= false;
-  s.classes       ??= [];
-  s.school        ??= 'evocation' as SpellSchool;
-  s.components    ??= { verbal: false, somatic: false, material: false, materials_needed: null };
-  s.components.materials_needed ??= null;
-  s.source        ??= 'Homebrew';
-
-  return s as Spell;
 }
 
 export const SPELL_TEMPLATE: Spell = {
@@ -256,63 +185,6 @@ export function monsterAlignmentLabel(alignment: string): string {
   return MONSTER_ALIGNMENTS[alignment as MonsterAlignment] ?? alignment;
 }
 
-export interface MonsterDamage {
-  dice: string;        // z.B. "2d6+3"
-  type: string;        // z.B. "Feuer" (übersetzbar)
-}
-
-export interface MonsterAction {
-  name: string;
-  description: string;
-  attack_bonus?: number;
-  damage?: MonsterDamage[];
-}
-
-export interface Monster {
-  index?: string;       // API-Slug (leer bei Homebrew)
-  source?: string;      // 'SRD' | 'Homebrew'
-  name: string;
-  size: MonsterSize;
-  type: MonsterType;
-  alignment: MonsterAlignment;
-  ac: { value: number; note: string };
-  hp: { average: number; formula: string };
-  speed: string;
-  stats: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
-  saving_throws: Record<string, string>;
-  skills: Record<string, string>;
-  damage_resistances: string[];
-  damage_immunities: string[];
-  condition_immunities: string[];
-  senses: string;
-  languages: string;
-  cr: string;
-  xp: number;
-  traits: MonsterAction[];
-  actions: MonsterAction[];
-  reactions: MonsterAction[];
-  legendary_actions: MonsterAction[];
-}
-
-/** Migriert alte String-Schadensfelder in MonsterDamage[]. Idempotent. */
-export function normalizeMonster(m: Monster): Monster {
-  m.traits ??= []; m.actions ??= []; m.reactions ??= []; m.legendary_actions ??= [];
-  m.damage_resistances ??= []; m.damage_immunities ??= [];
-  m.condition_immunities ??= []; m.saving_throws ??= {}; m.skills ??= {};
-  m.ac ??= { value: 10, note: '' }; m.hp ??= { average: 0, formula: '' };
-  m.stats ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-  for (const arr of [m.traits, m.actions, m.reactions, m.legendary_actions]) {
-    for (const a of arr) {
-      if (typeof a.damage === 'string') {
-        const s = a.damage as string;
-        const last = s.lastIndexOf(' ');
-        a.damage = last === -1 ? [{ dice: s, type: '' }] : [{ dice: s.slice(0, last), type: s.slice(last + 1) }];
-      }
-    }
-  }
-  return m;
-}
-
 export const MONSTER_TEMPLATE: Monster = {
   name: 'Neues Monster',
   size: 'Medium',
@@ -337,65 +209,7 @@ export const MONSTER_TEMPLATE: Monster = {
   legendary_actions: [],
 };
 
-// --- Item ---
-// Lehnt sich ans DnD-API-Schema an. item_type entspricht der API-Trennung:
-//   weapon / armor  → /api/2014/equipment
-//   magic           → /api/2014/magic-items
-//   gear            → sonstiges Equipment (Werkzeug, Ausrüstung, …)
-
-export interface Item {
-  // Identifikation
-  index?: string;          // API-Slug, leer bei Homebrew
-  name: string;            // Originalname (Englisch oder Deutsch bei Homebrew)
-  name_de?: string;        // Übersetzter Name (nur wenn aus API importiert)
-
-  // Typ-Diskriminante — analog DnD-API-Kategorien
-  item_type?: 'weapon' | 'armor' | 'magic' | 'gear';
-
-  equipment_category?: { index: string; name: string };
-
-  // Magische Gegenstände (item_type === 'magic')
-  rarity?: { name: string };   // z.B. { name: "Uncommon" }
-  attunement?: boolean;
-  attunement_by?: string | null;  // z.B. "a wizard"
-  variant?: boolean;
-  variants?: string[];
-
-  // Waffen (item_type === 'weapon')
-  weapon_category?: string;   // "Martial" | "Simple"
-  weapon_range?: string;      // "Melee" | "Ranged"
-  damage?: {
-    damage_dice: string;
-    damage_type: { index: string; name: string };
-  };
-  two_handed_damage?: {
-    damage_dice: string;
-    damage_type: { index: string; name: string };
-  };
-  range?: { normal: number; long?: number };
-  throw_range?: { normal: number; long: number };
-  properties?: Array<{ index: string; name: string }>;
-  /** Magischer Bonus auf Angriffs- und Schadenswürfe (+1, +2, +3). Strukturiert,
-   *  da die DnD-API/SRD den Wert nur im Beschreibungstext führt. */
-  magic_bonus?: number;
-
-  // Rüstungen (item_type === 'armor')
-  armor_category?: string;   // "Light" | "Medium" | "Heavy" | "Shield"
-  armor_class?: { base: number; dex_bonus: boolean; max_bonus: number | null };
-  str_minimum?: number;
-  stealth_disadvantage?: boolean;
-
-  // Beschreibung
-  desc: string[];          // Absätze auf Englisch
-  desc_de?: string[];      // Übersetzte Absätze
-
-  // Allgemein
-  cost?: { quantity: number; unit: string };
-  weight?: number;         // in lbs (Originalwert)
-
-  source: string;          // "SRD" | "Homebrew" | "eigen"
-  url?: string;            // API-URL wenn aus SRD
-}
+// --- Item --- (Typ + Schema in schemas/item.ts)
 
 // --- Encounter ---
 

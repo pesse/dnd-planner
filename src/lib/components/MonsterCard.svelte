@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Monster } from '../types';
-  import { MONSTER_TYPES, MONSTER_TYPE_DIR, normalizeMonster } from '../types';
+  import { MONSTER_TYPES, MONSTER_TYPE_DIR } from '../types';
   import MonsterStatBlock from './MonsterStatBlock.svelte';
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
@@ -8,7 +8,7 @@
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
   import { MONSTER_TRANSLATION_SYSTEM_PROMPT } from '../prompts';
-  import { parseMonster as _parseMonster } from '../utils/schemaValidation';
+  import { parseMonster as _parseMonster, normalizeMonster } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
   import { searchMonsters, getResource, mapApiResourceToMonster, type DndApiRef } from '../services/dndApi';

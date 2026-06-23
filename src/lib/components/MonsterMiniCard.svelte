@@ -1,7 +1,8 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import type { Monster } from '../types';
-  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel, normalizeMonster } from '../types';
+  import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import { normalizeMonster } from '../utils/schemaValidation';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
