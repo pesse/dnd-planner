@@ -3,6 +3,7 @@
  * Stellt Suchfunktionen bereit.
  */
 import { invoke } from '@tauri-apps/api/core';
+import type { Item } from './types';
 
 export const ITEMS_PATH = './vault/items';
 
@@ -209,6 +210,45 @@ export const API_CATEGORY_MAP: Record<string, string> = {
   'scroll':              'scroll',
   'potion':              'potion',
 };
+
+// ── Anlage-Helfer (Create-Modal) ──────────────────────────────────────────────
+
+/** Kategorie-Schlüssel (Ordner) → item_type. */
+export function categoryToItemType(catKey: string): Item['item_type'] {
+  if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
+  if (catKey === 'armor') return 'armor';
+  if (['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-items'].includes(catKey)) return 'magic';
+  return 'gear';
+}
+
+/** Leitet den Zielordner (Kategorie) aus einem Item ab. */
+export function dirOf(item: Item): string {
+  const idx = item.equipment_category?.index;
+  if (idx) return API_CATEGORY_MAP[idx] ?? 'other';
+  if (item.item_type === 'weapon') return 'weapon';
+  if (item.item_type === 'armor') return 'armor';
+  if (item.item_type === 'magic') return 'wondrous-items';
+  return 'other';
+}
+
+/** Leeres Item für die gewählte Kategorie (item_type/equipment_category passend gesetzt). */
+export function blankItem(name: string, dir: string): Item {
+  const apiName = dir.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return {
+    name,
+    name_de: name,
+    item_type: categoryToItemType(dir),
+    equipment_category: { index: dir, name: apiName },
+    desc: [],
+    desc_de: [],
+    source: 'eigen',
+  };
+}
+
+/** Vorlage → anpassbare Homebrew-Kopie (ohne Verknüpfung zur Quelle). */
+export function toHomebrewCopy(item: Item): Item {
+  return { ...item, source: 'eigen', index: undefined, url: undefined };
+}
 
 // Singleton-Cache: category dir → items
 let cache: Record<string, ItemInfo[]> = {};

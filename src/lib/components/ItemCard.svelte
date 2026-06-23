@@ -33,7 +33,8 @@
   import DndApiSearch from './DndApiSearch.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
-  import ItemEditModal from './ItemEditModal.svelte';
+  import AiEditModal from './AiEditModal.svelte';
+  import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';
   import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
@@ -940,8 +941,9 @@
 </EditorPanel>
 
 {#if showAiModal && draft}
-  <ItemEditModal
-    item={$state.snapshot(draft)}
+  <AiEditModal
+    entityName={draft.name_de || draft.name || 'Gegenstand'}
+    buildAction={() => editItemAction($state.snapshot(draft) as Item)}
     onresult={applyAiResult}
     onclose={() => (showAiModal = false)}
   />

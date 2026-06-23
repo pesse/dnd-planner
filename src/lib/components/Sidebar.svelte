@@ -3,17 +3,17 @@
   import { onMount } from 'svelte';
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
-  import ItemCreateModal from './ItemCreateModal.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
-  import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
+  import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import CreateCardModal from './CreateCardModal.svelte';
-  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell } from '../services/dndApi';
+  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
   import { createSpellAction } from '../services/aiActions/spellAction';
-  import { parseMonster } from '../utils/schemaValidation';
+  import { createItemAction } from '../services/aiActions/itemAction';
+  import { parseMonster, normalizeItem } from '../utils/schemaValidation';
   import { getSpellLibrary, searchSpells as searchSpellLib, loadSpellByPath } from '../spellLibrary';
-  import type { Monster, Spell } from '../types';
+  import type { Monster, Spell, Item } from '../types';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
@@ -25,6 +25,12 @@
     CATEGORY_LABELS as ITEM_CAT_LABELS,
     DIR_TO_CATEGORY,
     invalidateItemCache,
+    getItemsByDir,
+    searchItems,
+    displayName as itemDisplayName,
+    blankItem,
+    dirOf as itemDirOf,
+    toHomebrewCopy,
   } from '../itemLibrary';
   import { SCHOOL_COLORS } from '../spellLibrary';
 
@@ -487,6 +493,22 @@
     }
     const ql = q.toLowerCase();
     return monsterLibCache.filter((h) => h.name.toLowerCase().includes(ql)).slice(0, 8);
+  }
+
+  // ── Item-Vorlagensuche + API-Mapping für das Create-Modal ────────────────────
+  async function searchItemLibrary(q: string): Promise<{ name: string; load: () => Promise<Item> }[]> {
+    const entries = await Promise.all(itemDirs.map(async (d) => [d, await getItemsByDir(d)] as const));
+    const libByDir = Object.fromEntries(entries);
+    return searchItems(libByDir, q, 8).map((s) => ({
+      name: itemDisplayName(s.item),
+      load: async () =>
+        toHomebrewCopy(normalizeItem(JSON.parse(await invoke<string>('read_file_content', { path: s.item.path })))),
+    }));
+  }
+
+  /** Rohe SRD-Ressource → Homebrew-Item (Quelle aus rarity-Präsenz abgeleitet). */
+  function mapApiItem(data: Record<string, unknown>): Item {
+    return toHomebrewCopy(mapApiResourceToItem(data, data.rarity ? 'magic' : 'equipment'));
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
@@ -1074,9 +1096,16 @@
   </div>
 
   {#if showItemModal}
-    <ItemCreateModal
-      dirs={itemDirs}
-      defaultDir={itemDirs[0] ?? ''}
+    <CreateCardModal
+      type="item"
+      title="Neuer Gegenstand"
+      searchApi={searchDndApiItems}
+      mapApi={mapApiItem}
+      searchLibrary={searchItemLibrary}
+      blank={(name) => blankItem(name, itemDirs[0] ?? 'other')}
+      buildAction={createItemAction}
+      nameOf={(i: Item) => i.name_de || i.name || 'Gegenstand'}
+      onCreated={(item: Item) => newItemDraft.set({ item, dir: itemDirOf(item) })}
       onclose={() => (showItemModal = false)}
     />
   {/if}

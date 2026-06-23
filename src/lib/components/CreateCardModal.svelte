@@ -37,6 +37,11 @@
     buildAction: (opts: { name?: string; template?: T }) => AiAction<T>;
     /** Anzeigename eines Drafts (für activeFile-Platzhalter). */
     nameOf: (draft: T) => string;
+    /**
+     * Optional: übernimmt den fertigen Draft selbst (statt Standard `newCardDraft`).
+     * Für Entities mit eigenem Draft-Store (z.B. Item: `newItemDraft` mit Zielordner).
+     */
+    onCreated?: (draft: T) => void;
     onclose: () => void;
   } = $props();
 
@@ -74,7 +79,8 @@
 
   /** Öffnet den (noch ungespeicherten) Draft im Editor und schließt den Dialog. */
   function openDraft(draft: T) {
-    newCardDraft.set({ type, data: draft });
+    if (onCreated) onCreated(draft);
+    else newCardDraft.set({ type, data: draft });
     activeFile.set({ name: nameOf(draft), path: '', type });
     onclose();
   }
