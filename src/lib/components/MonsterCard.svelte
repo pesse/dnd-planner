@@ -9,6 +9,7 @@
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { parseMonster as _parseMonster } from '../utils/schemaValidation';
+  import { registerEditorGuard } from '../stores/navigationGuard';
 
   function parseMonster(json: string): Monster | null {
     try {
@@ -47,7 +48,12 @@
     const unsub = activeFile.subscribe(file => {
       if (file?.type === 'monster' && file.path) load(file.path);
     });
-    return unsub;
+    const unguard = registerEditorGuard({
+      isDirty: () => dirty,
+      save,
+      discard,
+    });
+    return () => { unsub(); unguard(); };
   });
 
   function mark() { dirty = true; }

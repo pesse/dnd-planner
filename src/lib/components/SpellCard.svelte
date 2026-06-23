@@ -11,6 +11,7 @@
   import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
   function parseSpell(json: string): Spell | null {
     try {
@@ -49,7 +50,12 @@
     const unsub = activeFile.subscribe(file => {
       if (file?.type === 'spell' && file.path) load(file.path);
     });
-    return unsub;
+    const unguard = registerEditorGuard({
+      isDirty: () => dirty,
+      save,
+      discard,
+    });
+    return () => { unsub(); unguard(); };
   });
 
   function mark() { dirty = true; }

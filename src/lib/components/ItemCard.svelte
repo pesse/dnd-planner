@@ -35,6 +35,7 @@
   import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
   import ItemEditModal from './ItemEditModal.svelte';
   import ItemTranslateModal from './ItemTranslateModal.svelte';
+  import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -92,6 +93,14 @@
     async function load(path: string) {
       try {
         const content = await invoke<string>('read_file_content', { path });
+        // Editier-State zurücksetzen, damit das neue Item frisch initialisiert.
+        // Bleibt der Tab auf „Bearbeiten", öffnet der $effect das neue Item direkt
+        // im Bearbeiten-Modus (sonst Kartenansicht).
+        editing = false;
+        draft = null;
+        apiRawResponse = null;
+        importError = '';
+        showSaveAs = false;
         rawJson = content;
         setFileContent(content);
       } catch (e) {
@@ -119,7 +128,24 @@
       }
     });
 
-    return () => { unsubFile(); unsubDraft(); };
+    const unguard = registerEditorGuard({
+      isDirty: () => dirty,
+      save: async () => {
+        const keepTab = tab;
+        await save();
+        // Neuer Entwurf: save() öffnet erst „Speichern unter" (Dateiname nötig) →
+        // Navigation abbrechen, bis der Nutzer den Namen bestätigt hat.
+        if (newDraft) throw new Error('Dateiname erforderlich');
+        tab = keepTab;   // Bearbeiten-Modus über die Navigation hinweg erhalten
+      },
+      discard: () => {
+        const keepTab = tab;
+        discard();
+        tab = keepTab;
+      },
+    });
+
+    return () => { unsubFile(); unsubDraft(); unguard(); };
   });
 
   let parsed = $derived.by(() => {
@@ -140,7 +166,18 @@
   let tab     = $state<Tab>('karte');
   let editing = $state(false);
   let draft   = $state<Item | null>(null);
-  let dirty   = $derived(editing && draft !== null);
+  // Beim Editier-Start erfasster Stand (Draft inkl. Text-Spiegel, durch mergeDraftFields
+  // serialisiert). Vergleichsbasis für „wirklich geändert?".
+  let editBaseline = $state('');
+
+  // Wirklich geändert? (nicht bloß „im Bearbeiten-Modus"). Beide Seiten laufen durch
+  // denselben (verlustbehafteten) mergeDraftFields-Roundtrip, daher kein Falsch-Positiv
+  // aus der Rekonstruktion. Ungespeicherte Neuanlagen gelten immer als dirty.
+  let dirty   = $derived.by(() => {
+    if (newDraft) return true;
+    if (!editing || !draft) return false;
+    return JSON.stringify(mergeDraftFields($state.snapshot(draft) as Item)) !== editBaseline;
+  });
 
   // Beim Wechsel auf Bearbeiten-Tab Draft initialisieren
   $effect(() => {
@@ -159,6 +196,8 @@
     draftPropsText  = (item.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
     draftRarityName = item.rarity?.name ?? '';
     editing = true;
+    // Baseline nach Setzen aller Spiegel erfassen (gleicher Roundtrip wie der Dirty-Check).
+    editBaseline = JSON.stringify(mergeDraftFields($state.snapshot(draft) as Item));
   }
 
   // Speichern-unter-State für noch nicht gespeicherte Entwürfe.
@@ -211,22 +250,34 @@
     }
   }
 
-  /** Überträgt die Text-Spiegel (Beschreibung, Eigenschaften, Seltenheit) in den Draft. */
-  function applyDraftFields() {
-    if (!draft) return;
-    draft.desc    = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
-    draft.desc_de = draftDescDeText ? draftDescDeText.split(/\n\n+/).map(s => s.trim()).filter(Boolean) : undefined;
-    draft.rarity  = draftRarityName ? { name: draftRarityName } : undefined;
+  /** Pure: liefert eine Kopie von `base` mit eingearbeiteten Text-Spiegeln (Beschreibung,
+   *  Eigenschaften, Seltenheit) — ohne `base` zu verändern. Basis für Speichern & Dirty-Check. */
+  function mergeDraftFields(base: Item): Item {
+    const d = JSON.parse(JSON.stringify(base)) as Item;
+    d.desc    = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+    d.desc_de = draftDescDeText ? draftDescDeText.split(/\n\n+/).map(s => s.trim()).filter(Boolean) : undefined;
+    d.rarity  = draftRarityName ? { name: draftRarityName } : undefined;
     if (draftPropsText.trim()) {
-      draft.properties = draftPropsText.split(',').map(s => s.trim()).filter(Boolean)
+      d.properties = draftPropsText.split(',').map(s => s.trim()).filter(Boolean)
         .map(label => {
           const index = PROPERTY_INDEX_BY_LABEL[label.toLowerCase()] ?? label.toLowerCase().replace(/\s+/g, '-');
           const name  = PROPERTY_LABELS[index] ?? label;  // englischer Name für JSON
           return { index, name };
         });
     } else {
-      draft.properties = undefined;
+      d.properties = undefined;
     }
+    return d;
+  }
+
+  /** Überträgt die Text-Spiegel (Beschreibung, Eigenschaften, Seltenheit) in den Draft. */
+  function applyDraftFields() {
+    if (!draft) return;
+    const merged = mergeDraftFields($state.snapshot(draft) as Item);
+    draft.desc       = merged.desc;
+    draft.desc_de    = merged.desc_de;
+    draft.rarity     = merged.rarity;
+    draft.properties = merged.properties;
   }
 
   async function save() {

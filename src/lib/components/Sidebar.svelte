@@ -6,6 +6,7 @@
   import ItemCreateModal from './ItemCreateModal.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
+  import { confirmNavigation } from '../stores/navigationGuard';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
@@ -167,6 +168,7 @@
   }
 
   async function openCharacter(entry: EntryInfo) {
+    if (!(await confirmNavigation())) return;
     if (entry.is_dir) {
       const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
       activeFile.set({ name: entry.name, path: dirPath, type: 'character', dirPath });
@@ -344,7 +346,8 @@
     if (monstersExpanded) await loadMonsters();
   }
 
-  function openMonster(filename: string) {
+  async function openMonster(filename: string) {
+    if (!(await confirmNavigation())) return;
     const path = `${MONSTERS_PATH}/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'monster' });
     // MonsterCard lädt den Inhalt selbst via $effect
@@ -447,7 +450,8 @@
     if (openSpellSchools[school]) await loadSpellSchool(school);
   }
 
-  function openSpell(school: string, filename: string) {
+  async function openSpell(school: string, filename: string) {
+    if (!(await confirmNavigation())) return;
     const path = `${SPELLS_PATH}/${school}/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'spell' });
   }
@@ -567,7 +571,8 @@
     if (openItemDirs[dir]) await loadItemDir(dir);
   }
 
-  function openItem(dir: string, filename: string) {
+  async function openItem(dir: string, filename: string) {
+    if (!(await confirmNavigation())) return;
     const path = `${ITEMS_PATH}/${dir}/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'item' });
   }
@@ -625,7 +630,8 @@
     }
   }
 
-  function openEncounter(campaignPath: string, actDirName: string, filename: string) {
+  async function openEncounter(campaignPath: string, actDirName: string, filename: string) {
+    if (!(await confirmNavigation())) return;
     const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
     // EncounterCard lädt den Inhalt + Monster selbst via $effect
@@ -747,6 +753,7 @@
   }
 
   async function openFile(campaignPath: string, section: typeof sections[0], filenameOrDir: string) {
+    if (!(await confirmNavigation())) return;
     const fullPath = section.type === 'act'
       ? `${VAULT_BASE}/${campaignPath}/acts/${filenameOrDir}/index.md`
       : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filenameOrDir}`;
@@ -758,6 +765,13 @@
     } catch (e) {
       setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
     }
+  }
+
+  /** Kampagne wechseln — vorher ungespeicherte Änderungen abfragen. */
+  async function selectCampaign(campaign: Campaign) {
+    if (!(await confirmNavigation())) return;
+    activeCampaign.set({ ...campaign });
+    openCampaignFile(campaign.path);
   }
 
   async function openCampaignFile(campaignPath: string) {
@@ -1144,7 +1158,7 @@
       <button
         class="campaign-title"
         class:active={$activeCampaign?.id === campaign.id}
-        onclick={() => { activeCampaign.set({ ...campaign }); openCampaignFile(campaign.path); }}
+        onclick={() => selectCampaign(campaign)}
       >
         {campaign.name}
       </button>

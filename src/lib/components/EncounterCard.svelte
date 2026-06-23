@@ -9,6 +9,7 @@
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
   import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
   import { monsterTypeLabel, normalizeMonster } from '../types';
+  import { registerEditorGuard } from '../stores/navigationGuard';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -77,7 +78,12 @@
     const unsub = activeFile.subscribe(file => {
       if (file?.type === 'encounter' && file.path) load(file.path);
     });
-    return unsub;
+    const unguard = registerEditorGuard({
+      isDirty: () => dirty,
+      save,
+      discard,
+    });
+    return () => { unsub(); unguard(); };
   });
 
   function mark() { dirty = true; }
