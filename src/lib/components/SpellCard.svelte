@@ -7,6 +7,8 @@
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
+  import { slugify } from '$lib/editor/saveAs';
+  import { invalidateVault } from '$lib/stores/campaign';
 
   function parseSpell(json: string): Spell | null {
     try {
@@ -15,7 +17,29 @@
     } catch { return null; }
   }
 
-  const ed = createCardEditor<Spell>({ type: 'spell', label: 'Zauber', parse: parseSpell });
+  // school (englisch im JSON) → Ordnername (deutsch im Vault)
+  const SCHOOL_TO_DIR: Record<string, string> = {
+    abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
+    enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
+    necromancy: 'nekromantie', transmutation: 'verwandlung',
+  };
+
+  const ed = createCardEditor<Spell>({
+    type: 'spell',
+    label: 'Zauber',
+    parse: parseSpell,
+    defaultName: (s) => slugify(s.name || 'zauber'),
+    location: {
+      bucketLabel: 'Schule',
+      bucketOf: (s) => SCHOOL_TO_DIR[s.school],
+      buckets: () => Object.entries(SCHOOL_TO_DIR).map(([key, dir]) => ({
+        value: dir,
+        label: SPELL_SCHOOLS[key as keyof typeof SPELL_SCHOOLS] ?? dir,
+      })),
+      resolvePath: (_s, name, bucket) => `./vault/spells/${bucket}/${name}.json`,
+    },
+    onSaved: () => invalidateVault(),
+  });
 
   // Lese-Aliase fürs bestehende Markup; Schreibzugriffe (tab, draft-Bindung) gehen direkt auf ed.*
   let draft = $derived(ed.draft);

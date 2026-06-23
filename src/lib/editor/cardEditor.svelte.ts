@@ -4,22 +4,42 @@
  *
  * Der Controller besitzt den kompletten Lebenszyklus — Laden bei `activeFile`-Wechsel,
  * Dirty-Tracking (abgeleitet aus `snapshot(draft) !== baseline`, kein manuelles `mark()`),
- * Speichern/Verwerfen/JSON-Speichern und die Registrierung beim Navigations-Guard.
+ * Speichern (inkl. Ordner-Umzug bei Bucket-Wechsel), Verwerfen, JSON-Speichern,
+ * Neuanlage als ungespeicherter Draft + „Speichern unter" und die Registrierung beim
+ * Navigations-Guard.
  *
- * Die Darstellung (Karte/Form/JSON, eigenes Layout) und Erweiterungen (KI-Aktionen,
- * spezielle Speicher-Pfad-Logik, Text-Spiegel) bleiben Sache der jeweiligen Komponente
- * und werden über die Config-Hooks eingebracht. Gleiches Fundament, unterschiedlich
- * ausgebaut.
+ * Eager Draft: die Karte rendert direkt den Draft. Darstellung und Erweiterungen
+ * (KI-Aktionen, Druck, …) bleiben Sache der Komponente. Gleiches Fundament,
+ * unterschiedlich ausgebaut.
  */
 import { onMount } from 'svelte';
-import { get } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '$lib/stores/campaign';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
+import { openSaveAs, slugify, type SaveAsBucket } from '$lib/editor/saveAs';
 import { pushError } from '$lib/stores/errors';
 import type { FileEntry } from '$lib/types';
 
 export type CardTab = 'karte' | 'bearbeiten' | 'json';
+
+/**
+ * Ablage-Abstraktion: wo lebt die Datei? Der „Bucket" ist typ-spezifisch
+ * (Monster: flach, Zauber: Schule, Gegenstand: Kategorie, Encounter: Akt).
+ */
+export interface LocationConfig<T> {
+  /** Beschriftung des Bucket-Selektors im Save-as-Dialog. Fehlt → flach (kein Selektor). */
+  bucketLabel?: string;
+  /** Aktueller Bucket eines Drafts (aus Draft-Daten oder Kontext). */
+  bucketOf?: (draft: T) => string | undefined;
+  /** Auswählbare Buckets für den Save-as-Dialog. */
+  buckets?: () => SaveAsBucket[] | Promise<SaveAsBucket[]>;
+  /** Voller Dateipfad für Draft + (geslugteten) Namen + Bucket. */
+  resolvePath: (draft: T, name: string, bucket?: string) => string;
+}
+
+/** Pending-Draft für Neuanlagen — die passende Karte übernimmt ihn via startNew. */
+export const newCardDraft = writable<{ type: FileEntry['type']; data: unknown } | null>(null);
 
 export interface CardEditorConfig<T> {
   /** FileEntry.type, den dieser Editor lädt (z.B. 'monster'). */
@@ -28,8 +48,10 @@ export interface CardEditorConfig<T> {
   parse: (content: string) => T | null;
   /** Draft → Dateiinhalt. Default: JSON.stringify(snapshot, null, 2). */
   serialize?: (draft: T) => string;
-  /** Start-Tab nach dem Laden. Default 'bearbeiten'. */
+  /** Start-Tab beim ersten Mount. Default 'bearbeiten'. */
   defaultTab?: CardTab;
+  /** Tab über Navigation/Reload hinweg erhalten (Default: an). */
+  keepTabOnLoad?: boolean;
   /**
    * Serialisierter Vergleichsstand für den Dirty-Check. Default = serialize(draft).
    * Überschreiben, wenn zusätzlicher Komponenten-State zum Inhalt beiträgt
@@ -38,17 +60,17 @@ export interface CardEditorConfig<T> {
   snapshot?: (draft: T) => string;
   /** Default `() => draft != null`. ItemCard: nur im Bearbeiten-Modus dirty. */
   isEditing?: () => boolean;
-  /** Zusätzliche Dirty-Bedingung (ODER-verknüpft), z.B. ungespeicherter Neuanlage-Entwurf. */
+  /** Zusätzliche Dirty-Bedingung (ODER-verknüpft). */
   extraDirty?: () => boolean;
-  /** Fehlertext für die Anzeige. */
+  /** Fehlertext-Präfix für Lade-Fehler. */
   label?: string;
-  /**
-   * Persistiert den Draft. Default: schreibt `content` nach `file.path`.
-   * Rückgabe `false` bricht ab, ohne den gespeicherten Stand zu aktualisieren
-   * (z.B. ItemCard öffnet „Speichern unter" für Neuanlagen → dirty bleibt).
-   */
-  persist?: (args: { draft: T; content: string; file: FileEntry }) => Promise<boolean>;
-  /** Nach erfolgreichem Laden (z.B. Seitendaten nachladen, Tab anpassen). */
+  /** Vorbelegter Name im Save-as-Dialog. */
+  defaultName?: (draft: T) => string;
+  /** Ablage-/Pfad-Logik (für Ordner-Umzug & Save-as). */
+  location?: LocationConfig<T>;
+  /** Nach erfolgreichem Speichern (Cache invalidieren etc.). */
+  onSaved?: (path: string, info: { moved: boolean; oldPath?: string }) => void;
+  /** Nach erfolgreichem Laden (Seitendaten nachladen). */
   onLoad?: (content: string, path: string) => void;
 }
 
@@ -57,6 +79,8 @@ export class CardEditor<T> {
   draft = $state<T | null>(null);
   saveError = $state('');
   lastSavedContent = $state('');
+  /** true = ungespeicherter Neuanlage-Draft ohne Backing-Datei. */
+  isNew = $state(false);
   #baseline = $state('');
 
   #cfg: CardEditorConfig<T>;
@@ -73,6 +97,14 @@ export class CardEditor<T> {
         if (file?.type === cfg.type && file.path) this.#load(file.path);
       });
 
+      // Neuanlage: passenden Pending-Draft übernehmen.
+      const unsubNew = newCardDraft.subscribe((pending) => {
+        if (pending && pending.type === cfg.type) {
+          this.startNew(pending.data as T);
+          newCardDraft.set(null);
+        }
+      });
+
       const unguard = registerEditorGuard({
         isDirty: () => this.dirty,
         save: async () => {
@@ -82,7 +114,7 @@ export class CardEditor<T> {
         discard: () => this.discard(),
       });
 
-      return () => { unsub(); unguard(); };
+      return () => { unsub(); unsubNew(); unguard(); };
     });
   }
 
@@ -102,6 +134,7 @@ export class CardEditor<T> {
   }
 
   dirty = $derived.by(() => {
+    if (this.isNew) return true;
     if (this.#cfg.extraDirty?.()) return true;
     const editing = this.#cfg.isEditing ? this.#cfg.isEditing() : this.draft != null;
     if (!editing || this.draft == null) return false;
@@ -112,7 +145,8 @@ export class CardEditor<T> {
     try {
       const content = await invoke<string>('read_file_content', { path });
       this.applyContent(content);
-      this.tab = this.#cfg.defaultTab ?? 'bearbeiten';
+      this.isNew = false;
+      if (!(this.#cfg.keepTabOnLoad ?? true)) this.tab = this.#cfg.defaultTab ?? 'bearbeiten';
       this.#cfg.onLoad?.(content, path);
     } catch (e) {
       pushError(`${this.#cfg.label ?? 'Datensatz'} konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
@@ -121,7 +155,7 @@ export class CardEditor<T> {
     }
   }
 
-  /** Setzt den Editor auf den gegebenen Inhalt (geladene Datei oder externer Entwurf). */
+  /** Setzt den Editor auf den gegebenen Dateiinhalt. */
   applyContent(content: string) {
     this.lastSavedContent = content;
     const parsed = this.#cfg.parse(content);
@@ -131,29 +165,96 @@ export class CardEditor<T> {
     this.captureBaseline();
   }
 
+  /** Startet eine Neuanlage als ungespeicherten Draft (Anlage-Flow ruft das auf). */
+  startNew(draft: T) {
+    this.draft = structuredClone(draft) as T;
+    this.lastSavedContent = '';
+    this.isNew = true;
+    this.saveError = '';
+    this.tab = 'bearbeiten';
+    this.captureBaseline();
+  }
+
   async save() {
     if (this.draft == null) return;
+    if (this.isNew) { await this.saveAs(); return; }
+
     const file = get(activeFile);
     if (!file?.path) return;
     const content = this.#serialize(this.draft);
+
     try {
-      let ok = true;
-      if (this.#cfg.persist) {
-        ok = await this.#cfg.persist({ draft: this.draft, content, file });
-      } else {
-        await invoke('write_file_content', { path: file.path, content });
+      let targetPath = file.path;
+      let moved = false;
+
+      // Bucket-Wechsel (z.B. Kategorie/Schule) → Datei umziehen. Nur bei bekanntem
+      // Bucket, sonst bleibt die Datei am Ort (keine versehentlichen Umzüge).
+      if (this.#cfg.location?.bucketOf) {
+        const bucket = this.#cfg.location.bucketOf(this.draft);
+        if (bucket) {
+          const name = file.path.split('/').pop()!.replace(/\.json$/, '');
+          const resolved = this.#cfg.location.resolvePath(this.draft, name, bucket);
+          if (resolved !== file.path) {
+            await invoke('rename_file', { oldPath: file.path, newPath: resolved });
+            targetPath = resolved;
+            moved = true;
+          }
+        }
       }
-      if (!ok) return; // abgebrochen (z.B. „Speichern unter") → dirty bleibt
+
+      await invoke('write_file_content', { path: targetPath, content });
       this.lastSavedContent = content;
+      if (moved) activeFile.set({ ...file, path: targetPath });
       setFileContent(content);
       this.saveError = '';
       this.captureBaseline();
+      this.#cfg.onSaved?.(targetPath, { moved, oldPath: moved ? file.path : undefined });
     } catch (e) {
       this.saveError = `${e}`;
     }
   }
 
+  /** „Speichern unter": Name + Bucket abfragen und neue Datei anlegen. */
+  async saveAs() {
+    if (this.draft == null || !this.#cfg.location) return;
+    const loc = this.#cfg.location;
+    const buckets = loc.bucketLabel ? await Promise.resolve(loc.buckets?.() ?? []) : [];
+    const result = await openSaveAs({
+      name: this.#cfg.defaultName?.(this.draft) ?? 'neu',
+      bucketLabel: loc.bucketLabel,
+      buckets,
+      bucket: loc.bucketOf?.(this.draft),
+    });
+    if (!result) return; // abgebrochen → bleibt dirty/neu
+
+    const path = loc.resolvePath(this.draft, slugify(result.name), result.bucket);
+    const content = this.#serialize(this.draft);
+    try {
+      await invoke('write_file_content', { path, content });
+    } catch (e) {
+      this.saveError = `${e}`;
+      return;
+    }
+    // Dirty sofort (synchron) auflösen, damit der Navigations-Guard nicht noch
+    // „ungespeichert" sieht, bevor der asynchrone Reload greift.
+    this.isNew = false;
+    this.lastSavedContent = content;
+    this.captureBaseline();
+    this.saveError = '';
+    this.#cfg.onSaved?.(path, { moved: false });
+    // activeFile umsetzen → Subscription lädt frisch von der neuen Datei.
+    activeFile.set({ name: path.split('/').pop()!.replace(/\.json$/, ''), path, type: this.#cfg.type });
+  }
+
   discard() {
+    if (this.isNew) {
+      // Ungespeicherte Neuanlage verwerfen → Karte schließen.
+      this.isNew = false;
+      this.draft = null;
+      this.saveError = '';
+      activeFile.set(null);
+      return;
+    }
     const parsed = this.#cfg.parse(this.lastSavedContent);
     this.draft = parsed != null ? (structuredClone(parsed) as T) : null;
     this.saveError = '';

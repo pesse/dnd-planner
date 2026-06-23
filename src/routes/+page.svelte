@@ -12,6 +12,7 @@
   import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
+  import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import { pushError } from '$lib/stores/errors';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
   import { invalidateItemCache } from '$lib/itemLibrary';
@@ -489,6 +490,7 @@
 
 <ErrorToast />
 <UnsavedChangesDialog />
+<SaveAsDialog />
 
 <style>
   :global(*, *::before, *::after) {

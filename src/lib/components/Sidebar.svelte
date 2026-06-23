@@ -7,6 +7,7 @@
   import VaultTransferModal from './VaultTransferModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
+  import { newCardDraft } from '../editor/cardEditor.svelte';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
@@ -355,23 +356,15 @@
 
   async function createMonster(e: KeyboardEvent | MouseEvent) {
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    if (!(await confirmNavigation())) return;
     const raw = newMonsterInput.trim();
-    if (!raw) return;
-
-    const slug = slugify(raw);
-    const relPath = `${slug}.json`;
-    const path = `${MONSTERS_PATH}/${relPath}`;
-    const template = { ...monsterTemplate, name: raw.charAt(0).toUpperCase() + raw.slice(1) };
-
-    try {
-      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
-      showNewMonsterInput = false;
-      newMonsterInput = '';
-      await loadMonsters();
-      await openMonster(relPath);
-    } catch (err) {
-      console.error('Monster konnte nicht erstellt werden:', err);
-    }
+    const name = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : monsterTemplate.name;
+    showNewMonsterInput = false;
+    newMonsterInput = '';
+    monstersExpanded = true;
+    // Als ungespeicherten Draft öffnen → Speichern fragt Name via Save-as ab.
+    newCardDraft.set({ type: 'monster', data: { ...monsterTemplate, name } });
+    activeFile.set({ name, path: '', type: 'monster' });
   }
 
   function cancelNewMonster(e: KeyboardEvent) {
@@ -458,15 +451,12 @@
 
   async function createSpell(e: KeyboardEvent | MouseEvent) {
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+    if (!(await confirmNavigation())) return;
     const raw = newSpellName.trim();
-    const school = newSpellSchool || spellSchools[0];
-    if (!raw || !school) return;
-
-    const slug = slugify(raw);
-    const filename = slug + '.json';
-    const path = `${SPELLS_PATH}/${school}/${filename}`;
+    const school = newSpellSchool || spellSchools[0] || 'hervorrufung';
+    const name = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Neuer Zauber';
     const template = {
-      name: raw.charAt(0).toUpperCase() + raw.slice(1),
+      name,
       level: '1',
       school: SCHOOL_DIR_TO_KEY[school] ?? 'evocation',
       casting_time: '1 Aktion',
@@ -479,20 +469,12 @@
       higher_levels: null,
       source: 'eigen',
     };
-
-    try {
-      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
-      showNewSpellInput = false;
-      newSpellName = '';
-      // Schule aufklappen und Cache leeren damit neu geladen wird
-      delete spellsBySchool[school];
-      spellsBySchool = { ...spellsBySchool };
-      openSpellSchools[school] = true;
-      await loadSpellSchool(school);
-      await openSpell(school, filename);
-    } catch (err) {
-      console.error('Zauber konnte nicht erstellt werden:', err);
-    }
+    showNewSpellInput = false;
+    newSpellName = '';
+    spellsExpanded = true;
+    // Als ungespeicherten Draft öffnen → Speichern fragt Name + Schule via Save-as ab.
+    newCardDraft.set({ type: 'spell', data: template });
+    activeFile.set({ name, path: '', type: 'spell' });
   }
 
   function cancelNewSpell(e: KeyboardEvent) {

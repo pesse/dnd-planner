@@ -207,6 +207,24 @@ export const MONSTER_TYPES = {
 } as const;
 export type MonsterType = keyof typeof MONSTER_TYPES;
 
+/** Creature-Type → Vault-Unterordner (deutsche Plural-Kategorie). Bestimmt die Ablage. */
+export const MONSTER_TYPE_DIR: Record<MonsterType, string> = {
+  aberration:  'aberrationen',
+  beast:       'tiere',
+  celestial:   'himmlische',
+  construct:   'konstrukte',
+  dragon:      'drachen',
+  elemental:   'elementare',
+  fey:         'feen',
+  fiend:       'teuflische',
+  giant:       'riesen',
+  humanoid:    'humanoide',
+  monstrosity: 'ungeheuer',
+  ooze:        'schleime',
+  plant:       'pflanzen',
+  undead:      'untote',
+};
+
 export const MONSTER_ALIGNMENTS = {
   'lawful good':              'Rechtschaffen Gut',
   'neutral good':             'Neutral Gut',

@@ -1,10 +1,13 @@
 <script lang="ts">
   import type { Monster } from '../types';
+  import { MONSTER_TYPES, MONSTER_TYPE_DIR } from '../types';
   import MonsterStatBlock from './MonsterStatBlock.svelte';
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { parseMonster as _parseMonster } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
+  import { slugify } from '../editor/saveAs';
+  import { invalidateVault } from '../stores/campaign';
 
   function parseMonster(json: string): Monster | null {
     try {
@@ -17,6 +20,19 @@
     type: 'monster',
     label: 'Monster',
     parse: parseMonster,
+    defaultName: (m) => slugify(m.name || 'monster'),
+    location: {
+      // Ablage nach Creature-Type (Bucket). Typwechsel im Editor verschiebt die Datei.
+      bucketLabel: 'Typ',
+      bucketOf: (m) => MONSTER_TYPE_DIR[m.type],
+      buckets: () => Object.entries(MONSTER_TYPE_DIR).map(([key, dir]) => ({
+        value: dir,
+        label: MONSTER_TYPES[key as keyof typeof MONSTER_TYPES],
+      })),
+      resolvePath: (_m, name, bucket) =>
+        bucket ? `./vault/monsters/${bucket}/${name}.json` : `./vault/monsters/${name}.json`,
+    },
+    onSaved: () => invalidateVault(),
   });
 </script>
 
