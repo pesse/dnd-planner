@@ -6,13 +6,13 @@
   import type { LlmProvider } from '../types';
 
   let {
-    itemName,
+    entityName,
     systemPrompt: defaultSystemPrompt,
     buildPrompt,
     onresult,
     onclose,
   }: {
-    itemName: string;
+    entityName: string;
     systemPrompt: string;
     buildPrompt: () => string | null;
     onresult: (raw: string) => void;
@@ -46,7 +46,6 @@
   onDestroy(endDrag);
 
   // ── KI-Pfad ───────────────────────────────────────────────────────────────
-  // Bewusst nur der Initialwert — danach lokal editierbar.
   let systemPrompt = $state(untrack(() => defaultSystemPrompt));
   let showSystemPrompt = $state(false);
   let running = $state(false);
@@ -85,13 +84,12 @@
   }
 </script>
 
-<div class="dialog" style="left: {pos.x}px; top: {pos.y}px;" role="dialog" aria-label="Gegenstand übersetzen">
+<div class="dialog" style="left: {pos.x}px; top: {pos.y}px;" role="dialog" aria-label="Übersetzen">
   <div class="modal-header" onmousedown={startDrag} role="presentation">
-    <span class="modal-title">Übersetzen — {itemName}</span>
+    <span class="modal-title">Übersetzen — {entityName}</span>
     <button class="close-btn" onmousedown={(e) => e.stopPropagation()} onclick={onclose} title="Schließen">×</button>
   </div>
 
-  <!-- Modell-Auswahl (teilt sich llmConfig mit dem LLM-Panel) -->
   <div class="row two">
     <select class="select" value={$llmConfig.provider} onchange={(e) => changeProvider((e.target as HTMLSelectElement).value as LlmProvider)}>
       <option value="anthropic">Anthropic</option>
@@ -113,7 +111,7 @@
 
   <div class="row">
     <div class="prompt-label-row">
-      <span class="field-label">Übersetzt Originalname & -beschreibung ins Deutsche</span>
+      <span class="field-label">Übersetzt Originalinhalt ins Deutsche</span>
       <button class="prompt-toggle" onclick={() => { showSystemPrompt = !showSystemPrompt; }}>
         System-Prompt {showSystemPrompt ? '▲' : '▼'}
       </button>

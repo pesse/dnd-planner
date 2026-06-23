@@ -6,7 +6,13 @@
   import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import AiEditModal from './AiEditModal.svelte';
+  import TranslateModal from './TranslateModal.svelte';
+  import DndApiSearch from './DndApiSearch.svelte';
+  import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
+  import { editSpellAction } from '$lib/services/aiActions/spellAction';
+  import { searchSpells, getResource, mapApiResourceToSpell, type DndApiRef } from '$lib/services/dndApi';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
 
@@ -49,6 +55,54 @@
   const save = () => ed.save();
   const discard = () => ed.discard();
   const saveJson = (json: string) => ed.saveJson(json);
+
+  // ── Werkzeuge (KI + DnD-API) ──────────────────────────────────────────────
+  let showAi = $state(false);
+  let showTranslate = $state(false);
+  let importError = $state('');
+
+  function applyAiResult(revised: Spell) {
+    const r = _parseSpell(revised);
+    ed.draft = r.ok ? r.data : revised;
+  }
+
+  /** Lädt einen SRD-Zauber und übernimmt ihn als Draft. */
+  async function importFromApi(ref: DndApiRef) {
+    importError = '';
+    try {
+      const mapped = mapApiResourceToSpell(await getResource(ref.url));
+      const r = _parseSpell(mapped);
+      ed.draft = r.ok ? r.data : mapped;
+    } catch (e) {
+      importError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : e}`;
+    }
+  }
+
+  function buildTranslationPrompt(): string | null {
+    const s = ed.draft;
+    if (!s) return null;
+    const payload: Record<string, unknown> = {};
+    if (s.desc?.length) payload.desc = s.desc;
+    if (s.higher_level?.length) payload.higher_level = s.higher_level;
+    if (s.components.material && s.components.materials_needed) payload.materials_needed = s.components.materials_needed;
+    if (s.desc?.length) { payload.casting_time = s.casting_time; payload.range = s.range; payload.duration = s.duration; }
+    if (!Object.keys(payload).length) return null;
+    return JSON.stringify(payload);
+  }
+
+  function applyTranslation(raw: string) {
+    const s = ed.draft;
+    if (!s) return;
+    try {
+      const result = JSON.parse(raw);
+      if (Array.isArray(result.desc_de)) s.desc_de = result.desc_de;
+      if (Array.isArray(result.higher_level_de)) s.higher_level_de = result.higher_level_de;
+      if (typeof result.materials_needed === 'string') s.components.materials_needed = result.materials_needed;
+      if (typeof result.casting_time === 'string') s.casting_time = result.casting_time;
+      if (typeof result.range === 'string') s.range = result.range;
+      if (typeof result.duration === 'string') s.duration = result.duration;
+    } catch { /* ignore */ }
+  }
 
   // ── Beschreibungs-Splitting für Kartenansicht ────────────────────────────────
 
@@ -228,6 +282,15 @@
         <div class="edit-wrap" style="--mef-accent: {color}">
           <SpellEditForm bind:spell={ed.draft} />
         </div>
+        <div class="ai-section">
+          <span class="ai-label">Werkzeuge</span>
+          <div class="ai-row">
+            <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
+            <button class="ai-btn" onclick={() => (showAi = true)}>✨ KI überarbeiten…</button>
+          </div>
+          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchSpells} onselect={importFromApi} />
+          {#if importError}<span class="import-error">{importError}</span>{/if}
+        </div>
       {/if}
     {/snippet}
   </EditorPanel>
@@ -251,7 +314,47 @@
   </EditorPanel>
 {/if}
 
+{#if showAi && ed.draft}
+  <AiEditModal
+    entityName={ed.draft.name || 'Zauber'}
+    buildAction={() => editSpellAction($state.snapshot(ed.draft) as Spell)}
+    onresult={applyAiResult}
+    onclose={() => (showAi = false)}
+  />
+{/if}
+
+{#if showTranslate && ed.draft}
+  <TranslateModal
+    entityName={ed.draft.name || 'Zauber'}
+    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
+    buildPrompt={buildTranslationPrompt}
+    onresult={applyTranslation}
+    onclose={() => (showTranslate = false)}
+  />
+{/if}
+
 <style>
+  .ai-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
+    width: 100%;
+    max-width: 560px;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--surface);
+  }
+  .ai-section :global(.dnd-api-search) { width: 100%; }
+  .ai-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
+  .ai-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .ai-btn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.82rem; font-family: inherit;
+  }
+  .ai-btn:hover { border-color: var(--red); color: var(--red); }
+  .import-error { color: var(--danger); font-size: 0.78rem; }
+
   /* ── Karten-Container ── */
   .cards-wrap {
     display: flex;

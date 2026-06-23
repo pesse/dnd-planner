@@ -1,10 +1,6 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
   import type { Spell } from '../types';
   import { SPELL_SCHOOLS, SPELL_CLASS_KEYS, SPELL_CLASS_LABELS } from '../types';
-  import { TRANSLATION_SYSTEM_PROMPT } from '../prompts';
-  import DndApiSearch from './DndApiSearch.svelte';
-  import LlmTranslate from './LlmTranslate.svelte';
 
   let {
     spell = $bindable<Spell>(),
@@ -13,8 +9,6 @@
     spell: Spell;
     onchange?: () => void;
   } = $props();
-
-  const DND_API = 'https://www.dnd5eapi.co/api/2014';
 
   const LEVEL_OPTIONS = [
     { value: 0, label: 'Zaubertrick' },
@@ -50,144 +44,6 @@
 
   function mark() { onchange(); }
 
-  // ── DnD-API-Import ────────────────────────────────────────────────────────────
-
-  interface SpellApiResult { index: string; name: string; url: string; }
-
-  async function apiGet(url: string): Promise<unknown> {
-    const text = await invoke<string>('http_request', {
-      req: { url, method: 'GET', headers: {}, body: '' },
-    });
-    return JSON.parse(text);
-  }
-
-  async function searchSpells(q: string): Promise<SpellApiResult[]> {
-    const raw = await apiGet(`${DND_API}/spells?name=${encodeURIComponent(q)}`);
-    return ((raw as Record<string, unknown>).results as SpellApiResult[] ?? []).slice(0, 15);
-  }
-
-  function ftToM(val: string | number): string {
-    const n = typeof val === 'string' ? parseInt(val) : val;
-    const m = Math.round(n * 3) / 10;
-    return `${m} m`.replace('.', ',');
-  }
-
-  function convertRange(r: string): string {
-    return r
-      .replace(/(\d+)-foot[-\s]/gi, (_, n) => `${ftToM(parseInt(n))}-`)
-      .replace(/(\d+)\s*feet?/gi, (_, n) => ftToM(parseInt(n)))
-      .replace(/\bTouch\b/gi, 'Berührung').replace(/\bSelf\b/gi, 'Selbst')
-      .replace(/\bSight\b/gi, 'Sichtlinie').replace(/\bUnlimited\b/gi, 'Unbegrenzt')
-      .replace(/\bSpecial\b/gi, 'Besonders').replace(/\bsphere\b/gi, 'Sphäre')
-      .replace(/\bcone\b/gi, 'Kegel').replace(/\bcube\b/gi, 'Würfel')
-      .replace(/\bline\b/gi, 'Linie').replace(/\bcylinder\b/gi, 'Zylinder')
-      .replace(/\bradius\b/gi, 'Radius');
-  }
-
-  function convertDuration(d: string): string {
-    return d
-      .replace(/\bConcentration,\s*up to\s*/gi, 'Konzentration, bis zu ')
-      .replace(/(\d+)\s*minutes?/gi, (_, n) => `${n} Minute${n === '1' ? '' : 'n'}`)
-      .replace(/(\d+)\s*hours?/gi,   (_, n) => `${n} Stunde${n === '1' ? '' : 'n'}`)
-      .replace(/(\d+)\s*days?/gi,    (_, n) => `${n} Tag${n === '1' ? '' : 'e'}`)
-      .replace(/(\d+)\s*rounds?/gi,  (_, n) => `${n} Runde${n === '1' ? '' : 'n'}`)
-      .replace(/\bInstantaneous\b/gi, 'Unmittelbar').replace(/\bUntil dispelled\b/gi, 'Bis aufgelöst')
-      .replace(/\bPermanent\b/gi, 'Dauerhaft').replace(/\bSpecial\b/gi, 'Besonders');
-  }
-
-  function convertCastingTime(ct: string): string {
-    return ct
-      .replace(/\b1 action\b/gi, '1 Aktion').replace(/\b1 bonus action\b/gi, '1 Bonusaktion')
-      .replace(/\b1 reaction\b/gi, '1 Reaktion')
-      .replace(/(\d+)\s*minutes?/gi, (_, n) => `${n} Minute${n === '1' ? '' : 'n'}`)
-      .replace(/(\d+)\s*hours?/gi,   (_, n) => `${n} Stunde${n === '1' ? '' : 'n'}`)
-      .replace(/\bwhich you take when\b/gi, 'die du nimmst, wenn');
-  }
-
-  type SpellApiData = {
-    index: string; name: string; level: number;
-    school: { index: string };
-    casting_time: string; range: string; duration: string; concentration: boolean; ritual: boolean;
-    components: string[]; material?: string;
-    classes: Array<{ index: string }>;
-    desc: string[]; higher_level?: string[];
-    damage?: {
-      damage_type: { index: string; name: string };
-      damage_at_slot_level?: Record<string, string>;
-      damage_at_character_level?: Record<string, string>;
-    };
-    dc?: { dc_type: { index: string; name: string }; dc_success: string };
-    area_of_effect?: { type: string; size: number };
-  };
-
-  async function loadFromApi(result: SpellApiResult) {
-    const data = await apiGet(`${DND_API}/spells/${result.index}`) as SpellApiData;
-    spell.index        = data.index;
-    spell.name         = data.name;
-    spell.level        = data.level;
-    spell.school       = (data.school.index in SPELL_SCHOOLS ? data.school.index : 'evocation') as keyof typeof SPELL_SCHOOLS;
-    spell.casting_time = convertCastingTime(data.casting_time);
-    spell.range        = convertRange(data.range);
-    spell.duration     = convertDuration(data.duration);
-    spell.concentration = data.concentration;
-    spell.ritual       = data.ritual;
-    spell.components   = {
-      verbal:           data.components.includes('V'),
-      somatic:          data.components.includes('S'),
-      material:         data.components.includes('M'),
-      materials_needed: data.material ?? null,
-    };
-    spell.classes      = data.classes.map(c => c.index);
-    spell.desc         = data.desc;
-    spell.higher_level = data.higher_level?.length ? data.higher_level : null;
-    spell.damage       = data.damage ? {
-      damage_type: { index: data.damage.damage_type.index, name: data.damage.damage_type.name },
-      damage_at_slot_level:      data.damage.damage_at_slot_level,
-      damage_at_character_level: data.damage.damage_at_character_level,
-    } : undefined;
-    spell.dc           = data.dc ? {
-      dc_type:    { index: data.dc.dc_type.index, name: data.dc.dc_type.name },
-      dc_success: data.dc.dc_success,
-    } : undefined;
-    spell.area_of_effect = data.area_of_effect;
-    spell.source       = 'SRD';
-    spell.desc_de         = [];
-    spell.higher_level_de = [];
-    onchange();
-  }
-
-  // ── LLM-Übersetzung ───────────────────────────────────────────────────────────
-
-  function buildTranslationPrompt(): string | null {
-    const payload: Record<string, unknown> = {};
-    if (spell.desc?.length)         payload.desc = spell.desc;
-    if (spell.higher_level?.length) payload.higher_level = spell.higher_level;
-    if (spell.components.material && spell.components.materials_needed)
-      payload.materials_needed = spell.components.materials_needed;
-    // Wenn englischer Inhalt vorhanden: Ausführungsfelder mitschicken
-    // (Regex konvertiert nicht alle Fälle korrekt)
-    if (spell.desc?.length) {
-      payload.casting_time = spell.casting_time;
-      payload.range        = spell.range;
-      payload.duration     = spell.duration;
-    }
-    if (!Object.keys(payload).length) return null;
-    return JSON.stringify(payload);
-  }
-
-  function applyTranslation(raw: string) {
-    try {
-      const result = JSON.parse(raw);
-      if (Array.isArray(result.desc_de))             spell.desc_de = result.desc_de;
-      if (Array.isArray(result.higher_level_de))     spell.higher_level_de = result.higher_level_de;
-      if (typeof result.materials_needed === 'string')
-        spell.components.materials_needed = result.materials_needed;
-      if (typeof result.casting_time === 'string')   spell.casting_time = result.casting_time;
-      if (typeof result.range        === 'string')   spell.range        = result.range;
-      if (typeof result.duration     === 'string')   spell.duration     = result.duration;
-      onchange();
-    } catch { /* ignore */ }
-  }
 </script>
 
 <!-- Grunddaten -->
@@ -351,26 +207,6 @@
     </div>
   </div>
 {/if}
-
-<div class="divider"></div>
-
-<!-- LLM-Übersetzung -->
-<div class="section">
-  <LlmTranslate
-    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
-    buildPrompt={buildTranslationPrompt}
-    onresult={applyTranslation}
-  />
-</div>
-
-<!-- DnD-API -->
-<div class="section">
-  <DndApiSearch
-    placeholder="Englischer Zaubername…"
-    onsearch={searchSpells}
-    onselect={loadFromApi}
-  />
-</div>
 
 <style>
   /* ── Basis-Input ── */

@@ -7,7 +7,13 @@
   import VaultTransferModal from './VaultTransferModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { newCardDraft } from '../editor/cardEditor.svelte';
+  import CreateCardModal from './CreateCardModal.svelte';
+  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell } from '../services/dndApi';
+  import { createMonsterAction } from '../services/aiActions/monsterAction';
+  import { createSpellAction } from '../services/aiActions/spellAction';
+  import { parseMonster } from '../utils/schemaValidation';
+  import { getSpellLibrary, searchSpells as searchSpellLib, loadSpellByPath } from '../spellLibrary';
+  import type { Monster, Spell } from '../types';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
@@ -355,9 +361,7 @@
   async function createMonster() {
     if (!(await confirmNavigation())) return;
     monstersExpanded = true;
-    // Als ungespeicherten Draft öffnen → Name + Typ werden im Save-as-Dialog abgefragt.
-    newCardDraft.set({ type: 'monster', data: { ...monsterTemplate } });
-    activeFile.set({ name: monsterTemplate.name, path: '', type: 'monster' });
+    createModal = 'monster';
   }
 
   // --- Zauber (global, nach Schule) ---
@@ -438,23 +442,51 @@
   async function createSpell() {
     if (!(await confirmNavigation())) return;
     spellsExpanded = true;
-    const template = {
-      name: 'Neuer Zauber',
-      level: '1',
-      school: 'evocation',
-      casting_time: '1 Aktion',
-      range: '9 Meter',
+    createModal = 'spell';
+  }
+
+  // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI).
+  let createModal = $state<'monster' | 'spell' | null>(null);
+
+  function blankSpell(name: string): Spell {
+    return {
+      name: name || 'Neuer Zauber', level: 1, school: 'evocation',
+      casting_time: '1 Aktion', range: '9 Meter',
       components: { verbal: true, somatic: false, material: false, materials_needed: null },
-      duration: 'Unmittelbar',
-      ritual: false,
-      classes: [],
-      description: '',
-      higher_levels: null,
-      source: 'eigen',
+      duration: 'Unmittelbar', concentration: false, ritual: false,
+      classes: [], desc: [''], source: 'eigen',
     };
-    // Als ungespeicherten Draft öffnen → Name + Schule werden im Save-as-Dialog abgefragt.
-    newCardDraft.set({ type: 'spell', data: template });
-    activeFile.set({ name: template.name, path: '', type: 'spell' });
+  }
+
+  // ── Vorlagensuche (Bibliothek) für die Create-Modals ─────────────────────────
+  async function searchSpellLibrary(q: string): Promise<{ name: string; load: () => Promise<Spell> }[]> {
+    const lib = await getSpellLibrary();
+    return searchSpellLib(lib, q, null, '', 8).map((s) => ({
+      name: s.spell.name,
+      load: async () => (await loadSpellByPath(s.spell.path)) ?? blankSpell(s.spell.name),
+    }));
+  }
+
+  // Alle Vault-Monster (Name + Loader) einmal einlesen und cachen.
+  let monsterLibCache: { name: string; load: () => Promise<Monster> }[] | null = null;
+  async function searchMonsterLibrary(q: string): Promise<{ name: string; load: () => Promise<Monster> }[]> {
+    if (!monsterLibCache) {
+      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: MONSTERS_PATH });
+      const paths = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => `${MONSTERS_PATH}/${e.name}`);
+      for (const d of entries.filter((e) => e.is_dir)) {
+        const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${d.name}` }).catch(() => [] as string[]);
+        paths.push(...files.map((f) => `${MONSTERS_PATH}/${d.name}/${f}`));
+      }
+      const loaded = await Promise.all(paths.map(async (path) => {
+        try {
+          const r = parseMonster(JSON.parse(await invoke<string>('read_file_content', { path })));
+          return r.ok ? { name: r.data.name, load: async () => r.data } : null;
+        } catch { return null; }
+      }));
+      monsterLibCache = loaded.filter((x): x is { name: string; load: () => Promise<Monster> } => x !== null);
+    }
+    const ql = q.toLowerCase();
+    return monsterLibCache.filter((h) => h.name.toLowerCase().includes(ql)).slice(0, 8);
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
@@ -1051,6 +1083,32 @@
 
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
+  {/if}
+
+  {#if createModal === 'monster'}
+    <CreateCardModal
+      type="monster"
+      title="Neues Monster"
+      searchApi={searchMonsters}
+      mapApi={mapApiResourceToMonster}
+      searchLibrary={searchMonsterLibrary}
+      blank={(name) => ({ ...monsterTemplate, name: name || monsterTemplate.name })}
+      buildAction={createMonsterAction}
+      nameOf={(m: Monster) => m.name || 'Monster'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'spell'}
+    <CreateCardModal
+      type="spell"
+      title="Neuer Zauber"
+      searchApi={searchSpells}
+      mapApi={mapApiResourceToSpell}
+      searchLibrary={searchSpellLibrary}
+      blank={blankSpell}
+      buildAction={createSpellAction}
+      nameOf={(s: Spell) => s.name || 'Zauber'}
+      onclose={() => (createModal = null)}
+    />
   {/if}
 
   <div class="divider"></div>

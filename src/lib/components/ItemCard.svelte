@@ -34,7 +34,7 @@
   import EditorPanel from './EditorPanel.svelte';
   import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
   import ItemEditModal from './ItemEditModal.svelte';
-  import ItemTranslateModal from './ItemTranslateModal.svelte';
+  import TranslateModal from './TranslateModal.svelte';
   import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
@@ -948,8 +948,8 @@
 {/if}
 
 {#if showTranslateModal && draft}
-  <ItemTranslateModal
-    itemName={draft.name_de || draft.name || 'Gegenstand'}
+  <TranslateModal
+    entityName={draft.name_de || draft.name || 'Gegenstand'}
     systemPrompt={TRANSLATION_SYSTEM_PROMPT}
     buildPrompt={buildTranslationPrompt}
     onresult={applyTranslation}
