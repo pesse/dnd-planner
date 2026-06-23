@@ -31,10 +31,10 @@
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
   import { normalizeItem } from '$lib/utils/schemaValidation';
   import DndApiSearch from './DndApiSearch.svelte';
-  import LlmTranslate from './LlmTranslate.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
   import ItemEditModal from './ItemEditModal.svelte';
+  import ItemTranslateModal from './ItemTranslateModal.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -355,9 +355,10 @@
     }
   }
 
-  // ── KI-Überarbeitung (Dialog) ────────────────────────────────────────────────
+  // ── KI-Werkzeuge (Dialoge) ───────────────────────────────────────────────────
 
   let showAiModal = $state(false);
+  let showTranslateModal = $state(false);
 
   /** Übernimmt das vom KI-Dialog überarbeitete Item in den Draft (überschreibt bestehende Werte). */
   function applyAiResult(result: Item) {
@@ -841,17 +842,6 @@
 
       <div class="card-divider"></div>
 
-      <!-- LLM-Übersetzung -->
-      <div class="edit-section translate-section">
-        <LlmTranslate
-          systemPrompt={TRANSLATION_SYSTEM_PROMPT}
-          buildPrompt={buildTranslationPrompt}
-          onresult={applyTranslation}
-        />
-      </div>
-
-      <div class="card-divider"></div>
-
       <!-- Beschreibung (Original) — sekundär, einklappbar -->
       <details class="edit-section edit-section-collapsible">
         <summary class="edit-section-label">Beschreibung (Original / Englisch)</summary>
@@ -861,11 +851,12 @@
 
       <div class="card-divider"></div>
 
-      <!-- KI-Überarbeitung -->
+      <!-- KI-Werkzeuge -->
       <div class="edit-section ai-section">
-        <div class="ai-row">
-          <span class="ai-label">Per KI überarbeiten</span>
-          <button class="ai-btn" onclick={() => (showAiModal = true)}>KI überarbeiten…</button>
+        <span class="ai-label">KI-Werkzeuge</span>
+        <div class="ai-tools-row">
+          <button class="ai-btn" onclick={() => (showTranslateModal = true)}>🌐 Übersetzen…</button>
+          <button class="ai-btn" onclick={() => (showAiModal = true)}>✨ KI überarbeiten…</button>
         </div>
       </div>
 
@@ -902,6 +893,16 @@
     item={$state.snapshot(draft)}
     onresult={applyAiResult}
     onclose={() => (showAiModal = false)}
+  />
+{/if}
+
+{#if showTranslateModal && draft}
+  <ItemTranslateModal
+    itemName={draft.name_de || draft.name || 'Gegenstand'}
+    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
+    buildPrompt={buildTranslationPrompt}
+    onresult={applyTranslation}
+    onclose={() => (showTranslateModal = false)}
   />
 {/if}
 
@@ -1154,11 +1155,6 @@
   .edit-textarea:focus { border-color: var(--cat-color); }
   .edit-textarea-secondary { color: var(--ink-muted); font-style: italic; }
 
-  .translate-section {
-    background: color-mix(in srgb, var(--red) 5%, var(--bg-panel));
-    border-top: 1px solid var(--surface);
-  }
-
   /* Neuer Entwurf / Speichern-unter */
   .new-banner {
     font-size: 0.78rem; color: var(--gold, #c89b3c);
@@ -1197,7 +1193,7 @@
     flex-direction: column;
     gap: 0.35rem;
   }
-  .ai-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .ai-tools-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .ai-label {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.05em; color: var(--ink-muted);
