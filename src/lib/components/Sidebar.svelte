@@ -299,8 +299,6 @@
   // group → { filename, name }[]
   let monsterGroups: Record<string, { filename: string; name: string }[]> = $state({});
   let openMonsterGroups: Record<string, boolean> = $state({});
-  let showNewMonsterInput = $state(false);
-  let newMonsterInput = $state('');
 
   async function loadMonsters() {
     try {
@@ -354,21 +352,12 @@
     // MonsterCard lädt den Inhalt selbst via $effect
   }
 
-  async function createMonster(e: KeyboardEvent | MouseEvent) {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+  async function createMonster() {
     if (!(await confirmNavigation())) return;
-    const raw = newMonsterInput.trim();
-    const name = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : monsterTemplate.name;
-    showNewMonsterInput = false;
-    newMonsterInput = '';
     monstersExpanded = true;
-    // Als ungespeicherten Draft öffnen → Speichern fragt Name via Save-as ab.
-    newCardDraft.set({ type: 'monster', data: { ...monsterTemplate, name } });
-    activeFile.set({ name, path: '', type: 'monster' });
-  }
-
-  function cancelNewMonster(e: KeyboardEvent) {
-    if (e.key === 'Escape') { showNewMonsterInput = false; newMonsterInput = ''; }
+    // Als ungespeicherten Draft öffnen → Name + Typ werden im Save-as-Dialog abgefragt.
+    newCardDraft.set({ type: 'monster', data: { ...monsterTemplate } });
+    activeFile.set({ name: monsterTemplate.name, path: '', type: 'monster' });
   }
 
   // --- Zauber (global, nach Schule) ---
@@ -377,9 +366,6 @@
   let spellsBySchool: Record<string, { filename: string; name: string }[]> = $state({});
   let openSpellSchools: Record<string, boolean> = $state({});
   let spellSearch = $state('');
-  let showNewSpellInput = $state(false);
-  let newSpellName = $state('');
-  let newSpellSchool = $state('');
 
   // Wenn Suchbegriff eingegeben, alle Schulen laden und gefiltert anzeigen
   $effect(() => {
@@ -449,16 +435,13 @@
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'spell' });
   }
 
-  async function createSpell(e: KeyboardEvent | MouseEvent) {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+  async function createSpell() {
     if (!(await confirmNavigation())) return;
-    const raw = newSpellName.trim();
-    const school = newSpellSchool || spellSchools[0] || 'hervorrufung';
-    const name = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Neuer Zauber';
+    spellsExpanded = true;
     const template = {
-      name,
+      name: 'Neuer Zauber',
       level: '1',
-      school: SCHOOL_DIR_TO_KEY[school] ?? 'evocation',
+      school: 'evocation',
       casting_time: '1 Aktion',
       range: '9 Meter',
       components: { verbal: true, somatic: false, material: false, materials_needed: null },
@@ -469,16 +452,9 @@
       higher_levels: null,
       source: 'eigen',
     };
-    showNewSpellInput = false;
-    newSpellName = '';
-    spellsExpanded = true;
-    // Als ungespeicherten Draft öffnen → Speichern fragt Name + Schule via Save-as ab.
+    // Als ungespeicherten Draft öffnen → Name + Schule werden im Save-as-Dialog abgefragt.
     newCardDraft.set({ type: 'spell', data: template });
-    activeFile.set({ name, path: '', type: 'spell' });
-  }
-
-  function cancelNewSpell(e: KeyboardEvent) {
-    if (e.key === 'Escape') { showNewSpellInput = false; newSpellName = ''; }
+    activeFile.set({ name: template.name, path: '', type: 'spell' });
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
@@ -880,7 +856,7 @@
         <span class="arrow" class:open={monstersExpanded}>›</span>
         Monster
       </button>
-      <button class="add-btn" title="Neues Monster" onclick={() => { monstersExpanded = true; loadMonsters(); showNewMonsterInput = true; newMonsterInput = ''; }}>
+      <button class="add-btn" title="Neues Monster" onclick={createMonster}>
         +
       </button>
     </div>
@@ -908,21 +884,8 @@
               {/each}
             {/if}
           {/each}
-        {:else if !showNewMonsterInput}
+        {:else}
           <span class="empty">Keine Monster</span>
-        {/if}
-
-        {#if showNewMonsterInput}
-          <div class="new-file-row">
-            <input
-              class="new-file-input"
-              bind:value={newMonsterInput}
-              placeholder="Name…"
-              onkeydown={(e) => { createMonster(e); cancelNewMonster(e); }}
-              autofocus
-            />
-            <button class="confirm-btn" onclick={(e) => createMonster(e)}>✓</button>
-          </div>
         {/if}
       </div>
     {/if}
@@ -935,7 +898,7 @@
         <span class="arrow" class:open={spellsExpanded}>›</span>
         Zauber
       </button>
-      <button class="add-btn" title="Neuer Zauber" onclick={() => { spellsExpanded = true; loadSpells(); showNewSpellInput = true; newSpellName = ''; newSpellSchool = spellSchools[0] ?? ''; }}>
+      <button class="add-btn" title="Neuer Zauber" onclick={createSpell}>
         +
       </button>
     </div>
@@ -998,29 +961,6 @@
           {/each}
         {:else}
           <span class="empty">Keine Zauber</span>
-        {/if}
-
-        {#if showNewSpellInput}
-          <div class="new-monster-form">
-            <select
-              class="new-file-input"
-              bind:value={newSpellSchool}
-            >
-              {#each spellSchools as s}
-                <option value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-              {/each}
-            </select>
-            <div class="new-file-row">
-              <input
-                class="new-file-input"
-                bind:value={newSpellName}
-                placeholder="Name…"
-                onkeydown={(e) => { createSpell(e); cancelNewSpell(e); }}
-                autofocus
-              />
-              <button class="confirm-btn" onclick={(e) => createSpell(e)}>✓</button>
-            </div>
-          </div>
         {/if}
       </div>
     {/if}
