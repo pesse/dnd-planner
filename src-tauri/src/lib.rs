@@ -41,41 +41,6 @@ async fn http_request(req: HttpRequest) -> Result<String, String> {
     Ok(text)
 }
 
-/// Wie `http_request`, streamt die Antwort aber chunk-weise über einen Tauri-Channel.
-/// Nötig für OpenAI-kompatible SSE-Endpunkte hinter nginx: sobald Tokens fließen,
-/// greift der `proxy_read_timeout` (504) nicht mehr. Bei HTTP >= 400 wird der
-/// vollständige Fehler-Body als Err zurückgegeben (kein Stream).
-#[tauri::command]
-async fn http_stream(req: HttpRequest, on_chunk: tauri::ipc::Channel<String>) -> Result<(), String> {
-    let client = reqwest::Client::builder()
-        .use_rustls_tls()
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let method = reqwest::Method::from_bytes(req.method.as_bytes())
-        .map_err(|e| e.to_string())?;
-
-    let mut builder = client.request(method, &req.url);
-    for (k, v) in &req.headers {
-        builder = builder.header(k, v);
-    }
-    builder = builder.body(req.body);
-
-    let mut res = builder.send().await.map_err(|e| format!("Netzwerkfehler: {}", e))?;
-    let status = res.status().as_u16();
-    if status >= 400 {
-        let text = res.text().await.unwrap_or_default();
-        return Err(format!("HTTP {}: {}", status, text));
-    }
-
-    while let Some(chunk) = res.chunk().await.map_err(|e| e.to_string())? {
-        on_chunk
-            .send(String::from_utf8_lossy(&chunk).to_string())
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
 /// Findet das Projekt-Root (das Verzeichnis das "vault/" enthält)
 fn project_root() -> PathBuf {
     let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -693,7 +658,6 @@ pub fn run() {
             load_api_key,
             delete_api_key,
             http_request,
-            http_stream,
             get_vault_overview,
             export_vault,
             inspect_import_zip,

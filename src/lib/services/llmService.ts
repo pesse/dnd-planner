@@ -1,4 +1,5 @@
-import { invoke, Channel } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
@@ -89,7 +90,9 @@ async function rustFetchStream(
   body: Record<string, unknown>,
   meta: DebugMeta,
   onDelta?: (delta: string) => void,
+  signal?: AbortSignal,
 ): Promise<StreamResult> {
+  if (signal?.aborted) throw new Error('Agent abgebrochen.');
   const start = Date.now();
   const fullBody = { ...body, stream: true, stream_options: { include_usage: true } };
   logDebug({
@@ -125,8 +128,7 @@ async function rustFetchStream(
 
   // SSE-Frames (`data: …\n`) über Chunk-Grenzen hinweg puffern.
   let buffer = '';
-  const channel = new Channel<string>();
-  channel.onmessage = (chunk) => {
+  const processChunk = (chunk: string) => {
     buffer += chunk;
     let nl: number;
     while ((nl = buffer.indexOf('\n')) >= 0) {
@@ -140,10 +142,28 @@ async function rustFetchStream(
   };
 
   try {
-    await invoke('http_stream', {
-      req: { url, method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(fullBody) },
-      onChunk: channel,
+    // Rust-backed fetch (plugin-http) — derselbe Weg wie der Anthropic-SDK-Pfad:
+    // umgeht CORS, streamt den Body inkrementell und unterstützt echtes Abbrechen
+    // über das AbortSignal (`fetch_cancel`).
+    const res = await tauriFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(fullBody),
+      signal,
     });
+    if (res.status >= 400) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    if (!res.body) throw new Error('Keine Stream-Antwort erhalten.');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) processChunk(decoder.decode(value, { stream: true }));
+    }
+    processChunk(decoder.decode()); // Restpuffer leeren
   } catch (e) {
     logDebug({ provider: meta.provider, type: 'error', label: meta.label, data: String(e), durationMs: Date.now() - start });
     throw e;
@@ -247,7 +267,9 @@ async function openAiAgentLoop(
         authHeader,
         // parallel_tool_calls: false verbessert Zuverlässigkeit bei llama-Modellen erheblich
         { model: config.model, messages: msgs, tools: toolset.openAiTools, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
-        { provider: config.provider, label: `agent[${i}]` }
+        { provider: config.provider, label: `agent[${i}]` },
+        undefined,
+        signal,
       );
     } catch (e) {
       // Groq gibt HTTP 400 zurück wenn das Modell ungültige Tool-Calls generiert (z.B. <function> Tags).

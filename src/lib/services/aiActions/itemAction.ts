@@ -112,12 +112,27 @@ export function isItem(data: unknown): data is Item {
   return typeof d.name === 'string' && Array.isArray(d.desc) && typeof d.source === 'string';
 }
 
-/** Erzeugt die Item-Aktion; `categoryKey` (Ordner/Kategorie) lenkt den Output. */
-export function createItemAction(categoryKey?: string): AiAction<Item> {
+export interface CreateItemOptions {
+  /** Ziel-Kategorie (Ordner) — lenkt Basis-Wahl und item_type/equipment_category. */
+  categoryKey?: string;
+  /** Bestehender Gegenstand als Ausgangspunkt; macht die DnD-API-Recherche optional. */
+  template?: Item;
+  /** Vom Nutzer gewünschter (deutscher) Name. */
+  name?: string;
+}
+
+/** Erzeugt die Item-Aktion „Gegenstand per KI anlegen“. */
+export function createItemAction(opts: CreateItemOptions = {}): AiAction<Item> {
+  const { categoryKey, template, name } = opts;
+
   const catHint =
     categoryKey && CATEGORY_LABELS[categoryKey]
       ? `\n\nZielkategorie: **${CATEGORY_LABELS[categoryKey]}** (\`${categoryKey}\`). Wähle eine Basis dieser Kategorie und setze item_type/equipment_category passend.`
       : '';
+
+  const nameHint = name
+    ? `\n\nGewünschter Name: **„${name}“** — verwende ihn als \`name_de\` und leite einen passenden englischen \`name\` ab.`
+    : '';
 
   return {
     id: 'create-item',
@@ -128,6 +143,21 @@ export function createItemAction(categoryKey?: string): AiAction<Item> {
     jsonSchema: ITEM_SCHEMA,
     validate: isItem,
     buildSystemPrompt() {
+      if (template) {
+        return `Du bist ein Assistent für Dungeons & Dragons (5e). Du erstellst aus einer Vorlage und den Wünschen des Nutzers einen Gegenstand als JSON, der dem Schema der dnd5eapi.co entspricht.
+
+## Vorlage (Ausgangspunkt)
+\`\`\`json
+${JSON.stringify(template, null, 2)}
+\`\`\`
+
+## Vorgehen
+1. Nutze die Vorlage als Basis und übernimm ihre Spielwerte, solange die Beschreibung nichts anderes verlangt.
+2. Wende die Wünsche des Nutzers an: passe \`name\`, \`name_de\`, \`desc\` (Englisch), \`desc_de\` (Deutsch) und betroffene Spielwerte an. Wird der Gegenstand magisch, ergänze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`; ein Angriffs-/Schadensbonus (z.B. „+1“) gehört als Zahl in \`magic_bonus\`.
+3. Die DnD-API-Tools (\`search_dnd_api\`, \`get_dnd_api_resource\`) stehen bereit — nutze sie NUR, wenn dir Referenzwerte fehlen, die die Vorlage nicht abdeckt. Bei einer vollständigen Vorlage ist keine API-Abfrage nötig.
+4. Setze \`source\` immer auf "KI" und lasse \`index\` leer. Gib IMMER das VOLLSTÄNDIGE Item-JSON aus.${nameHint}${catHint}`;
+      }
+
       return `Du bist ein Assistent für Dungeons & Dragons (5e). Aus einer deutschen Beschreibung erstellst du einen Gegenstand als JSON, der dem Schema der dnd5eapi.co entspricht.
 
 ## Vorgehen
@@ -137,7 +167,7 @@ export function createItemAction(categoryKey?: string): AiAction<Item> {
 4. Ergänze die spezifischen Änderungen aus der Beschreibung: setze \`name\` (englischer Name), \`name_de\` (deutscher Name), \`desc\` (englische Beschreibung) und \`desc_de\` (deutsche Beschreibung). Wenn es ein magischer Gegenstand ist, setze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`. Gewährt eine magische Waffe einen Bonus auf Angriff/Schaden (z.B. „+1“), setze \`magic_bonus\` als Zahl (1, 2, 3).
 5. Setze \`source\` immer auf "KI". Übernimm Zahlenwerte (Gewicht, Reichweite) unverändert aus der Basis, soweit die Beschreibung nichts anderes sagt.
 
-Wenn die DnD-API nichts Passendes liefert, baue den Gegenstand plausibel selbst (Homebrew) und lasse \`index\` leer.${catHint}`;
+Wenn die DnD-API nichts Passendes liefert, baue den Gegenstand plausibel selbst (Homebrew) und lasse \`index\` leer.${nameHint}${catHint}`;
     },
   };
 }

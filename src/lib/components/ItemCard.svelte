@@ -33,7 +33,7 @@
   import DndApiSearch from './DndApiSearch.svelte';
   import LlmTranslate from './LlmTranslate.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import { DND_API, apiGet, getResource } from '$lib/services/dndApi';
+  import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
   import ItemEditModal from './ItemEditModal.svelte';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
@@ -304,97 +304,26 @@
 
   // ── DnD-API-Import ───────────────────────────────────────────────────────────
 
-  interface ApiResult {
-    index: string;
-    name: string;
-    url: string;
-    source: 'magic' | 'equipment';
-  }
-
   let apiRawResponse = $state<string | null>(null);
   let showApiRaw = $state(false);
   let importError = $state('');
 
-  async function searchItems(q: string): Promise<(ApiResult & { tag: string })[]> {
-    const [magicRaw, equipRaw] = await Promise.all([
-      apiGet(`${DND_API}/magic-items?name=${encodeURIComponent(q)}`),
-      apiGet(`${DND_API}/equipment?name=${encodeURIComponent(q)}`),
-    ]);
-    const magic = ((magicRaw as Record<string, unknown>).results as ApiResult[] ?? [])
-      .map((r) => ({ ...r, source: 'magic' as const, tag: 'magisch' }));
-    const equip = ((equipRaw as Record<string, unknown>).results as ApiResult[] ?? [])
-      .map((r) => ({ ...r, source: 'equipment' as const, tag: 'ausrüstung' }));
-    return [...magic, ...equip].slice(0, 15);
-  }
+  const searchItems = searchDndApiItems;
 
-  async function importFromApi(result: ApiResult) {
+  async function importFromApi(result: DndApiItemRef) {
     if (!draft) return;
     try {
       const data = await getResource(result.url);
       apiRawResponse = JSON.stringify(data, null, 2);
       showApiRaw = false;
 
-      let descArr = (data.desc as string[]) ?? [];
-      let attunement = false;
-      let attunement_by: string | null = null;
+      const item = mapApiResourceToItem(data, result.source);
+      Object.assign(draft, item);
 
-      if (result.source === 'magic') {
-        const firstLine = descArr[0] ?? '';
-        if (firstLine.toLowerCase().includes('requires attunement')) {
-          attunement = true;
-          const match = firstLine.match(/requires attunement(?: by ([^)]+))?/i);
-          attunement_by = match?.[1]?.trim() ?? null;
-          descArr = descArr.length > 1 ? descArr.slice(1) : descArr;
-        }
-      }
-
-      // item_type aus API-Quelle + Felder ableiten
-      let item_type: Item['item_type'];
-      if (result.source === 'magic') {
-        item_type = 'magic';
-      } else if (data.weapon_category) {
-        item_type = 'weapon';
-      } else if (data.armor_category || data.armor_class) {
-        item_type = 'armor';
-      } else {
-        item_type = 'gear';
-      }
-
-      Object.assign(draft, {
-        index:                data.index,
-        name:                 data.name,
-        name_de:              undefined,
-        item_type,
-        equipment_category:   data.equipment_category,
-        rarity:               data.rarity,
-        attunement,
-        attunement_by,
-        variant:              data.variant,
-        variants:             data.variants,
-        weapon_category:      data.weapon_category,
-        weapon_range:         data.weapon_range,
-        damage:               data.damage,
-        two_handed_damage:    data.two_handed_damage,
-        range:                data.range,
-        throw_range:          data.throw_range,
-        properties:           data.properties,
-        armor_category:       data.armor_category,
-        armor_class:          data.armor_class,
-        str_minimum:          data.str_minimum,
-        stealth_disadvantage: data.stealth_disadvantage,
-        desc:                 descArr,
-        desc_de:              undefined,
-        cost:                 data.cost,
-        weight:               data.weight,
-        source:               'SRD',
-        url:                  data.url,
-      });
-
-      draftDescText   = descArr.join('\n\n');
+      draftDescText   = item.desc.join('\n\n');
       draftDescDeText = '';
-      draftPropsText  = ((data.properties as Array<{index: string; name: string}> | undefined) ?? [])
-        .map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
-      draftRarityName = (data.rarity as {name: string} | undefined)?.name ?? '';
+      draftPropsText  = (item.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
+      draftRarityName = item.rarity?.name ?? '';
 
       importError = '';
     } catch (e) {

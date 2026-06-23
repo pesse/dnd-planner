@@ -52,6 +52,30 @@
   let error = $state('');
   let abort: AbortController | null = null;
 
+  // Live-Status, damit der Dialog während des Agenten-Laufs nicht eingefroren wirkt.
+  const STALL_MS = 50_000;
+  let nowMs = $state(0);
+  let runStartMs = 0;
+  let lastActivityMs = $state(0);
+  let tick: ReturnType<typeof setInterval> | null = null;
+  let userAborted = false;
+  let pendingRestart = false;
+
+  let elapsedSec = $derived(running ? Math.max(0, Math.floor((nowMs - runStartMs) / 1000)) : 0);
+  let stalledSec = $derived(running ? Math.max(0, Math.floor((nowMs - lastActivityMs) / 1000)) : 0);
+  let stalled = $derived(running && nowMs - lastActivityMs > STALL_MS);
+
+  function startClock() {
+    runStartMs = Date.now();
+    lastActivityMs = Date.now();
+    nowMs = Date.now();
+    tick = setInterval(() => { nowMs = Date.now(); }, 500);
+  }
+  function stopClock() {
+    if (tick) { clearInterval(tick); tick = null; }
+  }
+  onDestroy(() => { stopClock(); abort?.abort(); });
+
   let client = $derived(getClient($llmConfig));
   let canTools = $derived(client.capabilities.tools);
   let itemName = $derived(item.name_de || item.name || 'Gegenstand');
@@ -76,24 +100,37 @@
     running = true;
     error = '';
     steps = [];
+    userAborted = false;
     abort = new AbortController();
+    startClock();
     try {
       const action = editItemAction($state.snapshot(item) as Item);
       const revised = await runAiAction<Item>($llmConfig, action, instruction.trim(), {
-        onStep: (s) => { steps = [...steps, s]; },
+        onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
         signal: abort.signal,
       });
       onresult(revised);
       onclose();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      if (!userAborted) error = e instanceof Error ? e.message : String(e);
     } finally {
+      stopClock();
       running = false;
       abort = null;
+      if (pendingRestart) { pendingRestart = false; generate(); }
     }
   }
 
+  /** Bricht den Lauf ab (das wartende await löst sich sofort, s. rustFetchStream). */
   function stop() {
+    userAborted = true;
+    abort?.abort();
+  }
+
+  /** Bricht ab und startet sofort neu — für hängende/zu langsame Läufe. */
+  function retry() {
+    pendingRestart = true;
+    userAborted = true;
     abort?.abort();
   }
 </script>
@@ -141,11 +178,21 @@
 
   <div class="actions">
     {#if running}
+      {#if stalled}
+        <button class="secondary-btn" onclick={retry}>Neu versuchen</button>
+      {/if}
       <button class="secondary-btn" onclick={stop}>Abbrechen</button>
     {:else}
       <button class="primary-btn" onclick={generate} disabled={!instruction.trim() || !canTools}>Überarbeiten</button>
     {/if}
   </div>
+
+  {#if running}
+    <div class="ai-status">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>KI arbeitet… ({elapsedSec}s)</span>
+    </div>
+  {/if}
 
   {#if steps.length}
     <div class="steps">
@@ -156,6 +203,10 @@
         {/if}
       {/each}
     </div>
+  {/if}
+
+  {#if stalled}
+    <p class="hint warn">Seit {stalledSec}s keine Antwort — Verbindung oder Modell hängt evtl. Du kannst neu versuchen oder abbrechen.</p>
   {/if}
 
   {#if error}<p class="hint err">{error}</p>{/if}
@@ -217,6 +268,14 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft);
     padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
   }
+
+  .ai-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--ink-soft); }
+  .spinner {
+    width: 0.9rem; height: 0.9rem; flex-shrink: 0;
+    border: 2px solid var(--surface); border-top-color: var(--red); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .steps { display: flex; flex-direction: column; gap: 0.2rem; max-height: 160px; overflow-y: auto; padding: 0.3rem 0; }
   .step { font-size: 0.78rem; color: var(--ink-soft); }

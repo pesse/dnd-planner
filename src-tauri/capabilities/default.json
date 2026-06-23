@@ -14,7 +14,9 @@
         { "url": "http://localhost:*/**" },
         { "url": "http://127.0.0.1:*/**" },
         { "url": "https://api.anthropic.com/**" },
-        { "url": "https://api.groq.com/**" }
+        { "url": "https://api.groq.com/**" },
+        { "url": "https://api.x.ai/**" },
+        { "url": "https://code.qualityminds.ai/**" }
       ]
     },
     "http:allow-fetch-send",
