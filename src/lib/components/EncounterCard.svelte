@@ -1,15 +1,12 @@
 <script lang="ts">
-  import { activeFile, setFileContent, activeCampaign } from '../stores/campaign';
+  import { activeCampaign } from '../stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { pushError } from '../stores/errors';
   import type { Encounter, EncounterMonster, Monster } from '../types';
   import MonsterMiniCard from './MonsterMiniCard.svelte';
   import { buildPrintHtml, type PrintMonster } from '../utils/printEncounter';
   import { monsterLibrary, loadEncounterMonsters } from '../stores/context';
   import { monsterTypeLabel, normalizeMonster } from '../types';
-  import { registerEditorGuard } from '../stores/navigationGuard';
+  import { createCardEditor } from '../editor/cardEditor.svelte';
 
   function parseEncounter(json: string): Encounter | null {
     try {
@@ -43,85 +40,39 @@
     return DIFFICULTY_COLOR[d] ?? 'var(--ink-soft)';
   }
 
-  let draft = $state<Encounter | null>(null);
   let actMonsterBasePath = $state<string | undefined>(undefined);
-  let dirty = $state(false);
-  let saveError = $state('');
   let showJson = $state(false);
   let rawJson = $state('');
   let jsonError = $state('');
-  let lastSavedContent = $state('');
 
-  onMount(() => {
-    async function load(path: string) {
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        lastSavedContent = content;
-        const parsed = parseEncounter(content);
-        draft = parsed ? structuredClone(parsed) : null;
-        const match = path.match(/^(.*\/acts\/[^/]+)\/encounters\//);
-        actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
-        dirty = false;
-        saveError = '';
-        setFileContent(content);
-        loadEncounterMonsters(content, path);
-      } catch (e) {
-        pushError(`Encounter konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
-        draft = null;
-        lastSavedContent = '';
-      }
-    }
-
-    const initial = get(activeFile);
-    if (initial?.type === 'encounter' && initial.path) load(initial.path);
-
-    const unsub = activeFile.subscribe(file => {
-      if (file?.type === 'encounter' && file.path) load(file.path);
-    });
-    const unguard = registerEditorGuard({
-      isDirty: () => dirty,
-      save,
-      discard,
-    });
-    return () => { unsub(); unguard(); };
+  const ed = createCardEditor<Encounter>({
+    type: 'encounter',
+    label: 'Encounter',
+    parse: parseEncounter,
+    onLoad: (content, path) => {
+      const match = path.match(/^(.*\/acts\/[^/]+)\/encounters\//);
+      actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
+      loadEncounterMonsters(content, path);
+    },
   });
 
-  function mark() { dirty = true; }
-
-  async function save() {
-    if (!draft || !$activeFile?.path) return;
-    try {
-      const json = JSON.stringify(draft, null, 2);
-      lastSavedContent = json;
-      await invoke('write_file_content', { path: $activeFile.path, content: json });
-      setFileContent(json);
-      dirty = false;
-    } catch (e) {
-      saveError = `${e}`;
-    }
-  }
-
-  function discard() {
-    const parsed = parseEncounter(lastSavedContent);
-    draft = parsed ? structuredClone(parsed) : null;
-    dirty = false;
-    saveError = '';
-  }
+  // Lese-Aliase fürs bestehende Markup; Mutationen an draft.* triggern den Dirty-Check.
+  let draft = $derived(ed.draft);
+  let dirty = $derived(ed.dirty);
+  let saveError = $derived(ed.saveError);
+  let lastSavedContent = $derived(ed.lastSavedContent);
+  const save = () => ed.save();
+  const discard = () => ed.discard();
+  const mark = () => {}; // Dirty ist jetzt abgeleitet
 
   function openJson() { rawJson = JSON.stringify(draft, null, 2); jsonError = ''; showJson = true; }
   function cancelJson() { showJson = false; }
   async function saveJson() {
     try {
-      JSON.parse(rawJson);
+      JSON.parse(rawJson);   // Validierung
       jsonError = '';
-      const file = $activeFile;
-      if (file?.path) {
-        lastSavedContent = rawJson;
-        await invoke('write_file_content', { path: file.path, content: rawJson });
-        setFileContent(rawJson);
-      }
+      await ed.saveJson(rawJson);
       showJson = false;
-      dirty = false;
     } catch (e) {
       jsonError = `Ungültiges JSON: ${e}`;
     }

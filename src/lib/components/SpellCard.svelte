@@ -1,9 +1,4 @@
 <script lang="ts">
-  import { activeFile, setFileContent } from '$lib/stores/campaign';
-  import { invoke } from '@tauri-apps/api/core';
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { pushError } from '$lib/stores/errors';
   import type { Spell } from '$lib/types';
   import { spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
@@ -11,7 +6,7 @@
   import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import { registerEditorGuard } from '$lib/stores/navigationGuard';
+  import { createCardEditor } from '$lib/editor/cardEditor.svelte';
 
   function parseSpell(json: string): Spell | null {
     try {
@@ -20,74 +15,16 @@
     } catch { return null; }
   }
 
-  type Tab = 'karte' | 'bearbeiten' | 'json';
-  let tab       = $state<Tab>('bearbeiten');
-  let draft     = $state<Spell | null>(null);
-  let dirty     = $state(false);
-  let saveError = $state('');
-  let lastSavedContent = $state('');
+  const ed = createCardEditor<Spell>({ type: 'spell', label: 'Zauber', parse: parseSpell });
 
-  onMount(() => {
-    async function load(path: string) {
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        lastSavedContent = content;
-        draft = structuredClone(parseSpell(content));
-        dirty = false;
-        saveError = '';
-        tab = 'bearbeiten';
-        setFileContent(content);
-      } catch (e) {
-        pushError(`Zauber konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
-        draft = null;
-        lastSavedContent = '';
-      }
-    }
-
-    const initial = get(activeFile);
-    if (initial?.type === 'spell' && initial.path) load(initial.path);
-
-    const unsub = activeFile.subscribe(file => {
-      if (file?.type === 'spell' && file.path) load(file.path);
-    });
-    const unguard = registerEditorGuard({
-      isDirty: () => dirty,
-      save,
-      discard,
-    });
-    return () => { unsub(); unguard(); };
-  });
-
-  function mark() { dirty = true; }
-
-  async function save() {
-    if (!draft || !$activeFile?.path) return;
-    try {
-      const json = JSON.stringify(draft, null, 2);
-      lastSavedContent = json;
-      await invoke('write_file_content', { path: $activeFile.path, content: json });
-      setFileContent(json);
-      dirty = false;
-    } catch (e) {
-      saveError = `${e}`;
-    }
-  }
-
-  function discard() {
-    draft = structuredClone(parseSpell(lastSavedContent));
-    dirty = false;
-    saveError = '';
-  }
-
-  async function saveJson(json: string) {
-    const file = $activeFile;
-    if (!file?.path) return;
-    lastSavedContent = json;
-    await invoke('write_file_content', { path: file.path, content: json });
-    setFileContent(json);
-    draft = parseSpell(json);
-    dirty = false;
-  }
+  // Lese-Aliase fürs bestehende Markup; Schreibzugriffe (tab, draft-Bindung) gehen direkt auf ed.*
+  let draft = $derived(ed.draft);
+  let dirty = $derived(ed.dirty);
+  let saveError = $derived(ed.saveError);
+  let lastSavedContent = $derived(ed.lastSavedContent);
+  const save = () => ed.save();
+  const discard = () => ed.discard();
+  const saveJson = (json: string) => ed.saveJson(json);
 
   // ── Beschreibungs-Splitting für Kartenansicht ────────────────────────────────
 
@@ -202,7 +139,7 @@
 {#if draft}
   {@const color = SCHOOL_COLORS[draft.school] ?? 'var(--arcane)'}
   <EditorPanel
-    bind:tab
+    bind:tab={ed.tab}
     {dirty}
     {saveError}
     onsave={save}
@@ -263,15 +200,17 @@
     {/snippet}
 
     {#snippet bearbeiten()}
-      <div class="edit-wrap" style="--mef-accent: {color}">
-        <SpellEditForm bind:spell={draft!} onchange={mark} />
-      </div>
+      {#if ed.draft}
+        <div class="edit-wrap" style="--mef-accent: {color}">
+          <SpellEditForm bind:spell={ed.draft} />
+        </div>
+      {/if}
     {/snippet}
   </EditorPanel>
 {:else}
   <!-- Fehler-Fallback wenn kein Draft (ungültiges JSON oder noch nicht geladen) -->
   <EditorPanel
-    bind:tab
+    bind:tab={ed.tab}
     dirty={false}
     onsavejson={saveJson}
     getJson={() => lastSavedContent}
@@ -282,7 +221,7 @@
     {#snippet bearbeiten()}
       <p class="parse-error">
         Ungültiges Zauber-JSON.
-        <button onclick={() => tab = 'json'}>JSON bearbeiten</button>
+        <button onclick={() => ed.tab = 'json'}>JSON bearbeiten</button>
       </p>
     {/snippet}
   </EditorPanel>
