@@ -21,6 +21,7 @@
     blank,
     buildAction,
     nameOf,
+    onCreated,
     onclose,
   }: {
     type: FileEntry['type'];
