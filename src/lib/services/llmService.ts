@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, Channel } from '@tauri-apps/api/core';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
@@ -71,6 +71,94 @@ async function rustFetch(
   }
 }
 
+// ── Streaming (OpenAI-kompatibles SSE via Rust-Channel) ─────────────────────────
+
+interface StreamToolCall { id: string; type: 'function'; function: { name: string; arguments: string }; }
+interface StreamResult { content: string; toolCalls: StreamToolCall[]; finishReason: string; }
+
+/**
+ * Streamt eine OpenAI-kompatible `/chat/completions`-Antwort chunk-weise.
+ * Setzt `stream: true` + `stream_options.include_usage` und akkumuliert
+ * content + tool_calls (delta-basiert, indexiert) zu einem vollständigen Ergebnis.
+ * Verhindert nginx-504s, da der Server bereits Tokens sendet, bevor er fertig ist.
+ * `onDelta` (optional) erhält jeden content-Teil live (für UI-Streaming).
+ */
+async function rustFetchStream(
+  url: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+  meta: DebugMeta,
+  onDelta?: (delta: string) => void,
+): Promise<StreamResult> {
+  const start = Date.now();
+  const fullBody = { ...body, stream: true, stream_options: { include_usage: true } };
+  logDebug({
+    provider: meta.provider, type: 'request', label: meta.label,
+    data: { url, headers: sanitizeHeaders({ 'Content-Type': 'application/json', ...headers }), body: fullBody },
+  });
+
+  let content = '';
+  let finishReason = '';
+  let usage: { sent: number; received: number } | null = null;
+  const toolCalls: StreamToolCall[] = [];
+
+  const handleData = (json: Record<string, unknown>) => {
+    const u = json.usage as Record<string, number> | undefined;
+    if (u?.prompt_tokens != null) usage = { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
+    const choice = (json.choices as Array<Record<string, unknown>> | undefined)?.[0];
+    if (!choice) return;
+    const delta = (choice.delta as Record<string, unknown>) ?? {};
+    if (typeof delta.content === 'string') { content += delta.content; onDelta?.(delta.content); }
+    const deltaCalls = delta.tool_calls as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(deltaCalls)) {
+      for (const d of deltaCalls) {
+        const idx = (d.index as number) ?? 0;
+        toolCalls[idx] ??= { id: '', type: 'function', function: { name: '', arguments: '' } };
+        const f = d.function as Record<string, string> | undefined;
+        if (d.id) toolCalls[idx].id = d.id as string;
+        if (f?.name) toolCalls[idx].function.name = f.name;
+        if (f?.arguments) toolCalls[idx].function.arguments += f.arguments;
+      }
+    }
+    if (choice.finish_reason) finishReason = choice.finish_reason as string;
+  };
+
+  // SSE-Frames (`data: …\n`) über Chunk-Grenzen hinweg puffern.
+  let buffer = '';
+  const channel = new Channel<string>();
+  channel.onmessage = (chunk) => {
+    buffer += chunk;
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (payload === '' || payload === '[DONE]') continue;
+      try { handleData(JSON.parse(payload) as Record<string, unknown>); } catch { /* unvollständige Zeile überspringen */ }
+    }
+  };
+
+  try {
+    await invoke('http_stream', {
+      req: { url, method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(fullBody) },
+      onChunk: channel,
+    });
+  } catch (e) {
+    logDebug({ provider: meta.provider, type: 'error', label: meta.label, data: String(e), durationMs: Date.now() - start });
+    throw e;
+  }
+
+  const compact = toolCalls.filter(Boolean); // tool_calls können sparse indexiert sein
+  logDebug({
+    provider: meta.provider, type: 'response', label: meta.label,
+    data: { content, tool_calls: compact, finish_reason: finishReason, usage }, durationMs: Date.now() - start,
+  });
+  if (usage) addTokenUsage(usage);
+
+  return { content, toolCalls: compact, finishReason };
+}
+
 // ── Ollama ────────────────────────────────────────────────────────────────────
 
 export async function ollamaChat(config: LlmConfig, messages: ChatMessage[], temperature?: number): Promise<string> {
@@ -99,34 +187,34 @@ const XAI_API = 'https://api.x.ai/v1';
 const QUALITYMINDS_API = 'https://code.qualityminds.ai/v1';
 
 /** Gemeinsame Chat-Implementierung. `apiBase` + Key bestimmen den konkreten Provider. */
-async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number): Promise<string> {
+async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number, onDelta?: (delta: string) => void): Promise<string> {
   if (!config.apiKey) throw new Error(`Kein API-Key für ${config.provider} konfiguriert. Bitte unter ⚙ eintragen.`);
   const temp = effTemp(config, temperature);
-  const data = await rustFetch(
+  const { content } = await rustFetchStream(
     `${apiBase}/chat/completions`,
     { Authorization: `Bearer ${config.apiKey}` },
     { model: config.model, messages, ...(temp != null ? { temperature: temp } : {}) },
-    { provider: config.provider, label: 'chat' }
-  ) as Record<string, unknown>;
-  const choices = data.choices as Array<Record<string, unknown>>;
-  return (choices?.[0]?.message as Record<string, string>)?.content ?? '';
+    { provider: config.provider, label: 'chat' },
+    onDelta,
+  );
+  return content;
 }
 
-function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string, system?: string, temperature?: number): Promise<string> {
+function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string, system?: string, temperature?: number, onDelta?: (delta: string) => void): Promise<string> {
   const messages: ChatMessage[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
-  return openAiCompatChat(config, apiBase, messages, temperature);
+  return openAiCompatChat(config, apiBase, messages, temperature, onDelta);
 }
 
-export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, GROQ_API, m, t);
-export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, GROQ_API, p, s, t);
+export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, GROQ_API, m, t, onDelta);
+export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, GROQ_API, p, s, t, onDelta);
 
-export const xaiChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, XAI_API, m, t);
-export const xaiGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, XAI_API, p, s, t);
+export const xaiChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, XAI_API, m, t, onDelta);
+export const xaiGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, XAI_API, p, s, t, onDelta);
 
-export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number) => openAiCompatChat(c, QUALITYMINDS_API, m, t);
-export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t);
+export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta);
+export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t, onDelta);
 
 // ── Agentic Loop ──────────────────────────────────────────────────────────────
 
@@ -152,15 +240,15 @@ async function openAiAgentLoop(
 
   for (let i = 0; i < AGENT_MAX_ITERATIONS; i++) {
     if (signal?.aborted) throw new Error('Agent abgebrochen.');
-    let data: Record<string, unknown>;
+    let stream: StreamResult;
     try {
-      data = await rustFetch(
+      stream = await rustFetchStream(
         `${apiBase}/chat/completions`,
         authHeader,
         // parallel_tool_calls: false verbessert Zuverlässigkeit bei llama-Modellen erheblich
         { model: config.model, messages: msgs, tools: toolset.openAiTools, parallel_tool_calls: false, ...(temp != null ? { temperature: temp } : {}) },
         { provider: config.provider, label: `agent[${i}]` }
-      ) as Record<string, unknown>;
+      );
     } catch (e) {
       // Groq gibt HTTP 400 zurück wenn das Modell ungültige Tool-Calls generiert (z.B. <function> Tags).
       // Einmal korrigieren und nochmal versuchen.
@@ -180,35 +268,30 @@ async function openAiAgentLoop(
       throw e;
     }
 
-    const choice = (data.choices as Array<Record<string, unknown>>)?.[0];
-    const message = choice?.message as Record<string, unknown>;
-    const finishReason = choice?.finish_reason as string;
-
+    // Assistant-Message aus den gestreamten Deltas rekonstruieren (für die History).
+    const message: Record<string, unknown> = { role: 'assistant', content: stream.content || null };
+    if (stream.toolCalls.length) message.tool_calls = stream.toolCalls;
     msgs.push(message);
 
-    if (finishReason === 'stop') {
-      const text = (message?.content as string) ?? '';
-      onStep({ type: 'done', text });
-      return text;
+    // Tool-Calls vorhanden → ausführen und weiterloopen; sonst sind wir fertig.
+    if (stream.toolCalls.length === 0) {
+      onStep({ type: 'done', text: stream.content });
+      return stream.content;
     }
 
-    if (finishReason === 'tool_calls') {
-      const toolCalls = message.tool_calls as Array<Record<string, unknown>>;
-      for (const tc of toolCalls) {
-        const fn = tc.function as Record<string, string>;
-        const toolName = fn.name;
-        const toolArgs = JSON.parse(fn.arguments) as Record<string, string>;
+    for (const tc of stream.toolCalls) {
+      const toolName = tc.function.name;
+      const toolArgs = JSON.parse(tc.function.arguments || '{}') as Record<string, string>;
 
-        onStep({ type: 'tool_call', tool: toolName, args: toolArgs });
-        let result: string;
-        try {
-          result = await toolset.execute(toolName, toolArgs, writeFile);
-        } catch (e) {
-          result = `Error: ${e instanceof Error ? e.message : String(e)}`;
-        }
-        onStep({ type: 'tool_result', tool: toolName, result });
-        msgs.push({ role: 'tool', tool_call_id: tc.id as string, content: result });
+      onStep({ type: 'tool_call', tool: toolName, args: toolArgs });
+      let result: string;
+      try {
+        result = await toolset.execute(toolName, toolArgs, writeFile);
+      } catch (e) {
+        result = `Error: ${e instanceof Error ? e.message : String(e)}`;
       }
+      onStep({ type: 'tool_result', tool: toolName, result });
+      msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
     }
   }
 

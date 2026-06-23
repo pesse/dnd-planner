@@ -51,10 +51,12 @@ export interface LlmCapabilities {
 export interface LlmClient {
   readonly provider: LlmProvider;
   readonly capabilities: LlmCapabilities;
-  /** Konversation mit History. `task` wählt das Temperatur-Preset (Default: chat). */
-  chat(messages: ChatMessage[], task?: TaskKind): Promise<string>;
-  /** Einmaliger Output ohne History. `task` wählt das Temperatur-Preset. */
-  generate(prompt: string, system?: string, task?: TaskKind): Promise<string>;
+  /** Konversation mit History. `task` wählt das Temperatur-Preset (Default: chat).
+   *  `onDelta` (optional) erhält Token-Deltas live — nur bei streamenden Providern. */
+  chat(messages: ChatMessage[], task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
+  /** Einmaliger Output ohne History. `task` wählt das Temperatur-Preset.
+   *  `onDelta` (optional) erhält Token-Deltas live — nur bei streamenden Providern. */
+  generate(prompt: string, system?: string, task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
   /** Agentic Loop mit Vault-Tools. Nur vorhanden, wenn `capabilities.tools`. */
   agentLoop?(userMessage: string, systemPromptText: string, options: AgentOptions): Promise<string>;
 }
@@ -99,8 +101,8 @@ export function getClient(config: LlmConfig): LlmClient {
       return {
         provider: 'groq',
         capabilities: OPENAI_CAPS,
-        chat: (messages, task) => groqChat(config, messages, tempFor(task)),
-        generate: (prompt, system, task) => groqGenerate(config, prompt, system, tempFor(task)),
+        chat: (messages, task, onDelta) => groqChat(config, messages, tempFor(task), onDelta),
+        generate: (prompt, system, task, onDelta) => groqGenerate(config, prompt, system, tempFor(task), onDelta),
         agentLoop: (userMessage, systemPromptText, options) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options),
       };
@@ -109,8 +111,8 @@ export function getClient(config: LlmConfig): LlmClient {
       return {
         provider: 'xai',
         capabilities: OPENAI_CAPS,
-        chat: (messages, task) => xaiChat(config, messages, tempFor(task)),
-        generate: (prompt, system, task) => xaiGenerate(config, prompt, system, tempFor(task)),
+        chat: (messages, task, onDelta) => xaiChat(config, messages, tempFor(task), onDelta),
+        generate: (prompt, system, task, onDelta) => xaiGenerate(config, prompt, system, tempFor(task), onDelta),
         agentLoop: (userMessage, systemPromptText, options) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options),
       };
@@ -119,8 +121,8 @@ export function getClient(config: LlmConfig): LlmClient {
       return {
         provider: 'qualityminds',
         capabilities: OPENAI_CAPS,
-        chat: (messages, task) => qualitymindsChat(config, messages, tempFor(task)),
-        generate: (prompt, system, task) => qualitymindsGenerate(config, prompt, system, tempFor(task)),
+        chat: (messages, task, onDelta) => qualitymindsChat(config, messages, tempFor(task), onDelta),
+        generate: (prompt, system, task, onDelta) => qualitymindsGenerate(config, prompt, system, tempFor(task), onDelta),
         agentLoop: (userMessage, systemPromptText, options) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options),
       };

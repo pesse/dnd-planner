@@ -44,6 +44,14 @@
   let showSettings = $state(false);
   let generateResult = $state('');
   let expandedDebugId = $state<number | null>(null);
+  // Index der gerade live gestreamten Assistant-Nachricht in $llmMessages (null = kein Stream).
+  let streamingIndex = $state<number | null>(null);
+  // Chat-Scroll-Container — folgt dem Stream automatisch ans Ende.
+  let messagesEl = $state<HTMLDivElement | null>(null);
+  $effect(() => {
+    void $llmMessages; // Abhängigkeit: bei jedem (auch gestreamten) Update nach unten scrollen
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
 
   // Agent-Modus State
   let agentSteps = $state<AgentStep[]>([]);
@@ -221,20 +229,49 @@
           { role: 'user' as const, content: userMsg },
         ];
 
-        const response = await client.chat(messages, 'chat');
-        llmMessages.update((msgs) => [...msgs, { role: 'assistant', content: response }]);
+        // Leeren Assistant-Platzhalter anlegen und live mit Token-Deltas füllen.
+        let idx = -1;
+        llmMessages.update((msgs) => { idx = msgs.length; return [...msgs, { role: 'assistant', content: '' }]; });
+        streamingIndex = idx;
+        const onDelta = (delta: string) => {
+          llmMessages.update((msgs) => {
+            const copy = [...msgs];
+            copy[idx] = { ...copy[idx], content: copy[idx].content + delta };
+            return copy;
+          });
+        };
+
+        const response = await client.chat(messages, 'chat', onDelta);
+        // Finalen Content setzen (deckt nicht-streamende Provider ab; bei Stream idempotent).
+        llmMessages.update((msgs) => {
+          const copy = [...msgs];
+          copy[idx] = { ...copy[idx], content: response };
+          return copy;
+        });
       } else {
-        generateResult = '...';
-        generateResult = await client.generate(userMsg, $systemPrompt, 'creative');
+        generateResult = '';
+        const response = await client.generate(userMsg, $systemPrompt, 'creative', (d) => { generateResult += d; });
+        generateResult = response;
       }
     } catch (e) {
       const errMsg = `⚠️ Fehler: ${e instanceof Error ? e.message : JSON.stringify(e)}`;
       if (mode === 'chat') {
-        llmMessages.update((msgs) => [...msgs, { role: 'assistant', content: errMsg }]);
+        // Platzhalter mit Fehler füllen statt eine zweite Nachricht anzuhängen.
+        if (streamingIndex !== null) {
+          const idx = streamingIndex;
+          llmMessages.update((msgs) => {
+            const copy = [...msgs];
+            copy[idx] = { ...copy[idx], content: errMsg };
+            return copy;
+          });
+        } else {
+          llmMessages.update((msgs) => [...msgs, { role: 'assistant', content: errMsg }]);
+        }
       } else {
         generateResult = errMsg;
       }
     } finally {
+      streamingIndex = null;
       llmLoading.set(false);
     }
   }
@@ -756,11 +793,14 @@
 
   <!-- Chat -->
   {#if mode === 'chat'}
-    <div class="messages">
+    <div class="messages" bind:this={messagesEl}>
       {#each $llmMessages as msg, i}
         <div class="message {msg.role}">
           <span class="role">{msg.role === 'user' ? 'Du' : 'KI'}</span>
-          {#if msg.role === 'assistant' && hasCodeBlock(msg.content)}
+          {#if msg.role === 'assistant' && i === streamingIndex}
+            <!-- Live-Stream: Klartext + Cursor; Markdown/Code-Parsing erst nach Abschluss -->
+            <p class="streaming">{msg.content}<span class="stream-cursor"></span></p>
+          {:else if msg.role === 'assistant' && hasCodeBlock(msg.content)}
             {#each parseSegments(msg.content) as seg, si}
               {#if seg.type === 'code'}
                 {@const bk = `msg-${i}-${si}`}
@@ -797,7 +837,7 @@
           {:else}
             <p>{msg.content}</p>
           {/if}
-          {#if msg.role === 'assistant'}
+          {#if msg.role === 'assistant' && i !== streamingIndex}
             <div class="msg-apply-row">
               <button class="msg-apply-btn copy" onclick={() => copyMessage(msg.content, i)} title="Kopieren">
                 {copiedMsgIndex === i ? '✓' : '⎘'}
@@ -826,7 +866,7 @@
         </div>
       {/each}
 
-      {#if $llmLoading}
+      {#if $llmLoading && streamingIndex === null}
         <div class="message assistant loading">
           <span class="role">KI</span>
           <p>...</p>
@@ -1513,6 +1553,19 @@
     color: var(--ink);
     white-space: pre-wrap;
   }
+
+  /* Live-Stream-Cursor (blinkender Caret hinter dem zuletzt empfangenen Token) */
+  .stream-cursor {
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background: var(--ink);
+    opacity: 0.7;
+    animation: stream-blink 1s steps(2, start) infinite;
+  }
+  @keyframes stream-blink { 50% { opacity: 0; } }
 
   .md-response {
     font-size: 0.88rem;
