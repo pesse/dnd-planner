@@ -16,6 +16,7 @@ import { onMount } from 'svelte';
 import { get, writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '$lib/stores/campaign';
+import { preferredCardTab } from '$lib/stores/uiPrefs';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
 import { openSaveAs, slugify, type SaveAsBucket } from '$lib/editor/saveAs';
 import { pushError } from '$lib/stores/errors';
@@ -48,10 +49,8 @@ export interface CardEditorConfig<T> {
   parse: (content: string) => T | null;
   /** Draft → Dateiinhalt. Default: JSON.stringify(snapshot, null, 2). */
   serialize?: (draft: T) => string;
-  /** Start-Tab beim ersten Mount. Default 'bearbeiten'. */
+  /** Erzwingt einen festen Start-Tab (überschreibt den übergreifend gemerkten Modus). */
   defaultTab?: CardTab;
-  /** Tab über Navigation/Reload hinweg erhalten (Default: an). */
-  keepTabOnLoad?: boolean;
   /**
    * Serialisierter Vergleichsstand für den Dirty-Check. Default = serialize(draft).
    * Überschreiben, wenn zusätzlicher Komponenten-State zum Inhalt beiträgt
@@ -87,7 +86,14 @@ export class CardEditor<T> {
 
   constructor(cfg: CardEditorConfig<T>) {
     this.#cfg = cfg;
-    this.tab = cfg.defaultTab ?? 'bearbeiten';
+    // Start im übergreifend zuletzt gewählten Modus (Karte/Bearbeiten), sofern der
+    // Editor keinen festen defaultTab erzwingt.
+    this.tab = cfg.defaultTab ?? get(preferredCardTab);
+
+    // Tab-Wechsel des Nutzers übergreifend merken (json bewusst ausgenommen).
+    $effect(() => {
+      if (this.tab === 'karte' || this.tab === 'bearbeiten') preferredCardTab.set(this.tab);
+    });
 
     onMount(() => {
       const initial = get(activeFile);
@@ -146,7 +152,9 @@ export class CardEditor<T> {
       const content = await invoke<string>('read_file_content', { path });
       this.applyContent(content);
       this.isNew = false;
-      if (!(this.#cfg.keepTabOnLoad ?? true)) this.tab = this.#cfg.defaultTab ?? 'bearbeiten';
+      // Bestehenden Datensatz im übergreifend zuletzt gewählten Modus öffnen
+      // (fester defaultTab hat Vorrang).
+      this.tab = this.#cfg.defaultTab ?? get(preferredCardTab);
       this.#cfg.onLoad?.(content, path);
     } catch (e) {
       pushError(`${this.#cfg.label ?? 'Datensatz'} konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
