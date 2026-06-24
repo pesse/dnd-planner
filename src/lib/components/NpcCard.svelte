@@ -7,7 +7,7 @@
   import { getSpellLibrary, loadSpellByPath, searchSpells, SCHOOL_COLORS, type SpellSuggestion } from '../spellLibrary';
   import {
     getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    formatCost, formatRarity, formatDamageDice, ftToM,
+    formatCost, formatRarity, formatDamageDice, ftToM, structuralType,
     DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
     type ItemInfo, type ItemSuggestion,
   } from '../itemLibrary';
@@ -614,9 +614,9 @@
                 class:item-linked={!!libItem}
                 onclick={() => libItem && openItemPage(libItem)}
               >{libItem ? displayName(libItem) : item}</span>
-              {#if fullItem?.item_type === 'weapon' && fullItem.damage}
+              {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
                 <span class="item-inline-info">{inlineWeaponInfo(fullItem)}</span>
-              {:else if fullItem?.item_type === 'armor' && fullItem.armor_class}
+              {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
                 <span class="item-inline-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
               {:else if fullItem?.rarity}
                 <span class="item-inline-info">{formatRarity(fullItem.rarity)}</span>
@@ -706,16 +706,16 @@
       {#if tooltipItem.attunement}<span class="tt-badge tt-attune">Einstellung</span>{/if}
     </div>
     <div class="tt-meta">
-      {#if tooltipItem.item_type === 'weapon'}
+      {#if structuralType(tooltipItem) === 'weapon'}
         {WEAPON_CATEGORY_LABELS[tooltipItem.weapon_category ?? ''] ?? tooltipItem.weapon_category}
         · {WEAPON_RANGE_LABELS[tooltipItem.weapon_range ?? ''] ?? tooltipItem.weapon_range}
-      {:else if tooltipItem.item_type === 'armor'}
+      {:else if structuralType(tooltipItem) === 'armor'}
         {ARMOR_CATEGORY_LABELS[tooltipItem.armor_category ?? ''] ?? tooltipItem.armor_category}
       {:else if tooltipItem.rarity}
         {formatRarity(tooltipItem.rarity)}{#if tooltipItem.attunement_by} · für {tooltipItem.attunement_by}{/if}
       {/if}
     </div>
-    {#if tooltipItem.item_type === 'weapon' && tooltipItem.damage}
+    {#if structuralType(tooltipItem) === 'weapon' && tooltipItem.damage}
       <div class="tt-section">
         <span class="tt-label">Schaden</span>
         <span>{formatDamageDice(tooltipItem.damage.damage_dice)} {DAMAGE_TYPE_LABELS[tooltipItem.damage.damage_type.index] ?? tooltipItem.damage.damage_type.name}{#if tooltipItem.two_handed_damage} · 2H: {formatDamageDice(tooltipItem.two_handed_damage.damage_dice)}{/if}</span>
@@ -723,7 +723,7 @@
       {#if tooltipItem.range}<div class="tt-section"><span class="tt-label">Reichweite</span><span>{ftToM(tooltipItem.range.normal)}{tooltipItem.range.long ? ` / ${ftToM(tooltipItem.range.long)}` : ''}</span></div>{/if}
       {#if tooltipItem.throw_range}<div class="tt-section"><span class="tt-label">Wurfweite</span><span>{ftToM(tooltipItem.throw_range.normal)} / {ftToM(tooltipItem.throw_range.long)}</span></div>{/if}
       {#if tooltipProperties(tooltipItem)}<div class="tt-section"><span class="tt-label">Eigenschaften</span><span>{tooltipProperties(tooltipItem)}</span></div>{/if}
-    {:else if tooltipItem.item_type === 'armor' && tooltipItem.armor_class}
+    {:else if structuralType(tooltipItem) === 'armor' && tooltipItem.armor_class}
       <div class="tt-section">
         <span class="tt-label">RK</span>
         <span>{tooltipItem.armor_class.base}{tooltipItem.armor_class.dex_bonus ? ' + GES-Mod' : ''}{tooltipItem.armor_class.max_bonus != null ? ` (max. ${tooltipItem.armor_class.max_bonus})` : ''}</span>

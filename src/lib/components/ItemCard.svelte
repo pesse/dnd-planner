@@ -17,9 +17,11 @@
     WEAPON_CATEGORY_LABELS,
     WEAPON_RANGE_LABELS,
     ARMOR_CATEGORY_LABELS,
-    ITEM_TYPE_LABELS,
     API_CATEGORY_MAP,
     ITEMS_PATH,
+    dirOf,
+    structuralType,
+    isMagicItem,
     invalidateItemCache,
     formatCost,
     formatRarity,
@@ -44,23 +46,8 @@
   const COST_UNITS = ['gp', 'sp', 'cp', 'ep', 'pp'];
   const ARMOR_CATEGORIES = ['Light', 'Medium', 'Heavy', 'Shield'];
 
-  /** Aktueller Kategorie-Schlüssel (= Ordnername). */
-  function categoryKeyOf(item: Item): string {
-    const idx = item.equipment_category?.index;
-    if (idx) return API_CATEGORY_MAP[idx] ?? 'other';
-    if (item.item_type === 'weapon') return 'weapon';
-    if (item.item_type === 'armor')  return 'armor';
-    if (item.item_type === 'magic')  return 'wondrous-items';
-    return 'other';
-  }
-
-  /** Kategorie → item_type (steuert die Formularfelder). */
-  function categoryToItemType(catKey: string): 'weapon' | 'armor' | 'magic' | 'gear' {
-    if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
-    if (catKey === 'armor') return 'armor';
-    if (['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-items'].includes(catKey)) return 'magic';
-    return 'gear';
-  }
+  /** Aktueller Kategorie-Schlüssel (= Ordnername). Quelle: equipment_category (via dirOf). */
+  const categoryKeyOf = dirOf;
 
   /** Kategorie-Schlüssel → DnD-API-konformer Anzeigename (z.B. "wondrous-items" → "Wondrous Items"). */
   function categoryApiName(catKey: string): string {
@@ -70,10 +57,9 @@
   function setDraftCategory(catKey: string) {
     if (!draft) return;
     draft.equipment_category = { index: catKey, name: categoryApiName(catKey) };
-    draft.item_type = categoryToItemType(catKey);
   }
 
-  // Farbe aus equipment_category oder item_type ableiten
+  // Farbe aus equipment_category ableiten
   function categoryColor(item: Item): string {
     return CATEGORY_COLORS[categoryKeyOf(item)] ?? 'var(--arcane)';
   }
@@ -450,7 +436,7 @@
             <span class="header-rarity">{formatRarity(item.rarity)}</span>
           {/if}
           <!-- Waffe: Kategorie + Reichweite -->
-          {#if item.item_type === 'weapon' && (item.weapon_category || item.weapon_range)}
+          {#if structuralType(item) === 'weapon' && (item.weapon_category || item.weapon_range)}
             <span class="header-weapon">
               {#if item.weapon_category}{WEAPON_CATEGORY_LABELS[item.weapon_category] ?? item.weapon_category}{/if}
               {#if item.weapon_category && item.weapon_range} · {/if}
@@ -458,7 +444,7 @@
             </span>
           {/if}
           <!-- Rüstung: Kategorie -->
-          {#if item.item_type === 'armor' && item.armor_category}
+          {#if structuralType(item) === 'armor' && item.armor_category}
             <span class="header-armor">{ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category}</span>
           {/if}
           <!-- Übergeordnete Kategorie -->
@@ -475,7 +461,7 @@
       </div>
 
       <!-- Eigenschaften je nach Typ -->
-      {#if item.item_type === 'weapon'}
+      {#if structuralType(item) === 'weapon'}
         {#if item.damage || item.range || item.properties?.length || item.cost || item.weight != null}
           <div class="card-props">
             {#if item.damage}
@@ -527,7 +513,7 @@
           <div class="card-divider"></div>
         {/if}
 
-      {:else if item.item_type === 'armor'}
+      {:else if structuralType(item) === 'armor'}
         {#if item.armor_class || item.str_minimum || item.stealth_disadvantage != null || item.cost || item.weight != null}
           <div class="card-props">
             {#if item.armor_class}
@@ -596,8 +582,8 @@
       <div class="card-divider"></div>
       <div class="card-footer">
         <span class="footer-source">{item.source}</span>
-        {#if item.item_type}
-          <span class="footer-type">{ITEM_TYPE_LABELS[item.item_type] ?? item.item_type}</span>
+        {#if item.equipment_category}
+          <span class="footer-type">{CATEGORY_LABELS[categoryKeyOf(item)] ?? item.equipment_category.name}</span>
         {/if}
         {#if item.desc_de?.length}
           <span class="footer-translated">DE</span>
@@ -658,7 +644,8 @@
       <!-- Typ-spezifische Felder -->
       <div class="card-props">
 
-        {#if draft.item_type === 'magic'}
+        <!-- Magie-Facette (additiv, unabhängig vom Strukturtyp): auch eine magische Waffe zeigt das -->
+        {#if isMagicItem(draft)}
           <!-- Seltenheit + Einstimmung -->
           <div class="prop-row">
             <span class="prop-label">Seltenheit</span>
@@ -682,8 +669,10 @@
               <input class="edit-input" bind:value={draft.attunement_by} placeholder="z.B. by a wizard" />
             </div>
           {/if}
+        {/if}
 
-        {:else if draft.item_type === 'weapon'}
+        <!-- Statwerte-Block nach Strukturtyp (= Kategorie): eine magische Waffe bekommt hier ihre Waffenfelder -->
+        {#if structuralType(draft) === 'weapon'}
           <!-- Waffe: Kategorie, Reichweite, Schaden, Eigenschaften -->
           <div class="prop-row">
             <span class="prop-label">Kategorie</span>
@@ -791,7 +780,7 @@
               placeholder="z.B. 1 (leer = keiner)" />
           </div>
 
-        {:else if draft.item_type === 'armor'}
+        {:else if structuralType(draft) === 'armor'}
           <!-- Rüstung: Kategorie, RK, Stärke, Heimlichkeit -->
           <div class="prop-row">
             <span class="prop-label">Kategorie</span>

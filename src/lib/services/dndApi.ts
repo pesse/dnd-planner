@@ -67,9 +67,9 @@ export async function searchDndApiItems(q: string): Promise<DndApiItemRef[]> {
 
 /**
  * Wandelt eine rohe DnD-API-Ressource (via {@link getResource}) in unser
- * `Item`-Schema. Übernimmt Spielwerte 1:1, leitet `item_type` aus Quelle und
- * Feldern ab und extrahiert die Einstimmung aus der Beschreibung magischer
- * Gegenstände. `source` ist immer `"SRD"`.
+ * `Item`-Schema. Übernimmt Spielwerte 1:1; `equipment_category` (die einzige
+ * Typ-Quelle) kommt direkt aus der API und extrahiert die Einstimmung aus der
+ * Beschreibung magischer Gegenstände. `source` ist immer `"SRD"`.
  */
 export function mapApiResourceToItem(
   data: Record<string, unknown>,
@@ -89,23 +89,23 @@ export function mapApiResourceToItem(
     }
   }
 
-  let item_type: Item['item_type'];
-  if (source === 'magic') {
-    item_type = 'magic';
-  } else if (data.weapon_category) {
-    item_type = 'weapon';
-  } else if (data.armor_category || data.armor_class) {
-    item_type = 'armor';
-  } else {
-    item_type = 'gear';
+  // equipment_category ist die einzige Typ-Quelle. Die API liefert sie granular mit;
+  // fehlt sie ausnahmsweise (manche magischen Gegenstände), sinnvoll defaulten.
+  let equipment_category = data.equipment_category as Item['equipment_category'];
+  if (!equipment_category?.index) {
+    const idx = source === 'magic' ? 'wondrous-items'
+      : data.weapon_category ? 'weapon'
+      : (data.armor_category || data.armor_class) ? 'armor'
+      : 'adventuring-gear';
+    const name = idx.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    equipment_category = { index: idx, name };
   }
 
   return {
     index:                data.index as string,
     name:                 data.name as string,
     name_de:              undefined,
-    item_type,
-    equipment_category:   data.equipment_category as Item['equipment_category'],
+    equipment_category,
     rarity:               data.rarity as Item['rarity'],
     attunement,
     attunement_by,

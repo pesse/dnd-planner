@@ -94,13 +94,6 @@ export const DAMAGE_TYPE_LABELS: Record<string, string> = {
   psychic:     'Psychischer Schaden',
 };
 
-export const ITEM_TYPE_LABELS: Record<string, string> = {
-  weapon: 'Waffe',
-  armor:  'Rüstung',
-  magic:  'Magischer Gegenstand',
-  gear:   'Ausrüstung',
-};
-
 export const WEAPON_CATEGORY_LABELS: Record<string, string> = {
   Martial: 'Kriegswaffe',
   Simple:  'Einfache Waffe',
@@ -211,33 +204,46 @@ export const API_CATEGORY_MAP: Record<string, string> = {
   'potion':              'potion',
 };
 
-// ── Anlage-Helfer (Create-Modal) ──────────────────────────────────────────────
+// ── Typ-Ableitung (Single Source of Truth = equipment_category) ───────────────
 
-/** Kategorie-Schlüssel (Ordner) → item_type. */
-export function categoryToItemType(catKey: string): Item['item_type'] {
+/** Grobe „Schublade" einer Kategorie. Magie-Kategorien (Ring, Trank …) liefern hier `magic`. */
+export function categoryToCoarseType(catKey: string): 'weapon' | 'armor' | 'magic' | 'gear' {
   if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
   if (catKey === 'armor') return 'armor';
   if (['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-items'].includes(catKey)) return 'magic';
   return 'gear';
 }
 
-/** Leitet den Zielordner (Kategorie) aus einem Item ab. */
+/** Leitet den Zielordner (Kategorie) aus einem Item ab — einzig aus `equipment_category`. */
 export function dirOf(item: Item): string {
   const idx = item.equipment_category?.index;
-  if (idx) return API_CATEGORY_MAP[idx] ?? 'other';
-  if (item.item_type === 'weapon') return 'weapon';
-  if (item.item_type === 'armor') return 'armor';
-  if (item.item_type === 'magic') return 'wondrous-items';
-  return 'other';
+  return idx ? (API_CATEGORY_MAP[idx] ?? 'other') : 'other';
 }
 
-/** Leeres Item für die gewählte Kategorie (item_type/equipment_category passend gesetzt). */
+/**
+ * Struktureller Typ (steuert, welcher Statwerte-Block angezeigt wird): rein aus
+ * `equipment_category` abgeleitet, damit Anzeige, Ordner und Dropdown immer übereinstimmen.
+ * Reine Magie-Kategorien (Ring, Trank …) haben keine Waffen-/Rüstungswerte → wie „gear".
+ */
+export function structuralType(item: Item): 'weapon' | 'armor' | 'gear' {
+  const t = categoryToCoarseType(dirOf(item));
+  return t === 'magic' ? 'gear' : t;
+}
+
+/** Hat das Item magische Facetten (Magie-Kategorie oder Seltenheit/Einstimmung/Bonus)? */
+export function isMagicItem(item: Item): boolean {
+  return categoryToCoarseType(dirOf(item)) === 'magic'
+    || !!item.rarity || !!item.attunement || item.magic_bonus != null;
+}
+
+// ── Anlage-Helfer (Create-Modal) ──────────────────────────────────────────────
+
+/** Leeres Item für die gewählte Kategorie (equipment_category passend gesetzt). */
 export function blankItem(name: string, dir: string): Item {
   const apiName = dir.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   return {
     name,
     name_de: name,
-    item_type: categoryToItemType(dir),
     equipment_category: { index: dir, name: apiName },
     desc: [],
     desc_de: [],

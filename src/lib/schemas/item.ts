@@ -14,8 +14,12 @@ export const itemSchema = z.object({
   index: z.string().optional().describe('API-Slug der Basis (z.B. "warhammer"), leer bei Homebrew.'),
   name: z.string().describe('Originalname (Englisch).'),
   name_de: z.string().optional().describe('Deutscher Name.'),
-  item_type: z.enum(['weapon', 'armor', 'magic', 'gear']).optional(),
-  equipment_category: namedRef().optional(),
+  equipment_category: namedRef().describe(
+    'Kategorie als {index, name} im DnD-API-Format — die EINZIGE Typ-Quelle. ' +
+      'index ist einer von: weapon, armor, ammunition, adventuring-gear, tools, mounts-and-vehicles, ' +
+      'ring, rod, staff, wand, scroll, potion, wondrous-items. ' +
+      'Eine magische Waffe bleibt "weapon"; Magie wird über rarity/attunement/magic_bonus ausgedrückt, NICHT über die Kategorie.',
+  ),
   rarity: z
     .object({ name: z.string().describe('z.B. Uncommon, Rare, Very Rare, Legendary') })
     .optional(),
@@ -53,11 +57,15 @@ export const itemSchema = z.object({
 
 export type Item = z.infer<typeof itemSchema>;
 
-const WEAPON_CATS = ['weapon', 'martial-melee', 'martial-ranged', 'simple-melee', 'simple-ranged', 'ammunition'];
-const ARMOR_CATS = ['armor', 'light-armor', 'medium-armor', 'heavy-armor', 'shields'];
-const MAGIC_CATS = ['ring', 'wundersam', 'trank', 'stab', 'schriftrolle', 'wondrous-items', 'potion', 'rod', 'staff', 'wand', 'scroll'];
+/** Großschreibung je Wort für einen Slug („wondrous-items" → „Wondrous Items"). */
+function titleizeSlug(slug: string): string {
+  return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
-/** Migriert Altformat-Felder und leitet `item_type` ab, bevor das Schema greift. Idempotent. */
+/**
+ * Migriert Altformat-Felder, sorgt für ein vorhandenes `equipment_category` (die einzige
+ * Typ-Quelle) und entfernt das abgelöste `item_type`. Idempotent.
+ */
 export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const r = { ...(raw as Record<string, unknown>) };
@@ -77,12 +85,20 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   }
   if (!Array.isArray(r.desc)) r.desc = [];
 
-  if (!r.item_type) {
-    const cat = (r.equipment_category as { index?: string } | undefined)?.index ?? '';
-    if (r.weapon_category || r.damage || WEAPON_CATS.includes(cat)) r.item_type = 'weapon';
-    else if (r.armor_category || r.armor_class || ARMOR_CATS.includes(cat)) r.item_type = 'armor';
-    else if (r.rarity || MAGIC_CATS.includes(cat)) r.item_type = 'magic';
-    else r.item_type = 'gear';
+  // equipment_category ist die einzige Typ-Quelle. Fehlt sie (Altbestand), aus den
+  // vorhandenen Feldern bzw. dem abgelösten item_type ableiten.
+  const hasCat = !!(r.equipment_category as { index?: string } | undefined)?.index;
+  if (!hasCat) {
+    let idx: string;
+    if (r.weapon_category || r.damage) idx = 'weapon';
+    else if (r.armor_category || r.armor_class) idx = 'armor';
+    else if (r.item_type === 'weapon') idx = 'weapon';
+    else if (r.item_type === 'armor') idx = 'armor';
+    else if (r.item_type === 'magic' || r.rarity) idx = 'wondrous-items';
+    else idx = 'adventuring-gear';
+    r.equipment_category = { index: idx, name: titleizeSlug(idx) };
   }
+  delete r.item_type;
+
   return r;
 }

@@ -12,7 +12,7 @@ export interface CreateActionOptions<T> {
   template?: T;
   /** Vom Nutzer gewünschter Name. */
   name?: string;
-  /** Ziel-Kategorie (nur Item) — lenkt Basis-Wahl und item_type/equipment_category. */
+  /** Ziel-Kategorie (nur Item) — lenkt Basis-Wahl und equipment_category. */
   categoryKey?: string;
 }
 
