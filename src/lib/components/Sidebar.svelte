@@ -24,9 +24,8 @@
   import { parseCharacterData, emptySpells, type CharacterJSON } from '../pdf/characterFields';
   import {
     ITEMS_PATH,
-    CATEGORY_COLORS as ITEM_CAT_COLORS,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
-    DIR_TO_CATEGORY,
+    rarityColor,
     invalidateItemCache,
     getItemsByDir,
     searchItems,
@@ -556,7 +555,7 @@
 
   let itemsExpanded = $state(false);
   let itemDirs: string[] = $state([]);
-  let itemsByDir: Record<string, { filename: string; name: string }[]> = $state({});
+  let itemsByDir: Record<string, { filename: string; name: string; rarity?: string }[]> = $state({});
   let openItemDirs: Record<string, boolean> = $state({});
   let itemSearch = $state('');
   let showItemModal = $state(false);
@@ -573,7 +572,7 @@
   let itemSearchResults = $derived.by(() => {
     const q = itemSearch.trim().toLowerCase();
     if (!q) return null;
-    const results: { dir: string; filename: string; name: string }[] = [];
+    const results: { dir: string; filename: string; name: string; rarity?: string }[] = [];
     for (const dir of itemDirs) {
       for (const item of itemsByDir[dir] ?? []) {
         if (item.name.toLowerCase().includes(q)) results.push({ dir, ...item });
@@ -601,9 +600,9 @@
           try {
             const content = await invoke<string>('read_file_content', { path });
             const data = JSON.parse(content);
-            return { filename: f, name: data.name_de ?? data.name ?? f.replace('.json', '') };
+            return { filename: f, name: data.name_de ?? data.name ?? f.replace('.json', ''), rarity: data.rarity?.name ?? '' };
           } catch {
-            return { filename: f, name: f.replace('.json', '') };
+            return { filename: f, name: f.replace('.json', ''), rarity: '' };
           }
         })
       );
@@ -1101,7 +1100,7 @@
       <div class="file-list">
         {#if itemSearchResults !== null}
           {#if itemSearchResults.length}
-            {#each itemSearchResults as { dir, filename, name }}
+            {#each itemSearchResults as { dir, filename, name, rarity }}
               <div class="entry-row">
                 <button
                   class="file-entry monster-subentry"
@@ -1109,7 +1108,7 @@
                   onclick={() => openItem(dir, filename)}
                   title={dir}
                 >
-                  {name}
+                  <span class="rarity-dot" style="background:{rarityColor(rarity)}"></span>{name}
                 </button>
                 {@render delBtn(() => deleteEntry(`${ITEMS_PATH}/${dir}/${filename}`, name, false, () => { invalidateItemCache(dir); return loadItemDir(dir); }))}
               </div>
@@ -1119,12 +1118,9 @@
           {/if}
         {:else if itemDirs.length}
           {#each itemDirs as dir}
-            {@const catKey = DIR_TO_CATEGORY[dir] ?? 'other'}
-            {@const catColor = ITEM_CAT_COLORS[catKey] ?? 'var(--ink)'}
             {@const dirItems = itemsByDir[dir]}
             <button
-              class="monster-group-header"
-              style="color: {catColor}"
+              class="monster-group-header item-group-header"
               onclick={() => toggleItemDir(dir)}
             >
               <span class="arrow" class:open={openItemDirs[dir]}>›</span>
@@ -1133,14 +1129,14 @@
             </button>
             {#if openItemDirs[dir]}
               {#if dirItems}
-                {#each dirItems as { filename, name }}
+                {#each dirItems as { filename, name, rarity }}
                   <div class="entry-row">
                     <button
                       class="file-entry monster-subentry"
                       class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
                       onclick={() => openItem(dir, filename)}
                     >
-                      {name}
+                      <span class="rarity-dot" style="background:{rarityColor(rarity)}"></span>{name}
                     </button>
                     {@render delBtn(() => deleteEntry(`${ITEMS_PATH}/${dir}/${filename}`, name, false, () => { invalidateItemCache(dir); return loadItemDir(dir); }))}
                   </div>
@@ -1603,6 +1599,10 @@
 
   .monster-group-header:hover { color: var(--ink); }
 
+  /* Item-Gruppen tragen keine Kategoriefarbe — der Farbcode liegt (per Seltenheit) auf den Items. */
+  .item-group-header { color: var(--ink-soft); }
+  .item-group-header:hover { color: var(--ink); }
+
   .monster-group-header .arrow {
     display: inline-block;
     font-size: 0.9rem;
@@ -1622,6 +1622,17 @@
 
   .monster-subentry {
     padding-left: 3.5rem;
+  }
+
+  /* Seltenheits-Punkt vor Item-Einträgen (Farbe = Seltenheit) */
+  .rarity-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-right: 0.45rem;
+    vertical-align: middle;
+    flex-shrink: 0;
   }
 
   .new-monster-form {

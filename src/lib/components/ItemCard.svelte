@@ -6,7 +6,6 @@
   import { pushError } from '$lib/stores/errors';
   import type { Item } from '$lib/types';
   import {
-    CATEGORY_COLORS,
     CATEGORY_LABELS,
     CATEGORY_TO_DIR,
     RARITY_LABELS,
@@ -17,11 +16,11 @@
     WEAPON_CATEGORY_LABELS,
     WEAPON_RANGE_LABELS,
     ARMOR_CATEGORY_LABELS,
-    API_CATEGORY_MAP,
     ITEMS_PATH,
     dirOf,
     structuralType,
     isMagicItem,
+    rarityColor,
     invalidateItemCache,
     formatCost,
     formatRarity,
@@ -32,6 +31,8 @@
   } from '$lib/itemLibrary';
   import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
   import { normalizeItem } from '$lib/utils/schemaValidation';
+  import { prepareItemPrint } from '$lib/utils/printItem';
+  import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
@@ -59,11 +60,6 @@
     draft.equipment_category = { index: catKey, name: categoryApiName(catKey) };
   }
 
-  // Farbe aus equipment_category ableiten
-  function categoryColor(item: Item): string {
-    return CATEGORY_COLORS[categoryKeyOf(item)] ?? 'var(--arcane)';
-  }
-
   // ── State ────────────────────────────────────────────────────────────────────
 
   let rawJson = $state('');
@@ -81,13 +77,13 @@
       try {
         const content = await invoke<string>('read_file_content', { path });
         // Editier-State zurücksetzen, damit das neue Item frisch initialisiert.
-        // Bleibt der Tab auf „Bearbeiten", öffnet der $effect das neue Item direkt
-        // im Bearbeiten-Modus (sonst Kartenansicht).
         editing = false;
         draft = null;
         apiRawResponse = null;
         importError = '';
         showSaveAs = false;
+        // Im übergreifend zuletzt gewählten Modus öffnen (Karte/Bearbeiten).
+        tab = get(preferredCardTab);
         rawJson = content;
         setFileContent(content);
       } catch (e) {
@@ -145,7 +141,7 @@
   });
   let item = $derived(parsed.item);
   let parseError = $derived(parsed.parseError);
-  let color = $derived(item ? categoryColor(item) : 'var(--arcane)');
+  let color = $derived(rarityColor(item?.rarity));
 
   // ── Bearbeiten ───────────────────────────────────────────────────────────────
 
@@ -169,6 +165,11 @@
   // Beim Wechsel auf Bearbeiten-Tab Draft initialisieren
   $effect(() => {
     if (tab === 'bearbeiten' && !editing && item) startEdit();
+  });
+
+  // Tab-Wechsel übergreifend merken (json bewusst ausgenommen).
+  $effect(() => {
+    if (tab === 'karte' || tab === 'bearbeiten') preferredCardTab.set(tab);
   });
   let draftDescText  = $state('');
   let draftDescDeText = $state('');
@@ -407,6 +408,25 @@
     draftPropsText  = (result.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
     draftRarityName = result.rarity?.name ?? '';
   }
+
+  /** Druckt den aktuellen Gegenstand als PDF (eine Karte, nur deutsche Beschreibung). */
+  function printItem() {
+    if (!item) return;
+    const html = prepareItemPrint(item, document);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument!;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      const prev = document.title;
+      document.title = item!.name_de ?? item!.name;
+      iframe.contentWindow!.focus();
+      iframe.contentWindow!.print();
+      document.title = prev;
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    }, 0);
+  }
 </script>
 
 <EditorPanel
@@ -419,175 +439,98 @@
   style="--ep-accent: {color}"
 >
 
+{#snippet tabactions()}
+  <button class="pdf-tab-btn" onclick={printItem} disabled={!item}>PDF</button>
+{/snippet}
+
 {#snippet karte()}
   {#if item}
-    <!-- ── Anzeigemodus ── -->
-    <div class="item-card" style="--cat-color: {color}">
-      <div class="card-header">
-        <div class="header-top">
-          <div class="header-name">{item.name_de ?? item.name}</div>
-        </div>
-        {#if item.name_de}
-          <div class="header-original">{item.name}</div>
-        {/if}
-        <div class="header-sub">
-          <!-- Magisch: Seltenheit -->
-          {#if item.rarity}
-            <span class="header-rarity">{formatRarity(item.rarity)}</span>
+    {@const stype = structuralType(item)}
+    {@const cat = categoryKeyOf(item)}
+    <!-- ── Anzeigemodus (Kartenstil, getönt nach Seltenheit) ── -->
+    <div class="cards-wrap">
+      <div class="item-card-view" style="--c: {color}">
+        <div class="head">
+          <div class="name">{item.name_de ?? item.name}</div>
+          {#if item.name_de}<div class="name-en">{item.name}</div>{/if}
+          <div class="meta">
+            {#if item.rarity}{formatRarity(item.rarity)} · {/if}{CATEGORY_LABELS[cat] ?? item.equipment_category?.name ?? ''}
+          </div>
+          {#if stype === 'weapon' && (item.weapon_category || item.weapon_range)}
+            <div class="subtype">
+              {#if item.weapon_category}{WEAPON_CATEGORY_LABELS[item.weapon_category] ?? item.weapon_category}{/if}{#if item.weapon_category && item.weapon_range} · {/if}{#if item.weapon_range}{WEAPON_RANGE_LABELS[item.weapon_range] ?? item.weapon_range}{/if}
+            </div>
+          {:else if stype === 'armor' && item.armor_category}
+            <div class="subtype">{ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category}</div>
           {/if}
-          <!-- Waffe: Kategorie + Reichweite -->
-          {#if structuralType(item) === 'weapon' && (item.weapon_category || item.weapon_range)}
-            <span class="header-weapon">
-              {#if item.weapon_category}{WEAPON_CATEGORY_LABELS[item.weapon_category] ?? item.weapon_category}{/if}
-              {#if item.weapon_category && item.weapon_range} · {/if}
-              {#if item.weapon_range}{WEAPON_RANGE_LABELS[item.weapon_range] ?? item.weapon_range}{/if}
-            </span>
-          {/if}
-          <!-- Rüstung: Kategorie -->
-          {#if structuralType(item) === 'armor' && item.armor_category}
-            <span class="header-armor">{ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category}</span>
-          {/if}
-          <!-- Übergeordnete Kategorie -->
-          {#if item.equipment_category}
-            <span class="header-cat">
-              {CATEGORY_LABELS[API_CATEGORY_MAP[item.equipment_category.index] ?? ''] ?? item.equipment_category.name}
-            </span>
-          {/if}
-          <!-- Einstimmung -->
           {#if item.attunement}
-            <span class="attunement-badge">Einstimmung{item.attunement_by ? ` (${item.attunement_by})` : ''}</span>
+            <div class="attune">Einstimmung erforderlich{item.attunement_by ? ` (${item.attunement_by})` : ''}</div>
           {/if}
         </div>
-      </div>
 
-      <!-- Eigenschaften je nach Typ -->
-      {#if structuralType(item) === 'weapon'}
-        {#if item.damage || item.range || item.properties?.length || item.cost || item.weight != null}
-          <div class="card-props">
+        <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
+
+        <!-- Spielwerte je nach Typ -->
+        {#if stype === 'weapon' && (item.damage || item.range || item.throw_range || item.magic_bonus || item.properties?.length)}
+          <div class="props">
             {#if item.damage}
-              <div class="prop-row">
-                <span class="prop-label">Schaden</span>
-                <span class="prop-value damage-value">
-                  <span>{formatDamageDice(item.damage.damage_dice)} {DAMAGE_TYPE_LABELS[item.damage.damage_type.index] ?? item.damage.damage_type.name}</span>
-                  {#if item.two_handed_damage}
-                    <span class="prop-secondary">{formatDamageDice(item.two_handed_damage.damage_dice)} (zweihändig)</span>
-                  {/if}
-                </span>
+              <div class="prop"><span class="plabel">Schaden</span>
+                <span>{formatDamageDice(item.damage.damage_dice)} {DAMAGE_TYPE_LABELS[item.damage.damage_type.index] ?? item.damage.damage_type.name}{#if item.two_handed_damage} · {formatDamageDice(item.two_handed_damage.damage_dice)} (zweih.){/if}</span>
               </div>
             {/if}
             {#if item.range}
-              <div class="prop-row">
-                <span class="prop-label">Reichweite</span>
-                <span class="prop-value">{ftToM(item.range.normal)}{item.range.long ? ` / ${ftToM(item.range.long)}` : ''}</span>
-              </div>
+              <div class="prop"><span class="plabel">Reichweite</span><span>{ftToM(item.range.normal)}{item.range.long ? ` / ${ftToM(item.range.long)}` : ''}</span></div>
             {/if}
             {#if item.throw_range}
-              <div class="prop-row">
-                <span class="prop-label">Wurfweite</span>
-                <span class="prop-value">{ftToM(item.throw_range.normal)} / {ftToM(item.throw_range.long)}</span>
-              </div>
-            {/if}
-            {#if item.properties?.length}
-              <div class="prop-row">
-                <span class="prop-label">Eigenschaften</span>
-                <span class="prop-value prop-pills">
-                  {#each item.properties as prop}
-                    <span class="prop-pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>
-                  {/each}
-                </span>
-              </div>
+              <div class="prop"><span class="plabel">Wurfweite</span><span>{ftToM(item.throw_range.normal)} / {ftToM(item.throw_range.long)}</span></div>
             {/if}
             {#if item.magic_bonus}
-              <div class="prop-row">
-                <span class="prop-label">Magischer Bonus</span>
-                <span class="prop-value">+{item.magic_bonus} auf Angriff &amp; Schaden</span>
+              <div class="prop"><span class="plabel">Bonus</span><span>+{item.magic_bonus} auf Angriff &amp; Schaden</span></div>
+            {/if}
+            {#if item.properties?.length}
+              <div class="prop"><span class="plabel">Eigensch.</span>
+                <span class="pills">{#each item.properties as prop}<span class="pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>{/each}</span>
               </div>
-            {/if}
-            {#if item.cost}
-              <div class="prop-row"><span class="prop-label">Kosten</span><span class="prop-value">{formatCost(item.cost)}</span></div>
-            {/if}
-            {#if item.weight != null}
-              <div class="prop-row"><span class="prop-label">Gewicht</span><span class="prop-value">{item.weight} Pfd.</span></div>
             {/if}
           </div>
-          <div class="card-divider"></div>
-        {/if}
+          <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
-      {:else if structuralType(item) === 'armor'}
-        {#if item.armor_class || item.str_minimum || item.stealth_disadvantage != null || item.cost || item.weight != null}
-          <div class="card-props">
+        {:else if stype === 'armor' && (item.armor_class || item.str_minimum || item.stealth_disadvantage)}
+          <div class="props">
             {#if item.armor_class}
-              <div class="prop-row">
-                <span class="prop-label">RK</span>
-                <span class="prop-value">
-                  {item.armor_class.base}
-                  {#if item.armor_class.dex_bonus}
-                    + GES-Mod{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}
-                  {/if}
-                </span>
-              </div>
+              <div class="prop"><span class="plabel">RK</span><span>{item.armor_class.base}{#if item.armor_class.dex_bonus} + GES-Mod{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}{/if}</span></div>
             {/if}
             {#if item.str_minimum}
-              <div class="prop-row">
-                <span class="prop-label">Stärke</span>
-                <span class="prop-value">mind. {item.str_minimum}</span>
-              </div>
+              <div class="prop"><span class="plabel">Stärke</span><span>mind. {item.str_minimum}</span></div>
             {/if}
             {#if item.stealth_disadvantage}
-              <div class="prop-row">
-                <span class="prop-label">Heimlichkeit</span>
-                <span class="prop-value prop-disadvantage">Nachteil</span>
-              </div>
-            {/if}
-            {#if item.cost}
-              <div class="prop-row"><span class="prop-label">Kosten</span><span class="prop-value">{formatCost(item.cost)}</span></div>
-            {/if}
-            {#if item.weight != null}
-              <div class="prop-row"><span class="prop-label">Gewicht</span><span class="prop-value">{item.weight} Pfd.</span></div>
+              <div class="prop"><span class="plabel">Heimlichkeit</span><span class="disadv">Nachteil</span></div>
             {/if}
           </div>
-          <div class="card-divider"></div>
+          <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
         {/if}
 
-      {:else}
-        <!-- magic / gear -->
-        {#if item.cost || item.weight != null}
-          <div class="card-props">
-            {#if item.cost}
-              <div class="prop-row"><span class="prop-label">Kosten</span><span class="prop-value">{formatCost(item.cost)}</span></div>
-            {/if}
-            {#if item.weight != null}
-              <div class="prop-row"><span class="prop-label">Gewicht</span><span class="prop-value">{item.weight} Pfd.</span></div>
-            {/if}
-          </div>
-          <div class="card-divider"></div>
-        {/if}
-      {/if}
-
-      <!-- Beschreibung -->
-      {#if item.desc_de?.length}
-        <div class="card-description">{item.desc_de.join('\n\n')}</div>
-        {#if item.desc?.length}
-          <details class="desc-original">
-            <summary>Original (Englisch)</summary>
-            <div class="desc-original-body">{item.desc.join('\n\n')}</div>
-          </details>
-        {/if}
-      {:else if item.desc?.length}
-        <div class="card-description">{item.desc.join('\n\n')}</div>
-      {:else}
-        <div class="card-description muted">—</div>
-      {/if}
-
-      <div class="card-divider"></div>
-      <div class="card-footer">
-        <span class="footer-source">{item.source}</span>
-        {#if item.equipment_category}
-          <span class="footer-type">{CATEGORY_LABELS[categoryKeyOf(item)] ?? item.equipment_category.name}</span>
-        {/if}
+        <!-- Beschreibung -->
         {#if item.desc_de?.length}
-          <span class="footer-translated">DE</span>
+          <div class="desc">{item.desc_de.join('\n\n')}</div>
+          {#if item.desc?.length}
+            <details class="desc-orig">
+              <summary>Original (Englisch)</summary>
+              <div class="desc-orig-body">{item.desc.join('\n\n')}</div>
+            </details>
+          {/if}
+        {:else if item.desc?.length}
+          <div class="desc">{item.desc.join('\n\n')}</div>
+        {:else}
+          <div class="desc muted">—</div>
         {/if}
+
+        <div class="foot">
+          <span class="src">{item.source}</span>
+          <span class="foot-right">
+            {#if item.cost}{formatCost(item.cost)}{/if}{#if item.cost && item.weight != null} · {/if}{#if item.weight != null}{item.weight} Pfd.{/if}
+          </span>
+        </div>
       </div>
     </div>
   {:else if parseError}
@@ -603,7 +546,7 @@
 {#snippet bearbeiten()}
   {#if draft}
     <!-- ── Bearbeitungsmodus ── -->
-    <div class="item-card edit-mode" style="--cat-color: {categoryColor(draft)}">
+    <div class="item-card edit-mode" style="--cat-color: {rarityColor(draftRarityName)}">
       {#if newDraft}
         <div class="new-banner">Neuer Gegenstand — noch nicht gespeichert.</div>
       {/if}
@@ -950,6 +893,142 @@
 
 <style>
 
+  /* ── Anzeige-Karte (Druckstil, getönt nach Seltenheit per --c) ── */
+  .cards-wrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
+
+  .item-card-view {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg);
+    border: 1.5px solid var(--c);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.23);
+    display: flex;
+    flex-direction: column;
+    color: var(--ink);
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+    position: relative;
+    height: fit-content;
+  }
+  .item-card-view::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+    border-radius: 5px;
+    pointer-events: none;
+  }
+
+  .item-card-view .head {
+    padding: 0.9rem 1.2rem 0.65rem;
+    text-align: center;
+    background: linear-gradient(to bottom,
+      color-mix(in srgb, var(--c) 50%, var(--bg)) 0%,
+      color-mix(in srgb, var(--c) 9%, var(--bg)) 100%);
+  }
+  .item-card-view .name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-variant: small-caps;
+    color: var(--ink);
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+  }
+  .item-card-view .name-en {
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--ink-soft);
+    margin-top: 0.1rem;
+  }
+  .item-card-view .meta {
+    font-size: 0.78rem;
+    color: color-mix(in srgb, var(--c) 75%, var(--ink));
+    margin-top: 0.25rem;
+    font-style: italic;
+  }
+  .item-card-view .subtype {
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    margin-top: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .item-card-view .attune {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--c);
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .item-card-view .orndiv {
+    display: flex; align-items: center; gap: 4px; margin: 0.5rem 10px 0; flex-shrink: 0;
+  }
+  .item-card-view .ol {
+    flex: 1; height: 1px;
+    background: linear-gradient(to right, transparent, var(--c) 30%, var(--c) 70%, transparent);
+  }
+  .item-card-view .og { font-size: 0.6rem; color: var(--c); line-height: 1; }
+
+  .item-card-view .props {
+    padding: 0.55rem 1.2rem 0.2rem;
+    display: flex; flex-direction: column; gap: 0.3rem;
+    font-size: 0.84rem; line-height: 1.4;
+  }
+  .item-card-view .prop {
+    display: grid; grid-template-columns: 6rem 1fr; gap: 0.5rem; align-items: baseline;
+  }
+  .item-card-view .plabel {
+    color: var(--ink-muted); font-size: 0.72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .item-card-view .pills { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .item-card-view .pill {
+    background: color-mix(in srgb, var(--c) 12%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+    border-radius: 99px; font-size: 0.7rem; padding: 0.05rem 0.5rem; color: var(--ink-soft);
+  }
+  .item-card-view .disadv { color: var(--danger); }
+
+  .item-card-view .desc {
+    padding: 0.55rem 1.2rem;
+    font-size: 0.84rem; line-height: 1.6; color: var(--ink); white-space: pre-wrap;
+  }
+  .item-card-view .desc.muted { color: var(--border); }
+  .item-card-view .desc-orig { padding: 0 1.2rem 0.5rem; }
+  .item-card-view .desc-orig summary {
+    font-size: 0.72rem; color: var(--ink-muted); cursor: pointer; user-select: none;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .item-card-view .desc-orig-body {
+    margin-top: 0.4rem; font-size: 0.8rem; color: var(--ink-muted); line-height: 1.55;
+    font-style: italic; white-space: pre-wrap;
+  }
+
+  .item-card-view .foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.45rem 1.2rem; margin-top: auto;
+    border-top: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+    background: color-mix(in srgb, var(--c) 6%, var(--bg));
+    font-size: 0.72rem; color: var(--ink-muted); font-style: italic;
+  }
+  .item-card-view .src { text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .pdf-tab-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .pdf-tab-btn:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-muted); }
+  .pdf-tab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .item-card {
     width: 100%;
     max-width: 580px;
@@ -968,59 +1047,7 @@
     padding: 1.2rem 1.4rem 1rem;
   }
 
-  .header-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 0.2rem;
-  }
-
-  .header-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: 0.01em;
-    line-height: 1.2;
-  }
-
-  .header-original {
-    font-size: 0.8rem;
-    color: var(--ink-muted);
-    font-style: italic;
-    margin-bottom: 0.3rem;
-  }
-
-  .header-actions { display: flex; gap: 0.4rem; margin-top: 0.15rem; flex-shrink: 0; }
-
-  .edit-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--ink-soft);
-    cursor: pointer;
-    font-size: 0.78rem;
-    padding: 0.25rem 0.65rem;
-    border-radius: 5px;
-    white-space: nowrap;
-  }
-  .edit-btn:hover { color: var(--arcane); border-color: var(--arcane); }
-
-  .header-sub { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.4rem; }
-
-  .header-rarity { font-size: 0.85rem; color: var(--cat-color); font-weight: 600; }
-  .header-weapon { font-size: 0.82rem; color: var(--danger); font-weight: 600; }
-  .header-armor  { font-size: 0.82rem; color: var(--red); font-weight: 600; }
-  .header-cat    { font-size: 0.82rem; color: var(--ink-muted); }
-
-  .attunement-badge {
-    font-size: 0.72rem;
-    color: var(--bg);
-    background: var(--cat-color);
-    border-radius: 3px;
-    padding: 0.1rem 0.5rem;
-    font-weight: 700;
-  }
-
-  /* Props */
+  /* Props (Bearbeiten-Modus) */
   .card-props { padding: 0.9rem 1.4rem; display: flex; flex-direction: column; gap: 0.45rem; }
 
   .prop-row {
@@ -1040,69 +1067,7 @@
     letter-spacing: 0.04em;
   }
 
-  .prop-value { color: var(--ink); }
-  .prop-secondary { color: var(--ink-muted); font-size: 0.82rem; }
-  .prop-disadvantage { color: var(--danger); font-size: 0.82rem; }
-  .damage-value { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-  .prop-pills { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-  .prop-pill {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    font-size: 0.72rem;
-    color: var(--ink-soft);
-    padding: 0.1rem 0.5rem;
-  }
-
   .card-divider { height: 1px; background: var(--surface); margin: 0 1.4rem; }
-
-  .card-description {
-    padding: 0.9rem 1.4rem;
-    font-size: 0.88rem;
-    color: var(--ink);
-    line-height: 1.65;
-    white-space: pre-wrap;
-  }
-  .card-description.muted { color: var(--border); }
-
-  .desc-original { padding: 0 1.4rem 0.7rem; }
-  .desc-original summary {
-    font-size: 0.75rem;
-    color: var(--border);
-    cursor: pointer;
-    user-select: none;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.2rem 0;
-  }
-  .desc-original summary:hover { color: var(--ink-muted); }
-  .desc-original-body {
-    margin-top: 0.5rem;
-    font-size: 0.83rem;
-    color: var(--ink-muted);
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-
-  .card-footer {
-    padding: 0.7rem 1.4rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    background: color-mix(in srgb, var(--cat-color) 6%, var(--bg-panel));
-  }
-
-  .footer-source { font-size: 0.72rem; color: var(--border); text-transform: uppercase; letter-spacing: 0.05em; }
-  .footer-type   { font-size: 0.72rem; color: var(--ink-muted); flex: 1; }
-  .footer-translated {
-    font-size: 0.68rem;
-    color: var(--green);
-    border: 1px solid var(--green);
-    border-radius: 3px;
-    padding: 0.05rem 0.4rem;
-    letter-spacing: 0.05em;
-  }
 
   /* Edit mode */
   .edit-header-top {
@@ -1126,21 +1091,6 @@
     margin-bottom: 0.4rem;
   }
   .edit-name-original:focus { border-bottom-color: var(--border); color: var(--ink-soft); }
-
-  .edit-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
-
-  .save-btn {
-    background: var(--green); border: none; border-radius: 4px;
-    color: var(--bg); font-size: 0.8rem; font-weight: 700;
-    padding: 0.3rem 0.7rem; cursor: pointer;
-  }
-  .save-btn:hover { background: var(--green); }
-
-  .discard-btn {
-    background: var(--surface); border: none; border-radius: 4px;
-    color: var(--ink-muted); font-size: 0.8rem; padding: 0.3rem 0.7rem; cursor: pointer;
-  }
-  .discard-btn:hover { color: var(--danger); }
 
   .edit-header-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 

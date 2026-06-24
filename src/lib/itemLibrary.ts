@@ -78,6 +78,22 @@ export const RARITY_LABELS: Record<string, string> = {
   Artifact:    'Artefakt',
 };
 
+/** Farbe pro Seltenheit (D&D-Konvention, ans Pergament-Theme angepasst). */
+export const RARITY_COLORS: Record<string, string> = {
+  Common:      'var(--ink-muted)', // neutral
+  Uncommon:    'var(--green)',
+  Rare:        'var(--steel)',     // blau
+  'Very Rare': 'var(--arcane)',    // violett
+  Legendary:   'var(--copper)',    // orange
+  Artifact:    'var(--danger)',    // rot
+};
+
+/** Seltenheitsfarbe; ohne Seltenheit (gewöhnliche Items) → neutrale „Common"-Farbe. */
+export function rarityColor(rarity?: string | { name?: string } | null): string {
+  const name = typeof rarity === 'string' ? rarity : rarity?.name;
+  return (name && RARITY_COLORS[name]) || RARITY_COLORS.Common;
+}
+
 export const DAMAGE_TYPE_LABELS: Record<string, string> = {
   slashing:    'Hiebschaden',
   piercing:    'Stichschaden',
