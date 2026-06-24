@@ -809,8 +809,16 @@
   // zuklappt). Encounters erscheinen automatisch, sobald die Akte-Sektion geladen ist.
   $effect(() => {
     const path = $activeFile?.path;
+    if (!path) return;
+    // Globale Charaktere (kampagnenunabhängig)
+    if (path.startsWith(`${CHARACTERS_PATH}/`)) {
+      untrack(() => {
+        if (!charactersExpanded) { charactersExpanded = true; loadCharacters(); }
+      });
+      return;
+    }
     const campaign = $activeCampaign;
-    if (!path || !campaign) return;
+    if (!campaign) return;
     const base = `${VAULT_BASE}/${campaign.path}/`;
     if (!path.startsWith(base)) return; // nur Dateien der aktiven Kampagne
     const subdir = path.slice(base.length).split('/')[0]; // acts | world | npcs | sessions | notes

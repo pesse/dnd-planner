@@ -50,6 +50,8 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/vault\/monsters\/.+\.json$/i.test(path)) return 'monster';
   if (/\/vault\/spells\/.+\.json$/i.test(path)) return 'spell';
   if (/\/vault\/items\/.+\.json$/i.test(path)) return 'item';
+  // Charaktere: verzeichnisbasiert (./vault/characters/<slug>), kein Suffix.
+  if (/\/vault\/characters\/[^/]+\/?$/i.test(path)) return 'character';
   // Fallback: jede andere .md als Notiz behandeln
   if (/\.md$/i.test(path)) return 'notes';
   return null;
@@ -84,12 +86,18 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
 
   if (!(await confirmNavigation())) return true; // Abbruch wegen ungespeicherter Änderungen
 
-  const entry: FileEntry = { name: displayName(target, type), path: target, type };
+  // Charaktere sind verzeichnisbasiert (PDF/JSON); ein evtl. Schrägstrich am Ende weg.
+  const cleanTarget = type === 'character' ? target.replace(/\/$/, '') : target;
+  const entry: FileEntry = { name: displayName(cleanTarget, type), path: cleanTarget, type };
+  if (type === 'character') entry.dirPath = cleanTarget;
   activeFile.set(entry);
 
-  if (EDITOR_TYPES.has(type)) {
+  if (type === 'character') {
+    // CharacterSheet lädt aus dirPath selbst; alten Markdown-Inhalt leeren.
+    setFileContent('');
+  } else if (EDITOR_TYPES.has(type)) {
     try {
-      const content = await invoke<string>('read_file_content', { path: target });
+      const content = await invoke<string>('read_file_content', { path: cleanTarget });
       setFileContent(content);
     } catch (e) {
       setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);

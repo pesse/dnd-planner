@@ -45,6 +45,10 @@
   function onLinkClick(e: MouseEvent) {
     const anchor = (e.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null;
     if (!anchor) return;
+    // Textauswahl per Drag → nicht navigieren: der Nutzer will den Link markieren,
+    // um ihn zu bearbeiten. Nur ein einfacher Klick (Cursor) folgt dem Link.
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
     const href = anchor.getAttribute('href');
     if (!href) return;
     e.preventDefault();
@@ -52,6 +56,40 @@
     void openVaultLink(href, fromPath).then((handled) => {
       if (!handled && /^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener');
     });
+  }
+
+  // Öffnet die URL-Eingabe, vorbelegt mit dem Ziel des aktuellen Links (falls vorhanden).
+  function openLinkEditor() {
+    if (!editor) return;
+    linkUrlValue = (editor.getAttributes('link').href as string) ?? '';
+    showLinkInput = true;
+  }
+
+  // Übernimmt die URL: leer → Link entfernen; Auswahl → verlinken; Cursor ohne Auswahl
+  // und ohne bestehenden Link → die URL als verlinkten Text einfügen.
+  function applyLink() {
+    if (!editor) { showLinkInput = false; return; }
+    const url = linkUrlValue.trim();
+    const chain = editor.chain().focus();
+    if (!url) {
+      chain.extendMarkRange('link').unsetLink().run();
+    } else if (editor.state.selection.empty && !editor.isActive('link')) {
+      chain.insertContent({ type: 'text', text: url, marks: [{ type: 'link', attrs: { href: url } }] }).run();
+    } else {
+      chain.extendMarkRange('link').setLink({ href: url }).run();
+    }
+    showLinkInput = false;
+    linkUrlValue = '';
+  }
+
+  function cancelLinkEditor() {
+    showLinkInput = false;
+    linkUrlValue = '';
+  }
+
+  function onLinkInputKey(e: KeyboardEvent) {
+    if (e.key === 'Enter')  { e.preventDefault(); applyLink(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelLinkEditor(); }
   }
 
   function toFull(body: string): string {
@@ -71,6 +109,11 @@
   let isCode       = $derived(tick >= 0 && (editor?.isActive('code') ?? false));
   let isCodeBlock  = $derived(tick >= 0 && (editor?.isActive('codeBlock') ?? false));
   let isTable      = $derived(tick >= 0 && (editor?.isActive('table') ?? false));
+  let isLink       = $derived(tick >= 0 && (editor?.isActive('link') ?? false));
+
+  // Link-Editor (URL der Auswahl/des aktiven Links setzen, ändern, entfernen)
+  let showLinkInput = $state(false);
+  let linkUrlValue = $state('');
 
   onMount(() => {
     const { block, body } = splitFull($fileContent);
@@ -252,6 +295,8 @@
         <button class="tb" onclick={() => editor?.chain().focus().toggleHeaderRow().run()}      title="Kopfzeile umschalten">⤒</button>
         <button class="tb" onclick={() => editor?.chain().focus().deleteTable().run()}          title="Tabelle löschen">▦✕</button>
       {/if}
+      <div class="tb-sep"></div>
+      <button class="tb" class:on={isLink} onclick={openLinkEditor} title="Link einfügen/bearbeiten (leeres Feld übernehmen = entfernen)">🔗</button>
     {/if}
 
     <div class="tb-flex"></div>
@@ -261,6 +306,22 @@
     </span>
     <button class="source-btn" class:active={showSource} onclick={toggleSource}>Quelle</button>
   </div>
+
+  <!-- Link-Editor: URL der aktuellen Auswahl/des Links setzen, ändern oder entfernen -->
+  {#if showLinkInput}
+    <div class="link-edit-row">
+      <span class="link-edit-label">🔗 Link-Ziel</span>
+      <input
+        class="link-edit-input"
+        bind:value={linkUrlValue}
+        placeholder="z.B. world/ort.md oder https://…"
+        onkeydown={onLinkInputKey}
+        autofocus
+      />
+      <button class="confirm-btn" onclick={applyLink} title="Übernehmen (leer = entfernen)">✓</button>
+      <button class="confirm-btn cancel" onclick={cancelLinkEditor} title="Abbrechen">✕</button>
+    </div>
+  {/if}
 
   <!-- TipTap-Editor (immer im DOM, bei Quelle versteckt) -->
   <div bind:this={editorEl} class="editor-mount" class:hidden={showSource}></div>

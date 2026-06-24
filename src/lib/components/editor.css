@@ -68,6 +68,47 @@
 .editor-shell .source-btn:hover  { border-color: var(--ink-muted); color: var(--ink); }
 .editor-shell .source-btn.active { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 
+/* ── Link-Editor-Zeile ── */
+.editor-shell .link-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--surface);
+  flex-shrink: 0;
+}
+.editor-shell .link-edit-label {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.editor-shell .link-edit-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--arcane);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  padding: 0.25rem 0.5rem;
+  outline: none;
+  font-family: inherit;
+}
+.editor-shell .confirm-btn {
+  background: transparent;
+  border: 1px solid var(--surface);
+  border-radius: 4px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.editor-shell .confirm-btn:hover { color: var(--green); border-color: var(--green); }
+.editor-shell .confirm-btn.cancel:hover { color: var(--danger); border-color: var(--danger); }
+
 /* ── TipTap-Mount ── */
 .editor-shell .editor-mount {
   flex: 1;
