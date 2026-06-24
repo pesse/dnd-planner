@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tab = 'karte' | 'bearbeiten' | 'json';
+  // Bekannte Standard-Tabs + beliebige Extra-Tab-Ids (z.B. 'details', 'notes').
+  type Tab = 'karte' | 'bearbeiten' | 'json' | (string & {});
 
   let {
     tab = $bindable<Tab>('bearbeiten'),
@@ -14,6 +15,8 @@
     karte,
     bearbeiten,
     tabactions,
+    extraTabs = [],
+    extra,
     style = '',
   }: {
     tab?: Tab;
@@ -31,7 +34,17 @@
     bearbeiten?: Snippet;
     /** Optionale Aktionen rechts in der Tab-Leiste */
     tabactions?: Snippet;
+    /**
+     * Zusätzliche Tabs neben Karte/Bearbeiten/JSON (z.B. eigene .md-Dateien).
+     * Default leer → unverändertes 3-Tab-Verhalten. Extra-Tabs verwalten ihr
+     * Speichern selbst (keine gemeinsame Save-Bar).
+     */
+    extraTabs?: { id: string; label: string }[];
+    /** Inhalt eines Extra-Tabs; bekommt die aktive Tab-Id. */
+    extra?: Snippet<[string]>;
   } = $props();
+
+  const isExtraTab = $derived(extraTabs.some((t) => t.id === tab));
 
   let rawJson  = $state('');
   let jsonError = $state('');
@@ -62,13 +75,16 @@
     <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
     <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
     <button class="tab-btn" class:active={tab === 'json'}       onclick={() => switchTab('json')}>JSON</button>
+    {#each extraTabs as t (t.id)}
+      <button class="tab-btn" class:active={tab === t.id} onclick={() => switchTab(t.id)}>{t.label}</button>
+    {/each}
     {#if tabactions}
       <div class="tab-actions">{@render tabactions()}</div>
     {/if}
   </div>
 
-  <!-- Speichern-Leiste (nur wenn dirty und nicht auf Karte-Tab) -->
-  {#if dirty && tab !== 'karte'}
+  <!-- Speichern-Leiste (nur für den character.json-Draft: nicht auf Karte und nicht in Extra-Tabs) -->
+  {#if dirty && tab !== 'karte' && !isExtraTab}
     <div class="save-bar">
       {#if saveError}<span class="save-error">{saveError}</span>{/if}
       <button class="save-btn"   onclick={tab === 'json' ? saveJson : onsave}>Speichern</button>
@@ -90,6 +106,8 @@
         <button class="cancel-btn" onclick={() => switchTab('bearbeiten')}>Abbrechen</button>
       </div>
     </div>
+  {:else if isExtraTab}
+    {@render extra?.(tab)}
   {/if}
 </div>
 

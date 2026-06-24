@@ -15,13 +15,14 @@
   import { createSpellAction } from '../services/aiActions/spellAction';
   import { createItemAction } from '../services/aiActions/itemAction';
   import { parseMonster, normalizeItem } from '../utils/schemaValidation';
+  import { ensureCharacterJson } from '../pdf/characterImport';
   import { getSpellLibrary, searchSpells as searchSpellLib, loadSpellByPath } from '../spellLibrary';
   import type { Monster, Spell, Item } from '../types';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, type CharacterJSON } from '../pdf/characterFields';
+  import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
   import {
     ITEMS_PATH,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
@@ -223,7 +224,9 @@
     if (!(await confirmNavigation())) return;
     if (entry.is_dir) {
       const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
-      activeFile.set({ name: entry.name, path: dirPath, type: 'character', dirPath });
+      // PDF ist reine Import-Quelle: fehlt die character.json, einmalig aus PDF anlegen.
+      await ensureCharacterJson(dirPath);
+      activeFile.set({ name: entry.name, path: `${dirPath}/character.json`, type: 'character', dirPath });
       setFileContent('');
     } else {
       const fullPath = `${CHARACTERS_PATH}/${entry.name}`;
@@ -263,6 +266,8 @@
       currency: { km: '', sm: '', em: '', gm: '', pm: '' },
       inventory: [], inventoryNotes: '', totalWeight: '',
       spells: emptySpells(),
+      personal: emptyPersonal(),
+      proficiencies: emptyProficiencies(),
     };
 
     const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;

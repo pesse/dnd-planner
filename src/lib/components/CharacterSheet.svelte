@@ -1,13 +1,17 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
-  import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
   import { exportCharacterToPdf } from '../pdf/characterExport';
+  import { createCardEditor } from '../editor/cardEditor.svelte';
+  import { parseCharacter } from '../utils/schemaValidation';
+  import type { Character } from '../schemas/character';
+  import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
-  import { activeFile, fileContent } from '../stores/campaign';
+  import { activeFile, fileContent, invalidateVault } from '../stores/campaign';
   import { marked } from 'marked';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
@@ -25,17 +29,28 @@
 
   let { dirPath }: Props = $props();
 
-  let pdfName = $state('');
-  let character = $state<CharacterData | null>(null);
+  // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
+  // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
+  const ed = createCardEditor<Character>({
+    type: 'character',
+    label: 'Charakter',
+    parse: (content) => {
+      const r = parseCharacter(JSON.parse(content));
+      return r.ok ? r.data : null;
+    },
+    onSaved: () => invalidateVault(),
+  });
+  // Read-only-Sicht auf den Draft für die Bogen-Anzeige.
+  // (Der Bearbeiten-Tab bindet ed.draft direkt und mutiert ihn in place.)
+  const character = $derived(ed.draft);
+  // Quelle der PDF-Import-Metadaten (nicht editierbar).
+  const pdfName = $derived(character?._importedFrom ?? '');
+
   let gmNotes = $state('');
   let gmNotesEditing = $state(false);
   let freitext = $state('');
   let freitextSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
-  let loading = $state(true);
   let error = $state('');
-  let activeTab = $state<'sheet' | 'edit' | 'notes' | 'freetext'>('sheet');
-  let jsonSource = $state(false);  // true = aus character.json geladen
-  let saving = $state(false);
   let importingPdf = $state(false);
   let exportingPdf = $state(false);
   let portraitUrl = $state('');
@@ -245,110 +260,41 @@
   const legacyDetailsPath = $derived(`${dirPath}/freitext.md`);  // Migration: altes Format
   const jsonPath = $derived(`${dirPath}/character.json`);
 
+  // GM-Notizen & Details laden, wenn der Charakter (dirPath) wechselt.
+  // character.json selbst lädt der Karten-Editor (ed) über activeFile.
   $effect(() => {
-    if (dirPath) {
-      if (freitextTimer) { clearTimeout(freitextTimer); freitextTimer = null; }
-      loading = true;
-      error = '';
-      character = null;
-      pdfName = '';
-      jsonSource = false;
-      freitext = '';
-      loadCharacter();
-    }
+    const dir = dirPath;
+    if (!dir) return;
+    if (freitextTimer) { clearTimeout(freitextTimer); freitextTimer = null; }
+    error = '';
+    loadSideFiles();
   });
 
-  async function loadCharacter() {
+  async function loadSideFiles() {
+    // GM-Notizen laden (oder aus Template anlegen).
     try {
-      // 1. Versuche character.json zu laden (primäres Format)
+      gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
+    } catch {
+      let tmpl = '';
       try {
-        const jsonStr = await invoke<string>('read_file_content', { path: jsonPath });
-        const data = JSON.parse(jsonStr) as CharacterJSON;
-        // Sicherstellen dass spells vorhanden ist (Rückwärtskompatibilität)
-        if (!data.spells) data.spells = emptySpells();
-        character = data;
-        jsonSource = true;
-      } catch {
-        // 2. Fallback: PDF parsen
-        jsonSource = false;
-        const foundPdf = await invoke<string | null>('find_pdf_in_dir', { path: dirPath });
-        if (!foundPdf) {
-          error = 'Keine PDF-Datei und kein character.json im Verzeichnis gefunden.';
-          loading = false;
-          return;
-        }
-        pdfName = foundPdf;
-        const base64 = await invoke<string>('read_file_base64', { path: `${dirPath}/${pdfName}` });
-        const bytes = base64ToBytes(base64);
-        const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-        const form = pdf.getForm();
-
-        const fields: Record<string, string> = {};
-        for (const field of form.getFields()) {
-          const name = field.getName();
-          try {
-            fields[name] = form.getTextField(name).getText() ?? '';
-          } catch {
-            try {
-              fields[name] = form.getCheckBox(name).isChecked() ? 'On' : 'Off';
-            } catch {
-              fields[name] = '';
-            }
-          }
-        }
-        character = parseCharacterData(fields);
-      }
-
-      // GM-Notizen laden
-      try {
-        gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
-      } catch {
-        let tmpl = '';
-        try {
-          tmpl = await invoke<string>('read_file_content', { path: './vault/templates/character.md' });
-        } catch { /* kein Template */ }
-        gmNotes = `# GM-Notizen: ${character!.name}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
-        await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
-      }
-
-      // Details laden (optional — leer, wenn noch nicht vorhanden).
-      // Migration: alte freitext.md weiterlesen, solange noch keine details.md existiert.
-      try {
-        freitext = await invoke<string>('read_file_content', { path: detailsPath });
-      } catch {
-        try {
-          freitext = await invoke<string>('read_file_content', { path: legacyDetailsPath });
-        } catch {
-          freitext = '';
-        }
-      }
-      freitextSaving = 'saved';
-
-      fileContent.set(gmNotes);
-    } catch (e) {
-      error = `Fehler beim Laden: ${e}`;
-    } finally {
-      loading = false;
+        tmpl = await invoke<string>('read_file_content', { path: './vault/templates/character.md' });
+      } catch { /* kein Template */ }
+      gmNotes = `# GM-Notizen: ${character?.name ?? ''}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
+      await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
     }
-  }
 
-  async function saveAsJson() {
-    if (!character) return;
-    saving = true;
+    // Details laden (optional — leer, wenn noch nicht vorhanden).
+    // Migration: alte freitext.md weiterlesen, solange noch keine details.md existiert.
     try {
-      const json: CharacterJSON = {
-        _version: 1,
-        _importedFrom: pdfName || undefined,
-        _importedAt: new Date().toISOString(),
-        ...character,
-      };
-      await invoke('write_file_content', { path: jsonPath, content: JSON.stringify(json, null, 2) });
-      jsonSource = true;
-    } catch (e) {
-      error = `Speichern fehlgeschlagen: ${e}`;
-    } finally {
-      saving = false;
+      freitext = await invoke<string>('read_file_content', { path: detailsPath });
+    } catch {
+      try {
+        freitext = await invoke<string>('read_file_content', { path: legacyDetailsPath });
+      } catch {
+        freitext = '';
+      }
     }
+    freitextSaving = 'saved';
   }
 
   async function importPdfIntoExisting() {
@@ -379,30 +325,24 @@
 
       const imported = parseCharacterData(fields);
       // Zauber aus dem aktuellen Charakter behalten (manuell gepflegt)
-      imported.spells = character.spells ?? emptySpells();
+      imported.spells = character?.spells ?? emptySpells();
 
       const pdfFilename = (selected as string).split(/[/\\]/).pop() ?? '';
       const json: CharacterJSON = {
+        ...imported,
         _version: 1,
         _importedFrom: pdfFilename,
         _importedAt: new Date().toISOString(),
-        ...imported,
       };
-      await invoke('write_file_content', { path: jsonPath, content: JSON.stringify(json, null, 2) });
-      character = imported;
-      pdfName = pdfFilename;
-      jsonSource = true;
+      const content = JSON.stringify(json, null, 2);
+      await invoke('write_file_content', { path: jsonPath, content });
+      // In den Editor übernehmen (Draft + Baseline → nicht „dirty").
+      ed.applyContent(content);
     } catch (e) {
       error = `PDF-Import fehlgeschlagen: ${e}`;
     } finally {
       importingPdf = false;
     }
-  }
-
-  async function handleEditSave(updated: CharacterData) {
-    character = updated;
-    await saveAsJson();
-    activeTab = 'sheet';
   }
 
   async function exportToPdf() {
@@ -436,8 +376,13 @@
       const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait, freitext });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
-      const outPath = `${dirPath}/${safeName}-export.pdf`;
-      await invoke('write_file_base64', { path: outPath, data: b64 });
+      // Ziel per Datei-Speichern-Dialog wählen.
+      const target = await saveFileDialog({
+        defaultPath: `${safeName}-export.pdf`,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+      if (!target) return;
+      await invoke('write_file_base64', { path: target, data: b64 });
     } catch (e) {
       error = `PDF-Export fehlgeschlagen: ${e}`;
     } finally {
@@ -564,12 +509,10 @@
 </script>
 
 <div class="sheet">
-  {#if loading}
-    <div class="loading">Lade Charakterbogen…</div>
-  {:else if error}
+  {#if error}
     <div class="error">{error}</div>
   {:else if character}
-    <!-- Header -->
+    <!-- Header (bleibt über allen Tabs sichtbar) -->
     <div class="header">
       {#if portraitUrl}
         <img class="portrait-thumb" src={portraitUrl} alt="Portrait von {character.name}" />
@@ -584,11 +527,6 @@
         <span>EP: <strong>{character.xp}</strong></span>
       </div>
       <div class="header-actions">
-        {#if !jsonSource}
-          <button class="btn-import" onclick={saveAsJson} disabled={saving}>
-            {saving ? '…' : 'Als JSON speichern'}
-          </button>
-        {/if}
         <button class="btn-pdf-import" onclick={importPdfIntoExisting} disabled={importingPdf} title="Werte aus PDF überschreiben (Zauber bleiben erhalten)">
           {importingPdf ? '…' : 'PDF importieren'}
         </button>
@@ -596,15 +534,20 @@
           {exportingPdf ? '…' : 'Als PDF exportieren'}
         </button>
       </div>
-      <div class="tabs">
-        <button class:active={activeTab === 'sheet'} onclick={() => (activeTab = 'sheet')}>Bogen</button>
-        <button class:active={activeTab === 'edit'} onclick={() => (activeTab = 'edit')}>Bearbeiten</button>
-        <button class:active={activeTab === 'freetext'} onclick={() => (activeTab = 'freetext')}>Details</button>
-        <button class:active={activeTab === 'notes'} onclick={() => (activeTab = 'notes')}>GM-Notizen</button>
-      </div>
     </div>
 
-    {#if activeTab === 'sheet'}
+    <EditorPanel
+      bind:tab={ed.tab}
+      dirty={ed.dirty}
+      saveError={ed.saveError}
+      onsave={() => ed.save()}
+      ondiscard={() => ed.discard()}
+      onsavejson={(json) => ed.saveJson(json)}
+      getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
+      extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
+      style="--ep-accent: var(--arcane)"
+    >
+      {#snippet karte()}
       <div class="content">
         <!-- Attribute -->
         <div class="section attributes">
@@ -912,19 +855,21 @@
           </div>
         {/if}
       </div>
+      {/snippet}
 
-    {:else if activeTab === 'edit'}
-      <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
-      <div class="edit-wrapper">
-        <CharacterEditForm
-          character={character}
-          dirPath={dirPath}
-          onSave={handleEditSave}
-          onCancel={() => (activeTab = 'sheet')}
-        />
-      </div>
+      {#snippet bearbeiten()}
+        <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
+        <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
+             frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
+        {#key ed.draft}
+          <div class="edit-wrapper" style="width:100%">
+            <CharacterEditForm character={ed.draft!} {dirPath} />
+          </div>
+        {/key}
+      {/snippet}
 
-    {:else if activeTab === 'notes'}
+      {#snippet extra(id)}
+      {#if id === 'notes'}
       <!-- GM-Notizen Tab -->
       <div class="notes-area">
         {#if gmNotesEditing}
@@ -954,7 +899,11 @@
         </div>
         <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
       </div>
-    {/if}
+      {/if}
+      {/snippet}
+    </EditorPanel>
+  {:else}
+    <div class="loading">Lade Charakterbogen…</div>
   {/if}
 </div>
 
@@ -1053,7 +1002,9 @@
 <style>
   .sheet {
     flex: 1;
-    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     background: var(--bg);
     color: var(--ink);
     font-size: 0.9rem;
@@ -1106,18 +1057,6 @@
     gap: 0.5rem;
   }
 
-  .btn-import {
-    background: var(--gold);
-    color: var(--bg);
-    border: none;
-    border-radius: 4px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .btn-import:disabled { opacity: 0.6; cursor: default; }
-
   .btn-pdf-import {
     background: var(--surface);
     color: var(--ink);
@@ -1146,28 +1085,9 @@
     min-height: 0;
   }
 
-  .tabs {
-    margin-left: auto;
-    display: flex;
-    gap: 0.25rem;
-    padding-bottom: 0;
-  }
-
-  .tabs button {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--ink-muted);
-    cursor: pointer;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.85rem;
-  }
-  .tabs button.active {
-    color: var(--arcane);
-    border-bottom-color: var(--arcane);
-  }
-
   .content {
+    width: 100%;
+    box-sizing: border-box;
     padding: 1rem 1.5rem;
     display: flex;
     flex-direction: column;

@@ -2,18 +2,25 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type CharacterData, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type Character, type CharacterData, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import type { Item, Spell } from '../types';
   import SpellTooltip from './SpellTooltip.svelte';
 
-  let { character, dirPath, onSave, onCancel }: {
-    character: CharacterData;
+  // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
+  // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
+  // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
+  let { character, dirPath }: {
+    character: Character;
     dirPath: string;
-    onSave: (data: CharacterData) => void;
-    onCancel: () => void;
   } = $props();
+
+  // Passthrough-Felder, die das Formular nicht bearbeitet — einmalig erfassen, damit
+  // der Sync-Effekt sie NICHT reaktiv liest (sonst Schreib-/Lese-Schleife auf character.*).
+  const passivePerceptionInit = character.passivePerception;
+  const totalWeightInit = character.totalWeight;
+  const slotsUsedInit = (character.spells?.slots ?? []).map((s) => s.used);
 
   // ─── Felder ────────────────────────────────────────────
   let name = $state(character.name ?? '');
@@ -545,51 +552,70 @@
   }
   function removeInventoryItem(i: number) { inventory.splice(i, 1); }
 
-  function handleSave() {
-    onSave({
-      name, classLevel, playerName, background, race, xp,
-      str, ges, kon, int, wei, cha,
-      strMod, gesMod, konMod, intMod, weiMod, chaMod,
-      ac, initiative, speed, hpMax, hpCurrent, hpTemp,
-      proficiencyBonus, passivePerception: character.passivePerception, hitDice,
-      strSaveProf, gesSaveProf, konSaveProf, intSaveProf, weiSaveProf, chaSaveProf,
-      skills: computedSkills,
-      attacks: attacks
-        .filter(a => a.name.trim() !== '')
-        .map(a => a.auto ? { ...a, bonus: computeAttackBonus(a), damage: computeAttackDamage(a) } : a),
-      classFeatures, traits, ideals, bonds, flaws,
-      languages, tools, alleskoenner,
-      currency,
-      inventory: inventory.filter(i => i.name.trim() !== ''),
-      inventoryNotes,
-      totalWeight: character.totalWeight,
-      spells: {
-        spellcastingClass: spellClass,
-        spellcastingAbility: spellAbility,
-        saveDC: spellAutoActive ? computedSpellSaveDC! : spellSaveDC,
-        attackBonus: spellAutoActive ? computedSpellAttack! : spellAttackBonus,
-        autoCalc: spellAutoCalc,
-        slots: slotTotals.map((total, i) => ({ total, used: character.spells?.slots[i]?.used ?? 0 })),
-        cantrips,
-        byLevel: Object.fromEntries(Object.entries(spellsByLevel).filter(([, v]) => v.length > 0)),
-      },
-      personal: {
-        rassenmerkmale, alter, geschlecht, sizeCat, gesinnung, glaube,
-        lebensstil, taeglicheKosten, augenfarbe, haarfarbe, hautfarbe,
-        gewicht, koerpergroesse, aussehen,
-      },
-      proficiencies: {
-        simpleWeapons: profSimpleWeapons,
-        martialWeapons: profMartialWeapons,
-        otherWeapons: profOtherWeapons,
-        lightArmor: profLightArmor,
-        mediumArmor: profMediumArmor,
-        heavyArmor: profHeavyArmor,
-        shields: profShields,
-      },
-      portraitFile: portraitFile || undefined,
-    });
-  }
+  // Formularzustand fortlaufend in den Draft (ed.draft) spiegeln → Dirty-Tracking und
+  // Save-Bar des EditorPanel greifen ohne eigenen Speichern-Button. Schlüssel-Reihenfolge
+  // entspricht dem Zod-Schema, damit ein frisch geladener Charakter NICHT „dirty" wirkt.
+  // Liest nur die *Init-Werte (keine reaktiven character.*-Reads) → keine Schleife.
+  $effect(() => {
+    character.name = name; character.classLevel = classLevel;
+    character.playerName = playerName; character.background = background;
+    character.race = race; character.xp = xp;
+    character.str = str; character.ges = ges; character.kon = kon;
+    character.int = int; character.wei = wei; character.cha = cha;
+    character.strMod = strMod; character.gesMod = gesMod; character.konMod = konMod;
+    character.intMod = intMod; character.weiMod = weiMod; character.chaMod = chaMod;
+    character.ac = ac; character.initiative = initiative; character.speed = speed;
+    character.hpMax = hpMax; character.hpCurrent = hpCurrent; character.hpTemp = hpTemp;
+    character.proficiencyBonus = proficiencyBonus;
+    character.passivePerception = passivePerceptionInit;
+    character.hitDice = hitDice;
+    character.strSaveProf = strSaveProf; character.gesSaveProf = gesSaveProf;
+    character.konSaveProf = konSaveProf; character.intSaveProf = intSaveProf;
+    character.weiSaveProf = weiSaveProf; character.chaSaveProf = chaSaveProf;
+    character.skills = computedSkills;
+    character.attacks = attacks
+      .filter((a) => a.name.trim() !== '')
+      .map((a) => (a.auto ? { ...a, bonus: computeAttackBonus(a), damage: computeAttackDamage(a) } : { ...a }));
+    character.classFeatures = classFeatures;
+    character.traits = traits; character.ideals = ideals;
+    character.bonds = bonds; character.flaws = flaws;
+    character.languages = [...languages];
+    character.tools = [...tools];
+    character.alleskoenner = alleskoenner;
+    character.currency = { ...currency };
+    character.inventory = inventory.filter((i) => i.name.trim() !== '').map((i) => ({ ...i }));
+    character.inventoryNotes = inventoryNotes;
+    character.totalWeight = totalWeightInit;
+    character.spells = {
+      spellcastingClass: spellClass,
+      spellcastingAbility: spellAbility,
+      saveDC: spellAutoActive ? computedSpellSaveDC! : spellSaveDC,
+      attackBonus: spellAutoActive ? computedSpellAttack! : spellAttackBonus,
+      autoCalc: spellAutoCalc,
+      slots: slotTotals.map((total, i) => ({ total, used: slotsUsedInit[i] ?? 0 })),
+      cantrips: [...cantrips],
+      byLevel: Object.fromEntries(
+        Object.entries(spellsByLevel)
+          .filter(([, v]) => v.length > 0)
+          .map(([k, v]) => [k, v.map((s) => ({ ...s }))]),
+      ),
+    };
+    character.personal = {
+      rassenmerkmale, alter, geschlecht, sizeCat, gesinnung, glaube,
+      lebensstil, taeglicheKosten, augenfarbe, haarfarbe, hautfarbe,
+      gewicht, koerpergroesse, aussehen,
+    };
+    character.proficiencies = {
+      simpleWeapons: profSimpleWeapons,
+      martialWeapons: profMartialWeapons,
+      otherWeapons: profOtherWeapons,
+      lightArmor: profLightArmor,
+      mediumArmor: profMediumArmor,
+      heavyArmor: profHeavyArmor,
+      shields: profShields,
+    };
+    character.portraitFile = portraitFile || undefined;
+  });
 
   const ATTRS = [
     { key: 'str', label: 'STR' },
@@ -602,11 +628,7 @@
 </script>
 
 <div class="edit-form">
-  <!-- ── Toolbar ─── -->
-  <div class="toolbar">
-    <button class="btn-save" onclick={handleSave}>Speichern</button>
-    <button class="btn-cancel" onclick={onCancel}>Abbrechen</button>
-  </div>
+  <!-- Speichern/Verwerfen übernimmt die EditorPanel-Save-Bar (kein eigener Button). -->
 
   <!-- ── Kopf ─── -->
   <section>
@@ -1090,12 +1112,6 @@
       {/if}
     {/each}
   </section>
-
-  <!-- ── Toolbar (unten) ─── -->
-  <div class="toolbar toolbar-bottom">
-    <button class="btn-save" onclick={handleSave}>Speichern</button>
-    <button class="btn-cancel" onclick={onCancel}>Abbrechen</button>
-  </div>
 </div>
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
@@ -1108,47 +1124,6 @@
     gap: 0;
     color: var(--ink);
     font-size: 0.85rem;
-  }
-
-  .toolbar {
-    display: flex;
-    gap: 0.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--surface);
-    margin-bottom: 0.75rem;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 10;
-    padding-top: 0.25rem;
-  }
-  .toolbar-bottom {
-    position: static;
-    border-top: 1px solid var(--surface);
-    border-bottom: none;
-    margin-top: 1rem;
-    padding-top: 0.75rem;
-    padding-bottom: 0;
-    margin-bottom: 0;
-  }
-
-  .btn-save {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    border-radius: 4px;
-    padding: 0.3rem 0.9rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .btn-cancel {
-    background: none;
-    border: none;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.82rem;
-    padding: 0.3rem 0.5rem;
   }
 
   section {

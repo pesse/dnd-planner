@@ -1,82 +1,31 @@
 // Mapping der PDF-Feldnamen (Taendler v2.8.x) auf unser Datenmodell
 // Formeln aus dem extrahierten PDF-JavaScript
+//
+// Die Datentypen (Character/CharacterData, Attack, CharacterSpells, …) leben jetzt
+// als Single Source of Truth im Zod-Schema (schemas/character.ts) und werden hier
+// nur re-exportiert. Helper, Label-Maps und der PDF-Parser bleiben in dieser Datei.
 
-export interface SpellEntry {
-  name: string;
-  prepared: boolean;
-}
+import type {
+  Character,
+  CharacterSpells,
+  Attack,
+  SpellEntry,
+  ProficiencyFlags,
+  PersonalData,
+} from '../schemas/character';
 
-/**
- * Ein Angriff/eine Waffe auf dem Charakterbogen.
- * `bonus` und `damage` sind immer als fertige Strings vorhanden (für Anzeige &
- * PDF-Export). Sind die strukturierten Felder gesetzt und `auto` true, werden
- * `bonus`/`damage` reaktiv aus den Attributen berechnet und beim Speichern neu
- * geschrieben. Fehlen die Felder (Altbestand / manuell), bleibt es reiner Freitext.
- */
-export interface Attack {
-  name: string;
-  bonus: string;
-  damage: string;
-  type: string;
-  range: string;
-  /** true = bonus/damage werden aus den Feldern unten berechnet. */
-  auto?: boolean;
-  /** Welcher Attributsmodifikator zählt: 'str', 'ges' oder 'finesse' (besserer von beiden). */
-  ability?: 'str' | 'ges' | 'finesse';
-  /** Übungsbonus auf den Angriffswurf addieren? */
-  proficient?: boolean;
-  /** Schadenswürfel ohne Modifikator, z.B. "1W8". */
-  baseDamage?: string;
-  /** Magischer Bonus (+X) auf Angriff UND Schaden. */
-  magicBonus?: number;
-}
+export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 
-export interface CharacterSpells {
-  spellcastingClass: string;
-  spellcastingAbility: string;
-  saveDC: number;
-  attackBonus: number;
-  /** true = saveDC/attackBonus werden aus Übungsbonus + Zauberattribut-Mod berechnet. */
-  autoCalc?: boolean;
-  /** Index 0 = Stufe 1, Index 8 = Stufe 9 */
-  slots: Array<{ total: number; used: number }>;
-  cantrips: string[];
-  byLevel: Record<string, SpellEntry[]>;
-}
-
-export interface ProficiencyFlags {
-  simpleWeapons: boolean;
-  martialWeapons: boolean;
-  /** Freitext: weitere Waffen, in denen der Charakter geübt ist (z.B. „Steinhammer") */
-  otherWeapons: string;
-  lightArmor: boolean;
-  mediumArmor: boolean;
-  heavyArmor: boolean;
-  shields: boolean;
-}
+/** Bisheriger Name des Charakter-Datentyps — Alias auf das Zod-Schema. */
+export type CharacterData = Character;
+/** JSON-Speicherformat (Metadaten sind Teil von Character). */
+export type CharacterJSON = Character;
 
 export function emptyProficiencies(): ProficiencyFlags {
   return {
     simpleWeapons: false, martialWeapons: false, otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   };
-}
-
-export interface PersonalData {
-  rassenmerkmale: string;
-  alter: string;
-  geschlecht: string;
-  sizeCat: string;
-  gesinnung: string;
-  glaube: string;
-  lebensstil: string;
-  taeglicheKosten: string;
-  augenfarbe: string;
-  haarfarbe: string;
-  hautfarbe: string;
-  gewicht: string;
-  koerpergroesse: string;
-  aussehen: string;
 }
 
 export function emptyPersonal(): PersonalData {
@@ -88,74 +37,13 @@ export function emptyPersonal(): PersonalData {
   };
 }
 
-export interface CharacterData {
-  // Kopf
-  name: string;
-  classLevel: string;
-  playerName: string;
-  background: string;
-  race: string;
-  xp: string;
-  // Attribute (Basiswerte)
-  str: number; ges: number; kon: number;
-  int: number; wei: number; cha: number;
-  // Modifikatoren (berechnet)
-  strMod: number; gesMod: number; konMod: number;
-  intMod: number; weiMod: number; chaMod: number;
-  // Kampf
-  ac: string;
-  initiative: string;
-  speed: string;
-  hpMax: string;
-  hpCurrent: string;
-  hpTemp: string;
-  proficiencyBonus: number;
-  passivePerception: string;
-  hitDice: string;
-  // Rettungswürfe (Profizienzen)
-  strSaveProf: boolean; gesSaveProf: boolean; konSaveProf: boolean;
-  intSaveProf: boolean; weiSaveProf: boolean; chaSaveProf: boolean;
-  // Fertigkeiten (Profizienzen + Expertise)
-  skills: Record<string, { value: number; prof: boolean; exp: boolean }>;
-  // Angriffe
-  attacks: Attack[];
-  // Klassenmerkmale
-  classFeatures: string;
-  // Persönlichkeit
-  traits: string; ideals: string; bonds: string; flaws: string;
-  // Sprachen & Werkzeuge
-  languages: string[];
-  tools: string[];
-  alleskoenner: boolean;
-  // Währung
-  currency: { km: string; sm: string; em: string; gm: string; pm: string };
-  // Inventar
-  inventory: { name: string; count: string; weight: string }[];
-  inventoryNotes: string;
-  totalWeight: string;
-  // Zauber
-  spells: CharacterSpells;
-  // Persönliches (optional — Migration-friendly)
-  personal?: PersonalData;
-  // Waffen- & Rüstungsprofizienzen (optional)
-  proficiencies?: ProficiencyFlags;
-  // Portrait (Datei im Charakter-Ordner)
-  portraitFile?: string;
-}
-
-/** JSON-Speicherformat für Charaktere (primäres Format, ersetzt PDF als Datenquelle) */
-export interface CharacterJSON extends CharacterData {
-  _version: 1;
-  _importedFrom?: string;
-  _importedAt?: string;
-}
-
 export function emptySpells(): CharacterSpells {
   return {
     spellcastingClass: '',
     spellcastingAbility: '',
     saveDC: 0,
     attackBonus: 0,
+    autoCalc: false,
     slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
     cantrips: [],
     byLevel: {},
@@ -328,6 +216,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       spellcastingAbility: spellAbility,
       saveDC: spellSaveDC,
       attackBonus: spellAttackBonus,
+      autoCalc: false,
       slots: spellSlots,
       cantrips,
       byLevel: spellsByLevel,

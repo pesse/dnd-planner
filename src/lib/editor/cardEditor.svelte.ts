@@ -22,7 +22,8 @@ import { openSaveAs, slugify, type SaveAsBucket } from '$lib/editor/saveAs';
 import { pushError } from '$lib/stores/errors';
 import type { FileEntry } from '$lib/types';
 
-export type CardTab = 'karte' | 'bearbeiten' | 'json';
+// Standard-Tabs + beliebige Extra-Tab-Ids (z.B. Charakter: 'details', 'notes').
+export type CardTab = 'karte' | 'bearbeiten' | 'json' | (string & {});
 
 /**
  * Ablage-Abstraktion: wo lebt die Datei? Der „Bucket" ist typ-spezifisch
@@ -92,7 +93,7 @@ export class CardEditor<T> {
 
     // Tab-Wechsel des Nutzers übergreifend merken (json bewusst ausgenommen).
     $effect(() => {
-      if (this.tab === 'karte' || this.tab === 'bearbeiten') preferredCardTab.set(this.tab);
+      if (this.tab === 'karte' || this.tab === 'bearbeiten') preferredCardTab.set(this.tab as 'karte' | 'bearbeiten');
     });
 
     onMount(() => {

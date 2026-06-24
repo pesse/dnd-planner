@@ -5,7 +5,9 @@ import type { Spell, SpellDamage } from './schemas/spell';
 import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
 import type { Item } from './schemas/item';
 import type { Encounter, EncounterMonster } from './schemas/encounter';
+import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/character';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
+export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 
 export interface Campaign {
   id: string;

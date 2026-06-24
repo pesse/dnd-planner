@@ -12,6 +12,7 @@ import { spellSchema, migrateSpellLegacy } from '../schemas/spell';
 import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
+import { characterSchema, migrateCharacterLegacy, type Character } from '../schemas/character';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =
@@ -55,3 +56,7 @@ export const parseItem = (raw: unknown): ParseResult<Item> => parse(itemSchema, 
 // ── Encounter ────────────────────────────────────────────────────────────────────
 export const normalizeEncounter = (raw: unknown): Encounter => normalize(encounterSchema, migrateEncounterLegacy, raw);
 export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(encounterSchema, migrateEncounterLegacy, raw);
+
+// ── Character ────────────────────────────────────────────────────────────────────
+export const normalizeCharacter = (raw: unknown): Character => normalize(characterSchema, migrateCharacterLegacy, raw);
+export const parseCharacter = (raw: unknown): ParseResult<Character> => parse(characterSchema, migrateCharacterLegacy, raw);
