@@ -316,6 +316,21 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
     }
 }
 
+/// Löscht eine Datei oder ein Verzeichnis (rekursiv). Für Vault-Einträge inkl.
+/// ordnerbasierter Entitäten (Charaktere, Akte, Kampagnen).
+#[tauri::command]
+fn delete_path(path: String) -> Result<(), String> {
+    let path = resolve_path(&path);
+    if !path.exists() {
+        return Err(format!("Pfad existiert nicht: {}", path.display()));
+    }
+    if path.is_dir() {
+        fs::remove_dir_all(&path).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(&path).map_err(|e| e.to_string())
+    }
+}
+
 #[tauri::command]
 fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     let old = resolve_path(&old_path);
@@ -652,6 +667,7 @@ pub fn run() {
             list_json_files,
             list_json_entries,
             rename_file,
+            delete_path,
             write_file_base64,
             load_spells_index,
             save_api_key,

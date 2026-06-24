@@ -13,6 +13,7 @@
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { pushError } from '$lib/stores/errors';
@@ -502,6 +503,7 @@
 <ErrorToast />
 <UnsavedChangesDialog />
 <SaveAsDialog />
+<ConfirmDialog />
 {#if activeContextAction}
   <ContextActionModal action={activeContextAction} onclose={() => (activeContextAction = null)} />
 {/if}

@@ -1,11 +1,14 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
+  import { get } from 'svelte/store';
   import { onMount } from 'svelte';
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
+  import { confirmAction } from '../stores/confirmDialog';
+  import { pushError } from '../stores/errors';
   import CreateCardModal from './CreateCardModal.svelte';
   import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
@@ -87,6 +90,43 @@
 
   function slugToName(slug: string): string {
     return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  /**
+   * Löscht einen Vault-Eintrag (Datei oder Ordner) nach Bestätigung und ruft die
+   * passende Reload-Funktion. Räumt activeFile auf, falls der gelöschte Eintrag
+   * (oder ein Kind davon) gerade geöffnet ist.
+   */
+  async function deleteEntry(
+    path: string,
+    displayName: string,
+    isFolder: boolean,
+    reload: () => void | Promise<void>,
+  ): Promise<void> {
+    const ok = await confirmAction({
+      title: 'Löschen',
+      message: isFolder
+        ? `„${displayName}" und der gesamte enthaltene Inhalt werden unwiderruflich gelöscht.`
+        : `„${displayName}" wird unwiderruflich gelöscht.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await invoke('delete_path', { path });
+    } catch (e) {
+      pushError(`Löschen fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    // activeFile leeren, wenn der gelöschte Pfad (oder ein Unterpfad) offen ist
+    const af = get(activeFile);
+    const affected = (p?: string) => !!p && (p === path || p.startsWith(path + '/'));
+    if (af && (affected(af.path) || affected(af.dirPath))) {
+      activeFile.set(null);
+      setFileContent('');
+    }
+    await reload();
+    vaultVersion.update((v) => v + 1);
   }
 
   async function loadCampaigns() {
@@ -843,6 +883,11 @@
   }
 </script>
 
+<!-- Hover-Löschbutton für eine Baumzeile; in `.entry-row` neben den .file-entry-Button gesetzt. -->
+{#snippet delBtn(onDelete: () => void)}
+  <button class="entry-del" title="Löschen" onclick={(e) => { e.stopPropagation(); onDelete(); }}>🗑</button>
+{/snippet}
+
 <aside class="sidebar">
   <div class="sidebar-header ornament-top">
     <h2><DragonMark size={18} /> DnD Planner</h2>
@@ -871,13 +916,16 @@
       <div class="file-list">
         {#if characterEntries.length}
           {#each characterEntries as entry}
-            <button
-              class="file-entry"
-              class:active={$activeFile?.path?.endsWith(entry.name)}
-              onclick={() => openCharacter(entry)}
-            >
-              {entry.name.replace('.md', '')}
-            </button>
+            <div class="entry-row">
+              <button
+                class="file-entry"
+                class:active={$activeFile?.path?.endsWith(entry.name)}
+                onclick={() => openCharacter(entry)}
+              >
+                {entry.name.replace('.md', '')}
+              </button>
+              {@render delBtn(() => deleteEntry(`${CHARACTERS_PATH}/${entry.name}`, entry.name.replace('.md', ''), entry.is_dir, loadCharacters))}
+            </div>
           {/each}
         {:else if !showNewCharInput}
           <span class="empty">Keine Charaktere</span>
@@ -928,13 +976,16 @@
             </button>
             {#if openMonsterGroups[group]}
               {#each monsters as { filename, name }}
-                <button
-                  class="file-entry monster-subentry"
-                  class:active={$activeFile?.path?.endsWith(filename)}
-                  onclick={() => openMonster(filename)}
-                >
-                  {name}
-                </button>
+                <div class="entry-row">
+                  <button
+                    class="file-entry monster-subentry"
+                    class:active={$activeFile?.path?.endsWith(filename)}
+                    onclick={() => openMonster(filename)}
+                  >
+                    {name}
+                  </button>
+                  {@render delBtn(() => deleteEntry(`${MONSTERS_PATH}/${filename}`, name, false, loadMonsters))}
+                </div>
               {/each}
             {/if}
           {/each}
@@ -971,14 +1022,17 @@
           <!-- Suchergebnisse (flach) -->
           {#if spellSearchResults.length}
             {#each spellSearchResults as { school, filename, name }}
-              <button
-                class="file-entry monster-subentry"
-                class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
-                onclick={() => openSpell(school, filename)}
-                title={school}
-              >
-                {name}
-              </button>
+              <div class="entry-row">
+                <button
+                  class="file-entry monster-subentry"
+                  class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
+                  onclick={() => openSpell(school, filename)}
+                  title={school}
+                >
+                  {name}
+                </button>
+                {@render delBtn(() => deleteEntry(`${SPELLS_PATH}/${school}/${filename}`, name, false, () => loadSpellSchool(school)))}
+              </div>
             {/each}
           {:else}
             <span class="empty">Keine Treffer</span>
@@ -1000,13 +1054,16 @@
             {#if openSpellSchools[school]}
               {#if spells}
                 {#each spells as { filename, name }}
-                  <button
-                    class="file-entry monster-subentry"
-                    class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
-                    onclick={() => openSpell(school, filename)}
-                  >
-                    {name}
-                  </button>
+                  <div class="entry-row">
+                    <button
+                      class="file-entry monster-subentry"
+                      class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
+                      onclick={() => openSpell(school, filename)}
+                    >
+                      {name}
+                    </button>
+                    {@render delBtn(() => deleteEntry(`${SPELLS_PATH}/${school}/${filename}`, name, false, () => loadSpellSchool(school)))}
+                  </div>
                 {/each}
               {:else}
                 <span class="empty">Laden…</span>
@@ -1045,14 +1102,17 @@
         {#if itemSearchResults !== null}
           {#if itemSearchResults.length}
             {#each itemSearchResults as { dir, filename, name }}
-              <button
-                class="file-entry monster-subentry"
-                class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
-                onclick={() => openItem(dir, filename)}
-                title={dir}
-              >
-                {name}
-              </button>
+              <div class="entry-row">
+                <button
+                  class="file-entry monster-subentry"
+                  class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
+                  onclick={() => openItem(dir, filename)}
+                  title={dir}
+                >
+                  {name}
+                </button>
+                {@render delBtn(() => deleteEntry(`${ITEMS_PATH}/${dir}/${filename}`, name, false, () => { invalidateItemCache(dir); return loadItemDir(dir); }))}
+              </div>
             {/each}
           {:else}
             <span class="empty">Keine Treffer</span>
@@ -1074,13 +1134,16 @@
             {#if openItemDirs[dir]}
               {#if dirItems}
                 {#each dirItems as { filename, name }}
-                  <button
-                    class="file-entry monster-subentry"
-                    class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
-                    onclick={() => openItem(dir, filename)}
-                  >
-                    {name}
-                  </button>
+                  <div class="entry-row">
+                    <button
+                      class="file-entry monster-subentry"
+                      class:active={$activeFile?.path?.includes(`/${dir}/${filename}`)}
+                      onclick={() => openItem(dir, filename)}
+                    >
+                      {name}
+                    </button>
+                    {@render delBtn(() => deleteEntry(`${ITEMS_PATH}/${dir}/${filename}`, name, false, () => { invalidateItemCache(dir); return loadItemDir(dir); }))}
+                  </div>
                 {/each}
               {:else}
                 <span class="empty">Laden…</span>
@@ -1164,13 +1227,16 @@
   <!-- Kampagnen Liste -->
   {#each campaigns as campaign}
     <div class="campaign-section">
-      <button
-        class="campaign-title"
-        class:active={$activeCampaign?.id === campaign.id}
-        onclick={() => selectCampaign(campaign)}
-      >
-        {campaign.name}
-      </button>
+      <div class="entry-row">
+        <button
+          class="campaign-title"
+          class:active={$activeCampaign?.id === campaign.id}
+          onclick={() => selectCampaign(campaign)}
+        >
+          {campaign.name}
+        </button>
+        {@render delBtn(() => deleteEntry(`${VAULT_BASE}/${campaign.path}`, campaign.name, true, () => { if (get(activeCampaign)?.path === campaign.path) { activeCampaign.set(null); activeFile.set(null); setFileContent(''); } return loadCampaigns(); }))}
+      </div>
 
       {#if $activeCampaign?.id === campaign.id}
         {#each sections as section}
@@ -1210,17 +1276,21 @@
                           title="Encounter hinzufügen"
                           onclick={() => { showNewActEncounterInput[actEncKey] = true; newActEncounterInput[actEncKey] = ''; }}
                         >+</button>
+                        {@render delBtn(() => deleteEntry(`${VAULT_BASE}/${campaign.path}/acts/${filename}`, fileTitles[filePath] ?? filename, true, () => loadSection(campaign.path, section)))}
                       </div>
                       {#each actEncs as encFilename}
                         {@const encPath = `${VAULT_BASE}/${campaign.path}/acts/${filename}/encounters/${encFilename}`}
-                        <button
-                          class="file-entry encounter-entry act-enc-entry"
-                          class:active={$activeFile?.path === encPath}
-                          onclick={() => openEncounter(campaign.path, filename, encFilename)}
-                          title={encFilename.replace('.json', '')}
-                        >
-                          ⚡ {encounterNames[`${actEncKey}/${encFilename}`] ?? encFilename.replace('.json', '')}
-                        </button>
+                        <div class="entry-row">
+                          <button
+                            class="file-entry encounter-entry act-enc-entry"
+                            class:active={$activeFile?.path === encPath}
+                            onclick={() => openEncounter(campaign.path, filename, encFilename)}
+                            title={encFilename.replace('.json', '')}
+                          >
+                            ⚡ {encounterNames[`${actEncKey}/${encFilename}`] ?? encFilename.replace('.json', '')}
+                          </button>
+                          {@render delBtn(() => deleteEntry(encPath, encounterNames[`${actEncKey}/${encFilename}`] ?? encFilename.replace('.json', ''), false, () => loadEncountersForAct(campaign.path, filename)))}
+                        </div>
                       {/each}
                       {#if showNewActEncounterInput[actEncKey]}
                         <div class="new-file-row act-enc-input">
@@ -1235,14 +1305,17 @@
                         </div>
                       {/if}
                     {:else}
-                      <button
-                        class="file-entry"
-                        class:active={$activeFile?.path === filePath}
-                        onclick={() => openFile(campaign.path, section, filename)}
-                        title={fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
-                      >
-                        {fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
-                      </button>
+                      <div class="entry-row">
+                        <button
+                          class="file-entry"
+                          class:active={$activeFile?.path === filePath}
+                          onclick={() => openFile(campaign.path, section, filename)}
+                          title={fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
+                        >
+                          {fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, '')}
+                        </button>
+                        {@render delBtn(() => deleteEntry(filePath, fileTitles[filePath] ?? filename.replace(/\.(md|json)$/, ''), false, () => loadSection(campaign.path, section)))}
+                      </div>
                     {/if}
                   {/each}
                 {:else if !showNewFileInput[key]}
@@ -1477,6 +1550,39 @@
   .file-entry.active {
     background: var(--border);
     color: var(--arcane);
+  }
+
+  /* Zeile mit Hover-Löschbutton (.file-entry/.campaign-title + .entry-del) */
+  .entry-row {
+    position: relative;
+  }
+  .entry-del {
+    padding: 0 0.6rem;
+    background: none;
+    border: none;
+    color: var(--ink-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity 0.1s;
+  }
+  /* In Blatt-Zeilen den Button rechts über die Zeile legen (volle Hover-Breite). */
+  .entry-row > .entry-del {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+  }
+  .entry-row:hover .entry-del,
+  .act-row:hover .entry-del {
+    opacity: 1;
+  }
+  .entry-del:hover {
+    color: var(--danger);
   }
 
   .monster-group-header {
