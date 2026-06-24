@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
+  import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
   import { Markdown } from 'tiptap-markdown';
   import { invoke } from '@tauri-apps/api/core';
   import { fileContent, activeFile, historyState, undoContent, redoContent } from '../stores/campaign';
+  import { openVaultLink } from '../services/vaultLinks';
   import { parseFrontmatter } from '../utils/frontmatter';
   import './editor.css';
 
@@ -37,6 +40,20 @@
     return { block: rawBlock, body };
   }
 
+  // Klick auf einen Markdown-Link: relativ zur aktiven Datei intern öffnen.
+  // Externe Links (http/mailto) im System-Browser; Anker etc. ignorieren.
+  function onLinkClick(e: MouseEvent) {
+    const anchor = (e.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null;
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    const fromPath = get(activeFile)?.path ?? '';
+    void openVaultLink(href, fromPath).then((handled) => {
+      if (!handled && /^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener');
+    });
+  }
+
   function toFull(body: string): string {
     return rawFrontmatterBlock ? rawFrontmatterBlock + body : body;
   }
@@ -53,6 +70,7 @@
   let isBlockquote = $derived(tick >= 0 && (editor?.isActive('blockquote') ?? false));
   let isCode       = $derived(tick >= 0 && (editor?.isActive('code') ?? false));
   let isCodeBlock  = $derived(tick >= 0 && (editor?.isActive('codeBlock') ?? false));
+  let isTable      = $derived(tick >= 0 && (editor?.isActive('table') ?? false));
 
   onMount(() => {
     const { block, body } = splitFull($fileContent);
@@ -62,7 +80,16 @@
     const ed = new Editor({
       element: editorEl!,
       extensions: [
-        StarterKit,
+        // link-Optionen:
+        //  - openOnClick aus: Klicks fängt onLinkClick ab und navigiert intern,
+        //    statt die Webview auf die relative URL umzuleiten.
+        //  - isAllowedUri: ()=>true: TipTap v3 verwirft sonst schemalose relative
+        //    Links (z.B. world/dorf.md) schon beim Parsen → Link-Mark ginge verloren.
+        StarterKit.configure({ link: { openOnClick: false, isAllowedUri: () => true } }),
+        Table.configure({ resizable: true }),
+        TableRow,
+        TableHeader,
+        TableCell,
         Markdown.configure({ html: false, transformPastedText: true }),
       ],
       content: body,
@@ -93,11 +120,17 @@
         saveStatus = 'unsaved';
         scheduleAutoSave(full);
       },
-      onSelectionUpdate: () => { tick++; },
-      onTransaction:    () => { tick++; },
+      // tick treibt die Toolbar-Aktiv-States. In einen Microtask verschoben, damit
+      // eine während Sveltes Update-Flush ausgelöste Transaktion (z.B. der Blur beim
+      // Unmount durch Link-Navigation auf eine Kartenansicht) nicht
+      // state_unsafe_mutation wirft.
+      onSelectionUpdate: () => { queueMicrotask(() => { if (editor) tick++; }); },
+      onTransaction:    () => { queueMicrotask(() => { if (editor) tick++; }); },
     });
 
     editor = ed;
+
+    editorEl!.addEventListener('click', onLinkClick);
 
     // Externe Änderungen (Undo/Redo, LLM-Panel) in den Editor übernehmen.
     const unsubscribe = fileContent.subscribe((content) => {
@@ -111,6 +144,7 @@
     });
 
     return () => {
+      editorEl?.removeEventListener('click', onLinkClick);
       unsubscribe();
       ed.destroy();
       editor = null;
@@ -208,6 +242,16 @@
       <button class="tb" class:on={isBlockquote} onclick={() => editor?.chain().focus().toggleBlockquote().run()}     title="Zitat">❝</button>
       <button class="tb mono" class:on={isCode}      onclick={() => editor?.chain().focus().toggleCode().run()}           title="Inline-Code">`</button>
       <button class="tb mono" class:on={isCodeBlock} onclick={() => editor?.chain().focus().toggleCodeBlock().run()}      title="Code-Block">```</button>
+      <div class="tb-sep"></div>
+      <button class="tb" onclick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Tabelle einfügen (3×3)">▦</button>
+      {#if isTable}
+        <button class="tb mono" onclick={() => editor?.chain().focus().addColumnAfter().run()} title="Spalte rechts einfügen">Sp+</button>
+        <button class="tb mono" onclick={() => editor?.chain().focus().deleteColumn().run()}   title="Spalte löschen">Sp−</button>
+        <button class="tb mono" onclick={() => editor?.chain().focus().addRowAfter().run()}     title="Zeile darunter einfügen">Ze+</button>
+        <button class="tb mono" onclick={() => editor?.chain().focus().deleteRow().run()}       title="Zeile löschen">Ze−</button>
+        <button class="tb" onclick={() => editor?.chain().focus().toggleHeaderRow().run()}      title="Kopfzeile umschalten">⤒</button>
+        <button class="tb" onclick={() => editor?.chain().focus().deleteTable().run()}          title="Tabelle löschen">▦✕</button>
+      {/if}
     {/if}
 
     <div class="tb-flex"></div>

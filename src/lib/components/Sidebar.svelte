@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
@@ -802,6 +802,28 @@
     expanded[key] = !expanded[key];
     if (expanded[key]) await loadSection(campaignPath, section);
   }
+
+  // Öffnet eine Datei (z.B. via Link-Navigation) → die zugehörige Sektion im Baum
+  // aufklappen, damit der aktive Eintrag sichtbar/markiert ist. Reagiert nur auf den
+  // Pfad-Wechsel (untrack verhindert ein Re-Expandieren, wenn der Nutzer manuell
+  // zuklappt). Encounters erscheinen automatisch, sobald die Akte-Sektion geladen ist.
+  $effect(() => {
+    const path = $activeFile?.path;
+    const campaign = $activeCampaign;
+    if (!path || !campaign) return;
+    const base = `${VAULT_BASE}/${campaign.path}/`;
+    if (!path.startsWith(base)) return; // nur Dateien der aktiven Kampagne
+    const subdir = path.slice(base.length).split('/')[0]; // acts | world | npcs | sessions | notes
+    const section = sections.find((s) => s.subdir === subdir);
+    if (!section) return; // z.B. campaign.md selbst → kein Überpunkt
+    const key = `${campaign.path}/${section.subdir}`;
+    untrack(() => {
+      if (!expanded[key]) {
+        expanded[key] = true;
+        loadSection(campaign.path, section);
+      }
+    });
+  });
 
   async function openFile(campaignPath: string, section: typeof sections[0], filenameOrDir: string) {
     if (!(await confirmNavigation())) return;
