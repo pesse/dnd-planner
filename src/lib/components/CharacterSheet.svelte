@@ -543,11 +543,19 @@
         <span>EP: <strong>{character.xp}</strong></span>
       </div>
       <div class="header-actions">
-        <button class="btn-pdf-import" onclick={importPdfIntoExisting} disabled={importingPdf} title="Werte aus PDF überschreiben (Zauber bleiben erhalten)">
-          {importingPdf ? '…' : 'PDF importieren'}
+        {#snippet pdfIcon()}
+          <svg viewBox="0 0 24 24" width="16" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/>
+            <text x="11.5" y="18.5" font-size="6.5" font-weight="700" fill="currentColor" stroke="none" text-anchor="middle" font-family="sans-serif">PDF</text>
+          </svg>
+        {/snippet}
+        <button class="icon-btn import" class:busy={importingPdf} onclick={importPdfIntoExisting} disabled={importingPdf}
+                aria-label="PDF importieren" title="PDF importieren, aktuelle Werte überschreiben">
+          <span class="arrow">&rarr;</span>{@render pdfIcon()}
         </button>
-        <button class="btn-export-pdf" onclick={exportToPdf} disabled={exportingPdf} title="Charakter als ausgefülltes Taendler-PDF exportieren">
-          {exportingPdf ? '…' : 'Als PDF exportieren'}
+        <button class="icon-btn export" class:busy={exportingPdf} onclick={exportToPdf} disabled={exportingPdf}
+                aria-label="Als PDF exportieren" title="Ausgefülltes ATaendler-PDF exportieren">
+          {@render pdfIcon()}<span class="arrow">&rarr;</span>
         </button>
       </div>
     </div>
@@ -1064,31 +1072,34 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-left: auto;
   }
 
-  .btn-pdf-import {
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem;
     background: var(--surface);
     color: var(--ink);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    white-space: nowrap;
     cursor: pointer;
   }
-  .btn-pdf-import:hover { border-color: var(--arcane); color: var(--arcane); }
-  .btn-pdf-import:disabled { opacity: 0.6; cursor: default; }
+  .icon-btn .arrow { font-size: 0.95rem; line-height: 1; }
+  .icon-btn:disabled { opacity: 0.6; cursor: default; }
+  .icon-btn.import:hover { border-color: var(--arcane); color: var(--arcane); }
+  .icon-btn.export:hover { border-color: var(--green); color: var(--green); }
+  .icon-btn.busy { animation: icon-pulse 1s ease-in-out infinite; }
 
-  .btn-export-pdf {
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.8rem;
-    cursor: pointer;
+  @keyframes icon-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
   }
-  .btn-export-pdf:hover { border-color: var(--green); color: var(--green); }
-  .btn-export-pdf:disabled { opacity: 0.6; cursor: default; }
 
   .edit-wrapper {
     min-height: 0;
