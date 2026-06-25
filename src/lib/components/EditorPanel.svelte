@@ -70,27 +70,30 @@
 </script>
 
 <div class="editor-panel" {style}>
-  <!-- Tab-Leiste -->
-  <div class="tab-bar">
-    <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
-    <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
-    {#each extraTabs as t (t.id)}
-      <button class="tab-btn" class:active={tab === t.id} onclick={() => switchTab(t.id)}>{t.label}</button>
-    {/each}
-    <button class="tab-btn" class:active={tab === 'json'}       onclick={() => switchTab('json')}>JSON</button>
-    {#if tabactions}
-      <div class="tab-actions">{@render tabactions()}</div>
+  <!-- Sticky-Kopf: Tab-Leiste + Speichern-Leiste bleiben beim Scrollen sichtbar -->
+  <div class="sticky-header">
+    <!-- Tab-Leiste -->
+    <div class="tab-bar">
+      <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
+      <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
+      {#each extraTabs as t (t.id)}
+        <button class="tab-btn" class:active={tab === t.id} onclick={() => switchTab(t.id)}>{t.label}</button>
+      {/each}
+      <button class="tab-btn" class:active={tab === 'json'}       onclick={() => switchTab('json')}>JSON</button>
+      {#if tabactions}
+        <div class="tab-actions">{@render tabactions()}</div>
+      {/if}
+    </div>
+
+    <!-- Speichern-Leiste (nur für den character.json-Draft: nicht auf Karte und nicht in Extra-Tabs) -->
+    {#if dirty && tab !== 'karte' && !isExtraTab}
+      <div class="save-bar">
+        {#if saveError}<span class="save-error">{saveError}</span>{/if}
+        <button class="save-btn"   onclick={tab === 'json' ? saveJson : onsave}>Speichern</button>
+        <button class="cancel-btn" onclick={ondiscard}>Verwerfen</button>
+      </div>
     {/if}
   </div>
-
-  <!-- Speichern-Leiste (nur für den character.json-Draft: nicht auf Karte und nicht in Extra-Tabs) -->
-  {#if dirty && tab !== 'karte' && !isExtraTab}
-    <div class="save-bar">
-      {#if saveError}<span class="save-error">{saveError}</span>{/if}
-      <button class="save-btn"   onclick={tab === 'json' ? saveJson : onsave}>Speichern</button>
-      <button class="cancel-btn" onclick={ondiscard}>Verwerfen</button>
-    </div>
-  {/if}
 
   <!-- Tab-Inhalte -->
   {#if tab === 'karte'}
@@ -116,12 +119,31 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 0.75rem 1.5rem 1.5rem;
+    padding: 0 1.5rem 1.5rem;
     background: var(--bg);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  /*
+   * Sticky-Kopf: Tab-Leiste + Speichern-Leiste bleiben beim vertikalen Scrollen
+   * langer Inhalte oben sichtbar. Volle Panel-Breite mit opakem Hintergrund,
+   * damit der Inhalt sauber darunter durchscrollt; innere Leisten bleiben
+   * weiterhin mittig (max-width).
+   */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    background: var(--bg);
   }
 
   /*
