@@ -27,6 +27,18 @@ export interface DesignEncounterContext {
   party: CharacterCompact[];
   /** Globale Monster-Bibliothek (für Wiederverwendung bekannter Slugs). */
   library: MonsterLibraryEntry[];
+  /** Steuert, wie viel der Monster-Bibliothek in den Entwurfs-Prompt einfließt
+   *  (Tokens sparen). Default: nur kuratierte Gruppen, gekappt auf maxEntries. */
+  libraryOptions?: LibraryOptions;
+}
+
+export interface LibraryOptions {
+  /** Bibliotheks-Block ganz weglassen. Default: true (einbeziehen). */
+  include?: boolean;
+  /** Nur diese Monster-Gruppen (= types) einbeziehen. Leer/undefined → alle. */
+  groups?: string[];
+  /** Obergrenze für die Anzahl gelisteter Monster. Default: 30. */
+  maxEntries?: number;
 }
 
 export interface DesignEncounterCallbacks extends RunOptions {
@@ -59,29 +71,42 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-const MAX_LIBRARY_LINES = 100;
+const DEFAULT_MAX_LIBRARY_ENTRIES = 30;
 
-function buildPreamble(actContent: string, party: CharacterCompact[], library: MonsterLibraryEntry[]): string {
+/** Wählt die für den Entwurf einzubeziehenden Bibliotheks-Einträge gemäß Optionen.
+ *  `groups` undefined → alle Gruppen; gesetzt (auch leer) → nur diese (leer ⇒ keine,
+ *  konsistent mit der Monster-Gruppen-Kuratierung im Chat-Kontext, context.ts:499). */
+function selectLibrary(library: MonsterLibraryEntry[], opts?: LibraryOptions): MonsterLibraryEntry[] {
+  if (opts?.include === false) return [];
+  const groups = opts?.groups;
+  const filtered = groups ? library.filter((m) => groups.includes(m.group)) : library;
+  return filtered.slice(0, opts?.maxEntries ?? DEFAULT_MAX_LIBRARY_ENTRIES);
+}
+
+function buildPreamble(
+  actContent: string,
+  party: CharacterCompact[],
+  library: MonsterLibraryEntry[],
+  libraryOptions?: LibraryOptions,
+): string {
   const blocks: string[] = [];
 
-  blocks.push(`## Akt-Kontext\n${actContent.trim() || '(kein Inhalt)'}`);
+  blocks.push(`## Act context\n${actContent.trim() || '(no content)'}`);
 
   if (party.length) {
     const lines = party.map((c) => {
       const meta = [c.classLevel, c.race].filter(Boolean).join(', ');
       return `- ${c.name}${meta ? ` (${meta})` : ''}`;
     });
-    blocks.push(`## Party (${party.length} Charaktere)\n${lines.join('\n')}`);
+    blocks.push(`## Party (${party.length} characters)\n${lines.join('\n')}`);
   } else {
-    blocks.push('## Party\n(keine Charakterdaten — wähle plausible party_size/party_level)');
+    blocks.push('## Party\n(no character data — choose a plausible party_size/party_level)');
   }
 
-  if (library.length) {
-    const lines = library
-      .slice(0, MAX_LIBRARY_LINES)
-      .map((m) => `- ${m.slug} — ${m.name} (CR ${m.cr})`);
-    const more = library.length > MAX_LIBRARY_LINES ? `\n… und ${library.length - MAX_LIBRARY_LINES} weitere` : '';
-    blocks.push(`## Vorhandene Monster (Bibliothek — bevorzugt wiederverwenden, slug exakt übernehmen)\n${lines.join('\n')}${more}`);
+  const selected = selectLibrary(library, libraryOptions);
+  if (selected.length) {
+    const lines = selected.map((m) => `- ${m.slug} — ${m.name} (CR ${m.cr})`);
+    blocks.push(`## Available monsters (library — prefer reusing these; copy the slug exactly)\n${lines.join('\n')}`);
   }
 
   return blocks.join('\n\n');
@@ -89,10 +114,10 @@ function buildPreamble(actContent: string, party: CharacterCompact[], library: M
 
 function buildMonsterPrompt(slug: string, notes: string, enc: Encounter): string {
   const parts = [
-    `Erstelle den Statblock für das Monster „${slug}", das im Encounter „${enc.name}" vorkommt.`,
-    notes ? `Rolle/Taktik in diesem Encounter: ${notes}` : '',
-    enc.description ? `Encounter-Kontext: ${enc.description}` : '',
-    `Zielniveau: Party-Stufe ${enc.party_level}, Encounter-Schwierigkeit „${enc.difficulty}". Wähle einen dazu passenden Herausforderungsgrad (cr) mit konsistenten Werten.`,
+    `Create the statblock for the monster "${slug}", which appears in the encounter "${enc.name}".`,
+    notes ? `Role/tactics in this encounter: ${notes}` : '',
+    enc.description ? `Encounter context: ${enc.description}` : '',
+    `Target level: party level ${enc.party_level}, encounter difficulty "${enc.difficulty}". Choose a fitting challenge rating (cr) with consistent values.`,
   ];
   return parts.filter(Boolean).join('\n');
 }
@@ -102,18 +127,18 @@ export async function designEncounter(
   userPrompt: string,
   cb: DesignEncounterCallbacks = {},
 ): Promise<DesignEncounterResult> {
-  const { config, campaignPath, actDirName, actContent, party, library } = ctx;
+  const { config, campaignPath, actDirName, actContent, party, library, libraryOptions } = ctx;
   const onPhase = cb.onPhase ?? (() => {});
   const runOpts: RunOptions = { onStep: cb.onStep, onActivity: cb.onActivity, signal: cb.signal };
   const throwIfAborted = () => {
     if (cb.signal?.aborted) throw new DOMException('Abgebrochen', 'AbortError');
   };
 
-  // 1) Encounter-JSON generieren
+  // 1) Encounter-JSON generieren (tool-frei → ein Call)
   onPhase('Entwerfe Encounter…');
-  const preamble = buildPreamble(actContent, party, library);
-  const auftrag = userPrompt.trim() || 'Entwirf einen passenden Kampf-Encounter für diesen Akt.';
-  const userInput = `${preamble}\n\n## Auftrag\n${auftrag}`;
+  const preamble = buildPreamble(actContent, party, library, libraryOptions);
+  const auftrag = userPrompt.trim() || 'Design a fitting combat encounter for this act.';
+  const userInput = `${preamble}\n\n## Task\n${auftrag}`;
   const encounter = await runAiAction<Encounter>(config, createEncounterAction(), userInput, runOpts);
 
   // 2) Referenzierte Monster auflösen (vorhandene wiederverwenden, fehlende generieren)

@@ -26,34 +26,37 @@ const encounterSpec: EntityActionSpec<Encounter> = {
   jsonSchema: toLlmJsonSchema(encounterSchema),
   validate: isEncounter,
   buildCreatePrompt({ nameHint }) {
-    return `Du bist ein Assistent für Dungeons & Dragons (5e). Du entwirfst aus dem Akt-Kontext und den Wünschen des Nutzers einen kompletten Kampf-Encounter als JSON im App-Schema (Deutsch).
+    return `You are an assistant for Dungeons & Dragons (5e). From the act context and the user's wishes, design a complete combat encounter as JSON in the app schema. Write all human-readable content fields in German.
 
-Der User-Input enthält Kontextblöcke: den Akt, die Party und die bereits vorhandene Monster-Bibliothek. Nutze sie.
+The user input contains context blocks: the act, the party, and a curated list of available monsters. Use them.
 
-## Vorgehen
-1. Lies den Akt-Kontext und greife dessen Orte, Fraktionen und Stimmung auf. Der Encounter soll thematisch in den Akt passen.
-2. Wähle die Monster und ihre Anzahl passend zur Party (\`party_size\`/\`party_level\` aus dem Party-Block übernehmen) und zur gewünschten \`difficulty\`.
-3. **Monster-Auswahl (WICHTIG):**
-   - Bevorzuge Monster aus der mitgelieferten Bibliothek — übernimm deren \`slug\` EXAKT.
-   - Passt nichts, darf es ein SRD-Monster sein: nutze \`search_dnd_api\` (category "monsters", englischer Begriff) und verwende den dortigen Index als \`slug\`.
-   - Brauchst du ein neues, eigenes Monster, vergib einen sprechenden \`slug\` in kebab-case (z.B. "fehlerhafte-wachdrohne"). Erfinde KEINE Statwerte hier — der Statblock wird separat erzeugt; gib im \`notes\`-Feld des Monsters seine Rolle/Taktik an.
-   - Derselbe \`slug\` darf mehrfach vorkommen (z.B. zwei Wellen desselben Monstertyps).
-4. Setze \`xp_total\` plausibel zur Summe der Monster, \`location\` passend zum Akt, und schreibe einen atmosphärischen \`read_aloud\`-Vorlesetext.
-5. \`notes\` für PC-Integration/Konsequenzen, \`status\` = "planned".
-6. Gib IMMER das VOLLSTÄNDIGE Encounter-JSON gemäß Schema aus.${nameHint}`;
+## Procedure
+1. Read the act context and pick up its locations, factions, and mood. The encounter must fit the act thematically.
+2. Choose the monsters and their count to suit the party (copy \`party_size\`/\`party_level\` from the party block) and the requested \`difficulty\`.
+3. **Monster selection (IMPORTANT):**
+   - Prefer monsters from the provided library — copy their \`slug\` EXACTLY.
+   - If nothing fits, an SRD monster is fine: use \`search_dnd_api\` (category "monsters", English search term) and use its index as the \`slug\`. Do not pick monsters that do not actually exist.
+   - If you genuinely need a new, custom monster, assign a descriptive kebab-case \`slug\` (e.g. "faulty-guard-drone"). Do NOT invent stat values here — the statblock is created separately; put its role/tactics into the monster's \`notes\` field.
+   - The same \`slug\` may appear multiple times (e.g. two waves of the same monster type).
+4. Set \`xp_total\` plausibly relative to the monsters, \`location\` fitting the act, and write an atmospheric \`read_aloud\` text (German).
+5. \`notes\` for PC integration/consequences, \`status\` = "planned".
+6. ALWAYS output the COMPLETE encounter JSON per the schema.${nameHint}`;
   },
   buildEditPrompt({ currentBlock }) {
-    return `Du bist ein Assistent für Dungeons & Dragons (5e). Du überarbeitest einen BESTEHENDEN Encounter gemäß den Änderungswünschen des Nutzers und gibst das vollständige, aktualisierte Encounter-JSON im App-Schema (Deutsch) aus.
+    return `You are an assistant for Dungeons & Dragons (5e). You revise an EXISTING encounter according to the user's change requests and output the complete, updated encounter JSON in the app schema. Keep human-readable content fields in German.
 ${currentBlock}
 
-## Vorgehen
-1. Wende AUSSCHLIESSLICH die gewünschten Änderungen an. Nicht betroffene Felder bleiben UNVERÄNDERT.
-2. Monster werden per \`slug\` referenziert (Dateiname ohne .json) — bestehende Slugs beibehalten, neue in kebab-case.
-3. Halte \`xp_total\`/\`difficulty\` zur Monster-Auswahl konsistent.
-4. Gib IMMER das VOLLSTÄNDIGE Encounter-JSON aus — nicht nur die geänderten Felder.`;
+## Procedure
+1. Apply ONLY the requested changes. Unaffected fields stay UNCHANGED.
+2. Monsters are referenced by \`slug\` (filename without .json) — keep existing slugs, new ones in English kebab-case.
+3. Keep \`xp_total\`/\`difficulty\` consistent with the monster selection.
+4. ALWAYS output the COMPLETE encounter JSON — not just the changed fields.`;
   },
 };
 
-/** „Encounter per KI anlegen" — Akt-Kontext/Party/Bibliothek kommen über den User-Input. */
+/** „Encounter per KI anlegen" — Akt-Kontext/Party/Bibliothek kommen über den User-Input.
+ *  Mit DnD-API-Tools: das Modell darf reale SRD-Monster nachschlagen (Erdung). Die
+ *  Statblock-Erzeugung fehlender Monster erledigt die separate Monster-Phase in
+ *  designEncounter. TPM-Spitzen fängt das Rate-Limit-Warten (retry.ts) ab. */
 export const createEncounterAction = (opts: CreateActionOptions<Encounter> = {}) =>
   buildCreateAction(encounterSpec, opts);

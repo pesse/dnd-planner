@@ -4,11 +4,41 @@
   import { getClient } from '../services/llmClient';
   import { describeAiStep } from '../services/aiActions/describeStep';
   import { modelsFor, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
+  import { monsterLibrary } from '../stores/context';
+  import { monsterTypeLabel } from '../types';
   import type { LlmProvider } from '../types';
   import type { AgentStep } from '../services/vaultTools';
   import type { ContextAction } from '../services/contextActions';
 
   let { action, onclose }: { action: ContextAction; onclose: () => void } = $props();
+
+  // ── Monster-Gruppen-Kontext-Picker (z.B. „Encounter entwerfen") ─────────────
+  // Default: alle Gruppen ausgewählt (Erdung). Der Nutzer kann pro Lauf trimmen.
+  let selectedGroups = $state<string[]>([]);
+  let groupsTouched = false;
+  let monsterGroupList = $derived.by(() => {
+    const groups = new Map<string, number>();
+    for (const m of $monsterLibrary) groups.set(m.group, (groups.get(m.group) ?? 0) + 1);
+    return [...groups.entries()]
+      .map(([group, count]) => ({ group, count }))
+      .sort((a, b) => monsterTypeLabel(a.group).localeCompare(monsterTypeLabel(b.group), 'de'));
+  });
+  // Sobald die Bibliothek geladen ist und der Nutzer noch nichts angefasst hat:
+  // alle Gruppen vorauswählen (race-sicher, falls monsterLibrary erst nach Mount lädt).
+  $effect(() => {
+    if (!groupsTouched && selectedGroups.length === 0 && monsterGroupList.length) {
+      selectedGroups = monsterGroupList.map((g) => g.group);
+    }
+  });
+  let selectedMonsterCount = $derived(
+    $monsterLibrary.filter((m) => selectedGroups.includes(m.group)).length,
+  );
+  function toggleGroup(group: string) {
+    groupsTouched = true;
+    selectedGroups = selectedGroups.includes(group)
+      ? selectedGroups.filter((g) => g !== group)
+      : [...selectedGroups, group];
+  }
 
   type LogEntry = { kind: 'phase'; text: string } | { kind: 'step'; step: AgentStep };
 
@@ -89,7 +119,7 @@
         onActivity: () => { lastActivityMs = Date.now(); },
         onPhase: (text) => { log = [...log, { kind: 'phase', text }]; lastActivityMs = Date.now(); },
         signal: abort.signal,
-      });
+      }, { monsterGroups: selectedGroups });
     } catch (e) {
       if (!userAborted) error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -135,6 +165,30 @@
     <label class="field-label" for="ca-prompt">Auftrag</label>
     <textarea id="ca-prompt" class="textarea" bind:value={description} rows="3" placeholder={action.placeholder} disabled={running}></textarea>
   </div>
+
+  {#if action.selectsMonsterGroups && monsterGroupList.length}
+    <div class="row">
+      <span class="field-label">
+        Monster-Kontext
+        <span class="field-hint">— optional, {selectedMonsterCount} Monster gewählt</span>
+      </span>
+      <div class="group-chips">
+        {#each monsterGroupList as { group, count }}
+          <button
+            type="button"
+            class="group-chip"
+            class:on={selectedGroups.includes(group)}
+            title="Monster-Gruppe: {monsterTypeLabel(group)}"
+            disabled={running}
+            onclick={() => toggleGroup(group)}
+          >{monsterTypeLabel(group)} ({count})</button>
+        {/each}
+      </div>
+      {#if selectedGroups.length === 0}
+        <span class="field-hint">Keine Auswahl → die KI erfindet/sucht Monster selbst (kein Bibliotheks-Kontext).</span>
+      {/if}
+    </div>
+  {/if}
 
   {#if running}
     <div class="ai-status"><span class="spinner" aria-hidden="true"></span><span>KI arbeitet… ({elapsedSec}s)</span></div>
@@ -192,6 +246,17 @@
   .row.two { flex-direction: row; gap: 0.5rem; }
   .row.two > * { flex: 1; }
   .field-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
+  .field-hint { text-transform: none; letter-spacing: 0; color: var(--ink-muted); font-size: 0.72rem; }
+
+  .group-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .group-chip {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--ink-muted); padding: 0.18rem 0.6rem; cursor: pointer; font-family: inherit; font-size: 0.74rem;
+    opacity: 0.6;
+  }
+  .group-chip:hover:not(:disabled) { opacity: 0.85; }
+  .group-chip.on { border-color: var(--red); color: var(--ink); opacity: 1; }
+  .group-chip:disabled { cursor: not-allowed; }
 
   .input, .select, .textarea {
     background: var(--surface); border: 1px solid var(--border); border-radius: 4px;

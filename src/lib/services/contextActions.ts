@@ -15,6 +15,7 @@ import { activeFile, fileContent, invalidateVault } from '../stores/campaign';
 import {
   campaignCharacterData,
   monsterLibrary,
+  contextFlags,
   loadEncounterContext,
   invalidateMonsterPaths,
 } from '../stores/context';
@@ -28,6 +29,12 @@ export interface ContextActionCallbacks {
   signal?: AbortSignal;
 }
 
+/** Vom Dialog erfasste, lauf-spezifische Optionen (überschreiben globale Defaults). */
+export interface ContextActionOptions {
+  /** Im Dialog gewählte Monster-Gruppen für den Kontext. undefined → globale contextFlags. */
+  monsterGroups?: string[];
+}
+
 export interface ContextAction {
   /** Stabile ID, z.B. 'design-encounter'. */
   id: string;
@@ -39,8 +46,10 @@ export interface ContextAction {
   placeholder: string;
   /** Für welche activeFile-Typen die Aktion angeboten wird. */
   appliesTo: FileEntry['type'][];
+  /** Dialog soll einen Monster-Gruppen-Picker für den Kontext anzeigen. */
+  selectsMonsterGroups?: boolean;
   /** Führt die Aktion aus; liefert eine kurze Erfolgsmeldung für die UI. */
-  run(config: LlmConfig, userInput: string, cb: ContextActionCallbacks): Promise<string>;
+  run(config: LlmConfig, userInput: string, cb: ContextActionCallbacks, options?: ContextActionOptions): Promise<string>;
 }
 
 /** Leitet campaignPath + actDirName aus dem Pfad der geöffneten Akt-Datei ab. */
@@ -56,10 +65,14 @@ const designEncounterAction: ContextAction = {
   icon: '⚡',
   placeholder: 'z.B. ein mittelschwerer Hinterhalt am Nordtor mit fehlerhaften Automaten',
   appliesTo: ['act'],
-  async run(config, userInput, cb) {
+  selectsMonsterGroups: true,
+  async run(config, userInput, cb, options) {
     const file = get(activeFile);
     if (!file || file.type !== 'act') throw new Error('Kein Akt geöffnet.');
     const { campaignPath, actDirName } = parseActPath(file.path);
+
+    // Im Dialog gewählte Gruppen haben Vorrang; sonst die globale Kuratierung.
+    const groups = options?.monsterGroups ?? get(contextFlags).monsterGroups;
 
     const result = await designEncounter(
       {
@@ -69,6 +82,9 @@ const designEncounterAction: ContextAction = {
         actContent: get(fileContent),
         party: get(campaignCharacterData),
         library: get(monsterLibrary),
+        // Nur die gewählten Monster-Gruppen, gekappt — hält den Entwurfs-Prompt klein.
+        // Leere Gruppenliste ⇒ keine Bibliothek im Prompt (Modell erdet dann via SRD-Suche).
+        libraryOptions: { groups, maxEntries: 40 },
       },
       userInput,
       cb,

@@ -48,7 +48,10 @@ export async function runAiAction<T>(
   opts: RunOptions = {},
 ): Promise<T> {
   const client = getClient(config);
-  if (!client.capabilities.tools) {
+  // Tools werden nur für Actions benötigt, die welche definieren (z.B. DnD-API-Recherche).
+  // Tool-freie Actions (Encounter-Entwurf) laufen als ein einziger Call — viel weniger Tokens.
+  const usesTools = action.openAiTools.length > 0;
+  if (usesTools && !client.capabilities.tools) {
     throw new Error(
       'Das gewählte Modell unterstützt keine Tools. Bitte ein Anthropic-, Groq- oder xAI-Modell wählen.',
     );
@@ -58,25 +61,37 @@ export async function runAiAction<T>(
   const system =
     action.buildSystemPrompt() +
     '\n\n## OUTPUT (CRITICAL)\n' +
-    '- Nach Abschluss der Recherche: gib das Ergebnis als EINEN ```json-Block aus.\n' +
-    '- Das JSON MUSS exakt diesem Schema entsprechen (keine zusätzlichen Schlüssel):\n' +
+    '- Return the final result as exactly ONE ```json code block.\n' +
+    '- The JSON MUST match this schema exactly (no extra keys):\n' +
     JSON.stringify(action.jsonSchema, null, 2);
 
-  const toolset: AgentToolset = {
-    anthropicTools: action.anthropicTools,
-    openAiTools: action.openAiTools,
-    execute: (name, args) => action.execute(name, args),
-  };
+  let draftText = '';
+  let data: unknown;
 
-  const finalText = await agentLoop(
-    config,
-    userInput,
-    system,
-    { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured, onActivity: opts.onActivity },
-    toolset,
-  );
-
-  let data = extractJson(finalText);
+  if (usesTools) {
+    // Recherche-Pfad: Agent-Loop mit Tools (DnD-API), endet mit einem JSON-Block.
+    const toolset: AgentToolset = {
+      anthropicTools: action.anthropicTools,
+      openAiTools: action.openAiTools,
+      execute: (name, args) => action.execute(name, args),
+    };
+    draftText = await agentLoop(
+      config,
+      userInput,
+      system,
+      { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured, onActivity: opts.onActivity },
+      toolset,
+    );
+    data = extractJson(draftText);
+  } else if (client.capabilities.structuredOutput) {
+    // Tool-frei + nativ schema-valide (Anthropic): ein Call, garantiert valides JSON.
+    data = await generateStructured<T>(config, userInput, action.jsonSchema, system);
+    draftText = data != null ? JSON.stringify(data) : '';
+  } else {
+    // Tool-frei (Groq/xAI/QM): ein einziger generate-Call statt Agent-Loop.
+    draftText = await client.generate(userInput, system, 'structured', () => opts.onActivity?.());
+    data = extractJson(draftText);
+  }
 
   if (!data || !action.validate(data)) {
     onStep({ type: 'tool_call', tool: 'json-korrektur', args: {} });
@@ -84,16 +99,16 @@ export async function runAiAction<T>(
       // Nativer Pfad (Anthropic): garantiert schema-valides JSON aus dem Entwurf.
       data = await generateStructured<T>(
         config,
-        `Erzeuge aus dem folgenden Entwurf das finale, schema-konforme JSON:\n\n${finalText}`,
+        `Produce the final, schema-conformant JSON from the following draft:\n\n${draftText}`,
         action.jsonSchema,
         action.buildSystemPrompt(),
       );
     } else {
       // Emuliert (Groq/xAI): erneut anfordern, dann parsen.
       const retry = await client.generate(
-        `Dein letztes JSON war ungültig oder unvollständig. Gib AUSSCHLIESSLICH ein valides ` +
-          `\`\`\`json-Objekt gemäß Schema zurück.\n\nSchema:\n${JSON.stringify(action.jsonSchema)}\n\n` +
-          `Vorheriger Output:\n${finalText}`,
+        `Your last JSON was invalid or incomplete. Return ONLY a valid ` +
+          `\`\`\`json object matching the schema.\n\nSchema:\n${JSON.stringify(action.jsonSchema)}\n\n` +
+          `Previous output:\n${draftText}`,
         system,
         'structured',
       );

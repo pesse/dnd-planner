@@ -14,6 +14,9 @@ export interface CreateActionOptions<T> {
   name?: string;
   /** Ziel-Kategorie (nur Item) — lenkt Basis-Wahl und equipment_category. */
   categoryKey?: string;
+  /** DnD-API-Tools anbinden (Default true). `false` → tool-freie Action: der Runner
+   *  generiert in EINEM Call statt im Agent-Loop (deutlich weniger Tokens). */
+  withDndTools?: boolean;
 }
 
 const jsonBlock = (heading: string, data: unknown): string =>
@@ -21,11 +24,14 @@ const jsonBlock = (heading: string, data: unknown): string =>
 
 const defaultNameHint = (name: string): string => `\n\nGewünschter Name: **„${name}"**.`;
 
-function baseAction<T>(spec: EntityActionSpec<T>): Omit<AiAction<T>, 'id' | 'label' | 'buildSystemPrompt'> {
+function baseAction<T>(
+  spec: EntityActionSpec<T>,
+  withDndTools = true,
+): Omit<AiAction<T>, 'id' | 'label' | 'buildSystemPrompt'> {
   return {
-    anthropicTools: DND_TOOLS_ANTHROPIC,
-    openAiTools: DND_TOOLS_OPENAI,
-    execute: executeDndTool,
+    anthropicTools: withDndTools ? DND_TOOLS_ANTHROPIC : [],
+    openAiTools: withDndTools ? DND_TOOLS_OPENAI : [],
+    execute: withDndTools ? executeDndTool : async () => '',
     jsonSchema: spec.jsonSchema,
     validate: spec.validate,
   };
@@ -40,7 +46,7 @@ export function buildCreateAction<T>(spec: EntityActionSpec<T>, opts: CreateActi
     categoryHint: spec.categoryHint && opts.categoryKey ? spec.categoryHint(opts.categoryKey) : '',
   };
   return {
-    ...baseAction(spec),
+    ...baseAction(spec, opts.withDndTools ?? true),
     id: `create-${spec.entity}`,
     label: `${spec.nounDe} per KI anlegen`,
     buildSystemPrompt: () => spec.buildCreatePrompt(parts),
