@@ -5,6 +5,7 @@ import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
 import { VAULT_TOOLSET, TASK_TEMPERATURE } from './vaultTools';
 import type { ChatMessage, AgentOptions, AgentToolset } from './vaultTools';
+import { withRateLimitRetry } from './retry';
 
 import { anthropicChat, anthropicGenerate, anthropicAgentLoop, modelSupportsTemperature } from './anthropicService';
 
@@ -93,90 +94,107 @@ async function rustFetchStream(
   signal?: AbortSignal,
 ): Promise<StreamResult> {
   if (signal?.aborted) throw new Error('Agent abgebrochen.');
-  const start = Date.now();
   const fullBody = { ...body, stream: true, stream_options: { include_usage: true } };
-  logDebug({
-    provider: meta.provider, type: 'request', label: meta.label,
-    data: { url, headers: sanitizeHeaders({ 'Content-Type': 'application/json', ...headers }), body: fullBody },
-  });
 
-  let content = '';
-  let finishReason = '';
-  let usage: { sent: number; received: number } | null = null;
-  const toolCalls: StreamToolCall[] = [];
-
-  const handleData = (json: Record<string, unknown>) => {
-    const u = json.usage as Record<string, number> | undefined;
-    if (u?.prompt_tokens != null) usage = { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
-    const choice = (json.choices as Array<Record<string, unknown>> | undefined)?.[0];
-    if (!choice) return;
-    const delta = (choice.delta as Record<string, unknown>) ?? {};
-    if (typeof delta.content === 'string') { content += delta.content; onDelta?.(delta.content); }
-    const deltaCalls = delta.tool_calls as Array<Record<string, unknown>> | undefined;
-    if (Array.isArray(deltaCalls)) {
-      for (const d of deltaCalls) {
-        const idx = (d.index as number) ?? 0;
-        toolCalls[idx] ??= { id: '', type: 'function', function: { name: '', arguments: '' } };
-        const f = d.function as Record<string, string> | undefined;
-        if (d.id) toolCalls[idx].id = d.id as string;
-        if (f?.name) toolCalls[idx].function.name = f.name;
-        if (f?.arguments) toolCalls[idx].function.arguments += f.arguments;
-      }
-    }
-    if (choice.finish_reason) finishReason = choice.finish_reason as string;
-  };
-
-  // SSE-Frames (`data: …\n`) über Chunk-Grenzen hinweg puffern.
-  let buffer = '';
-  const processChunk = (chunk: string) => {
-    buffer += chunk;
-    let nl: number;
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line.startsWith('data:')) continue;
-      const payload = line.slice(5).trim();
-      if (payload === '' || payload === '[DONE]') continue;
-      try { handleData(JSON.parse(payload) as Record<string, unknown>); } catch { /* unvollständige Zeile überspringen */ }
-    }
-  };
-
-  try {
-    // Rust-backed fetch (plugin-http) — derselbe Weg wie der Anthropic-SDK-Pfad:
-    // umgeht CORS, streamt den Body inkrementell und unterstützt echtes Abbrechen
-    // über das AbortSignal (`fetch_cancel`).
-    const res = await tauriFetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(fullBody),
-      signal,
+  // Ein einzelner Stream-Versuch. Wird bei Rate-Limit (429) von withRateLimitRetry
+  // erneut aufgerufen — daher lebt der gesamte mutable State hier in der Closure,
+  // damit jeder Versuch frisch startet. Ein 429 kommt beim Status-Check an, bevor
+  // Tokens gestreamt werden, es wurden also noch keine Teil-Deltas an onDelta
+  // ausgeliefert.
+  const attempt = async (): Promise<StreamResult> => {
+    const start = Date.now();
+    logDebug({
+      provider: meta.provider, type: 'request', label: meta.label,
+      data: { url, headers: sanitizeHeaders({ 'Content-Type': 'application/json', ...headers }), body: fullBody },
     });
-    if (res.status >= 400) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}: ${errText}`);
-    }
-    if (!res.body) throw new Error('Keine Stream-Antwort erhalten.');
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) processChunk(decoder.decode(value, { stream: true }));
-    }
-    processChunk(decoder.decode()); // Restpuffer leeren
-  } catch (e) {
-    logDebug({ provider: meta.provider, type: 'error', label: meta.label, data: String(e), durationMs: Date.now() - start });
-    throw e;
-  }
 
-  const compact = toolCalls.filter(Boolean); // tool_calls können sparse indexiert sein
-  logDebug({
-    provider: meta.provider, type: 'response', label: meta.label,
-    data: { content, tool_calls: compact, finish_reason: finishReason, usage }, durationMs: Date.now() - start,
+    let content = '';
+    let finishReason = '';
+    let usage: { sent: number; received: number } | null = null;
+    const toolCalls: StreamToolCall[] = [];
+
+    const handleData = (json: Record<string, unknown>) => {
+      const u = json.usage as Record<string, number> | undefined;
+      if (u?.prompt_tokens != null) usage = { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
+      const choice = (json.choices as Array<Record<string, unknown>> | undefined)?.[0];
+      if (!choice) return;
+      const delta = (choice.delta as Record<string, unknown>) ?? {};
+      if (typeof delta.content === 'string') { content += delta.content; onDelta?.(delta.content); }
+      const deltaCalls = delta.tool_calls as Array<Record<string, unknown>> | undefined;
+      if (Array.isArray(deltaCalls)) {
+        for (const d of deltaCalls) {
+          const idx = (d.index as number) ?? 0;
+          toolCalls[idx] ??= { id: '', type: 'function', function: { name: '', arguments: '' } };
+          const f = d.function as Record<string, string> | undefined;
+          if (d.id) toolCalls[idx].id = d.id as string;
+          if (f?.name) toolCalls[idx].function.name = f.name;
+          if (f?.arguments) toolCalls[idx].function.arguments += f.arguments;
+        }
+      }
+      if (choice.finish_reason) finishReason = choice.finish_reason as string;
+    };
+
+    // SSE-Frames (`data: …\n`) über Chunk-Grenzen hinweg puffern.
+    let buffer = '';
+    const processChunk = (chunk: string) => {
+      buffer += chunk;
+      let nl: number;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '' || payload === '[DONE]') continue;
+        try { handleData(JSON.parse(payload) as Record<string, unknown>); } catch { /* unvollständige Zeile überspringen */ }
+      }
+    };
+
+    try {
+      // Rust-backed fetch (plugin-http) — derselbe Weg wie der Anthropic-SDK-Pfad:
+      // umgeht CORS, streamt den Body inkrementell und unterstützt echtes Abbrechen
+      // über das AbortSignal (`fetch_cancel`).
+      const res = await tauriFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(fullBody),
+        signal,
+      });
+      if (res.status >= 400) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}: ${errText}`);
+      }
+      if (!res.body) throw new Error('Keine Stream-Antwort erhalten.');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) processChunk(decoder.decode(value, { stream: true }));
+      }
+      processChunk(decoder.decode()); // Restpuffer leeren
+    } catch (e) {
+      logDebug({ provider: meta.provider, type: 'error', label: meta.label, data: String(e), durationMs: Date.now() - start });
+      throw e;
+    }
+
+    const compact = toolCalls.filter(Boolean); // tool_calls können sparse indexiert sein
+    logDebug({
+      provider: meta.provider, type: 'response', label: meta.label,
+      data: { content, tool_calls: compact, finish_reason: finishReason, usage }, durationMs: Date.now() - start,
+    });
+    if (usage) addTokenUsage(usage);
+
+    return { content, toolCalls: compact, finishReason };
+  };
+
+  // Rate-Limits (HTTP 429) abwarten + erneut versuchen — transparent für die Aufrufer.
+  // Der sichtbare Hinweis (Toast) wird zentral in withRateLimitRetry erzeugt; hier
+  // halten wir nur die UI-Aktivität (onActivity-Lebenszeichen) während der Wartezeit am Leben.
+  return withRateLimitRetry(attempt, {
+    signal,
+    provider: meta.provider,
+    onWait: () => onDelta?.(''),
   });
-  if (usage) addTokenUsage(usage);
-
-  return { content, toolCalls: compact, finishReason };
 }
 
 // ── Ollama ────────────────────────────────────────────────────────────────────

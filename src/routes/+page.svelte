@@ -11,6 +11,7 @@
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
+  import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -501,6 +502,7 @@
 </div>
 
 <ErrorToast />
+<RateLimitToast />
 <UnsavedChangesDialog />
 <SaveAsDialog />
 <ConfirmDialog />
