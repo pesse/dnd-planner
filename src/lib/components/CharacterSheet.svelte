@@ -1304,6 +1304,7 @@
   .notes-area {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: calc(100% - 80px);
   }
   .notes-toolbar {
@@ -1350,6 +1351,7 @@
   .freetext-area {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: calc(100% - 80px);
   }
   .freetext-hint {

@@ -74,10 +74,10 @@
   <div class="tab-bar">
     <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
     <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
-    <button class="tab-btn" class:active={tab === 'json'}       onclick={() => switchTab('json')}>JSON</button>
     {#each extraTabs as t (t.id)}
       <button class="tab-btn" class:active={tab === t.id} onclick={() => switchTab(t.id)}>{t.label}</button>
     {/each}
+    <button class="tab-btn" class:active={tab === 'json'}       onclick={() => switchTab('json')}>JSON</button>
     {#if tabactions}
       <div class="tab-actions">{@render tabactions()}</div>
     {/if}
