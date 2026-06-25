@@ -428,15 +428,34 @@
   let spellsBySchool: Record<string, { filename: string; name: string; level: number }[]> = $state({});
   let openSpellSchools: Record<string, boolean> = $state({});
   let spellSearch = $state('');
+  // Gruppierung der Zauber-Navi: nach Schule (Standard) oder nach Grad.
+  let spellGroupBy = $state<'school' | 'level'>('school');
+  let openSpellLevels: Record<number, boolean> = $state({});
 
-  // Wenn Suchbegriff eingegeben, alle Schulen laden und gefiltert anzeigen
+  // Suche ODER Grad-Gruppierung brauchen alle Schulen geladen.
   $effect(() => {
-    if (spellSearch.trim() && spellSchools.length) {
+    const needAll = spellSearch.trim() || (spellsExpanded && spellGroupBy === 'level');
+    if (needAll && spellSchools.length) {
       for (const school of spellSchools) {
         if (!spellsBySchool[school]) loadSpellSchool(school);
       }
     }
   });
+
+  // Alle geladenen Zauber nach Grad (0–9) gruppiert; Schule bleibt am Eintrag erhalten.
+  let spellsByLevel = $derived.by(() => {
+    const groups: Record<number, { school: string; filename: string; name: string; level: number }[]> = {};
+    for (const school of spellSchools) {
+      for (const spell of spellsBySchool[school] ?? []) {
+        (groups[spell.level] ??= []).push({ school, ...spell });
+      }
+    }
+    for (const lvl of Object.keys(groups)) {
+      groups[+lvl].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    }
+    return groups;
+  });
+  let spellLevels = $derived(Object.keys(spellsByLevel).map(Number).sort((a, b) => a - b));
 
   let spellSearchResults = $derived.by(() => {
     const q = spellSearch.trim().toLowerCase();
@@ -489,6 +508,10 @@
   async function toggleSpellSchool(school: string) {
     openSpellSchools[school] = !openSpellSchools[school];
     if (openSpellSchools[school]) await loadSpellSchool(school);
+  }
+
+  function toggleSpellLevel(level: number) {
+    openSpellLevels[level] = !openSpellLevels[level];
   }
 
   async function openSpell(school: string, filename: string) {
@@ -1059,6 +1082,10 @@
           type="search"
         />
       </div>
+      <div class="spell-group-toggle">
+        <button class:active={spellGroupBy === 'school'} onclick={() => (spellGroupBy = 'school')}>Schule</button>
+        <button class:active={spellGroupBy === 'level'} onclick={() => (spellGroupBy = 'level')}>Grad</button>
+      </div>
       <div class="file-list">
         {#if spellSearchResults !== null}
           <!-- Suchergebnisse (flach) -->
@@ -1081,7 +1108,9 @@
           {:else}
             <span class="empty">Keine Treffer</span>
           {/if}
-        {:else if spellSchools.length}
+        {:else if !spellSchools.length}
+          <span class="empty">Keine Zauber</span>
+        {:else if spellGroupBy === 'school'}
           <!-- Gruppierte Ansicht nach Schule -->
           {#each spellSchools as school}
             {@const color = SCHOOL_COLORS[SCHOOL_DIR_TO_KEY[school]] ?? 'var(--ink)'}
@@ -1115,8 +1144,39 @@
               {/if}
             {/if}
           {/each}
+        {:else if spellLevels.length}
+          <!-- Gruppierte Ansicht nach Grad -->
+          {#each spellLevels as level}
+            {@const spells = spellsByLevel[level]}
+            <button
+              class="monster-group-header"
+              onclick={() => toggleSpellLevel(level)}
+            >
+              <span class="arrow" class:open={openSpellLevels[level]}>›</span>
+              <span class="spell-level-badge" style="background: {spellBadgeColor('var(--ink-muted)', level)}">{level === 0 ? 'Z' : level}</span>
+              {level === 0 ? 'Zaubertricks' : `Grad ${level}`}
+              <span class="group-count">({spells.length})</span>
+            </button>
+            {#if openSpellLevels[level]}
+              {#each spells as { school, filename, name }}
+                {@const color = SCHOOL_COLORS[SCHOOL_DIR_TO_KEY[school]] ?? 'var(--ink)'}
+                <div class="entry-row">
+                  <button
+                    class="file-entry monster-subentry"
+                    class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
+                    onclick={() => openSpell(school, filename)}
+                    title={school}
+                  >
+                    <span class="spell-level-badge" style="background: {spellBadgeColor(color, level)}" title={school}>{level === 0 ? 'Z' : level}</span>
+                    {name}
+                  </button>
+                  {@render delBtn(() => deleteEntry(`${SPELLS_PATH}/${school}/${filename}`, name, false, () => loadSpellSchool(school)))}
+                </div>
+              {/each}
+            {/if}
+          {/each}
         {:else}
-          <span class="empty">Keine Zauber</span>
+          <span class="empty">Laden…</span>
         {/if}
       </div>
     {/if}
@@ -1811,5 +1871,32 @@
 
   .spell-search-input::placeholder {
     color: var(--border);
+  }
+
+  /* Umschalter Gruppierung Schule | Grad */
+  .spell-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0 0.75rem 0.3rem;
+    font-size: 0.72rem;
+  }
+  .spell-group-toggle button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink-soft);
+    padding: 0.1rem 0.45rem;
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .spell-group-toggle button:hover {
+    color: var(--ink);
+  }
+  .spell-group-toggle button.active {
+    background: var(--arcane);
+    border-color: var(--arcane);
+    color: var(--bg);
   }
 </style>
