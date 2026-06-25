@@ -11,8 +11,7 @@
   import CharacterEditForm from './CharacterEditForm.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
-  import { activeFile, fileContent, invalidateVault } from '../stores/campaign';
-  import { marked } from 'marked';
+  import { activeFile, invalidateVault } from '../stores/campaign';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
@@ -47,7 +46,7 @@
   const pdfName = $derived(character?._importedFrom ?? '');
 
   let gmNotes = $state('');
-  let gmNotesEditing = $state(false);
+  let gmNotesSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
   let freitext = $state('');
   let freitextSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
   let error = $state('');
@@ -266,6 +265,7 @@
     const dir = dirPath;
     if (!dir) return;
     if (freitextTimer) { clearTimeout(freitextTimer); freitextTimer = null; }
+    if (gmNotesTimer) { clearTimeout(gmNotesTimer); gmNotesTimer = null; }
     error = '';
     loadSideFiles();
   });
@@ -295,6 +295,7 @@
       }
     }
     freitextSaving = 'saved';
+    gmNotesSaving = 'saved';
   }
 
   async function importPdfIntoExisting() {
@@ -390,10 +391,25 @@
     }
   }
 
-  async function saveGmNotes() {
-    await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
-    fileContent.set(gmNotes);
-    gmNotesEditing = false;
+  // ─── GM-Notizen (auto-save mit Debounce, wie Details) ─────────────────────
+  let gmNotesTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function writeGmNotes(path: string, content: string) {
+    try {
+      gmNotesSaving = 'saving';
+      await invoke('write_file_content', { path, content });
+      gmNotesSaving = 'saved';
+    } catch {
+      gmNotesSaving = 'unsaved';
+    }
+  }
+
+  function onGmNotesChange(md: string) {
+    gmNotes = md;
+    gmNotesSaving = 'unsaved';
+    const path = gmNotesPath;
+    if (gmNotesTimer) clearTimeout(gmNotesTimer);
+    gmNotesTimer = setTimeout(() => writeGmNotes(path, md), 800);
   }
 
   // ─── Freitext (auto-save mit Debounce, wie der Kampagnen-Editor) ──────────
@@ -871,21 +887,14 @@
       {#snippet extra(id)}
       {#if id === 'notes'}
       <!-- GM-Notizen Tab -->
-      <div class="notes-area">
-        {#if gmNotesEditing}
-          <div class="notes-toolbar">
-            <button class="btn-save" onclick={saveGmNotes}>Speichern</button>
-            <button class="btn-cancel" onclick={() => gmNotesEditing = false}>Abbrechen</button>
-          </div>
-          <textarea class="notes-editor" bind:value={gmNotes}></textarea>
-        {:else}
-          <div class="notes-toolbar">
-            <button class="btn-edit" onclick={() => gmNotesEditing = true}>Bearbeiten</button>
-          </div>
-          <div class="notes-preview">
-            {@html marked(gmNotes)}
-          </div>
-        {/if}
+      <div class="freetext-area">
+        <div class="freetext-hint">
+          <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
+          <span class="freetext-status" class:unsaved={gmNotesSaving === 'unsaved'} class:saving={gmNotesSaving === 'saving'}>
+            {gmNotesSaving === 'saving' ? 'Speichert…' : gmNotesSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+          </span>
+        </div>
+        <RichTextEditor value={gmNotes} onChange={onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
       </div>
 
     {:else}
@@ -1299,53 +1308,6 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-
-  /* GM-Notizen */
-  .notes-area {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: calc(100% - 80px);
-  }
-  .notes-toolbar {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem 1.5rem;
-    border-bottom: 1px solid var(--surface);
-  }
-  .btn-edit, .btn-save, .btn-cancel {
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.82rem;
-  }
-  .btn-edit { background: var(--surface); color: var(--ink); }
-  .btn-save { background: var(--green); color: var(--bg); font-weight: 600; }
-  .btn-save:disabled { opacity: 0.6; cursor: default; }
-  .btn-cancel { background: none; color: var(--ink-muted); }
-
-  .notes-editor {
-    flex: 1;
-    background: var(--bg-panel);
-    color: var(--ink);
-    border: none;
-    padding: 1.5rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
-    resize: none;
-    outline: none;
-  }
-  .notes-preview {
-    flex: 1;
-    padding: 1.5rem;
-    overflow-y: auto;
-    line-height: 1.8;
-  }
-  .notes-preview :global(h1) { color: var(--arcane); }
-  .notes-preview :global(h2) { color: var(--red); }
-  .notes-preview :global(h3) { color: var(--teal); }
-  .notes-preview :global(strong) { color: var(--danger); }
 
   /* Freitext */
   .freetext-area {

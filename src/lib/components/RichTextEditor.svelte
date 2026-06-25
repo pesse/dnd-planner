@@ -85,6 +85,10 @@
   $effect(() => {
     const v = value;
     if (!editor) return;
+    // Stammt der Wert aus unserem eigenen emit (Tippen), nicht zurückschreiben.
+    // Sonst kann eine nicht-idempotente Markdown-Serialisierung (z.B. „&") eine
+    // Endlosschleife value → setContent → onUpdate → value … auslösen.
+    if (v === lastEmitted) return;
     const current = markdownStorage(editor).getMarkdown();
     if (v === current) return;
     lastEmitted = v;
