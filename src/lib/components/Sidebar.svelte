@@ -44,6 +44,14 @@
   const MONSTERS_PATH = './vault/monsters';
   const SPELLS_PATH = './vault/spells';
 
+  // Grad-Badge: Hue = Schulfarbe (Zugehörigkeit), Helligkeit = Grad (Intensität).
+  // Grad 0 (Zaubertrick) leicht aufgehellt = schwächster, Grad 9 am dunkelsten = intensivster.
+  const spellBadgeColor = (baseColor: string, level: number): string => {
+    if (level <= 0) return `color-mix(in srgb, ${baseColor} 78%, white)`;
+    const darken = Math.min((level - 1) * 6, 48); // 0 % (Grad 1) … 48 % Schwarz (Grad 9)
+    return `color-mix(in srgb, ${baseColor}, black ${darken}%)`;
+  };
+
   // Ordnername → englischer Schulschlüssel (für neuen Zauber-JSON)
   const SCHOOL_DIR_TO_KEY: Record<string, string> = {
     'bannmagie':       'abjuration',
@@ -417,7 +425,7 @@
   // --- Zauber (global, nach Schule) ---
   let spellsExpanded = $state(false);
   let spellSchools: string[] = $state([]);
-  let spellsBySchool: Record<string, { filename: string; name: string }[]> = $state({});
+  let spellsBySchool: Record<string, { filename: string; name: string; level: number }[]> = $state({});
   let openSpellSchools: Record<string, boolean> = $state({});
   let spellSearch = $state('');
 
@@ -433,7 +441,7 @@
   let spellSearchResults = $derived.by(() => {
     const q = spellSearch.trim().toLowerCase();
     if (!q) return null;
-    const results: { school: string; filename: string; name: string }[] = [];
+    const results: { school: string; filename: string; name: string; level: number }[] = [];
     for (const school of spellSchools) {
       for (const spell of spellsBySchool[school] ?? []) {
         if (spell.name.toLowerCase().includes(q)) results.push({ school, ...spell });
@@ -461,9 +469,9 @@
           try {
             const content = await invoke<string>('read_file_content', { path });
             const data = JSON.parse(content);
-            return { filename: f, name: data.name ?? f.replace('.json', '') };
+            return { filename: f, name: data.name ?? f.replace('.json', ''), level: data.level ?? 0 };
           } catch {
-            return { filename: f, name: f.replace('.json', '') };
+            return { filename: f, name: f.replace('.json', ''), level: 0 };
           }
         })
       );
@@ -1055,7 +1063,8 @@
         {#if spellSearchResults !== null}
           <!-- Suchergebnisse (flach) -->
           {#if spellSearchResults.length}
-            {#each spellSearchResults as { school, filename, name }}
+            {#each spellSearchResults as { school, filename, name, level }}
+              {@const badgeColor = SCHOOL_COLORS[SCHOOL_DIR_TO_KEY[school]] ?? 'var(--ink-muted)'}
               <div class="entry-row">
                 <button
                   class="file-entry monster-subentry"
@@ -1063,6 +1072,7 @@
                   onclick={() => openSpell(school, filename)}
                   title={school}
                 >
+                  <span class="spell-level-badge" style="background: {spellBadgeColor(badgeColor, level)}" title={level === 0 ? 'Zaubertrick' : `Grad ${level}`}>{level === 0 ? 'Z' : level}</span>
                   {name}
                 </button>
                 {@render delBtn(() => deleteEntry(`${SPELLS_PATH}/${school}/${filename}`, name, false, () => loadSpellSchool(school)))}
@@ -1087,13 +1097,14 @@
             </button>
             {#if openSpellSchools[school]}
               {#if spells}
-                {#each spells as { filename, name }}
+                {#each spells as { filename, name, level }}
                   <div class="entry-row">
                     <button
                       class="file-entry monster-subentry"
                       class:active={$activeFile?.path?.includes(`/${school}/${filename}`)}
                       onclick={() => openSpell(school, filename)}
                     >
+                      <span class="spell-level-badge" style="background: {spellBadgeColor(color, level)}" title={level === 0 ? 'Zaubertrick' : `Grad ${level}`}>{level === 0 ? 'Z' : level}</span>
                       {name}
                     </button>
                     {@render delBtn(() => deleteEntry(`${SPELLS_PATH}/${school}/${filename}`, name, false, () => loadSpellSchool(school)))}
@@ -1657,6 +1668,22 @@
 
   .monster-subentry {
     padding-left: 3.5rem;
+  }
+
+  /* Grad-Badge vor Zauber-Einträgen */
+  .spell-level-badge {
+    display: inline-block;
+    min-width: 1.1rem;
+    padding: 0 0.2rem;
+    margin-right: 0.4rem;
+    border-radius: 0.25rem;
+    color: var(--bg);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.15rem;
+    vertical-align: middle;
+    flex-shrink: 0;
   }
 
   /* Seltenheits-Punkt vor Item-Einträgen (Farbe = Seltenheit) */
