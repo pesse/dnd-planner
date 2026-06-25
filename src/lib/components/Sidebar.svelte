@@ -210,6 +210,36 @@
   // --- Charaktere (global) ---
   let charactersExpanded = $state(false);
   let characterEntries: EntryInfo[] = $state([]);
+  // Anzeige-Meta je Charakter-Eintrag (dir-name → Name, Klassen-Icon, Klasse, Level).
+  let characterMeta: Record<string, { name: string; icon: string; klasse: string; level: number | null }> = $state({});
+
+  // Deutsche Klassennamen → Icon + Label. Erkennung per Substring in classLevel
+  // (ASCII-Schreibweisen zeigen auf dasselbe Label).
+  const CLASS_INFO: Record<string, { icon: string; label: string }> = {
+    barbar: { icon: '🪓', label: 'Barbar' },
+    barde: { icon: '🎶', label: 'Barde' },
+    druide: { icon: '🌿', label: 'Druide' },
+    erfinder: { icon: '⚙️', label: 'Erfinder' },
+    hexenmeister: { icon: '👁️', label: 'Hexenmeister' },
+    kämpfer: { icon: '⚔️', label: 'Kämpfer' },
+    kampfer: { icon: '⚔️', label: 'Kämpfer' },
+    kleriker: { icon: '🙏', label: 'Kleriker' },
+    magier: { icon: '🔮', label: 'Magier' },
+    mönch: { icon: '👊', label: 'Mönch' },
+    monch: { icon: '👊', label: 'Mönch' },
+    paladin: { icon: '🛡️', label: 'Paladin' },
+    schurke: { icon: '🗡️', label: 'Schurke' },
+    waldläufer: { icon: '🏹', label: 'Waldläufer' },
+    waldlaufer: { icon: '🏹', label: 'Waldläufer' },
+    zauberer: { icon: '✨', label: 'Zauberer' },
+  };
+  function classLevelInfo(classLevel: string): { icon: string; label: string } {
+    const lc = classLevel.toLowerCase();
+    for (const [name, info] of Object.entries(CLASS_INFO)) {
+      if (lc.includes(name)) return info;
+    }
+    return { icon: '👤', label: classLevel || 'Unbekannte Klasse' };
+  }
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
   let pdfImporting = $state(false);
@@ -221,6 +251,30 @@
     } catch {
       characterEntries = [];
     }
+    // Name, Klassen-Icon, Klasse und Level aus der character.json je Verzeichnis nachladen.
+    const meta: Record<string, { name: string; icon: string; klasse: string; level: number | null }> = {};
+    await Promise.all(
+      characterEntries
+        .filter((e) => e.is_dir)
+        .map(async (e) => {
+          try {
+            const content = await invoke<string>('read_file_content', { path: `${CHARACTERS_PATH}/${e.name}/character.json` });
+            const data = JSON.parse(content);
+            const classLevel: string = data.classLevel?.trim() ?? '';
+            const levelMatch = classLevel.match(/\d+/);
+            const info = classLevelInfo(classLevel);
+            meta[e.name] = {
+              name: data.name?.trim() || e.name,
+              icon: info.icon,
+              klasse: info.label,
+              level: levelMatch ? Number(levelMatch[0]) : null,
+            };
+          } catch {
+            // kein/ungültiges JSON → Fallback auf Verzeichnisnamen im Template
+          }
+        })
+    );
+    characterMeta = meta;
   }
 
   async function toggleCharacters() {
@@ -981,13 +1035,21 @@
       <div class="file-list">
         {#if characterEntries.length}
           {#each characterEntries as entry}
+            {@const meta = characterMeta[entry.name]}
             <div class="entry-row">
               <button
                 class="file-entry"
+                class:char-entry={!!meta}
                 class:active={$activeFile?.path?.endsWith(entry.name)}
                 onclick={() => openCharacter(entry)}
               >
-                {entry.name.replace('.md', '')}
+                {#if meta}
+                  <span class="char-class-icon" title={meta.klasse}>{meta.icon}</span>
+                  {#if meta.level !== null}<span class="char-level-badge" title="Level {meta.level}">{meta.level}</span>{/if}
+                  {meta.name}
+                {:else}
+                  {entry.name.replace('.md', '')}
+                {/if}
               </button>
               {@render delBtn(() => deleteEntry(`${CHARACTERS_PATH}/${entry.name}`, entry.name.replace('.md', ''), entry.is_dir, loadCharacters))}
             </div>
@@ -1737,6 +1799,31 @@
     padding: 0 0.2rem;
     margin-right: 0.4rem;
     border-radius: 0.25rem;
+    color: var(--bg);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.15rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  /* Klassen-Icon + Level-Badge vor Charakter-Einträgen */
+  .char-entry {
+    padding-left: 1rem;
+  }
+  .char-class-icon {
+    margin-right: 0.3rem;
+    font-size: 0.9rem;
+    vertical-align: middle;
+  }
+  .char-level-badge {
+    display: inline-block;
+    min-width: 1.1rem;
+    padding: 0 0.2rem;
+    margin-right: 0.4rem;
+    border-radius: 0.25rem;
+    background: var(--arcane);
     color: var(--bg);
     font-size: 0.7rem;
     font-weight: 700;
