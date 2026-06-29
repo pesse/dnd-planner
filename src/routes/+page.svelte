@@ -617,9 +617,9 @@
     position: absolute;
     top: 50%;
     z-index: 20;
-    width: 18px;
-    height: 64px;
-    transform: translate(-100%, -50%);
+    width: 24px;
+    height: 80px;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -629,7 +629,7 @@
     border-right: none;
     border-radius: 8px 0 0 8px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 1.05rem;
     line-height: 1;
     box-shadow: -2px 0 6px rgba(0, 0, 0, 0.15);
     transition: right 0.2s ease, color 0.1s, background 0.1s;
