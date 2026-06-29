@@ -1,0 +1,49 @@
+name: Release
+
+# Baut, signiert und veröffentlicht ein Windows-Release samt latest.json.
+# Auslöser: ein Versions-Tag (vX.Y.Z) oder manueller Start.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build, sign & publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Tag-Name aus dem auslösenden Tag übernehmen (bei workflow_dispatch leer → Action nutzt den Default).
+          tagName: ${{ github.ref_name }}
+          releaseName: 'DnD Planner ${{ github.ref_name }}'
+          releaseDraft: true
+          prerelease: false
+          # latest.json wird standardmäßig erzeugt und hochgeladen (includeUpdaterJson).

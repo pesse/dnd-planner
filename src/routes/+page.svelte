@@ -11,6 +11,8 @@
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
+  import UpdateDialog from '$lib/components/UpdateDialog.svelte';
+  import { checkForUpdate } from '$lib/stores/update';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
@@ -304,6 +306,9 @@
     // Debug-CWD asynchron loggen, ohne den (synchron erwarteten) Cleanup-Return zu blockieren
     void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
 
+    // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
+    void checkForUpdate();
+
     function onError(e: ErrorEvent) {
       pushError(e.message || String(e));
     }
@@ -502,6 +507,7 @@
 </div>
 
 <ErrorToast />
+<UpdateDialog />
 <RateLimitToast />
 <UnsavedChangesDialog />
 <SaveAsDialog />

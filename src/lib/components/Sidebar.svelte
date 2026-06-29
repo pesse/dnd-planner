@@ -9,6 +9,7 @@
   import { confirmNavigation } from '../stores/navigationGuard';
   import { confirmAction } from '../stores/confirmDialog';
   import { pushError } from '../stores/errors';
+  import { updateState, updateDialogOpen } from '../stores/update';
   import CreateCardModal from './CreateCardModal.svelte';
   import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
@@ -1011,6 +1012,13 @@
   <div class="sidebar-header ornament-top">
     <h2><DragonMark size={18} /> DnD Planner</h2>
     <div class="header-actions">
+      {#if $updateState.status === 'available'}
+        <button
+          class="header-btn update-btn"
+          title={`Update auf v${$updateState.version} verfügbar`}
+          onclick={() => updateDialogOpen.set(true)}
+        >⬆</button>
+      {/if}
       <button class="header-btn" title="Vault importieren / exportieren" onclick={() => (showTransferModal = true)}>⇅</button>
       <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
     </div>
@@ -1570,6 +1578,14 @@
   .header-btn:hover {
     color: var(--arcane);
   }
+
+  /* Update-Hinweis: dauerhaft sichtbar + hervorgehoben, nicht nur bei Hover. */
+  .update-btn {
+    opacity: 1;
+    color: var(--gold);
+  }
+  .sidebar-header .update-btn { opacity: 1; }
+  .update-btn:hover { color: var(--gold); filter: brightness(1.2); }
 
   .top-section {
     padding: 0.5rem 0;

@@ -70,3 +70,27 @@ The frontend references vault paths as `./vault/campaigns/...` — `resolve_path
 3. Call from frontend: `await invoke<ReturnType>('my_command', { param: value })`
 
 Changing `lib.rs` requires a full Rust recompile — Hot-Reload only applies to the Svelte frontend.
+
+## Releases & Auto-Update
+
+The app uses the official Tauri updater plugin. On startup it checks a `latest.json`
+manifest on the **public** GitHub Release and, if a newer version exists, shows an update
+badge (⬆) in the sidebar header → confirmation dialog → download/install/relaunch.
+
+**One-time setup (required before the first signed release):**
+1. Generate the updater signing keypair on Windows:
+   `npm run tauri signer generate -- -w %USERPROFILE%\.tauri\dnd-planner.key`
+2. Put the **public key** into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`
+   (currently the placeholder `REPLACE_WITH_UPDATER_PUBLIC_KEY`).
+3. Replace `OWNER/REPO` in `plugins.updater.endpoints` with the public release repo.
+4. Add the **private key** + its password as GitHub secrets
+   `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+   Never commit the private key.
+
+**Cutting a release:**
+1. Bump `version` in **both** `src-tauri/tauri.conf.json` and `package.json`.
+2. Commit, then push a tag `vX.Y.Z`.
+3. `.github/workflows/release.yml` (runs on `windows-latest`) builds, signs, and creates a
+   **draft** GitHub Release with the installer + `latest.json`.
+4. Review and publish the release. Running installations pick up the new `latest.json`
+   automatically on next start.
