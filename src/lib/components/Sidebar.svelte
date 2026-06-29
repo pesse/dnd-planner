@@ -212,7 +212,8 @@
   let charactersExpanded = $state(false);
   let characterEntries: EntryInfo[] = $state([]);
   // Anzeige-Meta je Charakter-Eintrag (dir-name → Name, Klassen-Icon, Klasse, Level).
-  let characterMeta: Record<string, { name: string; icon: string; klasse: string; level: number | null }> = $state({});
+  type CharClass = { icon: string; label: string; level: number | null };
+  let characterMeta: Record<string, { name: string; classes: CharClass[] }> = $state({});
 
   // Deutsche Klassennamen → Icon + Label. Erkennung per Substring in classLevel
   // (ASCII-Schreibweisen zeigen auf dasselbe Label).
@@ -241,6 +242,23 @@
     }
     return { icon: '👤', label: classLevel || 'Unbekannte Klasse' };
   }
+  // Zerlegt einen classLevel-String in einzelne Klassen (Multiclassing), z. B.
+  // "Magier 5 / Zauberer 3" → zwei Einträge mit je Icon + Level.
+  function parseClasses(classLevel: string): CharClass[] {
+    const segments = classLevel
+      .split(/[/,&+]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!segments.length) {
+      const info = classLevelInfo('');
+      return [{ icon: info.icon, label: info.label, level: null }];
+    }
+    return segments.map((seg) => {
+      const info = classLevelInfo(seg);
+      const levelMatch = seg.match(/\d+/);
+      return { icon: info.icon, label: info.label, level: levelMatch ? Number(levelMatch[0]) : null };
+    });
+  }
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
   let pdfImporting = $state(false);
@@ -252,8 +270,8 @@
     } catch {
       characterEntries = [];
     }
-    // Name, Klassen-Icon, Klasse und Level aus der character.json je Verzeichnis nachladen.
-    const meta: Record<string, { name: string; icon: string; klasse: string; level: number | null }> = {};
+    // Name + Klassen (inkl. Multiclassing) aus der character.json je Verzeichnis nachladen.
+    const meta: Record<string, { name: string; classes: CharClass[] }> = {};
     await Promise.all(
       characterEntries
         .filter((e) => e.is_dir)
@@ -262,13 +280,9 @@
             const content = await invoke<string>('read_file_content', { path: `${CHARACTERS_PATH}/${e.name}/character.json` });
             const data = JSON.parse(content);
             const classLevel: string = data.classLevel?.trim() ?? '';
-            const levelMatch = classLevel.match(/\d+/);
-            const info = classLevelInfo(classLevel);
             meta[e.name] = {
               name: data.name?.trim() || e.name,
-              icon: info.icon,
-              klasse: info.label,
-              level: levelMatch ? Number(levelMatch[0]) : null,
+              classes: parseClasses(classLevel),
             };
           } catch {
             // kein/ungültiges JSON → Fallback auf Verzeichnisnamen im Template
@@ -1052,8 +1066,14 @@
                 onclick={() => openCharacter(entry)}
               >
                 {#if meta}
-                  <span class="char-class-icon" title={meta.klasse}>{meta.icon}</span>
-                  {#if meta.level !== null}<span class="char-level-badge" title="Level {meta.level}">{meta.level}</span>{/if}
+                  <span class="char-classes">
+                    {#each meta.classes as cls}
+                      <span class="char-class-icon" title="{cls.label}{cls.level !== null ? ` ${cls.level}` : ''}">
+                        {cls.icon}
+                        {#if cls.level !== null}<span class="char-level-badge">{cls.level}</span>{/if}
+                      </span>
+                    {/each}
+                  </span>
                   {meta.name}
                 {:else}
                   {entry.name.replace('.md', '')}
@@ -1828,25 +1848,34 @@
   .char-entry {
     padding-left: 1rem;
   }
-  .char-class-icon {
-    margin-right: 0.3rem;
-    font-size: 0.9rem;
+  .char-classes {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-right: 0.45rem;
     vertical-align: middle;
   }
-  .char-level-badge {
+  .char-class-icon {
+    position: relative;
     display: inline-block;
-    min-width: 1.1rem;
-    padding: 0 0.2rem;
-    margin-right: 0.4rem;
-    border-radius: 0.25rem;
-    background: var(--arcane);
-    color: var(--bg);
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  /* Level klein, halb über dem Klassen-Icon (oben rechts) – erlaubt mehrere Klassen nebeneinander */
+  .char-level-badge {
+    position: absolute;
+    top: -0.45em;
+    right: -0.4em;
+    min-width: 0.7rem;
+    padding: 0 0.12rem;
+    border-radius: 0.55rem;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    font-size: 0.5rem;
+    font-weight: 600;
     text-align: center;
-    line-height: 1.15rem;
-    vertical-align: middle;
-    flex-shrink: 0;
+    line-height: 0.72rem;
   }
 
   /* Seltenheits-Punkt vor Item-Einträgen (Farbe = Seltenheit) */
