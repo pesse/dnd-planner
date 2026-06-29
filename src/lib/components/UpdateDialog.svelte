@@ -1,8 +1,13 @@
 <script lang="ts">
   import { updateState, updateDialogOpen, installUpdate, dismissUpdate } from '$lib/stores/update';
+  import { marked } from 'marked';
 
   const busy = $derived($updateState.status === 'downloading' || $updateState.status === 'installing');
   const pct = $derived(Math.round(($updateState.progress ?? 0) * 100));
+  // Release-Notes aus latest.json als Markdown rendern (Quelle: eigenes, über HTTPS bezogenes Release).
+  const notesHtml = $derived(
+    $updateState.notes ? (marked.parse($updateState.notes, { async: false }) as string) : ''
+  );
 
   function onKey(e: KeyboardEvent) {
     if (!$updateDialogOpen) return;
@@ -19,8 +24,9 @@
     <div class="dialog" onclick={(e) => e.stopPropagation()}>
       <h3>Update verfügbar{$updateState.version ? ` — v${$updateState.version}` : ''}</h3>
 
-      {#if $updateState.notes}
-        <pre class="notes">{$updateState.notes}</pre>
+      {#if notesHtml}
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <div class="notes">{@html notesHtml}</div>
       {:else}
         <p>Eine neuere Version steht bereit.</p>
       {/if}
@@ -82,11 +88,42 @@
     font-size: 0.8rem;
     color: var(--ink-muted);
     line-height: 1.5;
-    white-space: pre-wrap;
     word-break: break-word;
-    max-height: 220px;
+    max-height: 260px;
     overflow-y: auto;
-    font-family: inherit;
+  }
+  /* gerenderte Markdown-Inhalte der Release-Notes */
+  .notes :global(h1),
+  .notes :global(h2),
+  .notes :global(h3) {
+    color: var(--gold);
+    font-size: 0.9rem;
+    margin: 0.75rem 0 0.35rem;
+  }
+  .notes :global(h1:first-child),
+  .notes :global(h2:first-child),
+  .notes :global(h3:first-child) {
+    margin-top: 0;
+  }
+  .notes :global(p) {
+    margin: 0 0 0.5rem;
+  }
+  .notes :global(ul),
+  .notes :global(ol) {
+    margin: 0 0 0.5rem;
+    padding-left: 1.2rem;
+  }
+  .notes :global(li) {
+    margin: 0.1rem 0;
+  }
+  .notes :global(a) {
+    color: var(--arcane);
+  }
+  .notes :global(code) {
+    background: var(--border);
+    border-radius: 3px;
+    padding: 0.05rem 0.3rem;
+    font-size: 0.75rem;
   }
 
   .progress {
