@@ -1,12 +1,11 @@
 name: Release
 
-# Baut, signiert und veröffentlicht ein Windows-Release samt latest.json.
-# Auslöser: ein Versions-Tag (vX.Y.Z) oder manueller Start.
+# Baut & signiert ein Windows-Release und hängt Installer + latest.json an ein
+# in GitHub veröffentlichtes Release. Auslöser: ein Release wird publiziert.
+# Die Release-Beschreibung (UI) landet im notes-Feld von latest.json (Update-Dialog).
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -16,6 +15,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Genau den getaggten Stand des Releases bauen.
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,16 +36,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build, sign & publish release
+      - name: Build, sign & attach to release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Tag-Name aus dem auslösenden Tag übernehmen (bei workflow_dispatch leer → Action nutzt den Default).
-          tagName: ${{ github.ref_name }}
-          releaseName: 'DnD Planner ${{ github.ref_name }}'
-          releaseDraft: true
-          prerelease: false
+          # An das bestehende, ausgelöste Release hängen (statt ein neues anzulegen).
+          releaseId: ${{ github.event.release.id }}
+          tagName: ${{ github.event.release.tag_name }}
+          # Beschreibung aus dem GitHub-Release → notes-Feld in latest.json.
+          releaseBody: ${{ github.event.release.body }}
           # latest.json wird standardmäßig erzeugt und hochgeladen (includeUpdaterJson).
