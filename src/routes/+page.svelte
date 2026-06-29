@@ -17,6 +17,7 @@
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import { confirmAction } from '$lib/stores/confirmDialog';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { pushError } from '$lib/stores/errors';
@@ -302,9 +303,50 @@
     window.addEventListener('mouseup', onUp);
   }
 
+  // Prüft beim Start, ob in einem früheren Installationsverzeichnis noch
+  // Vault-Daten liegen, und bietet den Umzug in den aktuellen Vault an.
+  // Die Originaldaten bleiben dabei als Backup erhalten.
+  async function maybeMigrateLegacyVault() {
+    try {
+      const legacy = await invoke<{ path: string; files: number; target: string } | null>(
+        'find_legacy_vault',
+      );
+      if (!legacy) return;
+
+      const ok = await confirmAction({
+        title: 'Alte Vault-Daten gefunden',
+        message:
+          `In einem früheren Installationsverzeichnis wurden ${legacy.files} Datei(en) gefunden:\n` +
+          `${legacy.path}\n\n` +
+          `In den aktuellen Vault übernehmen? Die Originaldaten bleiben als Backup erhalten.`,
+        confirmLabel: 'Übernehmen',
+      });
+      if (!ok) return;
+
+      const res = await invoke<{ copied: number; skipped: number }>('migrate_legacy_vault', {
+        source: legacy.path,
+      });
+      invalidateVault();
+
+      await confirmAction({
+        title: 'Migration abgeschlossen',
+        message:
+          `${res.copied} Datei(en) übernommen` +
+          (res.skipped ? `, ${res.skipped} bereits vorhanden und übersprungen` : '') +
+          '.',
+        confirmLabel: 'OK',
+      });
+    } catch (e) {
+      pushError(`Vault-Migration fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   onMount(() => {
     // Debug-CWD asynchron loggen, ohne den (synchron erwarteten) Cleanup-Return zu blockieren
     void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
+
+    // Auf verwaiste Vault-Daten aus früheren Versionen prüfen (No-op im Dev/Browser).
+    void maybeMigrateLegacyVault();
 
     // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
     void checkForUpdate();

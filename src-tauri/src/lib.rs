@@ -2,8 +2,16 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::sync::OnceLock;
 use serde::{Serialize, Deserialize};
 use keyring::Entry;
+use tauri::Manager;
+
+/// Basisverzeichnis das den `vault/`-Ordner enthält. Wird einmalig im
+/// `setup`-Hook gesetzt: im Release fest am stabilen App-Identifier
+/// (`%LOCALAPPDATA%\de.developer-sam.dnd-planner`), im Dev-Build am Repo
+/// (per Walk-up). Vor `setup` (sollte nicht vorkommen) greift der Walk-up.
+static VAULT_BASE: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Deserialize)]
 pub struct HttpRequest {
@@ -41,8 +49,19 @@ async fn http_request(req: HttpRequest) -> Result<String, String> {
     Ok(text)
 }
 
-/// Findet das Projekt-Root (das Verzeichnis das "vault/" enthält)
+/// Basisverzeichnis das den `vault/`-Ordner enthält. Liefert den im `setup`
+/// gesetzten kanonischen Pfad; als Fallback den per Walk-up gesuchten.
 fn project_root() -> PathBuf {
+    if let Some(base) = VAULT_BASE.get() {
+        return base.clone();
+    }
+    legacy_walk_up()
+}
+
+/// Sucht das Verzeichnis das "vault/" enthält, indem es von `current_dir()`
+/// bzw. `current_exe()` aufwärts wandert. Verhalten alter Versionen — dient
+/// im Dev-Build als Vault-Basis und als Fallback.
+fn legacy_walk_up() -> PathBuf {
     let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     loop {
         if dir.join("vault").is_dir() {
@@ -649,6 +668,140 @@ fn import_vault(
     Ok(ImportSummary { written, skipped })
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy-Vault-Migration
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Der vault-Speicherort hing früher am `productName` (Installationsordner) und
+// wanderte beim Rename `dnd-planner` → `D&D Planner` → `DnD Planner`. Seit der
+// Verankerung am stabilen App-Identifier startet eine neu installierte Version
+// mit leerem Vault, während die Daten alter Versionen in den früheren Ordnern
+// verwaisen. `find_legacy_vault` spürt solche Daten auf, `migrate_legacy_vault`
+// kopiert sie in den aktuellen Vault (Originale bleiben als Backup erhalten).
+
+#[derive(Serialize)]
+pub struct LegacyVault {
+    /// Absoluter Pfad des gefundenen alten vault-Ordners.
+    path: String,
+    /// Anzahl Dateien darin (rekursiv).
+    files: usize,
+    /// Absoluter Pfad des aktuellen (Ziel-)vault-Ordners.
+    target: String,
+}
+
+#[derive(Serialize)]
+pub struct MigrationSummary {
+    copied: usize,
+    skipped: usize,
+}
+
+/// Zählt rekursiv alle Dateien unter `path`.
+fn count_files(path: &Path) -> usize {
+    let mut n = 0;
+    if let Ok(rd) = fs::read_dir(path) {
+        for e in rd.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.is_file() {
+                n += 1;
+            } else if p.is_dir() {
+                n += count_files(&p);
+            }
+        }
+    }
+    n
+}
+
+/// Prüft, ob in einem früheren Installationsverzeichnis noch Vault-Daten liegen.
+/// Liefert nur dann einen Treffer, wenn der **aktuelle** Vault leer/leer-ist —
+/// vorhandene Daten werden nie überschrieben oder zur Migration angeboten.
+/// Bei mehreren Altordnern gewinnt der mit den meisten Dateien.
+#[tauri::command]
+fn find_legacy_vault(app: tauri::AppHandle) -> Result<Option<LegacyVault>, String> {
+    let target = project_root().join("vault");
+    if dir_has_files(&target) {
+        return Ok(None);
+    }
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(local) = app.path().app_local_data_dir() {
+        // local == %LOCALAPPDATA%\de.developer-sam.dnd-planner
+        if let Some(local_root) = local.parent() {
+            // Frühere productName-Installationsordner
+            candidates.push(local_root.join("dnd-planner").join("vault"));
+            candidates.push(local_root.join("D&D Planner").join("vault"));
+        }
+        // identifier-Ordner (== Ziel im Release, wird unten ausgeschlossen)
+        candidates.push(local.join("vault"));
+    }
+    // vault direkt neben der EXE (altes Walk-up-Verhalten)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("vault"));
+        }
+    }
+
+    let target_canon = fs::canonicalize(&target).ok();
+    let mut best: Option<(PathBuf, usize)> = None;
+    for c in candidates {
+        // Den aktuellen Vault selbst nie als Quelle vorschlagen.
+        match (&target_canon, fs::canonicalize(&c)) {
+            (Some(tc), Ok(cc)) if *tc == cc => continue,
+            _ => {}
+        }
+        let n = count_files(&c);
+        if n > 0 && best.as_ref().map_or(true, |(_, bn)| n > *bn) {
+            best = Some((c, n));
+        }
+    }
+
+    Ok(best.map(|(path, files)| LegacyVault {
+        path: path.to_string_lossy().to_string(),
+        files,
+        target: target.to_string_lossy().to_string(),
+    }))
+}
+
+/// Kopiert den Inhalt eines alten vault-Ordners in den aktuellen Vault.
+/// Bereits vorhandene Dateien werden übersprungen (nicht überschrieben);
+/// die Quelle bleibt unverändert.
+#[tauri::command]
+fn migrate_legacy_vault(source: String) -> Result<MigrationSummary, String> {
+    let src = PathBuf::from(&source);
+    if !src.is_dir() {
+        return Err(format!("Quellordner existiert nicht: {}", src.display()));
+    }
+    let target = project_root().join("vault");
+    let mut copied = 0usize;
+    let mut skipped = 0usize;
+    copy_dir_recursive(&src, &target, &mut copied, &mut skipped)?;
+    Ok(MigrationSummary { copied, skipped })
+}
+
+fn copy_dir_recursive(
+    src: &Path,
+    dst: &Path,
+    copied: &mut usize,
+    skipped: &mut usize,
+) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() {
+            copy_dir_recursive(&from, &to, copied, skipped)?;
+        } else if from.is_file() {
+            if to.exists() {
+                *skipped += 1;
+                continue;
+            }
+            fs::copy(&from, &to).map_err(|e| e.to_string())?;
+            *copied += 1;
+        }
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -657,6 +810,19 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .setup(|app| {
+            // Vault-Basis festlegen: Release am stabilen App-Identifier
+            // (%LOCALAPPDATA%\de.developer-sam.dnd-planner), Dev am Repo.
+            let base = if cfg!(debug_assertions) {
+                legacy_walk_up()
+            } else {
+                app.path()
+                    .app_local_data_dir()
+                    .unwrap_or_else(|_| legacy_walk_up())
+            };
+            let _ = VAULT_BASE.set(base);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_current_dir,
             get_absolute_path,
@@ -679,7 +845,9 @@ pub fn run() {
             get_vault_overview,
             export_vault,
             inspect_import_zip,
-            import_vault
+            import_vault,
+            find_legacy_vault,
+            migrate_legacy_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

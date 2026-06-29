@@ -63,6 +63,18 @@ vault/campaigns/{campaign-slug}/
 
 The frontend references vault paths as `./vault/campaigns/...` — `resolve_path` in Rust translates these to absolute paths at runtime.
 
+**Vault base location:** resolved once in the Tauri `setup` hook into `VAULT_BASE`.
+In **release** builds it lives at the app identifier path
+(`%LOCALAPPDATA%\de.developer-sam.dnd-planner\vault`). In **dev**
+(`debug_assertions`) it is the repo vault, located via walk-up, so checked-in
+content (templates, spells, …) keeps working.
+
+**Legacy-vault migration:** on startup `find_legacy_vault` checks former vault
+locations (earlier install dirs, the identifier dir, the vault next to the EXE)
+and — only when the current vault is empty — `migrate_legacy_vault` copies the
+richest one in after a confirmation dialog (originals are kept as backup). No-op
+in dev (repo vault is non-empty).
+
 ## Adding New Tauri Commands
 
 1. Add `fn my_command(...)` with `#[tauri::command]` in `src-tauri/src/lib.rs`
