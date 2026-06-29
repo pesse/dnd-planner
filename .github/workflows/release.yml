@@ -19,6 +19,23 @@ jobs:
           # Genau den getaggten Stand des Releases bauen.
           ref: ${{ github.event.release.tag_name }}
 
+      - name: App-Version aus Release-Tag setzen
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # Der Release-Tag (vX.Y.Z) ist die einzige Quelle der Wahrheit für die
+          # App-Version — verhindert vergessene/abweichende Bumps in den Config-Dateien.
+          VERSION="${TAG#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$ ]]; then
+            echo "::error::Tag '$TAG' ergibt keine gültige Version ('$VERSION')."
+            exit 1
+          fi
+          echo "Setze App-Version auf $VERSION"
+          tmp=$(mktemp)
+          jq --arg v "$VERSION" '.version = $v' src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
+          jq --arg v "$VERSION" '.version = $v' package.json > "$tmp" && mv "$tmp" package.json
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
