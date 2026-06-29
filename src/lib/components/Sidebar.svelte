@@ -429,8 +429,8 @@
 
   // --- Monster (global) ---
   let monstersExpanded = $state(false);
-  // group → { filename, name }[]
-  let monsterGroups: Record<string, { filename: string; name: string }[]> = $state({});
+  // group → { filename, name, cr }[]
+  let monsterGroups: Record<string, { filename: string; name: string; cr: string }[]> = $state({});
   let openMonsterGroups: Record<string, boolean> = $state({});
 
   async function loadMonsters() {
@@ -439,26 +439,26 @@
       const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
       const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
 
-      async function loadEntry(path: string, relFilename: string): Promise<{ filename: string; name: string; typeKey: string }> {
+      async function loadEntry(path: string, relFilename: string): Promise<{ filename: string; name: string; typeKey: string; cr: string }> {
         try {
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
-          return { filename: relFilename, name: data.name ?? relFilename.replace('.json', ''), typeKey: data.type ?? '' };
-        } catch { return { filename: relFilename, name: relFilename.replace('.json', ''), typeKey: '' }; }
+          return { filename: relFilename, name: data.name ?? relFilename.replace('.json', ''), typeKey: data.type ?? '', cr: (data.cr ?? '').toString().trim() };
+        } catch { return { filename: relFilename, name: relFilename.replace('.json', ''), typeKey: '', cr: '' }; }
       }
 
-      const allEntries: { filename: string; name: string; typeKey: string }[] = [];
+      const allEntries: { filename: string; name: string; typeKey: string; cr: string }[] = [];
       for (const dir of dirs) {
         const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${dir}` }).catch(() => [] as string[]);
         allEntries.push(...await Promise.all(files.map((f) => loadEntry(`${MONSTERS_PATH}/${dir}/${f}`, `${dir}/${f}`))));
       }
       allEntries.push(...await Promise.all(rootFiles.map((f) => loadEntry(`${MONSTERS_PATH}/${f}`, f))));
 
-      const newGroups: Record<string, { filename: string; name: string }[]> = {};
+      const newGroups: Record<string, { filename: string; name: string; cr: string }[]> = {};
       for (const e of allEntries) {
         const key = e.typeKey || 'unknown';
         if (!newGroups[key]) newGroups[key] = [];
-        newGroups[key].push({ filename: e.filename, name: e.name });
+        newGroups[key].push({ filename: e.filename, name: e.name, cr: e.cr });
       }
       // Gruppen alphabetisch nach deutschem Label sortieren
       monsterGroups = Object.fromEntries(
@@ -1130,13 +1130,14 @@
               {monsterTypeLabel(group)} <span class="group-count">({monsters.length})</span>
             </button>
             {#if openMonsterGroups[group]}
-              {#each monsters as { filename, name }}
+              {#each monsters as { filename, name, cr }}
                 <div class="entry-row">
                   <button
                     class="file-entry monster-subentry"
                     class:active={$activeFile?.path?.endsWith(filename)}
                     onclick={() => openMonster(filename)}
                   >
+                    {#if cr}<span class="monster-cr-badge" title="Herausforderungsgrad {cr}">{cr}</span>{/if}
                     {name}
                   </button>
                   {@render delBtn(() => deleteEntry(`${MONSTERS_PATH}/${filename}`, name, false, loadMonsters))}
@@ -1826,6 +1827,22 @@
 
   .monster-subentry {
     padding-left: 3.5rem;
+  }
+
+  /* HG-Badge (Herausforderungsgrad) vor Monster-Einträgen */
+  .monster-cr-badge {
+    display: inline-block;
+    margin-right: 0.4rem;
+    padding: 0 0.3rem;
+    border-radius: 0.25rem;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--red);
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.05rem;
+    vertical-align: middle;
+    flex-shrink: 0;
   }
 
   /* Grad-Badge vor Zauber-Einträgen */
