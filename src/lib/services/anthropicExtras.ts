@@ -3,7 +3,7 @@
  *
  * Dieses Modul ist bewusst NICHT Teil des portablen `LlmClient`-Interface
  * (siehe llmClient.ts). Hier leben Fähigkeiten, die kein anderer Provider
- * (Ollama/Groq/xAI) bietet. Die UI spricht sie nur an, wenn
+ * (Ollama/Groq) bietet. Die UI spricht sie nur an, wenn
  * `client.capabilities.<flag>` true ist (also bei provider === 'anthropic').
  *
  * Implementierungs-Tipps:

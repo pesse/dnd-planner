@@ -94,7 +94,6 @@
     <select class="select" value={$llmConfig.provider} onchange={(e) => changeProvider((e.target as HTMLSelectElement).value as LlmProvider)}>
       <option value="anthropic">Anthropic</option>
       <option value="groq">Groq</option>
-      <option value="xai">xAI</option>
       <option value="qualityminds">QualityMinds</option>
       <option value="ollama">Ollama</option>
     </select>

@@ -277,7 +277,6 @@
         <select class="select" value={$llmConfig.provider} onchange={(e) => changeProvider((e.target as HTMLSelectElement).value as LlmProvider)}>
           <option value="anthropic">Anthropic</option>
           <option value="groq">Groq</option>
-          <option value="xai">xAI</option>
           <option value="qualityminds">QualityMinds</option>
           <option value="ollama">Ollama</option>
         </select>
@@ -291,7 +290,7 @@
       </div>
 
       {#if !canTools}
-        <p class="hint warn">Das gewählte Modell unterstützt keine Tools (DnD-API-Suche). Bitte ein Anthropic-, Groq- oder xAI-Modell wählen.</p>
+        <p class="hint warn">Das gewählte Modell unterstützt keine Tools (DnD-API-Suche). Bitte ein Anthropic- oder Groq-Modell wählen.</p>
       {/if}
 
       <div class="row">

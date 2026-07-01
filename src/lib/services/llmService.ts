@@ -24,7 +24,7 @@ function effTemp(config: LlmConfig, perCall?: number): number | undefined {
 interface DebugMeta { provider: string; label: string; }
 
 function extractTokenUsage(provider: string, data: Record<string, unknown>): { sent: number; received: number } | null {
-  if (provider === 'groq' || provider === 'xai' || provider === 'qualityminds') {
+  if (provider === 'groq' || provider === 'qualityminds') {
     const u = data.usage as Record<string, number> | undefined;
     if (u?.prompt_tokens != null) return { sent: u.prompt_tokens, received: u.completion_tokens ?? 0 };
   } else if (provider === 'ollama') {
@@ -216,12 +216,11 @@ export async function ollamaGenerate(config: LlmConfig, prompt: string, system?:
   return (data.response as string) ?? '';
 }
 
-// ── OpenAI-kompatible Provider (Groq, xAI, QualityMinds) ────────────────────────
+// ── OpenAI-kompatible Provider (Groq, QualityMinds) ─────────────────────────────
 // Identische Technik (OpenAI /chat/completions), getrennte Identität: jeder
 // Provider hat eigene Base-URL, eigenen Keychain-Slot und eigenes UI-Label.
 
 const GROQ_API = 'https://api.groq.com/openai/v1';
-const XAI_API = 'https://api.x.ai/v1';
 const QUALITYMINDS_API = 'https://code.qualityminds.ai/v1';
 
 /** Gemeinsame Chat-Implementierung. `apiBase` + Key bestimmen den konkreten Provider. */
@@ -247,9 +246,6 @@ function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string
 
 export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, GROQ_API, m, t, onDelta);
 export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, GROQ_API, p, s, t, onDelta);
-
-export const xaiChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, XAI_API, m, t, onDelta);
-export const xaiGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, XAI_API, p, s, t, onDelta);
 
 export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta);
 export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t, onDelta);
@@ -358,13 +354,9 @@ export async function agentLoop(
     if (!config.apiKey) throw new Error('No Groq API key configured.');
     return openAiAgentLoop(config, GROQ_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
   }
-  if (config.provider === 'xai') {
-    if (!config.apiKey) throw new Error('No xAI API key configured.');
-    return openAiAgentLoop(config, XAI_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
-  }
   if (config.provider === 'qualityminds') {
     if (!config.apiKey) throw new Error('No QualityMinds API key configured.');
     return openAiAgentLoop(config, QUALITYMINDS_API, { Authorization: `Bearer ${config.apiKey}` }, userMessage, systemPromptText, options, toolset);
   }
-  throw new Error('Ollama does not support tool calling. Please use Groq, xAI, QualityMinds, or Anthropic.');
+  throw new Error('Ollama does not support tool calling. Please use Groq, QualityMinds, or Anthropic.');
 }

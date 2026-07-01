@@ -1,6 +1,6 @@
 /**
  * Tool-Definitionen für die DnD-5e-API-Suche (analog `vaultTools.ts`).
- * Beide Formate: OpenAI-Function-Calling (Groq/xAI) + Anthropic native.
+ * Beide Formate: OpenAI-Function-Calling (Groq) + Anthropic native.
  * Der Executor ruft die geteilten Helfer aus `dndApi.ts`.
  */
 import type Anthropic from '@anthropic-ai/sdk';
@@ -50,7 +50,7 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-/xAI-kompatibles Tool-Format. */
+/** OpenAI-/Groq-kompatibles Tool-Format. */
 export const DND_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
   type: 'function',
   function: { name: t.name, description: t.description, parameters: t.params },

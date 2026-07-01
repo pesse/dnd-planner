@@ -4,8 +4,6 @@ import {
   ollamaGenerate,
   groqChat,
   groqGenerate,
-  xaiChat,
-  xaiGenerate,
   qualitymindsChat,
   qualitymindsGenerate,
   anthropicChat,
@@ -66,7 +64,7 @@ function tempFor(task?: TaskKind): number | undefined {
   return task ? TASK_TEMPERATURE[task] : undefined;
 }
 
-/** Capabilities der portablen, tool-fähigen OpenAI-kompatiblen Provider (Groq, xAI). */
+/** Capabilities der portablen, tool-fähigen OpenAI-kompatiblen Provider (Groq, QualityMinds). */
 const OPENAI_CAPS: LlmCapabilities = {
   tools: true,
   temperature: true,
@@ -103,16 +101,6 @@ export function getClient(config: LlmConfig): LlmClient {
         capabilities: OPENAI_CAPS,
         chat: (messages, task, onDelta) => groqChat(config, messages, tempFor(task), onDelta),
         generate: (prompt, system, task, onDelta) => groqGenerate(config, prompt, system, tempFor(task), onDelta),
-        agentLoop: (userMessage, systemPromptText, options) =>
-          agentLoopDispatch(config, userMessage, systemPromptText, options),
-      };
-
-    case 'xai':
-      return {
-        provider: 'xai',
-        capabilities: OPENAI_CAPS,
-        chat: (messages, task, onDelta) => xaiChat(config, messages, tempFor(task), onDelta),
-        generate: (prompt, system, task, onDelta) => xaiGenerate(config, prompt, system, tempFor(task), onDelta),
         agentLoop: (userMessage, systemPromptText, options) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options),
       };

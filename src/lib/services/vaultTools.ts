@@ -108,7 +108,7 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-/xAI-kompatibles Tool-Format (function calling). */
+/** OpenAI-/Groq-kompatibles Tool-Format (function calling). */
 export const VAULT_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
   type: 'function',
   function: { name: t.name, description: t.description, parameters: t.params },
@@ -127,7 +127,7 @@ export const VAULT_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
 export interface AgentToolset {
   /** Anthropic-native Tool-Defs. */
   anthropicTools: Anthropic.Tool[];
-  /** OpenAI-/Groq-/xAI-kompatible Tool-Defs. */
+  /** OpenAI-/Groq-kompatible Tool-Defs. */
   openAiTools: unknown[];
   /** Führt einen Tool-Aufruf aus. `writeFile` ist nur für Vault-Tools relevant. */
   execute(

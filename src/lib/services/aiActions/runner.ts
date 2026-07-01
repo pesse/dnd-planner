@@ -6,7 +6,7 @@
  *      recherchiert und liefert am Ende einen JSON-Block.
  *   2) Structured Output: JSON parsen + validieren. Bei Fehler genau ein Retry —
  *      nativ via `generateStructured` (Anthropic, capabilities.structuredOutput)
- *      oder emuliert via erneutem `generate` (Groq/xAI).
+ *      oder emuliert via erneutem `generate` (Groq).
  *
  * Voraussetzung: das Modell kann Tools (`capabilities.tools`). Ollama wird hier
  * mit einer klaren Meldung abgewiesen.
@@ -53,7 +53,7 @@ export async function runAiAction<T>(
   const usesTools = action.openAiTools.length > 0;
   if (usesTools && !client.capabilities.tools) {
     throw new Error(
-      'Das gewählte Modell unterstützt keine Tools. Bitte ein Anthropic-, Groq- oder xAI-Modell wählen.',
+      'Das gewählte Modell unterstützt keine Tools. Bitte ein Anthropic- oder Groq-Modell wählen.',
     );
   }
   const onStep = opts.onStep ?? (() => {});
@@ -88,7 +88,7 @@ export async function runAiAction<T>(
     data = await generateStructured<T>(config, userInput, action.jsonSchema, system);
     draftText = data != null ? JSON.stringify(data) : '';
   } else {
-    // Tool-frei (Groq/xAI/QM): ein einziger generate-Call statt Agent-Loop.
+    // Tool-frei (Groq/QM): ein einziger generate-Call statt Agent-Loop.
     draftText = await client.generate(userInput, system, 'structured', () => opts.onActivity?.());
     data = extractJson(draftText);
   }
@@ -104,7 +104,7 @@ export async function runAiAction<T>(
         action.buildSystemPrompt(),
       );
     } else {
-      // Emuliert (Groq/xAI): erneut anfordern, dann parsen.
+      // Emuliert (Groq): erneut anfordern, dann parsen.
       const retry = await client.generate(
         `Your last JSON was invalid or incomplete. Return ONLY a valid ` +
           `\`\`\`json object matching the schema.\n\nSchema:\n${JSON.stringify(action.jsonSchema)}\n\n` +

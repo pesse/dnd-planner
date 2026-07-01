@@ -11,16 +11,10 @@ export const ANTHROPIC_MODELS = [
 ];
 
 export const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3-32b',
   'llama-3.1-8b-instant',
-  'mixtral-8x7b-32768',
-  'gemma2-9b-it',
-];
-
-export const XAI_MODELS = [
-  'grok-3',
-  'grok-3-mini',
-  'grok-2',
 ];
 
 /** QualityMinds (OpenAI-kompatibler vLLM-Endpunkt, feste URL in llmService). */
@@ -32,7 +26,6 @@ export const QUALITYMINDS_MODELS = [
 export function modelsFor(provider: LlmProvider): string[] {
   if (provider === 'anthropic') return ANTHROPIC_MODELS;
   if (provider === 'groq') return GROQ_MODELS;
-  if (provider === 'xai') return XAI_MODELS;
   if (provider === 'qualityminds') return QUALITYMINDS_MODELS;
   return [];
 }
@@ -40,8 +33,7 @@ export function modelsFor(provider: LlmProvider): string[] {
 /** Default-Modell beim Provider-Wechsel. */
 export function defaultModelFor(provider: LlmProvider): string {
   if (provider === 'anthropic') return 'claude-sonnet-4-6';
-  if (provider === 'groq') return 'llama-3.3-70b-versatile';
-  if (provider === 'xai') return 'grok-3';
+  if (provider === 'groq') return 'openai/gpt-oss-20b';
   if (provider === 'qualityminds') return QUALITYMINDS_MODELS[0];
   return 'llama3.2';
 }

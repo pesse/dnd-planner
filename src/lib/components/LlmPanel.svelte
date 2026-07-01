@@ -26,7 +26,7 @@
   import { debugLog, clearDebugLog } from '../stores/debug';
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
-  import { ANTHROPIC_MODELS, GROQ_MODELS, XAI_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
+  import { ANTHROPIC_MODELS, GROQ_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
 
   type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
 
@@ -195,7 +195,7 @@
 
     try {
       if (!client.agentLoop) {
-        throw new Error('Dieser Provider unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.');
+        throw new Error('Dieser Provider unterstützt kein Tool Calling. Bitte Groq oder Anthropic wählen.');
       }
       await client.agentLoop(task, buildAgentSystemPrompt(), options);
     } catch (e) {
@@ -561,8 +561,8 @@
 
   <!-- Provider-Badge -->
   <div class="provider-badge">
-    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'} class:xai={$llmConfig.provider === 'xai'} class:qualityminds={$llmConfig.provider === 'qualityminds'}>
-      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : $llmConfig.provider === 'xai' ? '✶ xAI' : $llmConfig.provider === 'qualityminds' ? '🟣 QualityMinds' : '✦ Anthropic'}
+    <span class="badge" class:ollama={$llmConfig.provider === 'ollama'} class:anthropic={$llmConfig.provider === 'anthropic'} class:groq={$llmConfig.provider === 'groq'} class:qualityminds={$llmConfig.provider === 'qualityminds'}>
+      {$llmConfig.provider === 'ollama' ? '🦙 Ollama' : $llmConfig.provider === 'groq' ? '⚡ Groq' : $llmConfig.provider === 'qualityminds' ? '🟣 QualityMinds' : '✦ Anthropic'}
     </span>
     <span class="model-name">{$llmConfig.model}</span>
     <div class="token-stats">
@@ -589,7 +589,6 @@
           <option value="ollama">Ollama (lokal)</option>
           <option value="groq">Groq (schnelle Inference)</option>
           <option value="anthropic">Anthropic (Claude)</option>
-          <option value="xai">xAI (Grok)</option>
           <option value="qualityminds">QualityMinds (Qwen)</option>
         </select>
       </div>
@@ -615,19 +614,6 @@
         <div class="settings-row">
           <label>API-Key</label>
           <input type="password" bind:value={settingsApiKey} placeholder="gsk_..." />
-        </div>
-      {:else if settingsProvider === 'xai'}
-        <div class="settings-row">
-          <label>Modell</label>
-          <select bind:value={settingsModel}>
-            {#each XAI_MODELS as m}
-              <option value={m}>{m}</option>
-            {/each}
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>API-Key</label>
-          <input type="password" bind:value={settingsApiKey} placeholder="xai-..." />
         </div>
       {:else if settingsProvider === 'qualityminds'}
         <div class="settings-row">
@@ -1008,7 +994,7 @@
             "Harlon wurde enttarnt — passe Akt 3 und seinen Encounter an"
           </p>
           {#if !client.capabilities.tools}
-            <p class="agent-warning">⚠ Dieser Provider unterstützt kein Tool Calling. Bitte Groq, xAI oder Anthropic wählen.</p>
+            <p class="agent-warning">⚠ Dieser Provider unterstützt kein Tool Calling. Bitte Groq oder Anthropic wählen.</p>
           {/if}
         </div>
       {:else}
@@ -1217,7 +1203,6 @@
   .badge.ollama    { background: var(--bg-raised); color: var(--green); }
   .badge.anthropic { background: var(--bg-raised); color: var(--arcane); }
   .badge.groq      { background: var(--bg-deep); color: var(--copper); }
-  .badge.xai       { background: var(--bg-raised); color: var(--steel); }
   .badge.qualityminds { background: var(--bg-raised); color: var(--arcane); }
 
   .model-name {

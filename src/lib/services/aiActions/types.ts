@@ -16,7 +16,7 @@ export interface AiAction<T> {
   buildSystemPrompt(): string;
   /** Anthropic-native Tool-Defs. */
   anthropicTools: Anthropic.Tool[];
-  /** OpenAI-/Groq-/xAI-kompatible Tool-Defs. */
+  /** OpenAI-/Groq-kompatible Tool-Defs. */
   openAiTools: unknown[];
   /** Führt einen Tool-Aufruf aus. */
   execute(name: string, args: Record<string, unknown>): Promise<string>;

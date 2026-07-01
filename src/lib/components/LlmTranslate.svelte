@@ -19,13 +19,11 @@
     { value: 'anthropic', label: 'Anthropic' },
     { value: 'groq',      label: 'Groq' },
     { value: 'ollama',    label: 'Ollama' },
-    { value: 'xai',       label: 'xAI' },
   ] as const;
 
   const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
     anthropic: 'claude-sonnet-4-6',
-    groq:      'llama-3.3-70b-versatile',
-    xai:       'grok-3-mini',
+    groq:      'openai/gpt-oss-20b',
     ollama:    'llama3.2',
   };
 
