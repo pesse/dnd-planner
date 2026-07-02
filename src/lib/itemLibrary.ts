@@ -101,12 +101,12 @@ export const DAMAGE_TYPE_LABELS: Record<string, string> = {
   fire:        'Feuerschaden',
   cold:        'Kälteschaden',
   lightning:   'Blitzschaden',
-  thunder:     'Donnerschaden',
+  thunder:     'Schallschaden',
   acid:        'Säureschaden',
   poison:      'Giftschaden',
   necrotic:    'Nekrotischer Schaden',
-  radiant:     'Strahlender Schaden',
-  force:       'Wuchtmagie',
+  radiant:     'Gleißender Schaden',
+  force:       'Energieschaden',
   psychic:     'Psychischer Schaden',
 };
 

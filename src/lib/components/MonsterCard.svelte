@@ -7,7 +7,8 @@
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
-  import { MONSTER_TRANSLATION_SYSTEM_PROMPT } from '../prompts';
+  import { buildMonsterTranslationSystemPrompt } from '../prompts';
+  import { convertDistances } from '$lib/utils/distanceText';
   import { parseMonster as _parseMonster, normalizeMonster } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
@@ -96,7 +97,7 @@
       arr.forEach((x, i) => {
         if (!m[key][i]) return;
         if (x.name) m[key][i].name = x.name;
-        if (x.description) m[key][i].description = x.description;
+        if (x.description) m[key][i].description = convertDistances(x.description);
       });
     }
   }
@@ -158,7 +159,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.name || 'Monster'}
-    systemPrompt={MONSTER_TRANSLATION_SYSTEM_PROMPT}
+    systemPrompt={buildMonsterTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
     buildPrompt={buildTranslationPrompt}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}

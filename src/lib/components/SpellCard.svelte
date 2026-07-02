@@ -9,7 +9,8 @@
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
-  import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import { buildTranslationSystemPrompt } from '$lib/prompts';
+  import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
   import { searchSpells, getResource, mapApiResourceToSpell, type DndApiRef } from '$lib/services/dndApi';
@@ -95,12 +96,12 @@
     if (!s) return;
     try {
       const result = JSON.parse(raw);
-      if (Array.isArray(result.desc_de)) s.desc_de = result.desc_de;
-      if (Array.isArray(result.higher_level_de)) s.higher_level_de = result.higher_level_de;
-      if (typeof result.materials_needed === 'string') s.components.materials_needed = result.materials_needed;
-      if (typeof result.casting_time === 'string') s.casting_time = result.casting_time;
-      if (typeof result.range === 'string') s.range = result.range;
-      if (typeof result.duration === 'string') s.duration = result.duration;
+      if (Array.isArray(result.desc_de)) s.desc_de = (result.desc_de as string[]).map(convertDistances);
+      if (Array.isArray(result.higher_level_de)) s.higher_level_de = (result.higher_level_de as string[]).map(convertDistances);
+      if (typeof result.materials_needed === 'string') s.components.materials_needed = convertDistances(result.materials_needed);
+      if (typeof result.casting_time === 'string') s.casting_time = convertDistances(result.casting_time);
+      if (typeof result.range === 'string') s.range = convertDistances(result.range);
+      if (typeof result.duration === 'string') s.duration = convertDistances(result.duration);
     } catch { /* ignore */ }
   }
 
@@ -326,7 +327,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.name || 'Zauber'}
-    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
+    systemPrompt={buildTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
     buildPrompt={buildTranslationPrompt}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}

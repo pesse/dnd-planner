@@ -29,7 +29,8 @@
     ftToMVal,
     mToFt,
   } from '$lib/itemLibrary';
-  import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import { buildTranslationSystemPrompt } from '$lib/prompts';
+  import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
   import { prepareItemPrint } from '$lib/utils/printItem';
   import { preferredCardTab } from '$lib/stores/uiPrefs';
@@ -387,10 +388,11 @@
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
     const translated = JSON.parse(match[0]) as Record<string, unknown>;
-    if (translated.name_de) draft.name_de = translated.name_de as string;
+    if (translated.name_de) draft.name_de = convertDistances(translated.name_de as string);
     if (Array.isArray(translated.desc_de)) {
-      draft.desc_de = translated.desc_de as string[];
-      draftDescDeText = (translated.desc_de as string[]).join('\n\n');
+      const de = (translated.desc_de as string[]).map(convertDistances);
+      draft.desc_de = de;
+      draftDescDeText = de.join('\n\n');
     }
   }
 
@@ -884,7 +886,7 @@
 {#if showTranslateModal && draft}
   <TranslateModal
     entityName={draft.name_de || draft.name || 'Gegenstand'}
-    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
+    systemPrompt={buildTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
     buildPrompt={buildTranslationPrompt}
     onresult={applyTranslation}
     onclose={() => (showTranslateModal = false)}
