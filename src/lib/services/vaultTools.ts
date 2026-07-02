@@ -144,6 +144,30 @@ export const VAULT_TOOLSET: AgentToolset = {
   execute: (name, args, writeFile) => executeTool(name, args as Record<string, string>, writeFile),
 };
 
+/**
+ * Kombiniert mehrere Toolsets zu einem: konkateniert die Tool-Arrays und delegiert
+ * `execute` der Reihe nach. Jeder Sub-Executor wirft bei unbekanntem Namen einen
+ * „Unknown …"-Fehler → dann wird das nächste Set versucht. Tool-Namen müssen über
+ * alle Sets EINDEUTIG sein.
+ */
+export function composeToolsets(...sets: AgentToolset[]): AgentToolset {
+  return {
+    anthropicTools: sets.flatMap((s) => s.anthropicTools),
+    openAiTools: sets.flatMap((s) => s.openAiTools),
+    async execute(name, args, writeFile) {
+      for (const s of sets) {
+        try {
+          return await s.execute(name, args, writeFile);
+        } catch (e) {
+          if (e instanceof Error && /^Unknown (tool|DnD tool|rules tool):/i.test(e.message)) continue;
+          throw e;
+        }
+      }
+      throw new Error(`Unknown tool: ${name}`);
+    },
+  };
+}
+
 // ── Tool-Ausführung (Tauri) ─────────────────────────────────────────────────
 
 export async function executeTool(

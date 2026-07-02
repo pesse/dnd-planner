@@ -125,15 +125,24 @@ function splitText(text) {
   return out;
 }
 
+const usedIds = new Set();
+const uniqueId = (base) => {
+  let id = base;
+  let n = 2;
+  while (usedIds.has(id)) id = `${base}-${n++}`;
+  usedIds.add(id);
+  return id;
+};
+
 const chunks = [];
 for (const c of raw) {
   const text = dehyphenate(c.parts.join(' '));
   if (text.length < 40) continue; // triviale Fragmente (Bildunterschriften o.ä.) raus
   const pieces = splitText(text);
   pieces.forEach((piece, i) => {
-    const base = `${slug(c.section)}-${slug(c.heading)}-p${c.page}`;
+    const base = `${slug(c.section)}-${slug(c.heading)}-p${c.page}` + (pieces.length > 1 ? `-${i + 1}` : '');
     chunks.push({
-      id: pieces.length > 1 ? `${base}-${i + 1}` : base,
+      id: uniqueId(base),
       section: c.section,
       heading: c.heading,
       page: c.page,
