@@ -13,6 +13,7 @@
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
   import { checkForUpdate } from '$lib/stores/update';
+  import { getRulesIndex } from '$lib/services/rulesReference';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
@@ -350,6 +351,10 @@
 
     // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
     void checkForUpdate();
+
+    // Regel-Suchindex (MiniSearch) einmalig vorwärmen, damit die erste
+    // search_rules-Abfrage im KI-Panel nicht kalt startet. Nach dem ersten Paint.
+    setTimeout(() => getRulesIndex(), 0);
 
     function onError(e: ErrorEvent) {
       pushError(e.message || String(e));

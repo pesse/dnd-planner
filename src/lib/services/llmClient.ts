@@ -12,7 +12,7 @@ import {
   modelSupportsTemperature,
 } from './llmService';
 import { TASK_TEMPERATURE } from './vaultTools';
-import type { ChatMessage, AgentOptions, TaskKind } from './vaultTools';
+import type { ChatMessage, AgentOptions, TaskKind, AgentToolset } from './vaultTools';
 
 /**
  * Capability-Deskriptor: was ein Provider (in der konkreten Config) kann.
@@ -55,8 +55,8 @@ export interface LlmClient {
   /** Einmaliger Output ohne History. `task` wählt das Temperatur-Preset.
    *  `onDelta` (optional) erhält Token-Deltas live — nur bei streamenden Providern. */
   generate(prompt: string, system?: string, task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
-  /** Agentic Loop mit Vault-Tools. Nur vorhanden, wenn `capabilities.tools`. */
-  agentLoop?(userMessage: string, systemPromptText: string, options: AgentOptions): Promise<string>;
+  /** Agentic Loop. `toolset` optional (Default: Vault-Tools). Nur vorhanden, wenn `capabilities.tools`. */
+  agentLoop?(userMessage: string, systemPromptText: string, options: AgentOptions, toolset?: AgentToolset): Promise<string>;
 }
 
 /** Task-Kind → Temperatur-Preset. Der globale Override (config.temperature) gewinnt im Adapter. */
@@ -91,8 +91,8 @@ export function getClient(config: LlmConfig): LlmClient {
         },
         chat: (messages, task) => anthropicChat(config, messages, tempFor(task)),
         generate: (prompt, system, task) => anthropicGenerate(config, prompt, system, tempFor(task)),
-        agentLoop: (userMessage, systemPromptText, options) =>
-          agentLoopDispatch(config, userMessage, systemPromptText, options),
+        agentLoop: (userMessage, systemPromptText, options, toolset) =>
+          agentLoopDispatch(config, userMessage, systemPromptText, options, toolset),
       };
 
     case 'groq':
@@ -101,8 +101,8 @@ export function getClient(config: LlmConfig): LlmClient {
         capabilities: OPENAI_CAPS,
         chat: (messages, task, onDelta) => groqChat(config, messages, tempFor(task), onDelta),
         generate: (prompt, system, task, onDelta) => groqGenerate(config, prompt, system, tempFor(task), onDelta),
-        agentLoop: (userMessage, systemPromptText, options) =>
-          agentLoopDispatch(config, userMessage, systemPromptText, options),
+        agentLoop: (userMessage, systemPromptText, options, toolset) =>
+          agentLoopDispatch(config, userMessage, systemPromptText, options, toolset),
       };
 
     case 'qualityminds':
@@ -111,8 +111,8 @@ export function getClient(config: LlmConfig): LlmClient {
         capabilities: OPENAI_CAPS,
         chat: (messages, task, onDelta) => qualitymindsChat(config, messages, tempFor(task), onDelta),
         generate: (prompt, system, task, onDelta) => qualitymindsGenerate(config, prompt, system, tempFor(task), onDelta),
-        agentLoop: (userMessage, systemPromptText, options) =>
-          agentLoopDispatch(config, userMessage, systemPromptText, options),
+        agentLoop: (userMessage, systemPromptText, options, toolset) =>
+          agentLoopDispatch(config, userMessage, systemPromptText, options, toolset),
       };
 
     case 'ollama':

@@ -22,6 +22,8 @@
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
   import { modelSupportsTemperature } from '../services/llmService';
   import { getClient } from '../services/llmClient';
+  import { composeToolsets, VAULT_TOOLSET } from '../services/vaultTools';
+  import { RULES_TOOLSET } from '../services/rulesTools';
   import type { AgentStep, AgentOptions } from '../services/llmService';
   import { debugLog, clearDebugLog } from '../stores/debug';
   import { invoke } from '@tauri-apps/api/core';
@@ -145,7 +147,14 @@
       `Filenames use kebab-case slugs. ` +
       `Workflow: read relevant files first to understand current state, then act. ` +
       `When a task involves an act and its encounter, update BOTH files. ` +
-      `Write complete, well-structured content. Summarize what you did at the end.`
+      `Write complete, well-structured content. Summarize what you did at the end.` +
+      `\n\n## Rules Reference\n` +
+      `<rules_reference>\n` +
+      `For D&D rules questions, consult the official German SRD 5.2.1 via these tools:\n` +
+      `- lookup_rule(term): the official Regelglossar definition of a term (accepts German OR English), with category, cross-references and page. Use this FIRST for any terminology question.\n` +
+      `- search_rules(query): full-text search over the rules prose (combat, character creation, classes, equipment, spellcasting), returning passages with section and page. Use for how-a-rule-works questions or when lookup_rule has no exact entry. Query in German.\n` +
+      `Ground your rules answers in these tools. If nothing is found, say so — never invent rules. Cite section and page, and answer in German.\n` +
+      `</rules_reference>`
     );
   }
 
@@ -197,7 +206,7 @@
       if (!client.agentLoop) {
         throw new Error('Dieser Provider unterstützt kein Tool Calling. Bitte Groq oder Anthropic wählen.');
       }
-      await client.agentLoop(task, buildAgentSystemPrompt(), options);
+      await client.agentLoop(task, buildAgentSystemPrompt(), options, composeToolsets(VAULT_TOOLSET, RULES_TOOLSET));
     } catch (e) {
       agentError = e instanceof Error ? e.message : String(e);
     } finally {
