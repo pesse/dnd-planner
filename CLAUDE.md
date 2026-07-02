@@ -100,9 +100,13 @@ badge (⬆) in the sidebar header → confirmation dialog → download/install/r
    Never commit the private key.
 
 **Cutting a release:**
-1. Bump `version` in **both** `src-tauri/tauri.conf.json` and `package.json`.
-2. Commit, then push a tag `vX.Y.Z`.
-3. `.github/workflows/release.yml` (runs on `windows-latest`) builds, signs, and creates a
+1. Push a tag `vX.Y.Z`. **No manual version bump needed** — the version fields are
+   driven by the tag (see below).
+2. `.github/workflows/release.yml` (runs on `windows-latest`) builds, signs, and creates a
    **draft** GitHub Release with the installer + `latest.json`.
-4. Review and publish the release. Running installations pick up the new `latest.json`
+3. Review and publish the release. Running installations pick up the new `latest.json`
    automatically on next start.
+
+**Version bump is GitHub-driven** (commit `64aeac7`): the `version-bump` job derives the
+version from the tag and pushes it into `tauri.conf.json`, `package.json` and
+`package-lock.json` on the default branch. Don't bump by hand.
