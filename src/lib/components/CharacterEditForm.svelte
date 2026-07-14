@@ -8,14 +8,20 @@
   import type { Item, Spell } from '../types';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
+  import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
   // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
   // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
-  let { character, dirPath }: {
+  let { character, dirPath, saved }: {
     character: Character;
     dirPath: string;
+    saved?: Character | null;
   } = $props();
+
+  // Diff-Highlighting: vergleicht ein Quell-Feld gegen die gespeicherte Version.
+  // Ohne Baseline (neuer/nie gespeicherter Charakter) → keine Hervorhebung.
+  const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
 
   // Passthrough-Felder, die das Formular nicht bearbeitet — einmalig erfassen, damit
   // der Sync-Effekt sie NICHT reaktiv liest (sonst Schreib-/Lese-Schleife auf character.*).
@@ -639,12 +645,12 @@
   <section>
     <h3>Allgemein</h3>
     <div class="grid-2">
-      <label>Name<input bind:value={name} placeholder="Charaktername" /></label>
-      <label>Klasse & Stufe<input bind:value={classLevel} placeholder="z.B. Waldläufer 5" /></label>
-      <label>Spieler<input bind:value={playerName} placeholder="Spielername" /></label>
-      <label>Volk<input bind:value={race} placeholder="Volk/Rasse" /></label>
-      <label>Hintergrund<input bind:value={background} placeholder="Hintergrund" /></label>
-      <label>EP<input bind:value={xp} placeholder="0" /></label>
+      <label use:diffMark={dirOf(saved?.name, name)}>Name<input bind:value={name} placeholder="Charaktername" /></label>
+      <label use:diffMark={dirOf(saved?.classLevel, classLevel)}>Klasse & Stufe<input bind:value={classLevel} placeholder="z.B. Waldläufer 5" /></label>
+      <label use:diffMark={dirOf(saved?.playerName, playerName)}>Spieler<input bind:value={playerName} placeholder="Spielername" /></label>
+      <label use:diffMark={dirOf(saved?.race, race)}>Volk<input bind:value={race} placeholder="Volk/Rasse" /></label>
+      <label use:diffMark={dirOf(saved?.background, background)}>Hintergrund<input bind:value={background} placeholder="Hintergrund" /></label>
+      <label use:diffMark={dirOf(saved?.xp, xp)}>EP<input bind:value={xp} placeholder="0" /></label>
     </div>
   </section>
 
@@ -655,7 +661,7 @@
       {#each ATTRS as attr}
         {@const score = attr.key === 'str' ? str : attr.key === 'ges' ? ges : attr.key === 'kon' ? kon : attr.key === 'int' ? int : attr.key === 'wei' ? wei : cha}
         {@const mod = modFor(score)}
-        <div class="attr-box">
+        <div class="attr-box" use:diffMark={dirOf((saved as Record<string, unknown> | null | undefined)?.[attr.key], score)}>
           <span class="attr-mod-display">{sign(mod)}</span>
           <span class="attr-label">{attr.label}</span>
           <input
@@ -682,14 +688,14 @@
   <section>
     <h3>Kampfwerte</h3>
     <div class="grid-3">
-      <label>RK<input bind:value={ac} placeholder="15" /></label>
-      <label>Initiative<input bind:value={initiative} placeholder="+2" /></label>
-      <label>Bewegung (m)<input bind:value={speed} placeholder="9" /></label>
-      <label>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
-      <label>TP Maximum<input bind:value={hpMax} placeholder="45" /></label>
-      <label>TP Aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
-      <label>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
-      <label>Übungsbonus
+      <label use:diffMark={dirOf(saved?.ac, ac)}>RK<input bind:value={ac} placeholder="15" /></label>
+      <label use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
+      <label use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)<input bind:value={speed} placeholder="9" /></label>
+      <label use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
+      <label use:diffMark={dirOf(saved?.hpMax, hpMax)}>TP Maximum<input bind:value={hpMax} placeholder="45" /></label>
+      <label use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP Aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
+      <label use:diffMark={dirOf(saved?.hpTemp, hpTemp)}>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
+      <label use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus
         <input type="number" bind:value={proficiencyBonus} min="2" max="6" />
       </label>
     </div>
@@ -705,7 +711,7 @@
               ['INT', intSaveProf, (v: boolean) => (intSaveProf = v), intMod],
               ['WEI', weiSaveProf, (v: boolean) => (weiSaveProf = v), weiMod],
               ['CHA', chaSaveProf, (v: boolean) => (chaSaveProf = v), chaMod]] as [label, checked, setter, mod]}
-        <label class="check-row">
+        <label class="check-row" use:diffMark={dirOf((saved as Record<string, unknown> | null | undefined)?.[`${(label as string).toLowerCase()}SaveProf`], checked)}>
           <input type="checkbox" checked={checked as boolean} onchange={(e) => (setter as (v: boolean) => void)((e.target as HTMLInputElement).checked)} />
           <span class="check-label">{label}</span>
           <span class="check-val">{sign((mod as number) + ((checked as boolean) ? proficiencyBonus : 0))}</span>
@@ -717,7 +723,7 @@
   <!-- ── Fertigkeiten ─── -->
   <section>
     <h3>Fertigkeiten</h3>
-    <label class="check-row alleskoenner">
+    <label class="check-row alleskoenner" use:diffMark={dirOf(saved?.alleskoenner, alleskoenner)}>
       <input type="checkbox" bind:checked={alleskoenner} />
       <span>Alleskönner</span>
     </label>
@@ -725,7 +731,11 @@
       {#each SKILL_DEFS as def}
         {@const flags = skillFlags[def.key]}
         {@const computed = computedSkills[def.key]}
-        <div class="skill-edit-row">
+        {@const savedSkill = saved?.skills?.[def.key]}
+        {@const skillDir = !saved ? 'none'
+          : (flags.prof && !savedSkill?.prof) || (flags.exp && !savedSkill?.exp) ? 'up'
+          : (!flags.prof && savedSkill?.prof) || (!flags.exp && savedSkill?.exp) ? 'down' : 'none'}
+        <div class="skill-edit-row" use:diffMark={skillDir}>
           <input
             type="checkbox"
             checked={flags.prof}
@@ -778,7 +788,10 @@
       <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>Typ</th><th>RW</th><th></th><th></th></tr></thead>
       <tbody>
         {#each attacks as atk, i}
-          <tr>
+          {@const atkDir = !saved || !atk.name.trim() ? 'none'
+            : i >= (saved.attacks?.length ?? 0) ? 'up'
+            : classifyChange($state.snapshot(saved.attacks[i]), $state.snapshot(atk))}
+          <tr use:diffMark={atkDir}>
             <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
             {#if atk.auto}
               <td><span class="computed-cell" title="Reaktiv berechnet">{computeAttackBonus(atk)}</span></td>
@@ -831,17 +844,17 @@
   <!-- ── Klassenmerkmale ─── -->
   <section>
     <h3>Klassenmerkmale & Eigenschaften</h3>
-    <textarea class="ta-large" bind:value={classFeatures} placeholder="Klassenmerkmale, Rasseneigenschaften…"></textarea>
+    <textarea class="ta-large" use:diffMark={dirOf(saved?.classFeatures, classFeatures)} bind:value={classFeatures} placeholder="Klassenmerkmale, Rasseneigenschaften…"></textarea>
   </section>
 
   <!-- ── Persönlichkeit ─── -->
   <section>
     <h3>Persönlichkeit</h3>
     <div class="grid-2">
-      <label>Persönlichkeitsmerkmale<textarea bind:value={traits}></textarea></label>
-      <label>Ideale<textarea bind:value={ideals}></textarea></label>
-      <label>Bindungen<textarea bind:value={bonds}></textarea></label>
-      <label>Makel<textarea bind:value={flaws}></textarea></label>
+      <label use:diffMark={dirOf(saved?.traits, traits)}>Persönlichkeitsmerkmale<textarea bind:value={traits}></textarea></label>
+      <label use:diffMark={dirOf(saved?.ideals, ideals)}>Ideale<textarea bind:value={ideals}></textarea></label>
+      <label use:diffMark={dirOf(saved?.bonds, bonds)}>Bindungen<textarea bind:value={bonds}></textarea></label>
+      <label use:diffMark={dirOf(saved?.flaws, flaws)}>Makel<textarea bind:value={flaws}></textarea></label>
     </div>
   </section>
 
@@ -849,7 +862,7 @@
   <section>
     <h3>Persönliches</h3>
     <div class="personal-grid">
-      <div class="portrait-block">
+      <div class="portrait-block" use:diffMark={dirOf(saved?.portraitFile, portraitFile)}>
         {#if portraitPreview}
           <img class="portrait-preview" src={portraitPreview} alt="Portrait" />
         {:else}
@@ -866,25 +879,25 @@
         {#if portraitError}<div class="error-sm">{portraitError}</div>{/if}
       </div>
       <div class="personal-fields">
-        <label>Alter<input bind:value={alter} placeholder="32" /></label>
-        <label>Geschlecht<input bind:value={geschlecht} placeholder="männlich" /></label>
-        <label>Gesinnung<input bind:value={gesinnung} placeholder="rechtschaffen neutral" /></label>
-        <label>Glaube<input bind:value={glaube} placeholder="Moradin" /></label>
-        <label>Größenkategorie<input bind:value={sizeCat} placeholder="Mittelgroß" /></label>
-        <label>Körpergröße<input bind:value={koerpergroesse} placeholder="1,30 m" /></label>
-        <label>Gewicht<input bind:value={gewicht} placeholder="65 kg" /></label>
-        <label>Augenfarbe<input bind:value={augenfarbe} placeholder="braun" /></label>
-        <label>Haarfarbe<input bind:value={haarfarbe} placeholder="schwarz" /></label>
-        <label>Hautfarbe<input bind:value={hautfarbe} placeholder="hell" /></label>
-        <label>Lebensstil<input bind:value={lebensstil} placeholder="bescheiden" /></label>
-        <label>Tägliche Kosten<input bind:value={taeglicheKosten} placeholder="1 GM" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.alter, alter)}>Alter<input bind:value={alter} placeholder="32" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.geschlecht, geschlecht)}>Geschlecht<input bind:value={geschlecht} placeholder="männlich" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.gesinnung, gesinnung)}>Gesinnung<input bind:value={gesinnung} placeholder="rechtschaffen neutral" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.glaube, glaube)}>Glaube<input bind:value={glaube} placeholder="Moradin" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.sizeCat, sizeCat)}>Größenkategorie<input bind:value={sizeCat} placeholder="Mittelgroß" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.koerpergroesse, koerpergroesse)}>Körpergröße<input bind:value={koerpergroesse} placeholder="1,30 m" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.gewicht, gewicht)}>Gewicht<input bind:value={gewicht} placeholder="65 kg" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.augenfarbe, augenfarbe)}>Augenfarbe<input bind:value={augenfarbe} placeholder="braun" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.haarfarbe, haarfarbe)}>Haarfarbe<input bind:value={haarfarbe} placeholder="schwarz" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.hautfarbe, hautfarbe)}>Hautfarbe<input bind:value={hautfarbe} placeholder="hell" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.lebensstil, lebensstil)}>Lebensstil<input bind:value={lebensstil} placeholder="bescheiden" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.taeglicheKosten, taeglicheKosten)}>Tägliche Kosten<input bind:value={taeglicheKosten} placeholder="1 GM" /></label>
       </div>
     </div>
-    <label class="block-label">
+    <label class="block-label" use:diffMark={dirOf(saved?.personal?.rassenmerkmale, rassenmerkmale)}>
       Volksmerkmale
       <textarea class="ta-small" bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
     </label>
-    <label class="block-label">
+    <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, aussehen)}>
       Aussehen
       <textarea class="ta-small" bind:value={aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
     </label>
@@ -895,7 +908,7 @@
     <h3>Sprachen</h3>
     <div class="tag-editor">
       {#each languages as lang}
-        <span class="tag">{lang}<button onclick={() => removeLang(lang)}>✕</button></span>
+        <span class="tag" use:diffMark={!saved ? 'none' : saved.languages.includes(lang) ? 'none' : 'up'}>{lang}<button onclick={() => removeLang(lang)}>✕</button></span>
       {/each}
       <input
         class="tag-input"
@@ -909,7 +922,7 @@
     <h3 style="margin-top:1rem">Werkzeuge & Fahrzeuge</h3>
     <div class="tag-editor">
       {#each tools as tool}
-        <span class="tag">{tool}<button onclick={() => removeTool(tool)}>✕</button></span>
+        <span class="tag" use:diffMark={!saved ? 'none' : saved.tools.includes(tool) ? 'none' : 'up'}>{tool}<button onclick={() => removeTool(tool)}>✕</button></span>
       {/each}
       <input
         class="tag-input"
@@ -925,14 +938,14 @@
   <section>
     <h3>Profizienzen</h3>
     <div class="prof-grid">
-      <label class="check-row"><input type="checkbox" bind:checked={profSimpleWeapons} /><span class="check-label">Einfache Waffen</span></label>
-      <label class="check-row"><input type="checkbox" bind:checked={profMartialWeapons} /><span class="check-label">Kriegswaffen</span></label>
-      <label class="check-row"><input type="checkbox" bind:checked={profLightArmor} /><span class="check-label">Leichte Rüstung</span></label>
-      <label class="check-row"><input type="checkbox" bind:checked={profMediumArmor} /><span class="check-label">Mittlere Rüstung</span></label>
-      <label class="check-row"><input type="checkbox" bind:checked={profHeavyArmor} /><span class="check-label">Schwere Rüstung</span></label>
-      <label class="check-row"><input type="checkbox" bind:checked={profShields} /><span class="check-label">Schilde</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.simpleWeapons, profSimpleWeapons)}><input type="checkbox" bind:checked={profSimpleWeapons} /><span class="check-label">Einfache Waffen</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.martialWeapons, profMartialWeapons)}><input type="checkbox" bind:checked={profMartialWeapons} /><span class="check-label">Kriegswaffen</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.lightArmor, profLightArmor)}><input type="checkbox" bind:checked={profLightArmor} /><span class="check-label">Leichte Rüstung</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.mediumArmor, profMediumArmor)}><input type="checkbox" bind:checked={profMediumArmor} /><span class="check-label">Mittlere Rüstung</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.heavyArmor, profHeavyArmor)}><input type="checkbox" bind:checked={profHeavyArmor} /><span class="check-label">Schwere Rüstung</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.shields, profShields)}><input type="checkbox" bind:checked={profShields} /><span class="check-label">Schilde</span></label>
     </div>
-    <label class="block-label">
+    <label class="block-label" use:diffMark={dirOf(saved?.proficiencies?.otherWeapons, profOtherWeapons)}>
       Weitere Waffen
       <input bind:value={profOtherWeapons} placeholder="z.B. Steinhammer, Wurfdolch" />
     </label>
@@ -943,7 +956,7 @@
     <h3>Währung</h3>
     <div class="currency-row">
       {#each [['km','Kupfer'],['sm','Silber'],['em','Elektrum'],['gm','Gold'],['pm','Platin']] as [key, label]}
-        <label class="coin-label">
+        <label class="coin-label" use:diffMark={dirOf((saved?.currency as Record<string, unknown> | undefined)?.[key], (currency as any)[key])}>
           {label}
           <input
             class="coin-input"
@@ -962,7 +975,10 @@
       <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th><th></th></tr></thead>
       <tbody>
         {#each inventory as item, i}
-          <tr>
+          {@const invDir = !saved || !item.name.trim() ? 'none'
+            : i >= (saved.inventory?.length ?? 0) ? 'up'
+            : classifyChange($state.snapshot(saved.inventory[i]), $state.snapshot(item))}
+          <tr use:diffMark={invDir}>
             <td class="inv-name-cell">
               <div class="autocomplete-wrap">
                 <input
@@ -1003,7 +1019,7 @@
       {/if}
     </table>
     <button class="btn-add" onclick={addInventoryItem}>+ Gegenstand</button>
-    <label style="display:block; margin-top:0.5rem">
+    <label style="display:block; margin-top:0.5rem" use:diffMark={dirOf(saved?.inventoryNotes, inventoryNotes)}>
       Notizen
       <textarea class="ta-small" bind:value={inventoryNotes}></textarea>
     </label>
@@ -1013,8 +1029,8 @@
   <section>
     <h3>Zauberwirken</h3>
     <div class="grid-3">
-      <label>Zauberklasse<input bind:value={spellClass} placeholder="Zauberer" /></label>
-      <label>Fähigkeit<input bind:value={spellAbility} placeholder="INT" /></label>
+      <label use:diffMark={dirOf(saved?.spells?.spellcastingClass, spellClass)}>Zauberklasse<input bind:value={spellClass} placeholder="Zauberer" /></label>
+      <label use:diffMark={dirOf(saved?.spells?.spellcastingAbility, spellAbility)}>Fähigkeit<input bind:value={spellAbility} placeholder="INT" /></label>
       {#if spellAutoActive}
         <label title="8 + Übungsbonus + Zauberattribut-Mod">Zauber-SG
           <span class="computed-cell computed-block">{computedSpellSaveDC}</span>
@@ -1023,11 +1039,11 @@
           <span class="computed-cell computed-block">{sign(computedSpellAttack ?? 0)}</span>
         </label>
       {:else}
-        <label>Zauber-SG<input type="number" min="0" bind:value={spellSaveDC} /></label>
-        <label>Angriffsbonus<input type="number" bind:value={spellAttackBonus} /></label>
+        <label use:diffMark={dirOf(saved?.spells?.saveDC, spellSaveDC)}>Zauber-SG<input type="number" min="0" bind:value={spellSaveDC} /></label>
+        <label use:diffMark={dirOf(saved?.spells?.attackBonus, spellAttackBonus)}>Angriffsbonus<input type="number" bind:value={spellAttackBonus} /></label>
       {/if}
     </div>
-    <label class="check-row spell-auto-toggle">
+    <label class="check-row spell-auto-toggle" use:diffMark={dirOf(saved?.spells?.autoCalc, spellAutoCalc)}>
       <input type="checkbox" bind:checked={spellAutoCalc} />
       <span>Zauber-SG &amp; Angriffsbonus automatisch berechnen</span>
     </label>
@@ -1038,14 +1054,14 @@
     <h3 style="margin-top:0.75rem">Slots je Stufe</h3>
     <div class="slot-edit-row">
       {#each slotTotals as _, i}
-        <label class="slot-label">S{i + 1}<input type="number" min="0" max="9" bind:value={slotTotals[i]} /></label>
+        <label class="slot-label" use:diffMark={dirOf(saved?.spells?.slots?.[i]?.total, slotTotals[i])}>S{i + 1}<input type="number" min="0" max="9" bind:value={slotTotals[i]} /></label>
       {/each}
     </div>
 
     <h3 style="margin-top:0.75rem">Zaubertricks</h3>
     <div class="tag-editor">
       {#each cantrips as c}
-        <span class="tag" style="color:{spellColor(c) || 'inherit'}"><span
+        <span class="tag" style="color:{spellColor(c) || 'inherit'}" use:diffMark={!saved ? 'none' : (saved.spells?.cantrips ?? []).includes(c) ? 'none' : 'up'}><span
           class="spell-link" class:linked={!!spellInfoMap.get(c)?.path}
           role="button" tabindex="0"
           onclick={() => openSpellPage(c)}
@@ -1106,7 +1122,9 @@
         <div class="spell-level-block">
           <span class="spell-level-label">Stufe {lvl} ({slotTotals[Number(lvl) - 1]} Slots)</span>
           {#each spells as spell, i}
-            <div class="spell-edit-row">
+            {@const savedSpell = saved?.spells?.byLevel?.[lvl]?.find(s => s.name === spell.name)}
+            {@const spellDir = !saved ? 'none' : !savedSpell ? 'up' : savedSpell.prepared !== spell.prepared ? 'up' : 'none'}
+            <div class="spell-edit-row" use:diffMark={spellDir}>
               <button class="prep-toggle" title={spell.prepared ? 'Vorbereitet' : 'Nicht vorbereitet'}
                 onclick={() => { spells[i] = { ...spell, prepared: !spell.prepared }; spellsByLevel[lvl] = [...spells]; }}>
                 {spell.prepared ? '●' : '○'}

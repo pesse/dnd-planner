@@ -46,6 +46,20 @@
   // Read-only-Sicht auf den Draft für die Bogen-Anzeige.
   // (Der Bearbeiten-Tab bindet ed.draft direkt und mutiert ihn in place.)
   const character = $derived(ed.draft);
+  // Zuletzt gespeicherte Version als Baseline für das Diff-Highlighting im
+  // Bearbeiten-Formular. Bei neuem/nie gespeichertem Charakter (leerer Content)
+  // oder ungültigem JSON → null → keine Hervorhebungen. save() ersetzt ed.draft
+  // nicht, setzt aber lastSavedContent neu → dieser Derived rechnet neu → alle
+  // Highlights verschwinden in-place.
+  const savedCharacter = $derived.by<Character | null>(() => {
+    if (!ed.lastSavedContent) return null;
+    try {
+      const r = parseCharacter(JSON.parse(ed.lastSavedContent));
+      return r.ok ? r.data : null;
+    } catch {
+      return null;
+    }
+  });
   // Quelle der PDF-Import-Metadaten (nicht editierbar).
   const pdfName = $derived(character?._importedFrom ?? '');
 
@@ -896,7 +910,7 @@
              frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
         {#key ed.draft}
           <div class="edit-wrapper" style="width:100%">
-            <CharacterEditForm character={ed.draft!} {dirPath} />
+            <CharacterEditForm character={ed.draft!} {dirPath} saved={savedCharacter} />
           </div>
         {/key}
       {/snippet}

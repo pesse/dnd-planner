@@ -68,6 +68,27 @@ h1, h2, h3, .file-title {
   letter-spacing: 0.01em;
 }
 
+/* Diff-Highlighting im Editor: geänderte Felder gegenüber der gespeicherten
+ * Version. Grün = erhöht/hinzugefügt/geändert, Rot = vermindert/entfernt.
+ * Global (nicht scoped), da die Klassen zur Laufzeit per classList gesetzt
+ * werden (siehe diffHighlight.ts / diffMark). */
+.diff-up   { --diff-accent: var(--green); }
+.diff-down { --diff-accent: var(--danger); }
+/* !important, weil komponenten-lokale Feld-Styles (input/textarea/select bzw.
+ * .attr-box setzen background: var(--surface)) sonst gewinnen — sie sind
+ * gleich/höher spezifisch, aber nicht !important. */
+.diff-up, .diff-down {
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--diff-accent) 24%, transparent) !important;
+}
+/* Das Eingabefeld selbst einfärben (falls diffMark auf einem Container liegt) —
+ * Beschreibungs-/Textareas verdecken sonst die Tönung. Mischung über --bg erhält
+ * die Lesbarkeit des Textes. */
+.diff-up   :is(input, textarea, select),
+.diff-down :is(input, textarea, select) {
+  background-color: color-mix(in srgb, var(--diff-accent) 22%, var(--bg)) !important;
+}
+
 /* Pergament-Scrollbars */
 * {
   scrollbar-width: thin;
