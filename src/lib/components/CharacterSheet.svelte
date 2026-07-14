@@ -7,6 +7,9 @@
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
   import type { Character } from '../schemas/character';
+  import { editCharacterAction } from '../services/aiActions/characterAction';
+  import { buildLevelUpRulesContext } from '../services/characterRules';
+  import AiEditModal from './AiEditModal.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
@@ -53,6 +56,7 @@
   let error = $state('');
   let importingPdf = $state(false);
   let exportingPdf = $state(false);
+  let showLevelUp = $state(false);
   let portraitUrl = $state('');
   let spellLibrary = $state<SpellInfo[]>([]);
   let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
@@ -544,6 +548,10 @@
         <span>EP: <strong>{character.xp}</strong></span>
       </div>
       <div class="header-actions">
+        <button class="icon-btn levelup" onclick={() => (showLevelUp = true)}
+                aria-label="Stufenaufstieg" title="Stufenaufstieg per KI">
+          ⬆ Stufenaufstieg
+        </button>
         {#snippet pdfIcon()}
           <svg viewBox="0 0 24 24" width="16" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/>
@@ -925,6 +933,18 @@
   {/if}
 </div>
 
+{#if showLevelUp && character}
+  <AiEditModal
+    entityName={`${character.name || 'Charakter'} · ${character.classLevel || 'ohne Stufe'}`}
+    title="Stufenaufstieg per KI"
+    actionLabel="Aufstufen"
+    placeholder="z.B. Stufe {character.classLevel} auf nächste Stufe, Kampfstil Bogenschütze, +1 KON"
+    buildAction={(input) => editCharacterAction($state.snapshot(character) as Character, buildLevelUpRulesContext(character.classLevel, input))}
+    onresult={(updated) => { ed.applyDraft(updated); showLevelUp = false; }}
+    onclose={() => (showLevelUp = false)}
+  />
+{/if}
+
 {#if tooltipItem}
   <div class="item-tooltip" style="left:{tooltipX}px;top:{tooltipY}px">
     <div class="tt-name">
@@ -1095,6 +1115,7 @@
   .icon-btn:disabled { opacity: 0.6; cursor: default; }
   .icon-btn.import:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.export:hover { border-color: var(--green); color: var(--green); }
+  .icon-btn.levelup:hover { border-color: var(--gold, #c89b3c); color: var(--gold, #c89b3c); }
   .icon-btn.busy { animation: icon-pulse 1s ease-in-out infinite; }
 
   @keyframes icon-pulse {

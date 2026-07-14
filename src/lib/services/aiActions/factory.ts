@@ -54,7 +54,11 @@ export function buildCreateAction<T>(spec: EntityActionSpec<T>, opts: CreateActi
 }
 
 /** „<Noun> per KI überarbeiten" — der aktuelle Stand liegt als Kontext bei. */
-export function buildEditAction<T>(spec: EntityActionSpec<T>, current: T): AiAction<T> {
+export function buildEditAction<T>(
+  spec: EntityActionSpec<T>,
+  current: T,
+  opts: { withDndTools?: boolean } = {},
+): AiAction<T> {
   const parts: PromptParts = {
     templateBlock: '',
     currentBlock: jsonBlock(spec.currentHeading, current),
@@ -62,7 +66,7 @@ export function buildEditAction<T>(spec: EntityActionSpec<T>, current: T): AiAct
     categoryHint: '',
   };
   return {
-    ...baseAction(spec),
+    ...baseAction(spec, opts.withDndTools ?? true),
     id: `edit-${spec.entity}`,
     label: `${spec.nounDe} per KI überarbeiten`,
     buildSystemPrompt: () => spec.buildEditPrompt(parts),

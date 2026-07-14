@@ -14,12 +14,21 @@
     buildAction,
     onresult,
     onclose,
+    title = 'Per KI überarbeiten',
+    actionLabel = 'Überarbeiten',
+    placeholder = 'z.B. Werte für Herausforderungsgrad 5 hochskalieren, eine Aktion ergänzen',
   }: {
     entityName: string;
-    /** Baut die Aktion mit dem aktuellen Stand (wird pro Lauf neu aufgerufen). */
-    buildAction: () => AiAction<T>;
+    /** Baut die Aktion mit dem aktuellen Stand + der Nutzereingabe (pro Lauf neu aufgerufen). */
+    buildAction: (input: string) => AiAction<T>;
     onresult: (revised: T) => void;
     onclose: () => void;
+    /** Titel der Kopfzeile (Default: „Per KI überarbeiten"). */
+    title?: string;
+    /** Beschriftung des Start-Buttons (Default: „Überarbeiten"). */
+    actionLabel?: string;
+    /** Platzhalter des Eingabefelds. */
+    placeholder?: string;
   } = $props();
 
   // ── Verschiebbarer, nicht-blockierender Dialog ──────────────────────────────
@@ -105,7 +114,7 @@
     abort = new AbortController();
     startClock();
     try {
-      const revised = await runAiAction<T>($llmConfig, buildAction(), instruction.trim(), {
+      const revised = await runAiAction<T>($llmConfig, buildAction(instruction.trim()), instruction.trim(), {
         onStep: (s) => { steps = [...steps, s]; lastActivityMs = Date.now(); },
         onActivity: () => { lastActivityMs = Date.now(); },
         signal: abort.signal,
@@ -134,9 +143,9 @@
   }
 </script>
 
-<div class="dialog" style="left: {pos.x}px; top: {pos.y}px;" role="dialog" aria-label="Per KI überarbeiten">
+<div class="dialog" style="left: {pos.x}px; top: {pos.y}px;" role="dialog" aria-label={title}>
   <div class="modal-header" onmousedown={startDrag} role="presentation">
-    <span class="modal-title">Per KI überarbeiten — {entityName}</span>
+    <span class="modal-title">{title} — {entityName}</span>
     <button class="close-btn" onmousedown={(e) => e.stopPropagation()} onclick={onclose} title="Schließen">×</button>
   </div>
 
@@ -169,7 +178,7 @@
       class="textarea"
       bind:value={instruction}
       rows="3"
-      placeholder="z.B. Werte für Herausforderungsgrad 5 hochskalieren, eine Aktion ergänzen"
+      {placeholder}
     ></textarea>
   </div>
 
@@ -180,7 +189,7 @@
       {/if}
       <button class="secondary-btn" onclick={stop}>Abbrechen</button>
     {:else}
-      <button class="primary-btn" onclick={generate} disabled={!instruction.trim() || !canTools}>Überarbeiten</button>
+      <button class="primary-btn" onclick={generate} disabled={!instruction.trim() || !canTools}>{actionLabel}</button>
     {/if}
   </div>
 

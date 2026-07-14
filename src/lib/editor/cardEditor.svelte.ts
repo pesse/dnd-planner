@@ -174,6 +174,17 @@ export class CardEditor<T> {
     this.captureBaseline();
   }
 
+  /**
+   * Lädt einen extern erzeugten Draft (z.B. KI-Ergebnis) zur Review in den Editor.
+   * Baseline bleibt der zuletzt gespeicherte Stand → der Draft ist sofort „dirty",
+   * der Nutzer prüft im Bearbeiten-Tab und speichert selbst. (Kein Schreibzugriff.)
+   */
+  applyDraft(draft: T) {
+    this.draft = structuredClone(draft) as T;
+    this.saveError = '';
+    this.tab = 'bearbeiten';
+  }
+
   /** Startet eine Neuanlage als ungespeicherten Draft (Anlage-Flow ruft das auf). */
   startNew(draft: T) {
     this.draft = structuredClone(draft) as T;
