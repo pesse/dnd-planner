@@ -24,10 +24,6 @@
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
-  import AiEditModal from './AiEditModal.svelte';
-  import { createCharacterAction } from '../services/aiActions/characterAction';
-  import { buildCreationRulesContext } from '../services/characterRules';
-  import type { Character } from '../schemas/character';
   import {
     ITEMS_PATH,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
@@ -265,7 +261,6 @@
   }
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
-  let showAiCreate = $state(false);
   let pdfImporting = $state(false);
   let pdfImportError = $state('');
 
@@ -368,25 +363,6 @@
 
   function cancelNewChar(e: KeyboardEvent) {
     if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
-  }
-
-  /** Schreibt einen KI-erzeugten Charakter als neues Verzeichnis und öffnet ihn. */
-  async function writeNewCharacter(char: Character) {
-    const name = (char.name || 'Neuer Charakter').trim();
-    const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '');
-    const dirPath = `${CHARACTERS_PATH}/${slug}`;
-    const json = { _version: 1, ...char, name };
-    const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
-    try {
-      await invoke('write_file_content', { path: `${dirPath}/character.json`, content: JSON.stringify(json, null, 2) });
-      await invoke('write_file_content', { path: `${dirPath}/gm-notes.md`, content: gmNotes });
-      showAiCreate = false;
-      charactersExpanded = true;
-      await loadCharacters();
-      await openCharacter({ name: slug, is_dir: true });
-    } catch (err) {
-      pushError(`KI-Charakter konnte nicht angelegt werden: ${err}`);
-    }
   }
 
   async function importFromPdf() {
@@ -1070,9 +1046,6 @@
         <span class="arrow" class:open={charactersExpanded}>›</span>
         Charaktere
       </button>
-      <button class="add-btn" title="KI-Charakter erstellen" onclick={() => { showAiCreate = true; }}>
-        ✨
-      </button>
       <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
         {pdfImporting ? '…' : 'PDF'}
       </button>
@@ -1396,18 +1369,6 @@
 
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
-  {/if}
-
-  {#if showAiCreate}
-    <AiEditModal
-      entityName="Neuer Charakter"
-      title="KI-Charakter erstellen"
-      actionLabel="Erstellen"
-      placeholder="z.B. Level 3 Waldelf-Waldläufer, Fokus Bogen, Späher-Hintergrund"
-      buildAction={(input) => createCharacterAction(buildCreationRulesContext(input))}
-      onresult={(char: Character) => writeNewCharacter(char)}
-      onclose={() => (showAiCreate = false)}
-    />
   {/if}
 
   {#if createModal === 'monster'}
