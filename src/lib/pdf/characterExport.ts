@@ -6,6 +6,7 @@ import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } 
 import type { CharacterJSON } from './characterFields';
 import { SKILL_DEFS } from './characterFields';
 import { appendMarkdownPages } from './markdownPdf';
+import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
 
 export interface PortraitInput {
   bytes: Uint8Array;
@@ -263,14 +264,17 @@ export async function exportCharacterToPdf(
   t('EM', character.currency?.em ?? '');
   t('GM', character.currency?.gm ?? '');
   t('PM', character.currency?.pm ?? '');
-  t('Gesamtlast', character.totalWeight ?? '');
+  // Gesamtlast automatisch aus Anzahl × Gewicht/Stück (siehe inventoryWeight).
+  const gesamtlast = totalWeightKg(character.inventory ?? []);
+  t('Gesamtlast', gesamtlast > 0 ? formatKg(gesamtlast) : '');
 
   // --- Inventar (55 Slots) ---
   for (let i = 0; i < 55; i++) {
     const item = character.inventory?.[i];
+    const lineKg = item ? lineWeightKg(item) : 0;
     t(`Inventar${i+1}`, item?.name ?? '');
     t(`InventarAnz${i+1}`, item?.count ?? '');
-    t(`InventarGew${i+1}`, item?.weight ?? '');
+    t(`InventarGew${i+1}`, lineKg > 0 ? formatKg(lineKg) : '');
   }
 
   // --- Zauber ---

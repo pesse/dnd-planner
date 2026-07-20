@@ -20,6 +20,7 @@
     type ItemInfo,
   } from '../itemLibrary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
+  import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -781,13 +782,13 @@
                       {/if}
                     </td>
                     <td class="num">{item.count || '—'}</td>
-                    <td class="num">{item.weight ? item.weight + ' kg' : '—'}</td>
+                    <td class="num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) + ' kg' : '—'}</td>
                   </tr>
                 {/each}
               </tbody>
             </table>
-            {#if character.totalWeight}
-              <div class="weight-total">Gesamtlast: <strong>{character.totalWeight} kg</strong></div>
+            {#if totalWeightKg(character.inventory) > 0}
+              <div class="weight-total">Gesamtlast: <strong>{formatKg(totalWeightKg(character.inventory))} kg</strong></div>
             {/if}
           {:else}
             <span class="empty-hint">Kein Inventar eingetragen</span>
