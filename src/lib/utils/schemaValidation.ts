@@ -13,6 +13,9 @@ import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
 import { characterSchema, migrateCharacterLegacy, type Character } from '../schemas/character';
+import { classProgressionSchema, type ClassProgression } from '../schemas/classProgression';
+import { speciesSchema, type Species } from '../schemas/species';
+import { featSchema, type Feat } from '../schemas/feat';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =
@@ -60,3 +63,13 @@ export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(en
 // ── Character ────────────────────────────────────────────────────────────────────
 export const normalizeCharacter = (raw: unknown): Character => normalize(characterSchema, migrateCharacterLegacy, raw);
 export const parseCharacter = (raw: unknown): ParseResult<Character> => parse(characterSchema, migrateCharacterLegacy, raw);
+
+// ── Klasse (Regel-Bibliothek) ──────────────────────────────────────────────────────
+const identity: Migrate = (raw) => raw as Record<string, unknown>;
+export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse(classProgressionSchema, identity, raw);
+
+// ── Spezies (Regel-Bibliothek) ─────────────────────────────────────────────────────
+export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, identity, raw);
+
+// ── Talent (Regel-Bibliothek) ──────────────────────────────────────────────────────
+export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, identity, raw);

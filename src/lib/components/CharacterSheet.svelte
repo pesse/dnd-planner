@@ -21,6 +21,9 @@
   } from '../itemLibrary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
+  import { getClassFeatures, type FeatureRef } from '../classLibrary';
+  import { getSpeciesTraits } from '../speciesLibrary';
+  import { getFeats, featDesc, type FeatEntry } from '../featsLibrary';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -28,6 +31,28 @@
   }
 
   let { dirPath }: Props = $props();
+
+  // ─── Referenz-Auflösung (Karte): persönlicher Override → Bibliothek descDe → EN → leer ───
+  let libFeatures = $state<FeatureRef[]>([]); // Klassen-Merkmale + Spezies-Traits
+  let libFeats = $state<FeatEntry[]>([]);
+  $effect(() => {
+    Promise.all([getClassFeatures(), getSpeciesTraits()]).then(([a, b]) => { libFeatures = [...a, ...b]; });
+    getFeats().then((x) => { libFeats = x; });
+  });
+
+  /** Beste Beschreibung einer Charakter-Referenz über die Fallback-Kette. */
+  function resolveReferenceDesc(ref: { name: string; desc?: string; sourceKey?: string }): string {
+    if (ref.desc?.trim()) return ref.desc;
+    const key = ref.sourceKey?.trim();
+    const nm = ref.name.trim().toLowerCase();
+    const feat = libFeatures.find(
+      (f) => (!key || f.sourceKey === key) && (f.name.toLowerCase() === nm || f.nameEn.toLowerCase() === nm),
+    );
+    if (feat) return feat.descDe || feat.desc || '';
+    const dict = libFeats.find((f) => (f.nameDe ?? f.name).toLowerCase() === nm || f.name.toLowerCase() === nm);
+    if (dict) return featDesc(dict);
+    return '';
+  }
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
   // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
@@ -762,10 +787,11 @@
               <h3>{title}</h3>
               <ul class="ref-view-list">
                 {#each list as ref}
+                  {@const resolvedDesc = resolveReferenceDesc(ref)}
                   <li>
                     <strong>{ref.name}</strong>{#if ref.gainedAt} <span class="ref-view-level">(Stufe {ref.gainedAt})</span>{/if}
                     {#if ref.sourceKey}<span class="ref-view-key">{ref.sourceKey}</span>{/if}
-                    {#if ref.desc}<div class="ref-view-desc">{ref.desc}</div>{/if}
+                    {#if resolvedDesc}<div class="ref-view-desc">{resolvedDesc}</div>{/if}
                   </li>
                 {/each}
               </ul>

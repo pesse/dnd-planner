@@ -5,6 +5,9 @@
   import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type Character, type CharacterData, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getClassFeatures, type FeatureRef } from '../classLibrary';
+  import { getSpeciesTraits } from '../speciesLibrary';
+  import { getFeats, searchFeats, saveFeat, featDesc, type FeatEntry } from '../featsLibrary';
   import type { Item, Spell } from '../types';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
@@ -571,6 +574,99 @@
   }
   function removeRef(list: typeof refClass, i: number) { list.splice(i, 1); }
 
+  // ─── Referenz-Autocomplete: Klasse/Volk gegen Bibliotheks-Merkmale ───────────
+  let classFeatureIndex = $state<FeatureRef[]>([]);
+  let speciesTraitIndex = $state<FeatureRef[]>([]);
+  $effect(() => {
+    getClassFeatures().then((x) => { classFeatureIndex = x; });
+    getSpeciesTraits().then((x) => { speciesTraitIndex = x; });
+  });
+
+  type RefKind = 'class' | 'race';
+  let activeRefKind = $state<RefKind | null>(null);
+  let activeRefRow = $state(-1);
+  let refSuggestions = $state<FeatureRef[]>([]);
+  let refSugIndex = $state(-1);
+
+  function onRefNameInput(kind: RefKind, i: number, value: string) {
+    activeRefKind = kind;
+    activeRefRow = i;
+    refSugIndex = -1;
+    const idx = kind === 'class' ? classFeatureIndex : speciesTraitIndex;
+    const q = value.toLowerCase().trim();
+    refSuggestions = q
+      ? idx.filter((f) => f.name.toLowerCase().includes(q) || f.nameEn.toLowerCase().includes(q)).slice(0, 8)
+      : [];
+  }
+
+  function selectRefSuggestion(list: typeof refClass, i: number, f: FeatureRef) {
+    list[i].name = f.name;
+    list[i].sourceKey = f.sourceKey;
+    // Persönlichen Freitext nur vorbelegen, wenn leer (bleibt überschreibbar).
+    if (!list[i].desc) list[i].desc = f.descDe || f.desc || '';
+    if (f.gainedAt != null && list[i].gainedAt == null) list[i].gainedAt = f.gainedAt;
+    refSuggestions = [];
+    activeRefKind = null;
+    activeRefRow = -1;
+    refSugIndex = -1;
+  }
+
+  function onRefNameKey(e: KeyboardEvent, kind: RefKind, list: typeof refClass, i: number) {
+    if (activeRefKind !== kind || activeRefRow !== i) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); refSugIndex = Math.min(refSugIndex + 1, refSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); refSugIndex = Math.max(refSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { refSuggestions = []; activeRefKind = null; activeRefRow = -1; }
+    else if (e.key === 'Enter' && refSugIndex >= 0 && refSuggestions[refSugIndex]) {
+      e.preventDefault();
+      selectRefSuggestion(list, i, refSuggestions[refSugIndex]);
+    }
+  }
+
+  // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
+  let featsLibrary = $state<FeatEntry[]>([]);
+  let featSavedRow = $state(-1); // Kurzzeit-Bestätigung nach Speichern
+  $effect(() => { getFeats().then((x) => { featsLibrary = x; }); });
+
+  let activeFeatRow = $state(-1);
+  let featSuggestions = $state<FeatEntry[]>([]);
+  let featSugIndex = $state(-1);
+
+  function onFeatNameInput(i: number, value: string) {
+    activeFeatRow = i;
+    featSugIndex = -1;
+    featSuggestions = searchFeats(featsLibrary, value, 8);
+  }
+
+  function selectFeatSuggestion(i: number, f: FeatEntry) {
+    refFeats[i].name = f.nameDe || f.name;
+    refFeats[i].sourceKey = f.sourceKey ?? '';
+    if (!refFeats[i].desc) refFeats[i].desc = featDesc(f);
+    featSuggestions = [];
+    activeFeatRow = -1;
+    featSugIndex = -1;
+  }
+
+  function onFeatNameKey(e: KeyboardEvent, i: number) {
+    if (activeFeatRow !== i) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); featSugIndex = Math.min(featSugIndex + 1, featSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); featSugIndex = Math.max(featSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { featSuggestions = []; activeFeatRow = -1; }
+    else if (e.key === 'Enter' && featSugIndex >= 0 && featSuggestions[featSugIndex]) {
+      e.preventDefault();
+      selectFeatSuggestion(i, featSuggestions[featSugIndex]);
+    }
+  }
+
+  /** Übernimmt den Zeilen-Eintrag ins Feats-Wörterbuch (deutsche Notiz = desc). */
+  async function saveFeatToDict(i: number) {
+    const ref = refFeats[i];
+    if (!ref.name.trim()) return;
+    await saveFeat({ name: ref.name, descDe: ref.desc || undefined, sourceKey: ref.sourceKey || undefined });
+    featsLibrary = await getFeats();
+    featSavedRow = i;
+    setTimeout(() => { if (featSavedRow === i) featSavedRow = -1; }, 1500);
+  }
+
   // Formularzustand fortlaufend in den Draft (ed.draft) spiegeln → Dirty-Tracking und
   // Save-Bar des EditorPanel greifen ohne eigenen Speichern-Button. Schlüssel-Reihenfolge
   // entspricht dem Zod-Schema, damit ein frisch geladener Charakter NICHT „dirty" wirkt.
@@ -876,7 +972,8 @@
   </section>
 
   <!-- ── Referenzen (Berechnungsgrundlage) ─── -->
-  {#snippet refBlock(list: typeof refClass, title: string, keyPlaceholder: string, namePlaceholder: string)}
+  <!-- Klasse/Volk: Autocomplete am Namensfeld gegen die jeweilige Bibliothek. -->
+  {#snippet refBlock(kind: RefKind, list: typeof refClass, title: string, keyPlaceholder: string, namePlaceholder: string)}
     <div class="ref-block">
       <h4>{title}</h4>
       <table class="ref-table">
@@ -884,7 +981,27 @@
         <tbody>
           {#each list as ref, i}
             <tr>
-              <td><input bind:value={ref.name} placeholder={namePlaceholder} /></td>
+              <td>
+                <div class="autocomplete-wrap">
+                  <input
+                    value={ref.name}
+                    placeholder={namePlaceholder}
+                    oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; onRefNameInput(kind, i, ref.name); }}
+                    onkeydown={(e) => onRefNameKey(e, kind, list, i)}
+                    onblur={() => setTimeout(() => { if (activeRefKind === kind && activeRefRow === i) { refSuggestions = []; activeRefKind = null; activeRefRow = -1; } }, 150)}
+                  />
+                  {#if activeRefKind === kind && activeRefRow === i && refSuggestions.length > 0}
+                    <ul class="suggestions">
+                      {#each refSuggestions as sug, si}
+                        <li class:active={si === refSugIndex} onmousedown={() => selectRefSuggestion(list, i, sug)}>
+                          <span>{sug.name}</span>
+                          <span class="sug-cat">{sug.sourceKey}{sug.gainedAt ? ` · Stufe ${sug.gainedAt}` : ''}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              </td>
               <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
                 oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
               <td><input bind:value={ref.desc} placeholder="knappe Notiz…" /></td>
@@ -898,13 +1015,61 @@
     </div>
   {/snippet}
 
+  <!-- Talente: eigenes Wörterbuch (Autocomplete gegen vault/feats + „übernehmen"). -->
+  {#snippet featBlock()}
+    <div class="ref-block">
+      <h4>Talente</h4>
+      <table class="ref-table">
+        <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
+        <tbody>
+          {#each refFeats as ref, i}
+            <tr>
+              <td>
+                <div class="autocomplete-wrap">
+                  <input
+                    value={ref.name}
+                    placeholder="Heiler"
+                    oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; onFeatNameInput(i, ref.name); }}
+                    onkeydown={(e) => onFeatNameKey(e, i)}
+                    onblur={() => setTimeout(() => { if (activeFeatRow === i) { featSuggestions = []; activeFeatRow = -1; } }, 150)}
+                  />
+                  {#if activeFeatRow === i && featSuggestions.length > 0}
+                    <ul class="suggestions">
+                      {#each featSuggestions as sug, si}
+                        <li class:active={si === featSugIndex} onmousedown={() => selectFeatSuggestion(i, sug)}>
+                          <span>{sug.nameDe ?? sug.name}</span>
+                          {#if sug.sourceKey}<span class="sug-cat">{sug.sourceKey}</span>{/if}
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              </td>
+              <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
+                oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
+              <td><input bind:value={ref.desc} placeholder="deutsche Notiz…" /></td>
+              <td><input bind:value={ref.sourceKey} placeholder="srd-2024_healer" /></td>
+              <td class="feat-actions">
+                <button class="dict-btn" title="Ins Wörterbuch übernehmen" onclick={() => saveFeatToDict(i)}>
+                  {featSavedRow === i ? '✓' : '📖'}
+                </button>
+                <button class="remove-btn" onclick={() => removeRef(refFeats, i)}>✕</button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <button class="btn-add" onclick={() => addRef(refFeats)}>+ Eintrag</button>
+    </div>
+  {/snippet}
+
   <section>
     <details class="ref-section">
       <summary>Referenzen (Berechnungsgrundlage)</summary>
       <p class="ref-hint">Strukturierte Merkmale mit optionalem Open5e-Key — additiv zum Freitext, nicht im PDF-Export.</p>
-      {@render refBlock(refClass, 'Klassenmerkmale', 'srd-2024_druid', 'Wild Companion')}
-      {@render refBlock(refRace, 'Volksmerkmale', 'srd-2024_dwarf', 'Zwergische Widerstandskraft')}
-      {@render refBlock(refFeats, 'Talente', 'srd-2024_healer', 'Heiler')}
+      {@render refBlock('class', refClass, 'Klassenmerkmale', 'srd-2024_druid', 'Wild Companion')}
+      {@render refBlock('race', refRace, 'Volksmerkmale', 'srd-2024_dwarf', 'Zwergische Widerstandskraft')}
+      {@render featBlock()}
     </details>
   </section>
 
@@ -1592,6 +1757,17 @@
     padding: 0.1rem 0.2rem;
   }
   .remove-btn:hover { color: var(--danger); }
+
+  .feat-actions { display: flex; align-items: center; gap: 0.1rem; white-space: nowrap; }
+  .dict-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--border);
+    font-size: 0.8rem;
+    padding: 0.1rem 0.2rem;
+  }
+  .dict-btn:hover { color: var(--arcane); }
 
   .btn-add {
     background: var(--surface);

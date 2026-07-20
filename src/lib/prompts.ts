@@ -53,9 +53,54 @@ JSON with the exact same structure and keys, all text translated to German.
 Respond exclusively with valid JSON, no extra text.
 </output_format>`;
 
+const RULE_INTRO =
+  'You are a D&D translator. Translate the given class/species fields from English into German, ' +
+  'accurately and true to the style of the official German D&D publications (SRD 5.2.1).';
+
+const RULE_IO = `<input_format>
+JSON with these fields:
+- "name": string (the class or species name, optional)
+- "features": array of objects, each with "name" and "desc" fields (class features or species traits)
+</input_format>
+<output_format>
+JSON with the translated fields:
+- "name_de": string (only if "name" was in the input)
+- "features": array of objects, EXACTLY the same length and order as the input "features",
+  each with "nameDe" (translated feature name) and "descDe" (translated feature description)
+Respond exclusively with valid JSON, no extra text.
+</output_format>`;
+
 /** System-Prompt für Item-/Zauber-Übersetzung, mit relevanz-gefilterter Terminologie zum Quelltext. */
 export function buildTranslationSystemPrompt(sourceEn = ''): string {
   return [TRANSLATION_INTRO, buildTerminologyBlock(sourceEn), TRANSLATION_IO].filter(Boolean).join('\n\n');
+}
+
+/** System-Prompt für Klassen-/Spezies-Übersetzung (Array-of-Objects: features/traits). */
+export function buildRuleTranslationSystemPrompt(sourceEn = ''): string {
+  return [RULE_INTRO, buildTerminologyBlock(sourceEn), RULE_IO].filter(Boolean).join('\n\n');
+}
+
+const FEAT_INTRO =
+  'You are a D&D translator. Translate the given feat fields from English into German, ' +
+  'accurately and true to the style of the official German D&D publications (SRD 5.2.1).';
+
+const FEAT_IO = `<input_format>
+JSON with any of these optional fields:
+- "name": string (feat name)
+- "prerequisite": string (feat prerequisite)
+- "desc": string (feat description)
+</input_format>
+<output_format>
+JSON with the translated fields — only include fields that were in the input:
+- "name_de": string
+- "prerequisite_de": string
+- "desc_de": string
+Respond exclusively with valid JSON, no extra text.
+</output_format>`;
+
+/** System-Prompt für Talent-(Feat-)Übersetzung (Einzel-Strings name/prerequisite/desc). */
+export function buildFeatTranslationSystemPrompt(sourceEn = ''): string {
+  return [FEAT_INTRO, buildTerminologyBlock(sourceEn), FEAT_IO].filter(Boolean).join('\n\n');
 }
 
 /** System-Prompt für Monster-Übersetzung, mit relevanz-gefilterter Terminologie zum Quelltext. */

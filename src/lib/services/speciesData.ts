@@ -1,0 +1,64 @@
+/**
+ * Spezies-Bibliotheks-Adapter — gespeist DIREKT aus Open5e v2 (`/v2/species/`).
+ *
+ * Ablauf (Muster von `classProgression.ts`): v2-Spezies holen (open5eApi) → auf
+ * das offene, zweisprachige Schema mappen (`mapV2Species`) → Zod-validieren → in
+ * einem In-Memory-Cache (pro Session) halten. `nameDe`/`descDe` bleiben beim
+ * Import leer und werden per LLM-Übersetzung nachgefüllt.
+ */
+import { speciesSchema, type Species, type Trait } from '$lib/schemas/species';
+import { getSpecies as fetchSpecies } from './open5eApi';
+
+interface V2Trait {
+  key?: string;
+  name?: string;
+  desc?: string;
+}
+
+/** Größe robust aus String oder Objekt (`{name}`) lesen. */
+function readSize(raw: unknown): string {
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object') return String((raw as { name?: string }).name ?? '');
+  return '';
+}
+
+/** Bildet eine rohe v2-Spezies auf das offene, zweisprachige Schema ab. */
+export function mapV2Species(raw: Record<string, unknown>): Species {
+  const rawTraits = (raw.traits as V2Trait[]) ?? [];
+  const doc = (raw.document as { key?: string; gamesystem?: { key?: string } }) ?? {};
+
+  const traits: Trait[] = rawTraits.map((t) => ({
+    key: t.key ?? '',
+    name: t.name ?? '',
+    desc: t.desc ?? '',
+  }));
+
+  const mapped = {
+    key: (raw.key as string) ?? '',
+    name: (raw.name as string) ?? '',
+    size: readSize(raw.size),
+    speed: typeof raw.speed === 'string' ? raw.speed : String((raw.speed as { walk?: number })?.walk ?? ''),
+    document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
+    traits,
+  };
+  return speciesSchema.parse(mapped);
+}
+
+// ── Cache + Zugriff ──────────────────────────────────────────────────────────
+const cache = new Map<string, Species | null>();
+
+/**
+ * Holt (und cached) eine Spezies zu einem v2-Key. Netzfehler / unbekannter Key /
+ * unparsebares Dokument → null (Aufrufer degradieren, statt zu raten).
+ */
+export async function getSpecies(key: string): Promise<Species | null> {
+  if (cache.has(key)) return cache.get(key)!;
+  try {
+    const species = mapV2Species(await fetchSpecies(key));
+    cache.set(key, species);
+    return species;
+  } catch {
+    cache.set(key, null);
+    return null;
+  }
+}

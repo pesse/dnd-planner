@@ -17,6 +17,7 @@
     title,
     searchApi,
     mapApi,
+    loadApi,
     searchLibrary,
     blank,
     buildAction,
@@ -26,16 +27,21 @@
   }: {
     type: FileEntry['type'];
     title: string;
-    /** DnD-API-Suche (englischer Begriff). */
+    /** API-Suche (englischer Begriff). */
     searchApi: (q: string) => Promise<DndApiRef[]>;
-    /** Rohe API-Ressource → Draft. */
-    mapApi: (data: Record<string, unknown>) => T;
+    /** Rohe DnD-API-Ressource → Draft (dnd5eapi.co-Pfad in ref.url). Optional, wenn loadApi gesetzt. */
+    mapApi?: (data: Record<string, unknown>) => T;
+    /**
+     * Alternative zum DnD-API-Pfad: lädt einen Treffer selbst (z.B. Open5e v2, wo
+     * ref.url der v2-Key ist). Hat Vorrang vor mapApi + getResource.
+     */
+    loadApi?: (ref: DndApiRef) => Promise<T>;
     /** Optionale Bibliothekssuche (bestehende Vault-Einträge als Vorlage). */
     searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
     /** Leerer Draft mit gegebenem Namen. */
     blank: (name: string) => T;
-    /** KI-Anlage-Aktion. */
-    buildAction: (opts: { name?: string; template?: T }) => AiAction<T>;
+    /** KI-Anlage-Aktion. Fehlt → keine KI-Unterstützung. */
+    buildAction?: (opts: { name?: string; template?: T }) => AiAction<T>;
     /** Anzeigename eines Drafts (für activeFile-Platzhalter). */
     nameOf: (draft: T) => string;
     /**
@@ -130,7 +136,7 @@
           name: ref.name,
           badge: 'SRD',
           api: true,
-          load: async () => mapApi(await getResource(ref.url)),
+          load: async () => (loadApi ? loadApi(ref) : mapApi!(await getResource(ref.url))),
         }));
       } catch (e) {
         templateError = `DnD-API nicht erreichbar: ${e instanceof Error ? e.message : String(e)}`;
@@ -188,7 +194,7 @@
   async function changeModel(model: string) { await saveConfig({ ...$llmConfig, model }); }
 
   async function generate() {
-    if (running) return;
+    if (running || !buildAction) return;
     running = true;
     error = '';
     steps = [];
@@ -270,6 +276,7 @@
     {/if}
   </div>
 
+  {#if buildAction}
   <div class="template ai-block">
     <label class="ai-toggle">
       <input type="checkbox" bind:checked={aiEnabled} />
@@ -316,6 +323,7 @@
       {/if}
     {/if}
   </div>
+  {/if}
 
   {#if templateError}<p class="hint err">{templateError}</p>{/if}
   {#if error}<p class="hint err">{error}</p>{/if}

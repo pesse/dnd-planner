@@ -29,8 +29,10 @@ export const classLevelSchema = z.object({
 export const classFeatureSchema = z.object({
   key: z.string().default(''),
   name: z.string(),
+  nameDe: z.string().optional(),
   gainedAt: z.array(z.number().int()).default([]),
   desc: z.string().default(''),
+  descDe: z.string().optional(),
   featureType: z.string().optional(),
 });
 

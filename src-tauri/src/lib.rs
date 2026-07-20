@@ -408,6 +408,12 @@ pub struct TransferSelection {
     monsters: bool,
     #[serde(default)]
     spells: bool,
+    #[serde(default)]
+    classes: bool,
+    #[serde(default)]
+    species: bool,
+    #[serde(default)]
+    feats: bool,
 }
 
 /// Inhaltsübersicht eines Vaults bzw. eines Export-ZIPs.
@@ -418,6 +424,9 @@ pub struct VaultContents {
     items: bool,
     monsters: bool,
     spells: bool,
+    classes: bool,
+    species: bool,
+    feats: bool,
 }
 
 #[derive(Serialize)]
@@ -494,6 +503,9 @@ fn get_vault_overview() -> VaultContents {
         items: dir_has_files(&vault.join("items")),
         monsters: dir_has_files(&vault.join("monsters")),
         spells: dir_has_files(&vault.join("spells")),
+        classes: dir_has_files(&vault.join("classes")),
+        species: dir_has_files(&vault.join("species")),
+        feats: dir_has_files(&vault.join("feats")),
     }
 }
 
@@ -526,6 +538,15 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
     if selection.spells {
         collect_files(&vault.join("spells"), "spells", &mut files);
     }
+    if selection.classes {
+        collect_files(&vault.join("classes"), "classes", &mut files);
+    }
+    if selection.species {
+        collect_files(&vault.join("species"), "species", &mut files);
+    }
+    if selection.feats {
+        collect_files(&vault.join("feats"), "feats", &mut files);
+    }
 
     let file = fs::File::create(&dest_path)
         .map_err(|e| format!("ZIP konnte nicht erstellt werden: {}", e))?;
@@ -549,6 +570,9 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
         "items": selection.items,
         "monsters": selection.monsters,
         "spells": selection.spells,
+        "classes": selection.classes,
+        "species": selection.species,
+        "feats": selection.feats,
     });
     zip.start_file("manifest.json", opts).map_err(|e| e.to_string())?;
     zip.write_all(
@@ -575,6 +599,7 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
     let mut campaigns = std::collections::BTreeSet::new();
     let mut characters = std::collections::BTreeSet::new();
     let (mut items, mut monsters, mut spells) = (false, false, false);
+    let (mut classes, mut species, mut feats) = (false, false, false);
 
     for i in 0..archive.len() {
         let f = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -590,6 +615,9 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
             ["items", ..] => items = true,
             ["monsters", ..] => monsters = true,
             ["spells", ..] => spells = true,
+            ["classes", ..] => classes = true,
+            ["species", ..] => species = true,
+            ["feats", ..] => feats = true,
             _ => {}
         }
     }
@@ -600,6 +628,9 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
         items,
         monsters,
         spells,
+        classes,
+        species,
+        feats,
     })
 }
 
@@ -645,6 +676,9 @@ fn import_vault(
             ["items", ..] => selection.items,
             ["monsters", ..] => selection.monsters,
             ["spells", ..] => selection.spells,
+            ["classes", ..] => selection.classes,
+            ["species", ..] => selection.species,
+            ["feats", ..] => selection.feats,
             _ => false,
         };
         if !selected {

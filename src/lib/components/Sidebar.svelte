@@ -37,6 +37,17 @@
     toHomebrewCopy,
   } from '../itemLibrary';
   import { SCHOOL_COLORS } from '../spellLibrary';
+  import { getClasses, searchClasses, classDisplayName, invalidateClassCache, type ClassInfo } from '../classLibrary';
+  import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
+  import { getFeats, searchFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
+  import { listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listFeats, getFeat as getFeatRaw } from '../services/open5eApi';
+  import { mapV2 } from '../services/classProgression';
+  import { mapV2Species } from '../services/speciesData';
+  import { mapV2Feat } from '../services/featData';
+  import { parseClass, parseSpecies, parseFeat } from '../utils/schemaValidation';
+  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, FEAT_TEMPLATE } from '../types';
+  import type { ClassProgression, Species, Feat } from '../types';
+  import type { DndApiRef } from '../services/dndApi';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -186,6 +197,9 @@
     if (charactersExpanded) await loadCharacters();
     if (monstersExpanded) await loadMonsters();
     if (spellsExpanded) { spellsBySchool = {}; await loadSpells(); }
+    if (classesExpanded) await loadClasses();
+    if (speciesExpanded) await loadSpeciesList();
+    if (featsExpanded) await loadFeats();
     const campaign = $activeCampaign;
     if (campaign) {
       for (const section of sections) {
@@ -596,8 +610,9 @@
     createModal = 'spell';
   }
 
-  // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI).
-  let createModal = $state<'monster' | 'spell' | null>(null);
+  // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI,
+  // Klasse/Spezies via Open5e v2).
+  let createModal = $state<'monster' | 'spell' | 'class' | 'species' | 'feat' | null>(null);
 
   function blankSpell(name: string): Spell {
     return {
@@ -758,6 +773,174 @@
       }
     }
   }
+
+  // --- Klassen (globale Regel-Bibliothek, flach) ---
+  let classesExpanded = $state(false);
+  let classInfos = $state<ClassInfo[]>([]);
+
+  async function loadClasses() {
+    invalidateClassCache();
+    classInfos = await getClasses();
+  }
+
+  async function toggleClasses() {
+    classesExpanded = !classesExpanded;
+    if (classesExpanded) await loadClasses();
+  }
+
+  async function openClass(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
+  }
+
+  async function createClass() {
+    if (!(await confirmNavigation())) return;
+    classesExpanded = true;
+    createModal = 'class';
+  }
+
+  function blankClass(name: string): ClassProgression {
+    return { ...structuredClone(CLASS_TEMPLATE), name: name || 'Neue Klasse', nameDe: name || 'Neue Klasse' };
+  }
+
+  /** Open5e-v2-Suche (Basisklassen, ohne Subklassen). ref.url = v2-Key. */
+  async function searchOpen5eClasses(q: string): Promise<DndApiRef[]> {
+    const all = await listClasses();
+    const ql = q.toLowerCase();
+    return all
+      .filter((c) => !c.subclass_of && c.name.toLowerCase().includes(ql))
+      .map((c) => ({ index: c.key, name: c.name, url: c.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eClass = async (ref: DndApiRef): Promise<ClassProgression> => mapV2(await getClass(ref.url));
+
+  async function searchClassLibrary(q: string): Promise<{ name: string; load: () => Promise<ClassProgression> }[]> {
+    const lib = await getClasses();
+    return searchClasses(lib, q, 8).map((c) => ({
+      name: classDisplayName(c),
+      load: async () => {
+        const r = parseClass(JSON.parse(await invoke<string>('read_file_content', { path: c.path })));
+        return r.ok ? r.data : blankClass(classDisplayName(c));
+      },
+    }));
+  }
+
+  // --- Spezies (globale Regel-Bibliothek, flach) ---
+  let speciesExpanded = $state(false);
+  let speciesInfos = $state<SpeciesInfo[]>([]);
+
+  async function loadSpeciesList() {
+    invalidateSpeciesCache();
+    speciesInfos = await getSpeciesList();
+  }
+
+  async function toggleSpecies() {
+    speciesExpanded = !speciesExpanded;
+    if (speciesExpanded) await loadSpeciesList();
+  }
+
+  async function openSpecies(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'species' });
+  }
+
+  async function createSpecies() {
+    if (!(await confirmNavigation())) return;
+    speciesExpanded = true;
+    createModal = 'species';
+  }
+
+  function blankSpecies(name: string): Species {
+    return { ...structuredClone(SPECIES_TEMPLATE), name: name || 'Neue Spezies', nameDe: name || 'Neue Spezies' };
+  }
+
+  /** Open5e-v2-Spezies-Suche. ref.url = v2-Key. */
+  async function searchOpen5eSpecies(q: string): Promise<DndApiRef[]> {
+    const all = await listSpecies();
+    const ql = q.toLowerCase();
+    return all
+      .filter((s) => s.name.toLowerCase().includes(ql))
+      .map((s) => ({ index: s.key, name: s.name, url: s.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eSpecies = async (ref: DndApiRef): Promise<Species> => mapV2Species(await getSpeciesRaw(ref.url));
+
+  async function searchSpeciesLibrary(q: string): Promise<{ name: string; load: () => Promise<Species> }[]> {
+    const lib = await getSpeciesList();
+    return searchSpecies(lib, q, 8).map((s) => ({
+      name: speciesDisplayName(s),
+      load: async () => {
+        const r = parseSpecies(JSON.parse(await invoke<string>('read_file_content', { path: s.path })));
+        return r.ok ? r.data : blankSpecies(speciesDisplayName(s));
+      },
+    }));
+  }
+
+  // --- Talente (globale Regel-Bibliothek, flach) ---
+  let featsExpanded = $state(false);
+  let featInfos = $state<FeatEntry[]>([]);
+
+  async function loadFeats() {
+    invalidateFeatsCache();
+    featInfos = await getFeats();
+  }
+
+  async function toggleFeats() {
+    featsExpanded = !featsExpanded;
+    if (featsExpanded) await loadFeats();
+  }
+
+  async function openFeat(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'feat' });
+  }
+
+  async function createFeat() {
+    if (!(await confirmNavigation())) return;
+    featsExpanded = true;
+    createModal = 'feat';
+  }
+
+  function blankFeat(name: string): Feat {
+    return { ...structuredClone(FEAT_TEMPLATE), name: name || 'Neues Talent', nameDe: name || 'Neues Talent' };
+  }
+
+  /** Open5e-v2-Talent-Suche. ref.url = v2-Key. */
+  async function searchOpen5eFeats(q: string): Promise<DndApiRef[]> {
+    const all = await listFeats();
+    const ql = q.toLowerCase();
+    return all
+      .filter((f) => f.name.toLowerCase().includes(ql))
+      .map((f) => ({ index: f.key, name: f.name, url: f.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eFeat = async (ref: DndApiRef): Promise<Feat> => mapV2Feat(await getFeatRaw(ref.url));
+
+  async function searchFeatLibrary(q: string): Promise<{ name: string; load: () => Promise<Feat> }[]> {
+    const lib = await getFeats();
+    return searchFeats(lib, q, 8).map((f) => ({
+      name: featDisplayName(f),
+      load: async () => {
+        if (!f.path) return blankFeat(featDisplayName(f));
+        const r = parseFeat(JSON.parse(await invoke<string>('read_file_content', { path: f.path })));
+        return r.ok ? r.data : blankFeat(featDisplayName(f));
+      },
+    }));
+  }
+
+  // Klassen/Spezies/Talente bei Vault-Änderung neu laden (z.B. nach Speichern eines neuen Eintrags).
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (classesExpanded) void loadClasses();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (speciesExpanded) void loadSpeciesList();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (featsExpanded) void loadFeats();
+  });
 
   // --- Encounter (pro Akt-Verzeichnis) ---
   // Key: `${campaignPath}/${actDirName}`
@@ -1353,6 +1536,104 @@
     {/if}
   </div>
 
+  <!-- Klassen (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleClasses}>
+        <span class="arrow" class:open={classesExpanded}>›</span>
+        Klassen
+      </button>
+      <button class="add-btn" title="Neue Klasse" onclick={createClass}>+</button>
+    </div>
+
+    {#if classesExpanded}
+      <div class="file-list">
+        {#if classInfos.length}
+          {#each classInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry monster-subentry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => openClass(info.path)}
+              >
+                📖 {classDisplayName(info)}
+              </button>
+              {@render delBtn(() => deleteEntry(info.path, classDisplayName(info), false, loadClasses))}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Klassen</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Spezies (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleSpecies}>
+        <span class="arrow" class:open={speciesExpanded}>›</span>
+        Spezies
+      </button>
+      <button class="add-btn" title="Neue Spezies" onclick={createSpecies}>+</button>
+    </div>
+
+    {#if speciesExpanded}
+      <div class="file-list">
+        {#if speciesInfos.length}
+          {#each speciesInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry monster-subentry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => openSpecies(info.path)}
+              >
+                🧬 {speciesDisplayName(info)}
+              </button>
+              {@render delBtn(() => deleteEntry(info.path, speciesDisplayName(info), false, loadSpeciesList))}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Spezies</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Talente (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleFeats}>
+        <span class="arrow" class:open={featsExpanded}>›</span>
+        Talente
+      </button>
+      <button class="add-btn" title="Neues Talent" onclick={createFeat}>+</button>
+    </div>
+
+    {#if featsExpanded}
+      <div class="file-list">
+        {#if featInfos.length}
+          {#each featInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry monster-subentry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => info.path && openFeat(info.path)}
+              >
+                ✴ {featDisplayName(info)}
+              </button>
+              {#if info.path}
+                {@render delBtn(() => deleteEntry(info.path!, featDisplayName(info), false, loadFeats))}
+              {/if}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Talente</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
   {#if showItemModal}
     <CreateCardModal
       type="item"
@@ -1394,6 +1675,39 @@
       blank={blankSpell}
       buildAction={createSpellAction}
       nameOf={(s: Spell) => s.name || 'Zauber'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'class'}
+    <CreateCardModal
+      type="class"
+      title="Neue Klasse"
+      searchApi={searchOpen5eClasses}
+      loadApi={loadOpen5eClass}
+      searchLibrary={searchClassLibrary}
+      blank={blankClass}
+      nameOf={(c: ClassProgression) => c.nameDe || c.name || 'Klasse'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'species'}
+    <CreateCardModal
+      type="species"
+      title="Neue Spezies"
+      searchApi={searchOpen5eSpecies}
+      loadApi={loadOpen5eSpecies}
+      searchLibrary={searchSpeciesLibrary}
+      blank={blankSpecies}
+      nameOf={(s: Species) => s.nameDe || s.name || 'Spezies'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'feat'}
+    <CreateCardModal
+      type="feat"
+      title="Neues Talent"
+      searchApi={searchOpen5eFeats}
+      loadApi={loadOpen5eFeat}
+      searchLibrary={searchFeatLibrary}
+      blank={blankFeat}
+      nameOf={(f: Feat) => f.nameDe || f.name || 'Talent'}
       onclose={() => (createModal = null)}
     />
   {/if}

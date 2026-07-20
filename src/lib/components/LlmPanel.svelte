@@ -725,6 +725,7 @@
           session: 'level-session',
           encounter: 'level-encounter',
           monster: 'level-library', spell: 'level-library', item: 'level-library',
+          class: 'level-library', species: 'level-library', feat: 'level-library',
         }[$activeFile.type] ?? 'level-campaign'}
         <button class="ctx-badge {fileLevelClass}" class:off={!$contextFlags.activeFile} onclick={() => toggleFlag('activeFile')}
           title={$activeFile.name}>

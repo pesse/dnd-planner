@@ -7,6 +7,9 @@
   import EncounterCard from '$lib/components/EncounterCard.svelte';
   import SpellCard from '$lib/components/SpellCard.svelte';
   import ItemCard from '$lib/components/ItemCard.svelte';
+  import ClassCard from '$lib/components/ClassCard.svelte';
+  import SpeciesCard from '$lib/components/SpeciesCard.svelte';
+  import FeatCard from '$lib/components/FeatCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
@@ -122,6 +125,9 @@
   let isEncounter = $derived($activeFile?.type === 'encounter');
   let isSpell = $derived($activeFile?.type === 'spell');
   let isItem = $derived($activeFile?.type === 'item');
+  let isClass = $derived($activeFile?.type === 'class');
+  let isSpecies = $derived($activeFile?.type === 'species');
+  let isFeat = $derived($activeFile?.type === 'feat');
 
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
@@ -445,6 +451,33 @@
         {/if}
       </div>
       <ItemCard />
+    {:else if isClass}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title class-title">📖 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <ClassCard />
+    {:else if isSpecies}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title species-title">🧬 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <SpeciesCard />
+    {:else if isFeat}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title feat-title">✴ {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <FeatCard />
     {:else}
       <div class="toolbar">
         {#if $activeFile}
@@ -751,6 +784,18 @@
 
   .item-title {
     color: var(--copper);
+  }
+
+  .class-title {
+    color: var(--copper);
+  }
+
+  .species-title {
+    color: var(--green);
+  }
+
+  .feat-title {
+    color: var(--gold);
   }
 
   .rename-btn {

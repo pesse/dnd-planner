@@ -6,8 +6,12 @@ import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
 import type { Item } from './schemas/item';
 import type { Encounter, EncounterMonster } from './schemas/encounter';
 import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/character';
+import type { ClassProgression, ClassFeature } from './schemas/classProgression';
+import type { Species, Trait } from './schemas/species';
+import type { Feat } from './schemas/feat';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
+export type { ClassProgression, ClassFeature, Species, Trait, Feat };
 
 export interface Campaign {
   id: string;
@@ -31,7 +35,7 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item';
+  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat';
   /** Set for directory-based characters (with PDF sheet) */
   dirPath?: string;
 }
@@ -215,3 +219,42 @@ export const MONSTER_TEMPLATE: Monster = {
 // --- Item --- (Typ + Schema in schemas/item.ts)
 
 // --- Encounter --- (Typ + Schema in schemas/encounter.ts)
+
+// --- Klasse (Regel-Bibliothek) --- (Typ + Schema in schemas/classProgression.ts)
+
+export const CLASS_TEMPLATE: ClassProgression = {
+  key: '',
+  name: 'Neue Klasse',
+  nameDe: 'Neue Klasse',
+  casterType: 'NONE',
+  hitDie: 8,
+  hpAt1st: '',
+  hpHigher: '',
+  savingThrows: [],
+  document: { key: '', gamesystem: '' },
+  levels: [],
+  features: [],
+};
+
+// --- Spezies (Regel-Bibliothek) --- (Typ + Schema in schemas/species.ts)
+
+export const SPECIES_TEMPLATE: Species = {
+  key: '',
+  name: 'Neue Spezies',
+  nameDe: 'Neue Spezies',
+  size: '',
+  speed: '',
+  document: { key: '', gamesystem: '' },
+  traits: [],
+};
+
+// --- Talent (Regel-Bibliothek) --- (Typ + Schema in schemas/feat.ts)
+
+export const FEAT_TEMPLATE: Feat = {
+  key: '',
+  name: 'Neues Talent',
+  nameDe: 'Neues Talent',
+  prerequisite: '',
+  desc: '',
+  document: { key: '', gamesystem: '' },
+};

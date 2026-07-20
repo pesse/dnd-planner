@@ -48,3 +48,42 @@ export async function getSubclasses(parentKey: string, allowedDocs: string[] = [
   const allow = new Set(allowedDocs);
   return all.filter((c) => c.subclass_of?.key === parentKey && allow.has(c.document?.key));
 }
+
+// ── Spezies ──────────────────────────────────────────────────────────────────
+// WICHTIG: der v2-Endpunkt heißt `/v2/species/`, NICHT `/v2/races/`.
+
+/** Holt eine Spezies per v2-Key, z.B. "srd-2024_dwarf". */
+export async function getSpecies(key: string): Promise<Record<string, unknown>> {
+  return (await apiGet(`${OPEN5E_V2}/species/${encodeURIComponent(key)}/?format=json`)) as Record<string, unknown>;
+}
+
+export interface V2SpeciesRef {
+  key: string;
+  name: string;
+  document: { key: string; gamesystem?: { key?: string }; display_name?: string };
+}
+
+/** Listet Spezies-Referenzen (für Quellen-Filter & Auswahl). */
+export async function listSpecies(limit = 400): Promise<V2SpeciesRef[]> {
+  const raw = (await apiGet(`${OPEN5E_V2}/species/?format=json&limit=${limit}`)) as { results?: V2SpeciesRef[] };
+  return raw.results ?? [];
+}
+
+// ── Talente (Feats) ────────────────────────────────────────────────────────────
+
+/** Holt ein Talent per v2-Key, z.B. "srd-2024_alert". */
+export async function getFeat(key: string): Promise<Record<string, unknown>> {
+  return (await apiGet(`${OPEN5E_V2}/feats/${encodeURIComponent(key)}/?format=json`)) as Record<string, unknown>;
+}
+
+export interface V2FeatRef {
+  key: string;
+  name: string;
+  document: { key: string; gamesystem?: { key?: string }; display_name?: string };
+}
+
+/** Listet Talent-Referenzen (für Suche & Auswahl). */
+export async function listFeats(limit = 500): Promise<V2FeatRef[]> {
+  const raw = (await apiGet(`${OPEN5E_V2}/feats/?format=json&limit=${limit}`)) as { results?: V2FeatRef[] };
+  return raw.results ?? [];
+}

@@ -1,0 +1,24 @@
+/**
+ * Zweisprachiges Talent-(Feat-)Bibliotheks-Schema — analog zu Klasse/Spezies.
+ *
+ * Ein dünner Adapter über das Open5e-**v2**-Format (`/v2/feats/{key}`), zweisprachig
+ * (EN Pflicht, DE optional). Kompatibel zum leichten Inline-Wörterbuch
+ * (`featsLibrary.ts`), das dieselbe `vault/feats`-Sammlung liest (dort wird `key` als
+ * `sourceKey` der Charakter-Referenz genutzt).
+ */
+import { z } from 'zod';
+
+export const featSchema = z.object({
+  key: z.string().default(''),
+  name: z.string(),
+  nameDe: z.string().optional(),
+  prerequisite: z.string().default(''),
+  prerequisiteDe: z.string().optional(),
+  desc: z.string().default(''),
+  descDe: z.string().optional(),
+  document: z
+    .object({ key: z.string().default(''), gamesystem: z.string().default('') })
+    .default({ key: '', gamesystem: '' }),
+});
+
+export type Feat = z.infer<typeof featSchema>;

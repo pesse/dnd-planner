@@ -50,6 +50,9 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/vault\/monsters\/.+\.json$/i.test(path)) return 'monster';
   if (/\/vault\/spells\/.+\.json$/i.test(path)) return 'spell';
   if (/\/vault\/items\/.+\.json$/i.test(path)) return 'item';
+  if (/\/vault\/classes\/[^/]+\.json$/i.test(path)) return 'class';
+  if (/\/vault\/species\/[^/]+\.json$/i.test(path)) return 'species';
+  if (/\/vault\/feats\/[^/]+\.json$/i.test(path)) return 'feat';
   // Charaktere: verzeichnisbasiert (./vault/characters/<slug>), kein Suffix.
   if (/\/vault\/characters\/[^/]+\/?$/i.test(path)) return 'character';
   // Fallback: jede andere .md als Notiz behandeln

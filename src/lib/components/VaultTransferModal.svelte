@@ -12,7 +12,21 @@
     items: boolean;
     monsters: boolean;
     spells: boolean;
+    classes: boolean;
+    species: boolean;
+    feats: boolean;
   }
+
+  /** Bibliotheks-Kategorien (bool-Flags), Reihenfolge = Anzeige im Dialog. */
+  const LIBS = [
+    { key: 'items', label: 'Gegenstände' },
+    { key: 'monsters', label: 'Monster' },
+    { key: 'spells', label: 'Zauber' },
+    { key: 'classes', label: 'Klassen' },
+    { key: 'species', label: 'Spezies' },
+    { key: 'feats', label: 'Talente' },
+  ] as const;
+  type LibKey = (typeof LIBS)[number]['key'];
 
   type Tab = 'export' | 'import';
   let tab = $state<Tab>('export');
@@ -23,16 +37,12 @@
   function buildSelection(
     camps: Record<string, boolean>,
     chars: Record<string, boolean>,
-    items: boolean,
-    monsters: boolean,
-    spells: boolean,
+    libs: Record<LibKey, boolean>,
   ) {
     return {
       campaigns: Object.keys(camps).filter((k) => camps[k]),
       characters: Object.keys(chars).filter((k) => chars[k]),
-      items,
-      monsters,
-      spells,
+      ...libs,
     };
   }
 
@@ -40,9 +50,7 @@
     return (
       sel.campaigns.length +
       sel.characters.length +
-      (sel.items ? 1 : 0) +
-      (sel.monsters ? 1 : 0) +
-      (sel.spells ? 1 : 0)
+      LIBS.filter((l) => sel[l.key]).length
     );
   }
 
@@ -50,29 +58,28 @@
     return Object.fromEntries(keys.map((k) => [k, value]));
   }
 
+  /** Bibliotheks-Flags aus einer Übersicht/Manifest in ein Record übernehmen. */
+  function libsFrom(c: VaultContents): Record<LibKey, boolean> {
+    return Object.fromEntries(LIBS.map((l) => [l.key, c[l.key]])) as Record<LibKey, boolean>;
+  }
+
   // ── Export ──────────────────────────────────────────────────────────────
   let overview = $state<VaultContents | null>(null);
   let expCampaigns = $state<Record<string, boolean>>({});
   let expCharacters = $state<Record<string, boolean>>({});
-  let expItems = $state(false);
-  let expMonsters = $state(false);
-  let expSpells = $state(false);
+  let expLibs = $state<Record<LibKey, boolean>>({} as Record<LibKey, boolean>);
   let exporting = $state(false);
   let exportResult = $state('');
   let exportError = $state('');
 
-  let exportSelection = $derived(
-    buildSelection(expCampaigns, expCharacters, expItems, expMonsters, expSpells),
-  );
+  let exportSelection = $derived(buildSelection(expCampaigns, expCharacters, expLibs));
 
   onMount(async () => {
     try {
       overview = await invoke<VaultContents>('get_vault_overview');
       expCampaigns = initMap(overview.campaigns, true);
       expCharacters = initMap(overview.characters, true);
-      expItems = overview.items;
-      expMonsters = overview.monsters;
-      expSpells = overview.spells;
+      expLibs = libsFrom(overview);
     } catch (e) {
       exportError = `Vault konnte nicht gelesen werden: ${e}`;
     }
@@ -116,17 +123,13 @@
   let manifest = $state<VaultContents | null>(null);
   let impCampaigns = $state<Record<string, boolean>>({});
   let impCharacters = $state<Record<string, boolean>>({});
-  let impItems = $state(false);
-  let impMonsters = $state(false);
-  let impSpells = $state(false);
+  let impLibs = $state<Record<LibKey, boolean>>({} as Record<LibKey, boolean>);
   let overwrite = $state(true);
   let importing = $state(false);
   let importResult = $state('');
   let importError = $state('');
 
-  let importSelection = $derived(
-    buildSelection(impCampaigns, impCharacters, impItems, impMonsters, impSpells),
-  );
+  let importSelection = $derived(buildSelection(impCampaigns, impCharacters, impLibs));
 
   async function pickZip() {
     importResult = '';
@@ -149,9 +152,7 @@
       manifest = await invoke<VaultContents>('inspect_import_zip', { zipPath: selected });
       impCampaigns = initMap(manifest.campaigns, true);
       impCharacters = initMap(manifest.characters, true);
-      impItems = manifest.items;
-      impMonsters = manifest.monsters;
-      impSpells = manifest.spells;
+      impLibs = libsFrom(manifest);
     } catch (e) {
       manifest = null;
       importError = `ZIP konnte nicht gelesen werden: ${e}`;
@@ -228,18 +229,12 @@
 
       <fieldset class="group">
         <legend>Bibliotheken</legend>
-        <label class="check" class:disabled={!overview.items}>
-          <input type="checkbox" bind:checked={expItems} disabled={!overview.items} />
-          <span>Items</span>
-        </label>
-        <label class="check" class:disabled={!overview.monsters}>
-          <input type="checkbox" bind:checked={expMonsters} disabled={!overview.monsters} />
-          <span>Monster</span>
-        </label>
-        <label class="check" class:disabled={!overview.spells}>
-          <input type="checkbox" bind:checked={expSpells} disabled={!overview.spells} />
-          <span>Zauber</span>
-        </label>
+        {#each LIBS as lib}
+          <label class="check" class:disabled={!overview[lib.key]}>
+            <input type="checkbox" bind:checked={expLibs[lib.key]} disabled={!overview[lib.key]} />
+            <span>{lib.label}</span>
+          </label>
+        {/each}
       </fieldset>
 
       <div class="actions">
@@ -289,24 +284,16 @@
         </fieldset>
       {/if}
 
-      {#if manifest.items || manifest.monsters || manifest.spells}
+      {#if LIBS.some((l) => manifest![l.key])}
         <fieldset class="group">
           <legend>Bibliotheken</legend>
-          {#if manifest.items}
-            <label class="check">
-              <input type="checkbox" bind:checked={impItems} /><span>Items</span>
-            </label>
-          {/if}
-          {#if manifest.monsters}
-            <label class="check">
-              <input type="checkbox" bind:checked={impMonsters} /><span>Monster</span>
-            </label>
-          {/if}
-          {#if manifest.spells}
-            <label class="check">
-              <input type="checkbox" bind:checked={impSpells} /><span>Zauber</span>
-            </label>
-          {/if}
+          {#each LIBS as lib}
+            {#if manifest[lib.key]}
+              <label class="check">
+                <input type="checkbox" bind:checked={impLibs[lib.key]} /><span>{lib.label}</span>
+              </label>
+            {/if}
+          {/each}
         </fieldset>
       {/if}
 
