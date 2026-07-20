@@ -1,0 +1,55 @@
+/**
+ * Interner, bewusst OFFENER Typ für Klassen-Progression — ein dünner Adapter über
+ * das Open5e-**v2**-Format (`/v2/classes/{key}`), NICHT eine starre SRD-Projektion.
+ *
+ * v2 liefert die Stufentabelle datengetrieben (jede Spalte — „1st"…„9th",
+ * „Proficiency Bonus", „Cantrips", „Rages", „Weapon Mastery", … — ist ein Feature
+ * mit `data_for_class_table`). Diesem Prinzip folgt der Typ: `levels[].columns` ist
+ * eine offene Map, damit beliebige (auch Homebrew-/2024-)Spalten überleben statt in
+ * Catch-alls zu verschwinden. Merkmale tragen `gainedAt` (mehrere Stufen möglich).
+ *
+ * Zweck des Adapters: Entkopplung von Open5e-Churn/künftigen Quellen, Trimmen des
+ * v2-Ballasts (crossreferences/permalinks), stabile Feldnamen, Zod-Validierung für
+ * graceful degradation bei fremden/Homebrew-Dokumenten.
+ */
+import { z } from 'zod';
+
+/** App-Attribut-Schlüssel (dex→ges, wis→wei). */
+export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
+const abilityKey = z.enum(ABILITY_KEYS);
+export type AbilityKey = (typeof ABILITY_KEYS)[number];
+
+/** Eine Stufe: alle Tabellenspalten offen als name→Wert (Rohwert wie in v2). */
+export const classLevelSchema = z.object({
+  level: z.number().int().min(1).max(20),
+  columns: z.record(z.string(), z.string()).default({}),
+});
+
+/** Ein Klassenmerkmal; `gainedAt` kann mehrere Stufen enthalten (z.B. ASI 4/8/12/16). */
+export const classFeatureSchema = z.object({
+  key: z.string().default(''),
+  name: z.string(),
+  gainedAt: z.array(z.number().int()).default([]),
+  desc: z.string().default(''),
+  featureType: z.string().optional(),
+});
+
+export const classProgressionSchema = z.object({
+  key: z.string().describe('Open5e-v2-Key, z.B. "srd-2024_wizard".'),
+  name: z.string(),
+  nameDe: z.string().optional(),
+  casterType: z.string().default('NONE').describe('v2 caster_type: FULL/HALF/NONE/…'),
+  hitDie: z.number().int().default(0).describe('Seitenzahl aus "D6" → 6.'),
+  hpAt1st: z.string().default(''),
+  hpHigher: z.string().default(''),
+  savingThrows: z.array(abilityKey).default([]),
+  document: z
+    .object({ key: z.string().default(''), gamesystem: z.string().default('') })
+    .default({ key: '', gamesystem: '' }),
+  levels: z.array(classLevelSchema).default([]),
+  features: z.array(classFeatureSchema).default([]),
+});
+
+export type ClassLevel = z.infer<typeof classLevelSchema>;
+export type ClassFeature = z.infer<typeof classFeatureSchema>;
+export type ClassProgression = z.infer<typeof classProgressionSchema>;
