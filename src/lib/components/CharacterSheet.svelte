@@ -755,6 +755,37 @@
           {/if}
         {/if}
 
+        <!-- Referenzen (strukturiert, read-only) -->
+        {#snippet refView(list: NonNullable<typeof character.references>['class'] | undefined, title: string)}
+          {#if list && list.length}
+            <div class="section">
+              <h3>{title}</h3>
+              <ul class="ref-view-list">
+                {#each list as ref}
+                  <li>
+                    <strong>{ref.name}</strong>{#if ref.gainedAt} <span class="ref-view-level">(Stufe {ref.gainedAt})</span>{/if}
+                    {#if ref.sourceKey}<span class="ref-view-key">{ref.sourceKey}</span>{/if}
+                    {#if ref.desc}<div class="ref-view-desc">{ref.desc}</div>{/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+        {/snippet}
+        {#if character.references}
+          {@const r = character.references}
+          {#if (r.class?.length ?? 0) + (r.race?.length ?? 0) + (r.feats?.length ?? 0) > 0}
+            <details class="ref-view">
+              <summary>Referenzen (Berechnungsgrundlage)</summary>
+              <div class="ref-view-body">
+                {@render refView(r.class, 'Klassenmerkmale')}
+                {@render refView(r.race, 'Volksmerkmale')}
+                {@render refView(r.feats, 'Talente')}
+              </div>
+            </details>
+          {/if}
+        {/if}
+
         <!-- Inventar -->
         <div class="section">
           <h3>Inventar</h3>
@@ -1240,6 +1271,35 @@
   }
 
   .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
+
+  /* ─── Referenzen (strukturiert, read-only) ───────────── */
+  .ref-view { margin: 0.6rem 0; }
+  .ref-view summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    font-weight: 600;
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+  }
+  .ref-view summary::-webkit-details-marker { display: none; }
+  .ref-view summary::before { content: '› '; color: var(--border); }
+  .ref-view[open] summary::before { content: '▾ '; }
+  .ref-view-body { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-top: 0.5rem; }
+  .ref-view-list { list-style: none; margin: 0; padding: 0; }
+  .ref-view-list li { margin-bottom: 0.35rem; font-size: 0.82rem; }
+  .ref-view-level { color: var(--ink-muted); font-size: 0.78rem; }
+  .ref-view-key {
+    display: inline-block;
+    margin-left: 0.3rem;
+    padding: 0 0.3rem;
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border-radius: 3px;
+  }
+  .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; }
 
   /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
   .spell-level-header {

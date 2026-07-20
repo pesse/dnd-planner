@@ -56,6 +56,23 @@ const proficiencyFlagsSchema = z.object({
   shields: z.boolean().default(false),
 });
 
+/** Ein strukturierter Referenz-Eintrag (additiv zum Freitext; Berechnungsgrundlage). */
+const referenceEntrySchema = z.object({
+  sourceKey: z.string().default(''), // Open5e-v2-Key, z.B. "srd-2024_druid"; leer = manuell/Homebrew
+  name: z.string().default(''),
+  gainedAt: z.number().int().optional(), // Stufe (Berechnungsgrundlage), optional
+  desc: z.string().default(''), // knappe Referenz-Notiz (NICHT der persönliche Freitext)
+});
+
+/** Referenzen getrennt nach Domäne. Nicht im PDF; hinter Toggle in Editor + Karte. */
+const characterReferencesSchema = z
+  .object({
+    class: z.array(referenceEntrySchema).default([]), // Klassenmerkmale
+    race: z.array(referenceEntrySchema).default([]), // Volksmerkmale
+    feats: z.array(referenceEntrySchema).default([]), // Talente
+  })
+  .default({ class: [], race: [], feats: [] });
+
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
   alter: z.string().default(''),
@@ -141,6 +158,8 @@ export const characterSchema = z.object({
     simpleWeapons: false, martialWeapons: false, otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   }),
+  // Strukturierte Referenzen (additiv zum Freitext; NICHT im PDF, Berechnungsgrundlage)
+  references: characterReferencesSchema,
   // Portrait (Datei im Charakter-Ordner)
   portraitFile: z.string().optional(),
   // ── Metadaten (nicht editierbar; werden im Draft mitgeführt) ──
@@ -155,6 +174,8 @@ export type Attack = z.infer<typeof attackSchema>;
 export type SpellEntry = z.infer<typeof spellEntrySchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
+export type CharacterReferences = z.infer<typeof characterReferencesSchema>;
+export type ReferenceEntry = z.infer<typeof referenceEntrySchema>;
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
 export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {

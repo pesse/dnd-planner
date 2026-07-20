@@ -12,9 +12,20 @@ import type {
   SpellEntry,
   ProficiencyFlags,
   PersonalData,
+  CharacterReferences,
+  ReferenceEntry,
 } from '../schemas/character';
 
-export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
+export type {
+  Character,
+  CharacterSpells,
+  Attack,
+  SpellEntry,
+  ProficiencyFlags,
+  PersonalData,
+  CharacterReferences,
+  ReferenceEntry,
+};
 
 /** Bisheriger Name des Charakter-Datentyps — Alias auf das Zod-Schema. */
 export type CharacterData = Character;
@@ -246,5 +257,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       koerpergroesse: f('Körpergrösse'),
       aussehen: f('Aussehen'),
     },
+    // Strukturierte Referenzen sind nicht Teil des PDFs → leer starten.
+    references: { class: [], race: [], feats: [] },
   };
 }

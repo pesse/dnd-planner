@@ -143,6 +143,10 @@
 
   let attacks = $state(character.attacks.map(a => ({ ...a })));
   let classFeatures = $state(character.classFeatures ?? '');
+  // Strukturierte Referenzen (additiv zum Freitext) — je Domäne eine editierbare Liste.
+  let refClass = $state((character.references?.class ?? []).map(r => ({ ...r })));
+  let refRace = $state((character.references?.race ?? []).map(r => ({ ...r })));
+  let refFeats = $state((character.references?.feats ?? []).map(r => ({ ...r })));
   let traits = $state(character.traits ?? '');
   let ideals = $state(character.ideals ?? '');
   let bonds = $state(character.bonds ?? '');
@@ -561,6 +565,12 @@
   }
   function removeInventoryItem(i: number) { inventory.splice(i, 1); }
 
+  // Referenz-Einträge: generisch über die jeweilige Liste (refClass/refRace/refFeats).
+  function addRef(list: typeof refClass) {
+    list.push({ sourceKey: '', name: '', gainedAt: undefined, desc: '' });
+  }
+  function removeRef(list: typeof refClass, i: number) { list.splice(i, 1); }
+
   // Formularzustand fortlaufend in den Draft (ed.draft) spiegeln → Dirty-Tracking und
   // Save-Bar des EditorPanel greifen ohne eigenen Speichern-Button. Schlüssel-Reihenfolge
   // entspricht dem Zod-Schema, damit ein frisch geladener Charakter NICHT „dirty" wirkt.
@@ -624,6 +634,20 @@
       mediumArmor: profMediumArmor,
       heavyArmor: profHeavyArmor,
       shields: profShields,
+    };
+    const cleanRefs = (list: typeof refClass) =>
+      list
+        .filter((r) => r.name.trim() !== '')
+        .map((r) => ({
+          sourceKey: r.sourceKey ?? '',
+          name: r.name,
+          gainedAt: r.gainedAt == null || Number.isNaN(r.gainedAt) ? undefined : Number(r.gainedAt),
+          desc: r.desc ?? '',
+        }));
+    character.references = {
+      class: cleanRefs(refClass),
+      race: cleanRefs(refRace),
+      feats: cleanRefs(refFeats),
     };
     character.portraitFile = portraitFile || undefined;
   });
@@ -841,10 +865,47 @@
     <button class="btn-add" onclick={addAttack}>+ Angriff</button>
   </section>
 
-  <!-- ── Klassenmerkmale ─── -->
+  <!-- ── Klassenmerkmale & Volksmerkmale ─── -->
   <section>
     <h3>Klassenmerkmale & Eigenschaften</h3>
     <textarea class="ta-large" use:diffMark={dirOf(saved?.classFeatures, classFeatures)} bind:value={classFeatures} placeholder="Klassenmerkmale, Rasseneigenschaften…"></textarea>
+    <label class="block-label" use:diffMark={dirOf(saved?.personal?.rassenmerkmale, rassenmerkmale)}>
+      Volksmerkmale
+      <textarea class="ta-small" bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
+    </label>
+  </section>
+
+  <!-- ── Referenzen (Berechnungsgrundlage) ─── -->
+  {#snippet refBlock(list: typeof refClass, title: string, keyPlaceholder: string, namePlaceholder: string)}
+    <div class="ref-block">
+      <h4>{title}</h4>
+      <table class="ref-table">
+        <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
+        <tbody>
+          {#each list as ref, i}
+            <tr>
+              <td><input bind:value={ref.name} placeholder={namePlaceholder} /></td>
+              <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
+                oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
+              <td><input bind:value={ref.desc} placeholder="knappe Notiz…" /></td>
+              <td><input bind:value={ref.sourceKey} placeholder={keyPlaceholder} /></td>
+              <td><button class="remove-btn" onclick={() => removeRef(list, i)}>✕</button></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <button class="btn-add" onclick={() => addRef(list)}>+ Eintrag</button>
+    </div>
+  {/snippet}
+
+  <section>
+    <details class="ref-section">
+      <summary>Referenzen (Berechnungsgrundlage)</summary>
+      <p class="ref-hint">Strukturierte Merkmale mit optionalem Open5e-Key — additiv zum Freitext, nicht im PDF-Export.</p>
+      {@render refBlock(refClass, 'Klassenmerkmale', 'srd-2024_druid', 'Wild Companion')}
+      {@render refBlock(refRace, 'Volksmerkmale', 'srd-2024_dwarf', 'Zwergische Widerstandskraft')}
+      {@render refBlock(refFeats, 'Talente', 'srd-2024_healer', 'Heiler')}
+    </details>
   </section>
 
   <!-- ── Persönlichkeit ─── -->
@@ -893,10 +954,6 @@
         <label use:diffMark={dirOf(saved?.personal?.taeglicheKosten, taeglicheKosten)}>Tägliche Kosten<input bind:value={taeglicheKosten} placeholder="1 GM" /></label>
       </div>
     </div>
-    <label class="block-label" use:diffMark={dirOf(saved?.personal?.rassenmerkmale, rassenmerkmale)}>
-      Volksmerkmale
-      <textarea class="ta-small" bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
-    </label>
     <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, aussehen)}>
       Aussehen
       <textarea class="ta-small" bind:value={aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
@@ -1295,6 +1352,44 @@
     width: 100%;
     min-width: 40px;
   }
+  /* ── Referenzen (Berechnungsgrundlage) ── */
+  .ref-section summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+  .ref-section summary::-webkit-details-marker { display: none; }
+  .ref-section summary::before { content: '› '; color: var(--border); }
+  .ref-section[open] summary::before { content: '▾ '; }
+  .ref-hint {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin: 0.3rem 0 0.6rem;
+  }
+  .ref-block { margin-bottom: 0.8rem; }
+  .ref-block h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0 0 0.2rem;
+  }
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+  }
+  .ref-table th {
+    text-align: left;
+    color: var(--ink-muted);
+    font-weight: 400;
+    padding: 0.1rem 0.3rem;
+    border-bottom: 1px solid var(--surface);
+  }
+  .ref-table td { padding: 0.15rem 0.2rem; }
+  .ref-table input { width: 100%; min-width: 40px; }
+  .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
   .computed-cell {
     display: inline-block;
     font-weight: 600;

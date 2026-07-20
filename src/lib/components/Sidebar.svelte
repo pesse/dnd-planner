@@ -345,6 +345,7 @@
       spells: emptySpells(),
       personal: emptyPersonal(),
       proficiencies: emptyProficiencies(),
+      references: { class: [], race: [], feats: [] },
     };
 
     const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
