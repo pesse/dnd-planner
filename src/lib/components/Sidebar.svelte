@@ -734,6 +734,7 @@
   }
 
   async function openItemModal() {
+    if (!(await confirmNavigation())) return;
     itemsExpanded = true;
     await loadItems();
     showItemModal = true;

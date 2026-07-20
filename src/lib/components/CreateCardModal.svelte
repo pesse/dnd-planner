@@ -78,7 +78,11 @@
 
   function capitalize(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  /** Öffnet den (noch ungespeicherten) Draft im Editor und schließt den Dialog. */
+  /**
+   * Öffnet den (noch ungespeicherten) Draft im Editor und schließt den Dialog.
+   * Der Navigations-Guard greift bereits beim Öffnen dieses Dialogs (siehe
+   * createMonster/createSpell/openItemModal in der Sidebar), daher hier nicht erneut.
+   */
   function openDraft(draft: T) {
     if (onCreated) onCreated(draft);
     else newCardDraft.set({ type, data: draft });
