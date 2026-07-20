@@ -6,6 +6,7 @@
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import type { Item, Spell } from '../types';
+  import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
@@ -149,6 +150,8 @@
   let currency = $state({ ...character.currency });
   let inventory = $state(character.inventory.map(i => ({ ...i })));
   let inventoryNotes = $state(character.inventoryNotes ?? '');
+  // Gesamtlast automatisch aus Anzahl × Gewicht/Stück (reagiert live auf Eingaben).
+  let computedTotalWeight = $derived(totalWeightKg(inventory));
 
   // ─── Zauber ──────────────────────────────────────────────
   let spellClass = $state(character.spells?.spellcastingClass ?? '');
@@ -585,6 +588,8 @@
     character.currency = { ...currency };
     character.inventory = inventory.filter((i) => i.name.trim() !== '').map((i) => ({ ...i }));
     character.inventoryNotes = inventoryNotes;
+    // Gesamtlast wird überall live aus Anzahl × Gewicht/Stück berechnet (inventoryWeight);
+    // das gespeicherte Feld ist nur noch Alt-Ballast → unverändert durchreichen (kein Dirty).
     character.totalWeight = totalWeightInit;
     character.spells = {
       spellcastingClass: spellClass,
@@ -954,7 +959,7 @@
   <section>
     <h3>Inventar</h3>
     <table class="inv-table">
-      <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew. (kg)</th><th></th></tr></thead>
+      <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th><th></th></tr></thead>
       <tbody>
         {#each inventory as item, i}
           <tr>
@@ -982,10 +987,20 @@
             </td>
             <td><input bind:value={item.count} placeholder="1" /></td>
             <td><input bind:value={item.weight} placeholder="2" /></td>
+            <td class="inv-line-cell num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) : '—'}</td>
             <td><button class="remove-btn" onclick={() => removeInventoryItem(i)}>✕</button></td>
           </tr>
         {/each}
       </tbody>
+      {#if inventory.length}
+        <tfoot>
+          <tr class="inv-total-row">
+            <td colspan="3">Gesamtlast</td>
+            <td class="num"><strong>{computedTotalWeight > 0 ? formatKg(computedTotalWeight) + ' kg' : '—'}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      {/if}
     </table>
     <button class="btn-add" onclick={addInventoryItem}>+ Gegenstand</button>
     <label style="display:block; margin-top:0.5rem">
@@ -1390,6 +1405,22 @@
   }
   .inv-table td { padding: 0.15rem 0.2rem; }
   .inv-table input { width: 100%; min-width: 40px; }
+  .inv-table .num { text-align: right; white-space: nowrap; }
+
+  .inv-line-col { text-align: right !important; }
+  .inv-line-cell { color: var(--ink-muted); }
+  .inv-total-row td {
+    border-top: 1px solid var(--surface);
+    padding-top: 0.3rem;
+    color: var(--ink-soft);
+  }
+  .inv-total-row td:first-child {
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+  }
 
   .inv-name-cell { position: relative; }
 
