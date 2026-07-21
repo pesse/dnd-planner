@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { ClassProgression, ClassFeature } from '$lib/types';
   import { ABILITY_KEYS } from '$lib/schemas/classProgression';
+  import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
 
   let {
     klass = $bindable<ClassProgression>(),
@@ -14,6 +16,18 @@
   const ABILITY_LABELS: Record<string, string> = {
     str: 'STÄ', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA',
   };
+
+  // Basisklassen für die „Subklasse von"-Auswahl (ohne sich selbst, nur mit v2-Key).
+  let baseClasses = $state<ClassInfo[]>([]);
+  onMount(async () => {
+    const all = await getClasses();
+    baseClasses = all.filter((c) => !c.subclassOf && c.key && c.key !== klass.key);
+  });
+
+  function setParent(value: string) {
+    klass.subclassOf = value || undefined;
+    onchange();
+  }
 
   function mark() { onchange(); }
 
@@ -53,6 +67,21 @@
     </label>
     <label class="lbl-inline">Trefferwürfel W
       <input class="ef num" type="number" bind:value={klass.hitDie} oninput={mark} />
+    </label>
+    <label class="lbl-inline">Subklasse von
+      <select
+        class="ef meta-sel"
+        value={klass.subclassOf ?? ''}
+        onchange={(e) => setParent((e.target as HTMLSelectElement).value)}
+      >
+        <option value="">— (eigenständige Klasse)</option>
+        {#each baseClasses as b}
+          <option value={b.key}>{classDisplayName(b)}</option>
+        {/each}
+        {#if klass.subclassOf && !baseClasses.some((b) => b.key === klass.subclassOf)}
+          <option value={klass.subclassOf}>{klass.subclassOf}</option>
+        {/if}
+      </select>
     </label>
   </div>
 </div>

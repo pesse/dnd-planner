@@ -37,7 +37,7 @@
     toHomebrewCopy,
   } from '../itemLibrary';
   import { SCHOOL_COLORS } from '../spellLibrary';
-  import { getClasses, searchClasses, classDisplayName, invalidateClassCache, type ClassInfo } from '../classLibrary';
+  import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
   import { getFeats, searchFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
   import { listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listFeats, getFeat as getFeatRaw } from '../services/open5eApi';
@@ -774,13 +774,13 @@
     }
   }
 
-  // --- Klassen (globale Regel-Bibliothek, flach) ---
+  // --- Klassen (globale Regel-Bibliothek, Basisklassen mit Subklassen als Unterpunkte) ---
   let classesExpanded = $state(false);
-  let classInfos = $state<ClassInfo[]>([]);
+  let classTree = $state<ClassNode[]>([]);
 
   async function loadClasses() {
     invalidateClassCache();
-    classInfos = await getClasses();
+    classTree = await getClassTree();
   }
 
   async function toggleClasses() {
@@ -803,13 +803,17 @@
     return { ...structuredClone(CLASS_TEMPLATE), name: name || 'Neue Klasse', nameDe: name || 'Neue Klasse' };
   }
 
-  /** Open5e-v2-Suche (Basisklassen, ohne Subklassen). ref.url = v2-Key. */
+  /** Open5e-v2-Suche über Basisklassen UND Subklassen. ref.url = v2-Key. */
   async function searchOpen5eClasses(q: string): Promise<DndApiRef[]> {
     const all = await listClasses();
     const ql = q.toLowerCase();
     return all
-      .filter((c) => !c.subclass_of && c.name.toLowerCase().includes(ql))
-      .map((c) => ({ index: c.key, name: c.name, url: c.key }))
+      .filter((c) => c.name.toLowerCase().includes(ql))
+      .map((c) => ({
+        index: c.key,
+        name: c.subclass_of?.name ? `${c.name} — Unterklasse von ${c.subclass_of.name}` : c.name,
+        url: c.key,
+      }))
       .slice(0, 15);
   }
   const loadOpen5eClass = async (ref: DndApiRef): Promise<ClassProgression> => mapV2(await getClass(ref.url));
@@ -1548,18 +1552,30 @@
 
     {#if classesExpanded}
       <div class="file-list">
-        {#if classInfos.length}
-          {#each classInfos as info}
+        {#if classTree.length}
+          {#each classTree as node}
             <div class="entry-row">
               <button
-                class="file-entry monster-subentry"
-                class:active={$activeFile?.path === info.path}
-                onclick={() => openClass(info.path)}
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === node.path}
+                onclick={() => openClass(node.path)}
               >
-                📖 {classDisplayName(info)}
+                📖 {classDisplayName(node)}
               </button>
-              {@render delBtn(() => deleteEntry(info.path, classDisplayName(info), false, loadClasses))}
+              {@render delBtn(() => deleteEntry(node.path, classDisplayName(node), false, loadClasses))}
             </div>
+            {#each node.subclasses as sub}
+              <div class="entry-row">
+                <button
+                  class="file-entry class-subentry"
+                  class:active={$activeFile?.path === sub.path}
+                  onclick={() => openClass(sub.path)}
+                >
+                  ↳ {classDisplayName(sub)}
+                </button>
+                {@render delBtn(() => deleteEntry(sub.path, classDisplayName(sub), false, loadClasses))}
+              </div>
+            {/each}
           {/each}
         {:else}
           <span class="empty">Keine Klassen</span>
@@ -1584,7 +1600,7 @@
           {#each speciesInfos as info}
             <div class="entry-row">
               <button
-                class="file-entry monster-subentry"
+                class="file-entry lib-entry"
                 class:active={$activeFile?.path === info.path}
                 onclick={() => openSpecies(info.path)}
               >
@@ -1616,7 +1632,7 @@
           {#each featInfos as info}
             <div class="entry-row">
               <button
-                class="file-entry monster-subentry"
+                class="file-entry lib-entry"
                 class:active={$activeFile?.path === info.path}
                 onclick={() => info.path && openFeat(info.path)}
               >
@@ -1686,6 +1702,15 @@
       searchLibrary={searchClassLibrary}
       blank={blankClass}
       nameOf={(c: ClassProgression) => c.nameDe || c.name || 'Klasse'}
+      extraSelect={{
+        label: 'Subklasse von',
+        placeholder: '— (eigenständige Klasse)',
+        load: async () =>
+          (await getClasses())
+            .filter((c) => !c.subclassOf && c.key)
+            .map((c) => ({ value: c.key!, label: classDisplayName(c) })),
+        apply: (draft: ClassProgression, value: string) => { draft.subclassOf = value; },
+      }}
       onclose={() => (createModal = null)}
     />
   {:else if createModal === 'species'}
@@ -2143,6 +2168,19 @@
 
   .monster-subentry {
     padding-left: 3.5rem;
+  }
+
+  /* Bibliothek (Klassen/Spezies/Talente): 1. Ebene ohne Kategorie-Level → flach
+     eingerückt wie die 1. Ebene bei Monstern/Gegenständen (spart Platz). */
+  .lib-entry {
+    padding-left: 1.75rem;
+  }
+
+  /* Subklasse als Unterpunkt der Basisklasse: eine Stufe tiefer als .lib-entry, dezent. */
+  .class-subentry {
+    padding-left: 3rem;
+    font-size: 0.9em;
+    color: var(--ink-muted);
   }
 
   /* HG-Badge (Herausforderungsgrad) vor Monster-Einträgen */

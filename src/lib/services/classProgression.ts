@@ -77,9 +77,12 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
       featureType: f.feature_type,
     }));
 
+  const subclassOf = (raw.subclass_of as { key?: string } | null)?.key || undefined;
+
   const mapped = {
     key: (raw.key as string) ?? '',
     name: (raw.name as string) ?? '',
+    subclassOf,
     casterType: (raw.caster_type as string) ?? 'NONE',
     hitDie: Number(String(raw.hit_dice ?? hp.hit_dice ?? '').match(/(\d+)/)?.[1] ?? 0),
     hpAt1st: hp.hit_points_at_1st_level ?? '',

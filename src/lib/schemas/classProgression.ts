@@ -40,6 +40,10 @@ export const classProgressionSchema = z.object({
   key: z.string().describe('Open5e-v2-Key, z.B. "srd-2024_wizard".'),
   name: z.string(),
   nameDe: z.string().optional(),
+  subclassOf: z
+    .string()
+    .optional()
+    .describe('v2-Key der Basisklasse, falls dies eine Subklasse ist (z.B. "srd-2024_fighter").'),
   casterType: z.string().default('NONE').describe('v2 caster_type: FULL/HALF/NONE/…'),
   hitDie: z.number().int().default(0).describe('Seitenzahl aus "D6" → 6.'),
   hpAt1st: z.string().default(''),

@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { llmConfig, saveConfig, loadApiKeyForProvider } from '../stores/llm';
   import { getClient } from '../services/llmClient';
   import { runAiAction } from '../services/aiActions/runner';
@@ -22,6 +22,7 @@
     blank,
     buildAction,
     nameOf,
+    extraSelect,
     onCreated,
     onclose,
   }: {
@@ -45,6 +46,18 @@
     /** Anzeigename eines Drafts (für activeFile-Platzhalter). */
     nameOf: (draft: T) => string;
     /**
+     * Optionale typ-spezifische Auswahl (z.B. „Subklasse von" bei Klassen). Wird als
+     * Dropdown gezeigt; bei nicht-leerer Auswahl auf den fertigen Draft angewandt —
+     * unabhängig vom Anlage-Pfad (manuell/Vorlage/KI). Leere Auswahl lässt den Draft
+     * unangetastet (Import-Werte bleiben erhalten).
+     */
+    extraSelect?: {
+      label: string;
+      placeholder: string;
+      load: () => Promise<{ value: string; label: string }[]>;
+      apply: (draft: T, value: string) => void;
+    };
+    /**
      * Optional: übernimmt den fertigen Draft selbst (statt Standard `newCardDraft`).
      * Für Entities mit eigenem Draft-Store (z.B. Item: `newItemDraft` mit Zielordner).
      */
@@ -56,6 +69,13 @@
   type TemplateHit = { name: string; badge: string; api: boolean; load: () => Promise<T> };
 
   let aiEnabled = $state(false);
+
+  // ── Optionale Zusatz-Auswahl (z.B. „Subklasse von") ─────────────────────────
+  let extraOptions = $state<{ value: string; label: string }[]>([]);
+  let extraValue = $state('');
+  onMount(async () => {
+    if (extraSelect) extraOptions = await extraSelect.load();
+  });
 
   // ── Verschiebbarer Dialog ───────────────────────────────────────────────────
   let pos = $state({ x: Math.max(16, window.innerWidth / 2 - 280), y: 80 });
@@ -90,6 +110,7 @@
    * createMonster/createSpell/openItemModal in der Sidebar), daher hier nicht erneut.
    */
   function openDraft(draft: T) {
+    if (extraSelect && extraValue) extraSelect.apply(draft, extraValue);
     if (onCreated) onCreated(draft);
     else newCardDraft.set({ type, data: draft });
     activeFile.set({ name: nameOf(draft), path: '', type });
@@ -243,6 +264,18 @@
       onkeydown={(e) => { if (e.key === 'Enter' && !aiEnabled) create(); }}
     />
   </div>
+
+  {#if extraSelect}
+    <div class="row">
+      <label class="field-label" for="cc-extra">{extraSelect.label}</label>
+      <select id="cc-extra" class="select" bind:value={extraValue}>
+        <option value="">{extraSelect.placeholder}</option>
+        {#each extraOptions as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
 
   <div class="template">
     {#if selectedTemplate}

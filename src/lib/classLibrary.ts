@@ -11,6 +11,15 @@ export interface ClassInfo {
   name: string;
   nameDe?: string;
   path: string;
+  /** Open5e-v2-Key der Klasse (z.B. "srd-2024_champion"). */
+  key?: string;
+  /** v2-Key der Basisklasse, falls dies eine Subklasse ist. */
+  subclassOf?: string;
+}
+
+/** Eine Basisklasse mit ihren (nach Namen sortierten) Subklassen. */
+export interface ClassNode extends ClassInfo {
+  subclasses: ClassInfo[];
 }
 
 /** Zeigt den deutschen Namen, falls vorhanden, sonst den Originalnamen. */
@@ -37,7 +46,13 @@ export async function getClasses(): Promise<ClassInfo[]> {
         try {
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
-          return { name: data.name ?? filename.replace('.json', ''), nameDe: data.nameDe, path };
+          return {
+            name: data.name ?? filename.replace('.json', ''),
+            nameDe: data.nameDe,
+            path,
+            key: data.key,
+            subclassOf: data.subclassOf,
+          };
         } catch {
           return { name: filename.replace('.json', ''), path };
         }
@@ -50,6 +65,42 @@ export async function getClasses(): Promise<ClassInfo[]> {
     cache = [];
     return [];
   }
+}
+
+/**
+ * Baut aus der flachen Bibliothek eine zweistufige Hierarchie: Basisklassen mit
+ * ihren Subklassen als Unterpunkte. Zuordnung über `subclassOf` (v2-Key der
+ * Basisklasse) ↔ `key`. Subklassen ohne vorhandene Basisklasse (fremder/fehlender
+ * Parent) erscheinen als eigenständige Top-Level-Einträge, damit nichts verschwindet.
+ */
+export async function getClassTree(): Promise<ClassNode[]> {
+  const infos = await getClasses();
+  const byKey = new Map<string, ClassNode>();
+  const roots: ClassNode[] = [];
+  const orphans: ClassInfo[] = [];
+
+  // 1. Basisklassen (ohne subclassOf) als Knoten anlegen.
+  for (const info of infos) {
+    if (info.subclassOf) continue;
+    const node: ClassNode = { ...info, subclasses: [] };
+    roots.push(node);
+    if (info.key) byKey.set(info.key, node);
+  }
+
+  // 2. Subklassen ihrer Basisklasse zuordnen (oder als Waise sammeln).
+  for (const info of infos) {
+    if (!info.subclassOf) continue;
+    const parent = byKey.get(info.subclassOf);
+    if (parent) parent.subclasses.push(info);
+    else orphans.push(info);
+  }
+
+  const byName = (a: ClassInfo, b: ClassInfo) =>
+    classDisplayName(a).localeCompare(classDisplayName(b), 'de');
+  for (const node of roots) node.subclasses.sort(byName);
+  for (const o of orphans) roots.push({ ...o, subclasses: [] });
+  roots.sort(byName);
+  return roots;
 }
 
 /**
