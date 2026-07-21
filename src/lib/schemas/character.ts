@@ -32,7 +32,7 @@ const characterSpellsSchema = z
     spellcastingAbility: z.string().default(''),
     saveDC: z.number().int().default(0),
     attackBonus: z.number().int().default(0),
-    autoCalc: z.boolean().default(false).describe('true = saveDC/attackBonus aus Übungsbonus + Zauberattribut-Mod.'),
+    autoCalc: z.boolean().default(true).describe('true = saveDC/attackBonus aus Übungsbonus + Zauberattribut-Mod.'),
     slots: z
       .array(z.object({ total: z.number().int(), used: z.number().int() }))
       .default(() => Array.from({ length: 9 }, () => ({ total: 0, used: 0 })))
@@ -41,7 +41,7 @@ const characterSpellsSchema = z
     byLevel: z.record(z.string(), z.array(spellEntrySchema)).default({}),
   })
   .default(() => ({
-    spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: false,
+    spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: true,
     slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
     cantrips: [], byLevel: {},
   }));

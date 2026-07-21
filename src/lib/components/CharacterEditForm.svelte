@@ -171,7 +171,7 @@
   let spellAbility = $state(character.spells?.spellcastingAbility ?? '');
   let spellSaveDC = $state(character.spells?.saveDC ?? 0);
   let spellAttackBonus = $state(character.spells?.attackBonus ?? 0);
-  let spellAutoCalc = $state(character.spells?.autoCalc ?? false);
+  let spellAutoCalc = $state(character.spells?.autoCalc ?? true);
   let slotTotals = $state(Array.from({ length: 9 }, (_, i) => character.spells?.slots[i]?.total ?? 0));
   let cantrips = $state([...(character.spells?.cantrips ?? [])]);
   let cantripInput = $state('');
@@ -297,8 +297,11 @@
       weaponSuggestions = [];
       weaponSugIndex = -1;
     } catch {
-      // Item nicht ladbar → leeren Angriff mit dem Namen anlegen
-      attacks.push({ name: displayName(sug.item), bonus: '', damage: '', type: '', range: 'Nah' });
+      // Item nicht ladbar → Auto-Angriff mit dem Namen anlegen
+      attacks.push({
+        name: displayName(sug.item), bonus: '', damage: '', type: '', range: 'Nah',
+        auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0,
+      });
       weaponSearch = '';
       weaponSuggestions = [];
     }
@@ -543,7 +546,10 @@
 
   // ─── Aktionen ────────────────────────────────────────────
   function addAttack() {
-    attacks.push({ name: '', bonus: '', damage: '', type: '', range: '' });
+    attacks.push({
+      name: '', bonus: '', damage: '', type: '', range: '',
+      auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0,
+    });
   }
   function removeAttack(i: number) { attacks.splice(i, 1); }
 
