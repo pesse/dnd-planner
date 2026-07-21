@@ -73,6 +73,15 @@ const characterReferencesSchema = z
   })
   .default({ class: [], race: [], feats: [] });
 
+/** Eine gepflegte Klasse eines Charakters (multiclass-fähig; Basis für Progression-Check). */
+const characterClassSchema = z.object({
+  sourceKey: z.string().default(''), // Open5e-v2-Key der GRUNDklasse; leer = Homebrew/manuell
+  name: z.string().default(''), // Anzeigename der Grundklasse (DE)
+  subclassKey: z.string().optional(), // Open5e-v2-Key der Subklasse (innerhalb der Grundklasse)
+  subclassName: z.string().optional(), // Anzeigename der Subklasse (DE) — für abgeleiteten Anzeige-String
+  level: z.number().int().min(1).max(20).default(1),
+});
+
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
   alter: z.string().default(''),
@@ -99,6 +108,9 @@ const skillEntrySchema = z.object({
 export const characterSchema = z.object({
   // Kopf
   name: z.string(),
+  // Strukturierte Klassen/Level-Items (Source-of-Truth, multiclass-fähig).
+  classes: z.array(characterClassSchema).default([]),
+  // Abgeleiteter Anzeige-String aus `classes` (für Header/PDF); nicht mehr direkt editiert.
   classLevel: z.string().default(''),
   playerName: z.string().default(''),
   background: z.string().default(''),
@@ -163,7 +175,7 @@ export const characterSchema = z.object({
   // Portrait (Datei im Charakter-Ordner)
   portraitFile: z.string().optional(),
   // ── Metadaten (nicht editierbar; werden im Draft mitgeführt) ──
-  _version: z.literal(1).optional(),
+  _version: z.union([z.literal(1), z.literal(2)]).optional(),
   _importedFrom: z.string().optional(),
   _importedAt: z.string().optional(),
 });
@@ -176,11 +188,53 @@ export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
 export type CharacterReferences = z.infer<typeof characterReferencesSchema>;
 export type ReferenceEntry = z.infer<typeof referenceEntrySchema>;
+export type CharacterClass = z.infer<typeof characterClassSchema>;
+
+/** Anzeige-String aus den strukturierten Klassen, z.B. „Kämpfer 5 (Champion) / Zauberer 2". */
+export function formatClassLevel(classes: CharacterClass[]): string {
+  return (classes ?? [])
+    .filter((c) => c.name.trim())
+    .map((c) => `${c.name.trim()} ${c.level}${c.subclassName?.trim() ? ` (${c.subclassName.trim()})` : ''}`)
+    .join(' / ');
+}
+
+/** Gesamtstufe (Summe der Einzelstufen) über alle gepflegten Klassen. */
+export function totalLevel(classes: CharacterClass[]): number {
+  return (classes ?? []).reduce((sum, c) => sum + (c.level || 0), 0);
+}
+
+/**
+ * Zerlegt einen Freitext-Eintrag wie „Waldläufer 5" in Name + Stufe.
+ * Angehängte Ganzzahl = Stufe (Default 1), Rest = Name (sourceKey bleibt leer).
+ */
+function parseClassLevelPart(part: string): CharacterClass | null {
+  const trimmed = part.trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/^(.*?)[\s.,-]*(\d{1,2})\s*$/);
+  const name = (m ? m[1] : trimmed).trim();
+  const level = m ? Math.min(20, Math.max(1, Number(m[2]))) : 1;
+  if (!name) return null;
+  return { sourceKey: '', name, level };
+}
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
 export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const c = { ...(raw as Record<string, unknown>) };
+  // v1→v2: Freitext `classLevel` best-effort in strukturierte `classes` überführen.
+  // Nur wenn noch keine `classes` gepflegt sind (idempotent für v2-Charaktere).
+  const existing = c.classes;
+  const hasClasses = Array.isArray(existing) && existing.length > 0;
+  if (!hasClasses && typeof c.classLevel === 'string' && c.classLevel.trim()) {
+    const parsed = c.classLevel
+      .split('/')
+      .map(parseClassLevelPart)
+      .filter((x): x is CharacterClass => x !== null);
+    if (parsed.length) {
+      c.classes = parsed;
+      c._version = 2;
+    }
+  }
   // Rückwärtskompatibilität: fehlendes spells-Objekt → Default greift im Schema.
   return c;
 }

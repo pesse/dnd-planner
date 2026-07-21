@@ -125,6 +125,24 @@ export async function getProgression(klasseDe: string, doc = DEFAULT_DOCUMENT): 
   }
 }
 
+/**
+ * Wie `getProgression`, aber direkt über den Open5e-v2-Key (z.B. „srd-2024_ranger"),
+ * wie er strukturiert am Charakter (`classes[].sourceKey`) hängt. Bildet die Brücke
+ * für einen späteren Character-vs-Progression-Check. Leerer Key / Fehler → null.
+ */
+export async function getProgressionByKey(key: string): Promise<ClassProgression | null> {
+  if (!key) return null;
+  if (cache.has(key)) return cache.get(key)!;
+  try {
+    const prog = mapV2(await getClass(key));
+    cache.set(key, prog);
+    return prog;
+  } catch {
+    cache.set(key, null);
+    return null;
+  }
+}
+
 // ── Reader (deterministisch, aus den strukturierten Spalten) ───────────────────
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);
 const clampLevel = (level: number): number => Math.min(20, Math.max(1, Math.floor(level)));

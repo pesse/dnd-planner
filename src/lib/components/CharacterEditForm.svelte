@@ -2,10 +2,10 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, type Character, type CharacterData, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, type Character, type CharacterData, type CharacterClass, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
-  import { getClassFeatures, type FeatureRef } from '../classLibrary';
+  import { getClassFeatures, getClasses, searchClasses, classDisplayName, type FeatureRef, type ClassInfo } from '../classLibrary';
   import { getSpeciesTraits } from '../speciesLibrary';
   import { getFeats, searchFeats, saveFeat, featDesc, type FeatEntry } from '../featsLibrary';
   import type { Item, Spell } from '../types';
@@ -34,7 +34,10 @@
 
   // ─── Felder ────────────────────────────────────────────
   let name = $state(character.name ?? '');
-  let classLevel = $state(character.classLevel ?? '');
+  // Strukturierte Klassen/Level-Items (Source-of-Truth; classLevel wird daraus abgeleitet).
+  let classes = $state<CharacterClass[]>((character.classes ?? []).map((c) => ({ ...c })));
+  let classLevelPreview = $derived(formatClassLevel(classes));
+  let charTotalLevel = $derived(totalLevel(classes));
   let playerName = $state(character.playerName ?? '');
   let background = $state(character.background ?? '');
   let race = $state(character.race ?? '');
@@ -580,6 +583,78 @@
   }
   function removeRef(list: typeof refClass, i: number) { list.splice(i, 1); }
 
+  // ─── Klassen/Level (strukturiert, multiclass-fähig) ──────────────────────────
+  function addClass() { classes.push({ sourceKey: '', name: '', level: 1 }); editingClassRow = classes.length - 1; }
+  function removeClass(i: number) { classes.splice(i, 1); editingClassRow = -1; }
+
+  // Klassen-Bibliothek: für Autocomplete (nur Grundklassen) und Subklassen-Dropdown.
+  let classIndex = $state<ClassInfo[]>([]);
+  $effect(() => { getClasses().then((x) => { classIndex = x; }); });
+  // Nur Grundklassen (ohne subclassOf) landen in der Namens-Vorschlagsliste.
+  let baseClassIndex = $derived(classIndex.filter((c) => !c.subclassOf));
+
+  let activeClassRow = $state(-1);
+  let classSuggestions = $state<ClassInfo[]>([]);
+  let classSugIndex = $state(-1);
+  let editingClassRow = $state(-1); // Zeile im Bearbeiten-Modus (sonst: Link zur Bibliothek)
+
+  /** Bibliotheks-Pfad zur GRUNDklasse eines Eintrags, falls verlinkt. */
+  function classPath(cls: CharacterClass): string | undefined {
+    if (!cls.sourceKey) return undefined;
+    return classIndex.find((c) => c.key === cls.sourceKey)?.path;
+  }
+
+  /** Öffnet die Bibliotheks-Kartenseite der verlinkten Grundklasse. */
+  function openClassPage(cls: CharacterClass) {
+    const path = classPath(cls);
+    if (!path) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
+  }
+
+  /** Subklassen der gewählten Grundklasse (aus der Bibliothek). */
+  function subclassesFor(cls: CharacterClass): ClassInfo[] {
+    if (!cls.sourceKey) return [];
+    return classIndex.filter((c) => c.subclassOf === cls.sourceKey);
+  }
+
+  /** Setzt/leert Subklasse (Key + Anzeigename) einer Zeile. */
+  function setSubclass(i: number, key: string) {
+    if (!key) { classes[i].subclassKey = undefined; classes[i].subclassName = undefined; return; }
+    const info = classIndex.find((c) => c.key === key);
+    classes[i].subclassKey = key;
+    classes[i].subclassName = info ? classDisplayName(info) : undefined;
+  }
+
+  function onClassNameInput(i: number, value: string) {
+    activeClassRow = i;
+    classSugIndex = -1;
+    const q = value.trim();
+    classSuggestions = q ? searchClasses(baseClassIndex, q, 8) : [];
+  }
+
+  function selectClassSuggestion(i: number, info: ClassInfo) {
+    // Nur Grundklassen sind vorschlagbar; Subklasse getrennt über das Dropdown.
+    classes[i].name = classDisplayName(info);
+    classes[i].sourceKey = info.key ?? '';
+    classes[i].subclassKey = undefined;
+    classes[i].subclassName = undefined;
+    classSuggestions = [];
+    activeClassRow = -1;
+    classSugIndex = -1;
+    editingClassRow = -1; // verlinkt → als Bibliotheks-Link darstellen
+  }
+
+  function onClassNameKey(e: KeyboardEvent, i: number) {
+    if (activeClassRow !== i) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); classSugIndex = Math.min(classSugIndex + 1, classSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); classSugIndex = Math.max(classSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { classSuggestions = []; activeClassRow = -1; }
+    else if (e.key === 'Enter' && classSugIndex >= 0 && classSuggestions[classSugIndex]) {
+      e.preventDefault();
+      selectClassSuggestion(i, classSuggestions[classSugIndex]);
+    }
+  }
+
   // ─── Referenz-Autocomplete: Klasse/Volk gegen Bibliotheks-Merkmale ───────────
   let classFeatureIndex = $state<FeatureRef[]>([]);
   let speciesTraitIndex = $state<FeatureRef[]>([]);
@@ -678,7 +753,12 @@
   // entspricht dem Zod-Schema, damit ein frisch geladener Charakter NICHT „dirty" wirkt.
   // Liest nur die *Init-Werte (keine reaktiven character.*-Reads) → keine Schleife.
   $effect(() => {
-    character.name = name; character.classLevel = classLevel;
+    character.name = name;
+    // classes = Source-of-Truth; classLevel wird als Anzeige-String daraus abgeleitet.
+    // Lokale const NICHT über character.classes zurücklesen → sonst Read-after-Write-Schleife.
+    const cleanedClasses = classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
+    character.classes = cleanedClasses;
+    character.classLevel = formatClassLevel(cleanedClasses);
     character.playerName = playerName; character.background = background;
     character.race = race; character.xp = xp;
     character.str = str; character.ges = ges; character.kon = kon;
@@ -772,11 +852,70 @@
     <h3>Allgemein</h3>
     <div class="grid-2">
       <label use:diffMark={dirOf(saved?.name, name)}>Name<input bind:value={name} placeholder="Charaktername" /></label>
-      <label use:diffMark={dirOf(saved?.classLevel, classLevel)}>Klasse & Stufe<input bind:value={classLevel} placeholder="z.B. Waldläufer 5" /></label>
       <label use:diffMark={dirOf(saved?.playerName, playerName)}>Spieler<input bind:value={playerName} placeholder="Spielername" /></label>
       <label use:diffMark={dirOf(saved?.race, race)}>Volk<input bind:value={race} placeholder="Volk/Rasse" /></label>
       <label use:diffMark={dirOf(saved?.background, background)}>Hintergrund<input bind:value={background} placeholder="Hintergrund" /></label>
       <label use:diffMark={dirOf(saved?.xp, xp)}>EP<input bind:value={xp} placeholder="0" /></label>
+    </div>
+
+    <!-- Klasse & Stufe strukturiert (multiclass-fähig); „Klasse & Stufe"-Anzeige wird abgeleitet. -->
+    <div class="ref-block class-block" use:diffMark={dirOf(saved?.classLevel, classLevelPreview)}>
+      <h4>Klassen & Stufen{#if charTotalLevel > 0} <span class="class-total">· Gesamtstufe {charTotalLevel}</span>{/if}</h4>
+      <table class="ref-table">
+        <thead><tr><th>Klasse</th><th>Stufe</th><th>Subklasse</th><th></th></tr></thead>
+        <tbody>
+          {#each classes as cls, i}
+            {@const path = classPath(cls)}
+            {@const subs = subclassesFor(cls)}
+            <tr>
+              <td>
+                {#if path && editingClassRow !== i}
+                  <div class="class-linked">
+                    <button type="button" class="class-link" title="Bibliotheks-Seite öffnen" onclick={() => openClassPage(cls)}>{cls.name}</button>
+                    <button type="button" class="link-edit" title="Klasse ändern" onclick={() => { editingClassRow = i; }}>✎</button>
+                  </div>
+                {:else}
+                  <div class="autocomplete-wrap">
+                    <input
+                      value={cls.name}
+                      placeholder="z.B. Waldläufer"
+                      oninput={(e) => { cls.name = (e.currentTarget as HTMLInputElement).value; onClassNameInput(i, cls.name); }}
+                      onkeydown={(e) => onClassNameKey(e, i)}
+                      onblur={() => setTimeout(() => { if (activeClassRow === i) { classSuggestions = []; activeClassRow = -1; } editingClassRow = -1; }, 150)}
+                    />
+                    {#if activeClassRow === i && classSuggestions.length > 0}
+                      <ul class="suggestions">
+                        {#each classSuggestions as sug, si}
+                          <li class:active={si === classSugIndex} onmousedown={() => selectClassSuggestion(i, sug)}>
+                            <span>{classDisplayName(sug)}</span>
+                          </li>
+                        {/each}
+                      </ul>
+                    {/if}
+                  </div>
+                {/if}
+              </td>
+              <td><input class="ref-level" type="number" min="1" max="20" value={cls.level}
+                oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); cls.level = Number.isNaN(v) ? 1 : Math.min(20, Math.max(1, v)); }} /></td>
+              <td>
+                {#if subs.length > 0}
+                  <select value={cls.subclassKey ?? ''} onchange={(e) => setSubclass(i, (e.currentTarget as HTMLSelectElement).value)}>
+                    <option value="">— keine —</option>
+                    {#each subs as sub}
+                      <option value={sub.key}>{classDisplayName(sub)}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <span class="subclass-na">—</span>
+                {/if}
+              </td>
+              <td><button class="remove-btn" onclick={() => removeClass(i)}>✕</button></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <button class="btn-add" onclick={addClass}>+ Klasse</button>
+      {#if classLevelPreview}<p class="class-preview">Anzeige: {classLevelPreview}</p>{/if}
     </div>
   </section>
 
@@ -1561,6 +1700,23 @@
   .ref-table td { padding: 0.15rem 0.2rem; }
   .ref-table input { width: 100%; min-width: 40px; }
   .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
+  .class-block { margin-top: 0.6rem; }
+  .class-total { color: var(--ink-muted); font-weight: 400; font-size: 0.75rem; }
+  .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
+  .class-linked { display: flex; align-items: center; gap: 0.25rem; }
+  .class-link {
+    background: none; border: none; padding: 0.1rem 0; cursor: pointer;
+    color: var(--accent, var(--ink)); text-decoration: underline; font: inherit; text-align: left;
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .class-link:hover { text-decoration: none; }
+  .link-edit {
+    background: none; border: none; cursor: pointer; padding: 0 0.2rem;
+    color: var(--ink-muted); font-size: 0.8rem; flex-shrink: 0;
+  }
+  .link-edit:hover { color: var(--ink); }
+  .ref-table select { width: 100%; min-width: 90px; font: inherit; }
+  .subclass-na { color: var(--ink-muted); }
   .computed-cell {
     display: inline-block;
     font-weight: 600;

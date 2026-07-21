@@ -14,7 +14,10 @@ import type {
   PersonalData,
   CharacterReferences,
   ReferenceEntry,
+  CharacterClass,
 } from '../schemas/character';
+
+export { formatClassLevel, totalLevel } from '../schemas/character';
 
 export type {
   Character,
@@ -25,6 +28,7 @@ export type {
   PersonalData,
   CharacterReferences,
   ReferenceEntry,
+  CharacterClass,
 };
 
 /** Bisheriger Name des Charakter-Datentyps — Alias auf das Zod-Schema. */
@@ -189,6 +193,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
 
   return {
     name: f('Charaktername_page1'),
+    classes: [], // strukturierte Klassen: aus classLevel beim Laden migriert (best-effort)
     classLevel: f('KlasseUndStufe'),
     playerName: f('Spielername'),
     background: f('Hintergrund'),

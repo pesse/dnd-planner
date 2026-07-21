@@ -341,8 +341,9 @@
     const dirPath = `${CHARACTERS_PATH}/${slug}`;
 
     const json: CharacterJSON = {
-      _version: 1,
+      _version: 2,
       name,
+      classes: [],
       classLevel: '', playerName: '', background: '', race: '', xp: '',
       str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
       strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
