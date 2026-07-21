@@ -4,6 +4,7 @@
   import { parseClass as _parseClass } from '$lib/utils/schemaValidation';
   import ClassEditForm from './ClassEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { buildRuleTranslationSystemPrompt } from '$lib/prompts';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
@@ -113,7 +114,7 @@
                   <span class="feature-name">{featureName(f)}</span>
                   {#if f.gainedAt.length}<span class="feature-lvl">Stufe {f.gainedAt.join(', ')}</span>{/if}
                 </div>
-                {#if featureDesc(f)}<div class="feature-desc">{featureDesc(f)}</div>{/if}
+                {#if featureDesc(f)}<div class="feature-desc"><Markdown source={featureDesc(f)} /></div>{/if}
               </div>
             {/each}
           </div>
@@ -187,7 +188,7 @@
   .feature-head { display: flex; align-items: baseline; gap: 0.5rem; }
   .feature-name { font-weight: 700; font-variant: small-caps; color: var(--copper); }
   .feature-lvl { font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
-  .feature-desc { font-size: 0.85rem; line-height: 1.55; white-space: pre-wrap; margin-top: 0.15rem; }
+  .feature-desc { font-size: 0.85rem; line-height: 1.55; margin-top: 0.15rem; }
   .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
 
   .edit-wrap {

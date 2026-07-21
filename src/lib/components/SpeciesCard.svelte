@@ -4,6 +4,7 @@
   import { parseSpecies as _parseSpecies } from '$lib/utils/schemaValidation';
   import SpeciesEditForm from './SpeciesEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { buildRuleTranslationSystemPrompt } from '$lib/prompts';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
@@ -100,7 +101,7 @@
             {#each draft!.traits as t}
               <div class="feature">
                 <div class="feature-name">{traitName(t)}</div>
-                {#if traitDesc(t)}<div class="feature-desc">{traitDesc(t)}</div>{/if}
+                {#if traitDesc(t)}<div class="feature-desc"><Markdown source={traitDesc(t)} /></div>{/if}
               </div>
             {/each}
           </div>
@@ -172,7 +173,7 @@
 
   .features { padding: 0.6rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
   .feature-name { font-weight: 700; font-variant: small-caps; color: var(--green); }
-  .feature-desc { font-size: 0.85rem; line-height: 1.55; white-space: pre-wrap; margin-top: 0.15rem; }
+  .feature-desc { font-size: 0.85rem; line-height: 1.55; margin-top: 0.15rem; }
   .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
 
   .edit-wrap {
