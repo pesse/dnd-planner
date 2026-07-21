@@ -16,6 +16,11 @@
 <div class="sb-header">
   <input class="ef sb-name" bind:value={feat.nameDe} oninput={mark} placeholder="Deutscher Name" />
   <input class="ef sb-name-en" bind:value={feat.name} oninput={mark} placeholder="Name (EN)" />
+  <div class="meta-row">
+    <label class="lbl-inline">Schlüssel
+      <input class="ef key-input" bind:value={feat.key} oninput={mark} placeholder="z.B. srd-2024_alert" />
+    </label>
+  </div>
 </div>
 
 <div class="divider"></div>
@@ -66,6 +71,13 @@
     font-variant: small-caps; width: 100%;
   }
   .sb-name-en { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; width: 100%; }
+
+  .meta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }
+  .lbl-inline {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.8rem; color: var(--ink-soft);
+  }
+  .key-input { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--ink-muted); min-width: 160px; }
 
   .divider {
     height: 2px;

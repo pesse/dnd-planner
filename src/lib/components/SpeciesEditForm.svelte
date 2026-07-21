@@ -29,6 +29,9 @@
   <input class="ef sb-name" bind:value={species.nameDe} oninput={mark} placeholder="Deutscher Name" />
   <input class="ef sb-name-en" bind:value={species.name} oninput={mark} placeholder="Name (EN)" />
   <div class="meta-row">
+    <label class="lbl-inline">Schlüssel
+      <input class="ef key-input" bind:value={species.key} oninput={mark} placeholder="z.B. srd-2024_elf" />
+    </label>
     <label class="lbl-inline">Größe
       <input class="ef med" bind:value={species.size} oninput={mark} placeholder="z.B. Mittelgroß" />
     </label>
@@ -89,6 +92,7 @@
     font-size: 0.8rem; color: var(--ink-soft);
   }
   .med { width: 130px; }
+  .key-input { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--ink-muted); min-width: 160px; }
 
   .divider {
     height: 2px;
