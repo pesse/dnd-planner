@@ -203,18 +203,46 @@ export function totalLevel(classes: CharacterClass[]): number {
   return (classes ?? []).reduce((sum, c) => sum + (c.level || 0), 0);
 }
 
+/** Stufen-Schlüsselwörter, die zwischen Klassenname und Zahl stehen können. */
+const LEVEL_KEYWORD_RE = /\b(?:level|lvl|lv|stufe|stufen|grad)\b/gi;
+
 /**
- * Zerlegt einen Freitext-Eintrag wie „Waldläufer 5" in Name + Stufe.
- * Angehängte Ganzzahl = Stufe (Default 1), Rest = Name (sourceKey bleibt leer).
+ * Entfernt Stufen-Schlüsselwörter und Rand-Interpunktion aus einem Klassennamen
+ * („Schurke Level" → „Schurke"). Kollabiert Mehrfach-Leerraum.
+ */
+export function cleanClassName(name: string): string {
+  return (name ?? '')
+    .replace(LEVEL_KEYWORD_RE, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.,:_-]+|[\s.,:_-]+$/g, '')
+    .trim();
+}
+
+/**
+ * Zerlegt einen Freitext-Eintrag wie „Waldläufer 5" oder „Schurke Level 2" in
+ * Name + Stufe. Angehängte Ganzzahl = Stufe (Default 1), Rest = Name (bereinigt um
+ * Stufen-Schlüsselwörter; sourceKey bleibt leer).
  */
 function parseClassLevelPart(part: string): CharacterClass | null {
   const trimmed = part.trim();
   if (!trimmed) return null;
   const m = trimmed.match(/^(.*?)[\s.,-]*(\d{1,2})\s*$/);
-  const name = (m ? m[1] : trimmed).trim();
   const level = m ? Math.min(20, Math.max(1, Number(m[2]))) : 1;
+  const name = cleanClassName(m ? m[1] : trimmed);
   if (!name) return null;
   return { sourceKey: '', name, level };
+}
+
+/**
+ * Zerlegt einen Freitext-Klassenstring wie „Kämpfer 5 / Zauberer 2" in strukturierte
+ * Klassen-Einträge. Trennung an „/"; sourceKey/Subklasse bleiben leer (Bibliotheks-
+ * Verknüpfung erfolgt separat). Für Migration UND explizite Umstellung in der UI.
+ */
+export function parseClassLevelText(text: string): CharacterClass[] {
+  return (text ?? '')
+    .split('/')
+    .map(parseClassLevelPart)
+    .filter((x): x is CharacterClass => x !== null);
 }
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
@@ -226,10 +254,7 @@ export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
   const existing = c.classes;
   const hasClasses = Array.isArray(existing) && existing.length > 0;
   if (!hasClasses && typeof c.classLevel === 'string' && c.classLevel.trim()) {
-    const parsed = c.classLevel
-      .split('/')
-      .map(parseClassLevelPart)
-      .filter((x): x is CharacterClass => x !== null);
+    const parsed = parseClassLevelText(c.classLevel);
     if (parsed.length) {
       c.classes = parsed;
       c._version = 2;

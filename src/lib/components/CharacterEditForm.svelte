@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, type Character, type CharacterData, type CharacterClass, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClassFeatures, getClasses, searchClasses, classDisplayName, type FeatureRef, type ClassInfo } from '../classLibrary';
@@ -38,6 +38,11 @@
   let classes = $state<CharacterClass[]>((character.classes ?? []).map((c) => ({ ...c })));
   let classLevelPreview = $derived(formatClassLevel(classes));
   let charTotalLevel = $derived(totalLevel(classes));
+  // Ursprünglicher Freitext-Klassenstring — EINMALIG erfasst, bevor der Sync-Effekt unten
+  // `character.classLevel` aus `classes` neu ableitet. Grundlage der Altformat-Umstellung
+  // (siehe legacyConversion/convertLegacyClasses), falls die Auto-Migration den Freitext
+  // nicht in `classes` überführen konnte.
+  const legacyClassLevelInit = character.classLevel ?? '';
   let playerName = $state(character.playerName ?? '');
   let background = $state(character.background ?? '');
   let race = $state(character.race ?? '');
@@ -598,6 +603,56 @@
   let classSugIndex = $state(-1);
   let editingClassRow = $state(-1); // Zeile im Bearbeiten-Modus (sonst: Link zur Bibliothek)
 
+  // ─── Altformat-Umstellung (Freitext → strukturiert + Bibliotheks-Verknüpfung) ─────
+  /**
+   * Findet die passende GRUNDklasse zu einem Freitext-Namen — nur ein sicherer,
+   * exakter Treffer (deutscher oder englischer Name, mit vorhandenem Key). Kein
+   * Substring-Matching, damit die Umstellung nichts falsch verknüpft.
+   */
+  function matchBaseClass(rawName: string): ClassInfo | undefined {
+    // Stufen-Schlüsselwörter entfernen ("Schurke Level" → "Schurke"), damit auch
+    // bereits gespeicherte, verrauschte Namen sicher zugeordnet werden.
+    const q = cleanClassName(rawName).toLowerCase();
+    if (!q) return undefined;
+    return baseClassIndex.find(
+      (c) => !!c.key && ((c.nameDe ?? c.name).toLowerCase() === q || c.name.toLowerCase() === q),
+    );
+  }
+
+  // Umstellungs-Angebot: sichtbar, wenn es noch unstrukturierten Freitext gibt ODER
+  // strukturierte Klassen ohne Bibliotheks-Verknüpfung, die sich sicher zuordnen lassen.
+  const legacyConversion = $derived.by(() => {
+    const needsStructuring = classes.length === 0 && legacyClassLevelInit.trim().length > 0;
+    const base = classes.length > 0 ? classes : parseClassLevelText(legacyClassLevelInit);
+    if (base.length === 0) return null;
+    const linkable = base.filter((c) => !c.sourceKey && c.name.trim() && matchBaseClass(c.name));
+    if (!needsStructuring && linkable.length === 0) return null;
+    return { needsStructuring, linkable: linkable.length };
+  });
+
+  /**
+   * Stellt den Charakter aufs neue Format um: zerlegt Freitext bei Bedarf in `classes`
+   * und verknüpft unverlinkte Grundklassen best-effort mit der Bibliothek (setzt
+   * sourceKey + normalisierten Anzeigenamen). Nicht sicher zuordenbare Einträge bleiben
+   * unverlinkt zur manuellen Auswahl. Mutiert den Formular-Zustand → Sync-Effekt greift.
+   */
+  function convertLegacyClasses() {
+    if (classes.length === 0 && legacyClassLevelInit.trim()) {
+      classes = parseClassLevelText(legacyClassLevelInit);
+    }
+    for (const cls of classes) {
+      if (cls.sourceKey || !cls.name.trim()) continue;
+      const match = matchBaseClass(cls.name);
+      if (match?.key) {
+        cls.sourceKey = match.key;
+        cls.name = classDisplayName(match);
+      } else {
+        cls.name = cleanClassName(cls.name); // Homebrew: wenigstens „Level"-Rauschen entfernen
+      }
+    }
+    editingClassRow = -1;
+  }
+
   /** Bibliotheks-Pfad zur GRUNDklasse eines Eintrags, falls verlinkt. */
   function classPath(cls: CharacterClass): string | undefined {
     if (!cls.sourceKey) return undefined;
@@ -861,6 +916,19 @@
     <!-- Klasse & Stufe strukturiert (multiclass-fähig); „Klasse & Stufe"-Anzeige wird abgeleitet. -->
     <div class="ref-block class-block" use:diffMark={dirOf(saved?.classLevel, classLevelPreview)}>
       <h4>Klassen & Stufen{#if charTotalLevel > 0} <span class="class-total">· Gesamtstufe {charTotalLevel}</span>{/if}</h4>
+      {#if legacyConversion}
+        <div class="legacy-banner">
+          <span class="legacy-banner-text">
+            Altes Freitext-Format erkannt.
+            {#if legacyConversion.linkable > 0}
+              {legacyConversion.linkable} {legacyConversion.linkable === 1 ? 'Klasse lässt' : 'Klassen lassen'} sich mit der Bibliothek verknüpfen.
+            {:else}
+              Freitext in strukturierte Klassen übernehmen.
+            {/if}
+          </span>
+          <button type="button" class="legacy-banner-btn" onclick={convertLegacyClasses}>Aufs neue Format umstellen</button>
+        </div>
+      {/if}
       <table class="ref-table">
         <thead><tr><th>Klasse</th><th>Stufe</th><th>Subklasse</th><th></th></tr></thead>
         <tbody>
@@ -1708,6 +1776,23 @@
   .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
   .class-block { margin-top: 0.6rem; }
   .class-total { color: var(--ink-muted); font-weight: 400; font-size: 0.75rem; }
+  .legacy-banner {
+    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    margin: 0.3rem 0 0.5rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+  }
+  .legacy-banner-text { flex: 1; min-width: 12rem; color: var(--ink-muted); }
+  .legacy-banner-btn {
+    flex-shrink: 0; cursor: pointer; font: inherit; font-size: 0.8rem;
+    padding: 0.25rem 0.7rem; border-radius: 5px;
+    border: 1px solid var(--arcane);
+    background: var(--arcane); color: var(--bg);
+  }
+  .legacy-banner-btn:hover { filter: brightness(1.08); }
   .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
   .class-linked { display: flex; align-items: center; gap: 0.25rem; }
   .class-link {

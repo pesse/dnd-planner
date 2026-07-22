@@ -17,7 +17,7 @@ import type {
   CharacterClass,
 } from '../schemas/character';
 
-export { formatClassLevel, totalLevel } from '../schemas/character';
+export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName } from '../schemas/character';
 
 export type {
   Character,
