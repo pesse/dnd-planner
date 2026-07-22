@@ -11,6 +11,7 @@
  * Rüstungs-/Waffen-Übungen liefert v2 NICHT strukturiert (nur Prosa) → die
  * bleiben der LLM-Schicht überlassen.
  */
+import { invoke } from '@tauri-apps/api/core';
 import {
   classProgressionSchema,
   type ClassProgression,
@@ -18,6 +19,7 @@ import {
   type AbilityKey,
 } from '$lib/schemas/classProgression';
 import { getClass, DEFAULT_DOCUMENT } from './open5eApi';
+import { getClasses } from '$lib/classLibrary';
 
 // ── Namens-/Attribut-Maps ──────────────────────────────────────────────────────
 /** Deutscher Klassenname → Open5e-Slug (die 12 SRD-Grundklassen). */
@@ -100,6 +102,24 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
 // ── Cache + Zugriff ──────────────────────────────────────────────────────────
 const cache = new Map<string, ClassProgression | null>();
 
+/**
+ * Lädt eine Progression aus der LOKALEN Bibliothek (`vault/classes`) per v2-Key.
+ * Die dortigen JSONs sind bereits progression-förmig (import via `mapV2` + Übersetzung),
+ * daher schneller als der Open5e-Netzabruf UND enthalten Homebrew/eigene Subklassen
+ * (z.B. „Circle of the Moon"), die im SRD-Dokument fehlen. null = nicht lokal vorhanden.
+ */
+async function getLocalProgression(key: string): Promise<ClassProgression | null> {
+  try {
+    const info = (await getClasses()).find((c) => c.key === key);
+    if (!info) return null;
+    const data = JSON.parse(await invoke<string>('read_file_content', { path: info.path }));
+    const r = classProgressionSchema.safeParse(data);
+    return r.success ? r.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Baut den v2-Key aus deutschem Klassennamen + Quelle (Default SRD 5.2). */
 function keyFor(klasseDe: string, doc = DEFAULT_DOCUMENT): string | null {
   const slug = DE_TO_SLUG[CLASS_NAMES_DE.find((c) => fold(c) === fold(klasseDe.trim())) ?? ''];
@@ -133,14 +153,12 @@ export async function getProgression(klasseDe: string, doc = DEFAULT_DOCUMENT): 
 export async function getProgressionByKey(key: string): Promise<ClassProgression | null> {
   if (!key) return null;
   if (cache.has(key)) return cache.get(key)!;
-  try {
-    const prog = mapV2(await getClass(key));
-    cache.set(key, prog);
-    return prog;
-  } catch {
-    cache.set(key, null);
-    return null;
-  }
+  // AUSSCHLIESSLICH lokale Bibliothek — kein Open5e-Zugriff zur Laufzeit. Fehlt eine
+  // Klasse/Subklasse lokal, muss sie zuvor lokal angelegt werden (Import in der Sidebar
+  // kann Open5e als Basis nutzen). null → Aufrufer degradiert (isHomebrew → KI fragt ab).
+  const local = await getLocalProgression(key);
+  cache.set(key, local);
+  return local;
 }
 
 // ── Reader (deterministisch, aus den strukturierten Spalten) ───────────────────

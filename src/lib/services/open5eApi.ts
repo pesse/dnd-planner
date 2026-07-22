@@ -36,10 +36,16 @@ export interface V2ClassRef {
   subclass_of?: { key?: string; name?: string } | null;
 }
 
+// Session-Cache für die (große) Klassenliste — der Netzabruf lädt bis zu `limit`
+// Klassen und ist teuer; innerhalb einer Session ändert er sich nicht.
+let classListCache: V2ClassRef[] | null = null;
+
 /** Listet Klassen-/Subklassen-Referenzen (für Quellen-Filter & Subklassen-Auswahl). */
 export async function listClasses(limit = 400): Promise<V2ClassRef[]> {
+  if (classListCache) return classListCache;
   const raw = (await apiGet(`${OPEN5E_V2}/classes/?format=json&limit=${limit}`)) as { results?: V2ClassRef[] };
-  return raw.results ?? [];
+  classListCache = raw.results ?? [];
+  return classListCache;
 }
 
 /** Subklassen einer Basisklasse, gefiltert nach erlaubten Quellen (document.key). */

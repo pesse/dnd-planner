@@ -10,7 +10,9 @@ const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSc
 
 export const spellSchema = z.object({
   index: z.string().optional().describe('API-Slug (leer bei Homebrew).'),
+  key: z.string().optional().describe('Open5e-Key, z.B. "srd-2024_moonbeam" (für Verlinkung/Dedup, leer bei Homebrew).'),
   name: z.string(),
+  name_en: z.string().optional().describe('Kanonischer englischer SRD-Name (für EN↔DE-Matching, z.B. wenn die KI "Moonbeam" liefert und der Zauber lokal als "Mondstrahl" liegt).'),
   level: z.number().int().default(0).describe('0 = Zaubertrick, 1–9'),
   school: schoolEnum
     .default('evocation')

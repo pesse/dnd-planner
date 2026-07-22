@@ -39,6 +39,7 @@ export async function generateStructured<T>(
   prompt: string,
   schema: object,
   system?: string,
+  opts?: { signal?: AbortSignal },
 ): Promise<T> {
   const client = createClient(requireApiKey(config));
   const message = await createMessage(
@@ -51,6 +52,7 @@ export async function generateStructured<T>(
       output_config: { format: { type: 'json_schema', schema: schema as Record<string, unknown> } },
     },
     'structured',
+    opts?.signal,
   );
   return JSON.parse(firstText(message)) as T;
 }

@@ -85,7 +85,7 @@ export async function runAiAction<T>(
     data = extractJson(draftText);
   } else if (client.capabilities.structuredOutput) {
     // Tool-frei + nativ schema-valide (Anthropic): ein Call, garantiert valides JSON.
-    data = await generateStructured<T>(config, userInput, action.jsonSchema, system);
+    data = await generateStructured<T>(config, userInput, action.jsonSchema, system, { signal: opts.signal });
     draftText = data != null ? JSON.stringify(data) : '';
   } else {
     // Tool-frei (Groq/QM): ein einziger generate-Call statt Agent-Loop.
@@ -102,6 +102,7 @@ export async function runAiAction<T>(
         `Produce the final, schema-conformant JSON from the following draft:\n\n${draftText}`,
         action.jsonSchema,
         action.buildSystemPrompt(),
+        { signal: opts.signal },
       );
     } else {
       // Emuliert (Groq): erneut anfordern, dann parsen.

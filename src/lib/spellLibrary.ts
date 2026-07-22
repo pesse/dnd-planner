@@ -3,9 +3,15 @@
  * Stellt Suchfunktionen bereit inkl. Klassen-Filterung.
  */
 import { invoke } from '@tauri-apps/api/core';
+import { slugify } from './editor/saveAs';
+import type { Spell } from './types';
 
 export interface SpellInfo {
   name: string;
+  /** Kanonischer englischer SRD-Name (für EN↔DE-Matching); leer, wenn nicht hinterlegt. */
+  name_en?: string;
+  /** Open5e-Key (z.B. "srd-2024_moonbeam"); leer bei Homebrew. */
+  key?: string;
   level: number;
   classes: string[];
   school: string;
@@ -36,6 +42,35 @@ export async function getSpellLibrary(): Promise<SpellInfo[]> {
       .catch(() => { loading = null; return []; });
   }
   return loading;
+}
+
+/** Entwertet den Zauber-Index-Cache; nächster `getSpellLibrary()`-Aufruf lädt neu. */
+export function invalidateSpellLibrary(): void {
+  cache = null;
+  loading = null;
+}
+
+// school (englisch im JSON) → Ordnername (deutsch im Vault); identisch zu SpellCard.svelte.
+const SPELL_SCHOOL_DIR: Record<string, string> = {
+  abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
+  enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
+  necromancy: 'nekromantie', transmutation: 'verwandlung',
+};
+
+/**
+ * Legt einen Zauber direkt im Vault an (`vault/spells/{schule}/{slug}.json`), ohne einen
+ * CardEditor zu öffnen — für die Inline-Anlage im Stufenaufstieg. Invalidiert danach den
+ * Index-Cache und lädt ihn neu, damit der neue Zauber sofort auflöst. Gibt die
+ * kanonische (getrimmte) Namensform zurück.
+ */
+export async function createSpellInline(spell: Spell): Promise<string> {
+  const dir = SPELL_SCHOOL_DIR[spell.school] ?? 'hervorrufung';
+  const name = (spell.name || 'Neuer Zauber').trim();
+  const path = `./vault/spells/${dir}/${slugify(name)}.json`;
+  await invoke('write_file_content', { path, content: JSON.stringify({ ...spell, name }, null, 2) });
+  invalidateSpellLibrary();
+  await getSpellLibrary();
+  return name;
 }
 
 /** Lädt die vollständigen Zauberdaten für einen bekannten Pfad. */
@@ -105,7 +140,8 @@ export function searchSpells(
 
   const matches = library.filter(s => {
     if (levelFilter !== null && s.level !== levelFilter) return false;
-    return s.name.toLowerCase().includes(q);
+    // EN↔DE: auch am englischen Namen matchen, damit "Moonbeam" den lokalen "Mondstrahl" findet.
+    return s.name.toLowerCase().includes(q) || (s.name_en ?? '').toLowerCase().includes(q);
   });
 
   // Sortierung: Klassen-Treffer zuerst, dann alphabetisch
@@ -113,9 +149,9 @@ export function searchSpells(
     const aIn = englishClass ? a.classes.includes(englishClass) : false;
     const bIn = englishClass ? b.classes.includes(englishClass) : false;
     if (aIn !== bIn) return aIn ? -1 : 1;
-    // Exakter Prefix-Treffer bevorzugen
-    const aStart = a.name.toLowerCase().startsWith(q);
-    const bStart = b.name.toLowerCase().startsWith(q);
+    // Exakter Prefix-Treffer bevorzugen (DE- oder EN-Name)
+    const aStart = a.name.toLowerCase().startsWith(q) || (a.name_en ?? '').toLowerCase().startsWith(q);
+    const bStart = b.name.toLowerCase().startsWith(q) || (b.name_en ?? '').toLowerCase().startsWith(q);
     if (aStart !== bStart) return aStart ? -1 : 1;
     return a.name.localeCompare(b.name);
   });

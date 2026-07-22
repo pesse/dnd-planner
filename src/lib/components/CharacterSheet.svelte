@@ -6,9 +6,13 @@
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
-  import type { Character } from '../schemas/character';
+  import { type Character, formatClassLevel } from '../schemas/character';
+  import { proficiencyBonus } from '../services/classProgression';
+  import type { LevelUpProposal } from '../schemas/levelUp';
+  import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
+  import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
@@ -84,6 +88,98 @@
   });
   // Quelle der PDF-Import-Metadaten (nicht editierbar).
   const pdfName = $derived(character?._importedFrom ?? '');
+
+  // ─── Stufenaufstieg-Assistent ──────────────────────────────────────────────
+  let showLevelUp = $state(false);
+
+  /**
+   * Wendet den KI-Vorschlag ADDITIV auf einen frischen Draft-Klon an und ersetzt
+   * `ed.draft` per NEUER Referenz. Der Referenz-Swap ist tragend: er löst
+   * `{#key ed.draft}` (Formular-Remount → Diff-Highlighting) und `ed.dirty` aus.
+   * Numerische Werte werden addiert, damit item-gewährte Boni erhalten bleiben.
+   */
+  function applyLevelUp(proposal: LevelUpProposal, delta: LevelUpDelta) {
+    if (!ed.draft) return;
+    const next = structuredClone($state.snapshot(ed.draft)) as Character;
+
+    if (delta.isNewClass) {
+      // Multiclassing: neue Klasse ab Zielstufe anhängen.
+      next.classes.push({
+        sourceKey: delta.sourceKey,
+        name: delta.klasseName,
+        level: delta.toLevel,
+        subclassKey: proposal.subclass?.key || undefined,
+        subclassName: proposal.subclass?.name || undefined,
+      });
+    } else {
+      const cls = next.classes[delta.classIndex];
+      if (cls) {
+        cls.level = delta.toLevel;
+        if (proposal.subclass?.key) { cls.subclassKey = proposal.subclass.key; cls.subclassName = proposal.subclass.name; }
+      }
+    }
+    next.classLevel = formatClassLevel(next.classes);
+
+    // Übungsbonus deterministisch aus der Gesamtstufe (NICHT vom LLM übernehmen).
+    next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
+
+    // Zauberplätze additiv — bewahrt item-/manuell gewährte Slots.
+    const slots = next.spells?.slots ?? [];
+    for (let i = 0; i < 9; i++) if (slots[i]) slots[i].total += proposal.spellSlotDeltas[i] ?? 0;
+    if (proposal.newCantrips.length) next.spells.cantrips = [...next.spells.cantrips, ...proposal.newCantrips];
+    if (proposal.spellcastingClass && !next.spells.spellcastingClass) next.spells.spellcastingClass = proposal.spellcastingClass;
+
+    // Attribute additiv (ASI) + Modifikatoren neu berechnen.
+    const abil = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
+    for (const k of abil) {
+      const d = proposal.abilityScoreDeltas[k] ?? 0;
+      if (!d) continue;
+      const score = (next[k] ?? 10) + d;
+      next[k] = score;
+      (next as unknown as Record<string, number>)[`${k}Mod`] = Math.floor((score - 10) / 2);
+    }
+
+    // Trefferpunkte (Freitext): numerischen Teil erhöhen.
+    if (proposal.hpGain) next.hpMax = String((parseInt(next.hpMax, 10) || 0) + proposal.hpGain);
+    if (proposal.hitDiceNew) next.hitDice = proposal.hitDiceNew;
+
+    // Klassenmerkmale: entweder KI-überarbeiteter VOLLTEXT (eigener Schritt, ersetzt komplett)
+    // oder — als Fallback — Freitext anhängen (inkl. Kampfstil). Referenzen separat unten.
+    if (proposal.classFeaturesRewrite?.trim()) {
+      next.classFeatures = proposal.classFeaturesRewrite;
+    } else {
+      const featureText = [proposal.classFeaturesAppend, proposal.fightingStyle ? `Kampfstil: ${proposal.fightingStyle}` : '']
+        .filter((s) => s && s.trim()).join('\n');
+      if (featureText) {
+        next.classFeatures = [next.classFeatures, featureText].filter((s) => s && s.trim()).join('\n');
+      }
+    }
+    if (proposal.referencesClassAdd.length) {
+      next.references.class = [...next.references.class, ...proposal.referencesClassAdd];
+    }
+    // Talente → references.feats (nicht references.class).
+    if (proposal.referencesFeatsAdd.length) {
+      next.references.feats = [...next.references.feats, ...proposal.referencesFeatsAdd];
+    }
+
+    // Gewährte/gelernte Zauber → spells.byLevel (Dedup je Grad). `prepared` unterscheidet
+    // castbare (immer-vorbereitet / known) von nur ins Zauberbuch gelegten (Magier).
+    for (const s of proposal.preparedSpellsAdd) {
+      if (!s.name?.trim()) continue;
+      const lvl = String(s.level);
+      const arr = next.spells.byLevel[lvl] ?? [];
+      if (!arr.some((e) => e.name === s.name)) arr.push({ name: s.name, prepared: s.prepared ?? true });
+      next.spells.byLevel[lvl] = arr;
+    }
+
+    // Expertise / Fertigkeits-Profizienzen additiv (nur bestehende Skill-Keys setzen).
+    for (const k of proposal.expertiseSkills) if (next.skills[k]) next.skills[k].exp = true;
+    for (const k of proposal.proficiencySkillsAdd) if (next.skills[k]) next.skills[k].prof = true;
+
+    // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
+    const r = parseCharacter(next);
+    ed.draft = r.ok ? r.data : next;
+  }
 
   let gmNotes = $state('');
   let gmNotesSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
@@ -597,8 +693,14 @@
                 aria-label="Als PDF exportieren" title="Ausgefülltes ATaendler-PDF exportieren">
           {@render pdfIcon()}<span class="arrow">&rarr;</span>
         </button>
+        <button class="icon-btn levelup" onclick={() => (showLevelUp = true)}
+                aria-label="Stufenaufstieg" title="Stufenaufstieg (KI-gestützt)">⬆</button>
       </div>
     </div>
+
+    {#if showLevelUp && ed.draft}
+      <LevelUpAssistant character={ed.draft} onApply={applyLevelUp} onclose={() => (showLevelUp = false)} />
+    {/if}
 
     <EditorPanel
       bind:tab={ed.tab}
@@ -957,11 +1059,13 @@
         <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
         <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
              frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
-        {#key ed.draft}
-          <div class="edit-wrapper" style="width:100%">
-            <CharacterEditForm character={ed.draft!} {dirPath} saved={savedCharacter} />
-          </div>
-        {/key}
+        {#if ed.draft}
+          {#key ed.draft}
+            <div class="edit-wrapper" style="width:100%">
+              <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter} />
+            </div>
+          {/key}
+        {/if}
       {/snippet}
 
       {#snippet extra(id)}
@@ -1166,6 +1270,8 @@
   .icon-btn:disabled { opacity: 0.6; cursor: default; }
   .icon-btn.import:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.export:hover { border-color: var(--green); color: var(--green); }
+  .icon-btn.levelup { justify-content: center; font-weight: 700; }
+  .icon-btn.levelup:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.busy { animation: icon-pulse 1s ease-in-out infinite; }
 
   @keyframes icon-pulse {

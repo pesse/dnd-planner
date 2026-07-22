@@ -16,7 +16,7 @@
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
   // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
   // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
-  let { character, dirPath, saved }: {
+  let { character = $bindable(), dirPath, saved }: {
     character: Character;
     dirPath: string;
     saved?: Character | null;
@@ -1125,7 +1125,10 @@
         <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
         <tbody>
           {#each list as ref, i}
-            <tr>
+            {@const refDir = !saved || !ref.name.trim() ? 'none'
+              : i >= (saved.references?.[kind]?.length ?? 0) ? 'up'
+              : classifyChange($state.snapshot(saved.references[kind][i]), $state.snapshot(ref))}
+            <tr use:diffMark={refDir}>
               <td>
                 <div class="autocomplete-wrap">
                   <input
@@ -1168,7 +1171,10 @@
         <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
         <tbody>
           {#each refFeats as ref, i}
-            <tr>
+            {@const refDir = !saved || !ref.name.trim() ? 'none'
+              : i >= (saved.references?.feats?.length ?? 0) ? 'up'
+              : classifyChange($state.snapshot(saved.references.feats[i]), $state.snapshot(ref))}
+            <tr use:diffMark={refDir}>
               <td>
                 <div class="autocomplete-wrap">
                   <input
