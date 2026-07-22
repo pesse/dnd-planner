@@ -39,12 +39,6 @@ const ABILITY_LABEL: Record<AbilityKey, string> = {
 };
 
 // ── Feature-Normalisierung ─────────────────────────────────────────────────────
-/** Kürzt eine (englische) Merkmalsbeschreibung auf eine knappe Referenznotiz. */
-function shortDesc(desc: string): string {
-  const s = (desc || '').replace(/\s+/g, ' ').trim();
-  return s.length > 160 ? `${s.slice(0, 157)}…` : s;
-}
-
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', toLevel: number): GainedFeature {
   return { name: f.name, desc: f.desc ?? '', source, gainedAt: Math.min(toLevel, ...(f.gainedAt.length ? f.gainedAt : [toLevel])) };
 }
@@ -327,18 +321,11 @@ export function assembleProposal(p: AssembleParams): LevelUpProposal {
   p.pickedLearned.forEach((e) => pushPrep({ ...e, prepared: p.learnAsPrepared }));
   const cantrips = [...new Set([...p.pickedCantrips, ...p.validated.grantedCantrips])];
 
-  // Referenzen (Berechnungsgrundlage): aus den TATSÄCHLICH gewonnenen Merkmalen — inkl.
-  // der frisch gewählten Subklasse (deren Features hängen NICHT am delta, sondern wurden
-  // separat nachgeladen). sourceKey je nach Herkunft (Klasse vs. Subklasse).
-  const subKey = p.chosenSubclass?.key || delta.subclassKey || delta.sourceKey;
-  const refsClass = p.gainedFeatures.map((f) => ({
-    sourceKey: f.source === 'subclass' ? subKey : delta.sourceKey,
-    name: f.name,
-    gainedAt: f.gainedAt || delta.toLevel,
-    desc: shortDesc(f.desc),
-  }));
-
-  // Talent-Referenzen
+  // Klassen-/Subklassen-Merkmale werden NICHT mehr am Charakter persistiert — sie ergeben
+  // sich aus dem Klassen-Link (classes[].sourceKey/subclassKey) + Stufe und werden zur
+  // Laufzeit aus der Bibliothek aufgelöst. Die KI-Deutung (featureEffects) bekommt sie
+  // weiterhin als Prompt-Input (p.gainedFeatures), nur die Persistenz entfällt.
+  // Talent-Referenzen (eigene Links).
   const refsFeats = p.chosenFeats.map((f) => ({ sourceKey: f.key, name: f.name, gainedAt: f.gainedAt, desc: '' }));
 
   // Fighting Style / Expertise / Profizienzen aus Antworten + Ridern
@@ -358,7 +345,6 @@ export function assembleProposal(p: AssembleParams): LevelUpProposal {
     hpGain,
     hitDiceNew: bumpHitDice(p.hitDice, delta.hitDie, delta.levelsGained, delta.toLevel),
     classFeaturesAppend: p.narrative.classFeaturesAppend,
-    referencesClassAdd: refsClass,
     subclass: p.chosenSubclass ? { key: p.chosenSubclass.key, name: p.chosenSubclass.name } : { key: '', name: '' },
     spellcastingClass: delta.casterKind !== 'none' ? delta.klasseName : '',
     preparedSpellsAdd: prepared,

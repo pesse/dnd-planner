@@ -30,4 +30,11 @@
     margin: 0.3rem 0; padding-left: 0.7rem;
     border-left: 2px solid var(--border); color: var(--ink-soft);
   }
+  .md :global(table) {
+    border-collapse: collapse; margin: 0.4rem 0; font-size: 0.95em;
+  }
+  .md :global(th), .md :global(td) {
+    border: 1px solid var(--border); padding: 0.2rem 0.5rem; text-align: left;
+  }
+  .md :global(th) { background: var(--surface); font-weight: 700; }
 </style>

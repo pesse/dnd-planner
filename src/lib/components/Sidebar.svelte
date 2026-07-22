@@ -344,7 +344,7 @@
       _version: 2,
       name,
       classes: [],
-      classLevel: '', playerName: '', background: '', race: '', xp: '',
+      classLevel: '', playerName: '', background: '', species: { sourceKey: '', name: '' }, race: '', xp: '',
       str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
       strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
       ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
@@ -360,7 +360,7 @@
       spells: emptySpells(),
       personal: emptyPersonal(),
       proficiencies: emptyProficiencies(),
-      references: { class: [], race: [], feats: [] },
+      references: { feats: [] },
     };
 
     const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;

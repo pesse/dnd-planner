@@ -625,7 +625,9 @@
     }
     if (proposal.fightingStyle) lines.push(`Kampfstil: ${proposal.fightingStyle}`);
     if (proposal.expertiseSkills.length) lines.push(`Expertise: ${proposal.expertiseSkills.join(', ')}`);
-    for (const r of proposal.referencesClassAdd) lines.push(`Merkmal: ${r.name}`);
+    // Klassenmerkmale werden nicht mehr persistiert (aus dem Link abgeleitet); zur
+    // Übersicht im Review zeigen wir die neu gewonnenen Merkmale dennoch an.
+    for (const g of gainedFeatures) lines.push(`Merkmal: ${g.name}`);
     for (const r of proposal.referencesFeatsAdd) lines.push(`Talent: ${r.name}`);
     return lines;
   });

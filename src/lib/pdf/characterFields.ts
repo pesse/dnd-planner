@@ -15,9 +15,10 @@ import type {
   CharacterReferences,
   ReferenceEntry,
   CharacterClass,
+  CharacterSpecies,
 } from '../schemas/character';
 
-export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName } from '../schemas/character';
+export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
 
 export type {
   Character,
@@ -29,6 +30,7 @@ export type {
   CharacterReferences,
   ReferenceEntry,
   CharacterClass,
+  CharacterSpecies,
 };
 
 /** Bisheriger Name des Charakter-Datentyps — Alias auf das Zod-Schema. */
@@ -197,6 +199,8 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     classLevel: f('KlasseUndStufe'),
     playerName: f('Spielername'),
     background: f('Hintergrund'),
+    // species-Link: sourceKey leer (Bibliotheks-Verknüpfung erfolgt im Editor), Name = Freitext.
+    species: { sourceKey: '', name: f('Volk') },
     race: f('Volk'),
     xp: f('Erfahrungspunkte'),
     str, ges, kon, int, wei, cha,
@@ -262,7 +266,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       koerpergroesse: f('Körpergrösse'),
       aussehen: f('Aussehen'),
     },
-    // Strukturierte Referenzen sind nicht Teil des PDFs → leer starten.
-    references: { class: [], race: [], feats: [] },
+    // Verknüpfte Talente sind nicht Teil des PDFs → leer starten.
+    references: { feats: [] },
   };
 }

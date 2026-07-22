@@ -2,15 +2,18 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
-  import { getClassFeatures, getClasses, searchClasses, classDisplayName, type FeatureRef, type ClassInfo } from '../classLibrary';
-  import { getSpeciesTraits } from '../speciesLibrary';
-  import { getFeats, searchFeats, saveFeat, featDesc, type FeatEntry } from '../featsLibrary';
+  import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
+  import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
+  import { getFeats, searchFeats, saveFeat, type FeatEntry } from '../featsLibrary';
+  import { resolveClassFeatures, resolveSpeciesTraits, type ResolvedFeatureGroup } from '../services/characterFeatures';
+  import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
+  import Markdown from './Markdown.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
@@ -45,6 +48,8 @@
   const legacyClassLevelInit = character.classLevel ?? '';
   let playerName = $state(character.playerName ?? '');
   let background = $state(character.background ?? '');
+  // Strukturierter Spezies-Link (Source-of-Truth). `race` = abgeleiteter Anzeige-String.
+  let species = $state<CharacterSpecies>({ ...(character.species ?? { sourceKey: '', name: '' }) });
   let race = $state(character.race ?? '');
   let xp = $state(character.xp ?? '');
 
@@ -154,9 +159,7 @@
 
   let attacks = $state(character.attacks.map(a => ({ ...a })));
   let classFeatures = $state(character.classFeatures ?? '');
-  // Strukturierte Referenzen (additiv zum Freitext) — je Domäne eine editierbare Liste.
-  let refClass = $state((character.references?.class ?? []).map(r => ({ ...r })));
-  let refRace = $state((character.references?.race ?? []).map(r => ({ ...r })));
+  // Verknüpfte Talente (Links; Beschreibung wird aus der Bibliothek aufgelöst).
   let refFeats = $state((character.references?.feats ?? []).map(r => ({ ...r })));
   let traits = $state(character.traits ?? '');
   let ideals = $state(character.ideals ?? '');
@@ -582,11 +585,11 @@
   }
   function removeInventoryItem(i: number) { inventory.splice(i, 1); }
 
-  // Referenz-Einträge: generisch über die jeweilige Liste (refClass/refRace/refFeats).
-  function addRef(list: typeof refClass) {
+  // Referenz-Einträge (nur noch Talent-Links).
+  function addRef(list: typeof refFeats) {
     list.push({ sourceKey: '', name: '', gainedAt: undefined, desc: '' });
   }
-  function removeRef(list: typeof refClass, i: number) { list.splice(i, 1); }
+  function removeRef(list: typeof refFeats, i: number) { list.splice(i, 1); }
 
   // ─── Klassen/Level (strukturiert, multiclass-fähig) ──────────────────────────
   function addClass() { classes.push({ sourceKey: '', name: '', level: 1 }); editingClassRow = classes.length - 1; }
@@ -710,53 +713,86 @@
     }
   }
 
-  // ─── Referenz-Autocomplete: Klasse/Volk gegen Bibliotheks-Merkmale ───────────
-  let classFeatureIndex = $state<FeatureRef[]>([]);
-  let speciesTraitIndex = $state<FeatureRef[]>([]);
-  $effect(() => {
-    getClassFeatures().then((x) => { classFeatureIndex = x; });
-    getSpeciesTraits().then((x) => { speciesTraitIndex = x; });
-  });
+  // ─── Spezies (strukturierter Bibliotheks-Link; analog zur Klasse) ─────────────
+  // Der Charakter verlinkt EINE Spezies; die Traits werden auf der Karte aus der
+  // Bibliothek aufgelöst. `race` ist der abgeleitete Anzeige-String (auch fürs PDF).
+  let speciesIndex = $state<SpeciesInfo[]>([]);
+  $effect(() => { getSpeciesList().then((x) => { speciesIndex = x; }); });
 
-  type RefKind = 'class' | 'race';
-  let activeRefKind = $state<RefKind | null>(null);
-  let activeRefRow = $state(-1);
-  let refSuggestions = $state<FeatureRef[]>([]);
-  let refSugIndex = $state(-1);
+  let editingSpecies = $state(!species.sourceKey && !species.name.trim()); // Picker offen vs. Link
+  let speciesActive = $state(false);
+  let speciesSuggestions = $state<SpeciesInfo[]>([]);
+  let speciesSugIndex = $state(-1);
 
-  function onRefNameInput(kind: RefKind, i: number, value: string) {
-    activeRefKind = kind;
-    activeRefRow = i;
-    refSugIndex = -1;
-    const idx = kind === 'class' ? classFeatureIndex : speciesTraitIndex;
-    const q = value.toLowerCase().trim();
-    refSuggestions = q
-      ? idx.filter((f) => f.name.toLowerCase().includes(q) || f.nameEn.toLowerCase().includes(q)).slice(0, 8)
-      : [];
+  /** Bibliotheks-Pfad der verlinkten Spezies, falls vorhanden. */
+  function speciesPath(): string | undefined {
+    return species.sourceKey ? speciesIndex.find((s) => s.key === species.sourceKey)?.path : undefined;
+  }
+  function openSpeciesPage() {
+    const path = speciesPath();
+    if (!path) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'species' });
   }
 
-  function selectRefSuggestion(list: typeof refClass, i: number, f: FeatureRef) {
-    list[i].name = f.name;
-    list[i].sourceKey = f.sourceKey;
-    // Persönlichen Freitext nur vorbelegen, wenn leer (bleibt überschreibbar).
-    if (!list[i].desc) list[i].desc = f.descDe || f.desc || '';
-    if (f.gainedAt != null && list[i].gainedAt == null) list[i].gainedAt = f.gainedAt;
-    refSuggestions = [];
-    activeRefKind = null;
-    activeRefRow = -1;
-    refSugIndex = -1;
+  function onSpeciesInput(value: string) {
+    species.name = value;
+    race = value; // abgeleiteter Anzeige-String live mitführen (auch für Homebrew-Freitext)
+    species.sourceKey = ''; // freies Tippen = (noch) nicht verlinkt
+    speciesActive = true;
+    speciesSugIndex = -1;
+    speciesSuggestions = value.trim() ? searchSpecies(speciesIndex, value, 8) : [];
   }
 
-  function onRefNameKey(e: KeyboardEvent, kind: RefKind, list: typeof refClass, i: number) {
-    if (activeRefKind !== kind || activeRefRow !== i) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); refSugIndex = Math.min(refSugIndex + 1, refSuggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); refSugIndex = Math.max(refSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { refSuggestions = []; activeRefKind = null; activeRefRow = -1; }
-    else if (e.key === 'Enter' && refSugIndex >= 0 && refSuggestions[refSugIndex]) {
+  function selectSpecies(info: SpeciesInfo) {
+    species.name = speciesDisplayName(info);
+    species.sourceKey = info.key ?? '';
+    species.subspeciesKey = undefined;
+    species.subspeciesName = undefined;
+    race = species.name;
+    speciesSuggestions = [];
+    speciesActive = false;
+    speciesSugIndex = -1;
+    editingSpecies = false; // verlinkt → als Bibliotheks-Link darstellen
+  }
+
+  function onSpeciesKey(e: KeyboardEvent) {
+    if (!speciesActive) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); speciesSugIndex = Math.min(speciesSugIndex + 1, speciesSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); speciesSugIndex = Math.max(speciesSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { speciesSuggestions = []; speciesActive = false; }
+    else if (e.key === 'Enter' && speciesSugIndex >= 0 && speciesSuggestions[speciesSugIndex]) {
       e.preventDefault();
-      selectRefSuggestion(list, i, refSuggestions[refSugIndex]);
+      selectSpecies(speciesSuggestions[speciesSugIndex]);
     }
   }
+
+  // ─── Altformat-Umstellung Volk (Auto-Guess wie bei der Klasse) ─────────────────
+  /** Exakter, sicherer Bibliotheks-Treffer für einen Freitext-Volksnamen (kein Substring). */
+  function matchSpecies(rawName: string): SpeciesInfo | undefined {
+    const q = rawName.trim().toLowerCase();
+    if (!q) return undefined;
+    return speciesIndex.find(
+      (s) => !!s.key && ((s.nameDe ?? s.name).toLowerCase() === q || s.name.toLowerCase() === q),
+    );
+  }
+  // Angebot sichtbar, wenn ein unverlinkter Volksname sicher in der Bibliothek existiert.
+  const speciesLegacyMatch = $derived(
+    !species.sourceKey && species.name.trim() ? matchSpecies(species.name) : undefined,
+  );
+  /** Verknüpft den erkannten Freitext-Volksnamen mit der Bibliothek. */
+  function linkLegacySpecies() {
+    if (speciesLegacyMatch) selectSpecies(speciesLegacyMatch);
+  }
+
+  // ─── Read-only Merkmals-Vorschau (aus der Bibliothek aufgelöst) ────────────────
+  // Zeigt im Editor, welche Klassen-/Subklassen-Merkmale bzw. Volks-Traits der
+  // gewählte Link bis zur Stufe liefert (reagiert live auf Klasse/Stufe/Subklasse/Volk).
+  let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
+  let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
+  $effect(() => {
+    resolveClassFeatures($state.snapshot(classes)).then((g) => { classFeatureGroups = g; });
+    resolveSpeciesTraits($state.snapshot(species)).then((g) => { speciesTraitGroups = g ?? []; });
+  });
 
   // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
   let featsLibrary = $state<FeatEntry[]>([]);
@@ -774,9 +810,9 @@
   }
 
   function selectFeatSuggestion(i: number, f: FeatEntry) {
+    // Nur den LINK speichern (Name + Key); die Beschreibung wird aus der Bibliothek aufgelöst.
     refFeats[i].name = f.nameDe || f.name;
     refFeats[i].sourceKey = f.sourceKey ?? '';
-    if (!refFeats[i].desc) refFeats[i].desc = featDesc(f);
     featSuggestions = [];
     activeFeatRow = -1;
     featSugIndex = -1;
@@ -793,11 +829,14 @@
     }
   }
 
-  /** Übernimmt den Zeilen-Eintrag ins Feats-Wörterbuch (deutsche Notiz = desc). */
+  /** Legt das getippte Talent als (Homebrew-)Eintrag in der Bibliothek an, damit der
+   *  Charakter darauf verlinken kann (statt Freitext). Setzt danach den sourceKey. */
   async function saveFeatToDict(i: number) {
     const ref = refFeats[i];
     if (!ref.name.trim()) return;
-    await saveFeat({ name: ref.name, descDe: ref.desc || undefined, sourceKey: ref.sourceKey || undefined });
+    const sourceKey = ref.sourceKey?.trim() || `homebrew_${slugify(ref.name)}`;
+    await saveFeat({ name: ref.name, sourceKey });
+    ref.sourceKey = sourceKey;
     featsLibrary = await getFeats();
     featSavedRow = i;
     setTimeout(() => { if (featSavedRow === i) featSavedRow = -1; }, 1500);
@@ -815,6 +854,7 @@
     character.classes = cleanedClasses;
     character.classLevel = formatClassLevel(cleanedClasses);
     character.playerName = playerName; character.background = background;
+    character.species = { ...species };
     character.race = race; character.xp = xp;
     character.str = str; character.ges = ges; character.kon = kon;
     character.int = int; character.wei = wei; character.cha = cha;
@@ -872,7 +912,7 @@
       heavyArmor: profHeavyArmor,
       shields: profShields,
     };
-    const cleanRefs = (list: typeof refClass) =>
+    const cleanRefs = (list: typeof refFeats) =>
       list
         .filter((r) => r.name.trim() !== '')
         .map((r) => ({
@@ -882,8 +922,6 @@
           desc: r.desc ?? '',
         }));
     character.references = {
-      class: cleanRefs(refClass),
-      race: cleanRefs(refRace),
       feats: cleanRefs(refFeats),
     };
     character.portraitFile = portraitFile || undefined;
@@ -902,15 +940,85 @@
 <div class="edit-form">
   <!-- Speichern/Verwerfen übernimmt die EditorPanel-Save-Bar (kein eigener Button). -->
 
+  <!-- Read-only Merkmals-Auflösung (aus der Bibliothek): was der Klassen-/Volks-LINK liefert. -->
+  {#snippet featureGroups(groups: ResolvedFeatureGroup[], emptyHint: string)}
+    {#if !groups.length}
+      <p class="fp-empty">{emptyHint}</p>
+    {:else}
+      {#each groups as g}
+        <div class="fp-group">
+          <span class="fp-title">{g.title}</span>
+          {#if g.unresolved}
+            <span class="fp-unresolved">— nicht in der Bibliothek verlinkt</span>
+          {:else if g.features.length}
+            <ul class="fp-list">
+              {#each g.features as f}
+                <li>
+                  <div class="fp-head">
+                    <span class="fp-name">{f.name}</span>
+                    {#if f.gainedAt}<span class="fp-lvl">Stufe {f.gainedAt}</span>{/if}
+                  </div>
+                  {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <span class="fp-unresolved">— keine</span>
+          {/if}
+        </div>
+      {/each}
+    {/if}
+  {/snippet}
+
   <!-- ── Kopf ─── -->
   <section>
     <h3>Allgemein</h3>
     <div class="grid-2">
       <label use:diffMark={dirOf(saved?.name, name)}>Name<input bind:value={name} placeholder="Charaktername" /></label>
       <label use:diffMark={dirOf(saved?.playerName, playerName)}>Spieler<input bind:value={playerName} placeholder="Spielername" /></label>
-      <label use:diffMark={dirOf(saved?.race, race)}>Volk<input bind:value={race} placeholder="Volk/Rasse" /></label>
       <label use:diffMark={dirOf(saved?.background, background)}>Hintergrund<input bind:value={background} placeholder="Hintergrund" /></label>
       <label use:diffMark={dirOf(saved?.xp, xp)}>EP<input bind:value={xp} placeholder="0" /></label>
+    </div>
+
+    <!-- Volk als Bibliotheks-Link (Traits werden auf der Karte aufgelöst; `race` = Anzeige). -->
+    <div class="ref-block species-block" use:diffMark={dirOf(saved?.race, race)}>
+      <h4>Volk</h4>
+      {#if speciesLegacyMatch}
+        <div class="legacy-banner">
+          <span class="legacy-banner-text">
+            Altes Freitext-Format erkannt: „{species.name}" lässt sich mit der Bibliothek verknüpfen.
+          </span>
+          <button type="button" class="legacy-banner-btn" onclick={linkLegacySpecies}>Verknüpfen</button>
+        </div>
+      {/if}
+      {#if species.sourceKey && !editingSpecies}
+        <div class="class-linked">
+          <button type="button" class="class-link" title="Bibliotheks-Seite öffnen" onclick={openSpeciesPage}>{species.name}</button>
+          <button type="button" class="link-edit" title="Volk ändern" onclick={() => { editingSpecies = true; }}>✎</button>
+        </div>
+      {:else}
+        <div class="autocomplete-wrap species-picker">
+          <input
+            value={species.name}
+            placeholder="z.B. Zwerg"
+            oninput={(e) => onSpeciesInput((e.currentTarget as HTMLInputElement).value)}
+            onkeydown={onSpeciesKey}
+            onblur={() => setTimeout(() => { speciesActive = false; speciesSuggestions = []; if (species.sourceKey) editingSpecies = false; }, 150)}
+          />
+          {#if speciesActive && speciesSuggestions.length > 0}
+            <ul class="suggestions">
+              {#each speciesSuggestions as sug, si}
+                <li class:active={si === speciesSugIndex} onmousedown={() => selectSpecies(sug)}>
+                  <span>{speciesDisplayName(sug)}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+        {#if !species.sourceKey && species.name.trim() && !speciesLegacyMatch}
+          <p class="species-hint">Nicht in der Bibliothek verlinkt – aus der Liste wählen oder als Volk anlegen.</p>
+        {/if}
+      {/if}
     </div>
 
     <!-- Klasse & Stufe strukturiert (multiclass-fähig); „Klasse & Stufe"-Anzeige wird abgeleitet. -->
@@ -1184,111 +1292,69 @@
     </label>
   </section>
 
-  <!-- ── Referenzen (Berechnungsgrundlage) ─── -->
-  <!-- Klasse/Volk: Autocomplete am Namensfeld gegen die jeweilige Bibliothek. -->
-  {#snippet refBlock(kind: RefKind, list: typeof refClass, title: string, keyPlaceholder: string, namePlaceholder: string)}
-    <div class="ref-block">
-      <h4>{title}</h4>
-      <table class="ref-table">
-        <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
-        <tbody>
-          {#each list as ref, i}
-            {@const refDir = !saved || !ref.name.trim() ? 'none'
-              : i >= (saved.references?.[kind]?.length ?? 0) ? 'up'
-              : classifyChange($state.snapshot(saved.references[kind][i]), $state.snapshot(ref))}
-            <tr use:diffMark={refDir}>
-              <td>
-                <div class="autocomplete-wrap">
-                  <input
-                    value={ref.name}
-                    placeholder={namePlaceholder}
-                    oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; onRefNameInput(kind, i, ref.name); }}
-                    onkeydown={(e) => onRefNameKey(e, kind, list, i)}
-                    onblur={() => setTimeout(() => { if (activeRefKind === kind && activeRefRow === i) { refSuggestions = []; activeRefKind = null; activeRefRow = -1; } }, 150)}
-                  />
-                  {#if activeRefKind === kind && activeRefRow === i && refSuggestions.length > 0}
-                    <ul class="suggestions">
-                      {#each refSuggestions as sug, si}
-                        <li class:active={si === refSugIndex} onmousedown={() => selectRefSuggestion(list, i, sug)}>
-                          <span>{sug.name}</span>
-                          <span class="sug-cat">{sug.sourceKey}{sug.gainedAt ? ` · Stufe ${sug.gainedAt}` : ''}</span>
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
-                </div>
-              </td>
-              <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
-                oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
-              <td><input bind:value={ref.desc} placeholder="knappe Notiz…" /></td>
-              <td><input bind:value={ref.sourceKey} placeholder={keyPlaceholder} /></td>
-              <td><button class="remove-btn" onclick={() => removeRef(list, i)}>✕</button></td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <button class="btn-add" onclick={() => addRef(list)}>+ Eintrag</button>
-    </div>
-  {/snippet}
-
-  <!-- Talente: eigenes Wörterbuch (Autocomplete gegen vault/feats + „übernehmen"). -->
-  {#snippet featBlock()}
-    <div class="ref-block">
-      <h4>Talente</h4>
-      <table class="ref-table">
-        <thead><tr><th>Name</th><th>Stufe</th><th>Beschreibung</th><th>Open5e-Key</th><th></th></tr></thead>
-        <tbody>
-          {#each refFeats as ref, i}
-            {@const refDir = !saved || !ref.name.trim() ? 'none'
-              : i >= (saved.references?.feats?.length ?? 0) ? 'up'
-              : classifyChange($state.snapshot(saved.references.feats[i]), $state.snapshot(ref))}
-            <tr use:diffMark={refDir}>
-              <td>
-                <div class="autocomplete-wrap">
-                  <input
-                    value={ref.name}
-                    placeholder="Heiler"
-                    oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; onFeatNameInput(i, ref.name); }}
-                    onkeydown={(e) => onFeatNameKey(e, i)}
-                    onblur={() => setTimeout(() => { if (activeFeatRow === i) { featSuggestions = []; activeFeatRow = -1; } }, 150)}
-                  />
-                  {#if activeFeatRow === i && featSuggestions.length > 0}
-                    <ul class="suggestions">
-                      {#each featSuggestions as sug, si}
-                        <li class:active={si === featSugIndex} onmousedown={() => selectFeatSuggestion(i, sug)}>
-                          <span>{sug.nameDe ?? sug.name}</span>
-                          {#if sug.sourceKey}<span class="sug-cat">{sug.sourceKey}</span>{/if}
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
-                </div>
-              </td>
-              <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
-                oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
-              <td><input bind:value={ref.desc} placeholder="deutsche Notiz…" /></td>
-              <td><input bind:value={ref.sourceKey} placeholder="srd-2024_healer" /></td>
-              <td class="feat-actions">
-                <button class="dict-btn" title="Ins Wörterbuch übernehmen" onclick={() => saveFeatToDict(i)}>
-                  {featSavedRow === i ? '✓' : '📖'}
-                </button>
-                <button class="remove-btn" onclick={() => removeRef(refFeats, i)}>✕</button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <button class="btn-add" onclick={() => addRef(refFeats)}>+ Eintrag</button>
-    </div>
-  {/snippet}
-
+  <!-- ── Verknüpfte Merkmale & Talente ─── -->
+  <!-- Klasse & Volk liefern ihre Merkmale read-only aus der Bibliothek (abgeleitet aus
+       Link + Stufe, nicht hier editiert). Talente werden als Link gepflegt. -->
   <section>
     <details class="ref-section">
-      <summary>Referenzen (Berechnungsgrundlage)</summary>
-      <p class="ref-hint">Strukturierte Merkmale mit optionalem Open5e-Key — additiv zum Freitext, nicht im PDF-Export.</p>
-      {@render refBlock('class', refClass, 'Klassenmerkmale', 'srd-2024_druid', 'Wild Companion')}
-      {@render refBlock('race', refRace, 'Volksmerkmale', 'srd-2024_dwarf', 'Zwergische Widerstandskraft')}
-      {@render featBlock()}
+      <summary>Verknüpfte Merkmale & Talente</summary>
+      <p class="ref-hint">Klassen- & Volksmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente aus der Bibliothek wählen; fehlt eins, mit 📖 als (Homebrew-)Talent anlegen und verlinken. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
+
+      <div class="ref-block">
+        <h4>Klassenmerkmale</h4>
+        {@render featureGroups(classFeatureGroups, 'Keine verlinkte Klasse — oben eine Klasse aus der Bibliothek wählen.')}
+      </div>
+      <div class="ref-block">
+        <h4>Volksmerkmale</h4>
+        {@render featureGroups(speciesTraitGroups, 'Kein verlinktes Volk — oben ein Volk aus der Bibliothek wählen.')}
+      </div>
+
+      <div class="ref-block">
+        <h4>Talente</h4>
+        <table class="ref-table">
+          <thead><tr><th>Talent</th><th>Stufe</th><th></th></tr></thead>
+          <tbody>
+            {#each refFeats as ref, i}
+              {@const refDir = !saved || !ref.name.trim() ? 'none'
+                : i >= (saved.references?.feats?.length ?? 0) ? 'up'
+                : classifyChange($state.snapshot(saved.references.feats[i]), $state.snapshot(ref))}
+              <tr use:diffMark={refDir}>
+                <td>
+                  <div class="autocomplete-wrap">
+                    <input
+                      value={ref.name}
+                      placeholder="Heiler"
+                      oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; ref.sourceKey = ''; onFeatNameInput(i, ref.name); }}
+                      onkeydown={(e) => onFeatNameKey(e, i)}
+                      onblur={() => setTimeout(() => { if (activeFeatRow === i) { featSuggestions = []; activeFeatRow = -1; } }, 150)}
+                    />
+                    {#if activeFeatRow === i && featSuggestions.length > 0}
+                      <ul class="suggestions">
+                        {#each featSuggestions as sug, si}
+                          <li class:active={si === featSugIndex} onmousedown={() => selectFeatSuggestion(i, sug)}>
+                            <span>{sug.nameDe ?? sug.name}</span>
+                            {#if sug.sourceKey}<span class="sug-cat">{sug.sourceKey}</span>{/if}
+                          </li>
+                        {/each}
+                      </ul>
+                    {/if}
+                    {#if ref.name.trim() && !ref.sourceKey}<span class="ref-unlinked" title="Nicht verlinkt">⚠ nicht verlinkt</span>{/if}
+                  </div>
+                </td>
+                <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
+                  oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
+                <td class="feat-actions">
+                  <button class="dict-btn" title="Als Talent in der Bibliothek anlegen & verlinken" onclick={() => saveFeatToDict(i)}>
+                    {featSavedRow === i ? '✓' : '📖'}
+                  </button>
+                  <button class="remove-btn" onclick={() => removeRef(refFeats, i)}>✕</button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <button class="btn-add" onclick={() => addRef(refFeats)}>+ Talent</button>
+      </div>
     </details>
   </section>
 
@@ -1794,6 +1860,29 @@
   }
   .legacy-banner-btn:hover { filter: brightness(1.08); }
   .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
+  .species-block { max-width: 24rem; }
+  .species-picker { max-width: 18rem; }
+  .species-hint { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
+  .fp-group { margin-top: 0.9rem; }
+  .fp-group:first-child { margin-top: 0.3rem; }
+  .fp-title {
+    font-weight: 700; font-size: 0.95rem; color: var(--copper);
+    padding-bottom: 0.2rem; border-bottom: 1px solid var(--surface);
+    display: block;
+  }
+  .fp-unresolved { color: var(--ink-muted); font-style: italic; font-size: 0.8rem; margin-left: 0.3rem; }
+  .fp-list { list-style: none; margin: 0.45rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .fp-list li {
+    margin: 0; padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: color-mix(in srgb, var(--surface) 40%, transparent);
+  }
+  .fp-head { display: flex; align-items: baseline; gap: 0.5rem; }
+  .fp-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
+  .fp-lvl { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
+  .fp-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
+  .fp-empty { color: var(--ink-muted); font-style: italic; font-size: 0.8rem; margin: 0.3rem 0 0; }
+  .ref-unlinked { display: inline-block; margin-top: 0.15rem; font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
   .class-linked { display: flex; align-items: center; gap: 0.25rem; }
   .class-link {
     background: none; border: none; padding: 0.1rem 0; cursor: pointer;

@@ -110,7 +110,6 @@ export const levelUpProposalSchema = z.object({
   hpGain: z.number().int().default(0),
   hitDiceNew: z.string().default('').describe('Full new hit-dice string, e.g. "6W10". Empty = unchanged.'),
   classFeaturesAppend: z.string().default('').describe('GERMAN narrative to append to classFeatures.'),
-  referencesClassAdd: z.array(proposalReferenceSchema).default([]),
   subclass: z
     .object({ key: z.string().default(''), name: z.string().default('') })
     .default({ key: '', name: '' })

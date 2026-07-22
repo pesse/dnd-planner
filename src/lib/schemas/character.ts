@@ -56,31 +56,52 @@ const proficiencyFlagsSchema = z.object({
   shields: z.boolean().default(false),
 });
 
-/** Ein strukturierter Referenz-Eintrag (additiv zum Freitext; Berechnungsgrundlage). */
+/**
+ * Ein strukturierter Referenz-Eintrag = ein LINK auf einen Bibliothekseintrag
+ * (Talent). Der Charakter speichert NUR die Verknüpfung; Name/Beschreibung werden
+ * zur Laufzeit aus der Bibliothek (`vault/feats`) aufgelöst — analog zu Zaubern.
+ */
 const referenceEntrySchema = z.object({
-  sourceKey: z.string().default(''), // Open5e-v2-Key, z.B. "srd-2024_druid"; leer = manuell/Homebrew
+  sourceKey: z.string().default(''), // Bibliotheks-Key (SRD z.B. "srd-2024_healer" oder "homebrew_…")
   name: z.string().default(''),
   gainedAt: z.number().int().optional(), // Stufe (Berechnungsgrundlage), optional
-  desc: z.string().default(''), // knappe Referenz-Notiz (NICHT der persönliche Freitext)
+  // desc bleibt als optionaler Legacy-Fallback im Schema; wird nicht mehr editiert/gepflegt.
+  desc: z.string().default(''),
 });
 
-/** Referenzen getrennt nach Domäne. Nicht im PDF; hinter Toggle in Editor + Karte. */
+/**
+ * Verknüpfte Talente (Links). Klasse & Volk werden NICHT mehr hier gespeichert —
+ * deren Merkmale ergeben sich aus dem Klassen-/Spezies-Link (`classes[]`/`species`)
+ * und werden zur Laufzeit aus der Bibliothek aufgelöst.
+ */
 const characterReferencesSchema = z
   .object({
-    class: z.array(referenceEntrySchema).default([]), // Klassenmerkmale
-    race: z.array(referenceEntrySchema).default([]), // Volksmerkmale
-    feats: z.array(referenceEntrySchema).default([]), // Talente
+    feats: z.array(referenceEntrySchema).default([]), // Talente (Links)
   })
-  .default({ class: [], race: [], feats: [] });
+  .default({ feats: [] });
 
 /** Eine gepflegte Klasse eines Charakters (multiclass-fähig; Basis für Progression-Check). */
 const characterClassSchema = z.object({
-  sourceKey: z.string().default(''), // Open5e-v2-Key der GRUNDklasse; leer = Homebrew/manuell
+  sourceKey: z.string().default(''), // Bibliotheks-Key der GRUNDklasse (SRD oder "homebrew_…"); leer = noch nicht verlinkt (Legacy)
   name: z.string().default(''), // Anzeigename der Grundklasse (DE)
-  subclassKey: z.string().optional(), // Open5e-v2-Key der Subklasse (innerhalb der Grundklasse)
+  subclassKey: z.string().optional(), // Bibliotheks-Key der Subklasse (innerhalb der Grundklasse)
   subclassName: z.string().optional(), // Anzeigename der Subklasse (DE) — für abgeleiteten Anzeige-String
   level: z.number().int().min(1).max(20).default(1),
 });
+
+/**
+ * Verknüpfte Spezies eines Charakters (Link auf `vault/species`). Analog zu
+ * `classes[]`: der Charakter speichert nur den Link; die Traits werden zur Laufzeit
+ * aus der Bibliothek aufgelöst. Leerer `sourceKey` = noch nicht verlinkt (Legacy).
+ */
+const characterSpeciesSchema = z
+  .object({
+    sourceKey: z.string().default(''), // Bibliotheks-Key der Spezies (SRD oder "homebrew_…")
+    name: z.string().default(''), // Anzeigename (DE)
+    subspeciesKey: z.string().optional(), // Bibliotheks-Key der Unterspezies (falls vorhanden)
+    subspeciesName: z.string().optional(),
+  })
+  .default({ sourceKey: '', name: '' });
 
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
@@ -114,6 +135,9 @@ export const characterSchema = z.object({
   classLevel: z.string().default(''),
   playerName: z.string().default(''),
   background: z.string().default(''),
+  // Strukturierter Spezies-Link (Source-of-Truth). `race` wird daraus abgeleitet.
+  species: characterSpeciesSchema,
+  // Abgeleiteter Anzeige-String aus `species` (für Header/PDF); nicht mehr direkt editiert.
   race: z.string().default(''),
   xp: z.string().default(''),
   // Attribute (Basiswerte)
@@ -189,6 +213,16 @@ export type PersonalData = z.infer<typeof personalDataSchema>;
 export type CharacterReferences = z.infer<typeof characterReferencesSchema>;
 export type ReferenceEntry = z.infer<typeof referenceEntrySchema>;
 export type CharacterClass = z.infer<typeof characterClassSchema>;
+export type CharacterSpecies = z.infer<typeof characterSpeciesSchema>;
+
+/** Anzeige-String der Spezies (inkl. optionaler Unterspezies). */
+export function formatSpecies(species: CharacterSpecies | undefined): string {
+  if (!species) return '';
+  const base = species.name.trim();
+  const sub = species.subspeciesName?.trim();
+  if (!base) return '';
+  return sub ? `${base} (${sub})` : base;
+}
 
 /** Anzeige-String aus den strukturierten Klassen, z.B. „Kämpfer 5 (Champion) / Zauberer 2". */
 export function formatClassLevel(classes: CharacterClass[]): string {
@@ -259,6 +293,13 @@ export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
       c.classes = parsed;
       c._version = 2;
     }
+  }
+  // Legacy `race`-String → strukturierter species-Link (sourceKey bleibt leer bis der
+  // Bibliotheks-Picker im Editor greift; Name = bisheriger Freitext).
+  const sp = c.species as { sourceKey?: string; name?: string } | undefined;
+  const hasSpecies = sp && typeof sp === 'object' && ((sp.sourceKey ?? '').trim() || (sp.name ?? '').trim());
+  if (!hasSpecies && typeof c.race === 'string' && c.race.trim()) {
+    c.species = { sourceKey: '', name: c.race.trim() };
   }
   // Rückwärtskompatibilität: fehlendes spells-Objekt → Default greift im Schema.
   return c;

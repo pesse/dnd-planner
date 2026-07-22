@@ -5,6 +5,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { FeatureRef } from './classLibrary';
+import { speciesSchema, type Species } from './schemas/species';
 
 export const SPECIES_PATH = './vault/species';
 
@@ -12,6 +13,8 @@ export interface SpeciesInfo {
   name: string;
   nameDe?: string;
   path: string;
+  /** Bibliotheks-Key der Spezies (SRD z.B. "srd-2024_dwarf" oder "homebrew_…"). */
+  key?: string;
 }
 
 /** Zeigt den deutschen Namen, falls vorhanden, sonst den Originalnamen. */
@@ -67,7 +70,7 @@ export async function getSpeciesList(): Promise<SpeciesInfo[]> {
         try {
           const content = await invoke<string>('read_file_content', { path });
           const data = JSON.parse(content);
-          return { name: data.name ?? filename.replace('.json', ''), nameDe: data.nameDe, path };
+          return { name: data.name ?? filename.replace('.json', ''), nameDe: data.nameDe, path, key: data.key };
         } catch {
           return { name: filename.replace('.json', ''), path };
         }
@@ -79,6 +82,23 @@ export async function getSpeciesList(): Promise<SpeciesInfo[]> {
   } catch {
     cache = [];
     return [];
+  }
+}
+
+/**
+ * Lädt die volle Spezies (inkl. Traits) aus der lokalen Bibliothek per Key.
+ * null = nicht lokal vorhanden / unparsebar. Analog zu `getProgressionByKey`.
+ */
+export async function getSpeciesByKey(key: string): Promise<Species | null> {
+  if (!key) return null;
+  try {
+    const info = (await getSpeciesList()).find((s) => s.key === key);
+    if (!info) return null;
+    const data = JSON.parse(await invoke<string>('read_file_content', { path: info.path }));
+    const r = speciesSchema.safeParse(data);
+    return r.success ? r.data : null;
+  } catch {
+    return null;
   }
 }
 

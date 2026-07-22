@@ -73,12 +73,11 @@ Assemble the level-up changes as ADDITIVE deltas in JSON.
 3. Cantrips: if <level_up_delta>.cantripDelta > 0, list that many new cantrip names in newCantrips based on <answers>; otherwise [].
 4. Apply <answers>:
    - Hit points: per level gained, the increase is (rolled number if hp_method="roll", else class average = floor(hitDie/2)+1) PLUS the Constitution modifier (<character_summary>.mods.kon). Multiply by <level_up_delta>.levelsGained and put the TOTAL in hpGain.
-   - Ability Score Improvement: sum ALL ASI decisions (asi_or_feat_1..N) into abilityScoreDeltas (keys str/ges/kon/int/wei/cha, German mapping dex=ges/wis=wei). Any decision that chose a feat contributes 0 to the scores — describe those feats in classFeaturesAppend + one referencesClassAdd entry each.
+   - Ability Score Improvement: sum ALL ASI decisions (asi_or_feat_1..N) into abilityScoreDeltas (keys str/ges/kon/int/wei/cha, German mapping dex=ges/wis=wei). Any decision that chose a feat contributes 0 to the scores — describe those feats in classFeaturesAppend.
    - Subclass: if one was chosen, set "subclass" {key,name} from <subclass_options>.
-5. classFeaturesAppend: a short GERMAN narrative naming the features gained this level (from <level_up_delta>.featuresGained and subclassFeaturesGained), suitable to append to the character's class-features text.
-6. referencesClassAdd: one entry per gained feature — { sourceKey (from <level_up_delta>.sourceKey; use the subclass source for subclass features if known, else same), name (English feature name), gainedAt (<level_up_delta>.toLevel), desc (short GERMAN note) }.
-7. hitDiceNew: the character's new full hit-dice string. Current is <character_summary>.hitDice (e.g. "5W10"); return the incremented version (e.g. "6W10"), German dice notation with "W". Empty if unknown.
-8. Leave arrays empty and numbers 0 where nothing is gained. All human-readable text in GERMAN.`;
+5. classFeaturesAppend: a short GERMAN narrative naming the features gained this level (from <level_up_delta>.featuresGained and subclassFeaturesGained), suitable to append to the character's class-features text. NOTE: class/subclass features themselves are NOT stored on the character — they are resolved from the class link at the character's level. This narrative is only the player-facing free text.
+6. hitDiceNew: the character's new full hit-dice string. Current is <character_summary>.hitDice (e.g. "5W10"); return the incremented version (e.g. "6W10"), German dice notation with "W". Empty if unknown.
+7. Leave arrays empty and numbers 0 where nothing is gained. All human-readable text in GERMAN.`;
 
 export function buildLevelUpQuestionsAction(): AiAction<LevelUpQuestionnaire> {
   return {

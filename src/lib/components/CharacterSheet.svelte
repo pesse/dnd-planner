@@ -6,7 +6,7 @@
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
-  import { type Character, formatClassLevel } from '../schemas/character';
+  import { type Character, formatClassLevel, formatSpecies } from '../schemas/character';
   import { proficiencyBonus } from '../services/classProgression';
   import type { LevelUpProposal } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
@@ -15,6 +15,7 @@
   import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
+  import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
@@ -25,9 +26,10 @@
   } from '../itemLibrary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
-  import { getClassFeatures, type FeatureRef } from '../classLibrary';
-  import { getSpeciesTraits } from '../speciesLibrary';
-  import { getFeats, featDesc, type FeatEntry } from '../featsLibrary';
+  import {
+    resolveClassFeatures, resolveSpeciesTraits, resolveFeatLinks,
+    type ResolvedFeatureGroup, type ResolvedFeature,
+  } from '../services/characterFeatures';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -36,27 +38,19 @@
 
   let { dirPath }: Props = $props();
 
-  // ─── Referenz-Auflösung (Karte): persönlicher Override → Bibliothek descDe → EN → leer ───
-  let libFeatures = $state<FeatureRef[]>([]); // Klassen-Merkmale + Spezies-Traits
-  let libFeats = $state<FeatEntry[]>([]);
+  // ─── Merkmals-Auflösung (Karte): Klasse/Volk/Talente aus den Bibliotheks-LINKS ───
+  // Der Charakter speichert nur Verknüpfungen; die Merkmale/Traits werden zur Laufzeit
+  // aus vault/{classes,species,feats} aufgelöst (analog Zauber).
+  let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
+  let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
+  let featLinks = $state<ResolvedFeature[]>([]);
   $effect(() => {
-    Promise.all([getClassFeatures(), getSpeciesTraits()]).then(([a, b]) => { libFeatures = [...a, ...b]; });
-    getFeats().then((x) => { libFeats = x; });
+    const c = character;
+    if (!c) return;
+    resolveClassFeatures(c.classes ?? []).then((g) => { classFeatureGroups = g; });
+    resolveSpeciesTraits(c.species).then((g) => { speciesTraitGroups = g ?? []; });
+    resolveFeatLinks(c.references?.feats).then((f) => { featLinks = f; });
   });
-
-  /** Beste Beschreibung einer Charakter-Referenz über die Fallback-Kette. */
-  function resolveReferenceDesc(ref: { name: string; desc?: string; sourceKey?: string }): string {
-    if (ref.desc?.trim()) return ref.desc;
-    const key = ref.sourceKey?.trim();
-    const nm = ref.name.trim().toLowerCase();
-    const feat = libFeatures.find(
-      (f) => (!key || f.sourceKey === key) && (f.name.toLowerCase() === nm || f.nameEn.toLowerCase() === nm),
-    );
-    if (feat) return feat.descDe || feat.desc || '';
-    const dict = libFeats.find((f) => (f.nameDe ?? f.name).toLowerCase() === nm || f.name.toLowerCase() === nm);
-    if (dict) return featDesc(dict);
-    return '';
-  }
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
   // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
@@ -154,10 +148,9 @@
         next.classFeatures = [next.classFeatures, featureText].filter((s) => s && s.trim()).join('\n');
       }
     }
-    if (proposal.referencesClassAdd.length) {
-      next.references.class = [...next.references.class, ...proposal.referencesClassAdd];
-    }
-    // Talente → references.feats (nicht references.class).
+    // Klassen-/Subklassen-Merkmale werden NICHT mehr persistiert — sie ergeben sich aus
+    // dem Klassen-Link + Stufe (siehe classes[] oben) und werden auf der Karte aus der
+    // Bibliothek aufgelöst. Nur Talente sind eigene Links.
     if (proposal.referencesFeatsAdd.length) {
       next.references.feats = [...next.references.feats, ...proposal.referencesFeatsAdd];
     }
@@ -671,7 +664,7 @@
       {/if}
       <div class="name-block">
         <h1>{character.name}</h1>
-        <span class="sub">{character.classLevel} · {character.race}</span>
+        <span class="sub">{character.classLevel} · {character.race || formatSpecies(character.species)}</span>
       </div>
       <div class="header-meta">
         <span>Spieler: <strong>{character.playerName}</strong></span>
@@ -882,36 +875,44 @@
           {/if}
         {/if}
 
-        <!-- Referenzen (strukturiert, read-only) -->
-        {#snippet refView(list: NonNullable<typeof character.references>['class'] | undefined, title: string)}
-          {#if list && list.length}
-            <div class="section">
-              <h3>{title}</h3>
-              <ul class="ref-view-list">
-                {#each list as ref}
-                  {@const resolvedDesc = resolveReferenceDesc(ref)}
-                  <li>
-                    <strong>{ref.name}</strong>{#if ref.gainedAt} <span class="ref-view-level">(Stufe {ref.gainedAt})</span>{/if}
-                    {#if ref.sourceKey}<span class="ref-view-key">{ref.sourceKey}</span>{/if}
-                    {#if resolvedDesc}<div class="ref-view-desc">{resolvedDesc}</div>{/if}
-                  </li>
-                {/each}
-              </ul>
+        <!-- Verknüpfte Merkmale (aus der Bibliothek aufgelöst, read-only) -->
+        {#snippet featureList(feature: ResolvedFeature)}
+          <li>
+            <div class="ref-view-head">
+              <span class="ref-view-name">{feature.name}</span>
+              {#if feature.gainedAt}<span class="ref-view-level">Stufe {feature.gainedAt}</span>{/if}
             </div>
-          {/if}
+            {#if feature.desc}<div class="ref-view-desc"><Markdown source={feature.desc} /></div>{/if}
+          </li>
         {/snippet}
-        {#if character.references}
-          {@const r = character.references}
-          {#if (r.class?.length ?? 0) + (r.race?.length ?? 0) + (r.feats?.length ?? 0) > 0}
-            <details class="ref-view">
-              <summary>Referenzen (Berechnungsgrundlage)</summary>
-              <div class="ref-view-body">
-                {@render refView(r.class, 'Klassenmerkmale')}
-                {@render refView(r.race, 'Volksmerkmale')}
-                {@render refView(r.feats, 'Talente')}
-              </div>
-            </details>
-          {/if}
+        {#snippet groupBlock(group: ResolvedFeatureGroup)}
+          <div class="section">
+            <h3>{group.title}</h3>
+            {#if group.unresolved}
+              <p class="ref-unresolved">Nicht in der Bibliothek verlinkt – im Editor zuordnen oder anlegen.</p>
+            {:else if group.features.length}
+              <ul class="ref-view-list">
+                {#each group.features as feature}{@render featureList(feature)}{/each}
+              </ul>
+            {/if}
+          </div>
+        {/snippet}
+        {#if classFeatureGroups.length + speciesTraitGroups.length + featLinks.length > 0}
+          <details class="ref-view">
+            <summary>Verknüpfte Merkmale (Klasse, Volk, Talente)</summary>
+            <div class="ref-view-body">
+              {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
+              {#each speciesTraitGroups as group}{@render groupBlock(group)}{/each}
+              {#if featLinks.length}
+                <div class="section">
+                  <h3>Talente</h3>
+                  <ul class="ref-view-list">
+                    {#each featLinks as feature}{@render featureList(feature)}{/each}
+                  </ul>
+                </div>
+              {/if}
+            </div>
+          </details>
         {/if}
 
         <!-- Inventar -->
@@ -1417,21 +1418,18 @@
   .ref-view summary::-webkit-details-marker { display: none; }
   .ref-view summary::before { content: '› '; color: var(--border); }
   .ref-view[open] summary::before { content: '▾ '; }
-  .ref-view-body { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-top: 0.5rem; }
-  .ref-view-list { list-style: none; margin: 0; padding: 0; }
-  .ref-view-list li { margin-bottom: 0.35rem; font-size: 0.82rem; }
-  .ref-view-level { color: var(--ink-muted); font-size: 0.78rem; }
-  .ref-view-key {
-    display: inline-block;
-    margin-left: 0.3rem;
-    padding: 0 0.3rem;
-    font-family: monospace;
-    font-size: 0.7rem;
-    color: var(--ink-muted);
-    background: var(--surface);
-    border-radius: 3px;
+  .ref-view-body { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
+  .ref-view-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .ref-view-list li {
+    margin: 0; padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: color-mix(in srgb, var(--surface) 40%, transparent);
   }
-  .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; }
+  .ref-view-head { display: flex; align-items: baseline; gap: 0.5rem; }
+  .ref-view-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
+  .ref-view-level { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
+  .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
+  .ref-unresolved { color: var(--ink-muted); font-size: 0.78rem; font-style: italic; }
 
   /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
   .spell-level-header {
