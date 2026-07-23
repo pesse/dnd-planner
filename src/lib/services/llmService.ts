@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { httpFetch } from './httpFetch';
 import type { LlmConfig } from '../types';
 import { logDebug } from '../stores/debug';
 import { addTokenUsage } from '../stores/llm';
@@ -150,10 +150,12 @@ async function rustFetchStream(
     };
 
     try {
-      // Rust-backed fetch (plugin-http) — derselbe Weg wie der Anthropic-SDK-Pfad:
-      // umgeht CORS, streamt den Body inkrementell und unterstützt echtes Abbrechen
-      // über das AbortSignal (`fetch_cancel`).
-      const res = await tauriFetch(url, {
+      // Rust-backed fetch (plugin-http) im Tauri-Kontext — derselbe Weg wie der
+      // Anthropic-SDK-Pfad: umgeht CORS, streamt den Body inkrementell und
+      // unterstützt echtes Abbrechen über das AbortSignal (`fetch_cancel`).
+      // Außerhalb von Tauri (headless Node/Eval-Harness) fällt httpFetch auf das
+      // globale fetch zurück, das Streaming + AbortSignal ebenfalls unterstützt.
+      const res = await httpFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(fullBody),
