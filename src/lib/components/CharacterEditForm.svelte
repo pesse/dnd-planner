@@ -2,6 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
+  import { confirmNavigation } from '../stores/navigationGuard';
   import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type SpellEntry, type Attack } from '../pdf/characterFields';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
@@ -428,9 +429,10 @@
   }
   function hideSpellTooltip() { spellTooltip = null; }
 
-  function openSpellPage(spellName: string) {
+  async function openSpellPage(spellName: string) {
     const info = spellInfoMap.get(spellName);
     if (!info?.path) return;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
@@ -663,9 +665,10 @@
   }
 
   /** Öffnet die Bibliotheks-Kartenseite der verlinkten Grundklasse. */
-  function openClassPage(cls: CharacterClass) {
+  async function openClassPage(cls: CharacterClass) {
     const path = classPath(cls);
     if (!path) return;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
   }
 
@@ -728,9 +731,10 @@
   function speciesPath(): string | undefined {
     return species.sourceKey ? speciesIndex.find((s) => s.key === species.sourceKey)?.path : undefined;
   }
-  function openSpeciesPage() {
+  async function openSpeciesPage() {
     const path = speciesPath();
     if (!path) return;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'species' });
   }
 

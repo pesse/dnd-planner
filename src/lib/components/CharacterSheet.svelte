@@ -17,6 +17,7 @@
   import SpellTooltip from './SpellTooltip.svelte';
   import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
+  import { confirmNavigation } from '../stores/navigationGuard';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
@@ -249,14 +250,16 @@
   }
   function hideItemTooltip() { tooltipItem = null; }
 
-  function openItemPage(libItem: ItemInfo) {
+  async function openItemPage(libItem: ItemInfo) {
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
     activeFile.set({ name, path: libItem.path, type: 'item' });
   }
 
-  function openSpellPage(spellName: string) {
+  async function openSpellPage(spellName: string) {
     const info = spellInfoMap.get(spellName);
     if (!info?.path) return;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
