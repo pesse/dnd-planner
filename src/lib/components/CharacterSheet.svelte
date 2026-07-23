@@ -45,12 +45,27 @@
   let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
   let featLinks = $state<ResolvedFeature[]>([]);
+  // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
+  // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
+  // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
+  let featuresOpen = $state(false);
   $effect(() => {
+    if (!featuresOpen) return;
     const c = character;
     if (!c) return;
     resolveClassFeatures(c.classes ?? []).then((g) => { classFeatureGroups = g; });
     resolveSpeciesTraits(c.species).then((g) => { speciesTraitGroups = g ?? []; });
     resolveFeatLinks(c.references?.feats).then((f) => { featLinks = f; });
+  });
+  // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —
+  // steuert die Sichtbarkeit der Aufklappbox, ohne die Bibliothek anzufassen.
+  const hasFeatureRefs = $derived.by(() => {
+    const c = character;
+    if (!c) return false;
+    const hasClass = (c.classes ?? []).some((cl) => cl.name?.trim() || cl.sourceKey);
+    const hasSpecies = !!(c.species && (c.species.sourceKey || c.species.name?.trim()));
+    const hasFeats = (c.references?.feats?.length ?? 0) > 0;
+    return hasClass || hasSpecies || hasFeats;
   });
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
@@ -900,8 +915,8 @@
             {/if}
           </div>
         {/snippet}
-        {#if classFeatureGroups.length + speciesTraitGroups.length + featLinks.length > 0}
-          <details class="ref-view">
+        {#if hasFeatureRefs}
+          <details class="ref-view" bind:open={featuresOpen}>
             <summary>Verknüpfte Merkmale (Klasse, Volk, Talente)</summary>
             <div class="ref-view-body">
               {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
