@@ -2,10 +2,15 @@
   /**
    * KI-gestützter Stufenaufstieg-Assistent als mehrstufiger Wizard mit Checkpoints.
    *
-   * Ablauf (deterministischer Driver in levelUpFlow.ts):
+   * Ablauf (deterministische Zustandsmaschine in levelUpMachine.ts):
    *   Klasse wählen → Basis-Delta (det.) → [Subklasse wählen] → Subklassen-Delta (det.)
-   *   → Merkmals-Effekte (KI) → Spieler-Entscheidungen → [Talente wählen → Talent-Effekte (KI)
-   *   → Folge-Entscheidungen] → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
+   *   → Merkmals-Effekte (KI) → [Wahl mit Folgen → Merkmals-Effekte erneut … Loop]
+   *   → Spieler-Entscheidungen → [Talente wählen → Talent-Effekte (KI) → Folge-Entscheidungen]
+   *   → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
+   *
+   * „Wahl mit Folgen": erkennt die KI eine Wahl, deren Antwort weitere Grants bestimmt
+   * (resolvesEffects, z.B. Landart → Kreissprüche), hält die Maschine an; nach der Antwort
+   * läuft der Effekt-Pass erneut (mit der Wahl als Kontext), bis die KI fertig meldet.
    *
    * Das Muster „Wahl entsperrt zweiten Pass" gilt für Subklasse UND Talente. Fehlende
    * Zauber lassen sich inline anlegen, ohne den Dialog zu schließen. Alle Zahlen werden
@@ -20,21 +25,25 @@
   import { runAiAction } from '../services/aiActions/runner';
   import { computeLevelUpDelta, type LevelUpDelta } from '../services/levelUp';
   import {
-    buildLevelUpQuestionsAction, buildLevelUpProposalAction, buildLevelUpNarrativeAction,
-    buildClassFeaturesRewriteAction, buildClassFeaturesInput,
-    buildQuestionsInput, buildProposalInput, buildNarrativeInput, type CharacterSummary,
+    buildLevelUpNarrativeAction, buildClassFeaturesRewriteAction, buildClassFeaturesInput,
+    buildNarrativeInput, type CharacterSummary,
   } from '../services/aiActions/levelUpAction';
   import {
     buildFeatureEffectsAction, buildFeatureEffectsInput, type GainedFeature, type FeatureClassContext,
   } from '../services/aiActions/featureEffectsAction';
   import {
-    type LevelUpStep, type ValidatedRiders,
-    gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
-    buildDecisions, collectChoicePrompts, countFeatsToPick, assembleProposal, needsSubclassChoice, learnInfo,
-  } from '../services/levelUpFlow';
+    buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
+  } from '../services/aiActions/levelUpEffectsAction';
+  import { resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks } from '../services/characterFeatures';
   import {
-    parseLevelUpQuestionnaire, parseLevelUpProposal, parseFeatureEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
-    type LevelUpProposal, type LevelUpQuestion, type FeatureRider,
+    type StepId, type AdvanceCtx, type ValidatedRiders,
+    gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
+    buildDecisions, collectChoicePrompts, consequentialPrompts, terminalPrompts, countFeatsToPick, learnInfo,
+    STEP_META, isCheckpoint, advance, buildDoc, fightingStyleFromAnswers, choiceSelectionLines,
+  } from '../services/levelUpMachine';
+  import {
+    parseFeatureEffects, parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
+    type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import {
@@ -47,20 +56,27 @@
 
   let { character, onApply, onclose }: {
     character: Character;
-    onApply: (proposal: LevelUpProposal, delta: LevelUpDelta) => void;
+    onApply: (changeSet: LevelUpChangeSet, delta: LevelUpDelta) => void;
     onclose: () => void;
   } = $props();
 
   // ── State-Machine ──────────────────────────────────────────────────────────────
-  let phase = $state<LevelUpStep>('choose-class');
+  let phase = $state<StepId | 'running'>('choose-class');
   let delta = $state<LevelUpDelta | null>(null);
-  let homebrew = $state(false);
   let chosenSubclass = $state<{ key: string; name: string } | null>(null);
-  let gainedFeatures = $state<GainedFeature[]>([]);
+  let subFeatures = $state<GainedFeature[]>([]);    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
+  let gainedFeatures = $state<GainedFeature[]>([]); // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
   let riders = $state<FeatureRider[]>([]);
   let validatedBase = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let decisions = $state<LevelUpQuestion[]>([]);
   let answers = $state<Record<string, string | string[]>>({});
+  // Iterativer E-Loop: konsequenzbehaftete Wahlen (resolvesEffects), die vor dem Abschluss
+  // von E aufgelöst werden müssen; `resolvedIds` merkt bereits beantwortete, damit sie nicht
+  // erneut als Entscheidung erscheinen; `resolveIterations` begrenzt die Schleife.
+  let resolveQuestions = $state<LevelUpQuestion[]>([]);
+  let resolvedIds = $state<Set<string>>(new Set());
+  let resolveIterations = $state(0);
+  const MAX_RESOLVE_ITERS = 4;
   let featsToPick = $state(0);
   let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string }[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
@@ -68,11 +84,12 @@
   let followupDecisions = $state<LevelUpQuestion[]>([]);
   let followupAnswers = $state<Record<string, string | string[]>>({});
   let flagged = $state<string[]>([]);
-  let proposal = $state<LevelUpProposal | null>(null);
-  let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (eigener KI-Schritt)
+  // Pro-Stufe-TP-Max aus dem Voll-Kontext-Effekt-Pass (z.B. Zwergische Zähigkeit).
+  let hpPerLevelSources = $state<{ feature: string; sourceKey: string; amount: number }[]>([]);
+  let narrativeSummary = $state(''); // KI-Narrativ (Zusammenfassung) → doc.summary
+  let narrativeAppend = $state('');  // KI-Merkmalstext → Saat für den Klassenmerkmale-Freitext
+  let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (KI-Rewrite optional)
 
-  const ABILITIES = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-  const ABILITY_LABEL: Record<string, string> = { str: 'STÄ', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };
   const modOf = (s: number) => Math.floor((s - 10) / 2);
 
   const classList = $derived(character.classes ?? []);
@@ -175,7 +192,11 @@
   let abort: AbortController | null = null;
   let userAborted = false;
   let runToken = 0;
-  let resumePhase = $state<LevelUpStep>('choose-class');
+  let resumePhase = $state<StepId>('choose-class');
+  // Weitester bereits abgeschlossener Schritt — steuert, was das Dokument WÄHREND eines
+  // Laufs zeigt. Wird pro Schritt hochgezählt, damit deterministische Teilschritte (z.B.
+  // Subklassen-Delta) im JSON erscheinen, BEVOR die nachfolgende KI-Aktion läuft.
+  let reachedStep = $state<StepId>('choose-class');
   const pushStep = (text: string) => { steps = [...steps, text]; lastActivityMs = Date.now(); };
 
   const STALL_MS = 50_000;
@@ -187,6 +208,8 @@
   let elapsedSec = $derived(running ? Math.max(0, Math.floor((nowMs - runStartMs) / 1000)) : 0);
   let stalledSec = $derived(running ? Math.max(0, Math.floor((nowMs - lastActivityMs) / 1000)) : 0);
   let stalled = $derived(running && nowMs - lastActivityMs > STALL_MS);
+  // Woran die KI/der Schritt gerade arbeitet = die zuletzt gemeldete Aktivität.
+  let currentActivity = $derived(steps.length ? steps[steps.length - 1] : '');
 
   function startClock() {
     runStartMs = Date.now(); lastActivityMs = Date.now(); nowMs = Date.now();
@@ -205,9 +228,9 @@
   const runOpts = () => ({ onActivity: () => { lastActivityMs = Date.now(); }, signal: abort!.signal });
 
   /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard, Uhr und Fehler-Rücksprung. */
-  async function runSegment(resume: LevelUpStep, body: (alive: () => boolean) => Promise<void>) {
+  async function runSegment(resume: StepId, body: (alive: () => boolean) => Promise<void>) {
     if (running) return;
-    running = true; error = ''; userAborted = false; resumePhase = resume;
+    running = true; error = ''; userAborted = false; resumePhase = resume; reachedStep = resume;
     const myToken = ++runToken;
     abort = new AbortController(); startClock();
     phase = 'running';
@@ -241,8 +264,11 @@
 
   // ── Antworten-Handling ──────────────────────────────────────────────────────────
   function initAnswers(questions: LevelUpQuestion[], followup: boolean) {
-    const a: Record<string, string | string[]> = {};
+    // Bestehende Antworten ERHALTEN (z.B. eine über mehrere E-Runden aufgelöste Wahl);
+    // nur für neue Fragen Defaults setzen.
+    const a: Record<string, string | string[]> = { ...(followup ? followupAnswers : answers) };
     for (const q of questions) {
+      if (q.id in a) continue;
       if (q.type === 'multiselect' || q.type === 'spell-picker') a[q.id] = [];
       else if (q.type === 'choice') a[q.id] = q.defaultValue || q.options[0]?.value || '';
       else a[q.id] = q.defaultValue ?? '';
@@ -270,6 +296,7 @@
   }
   let allAnswered = $derived(isAnswered(decisions, answers));
   let allFollowupAnswered = $derived(isAnswered(followupDecisions, followupAnswers));
+  let allResolved = $derived(isAnswered(resolveQuestions, answers));
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   let pickerQuery = $state<Record<string, string>>({});
@@ -343,9 +370,13 @@
       if (s.targetQ) {
         const q = decisions.find((d) => d.id === s.targetQ);
         if (q) addPick(q, { name: canonical, level: s.level, classes: [], school: s.school, path: '' });
-      } else if (proposal) {
-        if (s.level === 0) proposal.newCantrips = [...new Set([...proposal.newCantrips, canonical])];
-        else proposal.preparedSpellsAdd = [...proposal.preparedSpellsAdd, { level: s.level, name: canonical, prepared: true }];
+      } else {
+        // Review-Inline-Anlage: neuen Zauber als gewährten Zauber ergänzen (fließt via buildDoc ein).
+        if (s.level === 0) {
+          if (!validatedBase.grantedCantrips.includes(canonical)) validatedBase.grantedCantrips = [...validatedBase.grantedCantrips, canonical];
+        } else if (!validatedBase.grantedPrepared.some((p) => p.name === canonical)) {
+          validatedBase.grantedPrepared = [...validatedBase.grantedPrepared, { level: s.level, name: canonical }];
+        }
         flagged = flagged.filter((f) => f.toLowerCase() !== s.name.toLowerCase() && f.toLowerCase() !== s.nameEn.toLowerCase());
       }
       spellCreator = null;
@@ -356,14 +387,157 @@
     }
   }
 
-  // ── Schritt 0/1: Start + Subklassen-Checkpoint ──────────────────────────────────
+  // ── Zustandsmaschine: Pipeline-Antrieb ──────────────────────────────────────────
+  // Die Komponente hält den State + das Lauf-Gerüst; die Übergänge kommen aus
+  // `advance()` (levelUpMachine.ts). `pipelineBody` läuft Arbeitsschritte ab, bis ein
+  // Checkpoint erreicht ist. Das gemeinsame Dokument (`doc`) ist eine reine Projektion
+  // des States (buildDoc) — deterministische Schritte brauchen daher keine Aktion.
+  function advCtx(): AdvanceCtx {
+    // Offene konsequenzbehaftete Wahlen; Guard kappt die Schleife nach MAX_RESOLVE_ITERS.
+    const pending = resolveIterations >= MAX_RESOLVE_ITERS
+      ? 0
+      : resolveQuestions.filter((q) => !answered(answers[q.id])).length;
+    return {
+      delta: delta!,
+      featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
+      hasFollowups: followupDecisions.length > 0,
+      pendingChoices: pending,
+    };
+  }
+  const answered = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : (v ?? '').toString().trim() !== '');
+
+  async function pipelineBody(from: StepId, alive: () => boolean) {
+    let step = advance(from, advCtx());
+    while (!isCheckpoint(step)) {
+      await runStep(step, alive);
+      if (!alive()) return;
+      reachedStep = step; // Schritt fertig → seine Änderungen werden im Dokument sichtbar
+      step = advance(step, advCtx());
+    }
+    onEnterCheckpoint(step);
+    reachedStep = step;
+    phase = step;
+  }
+
+  async function runStep(step: StepId, alive: () => boolean) {
+    switch (step) {
+      case 'base-delta':
+        gainedFeatures = gainedFeaturesFor(delta!);
+        break;
+      case 'subclass-delta':
+        pushStep(`Subklasse „${chosenSubclass?.name}" — Merkmale werden geladen…`);
+        subFeatures = await computeSubclassFeatures(chosenSubclass!.key, delta!.fromLevel, delta!.toLevel);
+        if (!alive()) return;
+        gainedFeatures = [...gainedFeaturesFor(delta!), ...subFeatures];
+        break;
+      case 'feature-effects':
+        await runFeatureEffects(gainedFeatures, 'base', alive);
+        break;
+      case 'feat-effects':
+        await runFeatureEffects(chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel)), 'feat', alive);
+        break;
+      case 'narrative':
+        await runNarrative(alive);
+        break;
+      case 'ongoing-effects':
+        await detectHpPerLevel(alive);
+        break;
+      // assemble-decisions / feat-links / assemble-followup: rein deterministisch →
+      // keine Aktion, das Dokument leitet diese Änderungen selbst aus dem State ab.
+    }
+  }
+
+  function onEnterCheckpoint(step: StepId) {
+    if (step === 'feat-choice') {
+      featsToPick = countFeatsToPick(delta!, answers);
+      chosenFeats = [];
+      getFeats().then((f) => { featLib = f; });
+    } else if (step === 'class-features') {
+      // Saat des editierbaren Freitexts: bestehendes Feld + KI-Merkmalstext + Kampfstil
+      // + getroffene Merkmals-Wahlen (z.B. Landart) → so persistieren die Wahlen auf dem Charakter.
+      const fs = fightingStyleFromAnswers(answers);
+      const choiceLines = [
+        ...choiceSelectionLines(validatedBase.riders, answers),
+        ...choiceSelectionLines(validatedFeats.riders, followupAnswers),
+      ];
+      featuresText = [character.classFeatures, narrativeAppend, fs ? `Kampfstil: ${fs}` : '', ...choiceLines]
+        .filter((s) => s && s.trim()).join('\n\n');
+    }
+  }
+
+  // ── KI-Arbeitsschritte (setzen State; das Dokument ist abgeleitet) ───────────────
+  /** Merkmals-/Talent-Effekte (KI, Schritt E). `kind` unterscheidet Basis vs. Talent. */
+  async function runFeatureEffects(features: GainedFeature[], kind: 'base' | 'feat', alive: () => boolean) {
+    await ensureSpellLib();
+    if (!alive()) return;
+    // Bereits getroffene konsequenzbehaftete Wahlen (aus vorherigem Auflösungs-Schritt) an E geben.
+    const resolvedChoices = kind === 'base' ? gatherResolvedChoices() : [];
+    let parsed: FeatureRider[] = [];
+    if (features.length) {
+      pushStep(resolvedChoices.length
+        ? 'KI berücksichtigt die getroffene Wahl und ergänzt die Effekte…'
+        : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
+      const raw = await runAiAction($llmConfig, buildFeatureEffectsAction(),
+        buildFeatureEffectsInput({ summary: buildSummary(), classContext: classContext(), features, resolvedChoices }), runOpts());
+      if (!alive()) return;
+      parsed = (parseFeatureEffects(raw) ?? { riders: [] }).riders;
+    }
+    const validated = validateRiderSpells(parsed, spellLib, delta!.klasseName);
+    if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
+    if (kind === 'base') {
+      resolveIterations++;
+      validatedBase = validated;
+      riders = validated.riders;
+      // Offene konsequenzbehaftete Wahlen → eigener Auflösungs-Schritt; der Rest → Entscheidungen.
+      resolveQuestions = consequentialPrompts(riders).filter((q) => !resolvedIds.has(q.id));
+      decisions = [
+        ...buildDecisions(delta!, riders, { maxSpellLevel: maxSpellLevel(), klasseName: delta!.klasseName }),
+        ...terminalPrompts(riders).filter((q) => !resolvedIds.has(q.id)),
+      ];
+      initAnswers(decisions, false);
+      // Konsequenzbehaftete Wahlen NICHT vorbelegen (kein Auto-Default auf die erste Option) —
+      // sie müssen aktiv getroffen werden, sonst würde der Auflösungs-Schritt übersprungen.
+      const pending = { ...answers };
+      for (const q of resolveQuestions) if (!(q.id in pending)) pending[q.id] = q.type === 'multiselect' || q.type === 'spell-picker' ? [] : '';
+      answers = pending;
+      if (resolveQuestions.length) pushStep(`KI wartet auf ${resolveQuestions.length} Wahl(en) mit Folgen.`);
+      else pushStep(decisions.length ? `${decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
+    } else {
+      validatedFeats = validated;
+      featRiders = validated.riders;
+      followupDecisions = collectChoicePrompts(featRiders);
+      if (followupDecisions.length) { initAnswers(followupDecisions, true); pushStep(`${followupDecisions.length} Folge-Entscheidung(en) durch Talente.`); }
+    }
+  }
+
+  /** Narrativ (KI, Schritt C) → doc.summary + Saat für den Klassenmerkmale-Freitext. */
+  async function runNarrative(alive: () => boolean) {
+    let n = { summary: '', classFeaturesAppend: '' };
+    try {
+      pushStep('KI formuliert das Narrativ…');
+      const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
+        buildNarrativeInput({
+          summary: buildSummary(), delta: delta!, gainedFeatures, chosenSubclass,
+          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name })),
+          riders: [...riders, ...featRiders],
+        }), runOpts());
+      if (!alive()) return;
+      n = parseLevelUpNarrative(raw) ?? n;
+    } catch { /* Narrativ ist optional → deterministischer Fallback */ }
+    narrativeSummary = n.summary || fallbackSummary();
+    narrativeAppend = n.classFeaturesAppend;
+  }
+
+  // ── Checkpoint-Aktionen (Nutzer klickt „Weiter") ────────────────────────────────
   function startFlow() {
     if (running) return;
     if (isNewClass && !newClassKey) { error = 'Bitte eine Klasse für das Multiclassing wählen.'; return; }
     if (!isNewClass && !hasClasses) return;
     // State zurücksetzen (Neustart aus choose-class)
-    chosenSubclass = null; gainedFeatures = []; riders = []; decisions = []; answers = {};
-    chosenFeats = []; featRiders = []; followupDecisions = []; followupAnswers = {}; flagged = []; proposal = null;
+    chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
+    resolveQuestions = []; resolvedIds = new Set(); resolveIterations = 0;
+    chosenFeats = []; featRiders = []; followupDecisions = []; followupAnswers = {}; flagged = [];
+    hpPerLevelSources = []; narrativeSummary = ''; narrativeAppend = ''; featuresText = '';
     validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
     validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
 
@@ -377,74 +551,36 @@
       if (!alive()) return;
       delta = d;
       if (d.atLevelCap) { error = 'Diese Klasse ist bereits auf Stufe 20.'; phase = 'choose-class'; return; }
-      homebrew = d.isHomebrew;
-      pushStep(`Delta: ${summarizeDelta(d)}`);
-
-      if (homebrew) {
-        pushStep('Homebrew: KI formuliert die nötigen Entscheidungen…');
-        const raw = await runAiAction($llmConfig, buildLevelUpQuestionsAction(),
-          buildQuestionsInput({ summary: buildSummary(), delta: d, subclassOptions: d.subclassOptions }), runOpts());
-        if (!alive()) return;
-        decisions = (parseLevelUpQuestionnaire(raw) ?? { questions: [] }).questions;
-        initAnswers(decisions, false);
-        phase = 'player-decisions';
+      if (d.isHomebrew) {
+        error = 'Stufenaufstieg ist nur mit hinterlegter Klassen-Progression möglich — für diese Klasse gibt es keine Progressionsdaten.';
+        phase = 'choose-class';
         return;
       }
-
-      if (needsSubclassChoice(d)) { pushStep('Subklasse muss gewählt werden.'); phase = 'subclass-choice'; return; }
-      gainedFeatures = gainedFeaturesFor(d);
-      await doFeatureEffects(alive);
+      pushStep(`Delta: ${summarizeDelta(d)}`);
+      await pipelineBody('choose-class', alive);
     });
   }
 
   function confirmSubclass(key: string, name: string) {
     if (!delta) return;
     chosenSubclass = { key, name };
-    runSegment('subclass-choice', async (alive) => {
-      pushStep(`Subklasse „${name}" — Merkmale werden geladen…`);
-      const subFeatures = await computeSubclassFeatures(key, delta!.fromLevel, delta!.toLevel);
-      if (!alive()) return;
-      gainedFeatures = [...gainedFeaturesFor(delta!), ...subFeatures];
-      await doFeatureEffects(alive);
-    });
+    runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
   }
 
-  // ── Schritt 2: Merkmals-Effekte (KI) → Fragebogen ───────────────────────────────
-  async function doFeatureEffects(alive: () => boolean) {
-    await ensureSpellLib();
-    if (!alive()) return;
-    let parsedRiders: FeatureRider[] = [];
-    if (gainedFeatures.length) {
-      pushStep(`KI deutet ${gainedFeatures.length} neu gewonnene Merkmal(e)…`);
-      const raw = await runAiAction($llmConfig, buildFeatureEffectsAction(),
-        buildFeatureEffectsInput({ summary: buildSummary(), classContext: classContext(), features: gainedFeatures }), runOpts());
-      if (!alive()) return;
-      parsedRiders = (parseFeatureEffects(raw) ?? { riders: [] }).riders;
-    }
-    validatedBase = validateRiderSpells(parsedRiders, spellLib, delta!.klasseName);
-    riders = validatedBase.riders;
-    if (validatedBase.flagged.length) flagged = [...new Set([...flagged, ...validatedBase.flagged])];
-    decisions = [
-      ...buildDecisions(delta!, riders, { maxSpellLevel: maxSpellLevel(), klasseName: delta!.klasseName }),
-      ...collectChoicePrompts(riders),
-    ];
-    initAnswers(decisions, false);
-    pushStep(decisions.length ? `${decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
-    phase = 'player-decisions';
+  // ── Auflösungs-Schritt: konsequenzbehaftete Wahl(en) → E erneut durchlaufen ──────
+  function submitResolve() {
+    if (!delta) return;
+    // Beantwortete Wahlen merken, damit sie nicht erneut als Entscheidung erscheinen.
+    const ids = new Set(resolvedIds);
+    for (const q of resolveQuestions) if (answered(answers[q.id])) ids.add(q.id);
+    resolvedIds = ids;
+    runSegment('resolve-choices', (alive) => pipelineBody('resolve-choices', alive));
   }
 
-  // ── Schritt 3: Entscheidungen abschicken → Talente oder Vorschlag ────────────────
+  // ── Schritt 3: Entscheidungen abschicken → Talente oder Assemblierung ────────────
   function submitDecisions() {
     if (!delta) return;
-    if (homebrew) { runLegacyProposal(); return; }
-    const n = countFeatsToPick(delta, answers);
-    if (n > 0) {
-      featsToPick = n; chosenFeats = [];
-      getFeats().then((f) => { featLib = f; });
-      phase = 'feat-choice';
-    } else {
-      runSegment('player-decisions', (alive) => doAssemble(alive));
-    }
+    runSegment('player-decisions', (alive) => pipelineBody('player-decisions', alive));
   }
 
   // ── Schritt 4: Talente wählen → Talent-Effekte (KI) ─────────────────────────────
@@ -462,39 +598,12 @@
 
   function confirmFeats() {
     if (!delta) return;
-    runSegment('feat-choice', async (alive) => {
-      pushStep(`KI deutet ${chosenFeats.length} Talent(e)…`);
-      // Beschreibungen NUR aus dem lokalen Talent-Wörterbuch (kein Open5e zur Laufzeit).
-      const feats: GainedFeature[] = chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel));
-      const raw = await runAiAction($llmConfig, buildFeatureEffectsAction(),
-        buildFeatureEffectsInput({ summary: buildSummary(), classContext: classContext(), features: feats }), runOpts());
-      if (!alive()) return;
-      const parsed = (parseFeatureEffects(raw) ?? { riders: [] }).riders;
-      validatedFeats = validateRiderSpells(parsed, spellLib, delta!.klasseName);
-      featRiders = validatedFeats.riders;
-      if (validatedFeats.flagged.length) flagged = [...new Set([...flagged, ...validatedFeats.flagged])];
-      followupDecisions = collectChoicePrompts(featRiders);
-      if (followupDecisions.length) {
-        initAnswers(followupDecisions, true);
-        pushStep(`${followupDecisions.length} Folge-Entscheidung(en) durch Talente.`);
-        phase = 'followup-decisions';
-      } else {
-        await doAssemble(alive);
-      }
-    });
+    runSegment('feat-choice', (alive) => pipelineBody('feat-choice', alive));
   }
 
-  function submitFollowup() { runSegment('followup-decisions', (alive) => doAssemble(alive)); }
+  function submitFollowup() { runSegment('followup-decisions', (alive) => pipelineBody('followup-decisions', alive)); }
 
-  // ── Schritt 5: Narrativ (KI) + Vorschlag (det.) ─────────────────────────────────
-  function mergeValidated(): ValidatedRiders {
-    return {
-      riders: [...validatedBase.riders, ...validatedFeats.riders],
-      flagged: [...new Set([...validatedBase.flagged, ...validatedFeats.flagged])],
-      grantedCantrips: [...new Set([...validatedBase.grantedCantrips, ...validatedFeats.grantedCantrips])],
-      grantedPrepared: [...validatedBase.grantedPrepared, ...validatedFeats.grantedPrepared],
-    };
-  }
+  // ── Hilfsfunktionen für die Dokument-Projektion ─────────────────────────────────
   function gatherLearned(): { level: number; name: string }[] {
     const q = decisions.find((d) => d.id === 'learned_spells');
     if (!q) return [];
@@ -503,47 +612,76 @@
   function gatherCantrips(): string[] {
     return ((answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
   }
+  /** Bereits getroffene konsequenzbehaftete Wahlen als Kontext für den erneuten E-Lauf. */
+  function gatherResolvedChoices(): { feature: string; prompt: string; choice: string }[] {
+    const out: { feature: string; prompt: string; choice: string }[] = [];
+    for (const r of validatedBase.riders) {
+      for (const q of r.choicePrompts) {
+        if (!q.resolvesEffects) continue;
+        const v = answers[q.id];
+        if (!answered(v)) continue;
+        const val = Array.isArray(v) ? v.join(', ') : String(v);
+        const label = q.options.find((o) => o.value === val)?.label ?? val;
+        out.push({ feature: r.featureName, prompt: q.prompt, choice: label });
+      }
+    }
+    return out;
+  }
   function fallbackSummary(): string {
     const names = [...gainedFeatures.map((f) => f.name), ...chosenFeats.map((f) => f.name)];
     const sub = chosenSubclass ? ` · Subklasse: ${chosenSubclass.name}` : '';
     return `${delta!.klasseName} Stufe ${delta!.fromLevel} → ${delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  async function doAssemble(alive: () => boolean) {
-    let narrative = { summary: '', classFeaturesAppend: '' };
+  // Fortlaufende, PRO-STUFE wirkende Effekte: die KI liest ALLE Merkmale des
+  // Charakters (Spezies + Klasse/Subklasse + Talente, inkl. diesen Level neu
+  // gewählter) und liefert die pro-Stufe-Änderungen (heute nur TP-Max, referenziert
+  // per Bibliotheks-Key). Fehler-tolerant → bei Ausfall verhält es sich wie bisher.
+  async function detectHpPerLevel(alive: () => boolean) {
+    hpPerLevelSources = [];
     try {
-      pushStep('KI formuliert das Narrativ…');
-      const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
-        buildNarrativeInput({
-          summary: buildSummary(), delta: delta!, gainedFeatures,
-          chosenSubclass, chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name })),
-          riders: [...riders, ...featRiders],
-        }), runOpts());
+      const groups = [
+        ...((await resolveSpeciesTraits(character.species)) ?? []),
+        ...(await resolveClassFeatures(character.classes)),
+      ];
+      const featLinks = await resolveFeatLinks(character.references?.feats);
+      const raw = [
+        ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
+        ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
+        ...gainedFeatures.map((f) => ({ key: '', name: f.name, desc: f.desc })),
+        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.desc ?? '' })),
+      ];
+      // Nach Key (bzw. Name, wenn kein Key) deduplizieren.
+      const seen = new Set<string>();
+      const features: EffectFeature[] = [];
+      for (const f of raw) {
+        if (!f.name.trim() && !f.key) continue;
+        const id = f.key || f.name.toLowerCase();
+        if (seen.has(id)) continue;
+        seen.add(id);
+        features.push(f);
+      }
+      if (!alive() || !features.length) return;
+      pushStep('KI prüft fortlaufende Merkmals-Effekte (TP/Stufe)…');
+      const eff = parseLevelUpEffects(await runAiAction($llmConfig, buildLevelUpEffectsAction(),
+        buildLevelUpEffectsInput({ level: delta!.toLevel, features }), runOpts()));
       if (!alive()) return;
-      narrative = parseLevelUpNarrative(raw) ?? narrative;
-    } catch { /* Narrativ ist optional → deterministischer Fallback */ }
-    if (!narrative.summary) narrative.summary = fallbackSummary();
-
-    proposal = assembleProposal({
-      delta: delta!, chosenSubclass, gainedFeatures, riders, featRiders, validated: mergeValidated(),
-      answers, followupAnswers, chosenFeats,
-      pickedLearned: gatherLearned(), learnAsPrepared: !learnInfo(delta!, riders).spellbook,
-      pickedCantrips: gatherCantrips(),
-      konMod: modOf(character.kon), hitDice: character.hitDice ?? '', narrative,
-    });
-    pushStep('Vorschlag erstellt.');
-    enterClassFeatures();
+      const nameByKey = new Map(features.filter((f) => f.key).map((f) => [f.key, f.name] as const));
+      const hpChanges = (eff?.changes ?? []).filter((c) => c.target === 'hpMax' && (parseInt(c.valueChange, 10) || 0) !== 0);
+      hpPerLevelSources = hpChanges.map((c) => ({
+        feature: nameByKey.get(c.source) || c.source || 'Merkmal',
+        sourceKey: c.source,
+        amount: parseInt(c.valueChange, 10) || 0,
+      }));
+      const perLevelSum = hpPerLevelSources.reduce((s, x) => s + x.amount, 0);
+      if (perLevelSum > 0)
+        pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
+    } catch {
+      hpPerLevelSources = [];
+    }
   }
 
-  // ── Schritt 5b: Klassenmerkmale-Feld überarbeiten (eigener KI-Schritt) ───────────
-  function enterClassFeatures() {
-    const fs = proposal?.fightingStyle ? `Kampfstil: ${proposal.fightingStyle}` : '';
-    featuresText = [character.classFeatures, proposal?.classFeaturesAppend, fs]
-      .filter((s) => s && s.trim())
-      .join('\n\n');
-    phase = 'class-features';
-  }
-
+  // ── Klassenmerkmale-Feld optional per KI überarbeiten (Schritt D, auf Klick) ─────
   function reworkFeatures() {
     if (!delta) return;
     runSegment('class-features', async (alive) => {
@@ -561,76 +699,77 @@
     });
   }
 
+  // Der editierte Klassenmerkmale-Freitext fließt via buildDoc automatisch ins Dokument.
   function confirmClassFeatures() {
-    if (proposal) proposal.classFeaturesRewrite = featuresText;
     phase = 'review';
   }
 
-  // ── Homebrew-Fallback (alter Pfad) ──────────────────────────────────────────────
-  function runLegacyProposal() {
-    if (!delta) return;
-    runSegment('player-decisions', async (alive) => {
-      pushStep('KI erstellt den additiven Änderungsvorschlag…');
-      const raw = await runAiAction($llmConfig, buildLevelUpProposalAction(),
-        buildProposalInput({ summary: buildSummary(), delta: delta!, questionnaire: { questions: decisions }, answers }), runOpts());
-      if (!alive()) return;
-      const p = parseLevelUpProposal(raw);
-      if (!p) { error = 'Die KI lieferte keinen gültigen Vorschlag.'; phase = 'player-decisions'; return; }
-      proposal = p;
-      pushStep('Vorschlag erhalten.');
-      enterClassFeatures();
-    });
-  }
-
   function apply() {
-    if (proposal && delta) onApply(proposal, delta);
+    if (delta) onApply($state.snapshot(doc) as LevelUpChangeSet, delta);
     phase = 'done';
     onclose();
   }
 
-  // ── Protokoll (linke Leiste, immer sichtbar) ────────────────────────────────────
-  let protocolFacts = $derived.by<string[]>(() => {
-    const f: string[] = [];
-    if (delta) f.push(summarizeDelta(delta));
-    if (chosenSubclass) f.push(`Subklasse: ${chosenSubclass.name}`);
-    // Trefferpunkte als getroffene Entscheidung festhalten (live aus den Antworten).
-    if (delta && delta.hitDie > 0 && decisions.some((d) => d.id === 'hp_method')) {
-      const km = modOf(character.kon);
-      const avg = Math.floor(delta.hitDie / 2) + 1;
-      const rolled = Number(answers['hp_roll']);
-      if (answers['hp_method'] === 'roll') {
-        f.push(rolled > 0 ? `TP: gewürfelt ${rolled} → +${rolled + km * delta.levelsGained}` : 'TP: würfeln (noch offen)');
-      } else {
-        f.push(`TP: Durchschnitt → +${(avg + km) * delta.levelsGained}`);
-      }
-    }
-    if (chosenFeats.length) f.push(`Talente: ${chosenFeats.map((x) => x.name).join(', ')}`);
-    return f;
+  // ── Gemeinsames LevelUp-Dokument (reine Projektion des States; buildDoc) ─────────
+  // Jeder Schritt schreibt in seine State-Eingaben; das Dokument ist dadurch stets
+  // synchron. Anzeige (Protokoll) UND Anwendung (apply) lesen dasselbe Dokument.
+  // Phasenstand fürs Dokument: während eines Laufs der zuletzt ABGESCHLOSSENE Schritt
+  // (progressiv hochgezählt) — so erscheinen fertige deterministische Teilschritte im
+  // JSON, bevor die nächste KI-Aktion läuft, ohne Vorgriff auf noch laufende Schritte.
+  let viewStep = $derived<StepId>(phase === 'running' ? reachedStep : phase);
+  let doc = $derived.by<LevelUpDoc>(() => {
+    if (!delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
+    return buildDoc({
+      delta, hitDice: character.hitDice ?? '',
+      chosenSubclass, subFeatures, validatedBase, validatedFeats,
+      answers, followupAnswers, konMod: modOf(character.kon),
+      pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
+      learnAsPrepared: !learnInfo(delta, riders).spellbook,
+      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, gainedAt: f.gainedAt })),
+      hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
+    });
   });
 
-  // ── Review-Zeilen ────────────────────────────────────────────────────────────────
-  let reviewLines = $derived.by<string[]>(() => {
-    if (!proposal || !delta) return [];
-    const lines: string[] = [];
-    lines.push(`${delta.klasseName || 'Klasse'}: Stufe ${delta.fromLevel} → ${delta.toLevel}`);
-    if (proposal.subclass?.key) lines.push(`Subklasse: ${proposal.subclass.name}`);
-    if (delta.profBonusTo !== delta.profBonusFrom) lines.push(`Übungsbonus: +${delta.profBonusFrom} → +${delta.profBonusTo}`);
-    if (proposal.hpGain) lines.push(`Trefferpunkte: +${proposal.hpGain}${proposal.hitDiceNew ? ` (${proposal.hitDiceNew})` : ''}`);
-    proposal.spellSlotDeltas.forEach((n, i) => { if (n > 0) lines.push(`Zauberplätze Grad ${i + 1}: +${n}`); });
-    if (proposal.newCantrips.length) lines.push(`Neue Zaubertricks: ${proposal.newCantrips.join(', ')}`);
-    for (const s of proposal.preparedSpellsAdd) lines.push(`${s.prepared === false ? 'Zauberbuch' : 'Vorbereitet'} (Grad ${s.level}): ${s.name}`);
-    for (const k of ABILITIES) {
-      const d = proposal.abilityScoreDeltas[k] ?? 0;
-      if (d) lines.push(`${ABILITY_LABEL[k]}: ${d > 0 ? '+' : ''}${d}`);
+  // ── Progression = Sicht auf das Dokument (gruppiert nach erzeugendem Schritt) ─────
+  function changeLine(c: Change): string {
+    switch (c.target) {
+      case 'hpMax':
+      case 'spellSlot':
+        return `${c.label}: +${c.value}`;
+      case 'hitDice':
+        return `${c.label}: ${c.value}`;
+      default:
+        return c.label; // Label trägt Wert/Detail bereits (z.B. „Stärke +1", „Talent: X")
     }
-    if (proposal.fightingStyle) lines.push(`Kampfstil: ${proposal.fightingStyle}`);
-    if (proposal.expertiseSkills.length) lines.push(`Expertise: ${proposal.expertiseSkills.join(', ')}`);
-    // Klassenmerkmale werden nicht mehr persistiert (aus dem Link abgeleitet); zur
-    // Übersicht im Review zeigen wir die neu gewonnenen Merkmale dennoch an.
-    for (const g of gainedFeatures) lines.push(`Merkmal: ${g.name}`);
-    for (const r of proposal.referencesFeatsAdd) lines.push(`Talent: ${r.name}`);
-    return lines;
+  }
+  // doc.changes stehen bereits in kanonischer Schritt-Reihenfolge (buildDoc) → die
+  // Gruppen entstehen in Erst-Auftritts-Reihenfolge, kein Sortieren nötig.
+  let progressionGroups = $derived.by<{ heading: string; lines: string[] }[]>(() => {
+    const groups: { heading: string; lines: string[] }[] = [];
+    const idx = new Map<string, number>();
+    for (const c of doc.changes) {
+      let i = idx.get(c.step);
+      if (i === undefined) {
+        i = groups.length;
+        idx.set(c.step, i);
+        groups.push({ heading: STEP_META[c.step as StepId]?.label ?? c.step, lines: [] });
+      }
+      groups[i].lines.push(changeLine(c));
+    }
+    return groups;
   });
+  let reviewLines = $derived(doc.changes.map(changeLine));
+
+  // Live-JSON des gemeinsamen Dokuments (zum Ansehen/Kopieren des Formats).
+  let docJson = $derived(JSON.stringify(doc, null, 2));
+  let jsonCopied = $state(false);
+  async function copyDoc() {
+    try {
+      await navigator.clipboard.writeText(docJson);
+      jsonCopied = true;
+      setTimeout(() => (jsonCopied = false), 1500);
+    } catch { /* Clipboard nicht verfügbar → ignorieren */ }
+  }
 </script>
 
 <div class="dialog" style="left: {pos.x}px; top: {pos.y}px;" role="dialog" aria-label="Stufenaufstieg">
@@ -656,23 +795,20 @@
   </div>
 
   <div class="body">
-  <!-- ── Protokoll (immer sichtbar) ─── -->
+  <!-- ── Progression (immer sichtbar) ─── -->
   <aside class="protocol">
-    <span class="field-label">Protokoll</span>
-    {#if protocolFacts.length}
+    <span class="field-label">Progression</span>
+    {#if progressionGroups.length}
       <div class="facts">
-        {#each protocolFacts as f}<div class="fact">• {f}</div>{/each}
-      </div>
-    {/if}
-    {#if steps.length}
-      <div class="steps">
-        {#each steps as s, i}
-          {@const isLast = i === steps.length - 1}
-          <div class="step" class:muted={!(isLast && running)}>{isLast && running ? '▸' : '✓'} {s}</div>
+        {#each progressionGroups as g}
+          <div class="proto-group">
+            <div class="proto-heading">{g.heading}</div>
+            {#each g.lines as l}<div class="fact">• {l}</div>{/each}
+          </div>
         {/each}
       </div>
     {:else}
-      <span class="field-hint">Noch keine Schritte.</span>
+      <span class="field-hint">Noch keine Änderungen.</span>
     {/if}
   </aside>
 
@@ -720,7 +856,7 @@
 
   <!-- ── Läuft ─── -->
   {#if phase === 'running'}
-    <div class="ai-status"><span class="spinner" aria-hidden="true"></span><span>KI arbeitet… ({elapsedSec}s)</span></div>
+    <div class="ai-status"><span class="spinner" aria-hidden="true"></span><span>{currentActivity || 'KI arbeitet…'} ({elapsedSec}s)</span></div>
   {/if}
   {#if stalled}
     <p class="hint warn">Seit {stalledSec}s keine Antwort — du kannst abbrechen und neu starten.</p>
@@ -738,6 +874,35 @@
         {/each}
       </div>
       {#if !delta.subclassOptions.length}<span class="field-hint">Keine Subklassen gefunden.</span>{/if}
+    </div>
+  {/if}
+
+  <!-- ── Wahl mit Folgen (löst einen erneuten Effekt-Pass aus) ─── -->
+  {#if phase === 'resolve-choices'}
+    <p class="hint">Diese Wahl bestimmt weitere Effekte — nach dem Bestätigen deutet die KI die Folgen (z.B. gewährte Zauber).</p>
+    <div class="questions">
+      {#each resolveQuestions as q (q.id)}
+        <div class="row">
+          <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
+          {#if q.help}<span class="field-hint">{q.help}</span>{/if}
+          {#if q.type === 'choice'}
+            <select class="select" value={answers[q.id] as string} onchange={(e) => setIn('a', q.id, (e.target as HTMLSelectElement).value)}>
+              <option value="">— bitte wählen —</option>
+              {#each q.options as opt}<option value={opt.value}>{opt.label}</option>{/each}
+            </select>
+          {:else if q.type === 'multiselect'}
+            <div class="group-chips">
+              {#each q.options as opt}
+                <button type="button" class="group-chip" class:on={(answers[q.id] as string[])?.includes(opt.value)} onclick={() => toggleIn('a', q.id, opt.value, q.max)}>{opt.label}</button>
+              {/each}
+            </div>
+          {:else if q.type === 'number'}
+            <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
+          {:else}
+            <textarea class="textarea" rows="2" value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
+          {/if}
+        </div>
+      {/each}
     </div>
   {/if}
 
@@ -895,9 +1060,10 @@
   {/if}
 
   <!-- ── Review ─── -->
-  {#if phase === 'review' && proposal}
-    {#if proposal.summary}<p class="hint">{proposal.summary}</p>{/if}
+  {#if phase === 'review'}
+    {#if doc.summary}<p class="hint">{doc.summary}</p>{/if}
     <div class="review">
+      <div class="review-line">✦ {doc.klasse || 'Klasse'}: Stufe {doc.fromLevel} → {doc.toLevel}</div>
       {#each reviewLines as line}<div class="review-line">✦ {line}</div>{/each}
       {#if reviewLines.length === 0}<div class="review-line muted">Keine automatischen Änderungen erkannt.</div>{/if}
     </div>
@@ -927,9 +1093,12 @@
     {:else if phase === 'subclass-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => chosenSubclass && confirmSubclass(chosenSubclass.key, chosenSubclass.name)} disabled={!chosenSubclass}>Weiter</button>
+    {:else if phase === 'resolve-choices'}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={submitResolve} disabled={!allResolved}>Weiter</button>
     {:else if phase === 'player-decisions'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitDecisions} disabled={!allAnswered}>{homebrew ? 'Vorschlag erstellen' : 'Weiter'}</button>
+      <button class="primary-btn" onclick={submitDecisions} disabled={!allAnswered}>Weiter</button>
     {:else if phase === 'feat-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={confirmFeats} disabled={chosenFeats.length !== featsToPick}>Weiter</button>
@@ -946,6 +1115,17 @@
   </div>
   </div><!-- .main -->
   </div><!-- .body -->
+
+  <!-- ── JSON-Dokument (volle Breite, unten) ─── -->
+  {#if delta}
+    <details class="json-view">
+      <summary>
+        <span>JSON-Dokument</span>
+        <button type="button" class="link-btn json-copy" onclick={(e) => { e.preventDefault(); copyDoc(); }}>{jsonCopied ? 'Kopiert ✓' : 'Kopieren'}</button>
+      </summary>
+      <pre class="json">{docJson}</pre>
+    </details>
+  {/if}
 </div>
 
 <style>
@@ -972,8 +1152,25 @@
     max-height: 66vh; overflow-y: auto;
   }
   .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.7rem; }
-  .facts { display: flex; flex-direction: column; gap: 0.2rem; }
+  .facts { display: flex; flex-direction: column; gap: 0.5rem; }
+  .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
+  .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
   .fact { font-size: 0.76rem; color: var(--ink-soft); }
+
+  .json-view { border-top: 1px solid var(--surface); padding-top: 0.5rem; }
+  .json-view summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-muted); cursor: pointer; user-select: none;
+  }
+  .json-view summary::-webkit-details-marker { display: none; }
+  .json-copy { font-size: 0.7rem; }
+  .json {
+    margin: 0.5rem 0 0; max-height: 30vh; overflow: auto; white-space: pre;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem; line-height: 1.4; color: var(--ink-soft);
+    background: var(--surface); border-radius: 4px; padding: 0.7rem; tab-size: 2;
+  }
   .roll { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
   .roll-result { font-size: 0.82rem; color: var(--ink-soft); }
   .rework-btn { align-self: flex-start; }
@@ -1031,10 +1228,6 @@
   .ai-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--ink-soft); }
   .spinner { width: 0.9rem; height: 0.9rem; flex-shrink: 0; border: 2px solid var(--surface); border-top-color: var(--arcane, var(--red)); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  .steps { display: flex; flex-direction: column; gap: 0.25rem; max-height: 320px; overflow-y: auto; padding: 0.3rem 0; }
-  .step { font-size: 0.82rem; color: var(--ink-soft); }
-  .step.muted { color: var(--ink-muted); }
 
   .hint { font-size: 0.78rem; margin: 0; }
   .hint.warn { color: var(--gold, #c89b3c); }

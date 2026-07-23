@@ -24,6 +24,7 @@ export interface GainedFeature {
   desc: string;
   source: 'class' | 'subclass' | 'feat';
   gainedAt: number;
+  key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
 }
 
 /** Knapper Klassen-Kontext für die Effekt-Deutung. */
@@ -48,8 +49,10 @@ Extract ONLY the concrete, app-modellable mechanical effects each feature grants
 6. proficiencies: skills/tools/weapons/armor/languages/savingThrows the feature grants (short names).
 7. abilityScoreIncrease: ONLY fixed ability increases the feature itself dictates (e.g. a feat giving +1 CON). NEVER the generic ASI (that is a player choice handled separately). German ability keys: str, ges (dex), kon, int, wei (wis), cha.
 8. choicePrompts: if a feature FORCES a player choice (e.g. Fighting Style selection, "+1 to one of two abilities", pick a spell from a list), emit a typed question. Use type "choice"/"multiselect" with options where you know them, else "text". Every prompt/help/label MUST be GERMAN. Use stable ids like "choice_<featureslug>_1".
-9. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — they are applied automatically. Only add value the raw table cannot express.
-10. If nothing is modellable, return an empty "riders" array.`;
+9. resolvesEffects on a choicePrompt: set TRUE only when the answer DETERMINES further mechanical grants you cannot state yet because they depend on the choice. Set FALSE when the answer IS the effect itself and needs no follow-up. When TRUE, leave the dependent grant empty for now; you will be asked again once the choice is resolved.
+10. <resolved_choices> (if present) lists choices the player has ALREADY made. For each, treat the choice as final and output the concrete grants it now produces (canonical ENGLISH spell names where applicable). Keep that choicePrompt on its rider but set resolvesEffects=false so the choice stays on record — never re-ask an already-resolved choice.
+11. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — they are applied automatically. Only add value the raw table cannot express.
+12. If nothing is modellable, return an empty "riders" array.`;
 
 export function buildFeatureEffectsAction(): AiAction<FeatureEffects> {
   return {
@@ -69,10 +72,14 @@ export function buildFeatureEffectsInput(ctx: {
   summary: CharacterSummary;
   classContext: FeatureClassContext;
   features: GainedFeature[];
+  resolvedChoices?: { feature: string; prompt: string; choice: string }[];
 }): string {
-  return [
+  const parts = [
     `<character_summary>${JSON.stringify(ctx.summary)}</character_summary>`,
     `<class_context>${JSON.stringify(ctx.classContext)}</class_context>`,
     `<gained_features>${JSON.stringify(ctx.features)}</gained_features>`,
-  ].join('\n');
+  ];
+  if (ctx.resolvedChoices?.length)
+    parts.push(`<resolved_choices>${JSON.stringify(ctx.resolvedChoices)}</resolved_choices>`);
+  return parts.join('\n');
 }

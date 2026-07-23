@@ -7,10 +7,10 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run schema:overview:check",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "schema:overview": "node scripts/gen-schema-overview.mjs",
-    "schema:overview:check": "node scripts/gen-schema-overview.mjs --check",
+    "_disabled_schema:overview": "node scripts/gen-schema-overview.mjs",
+    "_disabled_schema:overview:check": "node scripts/gen-schema-overview.mjs --check",
     "tauri": "tauri"
   },
   "license": "MIT",

@@ -8,7 +8,7 @@
   import { parseCharacter } from '../utils/schemaValidation';
   import { type Character, formatClassLevel, formatSpecies } from '../schemas/character';
   import { proficiencyBonus } from '../services/classProgression';
-  import type { LevelUpProposal } from '../schemas/levelUp';
+  import type { LevelUpChangeSet } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
@@ -108,82 +108,83 @@
    * `{#key ed.draft}` (Formular-Remount → Diff-Highlighting) und `ed.dirty` aus.
    * Numerische Werte werden addiert, damit item-gewährte Boni erhalten bleiben.
    */
-  function applyLevelUp(proposal: LevelUpProposal, delta: LevelUpDelta) {
+  function applyLevelUp(changeSet: LevelUpChangeSet, delta: LevelUpDelta) {
     if (!ed.draft) return;
     const next = structuredClone($state.snapshot(ed.draft)) as Character;
 
+    // Struktur (Identität, aus delta — kein additives Delta): Klassenstufe / Multiclass.
     if (delta.isNewClass) {
-      // Multiclassing: neue Klasse ab Zielstufe anhängen.
-      next.classes.push({
-        sourceKey: delta.sourceKey,
-        name: delta.klasseName,
-        level: delta.toLevel,
-        subclassKey: proposal.subclass?.key || undefined,
-        subclassName: proposal.subclass?.name || undefined,
-      });
+      next.classes.push({ sourceKey: delta.sourceKey, name: delta.klasseName, level: delta.toLevel });
     } else {
       const cls = next.classes[delta.classIndex];
-      if (cls) {
-        cls.level = delta.toLevel;
-        if (proposal.subclass?.key) { cls.subclassKey = proposal.subclass.key; cls.subclassName = proposal.subclass.name; }
+      if (cls) cls.level = delta.toLevel;
+    }
+    // Übungsbonus deterministisch aus Gesamtstufe (Sicherheitsnetz; changeSet setzt ihn ebenso).
+    next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
+
+    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden.
+    for (const c of changeSet.changes) {
+      switch (c.target) {
+        case 'hpMax': // Freitext-Zahl additiv (bewahrt item-/manuelle Boni)
+          next.hpMax = String((parseInt(next.hpMax, 10) || 0) + c.value);
+          break;
+        case 'hitDice':
+          next.hitDice = c.value;
+          break;
+        case 'proficiencyBonus':
+          next.proficiencyBonus = c.value;
+          break;
+        case 'spellSlot': { // additiv — bewahrt item-/manuell gewährte Slots
+          const slots = next.spells?.slots ?? [];
+          const i = c.level - 1;
+          if (slots[i]) slots[i].total += c.value;
+          break;
+        }
+        case 'cantrip':
+          if (!next.spells.cantrips.includes(c.name)) next.spells.cantrips = [...next.spells.cantrips, c.name];
+          break;
+        case 'spellcastingClass':
+          if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
+          break;
+        case 'ability': { // additiv + Modifikator neu berechnen
+          const score = (next[c.ability] ?? 10) + c.value;
+          next[c.ability] = score;
+          (next as unknown as Record<string, number>)[`${c.ability}Mod`] = Math.floor((score - 10) / 2);
+          break;
+        }
+        case 'preparedSpell': { // → spells.byLevel (Dedup je Grad)
+          if (!c.name.trim()) break;
+          const lvl = String(c.level);
+          const arr = next.spells.byLevel[lvl] ?? [];
+          if (!arr.some((e) => e.name === c.name)) arr.push({ name: c.name, prepared: c.prepared });
+          next.spells.byLevel[lvl] = arr;
+          break;
+        }
+        case 'feat': // Talent-Link → references.feats
+          next.references.feats = [...next.references.feats, { sourceKey: c.sourceKey, name: c.name, gainedAt: c.gainedAt, desc: '' }];
+          break;
+        case 'expertise':
+          if (next.skills[c.skill]) next.skills[c.skill].exp = true;
+          break;
+        case 'proficiency':
+          if (next.skills[c.skill]) next.skills[c.skill].prof = true;
+          break;
+        case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
+          const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
+          if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }
+          break;
+        }
+        case 'classFeaturesText': // KI-Volltext ersetzen ODER Freitext anhängen (inkl. Kampfstil)
+          if (c.mode === 'replace') next.classFeatures = c.value;
+          else next.classFeatures = [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
+          break;
+        case 'featureGained':
+          break; // Info-Eintrag — keine Anwendung (Klassen-/Subklassen-Merkmale aus Link abgeleitet)
+        case 'note':
+          break; // Info-Eintrag (getroffene Wahl) — persistiert über den Klassenmerkmale-Freitext
       }
     }
     next.classLevel = formatClassLevel(next.classes);
-
-    // Übungsbonus deterministisch aus der Gesamtstufe (NICHT vom LLM übernehmen).
-    next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
-
-    // Zauberplätze additiv — bewahrt item-/manuell gewährte Slots.
-    const slots = next.spells?.slots ?? [];
-    for (let i = 0; i < 9; i++) if (slots[i]) slots[i].total += proposal.spellSlotDeltas[i] ?? 0;
-    if (proposal.newCantrips.length) next.spells.cantrips = [...next.spells.cantrips, ...proposal.newCantrips];
-    if (proposal.spellcastingClass && !next.spells.spellcastingClass) next.spells.spellcastingClass = proposal.spellcastingClass;
-
-    // Attribute additiv (ASI) + Modifikatoren neu berechnen.
-    const abil = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-    for (const k of abil) {
-      const d = proposal.abilityScoreDeltas[k] ?? 0;
-      if (!d) continue;
-      const score = (next[k] ?? 10) + d;
-      next[k] = score;
-      (next as unknown as Record<string, number>)[`${k}Mod`] = Math.floor((score - 10) / 2);
-    }
-
-    // Trefferpunkte (Freitext): numerischen Teil erhöhen.
-    if (proposal.hpGain) next.hpMax = String((parseInt(next.hpMax, 10) || 0) + proposal.hpGain);
-    if (proposal.hitDiceNew) next.hitDice = proposal.hitDiceNew;
-
-    // Klassenmerkmale: entweder KI-überarbeiteter VOLLTEXT (eigener Schritt, ersetzt komplett)
-    // oder — als Fallback — Freitext anhängen (inkl. Kampfstil). Referenzen separat unten.
-    if (proposal.classFeaturesRewrite?.trim()) {
-      next.classFeatures = proposal.classFeaturesRewrite;
-    } else {
-      const featureText = [proposal.classFeaturesAppend, proposal.fightingStyle ? `Kampfstil: ${proposal.fightingStyle}` : '']
-        .filter((s) => s && s.trim()).join('\n');
-      if (featureText) {
-        next.classFeatures = [next.classFeatures, featureText].filter((s) => s && s.trim()).join('\n');
-      }
-    }
-    // Klassen-/Subklassen-Merkmale werden NICHT mehr persistiert — sie ergeben sich aus
-    // dem Klassen-Link + Stufe (siehe classes[] oben) und werden auf der Karte aus der
-    // Bibliothek aufgelöst. Nur Talente sind eigene Links.
-    if (proposal.referencesFeatsAdd.length) {
-      next.references.feats = [...next.references.feats, ...proposal.referencesFeatsAdd];
-    }
-
-    // Gewährte/gelernte Zauber → spells.byLevel (Dedup je Grad). `prepared` unterscheidet
-    // castbare (immer-vorbereitet / known) von nur ins Zauberbuch gelegten (Magier).
-    for (const s of proposal.preparedSpellsAdd) {
-      if (!s.name?.trim()) continue;
-      const lvl = String(s.level);
-      const arr = next.spells.byLevel[lvl] ?? [];
-      if (!arr.some((e) => e.name === s.name)) arr.push({ name: s.name, prepared: s.prepared ?? true });
-      next.spells.byLevel[lvl] = arr;
-    }
-
-    // Expertise / Fertigkeits-Profizienzen additiv (nur bestehende Skill-Keys setzen).
-    for (const k of proposal.expertiseSkills) if (next.skills[k]) next.skills[k].exp = true;
-    for (const k of proposal.proficiencySkillsAdd) if (next.skills[k]) next.skills[k].prof = true;
 
     // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
     const r = parseCharacter(next);

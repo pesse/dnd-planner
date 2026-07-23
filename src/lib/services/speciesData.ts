@@ -22,19 +22,27 @@ function readSize(raw: unknown): string {
   return '';
 }
 
+/** Deterministischer Slug aus einem Namen (für stabile Trait-Keys). */
+function slug(s: string): string {
+  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 /** Bildet eine rohe v2-Spezies auf das offene, zweisprachige Schema ab. */
 export function mapV2Species(raw: Record<string, unknown>): Species {
   const rawTraits = (raw.traits as V2Trait[]) ?? [];
   const doc = (raw.document as { key?: string; gamesystem?: { key?: string } }) ?? {};
+  const specKey = (raw.key as string) ?? '';
 
+  // Open5e liefert keine Trait-Keys → deterministisch aus Spezies-Key + Name-Slug
+  // erzeugen, damit Merkmale stabil referenzierbar sind (z.B. für pro-Stufe-Effekte).
   const traits: Trait[] = rawTraits.map((t) => ({
-    key: t.key ?? '',
+    key: t.key || (specKey && t.name ? `${specKey}_${slug(t.name)}` : ''),
     name: t.name ?? '',
     desc: t.desc ?? '',
   }));
 
   const mapped = {
-    key: (raw.key as string) ?? '',
+    key: specKey,
     name: (raw.name as string) ?? '',
     size: readSize(raw.size),
     speed: typeof raw.speed === 'string' ? raw.speed : String((raw.speed as { walk?: number })?.walk ?? ''),

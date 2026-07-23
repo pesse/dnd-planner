@@ -41,6 +41,7 @@ export interface LevelUpDelta {
   casterType: string; // FULL/HALF/NONE/…
   casterKind: 'prepared' | 'known' | 'none'; // aus casterType + Tabellenspalte abgeleitet
   spellSlotDelta: number[]; // Länge 9, idx0 = Grad 1, negativ→0
+  castingIsNew: boolean; // Zauberwirken wird in dieser Spanne ERSTMALS erlangt (nicht: schon vorher Zauberwirker)
   cantripDelta: number;
   preparedFrom: number; // Anzahl vorbereitbarer Zauber auf fromLevel
   preparedTo: number; // … auf toLevel
@@ -139,6 +140,7 @@ export async function computeLevelUpDelta(
     casterType: 'NONE',
     casterKind: 'none',
     spellSlotDelta: Array(9).fill(0),
+    castingIsNew: false,
     cantripDelta: 0,
     preparedFrom: 0,
     preparedTo: 0,
@@ -168,6 +170,11 @@ export async function computeLevelUpDelta(
     const prepTo = preparedOrKnownCount(prog, toLevel);
     const prepFrom = fromLevel <= 0 ? { count: 0, kind: prepTo.kind } : preparedOrKnownCount(prog, fromLevel);
     delta.casterKind = prepTo.kind;
+    // Zauberwirken ist NUR dann neu, wenn der Charakter auf fromLevel noch keinerlei
+    // Zauberwirken hatte (keine Plätze, Tricks oder vorbereitbaren/bekannten Zauber).
+    // Sonst (z.B. Druide 2→3) ist die Klasse längst Zauberwirker → kein neuer Eintrag.
+    const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || cantripFrom > 0 || prepFrom.count > 0);
+    delta.castingIsNew = prepTo.kind !== 'none' && !hadCasting;
     delta.preparedFrom = prepFrom.count;
     delta.preparedTo = prepTo.count;
     delta.preparedDelta = Math.max(0, prepTo.count - prepFrom.count);

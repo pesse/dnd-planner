@@ -1,32 +1,26 @@
 /**
- * KI-Aktionen für den Stufenaufstieg — zwei tool-freie `AiAction`s.
+ * KI-Aktionen für den Stufenaufstieg — die tool-freien Prosa-Pässe.
  *
- * Aufruf #1 (`buildLevelUpQuestionsAction`): aus dem deterministischen Delta einen
- * getippten Fragebogen erzeugen (nur echte Wahlentscheidungen).
- * Aufruf #2 (`buildLevelUpProposalAction`): aus Delta + Antworten den ADDITIVEN
- * Änderungsvorschlag bauen.
+ * `buildLevelUpNarrativeAction` (C): deutsches Narrativ (Summary + Merkmals-Text).
+ * `buildClassFeaturesRewriteAction` (D): Klassenmerkmale-Freitext neu formulieren.
  *
- * Beide haben leere Tool-Arrays → `runAiAction` nimmt den tool-freien Pfad
- * (Anthropic: generateStructured; sonst generate+extractJson) und funktioniert
- * damit auch ohne Structured-Output-Provider (Groq/QM/Ollama).
+ * Alle Zahlen werden deterministisch (levelUpMachine.buildDoc) assembliert; die KI
+ * liefert hier nur Prosa. Aufstieg ist nur mit Progressionsdaten möglich — der
+ * frühere Homebrew-Fallback (Fragen/Vorschlag) wurde entfernt.
  *
- * Prompts sind ENGLISCH; nur nutzer-sichtbare Feldinhalte sind Deutsch.
+ * Leere Tool-Arrays → `runAiAction` nimmt den tool-freien Pfad (Anthropic:
+ * generateStructured; sonst generate+extractJson). Prompts ENGLISCH; nur
+ * nutzer-sichtbare Feldinhalte Deutsch.
  */
 import type { AiAction } from './types';
-import type { LevelUpDelta, SubclassOption } from '../levelUp';
+import type { LevelUpDelta } from '../levelUp';
 import type { FeatureRider } from '../../schemas/levelUp';
 import type { GainedFeature } from './featureEffectsAction';
 import {
-  levelUpQuestionnaireJsonSchema,
-  levelUpProposalJsonSchema,
   levelUpNarrativeJsonSchema,
   classFeaturesRewriteJsonSchema,
-  parseLevelUpQuestionnaire,
-  parseLevelUpProposal,
   parseLevelUpNarrative,
   parseClassFeaturesRewrite,
-  type LevelUpQuestionnaire,
-  type LevelUpProposal,
   type LevelUpNarrative,
   type ClassFeaturesRewrite,
 } from '../../schemas/levelUp';
@@ -42,71 +36,8 @@ export interface CharacterSummary {
   spellcasting: { class: string; ability: string; currentSlots: number[] };
 }
 
-const QUESTIONS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-A player character is advancing one class from <level_up_delta>.fromLevel to <level_up_delta>.toLevel
-(usually +1, but may be several levels — <level_up_delta>.levelsGained). If <level_up_delta>.isNewClass is
-true, the player is STARTING a new class via multiclassing (it begins at level 1): do NOT ask for a subclass
-(that is chosen at a later class level), and remember multiclassing grants only limited proficiencies (no new
-saving-throw proficiencies). All deterministic game data (new spell slots, proficiency bonus, hit die, features
-gained across the span) has ALREADY been computed and is given to you in <level_up_delta>. Your ONLY task is to
-produce the list of DECISIONS the player must actively make, as a typed questionnaire.
-
-## Rules
-1. Emit a question ONLY where the player genuinely chooses. Typical cases:
-   - Subclass selection: ONLY if <subclass_options> is non-empty (means none chosen yet). type "choice", options = <subclass_options> (value=key, label=name).
-   - Hit points: type "choice" id "hp_method", options "roll"/"average" (label in German), defaultValue "average". If levelsGained is 1 you MAY add a type "number" question id "hp_roll" (min 1, max = <level_up_delta>.hitDie) for the rolled value; for multiple levels prefer "average" and skip per-level rolls.
-   - Ability Score Improvement vs. Feat: emit ONE such decision PER ASI level gained — <level_up_delta>.asiCount decisions (ids "asi_or_feat_1", "asi_or_feat_2", …). type "choice" ("Attributswerte erhöhen" / "Talent wählen"); for each, add a matching type "text" ("asi_dist_1", …) asking which ability scores to raise (+2 to one, or +1/+1) resp. which feat. If asiCount is 0, emit none.
-   - New cantrips/spells: ONLY if <level_up_delta>.cantripDelta > 0 or the class learns spells in this span. type "text" or "multiselect".
-   - Any class-specific choice implied by the features in <level_up_delta>.featuresGained (e.g. Fighting Style, Expertise, Metamagic). Use "choice"/"multiselect" if you know the options, else "text".
-2. NEVER ask about anything already deterministic (spell slots, proficiency bonus, hit die value) — those are applied automatically.
-3. If nothing needs a decision, return an empty "questions" array.
-4. Pre-fill "defaultValue" and "options" wherever derivable.
-5. Every "prompt", "help" and option "label" MUST be written in GERMAN. Keep prompts short.`;
-
-const PROPOSAL_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-Assemble the level-up changes as ADDITIVE deltas in JSON.
-
-## Rules
-1. Every numeric field is a DELTA to ADD to the character's current value — NEVER an absolute total.
-   This preserves bonuses from magic items or manual edits.
-2. spellSlotDeltas: copy <level_up_delta>.spellSlotDelta verbatim (already computed; 9 numbers, index 0 = spell level 1). Do NOT recompute.
-3. Cantrips: if <level_up_delta>.cantripDelta > 0, list that many new cantrip names in newCantrips based on <answers>; otherwise [].
-4. Apply <answers>:
-   - Hit points: per level gained, the increase is (rolled number if hp_method="roll", else class average = floor(hitDie/2)+1) PLUS the Constitution modifier (<character_summary>.mods.kon). Multiply by <level_up_delta>.levelsGained and put the TOTAL in hpGain.
-   - Ability Score Improvement: sum ALL ASI decisions (asi_or_feat_1..N) into abilityScoreDeltas (keys str/ges/kon/int/wei/cha, German mapping dex=ges/wis=wei). Any decision that chose a feat contributes 0 to the scores — describe those feats in classFeaturesAppend.
-   - Subclass: if one was chosen, set "subclass" {key,name} from <subclass_options>.
-5. classFeaturesAppend: a short GERMAN narrative naming the features gained this level (from <level_up_delta>.featuresGained and subclassFeaturesGained), suitable to append to the character's class-features text. NOTE: class/subclass features themselves are NOT stored on the character — they are resolved from the class link at the character's level. This narrative is only the player-facing free text.
-6. hitDiceNew: the character's new full hit-dice string. Current is <character_summary>.hitDice (e.g. "5W10"); return the incremented version (e.g. "6W10"), German dice notation with "W". Empty if unknown.
-7. Leave arrays empty and numbers 0 where nothing is gained. All human-readable text in GERMAN.`;
-
-export function buildLevelUpQuestionsAction(): AiAction<LevelUpQuestionnaire> {
-  return {
-    id: 'levelup-questions',
-    label: 'Stufenaufstieg: Fragen',
-    anthropicTools: [],
-    openAiTools: [],
-    execute: async () => '',
-    jsonSchema: levelUpQuestionnaireJsonSchema,
-    validate: (d): d is LevelUpQuestionnaire => parseLevelUpQuestionnaire(d) !== null,
-    buildSystemPrompt: () => QUESTIONS_SYSTEM,
-  };
-}
-
-export function buildLevelUpProposalAction(): AiAction<LevelUpProposal> {
-  return {
-    id: 'levelup-proposal',
-    label: 'Stufenaufstieg: Vorschlag',
-    anthropicTools: [],
-    openAiTools: [],
-    execute: async () => '',
-    jsonSchema: levelUpProposalJsonSchema,
-    validate: (d): d is LevelUpProposal => parseLevelUpProposal(d) !== null,
-    buildSystemPrompt: () => PROPOSAL_SYSTEM,
-  };
-}
-
 // ── Dünner Narrativ-Pass (Standard-/deterministischer Pfad) ─────────────────────
-// Alle Deltas werden deterministisch in levelUpFlow.assembleProposal gebaut; die KI
+// Alle Deltas werden deterministisch in levelUpMachine.buildDoc gebaut; die KI
 // liefert NUR das deutsche Narrativ (Zusammenfassung + Merkmals-Text zum Anhängen).
 const NARRATIVE_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 Write a short GERMAN narrative for a character's level-up. You are given the class span, the features/feats gained
@@ -194,34 +125,5 @@ export function buildNarrativeInput(ctx: {
     `<chosen_subclass>${JSON.stringify(ctx.chosenSubclass)}</chosen_subclass>`,
     `<chosen_feats>${JSON.stringify(ctx.chosenFeats)}</chosen_feats>`,
     `<riders>${JSON.stringify(ctx.riders)}</riders>`,
-  ].join('\n');
-}
-
-/** userInput für Aufruf #1 (XML-gegliedert, JSON-Inhalt). */
-export function buildQuestionsInput(ctx: {
-  summary: CharacterSummary;
-  delta: LevelUpDelta;
-  subclassOptions: SubclassOption[];
-}): string {
-  return [
-    `<character_summary>${JSON.stringify(ctx.summary)}</character_summary>`,
-    `<level_up_delta>${JSON.stringify(ctx.delta)}</level_up_delta>`,
-    `<subclass_options>${JSON.stringify(ctx.subclassOptions)}</subclass_options>`,
-  ].join('\n');
-}
-
-/** userInput für Aufruf #2. */
-export function buildProposalInput(ctx: {
-  summary: CharacterSummary;
-  delta: LevelUpDelta;
-  questionnaire: LevelUpQuestionnaire;
-  answers: Record<string, string | string[]>;
-}): string {
-  return [
-    `<character_summary>${JSON.stringify(ctx.summary)}</character_summary>`,
-    `<level_up_delta>${JSON.stringify(ctx.delta)}</level_up_delta>`,
-    `<subclass_options>${JSON.stringify(ctx.delta.subclassOptions)}</subclass_options>`,
-    `<questionnaire>${JSON.stringify(ctx.questionnaire)}</questionnaire>`,
-    `<answers>${JSON.stringify(ctx.answers)}</answers>`,
   ].join('\n');
 }
