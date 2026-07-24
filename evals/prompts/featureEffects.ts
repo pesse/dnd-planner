@@ -1,9 +1,13 @@
 /**
- * Prompt-Varianten für die featureEffects-Eval (A/B-Vergleich).
+ * Prompt-Kandidaten für die featureEffects-Eval.
  *
- * BASELINE wird direkt aus der Produktions-Action abgeleitet (Single Source, kein
- * Drift). CANDIDATE ist eine gekürzte Fassung zum Experimentieren — hier frei
- * editieren und via `npm run eval` gegen die Baseline messen.
+ * Es wird immer GENAU EIN Prompt ausgewertet (siehe harness `runEval`). Um Prompts
+ * zu vergleichen, läuft man die Eval mehrmals mit unterschiedlichem `EVAL_PROMPT`
+ * — jeder Lauf schreibt einen eigenen Report (Titel = Prompt-Name), die man extern
+ * nebeneinanderlegt.
+ *
+ * `baseline` wird direkt aus der Produktions-Action gezogen (Single Source, kein
+ * Drift). Weitere Einträge sind Experimentierfassungen zum Tunen.
  */
 import { buildFeatureEffectsAction } from '../../src/lib/services/aiActions/featureEffectsAction';
 
@@ -24,3 +28,19 @@ Per rider, capture what applies:
 <resolved_choices> (if present): treat each as final; output the concrete grants it now yields (ENGLISH spell names where applicable), keep that choicePrompt but set resolvesEffects=false. Never re-ask a resolved choice.
 
 Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die).`;
+
+/** Registry aller wählbaren Prompts (EVAL_PROMPT wählt einen aus). */
+export const FEATURE_EFFECTS_PROMPTS: Record<string, string> = {
+  baseline: FEATURE_EFFECTS_BASELINE,
+  candidate: FEATURE_EFFECTS_CANDIDATE,
+};
+
+/** Löst den per Name gewählten Prompt auf (Default: baseline). Wirft bei unbekanntem Namen. */
+export function resolveFeatureEffectsPrompt(name = 'baseline'): { name: string; systemPrompt: string } {
+  const systemPrompt = FEATURE_EFFECTS_PROMPTS[name];
+  if (!systemPrompt) {
+    const available = Object.keys(FEATURE_EFFECTS_PROMPTS).join(', ');
+    throw new Error(`Unbekannter EVAL_PROMPT="${name}". Verfügbar: ${available}`);
+  }
+  return { name, systemPrompt };
+}

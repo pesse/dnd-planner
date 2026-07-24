@@ -11,7 +11,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "_disabled_schema:overview": "node scripts/gen-schema-overview.mjs",
     "_disabled_schema:overview:check": "node scripts/gen-schema-overview.mjs --check",
-    "eval": "vitest run --config vitest.config.ts",
+    "eval": "node evals/cli.mjs",
     "eval:watch": "vitest --config vitest.config.ts",
     "tauri": "tauri"
   },

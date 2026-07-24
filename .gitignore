@@ -18,4 +18,7 @@ tauri-dev.log
 # Playwright MCP — Session-Artefakte (Console-Logs, Page-Dumps)
 .playwright-mcp/
 
+# Eval-Report-Artefakte (echte Requests/Responses — nicht einchecken)
+evals/reports/
+
 /vault/

@@ -23,6 +23,12 @@ export interface RunOptions {
   signal?: AbortSignal;
   /** Lebenszeichen pro Iteration/Streaming-Delta (für die Stuck-Erkennung der UI). */
   onActivity?: () => void;
+  /**
+   * Kein Nachbesserungs-Call bei ungültigem JSON. Standard: false (Prod macht einen
+   * Retry). Für Prompt-Qualitäts-Evals true, damit die First-Try-Qualität des Prompts
+   * gemessen wird und nicht der Retry sie kaschiert.
+   */
+  noRetry?: boolean;
 }
 
 /** Versucht, ein JSON-Objekt aus Freitext zu extrahieren (roh, ```json-Fence, erstes {…}). */
@@ -93,7 +99,7 @@ export async function runAiAction<T>(
     data = extractJson(draftText);
   }
 
-  if (!data || !action.validate(data)) {
+  if (!opts.noRetry && (!data || !action.validate(data))) {
     onStep({ type: 'tool_call', tool: 'json-korrektur', args: {} });
     if (client.capabilities.structuredOutput) {
       // Nativer Pfad (Anthropic): garantiert schema-valides JSON aus dem Entwurf.
