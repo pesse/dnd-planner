@@ -16,7 +16,7 @@
 import type { LevelUpDelta } from './levelUp';
 import { getProgressionByKey } from './classProgression';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { GainedFeature } from './aiActions/featureEffectsAction';
+import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 
@@ -32,15 +32,16 @@ export type StepId =
   | 'base-delta'          // det.
   | 'subclass-choice'     // checkpoint
   | 'subclass-delta'      // det.
-  | 'feature-effects'     // ai (E)
-  | 'resolve-choices'     // checkpoint (konsequenzbehaftete Wahlen; Loop zurück zu E)
+  | 'feature-analysis'    // ai (Call 1: Choices ermitteln)
+  | 'feature-choices'     // checkpoint (Wahlen direkt nach Call 1)
+  | 'feature-effects'     // ai (Call C: finalisieren)
   | 'player-decisions'    // checkpoint
   | 'assemble-decisions'  // det.
   | 'feat-choice'         // checkpoint
   | 'feat-links'          // det.
-  | 'feat-effects'        // ai (E, Talente)
-  | 'followup-decisions'  // checkpoint
-  | 'assemble-followup'   // det.
+  | 'feat-analysis'       // ai (Call 1, Talente)
+  | 'feat-choices'        // checkpoint (Talent-Wahlen)
+  | 'feat-effects'        // ai (Call C, Talente)
   | 'narrative'           // ai (C)
   | 'ongoing-effects'     // ai (F)
   | 'class-features'      // checkpoint (+ D auf Klick)
@@ -52,15 +53,16 @@ export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
   'base-delta':        { kind: 'deterministic', label: 'Grundwerte' },
   'subclass-choice':   { kind: 'checkpoint',    label: 'Subklasse' },
   'subclass-delta':    { kind: 'deterministic', label: 'Subklasse' },
+  'feature-analysis':  { kind: 'ai',            label: 'Merkmals-Analyse' },
+  'feature-choices':   { kind: 'checkpoint',    label: 'Merkmals-Wahlen' },
   'feature-effects':   { kind: 'ai',            label: 'Merkmals-Effekte' },
-  'resolve-choices':   { kind: 'checkpoint',    label: 'Wahl mit Folgen' },
   'player-decisions':  { kind: 'checkpoint',    label: 'Entscheidungen' },
   'assemble-decisions':{ kind: 'deterministic', label: 'Entscheidungen' },
   'feat-choice':       { kind: 'checkpoint',    label: 'Talente' },
   'feat-links':        { kind: 'deterministic', label: 'Talente' },
+  'feat-analysis':     { kind: 'ai',            label: 'Talent-Analyse' },
+  'feat-choices':      { kind: 'checkpoint',    label: 'Talent-Wahlen' },
   'feat-effects':      { kind: 'ai',            label: 'Talent-Effekte' },
-  'followup-decisions':{ kind: 'checkpoint',    label: 'Folge-Entscheidungen' },
-  'assemble-followup': { kind: 'deterministic', label: 'Folge-Entscheidungen' },
   'narrative':         { kind: 'ai',            label: 'Narrativ' },
   'ongoing-effects':   { kind: 'ai',            label: 'Fortlaufende Effekte' },
   'class-features':    { kind: 'checkpoint',    label: 'Klassenmerkmale' },
@@ -73,37 +75,38 @@ export const isCheckpoint = (s: StepId): boolean => STEP_META[s].kind === 'check
 /** Laufzeit-Kontext für die Übergangsentscheidung (aus dem Komponenten-State). */
 export interface AdvanceCtx {
   delta: LevelUpDelta;
-  featsToPick: number;    // countFeatsToPick(delta, answers)
-  hasFollowups: boolean;  // followupDecisions.length > 0 (erst nach feat-effects bekannt)
-  pendingChoices: number; // offene konsequenzbehaftete Wahlen (resolvesEffects, noch unbeantwortet)
+  featsToPick: number;  // countFeatsToPick(delta, answers)
+  baseChoices: number;  // von der Merkmals-Analyse (Call 1) erkannte Wahlen
+  featChoices: number;  // von der Talent-Analyse (Call 1) erkannte Wahlen
 }
 
 /**
  * Nächster Schritt nach `from`. Eine bewusst lineare, lesbare Funktion mit den
- * Verzweigungen des Ablaufs (Subklasse? / offene Wahl mit Folgen? / Talente? /
- * Folge-Entscheidungen?) — KEINE rigide Übergangstabelle. `feature-effects` ist
- * iterativ: bei offenen konsequenzbehafteten Wahlen (pendingChoices) hält die Maschine
- * an `resolve-choices` an und läuft danach erneut durch E. Die Komponente läuft
- * Arbeitsschritte ab, bis ein Checkpoint kommt:
+ * Verzweigungen des Ablaufs (Subklasse? / erkannte Wahlen? / Talente?) — KEINE rigide
+ * Übergangstabelle. Merkmale (und Talente) laufen als Analyse → [Wahlen] → Effekte:
+ * erkennt Call 1 erzwungene Wahlen, hält die Maschine DIREKT DANACH am Choice-Checkpoint
+ * an; der finalisierende Effekt-Call folgt mit der getroffenen Entscheidung. Die Komponente
+ * läuft Arbeitsschritte ab, bis ein Checkpoint kommt:
  * `while (!isCheckpoint(next)) { await run(next); next = advance(next, ctx); }`.
  */
 export function advance(from: StepId, ctx: AdvanceCtx): StepId {
   switch (from) {
     case 'choose-class':       return 'base-delta';
-    case 'base-delta':         return needsSubclassChoice(ctx.delta) ? 'subclass-choice' : 'feature-effects';
+    case 'base-delta':         return needsSubclassChoice(ctx.delta) ? 'subclass-choice' : 'feature-analysis';
     case 'subclass-choice':    return 'subclass-delta';
-    case 'subclass-delta':     return 'feature-effects';
-    // E ist iterativ: solange die KI konsequenzbehaftete Wahlen offen hat, zur Auflösung
-    // anhalten und danach E erneut durchlaufen; sonst weiter zu den Entscheidungen.
-    case 'feature-effects':    return ctx.pendingChoices > 0 ? 'resolve-choices' : 'player-decisions';
-    case 'resolve-choices':    return 'feature-effects';
+    case 'subclass-delta':     return 'feature-analysis';
+    // Merkmale: Analyse (Call 1) → bei erkannten Wahlen anhalten → Effekte (Call C).
+    case 'feature-analysis':   return ctx.baseChoices > 0 ? 'feature-choices' : 'feature-effects';
+    case 'feature-choices':    return 'feature-effects';
+    case 'feature-effects':    return 'player-decisions';
     case 'player-decisions':   return 'assemble-decisions';
     case 'assemble-decisions': return ctx.featsToPick > 0 ? 'feat-choice' : 'narrative';
     case 'feat-choice':        return 'feat-links';
-    case 'feat-links':         return 'feat-effects';
-    case 'feat-effects':       return ctx.hasFollowups ? 'followup-decisions' : 'narrative';
-    case 'followup-decisions': return 'assemble-followup';
-    case 'assemble-followup':  return 'narrative';
+    case 'feat-links':         return 'feat-analysis';
+    // Talente: analog Analyse → [Wahlen] → Effekte.
+    case 'feat-analysis':      return ctx.featChoices > 0 ? 'feat-choices' : 'feat-effects';
+    case 'feat-choices':       return 'feat-effects';
+    case 'feat-effects':       return 'narrative';
     case 'narrative':          return 'ongoing-effects';
     case 'ongoing-effects':    return 'class-features';
     case 'class-features':     return 'review';
@@ -119,9 +122,10 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
  * Einträge künftiger Schritte zeigt (z.B. Trefferpunkte VOR dem Entscheidungs-Checkpoint).
  */
 const TIMELINE: StepId[] = [
-  'choose-class', 'base-delta', 'subclass-choice', 'subclass-delta', 'feature-effects',
-  'resolve-choices', 'player-decisions', 'assemble-decisions', 'feat-choice', 'feat-links', 'feat-effects',
-  'followup-decisions', 'assemble-followup', 'narrative', 'ongoing-effects',
+  'choose-class', 'base-delta', 'subclass-choice', 'subclass-delta',
+  'feature-analysis', 'feature-choices', 'feature-effects',
+  'player-decisions', 'assemble-decisions', 'feat-choice', 'feat-links',
+  'feat-analysis', 'feat-choices', 'feat-effects', 'narrative', 'ongoing-effects',
   'class-features', 'review', 'done',
 ];
 
@@ -317,38 +321,23 @@ export function buildDecisions(
     }));
   }
 
-  // Rider-getriebene Wahlen: Fighting Style, Expertise, sonstige choicePrompts
-  for (const r of riders) {
-    if (r.fightingStyle && r.fightingStyleOptions.length) {
-      qs.push(baseQuestion({
-        id: `fighting_style_${qs.length}`, type: 'choice', prompt: 'Kampfstil wählen',
-        options: r.fightingStyleOptions, defaultValue: r.fightingStyleOptions[0]?.value ?? '',
-      }));
-    }
-    if (r.expertiseCount > 0 && r.expertiseOptions.length) {
-      qs.push(baseQuestion({
-        id: `expertise_${qs.length}`, type: 'multiselect', prompt: `Expertise wählen (${r.expertiseCount})`,
-        options: r.expertiseOptions.map((s) => opt(s, s)), max: r.expertiseCount,
-      }));
-    }
-  }
-
+  // Kampfstil/Expertise + sonstige erzwungene Feature-Wahlen sind NICHT mehr hier — sie
+  // werden von der Merkmals-Analyse (Call 1) erkannt und am Choice-Checkpoint entschieden.
   return qs;
 }
 
-/** Sammelt alle erzwungenen Folge-Wahlen (choicePrompts) aus den Ridern. */
-export function collectChoicePrompts(riders: FeatureRider[]): LevelUpQuestion[] {
-  return riders.flatMap((r) => r.choicePrompts.map((q) => baseQuestion(q as LevelUpQuestion)));
-}
-
-/** Wahlen, deren Antwort weitere Grants bestimmt → eigener Auflösungs-Schritt (Loop zu E). */
-export function consequentialPrompts(riders: FeatureRider[]): LevelUpQuestion[] {
-  return collectChoicePrompts(riders).filter((q) => q.resolvesEffects);
-}
-
-/** Wahlen ohne Folge-Berechnung → normale Entscheidungs-Seite. */
-export function terminalPrompts(riders: FeatureRider[]): LevelUpQuestion[] {
-  return collectChoicePrompts(riders).filter((q) => !q.resolvesEffects);
+/** Wandelt die von der Analyse (Call 1) erkannten Wahlen in Fragebogen-Fragen für den Checkpoint. */
+export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[] {
+  return choices.map((c) =>
+    baseQuestion({
+      id: c.id,
+      type: c.type === 'multiselect' ? 'multiselect' : c.type === 'text' ? 'text' : 'choice',
+      prompt: c.question,
+      options: c.options.map((o) => opt(o, o)),
+      max: c.type === 'multiselect' ? Math.max(1, c.max) : undefined,
+      resolvesEffects: c.determinesFurtherEffects,
+    }),
+  );
 }
 
 /** Anzahl zu wählender Talente = Anzahl ASI-Stufen, für die „Talent" gewählt wurde. */
@@ -383,7 +372,7 @@ function bumpHitDice(current: string, die: number, add: number, toLevel: number)
 /** Kanonische Schritt-Reihenfolge im Dokument (bestimmt die Sortierung in upsertStep). */
 export const STEP_ORDER = [
   'base-delta', 'subclass-delta', 'feature-effects', 'assemble-decisions',
-  'feat-links', 'feat-effects', 'assemble-followup',
+  'feat-links', 'feat-effects',
   'ongoing-effects', 'class-features',
 ] as const;
 export type BuilderStep = (typeof STEP_ORDER)[number];
@@ -410,12 +399,6 @@ function abilityFromRiders(riders: FeatureRider[]): AbilityMap {
   const abil = zeroAbil();
   for (const r of riders) for (const k of ABILITY_KEYS) abil[k] += r.abilityScoreIncrease[k] ?? 0;
   return abil;
-}
-
-/** Gewählter Kampfstil aus den Antworten (fließt in den Klassenmerkmale-Freitext). */
-export function fightingStyleFromAnswers(answers: Record<string, string | string[]>): string {
-  for (const [id, v] of Object.entries(answers)) if (id.startsWith('fighting_style') && typeof v === 'string' && v) return v;
-  return '';
 }
 
 // ── Deterministische Builder ─────────────────────────────────────────────────────
@@ -467,6 +450,10 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
   const profs = [...new Set(v.riders.flatMap((r) => r.proficiencies.skills))];
   for (const skill of profs)
     out.push({ target: 'proficiency', skill, step, source: 'class-feature', label: `Übung: ${skill}` });
+  // Gewählte Expertise (bereits entschieden, kommt aus rider.expertiseSkills).
+  const experts = [...new Set(v.riders.flatMap((r) => r.expertiseSkills))];
+  for (const skill of experts)
+    out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skill}` });
   return out;
 }
 
@@ -507,10 +494,6 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
     out.push({ target: 'preparedSpell', level: s.level, name: s.name, prepared: p.learnAsPrepared, step, source: 'class-progression', label: `${p.learnAsPrepared ? 'Vorbereitet' : 'Zauberbuch'} (Grad ${s.level}): ${s.name}` });
   }
 
-  for (const [id, v] of Object.entries(answers))
-    if (id.startsWith('expertise') && Array.isArray(v))
-      for (const skill of v) out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skill}` });
-
   return out;
 }
 
@@ -521,43 +504,25 @@ export function featChanges(chosenFeats: { key: string; name: string; gainedAt: 
 }
 
 /**
- * Beantwortete Merkmals-choicePrompts als Info-Notiz (`note`). Diese von der KI erkannten
- * erzwungenen Wahlen (z.B. „Landart" beim Zirkel des Landes) haben kein eigenes mechanisches
- * Ziel — die Wahl wird festgehalten (und via Klassenmerkmale-Freitext auf den Charakter
- * übernommen, siehe choiceSelectionLines). `step` unterscheidet Basis- ('assemble-decisions')
- * von Talent-Wahlen ('assemble-followup').
+ * Getroffene Feature-Wahlen (rider.decisions) als Info-Notiz (`note`). Wahlen ohne eigenes
+ * mechanisches Ziel (z.B. „Landart" beim Zirkel des Landes, „Kampfstil") werden so festgehalten
+ * und via Klassenmerkmale-Freitext auf den Charakter übernommen (siehe choiceSelectionLines).
+ * `step` unterscheidet Basis- ('assemble-decisions') von Talent-Wahlen ('feat-effects').
  */
-export function choicePromptChanges(
-  riders: FeatureRider[],
-  answers: Record<string, string | string[]>,
-  step: 'assemble-decisions' | 'assemble-followup',
-): Change[] {
+export function decisionNotes(riders: FeatureRider[], step: 'assemble-decisions' | 'feat-effects'): Change[] {
   const out: Change[] = [];
   for (const r of riders) {
-    for (const q of r.choicePrompts) {
-      const v = answers[q.id];
-      const chosen = (Array.isArray(v) ? v : v != null ? [v] : []).filter((s) => String(s).trim());
-      if (!chosen.length) continue;
-      const labels = chosen.map((val) => q.options.find((o) => o.value === val)?.label ?? val);
-      out.push({ target: 'note', value: labels.join(', '), step, source: r.featureName || 'feature', label: `${q.prompt}: ${labels.join(', ')}` });
+    for (const d of r.decisions) {
+      if (!d.answer?.trim()) continue;
+      out.push({ target: 'note', value: d.answer, step, source: r.featureName || 'feature', label: `${d.question}: ${d.answer}` });
     }
   }
   return out;
 }
 
-/** Dieselben Wahlen als Textzeilen für den Klassenmerkmale-Freitext (Persistenz auf dem Charakter). */
-export function choiceSelectionLines(riders: FeatureRider[], answers: Record<string, string | string[]>): string[] {
-  return choicePromptChanges(riders, answers, 'assemble-decisions').map((c) => c.label);
-}
-
-/** Folge-Wahlen durch Talente, die einen Attributsschlüssel liefern → +1. */
-export function followupChanges(followupAnswers: Record<string, string | string[]>): Change[] {
-  const step: BuilderStep = 'assemble-followup';
-  const out: Change[] = [];
-  for (const [id, v] of Object.entries(followupAnswers))
-    if (/ability|attribut|abil/i.test(id) && isAbility(v))
-      out.push({ target: 'ability', ability: v, value: 1, step, source: 'feature', label: `${ABILITY_LABEL[v]} +1` });
-  return out;
+/** Getroffene Wahlen als Textzeilen für den Klassenmerkmale-Freitext (Persistenz auf dem Charakter). */
+export function choiceSelectionLines(riders: FeatureRider[]): string[] {
+  return riders.flatMap((r) => r.decisions.filter((d) => d.answer?.trim()).map((d) => `${d.question}: ${d.answer}`));
 }
 
 /** Fortlaufende Pro-Stufe-TP (je Quelle ein eigener Eintrag; Betrag × gewonnene Stufen). */
@@ -583,7 +548,6 @@ export interface DocInput {
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
-  followupAnswers: Record<string, string | string[]>;
   konMod: number;
   pickedCantrips: string[];
   pickedLearned: { level: number; name: string }[];
@@ -609,11 +573,10 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
-    ...choicePromptChanges(p.validatedBase.riders, p.answers, 'assemble-decisions'),
+    ...decisionNotes(p.validatedBase.riders, 'assemble-decisions'),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
-    ...followupChanges(p.followupAnswers),
-    ...choicePromptChanges(p.validatedFeats.riders, p.followupAnswers, 'assemble-followup'),
+    ...decisionNotes(p.validatedFeats.riders, 'feat-effects'),
     ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),
   ];

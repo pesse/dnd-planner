@@ -2,13 +2,18 @@
 
 Test-Strecke, um die **Antwort-Qualität** der KI-Actions zu messen und Prompts zu
 optimieren, ohne dass die Qualität sinkt. Läuft headless (ohne Tauri) über den
-echten Produktionspfad (`runAiAction`); außerhalb von Tauri fällt der HTTP-Transport
-via `src/lib/services/httpFetch.ts` auf das globale `fetch` zurück.
+**echten Produktionspfad** (z.B. der QM-Dreipass `generateFeatureEffects`); außerhalb
+von Tauri fällt der HTTP-Transport via `src/lib/services/httpFetch.ts` auf das globale
+`fetch` zurück.
 
-Ein Lauf wertet immer **genau einen Prompt** aus und schreibt **einen Report**.
-Prompts vergleicht man, indem man die Eval mehrmals mit unterschiedlichem
-`EVAL_PROMPT`/`EVAL_TITLE` laufen lässt und die entstehenden Reports (jeweils mit
-eigenem Titel/Beschreibung) extern nebeneinanderlegt.
+Ein Lauf wertet immer die **echten Action-Prompts** aus und schreibt **einen Report**.
+Einen Prompt tunt man, indem man ihn **direkt in der Action** ändert und die Eval
+erneut laufen lässt — die entstehenden Reports (jeweils mit eigenem `EVAL_TITLE`)
+legt man extern nebeneinander und vergleicht die Core-Pass-Raten.
+
+Es gibt **eine Strecke je Datei** (`*.eval.test.ts`); jede schreibt ihren eigenen
+Report. Eine neue Strecke für einen einfachen Prompt ist eine Datei mit
+`defineEval({ name, cases })` — siehe [Neue Strecke in 5 Minuten](#neue-strecke-in-5-minuten).
 
 ## Ausführen
 
@@ -31,23 +36,26 @@ Alle Optionen gibt es auch als **CLI-Flags** (bequemer als env, v.a. für Titel/
 funktioniert auch aus Windows PowerShell). Flags überschreiben die `.env`:
 
 ```bash
-npm run eval -- --prompt candidate --title kurz-v1 --desc "ASI-Regel gekürzt"
+npm run eval -- --title kurz-v1 --desc "ASI-Regel gekürzt"
 npm run eval -- --runs 3 --concurrency 1        # saubere Einzel-Latenz
+npm run eval -- --eval spell                     # nur die Zauber-Strecke
 npm run eval -- --help                           # alle Flags
 ```
 
-Verfügbare Flags: `--prompt --title --desc --runs --threshold --concurrency --model --api-key`
+**`--eval <muster>`** filtert die Dateien (Vitest-Filter). Ohne das Flag laufen **alle**
+Strecken — bei echten LLM-Calls schnell teuer, deshalb beim Prompt-Tunen immer auf die
+eine Strecke einschränken.
+
+Verfügbare Flags: `--title --desc --runs --threshold --concurrency --model --api-key`
 (jeweils auf die gleichnamige `EVAL_*`-Variable gemappt).
 
 Von **Windows PowerShell** ausführen, nicht WSL (dort sind die `node_modules` installiert;
 WSL scheitert an plattform-spezifischen Native-Binaries). Die Eval selbst braucht kein Tauri.
 
 Optionale env-Variablen (auch in der `.env`):
-- `EVAL_PROMPT` — welcher Prompt getestet wird (Default `baseline`; verfügbare Namen
-  in `prompts/featureEffects.ts` → `FEATURE_EFFECTS_PROMPTS`).
-- `EVAL_TITLE` / `EVAL_DESC` — Titel + Beschreibung des Reports. Der Titel landet im
-  Ordnernamen (`reports/<timestamp>-<titel>/`) und macht mehrere Läufe unterscheidbar
-  (Default-Titel = Prompt-Name).
+- `EVAL_TITLE` / `EVAL_DESC` — Label + Beschreibung des Laufs. Das Label wird an den
+  Namen der Strecke angehängt (`reports/<timestamp>-<strecke>-<label>/`) und macht
+  mehrere Läufe derselben Strecke unterscheidbar. Ohne Label: `…-<strecke>/`.
 - `EVAL_RUNS` — Läufe pro Assertion (Default 5). **Bei langsamen Modellen 2–3 wählen** —
   es sind echte LLM-Calls (Steps × RUNS Calls gesamt).
 - `EVAL_THRESHOLD` — Mindest-Pass-Rate der Core-Assertions (Default 0.9).
@@ -86,26 +94,76 @@ gibt die Gesamtlaufzeit der Suite aus.
 
 ## Aufbau
 
-- `harness.ts` — generischer Runner: führt eine Action N-mal aus, prüft je Lauf die
-  Assertions und aggregiert **Pass-Raten** (`runEval` — genau ein Prompt).
-- `fixtures/` — definierte Inputs + Referenz-Erwartungen (z.B. Druide L3, Zirkel des Landes).
-- `prompts/` — Prompt-Registry. `baseline` wird aus der Produktions-Action gezogen
-  (kein Drift); weitere Einträge (z.B. `candidate`) sind gekürzte Fassungen zum Tunen.
-- `cases/` — Assertions je Fall (Core = gaten den Schwellwert, Soft = nur berichtet).
-- `*.eval.test.ts` — Vitest-Einstieg.
+- `defineEval.ts` — **Schnell-Baukasten**: `defineEval({ name, cases })` baut die
+  komplette Vitest-Suite (Gate, Config, Capture, N Läufe, Report, Qualitäts-Gate).
+  Das ist der Einstieg für neue Strecken.
+- `checks.ts` — Einzeiler-Helfer für Assertions (`nonEmpty`, `minChars`, `mentions`,
+  `unchanged`, `inRange`, `same`, `text`).
+- `env.ts` — gemeinsame Env-Auswertung (Key-Gate, LlmConfig, Läufe/Schwellwert/…).
+- `harness.ts` — generischer Runner: führt einen Fall N-mal aus (echter Produktionspfad
+  via `step.run`, sonst `runAiAction`), prüft je Lauf die Assertions und aggregiert
+  **Pass-Raten** (`runEval`).
+- `report.ts` — Capture der echten Requests/Responses + die vier Report-Artefakte.
+- `fixtures/` / `cases/` — **nur bei größeren Fällen**: geladene Inputs bzw. Assertions
+  in eigenen Dateien (Muster: `druid-l3-circle-of-land.ts` + `featureEffects-druid-circle.ts`).
+- `*.eval.test.ts` — eine Strecke je Datei.
+
+Bestehende Strecken:
+- `spell.eval.test.ts` — Zauber anlegen/überarbeiten (einfacher Ein-Call-Prompt, alles in
+  einer Datei) — die Vorlage zum Abschauen.
+- `featureEffects.eval.test.ts` — Merkmals-Effekte beim Stufenaufstieg (mehrstufiger
+  Produktionspfad, Fall-Aufbau lädt Vault-Daten).
+
+## Neue Strecke in 5 Minuten
+
+Eine Datei `evals/<name>.eval.test.ts` anlegen — mehr braucht es nicht. Fälle sind
+`{ label, action, input, core, soft }`; die Assertion-Objekte sind **Label → Prüfung**:
+
+```ts
+import type { Item } from '../src/lib/types';
+import { createItemAction } from '../src/lib/services/aiActions/itemAction';
+import { defineEval } from './defineEval';
+import { mentions, minChars, nonEmpty } from './checks';
+
+defineEval<Item>({
+  name: 'item',
+  description: 'Gegenstand per KI anlegen',
+  cases: [
+    {
+      label: 'Magischer Umhang',
+      action: () => createItemAction({ name: 'Umhang der Nebel' }),
+      input: 'Ein seltener magischer Umhang, der einmal pro Tag unsichtbar macht.',
+      core: {
+        'Name gesetzt': (i) => nonEmpty(i.name),
+        'Beschreibung ≥ 150 Zeichen': (i) => minChars(i.desc, 150),
+        'als selten eingestuft': (i) => mentions(i.rarity?.name, 'rare'),
+      },
+      soft: { 'Einstimmung angegeben': (i) => i.attunement != null },
+    },
+  ],
+});
+```
+
+Dann `npm run eval -- --eval item --runs 3`. Regeln der Praxis:
+
+- **core** = harte Vorgaben aus dem Input (Grad, Schule, Pflichtfelder). Diese Pass-Raten
+  gaten den Schwellwert — nur reinnehmen, was der Prompt wirklich garantieren soll.
+- **soft** = Wunsch-Verhalten (Stil, optionale Felder). Wird berichtet, bricht aber nichts.
+- Für „überarbeiten"-Prompts ist `unchanged(vorlage, ergebnis, 'feld', …)` die wichtigste
+  Prüfung: die KI soll **nur** das Gewünschte anfassen.
+- Braucht ein Fall mehrere verkettete Calls oder geladene Vault-Daten, statt
+  `action`/`input` ein `run: (config) => Promise<T>` setzen und `cases` als (async)
+  Funktion übergeben — siehe `cases/featureEffects-druid-circle.ts`.
 
 ## Prompt optimieren
 
-1. `npm run eval` → Baseline-Report (Pass-Rate je Assertion, Latenz, Fehler);
-   liegt unter `reports/<timestamp>-baseline/`.
-2. `prompts/featureEffects.ts` → `FEATURE_EFFECTS_CANDIDATE` kürzen/umformulieren
-   (oder einen neuen Eintrag in `FEATURE_EFFECTS_PROMPTS` anlegen).
-3. `EVAL_PROMPT=candidate npm run eval` → eigener Report unter
-   `reports/<timestamp>-candidate/`. Baseline- und Candidate-`report.html`
+1. `npm run eval -- --eval spell --title baseline` → Referenz-Report (Pass-Rate je
+   Assertion, Latenz, Fehler).
+2. Den Prompt **direkt in der Action** ändern (z.B. in
+   `src/lib/services/aiActions/spellAction.ts`).
+3. `npm run eval -- --eval spell --title kandidat` → eigener Report. Beide `report.html`
    nebeneinander öffnen und die Core-Pass-Raten vergleichen. Hält der Kandidat sie,
    ist er sicher übernehmbar.
 
-## Neuen Fall/Action ergänzen
-
-Fixture + Case (Assertions) nach dem Muster von `featureEffects-druid-circle.ts`
-anlegen und im Test einbinden. Der Harness ist generisch über den Action-Ergebnistyp.
+Es gibt bewusst **keinen A/B-Modus im Code**: ein Lauf misst genau einen Prompt-Stand.
+Vergleiche entstehen durch mehrere Läufe mit unterschiedlichem `--title`.

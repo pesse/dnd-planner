@@ -6,11 +6,13 @@ import {
   groqGenerate,
   qualitymindsChat,
   qualitymindsGenerate,
+  qualitymindsGenerateStructured,
   anthropicChat,
   anthropicGenerate,
   agentLoop as agentLoopDispatch,
   modelSupportsTemperature,
 } from './llmService';
+import { generateStructured as anthropicGenerateStructured } from './anthropicExtras';
 import { TASK_TEMPERATURE } from './vaultTools';
 import type { ChatMessage, AgentOptions, TaskKind, AgentToolset } from './vaultTools';
 
@@ -57,6 +59,8 @@ export interface LlmClient {
   generate(prompt: string, system?: string, task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
   /** Agentic Loop. `toolset` optional (Default: Vault-Tools). Nur vorhanden, wenn `capabilities.tools`. */
   agentLoop?(userMessage: string, systemPromptText: string, options: AgentOptions, toolset?: AgentToolset): Promise<string>;
+  /** Natives, garantiert schema-valides JSON. Vorhanden gdw. `capabilities.structuredOutput`. */
+  generateStructured?(prompt: string, schema: object, system?: string, opts?: { signal?: AbortSignal }): Promise<unknown>;
 }
 
 /** Task-Kind → Temperatur-Preset. Der globale Override (config.temperature) gewinnt im Adapter. */
@@ -72,6 +76,12 @@ const OPENAI_CAPS: LlmCapabilities = {
   promptCaching: false,
   thinking: false,
 };
+
+/**
+ * QualityMinds läuft auf vllm mit nativem Structured Output (`structured_outputs.json`).
+ * Groq bleibt bei OPENAI_CAPS (kein garantiertes json_schema über alle Modelle).
+ */
+const QUALITYMINDS_CAPS: LlmCapabilities = { ...OPENAI_CAPS, structuredOutput: true };
 
 /**
  * Liefert den passenden LlmClient für eine Config. Einziger Ort mit Provider-
@@ -93,6 +103,8 @@ export function getClient(config: LlmConfig): LlmClient {
         generate: (prompt, system, task) => anthropicGenerate(config, prompt, system, tempFor(task)),
         agentLoop: (userMessage, systemPromptText, options, toolset) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options, toolset),
+        generateStructured: (prompt, schema, system, opts) =>
+          anthropicGenerateStructured(config, prompt, schema, system, opts),
       };
 
     case 'groq':
@@ -108,11 +120,13 @@ export function getClient(config: LlmConfig): LlmClient {
     case 'qualityminds':
       return {
         provider: 'qualityminds',
-        capabilities: OPENAI_CAPS,
+        capabilities: QUALITYMINDS_CAPS,
         chat: (messages, task, onDelta) => qualitymindsChat(config, messages, tempFor(task), onDelta),
         generate: (prompt, system, task, onDelta) => qualitymindsGenerate(config, prompt, system, tempFor(task), onDelta),
         agentLoop: (userMessage, systemPromptText, options, toolset) =>
           agentLoopDispatch(config, userMessage, systemPromptText, options, toolset),
+        generateStructured: (prompt, schema, system, opts) =>
+          qualitymindsGenerateStructured(config, prompt, schema, system, opts),
       };
 
     case 'ollama':

@@ -4,15 +4,15 @@
    *
    * Ablauf (deterministische Zustandsmaschine in levelUpMachine.ts):
    *   Klasse wählen → Basis-Delta (det.) → [Subklasse wählen] → Subklassen-Delta (det.)
-   *   → Merkmals-Effekte (KI) → [Wahl mit Folgen → Merkmals-Effekte erneut … Loop]
-   *   → Spieler-Entscheidungen → [Talente wählen → Talent-Effekte (KI) → Folge-Entscheidungen]
-   *   → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
+   *   → Merkmals-Analyse (KI, Call 1) → [Merkmals-Wahlen] → Merkmals-Effekte (KI, Call C)
+   *   → Spieler-Entscheidungen → [Talente wählen → Talent-Analyse (KI) → [Talent-Wahlen]
+   *   → Talent-Effekte (KI)] → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
    *
-   * „Wahl mit Folgen": erkennt die KI eine Wahl, deren Antwort weitere Grants bestimmt
-   * (resolvesEffects, z.B. Landart → Kreissprüche), hält die Maschine an; nach der Antwort
-   * läuft der Effekt-Pass erneut (mit der Wahl als Kontext), bis die KI fertig meldet.
+   * Erkennt Call 1 (Analyse) erzwungene Feature-Wahlen (Landart, Kampfstil, Expertise …),
+   * hält die Maschine DIREKT DANACH am Choice-Checkpoint an; der finalisierende Effekt-Call
+   * bäckt die getroffene Entscheidung ein. Der Rider trägt nur Ergebnisse + die Entscheidung.
    *
-   * Das Muster „Wahl entsperrt zweiten Pass" gilt für Subklasse UND Talente. Fehlende
+   * Das Muster „Analyse → [Wahlen] → Effekte" gilt für Merkmale UND Talente. Fehlende
    * Zauber lassen sich inline anlegen, ohne den Dialog zu schließen. Alle Zahlen werden
    * deterministisch assembliert; die KI liefert nur Prosa-Deutung + Narrativ.
    *
@@ -29,7 +29,8 @@
     buildNarrativeInput, type CharacterSummary,
   } from '../services/aiActions/levelUpAction';
   import {
-    buildFeatureEffectsAction, buildFeatureEffectsInput, type GainedFeature, type FeatureClassContext,
+    analyzeFeatureEffects, finalizeFeatureEffects,
+    type GainedFeature, type FeatureClassContext, type FeatureAnalysis,
   } from '../services/aiActions/featureEffectsAction';
   import {
     buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
@@ -38,11 +39,11 @@
   import {
     type StepId, type AdvanceCtx, type ValidatedRiders,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
-    buildDecisions, collectChoicePrompts, consequentialPrompts, terminalPrompts, countFeatsToPick, learnInfo,
-    STEP_META, isCheckpoint, advance, buildDoc, fightingStyleFromAnswers, choiceSelectionLines,
+    buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
+    STEP_META, isCheckpoint, advance, buildDoc, choiceSelectionLines,
   } from '../services/levelUpMachine';
   import {
-    parseFeatureEffects, parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
+    parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
@@ -70,19 +71,17 @@
   let validatedBase = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let decisions = $state<LevelUpQuestion[]>([]);
   let answers = $state<Record<string, string | string[]>>({});
-  // Iterativer E-Loop: konsequenzbehaftete Wahlen (resolvesEffects), die vor dem Abschluss
-  // von E aufgelöst werden müssen; `resolvedIds` merkt bereits beantwortete, damit sie nicht
-  // erneut als Entscheidung erscheinen; `resolveIterations` begrenzt die Schleife.
-  let resolveQuestions = $state<LevelUpQuestion[]>([]);
-  let resolvedIds = $state<Set<string>>(new Set());
-  let resolveIterations = $state(0);
-  const MAX_RESOLVE_ITERS = 4;
+  // Merkmals-/Talent-Analyse (Call 1) + die daraus abgeleiteten Wahl-Fragen für den
+  // Checkpoint DIREKT nach Call 1. Der finalisierende Effekt-Call (Call C) bäckt die
+  // getroffene Entscheidung ein — kein iterativer Loop mehr.
+  let baseAnalysis = $state<FeatureAnalysis | null>(null);
+  let baseChoices = $state<LevelUpQuestion[]>([]);
+  let featAnalysis = $state<FeatureAnalysis | null>(null);
+  let featChoices = $state<LevelUpQuestion[]>([]);
   let featsToPick = $state(0);
   let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string }[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
   let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
-  let followupDecisions = $state<LevelUpQuestion[]>([]);
-  let followupAnswers = $state<Record<string, string | string[]>>({});
   let flagged = $state<string[]>([]);
   // Pro-Stufe-TP-Max aus dem Voll-Kontext-Effekt-Pass (z.B. Zwergische Zähigkeit).
   let hpPerLevelSources = $state<{ feature: string; sourceKey: string; amount: number }[]>([]);
@@ -263,27 +262,38 @@
   }
 
   // ── Antworten-Handling ──────────────────────────────────────────────────────────
-  function initAnswers(questions: LevelUpQuestion[], followup: boolean) {
-    // Bestehende Antworten ERHALTEN (z.B. eine über mehrere E-Runden aufgelöste Wahl);
-    // nur für neue Fragen Defaults setzen.
-    const a: Record<string, string | string[]> = { ...(followup ? followupAnswers : answers) };
+  function initAnswers(questions: LevelUpQuestion[]) {
+    // Bestehende Antworten ERHALTEN; nur für neue Fragen Defaults setzen.
+    const a: Record<string, string | string[]> = { ...answers };
     for (const q of questions) {
       if (q.id in a) continue;
       if (q.type === 'multiselect' || q.type === 'spell-picker') a[q.id] = [];
       else if (q.type === 'choice') a[q.id] = q.defaultValue || q.options[0]?.value || '';
       else a[q.id] = q.defaultValue ?? '';
     }
-    if (followup) followupAnswers = a; else answers = a;
+    answers = a;
   }
-  function setIn(store: 'a' | 'f', id: string, v: string) {
-    if (store === 'a') answers[id] = v; else followupAnswers[id] = v;
+  /**
+   * Init für die Feature-Wahlen (Checkpoint nach Call 1): bewusst LEER vorbelegen (kein
+   * Auto-Default auf die erste Option), damit der Spieler jede Wahl aktiv trifft — sonst
+   * würde z.B. eine folgenreiche Landart stillschweigend feststehen.
+   */
+  function initFeatureChoices(questions: LevelUpQuestion[]) {
+    const a: Record<string, string | string[]> = { ...answers };
+    for (const q of questions) {
+      if (q.id in a) continue;
+      a[q.id] = q.type === 'multiselect' || q.type === 'spell-picker' ? [] : '';
+    }
+    answers = a;
   }
-  function toggleIn(store: 'a' | 'f', id: string, v: string, max?: number) {
-    const rec = store === 'a' ? answers : followupAnswers;
-    const cur = (rec[id] as string[]) ?? [];
+  function setIn(_store: 'a' | 'f', id: string, v: string) {
+    answers[id] = v;
+  }
+  function toggleIn(_store: 'a' | 'f', id: string, v: string, max?: number) {
+    const cur = (answers[id] as string[]) ?? [];
     let nextArr = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
     if (max && nextArr.length > max) nextArr = nextArr.slice(nextArr.length - max);
-    rec[id] = nextArr;
+    answers[id] = nextArr;
   }
 
   function isAnswered(questions: LevelUpQuestion[], rec: Record<string, string | string[]>): boolean {
@@ -295,8 +305,8 @@
     });
   }
   let allAnswered = $derived(isAnswered(decisions, answers));
-  let allFollowupAnswered = $derived(isAnswered(followupDecisions, followupAnswers));
-  let allResolved = $derived(isAnswered(resolveQuestions, answers));
+  let allBaseChoices = $derived(isAnswered(baseChoices, answers));
+  let allFeatChoices = $derived(isAnswered(featChoices, answers));
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   let pickerQuery = $state<Record<string, string>>({});
@@ -393,15 +403,11 @@
   // Checkpoint erreicht ist. Das gemeinsame Dokument (`doc`) ist eine reine Projektion
   // des States (buildDoc) — deterministische Schritte brauchen daher keine Aktion.
   function advCtx(): AdvanceCtx {
-    // Offene konsequenzbehaftete Wahlen; Guard kappt die Schleife nach MAX_RESOLVE_ITERS.
-    const pending = resolveIterations >= MAX_RESOLVE_ITERS
-      ? 0
-      : resolveQuestions.filter((q) => !answered(answers[q.id])).length;
     return {
       delta: delta!,
       featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
-      hasFollowups: followupDecisions.length > 0,
-      pendingChoices: pending,
+      baseChoices: baseChoices.length,
+      featChoices: featChoices.length,
     };
   }
   const answered = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : (v ?? '').toString().trim() !== '');
@@ -430,11 +436,17 @@
         if (!alive()) return;
         gainedFeatures = [...gainedFeaturesFor(delta!), ...subFeatures];
         break;
+      case 'feature-analysis':
+        await runAnalyze('base', alive);
+        break;
       case 'feature-effects':
-        await runFeatureEffects(gainedFeatures, 'base', alive);
+        await runFinalize('base', alive);
+        break;
+      case 'feat-analysis':
+        await runAnalyze('feat', alive);
         break;
       case 'feat-effects':
-        await runFeatureEffects(chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel)), 'feat', alive);
+        await runFinalize('feat', alive);
         break;
       case 'narrative':
         await runNarrative(alive);
@@ -442,8 +454,8 @@
       case 'ongoing-effects':
         await detectHpPerLevel(alive);
         break;
-      // assemble-decisions / feat-links / assemble-followup: rein deterministisch →
-      // keine Aktion, das Dokument leitet diese Änderungen selbst aus dem State ab.
+      // assemble-decisions / feat-links: rein deterministisch → keine Aktion,
+      // das Dokument leitet diese Änderungen selbst aus dem State ab.
     }
   }
 
@@ -453,60 +465,87 @@
       chosenFeats = [];
       getFeats().then((f) => { featLib = f; });
     } else if (step === 'class-features') {
-      // Saat des editierbaren Freitexts: bestehendes Feld + KI-Merkmalstext + Kampfstil
-      // + getroffene Merkmals-Wahlen (z.B. Landart) → so persistieren die Wahlen auf dem Charakter.
-      const fs = fightingStyleFromAnswers(answers);
+      // Saat des editierbaren Freitexts: bestehendes Feld + KI-Merkmalstext + getroffene
+      // Feature-Wahlen (Landart, Kampfstil …, aus rider.decisions) → so persistieren sie.
       const choiceLines = [
-        ...choiceSelectionLines(validatedBase.riders, answers),
-        ...choiceSelectionLines(validatedFeats.riders, followupAnswers),
+        ...choiceSelectionLines(validatedBase.riders),
+        ...choiceSelectionLines(validatedFeats.riders),
       ];
-      featuresText = [character.classFeatures, narrativeAppend, fs ? `Kampfstil: ${fs}` : '', ...choiceLines]
+      featuresText = [character.classFeatures, narrativeAppend, ...choiceLines]
         .filter((s) => s && s.trim()).join('\n\n');
     }
   }
 
   // ── KI-Arbeitsschritte (setzen State; das Dokument ist abgeleitet) ───────────────
-  /** Merkmals-/Talent-Effekte (KI, Schritt E). `kind` unterscheidet Basis vs. Talent. */
-  async function runFeatureEffects(features: GainedFeature[], kind: 'base' | 'feat', alive: () => boolean) {
+  /** Merkmale bzw. Talente als GainedFeature[] für die jeweilige Phase. */
+  function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
+    return kind === 'base'
+      ? gainedFeatures
+      : chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel));
+  }
+
+  /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
+  async function runAnalyze(kind: 'base' | 'feat', alive: () => boolean) {
     await ensureSpellLib();
     if (!alive()) return;
-    // Bereits getroffene konsequenzbehaftete Wahlen (aus vorherigem Auflösungs-Schritt) an E geben.
-    const resolvedChoices = kind === 'base' ? gatherResolvedChoices() : [];
-    let parsed: FeatureRider[] = [];
+    const features = featuresFor(kind);
+    let analysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
     if (features.length) {
-      pushStep(resolvedChoices.length
-        ? 'KI berücksichtigt die getroffene Wahl und ergänzt die Effekte…'
-        : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      const raw = await runAiAction($llmConfig, buildFeatureEffectsAction(),
-        buildFeatureEffectsInput({ summary: buildSummary(), classContext: classContext(), features, resolvedChoices }), runOpts());
+      pushStep(`KI analysiert ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
+      analysis = await analyzeFeatureEffects($llmConfig, { classContext: classContext(), features }, runOpts());
       if (!alive()) return;
-      parsed = (parseFeatureEffects(raw) ?? { riders: [] }).riders;
+    }
+    const choiceQs = buildFeatureChoices(analysis.choices);
+    initFeatureChoices(choiceQs);
+    if (kind === 'base') { baseAnalysis = analysis; baseChoices = choiceQs; }
+    else { featAnalysis = analysis; featChoices = choiceQs; }
+    pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
+  }
+
+  /** Getroffene Feature-Wahlen als Kontext für Call C (feature+prompt+choice-Label). */
+  function gatherDecisions(kind: 'base' | 'feat'): { feature: string; prompt: string; choice: string }[] {
+    const qs = kind === 'base' ? baseChoices : featChoices;
+    const analysisChoices = (kind === 'base' ? baseAnalysis : featAnalysis)?.choices ?? [];
+    const out: { feature: string; prompt: string; choice: string }[] = [];
+    for (const q of qs) {
+      const v = answers[q.id];
+      if (!answered(v)) continue;
+      const vals = Array.isArray(v) ? v : [v];
+      const labels = vals.map((val) => q.options.find((o) => o.value === val)?.label ?? val);
+      const feature = analysisChoices.find((c) => c.id === q.id)?.feature ?? '';
+      out.push({ feature, prompt: q.prompt, choice: labels.join(', ') });
+    }
+    return out;
+  }
+
+  /** Call C (KI): finalisiert die Effekte mit den getroffenen Entscheidungen → Rider. */
+  async function runFinalize(kind: 'base' | 'feat', alive: () => boolean) {
+    await ensureSpellLib();
+    if (!alive()) return;
+    const features = featuresFor(kind);
+    const analysis = kind === 'base' ? baseAnalysis : featAnalysis;
+    const decisionsCtx = gatherDecisions(kind);
+    let parsed: FeatureRider[] = [];
+    if (features.length && analysis) {
+      pushStep(decisionsCtx.length
+        ? 'KI berücksichtigt die getroffene Wahl und leitet die Effekte ab…'
+        : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
+      const eff = await finalizeFeatureEffects($llmConfig,
+        { classContext: classContext(), features, resolvedChoices: decisionsCtx }, analysis, runOpts());
+      if (!alive()) return;
+      parsed = eff.riders;
     }
     const validated = validateRiderSpells(parsed, spellLib, delta!.klasseName);
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {
-      resolveIterations++;
       validatedBase = validated;
       riders = validated.riders;
-      // Offene konsequenzbehaftete Wahlen → eigener Auflösungs-Schritt; der Rest → Entscheidungen.
-      resolveQuestions = consequentialPrompts(riders).filter((q) => !resolvedIds.has(q.id));
-      decisions = [
-        ...buildDecisions(delta!, riders, { maxSpellLevel: maxSpellLevel(), klasseName: delta!.klasseName }),
-        ...terminalPrompts(riders).filter((q) => !resolvedIds.has(q.id)),
-      ];
-      initAnswers(decisions, false);
-      // Konsequenzbehaftete Wahlen NICHT vorbelegen (kein Auto-Default auf die erste Option) —
-      // sie müssen aktiv getroffen werden, sonst würde der Auflösungs-Schritt übersprungen.
-      const pending = { ...answers };
-      for (const q of resolveQuestions) if (!(q.id in pending)) pending[q.id] = q.type === 'multiselect' || q.type === 'spell-picker' ? [] : '';
-      answers = pending;
-      if (resolveQuestions.length) pushStep(`KI wartet auf ${resolveQuestions.length} Wahl(en) mit Folgen.`);
-      else pushStep(decisions.length ? `${decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
+      decisions = buildDecisions(delta!, riders, { maxSpellLevel: maxSpellLevel(), klasseName: delta!.klasseName });
+      initAnswers(decisions);
+      pushStep(decisions.length ? `${decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
     } else {
       validatedFeats = validated;
       featRiders = validated.riders;
-      followupDecisions = collectChoicePrompts(featRiders);
-      if (followupDecisions.length) { initAnswers(followupDecisions, true); pushStep(`${followupDecisions.length} Folge-Entscheidung(en) durch Talente.`); }
     }
   }
 
@@ -535,8 +574,8 @@
     if (!isNewClass && !hasClasses) return;
     // State zurücksetzen (Neustart aus choose-class)
     chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
-    resolveQuestions = []; resolvedIds = new Set(); resolveIterations = 0;
-    chosenFeats = []; featRiders = []; followupDecisions = []; followupAnswers = {}; flagged = [];
+    baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
+    chosenFeats = []; featRiders = []; flagged = [];
     hpPerLevelSources = []; narrativeSummary = ''; narrativeAppend = ''; featuresText = '';
     validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
     validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
@@ -567,14 +606,14 @@
     runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
   }
 
-  // ── Auflösungs-Schritt: konsequenzbehaftete Wahl(en) → E erneut durchlaufen ──────
-  function submitResolve() {
+  // ── Feature-Wahl-Checkpoints: getroffen → finalisierender Effekt-Call ─────────────
+  function submitFeatureChoices() {
     if (!delta) return;
-    // Beantwortete Wahlen merken, damit sie nicht erneut als Entscheidung erscheinen.
-    const ids = new Set(resolvedIds);
-    for (const q of resolveQuestions) if (answered(answers[q.id])) ids.add(q.id);
-    resolvedIds = ids;
-    runSegment('resolve-choices', (alive) => pipelineBody('resolve-choices', alive));
+    runSegment('feature-choices', (alive) => pipelineBody('feature-choices', alive));
+  }
+  function submitFeatChoices() {
+    if (!delta) return;
+    runSegment('feat-choices', (alive) => pipelineBody('feat-choices', alive));
   }
 
   // ── Schritt 3: Entscheidungen abschicken → Talente oder Assemblierung ────────────
@@ -601,8 +640,6 @@
     runSegment('feat-choice', (alive) => pipelineBody('feat-choice', alive));
   }
 
-  function submitFollowup() { runSegment('followup-decisions', (alive) => pipelineBody('followup-decisions', alive)); }
-
   // ── Hilfsfunktionen für die Dokument-Projektion ─────────────────────────────────
   function gatherLearned(): { level: number; name: string }[] {
     const q = decisions.find((d) => d.id === 'learned_spells');
@@ -611,21 +648,6 @@
   }
   function gatherCantrips(): string[] {
     return ((answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
-  }
-  /** Bereits getroffene konsequenzbehaftete Wahlen als Kontext für den erneuten E-Lauf. */
-  function gatherResolvedChoices(): { feature: string; prompt: string; choice: string }[] {
-    const out: { feature: string; prompt: string; choice: string }[] = [];
-    for (const r of validatedBase.riders) {
-      for (const q of r.choicePrompts) {
-        if (!q.resolvesEffects) continue;
-        const v = answers[q.id];
-        if (!answered(v)) continue;
-        const val = Array.isArray(v) ? v.join(', ') : String(v);
-        const label = q.options.find((o) => o.value === val)?.label ?? val;
-        out.push({ feature: r.featureName, prompt: q.prompt, choice: label });
-      }
-    }
-    return out;
   }
   function fallbackSummary(): string {
     const names = [...gainedFeatures.map((f) => f.name), ...chosenFeats.map((f) => f.name)];
@@ -722,7 +744,7 @@
     return buildDoc({
       delta, hitDice: character.hitDice ?? '',
       chosenSubclass, subFeatures, validatedBase, validatedFeats,
-      answers, followupAnswers, konMod: modOf(character.kon),
+      answers, konMod: modOf(character.kon),
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, gainedAt: f.gainedAt })),
@@ -877,11 +899,10 @@
     </div>
   {/if}
 
-  <!-- ── Wahl mit Folgen (löst einen erneuten Effekt-Pass aus) ─── -->
-  {#if phase === 'resolve-choices'}
-    <p class="hint">Diese Wahl bestimmt weitere Effekte — nach dem Bestätigen deutet die KI die Folgen (z.B. gewährte Zauber).</p>
+  <!-- ── Feature-Wahlen (gemeinsames Rendering für Merkmale + Talente) ─── -->
+  {#snippet choiceBlock(list: LevelUpQuestion[])}
     <div class="questions">
-      {#each resolveQuestions as q (q.id)}
+      {#each list as q (q.id)}
         <div class="row">
           <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
           {#if q.help}<span class="field-hint">{q.help}</span>{/if}
@@ -904,6 +925,18 @@
         </div>
       {/each}
     </div>
+  {/snippet}
+
+  <!-- ── Merkmals-Wahlen (direkt nach der Analyse, Call 1) ─── -->
+  {#if phase === 'feature-choices'}
+    <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
+    {@render choiceBlock(baseChoices)}
+  {/if}
+
+  <!-- ── Talent-Wahlen (direkt nach der Talent-Analyse) ─── -->
+  {#if phase === 'feat-choices'}
+    <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
+    {@render choiceBlock(featChoices)}
   {/if}
 
   <!-- ── Fragebogen (Entscheidungen) ─── -->
@@ -995,32 +1028,6 @@
     </div>
   {/if}
 
-  <!-- ── Folge-Entscheidungen (durch Talente) ─── -->
-  {#if phase === 'followup-decisions'}
-    <div class="questions">
-      {#each followupDecisions as q (q.id)}
-        <div class="row">
-          <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
-          {#if q.help}<span class="field-hint">{q.help}</span>{/if}
-          {#if q.type === 'choice'}
-            <select class="select" value={followupAnswers[q.id] as string} onchange={(e) => setIn('f', q.id, (e.target as HTMLSelectElement).value)}>
-              {#each q.options as opt}<option value={opt.value}>{opt.label}</option>{/each}
-            </select>
-          {:else if q.type === 'multiselect'}
-            <div class="group-chips">
-              {#each q.options as opt}
-                <button type="button" class="group-chip" class:on={(followupAnswers[q.id] as string[])?.includes(opt.value)} onclick={() => toggleIn('f', q.id, opt.value, q.max)}>{opt.label}</button>
-              {/each}
-            </div>
-          {:else if q.type === 'number'}
-            <input class="input" type="number" min={q.min} max={q.max} value={followupAnswers[q.id] as string} oninput={(e) => setIn('f', q.id, (e.target as HTMLInputElement).value)} />
-          {:else}
-            <textarea class="textarea" rows="2" value={followupAnswers[q.id] as string} oninput={(e) => setIn('f', q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
 
   <!-- ── Klassenmerkmale überarbeiten (eigener KI-Schritt) ─── -->
   {#if phase === 'class-features'}
@@ -1093,18 +1100,18 @@
     {:else if phase === 'subclass-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => chosenSubclass && confirmSubclass(chosenSubclass.key, chosenSubclass.name)} disabled={!chosenSubclass}>Weiter</button>
-    {:else if phase === 'resolve-choices'}
+    {:else if phase === 'feature-choices'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitResolve} disabled={!allResolved}>Weiter</button>
+      <button class="primary-btn" onclick={submitFeatureChoices} disabled={!allBaseChoices}>Weiter</button>
     {:else if phase === 'player-decisions'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={submitDecisions} disabled={!allAnswered}>Weiter</button>
     {:else if phase === 'feat-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={confirmFeats} disabled={chosenFeats.length !== featsToPick}>Weiter</button>
-    {:else if phase === 'followup-decisions'}
+    {:else if phase === 'feat-choices'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitFollowup} disabled={!allFollowupAnswered}>Vorschlag erstellen</button>
+      <button class="primary-btn" onclick={submitFeatChoices} disabled={!allFeatChoices}>Weiter</button>
     {:else if phase === 'class-features'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={confirmClassFeatures}>Weiter</button>

@@ -30,6 +30,18 @@ export interface EvalStep<T> {
   label: string;
   /** userInput für runAiAction (z.B. via buildFeatureEffectsInput erzeugt). */
   input: string;
+  /**
+   * Action dieses Steps. Überschreibt die an `runEval` übergebene Action — so kann
+   * eine Strecke mehrere Actions messen (z.B. Anlage UND Überarbeitung).
+   */
+  action?: AiAction<T>;
+  /**
+   * Optionaler Eigen-Aufruf STATT `runAiAction(action, input)`. Für Actions, deren
+   * Produktionspfad nicht der generische Ein-Call ist — z.B. der featureEffects-
+   * Zweiphasen-Pfad (analyze/finalizeFeatureEffects). Ist `run` gesetzt, werden
+   * `action`/`input` für den Aufruf ignoriert (`input` bleibt nur für den Report-Mitschnitt).
+   */
+  run?: (config: LlmConfig) => Promise<T>;
   assertions: Assertion<T>[];
 }
 
@@ -51,20 +63,32 @@ export interface LatencyStats {
   total: number;
 }
 
+/** Ein einzelner LLM-Call innerhalb eines Laufs (Request + zugehörige Response). */
+export interface RunCall {
+  /** Provider-Label des Calls (z.B. 'chat'). */
+  label?: string;
+  /** Echter Request (URL, redigierte Header, Body = voller Prompt+Schema). */
+  request?: unknown;
+  /** Rohe Response (content, tool_calls, usage …). */
+  response?: unknown;
+  /** Server-Round-Trip dieses Calls. */
+  serverMs?: number;
+  usage?: { sent: number; received: number };
+}
+
 /** Vollständiger Mitschnitt eines einzelnen Laufs (für den Datei-Report). */
 export interface RunRecord {
   index: number;
   ok: boolean;
   error?: string;
-  /** Wall-Clock um runAiAction (inkl. extractJson/Retry). */
+  /** Wall-Clock um den Lauf (alle Calls inkl. Grounding/Retry). */
   latencyMs: number;
-  /** Server-Round-Trip aus dem Debug-Log (falls vorhanden). */
+  /** Server-Zeit über ALLE Calls des Laufs summiert (falls vorhanden). */
   serverMs?: number;
+  /** Tokens über ALLE Calls des Laufs summiert. */
   usage?: { sent: number; received: number };
-  /** Echter Request (URL, redigierte Header, Body = voller Prompt+Schema). */
-  request?: unknown;
-  /** Rohe Response (content, tool_calls, usage …). */
-  response?: unknown;
+  /** Alle LLM-Calls dieses Laufs in Reihenfolge. Ein-Call-Pfad: 1; QM-Dreipass: mehrere. */
+  calls: RunCall[];
   /** Geparstes, schema-valides Ergebnis (null bei Fehler). */
   result?: unknown;
   assertions: { id: string; pass: boolean }[];
@@ -77,17 +101,12 @@ export interface StepReport {
   errorSamples: string[];
   latencyMs: LatencyStats;
   serverMs: LatencyStats;
-  tokens: { sentTotal: number; receivedTotal: number; avgReceived: number };
+  tokens: { sentTotal: number; receivedTotal: number; avgSent: number; avgReceived: number };
   assertions: AssertionResult[];
   /** JSON des ersten Ergebnisses, das ≥1 Core-Assertion verfehlt hat (zum Draufschauen). */
   failureSample?: string;
   /** Vollständige Läufe (echte Requests/Responses/Zeiten) für den Datei-Report. */
   records: RunRecord[];
-}
-
-/** Baut eine Action mit überschriebenem System-Prompt (kein Prod-Eingriff). */
-export function withSystemPrompt<T>(base: AiAction<T>, system: string): AiAction<T> {
-  return { ...base, buildSystemPrompt: () => system };
 }
 
 /** Per-Call-Timeout, damit ein hängender LLM-Request nicht den ganzen Lauf blockiert. */
@@ -144,17 +163,34 @@ function stats(xs: number[]): LatencyStats {
   };
 }
 
-/** Extrahiert Server-Zeit/Usage/Request/Response aus den Debug-Einträgen eines Laufs. */
-function summarizeCalls(calls: CapturedCall[]): Pick<RunRecord, 'serverMs' | 'usage' | 'request' | 'response'> {
-  const request = calls.find((c) => c.type === 'request')?.data;
-  const responseEntry = [...calls].reverse().find((c) => c.type === 'response');
-  const data = responseEntry?.data as { usage?: { sent: number; received: number } } | undefined;
-  return {
-    serverMs: responseEntry?.durationMs,
-    usage: data?.usage ?? undefined,
-    request,
-    response: responseEntry?.data,
-  };
+/**
+ * Paart die Debug-Einträge eines Laufs zu einzelnen Calls (Request→Response) und summiert
+ * Server-Zeit/Tokens über ALLE Calls. Requests kommen sequenziell vor ihrer Response, daher
+ * genügt es, jede Response dem zuletzt geöffneten Call zuzuordnen — so werden auch die
+ * mehreren Calls des QM-Dreipasses (Pass A Thinking + Pass C Guided) vollständig erfasst.
+ */
+function summarizeCalls(entries: CapturedCall[]): Pick<RunRecord, 'calls' | 'serverMs' | 'usage'> {
+  const calls: RunCall[] = [];
+  for (const e of entries) {
+    if (e.type === 'request') {
+      calls.push({ label: e.label, request: e.data });
+      continue;
+    }
+    const cur = calls[calls.length - 1];
+    if (!cur) continue;
+    cur.response = e.data;
+    if (e.durationMs != null) cur.serverMs = e.durationMs;
+    const u = (e.data as { usage?: { sent: number; received: number } })?.usage;
+    if (u) cur.usage = u;
+  }
+  const serverTotal = calls.reduce((s, c) => s + (c.serverMs ?? 0), 0);
+  const usage = calls.some((c) => c.usage)
+    ? {
+        sent: calls.reduce((s, c) => s + (c.usage?.sent ?? 0), 0),
+        received: calls.reduce((s, c) => s + (c.usage?.received ?? 0), 0),
+      }
+    : undefined;
+  return { calls, serverMs: serverTotal > 0 ? serverTotal : undefined, usage };
 }
 
 const coreIds = <T>(step: EvalStep<T>) => new Set(step.assertions.filter((a) => a.core).map((a) => a.id));
@@ -167,7 +203,7 @@ const coreIds = <T>(step: EvalStep<T>) => new Set(step.assertions.filter((a) => 
  */
 export async function runStep<T>(
   config: LlmConfig,
-  action: AiAction<T>,
+  action: AiAction<T> | null,
   step: EvalStep<T>,
   runs: number,
   concurrency: number,
@@ -181,9 +217,13 @@ export async function runStep<T>(
       const t0 = Date.now();
       console.log(`  · ${step.label}: run ${i + 1}/${runs} …`);
       // noRetry: die Eval misst die First-Try-Qualität des Prompts — kein Nachbessern.
-      const { result, error, entries } = await captureRun(() =>
-        withTimeout(runAiAction<T>(config, action, step.input, { noRetry: true }), CALL_TIMEOUT_MS),
-      );
+      const exec = (): Promise<T> => {
+        if (step.run) return step.run(config);
+        const act = step.action ?? action;
+        if (!act) throw new Error(`Step "${step.label}" hat weder run noch eine Action.`);
+        return runAiAction<T>(config, act, step.input, { noRetry: true });
+      };
+      const { result, error, entries } = await captureRun(() => withTimeout(exec(), CALL_TIMEOUT_MS));
       const latencyMs = Date.now() - t0;
       const summary = summarizeCalls(entries);
 
@@ -213,7 +253,7 @@ export async function runStep<T>(
       console.log(
         `    → ok ${(latencyMs / 1000).toFixed(1)}s` +
           `${summary.serverMs ? ` (server ${(summary.serverMs / 1000).toFixed(1)}s)` : ''}` +
-          `${summary.usage ? `, ${summary.usage.received} tok` : ''}` +
+          `${summary.usage ? `, ${summary.usage.sent}↑/${summary.usage.received}↓ tok` : ''}` +
           `, core ${corePass}/${cores.size}`,
       );
       return { index: i, ok: true, latencyMs, result, ...summary, assertions };
@@ -234,7 +274,9 @@ export async function runStep<T>(
     return { id: a.id, label: a.label, core: a.core, passes, runs, passRate: passes / runs };
   });
 
+  const sent = records.map((r) => r.usage?.sent ?? 0);
   const received = records.map((r) => r.usage?.received ?? 0);
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length) : 0);
   return {
     step: step.label,
     runs,
@@ -243,9 +285,10 @@ export async function runStep<T>(
     latencyMs: stats(records.map((r) => r.latencyMs)),
     serverMs: stats(records.map((r) => r.serverMs ?? 0).filter((x) => x > 0)),
     tokens: {
-      sentTotal: records.reduce((s, r) => s + (r.usage?.sent ?? 0), 0),
+      sentTotal: sent.reduce((s, x) => s + x, 0),
       receivedTotal: received.reduce((s, x) => s + x, 0),
-      avgReceived: received.length ? Math.round(received.reduce((s, x) => s + x, 0) / received.length) : 0,
+      avgSent: avg(sent),
+      avgReceived: avg(received),
     },
     assertions,
     failureSample: firstCoreFail ? JSON.stringify(firstCoreFail.result, null, 2) : undefined,
@@ -268,7 +311,7 @@ export function coreAssertions(r: StepReport): AssertionResult[] {
  */
 export async function runEval<T>(
   config: LlmConfig,
-  action: AiAction<T>,
+  action: AiAction<T> | null,
   steps: EvalStep<T>[],
   runs: number,
   concurrency: number,
@@ -290,7 +333,7 @@ export function printStepReport(r: StepReport): void {
   console.log(
     `\n── Step: ${r.step} — ${r.runs} runs, ${r.errors} errors, ` +
       `latenz avg ${r.latencyMs.avg}ms (median ${r.latencyMs.median}, p95 ${r.latencyMs.p95}), ` +
-      `~${r.tokens.avgReceived} tok/resp ──`,
+      `~${r.tokens.avgSent}↑/${r.tokens.avgReceived}↓ tok/resp ──`,
   );
   console.table(
     r.assertions.map((a) => ({

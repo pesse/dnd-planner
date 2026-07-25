@@ -5,8 +5,8 @@
  *   1) Tool-Loop (DnD-API o.ä.) über den portablen Agent-Loop — das Modell
  *      recherchiert und liefert am Ende einen JSON-Block.
  *   2) Structured Output: JSON parsen + validieren. Bei Fehler genau ein Retry —
- *      nativ via `generateStructured` (Anthropic, capabilities.structuredOutput)
- *      oder emuliert via erneutem `generate` (Groq).
+ *      nativ via `client.generateStructured` (Anthropic via output_config, QM/vllm
+ *      via structured_outputs) oder emuliert via erneutem `generate` (Groq/Ollama).
  *
  * Voraussetzung: das Modell kann Tools (`capabilities.tools`). Ollama wird hier
  * mit einer klaren Meldung abgewiesen.
@@ -15,8 +15,8 @@ import type { LlmConfig } from '../../types';
 import { getClient } from '../llmClient';
 import { agentLoop, TASK_TEMPERATURE } from '../llmService';
 import type { AgentStep, AgentToolset } from '../vaultTools';
-import { generateStructured } from '../anthropicExtras';
 import type { AiAction } from './types';
+import { stripJsonFence } from '../jsonFence';
 
 export interface RunOptions {
   onStep?: (step: AgentStep) => void;
@@ -34,8 +34,7 @@ export interface RunOptions {
 /** Versucht, ein JSON-Objekt aus Freitext zu extrahieren (roh, ```json-Fence, erstes {…}). */
 function extractJson(text: string): unknown {
   if (!text) return null;
-  const fenced = text.match(/```json\s*([\s\S]*?)```/i)?.[1] ?? text.match(/```\s*([\s\S]*?)```/)?.[1];
-  const candidates = [fenced, text.match(/\{[\s\S]*\}/)?.[0], text];
+  const candidates = [stripJsonFence(text), text.match(/\{[\s\S]*\}/)?.[0], text];
   for (const c of candidates) {
     if (!c) continue;
     try {
@@ -64,8 +63,11 @@ export async function runAiAction<T>(
   }
   const onStep = opts.onStep ?? (() => {});
 
-  const system =
-    action.buildSystemPrompt() +
+  // Nativer Structured-Output erzwingt das Schema serverseitig; nur die Pfade, die
+  // JSON per Prompt erbitten (Tool-Loop, emulierter generate), brauchen den Block.
+  const baseSystem = action.buildSystemPrompt();
+  const emulatedSystem =
+    baseSystem +
     '\n\n## OUTPUT (CRITICAL)\n' +
     '- Return the final result as exactly ONE ```json code block.\n' +
     '- The JSON MUST match this schema exactly (no extra keys):\n' +
@@ -84,30 +86,29 @@ export async function runAiAction<T>(
     draftText = await agentLoop(
       config,
       userInput,
-      system,
+      emulatedSystem,
       { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured, onActivity: opts.onActivity },
       toolset,
     );
     data = extractJson(draftText);
-  } else if (client.capabilities.structuredOutput) {
-    // Tool-frei + nativ schema-valide (Anthropic): ein Call, garantiert valides JSON.
-    data = await generateStructured<T>(config, userInput, action.jsonSchema, system, { signal: opts.signal });
+  } else if (client.generateStructured) {
+    // Nativ schema-valide (Anthropic: output_config, QM/vllm: structured_outputs): ein Call.
+    data = await client.generateStructured(userInput, action.jsonSchema, baseSystem, { signal: opts.signal });
     draftText = data != null ? JSON.stringify(data) : '';
   } else {
-    // Tool-frei (Groq/QM): ein einziger generate-Call statt Agent-Loop.
-    draftText = await client.generate(userInput, system, 'structured', () => opts.onActivity?.());
+    // Tool-frei (Groq/Ollama): ein einziger generate-Call statt Agent-Loop, dann Regex-Extraktion.
+    draftText = await client.generate(userInput, emulatedSystem, 'structured', () => opts.onActivity?.());
     data = extractJson(draftText);
   }
 
   if (!opts.noRetry && (!data || !action.validate(data))) {
     onStep({ type: 'tool_call', tool: 'json-korrektur', args: {} });
-    if (client.capabilities.structuredOutput) {
-      // Nativer Pfad (Anthropic): garantiert schema-valides JSON aus dem Entwurf.
-      data = await generateStructured<T>(
-        config,
+    if (client.generateStructured) {
+      // Nativer Pfad (Anthropic/QM): garantiert schema-valides JSON aus dem Entwurf.
+      data = await client.generateStructured(
         `Produce the final, schema-conformant JSON from the following draft:\n\n${draftText}`,
         action.jsonSchema,
-        action.buildSystemPrompt(),
+        baseSystem,
         { signal: opts.signal },
       );
     } else {
@@ -116,7 +117,7 @@ export async function runAiAction<T>(
         `Your last JSON was invalid or incomplete. Return ONLY a valid ` +
           `\`\`\`json object matching the schema.\n\nSchema:\n${JSON.stringify(action.jsonSchema)}\n\n` +
           `Previous output:\n${draftText}`,
-        system,
+        emulatedSystem,
         'structured',
       );
       data = extractJson(retry);

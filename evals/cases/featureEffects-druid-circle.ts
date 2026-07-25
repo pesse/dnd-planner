@@ -1,152 +1,143 @@
 /**
  * Eval-Case: featureEffects für Druide 2→3 / Zirkel des Landes.
  *
- * Zwei Steps (= die beiden E-Loop-Durchläufe der echten Maschine):
- *   Pass 1 — ohne aufgelöste Wahl: erwartet genau EINE Landart-Auswahl mit
- *            resolvesEffects=true und (noch) keine grantedSpells auf diesem Rider.
- *   Pass 2 — mit aufgelöster Landart: erwartet konkrete Kreissprüche als
- *            grantedSpells und keine offene (resolvesEffects=true) Landart-Wahl mehr.
+ * Spiegelt den ZWEI-Phasen-Flow der echten Maschine:
+ *   Call 1 (analyzeFeatureEffects) — erwartet GENAU EINE Landart-Wahl mit
+ *          determinesFurtherEffects=true, ≥3 Optionen und (noch) keine Zauber.
+ *   Call C (finalizeFeatureEffects, mit aufgelöster Landart) — erwartet konkrete
+ *          Kreissprüche als grantedSpells und die Landart als getroffene Entscheidung
+ *          (rider.decisions).
+ *
+ * Beide Fälle rufen den Produktionspfad über `run` selbst auf (mehrere verkettete
+ * Calls), statt eine einzelne Action zu messen.
  */
 import type { FeatureEffects } from '../../src/lib/schemas/levelUp';
-import { buildFeatureEffectsInput } from '../../src/lib/services/aiActions/featureEffectsAction';
-import type { Assertion, EvalStep } from '../harness';
 import {
-  druidSummary,
+  analyzeFeatureEffects,
+  finalizeFeatureEffects,
+  type FeatureAnalysis,
+  type FeatureEffectsContext,
+} from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { LlmConfig } from '../../src/lib/types';
+import type { Checks, EvalCase } from '../defineEval';
+import {
   druidClassContext,
-  circleOfLandFeatures,
+  loadCircleOfLandFeatures,
   EXPECTED_LAND_TYPES,
   EXPECTED_CIRCLE_SPELLS,
   RESOLVED_LAND,
 } from '../fixtures/druid-l3-circle-of-land';
 
-type Rider = FeatureEffects['riders'][number];
-type Choice = Rider['choicePrompts'][number];
+/** Ergebnis eines Falls: Call 1 liefert die Analyse, Call C die Rider. */
+export type StepResult =
+  | { kind: 'analysis'; analysis: FeatureAnalysis }
+  | { kind: 'effects'; effects: FeatureEffects };
 
-interface LandChoice {
-  rider: Rider;
-  prompt: Choice;
-}
+const asAnalysis = (r: StepResult): FeatureAnalysis | null => (r.kind === 'analysis' ? r.analysis : null);
+const asEffects = (r: StepResult): FeatureEffects | null => (r.kind === 'effects' ? r.effects : null);
 
-function allChoicePrompts(fe: FeatureEffects): { rider: Rider; prompt: Choice }[] {
-  return fe.riders.flatMap((r) => r.choicePrompts.map((prompt) => ({ rider: r, prompt })));
-}
+const landRe = /land|gelände|terrain/i;
 
-function choiceText(p: Choice): string {
-  return [p.prompt, p.help, ...(p.options ?? []).map((o) => `${o.value} ${o.label}`)]
-    .join(' ')
-    .toLowerCase();
-}
-
-function referencesLand(p: Choice): boolean {
-  return /land|gelände|terrain/i.test(choiceText(p));
-}
-
-/** Offene (konsequenzbehaftete) Landart-Auswahlen. */
-function openLandChoices(fe: FeatureEffects): LandChoice[] {
-  return allChoicePrompts(fe).filter((x) => x.prompt.resolvesEffects === true && referencesLand(x.prompt));
+/** Landart-Wahlen aus der Analyse (Frage/Optionen referenzieren „Land/Gelände/Terrain"). */
+function landChoices(a: FeatureAnalysis) {
+  return a.choices.filter((c) => landRe.test([c.question, ...c.options].join(' ')));
 }
 
 function grantedSpellsLower(fe: FeatureEffects): Set<string> {
   return new Set(fe.riders.flatMap((r) => r.grantedSpells).map((s) => s.toLowerCase().trim()));
 }
 
-// ── Pass 1: ohne aufgelöste Wahl ────────────────────────────────────────────────
+// ── Call 1: Analyse (ohne aufgelöste Wahl) ───────────────────────────────────────
 
-const pass1Assertions: Assertion<FeatureEffects>[] = [
-  {
-    id: 'has-riders',
-    label: 'liefert mindestens einen Rider',
-    core: true,
-    check: (fe) => fe.riders.length > 0,
+const analyzeCore: Checks<StepResult> = {
+  'liefert mindestens eine Wahl': (r) => (asAnalysis(r)?.choices.length ?? 0) > 0,
+  'genau EINE folgenreiche Landart-Wahl': (r) => {
+    const a = asAnalysis(r);
+    return !!a && landChoices(a).filter((c) => c.determinesFurtherEffects).length === 1;
   },
-  {
-    id: 'has-subclass-rider',
-    label: 'Rider aus Subklasse vorhanden',
-    core: true,
-    check: (fe) => fe.riders.some((r) => r.source === 'subclass'),
+  'Landart-Wahl hat ≥3 Optionen': (r) => {
+    const a = asAnalysis(r);
+    return !!a && (landChoices(a)[0]?.options.length ?? 0) >= 3;
   },
-  {
-    id: 'one-open-land-choice',
-    label: 'genau EINE offene Landart-Auswahl (resolvesEffects=true)',
-    core: true,
-    check: (fe) => openLandChoices(fe).length === 1,
+  'noch keine zu erdenden Zauber vor der Wahl': (r) => {
+    const a = asAnalysis(r);
+    return !!a && (a.blocked || a.spellsToGround.length === 0);
   },
-  {
-    id: 'land-choice-has-options',
-    label: 'Landart-Auswahl hat ≥3 Optionen',
-    core: true,
-    check: (fe) => (openLandChoices(fe)[0]?.prompt.options?.length ?? 0) >= 3,
-  },
-  {
-    id: 'no-spells-before-choice',
-    label: 'noch keine grantedSpells vor der Wahl',
-    core: true,
-    check: (fe) => {
-      const lc = openLandChoices(fe)[0];
-      return !!lc && lc.rider.grantedSpells.length === 0;
-    },
-  },
-  {
-    id: 'options-cover-expected',
-    label: 'Optionen decken erwartete Landarten ab (weich)',
-    core: false,
-    check: (fe) => {
-      const lc = openLandChoices(fe)[0];
-      if (!lc) return false;
-      const opts = lc.prompt.options.map((o) => `${o.value} ${o.label}`.toLowerCase());
-      const hits = EXPECTED_LAND_TYPES.filter((exp) => opts.some((o) => o.includes(exp.toLowerCase())));
-      return hits.length >= 2;
-    },
-  },
-];
+};
 
-// ── Pass 2: Landart aufgelöst ────────────────────────────────────────────────────
-
-const pass2Assertions: Assertion<FeatureEffects>[] = [
-  {
-    id: 'grants-spells',
-    label: 'gewährt Kreissprüche (grantedSpells nicht leer)',
-    core: true,
-    check: (fe) => fe.riders.some((r) => r.grantedSpells.length > 0),
+const analyzeSoft: Checks<StepResult> = {
+  'Optionen decken erwartete Landarten ab': (r) => {
+    const a = asAnalysis(r);
+    if (!a) return false;
+    const opts = (landChoices(a)[0]?.options ?? []).map((o) => o.toLowerCase());
+    const hits = EXPECTED_LAND_TYPES.filter((exp) => opts.some((o) => o.includes(exp.toLowerCase())));
+    return hits.length >= 2;
   },
-  {
-    id: 'no-open-land-choice',
-    label: 'keine offene Landart-Wahl mehr (resolvesEffects=false)',
-    core: true,
-    check: (fe) => openLandChoices(fe).length === 0,
-  },
-];
+};
 
-if (EXPECTED_CIRCLE_SPELLS.length > 0) {
-  pass2Assertions.push({
-    id: 'spells-match-expected',
-    label: 'gewährte Kreissprüche enthalten die Referenzliste (weich)',
-    core: false,
-    check: (fe) => {
-      const got = grantedSpellsLower(fe);
-      return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase().trim()));
-    },
-  });
-}
+// ── Call C: Finalisierung (Landart aufgelöst) ────────────────────────────────────
 
-export function buildDruidCircleSteps(): EvalStep<FeatureEffects>[] {
-  const pass1Input = buildFeatureEffectsInput({
-    summary: druidSummary,
+const finalizeCore: Checks<StepResult> = {
+  'gewährt Kreissprüche (grantedSpells nicht leer)': (r) =>
+    asEffects(r)?.riders.some((x) => x.grantedSpells.length > 0) ?? false,
+  'hält die Landart als getroffene Entscheidung fest (rider.decisions)': (r) =>
+    asEffects(r)?.riders.some((x) => x.decisions.some((d) => landRe.test(`${d.question} ${d.answer}`))) ?? false,
+};
+
+/** Nur prüfbar, wenn eine Referenzliste hinterlegt ist (sonst zählt nur „überhaupt Sprüche"). */
+const finalizeSoft: Checks<StepResult> = EXPECTED_CIRCLE_SPELLS.length
+  ? {
+      'gewährte Kreissprüche enthalten die Referenzliste': (r) => {
+        const fe = asEffects(r);
+        if (!fe) return false;
+        const got = grantedSpellsLower(fe);
+        return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase().trim()));
+      },
+    }
+  : {};
+
+export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
+  // Merkmale über den ECHTEN Ladepfad (Vault) beziehen — kein handgeschriebener Input.
+  const features = await loadCircleOfLandFeatures();
+  if (features.length === 0) {
+    throw new Error(
+      '[eval] Keine Subklassen-Merkmale geladen — Vault-Shim aktiv? ' +
+        '(vault/classes/circle-of-the-land.json, evals/setup/tauriInvokeShim.ts)',
+    );
+  }
+
+  const pass1Ctx: FeatureEffectsContext = { classContext: druidClassContext, features };
+  const pass2Ctx: FeatureEffectsContext = {
     classContext: druidClassContext,
-    features: circleOfLandFeatures,
-  });
-
-  const pass2Input = buildFeatureEffectsInput({
-    summary: druidSummary,
-    classContext: druidClassContext,
-    features: circleOfLandFeatures,
+    features,
     resolvedChoices: [
-      { feature: 'Zirkel des Landes', prompt: 'Wähle deine Landart', choice: RESOLVED_LAND },
+      { feature: 'Circle of the Land Spells', prompt: 'Wähle deine Landart', choice: RESOLVED_LAND },
     ],
-  });
+  };
+  // Bei gesetzten resolvedChoices reasoniert finalize neu → die übergebene Analyse ist nur
+  // Fallback und darf leer sein (kein separater Call-1 nötig für den Finalisierungs-Test).
+  const emptyAnalysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
 
   return [
-    { label: 'Pass 1 — Landart-Auswahl erwartet', input: pass1Input, assertions: pass1Assertions },
-    { label: `Pass 2 — Landart "${RESOLVED_LAND}" aufgelöst`, input: pass2Input, assertions: pass2Assertions },
+    {
+      label: 'Call 1 — Analyse: Landart-Wahl erwartet',
+      input: JSON.stringify(pass1Ctx),
+      run: async (cfg: LlmConfig): Promise<StepResult> => ({
+        kind: 'analysis',
+        analysis: await analyzeFeatureEffects(cfg, pass1Ctx, { noRetry: true }),
+      }),
+      core: analyzeCore,
+      soft: analyzeSoft,
+    },
+    {
+      label: `Call C — Landart "${RESOLVED_LAND}" aufgelöst`,
+      input: JSON.stringify(pass2Ctx),
+      run: async (cfg: LlmConfig): Promise<StepResult> => ({
+        kind: 'effects',
+        effects: await finalizeFeatureEffects(cfg, pass2Ctx, emptyAnalysis, { noRetry: true }),
+      }),
+      core: finalizeCore,
+      soft: finalizeSoft,
+    },
   ];
 }

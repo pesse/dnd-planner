@@ -111,8 +111,8 @@ function md(report: EvalReport): string {
     if (step.serverMs.total > 0) {
       lines.push(
         `Server-Zeit avg/p95: ${step.serverMs.avg}/${step.serverMs.p95} ms · ` +
-          `Tokens gesendet/empfangen: ${step.tokens.sentTotal}/${step.tokens.receivedTotal} ` +
-          `(~${step.tokens.avgReceived}/resp)`,
+          `Tokens Input/Output: ${step.tokens.sentTotal}/${step.tokens.receivedTotal} gesamt ` +
+          `(~${step.tokens.avgSent}/${step.tokens.avgReceived} pro Lauf)`,
       );
     }
     lines.push('');
@@ -165,8 +165,7 @@ function runsJsonl(report: EvalReport): string {
           serverMs: r.serverMs,
           usage: r.usage,
           assertions: r.assertions,
-          request: r.request,
-          response: r.response,
+          calls: r.calls,
           result: r.result,
         }),
       );
@@ -185,18 +184,33 @@ const esc = (s: unknown) =>
 
 const secs = (ms?: number) => (ms == null ? '—' : `${(ms / 1000).toFixed(1)}s`);
 
-/** Request-Debug-Eintrag → lesbare System-/User-Message (Fallback: JSON). */
+/**
+ * Request-Debug-Eintrag → exakter, gesendeter Request. Zeigt Endpoint, alle
+ * Body-Parameter außer `messages` (u.a. `response_format`, `model`, `temperature`,
+ * `tools`) als JSON, dann die Messages lesbar — plus den vollständigen Roh-Body.
+ */
 function renderRequest(request: unknown): string {
-  const body = (request as { body?: { messages?: { role: string; content: string }[] } })?.body;
-  if (Array.isArray(body?.messages)) {
-    return body!.messages
-      .map(
-        (m) =>
-          `<div class="msg"><div class="role">${esc(m.role)}</div><pre>${esc(m.content)}</pre></div>`,
-      )
-      .join('');
-  }
-  return `<pre>${esc(JSON.stringify(request, null, 2))}</pre>`;
+  const req = request as { url?: string; body?: Record<string, unknown> } | undefined;
+  const body = req?.body;
+  if (!body) return `<pre>${esc(JSON.stringify(request, null, 2))}</pre>`;
+
+  const endpoint = req?.url ? `<div class="msg"><div class="role">POST</div><pre>${esc(req.url)}</pre></div>` : '';
+
+  const params: Record<string, unknown> = { ...body };
+  delete params.messages;
+  const paramsBlock = Object.keys(params).length
+    ? `<div class="msg"><div class="role">params</div><pre>${esc(JSON.stringify(params, null, 2))}</pre></div>`
+    : '';
+
+  const messages = Array.isArray(body.messages)
+    ? (body.messages as { role: string; content: string }[])
+        .map((m) => `<div class="msg"><div class="role">${esc(m.role)}</div><pre>${esc(m.content)}</pre></div>`)
+        .join('')
+    : '';
+
+  const raw = `<details class="sub"><summary>Voller Request-Body (JSON)</summary><pre>${esc(JSON.stringify(body, null, 2))}</pre></details>`;
+
+  return endpoint + paramsBlock + messages + raw;
 }
 
 /** Response-Debug-Eintrag → roher content (Fallback: JSON). */
@@ -220,7 +234,7 @@ function renderResults(report: EvalReport): string {
       return `<h3>${esc(step.step)}</h3>
       <table class="cmp"><thead><tr><th>Assertion</th><th>Pass-Rate</th><th>Passes</th></tr></thead><tbody>${rows}
       <tr class="meta"><td>avg latency</td><td colspan="2">${step.latencyMs.avg}ms (p95 ${step.latencyMs.p95}ms)</td></tr>
-      <tr class="meta"><td>avg tok/resp</td><td colspan="2">${step.tokens.avgReceived}</td></tr>
+      <tr class="meta"><td>tok Input/Output</td><td colspan="2">~${step.tokens.avgSent}/${step.tokens.avgReceived} pro Lauf · ${step.tokens.sentTotal}/${step.tokens.receivedTotal} gesamt</td></tr>
       <tr class="meta"><td>errors</td><td colspan="2">${step.errors}</td></tr></tbody></table>`;
     })
     .join('');
@@ -241,12 +255,25 @@ function renderRuns(report: EvalReport): string {
           const head =
             `Run ${r.index + 1} — ${r.ok ? 'ok' : 'FEHLER'} · ${secs(r.latencyMs)}` +
             `${r.serverMs ? ` (server ${secs(r.serverMs)})` : ''}` +
-            `${r.usage ? ` · ${r.usage.received} tok` : ''}`;
+            `${r.usage ? ` · ${r.usage.sent}↑/${r.usage.received}↓ tok` : ''}` +
+            `${r.calls.length > 1 ? ` · ${r.calls.length} Calls` : ''}`;
+          // Jeder Call (Pass A Thinking, Pass C Guided, …) mit eigenem Request+Response.
+          const callsHtml = r.calls
+            .map((c, ci) => {
+              const title = r.calls.length > 1 ? `Call ${ci + 1}` : 'Call';
+              const meta =
+                `${c.serverMs ? `server ${secs(c.serverMs)}` : ''}` +
+                `${c.usage ? ` · ${c.usage.sent}↑/${c.usage.received}↓ tok` : ''}`;
+              return `<details class="sub" open><summary>${title}${c.label ? ` (${esc(c.label)})` : ''}${meta ? ` · ${meta}` : ''}</summary>
+              <details class="sub"><summary>Request (Prompt)</summary>${renderRequest(c.request)}</details>
+              <details class="sub"><summary>Response (roh)</summary>${renderResponse(c.response)}</details>
+              </details>`;
+            })
+            .join('');
           return `<details class="run ${r.ok ? '' : 'errored'}"><summary>${esc(head)}</summary>
           <div class="badges">${badges}</div>
           ${r.error ? `<p class="err">${esc(r.error)}</p>` : ''}
-          <details class="sub"><summary>Request (Prompt)</summary>${renderRequest(r.request)}</details>
-          <details class="sub"><summary>Response (roh)</summary>${renderResponse(r.response)}</details>
+          ${callsHtml}
           <details class="sub"><summary>Ergebnis (geparst)</summary><pre>${esc(JSON.stringify(r.result, null, 2))}</pre></details>
           </details>`;
         })

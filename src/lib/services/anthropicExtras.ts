@@ -18,6 +18,7 @@
 import type { LlmConfig } from '../types';
 import type { ChatMessage } from './vaultTools';
 import { createClient, createMessage, firstText, requireApiKey, DEFAULT_MAX_TOKENS } from './anthropicService';
+import { stripJsonFence } from './jsonFence';
 
 const NOT_IMPLEMENTED = (name: string) =>
   new Error(`anthropicExtras.${name} ist noch nicht implementiert.`);
@@ -54,7 +55,7 @@ export async function generateStructured<T>(
     'structured',
     opts?.signal,
   );
-  return JSON.parse(firstText(message)) as T;
+  return JSON.parse(stripJsonFence(firstText(message))) as T;
 }
 
 /**

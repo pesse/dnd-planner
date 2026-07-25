@@ -2,6 +2,12 @@ import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+/** Absoluter Pfad des fs-Shims, der `@tauri-apps/api/core` in der Eval ersetzt. */
+const tauriCoreShim = fileURLToPath(new URL('./evals/setup/tauriInvokeShim.ts', import.meta.url));
+
+/** SvelteKit-`$lib`-Alias (ohne SvelteKit-Plugin) → src/lib, für Produktions-Module. */
+const libDir = fileURLToPath(new URL('./src/lib', import.meta.url));
+
 /**
  * Eigenständige Vitest-Config für die Eval-/Prompt-Qualitäts-Strecke.
  *
@@ -54,6 +60,15 @@ const dotenv = loadDotEnv();
 const testTimeout = Number(dotenv.EVAL_TIMEOUT_MS ?? process.env.EVAL_TIMEOUT_MS ?? 1_800_000);
 
 export default defineConfig({
+  // `invoke` (Vault-Reads) auf den Node-fs-Shim umbiegen, damit die Fixtures über den
+  // ECHTEN Produktions-Ladepfad geladen werden (kein Tauri-Webview im Eval). Der Shim
+  // setzt bewusst kein __TAURI_INTERNALS__ → isTauri() bleibt false → LLM-Calls via fetch.
+  resolve: {
+    alias: [
+      { find: '@tauri-apps/api/core', replacement: tauriCoreShim },
+      { find: /^\$lib(?=\/|$)/, replacement: libDir },
+    ],
+  },
   test: {
     environment: 'node',
     include: ['evals/**/*.test.ts'],

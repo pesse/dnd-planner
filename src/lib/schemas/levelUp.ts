@@ -16,15 +16,10 @@
 // │   riders?[]:
 // │     featureName? : string = ""  — Which feature/feat emitted this rider.
 // │     source? : enum("class"|"subclass"|"feat") = "class"
-// │     grantedSpells? : string[] = []  — Always-prepared/granted spells, canonical ENGLISH names.
+// │     grantedSpells? : string[] = []  — Always-prepared/granted spells, canonical ENGLISH names (reflect resolved choice).
 // │     extraCantrips? : int = 0
 // │     extraPreparedCount? : int = 0  — Additional spells the player may prepare because of this feature.
-// │     expertiseCount? : int = 0
-// │     expertiseOptions? : string[] = []  — Suggested skill keys/names for expertise.
-// │     fightingStyle? : bool = false
-// │     fightingStyleOptions?[]:
-// │       value : string
-// │       label : string
+// │     expertiseSkills? : string[] = []  — Skills that gained Expertise — the CHOSEN skills, not options.
 // │     proficiencies?:
 // │       skills? : string[] = []
 // │       tools? : string[] = []
@@ -39,22 +34,10 @@
 // │       int? : int = 0
 // │       wei? : int = 0
 // │       cha? : int = 0
-// │     choicePrompts?[]:
-// │       id : string  — Stable key, e.g. "subclass" | "hp_method" | "hp_roll" | "asi_or_feat" | "asi_dist" | "can…
-// │       type : enum("choice"|"multiselect"|"number"|"text"|"spell-picker"|"hp-roll")
-// │       prompt : string  — GERMAN, user-facing question.
-// │       help? : string = ""  — GERMAN, optional one-line explanation.
-// │       options?[]:
-// │         value : string
-// │         label : string
-// │       defaultValue? : string = ""  — Pre-filled option value or number as string.
-// │       min? : number
-// │       max? : number
-// │       required? : bool = true
-// │       spellLevels? : int[] = []
-// │       spellClass? : string = ""
-// │       dieSides? : int
-// │       rollCount? : int
+// │     decisions?[]:  — Feature-forced player choices already MADE (record only — no option lists).
+// │       id? : string = ""
+// │       question? : string = ""  — GERMAN question posed.
+// │       answer? : string = ""  — GERMAN chosen label(s).
 // │
 // │ levelUpEffectsSchema
 // │   level? : int = 0  — Target character level after this level-up (informational).
@@ -133,20 +116,29 @@ const riderProficienciesSchema = z.object({
   savingThrows: z.array(z.string()).default([]),
 });
 
-/** Ein „Rider" = konkreter mechanischer Effekt, den ein Merkmal/Talent laut Prosa gewährt. */
+/** Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr). */
+const featureDecisionSchema = z.object({
+  id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
+  question: z.string().default('').describe('GERMAN question that was posed to the player.'),
+  answer: z.string().default('').describe('GERMAN label(s) the player chose (comma-joined if several).'),
+});
+
+/**
+ * Ein „Rider" = konkreter mechanischer Effekt, den ein Merkmal/Talent gewährt — bereits
+ * unter Berücksichtigung getroffener Spielerwahlen. Der Rider trägt NUR Ergebnisse und
+ * die getroffenen Entscheidungen (`decisions`), KEINE offenen Wahl-Möglichkeiten mehr
+ * (die leben transient in der Analyse von Call 1).
+ */
 const featureRiderSchema = z.object({
   featureName: z.string().default('').describe('Which feature/feat emitted this rider.'),
   source: z.enum(['class', 'subclass', 'feat']).default('class'),
-  grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names.'),
+  grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
   extraCantrips: z.number().int().default(0),
   extraPreparedCount: z.number().int().default(0).describe('Additional spells the player may prepare because of this feature.'),
-  expertiseCount: z.number().int().default(0),
-  expertiseOptions: z.array(z.string()).default([]).describe('Suggested skill keys/names for expertise.'),
-  fightingStyle: z.boolean().default(false),
-  fightingStyleOptions: z.array(questionOptionSchema).default([]),
+  expertiseSkills: z.array(z.string()).default([]).describe('Skills that gained Expertise — the CHOSEN skills, not options.'),
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
-  abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('FIXED ability increases the feature grants (not player-chosen).'),
-  choicePrompts: z.array(questionSchema).default([]).describe('Forced player choices this feature triggers (GERMAN prompts/labels).'),
+  abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
+  decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),
 });
 
 export const featureEffectsSchema = z.object({
