@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { setDebugTap, type DebugEntry } from '../src/lib/stores/debug';
 import type { StepReport } from './harness';
+// @ts-expect-error — reine JS-Utility ohne Typdeklaration
+import { writeReportIndex } from './reportIndex.mjs';
 
 export type CapturedCall = DebugEntry;
 
@@ -333,5 +335,12 @@ export function writeEvalReport(report: EvalReport): string {
   writeFileSync(`${dir}summary.json`, JSON.stringify(summaryJson(report), null, 2), 'utf8');
   writeFileSync(`${dir}runs.jsonl`, runsJsonl(report), 'utf8');
   writeFileSync(`${dir}report.html`, htmlReport(report), 'utf8');
+  // Übersicht (manifest.json + index.html) automatisch aktualisieren — ein
+  // Fehler hier darf den Eval-Lauf nie kippen.
+  try {
+    writeReportIndex(fileURLToPath(new URL('./reports/', import.meta.url)));
+  } catch (err) {
+    console.warn('[eval] Report-Index konnte nicht aktualisiert werden:', err);
+  }
   return dir;
 }
