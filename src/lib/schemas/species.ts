@@ -18,6 +18,7 @@
 // │
 // │ speciesSchema
 // │   key : string
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   name : string
 // │   nameDe? : string
 // │   size? : string = ""
@@ -35,6 +36,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
+import { sourceField } from './shared';
 
 /** Ein Speziesmerkmal (Trait); zweisprachig (EN Pflicht, DE optional). */
 export const traitSchema = z.object({
@@ -47,6 +49,7 @@ export const traitSchema = z.object({
 
 export const speciesSchema = z.object({
   key: z.string(),
+  source: sourceField(),
   name: z.string(),
   nameDe: z.string().optional(),
   size: z.string().default(''),

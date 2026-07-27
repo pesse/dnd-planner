@@ -7,6 +7,7 @@
  * Import leer und werden per LLM-Übersetzung nachgefüllt.
  */
 import { speciesSchema, type Species, type Trait } from '$lib/schemas/species';
+import { toSourceKey } from '$lib/schemas/shared';
 import { getSpecies as fetchSpecies } from './open5eApi';
 
 interface V2Trait {
@@ -43,6 +44,7 @@ export function mapV2Species(raw: Record<string, unknown>): Species {
 
   const mapped = {
     key: specKey,
+    source: toSourceKey(doc.key),
     name: (raw.name as string) ?? '',
     size: readSize(raw.size),
     speed: typeof raw.speed === 'string' ? raw.speed : String((raw.speed as { walk?: number })?.walk ?? ''),

@@ -133,6 +133,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
+import { migrateSourceKey } from './shared';
 
 const attackSchema = z.object({
   name: z.string().default(''),
@@ -188,7 +189,7 @@ const proficiencyFlagsSchema = z.object({
  * zur Laufzeit aus der Bibliothek (`vault/feats`) aufgelöst — analog zu Zaubern.
  */
 const referenceEntrySchema = z.object({
-  sourceKey: z.string().default(''), // Bibliotheks-Key (SRD z.B. "srd-2024_healer" oder "homebrew_…")
+  sourceKey: z.string().default(''), // Bibliotheks-Key, z.B. "srd-2024_healer" oder "homebrew-sam_…"
   name: z.string().default(''),
   gainedAt: z.number().int().optional(), // Stufe (Berechnungsgrundlage), optional
   // desc bleibt als optionaler Legacy-Fallback im Schema; wird nicht mehr editiert/gepflegt.
@@ -208,7 +209,7 @@ const characterReferencesSchema = z
 
 /** Eine gepflegte Klasse eines Charakters (multiclass-fähig; Basis für Progression-Check). */
 const characterClassSchema = z.object({
-  sourceKey: z.string().default(''), // Bibliotheks-Key der GRUNDklasse (SRD oder "homebrew_…"); leer = noch nicht verlinkt (Legacy)
+  sourceKey: z.string().default(''), // Bibliotheks-Key der GRUNDklasse; leer = noch nicht verlinkt (Legacy)
   name: z.string().default(''), // Anzeigename der Grundklasse (DE)
   subclassKey: z.string().optional(), // Bibliotheks-Key der Subklasse (innerhalb der Grundklasse)
   subclassName: z.string().optional(), // Anzeigename der Subklasse (DE) — für abgeleiteten Anzeige-String
@@ -222,7 +223,7 @@ const characterClassSchema = z.object({
  */
 const characterSpeciesSchema = z
   .object({
-    sourceKey: z.string().default(''), // Bibliotheks-Key der Spezies (SRD oder "homebrew_…")
+    sourceKey: z.string().default(''), // Bibliotheks-Key der Spezies
     name: z.string().default(''), // Anzeigename (DE)
     subspeciesKey: z.string().optional(), // Bibliotheks-Key der Unterspezies (falls vorhanden)
     subspeciesName: z.string().optional(),
@@ -427,6 +428,19 @@ export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
   if (!hasSpecies && typeof c.race === 'string' && c.race.trim()) {
     c.species = { sourceKey: '', name: c.race.trim() };
   }
+  // Bibliotheks-Links auf das aktuelle Key-Präfix ziehen ("homebrew_" → "homebrew-sam_").
+  for (const cls of (Array.isArray(c.classes) ? c.classes : []) as Record<string, unknown>[]) {
+    if (cls?.sourceKey) cls.sourceKey = migrateSourceKey(cls.sourceKey as string);
+    if (cls?.subclassKey) cls.subclassKey = migrateSourceKey(cls.subclassKey as string);
+  }
+  const species = c.species as Record<string, unknown> | undefined;
+  if (species?.sourceKey) species.sourceKey = migrateSourceKey(species.sourceKey as string);
+  if (species?.subspeciesKey) species.subspeciesKey = migrateSourceKey(species.subspeciesKey as string);
+  const refs = c.references as { feats?: Record<string, unknown>[] } | undefined;
+  for (const f of refs?.feats ?? []) {
+    if (f?.sourceKey) f.sourceKey = migrateSourceKey(f.sourceKey as string);
+  }
+
   // Rückwärtskompatibilität: fehlendes spells-Objekt → Default greift im Schema.
   return c;
 }

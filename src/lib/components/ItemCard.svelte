@@ -32,6 +32,7 @@
   import { buildTranslationSystemPrompt } from '$lib/prompts';
   import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
+  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel } from '$lib/schemas/shared';
   import { prepareItemPrint } from '$lib/utils/printItem';
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
@@ -528,7 +529,7 @@
         {/if}
 
         <div class="foot">
-          <span class="src">{item.source}</span>
+          <span class="src">{sourceLabel(item.source)}</span>
           <span class="foot-right">
             {#if item.cost}{formatCost(item.cost)}{/if}{#if item.cost && item.weight != null} · {/if}{#if item.weight != null}{item.weight} Pfd.{/if}
           </span>
@@ -579,9 +580,9 @@
             {/each}
           </select>
           <select class="edit-select" bind:value={draft.source}>
-            <option value="SRD">SRD</option>
-            <option value="Homebrew">Homebrew</option>
-            <option value="eigen">Eigen</option>
+            {#each SOURCE_KEYS as key}
+              <option value={key}>{SOURCE_LABELS[key]}</option>
+            {/each}
           </select>
         </div>
       </div>

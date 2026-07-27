@@ -4,6 +4,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';
+import { OWN_SOURCE } from './schemas/shared';
 
 export const ITEMS_PATH = './vault/items';
 
@@ -263,13 +264,13 @@ export function blankItem(name: string, dir: string): Item {
     equipment_category: { index: dir, name: apiName },
     desc: [],
     desc_de: [],
-    source: 'eigen',
+    source: OWN_SOURCE,
   };
 }
 
 /** Vorlage → anpassbare Homebrew-Kopie (ohne Verknüpfung zur Quelle). */
 export function toHomebrewCopy(item: Item): Item {
-  return { ...item, source: 'eigen', index: undefined, url: undefined };
+  return { ...item, source: OWN_SOURCE, index: undefined, url: undefined };
 }
 
 // Singleton-Cache: category dir → items

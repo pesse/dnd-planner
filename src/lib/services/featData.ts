@@ -7,6 +7,7 @@
  * werden per LLM-Übersetzung nachgefüllt.
  */
 import { featSchema, type Feat } from '$lib/schemas/feat';
+import { toSourceKey } from '$lib/schemas/shared';
 
 /** Bildet ein rohes v2-Talent auf das offene, zweisprachige Schema ab. */
 export function mapV2Feat(raw: Record<string, unknown>): Feat {
@@ -17,6 +18,7 @@ export function mapV2Feat(raw: Record<string, unknown>): Feat {
 
   const mapped = {
     key: (raw.key as string) ?? '',
+    source: toSourceKey(doc.key),
     name: (raw.name as string) ?? '',
     prerequisite: typeof raw.prerequisite === 'string' ? raw.prerequisite : '',
     desc,

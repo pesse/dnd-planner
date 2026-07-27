@@ -21,6 +21,124 @@ export const namedRef = (desc?: string) => {
   return desc ? s.describe(desc) : s;
 };
 
+// ── Herkunft ──────────────────────────────────────────────────────────────────
+//
+// Genau drei Werte, siehe vault/CLAUDE.md. Sie steuern, in welchen verteilbaren
+// Pack eine Datei fällt (vault/libraries.yaml, fail-closed), sind der
+// `document.key` der Open5e-Artefakte und zugleich das Präfix jedes Main-Keys
+// ("srd-2024_alert", "homebrew-sam_runenhammer"). Ein anderer Wert lässt den
+// Pack-Build abbrechen.
+
+export const SOURCE_KEYS = ['srd-2024', 'phb-2024', 'homebrew-sam'] as const;
+export type SourceKey = (typeof SOURCE_KEYS)[number];
+
+/** Default für alles, was in der App neu entsteht. */
+export const OWN_SOURCE: SourceKey = 'homebrew-sam';
+
+export const SOURCE_LABELS: Record<SourceKey, string> = {
+  'srd-2024': 'SRD 5.2',
+  'phb-2024': 'PHB 2024',
+  'homebrew-sam': 'Eigen',
+};
+
+/** Anzeigename einer Herkunft; unbekannte Werte (Fremdimport) unverändert durchreichen. */
+export function sourceLabel(source: string | undefined): string {
+  return SOURCE_LABELS[source as SourceKey] ?? source ?? '';
+}
+
+/**
+ * Das `source`-Feld für ein Entity-Schema.
+ *
+ * Bewusst `z.enum` statt Freitext: so kann ein LLM gar keinen erfundenen Wert
+ * liefern, und ein falsch gepflegter Editor fällt schon im Parse-Gate auf statt
+ * erst im Pack-Build. Altbestand fängt `migrateSourceLegacy` ab, das vor jedem
+ * Parse läuft.
+ */
+export const sourceField = () =>
+  z.enum(SOURCE_KEYS).default(OWN_SOURCE).describe('Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.');
+
+// Bis Juli 2026 gültige Herkunftsangaben. `document.key` trug schon die neuen
+// Werte, `source` eine eigene, uneinheitliche Liste.
+const LEGACY_SOURCES: Record<string, SourceKey> = {
+  SRD: 'srd-2024',
+  'PHB-2024 (kein SRD)': 'phb-2024',
+  eigen: 'homebrew-sam',
+  KI: 'homebrew-sam',
+  Homebrew: 'homebrew-sam',
+  homebrew: 'homebrew-sam',
+};
+
+/**
+ * Beliebige Herkunftsangabe → einer der drei gültigen Werte.
+ *
+ * Unbekanntes (leer, Fremdimport, Open5e-Dokumente außerhalb SRD 5.2 wie
+ * `srd-2014`) fällt auf `homebrew-sam`. Das ist die sichere Richtung: der Pack
+ * ist codiert, das Material landet also nie ungeprüft in einer offenen Library.
+ */
+export function toSourceKey(raw: string | undefined | null): SourceKey {
+  const s = raw ?? '';
+  if (LEGACY_SOURCES[s]) return LEGACY_SOURCES[s];
+  return (SOURCE_KEYS as readonly string[]).includes(s) ? (s as SourceKey) : OWN_SOURCE;
+}
+
+/**
+ * Bringt die Herkunft eines eingelesenen Artefakts auf das aktuelle Vokabular.
+ * Fehlt `source` ganz, springt `document.key` ein (Open5e-Artefakte trugen die
+ * Herkunft früher nur dort); sonst gilt der Default.
+ */
+export function migrateSourceLegacy(raw: Record<string, unknown>): Record<string, unknown> {
+  const doc = raw.document as { key?: unknown } | undefined;
+  const current =
+    typeof raw.source === 'string' && raw.source
+      ? raw.source
+      : typeof doc?.key === 'string'
+        ? doc.key
+        : '';
+  const next = toSourceKey(current);
+
+  raw.source = next;
+  // `document.key` ist dasselbe Merkmal in zweiter Ausfertigung — mitziehen,
+  // sonst weist der Pack-Build die Datei wegen Widerspruchs ab.
+  if (doc && typeof doc === 'object' && doc.key) (doc as { key: string }).key = next;
+  return raw;
+}
+
+// ── Serialisierung in den Vault ───────────────────────────────────────────────
+//
+// Die Herkunft hängt nicht am Artefakt, sondern an seinem Ablageort:
+//
+//   akt-lokal (campaigns/*/acts/*/monsters/)  → KEIN `source`
+//   Bibliothek (vault/monsters/, spells/, …)  → genau ein gültiger `source`
+//
+// Akt-lokales Material wird nie als Bibliothek verteilt, sondern nur mit seiner
+// Kampagne — die Herkunftsfrage stellt sich dort nicht. Erst die Übernahme in
+// die Bibliothek vergibt eine. Siehe vault/CLAUDE.md.
+
+/** Akt-lokales Artefakt: ohne Herkunft ablegen. */
+export function toActLocalJson(entity: unknown): string {
+  const obj = { ...(entity as Record<string, unknown>) };
+  delete obj.source;
+  return JSON.stringify(obj, null, 2);
+}
+
+/**
+ * Bibliotheks-Artefakt: mit gültiger Herkunft ablegen.
+ *
+ * Setzt `source` an Ort und Stelle (Feldreihenfolge bleibt erhalten) und
+ * normalisiert dabei Altwerte. Wer eine bestimmte Herkunft erzwingen will —
+ * etwa die Übernahme aus einem Akt — übergibt sie mitsamt dem Artefakt.
+ */
+export function toLibraryJson(entity: unknown): string {
+  const obj = { ...(entity as Record<string, unknown>) };
+  obj.source = toSourceKey(obj.source as string);
+  return JSON.stringify(obj, null, 2);
+}
+
+/** Legacy-Main-Keys mitziehen: "homebrew_alarm" → "homebrew-sam_alarm". */
+export function migrateSourceKey(key: string | undefined): string {
+  return key?.startsWith('homebrew_') ? `${OWN_SOURCE}_${key.slice('homebrew_'.length)}` : (key ?? '');
+}
+
 /**
  * Wandelt ein Zod-Schema in das JSON-Schema um, das Anthropics
  * `output_config.format.json_schema` erwartet.

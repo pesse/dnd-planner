@@ -69,7 +69,7 @@ export async function searchDndApiItems(q: string): Promise<DndApiItemRef[]> {
  * Wandelt eine rohe DnD-API-Ressource (via {@link getResource}) in unser
  * `Item`-Schema. Übernimmt Spielwerte 1:1; `equipment_category` (die einzige
  * Typ-Quelle) kommt direkt aus der API und extrahiert die Einstimmung aus der
- * Beschreibung magischer Gegenstände. `source` ist immer `"SRD"`.
+ * Beschreibung magischer Gegenstände. `source` ist immer `"srd-2024"`.
  */
 export function mapApiResourceToItem(
   data: Record<string, unknown>,
@@ -126,7 +126,7 @@ export function mapApiResourceToItem(
     desc_de:              undefined,
     cost:                 data.cost as Item['cost'],
     weight:               data.weight as number | undefined,
-    source:               'SRD',
+    source:               'srd-2024',
     url:                  data.url as string,
   };
 }
@@ -225,7 +225,7 @@ export function mapApiResourceToMonster(d: Record<string, unknown>): Monster {
 
   return {
     index: d.index as string,
-    source: 'SRD',
+    source: 'srd-2024',
     name: d.name as string,
     size: d.size as Monster['size'],
     type: d.type as Monster['type'],
@@ -329,6 +329,6 @@ export function mapApiResourceToSpell(data: Record<string, unknown>): Spell {
       ? { dc_type: dc.dc_type as { index: string; name: string }, dc_success: String(dc.dc_success ?? '') }
       : undefined,
     area_of_effect: data.area_of_effect as Spell['area_of_effect'],
-    source: 'SRD',
+    source: 'srd-2024',
   };
 }

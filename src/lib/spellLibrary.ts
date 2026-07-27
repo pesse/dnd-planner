@@ -10,7 +10,7 @@ export interface SpellInfo {
   name: string;
   /** Kanonischer englischer SRD-Name (für EN↔DE-Matching); leer, wenn nicht hinterlegt. */
   name_en?: string;
-  /** Open5e-Key (z.B. "srd-2024_moonbeam"); leer bei Homebrew. */
+  /** Open5e-Key (z.B. "srd-2024_moonbeam"); bei Zaubern meist leer — Identität ist der Name. */
   key?: string;
   level: number;
   classes: string[];

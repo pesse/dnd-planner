@@ -52,13 +52,13 @@
 // │     quantity : number
 // │     unit : string  — gp | sp | cp | ep | pp
 // │   weight? : number | null  — in lbs.
-// │   source? : string = "Homebrew"  — Herkunft, z.B. "KI", "SRD", "Homebrew".
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   url? : string
 // └─
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { namedRef } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy } from './shared';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
@@ -106,7 +106,7 @@ export const itemSchema = z.object({
     .object({ quantity: z.number(), unit: z.string().describe('gp | sp | cp | ep | pp') })
     .optional(),
   weight: z.number().nullable().optional().describe('in lbs.'),
-  source: z.string().default('Homebrew').describe('Herkunft, z.B. "KI", "SRD", "Homebrew".'),
+  source: sourceField(),
   url: z.string().optional(),
 });
 
@@ -155,5 +155,5 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   }
   delete r.item_type;
 
-  return r;
+  return migrateSourceLegacy(r);
 }

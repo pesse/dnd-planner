@@ -16,6 +16,7 @@ import { characterSchema, migrateCharacterLegacy, type Character } from '../sche
 import { classProgressionSchema, type ClassProgression } from '../schemas/classProgression';
 import { speciesSchema, type Species } from '../schemas/species';
 import { featSchema, type Feat } from '../schemas/feat';
+import { migrateSourceLegacy } from '../schemas/shared';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =
@@ -64,12 +65,11 @@ export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(en
 export const normalizeCharacter = (raw: unknown): Character => normalize(characterSchema, migrateCharacterLegacy, raw);
 export const parseCharacter = (raw: unknown): ParseResult<Character> => parse(characterSchema, migrateCharacterLegacy, raw);
 
-// ── Klasse (Regel-Bibliothek) ──────────────────────────────────────────────────────
-const identity: Migrate = (raw) => raw as Record<string, unknown>;
-export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse(classProgressionSchema, identity, raw);
+// ── Regel-Bibliothek (Klasse/Spezies/Talent) ───────────────────────────────────────
+// Kein Altformat außer der Herkunft: die trugen diese Typen früher nur in
+// `document.key`, jetzt zusätzlich in `source`.
+const libraryEntry: Migrate = (raw) => migrateSourceLegacy(raw as Record<string, unknown>);
 
-// ── Spezies (Regel-Bibliothek) ─────────────────────────────────────────────────────
-export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, identity, raw);
-
-// ── Talent (Regel-Bibliothek) ──────────────────────────────────────────────────────
-export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, identity, raw);
+export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse(classProgressionSchema, libraryEntry, raw);
+export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, libraryEntry, raw);
+export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, libraryEntry, raw);

@@ -9,6 +9,7 @@ import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, 
 import type { ClassProgression, ClassFeature } from './schemas/classProgression';
 import type { Species, Trait } from './schemas/species';
 import type { Feat } from './schemas/feat';
+import { OWN_SOURCE } from './schemas/shared';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat };
@@ -98,7 +99,7 @@ export const SPELL_TEMPLATE: Spell = {
   classes: [],
   desc: [],
   desc_de: ['Zauberbeschreibung…'],
-  source: 'Homebrew',
+  source: OWN_SOURCE,
 };
 
 export type LlmProvider = 'ollama' | 'anthropic' | 'groq' | 'qualityminds';
@@ -194,6 +195,7 @@ export function monsterAlignmentLabel(alignment: string): string {
 
 export const MONSTER_TEMPLATE: Monster = {
   name: 'Neues Monster',
+  source: OWN_SOURCE,
   size: 'Medium',
   type: 'humanoid',
   alignment: 'neutral',
@@ -224,6 +226,7 @@ export const MONSTER_TEMPLATE: Monster = {
 
 export const CLASS_TEMPLATE: ClassProgression = {
   key: '',
+  source: OWN_SOURCE,
   name: 'Neue Klasse',
   nameDe: 'Neue Klasse',
   casterType: 'NONE',
@@ -231,7 +234,7 @@ export const CLASS_TEMPLATE: ClassProgression = {
   hpAt1st: '',
   hpHigher: '',
   savingThrows: [],
-  document: { key: '', gamesystem: '' },
+  document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
   levels: [],
   features: [],
 };
@@ -240,11 +243,12 @@ export const CLASS_TEMPLATE: ClassProgression = {
 
 export const SPECIES_TEMPLATE: Species = {
   key: '',
+  source: OWN_SOURCE,
   name: 'Neue Spezies',
   nameDe: 'Neue Spezies',
   size: '',
   speed: '',
-  document: { key: '', gamesystem: '' },
+  document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
   traits: [],
 };
 
@@ -252,9 +256,10 @@ export const SPECIES_TEMPLATE: Species = {
 
 export const FEAT_TEMPLATE: Feat = {
   key: '',
+  source: OWN_SOURCE,
   name: 'Neues Talent',
   nameDe: 'Neues Talent',
   prerequisite: '',
   desc: '',
-  document: { key: '', gamesystem: '' },
+  document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
 };

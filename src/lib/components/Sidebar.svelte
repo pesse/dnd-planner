@@ -48,6 +48,7 @@
   import { mapV2Feat } from '../services/featData';
   import { parseClass, parseSpecies, parseFeat } from '../utils/schemaValidation';
   import { CLASS_TEMPLATE, SPECIES_TEMPLATE, FEAT_TEMPLATE } from '../types';
+  import { OWN_SOURCE } from '../schemas/shared';
   import type { ClassProgression, Species, Feat } from '../types';
   import type { DndApiRef } from '../services/dndApi';
 
@@ -623,7 +624,7 @@
       casting_time: '1 Aktion', range: '9 Meter',
       components: { verbal: true, somatic: false, material: false, materials_needed: null },
       duration: 'Unmittelbar', concentration: false, ritual: false,
-      classes: [], desc: [''], source: 'eigen',
+      classes: [], desc: [''], source: OWN_SOURCE,
     };
   }
 

@@ -13,7 +13,7 @@ export interface SpeciesInfo {
   name: string;
   nameDe?: string;
   path: string;
-  /** Bibliotheks-Key der Spezies (SRD z.B. "srd-2024_dwarf" oder "homebrew_…"). */
+  /** Bibliotheks-Key der Spezies, z.B. "srd-2024_dwarf" oder "homebrew-sam_…". */
   key?: string;
 }
 

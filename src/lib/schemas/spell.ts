@@ -40,19 +40,19 @@
 // │   area_of_effect?:
 // │     type : string  — 'sphere' | 'cone' | 'cube' | 'line' | 'cylinder'
 // │     size : number  — in Fuß
-// │   source? : string = "Homebrew"
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // └─
 //#endregion schema-overview
 
 import { z } from 'zod';
 import { SPELL_SCHOOLS, type SpellSchool } from '../types';
-import { namedRef } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy } from './shared';
 
 const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
 
 export const spellSchema = z.object({
   index: z.string().optional().describe('API-Slug (leer bei Homebrew).'),
-  key: z.string().optional().describe('Open5e-Key, z.B. "srd-2024_moonbeam" (für Verlinkung/Dedup, leer bei Homebrew).'),
+  key: z.string().optional().describe('Open5e-Key, z.B. "srd-2024_moonbeam" (für Verlinkung/Dedup; bei Zaubern meist leer).'),
   name: z.string(),
   name_en: z.string().optional().describe('Kanonischer englischer SRD-Name (für EN↔DE-Matching, z.B. wenn die KI "Moonbeam" liefert und der Zauber lokal als "Mondstrahl" liegt).'),
   level: z.number().int().default(0).describe('0 = Zaubertrick, 1–9'),
@@ -96,7 +96,7 @@ export const spellSchema = z.object({
       size: z.number().describe('in Fuß'),
     })
     .optional(),
-  source: z.string().default('Homebrew'),
+  source: sourceField(),
 });
 
 export type Spell = z.infer<typeof spellSchema>;
@@ -122,5 +122,5 @@ export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
     if (hl) s.higher_level_de ??= [hl];
     delete s.higher_levels;
   }
-  return s;
+  return migrateSourceLegacy(s);
 }

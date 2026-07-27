@@ -3,6 +3,7 @@
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
   import { normalizeMonster } from '../utils/schemaValidation';
+  import { toActLocalJson, toLibraryJson, OWN_SOURCE } from '../schemas/shared';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
@@ -127,7 +128,8 @@
     // Copy-on-write: globales Monster → erst akt-lokale Kopie anlegen
     if (source === 'global' && actMonsterBasePath && saved) {
       const actPath = `${actMonsterBasePath}/${slug}.json`;
-      const json = JSON.stringify(saved, null, 2);
+      // Die Kopie ist akt-lokal — die Herkunft des Originals gilt für sie nicht mehr.
+      const json = toActLocalJson(saved);
       try {
         await invoke('write_file_content', { path: actPath, content: json });
         savePath = actPath;
@@ -148,7 +150,7 @@
   async function save() {
     if (!draft) return;
     try {
-      const json = JSON.stringify(draft, null, 2);
+      const json = source === 'act' ? toActLocalJson(draft) : toLibraryJson(draft);
       await invoke('write_file_content', { path: savePath, content: json });
       saved = JSON.parse(json);
       dirty = false;
@@ -185,6 +187,12 @@
     const globalPath = `${GLOBAL_MONSTERS_PATH}/${slug}.json`;
     try {
       await invoke('rename_file', { oldPath: savePath, newPath: globalPath });
+      // In der Bibliothek gilt die Herkunftspflicht: ein übernommenes Monster ist
+      // immer eigenes Material — auch wenn es als Kopie eines SRD-Monsters begann.
+      const promoted = { ...saved, source: OWN_SOURCE } as Monster;
+      await invoke('write_file_content', { path: globalPath, content: toLibraryJson(promoted) });
+      saved = promoted;
+      draft = snap(promoted);
       savePath = globalPath;
       source = 'global';
     } catch (e) {

@@ -10,6 +10,7 @@
 // ┌─ SCHEMA OVERVIEW
 // │ featSchema
 // │   key? : string = ""
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   name : string
 // │   nameDe? : string
 // │   prerequisite? : string = ""
@@ -23,9 +24,11 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
+import { sourceField } from './shared';
 
 export const featSchema = z.object({
   key: z.string().default(''),
+  source: sourceField(),
   name: z.string(),
   nameDe: z.string().optional(),
   prerequisite: z.string().default(''),

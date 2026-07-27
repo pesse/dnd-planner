@@ -75,6 +75,14 @@ and — only when the current vault is empty — `migrate_legacy_vault` copies t
 richest one in after a confirmation dialog (originals are kept as backup). No-op
 in dev (repo vault is non-empty).
 
+**Provenance (`source`):** every library artifact carries exactly one of
+`srd-2024`, `phb-2024`, `homebrew-sam`. The value decides which distributable
+pack the file lands in (fail-closed build) and is the prefix of every main key
+(`srd-2024_alert`). `vault/` is a separate repo with its own `CLAUDE.md` that
+documents the rules; the app-side vocabulary lives in
+`src/lib/schemas/shared.ts` (`SOURCE_KEYS`, `sourceField()`,
+`migrateSourceLegacy`).
+
 ## Adding New Tauri Commands
 
 1. Add `fn my_command(...)` with `#[tauri::command]` in `src-tauri/src/lib.rs`

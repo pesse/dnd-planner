@@ -12,6 +12,7 @@
   import { resolveClassFeatures, resolveSpeciesTraits, type ResolvedFeatureGroup } from '../services/characterFeatures';
   import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
+  import { OWN_SOURCE } from '../schemas/shared';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
   import Markdown from './Markdown.svelte';
@@ -838,7 +839,7 @@
   async function saveFeatToDict(i: number) {
     const ref = refFeats[i];
     if (!ref.name.trim()) return;
-    const sourceKey = ref.sourceKey?.trim() || `homebrew_${slugify(ref.name)}`;
+    const sourceKey = ref.sourceKey?.trim() || `${OWN_SOURCE}_${slugify(ref.name)}`;
     await saveFeat({ name: ref.name, sourceKey });
     ref.sourceKey = sourceKey;
     featsLibrary = await getFeats();

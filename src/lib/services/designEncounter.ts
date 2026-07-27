@@ -17,6 +17,7 @@ import type { CharacterCompact, MonsterLibraryEntry } from '../stores/context';
 import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';
 import { createMonsterAction } from './aiActions/monsterAction';
+import { toActLocalJson } from '../schemas/shared';
 
 export interface DesignEncounterContext {
   config: LlmConfig;
@@ -168,7 +169,7 @@ export async function designEncounter(
     );
     await invoke('write_file_content', {
       path: `${actMonsterDir}/${slug}.json`,
-      content: JSON.stringify(monster, null, 2),
+      content: toActLocalJson(monster),
     });
     generatedSlugs.push(slug);
   }

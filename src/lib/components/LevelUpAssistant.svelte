@@ -54,6 +54,7 @@
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
+  import { OWN_SOURCE } from '../schemas/shared';
 
   let { character, onApply, onclose }: {
     character: Character;
@@ -368,7 +369,7 @@
       casting_time: '1 Aktion', range: '9 Meter',
       components: { verbal: true, somatic: false, material: false, materials_needed: null },
       duration: 'Unmittelbar', concentration: false, ritual: false,
-      classes: [], desc: [''], source: 'eigen',
+      classes: [], desc: [''], source: OWN_SOURCE,
     };
   }
   let creatingSpell = $state(false);

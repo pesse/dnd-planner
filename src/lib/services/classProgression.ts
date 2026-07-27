@@ -18,6 +18,7 @@ import {
   type ClassFeature,
   type AbilityKey,
 } from '$lib/schemas/classProgression';
+import { toSourceKey } from '$lib/schemas/shared';
 import { getClass, DEFAULT_DOCUMENT } from './open5eApi';
 import { getClasses } from '$lib/classLibrary';
 
@@ -83,6 +84,7 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
 
   const mapped = {
     key: (raw.key as string) ?? '',
+    source: toSourceKey(doc.key),
     name: (raw.name as string) ?? '',
     subclassOf,
     casterType: (raw.caster_type as string) ?? 'NONE',

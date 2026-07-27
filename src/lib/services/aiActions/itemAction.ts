@@ -35,7 +35,7 @@ ${templateBlock}
 1. Nutze die Vorlage als Basis und übernimm ihre Spielwerte, solange die Beschreibung nichts anderes verlangt.
 2. Wende die Wünsche des Nutzers an: passe \`name\`, \`name_de\`, \`desc\` (Englisch), \`desc_de\` (Deutsch) und betroffene Spielwerte an. Wird der Gegenstand magisch, ergänze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`; ein Angriffs-/Schadensbonus (z.B. „+1") gehört als Zahl in \`magic_bonus\`. \`equipment_category\` bleibt der FUNKTIONALE Typ — eine magische Waffe behält \`equipment_category.index: "weapon"\`, NICHT "wondrous-items".
 3. Die DnD-API-Tools (\`search_dnd_api\`, \`get_dnd_api_resource\`) stehen bereit — nutze sie NUR, wenn dir Referenzwerte fehlen, die die Vorlage nicht abdeckt. Bei einer vollständigen Vorlage ist keine API-Abfrage nötig.
-4. Setze \`source\` immer auf "KI" und lasse \`index\` leer. Gib IMMER das VOLLSTÄNDIGE Item-JSON aus.${nameHint}${categoryHint}`;
+4. Setze \`source\` immer auf "homebrew-sam" und lasse \`index\` leer. Gib IMMER das VOLLSTÄNDIGE Item-JSON aus.${nameHint}${categoryHint}`;
     }
     return `Du bist ein Assistent für Dungeons & Dragons (5e). Aus einer deutschen Beschreibung erstellst du einen Gegenstand als JSON, der dem Schema der dnd5eapi.co entspricht.
 
@@ -44,7 +44,7 @@ ${templateBlock}
 2. Rufe \`search_dnd_api\` (category "equipment" für gewöhnliche Gegenstände/Waffen/Rüstung, "magic-items" für magische) mit dem englischen Begriff auf und wähle das passendste Ergebnis.
 3. Lade es mit \`get_dnd_api_resource\` und übernimm die Spielwerte als Basis (damage, two_handed_damage, properties, range, armor_class, weapon_category, equipment_category, cost, weight). \`equipment_category\` (Form \`{index, name}\`) ist die einzige Typ-Quelle — übernimm sie unverändert aus der Basis.
 4. Ergänze die spezifischen Änderungen aus der Beschreibung: setze \`name\` (englischer Name), \`name_de\` (deutscher Name), \`desc\` (englische Beschreibung) und \`desc_de\` (deutsche Beschreibung). Wenn es ein magischer Gegenstand ist, setze \`rarity\` und ggf. \`attunement\`/\`attunement_by\`. Gewährt eine magische Waffe einen Bonus auf Angriff/Schaden (z.B. „+1"), setze \`magic_bonus\` als Zahl (1, 2, 3). \`equipment_category\` bleibt dabei der funktionale Typ — eine magische Waffe behält \`index: "weapon"\`.
-5. Setze \`source\` immer auf "KI". Übernimm Zahlenwerte (Gewicht, Reichweite) unverändert aus der Basis, soweit die Beschreibung nichts anderes sagt.
+5. Setze \`source\` immer auf "homebrew-sam". Übernimm Zahlenwerte (Gewicht, Reichweite) unverändert aus der Basis, soweit die Beschreibung nichts anderes sagt.
 
 Wenn die DnD-API nichts Passendes liefert, baue den Gegenstand plausibel selbst (Homebrew) und lasse \`index\` leer.${nameHint}${categoryHint}`;
   },

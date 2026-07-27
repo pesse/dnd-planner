@@ -29,6 +29,7 @@
 // │
 // │ classProgressionSchema
 // │   key : string  — Open5e-v2-Key, z.B. "srd-2024_wizard".
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   name : string
 // │   nameDe? : string
 // │   subclassOf? : string  — v2-Key der Basisklasse, falls dies eine Subklasse ist (z.B. "srd-2024_fighter").
@@ -55,6 +56,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
+import { sourceField } from './shared';
 
 /** App-Attribut-Schlüssel (dex→ges, wis→wei). */
 export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
@@ -80,6 +82,7 @@ export const classFeatureSchema = z.object({
 
 export const classProgressionSchema = z.object({
   key: z.string().describe('Open5e-v2-Key, z.B. "srd-2024_wizard".'),
+  source: sourceField(),
   name: z.string(),
   nameDe: z.string().optional(),
   subclassOf: z

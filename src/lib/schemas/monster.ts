@@ -6,7 +6,7 @@
 // ┌─ SCHEMA OVERVIEW
 // │ monsterSchema
 // │   index? : string  — API-Slug (leer bei Homebrew).
-// │   source? : string  — 'SRD' | 'Homebrew'
+// │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   name : string
 // │   size? : enum("Tiny"|"Small"|"Medium"|"Large"|"Huge"|"Gargantuan") = "Medium"  — Tiny | Small | Medium | Large | Huge | Gargantuan
 // │   type? : enum("aberration"|"beast"|"celestial"|"construct"|"dragon"|"elemental"|"fey"|"fiend"|"giant"|"humanoid"|"monstrosity"|"ooze"|"plant"|"undead") = "humanoid"  — engl. Creature-Type: beast, humanoid, dragon, giant, undead, …
@@ -74,6 +74,7 @@ import {
   type MonsterType,
   type MonsterAlignment,
 } from '../types';
+import { sourceField, migrateSourceLegacy } from './shared';
 
 const sizeEnum = z.enum(Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]]);
 const typeEnum = z.enum(Object.keys(MONSTER_TYPES) as [MonsterType, ...MonsterType[]]);
@@ -95,7 +96,7 @@ const actionArray = z.array(actionSchema).default([]);
 
 export const monsterSchema = z.object({
   index: z.string().optional().describe('API-Slug (leer bei Homebrew).'),
-  source: z.string().optional().describe("'SRD' | 'Homebrew'"),
+  source: sourceField(),
   name: z.string(),
   size: sizeEnum.default('Medium').describe('Tiny | Small | Medium | Large | Huge | Gargantuan'),
   type: typeEnum.default('humanoid').describe('engl. Creature-Type: beast, humanoid, dragon, giant, undead, …'),
@@ -152,5 +153,5 @@ export function migrateMonsterLegacy(raw: unknown): Record<string, unknown> {
       }
     }
   }
-  return m;
+  return migrateSourceLegacy(m);
 }
