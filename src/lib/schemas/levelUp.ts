@@ -38,6 +38,7 @@
 // │       id? : string = ""
 // │       question? : string = ""  — GERMAN question posed.
 // │       answer? : string = ""  — GERMAN chosen label(s).
+// │     sheetNote? : string = ""  — GERMAN single-line note for the character sheet; empty when no note is needed.
 // │
 // │ levelUpEffectsSchema
 // │   level? : int = 0  — Target character level after this level-up (informational).
@@ -48,7 +49,6 @@
 // │
 // │ levelUpNarrativeSchema
 // │   summary? : string = ""  — GERMAN one-paragraph summary of what changes this level.
-// │   classFeaturesAppend? : string = ""  — GERMAN narrative naming the features gained, to append to classFeatures.
 // │
 // │ classFeaturesRewriteSchema
 // │   text? : string = ""  — The FULL revised GERMAN "class features & traits" free-text field.
@@ -116,6 +116,13 @@ const riderProficienciesSchema = z.object({
   savingThrows: z.array(z.string()).default([]),
 });
 
+/**
+ * Richtwert für die Länge einer `sheetNote`. Der Klassenmerkmale-Freitext landet beim
+ * PDF-Export in zwei Formularfeldern à ~700 Zeichen (characterExport.splitClassFeatures)
+ * und WÄCHST mit jeder Stufe — deshalb ist Kürze hier kein Stil-, sondern ein Platzthema.
+ */
+export const SHEET_NOTE_MAX_CHARS = 100;
+
 /** Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr). */
 const featureDecisionSchema = z.object({
   id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
@@ -124,10 +131,14 @@ const featureDecisionSchema = z.object({
 });
 
 /**
- * Ein „Rider" = konkreter mechanischer Effekt, den ein Merkmal/Talent gewährt — bereits
- * unter Berücksichtigung getroffener Spielerwahlen. Der Rider trägt NUR Ergebnisse und
- * die getroffenen Entscheidungen (`decisions`), KEINE offenen Wahl-Möglichkeiten mehr
+ * Ein „Rider" = die Deutung EINES neu gewonnenen Merkmals/Talents — bereits unter
+ * Berücksichtigung getroffener Spielerwahlen. Der Rider trägt NUR Ergebnisse und die
+ * getroffenen Entscheidungen (`decisions`), KEINE offenen Wahl-Möglichkeiten mehr
  * (die leben transient in der Analyse von Call 1).
+ *
+ * Es gibt genau EINEN Rider je Merkmal — auch für Merkmale ohne mechanischen Grant, die
+ * dann nur `sheetNote` (oder gar nichts) tragen. Guided Decoding erzeugt ohnehin für jedes
+ * Merkmal einen Eintrag; ein „nur bei Grant"-Filter wäre eine Fiktion.
  */
 const featureRiderSchema = z.object({
   featureName: z.string().default('').describe('Which feature/feat emitted this rider.'),
@@ -139,6 +150,9 @@ const featureRiderSchema = z.object({
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
   abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
   decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),
+  sheetNote: z.string().default('').describe(
+    `GERMAN single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_MAX_CHARS} chars. ` +
+      'EMPTY when the feature needs no note — purely narrative, or already modelled elsewhere on the sheet.'),
 });
 
 export const featureEffectsSchema = z.object({
@@ -162,9 +176,11 @@ export const levelUpEffectsSchema = z.object({
 });
 
 // ── Narrativ (dünner KI-Pass; alle Deltas werden deterministisch assembliert) ────
+// Bewusst NUR die Zusammenfassung: den Merkmalstext fürs Klassenmerkmale-Feld liefert
+// `featureRiderSchema.sheetNote` aus der Merkmals-Deutung — der Pass dort kennt die
+// Regelprosa und die getroffenen Wahlen und kann daher besser verdichten als dieser hier.
 export const levelUpNarrativeSchema = z.object({
   summary: z.string().default('').describe('GERMAN one-paragraph summary of what changes this level.'),
-  classFeaturesAppend: z.string().default('').describe('GERMAN narrative naming the features gained, to append to classFeatures.'),
 });
 
 // ── Klassenmerkmale-Überarbeitung (eigener KI-Schritt) ──────────────────────────

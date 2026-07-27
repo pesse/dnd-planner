@@ -44,7 +44,8 @@ export type StepId =
   | 'feat-effects'        // ai (Call C, Talente)
   | 'narrative'           // ai (C)
   | 'ongoing-effects'     // ai (F)
-  | 'class-features'      // checkpoint (+ D auf Klick)
+  | 'class-features-merge'// ai (D: Freitext + sheetNotes verschmelzen)
+  | 'class-features'      // checkpoint (+ D erneut auf Klick)
   | 'review'              // checkpoint
   | 'done';               // terminal
 
@@ -65,6 +66,7 @@ export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
   'feat-effects':      { kind: 'ai',            label: 'Talent-Effekte' },
   'narrative':         { kind: 'ai',            label: 'Narrativ' },
   'ongoing-effects':   { kind: 'ai',            label: 'Fortlaufende Effekte' },
+  'class-features-merge': { kind: 'ai',         label: 'Klassenmerkmale' },
   'class-features':    { kind: 'checkpoint',    label: 'Klassenmerkmale' },
   'review':            { kind: 'checkpoint',    label: 'Überprüfung' },
   'done':              { kind: 'checkpoint',    label: 'Fertig' },
@@ -108,7 +110,8 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
     case 'feat-choices':       return 'feat-effects';
     case 'feat-effects':       return 'narrative';
     case 'narrative':          return 'ongoing-effects';
-    case 'ongoing-effects':    return 'class-features';
+    case 'ongoing-effects':    return 'class-features-merge';
+    case 'class-features-merge': return 'class-features';
     case 'class-features':     return 'review';
     case 'review':             return 'done';
     case 'done':               return 'done';
@@ -126,7 +129,7 @@ const TIMELINE: StepId[] = [
   'feature-analysis', 'feature-choices', 'feature-effects',
   'player-decisions', 'assemble-decisions', 'feat-choice', 'feat-links',
   'feat-analysis', 'feat-choices', 'feat-effects', 'narrative', 'ongoing-effects',
-  'class-features', 'review', 'done',
+  'class-features-merge', 'class-features', 'review', 'done',
 ];
 
 /** Ist der (Builder-)Schritt `step` beim aktuellen Phasenstand `current` bereits gelaufen? */
@@ -515,9 +518,9 @@ export function featChanges(chosenFeats: { key: string; name: string; gainedAt: 
 }
 
 /**
- * Getroffene Feature-Wahlen (rider.decisions) als Info-Notiz (`note`). Wahlen ohne eigenes
- * mechanisches Ziel (z.B. „Landart" beim Zirkel des Landes, „Kampfstil") werden so festgehalten
- * und via Klassenmerkmale-Freitext auf den Charakter übernommen (siehe choiceSelectionLines).
+ * Getroffene Feature-Wahlen (rider.decisions) als Info-Notiz (`note`) — reines Protokoll.
+ * Auf den Charakter kommen diese Wahlen über die `sheetNote` ihres Merkmals, in die Pass C
+ * das Ergebnis der Entscheidung einwebt (siehe sheetNoteLines).
  * `step` unterscheidet Basis- ('assemble-decisions') von Talent-Wahlen ('feat-effects').
  */
 export function decisionNotes(riders: FeatureRider[], step: 'assemble-decisions' | 'feat-effects'): Change[] {
@@ -531,9 +534,18 @@ export function decisionNotes(riders: FeatureRider[], step: 'assemble-decisions'
   return out;
 }
 
-/** Getroffene Wahlen als Textzeilen für den Klassenmerkmale-Freitext (Persistenz auf dem Charakter). */
-export function choiceSelectionLines(riders: FeatureRider[]): string[] {
-  return riders.flatMap((r) => r.decisions.filter((d) => d.answer?.trim()).map((d) => `${d.question}: ${d.answer}`));
+/**
+ * Die von der Merkmals-Deutung verdichteten Bogen-Notizen als Textzeilen für den
+ * Klassenmerkmale-Freitext. Merkmale ohne Notiz-Bedarf liefern einen leeren `sheetNote`
+ * und fallen hier heraus — die Auswahl trifft bewusst die KI (Pass C, Regel 10), nicht
+ * dieser Code: nur sie weiß, was der Bogen bereits anderswo führt.
+ *
+ * Getroffene Wahlen (rider.decisions) tauchen hier NICHT separat auf — Pass C webt ihr
+ * Ergebnis in die Notiz des jeweiligen Merkmals ein. Im Protokoll bleiben sie über
+ * `decisionNotes` sichtbar.
+ */
+export function sheetNoteLines(riders: FeatureRider[]): string[] {
+  return riders.map((r) => r.sheetNote.trim()).filter(Boolean);
 }
 
 /** Fortlaufende Pro-Stufe-TP (je Quelle ein eigener Eintrag; Betrag × gewonnene Stufen). */

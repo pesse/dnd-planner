@@ -79,3 +79,11 @@ export const RESOLVED_LAND = 'Gemäßigt';
  * Leer ⇒ es wird nur geprüft, dass ÜBERHAUPT Kreissprüche gewährt wurden.
  */
 export const EXPECTED_CIRCLE_SPELLS: string[] = ['Misty Step', 'Shocking Grasp', 'Sleep'];
+
+/**
+ * Dieselben Zauber mit ihren deutschen Bibliotheksnamen. Gebraucht für die Gegenprobe auf
+ * der Bogen-Notiz: die Kreissprüche stehen bereits in der Zauberliste des Charakters und
+ * dürfen das knappe Klassenmerkmale-Feld nicht zusätzlich füllen — die KI schreibt die
+ * Notiz auf Deutsch, also muss der Check beide Sprachen abdecken.
+ */
+export const EXPECTED_CIRCLE_SPELLS_DE: string[] = ['Nebelschritt', 'Schockgriff', 'Schlaf'];

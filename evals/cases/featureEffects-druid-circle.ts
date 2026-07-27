@@ -6,7 +6,9 @@
  *          determinesFurtherEffects=true, ≥3 Optionen und (noch) keine Zauber.
  *   Call C (finalizeFeatureEffects, mit aufgelöster Landart) — erwartet konkrete
  *          Kreissprüche als grantedSpells und die Landart als getroffene Entscheidung
- *          (rider.decisions).
+ *          (rider.decisions). Weich zusätzlich die Bogen-Notiz: kurz, einzeilig, nennt
+ *          die Landart — und listet die Kreissprüche gerade NICHT auf (die stehen schon
+ *          in der Zauberliste).
  *
  * Beide Fälle rufen den Produktionspfad über `run` selbst auf (mehrere verkettete
  * Calls), statt eine einzelne Action zu messen. Der Call-C-Fall kettet bewusst über
@@ -22,12 +24,13 @@ import {
 } from '../../src/lib/services/aiActions/featureEffectsAction';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
-import { asAnalysis, asEffects, type StepResult } from './featureEffectsStep';
+import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type StepResult } from './featureEffectsStep';
 import {
   druidClassContext,
   loadCircleOfLandFeatures,
   EXPECTED_LAND_TYPES,
   EXPECTED_CIRCLE_SPELLS,
+  EXPECTED_CIRCLE_SPELLS_DE,
   RESOLVED_LAND,
 } from '../fixtures/druid-l3-circle-of-land';
 
@@ -79,17 +82,40 @@ const finalizeCore: Checks<StepResult> = {
     asEffects(r)?.riders.some((x) => x.decisions.some((d) => landRe.test(`${d.question} ${d.answer}`))) ?? false,
 };
 
-/** Nur prüfbar, wenn eine Referenzliste hinterlegt ist (sonst zählt nur „überhaupt Sprüche"). */
-const finalizeSoft: Checks<StepResult> = EXPECTED_CIRCLE_SPELLS.length
-  ? {
-      'gewährte Kreissprüche enthalten die Referenzliste': (r) => {
-        const fe = asEffects(r);
-        if (!fe) return false;
-        const got = grantedSpellsLower(fe);
-        return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase().trim()));
-      },
-    }
-  : {};
+/**
+ * Weiche Prüfungen der Finalisierung. Neben der Zauber-Referenzliste messen sie die
+ * Bogen-Notizen — und zwar vor allem das WEGLASSEN: die Kreissprüche stehen bereits in
+ * der Zauberliste des Charakters, ihre Namen haben im knappen Klassenmerkmale-Feld
+ * nichts verloren. Genau daran hängt die „nur bei Bedarf"-Heuristik von Regel 10.
+ */
+const finalizeSoft: Checks<StepResult> = {
+  ...(EXPECTED_CIRCLE_SPELLS.length
+    ? {
+        'gewährte Kreissprüche enthalten die Referenzliste': (r: StepResult) => {
+          const fe = asEffects(r);
+          if (!fe) return false;
+          const got = grantedSpellsLower(fe);
+          return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase().trim()));
+        },
+      }
+    : {}),
+  'liefert mindestens eine Bogen-Notiz': (r) => sheetNotes(r).length > 0,
+  [`Bogen-Notizen sind einzeilig und ≤ ${SHEET_NOTE_LIMIT} Zeichen`]: (r) => {
+    const notes = sheetNotes(r);
+    return notes.length > 0 && notes.every(isSheetReady);
+  },
+  'Bogen-Notiz nennt die gewählte Landart': (r) =>
+    sheetNotes(r).some((n) => n.toLowerCase().includes(RESOLVED_LAND.toLowerCase())),
+  // Die Notiz ist deutsch, die grantedSpells sind kanonisch englisch — geprüft wird
+  // daher gegen beide Schreibweisen.
+  'zählt die gewährten Kreissprüche NICHT in der Bogen-Notiz auf': (r) => {
+    const fe = asEffects(r);
+    if (!fe) return false;
+    const notes = sheetNotes(r).join('\n').toLowerCase();
+    const spellNames = [...grantedSpellsLower(fe), ...EXPECTED_CIRCLE_SPELLS_DE.map((s) => s.toLowerCase())];
+    return !spellNames.some((s) => s && notes.includes(s));
+  },
+};
 
 export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
   // Merkmale über den ECHTEN Ladepfad (Vault) beziehen — kein handgeschriebener Input.

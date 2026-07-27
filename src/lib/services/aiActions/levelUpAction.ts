@@ -1,8 +1,9 @@
 /**
  * KI-Aktionen für den Stufenaufstieg — die tool-freien Prosa-Pässe.
  *
- * `buildLevelUpNarrativeAction` (C): deutsches Narrativ (Summary + Merkmals-Text).
- * `buildClassFeaturesRewriteAction` (D): Klassenmerkmale-Freitext neu formulieren.
+ * `buildLevelUpNarrativeAction` (C): deutsche Zusammenfassung des Aufstiegs.
+ * `buildClassFeaturesRewriteAction` (D): bestehenden Klassenmerkmale-Freitext mit den
+ *   neuen Bogen-Notizen (`sheetNote`, aus der Merkmals-Deutung) verschmelzen.
  *
  * Alle Zahlen werden deterministisch (levelUpMachine.buildDoc) assembliert; die KI
  * liefert hier nur Prosa. Aufstieg ist nur mit Progressionsdaten möglich — der
@@ -46,7 +47,6 @@ recompute or list slot/HP numbers.
 
 ## Output
 - "summary": ONE short German paragraph summarizing what the character gains this level (features, subclass, feats, notable spells).
-- "classFeaturesAppend": a concise GERMAN text naming the gained class/subclass features (one per line or comma-separated), suitable to append to the character's class-features field. Empty if nothing narrative was gained.
 All text MUST be GERMAN. Be concise and accurate; do not invent features not present in the input.`;
 
 export function buildLevelUpNarrativeAction(): AiAction<LevelUpNarrative> {
@@ -63,27 +63,38 @@ export function buildLevelUpNarrativeAction(): AiAction<LevelUpNarrative> {
 }
 
 // ── Klassenmerkmale-Überarbeitung (eigener KI-Schritt) ──────────────────────────
+// Verschmelzung, keine Neuformulierung: der bestehende Feldtext stammt VOM SPIELER und
+// darf alles Mögliche enthalten; die neuen Zeilen sind die bereits verdichteten
+// `sheetNote`s aus der Merkmals-Deutung. Dieser Prompt fügt beides zusammen, ohne
+// Information zu verlieren und ohne ein Merkmal zweimal aufzuführen.
 const CLASS_FEATURES_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-You revise a character's GERMAN free-text field "Klassenmerkmale & Eigenschaften" (class features & traits).
-You are given the CURRENT field text (<current_text>) and the features/subclass/feats the character gained THIS
-level-up (<gained_features>, <chosen_subclass>, <chosen_feats>).
+You merge new entries into a character's GERMAN free-text field "Klassenmerkmale & Eigenschaften" (class features & traits).
+You are given the CURRENT field text (<current_text>), the already-condensed one-line notes for what the character
+gained THIS level-up (<new_notes>) and the subclass in play (<chosen_subclass>).
 
 ## Task
-Return the FULL revised field text that integrates the newly gained features coherently into the existing prose.
+Return the FULL merged field text: everything that was already there, plus every new note, with duplicates unified.
 
 ## Rules
-1. KEEP all existing information — never drop anything the player already wrote. Reorganize only for clarity.
-2. Integrate the new features in the SAME style/structure as the existing text (e.g. keep bullet lists, headings,
-   or short lines if that is how the field is written). Avoid duplicating a feature that is already mentioned.
-3. If helpful, group by class / subclass, but do not over-format; match the existing tone.
-4. Add a short, accurate GERMAN description for each newly gained feature (from the input) — do NOT invent
-   mechanics, numbers or features that are not in the input.
-5. Output GERMAN only, in the single field "text". No commentary.`;
+1. The current text is written BY THE PLAYER and may contain notes that have nothing to do with class features
+   (equipment reminders, table rulings, private notes). NEVER delete or "clean up" anything — keep every piece of
+   information, even if it looks irrelevant or off-topic to you.
+2. Integrate EVERY line from <new_notes>. Their wording is already condensed for the sheet — reuse it as-is unless
+   merging forces a change.
+3. UNIFY DUPLICATES: if a feature from <new_notes> is already mentioned in the current text, merge the two into ONE
+   entry (keep the more precise/complete wording, add any detail the other one had) instead of appending a second line.
+   This also applies to entries the player wrote in their own words.
+4. Keep the STYLE and STRUCTURE of the current text — a bullet list stays a bullet list, plain short lines stay plain
+   short lines, headings stay headings. If the field is empty, use one short line per entry.
+5. Stay TERSE. The field is printed into a PDF box holding about 1400 characters in total and it grows with every
+   level-up. Do not elaborate, do not add flavor text, do not restate rules at length.
+6. Do NOT invent mechanics, numbers or features that are not in the input.
+7. Output GERMAN only, in the single field "text". No commentary.`;
 
 export function buildClassFeaturesRewriteAction(): AiAction<ClassFeaturesRewrite> {
   return {
     id: 'levelup-classfeatures',
-    label: 'Stufenaufstieg: Klassenmerkmale überarbeiten',
+    label: 'Stufenaufstieg: Klassenmerkmale zusammenführen',
     anthropicTools: [],
     openAiTools: [],
     execute: async () => '',
@@ -93,18 +104,22 @@ export function buildClassFeaturesRewriteAction(): AiAction<ClassFeaturesRewrite
   };
 }
 
-/** userInput für die Klassenmerkmale-Überarbeitung. */
+/**
+ * userInput für die Klassenmerkmale-Überarbeitung.
+ *
+ * `newNotes` sind die `sheetNote`s der Rider (Merkmale UND Talente) — bereits verdichtet.
+ * Die volle Regelprosa wird bewusst NICHT mehr mitgeschickt: sie würde diesen Pass zum
+ * Nach-Formulieren einladen, obwohl die Verdichtung im Merkmals-Pass längst passiert ist.
+ */
 export function buildClassFeaturesInput(ctx: {
   currentText: string;
-  gainedFeatures: GainedFeature[];
+  newNotes: string[];
   chosenSubclass: { key: string; name: string } | null;
-  chosenFeats: { key: string; name: string; desc?: string }[];
 }): string {
   return [
     `<current_text>${ctx.currentText}</current_text>`,
-    `<gained_features>${JSON.stringify(ctx.gainedFeatures.map((f) => ({ name: f.name, source: f.source, desc: f.desc })))}</gained_features>`,
+    `<new_notes>${JSON.stringify(ctx.newNotes)}</new_notes>`,
     `<chosen_subclass>${JSON.stringify(ctx.chosenSubclass)}</chosen_subclass>`,
-    `<chosen_feats>${JSON.stringify(ctx.chosenFeats.map((f) => ({ name: f.name, desc: f.desc ?? '' })))}</chosen_feats>`,
   ].join('\n');
 }
 

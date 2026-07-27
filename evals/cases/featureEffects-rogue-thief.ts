@@ -9,6 +9,11 @@
  *   Call C: keine erfundenen Grants (Zauber, Expertise, Attributsboni) und keine
  *           protokollierten Entscheidungen, denn es wurde keine getroffen.
  *
+ * Für die Bogen-Notizen (`sheetNote`) ist derselbe Fall die POSITIVprobe: Ruhiges Zielen,
+ * Flinke Hände und Einbrucharbeit tragen zwar keinen im Rider-Schema abbildbaren Grant,
+ * sind aber genau die aktiv einzusetzenden Fähigkeiten, die auf dem Charakterbogen eine
+ * Zeile verdienen — hier muss die KI also schreiben, nicht schweigen.
+ *
  * Die Merkmale kommen wie beim Druiden über den echten Ladepfad (siehe Fixture); der
  * Wahl-Zeiger „Rogue Subclass" ist dort bereits deterministisch herausgefiltert.
  */
@@ -21,9 +26,10 @@ import {
 import { ABILITY_KEYS } from '../../src/lib/services/levelUpMachine';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
-import { asAnalysis, asEffects, type StepResult } from './featureEffectsStep';
+import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type StepResult } from './featureEffectsStep';
 import {
   EXPECTED_FEATURE_NAMES,
+  EXPECTED_FEATURE_NAMES_DE,
   FILTERED_FEATURE_NAME,
   loadRogueThiefFeatures,
   rogueClassContext,
@@ -63,14 +69,32 @@ const finalizeCore: Checks<StepResult> = {
     asEffects(r)?.riders.every((x) =>
       EXPECTED_FEATURE_NAMES.some((n) => x.featureName.toLowerCase().includes(n.toLowerCase())),
     ) ?? false,
+  // Seit Pass-C-Regel 1 gibt es genau einen Rider je Merkmal — auch für Merkmale ohne
+  // schema-abbildbaren Grant, die dann nur ihre Bogen-Notiz tragen.
+  'ein Rider je gewonnenem Merkmal': (r) => asEffects(r)?.riders.length === EXPECTED_FEATURE_NAMES.length,
+  // Die drei Merkmale sind aktiv einzusetzende Fähigkeiten mit konkreter Mechanik und
+  // stehen auf dem Bogen sonst nirgends — jedes verdient also eine Zeile.
+  'jedes Merkmal trägt eine Bogen-Notiz': (r) =>
+    asEffects(r)?.riders.every((x) => x.sheetNote.trim().length > 0) ?? false,
 };
 
 const finalizeSoft: Checks<StepResult> = {
-  // Keines der drei Merkmale (Steady Aim, Fast Hands, Second-Story Work) trägt einen im
-  // Rider-Schema abbildbaren Grant — sauber wäre daher eine leere Rider-Liste. Leere
-  // Rider sind harmlos, aber Rauschen; deshalb weich statt hart.
-  'keine leeren Rider': (r) => asEffects(r)?.riders.length === 0,
+  [`Bogen-Notizen sind einzeilig und ≤ ${SHEET_NOTE_LIMIT} Zeichen`]: (r) => {
+    const notes = sheetNotes(r);
+    return notes.length > 0 && notes.every(isSheetReady);
+  },
+  // Die Notiz soll als Gedächtnisstütze taugen — ohne den Merkmalsnamen ist sie auf dem
+  // Bogen nicht zuzuordnen.
+  'jede Bogen-Notiz nennt ihr Merkmal': (r) =>
+    asEffects(r)?.riders.every((x) => !x.sheetNote.trim() || nameMentioned(x.sheetNote)) ?? false,
 };
+
+/** Trägt die Notiz einen der erwarteten Merkmalsnamen (EN oder deutsche Entsprechung)? */
+function nameMentioned(note: string): boolean {
+  const n = note.toLowerCase();
+  return EXPECTED_FEATURE_NAMES.some((name) => n.includes(name.toLowerCase()))
+    || EXPECTED_FEATURE_NAMES_DE.some((name) => n.includes(name.toLowerCase()));
+}
 
 export async function buildRogueThiefCases(): Promise<EvalCase<StepResult>[]> {
   const features = await loadRogueThiefFeatures();

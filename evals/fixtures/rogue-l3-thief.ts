@@ -67,5 +67,12 @@ export const rogueClassContext: FeatureClassContext = {
 /** Merkmale, die auf Stufe 3 tatsächlich ankommen (SRD 5.2: Schurke + Dieb). */
 export const EXPECTED_FEATURE_NAMES = ['Steady Aim', 'Fast Hands', 'Second-Story Work'];
 
+/**
+ * Dieselben Merkmale mit ihren deutschen Namen (`nameDe` im Vault). Die Bogen-Notiz ist
+ * deutsch, die `featureName` der Rider dagegen englisch (so kommen sie im Input an) —
+ * eine Notiz darf ihr Merkmal daher in beiden Sprachen benennen.
+ */
+export const EXPECTED_FEATURE_NAMES_DE = ['Ruhiges Zielen', 'Flinke Hände', 'Einbrucharbeit'];
+
 /** Der Wahl-Zeiger, der NICHT bei der KI landen darf (deterministisch gefiltert). */
 export const FILTERED_FEATURE_NAME = 'Rogue Subclass';

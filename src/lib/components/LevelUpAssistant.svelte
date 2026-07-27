@@ -40,7 +40,7 @@
     type StepId, type AdvanceCtx, type ValidatedRiders,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    STEP_META, isCheckpoint, advance, buildDoc, choiceSelectionLines,
+    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines,
   } from '../services/levelUpMachine';
   import {
     parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
@@ -87,8 +87,7 @@
   // Pro-Stufe-TP-Max aus dem Voll-Kontext-Effekt-Pass (z.B. Zwergische Zähigkeit).
   let hpPerLevelSources = $state<{ feature: string; sourceKey: string; amount: number }[]>([]);
   let narrativeSummary = $state(''); // KI-Narrativ (Zusammenfassung) → doc.summary
-  let narrativeAppend = $state('');  // KI-Merkmalstext → Saat für den Klassenmerkmale-Freitext
-  let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (KI-Rewrite optional)
+  let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (KI-Merge + Nachbearbeitung)
 
   const modOf = (s: number) => Math.floor((s - 10) / 2);
 
@@ -457,6 +456,9 @@
       case 'ongoing-effects':
         await detectHpPerLevel(alive);
         break;
+      case 'class-features-merge':
+        await mergeClassFeatures(alive);
+        break;
       // assemble-decisions / feat-links: rein deterministisch → keine Aktion,
       // das Dokument leitet diese Änderungen selbst aus dem State ab.
     }
@@ -467,15 +469,9 @@
       featsToPick = countFeatsToPick(delta!, answers);
       chosenFeats = [];
       getFeats().then((f) => { featLib = f; });
-    } else if (step === 'class-features') {
-      // Saat des editierbaren Freitexts: bestehendes Feld + KI-Merkmalstext + getroffene
-      // Feature-Wahlen (Landart, Kampfstil …, aus rider.decisions) → so persistieren sie.
-      const choiceLines = [
-        ...choiceSelectionLines(validatedBase.riders),
-        ...choiceSelectionLines(validatedFeats.riders),
-      ];
-      featuresText = [character.classFeatures, narrativeAppend, ...choiceLines]
-        .filter((s) => s && s.trim()).join('\n\n');
+    } else if (step === 'class-features' && !featuresText.trim()) {
+      // Sicherheitsnetz: normalerweise hat `class-features-merge` den Text längst gesetzt.
+      featuresText = seedFeaturesText();
     }
   }
 
@@ -554,9 +550,9 @@
     }
   }
 
-  /** Narrativ (KI, Schritt C) → doc.summary + Saat für den Klassenmerkmale-Freitext. */
+  /** Narrativ (KI, Schritt C) → doc.summary. */
   async function runNarrative(alive: () => boolean) {
-    let n = { summary: '', classFeaturesAppend: '' };
+    let n = { summary: '' };
     try {
       pushStep('KI formuliert das Narrativ…');
       const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
@@ -569,7 +565,40 @@
       n = parseLevelUpNarrative(raw) ?? n;
     } catch { /* Narrativ ist optional → deterministischer Fallback */ }
     narrativeSummary = n.summary || fallbackSummary();
-    narrativeAppend = n.classFeaturesAppend;
+  }
+
+  // ── Klassenmerkmale-Freitext ────────────────────────────────────────────────────
+  /** Die verdichteten Bogen-Notizen dieses Aufstiegs (Merkmale + Talente). */
+  const newSheetNotes = () => [...sheetNoteLines(validatedBase.riders), ...sheetNoteLines(validatedFeats.riders)];
+
+  /** Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge. */
+  const seedFeaturesText = () =>
+    [character.classFeatures, ...newSheetNotes()].filter((s) => s?.trim()).join('\n');
+
+  /**
+   * Verschmilzt den bestehenden (nutzergeschriebenen) Freitext mit den neuen Bogen-Notizen.
+   * Scheitert der Call, bleibt die rohe Saat stehen — der Aufstieg darf daran nicht hängen.
+   */
+  async function mergeClassFeatures(alive: () => boolean, currentText = seedFeaturesText()) {
+    const notes = newSheetNotes();
+    featuresText = currentText;
+    // Ohne neue Notizen gibt es nichts zusammenzuführen — den nutzergeschriebenen Text
+    // dann NICHT durch die KI schicken, das kann nur schaden.
+    if (!notes.length) {
+      pushStep('Keine neuen Merkmale fürs Klassenmerkmale-Feld.');
+      return;
+    }
+    try {
+      pushStep('KI führt die Klassenmerkmale zusammen…');
+      const raw = await runAiAction($llmConfig, buildClassFeaturesRewriteAction(),
+        buildClassFeaturesInput({ currentText, newNotes: notes, chosenSubclass }), runOpts());
+      if (!alive()) return;
+      const r = parseClassFeaturesRewrite(raw);
+      if (r && r.text.trim()) { featuresText = r.text; pushStep('Klassenmerkmale zusammengeführt.'); }
+      else pushStep('Keine Zusammenführung erhalten — Rohfassung bleibt stehen.');
+    } catch {
+      pushStep('Zusammenführung fehlgeschlagen — Rohfassung bleibt stehen.');
+    }
   }
 
   // ── Checkpoint-Aktionen (Nutzer klickt „Weiter") ────────────────────────────────
@@ -581,7 +610,7 @@
     chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
     baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
     chosenFeats = []; featRiders = []; flagged = [];
-    hpPerLevelSources = []; narrativeSummary = ''; narrativeAppend = ''; featuresText = '';
+    hpPerLevelSources = []; narrativeSummary = ''; featuresText = '';
     validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
     validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
 
@@ -708,20 +737,14 @@
     }
   }
 
-  // ── Klassenmerkmale-Feld optional per KI überarbeiten (Schritt D, auf Klick) ─────
+  /**
+   * „Nochmal zusammenführen" auf Klick: derselbe Merge, aber auf dem aktuell im Textfeld
+   * stehenden (ggf. handbearbeiteten) Stand statt auf der Rohfassung.
+   */
   function reworkFeatures() {
     if (!delta) return;
     runSegment('class-features', async (alive) => {
-      pushStep('KI überarbeitet die Klassenmerkmale…');
-      const raw = await runAiAction($llmConfig, buildClassFeaturesRewriteAction(),
-        buildClassFeaturesInput({
-          currentText: featuresText, gainedFeatures, chosenSubclass,
-          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.descDe || f.desc })),
-        }), runOpts());
-      if (!alive()) return;
-      const r = parseClassFeaturesRewrite(raw);
-      if (r && r.text.trim()) { featuresText = r.text; pushStep('Klassenmerkmale überarbeitet.'); }
-      else pushStep('Keine Überarbeitung erhalten.');
+      await mergeClassFeatures(alive, featuresText);
       phase = 'class-features';
     });
   }
@@ -1034,18 +1057,18 @@
   {/if}
 
 
-  <!-- ── Klassenmerkmale überarbeiten (eigener KI-Schritt) ─── -->
+  <!-- ── Klassenmerkmale prüfen (bereits zusammengeführt) ─── -->
   {#if phase === 'class-features'}
     <div class="row">
-      <span class="field-label">Klassenmerkmale & Eigenschaften überarbeiten</span>
-      <span class="field-hint">Neue Merkmale wurden eingefügt. „KI überarbeiten" integriert sie stilistisch ins bestehende Feld; du kannst frei nachbearbeiten.</span>
+      <span class="field-label">Klassenmerkmale & Eigenschaften</span>
+      <span class="field-hint">Die KI hat die neuen Merkmale bereits verkürzt ins bestehende Feld eingearbeitet. Du kannst frei nachbearbeiten oder erneut zusammenführen lassen.</span>
       {#if gainedFeatures.length}
         <div class="facts">
           {#each gainedFeatures as gf}<div class="fact">• {gf.name}{gf.source === 'subclass' ? ' (Subklasse)' : ''}</div>{/each}
         </div>
       {/if}
       <textarea class="textarea ta-features" rows="10" bind:value={featuresText}></textarea>
-      <button type="button" class="secondary-btn rework-btn" onclick={reworkFeatures} disabled={running}>🪄 KI überarbeiten</button>
+      <button type="button" class="secondary-btn rework-btn" onclick={reworkFeatures} disabled={running}>🪄 Nochmal zusammenführen</button>
     </div>
   {/if}
 

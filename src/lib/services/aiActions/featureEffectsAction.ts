@@ -3,7 +3,12 @@
  *
  * Bekommt AUSSCHLIESSLICH die in dieser Spanne neu gewonnenen Merkmale (Basis-,
  * Subklassen- oder Talent-Prosa) und extrahiert daraus die konkreten mechanischen
- * Effekte („Rider") sowie die erzwungenen Spielerwahlen.
+ * Effekte („Rider") sowie die erzwungenen Spielerwahlen. Pass C liefert zusätzlich je
+ * Merkmal eine `sheetNote` — eine verdichtete deutsche Zeile für den Klassenmerkmale-
+ * Freitext, oder bewusst nichts. Diese Stelle kann das am besten: sie hat die EN-Regel-
+ * prosa, die getroffenen Wahlen UND ihre eigenen Grants im Blick und weiß daher, was der
+ * Bogen bereits anderswo führt (Zauberliste, Fertigkeiten, Attribute) und deshalb keine
+ * Zeile braucht.
  *
  * QM-only, in ZWEI vom Level-Up-Flow getriebenen Phasen (der Checkpoint sitzt
  * dazwischen, damit der User direkt nach Call 1 entscheidet):
@@ -25,6 +30,7 @@
 import {
   featureEffectsJsonSchema,
   parseFeatureEffects,
+  SHEET_NOTE_MAX_CHARS,
   type FeatureEffects,
 } from '../../schemas/levelUp';
 import type { LlmConfig } from '../../types';
@@ -69,14 +75,15 @@ export interface FeatureClassContext {
 /**
  * Pass-C-Prompt (Guided, non-reasoning): gießt die Analyse ins Rider-Schema. Alle Wahlen
  * sind zu diesem Zeitpunkt bereits getroffen (<resolved_choices>) — dieser Call trägt nur
- * die ERGEBNISSE ein und protokolliert die getroffenen Entscheidungen.
+ * die ERGEBNISSE ein, protokolliert die getroffenen Entscheidungen und verdichtet jedes
+ * Merkmal zu einer `sheetNote` (Regel 10) bzw. lässt sie bewusst leer.
  */
 const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc" and its German translation "descDe") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
-Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders". Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
+Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders" — plus one terse German sheet note per feature. Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
 
 ## Rules
-1. Emit a rider ONLY for a feature that carries a concrete mechanical grant. Purely narrative/flavor features → no rider.
+1. Emit EXACTLY ONE rider per entry in <gained_features>, in the same order, with featureName copied verbatim. A feature without any mechanical grant still gets its rider — leave the grant fields at their empty defaults and only fill sheetNote (see rule 10). Never invent a rider for a feature that is not in <gained_features>.
 2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn.
 3. extraCantrips / extraPreparedCount: only if a feature explicitly grants additional cantrips resp. lets the player prepare MORE spells than the class table already does.
 4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options.
@@ -84,7 +91,19 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
 6. abilityScoreIncrease: ability increases the feature dictates — FIXED ones (e.g. a feat giving +1 CON) AND any resolved "+1 to one of…" choice from <resolved_choices>. NEVER the generic ASI (handled separately). German keys: str, ges (dex), kon, int, wei (wis), cha.
 7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision {id, question, answer}. <resolved_choices> only carries {id, choice} — take the id verbatim, look the matching German question up in your own analysis (same id) and use the chosen German label(s) as the answer. This is the record of what the player picked (e.g. a fighting style, a Circle of the Land terrain). Bake its mechanical consequence into the grant fields above; the decision itself is the audit record.
 8. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — applied automatically. Only add value the raw table cannot express.
-9. If nothing is modellable, return an empty "riders" array.`;
+9. Never invent mechanics that are not in the feature's own rules text. When in doubt, leave a field empty.
+
+## sheetNote (rule 10)
+10. sheetNote is ONE short GERMAN line for the paper character sheet's "Klassenmerkmale" field: \`Merkmalsname: was es bewirkt\`, max ~${SHEET_NOTE_MAX_CHARS} characters, no line breaks, no markdown.
+    This field is printed into a PDF box that holds only about 1400 characters IN TOTAL and keeps growing with every level-up. Space is the scarce resource — write a note only where it earns its place.
+    WRITE a note for:
+    - abilities the player must actively remember to use: what it does, its action type, and how often (e.g. "2×/kurze Rast", "1×/lange Rast");
+    - numbers that live nowhere else on the sheet (sneak attack dice, rage count/damage, ki points, wild shape limits);
+    - the CONSEQUENCE of a decision from <resolved_choices> — weave the chosen option into the wording (e.g. "Kampfstil Duellant: +2 Schaden mit einhändiger Waffe") instead of repeating the question.
+    LEAVE IT EMPTY ("") for:
+    - purely narrative/flavor features with no table-side effect;
+    - anything the sheet already records elsewhere: granted spells (spell list), proficiencies and expertise (skill block), ability increases (ability scores), spell slots / proficiency bonus / hit dice (computed).
+    Condense aggressively: the player owns the rulebook, this line is a reminder, not a rules quote. Prefer numbers and keywords over sentences; drop filler like "Du kannst".`;
 
 /**
  * Pass-A-Prompt (Reasoning): REINE Analyse. Bewusst OHNE Rider-Vokabular — der Fokus liegt
@@ -267,10 +286,13 @@ async function buildSpellResolution(spellsToGround: string[], klasseName: string
 /** Baut die abschließende Transkriptions-Anweisung für Pass C aus dem Grounding. */
 function buildTranscriptionInstruction(spellResolution: string): string {
   const parts = [
-    'Gib jetzt das Ergebnis exakt im geforderten Schema aus. Trage jede in <resolved_choices> ' +
+    'Gib jetzt das Ergebnis exakt im geforderten Schema aus — genau ein Rider je Merkmal aus ' +
+      '<gained_features>, in derselben Reihenfolge. Trage jede in <resolved_choices> ' +
       'genannte Wahl in decisions[] des passenden Riders ein — id wie dort, question aus deiner ' +
       'Analyse mit derselben id, answer = das gewählte Label — und lasse ihr Ergebnis in die ' +
-      'konkreten Grants einfließen (grantedSpells / expertiseSkills / abilityScoreIncrease).',
+      'konkreten Grants einfließen (grantedSpells / expertiseSkills / abilityScoreIncrease).\n' +
+      'Setze sheetNote nur dort, wo der Charakterbogen die Information wirklich braucht (Regel 10); ' +
+      'sonst leer lassen. Kurz halten — der Platz im PDF-Feld ist knapp.',
   ];
   if (spellResolution) {
     parts.push(
