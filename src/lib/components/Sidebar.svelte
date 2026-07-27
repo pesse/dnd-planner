@@ -5,11 +5,13 @@
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
+  import LibraryManager from './LibraryManager.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { confirmAction } from '../stores/confirmDialog';
   import { pushError } from '../stores/errors';
   import { updateState, updateDialogOpen } from '../stores/update';
+  import { libraries, libraryManagerOpen, updateCount } from '../stores/libraries';
   import CreateCardModal from './CreateCardModal.svelte';
   import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
@@ -682,6 +684,8 @@
   let itemSearch = $state('');
   let showItemModal = $state(false);
   let showTransferModal = $state(false);
+  /** Anzahl Bibliotheken mit Update — hebt den Bibliotheks-Knopf hervor. */
+  let libUpdates = $derived(updateCount($libraries));
 
   $effect(() => {
     if (itemSearch.trim() && itemDirs.length) {
@@ -1223,6 +1227,14 @@
           onclick={() => updateDialogOpen.set(true)}
         >⬆</button>
       {/if}
+      <button
+        class="header-btn"
+        class:library-update={libUpdates > 0}
+        title={libUpdates > 0
+          ? `${libUpdates} Bibliotheks-Update(s) verfügbar`
+          : 'Bibliotheken verwalten'}
+        onclick={() => libraryManagerOpen.set(true)}
+      >📚</button>
       <button class="header-btn" title="Vault importieren / exportieren" onclick={() => (showTransferModal = true)}>⇅</button>
       <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
     </div>
@@ -1666,6 +1678,10 @@
     />
   {/if}
 
+  {#if $libraryManagerOpen}
+    <LibraryManager onclose={() => libraryManagerOpen.set(false)} />
+  {/if}
+
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
   {/if}
@@ -1949,6 +1965,11 @@
   }
   .sidebar-header .update-btn { opacity: 1; }
   .update-btn:hover { color: var(--gold); filter: brightness(1.2); }
+
+  /* Bibliotheks-Update: gleiche Logik wie beim App-Update — dauerhaft
+     sichtbar, sobald es etwas zu holen gibt. */
+  .header-btn.library-update { color: var(--gold); opacity: 1; }
+  .header-btn.library-update:hover { filter: brightness(1.2); }
 
   .top-section {
     padding: 0.5rem 0;

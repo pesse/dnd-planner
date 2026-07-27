@@ -16,6 +16,7 @@
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
   import { checkForUpdate } from '$lib/stores/update';
+  import { checkLibrariesOnStartup } from '$lib/stores/libraries';
   import { getRulesIndex } from '$lib/services/rulesReference';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
@@ -357,6 +358,11 @@
 
     // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
     void checkForUpdate();
+
+    // Bibliotheksverzeichnis prüfen. Offene, noch nicht vorhandene Bibliotheken
+    // werden dabei installiert, damit eine frische Installation ohne
+    // Zugangscode sofort brauchbar ist. Updates nie ungefragt — dafür der Badge.
+    void checkLibrariesOnStartup();
 
     // Regel-Suchindex (MiniSearch) einmalig vorwärmen, damit die erste
     // search_rules-Abfrage im KI-Panel nicht kalt startet. Nach dem ersten Paint.

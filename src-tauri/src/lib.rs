@@ -7,6 +7,15 @@ use serde::{Serialize, Deserialize};
 use keyring::Entry;
 use tauri::Manager;
 
+mod libraries;
+
+/// True für interne Einträge wie `.libraries` (Installationszustand der
+/// Bibliotheks-Packs). Solche Einträge gehören weder in die Datei-Listen der
+/// Oberfläche noch in einen Vault-Export.
+fn is_hidden(name: &str) -> bool {
+    name.starts_with('.')
+}
+
 /// Basisverzeichnis das den `vault/`-Ordner enthält. Wird einmalig im
 /// `setup`-Hook gesetzt: im Release fest am stabilen App-Identifier
 /// (`%LOCALAPPDATA%\de.developer-sam.dnd-planner`), im Dev-Build am Repo
@@ -51,7 +60,7 @@ async fn http_request(req: HttpRequest) -> Result<String, String> {
 
 /// Basisverzeichnis das den `vault/`-Ordner enthält. Liefert den im `setup`
 /// gesetzten kanonischen Pfad; als Fallback den per Walk-up gesuchten.
-fn project_root() -> PathBuf {
+pub(crate) fn project_root() -> PathBuf {
     if let Some(base) = VAULT_BASE.get() {
         return base.clone();
     }
@@ -132,6 +141,9 @@ fn list_entries(path: String) -> Result<Vec<EntryInfo>, String> {
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
+            if is_hidden(&name) {
+                return None;
+            }
             let is_dir = e.path().is_dir();
             let is_md = e.path().is_file() && name.ends_with(".md");
             if is_dir || is_md {
@@ -154,6 +166,9 @@ fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
+            if is_hidden(&name) {
+                return None;
+            }
             let is_dir = e.path().is_dir();
             let is_json = e.path().is_file() && name.ends_with(".json");
             if is_dir || is_json {
@@ -452,6 +467,7 @@ fn subdirs(path: &Path) -> Vec<String> {
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_dir())
             .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|name| !is_hidden(name))
             .collect(),
         Err(_) => vec![],
     };
@@ -484,6 +500,11 @@ fn collect_files(base: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) {
     for entry in entries.filter_map(|e| e.ok()) {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
+        // Interne Ablagen (z.B. der Installationszustand der Bibliotheken)
+        // gehören nicht in einen Vault-Export — sie gelten nur lokal.
+        if is_hidden(&name) {
+            continue;
+        }
         let zip_name = if prefix.is_empty() {
             name
         } else {
@@ -885,7 +906,12 @@ pub fn run() {
             inspect_import_zip,
             import_vault,
             find_legacy_vault,
-            migrate_legacy_vault
+            migrate_legacy_vault,
+            libraries::fetch_library_index,
+            libraries::try_access_code,
+            libraries::install_library,
+            libraries::installed_libraries,
+            libraries::forget_access_code
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
