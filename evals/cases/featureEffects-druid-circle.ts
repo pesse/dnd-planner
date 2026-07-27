@@ -22,6 +22,7 @@ import {
 } from '../../src/lib/services/aiActions/featureEffectsAction';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
+import { asAnalysis, asEffects, type StepResult } from './featureEffectsStep';
 import {
   druidClassContext,
   loadCircleOfLandFeatures,
@@ -29,14 +30,6 @@ import {
   EXPECTED_CIRCLE_SPELLS,
   RESOLVED_LAND,
 } from '../fixtures/druid-l3-circle-of-land';
-
-/** Ergebnis eines Falls: Call 1 liefert die Analyse, Call C die Rider. */
-export type StepResult =
-  | { kind: 'analysis'; analysis: FeatureAnalysis }
-  | { kind: 'effects'; effects: FeatureEffects };
-
-const asAnalysis = (r: StepResult): FeatureAnalysis | null => (r.kind === 'analysis' ? r.analysis : null);
-const asEffects = (r: StepResult): FeatureEffects | null => (r.kind === 'effects' ? r.effects : null);
 
 const landRe = /land|gelände|terrain/i;
 

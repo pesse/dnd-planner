@@ -56,6 +56,7 @@ export const druidSummary: CharacterSummary = {
  */
 export const druidClassContext: FeatureClassContext = {
   klasseName: 'Druide',
+  subclassName: 'Zirkel des Landes',
   casterType: 'FULL',
   casterKind: 'prepared',
   spellcastingAbility: 'wei',

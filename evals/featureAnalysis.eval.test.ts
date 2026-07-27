@@ -67,8 +67,8 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.
 `;
 
-const USER = `
-<class_context>{"klasseName":"Druide","casterType":"FULL","casterKind":"prepared","spellcastingAbility":"wei","toLevel":3}</class_context>
+const USER_DRUID = `
+<class_context>{"klasseName":"Druide","subclassName":"Zirkel des Landes","casterType":"FULL","casterKind":"prepared","spellcastingAbility":"wei","toLevel":3}</class_context>
 <gained_features>[{"name":"Circle of the Land Spells","desc":"Choose one type of land: arid, polar, temperate, or tropical. Consult the table below that corresponds to the chosen type; you have the spells listed for your Druid level and lower prepared.\\n\\nTable: Arid Land\\n\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Blur, Burning Hands, Fire Bolt|\\n|5|Fireball|\\n|7|Blight|\\n|9|Wall of Stone|\\n\\nTable: Polar Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Fog Cloud, Hold Person, Ray of Frost|\\n|5|Sleet Storm|\\n|7|Ice Storm|\\n|9|Cone of Cold|\\n\\nTable: Temperate Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Misty Step, Shocking Grasp, Sleep|\\n|5|Lightning Bolt|\\n|7|Freedom of Movement|\\n|9|Tree Stride|\\n\\nTable: Tropical Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Acid Splash, Ray of Sickness, Web|\\n|5|Stinking Cloud|\\n|7|Polymorph|\\n|9|Insect Plague|","descDe":"Wähle eine Art des Landes aus: trocken, polar, gemäßigt oder tropisch. Ziehe die untenstehende Tabelle heran, die der gewählten Art entspricht; du hast die für deine Druidenstufe und niedriger aufgeführten Zauber vorbereitet.\n\nTabelle: Trockenes Land\n\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Verschwimmen, Brennende Hände, Feuerpfeil|\n|5|Feuerball|\n|7|Verderben|\n|9|Steinwand|\n\nTabelle: Polares Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Nebelwolke, Person festhalten, Kältestrahl|\n|5|Schneesturm|\n|7|Eissturm|\n|9|Kältekegel|\n\nTabelle: Gemäßigtes Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Nebelschritt, Schockgriff, Schlaf|\n|5|Blitz|\n|7|Bewegungsfreiheit|\n|9|Hölzerner Weg|\n\nTabelle: Tropisches Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Säurespritzer, Strahl der Übelkeit, Netz|\n|5|Stinkende Wolke|\n|7|Verwandlung|\n|9|Insektenplage|",source":"subclass","key":"srd-2024_druid_circle-of-the-land_spell-list","gainedAt":3},{"name":"Land's Aid","desc":"As a Magic action, you can expend a use of your Wild Shape and choose a point within 60 feet of yourself. Vitality-giving flowers and life-draining thorns appear for a moment in a 10-foot-radius Sphere centered on that point. Each creature of your choice in the Sphere must make a Constitution saving throw against your spell save DC, taking 2d6 Necrotic damage on a failed save or half as much damage on a successful one. One creature of your choice in that area regains 2d6 Hit Points.\\n\\nThe damage and healing increase by 1d6 when you reach Druid levels 10 (3d6) and 14 (4d6).","descDe":"Als magische Aktion kannst du eine Anwendung deiner Wildgestalt aufwenden und einen Punkt innerhalb von 18 Metern von dir wählen. Vitalität spendende Blumen und lebensentziehende Dornen erscheinen für einen Moment in einer Kugel mit einem Radius von 3 Metern, zentriert auf diesen Punkt. Jede Kreatur deiner Wahl in der Kugel muss einen Konstitutions-Rettungswurf gegen deinen SG des Zauber-Rettungswurfs ablegen und erleidet bei einem misslungenen Rettungswurf 2W6 Nekrotischen Schaden oder bei einem gelungenen halb so viel Schaden. Eine Kreatur deiner Wahl in diesem Bereich erhält 2W6 Trefferpunkte zurück.\n\nDer Schaden und die Heilung erhöhen sich um 1W6, wenn du die Druidenstufen 10 (3W6) und 14 (4W6) erreichst.","source":"subclass","key":"srd-2024_druid_circle-of-the-land_lands-aid","gainedAt":3}]</gained_features>
 `
 
@@ -138,13 +138,13 @@ const soft = {
 const EXPECTED_SPELLS = ['Misty Step', 'Shocking Grasp', 'Sleep'];
 
 defineEval<Manifest>({
-  name: 'featureAnalysis',
+  name: 'featureAnalysis-druid',
   description: 'Pass-A-Analyse: Ein-Call ohne Wahl vs. Verlauf mit nachgereichter Landart-Wahl',
   cases: [
     promptCase<Manifest>({
       label: 'Ein Call — Choices für Druide Lvl 3',
       system: SYSTEM,
-      user: USER,
+      user: USER_DRUID,
       // 'parse': der SYSTEM-Prompt beschreibt das Manifest bereits selbst — Schema nur
       // zum Parsen/Validieren, am Request ändert sich nichts.
       schema: featureAnalysisSchema,
@@ -161,7 +161,7 @@ defineEval<Manifest>({
       structured: 'parse',
       temperature: 0.3,
       turns: [
-        user(USER),
+        user(USER_DRUID),
         // Antwort #1 ist FEST vorgegeben — kein Call, kein Rauschen. Gemessen wird
         // ausschließlich, was das Modell nach der nachgereichten Wahl liefert.
         assistant(ANALYSIS_FIXTURE),
@@ -181,6 +181,37 @@ defineEval<Manifest>({
         },
         'keine Zauber erfunden': (m) => m.spellsToGround.length <= EXPECTED_SPELLS.length,
       },
+    }),
+  ],
+});
+
+/**
+ * Schurke 2→3: ein Fall ganz OHNE erzwungene Wahl. Das Merkmal „Rogue Subclass" steht
+ * bewusst NICHT im Input — solche reinen Wahl-Zeiger filtert `gainedFeaturesFor`
+ * deterministisch heraus (die Subklasse ist am eigenen Checkpoint längst gewählt und
+ * steht als `subclassName` im Klassen-Kontext).
+ */
+defineEval<Manifest>({
+  name: 'featureAnalysis-rogue',
+  description: 'Schurke 2->3',
+  cases: [
+    promptCase<Manifest>({
+      label: 'Keine Choices für Schurke Lvl 3',
+      system: SYSTEM,
+      user: `
+      <class_context>{"klasseName":"Schurke","subclassName":"Assassine","casterType":"NONE","casterKind":"none","spellcastingAbility":"","toLevel":3}</class_context>
+      <gained_features>[{"name":"Steady Aim","desc":"As a Bonus Action, you give yourself Advantage on your next attack roll on the current turn. You can use this feature only if you haven't moved during this turn, and after you use it, your Speed is 0 until the end of the current turn.","descDe":"Als Bonusaktion verschaffst du dir Vorteil auf deinen nächsten Angriffswurf im aktuellen Zug. Du kannst dieses Merkmal nur nutzen, wenn du dich in diesem Zug nicht bewegt hast, und nachdem du es genutzt hast, beträgt deine Bewegungsrate bis zum Ende des aktuellen Zuges 0.","source":"class","key":"srd-2024_rogue_steady-aim","gainedAt":3},{"name":"Assassinate","desc":"⚠️ FROM MEMORY / NOT SRD — verify against the 2024 Player's Handbook. Uncertain details are marked ⚠️.\\\\n\\\\nYou're adept at ambushing a target, granting you the following benefits.\\\\n\\\\n**Initiative.** You have Advantage on Initiative rolls.\\\\n\\\\n**Surprising Strikes.** During the first round of each combat, you have Advantage on attack rolls against any creature that hasn't taken a turn yet. If you hit such a creature with your Sneak Attack that round, the target also takes extra damage equal to your Rogue level (same damage type as the Sneak Attack).","descDe":"⚠️ AUS GEDÄCHTNIS / KEIN SRD – gegen das Player's Handbook 2024 prüfen. Unsichere Angaben sind mit ⚠️ markiert.\\\\n\\\\nDu bist geübt darin, ein Ziel aus dem Hinterhalt anzugreifen, und erhältst die folgenden Vorteile.\\\\n\\\\n**Initiative.** Du hast Vorteil auf Initiativewürfe.\\\\n\\\\n**Überraschende Schläge.** In der ersten Runde jedes Kampfes hast du Vorteil auf Angriffswürfe gegen jede Kreatur, die noch keinen Zug hatte. Triffst du in dieser Runde eine solche Kreatur mit deinem Hinterhältigen Angriff, erleidet das Ziel zusätzlichen Schaden in Höhe deiner Schurkenstufe (gleicher Schadenstyp wie der Hinterhältige Angriff).","source":"subclass","key":"phb-2024_rogue_assassin_assassinate","gainedAt":3},{"name":"Assassin's Tools","desc":"You gain a Disguise Kit and a Poisoner's Kit, and you have proficiency with them (if you didn't already).","descDe":"Du erhältst eine Verkleidungsausrüstung und eine Vergifterausrüstung und bist im Umgang mit ihnen geübt (falls du es nicht bereits warst).","source":"subclass","key":"phb-2024_rogue_assassin_assassins-tools","gainedAt":3}]</gained_features>`,
+      // 'parse': der SYSTEM-Prompt beschreibt das Manifest bereits selbst — Schema nur
+      // zum Parsen/Validieren, am Request ändert sich nichts.
+      schema: featureAnalysisSchema,
+      structured: 'parse',
+      temperature: 0.3,
+      core: {
+        'Keine Zauber': (m) => m.spellsToGround.length == 0,
+        'nicht blockiert': (m) => m.blocked === false,
+        'Keine Choices': (m) => m.choices.length == 0,
+      },
+      soft: {},
     }),
   ],
 });

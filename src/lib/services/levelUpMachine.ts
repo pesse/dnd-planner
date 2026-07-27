@@ -13,7 +13,7 @@
  * Die Svelte-Komponente hält den State (Runes) + das Lauf-Gerüst und ruft diese Helfer;
  * das Dokument ist dort ein `$derived` von `buildDoc` → das Protokoll ist eine reine Sicht.
  */
-import type { LevelUpDelta } from './levelUp';
+import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { getProgressionByKey } from './classProgression';
 import type { ClassFeature } from '../schemas/classProgression';
 import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
@@ -157,10 +157,19 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
     .sort((a, b) => Math.min(...a.gainedAt) - Math.min(...b.gainedAt));
 }
 
-/** Basis- + (falls bereits bekannt) Subklassen-Merkmale aus dem Delta als GainedFeature[]. */
+/**
+ * Basis- + (falls bereits bekannt) Subklassen-Merkmale aus dem Delta als GainedFeature[].
+ *
+ * Klassenmerkmale, die nur auf eine vom Flow selbst getroffene Entscheidung zeigen
+ * (Subklassen-Wahl, Attributsverbesserung), fliegen hier raus: die Wahl ist beim
+ * Merkmals-Schritt längst gefallen, ihre Prosa würde die Analyse aber dazu verleiten,
+ * sie ein zweites Mal zu stellen. Subklassen-Merkmale bleiben unangetastet.
+ */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
-    ...delta.featuresGained.map((f) => featureToGained(f, 'class', delta.toLevel)),
+    ...delta.featuresGained
+      .filter((f) => !isFlowOwnedChoiceFeature(f))
+      .map((f) => featureToGained(f, 'class', delta.toLevel)),
     ...delta.subclassFeaturesGained.map((f) => featureToGained(f, 'subclass', delta.toLevel)),
   ];
 }

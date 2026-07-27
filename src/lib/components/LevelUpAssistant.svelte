@@ -144,6 +144,8 @@
   function classContext(): FeatureClassContext {
     return {
       klasseName: delta?.klasseName ?? '',
+      // In dieser Spanne gewählt (chosenSubclass) oder längst bekannt (Delta).
+      subclassName: chosenSubclass?.name ?? delta?.subclassName ?? '',
       casterType: delta?.casterType ?? 'NONE',
       casterKind: delta?.casterKind ?? 'none',
       spellcastingAbility: character.spells?.spellcastingAbility ?? '',

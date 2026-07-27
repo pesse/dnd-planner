@@ -68,6 +68,21 @@ function matches(f: ClassFeature, hints: string[]): boolean {
   return hints.some((h) => s.includes(h));
 }
 
+/**
+ * Reine „Wahl-Zeiger" unter den Klassenmerkmalen: Merkmale, deren einziger Inhalt eine
+ * Entscheidung ist, die der Aufstiegs-Flow selbst deterministisch trifft — die Subklassen-
+ * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint und die Attributs-
+ * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte). Eigene Mechanik tragen
+ * sie nicht; in der Merkmals-Analyse würden sie die KI nur dazu verleiten, eine längst
+ * getroffene Entscheidung erneut zu erzwingen.
+ *
+ * Bewusst ENG auf „subclass" statt auf `SUBCLASS_HINTS` — dessen weiche Begriffe (patron,
+ * circle, path …) treffen sonst echte Merkmale wie „Contact Patron".
+ */
+export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
+  return /\bsubclass(es)?\b/i.test(f.name) || matches(f, ASI_HINTS);
+}
+
 /** Zaubertrick-Anzahl aus der (offenen) Spaltenmap; robust gegen Spaltennamen. */
 function cantripCount(prog: ClassProgression, level: number): number {
   const raw = columnValue(prog, 'Cantrips', level) ?? columnValue(prog, 'Cantrips Known', level);

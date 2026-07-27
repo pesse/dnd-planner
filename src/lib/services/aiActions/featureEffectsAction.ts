@@ -57,6 +57,9 @@ export interface ResolvedChoice {
 /** Knapper Klassen-Kontext für die Effekt-Deutung. */
 export interface FeatureClassContext {
   klasseName: string;
+  /** Bereits gewählte Subklasse (leer, wenn die Klasse noch keine hat) — die Wahl ist
+   *  zum Zeitpunkt der Merkmals-Deutung immer schon gefallen, nie eine offene Frage. */
+  subclassName: string;
   casterType: string; // FULL/HALF/NONE/…
   casterKind: 'prepared' | 'known' | 'none';
   spellcastingAbility: string;

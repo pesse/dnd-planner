@@ -16,10 +16,23 @@
  * einen eigenen Report nach evals/reports/<timestamp>-featureeffects[-<label>]/.
  */
 import { defineEval } from './defineEval';
-import { buildDruidCircleCases, type StepResult } from './cases/featureEffects-druid-circle';
+import { buildDruidCircleCases } from './cases/featureEffects-druid-circle';
+import { buildRogueThiefCases } from './cases/featureEffects-rogue-thief';
+import type { StepResult } from './cases/featureEffectsStep';
 
 defineEval<StepResult>({
   name: 'featureEffects',
   description: 'Druide 2→3, Zirkel des Landes — Landart-Wahl (Analyse) und Kreissprüche (Finalisierung)',
   cases: buildDruidCircleCases,
+});
+
+/**
+ * Gegenprobe auf demselben Pfad: ein Aufstieg ohne jede erzwungene Wahl und ohne Zauber.
+ * Eigene Strecke (eigener Report), damit die „darf nichts erfinden"-Quote nicht mit der
+ * Druiden-Quote verrechnet wird.
+ */
+defineEval<StepResult>({
+  name: 'featureEffects-rogue',
+  description: 'Schurke 2→3, Dieb — weder Wahl noch Zauber: prüft, dass die KI nichts erfindet',
+  cases: buildRogueThiefCases,
 });
