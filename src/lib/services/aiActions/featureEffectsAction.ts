@@ -10,9 +10,17 @@
  *   analyzeFeatureEffects  = Call 1 (Pass A, Reasoning): reine Analyse → Choices
  *     (Möglichkeiten) + zu erdende Zauber. KEIN Rider-Vokabular.
  *   [Checkpoint]           = der Flow zeigt die Choices, der User entscheidet.
- *   finalizeFeatureEffects = Grounding (mit bekannter Entscheidung) + Pass C (Guided):
- *     Rider, die die GETROFFENE Entscheidung tragen — keine Optionslisten.
+ *   finalizeFeatureEffects = Nach-Analyse im VERLAUF (die Wahl kommt als eigener,
+ *     minimaler Folge-Turn) + Grounding + Pass C (Guided): Rider, die die GETROFFENE
+ *     Entscheidung tragen — keine Optionslisten.
  * Prompts ENGLISCH; nur nutzer-sichtbare Feldinhalte DE.
+ *
+ * Zwei Dinge tragen die Qualität messbar (siehe evals/featureAnalysis.eval.test.ts):
+ *   1. Jedes Merkmal geht mit ENGLISCHEM *und* deutschem Beschreibungstext rein
+ *      (`desc` + `descDe`) — die EN-Prosa ist die Regelquelle, die DE-Prosa liefert
+ *      die Begriffe, in denen Fragen/Antworten/Entscheidungen formuliert werden.
+ *   2. Die getroffenen Wahlen werden NICHT in den Erst-Prompt gemischt, sondern als
+ *      eigener Turn auf den Analyse-Verlauf nachgereicht — minimal als {id, choice}.
  */
 import {
   featureEffectsJsonSchema,
@@ -29,10 +37,21 @@ import { stripJsonFence } from '../jsonFence';
 /** Einheitliche Eingabe-Einheit für die Effekt-Deutung (Merkmal ODER Talent). */
 export interface GainedFeature {
   name: string;
-  desc: string;
+  desc: string; // Original-Regeltext (EN) — maßgeblich für die Mechanik
+  descDe?: string; // Übersetzung — liefert die deutschen Begriffe für Fragen/Optionen
   source: 'class' | 'subclass' | 'feat';
   gainedAt: number;
   key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
+}
+
+/**
+ * Antwort auf eine von Pass A erkannte Wahl. Bewusst MINIMAL: die `id` aus dem
+ * Analyse-Manifest plus das gewählte Label. Frage, Optionen und Merkmal stehen bereits
+ * im Verlauf — sie erneut mitzuschicken kostet nur Tokens und lädt zu Widersprüchen ein.
+ */
+export interface ResolvedChoice {
+  id: string;
+  choice: string;
 }
 
 /** Knapper Klassen-Kontext für die Effekt-Deutung. */
@@ -50,7 +69,7 @@ export interface FeatureClassContext {
  * die ERGEBNISSE ein und protokolliert die getroffenen Entscheidungen.
  */
 const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-You are given the game features/feats a character has JUST gained (<gained_features>) plus class context, an analysis of them, the player's already-made choices (<resolved_choices>) and resolved spell lookups.
+The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc" and its German translation "descDe") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
 Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders". Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
 
 ## Rules
@@ -60,7 +79,7 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
 4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options.
 5. proficiencies: skills/tools/weapons/armor/languages/savingThrows the feature grants (short names).
 6. abilityScoreIncrease: ability increases the feature dictates — FIXED ones (e.g. a feat giving +1 CON) AND any resolved "+1 to one of…" choice from <resolved_choices>. NEVER the generic ASI (handled separately). German keys: str, ges (dex), kon, int, wei (wis), cha.
-7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision {id, question, answer} — the German question and the chosen German label(s). This is the record of what the player picked (e.g. a fighting style, a Circle of the Land terrain). Bake its mechanical consequence into the grant fields above; the decision itself is the audit record.
+7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision {id, question, answer}. <resolved_choices> only carries {id, choice} — take the id verbatim, look the matching German question up in your own analysis (same id) and use the chosen German label(s) as the answer. This is the record of what the player picked (e.g. a fighting style, a Circle of the Land terrain). Bake its mechanical consequence into the grant fields above; the decision itself is the audit record.
 8. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — applied automatically. Only add value the raw table cannot express.
 9. If nothing is modellable, return an empty "riders" array.`;
 
@@ -71,7 +90,7 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
  * Übrige bleibt Prosa und wird erst von Pass C ins Schema übernommen.
  */
 export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>), and optionally choices the player has already made (<resolved_choices>).
+You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries the original English rules text in "desc" and its German translation in "descDe": "desc" is the authoritative source for the mechanics, "descDe" gives you the German wording for questions and options.
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT produce any final data structures or grants here — reason in prose and end with one compact manifest.
 
 ## What to work out
@@ -81,7 +100,10 @@ Your ONLY job is to ANALYSE these features so a later deterministic step and a s
 4. Any other concrete mechanical grants (proficiencies, fixed ability increases, extra cantrips/prepared spells) — describe them in prose. You do NOT need to structure these; the next step reads your prose.
 
 ## <resolved_choices>
-If present, each listed choice is FINAL: it no longer blocks anything and the spells/effects it unlocks can now be stated (canonical English spell names). Still list such a choice in the manifest, but set its determinesFurtherEffects=false.
+The player answers in a LATER turn, as a compact list of {"id": "<the id from your manifest>", "choice": "<the German label the player picked>"} — nothing else. When that turn arrives, REDO the analysis with those answers baked in:
+- Each listed choice is FINAL: it no longer blocks anything, so the spells/effects it unlocks can now be stated (canonical English spell names).
+- Keep every choice in the manifest under its ORIGINAL id, but set its determinesFurtherEffects=false.
+- Emit the full prose + manifest again; set blocked=false once nothing is open any more.
 
 ## Output
 Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifest and nothing after it:
@@ -99,7 +121,9 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.`;
 
 /**
- * userInput für die Effekt-Deutung (XML-gegliedert, JSON-Inhalt).
+ * Erster userInput für die Effekt-Deutung (XML-gegliedert, JSON-Inhalt): NUR Klassen-
+ * Kontext + Merkmale (EN- und DE-Text). Getroffene Wahlen gehören bewusst NICHT hier
+ * hinein, sondern kommen als eigener Folge-Turn (`buildResolvedChoicesTurn`).
  *
  * Bewusst OHNE Charakter-Zusammenfassung: der Effekt-Prompt deutet ausschließlich
  * die Merkmals-Prosa + Klassen-Kontext (Caster-Art, Zielstufe). Attribute/Slots/HP
@@ -108,22 +132,29 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 export function buildFeatureEffectsInput(ctx: {
   classContext: FeatureClassContext;
   features: GainedFeature[];
-  resolvedChoices?: { feature: string; prompt: string; choice: string }[];
 }): string {
-  const parts = [
+  return [
     `<class_context>${JSON.stringify(ctx.classContext)}</class_context>`,
     `<gained_features>${JSON.stringify(ctx.features)}</gained_features>`,
-  ];
-  if (ctx.resolvedChoices?.length)
-    parts.push(`<resolved_choices>${JSON.stringify(ctx.resolvedChoices)}</resolved_choices>`);
-  return parts.join('\n');
+  ].join('\n');
 }
 
-/** Eingabe-Bündel für den Orchestrator (identisch zu `buildFeatureEffectsInput`). */
+/**
+ * Folge-Turn mit den getroffenen Wahlen — minimal gehalten (nur `id` + `choice`), weil
+ * Frage/Optionen bereits im Verlauf stehen. Mehr Kontext hier verschlechtert die
+ * Antwortqualität messbar, statt sie zu verbessern.
+ */
+export function buildResolvedChoicesTurn(choices: ResolvedChoice[]): string {
+  const minimal = choices.map(({ id, choice }) => ({ id, choice }));
+  return `<resolved_choices>${JSON.stringify(minimal)}</resolved_choices>`;
+}
+
+/** Eingabe-Bündel für den Orchestrator. */
 export interface FeatureEffectsContext {
   classContext: FeatureClassContext;
   features: GainedFeature[];
-  resolvedChoices?: { feature: string; prompt: string; choice: string }[];
+  /** Antworten auf die Choices aus Pass A — nur für `finalizeFeatureEffects` relevant. */
+  resolvedChoices?: ResolvedChoice[];
 }
 
 /** Optionen für die beiden Effekt-Phasen. */
@@ -234,8 +265,9 @@ async function buildSpellResolution(spellsToGround: string[], klasseName: string
 function buildTranscriptionInstruction(spellResolution: string): string {
   const parts = [
     'Gib jetzt das Ergebnis exakt im geforderten Schema aus. Trage jede in <resolved_choices> ' +
-      'genannte Wahl in decisions[] des passenden Riders ein (question + gewählte Antwort) und lasse ' +
-      'ihr Ergebnis in die konkreten Grants einfließen (grantedSpells / expertiseSkills / abilityScoreIncrease).',
+      'genannte Wahl in decisions[] des passenden Riders ein — id wie dort, question aus deiner ' +
+      'Analyse mit derselben id, answer = das gewählte Label — und lasse ihr Ergebnis in die ' +
+      'konkreten Grants einfließen (grantedSpells / expertiseSkills / abilityScoreIncrease).',
   ];
   if (spellResolution) {
     parts.push(
@@ -256,18 +288,19 @@ function guardQualityMinds(config: LlmConfig): void {
     );
 }
 
-/** Pass A: freie Reasoning-Analyse → Prosa + geparstes Manifest. */
+/**
+ * Pass A: freie Reasoning-Analyse über den bisherigen Verlauf → Prosa + geparstes
+ * Manifest. `turns` ist der Analyse-Verlauf OHNE System-Prompt (erster Call: nur der
+ * Merkmals-Input; Nach-Analyse: zusätzlich Antwort #1 und der Wahl-Turn).
+ */
 async function reason(
   config: LlmConfig,
-  input: string,
+  turns: ChatMessage[],
   opts: FeatureEffectsRunOptions,
 ): Promise<{ text: string; manifest: EffectsManifest }> {
   const text = await qualitymindsChat(
     config,
-    [
-      { role: 'system', content: FEATURE_EFFECTS_ANALYSIS_SYSTEM },
-      { role: 'user', content: input },
-    ],
+    [{ role: 'system', content: FEATURE_EFFECTS_ANALYSIS_SYSTEM }, ...turns],
     TASK_TEMPERATURE.structured,
     () => opts.onActivity?.(),
     opts.signal,
@@ -285,15 +318,20 @@ export async function analyzeFeatureEffects(
   opts: FeatureEffectsRunOptions = {},
 ): Promise<FeatureAnalysis> {
   guardQualityMinds(config);
-  const { text, manifest } = await reason(config, buildFeatureEffectsInput(ctx), opts);
+  const input = buildFeatureEffectsInput(ctx);
+  const { text, manifest } = await reason(config, [{ role: 'user', content: input }], opts);
   return { choices: manifest.choices, spellsToGround: manifest.spellsToGround, blocked: manifest.blocked, analysisText: text };
 }
 
 /**
- * Call C — Grounding + Pass C: gießt die Analyse (jetzt mit getroffenen Entscheidungen)
- * ins Rider-Schema. Sind Entscheidungen gefallen (`ctx.resolvedChoices`), reasoniert dieser
- * Schritt einmal neu, damit choice-abhängige Zauber benannt werden; sonst nutzt er die
- * Analyse aus Call 1 direkt weiter.
+ * Call C — Nach-Analyse im Verlauf + Grounding + Pass C: gießt die Analyse (jetzt mit
+ * getroffenen Entscheidungen) ins Rider-Schema.
+ *
+ * Der Analyse-Verlauf wird fortgeschrieben statt neu aufgebaut: Merkmals-Input →
+ * Analyse aus Call 1 → minimaler Wahl-Turn → Nach-Analyse. Erst diese Nach-Analyse
+ * benennt choice-abhängige Zauber. Ohne getroffene Wahl bleibt es beim Verlauf aus
+ * Call 1 (spart einen Reasoning-Call). Der komplette Verlauf geht anschließend in den
+ * Structured-Output-Schritt.
  */
 export async function finalizeFeatureEffects(
   config: LlmConfig,
@@ -304,25 +342,38 @@ export async function finalizeFeatureEffects(
   guardQualityMinds(config);
   const input = buildFeatureEffectsInput(ctx);
 
-  // Mit getroffener Wahl neu reasonieren (choice-abhängige Zauber werden erst jetzt benannt);
-  // ohne Wahl die Analyse aus Call 1 direkt weiterverwenden (spart einen Reasoning-Call).
-  const { text, manifest } = ctx.resolvedChoices?.length
-    ? await reason(config, input, opts)
-    : {
-        text: analysis.analysisText,
-        manifest: { choices: analysis.choices, spellsToGround: analysis.spellsToGround, blocked: analysis.blocked },
-      };
+  // Verlauf aus Call 1. Fehlt die Analyse (Direkteinstieg in die Finalisierung), wird
+  // sie hier nachgeholt — der Wahl-Turn braucht die Choice-ids aus ihrem Manifest.
+  let text = analysis.analysisText.trim();
+  let manifest: EffectsManifest = {
+    choices: analysis.choices,
+    spellsToGround: analysis.spellsToGround,
+    blocked: analysis.blocked,
+  };
+  if (!text) ({ text, manifest } = await reason(config, [{ role: 'user', content: input }], opts));
+
+  const turns: ChatMessage[] = [
+    { role: 'user', content: input },
+    { role: 'assistant', content: text },
+  ];
+
+  // Getroffene Wahlen als eigener, minimaler Turn nachreichen und EINMAL nach-analysieren.
+  if (ctx.resolvedChoices?.length) {
+    const answerTurn = buildResolvedChoicesTurn(ctx.resolvedChoices);
+    const after = await reason(config, [...turns, { role: 'user', content: answerTurn }], opts);
+    turns.push({ role: 'user', content: answerTurn }, { role: 'assistant', content: after.text });
+    manifest = after.manifest;
+  }
 
   // Deterministisch: genannte Zauber gegen die Bibliothek erden (entfällt bei offener Wahl).
   const spellResolution = manifest.blocked
     ? ''
     : await buildSpellResolution(manifest.spellsToGround, ctx.classContext.klasseName);
 
-  // Pass C — Guided über den Verlauf: Analyse + Entscheidungen + geerdete Zauber ins Schema.
+  // Pass C — Guided über denselben Verlauf: Analyse + Entscheidungen + geerdete Zauber ins Schema.
   const messages: ChatMessage[] = [
     { role: 'system', content: FEATURE_EFFECTS_SYSTEM },
-    { role: 'user', content: input },
-    { role: 'assistant', content: text },
+    ...turns,
     { role: 'user', content: buildTranscriptionInstruction(spellResolution) },
   ];
 

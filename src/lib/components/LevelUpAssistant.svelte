@@ -30,7 +30,7 @@
   } from '../services/aiActions/levelUpAction';
   import {
     analyzeFeatureEffects, finalizeFeatureEffects,
-    type GainedFeature, type FeatureClassContext, type FeatureAnalysis,
+    type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
   } from '../services/aiActions/featureEffectsAction';
   import {
     buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
@@ -50,7 +50,7 @@
   import {
     getSpellLibrary, searchSpells, createSpellInline, resolveClass, type SpellInfo,
   } from '../spellLibrary';
-  import { getFeats, searchFeats, featDisplayName, featDesc, type FeatEntry } from '../featsLibrary';
+  import { getFeats, searchFeats, featDisplayName, type FeatEntry } from '../featsLibrary';
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
@@ -79,7 +79,8 @@
   let featAnalysis = $state<FeatureAnalysis | null>(null);
   let featChoices = $state<LevelUpQuestion[]>([]);
   let featsToPick = $state(0);
-  let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string }[]>([]);
+  // desc = Original (EN), descDe = Übersetzung — die Effekt-KI bekommt beides.
+  let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string; descDe?: string }[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
   let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let flagged = $state<string[]>([]);
@@ -481,7 +482,7 @@
   function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
     return kind === 'base'
       ? gainedFeatures
-      : chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel));
+      : chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel, f.descDe));
   }
 
   /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
@@ -502,18 +503,20 @@
     pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
   }
 
-  /** Getroffene Feature-Wahlen als Kontext für Call C (feature+prompt+choice-Label). */
-  function gatherDecisions(kind: 'base' | 'feat'): { feature: string; prompt: string; choice: string }[] {
+  /**
+   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Label).
+   * Frage, Optionen und Merkmal stehen bereits in der Analyse im Verlauf; die id (aus
+   * `buildFeatureChoices`, identisch zur Choice-id der Analyse) verknüpft beides.
+   */
+  function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
     const qs = kind === 'base' ? baseChoices : featChoices;
-    const analysisChoices = (kind === 'base' ? baseAnalysis : featAnalysis)?.choices ?? [];
-    const out: { feature: string; prompt: string; choice: string }[] = [];
+    const out: ResolvedChoice[] = [];
     for (const q of qs) {
       const v = answers[q.id];
       if (!answered(v)) continue;
       const vals = Array.isArray(v) ? v : [v];
       const labels = vals.map((val) => q.options.find((o) => o.value === val)?.label ?? val);
-      const feature = analysisChoices.find((c) => c.id === q.id)?.feature ?? '';
-      out.push({ feature, prompt: q.prompt, choice: labels.join(', ') });
+      out.push({ id: q.id, choice: labels.join(', ') });
     }
     return out;
   }
@@ -631,7 +634,7 @@
     const idx = chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
     if (chosenFeats.length >= featsToPick) return;
-    chosenFeats = [...chosenFeats, { key, name, gainedAt: delta!.toLevel, desc: featDesc(entry) }];
+    chosenFeats = [...chosenFeats, { key, name, gainedAt: delta!.toLevel, desc: entry.desc ?? '', descDe: entry.descDe }];
     featQuery = '';
   }
 
@@ -671,7 +674,7 @@
         ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
         ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
         ...gainedFeatures.map((f) => ({ key: '', name: f.name, desc: f.desc })),
-        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.desc ?? '' })),
+        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.descDe || f.desc || '' })),
       ];
       // Nach Key (bzw. Name, wenn kein Key) deduplizieren.
       const seen = new Set<string>();
@@ -711,7 +714,7 @@
       const raw = await runAiAction($llmConfig, buildClassFeaturesRewriteAction(),
         buildClassFeaturesInput({
           currentText: featuresText, gainedFeatures, chosenSubclass,
-          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.desc })),
+          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.descDe || f.desc })),
         }), runOpts());
       if (!alive()) return;
       const r = parseClassFeaturesRewrite(raw);

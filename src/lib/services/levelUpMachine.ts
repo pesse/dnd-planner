@@ -145,7 +145,9 @@ const ABILITY_LABEL: Record<AbilityKey, string> = {
 
 // ── Feature-Normalisierung ─────────────────────────────────────────────────────
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', toLevel: number): GainedFeature {
-  return { name: f.name, desc: f.desc ?? '', source, key: f.key ?? '', gainedAt: Math.min(toLevel, ...(f.gainedAt.length ? f.gainedAt : [toLevel])) };
+  // EN-Text UND Übersetzung mitgeben: die KI liest die Mechanik aus dem Original und
+  // formuliert Fragen/Optionen in den deutschen Begriffen der Übersetzung.
+  return { name: f.name, desc: f.desc ?? '', descDe: f.descDe, source, key: f.key ?? '', gainedAt: Math.min(toLevel, ...(f.gainedAt.length ? f.gainedAt : [toLevel])) };
 }
 
 /** Merkmale, die eine Progression in der Spanne (from, to] erlangt. */
@@ -170,9 +172,9 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
   return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', to));
 }
 
-/** Ein Talent (Name + Beschreibung) als GainedFeature für die Effekt-Deutung. */
-export function featToGainedFeature(name: string, desc: string, gainedAt: number): GainedFeature {
-  return { name, desc, source: 'feat', gainedAt };
+/** Ein Talent (Name + EN-/DE-Beschreibung) als GainedFeature für die Effekt-Deutung. */
+export function featToGainedFeature(name: string, desc: string, gainedAt: number, descDe?: string): GainedFeature {
+  return { name, desc, descDe, source: 'feat', gainedAt };
 }
 
 // ── Zaubernamen-Validierung ────────────────────────────────────────────────────

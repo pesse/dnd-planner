@@ -9,7 +9,9 @@
  *          (rider.decisions).
  *
  * Beide Fälle rufen den Produktionspfad über `run` selbst auf (mehrere verkettete
- * Calls), statt eine einzelne Action zu messen.
+ * Calls), statt eine einzelne Action zu messen. Der Call-C-Fall kettet bewusst über
+ * eine echte Call-1-Analyse: die Wahl wird als Folge-Turn auf DEREN Verlauf nachgereicht
+ * (nur {id, choice}), so wie die App es tut.
  */
 import type { FeatureEffects } from '../../src/lib/schemas/levelUp';
 import {
@@ -107,16 +109,6 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
   }
 
   const pass1Ctx: FeatureEffectsContext = { classContext: druidClassContext, features };
-  const pass2Ctx: FeatureEffectsContext = {
-    classContext: druidClassContext,
-    features,
-    resolvedChoices: [
-      { feature: 'Circle of the Land Spells', prompt: 'Wähle deine Landart', choice: RESOLVED_LAND },
-    ],
-  };
-  // Bei gesetzten resolvedChoices reasoniert finalize neu → die übergebene Analyse ist nur
-  // Fallback und darf leer sein (kein separater Call-1 nötig für den Finalisierungs-Test).
-  const emptyAnalysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
 
   return [
     {
@@ -131,11 +123,19 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
     },
     {
       label: `Call C — Landart "${RESOLVED_LAND}" aufgelöst`,
-      input: JSON.stringify(pass2Ctx),
-      run: async (cfg: LlmConfig): Promise<StepResult> => ({
-        kind: 'effects',
-        effects: await finalizeFeatureEffects(cfg, pass2Ctx, emptyAnalysis, { noRetry: true }),
-      }),
+      input: JSON.stringify({ ...pass1Ctx, resolvedChoices: [{ id: '<aus Call 1>', choice: RESOLVED_LAND }] }),
+      // Kette wie in der App: erst analysieren, dann die Wahl auf DIESE Analyse
+      // nachreichen. Die Choice-id stammt daher aus dem Manifest von Call 1 —
+      // eine erfundene id würde den Verlauf zerreißen.
+      run: async (cfg: LlmConfig): Promise<StepResult> => {
+        const analysis: FeatureAnalysis = await analyzeFeatureEffects(cfg, pass1Ctx, { noRetry: true });
+        const landId = landChoices(analysis)[0]?.id ?? analysis.choices[0]?.id ?? '';
+        const ctx: FeatureEffectsContext = {
+          ...pass1Ctx,
+          resolvedChoices: [{ id: landId, choice: RESOLVED_LAND }],
+        };
+        return { kind: 'effects', effects: await finalizeFeatureEffects(cfg, ctx, analysis, { noRetry: true }) };
+      },
       core: finalizeCore,
       soft: finalizeSoft,
     },

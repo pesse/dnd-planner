@@ -72,6 +72,50 @@ const USER = `
 <gained_features>[{"name":"Circle of the Land Spells","desc":"Choose one type of land: arid, polar, temperate, or tropical. Consult the table below that corresponds to the chosen type; you have the spells listed for your Druid level and lower prepared.\\n\\nTable: Arid Land\\n\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Blur, Burning Hands, Fire Bolt|\\n|5|Fireball|\\n|7|Blight|\\n|9|Wall of Stone|\\n\\nTable: Polar Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Fog Cloud, Hold Person, Ray of Frost|\\n|5|Sleet Storm|\\n|7|Ice Storm|\\n|9|Cone of Cold|\\n\\nTable: Temperate Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Misty Step, Shocking Grasp, Sleep|\\n|5|Lightning Bolt|\\n|7|Freedom of Movement|\\n|9|Tree Stride|\\n\\nTable: Tropical Land\\n|Druid Level|Circle Spells|\\n|---|---|\\n|3|Acid Splash, Ray of Sickness, Web|\\n|5|Stinking Cloud|\\n|7|Polymorph|\\n|9|Insect Plague|","descDe":"Wähle eine Art des Landes aus: trocken, polar, gemäßigt oder tropisch. Ziehe die untenstehende Tabelle heran, die der gewählten Art entspricht; du hast die für deine Druidenstufe und niedriger aufgeführten Zauber vorbereitet.\n\nTabelle: Trockenes Land\n\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Verschwimmen, Brennende Hände, Feuerpfeil|\n|5|Feuerball|\n|7|Verderben|\n|9|Steinwand|\n\nTabelle: Polares Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Nebelwolke, Person festhalten, Kältestrahl|\n|5|Schneesturm|\n|7|Eissturm|\n|9|Kältekegel|\n\nTabelle: Gemäßigtes Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Nebelschritt, Schockgriff, Schlaf|\n|5|Blitz|\n|7|Bewegungsfreiheit|\n|9|Hölzerner Weg|\n\nTabelle: Tropisches Land\n|Druidenstufe|Zirkelzauber|\n|---|---|\n|3|Säurespritzer, Strahl der Übelkeit, Netz|\n|5|Stinkende Wolke|\n|7|Verwandlung|\n|9|Insektenplage|",source":"subclass","key":"srd-2024_druid_circle-of-the-land_spell-list","gainedAt":3},{"name":"Land's Aid","desc":"As a Magic action, you can expend a use of your Wild Shape and choose a point within 60 feet of yourself. Vitality-giving flowers and life-draining thorns appear for a moment in a 10-foot-radius Sphere centered on that point. Each creature of your choice in the Sphere must make a Constitution saving throw against your spell save DC, taking 2d6 Necrotic damage on a failed save or half as much damage on a successful one. One creature of your choice in that area regains 2d6 Hit Points.\\n\\nThe damage and healing increase by 1d6 when you reach Druid levels 10 (3d6) and 14 (4d6).","descDe":"Als magische Aktion kannst du eine Anwendung deiner Wildgestalt aufwenden und einen Punkt innerhalb von 18 Metern von dir wählen. Vitalität spendende Blumen und lebensentziehende Dornen erscheinen für einen Moment in einer Kugel mit einem Radius von 3 Metern, zentriert auf diesen Punkt. Jede Kreatur deiner Wahl in der Kugel muss einen Konstitutions-Rettungswurf gegen deinen SG des Zauber-Rettungswurfs ablegen und erleidet bei einem misslungenen Rettungswurf 2W6 Nekrotischen Schaden oder bei einem gelungenen halb so viel Schaden. Eine Kreatur deiner Wahl in diesem Bereich erhält 2W6 Trefferpunkte zurück.\n\nDer Schaden und die Heilung erhöhen sich um 1W6, wenn du die Druidenstufen 10 (3W6) und 14 (4W6) erreichst.","source":"subclass","key":"srd-2024_druid_circle-of-the-land_lands-aid","gainedAt":3}]</gained_features>
 `
 
+/**
+ * VORGEGEBENE Antwort #1 (Fixture, kein Call): so soll die Analyse aussehen, bevor die
+ * Wahl getroffen ist. Fest verdrahtet, damit der zweite Prompt isoliert und
+ * deterministisch gemessen wird — die Qualität von Antwort #1 selbst prüft der
+ * erste Fall bzw. die Action-Strecke (featureEffects.eval.test.ts).
+ */
+const ANALYSIS_FIXTURE = `### Analysis
+
+1. **Forced player choices:** The feature \`Circle of the Land Spells\` forces a single choice. The German question is: *"Wähle eine Art des Landes aus: trocken, polar, gemäßigt oder tropisch."* The concrete options are \`["trocken", "polar", "gemäßigt", "tropisch"]\`. This choice directly determines which specific spells from the corresponding table are granted as always-prepared. Therefore, \`determinesFurtherEffects\` is \`true\`.
+
+2. **Mechanical dependencies:** The spell grants from \`Circle of the Land Spells\` are entirely conditional on the unresolved land type choice. Until the player selects a land type, the exact list of prepared spells cannot be determined. The feature \`Land's Aid\` has no dependencies on the land choice and is fully unconditional.
+
+3. **Spells granted as ALWAYS PREPARED:** Because the land type choice remains open and blocks the determination of the spell list, no spells can be safely added to \`spellsToGround\` at this stage. The list remains empty until the choice is resolved.
+
+4. **Other concrete mechanical grants:** \`Land's Aid\` provides a specific combat/utility action. As a Magic action, the Druid can expend one use of Wild Shape to choose a point within 60 feet. A 10-foot-radius sphere appears centered on that point. Every creature in the sphere must make a Constitution saving throw against the Druid's spell save DC. On a failed save, a creature takes 2d6 necrotic damage; on a success, it takes half damage. Additionally, one creature of the Druid's choice in the area regains 2d6 hit points. The damage and healing values scale to 3d6 at Druid level 10 and 4d6 at level 14.
+
+\`\`\`json
+{
+  "choices": [
+    {
+      "id": "choice_circle-of-the-land-spells_1",
+      "feature": "Circle of the Land Spells",
+      "question": "Wähle eine Art des Landes aus: trocken, polar, gemäßigt oder tropisch.",
+      "options": ["trocken", "polar", "gemäßigt", "tropisch"],
+      "determinesFurtherEffects": true
+    }
+  ],
+  "spellsToGround": [],
+  "blocked": true
+}
+\`\`\``;
+
+/** Antwort des Spielers auf die Landart-Frage (Turn 3). */
+const LAND_ANSWER = 'gemäßigt';
+
+/**
+ * Turn 3: die getroffene Wahl — bewusst MINIMAL. Nur die `id` aus dem Manifest von
+ * Antwort #1 plus das gewählte Label; Frage, Optionen und Merkmal stehen bereits im
+ * Verlauf. Mehr Kontext hier verschlechtert die Antwort, statt sie zu verbessern.
+ */
+const USER_2 = `<resolved_choices>${JSON.stringify([
+  { id: 'choice_circle-of-the-land-spells_1', choice: LAND_ANSWER },
+])}</resolved_choices>`;
+
 type Manifest = FeatureAnalysisManifest;
 
 const landRe = /trocken|polar|gemäßigt|tropisch/i;
@@ -89,41 +133,6 @@ const core = {
 const soft = {
 };
 
-/**
- * VORGEGEBENE Antwort #1 (Fixture, kein Call): so soll die Analyse aussehen, bevor die
- * Wahl getroffen ist. Fest verdrahtet, damit der zweite Prompt isoliert und
- * deterministisch gemessen wird — die Qualität von Antwort #1 selbst prüft der
- * erste Fall bzw. die Action-Strecke (featureEffects.eval.test.ts).
- */
-const ANALYSIS_FIXTURE = `### Analyse der neuen Merkmale
-
-**1. Circle of the Land Spells**
-Dieses Merkmal zwingt den Spieler zur Wahl eines spezifischen Landtyps (Terrain). Die Wahl bestimmt direkt, welche Zauber ab Stufe 3 (und später) als immer vorbereitete Zauber gewährt werden. Da die Wahl noch nicht getroffen wurde, können die konkreten Zauber noch nicht benannt werden. Die Wahl blockiert somit die Spell-Grants dieses Merkmals.
-
-**2. Land's Aid**
-Dieses Merkmal gewährt eine neue Aktion, die Wild Shape verbraucht und einen Bereich mit Heilung und Nekrotischem Schaden erzeugt. Es enthält keine weiteren Zwangswahlen oder mechanischen Abhängigkeiten, die eine spätere Auflösung erfordern. Die Mechanik ist unconditional gegeben.
-
-**Zusammenfassung & Blockierung**
-Da die Landtyp-Wahl noch offen ist (\`determinesFurtherEffects: true\`), werden keine Zauber in \`spellsToGround\` aufgenommen. Das Feld \`blocked\` ist auf \`true\` gesetzt, bis die Wahl im \`resolved_choices\`-Parameter finalisiert wird.
-
-\`\`\`json
-{
-  "choices": [
-    {
-      "id": "choice_circle-of-the-land-spells_1",
-      "feature": "Circle of the Land Spells",
-      "question": "Wähle einen Landtyp: Wüstenland, Polargebiet, Gemäßigtes Land oder Tropisches Land.",
-      "options": ["Wüstenland", "Polargebiet", "Gemäßigtes Land", "Tropisches Land"],
-      "determinesFurtherEffects": true
-    }
-  ],
-  "spellsToGround": [],
-  "blocked": true
-}
-\`\`\``;
-
-/** Antwort des Spielers auf die Landart-Frage (Turn 3). */
-const LAND_ANSWER = 'Gemäßigtes Land';
 
 /** Für Temperate Land auf Stufe 3 erwartete Kreissprüche (aus der Tabelle im Merkmal). */
 const EXPECTED_SPELLS = ['Misty Step', 'Shocking Grasp', 'Sleep'];
@@ -156,17 +165,7 @@ defineEval<Manifest>({
         // Antwort #1 ist FEST vorgegeben — kein Call, kein Rauschen. Gemessen wird
         // ausschließlich, was das Modell nach der nachgereichten Wahl liefert.
         assistant(ANALYSIS_FIXTURE),
-        user(
-          `<resolved_choices>` +
-            JSON.stringify([
-              {
-                feature: 'Circle of the Land Spells',
-                prompt: 'Welche Landart wählst du für deinen Zirkel des Landes?',
-                choice: LAND_ANSWER,
-              },
-            ]) +
-            `</resolved_choices>`,
-        ),
+        user(USER_2),
         reply<Manifest>({ label: 'nach-wahl' }),
       ],
       core: {
