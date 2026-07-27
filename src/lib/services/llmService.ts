@@ -298,6 +298,56 @@ export async function qualitymindsGenerateStructured(
 }
 
 /**
+ * Roher `/chat/completions`-Call gegen einen OpenAI-kompatiblen Provider (QualityMinds,
+ * Groq, eigener `baseUrl`): Messages + BELIEBIGE Body-Properties, unverändert
+ * durchgereicht.
+ *
+ * Zweck ist die **Prompt-Werkstatt der Evals** (`evals/promptCase.ts`): einen Prompt-
+ * Entwurf samt Server-Parametern (`structured_outputs`, `chat_template_kwargs`,
+ * `top_p`, …) messen, BEVOR er als `AiAction` in die App wandert. Bewusst hier und
+ * nicht im Eval-Ordner, damit dieselbe Transport-Schicht greift — inkl. Streaming,
+ * Rate-Limit-Retry, Token-Zählung und Debug-Mitschnitt (den der Report ausliest).
+ *
+ * `extraBody` gewinnt gegen die Defaults aus der Config (model/temperature/max_tokens).
+ * Die App selbst ruft das nicht auf; Produktionspfade gehen über die Action-Ebene.
+ */
+export async function rawChatCompletion(
+  config: LlmConfig,
+  messages: ChatMessage[],
+  extraBody: Record<string, unknown> = {},
+  opts: { label?: string; signal?: AbortSignal } = {},
+): Promise<{ content: string; finishReason: string }> {
+  // Ein explizit gesetzter baseUrl gewinnt (eigener/lokaler OpenAI-kompatibler Server),
+  // sonst die Standard-Basis des Providers.
+  const apiBase =
+    config.baseUrl ||
+    (config.provider === 'groq' ? GROQ_API : config.provider === 'qualityminds' ? QUALITYMINDS_API : undefined);
+  if (!apiBase) {
+    throw new Error(
+      `rawChatCompletion unterstützt nur OpenAI-kompatible Provider ` +
+        `(qualityminds, groq oder ein eigener baseUrl) — nicht "${config.provider}".`,
+    );
+  }
+  if (!config.apiKey) throw new Error(`Kein API-Key für ${config.provider} konfiguriert.`);
+  const temp = effTemp(config);
+  const { content, finishReason } = await rustFetchStream(
+    `${apiBase}/chat/completions`,
+    { Authorization: `Bearer ${config.apiKey}` },
+    {
+      model: config.model,
+      messages,
+      ...(temp != null ? { temperature: temp } : {}),
+      ...(config.maxTokens != null ? { max_tokens: config.maxTokens } : {}),
+      ...extraBody,
+    },
+    { provider: config.provider, label: opts.label ?? 'raw' },
+    undefined,
+    opts.signal,
+  );
+  return { content, finishReason };
+}
+
+/**
  * Wie `qualitymindsGenerateStructured`, aber über einen vollen Chat-Verlauf statt eines
  * Einzel-Prompts. Für den Dreipass der Merkmals-Effekte: Pass A (Thinking) liefert eine
  * Analyse, die hier als `assistant`-Turn mitgeschickt wird, und dieser guided Call gießt

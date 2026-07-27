@@ -57,6 +57,10 @@ export function evalEnv(): EvalEnv {
       model: model ?? '',
       apiKey: apiKey ?? '',
       maxTokens: num(process.env.EVAL_MAX_TOKENS, 4096),
+      // Optional: eigener OpenAI-kompatibler Endpoint (Default = QualityMinds).
+      // Greift für die Prompt-Werkstatt (rawChatCompletion); Action-Pfade nutzen
+      // weiterhin die Provider-Basis.
+      ...(process.env.EVAL_BASE_URL ? { baseUrl: process.env.EVAL_BASE_URL } : {}),
     },
     runs: num(process.env.EVAL_RUNS, 5),
     threshold: num(process.env.EVAL_THRESHOLD, 0.9),

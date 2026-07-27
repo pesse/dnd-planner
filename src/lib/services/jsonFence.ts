@@ -13,3 +13,25 @@ export function stripJsonFence(text: string): string {
     text.match(/```\s*([\s\S]*?)```/)?.[1];
   return (fenced ?? text).trim();
 }
+
+/**
+ * Versucht, ein JSON-Objekt aus Freitext zu extrahieren (Fence-Block, rohes JSON,
+ * erstes `{…}`). Gibt `null` zurück, wenn nichts Parsebares gefunden wurde.
+ *
+ * Das ist die tolerante Variante für Pfade OHNE nativen Structured Output — der
+ * Runner nutzt sie nach dem Agent-Loop, die Eval-Prompt-Werkstatt für den
+ * `structured: 'prompt'`-Vergleich.
+ */
+export function extractJson(text: string): unknown {
+  if (!text) return null;
+  const candidates = [stripJsonFence(text), text.match(/\{[\s\S]*\}/)?.[0], text];
+  for (const c of candidates) {
+    if (!c) continue;
+    try {
+      return JSON.parse(c.trim());
+    } catch {
+      /* nächsten Kandidaten versuchen */
+    }
+  }
+  return null;
+}

@@ -16,7 +16,7 @@ import { getClient } from '../llmClient';
 import { agentLoop, TASK_TEMPERATURE } from '../llmService';
 import type { AgentStep, AgentToolset } from '../vaultTools';
 import type { AiAction } from './types';
-import { stripJsonFence } from '../jsonFence';
+import { extractJson } from '../jsonFence';
 
 export interface RunOptions {
   onStep?: (step: AgentStep) => void;
@@ -31,19 +31,18 @@ export interface RunOptions {
   noRetry?: boolean;
 }
 
-/** Versucht, ein JSON-Objekt aus Freitext zu extrahieren (roh, ```json-Fence, erstes {…}). */
-function extractJson(text: string): unknown {
-  if (!text) return null;
-  const candidates = [stripJsonFence(text), text.match(/\{[\s\S]*\}/)?.[0], text];
-  for (const c of candidates) {
-    if (!c) continue;
-    try {
-      return JSON.parse(c.trim());
-    } catch {
-      /* nächsten Kandidaten versuchen */
-    }
-  }
-  return null;
+/**
+ * Instruktions-Block für Pfade OHNE nativen Structured Output (Tool-Loop, emuliertes
+ * `generate`): erbittet genau EINEN JSON-Block gemäß Schema. Exportiert, damit die
+ * Eval-Prompt-Werkstatt (`structured: 'prompt'`) exakt denselben Wortlaut misst.
+ */
+export function jsonOutputInstruction(jsonSchema: object): string {
+  return (
+    '\n\n## OUTPUT (CRITICAL)\n' +
+    '- Return the final result as exactly ONE ```json code block.\n' +
+    '- The JSON MUST match this schema exactly (no extra keys):\n' +
+    JSON.stringify(jsonSchema, null, 2)
+  );
 }
 
 export async function runAiAction<T>(
@@ -66,12 +65,7 @@ export async function runAiAction<T>(
   // Nativer Structured-Output erzwingt das Schema serverseitig; nur die Pfade, die
   // JSON per Prompt erbitten (Tool-Loop, emulierter generate), brauchen den Block.
   const baseSystem = action.buildSystemPrompt();
-  const emulatedSystem =
-    baseSystem +
-    '\n\n## OUTPUT (CRITICAL)\n' +
-    '- Return the final result as exactly ONE ```json code block.\n' +
-    '- The JSON MUST match this schema exactly (no extra keys):\n' +
-    JSON.stringify(action.jsonSchema, null, 2);
+  const emulatedSystem = baseSystem + jsonOutputInstruction(action.jsonSchema);
 
   let draftText = '';
   let data: unknown;

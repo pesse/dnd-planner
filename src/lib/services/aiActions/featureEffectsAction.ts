@@ -70,7 +70,7 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
  * wahlen (mit Optionen) und die als immer-vorbereitet gewährten Zauber (zum Erden). Alles
  * Übrige bleibt Prosa und wird erst von Pass C ins Schema übernommen.
  */
-const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
+export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>), and optionally choices the player has already made (<resolved_choices>).
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT produce any final data structures or grants here — reason in prose and end with one compact manifest.
 

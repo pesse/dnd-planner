@@ -92,11 +92,32 @@ Jeder Lauf schreibt nach `evals/reports/<timestamp>-<titel>/` (gitignored):
 Die Konsole zeigt zusätzlich Live-Tabellen (Pass-Raten, Latenz, Tokens); Vitest selbst
 gibt die Gesamtlaufzeit der Suite aus.
 
+### Übersicht aller Reports (`reports/index.html`)
+
+`evals/reports/index.html` listet alle vorhandenen Reports (Titel, Beschreibung,
+Core-/Soft-Pass-Rate, Ø-Latenz, Modell) und verlinkt jeweils die `report.html` zum
+Öffnen. Die Seite lädt ihre Daten zur Laufzeit aus `reports/manifest.json` — daher
+**über localhost/HTTP öffnen** (per `file://` blockt der Browser das `fetch`), z.B.:
+
+```bash
+npx serve evals/reports        # dann http://localhost:3000/ öffnen
+```
+
+Das `manifest.json` wird **nach jedem Eval-Lauf automatisch** aktualisiert (aus
+`writeEvalReport`), ein separater Bau-Schritt ist nicht nötig. Nur wenn du Report-Ordner
+von Hand löschst/verschiebst, einmal manuell neu bauen:
+
+```bash
+npm run eval:index
+```
+
 ## Aufbau
 
 - `defineEval.ts` — **Schnell-Baukasten**: `defineEval({ name, cases })` baut die
   komplette Vitest-Suite (Gate, Config, Capture, N Läufe, Report, Qualitäts-Gate).
   Das ist der Einstieg für neue Strecken.
+- `promptCase.ts` — **Prompt-Werkstatt**: rohe Prompts ohne `AiAction` messen —
+  `promptCase(…)` für einen Call, `chatCase(…)` für einen ganzen Turn-Verlauf.
 - `checks.ts` — Einzeiler-Helfer für Assertions (`nonEmpty`, `minChars`, `mentions`,
   `unchanged`, `inRange`, `same`, `text`).
 - `env.ts` — gemeinsame Env-Auswertung (Key-Gate, LlmConfig, Läufe/Schwellwert/…).
@@ -111,6 +132,9 @@ gibt die Gesamtlaufzeit der Suite aus.
 Bestehende Strecken:
 - `spell.eval.test.ts` — Zauber anlegen/überarbeiten (einfacher Ein-Call-Prompt, alles in
   einer Datei) — die Vorlage zum Abschauen.
+- `promptLab.eval.test.ts` — roher Prompt ohne Action (Vorlage für Prompt-Entwürfe).
+- `featureAnalysis.eval.test.ts` — Pass-A-Manifest als Prompt-Entwurf: ein Call vs.
+  Verlauf mit fester Analyse-Antwort und nachgereichter Wahl (Vorlage für `chatCase`).
 - `featureEffects.eval.test.ts` — Merkmals-Effekte beim Stufenaufstieg (mehrstufiger
   Produktionspfad, Fall-Aufbau lädt Vault-Daten).
 
@@ -154,6 +178,89 @@ Dann `npm run eval -- --eval item --runs 3`. Regeln der Praxis:
 - Braucht ein Fall mehrere verkettete Calls oder geladene Vault-Daten, statt
   `action`/`input` ein `run: (config) => Promise<T>` setzen und `cases` als (async)
   Funktion übergeben — siehe `cases/featureEffects-druid-circle.ts`.
+
+## Nur einen Prompt testen (ohne Action)
+
+Für Prompt-**Entwürfe** — es gibt noch keine `AiAction`, du willst System-Prompt,
+User-Nachricht und Server-Parameter direkt messen. `promptCase(...)` liefert einen
+normalen Fall für `defineEval`; der Call läuft über dieselbe Transport-Schicht
+(`rawChatCompletion` in `llmService.ts`), landet also mit Request/Response/Tokens im
+Report. Vorlage: `promptLab.eval.test.ts`.
+
+```ts
+const npcSchema = z.object({ name: z.string(), merkmale: z.array(z.string()) });
+type Npc = z.infer<typeof npcSchema>;
+
+defineEval<Npc>({
+  name: 'npc-prompt',
+  cases: [
+    promptCase<Npc>({
+      label: 'Steckbrief',
+      system: 'You are a D&D 5e assistant. All field values must be German.',
+      user: 'Erfinde einen zwielichtigen Hafenmeister.',
+      schema: npcSchema,        // Zod → JSON-Schema für den Server UND Validierung je Lauf
+      structured: 'native',     // 'native' | 'prompt' | 'off'
+      temperature: 0.7,
+      body: { top_p: 0.9 },     // beliebige weitere /chat/completions-Properties
+      core: { 'Name gesetzt': (n) => nonEmpty(n.name) },
+    }),
+  ],
+});
+```
+
+Die Stellschrauben:
+
+| Feld | Bedeutung |
+|---|---|
+| `system` / `user` | die beiden Turns; alternativ `messages` für einen vollen Verlauf (Few-Shot, vorgegebener `assistant`-Turn) |
+| `schema` | Zod-Schema (wird zusätzlich je Lauf validiert → Schema-Verstoß = Fehlschlag) oder fertiges JSON-Schema |
+| `structured` | `'native'` = `structured_outputs.json` (vllm guided decoding, setzt `enable_thinking:false`) · `'prompt'` = Schema als Instruktion in den Prompt, Antwort tolerant geparst · `'parse'` = Request bleibt unverändert, Schema nur zum Parsen/Validieren (richtig, wenn der Prompt das Format schon selbst beschreibt) · `'off'` = roher Text (Ergebnistyp `string`) |
+| `temperature` / `maxTokens` | pro Fall; ohne Angabe gilt die Server- bzw. `.env`-Vorgabe |
+| `body` | beliebige Body-Properties, gewinnen gegen alles andere |
+| `callLabel` | Label des Calls im Report-Mitschnitt |
+
+`'native'` vs. `'prompt'` ist der direkte Weg, „mit/ohne Structured Output" zu
+vergleichen — entweder als zwei Fälle in einem Report (wie in `promptLab`) oder als
+zwei Läufe mit unterschiedlichem `--title`.
+
+### Mehrere Turns: `chatCase`
+
+Wenn der Prompt einen **Verlauf** braucht — Analyse, dann eine nachgereichte
+Entscheidung, dann die eigentliche Antwort — stellt `chatCase` die Turns frei
+zusammen (`user(…)`, `assistant(…)`, `reply(…)`):
+
+```ts
+chatCase<Manifest>({
+  label: 'Wahl auf vorgegebene Analyse nachgereicht',
+  system: SYSTEM,
+  schema: manifestSchema,
+  structured: 'parse',
+  turns: [
+    user(INPUT),
+    assistant(ANALYSIS_FIXTURE),          // feste Antwort #1 — kein Call
+    user('<resolved_choices>…</resolved_choices> Gib das aktualisierte Manifest aus.'),
+    reply<Manifest>({ label: 'nach-wahl' }),  // ECHTE Antwort — das wird gemessen
+  ],
+  core: { 'Zauber jetzt gewährt': (m) => m.spellsToGround.length > 0 },
+});
+```
+
+- **`assistant(…)`** ist eine Fixture: deterministischer Ausgangspunkt, ein Call je
+  Lauf, und gemessen wird nur der Prompt, um den es geht. Der Regelfall.
+- **`reply(…)`** ist ein echter Call. Mehrere davon in einem Verlauf ketten die
+  Antworten (jede landet als `assistant`-Turn im Verlauf) — dann misst man aber den
+  ganzen Ablauf; dafür ist meist die Action-Strecke der bessere Ort.
+- `user(…)`/`assistant(…)` nehmen statt eines Strings auch eine Funktion über den
+  bisherigen Verlauf (`c.last`, `c.outputs`, `c.messages`) — z.B. um die Wahl aus den
+  Optionen zu bauen, die das Modell gerade angeboten hat.
+- Assertions: `core`/`soft` am Fall gelten der Antwort des **letzten** `reply(…)`;
+  jeder `reply(…)` kann eigene mitbringen (im Report als `[label] …`).
+- Jeder Live-Turn ist im Report ein eigener Call mit Request/Response/Tokens.
+
+Vorlage: `featureAnalysis.eval.test.ts`.
+
+Trägt der Prompt, gießt man ihn in eine `AiAction` und stellt die Fälle auf
+`action`/`input` um — die Assertions bleiben unverändert.
 
 ## Prompt optimieren
 
