@@ -26,6 +26,7 @@
   import { RULES_TOOLSET } from '../services/rulesTools';
   import type { AgentStep, AgentOptions } from '../services/llmService';
   import { debugLog, clearDebugLog } from '../stores/debug';
+  import DebugEntryView from './DebugEntryView.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
   import { ANTHROPIC_MODELS, GROQ_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
@@ -1092,7 +1093,7 @@
               <span class="debug-chevron">{expandedDebugId === entry.id ? '▲' : '▼'}</span>
             </button>
             {#if expandedDebugId === entry.id}
-              <pre class="debug-data">{JSON.stringify(entry.data, null, 2)}</pre>
+              <DebugEntryView {entry} />
             {/if}
           </div>
         {/each}
@@ -2121,17 +2122,4 @@
     flex-shrink: 0;
   }
 
-  .debug-data {
-    margin: 0;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.68rem;
-    color: var(--ink-soft);
-    background: var(--bg-deep);
-    white-space: pre-wrap;
-    word-break: break-all;
-    border-top: 1px solid var(--bg-raised);
-    overflow-x: auto;
-    max-height: 400px;
-    overflow-y: auto;
-  }
 </style>
