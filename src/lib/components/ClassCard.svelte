@@ -8,7 +8,8 @@
   import EditorPanel from './EditorPanel.svelte';
   import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
-  import { buildRuleTranslationSystemPrompt } from '$lib/prompts';
+  import { translateRule } from '$lib/services/aiActions/translateAction';
+  import type { RuleTranslation } from '$lib/schemas/translation';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
@@ -72,7 +73,8 @@
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const c = ed.draft;
     if (!c) return null;
     const payload = {
@@ -80,23 +82,19 @@
       features: c.features.map((f) => ({ name: f.name, desc: f.desc })),
     };
     if (!payload.name && !payload.features.length) return null;
-    return JSON.stringify(payload);
+    return translateRule(payload);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: RuleTranslation) {
     const c = ed.draft;
     if (!c) return;
-    try {
-      const result = JSON.parse(raw);
-      if (typeof result.name_de === 'string') c.nameDe = result.name_de;
-      if (Array.isArray(result.features)) {
-        result.features.forEach((tf: { nameDe?: string; descDe?: string }, i: number) => {
-          if (!c.features[i]) return;
-          if (typeof tf.nameDe === 'string') c.features[i].nameDe = tf.nameDe;
-          if (typeof tf.descDe === 'string') c.features[i].descDe = tf.descDe;
-        });
-      }
-    } catch { /* ignore */ }
+    if (t.name_de) c.nameDe = t.name_de;
+    t.features.forEach((tf, i) => {
+      if (!c.features[i]) return;
+      if (tf.nameDe) c.features[i].nameDe = tf.nameDe;
+      if (tf.descDe) c.features[i].descDe = tf.descDe;
+    });
   }
 </script>
 
@@ -200,8 +198,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.nameDe || ed.draft.name || 'Klasse'}
-    systemPrompt={buildRuleTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />

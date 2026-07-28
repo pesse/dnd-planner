@@ -31,7 +31,8 @@
     ftToMVal,
     mToFt,
   } from '$lib/itemLibrary';
-  import { buildTranslationSystemPrompt } from '$lib/prompts';
+  import { translateItem } from '$lib/services/aiActions/translateAction';
+  import type { ItemTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
   import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel, WEAPON_MASTERIES } from '$lib/schemas/shared';
@@ -39,7 +40,7 @@
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
+  import { getOpen5eItem, searchOpen5eItems, mapOpen5eItem, type Open5eItemSearchResult } from '$lib/services/open5eApi';
   import AiEditModal from './AiEditModal.svelte';
   import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';
@@ -345,22 +346,22 @@
     }
   }
 
-  // ── DnD-API-Import ───────────────────────────────────────────────────────────
+  // ── Open5e-v2-Import (Ausrüstung + Magie) ─────────────────────────────────────
 
   let apiRawResponse = $state<string | null>(null);
   let showApiRaw = $state(false);
   let importError = $state('');
 
-  const searchItems = searchDndApiItems;
+  const searchItems = searchOpen5eItems;
 
-  async function importFromApi(result: DndApiItemRef) {
+  async function importFromApi(result: Open5eItemSearchResult) {
     if (!draft) return;
     try {
-      const data = await getResource(result.url);
+      const data = await getOpen5eItem(result.url);
       apiRawResponse = JSON.stringify(data, null, 2);
       showApiRaw = false;
 
-      const item = mapApiResourceToItem(data, result.source);
+      const item = mapOpen5eItem(data);
       Object.assign(draft, item);
 
       draftDescText   = item.desc.join('\n\n');
@@ -376,24 +377,23 @@
 
   // ── LLM-Übersetzung ──────────────────────────────────────────────────────────
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     if (!draft) return null;
     const toTranslate: Record<string, unknown> = {};
     if (draft.name) toTranslate.name = draft.name;
     const desc = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
     if (desc.length) toTranslate.desc = desc;
     if (Object.keys(toTranslate).length === 0) return null;
-    return `Translate these D&D item fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
+    return translateItem(toTranslate);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: ItemTranslation) {
     if (!draft) return;
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
-    const translated = JSON.parse(match[0]) as Record<string, unknown>;
-    if (translated.name_de) draft.name_de = convertDistances(translated.name_de as string);
-    if (Array.isArray(translated.desc_de)) {
-      const de = (translated.desc_de as string[]).map(convertDistances);
+    if (t.name_de) draft.name_de = convertDistances(t.name_de);
+    if (t.desc_de.length) {
+      const de = t.desc_de.map(convertDistances);
       draft.desc_de = de;
       draftDescDeText = de.join('\n\n');
     }
@@ -877,10 +877,11 @@
 
       <div class="card-divider"></div>
 
-      <!-- DnD-API-Import -->
+      <!-- Open5e-v2-Import (Ausrüstung + Magie) -->
       <div class="edit-section api-section">
         <DndApiSearch
-          placeholder="Name suchen…"
+          label="Aus Open5e laden"
+          placeholder="Name suchen (englisch)…"
           onsearch={searchItems}
           onselect={importFromApi}
         />
@@ -915,8 +916,7 @@
 {#if showTranslateModal && draft}
   <TranslateModal
     entityName={draft.name_de || draft.name || 'Gegenstand'}
-    systemPrompt={buildTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslateModal = false)}
   />

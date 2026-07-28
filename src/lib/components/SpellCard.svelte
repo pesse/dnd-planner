@@ -9,7 +9,8 @@
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
-  import { buildTranslationSystemPrompt } from '$lib/prompts';
+  import { translateSpell } from '$lib/services/aiActions/translateAction';
+  import type { SpellTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
@@ -79,7 +80,8 @@
     }
   }
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const s = ed.draft;
     if (!s) return null;
     const payload: Record<string, unknown> = {};
@@ -88,21 +90,19 @@
     if (s.components.material && s.components.materials_needed) payload.materials_needed = s.components.materials_needed;
     if (s.desc?.length) { payload.casting_time = s.casting_time; payload.range = s.range; payload.duration = s.duration; }
     if (!Object.keys(payload).length) return null;
-    return JSON.stringify(payload);
+    return translateSpell(payload);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: SpellTranslation) {
     const s = ed.draft;
     if (!s) return;
-    try {
-      const result = JSON.parse(raw);
-      if (Array.isArray(result.desc_de)) s.desc_de = (result.desc_de as string[]).map(convertDistances);
-      if (Array.isArray(result.higher_level_de)) s.higher_level_de = (result.higher_level_de as string[]).map(convertDistances);
-      if (typeof result.materials_needed === 'string') s.components.materials_needed = convertDistances(result.materials_needed);
-      if (typeof result.casting_time === 'string') s.casting_time = convertDistances(result.casting_time);
-      if (typeof result.range === 'string') s.range = convertDistances(result.range);
-      if (typeof result.duration === 'string') s.duration = convertDistances(result.duration);
-    } catch { /* ignore */ }
+    if (t.desc_de.length) s.desc_de = t.desc_de.map(convertDistances);
+    if (t.higher_level_de.length) s.higher_level_de = t.higher_level_de.map(convertDistances);
+    if (t.materials_needed) s.components.materials_needed = convertDistances(t.materials_needed);
+    if (t.casting_time) s.casting_time = convertDistances(t.casting_time);
+    if (t.range) s.range = convertDistances(t.range);
+    if (t.duration) s.duration = convertDistances(t.duration);
   }
 
   // ── Beschreibungs-Splitting für Kartenansicht ────────────────────────────────
@@ -327,8 +327,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.name || 'Zauber'}
-    systemPrompt={buildTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />

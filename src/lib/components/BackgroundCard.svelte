@@ -6,7 +6,8 @@
   import EditorPanel from './EditorPanel.svelte';
   import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
-  import { buildBackgroundTranslationSystemPrompt } from '$lib/prompts';
+  import { translateBackground } from '$lib/services/aiActions/translateAction';
+  import type { BackgroundTranslation } from '$lib/schemas/translation';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { slugify } from '$lib/editor/saveAs';
   import { activeFile, invalidateVault } from '$lib/stores/campaign';
@@ -94,7 +95,8 @@
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const b = ed.draft;
     if (!b) return null;
     const payload: Record<string, unknown> = {
@@ -103,24 +105,20 @@
     if (b.name) payload.name = b.name;
     if (b.desc) payload.desc = b.desc;
     if (!b.name && !b.desc && !b.benefits.length) return null;
-    return JSON.stringify(payload);
+    return translateBackground(payload);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: BackgroundTranslation) {
     const b = ed.draft;
     if (!b) return;
-    try {
-      const result = JSON.parse(raw);
-      if (typeof result.name_de === 'string') b.nameDe = result.name_de;
-      if (typeof result.desc_de === 'string') b.descDe = result.desc_de;
-      if (Array.isArray(result.benefits)) {
-        result.benefits.forEach((bf: { nameDe?: string; descDe?: string }, i: number) => {
-          if (!b.benefits[i]) return;
-          if (typeof bf.nameDe === 'string') b.benefits[i].nameDe = bf.nameDe;
-          if (typeof bf.descDe === 'string') b.benefits[i].descDe = bf.descDe;
-        });
-      }
-    } catch { /* ignore */ }
+    if (t.name_de) b.nameDe = t.name_de;
+    if (t.desc_de) b.descDe = t.desc_de;
+    t.benefits.forEach((bf, i) => {
+      if (!b.benefits[i]) return;
+      if (bf.nameDe) b.benefits[i].nameDe = bf.nameDe;
+      if (bf.descDe) b.benefits[i].descDe = bf.descDe;
+    });
   }
 
   const groupLabel = (t: BenefitType): string => BENEFIT_TYPE_LABELS[t];
@@ -229,8 +227,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.nameDe || ed.draft.name || 'Hintergrund'}
-    systemPrompt={buildBackgroundTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />

@@ -38,8 +38,7 @@ export interface AgentOptions {
 
 export const TASK_TEMPERATURE = {
   agent: 0.0,       // Tool-Calling — maximale Reproduzierbarkeit
-  translate: 0.2,   // Übersetzung — nah am Original, deterministisch
-  structured: 0.3,  // JSON-Generierung (Monster/Encounter) — wenig Streuung
+  structured: 0.3,  // JSON-Generierung (Monster/Encounter/Übersetzung) — wenig Streuung
   chat: 0.7,        // Konversation
   creative: 0.8,    // freie Generierung (NPCs, Story-Text)
 } as const;

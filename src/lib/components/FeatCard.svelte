@@ -4,7 +4,8 @@
   import FeatEditForm from './FeatEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import TranslateModal from './TranslateModal.svelte';
-  import { buildFeatTranslationSystemPrompt } from '$lib/prompts';
+  import { translateFeat } from '$lib/services/aiActions/translateAction';
+  import type { FeatTranslation } from '$lib/schemas/translation';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
@@ -42,7 +43,8 @@
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const f = ed.draft;
     if (!f) return null;
     const payload: Record<string, string> = {};
@@ -50,18 +52,16 @@
     if (f.prerequisite) payload.prerequisite = f.prerequisite;
     if (f.desc) payload.desc = f.desc;
     if (!Object.keys(payload).length) return null;
-    return JSON.stringify(payload);
+    return translateFeat(payload);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: FeatTranslation) {
     const f = ed.draft;
     if (!f) return;
-    try {
-      const result = JSON.parse(raw);
-      if (typeof result.name_de === 'string') f.nameDe = result.name_de;
-      if (typeof result.prerequisite_de === 'string') f.prerequisiteDe = result.prerequisite_de;
-      if (typeof result.desc_de === 'string') f.descDe = result.desc_de;
-    } catch { /* ignore */ }
+    if (t.name_de) f.nameDe = t.name_de;
+    if (t.prerequisite_de) f.prerequisiteDe = t.prerequisite_de;
+    if (t.desc_de) f.descDe = t.desc_de;
   }
 </script>
 
@@ -131,8 +131,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.nameDe || ed.draft.name || 'Talent'}
-    systemPrompt={buildFeatTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />

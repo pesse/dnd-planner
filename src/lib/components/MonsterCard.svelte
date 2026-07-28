@@ -7,7 +7,8 @@
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
-  import { buildMonsterTranslationSystemPrompt } from '../prompts';
+  import { translateMonster } from '../services/aiActions/translateAction';
+  import type { MonsterTranslation } from '../schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { parseMonster as _parseMonster, normalizeMonster } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
@@ -64,7 +65,8 @@
   // ── Übersetzen ────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const m = ed.draft;
     if (!m) return null;
     const toTranslate: Record<string, unknown> = {};
@@ -77,24 +79,20 @@
       if (m[key].length > 0) toTranslate[key] = m[key].map((a) => ({ name: a.name, description: a.description }));
     }
     if (Object.keys(toTranslate).length === 0) return null;
-    return `Translate these D&D monster fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
+    return translateMonster(toTranslate);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: MonsterTranslation) {
     const m = ed.draft;
     if (!m) return;
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
-    const t = JSON.parse(match[0]) as Record<string, unknown>;
-    if (typeof t.name === 'string') m.name = t.name;
-    if (typeof t.languages === 'string') m.languages = t.languages;
-    if (Array.isArray(t.damage_resistances)) m.damage_resistances = t.damage_resistances as string[];
-    if (Array.isArray(t.damage_immunities)) m.damage_immunities = t.damage_immunities as string[];
-    if (Array.isArray(t.condition_immunities)) m.condition_immunities = t.condition_immunities as string[];
+    if (t.name) m.name = t.name;
+    if (t.languages) m.languages = t.languages;
+    if (t.damage_resistances.length) m.damage_resistances = t.damage_resistances;
+    if (t.damage_immunities.length) m.damage_immunities = t.damage_immunities;
+    if (t.condition_immunities.length) m.condition_immunities = t.condition_immunities;
     for (const key of ['traits', 'actions', 'reactions', 'legendary_actions'] as const) {
-      const arr = t[key] as Array<{ name: string; description: string }> | undefined;
-      if (!Array.isArray(arr)) continue;
-      arr.forEach((x, i) => {
+      t[key].forEach((x, i) => {
         if (!m[key][i]) return;
         if (x.name) m[key][i].name = x.name;
         if (x.description) m[key][i].description = convertDistances(x.description);
@@ -159,8 +157,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.name || 'Monster'}
-    systemPrompt={buildMonsterTranslationSystemPrompt(buildTranslationPrompt() ?? '')}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />
