@@ -1,24 +1,14 @@
 /**
  * Zod-Schemas der EN→DE-Übersetzungs-Ergebnisse — eine Form je Artefakt-Typ.
  *
- * Vorher stand das Ausgabeformat nur als Prosa im Prompt (`<output_format>`) und jede
- * Karte hat den Rohtext selbst per Regex geparst. Hier ist es ein Schema: Guided
- * Decoding erzwingt es serverseitig (auf QM zusätzlich mit abgeschaltetem Thinking),
- * `parse…()` validiert es, und die Karten bekommen ein typisiertes Objekt.
+ * Konvention wie in `levelUp.ts`: JEDES Feld hat einen Default, damit `toLlmJsonSchema`
+ * (`io: 'output'`) alles `required` macht — was guided decoding braucht. Daraus folgt die
+ * Semantik **leer ("" bzw. []) = war nicht im Input**, und die Karten überschreiben nur
+ * bei nicht-leerem Wert (ein Zauber ohne materielle Komponente darf sein Feld nicht
+ * gegen "" tauschen).
  *
- * Konvention wie in `levelUp.ts`: JEDES Feld hat einen Default, `toLlmJsonSchema`
- * (`io: 'output'`) macht daraus ein striktes Schema mit lauter `required`-Feldern —
- * genau das, was guided decoding braucht. Semantik daher:
- *
- *   **leer ("" bzw. []) = das Feld war nicht im Input / wurde nicht übersetzt.**
- *
- * Die Karten überschreiben deshalb nur bei nicht-leerem Wert (ein Zauber ohne
- * materielle Komponente darf sein Feld nicht mit "" verlieren).
- *
- * Item und Zauber haben BEWUSST getrennte Schemas, obwohl sie früher denselben
- * Prompt teilten: unter guided decoding ist jedes Feld Pflicht, und ein gemeinsames
- * Schema würde dem Zauber ein `name_de` und dem Gegenstand Zeit-/Reichweiten-Felder
- * abpressen, die es dort nicht gibt.
+ * Item und Zauber trennen deshalb ihre Schemas: ein gemeinsames würde dem Zauber ein
+ * `name_de` und dem Gegenstand Zeit-/Reichweiten-Felder abpressen.
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './shared';
@@ -108,28 +98,17 @@ export const ruleTranslationJsonSchema = toLlmJsonSchema(ruleTranslationSchema);
 export const featTranslationJsonSchema = toLlmJsonSchema(featTranslationSchema);
 export const backgroundTranslationJsonSchema = toLlmJsonSchema(backgroundTranslationSchema);
 
-/** Nachsichtige Guards: parsen + Defaults füllen; null bei Schema-Verstoß. */
-export function parseItemTranslation(data: unknown): ItemTranslation | null {
-  const r = itemTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseSpellTranslation(data: unknown): SpellTranslation | null {
-  const r = spellTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseMonsterTranslation(data: unknown): MonsterTranslation | null {
-  const r = monsterTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseRuleTranslation(data: unknown): RuleTranslation | null {
-  const r = ruleTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseFeatTranslation(data: unknown): FeatTranslation | null {
-  const r = featTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseBackgroundTranslation(data: unknown): BackgroundTranslation | null {
-  const r = backgroundTranslationSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
+/** Nachsichtiger Guard: parst + füllt Defaults, null bei Schema-Verstoß. */
+const lenient =
+  <S extends z.ZodType>(schema: S) =>
+  (data: unknown): z.output<S> | null => {
+    const r = schema.safeParse(data);
+    return r.success ? r.data : null;
+  };
+
+export const parseItemTranslation = lenient(itemTranslationSchema);
+export const parseSpellTranslation = lenient(spellTranslationSchema);
+export const parseMonsterTranslation = lenient(monsterTranslationSchema);
+export const parseRuleTranslation = lenient(ruleTranslationSchema);
+export const parseFeatTranslation = lenient(featTranslationSchema);
+export const parseBackgroundTranslation = lenient(backgroundTranslationSchema);

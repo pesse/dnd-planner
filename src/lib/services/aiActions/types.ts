@@ -8,20 +8,13 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
 export interface AiAction<T> {
-  /** Stabile ID, z.B. 'create-item'. */
-  id: string;
-  /** Anzeigename für die UI. */
-  label: string;
-  /** Spezifischer System-Prompt (ohne Schema-Block — der wird vom Runner ergänzt). */
+  id: string; // stabil, z.B. 'create-item'
+  label: string; // für die UI
+  /** OHNE Schema-Block — den ergänzt der Runner je nach Provider-Pfad. */
   buildSystemPrompt(): string;
-  /** Anthropic-native Tool-Defs. */
   anthropicTools: Anthropic.Tool[];
-  /** OpenAI-/Groq-kompatible Tool-Defs. */
-  openAiTools: unknown[];
-  /** Führt einen Tool-Aufruf aus. */
+  openAiTools: unknown[]; // dieselben Tools für OpenAI/Groq
   execute(name: string, args: Record<string, unknown>): Promise<string>;
-  /** JSON-Schema des erwarteten Outputs (Structured-Outputs-Subset). */
-  jsonSchema: object;
-  /** Leichte Laufzeitprüfung des Ergebnisses. */
+  jsonSchema: object; // Structured-Outputs-Subset
   validate(data: unknown): data is T;
 }

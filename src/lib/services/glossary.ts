@@ -1,13 +1,10 @@
 /**
- * EN→DE-Glossar für terminologie-treue Übersetzung (SRD 5.2.1).
+ * EN→DE-Glossar für terminologie-treue Übersetzung (SRD 5.2.1); `glossary.json` ist die
+ * autoritative Quelle.
  *
- * Idee: NICHT das ganze Glossar (232 Begriffe) in den Prompt dumpen, sondern pro
- * Aufruf nur die im englischen Quelltext vorkommenden Begriffe („Pinning"). So
- * skaliert die Prompt-Größe mit der Relevanz, nicht mit der Glossargröße.
- *
- * `glossary.json` ist die autoritative Quelle (aus dem SRD-Regelwerk abgeleitet).
- * Prompt-Anweisungen sind englisch (nur Zielbegriffe deutsch), Sektionen mit
- * XML-Tags gegliedert.
+ * „Pinning": pro Aufruf gehen nur die im Quelltext vorkommenden Begriffe in den Prompt,
+ * nie das ganze Glossar — die Prompt-Größe skaliert mit der Relevanz, nicht mit der
+ * Glossargröße.
  */
 import glossaryData from '$lib/data/glossary.json';
 import { findImperial, type ImperialMatch } from '$lib/utils/distanceText';
@@ -162,17 +159,11 @@ function stem(de: string): string {
 
 export interface LintResult {
   ok: boolean;
-  errors: { found: string; expected: string }[];
-  imperial: { found: string; expected: string }[];
+  errors: { found: string; expected: string }[]; // bekannte Falsch-Varianten, hochpräzise
+  imperial: { found: string; expected: string }[]; // nicht konvertierte Distanzen
+  /** Nur advisory: ein gepinnter Begriff scheint nicht übernommen (Coverage-Heuristik). */
   warnings: { en: string; expected: string }[];
 }
-
-/**
- * Prüft die deutsche Ausgabe:
- *  - errors:   bekannte Falsch-Varianten (hochpräzise).
- *  - imperial: nicht-konvertierte Distanzen (feet/Fuß/mile/Meile) — Fehler.
- *  - warnings: gepinnter Begriff scheint nicht übernommen (Coverage, advisory).
- */
 export function lint(outputDe: string, hits: GlossaryTerm[] = []): LintResult {
   const low = norm(outputDe);
   const errors: { found: string; expected: string }[] = [];

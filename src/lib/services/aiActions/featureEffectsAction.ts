@@ -1,31 +1,16 @@
 /**
- * KI-Aktion für die Deutung neu gewonnener Merkmale/Talente beim Stufenaufstieg.
+ * Deutung neu gewonnener Merkmale/Talente: aus der Regelprosa die mechanischen Effekte
+ * („Rider"), die erzwungenen Spielerwahlen und je Merkmal eine `sheetNote` fürs PDF.
  *
- * Bekommt AUSSCHLIESSLICH die in dieser Spanne neu gewonnenen Merkmale (Basis-,
- * Subklassen- oder Talent-Prosa) und extrahiert daraus die konkreten mechanischen
- * Effekte („Rider") sowie die erzwungenen Spielerwahlen. Pass C liefert zusätzlich je
- * Merkmal eine `sheetNote` — eine verdichtete deutsche Zeile für den Klassenmerkmale-
- * Freitext, oder bewusst nichts. Diese Stelle kann das am besten: sie hat die EN-Regel-
- * prosa, die getroffenen Wahlen UND ihre eigenen Grants im Blick und weiß daher, was der
- * Bogen bereits anderswo führt (Zauberliste, Fertigkeiten, Attribute) und deshalb keine
- * Zeile braucht.
+ * ZWEI Calls mit Checkpoint dazwischen, damit der User direkt nach der Analyse entscheidet:
+ * `analyzeFeatureEffects` (Reasoning, bewusst ohne Rider-Vokabular) → der Flow zeigt die
+ * Choices → `finalizeFeatureEffects` (Nach-Analyse im Verlauf + Grounding + Guided).
+ * QM-only, Prompts englisch.
  *
- * QM-only, in ZWEI vom Level-Up-Flow getriebenen Phasen (der Checkpoint sitzt
- * dazwischen, damit der User direkt nach Call 1 entscheidet):
- *   analyzeFeatureEffects  = Call 1 (Pass A, Reasoning): reine Analyse → Choices
- *     (Möglichkeiten) + zu erdende Zauber. KEIN Rider-Vokabular.
- *   [Checkpoint]           = der Flow zeigt die Choices, der User entscheidet.
- *   finalizeFeatureEffects = Nach-Analyse im VERLAUF (die Wahl kommt als eigener,
- *     minimaler Folge-Turn) + Grounding + Pass C (Guided): Rider, die die GETROFFENE
- *     Entscheidung tragen — keine Optionslisten.
- * Prompts ENGLISCH; nur nutzer-sichtbare Feldinhalte DE.
- *
- * Zwei Dinge tragen die Qualität messbar (siehe evals/featureAnalysis.eval.test.ts):
- *   1. Jedes Merkmal geht mit ENGLISCHEM *und* deutschem Beschreibungstext rein
- *      (`desc` + `descDe`) — die EN-Prosa ist die Regelquelle, die DE-Prosa liefert
- *      die Begriffe, in denen Fragen/Antworten/Entscheidungen formuliert werden.
- *   2. Die getroffenen Wahlen werden NICHT in den Erst-Prompt gemischt, sondern als
- *      eigener Turn auf den Analyse-Verlauf nachgereicht — minimal als {id, choice}.
+ * Zwei Details tragen die Qualität messbar (evals/featureAnalysis.eval.test.ts): jedes
+ * Merkmal geht mit EN- *und* DE-Text rein (EN = Regelquelle, DE = die Begriffe, in denen
+ * Fragen und Optionen formuliert werden), und die getroffenen Wahlen kommen als eigener
+ * Folge-Turn statt im Erst-Prompt.
  */
 import {
   featureEffectsJsonSchema,
@@ -52,9 +37,8 @@ export interface GainedFeature {
 }
 
 /**
- * Antwort auf eine von Pass A erkannte Wahl. Bewusst MINIMAL: die `id` aus dem
- * Analyse-Manifest plus das gewählte Label. Frage, Optionen und Merkmal stehen bereits
- * im Verlauf — sie erneut mitzuschicken kostet nur Tokens und lädt zu Widersprüchen ein.
+ * Antwort auf eine erkannte Wahl. Bewusst MINIMAL: Frage, Optionen und Merkmal stehen
+ * schon im Verlauf — sie erneut mitzuschicken lädt nur zu Widersprüchen ein.
  */
 export interface ResolvedChoice {
   id: string;
@@ -64,8 +48,8 @@ export interface ResolvedChoice {
 /** Knapper Klassen-Kontext für die Effekt-Deutung. */
 export interface FeatureClassContext {
   klasseName: string;
-  /** Bereits gewählte Subklasse (leer, wenn die Klasse noch keine hat) — die Wahl ist
-   *  zum Zeitpunkt der Merkmals-Deutung immer schon gefallen, nie eine offene Frage. */
+  /** Leer, wenn die Klasse noch keine hat — bei der Merkmals-Deutung ist die Wahl aber
+   *  immer schon gefallen, nie eine offene Frage. */
   subclassName: string;
   casterType: string; // FULL/HALF/NONE/…
   casterKind: 'prepared' | 'known' | 'none';
@@ -74,10 +58,10 @@ export interface FeatureClassContext {
 }
 
 /**
- * Pass-C-Prompt (Guided, non-reasoning): gießt die Analyse ins Rider-Schema. Alle Wahlen
- * sind zu diesem Zeitpunkt bereits getroffen (<resolved_choices>) — dieser Call trägt nur
- * die ERGEBNISSE ein, protokolliert die getroffenen Entscheidungen und verdichtet jedes
- * Merkmal zu einer `sheetNote` (Regel 10) bzw. lässt sie bewusst leer.
+ * Pass-C-Prompt (Guided): gießt die Analyse ins Rider-Schema, trägt nur ERGEBNISSE ein,
+ * keine Optionslisten. Die `sheetNote` (Regel 10) entsteht hier, weil nur dieser Call
+ * EN-Prosa, getroffene Wahlen und eigene Grants zugleich sieht — und daher weiß, was der
+ * Bogen schon anderswo führt und deshalb keine Zeile braucht.
  */
 const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc" and its German translation "descDe") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
@@ -112,10 +96,9 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
     Condense aggressively: the player owns the rulebook, this line is a reminder, not a rules quote. Prefer numbers and keywords over sentences; drop filler like "Du kannst".`;
 
 /**
- * Pass-A-Prompt (Reasoning): REINE Analyse. Bewusst OHNE Rider-Vokabular — der Fokus liegt
- * auf den Dingen, die deterministisch weiterverarbeitet werden: ALLE erzwungenen Spieler-
- * wahlen (mit Optionen) und die als immer-vorbereitet gewährten Zauber (zum Erden). Alles
- * Übrige bleibt Prosa und wird erst von Pass C ins Schema übernommen.
+ * Pass-A-Prompt (Reasoning): reine Analyse, bewusst OHNE Rider-Vokabular. Strukturiert
+ * werden nur die deterministisch weiterverarbeiteten Dinge — Spielerwahlen und zu erdende
+ * Zauber; alles Übrige bleibt Prosa für Pass C.
  */
 export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries the original English rules text in "desc" and its German translation in "descDe": "desc" is the authoritative source for the mechanics, "descDe" gives you the German wording for questions and options.
@@ -149,13 +132,8 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.`;
 
 /**
- * Erster userInput für die Effekt-Deutung (XML-gegliedert, JSON-Inhalt): NUR Klassen-
- * Kontext + Merkmale (EN- und DE-Text). Getroffene Wahlen gehören bewusst NICHT hier
- * hinein, sondern kommen als eigener Folge-Turn (`buildResolvedChoicesTurn`).
- *
- * Bewusst OHNE Charakter-Zusammenfassung: der Effekt-Prompt deutet ausschließlich
- * die Merkmals-Prosa + Klassen-Kontext (Caster-Art, Zielstufe). Attribute/Slots/HP
- * des konkreten Charakters sind hier irrelevant und nur Token-Ballast/Ablenkung.
+ * Bewusst OHNE Charakter-Zusammenfassung: gedeutet wird nur Merkmals-Prosa + Klassen-
+ * Kontext. Attribute/Slots/HP wären hier Token-Ballast und Ablenkung.
  */
 export function buildFeatureEffectsInput(ctx: {
   classContext: FeatureClassContext;
@@ -167,38 +145,26 @@ export function buildFeatureEffectsInput(ctx: {
   ].join('\n');
 }
 
-/**
- * Folge-Turn mit den getroffenen Wahlen — minimal gehalten (nur `id` + `choice`), weil
- * Frage/Optionen bereits im Verlauf stehen. Mehr Kontext hier verschlechtert die
- * Antwortqualität messbar, statt sie zu verbessern.
- */
+/** Mehr als `{id, choice}` verschlechtert hier die Antwortqualität messbar. */
 export function buildResolvedChoicesTurn(choices: ResolvedChoice[]): string {
   const minimal = choices.map(({ id, choice }) => ({ id, choice }));
   return `<resolved_choices>${JSON.stringify(minimal)}</resolved_choices>`;
 }
 
-/** Eingabe-Bündel für den Orchestrator. */
 export interface FeatureEffectsContext {
   classContext: FeatureClassContext;
   features: GainedFeature[];
-  /** Antworten auf die Choices aus Pass A — nur für `finalizeFeatureEffects` relevant. */
-  resolvedChoices?: ResolvedChoice[];
+  resolvedChoices?: ResolvedChoice[]; // nur für finalizeFeatureEffects
 }
 
-/** Optionen für die beiden Effekt-Phasen. */
 export interface FeatureEffectsRunOptions {
-  /** Lebenszeichen pro Streaming-Delta (für die Stuck-Erkennung der UI). */
-  onActivity?: () => void;
+  onActivity?: () => void; // Lebenszeichen pro Streaming-Delta (Stuck-Erkennung der UI)
   signal?: AbortSignal;
-  /**
-   * Kein Nachbesserungs-Call, wenn Pass C kein schema-valides JSON liefert. Standard: false
-   * (Prod macht genau EINEN Retry). Für Prompt-Qualitäts-Evals true, damit die First-Try-
-   * Qualität des Prompts gemessen wird und nicht der Retry sie kaschiert.
-   */
+  /** Für Prompt-Evals true: sonst kaschiert der Retry die First-Try-Qualität des Prompts. */
   noRetry?: boolean;
 }
 
-/** Eine von Pass A erkannte, erzwungene Spielerwahl (Möglichkeiten — treibt den Checkpoint). */
+/** Eine erkannte, erzwungene Spielerwahl — treibt den Checkpoint. */
 export interface AnalysisChoice {
   id: string;
   feature: string;
@@ -209,16 +175,14 @@ export interface AnalysisChoice {
   determinesFurtherEffects: boolean;
 }
 
-/** Ergebnis von Call 1: die Analyse, die den Entscheidungs-Checkpoint speist. */
 export interface FeatureAnalysis {
   choices: AnalysisChoice[];
   spellsToGround: string[];
   blocked: boolean;
-  /** Rohe Pass-A-Prosa — wird an Pass C durchgereicht, wenn keine Neu-Analyse nötig ist. */
-  analysisText: string;
+  analysisText: string; // rohe Pass-A-Prosa, geht so an Pass C
 }
 
-/** Schlankes Manifest, das Pass A am Ende der freien Analyse deklariert (nur deterministisch Nötiges). */
+/** Das JSON, das Pass A am Ende seiner Prosa deklariert. */
 interface EffectsManifest {
   choices: AnalysisChoice[];
   spellsToGround: string[];
@@ -244,9 +208,8 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
 }
 
 /**
- * Zieht das Manifest aus der (Prosa + Fenced-JSON-)Antwort von Pass A. Bewusst tolerant:
- * bevorzugt den LETZTEN ```json-Block, sonst das letzte `{…}`; bei Fehlschlag sicherer
- * Default (keine Choices, keine Zauber, nicht blockiert).
+ * Bewusst tolerant, weil die Antwort Prosa UND JSON enthält: letzter ```json-Block, sonst
+ * das letzte `{…}`; bei Fehlschlag der harmlose Default statt eines Fehlers.
  */
 function parseManifest(text: string): EffectsManifest {
   const empty: EffectsManifest = { choices: [], spellsToGround: [], blocked: false };
@@ -272,10 +235,8 @@ function parseManifest(text: string): EffectsManifest {
 }
 
 /**
- * Löst die zu erdenden Zaubernamen gegen die VOLLE Bibliothek auf (nie klassengefiltert,
- * damit off-list-Unterklassen-/Domänen-Grants nicht verworfen werden) und liefert eine
- * annotierte `<spell_resolution>`-Zeile — nur Fakten (kanonischer Name + Level bzw. „nicht
- * gefunden"), kein Ausschluss. Leer, wenn nichts aufzulösen ist.
+ * Auflösung gegen die VOLLE Bibliothek, nie klassengefiltert — sonst fallen off-list-
+ * Grants von Unterklassen und Domänen weg. Liefert nur Fakten, schließt nichts aus.
  */
 async function buildSpellResolution(spellsToGround: string[], klasseName: string): Promise<string> {
   if (!spellsToGround.length) return '';
@@ -289,7 +250,6 @@ async function buildSpellResolution(spellsToGround: string[], klasseName: string
   return `<spell_resolution>\n${lines.join('\n')}\n</spell_resolution>`;
 }
 
-/** Baut die abschließende Transkriptions-Anweisung für Pass C aus dem Grounding. */
 function buildTranscriptionInstruction(spellResolution: string): string {
   const parts = [
     'Gib jetzt das Ergebnis exakt im geforderten Schema aus — genau ein Rider je Merkmal aus ' +
@@ -310,7 +270,7 @@ function buildTranscriptionInstruction(spellResolution: string): string {
   return parts.join('\n\n');
 }
 
-/** Wirft, wenn der Provider nicht QualityMinds ist (Effekt-Deutung ist bewusst QM-only). */
+/** QM-only, weil der Pfad Reasoning + Grounding + Guided Output in einem Verlauf braucht. */
 function guardQualityMinds(config: LlmConfig): void {
   if (config.provider !== 'qualityminds')
     throw new Error(
@@ -319,11 +279,7 @@ function guardQualityMinds(config: LlmConfig): void {
     );
 }
 
-/**
- * Pass A: freie Reasoning-Analyse über den bisherigen Verlauf → Prosa + geparstes
- * Manifest. `turns` ist der Analyse-Verlauf OHNE System-Prompt (erster Call: nur der
- * Merkmals-Input; Nach-Analyse: zusätzlich Antwort #1 und der Wahl-Turn).
- */
+/** `turns` ist der Analyse-Verlauf OHNE System-Prompt. */
 async function reason(
   config: LlmConfig,
   turns: ChatMessage[],
@@ -339,10 +295,7 @@ async function reason(
   return { text, manifest: parseManifest(text) };
 }
 
-/**
- * Call 1 — reine Analyse: liefert die erkannten Choices (Möglichkeiten) + zu erdende Zauber.
- * Der Level-Up-Flow zeigt daraus den Entscheidungs-Checkpoint DIREKT nach diesem Call.
- */
+/** Call 1 — der Flow zeigt den Entscheidungs-Checkpoint direkt danach. */
 export async function analyzeFeatureEffects(
   config: LlmConfig,
   ctx: FeatureEffectsContext,
@@ -355,14 +308,11 @@ export async function analyzeFeatureEffects(
 }
 
 /**
- * Call C — Nach-Analyse im Verlauf + Grounding + Pass C: gießt die Analyse (jetzt mit
- * getroffenen Entscheidungen) ins Rider-Schema.
+ * Call 2 — Nach-Analyse + Grounding + Pass C ins Rider-Schema.
  *
- * Der Analyse-Verlauf wird fortgeschrieben statt neu aufgebaut: Merkmals-Input →
- * Analyse aus Call 1 → minimaler Wahl-Turn → Nach-Analyse. Erst diese Nach-Analyse
- * benennt choice-abhängige Zauber. Ohne getroffene Wahl bleibt es beim Verlauf aus
- * Call 1 (spart einen Reasoning-Call). Der komplette Verlauf geht anschließend in den
- * Structured-Output-Schritt.
+ * Der Verlauf aus Call 1 wird FORTGESCHRIEBEN statt neu aufgebaut, weil erst die
+ * Nach-Analyse auf demselben Verlauf choice-abhängige Zauber benennen kann. Ohne
+ * getroffene Wahl entfällt sie und spart einen Reasoning-Call.
  */
 export async function finalizeFeatureEffects(
   config: LlmConfig,
@@ -373,8 +323,8 @@ export async function finalizeFeatureEffects(
   guardQualityMinds(config);
   const input = buildFeatureEffectsInput(ctx);
 
-  // Verlauf aus Call 1. Fehlt die Analyse (Direkteinstieg in die Finalisierung), wird
-  // sie hier nachgeholt — der Wahl-Turn braucht die Choice-ids aus ihrem Manifest.
+  // Beim Direkteinstieg in die Finalisierung fehlt die Analyse und wird nachgeholt —
+  // der Wahl-Turn braucht die Choice-ids aus ihrem Manifest.
   let text = analysis.analysisText.trim();
   let manifest: EffectsManifest = {
     choices: analysis.choices,
@@ -388,7 +338,6 @@ export async function finalizeFeatureEffects(
     { role: 'assistant', content: text },
   ];
 
-  // Getroffene Wahlen als eigener, minimaler Turn nachreichen und EINMAL nach-analysieren.
   if (ctx.resolvedChoices?.length) {
     const answerTurn = buildResolvedChoicesTurn(ctx.resolvedChoices);
     const after = await reason(config, [...turns, { role: 'user', content: answerTurn }], opts);
@@ -396,12 +345,11 @@ export async function finalizeFeatureEffects(
     manifest = after.manifest;
   }
 
-  // Deterministisch: genannte Zauber gegen die Bibliothek erden (entfällt bei offener Wahl).
+  // Bei offener Wahl gibt es noch nichts zu erden.
   const spellResolution = manifest.blocked
     ? ''
     : await buildSpellResolution(manifest.spellsToGround, ctx.classContext.klasseName);
 
-  // Pass C — Guided über denselben Verlauf: Analyse + Entscheidungen + geerdete Zauber ins Schema.
   const messages: ChatMessage[] = [
     { role: 'system', content: FEATURE_EFFECTS_SYSTEM },
     ...turns,
@@ -420,7 +368,6 @@ export async function finalizeFeatureEffects(
     }
   };
 
-  // Prod macht genau EINEN Retry bei ungültigem JSON; die Eval misst die First-Try-Qualität.
   let result = await runPassC();
   if (!result && !opts.noRetry) result = await runPassC();
   if (!result) throw new Error('Die KI lieferte keine schema-validen Merkmals-Effekte.');
