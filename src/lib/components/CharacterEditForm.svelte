@@ -1665,6 +1665,64 @@
     <button class="btn-add" onclick={addAttack}>+ Angriff</button>
   </section>
 
+  <!-- ── Waffenbeherrschung ─── -->
+  <!-- Direkt bei den Angriffen, weil die Wahl nach jeder langen Rast wechseln kann —
+       Kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. -->
+  {#if mastery && mastery.allowance > 0}
+    <section>
+      <div class="grant-panel mastery-panel" use:diffMark={dirOf(saved?.masteries, $state.snapshot(masteries))}>
+        <div class="grant-head">
+          <span class="grant-title">
+            Waffenbeherrschung — {mastery.className}: {mastery.allowance}
+            {mastery.allowance === 1 ? 'Waffe' : 'Waffen'}
+          </span>
+          <span class="mastery-count" class:full={masteries.length >= mastery.allowance}>
+            {masteries.length} von {mastery.allowance} belegt
+          </span>
+        </div>
+        <p class="mastery-hint">
+          Nach jeder langen Rast änderbar.{#if mastery.meleeOnly} Nur Nahkampfwaffen.{/if}
+        </p>
+
+        {#if mastery.weapons.length}
+          <div class="grant-options">
+            {#each mastery.weapons as w (w.path)}
+              {@const wName = masteryName(w)}
+              {@const picked = masteries.includes(wName)}
+              <button
+                type="button"
+                class="grant-opt mastery-opt"
+                class:picked
+                disabled={!picked && masteries.length >= mastery.allowance}
+                title={MASTERY_INFO[w.mastery].descDe}
+                onclick={() => toggleMastery(wName)}
+              >{wName} <span class="mastery-prop">({masteryLabel(w.mastery)})</span></button>
+            {/each}
+          </div>
+        {/if}
+
+        {#if mastery.weapons.length < mastery.allowance}
+          <p class="mastery-warn">
+            Nur {mastery.weapons.length} wählbare {mastery.weapons.length === 1 ? 'Waffe' : 'Waffen'} in der Bibliothek —
+            Waffen brauchen eine gepflegte Meisterschaftseigenschaft und eine passende Kategorie.
+          </p>
+        {/if}
+
+        {#if masteryOverflow.length}
+          <p class="mastery-warn">
+            Nicht (mehr) wählbar — Übung abgewählt oder Waffe fehlt in der Bibliothek:
+          </p>
+          <div class="grant-options">
+            {#each masteryOverflow as name}
+              <button type="button" class="grant-opt mastery-opt overflow" title="Entfernen"
+                onclick={() => toggleMastery(name)}>{name} ✕</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </section>
+  {/if}
+
   <!-- ── Klassenmerkmale & Volksmerkmale ─── -->
   <section>
     <h3>Klassenmerkmale & Eigenschaften</h3>
@@ -1846,61 +1904,6 @@
       <input bind:value={profOtherWeapons} placeholder="z.B. Steinhammer, Wurfdolch" />
     </label>
 
-    <!-- ── Waffenbeherrschung ─── -->
-    <!-- Kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. Sie wird direkt
-         gespeichert und ist jederzeit änderbar (Regel: Tausch nach langer Rast). -->
-    {#if mastery && mastery.allowance > 0}
-      <div class="grant-panel mastery-panel" use:diffMark={dirOf(saved?.masteries, $state.snapshot(masteries))}>
-        <div class="grant-head">
-          <span class="grant-title">
-            Waffenbeherrschung — {mastery.className}: {mastery.allowance}
-            {mastery.allowance === 1 ? 'Waffe' : 'Waffen'}
-          </span>
-          <span class="mastery-count" class:full={masteries.length >= mastery.allowance}>
-            {masteries.length} von {mastery.allowance} belegt
-          </span>
-        </div>
-        <p class="mastery-hint">
-          Nach jeder langen Rast änderbar.{#if mastery.meleeOnly} Nur Nahkampfwaffen.{/if}
-        </p>
-
-        {#if mastery.weapons.length}
-          <div class="grant-options">
-            {#each mastery.weapons as w (w.path)}
-              {@const wName = masteryName(w)}
-              {@const picked = masteries.includes(wName)}
-              <button
-                type="button"
-                class="grant-opt mastery-opt"
-                class:picked
-                disabled={!picked && masteries.length >= mastery.allowance}
-                title={MASTERY_INFO[w.mastery].descDe}
-                onclick={() => toggleMastery(wName)}
-              >{wName} <span class="mastery-prop">({masteryLabel(w.mastery)})</span></button>
-            {/each}
-          </div>
-        {/if}
-
-        {#if mastery.weapons.length < mastery.allowance}
-          <p class="mastery-warn">
-            Nur {mastery.weapons.length} wählbare {mastery.weapons.length === 1 ? 'Waffe' : 'Waffen'} in der Bibliothek —
-            Waffen brauchen eine gepflegte Meisterschaftseigenschaft und eine passende Kategorie.
-          </p>
-        {/if}
-
-        {#if masteryOverflow.length}
-          <p class="mastery-warn">
-            Nicht (mehr) wählbar — Übung abgewählt oder Waffe fehlt in der Bibliothek:
-          </p>
-          <div class="grant-options">
-            {#each masteryOverflow as name}
-              <button type="button" class="grant-opt mastery-opt overflow" title="Entfernen"
-                onclick={() => toggleMastery(name)}>{name} ✕</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
   </section>
 
   <!-- ── Währung ─── -->
