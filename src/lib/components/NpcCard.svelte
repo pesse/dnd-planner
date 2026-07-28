@@ -16,6 +16,7 @@
   import type { Spell } from '../types';
   import { spellDesc, spellHigherLevel } from '../types';
   import { SKILL_DEFS } from '../pdf/characterFields';
+  import Markdown from './Markdown.svelte';
 
   interface NpcStats {
     str: number; dex: number; con: number;
@@ -559,10 +560,10 @@
                       <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
                     </div>
                     <div class="scard-divider"></div>
-                    <div class="scard-desc">{spellDesc(data)}</div>
+                    <div class="scard-desc"><Markdown source={spellDesc(data)} /></div>
                     {#if spellHigherLevel(data)}
                       <div class="scard-divider"></div>
-                      <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span>{spellHigherLevel(data)}</div>
+                      <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={spellHigherLevel(data)} inline /></div>
                     {/if}
                   {:else}
                     <span class="scard-loading">Nicht in Bibliothek</span>
@@ -742,9 +743,7 @@
     {/if}
     {#if (tooltipItem.desc_de ?? tooltipItem.desc)?.length}
       <div class="tt-divider"></div>
-      {#each (tooltipItem.desc_de ?? tooltipItem.desc) as para}
-        <p class="tt-desc">{para}</p>
-      {/each}
+      <div class="tt-desc"><Markdown source={tooltipItem.desc_de ?? tooltipItem.desc} /></div>
     {/if}
   </div>
 {/if}
@@ -1071,8 +1070,8 @@
   .sp-val { color: var(--ink); line-height: 1.4; }
 
   .scard-divider { height: 1px; background: var(--surface); margin: 0.4rem 0; }
-  .scard-desc { font-size: 0.82rem; color: var(--ink); line-height: 1.6; white-space: pre-wrap; }
-  .scard-higher { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.55; white-space: pre-wrap; }
+  .scard-desc { font-size: 0.82rem; color: var(--ink); line-height: 1.6; }
+  .scard-higher { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.55; }
   .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
   .scard-loading { font-size: 0.78rem; color: var(--border); font-style: italic; }
 

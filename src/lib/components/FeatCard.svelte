@@ -3,6 +3,7 @@
   import { parseFeat as _parseFeat } from '$lib/utils/schemaValidation';
   import FeatEditForm from './FeatEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { translateFeat } from '$lib/services/aiActions/translateAction';
   import type { FeatTranslation } from '$lib/schemas/translation';
@@ -88,7 +89,7 @@
           {/if}
         </div>
         {#if desc(draft!)}
-          <div class="body">{desc(draft!)}</div>
+          <div class="body"><Markdown source={desc(draft!)} /></div>
         {:else}
           <p class="empty">Keine Beschreibung.</p>
         {/if}
@@ -154,7 +155,7 @@
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); margin-top: 0.2rem; font-style: italic; }
 
-  .body { padding: 0.7rem 1.2rem 1rem; font-size: 0.85rem; line-height: 1.55; white-space: pre-wrap; }
+  .body { padding: 0.7rem 1.2rem 1rem; font-size: 0.85rem; line-height: 1.55; }
   .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
 
   .edit-wrap {

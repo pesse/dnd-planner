@@ -1,0 +1,81 @@
+/*
+ * Darstellung von gerendertem Regeltext (Markdown → HTML), Wurzelklasse `.md`.
+ *
+ * Als reine CSS-Datei, damit derselbe Text zwei Ziele erreicht: `Markdown.svelte`
+ * importiert sie fürs Bildschirm-Bundle, die Druck-HTML-Bauer holen sie über
+ * `?inline` als String in ihren <style>-Block. Farben laufen über CSS-Tokens –
+ * die Druck-Dokumente setzen dafür eigene Papierwerte (siehe RULE_TEXT_PRINT_VARS
+ * in utils/printCss.ts). Muster wie editor.css.
+ *
+ * Kein `white-space: pre-wrap` – die Blockabstände kommen aus dem Markup.
+ */
+
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+
+.md p { margin: 0 0 0.5rem; }
+
+.md ul,
+.md ol { margin: 0.3rem 0; padding-left: 1.3rem; }
+.md li { margin-bottom: 0.15rem; }
+.md li:last-child { margin-bottom: 0; }
+
+.md strong { font-weight: 700; }
+.md em { font-style: italic; }
+
+.md code {
+  background: var(--surface);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1em;
+  font-weight: 700;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.md a { color: var(--arcane); }
+
+.md blockquote {
+  margin: 0.3rem 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--border);
+  color: var(--ink-soft);
+}
+
+.md table {
+  border-collapse: collapse;
+  margin: 0.4rem 0;
+  font-size: 0.95em;
+  width: 100%;
+}
+
+.md th,
+.md td {
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.md th {
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.5rem 0;
+}
+
+/* Inline-Variante: der Text läuft in der umgebenden Zeile weiter. */
+.md-inline { display: inline; }

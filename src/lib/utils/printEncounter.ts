@@ -1,5 +1,7 @@
 import type { Encounter, Monster } from '../types';
 import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+import { renderMarkdown, renderMarkdownInline } from './markdown';
+import { RULE_TEXT_PRINT_CSS } from './printCss';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
 
@@ -35,15 +37,17 @@ function renderStatBlock(pm: PrintMonster): string {
   props.push(`<div class="sb-prop"><span class="lbl">Sinne</span> ${esc(m.senses)}</div>`);
   props.push(`<div class="sb-prop"><span class="lbl">Sprachen</span> ${esc(m.languages)}</div>`);
   if (pm.notes)
-    props.push(`<hr class="thin"><div class="sb-prop notes"><span class="lbl">DM-Notizen</span> ${esc(pm.notes)}</div>`);
+    props.push(`<hr class="thin"><div class="sb-prop notes"><span class="lbl">DM-Notizen</span> <span class="md md-inline">${renderMarkdownInline(pm.notes)}</span></div>`);
 
+  // Beschreibungen als Inline-Markdown — der Text läuft in derselben Zeile wie
+  // der Aktionsname weiter, ein Block-Element würde sie umbrechen.
   const renderActions = (arr: Monster['actions']) =>
     (arr ?? []).map(a =>
-      `<div class="sb-action"><span class="action-name">${esc(a.name)}.</span>${a.attack_bonus !== undefined ? ` Angriff +${a.attack_bonus}.` : ''}${a.damage?.length ? ` Schaden: ${esc(a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + '))}.` : ''} ${esc(a.description)}</div>`
+      `<div class="sb-action"><span class="action-name">${esc(a.name)}.</span>${a.attack_bonus !== undefined ? ` Angriff +${a.attack_bonus}.` : ''}${a.damage?.length ? ` Schaden: ${esc(a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + '))}.` : ''} <span class="md md-inline">${renderMarkdownInline(a.description)}</span></div>`
     ).join('');
   const renderSimple = (arr: Monster['traits']) =>
     (arr ?? []).map(t =>
-      `<div class="sb-action"><span class="action-name">${esc(t.name)}.</span> ${esc(t.description)}</div>`
+      `<div class="sb-action"><span class="action-name">${esc(t.name)}.</span> <span class="md md-inline">${renderMarkdownInline(t.description)}</span></div>`
     ).join('');
 
   const traits = renderSimple(m.traits);
@@ -131,7 +135,7 @@ ${bodyHtml}
 
 export function buildPrintHtml(draft: Encounter, printMonsters: PrintMonster[]): string {
   const monsterRows = draft.monsters.filter(m => m.slug).map(m =>
-    `<tr><td class="mon-count">${m.count}×</td><td class="mon-slug">${esc(m.slug)}</td><td class="mon-notes">${esc(m.notes)}</td></tr>`
+    `<tr><td class="mon-count">${m.count}×</td><td class="mon-slug">${esc(m.slug)}</td><td class="mon-notes md">${renderMarkdownInline(m.notes)}</td></tr>`
   ).join('');
 
   const statBlocks = printMonsters.map(renderStatBlock).join('');
@@ -152,10 +156,10 @@ h1 { font-size: 18pt; font-variant: small-caps; color: #5c1a00; margin: 0; }
 .lbl { font-weight: 700; color: #5c1a00; }
 .meta { font-size: 9pt; margin-bottom: 0.4rem; }
 .section-title { font-size: 11pt; font-weight: 700; font-variant: small-caps; color: #5c1a00; border-bottom: 1px solid #8c6a1a88; margin-top: 0.8rem; margin-bottom: 0.3rem; padding-bottom: 0.1rem; }
-.text { white-space: pre-wrap; margin-bottom: 0.3rem; }
+.text { margin-bottom: 0.3rem; }
 .read-aloud { background: #f5edd8; border-left: 4px solid #8c6a1a; border-radius: 3px; padding: 0.5rem 0.8rem; margin: 0.6rem 0; }
 .read-aloud-label { font-size: 8pt; font-weight: 700; color: #5c1a00; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem; }
-.read-aloud-text { font-style: italic; white-space: pre-wrap; line-height: 1.7; color: #2a1800; }
+.read-aloud-text { font-style: italic; line-height: 1.7; color: #2a1800; }
 .monster-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
 .mon-count { width: 2rem; font-weight: 700; color: #5c1a00; vertical-align: top; padding: 0.15rem 0.3rem 0.15rem 0; }
 .mon-slug { width: 10rem; font-weight: 600; vertical-align: top; padding: 0.15rem 0.5rem 0.15rem 0; }
@@ -188,6 +192,7 @@ hr.thin { border-top: 1px solid #8c6a1a66; }
 .track-box-wrap { display: flex; align-items: center; gap: 0.15rem; }
 .track-num { font-size: 6.5pt; color: #8c6a1a; }
 .track-box { width: 2cm; height: 0.55cm; border: 1.5px solid #8c6a1a; border-radius: 2px; background: white; }
+${RULE_TEXT_PRINT_CSS}
 </style>
 </head>
 <body>
@@ -201,12 +206,12 @@ hr.thin { border-top: 1px solid #8c6a1a66; }
   </div>
 </div>
 ${draft.location ? `<div class="meta"><span class="lbl">Ort</span> ${esc(draft.location)}</div>` : ''}
-${draft.description ? `<div class="section-title">Beschreibung</div><div class="text">${esc(draft.description)}</div>` : ''}
-${draft.read_aloud ? `<div class="read-aloud"><div class="read-aloud-label">📖 Vorlesetext</div><div class="read-aloud-text">${esc(draft.read_aloud)}</div></div>` : ''}
+${draft.description ? `<div class="section-title">Beschreibung</div><div class="text md">${renderMarkdown(draft.description)}</div>` : ''}
+${draft.read_aloud ? `<div class="read-aloud"><div class="read-aloud-label">📖 Vorlesetext</div><div class="read-aloud-text md">${renderMarkdown(draft.read_aloud)}</div></div>` : ''}
 <div class="section-title">Monster</div>
 <table class="monster-table">${monsterRows}</table>
-${draft.loot ? `<div class="section-title">Beute</div><div class="text">${esc(draft.loot)}</div>` : ''}
-${draft.notes ? `<div class="section-title">Notizen</div><div class="text">${esc(draft.notes)}</div>` : ''}
+${draft.loot ? `<div class="section-title">Beute</div><div class="text md">${renderMarkdown(draft.loot)}</div>` : ''}
+${draft.notes ? `<div class="section-title">Notizen</div><div class="text md">${renderMarkdown(draft.notes)}</div>` : ''}
 ${printMonsters.length ? `<div class="statblocks-title">Stat Blocks</div><div class="statblocks">${statBlocks}</div>` : ''}
 </body>
 </html>`;

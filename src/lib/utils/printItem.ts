@@ -4,6 +4,8 @@ import {
   DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS,
   ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, masteryLabel, masteryRuleDe,
 } from '../itemLibrary';
+import { renderMarkdown, ruleText } from './markdown';
+import { RULE_TEXT_PRINT_CSS } from './printCss';
 
 // Helle Hex-Farben pro Seltenheit (im Druck-Iframe gibt es keine Theme-Variablen).
 // Pastellig gehalten wie die Zauber-Schulfarben, damit der getönte Karten-Hintergrund hell bleibt.
@@ -82,8 +84,9 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00;
         border-radius: 4mm; font-size: 7.5pt; padding: 0.2mm 2mm; color: #5a4a30; }
 .disadv { color: #a82a18; }
 
-.desc { padding: 3mm 6mm; font-size: 9.5pt; line-height: 1.6; white-space: pre-wrap; }
+.desc { padding: 3mm 6mm; font-size: 9.5pt; line-height: 1.6; }
 .desc.muted { color: #b8a777; }
+${RULE_TEXT_PRINT_CSS}
 
 .foot {
   display: flex; align-items: center; justify-content: space-between;
@@ -145,7 +148,7 @@ export function prepareItemPrint(item: Item, _doc: Document): string {
   // Beschreibung: deutsche bevorzugt, sonst englische — NIE beide (kein "Original (Englisch)" im Druck).
   const descArr = item.desc_de?.length ? item.desc_de : (item.desc ?? []);
   const descHtml = descArr.length
-    ? `<div class="desc">${esc(descArr.join('\n\n'))}</div>`
+    ? `<div class="desc"><div class="md">${renderMarkdown(ruleText(descArr))}</div></div>`
     : `<div class="desc muted">—</div>`;
 
   const footRight = [

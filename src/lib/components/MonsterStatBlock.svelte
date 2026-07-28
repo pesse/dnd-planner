@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import Markdown from './Markdown.svelte';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
 
@@ -59,13 +60,13 @@
 
   {#if notes}
     <div class="sb-rule thin"></div>
-    <div class="sb-prop sb-notes"><span class="lbl">DM-Notizen</span> {notes}</div>
+    <div class="sb-prop sb-notes"><span class="lbl">DM-Notizen</span> <Markdown source={notes} inline /></div>
   {/if}
 
   {#if monster.traits?.length}
     <div class="sb-rule orange"></div>
     {#each monster.traits as t}
-      <div class="sb-action"><span class="sb-action-name">{t.name}.</span> {t.description}</div>
+      <div class="sb-action"><span class="sb-action-name">{t.name}.</span> <Markdown source={t.description} inline /></div>
     {/each}
   {/if}
 
@@ -77,7 +78,7 @@
         <span class="sb-action-name">{a.name}.</span>
         {#if a.attack_bonus !== undefined} Angriffswurf: +{a.attack_bonus}.{/if}
         {#if a.damage?.length} Schaden: {a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + ')}.{/if}
-        {a.description}
+        <Markdown source={a.description} inline />
       </div>
     {/each}
   {/if}
@@ -86,7 +87,7 @@
     <div class="sb-section-title">Reaktionen</div>
     <div class="sb-rule thin"></div>
     {#each monster.reactions as r}
-      <div class="sb-action"><span class="sb-action-name">{r.name}.</span> {r.description}</div>
+      <div class="sb-action"><span class="sb-action-name">{r.name}.</span> <Markdown source={r.description} inline /></div>
     {/each}
   {/if}
 
@@ -94,7 +95,7 @@
     <div class="sb-section-title">Legendäre Aktionen</div>
     <div class="sb-rule thin"></div>
     {#each monster.legendary_actions as la}
-      <div class="sb-action"><span class="sb-action-name">{la.name}.</span> {la.description}</div>
+      <div class="sb-action"><span class="sb-action-name">{la.name}.</span> <Markdown source={la.description} inline /></div>
     {/each}
   {/if}
 </div>

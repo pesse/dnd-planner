@@ -2,6 +2,7 @@
   import type { Spell } from '../types';
   import { SPELL_SCHOOLS, spellLevelLabel, spellDesc, spellHigherLevel } from '../types';
   import { SCHOOL_COLORS } from '../spellLibrary';
+  import Markdown from './Markdown.svelte';
 
   let { spell, x, y }: { spell: Spell | null; x: number; y: number } = $props();
 
@@ -52,11 +53,11 @@
 
     {#if desc}
       <div class="tt-divider"></div>
-      <div class="tt-desc">{desc}</div>
+      <div class="tt-desc"><Markdown source={desc} /></div>
     {/if}
     {#if higher}
       <div class="tt-divider"></div>
-      <div class="tt-higher"><span class="higher-lbl">Auf höheren Graden.</span> {higher}</div>
+      <div class="tt-higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higher} inline /></div>
     {/if}
   </div>
 {/if}
@@ -132,13 +133,11 @@
     font-size: 0.77rem;
     color: var(--ink-soft);
     line-height: 1.5;
-    white-space: pre-wrap;
   }
   .tt-higher {
     font-size: 0.76rem;
     color: var(--ink-soft);
     line-height: 1.5;
-    white-space: pre-wrap;
   }
   .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
 </style>

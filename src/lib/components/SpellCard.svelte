@@ -13,6 +13,8 @@
   import type { SpellTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
+  import Markdown from './Markdown.svelte';
+  import { createHtmlFitter, paginateMarkdown } from '$lib/utils/paginateMarkdown';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
   import { searchSpells, getResource, mapApiResourceToSpell, type DndApiRef } from '$lib/services/dndApi';
   import { slugify } from '$lib/editor/saveAs';
@@ -111,81 +113,34 @@
   // 380px Kartenbreite − 2×1.1rem horizontales Padding (≈17.6px)
   const SCREEN_CARD_TEXT_W = 346;
 
-  function splitScreenDesc(description: string): string[] {
-    if (!description) return [''];
-    // Erste Karte: nach Header, Props, 2×Ornament, Footer bleibt ~260px für Beschreibung
-    // Folge-Karten: nach Mini-Header + Ornament bleiben ~380px
-    const FIRST_H = 260;
-    const CONT_H  = 380;
+  // Erste Karte: nach Header, Props, 2×Ornament, Footer bleibt ~260px für die
+  // Beschreibung; Folge-Karten haben nur Mini-Header + Ornament über sich.
+  const SCREEN_FIRST_H = 260;
+  const SCREEN_CONT_H  = 380;
 
-    const el = document.createElement('div');
-    el.style.cssText = [
-      'position:fixed', 'top:-9999px', 'left:-9999px',
-      `font-family:${SCREEN_DESC_FONT}`,
-      'font-size:0.82rem',
-      'line-height:1.55',
-      'white-space:pre-wrap',
-      'word-break:break-word',
-      'overflow:hidden',
-      'box-sizing:border-box',
-      `width:${SCREEN_CARD_TEXT_W}px`,
-      'padding:0.55rem 0',
-    ].join(';');
-    document.body.appendChild(el);
-
-    const chunks: string[] = [];
-    let remaining = description;
-    let isFirst = true;
-
-    try {
-      while (remaining.length > 0) {
-        const maxH = isFirst ? FIRST_H : CONT_H;
-        el.style.height = `${maxH}px`;
-        el.textContent = remaining;
-
-        if (el.scrollHeight <= el.clientHeight + 2) {
-          chunks.push(remaining);
-          break;
-        }
-
-        const positions: number[] = [0];
-        for (let i = 1; i < remaining.length; i++) {
-          const ch = remaining[i - 1];
-          if (ch === ' ' || ch === '\n') positions.push(i);
-        }
-        positions.push(remaining.length);
-
-        let lo = 0, hi = positions.length - 1;
-        while (lo < hi - 1) {
-          const mid = Math.floor((lo + hi) / 2);
-          el.textContent = remaining.slice(0, positions[mid]);
-          if (el.scrollHeight <= el.clientHeight + 2) lo = mid;
-          else hi = mid;
-        }
-
-        const chunk = remaining.slice(0, positions[lo]).trimEnd();
-        if (!chunk) {
-          chunks.push(remaining.slice(0, 80));
-          remaining = remaining.slice(80).trimStart();
-        } else {
-          chunks.push(chunk);
-          remaining = remaining.slice(chunk.length).trimStart();
-        }
-        isFirst = false;
-      }
-    } finally {
-      document.body.removeChild(el);
-    }
-
-    return chunks.length > 0 ? chunks : [''];
-  }
-
-  let descChunks = $state<string[]>(['']);
+  /** Fertig gerendertes Beschreibungs-HTML, eine Karte pro Eintrag. */
+  let descPages = $state<string[]>(['']);
 
   $effect(() => {
     const d = draft;
-    if (d) descChunks = splitScreenDesc(spellDesc(d));
-    else descChunks = [''];
+    if (!d) { descPages = ['']; return; }
+
+    const fitter = createHtmlFitter({
+      doc: document,
+      fontFamily: SCREEN_DESC_FONT,
+      fontSize: '0.82rem',
+      lineHeight: '1.55',
+      width: `${SCREEN_CARD_TEXT_W}px`,
+      padding: '0.55rem 0',
+    });
+    try {
+      descPages = paginateMarkdown(spellDesc(d), {
+        heightOf: (page) => (page === 0 ? SCREEN_FIRST_H : SCREEN_CONT_H),
+        fits: fitter.fits,
+      });
+    } finally {
+      fitter.destroy();
+    }
   });
 
   function componentStr(s: Spell): string {
@@ -235,8 +190,8 @@
       {@const comps = componentStr(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
       <div class="cards-wrap">
-        {#each descChunks as chunk, i}
-          {@const isLast = i === descChunks.length - 1}
+        {#each descPages as pageHtml, i}
+          {@const isLast = i === descPages.length - 1}
           <div class="spell-card" style="--c: {pc}">
             {#if i === 0}
               <div class="head">
@@ -264,9 +219,10 @@
               </div>
             {/if}
             <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
-            <div class="desc">{chunk}</div>
+            <!-- Bereits gerendertes Markdown aus paginateMarkdown — nicht erneut durch <Markdown>. -->
+            <div class="desc md">{@html pageHtml}</div>
             {#if isLast && higherLevel}
-              <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> {higherLevel}</div>
+              <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higherLevel} inline /></div>
             {/if}
             {#if i === 0}
               <div class="foot">
@@ -504,7 +460,6 @@
     font-size: 0.82rem;
     line-height: 1.55;
     color: var(--ink);
-    white-space: pre-wrap;
   }
 
   .higher {
@@ -512,7 +467,6 @@
     font-size: 0.77rem;
     line-height: 1.45;
     color: var(--ink-soft);
-    white-space: pre-wrap;
   }
   .higher-lbl {
     font-weight: 700;

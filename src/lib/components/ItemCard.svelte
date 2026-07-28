@@ -44,6 +44,7 @@
   import AiEditModal from './AiEditModal.svelte';
   import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';
+  import Markdown from './Markdown.svelte';
   import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
@@ -526,15 +527,15 @@
 
         <!-- Beschreibung -->
         {#if item.desc_de?.length}
-          <div class="desc">{item.desc_de.join('\n\n')}</div>
+          <div class="desc"><Markdown source={item.desc_de} /></div>
           {#if item.desc?.length}
             <details class="desc-orig">
               <summary>Original (Englisch)</summary>
-              <div class="desc-orig-body">{item.desc.join('\n\n')}</div>
+              <div class="desc-orig-body"><Markdown source={item.desc} /></div>
             </details>
           {/if}
         {:else if item.desc?.length}
-          <div class="desc">{item.desc.join('\n\n')}</div>
+          <div class="desc"><Markdown source={item.desc} /></div>
         {:else}
           <div class="desc muted">—</div>
         {/if}
@@ -1031,7 +1032,7 @@
 
   .item-card-view .desc {
     padding: 0.55rem 1.2rem;
-    font-size: 0.84rem; line-height: 1.6; color: var(--ink); white-space: pre-wrap;
+    font-size: 0.84rem; line-height: 1.6; color: var(--ink);
   }
   .item-card-view .desc.muted { color: var(--border); }
   .item-card-view .desc-orig { padding: 0 1.2rem 0.5rem; }
@@ -1041,7 +1042,7 @@
   }
   .item-card-view .desc-orig-body {
     margin-top: 0.4rem; font-size: 0.8rem; color: var(--ink-muted); line-height: 1.55;
-    font-style: italic; white-space: pre-wrap;
+    font-style: italic;
   }
 
   .item-card-view .foot {
