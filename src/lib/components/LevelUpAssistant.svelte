@@ -25,9 +25,11 @@
   import { runAiAction } from '../services/aiActions/runner';
   import { computeLevelUpDelta, type LevelUpDelta } from '../services/levelUp';
   import {
-    buildLevelUpNarrativeAction, buildClassFeaturesRewriteAction, buildClassFeaturesInput,
-    buildNarrativeInput, type CharacterSummary,
+    buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary,
   } from '../services/aiActions/levelUpAction';
+  import {
+    buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS,
+  } from '../services/aiActions/fieldSummaryAction';
   import {
     analyzeFeatureEffects, finalizeFeatureEffects,
     type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
@@ -45,7 +47,7 @@
     STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerLabels,
   } from '../services/levelUpMachine';
   import {
-    parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
+    parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
@@ -596,10 +598,16 @@
     }
     try {
       pushStep('KI führt die Klassenmerkmale zusammen…');
-      const raw = await runAiAction($llmConfig, buildClassFeaturesRewriteAction(),
-        buildClassFeaturesInput({ currentText, newNotes: notes, chosenSubclass }), runOpts());
+      const raw = await runAiAction($llmConfig, buildFieldSummaryAction(),
+        buildFieldSummaryInput({
+          target: SHEET_FIELDS.classFeatures,
+          currentText,
+          newNotes: notes,
+          otherFields: [{ label: SHEET_FIELDS.speciesTraits.label, text: character.personal?.rassenmerkmale ?? '' }],
+          chosenSubclass,
+        }), runOpts());
       if (!alive()) return;
-      const r = parseClassFeaturesRewrite(raw);
+      const r = parseFieldSummary(raw);
       if (r && r.text.trim()) { featuresText = r.text; pushStep('Klassenmerkmale zusammengeführt.'); }
       else pushStep('Keine Zusammenführung erhalten — Rohfassung bleibt stehen.');
     } catch {

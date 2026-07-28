@@ -13,6 +13,7 @@
 // │   source? : enum("srd-2024"|"phb-2024"|"homebrew-sam") = "homebrew-sam"  — Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.
 // │   name : string
 // │   nameDe? : string
+// │   category? : enum("Origin"|"General"|"Fighting Style"|"Epic Boon") = "General"  — Wann das Talent genommen werden darf.
 // │   prerequisite? : string = ""
 // │   prerequisiteDe? : string
 // │   desc? : string = ""
@@ -33,13 +34,19 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
+import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant, FEAT_CATEGORIES } from './shared';
 
 export const featSchema = z.object({
   key: z.string().default(''),
   source: sourceField(),
   name: z.string(),
   nameDe: z.string().optional(),
+  /**
+   * Talent-Kategorie (Open5e: `type`). Default `General`, weil ein selbst erfundenes
+   * Talent ohne weitere Angabe genau das ist — die drei anderen Kategorien hängen an
+   * einer Bedingung, die dann in `prerequisite` stehen müsste.
+   */
+  category: z.enum(FEAT_CATEGORIES).default('General').describe('Wann das Talent genommen werden darf.'),
   prerequisite: z.string().default(''),
   prerequisiteDe: z.string().optional(),
   desc: z.string().default(''),

@@ -3,7 +3,7 @@
  *
  * KI-Outputs (Zod = Single Source + LLM-JSON-Schema): `featureEffectsSchema` (Rider),
  * `levelUpEffectsSchema` (pro-Stufe-Effekte), `levelUpNarrativeSchema`,
- * `classFeaturesRewriteSchema`. Das gemeinsame Dokument (`levelUpChangeSetSchema` /
+ * `fieldSummarySchema`. Das gemeinsame Dokument (`levelUpChangeSetSchema` /
  * `LevelUpDoc`) ist die Single Source für Anzeige UND Anwendung — es wird deterministisch
  * aus dem Zustand gebaut (levelUpMachine.buildDoc), nicht von einem LLM.
  *
@@ -50,8 +50,8 @@
 // │ levelUpNarrativeSchema
 // │   summary? : string = ""  — GERMAN one-paragraph summary of what changes this level.
 // │
-// │ classFeaturesRewriteSchema
-// │   text? : string = ""  — The FULL revised GERMAN "class features & traits" free-text field.
+// │ fieldSummarySchema
+// │   text? : string = ""  — The FULL revised GERMAN text of the target character-sheet field.
 // │
 // │ changeSchema : any
 // │
@@ -132,9 +132,13 @@ const riderProficienciesSchema = z.object({
 /**
  * Richtwert für die Länge einer `sheetNote`. Der Klassenmerkmale-Freitext landet beim
  * PDF-Export in zwei Formularfeldern à ~700 Zeichen (characterExport.splitClassFeatures)
- * und WÄCHST mit jeder Stufe — deshalb ist Kürze hier kein Stil-, sondern ein Platzthema.
+ * und WÄCHST mit jeder Stufe — Kürze ist hier also auch ein Platzthema.
+ *
+ * 160 statt der früheren 100 Zeichen: bei 100 fiel regelmäßig die Mechanik selbst raus
+ * (Aktionsart, Würfel, Wiederaufladung). Wird der Kasten zu voll, verdichtet der
+ * Zusammenfassen-Knopf im Charakter-Editor das ganze Feld neu.
  */
-export const SHEET_NOTE_MAX_CHARS = 100;
+export const SHEET_NOTE_MAX_CHARS = 160;
 
 /** Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr). */
 const featureDecisionSchema = z.object({
@@ -196,9 +200,11 @@ export const levelUpNarrativeSchema = z.object({
   summary: z.string().default('').describe('GERMAN one-paragraph summary of what changes this level.'),
 });
 
-// ── Klassenmerkmale-Überarbeitung (eigener KI-Schritt) ──────────────────────────
-export const classFeaturesRewriteSchema = z.object({
-  text: z.string().default('').describe('The FULL revised GERMAN "class features & traits" free-text field.'),
+// ── Freitext-Feld eines Charakterbogens (Zusammenfassen/Verschmelzen) ───────────
+// Ein Artefakt für alle Aufrufer (Klassenmerkmale, Volksmerkmale, Level-Up-Merge) —
+// welches Feld gemeint ist, sagt der Prompt-Input, nicht das Schema.
+export const fieldSummarySchema = z.object({
+  text: z.string().default('').describe('The FULL revised GERMAN text of the target character-sheet field.'),
 });
 
 // ── Gemeinsames Änderungsformat (Single Source für Anzeige UND Anwendung) ────────
@@ -257,12 +263,12 @@ export type FeatureEffects = z.infer<typeof featureEffectsSchema>;
 export type LevelUpChange = z.infer<typeof levelUpChangeSchema>;
 export type LevelUpEffects = z.infer<typeof levelUpEffectsSchema>;
 export type LevelUpNarrative = z.infer<typeof levelUpNarrativeSchema>;
-export type ClassFeaturesRewrite = z.infer<typeof classFeaturesRewriteSchema>;
+export type FieldSummary = z.infer<typeof fieldSummarySchema>;
 
 export const featureEffectsJsonSchema = toLlmJsonSchema(featureEffectsSchema);
 export const levelUpEffectsJsonSchema = toLlmJsonSchema(levelUpEffectsSchema);
 export const levelUpNarrativeJsonSchema = toLlmJsonSchema(levelUpNarrativeSchema);
-export const classFeaturesRewriteJsonSchema = toLlmJsonSchema(classFeaturesRewriteSchema);
+export const fieldSummaryJsonSchema = toLlmJsonSchema(fieldSummarySchema);
 
 /** Nachsichtiger Guard: parst + füllt Defaults; null bei Schema-Verstoß. */
 export function parseLevelUpChangeSet(data: unknown): LevelUpChangeSet | null {
@@ -281,7 +287,7 @@ export function parseLevelUpNarrative(data: unknown): LevelUpNarrative | null {
   const r = levelUpNarrativeSchema.safeParse(data);
   return r.success ? r.data : null;
 }
-export function parseClassFeaturesRewrite(data: unknown): ClassFeaturesRewrite | null {
-  const r = classFeaturesRewriteSchema.safeParse(data);
+export function parseFieldSummary(data: unknown): FieldSummary | null {
+  const r = fieldSummarySchema.safeParse(data);
   return r.success ? r.data : null;
 }

@@ -178,6 +178,20 @@ export type ArmorTraining = (typeof ARMOR_TRAININGS)[number];
 export const WEAPON_MASTERIES = ['Cleave', 'Graze', 'Nick', 'Push', 'Sap', 'Slow', 'Topple', 'Vex'] as const;
 export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
 
+/**
+ * Die vier Talent-Kategorien aus 5e 2024. Sie entscheiden, WANN ein Talent
+ * genommen werden darf: Origin beim Hintergrund, General ab Stufe 4 (statt einer
+ * Attributserhöhung), Fighting Style nur mit dem gleichnamigen Klassenmerkmal,
+ * Epic Boon ab Stufe 19.
+ *
+ * Open5e nennt das Feld `type`; hier heißt es `category`, weil `type` im Rest der
+ * App schon die Artefaktart bezeichnet (`activeFile.type`). Deutsche Labels in
+ * `featsLibrary.ts` (`FEAT_CATEGORY_DE`) — hier steht nur das Vokabular, damit Zod
+ * es ohne Umweg über die Anzeige-Schicht nutzen kann.
+ */
+export const FEAT_CATEGORIES = ['Origin', 'General', 'Fighting Style', 'Epic Boon'] as const;
+export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
+
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),

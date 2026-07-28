@@ -18,9 +18,14 @@
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
   import { getFeats, searchFeats, saveFeat, type FeatEntry } from '../featsLibrary';
   import {
-    resolveClassFeatures, resolveSpeciesTraits, resolveBackground,
+    resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
     splitFeatureEntries, keysOf, withChoices, type ResolvedFeatureGroup,
   } from '../services/characterFeatures';
+  import { llmConfig } from '../stores/llm';
+  import { runAiAction } from '../services/aiActions/runner';
+  import {
+    buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS, type SummaryFeature,
+  } from '../services/aiActions/fieldSummaryAction';
   import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
   import { OWN_SOURCE } from '../schemas/shared';
@@ -1066,6 +1071,77 @@
     })();
   });
 
+  // ─── KI: die beiden Merkmals-Freitextfelder verdichten ─────────────────────────
+  // Ein Prompt für beide Felder (`fieldSummaryAction`) — dieselbe Doktrin, die im
+  // Stufenaufstieg die `sheetNote`s erzeugt. Rohstoff sind die aus der Bibliothek
+  // aufgelösten DEUTSCHEN Merkmalstexte plus der bisherige Feldinhalt; das jeweils
+  // andere Feld geht mit, damit keine Zeile in beiden Feldern landet.
+  type SummaryField = keyof typeof SHEET_FIELDS;
+  let summaryBusy = $state<SummaryField | null>(null);
+  let summaryError = $state('');
+  // Vorfassung je Feld — ein Fehlgriff der KI bleibt damit zurücknehmbar.
+  let summaryUndo = $state<Partial<Record<SummaryField, string>>>({});
+
+  function summaryFeaturesOf(groups: ResolvedFeatureGroup[], source: SummaryFeature['source']): SummaryFeature[] {
+    return groups.flatMap((g) =>
+      g.features.map((f) => ({
+        name: f.name,
+        desc: f.desc,
+        source,
+        group: g.title,
+        ...(f.gainedAt != null ? { gainedAt: f.gainedAt } : {}),
+        ...(f.choice ? { choice: f.choice } : {}),
+      })),
+    );
+  }
+
+  async function summarizeField(field: SummaryField) {
+    if (summaryBusy) return;
+    summaryBusy = field;
+    summaryError = '';
+    try {
+      const feats = await resolveFeatLinks($state.snapshot(refFeats));
+      const features = [
+        ...summaryFeaturesOf($state.snapshot(classFeatureGroups), 'class'),
+        ...summaryFeaturesOf($state.snapshot(speciesTraitGroups), 'species'),
+        ...summaryFeaturesOf($state.snapshot(backgroundGroups), 'background'),
+        ...feats.map((f): SummaryFeature => ({
+          name: f.name, desc: f.desc, source: 'feat',
+          ...(f.gainedAt != null ? { gainedAt: f.gainedAt } : {}),
+        })),
+      ].filter((f) => f.name.trim() && f.desc.trim());
+
+      const isClassField = field === 'classFeatures';
+      const currentText = isClassField ? classFeatures : rassenmerkmale;
+      const other = isClassField
+        ? { label: SHEET_FIELDS.speciesTraits.label, text: rassenmerkmale }
+        : { label: SHEET_FIELDS.classFeatures.label, text: classFeatures };
+
+      const result = await runAiAction($llmConfig, buildFieldSummaryAction(),
+        buildFieldSummaryInput({ target: SHEET_FIELDS[field], currentText, features, otherFields: [other] }));
+      const text = result.text.trim();
+      if (!text) {
+        summaryError = 'Die KI lieferte keinen Text — Feld unverändert.';
+        return;
+      }
+      summaryUndo = { ...summaryUndo, [field]: currentText };
+      if (isClassField) classFeatures = text;
+      else rassenmerkmale = text;
+    } catch (e) {
+      summaryError = e instanceof Error ? e.message : String(e);
+    } finally {
+      summaryBusy = null;
+    }
+  }
+
+  function undoSummary(field: SummaryField) {
+    const prev = summaryUndo[field];
+    if (prev === undefined) return;
+    if (field === 'classFeatures') classFeatures = prev;
+    else rassenmerkmale = prev;
+    summaryUndo = { ...summaryUndo, [field]: undefined };
+  }
+
   // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
   let featsLibrary = $state<FeatEntry[]>([]);
   let featSavedRow = $state(-1); // Kurzzeit-Bestätigung nach Speichern
@@ -1244,6 +1320,19 @@
         </div>
       {/each}
     {/if}
+  {/snippet}
+
+  <!-- KI-Verdichtung eines Freitextfeldes — ein Knopf je Feld, gleiche Aktion. -->
+  {#snippet summaryBtn(field: SummaryField)}
+    <span class="summary-actions">
+      {#if summaryUndo[field] !== undefined && summaryBusy !== field}
+        <button class="ai-btn" onclick={() => undoSummary(field)} title="Fassung vor der Zusammenfassung wiederherstellen">↩ Zurück</button>
+      {/if}
+      <button class="ai-btn" onclick={() => summarizeField(field)} disabled={summaryBusy !== null}
+        title="Aus allen verlinkten Merkmalen und dem bisherigen Text eine knappe Fassung für den Bogen erzeugen">
+        {summaryBusy === field ? '⏳ KI verdichtet…' : '✨ Zusammenfassen'}
+      </button>
+    </span>
   {/snippet}
 
   <!-- ── Kopf ─── -->
@@ -1724,13 +1813,24 @@
   {/if}
 
   <!-- ── Klassenmerkmale & Volksmerkmale ─── -->
+  <!-- Beide Felder wandern ins PDF und sind knapp bemessen — daher je ein KI-Knopf,
+       der aus den verlinkten Merkmalen eine bogentaugliche Fassung verdichtet. -->
   <section>
-    <h3>Klassenmerkmale & Eigenschaften</h3>
+    <div class="field-head">
+      <h3>Klassenmerkmale & Eigenschaften</h3>
+      {@render summaryBtn('classFeatures')}
+    </div>
     <textarea class="ta-large" use:diffMark={dirOf(saved?.classFeatures, classFeatures)} bind:value={classFeatures} placeholder="Klassenmerkmale, Rasseneigenschaften…"></textarea>
-    <label class="block-label" use:diffMark={dirOf(saved?.personal?.rassenmerkmale, rassenmerkmale)}>
-      Volksmerkmale
-      <textarea class="ta-small" bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
-    </label>
+
+    <div class="field-head sub">
+      <span class="field-title">Volksmerkmale</span>
+      {@render summaryBtn('speciesTraits')}
+    </div>
+    <textarea class="ta-medium" aria-label="Volksmerkmale"
+      use:diffMark={dirOf(saved?.personal?.rassenmerkmale, rassenmerkmale)}
+      bind:value={rassenmerkmale} placeholder="Dunkelsicht, Zwergenresistenz, …"></textarea>
+
+    {#if summaryError}<p class="summary-error">{summaryError}</p>{/if}
   </section>
 
   <!-- ── Verknüpfte Merkmale & Talente ─── -->
@@ -2128,6 +2228,41 @@
     padding-bottom: 0.2rem;
   }
 
+  /* Feld-Kopfzeile: Titel links, KI-Knöpfe rechts — die Trennlinie wandert vom
+     Titel auf die Zeile, sonst endet sie mitten im Kopf. */
+  .field-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--surface);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.2rem;
+  }
+  .field-head.sub { margin-top: 0.9rem; }
+  .field-head h3 { border-bottom: none; margin: 0; padding: 0; }
+  .field-title {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+  .summary-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+  .ai-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--ink-muted);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+  }
+  .ai-btn:hover:not(:disabled) { border-color: var(--arcane); color: var(--arcane); }
+  .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .summary-error {
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+    color: var(--danger);
+  }
+
   label {
     display: flex;
     flex-direction: column;
@@ -2264,7 +2399,6 @@
 
   /* Waffenbeherrschung: dasselbe Panel, aber ohne Label-Spalte (kein „Übernehmen" —
      die Chips SIND die Wahl), deshalb kein Einzug der Chip-Reihe. */
-  .mastery-panel { margin-top: 0.6rem; }
   .mastery-panel .grant-options { padding-left: 0; }
   .mastery-count { font-size: 0.72rem; color: var(--ink-muted); }
   .mastery-count.full { color: var(--copper); }
@@ -2579,7 +2713,12 @@
 
   .ta-large {
     width: 100%;
-    min-height: 80px;
+    min-height: 240px;
+    resize: vertical;
+  }
+  .ta-medium {
+    width: 100%;
+    min-height: 140px;
     resize: vertical;
   }
   .ta-small {

@@ -7,6 +7,10 @@
  * Choices → `finalizeFeatureEffects` (Nach-Analyse im Verlauf + Grounding + Guided).
  * QM-only, Prompts englisch.
  *
+ * Die Verdichtungs-Doktrin der `sheetNote` liegt in `fieldSummaryAction`
+ * (`SHEET_NOTE_DOCTRINE`) — dieselbe Regel trägt die Feld-Zusammenfassung im
+ * Charakter-Editor, und sie soll nur an einer Stelle optimiert werden.
+ *
  * Zwei Details tragen die Qualität messbar (evals/featureAnalysis.eval.test.ts): jedes
  * Merkmal geht mit EN- *und* DE-Text rein (EN = Regelquelle, DE = die Begriffe, in denen
  * Fragen und Optionen formuliert werden), und die getroffenen Wahlen kommen als eigener
@@ -18,6 +22,7 @@ import {
   SHEET_NOTE_MAX_CHARS,
   type FeatureEffects,
 } from '../../schemas/levelUp';
+import { SHEET_NOTE_DOCTRINE } from './fieldSummaryAction';
 import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
@@ -86,17 +91,9 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
 9. Never invent mechanics that are not in the feature's own rules text. When in doubt, leave a field empty.
 
 ## sheetNote (rule 10)
-10. sheetNote is ONE short GERMAN line for the paper character sheet's "Klassenmerkmale" field: \`Merkmalsname: was es bewirkt\`, max ~${SHEET_NOTE_MAX_CHARS} characters, no line breaks, no markdown.
-    This field is printed into a PDF box that holds only about 1400 characters IN TOTAL and keeps growing with every level-up. Space is the scarce resource — write a note only where it earns its place.
-    WRITE a note for:
-    - abilities the player must actively remember to use: what it does, its action type, and how often (e.g. "2×/kurze Rast", "1×/lange Rast");
-    - numbers that live nowhere else on the sheet (sneak attack dice, rage count/damage, ki points, wild shape limits);
-    - the ONGOING MECHANIC that follows from a decision in <resolved_choices>, when that mechanic lives nowhere else on the sheet — weave the chosen option into the wording (e.g. "Kampfstil Duellant: +2 Schaden mit einhändiger Waffe") instead of repeating the question.
-    LEAVE IT EMPTY ("") for:
-    - purely narrative/flavor features with no table-side effect;
-    - anything the sheet already records elsewhere: granted spells (spell list), proficiencies and expertise (skill block), ability increases (ability scores), spell slots / proficiency bonus / hit dice (computed);
-    - a decision whose content is only WHICH option was picked. The choice itself is stored structurally on the character (it reaches you as <past_choices> on later level-ups), so the sheet does not need it. "Urtümlicher Orden: Wächter" is therefore an empty note — its effect is a proficiency; a note is only justified if the option adds an ongoing mechanic per the bullet above.
-    Condense aggressively: the player owns the rulebook, this line is a reminder, not a rules quote. Prefer numbers and keywords over sentences; drop filler like "Du kannst".`;
+10. sheetNote is that entry for THIS feature, squeezed into ONE line for the "Klassenmerkmale" field: no line breaks, no markdown, max ~${SHEET_NOTE_MAX_CHARS} characters — the player's own free text is merged with it later. Empty string ("") where the doctrine below wants no entry. Here, "an option the player picked" means an entry in <resolved_choices>; that choice is also stored structurally (it comes back as <past_choices> on later level-ups), so it only earns a note when it adds an ongoing mechanic.
+
+${SHEET_NOTE_DOCTRINE}`;
 
 /**
  * Pass-A-Prompt (Reasoning): reine Analyse, bewusst OHNE Rider-Vokabular. Strukturiert
