@@ -148,10 +148,14 @@ export const ABILITY_LABEL: Record<AbilityKey, string> = {
 };
 
 // ── Feature-Normalisierung ─────────────────────────────────────────────────────
-function featureToGained(f: ClassFeature, source: 'class' | 'subclass', toLevel: number): GainedFeature {
+function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {
+  // Die Stufe ist die NIEDRIGSTE innerhalb der aufgestiegenen Spanne — bei einem mehrfach
+  // vergebenen Merkmal (Expertise auf 1 und 6) sonst immer die erste Vergabe, womit die
+  // zweite Entscheidung im Ledger die erste überschreiben würde.
+  const inSpan = f.gainedAt.filter((l) => l > fromLevel && l <= toLevel);
   // EN-Text UND Übersetzung mitgeben: die KI liest die Mechanik aus dem Original und
   // formuliert Fragen/Optionen in den deutschen Begriffen der Übersetzung.
-  return { name: f.name, desc: f.desc ?? '', descDe: f.descDe, source, key: f.key ?? '', gainedAt: Math.min(toLevel, ...(f.gainedAt.length ? f.gainedAt : [toLevel])) };
+  return { name: f.name, desc: f.desc ?? '', descDe: f.descDe, source, key: f.key ?? '', gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel };
 }
 
 /** Merkmale, die eine Progression in der Spanne (from, to] erlangt. */
@@ -173,8 +177,8 @@ export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
     ...delta.featuresGained
       .filter((f) => !isFlowOwnedChoiceFeature(f))
-      .map((f) => featureToGained(f, 'class', delta.toLevel)),
-    ...delta.subclassFeaturesGained.map((f) => featureToGained(f, 'subclass', delta.toLevel)),
+      .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
+    ...delta.subclassFeaturesGained.map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }
 
@@ -182,7 +186,7 @@ export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
 export async function computeSubclassFeatures(subclassKey: string, from: number, to: number): Promise<GainedFeature[]> {
   const prog = await getProgressionByKey(subclassKey);
   if (!prog) return [];
-  return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', to));
+  return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', from, to));
 }
 
 /** Ein Talent (Name + EN-/DE-Beschreibung) als GainedFeature für die Effekt-Deutung. */
@@ -263,7 +267,8 @@ export function learnInfo(delta: LevelUpDelta, riders: FeatureRider[]): LearnInf
 // ── Fragebogen ableiten ────────────────────────────────────────────────────────
 const opt = (value: string, label: string) => ({ value, label });
 const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQuestion['type']; prompt: string }): LevelUpQuestion => ({
-  help: '', options: [], defaultValue: '', required: true, spellLevels: [], spellClass: '', resolvesEffects: false, ...q,
+  help: '', options: [], defaultValue: '', required: true, spellLevels: [], spellClass: '',
+  resolvesEffects: false, featureKey: '', isBuildDecision: false, ...q,
 });
 
 /**
@@ -351,6 +356,8 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
       options: c.options.map((o) => opt(o, o)),
       max: c.type === 'multiselect' ? Math.max(1, c.max) : undefined,
       resolvesEffects: c.determinesFurtherEffects,
+      featureKey: c.featureKey,
+      isBuildDecision: c.isBuildDecision,
     }),
   );
 }
@@ -528,20 +535,78 @@ export function featChanges(chosenFeats: { key: string; name: string; gainedAt: 
 }
 
 /**
- * Getroffene Feature-Wahlen (rider.decisions) als Info-Notiz (`note`) — reines Protokoll.
- * Auf den Charakter kommen diese Wahlen über die `sheetNote` ihres Merkmals, in die Pass C
- * das Ergebnis der Entscheidung einwebt (siehe sheetNoteLines).
+ * Die Antwort auf eine Frage als deutsche Label-Liste (Mehrfachauswahl komma-verbunden).
+ * Ein Wert ohne passende Option ist Freitext und bleibt, wie er ist.
+ */
+export function answerLabels(q: LevelUpQuestion, value: string | string[] | undefined): string {
+  if (value === undefined) return '';
+  const vals = Array.isArray(value) ? value : [value];
+  return vals.map((v) => q.options.find((o) => o.value === v)?.label ?? v).filter((s) => s.trim()).join(', ');
+}
+
+/** Ob diese Frage eine Entscheidung ins Merkmals-Ledger schreibt. */
+function recordsChoice(q: LevelUpQuestion, answers: Record<string, string | string[]>): boolean {
+  return !!q.featureKey && q.isBuildDecision && !!answerLabels(q, answers[q.id]);
+}
+
+/**
+ * Getroffene Aufbau-Entscheidungen als `featureChoice`-Changes — der strukturierte Teil,
+ * der im Merkmals-Ledger des Charakters landet. Nur Fragen, die ein Bibliotheks-Merkmal
+ * stellt (`featureKey`) UND die eine dauerhafte Wahl sind (`isBuildDecision`); Wahlen pro
+ * Einsatz werden beantwortet, aber nicht festgeschrieben.
+ *
+ * Die Stufe kommt aus dem Merkmal selbst, nicht aus der Zielstufe: bei einem Sprung über
+ * mehrere Stufen gehört die Wahl zu der Stufe, auf der das Merkmal kam.
+ */
+export function featureChoiceChanges(
+  qs: LevelUpQuestion[],
+  answers: Record<string, string | string[]>,
+  gainedAtByKey: Map<string, number>,
+  fallbackLevel: number,
+  step: 'assemble-decisions' | 'feat-effects',
+): Change[] {
+  const out: Change[] = [];
+  for (const q of qs) {
+    if (!recordsChoice(q, answers)) continue;
+    const choice = answerLabels(q, answers[q.id]);
+    out.push({
+      target: 'featureChoice',
+      sourceKey: q.featureKey,
+      choice,
+      gainedAt: gainedAtByKey.get(q.featureKey) ?? fallbackLevel,
+      step,
+      source: q.featureKey,
+      label: `${q.prompt}: ${choice}`,
+    });
+  }
+  return out;
+}
+
+/**
+ * Getroffene Feature-Wahlen (rider.decisions) als Info-Notiz (`note`) — reines Protokoll
+ * für alles, was NICHT im Merkmals-Ledger landet (Wahlen pro Einsatz, Wahlen ohne
+ * auflösbaren Merkmals-Key). Was `featureChoiceChanges` schon aufgenommen hat, wird über
+ * `recorded` (Choice-ids) ausgelassen — sonst stünde jede Entscheidung zweimal im Protokoll.
  * `step` unterscheidet Basis- ('assemble-decisions') von Talent-Wahlen ('feat-effects').
  */
-export function decisionNotes(riders: FeatureRider[], step: 'assemble-decisions' | 'feat-effects'): Change[] {
+export function decisionNotes(
+  riders: FeatureRider[],
+  step: 'assemble-decisions' | 'feat-effects',
+  recorded: Set<string> = new Set(),
+): Change[] {
   const out: Change[] = [];
   for (const r of riders) {
     for (const d of r.decisions) {
-      if (!d.answer?.trim()) continue;
+      if (!d.answer?.trim() || recorded.has(d.id)) continue;
       out.push({ target: 'note', value: d.answer, step, source: r.featureName || 'feature', label: `${d.question}: ${d.answer}` });
     }
   }
   return out;
+}
+
+/** Choice-ids, die als `featureChoice` festgehalten werden (Gegenstück zu `decisionNotes`). */
+export function recordedChoiceIds(qs: LevelUpQuestion[], answers: Record<string, string | string[]>): Set<string> {
+  return new Set(qs.filter((q) => recordsChoice(q, answers)).map((q) => q.id));
 }
 
 /**
@@ -586,6 +651,11 @@ export interface DocInput {
   pickedLearned: { level: number; name: string }[];
   learnAsPrepared: boolean;
   chosenFeats: { key: string; name: string; gainedAt: number }[];
+  // Die Wahl-Fragebögen beider Checkpoints — Quelle der `featureChoice`-Changes; die
+  // Merkmalsliste liefert dazu die Stufe je Merkmals-Key.
+  baseChoiceQs: LevelUpQuestion[];
+  featChoiceQs: LevelUpQuestion[];
+  gainedFeatures: GainedFeature[];
   hpPerLevelSources: { feature: string; sourceKey?: string; amount: number }[];
   narrativeSummary: string;
   featuresText: string;
@@ -601,15 +671,21 @@ export interface DocInput {
  * Antwort, neu gewählte Subklasse) ersetzt automatisch nur seine eigenen Einträge.
  */
 export function buildDoc(p: DocInput): LevelUpDoc {
+  const gainedAtByKey = new Map<string, number>();
+  for (const f of [...p.gainedFeatures, ...p.subFeatures]) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
+  for (const f of p.chosenFeats) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
+
   const changes: Change[] = [
     ...baseDeltaChanges(p.delta, p.hitDice),
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
-    ...decisionNotes(p.validatedBase.riders, 'assemble-decisions'),
+    ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
+    ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
-    ...decisionNotes(p.validatedFeats.riders, 'feat-effects'),
+    ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects'),
+    ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),
     ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),
   ];

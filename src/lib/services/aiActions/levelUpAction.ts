@@ -17,6 +17,7 @@ import type { AiAction } from './types';
 import type { LevelUpDelta } from '../levelUp';
 import type { FeatureRider } from '../../schemas/levelUp';
 import type { GainedFeature } from './featureEffectsAction';
+import type { PastChoice } from '../characterFeatures';
 import {
   levelUpNarrativeJsonSchema,
   classFeaturesRewriteJsonSchema,
@@ -131,10 +132,12 @@ export function buildNarrativeInput(ctx: {
   chosenSubclass: { key: string; name: string } | null;
   chosenFeats: { key: string; name: string }[];
   riders: FeatureRider[];
+  pastChoices?: PastChoice[];
 }): string {
   const span = { klasse: ctx.delta.klasseName, von: ctx.delta.fromLevel, bis: ctx.delta.toLevel };
   return [
     `<character_summary>${JSON.stringify(ctx.summary)}</character_summary>`,
+    ...(ctx.pastChoices?.length ? [`<past_choices>${JSON.stringify(ctx.pastChoices)}</past_choices>`] : []),
     `<level_span>${JSON.stringify(span)}</level_span>`,
     `<gained_features>${JSON.stringify(ctx.gainedFeatures.map((f) => ({ name: f.name, source: f.source })))}</gained_features>`,
     `<chosen_subclass>${JSON.stringify(ctx.chosenSubclass)}</chosen_subclass>`,

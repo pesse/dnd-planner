@@ -95,6 +95,12 @@ const questionSchema = z.object({
   // berechnen muss (z.B. Zirkel des Landes: Landart → immer vorbereitete Kreissprüche).
   // false für Wahlen, deren Antwort direkt der Effekt ist (Skill, +1 Attribut, Kampfstil).
   resolvesEffects: z.boolean().default(false).describe('true = the choice determines further grants; run the effects pass again with it resolved before finishing.'),
+  // Anker, unter dem die Antwort im Merkmals-Ledger des Charakters landet. Leer bei
+  // Fragen, die kein Bibliotheks-Merkmal stellt (TP-Methode, ASI-Verteilung).
+  featureKey: z.string().default('').describe('Library key of the feature that forces this choice; empty for questions the flow itself asks.'),
+  // false = Wahl pro Einsatz; sie wird beantwortet, aber nicht als Aufbau-Entscheidung
+  // im Ledger festgehalten.
+  isBuildDecision: z.boolean().default(false).describe('true = permanent build decision worth recording on the character.'),
 });
 
 const abilityDeltaSchema = z.object({
@@ -223,9 +229,12 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
   // Info-Eintrag: neu gewonnenes Merkmal (keine Anwendung, reines Feedback).
   z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), ...changeBase }),
-  // Info-Eintrag: getroffene Spieler-Wahl aus einem Merkmals-choicePrompt (z.B. Landart
-  // beim Zirkel des Landes). Keine mechanische Anwendung — der Wortlaut landet über den
-  // Klassenmerkmale-Freitext auf dem Charakter; hier nur zur Nachvollziehbarkeit.
+  // Getroffene Aufbau-Entscheidung zu einem Merkmal (z.B. Urtümlicher Orden → Wächter).
+  // Landet strukturiert in `character.features[]`, verankert an (sourceKey, gainedAt) —
+  // deshalb darf der Klassenmerkmale-Freitext sie weglassen.
+  z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), gainedAt: z.number().int(), ...changeBase }),
+  // Info-Eintrag: Protokoll einer Fragebogen-Antwort ohne eigenes Ziel am Charakter
+  // (TP-Methode, Würfelergebnis). Keine mechanische Anwendung.
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),
 ]);
 

@@ -116,7 +116,7 @@ export interface GrantInput {
   classes?: { sourceKey: string; name?: string; subclassKey?: string }[];
   species?: { sourceKey?: string; subspeciesKey?: string };
   backgroundRef?: { sourceKey?: string };
-  references?: { feats?: { sourceKey?: string; name?: string }[] };
+  features?: { sourceKey?: string; name?: string }[];
 }
 
 const emptyCollected = (): CollectedGrants => ({
@@ -164,7 +164,7 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
   const out = emptyCollected();
   const featLib = await getFeats();
 
-  // ── Hintergrund (+ Herkunftstalent, das nicht in references.feats steht) ──
+  // ── Hintergrund (+ Herkunftstalent, das nicht in features steht) ──
   const bgKey = c.backgroundRef?.sourceKey ?? '';
   if (bgKey) {
     const bg = await getBackgroundByKey(bgKey);
@@ -205,7 +205,9 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
   }
 
   // ── Verlinkte Talente ──
-  for (const ref of c.references?.feats ?? []) {
+  // Wahl-Annotationen liegen in derselben Liste; sie tragen einen Merkmals-Key, den das
+  // Talent-Wörterbuch nicht kennt, und fallen deshalb ohne Sonderfall heraus.
+  for (const ref of c.features ?? []) {
     const entry = findFeat(featLib, ref.sourceKey, ref.name ?? '');
     if (!entry) continue;
     addGrant(out, entry.proficiencyGrant, {

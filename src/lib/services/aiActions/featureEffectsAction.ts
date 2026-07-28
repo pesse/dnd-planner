@@ -24,6 +24,7 @@ import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
 import { getSpellLibrary } from '../../spellLibrary';
 import { resolveSpell } from '../levelUpMachine';
+import type { PastChoice } from '../characterFeatures';
 import { stripJsonFence } from '../jsonFence';
 
 /** Einheitliche Eingabe-Einheit für die Effekt-Deutung (Merkmal ODER Talent). */
@@ -34,6 +35,7 @@ export interface GainedFeature {
   source: 'class' | 'subclass' | 'feat';
   gainedAt: number;
   key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
+  choice?: string; // Bereits getroffene Entscheidung — verhindert, dass sie erneut gefragt wird
 }
 
 /**
@@ -89,10 +91,11 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
     WRITE a note for:
     - abilities the player must actively remember to use: what it does, its action type, and how often (e.g. "2×/kurze Rast", "1×/lange Rast");
     - numbers that live nowhere else on the sheet (sneak attack dice, rage count/damage, ki points, wild shape limits);
-    - the CONSEQUENCE of a decision from <resolved_choices> — weave the chosen option into the wording (e.g. "Kampfstil Duellant: +2 Schaden mit einhändiger Waffe") instead of repeating the question.
+    - the ONGOING MECHANIC that follows from a decision in <resolved_choices>, when that mechanic lives nowhere else on the sheet — weave the chosen option into the wording (e.g. "Kampfstil Duellant: +2 Schaden mit einhändiger Waffe") instead of repeating the question.
     LEAVE IT EMPTY ("") for:
     - purely narrative/flavor features with no table-side effect;
-    - anything the sheet already records elsewhere: granted spells (spell list), proficiencies and expertise (skill block), ability increases (ability scores), spell slots / proficiency bonus / hit dice (computed).
+    - anything the sheet already records elsewhere: granted spells (spell list), proficiencies and expertise (skill block), ability increases (ability scores), spell slots / proficiency bonus / hit dice (computed);
+    - a decision whose content is only WHICH option was picked. The choice itself is stored structurally on the character (it reaches you as <past_choices> on later level-ups), so the sheet does not need it. "Urtümlicher Orden: Wächter" is therefore an empty note — its effect is a proficiency; a note is only justified if the option adds an ongoing mechanic per the bullet above.
     Condense aggressively: the player owns the rulebook, this line is a reminder, not a rules quote. Prefer numbers and keywords over sentences; drop filler like "Du kannst".`;
 
 /**
@@ -105,10 +108,16 @@ You receive the game features/feats a character has JUST gained (<gained_feature
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT produce any final data structures or grants here — reason in prose and end with one compact manifest.
 
 ## What to work out
-1. Forced player choices: EVERY choice a feature forces on the player — a subclass option, a terrain, a fighting style, an Expertise skill selection, "+1 to one of several abilities", pick a spell from a list, etc. For each, note the German question, the concrete options if you know them, how many may be picked (max), and whether the choice DETERMINES further mechanical effects that cannot be stated until it is made (e.g. a Circle of the Land terrain decides which spells are granted).
+1. Forced player choices: EVERY choice a feature forces on the player — a subclass option, a terrain, a fighting style, an Expertise skill selection, "+1 to one of several abilities", pick a spell from a list, etc. For each, note the German question, the concrete options if you know them, how many may be picked (max), and whether the choice DETERMINES further mechanical effects that cannot be stated until it is made (e.g. a Circle of the Land terrain decides which spells are granted). Three rules on top:
+   - **featureKey**: copy the "key" of the emitting feature VERBATIM from <gained_features>. Never invent, shorten or translate it. Empty string only if that feature carries no key.
+   - **Option wording**: give each option as the German label EXACTLY as the feature's "descDe" writes it (for a bolded option paragraph \`**Wächter.**\` the option is \`Wächter\`). The stored answer is later matched back against that text, so do not paraphrase, expand or re-case it.
+   - **isBuildDecision**: true only for a PERMANENT character-building choice (Primal Order, Divine Order, a fighting style, Expertise skills, an elven lineage, a terrain, metamagic options). false for options the player picks anew on each USE of the feature (Channel Divinity's Divine Spark vs Turn Undead, Cunning Strike effects, Brutal Strike effects) — those still need asking when the feature demands it now, but they are not part of the character's build.
 2. Mechanical dependencies: state clearly which grants depend on which choice and which grants are unconditional.
 3. Spells granted as ALWAYS PREPARED for free (subclass/circle/domain lists, spell-granting feats) — canonical ENGLISH SRD names. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn.
 4. Any other concrete mechanical grants (proficiencies, fixed ability increases, extra cantrips/prepared spells) — describe them in prose. You do NOT need to structure these; the next step reads your prose.
+
+## <past_choices>
+May be present: build decisions this character made at EARLIER levels, as {"featureKey", "feature", "choice"}. They are FINAL — never ask about them again, and treat their consequences as already in place (a druid who chose Warden has Martial weapon proficiency and Medium armor training). Use them when a new feature builds on an older choice.
 
 ## <resolved_choices>
 The player answers in a LATER turn, as a compact list of {"id": "<the id from your manifest>", "choice": "<the German label the player picked>"} — nothing else. When that turn arrives, REDO the analysis with those answers baked in:
@@ -121,13 +130,13 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 \`\`\`json
 {
   "choices": [
-    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "max": 1, "determinesFurtherEffects": true }
+    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
   ],
   "spellsToGround": ["Canonical English Spell Name"],
   "blocked": false
 }
 \`\`\`
-- choices: EVERY forced player choice (incl. fighting style, expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), or "text" (free). options=[] if free text. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet.
+- choices: EVERY forced player choice (incl. fighting style, expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), or "text" (free). options=[] if free text. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet. featureKey and isBuildDecision as specified above.
 - spellsToGround: canonical ENGLISH names of always-prepared spell grants to resolve NOW (empty [] if none or if blocked).
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.`;
 
@@ -138,10 +147,12 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 export function buildFeatureEffectsInput(ctx: {
   classContext: FeatureClassContext;
   features: GainedFeature[];
+  pastChoices?: PastChoice[];
 }): string {
   return [
     `<class_context>${JSON.stringify(ctx.classContext)}</class_context>`,
     `<gained_features>${JSON.stringify(ctx.features)}</gained_features>`,
+    ...(ctx.pastChoices?.length ? [`<past_choices>${JSON.stringify(ctx.pastChoices)}</past_choices>`] : []),
   ].join('\n');
 }
 
@@ -154,6 +165,7 @@ export function buildResolvedChoicesTurn(choices: ResolvedChoice[]): string {
 export interface FeatureEffectsContext {
   classContext: FeatureClassContext;
   features: GainedFeature[];
+  pastChoices?: PastChoice[]; // schon festgelegte Wahlen früherer Stufen
   resolvedChoices?: ResolvedChoice[]; // nur für finalizeFeatureEffects
 }
 
@@ -168,11 +180,15 @@ export interface FeatureEffectsRunOptions {
 export interface AnalysisChoice {
   id: string;
   feature: string;
+  /** Bibliotheks-Key des Merkmals — Anker, unter dem die Antwort am Charakter landet. */
+  featureKey: string;
   question: string;
   type: 'choice' | 'multiselect' | 'text';
   options: string[];
   max: number;
   determinesFurtherEffects: boolean;
+  /** false = Wahl pro Einsatz (Kanalisierte Göttlichkeit u.ä.) → wird nicht protokolliert. */
+  isBuildDecision: boolean;
 }
 
 export interface FeatureAnalysis {
@@ -199,11 +215,16 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
   return {
     id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : slug,
     feature: typeof o.feature === 'string' ? o.feature : '',
+    featureKey: typeof o.featureKey === 'string' ? o.featureKey.trim() : '',
     question: o.question,
     type,
     options: Array.isArray(o.options) ? o.options.filter((x): x is string => typeof x === 'string') : [],
     max: typeof o.max === 'number' && o.max > 0 ? Math.floor(o.max) : 1,
     determinesFurtherEffects: o.determinesFurtherEffects === true,
+    // Vorsichtiger Default: eine nicht als Aufbau-Wahl markierte Antwort wird nur
+    // protokolliert, wenn das Modell es ausdrücklich sagt — sonst wächst das Ledger
+    // mit Taktik-Optionen zu.
+    isBuildDecision: o.isBuildDecision === true,
   };
 }
 

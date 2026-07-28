@@ -379,7 +379,7 @@
       personal: emptyPersonal(),
       proficiencies: emptyProficiencies(),
       masteries: [],
-      references: { feats: [] },
+      features: [],
     };
 
     const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;

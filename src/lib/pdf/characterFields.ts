@@ -12,8 +12,7 @@ import type {
   SpellEntry,
   ProficiencyFlags,
   PersonalData,
-  CharacterReferences,
-  ReferenceEntry,
+  CharacterFeatureEntry,
   CharacterClass,
   CharacterSpecies,
   CharacterBackground,
@@ -30,8 +29,7 @@ export type {
   SpellEntry,
   ProficiencyFlags,
   PersonalData,
-  CharacterReferences,
-  ReferenceEntry,
+  CharacterFeatureEntry,
   CharacterClass,
   CharacterSpecies,
   CharacterBackground,
@@ -325,7 +323,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     // Das PDF führt die Waffenbeherrschung nur als Namenssuffix am Angriff (oben
     // abgeschnitten) — welche Waffen gewählt sind, entscheidet der Editor.
     masteries: [],
-    // Verknüpfte Talente sind nicht Teil des PDFs → leer starten.
-    references: { feats: [] },
+    // Talent-Links und Merkmals-Entscheidungen sind nicht Teil des PDFs → leer starten.
+    features: [],
   };
 }

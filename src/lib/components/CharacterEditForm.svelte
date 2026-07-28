@@ -17,7 +17,10 @@
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
   import { getFeats, searchFeats, saveFeat, type FeatEntry } from '../featsLibrary';
-  import { resolveClassFeatures, resolveSpeciesTraits, resolveBackground, type ResolvedFeatureGroup } from '../services/characterFeatures';
+  import {
+    resolveClassFeatures, resolveSpeciesTraits, resolveBackground,
+    splitFeatureEntries, keysOf, withChoices, type ResolvedFeatureGroup,
+  } from '../services/characterFeatures';
   import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
   import { OWN_SOURCE } from '../schemas/shared';
@@ -175,8 +178,14 @@
 
   let attacks = $state(character.attacks.map(a => ({ ...a })));
   let classFeatures = $state(character.classFeatures ?? '');
-  // Verknüpfte Talente (Links; Beschreibung wird aus der Bibliothek aufgelöst).
-  let refFeats = $state((character.references?.feats ?? []).map(r => ({ ...r })));
+  // Das Merkmals-Ledger wird beim Bearbeiten AUFGETEILT: editierbar sind nur die
+  // Talent-Links, die Entscheidungen laufen unangetastet durch. Ohne diese Trennung
+  // würde `cleanRefs` sie beim Speichern verschlucken — sie tragen keinen `name`.
+  let refFeats = $state((character.features ?? []).filter(r => !r.choice?.trim()).map(r => ({ ...r })));
+  const choiceEntries = (character.features ?? []).filter(r => !!r.choice?.trim()).map(r => ({ ...r }));
+  // Gegenstück für das Diff-Highlighting: dieselbe Teilmenge am gespeicherten Stand,
+  // damit die Indizes zu `refFeats` passen.
+  const savedFeatLinks = $derived((saved?.features ?? []).filter(r => !r.choice?.trim()));
   let traits = $state(character.traits ?? '');
   let ideals = $state(character.ideals ?? '');
   let bonds = $state(character.bonds ?? '');
@@ -566,7 +575,7 @@
     classes: classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, subclassKey: c.subclassKey })),
     species: { sourceKey: species.sourceKey, subspeciesKey: species.subspeciesKey },
     backgroundRef: { sourceKey: backgroundRef.sourceKey },
-    references: { feats: refFeats.map((f) => ({ sourceKey: f.sourceKey, name: f.name })) },
+    features: refFeats.map((f) => ({ sourceKey: f.sourceKey, name: f.name })),
   }));
 
   $effect(() => {
@@ -765,9 +774,10 @@
   }
   function removeInventoryItem(i: number) { inventory.splice(i, 1); }
 
-  // Referenz-Einträge (nur noch Talent-Links).
+  // Ledger-Einträge, die der Editor anlegt, sind immer Talent-Links — Entscheidungen
+  // entstehen ausschließlich im Stufenaufstieg.
   function addRef(list: typeof refFeats) {
-    list.push({ sourceKey: '', name: '', gainedAt: undefined, desc: '' });
+    list.push({ sourceKey: '', name: '', choice: '', gainedAt: undefined, desc: '' });
   }
   function removeRef(list: typeof refFeats, i: number) { list.splice(i, 1); }
 
@@ -1043,9 +1053,17 @@
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
   let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
   $effect(() => {
-    resolveClassFeatures($state.snapshot(classes)).then((g) => { classFeatureGroups = g; });
-    resolveSpeciesTraits($state.snapshot(species)).then((g) => { speciesTraitGroups = g ?? []; });
-    resolveBackground($state.snapshot(backgroundRef)).then((g) => { backgroundGroups = g ? [g] : []; });
+    const cls = $state.snapshot(classes);
+    const spec = $state.snapshot(species);
+    const bg = $state.snapshot(backgroundRef);
+    void (async () => {
+      const [c, s, b] = await Promise.all([resolveClassFeatures(cls), resolveSpeciesTraits(spec), resolveBackground(bg)]);
+      const bgGroups = b ? [b] : [];
+      const { annotations } = splitFeatureEntries(choiceEntries, keysOf([...c, ...(s ?? []), ...bgGroups]));
+      classFeatureGroups = withChoices(c, annotations);
+      speciesTraitGroups = withChoices(s ?? [], annotations);
+      backgroundGroups = withChoices(bgGroups, annotations);
+    })();
   });
 
   // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
@@ -1176,12 +1194,11 @@
         .map((r) => ({
           sourceKey: r.sourceKey ?? '',
           name: r.name,
+          choice: '',
           gainedAt: r.gainedAt == null || Number.isNaN(r.gainedAt) ? undefined : Number(r.gainedAt),
           desc: r.desc ?? '',
         }));
-    character.references = {
-      feats: cleanRefs(refFeats),
-    };
+    character.features = [...cleanRefs(refFeats), ...choiceEntries];
     character.portraitFile = portraitFile || undefined;
   });
 
@@ -1215,6 +1232,7 @@
                   <div class="fp-head">
                     <span class="fp-name">{f.name}</span>
                     {#if f.gainedAt}<span class="fp-lvl">Stufe {f.gainedAt}</span>{/if}
+                    {#if f.choice}<span class="fp-choice">Entscheidung: {f.choice}</span>{/if}
                   </div>
                   {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
                 </li>
@@ -1685,8 +1703,8 @@
           <tbody>
             {#each refFeats as ref, i}
               {@const refDir = !saved || !ref.name.trim() ? 'none'
-                : i >= (saved.references?.feats?.length ?? 0) ? 'up'
-                : classifyChange($state.snapshot(saved.references.feats[i]), $state.snapshot(ref))}
+                : i >= savedFeatLinks.length ? 'up'
+                : classifyChange($state.snapshot(savedFeatLinks[i]), $state.snapshot(ref))}
               <tr use:diffMark={refDir}>
                 <td>
                   <div class="autocomplete-wrap">
@@ -2353,6 +2371,11 @@
   .fp-head { display: flex; align-items: baseline; gap: 0.5rem; }
   .fp-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
   .fp-lvl { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
+  .fp-choice {
+    color: var(--gold); font-size: 0.72rem; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+  }
   .fp-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
   .fp-empty { color: var(--ink-muted); font-style: italic; font-size: 0.8rem; margin: 0.3rem 0 0; }
   .ref-unlinked { display: inline-block; margin-top: 0.15rem; font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }

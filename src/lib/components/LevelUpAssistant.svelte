@@ -35,12 +35,14 @@
   import {
     buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
   } from '../services/aiActions/levelUpEffectsAction';
-  import { resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks } from '../services/characterFeatures';
+  import {
+    resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
+  } from '../services/characterFeatures';
   import {
     type StepId, type AdvanceCtx, type ValidatedRiders,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines,
+    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerLabels,
   } from '../services/levelUpMachine';
   import {
     parseLevelUpEffects, parseLevelUpNarrative, parseClassFeaturesRewrite,
@@ -103,6 +105,11 @@
 
   let libClasses = $state<ClassInfo[]>([]);
   $effect(() => { getClasses().then((cs) => { libClasses = cs.filter((c) => c.key && !c.subclassOf); }); });
+
+  // Entscheidungen früherer Stufen: die Analyse darf sie nicht erneut stellen und muss
+  // ihre Folgen als gesetzt behandeln (Wächter ⇒ Kriegswaffen + mittlere Rüstung).
+  let pastChoices = $state<PastChoice[]>([]);
+  $effect(() => { resolvePastChoices(character).then((p) => { pastChoices = p; }); });
   let newClassKey = $state('');
   let newClassName = $state('');
   function selectNewClass(key: string) {
@@ -492,7 +499,7 @@
     let analysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
     if (features.length) {
       pushStep(`KI analysiert ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      analysis = await analyzeFeatureEffects($llmConfig, { classContext: classContext(), features }, runOpts());
+      analysis = await analyzeFeatureEffects($llmConfig, { classContext: classContext(), features, pastChoices }, runOpts());
       if (!alive()) return;
     }
     const choiceQs = buildFeatureChoices(analysis.choices);
@@ -513,9 +520,7 @@
     for (const q of qs) {
       const v = answers[q.id];
       if (!answered(v)) continue;
-      const vals = Array.isArray(v) ? v : [v];
-      const labels = vals.map((val) => q.options.find((o) => o.value === val)?.label ?? val);
-      out.push({ id: q.id, choice: labels.join(', ') });
+      out.push({ id: q.id, choice: answerLabels(q, v) });
     }
     return out;
   }
@@ -533,7 +538,7 @@
         ? 'KI berücksichtigt die getroffene Wahl und leitet die Effekte ab…'
         : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
       const eff = await finalizeFeatureEffects($llmConfig,
-        { classContext: classContext(), features, resolvedChoices: decisionsCtx }, analysis, runOpts());
+        { classContext: classContext(), features, pastChoices, resolvedChoices: decisionsCtx }, analysis, runOpts());
       if (!alive()) return;
       parsed = eff.riders;
     }
@@ -560,7 +565,7 @@
         buildNarrativeInput({
           summary: buildSummary(), delta: delta!, gainedFeatures, chosenSubclass,
           chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name })),
-          riders: [...riders, ...featRiders],
+          riders: [...riders, ...featRiders], pastChoices,
         }), runOpts());
       if (!alive()) return;
       n = parseLevelUpNarrative(raw) ?? n;
@@ -701,7 +706,9 @@
         ...((await resolveSpeciesTraits(character.species)) ?? []),
         ...(await resolveClassFeatures(character.classes)),
       ];
-      const featLinks = await resolveFeatLinks(character.references?.feats);
+      // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
+      // ihr Merkmal steckt schon in `groups`.
+      const featLinks = await resolveFeatLinks((character.features ?? []).filter((f) => !f.choice?.trim()));
       const raw = [
         ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
         ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
@@ -777,6 +784,7 @@
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, gainedAt: f.gainedAt })),
+      baseChoiceQs: baseChoices, featChoiceQs: featChoices, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });
   });

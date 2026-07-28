@@ -33,6 +33,7 @@
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
     resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
+    splitFeatureEntries, keysOf, withChoices, isOrphanChoice,
     type ResolvedFeatureGroup, type ResolvedFeature,
   } from '../services/characterFeatures';
   import type { Spell, Item } from '../types';
@@ -50,6 +51,10 @@
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
   let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
   let featLinks = $state<ResolvedFeature[]>([]);
+  // Verwaiste Entscheidungen tragen kein Merkmal mehr (Klassen-Link getauscht, Key
+  // verschoben) — eigener Block, statt sie unter „Talente" einzureihen.
+  const featEntries = $derived(featLinks.filter((f) => !isOrphanChoice(f)));
+  const orphanChoices = $derived(featLinks.filter(isOrphanChoice));
   // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
   // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
   // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
@@ -58,10 +63,21 @@
     if (!featuresOpen) return;
     const c = character;
     if (!c) return;
-    resolveClassFeatures(c.classes ?? []).then((g) => { classFeatureGroups = g; });
-    resolveSpeciesTraits(c.species).then((g) => { speciesTraitGroups = g ?? []; });
-    resolveBackground(c.backgroundRef).then((g) => { backgroundGroups = g ? [g] : []; });
-    resolveFeatLinks(c.references?.feats).then((f) => { featLinks = f; });
+    // Erst alle Gruppen, dann aufteilen: welcher Ledger-Eintrag eine Entscheidung zu einem
+    // vorhandenen Merkmal ist und welcher ein Talent-Link, entscheiden die aufgelösten Keys.
+    void (async () => {
+      const [cls, spec, bg] = await Promise.all([
+        resolveClassFeatures(c.classes ?? []),
+        resolveSpeciesTraits(c.species),
+        resolveBackground(c.backgroundRef),
+      ]);
+      const groups = [...cls, ...(spec ?? []), ...(bg ? [bg] : [])];
+      const { annotations, unmatched } = splitFeatureEntries(c.features, keysOf(groups));
+      classFeatureGroups = withChoices(cls, annotations);
+      speciesTraitGroups = withChoices(spec ?? [], annotations);
+      backgroundGroups = withChoices(bg ? [bg] : [], annotations);
+      featLinks = await resolveFeatLinks(unmatched);
+    })();
   });
   // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —
   // steuert die Sichtbarkeit der Aufklappbox, ohne die Bibliothek anzufassen.
@@ -71,8 +87,8 @@
     const hasClass = (c.classes ?? []).some((cl) => cl.name?.trim() || cl.sourceKey);
     const hasSpecies = !!(c.species && (c.species.sourceKey || c.species.name?.trim()));
     const hasBackground = !!(c.backgroundRef && (c.backgroundRef.sourceKey || c.backgroundRef.name?.trim()));
-    const hasFeats = (c.references?.feats?.length ?? 0) > 0;
-    return hasClass || hasSpecies || hasBackground || hasFeats;
+    const hasLedger = (c.features?.length ?? 0) > 0;
+    return hasClass || hasSpecies || hasBackground || hasLedger;
   });
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
@@ -167,8 +183,8 @@
           next.spells.byLevel[lvl] = arr;
           break;
         }
-        case 'feat': // Talent-Link → references.feats
-          next.references.feats = [...next.references.feats, { sourceKey: c.sourceKey, name: c.name, gainedAt: c.gainedAt, desc: '' }];
+        case 'feat': // Talent-Link → Merkmals-Ledger
+          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', gainedAt: c.gainedAt, desc: '' }];
           break;
         // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
         // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
@@ -193,10 +209,20 @@
           if (c.mode === 'replace') next.classFeatures = c.value;
           else next.classFeatures = [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
           break;
+        case 'featureChoice': {
+          // Upsert über (Merkmal, Stufe): dieselbe Stufe erneut zu durchlaufen ersetzt den
+          // Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
+          if (!c.sourceKey) break;
+          const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
+          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, gainedAt: c.gainedAt, desc: '' };
+          if (i >= 0) next.features[i] = entry;
+          else next.features = [...next.features, entry];
+          break;
+        }
         case 'featureGained':
           break; // Info-Eintrag — keine Anwendung (Klassen-/Subklassen-Merkmale aus Link abgeleitet)
         case 'note':
-          break; // Info-Eintrag (getroffene Wahl) — persistiert über den Klassenmerkmale-Freitext
+          break; // Info-Eintrag (Protokoll des Fragebogens) — kein Ziel am Charakter
       }
     }
     next.classLevel = formatClassLevel(next.classes);
@@ -972,6 +998,7 @@
             <div class="ref-view-head">
               <span class="ref-view-name">{feature.name}</span>
               {#if feature.gainedAt}<span class="ref-view-level">Stufe {feature.gainedAt}</span>{/if}
+              {#if feature.choice}<span class="ref-view-choice">Entscheidung: {feature.choice}</span>{/if}
             </div>
             {#if feature.desc}<div class="ref-view-desc"><Markdown source={feature.desc} /></div>{/if}
           </li>
@@ -995,11 +1022,20 @@
               {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
               {#each speciesTraitGroups as group}{@render groupBlock(group)}{/each}
               {#each backgroundGroups as group}{@render groupBlock(group)}{/each}
-              {#if featLinks.length}
+              {#if featEntries.length}
                 <div class="section">
                   <h3>Talente</h3>
                   <ul class="ref-view-list">
-                    {#each featLinks as feature}{@render featureList(feature)}{/each}
+                    {#each featEntries as feature}{@render featureList(feature)}{/each}
+                  </ul>
+                </div>
+              {/if}
+              {#if orphanChoices.length}
+                <div class="section">
+                  <h3>Entscheidungen ohne zugeordnetes Merkmal</h3>
+                  <p class="ref-unresolved">Verlinkung prüfen – das Merkmal steckt in keiner Klasse, keinem Volk und keinem Hintergrund dieses Charakters.</p>
+                  <ul class="ref-view-list">
+                    {#each orphanChoices as feature}{@render featureList(feature)}{/each}
                   </ul>
                 </div>
               {/if}
@@ -1537,6 +1573,11 @@
   .ref-view-head { display: flex; align-items: baseline; gap: 0.5rem; }
   .ref-view-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
   .ref-view-level { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
+  .ref-view-choice {
+    color: var(--gold); font-size: 0.72rem; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+  }
   .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
   .ref-unresolved { color: var(--ink-muted); font-size: 0.78rem; font-style: italic; }
 

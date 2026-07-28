@@ -123,12 +123,12 @@
 // │     heavyArmor? : bool = false
 // │     shields? : bool = false
 // │   masteries? : string[] = []  — Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.
-// │   references?:
-// │     feats?[]:
-// │       sourceKey? : string = ""
-// │       name? : string = ""
-// │       gainedAt? : int
-// │       desc? : string = ""
+// │   features?[]:
+// │     sourceKey? : string = ""
+// │     name? : string = ""
+// │     choice? : string = ""  — Getroffene Entscheidung (DE-Label), leer = keine Wahl.
+// │     gainedAt? : int
+// │     desc? : string = ""
 // │   portraitFile? : string
 // │   _version? : int
 // │   _importedFrom? : string
@@ -188,28 +188,28 @@ const proficiencyFlagsSchema = z.object({
 });
 
 /**
- * Ein strukturierter Referenz-Eintrag = ein LINK auf einen Bibliothekseintrag
- * (Talent). Der Charakter speichert NUR die Verknüpfung; Name/Beschreibung werden
- * zur Laufzeit aus der Bibliothek (`vault/feats`) aufgelöst — analog zu Zaubern.
+ * Ein Eintrag des Merkmals-Ledgers. Zwei Arten, unterschieden ALLEIN am `sourceKey` —
+ * kein Typ-Flag, weil die Auflöser ihre Keys ohnehin liefern:
+ *   - Key trifft ein über `classes[]`/`species`/`backgroundRef` abgeleitetes Merkmal
+ *     → der Eintrag ANNOTIERT es mit der getroffenen Entscheidung (`choice`).
+ *   - Key trifft dort nichts → der Eintrag IST der Grund für das Merkmal (Talent-Link).
+ *
+ * `name`/`desc` überleben nur, weil Altbestand Einträge ohne `sourceKey` enthält
+ * (unverlinktes Talent aus einem Import); sie werden nicht mehr gepflegt.
  */
-const referenceEntrySchema = z.object({
-  sourceKey: z.string().default(''), // Bibliotheks-Key, z.B. "srd-2024_healer" oder "homebrew-sam_…"
+const characterFeatureSchema = z.object({
+  sourceKey: z.string().default(''), // Bibliotheks-Key, z.B. "srd-2024_healer" oder "srd-2024_druid_primal-order"
   name: z.string().default(''),
-  gainedAt: z.number().int().optional(), // Stufe (Berechnungsgrundlage), optional
-  // desc bleibt als optionaler Legacy-Fallback im Schema; wird nicht mehr editiert/gepflegt.
+  /**
+   * Getroffene Entscheidung als deutsches Label, wörtlich wie im Merkmalstext
+   * (`descDe`) — nur so ist sie im KI-Kontext dem Optionsabsatz zuordenbar. Die
+   * WIRKUNG der Wahl steht weiterhin dort, wo sie hingehört (Übungs-Flags, Zauber,
+   * Attribute); dieses Feld ist Provenienz, keine zweite Wahrheit.
+   */
+  choice: z.string().default(''),
+  gainedAt: z.number().int().optional(), // Stufe — trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
   desc: z.string().default(''),
 });
-
-/**
- * Verknüpfte Talente (Links). Klasse & Volk werden NICHT mehr hier gespeichert —
- * deren Merkmale ergeben sich aus dem Klassen-/Spezies-Link (`classes[]`/`species`)
- * und werden zur Laufzeit aus der Bibliothek aufgelöst.
- */
-const characterReferencesSchema = z
-  .object({
-    feats: z.array(referenceEntrySchema).default([]), // Talente (Links)
-  })
-  .default({ feats: [] });
 
 /** Eine gepflegte Klasse eines Charakters (multiclass-fähig; Basis für Progression-Check). */
 const characterClassSchema = z.object({
@@ -354,8 +354,12 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
-  // Strukturierte Referenzen (additiv zum Freitext; NICHT im PDF, Berechnungsgrundlage)
-  references: characterReferencesSchema,
+  /**
+   * Merkmals-Ledger: Talent-Links UND getroffene Merkmals-Entscheidungen in einer Liste
+   * (additiv zum Freitext; NICHT im PDF, Berechnungsgrundlage). Siehe
+   * `characterFeatureSchema` für die beiden Eintragsarten.
+   */
+  features: z.array(characterFeatureSchema).default([]),
   // Portrait (Datei im Charakter-Ordner)
   portraitFile: z.string().optional(),
   // ── Metadaten (nicht editierbar; werden im Draft mitgeführt) ──
@@ -372,8 +376,7 @@ export type Attack = z.infer<typeof attackSchema>;
 export type SpellEntry = z.infer<typeof spellEntrySchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
-export type CharacterReferences = z.infer<typeof characterReferencesSchema>;
-export type ReferenceEntry = z.infer<typeof referenceEntrySchema>;
+export type CharacterFeatureEntry = z.infer<typeof characterFeatureSchema>;
 export type CharacterClass = z.infer<typeof characterClassSchema>;
 export type CharacterSpecies = z.infer<typeof characterSpeciesSchema>;
 export type CharacterBackground = z.infer<typeof characterBackgroundSchema>;
@@ -461,7 +464,7 @@ export function parseClassLevelText(text: string): CharacterClass[] {
 // `services/characterUpgrade.ts`.
 
 /** Aktuelle Charakter-Schemaversion. Bei jeder Formatänderung erhöhen. */
-export const CHARACTER_VERSION = 3;
+export const CHARACTER_VERSION = 4;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -510,10 +513,31 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       if (species?.subspeciesKey) species.subspeciesKey = migrateSourceKey(species.subspeciesKey as string);
       const background = c.backgroundRef as Record<string, unknown> | undefined;
       if (background?.sourceKey) background.sourceKey = migrateSourceKey(background.sourceKey as string);
+      // Schritt 4 zieht references.feats nach features um; hier liegt es noch am alten Ort.
       const refs = c.references as { feats?: Record<string, unknown>[] } | undefined;
       for (const f of refs?.feats ?? []) {
         if (f?.sourceKey) f.sourceKey = migrateSourceKey(f.sourceKey as string);
       }
+    },
+  },
+  {
+    to: 4,
+    label: 'Talent-Referenzen → Merkmals-Ledger (references.feats → features)',
+    apply: (c) => {
+      const refs = c.references as { feats?: Record<string, unknown>[] } | undefined;
+      const legacy = (refs?.feats ?? []).map((f) => ({
+        sourceKey: migrateSourceKey((f?.sourceKey as string) ?? ''),
+        name: (f?.name as string) ?? '',
+        choice: '',
+        ...(typeof f?.gainedAt === 'number' ? { gainedAt: f.gainedAt } : {}),
+        desc: (f?.desc as string) ?? '',
+      }));
+      // Inhaltlich abgesichert und verlustfrei: was schon in `features` steht (Umstellung
+      // bereits gelaufen, `_version` aber zu niedrig), bleibt und wird nicht dupliziert.
+      const existing = (Array.isArray(c.features) ? c.features : []) as { sourceKey?: string; name?: string }[];
+      const known = new Set(existing.map((e) => `${e.sourceKey ?? ''}|${e.name ?? ''}`));
+      c.features = [...existing, ...legacy.filter((e) => !known.has(`${e.sourceKey}|${e.name}`))];
+      delete c.references;
     },
   },
 ];
