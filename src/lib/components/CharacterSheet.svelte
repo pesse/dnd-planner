@@ -24,8 +24,11 @@
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
     formatCost, formatRarity, formatDamageDice, ftToM, structuralType,
     DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
+    MASTERY_INFO, masteryLabel,
     type ItemInfo,
   } from '../itemLibrary';
+  import { isMastered } from '../services/weaponMastery';
+  import type { WeaponMastery } from '../schemas/shared';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
@@ -245,6 +248,28 @@
       if (item.name_de) acc[item.name.toLowerCase()] = item;
       return acc;
     }, {})
+  );
+
+  /**
+   * Waffenbeherrschung (5e 2024) eines Angriffs bzw. einer Waffe: die Eigenschaft
+   * hängt am Item (`mastery`), die Erlaubnis an `character.masteries`. Aufgelöst wird
+   * über den NAMEN — dieselbe Brücke wie beim Inventar. Ein Tausch der beherrschten
+   * Waffen wirkt deshalb sofort auf alle Angriffe, ohne dass etwas zurückgeschrieben
+   * werden müsste (`attacks[]` bleibt unberührt).
+   */
+  function masteryOf(name: string): WeaponMastery | undefined {
+    const lib = itemByName[name.trim().toLowerCase()];
+    if (!lib?.mastery) return undefined;
+    return isMastered(character?.masteries ?? [], lib) ? lib.mastery : undefined;
+  }
+
+  /**
+   * Beherrschte Waffen als „Name (Eigenschaft)". Namen, die die Bibliothek nicht (mehr)
+   * kennt, bleiben bewusst STEHEN — sonst zeigte der Bogen weniger als die Datei
+   * enthält; der Editor markiert sie dort als Überhang.
+   */
+  const masteryChips = $derived(
+    (character?.masteries ?? []).map((n) => ({ name: n, mastery: itemByName[n.trim().toLowerCase()]?.mastery })),
   );
 
   // ─── Item-Volldata-Cache + Tooltip ──────────────────────
@@ -536,7 +561,13 @@
         } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
       }
 
-      const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait, freitext });
+      // Derselbe Resolver wie für die Pille in der Angriffstabelle — PDF und Bogen
+      // zeigen damit garantiert dieselbe Eigenschaft.
+      const pdfBytes = await exportCharacterToPdf(json, templateBytes, {
+        portrait,
+        freitext,
+        masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+      });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
       // Ziel per Datei-Speichern-Dialog wählen.
@@ -779,8 +810,14 @@
                 <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
                 <tbody>
                   {#each character.attacks as atk}
+                    {@const atkMastery = masteryOf(atk.name)}
                     <tr>
-                      <td>{atk.name}</td>
+                      <td>
+                        {atk.name}
+                        {#if atkMastery}
+                          <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
+                        {/if}
+                      </td>
                       <td class="has-tip">
                         {atk.bonus}
                         <span class="tip tip-left">{@html attackBonusTip(atk.bonus)}</span>
@@ -842,6 +879,25 @@
                   <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
                 {/if}
               {/if}
+            {/if}
+
+            <!-- Waffenbeherrschung: die Wahl selbst; die Eigenschaft kommt aus der
+                 Bibliothek, der Regeltext hängt im Tooltip. -->
+            {#if masteryChips.length}
+              <h3>Waffenbeherrschung</h3>
+              <div class="tag-list">
+                {#each masteryChips as chip}
+                  {#if chip.mastery}
+                    <span class="tag mastery-tag-full" title={MASTERY_INFO[chip.mastery].descDe}>
+                      {chip.name} <span class="mastery-prop">({masteryLabel(chip.mastery)})</span>
+                    </span>
+                  {:else}
+                    <span class="tag" title="Waffe nicht in der Bibliothek — Eigenschaft unbekannt">
+                      {chip.name} <span class="mastery-unknown">(?)</span>
+                    </span>
+                  {/if}
+                {/each}
+              </div>
             {/if}
           </div>
         </div>
@@ -1189,6 +1245,12 @@
           <span>{tooltipProperties(tooltipItem)}</span>
         </div>
       {/if}
+      {#if tooltipItem.mastery}
+        <div class="tt-section">
+          <span class="tt-label">Meisterschaft</span>
+          <span>{masteryLabel(tooltipItem.mastery)}</span>
+        </div>
+      {/if}
     {:else if structuralType(tooltipItem) === 'armor' && tooltipItem.armor_class}
       <div class="tt-section">
         <span class="tt-label">Rüstungsklasse</span>
@@ -1438,6 +1500,17 @@
     font-size: 0.75rem;
     color: var(--ink);
   }
+
+  /* Waffenbeherrschung: kleine Pille hinter dem Angriffsnamen bzw. eigener Chip. */
+  .mastery-tag {
+    display: inline-block; margin-left: 0.3rem;
+    border: 1px solid color-mix(in srgb, var(--copper) 45%, transparent);
+    border-radius: 99px; padding: 0 0.35rem;
+    font-size: 0.65rem; color: var(--copper); cursor: help; vertical-align: middle;
+  }
+  .mastery-tag-full { cursor: help; }
+  .mastery-prop { color: var(--copper); }
+  .mastery-unknown { color: var(--ink-muted); cursor: help; }
 
   .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
 

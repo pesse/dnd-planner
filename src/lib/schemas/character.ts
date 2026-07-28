@@ -122,6 +122,7 @@
 // │     mediumArmor? : bool = false
 // │     heavyArmor? : bool = false
 // │     shields? : bool = false
+// │   masteries? : string[] = []  — Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.
 // │   references?:
 // │     feats?[]:
 // │       sourceKey? : string = ""
@@ -339,6 +340,20 @@ export const characterSchema = z.object({
     simpleWeapons: false, martialWeapons: false, otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   }),
+  /**
+   * Waffenbeherrschung (5e 2024): die Waffen, deren Meisterschaftseigenschaft der
+   * Charakter nutzen darf. Gespeichert werden WAFFENNAMEN wie in der Bibliothek —
+   * dasselbe Muster wie `inventory[].name`, das im Bogen über `itemByName` gegen
+   * `vault/items` aufgelöst wird. Kein zusätzlicher Link-Typ, keine neue Auflösung.
+   *
+   * Die Eigenschaft selbst steht am Item (`item.mastery`), nicht hier: sie hängt an
+   * der Waffenart, nicht am Charakter. Ein Tausch (nach jeder langen Rast erlaubt)
+   * ist deshalb eine reine Änderung dieser Liste.
+   */
+  masteries: z
+    .array(z.string())
+    .default([])
+    .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
   // Strukturierte Referenzen (additiv zum Freitext; NICHT im PDF, Berechnungsgrundlage)
   references: characterReferencesSchema,
   // Portrait (Datei im Charakter-Ordner)

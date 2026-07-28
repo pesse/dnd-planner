@@ -12,6 +12,8 @@
     DAMAGE_TYPE_LABELS,
     PROPERTY_LABELS,
     PROPERTY_INDEX_BY_LABEL,
+    MASTERY_INFO,
+    masteryLabel,
     COST_UNIT_LABELS,
     WEAPON_CATEGORY_LABELS,
     WEAPON_RANGE_LABELS,
@@ -32,7 +34,7 @@
   import { buildTranslationSystemPrompt } from '$lib/prompts';
   import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
-  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel } from '$lib/schemas/shared';
+  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel, WEAPON_MASTERIES } from '$lib/schemas/shared';
   import { prepareItemPrint } from '$lib/utils/printItem';
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
@@ -474,7 +476,7 @@
         <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
         <!-- Spielwerte je nach Typ -->
-        {#if stype === 'weapon' && (item.damage || item.range || item.throw_range || item.magic_bonus || item.properties?.length)}
+        {#if stype === 'weapon'}
           <div class="props">
             {#if item.damage}
               <div class="prop"><span class="plabel">Schaden</span>
@@ -495,6 +497,15 @@
                 <span class="pills">{#each item.properties as prop}<span class="pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>{/each}</span>
               </div>
             {/if}
+            <!-- Meisterschaft: bei Waffen IMMER eine Zeile — ohne Eintrag ein Hinweis
+                 statt stiller Leere, damit die Pflege-Lücke sichtbar bleibt. -->
+            <div class="prop"><span class="plabel">Meisterschaft</span>
+              {#if item.mastery}
+                <span class="pills"><span class="pill mastery-pill" title={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
+              {:else}
+                <span class="mastery-missing">— nicht gepflegt</span>
+              {/if}
+            </div>
           </div>
           <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
@@ -715,6 +726,23 @@
             <span class="prop-label">Eigenschaften</span>
             <input class="edit-input" bind:value={draftPropsText} placeholder="kommagetrennt, z.B. Finesse, Light" />
           </div>
+          <div class="prop-row">
+            <span class="prop-label" title="Meisterschaftseigenschaft der Waffenart (5e 2024)">Meisterschaft</span>
+            <select class="edit-select"
+              value={draft.mastery ?? ''}
+              onchange={(e) => {
+                const v = (e.currentTarget as HTMLSelectElement).value;
+                draft!.mastery = v ? (v as typeof WEAPON_MASTERIES[number]) : undefined;
+              }}>
+              <option value="">—</option>
+              {#each WEAPON_MASTERIES as m}
+                <option value={m}>{MASTERY_INFO[m].nameDe}</option>
+              {/each}
+            </select>
+          </div>
+          {#if draft.mastery}
+            <p class="mastery-rule">{MASTERY_INFO[draft.mastery].descDe}</p>
+          {/if}
           <div class="prop-row">
             <span class="prop-label" title="Magischer Bonus auf Angriffs- und Schadenswürfe">Magischer Bonus</span>
             <input class="edit-input" type="number" min="0" step="1"
@@ -994,6 +1022,12 @@
     border-radius: 99px; font-size: 0.7rem; padding: 0.05rem 0.5rem; color: var(--ink-soft);
   }
   .item-card-view .disadv { color: var(--danger); }
+  /* Meisterschaft hebt sich von den Eigenschaften-Pillen ab (Regeltext im title). */
+  .item-card-view .mastery-pill {
+    border-color: color-mix(in srgb, var(--c) 60%, transparent);
+    color: var(--ink); font-weight: 600; cursor: help;
+  }
+  .item-card-view .mastery-missing { color: var(--border); font-size: 0.78rem; font-style: italic; }
 
   .item-card-view .desc {
     padding: 0.55rem 1.2rem;
@@ -1068,6 +1102,13 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  /* Regeltext der gewählten Meisterschaft — im Editor direkt unter dem Select,
+     linksbündig zur Wertespalte der .prop-row (7.5rem Label + 0.5rem gap). */
+  .mastery-rule {
+    margin: -0.2rem 0 0.1rem 8rem;
+    font-size: 0.78rem; line-height: 1.5; font-style: italic; color: var(--ink-muted);
   }
 
   .card-divider { height: 1px; background: var(--surface); margin: 0 1.4rem; }

@@ -135,6 +135,37 @@ the build). Consequences to keep in mind:
   cross-validates all 12 classes against `src/lib/data/rules-chunks.json` before it
   writes anything.
 
+### Weapon Mastery is a field on the weapon, not a table in the code
+
+The fifth closed vocabulary works the same way but hangs off a different artifact:
+**the mastery property belongs to the weapon kind, so it lives on the item**
+(`itemSchema.mastery`, `z.enum(WEAPON_MASTERIES)`) — there is deliberately no
+weapon-kinds table, no generator, no seeding. A magic variant therefore does not
+inherit anything: `runenhammer.json` carries `mastery: "Push"` itself.
+
+- `WEAPON_MASTERIES` sits with the other vocabularies in `schemas/shared.ts` so Zod
+  can use it; German names **and** both rule texts (en/de) live in
+  `itemLibrary.ts` (`MASTERY_INFO`, `Record<WeaponMastery, …>` → completeness is a
+  compiler error), next to `PROPERTY_LABELS`. `MASTERY_BY_LABEL` is the same table
+  read backwards — the PDF import needs it, and it must stay the only reverse map.
+- **`rules-chunks.json` stays AI material.** It was the one-off source when the
+  constant was written; nothing reads it at runtime.
+- The character stores **weapon names** (`character.masteries`), like
+  `inventory[].name` — no new link type. Which property an attack shows is derived at
+  render time (`attack.name` → `itemByName` → `item.mastery`), so a swap takes effect
+  everywhere without writing anything back. `attacks[]` is untouched.
+- The allowance is deterministic (`services/weaponMastery.ts`): the `Weapon Mastery`
+  table column, falling back to 2 when the class has the feature but Open5e emits no
+  column (paladin, rogue, ranger). Only `classes[0]` counts — multiclassing does not
+  grant it again. Barbarian's melee-only restriction is read off the feature text,
+  not off the class key.
+- **Not an AI path.** `isFlowOwnedChoiceFeature` filters the feature out of the
+  level-up prompt; a rise in the allowance produces a deterministic note only. The
+  options must come from the library, never from a model.
+- In the PDF the property rides on the attack name (`Langschwert (Auslaugen)`) — the
+  Taendler form has no free column. `stripMasterySuffix` removes it again on import,
+  otherwise it grows with every round trip.
+
 ## Character Upgrades (versioned)
 
 Character files live in the vault and outlive every program version, so their

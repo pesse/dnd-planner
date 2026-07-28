@@ -2,7 +2,7 @@ import type { Item } from '../types';
 import {
   structuralType, dirOf, formatCost, formatRarity, formatDamageDice, ftToM,
   DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS,
-  ARMOR_CATEGORY_LABELS, CATEGORY_LABELS,
+  ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, masteryLabel, masteryRuleDe,
 } from '../itemLibrary';
 
 // Helle Hex-Farben pro Seltenheit (im Druck-Iframe gibt es keine Theme-Variablen).
@@ -127,6 +127,10 @@ export function prepareItemPrint(item: Item, _doc: Document): string {
     if (item.properties?.length) {
       const pills = item.properties.map((p) => `<span class="pill">${esc(PROPERTY_LABELS[p.index] ?? p.name)}</span>`).join('');
       rows.push(`<div class="prop"><span class="plabel">Eigensch.</span><span class="pills">${pills}</span></div>`);
+    }
+    // Meisterschaft mit Regeltext — im Druck gibt es keinen Tooltip, also ausgeschrieben.
+    if (item.mastery) {
+      rows.push(row('Meisterschaft', `<strong>${esc(masteryLabel(item.mastery))}</strong> — ${esc(masteryRuleDe(item.mastery))}`));
     }
   } else if (stype === 'armor') {
     if (item.armor_class) {

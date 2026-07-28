@@ -432,6 +432,13 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
     out.push({ target: 'spellcastingClass', value: delta.klasseName, step, source: 'class-progression', label: `Zauberwirken: ${delta.klasseName}` });
   const hd = bumpHitDice(hitDice, delta.hitDie, delta.levelsGained, delta.toLevel);
   if (hd) out.push({ target: 'hitDice', value: hd, step, source: 'class-progression', label: 'Trefferwürfel' });
+  // Waffenbeherrschung: nur ein HINWEIS, keine Wahl. Welche Waffen es sind, entscheidet
+  // der Charakterbogen aus der Item-Bibliothek — die Wahl ist ohnehin nach jeder langen
+  // Rast änderbar, und eine KI-Frage hier würde eine erfundene Waffenliste anbieten.
+  if (delta.masteryTo > delta.masteryFrom) {
+    const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
+    out.push({ target: 'note', value, step, source: 'class-progression', label: value });
+  }
   for (const f of delta.featuresGained)
     out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: delta.sourceKey, label: `Neues Merkmal: ${f.name}` });
   return out;

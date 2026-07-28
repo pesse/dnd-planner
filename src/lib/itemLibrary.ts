@@ -4,7 +4,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';
-import { OWN_SOURCE } from './schemas/shared';
+import { OWN_SOURCE, WEAPON_MASTERIES, type WeaponMastery } from './schemas/shared';
 
 export const ITEMS_PATH = './vault/items';
 
@@ -15,6 +15,13 @@ export interface ItemInfo {
   rarity: string;
   weight?: number;
   path: string;
+  // ── Waffen-Facetten ──
+  // Der Index liest die Datei ohnehin vollständig; diese drei Felder mitzunehmen
+  // erspart der Waffenbeherrschung (services/weaponMastery.ts) und der
+  // Angriffstabelle im Bogen, jede Waffendatei ein zweites Mal zu laden.
+  weapon_category?: string; // Simple | Martial
+  weapon_range?: string; // Melee | Ranged
+  mastery?: WeaponMastery;
 }
 
 /** Zeigt den deutschen Namen, falls vorhanden, sonst den Originalnamen. */
@@ -147,6 +154,83 @@ export const PROPERTY_LABELS: Record<string, string> = {
 export const PROPERTY_INDEX_BY_LABEL: Record<string, string> = Object.fromEntries(
   Object.entries(PROPERTY_LABELS).map(([index, label]) => [label.toLowerCase(), index])
 );
+
+// ── Meisterschaftseigenschaften (Weapon Mastery, 5e 2024) ─────────────────────
+//
+// Das Vokabular selbst steht in `schemas/shared.ts` (WEAPON_MASTERIES), damit Zod
+// es nutzen kann; hier liegen Anzeigename und Regeltext — bei den übrigen
+// Anzeige-Vokabularen des Item-Bereichs.
+//
+// Die Texte sind EINMALIG abgeschrieben: englisch aus SRD 5.2, deutsch aus dem
+// Repo-Auszug `src/lib/data/rules-chunks.json` (`waffen-auslaugen-p103` …), beide
+// CC-BY-4.0. `rules-chunks.json` bleibt reines KI-Material und wird zur Laufzeit
+// NICHT gelesen.
+//
+// `Record<WeaponMastery, …>` macht Vollständigkeit zum Compilerfehler — dasselbe
+// Mittel wie bei WEAPON_LABEL_DE/ARMOR_LABEL_DE in services/proficiencyGrants.ts.
+
+export const MASTERY_INFO: Record<WeaponMastery, { nameDe: string; desc: string; descDe: string }> = {
+  Sap: {
+    nameDe: 'Auslaugen',
+    desc: 'If you hit a creature with this weapon, that creature has Disadvantage on its next attack roll before the start of your next turn.',
+    descDe: 'Wenn du eine Kreatur mit dieser Waffe triffst, ist diese Kreatur bei ihrem nächsten Angriffswurf vor Beginn deines nächsten Zugs im Nachteil.',
+  },
+  Nick: {
+    nameDe: 'Einkerben',
+    desc: 'When you make the extra attack of the Light property, you can make it as part of the Attack action instead of as a Bonus Action. You can make this extra attack only once per turn.',
+    descDe: 'Wenn du den zusätzlichen Angriff der Eigenschaft Leicht ausführst, kannst du dies als Teil der Angriffsaktion statt als Bonusaktion tun. Du kannst diesen zusätzlichen Angriff nur einmal pro Zug ausführen.',
+  },
+  Vex: {
+    nameDe: 'Plagen',
+    desc: 'If you hit a creature with this weapon and deal damage to the creature, you have Advantage on your next attack roll against that creature before the end of your next turn.',
+    descDe: 'Wenn du eine Kreatur mit dieser Waffe triffst und ihr Schaden zufügst, bist du beim nächsten Angriffswurf gegen diese Kreatur vor Ende deines nächsten Zugs im Vorteil.',
+  },
+  Cleave: {
+    nameDe: 'Spalten',
+    desc: "If you hit a creature with a melee attack roll using this weapon, you can make a melee attack roll with the weapon against a second creature within 5 feet of the first that is also within your reach. On a hit, the second creature takes the weapon's damage, but don't add your ability modifier to that damage unless that modifier is negative. You can make this extra attack only once per turn.",
+    descDe: 'Wenn du eine Kreatur mit einem Nahkampfangriffswurf triffst, den du mit dieser Waffe ausführst, kannst du mit der Waffe einen weiteren Nahkampfangriff auf eine zweite Kreatur im Abstand von bis zu 1,5 Metern von der ersten ausführen, sofern die zweite sich ebenfalls in Reichweite befindet. Bei einem Treffer erleidet die Kreatur den Waffenschaden. Du fügst dem Schaden jedoch nicht deinen Attributsmodifikator hinzu, sofern dieser Modifikator nicht negativ ist. Du kannst diesen zusätzlichen Angriff nur einmal pro Zug ausführen.',
+  },
+  Push: {
+    nameDe: 'Stoßen',
+    desc: 'If you hit a creature with this weapon, you can push the creature up to 10 feet straight away from yourself if it is Large or smaller.',
+    descDe: 'Wenn du eine Kreatur mit dieser Waffe triffst, kannst du sie bis zu drei Meter weit in gerader Linie von dir wegstoßen, sofern sie von höchstens großer Größe ist.',
+  },
+  Graze: {
+    nameDe: 'Streifen',
+    desc: 'If your attack roll with this weapon misses a creature, you can deal damage to that creature equal to the ability modifier you used to make the attack roll. This damage is the same type dealt by the weapon, and the damage can be increased only by increasing the ability modifier.',
+    descDe: 'Wenn dein Angriffswurf mit dieser Waffe eine Kreatur verfehlt, kannst du der Kreatur Schaden in Höhe des Attributsmodifikators zufügen, den du für den Angriffswurf verwendet hast. Die Schadensart entspricht der Waffe. Der Schaden kann nur durch Erhöhen des Attributsmodifikators erhöht werden.',
+  },
+  Topple: {
+    nameDe: 'Umstoßen',
+    desc: 'If you hit a creature with this weapon, you can force the creature to make a Constitution saving throw (DC 8 plus the ability modifier used to make the attack roll and your Proficiency Bonus). On a failed save, the creature has the Prone condition.',
+    descDe: 'Wenn du eine Kreatur mit dieser Waffe triffst, kannst du sie zu einem Konstitutionsrettungswurf (SG 8 plus Attributsmodifikator für den Angriffswurf plus dein Übungsbonus) zwingen. Misslingt der Wurf, so wird die Kreatur umgestoßen und hat den Zustand Liegend.',
+  },
+  Slow: {
+    nameDe: 'Verlangsamen',
+    desc: "If you hit a creature with this weapon and deal damage to it, you can reduce its Speed by 10 feet until the start of your next turn. If the creature is hit more than once by weapons that have this property, the Speed reduction doesn't exceed 10 feet.",
+    descDe: 'Wenn du eine Kreatur mit dieser Waffe triffst und ihr Schaden zufügst, kannst du ihre Bewegungsrate bis zum Beginn deines nächsten Zugs um drei Meter verringern. Wird die Kreatur mehrfach von Waffen mit dieser Eigenschaft getroffen, so wird ihre Bewegungsrate dennoch nur um drei Meter verringert.',
+  },
+};
+
+/** Deutscher Anzeigename einer Meisterschaftseigenschaft („Sap" → „Auslaugen"). */
+export const MASTERY_LABELS: Record<WeaponMastery, string> = Object.fromEntries(
+  WEAPON_MASTERIES.map((m) => [m, MASTERY_INFO[m].nameDe]),
+) as Record<WeaponMastery, string>;
+
+/** Rückrichtung (deutscher Name kleingeschrieben → Enum-Wert); für den PDF-Import. */
+export const MASTERY_BY_LABEL: Record<string, WeaponMastery> = Object.fromEntries(
+  WEAPON_MASTERIES.map((m) => [MASTERY_INFO[m].nameDe.toLowerCase(), m]),
+);
+
+/** Anzeigename; unbekannte Werte (Fremdimport) unverändert durchreichen. */
+export function masteryLabel(mastery: string | undefined | null): string {
+  return mastery ? (MASTERY_LABELS[mastery as WeaponMastery] ?? mastery) : '';
+}
+
+/** Regeltext (deutsch) einer Meisterschaftseigenschaft; leer bei unbekanntem Wert. */
+export function masteryRuleDe(mastery: string | undefined | null): string {
+  return mastery ? (MASTERY_INFO[mastery as WeaponMastery]?.descDe ?? '') : '';
+}
 
 export const COST_UNIT_LABELS: Record<string, string> = {
   gp: 'GM',
@@ -303,6 +387,11 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
             rarity: data.rarity ?? '—',
             weight: typeof data.weight === 'number' ? data.weight : undefined,
             path,
+            weapon_category: data.weapon_category,
+            weapon_range: data.weapon_range,
+            // Nur ein Wert aus dem geschlossenen Vokabular kommt durch — eine falsch
+            // gepflegte Datei liefert `undefined` statt einen Fremdwert weiterzutragen.
+            mastery: (WEAPON_MASTERIES as readonly string[]).includes(data.mastery) ? data.mastery : undefined,
           };
         } catch {
           return { name: filename.replace('.json', ''), category: DIR_TO_CATEGORY[dir] ?? 'other', rarity: '—', path };

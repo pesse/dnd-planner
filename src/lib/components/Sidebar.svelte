@@ -376,6 +376,7 @@
       spells: emptySpells(),
       personal: emptyPersonal(),
       proficiencies: emptyProficiencies(),
+      masteries: [],
       references: { feats: [] },
     };
 

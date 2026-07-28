@@ -38,6 +38,7 @@
 // │   properties?[]:
 // │     index : string
 // │     name : string
+// │   mastery? : enum("Cleave"|"Graze"|"Nick"|"Push"|"Sap"|"Slow"|"Topple"|"Vex")  — Meisterschaftseigenschaft der Waffe (5e 2024): genau eine je Waffenart. Nur bei Waffen se…
 // │   magic_bonus? : int  — Magischer Bonus auf Angriffs- UND Schadenswürfe (z.B. 1, 2, 3). Nur für magische Waffen; …
 // │   armor_category? : string  — Light | Medium | Heavy | Shield
 // │   armor_class?:
@@ -58,7 +59,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { namedRef, sourceField, migrateSourceLegacy } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy, WEAPON_MASTERIES } from './shared';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
@@ -89,6 +90,12 @@ export const itemSchema = z.object({
   range: z.object({ normal: z.number(), long: z.number().nullable().optional() }).optional(),
   throw_range: z.object({ normal: z.number(), long: z.number() }).optional(),
   properties: z.array(namedRef()).optional(),
+  mastery: z
+    .enum(WEAPON_MASTERIES)
+    .optional()
+    .describe(
+      'Meisterschaftseigenschaft der Waffe (5e 2024): genau eine je Waffenart. Nur bei Waffen setzen, sonst weglassen.',
+    ),
   magic_bonus: z
     .number()
     .int()

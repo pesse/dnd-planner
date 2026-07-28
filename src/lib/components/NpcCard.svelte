@@ -9,6 +9,7 @@
     getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
     formatCost, formatRarity, formatDamageDice, ftToM, structuralType,
     DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
+    masteryLabel,
     type ItemInfo, type ItemSuggestion,
   } from '../itemLibrary';
   import type { Item } from '../types';
@@ -723,6 +724,7 @@
       {#if tooltipItem.range}<div class="tt-section"><span class="tt-label">Reichweite</span><span>{ftToM(tooltipItem.range.normal)}{tooltipItem.range.long ? ` / ${ftToM(tooltipItem.range.long)}` : ''}</span></div>{/if}
       {#if tooltipItem.throw_range}<div class="tt-section"><span class="tt-label">Wurfweite</span><span>{ftToM(tooltipItem.throw_range.normal)} / {ftToM(tooltipItem.throw_range.long)}</span></div>{/if}
       {#if tooltipProperties(tooltipItem)}<div class="tt-section"><span class="tt-label">Eigenschaften</span><span>{tooltipProperties(tooltipItem)}</span></div>{/if}
+      {#if tooltipItem.mastery}<div class="tt-section"><span class="tt-label">Meisterschaft</span><span>{masteryLabel(tooltipItem.mastery)}</span></div>{/if}
     {:else if structuralType(tooltipItem) === 'armor' && tooltipItem.armor_class}
       <div class="tt-section">
         <span class="tt-label">RK</span>

@@ -166,6 +166,18 @@ export type WeaponCategory = (typeof WEAPON_CATEGORIES)[number];
 export const ARMOR_TRAININGS = ['Light', 'Medium', 'Heavy', 'Shields'] as const;
 export type ArmorTraining = (typeof ARMOR_TRAININGS)[number];
 
+/**
+ * Die acht Meisterschaftseigenschaften (Weapon Mastery, 5e 2024). Jede Waffe trägt
+ * genau eine; fünf Klassen dürfen die von N Waffenarten ihrer Wahl nutzen.
+ *
+ * Wie bei `sourceField()` bewusst ein Enum statt Freitext: so kann ein LLM keinen
+ * erfundenen Wert liefern. Deutsche Namen und Regeltexte liegen in
+ * `itemLibrary.ts` (`MASTERY_INFO`) — hier steht nur das Vokabular, damit Zod es
+ * ohne Umweg über die Anzeige-Schicht nutzen kann.
+ */
+export const WEAPON_MASTERIES = ['Cleave', 'Graze', 'Nick', 'Push', 'Sap', 'Slow', 'Topple', 'Vex'] as const;
+export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
+
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),

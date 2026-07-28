@@ -19,6 +19,7 @@ import type {
   CharacterBackground,
 } from '../schemas/character';
 import type { SkillName } from '../schemas/shared';
+import { MASTERY_BY_LABEL } from '../itemLibrary';
 
 export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
 
@@ -126,6 +127,20 @@ export const skillSheetKey = (en: SkillName): string => SHEET_KEY_BY_EN.get(en) 
 /** Umkehrung: deutscher Bogen-Schlüssel → englischer SRD-Name (undefined bei Fremdschlüssel). */
 export const skillEnName = (sheetKey: string): SkillName | undefined => EN_BY_SHEET_KEY.get(sheetKey);
 
+/**
+ * Schneidet ein „ (Auslaugen)"-Suffix vom Waffennamen ab, das der PDF-Export an
+ * beherrschte Waffen hängt (`withMasterySuffix`, characterExport.ts) — ohne das
+ * wüchse der Name bei jedem Export/Import-Zyklus weiter an.
+ *
+ * Entfernt wird NUR eine bekannte Meisterschaftseigenschaft; „Langschwert (+1)" oder
+ * „Dolch (geweiht)" bleiben unangetastet. `MASTERY_BY_LABEL` ist dabei dieselbe
+ * Tabelle wie für die Anzeige, nur rückwärts gelesen — keine zweite Wahrheit.
+ */
+export function stripMasterySuffix(name: string): string {
+  const m = name.match(/^(.*\S)\s*\(([^()]+)\)\s*$/);
+  return m && MASTERY_BY_LABEL[m[2].trim().toLowerCase()] ? m[1] : name;
+}
+
 export function mod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
@@ -167,7 +182,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
   // Angriffe
   const attacks = [];
   for (let i = 1; i <= 5; i++) {
-    const name = f(`Angriff${i}`);
+    const name = stripMasterySuffix(f(`Angriff${i}`));
     if (name) {
       attacks.push({
         name,
@@ -307,6 +322,9 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       koerpergroesse: f('Körpergrösse'),
       aussehen: f('Aussehen'),
     },
+    // Das PDF führt die Waffenbeherrschung nur als Namenssuffix am Angriff (oben
+    // abgeschnitten) — welche Waffen gewählt sind, entscheidet der Editor.
+    masteries: [],
     // Verknüpfte Talente sind nicht Teil des PDFs → leer starten.
     references: { feats: [] },
   };

@@ -19,6 +19,7 @@ import {
   columnValue,
 } from './classProgression';
 import { getClasses, classDisplayName } from '$lib/classLibrary';
+import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
 
 export interface SubclassOption {
   key: string;
@@ -46,6 +47,8 @@ export interface LevelUpDelta {
   preparedFrom: number; // Anzahl vorbereitbarer Zauber auf fromLevel
   preparedTo: number; // … auf toLevel
   preparedDelta: number; // max(0, preparedTo - preparedFrom)
+  masteryFrom: number; // Waffenbeherrschung: Kontingent auf fromLevel (0 = Klasse hat sie nicht)
+  masteryTo: number; // … auf toLevel; ein Anstieg erzeugt nur einen Hinweis, keine Wahl
   featuresGained: ClassFeature[];
   subclassFeaturesGained: ClassFeature[];
   triggersSubclassChoice: boolean;
@@ -71,16 +74,19 @@ function matches(f: ClassFeature, hints: string[]): boolean {
 /**
  * Reine „Wahl-Zeiger" unter den Klassenmerkmalen: Merkmale, deren einziger Inhalt eine
  * Entscheidung ist, die der Aufstiegs-Flow selbst deterministisch trifft — die Subklassen-
- * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint und die Attributs-
- * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte). Eigene Mechanik tragen
- * sie nicht; in der Merkmals-Analyse würden sie die KI nur dazu verleiten, eine längst
- * getroffene Entscheidung erneut zu erzwingen.
+ * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint, die Attributs-
+ * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte) und die
+ * Waffenbeherrschung (Wahl im Charakterbogen, Optionen aus der Item-Bibliothek). Eigene
+ * Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie die KI nur dazu verleiten,
+ * eine längst getroffene Entscheidung erneut zu erzwingen — bei der Waffenbeherrschung
+ * käme sogar eine LLM-erfundene Waffenliste heraus statt der aus dem Vault abgeleiteten.
  *
- * Bewusst ENG auf „subclass" statt auf `SUBCLASS_HINTS` — dessen weiche Begriffe (patron,
- * circle, path …) treffen sonst echte Merkmale wie „Contact Patron".
+ * Bewusst ENG gebunden — „subclass" statt `SUBCLASS_HINTS` (dessen weiche Begriffe patron,
+ * circle, path … treffen sonst echte Merkmale wie „Contact Patron"), und
+ * „weapon mastery"/„Waffenbeherrschung" statt „mastery" allein.
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
-  return /\bsubclass(es)?\b/i.test(f.name) || matches(f, ASI_HINTS);
+  return /\bsubclass(es)?\b/i.test(f.name) || matches(f, ASI_HINTS) || isWeaponMasteryFeature(f);
 }
 
 /** Zaubertrick-Anzahl aus der (offenen) Spaltenmap; robust gegen Spaltennamen. */
@@ -160,6 +166,8 @@ export async function computeLevelUpDelta(
     preparedFrom: 0,
     preparedTo: 0,
     preparedDelta: 0,
+    masteryFrom: 0,
+    masteryTo: 0,
     featuresGained: [],
     subclassFeaturesGained: [],
     triggersSubclassChoice: false,
@@ -193,6 +201,13 @@ export async function computeLevelUpDelta(
     delta.preparedFrom = prepFrom.count;
     delta.preparedTo = prepTo.count;
     delta.preparedDelta = Math.max(0, prepTo.count - prepFrom.count);
+    // Waffenbeherrschung wird bei Klassenkombination NICHT erneut gewährt: nur die
+    // Startklasse (classIndex 0) stellt das Kontingent. Bei jeder weiteren Klasse
+    // bleibt es 0/0 → kein Hinweis.
+    if (classIndex === 0 && !isNewClass) {
+      delta.masteryFrom = fromLevel > 0 ? masteryAllowanceFor(prog, fromLevel) : 0;
+      delta.masteryTo = masteryAllowanceFor(prog, toLevel);
+    }
     delta.featuresGained = featuresBetween(prog, fromLevel, toLevel);
     delta.triggersASI = delta.featuresGained.some((f) => matches(f, ASI_HINTS));
     // Anzahl ASI-Stufen in der Spanne (jede ASI-Stufe = eine Entscheidung).

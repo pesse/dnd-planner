@@ -10,8 +10,9 @@
     collectGrants, abilityLabelDe, skillLabelDe, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
     type CollectedGrants, type OpenChoice,
   } from '../services/proficiencyGrants';
+  import { masteryOffer, masteryName, type MasteryOffer } from '../services/weaponMastery';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
-  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
@@ -89,6 +90,10 @@
   let profMediumArmor = $state(profInit.mediumArmor);
   let profHeavyArmor = $state(profInit.heavyArmor);
   let profShields = $state(profInit.shields);
+
+  // Waffenbeherrschung (5e 2024): Waffennamen wie in der Bibliothek. Die Wahl ist
+  // jederzeit änderbar — das deckt die Regel „nach jeder langen Rast tauschbar" ab.
+  let masteries = $state<string[]>([...(character.masteries ?? [])]);
 
   // ─── Persönliches ────────────────────────────────────────
   const personalInit = character.personal ?? emptyPersonal();
@@ -671,6 +676,45 @@
       grants!.weapons.length || grants!.weaponsOther.length || grants!.armor.length),
   );
 
+  // ─── Waffenbeherrschung (5e 2024) ────────────────────────
+  // Anders als beim Grant-Panel sind die HÄKCHEN hier Eingabe, nicht nur Vergleichs-
+  // ziel: „zwei Waffenarten deiner Wahl, in denen du geübt bist". Ein Klick auf
+  // „Kriegswaffen" darf die Auswahlmenge also sofort ändern; teuer ist das nicht,
+  // weil der Item-Index gecacht ist (itemLibrary).
+  let mastery = $state<MasteryOffer | null>(null);
+
+  const masteryInput = $derived.by(() => ({
+    classes: classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, level: c.level })),
+    proficiencies: { simpleWeapons: profSimpleWeapons, martialWeapons: profMartialWeapons },
+  }));
+
+  $effect(() => {
+    const input = masteryInput;
+    let cancelled = false;
+    void masteryOffer(input)
+      .then((o) => { if (!cancelled) mastery = o; })
+      .catch(() => { if (!cancelled) mastery = null; });
+    return () => { cancelled = true; };
+  });
+
+  /**
+   * Gewähltes, das nicht (mehr) wählbar ist: Übung abgewählt, Waffe aus dem Vault
+   * verschwunden, Klasse getauscht. Wird ANGEZEIGT statt still gekappt — sonst
+   * verschwände eine Wahl unbemerkt.
+   */
+  const masteryOverflow = $derived(
+    mastery ? masteries.filter((n) => !mastery!.weapons.some((w) => masteryName(w) === n)) : [],
+  );
+
+  /**
+   * Wahl umschalten. Am Maximum wird BLOCKIERT, nicht (wie `toggleIn` im
+   * Aufstiegs-Assistenten) die älteste herausgeschoben — der Tausch soll bewusst sein.
+   */
+  function toggleMastery(name: string) {
+    if (masteries.includes(name)) masteries = masteries.filter((n) => n !== name);
+    else if (masteries.length < (mastery?.allowance ?? 0)) masteries = [...masteries, name];
+  }
+
   // ─── Zauber-SG / -Angriffsbonus: reaktive Berechnung ─────
   // Zauberattribut (Freitext, z.B. "INT" / "Weisheit") → Modifikator.
   const ABILITY_ALIASES: Record<string, 'str' | 'ges' | 'kon' | 'int' | 'wei' | 'cha'> = {
@@ -1125,6 +1169,7 @@
       heavyArmor: profHeavyArmor,
       shields: profShields,
     };
+    character.masteries = [...masteries];
     const cleanRefs = (list: typeof refFeats) =>
       list
         .filter((r) => r.name.trim() !== '')
@@ -1782,6 +1827,62 @@
       Weitere Waffen
       <input bind:value={profOtherWeapons} placeholder="z.B. Steinhammer, Wurfdolch" />
     </label>
+
+    <!-- ── Waffenbeherrschung ─── -->
+    <!-- Kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. Sie wird direkt
+         gespeichert und ist jederzeit änderbar (Regel: Tausch nach langer Rast). -->
+    {#if mastery && mastery.allowance > 0}
+      <div class="grant-panel mastery-panel" use:diffMark={dirOf(saved?.masteries, $state.snapshot(masteries))}>
+        <div class="grant-head">
+          <span class="grant-title">
+            Waffenbeherrschung — {mastery.className}: {mastery.allowance}
+            {mastery.allowance === 1 ? 'Waffe' : 'Waffen'}
+          </span>
+          <span class="mastery-count" class:full={masteries.length >= mastery.allowance}>
+            {masteries.length} von {mastery.allowance} belegt
+          </span>
+        </div>
+        <p class="mastery-hint">
+          Nach jeder langen Rast änderbar.{#if mastery.meleeOnly} Nur Nahkampfwaffen.{/if}
+        </p>
+
+        {#if mastery.weapons.length}
+          <div class="grant-options">
+            {#each mastery.weapons as w (w.path)}
+              {@const wName = masteryName(w)}
+              {@const picked = masteries.includes(wName)}
+              <button
+                type="button"
+                class="grant-opt mastery-opt"
+                class:picked
+                disabled={!picked && masteries.length >= mastery.allowance}
+                title={MASTERY_INFO[w.mastery].descDe}
+                onclick={() => toggleMastery(wName)}
+              >{wName} <span class="mastery-prop">({masteryLabel(w.mastery)})</span></button>
+            {/each}
+          </div>
+        {/if}
+
+        {#if mastery.weapons.length < mastery.allowance}
+          <p class="mastery-warn">
+            Nur {mastery.weapons.length} wählbare {mastery.weapons.length === 1 ? 'Waffe' : 'Waffen'} in der Bibliothek —
+            Waffen brauchen eine gepflegte Meisterschaftseigenschaft und eine passende Kategorie.
+          </p>
+        {/if}
+
+        {#if masteryOverflow.length}
+          <p class="mastery-warn">
+            Nicht (mehr) wählbar — Übung abgewählt oder Waffe fehlt in der Bibliothek:
+          </p>
+          <div class="grant-options">
+            {#each masteryOverflow as name}
+              <button type="button" class="grant-opt mastery-opt overflow" title="Entfernen"
+                onclick={() => toggleMastery(name)}>{name} ✕</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
   </section>
 
   <!-- ── Währung ─── -->
@@ -2138,6 +2239,20 @@
   .grant-opt:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
   .grant-opt.picked { background: color-mix(in srgb, var(--copper) 30%, var(--bg-panel)); color: var(--ink); border-color: var(--copper); }
   .grant-opt.already { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); cursor: default; }
+  .grant-opt:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* Waffenbeherrschung: dasselbe Panel, aber ohne Label-Spalte (kein „Übernehmen" —
+     die Chips SIND die Wahl), deshalb kein Einzug der Chip-Reihe. */
+  .mastery-panel { margin-top: 0.6rem; }
+  .mastery-panel .grant-options { padding-left: 0; }
+  .mastery-count { font-size: 0.72rem; color: var(--ink-muted); }
+  .mastery-count.full { color: var(--copper); }
+  .mastery-hint { margin: 0; font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
+  .mastery-opt { cursor: help; }
+  .mastery-prop { color: var(--ink-muted); }
+  .mastery-opt.picked .mastery-prop { color: var(--ink-soft); }
+  .mastery-opt.overflow { border-color: var(--danger); color: var(--danger); }
+  .mastery-warn { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--danger); }
 
   /* Angriffe */
   .attack-table {
