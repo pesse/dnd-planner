@@ -78,14 +78,42 @@ export type MasteryWeapon = ItemInfo & { mastery: WeaponMastery };
  */
 export const masteryName = (item: ItemInfo): string => displayName(item);
 
+const normName = (s: string): string => s.trim().toLowerCase();
+
+export interface MasteredKinds {
+  names: Set<string>;
+  indexes: Set<string>;
+}
+
 /**
- * Steht diese Waffe auf der Beherrschungs-Liste? Prüft beide Namensseiten
- * (deutsch/englisch), weil ein Angriff im Bogen unter einer von beiden geführt sein
- * kann — dieselbe Unschärfe wie beim Inventar, aber an EINER Stelle behandelt.
+ * Löst die gespeicherten Namen zu Waffenarten auf. Der `index` ist der Grund dafür:
+ * die Auswahl bietet nur Basisarten an, beherrscht ist damit auch jedes magische
+ * Stück derselben Art.
  */
-export function isMastered(masteries: readonly string[], item: { name: string; name_de?: string }): boolean {
-  const wanted = masteries.map((m) => m.trim().toLowerCase());
-  return wanted.includes(item.name.trim().toLowerCase()) || (!!item.name_de && wanted.includes(item.name_de.trim().toLowerCase()));
+export function masteredKinds(
+  masteries: readonly string[],
+  byName: (name: string) => { index?: string } | undefined,
+): MasteredKinds {
+  const kinds: MasteredKinds = { names: new Set(), indexes: new Set() };
+  for (const m of masteries) {
+    kinds.names.add(normName(m));
+    const index = byName(m)?.index;
+    if (index) kinds.indexes.add(index);
+  }
+  return kinds;
+}
+
+/**
+ * Prüft neben der Art beide Namensseiten, weil ein Angriff im Bogen unter der
+ * deutschen oder der englischen geführt sein kann — dieselbe Unschärfe wie beim
+ * Inventar, aber an EINER Stelle behandelt.
+ */
+export function isMastered(kinds: MasteredKinds, item: { name: string; name_de?: string; index?: string }): boolean {
+  return (
+    (!!item.index && kinds.indexes.has(item.index)) ||
+    kinds.names.has(normName(item.name)) ||
+    (!!item.name_de && kinds.names.has(normName(item.name_de)))
+  );
 }
 
 /**
@@ -140,6 +168,9 @@ export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   // deshalb heraus (Pflege-Lücke im Vault) — das Panel weist auf zu wenig Auswahl hin.
   const weapons = (await getItemsByDir('weapon'))
     .filter((w): w is MasteryWeapon => Boolean(w.mastery))
+    // Gewählt wird die Waffenart, nicht das Einzelstück — magische Waffen deckt die
+    // Basisart über `index` mit ab (`isMastered`).
+    .filter((w) => !w.magic)
     .filter((w) => (w.weapon_category === 'Simple' && simple) || (w.weapon_category === 'Martial' && martial))
     .filter((w) => !meleeOnly || /^melee$/i.test(w.weapon_range ?? ''))
     .sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));

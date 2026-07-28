@@ -27,7 +27,7 @@
     MASTERY_INFO, masteryLabel,
     type ItemInfo,
   } from '../itemLibrary';
-  import { isMastered } from '../services/weaponMastery';
+  import { isMastered, masteredKinds } from '../services/weaponMastery';
   import type { WeaponMastery } from '../schemas/shared';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
@@ -279,14 +279,18 @@
   /**
    * Waffenbeherrschung (5e 2024) eines Angriffs bzw. einer Waffe: die Eigenschaft
    * hängt am Item (`mastery`), die Erlaubnis an `character.masteries`. Aufgelöst wird
-   * über den NAMEN — dieselbe Brücke wie beim Inventar. Ein Tausch der beherrschten
-   * Waffen wirkt deshalb sofort auf alle Angriffe, ohne dass etwas zurückgeschrieben
-   * werden müsste (`attacks[]` bleibt unberührt).
+   * über Name und Waffenart — dieselbe Brücke wie beim Inventar. Ein Tausch der
+   * beherrschten Waffen wirkt deshalb sofort auf alle Angriffe, ohne dass etwas
+   * zurückgeschrieben werden müsste (`attacks[]` bleibt unberührt).
    */
+  const masteredWeaponKinds = $derived(
+    masteredKinds(character?.masteries ?? [], (n) => itemByName[n.trim().toLowerCase()]),
+  );
+
   function masteryOf(name: string): WeaponMastery | undefined {
     const lib = itemByName[name.trim().toLowerCase()];
     if (!lib?.mastery) return undefined;
-    return isMastered(character?.masteries ?? [], lib) ? lib.mastery : undefined;
+    return isMastered(masteredWeaponKinds, lib) ? lib.mastery : undefined;
   }
 
   /**

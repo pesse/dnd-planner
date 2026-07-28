@@ -15,6 +15,9 @@ export interface ItemInfo {
   rarity: string;
   weight?: number;
   path: string;
+  /** Basis-Slug der Waffenart: „shortbow" trägt auch der Eidbogen (Kurzbogen). */
+  index?: string;
+  magic: boolean;
   // ── Waffen-Facetten ──
   // Der Index liest die Datei ohnehin vollständig; diese drei Felder mitzunehmen
   // erspart der Waffenbeherrschung (services/weaponMastery.ts) und der
@@ -402,6 +405,8 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
             rarity: data.rarity ?? '—',
             weight: typeof data.weight === 'number' ? data.weight : undefined,
             path,
+            index: data.index,
+            magic: isMagicItem(data),
             weapon_category: data.weapon_category,
             weapon_range: data.weapon_range,
             // Nur ein Wert aus dem geschlossenen Vokabular kommt durch — eine falsch
@@ -409,7 +414,7 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
             mastery: (WEAPON_MASTERIES as readonly string[]).includes(data.mastery) ? data.mastery : undefined,
           };
         } catch {
-          return { name: filename.replace('.json', ''), category: DIR_TO_CATEGORY[dir] ?? 'other', rarity: '—', path };
+          return { name: filename.replace('.json', ''), category: DIR_TO_CATEGORY[dir] ?? 'other', rarity: '—', magic: false, path };
         }
       })
     );
