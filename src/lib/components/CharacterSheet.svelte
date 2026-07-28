@@ -2,7 +2,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { parseCharacterData, emptySpells, SKILL_DEFS, skillSheetKey, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import type { SkillName } from '../schemas/shared';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
@@ -28,7 +29,7 @@
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
-    resolveClassFeatures, resolveSpeciesTraits, resolveFeatLinks,
+    resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
     type ResolvedFeatureGroup, type ResolvedFeature,
   } from '../services/characterFeatures';
   import type { Spell, Item } from '../types';
@@ -39,11 +40,12 @@
 
   let { dirPath }: Props = $props();
 
-  // ─── Merkmals-Auflösung (Karte): Klasse/Volk/Talente aus den Bibliotheks-LINKS ───
-  // Der Charakter speichert nur Verknüpfungen; die Merkmale/Traits werden zur Laufzeit
-  // aus vault/{classes,species,feats} aufgelöst (analog Zauber).
+  // ─── Merkmals-Auflösung (Karte): Klasse/Volk/Hintergrund/Talente aus den LINKS ───
+  // Der Charakter speichert nur Verknüpfungen; die Merkmale/Traits/Vorteile werden zur
+  // Laufzeit aus vault/{classes,species,backgrounds,feats} aufgelöst (analog Zauber).
   let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
+  let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
   let featLinks = $state<ResolvedFeature[]>([]);
   // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
   // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
@@ -55,6 +57,7 @@
     if (!c) return;
     resolveClassFeatures(c.classes ?? []).then((g) => { classFeatureGroups = g; });
     resolveSpeciesTraits(c.species).then((g) => { speciesTraitGroups = g ?? []; });
+    resolveBackground(c.backgroundRef).then((g) => { backgroundGroups = g ? [g] : []; });
     resolveFeatLinks(c.references?.feats).then((f) => { featLinks = f; });
   });
   // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —
@@ -64,8 +67,9 @@
     if (!c) return false;
     const hasClass = (c.classes ?? []).some((cl) => cl.name?.trim() || cl.sourceKey);
     const hasSpecies = !!(c.species && (c.species.sourceKey || c.species.name?.trim()));
+    const hasBackground = !!(c.backgroundRef && (c.backgroundRef.sourceKey || c.backgroundRef.name?.trim()));
     const hasFeats = (c.references?.feats?.length ?? 0) > 0;
-    return hasClass || hasSpecies || hasFeats;
+    return hasClass || hasSpecies || hasBackground || hasFeats;
   });
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
@@ -163,12 +167,20 @@
         case 'feat': // Talent-Link → references.feats
           next.references.feats = [...next.references.feats, { sourceKey: c.sourceKey, name: c.name, gainedAt: c.gainedAt, desc: '' }];
           break;
-        case 'expertise':
-          if (next.skills[c.skill]) next.skills[c.skill].exp = true;
+        // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
+        // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
+        // schlug die Zuweisung still fehl, weil „Animal Handling" nie auf
+        // „MitTierenUmgehen" traf.
+        case 'expertise': {
+          const key = skillSheetKey(c.skill as SkillName);
+          if (next.skills[key]) next.skills[key].exp = true;
           break;
-        case 'proficiency':
-          if (next.skills[c.skill]) next.skills[c.skill].prof = true;
+        }
+        case 'proficiency': {
+          const key = skillSheetKey(c.skill as SkillName);
+          if (next.skills[key]) next.skills[key].prof = true;
           break;
+        }
         case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
           const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
           if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }
@@ -479,6 +491,8 @@
       const pdfFilename = (selected as string).split(/[/\\]/).pop() ?? '';
       const json: CharacterJSON = {
         ...imported,
+        // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
+        // Upgrade-Pipeline (schemas/character.ts) strukturiert sie beim ersten Laden.
         _version: 1,
         _importedFrom: pdfFilename,
         _importedAt: new Date().toISOString(),
@@ -601,8 +615,10 @@
   }
 
   const ATTR_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };
-  const skillAttrMap = new Map(SKILL_DEFS.map(s => [s.key, s.attr]));
-  const skillLabelMap = new Map(SKILL_DEFS.map(s => [s.key, s.label]));
+  // Bogen-Schlüssel → Attribut/Label. Bewusst `Map<string, …>`: die Schlüssel kommen aus
+  // `character.skills` (offener Record) und können auch Fremd-/Altbestand enthalten.
+  const skillAttrMap = new Map<string, string>(SKILL_DEFS.map(s => [s.key, s.attr]));
+  const skillLabelMap = new Map<string, string>(SKILL_DEFS.map(s => [s.key, s.label]));
 
   function row(label: string, val: string | number): string {
     const v = typeof val === 'number' ? sign(val) : val;
@@ -918,10 +934,11 @@
         {/snippet}
         {#if hasFeatureRefs}
           <details class="ref-view" bind:open={featuresOpen}>
-            <summary>Verknüpfte Merkmale (Klasse, Volk, Talente)</summary>
+            <summary>Verknüpfte Merkmale (Klasse, Volk, Hintergrund, Talente)</summary>
             <div class="ref-view-body">
               {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
               {#each speciesTraitGroups as group}{@render groupBlock(group)}{/each}
+              {#each backgroundGroups as group}{@render groupBlock(group)}{/each}
               {#if featLinks.length}
                 <div class="section">
                   <h3>Talente</h3>

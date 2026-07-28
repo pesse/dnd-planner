@@ -6,7 +6,7 @@
 // ┌─ SCHEMA OVERVIEW
 // │ spellSchema
 // │   index? : string  — API-Slug (leer bei Homebrew).
-// │   key? : string  — Open5e-Key, z.B. "srd-2024_moonbeam" (für Verlinkung/Dedup, leer bei Homebrew).
+// │   key? : string  — Open5e-Key, z.B. "srd-2024_moonbeam" (für Verlinkung/Dedup; bei Zaubern meist leer).
 // │   name : string
 // │   name_en? : string  — Kanonischer englischer SRD-Name (für EN↔DE-Matching, z.B. wenn die KI "Moonbeam" liefert …
 // │   level? : int = 0  — 0 = Zaubertrick, 1–9

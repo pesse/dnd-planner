@@ -33,6 +33,7 @@ import {
   SHEET_NOTE_MAX_CHARS,
   type FeatureEffects,
 } from '../../schemas/levelUp';
+import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
@@ -86,8 +87,13 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
 1. Emit EXACTLY ONE rider per entry in <gained_features>, in the same order, with featureName copied verbatim. A feature without any mechanical grant still gets its rider — leave the grant fields at their empty defaults and only fill sheetNote (see rule 10). Never invent a rider for a feature that is not in <gained_features>.
 2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn.
 3. extraCantrips / extraPreparedCount: only if a feature explicitly grants additional cantrips resp. lets the player prepare MORE spells than the class table already does.
-4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options.
-5. proficiencies: skills/tools/weapons/armor/languages/savingThrows the feature grants (short names).
+4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options. Use the canonical English skill names listed in rule 5.
+5. proficiencies: what the feature grants, in CLOSED vocabularies — anything outside them cannot be recorded on the character sheet:
+   - skills: exactly one of ${SKILL_NAMES.join(', ')}.
+   - weapons: ${WEAPON_CATEGORIES.join(' or ')} (a restricted grant such as "Martial weapons with the Light property" is NOT a category — leave weapons empty and describe it in sheetNote).
+   - armor: ${ARMOR_TRAININGS.join(', ')}.
+   - savingThrows: the full English ability name (Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma).
+   - tools / languages: free text, English.
 6. abilityScoreIncrease: ability increases the feature dictates — FIXED ones (e.g. a feat giving +1 CON) AND any resolved "+1 to one of…" choice from <resolved_choices>. NEVER the generic ASI (handled separately). German keys: str, ges (dex), kon, int, wei (wis), cha.
 7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision {id, question, answer}. <resolved_choices> only carries {id, choice} — take the id verbatim, look the matching German question up in your own analysis (same id) and use the chosen German label(s) as the answer. This is the record of what the player picked (e.g. a fighting style, a Circle of the Land terrain). Bake its mechanical consequence into the grant fields above; the decision itself is the audit record.
 8. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — applied automatically. Only add value the raw table cannot express.

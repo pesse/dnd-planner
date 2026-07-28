@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Species } from '$lib/types';
   import type { Trait } from '$lib/schemas/species';
+  import { emptyProficiencyGrant } from '$lib/schemas/shared';
+  import { isEmptyGrant, skillGrantSummary } from '$lib/services/proficiencyGrants';
+  import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
 
   let {
     species = $bindable<Species>(),
@@ -13,7 +16,7 @@
   function mark() { onchange(); }
 
   function addTrait() {
-    const trait: Trait = { key: '', name: '', desc: '' };
+    const trait: Trait = { key: '', name: '', desc: '', proficiencyGrant: emptyProficiencyGrant() };
     species.traits = [...species.traits, trait];
     onchange();
   }
@@ -60,6 +63,16 @@
           <div class="orig-text">{trait.desc}</div>
         </details>
       {/if}
+      <!-- Der Grant hängt am Merkmal; im SRD 5.2 nur Elf „Scharfe Sinne" und Mensch „Vielseitig". -->
+      <details class="grant-details" open={!isEmptyGrant(trait.proficiencyGrant)}>
+        <summary>
+          Gewährte Übungen
+          {#if !isEmptyGrant(trait.proficiencyGrant)}
+            <span class="grant-summary">{skillGrantSummary(trait.proficiencyGrant.skills)}</span>
+          {/if}
+        </summary>
+        <ProficiencyGrantEditForm bind:grant={trait.proficiencyGrant} scope="skills" {onchange} />
+      </details>
     </div>
   {/each}
   <button class="add-feat" onclick={addTrait}>+ Merkmal</button>
@@ -124,6 +137,11 @@
   .orig-details { font-size: 0.78rem; }
   .orig-details summary { color: var(--border); cursor: pointer; }
   .orig-details summary:hover { color: var(--mef-accent, var(--arcane)); }
+
+  .grant-details { font-size: 0.78rem; margin-top: 0.15rem; }
+  .grant-details summary { color: var(--ink-muted); cursor: pointer; }
+  .grant-details summary:hover { color: var(--mef-accent, var(--arcane)); }
+  .grant-summary { color: var(--mef-accent, var(--arcane)); font-style: italic; margin-left: 0.3rem; }
   .orig-text {
     background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
     color: var(--ink-muted); font-size: 0.8rem; line-height: 1.6;

@@ -15,6 +15,15 @@
 // │   nameDe? : string
 // │   desc? : string = ""
 // │   descDe? : string
+// │   proficiencyGrant?:
+// │     skills?:
+// │       fixed? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Ohne Wahl gewährte Fertigkeiten.
+// │       choose? : int = 0  — Wie viele Fertigkeiten frei gewählt werden.
+// │       from? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Auswahlliste; leer = beliebige Fertigkeit.
+// │     savingThrows? : enum("Strength"|"Dexterity"|"Constitution"|"Intelligence"|"Wisdom"|"Charisma")[] = []
+// │     weapons? : enum("Simple"|"Martial")[] = []
+// │     weaponsOther? : string[] = []  — Waffen-Übungen außerhalb der zwei Kategorien, z.B. "Martial weapons that have the Light p…
+// │     armor? : enum("Light"|"Medium"|"Heavy"|"Shields")[] = []
 // │
 // │ speciesSchema
 // │   key : string
@@ -32,19 +41,35 @@
 // │     nameDe? : string
 // │     desc? : string = ""
 // │     descDe? : string
+// │     proficiencyGrant?:
+// │       skills?:
+// │         fixed? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Ohne Wahl gewährte Fertigkeiten.
+// │         choose? : int = 0  — Wie viele Fertigkeiten frei gewählt werden.
+// │         from? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Auswahlliste; leer = beliebige Fertigkeit.
+// │       savingThrows? : enum("Strength"|"Dexterity"|"Constitution"|"Intelligence"|"Wisdom"|"Charisma")[] = []
+// │       weapons? : enum("Simple"|"Martial")[] = []
+// │       weaponsOther? : string[] = []  — Waffen-Übungen außerhalb der zwei Kategorien, z.B. "Martial weapons that have the Light p…
+// │       armor? : enum("Light"|"Medium"|"Heavy"|"Shields")[] = []
 // └─
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { sourceField } from './shared';
+import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
 
-/** Ein Speziesmerkmal (Trait); zweisprachig (EN Pflicht, DE optional). */
+/**
+ * Ein Speziesmerkmal (Trait); zweisprachig (EN Pflicht, DE optional).
+ *
+ * Der Grant hängt am MERKMAL, nicht an der Spezies: im SRD 5.2 gewähren nur zwei
+ * Merkmale eine Fertigkeit (Elf „Keen Senses", Mensch „Skillful"), und beide sind
+ * eine Wahl. Für alles Übrige bleibt er leer.
+ */
 export const traitSchema = z.object({
   key: z.string().default(''),
   name: z.string(),
   nameDe: z.string().optional(),
   desc: z.string().default(''),
   descDe: z.string().optional(),
+  proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
 });
 
 export const speciesSchema = z.object({

@@ -5,6 +5,7 @@
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
+  import CharacterUpgradeModal from './CharacterUpgradeModal.svelte';
   import LibraryManager from './LibraryManager.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
@@ -26,6 +27,7 @@
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
+  import { CHARACTER_VERSION } from '../schemas/character';
   import {
     ITEMS_PATH,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
@@ -42,14 +44,19 @@
   import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
   import { getFeats, searchFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
-  import { listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listFeats, getFeat as getFeatRaw } from '../services/open5eApi';
+  import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, invalidateBackgroundsCache, type BackgroundInfo } from '../backgroundsLibrary';
+  import {
+    listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listFeats, getFeat as getFeatRaw,
+    listBackgrounds, getBackground as getBackgroundRaw, DEFAULT_DOCUMENT,
+  } from '../services/open5eApi';
   import { mapV2 } from '../services/classProgression';
   import { mapV2Species } from '../services/speciesData';
   import { mapV2Feat } from '../services/featData';
-  import { parseClass, parseSpecies, parseFeat } from '../utils/schemaValidation';
-  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, FEAT_TEMPLATE } from '../types';
+  import { mapV2Background } from '../services/backgroundData';
+  import { parseClass, parseSpecies, parseFeat, parseBackground } from '../utils/schemaValidation';
+  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, FEAT_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
   import { OWN_SOURCE } from '../schemas/shared';
-  import type { ClassProgression, Species, Feat } from '../types';
+  import type { ClassProgression, Species, Feat, Background } from '../types';
   import type { DndApiRef } from '../services/dndApi';
 
   interface EntryInfo { name: string; is_dir: boolean; }
@@ -203,6 +210,7 @@
     if (classesExpanded) await loadClasses();
     if (speciesExpanded) await loadSpeciesList();
     if (featsExpanded) await loadFeats();
+    if (backgroundsExpanded) await loadBackgroundsList();
     const campaign = $activeCampaign;
     if (campaign) {
       for (const section of sections) {
@@ -280,6 +288,8 @@
   let newCharInput = $state('');
   let pdfImporting = $state(false);
   let pdfImportError = $state('');
+  // Stapel-Upgrade der Charakter-Dateien auf CHARACTER_VERSION (services/characterUpgrade.ts).
+  let showCharacterUpgrade = $state(false);
 
   async function loadCharacters() {
     try {
@@ -344,10 +354,13 @@
     const dirPath = `${CHARACTERS_PATH}/${slug}`;
 
     const json: CharacterJSON = {
-      _version: 2,
+      // Neu in der App entstanden → schon im aktuellen Format, kein Upgrade nötig.
+      _version: CHARACTER_VERSION,
       name,
       classes: [],
-      classLevel: '', playerName: '', background: '', species: { sourceKey: '', name: '' }, race: '', xp: '',
+      classLevel: '', playerName: '',
+      backgroundRef: { sourceKey: '', name: '' }, background: '',
+      species: { sourceKey: '', name: '' }, race: '', xp: '',
       str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
       strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
       ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
@@ -426,6 +439,8 @@
       const pdfFilename = path.split(/[/\\]/).pop() ?? path;
 
       const json: CharacterJSON = {
+        // BEWUSST v1: das PDF liefert Klasse/Volk/Hintergrund als Freitext. Die
+        // Upgrade-Pipeline (schemas/character.ts) strukturiert das beim ersten Laden.
         _version: 1,
         _importedFrom: pdfFilename,
         _importedAt: new Date().toISOString(),
@@ -616,7 +631,7 @@
 
   // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI,
   // Klasse/Spezies via Open5e v2).
-  let createModal = $state<'monster' | 'spell' | 'class' | 'species' | 'feat' | null>(null);
+  let createModal = $state<'monster' | 'spell' | 'class' | 'species' | 'feat' | 'background' | null>(null);
 
   function blankSpell(name: string): Spell {
     return {
@@ -938,7 +953,64 @@
     }));
   }
 
-  // Klassen/Spezies/Talente bei Vault-Änderung neu laden (z.B. nach Speichern eines neuen Eintrags).
+  // --- Hintergründe (globale Regel-Bibliothek, flach) ---
+  let backgroundsExpanded = $state(false);
+  let backgroundInfos = $state<BackgroundInfo[]>([]);
+
+  async function loadBackgroundsList() {
+    invalidateBackgroundsCache();
+    backgroundInfos = await getBackgroundsList();
+  }
+
+  async function toggleBackgrounds() {
+    backgroundsExpanded = !backgroundsExpanded;
+    if (backgroundsExpanded) await loadBackgroundsList();
+  }
+
+  async function openBackground(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'background' });
+  }
+
+  async function createBackground() {
+    if (!(await confirmNavigation())) return;
+    backgroundsExpanded = true;
+    createModal = 'background';
+  }
+
+  function blankBackground(name: string): Background {
+    return { ...structuredClone(BACKGROUND_TEMPLATE), name: name || 'Neuer Hintergrund', nameDe: name || 'Neuer Hintergrund' };
+  }
+
+  /**
+   * Open5e-v2-Hintergrund-Suche. ref.url = v2-Key.
+   * Die 2024-Quellen zuerst: nur 4 der ~58 Einträge sind SRD 5.2, der Rest ist
+   * 2014-/A5E-Material und landet beim Import als `homebrew-sam`.
+   */
+  async function searchOpen5eBackgrounds(q: string): Promise<DndApiRef[]> {
+    const all = await listBackgrounds();
+    const ql = q.toLowerCase();
+    return all
+      .filter((b) => b.name.toLowerCase().includes(ql))
+      .sort((a, b) => Number(b.document?.key === DEFAULT_DOCUMENT) - Number(a.document?.key === DEFAULT_DOCUMENT))
+      .map((b) => ({ index: b.key, name: `${b.name} (${b.document?.display_name ?? b.document?.key ?? '?'})`, url: b.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eBackground = async (ref: DndApiRef): Promise<Background> =>
+    mapV2Background(await getBackgroundRaw(ref.url));
+
+  async function searchBackgroundLibrary(q: string): Promise<{ name: string; load: () => Promise<Background> }[]> {
+    const lib = await getBackgroundsList();
+    return searchBackgrounds(lib, q, 8).map((b) => ({
+      name: backgroundDisplayName(b),
+      load: async () => {
+        const r = parseBackground(JSON.parse(await invoke<string>('read_file_content', { path: b.path })));
+        return r.ok ? r.data : blankBackground(backgroundDisplayName(b));
+      },
+    }));
+  }
+
+  // Klassen/Spezies/Talente/Hintergründe bei Vault-Änderung neu laden (z.B. nach Speichern eines neuen Eintrags).
   $effect(() => {
     const _v = $vaultVersion;
     if (classesExpanded) void loadClasses();
@@ -950,6 +1022,10 @@
   $effect(() => {
     const _v = $vaultVersion;
     if (featsExpanded) void loadFeats();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (backgroundsExpanded) void loadBackgroundsList();
   });
 
   // --- Encounter (pro Akt-Verzeichnis) ---
@@ -1247,6 +1323,9 @@
       <button class="section-toggle chars-toggle" onclick={toggleCharacters}>
         <span class="arrow" class:open={charactersExpanded}>›</span>
         Charaktere
+      </button>
+      <button class="add-btn" title="Charaktere auf die aktuelle Schemaversion ziehen" onclick={() => (showCharacterUpgrade = true)}>
+        ⬆
       </button>
       <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
         {pdfImporting ? '…' : 'PDF'}
@@ -1664,6 +1743,38 @@
     {/if}
   </div>
 
+  <!-- Hintergründe (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleBackgrounds}>
+        <span class="arrow" class:open={backgroundsExpanded}>›</span>
+        Hintergründe
+      </button>
+      <button class="add-btn" title="Neuer Hintergrund" onclick={createBackground}>+</button>
+    </div>
+
+    {#if backgroundsExpanded}
+      <div class="file-list">
+        {#if backgroundInfos.length}
+          {#each backgroundInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => openBackground(info.path)}
+              >
+                🎭 {backgroundDisplayName(info)}
+              </button>
+              {@render delBtn(() => deleteEntry(info.path, backgroundDisplayName(info), false, loadBackgroundsList))}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Hintergründe</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
   {#if showItemModal}
     <CreateCardModal
       type="item"
@@ -1685,6 +1796,10 @@
 
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
+  {/if}
+
+  {#if showCharacterUpgrade}
+    <CharacterUpgradeModal onclose={() => { showCharacterUpgrade = false; loadCharacters(); }} />
   {/if}
 
   {#if createModal === 'monster'}
@@ -1751,6 +1866,17 @@
       searchLibrary={searchFeatLibrary}
       blank={blankFeat}
       nameOf={(f: Feat) => f.nameDe || f.name || 'Talent'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'background'}
+    <CreateCardModal
+      type="background"
+      title="Neuer Hintergrund"
+      searchApi={searchOpen5eBackgrounds}
+      loadApi={loadOpen5eBackground}
+      searchLibrary={searchBackgroundLibrary}
+      blank={blankBackground}
+      nameOf={(b: Background) => b.nameDe || b.name || 'Hintergrund'}
       onclose={() => (createModal = null)}
     />
   {/if}

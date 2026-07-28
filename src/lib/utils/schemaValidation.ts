@@ -13,9 +13,10 @@ import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
 import { characterSchema, migrateCharacterLegacy, type Character } from '../schemas/character';
-import { classProgressionSchema, type ClassProgression } from '../schemas/classProgression';
+import { classProgressionSchema, migrateClassLegacy, type ClassProgression } from '../schemas/classProgression';
 import { speciesSchema, type Species } from '../schemas/species';
 import { featSchema, type Feat } from '../schemas/feat';
+import { backgroundSchema, type Background } from '../schemas/background';
 import { migrateSourceLegacy } from '../schemas/shared';
 import type { ZodType } from 'zod';
 
@@ -65,11 +66,14 @@ export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(en
 export const normalizeCharacter = (raw: unknown): Character => normalize(characterSchema, migrateCharacterLegacy, raw);
 export const parseCharacter = (raw: unknown): ParseResult<Character> => parse(characterSchema, migrateCharacterLegacy, raw);
 
-// ── Regel-Bibliothek (Klasse/Spezies/Talent) ───────────────────────────────────────
+// ── Regel-Bibliothek (Klasse/Spezies/Talent/Hintergrund) ───────────────────────────
 // Kein Altformat außer der Herkunft: die trugen diese Typen früher nur in
 // `document.key`, jetzt zusätzlich in `source`.
 const libraryEntry: Migrate = (raw) => migrateSourceLegacy(raw as Record<string, unknown>);
 
-export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse(classProgressionSchema, libraryEntry, raw);
+// Klassen tragen ZUSÄTZLICH die Umstellung der Rettungswürfe auf englische Namen
+// (`savingThrows` → `proficiencyGrant.savingThrows`).
+export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse(classProgressionSchema, migrateClassLegacy, raw);
 export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, libraryEntry, raw);
 export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, libraryEntry, raw);
+export const parseBackground = (raw: unknown): ParseResult<Background> => parse(backgroundSchema, libraryEntry, raw);

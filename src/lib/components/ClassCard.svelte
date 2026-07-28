@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { ClassProgression, ClassFeature } from '$lib/types';
-  import { ABILITY_KEYS } from '$lib/schemas/classProgression';
   import { parseClass as _parseClass } from '$lib/utils/schemaValidation';
+  import {
+    abilityLabelDe, skillLabelDe, skillGrantSummary, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
+  } from '$lib/services/proficiencyGrants';
   import ClassEditForm from './ClassEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import Markdown from './Markdown.svelte';
@@ -38,9 +40,6 @@
   const discard = () => ed.discard();
   const saveJson = (json: string) => ed.saveJson(json);
 
-  const ABILITY_LABELS: Record<string, string> = {
-    str: 'STÄ', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA',
-  };
   const CASTER_LABELS: Record<string, string> = {
     NONE: 'Kein Zauberwirker', FULL: 'Voller Zauberwirker', HALF: 'Halber Zauberwirker',
     THIRD: 'Drittel-Zauberwirker', PACT: 'Paktmagie',
@@ -48,6 +47,27 @@
 
   const featureName = (f: ClassFeature): string => f.nameDe || f.name;
   const featureDesc = (f: ClassFeature): string => f.descDe || f.desc;
+
+  // ── Kerntabelle als Zeilen der Karte (deutsch beschriftet, Werte englisch geführt) ──
+  let coreRows = $derived.by(() => {
+    const g = draft?.proficiencyGrant;
+    if (!g) return [] as { label: string; value: string }[];
+    const weapons = [...g.weapons.map((w) => WEAPON_LABEL_DE[w]), ...g.weaponsOther];
+    return [
+      { label: 'Rettungswürfe', value: g.savingThrows.map(abilityLabelDe).join(', ') },
+      { label: 'Fertigkeiten', value: skillGrantSummary(g.skills) },
+      { label: 'Waffen', value: weapons.join(', ') },
+      { label: 'Rüstung', value: g.armor.map((a) => ARMOR_LABEL_DE[a]).join(', ') },
+      { label: 'Bei Klassenkombination', value: skillGrantSummary(draft?.skillGrantMulticlass) },
+    ].filter((r) => r.value);
+  });
+
+  /** Wählbare Fertigkeiten der Kerntabelle, deutsch — als eigene Zeile unter „Fertigkeiten". */
+  let choiceList = $derived(
+    (draft?.proficiencyGrant.skills.choose ?? 0) > 0
+      ? (draft?.proficiencyGrant.skills.from ?? []).map((s) => skillLabelDe(s))
+      : [],
+  );
 
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
@@ -102,10 +122,30 @@
             {CASTER_LABELS[draft!.casterType] ?? draft!.casterType}
             {#if draft!.hitDie} · Trefferwürfel W{draft!.hitDie}{/if}
           </div>
-          {#if draft!.savingThrows.length}
-            <div class="meta">Rettungswürfe: {draft!.savingThrows.map((s) => ABILITY_LABELS[s] ?? s).join(', ')}</div>
-          {/if}
         </div>
+
+        {#if coreRows.length || draft!.startingEquipment}
+          <div class="core-traits">
+            {#each coreRows as r}
+              <div class="core-row">
+                <span class="core-label">{r.label}</span>
+                <span class="core-value">{r.value}</span>
+              </div>
+            {/each}
+            {#if choiceList.length}
+              <div class="core-row">
+                <span class="core-label">Zur Wahl</span>
+                <span class="core-value">{choiceList.join(', ')}</span>
+              </div>
+            {/if}
+            {#if draft!.startingEquipment}
+              <div class="core-row">
+                <span class="core-label">Anfangsausrüstung</span>
+                <span class="core-value">{draft!.startingEquipment}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
         {#if draft!.features.length}
           <div class="features">
             {#each draft!.features as f}
@@ -183,6 +223,14 @@
   .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--copper) 70%, var(--ink)); margin-top: 0.2rem; }
+
+  .core-traits {
+    padding: 0.6rem 1.2rem 0; display: flex; flex-direction: column; gap: 0.2rem;
+    font-size: 0.82rem; line-height: 1.45;
+  }
+  .core-row { display: grid; grid-template-columns: 10.5rem 1fr; gap: 0.5rem; align-items: baseline; }
+  .core-label { font-variant: small-caps; font-weight: 700; color: var(--copper); }
+  .core-value { color: var(--ink); }
 
   .features { padding: 0.6rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
   .feature-head { display: flex; align-items: baseline; gap: 0.5rem; }

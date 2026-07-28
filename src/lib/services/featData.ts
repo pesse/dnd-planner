@@ -7,7 +7,7 @@
  * werden per LLM-Übersetzung nachgefüllt.
  */
 import { featSchema, type Feat } from '$lib/schemas/feat';
-import { toSourceKey } from '$lib/schemas/shared';
+import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/shared';
 
 /** Bildet ein rohes v2-Talent auf das offene, zweisprachige Schema ab. */
 export function mapV2Feat(raw: Record<string, unknown>): Feat {
@@ -15,6 +15,8 @@ export function mapV2Feat(raw: Record<string, unknown>): Feat {
   const benefits = (raw.benefits as { desc?: string }[]) ?? [];
   const benefitText = benefits.map((b) => b.desc).filter(Boolean).join('\n\n');
   const desc = [typeof raw.desc === 'string' ? raw.desc : '', benefitText].filter(Boolean).join('\n\n');
+  // Gewährte Fertigkeitsübungen aus der Prosa (SRD 5.2: nur „Skilled").
+  const skills = parseProseSkillGrant(desc);
 
   const mapped = {
     key: (raw.key as string) ?? '',
@@ -22,6 +24,7 @@ export function mapV2Feat(raw: Record<string, unknown>): Feat {
     name: (raw.name as string) ?? '',
     prerequisite: typeof raw.prerequisite === 'string' ? raw.prerequisite : '',
     desc,
+    proficiencyGrant: skills ? { ...emptyProficiencyGrant(), skills } : emptyProficiencyGrant(),
     document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
   };
   return featSchema.parse(mapped);

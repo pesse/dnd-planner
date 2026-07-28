@@ -1,19 +1,23 @@
 /**
  * Eval-Case: featureEffects für Druide 2→3 / Zirkel des Landes.
  *
- * Spiegelt den ZWEI-Phasen-Flow der echten Maschine:
- *   Call 1 (analyzeFeatureEffects) — erwartet GENAU EINE Landart-Wahl mit
- *          determinesFurtherEffects=true, ≥3 Optionen und (noch) keine Zauber.
- *   Call C (finalizeFeatureEffects, mit aufgelöster Landart) — erwartet konkrete
- *          Kreissprüche als grantedSpells und die Landart als getroffene Entscheidung
- *          (rider.decisions). Weich zusätzlich die Bogen-Notiz: kurz, einzeilig, nennt
- *          die Landart — und listet die Kreissprüche gerade NICHT auf (die stehen schon
- *          in der Zauberliste).
+ * Der Merkmalstext ist auf sein Original zurückgeführt: „Whenever you finish a Long Rest,
+ * choose one type of land …". Die Landart ist damit KEINE Aufstiegs-Entscheidung mehr,
+ * sondern eine Wahl, die nach jeder langen Rast neu getroffen wird. Für den Aufstieg
+ * heißt das:
+ *   Call 1 (analyzeFeatureEffects) — KEINE Choice (insbesondere keine Landart-Frage),
+ *          nicht blockiert; stattdessen die Stufe-3-Zeile ALLER VIER Landarten als
+ *          zu erdende Zauber.
+ *   Call C (finalizeFeatureEffects, ohne resolvedChoices) — dieselben zwölf Kreissprüche
+ *          als grantedSpells und KEINE protokollierte Entscheidung. Weich zusätzlich die
+ *          Bogen-Notiz: kurz, einzeilig, erinnert an die Landart-Wahl pro langer Rast —
+ *          und listet die Kreissprüche gerade NICHT auf (die stehen in der Zauberliste).
  *
- * Beide Fälle rufen den Produktionspfad über `run` selbst auf (mehrere verkettete
- * Calls), statt eine einzelne Action zu messen. Der Call-C-Fall kettet bewusst über
- * eine echte Call-1-Analyse: die Wahl wird als Folge-Turn auf DEREN Verlauf nachgereicht
- * (nur {id, choice}), so wie die App es tut.
+ * „Vorbereitet" bleibt bewusst außen vor: welche der vier Listen gerade gilt, entscheidet
+ * die Rast am Tisch, nicht der Aufstieg. Der Aufstieg liefert nur die vollständige Liste.
+ *
+ * Beide Fälle rufen den Produktionspfad über `run` selbst auf (mehrere verkettete Calls),
+ * statt eine einzelne Action zu messen.
  */
 import type { FeatureEffects } from '../../src/lib/schemas/levelUp';
 import {
@@ -28,58 +32,70 @@ import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type
 import {
   druidClassContext,
   loadCircleOfLandFeatures,
-  EXPECTED_LAND_TYPES,
+  LAND_TYPES_DE,
   EXPECTED_CIRCLE_SPELLS,
   EXPECTED_CIRCLE_SPELLS_DE,
-  RESOLVED_LAND,
+  TOO_HIGH_CIRCLE_SPELLS,
 } from '../fixtures/druid-l3-circle-of-land';
 
 const landRe = /land|gelände|terrain/i;
+/** Verweis auf die (lange) Rast — die Notiz soll den Wahl-Zeitpunkt nennen. */
+const restRe = /rast/i;
 
-/** Landart-Wahlen aus der Analyse (Frage/Optionen referenzieren „Land/Gelände/Terrain"). */
+/** Landart-bezogene Wahlen aus der Analyse (Frage/Optionen referenzieren „Land/Gelände/Terrain"). */
 function landChoices(a: FeatureAnalysis) {
   return a.choices.filter((c) => landRe.test([c.question, ...c.options].join(' ')));
 }
 
+const lower = (xs: string[]) => new Set(xs.map((s) => s.toLowerCase().trim()));
+
 function grantedSpellsLower(fe: FeatureEffects): Set<string> {
-  return new Set(fe.riders.flatMap((r) => r.grantedSpells).map((s) => s.toLowerCase().trim()));
+  return lower(fe.riders.flatMap((r) => r.grantedSpells));
 }
 
-// ── Call 1: Analyse (ohne aufgelöste Wahl) ───────────────────────────────────────
+// ── Call 1: Analyse (es gibt nichts zu entscheiden) ──────────────────────────────
 
 const analyzeCore: Checks<StepResult> = {
-  'liefert mindestens eine Wahl': (r) => (asAnalysis(r)?.choices.length ?? 0) > 0,
-  'genau EINE folgenreiche Landart-Wahl': (r) => {
+  // Kernaussage des Originaltexts: die Landart wird pro langer Rast gewählt. Beim
+  // Aufstieg darf daher gar keine Frage entstehen — auch keine „unschädliche".
+  'erkennt keine erzwungene Wahl': (r) => asAnalysis(r)?.choices.length === 0,
+  'fragt insbesondere keine Landart ab': (r) => {
     const a = asAnalysis(r);
-    return !!a && landChoices(a).filter((c) => c.determinesFurtherEffects).length === 1;
+    return !!a && landChoices(a).length === 0;
   },
-  'Landart-Wahl hat ≥3 Optionen': (r) => {
+  'nicht blockiert (keine offene Wahl hält Zauber zurück)': (r) => asAnalysis(r)?.blocked === false,
+  'erdet die Stufe-3-Kreissprüche ALLER vier Landarten': (r) => {
     const a = asAnalysis(r);
-    return !!a && (landChoices(a)[0]?.options.length ?? 0) >= 3;
-  },
-  'noch keine zu erdenden Zauber vor der Wahl': (r) => {
-    const a = asAnalysis(r);
-    return !!a && (a.blocked || a.spellsToGround.length === 0);
+    if (!a) return false;
+    const got = lower(a.spellsToGround);
+    return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase()));
   },
 };
 
 const analyzeSoft: Checks<StepResult> = {
-  'Optionen decken erwartete Landarten ab': (r) => {
+  // „for your Druid level and lower" — die Zeilen 5/7/9 gehören auf Stufe 3 nicht dazu.
+  'erdet keine Kreissprüche höherer Stufen': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
-    const opts = (landChoices(a)[0]?.options ?? []).map((o) => o.toLowerCase());
-    const hits = EXPECTED_LAND_TYPES.filter((exp) => opts.some((o) => o.includes(exp.toLowerCase())));
-    return hits.length >= 2;
+    const got = lower(a.spellsToGround);
+    return !TOO_HIGH_CIRCLE_SPELLS.some((s) => got.has(s.toLowerCase()));
   },
+  'erdet nicht mehr als die zwölf Kreissprüche': (r) =>
+    (asAnalysis(r)?.spellsToGround.length ?? 99) <= EXPECTED_CIRCLE_SPELLS.length,
 };
 
-// ── Call C: Finalisierung (Landart aufgelöst) ────────────────────────────────────
+// ── Call C: Finalisierung (nichts aufzulösen) ────────────────────────────────────
 
 const finalizeCore: Checks<StepResult> = {
-  'gewährt Kreissprüche (grantedSpells nicht leer)': (r) =>
-    asEffects(r)?.riders.some((x) => x.grantedSpells.length > 0) ?? false,
-  'hält die Landart als getroffene Entscheidung fest (rider.decisions)': (r) =>
-    asEffects(r)?.riders.some((x) => x.decisions.some((d) => landRe.test(`${d.question} ${d.answer}`))) ?? false,
+  'gewährt die Stufe-3-Kreissprüche ALLER vier Landarten': (r) => {
+    const fe = asEffects(r);
+    if (!fe) return false;
+    const got = grantedSpellsLower(fe);
+    return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase()));
+  },
+  // Es wurde keine Wahl getroffen (und keine gestellt) — also gibt es nichts zu protokollieren.
+  'protokolliert keine Entscheidung (Landart fällt pro Rast)': (r) =>
+    asEffects(r)?.riders.every((x) => x.decisions.length === 0) ?? false,
 };
 
 /**
@@ -87,25 +103,26 @@ const finalizeCore: Checks<StepResult> = {
  * Bogen-Notizen — und zwar vor allem das WEGLASSEN: die Kreissprüche stehen bereits in
  * der Zauberliste des Charakters, ihre Namen haben im knappen Klassenmerkmale-Feld
  * nichts verloren. Genau daran hängt die „nur bei Bedarf"-Heuristik von Regel 10.
+ * Was die Notiz dafür leisten SOLL: an den Wahl-Zeitpunkt erinnern (lange Rast).
  */
 const finalizeSoft: Checks<StepResult> = {
-  ...(EXPECTED_CIRCLE_SPELLS.length
-    ? {
-        'gewährte Kreissprüche enthalten die Referenzliste': (r: StepResult) => {
-          const fe = asEffects(r);
-          if (!fe) return false;
-          const got = grantedSpellsLower(fe);
-          return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase().trim()));
-        },
-      }
-    : {}),
+  'gewährt keine Kreissprüche höherer Stufen': (r) => {
+    const fe = asEffects(r);
+    if (!fe) return false;
+    const got = grantedSpellsLower(fe);
+    return !TOO_HIGH_CIRCLE_SPELLS.some((s) => got.has(s.toLowerCase()));
+  },
+  'gewährt nicht mehr als die zwölf Kreissprüche': (r) => {
+    const fe = asEffects(r);
+    return !!fe && grantedSpellsLower(fe).size <= EXPECTED_CIRCLE_SPELLS.length;
+  },
   'liefert mindestens eine Bogen-Notiz': (r) => sheetNotes(r).length > 0,
   [`Bogen-Notizen sind einzeilig und ≤ ${SHEET_NOTE_LIMIT} Zeichen`]: (r) => {
     const notes = sheetNotes(r);
     return notes.length > 0 && notes.every(isSheetReady);
   },
-  'Bogen-Notiz nennt die gewählte Landart': (r) =>
-    sheetNotes(r).some((n) => n.toLowerCase().includes(RESOLVED_LAND.toLowerCase())),
+  'Bogen-Notiz nennt die Landart-Wahl pro (langer) Rast': (r) =>
+    sheetNotes(r).some((n) => restRe.test(n) && (landRe.test(n) || LAND_TYPES_DE.some((t) => n.toLowerCase().includes(t)))),
   // Die Notiz ist deutsch, die grantedSpells sind kanonisch englisch — geprüft wird
   // daher gegen beide Schreibweisen.
   'zählt die gewährten Kreissprüche NICHT in der Bogen-Notiz auf': (r) => {
@@ -127,32 +144,26 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
     );
   }
 
-  const pass1Ctx: FeatureEffectsContext = { classContext: druidClassContext, features };
+  const ctx: FeatureEffectsContext = { classContext: druidClassContext, features };
 
   return [
     {
-      label: 'Call 1 — Analyse: Landart-Wahl erwartet',
-      input: JSON.stringify(pass1Ctx),
+      label: 'Call 1 — Analyse: keine Wahl, alle vier Landarten geerdet',
+      input: JSON.stringify(ctx),
       run: async (cfg: LlmConfig): Promise<StepResult> => ({
         kind: 'analysis',
-        analysis: await analyzeFeatureEffects(cfg, pass1Ctx, { noRetry: true }),
+        analysis: await analyzeFeatureEffects(cfg, ctx, { noRetry: true }),
       }),
       core: analyzeCore,
       soft: analyzeSoft,
     },
     {
-      label: `Call C — Landart "${RESOLVED_LAND}" aufgelöst`,
-      input: JSON.stringify({ ...pass1Ctx, resolvedChoices: [{ id: '<aus Call 1>', choice: RESOLVED_LAND }] }),
-      // Kette wie in der App: erst analysieren, dann die Wahl auf DIESE Analyse
-      // nachreichen. Die Choice-id stammt daher aus dem Manifest von Call 1 —
-      // eine erfundene id würde den Verlauf zerreißen.
+      label: 'Call C — Finalisierung ohne Wahl: zwölf Kreissprüche',
+      input: JSON.stringify(ctx),
+      // Kette wie in der App: erst analysieren, dann finalisieren. Erkennt Call 1 keine
+      // Wahl, überspringt der Flow den Checkpoint — `resolvedChoices` bleibt leer.
       run: async (cfg: LlmConfig): Promise<StepResult> => {
-        const analysis: FeatureAnalysis = await analyzeFeatureEffects(cfg, pass1Ctx, { noRetry: true });
-        const landId = landChoices(analysis)[0]?.id ?? analysis.choices[0]?.id ?? '';
-        const ctx: FeatureEffectsContext = {
-          ...pass1Ctx,
-          resolvedChoices: [{ id: landId, choice: RESOLVED_LAND }],
-        };
+        const analysis: FeatureAnalysis = await analyzeFeatureEffects(cfg, ctx, { noRetry: true });
         return { kind: 'effects', effects: await finalizeFeatureEffects(cfg, ctx, analysis, { noRetry: true }) };
       },
       core: finalizeCore,

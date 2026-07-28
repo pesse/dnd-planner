@@ -39,7 +39,7 @@ const RELEASE_BASE: &str =
 /// Verzeichnisse, in die ein Pack schreiben darf. Muss mit `roots` in
 /// `vault/libraries.yaml` übereinstimmen.
 const ALLOWED_ROOTS: &[&str] = &[
-    "spells", "classes", "species", "feats", "items", "monsters", "templates",
+    "spells", "classes", "species", "feats", "backgrounds", "items", "monsters", "templates",
 ];
 
 const MAGIC: &[u8; 6] = b"DNDLIB";

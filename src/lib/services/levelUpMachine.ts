@@ -15,6 +15,7 @@
  */
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { getProgressionByKey } from './classProgression';
+import { skillLabelDe } from './proficiencyGrants';
 import type { ClassFeature } from '../schemas/classProgression';
 import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
@@ -142,7 +143,7 @@ export function stepReached(current: StepId, step: string): boolean {
 
 export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
 export type AbilityKey = (typeof ABILITY_KEYS)[number];
-const ABILITY_LABEL: Record<AbilityKey, string> = {
+export const ABILITY_LABEL: Record<AbilityKey, string> = {
   str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution', int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
 };
 
@@ -461,13 +462,15 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
   const abil = abilityFromRiders(v.riders);
   for (const k of ABILITY_KEYS) if (abil[k])
     out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'feature', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
+  // `skill` bleibt der ENGLISCHE SRD-Name (übersetzt wird erst beim Anwenden, via
+  // skillSheetKey); nur das Anzeige-Label ist deutsch.
   const profs = [...new Set(v.riders.flatMap((r) => r.proficiencies.skills))];
   for (const skill of profs)
-    out.push({ target: 'proficiency', skill, step, source: 'class-feature', label: `Übung: ${skill}` });
+    out.push({ target: 'proficiency', skill, step, source: 'class-feature', label: `Übung: ${skillLabelDe(skill)}` });
   // Gewählte Expertise (bereits entschieden, kommt aus rider.expertiseSkills).
   const experts = [...new Set(v.riders.flatMap((r) => r.expertiseSkills))];
   for (const skill of experts)
-    out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skill}` });
+    out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skillLabelDe(skill)}` });
   return out;
 }
 

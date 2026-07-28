@@ -16,15 +16,15 @@
 // │   riders?[]:
 // │     featureName? : string = ""  — Which feature/feat emitted this rider.
 // │     source? : enum("class"|"subclass"|"feat") = "class"
-// │     grantedSpells? : string[] = []  — Always-prepared/granted spells, canonical ENGLISH names (reflect resolved choice).
+// │     grantedSpells? : string[] = []  — Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved …
 // │     extraCantrips? : int = 0
 // │     extraPreparedCount? : int = 0  — Additional spells the player may prepare because of this feature.
-// │     expertiseSkills? : string[] = []  — Skills that gained Expertise — the CHOSEN skills, not options.
+// │     expertiseSkills? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Skills that gained Expertise — the CHOSEN skills, not options.
 // │     proficiencies?:
-// │       skills? : string[] = []
+// │       skills? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []
 // │       tools? : string[] = []
-// │       weapons? : string[] = []
-// │       armor? : string[] = []
+// │       weapons? : enum("Simple"|"Martial")[] = []
+// │       armor? : enum("Light"|"Medium"|"Heavy"|"Shields")[] = []
 // │       languages? : string[] = []
 // │       savingThrows? : string[] = []
 // │     abilityScoreIncrease?:
@@ -34,11 +34,11 @@
 // │       int? : int = 0
 // │       wei? : int = 0
 // │       cha? : int = 0
-// │     decisions?[]:  — Feature-forced player choices already MADE (record only — no option lists).
-// │       id? : string = ""
-// │       question? : string = ""  — GERMAN question posed.
-// │       answer? : string = ""  — GERMAN chosen label(s).
-// │     sheetNote? : string = ""  — GERMAN single-line note for the character sheet; empty when no note is needed.
+// │     decisions?[]:
+// │       id? : string = ""  — Stable id of the choice, matching the analysis choice id.
+// │       question? : string = ""  — GERMAN question that was posed to the player.
+// │       answer? : string = ""  — GERMAN label(s) the player chose (comma-joined if several).
+// │     sheetNote? : string = ""  — GERMAN single-line note for the character sheet: "<feature name>: <what it does>", max ~1…
 // │
 // │ levelUpEffectsSchema
 // │   level? : int = 0  — Target character level after this level-up (informational).
@@ -65,7 +65,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { toLlmJsonSchema } from './shared';
+import { toLlmJsonSchema, ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from './shared';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -107,11 +107,18 @@ const abilityDeltaSchema = z.object({
 });
 
 // ── Feature-Effekte (KI deutet die Prosa neu gewonnener Merkmale/Talente) ───────
+//
+// Fertigkeiten/Waffen/Rüstung sind GESCHLOSSENE, englische Vokabulare (shared.ts) —
+// Guided Decoding kann damit gar keinen Namen erfinden, den der Bogen nicht kennt.
+// Vorher waren es freie Strings und die Zuweisung fiel still durch, weil der Bogen
+// deutsche Schlüssel führt (`MitTierenUmgehen`). Übersetzt wird beim Anwenden
+// (`skillSheetKey`). `tools`/`languages` bleiben Freitext (kein Vokabular, und in
+// 2024 sind Sprachen ohnehin keine Übung mehr).
 const riderProficienciesSchema = z.object({
-  skills: z.array(z.string()).default([]),
+  skills: z.array(z.enum(SKILL_NAMES)).default([]),
   tools: z.array(z.string()).default([]),
-  weapons: z.array(z.string()).default([]),
-  armor: z.array(z.string()).default([]),
+  weapons: z.array(z.enum(WEAPON_CATEGORIES)).default([]),
+  armor: z.array(z.enum(ARMOR_TRAININGS)).default([]),
   languages: z.array(z.string()).default([]),
   savingThrows: z.array(z.string()).default([]),
 });
@@ -146,7 +153,7 @@ const featureRiderSchema = z.object({
   grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
   extraCantrips: z.number().int().default(0),
   extraPreparedCount: z.number().int().default(0).describe('Additional spells the player may prepare because of this feature.'),
-  expertiseSkills: z.array(z.string()).default([]).describe('Skills that gained Expertise — the CHOSEN skills, not options.'),
+  expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]).describe('Skills that gained Expertise — the CHOSEN skills, not options.'),
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
   abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
   decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),

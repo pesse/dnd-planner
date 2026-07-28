@@ -14,11 +14,25 @@
 import { invoke } from '@tauri-apps/api/core';
 import {
   classProgressionSchema,
+  migrateClassLegacy,
   type ClassProgression,
   type ClassFeature,
   type AbilityKey,
 } from '$lib/schemas/classProgression';
-import { toSourceKey } from '$lib/schemas/shared';
+import {
+  toSourceKey,
+  emptyProficiencyGrant,
+  parseSkillNames,
+  readAbilityName,
+  readArmorTraining,
+  readWeaponCategory,
+  splitRuleList,
+  type AbilityName,
+  type ArmorTraining,
+  type ProficiencyGrant,
+  type SkillGrant,
+  type WeaponCategory,
+} from '$lib/schemas/shared';
 import { getClass, DEFAULT_DOCUMENT } from './open5eApi';
 import { getClasses } from '$lib/classLibrary';
 
@@ -31,13 +45,133 @@ const DE_TO_SLUG: Record<string, string> = {
 };
 export const CLASS_NAMES_DE: string[] = Object.keys(DE_TO_SLUG);
 
-const ABILITY_FROM_EN: Record<string, AbilityKey> = {
+export const ABILITY_FROM_EN: Record<string, AbilityKey> = {
   strength: 'str', dexterity: 'ges', constitution: 'kon',
   intelligence: 'int', wisdom: 'wei', charisma: 'cha',
 };
 
+/**
+ * Umkehrung von `ABILITY_FROM_EN` (App-Schlüssel → englischer SRD-Name). Lebt im
+ * Schema, weil die Altdaten-Migration sie braucht; hier nur re-exportiert, damit
+ * beide Übersetzungsrichtungen an derselben Stelle auffindbar bleiben.
+ */
+export { ABILITY_TO_EN } from '$lib/schemas/classProgression';
+
+/** v2-Kopf-`saving_throws` (`[{name: "Strength"}]`) → englische Attributsnamen. */
+const readAbilityNames = (raw: { name?: string }[]): AbilityName[] =>
+  raw.map((s) => readAbilityName(s.name ?? '')).filter((a): a is AbilityName => a !== null);
+
 const fold = (s: string): string =>
   s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+
+// ── Kerntabelle („Core Traits") ───────────────────────────────────────────────
+//
+// Open5e v2 liefert die Kerntabelle als Merkmal mit `feature_type:
+// "CORE_TRAITS_TABLE"` und LEEREM `gained_at` — ihr `desc` ist eine Markdown-
+// Tabelle `|Zeile|Wert|`. Aus ihr entstehen die vier Übungs-Arten plus die
+// Anfangsausrüstung als Prosa. „Primary Ability" und „Hit Point Die" stehen
+// bereits strukturiert in v2, „Tool Proficiencies" bleibt bewusst Prosa
+// (Werkzeuge sind kein geschlossenes Vokabular in dieser App).
+
+/** Rohe Kerntabellen-Zeilen: Zeilentitel → Wert. */
+export function parseCoreTraitRows(desc: string): Record<string, string> {
+  const rows: Record<string, string> = {};
+  for (const line of desc.split('\n')) {
+    const cells = line.split('|');
+    // `|Titel|Wert|` → ['', 'Titel', 'Wert', '']; Trenn-/Kopfzeilen haben keinen Titel.
+    if (cells.length < 4) continue;
+    const title = cells[1].trim();
+    const value = cells[2].trim();
+    if (!title || /^-+$/.test(title)) continue;
+    rows[title] = value;
+  }
+  return rows;
+}
+
+/**
+ * „Skill Proficiencies"-Zelle → `skillGrant`. Drei Formen kommen vor:
+ *   „Choose 2: Animal Handling, Athletics, … or Survival" → {choose:2, from:[…]}
+ *   „Choose any 3 skills"                                 → {choose:3, from:[]}
+ *   Aufzählung ohne „Choose"                              → {fixed:[…]}
+ */
+export function parseSkillGrant(raw: string, context = 'Skill Proficiencies'): SkillGrant {
+  const value = raw.trim();
+  if (!value || /^none$/i.test(value)) return { fixed: [], choose: 0, from: [] };
+
+  const choose = Number(value.match(/choose\s+(?:any\s+)?(\d+)/i)?.[1] ?? 0);
+  if (!choose) return { fixed: parseSkillNames(value, context), choose: 0, from: [] };
+
+  // Die Auswahlliste steht nach dem Doppelpunkt; ohne Doppelpunkt („any 3 skills")
+  // ist jede Fertigkeit erlaubt.
+  const listPart = value.includes(':') ? value.slice(value.indexOf(':') + 1) : '';
+  return { fixed: [], choose, from: listPart.trim() ? parseSkillNames(listPart, context) : [] };
+}
+
+/** „Saving Throw Proficiencies"-Zelle → englische Attributsnamen. */
+function parseSavingThrows(raw: string, context: string): AbilityName[] {
+  const out: AbilityName[] = [];
+  for (const part of splitRuleList(raw)) {
+    const ability = readAbilityName(part);
+    if (!ability) throw new Error(`${context}: unbekanntes Attribut "${part}" (aus "${raw}")`);
+    if (!out.includes(ability)) out.push(ability);
+  }
+  return out;
+}
+
+/**
+ * „Weapon Proficiencies"-Zelle → Kategorien + Sonderfälle.
+ * „Simple and Martial weapons" → ['Simple','Martial']; die eingeschränkten Formen
+ * („Martial weapons that have the Light property" bei Mönch/Schurke) sind KEINE
+ * Kategorie-Übung und landen wörtlich in `weaponsOther`.
+ */
+function parseWeapons(raw: string): { weapons: WeaponCategory[]; weaponsOther: string[] } {
+  const weapons: WeaponCategory[] = [];
+  const weaponsOther: string[] = [];
+  // NUR an „and" trennen, nicht an „or": das „or" gehört zu den Einschränkungen
+  // („… the Finesse or Light property") und darf die Phrase nicht zerreißen.
+  for (const phrase of raw.split(/\band\b/gi).map((s) => s.trim()).filter(Boolean)) {
+    if (/^none$/i.test(phrase)) continue;
+    const category = readWeaponCategory(phrase);
+    if (category) {
+      if (!weapons.includes(category)) weapons.push(category);
+    } else {
+      weaponsOther.push(phrase.replace(/[.;]+$/, ''));
+    }
+  }
+  return { weapons, weaponsOther };
+}
+
+/** „Armor Training"-Zelle → Rüstungsstufen. Unbekanntes (inkl. „None") fällt weg. */
+function parseArmor(raw: string): ArmorTraining[] {
+  const out: ArmorTraining[] = [];
+  for (const part of splitRuleList(raw)) {
+    const training = readArmorTraining(part);
+    if (training && !out.includes(training)) out.push(training);
+  }
+  return out;
+}
+
+/**
+ * Kerntabellen-Prosa → strukturierter Übungs-Grant + Anfangsausrüstung.
+ * Wirft bei unbekannten Fertigkeits-/Attributsnamen (siehe `parseSkillNames`).
+ */
+export function parseCoreTraits(desc: string, context = 'Kerntabelle'): {
+  grant: ProficiencyGrant;
+  startingEquipment: string;
+} {
+  const rows = parseCoreTraitRows(desc);
+  const { weapons, weaponsOther } = parseWeapons(rows['Weapon Proficiencies'] ?? '');
+  return {
+    grant: {
+      skills: parseSkillGrant(rows['Skill Proficiencies'] ?? '', context),
+      savingThrows: parseSavingThrows(rows['Saving Throw Proficiencies'] ?? '', context),
+      weapons,
+      weaponsOther,
+      armor: parseArmor(rows['Armor Training'] ?? ''),
+    },
+    startingEquipment: rows['Starting Equipment'] ?? '',
+  };
+}
 
 // ── v2 → interner Typ ────────────────────────────────────────────────────────
 interface V2Feature {
@@ -69,6 +203,13 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
     .map(([level, columns]) => ({ level, columns }))
     .sort((a, b) => a.level - b.level);
 
+  // Kerntabelle: `gained_at` ist leer, deshalb ist sie KEIN Merkmal — aber ihr
+  // `desc` trägt Fertigkeiten/Waffen/Rüstung/Rettungswürfe aller 12 Grundklassen.
+  const coreTraits = feats.find((f) => f.feature_type === 'CORE_TRAITS_TABLE');
+  const core = coreTraits?.desc
+    ? parseCoreTraits(coreTraits.desc, `Kerntabelle ${raw.key ?? ''}`)
+    : { grant: emptyProficiencyGrant(), startingEquipment: '' };
+
   // Echte Merkmale (gained_at befüllt).
   const features: ClassFeature[] = feats
     .filter((f) => (f.gained_at?.length ?? 0) > 0)
@@ -91,9 +232,14 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
     hitDie: Number(String(raw.hit_dice ?? hp.hit_dice ?? '').match(/(\d+)/)?.[1] ?? 0),
     hpAt1st: hp.hit_points_at_1st_level ?? '',
     hpHigher: hp.hit_points_at_higher_levels ?? '',
-    savingThrows: ((raw.saving_throws as { name?: string }[]) ?? [])
-      .map((s) => ABILITY_FROM_EN[(s.name ?? '').toLowerCase()])
-      .filter(Boolean) as AbilityKey[],
+    // Kerntabelle. Fehlt sie (Subklassen, Homebrew), bleibt `saving_throws` aus dem
+    // v2-Kopf die Quelle der Rettungswürfe — der einzige Teil, den v2 doppelt führt.
+    proficiencyGrant: coreTraits
+      ? core.grant
+      : { ...core.grant, savingThrows: readAbilityNames((raw.saving_throws as { name?: string }[]) ?? []) },
+    // Beim Import NICHT ableitbar (steht nicht in v2) — bleibt leer und wird im Vault gepflegt.
+    skillGrantMulticlass: { fixed: [], choose: 0, from: [] },
+    startingEquipment: core.startingEquipment,
     document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
     levels,
     features,
@@ -115,7 +261,9 @@ async function getLocalProgression(key: string): Promise<ClassProgression | null
     const info = (await getClasses()).find((c) => c.key === key);
     if (!info) return null;
     const data = JSON.parse(await invoke<string>('read_file_content', { path: info.path }));
-    const r = classProgressionSchema.safeParse(data);
+    // ÜBER den Migrator parsen — Altbestand trägt `savingThrows` noch in deutschen
+    // App-Schlüsseln am Klassenkopf statt englisch im `proficiencyGrant`.
+    const r = classProgressionSchema.safeParse(migrateClassLegacy(data));
     return r.success ? r.data : null;
   } catch {
     return null;

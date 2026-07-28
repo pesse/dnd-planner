@@ -17,6 +17,15 @@
 // │   prerequisiteDe? : string
 // │   desc? : string = ""
 // │   descDe? : string
+// │   proficiencyGrant?:
+// │     skills?:
+// │       fixed? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Ohne Wahl gewährte Fertigkeiten.
+// │       choose? : int = 0  — Wie viele Fertigkeiten frei gewählt werden.
+// │       from? : enum("Acrobatics"|"Animal Handling"|"Arcana"|"Athletics"|"Deception"|"History"|"Insight"|"Intimidation"|"Investigation"|"Medicine"|"Nature"|"Perception"|"Performance"|"Persuasion"|"Religion"|"Sleight of Hand"|"Stealth"|"Survival")[] = []  — Auswahlliste; leer = beliebige Fertigkeit.
+// │     savingThrows? : enum("Strength"|"Dexterity"|"Constitution"|"Intelligence"|"Wisdom"|"Charisma")[] = []
+// │     weapons? : enum("Simple"|"Martial")[] = []
+// │     weaponsOther? : string[] = []  — Waffen-Übungen außerhalb der zwei Kategorien, z.B. "Martial weapons that have the Light p…
+// │     armor? : enum("Light"|"Medium"|"Heavy"|"Shields")[] = []
 // │   document?:
 // │     key? : string = ""
 // │     gamesystem? : string = ""
@@ -24,7 +33,7 @@
 //#endregion schema-overview
 
 import { z } from 'zod';
-import { sourceField } from './shared';
+import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
 
 export const featSchema = z.object({
   key: z.string().default(''),
@@ -35,6 +44,13 @@ export const featSchema = z.object({
   prerequisiteDe: z.string().optional(),
   desc: z.string().default(''),
   descDe: z.string().optional(),
+  /**
+   * Übungen, die das Talent gewährt (englische Enum-Werte). Im SRD 5.2 betrifft das
+   * nur `srd-2024_skilled`. Dessen „any combination of three skills or tools" ist
+   * bewusst als `{choose: 3, from: []}` abgebildet — dass auch WERKZEUGE zulässig
+   * sind, kann `skillGrant` nicht ausdrücken und bleibt der Prosa überlassen.
+   */
+  proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

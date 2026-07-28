@@ -139,6 +139,172 @@ export function migrateSourceKey(key: string | undefined): string {
   return key?.startsWith('homebrew_') ? `${OWN_SOURCE}_${key.slice('homebrew_'.length)}` : (key ?? '');
 }
 
+// ── Geschlossene Regel-Vokabulare (Übungen) ───────────────────────────────────
+//
+// **Grundmechanik ist immer englisch.** Übungen sind in 5e 2024 geschlossene
+// Vokabulare (18 Fertigkeiten, 6 Rettungswürfe, 2 Waffenkategorien, 4 Rüstungs-
+// stufen) — die Bibliotheks-Artefakte tragen sie in SRD-Schreibweise. Der
+// Charakterbogen (`character.skills`, `*SaveProf`, `proficiencies.*`) bleibt
+// deutsch, weil das PDF-Formular die Feldnamen diktiert. Zwischen beidem liegt
+// GENAU EINE Übersetzungstabelle: `SKILL_DEFS.en` (pdf/characterFields.ts) und
+// `ABILITY_FROM_EN`/`ABILITY_TO_EN` (services/classProgression.ts).
+
+export const SKILL_NAMES = [
+  'Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception',
+  'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine',
+  'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion',
+  'Sleight of Hand', 'Stealth', 'Survival',
+] as const;
+export type SkillName = (typeof SKILL_NAMES)[number];
+
+export const ABILITY_NAMES = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] as const;
+export type AbilityName = (typeof ABILITY_NAMES)[number];
+
+export const WEAPON_CATEGORIES = ['Simple', 'Martial'] as const;
+export type WeaponCategory = (typeof WEAPON_CATEGORIES)[number];
+
+export const ARMOR_TRAININGS = ['Light', 'Medium', 'Heavy', 'Shields'] as const;
+export type ArmorTraining = (typeof ARMOR_TRAININGS)[number];
+
+/** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
+export const skillGrantSchema = z.object({
+  fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),
+  choose: z.number().int().min(0).default(0).describe('Wie viele Fertigkeiten frei gewählt werden.'),
+  from: z.array(z.enum(SKILL_NAMES)).default([]).describe('Auswahlliste; leer = beliebige Fertigkeit.'),
+});
+
+/** Leerer Fertigkeits-Grant (Default-Literal, damit `z.toJSONSchema` es inline auflöst). */
+export const emptySkillGrant = (): SkillGrant => ({ fixed: [], choose: 0, from: [] });
+
+/**
+ * Was ein Bibliotheks-Artefakt an Übungen gewährt — EINE Form für alle vier
+ * Artefakttypen (Klasse, Hintergrund, Spezies-Merkmal, Talent). Genau das ist
+ * der Punkt: die Summierung über alle Quellen ist dann eine Funktion, nicht vier
+ * (services/proficiencyGrants.ts). Hintergründe füllen nur `skills`, Klassen alles.
+ */
+export const proficiencyGrantSchema = z.object({
+  skills: skillGrantSchema.default(emptySkillGrant),
+  savingThrows: z.array(z.enum(ABILITY_NAMES)).default([]),
+  weapons: z.array(z.enum(WEAPON_CATEGORIES)).default([]),
+  weaponsOther: z
+    .array(z.string())
+    .default([])
+    .describe('Waffen-Übungen außerhalb der zwei Kategorien, z.B. "Martial weapons that have the Light property".'),
+  armor: z.array(z.enum(ARMOR_TRAININGS)).default([]),
+});
+
+/** Leerer Übungs-Grant (Default-Literal für `.default()`). */
+export const emptyProficiencyGrant = (): ProficiencyGrant => ({
+  skills: emptySkillGrant(),
+  savingThrows: [],
+  weapons: [],
+  weaponsOther: [],
+  armor: [],
+});
+
+export type SkillGrant = z.infer<typeof skillGrantSchema>;
+export type ProficiencyGrant = z.infer<typeof proficiencyGrantSchema>;
+
+/**
+ * Lookup-Schlüssel eines Regelbegriffs: kleingeschrieben, OHNE jedes Leerzeichen.
+ * Fängt Open5es Datenmüll ab — die v2-Kerntabellen enthalten „Na ture" (Druide)
+ * und „In sight" (Magier), also eingestreute Leerzeichen mitten im Namen.
+ */
+const foldRuleName = (s: string): string => s.toLowerCase().replace(/\s+/g, '');
+
+function vocabularyLookup<T extends string>(values: readonly T[]): Map<string, T> {
+  return new Map(values.map((v) => [foldRuleName(v), v]));
+}
+
+const SKILL_LOOKUP = vocabularyLookup(SKILL_NAMES);
+const ABILITY_LOOKUP = vocabularyLookup(ABILITY_NAMES);
+const WEAPON_LOOKUP = vocabularyLookup(WEAPON_CATEGORIES);
+// „Shield" (Singular) kommt in der Prosa ebenso vor wie „Shields".
+const ARMOR_LOOKUP = new Map([...vocabularyLookup(ARMOR_TRAININGS), ['shield', 'Shields' as ArmorTraining]]);
+
+/** Erkennt eine Fertigkeit; null, wenn der Begriff keine ist. */
+export const readSkillName = (raw: string): SkillName | null =>
+  SKILL_LOOKUP.get(foldRuleName(raw.replace(/\bskills?\b/gi, ''))) ?? null;
+
+/** Erkennt ein Attribut (englischer Name); null, wenn der Begriff keines ist. */
+export const readAbilityName = (raw: string): AbilityName | null => ABILITY_LOOKUP.get(foldRuleName(raw)) ?? null;
+
+/** Erkennt eine Waffenkategorie; null bei allem, was eine Einzel-/Sonderregel ist. */
+export const readWeaponCategory = (raw: string): WeaponCategory | null =>
+  WEAPON_LOOKUP.get(foldRuleName(raw.replace(/\bweapons?\b/gi, ''))) ?? null;
+
+/** Erkennt eine Rüstungsstufe; null bei allem Übrigen (inkl. „None"). */
+export const readArmorTraining = (raw: string): ArmorTraining | null =>
+  ARMOR_LOOKUP.get(foldRuleName(raw.replace(/\barmou?r\b/gi, '').replace(/\btraining\b/gi, ''))) ?? null;
+
+/**
+ * Zerlegt eine SRD-Aufzählung („Light, Medium, and Heavy armor and Shields",
+ * „Animal Handling, Athletics, or Survival") in ihre Glieder. Trennt an Kommas
+ * sowie an „and"/„or" und wirft Füllwörter weg.
+ */
+export function splitRuleList(raw: string): string[] {
+  return raw
+    .split(/,|\band\b|\bor\b/gi)
+    .map((s) => s.trim().replace(/^(?:the|a|an)\s+/i, '').replace(/[.;]+$/, '').trim())
+    .filter((s) => s && !/^none$/i.test(s));
+}
+
+/**
+ * Liest eine Fertigkeits-Aufzählung. Wirft bei einem unbekannten Glied — beide
+ * Quellen (Open5e v2 und der deutsche SRD-Auszug) sind bekannt deckungsgleich,
+ * eine Abweichung ist also ein Parser-Fehler und soll sichtbar werden statt
+ * still eine Fertigkeit zu verschlucken.
+ */
+export function parseSkillNames(raw: string, context = 'Fertigkeitsliste'): SkillName[] {
+  const out: SkillName[] = [];
+  for (const part of splitRuleList(raw)) {
+    const skill = readSkillName(part);
+    if (!skill) throw new Error(`${context}: unbekannte Fertigkeit "${part}" (aus "${raw}")`);
+    if (!out.includes(skill)) out.push(skill);
+  }
+  return out;
+}
+
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+
+/**
+ * Liest einen Fertigkeits-Grant aus REGEL-PROSA (Spezies-Merkmale, Talente) —
+ * anders als die Kerntabelle der Klassen, die eine feste Tabellenform hat.
+ * Erkannt werden die drei im SRD 5.2 vorkommenden Formen:
+ *
+ *   „proficiency in the Insight, Perception, or Survival skill"   → {choose:1, from:[…]}
+ *   „proficiency in one skill of your choice"                     → {choose:1, from:[]}
+ *   „proficiency in any combination of three skills or tools …"   → {choose:3, from:[]}
+ *
+ * Bewusst TOLERANT (null statt Wurf): der Aufrufer schickt jede Merkmals-Prosa
+ * durch, und alles Nicht-Modellierbare soll einfach Prosa bleiben. Der Wurf-Pfad
+ * gehört der Kerntabelle, wo jede Abweichung ein Parser-Fehler ist.
+ */
+export function parseProseSkillGrant(desc: string): SkillGrant | null {
+  const match = desc.match(/proficienc(?:y|ies)\s+in\s+([^.;]+)/i);
+  if (!match) return null;
+  const phrase = match[1].trim();
+
+  // Freie Wahl mit Anzahl („one skill of your choice", „three skills or tools").
+  const counted = phrase.match(/\b(one|two|three|four|five|\d+)\s+(?:more\s+)?skills?\b/i);
+  if (counted && /choice|combination/i.test(phrase)) {
+    const n = NUMBER_WORDS[counted[1].toLowerCase()] ?? Number(counted[1]);
+    return n > 0 ? { fixed: [], choose: n, from: [] } : null;
+  }
+
+  // Benannte Fertigkeiten. Ein „or" macht daraus eine Wahl, ein „and" einen festen Grant.
+  const names: SkillName[] = [];
+  for (const part of splitRuleList(phrase)) {
+    const skill = readSkillName(part);
+    if (!skill) return null; // Prosa, die diese App nicht als Übung modelliert
+    if (!names.includes(skill)) names.push(skill);
+  }
+  if (!names.length) return null;
+  return /\bor\b/i.test(phrase)
+    ? { fixed: [], choose: 1, from: names }
+    : { fixed: names, choose: 0, from: [] };
+}
+
 /**
  * Wandelt ein Zod-Schema in das JSON-Schema um, das Anthropics
  * `output_config.format.json_schema` erwartet.

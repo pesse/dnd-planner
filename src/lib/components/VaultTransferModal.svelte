@@ -15,6 +15,7 @@
     classes: boolean;
     species: boolean;
     feats: boolean;
+    backgrounds: boolean;
   }
 
   /** Bibliotheks-Kategorien (bool-Flags), Reihenfolge = Anzeige im Dialog. */
@@ -25,6 +26,7 @@
     { key: 'classes', label: 'Klassen' },
     { key: 'species', label: 'Spezies' },
     { key: 'feats', label: 'Talente' },
+    { key: 'backgrounds', label: 'Hintergründe' },
   ] as const;
   type LibKey = (typeof LIBS)[number]['key'];
 

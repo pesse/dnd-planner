@@ -93,3 +93,27 @@ export async function listFeats(limit = 500): Promise<V2FeatRef[]> {
   const raw = (await apiGet(`${OPEN5E_V2}/feats/?format=json&limit=${limit}`)) as { results?: V2FeatRef[] };
   return raw.results ?? [];
 }
+
+// ── Hintergründe (Backgrounds) ─────────────────────────────────────────────────
+// ACHTUNG: nur 4 der ~58 Einträge sind 5e-2024 (`document.key === 'srd-2024'`).
+// Der Rest stammt aus SRD 5.1, A5E und Drittanbieter-Quellen und ist 2014-Mechanik
+// (Feature + Suggested Characteristics statt Attributswerte + Herkunftstalent).
+// `toSourceKey` zieht solche Importe auf `homebrew-sam` — bewusst, damit nichts mit
+// ungeklärter Lizenz in einem offen verteilten Pack landet.
+
+/** Holt einen Hintergrund per v2-Key, z.B. "srd-2024_soldier". */
+export async function getBackground(key: string): Promise<Record<string, unknown>> {
+  return (await apiGet(`${OPEN5E_V2}/backgrounds/${encodeURIComponent(key)}/?format=json`)) as Record<string, unknown>;
+}
+
+export interface V2BackgroundRef {
+  key: string;
+  name: string;
+  document: { key: string; gamesystem?: { key?: string }; display_name?: string };
+}
+
+/** Listet Hintergrund-Referenzen (für Suche & Auswahl). */
+export async function listBackgrounds(limit = 100): Promise<V2BackgroundRef[]> {
+  const raw = (await apiGet(`${OPEN5E_V2}/backgrounds/?format=json&limit=${limit}`)) as { results?: V2BackgroundRef[] };
+  return raw.results ?? [];
+}

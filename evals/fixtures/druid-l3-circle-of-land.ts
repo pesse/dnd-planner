@@ -1,12 +1,16 @@
 /**
  * Fixture: Druide 2 → 3 mit „Zirkel des Landes".
  *
- * Referenzfall für die featureEffects-Eval. Erwartetes Kernverhalten:
- *  - 1. Pass (ohne aufgelöste Wahl): die KI liefert eine Landart-Auswahl als
- *    choicePrompt mit resolvesEffects=true — die Kreissprüche hängen von der Wahl ab,
- *    daher noch KEINE grantedSpells.
- *  - 2. Pass (Landart aufgelöst): die KI liefert die konkreten Kreissprüche als
- *    grantedSpells und hält die Wahl mit resolvesEffects=false fest.
+ * Referenzfall für die featureEffects-Eval. Erwartetes Kernverhalten — SEIT der
+ * Rückführung des Merkmalstexts auf das Original („Whenever you finish a Long Rest,
+ * choose one type of land …"): die Landart-Wahl ist KEINE Aufstiegs-Entscheidung, sie
+ * fällt nach jeder langen Rast neu. Der Stufenaufstieg darf sie deshalb weder erfragen
+ * noch protokollieren:
+ *  - Call 1 (Analyse): KEINE Choice, nicht blockiert — stattdessen die Stufe-3-Zeile
+ *    ALLER VIER Landarten als zu erdende Zauber.
+ *  - Call C (Finalisierung, ohne aufgelöste Wahl): dieselben zwölf Zauber als Grant,
+ *    ohne getroffene Entscheidung. „Vorbereitet" ist keine Aufstiegs-Information mehr —
+ *    welche der vier Listen gilt, entscheidet der Spieler pro Rast am Tisch.
  *
  * WICHTIG — kein Drift zur Realität: die gewonnenen Merkmale werden über den ECHTEN
  * Produktionspfad geladen (`computeSubclassFeatures` → `getProgressionByKey` → Vault),
@@ -64,21 +68,25 @@ export const druidClassContext: FeatureClassContext = {
 };
 
 /**
- * Kanonische Landarten, welche die Optionen der Landart-Auswahl abdecken sollten
- * (SRD 5.2 / 2024). NUR für die weiche „options cover expected"-Assertion.
+ * Die vier Landarten (deutsche Begriffe aus `descDe`). NUR für weiche Prüfungen an der
+ * Bogen-Notiz: die Notiz darf ruhig auf sie verweisen — die Wahl selbst ist Sache der
+ * langen Rast, nicht des Aufstiegs.
  */
-export const EXPECTED_LAND_TYPES = ['arid', 'polar', 'temperate', 'tropical', 'trocken', 'gemäßigt', 'tropisch'];
-
-/** Landart, die im 2. Pass als getroffene Wahl übergeben wird (→ Temperate Land). */
-export const RESOLVED_LAND = 'Gemäßigt';
+export const LAND_TYPES_DE = ['arid', 'polar', 'gemäßigt', 'tropisch'];
 
 /**
- * Erwartete immer-vorbereitete Kreissprüche für die gewählte Landart (RESOLVED_LAND
- * = „Gemäßigt" → Temperate Land) auf Stufe 3 (kanonische ENGLISCHE Namen aus der
- * Zaubertabelle des Merkmals; auf Stufe 3 greift nur die Zeile „Druid Level 3").
- * Leer ⇒ es wird nur geprüft, dass ÜBERHAUPT Kreissprüche gewährt wurden.
+ * Erwartete Kreissprüche auf Stufe 3 — die Zeile „Druid Level 3" ALLER VIER Landarten
+ * (kanonische ENGLISCHE Namen aus den Zaubertabellen des Merkmals). Weil die Landart erst
+ * pro langer Rast gewählt wird, gehört auf Stufe 3 die komplette Liste zum Charakter; was
+ * davon jeweils vorbereitet ist, entscheidet die Rast.
+ * Reihenfolge: arid, polar, gemäßigt (temperate), tropisch.
  */
-export const EXPECTED_CIRCLE_SPELLS: string[] = ['Misty Step', 'Shocking Grasp', 'Sleep'];
+export const EXPECTED_CIRCLE_SPELLS: string[] = [
+  'Blur', 'Burning Hands', 'Fire Bolt',
+  'Fog Cloud', 'Hold Person', 'Ray of Frost',
+  'Misty Step', 'Shocking Grasp', 'Sleep',
+  'Acid Splash', 'Ray of Sickness', 'Web',
+];
 
 /**
  * Dieselben Zauber mit ihren deutschen Bibliotheksnamen. Gebraucht für die Gegenprobe auf
@@ -86,4 +94,21 @@ export const EXPECTED_CIRCLE_SPELLS: string[] = ['Misty Step', 'Shocking Grasp',
  * dürfen das knappe Klassenmerkmale-Feld nicht zusätzlich füllen — die KI schreibt die
  * Notiz auf Deutsch, also muss der Check beide Sprachen abdecken.
  */
-export const EXPECTED_CIRCLE_SPELLS_DE: string[] = ['Nebelschritt', 'Schockgriff', 'Schlaf'];
+export const EXPECTED_CIRCLE_SPELLS_DE: string[] = [
+  'Verschwimmen', 'Brennende Hände', 'Feuerpfeil',
+  'Nebelwolke', 'Person festhalten', 'Kältestrahl',
+  'Nebelschritt', 'Schockgriff', 'Schlaf',
+  'Säurespritzer', 'Strahl der Übelkeit', 'Netz',
+];
+
+/**
+ * Kreissprüche der Zeilen 5/7/9 aller vier Landarten — sie gehören auf Stufe 3 NOCH NICHT
+ * dazu („for your Druid level and lower"). Negativprobe gegen das Abschreiben ganzer
+ * Tabellen.
+ */
+export const TOO_HIGH_CIRCLE_SPELLS: string[] = [
+  'Fireball', 'Blight', 'Wall of Stone',
+  'Sleet Storm', 'Ice Storm', 'Cone of Cold',
+  'Lightning Bolt', 'Freedom of Movement', 'Tree Stride',
+  'Stinking Cloud', 'Polymorph', 'Insect Plague',
+];

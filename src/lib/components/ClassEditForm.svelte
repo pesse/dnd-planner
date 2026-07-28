@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ClassProgression, ClassFeature } from '$lib/types';
-  import { ABILITY_KEYS } from '$lib/schemas/classProgression';
   import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
+  import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
+  import SkillGrantEditForm from './SkillGrantEditForm.svelte';
 
   let {
     klass = $bindable<ClassProgression>(),
@@ -13,9 +14,6 @@
   } = $props();
 
   const CASTER_TYPES = ['NONE', 'FULL', 'HALF', 'THIRD', 'PACT'];
-  const ABILITY_LABELS: Record<string, string> = {
-    str: 'STÄ', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA',
-  };
 
   // Basisklassen für die „Subklasse von"-Auswahl (ohne sich selbst, nur mit v2-Key).
   let baseClasses = $state<ClassInfo[]>([]);
@@ -30,13 +28,6 @@
   }
 
   function mark() { onchange(); }
-
-  function toggleSave(key: (typeof ABILITY_KEYS)[number], checked: boolean) {
-    klass.savingThrows = checked
-      ? [...klass.savingThrows, key]
-      : klass.savingThrows.filter((k) => k !== key);
-    onchange();
-  }
 
   function addFeature() {
     const feat: ClassFeature = { key: '', name: '', gainedAt: [], desc: '' };
@@ -91,21 +82,27 @@
 
 <div class="divider"></div>
 
-<!-- Rettungswürfe -->
+<!-- Kerntabelle: Übungen (englische Werte, deutsche Beschriftung) -->
 <div class="section">
-  <div class="section-title">Rettungswürfe</div>
-  <div class="save-grid">
-    {#each ABILITY_KEYS as key}
-      <label class="chk">
-        <input
-          type="checkbox"
-          checked={klass.savingThrows.includes(key)}
-          onchange={(e) => toggleSave(key, (e.target as HTMLInputElement).checked)}
-        />
-        {ABILITY_LABELS[key]}
-      </label>
-    {/each}
-  </div>
+  <div class="section-title">Kerntabelle</div>
+  <ProficiencyGrantEditForm bind:grant={klass.proficiencyGrant} {onchange} />
+
+  <label class="lbl-block">Anfangsausrüstung (Prosa)
+    <textarea class="ef equip" rows={2} bind:value={klass.startingEquipment} oninput={mark}
+      placeholder="Choose A or B: (A) …; or (B) 75 GP"></textarea>
+  </label>
+</div>
+
+<div class="divider"></div>
+
+<!-- Mehrklassen-Zeile: steht nicht in Open5e, wird hier gepflegt -->
+<div class="section">
+  <div class="section-title">Bei Klassenkombination</div>
+  <p class="section-hint">
+    Fertigkeiten, die diese Klasse gewährt, wenn sie als ZWEITE Klasse dazukommt.
+    Im SRD 5.2 nur Barde, Schurke und Waldläufer — alle übrigen gewähren keine.
+  </p>
+  <SkillGrantEditForm bind:grant={klass.skillGrantMulticlass} {onchange} />
 </div>
 
 <div class="divider"></div>
@@ -182,11 +179,12 @@
     border-bottom: 1px solid var(--mef-accent, var(--arcane)); padding-bottom: 0.15rem;
   }
 
-  .save-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.3rem; }
-  .chk {
-    display: inline-flex; align-items: center; gap: 0.2rem;
-    font-size: 0.8rem; color: var(--ink-soft); cursor: pointer;
+  .section-hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.2rem; }
+  .lbl-block {
+    display: flex; flex-direction: column; gap: 0.15rem;
+    font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.5rem;
   }
+  .equip { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
 
   .feat-row {
     display: flex; flex-direction: column; gap: 0.25rem;

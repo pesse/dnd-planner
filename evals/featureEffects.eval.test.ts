@@ -22,7 +22,9 @@ import type { StepResult } from './cases/featureEffectsStep';
 
 defineEval<StepResult>({
   name: 'featureEffects',
-  description: 'Druide 2→3, Zirkel des Landes — Landart-Wahl (Analyse) und Kreissprüche (Finalisierung)',
+  description:
+    'Druide 2→3, Zirkel des Landes — keine Aufstiegs-Wahl (Landart fällt pro langer Rast), ' +
+    'dafür die Stufe-3-Kreissprüche aller vier Landarten',
   cases: buildDruidCircleCases,
 });
 
@@ -31,8 +33,8 @@ defineEval<StepResult>({
  * Eigene Strecke (eigener Report), damit die „darf nichts erfinden"-Quote nicht mit der
  * Druiden-Quote verrechnet wird.
  */
-defineEval<StepResult>({
+/*defineEval<StepResult>({
   name: 'featureEffects-rogue',
   description: 'Schurke 2→3, Dieb — weder Wahl noch Zauber: prüft, dass die KI nichts erfindet',
   cases: buildRogueThiefCases,
-});
+});*/

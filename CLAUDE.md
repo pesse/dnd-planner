@@ -61,6 +61,14 @@ vault/campaigns/{campaign-slug}/
   world/*.md
 ```
 
+The global rule libraries are flat JSON folders alongside the campaigns:
+`vault/{classes,species,feats,backgrounds}/` (Open5e-derived, bilingual
+`name`/`nameDe`), plus `vault/{spells,items,monsters}/` (subfoldered) and
+`vault/templates/`. This set is declared as `roots` in `vault/libraries.yaml`
+and must match `ALLOWED_ROOTS` in `src-tauri/src/libraries.rs` — adding a new
+library type means touching both, plus the seven vault export/import sites in
+`src-tauri/src/lib.rs`.
+
 The frontend references vault paths as `./vault/campaigns/...` — `resolve_path` in Rust translates these to absolute paths at runtime.
 
 **Vault base location:** resolved once in the Tauri `setup` hook into `VAULT_BASE`.
@@ -82,6 +90,80 @@ pack the file lands in (fail-closed build) and is the prefix of every main key
 documents the rules; the app-side vocabulary lives in
 `src/lib/schemas/shared.ts` (`SOURCE_KEYS`, `sourceField()`,
 `migrateSourceLegacy`).
+
+## Architecture Invariant: Rule Mechanics Are English, the Sheet Is German
+
+Closed rule vocabularies — the 18 skills, 6 saving throws, 2 weapon categories, 4
+armor trainings — live in **English SRD spelling** everywhere in the libraries and
+in the LLM contracts. `src/lib/schemas/shared.ts` owns them (`SKILL_NAMES`,
+`ABILITY_NAMES`, `WEAPON_CATEGORIES`, `ARMOR_TRAININGS`) plus the one shape every
+library artifact uses to grant them (`proficiencyGrantSchema`, `skillGrantSchema`).
+Because all four artifact types (class, background, species trait, feat) carry the
+*same* shape, summing them is one function — `services/proficiencyGrants.ts`
+(`collectGrants`).
+
+`character.*` stays **German**, because the PDF form dictates the field names
+(`skills.MitTierenUmgehen`, `strSaveProf`, `proficiencies.lightArmor`). Between the
+two sits **exactly one translation table**, and adding a second one is the mistake
+to avoid:
+
+| Direction | Where |
+|---|---|
+| skill EN → sheet key | `SKILL_DEFS.en` / `skillSheetKey()` (`pdf/characterFields.ts`) |
+| sheet key → skill EN | `skillEnName()` (same table) |
+| ability EN → app key | `ABILITY_FROM_EN` (`services/classProgression.ts`) |
+| app key → ability EN | `ABILITY_TO_EN` (`schemas/classProgression.ts`) |
+| any → German label | `skillLabelDe` / `abilityLabelDe` / `WEAPON_LABEL_DE` / `ARMOR_LABEL_DE` (`services/proficiencyGrants.ts`) |
+
+`SKILL_DEFS` completeness is compiler-checked (a missing or misspelled `en` breaks
+the build). Consequences to keep in mind:
+
+- **Prompts name the vocabulary, never “short names”.** The rider schema
+  (`schemas/levelUp.ts`) uses `z.enum(SKILL_NAMES)` so guided decoding cannot invent
+  a name the sheet does not know. Translation happens when a `Change` is *applied*
+  (`CharacterSheet.svelte`, `case 'proficiency'`), not when it is produced.
+- **Class core traits come from Open5e v2** (`feature_type: "CORE_TRAITS_TABLE"`,
+  `gained_at: []`) and are parsed by `parseCoreTraits`. Open5e has stray spaces
+  inside names (“Na ture”, “In sight”), so every vocabulary lookup folds to
+  lowercase-without-spaces; an unknown name **throws** rather than silently dropping
+  a proficiency.
+- **The multiclass line is not in Open5e** — only in the German SRD extract. It is
+  maintained in the vault as `skillGrantMulticlass` and must survive a re-import.
+- Tools and languages stay German free text on purpose (no closed vocabulary; in
+  2024 languages are not a proficiency at all).
+- `scripts/migrate-proficiency-grants.mts` re-derives the vault data and
+  cross-validates all 12 classes against `src/lib/data/rules-chunks.json` before it
+  writes anything.
+
+## Character Upgrades (versioned)
+
+Character files live in the vault and outlive every program version, so their
+migration is an **ordered pipeline**, not a pile of ad-hoc field repairs.
+`src/lib/schemas/character.ts` owns it:
+
+- `CHARACTER_VERSION` — the current schema version.
+- `CHARACTER_UPGRADES` — one step per version, each with `to`, a German `label`
+  (shown in the upgrade log) and an idempotent `apply`.
+- `upgradeCharacter(raw)` → `{ data, fromVersion, toVersion, applied }`; runs every
+  step whose `to` exceeds the stored `_version`, then stamps `_version`.
+- `migrateCharacterLegacy` is a thin wrapper and stays the entry point for
+  `normalizeCharacter`/`parseCharacter`, so every read is upgraded.
+
+Adding a schema change means: bump `CHARACTER_VERSION` and add **exactly one** step
+with that `to`. Keep `apply` idempotent *and* content-guarded — legacy files often
+carry no `_version` (or a stale one) although the change already happened, because
+the migration used to run without stamping a version.
+
+`_version` is a plain positive int in the schema (not a literal union) so a file
+written by a newer build does not stop an older one from loading.
+
+**Batch upgrade:** `services/characterUpgrade.ts` (`planCharacterUpgrades` →
+`applyCharacterUpgrades`) plus `CharacterUpgradeModal.svelte`, reachable from the ⬆
+button in the sidebar's Charaktere row. It writes the *migrated raw* object, not the
+schema-normalised one — the point is to update the file, not to inflate it with every
+default — and skips characters that would not change. PDF imports are deliberately
+stamped `_version: 1`: the PDF only has free-text class/species/background, so the
+pipeline is what structures them.
 
 ## Adding New Tauri Commands
 

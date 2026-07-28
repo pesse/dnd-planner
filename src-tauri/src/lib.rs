@@ -433,6 +433,8 @@ pub struct TransferSelection {
     species: bool,
     #[serde(default)]
     feats: bool,
+    #[serde(default)]
+    backgrounds: bool,
 }
 
 /// Inhaltsübersicht eines Vaults bzw. eines Export-ZIPs.
@@ -446,6 +448,7 @@ pub struct VaultContents {
     classes: bool,
     species: bool,
     feats: bool,
+    backgrounds: bool,
 }
 
 #[derive(Serialize)]
@@ -531,6 +534,7 @@ fn get_vault_overview() -> VaultContents {
         classes: dir_has_files(&vault.join("classes")),
         species: dir_has_files(&vault.join("species")),
         feats: dir_has_files(&vault.join("feats")),
+        backgrounds: dir_has_files(&vault.join("backgrounds")),
     }
 }
 
@@ -572,6 +576,9 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
     if selection.feats {
         collect_files(&vault.join("feats"), "feats", &mut files);
     }
+    if selection.backgrounds {
+        collect_files(&vault.join("backgrounds"), "backgrounds", &mut files);
+    }
 
     let file = fs::File::create(&dest_path)
         .map_err(|e| format!("ZIP konnte nicht erstellt werden: {}", e))?;
@@ -598,6 +605,7 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
         "classes": selection.classes,
         "species": selection.species,
         "feats": selection.feats,
+        "backgrounds": selection.backgrounds,
     });
     zip.start_file("manifest.json", opts).map_err(|e| e.to_string())?;
     zip.write_all(
@@ -624,7 +632,7 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
     let mut campaigns = std::collections::BTreeSet::new();
     let mut characters = std::collections::BTreeSet::new();
     let (mut items, mut monsters, mut spells) = (false, false, false);
-    let (mut classes, mut species, mut feats) = (false, false, false);
+    let (mut classes, mut species, mut feats, mut backgrounds) = (false, false, false, false);
 
     for i in 0..archive.len() {
         let f = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -643,6 +651,7 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
             ["classes", ..] => classes = true,
             ["species", ..] => species = true,
             ["feats", ..] => feats = true,
+            ["backgrounds", ..] => backgrounds = true,
             _ => {}
         }
     }
@@ -656,6 +665,7 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
         classes,
         species,
         feats,
+        backgrounds,
     })
 }
 
@@ -704,6 +714,7 @@ fn import_vault(
             ["classes", ..] => selection.classes,
             ["species", ..] => selection.species,
             ["feats", ..] => selection.feats,
+            ["backgrounds", ..] => selection.backgrounds,
             _ => false,
         };
         if !selected {

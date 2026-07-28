@@ -103,6 +103,39 @@ export function buildFeatTranslationSystemPrompt(sourceEn = ''): string {
   return [FEAT_INTRO, buildTerminologyBlock(sourceEn), FEAT_IO].filter(Boolean).join('\n\n');
 }
 
+const BACKGROUND_INTRO =
+  'You are a D&D translator. Translate the given background fields from English into German, ' +
+  'accurately and true to the style of the official German D&D publications (SRD 5.2.1).';
+
+const BACKGROUND_IO = `<input_format>
+JSON with these fields:
+- "name": string (the background name, optional)
+- "desc": string (the background description, optional)
+- "benefits": array of objects, each with "name" and "desc" fields. These are the mechanical
+  benefits of the background: ability scores, skill proficiencies, tool proficiency, origin
+  feat, starting equipment.
+</input_format>
+<output_format>
+JSON with the translated fields — only include "name_de"/"desc_de" if they were in the input:
+- "name_de": string
+- "desc_de": string
+- "benefits": array of objects, EXACTLY the same length and order as the input "benefits",
+  each with "nameDe" (translated benefit name) and "descDe" (translated benefit description)
+</output_format>
+<rules>
+- Ability names, skill names, tool names and feat names are rules terms: use the established
+  German equivalents (Stärke, Geschicklichkeit, Konstitution, Intelligenz, Weisheit, Charisma;
+  Athletik, Heimlichkeit, Religion, …).
+- Keep the "Choose A or B:" structure of equipment lists and the Markdown emphasis intact.
+- Convert coin abbreviations: GP → GM, SP → SM, CP → KM.
+Respond exclusively with valid JSON, no extra text.
+</rules>`;
+
+/** System-Prompt für Hintergrund-Übersetzung (name/desc + Array-of-Objects: benefits). */
+export function buildBackgroundTranslationSystemPrompt(sourceEn = ''): string {
+  return [BACKGROUND_INTRO, buildTerminologyBlock(sourceEn), BACKGROUND_IO].filter(Boolean).join('\n\n');
+}
+
 /** System-Prompt für Monster-Übersetzung, mit relevanz-gefilterter Terminologie zum Quelltext. */
 export function buildMonsterTranslationSystemPrompt(sourceEn = ''): string {
   return [MONSTER_INTRO, buildTerminologyBlock(sourceEn), MONSTER_IO].filter(Boolean).join('\n\n');

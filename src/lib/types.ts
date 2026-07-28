@@ -9,10 +9,11 @@ import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, 
 import type { ClassProgression, ClassFeature } from './schemas/classProgression';
 import type { Species, Trait } from './schemas/species';
 import type { Feat } from './schemas/feat';
-import { OWN_SOURCE } from './schemas/shared';
+import type { Background, Benefit } from './schemas/background';
+import { OWN_SOURCE, emptyProficiencyGrant, emptySkillGrant } from './schemas/shared';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
-export type { ClassProgression, ClassFeature, Species, Trait, Feat };
+export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
 
 export interface Campaign {
   id: string;
@@ -36,7 +37,7 @@ export interface Npc {
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat';
+  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background';
   /** Set for directory-based characters (with PDF sheet) */
   dirPath?: string;
 }
@@ -233,7 +234,9 @@ export const CLASS_TEMPLATE: ClassProgression = {
   hitDie: 8,
   hpAt1st: '',
   hpHigher: '',
-  savingThrows: [],
+  proficiencyGrant: emptyProficiencyGrant(),
+  skillGrantMulticlass: emptySkillGrant(),
+  startingEquipment: '',
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
   levels: [],
   features: [],
@@ -261,5 +264,21 @@ export const FEAT_TEMPLATE: Feat = {
   nameDe: 'Neues Talent',
   prerequisite: '',
   desc: '',
+  proficiencyGrant: emptyProficiencyGrant(),
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
+};
+
+// --- Hintergrund (Regel-Bibliothek) --- (Typ + Schema in schemas/background.ts)
+
+export const BACKGROUND_TEMPLATE: Background = {
+  key: '',
+  source: OWN_SOURCE,
+  name: 'Neuer Hintergrund',
+  nameDe: 'Neuer Hintergrund',
+  desc: '',
+  abilityScores: [],
+  featKey: '',
+  proficiencyGrant: emptyProficiencyGrant(),
+  document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
+  benefits: [],
 };

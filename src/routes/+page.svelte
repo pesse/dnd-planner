@@ -10,6 +10,7 @@
   import ClassCard from '$lib/components/ClassCard.svelte';
   import SpeciesCard from '$lib/components/SpeciesCard.svelte';
   import FeatCard from '$lib/components/FeatCard.svelte';
+  import BackgroundCard from '$lib/components/BackgroundCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
@@ -129,6 +130,7 @@
   let isClass = $derived($activeFile?.type === 'class');
   let isSpecies = $derived($activeFile?.type === 'species');
   let isFeat = $derived($activeFile?.type === 'feat');
+  let isBackground = $derived($activeFile?.type === 'background');
 
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
@@ -484,6 +486,15 @@
         {/if}
       </div>
       <FeatCard />
+    {:else if isBackground}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title background-title">🎭 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <BackgroundCard />
     {:else}
       <div class="toolbar">
         {#if $activeFile}
@@ -802,6 +813,10 @@
 
   .feat-title {
     color: var(--gold);
+  }
+
+  .background-title {
+    color: var(--teal);
   }
 
   .rename-btn {

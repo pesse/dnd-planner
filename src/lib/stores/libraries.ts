@@ -6,6 +6,7 @@ import { invalidateSpellLibrary } from '../spellLibrary';
 import { invalidateClassCache, invalidateClassFeatureCache } from '../classLibrary';
 import { invalidateSpeciesCache } from '../speciesLibrary';
 import { invalidateFeatsCache } from '../featsLibrary';
+import { invalidateBackgroundsCache } from '../backgroundsLibrary';
 import { invalidateItemCache } from '../itemLibrary';
 import { invalidateMonsterPaths } from './context';
 
@@ -177,6 +178,7 @@ function invalidateLibraryCaches(): void {
   invalidateClassFeatureCache();
   invalidateSpeciesCache();
   invalidateFeatsCache();
+  invalidateBackgroundsCache();
   invalidateItemCache();
   invalidateMonsterPaths();
   invalidateVault();

@@ -1,8 +1,9 @@
 /**
  * Löst die am Charakter VERLINKTEN Merkmale zur Laufzeit aus der lokalen Bibliothek
  * auf — analog zum Zauber-Modell: der Charakter speichert nur Links
- * (`classes[]` → vault/classes, `species` → vault/species, `references.feats[]`
- * → vault/feats), die Inhalte (Name/Beschreibung) kommen aus der Bibliothek.
+ * (`classes[]` → vault/classes, `species` → vault/species, `backgroundRef` →
+ * vault/backgrounds, `references.feats[]` → vault/feats), die Inhalte
+ * (Name/Beschreibung) kommen aus der Bibliothek.
  *
  * Klassen-/Subklassen-Merkmale werden bis zur aktuellen Stufe aufgezählt
  * (`featuresUpTo`). Fehlt ein Link lokal (kein sourceKey oder nicht in der
@@ -12,7 +13,9 @@
 import { getProgressionByKey, featuresUpTo } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
-import type { CharacterClass, CharacterSpecies, ReferenceEntry } from '$lib/schemas/character';
+import { getBackgroundByKey } from '$lib/backgroundsLibrary';
+import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
+import type { CharacterClass, CharacterSpecies, CharacterBackground, ReferenceEntry } from '$lib/schemas/character';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
 export interface ResolvedFeature {
@@ -112,6 +115,39 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
     });
   }
   return groups;
+}
+
+/**
+ * Löst die Vorteile des verlinkten Hintergrunds auf. null, wenn kein Hintergrund
+ * gepflegt ist. Das Herkunftstalent wird zusätzlich gegen das Feats-Wörterbuch
+ * aufgelöst und als eigener Eintrag angehängt — im Charakter steht es nicht in
+ * `references.feats`, es kommt allein aus dem Hintergrund.
+ */
+export async function resolveBackground(background: CharacterBackground | undefined): Promise<ResolvedFeatureGroup | null> {
+  if (!background || (!background.sourceKey && !background.name.trim())) return null;
+
+  const base = background.sourceKey ? await getBackgroundByKey(background.sourceKey) : null;
+  const title = background.name.trim() || base?.nameDe || base?.name || background.sourceKey;
+  if (!base) return { title, sourceKey: background.sourceKey, unresolved: true, features: [] };
+
+  const features: ResolvedFeature[] = base.benefits.map((b) => ({
+    // Ohne eigenen Namen bleibt die Art des Vorteils die Überschrift.
+    name: b.nameDe || b.name || BENEFIT_TYPE_LABELS[b.type],
+    desc: b.descDe || b.desc,
+    key: b.key,
+  }));
+
+  if (base.featKey) {
+    const lib = await getFeats();
+    const entry = lib.find((f) => f.sourceKey === base.featKey);
+    features.push({
+      name: `Herkunftstalent: ${entry ? featDisplayName(entry) : base.featKey}`,
+      desc: entry ? featDesc(entry) : '',
+      key: base.featKey,
+    });
+  }
+
+  return { title, sourceKey: background.sourceKey, unresolved: false, features };
 }
 
 /**

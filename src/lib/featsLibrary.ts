@@ -8,6 +8,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { slugify } from './editor/saveAs';
+import { proficiencyGrantSchema, type ProficiencyGrant } from './schemas/shared';
 
 export const FEATS_PATH = './vault/feats';
 
@@ -18,6 +19,8 @@ export interface FeatEntry {
   descDe?: string;
   /** Open5e-Key des Talents (identisch zur Charakter-Referenz `sourceKey`). */
   sourceKey?: string;
+  /** Übungen, die das Talent gewährt (siehe schemas/feat.ts); fehlt bei inline erzeugten. */
+  proficiencyGrant?: ProficiencyGrant;
   /** Vault-Pfad der Datei (für die Sidebar-Bibliothek); bei inline erzeugten leer. */
   path?: string;
 }
@@ -57,6 +60,8 @@ export async function getFeats(): Promise<FeatEntry[]> {
             descDe: data.descDe,
             // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
             sourceKey: data.sourceKey ?? data.key,
+            // Nur bei Bibliotheks-Talenten vorhanden; inline gespeicherte tragen keinen Grant.
+            proficiencyGrant: proficiencyGrantSchema.safeParse(data.proficiencyGrant).data,
             path,
           } as FeatEntry;
         } catch {

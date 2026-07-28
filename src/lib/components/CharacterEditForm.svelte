@@ -3,13 +3,20 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { SKILL_DEFS, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import type { SkillName } from '../schemas/shared';
+  import { ABILITY_FROM_EN } from '../services/classProgression';
+  import {
+    collectGrants, abilityLabelDe, skillLabelDe, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
+    type CollectedGrants, type OpenChoice,
+  } from '../services/proficiencyGrants';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
+  import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
   import { getFeats, searchFeats, saveFeat, type FeatEntry } from '../featsLibrary';
-  import { resolveClassFeatures, resolveSpeciesTraits, type ResolvedFeatureGroup } from '../services/characterFeatures';
+  import { resolveClassFeatures, resolveSpeciesTraits, resolveBackground, type ResolvedFeatureGroup } from '../services/characterFeatures';
   import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
   import { OWN_SOURCE } from '../schemas/shared';
@@ -49,6 +56,8 @@
   // nicht in `classes` überführen konnte.
   const legacyClassLevelInit = character.classLevel ?? '';
   let playerName = $state(character.playerName ?? '');
+  // Strukturierter Hintergrund-Link (Source-of-Truth). `background` = abgeleiteter Anzeige-String.
+  let backgroundRef = $state<CharacterBackground>({ ...(character.backgroundRef ?? { sourceKey: '', name: '' }) });
   let background = $state(character.background ?? '');
   // Strukturierter Spezies-Link (Source-of-Truth). `race` = abgeleiteter Anzeige-String.
   let species = $state<CharacterSpecies>({ ...(character.species ?? { sourceKey: '', name: '' }) });
@@ -538,6 +547,130 @@
 
   function sign(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
+  // ─── Übungs-Grants aus den Bibliotheks-Links ─────────────
+  // Deterministisch abgeleitet (Hintergrund + Startklasse + Mehrklassen + Spezies-
+  // Merkmale + Talente), ANGEBOTEN statt still angewandt: die Häkchen bleiben die
+  // Wahrheit, das Panel vergleicht nur Ist gegen Soll. Siehe services/proficiencyGrants.ts.
+  let grants = $state<CollectedGrants | null>(null);
+  /** Getroffene Auswahl je offener Wahl (Index in `grants.choices`). */
+  let choicePicks = $state<Record<number, SkillName[]>>({});
+
+  // Nur die LINKS sind Abhängigkeit des Panels — nicht die Häkchen, sonst lüde es
+  // bei jedem Klick neu. Das Derived liest sie synchron, der Effect hängt daran.
+  const grantLinks = $derived.by(() => ({
+    classes: classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, subclassKey: c.subclassKey })),
+    species: { sourceKey: species.sourceKey, subspeciesKey: species.subspeciesKey },
+    backgroundRef: { sourceKey: backgroundRef.sourceKey },
+    references: { feats: refFeats.map((f) => ({ sourceKey: f.sourceKey, name: f.name })) },
+  }));
+
+  $effect(() => {
+    const input = grantLinks;
+    let cancelled = false;
+    void collectGrants(input)
+      .then((g) => { if (!cancelled) { grants = g; choicePicks = {}; } })
+      .catch(() => { if (!cancelled) grants = null; });
+    return () => { cancelled = true; };
+  });
+
+  /** Herkunfts-Marker je Bogen-Fertigkeit: „Soldat", „Schurke (Wahl)", … */
+  const grantMarks = $derived.by(() => {
+    const marks = new Map<string, string[]>();
+    const add = (en: SkillName, label: string) => {
+      const key = skillSheetKey(en);
+      marks.set(key, [...(marks.get(key) ?? []), label]);
+    };
+    for (const g of grants?.skills ?? []) add(g.value, g.source.label);
+    for (const c of grants?.choices ?? []) {
+      const options = c.from.length ? c.from : SKILL_DEFS.map((d) => d.en);
+      for (const en of options) add(en, `${c.source.label} (Wahl)`);
+    }
+    return marks;
+  });
+
+  /** Herkunfts-Labels zu einem gewährten Wert („Schurke · Soldat"); leer = kein Grant. */
+  function grantSourcesFor(entries: { value: string; source: { label: string } }[] | undefined, value: string): string {
+    return (entries ?? []).filter((e) => e.value === value).map((e) => e.source.label).join(' · ');
+  }
+
+  /** Herkunft je Waffen-/Rüstungs-Häkchen (für die ◆-Marker im Übungs-Abschnitt). */
+  const profGrantSources = $derived({
+    simple: grantSourcesFor(grants?.weapons, 'Simple'),
+    martial: grantSourcesFor(grants?.weapons, 'Martial'),
+    light: grantSourcesFor(grants?.armor, 'Light'),
+    medium: grantSourcesFor(grants?.armor, 'Medium'),
+    heavy: grantSourcesFor(grants?.armor, 'Heavy'),
+    shields: grantSourcesFor(grants?.armor, 'Shields'),
+  });
+
+  /** Wie viele Fertigkeiten einer Wahl auf dem Bogen schon geübt sind. */
+  function choiceTaken(choice: OpenChoice): number {
+    const options = choice.from.length ? choice.from : SKILL_DEFS.map((d) => d.en);
+    return options.filter((en) => skillFlags[skillSheetKey(en)]?.prof).length;
+  }
+
+  function choiceOptions(choice: OpenChoice): SkillName[] {
+    return choice.from.length ? choice.from : SKILL_DEFS.map((d) => d.en);
+  }
+
+  function togglePick(index: number, skill: SkillName, choose: number) {
+    const current = choicePicks[index] ?? [];
+    choicePicks[index] = current.includes(skill)
+      ? current.filter((s) => s !== skill)
+      : [...current, skill].slice(-choose); // über das Limit hinaus rutscht die älteste raus
+  }
+
+  /** Setzt eine Rettungswurf-Übung über den englischen Attributsnamen. */
+  function applySave(en: string) {
+    switch (ABILITY_FROM_EN[en.toLowerCase()]) {
+      case 'str': strSaveProf = true; break;
+      case 'ges': gesSaveProf = true; break;
+      case 'kon': konSaveProf = true; break;
+      case 'int': intSaveProf = true; break;
+      case 'wei': weiSaveProf = true; break;
+      case 'cha': chaSaveProf = true; break;
+    }
+  }
+
+  /**
+   * Übernimmt die Grants in die Häkchen. Rein ADDITIV — nichts wird zurückgenommen,
+   * weil der Bogen auch Übungen aus Merkmalen/Handwaage tragen kann, die hier keine
+   * Quelle haben. Mehrfaches Klicken ist dadurch folgenlos (idempotent).
+   */
+  function applyGrants() {
+    if (!grants) return;
+    for (const g of grants.skills) {
+      const key = skillSheetKey(g.value);
+      if (skillFlags[key]) skillFlags[key].prof = true;
+    }
+    for (const picks of Object.values(choicePicks))
+      for (const en of picks) {
+        const key = skillSheetKey(en);
+        if (skillFlags[key]) skillFlags[key].prof = true;
+      }
+    for (const s of grants.savingThrows) applySave(s.value);
+    for (const w of grants.weapons) {
+      if (w.value === 'Simple') profSimpleWeapons = true;
+      if (w.value === 'Martial') profMartialWeapons = true;
+    }
+    const others = grants.weaponsOther.map((w) => w.value).filter((w) => !profOtherWeapons.includes(w));
+    if (others.length) profOtherWeapons = [profOtherWeapons, ...others].filter(Boolean).join('; ');
+    for (const a of grants.armor) {
+      if (a.value === 'Light') profLightArmor = true;
+      if (a.value === 'Medium') profMediumArmor = true;
+      if (a.value === 'Heavy') profHeavyArmor = true;
+      if (a.value === 'Shields') profShields = true;
+    }
+    choicePicks = {};
+  }
+
+  /** true, sobald es überhaupt etwas anzubieten gibt. */
+  const hasGrants = $derived(
+    Boolean(grants) &&
+    (grants!.skills.length || grants!.choices.length || grants!.savingThrows.length ||
+      grants!.weapons.length || grants!.weaponsOther.length || grants!.armor.length),
+  );
+
   // ─── Zauber-SG / -Angriffsbonus: reaktive Berechnung ─────
   // Zauberattribut (Freitext, z.B. "INT" / "Weisheit") → Modifikator.
   const ABILITY_ALIASES: Record<string, 'str' | 'ges' | 'kon' | 'int' | 'wei' | 'cha'> = {
@@ -789,14 +922,86 @@
     if (speciesLegacyMatch) selectSpecies(speciesLegacyMatch);
   }
 
+  // ─── Hintergrund (strukturierter Bibliotheks-Link; analog zur Spezies) ────────
+  // `background` ist der abgeleitete Anzeige-String (auch fürs PDF), `backgroundRef`
+  // die Source-of-Truth. Die Vorteile werden auf der Karte aus der Bibliothek aufgelöst.
+  let backgroundIndex = $state<BackgroundInfo[]>([]);
+  $effect(() => { getBackgroundsList().then((x) => { backgroundIndex = x; }); });
+
+  let editingBackground = $state(!backgroundRef.sourceKey && !backgroundRef.name.trim());
+  let backgroundActive = $state(false);
+  let backgroundSuggestions = $state<BackgroundInfo[]>([]);
+  let backgroundSugIndex = $state(-1);
+
+  /** Bibliotheks-Pfad des verlinkten Hintergrunds, falls vorhanden. */
+  function backgroundPath(): string | undefined {
+    return backgroundRef.sourceKey
+      ? backgroundIndex.find((b) => b.key === backgroundRef.sourceKey)?.path
+      : undefined;
+  }
+  async function openBackgroundPage() {
+    const path = backgroundPath();
+    if (!path) return;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'background' });
+  }
+
+  function onBackgroundInput(value: string) {
+    backgroundRef.name = value;
+    background = value; // abgeleiteten Anzeige-String live mitführen
+    backgroundRef.sourceKey = ''; // freies Tippen = (noch) nicht verlinkt
+    backgroundActive = true;
+    backgroundSugIndex = -1;
+    backgroundSuggestions = value.trim() ? searchBackgrounds(backgroundIndex, value, 8) : [];
+  }
+
+  function selectBackground(info: BackgroundInfo) {
+    backgroundRef.name = backgroundDisplayName(info);
+    backgroundRef.sourceKey = info.key ?? '';
+    background = backgroundRef.name;
+    backgroundSuggestions = [];
+    backgroundActive = false;
+    backgroundSugIndex = -1;
+    editingBackground = false; // verlinkt → als Bibliotheks-Link darstellen
+  }
+
+  function onBackgroundKey(e: KeyboardEvent) {
+    if (!backgroundActive) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); backgroundSugIndex = Math.min(backgroundSugIndex + 1, backgroundSuggestions.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); backgroundSugIndex = Math.max(backgroundSugIndex - 1, -1); }
+    else if (e.key === 'Escape') { backgroundSuggestions = []; backgroundActive = false; }
+    else if (e.key === 'Enter' && backgroundSugIndex >= 0 && backgroundSuggestions[backgroundSugIndex]) {
+      e.preventDefault();
+      selectBackground(backgroundSuggestions[backgroundSugIndex]);
+    }
+  }
+
+  /** Exakter, sicherer Bibliotheks-Treffer für einen Freitext-Hintergrund (kein Substring). */
+  function matchBackground(rawName: string): BackgroundInfo | undefined {
+    const q = rawName.trim().toLowerCase();
+    if (!q) return undefined;
+    return backgroundIndex.find(
+      (b) => !!b.key && ((b.nameDe ?? b.name).toLowerCase() === q || b.name.toLowerCase() === q),
+    );
+  }
+  // Angebot sichtbar, wenn ein unverlinkter Hintergrundname sicher in der Bibliothek existiert.
+  const backgroundLegacyMatch = $derived(
+    !backgroundRef.sourceKey && backgroundRef.name.trim() ? matchBackground(backgroundRef.name) : undefined,
+  );
+  function linkLegacyBackground() {
+    if (backgroundLegacyMatch) selectBackground(backgroundLegacyMatch);
+  }
+
   // ─── Read-only Merkmals-Vorschau (aus der Bibliothek aufgelöst) ────────────────
   // Zeigt im Editor, welche Klassen-/Subklassen-Merkmale bzw. Volks-Traits der
   // gewählte Link bis zur Stufe liefert (reagiert live auf Klasse/Stufe/Subklasse/Volk).
   let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
+  let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
   $effect(() => {
     resolveClassFeatures($state.snapshot(classes)).then((g) => { classFeatureGroups = g; });
     resolveSpeciesTraits($state.snapshot(species)).then((g) => { speciesTraitGroups = g ?? []; });
+    resolveBackground($state.snapshot(backgroundRef)).then((g) => { backgroundGroups = g ? [g] : []; });
   });
 
   // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
@@ -858,7 +1063,10 @@
     const cleanedClasses = classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
     character.classes = cleanedClasses;
     character.classLevel = formatClassLevel(cleanedClasses);
-    character.playerName = playerName; character.background = background;
+    character.playerName = playerName;
+    // backgroundRef = Source-of-Truth; background ist der daraus abgeleitete Anzeige-String.
+    character.backgroundRef = { ...backgroundRef };
+    character.background = background;
     character.species = { ...species };
     character.race = race; character.xp = xp;
     character.str = str; character.ges = ges; character.kon = kon;
@@ -981,8 +1189,48 @@
     <div class="grid-2">
       <label use:diffMark={dirOf(saved?.name, name)}>Name<input bind:value={name} placeholder="Charaktername" /></label>
       <label use:diffMark={dirOf(saved?.playerName, playerName)}>Spieler<input bind:value={playerName} placeholder="Spielername" /></label>
-      <label use:diffMark={dirOf(saved?.background, background)}>Hintergrund<input bind:value={background} placeholder="Hintergrund" /></label>
       <label use:diffMark={dirOf(saved?.xp, xp)}>EP<input bind:value={xp} placeholder="0" /></label>
+    </div>
+
+    <!-- Hintergrund als Bibliotheks-Link (Vorteile werden auf der Karte aufgelöst; `background` = Anzeige). -->
+    <div class="ref-block species-block" use:diffMark={dirOf(saved?.background, background)}>
+      <h4>Hintergrund</h4>
+      {#if backgroundLegacyMatch}
+        <div class="legacy-banner">
+          <span class="legacy-banner-text">
+            Altes Freitext-Format erkannt: „{backgroundRef.name}" lässt sich mit der Bibliothek verknüpfen.
+          </span>
+          <button type="button" class="legacy-banner-btn" onclick={linkLegacyBackground}>Verknüpfen</button>
+        </div>
+      {/if}
+      {#if backgroundRef.sourceKey && !editingBackground}
+        <div class="class-linked">
+          <button type="button" class="class-link" title="Bibliotheks-Seite öffnen" onclick={openBackgroundPage}>{backgroundRef.name}</button>
+          <button type="button" class="link-edit" title="Hintergrund ändern" onclick={() => { editingBackground = true; }}>✎</button>
+        </div>
+      {:else}
+        <div class="autocomplete-wrap species-picker">
+          <input
+            value={backgroundRef.name}
+            placeholder="z.B. Soldat"
+            oninput={(e) => onBackgroundInput((e.currentTarget as HTMLInputElement).value)}
+            onkeydown={onBackgroundKey}
+            onblur={() => setTimeout(() => { backgroundActive = false; backgroundSuggestions = []; if (backgroundRef.sourceKey) editingBackground = false; }, 150)}
+          />
+          {#if backgroundActive && backgroundSuggestions.length > 0}
+            <ul class="suggestions">
+              {#each backgroundSuggestions as sug, bi}
+                <li class:active={bi === backgroundSugIndex} onmousedown={() => selectBackground(sug)}>
+                  <span>{backgroundDisplayName(sug)}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+        {#if !backgroundRef.sourceKey && backgroundRef.name.trim() && !backgroundLegacyMatch}
+          <p class="species-hint">Nicht in der Bibliothek verlinkt – aus der Liste wählen oder als Hintergrund anlegen.</p>
+        {/if}
+      {/if}
     </div>
 
     <!-- Volk als Bibliotheks-Link (Traits werden auf der Karte aufgelöst; `race` = Anzeige). -->
@@ -1151,15 +1399,17 @@
   <section>
     <h3>Rettungswürfe (Profizienzen)</h3>
     <div class="save-checks">
-      {#each [['STR', strSaveProf, (v: boolean) => (strSaveProf = v), strMod],
-              ['GES', gesSaveProf, (v: boolean) => (gesSaveProf = v), gesMod],
-              ['KON', konSaveProf, (v: boolean) => (konSaveProf = v), konMod],
-              ['INT', intSaveProf, (v: boolean) => (intSaveProf = v), intMod],
-              ['WEI', weiSaveProf, (v: boolean) => (weiSaveProf = v), weiMod],
-              ['CHA', chaSaveProf, (v: boolean) => (chaSaveProf = v), chaMod]] as [label, checked, setter, mod]}
+      {#each [['STR', strSaveProf, (v: boolean) => (strSaveProf = v), strMod, 'Strength'],
+              ['GES', gesSaveProf, (v: boolean) => (gesSaveProf = v), gesMod, 'Dexterity'],
+              ['KON', konSaveProf, (v: boolean) => (konSaveProf = v), konMod, 'Constitution'],
+              ['INT', intSaveProf, (v: boolean) => (intSaveProf = v), intMod, 'Intelligence'],
+              ['WEI', weiSaveProf, (v: boolean) => (weiSaveProf = v), weiMod, 'Wisdom'],
+              ['CHA', chaSaveProf, (v: boolean) => (chaSaveProf = v), chaMod, 'Charisma']] as [label, checked, setter, mod, en]}
+        {@const saveSource = grantSourcesFor(grants?.savingThrows, en as string)}
         <label class="check-row" use:diffMark={dirOf((saved as Record<string, unknown> | null | undefined)?.[`${(label as string).toLowerCase()}SaveProf`], checked)}>
           <input type="checkbox" checked={checked as boolean} onchange={(e) => (setter as (v: boolean) => void)((e.target as HTMLInputElement).checked)} />
           <span class="check-label">{label}</span>
+          {#if saveSource}<span class="grant-mark" title={saveSource}>◆</span>{/if}
           <span class="check-val">{sign((mod as number) + ((checked as boolean) ? proficiencyBonus : 0))}</span>
         </label>
       {/each}
@@ -1169,6 +1419,68 @@
   <!-- ── Fertigkeiten ─── -->
   <section>
     <h3>Fertigkeiten</h3>
+
+    {#if hasGrants && grants}
+      <!-- Grant-Panel: deterministisch aus den Bibliotheks-Links abgeleitet, per Klick
+           übernommen — nie still überschrieben. -->
+      <div class="grant-panel">
+        <div class="grant-head">
+          <span class="grant-title">Aus Hintergrund, Klasse, Volk &amp; Talenten</span>
+          <button type="button" class="grant-apply" onclick={applyGrants}>Übernehmen</button>
+        </div>
+
+        {#if grants.skills.length}
+          <div class="grant-line">
+            <span class="grant-label">Fest</span>
+            <span class="grant-value">
+              {grants.skills.map((g) => `${skillLabelDe(g.value)} (${g.source.label})`).join(', ')}
+            </span>
+          </div>
+        {/if}
+
+        {#each grants.choices as choice, i}
+          <div class="grant-choice">
+            <div class="grant-line">
+              <span class="grant-label">{choice.source.label}</span>
+              <span class="grant-value">
+                {choice.from.length ? `${choice.choose} aus ${choice.from.length}` : `${choice.choose} frei wählbar`}
+                — {choiceTaken(choice)} von {choice.choose} belegt
+              </span>
+            </div>
+            <div class="grant-options">
+              {#each choiceOptions(choice) as en}
+                {@const sheetKey = skillSheetKey(en)}
+                {@const already = skillFlags[sheetKey]?.prof}
+                <button
+                  type="button"
+                  class="grant-opt"
+                  class:picked={(choicePicks[i] ?? []).includes(en)}
+                  class:already
+                  disabled={already}
+                  title={already ? 'schon geübt' : 'zur Übernahme vormerken'}
+                  onclick={() => togglePick(i, en, choice.choose)}
+                >{skillLabelDe(en)}</button>
+              {/each}
+            </div>
+          </div>
+        {/each}
+
+        {#if grants.savingThrows.length || grants.weapons.length || grants.weaponsOther.length || grants.armor.length}
+          <div class="grant-line">
+            <span class="grant-label">Außerdem</span>
+            <span class="grant-value">
+              {[
+                ...grants.savingThrows.map((s) => `RW ${abilityLabelDe(s.value)}`),
+                ...grants.weapons.map((w) => WEAPON_LABEL_DE[w.value]),
+                ...grants.weaponsOther.map((w) => w.value),
+                ...grants.armor.map((a) => ARMOR_LABEL_DE[a.value]),
+              ].join(', ')}
+            </span>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
     <label class="check-row alleskoenner" use:diffMark={dirOf(saved?.alleskoenner, alleskoenner)}>
       <input type="checkbox" bind:checked={alleskoenner} />
       <span>Alleskönner</span>
@@ -1196,6 +1508,9 @@
             onchange={(e) => { skillFlags[def.key].exp = (e.target as HTMLInputElement).checked; }}
           />
           <span class="skill-name" class:proficient={flags.prof} class:expertise={flags.exp}>{def.label}</span>
+          {#if grantMarks.has(def.key)}
+            <span class="grant-mark" title={grantMarks.get(def.key)!.join(' · ')}>◆</span>
+          {/if}
           <span class="skill-val">{sign(computed.value)}</span>
         </div>
       {/each}
@@ -1303,7 +1618,7 @@
   <section>
     <details class="ref-section">
       <summary>Verknüpfte Merkmale & Talente</summary>
-      <p class="ref-hint">Klassen- & Volksmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente aus der Bibliothek wählen; fehlt eins, mit 📖 als (Homebrew-)Talent anlegen und verlinken. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
+      <p class="ref-hint">Klassen-, Volks- & Hintergrundmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente aus der Bibliothek wählen; fehlt eins, mit 📖 als (Homebrew-)Talent anlegen und verlinken. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
 
       <div class="ref-block">
         <h4>Klassenmerkmale</h4>
@@ -1312,6 +1627,10 @@
       <div class="ref-block">
         <h4>Volksmerkmale</h4>
         {@render featureGroups(speciesTraitGroups, 'Kein verlinktes Volk — oben ein Volk aus der Bibliothek wählen.')}
+      </div>
+      <div class="ref-block">
+        <h4>Hintergrund</h4>
+        {@render featureGroups(backgroundGroups, 'Kein verlinkter Hintergrund — oben einen Hintergrund aus der Bibliothek wählen.')}
       </div>
 
       <div class="ref-block">
@@ -1449,13 +1768,15 @@
   <!-- ── Profizienzen (Waffen / Rüstung / Schilde) ─── -->
   <section>
     <h3>Profizienzen</h3>
+    <!-- ◆ = aus einem Bibliotheks-Link gewährt (Titel nennt die Quelle); übernommen wird
+         im Grant-Panel im Abschnitt „Fertigkeiten". -->
     <div class="prof-grid">
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.simpleWeapons, profSimpleWeapons)}><input type="checkbox" bind:checked={profSimpleWeapons} /><span class="check-label">Einfache Waffen</span></label>
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.martialWeapons, profMartialWeapons)}><input type="checkbox" bind:checked={profMartialWeapons} /><span class="check-label">Kriegswaffen</span></label>
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.lightArmor, profLightArmor)}><input type="checkbox" bind:checked={profLightArmor} /><span class="check-label">Leichte Rüstung</span></label>
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.mediumArmor, profMediumArmor)}><input type="checkbox" bind:checked={profMediumArmor} /><span class="check-label">Mittlere Rüstung</span></label>
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.heavyArmor, profHeavyArmor)}><input type="checkbox" bind:checked={profHeavyArmor} /><span class="check-label">Schwere Rüstung</span></label>
-      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.shields, profShields)}><input type="checkbox" bind:checked={profShields} /><span class="check-label">Schilde</span></label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.simpleWeapons, profSimpleWeapons)}><input type="checkbox" bind:checked={profSimpleWeapons} /><span class="check-label">Einfache Waffen</span>{#if profGrantSources.simple}<span class="grant-mark" title={profGrantSources.simple}>◆</span>{/if}</label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.martialWeapons, profMartialWeapons)}><input type="checkbox" bind:checked={profMartialWeapons} /><span class="check-label">Kriegswaffen</span>{#if profGrantSources.martial}<span class="grant-mark" title={profGrantSources.martial}>◆</span>{/if}</label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.lightArmor, profLightArmor)}><input type="checkbox" bind:checked={profLightArmor} /><span class="check-label">Leichte Rüstung</span>{#if profGrantSources.light}<span class="grant-mark" title={profGrantSources.light}>◆</span>{/if}</label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.mediumArmor, profMediumArmor)}><input type="checkbox" bind:checked={profMediumArmor} /><span class="check-label">Mittlere Rüstung</span>{#if profGrantSources.medium}<span class="grant-mark" title={profGrantSources.medium}>◆</span>{/if}</label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.heavyArmor, profHeavyArmor)}><input type="checkbox" bind:checked={profHeavyArmor} /><span class="check-label">Schwere Rüstung</span>{#if profGrantSources.heavy}<span class="grant-mark" title={profGrantSources.heavy}>◆</span>{/if}</label>
+      <label class="check-row" use:diffMark={dirOf(saved?.proficiencies?.shields, profShields)}><input type="checkbox" bind:checked={profShields} /><span class="check-label">Schilde</span>{#if profGrantSources.shields}<span class="grant-mark" title={profGrantSources.shields}>◆</span>{/if}</label>
     </div>
     <label class="block-label" use:diffMark={dirOf(saved?.proficiencies?.otherWeapons, profOtherWeapons)}>
       Weitere Waffen
@@ -1784,7 +2105,39 @@
   .skill-name { color: var(--ink-soft); }
   .skill-name.proficient { color: var(--green); }
   .skill-name.expertise { color: var(--steel); }
-  .skill-val { font-weight: 600; }
+  .skill-val { font-weight: 600; margin-left: auto; }
+
+  /* Grant-Panel: Angebot aus den Bibliotheks-Links (Herkunft, Klasse, Volk, Talente) */
+  .grant-mark { color: var(--copper); font-size: 0.62rem; cursor: help; }
+  .grant-panel {
+    border: 1px solid color-mix(in srgb, var(--copper) 35%, var(--surface));
+    border-radius: 5px; background: color-mix(in srgb, var(--copper) 6%, var(--bg-panel));
+    padding: 0.45rem 0.6rem; margin-bottom: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.3rem;
+  }
+  .grant-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .grant-title {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--copper);
+  }
+  .grant-apply {
+    background: var(--surface); border: 1px solid var(--copper); border-radius: 4px;
+    color: var(--copper); cursor: pointer; font-family: inherit; font-size: 0.76rem;
+    padding: 0.15rem 0.55rem;
+  }
+  .grant-apply:hover { background: color-mix(in srgb, var(--copper) 20%, var(--surface)); }
+  .grant-line { display: grid; grid-template-columns: 9rem 1fr; gap: 0.4rem; font-size: 0.78rem; }
+  .grant-label { color: var(--ink-muted); }
+  .grant-value { color: var(--ink-soft); }
+  .grant-choice { display: flex; flex-direction: column; gap: 0.2rem; }
+  .grant-options { display: flex; flex-wrap: wrap; gap: 0.25rem; padding-left: 9.4rem; }
+  .grant-opt {
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--ink-soft); cursor: pointer; font-family: inherit; font-size: 0.74rem;
+    padding: 0.05rem 0.45rem;
+  }
+  .grant-opt:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
+  .grant-opt.picked { background: color-mix(in srgb, var(--copper) 30%, var(--bg-panel)); color: var(--ink); border-color: var(--copper); }
+  .grant-opt.already { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); cursor: default; }
 
   /* Angriffe */
   .attack-table {

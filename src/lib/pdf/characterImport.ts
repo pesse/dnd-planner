@@ -60,6 +60,8 @@ export async function ensureCharacterJson(dirPath: string): Promise<boolean> {
   const data = characterFromPdfFields(await readPdfFields(`${dirPath}/${pdfName}`));
   const json: CharacterJSON = {
     ...data,
+    // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
+    // Upgrade-Pipeline (schemas/character.ts) strukturiert sie beim ersten Laden.
     _version: 1,
     _importedFrom: pdfName,
     _importedAt: new Date().toISOString(),

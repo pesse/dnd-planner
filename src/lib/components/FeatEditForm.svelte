@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Feat } from '$lib/types';
+  import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
 
   let {
     feat = $bindable<Feat>(),
@@ -35,6 +36,18 @@
       <div class="orig-text">{feat.prerequisite}</div>
     </details>
   {/if}
+</div>
+
+<div class="divider"></div>
+
+<!-- Gewährte Übungen (SRD 5.2: nur „Geschult") -->
+<div class="section">
+  <div class="section-title">Gewährte Übungen</div>
+  <p class="section-hint">
+    Nur mechanisch modellierbare Fertigkeiten. „Geschult" erlaubt auch Werkzeuge —
+    das steht bewusst nur in der Prosa.
+  </p>
+  <ProficiencyGrantEditForm bind:grant={feat.proficiencyGrant} scope="skills" {onchange} />
 </div>
 
 <div class="divider"></div>
@@ -92,6 +105,7 @@
     border-bottom: 1px solid var(--mef-accent, var(--arcane)); padding-bottom: 0.15rem;
   }
 
+  .section-hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.2rem; }
   .wide { width: 100%; }
   .ability-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; min-height: 3rem; }
 

@@ -18,6 +18,9 @@
 // │     level? : int = 1
 // │   classLevel? : string = ""
 // │   playerName? : string = ""
+// │   backgroundRef?:
+// │     sourceKey? : string = ""
+// │     name? : string = ""
 // │   background? : string = ""
 // │   species?:
 // │     sourceKey? : string = ""
@@ -126,7 +129,7 @@
 // │       gainedAt? : int
 // │       desc? : string = ""
 // │   portraitFile? : string
-// │   _version? : 1 | 2
+// │   _version? : int
 // │   _importedFrom? : string
 // │   _importedAt? : string
 // └─
@@ -230,6 +233,18 @@ const characterSpeciesSchema = z
   })
   .default({ sourceKey: '', name: '' });
 
+/**
+ * Verknüpfter Hintergrund eines Charakters (Link auf `vault/backgrounds`). Analog zu
+ * `species`: der Charakter speichert nur den Link, die Vorteile werden zur Laufzeit
+ * aus der Bibliothek aufgelöst. Leerer `sourceKey` = noch nicht verlinkt (Legacy).
+ */
+const characterBackgroundSchema = z
+  .object({
+    sourceKey: z.string().default(''), // Bibliotheks-Key des Hintergrunds
+    name: z.string().default(''), // Anzeigename (DE)
+  })
+  .default({ sourceKey: '', name: '' });
+
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
   alter: z.string().default(''),
@@ -261,6 +276,9 @@ export const characterSchema = z.object({
   // Abgeleiteter Anzeige-String aus `classes` (für Header/PDF); nicht mehr direkt editiert.
   classLevel: z.string().default(''),
   playerName: z.string().default(''),
+  // Strukturierter Hintergrund-Link (Source-of-Truth). `background` wird daraus abgeleitet.
+  backgroundRef: characterBackgroundSchema,
+  // Abgeleiteter Anzeige-String aus `backgroundRef` (für Header/PDF); nicht mehr direkt editiert.
   background: z.string().default(''),
   // Strukturierter Spezies-Link (Source-of-Truth). `race` wird daraus abgeleitet.
   species: characterSpeciesSchema,
@@ -326,7 +344,9 @@ export const characterSchema = z.object({
   // Portrait (Datei im Charakter-Ordner)
   portraitFile: z.string().optional(),
   // ── Metadaten (nicht editierbar; werden im Draft mitgeführt) ──
-  _version: z.union([z.literal(1), z.literal(2)]).optional(),
+  // Schemaversion der Datei — bewusst offen (int), damit eine künftige Version
+  // eine ältere App nicht am Laden hindert. Siehe CHARACTER_VERSION unten.
+  _version: z.number().int().min(1).optional(),
   _importedFrom: z.string().optional(),
   _importedAt: z.string().optional(),
 });
@@ -341,6 +361,7 @@ export type CharacterReferences = z.infer<typeof characterReferencesSchema>;
 export type ReferenceEntry = z.infer<typeof referenceEntrySchema>;
 export type CharacterClass = z.infer<typeof characterClassSchema>;
 export type CharacterSpecies = z.infer<typeof characterSpeciesSchema>;
+export type CharacterBackground = z.infer<typeof characterBackgroundSchema>;
 
 /** Anzeige-String der Spezies (inkl. optionaler Unterspezies). */
 export function formatSpecies(species: CharacterSpecies | undefined): string {
@@ -406,41 +427,130 @@ export function parseClassLevelText(text: string): CharacterClass[] {
     .filter((x): x is CharacterClass => x !== null);
 }
 
-/** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
-export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
-  if (!raw || typeof raw !== 'object') return {};
-  const c = { ...(raw as Record<string, unknown>) };
-  // v1→v2: Freitext `classLevel` best-effort in strukturierte `classes` überführen.
-  // Nur wenn noch keine `classes` gepflegt sind (idempotent für v2-Charaktere).
-  const existing = c.classes;
-  const hasClasses = Array.isArray(existing) && existing.length > 0;
-  if (!hasClasses && typeof c.classLevel === 'string' && c.classLevel.trim()) {
-    const parsed = parseClassLevelText(c.classLevel);
-    if (parsed.length) {
-      c.classes = parsed;
-      c._version = 2;
+// ── Charakter-Upgrade (versioniert) ──────────────────────────────────────────
+//
+// Charaktere liegen als Dateien im Vault und überleben jede Programmversion.
+// Damit Schema-Änderungen einen definierten Ort haben, ist die Migration eine
+// GEORDNETE PIPELINE statt einer Sammlung von Ad-hoc-Reparaturen: jeder Schritt
+// trägt seine Zielversion, eine deutsche Beschreibung fürs Protokoll und eine
+// idempotente `apply`-Funktion. Beim Laden laufen alle Schritte, deren
+// Zielversion über der gespeicherten liegt; danach wird `_version` gestempelt.
+//
+// Zwei Regeln für neue Schritte:
+//   1. `CHARACTER_VERSION` erhöhen und GENAU EINEN Schritt mit dieser `to` ergänzen.
+//   2. `apply` muss idempotent und inhaltlich abgesichert sein — Altbestand trägt
+//      oft keine oder eine zu niedrige `_version`, obwohl die Umstellung schon
+//      passiert ist (früher lief die Migration ohne Versionsstempel).
+//
+// Das Stapel-Upgrade über alle Charaktere des Vaults liegt in
+// `services/characterUpgrade.ts`.
+
+/** Aktuelle Charakter-Schemaversion. Bei jeder Formatänderung erhöhen. */
+export const CHARACTER_VERSION = 3;
+
+export interface CharacterUpgrade {
+  /** Version, die dieser Schritt herstellt. */
+  to: number;
+  /** Deutsche Kurzbeschreibung — erscheint im Upgrade-Protokoll. */
+  label: string;
+  apply: (c: Record<string, unknown>) => void;
+}
+
+export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
+  {
+    to: 2,
+    label: 'Freitext-Klasse → strukturierte Klassen-Einträge',
+    apply: (c) => {
+      // Best-effort: „Kämpfer 5 / Zauberer 2" → classes[]. Nur wenn noch keine
+      // gepflegt sind, damit bereits umgestellte Charaktere unberührt bleiben.
+      const hasClasses = Array.isArray(c.classes) && c.classes.length > 0;
+      if (hasClasses || typeof c.classLevel !== 'string' || !c.classLevel.trim()) return;
+      const parsed = parseClassLevelText(c.classLevel);
+      if (parsed.length) c.classes = parsed;
+    },
+  },
+  {
+    to: 3,
+    label: 'Volk/Hintergrund → Bibliotheks-Links, Key-Präfixe aktualisiert',
+    apply: (c) => {
+      // Legacy-Freitexte → strukturierte Links. `sourceKey` bleibt leer, bis der
+      // Bibliotheks-Picker im Editor greift; der Name ist der bisherige Freitext.
+      const sp = c.species as { sourceKey?: string; name?: string } | undefined;
+      const hasSpecies = sp && typeof sp === 'object' && ((sp.sourceKey ?? '').trim() || (sp.name ?? '').trim());
+      if (!hasSpecies && typeof c.race === 'string' && c.race.trim())
+        c.species = { sourceKey: '', name: c.race.trim() };
+
+      const bg = c.backgroundRef as { sourceKey?: string; name?: string } | undefined;
+      const hasBackground = bg && typeof bg === 'object' && ((bg.sourceKey ?? '').trim() || (bg.name ?? '').trim());
+      if (!hasBackground && typeof c.background === 'string' && c.background.trim())
+        c.backgroundRef = { sourceKey: '', name: c.background.trim() };
+
+      // Bibliotheks-Links auf das aktuelle Key-Präfix ziehen ("homebrew_" → "homebrew-sam_").
+      for (const cls of (Array.isArray(c.classes) ? c.classes : []) as Record<string, unknown>[]) {
+        if (cls?.sourceKey) cls.sourceKey = migrateSourceKey(cls.sourceKey as string);
+        if (cls?.subclassKey) cls.subclassKey = migrateSourceKey(cls.subclassKey as string);
+      }
+      const species = c.species as Record<string, unknown> | undefined;
+      if (species?.sourceKey) species.sourceKey = migrateSourceKey(species.sourceKey as string);
+      if (species?.subspeciesKey) species.subspeciesKey = migrateSourceKey(species.subspeciesKey as string);
+      const background = c.backgroundRef as Record<string, unknown> | undefined;
+      if (background?.sourceKey) background.sourceKey = migrateSourceKey(background.sourceKey as string);
+      const refs = c.references as { feats?: Record<string, unknown>[] } | undefined;
+      for (const f of refs?.feats ?? []) {
+        if (f?.sourceKey) f.sourceKey = migrateSourceKey(f.sourceKey as string);
+      }
+    },
+  },
+];
+
+/**
+ * Gespeicherte Version eines rohen Charakters. Ohne `_version` gilt 1 — so waren
+ * die Dateien, bevor es das Feld gab.
+ */
+export function characterVersionOf(raw: unknown): number {
+  const v = (raw as { _version?: unknown } | null)?._version;
+  return typeof v === 'number' && v >= 1 ? Math.floor(v) : 1;
+}
+
+export interface CharacterUpgradeResult {
+  data: Record<string, unknown>;
+  fromVersion: number;
+  toVersion: number;
+  /** Beschreibungen der angewandten Schritte, in Reihenfolge. */
+  applied: string[];
+}
+
+/**
+ * Zieht einen rohen Charakter auf `CHARACTER_VERSION` und protokolliert, was
+ * angewandt wurde. Wirft nie; ein Schritt, der an kaputten Daten scheitert, wird
+ * übersprungen, damit ein einzelnes Feld nicht die ganze Datei unlesbar macht.
+ */
+export function upgradeCharacter(raw: unknown): CharacterUpgradeResult {
+  const empty = { data: {}, fromVersion: CHARACTER_VERSION, toVersion: CHARACTER_VERSION, applied: [] };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return empty;
+
+  const data = { ...(raw as Record<string, unknown>) };
+  const fromVersion = characterVersionOf(data);
+  const applied: string[] = [];
+
+  for (const step of CHARACTER_UPGRADES) {
+    if (step.to <= fromVersion) continue;
+    try {
+      step.apply(data);
+      applied.push(step.label);
+    } catch {
+      /* Einzelschritt übersprungen — der Rest der Datei bleibt nutzbar. */
     }
   }
-  // Legacy `race`-String → strukturierter species-Link (sourceKey bleibt leer bis der
-  // Bibliotheks-Picker im Editor greift; Name = bisheriger Freitext).
-  const sp = c.species as { sourceKey?: string; name?: string } | undefined;
-  const hasSpecies = sp && typeof sp === 'object' && ((sp.sourceKey ?? '').trim() || (sp.name ?? '').trim());
-  if (!hasSpecies && typeof c.race === 'string' && c.race.trim()) {
-    c.species = { sourceKey: '', name: c.race.trim() };
-  }
-  // Bibliotheks-Links auf das aktuelle Key-Präfix ziehen ("homebrew_" → "homebrew-sam_").
-  for (const cls of (Array.isArray(c.classes) ? c.classes : []) as Record<string, unknown>[]) {
-    if (cls?.sourceKey) cls.sourceKey = migrateSourceKey(cls.sourceKey as string);
-    if (cls?.subclassKey) cls.subclassKey = migrateSourceKey(cls.subclassKey as string);
-  }
-  const species = c.species as Record<string, unknown> | undefined;
-  if (species?.sourceKey) species.sourceKey = migrateSourceKey(species.sourceKey as string);
-  if (species?.subspeciesKey) species.subspeciesKey = migrateSourceKey(species.subspeciesKey as string);
-  const refs = c.references as { feats?: Record<string, unknown>[] } | undefined;
-  for (const f of refs?.feats ?? []) {
-    if (f?.sourceKey) f.sourceKey = migrateSourceKey(f.sourceKey as string);
-  }
+  data._version = CHARACTER_VERSION;
+  return { data, fromVersion, toVersion: CHARACTER_VERSION, applied };
+}
 
-  // Rückwärtskompatibilität: fehlendes spells-Objekt → Default greift im Schema.
-  return c;
+/**
+ * Migriert Altformat-Felder, bevor das Schema greift (Eintritt für
+ * `normalizeCharacter`/`parseCharacter`). Idempotent — dünne Hülle um
+ * `upgradeCharacter`.
+ */
+export function migrateCharacterLegacy(raw: unknown): Record<string, unknown> {
+  return upgradeCharacter(raw).data;
 }

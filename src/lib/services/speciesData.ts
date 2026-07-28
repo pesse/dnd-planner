@@ -7,7 +7,7 @@
  * Import leer und werden per LLM-Übersetzung nachgefüllt.
  */
 import { speciesSchema, type Species, type Trait } from '$lib/schemas/species';
-import { toSourceKey } from '$lib/schemas/shared';
+import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/shared';
 import { getSpecies as fetchSpecies } from './open5eApi';
 
 interface V2Trait {
@@ -36,11 +36,17 @@ export function mapV2Species(raw: Record<string, unknown>): Species {
 
   // Open5e liefert keine Trait-Keys → deterministisch aus Spezies-Key + Name-Slug
   // erzeugen, damit Merkmale stabil referenzierbar sind (z.B. für pro-Stufe-Effekte).
-  const traits: Trait[] = rawTraits.map((t) => ({
-    key: t.key || (specKey && t.name ? `${specKey}_${slug(t.name)}` : ''),
-    name: t.name ?? '',
-    desc: t.desc ?? '',
-  }));
+  const traits: Trait[] = rawTraits.map((t) => {
+    // Fertigkeitsübung aus der Merkmals-Prosa (Elf „Keen Senses", Mensch „Skillful");
+    // alles Nicht-Modellierbare bleibt Prosa, siehe `parseProseSkillGrant`.
+    const skills = parseProseSkillGrant(t.desc ?? '');
+    return {
+      key: t.key || (specKey && t.name ? `${specKey}_${slug(t.name)}` : ''),
+      name: t.name ?? '',
+      desc: t.desc ?? '',
+      proficiencyGrant: skills ? { ...emptyProficiencyGrant(), skills } : emptyProficiencyGrant(),
+    };
+  });
 
   const mapped = {
     key: specKey,
