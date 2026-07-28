@@ -4,7 +4,7 @@
  * Der Executor ruft die geteilten Helfer aus `dndApi.ts`.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { searchEquipment, searchMagicItems, searchMonsters, searchSpells, getResource } from './dndApi';
+import { searchMonsters, searchSpells, getResource } from './dndApi';
 
 interface ToolDef {
   name: string;
@@ -17,16 +17,16 @@ const TOOL_LIST: ToolDef[] = [
     name: 'search_dnd_api',
     description:
       'Search the official D&D 5e SRD (dnd5eapi.co) by name. ' +
-      'category "equipment" = mundane gear/weapons/armor, "magic-items" = magic items, ' +
-      '"monsters" = creatures/stat blocks, "spells" = spells. ' +
-      'The query MUST be in ENGLISH (e.g. "warhammer", "goblin", "fireball"). ' +
+      'category "monsters" = creatures/stat blocks, "spells" = spells. ' +
+      '(Items/equipment come from a different source — do not search them here.) ' +
+      'The query MUST be in ENGLISH (e.g. "goblin", "fireball"). ' +
       'Returns a JSON list of { index, name, url }. Pick the closest match and load it with get_dnd_api_resource.',
     params: {
       type: 'object',
       properties: {
         category: {
           type: 'string',
-          enum: ['equipment', 'magic-items', 'monsters', 'spells'],
+          enum: ['monsters', 'spells'],
           description: 'Which SRD collection to search.',
         },
         query: { type: 'string', description: 'English search term, e.g. "goblin".' },
@@ -66,13 +66,9 @@ export const DND_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
 export async function executeDndTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
     case 'search_dnd_api': {
-      const category = String(args.category ?? 'equipment');
+      const category = String(args.category ?? 'monsters');
       const query = String(args.query ?? '');
-      const search =
-        category === 'magic-items' ? searchMagicItems
-        : category === 'monsters' ? searchMonsters
-        : category === 'spells' ? searchSpells
-        : searchEquipment;
+      const search = category === 'spells' ? searchSpells : searchMonsters;
       const results = await search(query);
       return JSON.stringify(results.slice(0, 15));
     }

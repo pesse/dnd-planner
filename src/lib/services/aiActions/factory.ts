@@ -28,10 +28,12 @@ function baseAction<T>(
   spec: EntityActionSpec<T>,
   withDndTools = true,
 ): Omit<AiAction<T>, 'id' | 'label' | 'buildSystemPrompt'> {
+  // Entity-eigene Tools (z.B. Open5e-Items) haben Vorrang; sonst die DnD-API-Tools.
+  const custom = spec.execute !== undefined;
   return {
-    anthropicTools: withDndTools ? DND_TOOLS_ANTHROPIC : [],
-    openAiTools: withDndTools ? DND_TOOLS_OPENAI : [],
-    execute: withDndTools ? executeDndTool : async () => '',
+    anthropicTools: !withDndTools ? [] : custom ? (spec.anthropicTools ?? []) : DND_TOOLS_ANTHROPIC,
+    openAiTools: !withDndTools ? [] : custom ? (spec.openAiTools ?? []) : DND_TOOLS_OPENAI,
+    execute: !withDndTools ? async () => '' : custom ? spec.execute! : executeDndTool,
     jsonSchema: spec.jsonSchema,
     validate: spec.validate,
   };

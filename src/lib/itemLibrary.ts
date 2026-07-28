@@ -30,51 +30,83 @@ export function displayName(item: ItemInfo): string {
 }
 
 /**
- * Kategorie-Schlüssel = Ordnername = DnD-API equipment_category.index.
+ * Kategorie-Schlüssel = Ordnername = Open5e-v2 category.key (24 Werte).
  * Identity-Mapping: vault/items/{key}/ enthält Items dieser Kategorie.
  */
 
 /** Farbe pro Kategorie (Catppuccin Mocha Palette) */
 export const CATEGORY_COLORS: Record<string, string> = {
-  'weapon':              'var(--danger)',
-  'armor':               'var(--red)',
-  'ammunition':          'var(--teal)',
-  'adventuring-gear':    'var(--magenta)',
-  'tools':               'var(--steel)',
-  'mounts-and-vehicles': 'var(--red-bright)',
-  'wondrous-items':      'var(--arcane)',
-  'ring':                'var(--gold)',
-  'rod':                 'var(--copper)',
-  'staff':               'var(--danger)',
-  'wand':                'var(--magenta)',
-  'scroll':              'var(--steel)',
-  'potion':              'var(--green)',
-  'other':               'var(--ink-muted)',
+  'weapon':             'var(--danger)',
+  'armor':              'var(--red)',
+  'shield':             'var(--red-bright)',
+  'ammunition':         'var(--teal)',
+  'adventuring-gear':   'var(--magenta)',
+  'equipment-pack':     'var(--magenta)',
+  'tools':              'var(--steel)',
+  'spellcasting-focus': 'var(--arcane)',
+  'mount':              'var(--red-bright)',
+  'land-vehicle':       'var(--copper)',
+  'waterborne-vehicle': 'var(--steel)',
+  'wondrous-item':      'var(--arcane)',
+  'ring':               'var(--gold)',
+  'rod':                'var(--copper)',
+  'staff':              'var(--danger)',
+  'wand':               'var(--magenta)',
+  'scroll':             'var(--steel)',
+  'potion':             'var(--green)',
+  'poison':             'var(--green)',
+  'gem':                'var(--arcane)',
+  'jewelry':            'var(--gold)',
+  'art':                'var(--copper)',
+  'trade-good':         'var(--steel)',
+  'service':            'var(--ink-muted)',
+  'other':              'var(--ink-muted)',
 };
 
-/** Ordnername → Kategorie-Schlüssel (identity). */
-export const DIR_TO_CATEGORY: Record<string, string> = Object.fromEntries(
-  Object.keys(CATEGORY_COLORS).map((k) => [k, k])
+/** Legacy-Ordner (dnd5eapi/2014) → Open5e-Kategorie; fängt unangetasteten Homebrew ab. */
+const LEGACY_DIR_ALIASES: Record<string, string> = {
+  'wondrous-items': 'wondrous-item',
+  'mounts-and-vehicles': 'mount',
+  'shields': 'shield',
+};
+
+/** Ordnername → Kategorie-Schlüssel (identity + Legacy-Aliase). */
+export const DIR_TO_CATEGORY: Record<string, string> = {
+  ...Object.fromEntries(Object.keys(CATEGORY_COLORS).map((k) => [k, k])),
+  ...LEGACY_DIR_ALIASES,
+};
+
+/** Kategorie-Schlüssel → Ordnername (identity; Neu-Anlage nutzt die aktuellen Keys). */
+export const CATEGORY_TO_DIR: Record<string, string> = Object.fromEntries(
+  Object.keys(CATEGORY_COLORS).map((k) => [k, k]),
 );
 
-/** Kategorie-Schlüssel → Ordnername (identity). */
-export const CATEGORY_TO_DIR: Record<string, string> = { ...DIR_TO_CATEGORY };
-
 export const CATEGORY_LABELS: Record<string, string> = {
-  'weapon':              'Waffe',
-  'armor':               'Rüstung',
-  'ammunition':          'Munition',
-  'adventuring-gear':    'Ausrüstung',
-  'tools':               'Werkzeug',
-  'mounts-and-vehicles': 'Reittiere & Fahrzeuge',
-  'wondrous-items':      'Wundersamer Gegenstand',
-  'ring':                'Ring',
-  'rod':                 'Rute',
-  'staff':               'Stab',
-  'wand':                'Zauberstab',
-  'scroll':              'Schriftrolle',
-  'potion':              'Trank',
-  'other':               'Sonstiges',
+  'weapon':             'Waffe',
+  'armor':              'Rüstung',
+  'shield':             'Schild',
+  'ammunition':         'Munition',
+  'adventuring-gear':   'Ausrüstung',
+  'equipment-pack':     'Ausrüstungspaket',
+  'tools':              'Werkzeug',
+  'spellcasting-focus': 'Zauberfokus',
+  'mount':              'Reittier',
+  'land-vehicle':       'Landfahrzeug',
+  'waterborne-vehicle': 'Wasserfahrzeug',
+  'wondrous-item':      'Wundersamer Gegenstand',
+  'ring':               'Ring',
+  'rod':                'Rute',
+  'staff':              'Stab',
+  'wand':               'Zauberstab',
+  'scroll':             'Schriftrolle',
+  'potion':             'Trank',
+  'poison':             'Gift',
+  'gem':                'Edelstein',
+  'jewelry':            'Schmuck',
+  'art':                'Kunstgegenstand',
+  'trade-good':         'Handelsware',
+  'service':            'Dienstleistung',
+  'other':              'Sonstiges',
 };
 
 export const RARITY_LABELS: Record<string, string> = {
@@ -269,49 +301,28 @@ export function formatDamageDice(dice: string): string {
   return dice.replace(/\bd(\d+)\b/gi, (_, n) => `W${n}`);
 }
 
-/** DnD-API equipment_category.index → unsere Kategorie (= Ordnername). */
+/**
+ * equipment_category.index → unsere Kategorie (= Ordnername). Open5e liefert bereits
+ * die 24 Ziel-Keys (Identity); zusätzlich Back-Compat für Legacy-/Homebrew-Werte.
+ */
 export const API_CATEGORY_MAP: Record<string, string> = {
-  // Waffen
-  'weapon':              'weapon',
-  'martial-melee':       'weapon',
-  'martial-ranged':      'weapon',
-  'simple-melee':        'weapon',
-  'simple-ranged':       'weapon',
-  'martial-weapons':     'weapon',
-  'simple-weapons':      'weapon',
-  // Rüstung
-  'armor':               'armor',
-  'heavy-armor':         'armor',
-  'medium-armor':        'armor',
-  'light-armor':         'armor',
-  'shields':             'armor',
-  // Ausrüstung & Werkzeuge
-  'ammunition':          'ammunition',
-  'adventuring-gear':    'adventuring-gear',
-  'tools':               'tools',
-  'artisans-tools':      'tools',
-  'gaming-sets':         'tools',
-  'musical-instruments': 'tools',
-  'other-tools':         'tools',
-  'mounts-and-vehicles': 'mounts-and-vehicles',
-  // Magische Gegenstände
-  'wondrous-items':      'wondrous-items',
-  'wundersam':           'wondrous-items', // legacy / Homebrew
-  'ring':                'ring',
-  'rod':                 'rod',
-  'staff':               'staff',
-  'wand':                'wand',
-  'scroll':              'scroll',
-  'potion':              'potion',
+  ...Object.fromEntries(Object.keys(CATEGORY_COLORS).map((k) => [k, k])),
+  // Back-Compat (dnd5eapi/2014 & Homebrew)
+  'wondrous-items':      'wondrous-item',
+  'wundersam':           'wondrous-item',
+  'mounts-and-vehicles': 'mount',
+  'shields':             'shield',
 };
 
 // ── Typ-Ableitung (Single Source of Truth = equipment_category) ───────────────
 
+const MAGIC_CATEGORIES = ['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-item', 'spellcasting-focus'];
+
 /** Grobe „Schublade" einer Kategorie. Magie-Kategorien (Ring, Trank …) liefern hier `magic`. */
 export function categoryToCoarseType(catKey: string): 'weapon' | 'armor' | 'magic' | 'gear' {
   if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
-  if (catKey === 'armor') return 'armor';
-  if (['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-items'].includes(catKey)) return 'magic';
+  if (catKey === 'armor' || catKey === 'shield') return 'armor';
+  if (MAGIC_CATEGORIES.includes(catKey)) return 'magic';
   return 'gear';
 }
 
@@ -343,18 +354,22 @@ export function isMagicItem(item: Item): boolean {
 export function blankItem(name: string, dir: string): Item {
   const apiName = dir.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   return {
+    key: '',
     name,
     name_de: name,
     equipment_category: { index: dir, name: apiName },
     desc: [],
     desc_de: [],
     source: OWN_SOURCE,
+    document: { key: OWN_SOURCE, gamesystem: '' },
   };
 }
 
 /** Vorlage → anpassbare Homebrew-Kopie (ohne Verknüpfung zur Quelle). */
 export function toHomebrewCopy(item: Item): Item {
-  return { ...item, source: OWN_SOURCE, index: undefined, url: undefined };
+  // `key`/`index` leeren, damit die Kopie eine EIGENE Identität bekommt (der neue
+  // `key` wird beim Laden aus source+name backfilled); Herkunft auf Eigen setzen.
+  return { ...item, source: OWN_SOURCE, key: '', index: undefined, document: { key: OWN_SOURCE, gamesystem: '' } };
 }
 
 // Singleton-Cache: category dir → items

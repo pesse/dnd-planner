@@ -14,7 +14,8 @@
   import { updateState, updateDialogOpen } from '../stores/update';
   import { libraries, libraryManagerOpen, updateCount } from '../stores/libraries';
   import CreateCardModal from './CreateCardModal.svelte';
-  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
+  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell } from '../services/dndApi';
+  import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem } from '../services/open5eApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
   import { createSpellAction } from '../services/aiActions/spellAction';
   import { createItemAction } from '../services/aiActions/itemAction';
@@ -31,6 +32,7 @@
   import {
     ITEMS_PATH,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
+    DIR_TO_CATEGORY as ITEM_DIR_TO_CAT,
     rarityColor,
     invalidateItemCache,
     getItemsByDir,
@@ -686,13 +688,17 @@
     }));
   }
 
-  /** Rohe SRD-Ressource → Homebrew-Item (Quelle aus rarity-Präsenz abgeleitet). */
-  function mapApiItem(data: Record<string, unknown>): Item {
-    return toHomebrewCopy(mapApiResourceToItem(data, data.rarity ? 'magic' : 'equipment'));
+  /** Open5e-v2-Item-Key → anpassbare Homebrew-Kopie (nur Ausrüstung). */
+  async function loadApiItem(ref: { url: string }): Promise<Item> {
+    return toHomebrewCopy(mapOpen5eItem(await getOpen5eItem(ref.url)));
+  }
+
+  /** Anzeige-Label eines Item-Ordners; Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
+  function itemDirLabel(dir: string): string {
+    return ITEM_CAT_LABELS[ITEM_DIR_TO_CAT[dir] ?? dir] ?? dir;
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
-  // Anzeige-Labels kommen direkt aus ITEM_CAT_LABELS (dir === category).
 
   let itemsExpanded = $state(false);
   let itemDirs: string[] = $state([]);
@@ -1604,7 +1610,7 @@
               onclick={() => toggleItemDir(dir)}
             >
               <span class="arrow" class:open={openItemDirs[dir]}>›</span>
-              {ITEM_CAT_LABELS[dir] ?? dir}
+              {itemDirLabel(dir)}
               {#if dirItems}<span class="group-count">({dirItems.length})</span>{/if}
             </button>
             {#if openItemDirs[dir]}
@@ -1780,8 +1786,8 @@
     <CreateCardModal
       type="item"
       title="Neuer Gegenstand"
-      searchApi={searchDndApiItems}
-      mapApi={mapApiItem}
+      searchApi={searchOpen5eItems}
+      loadApi={loadApiItem}
       searchLibrary={searchItemLibrary}
       blank={(name) => blankItem(name, itemDirs[0] ?? 'other')}
       buildAction={createItemAction}

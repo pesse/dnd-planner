@@ -2,11 +2,11 @@
  * Geteilte Zugriffe auf die offizielle D&D-5e-SRD-API (dnd5eapi.co).
  *
  * Läuft über das Tauri-`http_request`-Kommando (Rust/reqwest) — umgeht die
- * CORS-Beschränkung des Webviews, genau wie der LLM-HTTP-Pfad. Wird sowohl von
- * der `ItemCard` (manueller Import) als auch vom KI-Tool-Executor genutzt.
+ * CORS-Beschränkung des Webviews, genau wie der LLM-HTTP-Pfad. Nur noch für
+ * Monster und Zauber; Gegenstände kommen aus Open5e v2 (`open5eApi.ts`).
  */
 import { invoke } from '@tauri-apps/api/core';
-import type { Item, Monster, Spell } from '../types';
+import type { Monster, Spell } from '../types';
 import { SPELL_SCHOOLS } from '../types';
 
 export const DND_API = 'https://www.dnd5eapi.co/api/2014';
@@ -17,12 +17,6 @@ export interface DndApiRef {
   url: string;
 }
 
-/** Such-Treffer aus der DnD-API inkl. Quell-Kategorie und deutschem Tag. */
-export interface DndApiItemRef extends DndApiRef {
-  source: 'magic' | 'equipment';
-  tag: string;
-}
-
 /** GET gegen die DnD-API via Rust-HTTP; liefert das geparste JSON. */
 export async function apiGet(url: string): Promise<unknown> {
   const text = await invoke<string>('http_request', {
@@ -31,104 +25,20 @@ export async function apiGet(url: string): Promise<unknown> {
   return JSON.parse(text);
 }
 
-type ApiCategory = 'equipment' | 'magic-items' | 'monsters' | 'spells';
+type ApiCategory = 'monsters' | 'spells';
 
 async function searchCategory(category: ApiCategory, q: string): Promise<DndApiRef[]> {
   const raw = (await apiGet(`${DND_API}/${category}?name=${encodeURIComponent(q)}`)) as Record<string, unknown>;
   return (raw.results as DndApiRef[]) ?? [];
 }
 
-export const searchEquipment = (q: string): Promise<DndApiRef[]> => searchCategory('equipment', q);
-export const searchMagicItems = (q: string): Promise<DndApiRef[]> => searchCategory('magic-items', q);
 export const searchMonsters = (q: string): Promise<DndApiRef[]> => searchCategory('monsters', q);
 export const searchSpells = (q: string): Promise<DndApiRef[]> => searchCategory('spells', q);
 
-/** Holt eine vollständige Ressource per API-URL (relativ wie `/api/2014/equipment/warhammer` oder absolut). */
+/** Holt eine vollständige Ressource per API-URL (relativ wie `/api/2014/monsters/goblin` oder absolut). */
 export async function getResource(urlOrPath: string): Promise<Record<string, unknown>> {
   const url = urlOrPath.startsWith('http') ? urlOrPath : `https://www.dnd5eapi.co${urlOrPath}`;
   return (await apiGet(url)) as Record<string, unknown>;
-}
-
-/**
- * Durchsucht Ausrüstung und magische Gegenstände der DnD-API gleichzeitig und
- * liefert maximal 15 kombinierte Treffer (magisch zuerst).
- */
-export async function searchDndApiItems(q: string): Promise<DndApiItemRef[]> {
-  const [magicRaw, equipRaw] = await Promise.all([
-    apiGet(`${DND_API}/magic-items?name=${encodeURIComponent(q)}`),
-    apiGet(`${DND_API}/equipment?name=${encodeURIComponent(q)}`),
-  ]);
-  const magic = ((magicRaw as Record<string, unknown>).results as DndApiRef[] ?? [])
-    .map((r) => ({ ...r, source: 'magic' as const, tag: 'magisch' }));
-  const equip = ((equipRaw as Record<string, unknown>).results as DndApiRef[] ?? [])
-    .map((r) => ({ ...r, source: 'equipment' as const, tag: 'ausrüstung' }));
-  return [...magic, ...equip].slice(0, 15);
-}
-
-/**
- * Wandelt eine rohe DnD-API-Ressource (via {@link getResource}) in unser
- * `Item`-Schema. Übernimmt Spielwerte 1:1; `equipment_category` (die einzige
- * Typ-Quelle) kommt direkt aus der API und extrahiert die Einstimmung aus der
- * Beschreibung magischer Gegenstände. `source` ist immer `"srd-2024"`.
- */
-export function mapApiResourceToItem(
-  data: Record<string, unknown>,
-  source: 'magic' | 'equipment',
-): Item {
-  let descArr = (data.desc as string[]) ?? [];
-  let attunement = false;
-  let attunement_by: string | null = null;
-
-  if (source === 'magic') {
-    const firstLine = descArr[0] ?? '';
-    if (firstLine.toLowerCase().includes('requires attunement')) {
-      attunement = true;
-      const match = firstLine.match(/requires attunement(?: by ([^)]+))?/i);
-      attunement_by = match?.[1]?.trim() ?? null;
-      descArr = descArr.length > 1 ? descArr.slice(1) : descArr;
-    }
-  }
-
-  // equipment_category ist die einzige Typ-Quelle. Die API liefert sie granular mit;
-  // fehlt sie ausnahmsweise (manche magischen Gegenstände), sinnvoll defaulten.
-  let equipment_category = data.equipment_category as Item['equipment_category'];
-  if (!equipment_category?.index) {
-    const idx = source === 'magic' ? 'wondrous-items'
-      : data.weapon_category ? 'weapon'
-      : (data.armor_category || data.armor_class) ? 'armor'
-      : 'adventuring-gear';
-    const name = idx.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    equipment_category = { index: idx, name };
-  }
-
-  return {
-    index:                data.index as string,
-    name:                 data.name as string,
-    name_de:              undefined,
-    equipment_category,
-    rarity:               data.rarity as Item['rarity'],
-    attunement,
-    attunement_by,
-    variant:              data.variant as boolean | undefined,
-    variants:             data.variants as string[] | undefined,
-    weapon_category:      data.weapon_category as string | undefined,
-    weapon_range:         data.weapon_range as string | undefined,
-    damage:               data.damage as Item['damage'],
-    two_handed_damage:    data.two_handed_damage as Item['two_handed_damage'],
-    range:                data.range as Item['range'],
-    throw_range:          data.throw_range as Item['throw_range'],
-    properties:           data.properties as Item['properties'],
-    armor_category:       data.armor_category as string | undefined,
-    armor_class:          data.armor_class as Item['armor_class'],
-    str_minimum:          data.str_minimum as number | undefined,
-    stealth_disadvantage: data.stealth_disadvantage as boolean | undefined,
-    desc:                 descArr,
-    desc_de:              undefined,
-    cost:                 data.cost as Item['cost'],
-    weight:               data.weight as number | undefined,
-    source:               'srd-2024',
-    url:                  data.url as string,
-  };
 }
 
 // ── Monster (Mapping API → App-Schema, mit deutscher Konvertierung) ──────────

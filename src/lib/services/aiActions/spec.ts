@@ -5,6 +5,8 @@
  * Schema übrig — der Create/Edit-Workflow ist „immer gleich, mit anderen Details".
  */
 
+import type Anthropic from '@anthropic-ai/sdk';
+
 /** Vom Factory vorgefertigte, mechanische Prompt-Bausteine. */
 export interface PromptParts {
   /** Formatierter „## Vorlage"-Block (oder '' bei Anlage ohne Vorlage). */
@@ -36,4 +38,12 @@ export interface EntityActionSpec<T> {
   nameHint?: (name: string) => string;
   /** Optionaler Kategorie-Hinweis (nur Item). */
   categoryHint?: (categoryKey: string) => string;
+  /**
+   * Optionale entity-spezifische Recherche-Tools. Fehlen sie, greifen die
+   * DnD-API-Tools (Monster/Zauber). `item` liefert stattdessen die Open5e-Item-Tools.
+   * Alle drei müssen gemeinsam gesetzt werden.
+   */
+  anthropicTools?: Anthropic.Tool[];
+  openAiTools?: unknown[];
+  execute?: (name: string, args: Record<string, unknown>) => Promise<string>;
 }
