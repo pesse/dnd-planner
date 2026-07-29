@@ -33,8 +33,9 @@ nicht erdet, darf Pass C nicht eintragen. Genau das ist der Waldgnom-Zaubertrick
 Illusion* („You know the *Minor Illusion* cantrip", `descDe`: „Du beherrschst den Zaubertrick
 *Einfache Illusion*").
 
-*Assertion:* `Einfache Illusion kommt als Grant oder zusätzlicher Zaubertrick an`
-(weich, `wizardFeatures-gnome-sorcerer.ts:299`). **Status: gemessen** (siehe K1).
+*Assertion:* `Einfache Illusion kommt als benannter Grant an`
+(weich, `wizardFeatures-gnome-sorcerer.ts:299`, für diesen Auftrag verschärft — siehe T-3).
+**Status: gemessen und behoben** (K3).
 
 ### B2 — Waffenmeisterschaft/Kampfstil: eine Regel für einen Eingang, den es nie gibt
 
@@ -65,7 +66,8 @@ ist für `FIELD_SUMMARY_SYSTEM` geschrieben (das ein ganzes Feld formatiert), ni
 Der Verstoß ist im Code unsichtbar: `translateSheetNotes` glättet Zeilenumbrüche
 (`featureTranslationAction.ts:208`, `.replace(/\s*[\r\n]+\s*/g, ' ')`), bevor eine Assertion sie
 sieht. Die Prüfung `Bogen-Notizen sind einzeilig` kann also gar nicht fehlschlagen; sichtbar
-wird der Effekt nur an der **Länge** der Notiz. **Status: gemessen** (über Notiz-Längen, siehe K2).
+wird der Effekt nur an der **Länge** der Notiz. **Status: gemessen** (über Notiz-Längen) — und die
+Messung hat den Befund als Ursache **ausgeschlossen**, siehe V1.
 
 ### B5 — Die Doktrin-Beispiele nennen eine konkurrierende Zahl
 
@@ -74,7 +76,8 @@ wird der Effekt nur an der **Länge** der Notiz. **Status: gemessen** (über Not
 `vault/species/dwarf.json`. Der Gnom des Wizard-Falls hat 60 ft / 18 m. Ein Beispiel, das die
 Zieldimension mit einer anderen Zahl vorbelegt, ist ein Kandidat für Abschreib-Fehler.
 *Assertion:* `Dunkelsicht-Notiz nennt die deutsche Reichweite (18 m)` (weich,
-`wizardFeatures-gnome-sorcerer.ts:321`). **Status: messbar, gemessen** (Baseline unten).
+`wizardFeatures-gnome-sorcerer.ts:321`). **Status: gemessen, kein Effekt** — die Prüfung stand in
+jedem Lauf bei 100 %, mit und ohne die konkurrierende Zahl (V1).
 
 ### B6 — Pass C behauptet einen Verlauf, den es in zwei von drei Fällen nicht gibt
 
@@ -88,7 +91,9 @@ existieren weder `<resolved_choices>` noch eine Nach-Analyse. Dasselbe gilt für
 steht auch dann im letzten Turn, wenn die Liste leer ist. Ein Prompt, der eine Sektion
 ankündigt, die fehlt, lädt zum Erfinden ein.
 *Assertion:* `protokolliert keine Entscheidung` (core, Druide `:97` und Schurke `:66`).
-**Status: messbar, gemessen** (siehe V2 — verworfen).
+**Status: gemessen**; die Klausel „No `<resolved_choices>` in the conversation → `decisions`: []"
+ist in K2 mit eingegangen. Beim Druiden fiel die Prüfung in der Baseline auf 0/5 — allerdings
+als Folgeschaden von B19, nicht wegen des Prompt-Kopfes.
 
 ### B7 — „Do NOT produce any final data structures or grants here" widerspricht Regel 3
 
@@ -105,7 +110,9 @@ their empty defaults and only fill sheetNote"*. Regel 10 (`:109`) und das englis
 (*„a sense with a range DOES earn its line, size and speed do NOT"*) sagen für Größe und
 Bewegungsrate das Gegenteil: leerer String. Regel 1 steht 16 Zeilen früher.
 *Assertion:* `Größe und Bewegungsrate tragen keine Bogen-Notiz` (weich, `:312`).
-**Status: gemessen** (siehe K3).
+**Status: gemessen, ohne eigenen Kandidaten** — die Prüfung lag in Baseline (3/3 verwertbar) wie
+Endstand (5/5) grün; der Widerspruch ist belegt, aber ohne beobachtete Folge. Deshalb
+unverändert gelassen.
 
 ### B9 — Drei Pass-C-Regeln haben nur eine Negativ-Abdeckung
 
@@ -362,6 +369,26 @@ angenommenen 1,17). Das Längen-Thema gehört in Pass C Regel 10, nicht in den �
 Widerspruch in T2 bleibt damit im Code — er ist belegt, aber messbar wirkungslos, und die
 geteilte Doktrin hat drei Leser: eine Änderung dort ohne Wirkungsnachweis kostet mehr
 Risiko als sie bringt.
+
+### V2 — „Be ECONOMICAL": Pass A zur Kürze auffordern (Latenz-Kandidat)
+
+*Hypothese:* Pass A fordert Prosa ohne jede Mengenangabe. Eine Vorgabe („zwei bis drei Zeilen je
+Merkmal, EINE Zeile für ein Merkmal ohne Wahl und ohne Grant") sollte den Reasoning-Vorlauf
+kürzen — der Gnom-Fall bringt sieben Merkmale mit, fünf davon ohne jede Wahl.
+
+*Messung (wizardFeatures Call 1, 5 Läufe):*
+
+| | ohne | mit |
+|---|---|---|
+| Latenz | ø 68–71 s | ø 75 s |
+| empfangene Tokens | 6241–6386 | 6725 |
+| alle 16 Core-Assertions | 5/5 | 5/5 |
+
+*Entscheidung:* **zurückgenommen.** Kein Gewinn, tendenziell das Gegenteil. Die Reasoning-Länge
+dieses Modells reagiert nicht auf Appelle, sondern darauf, wie viele Fälle es prüfen muss —
+K1 belegt genau das (halbe Latenz durch eine weggefallene Frage). Mitgenommen aus demselben
+Lauf und **behalten** wurden nur die beiden statisch belegten Streichungen (B2, B7): unerreichbarer
+Eingang bzw. Selbstwiderspruch, beide ohne messbare Wirkung in beide Richtungen.
 
 ---
 
