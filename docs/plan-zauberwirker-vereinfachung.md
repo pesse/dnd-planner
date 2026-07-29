@@ -265,6 +265,14 @@ echte Architekturentscheidung, keine Prompt-Optimierung, und sie braucht eine ei
 **Stufe 3** wäre der Faktor-Hebel (Pass C ist zwei Drittel der Wartezeit), Stufe 1 der
 risikofreie.
 
+## Umsetzungsstand Stufe 1 (2026-07-29)
+
+Gebaut: Schema (`shared.ts`, `feat.ts`), Vault-Deklaration, `services/spellAccess.ts`,
+`featurePrep.analysisGained`/`spellAccess`, zwei Antwort-Kanäle im Wizard
+(`resolvedChoices` vs. `declaredAnswers`), Ledger in `assembleCharacter`, Oberfläche
+(deklarierte Wahlen unabhängig vom KI-Status) und ein LLM-freier Test
+(`evals/spellAccess.test.ts`).
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).

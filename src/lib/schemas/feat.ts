@@ -7,7 +7,13 @@
  * `sourceKey` der Charakter-Referenz genutzt).
  */
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant, FEAT_CATEGORIES } from './shared';
+import {
+  sourceField,
+  proficiencyGrantSchema,
+  emptyProficiencyGrant,
+  featureChoiceGrantSchema,
+  FEAT_CATEGORIES,
+} from './shared';
 
 export const featSchema = z.object({
   key: z.string().default(''),
@@ -31,6 +37,14 @@ export const featSchema = z.object({
    * sind, kann `skillGrant` nicht ausdrücken und bleibt der Prosa überlassen.
    */
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  /**
+   * Mechanik-gebundene Wahl, die das Talent gewährt — dasselbe Feld wie am Klassenmerkmal
+   * (`classFeatureSchema`). Im SRD 5.2 betrifft das nur `srd-2024_magic-initiate`
+   * (`kind: "spellAccess"`): Zauberliste, Zauberattribut und Kontingent stehen dort als
+   * Daten, damit der Flow sie deterministisch abfragt statt die KI sie aus der Prosa zu
+   * deuten (`services/spellAccess.ts`).
+   */
+  grantsChoice: featureChoiceGrantSchema.optional(),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

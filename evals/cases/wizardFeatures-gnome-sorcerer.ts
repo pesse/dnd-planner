@@ -4,11 +4,11 @@
  *
  * Zwei Schritte, wie der Wizard sie fährt:
  *   Call 1 (`analyzeFeatureEffects`, aus `kickoff()`) — die Abstammungs-Wahl erkennen,
- *          das Herkunftstalent als Zauber-Wahl je Gradband ausweisen, BLOCKIEREN und noch
- *          keinen Zauber erden; zu den fünf wahllosen Merkmalen nichts erfinden.
+ *          BLOCKIEREN und noch keinen Zauber erden; zu den fünf wahllosen Merkmalen und zum
+ *          flow-eigenen Herkunftstalent nichts erfinden.
  *   Call C (`finalizeFeatureEffects`, aus `finalizeFeatures()`) — nach der Wahl „Waldgnom":
  *          ein Rider je Merkmal, die Waldgnom-Zauber gewährt, die Felsgnom-Zauber nicht,
- *          die Wahl protokolliert und die Zauber des Talents dem Spieler überlassen.
+ *          die Wahl protokolliert.
  *
  * Die Antwort auf die Wahl wird NICHT vorformuliert: die Choice-ids erzeugt das Modell, also
  * liest Call C sie aus der Analyse desselben Laufs — genau wie die Oberfläche in
@@ -40,10 +40,7 @@ import {
   LINEAGE_OPTIONS,
   LINEAGE_OPTIONS_DE,
   loadGnomeSorcererContext,
-  MAGIC_INITIATE_CANTRIPS,
   MAGIC_INITIATE_KEY,
-  MAGIC_INITIATE_LEVEL1,
-  MAGIC_INITIATE_LIST,
   NO_CHOICE_KEYS,
   ROCK_GNOME_SPELLS,
   ROCK_GNOME_SPELLS_DE,
@@ -135,32 +132,22 @@ const analyzeCore: Checks<StepResult> = {
   // Welche Zauber die Abstammung gewährt, steht erst nach der Wahl fest — vorher ist jeder
   // geerdete Zauber eine Vorwegnahme (Wald- ODER Felsgnom).
   'erdet noch keinen Zauber': (r) => asAnalysis(r)?.spellsToGround.length === 0,
-  'macht aus dem Magiekundigen eine Zauber-Wahl (spell-pick)': (r) => {
-    const a = asAnalysis(r);
-    return !!a && spellPicks(a).some(isMagicInitiate);
-  },
-  'trennt die Zauber-Wahl nach Gradband (Grad 0 und Grad 1)': (r) => {
-    const a = asAnalysis(r);
-    if (!a) return false;
-    const picks = spellPicks(a).filter(isMagicInitiate);
-    const cantrips = picks.filter((c) => c.spellLevels.length === 1 && c.spellLevels[0] === 0);
-    const level1 = picks.filter((c) => c.spellLevels.length === 1 && c.spellLevels[0] === 1);
-    return cantrips.length === 1 && level1.length === 1;
-  },
-  // Die Namen kommen aus vault/spells — was hier stünde, könnte nur erfunden sein.
-  'Zauber-Wahlen nennen keine Zaubernamen': (r) => {
-    const a = asAnalysis(r);
-    return !!a && spellPicks(a).every((c) => c.options.length === 0);
-  },
-  // Der Hintergrund gibt die Liste als `choice: "Magier"` mit — sie zu erraten oder gar
-  // abzufragen wäre ein Fehlschlag, nicht Vorsicht.
-  'übernimmt die vom Hintergrund gesetzte Zauberliste (Magier)': (r) => {
+  // Der Magiekundige deklariert seinen Zauber-Zugang und steht deshalb NICHT im Eingang
+  // (`analysisGained`): Liste, Attribut und Anzahl fragt der Wizard deterministisch ab
+  // (`services/spellAccess.ts`, geprüft in `evals/spellAccess.test.ts`). Jede Wahl dazu ist
+  // hier also erfunden — genau wie beim Klassen-Zauberwirken.
+  'erfindet keine Wahl zum flow-eigenen Magiekundigen': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
-    const picks = spellPicks(a);
-    return picks.length > 0 && picks.every((c) => c.spellClass === MAGIC_INITIATE_LIST);
+    return !a.choices.some((c) => c.featureKey === MAGIC_INITIATE_KEY || magicInitiateRe.test(label(c)));
   },
-  'fragt die schon festgelegte Zauberliste nicht ab': (r) => {
+  // Zauber wählt ausschließlich der Zauber-Schritt aus `vault/spells`. Nach dem Wegfall des
+  // Talents hat kein Merkmal des Eingangs noch eine Zauber-Wahl — eine wäre frei erfunden.
+  'erfindet gar keine Zauber-Wahl mehr': (r) => {
+    const a = asAnalysis(r);
+    return !!a && spellPicks(a).length === 0;
+  },
+  'fragt keine Zauberliste ab': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
     return !a.choices.some(
@@ -191,22 +178,15 @@ const analyzeCore: Checks<StepResult> = {
 };
 
 const analyzeSoft: Checks<StepResult> = {
-  // „choose the ability when you select the lineage" — eine echte, dauerhafte Wahl. Weich,
-  // weil der Bogen sie (noch) nicht führt und sie leicht in der Prosa untergeht.
+  // „choose the ability when you select the lineage" — eine echte, dauerhafte Wahl der
+  // ABSTAMMUNG (nicht des Talents, dessen Attribut jetzt deklariert ist). Weich, weil der
+  // Bogen sie noch nicht führt und sie leicht in der Prosa untergeht.
   'fragt auch das Zauberattribut der Abstammung ab (Int/Wei/Cha)': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
     return a.choices.some(
       (c) => c.type !== 'spell-pick' && /intelligence|wisdom|charisma|intelligenz|weisheit/i.test([...c.options, c.question].join(' ')),
     );
-  },
-  'Anzahl der wählbaren Zauber stimmt (2 Zaubertricks, 1 Grad-1-Zauber)': (r) => {
-    const a = asAnalysis(r);
-    if (!a) return false;
-    const picks = spellPicks(a).filter(isMagicInitiate);
-    const cantrips = picks.find((c) => c.spellLevels[0] === 0);
-    const level1 = picks.find((c) => c.spellLevels[0] === 1);
-    return cantrips?.max === MAGIC_INITIATE_CANTRIPS && level1?.max === MAGIC_INITIATE_LEVEL1;
   },
   // Geschlüsselt am ENGLISCHEN Optionswert (der stabilen Kennung), Inhalt deutsch.
   'optionHelp nennt beide Abstammungen mit ihrer Konsequenz': (r) => {
@@ -229,9 +209,9 @@ const analyzeSoft: Checks<StepResult> = {
     const help = c ? c.helpDe.trim() || c.help.trim() : '';
     return !!help && help.length <= 120 && !/[\n\r]/.test(help);
   },
-  // Abstammung + ihr Zauberattribut + das Zauberattribut des Talents + zwei Zauber-Wahlen = 5.
+  // Nur noch Abstammung + ihr Zauberattribut: alles zum Magiekundigen führt der Flow.
   // Mehr heißt: das Modell zerlegt eine Wahl in Unterfragen oder erfindet welche.
-  'stellt nicht mehr als fünf Wahlen': (r) => (asAnalysis(r)?.choices.length ?? 99) <= 5,
+  'stellt nicht mehr als zwei Wahlen': (r) => (asAnalysis(r)?.choices.length ?? 99) <= 2,
   'Prosa begründet die Abhängigkeit der Zauber von der Abstammung': (r) => {
     const text = (asAnalysis(r)?.analysisText ?? '').toLowerCase();
     const forest = [...FOREST_GNOME_SPELLS, ...FOREST_GNOME_SPELLS_DE].some((s) => text.includes(s.toLowerCase()));
@@ -273,12 +253,14 @@ const finalizeCore: Checks<StepResult> = {
     if (!fe) return false;
     return fe.riders.every((rider) => ALL_FEATURE_KEYS.includes(rider.featureKey));
   },
-  // Die Zauber des Magiekundigen wählt der Spieler im Zauber-Schritt; zum Zeitpunkt der
-  // Finalisierung sind sie noch offen und dürfen daher NICHT als Grant erscheinen.
-  'gewährt keine Zauber des Magiekundigen': (r) => {
+  // Das Talent steht nicht im Eingang: ein Rider dazu wäre erfunden — und würde dem Charakter
+  // Zauber erden, die der Spieler erst im Zauber-Schritt selbst wählt.
+  'erfindet keinen Rider zum flow-eigenen Magiekundigen': (r) => {
     const fe = asEffects(r);
     if (!fe) return false;
-    return (riderFor(fe, magicInitiateRe)?.grantedSpells.length ?? 0) === 0;
+    return !fe.riders.some(
+      (rider) => rider.featureKey === MAGIC_INITIATE_KEY || magicInitiateRe.test(rider.featureName),
+    );
   },
   // „Vorteil auf Rettungswürfe" ist KEINE Rettungswurf-Übung — der Klassiker, an dem eine
   // Deutung den Bogen verfälscht.

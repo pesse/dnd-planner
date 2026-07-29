@@ -45,6 +45,15 @@ const DE_TO_SLUG: Record<string, string> = {
 };
 export const CLASS_NAMES_DE: string[] = Object.keys(DE_TO_SLUG);
 
+/**
+ * Umkehrung von `DE_TO_SLUG` — der deutsche Anzeigename je Slug. Abgeleitet, nicht als
+ * zweite Tabelle gepflegt: Anzeige-Labels für Klassen-Keys, die als Daten ankommen
+ * (`grantsChoice.spellLists` = ["cleric","druid","wizard"] → „Kleriker"/„Druide"/„Magier").
+ */
+export const CLASS_NAME_DE_BY_SLUG: Record<string, string> = Object.fromEntries(
+  Object.entries(DE_TO_SLUG).map(([de, slug]) => [slug, de]),
+);
+
 export const ABILITY_FROM_EN: Record<string, AbilityKey> = {
   strength: 'str', dexterity: 'ges', constitution: 'kon',
   intelligence: 'int', wisdom: 'wei', charisma: 'cha',

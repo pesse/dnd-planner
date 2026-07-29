@@ -8,7 +8,14 @@
  * fehlendem Ordner → keine Fehler, wenn die Bibliothek noch leer ist.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { FEAT_CATEGORIES, proficiencyGrantSchema, type FeatCategory, type ProficiencyGrant } from './schemas/shared';
+import {
+  FEAT_CATEGORIES,
+  featureChoiceGrantSchema,
+  proficiencyGrantSchema,
+  type FeatCategory,
+  type FeatureChoiceGrant,
+  type ProficiencyGrant,
+} from './schemas/shared';
 
 export const FEATS_PATH = './vault/feats';
 
@@ -38,6 +45,11 @@ export interface FeatEntry {
   sourceKey?: string;
   /** Übungen, die das Talent gewährt (siehe schemas/feat.ts); fehlt bei inline erzeugten. */
   proficiencyGrant?: ProficiencyGrant;
+  /**
+   * Mechanik-gebundene Wahl des Talents („Magiekundiger": `kind: "spellAccess"`). Der Flow
+   * fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen.
+   */
+  grantsChoice?: FeatureChoiceGrant;
   /** Vault-Pfad der Datei (für die Sidebar-Bibliothek); bei inline erzeugten leer. */
   path?: string;
 }
@@ -89,6 +101,7 @@ export async function getFeats(): Promise<FeatEntry[]> {
             sourceKey: data.sourceKey ?? data.key,
             // Nur bei Bibliotheks-Talenten vorhanden; inline gespeicherte tragen keinen Grant.
             proficiencyGrant: proficiencyGrantSchema.safeParse(data.proficiencyGrant).data,
+            grantsChoice: featureChoiceGrantSchema.safeParse(data.grantsChoice).data,
             path,
           } as FeatEntry;
         } catch {

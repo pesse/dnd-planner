@@ -230,9 +230,24 @@ export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
  *   - `spellcasting`: das Zauberwirken-Merkmal selbst („Spellcasting", „Pact Magic"). `count`
  *     wird IGNORIERT — Zaubertricks und vorbereitete Zauber kommen aus der Stufentabelle
  *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
+ *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Magiekundiger").
+ *     Liste, Attribut und Kontingent stehen in `spellLists`/`spellAbilities`/`spellPicks`.
+ *
+ * Der Unterschied zwischen den beiden Zauber-Arten ist die HERKUNFT der Zahlen, nicht die
+ * Mechanik: `spellcasting` heißt ABLEITEN (die Klasse besitzt Stufentabelle, Liste und
+ * Attribut), `spellAccess` heißt DEKLARIEREN (ein Talent hat davon nichts, also steht alles
+ * hier). Zwei `kind`s statt Parametern am ersten, weil `isSpellcastingFeature`
+ * (services/spellcasting.ts) „dies ist das Klassen-Zauberwirken" bedeutet und über
+ * `spellcastingOffer` entscheidet — ein Talent darf dieses Prädikat nicht wahr machen.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
+
+/** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
+export const spellPickGrantSchema = z.object({
+  level: z.number().int().min(0).max(9).describe('Zaubergrad; 0 = Zaubertrick.'),
+  count: z.number().int().min(1).describe('Wie viele Zauber dieses Grades gewählt werden.'),
+});
 
 export const featureChoiceGrantSchema = z.object({
   kind: z.enum(FEATURE_CHOICE_KINDS),
@@ -246,6 +261,23 @@ export const featureChoiceGrantSchema = z.object({
     .min(1)
     .default(1)
     .describe('Wie viele Optionen dieses Merkmal gewährt. Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+  // Die drei Felder von kind="spellAccess". Für beide Listen gilt dieselbe Regel:
+  // LÄNGE 1 = festgelegt (keine Frage), LÄNGE > 1 = eine protokollierte Entscheidung.
+  // Die Deklaration sagt also nicht „frag das ab", sondern welche Werte zulässig sind —
+  // damit fällt ein Hintergrund, der die Liste vorgibt („Weiser" → Magier), ohne
+  // Sonderbehandlung auf den festgelegten Fall zurück.
+  spellLists: z
+    .array(z.string())
+    .default([])
+    .describe('Nur bei kind="spellAccess": Zauberlisten als englische Klassen-Keys ("cleric","druid","wizard").'),
+  spellAbilities: z
+    .array(z.enum(ABILITY_NAMES))
+    .default([])
+    .describe('Nur bei kind="spellAccess": zulässige Zauberattribute (englische SRD-Namen).'),
+  spellPicks: z
+    .array(spellPickGrantSchema)
+    .default([])
+    .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
 });
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 

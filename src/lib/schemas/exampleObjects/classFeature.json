@@ -11,6 +11,18 @@
   "grantsChoice": {
     "kind": "weaponMastery",
     "featCategory": "Origin",
-    "count": 1
+    "count": 1,
+    "spellLists": [
+      "string"
+    ],
+    "spellAbilities": [
+      "Strength"
+    ],
+    "spellPicks": [
+      {
+        "level": 0,
+        "count": 1
+      }
+    ]
   }
 }

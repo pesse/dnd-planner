@@ -390,6 +390,17 @@
    * WERT englisch, LABEL deutsch: der Wert geht an die KI zurück und an den Charakter, das
    * Label sieht der Spieler. Ohne Übersetzung steht Englisch da — bedienbar bleibt es.
    */
+  /**
+   * Die deklarierten Wahlen sind Pflicht und deterministisch beantwortbar — anders als die
+   * KI-Wahlen, die auch fehlen können. Ohne sie bleibt die Zauberliste offen und der
+   * Zauber-Schritt könnte gar keine Auswahl anbieten.
+   */
+  const declaredChoicesDone = $derived(
+    w.declaredChoices
+      .filter((c) => c.type !== 'spell-pick')
+      .every((c) => (choiceAnswers[c.id] ?? []).some((v) => v.trim())),
+  );
+
   function optionsFor(choice: AnalysisChoice): TooltipOption[] {
     return choice.options.map((o, i) => ({
       value: o,
@@ -404,7 +415,8 @@
    * (`determinesFurtherEffects` ist bei `spell-pick` immer false), die KI braucht sie nicht.
    */
   function commitFeatureChoices() {
-    w.resolvedChoices = w.featureChoices
+    const declared = new Set(w.declaredChoices.map((c) => c.id));
+    const answered = w.featureChoices
       .map((ch) => ({
         id: ch.id,
         choice:
@@ -413,6 +425,10 @@
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());
+    // Zwei Kanäle: nur die Wahlen der KI-Analyse gehen als `<resolved_choices>` zurück ans
+    // Modell — eine deklarierte id kennt es nicht (das Merkmal steht nicht in seinem Eingang).
+    w.resolvedChoices = answered.filter((rc) => !declared.has(rc.id));
+    w.declaredAnswers = answered.filter((rc) => declared.has(rc.id));
   }
 
   // ── Navigation ──
@@ -422,6 +438,7 @@
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background': return asiValid;
       case 'proficiencies': return openChoicesDone;
+      case 'features': return declaredChoicesDone;
       case 'spells': return spellPicksDone;
       case 'equipment': return toolChoicesDone;
       default: return true;
@@ -645,19 +662,25 @@
         {/if}
 
       {:else if currentStep === 'features'}
+        <!-- Der KI-Status ist ein Banner, kein Entweder-oder: die deklarierten Wahlen
+             (Zauber-Zugang eines Talents) stehen deterministisch und sofort da — auch ohne QM
+             und während die Analyse noch läuft. -->
         {#if w.analysis.status === 'running'}
           <p class="hint">Die KI analysiert die Merkmale … ({statusText(w.analysis)})</p>
         {:else if w.analysis.status === 'skipped'}
           <p class="hint">Merkmals-Analyse übersprungen (kein QualityMinds-Modell aktiv). Merkmalsabhängige Wahlen kannst du später im Editor treffen.</p>
         {:else if w.analysis.status === 'error'}
           <p class="warn">{statusText(w.analysis)}</p>
-        {:else if w.plainChoices.length === 0}
-          <p class="hint">
-            Keine erzwungenen Merkmalswahlen auf Stufe 1.
-            {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
-          </p>
+        {/if}
+        {#if w.plainChoices.length === 0}
+          {#if w.analysis.status === 'done' || w.analysis.status === 'skipped'}
+            <p class="hint">
+              Keine erzwungenen Merkmalswahlen auf Stufe 1.
+              {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
+            </p>
+          {/if}
         {:else}
-          {#each w.plainChoices as choice}
+          {#each w.plainChoices as choice (choice.id)}
             <div class="field">
               <span>
                 {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}

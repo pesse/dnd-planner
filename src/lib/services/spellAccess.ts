@@ -1,0 +1,176 @@
+/**
+ * Deklarierter Zauber-Zugang eines Merkmals (`grantsChoice.kind === 'spellAccess'`) —
+ * „Magiekundiger" und alles, was mechanisch dasselbe tut: eine Zauberliste, ein
+ * Zauberattribut und ein Kontingent je Gradband, alles NEBEN dem Klassen-Zauberwirken.
+ *
+ * Kein LLM. Wie `weaponMastery.ts`/`fightingStyle.ts` ist das die deterministische Antwort
+ * auf ein geschlossenes Vokabular: die Zahlen stehen in der Deklaration, die Zaubernamen in
+ * `vault/spells`. Ein Modell könnte hier nur die Anzahl verpatzen (ein `max: 1` für zwei
+ * Zaubertricks kostet den Charakter still einen) oder eine Liste erfinden.
+ *
+ * Die Wahlen entstehen als `AnalysisChoice` — dieselbe Form, die die KI-Analyse liefert.
+ * Damit tragen Oberfläche, Merkmals-Ledger und Anzeige-Logik nur EINEN Typ; der Unterschied
+ * ist allein die Herkunft. Deutsch kommt aus vorhandenen Tabellen (`CLASS_NAME_DE_BY_SLUG`,
+ * `CASTER_ABILITY_DE`), nicht aus einem Übersetzungs-Call.
+ */
+import type { AbilityName, FeatureChoiceGrant } from '$lib/schemas/shared';
+import { resolveClass } from '$lib/spellLibrary';
+import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
+import { CASTER_ABILITY_DE } from './spellcasting';
+import type { AnalysisChoice } from './aiActions/featureEffectsAction';
+
+/** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN (Talent oder Klassenmerkmal). */
+export interface SpellAccessSource {
+  key?: string;
+  name: string;
+  nameDe?: string;
+  grantsChoice?: FeatureChoiceGrant;
+}
+
+/** Der aufgelöste Zugang: Listen/Attribute schon auf die zulässigen Werte eingeschränkt. */
+export interface SpellAccessGrant {
+  featureKey: string;
+  /** Englischer Merkmalsname (kanonisch). */
+  feature: string;
+  /** Deutscher Anzeigename aus der Bibliothek. */
+  featureDe: string;
+  /** Zulässige Zauberlisten als englische Klassen-Keys; Länge 1 = festgelegt. */
+  lists: string[];
+  /** Zulässige Zauberattribute; Länge 1 = festgelegt. */
+  abilities: AbilityName[];
+  picks: { level: number; count: number }[];
+}
+
+export function isSpellAccessFeature(f: SpellAccessSource): boolean {
+  return f.grantsChoice?.kind === 'spellAccess';
+}
+
+/**
+ * Liest die Deklaration aus und verengt sie um eine schon getroffene Festlegung.
+ *
+ * `specialisation` ist die Vorgabe der QUELLE des Merkmals — der Hintergrund „Weiser" gewährt
+ * „Magic Initiate (Wizard)", „Kundschafter" gibt „Primal" vor. `resolveClass` normalisiert
+ * beides (es kennt Klassennamen wie Traditionen); trifft die Vorgabe keinen deklarierten Wert,
+ * bleibt die Liste vollständig — dann fragt der Flow, statt eine falsche Liste festzuschreiben.
+ */
+export function spellAccessGrantOf(
+  feature: SpellAccessSource,
+  specialisation = '',
+): SpellAccessGrant | null {
+  const grant = feature.grantsChoice;
+  if (!grant || grant.kind !== 'spellAccess') return null;
+
+  const declared = grant.spellLists.map((l) => l.toLowerCase().trim()).filter(Boolean);
+  const fixed = specialisation.trim() ? resolveClass(specialisation) : null;
+  const lists = fixed && declared.includes(fixed) ? [fixed] : declared;
+
+  return {
+    featureKey: feature.key ?? '',
+    feature: feature.name,
+    featureDe: feature.nameDe?.trim() || feature.name,
+    lists,
+    abilities: [...grant.spellAbilities],
+    picks: grant.spellPicks.map((p) => ({ level: p.level, count: p.count })),
+  };
+}
+
+// ── Wahl-ids ────────────────────────────────────────────────────────────────────
+// Stabil und vom KI-Namensraum (`choice_<slug>_1`) unterscheidbar: die Antworten der
+// deklarierten Wahlen gehen NICHT als <resolved_choices> ans Modell (das Merkmal steht
+// nicht in dessen Eingang, es könnte die id nur einem erfundenen Rider zuordnen).
+const slug = (grant: SpellAccessGrant): string =>
+  (grant.featureKey || grant.feature).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+export const spellListChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_list`;
+export const spellAbilityChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_ability`;
+export const spellPickChoiceId = (grant: SpellAccessGrant, level: number): string =>
+  `spellaccess_${slug(grant)}_pick${level}`;
+
+/** Die festgelegte Zauberliste, sofern die Deklaration nur eine zulässt. */
+export function fixedList(grant: SpellAccessGrant): string {
+  return grant.lists.length === 1 ? grant.lists[0] : '';
+}
+
+const emptyChoice = (grant: SpellAccessGrant, id: string): AnalysisChoice => ({
+  id,
+  feature: grant.feature,
+  featureDe: grant.featureDe,
+  featureKey: grant.featureKey,
+  question: '',
+  type: 'choice',
+  options: [],
+  spellLevels: [],
+  spellClass: '',
+  help: '',
+  optionHelp: {},
+  max: 1,
+  // Beides false: das Merkmal ist gar nicht im KI-Eingang. `determinesFurtherEffects` steuert
+  // allein das Blockieren der Analyse, und protokolliert wird über `isBuildDecision`.
+  determinesFurtherEffects: false,
+  isBuildDecision: true,
+  questionDe: '',
+  helpDe: '',
+  optionsDe: [],
+  optionHelpDe: {},
+});
+
+const gradeLabel = (level: number, count: number): string =>
+  level === 0
+    ? `${count} ${count === 1 ? 'Zaubertrick' : 'Zaubertricks'} wählen`
+    : `${count} ${count === 1 ? 'Zauber' : 'Zauber'} des Grades ${level} wählen`;
+
+/**
+ * Die Wahlen eines Zugangs, in der Reihenfolge, in der sie beantwortet werden müssen:
+ * Liste → Attribut → Zauber je Gradband.
+ *
+ * `answeredList` ist die im Merkmals-Schritt getroffene Antwort auf die Listen-Frage. Solange
+ * die Liste offen ist, entstehen KEINE Zauber-Wahlen — ein `SpellPicker` ohne Klassenfilter
+ * würde die ganze Bibliothek anbieten und den Zauber-Schritt zugleich blockieren.
+ */
+export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): AnalysisChoice[] {
+  const choices: AnalysisChoice[] = [];
+
+  if (grant.lists.length > 1) {
+    choices.push({
+      ...emptyChoice(grant, spellListChoiceId(grant)),
+      question: 'Which spell list?',
+      questionDe: 'Zauberliste',
+      options: [...grant.lists],
+      optionsDe: grant.lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l),
+      help: 'Sets which list the spells of this feature come from.',
+      helpDe: 'Bestimmt, aus welcher Liste die Zauber dieses Merkmals gewählt werden.',
+    });
+  }
+
+  if (grant.abilities.length > 1) {
+    choices.push({
+      ...emptyChoice(grant, spellAbilityChoiceId(grant)),
+      question: 'Which spellcasting ability?',
+      questionDe: 'Zauberattribut',
+      options: [...grant.abilities],
+      optionsDe: grant.abilities.map((a) => CASTER_ABILITY_DE[ABILITY_FROM_EN[a.toLowerCase()]] ?? a),
+      help: 'Sets attack bonus and save DC of this feature’s spells.',
+      helpDe: 'Bestimmt Angriffsbonus und Rettungswurf-SG der Zauber dieses Merkmals.',
+    });
+  }
+
+  const list = fixedList(grant) || (answeredList.trim() ? resolveClass(answeredList) ?? '' : '');
+  if (list) {
+    for (const pick of grant.picks) {
+      choices.push({
+        ...emptyChoice(grant, spellPickChoiceId(grant, pick.level)),
+        type: 'spell-pick',
+        question: gradeLabel(pick.level, pick.count),
+        questionDe: gradeLabel(pick.level, pick.count),
+        spellLevels: [pick.level],
+        spellClass: list,
+        max: pick.count,
+        // Die gewählten Zauber stehen danach im Zauber-Block des Charakters — ein zweiter
+        // Eintrag im Merkmals-Ledger wäre eine zweite Wahrheit.
+        isBuildDecision: false,
+      });
+    }
+  }
+
+  return choices;
+}

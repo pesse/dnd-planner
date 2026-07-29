@@ -6,10 +6,10 @@
  *  1. Die erzwungene Wahl steckt in einem SPEZIES-Merkmal („Gnomische Abstammung":
  *     Waldgnom vs. Felsgnom) — und sie bestimmt, welche Zauber gewährt werden. Die Analyse
  *     muss also blockieren und darf noch keinen Zauber erden.
- *  2. Das Herkunftstalent des Hintergrunds („Magiekundiger") ist eine ZAUBER-Wahl: sie muss
- *     als `spell-pick` je Gradband herauskommen, mit LEEREN Optionen — die Namen kommen aus
- *     `vault/spells`, alles andere wäre erfunden. Die Liste (Magier) gibt der Hintergrund als
- *     `choice` vor; sie ist damit Vorgabe, nicht Ratespiel.
+ *  2. Das Herkunftstalent des Hintergrunds („Magiekundiger") ist FLOW-EIGEN: es deklariert
+ *     seinen Zauber-Zugang (`grantsChoice.kind === "spellAccess"`), also fragt der Wizard
+ *     Liste, Attribut und Kontingent deterministisch ab und das Talent steht NICHT im
+ *     KI-Eingang. Damit ist es hier die zweite Negativprobe — jede Wahl dazu wäre erfunden.
  *  3. Fünf der sieben Merkmale tragen gar keine Wahl (Angeborene Zauberei, Größe,
  *     Bewegungsrate, Dunkelsicht, Gnomische Gerissenheit). Sie sind die Negativprobe.
  *
@@ -36,7 +36,10 @@ export const GNOME_SORCERER_BASICS = {
 // ── Merkmals-Keys (Anker der Assertions) ────────────────────────────────────────
 /** Die Wahl-tragende Volks-Abstammung. */
 export const LINEAGE_KEY = 'srd-2024_gnome_gnomish-lineage';
-/** Das Herkunftstalent des Weisen — eine reine Zauber-Wahl. */
+/**
+ * Das Herkunftstalent des Weisen — deklariert seinen Zauber-Zugang und ist damit flow-eigen.
+ * Anker der Negativprobe: eine Wahl oder ein Rider mit diesem Key wäre frei erfunden.
+ */
 export const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 
 /** Merkmale, die KEINE Wahl erzwingen — jede Frage zu ihnen ist erfunden. */
@@ -55,18 +58,20 @@ export const NO_CHOICE_KEYS = [
 export const SORCERER_SPELLCASTING_KEY = 'srd-2024_sorcerer_spellcasting';
 
 /** Alle Keys des Eingangs — `choice.featureKey` darf nichts anderes tragen. */
-export const ALL_FEATURE_KEYS: string[] = [LINEAGE_KEY, MAGIC_INITIATE_KEY, ...NO_CHOICE_KEYS];
+export const ALL_FEATURE_KEYS: string[] = [LINEAGE_KEY, ...NO_CHOICE_KEYS];
+
+/** Keys, die der Flow selbst führt und die deshalb NICHT im KI-Eingang stehen. */
+export const FLOW_OWNED_KEYS: string[] = [MAGIC_INITIATE_KEY, SORCERER_SPELLCASTING_KEY];
 
 /**
  * Erwartete Rider-Namen von Call C, in der Reihenfolge des Eingangs
- * (`gained` = Klasse + Herkunftstalent, dann `speciesFeatures`).
+ * (`analysisGained` = Klassenmerkmale ohne die flow-eigenen, dann `speciesFeatures`).
  *
  * ENGLISCH: die Merkmals-Deutung ist einsprachig, `featureName` gibt den Eingangsnamen
  * wörtlich zurück. Der deutsche Anzeigename entsteht später aus `featureKey` + Bibliothek.
  */
 export const EXPECTED_RIDER_NAMES: string[] = [
   'Innate Sorcery',
-  'Magic Initiate',
   'Size',
   'Speed',
   'Darkvision',
@@ -100,12 +105,12 @@ export const FOREST_GNOME_SPELLS_DE = ['Einfache Illusion', 'Mit Tieren sprechen
 export const ROCK_GNOME_SPELLS = ['Mending', 'Prestidigitation'] as const;
 export const ROCK_GNOME_SPELLS_DE = ['Ausbessern', 'Taschenspielerei'] as const;
 
-// ── Erwartungen an das Herkunftstalent ──────────────────────────────────────────
+// ── Erwartungen an das Herkunftstalent (jetzt deterministisch) ───────────────────
 /**
  * Die Zauberliste des Talents: Der Vault führt „Magic Initiate" in seiner GENERISCHEN Fassung
- * („Cleric, Druid, or Wizard"), der Hintergrund „Weiser" legt sie in seinen `benefits` auf
- * die Magierliste fest. `buildFeaturePrep` gibt diese Festlegung als `choice: "Wizard"` mit
- * — die Analyse hat also nichts zu raten und darf die Liste weder umdeuten noch erfragen.
+ * („Cleric, Druid, or Wizard") und deklariert sie als `grantsChoice.spellLists`; der
+ * Hintergrund „Weiser" legt sie in seinen `benefits` auf die Magierliste fest. `spellAccessOffer`
+ * verengt die Deklaration damit auf EINEN Wert — geprüft in `evals/spellAccess.test.ts`.
  */
 export const MAGIC_INITIATE_LIST = 'wizard';
 
@@ -120,14 +125,16 @@ export const MAGIC_INITIATE_CANTRIPS = 2;
 export const MAGIC_INITIATE_LEVEL1 = 1;
 
 /**
- * Baut den Analyse-Eingang genau so, wie `CharacterWizard.kickoff()` es tut:
- * Klassen-/Talent-Merkmale UND Speziesmerkmale in einem Rutsch, ohne frühere Wahlen.
+ * Baut den Analyse-Eingang genau so, wie `CharacterWizard.kickoff()` es tut: Klassen- und
+ * Speziesmerkmale in einem Rutsch, ohne frühere Wahlen — und OHNE die flow-eigenen Merkmale
+ * (`analysisGained`, nicht `gained`). Genau das ist der Grund, weshalb der Eingang über den
+ * echten Wizard-Pfad entsteht: eine Handabschrift würde diese Filterung stumm verpassen.
  */
 export async function loadGnomeSorcererContext(): Promise<FeatureEffectsContext> {
   const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
   return {
     classContext: prep.classContext,
-    features: [...prep.gained, ...prep.speciesFeatures],
+    features: [...prep.analysisGained, ...prep.speciesFeatures],
     pastChoices: [],
   };
 }

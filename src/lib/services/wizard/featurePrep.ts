@@ -13,6 +13,7 @@ import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
+import { spellAccessGrantOf, type SpellAccessGrant } from '../spellAccess';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { EffectFeature } from '../aiActions/levelUpEffectsAction';
@@ -27,8 +28,16 @@ export interface FeatureBasics {
 
 /** Was `buildFeaturePrep` einmalig aufbereitet (von allen Merkmals-Jobs geteilt). */
 export interface FeaturePrep {
-  /** Klassen-/Subklassen-/Talent-Merkmale — Eingang für Merkmals-Analyse UND Klassentext. */
+  /** Klassen-/Subklassen-/Talent-Merkmale — Grundlage für Analyse UND Klassentext. */
   gained: GainedFeature[];
+  /**
+   * Eingang der KI-Analyse: `gained` OHNE die Merkmale, deren Wahl der Flow deterministisch
+   * führt (deklarierter Zauber-Zugang, siehe `spellAccess`). Getrennt von `gained`, weil der
+   * deutsche Merkmalstext sie weiter braucht — er entsteht aus `descDe`, nicht aus der Deutung.
+   */
+  analysisGained: GainedFeature[];
+  /** Deklarierte Zauber-Zugänge („Magiekundiger") — deterministisch, ohne KI. */
+  spellAccess: SpellAccessGrant[];
   /** Speziesmerkmale als Analyse-Eingang: erzwungene Wahlen (Drakonische Urahnen,
    *  Elfenlinie …) stecken hier, nicht in `gained` (das wäre sonst im Klassentext). */
   speciesFeatures: GainedFeature[];
@@ -76,11 +85,13 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
+  const spellAccess: SpellAccessGrant[] = [];
 
   // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
   if (bg?.featKey) {
     const feat = feats.find((f) => f.sourceKey === bg.featKey);
     if (feat) {
+      const specialisation = featSpecialisation(bg);
       gained.push({
         name: feat.name || featDisplayName(feat),
         nameDe: featDisplayName(feat),
@@ -89,10 +100,20 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
         source: 'feat',
         gainedAt: 1,
         key: bg.featKey,
-        choice: featSpecialisation(bg) || undefined,
+        choice: specialisation || undefined,
       });
+      const access = spellAccessGrantOf(
+        { key: bg.featKey, name: feat.name || featDisplayName(feat), nameDe: featDisplayName(feat), grantsChoice: feat.grantsChoice },
+        specialisation,
+      );
+      if (access) spellAccess.push(access);
     }
   }
+
+  // Was der Flow selbst abfragt, sieht die KI nicht: sonst erfindet sie eine zweite,
+  // konkurrierende Wahl (und beim Zauber-Kontingent eine falsche Anzahl).
+  const flowOwned = new Set(spellAccess.map((a) => a.featureKey).filter(Boolean));
+  const analysisGained = gained.filter((g) => !flowOwned.has(g.key ?? ''));
 
   const toSummary = (g: GainedFeature): SummaryFeature => ({
     name: g.name,
@@ -144,5 +165,14 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     toLevel: 1,
   };
 
-  return { gained, speciesFeatures, effectFeatures, summaryClass, summarySpecies, classContext };
+  return {
+    gained,
+    analysisGained,
+    spellAccess,
+    speciesFeatures,
+    effectFeatures,
+    summaryClass,
+    summarySpecies,
+    classContext,
+  };
 }

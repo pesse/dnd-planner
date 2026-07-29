@@ -21,9 +21,11 @@ import {
   analyzeFeatureEffects,
   choiceLabelsDe,
   finalizeFeatureEffects,
+  type AnalysisChoice,
   type FeatureAnalysis,
   type ResolvedChoice,
 } from '../aiActions/featureEffectsAction';
+import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -146,7 +148,19 @@ export class CharacterWizard {
   featureSpellPicks = $state<Record<string, string[]>>({});
 
   // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
+  /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
+  /**
+   * Deklarierte Zauber-Zugänge („Magiekundiger") — stehen sofort, ohne KI und ohne QM.
+   * Gefüllt aus `buildFeaturePrep`, deshalb `$state` statt Getter (die Aufbereitung ist async).
+   */
+  spellAccess = $state<SpellAccessGrant[]>([]);
+  /**
+   * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
+   * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
+   * Protokoll schreiben — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
+   */
+  declaredAnswers = $state<ResolvedChoice[]>([]);
 
   // ── KI-Jobs ──
   analysis = new Job<FeatureAnalysis>();
@@ -176,9 +190,21 @@ export class CharacterWizard {
     return this.#getConfig().provider === 'qualityminds';
   }
 
-  /** Erzwungene Merkmalswahlen der Analyse (leer, solange nichts erkannt/kein QM). */
-  get featureChoices() {
-    return this.analysis.result?.choices ?? [];
+  /**
+   * Die deterministischen Wahlen der deklarierten Zauber-Zugänge. Reaktiv von
+   * `declaredAnswers` abhängig: erst die beantwortete Zauberliste macht aus dem Kontingent
+   * eine benutzbare Zauber-Wahl (der Filter der Bibliothek hängt daran).
+   */
+  get declaredChoices(): AnalysisChoice[] {
+    return this.spellAccess.flatMap((grant) => {
+      const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
+      return spellAccessChoices(grant, answer);
+    });
+  }
+
+  /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
+  get featureChoices(): AnalysisChoice[] {
+    return [...this.declaredChoices, ...(this.analysis.result?.choices ?? [])];
   }
 
   /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
@@ -211,6 +237,13 @@ export class CharacterWizard {
     const cfg = this.#getConfig();
     this.#prep = null; // frische Aufbereitung für die aktuelle Grundwahl
 
+    // Deklarierte Zauber-Zugänge: unabhängig vom Anbieter und vom KI-Status. Der Guard gegen
+    // die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`.
+    const pending = this.#prepare();
+    void pending.then((prep) => {
+      if (this.#prep === pending) this.spellAccess = prep.spellAccess;
+    }, () => {});
+
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen
     // (Drakonische Urahnen usw.) als erzwungene Wahl erkannt werden.
     if (this.isQm) {
@@ -218,7 +251,7 @@ export class CharacterWizard {
         const prep = await this.#prepare();
         return analyzeFeatureEffects(
           cfg,
-          { classContext: prep.classContext, features: [...prep.gained, ...prep.speciesFeatures], pastChoices: [] },
+          { classContext: prep.classContext, features: [...prep.analysisGained, ...prep.speciesFeatures], pastChoices: [] },
           { signal, onActivity: this.#touch },
         );
       });
@@ -273,6 +306,8 @@ export class CharacterWizard {
     this.classText.reset();
     this.speciesText.reset();
     this.resolvedChoices = [];
+    this.declaredAnswers = [];
+    this.spellAccess = [];
     this.equipmentSelection = [];
     this.toolPicks = {};
     this.masteries = [];
@@ -290,10 +325,13 @@ export class CharacterWizard {
   #choiceByFeatureKey(): Map<string, string> {
     const byId = new Map(this.featureChoices.map((c) => [c.id, c]));
     const map = new Map<string, string>();
-    for (const rc of this.resolvedChoices) {
+    for (const rc of [...this.resolvedChoices, ...this.declaredAnswers]) {
       const choice = byId.get(rc.id);
       const key = choice?.featureKey;
       if (!key || !choice || !rc.choice.trim()) continue;
+      // Gewählte Zauber stehen im Zauber-Block des Bogens; im Merkmalstext wären sie die
+      // Dublette, die die Doktrin ausdrücklich draußen haben will.
+      if (choice.type === 'spell-pick') continue;
       const label = choiceLabelsDe(choice, rc.choice);
       map.set(key, map.has(key) ? `${map.get(key)}, ${label}` : label);
     }
@@ -368,7 +406,7 @@ export class CharacterWizard {
         cfg,
         {
           classContext: prep.classContext,
-          features: [...prep.gained, ...prep.speciesFeatures],
+          features: [...prep.analysisGained, ...prep.speciesFeatures],
           pastChoices: [],
           resolvedChoices: this.resolvedChoices,
         },

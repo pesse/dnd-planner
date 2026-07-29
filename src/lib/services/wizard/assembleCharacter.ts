@@ -208,9 +208,12 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     c.skills[def.key] = { value, prof, exp };
   }
 
-  // ── Merkmals-Ledger: getroffene Aufbau-Entscheidungen (analysis + resolvedChoices) ──
-  const keyById = new Map(w.analysis.result?.choices.map((ch) => [ch.id, ch]) ?? []);
-  for (const rc of w.resolvedChoices) {
+  // ── Merkmals-Ledger: getroffene Aufbau-Entscheidungen (KI-Analyse UND deklarierte) ──
+  // Beide Kanäle, weil beide Aufbau-Entscheidungen sind: der Zauber-Zugang eines Talents
+  // (Liste, Attribut) ist so dauerhaft wie eine Subklassen-Wahl. Zauber-Wahlen tragen
+  // `isBuildDecision: false` — die gewählten Zauber stehen im Zauber-Block.
+  const keyById = new Map(w.featureChoices.map((ch) => [ch.id, ch]));
+  for (const rc of [...w.resolvedChoices, ...w.declaredAnswers]) {
     const ch = keyById.get(rc.id);
     // `choice` englisch (Prompt-Kanal späterer Stufen), `choiceDe` als Anzeige.
     if (ch?.isBuildDecision && ch.featureKey)
