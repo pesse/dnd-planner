@@ -41,7 +41,7 @@ import {
 } from '../spellcasting';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
-import { matchItem } from '$lib/itemLibrary';
+import { ftToMVal, matchItem } from '$lib/itemLibrary';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 
@@ -49,6 +49,19 @@ import type { CharacterWizard } from './characterWizard.svelte';
 const KEY_BY_EN = new Map<AbilityName, AbilityKey>(
   (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
 );
+
+/**
+ * `character.speed` ist eine reine Meterzahl (der Editor lässt nichts anderes zu, der Bogen
+ * hängt das „m" selbst an). Das Speed-Merkmal liefert aber Prosa: „9 Meter" / „30 feet".
+ * Die deutsche Seite ist bereits metrisch, die englische wird umgerechnet — sonst stünden
+ * 30 Fuß als „30 Meter" im Bogen.
+ */
+function metersFromSpeedText(de?: string, en?: string): string {
+  const deNum = (de ?? '').match(/\d+(?:[.,]\d+)?/)?.[0];
+  if (deNum) return deNum.replace('.', ',');
+  const feet = (en ?? '').match(/\d+(?:\.\d+)?/)?.[0];
+  return feet ? String(ftToMVal(parseFloat(feet))).replace('.', ',') : '';
+}
 
 /** Leerer Charakter im aktuellen Schemaformat (wie `Sidebar.createCharacter`). */
 function blankCharacter(name: string): Character {
@@ -129,9 +142,9 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   c.race = formatSpecies(c.species);
   c.background = w.background.name;
 
-  // ── Bewegungsrate (deutsch aus dem „Speed"-Merkmal der Spezies; Feld selbst ist leer) ──
+  // ── Bewegungsrate aus dem „Speed"-Merkmal der Spezies (Feld selbst ist leer) ──
   const speedTrait = spec?.traits.find((t) => /(_speed$|^speed$)/i.test(t.key) || t.name.toLowerCase() === 'speed');
-  c.speed = (speedTrait?.descDe || speedTrait?.desc || spec?.speed || '').trim();
+  c.speed = metersFromSpeedText(speedTrait?.descDe, speedTrait?.desc || spec?.speed);
 
   // ── Attribute: Point-Buy → Hintergrund-ASI → (Rider-Erhöhungen weiter unten) ──
   let scores: AbilityScores = applyAsi(w.scores, w.asi);

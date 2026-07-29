@@ -184,6 +184,20 @@ export const MONSTER_ALIGNMENTS = {
 } as const;
 export type MonsterAlignment = keyof typeof MONSTER_ALIGNMENTS;
 
+/**
+ * Die neun Gesinnungen eines Spielercharakters, deutsch — Teilmenge von
+ * `MONSTER_ALIGNMENTS` ohne die Monster-Sonderfälle („Unausgerichtet", „Beliebige …").
+ * Über die Keys abgeleitet, damit es nur EINE deutsche Gesinnungstabelle gibt.
+ */
+export const CHARACTER_ALIGNMENTS_DE: string[] = ([
+  'lawful good', 'neutral good', 'chaotic good',
+  'lawful neutral', 'neutral', 'chaotic neutral',
+  'lawful evil', 'neutral evil', 'chaotic evil',
+] as const satisfies readonly MonsterAlignment[]).map((k) => MONSTER_ALIGNMENTS[k]);
+
+/** Die sechs Größenkategorien, deutsch — für Charaktere dieselben wie für Monster. */
+export const SIZE_CATEGORIES_DE: string[] = Object.values(MONSTER_SIZES);
+
 export function monsterSizeLabel(size: string): string {
   return MONSTER_SIZES[size as MonsterSize] ?? size;
 }

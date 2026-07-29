@@ -26,7 +26,9 @@
   import {
     buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS, type SummaryFeature,
   } from '../services/aiActions/fieldSummaryAction';
-  import type { Item, Spell } from '../types';
+  import { CHARACTER_ALIGNMENTS_DE, SIZE_CATEGORIES_DE, type Item, type Spell } from '../types';
+  import { CLASS_NAMES_DE } from '../services/classProgression';
+  import { CASTER_ABILITY_DE } from '../services/spellcasting';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
@@ -807,6 +809,35 @@
   const spellAutoActive = $derived(spellAutoCalc && spellAbilityMod !== null);
   const computedSpellSaveDC = $derived(spellAbilityMod === null ? null : 8 + proficiencyBonus + spellAbilityMod);
   const computedSpellAttack = $derived(spellAbilityMod === null ? null : proficiencyBonus + spellAbilityMod);
+
+  // ─── Auswahllisten ───────────────────────────────────────
+  // Ein Wert aus einer Altdatei (oder aus dem PDF-Import) steht nicht zwingend in der Liste.
+  // Er kommt deshalb als eigener Eintrag vorne dazu — sonst zeigt das Select ihn nicht an und
+  // die erste Auswahl würde ihn stillschweigend verwerfen.
+  const withCurrent = (options: string[], current: string): string[] =>
+    current.trim() && !options.includes(current) ? [current, ...options] : options;
+
+  const gesinnungOptions = $derived(withCurrent(CHARACTER_ALIGNMENTS_DE, gesinnung));
+  const sizeCatOptions = $derived(withCurrent(SIZE_CATEGORIES_DE, sizeCat));
+  const spellClassOptions = $derived(withCurrent(CLASS_NAMES_DE, spellClass));
+  const spellAbilityOptions = $derived(withCurrent(Object.values(CASTER_ABILITY_DE), spellAbility));
+
+  /**
+   * Bewegungsrate ist eine Meterzahl, kein Freitext: „9 Meter" / „30 feet" tippt sich hier
+   * nicht mehr ein. Das Schema-Feld bleibt ein String (PDF-Grenze), die Eingabe wird auf
+   * Ziffern plus EIN Komma reduziert.
+   */
+  function cleanSpeed(raw: string): string {
+    const [head, ...rest] = raw.replace(/[^\d.,]/g, '').replace(/\./g, ',').split(',');
+    return rest.length ? `${head},${rest.join('')}` : head;
+  }
+  function onSpeedInput(e: Event & { currentTarget: HTMLInputElement }) {
+    const cleaned = cleanSpeed(e.currentTarget.value);
+    // Verwirft die Eingabe den getippten Rest, muss das DOM-Feld mitgezogen werden — der
+    // reaktive Wert allein ändert sich dabei nicht und Svelte würde nichts schreiben.
+    if (cleaned !== e.currentTarget.value) e.currentTarget.value = cleaned;
+    speed = cleaned;
+  }
 
   // ─── Aktionen ────────────────────────────────────────────
   function addAttack() {
@@ -1712,7 +1743,9 @@
     <div class="grid-3">
       <label use:diffMark={dirOf(saved?.ac, ac)}>RK<input bind:value={ac} placeholder="15" /></label>
       <label use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
-      <label use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)<input bind:value={speed} placeholder="9" /></label>
+      <label use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)
+        <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder="9" />
+      </label>
       <label use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
       <label use:diffMark={dirOf(saved?.hpMax, hpMax)}>TP Maximum<input bind:value={hpMax} placeholder="45" /></label>
       <label use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP Aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
@@ -2031,9 +2064,19 @@
       <div class="personal-fields">
         <label use:diffMark={dirOf(saved?.personal?.alter, alter)}>Alter<input bind:value={alter} placeholder="32" /></label>
         <label use:diffMark={dirOf(saved?.personal?.geschlecht, geschlecht)}>Geschlecht<input bind:value={geschlecht} placeholder="männlich" /></label>
-        <label use:diffMark={dirOf(saved?.personal?.gesinnung, gesinnung)}>Gesinnung<input bind:value={gesinnung} placeholder="rechtschaffen neutral" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.gesinnung, gesinnung)}>Gesinnung
+          <select bind:value={gesinnung}>
+            <option value="">—</option>
+            {#each gesinnungOptions as a}<option value={a}>{a}</option>{/each}
+          </select>
+        </label>
         <label use:diffMark={dirOf(saved?.personal?.glaube, glaube)}>Glaube<input bind:value={glaube} placeholder="Moradin" /></label>
-        <label use:diffMark={dirOf(saved?.personal?.sizeCat, sizeCat)}>Größenkategorie<input bind:value={sizeCat} placeholder="Mittelgroß" /></label>
+        <label use:diffMark={dirOf(saved?.personal?.sizeCat, sizeCat)}>Größenkategorie
+          <select bind:value={sizeCat}>
+            <option value="">—</option>
+            {#each sizeCatOptions as s}<option value={s}>{s}</option>{/each}
+          </select>
+        </label>
         <label use:diffMark={dirOf(saved?.personal?.koerpergroesse, koerpergroesse)}>Körpergröße<input bind:value={koerpergroesse} placeholder="1,30 m" /></label>
         <label use:diffMark={dirOf(saved?.personal?.gewicht, gewicht)}>Gewicht<input bind:value={gewicht} placeholder="65 kg" /></label>
         <label use:diffMark={dirOf(saved?.personal?.augenfarbe, augenfarbe)}>Augenfarbe<input bind:value={augenfarbe} placeholder="braun" /></label>
@@ -2224,8 +2267,18 @@
   <section>
     <h3>Zauberwirken</h3>
     <div class="grid-3">
-      <label use:diffMark={dirOf(saved?.spells?.spellcastingClass, spellClass)}>Zauberklasse<input bind:value={spellClass} placeholder="Zauberer" /></label>
-      <label use:diffMark={dirOf(saved?.spells?.spellcastingAbility, spellAbility)}>Fähigkeit<input bind:value={spellAbility} placeholder="INT" /></label>
+      <label use:diffMark={dirOf(saved?.spells?.spellcastingClass, spellClass)}>Zauberklasse
+        <select bind:value={spellClass}>
+          <option value="">—</option>
+          {#each spellClassOptions as c}<option value={c}>{c}</option>{/each}
+        </select>
+      </label>
+      <label use:diffMark={dirOf(saved?.spells?.spellcastingAbility, spellAbility)}>Fähigkeit
+        <select bind:value={spellAbility}>
+          <option value="">—</option>
+          {#each spellAbilityOptions as a}<option value={a}>{a}</option>{/each}
+        </select>
+      </label>
       {#if spellAutoActive}
         <label title="8 + Übungsbonus + Zauberattribut-Mod">Zauber-SG
           <span class="computed-cell computed-block">{computedSpellSaveDC}</span>
@@ -2243,7 +2296,7 @@
       <span>Zauber-SG &amp; Angriffsbonus automatisch berechnen</span>
     </label>
     {#if spellAutoCalc && spellAbilityMod === null}
-      <p class="auto-hint">Zauberattribut nicht erkannt – nutze ein Kürzel wie „INT“, „WEI“ oder „CHA“, damit die Berechnung greift.</p>
+      <p class="auto-hint">Zauberattribut nicht erkannt – wähle oben eines aus der Liste, damit die Berechnung greift.</p>
     {/if}
 
     <h3 style="margin-top:0.75rem">Slots je Stufe</h3>
