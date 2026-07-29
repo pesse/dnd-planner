@@ -22,6 +22,7 @@ import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiAction
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 import { decodePick, isSpellbookClass } from './spellcasting';
+import { declaredSpellGrants, withoutSpellGrantFeatures } from './grantedSpells';
 
 /**
  * Ein Schritt der Aufstiegs-Zustandsmaschine. `checkpoint` = die Maschine hält an
@@ -180,14 +181,19 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
  * Klassenmerkmale, die nur auf eine vom Flow selbst getroffene Entscheidung zeigen
  * (Subklassen-Wahl, Attributsverbesserung), fliegen hier raus: die Wahl ist beim
  * Merkmals-Schritt längst gefallen, ihre Prosa würde die Analyse aber dazu verleiten,
- * sie ein zweites Mal zu stellen. Subklassen-Merkmale bleiben unangetastet.
+ * sie ein zweites Mal zu stellen.
+ *
+ * Ebenso raus — und hier auch bei SUBKLASSEN-Merkmalen — fliegen die immer-vorbereiteten
+ * Zauberlisten (Kreissprüche, Domänenzauber …): sie stehen als Tabelle im Merkmalstext und
+ * werden deterministisch gelesen (`declaredSpellGrants`). Sie im Eingang zu lassen hieße,
+ * das Modell eine Liste abschreiben zu lassen, die schon als Daten vorliegt.
  */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
-    ...delta.featuresGained
-      .filter((f) => !isFlowOwnedChoiceFeature(f))
+    ...withoutSpellGrantFeatures(delta.featuresGained.filter((f) => !isFlowOwnedChoiceFeature(f)))
       .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
-    ...delta.subclassFeaturesGained.map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
+    ...withoutSpellGrantFeatures(delta.subclassFeaturesGained)
+      .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }
 
@@ -237,6 +243,58 @@ export interface ValidatedRiders {
   flagged: string[]; // KI-Zaubernamen ohne Bibliothekstreffer
   grantedCantrips: string[]; // aufgelöste Grad-0-Zauber (kanonisch)
   grantedPrepared: { level: number; name: string }[]; // aufgelöste Grad-1+-Zauber (kanonisch)
+}
+
+/** Die deterministisch gelesenen Zauberlisten, aufgelöst auf Bibliothekseinträge. */
+export interface DeclaredSpells {
+  cantrips: string[];
+  prepared: { level: number; name: string }[];
+  /** Namen ohne Bibliothekstreffer — dieselbe Anzeige wie bei KI-Namen (Inline-Anlage). */
+  flagged: string[];
+}
+
+export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared: [], flagged: [] });
+
+/**
+ * Immer-vorbereitete Zauber der Merkmale auf `classLevel`, kanonisiert.
+ *
+ * Die Namen stammen aus dem englischen Merkmalstext, der Charakterbogen führt die deutschen —
+ * `resolveSpell` ist dieselbe EN↔DE-Auflösung, die auch KI-Namen nimmt. Ein Name ohne Treffer
+ * wird gemeldet statt still verworfen: fehlt der Zauber in der Bibliothek, soll der Nutzer ihn
+ * anlegen können.
+ */
+export function resolveDeclaredSpells(
+  features: { desc?: string }[],
+  classLevel: number,
+  library: SpellInfo[],
+  klasseName = '',
+): DeclaredSpells {
+  const out = noDeclaredSpells();
+  for (const raw of declaredSpellGrants(features, classLevel)) {
+    const info = resolveSpell(library, raw, klasseName);
+    if (!info) { if (!out.flagged.includes(raw)) out.flagged.push(raw); continue; }
+    if (info.level === 0) { if (!out.cantrips.includes(info.name)) out.cantrips.push(info.name); }
+    else if (!out.prepared.some((p) => p.name === info.name)) out.prepared.push({ level: info.level, name: info.name });
+  }
+  return out;
+}
+
+/**
+ * Die deklarierten Zauber als Änderungen — am DETERMINISTISCHEN Subklassen-Schritt, nicht am
+ * KI-Schritt. Das ist der zweite Gewinn neben der Zuverlässigkeit: ohne QM-Modell (Analyse
+ * übersprungen) bekam der Charakter seine Domänen-/Kreiszauber vorher überhaupt nicht.
+ */
+export function declaredSpellChanges(g: DeclaredSpells): Change[] {
+  const step: StepId = 'subclass-delta';
+  return [
+    ...g.cantrips.map((name): Change => ({
+      target: 'cantrip', name, step, source: 'class-feature', label: `Zaubertrick: ${name}`,
+    })),
+    ...g.prepared.map((p): Change => ({
+      target: 'preparedSpell', level: p.level, name: p.name, prepared: true, step,
+      source: 'class-feature', label: `Vorbereitet (Grad ${p.level}): ${p.name}`,
+    })),
+  ];
 }
 
 /** Prüft alle grantedSpells der Rider gegen die Bibliothek; kanonisiert + trennt nach Grad. */
@@ -727,6 +785,8 @@ export interface DocInput {
   hitDice: string;
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];            // NUR die Subklassen-Merkmale (für Info-Einträge)
+  /** Deterministisch gelesene, immer-vorbereitete Zauberlisten (Kreissprüche, Domäne …). */
+  declaredSpells: DeclaredSpells;
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
@@ -762,6 +822,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
   const changes: Change[] = [
     ...baseDeltaChanges(p.delta, p.hitDice),
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
+    ...declaredSpellChanges(p.declaredSpells),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),

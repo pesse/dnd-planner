@@ -41,11 +41,13 @@
     resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
   } from '../services/characterFeatures';
   import {
-    type StepId, type AdvanceCtx, type ValidatedRiders,
+    type StepId, type AdvanceCtx, type ValidatedRiders, type DeclaredSpells,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
+    resolveDeclaredSpells, noDeclaredSpells,
     STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerValues,
   } from '../services/levelUpMachine';
+  import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
     parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
@@ -72,6 +74,12 @@
   let chosenSubclass = $state<{ key: string; name: string } | null>(null);
   let subFeatures = $state<GainedFeature[]>([]);    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
   let gainedFeatures = $state<GainedFeature[]>([]); // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
+  /**
+   * Immer-vorbereitete Zauber aus Merkmalstabellen (Kreissprüche, Domänenzauber …) —
+   * deterministisch gelesen, deshalb hier und nicht in `validatedBase`: sie hängen am
+   * Subklassen-Schritt und stehen auch ohne KI-Analyse.
+   */
+  let declaredSpells = $state<DeclaredSpells>(noDeclaredSpells());
   let riders = $state<FeatureRider[]>([]);
   let validatedBase = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let decisions = $state<LevelUpQuestion[]>([]);
@@ -416,12 +424,34 @@
     switch (step) {
       case 'base-delta':
         gainedFeatures = gainedFeaturesFor(delta!);
+        // Schon bekannte Subklasse: ihre Merkmale stehen bereits im Delta. Wird die Subklasse
+        // erst in diesem Aufstieg gewählt, ergänzt `subclass-delta` unten.
+        declaredSpells = resolveDeclaredSpells(
+          [...delta!.featuresGained, ...delta!.subclassFeaturesGained],
+          delta!.toLevel,
+          await ensureSpellLib(),
+          delta!.klasseName,
+        );
+        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
+        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
+        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
         break;
       case 'subclass-delta':
         pushStep(`Subklasse „${chosenSubclass?.name}" — Merkmale werden geladen…`);
         subFeatures = await computeSubclassFeatures(chosenSubclass!.key, delta!.fromLevel, delta!.toLevel);
         if (!alive()) return;
-        gainedFeatures = [...gainedFeaturesFor(delta!), ...subFeatures];
+        // `subFeatures` bleibt vollständig (Info-Einträge „Neues Merkmal: …"), der KI-Eingang
+        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch.
+        gainedFeatures = [...gainedFeaturesFor(delta!), ...withoutSpellGrantFeatures(subFeatures)];
+        declaredSpells = resolveDeclaredSpells(
+          [...delta!.featuresGained, ...delta!.subclassFeaturesGained, ...subFeatures],
+          delta!.toLevel,
+          await ensureSpellLib(),
+          delta!.klasseName,
+        );
+        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
+        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
+        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
         break;
       case 'feature-analysis':
         await runAnalyze('base', alive);
@@ -599,6 +629,7 @@
     if (!isNewClass && !hasClasses) return;
     // State zurücksetzen (Neustart aus choose-class)
     chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
+    declaredSpells = noDeclaredSpells();
     baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
     chosenFeats = []; featRiders = []; flagged = [];
     hpPerLevelSources = []; narrativeSummary = ''; featuresText = '';
@@ -765,7 +796,7 @@
     if (!delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
     return buildDoc({
       delta, hitDice: character.hitDice ?? '',
-      chosenSubclass, subFeatures, validatedBase, validatedFeats,
+      chosenSubclass, subFeatures, declaredSpells, validatedBase, validatedFeats,
       answers, konMod: modOf(character.kon),
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
