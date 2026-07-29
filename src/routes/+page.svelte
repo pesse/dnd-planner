@@ -212,7 +212,11 @@
         activeFile.set({ ...file, path: newFilePath });
         invalidateVault();
       } catch (e) {
-        alert(`Umbenennen fehlgeschlagen: ${e}`);
+        await confirmAction({
+          title: 'Umbenennen fehlgeschlagen',
+          message: `${e}`,
+          confirmLabel: 'OK',
+        });
       }
     } else if (file.type === 'item') {
       const slug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');

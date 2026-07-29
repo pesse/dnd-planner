@@ -10,6 +10,7 @@
     forgetAccessCode,
     type Library,
   } from '../stores/libraries';
+  import { confirmAction } from '../stores/confirmDialog';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -113,11 +114,15 @@
       if (adoptIds.length) {
         const total = adoptIds.reduce((n, id) => n + result.needsAdopt[id], 0);
         const list = adoptIds.map((id) => `• ${nameOf(id)} (${result.needsAdopt[id]})`).join('\n');
-        const ok = confirm(
-          `${total} Datei(en) liegen bereits im Vault, stammen aber nicht aus der ` +
+        const ok = await confirmAction({
+          title: 'Bestandsdateien ersetzen?',
+          message:
+            `${total} Datei(en) liegen bereits im Vault, stammen aber nicht aus der ` +
             `Bibliotheksverwaltung:\n\n${list}\n\n` +
             `Sollen sie durch die Fassung aus der Bibliothek ersetzt werden?`,
-        );
+          confirmLabel: 'Ersetzen',
+          danger: true,
+        });
         if (ok) {
           const second = await installMany(adoptIds, true);
           result = {
@@ -150,14 +155,15 @@
   }
 
   async function doForget(lib: Library) {
-    if (
-      !confirm(
-        `Zugangscode für „${lib.name}“ entfernen?\n\n` +
-          `Bereits installierte Inhalte bleiben erhalten, es kommen aber keine ` +
-          `Aktualisierungen mehr an.`,
-      )
-    )
-      return;
+    const ok = await confirmAction({
+      title: `Zugangscode für „${lib.name}“ entfernen?`,
+      message:
+        `Bereits installierte Inhalte bleiben erhalten, es kommen aber keine ` +
+        `Aktualisierungen mehr an.`,
+      confirmLabel: 'Entfernen',
+      danger: true,
+    });
+    if (!ok) return;
     message = '';
     error = '';
     try {
