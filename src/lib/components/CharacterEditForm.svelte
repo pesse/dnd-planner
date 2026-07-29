@@ -352,15 +352,20 @@
   }
 
   /**
-   * Vergleichsform fürs Diff-Highlighting: ein leeres `modifiers` ist dasselbe wie keins.
-   * Ohne das bliebe eine Zeile nach dem Speichern grün, weil der Editor den Schlüssel
-   * hält, die gespeicherte Datei ihn aber (zu Recht) nicht trägt.
+   * Vergleichsform fürs Diff-Highlighting. Zwei Angleichungen, ohne die eine Zeile nach
+   * dem Speichern dauerhaft grün bliebe:
+   *  - leeres `modifiers` gilt wie keins (gespeichert wird der Schlüssel dann nicht),
+   *  - im Auto-Modus sind `bonus`/`damage` abgeleitet: der State trägt noch den Text vom
+   *    Anlegen, in die Datei geht der berechnete Wert. Beide Seiten neu rechnen.
    */
   function attackForDiff(a: Attack): Attack {
-    if (a.modifiers?.length) return a;
-    const rest = { ...a };
-    delete rest.modifiers;
-    return rest;
+    const r = { ...a };
+    if (!r.modifiers?.length) delete r.modifiers;
+    if (r.auto) {
+      r.bonus = computeAttackBonus(r);
+      r.damage = computeAttackDamage(r);
+    }
+    return r;
   }
 
   function addAttackModifier(i: number) {
