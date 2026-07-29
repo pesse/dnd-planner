@@ -24,11 +24,31 @@ function asNumber(v: unknown): number | null {
   return null;
 }
 
+/**
+ * JSON-Serialisierung mit sortierten Objekt-Schlüsseln. Die Reihenfolge gehört nicht zum
+ * Wert, liegt aber je nach Entstehungsweg anders: die gespeicherte Baseline läuft durch
+ * Zod und trägt die Schema-Reihenfolge, ein Editor hängt Felder in Klick-Reihenfolge an
+ * (z.B. toggleAttackMode). Ein reiner JSON.stringify-Vergleich hielte solche Objekte
+ * dauerhaft für geändert. Array-Reihenfolge bleibt erhalten — die IST Teil des Werts.
+ * `undefined`-Werte werden wie bei JSON.stringify weggelassen, damit ein fehlender
+ * Schlüssel und ein explizit undefinierter gleich gelten.
+ */
+function stableStringify(v: unknown): string {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
+  const o = v as Record<string, unknown>;
+  const parts = Object.keys(o)
+    .filter((k) => o[k] !== undefined)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`);
+  return `{${parts.join(',')}}`;
+}
+
 function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return false;
   // Werte hier sind einfache Snapshots (keine Proxies) — JSON-Vergleich genügt.
-  return JSON.stringify(a) === JSON.stringify(b);
+  return stableStringify(a) === stableStringify(b);
 }
 
 /** Bildet (alt, neu) auf eine Highlight-Richtung ab. Grün = up (erhöht/hinzugefügt/geändert), Rot = down (vermindert/entfernt). */
