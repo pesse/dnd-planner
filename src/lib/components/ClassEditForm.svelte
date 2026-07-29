@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ClassProgression, ClassFeature } from '$lib/types';
+  import type { FeatureChoiceGrant } from '$lib/schemas/shared';
   import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
@@ -42,6 +43,42 @@
 
   function setGainedAt(f: ClassFeature, text: string) {
     f.gainedAt = text.split(',').map((s) => parseInt(s.trim())).filter((n) => !isNaN(n));
+    onchange();
+  }
+
+  // Bibliotheksgestützte Wahl-Merkmale (grantsChoice) — nur die drei end-to-end
+  // verdrahteten Fälle. Alle übrigen Wahl-Merkmale (Expertise, Ordenswahl …) erkennt
+  // der KI-Aufstieg aus der Prosa; die gehören NICHT hierher.
+  const CHOICE_LABELS: Record<string, string> = {
+    weaponMastery: 'Waffenmeisterschaft',
+    fightingStyle: 'Kampfstil',
+    spellcasting: 'Zauberwirken',
+  };
+
+  // Flach-Wert für das Dropdown; 'other' = hand-editiertes grantsChoice, das keinem
+  // der vier Werte entspricht → nur lesbar anzeigen, nie überschreiben (Roh-JSON bleibt autoritativ).
+  function choiceKindOf(f: ClassFeature): string {
+    const g = f.grantsChoice;
+    if (!g) return 'none';
+    if (g.kind === 'weaponMastery') return 'weaponMastery';
+    if (g.kind === 'spellcasting') return 'spellcasting';
+    if (g.kind === 'featCategory' && g.featCategory === 'Fighting Style') return 'fightingStyle';
+    return 'other';
+  }
+
+  function setChoiceKind(f: ClassFeature, value: string) {
+    let next: FeatureChoiceGrant | undefined;
+    if (value === 'weaponMastery') next = { kind: 'weaponMastery', count: 1 };
+    else if (value === 'spellcasting') next = { kind: 'spellcasting', count: 1 };
+    else if (value === 'fightingStyle')
+      next = { kind: 'featCategory', featCategory: 'Fighting Style', count: f.grantsChoice?.count ?? 1 };
+    if (next) f.grantsChoice = next;
+    onchange();
+  }
+
+  // Checkbox „Gewährt Wahl": an → Default weaponMastery; aus → Feld entfernen.
+  function toggleChoice(f: ClassFeature, on: boolean) {
+    f.grantsChoice = on ? { kind: 'weaponMastery', count: 1 } : undefined;
     onchange();
   }
 </script>
@@ -116,6 +153,11 @@
 <!-- Merkmale -->
 <div class="section">
   <div class="section-title">Merkmale</div>
+  <p class="section-hint">
+    „Gewährt Wahl" nur für bibliotheksgestützte Wahlen (Optionen aus Waffen-, Talent-
+    oder Zauber-Bibliothek). Andere Wahl-Merkmale (Expertise, Ordenswahl …) erkennt der
+    KI-Aufstieg automatisch aus der Beschreibung.
+  </p>
   {#each klass.features as feature, i}
     <div class="feat-row">
       <div class="feat-line">
@@ -130,13 +172,43 @@
         />
         <button class="feat-del" onclick={() => removeFeature(i)} title="Merkmal entfernen">×</button>
       </div>
+      <div class="feat-choice">
+        <label class="lbl-inline choice-toggle" class:off={!feature.grantsChoice}>
+          <input
+            type="checkbox"
+            checked={!!feature.grantsChoice}
+            onchange={(e) => toggleChoice(feature, (e.target as HTMLInputElement).checked)}
+          />
+          Gewährt Wahl
+        </label>
+        <select
+          class="ef meta-sel"
+          disabled={!feature.grantsChoice}
+          value={feature.grantsChoice ? choiceKindOf(feature) : 'weaponMastery'}
+          onchange={(e) => setChoiceKind(feature, (e.target as HTMLSelectElement).value)}
+        >
+          {#each Object.entries(CHOICE_LABELS) as [val, label]}
+            <option value={val}>{label}</option>
+          {/each}
+          {#if choiceKindOf(feature) === 'other'}
+            <option value="other" disabled selected>
+              Aus JSON: {feature.grantsChoice?.kind}{feature.grantsChoice?.featCategory
+                ? ` / ${feature.grantsChoice.featCategory}`
+                : ''}
+            </option>
+          {/if}
+        </select>
+        {#if feature.grantsChoice && choiceKindOf(feature) === 'fightingStyle'}
+          <span class="feat-choice-count">Anzahl
+            <input class="ef num" type="number" min="1" bind:value={feature.grantsChoice.count} oninput={mark} />
+          </span>
+        {/if}
+      </div>
       <textarea class="ef feat-desc" rows={3} bind:value={feature.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
-      {#if feature.desc}
-        <details class="orig-details">
-          <summary>Original (EN)</summary>
-          <div class="orig-text">{feature.desc}</div>
-        </details>
-      {/if}
+      <details class="orig-details">
+        <summary>Original (EN)</summary>
+        <textarea class="ef orig-text" rows={3} bind:value={feature.desc} oninput={mark} placeholder="Beschreibung (EN)"></textarea>
+      </details>
     </div>
   {/each}
   <button class="add-feat" onclick={addFeature}>+ Merkmal</button>
@@ -207,6 +279,14 @@
   .feat-del:hover { color: var(--danger); }
   .feat-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
 
+  .feat-choice { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.78rem; }
+  .choice-toggle { cursor: pointer; }
+  .choice-toggle input { cursor: pointer; }
+  .choice-toggle.off { color: var(--ink-muted); opacity: 0.6; }
+  .feat-choice select:disabled { opacity: 0.45; cursor: not-allowed; }
+  .feat-choice-count { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .feat-choice .num { width: 48px; }
+
   .orig-details { font-size: 0.78rem; }
   .orig-details summary { color: var(--border); cursor: pointer; }
   .orig-details summary:hover { color: var(--mef-accent, var(--arcane)); }
@@ -214,6 +294,7 @@
     background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
     color: var(--ink-muted); font-size: 0.8rem; line-height: 1.6;
     padding: 0.4rem 0.6rem; white-space: pre-wrap; font-style: italic; margin-top: 0.2rem;
+    width: 100%; resize: vertical; font-family: inherit;
   }
 
   .add-feat {
