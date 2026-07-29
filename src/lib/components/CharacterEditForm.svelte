@@ -17,7 +17,8 @@
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
   import {
-    getFeats, searchFeats, featDisplayName, matchFeatEntry, FEAT_CATEGORY_DE, type FeatEntry,
+    getFeats, searchFeats, featDisplayName, featDesc, featPrereq, matchFeatEntry,
+    FEAT_CATEGORY_DE, type FeatEntry,
   } from '../featsLibrary';
   import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
   import {
@@ -191,8 +192,7 @@
   // würde `cleanRefs` sie beim Speichern verschlucken — sie tragen keinen `name`.
   let refFeats = $state((character.features ?? []).filter(r => !r.choice?.trim()).map(r => ({ ...r })));
   const choiceEntries = (character.features ?? []).filter(r => !!r.choice?.trim()).map(r => ({ ...r }));
-  // Gegenstück für das Diff-Highlighting: dieselbe Teilmenge am gespeicherten Stand,
-  // damit die Indizes zu `refFeats` passen.
+  // Gegenstück für das Diff-Highlighting (Zuordnung über den Key, siehe `featDir`).
   const savedFeatLinks = $derived((saved?.features ?? []).filter(r => !r.choice?.trim()));
   let traits = $state(character.traits ?? '');
   let ideals = $state(character.ideals ?? '');
@@ -1220,6 +1220,27 @@
     }
   }
 
+  /**
+   * Diff-Richtung einer Talent-Zeile. Die Baseline wird über den Key (Fallback: Name)
+   * gesucht, NICHT über den Index: `cleanRefs` filtert beim Speichern namenlose
+   * Ledger-Einträge weg, wodurch die gespeicherte Liste verschoben sein kann — mit
+   * Index-Zuordnung bliebe dann jede Folgezeile dauerhaft grün.
+   * Verglichen wird nur, was diese Zeile pflegt: Link und erworbene Stufe.
+   */
+  function featDir(ref: { sourceKey?: string; name: string; gainedAt?: number }): DiffDir {
+    if (!saved || !ref.name.trim()) return 'none';
+    const key = (ref.sourceKey ?? '').trim();
+    // „Unverändert" = es gibt einen gespeicherten Eintrag mit gleichem Link UND gleicher
+    // Stufe. Über die Stufe, weil dasselbe Talent mehrfach vergeben sein darf.
+    const unchanged = savedFeatLinks.some(
+      (s) =>
+        (key ? (s.sourceKey ?? '').trim() === key : !(s.sourceKey ?? '').trim()) &&
+        s.name === ref.name &&
+        (s.gainedAt ?? null) === (ref.gainedAt ?? null),
+    );
+    return unchanged ? 'none' : 'up';
+  }
+
   /** Öffnet die Talent-Karte der Bibliothek (verlässt den Charakter → Guard). */
   async function openFeatPage(entry: FeatEntry) {
     if (!entry.path) return;
@@ -1932,46 +1953,43 @@
 
       <div class="ref-block">
         <h4>Talente</h4>
+        <!-- Gleiche Karten-Optik wie die aufgelösten Klassen-/Volksmerkmale (fp-*),
+             nur mit Stufe/Entfernen als Bedienelemente. -->
         {#if refFeats.length}
-          <table class="ref-table">
-            <thead><tr><th>Talent</th><th>Stufe</th><th></th></tr></thead>
-            <tbody>
-              {#each refFeats as ref, i}
-                {@const entry = matchFeatEntry(featsLibrary, { sourceKey: ref.sourceKey, name: ref.name })}
-                {@const refDir = !saved || !ref.name.trim() ? 'none'
-                  : i >= savedFeatLinks.length ? 'up'
-                  : classifyChange($state.snapshot(savedFeatLinks[i]), $state.snapshot(ref))}
-                <tr use:diffMark={refDir}>
-                  <td>
-                    {#if entry}
-                      <div class="class-linked">
-                        <button type="button" class="class-link" title="Talent-Karte öffnen" onclick={() => openFeatPage(entry)}
-                          onmouseenter={(e) => showFeatTooltip(e, entry)}
-                          onmousemove={moveFeatTooltip}
-                          onmouseleave={hideFeatTooltip}>{featDisplayName(entry)}</button>
-                        {#if entry.category}<span class="feat-cat">{FEAT_CATEGORY_DE[entry.category]}</span>{/if}
-                      </div>
-                    {:else if featPickerTarget === i}
-                      {@render featPicker(i, 'Talent aus der Bibliothek…')}
-                    {:else if !featsLoaded}
-                      <span class="feat-loading">{ref.name}</span>
-                    {:else}
-                      <!-- Altdaten: Freitext ohne Bibliotheks-Quelle. Ersetzen oder löschen. -->
-                      <div class="class-linked">
-                        <span class="ref-unlinked" title="Kein Talent dieses Namens in der Bibliothek">⚠ {ref.name.trim() || '(ohne Namen)'}</span>
-                        <button type="button" class="link-edit" title="Aus der Bibliothek wählen" onclick={() => openFeatPicker(i)}>✎</button>
-                      </div>
-                    {/if}
-                  </td>
-                  <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
-                    oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
-                  <td class="feat-actions">
+          <ul class="fp-list">
+            {#each refFeats as ref, i}
+              {@const entry = matchFeatEntry(featsLibrary, { sourceKey: ref.sourceKey, name: ref.name })}
+              <li class="feat-row" use:diffMark={featDir(ref)}>
+                <div class="fp-head">
+                  {#if entry}
+                    <button type="button" class="fp-name fp-name-link" title="Talent-Karte öffnen" onclick={() => openFeatPage(entry)}>{featDisplayName(entry)}</button>
+                    {#if entry.category}<span class="fp-choice">{FEAT_CATEGORY_DE[entry.category]}</span>{/if}
+                  {:else if featPickerTarget === i}
+                    {@render featPicker(i, 'Talent aus der Bibliothek…')}
+                  {:else if !featsLoaded}
+                    <span class="fp-name feat-loading">{ref.name}</span>
+                  {:else}
+                    <!-- Altdaten: Freitext ohne Bibliotheks-Quelle. Ersetzen oder löschen. -->
+                    <span class="fp-name ref-unlinked" title="Kein Talent dieses Namens in der Bibliothek">⚠ {ref.name.trim() || '(ohne Namen)'}</span>
+                    <button type="button" class="link-edit" title="Aus der Bibliothek wählen" onclick={() => openFeatPicker(i)}>✎</button>
+                  {/if}
+                  <span class="feat-row-actions">
+                    <label class="feat-lvl" title="Charakterstufe, auf der das Talent erworben wurde (nur Herkunftsangabe, ohne Regelwirkung)">Stufe
+                      <input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
+                        oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} />
+                    </label>
                     <button class="remove-btn" title="Talent entfernen" onclick={() => removeRef(refFeats, i)}>✕</button>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+                  </span>
+                </div>
+                {#if entry}
+                  {@const prereq = featPrereq(entry)}
+                  {@const desc = featDesc(entry)}
+                  {#if prereq}<div class="fp-prereq">Voraussetzung: {prereq}</div>{/if}
+                  {#if desc}<div class="fp-desc"><Markdown source={desc} /></div>{/if}
+                {/if}
+              </li>
+            {/each}
+          </ul>
         {:else}
           <p class="fp-empty">Noch keine Talente verlinkt.</p>
         {/if}
@@ -2833,18 +2851,27 @@
   }
   .remove-btn:hover { color: var(--danger); }
 
-  .feat-actions { display: flex; align-items: center; gap: 0.1rem; white-space: nowrap; }
+  /* Talent-Karten: Optik der aufgelösten Merkmale (.fp-*), Name klickbar.
+     Stufe/Entfernen sitzen in der Kopfzeile → mittig statt an der Grundlinie. */
+  .feat-row .fp-head { align-items: center; }
+  .fp-name-link {
+    background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+    font-weight: 700; font-variant: small-caps; color: var(--ink);
+    text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--gold) 55%, transparent);
+    text-underline-offset: 0.15em;
+  }
+  .fp-name-link:hover { color: var(--gold); }
+  .fp-prereq { margin-top: 0.15rem; font-size: 0.74rem; font-style: italic; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); }
+  .feat-row-actions { margin-left: auto; display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+  .feat-lvl { display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--ink-muted); }
+  .feat-lvl .ref-level { width: 3.2rem; font: inherit; font-size: 0.78rem; }
+  .feat-loading { color: var(--ink-muted); }
 
   /* Talent-Picker: Eingabe + „Neues Talent" in einer Zeile. */
-  .feat-add-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; }
+  .feat-add-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
   .feat-picker { flex: 1; max-width: 22rem; }
   .feat-add-row .btn-add { flex-shrink: 0; white-space: nowrap; }
-  .feat-cat {
-    flex-shrink: 0; font-size: 0.7rem; color: var(--ink-muted);
-    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
-  }
   .sug-empty { color: var(--ink-muted); font-style: italic; cursor: default; }
-  .feat-loading { color: var(--ink-muted); }
 
   .btn-add {
     background: var(--surface);
