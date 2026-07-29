@@ -1,0 +1,38 @@
+{
+  "key": "string",
+  "source": "homebrew-sam",
+  "name": "string",
+  "nameDe": "string",
+  "category": "General",
+  "prerequisite": "string",
+  "prerequisiteDe": "string",
+  "desc": "string",
+  "descDe": "string",
+  "proficiencyGrant": {
+    "skills": {
+      "fixed": [
+        "Acrobatics"
+      ],
+      "choose": 0,
+      "from": [
+        "Acrobatics"
+      ]
+    },
+    "savingThrows": [
+      "Strength"
+    ],
+    "weapons": [
+      "Simple"
+    ],
+    "weaponsOther": [
+      "string"
+    ],
+    "armor": [
+      "Light"
+    ]
+  },
+  "document": {
+    "key": "string",
+    "gamesystem": "string"
+  }
+}

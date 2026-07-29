@@ -279,10 +279,8 @@ das sind LLM-Evals — die führt der User selbst aus). Also statisch + Skript +
    sind bekannt übereinstimmend, jede Abweichung ist also ein Parser-Fehler.
 2. `npm run check` (svelte-check) — muss sauber sein; besonders die
    `Record<SkillName, …>`-Vollständigkeit und die `savingThrows`-Umstellung.
-3. `node scripts/gen-schema-overview.mjs` — die `//#region schema-overview`-Blöcke der
-   berührten Schemas neu erzeugen (`npm run schema:overview` ist als
-   `_disabled_schema:overview` abgeschaltet, Skript direkt aufrufen). Vorbestehende Drift in
-   `levelUp.ts`/`spell.ts` ignorieren.
+3. `npm run schema:examples` — die Beispiel-Objekte der berührten Schemas
+   (`schemas/exampleObjects/*.json`) neu erzeugen.
 4. `cd vault && python3 tools/build_packs.py --dry-run` — muss grün bleiben,
    0 unklassifiziert.
 5. `npx vite build` — Produktionsbau.

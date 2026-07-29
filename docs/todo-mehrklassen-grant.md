@@ -52,7 +52,7 @@ kommen, nicht aus `proficiencyGrant`.
 
 ## Verifikation
 
-* `npm run check`, `node scripts/gen-schema-overview.mjs`, `npx vite build`
+* `npm run check`, `npm run schema:examples`, `npx vite build`
 * Skript zweimal laufen lassen → zweiter Lauf ändert keine Datei (Idempotenz)
 * Manuell: zweite Klasse Kämpfer anhängen → Panel bietet Kriegswaffen + leichte und
   mittelschwere Rüstung + Schilde, **keine** schwere Rüstung, **keine** Fertigkeit

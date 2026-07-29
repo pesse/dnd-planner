@@ -1,0 +1,37 @@
+{
+  "name": "string",
+  "languages": "string",
+  "damage_resistances": [
+    "string"
+  ],
+  "damage_immunities": [
+    "string"
+  ],
+  "condition_immunities": [
+    "string"
+  ],
+  "traits": [
+    {
+      "name": "string",
+      "description": "string"
+    }
+  ],
+  "actions": [
+    {
+      "name": "string",
+      "description": "string"
+    }
+  ],
+  "reactions": [
+    {
+      "name": "string",
+      "description": "string"
+    }
+  ],
+  "legendary_actions": [
+    {
+      "name": "string",
+      "description": "string"
+    }
+  ]
+}

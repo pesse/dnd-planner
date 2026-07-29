@@ -1,0 +1,52 @@
+{
+  "riders": [
+    {
+      "featureName": "string",
+      "source": "class",
+      "grantedSpells": [
+        "string"
+      ],
+      "extraCantrips": 0,
+      "extraPreparedCount": 0,
+      "expertiseSkills": [
+        "Acrobatics"
+      ],
+      "proficiencies": {
+        "skills": [
+          "Acrobatics"
+        ],
+        "tools": [
+          "string"
+        ],
+        "weapons": [
+          "Simple"
+        ],
+        "armor": [
+          "Light"
+        ],
+        "languages": [
+          "string"
+        ],
+        "savingThrows": [
+          "string"
+        ]
+      },
+      "abilityScoreIncrease": {
+        "str": 0,
+        "ges": 0,
+        "kon": 0,
+        "int": 0,
+        "wei": 0,
+        "cha": 0
+      },
+      "decisions": [
+        {
+          "id": "string",
+          "question": "string",
+          "answer": "string"
+        }
+      ],
+      "sheetNote": "string"
+    }
+  ]
+}

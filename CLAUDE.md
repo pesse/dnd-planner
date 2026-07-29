@@ -59,9 +59,11 @@ chains. 1–3 lines, naming the consequence. Repetition wants a factory, not a c
 ### One Zod schema per artifact
 
 `src/lib/schemas/` is the single source: schema → TS type → runtime validator → LLM JSON schema.
-Never hand-write a second interface or a hand-rolled JSON schema for a prompt. The
-`//#region schema-overview` blocks are frozen snapshots — their generator is disabled
-(`_disabled_schema:overview` in `package.json`).
+Never hand-write a second interface or a hand-rolled JSON schema for a prompt.
+
+`schemas/exampleObjects/*.json` is a generated shape view (one example object per exported
+schema, `featSchema` → `feat.json`) — read it instead of skimming a whole schema file, but never
+edit it: after a schema change run `npm run schema:examples` (`:check` fails on a stale file).
 
 ## Architecture
 
