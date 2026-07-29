@@ -18,7 +18,7 @@ import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
 import { skillLabelDe } from './proficiencyGrants';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
+import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 import { decodePick, isSpellbookClass } from './spellcasting';
@@ -155,9 +155,16 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
   // vergebenen Merkmal (Expertise auf 1 und 6) sonst immer die erste Vergabe, womit die
   // zweite Entscheidung im Ledger die erste überschreiben würde.
   const inSpan = f.gainedAt.filter((l) => l > fromLevel && l <= toLevel);
-  // EN-Text UND Übersetzung mitgeben: die KI liest die Mechanik aus dem Original und
-  // formuliert Fragen/Optionen in den deutschen Begriffen der Übersetzung.
-  return { name: f.name, desc: f.desc ?? '', descDe: f.descDe, source, key: f.key ?? '', gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel };
+  // Englisch geführt (so deutet die KI), deutsche Fassung als Quelle der Übersetzungs-Calls.
+  return {
+    name: f.name || f.nameDe || '',
+    nameDe: f.nameDe || f.name,
+    desc: f.desc || f.descDe || '',
+    descDe: f.descDe,
+    source,
+    key: f.key ?? '',
+    gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
+  };
 }
 
 /** Merkmale, die eine Progression in der Spanne (from, to] erlangt. */
@@ -191,9 +198,20 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
   return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', from, to));
 }
 
-/** Ein Talent (Name + EN-/DE-Beschreibung) als GainedFeature für die Effekt-Deutung. */
-export function featToGainedFeature(name: string, desc: string, gainedAt: number, descDe?: string): GainedFeature {
-  return { name, desc, descDe, source: 'feat', gainedAt };
+/** Ein Talent als GainedFeature für die Effekt-Deutung (englisch geführt, DE als Beilage). */
+export function featToGainedFeature(
+  f: { name: string; nameDe?: string; desc: string; descDe?: string; key?: string },
+  gainedAt: number,
+): GainedFeature {
+  return {
+    name: f.name || f.nameDe || '',
+    nameDe: f.nameDe || f.name,
+    desc: f.desc || f.descDe || '',
+    descDe: f.descDe,
+    source: 'feat',
+    gainedAt,
+    ...(f.key ? { key: f.key } : {}),
+  };
 }
 
 // ── Zaubernamen-Validierung ────────────────────────────────────────────────────
@@ -358,9 +376,12 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
         : c.type === 'text' ? 'text'
         : c.type === 'spell-pick' ? 'spell-picker'
         : 'choice',
-      prompt: c.question,
-      help: c.help,
-      options: c.options.map((o) => opt(o, o)),
+      // Anzeige deutsch, Wert englisch: der Wert geht an die KI zurück und an den Charakter,
+      // das Label sieht der Spieler. Fehlt die Übersetzung, steht Englisch da — der
+      // Checkpoint bleibt bedienbar.
+      prompt: c.questionDe.trim() || c.question,
+      help: c.helpDe.trim() || c.help,
+      options: c.options.map((o, i) => opt(o, optionLabel(c, i))),
       spellLevels: c.spellLevels,
       spellClass: c.spellClass,
       max: c.type === 'multiselect' || c.type === 'spell-pick' ? Math.max(1, c.max) : undefined,
@@ -592,6 +613,18 @@ export function answerLabels(q: LevelUpQuestion, value: string | string[] | unde
   return vals.map((v) => q.options.find((o) => o.value === v)?.label ?? v).filter((s) => s.trim()).join(', ');
 }
 
+/**
+ * Dieselbe Antwort als KANONISCHE (englische) Werte — das ist, was an die KI zurückgeht und
+ * am Charakter gespeichert wird. Bei Zauber-Wahlen und Freitext identisch zu `answerLabels`:
+ * dort gibt es kein Options-Paar, der Zaubername IST der Wert.
+ */
+export function answerValues(q: LevelUpQuestion, value: string | string[] | undefined): string {
+  if (value === undefined) return '';
+  const vals = Array.isArray(value) ? value : [value];
+  if (q.type === 'spell-picker') return vals.map((v) => decodePick(v).name).filter((s) => s.trim()).join(', ');
+  return vals.map((v) => q.options.find((o) => o.value === v)?.value ?? v).filter((s) => s.trim()).join(', ');
+}
+
 /** Ob diese Frage eine Entscheidung ins Merkmals-Ledger schreibt. */
 function recordsChoice(q: LevelUpQuestion, answers: Record<string, string | string[]>): boolean {
   return !!q.featureKey && q.isBuildDecision && !!answerLabels(q, answers[q.id]);
@@ -616,15 +649,18 @@ export function featureChoiceChanges(
   const out: Change[] = [];
   for (const q of qs) {
     if (!recordsChoice(q, answers)) continue;
-    const choice = answerLabels(q, answers[q.id]);
+    // Beides festhalten: `choice` ist der englische Prompt-Kanal, `choiceDe` die Anzeige.
+    const choice = answerValues(q, answers[q.id]);
+    const choiceDe = answerLabels(q, answers[q.id]);
     out.push({
       target: 'featureChoice',
       sourceKey: q.featureKey,
       choice,
+      choiceDe,
       gainedAt: gainedAtByKey.get(q.featureKey) ?? fallbackLevel,
       step,
       source: q.featureKey,
-      label: `${q.prompt}: ${choice}`,
+      label: `${q.prompt}: ${choiceDe}`,
     });
   }
   return out;

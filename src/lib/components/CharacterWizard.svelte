@@ -38,6 +38,7 @@
     type SpellcastingOffer,
   } from '../services/spellcasting';
   import { validateRiderSpells } from '../services/levelUpMachine';
+  import { optionLabel, type AnalysisChoice } from '../services/aiActions/featureEffectsAction';
   import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
@@ -384,9 +385,17 @@
   function setChoiceAnswer(id: string, values: string[]) {
     choiceAnswers = { ...choiceAnswers, [id]: values };
   }
-  /** Options-Liste einer Merkmalswahl inkl. Konsequenz-Tooltip für TooltipSelect. */
-  function optionsFor(choice: { options: string[]; optionHelp: Record<string, string> }): TooltipOption[] {
-    return choice.options.map((o) => ({ value: o, label: o, tooltip: choice.optionHelp[o] }));
+  /**
+   * Options-Liste einer Merkmalswahl inkl. Konsequenz-Tooltip für TooltipSelect.
+   * WERT englisch, LABEL deutsch: der Wert geht an die KI zurück und an den Charakter, das
+   * Label sieht der Spieler. Ohne Übersetzung steht Englisch da — bedienbar bleibt es.
+   */
+  function optionsFor(choice: AnalysisChoice): TooltipOption[] {
+    return choice.options.map((o, i) => ({
+      value: o,
+      label: optionLabel(choice, i),
+      tooltip: choice.optionHelpDe[o] || choice.optionHelp[o],
+    }));
   }
   /**
    * Baut `resolvedChoices` komplett neu (idempotent) — läuft daher gefahrlos zweimal: nach
@@ -651,8 +660,8 @@
           {#each w.plainChoices as choice}
             <div class="field">
               <span>
-                {choice.feature}: {choice.question}
-                {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
+                {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
+                {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
               </span>
               {#if choice.type === 'text'}
                 <input type="text" value={answerFor(choice.id)[0] ?? ''} oninput={(e) => setSingleAnswer(choice.id, e.currentTarget.value)} />
@@ -746,8 +755,8 @@
           {@const bind = featurePickBinding(choice.id)}
           <div class="field">
             <span>
-              {choice.feature}: {choice.question}
-              {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
+              {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
+              {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
             </span>
             <SpellPickField
               title={choice.feature}

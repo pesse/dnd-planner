@@ -205,7 +205,7 @@
           break;
         }
         case 'feat': // Talent-Link → Merkmals-Ledger
-          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', gainedAt: c.gainedAt, desc: '' }];
+          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', choiceDe: '', gainedAt: c.gainedAt, desc: '' }];
           break;
         // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
         // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
@@ -235,7 +235,7 @@
           // Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
           if (!c.sourceKey) break;
           const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
-          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, gainedAt: c.gainedAt, desc: '' };
+          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, choiceDe: c.choiceDe, gainedAt: c.gainedAt, desc: '' };
           if (i >= 0) next.features[i] = entry;
           else next.features = [...next.features, entry];
           break;

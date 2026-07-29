@@ -137,6 +137,10 @@ Bestehende Strecken:
   Verlauf mit fester Analyse-Antwort und nachgereichter Wahl (Vorlage für `chatCase`).
 - `featureEffects.eval.test.ts` — Merkmals-Effekte beim Stufenaufstieg (mehrstufiger
   Produktionspfad, Fall-Aufbau lädt Vault-Daten).
+- `wizardFeatures.eval.test.ts` — Merkmalsanalyse im Charakter-Erstell-Wizard (Stufe 1,
+  Gnom-Zauberer / Weiser): Volks-Wahl blockiert die Zauber, das Herkunftstalent ist eine
+  Zauber-Wahl, fünf wahllose Merkmale sind die Negativprobe. Eingang über
+  `buildFeaturePrep` — denselben Weg, den `CharacterWizard.kickoff()` nimmt.
 
 ## Neue Strecke in 5 Minuten
 

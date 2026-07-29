@@ -44,7 +44,7 @@
     type StepId, type AdvanceCtx, type ValidatedRiders,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerLabels,
+    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerValues,
   } from '../services/levelUpMachine';
   import {
     parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
@@ -54,7 +54,7 @@
   import { getSpellLibrary, createSpellInline, type SpellInfo } from '../spellLibrary';
   import { decodePick, encodePick } from '../services/spellcasting';
   import SpellPickField from './SpellPickField.svelte';
-  import { getFeats, searchFeats, featDisplayName, type FeatEntry } from '../featsLibrary';
+  import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
@@ -84,8 +84,9 @@
   let featAnalysis = $state<FeatureAnalysis | null>(null);
   let featChoices = $state<LevelUpQuestion[]>([]);
   let featsToPick = $state(0);
-  // desc = Original (EN), descDe = Übersetzung — die Effekt-KI bekommt beides.
-  let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string; descDe?: string }[]>([]);
+  // Englisch geführt (`name`/`desc` = Deutungs-Eingang), deutsche Fassung für Anzeige und
+  // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
+  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string }[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
   let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let flagged = $state<string[]>([]);
@@ -464,7 +465,7 @@
   function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
     return kind === 'base'
       ? gainedFeatures
-      : chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel, f.descDe));
+      : chosenFeats.map((f) => featToGainedFeature(f, delta!.toLevel));
   }
 
   /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
@@ -486,9 +487,11 @@
   }
 
   /**
-   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Label).
+   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Wert).
    * Frage, Optionen und Merkmal stehen bereits in der Analyse im Verlauf; die id (aus
    * `buildFeatureChoices`, identisch zur Choice-id der Analyse) verknüpft beides.
+   *
+   * Der WERT, nicht das Label: der Verlauf ist englisch, das deutsche Label kennt er nicht.
    */
   function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
     const qs = kind === 'base' ? baseChoices : featChoices;
@@ -496,7 +499,7 @@
     for (const q of qs) {
       const v = answers[q.id];
       if (!answered(v)) continue;
-      out.push({ id: q.id, choice: answerLabels(q, v) });
+      out.push({ id: q.id, choice: answerValues(q, v) });
     }
     return out;
   }
@@ -540,7 +543,7 @@
       const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
         buildNarrativeInput({
           summary: buildSummary(), delta: delta!, gainedFeatures, chosenSubclass,
-          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name })),
+          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe })),
           riders: [...riders, ...featRiders], pastChoices,
         }), runOpts());
       if (!alive()) return;
@@ -649,11 +652,12 @@
   function featResults(): FeatEntry[] { return featQuery.trim() ? searchFeats(featLib, featQuery, 8) : []; }
   function toggleFeat(entry: FeatEntry) {
     const key = entry.sourceKey ?? '';
-    const name = featDisplayName(entry);
+    const nameDe = featDisplayName(entry);
+    const name = entry.name || nameDe;
     const idx = chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
     if (chosenFeats.length >= featsToPick) return;
-    chosenFeats = [...chosenFeats, { key, name, gainedAt: delta!.toLevel, desc: entry.desc ?? '', descDe: entry.descDe }];
+    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe }];
     featQuery = '';
   }
 
@@ -672,7 +676,7 @@
     return ((answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
   }
   function fallbackSummary(): string {
-    const names = [...gainedFeatures.map((f) => f.name), ...chosenFeats.map((f) => f.name)];
+    const names = [...gainedFeatures.map((f) => f.nameDe || f.name), ...chosenFeats.map((f) => f.nameDe)];
     const sub = chosenSubclass ? ` · Subklasse: ${chosenSubclass.name}` : '';
     return `${delta!.klasseName} Stufe ${delta!.fromLevel} → ${delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
@@ -695,7 +699,7 @@
         ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
         ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
         ...gainedFeatures.map((f) => ({ key: '', name: f.name, desc: f.desc })),
-        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.descDe || f.desc || '' })),
+        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.desc || f.descDe || '' })),
       ];
       // Nach Key (bzw. Name, wenn kein Key) deduplizieren.
       const seen = new Set<string>();
@@ -765,7 +769,7 @@
       answers, konMod: modOf(character.kon),
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
-      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, gainedAt: f.gainedAt })),
+      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt })),
       baseChoiceQs: baseChoices, featChoiceQs: featChoices, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });
@@ -1031,14 +1035,14 @@
       <span class="field-label">{featsToPick} Talent(e) wählen</span>
       <div class="chips">
         {#each chosenFeats as f}
-          <span class="pick">{f.name}<button type="button" onclick={() => (chosenFeats = chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
+          <span class="pick">{f.nameDe}<button type="button" onclick={() => (chosenFeats = chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
         {/each}
       </div>
       <input class="input" placeholder="Talent suchen…" value={featQuery} oninput={(e) => (featQuery = (e.target as HTMLInputElement).value)} />
       {#if featQuery.trim()}
         <div class="results">
           {#each featResults() as entry}
-            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={chosenFeats.length >= featsToPick && !chosenFeats.some((f) => f.name === featDisplayName(entry))}>{featDisplayName(entry)}</button>
+            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={chosenFeats.length >= featsToPick && !chosenFeats.some((f) => f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}</button>
           {/each}
           {#if !featResults().length}<span class="field-hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
         </div>

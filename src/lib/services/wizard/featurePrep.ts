@@ -40,14 +40,18 @@ export interface FeaturePrep {
 }
 
 /**
- * Spezialisierung, die der HINTERGRUND seinem Herkunftstalent mitgibt — „Eingeweihter der
- * Magie (Magier)" → „Magier". Nur der Hintergrund legt sie fest: im Talent-Wörterbuch steht
+ * Spezialisierung, die der HINTERGRUND seinem Herkunftstalent mitgibt — „Magic Initiate
+ * (Wizard)" → „Wizard". Nur der Hintergrund legt sie fest: im Talent-Wörterbuch steht
  * die generische Fassung („Cleric, Druid, or Wizard"), die KI müsste die Liste also raten.
  * Leer bei allen Talenten ohne Klammer-Zusatz (Zäh, Wachsam, Geschult …).
+ *
+ * ENGLISCH zuerst: der Wert landet im Analyse-Prompt und treibt dort `spellClass`. Das
+ * deutsche „Magier" wäre genau die Zauberer/Magier-Kollision, die CLASS_MAP schon einmal
+ * verdreht hat.
  */
 function featSpecialisation(bg: Background | null): string {
   const benefit = bg?.benefits.find((b) => b.type === 'feat');
-  const raw = benefit?.descDe || benefit?.desc || '';
+  const raw = benefit?.desc || benefit?.descDe || '';
   return raw.match(/\(([^)]+)\)/)?.[1]?.trim() ?? '';
 }
 
@@ -61,11 +65,14 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     getFeats(),
   ]);
 
+  // EINE Aufbereitung, englisch geführt: `name`/`desc` sind die kanonischen Felder (so
+  // liest sie jeder Deutungs-Call), `nameDe`/`descDe` reisen als Quelle der beiden
+  // Übersetzungs-Calls mit. Fehlt eine Sprachfassung, fällt sie auf die andere zurück.
   const level1 = (p: ClassProgression | null, source: 'class' | 'subclass'): GainedFeature[] =>
     p
       ? featuresUpTo(p, 1)
           .filter((f) => !isFlowOwnedChoiceFeature(f))
-          .map((f) => ({ name: f.nameDe || f.name, desc: f.desc, descDe: f.descDe, source, gainedAt: 1, key: f.key }))
+          .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key }))
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
@@ -73,13 +80,12 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
   if (bg?.featKey) {
     const feat = feats.find((f) => f.sourceKey === bg.featKey);
-    // `desc` bleibt der ENGLISCHE Regeltext (so liest der Prompt das Feld), `descDe` die
-    // Übersetzung — Talente ohne die eine Sprache fallen auf die andere zurück.
     if (feat) {
       gained.push({
-        name: featDisplayName(feat),
+        name: feat.name || featDisplayName(feat),
+        nameDe: featDisplayName(feat),
         desc: feat.desc || featDesc(feat),
-        descDe: featDesc(feat),
+        descDe: feat.descDe,
         source: 'feat',
         gainedAt: 1,
         key: bg.featKey,
@@ -90,38 +96,42 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
 
   const toSummary = (g: GainedFeature): SummaryFeature => ({
     name: g.name,
-    desc: g.descDe || g.desc,
+    nameDe: g.nameDe,
+    desc: g.desc,
     source: g.source === 'subclass' ? 'class' : g.source,
     group: g.source === 'feat' ? background.name : klass.name,
     gainedAt: g.gainedAt,
     choice: g.choice,
   });
 
-  const summaryClass = gained.map(toSummary);
   const traits = spec?.traits ?? [];
-  const summarySpecies: SummaryFeature[] = traits.map((t) => ({
-    name: t.nameDe || t.name,
-    desc: t.descDe || t.desc,
-    source: 'species',
-    group: species.name,
-  }));
 
   // Speziesmerkmale als Analyse-Eingang: nur so erkennt die KI erzwungene Volks-Wahlen
-  // (Drakonische Urahnen, Elfenlinie …). desc = EN-Regeltext (maßgeblich), descDe = DE.
+  // (Drakonische Urahnen, Elfenlinie …).
   const speciesFeatures: GainedFeature[] = traits.map((t) => ({
-    name: t.nameDe || t.name,
-    desc: t.desc,
+    name: t.name || t.nameDe || '',
+    nameDe: t.nameDe || t.name,
+    desc: t.desc || t.descDe || '',
     descDe: t.descDe,
     source: 'species',
     gainedAt: 1,
     key: t.key,
   }));
 
+  const summaryClass = gained.map(toSummary);
+  const summarySpecies: SummaryFeature[] = speciesFeatures.map((f) => ({
+    name: f.name,
+    nameDe: f.nameDe,
+    desc: f.desc,
+    source: 'species',
+    group: species.name,
+  }));
+
   // Voller Merkmalsbestand für die fortlaufenden TP-Effekte (Zäh, Zwergische Zähigkeit).
   const effectFeatures: EffectFeature[] = [...gained, ...speciesFeatures].map((f) => ({
     key: f.key ?? '',
     name: f.name,
-    desc: f.descDe || f.desc,
+    desc: f.desc,
   }));
 
   const slug = klass.sourceKey.split('_').pop() ?? '';

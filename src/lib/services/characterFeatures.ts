@@ -161,6 +161,15 @@ export async function resolveBackground(background: CharacterBackground | undefi
  * Entscheidungen). Der Aufrufer sammelt die Keys aus seinen Gruppen — nur so bleibt es
  * für die Karte (eine Liste) und den Editor (drei getrennte Abschnitte) dasselbe Stück Logik.
  */
+/**
+ * Die getroffene Wahl, wie sie einem Menschen gezeigt wird. `choice` führt das englische
+ * kanonische Label (so geht es an die KI und so kommt es als `<past_choices>` zurück),
+ * `choiceDe` die Anzeige — Altbestand hat nur `choice`, dort steht dann noch Deutsch.
+ */
+export function choiceDisplay(e: { choice: string; choiceDe?: string }): string {
+  return e.choiceDe?.trim() || e.choice;
+}
+
 export function splitFeatureEntries(
   entries: CharacterFeatureEntry[] | undefined,
   resolvedKeys: Iterable<string>,
@@ -176,7 +185,8 @@ export function splitFeatureEntries(
     // Ein Merkmal kann mehrfach vergeben werden (Expertise auf 1 UND 6), wird aber als EIN
     // Merkmal gerendert — die Entscheidungen sammeln sich deshalb, statt sich zu überschreiben.
     const prev = annotations.get(e.sourceKey);
-    annotations.set(e.sourceKey, prev ? `${prev}; ${e.choice}` : e.choice);
+    const shown = choiceDisplay(e);
+    annotations.set(e.sourceKey, prev ? `${prev}; ${shown}` : shown);
   }
   return { annotations, unmatched };
 }
@@ -218,7 +228,7 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
       desc: entry ? featDesc(entry) : (ref.desc ?? ''),
       gainedAt: ref.gainedAt,
       key: ref.sourceKey,
-      choice: ref.choice || undefined,
+      choice: choiceDisplay(ref) || undefined,
       unresolved: !entry,
     };
   });
@@ -274,7 +284,8 @@ export async function resolveCharacterFeatures(c: {
 /** Eine früher getroffene Entscheidung, aufgelöst auf den Merkmalsnamen (für KI-Kontext). */
 export interface PastChoice {
   featureKey: string;
-  feature: string; // DE-Anzeigename des Merkmals; Fallback = Key
+  feature: string; // Anzeigename des Merkmals; Fallback = Key
+  /** Englisches kanonisches Label — bei Altbestand noch deutsch (der Prompt sagt das). */
   choice: string;
 }
 

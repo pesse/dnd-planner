@@ -115,6 +115,7 @@
       "target": "featureChoice",
       "sourceKey": "string",
       "choice": "string",
+      "choiceDe": "string",
       "gainedAt": -9007199254740991,
       "step": "string",
       "source": "string",

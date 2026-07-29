@@ -7,22 +7,30 @@
  * Choices → `finalizeFeatureEffects` (Nach-Analyse im Verlauf + Grounding + Guided).
  * QM-only, Prompts englisch.
  *
- * Die Verdichtungs-Doktrin der `sheetNote` liegt in `fieldSummaryAction`
- * (`SHEET_NOTE_DOCTRINE`) — dieselbe Regel trägt die Feld-Zusammenfassung im
- * Charakter-Editor, und sie soll nur an einer Stelle optimiert werden.
+ * EINSPRACHIG ENGLISCH, durchgehend: `buildFeatureEffectsInput` streicht `nameDe`/`descDe`
+ * beim Serialisieren, obwohl `GainedFeature` sie trägt — eine Aufbereitung, zwei
+ * Projektionen. Deutsch entsteht ausschließlich in den beiden thinking-off-Calls von
+ * `featureTranslationAction`: T1 übersetzt die Wahlen für den Checkpoint, T2 die
+ * Bogen-Notizen. Der Schnitt ist Absicht: **dieser Pass entscheidet, WAS gilt, der
+ * Übersetzer, WIE es dasteht.** Reasoning in zwei Sprachen zugleich kostete hier Qualität
+ * an beiden Enden — der Analyse-Prompt war halb Regel-Analytiker, halb deutscher Texter.
  *
- * Zwei Details tragen die Qualität messbar (evals/featureAnalysis.eval.test.ts): jedes
- * Merkmal geht mit EN- *und* DE-Text rein (EN = Regelquelle, DE = die Begriffe, in denen
- * Fragen und Optionen formuliert werden), und die getroffenen Wahlen kommen als eigener
- * Folge-Turn statt im Erst-Prompt.
+ * Die Verdichtungs-Doktrin der `sheetNote` liegt in `fieldSummaryAction`
+ * (`SHEET_NOTE_CONTENT` — die deutsche Form-Hälfte liest T2) — dieselbe Regel trägt die
+ * Feld-Zusammenfassung im Charakter-Editor, und sie soll nur an einer Stelle optimiert werden.
+ *
+ * Ein Detail trägt die Qualität messbar (evals/featureAnalysis.eval.test.ts): die
+ * getroffenen Wahlen kommen als eigener Folge-Turn statt im Erst-Prompt.
  */
 import {
+  CHOICE_HELP_EN_MAX_CHARS,
   featureEffectsJsonSchema,
   parseFeatureEffects,
-  SHEET_NOTE_MAX_CHARS,
+  SHEET_NOTE_EN_MAX_CHARS,
   type FeatureEffects,
 } from '../../schemas/levelUp';
-import { SHEET_NOTE_DOCTRINE } from './fieldSummaryAction';
+import { SHEET_NOTE_CONTENT, SHEET_NOTE_EXAMPLE_EN } from './fieldSummaryAction';
+import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
 import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
@@ -32,15 +40,21 @@ import { resolveSpell } from '../levelUpMachine';
 import type { PastChoice } from '../characterFeatures';
 import { stripJsonFence } from '../jsonFence';
 
-/** Einheitliche Eingabe-Einheit für die Effekt-Deutung (Merkmal ODER Talent). */
+/**
+ * Einheitliche Eingabe-Einheit für die Effekt-Deutung (Merkmal ODER Talent).
+ *
+ * Die deutschen Felder gehen NICHT an die Deutungs-Calls (siehe
+ * `buildFeatureEffectsInput`) — sie sind die Quelle der beiden Übersetzungs-Calls.
+ */
 export interface GainedFeature {
-  name: string;
+  name: string; // Englischer Name — der Anker, den die Rider wörtlich zurückgeben
+  nameDe?: string; // Deutscher Anzeigename (Übersetzer-Glossar)
   desc: string; // Original-Regeltext (EN) — maßgeblich für die Mechanik
-  descDe?: string; // Übersetzung — liefert die deutschen Begriffe für Fragen/Optionen
+  descDe?: string; // Übersetzung — Quelle der wörtlich zitierten deutschen Optionslabels
   source: 'class' | 'subclass' | 'feat' | 'species';
   gainedAt: number;
   key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
-  choice?: string; // Bereits getroffene Entscheidung — verhindert, dass sie erneut gefragt wird
+  choice?: string; // Bereits getroffene Entscheidung (EN) — verhindert, dass sie erneut gefragt wird
 }
 
 /**
@@ -70,14 +84,15 @@ export interface FeatureClassContext {
  * EN-Prosa, getroffene Wahlen und eigene Grants zugleich sieht — und daher weiß, was der
  * Bogen schon anderswo führt und deshalb keine Zeile braucht.
  */
-const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc", its German translation "descDe" and — where the character's origin already fixed a specialisation — "choice") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
-Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders" — plus one terse German sheet note per feature. Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
+const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2).
+The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with its English rules text "desc" and — where the character's origin already fixed a specialisation — "choice") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
+Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders" — plus one terse sheet note per feature. Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
+Write ENGLISH throughout. The app translates your sheet notes afterwards; German wording here would be thrown away.
 
 ## Rules
-1. Emit EXACTLY ONE rider per entry in <gained_features>, in the same order, with featureName copied verbatim. A feature without any mechanical grant still gets its rider — leave the grant fields at their empty defaults and only fill sheetNote (see rule 10). Never invent a rider for a feature that is not in <gained_features>.
-2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn.
-3. extraCantrips / extraPreparedCount: only if a feature explicitly grants additional cantrips resp. lets the player prepare MORE spells than the class table already does.
+1. Emit EXACTLY ONE rider per entry in <gained_features>, in the same order, with featureName and featureKey copied verbatim. A feature without any mechanical grant still gets its rider — leave the grant fields at their empty defaults and only fill sheetNote (see rule 10). Never invent a rider for a feature that is not in <gained_features>.
+2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn. A cantrip the feature makes you KNOW BY NAME ("You know the Minor Illusion cantrip") is such a grant and belongs here too — the sheet can only record it if you name it.
+3. extraCantrips / extraPreparedCount: how many ADDITIONAL cantrips the player may freely PICK resp. how many more spells they may prepare than the class table allows. A cantrip you named in grantedSpells is not a free pick — do not count it here as well, or the character gets it twice.
 4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options. Use the canonical English skill names listed in rule 5.
 5. proficiencies: what the feature grants, in CLOSED vocabularies — anything outside them cannot be recorded on the character sheet:
    - skills: exactly one of ${SKILL_NAMES.join(', ')}.
@@ -85,41 +100,45 @@ Turn all of that into the concrete, app-modellable mechanical effects each featu
    - armor: ${ARMOR_TRAININGS.join(', ')}.
    - savingThrows: the full English ability name (Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma).
    - tools / languages: free text, English.
-6. abilityScoreIncrease: ability increases the feature dictates — FIXED ones (e.g. a feat giving +1 CON) AND any resolved "+1 to one of…" choice from <resolved_choices>. NEVER the generic ASI (handled separately). German keys: str, ges (dex), kon, int, wei (wis), cha.
-7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision {id, question, answer}. <resolved_choices> only carries {id, choice} — take the id verbatim, look the matching German question up in your own analysis (same id) and use the chosen German label(s) as the answer. This is the record of what the player picked (e.g. a Circle of the Land terrain). Bake its mechanical consequence into the grant fields above; the decision itself is the audit record.
+6. abilityScoreIncrease: ability increases the feature dictates — FIXED ones (e.g. a feat giving +1 CON) AND any resolved "+1 to one of…" choice from <resolved_choices>. NEVER the generic ASI (handled separately). German keys (the sheet's, not a language choice): str, ges (dex), kon, int, wei (wis), cha.
+7. decisions: for EVERY entry in <resolved_choices> that this feature triggered, add one decision and copy its "id" verbatim. Leave "question" and "answer" EMPTY — the app fills both from its own records. Bake the choice's mechanical consequence into the grant fields above; the decision itself is only the audit record of what the player picked (e.g. a Circle of the Land terrain).
 8. Do NOT restate deterministic numbers (spell slots, proficiency bonus, hit die) — applied automatically. Only add value the raw table cannot express.
 9. Never invent mechanics that are not in the feature's own rules text. When in doubt, leave a field empty.
 
 ## sheetNote (rule 10)
-10. sheetNote is that entry for THIS feature, squeezed into ONE line for the "Klassenmerkmale" field: no line breaks, no markdown, max ~${SHEET_NOTE_MAX_CHARS} characters — the player's own free text is merged with it later. Empty string ("") where the doctrine below wants no entry. Here, "an option the player picked" means an entry in <resolved_choices>; that choice is also stored structurally (it comes back as <past_choices> on later level-ups), so it only earns a note when it adds an ongoing mechanic.
+10. sheetNote is that entry for THIS feature, squeezed into ONE line for the sheet's "class features" field: no line breaks, no markdown, max ~${SHEET_NOTE_EN_MAX_CHARS} characters — it is translated into German afterwards, which runs longer, and the player's own free text is merged with it later. Start it with the feature's English name, then ": ". Empty string ("") where the doctrine below wants no entry. Here, "an option the player picked" means an entry in <resolved_choices>; that choice is also stored structurally (it comes back as <past_choices> on later level-ups), so it only earns a note when it adds an ongoing mechanic.
 
-${SHEET_NOTE_DOCTRINE}`;
+${SHEET_NOTE_CONTENT}
+
+${SHEET_NOTE_EXAMPLE_EN}`;
 
 /**
  * Pass-A-Prompt (Reasoning): reine Analyse, bewusst OHNE Rider-Vokabular. Strukturiert
  * werden nur die deterministisch weiterverarbeiteten Dinge — Spielerwahlen und zu erdende
  * Zauber; alles Übrige bleibt Prosa für Pass C.
  */
-export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries the original English rules text in "desc" and its German translation in "descDe": "desc" is the authoritative source for the mechanics, "descDe" gives you the German wording for questions and options.
-A feature may additionally carry "choice": a specialisation the character's ORIGIN already fixed, given as the German label (the Sage background grants Magic Initiate with its spell list named, "Magier" = the Wizard list). Treat it as FINAL — never turn it into a question, and let it drive whatever it decides (a spell-pick's spellClass, for instance).
+export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2).
+You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries its rules text in "desc".
+A feature may additionally carry "choice": a specialisation the character's ORIGIN already fixed (the Sage background grants Magic Initiate with its spell list named: "Wizard"). Treat it as FINAL — never turn it into a question, and let it drive whatever it decides (a spell-pick's spellClass, for instance).
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT produce any final data structures or grants here — reason in prose and end with one compact manifest.
+Write ENGLISH throughout — questions, options, help texts, everything. A separate step translates the choices for the player's German UI; German wording here would be thrown away.
 
 ## What to work out
-1. Forced player choices: EVERY choice a feature forces on the player — a subclass option, a terrain, an Expertise skill selection, "+1 to one of several abilities", pick a spell from a list, etc. (Weapon Mastery and Fighting Style are handled OUTSIDE this analysis — the flow offers those from the library, so their features never reach you here.) For each, note the German question, the concrete options if you know them, how many may be picked (max), and whether the choice DETERMINES further mechanical effects that cannot be stated until it is made (e.g. a Circle of the Land terrain decides which spells are granted). Three rules on top:
+1. Forced player choices: EVERY choice a feature forces on the player NOW — a subclass option, an Expertise skill selection, "+1 to one of several abilities", pick a spell from a list, etc. (Weapon Mastery and Fighting Style are handled OUTSIDE this analysis — the flow offers those from the library, so their features never reach you here.) For each, note the question, the concrete options if you know them, how many may be picked (max), and whether the choice DETERMINES further mechanical effects that cannot be stated until it is made (e.g. a Draconic Ancestry decides the damage type of its Breath Weapon). Four rules on top:
+   - **ONLY what has to be decided now.** The player is standing at a level-up or at character creation, and answers once. A choice the rules re-open at a repeating moment — "whenever you finish a Long Rest, choose …", "as a Bonus Action, choose one of the following", "each time you use this feature, choose …" — is made at the table, not here: do NOT put it in the manifest, never let it block, and state the grants of ALL its branches as unconditional (a druid who picks the land type anew after every Long Rest simply has the circle spells of every land).
    - **featureKey**: copy the "key" of the emitting feature VERBATIM from <gained_features>. Never invent, shorten or translate it. Empty string only if that feature carries no key.
-   - **Option wording**: give each option as the German label EXACTLY as the feature's "descDe" writes it (for a bolded option paragraph \`**Wächter.**\` the option is \`Wächter\`). The stored answer is later matched back against that text, so do not paraphrase, expand or re-case it.
-   - **isBuildDecision**: true only for a PERMANENT character-building choice (Primal Order, Divine Order, Expertise skills, an elven lineage, a terrain, metamagic options). false for options the player picks anew on each USE of the feature (Channel Divinity's Divine Spark vs Turn Undead, Cunning Strike effects, Brutal Strike effects) — those still need asking when the feature demands it now, but they are not part of the character's build.
+   - **Option wording**: give each option EXACTLY as the feature's own rules text writes it (for a bolded option paragraph \`**Warden.**\` the option is \`Warden\`). It is the key the app matches the stored answer against, so do not paraphrase, expand or re-case it.
+   - **isBuildDecision**: true only for a PERMANENT character-building choice (Primal Order, Divine Order, Expertise skills, an elven lineage, metamagic options). false for a choice that is forced now but re-made on each USE of the feature — it gets answered, not recorded. Options a feature offers only in the moment of use (Channel Divinity's Divine Spark vs Turn Undead, Cunning Strike effects, Brutal Strike effects) are not forced now and, by the rule above, do not belong in the manifest at all.
    - **Choosing SPELLS is its own type.** If the choice is "pick N spells/cantrips from the X spell list" (Magic Initiate, Magical Discoveries, Mystic Arcanum), set type="spell-pick", fill spellLevels (0 = cantrip) and spellClass with the ENGLISH class key of that list ("cleric", "druid", "wizard", "bard", "sorcerer", "warlock", "ranger", "paladin"), and leave options EMPTY. Some sources name the list by tradition — map "Arcane"→wizard, "Divine"→cleric, "Primal"→druid. The player picks from the local spell library, so any spell name you wrote here could only be an invention. Emit ONE spell-pick per level band: cantrips and level 1+ spells are separate choices.
 2. Mechanical dependencies: state clearly which grants depend on which choice and which grants are unconditional.
 3. Spells granted as ALWAYS PREPARED for free (subclass/circle/domain lists, spell-granting feats) — canonical ENGLISH SRD names. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn, and never a spell the player PICKS: a spell-pick choice covers those, even when the picked spell ends up always prepared.
 4. Any other concrete mechanical grants (proficiencies, fixed ability increases, extra cantrips/prepared spells) — describe them in prose. You do NOT need to structure these; the next step reads your prose.
 
 ## <past_choices>
-May be present: build decisions this character made at EARLIER levels, as {"featureKey", "feature", "choice"}. They are FINAL — never ask about them again, and treat their consequences as already in place (a druid who chose Warden has Martial weapon proficiency and Medium armor training). Use them when a new feature builds on an older choice.
+May be present: build decisions this character made at EARLIER levels, as {"featureKey", "feature", "choice"}. They are FINAL — never ask about them again, and treat their consequences as already in place (a druid who chose Warden has Martial weapon proficiency and Medium armor training). Use them when a new feature builds on an older choice. A choice recorded before this app spoke English here may still be German — read it as the option it names.
 
 ## <resolved_choices>
-The player answers in a LATER turn, as a compact list of {"id": "<the id from your manifest>", "choice": "<the German label the player picked>"} — nothing else. When that turn arrives, REDO the analysis with those answers baked in:
+The player answers in a LATER turn, as a compact list of {"id": "<the id from your manifest>", "choice": "<the option label the player picked>"} — nothing else. When that turn arrives, REDO the analysis with those answers baked in:
 - Each listed choice is FINAL: it no longer blocks anything, so the spells/effects it unlocks can now be stated (canonical English spell names).
 - Keep every choice in the manifest under its ORIGINAL id, but set its determinesFurtherEffects=false.
 - Emit the full prose + manifest again; set blocked=false once nothing is open any more.
@@ -129,7 +148,7 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 \`\`\`json
 {
   "choices": [
-    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "spellLevels": [], "spellClass": "", "help": "<short German summary of the options' consequences>", "optionHelp": { "<German option>": "<its concrete German consequence>" }, "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
+    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<question>", "type": "choice", "options": ["<option>"], "spellLevels": [], "spellClass": "", "help": "<short summary of the options' consequences>", "optionHelp": { "<option>": "<its concrete consequence>" }, "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
   ],
   "spellsToGround": ["Canonical English Spell Name"],
   "blocked": false
@@ -137,23 +156,35 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 \`\`\`
 - choices: EVERY forced player choice (incl. expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), "text" (free) or "spell-pick" (pick spells from a class list). options=[] if free text or spell-pick. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet — always false for spell-pick, because the picked spells ARE the effect. featureKey and isBuildDecision as specified above.
   - spellLevels / spellClass: ONLY for type="spell-pick" (see above), otherwise [] and "".
-  - help: a SHORT German one-liner (≤120 chars) summarising the MECHANICAL consequences of the options, so the player understands the trade-off (e.g. "Wächter → Kriegswaffen + mittlere Rüstung; Magier → ein zusätzlicher bekannter Zaubertrick" or "bestimmt Schadensart von Odemwaffe und Resistenz"). Empty string if the options carry no notable consequence.
-  - optionHelp: an object mapping EACH option label (verbatim, same string as in "options") to its own concrete German consequence (≤60 chars each), whenever the options differ mechanically — e.g. for Draconic Ancestry {"Schwarz": "Säureschaden", "Blau": "Blitzschaden", "Rot": "Feuerschaden"}. Use {} when the options carry no per-option consequence (e.g. picking Expertise skills).
+  - help: a SHORT one-liner (≤${CHOICE_HELP_EN_MAX_CHARS} chars — it gets translated into German, which runs longer) summarising the MECHANICAL consequences of the options, so the player understands the trade-off (e.g. "Warden → Martial weapons + Medium armor; Magician → one extra cantrip known" or "sets the damage type of Breath Weapon and the resistance"). Empty string if the options carry no notable consequence.
+  - optionHelp: an object mapping EACH option label (verbatim, same string as in "options") to its own concrete consequence (≤60 chars each), whenever the options differ mechanically — e.g. for Draconic Ancestry {"Black": "acid damage", "Blue": "lightning damage", "Red": "fire damage"}. Use {} when the options carry no per-option consequence (e.g. picking Expertise skills).
 - spellsToGround: canonical ENGLISH names of always-prepared spell grants to resolve NOW (empty [] if none or if blocked).
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.`;
 
 /**
  * Bewusst OHNE Charakter-Zusammenfassung: gedeutet wird nur Merkmals-Prosa + Klassen-
  * Kontext. Attribute/Slots/HP wären hier Token-Ballast und Ablenkung.
+ *
+ * Projiziert auf ENGLISCH: `nameDe`/`descDe` bleiben draußen, obwohl `GainedFeature` sie
+ * trägt. Sie sind die Quelle der Übersetzungs-Calls, nicht Kontext fürs Reasoning — und der
+ * Block wird dreimal wiederholt (Analyse, Nach-Analyse, Pass C).
  */
 export function buildFeatureEffectsInput(ctx: {
   classContext: FeatureClassContext;
   features: GainedFeature[];
   pastChoices?: PastChoice[];
 }): string {
+  const english = ctx.features.map((f) => ({
+    name: f.name,
+    desc: f.desc,
+    source: f.source,
+    gainedAt: f.gainedAt,
+    ...(f.key ? { key: f.key } : {}),
+    ...(f.choice ? { choice: f.choice } : {}),
+  }));
   return [
     `<class_context>${JSON.stringify(ctx.classContext)}</class_context>`,
-    `<gained_features>${JSON.stringify(ctx.features)}</gained_features>`,
+    `<gained_features>${JSON.stringify(english)}</gained_features>`,
     ...(ctx.pastChoices?.length ? [`<past_choices>${JSON.stringify(ctx.pastChoices)}</past_choices>`] : []),
   ].join('\n');
 }
@@ -178,10 +209,19 @@ export interface FeatureEffectsRunOptions {
   noRetry?: boolean;
 }
 
-/** Eine erkannte, erzwungene Spielerwahl — treibt den Checkpoint. */
+/**
+ * Eine erkannte, erzwungene Spielerwahl — treibt den Checkpoint.
+ *
+ * ZWEISPRACHIG, mit klarer Rollenteilung: die englischen Felder sind die kanonischen (sie
+ * gehen an die KI zurück und werden am Charakter gespeichert), die `…De`-Felder sind die
+ * Anzeige. Letztere kommen vom Übersetzungs-Call und sind leer, wenn er nicht lief oder
+ * scheiterte — dann zeigt die Oberfläche Englisch, statt den Checkpoint zu verlieren.
+ */
 export interface AnalysisChoice {
   id: string;
   feature: string;
+  /** Deutscher Anzeigename des Merkmals — kommt aus der Bibliothek, nie vom Modell. */
+  featureDe: string;
   /** Bibliotheks-Key des Merkmals — Anker, unter dem die Antwort am Charakter landet. */
   featureKey: string;
   question: string;
@@ -196,14 +236,43 @@ export interface AnalysisChoice {
   spellLevels: number[];
   /** Nur bei `spell-pick`: englischer Klassen-Key der Zauberliste („cleric", „druid", „wizard"). */
   spellClass: string;
-  /** Knappe deutsche Zusammenfassung der Konsequenzen (Tooltip); leer, wenn keine. */
+  /** Knappe Zusammenfassung der Konsequenzen (Tooltip); leer, wenn keine. */
   help: string;
-  /** Je Option (Schlüssel = Options-Label) ihre konkrete deutsche Konsequenz, z.B. „Schwarz"→„Säureschaden". */
+  /** Je Option (Schlüssel = Options-Label) ihre konkrete Konsequenz, z.B. „Black"→„acid damage". */
   optionHelp: Record<string, string>;
   max: number;
   determinesFurtherEffects: boolean;
   /** false = Wahl pro Einsatz (Kanalisierte Göttlichkeit u.ä.) → wird nicht protokolliert. */
   isBuildDecision: boolean;
+  // ── Anzeige-Fassung (Übersetzungs-Call; leer = Englisch anzeigen) ──
+  questionDe: string;
+  helpDe: string;
+  /** Parallel zu `options`: gleiche Länge und Reihenfolge, sonst leer. */
+  optionsDe: string[];
+  /** Geschlüsselt mit dem ENGLISCHEN Options-Label — dem stabilen Wert der Auswahl. */
+  optionHelpDe: Record<string, string>;
+}
+
+/** Anzeige-Label einer Option: Übersetzung, wenn vorhanden, sonst der englische Wert. */
+export function optionLabel(choice: AnalysisChoice, index: number): string {
+  return choice.optionsDe[index]?.trim() || choice.options[index] || '';
+}
+
+/**
+ * Die getroffene Antwort (englische Werte, bei Mehrfachauswahl komma-verbunden) als deutsche
+ * Anzeige. Was in den Optionen nicht vorkommt, bleibt stehen — Freitext und Zaubernamen
+ * haben kein Optionspaar und sind schon die Anzeige.
+ */
+export function choiceLabelsDe(choice: AnalysisChoice, valueCsv: string): string {
+  return valueCsv
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .map((v) => {
+      const i = choice.options.indexOf(v);
+      return i >= 0 ? optionLabel(choice, i) : v;
+    })
+    .join(', ');
 }
 
 export interface FeatureAnalysis {
@@ -242,6 +311,7 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
   return {
     id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : slug,
     feature: typeof o.feature === 'string' ? o.feature : '',
+    featureDe: '', // deterministisch nachgetragen (siehe `withGermanChoices`)
     featureKey: typeof o.featureKey === 'string' ? o.featureKey.trim() : '',
     question: o.question,
     type,
@@ -265,7 +335,54 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
     // protokolliert, wenn das Modell es ausdrücklich sagt — sonst wächst das Ledger
     // mit Taktik-Optionen zu.
     isBuildDecision: o.isBuildDecision === true,
+    // Bleiben leer, bis der Übersetzungs-Call sie füllt.
+    questionDe: '',
+    helpDe: '',
+    optionsDe: [],
+    optionHelpDe: {},
   };
+}
+
+/** Die Merkmale als Quelle für die Übersetzer (deutsche Felder inklusive). */
+function translationSources(features: GainedFeature[]): TranslationSource[] {
+  return features.map((f) => ({ name: f.name, nameDe: f.nameDe, desc: f.desc, descDe: f.descDe, key: f.key }));
+}
+
+/**
+ * T1 anhängen: die deutschen Anzeige-Texte der Wahlen. Ein Fehlschlag ist hier kein
+ * Fehler, sondern ein unübersetzter Checkpoint (siehe `featureTranslationAction`).
+ */
+async function withGermanChoices(
+  config: LlmConfig,
+  raw: AnalysisChoice[],
+  features: GainedFeature[],
+  opts: FeatureEffectsRunOptions,
+): Promise<AnalysisChoice[]> {
+  // Zauber-Wahlen tragen keine Optionslabels; ihre Frage bleibt dennoch anzeigepflichtig.
+  if (!raw.length) return raw;
+
+  // Der Merkmalsname ist keine Übersetzungsaufgabe: er steht deutsch in der Bibliothek.
+  const nameDeByKey = new Map(features.filter((f) => f.key).map((f) => [f.key!, f.nameDe || f.name]));
+  const choices = raw.map((c) => ({ ...c, featureDe: nameDeByKey.get(c.featureKey) || c.feature }));
+  const translations = await translateChoices(
+    config,
+    {
+      choices: choices.map((c) => ({
+        id: c.id,
+        featureKey: c.featureKey,
+        question: c.question,
+        help: c.help,
+        options: c.options,
+        optionHelp: c.optionHelp,
+      })),
+      features: translationSources(features),
+    },
+    { signal: opts.signal },
+  );
+  return choices.map((c) => {
+    const t = translations.get(c.id);
+    return t ? { ...c, questionDe: t.questionDe, helpDe: t.helpDe, optionsDe: t.optionsDe, optionHelpDe: t.optionHelpDe } : c;
+  });
 }
 
 /**
@@ -313,18 +430,20 @@ async function buildSpellResolution(spellsToGround: string[], klasseName: string
 
 function buildTranscriptionInstruction(spellResolution: string): string {
   const parts = [
-    'Gib jetzt das Ergebnis exakt im geforderten Schema aus — genau ein Rider je Merkmal aus ' +
-      '<gained_features>, in derselben Reihenfolge. Trage jede in <resolved_choices> ' +
-      'genannte Wahl in decisions[] des passenden Riders ein — id wie dort, question aus deiner ' +
-      'Analyse mit derselben id, answer = das gewählte Label — und lasse ihr Ergebnis in die ' +
-      'konkreten Grants einfließen (grantedSpells / expertiseSkills / abilityScoreIncrease).\n' +
-      'Setze sheetNote nur dort, wo der Charakterbogen die Information wirklich braucht (Regel 10); ' +
-      'sonst leer lassen. Kurz halten — der Platz im PDF-Feld ist knapp.',
+    'Now emit the result in exactly the required schema — one rider per feature in ' +
+      '<gained_features>, in the same order, with featureName and featureKey copied verbatim. ' +
+      'For every choice listed in <resolved_choices>, add one entry to the matching rider\'s ' +
+      'decisions[] with its id copied verbatim and question/answer left EMPTY, and let its ' +
+      'outcome flow into the concrete grants (grantedSpells / expertiseSkills / ' +
+      'abilityScoreIncrease).\n' +
+      'Set sheetNote only where the character sheet genuinely needs the information (rule 10); ' +
+      'leave it empty otherwise. Keep it short and ENGLISH — it gets translated, and space on ' +
+      'the sheet is tight.',
   ];
   if (spellResolution) {
     parts.push(
-      'Nutze für grantedSpells ausschließlich die kanonischen englischen Namen aus <spell_resolution>; ' +
-        'als NICHT gefunden markierte Namen überdenken, nicht erzwingen.\n' +
+      'For grantedSpells use only the canonical English names from <spell_resolution>; ' +
+        'reconsider names marked as NOT FOUND instead of forcing them.\n' +
         spellResolution,
     );
   }
@@ -353,10 +472,23 @@ async function reason(
     () => opts.onActivity?.(),
     opts.signal,
   );
+  // Leere Antwort heißt bei einem Reasoning-Modell fast immer: das Token-Budget ging
+  // vollständig ins Denken, für die Antwort blieb nichts. Ohne diesen Wurf sähe der Flow
+  // ein leeres Manifest und meldete „keine erzwungenen Wahlen" — die Wahl fiele still aus.
+  if (!text.trim())
+    throw new Error(
+      'Die Merkmals-Analyse kam leer zurück — das Token-Budget des Modells reicht für den ' +
+        'Reasoning-Vorlauf nicht aus. Bitte „Max. Tokens" in den LLM-Einstellungen erhöhen ' +
+        '(Richtwert: mindestens 8192).',
+    );
   return { text, manifest: parseManifest(text) };
 }
 
-/** Call 1 — der Flow zeigt den Entscheidungs-Checkpoint direkt danach. */
+/**
+ * Call 1 — der Flow zeigt den Entscheidungs-Checkpoint direkt danach; die Übersetzung der
+ * Wahlen hängt deshalb hier dran und nicht erst im Flow: sonst müsste jeder Aufrufer sie
+ * selbst anstoßen und der Checkpoint könnte unübersetzt aufgehen.
+ */
 export async function analyzeFeatureEffects(
   config: LlmConfig,
   ctx: FeatureEffectsContext,
@@ -365,15 +497,20 @@ export async function analyzeFeatureEffects(
   guardQualityMinds(config);
   const input = buildFeatureEffectsInput(ctx);
   const { text, manifest } = await reason(config, [{ role: 'user', content: input }], opts);
-  return { choices: manifest.choices, spellsToGround: manifest.spellsToGround, blocked: manifest.blocked, analysisText: text };
+  const choices = await withGermanChoices(config, manifest.choices, ctx.features, opts);
+  return { choices, spellsToGround: manifest.spellsToGround, blocked: manifest.blocked, analysisText: text };
 }
 
 /**
- * Call 2 — Nach-Analyse + Grounding + Pass C ins Rider-Schema.
+ * Call 2 — Nach-Analyse + Grounding + Pass C ins Rider-Schema, dann die deutsche Grenze
+ * (Wahl-Protokolle deterministisch, Bogen-Notizen per Übersetzungs-Call).
  *
  * Der Verlauf aus Call 1 wird FORTGESCHRIEBEN statt neu aufgebaut, weil erst die
  * Nach-Analyse auf demselben Verlauf choice-abhängige Zauber benennen kann. Ohne
  * getroffene Wahl entfällt sie und spart einen Reasoning-Call.
+ *
+ * Die Übersetzung sitzt bewusst HIER und nicht beim Aufrufer: beide Flows und die
+ * Eval-Strecke sehen damit denselben fertigen, deutschen Rider.
  */
 export async function finalizeFeatureEffects(
   config: LlmConfig,
@@ -432,5 +569,70 @@ export async function finalizeFeatureEffects(
   let result = await runPassC();
   if (!result && !opts.noRetry) result = await runPassC();
   if (!result) throw new Error('Die KI lieferte keine schema-validen Merkmals-Effekte.');
-  return result;
+
+  // Beim Direkteinstieg trägt nur das nachgeholte Manifest die Wahlen (dann ohne Übersetzung).
+  const choiceList = analysis.choices.length ? analysis.choices : manifest.choices;
+  const withDecisions = fillDecisions(result, choiceList, ctx.resolvedChoices ?? []);
+  return germanizeSheetNotes(config, withDecisions, ctx.features, choiceList, opts);
+}
+
+/**
+ * Frage und Antwort der protokollierten Wahlen deterministisch nachtragen — beide stehen
+ * schon auf Deutsch in der Analyse bzw. in der Antwort des Spielers. Das Modell danach zu
+ * fragen hieße, dieselbe Zeichenkette ein zweites Mal erzeugen zu lassen; genau dabei drifteten
+ * Frage und Label früher auseinander.
+ */
+function fillDecisions(effects: FeatureEffects, choices: AnalysisChoice[], resolved: ResolvedChoice[]): FeatureEffects {
+  if (!resolved.length) return effects;
+  const byId = new Map(choices.map((c) => [c.id, c]));
+  const answerById = new Map(resolved.map((r) => [r.id, r.choice]));
+  return {
+    ...effects,
+    riders: effects.riders.map((rider) => ({
+      ...rider,
+      decisions: rider.decisions.map((d) => {
+        const choice = byId.get(d.id);
+        const answerEn = answerById.get(d.id) ?? d.answer;
+        return {
+          id: d.id,
+          question: choice?.questionDe.trim() || choice?.question || d.question,
+          // Die Antwort kommt als englischer Wert zurück; angezeigt wird das Options-Label.
+          answer: choice ? choiceLabelsDe(choice, answerEn) : answerEn,
+        };
+      }),
+    })),
+  };
+}
+
+/** T2 anhängen: deutsche Bogen-Notizen. Bei Fehlschlag bleibt die englische Zeile stehen. */
+async function germanizeSheetNotes(
+  config: LlmConfig,
+  effects: FeatureEffects,
+  features: GainedFeature[],
+  choices: AnalysisChoice[],
+  opts: FeatureEffectsRunOptions,
+): Promise<FeatureEffects> {
+  const notes = effects.riders
+    .map((r, index) => ({ index, featureKey: r.featureKey, featureName: r.featureName, note: r.sheetNote.trim() }))
+    .filter((n) => n.note);
+  if (!notes.length) return effects;
+
+  // Die Options-Paare der Wahlen als feste Begriffe: eine Notiz nennt die getroffene Wahl
+  // („Magic Initiate (Wizard)"), und ohne dieses Paar wird daraus „Zauberer" statt „Magier".
+  const terms = choices.flatMap((c) =>
+    c.options.map((en, i) => ({ en, de: optionLabel(c, i) })).filter((t) => t.de && t.de !== t.en),
+  );
+  const translated = await translateSheetNotes(
+    config,
+    { notes, features: translationSources(features), terms },
+    { signal: opts.signal },
+  );
+  if (!translated.size) return effects;
+  return {
+    ...effects,
+    riders: effects.riders.map((rider, index) => {
+      const de = translated.get(index);
+      return de ? { ...rider, sheetNote: de } : rider;
+    }),
+  };
 }

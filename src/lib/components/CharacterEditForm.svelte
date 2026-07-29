@@ -1173,7 +1173,10 @@
   function summaryFeaturesOf(groups: ResolvedFeatureGroup[], source: SummaryFeature['source']): SummaryFeature[] {
     return groups.flatMap((g) =>
       g.features.map((f) => ({
+        // Hier sind Name und Text schon aufgelöst und deutsch (Bibliothek) — anders als im
+        // Wizard, der die englische Fassung durchreicht. `nameDe` trägt deshalb dasselbe.
         name: f.name,
+        nameDe: f.name,
         desc: f.desc,
         source,
         group: g.title,
@@ -1287,7 +1290,7 @@
   /** Übernimmt den LINK (Name + Key); Beschreibung kommt zur Laufzeit aus der Bibliothek. */
   function pickFeat(target: 'add' | number, f: FeatEntry) {
     const link = { sourceKey: f.sourceKey ?? '', name: featDisplayName(f) };
-    if (target === 'add') refFeats.push({ ...link, choice: '', gainedAt: undefined, desc: '' });
+    if (target === 'add') refFeats.push({ ...link, choice: '', choiceDe: '', gainedAt: undefined, desc: '' });
     else {
       refFeats[target].sourceKey = link.sourceKey;
       refFeats[target].name = link.name;
@@ -1444,6 +1447,7 @@
           sourceKey: r.sourceKey ?? '',
           name: r.name,
           choice: '',
+          choiceDe: '',
           gainedAt: r.gainedAt == null || Number.isNaN(r.gainedAt) ? undefined : Number(r.gainedAt),
           desc: r.desc ?? '',
         }));

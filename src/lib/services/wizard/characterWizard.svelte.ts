@@ -19,6 +19,7 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import {
   analyzeFeatureEffects,
+  choiceLabelsDe,
   finalizeFeatureEffects,
   type FeatureAnalysis,
   type ResolvedChoice,
@@ -284,14 +285,17 @@ export class CharacterWizard {
   }
 
   /** Getroffene Aufbau-Wahlen je Merkmals-Key (resolvedChoices × Analyse-Choices) — damit
-   *  der Merkmals-Text die Wahl statt eines Platzhalters trägt (`SummaryFeature.choice`). */
+   *  der Merkmals-Text die Wahl statt eines Platzhalters trägt (`SummaryFeature.choice`).
+   *  DEUTSCH: der Merkmals-Text ist der Bogen-Freitext, nicht der Prompt-Kanal. */
   #choiceByFeatureKey(): Map<string, string> {
     const byId = new Map(this.featureChoices.map((c) => [c.id, c]));
     const map = new Map<string, string>();
     for (const rc of this.resolvedChoices) {
-      const key = byId.get(rc.id)?.featureKey;
-      if (!key || !rc.choice.trim()) continue;
-      map.set(key, map.has(key) ? `${map.get(key)}, ${rc.choice}` : rc.choice);
+      const choice = byId.get(rc.id);
+      const key = choice?.featureKey;
+      if (!key || !choice || !rc.choice.trim()) continue;
+      const label = choiceLabelsDe(choice, rc.choice);
+      map.set(key, map.has(key) ? `${map.get(key)}, ${label}` : label);
     }
     return map;
   }

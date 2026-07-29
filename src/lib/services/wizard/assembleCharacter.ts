@@ -30,6 +30,7 @@ import { readAbilityName, type AbilityName, type SkillName } from '$lib/schemas/
 import { collectGrants } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
+import { choiceLabelsDe } from '../aiActions/featureEffectsAction';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUpMachine';
@@ -211,8 +212,16 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   const keyById = new Map(w.analysis.result?.choices.map((ch) => [ch.id, ch]) ?? []);
   for (const rc of w.resolvedChoices) {
     const ch = keyById.get(rc.id);
+    // `choice` englisch (Prompt-Kanal späterer Stufen), `choiceDe` als Anzeige.
     if (ch?.isBuildDecision && ch.featureKey)
-      c.features.push({ sourceKey: ch.featureKey, name: '', choice: rc.choice, gainedAt: 1, desc: '' });
+      c.features.push({
+        sourceKey: ch.featureKey,
+        name: '',
+        choice: rc.choice,
+        choiceDe: choiceLabelsDe(ch, rc.choice),
+        gainedAt: 1,
+        desc: '',
+      });
   }
 
   // ── Zauber-Block: Klassenwerte (det.) → eigene Wahl → gewährte Zauber aus Merkmalen ──
@@ -291,7 +300,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     const feats = await getFeats();
     for (const key of w.fightingStyles) {
       const feat = feats.find((f) => f.sourceKey === key);
-      c.features.push({ sourceKey: key, name: feat ? featDisplayName(feat) : '', choice: '', gainedAt: 1, desc: '' });
+      c.features.push({ sourceKey: key, name: feat ? featDisplayName(feat) : '', choice: '', choiceDe: '', gainedAt: 1, desc: '' });
     }
   }
 
