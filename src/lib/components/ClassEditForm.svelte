@@ -87,9 +87,15 @@
   <div class="section-title">Kerntabelle</div>
   <ProficiencyGrantEditForm bind:grant={klass.proficiencyGrant} {onchange} />
 
-  <label class="lbl-block">Anfangsausrüstung (Prosa)
+  <!-- Englisch ist der Prompt-Input des Wizards, Deutsch nur Anzeige (darf leer bleiben). -->
+  <label class="lbl-block">Anfangsausrüstung (Prosa, englisch)
     <textarea class="ef equip" rows={2} bind:value={klass.startingEquipment} oninput={mark}
       placeholder="Choose A or B: (A) …; or (B) 75 GP"></textarea>
+  </label>
+
+  <label class="lbl-block">Anfangsausrüstung (Prosa, deutsch)
+    <textarea class="ef equip" rows={2} bind:value={klass.startingEquipmentDe} oninput={mark}
+      placeholder="Wähle A oder B aus: (A) … oder (B) 75 GM"></textarea>
   </label>
 </div>
 

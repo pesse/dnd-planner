@@ -237,6 +237,7 @@ export const CLASS_TEMPLATE: ClassProgression = {
   proficiencyGrant: emptyProficiencyGrant(),
   skillGrantMulticlass: emptySkillGrant(),
   startingEquipment: '',
+  startingEquipmentDe: '',
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
   levels: [],
   features: [],

@@ -80,8 +80,14 @@ export const classProgressionSchema = z.object({
    * Nur Barde/Schurke/Waldläufer gewähren hier eine Fertigkeit, die übrigen neun nichts.
    */
   skillGrantMulticlass: skillGrantSchema.default(emptySkillGrant),
-  /** Anfangsausrüstung als Prosa — `inventory[]` kennt nur freie Namen, ein Grant hätte kein Ziel. */
+  /**
+   * Anfangsausrüstung als Prosa — `inventory[]` kennt nur freie Namen, ein Grant hätte kein Ziel.
+   * Zweisprachig wie die Hintergrund-Vorteile: die ENGLISCHE Fassung geht als
+   * `<class_equipment>` in den Wizard-Prompt, die deutsche ist reine Anzeige
+   * (ClassCard) und darf fehlen — dann zeigt die Karte die englische.
+   */
   startingEquipment: z.string().default(''),
+  startingEquipmentDe: z.string().default(''),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

@@ -41,6 +41,7 @@
     ]
   },
   "startingEquipment": "string",
+  "startingEquipmentDe": "string",
   "document": {
     "key": "string",
     "gamesystem": "string"

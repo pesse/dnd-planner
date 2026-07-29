@@ -122,7 +122,7 @@
           </div>
         </div>
 
-        {#if coreRows.length || draft!.startingEquipment}
+        {#if coreRows.length || draft!.startingEquipmentDe || draft!.startingEquipment}
           <div class="core-traits">
             {#each coreRows as r}
               <div class="core-row">
@@ -136,10 +136,11 @@
                 <span class="core-value">{choiceList.join(', ')}</span>
               </div>
             {/if}
-            {#if draft!.startingEquipment}
+            {#if draft!.startingEquipmentDe || draft!.startingEquipment}
               <div class="core-row">
                 <span class="core-label">Anfangsausrüstung</span>
-                <span class="core-value">{draft!.startingEquipment}</span>
+                <!-- Deutsch, solange es da ist; Homebrew führt oft nur die englische Prosa. -->
+                <span class="core-value">{draft!.startingEquipmentDe || draft!.startingEquipment}</span>
               </div>
             {/if}
           </div>

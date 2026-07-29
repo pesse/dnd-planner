@@ -237,8 +237,10 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
     proficiencyGrant: coreTraits
       ? core.grant
       : { ...core.grant, savingThrows: readAbilityNames((raw.saving_throws as { name?: string }[]) ?? []) },
-    // Beim Import NICHT ableitbar (steht nicht in v2) — bleibt leer und wird im Vault gepflegt.
+    // Beim Import NICHT ableitbar (steht nicht in v2) — bleiben leer und werden im Vault
+    // gepflegt. Ein Re-Import über die Sidebar darf sie deshalb nicht überschreiben.
     skillGrantMulticlass: { fixed: [], choose: 0, from: [] },
+    startingEquipmentDe: '',
     startingEquipment: core.startingEquipment,
     document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
     levels,
