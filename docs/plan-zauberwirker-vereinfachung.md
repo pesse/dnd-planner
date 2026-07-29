@@ -61,21 +61,64 @@ Vokabulare nicht.
 
 ## Stufe 1 — Zauber-Zugang deklarieren
 
-### 1a Schema
+### 1a Warum ein EIGENER `kind` neben `spellcasting`
 
-`FEATURE_CHOICE_KINDS` (`schemas/shared.ts:214`) um `spellAccess` erweitern und
+`kind: "spellcasting"` (Kleriker, Zauberer …) ist ein **Zeiger**: „dies ist das Zauberwirken
+der Klasse". Es trägt bewusst keine Parameter, weil alle vier aus dem Besitzer ableitbar sind —
+Kontingente aus der Stufentabelle, Liste aus der Klasse selbst, Attribut aus
+`CASTER_ABILITY_KEY`. `count` ist dort ausdrücklich „ignoriert" (`shared.ts:210-212`).
+
+Magiekundiger ist der umgekehrte Fall: ein Talent hat keine Stufentabelle, keine eigene
+Zauberliste und kein Attribut. Nichts ist ableitbar, alles muss **in** der Deklaration stehen.
+
+Derselbe Mechanismus, andere Herkunft der Zahlen — deshalb ein zweiter `kind` statt
+Parameter am ersten:
+
+> `spellcasting` = **ableiten** (die Klasse besitzt die Zahlen).
+> `spellAccess` = **deklarieren** (das Merkmal besitzt sie).
+
+Dazu ein handfester Grund: `isSpellcastingFeature` (`spellcasting.ts:69`) bedeutet „dies ist
+das Klassen-Zauberwirken" und entscheidet über `spellcastingOffer`. Ein Talent mit
+`kind: "spellcasting"` würde dieses Prädikat wahr machen — der Preis wäre eine
+Zusatzbedingung („… und es deklariert keine Listen"), also genau die implizite Kopplung, die
+die Deklaration abschaffen soll.
+
+### 1b Schema
+
+`FEATURE_CHOICE_KINDS` (`schemas/shared.ts:214`) um `spellAccess` erweitern,
 `featureChoiceGrantSchema` (`:217`) um drei optionale Felder:
 
 ```ts
-spellLists: z.array(z.string()).default([])      // ["cleric","druid","wizard"]; Länge 1 = fest, keine Frage
-spellAbilities: z.array(z.enum(ABILITY_NAMES)).default([])  // Länge 1 = fest
-spellPicks: z.array(z.object({ level: z.number().int().min(0), count: z.number().int().min(1) })).default([])
+spellLists: z.array(z.string()).default([])
+  .describe('Nur bei kind="spellAccess": Zauberlisten (englische Klassen-Keys), aus denen gewählt wird. Länge 1 = fest.'),
+spellAbilities: z.array(z.enum(ABILITY_NAMES)).default([])
+  .describe('Nur bei kind="spellAccess": zulässige Zauberattribute. Länge 1 = fest.'),
+spellPicks: z.array(z.object({
+  level: z.number().int().min(0),   // 0 = Zaubertrick
+  count: z.number().int().min(1),
+})).default([])
+  .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
 ```
 
-`spellPicks` ersetzt `count` für diese Art (`count` bleibt bei `featCategory`). Danach
-`npm run schema:examples`.
+**Die eine Regel, die beide Listen tragen: Länge 1 = fest, Länge > 1 = protokollierte
+Entscheidung.** Die Deklaration sagt nicht „frag das ab", sondern welche Werte zulässig sind;
+gefragt wird nur, wo es mehr als einen gibt. Damit fällt der Sonderfall Hintergrund von selbst
+weg (siehe 1d), und ein Homebrew-Talent „Magiekundiger (Magier)" ist eine Datenzeile, kein
+Code-Zweig.
 
-### 1b Das Feld an das Talent hängen
+`count` bleibt unberührt bei `featCategory`; `spellPicks` ist die Kontingent-Angabe dieser Art.
+Danach `npm run schema:examples`.
+
+Was **nicht** ins JSON kommt, obwohl es im Regeltext steht:
+
+* *„stets vorbereitet, zählt nicht gegen das Kontingent"* — `buildSpellSelection` behandelt
+  `featurePicks` schon so (`spellcasting.ts:216-249`). Ein Feld, das niemand liest, wäre nur
+  eine zweite Wahrheit.
+* *„1× ohne Zauberplatz je Lange Rast"*, *„bei jeder Stufe einen Zauber tauschen"* — Bogen-Prosa.
+  Die deutsche Zeile schreibt der Feld-Zusammenfassungs-Call ohnehin aus `descDe`; es geht
+  nichts verloren.
+
+### 1c Das Feld an das Talent hängen
 
 `featSchema` (`schemas/feat.ts`) kennt `grantsChoice` noch nicht — hinzufügen, analog
 `classProgression.ts:63`. Dann in `vault/feats/magic-initiate.json`:
@@ -85,13 +128,41 @@ spellPicks: z.array(z.object({ level: z.number().int().min(0), count: z.number()
   "kind": "spellAccess",
   "spellLists": ["cleric", "druid", "wizard"],
   "spellAbilities": ["Intelligence", "Wisdom", "Charisma"],
-  "spellPicks": [{ "level": 0, "count": 2 }, { "level": 1, "count": 1 }]
+  "spellPicks": [
+    { "level": 0, "count": 2 },
+    { "level": 1, "count": 1 }
+  ]
 }
 ```
+
+Vokabular-Herkunft, damit keine vierte Tabelle entsteht:
+
+* `spellLists` trägt genau die Werte, die `AnalysisChoice.spellClass` heute trägt (kleine
+  englische Klassen-Keys) — der Zauberfilter im Schritt bleibt unangetastet. Deutsch für die
+  Anzeige kommt aus der Klassenbibliothek, EN→Key aus `resolveClass` (`spellLibrary.ts:137`,
+  kennt „Wizard" wie „Magier").
+* `spellAbilities` nutzt `ABILITY_NAMES` (`shared.ts:160`) — das geschlossene englische
+  Vokabular, wie `background.abilityScores`. Deutsch über `ABILITY_TO_EN`/`ABILITY_FROM_EN`
+  (`classProgression.ts:36`) und `CASTER_ABILITY_DE` (`spellcasting.ts:44`).
 
 Das ist eine Vault-Änderung → gegen `vault/CLAUDE.md` prüfen (Provenance `srd-2024`) und
 darauf achten, dass ein Re-Import aus Open5e sie nicht wegwirft (dieselbe Klasse Problem wie
 `skillGrantMulticlass`).
+
+### 1c′ Protokollieren — ohne Schema-Änderung am Charakter
+
+Beide Entscheidungen sind Aufbau-Entscheidungen und landen im vorhandenen Merkmals-Ledger:
+`assembleCharacter.ts:199-211` schreibt **einen `features[]`-Eintrag pro getroffener Wahl**, also
+zwei Einträge mit demselben `sourceKey` `srd-2024_magic-initiate` (`choice: "Wizard"` /
+`choice: "Intelligence"`, `choiceDe` „Magier" / „Intelligenz"). Mehrere Einträge pro Key sind
+schon der Bestand (Expertise auf 1 und 6, `characterFeatureSchema:100`).
+
+Zurücklesen ist dadurch eindeutig, **weil die Vokabulare in der Deklaration stehen**: ein Wert
+aus `spellLists` ist die Liste, einer aus `spellAbilities` das Attribut. Kein neues
+Charakterfeld, kein `_version`-Bump, und `collectPastChoices` nimmt beide ohne Zutun mit.
+
+Nebeneffekt, den erst die Deklaration möglich macht: „mehrfach nehmbar, aber jedes Mal eine
+andere Liste" wird zu einem Filter über die vorhandenen Einträge desselben `sourceKey`.
 
 ### 1c Den Eingang filtern
 
@@ -110,9 +181,11 @@ Kampfstil schon fährt (`:320-330`: flow-eigen, aus der KI-Analyse heraus, im Me
 Neuer Service `services/spellAccess.ts` — Vorbild `weaponMastery.ts` / `fightingStyle.ts`:
 
 * `spellAccessOffer(feature, specialisation)` → `{ lists, abilities, picks }`. Die
-  Spezialisierung des Hintergrunds (`featurePrep.ts:52`, `featSpecialisation`) kürzt `lists` auf
-  einen Wert — bei Akolyth, Führer und Weiser (die drei Hintergründe mit
-  `magic-initiate`) fällt die Listen-Frage damit ganz weg.
+  Spezialisierung des Hintergrunds (`featurePrep.ts:52`, `featSpecialisation`) läuft durch
+  `resolveClass` und kürzt `lists` auf einen Wert — bei Akolyth, Führer und Weiser (die drei
+  Hintergründe mit `magic-initiate`) fällt die Listen-Frage nach der Regel aus 1b damit ganz
+  weg, ohne Sonderbehandlung. Trifft die Angabe keinen Wert aus `spellLists`, bleibt die Frage
+  stehen — das ist der sichere Ausgang, nicht ein Fehler.
 * Liste und Attribut werden **flow-eigene** Fragen, keine `AnalysisChoice`. Deutsch kommt aus
   vorhandenen Tabellen (`CASTER_ABILITY_DE` in `spellcasting.ts:44`, Klassennamen aus der
   Bibliothek) — **keine neue Übersetzungstabelle**, und kein Übersetzungs-Call.
