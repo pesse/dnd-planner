@@ -29,12 +29,9 @@ import {
 /**
  * Die gemeinsame Doktrin, in drei Bausteinen — sie hat drei verschiedene Leser:
  *
- *   `SHEET_NOTE_CONTENT`        WAS eine Zeile verdient → dieser Prompt + Merkmals-Deutung
- *   `SHEET_NOTE_EXAMPLE_EN`     derselbe Maßstab englisch → nur die Merkmals-Deutung
- *   `SHEET_NOTE_GERMAN_WORDING` Wortlaut/Abkürzungen → dieser Prompt + Übersetzer
- *   `SHEET_NOTE_GERMAN_ONE_LINE` eine Notiz = eine Zeile → nur der Übersetzer
- *   `SHEET_NOTE_GERMAN_LAYOUT`  mehrere Einträge in einem Feld → nur dieser Prompt
- *                               (`SHEET_NOTE_GERMAN_FORM` = Wortlaut + Layout, sein Aufrufer)
+ *   `SHEET_NOTE_CONTENT`     WAS eine Zeile verdient → dieser Prompt + Merkmals-Deutung
+ *   `SHEET_NOTE_EXAMPLE_EN`  derselbe Maßstab englisch → nur die Merkmals-Deutung
+ *   `SHEET_NOTE_GERMAN_FORM` WIE die deutsche Zeile aussieht → dieser Prompt + Übersetzer
  *
  * Getrennt statt doppelt: sonst optimiert man zwei Fassungen derselben Regel. Jeder Leser
  * bekommt nur seine Bausteine — dieser Prompt schreibt direkt Deutsch und braucht daher
@@ -63,26 +60,9 @@ Action Surge: one extra action (not Magic) once per Short/Long Rest.
 Darkvision 120 ft
 Dwarven Resilience: Resistance to Poison damage, Advantage on saves against the Poisoned condition.`;
 
-/** Die deutsche Wort-Hälfte: Wortlaut und Abkürzungen. Sie gilt für beide deutschen Leser. */
-export const SHEET_NOTE_GERMAN_WORDING = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".`;
-
-/**
- * Derselbe Maßstab als EINZEILER — für den Übersetzer der Bogen-Notizen, der je Notiz genau
- * eine Zeile liefert. Er darf die Layout-Vorlage unten NICHT sehen: Namen auf eigener Zeile,
- * Leerzeilen und Abschnitts-Überschriften sind dort das Gegenteil seiner Regel 4 (gemessen
- * 2026-07-29: Notizen bis 195 Zeichen gegen ein hartes Budget von 160). Beide Beispielzeilen
- * stammen wörtlich aus der Bibliothek und liegen selbst unter dem Budget; die Dunkelsicht-Zeile
- * bleibt bewusst weg — sie würde eine konkurrierende Reichweite vorgeben.
- */
-export const SHEET_NOTE_GERMAN_ONE_LINE = `Each note is ONE line, and this is the depth that works:
-Zweiter Wind: Bonusaktion, stellt 1W10+Kämpferstufe TP wieder her. 2 Anwendungen; 1 zurück nach Kurzer Rast, alle nach Langer Rast.
-Zwergische Widerstandskraft: Resistenz gegen Giftschaden, Vorteil auf RW gegen den Zustand Vergiftet.`;
-
-/**
- * Die Layout-Hälfte: mehrere Einträge in EINEM Feld. Nur `FIELD_SUMMARY_SYSTEM` liest sie —
- * es schreibt das ganze Freitext-Feld, der Übersetzer nur einzelne Zeilen.
- */
-export const SHEET_NOTE_GERMAN_LAYOUT = `This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
+/** Die deutsche Form-Hälfte: Wortlaut, Abkürzungen, Layout. */
+export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
+This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
 [Klassenmerkmale]
 Zweiter Wind:
 Bonusaktion, stellt 1W10+Kämpferstufe TP wieder her. 2 Anwendungen; 1 zurück nach Kurzer Rast, alle nach Langer Rast.
@@ -98,11 +78,7 @@ Dunkelsicht 36 m
 Zwergische Widerstandskraft:
 Resistenz gegen Giftschaden, Vorteil auf RW gegen den Zustand Vergiftet.`;
 
-/** Wortlaut + Layout zusammen — für den einen Leser, der ein ganzes Feld schreibt. */
-export const SHEET_NOTE_GERMAN_FORM = `${SHEET_NOTE_GERMAN_WORDING}
-${SHEET_NOTE_GERMAN_LAYOUT}`;
-
-const FIELD_SUMMARY_SYSTEM =`You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
+const FIELD_SUMMARY_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 You rewrite ONE German free-text field of a character sheet, so the player can play from it. <target_field> says which field it is and what belongs in it. Return its FULL new text.
 
 ## Input (only <current_text> is always there)
