@@ -1,0 +1,20 @@
+{
+  "groups": [
+    {
+      "source": "string",
+      "options": [
+        {
+          "label": "string",
+          "description": "string",
+          "items": [
+            {
+              "name": "string",
+              "count": 1
+            }
+          ],
+          "goldPieces": 0
+        }
+      ]
+    }
+  ]
+}

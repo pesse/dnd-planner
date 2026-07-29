@@ -37,7 +37,7 @@ export interface GainedFeature {
   name: string;
   desc: string; // Original-Regeltext (EN) — maßgeblich für die Mechanik
   descDe?: string; // Übersetzung — liefert die deutschen Begriffe für Fragen/Optionen
-  source: 'class' | 'subclass' | 'feat';
+  source: 'class' | 'subclass' | 'feat' | 'species';
   gainedAt: number;
   key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
   choice?: string; // Bereits getroffene Entscheidung — verhindert, dass sie erneut gefragt wird
@@ -127,13 +127,15 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 \`\`\`json
 {
   "choices": [
-    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
+    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "help": "<short German summary of the options' consequences>", "optionHelp": { "<German option>": "<its concrete German consequence>" }, "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
   ],
   "spellsToGround": ["Canonical English Spell Name"],
   "blocked": false
 }
 \`\`\`
 - choices: EVERY forced player choice (incl. fighting style, expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), or "text" (free). options=[] if free text. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet. featureKey and isBuildDecision as specified above.
+  - help: a SHORT German one-liner (≤120 chars) summarising the MECHANICAL consequences of the options, so the player understands the trade-off (e.g. "Wächter → Kriegswaffen + mittlere Rüstung; Magier → ein zusätzlicher bekannter Zaubertrick" or "bestimmt Schadensart von Odemwaffe und Resistenz"). Empty string if the options carry no notable consequence.
+  - optionHelp: an object mapping EACH option label (verbatim, same string as in "options") to its own concrete German consequence (≤60 chars each), whenever the options differ mechanically — e.g. for Draconic Ancestry {"Schwarz": "Säureschaden", "Blau": "Blitzschaden", "Rot": "Feuerschaden"}, for a fighting style each style's effect. Use {} when the options carry no per-option consequence (e.g. picking Expertise skills).
 - spellsToGround: canonical ENGLISH names of always-prepared spell grants to resolve NOW (empty [] if none or if blocked).
 - blocked: true if a determinesFurtherEffects choice is still open (not yet in <resolved_choices>) and therefore blocks stating spell grants.`;
 
@@ -182,6 +184,10 @@ export interface AnalysisChoice {
   question: string;
   type: 'choice' | 'multiselect' | 'text';
   options: string[];
+  /** Knappe deutsche Zusammenfassung der Konsequenzen (Tooltip); leer, wenn keine. */
+  help: string;
+  /** Je Option (Schlüssel = Options-Label) ihre konkrete deutsche Konsequenz, z.B. „Schwarz"→„Säureschaden". */
+  optionHelp: Record<string, string>;
   max: number;
   determinesFurtherEffects: boolean;
   /** false = Wahl pro Einsatz (Kanalisierte Göttlichkeit u.ä.) → wird nicht protokolliert. */
@@ -216,6 +222,15 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
     question: o.question,
     type,
     options: Array.isArray(o.options) ? o.options.filter((x): x is string => typeof x === 'string') : [],
+    help: typeof o.help === 'string' ? o.help.trim() : '',
+    optionHelp:
+      o.optionHelp && typeof o.optionHelp === 'object' && !Array.isArray(o.optionHelp)
+        ? Object.fromEntries(
+            Object.entries(o.optionHelp as Record<string, unknown>)
+              .filter(([, v]) => typeof v === 'string' && v.trim())
+              .map(([k, v]) => [k, (v as string).trim()]),
+          )
+        : {},
     max: typeof o.max === 'number' && o.max > 0 ? Math.floor(o.max) : 1,
     determinesFurtherEffects: o.determinesFurtherEffects === true,
     // Vorsichtiger Default: eine nicht als Aufbau-Wahl markierte Antwort wird nur

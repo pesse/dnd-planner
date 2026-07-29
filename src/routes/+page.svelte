@@ -373,8 +373,19 @@
     function onError(e: ErrorEvent) {
       pushError(e.message || String(e));
     }
+    // Wird ein laufender Stream-Request abgebrochen (z.B. beim Schließen des
+    // Charakter-Wizards, der KI-Jobs nebenläufig fährt), räumt der Tauri-HTTP-Plugin
+    // die Body-Ressource doppelt ab: das zweite `fetch_cancel_body` läuft ins Leere
+    // und der Plugin `void`t die Rejection → sie landet hier als unhandled. Diese
+    // Teardown-Rennen sind bedeutungslos; nur echte Fehler sollen einen Toast erzeugen.
+    const isBenignAbortNoise = (msg: string): boolean =>
+      msg === 'Request cancelled' || /the resource id \d+ is invalid/i.test(msg);
     function onUnhandled(e: PromiseRejectionEvent) {
       const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+      if (isBenignAbortNoise(msg)) {
+        e.preventDefault();
+        return;
+      }
       pushError(msg);
     }
 

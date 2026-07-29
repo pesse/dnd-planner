@@ -105,7 +105,7 @@ const featureDecisionSchema = z.object({
  */
 const featureRiderSchema = z.object({
   featureName: z.string().default('').describe('Which feature/feat emitted this rider.'),
-  source: z.enum(['class', 'subclass', 'feat']).default('class'),
+  source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
   grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
   extraCantrips: z.number().int().default(0),
   extraPreparedCount: z.number().int().default(0).describe('Additional spells the player may prepare because of this feature.'),

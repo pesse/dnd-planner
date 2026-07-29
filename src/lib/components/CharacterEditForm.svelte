@@ -10,9 +10,9 @@
     collectGrants, abilityLabelDe, skillLabelDe, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
     type CollectedGrants, type OpenChoice,
   } from '../services/proficiencyGrants';
-  import { masteryOffer, masteryName, type MasteryOffer } from '../services/weaponMastery';
+  import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
-  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
@@ -36,6 +36,7 @@
   import FeatTooltip from './FeatTooltip.svelte';
   import CreateCardModal from './CreateCardModal.svelte';
   import Markdown from './Markdown.svelte';
+  import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
@@ -713,24 +714,6 @@
       .catch(() => { if (!cancelled) mastery = null; });
     return () => { cancelled = true; };
   });
-
-  /**
-   * Gewähltes, das nicht (mehr) wählbar ist: Übung abgewählt, Waffe aus dem Vault
-   * verschwunden, Klasse getauscht. Wird ANGEZEIGT statt still gekappt — sonst
-   * verschwände eine Wahl unbemerkt.
-   */
-  const masteryOverflow = $derived(
-    mastery ? masteries.filter((n) => !mastery!.weapons.some((w) => masteryName(w) === n)) : [],
-  );
-
-  /**
-   * Wahl umschalten. Am Maximum wird BLOCKIERT, nicht (wie `toggleIn` im
-   * Aufstiegs-Assistenten) die älteste herausgeschoben — der Tausch soll bewusst sein.
-   */
-  function toggleMastery(name: string) {
-    if (masteries.includes(name)) masteries = masteries.filter((n) => n !== name);
-    else if (masteries.length < (mastery?.allowance ?? 0)) masteries = [...masteries, name];
-  }
 
   // ─── Zauber-SG / -Angriffsbonus: reaktive Berechnung ─────
   // Zauberattribut (Freitext, z.B. "INT" / "Weisheit") → Modifikator.
@@ -1856,56 +1839,11 @@
        Kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. -->
   {#if mastery && mastery.allowance > 0}
     <section>
-      <div class="grant-panel mastery-panel" use:diffMark={dirOf(saved?.masteries, $state.snapshot(masteries))}>
-        <div class="grant-head">
-          <span class="grant-title">
-            Waffenbeherrschung — {mastery.className}: {mastery.allowance}
-            {mastery.allowance === 1 ? 'Waffe' : 'Waffen'}
-          </span>
-          <span class="mastery-count" class:full={masteries.length >= mastery.allowance}>
-            {masteries.length} von {mastery.allowance} belegt
-          </span>
-        </div>
-        <p class="mastery-hint">
-          Nach jeder langen Rast änderbar.{#if mastery.meleeOnly} Nur Nahkampfwaffen.{/if}
-        </p>
-
-        {#if mastery.weapons.length}
-          <div class="grant-options">
-            {#each mastery.weapons as w (w.path)}
-              {@const wName = masteryName(w)}
-              {@const picked = masteries.includes(wName)}
-              <button
-                type="button"
-                class="grant-opt mastery-opt"
-                class:picked
-                disabled={!picked && masteries.length >= mastery.allowance}
-                title={MASTERY_INFO[w.mastery].descDe}
-                onclick={() => toggleMastery(wName)}
-              >{wName} <span class="mastery-prop">({masteryLabel(w.mastery)})</span></button>
-            {/each}
-          </div>
-        {/if}
-
-        {#if mastery.weapons.length < mastery.allowance}
-          <p class="mastery-warn">
-            Nur {mastery.weapons.length} wählbare {mastery.weapons.length === 1 ? 'Waffe' : 'Waffen'} in der Bibliothek —
-            Waffen brauchen eine gepflegte Meisterschaftseigenschaft und eine passende Kategorie.
-          </p>
-        {/if}
-
-        {#if masteryOverflow.length}
-          <p class="mastery-warn">
-            Nicht (mehr) wählbar — Übung abgewählt oder Waffe fehlt in der Bibliothek:
-          </p>
-          <div class="grant-options">
-            {#each masteryOverflow as name}
-              <button type="button" class="grant-opt mastery-opt overflow" title="Entfernen"
-                onclick={() => toggleMastery(name)}>{name} ✕</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+      <WeaponMasteryPicker
+        offer={mastery}
+        bind:masteries
+        diff={dirOf(saved?.masteries, $state.snapshot(masteries))}
+      />
     </section>
   {/if}
 
@@ -2509,18 +2447,6 @@
   .grant-opt.picked { background: color-mix(in srgb, var(--copper) 30%, var(--bg-panel)); color: var(--ink); border-color: var(--copper); }
   .grant-opt.already { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); cursor: default; }
   .grant-opt:disabled { opacity: 0.45; cursor: not-allowed; }
-
-  /* Waffenbeherrschung: dasselbe Panel, aber ohne Label-Spalte (kein „Übernehmen" —
-     die Chips SIND die Wahl), deshalb kein Einzug der Chip-Reihe. */
-  .mastery-panel .grant-options { padding-left: 0; }
-  .mastery-count { font-size: 0.72rem; color: var(--ink-muted); }
-  .mastery-count.full { color: var(--copper); }
-  .mastery-hint { margin: 0; font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
-  .mastery-opt { cursor: help; }
-  .mastery-prop { color: var(--ink-muted); }
-  .mastery-opt.picked .mastery-prop { color: var(--ink-soft); }
-  .mastery-opt.overflow { border-color: var(--danger); color: var(--danger); }
-  .mastery-warn { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--danger); }
 
   /* Angriffe */
   .attack-table {

@@ -14,6 +14,8 @@
   import { updateState, updateDialogOpen } from '../stores/update';
   import { libraries, libraryManagerOpen, updateCount } from '../stores/libraries';
   import CreateCardModal from './CreateCardModal.svelte';
+  import CharacterWizard from './CharacterWizard.svelte';
+  import type { Character } from '../schemas/character';
   import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell } from '../services/dndApi';
   import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem } from '../services/open5eApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
@@ -288,6 +290,7 @@
   }
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
+  let showWizard = $state(false);
   let pdfImporting = $state(false);
   let pdfImportError = $state('');
   // Stapel-Upgrade der Charakter-Dateien auf CHARACTER_VERSION (services/characterUpgrade.ts).
@@ -398,6 +401,24 @@
 
   function cancelNewChar(e: KeyboardEvent) {
     if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
+  }
+
+  /** Übernimmt den vom Wizard fertig zusammengesetzten Charakter: Verzeichnis + Dateien anlegen, öffnen. */
+  async function createFromWizard(character: Character) {
+    const raw = (character.name || 'Neuer Charakter').trim();
+    const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '') || 'charakter';
+    const dirPath = `${CHARACTERS_PATH}/${slug}`;
+    const gmNotes = `# GM-Notizen: ${raw}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
+    try {
+      await invoke('write_file_content', { path: `${dirPath}/character.json`, content: JSON.stringify(character, null, 2) });
+      await invoke('write_file_content', { path: `${dirPath}/gm-notes.md`, content: gmNotes });
+      showWizard = false;
+      charactersExpanded = true;
+      await loadCharacters();
+      await openCharacter({ name: slug, is_dir: true });
+    } catch (err) {
+      console.error('Charakter konnte nicht erstellt werden:', err);
+    }
   }
 
   async function importFromPdf() {
@@ -1310,7 +1331,7 @@
       <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
         {pdfImporting ? '…' : 'PDF'}
       </button>
-      <button class="add-btn" title="Neuer Charakter" onclick={() => { charactersExpanded = true; loadCharacters(); showNewCharInput = true; newCharInput = ''; }}>
+      <button class="add-btn" title="Neuer Charakter" onclick={() => { showWizard = true; }}>
         +
       </button>
     </div>
@@ -1780,6 +1801,10 @@
 
   {#if showCharacterUpgrade}
     <CharacterUpgradeModal onclose={() => { showCharacterUpgrade = false; loadCharacters(); }} />
+  {/if}
+
+  {#if showWizard}
+    <CharacterWizard onComplete={createFromWizard} onCancel={() => (showWizard = false)} />
   {/if}
 
   {#if createModal === 'monster'}

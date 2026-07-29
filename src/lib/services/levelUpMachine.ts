@@ -353,6 +353,7 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
       id: c.id,
       type: c.type === 'multiselect' ? 'multiselect' : c.type === 'text' ? 'text' : 'choice',
       prompt: c.question,
+      help: c.help,
       options: c.options.map((o) => opt(o, o)),
       max: c.type === 'multiselect' ? Math.max(1, c.max) : undefined,
       resolvesEffects: c.determinesFurtherEffects,
