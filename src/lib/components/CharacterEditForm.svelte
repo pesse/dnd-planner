@@ -5,11 +5,7 @@
   import { confirmNavigation } from '../stores/navigationGuard';
   import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type Attack } from '../pdf/characterFields';
   import type { SkillName } from '../schemas/shared';
-  import { ABILITY_FROM_EN } from '../services/classProgression';
-  import {
-    collectGrants, abilityLabelDe, skillLabelDe, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
-    type CollectedGrants, type OpenChoice,
-  } from '../services/proficiencyGrants';
+  import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
@@ -637,14 +633,12 @@
 
   // ─── Übungs-Grants aus den Bibliotheks-Links ─────────────
   // Deterministisch abgeleitet (Hintergrund + Startklasse + Mehrklassen + Spezies-
-  // Merkmale + Talente), ANGEBOTEN statt still angewandt: die Häkchen bleiben die
-  // Wahrheit, das Panel vergleicht nur Ist gegen Soll. Siehe services/proficiencyGrants.ts.
+  // Merkmale + Talente). Im Editor NUR noch Herkunfts-ANZEIGE: die ◆-Marker an Fertigkeiten
+  // und die Herkunftshinweise an Waffen/Rüstung/RW. Das aktive „Übernehmen"-Panel gehört in
+  // Erstellung/Level-Up, nicht in den Editor. Siehe services/proficiencyGrants.ts.
   let grants = $state<CollectedGrants | null>(null);
-  /** Getroffene Auswahl je offener Wahl (Index in `grants.choices`). */
-  let choicePicks = $state<Record<number, SkillName[]>>({});
 
-  // Nur die LINKS sind Abhängigkeit des Panels — nicht die Häkchen, sonst lüde es
-  // bei jedem Klick neu. Das Derived liest sie synchron, der Effect hängt daran.
+  // Nur die LINKS sind Abhängigkeit — nicht die Häkchen, sonst lüde es bei jedem Klick neu.
   const grantLinks = $derived.by(() => ({
     classes: classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, subclassKey: c.subclassKey })),
     species: { sourceKey: species.sourceKey, subspeciesKey: species.subspeciesKey },
@@ -656,7 +650,7 @@
     const input = grantLinks;
     let cancelled = false;
     void collectGrants(input)
-      .then((g) => { if (!cancelled) { grants = g; choicePicks = {}; } })
+      .then((g) => { if (!cancelled) grants = g; })
       .catch(() => { if (!cancelled) grants = null; });
     return () => { cancelled = true; };
   });
@@ -690,74 +684,6 @@
     heavy: grantSourcesFor(grants?.armor, 'Heavy'),
     shields: grantSourcesFor(grants?.armor, 'Shields'),
   });
-
-  /** Wie viele Fertigkeiten einer Wahl auf dem Bogen schon geübt sind. */
-  function choiceTaken(choice: OpenChoice): number {
-    const options = choice.from.length ? choice.from : SKILL_DEFS.map((d) => d.en);
-    return options.filter((en) => skillFlags[skillSheetKey(en)]?.prof).length;
-  }
-
-  function choiceOptions(choice: OpenChoice): SkillName[] {
-    return choice.from.length ? choice.from : SKILL_DEFS.map((d) => d.en);
-  }
-
-  function togglePick(index: number, skill: SkillName, choose: number) {
-    const current = choicePicks[index] ?? [];
-    choicePicks[index] = current.includes(skill)
-      ? current.filter((s) => s !== skill)
-      : [...current, skill].slice(-choose); // über das Limit hinaus rutscht die älteste raus
-  }
-
-  /** Setzt eine Rettungswurf-Übung über den englischen Attributsnamen. */
-  function applySave(en: string) {
-    switch (ABILITY_FROM_EN[en.toLowerCase()]) {
-      case 'str': strSaveProf = true; break;
-      case 'ges': gesSaveProf = true; break;
-      case 'kon': konSaveProf = true; break;
-      case 'int': intSaveProf = true; break;
-      case 'wei': weiSaveProf = true; break;
-      case 'cha': chaSaveProf = true; break;
-    }
-  }
-
-  /**
-   * Übernimmt die Grants in die Häkchen. Rein ADDITIV — nichts wird zurückgenommen,
-   * weil der Bogen auch Übungen aus Merkmalen/Handwaage tragen kann, die hier keine
-   * Quelle haben. Mehrfaches Klicken ist dadurch folgenlos (idempotent).
-   */
-  function applyGrants() {
-    if (!grants) return;
-    for (const g of grants.skills) {
-      const key = skillSheetKey(g.value);
-      if (skillFlags[key]) skillFlags[key].prof = true;
-    }
-    for (const picks of Object.values(choicePicks))
-      for (const en of picks) {
-        const key = skillSheetKey(en);
-        if (skillFlags[key]) skillFlags[key].prof = true;
-      }
-    for (const s of grants.savingThrows) applySave(s.value);
-    for (const w of grants.weapons) {
-      if (w.value === 'Simple') profSimpleWeapons = true;
-      if (w.value === 'Martial') profMartialWeapons = true;
-    }
-    const others = grants.weaponsOther.map((w) => w.value).filter((w) => !profOtherWeapons.includes(w));
-    if (others.length) profOtherWeapons = [profOtherWeapons, ...others].filter(Boolean).join('; ');
-    for (const a of grants.armor) {
-      if (a.value === 'Light') profLightArmor = true;
-      if (a.value === 'Medium') profMediumArmor = true;
-      if (a.value === 'Heavy') profHeavyArmor = true;
-      if (a.value === 'Shields') profShields = true;
-    }
-    choicePicks = {};
-  }
-
-  /** true, sobald es überhaupt etwas anzubieten gibt. */
-  const hasGrants = $derived(
-    Boolean(grants) &&
-    (grants!.skills.length || grants!.choices.length || grants!.savingThrows.length ||
-      grants!.weapons.length || grants!.weaponsOther.length || grants!.armor.length),
-  );
 
   // ─── Waffenbeherrschung (5e 2024) ────────────────────────
   // Anders als beim Grant-Panel sind die HÄKCHEN hier Eingabe, nicht nur Vergleichs-
@@ -1730,67 +1656,6 @@
   <section>
     <h3>Fertigkeiten</h3>
 
-    {#if hasGrants && grants}
-      <!-- Grant-Panel: deterministisch aus den Bibliotheks-Links abgeleitet, per Klick
-           übernommen — nie still überschrieben. -->
-      <div class="grant-panel">
-        <div class="grant-head">
-          <span class="grant-title">Aus Hintergrund, Klasse, Volk &amp; Talenten</span>
-          <button type="button" class="grant-apply" onclick={applyGrants}>Übernehmen</button>
-        </div>
-
-        {#if grants.skills.length}
-          <div class="grant-line">
-            <span class="grant-label">Fest</span>
-            <span class="grant-value">
-              {grants.skills.map((g) => `${skillLabelDe(g.value)} (${g.source.label})`).join(', ')}
-            </span>
-          </div>
-        {/if}
-
-        {#each grants.choices as choice, i}
-          <div class="grant-choice">
-            <div class="grant-line">
-              <span class="grant-label">{choice.source.label}</span>
-              <span class="grant-value">
-                {choice.from.length ? `${choice.choose} aus ${choice.from.length}` : `${choice.choose} frei wählbar`}
-                — {choiceTaken(choice)} von {choice.choose} belegt
-              </span>
-            </div>
-            <div class="grant-options">
-              {#each choiceOptions(choice) as en}
-                {@const sheetKey = skillSheetKey(en)}
-                {@const already = skillFlags[sheetKey]?.prof}
-                <button
-                  type="button"
-                  class="grant-opt"
-                  class:picked={(choicePicks[i] ?? []).includes(en)}
-                  class:already
-                  disabled={already}
-                  title={already ? 'schon geübt' : 'zur Übernahme vormerken'}
-                  onclick={() => togglePick(i, en, choice.choose)}
-                >{skillLabelDe(en)}</button>
-              {/each}
-            </div>
-          </div>
-        {/each}
-
-        {#if grants.savingThrows.length || grants.weapons.length || grants.weaponsOther.length || grants.armor.length}
-          <div class="grant-line">
-            <span class="grant-label">Außerdem</span>
-            <span class="grant-value">
-              {[
-                ...grants.savingThrows.map((s) => `RW ${abilityLabelDe(s.value)}`),
-                ...grants.weapons.map((w) => WEAPON_LABEL_DE[w.value]),
-                ...grants.weaponsOther.map((w) => w.value),
-                ...grants.armor.map((a) => ARMOR_LABEL_DE[a.value]),
-              ].join(', ')}
-            </span>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
     <label class="check-row alleskoenner" use:diffMark={dirOf(saved?.alleskoenner, alleskoenner)}>
       <input type="checkbox" bind:checked={alleskoenner} />
       <span>Alleskönner</span>
@@ -2517,37 +2382,9 @@
   .skill-val { font-weight: 600; margin-left: auto; }
 
   /* Grant-Panel: Angebot aus den Bibliotheks-Links (Herkunft, Klasse, Volk, Talente) */
+  /* ◆-Herkunftsmarker an Fertigkeiten/Übungen (das aktive Grant-Panel wurde entfernt —
+     Übungen ableiten gehört in Erstellung/Level-Up, nicht in den Editor). */
   .grant-mark { color: var(--copper); font-size: 0.62rem; cursor: help; }
-  .grant-panel {
-    border: 1px solid color-mix(in srgb, var(--copper) 35%, var(--surface));
-    border-radius: 5px; background: color-mix(in srgb, var(--copper) 6%, var(--bg-panel));
-    padding: 0.45rem 0.6rem; margin-bottom: 0.5rem;
-    display: flex; flex-direction: column; gap: 0.3rem;
-  }
-  .grant-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .grant-title {
-    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--copper);
-  }
-  .grant-apply {
-    background: var(--surface); border: 1px solid var(--copper); border-radius: 4px;
-    color: var(--copper); cursor: pointer; font-family: inherit; font-size: 0.76rem;
-    padding: 0.15rem 0.55rem;
-  }
-  .grant-apply:hover { background: color-mix(in srgb, var(--copper) 20%, var(--surface)); }
-  .grant-line { display: grid; grid-template-columns: 9rem 1fr; gap: 0.4rem; font-size: 0.78rem; }
-  .grant-label { color: var(--ink-muted); }
-  .grant-value { color: var(--ink-soft); }
-  .grant-choice { display: flex; flex-direction: column; gap: 0.2rem; }
-  .grant-options { display: flex; flex-wrap: wrap; gap: 0.25rem; padding-left: 9.4rem; }
-  .grant-opt {
-    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
-    color: var(--ink-soft); cursor: pointer; font-family: inherit; font-size: 0.74rem;
-    padding: 0.05rem 0.45rem;
-  }
-  .grant-opt:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
-  .grant-opt.picked { background: color-mix(in srgb, var(--copper) 30%, var(--bg-panel)); color: var(--ink); border-color: var(--copper); }
-  .grant-opt.already { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); cursor: default; }
-  .grant-opt:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* Angriffe */
   .attack-table {
