@@ -341,6 +341,30 @@ klassischen Verwechslung. Im K3-Lauf trat sie in 2 von 5 Läufen auf (Gnomische 
 auf 5/5, der Ausfall trat erst im K3-Lauf auf. Entweder waren die 15 Läufe davor Glück oder K3
 hat Aufmerksamkeit umverteilt — die Warnung kostet vier Zeilen und schließt beides ab.
 
+### K5 — hartes Zeichenbudget für die `sheetNote`
+
+*Hypothese:* Regel 10 sagte „max ~${SHEET_NOTE_EN_MAX_CHARS} characters" — mit Tilde und ohne
+Bezug zu einer Größe, die ein Modell im Schreiben abschätzen kann. Gemessen rissen **10 von 25
+englischen Notizen** dieses Budget (max 177); weil der Übersetzer nur noch kürzen kann, kamen
+6 von 25 auch über die harte deutsche Grenze von 160.
+
+*Messung (5 Läufe, 25 Notizen):*
+
+| | vorher | K5 |
+|---|---|---|
+| EN-Notizen über 135 Zeichen | 10/25 | **3/25** |
+| Maximum EN | 177 | **152** |
+| Mittel EN | 105 | **90** |
+| DE-Notizen über 160 Zeichen | 6/25 | **3/25** |
+| alle Notiz-Inhaltsprüfungen (Dunkelsicht 18 m, Angeborene Zauberei, deutsch, Größe/Speed leer) | 5/5 | 5/5 |
+
+*Entscheidung:* übernommen. Die Inhaltsprüfungen zeigen, dass die Kürzung Wörter und nicht
+Mechanik getroffen hat — genau die Reihenfolge, die die Regel jetzt vorschreibt.
+
+*Bezeichnung:* K1–K5 und K7 sind die übernommenen Kandidaten in ihrer Messreihenfolge, V1/V2 die
+verworfenen. K5 und V2 wurden in EINEM Lauf gemessen (disjunkte Messgrößen: Notiz-Längen gegen
+Latenz/Tokens), K7 in einem eigenen.
+
 ---
 
 ## 4. Verworfene Kandidaten
