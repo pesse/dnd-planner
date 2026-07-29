@@ -75,18 +75,25 @@ function matches(f: ClassFeature, hints: string[]): boolean {
  * Reine „Wahl-Zeiger" unter den Klassenmerkmalen: Merkmale, deren einziger Inhalt eine
  * Entscheidung ist, die der Aufstiegs-Flow selbst deterministisch trifft — die Subklassen-
  * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint, die Attributs-
- * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte) und die
- * Waffenbeherrschung (Wahl im Charakterbogen, Optionen aus der Item-Bibliothek). Eigene
- * Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie die KI nur dazu verleiten,
- * eine längst getroffene Entscheidung erneut zu erzwingen — bei der Waffenbeherrschung
- * käme sogar eine LLM-erfundene Waffenliste heraus statt der aus dem Vault abgeleiteten.
+ * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte) und jede über
+ * `grantsChoice` DEKLARIERTE Wahl (Waffenbeherrschung, Kampfstil — Optionen aus der
+ * Bibliothek). Eigene Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie die KI
+ * nur dazu verleiten, eine längst getroffene Entscheidung erneut zu erzwingen — bei
+ * Waffenbeherrschung/Kampfstil käme sogar eine LLM-ERFUNDENE Options-Liste heraus statt der
+ * aus dem Vault abgeleiteten.
  *
+ * Der `grantsChoice`-Zweig ist die offene, deklarative Erkennung (auch für Homebrew).
+ * `isWeaponMasteryFeature` bleibt als Regex-Fallback für noch nicht gepflegte Merkmale.
  * Bewusst ENG gebunden — „subclass" statt `SUBCLASS_HINTS` (dessen weiche Begriffe patron,
- * circle, path … treffen sonst echte Merkmale wie „Contact Patron"), und
- * „weapon mastery"/„Waffenbeherrschung" statt „mastery" allein.
+ * circle, path … treffen sonst echte Merkmale wie „Contact Patron").
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
-  return /\bsubclass(es)?\b/i.test(f.name) || matches(f, ASI_HINTS) || isWeaponMasteryFeature(f);
+  return (
+    !!f.grantsChoice ||
+    /\bsubclass(es)?\b/i.test(f.name) ||
+    matches(f, ASI_HINTS) ||
+    isWeaponMasteryFeature(f)
+  );
 }
 
 /** Zaubertrick-Anzahl aus der (offenen) Spaltenmap; robust gegen Spaltennamen. */

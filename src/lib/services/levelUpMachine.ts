@@ -14,6 +14,7 @@
  * das Dokument ist dort ein `$derived` von `buildDoc` → das Protokoll ist eine reine Sicht.
  */
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
+import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
 import { skillLabelDe } from './proficiencyGrants';
 import type { ClassFeature } from '../schemas/classProgression';
@@ -445,6 +446,17 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
   // Rast änderbar, und eine KI-Frage hier würde eine erfundene Waffenliste anbieten.
   if (delta.masteryTo > delta.masteryFrom) {
     const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
+    out.push({ target: 'note', value, step, source: 'class-progression', label: value });
+  }
+  // Kampfstil: wie die Waffenbeherrschung nur ein HINWEIS, keine KI-Frage — das Merkmal ist
+  // über `grantsChoice` als flow-eigene Wahl markiert und fliegt daher aus der Merkmals-
+  // Analyse. Die eigentliche Wahl trifft der Charakterbogen (FightingStylePicker) aus der
+  // Talent-Bibliothek; ein Kampfstil ist ein Talent-Link und nach jeder Kämpferstufe tauschbar.
+  const styleFeatures = [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isFightingStyleFeature);
+  if (styleFeatures.length) {
+    const value = styleFeatures.length > 1
+      ? `Kampfstil: ${styleFeatures.length} neue — im Charakterbogen wählbar`
+      : 'Kampfstil: im Charakterbogen wählbar';
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });
   }
   for (const f of delta.featuresGained)

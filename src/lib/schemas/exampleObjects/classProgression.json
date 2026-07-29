@@ -64,7 +64,12 @@
       ],
       "desc": "string",
       "descDe": "string",
-      "featureType": "string"
+      "featureType": "string",
+      "grantsChoice": {
+        "kind": "weaponMastery",
+        "featCategory": "Origin",
+        "count": 1
+      }
     }
   ]
 }

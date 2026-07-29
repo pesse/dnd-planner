@@ -26,11 +26,17 @@ const MASTERY_COLUMN = 'Weapon Mastery';
 const MASTERY_DEFAULT = 2;
 
 /**
- * Ist dies das Merkmal „Waffenbeherrschung"? Bewusst ENG gebunden — `mastery` allein
- * würde auch andere Merkmale treffen (dieselbe Warnung wie bei
- * `isFlowOwnedChoiceFeature`, services/levelUp.ts).
+ * Ist dies das Merkmal „Waffenbeherrschung"? Primär DEKLARATIV über `grantsChoice`
+ * (offen für Homebrew, siehe featureChoiceGrantSchema in shared.ts). Trägt das Merkmal
+ * ein `grantsChoice`, ist dessen `kind` maßgeblich — ein Merkmal, das eine ANDERE Wahl
+ * deklariert (Kampfstil), ist damit ausdrücklich KEINE Waffenbeherrschung.
+ *
+ * Fallback für noch nicht gepflegte Merkmale (Altbestand / Homebrew ohne Feld): die
+ * bisherige Namensheuristik, bewusst ENG gebunden — `mastery` allein würde auch andere
+ * Merkmale treffen.
  */
 export function isWeaponMasteryFeature(f: ClassFeature): boolean {
+  if (f.grantsChoice) return f.grantsChoice.kind === 'weaponMastery';
   return (
     /weapon[-\s]?mastery/i.test(f.key ?? '') ||
     /\bweapon mastery\b/i.test(f.name) ||

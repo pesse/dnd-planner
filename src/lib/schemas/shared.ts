@@ -192,6 +192,40 @@ export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
 export const FEAT_CATEGORIES = ['Origin', 'General', 'Fighting Style', 'Epic Boon'] as const;
 export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
 
+/**
+ * Mechanik-gebundene Merkmalswahlen: Klassenmerkmale, deren einziger Inhalt eine Wahl aus
+ * einer FESTEN Regelmenge ist (Waffenbeherrschung, Kampfstil). Das Klassenmerkmal DEKLARIERT
+ * die Wahl über `grantsChoice` (classFeatureSchema) — der Aufstiegs-/Wizard-Flow löst die
+ * Optionen dann aus der Bibliothek auf, NIE aus der KI. Genau das schützt vor Halluzination:
+ * die KI könnte hier nur einen erfundenen Kampfstil/eine erfundene Waffe liefern.
+ *
+ * Deklarativ statt am Merkmals-Key erkannt, damit eine Homebrew-Klasse dieselbe Wahl gewährt,
+ * indem sie das Feld setzt — ohne Code-Änderung. Wie `item.mastery` und `feat.category` ein
+ * strukturiertes Feld am Inhalt, keine Namensheuristik.
+ *
+ *   - `weaponMastery`: Waffenbeherrschung. `count` wird IGNORIERT — das Kontingent kommt aus
+ *     der Stufentabelle (`masteryAllowanceFor`, services/weaponMastery.ts).
+ *   - `featCategory`: Wahl eines Talents aus `featCategory` (heute nur „Fighting Style"). `count`
+ *     = wie viele Talente dieses eine Merkmal gewährt (i.d.R. 1).
+ */
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory'] as const;
+export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
+
+export const featureChoiceGrantSchema = z.object({
+  kind: z.enum(FEATURE_CHOICE_KINDS),
+  featCategory: z
+    .enum(FEAT_CATEGORIES)
+    .optional()
+    .describe('Nur bei kind="featCategory": aus welcher Talent-Kategorie gewählt wird (z.B. "Fighting Style").'),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .default(1)
+    .describe('Wie viele Optionen dieses Merkmal gewährt. Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+});
+export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
+
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),

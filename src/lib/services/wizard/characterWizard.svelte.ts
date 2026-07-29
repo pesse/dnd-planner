@@ -151,6 +151,8 @@ export class CharacterWizard {
   toolPicks = $state<Record<string, string>>({});
   /** Gewählte Waffen der Waffenmeisterschaft (Bibliotheks-Namen; nur wenn die Klasse sie gewährt). */
   masteries = $state<string[]>([]);
+  /** Gewählte Kampfstile als Talent-Keys (sourceKey); nur wenn die Klasse einen Kampfstil gewährt. */
+  fightingStyles = $state<string[]>([]);
 
   // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
   resolvedChoices = $state<ResolvedChoice[]>([]);
@@ -338,6 +340,7 @@ export class CharacterWizard {
     this.equipmentSelection = [];
     this.toolPicks = {};
     this.masteries = [];
+    this.fightingStyles = [];
     this.kickoff();
   }
 
@@ -371,6 +374,17 @@ export class CharacterWizard {
     this.classText.run(async (signal) => {
       const prep = await this.#prepare();
       const features = prep.summaryClass.map((s, i) => withChoice(s, prep.gained[i]?.key));
+      // Gewählte Kampfstile als eigene Klassenmerkmal-Zeilen: das Kampfstil-Merkmal ist
+      // flow-eigen und daher aus `gained`/der KI-Analyse gefiltert (kein Halluzinieren), die
+      // getroffene Wahl steckt im verlinkten Talent (Source of Truth). Im Klassenmerkmale-Text
+      // soll sie trotzdem erscheinen — hier als Klassen-Merkmal mit der Talent-Beschreibung.
+      if (this.fightingStyles.length) {
+        const feats = await getFeats();
+        for (const key of this.fightingStyles) {
+          const feat = feats.find((f) => f.sourceKey === key);
+          if (feat) features.push({ name: featDisplayName(feat), desc: featDesc(feat), source: 'class', group: this.klass.name });
+        }
+      }
       return runAiAction(
         cfg,
         buildFieldSummaryAction(),

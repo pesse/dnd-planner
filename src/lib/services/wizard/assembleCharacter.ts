@@ -29,6 +29,7 @@ import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
 import { readAbilityName, type AbilityName, type SkillName } from '$lib/schemas/shared';
 import { collectGrants } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
+import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUpMachine';
@@ -230,6 +231,18 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
 
   // ── Waffenmeisterschaft (deterministisch, im Wizard gewählt) ──
   c.masteries = [...w.masteries];
+
+  // ── Kampfstile (deterministisch, im Wizard gewählt) → Talent-Links im Merkmals-Ledger ──
+  // Ein Kampfstil ist ein echtes Talent (z.B. Verteidigung), daher ein Link per sourceKey —
+  // NICHT ein bloßer Name wie bei der Waffenbeherrschung. Die Mechanik löst der Bogen wie
+  // bei jedem Talent-Link auf.
+  if (w.fightingStyles.length) {
+    const feats = await getFeats();
+    for (const key of w.fightingStyles) {
+      const feat = feats.find((f) => f.sourceKey === key);
+      c.features.push({ sourceKey: key, name: feat ? featDisplayName(feat) : '', choice: '', gainedAt: 1, desc: '' });
+    }
+  }
 
   // ── Merkmals-Text (KI) ──
   c.classFeatures = w.classText.result?.text?.trim() ?? '';

@@ -18,6 +18,7 @@ import {
   migrateSourceLegacy,
   proficiencyGrantSchema,
   skillGrantSchema,
+  featureChoiceGrantSchema,
   emptyProficiencyGrant,
   emptySkillGrant,
   type AbilityName,
@@ -52,6 +53,14 @@ export const classFeatureSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   featureType: z.string().optional(),
+  /**
+   * Deklariert eine mechanik-gebundene Wahl, die dieses Merkmal gewährt (Waffenbeherrschung,
+   * Kampfstil). Vom Vault gepflegt, NICHT aus Open5e importiert (`mapV2` lässt es leer). Ist es
+   * gesetzt, hält der Flow das Merkmal aus der KI-Merkmalsanalyse heraus und bietet die Optionen
+   * stattdessen aus der Bibliothek an (services/weaponMastery.ts, services/fightingStyle.ts).
+   * Siehe `featureChoiceGrantSchema` (shared.ts) für die Erkennungs-Doktrin.
+   */
+  grantsChoice: featureChoiceGrantSchema.optional(),
 });
 
 export const classProgressionSchema = z.object({

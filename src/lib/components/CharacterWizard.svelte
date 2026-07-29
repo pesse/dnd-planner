@@ -30,11 +30,13 @@
   import { SKILL_NAMES, type SkillName } from '../schemas/shared';
   import { buildCharacterProtocol } from '../services/characterProtocol';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
   import type { Character } from '../schemas/character';
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
+  import FightingStylePicker from './FightingStylePicker.svelte';
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
 
@@ -48,19 +50,26 @@
   // Schritte über eine ID adressieren, nicht über einen festen Index: der
   // Waffenmeisterschafts-Schritt fällt weg, wenn die Klasse das Merkmal nicht gewährt,
   // und würde sonst alle nachfolgenden Index-Prüfungen verschieben.
-  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'features' | 'equipment' | 'review';
+  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'features' | 'equipment' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
     { id: 'basics', label: 'Grundwahl' },
     { id: 'abilities', label: 'Attribute' },
     { id: 'background', label: 'Hintergrund-Bonus' },
     { id: 'proficiencies', label: 'Übungen' },
     { id: 'mastery', label: 'Waffenmeisterschaft' },
+    { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'features', label: 'Merkmale' },
     { id: 'equipment', label: 'Ausrüstung' },
     { id: 'review', label: 'Überblick' },
   ];
   let stepIndex = $state(0);
-  const steps = $derived(ALL_STEPS.filter((s) => s.id !== 'mastery' || masteryAvailable));
+  const steps = $derived(
+    ALL_STEPS.filter(
+      (s) =>
+        (s.id !== 'mastery' || masteryAvailable) &&
+        (s.id !== 'fighting-style' || fightingStyleAvailable),
+    ),
+  );
   const currentStep = $derived(steps[stepIndex]?.id ?? 'basics');
 
   // ── Bibliotheks-Listen ──
@@ -247,6 +256,25 @@
     return () => { cancelled = true; };
   });
   const masteryAvailable = $derived((mastery?.allowance ?? 0) > 0);
+
+  // ── Kampfstil (5e 2024, optionaler Schritt) ──
+  // Gleiches Muster wie die Waffenmeisterschaft: `fightingStyleOffer` liefert Kontingent +
+  // wählbare Kampfstil-Talente aus der Bibliothek (nie aus der KI). Auf Stufe 1 gewährt nur
+  // der Kämpfer einen Kampfstil (Paladin/Waldläufer erst ab Stufe 2). Gespeichert werden die
+  // Talent-Keys; die Assembly macht daraus Talent-Links in `features[]`.
+  let fightingStyle = $state<FightingStyleOffer | null>(null);
+  $effect(() => {
+    const key = w.klass.sourceKey;
+    if (!key) { fightingStyle = null; return; }
+    let cancelled = false;
+    void fightingStyleOffer({
+      classes: [{ sourceKey: key, subclassKey: w.klass.subclassKey, name: w.klass.name, level: 1 }],
+    })
+      .then((o) => { if (!cancelled) fightingStyle = o; })
+      .catch(() => { if (!cancelled) fightingStyle = null; });
+    return () => { cancelled = true; };
+  });
+  const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
 
   // ── Merkmalswahlen → resolvedChoices ──
   function answerFor(id: string): string[] {
@@ -472,6 +500,22 @@
         {:else}
           <p class="hint">Wähle die Waffenarten, deren Meisterschaftseigenschaft du nutzen darfst.</p>
           <WeaponMasteryPicker offer={mastery} bind:masteries={w.masteries} />
+        {/if}
+
+      {:else if currentStep === 'fighting-style'}
+        {#if !fightingStyle}
+          <p class="hint">Lade Kampfstile …</p>
+        {:else}
+          <p class="hint">Wähle deinen Kampfstil — die Optionen stammen aus der Talent-Bibliothek.</p>
+          <FightingStylePicker
+            offer={fightingStyle}
+            selected={w.fightingStyles}
+            onToggle={(key) => {
+              w.fightingStyles = w.fightingStyles.includes(key)
+                ? w.fightingStyles.filter((k) => k !== key)
+                : [...w.fightingStyles, key];
+            }}
+          />
         {/if}
 
       {:else if currentStep === 'features'}
