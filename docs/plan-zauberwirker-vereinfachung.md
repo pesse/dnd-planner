@@ -244,34 +244,57 @@ schrumpft seine Ausgabe grob auf ein Drittel. Risiko: Pass A entscheidet dann mi
 echte Architekturentscheidung, keine Prompt-Optimierung, und sie braucht eine eigene Assertion
 („kein Merkmal mit Grant fällt aus dem Eingang").
 
-## Erwartete Wirkung
+## Wirkung — gemessen
 
-**Gemessen (Ausgangsstand, Gnom-Kette, 5 Läufe):**
+Gnom-Kette, je 5 Läufe, Modell `cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit`, concurrency 4.
+Baseline = Report `19-33-23-wizardfeatures-k7-keine-zauberliste` (Stand vor Stufe 1),
+danach `20-58-43-wizardfeatures-stufe1-spellaccess`.
 
-| | Latenz avg / median | sent / received |
-|---|---|---|
-| Pass A | 75,4 s / 78,1 s | 5 050 / 6 725 |
-| Pass C | 127,4 s / 131,8 s | 14 974 / 11 287 |
+| | Baseline | Stufe 1 | Δ |
+|---|---|---|---|
+| Call 1 Median | 67,6 s | **42,2 s** | −38 % |
+| Call 1 avg | 94,3 s | 52,1 s | −45 % |
+| Call 1 Tokens ↑/↓ | 4 479 / 8 483 | 4 077 / **4 857** | −9 % / **−43 %** |
+| Call C Median | 136,3 s | **104,9 s** | −23 % |
+| Call C avg | 134,4 s | 114,2 s | −15 % |
+| Call C Tokens ↑/↓ | 16 268 / 11 492 | **12 040** / 10 578 | **−26 %** / −8 % |
+| Kette (Median Call 1 + Call C) | 203,9 s | **147,1 s** | **−28 %** |
 
-**Geschätzt für Stufe 1 (nicht gemessen):**
+Die Schätzung „15–20 % der erzeugten Tokens" war zu vorsichtig: die eingesparte Arbeit steckte
+vor allem im Reasoning-Vorlauf von Call 1 (−43 % Ausgabe-Tokens), nicht nur im Rider.
 
-* Eingang: −1 100 Zeichen Merkmalstext (≈ 280 Tokens) in jedem der drei Kettenschritte.
-* System-Prompt nach 1f: ≈ −550 Tokens, ebenfalls dreifach.
-* Ausgabe: zwei Manifest-Wahlen und ein Rider weniger (≈ 1 600 empfangene Tokens in Pass C)
-  plus die Prosa dazu → **grob 15–20 % der erzeugten Tokens der Kette**.
-* Qualität: die 3/5-Attributsfrage wird zu 5/5-deterministisch, und „Anzahl der wählbaren
-  Zauber stimmt" kann nicht mehr kippen (der Fehler kostete dem Charakter einen Zaubertrick).
+**Qualität** (Details in `docs/analyse-system-prompts.md`, Abschnitt zu dieser Strecke):
 
-**Stufe 3** wäre der Faktor-Hebel (Pass C ist zwei Drittel der Wartezeit), Stufe 1 der
+* Call 1: alle **14** Core-Assertions 5/5, keine Fehler (Baseline: 1 Runaway-Lauf, daher 4/5).
+* Call C: alle Assertions 4/5 — der eine Ausfall ist ein Reasoning-Runaway von Pass A
+  (leere Antwort, `received` am Limit), kein Deutungsfehler. Auf den verwertbaren Läufen 4/4.
+* „protokolliert keine unbeantwortete Wahl" war in der Baseline 4/5 **ohne** Runaway, jetzt
+  4/4 verwertbar: die unbeantworteten Wahlen WAREN die Zauber-Wahlen des Talents. Mit der
+  Deklaration kann dieser Fehler nicht mehr entstehen.
+* Der Runaway blieb: 1 von 5 Ketten verliert ihr Ergebnis (in der Baseline traf es Call 1,
+  jetzt Call C). Das ist der größte verbleibende Einzelposten und **keine** Prompt-Frage.
+
+Nicht neu gemessen: Druide und Schurke. Beide Fixtures enthalten kein Talent, `analysisGained`
+ist dort elementweise gleich `gained` — der Eingang ist beweisbar unverändert.
+
+**Stufe 3** bleibt der Faktor-Hebel (Call C ist weiter ~⅔ der Wartezeit), Stufe 1 war der
 risikofreie.
 
-## Umsetzungsstand Stufe 1 (2026-07-29)
+## Umsetzungsstand Stufe 1 (2026-07-29) — fertig und gemessen
 
-Gebaut: Schema (`shared.ts`, `feat.ts`), Vault-Deklaration, `services/spellAccess.ts`,
-`featurePrep.analysisGained`/`spellAccess`, zwei Antwort-Kanäle im Wizard
-(`resolvedChoices` vs. `declaredAnswers`), Ledger in `assembleCharacter`, Oberfläche
+Gebaut: Schema (`shared.ts`, `feat.ts`, `featsLibrary.FeatEntry`), Vault-Deklaration,
+`services/spellAccess.ts`, `featurePrep.analysisGained`/`spellAccess`, zwei Antwort-Kanäle im
+Wizard (`resolvedChoices` vs. `declaredAnswers`), Ledger in `assembleCharacter`, Oberfläche
 (deklarierte Wahlen unabhängig vom KI-Status) und ein LLM-freier Test
-(`evals/spellAccess.test.ts`).
+(`evals/spellAccess.test.ts`, 5 Tests, ~0,4 s).
+
+Beim Bauen gefunden und behoben: die id einer Zauber-Wahl trug die Liste nicht, also überlebte
+eine Auswahl den Wechsel der Zauberliste (zurück in den Merkmals-Schritt, Kleriker statt Magier
+→ die Magier-Zauber standen weiter auf dem Bogen). Jetzt trägt die id die Liste, und
+`assembleCharacter` nimmt nur Picks zu aktuell existierenden Wahlen.
+
+Nicht angefasst: der Prompt (Punkt 1f). Der Schnitt gehört hinter Stufe 2 — sonst fehlt dem
+Modell die Regel, während undeklarierte Fälle (Mystischer Arkanum &c.) noch bei ihm liegen.
 
 ## Reihenfolge
 
