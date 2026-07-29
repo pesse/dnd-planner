@@ -240,7 +240,13 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     c.spells.slots = spellSlotsAt(prog, 1).map((total) => ({ total, used: 0 }));
   }
 
-  const featurePicks = Object.values(w.featureSpellPicks).flat();
+  // Nur Picks zu Wahlen, die es JETZT noch gibt: wer im Merkmals-Schritt die Zauberliste
+  // wechselt (oder dessen Analyse neu lief), lässt sonst die Zauber der alten Liste im
+  // Zustand zurück — sie würden hier stumm mit auf den Bogen wandern.
+  const livePickIds = new Set(w.spellPickChoices.map((c) => c.id));
+  const featurePicks = Object.entries(w.featureSpellPicks)
+    .filter(([id]) => livePickIds.has(id))
+    .flatMap(([, picks]) => picks);
   const hasPicks =
     w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
   if (hasPicks || riders.length) {

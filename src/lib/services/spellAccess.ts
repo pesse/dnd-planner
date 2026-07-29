@@ -83,8 +83,14 @@ const slug = (grant: SpellAccessGrant): string =>
 
 export const spellListChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_list`;
 export const spellAbilityChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_ability`;
-export const spellPickChoiceId = (grant: SpellAccessGrant, level: number): string =>
-  `spellaccess_${slug(grant)}_pick${level}`;
+/**
+ * Die id einer Zauber-Wahl trägt die LISTE mit. Sonst überlebt eine Auswahl den Wechsel der
+ * Liste: wer zurückgeht und statt Magier den Kleriker nimmt, hätte weiter seine Magier-Zauber
+ * im Zustand — mit der neuen id fällt sie beim Zusammenbauen heraus (`assembleCharacter`
+ * nimmt nur Picks zu aktuell existierenden Wahlen).
+ */
+export const spellPickChoiceId = (grant: SpellAccessGrant, level: number, list: string): string =>
+  `spellaccess_${slug(grant)}_${list}_pick${level}`;
 
 /** Die festgelegte Zauberliste, sofern die Deklaration nur eine zulässt. */
 export function fixedList(grant: SpellAccessGrant): string {
@@ -158,7 +164,7 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
   if (list) {
     for (const pick of grant.picks) {
       choices.push({
-        ...emptyChoice(grant, spellPickChoiceId(grant, pick.level)),
+        ...emptyChoice(grant, spellPickChoiceId(grant, pick.level, list)),
         type: 'spell-pick',
         question: gradeLabel(pick.level, pick.count),
         questionDe: gradeLabel(pick.level, pick.count),

@@ -99,6 +99,11 @@ describe('deklarierter Zauber-Zugang (Magiekundiger)', () => {
     expect(answered.filter((c) => c.type === 'spell-pick').map((c) => c.spellClass)).toEqual(['druid']);
     // Die Antwort kommt über die id der Listen-Frage zurück — sie muss stabil sein.
     expect(spellListChoiceId(open)).toBe(spellListChoiceId({ ...open, lists: ['cleric'] }));
+    // Die id der ZAUBER-Wahl trägt dagegen die Liste: nach einem Listenwechsel darf die alte
+    // Auswahl nicht als dieselbe Wahl weiterleben (sie wäre aus der falschen Liste).
+    const pickId = (list: string) =>
+      spellAccessChoices(open, list).find((c) => c.type === 'spell-pick')?.id;
+    expect(pickId('druid')).not.toBe(pickId('cleric'));
   });
 
   it('gilt auch für einen Nicht-Zauberwirker (Kämpfer/Akolyth → Klerikerliste)', async () => {
