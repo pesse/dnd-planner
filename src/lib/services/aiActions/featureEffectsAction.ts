@@ -27,7 +27,7 @@ import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/s
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
-import { getSpellLibrary } from '../../spellLibrary';
+import { getSpellLibrary, resolveClass } from '../../spellLibrary';
 import { resolveSpell } from '../levelUpMachine';
 import type { PastChoice } from '../characterFeatures';
 import { stripJsonFence } from '../jsonFence';
@@ -71,7 +71,7 @@ export interface FeatureClassContext {
  * Bogen schon anderswo führt und deshalb keine Zeile braucht.
  */
 const FEATURE_EFFECTS_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
-The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc" and its German translation "descDe") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
+The conversation above contains the game features/feats a character has JUST gained (<gained_features>, each with the English rules text "desc", its German translation "descDe" and — where the character's origin already fixed a specialisation — "choice") plus class context, your analysis of them, the player's answers to the forced choices (<resolved_choices>) and the re-done analysis that takes those answers into account. Resolved spell lookups follow below.
 Turn all of that into the concrete, app-modellable mechanical effects each feature grants — a list of typed "riders" — plus one terse German sheet note per feature. Every forced choice is ALREADY MADE; never emit unmade choices or option lists.
 
 ## Rules
@@ -102,6 +102,7 @@ ${SHEET_NOTE_DOCTRINE}`;
  */
 export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries the original English rules text in "desc" and its German translation in "descDe": "desc" is the authoritative source for the mechanics, "descDe" gives you the German wording for questions and options.
+A feature may additionally carry "choice": a specialisation the character's ORIGIN already fixed, given as the German label (the Sage background grants Magic Initiate with its spell list named, "Magier" = the Wizard list). Treat it as FINAL — never turn it into a question, and let it drive whatever it decides (a spell-pick's spellClass, for instance).
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT produce any final data structures or grants here — reason in prose and end with one compact manifest.
 
 ## What to work out
@@ -109,8 +110,9 @@ Your ONLY job is to ANALYSE these features so a later deterministic step and a s
    - **featureKey**: copy the "key" of the emitting feature VERBATIM from <gained_features>. Never invent, shorten or translate it. Empty string only if that feature carries no key.
    - **Option wording**: give each option as the German label EXACTLY as the feature's "descDe" writes it (for a bolded option paragraph \`**Wächter.**\` the option is \`Wächter\`). The stored answer is later matched back against that text, so do not paraphrase, expand or re-case it.
    - **isBuildDecision**: true only for a PERMANENT character-building choice (Primal Order, Divine Order, Expertise skills, an elven lineage, a terrain, metamagic options). false for options the player picks anew on each USE of the feature (Channel Divinity's Divine Spark vs Turn Undead, Cunning Strike effects, Brutal Strike effects) — those still need asking when the feature demands it now, but they are not part of the character's build.
+   - **Choosing SPELLS is its own type.** If the choice is "pick N spells/cantrips from the X spell list" (Magic Initiate, Magical Discoveries, Mystic Arcanum), set type="spell-pick", fill spellLevels (0 = cantrip) and spellClass with the ENGLISH class key of that list ("cleric", "druid", "wizard", "bard", "sorcerer", "warlock", "ranger", "paladin"), and leave options EMPTY. Some sources name the list by tradition — map "Arcane"→wizard, "Divine"→cleric, "Primal"→druid. The player picks from the local spell library, so any spell name you wrote here could only be an invention. Emit ONE spell-pick per level band: cantrips and level 1+ spells are separate choices.
 2. Mechanical dependencies: state clearly which grants depend on which choice and which grants are unconditional.
-3. Spells granted as ALWAYS PREPARED for free (subclass/circle/domain lists, spell-granting feats) — canonical ENGLISH SRD names. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn.
+3. Spells granted as ALWAYS PREPARED for free (subclass/circle/domain lists, spell-granting feats) — canonical ENGLISH SRD names. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn, and never a spell the player PICKS: a spell-pick choice covers those, even when the picked spell ends up always prepared.
 4. Any other concrete mechanical grants (proficiencies, fixed ability increases, extra cantrips/prepared spells) — describe them in prose. You do NOT need to structure these; the next step reads your prose.
 
 ## <past_choices>
@@ -127,13 +129,14 @@ Reason in prose first. Then end your answer with EXACTLY ONE fenced JSON manifes
 \`\`\`json
 {
   "choices": [
-    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "help": "<short German summary of the options' consequences>", "optionHelp": { "<German option>": "<its concrete German consequence>" }, "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
+    { "id": "choice_<featureslug>_1", "feature": "<feature name>", "featureKey": "<key verbatim from <gained_features>>", "question": "<German question>", "type": "choice", "options": ["<German option>"], "spellLevels": [], "spellClass": "", "help": "<short German summary of the options' consequences>", "optionHelp": { "<German option>": "<its concrete German consequence>" }, "max": 1, "determinesFurtherEffects": true, "isBuildDecision": true }
   ],
   "spellsToGround": ["Canonical English Spell Name"],
   "blocked": false
 }
 \`\`\`
-- choices: EVERY forced player choice (incl. expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), or "text" (free). options=[] if free text. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet. featureKey and isBuildDecision as specified above.
+- choices: EVERY forced player choice (incl. expertise). Stable ids. type = "choice" (pick one), "multiselect" (pick max), "text" (free) or "spell-pick" (pick spells from a class list). options=[] if free text or spell-pick. max = how many may be picked (1 for single). determinesFurtherEffects=true only when the answer unlocks grants you cannot state yet — always false for spell-pick, because the picked spells ARE the effect. featureKey and isBuildDecision as specified above.
+  - spellLevels / spellClass: ONLY for type="spell-pick" (see above), otherwise [] and "".
   - help: a SHORT German one-liner (≤120 chars) summarising the MECHANICAL consequences of the options, so the player understands the trade-off (e.g. "Wächter → Kriegswaffen + mittlere Rüstung; Magier → ein zusätzlicher bekannter Zaubertrick" or "bestimmt Schadensart von Odemwaffe und Resistenz"). Empty string if the options carry no notable consequence.
   - optionHelp: an object mapping EACH option label (verbatim, same string as in "options") to its own concrete German consequence (≤60 chars each), whenever the options differ mechanically — e.g. for Draconic Ancestry {"Schwarz": "Säureschaden", "Blau": "Blitzschaden", "Rot": "Feuerschaden"}. Use {} when the options carry no per-option consequence (e.g. picking Expertise skills).
 - spellsToGround: canonical ENGLISH names of always-prepared spell grants to resolve NOW (empty [] if none or if blocked).
@@ -182,8 +185,17 @@ export interface AnalysisChoice {
   /** Bibliotheks-Key des Merkmals — Anker, unter dem die Antwort am Charakter landet. */
   featureKey: string;
   question: string;
-  type: 'choice' | 'multiselect' | 'text';
+  /**
+   * `spell-pick` = die Wahl ist eine ZAUBER-Wahl („Magiekundiger": 2 Zaubertricks aus der
+   * Klerikerliste). Dann trägt `options` bewusst NICHTS: die Namen kommen aus `vault/spells`,
+   * gefiltert über `spellLevels` + `spellClass`. Sonst wären es erfundene Zauber.
+   */
+  type: 'choice' | 'multiselect' | 'text' | 'spell-pick';
   options: string[];
+  /** Nur bei `spell-pick`: erlaubte Zaubergrade (0 = Zaubertrick). */
+  spellLevels: number[];
+  /** Nur bei `spell-pick`: englischer Klassen-Key der Zauberliste („cleric", „druid", „wizard"). */
+  spellClass: string;
   /** Knappe deutsche Zusammenfassung der Konsequenzen (Tooltip); leer, wenn keine. */
   help: string;
   /** Je Option (Schlüssel = Options-Label) ihre konkrete deutsche Konsequenz, z.B. „Schwarz"→„Säureschaden". */
@@ -214,7 +226,19 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
   const o = raw as Record<string, unknown>;
   if (typeof o.question !== 'string' || !o.question.trim()) return null;
   const slug = `choice_${o.question}`.toLowerCase().replace(/\W+/g, '_').slice(0, 40);
-  const type = o.type === 'multiselect' || o.type === 'text' ? o.type : 'choice';
+  const spellLevels = Array.isArray(o.spellLevels)
+    ? [...new Set(o.spellLevels.filter((x): x is number => typeof x === 'number' && x >= 0 && x <= 9).map(Math.floor))]
+    : [];
+  const spellClass = typeof o.spellClass === 'string' ? (resolveClass(o.spellClass) ?? '') : '';
+  // Eine Zauber-Wahl OHNE Grad-Filter wäre ein Picker über die ganze Bibliothek — dann ist
+  // eine gewöhnliche Wahl das kleinere Übel. Die Klassenliste darf fehlen (dann ungefiltert
+  // nach Klasse, aber immer noch nach Grad), der Grad nicht.
+  const type =
+    o.type === 'spell-pick' && spellLevels.length
+      ? 'spell-pick'
+      : o.type === 'multiselect' || o.type === 'text'
+        ? o.type
+        : 'choice';
   return {
     id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : slug,
     feature: typeof o.feature === 'string' ? o.feature : '',
@@ -222,6 +246,8 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
     question: o.question,
     type,
     options: Array.isArray(o.options) ? o.options.filter((x): x is string => typeof x === 'string') : [],
+    spellLevels: type === 'spell-pick' ? spellLevels : [],
+    spellClass: type === 'spell-pick' ? spellClass : '',
     help: typeof o.help === 'string' ? o.help.trim() : '',
     optionHelp:
       o.optionHelp && typeof o.optionHelp === 'object' && !Array.isArray(o.optionHelp)
@@ -232,7 +258,9 @@ function normalizeChoice(raw: unknown): AnalysisChoice | null {
           )
         : {},
     max: typeof o.max === 'number' && o.max > 0 ? Math.floor(o.max) : 1,
-    determinesFurtherEffects: o.determinesFurtherEffects === true,
+    // Eine Zauber-Wahl kann nichts weiter freischalten — die gewählten Zauber SIND der
+    // Effekt. Sonst würde der Flow unnötig einen zweiten Analyse-Durchlauf anhängen.
+    determinesFurtherEffects: type !== 'spell-pick' && o.determinesFurtherEffects === true,
     // Vorsichtiger Default: eine nicht als Aufbau-Wahl markierte Antwort wird nur
     // protokolliert, wenn das Modell es ausdrücklich sagt — sonst wächst das Ledger
     // mit Taktik-Optionen zu.

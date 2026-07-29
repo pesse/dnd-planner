@@ -33,6 +33,12 @@ import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUpMachine';
+import {
+  buildSpellSelection,
+  CASTER_ABILITY_DE,
+  CASTER_ABILITY_KEY,
+  spellcastingOffer,
+} from '../spellcasting';
 import { applyAsi } from './backgroundAsi';
 import { equipmentWeightMap } from './startingEquipment';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
@@ -42,16 +48,6 @@ import type { CharacterWizard } from './characterWizard.svelte';
 const KEY_BY_EN = new Map<AbilityName, AbilityKey>(
   (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
 );
-
-/** Zauberattribut je Grundklasse (App-Schlüssel) — für den deterministischen Zauber-Block. */
-const CASTER_ABILITY_KEY: Record<string, AbilityKey> = {
-  bard: 'cha', cleric: 'wei', druid: 'wei', paladin: 'cha',
-  ranger: 'wei', sorcerer: 'cha', warlock: 'cha', wizard: 'int',
-};
-const CASTER_ABILITY_DE: Record<AbilityKey, string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-  int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
 
 /** Leerer Charakter im aktuellen Schemaformat (wie `Sidebar.createCharacter`). */
 function blankCharacter(name: string): Character {
@@ -205,7 +201,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
       c.features.push({ sourceKey: ch.featureKey, name: '', choice: rc.choice, gainedAt: 1, desc: '' });
   }
 
-  // ── Zauber-Block (deterministisch) + gewährte Zauber aus Merkmalen ──
+  // ── Zauber-Block: Klassenwerte (det.) → eigene Wahl → gewährte Zauber aus Merkmalen ──
   const slug = w.klass.sourceKey.split('_').pop() ?? '';
   const abilityKey = CASTER_ABILITY_KEY[slug];
   if (prog && prog.casterType !== 'NONE' && abilityKey) {
@@ -217,15 +213,44 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     c.spells.attackBonus = profBonus + abilityMod;
     c.spells.slots = spellSlotsAt(prog, 1).map((total) => ({ total, used: 0 }));
   }
-  if (riders.length) {
-    const library = await getSpellLibrary();
-    const validated = validateRiderSpells(riders, library, w.klass.name);
-    for (const name of validated.grantedCantrips) if (!c.spells.cantrips.includes(name)) c.spells.cantrips.push(name);
-    for (const { level, name } of validated.grantedPrepared) {
-      const lvl = String(level);
-      const arr = c.spells.byLevel[lvl] ?? [];
-      if (!arr.some((e) => e.name === name)) arr.push({ name, prepared: true });
-      c.spells.byLevel[lvl] = arr;
+
+  const featurePicks = Object.values(w.featureSpellPicks).flat();
+  const hasPicks =
+    w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
+  if (hasPicks || riders.length) {
+    // Die eigene Wahl zuerst — ihre Namen sind bereits kanonisch (aus der Bibliothek
+    // gewählt), sie legt also die Vorbereitungs-Markierung fest. Ein Zauber, der DANACH
+    // noch als gewährt hereinkommt, überschreibt sie nicht.
+    if (hasPicks) {
+      const offer = await spellcastingOffer({
+        classKey: w.klass.sourceKey,
+        klasseName: w.klass.name,
+        level: 1,
+      });
+      const sel = buildSpellSelection({
+        regime: offer.regime,
+        cantripPicks: w.pickedCantrips,
+        knownPicks: w.pickedKnown,
+        preparedPicks: w.pickedPrepared,
+        featurePicks,
+      });
+      c.spells.cantrips = [...sel.cantrips];
+      for (const [level, entries] of sel.byLevel) c.spells.byLevel[String(level)] = entries.map((e) => ({ ...e }));
+    }
+
+    // Gewährte Zauber (Elfenlinie, Domänenzauber …): stets vorbereitet, zählen nicht gegen
+    // das Kontingent. Namen kommen vom LLM und müssen erst kanonisiert werden.
+    if (riders.length) {
+      const validated = validateRiderSpells(riders, await getSpellLibrary(), w.klass.name);
+      for (const name of validated.grantedCantrips) if (!c.spells.cantrips.includes(name)) c.spells.cantrips.push(name);
+      for (const { level, name } of validated.grantedPrepared) {
+        const lvl = String(level);
+        const arr = c.spells.byLevel[lvl] ?? [];
+        const seen = arr.find((e) => e.name === name);
+        if (seen) seen.prepared = true;
+        else arr.push({ name, prepared: true });
+        c.spells.byLevel[lvl] = arr;
+      }
     }
   }
 

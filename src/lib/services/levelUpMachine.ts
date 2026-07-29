@@ -21,6 +21,7 @@ import type { ClassFeature } from '../schemas/classProgression';
 import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
+import { decodePick, isSpellbookClass } from './spellcasting';
 
 /**
  * Ein Schritt der Aufstiegs-Zustandsmaschine. `checkpoint` = die Maschine hält an
@@ -240,11 +241,6 @@ export function validateRiderSpells(riders: FeatureRider[], library: SpellInfo[]
 }
 
 // ── Zauber erlernen vs. vorbereiten ──────────────────────────────────────────────
-/** Klasse mit Zauberbuch (nimmt beim Aufstieg dauerhaft Zauber auf) — im SRD nur der Magier. */
-export function isSpellbookClass(delta: LevelUpDelta): boolean {
-  return /wizard/i.test(delta.sourceKey) || /magier/i.test(delta.klasseName);
-}
-
 export interface LearnInfo {
   learns: boolean; // Klasse lernt beim Aufstieg Zauber dauerhaft dazu
   count: number; // wie viele
@@ -258,7 +254,7 @@ export interface LearnInfo {
  * Magier trägt (2 je Stufe) ins Zauberbuch ein.
  */
 export function learnInfo(delta: LevelUpDelta, riders: FeatureRider[]): LearnInfo {
-  const spellbook = isSpellbookClass(delta);
+  const spellbook = isSpellbookClass(delta.sourceKey, delta.klasseName);
   const known = delta.casterKind === 'known';
   const riderExtra = riders.reduce((s, r) => s + r.extraPreparedCount, 0);
   const count = known ? delta.preparedDelta + riderExtra : spellbook ? 2 * delta.levelsGained : 0;
@@ -347,16 +343,27 @@ export function buildDecisions(
   return qs;
 }
 
-/** Wandelt die von der Analyse (Call 1) erkannten Wahlen in Fragebogen-Fragen für den Checkpoint. */
+/**
+ * Wandelt die von der Analyse (Call 1) erkannten Wahlen in Fragebogen-Fragen für den
+ * Checkpoint. Eine `spell-pick`-Wahl wird zum `spell-picker` — der Nutzer wählt dann aus der
+ * Bibliothek (gefiltert über `spellLevels`/`spellClass`) statt aus einer Options-Liste, die
+ * das Modell nur erfinden könnte.
+ */
 export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[] {
   return choices.map((c) =>
     baseQuestion({
       id: c.id,
-      type: c.type === 'multiselect' ? 'multiselect' : c.type === 'text' ? 'text' : 'choice',
+      type:
+        c.type === 'multiselect' ? 'multiselect'
+        : c.type === 'text' ? 'text'
+        : c.type === 'spell-pick' ? 'spell-picker'
+        : 'choice',
       prompt: c.question,
       help: c.help,
       options: c.options.map((o) => opt(o, o)),
-      max: c.type === 'multiselect' ? Math.max(1, c.max) : undefined,
+      spellLevels: c.spellLevels,
+      spellClass: c.spellClass,
+      max: c.type === 'multiselect' || c.type === 'spell-pick' ? Math.max(1, c.max) : undefined,
       resolvesEffects: c.determinesFurtherEffects,
       featureKey: c.featureKey,
       isBuildDecision: c.isBuildDecision,
@@ -541,6 +548,32 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
   return out;
 }
 
+/**
+ * Zauber, die eine MERKMALS-Wahl den Spieler wählen ließ (Fragen vom Typ `spell-picker` aus
+ * `buildFeatureChoices`, z.B. „Magiekundiger"). Ohne diesen Builder würde die Wahl nur als
+ * Notiz protokolliert, aber nie am Charakter landen. Stets vorbereitet: ein Merkmal, das
+ * Zauber wählen lässt, gewährt sie auch (sie zählen nicht gegen das Klassenkontingent).
+ */
+export function featureSpellChanges(
+  questions: LevelUpQuestion[],
+  answers: Record<string, string | string[]>,
+  step: BuilderStep,
+): Change[] {
+  const out: Change[] = [];
+  for (const q of questions) {
+    if (q.type !== 'spell-picker') continue;
+    const picks = answers[q.id];
+    if (!Array.isArray(picks)) continue;
+    for (const v of picks) {
+      const { level, name } = decodePick(v);
+      if (!name.trim()) continue;
+      if (level === 0) out.push({ target: 'cantrip', name, step, source: q.featureKey || 'feature', label: `Zaubertrick: ${name}` });
+      else out.push({ target: 'preparedSpell', level, name, prepared: true, step, source: q.featureKey || 'feature', label: `Vorbereitet (Grad ${level}): ${name}` });
+    }
+  }
+  return out;
+}
+
 /** Gewählte Talente als Referenz-Links (references.feats). */
 export function featChanges(chosenFeats: { key: string; name: string; gainedAt: number }[]): Change[] {
   const step: BuilderStep = 'feat-links';
@@ -554,6 +587,8 @@ export function featChanges(chosenFeats: { key: string; name: string; gainedAt: 
 export function answerLabels(q: LevelUpQuestion, value: string | string[] | undefined): string {
   if (value === undefined) return '';
   const vals = Array.isArray(value) ? value : [value];
+  // Zauber-Auswahlen tragen keine Options-Liste, sondern `encodePick`-Werte („1::Feuerball").
+  if (q.type === 'spell-picker') return vals.map((v) => decodePick(v).name).filter((s) => s.trim()).join(', ');
   return vals.map((v) => q.options.find((o) => o.value === v)?.label ?? v).filter((s) => s.trim()).join(', ');
 }
 
@@ -694,10 +729,12 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
+    ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions'),
     ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects'),
+    ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects'),
     ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),
     ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),

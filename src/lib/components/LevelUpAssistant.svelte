@@ -51,9 +51,9 @@
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
-  import {
-    getSpellLibrary, searchSpells, createSpellInline, resolveClass, type SpellInfo,
-  } from '../spellLibrary';
+  import { getSpellLibrary, createSpellInline, type SpellInfo } from '../spellLibrary';
+  import { decodePick, encodePick } from '../services/spellcasting';
+  import SpellPicker from './SpellPicker.svelte';
   import { getFeats, searchFeats, featDisplayName, type FeatEntry } from '../featsLibrary';
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
@@ -321,24 +321,9 @@
   let allFeatChoices = $derived(isAnswered(featChoices, answers));
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
-  let pickerQuery = $state<Record<string, string>>({});
-  const encodePick = (level: number, name: string) => `${level}::${name}`;
-  const decodePick = (v: string) => { const i = v.indexOf('::'); return { level: Number(v.slice(0, i)), name: v.slice(i + 2) }; };
-
-  function pickerResults(q: LevelUpQuestion): SpellInfo[] {
-    const query = pickerQuery[q.id] ?? '';
-    if (!query.trim()) {
-      // Browsen: klassen-/stufengefilterte Auswahlliste (ohne Sucheingabe).
-      const eng = q.spellClass ? resolveClass(q.spellClass) : null;
-      return spellLib
-        .filter((s) => q.spellLevels.includes(s.level) && (!eng || s.classes.includes(eng)))
-        .slice(0, 60);
-    }
-    return searchSpells(spellLib, query, null, q.spellClass, 30)
-      .map((s) => s.spell)
-      .filter((s) => q.spellLevels.includes(s.level))
-      .slice(0, 12);
-  }
+  /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
+  const pickBinding = (id: string) =>
+    [() => (answers[id] as string[]) ?? [], (v: string[]) => (answers[id] = v)] as const;
 
   // ── Trefferwürfel würfeln (echtes Würfeln, kein Selbst-Eintragen) ────────────────
   let hpRolls = $state<Record<string, number[]>>({});
@@ -349,19 +334,6 @@
     hpRolls[q.id] = rolls;
     answers[q.id] = String(rolls.reduce((a, b) => a + b, 0));
   }
-  function addPick(q: LevelUpQuestion, s: SpellInfo) {
-    const cur = (answers[q.id] as string[]) ?? [];
-    const val = encodePick(s.level, s.name);
-    if (cur.includes(val)) return;
-    let nextArr = [...cur, val];
-    if (q.max && nextArr.length > q.max) nextArr = nextArr.slice(nextArr.length - q.max);
-    answers[q.id] = nextArr;
-    pickerQuery[q.id] = '';
-  }
-  function removePick(q: LevelUpQuestion, val: string) {
-    answers[q.id] = ((answers[q.id] as string[]) ?? []).filter((x) => x !== val);
-  }
-
   // ── Inline-Zauberanlage ─────────────────────────────────────────────────────────
   let spellCreator = $state<{ targetQ: string | null; name: string; nameEn: string; level: number; school: string; levels: number[] } | null>(null);
   const SCHOOL_KEYS = Object.keys(SPELL_SCHOOLS);
@@ -390,8 +362,10 @@
       const canonical = await createSpellInline(blankSpell(s.name, s.nameEn, s.level, s.school));
       spellLib = await getSpellLibrary();
       if (s.targetQ) {
-        const q = decisions.find((d) => d.id === s.targetQ);
-        if (q) addPick(q, { name: canonical, level: s.level, classes: [], school: s.school, path: '' });
+        // Direkt in die Antwort der auslösenden Frage übernehmen (der Picker liest sie).
+        const [read, write] = pickBinding(s.targetQ);
+        const val = encodePick(s.level, canonical);
+        if (!read().includes(val)) write([...read(), val]);
       } else {
         // Review-Inline-Anlage: neuen Zauber als gewährten Zauber ergänzen (fließt via buildDoc ein).
         if (s.level === 0) {
@@ -964,6 +938,17 @@
             </div>
           {:else if q.type === 'number'}
             <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
+          {:else if q.type === 'spell-picker'}
+            {@const bind = pickBinding(q.id)}
+            <SpellPicker
+              library={spellLib}
+              spellLevels={q.spellLevels}
+              spellClass={q.spellClass}
+              max={q.max ?? 1}
+              bind:picks={bind[0], bind[1]}
+              allowCreate
+              onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
+            />
           {:else}
             <textarea class="textarea" rows="2" value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
           {/if}
@@ -1007,29 +992,16 @@
           {:else if q.type === 'number'}
             <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
           {:else if q.type === 'spell-picker'}
-            {@const res = pickerResults(q)}
-            <div class="picker">
-              <div class="chips">
-                {#each (answers[q.id] as string[]) ?? [] as val}
-                  {@const dp = decodePick(val)}
-                  <span class="pick">{dp.name}{dp.level > 0 ? ` (Grad ${dp.level})` : ''}<button type="button" onclick={() => removePick(q, val)}>×</button></span>
-                {/each}
-              </div>
-              <input class="input" placeholder="Zauber suchen oder aus der Liste wählen…" value={pickerQuery[q.id] ?? ''}
-                     oninput={(e) => (pickerQuery[q.id] = (e.target as HTMLInputElement).value)} />
-              <div class="results">
-                {#each res as s}
-                  <button type="button" class="result" onclick={() => addPick(q, s)}>{s.name}{s.name_en && s.name_en !== s.name ? ` (${s.name_en})` : ''}{s.level > 0 ? ` · Grad ${s.level}` : ' · Trick'}</button>
-                {/each}
-                {#if !res.length}<span class="field-hint">Keine Zauber für Klasse/Grad gefunden.</span>{/if}
-                {#if (pickerQuery[q.id] ?? '').trim()}
-                  <button type="button" class="result create" onclick={() => openSpellCreator(pickerQuery[q.id] ?? '', q.spellLevels, q.id)}>
-                    ＋ „{pickerQuery[q.id]}" als neuen Zauber anlegen
-                  </button>
-                {/if}
-              </div>
-              <span class="field-hint">{((answers[q.id] as string[]) ?? []).length}{q.max ? ` / ${q.max}` : ''} gewählt</span>
-            </div>
+            {@const bind = pickBinding(q.id)}
+            <SpellPicker
+              library={spellLib}
+              spellLevels={q.spellLevels}
+              spellClass={q.spellClass}
+              max={q.max ?? 1}
+              bind:picks={bind[0], bind[1]}
+              allowCreate
+              onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
+            />
           {:else if q.type === 'hp-roll'}
             {#if answers['hp_method'] === 'roll'}
               <div class="roll">
@@ -1245,8 +1217,10 @@
   .group-chip:hover { opacity: 0.85; }
   .group-chip.on { border-color: var(--arcane, var(--red)); color: var(--ink); opacity: 1; }
 
-  .picker, .creator { display: flex; flex-direction: column; gap: 0.35rem; }
-  .creator { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface); }
+  .creator {
+    display: flex; flex-direction: column; gap: 0.35rem;
+    border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface);
+  }
   .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .pick { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); }
   .pick button { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; line-height: 1; }
@@ -1255,7 +1229,6 @@
   .result { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft); padding: 0.25rem 0.5rem; cursor: pointer; font-family: inherit; font-size: 0.78rem; }
   .result:hover { border-color: var(--arcane, var(--red)); color: var(--ink); }
   .result:disabled { opacity: 0.4; cursor: not-allowed; }
-  .result.create { color: var(--arcane, var(--red)); font-style: italic; }
 
   .input, .select, .textarea {
     background: var(--surface); border: 1px solid var(--border); border-radius: 4px;

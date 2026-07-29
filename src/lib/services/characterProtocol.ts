@@ -66,8 +66,16 @@ export function buildCharacterProtocol(
   const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);
   if (slots.length) spells.push(`Zauberplätze: ${slots.map((s) => `Grad ${s.lvl}: ${s.total}`).join(', ')}`);
   if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.join(', ')}`);
-  const prepared = Object.values(c.spells.byLevel).flatMap((arr) => arr.map((e) => e.name));
-  if (prepared.length) spells.push(`Gewährte Zauber: ${prepared.join(', ')}`);
+  // Nach `prepared` trennen, nicht nach Herkunft: aus dem gespeicherten Charakter ist nicht
+  // ablesbar, ob ein Zauber gewählt oder gewährt wurde — die Markierung ist es aber, und beim
+  // Magier ist genau sie die interessante Information (Buch ⊋ Vorbereitung).
+  const entries = Object.entries(c.spells.byLevel)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .flatMap(([lvl, arr]) => arr.map((e) => ({ ...e, label: `${e.name} (Grad ${lvl})` })));
+  const prepared = entries.filter((e) => e.prepared);
+  const inBook = entries.filter((e) => !e.prepared);
+  if (prepared.length) spells.push(`Vorbereitet: ${prepared.map((e) => e.label).join(', ')}`);
+  if (inBook.length) spells.push(`Im Zauberbuch (nicht vorbereitet): ${inBook.map((e) => e.label).join(', ')}`);
   add('Zauber', spells);
 
   add(

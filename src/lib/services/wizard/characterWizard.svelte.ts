@@ -16,18 +16,11 @@
  * fehlt QM, werden Analyse/Effekte übersprungen; der Merkmals-Text läuft über jeden
  * Provider (`runAiAction`), das Ausrüstungs-Matching ebenso.
  */
-import { getProgressionByKey, featuresUpTo } from '../classProgression';
-import type { ClassProgression } from '$lib/schemas/classProgression';
-import { getSpeciesByKey } from '$lib/speciesLibrary';
-import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
-import { isFlowOwnedChoiceFeature } from '../levelUp';
 import {
   analyzeFeatureEffects,
   finalizeFeatureEffects,
   type FeatureAnalysis,
-  type FeatureClassContext,
-  type GainedFeature,
   type ResolvedChoice,
 } from '../aiActions/featureEffectsAction';
 import { runAiAction } from '../aiActions/runner';
@@ -37,12 +30,9 @@ import {
   SHEET_FIELDS,
   type SummaryFeature,
 } from '../aiActions/fieldSummaryAction';
+import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
-import {
-  buildLevelUpEffectsAction,
-  buildLevelUpEffectsInput,
-  type EffectFeature,
-} from '../aiActions/levelUpEffectsAction';
+import { buildLevelUpEffectsAction, buildLevelUpEffectsInput } from '../aiActions/levelUpEffectsAction';
 import type { LlmConfig } from '$lib/types';
 import type { FeatureEffects, FieldSummary, LevelUpEffects } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
@@ -106,26 +96,6 @@ export interface WizardLink {
   name: string;
 }
 
-/** Was `buildPrep` einmalig aufbereitet (von allen Merkmals-Jobs geteilt). */
-interface Prep {
-  /** Klassen-/Subklassen-/Talent-Merkmale — Eingang für Merkmals-Analyse UND Klassentext. */
-  gained: GainedFeature[];
-  /** Speziesmerkmale als Analyse-Eingang: erzwungene Wahlen (Drakonische Urahnen,
-   *  Elfenlinie …) stecken hier, nicht in `gained` (das wäre sonst im Klassentext). */
-  speciesFeatures: GainedFeature[];
-  /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe). */
-  effectFeatures: EffectFeature[];
-  summaryClass: SummaryFeature[];
-  summarySpecies: SummaryFeature[];
-  classContext: FeatureClassContext;
-}
-
-/** Grobe Zuordnung Zauberattribut je Grundklasse (nur KI-Kontext; unkritisch). */
-const SPELL_ABILITY_DE: Record<string, string> = {
-  bard: 'Charisma', cleric: 'Weisheit', druid: 'Weisheit', paladin: 'Charisma',
-  ranger: 'Weisheit', sorcerer: 'Charisma', warlock: 'Charisma', wizard: 'Intelligenz',
-};
-
 export class CharacterWizard {
   // ── Kopf ──
   name = $state('');
@@ -154,6 +124,26 @@ export class CharacterWizard {
   /** Gewählte Kampfstile als Talent-Keys (sourceKey); nur wenn die Klasse einen Kampfstil gewährt. */
   fightingStyles = $state<string[]>([]);
 
+  // ── Zauberwahl (Schritt „Zauber"; alle Listen `encodePick`-kodiert) ──
+  /** Zaubertricks (Grad 0) aus dem Klassenkontingent. */
+  pickedCantrips = $state<string[]>([]);
+  /**
+   * Zauber ab Grad 1 aus dem Klassenkontingent. Im `spellbook`-Regime ist das der
+   * bekannt-Bestand (das Zauberbuch), sonst unmittelbar die Vorbereitung.
+   */
+  pickedKnown = $state<string[]>([]);
+  /**
+   * Teilmenge von `pickedKnown`, die als vorbereitet gilt — nur das `spellbook`-Regime
+   * pflegt sie (der Magier wählt „kennen" und „vorbereitet" getrennt). Bei allen anderen
+   * Klassen ist die Auswahl selbst die Vorbereitung, das Feld bleibt leer.
+   */
+  pickedPrepared = $state<string[]>([]);
+  /**
+   * Zauber aus Merkmals-Wahlen (`spell-pick`), je Wahl-`id`. Getrennt vom Klassenkontingent,
+   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Magiekundiger").
+   */
+  featureSpellPicks = $state<Record<string, string[]>>({});
+
   // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
   resolvedChoices = $state<ResolvedChoice[]>([]);
 
@@ -170,7 +160,7 @@ export class CharacterWizard {
   lastActivityMs = $state(0);
 
   #getConfig: () => LlmConfig;
-  #prep: Promise<Prep> | null = null;
+  #prep: Promise<FeaturePrep> | null = null;
 
   constructor(getConfig: () => LlmConfig) {
     this.#getConfig = getConfig;
@@ -190,84 +180,29 @@ export class CharacterWizard {
     return this.analysis.result?.choices ?? [];
   }
 
+  /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
+  get spellPickChoices() {
+    return this.featureChoices.filter((c) => c.type === 'spell-pick');
+  }
+
+  /** Merkmals-Wahlen, die im Merkmals-Schritt gerendert werden (alles außer Zauber-Wahlen). */
+  get plainChoices() {
+    return this.featureChoices.filter((c) => c.type !== 'spell-pick');
+  }
+
+  /** Fertige Merkmals-Rider (leer, solange der Effekt-Job läuft/übersprungen ist). */
+  get riders() {
+    return this.effects.result?.riders ?? [];
+  }
+
   #touch = (): void => { this.lastActivityMs = performance.now(); };
 
   // ── Aufbereitung (einmal, von allen Merkmals-Jobs geteilt) ──
-  #prepare(): Promise<Prep> {
-    if (!this.#prep) this.#prep = this.#buildPrep();
-    return this.#prep;
-  }
-
-  async #buildPrep(): Promise<Prep> {
-    const [prog, sub, spec, bg, feats] = await Promise.all([
-      getProgressionByKey(this.klass.sourceKey),
-      this.klass.subclassKey ? getProgressionByKey(this.klass.subclassKey) : Promise.resolve(null),
-      getSpeciesByKey(this.species.sourceKey),
-      getBackgroundByKey(this.background.sourceKey),
-      getFeats(),
-    ]);
-
-    const level1 = (p: ClassProgression | null, source: 'class' | 'subclass'): GainedFeature[] =>
-      p
-        ? featuresUpTo(p, 1)
-            .filter((f) => !isFlowOwnedChoiceFeature(f))
-            .map((f) => ({ name: f.nameDe || f.name, desc: f.desc, descDe: f.descDe, source, gainedAt: 1, key: f.key }))
-        : [];
-
-    const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
-
-    // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
-    if (bg?.featKey) {
-      const feat = feats.find((f) => f.sourceKey === bg.featKey);
-      if (feat) gained.push({ name: featDisplayName(feat), desc: featDesc(feat), descDe: featDesc(feat), source: 'feat', gainedAt: 1, key: bg.featKey });
+  #prepare(): Promise<FeaturePrep> {
+    if (!this.#prep) {
+      this.#prep = buildFeaturePrep({ species: this.species, klass: this.klass, background: this.background });
     }
-
-    const toSummary = (g: GainedFeature): SummaryFeature => ({
-      name: g.name,
-      desc: g.descDe || g.desc,
-      source: g.source === 'subclass' ? 'class' : g.source,
-      group: g.source === 'feat' ? this.background.name : this.klass.name,
-      gainedAt: g.gainedAt,
-    });
-
-    const summaryClass = gained.map(toSummary);
-    const traits = spec?.traits ?? [];
-    const summarySpecies: SummaryFeature[] = traits.map((t) => ({
-      name: t.nameDe || t.name,
-      desc: t.descDe || t.desc,
-      source: 'species',
-      group: this.species.name,
-    }));
-
-    // Speziesmerkmale als Analyse-Eingang: nur so erkennt die KI erzwungene Volks-Wahlen
-    // (Drakonische Urahnen, Elfenlinie …). desc = EN-Regeltext (maßgeblich), descDe = DE.
-    const speciesFeatures: GainedFeature[] = traits.map((t) => ({
-      name: t.nameDe || t.name,
-      desc: t.desc,
-      descDe: t.descDe,
-      source: 'species',
-      gainedAt: 1,
-      key: t.key,
-    }));
-
-    // Voller Merkmalsbestand für die fortlaufenden TP-Effekte (Zäh, Zwergische Zähigkeit).
-    const effectFeatures: EffectFeature[] = [...gained, ...speciesFeatures].map((f) => ({
-      key: f.key ?? '',
-      name: f.name,
-      desc: f.descDe || f.desc,
-    }));
-
-    const slug = this.klass.sourceKey.split('_').pop() ?? '';
-    const classContext: FeatureClassContext = {
-      klasseName: this.klass.name,
-      subclassName: this.klass.subclassName ?? '',
-      casterType: prog?.casterType ?? 'NONE',
-      casterKind: (prog?.casterType ?? 'NONE') === 'NONE' ? 'none' : 'prepared',
-      spellcastingAbility: SPELL_ABILITY_DE[slug] ?? '',
-      toLevel: 1,
-    };
-
-    return { gained, speciesFeatures, effectFeatures, summaryClass, summarySpecies, classContext };
+    return this.#prep;
   }
 
   // ── Hintergrund-Jobs starten (fire-and-forget) ──
@@ -341,6 +276,10 @@ export class CharacterWizard {
     this.toolPicks = {};
     this.masteries = [];
     this.fightingStyles = [];
+    this.pickedCantrips = [];
+    this.pickedKnown = [];
+    this.pickedPrepared = [];
+    this.featureSpellPicks = {};
     this.kickoff();
   }
 

@@ -31,12 +31,21 @@
   import { buildCharacterProtocol } from '../services/characterProtocol';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
+  import {
+    decodePick,
+    riderExtras,
+    spellcastingOffer,
+    type SpellcastingOffer,
+  } from '../services/spellcasting';
+  import { validateRiderSpells } from '../services/levelUpMachine';
+  import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
   import type { Character } from '../schemas/character';
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';
+  import SpellPicker from './SpellPicker.svelte';
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
 
@@ -50,7 +59,7 @@
   // Schritte über eine ID adressieren, nicht über einen festen Index: der
   // Waffenmeisterschafts-Schritt fällt weg, wenn die Klasse das Merkmal nicht gewährt,
   // und würde sonst alle nachfolgenden Index-Prüfungen verschieben.
-  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'features' | 'equipment' | 'review';
+  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'features' | 'spells' | 'equipment' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
     { id: 'basics', label: 'Grundwahl' },
     { id: 'abilities', label: 'Attribute' },
@@ -59,18 +68,27 @@
     { id: 'mastery', label: 'Waffenmeisterschaft' },
     { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'features', label: 'Merkmale' },
+    { id: 'spells', label: 'Zauber' },
     { id: 'equipment', label: 'Ausrüstung' },
     { id: 'review', label: 'Überblick' },
   ];
-  let stepIndex = $state(0);
   const steps = $derived(
     ALL_STEPS.filter(
       (s) =>
-        (s.id !== 'mastery' || masteryAvailable) &&
-        (s.id !== 'fighting-style' || fightingStyleAvailable),
+        // Den Schritt, auf dem der Nutzer STEHT, nie herausfiltern: sonst zeigt der Kopf
+        // einen anderen Schritt als der Körper. Bedingungen können nachträglich kippen
+        // (die Merkmals-Analyse landet spät).
+        s.id === currentStep ||
+        ((s.id !== 'mastery' || masteryAvailable) &&
+          (s.id !== 'fighting-style' || fightingStyleAvailable) &&
+          (s.id !== 'spells' || spellsAvailable)),
     ),
   );
-  const currentStep = $derived(steps[stepIndex]?.id ?? 'basics');
+  // Der AKTUELLE Schritt ist die ID, nicht der Index: ein optionaler Schritt kann noch
+  // auftauchen, während der Nutzer schon weiter ist (der Zauber-Schritt hängt an der
+  // Merkmals-Analyse) — ein Index würde den Nutzer dann still verschieben.
+  let currentStep = $state<StepId>('basics');
+  const stepIndex = $derived(Math.max(0, steps.findIndex((s) => s.id === currentStep)));
 
   // ── Bibliotheks-Listen ──
   let classTree = $state<ClassNode[]>([]);
@@ -114,6 +132,7 @@
     getClassTree().then((t) => (classTree = t));
     getSpeciesList().then((s) => (speciesList = s));
     getBackgroundsList().then((b) => (backgroundList = b));
+    getSpellLibrary().then((s) => (spellLib = s));
     const clock = setInterval(() => (nowMs = performance.now()), 500);
     return () => { clearInterval(clock); w.dispose(); };
   });
@@ -276,6 +295,85 @@
   });
   const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
 
+  // ── Zauber (optionaler Schritt) ──
+  // Gleiches Muster wie Waffenmeisterschaft/Kampfstil: die Kontingente kommen aus der
+  // Klassentabelle, die Optionen aus `vault/spells` — kein KI-Job. Der Schritt erscheint auch
+  // für Nicht-Zauberwirker, wenn ein Merkmal eine Zauber-Wahl erzwingt (Kämpfer mit dem
+  // Hintergrund Akolyth → Talent „Magiekundiger").
+  let spellOffer = $state<SpellcastingOffer | null>(null);
+  $effect(() => {
+    const key = w.klass.sourceKey;
+    if (!key) { spellOffer = null; return; }
+    let cancelled = false;
+    void spellcastingOffer({ classKey: key, klasseName: w.klass.name, level: 1 })
+      .then((o) => { if (!cancelled) spellOffer = o; })
+      .catch(() => { if (!cancelled) spellOffer = null; });
+    return () => { cancelled = true; };
+  });
+
+  let spellLib = $state<SpellInfo[]>([]);
+  const spellsAvailable = $derived((spellOffer?.isCaster ?? false) || w.spellPickChoices.length > 0);
+
+  /** Rider-Aufschläge (Thaumaturg/Magier-Orden) — können nur wachsen, nie schrumpfen. */
+  const extras = $derived(riderExtras(w.riders));
+  const cantripMax = $derived((spellOffer?.cantrips ?? 0) + extras.cantrips);
+  /** Im Zauberbuch-Regime ist das die Buchgröße, sonst unmittelbar die Vorbereitung. */
+  const spellMax = $derived(
+    spellOffer ? (spellOffer.known || spellOffer.prepared) + extras.prepared : 0,
+  );
+  const preparedMax = $derived(spellOffer ? spellOffer.prepared + extras.prepared : 0);
+  const isSpellbook = $derived(spellOffer?.regime === 'spellbook');
+  /** Zaubergrade, für die auf Stufe 1 Plätze existieren (1 … maxSpellLevel). */
+  const spellLevels = $derived(
+    Array.from({ length: Math.max(0, spellOffer?.maxSpellLevel ?? 0) }, (_, i) => i + 1),
+  );
+
+  /** Von Merkmalen gewährte Zauber: fest, nicht entfernbar, zählen nicht gegen das Kontingent. */
+  const grantedSpells = $derived.by(() => {
+    if (!spellLib.length || !w.riders.length) return { cantrips: [], prepared: [] };
+    const v = validateRiderSpells(w.riders, spellLib, w.klass.name);
+    return { cantrips: v.grantedCantrips, prepared: v.grantedPrepared };
+  });
+  const fixedCantrips = $derived(grantedSpells.cantrips.map((name) => ({ level: 0, name })));
+
+  // Ein Zauber, den der Nutzer selbst gewählt hat und der DANACH als gewährt hereinkommt
+  // (der Effekt-Job landet spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen —
+  // er zählt dann nicht mehr gegen das Kontingent. Beim nächsten Schreiben verschwindet er
+  // auch aus dem Zustand; hier wird nichts mutiert.
+  const lower = (v: string) => decodePick(v).name.toLowerCase();
+  const grantedNames = $derived({
+    cantrips: new Set(grantedSpells.cantrips.map((n) => n.toLowerCase())),
+    spells: new Set(grantedSpells.prepared.map((p) => p.name.toLowerCase())),
+  });
+  const cantripPicks = $derived(w.pickedCantrips.filter((v) => !grantedNames.cantrips.has(lower(v))));
+  const knownPicks = $derived(w.pickedKnown.filter((v) => !grantedNames.spells.has(lower(v))));
+
+  /**
+   * Gated wird nur gegen die DETERMINISTISCHEN Kontingente aus der Klassentabelle: der
+   * Merkmals-Effekt-Job läuft beim Betreten des Schritts womöglich noch, und ein
+   * nachträglicher Aufschlag darf den Nutzer nicht blockieren (er sieht ihn als Hinweis).
+   */
+  const spellPicksDone = $derived.by(() => {
+    const base = spellOffer;
+    if (base?.isCaster) {
+      if (cantripPicks.length < base.cantrips) return false;
+      // Nur fordern, was auch wählbar ANGEBOTEN wird: eine Klasse mit „Prepared Spells"-Spalte
+      // aber ohne Zauberplatz-Spalten (Homebrew-Lücke) würde den Wizard sonst blockieren.
+      if (spellLevels.length > 0) {
+        if (knownPicks.length < (base.known || base.prepared)) return false;
+        if (isSpellbook && w.pickedPrepared.length < base.prepared) return false;
+      }
+    }
+    return w.spellPickChoices.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max);
+  });
+
+  /** Lese-/Schreib-Paar für `bind:picks` einer Merkmals-Zauber-Wahl. */
+  const featurePickBinding = (id: string) =>
+    [
+      () => w.featureSpellPicks[id] ?? [],
+      (v: string[]) => (w.featureSpellPicks = { ...w.featureSpellPicks, [id]: v }),
+    ] as const;
+
   // ── Merkmalswahlen → resolvedChoices ──
   function answerFor(id: string): string[] {
     return choiceAnswers[id] ?? [];
@@ -290,9 +388,21 @@
   function optionsFor(choice: { options: string[]; optionHelp: Record<string, string> }): TooltipOption[] {
     return choice.options.map((o) => ({ value: o, label: o, tooltip: choice.optionHelp[o] }));
   }
+  /**
+   * Baut `resolvedChoices` komplett neu (idempotent) — läuft daher gefahrlos zweimal: nach
+   * dem Merkmals-Schritt für die effekt-relevanten Wahlen und nach dem Zauber-Schritt, damit
+   * auch dort getroffene Zauber-Wahlen im Ledger landen. Zauber-Wahlen sind terminal
+   * (`determinesFurtherEffects` ist bei `spell-pick` immer false), die KI braucht sie nicht.
+   */
   function commitFeatureChoices() {
     w.resolvedChoices = w.featureChoices
-      .map((ch) => ({ id: ch.id, choice: (choiceAnswers[ch.id] ?? []).join(', ') }))
+      .map((ch) => ({
+        id: ch.id,
+        choice:
+          ch.type === 'spell-pick'
+            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => decodePick(v).name).join(', ')
+            : (choiceAnswers[ch.id] ?? []).join(', '),
+      }))
       .filter((rc) => rc.choice.trim());
   }
 
@@ -303,6 +413,7 @@
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background': return asiValid;
       case 'proficiencies': return openChoicesDone;
+      case 'spells': return spellPicksDone;
       case 'equipment': return toolChoicesDone;
       default: return true;
     }
@@ -319,11 +430,17 @@
     // Merkmals-Effekte UND -Text erst nach dem Wahl-Checkpoint: so trägt der Text die
     // getroffene Wahl statt eines Platzhalters („Resistenz gegen [Schadensart]").
     if (currentStep === 'features') { commitFeatureChoices(); w.finalizeFeatures(); w.summarizeFeatures(); }
+    if (currentStep === 'spells') commitFeatureChoices();
+    const nextStep = steps[stepIndex + 1];
+    if (!nextStep) return;
     // Beim Betreten der Übungen die Grants laden (auch die Waffenmeisterschaft baut darauf auf).
-    if (steps[stepIndex + 1]?.id === 'proficiencies' && !grants) loadGrants();
-    stepIndex += 1;
+    if (nextStep.id === 'proficiencies' && !grants) loadGrants();
+    currentStep = nextStep.id;
   }
-  function back() { if (stepIndex > 0) stepIndex -= 1; }
+  function back() {
+    const prev = steps[stepIndex - 1];
+    if (prev) currentStep = prev.id;
+  }
 
   async function create() {
     creating = true;
@@ -525,10 +642,13 @@
           <p class="hint">Merkmals-Analyse übersprungen (kein QualityMinds-Modell aktiv). Merkmalsabhängige Wahlen kannst du später im Editor treffen.</p>
         {:else if w.analysis.status === 'error'}
           <p class="warn">{statusText(w.analysis)}</p>
-        {:else if w.featureChoices.length === 0}
-          <p class="hint">Keine erzwungenen Merkmalswahlen auf Stufe 1.</p>
+        {:else if w.plainChoices.length === 0}
+          <p class="hint">
+            Keine erzwungenen Merkmalswahlen auf Stufe 1.
+            {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
+          </p>
         {:else}
-          {#each w.featureChoices as choice}
+          {#each w.plainChoices as choice}
             <div class="field">
               <span>
                 {choice.feature}: {choice.question}
@@ -547,6 +667,97 @@
               {/if}
             </div>
           {/each}
+        {/if}
+
+      {:else if currentStep === 'spells'}
+        {#if spellOffer?.isCaster}
+          {#if cantripMax > 0}
+            <div class="field">
+              <span>
+                Zaubertricks ({spellOffer.klasseName})
+                <span class="info" title="Zaubertricks kosten keinen Zauberplatz und sind unbegrenzt wirkbar.">ⓘ</span>
+              </span>
+              <SpellPicker
+                library={spellLib}
+                spellLevels={[0]}
+                spellClass={spellOffer.spellClass}
+                max={cantripMax}
+                fixed={fixedCantrips}
+                bind:picks={() => cantripPicks, (v) => (w.pickedCantrips = v)}
+              />
+            </div>
+          {/if}
+
+          <div class="field">
+            <span>
+              {#if isSpellbook}
+                Zauberbuch — {spellMax} Zauber deiner Wahl
+                <span class="info" title="Das Zauberbuch ist dein dauerhafter Bestand. Aus ihm bereitest du nach jeder Langen Rast {preparedMax} Zauber vor — schalte sie unten mit ● / ○ um.">ⓘ</span>
+              {:else if spellOffer.regime === 'open-list'}
+                Erste Vorbereitung — {spellMax} Zauber
+                <span class="info" title="Du kennst die ganze {spellOffer.klasseName}-Zauberliste; nach jeder Langen Rast darfst du deine Vorbereitung völlig neu zusammenstellen. Das hier ist nur der Startzustand.">ⓘ</span>
+              {:else}
+                {spellMax} Zauber deiner Wahl
+                <span class="info" title="Diese Liste ist dauerhaft — beim Stufenaufstieg bzw. nach einer Langen Rast darfst du jeweils einen Zauber austauschen.">ⓘ</span>
+              {/if}
+            </span>
+            {#if spellLevels.length === 0}
+              <p class="hint">Auf Stufe 1 stehen noch keine Zauberplätze zur Verfügung.</p>
+            {:else}
+              <SpellPicker
+                library={spellLib}
+                spellLevels={spellLevels}
+                spellClass={spellOffer.spellClass}
+                max={spellMax}
+                fixed={grantedSpells.prepared}
+                bind:picks={() => knownPicks, (v) => (w.pickedKnown = v)}
+                bind:prepared={
+                  () => (isSpellbook ? w.pickedPrepared : undefined),
+                  (v) => (w.pickedPrepared = v ?? [])
+                }
+                preparedMax={preparedMax}
+              />
+            {/if}
+          </div>
+
+          {#if w.effects.status === 'running'}
+            <p class="hint">
+              Die KI leitet noch die Merkmals-Effekte ab ({statusText(w.effects)}) — kommt dabei
+              ein zusätzlicher Zaubertrick heraus (z.B. „Urtümlicher Orden: Thaumaturg"), wächst
+              das Kontingent oben nach. Getroffene Wahlen bleiben erhalten.
+            </p>
+          {:else if extras.cantrips > 0 || extras.prepared > 0}
+            <p class="hint">
+              Aus Merkmalen: {[
+                extras.cantrips > 0 ? `+${extras.cantrips} Zaubertrick(s)` : '',
+                extras.prepared > 0 ? `+${extras.prepared} Zauber` : '',
+              ].filter(Boolean).join(', ')} — bereits im Kontingent oben enthalten.
+            </p>
+          {/if}
+        {/if}
+
+        {#each w.spellPickChoices as choice (choice.id)}
+          {@const bind = featurePickBinding(choice.id)}
+          <div class="field">
+            <span>
+              {choice.feature}: {choice.question}
+              {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
+            </span>
+            <SpellPicker
+              library={spellLib}
+              spellLevels={choice.spellLevels}
+              spellClass={choice.spellClass}
+              max={choice.max}
+              bind:picks={bind[0], bind[1]}
+            />
+          </div>
+        {/each}
+
+        {#if !spellOffer?.isCaster && w.spellPickChoices.length}
+          <p class="hint">
+            Deine Klasse wirkt keine Zauber — diese Zauber kommen allein aus dem Merkmal und
+            werden ohne Zauberplätze gewirkt.
+          </p>
         {/if}
 
       {:else if currentStep === 'equipment'}

@@ -16,10 +16,10 @@ import {
   getProgressionByKey,
   proficiencyBonus,
   spellSlotsAt,
-  columnValue,
 } from './classProgression';
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
+import { cantripCount, isSpellcastingFeature, preparedOrKnownCount } from './spellcasting';
 
 export interface SubclassOption {
   key: string;
@@ -76,50 +76,25 @@ function matches(f: ClassFeature, hints: string[]): boolean {
  * Entscheidung ist, die der Aufstiegs-Flow selbst deterministisch trifft — die Subklassen-
  * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint, die Attributs-
  * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte) und jede über
- * `grantsChoice` DEKLARIERTE Wahl (Waffenbeherrschung, Kampfstil — Optionen aus der
- * Bibliothek). Eigene Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie die KI
- * nur dazu verleiten, eine längst getroffene Entscheidung erneut zu erzwingen — bei
- * Waffenbeherrschung/Kampfstil käme sogar eine LLM-ERFUNDENE Options-Liste heraus statt der
- * aus dem Vault abgeleiteten.
+ * `grantsChoice` DEKLARIERTE Wahl (Waffenbeherrschung, Kampfstil, Zauberwirken — Optionen
+ * aus der Bibliothek). Eigene Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie
+ * die KI nur dazu verleiten, eine längst getroffene Entscheidung erneut zu erzwingen — bei
+ * Waffenbeherrschung/Kampfstil/Zauberwirken käme sogar eine LLM-ERFUNDENE Options-Liste
+ * heraus statt der aus dem Vault abgeleiteten.
  *
  * Der `grantsChoice`-Zweig ist die offene, deklarative Erkennung (auch für Homebrew).
- * `isWeaponMasteryFeature` bleibt als Regex-Fallback für noch nicht gepflegte Merkmale.
- * Bewusst ENG gebunden — „subclass" statt `SUBCLASS_HINTS` (dessen weiche Begriffe patron,
- * circle, path … treffen sonst echte Merkmale wie „Contact Patron").
+ * `isWeaponMasteryFeature`/`isSpellcastingFeature` bleiben als Namens-Fallback für noch
+ * nicht gepflegte Merkmale. Bewusst ENG gebunden — „subclass" statt `SUBCLASS_HINTS` (dessen
+ * weiche Begriffe patron, circle, path … treffen sonst echte Merkmale wie „Contact Patron").
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
   return (
     !!f.grantsChoice ||
     /\bsubclass(es)?\b/i.test(f.name) ||
     matches(f, ASI_HINTS) ||
-    isWeaponMasteryFeature(f)
+    isWeaponMasteryFeature(f) ||
+    isSpellcastingFeature(f)
   );
-}
-
-/** Zaubertrick-Anzahl aus der (offenen) Spaltenmap; robust gegen Spaltennamen. */
-function cantripCount(prog: ClassProgression, level: number): number {
-  const raw = columnValue(prog, 'Cantrips', level) ?? columnValue(prog, 'Cantrips Known', level);
-  const n = Number(String(raw ?? '').match(/(\d+)/)?.[1] ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-/**
- * Anzahl vorbereitbarer Zauber (2024) bzw. bekannter Zauber (known-Caster) auf einer
- * Stufe. Robust gegen Spaltennamen (der exakte 2024-Spaltenname variiert je Quelle).
- * Rückgabe 0, wenn keine passende Spalte existiert (Nicht-Zauberwirker).
- */
-const PREPARED_COLUMNS = ['Prepared Spells', 'Spells Prepared', 'Prepared Spell Count'];
-const KNOWN_COLUMNS = ['Spells Known', 'Known Spells'];
-function preparedOrKnownCount(prog: ClassProgression, level: number): { count: number; kind: 'prepared' | 'known' | 'none' } {
-  for (const c of PREPARED_COLUMNS) {
-    const raw = columnValue(prog, c, level);
-    if (raw != null) return { count: Number(String(raw).match(/(\d+)/)?.[1] ?? 0) || 0, kind: 'prepared' };
-  }
-  for (const c of KNOWN_COLUMNS) {
-    const raw = columnValue(prog, c, level);
-    if (raw != null) return { count: Number(String(raw).match(/(\d+)/)?.[1] ?? 0) || 0, kind: 'known' };
-  }
-  return { count: 0, kind: 'none' };
 }
 
 /** Merkmale, die eine Klasse in der Spanne (fromLevel, toLevel] erlangt (Mehrfach-Aufstieg). */

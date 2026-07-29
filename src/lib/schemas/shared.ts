@@ -207,8 +207,11 @@ export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
  *     der Stufentabelle (`masteryAllowanceFor`, services/weaponMastery.ts).
  *   - `featCategory`: Wahl eines Talents aus `featCategory` (heute nur „Fighting Style"). `count`
  *     = wie viele Talente dieses eine Merkmal gewährt (i.d.R. 1).
+ *   - `spellcasting`: das Zauberwirken-Merkmal selbst („Spellcasting", „Pact Magic"). `count`
+ *     wird IGNORIERT — Zaubertricks und vorbereitete Zauber kommen aus der Stufentabelle
+ *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 export const featureChoiceGrantSchema = z.object({

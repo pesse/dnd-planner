@@ -104,6 +104,18 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   the property is resolved at render time, so a swap needs no write-back.
 - **Weapon mastery is not an AI path.** `isFlowOwnedChoiceFeature` keeps it out of the level-up
   prompt, and the options must come from the library, never from a model.
+- **Spell selection is not an AI path either.** Counts come from `services/spellcasting.ts`
+  (class table, plus the one prose constant `SPELLBOOK_START_SPELLS` — Open5e emits no column
+  for the wizard's starting six), options come from `vault/spells`. 2024 has no "Spells Known":
+  what is persisted follows `PrepRegime` — only the wizard's book and prepared list differ, for
+  cleric/druid the known pool *is* the class list and is deliberately not written to the file.
+  A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
+  carrying only count/level/class list — **never spell names**.
+- **A class feature whose only content is a choice declares it**, via `grantsChoice`
+  (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
+  `spellcasting`). That declaration is what keeps it out of the AI feature analysis; the
+  name-based predicates (`isWeaponMasteryFeature`, `isSpellcastingFeature`) are only the
+  fallback for vault entries that do not carry the field yet.
 - **New entity create/edit actions are not hand-written**: describe the differences in an
   `EntityActionSpec` (`services/aiActions/spec.ts`) and let `factory.ts` build the action.
 - **Gate LLM features on `LlmCapabilities`, never on provider names** (`services/llmClient.ts`).
