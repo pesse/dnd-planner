@@ -9,6 +9,15 @@
 import { z } from 'zod';
 import { migrateSourceKey } from './shared';
 
+// Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
+// „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
+// Wert wie `magicBonus` (zählt auf beides) wäre für diese Fälle falsch.
+const attackModifierSchema = z.object({
+  label: z.string().default(''),
+  attackBonus: z.number().int().default(0),
+  damageBonus: z.number().int().default(0),
+});
+
 const attackSchema = z.object({
   name: z.string().default(''),
   bonus: z.string().default(''),
@@ -20,6 +29,8 @@ const attackSchema = z.object({
   proficient: z.boolean().optional().describe('Übungsbonus auf den Angriffswurf addieren?'),
   baseDamage: z.string().optional().describe('Schadenswürfel ohne Modifikator, z.B. "1W8".'),
   magicBonus: z.number().int().optional().describe('Magischer Bonus (+X) auf Angriff UND Schaden.'),
+  modifiers: z.array(attackModifierSchema).optional()
+    .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
 });
 
 const spellEntrySchema = z.object({
@@ -243,6 +254,7 @@ export const characterSchema = z.object({
 export type Character = z.infer<typeof characterSchema>;
 export type CharacterSpells = z.infer<typeof characterSpellsSchema>;
 export type Attack = z.infer<typeof attackSchema>;
+export type AttackModifier = z.infer<typeof attackModifierSchema>;
 export type SpellEntry = z.infer<typeof spellEntrySchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;

@@ -186,7 +186,12 @@
     }]))
   );
 
-  let attacks = $state(character.attacks.map(a => ({ ...a })));
+  // `modifiers` mitkopieren, sonst teilt der Editor die Array-Instanz mit dem Draft und
+  // schreibt am Sync-Effekt vorbei.
+  let attacks = $state(character.attacks.map(a => ({
+    ...a,
+    ...(a.modifiers ? { modifiers: a.modifiers.map(m => ({ ...m })) } : {}),
+  })));
   let classFeatures = $state(character.classFeatures ?? '');
   // Das Merkmals-Ledger wird beim Bearbeiten AUFGETEILT: editierbar sind nur die
   // Talent-Links, die Entscheidungen laufen unangetastet durch. Ohne diese Trennung
@@ -286,7 +291,7 @@
 
     const atk: Attack = {
       name, bonus: '', damage: '', type: damageTypeShort, range,
-      auto: true, ability, proficient, baseDamage, magicBonus,
+      auto: true, ability, proficient, baseDamage, magicBonus, modifiers: [],
     };
     atk.bonus = computeAttackBonus(atk);
     atk.damage = computeAttackDamage(atk);
@@ -300,16 +305,70 @@
     if (a.ability === 'finesse') return Math.max(strMod, gesMod);
     return strMod;
   }
-  /** Angriffsbonus = Attributsmod + (geübt ? Übungsbonus) + magischer Bonus. */
-  function computeAttackBonus(a: Attack): string {
-    return sign(attackAbilityMod(a) + (a.proficient ? proficiencyBonus : 0) + (a.magicBonus ?? 0));
+  const ATTACK_ABILITY_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', finesse: 'Finesse' };
+
+  /** Summe der benannten Zusatzeffekte, getrennt nach Angriffswurf und Schaden. */
+  function attackModifierTotals(a: Attack): { attack: number; damage: number } {
+    let attack = 0, damage = 0;
+    for (const m of a.modifiers ?? []) {
+      attack += m.attackBonus || 0;
+      damage += m.damageBonus || 0;
+    }
+    return { attack, damage };
   }
-  /** Schaden = Würfel + Attributsmod + magischer Bonus (Übungsbonus zählt NICHT). */
+  /** Angriffsbonus = Attributsmod + (geübt ? Übungsbonus) + magischer Bonus + Zusatzeffekte. */
+  function computeAttackBonus(a: Attack): string {
+    return sign(attackAbilityMod(a) + (a.proficient ? proficiencyBonus : 0)
+      + (a.magicBonus ?? 0) + attackModifierTotals(a).attack);
+  }
+  /** Schaden = Würfel + Attributsmod + magischer Bonus + Zusatzeffekte (Übungsbonus zählt NICHT). */
   function computeAttackDamage(a: Attack): string {
     const base = (a.baseDamage ?? '').trim();
     if (!base) return '';
-    const m = attackAbilityMod(a) + (a.magicBonus ?? 0);
+    const m = attackAbilityMod(a) + (a.magicBonus ?? 0) + attackModifierTotals(a).damage;
     return base + (m !== 0 ? sign(m) : '');
+  }
+
+  /**
+   * Mehrzeilige Herleitung fürs `title`-Attribut der berechneten Zellen. Bewusst Plaintext:
+   * das HTML-Tooltip-System (`row`/`total`) liegt lokal in CharacterSheet.svelte.
+   */
+  function attackBonusTip(a: Attack): string {
+    const lines = [`${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a))}`];
+    if (a.proficient) lines.push(`geübt ${sign(proficiencyBonus)}`);
+    if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
+    for (const m of a.modifiers ?? [])
+      if (m.attackBonus) lines.push(`${m.label.trim() || 'Effekt'} ${sign(m.attackBonus)}`);
+    return [...lines, `= ${computeAttackBonus(a)}`].join('\n');
+  }
+  function attackDamageTip(a: Attack): string {
+    const base = (a.baseDamage ?? '').trim();
+    if (!base) return 'Kein Schadenswürfel eingetragen';
+    const lines = [`Würfel ${base}`, `${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a))}`];
+    if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
+    for (const m of a.modifiers ?? [])
+      if (m.damageBonus) lines.push(`${m.label.trim() || 'Effekt'} ${sign(m.damageBonus)}`);
+    return [...lines, `= ${computeAttackDamage(a)}`].join('\n');
+  }
+
+  /**
+   * Vergleichsform fürs Diff-Highlighting: ein leeres `modifiers` ist dasselbe wie keins.
+   * Ohne das bliebe eine Zeile nach dem Speichern grün, weil der Editor den Schlüssel
+   * hält, die gespeicherte Datei ihn aber (zu Recht) nicht trägt.
+   */
+  function attackForDiff(a: Attack): Attack {
+    if (a.modifiers?.length) return a;
+    const rest = { ...a };
+    delete rest.modifiers;
+    return rest;
+  }
+
+  function addAttackModifier(i: number) {
+    const a = attacks[i];
+    a.modifiers = [...(a.modifiers ?? []), { label: '', attackBonus: 0, damageBonus: 0 }];
+  }
+  function removeAttackModifier(i: number, j: number) {
+    attacks[i].modifiers?.splice(j, 1);
   }
 
   /** Schaltet einen Angriff zwischen reaktiver Berechnung und manueller Eingabe um. */
@@ -325,6 +384,7 @@
       a.ability ??= 'str';
       a.proficient ??= false;
       a.magicBonus ??= 0;
+      a.modifiers ??= [];
       if (a.baseDamage == null || a.baseDamage === '') {
         const m = a.damage.match(/^\s*(\d*\s*[WwDd]\s*\d+)/);
         a.baseDamage = m ? m[1].replace(/\s/g, '').replace(/[dD]/, 'W') : '';
@@ -345,7 +405,7 @@
       // Item nicht ladbar → Auto-Angriff mit dem Namen anlegen
       attacks.push({
         name: displayName(sug.item), bonus: '', damage: '', type: '', range: 'Nah',
-        auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0,
+        auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0, modifiers: [],
       });
       weaponSearch = '';
       weaponSuggestions = [];
@@ -739,7 +799,7 @@
   function addAttack() {
     attacks.push({
       name: '', bonus: '', damage: '', type: '', range: '',
-      auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0,
+      auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0, modifiers: [],
     });
   }
   function removeAttack(i: number) { attacks.splice(i, 1); }
@@ -1271,7 +1331,20 @@
     character.skills = computedSkills;
     character.attacks = attacks
       .filter((a) => a.name.trim() !== '')
-      .map((a) => (a.auto ? { ...a, bonus: computeAttackBonus(a), damage: computeAttackDamage(a) } : { ...a }));
+      .map((a) => {
+        // Angetippte, aber nie gefüllte Effektzeilen fliegen raus — wie beim Inventar.
+        const modifiers = (a.modifiers ?? [])
+          .filter((m) => m.label.trim() !== '' || m.attackBonus !== 0 || m.damageBonus !== 0)
+          .map((m) => ({ ...m }));
+        const out = a.auto
+          ? { ...a, bonus: computeAttackBonus(a), damage: computeAttackDamage(a) }
+          : { ...a };
+        // Leeres `modifiers` NICHT schreiben: sonst bekäme jede Waffe ohne Effekte den
+        // Schlüssel, und der Diff gegen den geladenen Stand bliebe dauerhaft „geändert".
+        if (modifiers.length) out.modifiers = modifiers;
+        else delete out.modifiers;
+        return out;
+      });
     character.classFeatures = classFeatures;
     character.traits = traits; character.ideals = ideals;
     character.bonds = bonds; character.flaws = flaws;
@@ -1783,12 +1856,12 @@
         {#each attacks as atk, i}
           {@const atkDir = !saved || !atk.name.trim() ? 'none'
             : i >= (saved.attacks?.length ?? 0) ? 'up'
-            : classifyChange($state.snapshot(saved.attacks[i]), $state.snapshot(atk))}
+            : classifyChange(attackForDiff($state.snapshot(saved.attacks[i])), attackForDiff($state.snapshot(atk)))}
           <tr use:diffMark={atkDir}>
             <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
             {#if atk.auto}
-              <td><span class="computed-cell" title="Reaktiv berechnet">{computeAttackBonus(atk)}</span></td>
-              <td><span class="computed-cell" title="Reaktiv berechnet">{computeAttackDamage(atk) || '—'}</span></td>
+              <td><span class="computed-cell" title={attackBonusTip(atk)}>{computeAttackBonus(atk)}</span></td>
+              <td><span class="computed-cell" title={attackDamageTip(atk)}>{computeAttackDamage(atk) || '—'}</span></td>
             {:else}
               <td><input bind:value={atk.bonus} placeholder="+5" /></td>
               <td><input bind:value={atk.damage} placeholder="1W8+3" /></td>
@@ -1824,6 +1897,29 @@
                       value={atk.magicBonus ?? 0}
                       oninput={(e) => (atk.magicBonus = parseInt((e.target as HTMLInputElement).value) || 0)} />
                   </label>
+                </div>
+
+                <!-- Nicht-magische Effekte (Kampfstil, Segen …). Gehören hierher und nicht
+                     ins Feld „Magie", sonst wandert Nicht-Magisches in die Gegenstands-Logik. -->
+                <div class="attack-mods">
+                  {#each atk.modifiers ?? [] as m, j}
+                    <div class="am-row">
+                      <input class="am-label" bind:value={m.label} placeholder="Kampfstil „Bogenschießen“" />
+                      <label class="ac-field">Angriff
+                        <input class="am-num" type="number" step="1"
+                          value={m.attackBonus}
+                          oninput={(e) => (m.attackBonus = parseInt((e.target as HTMLInputElement).value) || 0)} />
+                      </label>
+                      <label class="ac-field">Schaden
+                        <input class="am-num" type="number" step="1"
+                          value={m.damageBonus}
+                          oninput={(e) => (m.damageBonus = parseInt((e.target as HTMLInputElement).value) || 0)} />
+                      </label>
+                      <button type="button" class="remove-btn" title="Effekt entfernen"
+                        onclick={() => removeAttackModifier(i, j)}>✕</button>
+                    </div>
+                  {/each}
+                  <button type="button" class="am-add" onclick={() => addAttackModifier(i)}>+ Effekt</button>
                 </div>
               </td>
             </tr>
@@ -2604,7 +2700,8 @@
     align-items: center;
     gap: 0.5rem 0.75rem;
     background: var(--surface);
-    border-radius: 4px;
+    /* Unten eckig: `.attack-mods` schließt direkt an und rundet dort ab. */
+    border-radius: 4px 4px 0 0;
     padding: 0.35rem 0.5rem;
     margin-top: -0.1rem;
   }
@@ -2625,6 +2722,33 @@
   .ac-check input, .ac-field input[type="checkbox"] { width: auto; }
   .ac-dice { width: 5rem !important; }
   .ac-magic { width: 3.5rem !important; }
+
+  .attack-mods {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    background: var(--surface);
+    border-radius: 0 0 4px 4px;
+    border-top: 1px solid var(--border);
+    padding: 0.35rem 0.5rem;
+  }
+  .am-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+  .am-label { flex: 1; min-width: 8rem; }
+  .am-num { width: 3.5rem !important; }
+  .am-add {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.72rem;
+    color: var(--gold);
+    cursor: pointer;
+  }
+  .am-add:hover { text-decoration: underline; }
 
   .spell-auto-toggle { margin-top: 0.5rem; }
   .auto-hint {

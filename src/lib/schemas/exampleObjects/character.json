@@ -69,7 +69,14 @@
       "ability": "str",
       "proficient": false,
       "baseDamage": "string",
-      "magicBonus": -9007199254740991
+      "magicBonus": -9007199254740991,
+      "modifiers": [
+        {
+          "label": "string",
+          "attackBonus": 0,
+          "damageBonus": 0
+        }
+      ]
     }
   ],
   "classFeatures": "string",
