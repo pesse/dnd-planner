@@ -464,7 +464,7 @@ export function subclassChanges(subclass: { key: string; name: string } | null, 
 
 /**
  * Rider-abgeleitete AUTOMATISCHE Grants (kein Spieler-Choice): gewährte Zauber/Tricks,
- * feste Attributsboni, gewährte Profizienzen. `step` unterscheidet Basis-Merkmale
+ * feste Attributsboni, gewährte Übungen. `step` unterscheidet Basis-Merkmale
  * ('feature-effects') von Talenten ('feat-effects').
  */
 export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat-effects'): Change[] {

@@ -179,7 +179,7 @@ export async function exportCharacterToPdf(
   t('Trefferwürfel', character.hitDice);
   t('PassiveWeisheit', character.passivePerception);
 
-  // --- Rettungswürfe (Profizienzen + berechnete Werte) ---
+  // --- Rettungswürfe (Übungen + berechnete Werte) ---
   c('StrProf', character.strSaveProf);
   c('GesProf', character.gesSaveProf);
   c('KonProf', character.konSaveProf);
@@ -248,7 +248,7 @@ export async function exportCharacterToPdf(
     m('Aussehen', p.aussehen ?? '', 9);
   }
 
-  // --- Waffen- & Rüstungsprofizienzen ---
+  // --- Waffenübungen & Rüstungsausbildung ---
   const pr = character.proficiencies;
   if (pr) {
     c('EinfachWaffenProf', pr.simpleWeapons);

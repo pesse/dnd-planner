@@ -896,7 +896,7 @@
               {@const pf = character.proficiencies}
               {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
               {#if anyProf}
-                <h3>Profizienzen</h3>
+                <h3>Übungen &amp; Rüstungsausbildung</h3>
                 <div class="tag-list">
                   {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
                   {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}

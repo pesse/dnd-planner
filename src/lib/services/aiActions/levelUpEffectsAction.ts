@@ -6,7 +6,7 @@
  * + Talente) und extrahiert daraus ausschließlich Effekte, die einen Wert PRO
  * STUFE ändern — heute nur das TP-Maximum (z.B. „Zwergische Zähigkeit" = +1/Stufe,
  * Talent „Zäh"/Tough = +2/Stufe). Bewusst KEINE `FeatureRider`: dieser Pass
- * berührt weder Profizienzen/Zauber/ASI noch den Rider-Pfad, sondern liefert nur
+ * berührt weder Übungen/Zauber/ASI noch den Rider-Pfad, sondern liefert nur
  * die deterministisch (× gewonnene Stufen) anzuwendende pro-Stufe-Zahl samt Quelle.
  *
  * Tool-frei → `runAiAction` nimmt den strukturierten Pfad (Anthropic) bzw.

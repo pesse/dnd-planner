@@ -93,7 +93,7 @@
   let proficiencyBonus = $state(character.proficiencyBonus ?? 2);
   let hitDice = $state(character.hitDice ?? '');
 
-  // ─── Profizienzen (Waffen/Rüstung/Schild) ────────────────
+  // ─── Übungen/Rüstungsausbildung (Waffen/Rüstung/Schild) ────────────────
   const profInit = character.proficiencies ?? emptyProficiencies();
   let profSimpleWeapons = $state(profInit.simpleWeapons);
   let profMartialWeapons = $state(profInit.martialWeapons);
@@ -248,7 +248,7 @@
 
   /**
    * Baut einen reaktiven Attack-Eintrag aus einem geladenen Waffen-Item.
-   * Wählt das Attribut nach Reichweite/Finesse, übernimmt Waffenprofizienz,
+   * Wählt das Attribut nach Reichweite/Finesse, übernimmt Waffenübung,
    * Schadenswürfel und magischen Bonus (item.magic_bonus). Bonus/Schaden werden
    * danach reaktiv aus den Attributen berechnet (auto = true).
    */
@@ -1646,7 +1646,7 @@
 
   <!-- ── Rettungswürfe ─── -->
   <section>
-    <h3>Rettungswürfe (Profizienzen)</h3>
+    <h3>Rettungswürfe (Übungen)</h3>
     <div class="save-checks">
       {#each [['STR', strSaveProf, (v: boolean) => (strSaveProf = v), strMod, 'Strength'],
               ['GES', gesSaveProf, (v: boolean) => (gesSaveProf = v), gesMod, 'Dexterity'],
@@ -1746,7 +1746,7 @@
           <input
             type="checkbox"
             checked={flags.prof}
-            title="Profizient"
+            title="Übung"
             onchange={(e) => { skillFlags[def.key].prof = (e.target as HTMLInputElement).checked; if (!skillFlags[def.key].prof) skillFlags[def.key].exp = false; }}
           />
           <input
@@ -2084,9 +2084,9 @@
     </div>
   </section>
 
-  <!-- ── Profizienzen (Waffen / Rüstung / Schilde) ─── -->
+  <!-- ── Übungen & Rüstungsausbildung (Waffen / Rüstung / Schilde) ─── -->
   <section>
-    <h3>Profizienzen</h3>
+    <h3>Übungen &amp; Rüstungsausbildung</h3>
     <!-- ◆ = aus einem Bibliotheks-Link gewährt (Titel nennt die Quelle); übernommen wird
          im Grant-Panel im Abschnitt „Fertigkeiten". -->
     <div class="prof-grid">
