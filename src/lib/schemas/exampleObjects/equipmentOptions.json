@@ -9,7 +9,8 @@
           "items": [
             {
               "name": "string",
-              "count": 1
+              "count": 1,
+              "choiceFrom": ""
             }
           ],
           "goldPieces": 0

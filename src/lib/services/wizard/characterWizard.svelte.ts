@@ -43,18 +43,19 @@ import {
   buildLevelUpEffectsInput,
   type EffectFeature,
 } from '../aiActions/levelUpEffectsAction';
-import { getItemsByDir, displayName as itemDisplayName } from '$lib/itemLibrary';
 import type { LlmConfig } from '$lib/types';
 import type { FeatureEffects, FieldSummary, LevelUpEffects } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
-import { gatherStartingEquipment } from './startingEquipment';
+import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
 import type { AsiAllocation } from './backgroundAsi';
 
 export type JobStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped';
 
-/** Item-Kategorien, deren Namen als Match-Kandidaten für die Startausrüstung dienen. */
-const EQUIPMENT_CANDIDATE_DIRS = ['weapon', 'armor', 'shield', 'ammunition', 'adventuring-gear', 'equipment-pack', 'tools'];
+/** Adresse eines Kategorie-Eintrags in `toolPicks` (Gruppe/Option/Item). */
+export function toolPickKey(groupIdx: number, optionIdx: number, itemIdx: number): string {
+  return `${groupIdx}:${optionIdx}:${itemIdx}`;
+}
 
 /** Erkennt reine Münz-„Items" (Goldmünzen, 15 GM …) — die gehören in die Währung, nicht ins Inventar. */
 function isCoinItem(name: string): boolean {
@@ -142,6 +143,12 @@ export class CharacterWizard {
   chosenSkills = $state<string[]>([]);
   /** Gewählte Ausrüstungs-Option je Gruppe (Gruppen-Index → Options-Index). Default: erste Option. */
   equipmentSelection = $state<number[]>([]);
+  /**
+   * Konkreter Gegenstand für die Kategorie-Einträge der Ausrüstung (`choiceFrom`):
+   * Schlüssel ist `toolPickKey(...)`, Wert der Bibliotheks-Name. Nicht am Options-
+   * Objekt selbst, weil das KI-Ergebnis bei jedem `restart()` ersetzt wird.
+   */
+  toolPicks = $state<Record<string, string>>({});
   /** Gewählte Waffen der Waffenmeisterschaft (Bibliotheks-Namen; nur wenn die Klasse sie gewährt). */
   masteries = $state<string[]>([]);
 
@@ -302,10 +309,11 @@ export class CharacterWizard {
     // Ausrüstung: die englische Prosa (Klasse + Hintergrund) sofort in wählbare deutsche
     // Optionen aufbereiten, damit Schritt 6 direkt eine echte Auswahl anbieten kann.
     this.equipmentSelection = [];
+    this.toolPicks = {};
     this.equipment.run(async (signal) => {
       const [sources, candidates] = await Promise.all([
         gatherStartingEquipment(this.klass.sourceKey, this.background.sourceKey),
-        this.#equipmentCandidates(),
+        equipmentCandidateNames(),
       ]);
       if (!sources.classProse && !sources.backgroundProse) return { groups: [] };
       return runAiAction(
@@ -328,6 +336,7 @@ export class CharacterWizard {
     this.speciesText.reset();
     this.resolvedChoices = [];
     this.equipmentSelection = [];
+    this.toolPicks = {};
     this.masteries = [];
     this.kickoff();
   }
@@ -412,7 +421,14 @@ export class CharacterWizard {
     });
   }
 
-  /** Gewählte Ausrüstungs-Option je Gruppe (Default: erste Option), robust gegen Lücken.
+  /** Index der gewählten Option einer Gruppe (Default: erste), robust gegen Lücken. */
+  selectedOptionIndex(groupIdx: number): number {
+    const options = this.equipment.result?.groups[groupIdx]?.options ?? [];
+    const idx = this.equipmentSelection[groupIdx] ?? 0;
+    return options[idx] ? idx : 0;
+  }
+
+  /** Gewählte Ausrüstungs-Option je Gruppe, mit den Kategorie-Einträgen aufgelöst.
    *  Münzeinträge werden aus den Items verworfen — die Münzen stecken bereits in
    *  `goldPieces` (→ Währung), sonst stünde das Gold zusätzlich im Inventar. */
   selectedEquipment(): { items: { name: string; count: number }[]; goldPieces: number } {
@@ -420,12 +436,30 @@ export class CharacterWizard {
     const items: { name: string; count: number }[] = [];
     let goldPieces = 0;
     groups.forEach((group, gi) => {
-      const opt = group.options[this.equipmentSelection[gi] ?? 0] ?? group.options[0];
+      const oi = this.selectedOptionIndex(gi);
+      const opt = group.options[oi];
       if (!opt) return;
-      items.push(...opt.items.filter((i) => !isCoinItem(i.name)));
+      opt.items.forEach((item, ii) => {
+        if (isCoinItem(item.name)) return;
+        // Kategorie-Eintrag ohne Wahl fällt weg, statt „Handwerkszeug" ins Inventar zu
+        // schreiben — einen solchen Gegenstand gibt es nicht.
+        const picked = item.choiceFrom ? this.toolPicks[toolPickKey(gi, oi, ii)] : item.name;
+        if (picked) items.push({ name: picked, count: item.count });
+      });
       goldPieces += opt.goldPieces;
     });
     return { items, goldPieces };
+  }
+
+  /** Kategorie-Einträge der gewählten Optionen, denen noch ein Gegenstand fehlt. */
+  pendingToolChoices(): number {
+    const groups = this.equipment.result?.groups ?? [];
+    return groups.reduce((sum, group, gi) => {
+      const oi = this.selectedOptionIndex(gi);
+      const opt = group.options[oi];
+      if (!opt) return sum;
+      return sum + opt.items.filter((it, ii) => it.choiceFrom && !this.toolPicks[toolPickKey(gi, oi, ii)]).length;
+    }, 0);
   }
 
   /** Summe der pro-Stufe wirkenden TP-Effekte (auf Stufe 1 einmal angewandt). */
@@ -433,11 +467,6 @@ export class CharacterWizard {
     return (this.hpEffects.result?.changes ?? [])
       .filter((c) => c.target === 'hpMax')
       .reduce((sum, c) => sum + (parseInt(c.valueChange, 10) || 0), 0);
-  }
-
-  async #equipmentCandidates(): Promise<string[]> {
-    const lists = await Promise.all(EQUIPMENT_CANDIDATE_DIRS.map((dir) => getItemsByDir(dir).catch(() => [])));
-    return [...new Set(lists.flat().map((i) => itemDisplayName(i)))];
   }
 
   /** Wartet, bis die für den Zusammenbau nötigen KI-Jobs settled sind (fürs „Erstellen"). */

@@ -32,8 +32,8 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUpMachine';
-import { getItemsByDir, displayName as itemDisplayName } from '$lib/itemLibrary';
 import { applyAsi } from './backgroundAsi';
+import { equipmentWeightMap } from './startingEquipment';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 
@@ -51,8 +51,6 @@ const CASTER_ABILITY_DE: Record<AbilityKey, string> = {
   str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
   int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
 };
-
-const EQUIPMENT_CANDIDATE_DIRS = ['weapon', 'armor', 'shield', 'ammunition', 'adventuring-gear', 'equipment-pack', 'tools'];
 
 /** Leerer Charakter im aktuellen Schemaformat (wie `Sidebar.createCharacter`). */
 function blankCharacter(name: string): Character {
@@ -106,14 +104,6 @@ function markSkill(profSkills: Set<string>, expSkills: Set<string>, en: string, 
   const key = skillSheetKey(en as SkillName);
   profSkills.add(key);
   if (exp) expSkills.add(key);
-}
-
-/** Baut aus einem Namen die Gewichts-Lookup-Map (deutscher Name → Gewicht in kg). */
-async function loadWeightMap(): Promise<Map<string, number>> {
-  const lists = await Promise.all(EQUIPMENT_CANDIDATE_DIRS.map((d) => getItemsByDir(d).catch(() => [])));
-  const map = new Map<string, number>();
-  for (const item of lists.flat()) if (typeof item.weight === 'number') map.set(itemDisplayName(item).toLowerCase(), item.weight);
-  return map;
 }
 
 /** Baut den vollständigen Charakter aus dem Wizard-Zustand. */
@@ -248,7 +238,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   // ── Ausrüstung (gewählte Optionen der KI-Aufbereitung) ──
   const eq = w.selectedEquipment();
   if (eq.items.length || eq.goldPieces > 0) {
-    const weights = await loadWeightMap();
+    const weights = await equipmentWeightMap();
     c.inventory = eq.items.map((i) => ({
       name: i.name,
       count: i.count > 1 ? String(i.count) : '',

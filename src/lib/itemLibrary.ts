@@ -5,6 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';
 import { OWN_SOURCE, WEAPON_MASTERIES, type WeaponMastery } from './schemas/shared';
+import type { EquipmentChoiceCategory } from './schemas/wizardEquipment';
 
 export const ITEMS_PATH = './vault/items';
 
@@ -384,6 +385,37 @@ export function invalidateItemCache(dir?: string) {
   } else {
     cache = {};
   }
+}
+
+/**
+ * Die 17 Handwerkszeuge des SRD 5.2 als Open5e-`index`. „Handwerkszeug" ist eine
+ * Kategorie über ihnen, kein Gegenstand — und aus den Dateien NICHT ableitbar:
+ * `items/tools/` mischt Handwerkszeug, Musikinstrumente, Spielsets und
+ * Sonderwerkzeuge, und die „Craft:"-Zeile trifft auch Verkleidungs-,
+ * Kräuterkunde- und Giftmischerausrüstung (die im SRD keine Handwerkszeuge sind).
+ * Nur englische Keys, wie die anderen geschlossenen Vokabulare — die Anzeige kommt
+ * aus `name_de` der Bibliothek, keine zweite Übersetzungstabelle.
+ */
+export const ARTISAN_TOOL_INDEXES = [
+  'alchemists-supplies', 'brewers-supplies', 'calligraphers-supplies', 'carpenters-tools',
+  'cartographers-tools', 'cobblers-tools', 'cooks-utensils', 'glassblowers-tools',
+  'jewelers-tools', 'leatherworkers-tools', 'masons-tools', 'painters-supplies',
+  'potters-tools', 'smiths-tools', 'tinkers-tools', 'weavers-tools', 'woodcarvers-tools',
+] as const;
+
+/**
+ * Wählbare Gegenstände einer Werkzeug-KATEGORIE, alphabetisch — für die Stellen,
+ * an denen die Regel keine Wahl trifft (Mönch: „Handwerkszeug", Barde:
+ * „Musikinstrument deiner Wahl"). Musikinstrumente hängen am `index`-Präfix, die
+ * Handwerkszeuge an `ARTISAN_TOOL_INDEXES`.
+ */
+export async function getToolChoices(category: EquipmentChoiceCategory): Promise<ItemInfo[]> {
+  const tools = await getItemsByDir('tools').catch(() => []);
+  const match = (i: ItemInfo) =>
+    category === 'instrument'
+      ? (i.index ?? '').startsWith('musical-instrument-')
+      : (ARTISAN_TOOL_INDEXES as readonly string[]).includes(i.index ?? '');
+  return tools.filter(match).sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
 }
 
 /** Lädt alle Items einer Kategorie (mit Cache). */

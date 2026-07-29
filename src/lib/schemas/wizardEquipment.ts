@@ -3,7 +3,8 @@
  * die englische Startausrüstungs-Prosa (Klasse + Hintergrund) wird in WÄHLBARE,
  * deutsche Optionen zerlegt — je Herkunft eine Gruppe, je Gruppe eine oder mehrere
  * Optionen (A/B/C). Der Nutzer wählt pro Gruppe genau eine Option; die Gegenstände
- * sind schon konkret benannt und (wo möglich) an Bibliotheks-Items angelehnt.
+ * sind schon konkret benannt und (wo möglich) an Bibliotheks-Items angelehnt — außer
+ * dort, wo die Regel selbst nur eine Kategorie nennt (`choiceFrom`).
  * Single Source of Truth → Typ + LLM-JSON-Schema.
  *
  * Bewusst OHNE Gewicht: das füllt die Assembly deterministisch aus der Item-
@@ -12,9 +13,24 @@
 import { z } from 'zod';
 import { toLlmJsonSchema } from './shared';
 
+/**
+ * Kategorien, die die Startausrüstung statt eines Gegenstands nennt: „Handwerkszeug"
+ * ist im SRD die Kategorie über 17 Werkzeugen, „Musikinstrument" über 10 — beides
+ * keine Gegenstände, die es in der Bibliothek gäbe. Das Modell setzt hier die
+ * Kategorie, den konkreten Gegenstand wählt der Nutzer im Wizard.
+ */
+export const EQUIPMENT_CHOICE_CATEGORIES = ['artisan-tools', 'instrument'] as const;
+export type EquipmentChoiceCategory = (typeof EQUIPMENT_CHOICE_CATEGORIES)[number];
+
 const equipmentItemSchema = z.object({
   name: z.string().describe('Deutscher Item-Name, möglichst wörtlich aus <library_items>.'),
   count: z.number().int().min(1).default(1).describe('Stückzahl.'),
+  // Leerstring statt `.optional()`: das LLM-JSON-Schema ist strikt, jedes Feld muss
+  // im Output stehen — ein weggelassenes Feld bricht guided decoding.
+  choiceFrom: z
+    .enum(['', ...EQUIPMENT_CHOICE_CATEGORIES])
+    .default('')
+    .describe('Nur wenn der Text eine KATEGORIE statt eines Gegenstands nennt: "artisan-tools" für Handwerkszeug, "instrument" für Musikinstrument. Sonst leer.'),
 });
 
 const equipmentOptionSchema = z.object({

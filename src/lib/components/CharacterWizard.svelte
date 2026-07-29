@@ -2,7 +2,7 @@
   import { get } from 'svelte/store';
   import { onMount } from 'svelte';
   import { llmConfig } from '../stores/llm';
-  import { CharacterWizard, type Job } from '../services/wizard/characterWizard.svelte';
+  import { CharacterWizard, toolPickKey, type Job } from '../services/wizard/characterWizard.svelte';
   import { buildWizardCharacter } from '../services/wizard/assembleCharacter';
   import {
     ABILITY_KEYS,
@@ -30,6 +30,8 @@
   import { SKILL_NAMES, type SkillName } from '../schemas/shared';
   import { buildCharacterProtocol } from '../services/characterProtocol';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
+  import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
   import type { Character } from '../schemas/character';
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
@@ -186,8 +188,40 @@
     w.equipmentSelection = next;
   }
   function equipSelected(groupIdx: number): number {
-    return w.equipmentSelection[groupIdx] ?? 0;
+    return w.selectedOptionIndex(groupIdx);
   }
+
+  // Kategorie-Einträge („Handwerkszeug", „Musikinstrument") auflösen: die Regel nennt
+  // dort keine Sache, sondern eine Wahl — die Liste kommt aus der Bibliothek, nie aus
+  // der KI (dasselbe Prinzip wie bei der Waffenmeisterschaft).
+  const TOOL_CATEGORY_LABEL: Record<EquipmentChoiceCategory, string> = {
+    'artisan-tools': 'Handwerkszeug',
+    'instrument': 'Musikinstrument',
+  };
+  let toolOptions = $state<Record<string, TooltipOption[]>>({});
+  // Merker außerhalb der Runen: ein Lesen von `toolOptions` im Effekt würde ihn bei
+  // jedem Nachladen erneut anstoßen.
+  const toolsRequested = new Set<string>();
+  async function loadToolOptions(category: EquipmentChoiceCategory) {
+    if (toolsRequested.has(category)) return;
+    toolsRequested.add(category);
+    const items = await getToolChoices(category);
+    toolOptions = {
+      ...toolOptions,
+      [category]: items.map((i) => ({ value: itemDisplayName(i), label: itemDisplayName(i) })),
+    };
+  }
+  function pickTool(key: string, name: string) {
+    w.toolPicks = { ...w.toolPicks, [key]: name };
+  }
+  const toolChoicesDone = $derived(w.pendingToolChoices() === 0);
+  $effect(() => {
+    for (const group of equipGroups) {
+      for (const opt of group.options) {
+        for (const item of opt.items) if (item.choiceFrom) void loadToolOptions(item.choiceFrom);
+      }
+    }
+  });
 
   // ── Waffenmeisterschaft (5e 2024, optionaler Schritt) ──
   // Reine Wiederverwendung des Editor-Musters: `masteryOffer` liefert Kontingent +
@@ -241,6 +275,7 @@
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background': return asiValid;
       case 'proficiencies': return openChoicesDone;
+      case 'equipment': return toolChoicesDone;
       default: return true;
     }
   });
@@ -498,8 +533,24 @@
                   </button>
                 {/each}
               </div>
+              {#each group.options[equipSelected(gi)]?.items ?? [] as item, ii}
+                {#if item.choiceFrom}
+                  {@const key = toolPickKey(gi, equipSelected(gi), ii)}
+                  <div class="eq-choice">
+                    <span class="eq-choice-label">{TOOL_CATEGORY_LABEL[item.choiceFrom]} wählen</span>
+                    <TooltipSelect
+                      options={toolOptions[item.choiceFrom] ?? []}
+                      selected={w.toolPicks[key] ? [w.toolPicks[key]] : []}
+                      onchange={(sel) => pickTool(key, sel[0] ?? '')}
+                    />
+                  </div>
+                {/if}
+              {/each}
             </div>
           {/each}
+          {#if !toolChoicesDone}
+            <p class="hint">Die Regel nennt hier nur eine Kategorie — wähle den konkreten Gegenstand aus der Bibliothek.</p>
+          {/if}
         {/if}
 
       {:else if currentStep === 'review'}
@@ -631,6 +682,8 @@
   }
   .eq-desc { font-size: 0.88rem; color: var(--ink-soft); }
   .eq-desc em { color: var(--ink-muted); font-style: normal; }
+  .eq-choice { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+  .eq-choice-label { font-size: 0.82rem; color: var(--ink-soft); }
   .section-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); }
   .protocol { display: flex; flex-direction: column; gap: 0.5rem; }
   .proto-group { border-left: 2px solid var(--border-strong); padding-left: 0.6rem; }

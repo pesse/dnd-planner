@@ -6,11 +6,19 @@
  * an der angezeigten Prosa; das anschließende Matching gegen die Item-Bibliothek
  * übernimmt eine thinking-freie KI-Funktion (`equipmentMatchAction.ts`).
  *
- * `splitOptions` ist eine tolerante Anzeige-Hilfe: erkennt sie ein „(A)/(B)"-Muster,
- * bietet der Wizard Radio-Optionen an, sonst genau eine (die ganze Prosa).
+ * Dieselben Kategorien liefern die Match-Kandidaten für die KI und die Gewichte fürs
+ * Inventar — sie stehen deshalb hier und nicht doppelt in Wizard und Assembly. Fehlt
+ * eine Kategorie im Vault (`shield` ist eine Open5e-Kategorie, die SRD-Schilde liegen
+ * aber unter `armor`), bleibt sie leer statt zu werfen.
  */
 import { getProgressionByKey } from '../classProgression';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
+import { getItemsByDir, displayName as itemDisplayName } from '$lib/itemLibrary';
+
+const EQUIPMENT_CANDIDATE_DIRS = [
+  'weapon', 'armor', 'shield', 'ammunition', 'adventuring-gear',
+  'equipment-pack', 'tools', 'spellcasting-focus',
+];
 
 export interface StartingEquipmentSources {
   /** Startausrüstungs-Prosa der Startklasse (leer, wenn nicht auflösbar). */
@@ -41,18 +49,22 @@ export async function gatherStartingEquipment(
   };
 }
 
-/**
- * Zerlegt eine Ausrüstungs-Prosa tolerant in wählbare Optionen, wenn ein
- * „(A) … or (B) …"-Muster erkennbar ist. Ohne erkennbares Muster ist die ganze
- * Prosa die einzige Option. Leerer Text → keine Optionen.
- */
-export function splitOptions(prose: string): string[] {
-  const text = prose.trim();
-  if (!text) return [];
-  // An Options-Markern „(A)", „(B)", … trennen; der einleitende „Choose one:"-Teil
-  // vor dem ersten Marker fällt weg.
-  const parts = text.split(/\((?=[A-Z]\))/).map((p) => p.replace(/^[A-Z]\)\s*/, '').trim());
-  const options = parts.filter((p, i) => p && !(i === 0 && !/[A-Z]\)/.test(text.slice(0, text.indexOf(p)))));
-  const cleaned = options.filter(Boolean);
-  return cleaned.length >= 2 ? cleaned : [text];
+/** Alle Item-Namen, an denen sich die Matching-KI orientieren soll (dedupliziert). */
+export async function equipmentCandidateNames(): Promise<string[]> {
+  const lists = await loadCandidates();
+  return [...new Set(lists.flat().map((i) => itemDisplayName(i)))];
+}
+
+/** Anzeigename (kleingeschrieben) → Gewicht, fürs Inventar des fertigen Charakters. */
+export async function equipmentWeightMap(): Promise<Map<string, number>> {
+  const lists = await loadCandidates();
+  const map = new Map<string, number>();
+  for (const item of lists.flat()) {
+    if (typeof item.weight === 'number') map.set(itemDisplayName(item).toLowerCase(), item.weight);
+  }
+  return map;
+}
+
+function loadCandidates() {
+  return Promise.all(EQUIPMENT_CANDIDATE_DIRS.map((dir) => getItemsByDir(dir).catch(() => [])));
 }
