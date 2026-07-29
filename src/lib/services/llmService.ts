@@ -77,7 +77,7 @@ async function rustFetch(
 // ── Streaming (OpenAI-kompatibles SSE via Rust-Channel) ─────────────────────────
 
 interface StreamToolCall { id: string; type: 'function'; function: { name: string; arguments: string }; }
-interface StreamResult { content: string; toolCalls: StreamToolCall[]; finishReason: string; }
+interface StreamResult { content: string; toolCalls: StreamToolCall[]; finishReason: string; reasoningChars: number; }
 
 /**
  * Streamt eine OpenAI-kompatible `/chat/completions`-Antwort chunk-weise.
@@ -85,6 +85,11 @@ interface StreamResult { content: string; toolCalls: StreamToolCall[]; finishRea
  * content + tool_calls (delta-basiert, indexiert) zu einem vollständigen Ergebnis.
  * Verhindert nginx-504s, da der Server bereits Tokens sendet, bevor er fertig ist.
  * `onDelta` (optional) erhält jeden content-Teil live (für UI-Streaming).
+ *
+ * `onReasoning` ist der GETRENNTE Kanal für den Denk-Vorlauf eines Reasoning-Modells.
+ * Getrennt, weil beides Verschiedenes will: `onDelta` speist sichtbaren Text (der Denk-Text
+ * gehört dort nicht hin), `onReasoning` nur das Lebenszeichen — ohne es sieht der Aufrufer
+ * minutenlang keine Aktivität und hält den Lauf für hängengeblieben.
  */
 async function rustFetchStream(
   url: string,
@@ -93,6 +98,7 @@ async function rustFetchStream(
   meta: DebugMeta,
   onDelta?: (delta: string) => void,
   signal?: AbortSignal,
+  onReasoning?: (delta: string) => void,
 ): Promise<StreamResult> {
   if (signal?.aborted) throw new Error('Agent abgebrochen.');
   const fullBody = { ...body, stream: true, stream_options: { include_usage: true } };
@@ -110,6 +116,7 @@ async function rustFetchStream(
     });
 
     let content = '';
+    let reasoning = '';
     let finishReason = '';
     let usage: { sent: number; received: number } | null = null;
     const toolCalls: StreamToolCall[] = [];
@@ -121,6 +128,14 @@ async function rustFetchStream(
       if (!choice) return;
       const delta = (choice.delta as Record<string, unknown>) ?? {};
       if (typeof delta.content === 'string') { content += delta.content; onDelta?.(delta.content); }
+      // Der Denk-Vorlauf. Dieser Server nennt das Feld `reasoning`; `reasoning_content` ist
+      // der Name anderer OpenAI-kompatibler Builds — beide mitnehmen, sonst hängt die
+      // Sichtbarkeit des Denkens am Server-Build (per Sonde 2026-07-29 verifiziert: hier
+      // kommt `reasoning`, und ohne diesen Zweig sah der Client vom Denken NICHTS).
+      const think = typeof delta.reasoning === 'string' ? delta.reasoning
+        : typeof delta.reasoning_content === 'string' ? delta.reasoning_content
+        : '';
+      if (think) { reasoning += think; onReasoning?.(think); }
       const deltaCalls = delta.tool_calls as Array<Record<string, unknown>> | undefined;
       if (Array.isArray(deltaCalls)) {
         for (const d of deltaCalls) {
@@ -183,11 +198,18 @@ async function rustFetchStream(
     const compact = toolCalls.filter(Boolean); // tool_calls können sparse indexiert sein
     logDebug({
       provider: meta.provider, type: 'response', label: meta.label,
-      data: { content, tool_calls: compact, finish_reason: finishReason, usage }, durationMs: Date.now() - start,
+      data: {
+        content, tool_calls: compact, finish_reason: finishReason, usage,
+        reasoning_chars: reasoning.length,
+        // Der Denk-Text NUR im Diagnose-Fall (leere Antwort) — dort ist er die einzige Spur,
+        // warum nichts herauskam. Sonst bläht er jeden Mitschnitt um Tausende Zeichen auf.
+        ...(content.trim() ? {} : { reasoning }),
+      },
+      durationMs: Date.now() - start,
     });
     if (usage) addTokenUsage(usage);
 
-    return { content, toolCalls: compact, finishReason };
+    return { content, toolCalls: compact, finishReason, reasoningChars: reasoning.length };
   };
 
   // Rate-Limits (HTTP 429) abwarten + erneut versuchen — transparent für die Aufrufer.
@@ -227,7 +249,7 @@ const GROQ_API = 'https://api.groq.com/openai/v1';
 const QUALITYMINDS_API = 'https://code.qualityminds.ai/v1';
 
 /** Gemeinsame Chat-Implementierung. `apiBase` + Key bestimmen den konkreten Provider. */
-async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number, onDelta?: (delta: string) => void, guidedJsonSchema?: object, signal?: AbortSignal): Promise<string> {
+async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number, onDelta?: (delta: string) => void, guidedJsonSchema?: object, signal?: AbortSignal, onReasoning?: (delta: string) => void): Promise<string> {
   if (!config.apiKey) throw new Error(`Kein API-Key für ${config.provider} konfiguriert. Bitte unter ⚙ eintragen.`);
   const temp = effTemp(config, temperature);
   const { content } = await rustFetchStream(
@@ -253,6 +275,7 @@ async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: Ch
     { provider: config.provider, label: 'chat' },
     onDelta,
     signal,
+    onReasoning,
   );
   return content;
 }
@@ -267,7 +290,7 @@ function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string
 export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, GROQ_API, m, t, onDelta);
 export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, GROQ_API, p, s, t, onDelta);
 
-export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void, signal?: AbortSignal) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta, undefined, signal);
+export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void, signal?: AbortSignal, onReasoning?: (d: string) => void) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta, undefined, signal, onReasoning);
 export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t, onDelta);
 
 /**

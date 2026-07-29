@@ -460,11 +460,26 @@ function guardQualityMinds(config: LlmConfig): void {
     );
 }
 
-/** `turns` ist der Analyse-Verlauf OHNE System-Prompt. */
+/**
+ * `turns` ist der Analyse-Verlauf OHNE System-Prompt.
+ *
+ * Der Reasoning-Runaway: das Modell verliert sich im Denk-Vorlauf, läuft ins `max_tokens`
+ * und liefert LEEREN Inhalt (`finish_reason: "length"`). Gemessen 2026-07-29 traf das rund
+ * einen von fünf Läufen — und kostete jedes Mal die ganze Kette plus ~170 s Wartezeit.
+ * Es ist KEIN zu kleines Budget: die erfolgreichen Läufe derselben Messung brauchten unter
+ * 5 000 Ausgabe-Tokens von 16 384. Es ist ein stochastischer Ausfall, also hilft ein
+ * frischer Versuch — und zwar WIEDER mit Denken.
+ *
+ * Bewusst kein thinking-freier Fallback, obwohl er nicht davonlaufen kann: thinking-frei
+ * liefert die Wahlen zwar zuverlässig (gemessen 14/14 Core-Assertions), lässt aber die
+ * Zauber-Erdung aus — in 4 von 5 Läufen kam `spellsToGround: []` statt der zwölf
+ * Kreissprüche. Ein solcher Lauf wäre still unvollständig; ein Fehler ist besser als das.
+ */
 async function reason(
   config: LlmConfig,
   turns: ChatMessage[],
   opts: FeatureEffectsRunOptions,
+  attempt = 1,
 ): Promise<{ text: string; manifest: EffectsManifest }> {
   const text = await qualitymindsChat(
     config,
@@ -472,16 +487,20 @@ async function reason(
     TASK_TEMPERATURE.structured,
     () => opts.onActivity?.(),
     opts.signal,
+    // Lebenszeichen auch während des Denkens: der Vorlauf sendet minutenlang KEINEN
+    // content, und ohne diesen Kanal hält die Oberfläche den Lauf für hängengeblieben.
+    () => opts.onActivity?.(),
   );
-  // Leere Antwort heißt bei einem Reasoning-Modell fast immer: das Token-Budget ging
-  // vollständig ins Denken, für die Antwort blieb nichts. Ohne diesen Wurf sähe der Flow
-  // ein leeres Manifest und meldete „keine erzwungenen Wahlen" — die Wahl fiele still aus.
-  if (!text.trim())
+  if (!text.trim()) {
+    // `noRetry` ist der Eval-Schalter: dort soll der Ausfall sichtbar bleiben, sonst
+    // kaschiert der zweite Versuch die First-Try-Qualität des Prompts.
+    if (attempt === 1 && !opts.noRetry) return reason(config, turns, opts, attempt + 1);
     throw new Error(
-      'Die Merkmals-Analyse kam leer zurück — das Token-Budget des Modells reicht für den ' +
-        'Reasoning-Vorlauf nicht aus. Bitte „Max. Tokens" in den LLM-Einstellungen erhöhen ' +
-        '(Richtwert: mindestens 8192).',
+      'Die Merkmals-Analyse kam zweimal leer zurück — das Modell hat sein Antwort-Budget ' +
+        'vollständig im Reasoning-Vorlauf verbraucht. Ein weiterer Versuch hilft meist; ' +
+        'andernfalls „Max. Tokens" in den LLM-Einstellungen erhöhen (Richtwert: 16384).',
     );
+  }
   return { text, manifest: parseManifest(text) };
 }
 
