@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Feat } from '$lib/types';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
+  import { FEAT_CATEGORIES } from '$lib/schemas/shared';
+  import { FEAT_CATEGORY_DE } from '$lib/featsLibrary';
 
   let {
     feat = $bindable<Feat>(),
@@ -18,6 +20,13 @@
   <input class="ef sb-name" bind:value={feat.nameDe} oninput={mark} placeholder="Deutscher Name" />
   <input class="ef sb-name-en" bind:value={feat.name} oninput={mark} placeholder="Name (EN)" />
   <div class="meta-row">
+    <label class="lbl-inline">Kategorie
+      <select class="ef" bind:value={feat.category} onchange={mark}>
+        {#each FEAT_CATEGORIES as c (c)}
+          <option value={c}>{FEAT_CATEGORY_DE[c]}</option>
+        {/each}
+      </select>
+    </label>
     <label class="lbl-inline">Schlüssel
       <input class="ef key-input" bind:value={feat.key} oninput={mark} placeholder="z.B. srd-2024_alert" />
     </label>

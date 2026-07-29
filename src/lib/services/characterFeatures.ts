@@ -12,7 +12,7 @@
  */
 import { getProgressionByKey, featuresUpTo } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
-import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
+import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
@@ -211,11 +211,7 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
   if (!links.length) return [];
   const lib = await getFeats();
   return links.map((ref) => {
-    const key = ref.sourceKey?.trim();
-    const nm = ref.name.trim().toLowerCase();
-    const entry = lib.find(
-      (f) => (key && f.sourceKey === key) || (!!nm && (featDisplayName(f).toLowerCase() === nm || f.name.toLowerCase() === nm)),
-    );
+    const entry = matchFeatEntry(lib, ref);
     return {
       // Ohne Treffer und ohne Namen bleibt der Key die einzige Anzeige — besser als leer.
       name: entry ? featDisplayName(entry) : ref.name || ref.sourceKey,

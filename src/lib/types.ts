@@ -262,6 +262,7 @@ export const FEAT_TEMPLATE: Feat = {
   source: OWN_SOURCE,
   name: 'Neues Talent',
   nameDe: 'Neues Talent',
+  category: 'General',
   prerequisite: '',
   desc: '',
   proficiencyGrant: emptyProficiencyGrant(),

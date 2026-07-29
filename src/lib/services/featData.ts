@@ -7,7 +7,7 @@
  * werden per LLM-Übersetzung nachgefüllt.
  */
 import { featSchema, type Feat } from '$lib/schemas/feat';
-import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/shared';
+import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant, FEAT_CATEGORIES } from '$lib/schemas/shared';
 
 /** Bildet ein rohes v2-Talent auf das offene, zweisprachige Schema ab. */
 export function mapV2Feat(raw: Record<string, unknown>): Feat {
@@ -22,6 +22,11 @@ export function mapV2Feat(raw: Record<string, unknown>): Feat {
     key: (raw.key as string) ?? '',
     source: toSourceKey(doc.key),
     name: (raw.name as string) ?? '',
+    // Open5e nennt die Kategorie `type`; ein fremdes Dokument (a5e, toh) kann Werte
+    // außerhalb des 2024er Vokabulars liefern → auf den Default zurückfallen.
+    category: (FEAT_CATEGORIES as readonly string[]).includes(raw.type as string)
+      ? (raw.type as Feat['category'])
+      : undefined,
     prerequisite: typeof raw.prerequisite === 'string' ? raw.prerequisite : '',
     desc,
     proficiencyGrant: skills ? { ...emptyProficiencyGrant(), skills } : emptyProficiencyGrant(),

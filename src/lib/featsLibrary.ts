@@ -1,22 +1,39 @@
 /**
- * Leichtes Feats-Wörterbuch aus `vault/feats/*.json` (Variante B: KEINE Sidebar-
- * Sammlung, nur inline aus dem Charakter-Referenzen-Toggle befüllt/gelesen).
+ * Leichter Lese-Index der Talent-Bibliothek (`vault/feats/*.json`) für Suche und
+ * Auflösung von Charakter-Links. Geschrieben wird ausschließlich über den Talent-
+ * Karten-Editor — ein Charakter kann nur auf vorhandene Talente verlinken.
  *
  * Datei-Form: `{ name, nameDe?, desc?, descDe?, sourceKey? }`. Folder-Scan wie
  * `itemLibrary.ts`; Suche auf `nameDe ?? name`. `list_json_files` liefert `[]` bei
- * fehlendem Ordner → keine Fehler, wenn das Wörterbuch noch leer ist.
+ * fehlendem Ordner → keine Fehler, wenn die Bibliothek noch leer ist.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { slugify } from './editor/saveAs';
-import { proficiencyGrantSchema, type ProficiencyGrant } from './schemas/shared';
+import { FEAT_CATEGORIES, proficiencyGrantSchema, type FeatCategory, type ProficiencyGrant } from './schemas/shared';
 
 export const FEATS_PATH = './vault/feats';
+
+/**
+ * Deutsche Anzeige-Labels der vier Talent-Kategorien. Das Vokabular selbst steht in
+ * `schemas/shared.ts` (FEAT_CATEGORIES), damit Zod ohne Umweg über die Anzeige-Schicht
+ * darauf zugreifen kann — analog zu `MASTERY_INFO` in `itemLibrary.ts`.
+ */
+export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
+  Origin: 'Ursprung',
+  General: 'Allgemein',
+  'Fighting Style': 'Kampfstil',
+  'Epic Boon': 'Epischer Segen',
+};
 
 export interface FeatEntry {
   name: string;
   nameDe?: string;
   desc?: string;
   descDe?: string;
+  /** Voraussetzung als Prosa (für Hover-Karte & Anzeige); fehlt bei inline erzeugten. */
+  prerequisite?: string;
+  prerequisiteDe?: string;
+  /** Talent-Kategorie (5e 2024); fehlt bei inline erzeugten. */
+  category?: FeatCategory;
   /** Open5e-Key des Talents (identisch zur Charakter-Referenz `sourceKey`). */
   sourceKey?: string;
   /** Übungen, die das Talent gewährt (siehe schemas/feat.ts); fehlt bei inline erzeugten. */
@@ -33,6 +50,11 @@ export function featDisplayName(f: FeatEntry): string {
 /** Beste verfügbare Beschreibung: deutsch zuerst, dann Englisch. */
 export function featDesc(f: FeatEntry): string {
   return f.descDe || f.desc || '';
+}
+
+/** Beste verfügbare Voraussetzung: deutsch zuerst, dann Englisch. */
+export function featPrereq(f: FeatEntry): string {
+  return f.prerequisiteDe || f.prerequisite || '';
 }
 
 // Singleton-Cache
@@ -58,6 +80,11 @@ export async function getFeats(): Promise<FeatEntry[]> {
             nameDe: data.nameDe,
             desc: data.desc,
             descDe: data.descDe,
+            prerequisite: data.prerequisite,
+            prerequisiteDe: data.prerequisiteDe,
+            category: (FEAT_CATEGORIES as readonly string[]).includes(data.category)
+              ? (data.category as FeatCategory)
+              : undefined,
             // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
             sourceKey: data.sourceKey ?? data.key,
             // Nur bei Bibliotheks-Talenten vorhanden; inline gespeicherte tragen keinen Grant.
@@ -98,12 +125,17 @@ export function searchFeats(library: FeatEntry[], query: string, maxResults = 8)
 }
 
 /**
- * Legt/aktualisiert einen Feat-Eintrag im Wörterbuch an. Dateiname = Slug des
- * deutschen (sonst englischen) Namens. Invalidiert den Cache.
+ * Bibliotheks-Treffer für eine Charakter-Referenz: `sourceKey` zuerst, Name (DE oder EN)
+ * als Fallback für Altdaten ohne Key. Einzige Stelle dieser Regel — `resolveFeatLinks`
+ * und der Talent-Picker im Charakter-Editor müssen dasselbe „verlinkt" verstehen.
  */
-export async function saveFeat(entry: FeatEntry): Promise<void> {
-  const slug = slugify(entry.nameDe || entry.name || 'talent');
-  const path = `${FEATS_PATH}/${slug}.json`;
-  await invoke('write_file_content', { path, content: JSON.stringify(entry, null, 2) });
-  invalidateFeatsCache();
+export function matchFeatEntry(
+  library: FeatEntry[],
+  ref: { sourceKey?: string; name?: string },
+): FeatEntry | undefined {
+  const key = ref.sourceKey?.trim();
+  const nm = (ref.name ?? '').trim().toLowerCase();
+  return library.find(
+    (f) => (!!key && f.sourceKey === key) || (!!nm && (featDisplayName(f).toLowerCase() === nm || f.name.toLowerCase() === nm)),
+  );
 }

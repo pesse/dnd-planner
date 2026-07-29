@@ -10,7 +10,7 @@
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
-  import { invalidateFeatsCache } from '$lib/featsLibrary';
+  import { invalidateFeatsCache, FEAT_CATEGORY_DE } from '$lib/featsLibrary';
 
   function parseFeat(json: string): Feat | null {
     try {
@@ -84,6 +84,7 @@
           {#if draft!.nameDe && draft!.name && draft!.nameDe !== draft!.name}
             <div class="name-en">{draft!.name}</div>
           {/if}
+          <div class="kategorie">{FEAT_CATEGORY_DE[draft!.category]}</div>
           {#if prereq(draft!)}
             <div class="meta">Voraussetzung: {prereq(draft!)}</div>
           {/if}
@@ -153,6 +154,12 @@
   }
   .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
+  .kategorie {
+    display: inline-block; margin-top: 0.35rem;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-soft); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
+    border-radius: 3px; padding: 0.05rem 0.4rem;
+  }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); margin-top: 0.2rem; font-style: italic; }
 
   .body { padding: 0.7rem 1.2rem 1rem; font-size: 0.85rem; line-height: 1.55; }

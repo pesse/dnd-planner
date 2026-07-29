@@ -16,7 +16,10 @@
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
-  import { getFeats, searchFeats, saveFeat, type FeatEntry } from '../featsLibrary';
+  import {
+    getFeats, searchFeats, featDisplayName, matchFeatEntry, FEAT_CATEGORY_DE, type FeatEntry,
+  } from '../featsLibrary';
+  import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
   import {
     resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
     splitFeatureEntries, keysOf, withChoices, type ResolvedFeatureGroup,
@@ -26,11 +29,11 @@
   import {
     buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS, type SummaryFeature,
   } from '../services/aiActions/fieldSummaryAction';
-  import { slugify } from '../editor/saveAs';
   import type { Item, Spell } from '../types';
-  import { OWN_SOURCE } from '../schemas/shared';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
+  import FeatTooltip from './FeatTooltip.svelte';
+  import CreateCardModal from './CreateCardModal.svelte';
   import Markdown from './Markdown.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
@@ -779,11 +782,8 @@
   }
   function removeInventoryItem(i: number) { inventory.splice(i, 1); }
 
-  // Ledger-Einträge, die der Editor anlegt, sind immer Talent-Links — Entscheidungen
-  // entstehen ausschließlich im Stufenaufstieg.
-  function addRef(list: typeof refFeats) {
-    list.push({ sourceKey: '', name: '', choice: '', gainedAt: undefined, desc: '' });
-  }
+  // Ledger-Einträge, die der Editor anlegt, sind immer Talent-Links (siehe `pickFeat`) —
+  // Entscheidungen entstehen ausschließlich im Stufenaufstieg.
   function removeRef(list: typeof refFeats, i: number) { list.splice(i, 1); }
 
   // ─── Klassen/Level (strukturiert, multiclass-fähig) ──────────────────────────
@@ -1142,52 +1142,97 @@
     summaryUndo = { ...summaryUndo, [field]: undefined };
   }
 
-  // ─── Feats-Wörterbuch: Autocomplete + „ins Wörterbuch übernehmen" ────────────
+  // ─── Talente: nur Bibliotheks-Links ──────────────────────────────────────────
+  // Ein Talent kommt ausschließlich aus der Bibliothek — freier Text erzeugt hier
+  // keinen Eintrag mehr. Fehlt ein Talent, wird es über den „Neues Talent"-Dialog
+  // als Karte angelegt (und ist danach im Picker wählbar).
   let featsLibrary = $state<FeatEntry[]>([]);
-  let featSavedRow = $state(-1); // Kurzzeit-Bestätigung nach Speichern
-  $effect(() => { getFeats().then((x) => { featsLibrary = x; }); });
+  // Vor dem ersten Laden sieht JEDER Link unverlinkt aus → „⚠"-Zeilen erst danach zeigen.
+  let featsLoaded = $state(false);
+  $effect(() => { getFeats().then((x) => { featsLibrary = x; featsLoaded = true; }); });
 
-  let activeFeatRow = $state(-1);
-  let featSuggestions = $state<FeatEntry[]>([]);
+  /** Ziel des offenen Pickers: neuer Eintrag ('add') oder Ersatz für Zeile i. */
+  let featPickerTarget = $state<'add' | number | null>(null);
+  let featQuery = $state('');
   let featSugIndex = $state(-1);
+  let showFeatCreate = $state(false);
 
-  function onFeatNameInput(i: number, value: string) {
-    activeFeatRow = i;
+  // Leere Eingabe = ganze Bibliothek als Dropdown; schon verlinkte Talente fallen raus.
+  const featOptions = $derived.by(() => {
+    const taken = new Set(
+      refFeats
+        .map((r) => matchFeatEntry(featsLibrary, { sourceKey: r.sourceKey, name: r.name })?.path)
+        .filter((p): p is string => !!p),
+    );
+    const pool = featsLibrary.filter((f) => !f.path || !taken.has(f.path));
+    return featQuery.trim() ? searchFeats(pool, featQuery, 8) : pool;
+  });
+
+  function openFeatPicker(target: 'add' | number) {
+    featPickerTarget = target;
+    featQuery = '';
     featSugIndex = -1;
-    featSuggestions = searchFeats(featsLibrary, value, 8);
+  }
+  function closeFeatPicker() {
+    featPickerTarget = null;
+    featQuery = '';
+    featSugIndex = -1;
+    hideFeatTooltip(); // Vorschlag verschwindet aus dem DOM → kein mouseleave mehr
   }
 
-  function selectFeatSuggestion(i: number, f: FeatEntry) {
-    // Nur den LINK speichern (Name + Key); die Beschreibung wird aus der Bibliothek aufgelöst.
-    refFeats[i].name = f.nameDe || f.name;
-    refFeats[i].sourceKey = f.sourceKey ?? '';
-    featSuggestions = [];
-    activeFeatRow = -1;
-    featSugIndex = -1;
+  // ─── Talent-Hover-Karte (analog Zauber-Tooltip; teilt dessen Cursor-Position,
+  // weil nur ein Element unter dem Zeiger liegen kann) ─────────────────────────
+  let featTooltip = $state<FeatEntry | null>(null);
+
+  function showFeatTooltip(e: MouseEvent, entry: FeatEntry) {
+    featTooltip = entry;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function moveFeatTooltip(e: MouseEvent) {
+    if (!featTooltip) return;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function hideFeatTooltip() { featTooltip = null; }
+
+  /** Übernimmt den LINK (Name + Key); Beschreibung kommt zur Laufzeit aus der Bibliothek. */
+  function pickFeat(target: 'add' | number, f: FeatEntry) {
+    const link = { sourceKey: f.sourceKey ?? '', name: featDisplayName(f) };
+    if (target === 'add') refFeats.push({ ...link, choice: '', gainedAt: undefined, desc: '' });
+    else {
+      refFeats[target].sourceKey = link.sourceKey;
+      refFeats[target].name = link.name;
+      refFeats[target].desc = ''; // Legacy-Freitext-Beschreibung weicht der Bibliothek
+    }
+    closeFeatPicker();
   }
 
-  function onFeatNameKey(e: KeyboardEvent, i: number) {
-    if (activeFeatRow !== i) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); featSugIndex = Math.min(featSugIndex + 1, featSuggestions.length - 1); }
+  function onFeatPickerKey(e: KeyboardEvent, target: 'add' | number) {
+    if (featPickerTarget !== target) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); featSugIndex = Math.min(featSugIndex + 1, featOptions.length - 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); featSugIndex = Math.max(featSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { featSuggestions = []; activeFeatRow = -1; }
-    else if (e.key === 'Enter' && featSugIndex >= 0 && featSuggestions[featSugIndex]) {
+    else if (e.key === 'Escape') closeFeatPicker();
+    // Enter ohne markierten Treffer tut bewusst nichts — freier Text darf kein Talent anlegen.
+    else if (e.key === 'Enter' && featSugIndex >= 0 && featOptions[featSugIndex]) {
       e.preventDefault();
-      selectFeatSuggestion(i, featSuggestions[featSugIndex]);
+      pickFeat(target, featOptions[featSugIndex]);
     }
   }
 
-  /** Legt das getippte Talent als (Homebrew-)Eintrag in der Bibliothek an, damit der
-   *  Charakter darauf verlinken kann (statt Freitext). Setzt danach den sourceKey. */
-  async function saveFeatToDict(i: number) {
-    const ref = refFeats[i];
-    if (!ref.name.trim()) return;
-    const sourceKey = ref.sourceKey?.trim() || `${OWN_SOURCE}_${slugify(ref.name)}`;
-    await saveFeat({ name: ref.name, sourceKey });
-    ref.sourceKey = sourceKey;
-    featsLibrary = await getFeats();
-    featSavedRow = i;
-    setTimeout(() => { if (featSavedRow === i) featSavedRow = -1; }, 1500);
+  /** Öffnet die Talent-Karte der Bibliothek (verlässt den Charakter → Guard). */
+  async function openFeatPage(entry: FeatEntry) {
+    if (!entry.path) return;
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: entry.path.split('/').pop()!.replace('.json', ''), path: entry.path, type: 'feat' });
+  }
+
+  /** „Neues Talent": derselbe Dialog wie in der Sidebar. Er öffnet den Entwurf im
+   *  Editor, der Charakter wird also verlassen — daher Guard schon vor dem Dialog. */
+  async function createFeatCard() {
+    if (!(await confirmNavigation())) return;
+    closeFeatPicker();
+    showFeatCreate = true;
   }
 
   // Formularzustand fortlaufend in den Draft (ed.draft) spiegeln → Dirty-Tracking und
@@ -1320,6 +1365,37 @@
         </div>
       {/each}
     {/if}
+  {/snippet}
+
+  <!-- Talent-Picker: Dropdown über die Bibliothek. Einmal zum Hinzufügen, einmal je
+       Altdaten-Zeile zum Ersetzen — deshalb als Snippet mit Ziel-Parameter. -->
+  {#snippet featPicker(target: 'add' | number, placeholder: string)}
+    <div class="autocomplete-wrap feat-picker">
+      <input
+        value={featPickerTarget === target ? featQuery : ''}
+        {placeholder}
+        onfocus={() => openFeatPicker(target)}
+        oninput={(e) => { featPickerTarget = target; featQuery = (e.currentTarget as HTMLInputElement).value; featSugIndex = -1; }}
+        onkeydown={(e) => onFeatPickerKey(e, target)}
+        onblur={() => setTimeout(() => { if (featPickerTarget === target) closeFeatPicker(); }, 150)}
+      />
+      {#if featPickerTarget === target}
+        <ul class="suggestions">
+          {#each featOptions as opt, si}
+            <li class:active={si === featSugIndex} onmousedown={() => pickFeat(target, opt)}
+              onmouseenter={(e) => showFeatTooltip(e, opt)}
+              onmousemove={moveFeatTooltip}
+              onmouseleave={hideFeatTooltip}>
+              <span>{featDisplayName(opt)}</span>
+              {#if opt.category}<span class="sug-cat">{FEAT_CATEGORY_DE[opt.category]}</span>{/if}
+            </li>
+          {/each}
+          {#if !featOptions.length}
+            <li class="sug-empty">Kein Treffer in der Bibliothek — mit „+ Neues Talent" anlegen.</li>
+          {/if}
+        </ul>
+      {/if}
+    </div>
   {/snippet}
 
   <!-- KI-Verdichtung eines Freitextfeldes — ein Knopf je Feld, gleiche Aktion. -->
@@ -1839,7 +1915,7 @@
   <section>
     <details class="ref-section">
       <summary>Verknüpfte Merkmale & Talente</summary>
-      <p class="ref-hint">Klassen-, Volks- & Hintergrundmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente aus der Bibliothek wählen; fehlt eins, mit 📖 als (Homebrew-)Talent anlegen und verlinken. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
+      <p class="ref-hint">Klassen-, Volks- & Hintergrundmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente kommen immer aus der Bibliothek — fehlt eines, zuerst als Talent-Karte anlegen. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
 
       <div class="ref-block">
         <h4>Klassenmerkmale</h4>
@@ -1856,49 +1932,53 @@
 
       <div class="ref-block">
         <h4>Talente</h4>
-        <table class="ref-table">
-          <thead><tr><th>Talent</th><th>Stufe</th><th></th></tr></thead>
-          <tbody>
-            {#each refFeats as ref, i}
-              {@const refDir = !saved || !ref.name.trim() ? 'none'
-                : i >= savedFeatLinks.length ? 'up'
-                : classifyChange($state.snapshot(savedFeatLinks[i]), $state.snapshot(ref))}
-              <tr use:diffMark={refDir}>
-                <td>
-                  <div class="autocomplete-wrap">
-                    <input
-                      value={ref.name}
-                      placeholder="Heiler"
-                      oninput={(e) => { ref.name = (e.currentTarget as HTMLInputElement).value; ref.sourceKey = ''; onFeatNameInput(i, ref.name); }}
-                      onkeydown={(e) => onFeatNameKey(e, i)}
-                      onblur={() => setTimeout(() => { if (activeFeatRow === i) { featSuggestions = []; activeFeatRow = -1; } }, 150)}
-                    />
-                    {#if activeFeatRow === i && featSuggestions.length > 0}
-                      <ul class="suggestions">
-                        {#each featSuggestions as sug, si}
-                          <li class:active={si === featSugIndex} onmousedown={() => selectFeatSuggestion(i, sug)}>
-                            <span>{sug.nameDe ?? sug.name}</span>
-                            {#if sug.sourceKey}<span class="sug-cat">{sug.sourceKey}</span>{/if}
-                          </li>
-                        {/each}
-                      </ul>
+        {#if refFeats.length}
+          <table class="ref-table">
+            <thead><tr><th>Talent</th><th>Stufe</th><th></th></tr></thead>
+            <tbody>
+              {#each refFeats as ref, i}
+                {@const entry = matchFeatEntry(featsLibrary, { sourceKey: ref.sourceKey, name: ref.name })}
+                {@const refDir = !saved || !ref.name.trim() ? 'none'
+                  : i >= savedFeatLinks.length ? 'up'
+                  : classifyChange($state.snapshot(savedFeatLinks[i]), $state.snapshot(ref))}
+                <tr use:diffMark={refDir}>
+                  <td>
+                    {#if entry}
+                      <div class="class-linked">
+                        <button type="button" class="class-link" title="Talent-Karte öffnen" onclick={() => openFeatPage(entry)}
+                          onmouseenter={(e) => showFeatTooltip(e, entry)}
+                          onmousemove={moveFeatTooltip}
+                          onmouseleave={hideFeatTooltip}>{featDisplayName(entry)}</button>
+                        {#if entry.category}<span class="feat-cat">{FEAT_CATEGORY_DE[entry.category]}</span>{/if}
+                      </div>
+                    {:else if featPickerTarget === i}
+                      {@render featPicker(i, 'Talent aus der Bibliothek…')}
+                    {:else if !featsLoaded}
+                      <span class="feat-loading">{ref.name}</span>
+                    {:else}
+                      <!-- Altdaten: Freitext ohne Bibliotheks-Quelle. Ersetzen oder löschen. -->
+                      <div class="class-linked">
+                        <span class="ref-unlinked" title="Kein Talent dieses Namens in der Bibliothek">⚠ {ref.name.trim() || '(ohne Namen)'}</span>
+                        <button type="button" class="link-edit" title="Aus der Bibliothek wählen" onclick={() => openFeatPicker(i)}>✎</button>
+                      </div>
                     {/if}
-                    {#if ref.name.trim() && !ref.sourceKey}<span class="ref-unlinked" title="Nicht verlinkt">⚠ nicht verlinkt</span>{/if}
-                  </div>
-                </td>
-                <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
-                  oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
-                <td class="feat-actions">
-                  <button class="dict-btn" title="Als Talent in der Bibliothek anlegen & verlinken" onclick={() => saveFeatToDict(i)}>
-                    {featSavedRow === i ? '✓' : '📖'}
-                  </button>
-                  <button class="remove-btn" onclick={() => removeRef(refFeats, i)}>✕</button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-        <button class="btn-add" onclick={() => addRef(refFeats)}>+ Talent</button>
+                  </td>
+                  <td><input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
+                    oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} /></td>
+                  <td class="feat-actions">
+                    <button class="remove-btn" title="Talent entfernen" onclick={() => removeRef(refFeats, i)}>✕</button>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        {:else}
+          <p class="fp-empty">Noch keine Talente verlinkt.</p>
+        {/if}
+        <div class="feat-add-row">
+          {@render featPicker('add', 'Talent hinzufügen — Bibliothek durchsuchen…')}
+          <button type="button" class="btn-add" title="Talent-Karte in der Bibliothek anlegen (öffnet den Talent-Editor)" onclick={createFeatCard}>+ Neues Talent</button>
+        </div>
       </div>
     </details>
   </section>
@@ -2203,6 +2283,21 @@
 </div>
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
+<FeatTooltip feat={featTooltip} x={tooltipX} y={tooltipY} />
+
+<!-- Derselbe „Neues Talent"-Dialog wie in der Sidebar; er öffnet den Entwurf im Editor. -->
+{#if showFeatCreate}
+  <CreateCardModal
+    type="feat"
+    title="Neues Talent"
+    searchApi={searchOpen5eFeats}
+    loadApi={loadOpen5eFeat}
+    searchLibrary={searchFeatLibrary}
+    blank={blankFeat}
+    nameOf={featDraftName}
+    onclose={() => (showFeatCreate = false)}
+  />
+{/if}
 
 <style>
   .edit-form {
@@ -2739,15 +2834,17 @@
   .remove-btn:hover { color: var(--danger); }
 
   .feat-actions { display: flex; align-items: center; gap: 0.1rem; white-space: nowrap; }
-  .dict-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--border);
-    font-size: 0.8rem;
-    padding: 0.1rem 0.2rem;
+
+  /* Talent-Picker: Eingabe + „Neues Talent" in einer Zeile. */
+  .feat-add-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; }
+  .feat-picker { flex: 1; max-width: 22rem; }
+  .feat-add-row .btn-add { flex-shrink: 0; white-space: nowrap; }
+  .feat-cat {
+    flex-shrink: 0; font-size: 0.7rem; color: var(--ink-muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
   }
-  .dict-btn:hover { color: var(--arcane); }
+  .sug-empty { color: var(--ink-muted); font-style: italic; cursor: default; }
+  .feat-loading { color: var(--ink-muted); }
 
   .btn-add {
     background: var(--surface);

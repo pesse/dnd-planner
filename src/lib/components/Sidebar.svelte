@@ -45,20 +45,20 @@
   import { SCHOOL_COLORS } from '../spellLibrary';
   import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
-  import { getFeats, searchFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
+  import { getFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, invalidateBackgroundsCache, type BackgroundInfo } from '../backgroundsLibrary';
   import {
-    listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listFeats, getFeat as getFeatRaw,
+    listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw,
     listBackgrounds, getBackground as getBackgroundRaw, DEFAULT_DOCUMENT,
   } from '../services/open5eApi';
   import { mapV2 } from '../services/classProgression';
   import { mapV2Species } from '../services/speciesData';
-  import { mapV2Feat } from '../services/featData';
   import { mapV2Background } from '../services/backgroundData';
-  import { parseClass, parseSpecies, parseFeat, parseBackground } from '../utils/schemaValidation';
-  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, FEAT_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
+  import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
+  import { parseClass, parseSpecies, parseBackground } from '../utils/schemaValidation';
+  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
   import { OWN_SOURCE } from '../schemas/shared';
-  import type { ClassProgression, Species, Feat, Background } from '../types';
+  import type { ClassProgression, Species, Background } from '../types';
   import type { DndApiRef } from '../services/dndApi';
 
   interface EntryInfo { name: string; is_dir: boolean; }
@@ -931,33 +931,6 @@
     if (!(await confirmNavigation())) return;
     featsExpanded = true;
     createModal = 'feat';
-  }
-
-  function blankFeat(name: string): Feat {
-    return { ...structuredClone(FEAT_TEMPLATE), name: name || 'Neues Talent', nameDe: name || 'Neues Talent' };
-  }
-
-  /** Open5e-v2-Talent-Suche. ref.url = v2-Key. */
-  async function searchOpen5eFeats(q: string): Promise<DndApiRef[]> {
-    const all = await listFeats();
-    const ql = q.toLowerCase();
-    return all
-      .filter((f) => f.name.toLowerCase().includes(ql))
-      .map((f) => ({ index: f.key, name: f.name, url: f.key }))
-      .slice(0, 15);
-  }
-  const loadOpen5eFeat = async (ref: DndApiRef): Promise<Feat> => mapV2Feat(await getFeatRaw(ref.url));
-
-  async function searchFeatLibrary(q: string): Promise<{ name: string; load: () => Promise<Feat> }[]> {
-    const lib = await getFeats();
-    return searchFeats(lib, q, 8).map((f) => ({
-      name: featDisplayName(f),
-      load: async () => {
-        if (!f.path) return blankFeat(featDisplayName(f));
-        const r = parseFeat(JSON.parse(await invoke<string>('read_file_content', { path: f.path })));
-        return r.ok ? r.data : blankFeat(featDisplayName(f));
-      },
-    }));
   }
 
   // --- Hintergründe (globale Regel-Bibliothek, flach) ---
@@ -1872,7 +1845,7 @@
       loadApi={loadOpen5eFeat}
       searchLibrary={searchFeatLibrary}
       blank={blankFeat}
-      nameOf={(f: Feat) => f.nameDe || f.name || 'Talent'}
+      nameOf={featDraftName}
       onclose={() => (createModal = null)}
     />
   {:else if createModal === 'background'}
