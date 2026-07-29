@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';
 import { OWN_SOURCE, WEAPON_MASTERIES, type WeaponMastery } from './schemas/shared';
 import type { EquipmentChoiceCategory } from './schemas/wizardEquipment';
+import { itemKeyOf } from './schemas/item';
 
 export const ITEMS_PATH = './vault/items';
 
@@ -16,6 +17,8 @@ export interface ItemInfo {
   rarity: string;
   weight?: number;
   path: string;
+  /** Identität des Bibliothekseintrags („{source}_{slug}"). Ziel von `inventory[].sourceKey`. */
+  key?: string;
   /** Basis-Slug der Waffenart: „shortbow" trägt auch der Eidbogen (Kurzbogen). */
   index?: string;
   magic: boolean;
@@ -437,6 +440,8 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
             rarity: data.rarity ?? '—',
             weight: typeof data.weight === 'number' ? data.weight : undefined,
             path,
+            // Nicht `data.key`: Homebrew ohne Key wäre sonst nicht verlinkbar.
+            key: itemKeyOf(data) || undefined,
             index: data.index,
             magic: isMagicItem(data),
             weapon_category: data.weapon_category,
@@ -457,6 +462,60 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
     cache[dir] = [];
     return [];
   }
+}
+
+// ─── Auflösung: Charakter-/NPC-Eintrag → Bibliothekseintrag ───────────────────
+//
+// Index statt linearer Suche: der Bogen löst ~1000 Items gegen bis zu 55 Zeilen auf.
+
+export interface ItemIndex {
+  byKey: Map<string, ItemInfo>;
+  /** Kleingeschrieben, deutscher UND englischer Name — beide Schreibweisen kommen vor. */
+  byName: Map<string, ItemInfo>;
+  /** Namen, die mehr als ein Item treffen: anzeigen ja, automatisch verlinken nein. */
+  ambiguous: Set<string>;
+}
+
+export function buildItemIndex(loadedByDir: Record<string, ItemInfo[]>): ItemIndex {
+  const byKey = new Map<string, ItemInfo>();
+  const byName = new Map<string, ItemInfo>();
+  const ambiguous = new Set<string>();
+
+  const addName = (name: string | undefined, item: ItemInfo) => {
+    const k = name?.trim().toLowerCase();
+    if (!k) return;
+    if (byName.has(k)) {
+      if (byName.get(k)?.path !== item.path) ambiguous.add(k);
+      return;
+    }
+    byName.set(k, item);
+  };
+
+  for (const items of Object.values(loadedByDir)) {
+    for (const item of items) {
+      if (item.key) byKey.set(item.key, item);
+      addName(displayName(item), item);
+      if (item.name_de) addName(item.name, item);
+    }
+  }
+
+  return { byKey, byName, ambiguous };
+}
+
+/** Bibliothekseintrag zu einem Verweis; `undefined` = die Bibliothek kennt ihn nicht. */
+export function matchItem(
+  index: ItemIndex,
+  ref: { sourceKey?: string; name?: string },
+): ItemInfo | undefined {
+  const key = ref.sourceKey?.trim();
+  if (key) {
+    const hit = index.byKey.get(key);
+    // Kein früher Ausstieg bei Fehltreffer: ein Key aus einer nicht installierten
+    // Bibliothek darf trotzdem über den Namen auflösen.
+    if (hit) return hit;
+  }
+  const name = ref.name?.trim().toLowerCase();
+  return name ? index.byName.get(name) : undefined;
 }
 
 export interface ItemSuggestion {

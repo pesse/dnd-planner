@@ -13,7 +13,7 @@
  */
 import { getProgressionByKey } from '../classProgression';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
-import { getItemsByDir, displayName as itemDisplayName } from '$lib/itemLibrary';
+import { getItemsByDir, displayName as itemDisplayName, buildItemIndex, type ItemIndex } from '$lib/itemLibrary';
 
 const EQUIPMENT_CANDIDATE_DIRS = [
   'weapon', 'armor', 'shield', 'ammunition', 'adventuring-gear',
@@ -55,14 +55,10 @@ export async function equipmentCandidateNames(): Promise<string[]> {
   return [...new Set(lists.flat().map((i) => itemDisplayName(i)))];
 }
 
-/** Anzeigename (kleingeschrieben) → Gewicht, fürs Inventar des fertigen Charakters. */
-export async function equipmentWeightMap(): Promise<Map<string, number>> {
+/** Index über dieselben Kategorien: Link und Gewicht kommen aus einem Treffer. */
+export async function equipmentIndex(): Promise<ItemIndex> {
   const lists = await loadCandidates();
-  const map = new Map<string, number>();
-  for (const item of lists.flat()) {
-    if (typeof item.weight === 'number') map.set(itemDisplayName(item).toLowerCase(), item.weight);
-  }
-  return map;
+  return buildItemIndex(Object.fromEntries(EQUIPMENT_CANDIDATE_DIRS.map((dir, i) => [dir, lists[i]])));
 }
 
 function loadCandidates() {

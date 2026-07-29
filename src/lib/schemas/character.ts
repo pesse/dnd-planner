@@ -204,7 +204,18 @@ export const characterSchema = z.object({
     .default({ km: '', sm: '', em: '', gm: '', pm: '' }),
   // Inventar
   inventory: z
-    .array(z.object({ name: z.string(), count: z.string().default(''), weight: z.string().default('') }))
+    .array(
+      z.object({
+        name: z.string(),
+        /**
+         * Bibliotheks-Link auf `item.key`. Fehlt er, löst `matchItem` über den Namen auf —
+         * darum kommt das Feld ohne Migrationsschritt aus; nachverlinkt wird im Editor.
+         */
+        sourceKey: z.string().optional(),
+        count: z.string().default(''),
+        weight: z.string().default(''),
+      }),
+    )
     .default([]),
   inventoryNotes: z.string().default(''),
   totalWeight: z.string().default(''),
@@ -222,10 +233,8 @@ export const characterSchema = z.object({
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   }),
   /**
-   * Waffenbeherrschung (5e 2024): die Waffen, deren Meisterschaftseigenschaft der
-   * Charakter nutzen darf. Gespeichert werden WAFFENNAMEN wie in der Bibliothek —
-   * dasselbe Muster wie `inventory[].name`, das im Bogen über `itemByName` gegen
-   * `vault/items` aufgelöst wird. Kein zusätzlicher Link-Typ, keine neue Auflösung.
+   * Waffennamen, aufgelöst über `matchItem` — bewusst OHNE `sourceKey`, anders als das
+   * Inventar: die Liste nennt Waffenarten statt Besitz und wird pro Rast getauscht.
    *
    * Die Eigenschaft selbst steht am Item (`item.mastery`), nicht hier: sie hängt an
    * der Waffenart, nicht am Charakter. Ein Tausch (nach jeder langen Rast erlaubt)

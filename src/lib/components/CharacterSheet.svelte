@@ -16,15 +16,15 @@
   import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
+  import ItemTooltip from './ItemTooltip.svelte';
   import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    formatCost, formatRarity, formatDamageDice, ftToM, structuralType,
-    DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
-    MASTERY_INFO, masteryLabel,
+    buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
+    DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel,
     type ItemInfo,
   } from '../itemLibrary';
   import { isMastered, masteredKinds } from '../services/weaponMastery';
@@ -268,13 +268,7 @@
     });
   });
 
-  const itemByName = $derived(
-    Object.values(itemLoadedByDir).flat().reduce<Record<string, ItemInfo>>((acc, item) => {
-      acc[displayName(item).toLowerCase()] = item;
-      if (item.name_de) acc[item.name.toLowerCase()] = item;
-      return acc;
-    }, {})
-  );
+  const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
 
   /**
    * Waffenbeherrschung (5e 2024) eines Angriffs bzw. einer Waffe: die Eigenschaft
@@ -284,11 +278,11 @@
    * zurückgeschrieben werden müsste (`attacks[]` bleibt unberührt).
    */
   const masteredWeaponKinds = $derived(
-    masteredKinds(character?.masteries ?? [], (n) => itemByName[n.trim().toLowerCase()]),
+    masteredKinds(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
   );
 
   function masteryOf(name: string): WeaponMastery | undefined {
-    const lib = itemByName[name.trim().toLowerCase()];
+    const lib = matchItem(itemIndex, { name });
     if (!lib?.mastery) return undefined;
     return isMastered(masteredWeaponKinds, lib) ? lib.mastery : undefined;
   }
@@ -299,7 +293,7 @@
    * enthält; der Editor markiert sie dort als Überhang.
    */
   const masteryChips = $derived(
-    (character?.masteries ?? []).map((n) => ({ name: n, mastery: itemByName[n.trim().toLowerCase()]?.mastery })),
+    (character?.masteries ?? []).map((n) => ({ name: n, mastery: matchItem(itemIndex, { name: n })?.mastery })),
   );
 
   // ─── Item-Volldata-Cache + Tooltip ──────────────────────
@@ -311,7 +305,7 @@
   $effect(() => {
     if (!character) return;
     for (const invItem of character.inventory) {
-      const libItem = itemByName[invItem.name.toLowerCase()];
+      const libItem = matchItem(itemIndex, invItem);
       if (libItem && !(libItem.path in itemDataRecord)) {
         itemDataRecord[libItem.path] = null;
         invoke<string>('read_file_content', { path: libItem.path })
@@ -358,12 +352,6 @@
       s += ` / ${d2}`;
     }
     return s;
-  }
-
-  function tooltipProperties(item: Item): string {
-    return (item.properties ?? [])
-      .map(p => PROPERTY_LABELS[p.index] ?? p.name)
-      .join(', ');
   }
 
   const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
@@ -1065,7 +1053,7 @@
               <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
               <tbody>
                 {#each character.inventory as item}
-                  {@const libItem = itemByName[item.name.toLowerCase()]}
+                  {@const libItem = matchItem(itemIndex, item)}
                   {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
                   <tr
                     class:inv-linked={!!libItem}
@@ -1233,101 +1221,7 @@
   {/if}
 </div>
 
-{#if tooltipItem}
-  <div class="item-tooltip" style="left:{tooltipX}px;top:{tooltipY}px">
-    <div class="tt-name">
-      {tooltipItem.name_de ?? tooltipItem.name}
-      {#if tooltipItem.name_de}
-        <span class="tt-name-en">{tooltipItem.name}</span>
-      {/if}
-      {#if tooltipItem.attunement}
-        <span class="tt-badge tt-attune">Einstellung</span>
-      {/if}
-    </div>
-
-    <div class="tt-meta">
-      {#if structuralType(tooltipItem) === 'weapon'}
-        {WEAPON_CATEGORY_LABELS[tooltipItem.weapon_category ?? ''] ?? tooltipItem.weapon_category}
-        · {WEAPON_RANGE_LABELS[tooltipItem.weapon_range ?? ''] ?? tooltipItem.weapon_range}
-      {:else if structuralType(tooltipItem) === 'armor'}
-        {ARMOR_CATEGORY_LABELS[tooltipItem.armor_category ?? ''] ?? tooltipItem.armor_category}
-      {:else if tooltipItem.rarity}
-        {formatRarity(tooltipItem.rarity)}
-        {#if tooltipItem.attunement_by}· für {tooltipItem.attunement_by}{/if}
-      {/if}
-    </div>
-
-    {#if structuralType(tooltipItem) === 'weapon' && tooltipItem.damage}
-      <div class="tt-section">
-        <span class="tt-label">Schaden</span>
-        <span>{formatDamageDice(tooltipItem.damage.damage_dice)}
-          {DAMAGE_TYPE_LABELS[tooltipItem.damage.damage_type.index] ?? tooltipItem.damage.damage_type.name}
-          {#if tooltipItem.two_handed_damage}
-            · Zweihändig: {formatDamageDice(tooltipItem.two_handed_damage.damage_dice)}
-          {/if}
-        </span>
-      </div>
-      {#if tooltipItem.range}
-        <div class="tt-section">
-          <span class="tt-label">Reichweite</span>
-          <span>{ftToM(tooltipItem.range.normal)}{tooltipItem.range.long ? ` / ${ftToM(tooltipItem.range.long)}` : ''}</span>
-        </div>
-      {/if}
-      {#if tooltipItem.throw_range}
-        <div class="tt-section">
-          <span class="tt-label">Wurfweite</span>
-          <span>{ftToM(tooltipItem.throw_range.normal)} / {ftToM(tooltipItem.throw_range.long)}</span>
-        </div>
-      {/if}
-      {#if tooltipProperties(tooltipItem)}
-        <div class="tt-section">
-          <span class="tt-label">Eigenschaften</span>
-          <span>{tooltipProperties(tooltipItem)}</span>
-        </div>
-      {/if}
-      {#if tooltipItem.mastery}
-        <div class="tt-section">
-          <span class="tt-label">Meisterschaft</span>
-          <span>{masteryLabel(tooltipItem.mastery)}</span>
-        </div>
-      {/if}
-    {:else if structuralType(tooltipItem) === 'armor' && tooltipItem.armor_class}
-      <div class="tt-section">
-        <span class="tt-label">Rüstungsklasse</span>
-        <span>{tooltipItem.armor_class.base}{tooltipItem.armor_class.dex_bonus ? ' + GES-Mod' : ''}{tooltipItem.armor_class.max_bonus != null ? ` (max. ${tooltipItem.armor_class.max_bonus})` : ''}</span>
-      </div>
-      {#if tooltipItem.str_minimum}
-        <div class="tt-section">
-          <span class="tt-label">Mindest-STR</span>
-          <span>{tooltipItem.str_minimum}</span>
-        </div>
-      {/if}
-      {#if tooltipItem.stealth_disadvantage}
-        <div class="tt-note">Nachteil auf Heimlichkeit</div>
-      {/if}
-    {/if}
-
-    {#if tooltipItem.cost || tooltipItem.weight}
-      <div class="tt-section tt-footer">
-        {#if tooltipItem.cost}<span>{formatCost(tooltipItem.cost)}</span>{/if}
-        {#if tooltipItem.cost && tooltipItem.weight}<span class="tt-sep">·</span>{/if}
-        {#if tooltipItem.weight}<span>{tooltipItem.weight} lb</span>{/if}
-      </div>
-    {/if}
-
-    {#if tooltipItem.desc_de?.length}
-      <div class="tt-divider"></div>
-      {#each tooltipItem.desc_de as para}
-        <p class="tt-desc">{para}</p>
-      {/each}
-    {:else if tooltipItem.desc?.length}
-      <div class="tt-divider"></div>
-      {#each tooltipItem.desc as para}
-        <p class="tt-desc">{para}</p>
-      {/each}
-    {/if}
-  </div>
-{/if}
+<ItemTooltip item={tooltipItem} x={tooltipX} y={tooltipY} />
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
 
@@ -1827,74 +1721,6 @@
     font-size: 0.74rem;
     color: var(--ink-muted);
     font-style: italic;
-  }
-
-  /* ── Item-Tooltip ──────────────────────────────────────── */
-  .item-tooltip {
-    position: fixed;
-    z-index: 9999;
-    pointer-events: none;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.7rem 0.9rem;
-    min-width: 200px;
-    max-width: 320px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    font-size: 0.8rem;
-    color: var(--ink);
-  }
-  .tt-name {
-    font-weight: 600;
-    font-size: 0.88rem;
-    color: var(--ink);
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-bottom: 0.2rem;
-  }
-  .tt-name-en {
-    font-size: 0.72rem;
-    color: var(--ink-muted);
-    font-weight: 400;
-    font-style: italic;
-  }
-  .tt-badge {
-    font-size: 0.68rem;
-    padding: 0.1rem 0.35rem;
-    border-radius: 3px;
-    font-weight: 500;
-    line-height: 1.4;
-  }
-  .tt-attune { background: color-mix(in srgb, var(--arcane) 13%, transparent); color: var(--arcane); border: 1px solid color-mix(in srgb, var(--arcane) 25%, transparent); }
-  .tt-meta {
-    font-size: 0.74rem;
-    color: var(--red);
-    margin-bottom: 0.45rem;
-  }
-  .tt-section {
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.78rem;
-    margin-bottom: 0.15rem;
-    align-items: baseline;
-  }
-  .tt-label {
-    color: var(--ink-muted);
-    flex-shrink: 0;
-    min-width: 70px;
-    font-size: 0.72rem;
-  }
-  .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
-  .tt-sep { color: var(--border); }
-  .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
-  .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
-  .tt-desc {
-    margin: 0 0 0.3rem;
-    font-size: 0.77rem;
-    color: var(--ink-soft);
-    line-height: 1.45;
   }
 
   .inv-table td {

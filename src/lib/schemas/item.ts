@@ -4,7 +4,7 @@
  * adaptiert dessen inline weapon/armor-Detailobjekte in flache Felder (siehe open5eApi.ts).
  */
 import { z } from 'zod';
-import { namedRef, sourceField, migrateSourceLegacy, WEAPON_MASTERIES } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE, WEAPON_MASTERIES } from './shared';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
@@ -82,6 +82,20 @@ function slugify(s: string): string {
 }
 
 /**
+ * Identität eines Items, auch ohne `key` in der Datei (Homebrew, Altbestand). MUSS von
+ * jedem Leser benutzt werden, der Items identifiziert: sonst vergibt der Index, der die
+ * Rohdatei ohne Schema liest, eine andere Identität als die migrierte Datei trägt.
+ */
+export function itemKeyOf(raw: Record<string, unknown>): string {
+  if (typeof raw.key === 'string' && raw.key) return raw.key;
+  // Herkunft erst normalisieren: „homebrew" ergäbe sonst einen anderen Key als migriert.
+  const migrated = migrateSourceLegacy({ ...raw });
+  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  const name = typeof raw.name === 'string' ? raw.name : '';
+  return name ? `${source}_${slugify(name)}` : '';
+}
+
+/**
  * Alt-Kategorien (dnd5eapi/2014) auf das Open5e-v2-Vokabular. Fängt unangetasteten
  * Homebrew-Bestand beim Laden ab, ohne die Dateien zu verschieben.
  */
@@ -142,11 +156,8 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   // `key` + `document` backfillen, damit auch Altbestand/Homebrew das einheitliche
   // Identitäts-/Herkunftsmodell trägt (source === document.key). Der Importer setzt
   // beides für SRD-Items explizit; hier greift nur, was noch keins hat.
-  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : 'homebrew-sam';
-  if (typeof migrated.key !== 'string' || !migrated.key) {
-    const name = typeof migrated.name === 'string' ? migrated.name : '';
-    migrated.key = name ? `${source}_${slugify(name)}` : '';
-  }
+  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  migrated.key = itemKeyOf(migrated);
   const doc = migrated.document as { key?: string; gamesystem?: string } | undefined;
   if (!doc || typeof doc !== 'object') migrated.document = { key: source, gamesystem: '' };
   else if (!doc.key) doc.key = source;

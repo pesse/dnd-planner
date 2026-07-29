@@ -40,7 +40,8 @@ import {
   spellcastingOffer,
 } from '../spellcasting';
 import { applyAsi } from './backgroundAsi';
-import { equipmentWeightMap } from './startingEquipment';
+import { equipmentIndex } from './startingEquipment';
+import { matchItem } from '$lib/itemLibrary';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 
@@ -276,12 +277,19 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   // ── Ausrüstung (gewählte Optionen der KI-Aufbereitung) ──
   const eq = w.selectedEquipment();
   if (eq.items.length || eq.goldPieces > 0) {
-    const weights = await equipmentWeightMap();
-    c.inventory = eq.items.map((i) => ({
-      name: i.name,
-      count: i.count > 1 ? String(i.count) : '',
-      weight: weights.has(i.name.toLowerCase()) ? String(weights.get(i.name.toLowerCase())) : '',
-    }));
+    // Verfehlt der KI-gelieferte Name die Bibliothek, bleibt die Zeile Freitext.
+    const index = await equipmentIndex();
+    c.inventory = eq.items.map((i) => {
+      const lib = matchItem(index, { name: i.name });
+      // Mehrdeutig → kein Link: welcher Gleichnamige gemeint ist, entscheidet der Nutzer.
+      const unique = !index.ambiguous.has(i.name.trim().toLowerCase());
+      return {
+        name: i.name,
+        ...(lib?.key && unique ? { sourceKey: lib.key } : {}),
+        count: i.count > 1 ? String(i.count) : '',
+        weight: typeof lib?.weight === 'number' ? String(lib.weight) : '',
+      };
+    });
     if (eq.goldPieces > 0) c.currency.gm = String(eq.goldPieces);
   }
 

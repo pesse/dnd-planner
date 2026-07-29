@@ -8,7 +8,7 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
-  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, buildItemIndex, matchItem, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
@@ -29,6 +29,7 @@
   import type { Item, Spell } from '../types';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
+  import ItemTooltip from './ItemTooltip.svelte';
   import FeatTooltip from './FeatTooltip.svelte';
   import CreateCardModal from './CreateCardModal.svelte';
   import Markdown from './Markdown.svelte';
@@ -230,11 +231,13 @@
   let spellInputLvl = $state('1');
   let spellInputPrepared = $state(false);
 
-  // ─── Inventar-Autocomplete ───────────────────────────────
+  // ─── Inventar: Bibliotheks-Link + Autocomplete ───────────
   let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
   let itemSuggestions = $state<ItemSuggestion[]>([]);
   let itemSugIndex = $state(-1);
   let activeItemRow = $state(-1);
+  /** Zeile, die trotz Link gerade neu getippt wird (✎). */
+  let editingItemRow = $state(-1);
 
   // ─── Waffen-Picker für Angriffe ──────────────────────────
   let weaponSearch = $state('');
@@ -437,7 +440,17 @@
     });
   });
 
+  const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
+
+  function libItemOf(line: { name: string; sourceKey?: string }): ItemInfo | undefined {
+    return matchItem(itemIndex, line);
+  }
+
   function onInventoryNameInput(i: number, value: string) {
+    inventory[i].sourceKey = undefined; // getippter Name ≠ verlinkter Gegenstand
+    // Hält die Zeile im Eingabefeld: sonst klappt sie mitten im Wort zur Link-Ansicht
+    // um, sobald der Zwischenstand zufällig einen Bibliotheksnamen trifft.
+    editingItemRow = i;
     activeItemRow = i;
     itemSuggestions = searchItems(itemLoadedByDir, value, 8);
     itemSugIndex = -1;
@@ -445,22 +458,91 @@
 
   function selectInventoryItem(i: number, sug: ItemSuggestion) {
     inventory[i].name = displayName(sug.item); // deutscher Name, fällt auf Original zurück
-    if (sug.item.weight != null && !inventory[i].weight) {
-      inventory[i].weight = String(sug.item.weight);
-    }
+    inventory[i].sourceKey = sug.item.key;
+    // Überschreibt auch einen getippten Wert, und leert bei Items ohne Gewicht: „kein
+    // Gewicht" ist eine Aussage der Bibliothek (Würfel), kein fehlender Wert.
+    inventory[i].weight = sug.item.weight != null ? String(sug.item.weight) : '';
     itemSuggestions = [];
     activeItemRow = -1;
     itemSugIndex = -1;
+    editingItemRow = -1;
   }
 
   function onInventoryNameKey(e: KeyboardEvent, i: number) {
     if (e.key === 'ArrowDown') { e.preventDefault(); itemSugIndex = Math.min(itemSugIndex + 1, itemSuggestions.length - 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); itemSugIndex = Math.max(itemSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { itemSuggestions = []; activeItemRow = -1; }
+    else if (e.key === 'Escape') { itemSuggestions = []; activeItemRow = -1; editingItemRow = -1; }
     else if (e.key === 'Enter' && itemSugIndex >= 0 && itemSuggestions[itemSugIndex]) {
       e.preventDefault();
       selectInventoryItem(i, itemSuggestions[itemSugIndex]);
     }
+  }
+
+  /**
+   * Nachverlinkbarer Altbestand. Sichtbare Aktion pro Charakter statt Migrationsschritt:
+   * `CHARACTER_UPGRADES.apply` ist synchron und käme an die Bibliothek nicht heran.
+   */
+  const linkableRows = $derived.by(() =>
+    inventory.reduce<number[]>((acc, line, i) => {
+      if (line.sourceKey?.trim()) return acc;
+      const nm = line.name.trim().toLowerCase();
+      // Mehrdeutige liegen lassen: ein falscher Key wäre schlimmer als keiner.
+      if (!nm || itemIndex.ambiguous.has(nm)) return acc;
+      if (itemIndex.byName.get(nm)?.key) acc.push(i);
+      return acc;
+    }, []),
+  );
+
+  function linkInventoryRows() {
+    for (const i of linkableRows) {
+      const hit = itemIndex.byName.get(inventory[i].name.trim().toLowerCase());
+      if (!hit?.key) continue;
+      inventory[i].sourceKey = hit.key;
+      // Name mitziehen (englischer Altbestand → deutscher Bibliotheksname), damit
+      // Anzeige, Datei und PDF dasselbe sagen.
+      inventory[i].name = displayName(hit);
+      inventory[i].weight = hit.weight != null ? String(hit.weight) : '';
+    }
+  }
+
+  // ─── Gegenstands-Tooltip + Sprung zur Karte (wie im Bogen) ──
+  let itemDataByPath = $state(new Map<string, Item | null>());
+  let itemTooltip = $state<Item | null>(null);
+
+  // Vorab laden → Tooltip erscheint ohne Verzögerung.
+  $effect(() => {
+    for (const line of inventory) {
+      const lib = libItemOf(line);
+      if (!lib || itemDataByPath.has(lib.path)) continue;
+      itemDataByPath.set(lib.path, null);
+      itemDataByPath = new Map(itemDataByPath);
+      invoke<string>('read_file_content', { path: lib.path })
+        .then((content) => {
+          itemDataByPath.set(lib.path, JSON.parse(content) as Item);
+          itemDataByPath = new Map(itemDataByPath);
+        })
+        .catch(() => {});
+    }
+  });
+
+  function showItemTooltip(e: MouseEvent, lib: ItemInfo) {
+    const data = itemDataByPath.get(lib.path);
+    if (!data) return;
+    itemTooltip = data;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function moveItemTooltip(e: MouseEvent) {
+    if (!itemTooltip) return;
+    tooltipX = e.clientX + 14;
+    tooltipY = e.clientY + 14;
+  }
+  function hideItemTooltip() { itemTooltip = null; }
+
+  async function openItemPage(lib: ItemInfo) {
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
+    const name = lib.path.split('/').pop()?.replace('.json', '') ?? lib.name;
+    activeFile.set({ name, path: lib.path, type: 'item' });
   }
 
   // ─── Zauber-Autocomplete ─────────────────────────────────
@@ -752,9 +834,13 @@
   function removeTool(t: string) { tools = tools.filter(x => x !== t); }
 
   function addInventoryItem() {
-    inventory.push({ name: '', count: '', weight: '' });
+    inventory.push({ name: '', sourceKey: undefined, count: '', weight: '' });
+    editingItemRow = inventory.length - 1;
   }
-  function removeInventoryItem(i: number) { inventory.splice(i, 1); }
+  function removeInventoryItem(i: number) {
+    inventory.splice(i, 1);
+    editingItemRow = -1;
+  }
 
   // Ledger-Einträge, die der Editor anlegt, sind immer Talent-Links (siehe `pickFeat`) —
   // Entscheidungen entstehen ausschließlich im Stufenaufstieg.
@@ -1283,7 +1369,13 @@
     character.tools = [...tools];
     character.alleskoenner = alleskoenner;
     character.currency = { ...currency };
-    character.inventory = inventory.filter((i) => i.name.trim() !== '').map((i) => ({ ...i }));
+    character.inventory = inventory
+      .filter((i) => i.name.trim() !== '')
+      // Ein leerer `sourceKey` ist kein Link — das Feld fällt dann ganz weg.
+      .map((i) => {
+        const key = i.sourceKey?.trim();
+        return { name: i.name, ...(key ? { sourceKey: key } : {}), count: i.count, weight: i.weight };
+      });
     character.inventoryNotes = inventoryNotes;
     // Gesamtlast wird überall live aus Anzahl × Gewicht/Stück berechnet (inventoryWeight);
     // das gespeicherte Feld ist nur noch Alt-Ballast → unverändert durchreichen (kein Dirty).
@@ -2035,31 +2127,69 @@
           {@const invDir = !saved || !item.name.trim() ? 'none'
             : i >= (saved.inventory?.length ?? 0) ? 'up'
             : classifyChange($state.snapshot(saved.inventory[i]), $state.snapshot(item))}
+          {@const lib = libItemOf(item)}
           <tr use:diffMark={invDir}>
             <td class="inv-name-cell">
-              <div class="autocomplete-wrap">
-                <input
-                  value={item.name}
-                  placeholder="Seil (15m)"
-                  oninput={(e) => { item.name = (e.currentTarget as HTMLInputElement).value; onInventoryNameInput(i, item.name); }}
-                  onkeydown={(e) => onInventoryNameKey(e, i)}
-                  onblur={() => setTimeout(() => { if (activeItemRow === i) { itemSuggestions = []; activeItemRow = -1; } }, 150)}
-                />
-                {#if activeItemRow === i && itemSuggestions.length > 0}
-                  <ul class="suggestions">
-                    {#each itemSuggestions as sug, si}
-                      <li class:active={si === itemSugIndex}
-                        onmousedown={() => selectInventoryItem(i, sug)}>
-                        <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
-                        <span class="sug-cat">{sug.dir}</span>
-                      </li>
-                    {/each}
-                  </ul>
-                {/if}
-              </div>
+              {#if lib && editingItemRow !== i}
+                <!-- Kein Eingabefeld: freies Tippen läuft über ✎, sonst löst jeder
+                     Tastendruck in einer verlinkten Zeile den Link. -->
+                <span class="inv-linked-name">
+                  <span class="inv-dot" style="background:{CATEGORY_COLORS[lib.category] ?? 'var(--border-strong)'}"></span>
+                  <button
+                    type="button"
+                    class="inv-name-link"
+                    title="Gegenstandskarte öffnen"
+                    onclick={() => openItemPage(lib)}
+                    onmouseenter={(e) => showItemTooltip(e, lib)}
+                    onmousemove={moveItemTooltip}
+                    onmouseleave={hideItemTooltip}
+                  >{item.name}</button>
+                  <button type="button" class="link-edit" title="Anderen Gegenstand wählen oder frei benennen"
+                    onclick={() => { editingItemRow = i; hideItemTooltip(); }}>✎</button>
+                  {#if !item.sourceKey?.trim() && itemIndex.ambiguous.has(item.name.trim().toLowerCase())}
+                    <!-- Angezeigt wird der erste Treffer, der womöglich falsche — daher
+                         der Hinweis statt eines automatischen Links. -->
+                    <span class="inv-ambiguous" title="Mehrere Gegenstände dieses Namens — über ✎ den richtigen wählen">mehrdeutig</span>
+                  {/if}
+                </span>
+              {:else}
+                <div class="autocomplete-wrap">
+                  <input
+                    value={item.name}
+                    placeholder="Seil (15m)"
+                    oninput={(e) => { item.name = (e.currentTarget as HTMLInputElement).value; onInventoryNameInput(i, item.name); }}
+                    onkeydown={(e) => onInventoryNameKey(e, i)}
+                    onblur={() => setTimeout(() => {
+                      if (activeItemRow === i) { itemSuggestions = []; activeItemRow = -1; }
+                      if (editingItemRow === i) editingItemRow = -1;
+                    }, 150)}
+                  />
+                  {#if activeItemRow === i && itemSuggestions.length > 0}
+                    <ul class="suggestions">
+                      {#each itemSuggestions as sug, si}
+                        <li class:active={si === itemSugIndex}
+                          onmousedown={() => selectInventoryItem(i, sug)}>
+                          <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
+                          <span class="sug-cat">{sug.dir}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              {/if}
             </td>
-            <td><input bind:value={item.count} placeholder="1" /></td>
-            <td><input bind:value={item.weight} placeholder="2" /></td>
+            <!-- Kein bind:value: `count` ist ein String (PDF-Feld, leer = unbestimmt),
+                 bind würde bei type="number" eine Zahl zurückschreiben. -->
+            <td><input class="num-input" type="number" min="1" step="1" inputmode="numeric" placeholder="1"
+              value={item.count}
+              oninput={(e) => { item.count = (e.currentTarget as HTMLInputElement).value; }} /></td>
+            {#if item.sourceKey?.trim() && lib}
+              <!-- Bedingung ist der ECHTE Link, nicht der Namenstreffer: sonst wären
+                   getippte Gewichte im Altbestand gesperrt, ehe verlinkt wurde. -->
+              <td class="inv-fixed-cell" title="Gewicht kommt aus der Bibliothek — über die Gegenstandskarte änderbar">{item.weight || '—'}</td>
+            {:else}
+              <td><input bind:value={item.weight} placeholder="2" /></td>
+            {/if}
             <td class="inv-line-cell num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) : '—'}</td>
             <td><button class="remove-btn" onclick={() => removeInventoryItem(i)}>✕</button></td>
           </tr>
@@ -2075,7 +2205,15 @@
         </tfoot>
       {/if}
     </table>
-    <button class="btn-add" onclick={addInventoryItem}>+ Gegenstand</button>
+    <div class="inv-actions">
+      <button class="btn-add" onclick={addInventoryItem}>+ Gegenstand</button>
+      {#if linkableRows.length}
+        <button class="btn-link-all" onclick={linkInventoryRows}
+          title="Setzt bei diesen Zeilen den Bibliotheks-Link. Wird beim Speichern übernommen.">
+          🔗 {linkableRows.length} {linkableRows.length === 1 ? 'Gegenstand' : 'Gegenstände'} verlinken
+        </button>
+      {/if}
+    </div>
     <label style="display:block; margin-top:0.5rem" use:diffMark={dirOf(saved?.inventoryNotes, inventoryNotes)}>
       Notizen
       <textarea class="ta-small" bind:value={inventoryNotes}></textarea>
@@ -2206,6 +2344,7 @@
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
 <FeatTooltip feat={featTooltip} x={tooltipX} y={tooltipY} />
+<ItemTooltip item={itemTooltip} x={tooltipX} y={tooltipY} />
 
 <!-- Derselbe „Neues Talent"-Dialog wie in der Sidebar; er öffnet den Entwurf im Editor. -->
 {#if showFeatCreate}
@@ -2664,6 +2803,13 @@
   .inv-table td { padding: 0.15rem 0.2rem; }
   .inv-table input { width: 100%; min-width: 40px; }
   .inv-table .num { text-align: right; white-space: nowrap; }
+  .num-input { text-align: right; }
+  .inv-fixed-cell {
+    color: var(--ink-muted);
+    font-style: italic;
+    white-space: nowrap;
+    cursor: help;
+  }
 
   .inv-line-col { text-align: right !important; }
   .inv-line-cell { color: var(--ink-muted); }
@@ -2681,6 +2827,37 @@
   }
 
   .inv-name-cell { position: relative; }
+
+  .inv-linked-name { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+  .inv-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex-shrink: 0; display: inline-block;
+  }
+  .inv-name-link {
+    background: none; border: none; padding: 0.1rem 0; cursor: pointer;
+    color: var(--accent, var(--ink)); text-decoration: underline; font: inherit; text-align: left;
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .inv-name-link:hover { text-decoration: none; }
+  .inv-ambiguous {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-style: italic;
+    color: var(--copper, var(--ink-muted));
+  }
+
+  .inv-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .btn-link-all {
+    background: none;
+    border: 1px dashed var(--border-strong);
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .btn-link-all:hover { color: var(--ink); border-color: var(--ink-muted); }
 
   .autocomplete-wrap {
     position: relative;

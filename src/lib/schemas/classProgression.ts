@@ -90,7 +90,9 @@ export const classProgressionSchema = z.object({
    */
   skillGrantMulticlass: skillGrantSchema.default(emptySkillGrant),
   /**
-   * Anfangsausrüstung als Prosa — `inventory[]` kennt nur freie Namen, ein Grant hätte kein Ziel.
+   * Anfangsausrüstung als Prosa: die Kerntabelle nennt Pakete und Wahloptionen
+   * („Choose (A) … or (B) 155 GP"), kein einzelnes Item — ein Grant hätte kein Ziel.
+   * Aufgelöst wird im Wizard (`equipmentMatchAction.ts` → `equipmentIndex`).
    * Zweisprachig wie die Hintergrund-Vorteile: die ENGLISCHE Fassung geht als
    * `<class_equipment>` in den Wizard-Prompt, die deutsche ist reine Anzeige
    * (ClassCard) und darf fehlen — dann zeigt die Karte die englische.

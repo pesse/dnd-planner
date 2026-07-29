@@ -101,6 +101,7 @@
   "inventory": [
     {
       "name": "string",
+      "sourceKey": "string",
       "count": "string",
       "weight": "string"
     }
