@@ -33,8 +33,8 @@ defineEval<StepResult>({
  * Eigene Strecke (eigener Report), damit die „darf nichts erfinden"-Quote nicht mit der
  * Druiden-Quote verrechnet wird.
  */
-/*defineEval<StepResult>({
+defineEval<StepResult>({
   name: 'featureEffects-rogue',
   description: 'Schurke 2→3, Dieb — weder Wahl noch Zauber: prüft, dass die KI nichts erfindet',
   cases: buildRogueThiefCases,
-});*/
+});
