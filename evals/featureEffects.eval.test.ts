@@ -23,8 +23,8 @@ import type { StepResult } from './cases/featureEffectsStep';
 defineEval<StepResult>({
   name: 'featureEffects',
   description:
-    'Druide 2→3, Zirkel des Landes — keine Aufstiegs-Wahl (Landart fällt pro langer Rast), ' +
-    'dafür die Stufe-3-Kreissprüche aller vier Landarten',
+    'Druide 2→3, Zirkel des Landes — keine Aufstiegs-Wahl (Landart fällt pro langer Rast) ' +
+    'und kein geerdeter Kreisspruch: die Zauberliste liest der Flow deterministisch',
   cases: buildDruidCircleCases,
 });
 

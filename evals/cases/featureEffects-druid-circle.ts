@@ -138,7 +138,7 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
 
   return [
     {
-      label: 'Call 1 — Analyse: keine Wahl, alle vier Landarten geerdet',
+      label: 'Call 1 — Analyse: keine Wahl, kein Kreisspruch (kommt deterministisch)',
       input: JSON.stringify(ctx),
       run: async (cfg: LlmConfig): Promise<StepResult> => ({
         kind: 'analysis',
@@ -148,7 +148,7 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
       soft: analyzeSoft,
     },
     {
-      label: 'Call C — Finalisierung ohne Wahl: zwölf Kreissprüche',
+      label: 'Call C — Finalisierung ohne Wahl: nur die Notiz von „Land\'s Aid"',
       input: JSON.stringify(ctx),
       // Kette wie in der App: erst analysieren, dann finalisieren. Erkennt Call 1 keine
       // Wahl, überspringt der Flow den Checkpoint — `resolvedChoices` bleibt leer.

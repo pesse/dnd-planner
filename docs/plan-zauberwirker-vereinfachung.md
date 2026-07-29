@@ -296,6 +296,82 @@ eine Auswahl den Wechsel der Zauberliste (zurück in den Merkmals-Schritt, Kleri
 Nicht angefasst: der Prompt (Punkt 1f). Der Schnitt gehört hinter Stufe 2 — sonst fehlt dem
 Modell die Regel, während undeklarierte Fälle (Mystischer Arkanum &c.) noch bei ihm liegen.
 
+## Der Reasoning-Vorlauf: was er kostet und was er kauft (2026-07-29)
+
+Gemessen wurde die ganze Kette einmal thinking-frei (`chat_template_kwargs.enable_thinking:
+false` für Pass A und die Nach-Analyse; Experiment danach zurückgenommen). Ergebnis, je 5 Läufe:
+
+| | mit Denken | thinking-frei |
+|---|---|---|
+| Gnom Call 1 Median | 42,2 s | **12,9 s** |
+| Gnom Call C Median | 104,9 s | **42,7 s** |
+| Gnom Kette (Median) | 147,1 s | **55,6 s** (−62 %) |
+| Gnom Assertions | alle 5/5, 1 Runaway | **alle 5/5, 0 Fehler** |
+| Druide Call 1 Median | 24 s | **8,4 s** |
+| Druide „erdet alle vier Landarten" | **5/5** | **1/5** |
+
+Die Trennlinie ist scharf: **Entscheidungen finden braucht kein Denken, Zauber aufzählen
+schon.** Thinking-frei kamen in 4 von 5 Druiden-Läufen `spellsToGround: []` heraus — die zwölf
+Kreissprüche standen auch in der Prosa nicht, es war also kein Parser-Problem, sondern ein
+Fähigkeitsverlust.
+
+Daraus folgt die Arbeit, die inzwischen gebaut ist: **die Aufzählung ist gar keine
+Modellaufgabe.** Die Listen stehen als Markdown-Tabelle im Merkmalstext
+(`|3|Blur, Burning Hands, Fire Bolt|` × vier Landarten), also als Daten.
+`services/grantedSpells.ts` liest sie — strukturell erkannt (Stufen-Tabelle plus die
+Zusicherung „always have … prepared"), nicht am Merkmalsnamen, denn die sechs SRD-Merkmale
+heißen alle anders (Kreissprüche, Life Domain Spells, Draconic Spells …). Kein Vault-Duplikat,
+wie bei `parseCoreTraits`: die Tabelle kommt aus dem Import und überlebt jeden Re-Import.
+
+Zwei Gewinne über die Zuverlässigkeit hinaus:
+
+* Die Grants hängen am **deterministischen Subklassen-Schritt**. Ohne QM-Modell (Analyse
+  übersprungen) bekam ein Charakter seine Domänen-/Kreiszauber vorher überhaupt nicht.
+* Ein Name ohne Bibliothekstreffer wird **gemeldet** (dieselbe Inline-Anlage wie bei
+  KI-Namen) statt still verworfen.
+
+### Gemessen: Kreissprüche deterministisch (Druiden-Kette, je 5 Läufe)
+
+Baseline `19-30-26-featureeffects-k7`, danach `21-54-18-featureeffects-kreisspruch-det`:
+
+| | Baseline | deterministisch | Δ |
+|---|---|---|---|
+| Call 1 Median | 23,7 s | **16,3 s** | −31 % |
+| Call 1 Tokens ↑/↓ | 2 510 / 2 149 | 2 184 / **1 415** | −13 % / **−34 %** |
+| Call C Median | 39,1 s | **18,8 s** | −52 % |
+| Call C Tokens ↑/↓ | 6 756 / 3 163 | 5 322 / **1 773** | −21 % / **−44 %** |
+| Kette (Median) | 62,8 s | **35,1 s** | **−44 %** |
+
+Alle Core-Assertions 5/5, keine Fehler. Der Schurke (unveränderter Eingang) bleibt
+unverändert — Kontrollstrecke.
+
+### Nebeneffekt, der dabei sichtbar wurde: die Notiz wächst, wenn der Eingang schrumpft
+
+Dieselbe Bogen-Notiz („Land's Aid"), dieselbe Regel, aber **107–146 Zeichen mit zwei
+Merkmalen im Eingang und 185–254 Zeichen als einziges Merkmal** — die weiche Probe
+„einzeilig und ≤ 180 Zeichen" fiel damit von 5/5 auf 0/5. Der Schurke (drei Merkmale, 5/5)
+zeigt, dass es an der Anzahl hängt und nicht an der Regel: allein gelassen, holt das Modell
+mehr Details in die Zeile — vier von fünf Notizen kosteten ihr Budget an derselben Zutat, der
+Skalierung auf Stufe 10/14.
+
+Daraus K8 (Regel 10): „Write only what is true AT THIS LEVEL." Die Begründung steckt in der
+Doktrin selbst — der Bogen wird bei jedem Aufstieg neu geschrieben, künftige Würfel sind noch
+keine Tischinformation.
+
+**Gemessen (K8, Druiden-Kette, 5 Läufe):** „einzeilig und ≤ 180 Zeichen" **0/5 → 5/5**, Notizen
+158–174 statt 185–254 Zeichen. Core-Assertions unverändert 5/5, Latenz unverändert
+(19,4 s Median). Die Regel steht in Regel 10 von Pass C und NICHT in `SHEET_NOTE_CONTENT` —
+die geteilte Doktrin hat drei Leser, und im Merkmalstext-Feld (mehr Platz) ist ein Hinweis auf
+die Skalierung legitim.
+
+### Der Runaway — korrigierte Zahl
+
+Nicht „einer von fünf": über alle 110 gespeicherten Läufe **2**, beide auf der Gnom-Strecke
+(50 Läufe → 4 %; Druide und Schurke je 30 Läufe → 0). Selten, aber teuer: 170 s Wartezeit
+*und* Totalverlust. Behoben in `featureEffectsAction.reason()` (zweiter Versuch) plus
+`llmService` (`delta.reasoning` wird gelesen → Lebenszeichen während des Denkens, Denk-Text
+im Mitschnitt, wenn die Antwort leer blieb). Festgenagelt in `evals/runawayRetry.test.ts`.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).
