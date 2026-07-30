@@ -247,11 +247,46 @@ Grund ohnehin läuft — und dann als Teil des bestehenden Textes wie jede nutze
 Zeile. Keine Eval-Strecke fährt diesen Call; gemessen wurde deshalb nicht, geprüft
 deterministisch (`evals/spellAccessValues.test.ts`, 8 Tests).
 
-**Was für Variante B übrig bleibt:** der Bogen (PDF) führt weiter genau einen Zauberblock. Wer
-die Werte des Zugangs **auf dem Papier** braucht, kommt an einem zweiten Block nicht vorbei —
-das ist die Produktentscheidung „App oder PDF ist die Autorität", nicht mehr eine Frage der
-Datenhaltung. Ebenso offen: `autoCalc` gilt nur für den Klassenblock; der Zugang kennt keine
-Hand-Übersteuerung.
+**Was für Variante B übrig bleibt:** `autoCalc` gilt nur für den Klassenblock; der Zugang kennt
+keine Hand-Übersteuerung. Ein zweiter Zauberblock im PDF bleibt die Produktentscheidung „App
+oder PDF ist die Autorität" — aber die Zahlen stehen jetzt auch auf dem Papier, siehe unten.
+
+### 1e-PDF Die Werte im Klassenmerkmale-Text (erledigt)
+
+Das Taendler-PDF hat nur **einen** Zauberblock, und der gehört der Klasse. Die Werte des
+Zugangs gehen deshalb dorthin, wo sein Merkmal schon steht — an die Notizzeile:
+
+```
+Magiekundiger: Magier-Liste, Zauber über Charisma (SG 13, Angriff +5)
+```
+
+**Gerechnet beim Export, nicht gespeichert.** `character.classFeatures` ist gespeicherter
+Freitext; eine dort abgelegte „SG 13" wäre ab Stufe 5 falsch und hätte die Anzeigezeit-Auflösung
+von oben wieder ausgehebelt. Die Marke entsteht in `withSpellValues` (`pdf/characterFields.ts`)
+aus denselben `SpellAccessValues`, die die Karte anzeigt — der Aufrufer übergibt sie, wie beim
+`masteryOf`-Resolver, damit PDF und Bogen nicht auseinanderlaufen können.
+
+**Der Rundlauf ist der Kern, nicht der Randfall.** Der Import liest Klassenmerkmale1/2 zurück
+nach `classFeatures`; ohne Gegenstück wüchse die Marke bei jedem Export→Import-Zyklus an,
+genau wie beim Meisterschafts-Suffix. `stripSpellValues` schneidet sie beim Parsen ab, und
+beide Richtungen stehen bewusst in **einer** Datei — eine Form, ein Ort. Zweitens schützt der
+Schnitt den Verdichter: `fieldSummaryAction` darf `classFeatures` sehen, und eine gerechnete
+Zahl in gespeicherter Prosa wäre genau das, was er nie zu Gesicht bekommen soll.
+
+Fehlt die Notizzeile (Altbestand, gelöschter Text), entsteht **eine** neue in derselben Form;
+der Import macht daraus wieder eine gültige Notiz, die der nächste Export nur anreichert. Das
+Anwachsen ist damit auch im Fallback beschränkt, nicht bloß unwahrscheinlich.
+
+**Überlauf:** die Marke wird **vor** `splitClassFeatures` gesetzt, nimmt also am Überlauf in
+Feld 2 teil, statt dahinter zu verschwinden. Im Normalfall sitzt sie mitten im Text (an der
+Notizzeile) und ist damit so sicher wie die Notiz selbst; nur die Fallback-Zeile steht am Ende
+und wird bei sehr langen Texten als erste beschnitten — dieselbe Grenze wie für jeden anderen
+Satz dort.
+
+Geprüft deterministisch (`evals/spellAccessPdf.test.ts`, 8 Tests), davon drei durch das echte
+`vault/templates/ataendler_v2.8.2.pdf`: Werte in den Feldern, Klassenblock bleibt leer,
+Export→Import→Export zeichengleich, Überlauf ohne Verlust. Kein Modell-Pfad berührt (die Marke
+existiert nur im erzeugten PDF), also kein bezahlter Lauf.
 
 ### 1f Erst dann den Prompt schrumpfen
 

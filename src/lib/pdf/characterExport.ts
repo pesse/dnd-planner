@@ -4,7 +4,8 @@
  */
 import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
-import { SKILL_DEFS } from './characterFields';
+import { SKILL_DEFS, withSpellValues } from './characterFields';
+import type { SpellAccessValues } from '../services/spellAccess';
 import { appendMarkdownPages } from './markdownPdf';
 import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
 
@@ -143,6 +144,8 @@ export async function exportCharacterToPdf(
     freitext?: string;
     /** Angriffsname → deutscher Name der Meisterschaftseigenschaft (leer = nicht beherrscht). */
     masteryOf?: (attackName: string) => string | undefined;
+    /** Zauberwerte der Merkmals-Zugänge — dieselben Zeilen, die die Karte zeigt. */
+    spellAccess?: SpellAccessValues[];
   } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
@@ -219,7 +222,11 @@ export async function exportCharacterToPdf(
   }
 
   // --- Klassenmerkmale (Feld 1 zuerst füllen, dann Feld 2 als Überlauf) ---
-  const [klmA, klmB] = splitClassFeatures(character.classFeatures ?? '');
+  // Die Zauberwerte eines Merkmals-Zugangs hängen sich an die Notizzeile, weil das PDF nur
+  // EINEN Zauberblock hat und der der Klasse gehört. Vor dem Trennen, damit die Marke am
+  // Überlauf teilnimmt statt hinter Feld 2 zu verschwinden.
+  const klm = withSpellValues(character.classFeatures ?? '', options.spellAccess ?? []);
+  const [klmA, klmB] = splitClassFeatures(klm);
   m('Klassenmerkmale1', klmA, 9);
   m('Klassenmerkmale2', klmB, 9);
 

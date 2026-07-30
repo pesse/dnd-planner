@@ -627,6 +627,8 @@
         portrait,
         freitext,
         masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+        // Dieselben Werte wie im Zauber-Block der Karte — PDF und Bogen können nicht auseinanderlaufen.
+        spellAccess: spellAccessRows,
       });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
