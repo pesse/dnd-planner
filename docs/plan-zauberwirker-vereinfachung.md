@@ -372,6 +372,44 @@ Nicht „einer von fünf": über alle 110 gespeicherten Läufe **2**, beide auf 
 `llmService` (`delta.reasoning` wird gelesen → Lebenszeichen während des Denkens, Denk-Text
 im Mitschnitt, wenn die Antwort leer blieb). Festgenagelt in `evals/runawayRetry.test.ts`.
 
+## Thinking-frei — gemessen und übernommen (2026-07-30)
+
+Nachdem die Aufzählung deterministisch ist, wurde der Vorlauf erneut gemessen: Pass A **und**
+Nach-Analyse thinking-frei, je 5 Läufe, alle drei Strecken, jeweils gegen eine Baseline auf dem
+aktuellen Stand (die Gnom-Baseline musste dafür neu erhoben werden — die alte lag vor K8).
+
+| Strecke | Kette (Median) mit Denken | thinking-frei | Δ |
+|---|---|---|---|
+| Gnom Stufe 1 | 143,1 s | **58,1 s** | −59 % |
+| Druide 2→3 | 34,2 s | **17,1 s** | −50 % |
+| Schurke 2→3 | 41,1 s | **20,4 s** | −50 % |
+
+Ausgabe-Tokens −45…70 % (Gnom Call 1: 4 015 → 1 223), Eingabe-Tokens in Call C leicht **höher**
+(+1…12 %), weil die jetzt sichtbare Prosa im Verlauf steht, wo vorher der unsichtbare Vorlauf war.
+
+**Alle Proben aller drei Strecken 5/5.** Keine Fähigkeit ist weggebrochen — insbesondere hält die
+Zweig-Auflösung des Gnoms (Waldgnom-Zauber gewährt, Felsgnom-Zweig nicht, je 5/5). Die einzige
+0/5-Probe ist das Zauberattribut der Abstammung, das schon vorher zwischen 0 und 1/5 schwankte
+(siehe 1e: es hat keine Senke). Der Einwand vom 29.07. — thinking-frei kostete die Zauber-Erdung —
+ist erledigt, weil die Erdung dieser Listen keine Modellaufgabe mehr ist.
+
+Der Schalter gilt **je Call** (`noThinking` in `llmService.openAiCompatChat`), nicht global: der
+Agent-Loop und die übrigen Aktionen behalten ihren Vorlauf.
+
+Zwei Folgen für die Tests:
+
+* Der **Runaway kann auf diesem Pfad nicht mehr entstehen** (30 Läufe, keiner). `runawayRetry.test.ts`
+  ließ sich damit nicht mehr herstellen — ein winziges Budget liefert jetzt abgeschnittenen, aber
+  nicht leeren Inhalt. Ersetzt durch `evals/featureAnalysisCall.test.ts`: dieselben drei
+  Zusicherungen, aber über einen gestubten `fetch` statt über echte Calls — **plus** die neue
+  Zusicherung, dass `enable_thinking:false` wirklich auf der Leitung liegt (die Regression, die
+  die halbierte Wartezeit still zurücknehmen würde). Der zweite Versuch bleibt im Code: er kostet
+  nichts und fängt eine leere Antwort aus anderem Grund weiter auf.
+* Ein **anderer** Ausfallmodus wurde dabei sichtbar und ist NICHT behoben: in der Gnom-Baseline
+  brachen 2 von 5 Pass-C-Läufen mit `terminated` ab — der guided Stream wird mitten in der
+  Generierung gekappt (einmal nach 147 s). Thinking-frei trat es nicht auf, aber Pass C war immer
+  schon thinking-frei; die Läufe sind nur kürzer. Das ist der nächste Kandidat, kein erledigter Punkt.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).

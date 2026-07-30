@@ -249,7 +249,7 @@ const GROQ_API = 'https://api.groq.com/openai/v1';
 const QUALITYMINDS_API = 'https://code.qualityminds.ai/v1';
 
 /** Gemeinsame Chat-Implementierung. `apiBase` + Key bestimmen den konkreten Provider. */
-async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number, onDelta?: (delta: string) => void, guidedJsonSchema?: object, signal?: AbortSignal, onReasoning?: (delta: string) => void): Promise<string> {
+async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: ChatMessage[], temperature?: number, onDelta?: (delta: string) => void, guidedJsonSchema?: object, signal?: AbortSignal, onReasoning?: (delta: string) => void, noThinking = false): Promise<string> {
   if (!config.apiKey) throw new Error(`Kein API-Key für ${config.provider} konfiguriert. Bitte unter ⚙ eintragen.`);
   const temp = effTemp(config, temperature);
   const { content } = await rustFetchStream(
@@ -268,9 +268,15 @@ async function openAiCompatChat(config: LlmConfig, apiBase: string, messages: Ch
       // Server NUR mit abgeschaltetem Thinking — sonst verbraucht das Reasoning das
       // Budget und die Grammatik wird nicht angewandt (per Server-Probe 2026-07-24
       // verifiziert: nur `enable_thinking:false` erzwingt das Schema).
+      // `noThinking` schaltet denselben Server-Schalter OHNE Schema ab: für Calls, deren
+      // Aufgabe kein Denken braucht (Merkmals-Analyse — sie findet Entscheidungen, sie
+      // zählt nichts mehr auf). Bewusst je Call und nicht global: der Agent-Loop und die
+      // übrigen Aktionen behalten ihren Vorlauf.
       ...(guidedJsonSchema
         ? { structured_outputs: { json: guidedJsonSchema }, chat_template_kwargs: { enable_thinking: false } }
-        : {}),
+        : noThinking
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
     },
     { provider: config.provider, label: 'chat' },
     onDelta,
@@ -290,7 +296,7 @@ function openAiCompatGenerate(config: LlmConfig, apiBase: string, prompt: string
 export const groqChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void) => openAiCompatChat(c, GROQ_API, m, t, onDelta);
 export const groqGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, GROQ_API, p, s, t, onDelta);
 
-export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void, signal?: AbortSignal, onReasoning?: (d: string) => void) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta, undefined, signal, onReasoning);
+export const qualitymindsChat = (c: LlmConfig, m: ChatMessage[], t?: number, onDelta?: (d: string) => void, signal?: AbortSignal, onReasoning?: (d: string) => void, noThinking?: boolean) => openAiCompatChat(c, QUALITYMINDS_API, m, t, onDelta, undefined, signal, onReasoning, noThinking);
 export const qualitymindsGenerate = (c: LlmConfig, p: string, s?: string, t?: number, onDelta?: (d: string) => void) => openAiCompatGenerate(c, QUALITYMINDS_API, p, s, t, onDelta);
 
 /**

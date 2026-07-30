@@ -463,17 +463,21 @@ function guardQualityMinds(config: LlmConfig): void {
 /**
  * `turns` ist der Analyse-Verlauf OHNE System-Prompt.
  *
- * Der Reasoning-Runaway: das Modell verliert sich im Denk-Vorlauf, läuft ins `max_tokens`
- * und liefert LEEREN Inhalt (`finish_reason: "length"`). Gemessen 2026-07-29 traf das rund
- * einen von fünf Läufen — und kostete jedes Mal die ganze Kette plus ~170 s Wartezeit.
- * Es ist KEIN zu kleines Budget: die erfolgreichen Läufe derselben Messung brauchten unter
- * 5 000 Ausgabe-Tokens von 16 384. Es ist ein stochastischer Ausfall, also hilft ein
- * frischer Versuch — und zwar WIEDER mit Denken.
+ * THINKING-FREI, seit 2026-07-30 gemessen: dieser Call findet Entscheidungen, und dafür kauft
+ * der Denk-Vorlauf nichts. Über alle drei Strecken je 5 Läufe halbierte sich die Wartezeit
+ * (Gnom-Kette 143 → 58 s, Druide 34 → 17 s, Schurke 41 → 20 s) bei −45…70 % Ausgabe-Tokens,
+ * ohne eine einzige verlorene Assertion.
  *
- * Bewusst kein thinking-freier Fallback, obwohl er nicht davonlaufen kann: thinking-frei
- * liefert die Wahlen zwar zuverlässig (gemessen 14/14 Core-Assertions), lässt aber die
- * Zauber-Erdung aus — in 4 von 5 Läufen kam `spellsToGround: []` statt der zwölf
- * Kreissprüche. Ein solcher Lauf wäre still unvollständig; ein Fehler ist besser als das.
+ * Der Einwand von 2026-07-29 ist damit erledigt, nicht übergangen: damals kostete thinking-frei
+ * die Zauber-Erdung (in 4 von 5 Läufen `spellsToGround: []` statt der zwölf Kreissprüche).
+ * Diese Aufzählung ist inzwischen gar keine Modellaufgabe mehr — `services/grantedSpells.ts`
+ * liest sie als Tabelle. Die Fähigkeit, die das Denken kaufte, wird hier nicht mehr gebraucht.
+ *
+ * Der Runaway (Modell verbraucht sein Budget im Vorlauf, `content` bleibt LEER bei
+ * `finish_reason: "length"`) kann auf diesem Pfad deshalb nicht mehr entstehen — in 30 Läufen
+ * keiner. Der zweite Versuch bleibt trotzdem stehen: er kostet nichts, und eine leere Antwort
+ * aus anderem Grund (Server-Build, der den Schalter ignoriert) ist damit weiter abgefedert.
+ * Festgenagelt ohne LLM in `evals/featureAnalysisCall.test.ts`.
  */
 async function reason(
   config: LlmConfig,
@@ -487,9 +491,11 @@ async function reason(
     TASK_TEMPERATURE.structured,
     () => opts.onActivity?.(),
     opts.signal,
-    // Lebenszeichen auch während des Denkens: der Vorlauf sendet minutenlang KEINEN
-    // content, und ohne diesen Kanal hält die Oberfläche den Lauf für hängengeblieben.
+    // Der Denk-Kanal bleibt verdrahtet, obwohl unten abgeschaltet wird: ignoriert ein
+    // Server-Build den Schalter, sieht die Oberfläche Aktivität statt Stillstand.
     () => opts.onActivity?.(),
+    // Thinking-frei — siehe Doktrin oben. Der Schalter gilt NUR für diesen Call.
+    true,
   );
   if (!text.trim()) {
     // `noRetry` ist der Eval-Schalter: dort soll der Ausfall sichtbar bleiben, sonst
