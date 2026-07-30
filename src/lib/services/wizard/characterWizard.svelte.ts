@@ -37,6 +37,8 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
+import { optionListChoices, optionListRiders } from '../featureDeclaration';
+import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
 import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
@@ -164,6 +166,11 @@ export class CharacterWizard {
    */
   hpPerLevel = $state<PerLevelSource[]>([]);
   /**
+   * Merkmale mit deklarierter Zweigwahl (Urtümlicher/Göttlicher Orden) — wie `spellAccess`
+   * aus `buildFeaturePrep`. Auf Stufe 1 trifft der Spieler diese Wahl im Merkmals-Schritt.
+   */
+  optionListFeatures = $state<ClassFeature[]>([]);
+  /**
    * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
    * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
    * Protokoll schreiben — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
@@ -206,7 +213,8 @@ export class CharacterWizard {
       const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
       return spellAccessChoices(grant, answer);
     });
-    return this.sizeChoice ? [this.sizeChoice, ...spells] : spells;
+    const branches = optionListChoices(this.optionListFeatures);
+    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...spells];
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
@@ -225,9 +233,17 @@ export class CharacterWizard {
     return this.featureChoices.filter((c) => c.type !== 'spell-pick');
   }
 
-  /** Fertige Merkmals-Rider (leer, solange der Effekt-Job läuft/übersprungen ist). */
+  /**
+   * Fertige Merkmals-Rider: die des Effekt-Jobs (leer, solange er läuft/übersprungen ist)
+   * plus die der deklarierten Zweigwahlen — dieselbe Form, damit `riderExtras` und die
+   * Assembly sie nicht unterscheiden müssen.
+   */
   get riders() {
-    return this.effects.result?.riders ?? [];
+    const declared = optionListRiders(
+      this.optionListFeatures,
+      (id) => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '',
+    );
+    return [...(this.effects.result?.riders ?? []), ...declared];
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
@@ -253,6 +269,7 @@ export class CharacterWizard {
       this.spellAccess = prep.spellAccess;
       this.sizeChoice = prep.sizeChoice;
       this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
+      this.optionListFeatures = prep.optionListFeatures;
     }, () => {});
 
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen

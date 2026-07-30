@@ -10,6 +10,43 @@
   "featureType": "string",
   "grantsChoice": {
     "kind": "weaponMastery",
+    "options": [
+      {
+        "value": "string",
+        "labelDe": "string",
+        "helpDe": "string",
+        "grants": {
+          "proficiencies": {
+            "skills": {
+              "fixed": [
+                "Acrobatics"
+              ],
+              "choose": 0,
+              "from": [
+                "Acrobatics"
+              ]
+            },
+            "savingThrows": [
+              "Strength"
+            ],
+            "weapons": [
+              "Simple"
+            ],
+            "weaponsOther": [
+              "string"
+            ],
+            "armor": [
+              "Light"
+            ]
+          },
+          "extraCantrips": 0,
+          "extraPreparedCount": 0,
+          "perLevel": {
+            "hpMax": 0
+          }
+        }
+      }
+    ],
     "featCategory": "Origin",
     "count": 1,
     "spellLists": [
@@ -29,6 +66,31 @@
     "kind": "levelTable"
   },
   "grants": {
+    "proficiencies": {
+      "skills": {
+        "fixed": [
+          "Acrobatics"
+        ],
+        "choose": 0,
+        "from": [
+          "Acrobatics"
+        ]
+      },
+      "savingThrows": [
+        "Strength"
+      ],
+      "weapons": [
+        "Simple"
+      ],
+      "weaponsOther": [
+        "string"
+      ],
+      "armor": [
+        "Light"
+      ]
+    },
+    "extraCantrips": 0,
+    "extraPreparedCount": 0,
     "perLevel": {
       "hpMax": 0
     }

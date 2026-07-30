@@ -7,7 +7,7 @@
  * vom echten Wizard-Eingang wegdriften.
  */
 import { getProgressionByKey, featuresUpTo } from '../classProgression';
-import type { ClassProgression } from '$lib/schemas/classProgression';
+import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import type { Background } from '$lib/schemas/background';
@@ -20,6 +20,7 @@ import type { AnalysisChoice } from '../aiActions/featureEffectsAction';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { PerLevelFeature } from '../perLevelEffects';
+import { isOptionListFeature } from '../featureDeclaration';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
 
 /** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
@@ -54,6 +55,12 @@ export interface FeaturePrep {
   analysisSpeciesFeatures: GainedFeature[];
   /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe) — deterministisch. */
   effectFeatures: PerLevelFeature[];
+  /**
+   * Merkmale mit deklarierter Zweigwahl (Urtümlicher/Göttlicher Orden) — auf Stufe 1 immer
+   * Klassenmerkmale. Sie stehen NICHT in `gained` (`isFlowOwnedChoiceFeature` filtert sie),
+   * also braucht der Wizard sie hier, um Wahl und Rider daraus zu bauen.
+   */
+  optionListFeatures: ClassFeature[];
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
@@ -96,6 +103,9 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
+  const optionListFeatures = [prog, sub]
+    .flatMap((p) => (p ? featuresUpTo(p, 1) : []))
+    .filter(isOptionListFeature);
   const spellAccess: SpellAccessGrant[] = [];
 
   // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
@@ -188,6 +198,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     speciesFeatures,
     analysisSpeciesFeatures,
     effectFeatures,
+    optionListFeatures,
     summaryClass,
     summarySpecies,
     classContext,

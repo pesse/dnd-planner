@@ -212,74 +212,6 @@ export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
 export const FEAT_CATEGORIES = ['Origin', 'General', 'Fighting Style', 'Epic Boon'] as const;
 export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
 
-/**
- * Mechanik-gebundene Merkmalswahlen: Klassenmerkmale, deren einziger Inhalt eine Wahl aus
- * einer FESTEN Regelmenge ist (Waffenbeherrschung, Kampfstil). Das Klassenmerkmal DEKLARIERT
- * die Wahl über `grantsChoice` (classFeatureSchema) — der Aufstiegs-/Wizard-Flow löst die
- * Optionen dann aus der Bibliothek auf, NIE aus der KI. Genau das schützt vor Halluzination:
- * die KI könnte hier nur einen erfundenen Kampfstil/eine erfundene Waffe liefern.
- *
- * Deklarativ statt am Merkmals-Key erkannt, damit eine Homebrew-Klasse dieselbe Wahl gewährt,
- * indem sie das Feld setzt — ohne Code-Änderung. Wie `item.mastery` und `feat.category` ein
- * strukturiertes Feld am Inhalt, keine Namensheuristik.
- *
- *   - `weaponMastery`: Waffenbeherrschung. `count` wird IGNORIERT — das Kontingent kommt aus
- *     der Stufentabelle (`masteryAllowanceFor`, services/weaponMastery.ts).
- *   - `featCategory`: Wahl eines Talents aus `featCategory` (heute nur „Fighting Style"). `count`
- *     = wie viele Talente dieses eine Merkmal gewährt (i.d.R. 1).
- *   - `spellcasting`: das Zauberwirken-Merkmal selbst („Spellcasting", „Pact Magic"). `count`
- *     wird IGNORIERT — Zaubertricks und vorbereitete Zauber kommen aus der Stufentabelle
- *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
- *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Magiekundiger").
- *     Liste, Attribut und Kontingent stehen in `spellLists`/`spellAbilities`/`spellPicks`.
- *
- * Der Unterschied zwischen den beiden Zauber-Arten ist die HERKUNFT der Zahlen, nicht die
- * Mechanik: `spellcasting` heißt ABLEITEN (die Klasse besitzt Stufentabelle, Liste und
- * Attribut), `spellAccess` heißt DEKLARIEREN (ein Talent hat davon nichts, also steht alles
- * hier). Zwei `kind`s statt Parametern am ersten, weil `isSpellcastingFeature`
- * (services/spellcasting.ts) „dies ist das Klassen-Zauberwirken" bedeutet und über
- * `spellcastingOffer` entscheidet — ein Talent darf dieses Prädikat nicht wahr machen.
- */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess'] as const;
-export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
-
-/** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
-export const spellPickGrantSchema = z.object({
-  level: z.number().int().min(0).max(9).describe('Zaubergrad; 0 = Zaubertrick.'),
-  count: z.number().int().min(1).describe('Wie viele Zauber dieses Grades gewählt werden.'),
-});
-
-export const featureChoiceGrantSchema = z.object({
-  kind: z.enum(FEATURE_CHOICE_KINDS),
-  featCategory: z
-    .enum(FEAT_CATEGORIES)
-    .optional()
-    .describe('Nur bei kind="featCategory": aus welcher Talent-Kategorie gewählt wird (z.B. "Fighting Style").'),
-  count: z
-    .number()
-    .int()
-    .min(1)
-    .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt. Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
-  // Die drei Felder von kind="spellAccess". Für beide Listen gilt dieselbe Regel:
-  // LÄNGE 1 = festgelegt (keine Frage), LÄNGE > 1 = eine protokollierte Entscheidung.
-  // Die Deklaration sagt also nicht „frag das ab", sondern welche Werte zulässig sind —
-  // damit fällt ein Hintergrund, der die Liste vorgibt („Weiser" → Magier), ohne
-  // Sonderbehandlung auf den festgelegten Fall zurück.
-  spellLists: z
-    .array(z.string())
-    .default([])
-    .describe('Nur bei kind="spellAccess": Zauberlisten als englische Klassen-Keys ("cleric","druid","wizard").'),
-  spellAbilities: z
-    .array(z.enum(ABILITY_NAMES))
-    .default([])
-    .describe('Nur bei kind="spellAccess": zulässige Zauberattribute (englische SRD-Namen).'),
-  spellPicks: z
-    .array(spellPickGrantSchema)
-    .default([])
-    .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
-});
-export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 
 /**
  * Immer-vorbereitete Zauberliste eines Merkmals (Kreis-, Domänen-, Eid-, Patronenzauber).
@@ -296,42 +228,6 @@ export const spellGrantSchema = z.object({
   kind: z.enum(SPELL_GRANT_KINDS).describe('Form, in der die Liste im Merkmalstext steht.'),
 });
 export type SpellGrant = z.infer<typeof spellGrantSchema>;
-
-/**
- * Fortlaufende, PRO CHARAKTERSTUFE wirkende Zunahme. Heute nur das TP-Maximum
- * (Zwergische Zähigkeit +1, Talent „Zäh" +2) — als Objekt statt als Zahl, damit ein
- * zweites Ziel keine Schemamigration braucht.
- *
- * NICHT der Einmal-Schub beim Erwerb („um das Doppelte deiner Charakterstufe"): der ist
- * eine Funktion der Stufe, nicht ein Wert je Stufe, und der Aufstieg wendet nur diesen hier
- * (× gewonnene Stufen) an.
- */
-export const perLevelGrantSchema = z.object({
-  hpMax: z.number().int().default(0).describe('Zunahme des TP-Maximums je Charakterstufe.'),
-});
-
-/** Leerer pro-Stufe-Grant (Default-Literal für `.default()`). */
-export const emptyPerLevelGrant = (): PerLevelGrant => ({ hpMax: 0 });
-
-/**
- * Was ein Merkmal deterministisch GEWÄHRT — dritte Deklaration neben `grantsChoice`
- * (Wahlen) und `grantsSpells` (immer-vorbereitete Listen). Alle drei haben denselben
- * Zweck: das Merkmal aus der KI-Deutung herausnehmen, weil sein Inhalt als Daten vorliegt.
- *
- * An `classFeatureSchema`/`traitSchema`/`featSchema` bewusst OPTIONAL OHNE DEFAULT: fehlt
- * das Feld, ist das Merkmal nicht redigiert und läuft weiter über die KI-Kette; ein leeres
- * `{}` heißt „geprüft, gewährt nichts". Ohne diese Unterscheidung wäre jede Deckungslücke
- * still — ein Homebrew- oder frisch importiertes Merkmal verlöre seine Mechanik unbemerkt.
- *
- * Wächst mit der Abdeckung (Übungen, Attributserhöhung, Zauber-Kontingente); heute trägt es
- * nur, was auch ausgewertet wird.
- */
-export const featureGrantSchema = z.object({
-  perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
-});
-
-export type PerLevelGrant = z.infer<typeof perLevelGrantSchema>;
-export type FeatureGrant = z.infer<typeof featureGrantSchema>;
 
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
@@ -371,6 +267,147 @@ export const emptyProficiencyGrant = (): ProficiencyGrant => ({
 
 export type SkillGrant = z.infer<typeof skillGrantSchema>;
 export type ProficiencyGrant = z.infer<typeof proficiencyGrantSchema>;
+
+/**
+ * Fortlaufende, PRO CHARAKTERSTUFE wirkende Zunahme. Heute nur das TP-Maximum
+ * (Zwergische Zähigkeit +1, Talent „Zäh" +2) — als Objekt statt als Zahl, damit ein
+ * zweites Ziel keine Schemamigration braucht.
+ *
+ * NICHT der Einmal-Schub beim Erwerb („um das Doppelte deiner Charakterstufe"): der ist
+ * eine Funktion der Stufe, nicht ein Wert je Stufe, und der Aufstieg wendet nur diesen hier
+ * (× gewonnene Stufen) an.
+ */
+export const perLevelGrantSchema = z.object({
+  hpMax: z.number().int().default(0).describe('Zunahme des TP-Maximums je Charakterstufe.'),
+});
+
+/** Leerer pro-Stufe-Grant (Default-Literal für `.default()`). */
+export const emptyPerLevelGrant = (): PerLevelGrant => ({ hpMax: 0 });
+
+/**
+ * Was ein Merkmal deterministisch GEWÄHRT — dritte Deklaration neben `grantsChoice`
+ * (Wahlen) und `grantsSpells` (immer-vorbereitete Listen). Alle drei haben denselben
+ * Zweck: das Merkmal aus der KI-Deutung herausnehmen, weil sein Inhalt als Daten vorliegt.
+ *
+ * An `classFeatureSchema`/`traitSchema`/`featSchema` bewusst OPTIONAL OHNE DEFAULT: fehlt
+ * das Feld, ist das Merkmal nicht redigiert und läuft weiter über die KI-Kette; ein leeres
+ * `{}` heißt „geprüft, gewährt nichts". Ohne diese Unterscheidung wäre jede Deckungslücke
+ * still — ein Homebrew- oder frisch importiertes Merkmal verlöre seine Mechanik unbemerkt.
+ *
+ * Wächst mit der Abdeckung (Übungen, Attributserhöhung, Zauber-Kontingente); heute trägt es
+ * nur, was auch ausgewertet wird.
+ */
+export const featureGrantSchema = z.object({
+  /**
+   * Übungen in derselben Form wie an Klasse/Hintergrund/Spezies/Talent — genau darum ist die
+   * Summierung über alle Quellen EINE Funktion (services/proficiencyGrants.ts). `skills.choose`
+   * bleibt hier ungenutzt: eine offene Fertigkeits-Wahl ist eine Wahl, kein Grant.
+   */
+  proficiencies: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
+  extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
+  perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
+});
+
+export type PerLevelGrant = z.infer<typeof perLevelGrantSchema>;
+export type FeatureGrant = z.infer<typeof featureGrantSchema>;
+
+/**
+ * Mechanik-gebundene Merkmalswahlen: Klassenmerkmale, deren einziger Inhalt eine Wahl aus
+ * einer FESTEN Regelmenge ist (Waffenbeherrschung, Kampfstil). Das Klassenmerkmal DEKLARIERT
+ * die Wahl über `grantsChoice` (classFeatureSchema) — der Aufstiegs-/Wizard-Flow löst die
+ * Optionen dann aus der Bibliothek auf, NIE aus der KI. Genau das schützt vor Halluzination:
+ * die KI könnte hier nur einen erfundenen Kampfstil/eine erfundene Waffe liefern.
+ *
+ * Deklarativ statt am Merkmals-Key erkannt, damit eine Homebrew-Klasse dieselbe Wahl gewährt,
+ * indem sie das Feld setzt — ohne Code-Änderung. Wie `item.mastery` und `feat.category` ein
+ * strukturiertes Feld am Inhalt, keine Namensheuristik.
+ *
+ *   - `weaponMastery`: Waffenbeherrschung. `count` wird IGNORIERT — das Kontingent kommt aus
+ *     der Stufentabelle (`masteryAllowanceFor`, services/weaponMastery.ts).
+ *   - `featCategory`: Wahl eines Talents aus `featCategory` (heute nur „Fighting Style"). `count`
+ *     = wie viele Talente dieses eine Merkmal gewährt (i.d.R. 1).
+ *   - `spellcasting`: das Zauberwirken-Merkmal selbst („Spellcasting", „Pact Magic"). `count`
+ *     wird IGNORIERT — Zaubertricks und vorbereitete Zauber kommen aus der Stufentabelle
+ *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
+ *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Magiekundiger").
+ *     Liste, Attribut und Kontingent stehen in `spellLists`/`spellAbilities`/`spellPicks`.
+ *   - `optionList`: die generische Zweigwahl — das Merkmal bietet eine im Regeltext
+ *     ausgeschriebene Optionsliste an (Urtümlicher Orden, Göttlicher Orden), und JEDE Option
+ *     trägt ihre Konsequenz neben sich (`options[].grants`). Genau das macht die Wahl
+ *     deterministisch: es gibt keinen Zustand „Antwort bekannt, Wirkung noch offen" mehr,
+ *     also auch kein Blockieren und keine Nach-Analyse.
+ *
+ * Der Unterschied zwischen den beiden Zauber-Arten ist die HERKUNFT der Zahlen, nicht die
+ * Mechanik: `spellcasting` heißt ABLEITEN (die Klasse besitzt Stufentabelle, Liste und
+ * Attribut), `spellAccess` heißt DEKLARIEREN (ein Talent hat davon nichts, also steht alles
+ * hier). Zwei `kind`s statt Parametern am ersten, weil `isSpellcastingFeature`
+ * (services/spellcasting.ts) „dies ist das Klassen-Zauberwirken" bedeutet und über
+ * `spellcastingOffer` entscheidet — ein Talent darf dieses Prädikat nicht wahr machen.
+ */
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList'] as const;
+export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
+
+/** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
+export const spellPickGrantSchema = z.object({
+  level: z.number().int().min(0).max(9).describe('Zaubergrad; 0 = Zaubertrick.'),
+  count: z.number().int().min(1).describe('Wie viele Zauber dieses Grades gewählt werden.'),
+});
+
+/**
+ * Eine Option einer `optionList`-Wahl. Der Kern ist, dass die KONSEQUENZ neben der Option
+ * steht — dann kann die Wahl nichts mehr „bestimmen, was erst danach feststeht".
+ *
+ * `value` ist der stabile Schlüssel (englisches Label, WÖRTLICH aus dem Regeltext, wie
+ * Pass A es verlangte): darauf matcht die am Charakter gespeicherte Antwort, und so kommt
+ * sie als `<past_choices>` zurück. `labelDe` ist ein ZITAT aus `descDe` — keine Übersetzung;
+ * die deutsche Fassung des Regeltexts hat das Wort schon (**Wächter.**).
+ */
+export const choiceOptionSchema = z.object({
+  value: z.string().describe('Englisches Options-Label, wörtlich aus dem Regeltext ("Warden").'),
+  labelDe: z.string().default('').describe('Deutsches Anzeige-Label — Zitat aus descDe ("Wächter"). Leer = englisch anzeigen.'),
+  helpDe: z.string().default('').describe('Konsequenz DIESER Option, kurz (Richtwert 60 Zeichen).'),
+  grants: featureGrantSchema.optional().describe('Was diese Option gewährt. Fehlt = ohne mechanische Wirkung.'),
+});
+export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
+
+export const featureChoiceGrantSchema = z.object({
+  kind: z.enum(FEATURE_CHOICE_KINDS),
+  /**
+   * Nur bei `kind="optionList"`: die Optionen samt Konsequenz. Die FRAGE selbst steht nicht
+   * hier — sie ist für jede Zweigwahl dieselbe („Welche Option wählst du?"), und der
+   * Merkmalsname sagt bereits, worum es geht.
+   */
+  options: z.array(choiceOptionSchema).default([]),
+  featCategory: z
+    .enum(FEAT_CATEGORIES)
+    .optional()
+    .describe('Nur bei kind="featCategory": aus welcher Talent-Kategorie gewählt wird (z.B. "Fighting Style").'),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .default(1)
+    .describe('Wie viele Optionen dieses Merkmal gewährt. Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+  // Die drei Felder von kind="spellAccess". Für beide Listen gilt dieselbe Regel:
+  // LÄNGE 1 = festgelegt (keine Frage), LÄNGE > 1 = eine protokollierte Entscheidung.
+  // Die Deklaration sagt also nicht „frag das ab", sondern welche Werte zulässig sind —
+  // damit fällt ein Hintergrund, der die Liste vorgibt („Weiser" → Magier), ohne
+  // Sonderbehandlung auf den festgelegten Fall zurück.
+  spellLists: z
+    .array(z.string())
+    .default([])
+    .describe('Nur bei kind="spellAccess": Zauberlisten als englische Klassen-Keys ("cleric","druid","wizard").'),
+  spellAbilities: z
+    .array(z.enum(ABILITY_NAMES))
+    .default([])
+    .describe('Nur bei kind="spellAccess": zulässige Zauberattribute (englische SRD-Namen).'),
+  spellPicks: z
+    .array(spellPickGrantSchema)
+    .default([])
+    .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
+});
+export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 
 /**
  * Lookup-Schlüssel eines Regelbegriffs: kleingeschrieben, OHNE jedes Leerzeichen.

@@ -49,6 +49,9 @@
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
+    isOptionListFeature, optionListChoices, optionListRiders,
+  } from '../services/featureDeclaration';
+  import {
     spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
     withoutSpellAccessFeatures, type SpellAccessGrant,
   } from '../services/spellAccess';
@@ -341,7 +344,7 @@
     });
   }
   let allAnswered = $derived(isAnswered(decisions, answers));
-  let allBaseChoices = $derived(isAnswered(baseChoices, answers));
+  // steht nach `baseChoiceQs` (weiter unten) → dort definiert
 
   /**
    * Die Wahlen der deklarierten Zauber-Zugänge. Reaktiv, weil die Zauber-Wahlen erst mit der
@@ -356,6 +359,20 @@
   /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
   let featChoiceQs = $derived([...featChoices, ...featAccessChoices]);
   let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
+
+  /**
+   * Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden).
+   * Quelle sind die `ClassFeature`-Objekte des Deltas: die `GainedFeature`-Projektion trägt
+   * `grantsChoice` nicht — und sie ist ohnehin schon um diese Merkmale beschnitten
+   * (`isFlowOwnedChoiceFeature`).
+   */
+  let declaredOptionFeatures = $derived(
+    delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isOptionListFeature) : [],
+  );
+  let baseOptionChoices = $derived(buildFeatureChoices(optionListChoices(declaredOptionFeatures)));
+  /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
+  let baseChoiceQs = $derived([...baseChoices, ...baseOptionChoices]);
+  let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
@@ -429,7 +446,9 @@
     return {
       delta: delta!,
       featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
-      baseChoices: baseChoices.length,
+      // Auch die deklarierten Zweigwahlen zählen: sonst überspringt die Maschine den
+      // Checkpoint, weil das Merkmal gar nicht mehr bei der KI war.
+      baseChoices: baseChoiceQs.length,
       // Auch die deklarierten Wahlen zählen: sonst überspringt die Maschine den Checkpoint,
       // wenn das Talent gar nicht mehr bei der KI war — und niemand wählt die Zauber.
       featChoices: featChoiceQs.length,
@@ -554,7 +573,12 @@
     }
     const choiceQs = buildFeatureChoices(analysis.choices);
     initFeatureChoices(choiceQs);
-    if (kind === 'base') { baseAnalysis = analysis; baseChoices = choiceQs; }
+    if (kind === 'base') {
+      baseAnalysis = analysis; baseChoices = choiceQs;
+      // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
+      initFeatureChoices(baseOptionChoices);
+      if (baseOptionChoices.length) pushStep(`${baseOptionChoices.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
+    }
     else { featAnalysis = analysis; featChoices = choiceQs; }
     if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
     else pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
@@ -597,7 +621,15 @@
       if (!alive()) return;
       parsed = eff.riders;
     }
-    const validated = validateRiderSpells(parsed, spellLib, delta!.klasseName);
+    // Deklarierte Zweigwahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
+    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen.
+    const declared = kind === 'base'
+      ? optionListRiders(declaredOptionFeatures, (id) => {
+          const q = baseOptionChoices.find((x) => x.id === id);
+          return q ? answerValues(q, answers[id]) : '';
+        })
+      : [];
+    const validated = validateRiderSpells([...parsed, ...declared], spellLib, delta!.klasseName);
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {
       validatedBase = validated;
@@ -837,7 +869,7 @@
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt })),
-      baseChoiceQs: baseChoices, featChoiceQs, gainedFeatures,
+      baseChoiceQs, featChoiceQs, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });
   });
@@ -1032,7 +1064,7 @@
   <!-- ── Merkmals-Wahlen (direkt nach der Analyse, Call 1) ─── -->
   {#if phase === 'feature-choices'}
     <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
-    {@render choiceBlock(baseChoices)}
+    {@render choiceBlock(baseChoiceQs)}
   {/if}
 
   <!-- ── Talent-Wahlen (direkt nach der Talent-Analyse) ─── -->
