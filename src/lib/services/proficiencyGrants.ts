@@ -21,8 +21,11 @@ import type {
   SkillName,
   WeaponCategory,
 } from '$lib/schemas/shared';
+import { readAbilityName } from '$lib/schemas/shared';
 import { SKILL_DEFS } from '$lib/pdf/characterFields';
 import type { ProficiencyFlags } from '$lib/schemas/character';
+import type { Change } from '$lib/schemas/levelUp';
+import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
 import { getProgressionByKey } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
@@ -156,6 +159,68 @@ export function markArmorTraining(flags: ProficiencyFlags, training: string): vo
   else if (training === 'Medium') flags.mediumArmor = true;
   else if (training === 'Heavy') flags.heavyArmor = true;
   else if (training === 'Shields') flags.shields = true;
+}
+
+/** Die sechs Rettungswurf-Häkchen des Bogens — ein `Character` erfüllt das strukturell. */
+export type SaveProfFlags = { [K in AbilityKey as `${K}SaveProf`]: boolean };
+
+/** Englischer Attributsname → Rettungswurf-Häkchen. Dritte Abbildung derselben Art. */
+export function markSavingThrow(flags: SaveProfFlags, en: string): void {
+  const ability = readAbilityName(en);
+  const key = ability ? ABILITY_KEY_BY_EN.get(ability) : undefined;
+  if (key) flags[`${key}SaveProf`] = true;
+}
+
+const ABILITY_KEY_BY_EN = new Map<AbilityName, AbilityKey>(
+  (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
+);
+
+/**
+ * Die Vault-Übungsform als `Change[]` — die Sprache, in der BEIDE Flows anwenden
+ * (`applyChanges`). Die Tabelle ist über `keyof ProficiencyGrant` total: ein neues Feld
+ * am Vault-Grant bricht hier den Build, statt still ohne Senke zu bleiben. Genau das ist
+ * `weaponsOther` zweimal passiert.
+ *
+ * `skills.choose` erzeugt bewusst nichts: eine offene Wahl ist kein Grant, sie wird
+ * gefragt (Wizard-Fertigkeitsschritt) und kommt als eigener `proficiency`-Change zurück.
+ */
+export function proficiencyGrantChanges(
+  g: ProficiencyGrant,
+  meta: { step: string; source: string },
+  /**
+   * Felder, die auf diesem Weg NICHT emittiert werden sollen, weil sie den Charakter schon
+   * anders erreichen (im Aufstieg reist alles außer `weaponsOther` über den Rider). Bewusst
+   * eine Ausschluss- und keine Einschlussliste: ein neues Feld am Vault-Grant landet damit
+   * per Default IM Dokument, statt still zu fehlen.
+   */
+  skip: readonly (keyof ProficiencyGrant)[] = [],
+): Change[] {
+  const out: Change[] = [];
+  const routes: { [K in keyof ProficiencyGrant]: () => void } = {
+    skills: () => {
+      for (const skill of g.skills.fixed)
+        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+    },
+    savingThrows: () => {
+      for (const value of g.savingThrows)
+        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+    },
+    weapons: () => {
+      for (const value of g.weapons)
+        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+    },
+    weaponsOther: () => {
+      for (const value of g.weaponsOther)
+        out.push({ target: 'weaponProficiencyOther', value, ...meta, label: `Übung: ${value}` });
+    },
+    armor: () => {
+      for (const value of g.armor)
+        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+    },
+  };
+  for (const [key, run] of Object.entries(routes) as [keyof ProficiencyGrant, () => void][])
+    if (!skip.includes(key)) run();
+  return out;
 }
 
 /** Talent-Eintrag zu einem Referenz-Key/-Namen (wie `resolveFeatLinks`). */

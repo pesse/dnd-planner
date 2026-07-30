@@ -77,6 +77,13 @@ const riderProficienciesSchema = z.object({
 });
 
 /**
+ * Exportiert, weil die Projektion Rider → `Change[]` über `keyof` dieser Form läuft
+ * (`riderGrantChanges`, services/levelUpMachine.ts). Ein neues Feld hier ist damit ein
+ * Compile-Fehler dort, statt still am Charakter zu fehlen.
+ */
+export type RiderProficiencies = z.infer<typeof riderProficienciesSchema>;
+
+/**
  * Richtwert für die Länge einer `sheetNote`. Der Klassenmerkmale-Freitext landet beim
  * PDF-Export in zwei Formularfeldern à ~700 Zeichen (characterExport.splitClassFeatures)
  * und WÄCHST mit jeder Stufe — Kürze ist hier also auch ein Platzthema.
@@ -226,6 +233,15 @@ export const changeSchema = z.discriminatedUnion('target', [
   // still weg (im Wizard nicht, dort wendet die Assembly die Rider direkt an).
   z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('armorTraining'), value: z.string(), ...changeBase }),
+  // Die vier Übungsarten, die dieselbe Lücke hatten: der Rider trägt sie (bzw. die
+  // Vault-Form bei `weaponProficiencyOther`), das Dokument bisher nicht. `value` ist
+  // englisch für das geschlossene Vokabular (Rettungswurf), sonst Freitext.
+  z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
+  // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
+  // die Einschränkung nicht ausdrücken, der Bogen führt sie als Freitextzeile.
+  z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('subclass'), key: z.string(), name: z.string(), ...changeBase }),
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
   // Info-Eintrag: neu gewonnenes Merkmal (keine Anwendung, reines Feedback).

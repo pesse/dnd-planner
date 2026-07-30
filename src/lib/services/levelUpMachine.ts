@@ -16,12 +16,12 @@
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
-import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
-import { withoutDeclaredChoiceFeatures } from './featureDeclaration';
+import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
+import { declaredGrantChanges, withoutDeclaredChoiceFeatures, type DeclaredGrantSource } from './featureDeclaration';
 import type { ClassFeature } from '../schemas/classProgression';
 import type { FeatureChoiceGrant, FeatureGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
-import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
+import type { LevelUpQuestion, FeatureRider, RiderProficiencies, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 import { decodePick, isSpellbookClass } from './spellcasting';
 import {
@@ -612,20 +612,60 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
   const abil = abilityFromRiders(v.riders);
   for (const k of ABILITY_KEYS) if (abil[k])
     out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'feature', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
-  // `skill` bleibt der ENGLISCHE SRD-Name (übersetzt wird erst beim Anwenden, via
-  // skillSheetKey); nur das Anzeige-Label ist deutsch.
-  const profs = [...new Set(v.riders.flatMap((r) => r.proficiencies.skills))];
-  for (const skill of profs)
-    out.push({ target: 'proficiency', skill, step, source: 'class-feature', label: `Übung: ${skillLabelDe(skill)}` });
-  // Gewählte Expertise (bereits entschieden, kommt aus rider.expertiseSkills).
-  const experts = [...new Set(v.riders.flatMap((r) => r.expertiseSkills))];
-  for (const skill of experts)
-    out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skillLabelDe(skill)}` });
-  // Waffen-/Rüstungs-Übungen (Urtümlicher Orden → Wächter, Göttlicher Orden → Beschützer).
-  for (const value of new Set(v.riders.flatMap((r) => r.proficiencies.weapons)))
-    out.push({ target: 'weaponProficiency', value, step, source: 'class-feature', label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
-  for (const value of new Set(v.riders.flatMap((r) => r.proficiencies.armor)))
-    out.push({ target: 'armorTraining', value, step, source: 'class-feature', label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+  out.push(...riderGrantChanges(v.riders, { step, source: 'class-feature' }));
+  return out;
+}
+
+/**
+ * Die Übungen und die Expertise eines Riders als `Change[]` — geteilt mit der
+ * Wizard-Assembly, damit beide Flows dieselbe Senke benutzen (`applyChanges`).
+ *
+ * Die Tabelle ist über `keyof RiderProficiencies` TOTAL: ein neues Feld an der Rider-Form
+ * bricht hier den Build. Vorher zählte diese Funktion drei der sechs Arten von Hand auf,
+ * und `tools`/`languages`/`savingThrows` fielen im Aufstieg still weg, obwohl das Modell
+ * sie liefert und der Wizard sie anwendet.
+ *
+ * Werte bleiben ENGLISCH (geschlossenes Vokabular); übersetzt wird beim Anwenden, deutsch
+ * ist nur das Anzeige-`label`.
+ */
+export function riderGrantChanges(
+  riders: readonly FeatureRider[],
+  meta: { step: string; source: string },
+): Change[] {
+  const out: Change[] = [];
+  const values = <T>(pick: (r: FeatureRider) => readonly T[]): T[] => [...new Set(riders.flatMap(pick))];
+  const routes: { [K in keyof RiderProficiencies]: () => void } = {
+    skills: () => {
+      for (const skill of values((r) => r.proficiencies.skills))
+        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+    },
+    // Urtümlicher Orden → Wächter, Göttlicher Orden → Beschützer.
+    weapons: () => {
+      for (const value of values((r) => r.proficiencies.weapons))
+        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+    },
+    armor: () => {
+      for (const value of values((r) => r.proficiencies.armor))
+        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+    },
+    savingThrows: () => {
+      for (const value of values((r) => r.proficiencies.savingThrows))
+        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+    },
+    // Freitext, kein Vokabular — und in 2024 sind Sprachen ohnehin keine Übung mehr.
+    tools: () => {
+      for (const value of values((r) => r.proficiencies.tools))
+        if (value.trim()) out.push({ target: 'toolProficiency', value, ...meta, label: `Werkzeug: ${value}` });
+    },
+    languages: () => {
+      for (const value of values((r) => r.proficiencies.languages))
+        if (value.trim()) out.push({ target: 'language', value, ...meta, label: `Sprache: ${value}` });
+    },
+  };
+  for (const run of Object.values(routes)) run();
+  // Bereits entschiedene Expertise (rider.expertiseSkills, nicht Teil der Übungsform).
+  for (const skill of values((r) => r.expertiseSkills))
+    out.push({ target: 'expertise', skill, ...meta, label: `Expertise: ${skillLabelDe(skill)}` });
   return out;
 }
 
@@ -836,7 +876,13 @@ export interface DocInput {
   pickedCantrips: string[];
   pickedLearned: { level: number; name: string }[];
   learnAsPrepared: boolean;
-  chosenFeats: { key: string; name: string; gainedAt: number }[];
+  chosenFeats: { key: string; name: string; gainedAt: number; grants?: FeatureGrant }[];
+  /**
+   * Die neu gewonnenen Merkmale samt Deklaration — Quelle der Grants, die der Rider nicht
+   * ausdrücken kann (`declaredGrantChanges`). Ungefiltert, also auch die Merkmale, die aus
+   * dem KI-Eingang gefallen sind.
+   */
+  grantSources: DeclaredGrantSource[];
   // Die Wahl-Fragebögen beider Checkpoints — Quelle der `featureChoice`-Changes; die
   // Merkmalsliste liefert dazu die Stufe je Merkmals-Key.
   baseChoiceQs: LevelUpQuestion[];
@@ -866,12 +912,14 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
     ...declaredSpellChanges(p.declaredSpells),
     ...riderChanges(p.validatedBase, 'feature-effects'),
+    ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
     ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions'),
     ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
+    ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects'),
     ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects'),
     ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),

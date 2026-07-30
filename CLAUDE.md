@@ -143,9 +143,16 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
 - **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
   filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
   `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from
-  vanishing off the character sheet. Same for the mechanics: check there is a sink before
-  declaring a grant (`riderChanges` for the level-up `Change[]`, `assembleCharacter` for the
-  wizard). Weapon/armor proficiencies had none until `weaponProficiency`/`armorTraining`.
+  vanishing off the character sheet. The mechanics no longer need that check — see the next
+  rule — but the sheet line still does.
+- **A grant field without a sink is a compile error, not a silent gap.** Both flows apply
+  through the one applier (`services/applyChanges.ts`), whose `default` branch is a `never`
+  guard, and both projections into `Change[]` are tables typed over `keyof` their source form
+  (`riderGrantChanges` over `RiderProficiencies`, `proficiencyGrantChanges` over
+  `ProficiencyGrant`). Adding a field or a `Change` variant breaks the build until it has a
+  sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
+  then `savingThrows`/`weaponsOther`/`tools`/`languages` — all four silently dropped by the
+  level-up while the wizard applied them. **Do not hand-enumerate fields next to these tables.**
 - **`grants` is optional WITHOUT a default** (`featureGrantSchema`, plus `grantsChoice`/
   `grantsSpells` alongside it). Missing field = the entry was never redacted and still runs
   through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every

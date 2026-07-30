@@ -2,9 +2,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, SKILL_DEFS, skillSheetKey, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
-  import { markArmorTraining, markWeaponProficiency } from '../services/proficiencyGrants';
-  import type { SkillName } from '../schemas/shared';
+  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { applyChanges } from '../services/applyChanges';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
@@ -179,100 +178,13 @@
     // Übungsbonus deterministisch aus Gesamtstufe (Sicherheitsnetz; changeSet setzt ihn ebenso).
     next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
 
-    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden.
-    for (const c of changeSet.changes) {
-      switch (c.target) {
-        case 'hpMax': // Freitext-Zahl additiv (bewahrt item-/manuelle Boni)
-          next.hpMax = String((parseInt(next.hpMax, 10) || 0) + c.value);
-          break;
-        case 'hitDice':
-          next.hitDice = c.value;
-          break;
-        case 'proficiencyBonus':
-          next.proficiencyBonus = c.value;
-          break;
-        case 'spellSlot': { // additiv — bewahrt item-/manuell gewährte Slots
-          const slots = next.spells?.slots ?? [];
-          const i = c.level - 1;
-          if (slots[i]) slots[i].total += c.value;
-          break;
-        }
-        case 'cantrip':
-          if (!next.spells.cantrips.some((e) => e.name === c.name)) {
-            const key = resolveSpell({ name: c.name })?.key;
-            next.spells.cantrips = [...next.spells.cantrips, { name: c.name, ...(key ? { sourceKey: key } : {}) }];
-          }
-          break;
-        case 'spellcastingClass':
-          if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
-          break;
-        case 'ability': { // additiv + Modifikator neu berechnen
-          const score = (next[c.ability] ?? 10) + c.value;
-          next[c.ability] = score;
-          (next as unknown as Record<string, number>)[`${c.ability}Mod`] = Math.floor((score - 10) / 2);
-          break;
-        }
-        case 'preparedSpell': { // → spells.byLevel (Dedup je Grad)
-          if (!c.name.trim()) break;
-          const lvl = String(c.level);
-          const arr = next.spells.byLevel[lvl] ?? [];
-          if (!arr.some((e) => e.name === c.name)) {
-            const key = resolveSpell({ name: c.name })?.key;
-            arr.push({ name: c.name, prepared: c.prepared, ...(key ? { sourceKey: key } : {}) });
-          }
-          next.spells.byLevel[lvl] = arr;
-          break;
-        }
-        case 'feat': // Talent-Link → Merkmals-Ledger
-          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', choiceDe: '', gainedAt: c.gainedAt, desc: '' }];
-          break;
-        // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
-        // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
-        // schlug die Zuweisung still fehl, weil „Animal Handling" nie auf
-        // „MitTierenUmgehen" traf.
-        case 'expertise': {
-          const key = skillSheetKey(c.skill as SkillName);
-          if (next.skills[key]) next.skills[key].exp = true;
-          break;
-        }
-        case 'proficiency': {
-          const key = skillSheetKey(c.skill as SkillName);
-          if (next.skills[key]) next.skills[key].prof = true;
-          break;
-        }
-        // Wie bei den Fertigkeiten: der Change trägt das englische Vokabular, der Bogen
-        // deutsche Flags — die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.
-        case 'weaponProficiency':
-          markWeaponProficiency(next.proficiencies, c.value);
-          break;
-        case 'armorTraining':
-          markArmorTraining(next.proficiencies, c.value);
-          break;
-        case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
-          const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
-          if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }
-          break;
-        }
-        case 'classFeaturesText': // KI-Volltext ersetzen ODER Freitext anhängen (inkl. Kampfstil)
-          if (c.mode === 'replace') next.classFeatures = c.value;
-          else next.classFeatures = [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
-          break;
-        case 'featureChoice': {
-          // Upsert über (Merkmal, Stufe): dieselbe Stufe erneut zu durchlaufen ersetzt den
-          // Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
-          if (!c.sourceKey) break;
-          const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
-          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, choiceDe: c.choiceDe, gainedAt: c.gainedAt, desc: '' };
-          if (i >= 0) next.features[i] = entry;
-          else next.features = [...next.features, entry];
-          break;
-        }
-        case 'featureGained':
-          break; // Info-Eintrag — keine Anwendung (Klassen-/Subklassen-Merkmale aus Link abgeleitet)
-        case 'note':
-          break; // Info-Eintrag (Protokoll des Fragebogens) — kein Ziel am Charakter
-      }
-    }
+    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden —
+    // derselbe Applier, den die Wizard-Assembly benutzt (services/applyChanges.ts).
+    applyChanges(next, changeSet.changes, {
+      classIndex: delta.classIndex,
+      isNewClass: delta.isNewClass,
+      resolveSpellKey: (name) => resolveSpell({ name })?.key,
+    });
     next.classLevel = formatClassLevel(next.classes);
 
     // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.

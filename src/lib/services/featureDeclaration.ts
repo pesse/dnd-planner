@@ -22,10 +22,10 @@
  * (`withDeclaredGrants` — das einzige, das den KI-Rider nicht ersetzt, sondern überstimmt).
  */
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
-import type { FeatureRider } from '../schemas/levelUp';
+import type { Change, FeatureRider } from '../schemas/levelUp';
 import { declaredChoice } from './declaredChoice';
 import { SKILL_NAMES, type ChoiceOption, type FeatureGrant, type SkillName } from '../schemas/shared';
-import { skillLabelDe } from './proficiencyGrants';
+import { proficiencyGrantChanges, skillLabelDe } from './proficiencyGrants';
 
 /** Was der Builder von einem Merkmal braucht — Klassenmerkmal, Trait und Talent erfüllen es. */
 export interface DeclaredChoiceSource {
@@ -224,6 +224,41 @@ export function optionListNoteLines(
     lines.push(`${f.nameDe || f.name}: ${label}${help ? ` — ${help}` : ''}`);
   }
   return lines;
+}
+
+/**
+ * Was eine Deklaration gewährt, das der Rider nicht ausdrücken kann — heute nur die
+ * EINGESCHRÄNKTE Waffen-Übung („Martial weapons that have the Light property"): Freitext,
+ * für den es im geschlossenen Rider-Vokabular kein Feld gibt und geben soll (Pass C nennt
+ * sie ausdrücklich Text, nicht Grant).
+ *
+ * Alles Übrige reist über `withGrant` in den Rider und von dort über `riderGrantChanges`;
+ * deshalb die Ausschlussliste. Ohne diese Funktion wäre `grants.proficiencies.weaponsOther`
+ * deklarierbar, aber im Aufstieg wirkungslos — dieselbe stille Lücke wie zuvor bei den
+ * Waffen- und Rüstungsübungen.
+ */
+export function declaredGrantChanges(
+  features: readonly DeclaredGrantSource[],
+  meta: { step: string; source: string },
+): Change[] {
+  const out: Change[] = [];
+  // Dasselbe Merkmal erreicht den Aufstieg aus mehreren Richtungen (Delta und nachgeladene
+  // Subklassen-Merkmale) — sonst stünde seine Zeile zweimal im Protokoll.
+  const seen = new Set<string>();
+  for (const f of features) {
+    if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
+    const id = f.key || f.name.trim().toLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(
+      ...proficiencyGrantChanges(
+        f.grants.proficiencies,
+        { ...meta, source: f.key || meta.source },
+        ['skills', 'savingThrows', 'weapons', 'armor'],
+      ),
+    );
+  }
+  return out;
 }
 
 /** Ob eine Deklaration überhaupt etwas gewährt (sonst braucht sie keinen Rider). */

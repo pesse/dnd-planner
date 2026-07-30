@@ -102,6 +102,34 @@
       "label": "string"
     },
     {
+      "target": "savingThrow",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "toolProficiency",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "language",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "weaponProficiencyOther",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "subclass",
       "key": "string",
       "name": "string",
