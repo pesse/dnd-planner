@@ -636,6 +636,70 @@ mit eigener Messung — hier nur festgehalten):
 Nicht gemessen und auch nicht nötig: die drei bestehenden Strecken. Am Ende ist kein Prompt
 geändert, der Eingang ist unverändert — die thinking-freien Baselines vom 30.07. gelten weiter.
 
+## Stufe 3 — die These korrigiert (2026-07-30)
+
+Die Annahme oben („Pass C kostet im Gnom-Fall 127 s gegen 75 s für Pass A") stammt aus der Zeit
+**vor** thinking-frei und beschreibt außerdem nicht Pass C, sondern den ganzen
+Finalisierungs-*Schritt* der Eval-Strecke. Der Schritt fährt fünf Calls; `runs.jsonl` des
+thinking-freien Reports (`…T07-28-11-509Z-wizardfeatures-nothink`) trennt sie:
+
+| Call im Schritt „Call C" | Median | ↑ | ↓ |
+|---|---:|---:|---:|
+| Pass A (Analyse, wird im Schritt erneut gefahren) | 10 814 ms | 2 676 | 1 193 |
+| T1 Wahl-Übersetzung | 3 027 ms | 1 446 | 258 |
+| Nach-Analyse (mit `<resolved_choices>`) | 8 264 ms | 3 918 | 747 |
+| **Pass C (guided, Rider-Schema)** | **16 168 ms** | 4 545 | 1 387 |
+| T2 Notiz-Übersetzung | 2 768 ms | 1 638 | 213 |
+
+Pass C ist also **16,2 s**, nicht 43 s: 39 % der echten App-Kette (10,8 + 3,0 + 8,3 + 16,2 + 2,8
+≈ 41 s), nicht 74 %. Die Strecken-Kette von 58,1 s zählt Pass A doppelt, weil jeder Schritt bei
+null anfängt. Der Hebel ist real, aber 2,6-mal kleiner als angenommen.
+
+**Und das Gatter ist so nicht baubar.** Die sechs Rider des Gnom-Falls tragen:
+
+| Rider | struktureller Grant | Bogen-Notiz |
+|---|---|---|
+| Gnomish Lineage | `grantedSpells` + `decisions` | 143 Z. |
+| Innate Sorcery | — | 157 Z. |
+| Gnomish Cunning | — | 65 Z. |
+| Darkvision | — | 16 Z. |
+| Size | — | — |
+| Speed | — | — |
+
+Die Behauptung „fünf von sieben tragen nur eine Notiz, die der Feld-Zusammenfassungs-Call
+ohnehin schreibt" ist falsch: `fieldSummaryAction` verdichtet die *Freitexte des Spielers*,
+`germanizeSheetNotes` übersetzt nur, was Pass C geschrieben hat. Ein Merkmal aus Pass C zu
+nehmen löscht seine Notiz — und drei dieser Notizen fordern Assertions ausdrücklich ein
+(Angeborene Zauberei, Dunkelsicht „18 m", einzeilig ≤ 180 Zeichen). Ob eine Notiz nötig ist,
+*ist* Pass Cs Urteil (Regel 10); Pass A trifft es nicht.
+
+Baubar ist der Rest: **Größe und Bewegungsrate**. Ihre Rider sind komplett leer — die
+Notiz-Doktrin verbietet dort schon heute eine Zeile (`SHEET_NOTE_EXAMPLE_EN`: „a sense with a
+range DOES earn its line, size and speed do NOT"), eine Assertion hält es fest, und die
+Bewegungsrate liest `assembleCharacter` längst deterministisch aus dem Merkmal. Guided Decoding
+zahlt für jeden leeren Rider trotzdem das volle Gerüst (~470 Zeichen Defaults, ~150 Tokens): zwei
+von sechs Ridern sind reiner Aufwand, in **beiden** Pässen.
+
+### Hypothese und Erwartung (notiert VOR der Messung)
+
+**Hypothese.** Größe und Bewegungsrate aus dem Deutungs-Eingang zu nehmen kostet keine einzige
+Assertion und spart ~2 von 6 Ridern in Pass C sowie zwei Merkmale in Pass A. Erwartung: Pass C
+Ausgabe −15…25 %, Pass C Median 16,2 s → 12–14 s, App-Kette ~41 s → 36–38 s (**~10 %**, nicht das
+erhoffte Drittel). Alle Proben bleiben 5/5; insbesondere muss die Assertion „Größe und
+Bewegungsrate tragen keine Bogen-Notiz" weiter greifen (sie prüft dann ein *fehlendes* Merkmal,
+also trivial erfüllt — das ist kein Aufweichen, aber es ist auch kein Beweis mehr, deshalb hält
+der neue LLM-freie Deckungstest die Grenze).
+
+**Die Gefahr sitzt bei Mensch und Tiefling.** Deren Größe ist eine **Wahl** („Medium … or Small
+…, chosen when you select this species"), bei den anderen sieben ein fester Wert. Ein
+namensbasierter Schnitt („heißt Size → raus") würde diese Wahl still löschen — genau der
+Fehlurteil-Modus, vor dem die Auftragsbeschreibung warnt. Deshalb entscheidet ein Diskriminator
+am Merkmal (`sheetValue`), und die Deklaration fehlt bei Mensch und Tiefling: **ohne Deklaration
+bleibt das Merkmal bei der KI.** Der Zweifelsfall fällt zu Pass C, nicht daran vorbei.
+
+**Erwartung an den Rest.** Druide und Schurke sind Aufstiege ohne Speziesmerkmale (die Fixtures
+enthalten keine `traits`) — ihr Eingang ist beweisbar unverändert, sie werden nicht neu gemessen.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).

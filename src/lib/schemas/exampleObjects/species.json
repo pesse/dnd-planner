@@ -38,7 +38,8 @@
         "armor": [
           "Light"
         ]
-      }
+      },
+      "sheetValue": "size"
     }
   ]
 }

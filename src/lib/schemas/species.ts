@@ -11,6 +11,14 @@ import { z } from 'zod';
 import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
 
 /**
+ * Merkmale, deren ganzer Inhalt ein Wert ist, den der Bogen in einem eigenen Feld führt —
+ * nichts zu deuten. Diskriminator, nicht Namensregel: fehlt er, bleibt das Merkmal bei der
+ * KI. Deshalb tragen Mensch und Tiefling ihn NICHT, ihre Größe ist eine Wahl.
+ */
+export const SHEET_VALUE_TRAITS = ['size', 'speed'] as const;
+export type SheetValueTrait = (typeof SHEET_VALUE_TRAITS)[number];
+
+/**
  * Ein Speziesmerkmal (Trait); zweisprachig (EN Pflicht, DE optional).
  *
  * Der Grant hängt am MERKMAL, nicht an der Spezies: im SRD 5.2 gewähren nur zwei
@@ -24,6 +32,7 @@ export const traitSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
 });
 
 export const speciesSchema = z.object({
