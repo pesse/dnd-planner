@@ -5,7 +5,6 @@
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
-  import CharacterUpgradeModal from './CharacterUpgradeModal.svelte';
   import LibraryManager from './LibraryManager.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
@@ -293,8 +292,6 @@
   let showWizard = $state(false);
   let pdfImporting = $state(false);
   let pdfImportError = $state('');
-  // Stapel-Upgrade der Charakter-Dateien auf CHARACTER_VERSION (services/characterUpgrade.ts).
-  let showCharacterUpgrade = $state(false);
 
   async function loadCharacters() {
     try {
@@ -1329,9 +1326,6 @@
         <span class="arrow" class:open={charactersExpanded}>›</span>
         Charaktere
       </button>
-      <button class="add-btn" title="Charaktere auf die aktuelle Schemaversion ziehen" onclick={() => (showCharacterUpgrade = true)}>
-        ⬆
-      </button>
       <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
         {pdfImporting ? '…' : 'PDF'}
       </button>
@@ -1801,10 +1795,6 @@
 
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
-  {/if}
-
-  {#if showCharacterUpgrade}
-    <CharacterUpgradeModal onclose={() => { showCharacterUpgrade = false; loadCharacters(); }} />
   {/if}
 
   {#if showWizard}

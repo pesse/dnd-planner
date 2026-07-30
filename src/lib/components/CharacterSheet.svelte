@@ -7,7 +7,7 @@
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
-  import { type Character, formatClassLevel, formatSpecies } from '../schemas/character';
+  import { type Character, formatClassLevel, formatSpecies, pendingCharacterUpgrade } from '../schemas/character';
   import { proficiencyBonus } from '../services/classProgression';
   import type { LevelUpChangeSet } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
@@ -91,6 +91,11 @@
       const r = parseCharacter(JSON.parse(content));
       return r.ok ? r.data : null;
     },
+    // Das angenommene Schema-Upgrade ist die einzige Änderung, die den Draft NICHT
+    // anfasst (`parse` hat sie beim Laden längst angewandt) — ohne diesen Hook bliebe der
+    // Editor sauber und die Speichern-Leiste unerreichbar. Rückgabetyp annotiert, weil
+    // `pendingUpgrade` seinerseits `ed.lastSavedContent` liest (Inferenzkreis).
+    extraDirty: (): boolean => upgradeAccepted && !!pendingUpgrade,
     onSaved: () => invalidateVault(),
   });
   // Read-only-Sicht auf den Draft für die Bogen-Anzeige.
@@ -112,6 +117,25 @@
   });
   // Quelle der PDF-Import-Metadaten (nicht editierbar).
   const pdfName = $derived(character?._importedFrom ?? '');
+
+  // ─── Schema-Upgrade der Datei (Hinweis im Bearbeiten-Tab) ──────────────────
+  // Gegen den ROHEN Dateiinhalt geprüft, nicht gegen den Draft: `parseCharacter`
+  // zieht beim Laden ohnehin die Pipeline durch, veraltet ist nur die Datei.
+  const pendingUpgrade = $derived.by(() => {
+    if (!ed.lastSavedContent) return null;
+    try {
+      return pendingCharacterUpgrade(JSON.parse(ed.lastSavedContent));
+    } catch {
+      return null; // ungültiges JSON — dafür meldet sich bereits der Lade-Fehler
+    }
+  });
+  // Angebot angenommen → `extraDirty` greift, geschrieben wird über die Speichern-Leiste.
+  let upgradeAccepted = $state(false);
+  // Beim Dateiwechsel zurücksetzen, sonst wirkt der nächste Charakter ungespeichert.
+  $effect(() => {
+    void ed.lastSavedContent;
+    upgradeAccepted = false;
+  });
 
   // ─── Stufenaufstieg-Assistent ──────────────────────────────────────────────
   let showLevelUp = $state(false);
@@ -784,7 +808,7 @@
       dirty={ed.dirty}
       saveError={ed.saveError}
       onsave={() => ed.save()}
-      ondiscard={() => ed.discard()}
+      ondiscard={() => { upgradeAccepted = false; ed.discard(); }}
       onsavejson={(json) => ed.saveJson(json)}
       getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
       extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
@@ -1183,7 +1207,10 @@
         {#if ed.draft}
           {#key ed.draft}
             <div class="edit-wrapper" style="width:100%">
-              <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter} />
+              <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
+                   Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
+              <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
+                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
             </div>
           {/key}
         {/if}
@@ -1315,6 +1342,7 @@
   .edit-wrapper {
     min-height: 0;
   }
+
 
   .content {
     width: 100%;

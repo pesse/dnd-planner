@@ -123,6 +123,11 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
 - **New card editors go through `createCardEditor`** (`editor/cardEditor.svelte.ts`), and anything
   that switches the active file must go through `confirmNavigation` (`stores/navigationGuard.ts`)
   or unsaved edits are lost silently.
+- **What a character can still have linked is decided in one place**:
+  `services/characterLegacyLinks.ts` (`collectLegacyFixes`). It detects *and* performs the fix;
+  the editor only holds the state it mutates and the UI follow-up (display mirrors, closing
+  pickers). A library link can never be a `CHARACTER_UPGRADES` step — `apply` there is synchronous
+  and cannot reach the library. **Do not add a second matcher next to it.**
 
 ## Character files are versioned
 
@@ -134,8 +139,11 @@ A schema change means: bump `CHARACTER_VERSION` and add **exactly one** step wit
 although the change already happened. `_version` is a plain positive int, not a literal union, so a
 file written by a newer build still loads in an older one.
 
-The batch upgrade (`services/characterUpgrade.ts`) writes the *migrated raw* object, not the
-normalised one — the point is to update the file, not inflate it with every default.
+**Nothing writes the upgrade to the file behind the user's back, and there is no batch action.**
+Loading always runs the pipeline in memory, so the in-editor draft is current while the file is
+not; `pendingCharacterUpgrade` reports that gap and the character's Bearbeiten-Tab shows it as a
+banner with a one-click *Aktualisieren*. That button only marks the editor dirty (via the
+`extraDirty` hook) — the normal save bar does the writing, per character.
 
 ## Releases
 

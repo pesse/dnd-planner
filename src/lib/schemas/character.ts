@@ -358,8 +358,9 @@ export function parseClassLevelText(text: string): CharacterClass[] {
 //      oft keine oder eine zu niedrige `_version`, obwohl die Umstellung schon
 //      passiert ist (früher lief die Migration ohne Versionsstempel).
 //
-// Das Stapel-Upgrade über alle Charaktere des Vaults liegt in
-// `services/characterUpgrade.ts`.
+// In die DATEI geschrieben wird das Upgrade nicht automatisch, sondern als sichtbare
+// Aktion pro Charakter: der Bearbeiten-Modus zeigt einen Hinweis, sobald
+// `pendingCharacterUpgrade` etwas meldet.
 
 /** Aktuelle Charakter-Schemaversion. Bei jeder Formatänderung erhöhen. */
 export const CHARACTER_VERSION = 5;
@@ -493,6 +494,30 @@ export function upgradeCharacter(raw: unknown): CharacterUpgradeResult {
   }
   data._version = CHARACTER_VERSION;
   return { data, fromVersion, toVersion: CHARACTER_VERSION, applied };
+}
+
+export interface PendingCharacterUpgrade {
+  fromVersion: number;
+  toVersion: number;
+  /** Beschreibungen der Schritte, die greifen würden. Leer = nur der Versionsstempel fehlt. */
+  applied: string[];
+}
+
+/**
+ * Würde ein Upgrade dieser DATEI etwas ändern? `null` = nein, sie ist aktuell.
+ *
+ * Der Vergleich läuft über einen Schnappschuss VOR dem Upgrade: `upgradeCharacter`
+ * kopiert nur flach, seine Schritte mutieren verschachtelte Objekte von `raw` mit —
+ * hinterher serialisiert, sähen reine Feld-Umschreibungen (Schritt 3 auf
+ * `species.sourceKey`) identisch aus und die Datei bliebe still veraltet.
+ */
+export function pendingCharacterUpgrade(raw: unknown): PendingCharacterUpgrade | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const before = JSON.stringify(raw);
+  const fromVersion = characterVersionOf(raw);
+  const result = upgradeCharacter(raw);
+  if (before === JSON.stringify(result.data)) return null;
+  return { fromVersion, toVersion: result.toVersion, applied: result.applied };
 }
 
 /**

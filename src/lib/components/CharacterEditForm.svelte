@@ -3,8 +3,13 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
   import type { SkillName } from '../schemas/shared';
+  import type { PendingCharacterUpgrade } from '../schemas/character';
+  import {
+    collectLegacyFixes,
+    type LegacyFix, type LegacyFixKind, type LegacyLinkTarget, type LegacyLinkLibraries,
+  } from '../services/characterLegacyLinks';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { getSpellLibrary, searchSpells, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
@@ -41,10 +46,14 @@
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
   // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
   // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
-  let { character = $bindable(), dirPath, saved }: {
+  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
     character: Character;
     dirPath: string;
     saved?: Character | null;
+    /** Schema-Rückstand der DATEI (aus CharacterSheet) — Teil des Umstellungs-Hinweises oben. */
+    pendingUpgrade?: PendingCharacterUpgrade | null;
+    upgradeAccepted?: boolean;
+    onAcceptUpgrade?: () => void;
   } = $props();
 
   // Diff-Highlighting: vergleicht ein Quell-Feld gegen die gespeicherte Version.
@@ -65,8 +74,8 @@
   let charTotalLevel = $derived(totalLevel(classes));
   // Ursprünglicher Freitext-Klassenstring — EINMALIG erfasst, bevor der Sync-Effekt unten
   // `character.classLevel` aus `classes` neu ableitet. Grundlage der Altformat-Umstellung
-  // (siehe legacyConversion/convertLegacyClasses), falls die Auto-Migration den Freitext
-  // nicht in `classes` überführen konnte.
+  // (services/characterLegacyLinks.ts), falls die Auto-Migration den Freitext nicht in
+  // `classes` überführen konnte.
   const legacyClassLevelInit = character.classLevel ?? '';
   let playerName = $state(character.playerName ?? '');
   // Strukturierter Hintergrund-Link (Source-of-Truth). `background` = abgeleiteter Anzeige-String.
@@ -481,33 +490,6 @@
     }
   }
 
-  /**
-   * Nachverlinkbarer Altbestand. Sichtbare Aktion pro Charakter statt Migrationsschritt:
-   * `CHARACTER_UPGRADES.apply` ist synchron und käme an die Bibliothek nicht heran.
-   */
-  const linkableRows = $derived.by(() =>
-    inventory.reduce<number[]>((acc, line, i) => {
-      if (line.sourceKey?.trim()) return acc;
-      const nm = line.name.trim().toLowerCase();
-      // Mehrdeutige liegen lassen: ein falscher Key wäre schlimmer als keiner.
-      if (!nm || itemIndex.ambiguous.has(nm)) return acc;
-      if (itemIndex.byName.get(nm)?.key) acc.push(i);
-      return acc;
-    }, []),
-  );
-
-  function linkInventoryRows() {
-    for (const i of linkableRows) {
-      const hit = itemIndex.byName.get(inventory[i].name.trim().toLowerCase());
-      if (!hit?.key) continue;
-      inventory[i].sourceKey = hit.key;
-      // Name mitziehen (englischer Altbestand → deutscher Bibliotheksname), damit
-      // Anzeige, Datei und PDF dasselbe sagen.
-      inventory[i].name = displayName(hit);
-      inventory[i].weight = hit.weight != null ? String(hit.weight) : '';
-    }
-  }
-
   /** Bibliotheksname eines gelinkten Gegenstands, wenn er vom gespeicherten `name` abweicht. */
   function divergedItemName(line: { name: string; sourceKey?: string }): string | undefined {
     const key = line.sourceKey?.trim();
@@ -524,41 +506,6 @@
     for (const line of inventory) {
       const canonical = divergedItemName(line);
       if (canonical) line.name = canonical;
-    }
-  }
-
-  /**
-   * Nachverlinkbare Zauber (Zaubertricks + byLevel): Altbestand ohne `sourceKey`, dessen
-   * Name eindeutig in der Bibliothek auflöst. Wie beim Inventar eine sichtbare Aktion pro
-   * Charakter — der synchrone Schema-Upgrade käme an die Bibliothek nicht heran.
-   */
-  const linkableSpellCount = $derived.by(() => {
-    const isLinkable = (ref: SpellRef): boolean => {
-      if (ref.sourceKey?.trim()) return false;
-      const nm = ref.name.trim().toLowerCase();
-      if (!nm || spellIndex.ambiguous.has(nm)) return false;
-      return !!spellIndex.byName.get(nm)?.key;
-    };
-    let n = cantrips.filter(isLinkable).length;
-    for (const arr of Object.values(spellsByLevel)) n += arr.filter(isLinkable).length;
-    return n;
-  });
-
-  function linkSpellRows() {
-    const link = (ref: SpellRef) => {
-      if (ref.sourceKey?.trim()) return;
-      const nm = ref.name.trim().toLowerCase();
-      if (!nm || spellIndex.ambiguous.has(nm)) return;
-      const hit = spellIndex.byName.get(nm);
-      if (!hit?.key) return;
-      ref.sourceKey = hit.key;
-      ref.name = hit.name; // deutschen Bibliotheksnamen mitziehen (wie beim Inventar)
-    };
-    cantrips.forEach(link);
-    cantrips = [...cantrips];
-    for (const lvl of Object.keys(spellsByLevel)) {
-      spellsByLevel[lvl].forEach(link);
-      spellsByLevel[lvl] = [...spellsByLevel[lvl]];
     }
   }
 
@@ -985,55 +932,6 @@
   let classSugIndex = $state(-1);
   let editingClassRow = $state(-1); // Zeile im Bearbeiten-Modus (sonst: Link zur Bibliothek)
 
-  // ─── Altformat-Umstellung (Freitext → strukturiert + Bibliotheks-Verknüpfung) ─────
-  /**
-   * Findet die passende GRUNDklasse zu einem Freitext-Namen — nur ein sicherer,
-   * exakter Treffer (deutscher oder englischer Name, mit vorhandenem Key). Kein
-   * Substring-Matching, damit die Umstellung nichts falsch verknüpft.
-   */
-  function matchBaseClass(rawName: string): ClassInfo | undefined {
-    // Stufen-Schlüsselwörter entfernen ("Schurke Level" → "Schurke"), damit auch
-    // bereits gespeicherte, verrauschte Namen sicher zugeordnet werden.
-    const q = cleanClassName(rawName).toLowerCase();
-    if (!q) return undefined;
-    return baseClassIndex.find(
-      (c) => !!c.key && ((c.nameDe ?? c.name).toLowerCase() === q || c.name.toLowerCase() === q),
-    );
-  }
-
-  // Umstellungs-Angebot: sichtbar, wenn es noch unstrukturierten Freitext gibt ODER
-  // strukturierte Klassen ohne Bibliotheks-Verknüpfung, die sich sicher zuordnen lassen.
-  const legacyConversion = $derived.by(() => {
-    const needsStructuring = classes.length === 0 && legacyClassLevelInit.trim().length > 0;
-    const base = classes.length > 0 ? classes : parseClassLevelText(legacyClassLevelInit);
-    if (base.length === 0) return null;
-    const linkable = base.filter((c) => !c.sourceKey && c.name.trim() && matchBaseClass(c.name));
-    if (!needsStructuring && linkable.length === 0) return null;
-    return { needsStructuring, linkable: linkable.length };
-  });
-
-  /**
-   * Stellt den Charakter aufs neue Format um: zerlegt Freitext bei Bedarf in `classes`
-   * und verknüpft unverlinkte Grundklassen best-effort mit der Bibliothek (setzt
-   * sourceKey + normalisierten Anzeigenamen). Nicht sicher zuordenbare Einträge bleiben
-   * unverlinkt zur manuellen Auswahl. Mutiert den Formular-Zustand → Sync-Effekt greift.
-   */
-  function convertLegacyClasses() {
-    if (classes.length === 0 && legacyClassLevelInit.trim()) {
-      classes = parseClassLevelText(legacyClassLevelInit);
-    }
-    for (const cls of classes) {
-      if (cls.sourceKey || !cls.name.trim()) continue;
-      const match = matchBaseClass(cls.name);
-      if (match?.key) {
-        cls.sourceKey = match.key;
-        cls.name = classDisplayName(match);
-      } else {
-        cls.name = cleanClassName(cls.name); // Homebrew: wenigstens „Level"-Rauschen entfernen
-      }
-    }
-    editingClassRow = -1;
-  }
 
   /** Bibliotheks-Pfad zur GRUNDklasse eines Eintrags, falls verlinkt. */
   function classPath(cls: CharacterClass): string | undefined {
@@ -1147,23 +1045,6 @@
     }
   }
 
-  // ─── Altformat-Umstellung Volk (Auto-Guess wie bei der Klasse) ─────────────────
-  /** Exakter, sicherer Bibliotheks-Treffer für einen Freitext-Volksnamen (kein Substring). */
-  function matchSpecies(rawName: string): SpeciesInfo | undefined {
-    const q = rawName.trim().toLowerCase();
-    if (!q) return undefined;
-    return speciesIndex.find(
-      (s) => !!s.key && ((s.nameDe ?? s.name).toLowerCase() === q || s.name.toLowerCase() === q),
-    );
-  }
-  // Angebot sichtbar, wenn ein unverlinkter Volksname sicher in der Bibliothek existiert.
-  const speciesLegacyMatch = $derived(
-    !species.sourceKey && species.name.trim() ? matchSpecies(species.name) : undefined,
-  );
-  /** Verknüpft den erkannten Freitext-Volksnamen mit der Bibliothek. */
-  function linkLegacySpecies() {
-    if (speciesLegacyMatch) selectSpecies(speciesLegacyMatch);
-  }
 
   // ─── Hintergrund (strukturierter Bibliotheks-Link; analog zur Spezies) ────────
   // `background` ist der abgeleitete Anzeige-String (auch fürs PDF), `backgroundRef`
@@ -1219,20 +1100,43 @@
     }
   }
 
-  /** Exakter, sicherer Bibliotheks-Treffer für einen Freitext-Hintergrund (kein Substring). */
-  function matchBackground(rawName: string): BackgroundInfo | undefined {
-    const q = rawName.trim().toLowerCase();
-    if (!q) return undefined;
-    return backgroundIndex.find(
-      (b) => !!b.key && ((b.nameDe ?? b.name).toLowerCase() === q || b.name.toLowerCase() === q),
-    );
+  // ─── Nachziehbarer Altbestand (services/characterLegacyLinks.ts) ───────────────
+  // Erkennung UND Verlinkung liegen im Modul; hier bleiben nur der Zustand, den es
+  // mutiert, und der UI-Nachlauf (Anzeige-Spiegel, offene Picker).
+  const legacyTarget = $derived<LegacyLinkTarget>({
+    classes, legacyClassLevel: legacyClassLevelInit, species, backgroundRef,
+    inventory, cantrips, spellsByLevel,
+  });
+  const legacyLibraries = $derived<LegacyLinkLibraries>({
+    classes: classIndex, species: speciesIndex, backgrounds: backgroundIndex,
+    items: itemIndex, spells: spellIndex,
+  });
+  const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
+  const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
+
+  /**
+   * Zieht ein Angebot nach und räumt hinterher die UI auf: `race`/`background` sind
+   * abgeleitete Anzeige-Strings (auch fürs PDF), und ein frisch verlinktes Feld soll als
+   * Bibliotheks-Link statt als offener Picker erscheinen.
+   */
+  function applyFix(fix: LegacyFix | undefined) {
+    if (!fix) return;
+    fix.apply();
+    switch (fix.kind) {
+      case 'classes': editingClassRow = -1; break;
+      case 'species': race = species.name; speciesSuggestions = []; speciesActive = false; editingSpecies = false; break;
+      case 'background': background = backgroundRef.name; backgroundSuggestions = []; backgroundActive = false; editingBackground = false; break;
+    }
   }
-  // Angebot sichtbar, wenn ein unverlinkter Hintergrundname sicher in der Bibliothek existiert.
-  const backgroundLegacyMatch = $derived(
-    !backgroundRef.sourceKey && backgroundRef.name.trim() ? matchBackground(backgroundRef.name) : undefined,
-  );
-  function linkLegacyBackground() {
-    if (backgroundLegacyMatch) selectBackground(backgroundLegacyMatch);
+
+  /**
+   * Sammel-Aktion des Hinweises oben: alles Nachziehbare auf einmal. Der Schema-Stempel
+   * der DATEI fasst den Draft nicht an und läuft darum über `onAcceptUpgrade` beim
+   * Eltern-Editor, sonst bliebe die Speichern-Leiste unerreichbar.
+   */
+  function applyAllFixes() {
+    for (const fix of legacyFixes) applyFix(fix);
+    if (pendingUpgrade) onAcceptUpgrade?.();
   }
 
   // ─── Read-only Merkmals-Vorschau (aus der Bibliothek aufgelöst) ────────────────
@@ -1635,6 +1539,35 @@
     </span>
   {/snippet}
 
+  <!-- ── Umstellungs-Angebot: Schemaversion der Datei + alles Nachverlinkbare ─── -->
+  {#if pendingUpgrade || legacyFixes.length}
+    <div class="legacy-banner upgrade-banner">
+      <span class="legacy-banner-text">
+        {#if pendingUpgrade}
+          Diese Datei liegt im Format <strong>v{pendingUpgrade.fromVersion}</strong> vor
+          (aktuell: <strong>v{pendingUpgrade.toVersion}</strong>).
+        {:else}
+          Dieser Charakter lässt sich vollständiger mit der Bibliothek verknüpfen.
+        {/if}
+        <ul class="upgrade-steps">
+          {#if pendingUpgrade}
+            {#each pendingUpgrade.applied as step}<li>{step}</li>{/each}
+            {#if !pendingUpgrade.applied.length}<li>Versionsstempel nachtragen</li>{/if}
+          {/if}
+          {#each legacyFixes as fix}<li>{fix.label}</li>{/each}
+        </ul>
+      </span>
+      {#if pendingUpgrade && upgradeAccepted && !legacyFixes.length}
+        <span class="upgrade-done">✓ Wird beim Speichern übernommen</span>
+      {:else}
+        <button type="button" class="legacy-banner-btn" onclick={applyAllFixes}
+          title="Übernimmt alles hier Aufgeführte — geschrieben wird über Speichern.">
+          Alles umstellen
+        </button>
+      {/if}
+    </div>
+  {/if}
+
   <!-- ── Kopf ─── -->
   <section>
     <h3>Allgemein</h3>
@@ -1647,12 +1580,13 @@
     <!-- Hintergrund als Bibliotheks-Link (Vorteile werden auf der Karte aufgelöst; `background` = Anzeige). -->
     <div class="ref-block species-block" use:diffMark={dirOf(saved?.background, background)}>
       <h4>Hintergrund</h4>
-      {#if backgroundLegacyMatch}
+      {#if fixOf('background')}
+        {@const fix = fixOf('background')}
         <div class="legacy-banner">
           <span class="legacy-banner-text">
             Altes Freitext-Format erkannt: „{backgroundRef.name}" lässt sich mit der Bibliothek verknüpfen.
           </span>
-          <button type="button" class="legacy-banner-btn" onclick={linkLegacyBackground}>Verknüpfen</button>
+          <button type="button" class="legacy-banner-btn" onclick={() => applyFix(fix)}>Verknüpfen</button>
         </div>
       {/if}
       {#if backgroundRef.sourceKey && !editingBackground}
@@ -1679,7 +1613,7 @@
             </ul>
           {/if}
         </div>
-        {#if !backgroundRef.sourceKey && backgroundRef.name.trim() && !backgroundLegacyMatch}
+        {#if !backgroundRef.sourceKey && backgroundRef.name.trim() && !fixOf('background')}
           <p class="species-hint">Nicht in der Bibliothek verlinkt – aus der Liste wählen oder als Hintergrund anlegen.</p>
         {/if}
       {/if}
@@ -1688,12 +1622,13 @@
     <!-- Volk als Bibliotheks-Link (Traits werden auf der Karte aufgelöst; `race` = Anzeige). -->
     <div class="ref-block species-block" use:diffMark={dirOf(saved?.race, race)}>
       <h4>Volk</h4>
-      {#if speciesLegacyMatch}
+      {#if fixOf('species')}
+        {@const fix = fixOf('species')}
         <div class="legacy-banner">
           <span class="legacy-banner-text">
             Altes Freitext-Format erkannt: „{species.name}" lässt sich mit der Bibliothek verknüpfen.
           </span>
-          <button type="button" class="legacy-banner-btn" onclick={linkLegacySpecies}>Verknüpfen</button>
+          <button type="button" class="legacy-banner-btn" onclick={() => applyFix(fix)}>Verknüpfen</button>
         </div>
       {/if}
       {#if species.sourceKey && !editingSpecies}
@@ -1720,7 +1655,7 @@
             </ul>
           {/if}
         </div>
-        {#if !species.sourceKey && species.name.trim() && !speciesLegacyMatch}
+        {#if !species.sourceKey && species.name.trim() && !fixOf('species')}
           <p class="species-hint">Nicht in der Bibliothek verlinkt – aus der Liste wählen oder als Volk anlegen.</p>
         {/if}
       {/if}
@@ -1729,17 +1664,11 @@
     <!-- Klasse & Stufe strukturiert (multiclass-fähig); „Klasse & Stufe"-Anzeige wird abgeleitet. -->
     <div class="ref-block class-block" use:diffMark={dirOf(saved?.classLevel, classLevelPreview)}>
       <h4>Klassen & Stufen{#if charTotalLevel > 0} <span class="class-total">· Gesamtstufe {charTotalLevel}</span>{/if}</h4>
-      {#if legacyConversion}
+      {#if fixOf('classes')}
+        {@const fix = fixOf('classes')}
         <div class="legacy-banner">
-          <span class="legacy-banner-text">
-            Altes Freitext-Format erkannt.
-            {#if legacyConversion.linkable > 0}
-              {legacyConversion.linkable} {legacyConversion.linkable === 1 ? 'Klasse lässt' : 'Klassen lassen'} sich mit der Bibliothek verknüpfen.
-            {:else}
-              Freitext in strukturierte Klassen übernehmen.
-            {/if}
-          </span>
-          <button type="button" class="legacy-banner-btn" onclick={convertLegacyClasses}>Aufs neue Format umstellen</button>
+          <span class="legacy-banner-text">Altes Freitext-Format erkannt: {fix?.label}.</span>
+          <button type="button" class="legacy-banner-btn" onclick={() => applyFix(fix)}>Aufs neue Format umstellen</button>
         </div>
       {/if}
       <table class="ref-table">
@@ -2346,10 +2275,11 @@
     </table>
     <div class="inv-actions">
       <button class="btn-add" onclick={addInventoryItem}>+ Gegenstand</button>
-      {#if linkableRows.length}
-        <button class="btn-link-all" onclick={linkInventoryRows}
+      {#if fixOf('inventory')}
+        {@const fix = fixOf('inventory')}
+        <button class="btn-link-all" onclick={() => applyFix(fix)}
           title="Setzt bei diesen Zeilen den Bibliotheks-Link. Wird beim Speichern übernommen.">
-          🔗 {linkableRows.length} {linkableRows.length === 1 ? 'Gegenstand' : 'Gegenstände'} verlinken
+          🔗 {fix?.label}
         </button>
       {/if}
       {#if divergedItemCount > 0}
@@ -2401,10 +2331,11 @@
       <p class="auto-hint">Zauberattribut nicht erkannt – wähle oben eines aus der Liste, damit die Berechnung greift.</p>
     {/if}
 
-    {#if linkableSpellCount > 0}
-      <button class="btn-link-all" onclick={linkSpellRows}
+    {#if fixOf('spells')}
+      {@const fix = fixOf('spells')}
+      <button class="btn-link-all" onclick={() => applyFix(fix)}
         title="Setzt bei diesen Zaubern den Bibliotheks-Link (sourceKey). Wird beim Speichern übernommen.">
-        🔗 {linkableSpellCount} Zauber verlinken
+        🔗 {fix?.label}
       </button>
     {/if}
     {#if divergedSpellCount > 0}
@@ -2755,23 +2686,10 @@
   .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
   .class-block { margin-top: 0.6rem; }
   .class-total { color: var(--ink-muted); font-weight: 400; font-size: 0.75rem; }
-  .legacy-banner {
-    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
-    margin: 0.3rem 0 0.5rem;
-    padding: 0.45rem 0.6rem;
-    background: var(--surface);
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    font-size: 0.8rem;
-  }
-  .legacy-banner-text { flex: 1; min-width: 12rem; color: var(--ink-muted); }
-  .legacy-banner-btn {
-    flex-shrink: 0; cursor: pointer; font: inherit; font-size: 0.8rem;
-    padding: 0.25rem 0.7rem; border-radius: 5px;
-    border: 1px solid var(--arcane);
-    background: var(--arcane); color: var(--bg);
-  }
-  .legacy-banner-btn:hover { filter: brightness(1.08); }
+  /* .legacy-banner* liegt global in app.css — hier nur der mehrzeilige Sammel-Hinweis. */
+  .upgrade-banner { align-items: flex-start; margin: 0 0 0.8rem; }
+  .upgrade-steps { margin: 0.25rem 0 0; padding-left: 1.2rem; list-style: '· '; }
+  .upgrade-done { flex-shrink: 0; font-size: 0.8rem; color: var(--green); }
   .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
   .species-block { max-width: 24rem; }
   .species-picker { max-width: 18rem; }
