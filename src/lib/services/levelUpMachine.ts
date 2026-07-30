@@ -22,7 +22,12 @@ import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiAction
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 import { decodePick, isSpellbookClass } from './spellcasting';
-import { declaredSpellGrants, withoutSpellGrantFeatures } from './grantedSpells';
+import {
+  declaredSpellGrants,
+  unreadableSpellGrant,
+  withoutSpellGrantFeatures,
+  type SpellGrantSource,
+} from './grantedSpells';
 
 /**
  * Ein Schritt der Aufstiegs-Zustandsmaschine. `checkpoint` = die Maschine hält an
@@ -251,9 +256,11 @@ export interface DeclaredSpells {
   prepared: { level: number; name: string }[];
   /** Namen ohne Bibliothekstreffer — dieselbe Anzeige wie bei KI-Namen (Inline-Anlage). */
   flagged: string[];
+  /** Merkmale mit unlesbar angekündigter Liste — bleiben beim Modell, werden aber gemeldet. */
+  unreadable: string[];
 }
 
-export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared: [], flagged: [] });
+export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared: [], flagged: [], unreadable: [] });
 
 /**
  * Immer-vorbereitete Zauber der Merkmale auf `classLevel`, kanonisiert.
@@ -264,12 +271,17 @@ export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared:
  * anlegen können.
  */
 export function resolveDeclaredSpells(
-  features: { desc?: string }[],
+  features: (SpellGrantSource & { name?: string; nameDe?: string })[],
   classLevel: number,
   library: SpellInfo[],
   klasseName = '',
 ): DeclaredSpells {
   const out = noDeclaredSpells();
+  for (const f of features) {
+    if (!unreadableSpellGrant(f)) continue;
+    const label = f.nameDe?.trim() || f.name?.trim() || '';
+    if (label && !out.unreadable.includes(label)) out.unreadable.push(label);
+  }
   for (const raw of declaredSpellGrants(features, classLevel)) {
     const info = resolveSpell(library, raw, klasseName);
     if (!info) { if (!out.flagged.includes(raw)) out.flagged.push(raw); continue; }

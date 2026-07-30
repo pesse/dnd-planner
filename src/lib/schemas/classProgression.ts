@@ -19,6 +19,7 @@ import {
   proficiencyGrantSchema,
   skillGrantSchema,
   featureChoiceGrantSchema,
+  spellGrantSchema,
   emptyProficiencyGrant,
   emptySkillGrant,
   type AbilityName,
@@ -61,6 +62,14 @@ export const classFeatureSchema = z.object({
    * Siehe `featureChoiceGrantSchema` (shared.ts) für die Erkennungs-Doktrin.
    */
   grantsChoice: featureChoiceGrantSchema.optional(),
+  /**
+   * Deklariert, dass dieses Merkmal eine immer-vorbereitete Zauberliste trägt (Kreis-,
+   * Domänen-, Eid-, Patronen-, Drachenzauber) und in welcher Form sie im `desc` steht. Vom
+   * Vault gepflegt, NICHT aus Open5e importiert. Ist es gesetzt, liest `grantedSpells.ts` die
+   * Liste deterministisch und das Merkmal fliegt aus dem KI-Eingang — es wäre sonst eine
+   * Aufzählung, die schon als Daten vorliegt. Siehe `spellGrantSchema` (shared.ts).
+   */
+  grantsSpells: spellGrantSchema.optional(),
 });
 
 export const classProgressionSchema = z.object({

@@ -219,6 +219,12 @@
   let reachedStep = $state<StepId>('choose-class');
   const pushStep = (text: string) => { steps = [...steps, text]; lastActivityMs = Date.now(); };
 
+  /** Angekündigte Zauberliste, die der Parser nicht lesen konnte — sonst fiele sie stumm zur KI. */
+  const reportUnreadableGrants = () => {
+    for (const name of declaredSpells.unreadable)
+      pushStep(`„${name}" kündigt eine Zauberliste an, die nicht als Tabelle lesbar ist — Zauber nicht automatisch übernommen.`);
+  };
+
   const STALL_MS = 50_000;
   let nowMs = $state(0);
   let runStartMs = 0;
@@ -435,6 +441,7 @@
         // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
         // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
         if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
+        reportUnreadableGrants();
         break;
       case 'subclass-delta':
         pushStep(`Subklasse „${chosenSubclass?.name}" — Merkmale werden geladen…`);
@@ -452,6 +459,7 @@
         // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
         // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
         if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
+        reportUnreadableGrants();
         break;
       case 'feature-analysis':
         await runAnalyze('base', alive);

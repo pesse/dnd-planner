@@ -463,21 +463,11 @@ function guardQualityMinds(config: LlmConfig): void {
 /**
  * `turns` ist der Analyse-Verlauf OHNE System-Prompt.
  *
- * THINKING-FREI, seit 2026-07-30 gemessen: dieser Call findet Entscheidungen, und dafür kauft
- * der Denk-Vorlauf nichts. Über alle drei Strecken je 5 Läufe halbierte sich die Wartezeit
- * (Gnom-Kette 143 → 58 s, Druide 34 → 17 s, Schurke 41 → 20 s) bei −45…70 % Ausgabe-Tokens,
- * ohne eine einzige verlorene Assertion.
- *
- * Der Einwand von 2026-07-29 ist damit erledigt, nicht übergangen: damals kostete thinking-frei
- * die Zauber-Erdung (in 4 von 5 Läufen `spellsToGround: []` statt der zwölf Kreissprüche).
- * Diese Aufzählung ist inzwischen gar keine Modellaufgabe mehr — `services/grantedSpells.ts`
- * liest sie als Tabelle. Die Fähigkeit, die das Denken kaufte, wird hier nicht mehr gebraucht.
- *
- * Der Runaway (Modell verbraucht sein Budget im Vorlauf, `content` bleibt LEER bei
- * `finish_reason: "length"`) kann auf diesem Pfad deshalb nicht mehr entstehen — in 30 Läufen
- * keiner. Der zweite Versuch bleibt trotzdem stehen: er kostet nichts, und eine leere Antwort
- * aus anderem Grund (Server-Build, der den Schalter ignoriert) ist damit weiter abgefedert.
- * Festgenagelt ohne LLM in `evals/featureAnalysisCall.test.ts`.
+ * THINKING-FREI: dieser Call findet Entscheidungen, dafür kauft der Vorlauf nichts (gemessen
+ * 2026-07-30, alle drei Strecken halbiert, keine Assertion verloren — Zahlen in
+ * `docs/plan-zauberwirker-vereinfachung.md`). Ohne Vorlauf entfällt auch der Runaway (leerer
+ * `content` bei `finish_reason: "length"`); der zweite Versuch bleibt als Netz für eine leere
+ * Antwort aus anderem Grund. Festgenagelt in `evals/featureAnalysisCall.test.ts`.
  */
 async function reason(
   config: LlmConfig,

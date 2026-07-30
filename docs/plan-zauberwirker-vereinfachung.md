@@ -410,6 +410,38 @@ Zwei Folgen für die Tests:
   Generierung gekappt (einmal nach 147 s). Thinking-frei trat es nicht auf, aber Pass C war immer
   schon thinking-frei; die Läufe sind nur kürzer. Das ist der nächste Kandidat, kein erledigter Punkt.
 
+## Erkennung der Zauberlisten: Diskriminator statt Prosa (2026-07-30)
+
+Der Einwand: die Erkennung war „deterministisch geraten" — eine anders gebaute Tabelle schlägt
+fehl. Er trifft, aber ungleichmäßig. Die beiden Signale hatten sehr verschiedenes Risiko:
+
+| Signal | Herkunft | bricht wann? |
+|---|---|---|
+| Tabellenform `\|3\|Blur, …\|` | maschinell, aus dem Open5e-Import | nur wenn der Importer sein Markdown ändert — dann alle sechs gleichzeitig und laut |
+| Prosa-Zusicherung „always have … prepared" | handgeschrieben, pro Eintrag, englisch | bei jeder Umformulierung, bei Homebrew, bei deutschem `desc` — einzeln und still |
+
+Gemessen (Sweep über `vault/classes`, 28 Dateien): **6/6 erkannt, keine Fehltreffer.** Die
+Stufentabellen von `druid.json`/`sorcerer.json` fallen korrekt heraus (drei Spalten, keine
+Zusicherung). Die deutschen `descDe` parsen ebenfalls — nur die *Erkennung* war englisch, ein
+rein deutsches Homebrew-Merkmal fiel also stumm zur KI zurück.
+
+**Umgesetzt:** `grantsSpells: { kind: "levelTable" }` am Klassenmerkmal
+(`spellGrantSchema`, shared.ts), an den sechs Vault-Merkmalen deklariert und in
+`vault/CLAUDE.md` als re-import-fest vermerkt. Die Prosa bleibt Fallback.
+
+**Verworfen: Regex oder Parse-Rezept im JSON.** Ein Regex ist Code; im Content ist er nicht von
+`npm run check` gedeckt, hat keinen Test an der Stelle seiner Wirkung, ist über beliebig langem
+`desc` die klassische ReDoS-Form und skaliert mit der Zahl der *Einträge* statt der *Formen*.
+Der Diskriminator wählt stattdessen unter Parsern aus, die in Code stehen — geschlossenes
+Vokabular, typisiert, testbar. **Ebenfalls verworfen: die Zaubernamen selbst ins JSON** (`alwaysPreparedSpells`)
+— wer die Tabelle lesbar pflegen kann, braucht die Doppelpflege nicht, und zwei Fassungen
+derselben zwölf Namen laufen auseinander.
+
+Drei Zusicherungen tragen das jetzt (`evals/grantedSpells.test.ts`, LLM-frei):
+Deckung über den ganzen Vault (jeder erkannte Fall ist deklariert, kein Tabellen-Merkmal bleibt
+unerkannt), Erkennung ohne englische Prosa, und eine Ankündigung ohne lesbare Tabelle bleibt im
+KI-Eingang **und** wird im Aufstiegs-Protokoll gemeldet statt still zu verschwinden.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).

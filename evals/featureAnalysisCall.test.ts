@@ -1,17 +1,10 @@
 /**
- * Die FORM des Analyse-Calls (`reason()` in featureEffectsAction) — thinking-frei, und was
- * bei leerer Antwort passiert. Ohne LLM: `httpFetch` fällt außerhalb von Tauri auf das globale
- * `fetch` zurück, das hier gestubt wird. Damit ist jede Zusicherung deterministisch statt
- * stochastisch, und der Lauf kostet nichts.
+ * Die Form des Analyse-Calls (`reason()`): thinking-frei, und das Verhalten bei leerer Antwort.
  *
- * Ersetzt `runawayRetry.test.ts` (2026-07-30). Dessen Prämisse war, den Runaway durch ein
- * winziges Token-Budget zu ERZWINGEN: das Modell verbrauchte es im Denk-Vorlauf und lieferte
- * leeren Inhalt. Seit die Analyse thinking-frei läuft, kommt bei knappem Budget abgeschnittener,
- * aber NICHT leerer Inhalt — der Ausfall ist auf diesem Pfad strukturell weg, also ließ sich
- * die alte Prämisse nicht mehr herstellen. Keine Zusicherung ist dabei verloren gegangen: alle
- * drei von damals stehen unten wieder, nur ohne echten Call. Neu hinzu kommt die Zusicherung,
- * dass der Schalter tatsächlich auf der Leitung liegt — genau die Regression, die die halbierte
- * Wartezeit still zurücknehmen würde.
+ * Ohne LLM — außerhalb von Tauri geht `httpFetch` aufs globale `fetch`, das hier gestubt wird.
+ * Ersetzt `runawayRetry.test.ts`, dessen Prämisse (Runaway per Hunger-Budget erzwingen) mit dem
+ * abgeschalteten Vorlauf nicht mehr herstellbar ist; dessen drei Zusicherungen stehen hier
+ * weiter, plus die neue, dass `enable_thinking:false` wirklich auf der Leitung liegt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeFeatureEffects, type FeatureEffectsContext } from '../src/lib/services/aiActions/featureEffectsAction';

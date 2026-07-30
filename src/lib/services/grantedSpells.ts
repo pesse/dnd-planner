@@ -11,11 +11,13 @@
  * die Tabelle kommt aus dem Import und überlebt jeden Re-Import. Eine zweite, gepflegte
  * Fassung derselben Liste wäre die Quelle, die irgendwann auseinanderläuft.
  *
- * Erkannt wird STRUKTURELL, nicht am Merkmalsnamen (die sechs SRD-Merkmale heißen alle
- * anders: „Circle of the Land Spells", „Life Domain Spells", „Draconic Spells" …): eine
- * Stufen→Zauber-Tabelle PLUS die Zusicherung „always have … prepared". Beide Signale
- * zusammen, weil eine Tabelle allein auch eine Kontingent-Tabelle sein kann.
+ * Erkannt wird über die Deklaration `grantsSpells` (shared.ts), nie am Merkmalsnamen — die
+ * sechs Vault-Merkmale heißen alle anders. Die englische Zusicherung „always have … prepared"
+ * bleibt Fallback für ungepflegte Einträge, wie `isWeaponMasteryFeature` neben `grantsChoice`.
+ * `evals/grantedSpells.test.ts` fegt den Vault und hält die Deckung fest.
  */
+
+import type { SpellGrant } from '$lib/schemas/shared';
 
 /** Eine Tabellenzeile: ab dieser Klassenstufe sind diese Zauber dauerhaft vorbereitet. */
 export interface SpellGrantRow {
@@ -60,18 +62,40 @@ export function parseSpellGrantRows(desc: string): SpellGrantRow[] {
   return [...byLevel.entries()].sort((a, b) => a[0] - b[0]).map(([level, names]) => ({ level, names }));
 }
 
-/** Trägt dieses Merkmal eine immer-vorbereitete Zauberliste (und nichts sonst)? */
-export function isSpellGrantFeature(f: { desc?: string }): boolean {
+/** Die Quelle, aus der die Erkennung liest: Deklaration bevorzugt, Prosa als Fallback. */
+export interface SpellGrantSource {
+  desc?: string;
+  grantsSpells?: SpellGrant;
+}
+
+/**
+ * Trägt dieses Merkmal eine immer-vorbereitete Zauberliste?
+ *
+ * Auch bei Deklaration muss die Tabelle lesbar sein: sonst fiele das Merkmal aus dem
+ * KI-Eingang, ohne dass jemand die Zauber gewährt. Solche Fälle bleiben beim Modell und
+ * werden über `unreadableSpellGrant` gemeldet.
+ */
+export function isSpellGrantFeature(f: SpellGrantSource): boolean {
   const desc = f.desc ?? '';
-  if (!ALWAYS_PREPARED.test(desc)) return false;
+  if (!f.grantsSpells && !ALWAYS_PREPARED.test(desc)) return false;
   return parseSpellGrantRows(desc).length > 0;
+}
+
+/**
+ * Kündigt eine Zauberliste an, deren Form der Parser nicht lesen kann. Sieht gedeckt aus,
+ * ist es nicht — deshalb gemeldet statt still zur KI zurückgefallen.
+ */
+export function unreadableSpellGrant(f: SpellGrantSource): boolean {
+  const desc = f.desc ?? '';
+  if (!f.grantsSpells && !ALWAYS_PREPARED.test(desc)) return false;
+  return parseSpellGrantRows(desc).length === 0;
 }
 
 /**
  * Alle Zauber, die die übergebenen Merkmale auf `classLevel` dauerhaft gewähren
  * („für deine Stufe und niedriger"), englisch und dedupliziert.
  */
-export function declaredSpellGrants(features: { desc?: string }[], classLevel: number): string[] {
+export function declaredSpellGrants(features: SpellGrantSource[], classLevel: number): string[] {
   const out: string[] = [];
   for (const f of features) {
     if (!isSpellGrantFeature(f)) continue;
@@ -84,6 +108,6 @@ export function declaredSpellGrants(features: { desc?: string }[], classLevel: n
 }
 
 /** Die Merkmale OHNE die deklarativ gewährten Zauberlisten — der Eingang der KI-Deutung. */
-export function withoutSpellGrantFeatures<T extends { desc?: string }>(features: T[]): T[] {
+export function withoutSpellGrantFeatures<T extends SpellGrantSource>(features: T[]): T[] {
   return features.filter((f) => !isSpellGrantFeature(f));
 }

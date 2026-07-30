@@ -281,6 +281,22 @@ export const featureChoiceGrantSchema = z.object({
 });
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 
+/**
+ * Immer-vorbereitete Zauberliste eines Merkmals (Kreis-, Domänen-, Eid-, Patronenzauber).
+ *
+ * `kind` ist ein Diskriminator über die in `grantedSpells.ts` implementierten Formen, KEIN
+ * Parse-Rezept — ein Regex im Content wäre Code im Inhalt. Die Zaubernamen selbst stehen nur
+ * in der Tabelle im `desc`; eine zweite Fassung im JSON liefe auseinander.
+ * `levelTable` = Zeilen `|Stufe|Zauber, Zauber|`, mehrere Tabellen werden vereinigt.
+ */
+export const SPELL_GRANT_KINDS = ['levelTable'] as const;
+export type SpellGrantKind = (typeof SPELL_GRANT_KINDS)[number];
+
+export const spellGrantSchema = z.object({
+  kind: z.enum(SPELL_GRANT_KINDS).describe('Form, in der die Liste im Merkmalstext steht.'),
+});
+export type SpellGrant = z.infer<typeof spellGrantSchema>;
+
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),

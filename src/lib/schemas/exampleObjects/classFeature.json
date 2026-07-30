@@ -24,5 +24,8 @@
         "count": 1
       }
     ]
+  },
+  "grantsSpells": {
+    "kind": "levelTable"
   }
 }
