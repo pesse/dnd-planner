@@ -17,6 +17,7 @@ import type { AbilityName, FeatureChoiceGrant } from '$lib/schemas/shared';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
 import { CASTER_ABILITY_DE } from './spellcasting';
+import { declaredChoice } from './declaredChoice';
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 
 /** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN (Talent oder Klassenmerkmal). */
@@ -110,28 +111,8 @@ export function fixedList(grant: SpellAccessGrant): string {
   return grant.lists.length === 1 ? grant.lists[0] : '';
 }
 
-const emptyChoice = (grant: SpellAccessGrant, id: string): AnalysisChoice => ({
-  id,
-  feature: grant.feature,
-  featureDe: grant.featureDe,
-  featureKey: grant.featureKey,
-  question: '',
-  type: 'choice',
-  options: [],
-  spellLevels: [],
-  spellClass: '',
-  help: '',
-  optionHelp: {},
-  max: 1,
-  // Beides false: das Merkmal ist gar nicht im KI-Eingang. `determinesFurtherEffects` steuert
-  // allein das Blockieren der Analyse, und protokolliert wird über `isBuildDecision`.
-  determinesFurtherEffects: false,
-  isBuildDecision: true,
-  questionDe: '',
-  helpDe: '',
-  optionsDe: [],
-  optionHelpDe: {},
-});
+const emptyChoice = (grant: SpellAccessGrant, id: string): AnalysisChoice =>
+  declaredChoice({ id, feature: grant.feature, featureDe: grant.featureDe, featureKey: grant.featureKey });
 
 const gradeLabel = (level: number, count: number): string =>
   level === 0

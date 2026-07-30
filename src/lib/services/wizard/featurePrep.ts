@@ -15,6 +15,8 @@ import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
 import { spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant } from '../spellAccess';
 import { isSheetValueTrait } from '../sheetValueTraits';
+import { sizeChoiceOf } from '../speciesSize';
+import type { AnalysisChoice } from '../aiActions/featureEffectsAction';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { EffectFeature } from '../aiActions/levelUpEffectsAction';
@@ -39,6 +41,8 @@ export interface FeaturePrep {
   analysisGained: GainedFeature[];
   /** Deklarierte Zauber-Zugänge („Magiekundiger") — deterministisch, ohne KI. */
   spellAccess: SpellAccessGrant[];
+  /** Größen-Wahl der Spezies (nur Mensch und Tiefling), sonst null — deterministisch, ohne KI. */
+  sizeChoice: AnalysisChoice | null;
   /** Speziesmerkmale als Analyse-Eingang: erzwungene Wahlen (Drakonische Urahnen,
    *  Elfenlinie …) stecken hier, nicht in `gained` (das wäre sonst im Klassentext). */
   speciesFeatures: GainedFeature[];
@@ -178,6 +182,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     gained,
     analysisGained,
     spellAccess,
+    sizeChoice: sizeChoiceOf(spec),
     speciesFeatures,
     analysisSpeciesFeatures,
     effectFeatures,

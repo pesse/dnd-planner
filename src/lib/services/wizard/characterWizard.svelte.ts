@@ -26,6 +26,7 @@ import {
   type ResolvedChoice,
 } from '../aiActions/featureEffectsAction';
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
+import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -155,6 +156,8 @@ export class CharacterWizard {
    * Gefüllt aus `buildFeaturePrep`, deshalb `$state` statt Getter (die Aufbereitung ist async).
    */
   spellAccess = $state<SpellAccessGrant[]>([]);
+  /** Größen-Wahl der Spezies (Mensch, Tiefling) — wie `spellAccess` aus `buildFeaturePrep`. */
+  sizeChoice = $state<AnalysisChoice | null>(null);
   /**
    * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
    * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
@@ -191,20 +194,22 @@ export class CharacterWizard {
   }
 
   /**
-   * Die deterministischen Wahlen der deklarierten Zauber-Zugänge. Reaktiv von
-   * `declaredAnswers` abhängig: erst die beantwortete Zauberliste macht aus dem Kontingent
+   * Die deterministischen Wahlen: Größenkategorie und die deklarierten Zauber-Zugänge. Reaktiv
+   * von `declaredAnswers` abhängig: erst die beantwortete Zauberliste macht aus dem Kontingent
    * eine benutzbare Zauber-Wahl (der Filter der Bibliothek hängt daran).
    */
   get declaredChoices(): AnalysisChoice[] {
-    return this.spellAccess.flatMap((grant) => {
+    const spells = this.spellAccess.flatMap((grant) => {
       const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
       return spellAccessChoices(grant, answer);
     });
+    return this.sizeChoice ? [this.sizeChoice, ...spells] : spells;
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
   get featureChoices(): AnalysisChoice[] {
-    return [...this.declaredChoices, ...(this.analysis.result?.choices ?? [])];
+    const declared = this.declaredChoices;
+    return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
   }
 
   /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
@@ -241,7 +246,9 @@ export class CharacterWizard {
     // die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`.
     const pending = this.#prepare();
     void pending.then((prep) => {
-      if (this.#prep === pending) this.spellAccess = prep.spellAccess;
+      if (this.#prep !== pending) return;
+      this.spellAccess = prep.spellAccess;
+      this.sizeChoice = prep.sizeChoice;
     }, () => {});
 
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen
@@ -308,6 +315,7 @@ export class CharacterWizard {
     this.resolvedChoices = [];
     this.declaredAnswers = [];
     this.spellAccess = [];
+    this.sizeChoice = null;
     this.equipmentSelection = [];
     this.toolPicks = {};
     this.masteries = [];

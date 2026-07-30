@@ -40,6 +40,7 @@ import {
   CASTER_ABILITY_KEY,
   spellcastingOffer,
 } from '../spellcasting';
+import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
 import { ftToMVal, matchItem } from '$lib/itemLibrary';
@@ -143,9 +144,11 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   c.race = formatSpecies(c.species);
   c.background = w.background.name;
 
-  // ── Bewegungsrate aus dem „Speed"-Merkmal der Spezies (Feld selbst ist leer) ──
+  // ── Bogenwerte der Spezies (deutsch aus den Merkmalen; die Felder selbst sind leer) ──
   const speedTrait = spec?.traits.find((t) => /(_speed$|^speed$)/i.test(t.key) || t.name.toLowerCase() === 'speed');
   c.speed = metersFromSpeedText(speedTrait?.descDe, speedTrait?.desc || spec?.speed);
+  const sizeAnswer = w.declaredAnswers.find((a) => a.id === sizeChoiceId(spec?.key ?? ''))?.choice ?? '';
+  c.personal.sizeCat = resolveSizeCat(spec?.traits ?? [], sizeAnswer);
 
   // ── Attribute: Point-Buy → Hintergrund-ASI → (Rider-Erhöhungen weiter unten) ──
   let scores: AbilityScores = applyAsi(w.scores, w.asi);

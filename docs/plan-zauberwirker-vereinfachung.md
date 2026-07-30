@@ -741,6 +741,54 @@ nicht, das nur `speed` aus dem Merkmal liest). Derselbe fehlende Verbraucher wie
 bleibt das Merkmal bewusst bei der KI: `evals/sheetValueTraits.test.ts` hält fest, dass es dort
 ankommt.
 
+## Die Größenkategorie bekommt ihren Schreiber (2026-07-30)
+
+Der Nebenbefund oben ist behoben — und er war **nicht** dasselbe Problem wie 1e. Bei 1e fehlt die
+*Struktur* (ein Charakter kann nur ein Zauberattribut tragen, der Bogen hat einen Block). Bei der
+Größe war die Senke vollständig da und nur unbeschrieben: `personal.sizeCat` steht im Schema, im
+Bogen, im Editor und im PDF (`SizeCat`). Kein `CHARACTER_VERSION`-Bump, kein neues Feld.
+
+**Die Quelle ist der Merkmalstext, nicht das Feld.** `speciesSchema.size` wäre das Naheliegende,
+ist aber im ganzen Bestand leer: Open5e v2 liefert die Größe nur als Merkmal (`readSize(raw.size)`
+in `speciesData.ts` greift ins Leere). Gelesen wird deshalb der **englische** Text gegen das
+geschlossene Kreaturen-Vokabular — dieselbe Doktrin wie bei den Fertigkeiten: Vokabular englisch,
+Deutsch erst beim Schreiben. Die Übersetzungstabelle dafür existiert schon (`MONSTER_SIZES`:
+`Small → Klein`, `Medium → Mittelgroß`); Kreaturengröße ist ein Vokabular, keine zwei, also
+**keine dritte Tabelle**.
+
+**Eine Kategorie im Text heißt fest, zwei heißen Wahl.** Das ist der ganze Diskriminator, und er
+ist derselbe, der Mensch und Tiefling in Stufe 3 den `sheetValue` verweigert hat. Die Wahl
+entsteht als `AnalysisChoice` über den vorhandenen Kanal `declaredChoices` — damit ist sie
+automatisch Pflicht (`declaredChoicesDone` gatet den Merkmals-Schritt), sie geht nicht als
+`<resolved_choices>` ans Modell, und der Merkmals-Schritt ist der einzige, den die Schrittliste
+nie herausfiltert. `isBuildDecision: false`, weil der Wert in `personal.sizeCat` steht: ein
+Ledger-Eintrag wäre eine zweite Wahrheit. Ohne Antwort bleibt das Feld **leer** statt geraten.
+
+**Ein Folgeproblem, das der Schritt selbst erzeugt:** Die Größe von Mensch und Tiefling bleibt im
+KI-Eingang (der deutsche Speziestext braucht sie), das Modell kann dieselbe Wahl also ein zweites
+Mal stellen. Ein Eingangsfilter wie bei `spellAccess` ist hier nicht möglich; die Dedup passiert
+deshalb an der Wahl selbst (`withoutOwnedChoices`: ein Merkmal, dessen Wahl der Flow führt,
+verdrängt die KI-Wahl zum gleichen `featureKey`). Das ist robuster als eine Prompt-Regel — es
+gilt unabhängig davon, was das Modell tut. Der Eingang selbst bleibt unangetastet, damit hier
+keine Messung fällig wird.
+
+**Kein Modell-Pfad berührt, deshalb kein bezahlter Lauf** — nachgewiesen, nicht behauptet: kein
+`aiAction` liest `personal`, die Größe kommt in keinem Prompt-Eingang vor, `analysisSpeciesFeatures`
+ist unverändert, und die deklarierte id wird aus `resolvedChoices` herausgefiltert
+(`CharacterWizard.svelte:430`). Die Analyse ist hier der deterministische Test.
+
+**Zusicherungen** (`evals/speciesSize.test.ts`, LLM-frei, echter Vault, 6 Tests): jede der neun
+Spezies hat ein Größenmerkmal und liefert einen deutschen Wert (sieben namentlich festgenagelt);
+Mensch und Tiefling ergeben eine Wahl mit `['Medium','Small']` / `['Mittelgroß','Klein']` und
+tragen weiter keinen `sheetValue`; ohne oder mit unbekannter Antwort bleibt das Feld leer; die
+Wahl erreicht den echten Wizard-Eingang (`buildFeaturePrep`); eine KI-Wahl zum selben Merkmal
+wird verdrängt; und `buildWizardCharacter` schreibt am Ende wirklich `personal.sizeCat` (Gnom →
+„Klein"), ohne die Nachbarzeile `speed` zu verschieben.
+
+Nicht betroffen: der Aufstieg. Speziesmerkmale kommen bei der Erschaffung, die Größe ändert sich
+nie beim Aufstieg. Bestandscharaktere behalten ihr leeres Feld — es ist editierbar, eine Migration
+wäre teurer als die Hand.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).
