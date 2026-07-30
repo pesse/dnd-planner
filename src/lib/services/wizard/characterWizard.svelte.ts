@@ -251,7 +251,7 @@ export class CharacterWizard {
         const prep = await this.#prepare();
         return analyzeFeatureEffects(
           cfg,
-          { classContext: prep.classContext, features: [...prep.analysisGained, ...prep.speciesFeatures], pastChoices: [] },
+          { classContext: prep.classContext, features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures], pastChoices: [] },
           { signal, onActivity: this.#touch },
         );
       });
@@ -406,7 +406,7 @@ export class CharacterWizard {
         cfg,
         {
           classContext: prep.classContext,
-          features: [...prep.analysisGained, ...prep.speciesFeatures],
+          features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures],
           pastChoices: [],
           resolvedChoices: this.resolvedChoices,
         },

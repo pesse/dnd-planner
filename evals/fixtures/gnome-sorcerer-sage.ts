@@ -45,11 +45,15 @@ export const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 /** Merkmale, die KEINE Wahl erzwingen — jede Frage zu ihnen ist erfunden. */
 export const NO_CHOICE_KEYS = [
   'srd-2024_sorcerer_innate-sorcery',
-  'srd-2024_gnome_size',
-  'srd-2024_gnome_speed',
   'srd-2024_gnome_darkvision',
   'srd-2024_gnome_gnomish-cunning',
 ] as const;
+
+/**
+ * Reine Bogenwerte (`sheetValue`) — stehen NICHT im Eingang, seit Größe und Bewegungsrate
+ * deterministisch aus dem Merkmal gelesen werden. Ein Rider dazu wäre erfunden.
+ */
+export const SHEET_VALUE_KEYS: string[] = ['srd-2024_gnome_size', 'srd-2024_gnome_speed'];
 
 /**
  * Das flow-eigene Klassen-Zauberwirken (`grantsChoice: spellcasting`) — steht NICHT im
@@ -65,15 +69,14 @@ export const FLOW_OWNED_KEYS: string[] = [MAGIC_INITIATE_KEY, SORCERER_SPELLCAST
 
 /**
  * Erwartete Rider-Namen von Call C, in der Reihenfolge des Eingangs
- * (`analysisGained` = Klassenmerkmale ohne die flow-eigenen, dann `speciesFeatures`).
+ * (`analysisGained` = Klassenmerkmale ohne die flow-eigenen, dann `analysisSpeciesFeatures`
+ * = Speziesmerkmale ohne die reinen Bogenwerte).
  *
  * ENGLISCH: die Merkmals-Deutung ist einsprachig, `featureName` gibt den Eingangsnamen
  * wörtlich zurück. Der deutsche Anzeigename entsteht später aus `featureKey` + Bibliothek.
  */
 export const EXPECTED_RIDER_NAMES: string[] = [
   'Innate Sorcery',
-  'Size',
-  'Speed',
   'Darkvision',
   'Gnomish Cunning',
   'Gnomish Lineage',
@@ -134,7 +137,7 @@ export async function loadGnomeSorcererContext(): Promise<FeatureEffectsContext>
   const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
   return {
     classContext: prep.classContext,
-    features: [...prep.analysisGained, ...prep.speciesFeatures],
+    features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures],
     pastChoices: [],
   };
 }

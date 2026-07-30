@@ -14,6 +14,7 @@ import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
 import { spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant } from '../spellAccess';
+import { isSheetValueTrait } from '../sheetValueTraits';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { EffectFeature } from '../aiActions/levelUpEffectsAction';
@@ -41,6 +42,12 @@ export interface FeaturePrep {
   /** Speziesmerkmale als Analyse-Eingang: erzwungene Wahlen (Drakonische Urahnen,
    *  Elfenlinie …) stecken hier, nicht in `gained` (das wäre sonst im Klassentext). */
   speciesFeatures: GainedFeature[];
+  /**
+   * Eingang der KI-Analyse: `speciesFeatures` ohne die reinen Bogenwerte (Größe,
+   * Bewegungsrate). Index-gleich zu `summarySpecies` bleibt `speciesFeatures` — der
+   * deutsche Speziestext braucht den vollen Bestand.
+   */
+  analysisSpeciesFeatures: GainedFeature[];
   /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe). */
   effectFeatures: EffectFeature[];
   summaryClass: SummaryFeature[];
@@ -137,6 +144,9 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     gainedAt: 1,
     key: t.key,
   }));
+  // Größe und Bewegungsrate haben ein eigenes Bogenfeld: ein Rider dazu ist leeres Gerüst.
+  const sheetValueKeys = new Set(traits.filter(isSheetValueTrait).map((t) => t.key));
+  const analysisSpeciesFeatures = speciesFeatures.filter((f) => !sheetValueKeys.has(f.key ?? ''));
 
   const summaryClass = gained.map(toSummary);
   const summarySpecies: SummaryFeature[] = speciesFeatures.map((f) => ({
@@ -169,6 +179,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     analysisGained,
     spellAccess,
     speciesFeatures,
+    analysisSpeciesFeatures,
     effectFeatures,
     summaryClass,
     summarySpecies,

@@ -4,7 +4,7 @@
  *
  * Zwei Schritte, wie der Wizard sie fährt:
  *   Call 1 (`analyzeFeatureEffects`, aus `kickoff()`) — die Abstammungs-Wahl erkennen,
- *          BLOCKIEREN und noch keinen Zauber erden; zu den fünf wahllosen Merkmalen und zum
+ *          BLOCKIEREN und noch keinen Zauber erden; zu den drei wahllosen Merkmalen und zum
  *          flow-eigenen Herkunftstalent nichts erfinden.
  *   Call C (`finalizeFeatureEffects`, aus `finalizeFeatures()`) — nach der Wahl „Waldgnom":
  *          ein Rider je Merkmal, die Waldgnom-Zauber gewährt, die Felsgnom-Zauber nicht,
@@ -42,6 +42,7 @@ import {
   loadGnomeSorcererContext,
   MAGIC_INITIATE_KEY,
   NO_CHOICE_KEYS,
+  SHEET_VALUE_KEYS,
   ROCK_GNOME_SPELLS,
   ROCK_GNOME_SPELLS_DE,
   SORCERER_SPELLCASTING_KEY,
@@ -54,7 +55,7 @@ import {
 // verpatzten Key mit — und man sähe nicht mehr, WAS die Analyse eigentlich verstanden hat.
 const lineageRe = /abstammung|lineage|waldgnom|felsgnom/i;
 const magicInitiateRe = /magiekundig|magic initiate/i;
-/** Merkmalsnamen der fünf wahllosen Merkmale (Negativprobe). */
+/** Merkmalsnamen ohne jede Wahl (Negativprobe); Größe/Bewegungsrate sind gar nicht im Eingang. */
 const noChoiceRe = /angeborene zauberei|innate sorcery|dunkelsicht|darkvision|gerissenheit|cunning|größe|groesse|\bsize\b|bewegungsrate|\bspeed\b/i;
 const innateSorceryRe = /innate sorcery|angeborene zauberei/i;
 const darkvisionRe = /darkvision|dunkelsicht/i;
@@ -163,7 +164,7 @@ const analyzeCore: Checks<StepResult> = {
       (c) => c.spellClass === 'sorcerer' || c.featureKey === SORCERER_SPELLCASTING_KEY || classSpellcastingRe.test(label(c)),
     );
   },
-  'erfindet keine Wahl zu den fünf wahllosen Merkmalen': (r) => {
+  'erfindet keine Wahl zu den drei wahllosen Merkmalen': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
     return !a.choices.some(
@@ -262,6 +263,18 @@ const finalizeCore: Checks<StepResult> = {
       (rider) => rider.featureKey === MAGIC_INITIATE_KEY || magicInitiateRe.test(rider.featureName),
     );
   },
+  // Bis 2026-07-30 stand hier „Größe und Bewegungsrate tragen keine Bogen-Notiz". Beide
+  // Merkmale sind seit dem `sheetValue`-Schnitt gar nicht mehr im Eingang, die Probe wäre also
+  // trivial erfüllt (kein Rider → leere Notiz). Ersetzt durch die stärkere Forderung: gar kein
+  // Rider dazu — wie beim flow-eigenen Magiekundigen.
+  'erfindet keinen Rider zu Größe oder Bewegungsrate': (r) => {
+    const fe = asEffects(r);
+    if (!fe) return false;
+    return !fe.riders.some(
+      (rider) =>
+        SHEET_VALUE_KEYS.includes(rider.featureKey) || [sizeRe, speedRe].some((re) => re.test(rider.featureName)),
+    );
+  },
   // „Vorteil auf Rettungswürfe" ist KEINE Rettungswurf-Übung — der Klassiker, an dem eine
   // Deutung den Bogen verfälscht.
   'deutet Gnomische Gerissenheit nicht als Rettungswurf-Übung': (r) => {
@@ -300,13 +313,6 @@ const finalizeSoft: Checks<StepResult> = {
   [`Bogen-Notizen sind einzeilig und ≤ ${SHEET_NOTE_LIMIT} Zeichen`]: (r) => {
     const notes = sheetNotes(r);
     return notes.length > 0 && notes.every(isSheetReady);
-  },
-  // Größe und Bewegungsrate stehen als eigene Felder im Bogen — eine Notiz dafür ist
-  // verschenkter Platz (Regel 10).
-  'Größe und Bewegungsrate tragen keine Bogen-Notiz': (r) => {
-    const fe = asEffects(r);
-    if (!fe) return false;
-    return [sizeRe, speedRe].every((re) => (riderFor(fe, re)?.sheetNote ?? '').trim() === '');
   },
   'Angeborene Zauberei trägt eine Bogen-Notiz (Nutzungen/Bonus)': (r) => {
     const fe = asEffects(r);

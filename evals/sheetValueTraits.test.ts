@@ -12,6 +12,8 @@ import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
 import { emptyProficiencyGrant } from '../src/lib/schemas/shared';
 import type { Trait } from '../src/lib/schemas/species';
 import { isSheetValueTrait, withoutSheetValueTraits } from '../src/lib/services/sheetValueTraits';
+import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
+import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
 
 const allTraits = async (): Promise<{ species: string; trait: Trait }[]> => {
   const list = await getSpeciesList();
@@ -92,6 +94,25 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
       'srd-2024_human :: Size',
       'srd-2024_tiefling :: Size',
     ]);
+  });
+
+  /** Der Schnitt am ECHTEN Eingang: `speciesFeatures` trägt weiter alles (deutscher Speziestext). */
+  it('nimmt im Wizard-Eingang genau die Bogenwerte heraus', async () => {
+    const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
+    expect(prep.speciesFeatures.map((f) => f.name)).toEqual([
+      'Size',
+      'Speed',
+      'Darkvision',
+      'Gnomish Cunning',
+      'Gnomish Lineage',
+    ]);
+    expect(prep.analysisSpeciesFeatures.map((f) => f.name)).toEqual([
+      'Darkvision',
+      'Gnomish Cunning',
+      'Gnomish Lineage',
+    ]);
+    // Index-gleich zu `summarySpecies` — sonst bekäme der Speziestext fremde Keys.
+    expect(prep.summarySpecies.map((s) => s.name)).toEqual(prep.speciesFeatures.map((f) => f.name));
   });
 
   it('greift nur am Diskriminator, nicht am Namen', () => {
