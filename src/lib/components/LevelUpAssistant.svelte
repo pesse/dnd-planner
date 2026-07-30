@@ -53,7 +53,7 @@
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpellLibrary, createSpellInline, type SpellInfo } from '../spellLibrary';
   import { decodePick, encodePick } from '../services/spellcasting';
-  import SpellPicker from './SpellPicker.svelte';
+  import SpellPickField from './SpellPickField.svelte';
   import { getFeats, searchFeats, featDisplayName, type FeatEntry } from '../featsLibrary';
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
@@ -940,7 +940,8 @@
             <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
           {:else if q.type === 'spell-picker'}
             {@const bind = pickBinding(q.id)}
-            <SpellPicker
+            <SpellPickField
+              title={q.prompt}
               library={spellLib}
               spellLevels={q.spellLevels}
               spellClass={q.spellClass}
@@ -993,7 +994,8 @@
             <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
           {:else if q.type === 'spell-picker'}
             {@const bind = pickBinding(q.id)}
-            <SpellPicker
+            <SpellPickField
+              title={q.prompt}
               library={spellLib}
               spellLevels={q.spellLevels}
               spellClass={q.spellClass}

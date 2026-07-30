@@ -45,7 +45,7 @@
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';
-  import SpellPicker from './SpellPicker.svelte';
+  import SpellPickField from './SpellPickField.svelte';
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
 
@@ -677,7 +677,8 @@
                 Zaubertricks ({spellOffer.klasseName})
                 <span class="info" title="Zaubertricks kosten keinen Zauberplatz und sind unbegrenzt wirkbar.">ⓘ</span>
               </span>
-              <SpellPicker
+              <SpellPickField
+                title="Zaubertricks"
                 library={spellLib}
                 spellLevels={[0]}
                 spellClass={spellOffer.spellClass}
@@ -692,7 +693,7 @@
             <span>
               {#if isSpellbook}
                 Zauberbuch — {spellMax} Zauber deiner Wahl
-                <span class="info" title="Das Zauberbuch ist dein dauerhafter Bestand. Aus ihm bereitest du nach jeder Langen Rast {preparedMax} Zauber vor — schalte sie unten mit ● / ○ um.">ⓘ</span>
+                <span class="info" title="Das Zauberbuch ist dein dauerhafter Bestand. Aus ihm bereitest du nach jeder Langen Rast {preparedMax} Zauber vor — schalte sie im Auswahl-Dialog mit ● / ○ um.">ⓘ</span>
               {:else if spellOffer.regime === 'open-list'}
                 Erste Vorbereitung — {spellMax} Zauber
                 <span class="info" title="Du kennst die ganze {spellOffer.klasseName}-Zauberliste; nach jeder Langen Rast darfst du deine Vorbereitung völlig neu zusammenstellen. Das hier ist nur der Startzustand.">ⓘ</span>
@@ -704,7 +705,12 @@
             {#if spellLevels.length === 0}
               <p class="hint">Auf Stufe 1 stehen noch keine Zauberplätze zur Verfügung.</p>
             {:else}
-              <SpellPicker
+              <SpellPickField
+                title={isSpellbook
+                  ? 'Zauberbuch'
+                  : spellOffer.regime === 'open-list'
+                    ? 'Erste Vorbereitung'
+                    : 'Zauber deiner Wahl'}
                 library={spellLib}
                 spellLevels={spellLevels}
                 spellClass={spellOffer.spellClass}
@@ -743,7 +749,8 @@
               {choice.feature}: {choice.question}
               {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
             </span>
-            <SpellPicker
+            <SpellPickField
+              title={choice.feature}
               library={spellLib}
               spellLevels={choice.spellLevels}
               spellClass={choice.spellClass}
