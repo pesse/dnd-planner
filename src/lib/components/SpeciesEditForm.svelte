@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { Species } from '$lib/types';
   import type { Trait } from '$lib/schemas/species';
-  import { emptyProficiencyGrant } from '$lib/schemas/shared';
+  import { emptyProficiencyGrant, featureChoiceGrantSchema, type FeatureChoiceGrant } from '$lib/schemas/shared';
   import { isEmptyGrant, skillGrantSummary } from '$lib/services/proficiencyGrants';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
+  import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
 
   let {
     species = $bindable<Species>(),
@@ -23,6 +24,37 @@
 
   function removeTrait(i: number) {
     species.traits = species.traits.filter((_, idx) => idx !== i);
+    onchange();
+  }
+
+  // Dieselben zwei redigierbaren Formen wie am Klassenmerkmal (ClassEditForm). Die
+  // Abstammungen (Gnom, Elf) gehören NICHT hierher: sie tragen eine zweite Wahl in derselben
+  // Prosa und sind `spellAccess` mit Zweig — Hand-JSON, läuft über 'other'.
+  const CHOICE_LABELS: Record<string, string> = {
+    optionList: 'Optionsliste (Zweigwahl)',
+    expertise: 'Expertise',
+  };
+
+  function choiceKindOf(t: Trait): string {
+    const g = t.grantsChoice;
+    if (!g) return 'none';
+    if (g.kind === 'optionList' || g.kind === 'expertise') return g.kind;
+    return 'other';
+  }
+
+  const newGrant = (g: Partial<FeatureChoiceGrant>): FeatureChoiceGrant => featureChoiceGrantSchema.parse(g);
+
+  function setChoiceKind(t: Trait, value: string) {
+    const prev = t.grantsChoice;
+    // Optionen bzw. Anzahl beim Wechsel mitnehmen — ein Fehlgriff im Dropdown soll keine
+    // Redaktionsarbeit löschen.
+    if (value === 'optionList') t.grantsChoice = newGrant({ kind: 'optionList', options: prev?.options ?? [] });
+    else if (value === 'expertise') t.grantsChoice = newGrant({ kind: 'expertise', count: prev?.count ?? 1 });
+    onchange();
+  }
+
+  function toggleChoice(t: Trait, on: boolean) {
+    t.grantsChoice = on ? newGrant({ kind: 'optionList', options: [] }) : undefined;
     onchange();
   }
 </script>
@@ -73,6 +105,42 @@
         </summary>
         <ProficiencyGrantEditForm bind:grant={trait.proficiencyGrant} scope="skills" {onchange} />
       </details>
+      <!-- Deklarierte Wahl: nimmt das Merkmal aus der KI-Deutung. Ohne Deklaration bleibt es
+           in der Kette — das ist der Fallback, kein Fehler. -->
+      <div class="choice-row">
+        <label class="lbl-inline" class:off={!trait.grantsChoice}>
+          <input
+            type="checkbox"
+            checked={!!trait.grantsChoice}
+            onchange={(e) => toggleChoice(trait, (e.target as HTMLInputElement).checked)}
+          />
+          Gewährt Wahl
+        </label>
+        <select
+          class="ef meta-sel"
+          disabled={!trait.grantsChoice}
+          value={trait.grantsChoice ? choiceKindOf(trait) : 'optionList'}
+          onchange={(e) => setChoiceKind(trait, (e.target as HTMLSelectElement).value)}
+        >
+          {#each Object.entries(CHOICE_LABELS) as [val, label]}
+            <option value={val}>{label}</option>
+          {/each}
+          {#if choiceKindOf(trait) === 'other'}
+            <option value="other" disabled selected>Aus JSON: {trait.grantsChoice?.kind}</option>
+          {/if}
+        </select>
+        {#if trait.grantsChoice && choiceKindOf(trait) === 'expertise'}
+          <span class="lbl-inline">Fertigkeiten
+            <input class="ef num" type="number" min="1" bind:value={trait.grantsChoice.count} oninput={mark} />
+          </span>
+          <span class="choice-note">Optionen zur Laufzeit: die geübten Fertigkeiten des Charakters</span>
+        {/if}
+      </div>
+      {#if trait.grantsChoice && choiceKindOf(trait) === 'optionList'}
+        <div class="feat-options">
+          <ChoiceOptionEditForm bind:options={trait.grantsChoice.options} scope="skills" {onchange} />
+        </div>
+      {/if}
     </div>
   {/each}
   <button class="add-feat" onclick={addTrait}>+ Merkmal</button>
@@ -137,6 +205,15 @@
   .orig-details { font-size: 0.78rem; }
   .orig-details summary { color: var(--border); cursor: pointer; }
   .orig-details summary:hover { color: var(--mef-accent, var(--arcane)); }
+
+  .choice-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }
+  .choice-row .lbl-inline { cursor: pointer; }
+  .choice-row .lbl-inline.off { color: var(--ink-muted); opacity: 0.6; }
+  .choice-row select:disabled { opacity: 0.45; cursor: not-allowed; }
+  .meta-sel { cursor: pointer; }
+  .num { width: 48px; text-align: center; }
+  .choice-note { font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
+  .feat-options { border-left: 2px solid var(--surface); padding-left: 0.5rem; margin: 0.2rem 0; }
 
   .grant-details { font-size: 0.78rem; margin-top: 0.15rem; }
   .grant-details summary { color: var(--ink-muted); cursor: pointer; }

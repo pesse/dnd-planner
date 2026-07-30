@@ -5,6 +5,7 @@
   import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
+  import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
 
   let {
     klass = $bindable<ClassProgression>(),
@@ -46,22 +47,26 @@
     onchange();
   }
 
-  // Bibliotheksgestützte Wahl-Merkmale (grantsChoice) — nur die drei end-to-end
-  // verdrahteten Fälle. Alle übrigen Wahl-Merkmale (Expertise, Ordenswahl …) erkennt
-  // der KI-Aufstieg aus der Prosa; die gehören NICHT hierher.
+  // Die deklarierbaren Wahl-Formen. `optionList` ist die Form, in der die Redaktion der
+  // Bibliothek stattfindet (Zweigwahl mit Konsequenz je Option); `expertise` deklariert nur
+  // eine Anzahl. Was hier NICHT steht (`spellAccess`), bleibt Hand-JSON und läuft über 'other'.
   const CHOICE_LABELS: Record<string, string> = {
     weaponMastery: 'Waffenmeisterschaft',
     fightingStyle: 'Kampfstil',
     spellcasting: 'Zauberwirken',
+    optionList: 'Optionsliste (Zweigwahl)',
+    expertise: 'Expertise',
   };
 
   // Flach-Wert für das Dropdown; 'other' = hand-editiertes grantsChoice, das keinem
-  // der vier Werte entspricht → nur lesbar anzeigen, nie überschreiben (Roh-JSON bleibt autoritativ).
+  // der Werte entspricht → nur lesbar anzeigen, nie überschreiben (Roh-JSON bleibt autoritativ).
   function choiceKindOf(f: ClassFeature): string {
     const g = f.grantsChoice;
     if (!g) return 'none';
     if (g.kind === 'weaponMastery') return 'weaponMastery';
     if (g.kind === 'spellcasting') return 'spellcasting';
+    if (g.kind === 'optionList') return 'optionList';
+    if (g.kind === 'expertise') return 'expertise';
     if (g.kind === 'featCategory' && g.featCategory === 'Fighting Style') return 'fightingStyle';
     return 'other';
   }
@@ -71,11 +76,16 @@
   const newGrant = (g: Partial<FeatureChoiceGrant>): FeatureChoiceGrant => featureChoiceGrantSchema.parse(g);
 
   function setChoiceKind(f: ClassFeature, value: string) {
+    const prev = f.grantsChoice;
     let next: FeatureChoiceGrant | undefined;
     if (value === 'weaponMastery') next = newGrant({ kind: 'weaponMastery', count: 1 });
     else if (value === 'spellcasting') next = newGrant({ kind: 'spellcasting', count: 1 });
     else if (value === 'fightingStyle')
-      next = newGrant({ kind: 'featCategory', featCategory: 'Fighting Style', count: f.grantsChoice?.count ?? 1 });
+      next = newGrant({ kind: 'featCategory', featCategory: 'Fighting Style', count: prev?.count ?? 1 });
+    // Beim Wechsel die schon redigierten Optionen bzw. die Anzahl mitnehmen — ein Fehlgriff
+    // im Dropdown soll keine Redaktionsarbeit löschen.
+    else if (value === 'optionList') next = newGrant({ kind: 'optionList', options: prev?.options ?? [] });
+    else if (value === 'expertise') next = newGrant({ kind: 'expertise', count: prev?.count ?? 1 });
     if (next) f.grantsChoice = next;
     onchange();
   }
@@ -158,9 +168,9 @@
 <div class="section">
   <div class="section-title">Merkmale</div>
   <p class="section-hint">
-    „Gewährt Wahl" nur für bibliotheksgestützte Wahlen (Optionen aus Waffen-, Talent-
-    oder Zauber-Bibliothek). Andere Wahl-Merkmale (Expertise, Ordenswahl …) erkennt der
-    KI-Aufstieg automatisch aus der Beschreibung.
+    „Gewährt Wahl" deklariert die Wahl eines Merkmals — der Aufstieg führt sie dann aus
+    Bibliothek bzw. Deklaration statt aus der KI-Deutung der Beschreibung. Ohne Deklaration
+    bleibt das Merkmal in der KI-Kette; das ist der Fallback, kein Fehler.
   </p>
   {#each klass.features as feature, i}
     <div class="feat-row">
@@ -207,7 +217,20 @@
             <input class="ef num" type="number" min="1" bind:value={feature.grantsChoice.count} oninput={mark} />
           </span>
         {/if}
+        {#if feature.grantsChoice && choiceKindOf(feature) === 'expertise'}
+          <span class="feat-choice-count">Fertigkeiten
+            <input class="ef num" type="number" min="1" bind:value={feature.grantsChoice.count} oninput={mark} />
+          </span>
+          <!-- Die Optionen sind zur Laufzeit die geübten Fertigkeiten DIESES Charakters,
+               deshalb gibt es hier nichts zu wählen. -->
+          <span class="choice-note">Optionen zur Laufzeit: die geübten Fertigkeiten des Charakters</span>
+        {/if}
       </div>
+      {#if feature.grantsChoice && choiceKindOf(feature) === 'optionList'}
+        <div class="feat-options">
+          <ChoiceOptionEditForm bind:options={feature.grantsChoice.options} {onchange} />
+        </div>
+      {/if}
       <textarea class="ef feat-desc" rows={3} bind:value={feature.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
       <details class="orig-details">
         <summary>Original (EN)</summary>
@@ -290,6 +313,8 @@
   .feat-choice select:disabled { opacity: 0.45; cursor: not-allowed; }
   .feat-choice-count { display: inline-flex; align-items: center; gap: 0.3rem; }
   .feat-choice .num { width: 48px; }
+  .choice-note { font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
+  .feat-options { border-left: 2px solid var(--surface); padding-left: 0.5rem; margin: 0.1rem 0 0.2rem; }
 
   .orig-details { font-size: 0.78rem; }
   .orig-details summary { color: var(--border); cursor: pointer; }
