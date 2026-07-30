@@ -14,7 +14,6 @@
   import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import Markdown from './Markdown.svelte';
-  import { createHtmlFitter, paginateMarkdown } from '$lib/utils/paginateMarkdown';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
   import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
   import { slugify } from '$lib/editor/saveAs';
@@ -107,42 +106,6 @@
     if (t.duration) s.duration = convertDistances(t.duration);
   }
 
-  // ── Beschreibungs-Splitting für Kartenansicht ────────────────────────────────
-
-  const SCREEN_DESC_FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
-  // 380px Kartenbreite − 2×1.1rem horizontales Padding (≈17.6px)
-  const SCREEN_CARD_TEXT_W = 346;
-
-  // Erste Karte: nach Header, Props, 2×Ornament, Footer bleibt ~260px für die
-  // Beschreibung; Folge-Karten haben nur Mini-Header + Ornament über sich.
-  const SCREEN_FIRST_H = 260;
-  const SCREEN_CONT_H  = 380;
-
-  /** Fertig gerendertes Beschreibungs-HTML, eine Karte pro Eintrag. */
-  let descPages = $state<string[]>(['']);
-
-  $effect(() => {
-    const d = draft;
-    if (!d) { descPages = ['']; return; }
-
-    const fitter = createHtmlFitter({
-      doc: document,
-      fontFamily: SCREEN_DESC_FONT,
-      fontSize: '0.82rem',
-      lineHeight: '1.55',
-      width: `${SCREEN_CARD_TEXT_W}px`,
-      padding: '0.55rem 0',
-    });
-    try {
-      descPages = paginateMarkdown(spellDesc(d), {
-        heightOf: (page) => (page === 0 ? SCREEN_FIRST_H : SCREEN_CONT_H),
-        fits: fitter.fits,
-      });
-    } finally {
-      fitter.destroy();
-    }
-  });
-
   function componentStr(s: Spell): string {
     const parts: string[] = [];
     if (s.components.verbal)   parts.push('V');
@@ -189,48 +152,37 @@
       {@const higherLevel = spellHigherLevel(draft!)}
       {@const comps = componentStr(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
-      <div class="cards-wrap">
-        {#each descPages as pageHtml, i}
-          {@const isLast = i === descPages.length - 1}
-          <div class="spell-card" style="--c: {pc}">
-            {#if i === 0}
-              <div class="head">
-                <div class="name">
-                  {draft!.name}{#if draft!.ritual} <span class="ritual">Ritual</span>{/if}
-                </div>
-                <div class="meta">{spellLevelLabel(draft!.level)} · {SPELL_SCHOOLS[draft!.school] ?? draft!.school}</div>
-              </div>
-              <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
-              <div class="props">
-                <div class="prop-row">
-                  <span class="pc"><span class="icon">⚡</span>{draft!.casting_time}</span>
-                  <span class="pc"><span class="icon">◎</span>{draft!.range}</span>
-                  <span class="pc"><span class="icon">⌛</span>{draft!.duration.replace('Konzentration, ', 'Konz. ')}</span>
-                </div>
-                <div class="prop">
-                  <span class="icon">✦</span>
-                  <span>{comps}{#if draft!.components.materials_needed} <span class="mat">({draft!.components.materials_needed})</span>{/if}</span>
-                </div>
-              </div>
-            {:else}
-              <div class="head-cont">
-                <span class="name-sm">{draft!.name}</span>
-                <span class="cont-lbl">({i + 1})</span>
-              </div>
-            {/if}
-            <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
-            <!-- Bereits gerendertes Markdown aus paginateMarkdown — nicht erneut durch <Markdown>. -->
-            <div class="desc md">{@html pageHtml}</div>
-            {#if isLast && higherLevel}
-              <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higherLevel} inline /></div>
-            {/if}
-            {#if i === 0}
-              <div class="foot">
-                <span>{draft!.classes.map(c => SPELL_CLASS_LABELS[c] ?? c).join(' · ')}</span>
-              </div>
-            {/if}
+      <div class="card-wrap">
+        <div class="spell-card" style="--c: {pc}">
+          <div class="head">
+            <div class="name">
+              {draft!.name}{#if draft!.ritual} <span class="ritual">Ritual</span>{/if}
+            </div>
+            <div class="meta">{spellLevelLabel(draft!.level)} · {SPELL_SCHOOLS[draft!.school] ?? draft!.school}</div>
           </div>
-        {/each}
+          <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
+          <div class="props">
+            <div class="prop-row">
+              <span class="pc"><span class="icon">⚡</span>{draft!.casting_time}</span>
+              <span class="pc"><span class="icon">◎</span>{draft!.range}</span>
+              <span class="pc"><span class="icon">⌛</span>{draft!.duration.replace('Konzentration, ', 'Konz. ')}</span>
+            </div>
+            <div class="prop">
+              <span class="icon">✦</span>
+              <span>{comps}{#if draft!.components.materials_needed} <span class="mat">({draft!.components.materials_needed})</span>{/if}</span>
+            </div>
+          </div>
+          <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
+          <!-- Kein Splitting auf mehrere Karten: die Karte darf beliebig hoch werden, das
+               EditorPanel scrollt. Aufteilen ist allein eine Druck-Anforderung (printSpell.ts). -->
+          <div class="desc"><Markdown source={spellDesc(draft!)} /></div>
+          {#if higherLevel}
+            <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higherLevel} inline /></div>
+          {/if}
+          <div class="foot">
+            <span>{draft!.classes.map(c => SPELL_CLASS_LABELS[c] ?? c).join(' · ')}</span>
+          </div>
+        </div>
       </div>
     {/snippet}
 
@@ -312,10 +264,9 @@
   .import-error { color: var(--danger); font-size: 0.78rem; }
 
   /* ── Karten-Container ── */
-  .cards-wrap {
+  .card-wrap {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     align-items: center;
     width: 100%;
   }
@@ -377,30 +328,6 @@
     font-size: 0.75rem;
     color: color-mix(in srgb, var(--c) 80%, var(--ink));
     margin-top: 0.2rem;
-    font-style: italic;
-  }
-
-  /* ── Folge-Karten-Header ── */
-  .head-cont {
-    padding: 0.6rem 1.2rem 0.4rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    justify-content: center;
-    flex-shrink: 0;
-    background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--c) 30%, var(--bg)) 0%,
-      color-mix(in srgb, var(--c) 6%, var(--bg)) 100%);
-  }
-  .name-sm {
-    font-size: 0.95rem;
-    font-weight: 700;
-    font-variant: small-caps;
-    color: var(--ink);
-  }
-  .cont-lbl {
-    font-size: 0.68rem;
-    color: var(--ink-soft);
     font-style: italic;
   }
 
