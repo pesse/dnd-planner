@@ -64,6 +64,10 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     // Wie am echten Wizard immer gesetzt; `buildWizardCharacter` liest es für die Bogen-Notiz
     // des Zauber-Zugangs.
     spellAccess: [],
+    // Ebenso immer gesetzt: deklarierte Zweigwahlen (Urtümlicher Orden) und die daraus
+    // gebauten Rider, die `buildWizardCharacter` neben den KI-Ridern anwendet.
+    optionListFeatures: [],
+    riders: [],
     featureChoices: [],
     spellPickChoices: [],
     effects: noJob,

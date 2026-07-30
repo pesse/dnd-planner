@@ -22,6 +22,7 @@ import type {
   WeaponCategory,
 } from '$lib/schemas/shared';
 import { SKILL_DEFS } from '$lib/pdf/characterFields';
+import type { ProficiencyFlags } from '$lib/schemas/character';
 import { getProgressionByKey } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
@@ -138,6 +139,23 @@ function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, sou
   for (const value of grant.weapons) out.weapons.push({ value, source });
   for (const value of grant.weaponsOther) out.weaponsOther.push({ value, source });
   for (const value of grant.armor) out.armor.push({ value, source });
+}
+
+/**
+ * Englisches Übungs-Vokabular → Bogen-Flag. Die EINE Abbildung für alle Aufrufer (Wizard-
+ * Assembly, Änderungs-Anwendung des Aufstiegs) — eine zweite liefe auseinander, und genau
+ * daran ist die Fertigkeits-Zuweisung schon einmal still gescheitert (`skillSheetKey`).
+ */
+export function markWeaponProficiency(flags: ProficiencyFlags, category: string): void {
+  if (category === 'Simple') flags.simpleWeapons = true;
+  else if (category === 'Martial') flags.martialWeapons = true;
+}
+
+export function markArmorTraining(flags: ProficiencyFlags, training: string): void {
+  if (training === 'Light') flags.lightArmor = true;
+  else if (training === 'Medium') flags.mediumArmor = true;
+  else if (training === 'Heavy') flags.heavyArmor = true;
+  else if (training === 'Shields') flags.shields = true;
 }
 
 /** Talent-Eintrag zu einem Referenz-Key/-Namen (wie `resolveFeatLinks`). */

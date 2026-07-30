@@ -18,8 +18,10 @@ import {
   isOptionListFeature,
   optionChoiceId,
   optionListChoice,
+  optionListNoteLines,
   optionListRiders,
 } from '../src/lib/services/featureDeclaration';
+import { riderChanges } from '../src/lib/services/levelUpMachine';
 
 const declaredFeatures = async (): Promise<{ klass: string; feature: ClassFeature }[]> => {
   const out: { klass: string; feature: ClassFeature }[] = [];
@@ -101,6 +103,35 @@ describe('deklarierte Zweigwahlen', () => {
     // Ein Label, das nicht im Vokabular steht, gewährt nichts (statt irgendetwas).
     expect(chosenOption(primal, 'Wächter')).toBeNull();
     expect(optionListRiders([primal], () => 'Wächter')).toEqual([]);
+  });
+
+  /**
+   * Ohne diese Zeile wäre Stufe 1 eine REGRESSION: das Merkmal steht nicht mehr im
+   * KI-Eingang, also schreibt Pass C keine `sheetNote` mehr dafür.
+   */
+  it('schreibt die getroffene Wahl deutsch auf den Bogen', async () => {
+    const prog = await getProgressionByKey('srd-2024_druid');
+    const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
+    const id = optionChoiceId(primal);
+
+    expect(optionListNoteLines([primal], (q) => (q === id ? 'Warden' : ''))).toEqual([
+      'Urtümlicher Orden: Wächter — Übung mit Kriegswaffen, mittlere Rüstung',
+    ]);
+    expect(optionListNoteLines([primal], () => '')).toEqual([]);
+  });
+
+  it('bringt Waffen- und Rüstungsübung ins Änderungs-Dokument', async () => {
+    const prog = await getProgressionByKey('srd-2024_druid');
+    const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
+    const riders = optionListRiders([primal], () => 'Warden');
+    const changes = riderChanges(
+      { riders, flagged: [], grantedCantrips: [], grantedPrepared: [] },
+      'feature-effects',
+    );
+    expect(changes.filter((c) => c.target === 'weaponProficiency')).toEqual([
+      { target: 'weaponProficiency', value: 'Martial', step: 'feature-effects', source: 'class-feature', label: 'Übung: Kriegswaffen' },
+    ]);
+    expect(changes.filter((c) => c.target === 'armorTraining').map((c) => c.value)).toEqual(['Medium']);
   });
 
   it('hält die deklarierten Merkmale aus dem KI-Eingang des Wizards heraus', async () => {

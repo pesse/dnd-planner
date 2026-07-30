@@ -1,0 +1,9 @@
+{
+  "simpleWeapons": false,
+  "martialWeapons": false,
+  "otherWeapons": "string",
+  "lightArmor": false,
+  "mediumArmor": false,
+  "heavyArmor": false,
+  "shields": false
+}

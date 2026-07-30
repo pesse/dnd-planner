@@ -129,6 +129,29 @@ export function optionListRiders(
     .filter((r): r is FeatureRider => r !== null);
 }
 
+/**
+ * Die Bogen-Zeile einer getroffenen Zweigwahl, deutsch, aus der Deklaration.
+ *
+ * Nötig aus demselben Grund wie `spellAccessNoteLines`: das Merkmal steht nicht mehr im
+ * KI-Eingang, also schreibt Pass C keine `sheetNote` mehr dafür — ohne diese Zeile stünde
+ * die getroffene Wahl nirgends auf dem Bogen. Und hier zahlt sich `labelDe`/`helpDe` aus:
+ * die Zeile ist ein Zitat plus eine redigierte Konsequenz, keine Übersetzung zur Laufzeit.
+ */
+export function optionListNoteLines(
+  features: DeclaredChoiceSource[],
+  answerOf: (choiceId: string) => string,
+): string[] {
+  const lines: string[] = [];
+  for (const f of features) {
+    const option = chosenOption(f, answerOf(optionChoiceId(f)));
+    if (!option) continue;
+    const label = option.labelDe || option.value;
+    const help = option.helpDe.trim();
+    lines.push(`${f.nameDe || f.name}: ${label}${help ? ` — ${help}` : ''}`);
+  }
+  return lines;
+}
+
 /** Ob eine Deklaration überhaupt etwas gewährt (sonst braucht sie keinen Rider). */
 export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
   const p = g.proficiencies;

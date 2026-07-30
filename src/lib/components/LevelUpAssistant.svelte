@@ -49,7 +49,7 @@
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
-    isOptionListFeature, optionListChoices, optionListRiders,
+    isOptionListFeature, optionListChoices, optionListNoteLines, optionListRiders,
   } from '../services/featureDeclaration';
   import {
     spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
@@ -373,6 +373,11 @@
   /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
   let baseChoiceQs = $derived([...baseChoices, ...baseOptionChoices]);
   let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
+  /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Schlüssel der Option. */
+  const optionAnswer = (id: string): string => {
+    const q = baseOptionChoices.find((x) => x.id === id);
+    return q ? answerValues(q, answers[id]) : '';
+  };
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
@@ -623,12 +628,7 @@
     }
     // Deklarierte Zweigwahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
     // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen.
-    const declared = kind === 'base'
-      ? optionListRiders(declaredOptionFeatures, (id) => {
-          const q = baseOptionChoices.find((x) => x.id === id);
-          return q ? answerValues(q, answers[id]) : '';
-        })
-      : [];
+    const declared = kind === 'base' ? optionListRiders(declaredOptionFeatures, optionAnswer) : [];
     const validated = validateRiderSpells([...parsed, ...declared], spellLib, delta!.klasseName);
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {
@@ -672,7 +672,12 @@
    * auslösen — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
    */
   const seedFeaturesText = () =>
-    [character.classFeatures, ...newSheetNotes(), ...spellAccessNoteLines(featAccess, answers)]
+    [
+      character.classFeatures,
+      ...newSheetNotes(),
+      ...optionListNoteLines(declaredOptionFeatures, optionAnswer),
+      ...spellAccessNoteLines(featAccess, answers),
+    ]
       .filter((s) => s?.trim())
       .join('\n');
 

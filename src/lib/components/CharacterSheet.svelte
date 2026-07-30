@@ -3,6 +3,7 @@
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, SKILL_DEFS, skillSheetKey, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { markArmorTraining, markWeaponProficiency } from '../services/proficiencyGrants';
   import type { SkillName } from '../schemas/shared';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
@@ -239,6 +240,14 @@
           if (next.skills[key]) next.skills[key].prof = true;
           break;
         }
+        // Wie bei den Fertigkeiten: der Change trägt das englische Vokabular, der Bogen
+        // deutsche Flags — die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.
+        case 'weaponProficiency':
+          markWeaponProficiency(next.proficiencies, c.value);
+          break;
+        case 'armorTraining':
+          markArmorTraining(next.proficiencies, c.value);
+          break;
         case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
           const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
           if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }

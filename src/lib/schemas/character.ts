@@ -64,7 +64,7 @@ const characterSpellsSchema = z
     cantrips: [], byLevel: {},
   }));
 
-const proficiencyFlagsSchema = z.object({
+export const proficiencyFlagsSchema = z.object({
   simpleWeapons: z.boolean().default(false),
   martialWeapons: z.boolean().default(false),
   otherWeapons: z.string().default('').describe('Freitext: weitere geübte Waffen.'),

@@ -27,7 +27,7 @@ import {
 } from '$lib/pdf/characterFields';
 import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
 import { readAbilityName, type AbilityName, type SkillName } from '$lib/schemas/shared';
-import { collectGrants } from '../proficiencyGrants';
+import { collectGrants, markArmorTraining, markWeaponProficiency } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { choiceLabelsDe } from '../aiActions/featureEffectsAction';
@@ -43,6 +43,7 @@ import {
   spellSaveDC,
 } from '../spellcasting';
 import { spellAccessNoteLines } from '../spellAccess';
+import { optionListNoteLines } from '../featureDeclaration';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
@@ -104,17 +105,6 @@ function applySave(c: Character, en: string): void {
 }
 
 /** Setzt Waffen-/Rüstungs-Flags additiv. */
-function applyWeapon(c: Character, cat: 'Simple' | 'Martial'): void {
-  if (cat === 'Simple') c.proficiencies.simpleWeapons = true;
-  else c.proficiencies.martialWeapons = true;
-}
-function applyArmor(c: Character, training: 'Light' | 'Medium' | 'Heavy' | 'Shields'): void {
-  if (training === 'Light') c.proficiencies.lightArmor = true;
-  else if (training === 'Medium') c.proficiencies.mediumArmor = true;
-  else if (training === 'Heavy') c.proficiencies.heavyArmor = true;
-  else c.proficiencies.shields = true;
-}
-
 /** Markiert eine Fertigkeit als geübt bzw. mit Expertise (englischer Name → Bogen-Schlüssel). */
 function markSkill(profSkills: Set<string>, expSkills: Set<string>, en: string, exp = false): void {
   const key = skillSheetKey(en as SkillName);
@@ -187,18 +177,20 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   for (const g of grants.skills) markSkill(profSkills, expSkills, g.value);
   for (const en of w.chosenSkills) markSkill(profSkills, expSkills, en);
   for (const s of grants.savingThrows) applySave(c, s.value);
-  for (const wp of grants.weapons) applyWeapon(c, wp.value);
-  for (const a of grants.armor) applyArmor(c, a.value);
+  for (const wp of grants.weapons) markWeaponProficiency(c.proficiencies, wp.value);
+  for (const a of grants.armor) markArmorTraining(c.proficiencies, a.value);
   if (grants.weaponsOther.length)
     c.proficiencies.otherWeapons = grants.weaponsOther.map((x) => x.value).join(', ');
 
   // ── Merkmals-Effekte (Rider) anwenden ──
-  const riders = w.effects.result?.riders ?? [];
+  // Der GETTER, nicht das rohe Job-Ergebnis: er hängt die Rider der deklarierten
+  // Zweigwahlen an (Urtümlicher Orden → Kriegswaffen), die kein Modell geliefert hat.
+  const riders = w.riders;
   for (const r of riders) {
     for (const s of r.proficiencies.skills) markSkill(profSkills, expSkills, s);
     for (const s of r.expertiseSkills) markSkill(profSkills, expSkills, s, true);
-    for (const wp of r.proficiencies.weapons) applyWeapon(c, wp);
-    for (const a of r.proficiencies.armor) applyArmor(c, a);
+    for (const wp of r.proficiencies.weapons) markWeaponProficiency(c.proficiencies, wp);
+    for (const a of r.proficiencies.armor) markArmorTraining(c.proficiencies, a);
     for (const s of r.proficiencies.savingThrows) applySave(c, s);
     for (const t of r.proficiencies.tools) if (t.trim() && !c.tools.includes(t)) c.tools.push(t);
     for (const l of r.proficiencies.languages) if (l.trim() && !c.languages.includes(l)) c.languages.push(l);
@@ -322,11 +314,15 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   // ── Merkmals-Text (KI) + die deterministische Zeile deklarierter Zauber-Zugänge ──
   // Dieselbe Funktion wie im Aufstieg: der Zugang hat keinen Rider, der eine Notiz schreiben
   // könnte, und ohne die Zeile stünde das gewählte Attribut nirgends auf dem Bogen.
+  const declaredAnswerOf = (id: string): string => w.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
   const accessNotes = spellAccessNoteLines(
     w.spellAccess,
     Object.fromEntries(w.declaredAnswers.map((a) => [a.id, a.choice])),
   );
-  c.classFeatures = [w.classText.result?.text?.trim() ?? '', ...accessNotes].filter(Boolean).join('\n');
+  const branchNotes = optionListNoteLines(w.optionListFeatures, declaredAnswerOf);
+  c.classFeatures = [w.classText.result?.text?.trim() ?? '', ...branchNotes, ...accessNotes]
+    .filter(Boolean)
+    .join('\n');
   c.personal.rassenmerkmale = w.speciesText.result?.text?.trim() ?? '';
 
   // ── Ausrüstung (gewählte Optionen der KI-Aufbereitung) ──

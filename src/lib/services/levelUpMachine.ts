@@ -16,7 +16,7 @@
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
-import { skillLabelDe } from './proficiencyGrants';
+import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
 import type { ClassFeature } from '../schemas/classProgression';
 import type { FeatureGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
@@ -599,6 +599,11 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
   const experts = [...new Set(v.riders.flatMap((r) => r.expertiseSkills))];
   for (const skill of experts)
     out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skillLabelDe(skill)}` });
+  // Waffen-/Rüstungs-Übungen (Urtümlicher Orden → Wächter, Göttlicher Orden → Beschützer).
+  for (const value of new Set(v.riders.flatMap((r) => r.proficiencies.weapons)))
+    out.push({ target: 'weaponProficiency', value, step, source: 'class-feature', label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+  for (const value of new Set(v.riders.flatMap((r) => r.proficiencies.armor)))
+    out.push({ target: 'armorTraining', value, step, source: 'class-feature', label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
   return out;
 }
 

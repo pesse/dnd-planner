@@ -88,6 +88,20 @@
       "label": "string"
     },
     {
+      "target": "weaponProficiency",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "armorTraining",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "subclass",
       "key": "string",
       "name": "string",
