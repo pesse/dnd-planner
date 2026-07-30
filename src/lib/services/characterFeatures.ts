@@ -224,6 +224,53 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
   });
 }
 
+/**
+ * Vollständig aufgelöste Merkmale eines Charakters — Klasse/Subklasse, Spezies,
+ * Hintergrund, Talent-Links und die verwaisten Entscheidungen, in genau den Gruppen,
+ * die Karte und KI-Kontext brauchen. Die Entscheidungen sind schon in die Merkmale
+ * eingetragen (`withChoices`).
+ */
+export interface ResolvedCharacterFeatures {
+  speciesGroups: ResolvedFeatureGroup[];
+  classGroups: ResolvedFeatureGroup[];
+  backgroundGroups: ResolvedFeatureGroup[];
+  featEntries: ResolvedFeature[]; // Talent-Links (kein verwaister Entscheidungs-Eintrag)
+  orphanChoices: ResolvedFeature[]; // Entscheidung ohne zugeordnetes Merkmal
+}
+
+/**
+ * Die eine Stelle, an der Klassen-/Spezies-/Hintergrund-Merkmale und Talent-Links
+ * zusammen aufgelöst werden. Die Reihenfolge ist zwingend: erst alle Gruppen, dann
+ * `splitFeatureEntries` über deren Keys — nur so entscheidet sich, welcher Ledger-Eintrag
+ * eine Entscheidung zu einem vorhandenen Merkmal ist und welcher ein Talent-Link.
+ *
+ * Konsument mit anderem Zwischenbedarf (Editor: drei getrennte Abschnitte; LevelUp:
+ * nur Merkmale ohne Entscheidung) bleibt bewusst bei der direkten Verwendung der
+ * Einzelfunktionen — hier steht die eine Sequenz für Karte und KI-Kontext.
+ */
+export async function resolveCharacterFeatures(c: {
+  classes?: CharacterClass[];
+  species?: CharacterSpecies;
+  backgroundRef?: CharacterBackground;
+  features?: CharacterFeatureEntry[];
+}): Promise<ResolvedCharacterFeatures> {
+  const [cls, spec, bg] = await Promise.all([
+    resolveClassFeatures(c.classes ?? []),
+    resolveSpeciesTraits(c.species),
+    resolveBackground(c.backgroundRef),
+  ]);
+  const groups = [...cls, ...(spec ?? []), ...(bg ? [bg] : [])];
+  const { annotations, unmatched } = splitFeatureEntries(c.features, keysOf(groups));
+  const featLinks = await resolveFeatLinks(unmatched);
+  return {
+    speciesGroups: withChoices(spec ?? [], annotations),
+    classGroups: withChoices(cls, annotations),
+    backgroundGroups: withChoices(bg ? [bg] : [], annotations),
+    featEntries: featLinks.filter((f) => !isOrphanChoice(f)),
+    orphanChoices: featLinks.filter(isOrphanChoice),
+  };
+}
+
 /** Eine früher getroffene Entscheidung, aufgelöst auf den Merkmalsnamen (für KI-Kontext). */
 export interface PastChoice {
   featureKey: string;

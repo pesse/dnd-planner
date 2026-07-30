@@ -13,7 +13,8 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig, Monster, Encounter } from '../types';
-import type { CharacterCompact, MonsterLibraryEntry } from '../stores/context';
+import type { MonsterLibraryEntry } from '../stores/context';
+import { formatMinimumLine, type CharacterMinimum } from './characterContext';
 import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';
 import { createMonsterAction } from './aiActions/monsterAction';
@@ -25,7 +26,7 @@ export interface DesignEncounterContext {
   actDirName: string;
   /** Inhalt der acts/{akt}/index.md. */
   actContent: string;
-  party: CharacterCompact[];
+  party: CharacterMinimum[];
   /** Globale Monster-Bibliothek (für Wiederverwendung bekannter Slugs). */
   library: MonsterLibraryEntry[];
   /** Steuert, wie viel der Monster-Bibliothek in den Entwurfs-Prompt einfließt
@@ -86,7 +87,7 @@ function selectLibrary(library: MonsterLibraryEntry[], opts?: LibraryOptions): M
 
 function buildPreamble(
   actContent: string,
-  party: CharacterCompact[],
+  party: CharacterMinimum[],
   library: MonsterLibraryEntry[],
   libraryOptions?: LibraryOptions,
 ): string {
@@ -95,11 +96,7 @@ function buildPreamble(
   blocks.push(`## Act context\n${actContent.trim() || '(no content)'}`);
 
   if (party.length) {
-    const lines = party.map((c) => {
-      const meta = [c.classLevel, c.race].filter(Boolean).join(', ');
-      return `- ${c.name}${meta ? ` (${meta})` : ''}`;
-    });
-    blocks.push(`## Party (${party.length} characters)\n${lines.join('\n')}`);
+    blocks.push(`## Party (${party.length} characters)\n${party.map(formatMinimumLine).join('\n')}`);
   } else {
     blocks.push('## Party\n(no character data — choose a plausible party_size/party_level)');
   }

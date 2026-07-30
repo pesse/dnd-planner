@@ -65,7 +65,7 @@
       const richSlugs = new Set(rich.map((c) => c.slug));
       const plain = activeSlugs
         .filter((s) => !richSlugs.has(s))
-        .map((s) => ({ slug: s, name: s, classLevel: '', race: '', playerName: '' }));
+        .map((s) => ({ slug: s, name: s, classLevel: '', species: '', background: '', totalLevel: 0, playerName: '' }));
       return [...rich, ...plain];
     })()
   );

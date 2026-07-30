@@ -32,8 +32,7 @@
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
-    resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
-    splitFeatureEntries, keysOf, withChoices, isOrphanChoice,
+    resolveCharacterFeatures,
     type ResolvedFeatureGroup, type ResolvedFeature,
   } from '../services/characterFeatures';
   import type { Spell, Item } from '../types';
@@ -50,11 +49,10 @@
   let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
   let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
   let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
-  let featLinks = $state<ResolvedFeature[]>([]);
-  // Verwaiste Entscheidungen tragen kein Merkmal mehr (Klassen-Link getauscht, Key
-  // verschoben) — eigener Block, statt sie unter „Talente" einzureihen.
-  const featEntries = $derived(featLinks.filter((f) => !isOrphanChoice(f)));
-  const orphanChoices = $derived(featLinks.filter(isOrphanChoice));
+  // Talent-Links und verwaiste Entscheidungen (Klassen-Link getauscht, Key verschoben)
+  // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
+  let featEntries = $state<ResolvedFeature[]>([]);
+  let orphanChoices = $state<ResolvedFeature[]>([]);
   // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
   // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
   // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
@@ -63,20 +61,13 @@
     if (!featuresOpen) return;
     const c = character;
     if (!c) return;
-    // Erst alle Gruppen, dann aufteilen: welcher Ledger-Eintrag eine Entscheidung zu einem
-    // vorhandenen Merkmal ist und welcher ein Talent-Link, entscheiden die aufgelösten Keys.
     void (async () => {
-      const [cls, spec, bg] = await Promise.all([
-        resolveClassFeatures(c.classes ?? []),
-        resolveSpeciesTraits(c.species),
-        resolveBackground(c.backgroundRef),
-      ]);
-      const groups = [...cls, ...(spec ?? []), ...(bg ? [bg] : [])];
-      const { annotations, unmatched } = splitFeatureEntries(c.features, keysOf(groups));
-      classFeatureGroups = withChoices(cls, annotations);
-      speciesTraitGroups = withChoices(spec ?? [], annotations);
-      backgroundGroups = withChoices(bg ? [bg] : [], annotations);
-      featLinks = await resolveFeatLinks(unmatched);
+      const r = await resolveCharacterFeatures(c);
+      classFeatureGroups = r.classGroups;
+      speciesTraitGroups = r.speciesGroups;
+      backgroundGroups = r.backgroundGroups;
+      featEntries = r.featEntries;
+      orphanChoices = r.orphanChoices;
     })();
   });
   // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —

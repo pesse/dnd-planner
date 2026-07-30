@@ -18,6 +18,7 @@
     loadEncounterMonsters,
   } from '../stores/context';
   import type { ContextFlags } from '../stores/context';
+  import { CHARACTER_CONTEXT_LEVELS, CHARACTER_CONTEXT_LABELS, CHARACTER_CONTEXT_HINTS } from '../services/characterContext';
   import { monsterTypeLabel } from '../types';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
   import { modelSupportsTemperature } from '../services/llmService';
@@ -760,16 +761,14 @@
 
           {#if pin.isCharacter}
             <div class="detail-toggle">
-              <button
-                class="detail-btn"
-                class:active={pin.detailLevel === 'rp'}
-                onclick={() => setPinDetailLevel(pin.entry.path, 'rp')}>RP</button
-              >
-              <button
-                class="detail-btn"
-                class:active={pin.detailLevel === 'full'}
-                onclick={() => setPinDetailLevel(pin.entry.path, 'full')}>Voll</button
-              >
+              {#each CHARACTER_CONTEXT_LEVELS as level}
+                <button
+                  class="detail-btn"
+                  class:active={pin.detailLevel === level}
+                  title={CHARACTER_CONTEXT_HINTS[level]}
+                  onclick={() => setPinDetailLevel(pin.entry.path, level)}>{CHARACTER_CONTEXT_LABELS[level]}</button
+                >
+              {/each}
             </div>
           {/if}
 
