@@ -700,6 +700,47 @@ bleibt das Merkmal bei der KI.** Der Zweifelsfall fällt zu Pass C, nicht daran 
 **Erwartung an den Rest.** Druide und Schurke sind Aufstiege ohne Speziesmerkmale (die Fixtures
 enthalten keine `traits`) — ihr Eingang ist beweisbar unverändert, sie werden nicht neu gemessen.
 
+### Ergebnis: Pass C wird billiger, die Kette nicht schneller (2 × 5 Läufe)
+
+Report `2026-07-30T09-42-05-124Z-wizardfeatures-wizardfeatures-sheetvalue` gegen die Baseline
+`…T07-28-11-509Z-wizardfeatures-nothink`, beide `--concurrency 4` (die Baseline lief so; ein
+Wechsel auf 1 hätte die Latenzen unvergleichbar gemacht). Rider 6 → 4 in allen fünf Läufen.
+
+| Call | Median | ↓ Ausgabe |
+|---|---|---|
+| Pass A | 10 814 → 11 588 ms | 1 193 → 1 139 |
+| T1 Wahl-Übersetzung | 3 027 → 3 198 ms | 258 → 211 |
+| Nach-Analyse | 8 264 → **9 208 ms** | 747 → **1 088** |
+| **Pass C (guided)** | **16 168 → 13 473 ms (−17 %)** | **1 387 → 980 (−29 %)** |
+| T2 Notiz-Übersetzung | 2 768 → 2 981 ms | 213 → 211 |
+| Schritt „Call C" gesamt | 42 612 → 42 012 ms | 3 798 → 3 629 (−4 %) |
+
+**Die Hypothese trifft für Pass C und verfehlt die Kette.** Wo der Schnitt zielt, wirkt er
+sogar stärker als erwartet (−29 % Ausgabe statt −15…25 %). Aber die gesparte Zeit kommt in der
+**Nach-Analyse** zurück, die bei kürzerem Eingang um 46 % mehr Prosa schreibt — dasselbe
+Verhalten, das oben schon einmal auffiel („die Notiz wächst, wenn der Eingang schrumpft").
+Netto 42,6 → 42,0 s, also nichts, was man außerhalb der Streuung nennen dürfte (p95 sogar
+56,0 → 62,6 s). Eingabe-Tokens praktisch unverändert (14 223 → 14 189).
+
+**Qualität:** alle Core-Proben 5/5, alle weichen 5/5 — bis auf „fragt auch das Zauberattribut
+der Abstammung ab" (0/5 → 1/5; die Probe schwankt seit je zwischen 0 und 1/5, weil die Antwort
+keine Senke hat, siehe 1e). Die eine ersetzte Probe ist jetzt **core** statt weich und schärfer:
+statt „Größe und Bewegungsrate tragen keine Notiz" (nach dem Schnitt trivial erfüllt) fordert sie
+„gar kein Rider dazu" — 5/5.
+
+**Damit ist Stufe 3 erledigt, und zwar als geschlossene Frage:** Das Gatter „Pass A entscheidet,
+was Pass C sieht" wird nicht gebaut (es löscht Notizen, die niemand sonst schreibt), und der
+gefahrlose Teil davon ist gemessen — er verbilligt Pass C sichtbar, verkürzt die Wartezeit aber
+nicht. Die Wartezeit dieser Kette ist nicht eingangsgebunden; der eine große Hebel war
+thinking-frei. Behalten wird der Schnitt trotzdem: zwei leere Rider weniger, eine schärfere
+Zusicherung, und ein reiner Bogenwert hat in fünf LLM-Calls nichts zu suchen.
+
+**Nebenbefund, nicht behoben:** Die Größe von Mensch und Tiefling ist eine Wahl, deren Antwort
+nirgends landet — `personal.sizeCat` bleibt leer, das Feld füllt niemand (auch `assembleCharacter`
+nicht, das nur `speed` aus dem Merkmal liest). Derselbe fehlende Verbraucher wie in 1e. Bis dahin
+bleibt das Merkmal bewusst bei der KI: `evals/sheetValueTraits.test.ts` hält fest, dass es dort
+ankommt.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).
@@ -710,4 +751,7 @@ enthalten keine `traits`) — ihr Eingang ist beweisbar unverändert, sie werden
    einem Verbraucher für Klassenmerkmale.
 5. ~~1f (Prompt-Schnitt)~~ — gemessen und verworfen: die Regel ist die einzige, die die
    Zauber-Wahl dieser fünf Merkmale überhaupt entstehen lässt.
-6. Stufe 3 separat entscheiden.
+6. ~~Stufe 3 separat entscheiden~~ — entschieden und gemessen: das Gatter „Pass A entscheidet,
+   was Pass C sieht" wird NICHT gebaut (löscht Bogen-Notizen, die niemand sonst schreibt); der
+   gefahrlose Teil (reine Bogenwerte) ist umgesetzt und verbilligt Pass C um 29 % Ausgabe, ohne
+   die Kette zu verkürzen.
