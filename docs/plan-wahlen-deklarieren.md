@@ -1,7 +1,7 @@
 # Alle Merkmalswahlen deklarieren — die KI-Deutung abbauen
 
 > Umsetzungsplan, erstellt am 2026-07-30 im Worktree `analyse-prompts`.
-> **Stand 2026-07-30: Stufe 0 und Stufe 1 sind umgesetzt** (drei Commits), Stufe 2–5 offen.
+> **Stand 2026-07-30: Stufe 0, 1 und 2 sind umgesetzt** (fünf Commits), Stufe 3–5 offen.
 > Was die Umsetzung am Plan korrigiert hat, steht in Abschnitt „Korrekturen aus der
 > Umsetzung"; die Stufen-Abschnitte selbst sind der ursprüngliche Entwurf.
 > Übergeordnet zu `docs/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
@@ -258,7 +258,12 @@ Builder-Frage.
 „der Prompt ist gut". Es ist dieselbe Warnung, die `analyse-system-prompts.md` unter
 Empfehlung 1 für `fillDecisions` formuliert — hier gilt sie für die ganze Strecke.
 
-## Stufe 2 — `expertise` und `abilityIncrease`
+## Stufe 2 — `expertise` und `abilityIncrease` ✅ (nur `expertise`)
+
+> `abilityIncrease` ist **nicht** gebaut: im SRD 5.2 gibt es dafür keinen Vault-Fall. Kein
+> Herkunfts- oder Allgemein-Talent des Bestands gewährt „+1 auf eines von …" — der generische
+> ASI ist ohnehin schon deterministisch (`asi_or_feat_*`). Ein `kind` ohne Fall wäre genau die
+> Regel-für-einen-Eingang-den-es-nie-gibt, die der Analyse-Bericht als B2 aufgeschrieben hat.
 
 Schließt die drei Pass-C-Regeln, die laut Bericht (B9) **keine positive Testabdeckung** haben:
 Regel 4 (`expertiseSkills`), Regel 6 (`abilityScoreIncrease`) und die Klammer in Regel 5. Der

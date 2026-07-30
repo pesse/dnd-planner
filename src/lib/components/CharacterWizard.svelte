@@ -176,6 +176,9 @@
       backgroundRef: { sourceKey: w.background.sourceKey },
     });
     skillPicks = grants.choices.map(() => []);
+    // Fest gewährte Übungen an den Wizard-Zustand: sie sind (mit `chosenSkills`) die
+    // Optionsliste der deklarierten Expertise-Wahl im Merkmals-Schritt.
+    w.grantedSkills = grants.skills.map((g) => g.value);
     syncChosenSkills();
   }
   function allowedSkillsFor(from: SkillName[]): readonly SkillName[] {

@@ -37,10 +37,10 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import { optionListChoices, optionListRiders } from '../featureDeclaration';
+import { expertiseChoice, expertiseChoiceId, expertiseRider, optionListChoices, optionListRiders } from '../featureDeclaration';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
+import type { FeatureEffects, FeatureRider, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
@@ -170,6 +170,14 @@ export class CharacterWizard {
    * aus `buildFeaturePrep`. Auf Stufe 1 trifft der Spieler diese Wahl im Merkmals-Schritt.
    */
   optionListFeatures = $state<ClassFeature[]>([]);
+  /** Merkmale mit deklarierter Expertise-Wahl (Schurke Stufe 1). */
+  expertiseFeatures = $state<ClassFeature[]>([]);
+  /**
+   * Fest gewährte Fertigkeitsübungen (aus `collectGrants`, gesetzt vom Übungen-Schritt).
+   * Zusammen mit `chosenSkills` die Optionsliste der Expertise-Wahl — ein Vault-Feld kann sie
+   * nicht tragen, sie ist der Übungsstand DIESES Charakters.
+   */
+  grantedSkills = $state<string[]>([]);
   /**
    * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
    * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
@@ -214,13 +222,21 @@ export class CharacterWizard {
       return spellAccessChoices(grant, answer);
     });
     const branches = optionListChoices(this.optionListFeatures);
-    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...spells];
+    const expertise = this.expertiseFeatures
+      .map((f) => expertiseChoice(f, this.proficientSkills))
+      .filter((c): c is AnalysisChoice => c !== null);
+    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...expertise, ...spells];
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
   get featureChoices(): AnalysisChoice[] {
     const declared = this.declaredChoices;
     return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
+  }
+
+  /** Geübte Fertigkeiten (englisch): fest gewährte plus selbst gewählte, ohne Dubletten. */
+  get proficientSkills(): string[] {
+    return [...new Set([...this.grantedSkills, ...this.chosenSkills])];
   }
 
   /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
@@ -239,11 +255,12 @@ export class CharacterWizard {
    * Assembly sie nicht unterscheiden müssen.
    */
   get riders() {
-    const declared = optionListRiders(
-      this.optionListFeatures,
-      (id) => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '',
-    );
-    return [...(this.effects.result?.riders ?? []), ...declared];
+    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
+    const declared = optionListRiders(this.optionListFeatures, answerOf);
+    const expertise = this.expertiseFeatures
+      .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
+      .filter((r): r is FeatureRider => r !== null);
+    return [...(this.effects.result?.riders ?? []), ...declared, ...expertise];
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
@@ -270,6 +287,7 @@ export class CharacterWizard {
       this.sizeChoice = prep.sizeChoice;
       this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
       this.optionListFeatures = prep.optionListFeatures;
+      this.expertiseFeatures = prep.expertiseFeatures;
     }, () => {});
 
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen

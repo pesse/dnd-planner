@@ -20,7 +20,7 @@ import type { AnalysisChoice } from '../aiActions/featureEffectsAction';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { PerLevelFeature } from '../perLevelEffects';
-import { isOptionListFeature } from '../featureDeclaration';
+import { isExpertiseFeature, isOptionListFeature } from '../featureDeclaration';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
 
 /** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
@@ -61,6 +61,8 @@ export interface FeaturePrep {
    * also braucht der Wizard sie hier, um Wahl und Rider daraus zu bauen.
    */
   optionListFeatures: ClassFeature[];
+  /** Merkmale mit deklarierter Expertise-Wahl (Schurke Stufe 1) — Optionen erst zur Laufzeit. */
+  expertiseFeatures: ClassFeature[];
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
@@ -103,9 +105,9 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
-  const optionListFeatures = [prog, sub]
-    .flatMap((p) => (p ? featuresUpTo(p, 1) : []))
-    .filter(isOptionListFeature);
+  const level1Features = [prog, sub].flatMap((p) => (p ? featuresUpTo(p, 1) : []));
+  const optionListFeatures = level1Features.filter(isOptionListFeature);
+  const expertiseFeatures = level1Features.filter(isExpertiseFeature);
   const spellAccess: SpellAccessGrant[] = [];
 
   // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
@@ -199,6 +201,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     analysisSpeciesFeatures,
     effectFeatures,
     optionListFeatures,
+    expertiseFeatures,
     summaryClass,
     summarySpecies,
     classContext,

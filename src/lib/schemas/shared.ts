@@ -332,6 +332,11 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
  *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Magiekundiger").
  *     Liste, Attribut und Kontingent stehen in `spellLists`/`spellAbilities`/`spellPicks`.
+ *   - `expertise`: Expertise in `count` der GEÜBTEN Fertigkeiten. Der einzige `kind`, dessen
+ *     Optionen nicht im Vault stehen können — sie sind der Übungsstand DIESES Charakters.
+ *     Deklariert wird nur die Anzahl; die Liste baut der Flow zur Laufzeit. Genau deshalb
+ *     konnte die KI hier nie liefern: `buildFeatureEffectsInput` schickt bewusst keine
+ *     Charakter-Zusammenfassung mit, das Modell kennt die geübten Fertigkeiten also nicht.
  *   - `optionList`: die generische Zweigwahl — das Merkmal bietet eine im Regeltext
  *     ausgeschriebene Optionsliste an (Urtümlicher Orden, Göttlicher Orden), und JEDE Option
  *     trägt ihre Konsequenz neben sich (`options[].grants`). Genau das macht die Wahl
@@ -345,7 +350,7 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  * (services/spellcasting.ts) „dies ist das Klassen-Zauberwirken" bedeutet und über
  * `spellcastingOffer` entscheidet — ein Talent darf dieses Prädikat nicht wahr machen.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
@@ -388,7 +393,7 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt. Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
   // Die drei Felder von kind="spellAccess". Für beide Listen gilt dieselbe Regel:
   // LÄNGE 1 = festgelegt (keine Frage), LÄNGE > 1 = eine protokollierte Entscheidung.
   // Die Deklaration sagt also nicht „frag das ab", sondern welche Werte zulässig sind —

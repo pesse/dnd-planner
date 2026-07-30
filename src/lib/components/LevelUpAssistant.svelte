@@ -33,6 +33,7 @@
   import {
     analyzeFeatureEffects, finalizeFeatureEffects,
     type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
+    type AnalysisChoice,
   } from '../services/aiActions/featureEffectsAction';
   import {
     hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature,
@@ -49,6 +50,7 @@
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
+    expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature,
     isOptionListFeature, optionListChoices, optionListNoteLines, optionListRiders,
   } from '../services/featureDeclaration';
   import {
@@ -64,6 +66,7 @@
   import { decodePick, encodePick } from '../services/spellcasting';
   import SpellPickField from './SpellPickField.svelte';
   import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
+  import { skillEnName } from '../pdf/characterFields';
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
@@ -370,12 +373,40 @@
     delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isOptionListFeature) : [],
   );
   let baseOptionChoices = $derived(buildFeatureChoices(optionListChoices(declaredOptionFeatures)));
+
+  /**
+   * Deklarierte Expertise-Wahlen. Die Optionen sind der Übungsstand DIESES Charakters, also
+   * kommen sie aus dem Bogen (deutsche Schlüssel → englische SRD-Namen) und nicht aus dem
+   * Vault. Schon verdoppelte Fertigkeiten fallen heraus: Expertise stapelt nicht, der
+   * Schurke wählt auf Stufe 6 zwei WEITERE.
+   */
+  let declaredExpertiseFeatures = $derived(
+    delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isExpertiseFeature) : [],
+  );
+  let sheetSkills = $derived.by(() => {
+    const prof: string[] = [];
+    const exp: string[] = [];
+    for (const [key, row] of Object.entries(character.skills ?? {})) {
+      const en = skillEnName(key);
+      if (!en || !row?.prof) continue;
+      prof.push(en);
+      if (row.exp) exp.push(en);
+    }
+    return { prof, exp };
+  });
+  let baseExpertiseChoices = $derived(
+    buildFeatureChoices(
+      declaredExpertiseFeatures
+        .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
+        .filter((c): c is AnalysisChoice => c !== null),
+    ),
+  );
   /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
-  let baseChoiceQs = $derived([...baseChoices, ...baseOptionChoices]);
+  let baseChoiceQs = $derived([...baseChoices, ...baseOptionChoices, ...baseExpertiseChoices]);
   let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
   /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Schlüssel der Option. */
   const optionAnswer = (id: string): string => {
-    const q = baseOptionChoices.find((x) => x.id === id);
+    const q = [...baseOptionChoices, ...baseExpertiseChoices].find((x) => x.id === id);
     return q ? answerValues(q, answers[id]) : '';
   };
 
@@ -581,8 +612,9 @@
     if (kind === 'base') {
       baseAnalysis = analysis; baseChoices = choiceQs;
       // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
-      initFeatureChoices(baseOptionChoices);
-      if (baseOptionChoices.length) pushStep(`${baseOptionChoices.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
+      const declaredQs = [...baseOptionChoices, ...baseExpertiseChoices];
+      initFeatureChoices(declaredQs);
+      if (declaredQs.length) pushStep(`${declaredQs.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
     }
     else { featAnalysis = analysis; featChoices = choiceQs; }
     if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
@@ -628,7 +660,14 @@
     }
     // Deklarierte Zweigwahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
     // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen.
-    const declared = kind === 'base' ? optionListRiders(declaredOptionFeatures, optionAnswer) : [];
+    const declared = kind === 'base'
+      ? [
+          ...optionListRiders(declaredOptionFeatures, optionAnswer),
+          ...declaredExpertiseFeatures
+            .map((f) => expertiseRider(f, optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
+            .filter((r): r is FeatureRider => r !== null),
+        ]
+      : [];
     const validated = validateRiderSpells([...parsed, ...declared], spellLib, delta!.klasseName);
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {

@@ -20,14 +20,15 @@
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { FeatureRider } from '../schemas/levelUp';
 import { declaredChoice } from './declaredChoice';
-import type { ChoiceOption, FeatureGrant } from '../schemas/shared';
+import { SKILL_NAMES, type ChoiceOption, type FeatureGrant, type SkillName } from '../schemas/shared';
+import { skillLabelDe } from './proficiencyGrants';
 
 /** Was der Builder von einem Merkmal braucht — Klassenmerkmal, Trait und Talent erfüllen es. */
 export interface DeclaredChoiceSource {
   key?: string;
   name: string;
   nameDe?: string;
-  grantsChoice?: { kind: string; options?: ChoiceOption[] };
+  grantsChoice?: { kind: string; options?: ChoiceOption[]; count?: number };
 }
 
 export function isOptionListFeature(f: DeclaredChoiceSource): boolean {
@@ -98,13 +99,9 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string): Featur
   const grants = option?.grants;
   if (!grants || isEmptyFeatureGrant(grants)) return null;
   return {
-    featureName: f.name,
-    featureKey: f.key ?? '',
-    source: 'class',
-    grantedSpells: [],
+    ...emptyRider(f),
     extraCantrips: grants.extraCantrips,
     extraPreparedCount: grants.extraPreparedCount,
-    expertiseSkills: [],
     proficiencies: {
       skills: [...grants.proficiencies.skills.fixed],
       tools: [],
@@ -113,6 +110,26 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string): Featur
       languages: [],
       savingThrows: [...grants.proficiencies.savingThrows],
     },
+  };
+}
+
+/**
+ * Rider-Gerüst eines deklarierten Merkmals: alles leer bis auf die Identität.
+ *
+ * `sheetNote` bleibt leer und `decisions` ebenso — beides ist bewusst: die Bogen-Zeile
+ * kommt aus `optionListNoteLines`, das Protokoll aus `featureChoiceChanges`. Ein Eintrag
+ * hier wäre jeweils die zweite Ausfertigung.
+ */
+function emptyRider(f: DeclaredChoiceSource): FeatureRider {
+  return {
+    featureName: f.name,
+    featureKey: f.key ?? '',
+    source: 'class',
+    grantedSpells: [],
+    extraCantrips: 0,
+    extraPreparedCount: 0,
+    expertiseSkills: [],
+    proficiencies: { skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] },
     abilityScoreIncrease: { str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 },
     decisions: [],
     sheetNote: '',
@@ -127,6 +144,61 @@ export function optionListRiders(
   return features
     .map((f) => optionListRider(f, answerOf(optionChoiceId(f))))
     .filter((r): r is FeatureRider => r !== null);
+}
+
+// ── Expertise (kind: 'expertise') ────────────────────────────────────────────────
+//
+// Der einzige `kind`, dessen Optionen NICHT im Vault stehen können: „Expertise in zwei
+// deiner Fertigkeitsübungen deiner Wahl" heißt, die Liste ist der Übungsstand dieses
+// Charakters. Deklariert wird nur die Anzahl.
+//
+// Genau darum konnte die KI hier nie liefern: `buildFeatureEffectsInput` schickt bewusst
+// keine Charakter-Zusammenfassung mit (Attribute/Slots wären Token-Ballast), das Modell
+// kennt die geübten Fertigkeiten also nicht — es konnte nur eine Auswahlliste erfinden.
+
+export function isExpertiseFeature(f: DeclaredChoiceSource): boolean {
+  return f.grantsChoice?.kind === 'expertise';
+}
+
+export const expertiseChoiceId = (f: DeclaredChoiceSource): string =>
+  `expertise_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+/**
+ * Die Expertise-Wahl: `count` aus den geübten Fertigkeiten, die noch keine Expertise haben.
+ * Ohne geübte Fertigkeit gibt es keine Wahl (statt einer leeren Liste) — das passiert nur
+ * bei kaputten Altdaten, und eine unbeantwortbare Frage würde den Checkpoint blockieren.
+ *
+ * `already` fällt heraus, weil Expertise nicht stapelbar ist: der Schurke wählt auf Stufe 6
+ * zwei WEITERE, nicht dieselben.
+ */
+export function expertiseChoice(
+  f: DeclaredChoiceSource,
+  proficient: readonly string[],
+  already: readonly string[] = [],
+): AnalysisChoice | null {
+  if (!isExpertiseFeature(f)) return null;
+  const taken = new Set(already);
+  const options = proficient.filter((s) => !taken.has(s));
+  if (!options.length) return null;
+  const count = Math.max(1, f.grantsChoice!.count ?? 1);
+  const nameDe = f.nameDe || f.name;
+  return {
+    ...declaredChoice({ id: expertiseChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
+    type: 'multiselect',
+    max: Math.min(count, options.length),
+    question: `${f.name}: choose ${count} of your skill proficiencies`,
+    questionDe: `${nameDe}: Wähle ${count} deiner geübten Fertigkeiten`,
+    helpDe: 'Der Übungsbonus zählt in diesen Fertigkeiten doppelt.',
+    options: [...options],
+    optionsDe: options.map(skillLabelDe),
+  };
+}
+
+/** Rider der getroffenen Expertise-Wahl (englische SRD-Namen — das Vokabular des Riders). */
+export function expertiseRider(f: DeclaredChoiceSource, picked: readonly string[]): FeatureRider | null {
+  const skills = picked.filter((s): s is SkillName => (SKILL_NAMES as readonly string[]).includes(s));
+  if (!isExpertiseFeature(f) || !skills.length) return null;
+  return { ...emptyRider(f), expertiseSkills: [...skills] };
 }
 
 /**
