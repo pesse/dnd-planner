@@ -1,0 +1,131 @@
+{
+  "fromLevel": 0,
+  "toLevel": 0,
+  "klasse": "string",
+  "summary": "string",
+  "changes": [
+    {
+      "target": "hpMax",
+      "value": -9007199254740991,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "hitDice",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "proficiencyBonus",
+      "value": -9007199254740991,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "spellSlot",
+      "level": -9007199254740991,
+      "value": -9007199254740991,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "cantrip",
+      "name": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "spellcastingClass",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "ability",
+      "ability": "str",
+      "value": -9007199254740991,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "preparedSpell",
+      "level": -9007199254740991,
+      "name": "string",
+      "prepared": true,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "feat",
+      "sourceKey": "string",
+      "name": "string",
+      "gainedAt": 1,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "expertise",
+      "skill": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "proficiency",
+      "skill": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "subclass",
+      "key": "string",
+      "name": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "classFeaturesText",
+      "mode": "replace",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "featureGained",
+      "name": "string",
+      "sourceKey": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "featureChoice",
+      "sourceKey": "string",
+      "choice": "string",
+      "gainedAt": -9007199254740991,
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "note",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    }
+  ]
+}

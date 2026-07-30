@@ -10,11 +10,32 @@ import type {
   CharacterSpells,
   Attack,
   SpellEntry,
+  SpellRef,
   ProficiencyFlags,
   PersonalData,
+  CharacterFeatureEntry,
+  CharacterClass,
+  CharacterSpecies,
+  CharacterBackground,
 } from '../schemas/character';
+import type { SkillName } from '../schemas/shared';
+import { MASTERY_BY_LABEL } from '../itemLibrary';
 
-export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
+export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
+
+export type {
+  Character,
+  CharacterSpells,
+  Attack,
+  SpellEntry,
+  SpellRef,
+  ProficiencyFlags,
+  PersonalData,
+  CharacterFeatureEntry,
+  CharacterClass,
+  CharacterSpecies,
+  CharacterBackground,
+};
 
 /** Bisheriger Name des Charakter-Datentyps — Alias auf das Zod-Schema. */
 export type CharacterData = Character;
@@ -50,26 +71,75 @@ export function emptySpells(): CharacterSpells {
   };
 }
 
+/**
+ * Eine Fertigkeitszeile des Bogens. `key` ist der DEUTSCHE Bogen-Schlüssel
+ * (`character.skills[key]`, vom PDF-Formular diktiert), `en` der englische
+ * SRD-Name — die eine Übersetzungstabelle zwischen Bibliothek (englisch) und
+ * Charakter (deutsch). Siehe „Geschlossene Regel-Vokabulare" in schemas/shared.ts.
+ */
+export interface SkillDef {
+  key: string;
+  en: SkillName;
+  label: string;
+  attr: 'str' | 'ges' | 'kon' | 'int' | 'wei' | 'cha';
+  profField: string;
+  expField: string;
+  valField: string;
+}
+
 export const SKILL_DEFS = [
-  { key: 'Akrobatik',         label: 'Akrobatik',          attr: 'ges', profField: 'AkrobatikProf',         expField: 'AkrobatikExp',         valField: 'AkrobatikGes' },
-  { key: 'ArkaneKunde',       label: 'Arkane Kunde',       attr: 'int', profField: 'ArkaneKundeProf',        expField: 'ArkaneKundeExp',        valField: 'ArkaneKundeInt' },
-  { key: 'Athletik',          label: 'Athletik',           attr: 'str', profField: 'AthletikProf',           expField: 'AthletikExp',           valField: 'AthletikStr' },
-  { key: 'Auftreten',         label: 'Auftreten',          attr: 'cha', profField: 'AuftretenProf',          expField: 'AuftretenExp',          valField: 'AuftretenCha' },
-  { key: 'Einschüchtern',     label: 'Einschüchtern',      attr: 'cha', profField: 'EinschüchternProf',      expField: 'EinschüchternExp',      valField: 'EinschüchternCha' },
-  { key: 'Fingerfertigkeit',  label: 'Fingerfertigkeit',   attr: 'ges', profField: 'FingerfertigkeitProf',   expField: 'FingerfertigkeitExp',   valField: 'FingerfertigkeitGes' },
-  { key: 'Geschichte',        label: 'Geschichte',         attr: 'int', profField: 'GeschichteProf',         expField: 'GeschichteExp',         valField: 'GeschichteInt' },
-  { key: 'Heilkunde',         label: 'Heilkunde',          attr: 'wei', profField: 'HeilkundeProf',          expField: 'HeilkundeExp',          valField: 'HeilkundeWei' },
-  { key: 'Heimlichkeit',      label: 'Heimlichkeit',       attr: 'ges', profField: 'HeimlichkeitProf',       expField: 'HeimlichkeitExp',       valField: 'HeimlichkeitGes' },
-  { key: 'MitTierenUmgehen',  label: 'Mit Tieren umgehen', attr: 'wei', profField: 'MitTierenUmgehenProf',   expField: 'MitTierenUmgehenExp',   valField: 'MitTierenUmgehenWei' },
-  { key: 'MotivErkennen',     label: 'Motiv erkennen',     attr: 'wei', profField: 'MotivErkennenProf',      expField: 'MotivErkennenExp',      valField: 'MotivErkennenWei' },
-  { key: 'Nachforschungen',   label: 'Nachforschungen',    attr: 'int', profField: 'NachforschungenProf',    expField: 'NachforschungenExp',    valField: 'NachforschungenInt' },
-  { key: 'Naturkunde',        label: 'Naturkunde',         attr: 'int', profField: 'NaturkundeProf',         expField: 'NaturkundeExp',         valField: 'NaturkundeInt' },
-  { key: 'Religion',          label: 'Religion',           attr: 'int', profField: 'ReligionProf',           expField: 'ReligionExp',           valField: 'ReligionInt' },
-  { key: 'Täuschen',          label: 'Täuschen',           attr: 'cha', profField: 'TäuschenProf',           expField: 'TäuschenExp',           valField: 'TäuschenCha' },
-  { key: 'Überlebenskunst',   label: 'Überlebenskunst',    attr: 'wei', profField: 'ÜberlebenskunstProf',    expField: 'ÜberlebenskunstExp',    valField: 'ÜberlebenskunstWei' },
-  { key: 'Überzeugen',        label: 'Überzeugen',         attr: 'cha', profField: 'ÜberzeugenProf',         expField: 'ÜberzeugenExp',         valField: 'ÜberzeugenCha' },
-  { key: 'Wahrnehmung',       label: 'Wahrnehmung',        attr: 'wei', profField: 'WahrnehmungProf',        expField: 'WahrnehmungExp',        valField: 'WahrnehmungWei' },
-];
+  { key: 'Akrobatik',         en: 'Acrobatics',      label: 'Akrobatik',          attr: 'ges', profField: 'AkrobatikProf',         expField: 'AkrobatikExp',         valField: 'AkrobatikGes' },
+  { key: 'ArkaneKunde',       en: 'Arcana',          label: 'Arkane Kunde',       attr: 'int', profField: 'ArkaneKundeProf',        expField: 'ArkaneKundeExp',        valField: 'ArkaneKundeInt' },
+  { key: 'Athletik',          en: 'Athletics',       label: 'Athletik',           attr: 'str', profField: 'AthletikProf',           expField: 'AthletikExp',           valField: 'AthletikStr' },
+  { key: 'Auftreten',         en: 'Performance',     label: 'Auftreten',          attr: 'cha', profField: 'AuftretenProf',          expField: 'AuftretenExp',          valField: 'AuftretenCha' },
+  { key: 'Einschüchtern',     en: 'Intimidation',    label: 'Einschüchtern',      attr: 'cha', profField: 'EinschüchternProf',      expField: 'EinschüchternExp',      valField: 'EinschüchternCha' },
+  { key: 'Fingerfertigkeit',  en: 'Sleight of Hand', label: 'Fingerfertigkeit',   attr: 'ges', profField: 'FingerfertigkeitProf',   expField: 'FingerfertigkeitExp',   valField: 'FingerfertigkeitGes' },
+  { key: 'Geschichte',        en: 'History',         label: 'Geschichte',         attr: 'int', profField: 'GeschichteProf',         expField: 'GeschichteExp',         valField: 'GeschichteInt' },
+  { key: 'Heilkunde',         en: 'Medicine',        label: 'Heilkunde',          attr: 'wei', profField: 'HeilkundeProf',          expField: 'HeilkundeExp',          valField: 'HeilkundeWei' },
+  { key: 'Heimlichkeit',      en: 'Stealth',         label: 'Heimlichkeit',       attr: 'ges', profField: 'HeimlichkeitProf',       expField: 'HeimlichkeitExp',       valField: 'HeimlichkeitGes' },
+  { key: 'MitTierenUmgehen',  en: 'Animal Handling', label: 'Mit Tieren umgehen', attr: 'wei', profField: 'MitTierenUmgehenProf',   expField: 'MitTierenUmgehenExp',   valField: 'MitTierenUmgehenWei' },
+  { key: 'MotivErkennen',     en: 'Insight',         label: 'Motiv erkennen',     attr: 'wei', profField: 'MotivErkennenProf',      expField: 'MotivErkennenExp',      valField: 'MotivErkennenWei' },
+  { key: 'Nachforschungen',   en: 'Investigation',   label: 'Nachforschungen',    attr: 'int', profField: 'NachforschungenProf',    expField: 'NachforschungenExp',    valField: 'NachforschungenInt' },
+  { key: 'Naturkunde',        en: 'Nature',          label: 'Naturkunde',         attr: 'int', profField: 'NaturkundeProf',         expField: 'NaturkundeExp',         valField: 'NaturkundeInt' },
+  { key: 'Religion',          en: 'Religion',        label: 'Religion',           attr: 'int', profField: 'ReligionProf',           expField: 'ReligionExp',           valField: 'ReligionInt' },
+  { key: 'Täuschen',          en: 'Deception',       label: 'Täuschen',           attr: 'cha', profField: 'TäuschenProf',           expField: 'TäuschenExp',           valField: 'TäuschenCha' },
+  { key: 'Überlebenskunst',   en: 'Survival',        label: 'Überlebenskunst',    attr: 'wei', profField: 'ÜberlebenskunstProf',    expField: 'ÜberlebenskunstExp',    valField: 'ÜberlebenskunstWei' },
+  { key: 'Überzeugen',        en: 'Persuasion',      label: 'Überzeugen',         attr: 'cha', profField: 'ÜberzeugenProf',         expField: 'ÜberzeugenExp',         valField: 'ÜberzeugenCha' },
+  { key: 'Wahrnehmung',       en: 'Perception',      label: 'Wahrnehmung',        attr: 'wei', profField: 'WahrnehmungProf',        expField: 'WahrnehmungExp',        valField: 'WahrnehmungWei' },
+] as const satisfies readonly SkillDef[];
+
+// Vollständigkeit ist compilergeprüft: fehlt eine der 18 Fertigkeiten (oder ist eine
+// falsch geschrieben), ist `MissingSkill` nicht `never` und die Zuweisung schlägt fehl.
+type MissingSkill = Exclude<SkillName, (typeof SKILL_DEFS)[number]['en']>;
+const _skillDefsComplete: MissingSkill extends never ? true : MissingSkill = true;
+void _skillDefsComplete;
+
+const SHEET_KEY_BY_EN = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.key]));
+const EN_BY_SHEET_KEY = new Map<string, SkillName>(SKILL_DEFS.map((d) => [d.key, d.en]));
+
+/**
+ * Englischer SRD-Fertigkeitsname → deutscher Bogen-Schlüssel
+ * (`character.skills[…]`, `Acrobatics` → `Akrobatik`). Die EINE Richtung, in der
+ * Bibliotheks-Mechanik auf dem Bogen landet.
+ */
+export const skillSheetKey = (en: SkillName): string => SHEET_KEY_BY_EN.get(en) ?? en;
+
+/** Umkehrung: deutscher Bogen-Schlüssel → englischer SRD-Name (undefined bei Fremdschlüssel). */
+export const skillEnName = (sheetKey: string): SkillName | undefined => EN_BY_SHEET_KEY.get(sheetKey);
+
+/**
+ * Schneidet ein „ (Auslaugen)"-Suffix vom Waffennamen ab, das der PDF-Export an
+ * beherrschte Waffen hängt (`withMasterySuffix`, characterExport.ts) — ohne das
+ * wüchse der Name bei jedem Export/Import-Zyklus weiter an.
+ *
+ * Entfernt wird NUR eine bekannte Meisterschaftseigenschaft; „Langschwert (+1)" oder
+ * „Dolch (geweiht)" bleiben unangetastet. `MASTERY_BY_LABEL` ist dabei dieselbe
+ * Tabelle wie für die Anzeige, nur rückwärts gelesen — keine zweite Wahrheit.
+ */
+export function stripMasterySuffix(name: string): string {
+  const m = name.match(/^(.*\S)\s*\(([^()]+)\)\s*$/);
+  return m && MASTERY_BY_LABEL[m[2].trim().toLowerCase()] ? m[1] : name;
+}
 
 export function mod(score: number): number {
   return Math.floor((score - 10) / 2);
@@ -112,7 +182,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
   // Angriffe
   const attacks = [];
   for (let i = 1; i <= 5; i++) {
-    const name = f(`Angriff${i}`);
+    const name = stripMasterySuffix(f(`Angriff${i}`));
     if (name) {
       attacks.push({
         name,
@@ -154,10 +224,10 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     spellSlots.push({ total, used });
   }
 
-  const cantrips: string[] = [];
+  const cantrips: CharacterSpells['cantrips'] = [];
   for (let i = 1; i <= 8; i++) {
     const name = f(`Zaubertrick${i}`);
-    if (name) cantrips.push(name);
+    if (name) cantrips.push({ name });
   }
 
   // Spell count per level in Taendler v2.8.x: 1-4 → 13, 5-7 → 9, 8-9 → 7
@@ -178,9 +248,15 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
 
   return {
     name: f('Charaktername_page1'),
+    classes: [], // strukturierte Klassen: aus classLevel beim Laden migriert (best-effort)
     classLevel: f('KlasseUndStufe'),
     playerName: f('Spielername'),
+    // background-Link wie der species-Link: sourceKey leer (Bibliotheks-Verknüpfung
+    // erfolgt im Editor), Name = Freitext aus dem Formularfeld.
+    backgroundRef: { sourceKey: '', name: f('Hintergrund') },
     background: f('Hintergrund'),
+    // species-Link: sourceKey leer (Bibliotheks-Verknüpfung erfolgt im Editor), Name = Freitext.
+    species: { sourceKey: '', name: f('Volk') },
     race: f('Volk'),
     xp: f('Erfahrungspunkte'),
     str, ges, kon, int, wei, cha,
@@ -246,5 +322,10 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
       koerpergroesse: f('Körpergrösse'),
       aussehen: f('Aussehen'),
     },
+    // Das PDF führt die Waffenbeherrschung nur als Namenssuffix am Angriff (oben
+    // abgeschnitten) — welche Waffen gewählt sind, entscheidet der Editor.
+    masteries: [],
+    // Talent-Links und Merkmals-Entscheidungen sind nicht Teil des PDFs → leer starten.
+    features: [],
   };
 }

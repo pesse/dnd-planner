@@ -18,12 +18,16 @@
     loadEncounterMonsters,
   } from '../stores/context';
   import type { ContextFlags } from '../stores/context';
+  import { CHARACTER_CONTEXT_LEVELS, CHARACTER_CONTEXT_LABELS, CHARACTER_CONTEXT_HINTS } from '../services/characterContext';
   import { monsterTypeLabel } from '../types';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
   import { modelSupportsTemperature } from '../services/llmService';
   import { getClient } from '../services/llmClient';
+  import { composeToolsets, VAULT_TOOLSET } from '../services/vaultTools';
+  import { RULES_TOOLSET } from '../services/rulesTools';
   import type { AgentStep, AgentOptions } from '../services/llmService';
   import { debugLog, clearDebugLog } from '../stores/debug';
+  import DebugEntryView from './DebugEntryView.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
   import { ANTHROPIC_MODELS, GROQ_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
@@ -145,7 +149,14 @@
       `Filenames use kebab-case slugs. ` +
       `Workflow: read relevant files first to understand current state, then act. ` +
       `When a task involves an act and its encounter, update BOTH files. ` +
-      `Write complete, well-structured content. Summarize what you did at the end.`
+      `Write complete, well-structured content. Summarize what you did at the end.` +
+      `\n\n## Rules Reference\n` +
+      `<rules_reference>\n` +
+      `For D&D rules questions, consult the official German SRD 5.2.1 via these tools:\n` +
+      `- lookup_rule(term): the official Regelglossar definition of a term (accepts German OR English), with category, cross-references and page. Use this FIRST for any terminology question.\n` +
+      `- search_rules(query): full-text search over the rules prose (combat, character creation, classes, equipment, spellcasting), returning passages with section and page. Use for how-a-rule-works questions or when lookup_rule has no exact entry. Query in German.\n` +
+      `Ground your rules answers in these tools. If nothing is found, say so — never invent rules. Cite section and page, and answer in German.\n` +
+      `</rules_reference>`
     );
   }
 
@@ -197,7 +208,7 @@
       if (!client.agentLoop) {
         throw new Error('Dieser Provider unterstützt kein Tool Calling. Bitte Groq oder Anthropic wählen.');
       }
-      await client.agentLoop(task, buildAgentSystemPrompt(), options);
+      await client.agentLoop(task, buildAgentSystemPrompt(), options, composeToolsets(VAULT_TOOLSET, RULES_TOOLSET));
     } catch (e) {
       agentError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -716,6 +727,7 @@
           session: 'level-session',
           encounter: 'level-encounter',
           monster: 'level-library', spell: 'level-library', item: 'level-library',
+          class: 'level-library', species: 'level-library', feat: 'level-library', background: 'level-library',
         }[$activeFile.type] ?? 'level-campaign'}
         <button class="ctx-badge {fileLevelClass}" class:off={!$contextFlags.activeFile} onclick={() => toggleFlag('activeFile')}
           title={$activeFile.name}>
@@ -749,16 +761,14 @@
 
           {#if pin.isCharacter}
             <div class="detail-toggle">
-              <button
-                class="detail-btn"
-                class:active={pin.detailLevel === 'rp'}
-                onclick={() => setPinDetailLevel(pin.entry.path, 'rp')}>RP</button
-              >
-              <button
-                class="detail-btn"
-                class:active={pin.detailLevel === 'full'}
-                onclick={() => setPinDetailLevel(pin.entry.path, 'full')}>Voll</button
-              >
+              {#each CHARACTER_CONTEXT_LEVELS as level}
+                <button
+                  class="detail-btn"
+                  class:active={pin.detailLevel === level}
+                  title={CHARACTER_CONTEXT_HINTS[level]}
+                  onclick={() => setPinDetailLevel(pin.entry.path, level)}>{CHARACTER_CONTEXT_LABELS[level]}</button
+                >
+              {/each}
             </div>
           {/if}
 
@@ -1082,7 +1092,7 @@
               <span class="debug-chevron">{expandedDebugId === entry.id ? '▲' : '▼'}</span>
             </button>
             {#if expandedDebugId === entry.id}
-              <pre class="debug-data">{JSON.stringify(entry.data, null, 2)}</pre>
+              <DebugEntryView {entry} />
             {/if}
           </div>
         {/each}
@@ -2111,17 +2121,4 @@
     flex-shrink: 0;
   }
 
-  .debug-data {
-    margin: 0;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.68rem;
-    color: var(--ink-soft);
-    background: var(--bg-deep);
-    white-space: pre-wrap;
-    word-break: break-all;
-    border-top: 1px solid var(--bg-raised);
-    overflow-x: auto;
-    max-height: 400px;
-    overflow-y: auto;
-  }
 </style>

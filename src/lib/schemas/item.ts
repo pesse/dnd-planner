@@ -1,9 +1,10 @@
 /**
  * Single Source of Truth für Gegenstände: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Lehnt sich ans DnD-API-Schema an.
+ * LLM-JSON-Schema (siehe shared.ts). Lehnt sich ans Open5e-v2-Schema an (`/v2/items/`),
+ * adaptiert dessen inline weapon/armor-Detailobjekte in flache Felder (siehe open5eApi.ts).
  */
 import { z } from 'zod';
-import { namedRef } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE, WEAPON_MASTERIES } from './shared';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
@@ -11,17 +12,22 @@ const damageSchema = z.object({
 });
 
 export const itemSchema = z.object({
-  index: z.string().optional().describe('API-Slug der Basis (z.B. "warhammer"), leer bei Homebrew.'),
+  key: z.string().default('').describe('Identität ({source}_{slug}, z.B. "srd-2024_battleaxe"), leer bei Neuanlage.'),
+  index: z.string().optional().describe('Open5e-v2-Basis-Slug (z.B. "warhammer"), leer bei freiem Homebrew.'),
   name: z.string().describe('Originalname (Englisch).'),
   name_de: z.string().optional().describe('Deutscher Name.'),
   equipment_category: namedRef().describe(
-    'Kategorie als {index, name} im DnD-API-Format — die EINZIGE Typ-Quelle. ' +
-      'index ist einer von: weapon, armor, ammunition, adventuring-gear, tools, mounts-and-vehicles, ' +
-      'ring, rod, staff, wand, scroll, potion, wondrous-items. ' +
+    'Kategorie als {index, name} im Open5e-v2-Format — die EINZIGE Typ-Quelle. ' +
+      'index ist einer von: adventuring-gear, ammunition, armor, art, equipment-pack, gem, jewelry, ' +
+      'land-vehicle, mount, poison, potion, ring, rod, scroll, service, shield, spellcasting-focus, ' +
+      'staff, tools, trade-good, wand, waterborne-vehicle, weapon, wondrous-item. ' +
       'Eine magische Waffe bleibt "weapon"; Magie wird über rarity/attunement/magic_bonus ausgedrückt, NICHT über die Kategorie.',
   ),
   rarity: z
-    .object({ name: z.string().describe('z.B. Uncommon, Rare, Very Rare, Legendary') })
+    .object({
+      name: z.string().describe('z.B. Uncommon, Rare, Very Rare, Legendary'),
+      rank: z.number().int().optional().describe('Numerische Ordnung (Common=1 … Artifact=6), aus Open5e.'),
+    })
     .optional(),
   attunement: z.boolean().optional(),
   attunement_by: z.string().nullable().optional(),
@@ -34,6 +40,12 @@ export const itemSchema = z.object({
   range: z.object({ normal: z.number(), long: z.number().nullable().optional() }).optional(),
   throw_range: z.object({ normal: z.number(), long: z.number() }).optional(),
   properties: z.array(namedRef()).optional(),
+  mastery: z
+    .enum(WEAPON_MASTERIES)
+    .optional()
+    .describe(
+      'Meisterschaftseigenschaft der Waffe (5e 2024): genau eine je Waffenart. Nur bei Waffen setzen, sonst weglassen.',
+    ),
   magic_bonus: z
     .number()
     .int()
@@ -51,16 +63,47 @@ export const itemSchema = z.object({
     .object({ quantity: z.number(), unit: z.string().describe('gp | sp | cp | ep | pp') })
     .optional(),
   weight: z.number().nullable().optional().describe('in lbs.'),
-  source: z.string().default('Homebrew').describe('Herkunft, z.B. "KI", "SRD", "Homebrew".'),
-  url: z.string().optional(),
+  source: sourceField(),
+  document: z
+    .object({ key: z.string().default(''), gamesystem: z.string().default('') })
+    .default({ key: '', gamesystem: '' }),
 });
 
 export type Item = z.infer<typeof itemSchema>;
 
-/** Großschreibung je Wort für einen Slug („wondrous-items" → „Wondrous Items"). */
+/** Großschreibung je Wort für einen Slug („wondrous-item" → „Wondrous Item"). */
 function titleizeSlug(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
+
+/** Name → URL-Slug für den Fallback-`key` ("Ring of Protection" → "ring-of-protection"). */
+function slugify(s: string): string {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Identität eines Items, auch ohne `key` in der Datei (Homebrew, Altbestand). MUSS von
+ * jedem Leser benutzt werden, der Items identifiziert: sonst vergibt der Index, der die
+ * Rohdatei ohne Schema liest, eine andere Identität als die migrierte Datei trägt.
+ */
+export function itemKeyOf(raw: Record<string, unknown>): string {
+  if (typeof raw.key === 'string' && raw.key) return raw.key;
+  // Herkunft erst normalisieren: „homebrew" ergäbe sonst einen anderen Key als migriert.
+  const migrated = migrateSourceLegacy({ ...raw });
+  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  const name = typeof raw.name === 'string' ? raw.name : '';
+  return name ? `${source}_${slugify(name)}` : '';
+}
+
+/**
+ * Alt-Kategorien (dnd5eapi/2014) auf das Open5e-v2-Vokabular. Fängt unangetasteten
+ * Homebrew-Bestand beim Laden ab, ohne die Dateien zu verschieben.
+ */
+const CATEGORY_ALIASES: Record<string, string> = {
+  'wondrous-items': 'wondrous-item',
+  'mounts-and-vehicles': 'mount',
+  shields: 'shield',
+};
 
 /**
  * Migriert Altformat-Felder, sorgt für ein vorhandenes `equipment_category` (die einzige
@@ -84,6 +127,7 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
     delete r.attunement_requirements;
   }
   if (!Array.isArray(r.desc)) r.desc = [];
+  delete r.url; // dnd5eapi-Relikt, unter Open5e bedeutungslos
 
   // equipment_category ist die einzige Typ-Quelle. Fehlt sie (Altbestand), aus den
   // vorhandenen Feldern bzw. dem abgelösten item_type ableiten.
@@ -94,11 +138,29 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
     else if (r.armor_category || r.armor_class) idx = 'armor';
     else if (r.item_type === 'weapon') idx = 'weapon';
     else if (r.item_type === 'armor') idx = 'armor';
-    else if (r.item_type === 'magic' || r.rarity) idx = 'wondrous-items';
+    else if (r.item_type === 'magic' || r.rarity) idx = 'wondrous-item';
     else idx = 'adventuring-gear';
     r.equipment_category = { index: idx, name: titleizeSlug(idx) };
   }
   delete r.item_type;
 
-  return r;
+  // Alt-Kategorievokabular (dnd5eapi) → Open5e v2.
+  const ec = r.equipment_category as { index?: string; name?: string } | undefined;
+  if (ec?.index && CATEGORY_ALIASES[ec.index]) {
+    ec.index = CATEGORY_ALIASES[ec.index];
+    ec.name = titleizeSlug(ec.index);
+  }
+
+  const migrated = migrateSourceLegacy(r);
+
+  // `key` + `document` backfillen, damit auch Altbestand/Homebrew das einheitliche
+  // Identitäts-/Herkunftsmodell trägt (source === document.key). Der Importer setzt
+  // beides für SRD-Items explizit; hier greift nur, was noch keins hat.
+  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  migrated.key = itemKeyOf(migrated);
+  const doc = migrated.document as { key?: string; gamesystem?: string } | undefined;
+  if (!doc || typeof doc !== 'object') migrated.document = { key: source, gamesystem: '' };
+  else if (!doc.key) doc.key = source;
+
+  return migrated;
 }

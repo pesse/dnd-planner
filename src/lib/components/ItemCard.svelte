@@ -12,6 +12,8 @@
     DAMAGE_TYPE_LABELS,
     PROPERTY_LABELS,
     PROPERTY_INDEX_BY_LABEL,
+    MASTERY_INFO,
+    masteryLabel,
     COST_UNIT_LABELS,
     WEAPON_CATEGORY_LABELS,
     WEAPON_RANGE_LABELS,
@@ -29,16 +31,20 @@
     ftToMVal,
     mToFt,
   } from '$lib/itemLibrary';
-  import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import { translateItem } from '$lib/services/aiActions/translateAction';
+  import type { ItemTranslation } from '$lib/schemas/translation';
+  import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
+  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel, WEAPON_MASTERIES } from '$lib/schemas/shared';
   import { prepareItemPrint } from '$lib/utils/printItem';
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import { getResource, searchDndApiItems, mapApiResourceToItem, type DndApiItemRef } from '$lib/services/dndApi';
+  import { getOpen5eItem, searchOpen5eItems, mapOpen5eItem, type Open5eItemSearchResult } from '$lib/services/open5eApi';
   import AiEditModal from './AiEditModal.svelte';
   import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';
+  import Markdown from './Markdown.svelte';
   import { registerEditorGuard } from '$lib/stores/navigationGuard';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
@@ -341,22 +347,22 @@
     }
   }
 
-  // ── DnD-API-Import ───────────────────────────────────────────────────────────
+  // ── Open5e-v2-Import (Ausrüstung + Magie) ─────────────────────────────────────
 
   let apiRawResponse = $state<string | null>(null);
   let showApiRaw = $state(false);
   let importError = $state('');
 
-  const searchItems = searchDndApiItems;
+  const searchItems = searchOpen5eItems;
 
-  async function importFromApi(result: DndApiItemRef) {
+  async function importFromApi(result: Open5eItemSearchResult) {
     if (!draft) return;
     try {
-      const data = await getResource(result.url);
+      const data = await getOpen5eItem(result.url);
       apiRawResponse = JSON.stringify(data, null, 2);
       showApiRaw = false;
 
-      const item = mapApiResourceToItem(data, result.source);
+      const item = mapOpen5eItem(data);
       Object.assign(draft, item);
 
       draftDescText   = item.desc.join('\n\n');
@@ -372,25 +378,25 @@
 
   // ── LLM-Übersetzung ──────────────────────────────────────────────────────────
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     if (!draft) return null;
     const toTranslate: Record<string, unknown> = {};
     if (draft.name) toTranslate.name = draft.name;
     const desc = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
     if (desc.length) toTranslate.desc = desc;
     if (Object.keys(toTranslate).length === 0) return null;
-    return `Translate these D&D item fields:\n\n${JSON.stringify(toTranslate, null, 2)}`;
+    return translateItem(toTranslate);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: ItemTranslation) {
     if (!draft) return;
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Keine gültige JSON-Antwort vom LLM');
-    const translated = JSON.parse(match[0]) as Record<string, unknown>;
-    if (translated.name_de) draft.name_de = translated.name_de as string;
-    if (Array.isArray(translated.desc_de)) {
-      draft.desc_de = translated.desc_de as string[];
-      draftDescDeText = (translated.desc_de as string[]).join('\n\n');
+    if (t.name_de) draft.name_de = convertDistances(t.name_de);
+    if (t.desc_de.length) {
+      const de = t.desc_de.map(convertDistances);
+      draft.desc_de = de;
+      draftDescDeText = de.join('\n\n');
     }
   }
 
@@ -471,7 +477,7 @@
         <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
         <!-- Spielwerte je nach Typ -->
-        {#if stype === 'weapon' && (item.damage || item.range || item.throw_range || item.magic_bonus || item.properties?.length)}
+        {#if stype === 'weapon'}
           <div class="props">
             {#if item.damage}
               <div class="prop"><span class="plabel">Schaden</span>
@@ -492,6 +498,15 @@
                 <span class="pills">{#each item.properties as prop}<span class="pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>{/each}</span>
               </div>
             {/if}
+            <!-- Meisterschaft: bei Waffen IMMER eine Zeile — ohne Eintrag ein Hinweis
+                 statt stiller Leere, damit die Pflege-Lücke sichtbar bleibt. -->
+            <div class="prop"><span class="plabel">Meisterschaft</span>
+              {#if item.mastery}
+                <span class="pills"><span class="pill mastery-pill" title={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
+              {:else}
+                <span class="mastery-missing">— nicht gepflegt</span>
+              {/if}
+            </div>
           </div>
           <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
@@ -512,21 +527,21 @@
 
         <!-- Beschreibung -->
         {#if item.desc_de?.length}
-          <div class="desc">{item.desc_de.join('\n\n')}</div>
+          <div class="desc"><Markdown source={item.desc_de} /></div>
           {#if item.desc?.length}
             <details class="desc-orig">
               <summary>Original (Englisch)</summary>
-              <div class="desc-orig-body">{item.desc.join('\n\n')}</div>
+              <div class="desc-orig-body"><Markdown source={item.desc} /></div>
             </details>
           {/if}
         {:else if item.desc?.length}
-          <div class="desc">{item.desc.join('\n\n')}</div>
+          <div class="desc"><Markdown source={item.desc} /></div>
         {:else}
           <div class="desc muted">—</div>
         {/if}
 
         <div class="foot">
-          <span class="src">{item.source}</span>
+          <span class="src">{sourceLabel(item.source)}</span>
           <span class="foot-right">
             {#if item.cost}{formatCost(item.cost)}{/if}{#if item.cost && item.weight != null} · {/if}{#if item.weight != null}{item.weight} Pfd.{/if}
           </span>
@@ -577,9 +592,9 @@
             {/each}
           </select>
           <select class="edit-select" bind:value={draft.source}>
-            <option value="SRD">SRD</option>
-            <option value="Homebrew">Homebrew</option>
-            <option value="eigen">Eigen</option>
+            {#each SOURCE_KEYS as key}
+              <option value={key}>{SOURCE_LABELS[key]}</option>
+            {/each}
           </select>
         </div>
       </div>
@@ -712,6 +727,23 @@
             <span class="prop-label">Eigenschaften</span>
             <input class="edit-input" bind:value={draftPropsText} placeholder="kommagetrennt, z.B. Finesse, Light" />
           </div>
+          <div class="prop-row">
+            <span class="prop-label" title="Meisterschaftseigenschaft der Waffenart (5e 2024)">Meisterschaft</span>
+            <select class="edit-select"
+              value={draft.mastery ?? ''}
+              onchange={(e) => {
+                const v = (e.currentTarget as HTMLSelectElement).value;
+                draft!.mastery = v ? (v as typeof WEAPON_MASTERIES[number]) : undefined;
+              }}>
+              <option value="">—</option>
+              {#each WEAPON_MASTERIES as m}
+                <option value={m}>{MASTERY_INFO[m].nameDe}</option>
+              {/each}
+            </select>
+          </div>
+          {#if draft.mastery}
+            <p class="mastery-rule">{MASTERY_INFO[draft.mastery].descDe}</p>
+          {/if}
           <div class="prop-row">
             <span class="prop-label" title="Magischer Bonus auf Angriffs- und Schadenswürfe">Magischer Bonus</span>
             <input class="edit-input" type="number" min="0" step="1"
@@ -846,10 +878,11 @@
 
       <div class="card-divider"></div>
 
-      <!-- DnD-API-Import -->
+      <!-- Open5e-v2-Import (Ausrüstung + Magie) -->
       <div class="edit-section api-section">
         <DndApiSearch
-          placeholder="Name suchen…"
+          label="Aus Open5e laden"
+          placeholder="Name suchen (englisch)…"
           onsearch={searchItems}
           onselect={importFromApi}
         />
@@ -884,8 +917,7 @@
 {#if showTranslateModal && draft}
   <TranslateModal
     entityName={draft.name_de || draft.name || 'Gegenstand'}
-    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslateModal = false)}
   />
@@ -991,10 +1023,16 @@
     border-radius: 99px; font-size: 0.7rem; padding: 0.05rem 0.5rem; color: var(--ink-soft);
   }
   .item-card-view .disadv { color: var(--danger); }
+  /* Meisterschaft hebt sich von den Eigenschaften-Pillen ab (Regeltext im title). */
+  .item-card-view .mastery-pill {
+    border-color: color-mix(in srgb, var(--c) 60%, transparent);
+    color: var(--ink); font-weight: 600; cursor: help;
+  }
+  .item-card-view .mastery-missing { color: var(--border); font-size: 0.78rem; font-style: italic; }
 
   .item-card-view .desc {
     padding: 0.55rem 1.2rem;
-    font-size: 0.84rem; line-height: 1.6; color: var(--ink); white-space: pre-wrap;
+    font-size: 0.84rem; line-height: 1.6; color: var(--ink);
   }
   .item-card-view .desc.muted { color: var(--border); }
   .item-card-view .desc-orig { padding: 0 1.2rem 0.5rem; }
@@ -1004,7 +1042,7 @@
   }
   .item-card-view .desc-orig-body {
     margin-top: 0.4rem; font-size: 0.8rem; color: var(--ink-muted); line-height: 1.55;
-    font-style: italic; white-space: pre-wrap;
+    font-style: italic;
   }
 
   .item-card-view .foot {
@@ -1065,6 +1103,13 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  /* Regeltext der gewählten Meisterschaft — im Editor direkt unter dem Select,
+     linksbündig zur Wertespalte der .prop-row (7.5rem Label + 0.5rem gap). */
+  .mastery-rule {
+    margin: -0.2rem 0 0.1rem 8rem;
+    font-size: 0.78rem; line-height: 1.5; font-style: italic; color: var(--ink-muted);
   }
 
   .card-divider { height: 1px; background: var(--surface); margin: 0 1.4rem; }

@@ -38,8 +38,7 @@ export interface AgentOptions {
 
 export const TASK_TEMPERATURE = {
   agent: 0.0,       // Tool-Calling — maximale Reproduzierbarkeit
-  translate: 0.2,   // Übersetzung — nah am Original, deterministisch
-  structured: 0.3,  // JSON-Generierung (Monster/Encounter) — wenig Streuung
+  structured: 0.3,  // JSON-Generierung (Monster/Encounter/Übersetzung) — wenig Streuung
   chat: 0.7,        // Konversation
   creative: 0.8,    // freie Generierung (NPCs, Story-Text)
 } as const;
@@ -143,6 +142,30 @@ export const VAULT_TOOLSET: AgentToolset = {
   openAiTools: VAULT_TOOLS_OPENAI,
   execute: (name, args, writeFile) => executeTool(name, args as Record<string, string>, writeFile),
 };
+
+/**
+ * Kombiniert mehrere Toolsets zu einem: konkateniert die Tool-Arrays und delegiert
+ * `execute` der Reihe nach. Jeder Sub-Executor wirft bei unbekanntem Namen einen
+ * „Unknown …"-Fehler → dann wird das nächste Set versucht. Tool-Namen müssen über
+ * alle Sets EINDEUTIG sein.
+ */
+export function composeToolsets(...sets: AgentToolset[]): AgentToolset {
+  return {
+    anthropicTools: sets.flatMap((s) => s.anthropicTools),
+    openAiTools: sets.flatMap((s) => s.openAiTools),
+    async execute(name, args, writeFile) {
+      for (const s of sets) {
+        try {
+          return await s.execute(name, args, writeFile);
+        } catch (e) {
+          if (e instanceof Error && /^Unknown (tool|DnD tool|rules tool):/i.test(e.message)) continue;
+          throw e;
+        }
+      }
+      throw new Error(`Unknown tool: ${name}`);
+    },
+  };
+}
 
 // ── Tool-Ausführung (Tauri) ─────────────────────────────────────────────────
 

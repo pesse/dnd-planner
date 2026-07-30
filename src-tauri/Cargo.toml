@@ -29,4 +29,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# Bibliotheks-Packs: Container entschlüsseln (siehe vault/tools/PACK_FORMAT.md).
+# Gegenstück ist vault/tools/build_packs.py — Verfahren und Parameter müssen
+# auf beiden Seiten übereinstimmen.
+aes-gcm = "0.10"
+scrypt = { version = "0.11", default-features = false }
+hmac = "0.12"
+sha2 = "0.10"
 

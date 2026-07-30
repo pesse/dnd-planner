@@ -7,12 +7,18 @@
   import EncounterCard from '$lib/components/EncounterCard.svelte';
   import SpellCard from '$lib/components/SpellCard.svelte';
   import ItemCard from '$lib/components/ItemCard.svelte';
+  import ClassCard from '$lib/components/ClassCard.svelte';
+  import SpeciesCard from '$lib/components/SpeciesCard.svelte';
+  import FeatCard from '$lib/components/FeatCard.svelte';
+  import BackgroundCard from '$lib/components/BackgroundCard.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
   import { checkForUpdate } from '$lib/stores/update';
+  import { checkLibrariesOnStartup } from '$lib/stores/libraries';
+  import { getRulesIndex } from '$lib/services/rulesReference';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
@@ -59,7 +65,7 @@
       const richSlugs = new Set(rich.map((c) => c.slug));
       const plain = activeSlugs
         .filter((s) => !richSlugs.has(s))
-        .map((s) => ({ slug: s, name: s, classLevel: '', race: '', playerName: '' }));
+        .map((s) => ({ slug: s, name: s, classLevel: '', species: '', background: '', totalLevel: 0, playerName: '' }));
       return [...rich, ...plain];
     })()
   );
@@ -121,6 +127,10 @@
   let isEncounter = $derived($activeFile?.type === 'encounter');
   let isSpell = $derived($activeFile?.type === 'spell');
   let isItem = $derived($activeFile?.type === 'item');
+  let isClass = $derived($activeFile?.type === 'class');
+  let isSpecies = $derived($activeFile?.type === 'species');
+  let isFeat = $derived($activeFile?.type === 'feat');
+  let isBackground = $derived($activeFile?.type === 'background');
 
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
@@ -202,7 +212,11 @@
         activeFile.set({ ...file, path: newFilePath });
         invalidateVault();
       } catch (e) {
-        alert(`Umbenennen fehlgeschlagen: ${e}`);
+        await confirmAction({
+          title: 'Umbenennen fehlgeschlagen',
+          message: `${e}`,
+          confirmLabel: 'OK',
+        });
       }
     } else if (file.type === 'item') {
       const slug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
@@ -351,11 +365,31 @@
     // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
     void checkForUpdate();
 
+    // Bibliotheksverzeichnis prüfen. Offene, noch nicht vorhandene Bibliotheken
+    // werden dabei installiert, damit eine frische Installation ohne
+    // Zugangscode sofort brauchbar ist. Updates nie ungefragt — dafür der Badge.
+    void checkLibrariesOnStartup();
+
+    // Regel-Suchindex (MiniSearch) einmalig vorwärmen, damit die erste
+    // search_rules-Abfrage im KI-Panel nicht kalt startet. Nach dem ersten Paint.
+    setTimeout(() => getRulesIndex(), 0);
+
     function onError(e: ErrorEvent) {
       pushError(e.message || String(e));
     }
+    // Wird ein laufender Stream-Request abgebrochen (z.B. beim Schließen des
+    // Charakter-Wizards, der KI-Jobs nebenläufig fährt), räumt der Tauri-HTTP-Plugin
+    // die Body-Ressource doppelt ab: das zweite `fetch_cancel_body` läuft ins Leere
+    // und der Plugin `void`t die Rejection → sie landet hier als unhandled. Diese
+    // Teardown-Rennen sind bedeutungslos; nur echte Fehler sollen einen Toast erzeugen.
+    const isBenignAbortNoise = (msg: string): boolean =>
+      msg === 'Request cancelled' || /the resource id \d+ is invalid/i.test(msg);
     function onUnhandled(e: PromiseRejectionEvent) {
       const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+      if (isBenignAbortNoise(msg)) {
+        e.preventDefault();
+        return;
+      }
       pushError(msg);
     }
 
@@ -440,6 +474,42 @@
         {/if}
       </div>
       <ItemCard />
+    {:else if isClass}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title class-title">📖 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <ClassCard />
+    {:else if isSpecies}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title species-title">🧬 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <SpeciesCard />
+    {:else if isFeat}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title feat-title">✴ {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <FeatCard />
+    {:else if isBackground}
+      <div class="toolbar">
+        {#if $activeFile}
+          <div class="file-title-area">
+            <span class="file-title background-title">🎭 {$activeFile.name}</span>
+          </div>
+        {/if}
+      </div>
+      <BackgroundCard />
     {:else}
       <div class="toolbar">
         {#if $activeFile}
@@ -746,6 +816,22 @@
 
   .item-title {
     color: var(--copper);
+  }
+
+  .class-title {
+    color: var(--copper);
+  }
+
+  .species-title {
+    color: var(--green);
+  }
+
+  .feat-title {
+    color: var(--gold);
+  }
+
+  .background-title {
+    color: var(--teal);
   }
 
   .rename-btn {

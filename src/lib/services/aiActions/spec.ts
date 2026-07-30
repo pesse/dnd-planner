@@ -5,35 +5,32 @@
  * Schema übrig — der Create/Edit-Workflow ist „immer gleich, mit anderen Details".
  */
 
-/** Vom Factory vorgefertigte, mechanische Prompt-Bausteine. */
+import type Anthropic from '@anthropic-ai/sdk';
+
+/** Vom Factory vorgefertigte Prompt-Bausteine; jeder ist '', wo er nicht zutrifft. */
 export interface PromptParts {
-  /** Formatierter „## Vorlage"-Block (oder '' bei Anlage ohne Vorlage). */
-  templateBlock: string;
-  /** Formatierter „## Aktueller X"-Block (nur Edit). */
-  currentBlock: string;
-  /** Formatierter Hinweis auf den gewünschten Namen (oder ''). */
+  templateBlock: string; // „## Vorlage" — leer bei Anlage ohne Vorlage
+  currentBlock: string; // „## Aktueller X" — nur Edit
   nameHint: string;
-  /** Formatierter Kategorie-Hinweis (nur Item, sonst ''). */
-  categoryHint: string;
+  categoryHint: string; // nur Item
 }
 
 export interface EntityActionSpec<T> {
-  /** Stabile Kurz-ID, z.B. 'item' | 'monster' | 'spell'. */
-  entity: string;
-  /** Deutsches Substantiv für Labels, z.B. 'Gegenstand'. */
-  nounDe: string;
-  /** Überschrift des Edit-Kontextblocks, z.B. 'Aktueller Gegenstand'. */
-  currentHeading: string;
-  /** LLM-JSON-Schema (aus toLlmJsonSchema(<entity>Schema)). */
+  entity: string; // 'item' | 'monster' | 'spell' | …
+  nounDe: string; // fürs Label: „Gegenstand"
+  currentHeading: string; // Überschrift des Edit-Kontextblocks
   jsonSchema: object;
-  /** Laufzeitprüfung des Ergebnisses. */
   validate: (data: unknown) => data is T;
-  /** Anlage-Prompt; verzweigt selbst nach `parts.templateBlock` (mit/ohne Vorlage). */
+  /** Verzweigt selbst nach `parts.templateBlock` (mit/ohne Vorlage). */
   buildCreatePrompt: (parts: PromptParts) => string;
-  /** Überarbeitungs-Prompt (nutzt `parts.currentBlock`). */
   buildEditPrompt: (parts: PromptParts) => string;
-  /** Optionaler, entity-spezifischer Namens-Hinweis (sonst Standard-Formulierung). */
-  nameHint?: (name: string) => string;
-  /** Optionaler Kategorie-Hinweis (nur Item). */
-  categoryHint?: (categoryKey: string) => string;
+  nameHint?: (name: string) => string; // sonst Standard-Formulierung
+  categoryHint?: (categoryKey: string) => string; // nur Item
+  /**
+   * Recherche-Tools; fehlen sie, greifen die DnD-API-Tools (Monster/Zauber). Die drei
+   * gehören zusammen — eines allein zu setzen lässt den Tool-Loop ins Leere laufen.
+   */
+  anthropicTools?: Anthropic.Tool[];
+  openAiTools?: unknown[];
+  execute?: (name: string, args: Record<string, unknown>) => Promise<string>;
 }

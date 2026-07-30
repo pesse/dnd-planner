@@ -9,10 +9,13 @@
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
-  import { TRANSLATION_SYSTEM_PROMPT } from '$lib/prompts';
+  import { translateSpell } from '$lib/services/aiActions/translateAction';
+  import type { SpellTranslation } from '$lib/schemas/translation';
+  import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
+  import Markdown from './Markdown.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
-  import { searchSpells, getResource, mapApiResourceToSpell, type DndApiRef } from '$lib/services/dndApi';
+  import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
 
@@ -66,11 +69,11 @@
     ed.draft = r.ok ? r.data : revised;
   }
 
-  /** Lädt einen SRD-Zauber und übernimmt ihn als Draft. */
-  async function importFromApi(ref: DndApiRef) {
+  /** Lädt einen SRD-Zauber aus Open5e v2 und übernimmt ihn als Draft. */
+  async function importFromApi(result: Open5eItemSearchResult) {
     importError = '';
     try {
-      const mapped = mapApiResourceToSpell(await getResource(ref.url));
+      const mapped = mapOpen5eSpell(await getSpell(result.url));
       const r = _parseSpell(mapped);
       ed.draft = r.ok ? r.data : mapped;
     } catch (e) {
@@ -78,7 +81,8 @@
     }
   }
 
-  function buildTranslationPrompt(): string | null {
+  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
+  function buildTranslationRun() {
     const s = ed.draft;
     if (!s) return null;
     const payload: Record<string, unknown> = {};
@@ -87,105 +91,20 @@
     if (s.components.material && s.components.materials_needed) payload.materials_needed = s.components.materials_needed;
     if (s.desc?.length) { payload.casting_time = s.casting_time; payload.range = s.range; payload.duration = s.duration; }
     if (!Object.keys(payload).length) return null;
-    return JSON.stringify(payload);
+    return translateSpell(payload);
   }
 
-  function applyTranslation(raw: string) {
+  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  function applyTranslation(t: SpellTranslation) {
     const s = ed.draft;
     if (!s) return;
-    try {
-      const result = JSON.parse(raw);
-      if (Array.isArray(result.desc_de)) s.desc_de = result.desc_de;
-      if (Array.isArray(result.higher_level_de)) s.higher_level_de = result.higher_level_de;
-      if (typeof result.materials_needed === 'string') s.components.materials_needed = result.materials_needed;
-      if (typeof result.casting_time === 'string') s.casting_time = result.casting_time;
-      if (typeof result.range === 'string') s.range = result.range;
-      if (typeof result.duration === 'string') s.duration = result.duration;
-    } catch { /* ignore */ }
+    if (t.desc_de.length) s.desc_de = t.desc_de.map(convertDistances);
+    if (t.higher_level_de.length) s.higher_level_de = t.higher_level_de.map(convertDistances);
+    if (t.materials_needed) s.components.materials_needed = convertDistances(t.materials_needed);
+    if (t.casting_time) s.casting_time = convertDistances(t.casting_time);
+    if (t.range) s.range = convertDistances(t.range);
+    if (t.duration) s.duration = convertDistances(t.duration);
   }
-
-  // ── Beschreibungs-Splitting für Kartenansicht ────────────────────────────────
-
-  const SCREEN_DESC_FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
-  // 380px Kartenbreite − 2×1.1rem horizontales Padding (≈17.6px)
-  const SCREEN_CARD_TEXT_W = 346;
-
-  function splitScreenDesc(description: string): string[] {
-    if (!description) return [''];
-    // Erste Karte: nach Header, Props, 2×Ornament, Footer bleibt ~260px für Beschreibung
-    // Folge-Karten: nach Mini-Header + Ornament bleiben ~380px
-    const FIRST_H = 260;
-    const CONT_H  = 380;
-
-    const el = document.createElement('div');
-    el.style.cssText = [
-      'position:fixed', 'top:-9999px', 'left:-9999px',
-      `font-family:${SCREEN_DESC_FONT}`,
-      'font-size:0.82rem',
-      'line-height:1.55',
-      'white-space:pre-wrap',
-      'word-break:break-word',
-      'overflow:hidden',
-      'box-sizing:border-box',
-      `width:${SCREEN_CARD_TEXT_W}px`,
-      'padding:0.55rem 0',
-    ].join(';');
-    document.body.appendChild(el);
-
-    const chunks: string[] = [];
-    let remaining = description;
-    let isFirst = true;
-
-    try {
-      while (remaining.length > 0) {
-        const maxH = isFirst ? FIRST_H : CONT_H;
-        el.style.height = `${maxH}px`;
-        el.textContent = remaining;
-
-        if (el.scrollHeight <= el.clientHeight + 2) {
-          chunks.push(remaining);
-          break;
-        }
-
-        const positions: number[] = [0];
-        for (let i = 1; i < remaining.length; i++) {
-          const ch = remaining[i - 1];
-          if (ch === ' ' || ch === '\n') positions.push(i);
-        }
-        positions.push(remaining.length);
-
-        let lo = 0, hi = positions.length - 1;
-        while (lo < hi - 1) {
-          const mid = Math.floor((lo + hi) / 2);
-          el.textContent = remaining.slice(0, positions[mid]);
-          if (el.scrollHeight <= el.clientHeight + 2) lo = mid;
-          else hi = mid;
-        }
-
-        const chunk = remaining.slice(0, positions[lo]).trimEnd();
-        if (!chunk) {
-          chunks.push(remaining.slice(0, 80));
-          remaining = remaining.slice(80).trimStart();
-        } else {
-          chunks.push(chunk);
-          remaining = remaining.slice(chunk.length).trimStart();
-        }
-        isFirst = false;
-      }
-    } finally {
-      document.body.removeChild(el);
-    }
-
-    return chunks.length > 0 ? chunks : [''];
-  }
-
-  let descChunks = $state<string[]>(['']);
-
-  $effect(() => {
-    const d = draft;
-    if (d) descChunks = splitScreenDesc(spellDesc(d));
-    else descChunks = [''];
-  });
 
   function componentStr(s: Spell): string {
     const parts: string[] = [];
@@ -233,47 +152,37 @@
       {@const higherLevel = spellHigherLevel(draft!)}
       {@const comps = componentStr(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
-      <div class="cards-wrap">
-        {#each descChunks as chunk, i}
-          {@const isLast = i === descChunks.length - 1}
-          <div class="spell-card" style="--c: {pc}">
-            {#if i === 0}
-              <div class="head">
-                <div class="name">
-                  {draft!.name}{#if draft!.ritual} <span class="ritual">Ritual</span>{/if}
-                </div>
-                <div class="meta">{spellLevelLabel(draft!.level)} · {SPELL_SCHOOLS[draft!.school] ?? draft!.school}</div>
-              </div>
-              <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
-              <div class="props">
-                <div class="prop-row">
-                  <span class="pc"><span class="icon">⚡</span>{draft!.casting_time}</span>
-                  <span class="pc"><span class="icon">◎</span>{draft!.range}</span>
-                  <span class="pc"><span class="icon">⌛</span>{draft!.duration.replace('Konzentration, ', 'Konz. ')}</span>
-                </div>
-                <div class="prop">
-                  <span class="icon">✦</span>
-                  <span>{comps}{#if draft!.components.materials_needed} <span class="mat">({draft!.components.materials_needed})</span>{/if}</span>
-                </div>
-              </div>
-            {:else}
-              <div class="head-cont">
-                <span class="name-sm">{draft!.name}</span>
-                <span class="cont-lbl">({i + 1})</span>
-              </div>
-            {/if}
-            <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
-            <div class="desc">{chunk}</div>
-            {#if isLast && higherLevel}
-              <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> {higherLevel}</div>
-            {/if}
-            {#if i === 0}
-              <div class="foot">
-                <span>{draft!.classes.map(c => SPELL_CLASS_LABELS[c] ?? c).join(' · ')}</span>
-              </div>
-            {/if}
+      <div class="card-wrap">
+        <div class="spell-card" style="--c: {pc}">
+          <div class="head">
+            <div class="name">
+              {draft!.name}{#if draft!.ritual} <span class="ritual">Ritual</span>{/if}
+            </div>
+            <div class="meta">{spellLevelLabel(draft!.level)} · {SPELL_SCHOOLS[draft!.school] ?? draft!.school}</div>
           </div>
-        {/each}
+          <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
+          <div class="props">
+            <div class="prop-row">
+              <span class="pc"><span class="icon">⚡</span>{draft!.casting_time}</span>
+              <span class="pc"><span class="icon">◎</span>{draft!.range}</span>
+              <span class="pc"><span class="icon">⌛</span>{draft!.duration.replace('Konzentration, ', 'Konz. ')}</span>
+            </div>
+            <div class="prop">
+              <span class="icon">✦</span>
+              <span>{comps}{#if draft!.components.materials_needed} <span class="mat">({draft!.components.materials_needed})</span>{/if}</span>
+            </div>
+          </div>
+          <div class="orndiv"><div class="ol"></div><span class="og">✦</span><div class="ol"></div></div>
+          <!-- Kein Splitting auf mehrere Karten: die Karte darf beliebig hoch werden, das
+               EditorPanel scrollt. Aufteilen ist allein eine Druck-Anforderung (printSpell.ts). -->
+          <div class="desc"><Markdown source={spellDesc(draft!)} /></div>
+          {#if higherLevel}
+            <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higherLevel} inline /></div>
+          {/if}
+          <div class="foot">
+            <span>{draft!.classes.map(c => SPELL_CLASS_LABELS[c] ?? c).join(' · ')}</span>
+          </div>
+        </div>
       </div>
     {/snippet}
 
@@ -288,7 +197,7 @@
             <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
             <button class="ai-btn" onclick={() => (showAi = true)}>✨ KI überarbeiten…</button>
           </div>
-          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchSpells} onselect={importFromApi} />
+          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchOpen5eSpells} onselect={importFromApi} />
           {#if importError}<span class="import-error">{importError}</span>{/if}
         </div>
       {/if}
@@ -326,8 +235,7 @@
 {#if showTranslate && ed.draft}
   <TranslateModal
     entityName={ed.draft.name || 'Zauber'}
-    systemPrompt={TRANSLATION_SYSTEM_PROMPT}
-    buildPrompt={buildTranslationPrompt}
+    build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslate = false)}
   />
@@ -356,10 +264,9 @@
   .import-error { color: var(--danger); font-size: 0.78rem; }
 
   /* ── Karten-Container ── */
-  .cards-wrap {
+  .card-wrap {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     align-items: center;
     width: 100%;
   }
@@ -424,30 +331,6 @@
     font-style: italic;
   }
 
-  /* ── Folge-Karten-Header ── */
-  .head-cont {
-    padding: 0.6rem 1.2rem 0.4rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    justify-content: center;
-    flex-shrink: 0;
-    background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--c) 30%, var(--bg)) 0%,
-      color-mix(in srgb, var(--c) 6%, var(--bg)) 100%);
-  }
-  .name-sm {
-    font-size: 0.95rem;
-    font-weight: 700;
-    font-variant: small-caps;
-    color: var(--ink);
-  }
-  .cont-lbl {
-    font-size: 0.68rem;
-    color: var(--ink-soft);
-    font-style: italic;
-  }
-
   .orndiv {
     display: flex;
     align-items: center;
@@ -504,7 +387,6 @@
     font-size: 0.82rem;
     line-height: 1.55;
     color: var(--ink);
-    white-space: pre-wrap;
   }
 
   .higher {
@@ -512,7 +394,6 @@
     font-size: 0.77rem;
     line-height: 1.45;
     color: var(--ink-soft);
-    white-space: pre-wrap;
   }
   .higher-lbl {
     font-weight: 700;

@@ -1,10 +1,20 @@
-import { derived, writable, type Writable } from 'svelte/store';
+import { derived, writable, get, type Writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
 import { monsterSizeLabel, monsterTypeLabel } from '../types';
-import { normalizeMonster } from '../utils/schemaValidation';
-import { extractCharacterInfo, formatCharacterForContext } from '../utils/characterExtract';
+import { normalizeMonster, normalizeCharacter } from '../utils/schemaValidation';
+import {
+  characterMinimum,
+  formatMinimumLine,
+  buildCharacterContextFromRaw,
+  loadCharacterNotes,
+  characterDirOf,
+  CHARACTER_CONTEXT_LABELS,
+  type CharacterMinimum,
+  type CharacterContextLevel,
+  type CharacterNotes,
+} from '../services/characterContext';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
 import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
 
@@ -18,7 +28,8 @@ export interface EncounterSummaryEntry {
   status: 'planned' | 'done' | 'skipped';
 }
 
-export type PinDetailLevel = 'rp' | 'full';
+/** Tiefe eines gepinnten Charakters — die drei Kontext-Stufen (Alias). */
+export type PinDetailLevel = CharacterContextLevel;
 
 export interface MonsterLibraryEntry {
   slug: string;
@@ -73,6 +84,8 @@ export interface PinnedEntry {
   content: string;
   detailLevel: PinDetailLevel;
   isCharacter: boolean;
+  /** Begleitdateien (details.md/gm-notes.md) — nur bei Charakteren, für die Stufe `full`. */
+  notes?: CharacterNotes;
 }
 
 export interface ActSummaryEntry {
@@ -84,19 +97,22 @@ export interface ActSummaryEntry {
 
 export const pinnedEntries = writable<PinnedEntry[]>([]);
 
+/**
+ * Gepufferte, voll aufgelöste Charakter-Kontextblöcke je `character.json`-Pfad. Weil
+ * die Merkmalstexte im Vault liegen, ist ihr Aufbau asynchron — `systemPrompt` (ein
+ * synchrones `derived`) liest deshalb nur diese Map, die `refreshCharacterContexts`
+ * füllt.
+ */
+export const characterContextBlocks = writable<Map<string, string>>(new Map());
+
 /** Akt-Summaries der aktiven Kampagne — wird beim Kampagnen-Wechsel geladen. */
 export const actSummaries = writable<ActSummaryEntry[]>([]);
 
 /** Inhalt der campaign.md der aktiven Kampagne. */
 export const campaignContent = writable<string>('');
 
-export interface CharacterCompact {
-  slug: string;
-  name: string;
-  classLevel: string;
-  race: string;
-  playerName: string;
-}
+/** Identitäts-Extrakt eines Charakters (Alias auf die Minimum-Sicht des Kontext-Service). */
+export type CharacterCompact = CharacterMinimum;
 
 /** Geladene Charakterdaten aus dem Frontmatter der campaign.md. */
 export const campaignCharacterData = writable<CharacterCompact[]>([]);
@@ -133,14 +149,9 @@ async function loadCampaignCharacters(campaignMd: string): Promise<void> {
         const raw = await invoke<string>('read_file_content', {
           path: `./vault/characters/${slug}/character.json`,
         });
-        const data = JSON.parse(raw);
-        return {
-          slug,
-          name: (data.name as string) ?? slug,
-          classLevel: (data.classLevel as string) ?? '',
-          race: (data.race as string) ?? '',
-          playerName: (data.playerName as string) ?? '',
-        };
+        // Über normalizeCharacter statt roher Feldzugriffe: bevorzugt die Links
+        // (classes/species/backgroundRef) und fällt auf die abgeleiteten Strings zurück.
+        return characterMinimum(normalizeCharacter(JSON.parse(raw)), slug);
       } catch {
         return null;
       }
@@ -403,8 +414,8 @@ function getFileTypeFocus(type: FileEntry['type'] | undefined): string {
 }
 
 export const systemPrompt = derived(
-  [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, encounterSummaries, monsterLibrary, encounterMonsterDefs, campaignContent, contextFlags, campaignCharacterData],
-  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags, $campaignCharacterData]) => {
+  [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, encounterSummaries, monsterLibrary, encounterMonsterDefs, campaignContent, contextFlags, campaignCharacterData, characterContextBlocks],
+  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags, $campaignCharacterData, $characterContextBlocks]) => {
     const parts: string[] = [];
 
     parts.push(
@@ -438,14 +449,7 @@ export const systemPrompt = derived(
           }
         }
         if (partyToShow.length > 0) {
-          const lines = partyToShow.map((c) => {
-            const fields: string[] = [c.name];
-            if (c.race) fields.push(c.race);
-            if (c.classLevel) fields.push(c.classLevel);
-            if (c.playerName) fields.push(`Spieler: ${c.playerName}`);
-            return `- ${fields.join(', ')}`;
-          });
-          parts.push(`\n## Partycharaktere\n${lines.join('\n')}`);
+          parts.push(`\n## Party Characters\n${partyToShow.map(formatMinimumLine).join('\n')}`);
         }
       }
 
@@ -603,24 +607,30 @@ export const systemPrompt = derived(
 
       // Active file (full content)
       if ($activeFile && $fileContent && $contextFlags.activeFile) {
-        const label = $activeFile.type === 'act'
-          ? `Active Act: ${$activeFile.name}`
-          : `Current File: ${$activeFile.name} (${$activeFile.type})`;
-        const lang = ($activeFile.type === 'encounter' || $activeFile.type === 'monster' || $activeFile.type === 'npc') ? 'json' : 'markdown';
-        const isMarkdown = lang === 'markdown';
-        const displayContent = isMarkdown ? stripFrontmatter($fileContent) : $fileContent;
-        parts.push(`\n## ${label}\n\`\`\`${lang}\n${displayContent}\n\`\`\``);
+        if ($activeFile.type === 'character') {
+          // Immer der voll aufgelöste Block aus der Map (nie das rohe JSON). Fehlt er
+          // noch, läuft die Auflösung — dann nichts ausgeben, kein JSON-Dump.
+          const block = $characterContextBlocks.get($activeFile.path);
+          if (block) parts.push(`\n${block}`);
+        } else {
+          const label = $activeFile.type === 'act'
+            ? `Active Act: ${$activeFile.name}`
+            : `Current File: ${$activeFile.name} (${$activeFile.type})`;
+          const lang = ($activeFile.type === 'encounter' || $activeFile.type === 'monster' || $activeFile.type === 'npc') ? 'json' : 'markdown';
+          const isMarkdown = lang === 'markdown';
+          const displayContent = isMarkdown ? stripFrontmatter($fileContent) : $fileContent;
+          parts.push(`\n## ${label}\n\`\`\`${lang}\n${displayContent}\n\`\`\``);
+        }
       }
     }
 
     // Gepinnte Einträge
     for (const pin of $pinnedEntries) {
-      if (pin.isCharacter && pin.detailLevel === 'rp') {
-        const summary = extractCharacterInfo(pin.content, false, false);
-        parts.push(`\n${formatCharacterForContext(summary, false, false)}`);
-      } else if (pin.isCharacter && pin.detailLevel === 'full') {
-        const summary = extractCharacterInfo(pin.content, true, true);
-        parts.push(`\n${formatCharacterForContext(summary, true, true)}`);
+      if (pin.isCharacter) {
+        // Doppelung vermeiden: der offene Charakter steht schon als Active File drin.
+        if ($activeFile?.type === 'character' && pin.entry.path === $activeFile.path && $contextFlags.activeFile) continue;
+        const block = $characterContextBlocks.get(pin.entry.path);
+        if (block) parts.push(`\n${block}`); // fehlt noch → nichts (kein rohes JSON)
       } else {
         parts.push(`\n## ${pin.entry.name}\n\`\`\`markdown\n${pin.content}\n\`\`\``);
       }
@@ -645,7 +655,7 @@ export const contextSummary = derived(
     if ($activeFile && $contextFlags.activeFile && $activeFile.type !== 'notes') items.push($activeFile.name);
     for (const pin of $pinnedEntries) {
       const icon = pin.isCharacter ? '⚔' : '📌';
-      const detail = pin.isCharacter ? ` (${pin.detailLevel.toUpperCase()})` : '';
+      const detail = pin.isCharacter ? ` (${CHARACTER_CONTEXT_LABELS[pin.detailLevel]})` : '';
       items.push(`${icon} ${pin.entry.name}${detail}`);
     }
     return items.length > 0 ? items.join(', ') : 'Kein Kontext';
@@ -653,11 +663,20 @@ export const contextSummary = derived(
 );
 
 export function pinEntry(entry: FileEntry, content: string) {
+  const isCharacter = entry.type === 'character';
   pinnedEntries.update((pins) => {
     if (pins.find((p) => p.entry.path === entry.path)) return pins;
-    const isCharacter = entry.type === 'character';
-    return [...pins, { entry, content, detailLevel: 'rp', isCharacter }];
+    // Voreinstellung „Voll" ist bewusst großzügig; klein schaltbar am Pin.
+    return [...pins, { entry, content, detailLevel: 'full', isCharacter }];
   });
+  // Begleitdateien nachladen und an den Pin hängen (löst über pinnedEntries einen Refresh aus).
+  if (isCharacter) {
+    void loadCharacterNotes(characterDirOf(entry.path)).then((notes) => {
+      pinnedEntries.update((pins) =>
+        pins.map((p) => (p.entry.path === entry.path ? { ...p, notes } : p)),
+      );
+    });
+  }
 }
 
 export function unpinEntry(path: string) {
@@ -669,3 +688,42 @@ export function setPinDetailLevel(path: string, level: PinDetailLevel) {
     pins.map((p) => (p.entry.path === path ? { ...p, detailLevel: level } : p))
   );
 }
+
+/**
+ * Baut die Charakter-Kontextblöcke neu: der geöffnete Charakter (immer `full`) plus
+ * alle Charakter-Pins (mit ihrer jeweiligen Tiefe). Ein Eintrag je Pfad — ist der offene
+ * Charakter auch gepinnt, gewinnt der offene. Ein `runToken` verwirft das Ergebnis eines
+ * überholten Laufs, sonst gewinnt bei schnellem Datei-Wechsel der langsamere Lauf.
+ */
+let runToken = 0;
+async function refreshCharacterContexts(): Promise<void> {
+  const token = ++runToken;
+  const af = get(activeFile);
+  const fc = get(fileContent);
+  const pins = get(pinnedEntries);
+
+  const jobs = new Map<string, { raw: string; level: CharacterContextLevel; notes?: CharacterNotes }>();
+  for (const pin of pins) {
+    if (pin.isCharacter) jobs.set(pin.entry.path, { raw: pin.content, level: pin.detailLevel, notes: pin.notes });
+  }
+  if (af?.type === 'character' && fc) {
+    const notes = await loadCharacterNotes(characterDirOf(af.path));
+    jobs.set(af.path, { raw: fc, level: 'full', notes }); // offener Charakter überschreibt einen Pin
+  }
+
+  const built = new Map<string, string>();
+  await Promise.all(
+    [...jobs].map(async ([path, job]) => {
+      const block = await buildCharacterContextFromRaw(job.raw, job.level, job.notes);
+      if (block) built.set(path, block);
+    }),
+  );
+
+  if (token !== runToken) return; // überholt → Ergebnis verwerfen
+  characterContextBlocks.set(built);
+}
+
+// Neu füllen, sobald der geöffnete Charakter, sein Inhalt oder die Pins sich ändern.
+derived([activeFile, fileContent, pinnedEntries], (v) => v).subscribe(() => {
+  void refreshCharacterContexts();
+});

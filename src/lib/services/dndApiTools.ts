@@ -4,7 +4,7 @@
  * Der Executor ruft die geteilten Helfer aus `dndApi.ts`.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { searchEquipment, searchMagicItems, searchMonsters, searchSpells, getResource } from './dndApi';
+import { searchMonsters, getResource } from './dndApi';
 
 interface ToolDef {
   name: string;
@@ -16,18 +16,17 @@ const TOOL_LIST: ToolDef[] = [
   {
     name: 'search_dnd_api',
     description:
-      'Search the official D&D 5e SRD (dnd5eapi.co) by name. ' +
-      'category "equipment" = mundane gear/weapons/armor, "magic-items" = magic items, ' +
-      '"monsters" = creatures/stat blocks, "spells" = spells. ' +
-      'The query MUST be in ENGLISH (e.g. "warhammer", "goblin", "fireball"). ' +
+      'Search the official D&D 5e SRD (dnd5eapi.co) for MONSTERS/creatures by name. ' +
+      '(Items and spells come from a different source — do not search them here.) ' +
+      'The query MUST be in ENGLISH (e.g. "goblin"). ' +
       'Returns a JSON list of { index, name, url }. Pick the closest match and load it with get_dnd_api_resource.',
     params: {
       type: 'object',
       properties: {
         category: {
           type: 'string',
-          enum: ['equipment', 'magic-items', 'monsters', 'spells'],
-          description: 'Which SRD collection to search.',
+          enum: ['monsters'],
+          description: 'Which SRD collection to search (only monsters).',
         },
         query: { type: 'string', description: 'English search term, e.g. "goblin".' },
       },
@@ -66,14 +65,8 @@ export const DND_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
 export async function executeDndTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
     case 'search_dnd_api': {
-      const category = String(args.category ?? 'equipment');
       const query = String(args.query ?? '');
-      const search =
-        category === 'magic-items' ? searchMagicItems
-        : category === 'monsters' ? searchMonsters
-        : category === 'spells' ? searchSpells
-        : searchEquipment;
-      const results = await search(query);
+      const results = await searchMonsters(query);
       return JSON.stringify(results.slice(0, 15));
     }
     case 'get_dnd_api_resource': {

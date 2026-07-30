@@ -118,6 +118,18 @@ function splitClassFeatures(text: string, limit = 700): [string, string] {
 }
 
 /**
+ * „Langschwert" → „Langschwert (Auslaugen)", wenn die Waffe beherrscht wird.
+ *
+ * Aufgelöst wird NICHT hier: der Aufrufer übergibt denselben Resolver, der im
+ * Charakterbogen die Pille zeichnet — so können PDF und Bogen nicht auseinanderlaufen,
+ * und dieses Modul bleibt frei von Bibliotheks-Zugriffen.
+ */
+function withMasterySuffix(name: string, resolve?: (attackName: string) => string | undefined): string {
+  const label = name.trim() ? resolve?.(name) : undefined;
+  return label ? `${name} (${label})` : name;
+}
+
+/**
  * Exportiert einen Charakter als ausgefülltes Taendler-PDF.
  * @param character  Der zu exportierende Charakter
  * @param templateBytes  Bytes der Blanko-Vorlage (ataendler_v2.8.2.pdf)
@@ -125,7 +137,13 @@ function splitClassFeatures(text: string, limit = 700): [string, string] {
 export async function exportCharacterToPdf(
   character: CharacterJSON,
   templateBytes: Uint8Array,
-  options: { portrait?: PortraitInput; format?: PdfExportFormat; freitext?: string } = {},
+  options: {
+    portrait?: PortraitInput;
+    format?: PdfExportFormat;
+    freitext?: string;
+    /** Angriffsname → deutscher Name der Meisterschaftseigenschaft (leer = nicht beherrscht). */
+    masteryOf?: (attackName: string) => string | undefined;
+  } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
 
@@ -161,7 +179,7 @@ export async function exportCharacterToPdf(
   t('Trefferwürfel', character.hitDice);
   t('PassiveWeisheit', character.passivePerception);
 
-  // --- Rettungswürfe (Profizienzen + berechnete Werte) ---
+  // --- Rettungswürfe (Übungen + berechnete Werte) ---
   c('StrProf', character.strSaveProf);
   c('GesProf', character.gesSaveProf);
   c('KonProf', character.konSaveProf);
@@ -188,9 +206,12 @@ export async function exportCharacterToPdf(
   }
 
   // --- Angriffe ---
+  // Die Meisterschaftseigenschaft hängt am Waffennamen: das Taendler-PDF hat keine
+  // freie Spalte dafür. Der Import schneidet das Suffix wieder ab
+  // (`stripMasterySuffix`), sonst wüchse es bei jedem Zyklus an.
   for (let i = 0; i < 5; i++) {
     const atk = character.attacks?.[i];
-    t(`Angriff${i+1}`, atk?.name ?? '');
+    t(`Angriff${i+1}`, withMasterySuffix(atk?.name ?? '', options.masteryOf));
     t(`Bonus${i+1}`, atk?.bonus ?? '');
     t(`Schaden${i+1}`, atk?.damage ?? '');
     t(`Schadentyp${i+1}`, atk?.type ?? '');
@@ -227,7 +248,7 @@ export async function exportCharacterToPdf(
     m('Aussehen', p.aussehen ?? '', 9);
   }
 
-  // --- Waffen- & Rüstungsprofizienzen ---
+  // --- Waffenübungen & Rüstungsausbildung ---
   const pr = character.proficiencies;
   if (pr) {
     c('EinfachWaffenProf', pr.simpleWeapons);
@@ -292,7 +313,7 @@ export async function exportCharacterToPdf(
     }
 
     for (let i = 0; i < 8; i++) {
-      t(`Zaubertrick${i+1}`, sp.cantrips?.[i] ?? '');
+      t(`Zaubertrick${i+1}`, sp.cantrips?.[i]?.name ?? '');
     }
 
     for (let lvl = 1; lvl <= 9; lvl++) {

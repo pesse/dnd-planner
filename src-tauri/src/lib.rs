@@ -7,6 +7,15 @@ use serde::{Serialize, Deserialize};
 use keyring::Entry;
 use tauri::Manager;
 
+mod libraries;
+
+/// True für interne Einträge wie `.libraries` (Installationszustand der
+/// Bibliotheks-Packs). Solche Einträge gehören weder in die Datei-Listen der
+/// Oberfläche noch in einen Vault-Export.
+fn is_hidden(name: &str) -> bool {
+    name.starts_with('.')
+}
+
 /// Basisverzeichnis das den `vault/`-Ordner enthält. Wird einmalig im
 /// `setup`-Hook gesetzt: im Release fest am stabilen App-Identifier
 /// (`%LOCALAPPDATA%\de.developer-sam.dnd-planner`), im Dev-Build am Repo
@@ -51,7 +60,7 @@ async fn http_request(req: HttpRequest) -> Result<String, String> {
 
 /// Basisverzeichnis das den `vault/`-Ordner enthält. Liefert den im `setup`
 /// gesetzten kanonischen Pfad; als Fallback den per Walk-up gesuchten.
-fn project_root() -> PathBuf {
+pub(crate) fn project_root() -> PathBuf {
     if let Some(base) = VAULT_BASE.get() {
         return base.clone();
     }
@@ -132,6 +141,9 @@ fn list_entries(path: String) -> Result<Vec<EntryInfo>, String> {
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
+            if is_hidden(&name) {
+                return None;
+            }
             let is_dir = e.path().is_dir();
             let is_md = e.path().is_file() && name.ends_with(".md");
             if is_dir || is_md {
@@ -154,6 +166,9 @@ fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
+            if is_hidden(&name) {
+                return None;
+            }
             let is_dir = e.path().is_dir();
             let is_json = e.path().is_file() && name.ends_with(".json");
             if is_dir || is_json {
@@ -287,6 +302,8 @@ fn list_json_files(path: String) -> Result<Vec<String>, String> {
 #[derive(Serialize)]
 pub struct SpellInfo {
     name: String,
+    name_en: String,
+    key: String,
     level: u8,
     classes: Vec<String>,
     school: String,
@@ -317,6 +334,8 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
                     let name = v["name"].as_str().unwrap_or("").to_string();
                     if name.is_empty() { continue; }
+                    let name_en = v["name_en"].as_str().unwrap_or("").to_string();
+                    let key = v["key"].as_str().unwrap_or("").to_string();
                     let level = v["level"].as_u64()
                         .or_else(|| v["level"].as_str().and_then(|s| s.parse().ok()))
                         .unwrap_or(0) as u8;
@@ -328,7 +347,7 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                     let rel = path.strip_prefix(&project_root())
                         .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
                         .unwrap_or_else(|_| path.to_string_lossy().to_string());
-                    out.push(SpellInfo { name, level, classes, school, path: rel });
+                    out.push(SpellInfo { name, name_en, key, level, classes, school, path: rel });
                 }
             }
         }
@@ -408,6 +427,14 @@ pub struct TransferSelection {
     monsters: bool,
     #[serde(default)]
     spells: bool,
+    #[serde(default)]
+    classes: bool,
+    #[serde(default)]
+    species: bool,
+    #[serde(default)]
+    feats: bool,
+    #[serde(default)]
+    backgrounds: bool,
 }
 
 /// Inhaltsübersicht eines Vaults bzw. eines Export-ZIPs.
@@ -418,6 +445,10 @@ pub struct VaultContents {
     items: bool,
     monsters: bool,
     spells: bool,
+    classes: bool,
+    species: bool,
+    feats: bool,
+    backgrounds: bool,
 }
 
 #[derive(Serialize)]
@@ -439,6 +470,7 @@ fn subdirs(path: &Path) -> Vec<String> {
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_dir())
             .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|name| !is_hidden(name))
             .collect(),
         Err(_) => vec![],
     };
@@ -471,6 +503,11 @@ fn collect_files(base: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) {
     for entry in entries.filter_map(|e| e.ok()) {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
+        // Interne Ablagen (z.B. der Installationszustand der Bibliotheken)
+        // gehören nicht in einen Vault-Export — sie gelten nur lokal.
+        if is_hidden(&name) {
+            continue;
+        }
         let zip_name = if prefix.is_empty() {
             name
         } else {
@@ -494,6 +531,10 @@ fn get_vault_overview() -> VaultContents {
         items: dir_has_files(&vault.join("items")),
         monsters: dir_has_files(&vault.join("monsters")),
         spells: dir_has_files(&vault.join("spells")),
+        classes: dir_has_files(&vault.join("classes")),
+        species: dir_has_files(&vault.join("species")),
+        feats: dir_has_files(&vault.join("feats")),
+        backgrounds: dir_has_files(&vault.join("backgrounds")),
     }
 }
 
@@ -526,6 +567,18 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
     if selection.spells {
         collect_files(&vault.join("spells"), "spells", &mut files);
     }
+    if selection.classes {
+        collect_files(&vault.join("classes"), "classes", &mut files);
+    }
+    if selection.species {
+        collect_files(&vault.join("species"), "species", &mut files);
+    }
+    if selection.feats {
+        collect_files(&vault.join("feats"), "feats", &mut files);
+    }
+    if selection.backgrounds {
+        collect_files(&vault.join("backgrounds"), "backgrounds", &mut files);
+    }
 
     let file = fs::File::create(&dest_path)
         .map_err(|e| format!("ZIP konnte nicht erstellt werden: {}", e))?;
@@ -549,6 +602,10 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
         "items": selection.items,
         "monsters": selection.monsters,
         "spells": selection.spells,
+        "classes": selection.classes,
+        "species": selection.species,
+        "feats": selection.feats,
+        "backgrounds": selection.backgrounds,
     });
     zip.start_file("manifest.json", opts).map_err(|e| e.to_string())?;
     zip.write_all(
@@ -575,6 +632,7 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
     let mut campaigns = std::collections::BTreeSet::new();
     let mut characters = std::collections::BTreeSet::new();
     let (mut items, mut monsters, mut spells) = (false, false, false);
+    let (mut classes, mut species, mut feats, mut backgrounds) = (false, false, false, false);
 
     for i in 0..archive.len() {
         let f = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -590,6 +648,10 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
             ["items", ..] => items = true,
             ["monsters", ..] => monsters = true,
             ["spells", ..] => spells = true,
+            ["classes", ..] => classes = true,
+            ["species", ..] => species = true,
+            ["feats", ..] => feats = true,
+            ["backgrounds", ..] => backgrounds = true,
             _ => {}
         }
     }
@@ -600,6 +662,10 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
         items,
         monsters,
         spells,
+        classes,
+        species,
+        feats,
+        backgrounds,
     })
 }
 
@@ -645,6 +711,10 @@ fn import_vault(
             ["items", ..] => selection.items,
             ["monsters", ..] => selection.monsters,
             ["spells", ..] => selection.spells,
+            ["classes", ..] => selection.classes,
+            ["species", ..] => selection.species,
+            ["feats", ..] => selection.feats,
+            ["backgrounds", ..] => selection.backgrounds,
             _ => false,
         };
         if !selected {
@@ -847,7 +917,12 @@ pub fn run() {
             inspect_import_zip,
             import_vault,
             find_legacy_vault,
-            migrate_legacy_vault
+            migrate_legacy_vault,
+            libraries::fetch_library_index,
+            libraries::try_access_code,
+            libraries::install_library,
+            libraries::installed_libraries,
+            libraries::forget_access_code
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

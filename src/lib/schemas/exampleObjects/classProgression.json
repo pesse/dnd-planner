@@ -1,0 +1,75 @@
+{
+  "key": "string",
+  "source": "homebrew-sam",
+  "name": "string",
+  "nameDe": "string",
+  "subclassOf": "string",
+  "casterType": "NONE",
+  "hitDie": 0,
+  "hpAt1st": "string",
+  "hpHigher": "string",
+  "proficiencyGrant": {
+    "skills": {
+      "fixed": [
+        "Acrobatics"
+      ],
+      "choose": 0,
+      "from": [
+        "Acrobatics"
+      ]
+    },
+    "savingThrows": [
+      "Strength"
+    ],
+    "weapons": [
+      "Simple"
+    ],
+    "weaponsOther": [
+      "string"
+    ],
+    "armor": [
+      "Light"
+    ]
+  },
+  "skillGrantMulticlass": {
+    "fixed": [
+      "Acrobatics"
+    ],
+    "choose": 0,
+    "from": [
+      "Acrobatics"
+    ]
+  },
+  "startingEquipment": "string",
+  "startingEquipmentDe": "string",
+  "document": {
+    "key": "string",
+    "gamesystem": "string"
+  },
+  "levels": [
+    {
+      "level": 1,
+      "columns": {
+        "<key>": "string"
+      }
+    }
+  ],
+  "features": [
+    {
+      "key": "string",
+      "name": "string",
+      "nameDe": "string",
+      "gainedAt": [
+        -9007199254740991
+      ],
+      "desc": "string",
+      "descDe": "string",
+      "featureType": "string",
+      "grantsChoice": {
+        "kind": "weaponMastery",
+        "featCategory": "Origin",
+        "count": 1
+      }
+    }
+  ]
+}

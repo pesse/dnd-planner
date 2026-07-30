@@ -1,10 +1,12 @@
 <script lang="ts" generics="T extends { index: string; name: string; url: string; tag?: string }">
   let {
     placeholder = 'Name suchen…',
+    label = 'Aus DnD-API laden',
     onsearch,
     onselect,
   }: {
     placeholder?: string;
+    label?: string;
     onsearch: (q: string) => Promise<T[]>;
     onselect: (result: T) => void;
   } = $props();
@@ -37,7 +39,7 @@
 </script>
 
 <div class="dnas-section">
-  <span class="dnas-label">Aus DnD-API laden</span>
+  <span class="dnas-label">{label}</span>
   <div class="dnas-search-row">
     <input
       class="dnas-input"

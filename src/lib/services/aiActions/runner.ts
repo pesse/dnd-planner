@@ -1,44 +1,37 @@
 /**
- * Generischer Runner für KI-Aktionen.
+ * Generischer Runner für KI-Aktionen — hier sitzt die Provider-Matrix.
  *
- * Ablauf:
- *   1) Tool-Loop (DnD-API o.ä.) über den portablen Agent-Loop — das Modell
- *      recherchiert und liefert am Ende einen JSON-Block.
- *   2) Structured Output: JSON parsen + validieren. Bei Fehler genau ein Retry —
- *      nativ via `generateStructured` (Anthropic, capabilities.structuredOutput)
- *      oder emuliert via erneutem `generate` (Groq).
- *
- * Voraussetzung: das Modell kann Tools (`capabilities.tools`). Ollama wird hier
- * mit einer klaren Meldung abgewiesen.
+ * Drei Pfade, weil nur ein Teil der Provider Schemata serverseitig erzwingt: Anthropic
+ * (`output_config`) und QM/vllm (`structured_outputs`) sind nativ schema-valide, Groq und
+ * Ollama bekommen das Schema als Prompt-Block und werden per Regex ausgewertet. Tools
+ * können nur Anthropic und Groq — eine Aktion mit Tools auf Ollama wird abgewiesen.
  */
 import type { LlmConfig } from '../../types';
 import { getClient } from '../llmClient';
 import { agentLoop, TASK_TEMPERATURE } from '../llmService';
 import type { AgentStep, AgentToolset } from '../vaultTools';
-import { generateStructured } from '../anthropicExtras';
 import type { AiAction } from './types';
+import { extractJson } from '../jsonFence';
 
 export interface RunOptions {
   onStep?: (step: AgentStep) => void;
   signal?: AbortSignal;
-  /** Lebenszeichen pro Iteration/Streaming-Delta (für die Stuck-Erkennung der UI). */
-  onActivity?: () => void;
+  onActivity?: () => void; // Lebenszeichen pro Iteration/Delta (Stuck-Erkennung der UI)
+  /** Für Prompt-Evals true: sonst kaschiert der Retry die First-Try-Qualität des Prompts. */
+  noRetry?: boolean;
 }
 
-/** Versucht, ein JSON-Objekt aus Freitext zu extrahieren (roh, ```json-Fence, erstes {…}). */
-function extractJson(text: string): unknown {
-  if (!text) return null;
-  const fenced = text.match(/```json\s*([\s\S]*?)```/i)?.[1] ?? text.match(/```\s*([\s\S]*?)```/)?.[1];
-  const candidates = [fenced, text.match(/\{[\s\S]*\}/)?.[0], text];
-  for (const c of candidates) {
-    if (!c) continue;
-    try {
-      return JSON.parse(c.trim());
-    } catch {
-      /* nächsten Kandidaten versuchen */
-    }
-  }
-  return null;
+/**
+ * Schema als Prompt-Block, für die Pfade ohne nativen Structured Output. Exportiert, damit
+ * die Eval-Prompt-Werkstatt (`structured: 'prompt'`) exakt denselben Wortlaut misst.
+ */
+export function jsonOutputInstruction(jsonSchema: object): string {
+  return (
+    '\n\n## OUTPUT (CRITICAL)\n' +
+    '- Return the final result as exactly ONE ```json code block.\n' +
+    '- The JSON MUST match this schema exactly (no extra keys):\n' +
+    JSON.stringify(jsonSchema, null, 2)
+  );
 }
 
 export async function runAiAction<T>(
@@ -48,8 +41,8 @@ export async function runAiAction<T>(
   opts: RunOptions = {},
 ): Promise<T> {
   const client = getClient(config);
-  // Tools werden nur für Actions benötigt, die welche definieren (z.B. DnD-API-Recherche).
-  // Tool-freie Actions (Encounter-Entwurf) laufen als ein einziger Call — viel weniger Tokens.
+  // Tool-freie Actions (Encounter-Entwurf, Übersetzung) laufen als EIN Call — deutlich
+  // weniger Tokens als ein Agent-Loop.
   const usesTools = action.openAiTools.length > 0;
   if (usesTools && !client.capabilities.tools) {
     throw new Error(
@@ -58,18 +51,13 @@ export async function runAiAction<T>(
   }
   const onStep = opts.onStep ?? (() => {});
 
-  const system =
-    action.buildSystemPrompt() +
-    '\n\n## OUTPUT (CRITICAL)\n' +
-    '- Return the final result as exactly ONE ```json code block.\n' +
-    '- The JSON MUST match this schema exactly (no extra keys):\n' +
-    JSON.stringify(action.jsonSchema, null, 2);
+  const baseSystem = action.buildSystemPrompt();
+  const emulatedSystem = baseSystem + jsonOutputInstruction(action.jsonSchema);
 
   let draftText = '';
   let data: unknown;
 
   if (usesTools) {
-    // Recherche-Pfad: Agent-Loop mit Tools (DnD-API), endet mit einem JSON-Block.
     const toolset: AgentToolset = {
       anthropicTools: action.anthropicTools,
       openAiTools: action.openAiTools,
@@ -78,38 +66,36 @@ export async function runAiAction<T>(
     draftText = await agentLoop(
       config,
       userInput,
-      system,
+      emulatedSystem,
       { onStep, signal: opts.signal, temperature: TASK_TEMPERATURE.structured, onActivity: opts.onActivity },
       toolset,
     );
     data = extractJson(draftText);
-  } else if (client.capabilities.structuredOutput) {
-    // Tool-frei + nativ schema-valide (Anthropic): ein Call, garantiert valides JSON.
-    data = await generateStructured<T>(config, userInput, action.jsonSchema, system);
+  } else if (client.generateStructured) {
+    data = await client.generateStructured(userInput, action.jsonSchema, baseSystem, { signal: opts.signal });
     draftText = data != null ? JSON.stringify(data) : '';
   } else {
-    // Tool-frei (Groq/QM): ein einziger generate-Call statt Agent-Loop.
-    draftText = await client.generate(userInput, system, 'structured', () => opts.onActivity?.());
+    // Emuliert (Groq/Ollama): Schema nur im Prompt, Ergebnis per Regex aus dem Text.
+    draftText = await client.generate(userInput, emulatedSystem, 'structured', () => opts.onActivity?.());
     data = extractJson(draftText);
   }
 
-  if (!data || !action.validate(data)) {
+  if (!opts.noRetry && (!data || !action.validate(data))) {
     onStep({ type: 'tool_call', tool: 'json-korrektur', args: {} });
-    if (client.capabilities.structuredOutput) {
-      // Nativer Pfad (Anthropic): garantiert schema-valides JSON aus dem Entwurf.
-      data = await generateStructured<T>(
-        config,
+    if (client.generateStructured) {
+      // Der Entwurf ist der Input: nativ erzwungen kommt er garantiert schema-valide zurück.
+      data = await client.generateStructured(
         `Produce the final, schema-conformant JSON from the following draft:\n\n${draftText}`,
         action.jsonSchema,
-        action.buildSystemPrompt(),
+        baseSystem,
+        { signal: opts.signal },
       );
     } else {
-      // Emuliert (Groq): erneut anfordern, dann parsen.
       const retry = await client.generate(
         `Your last JSON was invalid or incomplete. Return ONLY a valid ` +
           `\`\`\`json object matching the schema.\n\nSchema:\n${JSON.stringify(action.jsonSchema)}\n\n` +
           `Previous output:\n${draftText}`,
-        system,
+        emulatedSystem,
         'structured',
       );
       data = extractJson(retry);

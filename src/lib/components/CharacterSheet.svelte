@@ -2,25 +2,39 @@
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { parseCharacterData, emptySpells, SKILL_DEFS, skillSheetKey, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import type { SkillName } from '../schemas/shared';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
-  import type { Character } from '../schemas/character';
+  import { type Character, formatClassLevel, formatSpecies, pendingCharacterUpgrade } from '../schemas/character';
+  import { proficiencyBonus } from '../services/classProgression';
+  import type { LevelUpChangeSet } from '../schemas/levelUp';
+  import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
+  import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
+  import ItemTooltip from './ItemTooltip.svelte';
+  import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
-  import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { confirmNavigation } from '../stores/navigationGuard';
+  import { getSpellLibrary, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    formatCost, formatRarity, formatDamageDice, ftToM, structuralType,
-    DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
+    buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
+    DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel,
     type ItemInfo,
   } from '../itemLibrary';
+  import { isMastered, masteredKinds } from '../services/weaponMastery';
+  import type { WeaponMastery } from '../schemas/shared';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
+  import {
+    resolveCharacterFeatures,
+    type ResolvedFeatureGroup, type ResolvedFeature,
+  } from '../services/characterFeatures';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -28,6 +42,45 @@
   }
 
   let { dirPath }: Props = $props();
+
+  // ─── Merkmals-Auflösung (Karte): Klasse/Volk/Hintergrund/Talente aus den LINKS ───
+  // Der Charakter speichert nur Verknüpfungen; die Merkmale/Traits/Vorteile werden zur
+  // Laufzeit aus vault/{classes,species,backgrounds,feats} aufgelöst (analog Zauber).
+  let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
+  let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
+  let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
+  // Talent-Links und verwaiste Entscheidungen (Klassen-Link getauscht, Key verschoben)
+  // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
+  let featEntries = $state<ResolvedFeature[]>([]);
+  let orphanChoices = $state<ResolvedFeature[]>([]);
+  // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
+  // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
+  // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
+  let featuresOpen = $state(false);
+  $effect(() => {
+    if (!featuresOpen) return;
+    const c = character;
+    if (!c) return;
+    void (async () => {
+      const r = await resolveCharacterFeatures(c);
+      classFeatureGroups = r.classGroups;
+      speciesTraitGroups = r.speciesGroups;
+      backgroundGroups = r.backgroundGroups;
+      featEntries = r.featEntries;
+      orphanChoices = r.orphanChoices;
+    })();
+  });
+  // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —
+  // steuert die Sichtbarkeit der Aufklappbox, ohne die Bibliothek anzufassen.
+  const hasFeatureRefs = $derived.by(() => {
+    const c = character;
+    if (!c) return false;
+    const hasClass = (c.classes ?? []).some((cl) => cl.name?.trim() || cl.sourceKey);
+    const hasSpecies = !!(c.species && (c.species.sourceKey || c.species.name?.trim()));
+    const hasBackground = !!(c.backgroundRef && (c.backgroundRef.sourceKey || c.backgroundRef.name?.trim()));
+    const hasLedger = (c.features?.length ?? 0) > 0;
+    return hasClass || hasSpecies || hasBackground || hasLedger;
+  });
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
   // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
@@ -38,13 +91,167 @@
       const r = parseCharacter(JSON.parse(content));
       return r.ok ? r.data : null;
     },
+    // Das angenommene Schema-Upgrade ist die einzige Änderung, die den Draft NICHT
+    // anfasst (`parse` hat sie beim Laden längst angewandt) — ohne diesen Hook bliebe der
+    // Editor sauber und die Speichern-Leiste unerreichbar. Rückgabetyp annotiert, weil
+    // `pendingUpgrade` seinerseits `ed.lastSavedContent` liest (Inferenzkreis).
+    extraDirty: (): boolean => upgradeAccepted && !!pendingUpgrade,
     onSaved: () => invalidateVault(),
   });
   // Read-only-Sicht auf den Draft für die Bogen-Anzeige.
   // (Der Bearbeiten-Tab bindet ed.draft direkt und mutiert ihn in place.)
   const character = $derived(ed.draft);
+  // Zuletzt gespeicherte Version als Baseline für das Diff-Highlighting im
+  // Bearbeiten-Formular. Bei neuem/nie gespeichertem Charakter (leerer Content)
+  // oder ungültigem JSON → null → keine Hervorhebungen. save() ersetzt ed.draft
+  // nicht, setzt aber lastSavedContent neu → dieser Derived rechnet neu → alle
+  // Highlights verschwinden in-place.
+  const savedCharacter = $derived.by<Character | null>(() => {
+    if (!ed.lastSavedContent) return null;
+    try {
+      const r = parseCharacter(JSON.parse(ed.lastSavedContent));
+      return r.ok ? r.data : null;
+    } catch {
+      return null;
+    }
+  });
   // Quelle der PDF-Import-Metadaten (nicht editierbar).
   const pdfName = $derived(character?._importedFrom ?? '');
+
+  // ─── Schema-Upgrade der Datei (Hinweis im Bearbeiten-Tab) ──────────────────
+  // Gegen den ROHEN Dateiinhalt geprüft, nicht gegen den Draft: `parseCharacter`
+  // zieht beim Laden ohnehin die Pipeline durch, veraltet ist nur die Datei.
+  const pendingUpgrade = $derived.by(() => {
+    if (!ed.lastSavedContent) return null;
+    try {
+      return pendingCharacterUpgrade(JSON.parse(ed.lastSavedContent));
+    } catch {
+      return null; // ungültiges JSON — dafür meldet sich bereits der Lade-Fehler
+    }
+  });
+  // Angebot angenommen → `extraDirty` greift, geschrieben wird über die Speichern-Leiste.
+  let upgradeAccepted = $state(false);
+  // Beim Dateiwechsel zurücksetzen, sonst wirkt der nächste Charakter ungespeichert.
+  $effect(() => {
+    void ed.lastSavedContent;
+    upgradeAccepted = false;
+  });
+
+  // ─── Stufenaufstieg-Assistent ──────────────────────────────────────────────
+  let showLevelUp = $state(false);
+
+  /**
+   * Wendet den KI-Vorschlag ADDITIV auf einen frischen Draft-Klon an und ersetzt
+   * `ed.draft` per NEUER Referenz. Der Referenz-Swap ist tragend: er löst
+   * `{#key ed.draft}` (Formular-Remount → Diff-Highlighting) und `ed.dirty` aus.
+   * Numerische Werte werden addiert, damit item-gewährte Boni erhalten bleiben.
+   */
+  function applyLevelUp(changeSet: LevelUpChangeSet, delta: LevelUpDelta) {
+    if (!ed.draft) return;
+    const next = structuredClone($state.snapshot(ed.draft)) as Character;
+
+    // Struktur (Identität, aus delta — kein additives Delta): Klassenstufe / Multiclass.
+    if (delta.isNewClass) {
+      next.classes.push({ sourceKey: delta.sourceKey, name: delta.klasseName, level: delta.toLevel });
+    } else {
+      const cls = next.classes[delta.classIndex];
+      if (cls) cls.level = delta.toLevel;
+    }
+    // Übungsbonus deterministisch aus Gesamtstufe (Sicherheitsnetz; changeSet setzt ihn ebenso).
+    next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
+
+    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden.
+    for (const c of changeSet.changes) {
+      switch (c.target) {
+        case 'hpMax': // Freitext-Zahl additiv (bewahrt item-/manuelle Boni)
+          next.hpMax = String((parseInt(next.hpMax, 10) || 0) + c.value);
+          break;
+        case 'hitDice':
+          next.hitDice = c.value;
+          break;
+        case 'proficiencyBonus':
+          next.proficiencyBonus = c.value;
+          break;
+        case 'spellSlot': { // additiv — bewahrt item-/manuell gewährte Slots
+          const slots = next.spells?.slots ?? [];
+          const i = c.level - 1;
+          if (slots[i]) slots[i].total += c.value;
+          break;
+        }
+        case 'cantrip':
+          if (!next.spells.cantrips.some((e) => e.name === c.name)) {
+            const key = resolveSpell({ name: c.name })?.key;
+            next.spells.cantrips = [...next.spells.cantrips, { name: c.name, ...(key ? { sourceKey: key } : {}) }];
+          }
+          break;
+        case 'spellcastingClass':
+          if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
+          break;
+        case 'ability': { // additiv + Modifikator neu berechnen
+          const score = (next[c.ability] ?? 10) + c.value;
+          next[c.ability] = score;
+          (next as unknown as Record<string, number>)[`${c.ability}Mod`] = Math.floor((score - 10) / 2);
+          break;
+        }
+        case 'preparedSpell': { // → spells.byLevel (Dedup je Grad)
+          if (!c.name.trim()) break;
+          const lvl = String(c.level);
+          const arr = next.spells.byLevel[lvl] ?? [];
+          if (!arr.some((e) => e.name === c.name)) {
+            const key = resolveSpell({ name: c.name })?.key;
+            arr.push({ name: c.name, prepared: c.prepared, ...(key ? { sourceKey: key } : {}) });
+          }
+          next.spells.byLevel[lvl] = arr;
+          break;
+        }
+        case 'feat': // Talent-Link → Merkmals-Ledger
+          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', gainedAt: c.gainedAt, desc: '' }];
+          break;
+        // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
+        // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
+        // schlug die Zuweisung still fehl, weil „Animal Handling" nie auf
+        // „MitTierenUmgehen" traf.
+        case 'expertise': {
+          const key = skillSheetKey(c.skill as SkillName);
+          if (next.skills[key]) next.skills[key].exp = true;
+          break;
+        }
+        case 'proficiency': {
+          const key = skillSheetKey(c.skill as SkillName);
+          if (next.skills[key]) next.skills[key].prof = true;
+          break;
+        }
+        case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
+          const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
+          if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }
+          break;
+        }
+        case 'classFeaturesText': // KI-Volltext ersetzen ODER Freitext anhängen (inkl. Kampfstil)
+          if (c.mode === 'replace') next.classFeatures = c.value;
+          else next.classFeatures = [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
+          break;
+        case 'featureChoice': {
+          // Upsert über (Merkmal, Stufe): dieselbe Stufe erneut zu durchlaufen ersetzt den
+          // Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
+          if (!c.sourceKey) break;
+          const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
+          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, gainedAt: c.gainedAt, desc: '' };
+          if (i >= 0) next.features[i] = entry;
+          else next.features = [...next.features, entry];
+          break;
+        }
+        case 'featureGained':
+          break; // Info-Eintrag — keine Anwendung (Klassen-/Subklassen-Merkmale aus Link abgeleitet)
+        case 'note':
+          break; // Info-Eintrag (Protokoll des Fragebogens) — kein Ziel am Charakter
+      }
+    }
+    next.classLevel = formatClassLevel(next.classes);
+
+    // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
+    const r = parseCharacter(next);
+    ed.draft = r.ok ? r.data : next;
+  }
 
   let gmNotes = $state('');
   let gmNotesSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
@@ -82,12 +289,32 @@
     });
   });
 
-  const itemByName = $derived(
-    Object.values(itemLoadedByDir).flat().reduce<Record<string, ItemInfo>>((acc, item) => {
-      acc[displayName(item).toLowerCase()] = item;
-      if (item.name_de) acc[item.name.toLowerCase()] = item;
-      return acc;
-    }, {})
+  const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
+
+  /**
+   * Waffenbeherrschung (5e 2024) eines Angriffs bzw. einer Waffe: die Eigenschaft
+   * hängt am Item (`mastery`), die Erlaubnis an `character.masteries`. Aufgelöst wird
+   * über Name und Waffenart — dieselbe Brücke wie beim Inventar. Ein Tausch der
+   * beherrschten Waffen wirkt deshalb sofort auf alle Angriffe, ohne dass etwas
+   * zurückgeschrieben werden müsste (`attacks[]` bleibt unberührt).
+   */
+  const masteredWeaponKinds = $derived(
+    masteredKinds(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
+  );
+
+  function masteryOf(name: string): WeaponMastery | undefined {
+    const lib = matchItem(itemIndex, { name });
+    if (!lib?.mastery) return undefined;
+    return isMastered(masteredWeaponKinds, lib) ? lib.mastery : undefined;
+  }
+
+  /**
+   * Beherrschte Waffen als „Name (Eigenschaft)". Namen, die die Bibliothek nicht (mehr)
+   * kennt, bleiben bewusst STEHEN — sonst zeigte der Bogen weniger als die Datei
+   * enthält; der Editor markiert sie dort als Überhang.
+   */
+  const masteryChips = $derived(
+    (character?.masteries ?? []).map((n) => ({ name: n, mastery: matchItem(itemIndex, { name: n })?.mastery })),
   );
 
   // ─── Item-Volldata-Cache + Tooltip ──────────────────────
@@ -99,7 +326,7 @@
   $effect(() => {
     if (!character) return;
     for (const invItem of character.inventory) {
-      const libItem = itemByName[invItem.name.toLowerCase()];
+      const libItem = matchItem(itemIndex, invItem);
       if (libItem && !(libItem.path in itemDataRecord)) {
         itemDataRecord[libItem.path] = null;
         invoke<string>('read_file_content', { path: libItem.path })
@@ -121,15 +348,17 @@
   }
   function hideItemTooltip() { tooltipItem = null; }
 
-  function openItemPage(libItem: ItemInfo) {
+  async function openItemPage(libItem: ItemInfo) {
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
     activeFile.set({ name, path: libItem.path, type: 'item' });
   }
 
-  function openSpellPage(spellName: string) {
-    const info = spellInfoMap.get(spellName);
+  async function openSpellPage(ref: { name: string; sourceKey?: string }) {
+    const info = resolveSpell(ref);
     if (!info?.path) return;
-    const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
+    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? ref.name;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
@@ -146,16 +375,12 @@
     return s;
   }
 
-  function tooltipProperties(item: Item): string {
-    return (item.properties ?? [])
-      .map(p => PROPERTY_LABELS[p.index] ?? p.name)
-      .join(', ');
-  }
-
-  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
-  const spellSchoolMap = $derived(new Map(spellLibrary.map(s => [s.name, s.school])));
-  function spellColor(name: string): string {
-    const school = spellSchoolMap.get(name);
+  // Zauber werden per Key (Fallback Name) an die Bibliothek gebunden — wie Items.
+  const spellIndex = $derived(buildSpellIndex(spellLibrary));
+  const resolveSpell = (ref: { name: string; sourceKey?: string }): SpellInfo | undefined =>
+    matchSpell(spellIndex, ref);
+  function spellColor(ref: { name: string; sourceKey?: string }): string {
+    const school = resolveSpell(ref)?.school;
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
   }
 
@@ -168,15 +393,16 @@
   $effect(() => {
     const spells = character?.spells;
     if (!spells) return;
-    const names = [
+    const refs = [
       ...(spells.cantrips ?? []),
       ...['1','2','3','4','5','6','7','8','9'].flatMap(
-        lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
+        lvl => spells.byLevel[lvl] ?? []
       ),
     ];
-    for (const name of names) {
+    for (const ref of refs) {
+      const name = ref.name;
       if (spellDataCache.has(name)) continue;
-      const info = spellInfoMap.get(name);
+      const info = resolveSpell(ref);
       if (!info?.path) continue;
       spellDataCache.set(name, null);  // als „in Arbeit" markieren
       spellDataCache = new Map(spellDataCache);
@@ -210,23 +436,23 @@
     printingSpells = true;
 
     try {
-      // Alle Zaubernamen sammeln: Zaubertricks + Stufe 1-9
-      const names: string[] = [
+      // Alle Zauber-Verweise sammeln: Zaubertricks + Stufe 1-9
+      const refs = [
         ...(spells.cantrips ?? []),
         ...(['1','2','3','4','5','6','7','8','9'].flatMap(
-          lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
+          lvl => spells.byLevel[lvl] ?? []
         )),
       ];
 
-      // Für jeden Namen: Pfad aus Index, dann Daten laden (Cache nutzen)
+      // Für jeden Verweis: Pfad aus Index (Key/Name), dann Daten laden (Cache nutzen)
       const spellObjects: Spell[] = [];
-      for (const name of names) {
-        let data = spellDataCache.get(name) ?? null;
+      for (const ref of refs) {
+        let data = spellDataCache.get(ref.name) ?? null;
         if (!data) {
-          const info = spellInfoMap.get(name);
+          const info = resolveSpell(ref);
           if (info?.path) {
             data = await loadSpellByPath(info.path);
-            spellDataCache.set(name, data);
+            spellDataCache.set(ref.name, data);
             spellDataCache = new Map(spellDataCache);
           }
         }
@@ -332,6 +558,8 @@
       const pdfFilename = (selected as string).split(/[/\\]/).pop() ?? '';
       const json: CharacterJSON = {
         ...imported,
+        // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
+        // Upgrade-Pipeline (schemas/character.ts) strukturiert sie beim ersten Laden.
         _version: 1,
         _importedFrom: pdfFilename,
         _importedAt: new Date().toISOString(),
@@ -375,7 +603,13 @@
         } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
       }
 
-      const pdfBytes = await exportCharacterToPdf(json, templateBytes, { portrait, freitext });
+      // Derselbe Resolver wie für die Pille in der Angriffstabelle — PDF und Bogen
+      // zeigen damit garantiert dieselbe Eigenschaft.
+      const pdfBytes = await exportCharacterToPdf(json, templateBytes, {
+        portrait,
+        freitext,
+        masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+      });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
       // Ziel per Datei-Speichern-Dialog wählen.
@@ -454,8 +688,10 @@
   }
 
   const ATTR_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };
-  const skillAttrMap = new Map(SKILL_DEFS.map(s => [s.key, s.attr]));
-  const skillLabelMap = new Map(SKILL_DEFS.map(s => [s.key, s.label]));
+  // Bogen-Schlüssel → Attribut/Label. Bewusst `Map<string, …>`: die Schlüssel kommen aus
+  // `character.skills` (offener Record) und können auch Fremd-/Altbestand enthalten.
+  const skillAttrMap = new Map<string, string>(SKILL_DEFS.map(s => [s.key, s.attr]));
+  const skillLabelMap = new Map<string, string>(SKILL_DEFS.map(s => [s.key, s.label]));
 
   function row(label: string, val: string | number): string {
     const v = typeof val === 'number' ? sign(val) : val;
@@ -536,7 +772,7 @@
       {/if}
       <div class="name-block">
         <h1>{character.name}</h1>
-        <span class="sub">{character.classLevel} · {character.race}</span>
+        <span class="sub">{character.classLevel} · {character.race || formatSpecies(character.species)}</span>
       </div>
       <div class="header-meta">
         <span>Spieler: <strong>{character.playerName}</strong></span>
@@ -558,15 +794,21 @@
                 aria-label="Als PDF exportieren" title="Ausgefülltes ATaendler-PDF exportieren">
           {@render pdfIcon()}<span class="arrow">&rarr;</span>
         </button>
+        <button class="icon-btn levelup" onclick={() => (showLevelUp = true)}
+                aria-label="Stufenaufstieg" title="Stufenaufstieg (KI-gestützt)">⬆</button>
       </div>
     </div>
+
+    {#if showLevelUp && ed.draft}
+      <LevelUpAssistant character={ed.draft} onApply={applyLevelUp} onclose={() => (showLevelUp = false)} />
+    {/if}
 
     <EditorPanel
       bind:tab={ed.tab}
       dirty={ed.dirty}
       saveError={ed.saveError}
       onsave={() => ed.save()}
-      ondiscard={() => ed.discard()}
+      ondiscard={() => { upgradeAccepted = false; ed.discard(); }}
       onsavejson={(json) => ed.saveJson(json)}
       getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
       extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
@@ -610,8 +852,14 @@
                 <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
                 <tbody>
                   {#each character.attacks as atk}
+                    {@const atkMastery = masteryOf(atk.name)}
                     <tr>
-                      <td>{atk.name}</td>
+                      <td>
+                        {atk.name}
+                        {#if atkMastery}
+                          <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
+                        {/if}
+                      </td>
                       <td class="has-tip">
                         {atk.bonus}
                         <span class="tip tip-left">{@html attackBonusTip(atk.bonus)}</span>
@@ -660,7 +908,7 @@
               {@const pf = character.proficiencies}
               {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
               {#if anyProf}
-                <h3>Profizienzen</h3>
+                <h3>Übungen &amp; Rüstungsausbildung</h3>
                 <div class="tag-list">
                   {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
                   {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
@@ -673,6 +921,25 @@
                   <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
                 {/if}
               {/if}
+            {/if}
+
+            <!-- Waffenbeherrschung: die Wahl selbst; die Eigenschaft kommt aus der
+                 Bibliothek, der Regeltext hängt im Tooltip. -->
+            {#if masteryChips.length}
+              <h3>Waffenbeherrschung</h3>
+              <div class="tag-list">
+                {#each masteryChips as chip}
+                  {#if chip.mastery}
+                    <span class="tag mastery-tag-full" title={MASTERY_INFO[chip.mastery].descDe}>
+                      {chip.name} <span class="mastery-prop">({masteryLabel(chip.mastery)})</span>
+                    </span>
+                  {:else}
+                    <span class="tag" title="Waffe nicht in der Bibliothek — Eigenschaft unbekannt">
+                      {chip.name} <span class="mastery-unknown">(?)</span>
+                    </span>
+                  {/if}
+                {/each}
+              </div>
             {/if}
           </div>
         </div>
@@ -741,6 +1008,57 @@
           {/if}
         {/if}
 
+        <!-- Verknüpfte Merkmale (aus der Bibliothek aufgelöst, read-only) -->
+        {#snippet featureList(feature: ResolvedFeature)}
+          <li>
+            <div class="ref-view-head">
+              <span class="ref-view-name">{feature.name}</span>
+              {#if feature.gainedAt}<span class="ref-view-level">Stufe {feature.gainedAt}</span>{/if}
+              {#if feature.choice}<span class="ref-view-choice">Entscheidung: {feature.choice}</span>{/if}
+            </div>
+            {#if feature.desc}<div class="ref-view-desc"><Markdown source={feature.desc} /></div>{/if}
+          </li>
+        {/snippet}
+        {#snippet groupBlock(group: ResolvedFeatureGroup)}
+          <div class="section">
+            <h3>{group.title}</h3>
+            {#if group.unresolved}
+              <p class="ref-unresolved">Nicht in der Bibliothek verlinkt – im Editor zuordnen oder anlegen.</p>
+            {:else if group.features.length}
+              <ul class="ref-view-list">
+                {#each group.features as feature}{@render featureList(feature)}{/each}
+              </ul>
+            {/if}
+          </div>
+        {/snippet}
+        {#if hasFeatureRefs}
+          <details class="ref-view" bind:open={featuresOpen}>
+            <summary>Verknüpfte Merkmale (Klasse, Volk, Hintergrund, Talente)</summary>
+            <div class="ref-view-body">
+              {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
+              {#each speciesTraitGroups as group}{@render groupBlock(group)}{/each}
+              {#each backgroundGroups as group}{@render groupBlock(group)}{/each}
+              {#if featEntries.length}
+                <div class="section">
+                  <h3>Talente</h3>
+                  <ul class="ref-view-list">
+                    {#each featEntries as feature}{@render featureList(feature)}{/each}
+                  </ul>
+                </div>
+              {/if}
+              {#if orphanChoices.length}
+                <div class="section">
+                  <h3>Entscheidungen ohne zugeordnetes Merkmal</h3>
+                  <p class="ref-unresolved">Verlinkung prüfen – das Merkmal steckt in keiner Klasse, keinem Volk und keinem Hintergrund dieses Charakters.</p>
+                  <ul class="ref-view-list">
+                    {#each orphanChoices as feature}{@render featureList(feature)}{/each}
+                  </ul>
+                </div>
+              {/if}
+            </div>
+          </details>
+        {/if}
+
         <!-- Inventar -->
         <div class="section">
           <h3>Inventar</h3>
@@ -759,7 +1077,7 @@
               <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
               <tbody>
                 {#each character.inventory as item}
-                  {@const libItem = itemByName[item.name.toLowerCase()]}
+                  {@const libItem = matchItem(itemIndex, item)}
                   {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
                   <tr
                     class:inv-linked={!!libItem}
@@ -821,19 +1139,19 @@
             {#if character.spells.cantrips.length}
               <div class="spell-level-header"><span>Zaubertricks</span></div>
               <div class="spell-cards">
-                {#each character.spells.cantrips as name}
-                  {@const info = spellInfoMap.get(name)}
-                  {@const color = spellColor(name)}
+                {#each character.spells.cantrips as c}
+                  {@const info = resolveSpell(c)}
+                  {@const color = spellColor(c)}
                   <div class="scard" class:scard-linked={!!info?.path}
                     style="--sc:{color || 'var(--border-strong)'}"
                     role="button" tabindex="0"
-                    onclick={() => openSpellPage(name)}
-                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(name)}
-                    onmouseenter={(e) => showSpellTooltip(e, name)}
+                    onclick={() => openSpellPage(c)}
+                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
+                    onmouseenter={(e) => showSpellTooltip(e, c.name)}
                     onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
                     onmouseleave={hideSpellTooltip}>
                     <div class="scard-head">
-                      <span class="scard-name">{name}</span>
+                      <span class="scard-name">{c.name}</span>
                       <span class="scard-badges">
                         {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
                       </span>
@@ -855,13 +1173,13 @@
                 </div>
                 <div class="spell-cards">
                   {#each lvlSpells as spell}
-                    {@const info = spellInfoMap.get(spell.name)}
-                    {@const color = spellColor(spell.name)}
+                    {@const info = resolveSpell(spell)}
+                    {@const color = spellColor(spell)}
                     <div class="scard" class:prepared={spell.prepared} class:scard-linked={!!info?.path}
                       style="--sc:{color || 'var(--border-strong)'}"
                       role="button" tabindex="0"
-                      onclick={() => openSpellPage(spell.name)}
-                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.name)}
+                      onclick={() => openSpellPage(spell)}
+                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
                       onmouseenter={(e) => showSpellTooltip(e, spell.name)}
                       onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
                       onmouseleave={hideSpellTooltip}>
@@ -886,11 +1204,16 @@
         <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
         <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
              frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
-        {#key ed.draft}
-          <div class="edit-wrapper" style="width:100%">
-            <CharacterEditForm character={ed.draft!} {dirPath} />
-          </div>
-        {/key}
+        {#if ed.draft}
+          {#key ed.draft}
+            <div class="edit-wrapper" style="width:100%">
+              <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
+                   Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
+              <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
+                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
+            </div>
+          {/key}
+        {/if}
       {/snippet}
 
       {#snippet extra(id)}
@@ -925,95 +1248,7 @@
   {/if}
 </div>
 
-{#if tooltipItem}
-  <div class="item-tooltip" style="left:{tooltipX}px;top:{tooltipY}px">
-    <div class="tt-name">
-      {tooltipItem.name_de ?? tooltipItem.name}
-      {#if tooltipItem.name_de}
-        <span class="tt-name-en">{tooltipItem.name}</span>
-      {/if}
-      {#if tooltipItem.attunement}
-        <span class="tt-badge tt-attune">Einstellung</span>
-      {/if}
-    </div>
-
-    <div class="tt-meta">
-      {#if structuralType(tooltipItem) === 'weapon'}
-        {WEAPON_CATEGORY_LABELS[tooltipItem.weapon_category ?? ''] ?? tooltipItem.weapon_category}
-        · {WEAPON_RANGE_LABELS[tooltipItem.weapon_range ?? ''] ?? tooltipItem.weapon_range}
-      {:else if structuralType(tooltipItem) === 'armor'}
-        {ARMOR_CATEGORY_LABELS[tooltipItem.armor_category ?? ''] ?? tooltipItem.armor_category}
-      {:else if tooltipItem.rarity}
-        {formatRarity(tooltipItem.rarity)}
-        {#if tooltipItem.attunement_by}· für {tooltipItem.attunement_by}{/if}
-      {/if}
-    </div>
-
-    {#if structuralType(tooltipItem) === 'weapon' && tooltipItem.damage}
-      <div class="tt-section">
-        <span class="tt-label">Schaden</span>
-        <span>{formatDamageDice(tooltipItem.damage.damage_dice)}
-          {DAMAGE_TYPE_LABELS[tooltipItem.damage.damage_type.index] ?? tooltipItem.damage.damage_type.name}
-          {#if tooltipItem.two_handed_damage}
-            · Zweihändig: {formatDamageDice(tooltipItem.two_handed_damage.damage_dice)}
-          {/if}
-        </span>
-      </div>
-      {#if tooltipItem.range}
-        <div class="tt-section">
-          <span class="tt-label">Reichweite</span>
-          <span>{ftToM(tooltipItem.range.normal)}{tooltipItem.range.long ? ` / ${ftToM(tooltipItem.range.long)}` : ''}</span>
-        </div>
-      {/if}
-      {#if tooltipItem.throw_range}
-        <div class="tt-section">
-          <span class="tt-label">Wurfweite</span>
-          <span>{ftToM(tooltipItem.throw_range.normal)} / {ftToM(tooltipItem.throw_range.long)}</span>
-        </div>
-      {/if}
-      {#if tooltipProperties(tooltipItem)}
-        <div class="tt-section">
-          <span class="tt-label">Eigenschaften</span>
-          <span>{tooltipProperties(tooltipItem)}</span>
-        </div>
-      {/if}
-    {:else if structuralType(tooltipItem) === 'armor' && tooltipItem.armor_class}
-      <div class="tt-section">
-        <span class="tt-label">Rüstungsklasse</span>
-        <span>{tooltipItem.armor_class.base}{tooltipItem.armor_class.dex_bonus ? ' + GES-Mod' : ''}{tooltipItem.armor_class.max_bonus != null ? ` (max. ${tooltipItem.armor_class.max_bonus})` : ''}</span>
-      </div>
-      {#if tooltipItem.str_minimum}
-        <div class="tt-section">
-          <span class="tt-label">Mindest-STR</span>
-          <span>{tooltipItem.str_minimum}</span>
-        </div>
-      {/if}
-      {#if tooltipItem.stealth_disadvantage}
-        <div class="tt-note">Nachteil auf Heimlichkeit</div>
-      {/if}
-    {/if}
-
-    {#if tooltipItem.cost || tooltipItem.weight}
-      <div class="tt-section tt-footer">
-        {#if tooltipItem.cost}<span>{formatCost(tooltipItem.cost)}</span>{/if}
-        {#if tooltipItem.cost && tooltipItem.weight}<span class="tt-sep">·</span>{/if}
-        {#if tooltipItem.weight}<span>{tooltipItem.weight} lb</span>{/if}
-      </div>
-    {/if}
-
-    {#if tooltipItem.desc_de?.length}
-      <div class="tt-divider"></div>
-      {#each tooltipItem.desc_de as para}
-        <p class="tt-desc">{para}</p>
-      {/each}
-    {:else if tooltipItem.desc?.length}
-      <div class="tt-divider"></div>
-      {#each tooltipItem.desc as para}
-        <p class="tt-desc">{para}</p>
-      {/each}
-    {/if}
-  </div>
-{/if}
+<ItemTooltip item={tooltipItem} x={tooltipX} y={tooltipY} />
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
 
@@ -1095,6 +1330,8 @@
   .icon-btn:disabled { opacity: 0.6; cursor: default; }
   .icon-btn.import:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.export:hover { border-color: var(--green); color: var(--green); }
+  .icon-btn.levelup { justify-content: center; font-weight: 700; }
+  .icon-btn.levelup:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.busy { animation: icon-pulse 1s ease-in-out infinite; }
 
   @keyframes icon-pulse {
@@ -1105,6 +1342,7 @@
   .edit-wrapper {
     min-height: 0;
   }
+
 
   .content {
     width: 100%;
@@ -1225,7 +1463,49 @@
     color: var(--ink);
   }
 
+  /* Waffenbeherrschung: kleine Pille hinter dem Angriffsnamen bzw. eigener Chip. */
+  .mastery-tag {
+    display: inline-block; margin-left: 0.3rem;
+    border: 1px solid color-mix(in srgb, var(--copper) 45%, transparent);
+    border-radius: 99px; padding: 0 0.35rem;
+    font-size: 0.65rem; color: var(--copper); cursor: help; vertical-align: middle;
+  }
+  .mastery-tag-full { cursor: help; }
+  .mastery-prop { color: var(--copper); }
+  .mastery-unknown { color: var(--ink-muted); cursor: help; }
+
   .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
+
+  /* ─── Referenzen (strukturiert, read-only) ───────────── */
+  .ref-view { margin: 0.6rem 0; }
+  .ref-view summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    font-weight: 600;
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+  }
+  .ref-view summary::-webkit-details-marker { display: none; }
+  .ref-view summary::before { content: '› '; color: var(--border); }
+  .ref-view[open] summary::before { content: '▾ '; }
+  .ref-view-body { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
+  .ref-view-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .ref-view-list li {
+    margin: 0; padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: color-mix(in srgb, var(--surface) 40%, transparent);
+  }
+  .ref-view-head { display: flex; align-items: baseline; gap: 0.5rem; }
+  .ref-view-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
+  .ref-view-level { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
+  .ref-view-choice {
+    color: var(--gold); font-size: 0.72rem; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+  }
+  .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
+  .ref-unresolved { color: var(--ink-muted); font-size: 0.78rem; font-style: italic; }
 
   /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
   .spell-level-header {
@@ -1469,74 +1749,6 @@
     font-size: 0.74rem;
     color: var(--ink-muted);
     font-style: italic;
-  }
-
-  /* ── Item-Tooltip ──────────────────────────────────────── */
-  .item-tooltip {
-    position: fixed;
-    z-index: 9999;
-    pointer-events: none;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.7rem 0.9rem;
-    min-width: 200px;
-    max-width: 320px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    font-size: 0.8rem;
-    color: var(--ink);
-  }
-  .tt-name {
-    font-weight: 600;
-    font-size: 0.88rem;
-    color: var(--ink);
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-bottom: 0.2rem;
-  }
-  .tt-name-en {
-    font-size: 0.72rem;
-    color: var(--ink-muted);
-    font-weight: 400;
-    font-style: italic;
-  }
-  .tt-badge {
-    font-size: 0.68rem;
-    padding: 0.1rem 0.35rem;
-    border-radius: 3px;
-    font-weight: 500;
-    line-height: 1.4;
-  }
-  .tt-attune { background: color-mix(in srgb, var(--arcane) 13%, transparent); color: var(--arcane); border: 1px solid color-mix(in srgb, var(--arcane) 25%, transparent); }
-  .tt-meta {
-    font-size: 0.74rem;
-    color: var(--red);
-    margin-bottom: 0.45rem;
-  }
-  .tt-section {
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.78rem;
-    margin-bottom: 0.15rem;
-    align-items: baseline;
-  }
-  .tt-label {
-    color: var(--ink-muted);
-    flex-shrink: 0;
-    min-width: 70px;
-    font-size: 0.72rem;
-  }
-  .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
-  .tt-sep { color: var(--border); }
-  .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
-  .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
-  .tt-desc {
-    margin: 0 0 0.3rem;
-    font-size: 0.77rem;
-    color: var(--ink-soft);
-    line-height: 1.45;
   }
 
   .inv-table td {

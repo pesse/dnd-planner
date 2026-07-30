@@ -5,13 +5,18 @@
   import { PDFDocument } from 'pdf-lib';
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
+  import LibraryManager from './LibraryManager.svelte';
   import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { confirmAction } from '../stores/confirmDialog';
   import { pushError } from '../stores/errors';
   import { updateState, updateDialogOpen } from '../stores/update';
+  import { libraries, libraryManagerOpen, updateCount } from '../stores/libraries';
   import CreateCardModal from './CreateCardModal.svelte';
-  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell, searchDndApiItems, mapApiResourceToItem } from '../services/dndApi';
+  import CharacterWizard from './CharacterWizard.svelte';
+  import type { Character } from '../schemas/character';
+  import { searchMonsters, mapApiResourceToMonster } from '../services/dndApi';
+  import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem, searchOpen5eSpells, getSpell, mapOpen5eSpell } from '../services/open5eApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
   import { createSpellAction } from '../services/aiActions/spellAction';
   import { createItemAction } from '../services/aiActions/itemAction';
@@ -24,9 +29,11 @@
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
+  import { CHARACTER_VERSION } from '../schemas/character';
   import {
     ITEMS_PATH,
     CATEGORY_LABELS as ITEM_CAT_LABELS,
+    DIR_TO_CATEGORY as ITEM_DIR_TO_CAT,
     rarityColor,
     invalidateItemCache,
     getItemsByDir,
@@ -37,6 +44,23 @@
     toHomebrewCopy,
   } from '../itemLibrary';
   import { SCHOOL_COLORS } from '../spellLibrary';
+  import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
+  import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
+  import { getFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
+  import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, invalidateBackgroundsCache, type BackgroundInfo } from '../backgroundsLibrary';
+  import {
+    listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw,
+    listBackgrounds, getBackground as getBackgroundRaw, DEFAULT_DOCUMENT,
+  } from '../services/open5eApi';
+  import { mapV2 } from '../services/classProgression';
+  import { mapV2Species } from '../services/speciesData';
+  import { mapV2Background } from '../services/backgroundData';
+  import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
+  import { parseClass, parseSpecies, parseBackground } from '../utils/schemaValidation';
+  import { CLASS_TEMPLATE, SPECIES_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
+  import { OWN_SOURCE } from '../schemas/shared';
+  import type { ClassProgression, Species, Background } from '../types';
+  import type { DndApiRef } from '../services/dndApi';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -186,6 +210,10 @@
     if (charactersExpanded) await loadCharacters();
     if (monstersExpanded) await loadMonsters();
     if (spellsExpanded) { spellsBySchool = {}; await loadSpells(); }
+    if (classesExpanded) await loadClasses();
+    if (speciesExpanded) await loadSpeciesList();
+    if (featsExpanded) await loadFeats();
+    if (backgroundsExpanded) await loadBackgroundsList();
     const campaign = $activeCampaign;
     if (campaign) {
       for (const section of sections) {
@@ -261,6 +289,7 @@
   }
   let showNewCharInput = $state(false);
   let newCharInput = $state('');
+  let showWizard = $state(false);
   let pdfImporting = $state(false);
   let pdfImportError = $state('');
 
@@ -327,9 +356,13 @@
     const dirPath = `${CHARACTERS_PATH}/${slug}`;
 
     const json: CharacterJSON = {
-      _version: 1,
+      // Neu in der App entstanden → schon im aktuellen Format, kein Upgrade nötig.
+      _version: CHARACTER_VERSION,
       name,
-      classLevel: '', playerName: '', background: '', race: '', xp: '',
+      classes: [],
+      classLevel: '', playerName: '',
+      backgroundRef: { sourceKey: '', name: '' }, background: '',
+      species: { sourceKey: '', name: '' }, race: '', xp: '',
       str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
       strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
       ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
@@ -345,6 +378,8 @@
       spells: emptySpells(),
       personal: emptyPersonal(),
       proficiencies: emptyProficiencies(),
+      masteries: [],
+      features: [],
     };
 
     const gmNotes = `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
@@ -363,6 +398,24 @@
 
   function cancelNewChar(e: KeyboardEvent) {
     if (e.key === 'Escape') { showNewCharInput = false; newCharInput = ''; }
+  }
+
+  /** Übernimmt den vom Wizard fertig zusammengesetzten Charakter: Verzeichnis + Dateien anlegen, öffnen. */
+  async function createFromWizard(character: Character) {
+    const raw = (character.name || 'Neuer Charakter').trim();
+    const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '') || 'charakter';
+    const dirPath = `${CHARACTERS_PATH}/${slug}`;
+    const gmNotes = `# GM-Notizen: ${raw}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
+    try {
+      await invoke('write_file_content', { path: `${dirPath}/character.json`, content: JSON.stringify(character, null, 2) });
+      await invoke('write_file_content', { path: `${dirPath}/gm-notes.md`, content: gmNotes });
+      showWizard = false;
+      charactersExpanded = true;
+      await loadCharacters();
+      await openCharacter({ name: slug, is_dir: true });
+    } catch (err) {
+      console.error('Charakter konnte nicht erstellt werden:', err);
+    }
   }
 
   async function importFromPdf() {
@@ -407,6 +460,8 @@
       const pdfFilename = path.split(/[/\\]/).pop() ?? path;
 
       const json: CharacterJSON = {
+        // BEWUSST v1: das PDF liefert Klasse/Volk/Hintergrund als Freitext. Die
+        // Upgrade-Pipeline (schemas/character.ts) strukturiert das beim ersten Laden.
         _version: 1,
         _importedFrom: pdfFilename,
         _importedAt: new Date().toISOString(),
@@ -595,8 +650,9 @@
     createModal = 'spell';
   }
 
-  // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI).
-  let createModal = $state<'monster' | 'spell' | null>(null);
+  // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI,
+  // Klasse/Spezies via Open5e v2).
+  let createModal = $state<'monster' | 'spell' | 'class' | 'species' | 'feat' | 'background' | null>(null);
 
   function blankSpell(name: string): Spell {
     return {
@@ -604,7 +660,7 @@
       casting_time: '1 Aktion', range: '9 Meter',
       components: { verbal: true, somatic: false, material: false, materials_needed: null },
       duration: 'Unmittelbar', concentration: false, ritual: false,
-      classes: [], desc: [''], source: 'eigen',
+      classes: [], desc: [''], source: OWN_SOURCE,
     };
   }
 
@@ -650,13 +706,21 @@
     }));
   }
 
-  /** Rohe SRD-Ressource → Homebrew-Item (Quelle aus rarity-Präsenz abgeleitet). */
-  function mapApiItem(data: Record<string, unknown>): Item {
-    return toHomebrewCopy(mapApiResourceToItem(data, data.rarity ? 'magic' : 'equipment'));
+  /** Open5e-v2-Item-Key → anpassbare Homebrew-Kopie (nur Ausrüstung). */
+  async function loadApiItem(ref: { url: string }): Promise<Item> {
+    return toHomebrewCopy(mapOpen5eItem(await getOpen5eItem(ref.url)));
+  }
+
+  async function loadApiSpell(ref: { url: string }): Promise<Spell> {
+    return mapOpen5eSpell(await getSpell(ref.url));
+  }
+
+  /** Anzeige-Label eines Item-Ordners; Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
+  function itemDirLabel(dir: string): string {
+    return ITEM_CAT_LABELS[ITEM_DIR_TO_CAT[dir] ?? dir] ?? dir;
   }
 
   // --- Gegenstände (global, nach Kategorie) ---
-  // Anzeige-Labels kommen direkt aus ITEM_CAT_LABELS (dir === category).
 
   let itemsExpanded = $state(false);
   let itemDirs: string[] = $state([]);
@@ -665,6 +729,8 @@
   let itemSearch = $state('');
   let showItemModal = $state(false);
   let showTransferModal = $state(false);
+  /** Anzahl Bibliotheken mit Update — hebt den Bibliotheks-Knopf hervor. */
+  let libUpdates = $derived(updateCount($libraries));
 
   $effect(() => {
     if (itemSearch.trim() && itemDirs.length) {
@@ -757,6 +823,212 @@
       }
     }
   }
+
+  // --- Klassen (globale Regel-Bibliothek, Basisklassen mit Subklassen als Unterpunkte) ---
+  let classesExpanded = $state(false);
+  let classTree = $state<ClassNode[]>([]);
+
+  async function loadClasses() {
+    invalidateClassCache();
+    classTree = await getClassTree();
+  }
+
+  async function toggleClasses() {
+    classesExpanded = !classesExpanded;
+    if (classesExpanded) await loadClasses();
+  }
+
+  async function openClass(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
+  }
+
+  async function createClass() {
+    if (!(await confirmNavigation())) return;
+    classesExpanded = true;
+    createModal = 'class';
+  }
+
+  function blankClass(name: string): ClassProgression {
+    return { ...structuredClone(CLASS_TEMPLATE), name: name || 'Neue Klasse', nameDe: name || 'Neue Klasse' };
+  }
+
+  /** Open5e-v2-Suche über Basisklassen UND Subklassen. ref.url = v2-Key. */
+  async function searchOpen5eClasses(q: string): Promise<DndApiRef[]> {
+    const all = await listClasses();
+    const ql = q.toLowerCase();
+    return all
+      .filter((c) => c.name.toLowerCase().includes(ql))
+      .map((c) => ({
+        index: c.key,
+        name: c.subclass_of?.name ? `${c.name} — Unterklasse von ${c.subclass_of.name}` : c.name,
+        url: c.key,
+      }))
+      .slice(0, 15);
+  }
+  const loadOpen5eClass = async (ref: DndApiRef): Promise<ClassProgression> => mapV2(await getClass(ref.url));
+
+  async function searchClassLibrary(q: string): Promise<{ name: string; load: () => Promise<ClassProgression> }[]> {
+    const lib = await getClasses();
+    return searchClasses(lib, q, 8).map((c) => ({
+      name: classDisplayName(c),
+      load: async () => {
+        const r = parseClass(JSON.parse(await invoke<string>('read_file_content', { path: c.path })));
+        return r.ok ? r.data : blankClass(classDisplayName(c));
+      },
+    }));
+  }
+
+  // --- Spezies (globale Regel-Bibliothek, flach) ---
+  let speciesExpanded = $state(false);
+  let speciesInfos = $state<SpeciesInfo[]>([]);
+
+  async function loadSpeciesList() {
+    invalidateSpeciesCache();
+    speciesInfos = await getSpeciesList();
+  }
+
+  async function toggleSpecies() {
+    speciesExpanded = !speciesExpanded;
+    if (speciesExpanded) await loadSpeciesList();
+  }
+
+  async function openSpecies(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'species' });
+  }
+
+  async function createSpecies() {
+    if (!(await confirmNavigation())) return;
+    speciesExpanded = true;
+    createModal = 'species';
+  }
+
+  function blankSpecies(name: string): Species {
+    return { ...structuredClone(SPECIES_TEMPLATE), name: name || 'Neue Spezies', nameDe: name || 'Neue Spezies' };
+  }
+
+  /** Open5e-v2-Spezies-Suche. ref.url = v2-Key. */
+  async function searchOpen5eSpecies(q: string): Promise<DndApiRef[]> {
+    const all = await listSpecies();
+    const ql = q.toLowerCase();
+    return all
+      .filter((s) => s.name.toLowerCase().includes(ql))
+      .map((s) => ({ index: s.key, name: s.name, url: s.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eSpecies = async (ref: DndApiRef): Promise<Species> => mapV2Species(await getSpeciesRaw(ref.url));
+
+  async function searchSpeciesLibrary(q: string): Promise<{ name: string; load: () => Promise<Species> }[]> {
+    const lib = await getSpeciesList();
+    return searchSpecies(lib, q, 8).map((s) => ({
+      name: speciesDisplayName(s),
+      load: async () => {
+        const r = parseSpecies(JSON.parse(await invoke<string>('read_file_content', { path: s.path })));
+        return r.ok ? r.data : blankSpecies(speciesDisplayName(s));
+      },
+    }));
+  }
+
+  // --- Talente (globale Regel-Bibliothek, flach) ---
+  let featsExpanded = $state(false);
+  let featInfos = $state<FeatEntry[]>([]);
+
+  async function loadFeats() {
+    invalidateFeatsCache();
+    featInfos = await getFeats();
+  }
+
+  async function toggleFeats() {
+    featsExpanded = !featsExpanded;
+    if (featsExpanded) await loadFeats();
+  }
+
+  async function openFeat(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'feat' });
+  }
+
+  async function createFeat() {
+    if (!(await confirmNavigation())) return;
+    featsExpanded = true;
+    createModal = 'feat';
+  }
+
+  // --- Hintergründe (globale Regel-Bibliothek, flach) ---
+  let backgroundsExpanded = $state(false);
+  let backgroundInfos = $state<BackgroundInfo[]>([]);
+
+  async function loadBackgroundsList() {
+    invalidateBackgroundsCache();
+    backgroundInfos = await getBackgroundsList();
+  }
+
+  async function toggleBackgrounds() {
+    backgroundsExpanded = !backgroundsExpanded;
+    if (backgroundsExpanded) await loadBackgroundsList();
+  }
+
+  async function openBackground(path: string) {
+    if (!(await confirmNavigation())) return;
+    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'background' });
+  }
+
+  async function createBackground() {
+    if (!(await confirmNavigation())) return;
+    backgroundsExpanded = true;
+    createModal = 'background';
+  }
+
+  function blankBackground(name: string): Background {
+    return { ...structuredClone(BACKGROUND_TEMPLATE), name: name || 'Neuer Hintergrund', nameDe: name || 'Neuer Hintergrund' };
+  }
+
+  /**
+   * Open5e-v2-Hintergrund-Suche. ref.url = v2-Key.
+   * Die 2024-Quellen zuerst: nur 4 der ~58 Einträge sind SRD 5.2, der Rest ist
+   * 2014-/A5E-Material und landet beim Import als `homebrew-sam`.
+   */
+  async function searchOpen5eBackgrounds(q: string): Promise<DndApiRef[]> {
+    const all = await listBackgrounds();
+    const ql = q.toLowerCase();
+    return all
+      .filter((b) => b.name.toLowerCase().includes(ql))
+      .sort((a, b) => Number(b.document?.key === DEFAULT_DOCUMENT) - Number(a.document?.key === DEFAULT_DOCUMENT))
+      .map((b) => ({ index: b.key, name: `${b.name} (${b.document?.display_name ?? b.document?.key ?? '?'})`, url: b.key }))
+      .slice(0, 15);
+  }
+  const loadOpen5eBackground = async (ref: DndApiRef): Promise<Background> =>
+    mapV2Background(await getBackgroundRaw(ref.url));
+
+  async function searchBackgroundLibrary(q: string): Promise<{ name: string; load: () => Promise<Background> }[]> {
+    const lib = await getBackgroundsList();
+    return searchBackgrounds(lib, q, 8).map((b) => ({
+      name: backgroundDisplayName(b),
+      load: async () => {
+        const r = parseBackground(JSON.parse(await invoke<string>('read_file_content', { path: b.path })));
+        return r.ok ? r.data : blankBackground(backgroundDisplayName(b));
+      },
+    }));
+  }
+
+  // Klassen/Spezies/Talente/Hintergründe bei Vault-Änderung neu laden (z.B. nach Speichern eines neuen Eintrags).
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (classesExpanded) void loadClasses();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (speciesExpanded) void loadSpeciesList();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (featsExpanded) void loadFeats();
+  });
+  $effect(() => {
+    const _v = $vaultVersion;
+    if (backgroundsExpanded) void loadBackgroundsList();
+  });
 
   // --- Encounter (pro Akt-Verzeichnis) ---
   // Key: `${campaignPath}/${actDirName}`
@@ -1034,6 +1306,14 @@
           onclick={() => updateDialogOpen.set(true)}
         >⬆</button>
       {/if}
+      <button
+        class="header-btn"
+        class:library-update={libUpdates > 0}
+        title={libUpdates > 0
+          ? `${libUpdates} Bibliotheks-Update(s) verfügbar`
+          : 'Bibliotheken verwalten'}
+        onclick={() => libraryManagerOpen.set(true)}
+      >📚</button>
       <button class="header-btn" title="Vault importieren / exportieren" onclick={() => (showTransferModal = true)}>⇅</button>
       <button class="reload-all-btn" title="Alles neu laden" onclick={reloadAll}>↺</button>
     </div>
@@ -1049,7 +1329,7 @@
       <button class="add-btn" title="Aus PDF importieren" disabled={pdfImporting} onclick={() => { importFromPdf(); }}>
         {pdfImporting ? '…' : 'PDF'}
       </button>
-      <button class="add-btn" title="Neuer Charakter" onclick={() => { charactersExpanded = true; loadCharacters(); showNewCharInput = true; newCharInput = ''; }}>
+      <button class="add-btn" title="Neuer Charakter" onclick={() => { showWizard = true; }}>
         +
       </button>
     </div>
@@ -1322,7 +1602,7 @@
               onclick={() => toggleItemDir(dir)}
             >
               <span class="arrow" class:open={openItemDirs[dir]}>›</span>
-              {ITEM_CAT_LABELS[dir] ?? dir}
+              {itemDirLabel(dir)}
               {#if dirItems}<span class="group-count">({dirItems.length})</span>{/if}
             </button>
             {#if openItemDirs[dir]}
@@ -1352,12 +1632,154 @@
     {/if}
   </div>
 
+  <!-- Klassen (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleClasses}>
+        <span class="arrow" class:open={classesExpanded}>›</span>
+        Klassen
+      </button>
+      <button class="add-btn" title="Neue Klasse" onclick={createClass}>+</button>
+    </div>
+
+    {#if classesExpanded}
+      <div class="file-list">
+        {#if classTree.length}
+          {#each classTree as node}
+            <div class="entry-row">
+              <button
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === node.path}
+                onclick={() => openClass(node.path)}
+              >
+                📖 {classDisplayName(node)}
+              </button>
+              {@render delBtn(() => deleteEntry(node.path, classDisplayName(node), false, loadClasses))}
+            </div>
+            {#each node.subclasses as sub}
+              <div class="entry-row">
+                <button
+                  class="file-entry class-subentry"
+                  class:active={$activeFile?.path === sub.path}
+                  onclick={() => openClass(sub.path)}
+                >
+                  ↳ {classDisplayName(sub)}
+                </button>
+                {@render delBtn(() => deleteEntry(sub.path, classDisplayName(sub), false, loadClasses))}
+              </div>
+            {/each}
+          {/each}
+        {:else}
+          <span class="empty">Keine Klassen</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Spezies (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleSpecies}>
+        <span class="arrow" class:open={speciesExpanded}>›</span>
+        Spezies
+      </button>
+      <button class="add-btn" title="Neue Spezies" onclick={createSpecies}>+</button>
+    </div>
+
+    {#if speciesExpanded}
+      <div class="file-list">
+        {#if speciesInfos.length}
+          {#each speciesInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => openSpecies(info.path)}
+              >
+                🧬 {speciesDisplayName(info)}
+              </button>
+              {@render delBtn(() => deleteEntry(info.path, speciesDisplayName(info), false, loadSpeciesList))}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Spezies</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Talente (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleFeats}>
+        <span class="arrow" class:open={featsExpanded}>›</span>
+        Talente
+      </button>
+      <button class="add-btn" title="Neues Talent" onclick={createFeat}>+</button>
+    </div>
+
+    {#if featsExpanded}
+      <div class="file-list">
+        {#if featInfos.length}
+          {#each featInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => info.path && openFeat(info.path)}
+              >
+                ✴ {featDisplayName(info)}
+              </button>
+              {#if info.path}
+                {@render delBtn(() => deleteEntry(info.path!, featDisplayName(info), false, loadFeats))}
+              {/if}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Talente</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Hintergründe (globale Regel-Bibliothek) -->
+  <div class="top-section">
+    <div class="section-row">
+      <button class="section-toggle chars-toggle" onclick={toggleBackgrounds}>
+        <span class="arrow" class:open={backgroundsExpanded}>›</span>
+        Hintergründe
+      </button>
+      <button class="add-btn" title="Neuer Hintergrund" onclick={createBackground}>+</button>
+    </div>
+
+    {#if backgroundsExpanded}
+      <div class="file-list">
+        {#if backgroundInfos.length}
+          {#each backgroundInfos as info}
+            <div class="entry-row">
+              <button
+                class="file-entry lib-entry"
+                class:active={$activeFile?.path === info.path}
+                onclick={() => openBackground(info.path)}
+              >
+                🎭 {backgroundDisplayName(info)}
+              </button>
+              {@render delBtn(() => deleteEntry(info.path, backgroundDisplayName(info), false, loadBackgroundsList))}
+            </div>
+          {/each}
+        {:else}
+          <span class="empty">Keine Hintergründe</span>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
   {#if showItemModal}
     <CreateCardModal
       type="item"
       title="Neuer Gegenstand"
-      searchApi={searchDndApiItems}
-      mapApi={mapApiItem}
+      searchApi={searchOpen5eItems}
+      loadApi={loadApiItem}
       searchLibrary={searchItemLibrary}
       blank={(name) => blankItem(name, itemDirs[0] ?? 'other')}
       buildAction={createItemAction}
@@ -1367,8 +1789,16 @@
     />
   {/if}
 
+  {#if $libraryManagerOpen}
+    <LibraryManager onclose={() => libraryManagerOpen.set(false)} />
+  {/if}
+
   {#if showTransferModal}
     <VaultTransferModal onclose={() => (showTransferModal = false)} />
+  {/if}
+
+  {#if showWizard}
+    <CharacterWizard onComplete={createFromWizard} onCancel={() => (showWizard = false)} />
   {/if}
 
   {#if createModal === 'monster'}
@@ -1387,12 +1817,65 @@
     <CreateCardModal
       type="spell"
       title="Neuer Zauber"
-      searchApi={searchSpells}
-      mapApi={mapApiResourceToSpell}
+      searchApi={searchOpen5eSpells}
+      loadApi={loadApiSpell}
       searchLibrary={searchSpellLibrary}
       blank={blankSpell}
       buildAction={createSpellAction}
       nameOf={(s: Spell) => s.name || 'Zauber'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'class'}
+    <CreateCardModal
+      type="class"
+      title="Neue Klasse"
+      searchApi={searchOpen5eClasses}
+      loadApi={loadOpen5eClass}
+      searchLibrary={searchClassLibrary}
+      blank={blankClass}
+      nameOf={(c: ClassProgression) => c.nameDe || c.name || 'Klasse'}
+      extraSelect={{
+        label: 'Subklasse von',
+        placeholder: '— (eigenständige Klasse)',
+        load: async () =>
+          (await getClasses())
+            .filter((c) => !c.subclassOf && c.key)
+            .map((c) => ({ value: c.key!, label: classDisplayName(c) })),
+        apply: (draft: ClassProgression, value: string) => { draft.subclassOf = value; },
+      }}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'species'}
+    <CreateCardModal
+      type="species"
+      title="Neue Spezies"
+      searchApi={searchOpen5eSpecies}
+      loadApi={loadOpen5eSpecies}
+      searchLibrary={searchSpeciesLibrary}
+      blank={blankSpecies}
+      nameOf={(s: Species) => s.nameDe || s.name || 'Spezies'}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'feat'}
+    <CreateCardModal
+      type="feat"
+      title="Neues Talent"
+      searchApi={searchOpen5eFeats}
+      loadApi={loadOpen5eFeat}
+      searchLibrary={searchFeatLibrary}
+      blank={blankFeat}
+      nameOf={featDraftName}
+      onclose={() => (createModal = null)}
+    />
+  {:else if createModal === 'background'}
+    <CreateCardModal
+      type="background"
+      title="Neuer Hintergrund"
+      searchApi={searchOpen5eBackgrounds}
+      loadApi={loadOpen5eBackground}
+      searchLibrary={searchBackgroundLibrary}
+      blank={blankBackground}
+      nameOf={(b: Background) => b.nameDe || b.name || 'Hintergrund'}
       onclose={() => (createModal = null)}
     />
   {/if}
@@ -1608,6 +2091,11 @@
   }
   .sidebar-header .update-btn { opacity: 1; }
   .update-btn:hover { color: var(--gold); filter: brightness(1.2); }
+
+  /* Bibliotheks-Update: gleiche Logik wie beim App-Update — dauerhaft
+     sichtbar, sobald es etwas zu holen gibt. */
+  .header-btn.library-update { color: var(--gold); opacity: 1; }
+  .header-btn.library-update:hover { filter: brightness(1.2); }
 
   .top-section {
     padding: 0.5rem 0;
@@ -1828,6 +2316,19 @@
 
   .monster-subentry {
     padding-left: 3.5rem;
+  }
+
+  /* Bibliothek (Klassen/Spezies/Talente): 1. Ebene ohne Kategorie-Level → flach
+     eingerückt wie die 1. Ebene bei Monstern/Gegenständen (spart Platz). */
+  .lib-entry {
+    padding-left: 1.75rem;
+  }
+
+  /* Subklasse als Unterpunkt der Basisklasse: eine Stufe tiefer als .lib-entry, dezent. */
+  .class-subentry {
+    padding-left: 3rem;
+    font-size: 0.9em;
+    color: var(--ink-muted);
   }
 
   /* HG-Badge (Herausforderungsgrad) vor Monster-Einträgen */

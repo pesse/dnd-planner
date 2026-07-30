@@ -1,0 +1,62 @@
+{
+  "index": "string",
+  "key": "string",
+  "name": "string",
+  "name_en": "string",
+  "level": 0,
+  "school": "evocation",
+  "casting_time": "string",
+  "range": "string",
+  "components": {
+    "verbal": false,
+    "somatic": false,
+    "material": false,
+    "materials_needed": "string"
+  },
+  "duration": "string",
+  "concentration": false,
+  "ritual": false,
+  "classes": [
+    "string"
+  ],
+  "desc": [
+    "string"
+  ],
+  "desc_de": [
+    "string"
+  ],
+  "higher_level": [
+    "string"
+  ],
+  "higher_level_de": [
+    "string"
+  ],
+  "damage": {
+    "damage_type": {
+      "index": "string",
+      "name": "string"
+    },
+    "damage_at_slot_level": {
+      "<key>": "string"
+    },
+    "damage_at_character_level": {
+      "<key>": "string"
+    }
+  },
+  "dc": {
+    "dc_type": {
+      "index": "string",
+      "name": "string"
+    },
+    "dc_success": "string"
+  },
+  "area_of_effect": {
+    "type": "string",
+    "size": 0
+  },
+  "source": "homebrew-sam",
+  "document": {
+    "key": "string",
+    "gamesystem": "string"
+  }
+}

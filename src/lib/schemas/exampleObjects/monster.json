@@ -1,0 +1,96 @@
+{
+  "index": "string",
+  "source": "homebrew-sam",
+  "name": "string",
+  "size": "Medium",
+  "type": "humanoid",
+  "alignment": "neutral",
+  "ac": {
+    "value": -9007199254740991,
+    "note": "string"
+  },
+  "hp": {
+    "average": -9007199254740991,
+    "formula": "string"
+  },
+  "speed": "string",
+  "stats": {
+    "str": -9007199254740991,
+    "dex": -9007199254740991,
+    "con": -9007199254740991,
+    "int": -9007199254740991,
+    "wis": -9007199254740991,
+    "cha": -9007199254740991
+  },
+  "saving_throws": {
+    "<key>": "string"
+  },
+  "skills": {
+    "<key>": "string"
+  },
+  "damage_resistances": [
+    "string"
+  ],
+  "damage_immunities": [
+    "string"
+  ],
+  "condition_immunities": [
+    "string"
+  ],
+  "senses": "string",
+  "languages": "string",
+  "cr": "1/4",
+  "xp": 0,
+  "traits": [
+    {
+      "name": "string",
+      "description": "string",
+      "attack_bonus": -9007199254740991,
+      "damage": [
+        {
+          "dice": "string",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "name": "string",
+      "description": "string",
+      "attack_bonus": -9007199254740991,
+      "damage": [
+        {
+          "dice": "string",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "name": "string",
+      "description": "string",
+      "attack_bonus": -9007199254740991,
+      "damage": [
+        {
+          "dice": "string",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "legendary_actions": [
+    {
+      "name": "string",
+      "description": "string",
+      "attack_bonus": -9007199254740991,
+      "damage": [
+        {
+          "dice": "string",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

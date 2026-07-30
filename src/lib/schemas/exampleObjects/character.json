@@ -1,0 +1,180 @@
+{
+  "name": "string",
+  "classes": [
+    {
+      "sourceKey": "string",
+      "name": "string",
+      "subclassKey": "string",
+      "subclassName": "string",
+      "level": 1
+    }
+  ],
+  "classLevel": "string",
+  "playerName": "string",
+  "backgroundRef": {
+    "sourceKey": "string",
+    "name": "string"
+  },
+  "background": "string",
+  "species": {
+    "sourceKey": "string",
+    "name": "string",
+    "subspeciesKey": "string",
+    "subspeciesName": "string"
+  },
+  "race": "string",
+  "xp": "string",
+  "str": 10,
+  "ges": 10,
+  "kon": 10,
+  "int": 10,
+  "wei": 10,
+  "cha": 10,
+  "strMod": 0,
+  "gesMod": 0,
+  "konMod": 0,
+  "intMod": 0,
+  "weiMod": 0,
+  "chaMod": 0,
+  "ac": "string",
+  "initiative": "string",
+  "speed": "string",
+  "hpMax": "string",
+  "hpCurrent": "string",
+  "hpTemp": "string",
+  "proficiencyBonus": 2,
+  "passivePerception": "string",
+  "hitDice": "string",
+  "strSaveProf": false,
+  "gesSaveProf": false,
+  "konSaveProf": false,
+  "intSaveProf": false,
+  "weiSaveProf": false,
+  "chaSaveProf": false,
+  "skills": {
+    "<key>": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [
+    {
+      "name": "string",
+      "bonus": "string",
+      "damage": "string",
+      "type": "string",
+      "range": "string",
+      "auto": false,
+      "ability": "str",
+      "proficient": false,
+      "baseDamage": "string",
+      "magicBonus": -9007199254740991,
+      "modifiers": [
+        {
+          "label": "string",
+          "attackBonus": 0,
+          "damageBonus": 0
+        }
+      ]
+    }
+  ],
+  "classFeatures": "string",
+  "traits": "string",
+  "ideals": "string",
+  "bonds": "string",
+  "flaws": "string",
+  "languages": [
+    "string"
+  ],
+  "tools": [
+    "string"
+  ],
+  "alleskoenner": false,
+  "currency": {
+    "km": "string",
+    "sm": "string",
+    "em": "string",
+    "gm": "string",
+    "pm": "string"
+  },
+  "inventory": [
+    {
+      "name": "string",
+      "sourceKey": "string",
+      "count": "string",
+      "weight": "string"
+    }
+  ],
+  "inventoryNotes": "string",
+  "totalWeight": "string",
+  "spells": {
+    "spellcastingClass": "string",
+    "spellcastingAbility": "string",
+    "saveDC": 0,
+    "attackBonus": 0,
+    "autoCalc": true,
+    "slots": [
+      {
+        "total": -9007199254740991,
+        "used": -9007199254740991
+      }
+    ],
+    "cantrips": [
+      {
+        "name": "string",
+        "sourceKey": "string"
+      }
+    ],
+    "byLevel": {
+      "<key>": [
+        {
+          "name": "string",
+          "sourceKey": "string",
+          "prepared": false
+        }
+      ]
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "string",
+    "alter": "string",
+    "geschlecht": "string",
+    "sizeCat": "string",
+    "gesinnung": "string",
+    "glaube": "string",
+    "lebensstil": "string",
+    "taeglicheKosten": "string",
+    "augenfarbe": "string",
+    "haarfarbe": "string",
+    "hautfarbe": "string",
+    "gewicht": "string",
+    "koerpergroesse": "string",
+    "aussehen": "string"
+  },
+  "proficiencies": {
+    "simpleWeapons": false,
+    "martialWeapons": false,
+    "otherWeapons": "string",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [
+    "string"
+  ],
+  "features": [
+    {
+      "sourceKey": "string",
+      "name": "string",
+      "choice": "string",
+      "gainedAt": -9007199254740991,
+      "desc": "string"
+    }
+  ],
+  "portraitFile": "string",
+  "_version": 1,
+  "_importedFrom": "string",
+  "_importedAt": "string"
+}

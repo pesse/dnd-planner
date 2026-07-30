@@ -1,0 +1,76 @@
+{
+  "key": "string",
+  "index": "string",
+  "name": "string",
+  "name_de": "string",
+  "equipment_category": {
+    "index": "string",
+    "name": "string"
+  },
+  "rarity": {
+    "name": "string",
+    "rank": -9007199254740991
+  },
+  "attunement": false,
+  "attunement_by": "string",
+  "variant": false,
+  "variants": [
+    "string"
+  ],
+  "weapon_category": "string",
+  "weapon_range": "string",
+  "damage": {
+    "damage_dice": "string",
+    "damage_type": {
+      "index": "string",
+      "name": "string"
+    }
+  },
+  "two_handed_damage": {
+    "damage_dice": "string",
+    "damage_type": {
+      "index": "string",
+      "name": "string"
+    }
+  },
+  "range": {
+    "normal": 0,
+    "long": 0
+  },
+  "throw_range": {
+    "normal": 0,
+    "long": 0
+  },
+  "properties": [
+    {
+      "index": "string",
+      "name": "string"
+    }
+  ],
+  "mastery": "Cleave",
+  "magic_bonus": -9007199254740991,
+  "armor_category": "string",
+  "armor_class": {
+    "base": -9007199254740991,
+    "dex_bonus": false,
+    "max_bonus": -9007199254740991
+  },
+  "str_minimum": -9007199254740991,
+  "stealth_disadvantage": false,
+  "desc": [
+    "string"
+  ],
+  "desc_de": [
+    "string"
+  ],
+  "cost": {
+    "quantity": 0,
+    "unit": "string"
+  },
+  "weight": 0,
+  "source": "homebrew-sam",
+  "document": {
+    "key": "string",
+    "gamesystem": "string"
+  }
+}

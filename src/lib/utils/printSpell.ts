@@ -1,5 +1,8 @@
 import type { Spell } from '../types';
 import { spellDesc, spellHigherLevel, spellLevelLabel } from '../types';
+import { renderMarkdownInline } from './markdown';
+import { createHtmlFitter, paginateMarkdown } from './paginateMarkdown';
+import { RULE_TEXT_PRINT_CSS } from './printCss';
 
 // ── Konstanten ────────────────────────────────────────────────────────────────
 
@@ -65,35 +68,7 @@ function componentStr(s: Spell): string {
   return parts.join(', ') || '—';
 }
 
-// ── DOM-basiertes Text-Splitting ──────────────────────────────────────────────
-
-/**
- * Findet per Binärsuche die längste Teilmenge von `text`, die in `el` passt
- * (scrollHeight ≤ clientHeight). Schneidet an Wort- oder Zeilengrenzen.
- */
-function measureFit(text: string, el: HTMLDivElement): string {
-  el.textContent = text;
-  if (el.scrollHeight <= el.clientHeight + 2) return text; // passt komplett
-
-  // Alle gültigen Schnittposition: direkt nach einem Leerzeichen oder Zeilenumbruch
-  const positions: number[] = [0];
-  for (let i = 1; i < text.length; i++) {
-    const ch = text[i - 1];
-    if (ch === ' ' || ch === '\n') positions.push(i);
-  }
-  positions.push(text.length);
-
-  let lo = 0;
-  let hi = positions.length - 1;
-  while (lo < hi - 1) {
-    const mid = Math.floor((lo + hi) / 2);
-    el.textContent = text.slice(0, positions[mid]);
-    if (el.scrollHeight <= el.clientHeight + 2) lo = mid;
-    else hi = mid;
-  }
-
-  return text.slice(0, positions[lo]).trimEnd();
-}
+// ── DOM-basierte Seitenaufteilung ─────────────────────────────────────────────
 
 /**
  * Rendert Karten-Schalen (ohne Beschreibungstext) in einem unsichtbaren DOM-Element
@@ -124,54 +99,32 @@ function measureDescHeights(spell: Spell, doc: Document): { firstH: number; cont
 }
 
 /**
- * Teilt `description` in Textblöcke auf, die exakt in die Karten passen.
- * Nutzt ein unsichtbares DOM-Element mit denselben Schrift-/Größeneinstellungen.
- * Keine Schätzungen — der Browser misst den tatsächlichen Überlauf.
+ * Verteilt die Beschreibung blockweise auf Karten. Rückgabe: je Karte fertiges
+ * HTML. Der „Auf höheren Graden."-Zusatz wird als Schluss-Zusatz mitgemessen,
+ * damit er nicht über den Rand der letzten Karte läuft.
  */
-function splitDescription(description: string, firstH: number, contH: number, doc: Document): string[] {
+function paginateDescription(spell: Spell, firstH: number, contH: number, doc: Document): string[] {
+  const description = spellDesc(spell);
   if (!description) return [''];
 
-  const el = doc.createElement('div') as HTMLDivElement;
-  el.style.cssText = [
-    'position:fixed', 'top:-9999px', 'left:-9999px',
-    `font-family:${FONT_FAMILY}`,
-    `font-size:${FONT_SIZE}`,
-    `line-height:${LINE_HEIGHT}`,
-    'white-space:pre-wrap',
-    'word-break:break-word',
-    'overflow:hidden',
-    'box-sizing:border-box',
-    `width:${DESC_WIDTH}`,
-    `padding:${DESC_PADDING}`,  // identisch zur .desc-Klasse — sonst zu viel Text gemessen
-  ].join(';');
-  doc.body.appendChild(el);
-
-  const chunks: string[] = [];
-  let remaining = description;
-  let isFirst = true;
+  const fitter = createHtmlFitter({
+    doc,
+    fontFamily: FONT_FAMILY,
+    fontSize: FONT_SIZE,
+    lineHeight: LINE_HEIGHT,
+    width: DESC_WIDTH,
+    padding: DESC_PADDING, // identisch zur .desc-Klasse — sonst zu viel Text gemessen
+  });
 
   try {
-    while (remaining.length > 0) {
-      el.style.height = `${isFirst ? firstH : contH}px`;
-
-      const chunk = measureFit(remaining, el);
-
-      // Sicherheitsnetz: falls nichts passt (extrem langes Wort), hart schneiden
-      if (!chunk && remaining.length > 0) {
-        chunks.push(remaining.slice(0, 60));
-        remaining = remaining.slice(60).trimStart();
-      } else {
-        chunks.push(chunk);
-        remaining = remaining.slice(chunk.length).trimStart();
-      }
-
-      isFirst = false;
-    }
+    return paginateMarkdown(description, {
+      heightOf: (page) => (page === 0 ? firstH : contH),
+      fits: fitter.fits,
+      tailHtml: higherHtmlOf(spell),
+    });
   } finally {
-    doc.body.removeChild(el);
+    fitter.destroy();
   }
-
-  return chunks;
 }
 
 // ── Karten-HTML ───────────────────────────────────────────────────────────────
@@ -183,16 +136,21 @@ function abbrev(s: string): string {
   return s.replace(/Konzentration, /g, 'Konz. ');
 }
 
-function renderFirstCard(spell: Spell, descText: string, isLast: boolean): string {
+/** „Auf höheren Graden."-Zusatz der letzten Karte; leer, wenn der Zauber keinen hat. */
+function higherHtmlOf(spell: Spell): string {
+  const higherLvl = spellHigherLevel(spell);
+  if (!higherLvl) return '';
+  return `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <span class="md md-inline">${renderMarkdownInline(higherLvl)}</span></div>`;
+}
+
+/** `descHtml` ist fertig gerendertes Markdown (aus `paginateDescription`). */
+function renderFirstCard(spell: Spell, descHtml: string, isLast: boolean): string {
   const color  = SCHOOL_COLORS[spell.school] ?? '#888';
   const comps  = componentStr(spell);
   const matNote = spell.components.materials_needed
     ? ` <span class="mat">(${esc(spell.components.materials_needed)})</span>` : '';
   const classes = spell.classes.map(c => CLASS_LABELS[c] ?? c).join(' · ');
-  const higherLvl = spellHigherLevel(spell);
-  const higherHtml = (isLast && higherLvl)
-    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(higherLvl)}</div>`
-    : '';
+  const higherHtml = isLast ? higherHtmlOf(spell) : '';
 
   return `<div class="card" style="--c:${color}">
 
@@ -206,17 +164,14 @@ function renderFirstCard(spell: Spell, descText: string, isLast: boolean): strin
     <div class="prop"><span class="icon">${ICONS.components}</span>${esc(comps)}${matNote}</div>
   </div>
   ${ORNDIV}
-  <div class="desc">${esc(descText)}${higherHtml}</div>
+  <div class="desc md">${descHtml}${higherHtml}</div>
   <div class="foot">${esc(classes)}</div>
 </div>`;
 }
 
-function renderContCard(spell: Spell, descText: string, pageNum: number, isLast: boolean): string {
+function renderContCard(spell: Spell, descHtml: string, pageNum: number, isLast: boolean): string {
   const color = SCHOOL_COLORS[spell.school] ?? '#888';
-  const higherLvl = spellHigherLevel(spell);
-  const higherHtml = (isLast && higherLvl)
-    ? `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> ${esc(higherLvl)}</div>`
-    : '';
+  const higherHtml = isLast ? higherHtmlOf(spell) : '';
 
   return `<div class="card cont" style="--c:${color}">
 
@@ -225,7 +180,7 @@ function renderContCard(spell: Spell, descText: string, pageNum: number, isLast:
     <span class="cont-lbl">(${pageNum})</span>
   </div>
   ${ORNDIV}
-  <div class="desc desc-full">${esc(descText)}${higherHtml}</div>
+  <div class="desc desc-full md">${descHtml}${higherHtml}</div>
 </div>`;
 }
 
@@ -350,7 +305,6 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
   font-size: ${FONT_SIZE};
   line-height: ${LINE_HEIGHT};
   color: #1a0a00;
-  white-space: pre-wrap;
   overflow: hidden;
   min-height: 0;
 }
@@ -359,7 +313,7 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
 .higher {
   margin-top: 1.2mm;
   font-size: 6pt; line-height: 1.3;
-  color: #3a2800; white-space: pre-wrap;
+  color: #3a2800;
 }
 .higher-lbl { font-weight: 700; color: var(--c); }
 
@@ -389,6 +343,7 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
   font-size: 7.5pt; font-weight: 700; font-variant: small-caps; color: #1a0a00;
 }
 .cont-lbl { font-size: 5.5pt; color: #aaa; font-style: italic; }
+${RULE_TEXT_PRINT_CSS}
 `;
 
 // ── Haupt-Export ──────────────────────────────────────────────────────────────
@@ -427,59 +382,15 @@ ${pages.join('\n')}
 }
 
 /**
- * Prüft, ob `higher_levels` nach `descText` noch auf dieselbe Karte passt.
- * Repliziert die tatsächliche Render-Struktur: desc-Text + .higher-Div mit
- * kleinerer Schrift, damit die Messung der echten Ausgabe entspricht.
- */
-function higherLevelsFits(descText: string, higherLevels: string, heightPx: number, doc: Document): boolean {
-  const el = doc.createElement('div') as HTMLDivElement;
-  el.style.cssText = [
-    'position:fixed', 'top:-9999px', 'left:-9999px',
-    `font-family:${FONT_FAMILY}`,
-    `font-size:${FONT_SIZE}`,
-    `line-height:${LINE_HEIGHT}`,
-    'white-space:pre-wrap',
-    'word-break:break-word',
-    'overflow:hidden',
-    'box-sizing:border-box',
-    `width:${DESC_WIDTH}`,
-    `padding:${DESC_PADDING}`,
-    `height:${heightPx}px`,
-  ].join(';');
-
-  el.textContent = descText;
-
-  // .higher-Div nachbilden (font-size 6pt, margin-top 1.2mm)
-  const higherEl = doc.createElement('div');
-  higherEl.style.cssText = 'margin-top:1.2mm;font-size:6pt;line-height:1.3;white-space:pre-wrap;';
-  higherEl.textContent = 'Auf höheren Graden. ' + higherLevels;
-  el.appendChild(higherEl);
-
-  doc.body.appendChild(el);
-  const fits = el.scrollHeight <= el.clientHeight + 2;
-  doc.body.removeChild(el);
-  return fits;
-}
-
-/**
  * Druckt mehrere Zauber als eine Seite (9 Karten/A4, wie bei Einzelzauber).
- * Lädt für jeden Zauber die Chunks und packt sie in gemeinsame Seiten.
+ * Lädt für jeden Zauber die Karten-Inhalte und packt sie in gemeinsame Seiten.
  */
 export function prepareMultiSpellPrint(spells: Spell[], doc: Document): string {
   const allCards: string[] = [];
 
   for (const spell of spells) {
     const { firstH, contH } = measureDescHeights(spell, doc);
-    const chunks = splitDescription(spellDesc(spell), firstH, contH, doc);
-
-    const higherLvl = spellHigherLevel(spell);
-    if (higherLvl) {
-      const lastIdx = chunks.length - 1;
-      const lastCardH = lastIdx === 0 ? firstH : contH;
-      if (!higherLevelsFits(chunks[lastIdx], higherLvl, lastCardH, doc)) {
-        chunks.push('');
-      }
-    }
+    const chunks = paginateDescription(spell, firstH, contH, doc);
 
     chunks.forEach((chunk, i) => {
       const isLast = i === chunks.length - 1;
@@ -519,16 +430,5 @@ ${pages.join('\n')}
  */
 export function prepareSpellPrint(spell: Spell, doc: Document): string {
   const { firstH, contH } = measureDescHeights(spell, doc);
-  const chunks = splitDescription(spellDesc(spell), firstH, contH, doc);
-
-  const higherLvl = spellHigherLevel(spell);
-  if (higherLvl) {
-    const lastIdx = chunks.length - 1;
-    const lastCardH = lastIdx === 0 ? firstH : contH;
-    if (!higherLevelsFits(chunks[lastIdx], higherLvl, lastCardH, doc)) {
-      chunks.push('');
-    }
-  }
-
-  return buildSpellPrintHtml(spell, chunks);
+  return buildSpellPrintHtml(spell, paginateDescription(spell, firstH, contH, doc));
 }

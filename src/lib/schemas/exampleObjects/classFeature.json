@@ -1,0 +1,16 @@
+{
+  "key": "string",
+  "name": "string",
+  "nameDe": "string",
+  "gainedAt": [
+    -9007199254740991
+  ],
+  "desc": "string",
+  "descDe": "string",
+  "featureType": "string",
+  "grantsChoice": {
+    "kind": "weaponMastery",
+    "featCategory": "Origin",
+    "count": 1
+  }
+}

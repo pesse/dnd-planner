@@ -9,6 +9,12 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "schema:examples": "node scripts/gen-schema-examples.mjs",
+    "schema:examples:check": "node scripts/gen-schema-examples.mjs --check",
+    "eval": "node evals/cli.mjs",
+    "translate:items": "node scripts/translate-items.mjs",
+    "eval:index": "node evals/reportIndex.mjs",
+    "eval:watch": "vitest --config vitest.config.ts",
     "tauri": "tauri"
   },
   "license": "MIT",
@@ -24,6 +30,7 @@
     "@tiptap/extension-table": "^3.27.1",
     "@tiptap/starter-kit": "^3.21.0",
     "marked": "^17.0.5",
+    "minisearch": "^7.2.0",
     "pdf-lib": "^1.17.1",
     "tiptap-markdown": "^0.9.0",
     "zod": "^4.0.0"
@@ -36,6 +43,7 @@
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^3.0.0"
   }
 }

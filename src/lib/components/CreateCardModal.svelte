@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { llmConfig, saveConfig, loadApiKeyForProvider } from '../stores/llm';
   import { getClient } from '../services/llmClient';
   import { runAiAction } from '../services/aiActions/runner';
@@ -17,27 +17,46 @@
     title,
     searchApi,
     mapApi,
+    loadApi,
     searchLibrary,
     blank,
     buildAction,
     nameOf,
+    extraSelect,
     onCreated,
     onclose,
   }: {
     type: FileEntry['type'];
     title: string;
-    /** DnD-API-Suche (englischer Begriff). */
+    /** API-Suche (englischer Begriff). */
     searchApi: (q: string) => Promise<DndApiRef[]>;
-    /** Rohe API-Ressource → Draft. */
-    mapApi: (data: Record<string, unknown>) => T;
+    /** Rohe DnD-API-Ressource → Draft (dnd5eapi.co-Pfad in ref.url). Optional, wenn loadApi gesetzt. */
+    mapApi?: (data: Record<string, unknown>) => T;
+    /**
+     * Alternative zum DnD-API-Pfad: lädt einen Treffer selbst (z.B. Open5e v2, wo
+     * ref.url der v2-Key ist). Hat Vorrang vor mapApi + getResource.
+     */
+    loadApi?: (ref: DndApiRef) => Promise<T>;
     /** Optionale Bibliothekssuche (bestehende Vault-Einträge als Vorlage). */
     searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
     /** Leerer Draft mit gegebenem Namen. */
     blank: (name: string) => T;
-    /** KI-Anlage-Aktion. */
-    buildAction: (opts: { name?: string; template?: T }) => AiAction<T>;
+    /** KI-Anlage-Aktion. Fehlt → keine KI-Unterstützung. */
+    buildAction?: (opts: { name?: string; template?: T }) => AiAction<T>;
     /** Anzeigename eines Drafts (für activeFile-Platzhalter). */
     nameOf: (draft: T) => string;
+    /**
+     * Optionale typ-spezifische Auswahl (z.B. „Subklasse von" bei Klassen). Wird als
+     * Dropdown gezeigt; bei nicht-leerer Auswahl auf den fertigen Draft angewandt —
+     * unabhängig vom Anlage-Pfad (manuell/Vorlage/KI). Leere Auswahl lässt den Draft
+     * unangetastet (Import-Werte bleiben erhalten).
+     */
+    extraSelect?: {
+      label: string;
+      placeholder: string;
+      load: () => Promise<{ value: string; label: string }[]>;
+      apply: (draft: T, value: string) => void;
+    };
     /**
      * Optional: übernimmt den fertigen Draft selbst (statt Standard `newCardDraft`).
      * Für Entities mit eigenem Draft-Store (z.B. Item: `newItemDraft` mit Zielordner).
@@ -50,6 +69,13 @@
   type TemplateHit = { name: string; badge: string; api: boolean; load: () => Promise<T> };
 
   let aiEnabled = $state(false);
+
+  // ── Optionale Zusatz-Auswahl (z.B. „Subklasse von") ─────────────────────────
+  let extraOptions = $state<{ value: string; label: string }[]>([]);
+  let extraValue = $state('');
+  onMount(async () => {
+    if (extraSelect) extraOptions = await extraSelect.load();
+  });
 
   // ── Verschiebbarer Dialog ───────────────────────────────────────────────────
   let pos = $state({ x: Math.max(16, window.innerWidth / 2 - 280), y: 80 });
@@ -84,6 +110,7 @@
    * createMonster/createSpell/openItemModal in der Sidebar), daher hier nicht erneut.
    */
   function openDraft(draft: T) {
+    if (extraSelect && extraValue) extraSelect.apply(draft, extraValue);
     if (onCreated) onCreated(draft);
     else newCardDraft.set({ type, data: draft });
     activeFile.set({ name: nameOf(draft), path: '', type });
@@ -130,7 +157,7 @@
           name: ref.name,
           badge: 'SRD',
           api: true,
-          load: async () => mapApi(await getResource(ref.url)),
+          load: async () => (loadApi ? loadApi(ref) : mapApi!(await getResource(ref.url))),
         }));
       } catch (e) {
         templateError = `DnD-API nicht erreichbar: ${e instanceof Error ? e.message : String(e)}`;
@@ -188,7 +215,7 @@
   async function changeModel(model: string) { await saveConfig({ ...$llmConfig, model }); }
 
   async function generate() {
-    if (running) return;
+    if (running || !buildAction) return;
     running = true;
     error = '';
     steps = [];
@@ -238,6 +265,18 @@
     />
   </div>
 
+  {#if extraSelect}
+    <div class="row">
+      <label class="field-label" for="cc-extra">{extraSelect.label}</label>
+      <select id="cc-extra" class="select" bind:value={extraValue}>
+        <option value="">{extraSelect.placeholder}</option>
+        {#each extraOptions as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
   <div class="template">
     {#if selectedTemplate}
       <div class="tpl-selected">
@@ -270,6 +309,7 @@
     {/if}
   </div>
 
+  {#if buildAction}
   <div class="template ai-block">
     <label class="ai-toggle">
       <input type="checkbox" bind:checked={aiEnabled} />
@@ -316,6 +356,7 @@
       {/if}
     {/if}
   </div>
+  {/if}
 
   {#if templateError}<p class="hint err">{templateError}</p>{/if}
   {#if error}<p class="hint err">{error}</p>{/if}

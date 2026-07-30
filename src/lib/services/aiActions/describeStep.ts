@@ -16,8 +16,6 @@ function arg(s: AgentStep, key: string): string {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  'equipment': 'Ausrüstung',
-  'magic-items': 'magische Gegenstände',
   'monsters': 'Monster',
   'spells': 'Zauber',
 };
@@ -33,6 +31,12 @@ export function describeAiStep(s: AgentStep): StepLabel | null {
         const slug = arg(s, 'url').split('/').filter(Boolean).pop() ?? '';
         return { icon: '📥', text: `Lade SRD-Eintrag „${slug}“…`, muted: false };
       }
+      case 'search_open5e_items':
+        return { icon: '🔍', text: `Suche Ausrüstung nach „${arg(s, 'query')}“…`, muted: false };
+      case 'get_open5e_item': {
+        const slug = (arg(s, 'key').split('_').pop()) ?? '';
+        return { icon: '📥', text: `Lade Gegenstand „${slug}“…`, muted: false };
+      }
       case 'json-korrektur':
         return { icon: '✎', text: 'Bringe das Ergebnis ins richtige Format…', muted: false };
       default:
@@ -41,7 +45,8 @@ export function describeAiStep(s: AgentStep): StepLabel | null {
   }
   if (s.type === 'tool_result') {
     switch (s.tool) {
-      case 'search_dnd_api': {
+      case 'search_dnd_api':
+      case 'search_open5e_items': {
         let n = 0;
         try {
           n = (JSON.parse(s.result ?? '[]') as unknown[]).length;
@@ -49,7 +54,8 @@ export function describeAiStep(s: AgentStep): StepLabel | null {
         return { icon: '↳', text: n ? `${n} passende Einträge gefunden` : 'Keine Treffer', muted: true };
       }
       case 'get_dnd_api_resource':
-        return { icon: '↳', text: 'SRD-Eintrag geladen', muted: true };
+      case 'get_open5e_item':
+        return { icon: '↳', text: 'Eintrag geladen', muted: true };
       case 'json-korrektur':
         return { icon: '↳', text: s.result === 'ok' ? 'Format korrigiert' : 'Korrektur fehlgeschlagen', muted: true };
       default:

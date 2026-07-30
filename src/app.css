@@ -68,6 +68,48 @@ h1, h2, h3, .file-title {
   letter-spacing: 0.01em;
 }
 
+/* Diff-Highlighting im Editor: geänderte Felder gegenüber der gespeicherten
+ * Version. Grün = erhöht/hinzugefügt/geändert, Rot = vermindert/entfernt.
+ * Global (nicht scoped), da die Klassen zur Laufzeit per classList gesetzt
+ * werden (siehe diffHighlight.ts / diffMark). */
+.diff-up   { --diff-accent: var(--green); }
+.diff-down { --diff-accent: var(--danger); }
+/* !important, weil komponenten-lokale Feld-Styles (input/textarea/select bzw.
+ * .attr-box setzen background: var(--surface)) sonst gewinnen — sie sind
+ * gleich/höher spezifisch, aber nicht !important. */
+.diff-up, .diff-down {
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--diff-accent) 24%, transparent) !important;
+}
+/* Das Eingabefeld selbst einfärben (falls diffMark auf einem Container liegt) —
+ * Beschreibungs-/Textareas verdecken sonst die Tönung. Mischung über --bg erhält
+ * die Lesbarkeit des Textes. */
+.diff-up   :is(input, textarea, select),
+.diff-down :is(input, textarea, select) {
+  background-color: color-mix(in srgb, var(--diff-accent) 22%, var(--bg)) !important;
+}
+
+/* Altformat-Hinweis mit Ein-Klick-Aktion („dieser Datensatz liegt noch im alten
+ * Format vor — umstellen?"). Global, weil ihn zwei Ebenen brauchen: das
+ * Charakter-Formular je Feldgruppe und der Bearbeiten-Tab fürs Schema-Upgrade. */
+.legacy-banner {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+.legacy-banner-text { flex: 1; min-width: 12rem; color: var(--ink-muted); }
+.legacy-banner-btn {
+  flex-shrink: 0; cursor: pointer; font: inherit; font-size: 0.8rem;
+  padding: 0.25rem 0.7rem; border-radius: 5px;
+  border: 1px solid var(--arcane);
+  background: var(--arcane); color: var(--bg);
+}
+.legacy-banner-btn:hover { filter: brightness(1.08); }
+
 /* Pergament-Scrollbars */
 * {
   scrollbar-width: thin;

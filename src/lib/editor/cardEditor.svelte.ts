@@ -1,6 +1,6 @@
 /**
  * Gemeinsames Fundament für alle Karten-Editoren (Monster, Zauber, Encounter,
- * Gegenstand, später Charakter-JSON).
+ * Gegenstand, Charakter).
  *
  * Der Controller besitzt den kompletten Lebenszyklus — Laden bei `activeFile`-Wechsel,
  * Dirty-Tracking (abgeleitet aus `snapshot(draft) !== baseline`, kein manuelles `mark()`),

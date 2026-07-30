@@ -1,0 +1,12 @@
+{
+  "desc_de": [
+    "string"
+  ],
+  "higher_level_de": [
+    "string"
+  ],
+  "materials_needed": "string",
+  "casting_time": "string",
+  "range": "string",
+  "duration": "string"
+}
