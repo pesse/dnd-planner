@@ -590,12 +590,60 @@ und 1f ist erledigt — als *nicht* durchführbar, mit Begründung. Liefert sie 
 unbrauchbare Wahlen, ist der Schnitt kein Verlust, sondern legt einen Defekt offen, der ohnehin
 einen Verbraucher braucht.
 
+### Ergebnis: die Regel trägt, der Schnitt fällt aus (2 × 5 Läufe)
+
+Reports `2026-07-30T09-03-38-931Z-spellpickrule-mit-regel` und `…T09-09-35-689Z-spellpickrule-ohne-regel`,
+Modell `cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit`, `--concurrency 1`. Der Schnitt nahm 1 321 Zeichen aus
+dem Analyse-Prompt (−16,2 %), an den vier in 1f benannten Stellen.
+
+| Prüfung (Call 1) | mit Regel | ohne Regel |
+|---|---:|---:|
+| stellt genau eine Zauber-Wahl (`spell-pick`) | **100 %** | 0 % |
+| Kontingent ist 2 | **100 %** | 0 % |
+| kein Zaubergrad über 3 | **100 %** | 0 % |
+| Gradband umfasst Zaubertricks | **100 %** | 0 % |
+| Liste ist einer der drei erlaubten Keys | 40 % | 0 % |
+| nennt keine Zaubernamen in den Optionen | **100 %** | 0 % |
+| macht aus dem Tausch-Halbsatz keine Wahl | 100 % | 100 % |
+| nicht blockiert | 60 % | 0 % |
+
+Ohne die Regel kam in **5 von 5** Läufen dasselbe heraus: eine Wahl vom Typ `multiselect` mit
+`max: 2`, **null Optionen** und `blocked: true`. Das ist schlechter als „keine Wahl" — der Spieler
+bekommt im Checkpoint eine Frage, die er nicht beantworten kann, und die Kette hält zugleich die
+Zauber-Auflösung zurück. Erfundene Zaubernamen kamen nicht (Optionen leer), das ist der einzige
+Punkt, den der Prompt auch ohne die Regel hält.
+
+Was die Regel kostet: Call 1 Median 22,4 s → 12,0 s, Eingabe-Tokens 2 977 → 2 622 je Lauf, Call C
+8 216 → 6 709 (die kürzere Analyse-Prosa wirkt dort nach). Also grob **10 s und ~1 900 Tokens je
+Kette** — bezahlt für die einzige funktionierende Zauber-Auswahl dieser fünf Merkmale. Der Handel
+ist eindeutig; **1f ist damit erledigt: nicht durchführbar.**
+
+Drei Defekte, die die Messung im Stand MIT Regel offengelegt hat (je ein eigener Auftrag, jeder
+mit eigener Messung — hier nur festgehalten):
+
+* **`spellClass` 2/5.** Strukturell, nicht Prompt-Schwäche: das Feld ist ein *einzelner* String,
+  „Kleriker, Druide **oder** Magier" ist darin nicht darstellbar. Selbst der beste Lauf schränkt
+  den Spieler regelwidrig auf eine der drei Listen ein. Leer heißt: der `SpellPicker` bietet die
+  ganze Bibliothek an — derselbe Fehler wie beim Talent (1g).
+* **`blocked: true` in 2/5.** Widerspricht der Prompt-Definition selbst (Zeile 162: `blocked`
+  hängt an `determinesFurtherEffects`, und das ist für `spell-pick` immer `false`). Folge:
+  `finalizeFeatureEffects` überspringt die Zauber-Auflösung.
+* **`extraPreparedCount: 2` in 1/5** und eine unbeantwortete Wahl im Protokoll in 2/5. Das
+  Kontingent doppelt zu zählen ist eine **Prompt-Lücke**: die Doppelzähl-Warnung in Regel 3
+  deckt `grantedSpells` gegen `extraCantrips` ab, aber nicht `spell-pick` gegen
+  `extraPreparedCount`.
+
+Nicht gemessen und auch nicht nötig: die drei bestehenden Strecken. Am Ende ist kein Prompt
+geändert, der Eingang ist unverändert — die thinking-freien Baselines vom 30.07. gelten weiter.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).
 2. 1a–1d bauen, `npm run check`, `npm run schema:examples`. **Keine** Prompt-Änderung dabei —
    die Kette wird dadurch schon schneller, weil das Talent aus dem Eingang fällt.
 3. Kette Gnom messen (`--runs 5`): das ist die Baseline *ohne* Prompt-Schnitt.
-4. Stufe 2 inventarisieren und deklarieren.
-5. 1f (Prompt-Schnitt), erneut messen.
+4. ~~Stufe 2 inventarisieren und deklarieren~~ — inventarisiert; deklarieren geht erst mit
+   einem Verbraucher für Klassenmerkmale.
+5. ~~1f (Prompt-Schnitt)~~ — gemessen und verworfen: die Regel ist die einzige, die die
+   Zauber-Wahl dieser fünf Merkmale überhaupt entstehen lässt.
 6. Stufe 3 separat entscheiden.
