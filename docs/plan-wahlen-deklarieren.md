@@ -1,6 +1,9 @@
 # Alle Merkmalswahlen deklarieren — die KI-Deutung abbauen
 
-> Umsetzungsplan, erstellt am 2026-07-30 im Worktree `analyse-prompts`, noch nicht begonnen.
+> Umsetzungsplan, erstellt am 2026-07-30 im Worktree `analyse-prompts`.
+> **Stand 2026-07-30: Stufe 0 und Stufe 1 sind umgesetzt** (drei Commits), Stufe 2–5 offen.
+> Was die Umsetzung am Plan korrigiert hat, steht in Abschnitt „Korrekturen aus der
+> Umsetzung"; die Stufen-Abschnitte selbst sind der ursprüngliche Entwurf.
 > Übergeordnet zu `docs/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
 > (Magiekundiger) aus der Kette, dieser beschreibt den Endzustand, in dem die Kette nichts
 > mehr zu deuten hat. Zahlengrundlage ist `docs/analyse-system-prompts.md` (Modell QM/vLLM
@@ -163,7 +166,43 @@ Zur **Pflege**: `grantsChoice`/`grantsSpells` werden laut `classProgression.ts:6
 Open5e-Re-Import nicht überschrieben (`mapV2` lässt sie leer). `grants` folgt derselben Regel —
 und braucht denselben Satz im Re-Import-Pfad wie `skillGrantMulticlass`.
 
-## Stufe 0 — `levelUpEffectsAction` ersatzlos streichen
+## Korrekturen aus der Umsetzung (2026-07-30)
+
+Sechs Dinge sahen im Code anders aus als im Entwurf:
+
+1. **`grants.proficiencies` ist `proficiencyGrantSchema`, nicht die Rider-Form.** Der Entwurf
+   wollte `riderProficienciesSchema` aus `levelUp.ts` hochziehen. Falsch: der Vault hat für
+   Übungen längst EINE Form über alle vier Artefakttypen — mit `weaponsOther`, mit
+   `savingThrows` als Enum und mit `skills` als wahl-fähigem `skillGrant`. `proficiencyGrants.ts`
+   summiert sie schon. Die Rider-Form ist die LLM-Ausgabe, nicht die Vault-Sprache.
+2. **`featureGrantSchema` wächst mit dem Bedarf, nicht auf Vorrat.** Stufe 0 hat nur
+   `perLevel`, Stufe 1 hat `proficiencies`/`extraCantrips`/`extraPreparedCount` dazugelegt.
+   `abilityScoreIncrease` fehlt weiter — im SRD 5.2 gibt es dafür keinen Vault-Fall (die
+   FESTE Erhöhung; die Wahl „+1 auf eines von …" ist Stufe 2).
+3. **Der synthetische Rider war richtig, aber nicht hinreichend.** Er deckt Zauber,
+   `extraCantrips`, Fertigkeiten und Expertise über den bestehenden Pfad ab — Waffen- und
+   Rüstungsübungen hatten im Aufstieg jedoch **gar kein Change-Ziel**, auch für KI-Rider
+   nicht. Sie fielen still weg. Neu: `weaponProficiency`/`armorTraining` plus die einmalige
+   Abbildung `markWeaponProficiency`/`markArmorTraining` (proficiencyGrants.ts).
+4. **Eine Deklaration braucht ihre Bogen-Zeile.** Sobald ein Merkmal aus dem KI-Eingang
+   fällt, schreibt Pass C keine `sheetNote` mehr dafür — ohne `optionListNoteLines` wäre
+   Stufe 1 eine Regression. Damit ist ein Stück von Stufe 5 **vorgezogen** und beantwortet:
+   für eine redigierte Option ist die Zeile ein Zitat (`labelDe`) plus eine redigierte
+   Konsequenz (`helpDe`), keine Laufzeit-Übersetzung. Das stützt Stufe 5.
+5. **Die Speziesabstammungen sind KEINE reine Zweigwahl** und deshalb nicht in Stufe 1.
+   Gnomen- und Elfenabstammung tragen je eine ZWEITE Wahl in derselben Prosa („Intelligenz,
+   Weisheit oder Charisma ist dein Zauberattribut") und die Elfen-Variante zusätzlich eine
+   Stufentabelle (1/3/5) — das ist `spellAccess` mit Zweig, nicht `optionList`. Sie gehören
+   zu `docs/plan-zauberwirker-vereinfachung.md`. Die Drachenabstammung bleibt aus einem
+   dritten Grund draußen: ihre Antwort ist Eingang für den TEXT ANDERER Merkmale
+   (Odemwaffe, Schadensresistenz) — der interlockte Fall, der das Modell wirklich braucht.
+6. **Subklassen-Merkmale nach der Subklassen-Wahl sind nicht abgedeckt.**
+   `computeSubclassFeatures` projiziert auf `GainedFeature`, und dieser Typ trägt
+   `grantsChoice` nicht. Heute betrifft das nichts (beide redigierten Merkmale sind
+   Grundklassen-Merkmale der Stufe 1), aber eine Subklasse mit `optionList` würde ihre Wahl
+   verlieren. Fällig, sobald eine redigiert wird.
+
+## Stufe 0 — `levelUpEffectsAction` ersatzlos streichen ✅
 
 Der billigste Beweis der ganzen Strecke: ein **kompletter KI-Call** fällt weg gegen zwei
 Vault-Zeilen.
@@ -185,7 +224,7 @@ und `levelUpEffectsSchema` löschen.
 **Verifikation:** `npm run check`; Unit-Test „Zwerg + Zäh auf Stufe 5 = +15 TP" (heute gibt es
 dafür keinen Test — der Pfad hing an einem LLM). Sichtbar in der App: Aufstieg eines Zwergs.
 
-## Stufe 1 — `optionList` mit Konsequenz je Option
+## Stufe 1 — `optionList` mit Konsequenz je Option ✅ (ohne Spezies, siehe Korrektur 5)
 
 Die Zweigwahl, an der die Kette heute am teuersten arbeitet. `docs/plan-zauberwirker-vereinfachung.md`
 nennt die Gnomische Abstammung ausdrücklich als „bleibt Modellarbeit, weil die Zauber am Zweig
