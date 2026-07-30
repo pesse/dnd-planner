@@ -24,8 +24,17 @@ import type { CharacterWizard } from '../src/lib/services/wizard/characterWizard
 import { pointBuyStart } from '../src/lib/services/wizard/pointBuy';
 import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
 
-/** Die beiden Spezies, deren Größe eine Wahl ist — alle anderen liegen fest. */
-const CHOOSING = ['srd-2024_human', 'srd-2024_tiefling'];
+/**
+ * Die Spezies, deren Größe eine Wahl ist — alle anderen liegen fest. Der Wert ist die
+ * Reihenfolge im Merkmalstext: die Fee nennt „Small" zuerst, Mensch und Tiefling „Medium".
+ */
+const CHOOSING_ORDER: Record<string, string[]> = {
+  'srd-2024_human': ['Medium', 'Small'],
+  'srd-2024_tiefling': ['Medium', 'Small'],
+  'phb-2024_fairy': ['Small', 'Medium'],
+};
+const CHOOSING = Object.keys(CHOOSING_ORDER);
+const SIZE_DE: Record<string, string> = { Medium: 'Mittelgroß', Small: 'Klein' };
 
 const traitsOf = async (key: string) => (await getSpeciesByKey(key))?.traits ?? [];
 
@@ -99,8 +108,8 @@ describe('Größenkategorie der Spezies', () => {
       const choice = sizeChoiceOf(spec);
       expect(choice, key).not.toBeNull();
       // Englisch als Wert, deutsch als Label — Textreihenfolge, nicht Tabellenreihenfolge.
-      expect(choice!.options, key).toEqual(['Medium', 'Small']);
-      expect(choice!.optionsDe, key).toEqual(['Mittelgroß', 'Klein']);
+      expect(choice!.options, key).toEqual(CHOOSING_ORDER[key]);
+      expect(choice!.optionsDe, key).toEqual(CHOOSING_ORDER[key].map((o) => SIZE_DE[o]));
       expect(choice!.id, key).toBe(sizeChoiceId(key));
       // Der Wert steht in `personal.sizeCat`; ein Ledger-Eintrag wäre eine zweite Wahrheit.
       expect(choice!.isBuildDecision, key).toBe(false);
@@ -155,7 +164,8 @@ describe('Größenkategorie der Spezies', () => {
     const gnome = await buildWizardCharacter(wizardStub());
     expect(gnome.personal.sizeCat).toBe('Klein');
     // Die Bewegungsrate ist die Nachbarzeile — sie darf sich dabei nicht verschieben.
-    expect(gnome.speed).toBe('9 Meter');
+    // Reine Meterzahl seit `metersFromSpeedText`: der Bogen hängt das „m" selbst an.
+    expect(gnome.speed).toBe('9');
 
     const humanSpecies = { sourceKey: 'srd-2024_human', name: 'Mensch' };
     const answered = await buildWizardCharacter(

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ClassProgression, ClassFeature } from '$lib/types';
-  import type { FeatureChoiceGrant } from '$lib/schemas/shared';
+  import { featureChoiceGrantSchema, type FeatureChoiceGrant } from '$lib/schemas/shared';
   import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
@@ -66,19 +66,23 @@
     return 'other';
   }
 
+  // Die Listenfelder der Zugangs-Wahl (`spellLists` & Co.) füllt das Schema — hand-gesetzte
+  // Literale fehlen sonst bei jedem neuen Feld.
+  const newGrant = (g: Partial<FeatureChoiceGrant>): FeatureChoiceGrant => featureChoiceGrantSchema.parse(g);
+
   function setChoiceKind(f: ClassFeature, value: string) {
     let next: FeatureChoiceGrant | undefined;
-    if (value === 'weaponMastery') next = { kind: 'weaponMastery', count: 1 };
-    else if (value === 'spellcasting') next = { kind: 'spellcasting', count: 1 };
+    if (value === 'weaponMastery') next = newGrant({ kind: 'weaponMastery', count: 1 });
+    else if (value === 'spellcasting') next = newGrant({ kind: 'spellcasting', count: 1 });
     else if (value === 'fightingStyle')
-      next = { kind: 'featCategory', featCategory: 'Fighting Style', count: f.grantsChoice?.count ?? 1 };
+      next = newGrant({ kind: 'featCategory', featCategory: 'Fighting Style', count: f.grantsChoice?.count ?? 1 });
     if (next) f.grantsChoice = next;
     onchange();
   }
 
   // Checkbox „Gewährt Wahl": an → Default weaponMastery; aus → Feld entfernen.
   function toggleChoice(f: ClassFeature, on: boolean) {
-    f.grantsChoice = on ? { kind: 'weaponMastery', count: 1 } : undefined;
+    f.grantsChoice = on ? newGrant({ kind: 'weaponMastery', count: 1 }) : undefined;
     onchange();
   }
 </script>
