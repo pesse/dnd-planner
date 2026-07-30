@@ -14,6 +14,7 @@
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateClassCache } from '$lib/classLibrary';
+  import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
 
   function parseClass(json: string): ClassProgression | null {
     try {
@@ -48,6 +49,11 @@
 
   const featureName = (f: ClassFeature): string => f.nameDe || f.name;
   const featureDesc = (f: ClassFeature): string => f.descDe || f.desc;
+
+  // Deklarations-Abdeckung dieser Datei; eine Subklasse ist eine eigene Progression
+  // und wird mit ihrer eigenen Merkmalsliste gezählt.
+  let coverage = $derived(declarationCoverage(draft?.features ?? []));
+  let declBadge = $derived(coverageBadge(coverage));
 
   // ── Kerntabelle als Zeilen der Karte (deutsch beschriftet, Werte englisch geführt) ──
   let coreRows = $derived.by(() => {
@@ -120,6 +126,9 @@
             {CASTER_LABELS[draft!.casterType] ?? draft!.casterType}
             {#if draft!.hitDie} · Trefferwürfel W{draft!.hitDie}{/if}
           </div>
+          {#if coverage.total}
+            <div class="declaration {declBadge.tone}" title={declBadge.title}>{declBadge.text}</div>
+          {/if}
         </div>
 
         {#if coreRows.length || draft!.startingEquipmentDe || draft!.startingEquipment}
@@ -221,6 +230,21 @@
   .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--copper) 70%, var(--ink)); margin-top: 0.2rem; }
+
+  /* Deklarations-Abdeckung: Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
+  .declaration {
+    display: inline-block; margin-top: 0.35rem;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    border-radius: 3px; padding: 0.05rem 0.4rem;
+  }
+  .declaration.open {
+    color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
+    background: color-mix(in srgb, var(--gold) 12%, var(--bg));
+  }
+  .declaration.done {
+    color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--bg));
+    background: var(--bg);
+  }
 
   .core-traits {
     padding: 0.6rem 1.2rem 0; display: flex; flex-direction: column; gap: 0.2rem;
