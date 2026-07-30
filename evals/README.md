@@ -140,6 +140,14 @@ Bestehende Strecken:
 - `levelUpFeat.eval.test.ts` — der Talent-Pfad des Aufstiegs (Kämpfer 3→4, „Eingeweihter der Magie"):
   KI-Deutung (Fall A, Referenz) gegen deklarierten Zauber-Zugang (Fall B, gatet, ohne LLM) mit
   denselben Prüfungen.
+- `unredactedChoice.eval.test.ts` — der unredigierte Zweig einer deklarierten Wahl (Elf-Kämpfer
+  Stufe 1, Elfenabstammung → „Drow"): Pass C deutet die Prosa der gewählten Tabellenzeile,
+  erfindet weder Zauber noch eine zweite Wahl. Fall B ist die Gegenprobe ohne LLM
+  (`grants: {}` → das Merkmal fällt aus dem Eingang).
+- `declaredVsAi.eval.test.ts` — dasselbe Merkmal auf beiden Wegen („Unholdisches Erbe",
+  Tiefling Stufe 1): komplett per KI gedeutet (Fall A, der Stand vor der Deklaration) gegen
+  deklarierte Zweigwahl (Fall B). Ein Satz Prüfungen für beide — der Vergleich sind die
+  Pass-Raten plus Latenz/Tokens im Report.
 - `wizardFeatures.eval.test.ts` — Merkmalsanalyse im Charakter-Erstell-Wizard (Stufe 1,
   Gnom-Zauberer / Weiser): Volks-Wahl blockiert die Zauber, das Herkunftstalent ist eine
   Zauber-Wahl, fünf wahllose Merkmale sind die Negativprobe. Eingang über
