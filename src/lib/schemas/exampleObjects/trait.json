@@ -27,5 +27,10 @@
       "Light"
     ]
   },
-  "sheetValue": "size"
+  "sheetValue": "size",
+  "grants": {
+    "perLevel": {
+      "hpMax": 0
+    }
+  }
 }

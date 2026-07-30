@@ -84,6 +84,11 @@
       },
       "grantsSpells": {
         "kind": "levelTable"
+      },
+      "grants": {
+        "perLevel": {
+          "hpMax": 0
+        }
       }
     }
   ]

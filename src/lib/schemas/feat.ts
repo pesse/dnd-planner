@@ -12,6 +12,7 @@ import {
   proficiencyGrantSchema,
   emptyProficiencyGrant,
   featureChoiceGrantSchema,
+  featureGrantSchema,
   FEAT_CATEGORIES,
 } from './shared';
 
@@ -45,6 +46,11 @@ export const featSchema = z.object({
    * deuten (`services/spellAccess.ts`).
    */
   grantsChoice: featureChoiceGrantSchema.optional(),
+  /**
+   * Deterministisch anwendbare Mechanik des Talents (`featureGrantSchema`, shared.ts).
+   * FEHLT das Feld, ist das Talent nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
+   */
+  grants: featureGrantSchema.optional(),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

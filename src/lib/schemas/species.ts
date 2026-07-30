@@ -8,7 +8,7 @@
  * Deutsche wird per LLM-Übersetzung nachgefüllt; Open5e liefert nur Englisch.
  */
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
+import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant, featureGrantSchema } from './shared';
 
 /**
  * Merkmale, deren ganzer Inhalt ein Wert ist, den der Bogen in einem eigenen Feld führt —
@@ -33,6 +33,12 @@ export const traitSchema = z.object({
   descDe: z.string().optional(),
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
+  /**
+   * Deterministisch anwendbare Mechanik des Merkmals (`featureGrantSchema`, shared.ts).
+   * FEHLT das Feld, ist das Merkmal nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
+   * `proficiencyGrant` daneben bleibt die Übungs-Senke (eine Form für alle vier Artefakttypen).
+   */
+  grants: featureGrantSchema.optional(),
 });
 
 export const speciesSchema = z.object({

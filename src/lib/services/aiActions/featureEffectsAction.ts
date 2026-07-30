@@ -31,7 +31,7 @@ import {
 } from '../../schemas/levelUp';
 import { SHEET_NOTE_CONTENT, SHEET_NOTE_EXAMPLE_EN } from './fieldSummaryAction';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
-import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
+import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES, type FeatureGrant } from '../../schemas/shared';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
@@ -55,6 +55,12 @@ export interface GainedFeature {
   gainedAt: number;
   key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
   choice?: string; // Bereits getroffene Entscheidung (EN) — verhindert, dass sie erneut gefragt wird
+  /**
+   * Deklarierte Mechanik aus der Bibliothek (`featureGrantSchema`). Reist mit, weil dieser Typ
+   * der Transport neu gewonnener Merkmale durch beide Flows ist — sie geht NICHT an das Modell
+   * (`buildFeatureEffectsInput` projiziert nur die Prosa-Felder).
+   */
+  grants?: FeatureGrant;
 }
 
 /**

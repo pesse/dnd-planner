@@ -36,9 +36,9 @@ import {
 } from '../aiActions/fieldSummaryAction';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
-import { buildLevelUpEffectsAction, buildLevelUpEffectsInput } from '../aiActions/levelUpEffectsAction';
+import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FieldSummary, LevelUpEffects } from '$lib/schemas/levelUp';
+import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
@@ -159,6 +159,11 @@ export class CharacterWizard {
   /** Größen-Wahl der Spezies (Mensch, Tiefling) — wie `spellAccess` aus `buildFeaturePrep`. */
   sizeChoice = $state<AnalysisChoice | null>(null);
   /**
+   * Fortlaufende TP-Effekte („Zäh", Zwergische Zähigkeit) — deterministisch aus
+   * `grants.perLevel` der Bibliothek, wie `spellAccess` aus `buildFeaturePrep`.
+   */
+  hpPerLevel = $state<PerLevelSource[]>([]);
+  /**
    * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
    * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
    * Protokoll schreiben — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
@@ -171,8 +176,6 @@ export class CharacterWizard {
   speciesText = new Job<FieldSummary>();
   effects = new Job<FeatureEffects>();
   equipment = new Job<EquipmentOptions>();
-  /** Fortlaufende TP-Effekte (Zäh, Zwergische Zähigkeit …) — für die HP-Berechnung. */
-  hpEffects = new Job<LevelUpEffects>();
 
   /** Letztes KI-Lebenszeichen (für die Stall-Anzeige der UI). */
   lastActivityMs = $state(0);
@@ -249,6 +252,7 @@ export class CharacterWizard {
       if (this.#prep !== pending) return;
       this.spellAccess = prep.spellAccess;
       this.sizeChoice = prep.sizeChoice;
+      this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
     }, () => {});
 
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen
@@ -266,19 +270,6 @@ export class CharacterWizard {
       this.analysis.skip();
       this.effects.skip();
     }
-
-    // Fortlaufende TP-Effekte (Zäh/Zwergische Zähigkeit): über jeden strukturfähigen
-    // Provider; fließt in die HP-Berechnung der Assembly ein.
-    this.hpEffects.run(async (signal) => {
-      const prep = await this.#prepare();
-      if (!prep.effectFeatures.length) return { level: 1, changes: [] };
-      return runAiAction(
-        cfg,
-        buildLevelUpEffectsAction(),
-        buildLevelUpEffectsInput({ level: 1, features: prep.effectFeatures }),
-        { signal, onActivity: this.#touch },
-      );
-    });
 
     // Der Merkmals-Text (classText/speciesText) läuft BEWUSST NICHT hier: er wird erst
     // nach dem Wahl-Checkpoint über `summarizeFeatures()` gestartet, sonst steht im Text
@@ -467,9 +458,7 @@ export class CharacterWizard {
 
   /** Summe der pro-Stufe wirkenden TP-Effekte (auf Stufe 1 einmal angewandt). */
   hpPerLevelBonus(): number {
-    return (this.hpEffects.result?.changes ?? [])
-      .filter((c) => c.target === 'hpMax')
-      .reduce((sum, c) => sum + (parseInt(c.valueChange, 10) || 0), 0);
+    return hpPerLevelSum(this.hpPerLevel);
   }
 
   /** Wartet, bis die für den Zusammenbau nötigen KI-Jobs settled sind (fürs „Erstellen"). */
@@ -479,7 +468,6 @@ export class CharacterWizard {
       this.classText.settle(),
       this.speciesText.settle(),
       this.equipment.settle(),
-      this.hpEffects.settle(),
     ]);
   }
 
@@ -490,6 +478,5 @@ export class CharacterWizard {
     this.speciesText.abort();
     this.effects.abort();
     this.equipment.abort();
-    this.hpEffects.abort();
   }
 }

@@ -2,8 +2,9 @@
  * Schemas für den KI-gestützten Stufenaufstieg (Level-Up).
  *
  * KI-Outputs (Zod = Single Source + LLM-JSON-Schema): `featureEffectsSchema` (Rider),
- * `levelUpEffectsSchema` (pro-Stufe-Effekte), `levelUpNarrativeSchema`,
- * `fieldSummarySchema`. Das gemeinsame Dokument (`levelUpChangeSetSchema` /
+ * `levelUpNarrativeSchema`, `fieldSummarySchema`. Die pro-Stufe-Effekte sind KEIN
+ * KI-Output mehr — sie stehen als `grants.perLevel` in der Bibliothek
+ * (`services/perLevelEffects.ts`). Das gemeinsame Dokument (`levelUpChangeSetSchema` /
  * `LevelUpDoc`) ist die Single Source für Anzeige UND Anwendung — es wird deterministisch
  * aus dem Zustand gebaut (levelUpMachine.buildDoc), nicht von einem LLM.
  *
@@ -181,22 +182,6 @@ export const sheetNoteTranslationsSchema = z.object({
   notes: z.array(sheetNoteTranslationSchema).default([]).describe('One entry per input note, same order.'),
 });
 
-// ── Fortlaufende Effekte (KI liest ALLE Merkmale → pro-Stufe-Änderungen) ─────────
-// Strukturierter, erweiterbarer Output: die KI durchsucht den KOMPLETTEN Merkmals-
-// bestand des Charakters (Spezies + Klasse/Subklasse + Talente) nach Effekten, die
-// einen Wert PRO STUFE ändern (z.B. „Zwergische Zähigkeit" = +1 TP-Max je Stufe).
-// `changes` ist ein Array, damit mehrere Merkmale denselben Wert treffen können.
-const levelUpChangeSchema = z.object({
-  target: z.string().default('hpMax').describe('Which character stat changes. Only "hpMax" is applied today; others are recorded for future use.'),
-  valueChange: z.string().default('').describe('Signed PER-LEVEL delta as a string, e.g. "+1", "+2". Applied once per character level gained.'),
-  source: z.string().default('').describe('The library KEY of the source feature/trait, copied verbatim from <all_features>[].key (e.g. "srd-2024_dwarf_dwarven-toughness"). Empty only if the source has no key.'),
-});
-
-export const levelUpEffectsSchema = z.object({
-  level: z.number().int().default(0).describe('Target character level after this level-up (informational).'),
-  changes: z.array(levelUpChangeSchema).default([]),
-});
-
 // ── Narrativ (dünner KI-Pass; alle Deltas werden deterministisch assembliert) ────
 // Bewusst NUR die Zusammenfassung: den Merkmalstext fürs Klassenmerkmale-Feld liefert
 // `featureRiderSchema.sheetNote` aus der Merkmals-Deutung — der Pass dort kennt die
@@ -266,8 +251,6 @@ export type LevelUpChangeSet = z.infer<typeof levelUpChangeSetSchema>;
 export type LevelUpDoc = LevelUpChangeSet;
 export type FeatureRider = z.infer<typeof featureRiderSchema>;
 export type FeatureEffects = z.infer<typeof featureEffectsSchema>;
-export type LevelUpChange = z.infer<typeof levelUpChangeSchema>;
-export type LevelUpEffects = z.infer<typeof levelUpEffectsSchema>;
 export type LevelUpNarrative = z.infer<typeof levelUpNarrativeSchema>;
 export type FieldSummary = z.infer<typeof fieldSummarySchema>;
 export type ChoiceTranslation = z.infer<typeof choiceTranslationSchema>;
@@ -275,7 +258,6 @@ export type ChoiceTranslationItem = z.infer<typeof choiceTranslationItemSchema>;
 export type SheetNoteTranslations = z.infer<typeof sheetNoteTranslationsSchema>;
 
 export const featureEffectsJsonSchema = toLlmJsonSchema(featureEffectsSchema);
-export const levelUpEffectsJsonSchema = toLlmJsonSchema(levelUpEffectsSchema);
 export const levelUpNarrativeJsonSchema = toLlmJsonSchema(levelUpNarrativeSchema);
 export const fieldSummaryJsonSchema = toLlmJsonSchema(fieldSummarySchema);
 export const choiceTranslationJsonSchema = toLlmJsonSchema(choiceTranslationSchema);
@@ -288,10 +270,6 @@ export function parseLevelUpChangeSet(data: unknown): LevelUpChangeSet | null {
 }
 export function parseFeatureEffects(data: unknown): FeatureEffects | null {
   const r = featureEffectsSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseLevelUpEffects(data: unknown): LevelUpEffects | null {
-  const r = levelUpEffectsSchema.safeParse(data);
   return r.success ? r.data : null;
 }
 export function parseLevelUpNarrative(data: unknown): LevelUpNarrative | null {

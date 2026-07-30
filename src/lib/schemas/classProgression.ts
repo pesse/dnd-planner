@@ -19,6 +19,7 @@ import {
   proficiencyGrantSchema,
   skillGrantSchema,
   featureChoiceGrantSchema,
+  featureGrantSchema,
   spellGrantSchema,
   emptyProficiencyGrant,
   emptySkillGrant,
@@ -70,6 +71,12 @@ export const classFeatureSchema = z.object({
    * Aufzählung, die schon als Daten vorliegt. Siehe `spellGrantSchema` (shared.ts).
    */
   grantsSpells: spellGrantSchema.optional(),
+  /**
+   * Deklariert die deterministisch anwendbare Mechanik dieses Merkmals (siehe
+   * `featureGrantSchema`, shared.ts). Vom Vault gepflegt, NICHT aus Open5e importiert.
+   * FEHLT das Feld, ist das Merkmal nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
+   */
+  grants: featureGrantSchema.optional(),
 });
 
 export const classProgressionSchema = z.object({

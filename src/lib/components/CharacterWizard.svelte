@@ -115,7 +115,6 @@
     { label: 'Klassenmerkmale-Text', job: w.classText },
     { label: 'Volksmerkmale-Text', job: w.speciesText },
     { label: 'Startausrüstung aufbereiten', job: w.equipment },
-    { label: 'Trefferpunkte-Effekte', job: w.hpEffects },
   ]);
   const runningJobs = $derived(aiJobs.filter((j) => j.job.status === 'running'));
   const aiBusy = $derived(runningJobs.length > 0);
@@ -489,7 +488,7 @@
   $effect(() => {
     if (currentStep !== 'review') { preview = null; return; }
     // Job-Status mitlesen, damit die Vorschau nachzieht, sobald KI-Schritte fertig werden.
-    void [w.effects.status, w.classText.status, w.speciesText.status, w.equipment.status, w.hpEffects.status];
+    void [w.effects.status, w.classText.status, w.speciesText.status, w.equipment.status];
     let cancelled = false;
     buildWizardCharacter(w).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
     return () => { cancelled = true; };

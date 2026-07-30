@@ -11,9 +11,11 @@ import { invoke } from '@tauri-apps/api/core';
 import {
   FEAT_CATEGORIES,
   featureChoiceGrantSchema,
+  featureGrantSchema,
   proficiencyGrantSchema,
   type FeatCategory,
   type FeatureChoiceGrant,
+  type FeatureGrant,
   type ProficiencyGrant,
 } from './schemas/shared';
 
@@ -50,6 +52,11 @@ export interface FeatEntry {
    * fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen.
    */
   grantsChoice?: FeatureChoiceGrant;
+  /**
+   * Deterministisch anwendbare Mechanik („Zäh": +2 TP je Stufe). Fehlt = nicht redigiert,
+   * `{}` = geprüft und ohne Mechanik (siehe `featureGrantSchema`).
+   */
+  grants?: FeatureGrant;
   /** Vault-Pfad der Datei (für die Sidebar-Bibliothek); bei inline erzeugten leer. */
   path?: string;
 }
@@ -102,6 +109,7 @@ export async function getFeats(): Promise<FeatEntry[]> {
             // Nur bei Bibliotheks-Talenten vorhanden; inline gespeicherte tragen keinen Grant.
             proficiencyGrant: proficiencyGrantSchema.safeParse(data.proficiencyGrant).data,
             grantsChoice: featureChoiceGrantSchema.safeParse(data.grantsChoice).data,
+            grants: featureGrantSchema.safeParse(data.grants).data,
             path,
           } as FeatEntry;
         } catch {

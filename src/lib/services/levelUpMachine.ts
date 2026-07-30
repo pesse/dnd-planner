@@ -18,6 +18,7 @@ import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
 import { skillLabelDe } from './proficiencyGrants';
 import type { ClassFeature } from '../schemas/classProgression';
+import type { FeatureGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
@@ -170,6 +171,7 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
     source,
     key: f.key ?? '',
     gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
+    grants: f.grants,
   };
 }
 
@@ -211,7 +213,7 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
 
 /** Ein Talent als GainedFeature für die Effekt-Deutung (englisch geführt, DE als Beilage). */
 export function featToGainedFeature(
-  f: { name: string; nameDe?: string; desc: string; descDe?: string; key?: string },
+  f: { name: string; nameDe?: string; desc: string; descDe?: string; key?: string; grants?: FeatureGrant },
   gainedAt: number,
 ): GainedFeature {
   return {
@@ -221,6 +223,7 @@ export function featToGainedFeature(
     descDe: f.descDe,
     source: 'feat',
     gainedAt,
+    grants: f.grants,
     ...(f.key ? { key: f.key } : {}),
   };
 }

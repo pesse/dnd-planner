@@ -48,6 +48,11 @@
       }
     ]
   },
+  "grants": {
+    "perLevel": {
+      "hpMax": 0
+    }
+  },
   "document": {
     "key": "string",
     "gamesystem": "string"

@@ -18,6 +18,7 @@ import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
+import type { FeatureGrant } from '$lib/schemas/shared';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
 export interface ResolvedFeature {
@@ -27,6 +28,8 @@ export interface ResolvedFeature {
   key?: string;
   /** Getroffene Entscheidung aus `character.features[]` — nur bei Wahl-Merkmalen gesetzt. */
   choice?: string;
+  /** Deklarierte Mechanik des Bibliotheks-Merkmals (`featureGrantSchema`); fehlt bei Altdaten. */
+  grants?: FeatureGrant;
   /** true = kein Bibliothekstreffer; Name/Beschreibung stammen aus dem Charakter selbst. */
   unresolved?: boolean;
 }
@@ -68,6 +71,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
             desc: f.descDe || f.desc,
             gainedAt: firstGainedAt(f.gainedAt, level),
             key: f.key,
+            grants: f.grants,
           }))
         : [],
     });
@@ -85,6 +89,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
               desc: f.descDe || f.desc,
               gainedAt: firstGainedAt(f.gainedAt, level),
               key: f.key,
+              grants: f.grants,
             }))
           : [],
       });
@@ -107,7 +112,7 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
     sourceKey: species.sourceKey,
     unresolved: !base,
     features: base
-      ? base.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key }))
+      ? base.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants }))
       : [],
   });
 
@@ -117,7 +122,7 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
       title: species.subspeciesName?.trim() || sub?.nameDe || sub?.name || species.subspeciesKey,
       sourceKey: species.subspeciesKey,
       unresolved: !sub,
-      features: sub ? sub.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key })) : [],
+      features: sub ? sub.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants })) : [],
     });
   }
   return groups;
@@ -231,6 +236,7 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
       gainedAt: ref.gainedAt,
       key: ref.sourceKey,
       choice: choiceDisplay(ref) || undefined,
+      grants: entry?.grants,
       unresolved: !entry,
     };
   });

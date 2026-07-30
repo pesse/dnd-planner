@@ -19,7 +19,7 @@ import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../aiActions/featureEffectsAction';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
-import type { EffectFeature } from '../aiActions/levelUpEffectsAction';
+import type { PerLevelFeature } from '../perLevelEffects';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
 
 /** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
@@ -52,8 +52,8 @@ export interface FeaturePrep {
    * deutsche Speziestext braucht den vollen Bestand.
    */
   analysisSpeciesFeatures: GainedFeature[];
-  /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe). */
-  effectFeatures: EffectFeature[];
+  /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe) — deterministisch. */
+  effectFeatures: PerLevelFeature[];
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
@@ -92,7 +92,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     p
       ? featuresUpTo(p, 1)
           .filter((f) => !isFlowOwnedChoiceFeature(f))
-          .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key }))
+          .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key, grants: f.grants }))
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
@@ -112,6 +112,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
         gainedAt: 1,
         key: bg.featKey,
         choice: specialisation || undefined,
+        grants: feat.grants,
       });
       const access = spellAccessGrantOf(
         { key: bg.featKey, name: feat.name || featDisplayName(feat), nameDe: featDisplayName(feat), grantsChoice: feat.grantsChoice },
@@ -147,6 +148,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     source: 'species',
     gainedAt: 1,
     key: t.key,
+    grants: t.grants,
   }));
   // Größe und Bewegungsrate haben ein eigenes Bogenfeld: ein Rider dazu ist leeres Gerüst.
   const sheetValueKeys = new Set(traits.filter(isSheetValueTrait).map((t) => t.key));
@@ -162,10 +164,10 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   }));
 
   // Voller Merkmalsbestand für die fortlaufenden TP-Effekte (Zäh, Zwergische Zähigkeit).
-  const effectFeatures: EffectFeature[] = [...gained, ...speciesFeatures].map((f) => ({
+  const effectFeatures: PerLevelFeature[] = [...gained, ...speciesFeatures].map((f) => ({
     key: f.key ?? '',
-    name: f.name,
-    desc: f.desc,
+    name: f.nameDe || f.name,
+    grants: f.grants,
   }));
 
   const slug = klass.sourceKey.split('_').pop() ?? '';

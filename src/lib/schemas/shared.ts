@@ -297,6 +297,42 @@ export const spellGrantSchema = z.object({
 });
 export type SpellGrant = z.infer<typeof spellGrantSchema>;
 
+/**
+ * Fortlaufende, PRO CHARAKTERSTUFE wirkende Zunahme. Heute nur das TP-Maximum
+ * (Zwergische Zähigkeit +1, Talent „Zäh" +2) — als Objekt statt als Zahl, damit ein
+ * zweites Ziel keine Schemamigration braucht.
+ *
+ * NICHT der Einmal-Schub beim Erwerb („um das Doppelte deiner Charakterstufe"): der ist
+ * eine Funktion der Stufe, nicht ein Wert je Stufe, und der Aufstieg wendet nur diesen hier
+ * (× gewonnene Stufen) an.
+ */
+export const perLevelGrantSchema = z.object({
+  hpMax: z.number().int().default(0).describe('Zunahme des TP-Maximums je Charakterstufe.'),
+});
+
+/** Leerer pro-Stufe-Grant (Default-Literal für `.default()`). */
+export const emptyPerLevelGrant = (): PerLevelGrant => ({ hpMax: 0 });
+
+/**
+ * Was ein Merkmal deterministisch GEWÄHRT — dritte Deklaration neben `grantsChoice`
+ * (Wahlen) und `grantsSpells` (immer-vorbereitete Listen). Alle drei haben denselben
+ * Zweck: das Merkmal aus der KI-Deutung herausnehmen, weil sein Inhalt als Daten vorliegt.
+ *
+ * An `classFeatureSchema`/`traitSchema`/`featSchema` bewusst OPTIONAL OHNE DEFAULT: fehlt
+ * das Feld, ist das Merkmal nicht redigiert und läuft weiter über die KI-Kette; ein leeres
+ * `{}` heißt „geprüft, gewährt nichts". Ohne diese Unterscheidung wäre jede Deckungslücke
+ * still — ein Homebrew- oder frisch importiertes Merkmal verlöre seine Mechanik unbemerkt.
+ *
+ * Wächst mit der Abdeckung (Übungen, Attributserhöhung, Zauber-Kontingente); heute trägt es
+ * nur, was auch ausgewertet wird.
+ */
+export const featureGrantSchema = z.object({
+  perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
+});
+
+export type PerLevelGrant = z.infer<typeof perLevelGrantSchema>;
+export type FeatureGrant = z.infer<typeof featureGrantSchema>;
+
 /** Wahl-fähiger Fertigkeits-Grant. `from: []` bei `choose > 0` = beliebige Fertigkeit. */
 export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),

@@ -35,8 +35,8 @@
     type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
   } from '../services/aiActions/featureEffectsAction';
   import {
-    buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
-  } from '../services/aiActions/levelUpEffectsAction';
+    hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature,
+  } from '../services/perLevelEffects';
   import {
     resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
   } from '../services/characterFeatures';
@@ -53,7 +53,7 @@
     withoutSpellAccessFeatures, type SpellAccessGrant,
   } from '../services/spellAccess';
   import {
-    parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
+    parseLevelUpNarrative, parseFieldSummary,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
@@ -64,7 +64,7 @@
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
-  import { OWN_SOURCE, type FeatureChoiceGrant } from '../schemas/shared';
+  import { OWN_SOURCE, type FeatureChoiceGrant, type FeatureGrant } from '../schemas/shared';
 
   let { character, onApply, onclose }: {
     character: Character;
@@ -98,7 +98,7 @@
   let featsToPick = $state(0);
   // Englisch geführt (`name`/`desc` = Deutungs-Eingang), deutsche Fassung für Anzeige und
   // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
-  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant }[]>([]);
+  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant; grants?: FeatureGrant }[]>([]);
   /**
    * Deklarierter Zauber-Zugang der gewählten Talente („Magiekundiger") — am Schritt
    * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
@@ -742,8 +742,9 @@
     const idx = chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
     if (chosenFeats.length >= featsToPick) return;
-    // `grantsChoice` reist mit: nur damit kann `feat-links` den Zugang deterministisch lesen.
-    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice }];
+    // `grantsChoice`/`grants` reisen mit: nur damit lesen `feat-links` den Zauber-Zugang und
+    // die pro-Stufe-Effekte deterministisch aus der Bibliothek.
+    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants }];
     featQuery = '';
   }
 
@@ -767,10 +768,10 @@
     return `${delta!.klasseName} Stufe ${delta!.fromLevel} → ${delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  // Fortlaufende, PRO-STUFE wirkende Effekte: die KI liest ALLE Merkmale des
-  // Charakters (Spezies + Klasse/Subklasse + Talente, inkl. diesen Level neu
-  // gewählter) und liefert die pro-Stufe-Änderungen (heute nur TP-Max, referenziert
-  // per Bibliotheks-Key). Fehler-tolerant → bei Ausfall verhält es sich wie bisher.
+  // Fortlaufende, PRO-STUFE wirkende Effekte: deterministisch aus `grants.perLevel` des
+  // GESAMTEN Merkmalsbestands (Spezies + Klasse/Subklasse + Talente, inkl. der diesen Level
+  // neu gewonnenen). Vormals ein KI-Call über dieselbe Liste; die Dedup steckt jetzt im
+  // Service, damit Wizard und Aufstieg dieselbe Regel benutzen.
   async function detectHpPerLevel(alive: () => boolean) {
     hpPerLevelSources = [];
     try {
@@ -781,35 +782,15 @@
       // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
       // ihr Merkmal steckt schon in `groups`.
       const featLinks = await resolveFeatLinks((character.features ?? []).filter((f) => !f.choice?.trim()));
-      const raw = [
-        ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
-        ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
-        ...gainedFeatures.map((f) => ({ key: '', name: f.name, desc: f.desc })),
-        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.desc || f.descDe || '' })),
-      ];
-      // Nach Key (bzw. Name, wenn kein Key) deduplizieren.
-      const seen = new Set<string>();
-      const features: EffectFeature[] = [];
-      for (const f of raw) {
-        if (!f.name.trim() && !f.key) continue;
-        const id = f.key || f.name.toLowerCase();
-        if (seen.has(id)) continue;
-        seen.add(id);
-        features.push(f);
-      }
-      if (!alive() || !features.length) return;
-      pushStep('KI prüft fortlaufende Merkmals-Effekte (TP/Stufe)…');
-      const eff = parseLevelUpEffects(await runAiAction($llmConfig, buildLevelUpEffectsAction(),
-        buildLevelUpEffectsInput({ level: delta!.toLevel, features }), runOpts()));
+      const features: PerLevelFeature[] = [
+        ...groups.flatMap((g) => g.features),
+        ...featLinks,
+        ...gainedFeatures,
+        ...chosenFeats,
+      ].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
       if (!alive()) return;
-      const nameByKey = new Map(features.filter((f) => f.key).map((f) => [f.key, f.name] as const));
-      const hpChanges = (eff?.changes ?? []).filter((c) => c.target === 'hpMax' && (parseInt(c.valueChange, 10) || 0) !== 0);
-      hpPerLevelSources = hpChanges.map((c) => ({
-        feature: nameByKey.get(c.source) || c.source || 'Merkmal',
-        sourceKey: c.source,
-        amount: parseInt(c.valueChange, 10) || 0,
-      }));
-      const perLevelSum = hpPerLevelSources.reduce((s, x) => s + x.amount, 0);
+      hpPerLevelSources = computeHpPerLevel(features);
+      const perLevelSum = hpPerLevelSum(hpPerLevelSources);
       if (perLevelSum > 0)
         pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
     } catch {
