@@ -46,6 +46,11 @@ export const CASTER_ABILITY_DE: Record<AbilityKey, string> = {
   int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
 };
 
+// EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge (Magiekundiger): zwei Fassungen
+// laufen auseinander, sobald eine davon angefasst wird.
+export const spellSaveDC = (profBonus: number, abilityMod: number): number => 8 + profBonus + abilityMod;
+export const spellAttackBonus = (profBonus: number, abilityMod: number): number => profBonus + abilityMod;
+
 /**
  * Zauber, mit denen das Zauberbuch des Magiers auf Stufe 1 STARTET. Steht nur in der
  * Prosa („It starts with six level 1 Wizard spells of your choice") — Open5e emittiert

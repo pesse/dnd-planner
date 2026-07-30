@@ -208,6 +208,51 @@ Offene Frage, die vor 1d beantwortet werden muss (siehe Nebenbefund 1). Drei Weg
 
 Empfehlung: **A** jetzt, **B** wenn der Bogen die Zauberwerte je Quelle rechnen soll.
 
+#### Entschieden und umgesetzt (2026-07-30): Anzeigezeit statt Speicherung
+
+Der Auftrag lautete „A+" (Attribut **samt** SG und Angriffsbonus in die Bogen-Notiz). Zwei
+Befunde haben die Form geändert:
+
+**Die Prämisse war falsch: die Antwort ging nie verloren.** `decisionNotes` betrifft nur
+KI-Rider. Die deklarierte Wahl ist eine Aufbau-Entscheidung (`declaredChoice`:
+`isBuildDecision: true`) und landet auf **beiden** Wegen im Merkmals-Ledger — im Aufstieg über
+`featureChoiceChanges` (`buildDoc`), im Wizard über `assembleCharacter:205`. Sie steht also
+längst als `features[].choice` am Charakter. Was fehlte, war nicht die Senke, sondern ein
+Verbraucher: niemand rechnete damit, und der Bogen zeigte nur den Klassen-SG.
+
+**Damit ist Variante (iii) ohne Variante B erreichbar** — das Attribut ist schon persistiert,
+es braucht kein Feld in `character.spells`, keinen `_version`-Bump. Umgesetzt ist deshalb:
+
+* **SG und Angriffsbonus entstehen zur Anzeigezeit** (`resolveSpellAccess` in
+  `characterFeatures.ts` → eigener, abgesetzter Block im Zauberwirken-Abschnitt der Karte).
+  Dieselbe Doktrin wie bei der Waffenmeisterschaft: am Ort der Darstellung auflösen, nichts
+  zurückschreiben. Der Übungsbonus steigt auf 5/9/13/17 — eine gespeicherte Zahl wäre ab
+  Stufe 5 falsch, und **eine falsche Zahl auf dem Bogen ist schlechter als keine**.
+* **Die Bogen-Notiz trägt nur das Attribut** (Variante (i)) — „Magiekundiger: Magier-Liste,
+  Zauber über Charisma". Fertiges Deutsch, kein Übersetzungs-Call, Budget
+  `SHEET_NOTE_MAX_CHARS`. Der PDF-Freitext wird nie nachgerechnet, deshalb steht dort keine
+  Zahl.
+* **Erkannt wird an der Deklaration, nicht am Namen.** Eine ASI-Wahl speichert ebenfalls
+  „Charisma" im Ledger; `answeredAbility` nimmt nur Werte, die `grantsChoice.spellAbilities`
+  des betreffenden Merkmals zulässt. Ohne Antwort: `null`, es wird nichts geraten.
+* **Eine Formel für beide Zauberblöcke** (`spellSaveDC`/`spellAttackBonus` in
+  `spellcasting.ts`); `assembleCharacter` und `CharacterEditForm` rechnen nicht mehr je selbst.
+
+**Was NICHT gebaut wurde und warum:** die Zeile geht bewusst nicht durch `newSheetNotes`,
+sondern nur in die rohe Saat (`seedFeaturesText`). Als „neue Notiz" hätte sie den
+Merge-Call ausgelöst — der Kämpfer-3→4-Fall aus Auftrag 1 fährt sonst wieder einen LLM-Call
+statt null. Damit bleibt auch kein Modell-Pfad berührt: im Wizard wird die Zeile **nach** dem
+`classText`-Job angehängt, im Aufstieg erreicht sie ein Modell nur, wenn der Merge aus anderem
+Grund ohnehin läuft — und dann als Teil des bestehenden Textes wie jede nutzergeschriebene
+Zeile. Keine Eval-Strecke fährt diesen Call; gemessen wurde deshalb nicht, geprüft
+deterministisch (`evals/spellAccessValues.test.ts`, 8 Tests).
+
+**Was für Variante B übrig bleibt:** der Bogen (PDF) führt weiter genau einen Zauberblock. Wer
+die Werte des Zugangs **auf dem Papier** braucht, kommt an einem zweiten Block nicht vorbei —
+das ist die Produktentscheidung „App oder PDF ist die Autorität", nicht mehr eine Frage der
+Datenhaltung. Ebenso offen: `autoCalc` gilt nur für den Klassenblock; der Zugang kennt keine
+Hand-Übersteuerung.
+
 ### 1f Erst dann den Prompt schrumpfen
 
 Nachdem `spellAccess` deklariert ist und der Vault-Bestand vollständig gepflegt ist (siehe

@@ -12,6 +12,8 @@
   } from '../services/characterLegacyLinks';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  // Umbenannt, weil `spellSaveDC`/`spellAttackBonus` hier die Eingabefelder sind.
+  import { spellAttackBonus as attackBonusFor, spellSaveDC as saveDcFor } from '../services/spellcasting';
   import { getSpellLibrary, searchSpells, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, buildItemIndex, matchItem, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
@@ -847,8 +849,8 @@
   });
   /** true, wenn Auto aktiv UND das Zauberattribut erkannt wurde. */
   const spellAutoActive = $derived(spellAutoCalc && spellAbilityMod !== null);
-  const computedSpellSaveDC = $derived(spellAbilityMod === null ? null : 8 + proficiencyBonus + spellAbilityMod);
-  const computedSpellAttack = $derived(spellAbilityMod === null ? null : proficiencyBonus + spellAbilityMod);
+  const computedSpellSaveDC = $derived(spellAbilityMod === null ? null : saveDcFor(proficiencyBonus, spellAbilityMod));
+  const computedSpellAttack = $derived(spellAbilityMod === null ? null : attackBonusFor(proficiencyBonus, spellAbilityMod));
 
   // ─── Auswahllisten ───────────────────────────────────────
   // Ein Wert aus einer Altdatei (oder aus dem PDF-Import) steht nicht zwingend in der Liste.

@@ -14,9 +14,10 @@
  * `CASTER_ABILITY_DE`), nicht aus einem Übersetzungs-Call.
  */
 import type { AbilityName, FeatureChoiceGrant } from '$lib/schemas/shared';
+import type { AbilityKey } from '$lib/schemas/classProgression';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
-import { CASTER_ABILITY_DE } from './spellcasting';
+import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
 import { declaredChoice } from './declaredChoice';
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 
@@ -173,4 +174,88 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
   }
 
   return choices;
+}
+
+// ── Auswertung der Antwort ──────────────────────────────────────────────────────
+// Die Antworten stehen als `featureChoice` im Merkmals-Ledger (beide Wege: `buildDoc` im
+// Aufstieg, `assembleCharacter` im Wizard). Zauber-SG und Angriffsbonus entstehen daraus
+// erst zur ANZEIGEZEIT — wie die Waffenmeisterschaft, denn der Übungsbonus steigt.
+
+/** Ein Ledger-Eintrag (`character.features[]`), soweit hier gebraucht. */
+export interface FeatureChoiceEntry {
+  sourceKey?: string;
+  choice: string;
+}
+
+/**
+ * Die festgelegte Attributs-Antwort: die Deklaration sagt, welche Werte zählen — ein
+ * Namensvergleich würde die ASI-Wahl desselben Merkmals („Charisma") mitgreifen.
+ */
+export function answeredAbility(grant: SpellAccessGrant, ledger: FeatureChoiceEntry[]): AbilityName | null {
+  if (grant.abilities.length === 1) return grant.abilities[0];
+  const allowed = new Map(grant.abilities.map((a) => [a.toLowerCase(), a]));
+  for (const e of ledger) {
+    if ((e.sourceKey ?? '') !== grant.featureKey) continue;
+    const hit = allowed.get(e.choice.trim().toLowerCase());
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Die Zauberwerte dieses Zugangs — null, solange das Attribut offen ist (nichts wird geraten). */
+export interface SpellAccessValues {
+  featureKey: string;
+  featureDe: string;
+  abilityDe: string;
+  saveDC: number;
+  attackBonus: number;
+}
+
+export function spellAccessValues(
+  grant: SpellAccessGrant,
+  ledger: FeatureChoiceEntry[],
+  mods: Record<AbilityKey, number>,
+  profBonus: number,
+): SpellAccessValues | null {
+  const ability = answeredAbility(grant, ledger);
+  const key = ability ? ABILITY_FROM_EN[ability.toLowerCase()] : undefined;
+  if (!key) return null;
+
+  const abilityMod = mods[key] ?? 0;
+  return {
+    featureKey: grant.featureKey,
+    featureDe: grant.featureDe,
+    abilityDe: CASTER_ABILITY_DE[key],
+    saveDC: spellSaveDC(profBonus, abilityMod),
+    attackBonus: spellAttackBonus(profBonus, abilityMod),
+  };
+}
+
+/**
+ * Bogen-Notiz je Zugang, direkt auf Deutsch (kein Übersetzungs-Call). **Ohne Zahl** — SG und
+ * Angriffsbonus hängen am Übungsbonus und wären ab Stufe 5 falsch; der Bogen-Freitext wird
+ * nicht nachgerechnet. Die Zahlen stehen stattdessen im Zauber-Block der Karte.
+ */
+export function spellAccessNoteLines(
+  grants: SpellAccessGrant[],
+  answers: Record<string, string | string[]>,
+): string[] {
+  const answered = (id: string): string => {
+    const a = answers[id];
+    return (Array.isArray(a) ? a[0] : a)?.trim() ?? '';
+  };
+
+  const lines: string[] = [];
+  for (const grant of grants) {
+    const fixedAbility = grant.abilities.length === 1 ? grant.abilities[0] : '';
+    const ability = fixedAbility || answered(spellAbilityChoiceId(grant));
+    const abilityKey = ability ? ABILITY_FROM_EN[ability.toLowerCase()] : undefined;
+    if (!abilityKey) continue;
+
+    const list = fixedList(grant) || answered(spellListChoiceId(grant));
+    const listDe = list ? (CLASS_NAME_DE_BY_SLUG[resolveClass(list) ?? list] ?? '') : '';
+    const source = listDe ? `${listDe}-Liste, ` : '';
+    lines.push(`${grant.featureDe}: ${source}Zauber über ${CASTER_ABILITY_DE[abilityKey]}`);
+  }
+  return lines;
 }

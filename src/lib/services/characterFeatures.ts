@@ -15,6 +15,8 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
+import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
+import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
@@ -279,6 +281,43 @@ export async function resolveCharacterFeatures(c: {
     featEntries: featLinks.filter((f) => !isOrphanChoice(f)),
     orphanChoices: featLinks.filter(isOrphanChoice),
   };
+}
+
+/**
+ * Zauberwerte der merkmals-gewährten Zugänge (Magiekundiger & Co.), zur Anzeigezeit aus
+ * Deklaration + Ledger gerechnet. Nichts wird zurückgeschrieben: der Übungsbonus steigt, ein
+ * gespeicherter SG würde altern. Ohne beantwortetes Attribut fällt der Zugang heraus.
+ */
+export async function resolveSpellAccess(c: {
+  features?: CharacterFeatureEntry[];
+  proficiencyBonus?: number;
+  mods: Record<AbilityKey, number>;
+}): Promise<SpellAccessValues[]> {
+  const entries = c.features ?? [];
+  if (!entries.length) return [];
+
+  const lib = await getFeats();
+  const out: SpellAccessValues[] = [];
+  const seen = new Set<string>();
+  for (const ref of entries) {
+    const key = ref.sourceKey ?? '';
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+
+    const feat = matchFeatEntry(lib, ref);
+    if (!feat) continue;
+    const grant = spellAccessGrantOf({
+      key: feat.sourceKey,
+      name: feat.name,
+      nameDe: feat.nameDe,
+      grantsChoice: feat.grantsChoice,
+    });
+    if (!grant) continue;
+
+    const values = spellAccessValues(grant, entries, c.mods, c.proficiencyBonus ?? 2);
+    if (values) out.push(values);
+  }
+  return out;
 }
 
 /** Eine früher getroffene Entscheidung, aufgelöst auf den Merkmalsnamen (für KI-Kontext). */

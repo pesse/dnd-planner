@@ -32,9 +32,10 @@
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
-    resolveCharacterFeatures,
+    resolveCharacterFeatures, resolveSpellAccess,
     type ResolvedFeatureGroup, type ResolvedFeature,
   } from '../services/characterFeatures';
+  import type { SpellAccessValues } from '../services/spellAccess';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -53,6 +54,23 @@
   // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
   let featEntries = $state<ResolvedFeature[]>([]);
   let orphanChoices = $state<ResolvedFeature[]>([]);
+  // Zauberwerte der merkmals-gewährten Zugänge (Magiekundiger): zur Anzeigezeit gerechnet,
+  // damit ein steigender Übungsbonus sie mitnimmt — gespeichert würden sie altern.
+  let spellAccessRows = $state<SpellAccessValues[]>([]);
+  $effect(() => {
+    const c = character;
+    if (!c) {
+      spellAccessRows = [];
+      return;
+    }
+    void (async () => {
+      spellAccessRows = await resolveSpellAccess({
+        features: c.features,
+        proficiencyBonus: c.proficiencyBonus,
+        mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+      });
+    })();
+  });
   // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
   // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
   // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
@@ -1135,6 +1153,14 @@
                 {#if character.spells.attackBonus}<div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(character.spells.attackBonus)}</span></div>{/if}
               </div>
             {/if}
+            {#each spellAccessRows as acc}
+              <div class="stats-grid spell-access" style="margin-bottom:0.6rem">
+                <div class="stat"><span class="sl">Merkmal</span><span class="sv">{acc.featureDe}</span></div>
+                <div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{acc.abilityDe}</span></div>
+                <div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{acc.saveDC}</span></div>
+                <div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(acc.attackBonus)}</span></div>
+              </div>
+            {/each}
 
             {#if character.spells.cantrips.length}
               <div class="spell-level-header"><span>Zaubertricks</span></div>
@@ -1406,6 +1432,12 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.2rem 0.5rem;
     margin-bottom: 0.75rem;
+  }
+
+  /* Zweiter Zauberblock: abgesetzt, damit er nicht als Klassen-Zauberwirken gelesen wird. */
+  .spell-access {
+    border-left: 2px solid var(--copper);
+    padding-left: 0.5rem;
   }
 
   .personal-stats {

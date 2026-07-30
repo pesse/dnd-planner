@@ -38,8 +38,11 @@ import {
   buildSpellSelection,
   CASTER_ABILITY_DE,
   CASTER_ABILITY_KEY,
+  spellAttackBonus,
   spellcastingOffer,
+  spellSaveDC,
 } from '../spellcasting';
+import { spellAccessNoteLines } from '../spellAccess';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
@@ -238,8 +241,8 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     c.spells.spellcastingClass = w.klass.name;
     c.spells.spellcastingAbility = CASTER_ABILITY_DE[abilityKey];
     c.spells.autoCalc = true;
-    c.spells.saveDC = 8 + profBonus + abilityMod;
-    c.spells.attackBonus = profBonus + abilityMod;
+    c.spells.saveDC = spellSaveDC(profBonus, abilityMod);
+    c.spells.attackBonus = spellAttackBonus(profBonus, abilityMod);
     c.spells.slots = spellSlotsAt(prog, 1).map((total) => ({ total, used: 0 }));
   }
 
@@ -316,8 +319,14 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     }
   }
 
-  // ── Merkmals-Text (KI) ──
-  c.classFeatures = w.classText.result?.text?.trim() ?? '';
+  // ── Merkmals-Text (KI) + die deterministische Zeile deklarierter Zauber-Zugänge ──
+  // Dieselbe Funktion wie im Aufstieg: der Zugang hat keinen Rider, der eine Notiz schreiben
+  // könnte, und ohne die Zeile stünde das gewählte Attribut nirgends auf dem Bogen.
+  const accessNotes = spellAccessNoteLines(
+    w.spellAccess,
+    Object.fromEntries(w.declaredAnswers.map((a) => [a.id, a.choice])),
+  );
+  c.classFeatures = [w.classText.result?.text?.trim() ?? '', ...accessNotes].filter(Boolean).join('\n');
   c.personal.rassenmerkmale = w.speciesText.result?.text?.trim() ?? '';
 
   // ── Ausrüstung (gewählte Optionen der KI-Aufbereitung) ──

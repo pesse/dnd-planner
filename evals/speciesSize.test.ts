@@ -52,6 +52,9 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     featureSpellPicks: {},
     resolvedChoices: [],
     declaredAnswers: [],
+    // Wie am echten Wizard immer gesetzt; `buildWizardCharacter` liest es für die Bogen-Notiz
+    // des Zauber-Zugangs.
+    spellAccess: [],
     featureChoices: [],
     spellPickChoices: [],
     effects: noJob,

@@ -49,8 +49,8 @@
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
-    spellAccessChoices, spellAccessGrantOf, spellListChoiceId, withoutSpellAccessFeatures,
-    type SpellAccessGrant,
+    spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
+    withoutSpellAccessFeatures, type SpellAccessGrant,
   } from '../services/spellAccess';
   import {
     parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
@@ -632,9 +632,17 @@
   /** Die verdichteten Bogen-Notizen dieses Aufstiegs (Merkmale + Talente). */
   const newSheetNotes = () => [...sheetNoteLines(validatedBase.riders), ...sheetNoteLines(validatedFeats.riders)];
 
-  /** Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge. */
+  /**
+   * Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge.
+   *
+   * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
+   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" würde sie den Merge-Call
+   * auslösen — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
+   */
   const seedFeaturesText = () =>
-    [character.classFeatures, ...newSheetNotes()].filter((s) => s?.trim()).join('\n');
+    [character.classFeatures, ...newSheetNotes(), ...spellAccessNoteLines(featAccess, answers)]
+      .filter((s) => s?.trim())
+      .join('\n');
 
   /**
    * Verschmilzt den bestehenden (nutzergeschriebenen) Freitext mit den neuen Bogen-Notizen.
