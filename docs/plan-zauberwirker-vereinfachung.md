@@ -533,6 +533,63 @@ Talent-Pfad ihn abfragt.
   Deutungsarbeit). Ein *zauber*-gewährendes Talent ohne Deklaration fiele aber in Fall A —
   dagegen steht nur der Deckungstest über `vault/feats`.
 
+## Stufe 2 — die Inventur, erhoben (2026-07-30)
+
+Die Erwartung oben („dieselbe Deklaration passt auf jedes Merkmal, dessen Inhalt *wähle N
+Zauber vom Grad X aus Liste Y* ist") **trifft für keinen einzigen Fall im Bestand.** Sweep über
+alle 28 `vault/classes`-Dateien, 26 Merkmale nennen eine Zauber-Wahl; nach Einordnung bleiben
+fünf Aufbau-Wahlen übrig, die heute am Modell hängen:
+
+| Merkmal | Stufe | Inhalt | passt in `spellAccess`? |
+|---|---|---|---|
+| Magical Discoveries (Kolleg des Wissens) | 6 | 2 Zauber aus **drei** Listen, „Zaubertrick oder Grad mit Platz" | nein — `spellPicks.level` ist fest, das Band hängt an der Stufe; `spellClass` trägt **eine** Liste |
+| Mystic Arcanum (Hexenmeister) | 11/13/15/17 | 1 Zauber, Grad **6/7/8/9 je Stufe** | nein — `spellPicks` ist stufenlos |
+| Evocation Savant (Hervorrufer) | 3 | 2 Magier-Zauber der **Schule** Hervorrufung, ≤ Grad 2 | nein — kein Schul-Filter im Schema |
+| Signature Spells (Magier) | 20 | 2 Grad-3-Zauber **aus dem Zauberbuch** | nein — Quelle ist das Buch, keine Klassenliste |
+| Spell Mastery (Magier) | 18 | je 1 Zauber Grad 1/2 aus dem Buch, Wirkzeit Aktion | nein — dito, plus Wirkzeit-Filter |
+
+Nicht Aufbau-Wahl und damit kein Kunde der Regel: Magical Secrets des Barden (erweitert nur die
+Listen seines *eigenen* Kontingents), Divine Intervention und Sculpt Spells (Wahl im Moment des
+Wirkens), Natural Recovery / Arcane Recovery / Archdruid (Zauberplätze), Memorize Spell (Tausch
+an der Rast), Metamagic (wählt keine Zauber).
+
+**Warum hier nicht einfach deklariert wird.** `isFlowOwnedChoiceFeature` wirft *jedes* Merkmal
+mit `grantsChoice` aus dem KI-Eingang. Für Klassenmerkmale fragt aber niemand einen Zauber-Zugang
+ab — das tut nur der Talent-Pfad (1g). Eine Deklaration ohne Verbraucher würde die Wahl also
+nicht deterministisch machen, sondern **löschen**. Erst der Verbraucher, dann die Deklaration;
+genau das hält die Zusicherung „kein Klassenmerkmal deklariert einen Zugang" aus
+`evals/levelUpFeatAccess.test.ts` fest.
+
+**Damit ist der Prompt-Schnitt aus 1f nicht gedeckt.** Er hätte diesen fünf Merkmalen die einzige
+Regel entzogen, die ihre Wahl überhaupt entstehen lässt. Festgehalten in
+`evals/spellChoiceCoverage.test.ts` (LLM-frei): jeder Fund ist eingeordnet (ein neuer bricht den
+Test), die fünf Aufbau-Wahlen sind namentlich fixiert, keine ist deklariert, und alle fünf
+kommen durch die beiden Filter von `gainedFeaturesFor` bis in den Eingang. Der Test fand beim
+ersten Lauf einen Fall, den ich beim Sichten übersehen hatte (Sculpt Spells).
+
+### Statt blind zu schneiden: messen, ob die Regel trägt
+
+Neue Strecke `evals/spellPickRule.eval.test.ts` (Barde 5→6, Magische Entdeckungen) — der
+härteste der fünf Fälle und bisher nie gemessen. Nur wenn die Regel hier nichts leistet, ist ihr
+Entfernen kein Verlust.
+
+**Hypothese (notiert VOR der Messung).** Die Regel trägt teilweise. Das Kontingent (2) steht als
+Wort im Text („two spells of your choice") und sollte kommen. Fallen sehe ich bei `spellClass` —
+das Feld ist ein **einzelner** String, die drei erlaubten Listen sind darin gar nicht
+darstellbar, das Modell muss also entweder eine willkürlich herausgreifen oder das Feld leer
+lassen (in der Talent-Messung war es 10 von 10 leer) — und beim Gradband, weil „a spell for which
+you have spell slots" die Stufentabelle des Barden voraussetzt, die im Prompt nicht steht.
+
+**Erwartung.** „Kontingent ist 2" hoch (≥ 80 %), „Liste ist einer der drei Keys" niedrig
+(≤ 40 %), „kein Zaubergrad über 3" mittel, „macht aus dem Tausch-Halbsatz keine Wahl" hoch (die
+K1-Regel ist gemessen wirksam). Call C sollte sauber sein: mit offener Wahl hat das Modell keinen
+Anlass, Zauber zu erfinden.
+
+**Folge für den Schnitt.** Hält die Regel ihre Kunden (Kontingent + Band brauchbar), bleibt sie
+und 1f ist erledigt — als *nicht* durchführbar, mit Begründung. Liefert sie auch mit Regel
+unbrauchbare Wahlen, ist der Schnitt kein Verlust, sondern legt einen Defekt offen, der ohnehin
+einen Verbraucher braucht.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).
