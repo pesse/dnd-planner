@@ -83,6 +83,14 @@ an older vault in — but only when the current one is empty.
 **Adding a library type** means touching all of: `roots` in `vault/libraries.yaml`, `ALLOWED_ROOTS`
 in `src-tauri/src/libraries.rs`, and the seven vault export/import sites in `lib.rs`.
 
+**Library content declares which app version can read it**: `min_app_version` in
+`vault/libraries.yaml` → `minVersion` per `index.json` entry → `satisfies_min` / the
+`appOutdated` state in `libraries.rs`. Content that starts relying on a new schema field
+must raise the value **in the vault repo** — nothing here can detect that. The gate only
+protects clients from 0.2.1 on; older ones ignore the field. It is off in debug builds:
+the committed version is always the *last* release, so a declaration pointing at the
+coming one would lock development out of its own content.
+
 `vault/` is a separate content repo with its own `CLAUDE.md` — read it before touching vault data.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
 vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
