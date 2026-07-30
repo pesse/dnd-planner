@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { SPELL_SCHOOLS, type SpellSchool } from '../types';
-import { namedRef, sourceField, migrateSourceLegacy } from './shared';
+import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE } from './shared';
 
 const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
 
@@ -55,10 +55,31 @@ export const spellSchema = z.object({
     })
     .optional(),
   source: sourceField(),
+  document: z
+    .object({ key: z.string(), gamesystem: z.string() })
+    .optional()
+    .describe('Open5e-Herkunftsdokument; document.key === source (Pack-Build-Invariante).'),
 });
 
 export type Spell = z.infer<typeof spellSchema>;
 export type SpellDamage = NonNullable<z.infer<typeof spellSchema>['damage']>;
+
+const slugify = (s: string): string =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+/**
+ * Identität eines Zaubers, auch ohne `key` in der Datei (Altbestand/Homebrew). Analog
+ * zu `itemKeyOf`: der Import setzt `key` explizit, hier greift nur der Backfill. Slug
+ * folgt dem englischen Namen (Open5e-Konvention `srd-2024_acid-arrow`).
+ */
+export function spellKeyOf(raw: Record<string, unknown>): string {
+  if (typeof raw.key === 'string' && raw.key) return raw.key;
+  const migrated = migrateSourceLegacy({ ...raw });
+  const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  const en = typeof raw.name_en === 'string' && raw.name_en ? raw.name_en : '';
+  const name = en || (typeof raw.name === 'string' ? raw.name : '');
+  return name ? `${source}_${slugify(name)}` : '';
+}
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
 export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
@@ -80,5 +101,21 @@ export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
     if (hl) s.higher_level_de ??= [hl];
     delete s.higher_levels;
   }
-  return migrateSourceLegacy(s);
+
+  const migrated = migrateSourceLegacy(s);
+
+  // `key` + `document` backfillen, damit Altbestand/Homebrew das einheitliche
+  // Identitäts-/Herkunftsmodell trägt (source === document.key). Der Importer setzt
+  // beides explizit; hier greift nur, was noch keins hat. Idempotent.
+  const source =
+    typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
+  if (!migrated.key) {
+    const k = spellKeyOf(migrated);
+    if (k) migrated.key = k;
+  }
+  const doc = migrated.document as { key?: string; gamesystem?: string } | undefined;
+  if (!doc || typeof doc !== 'object') migrated.document = { key: source, gamesystem: '' };
+  else if (!doc.key) doc.key = source;
+
+  return migrated;
 }

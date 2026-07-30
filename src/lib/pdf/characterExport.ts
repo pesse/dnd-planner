@@ -313,7 +313,7 @@ export async function exportCharacterToPdf(
     }
 
     for (let i = 0; i < 8; i++) {
-      t(`Zaubertrick${i+1}`, sp.cantrips?.[i] ?? '');
+      t(`Zaubertrick${i+1}`, sp.cantrips?.[i]?.name ?? '');
     }
 
     for (let lvl = 1; lvl <= 9; lvl++) {

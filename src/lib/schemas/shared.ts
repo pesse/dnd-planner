@@ -23,13 +23,27 @@ export const namedRef = (desc?: string) => {
 
 // ── Herkunft ──────────────────────────────────────────────────────────────────
 //
-// Genau drei Werte, siehe vault/CLAUDE.md. Sie steuern, in welchen verteilbaren
+// Die Herkunftswerte, siehe vault/CLAUDE.md. Sie steuern, in welchen verteilbaren
 // Pack eine Datei fällt (vault/libraries.yaml, fail-closed), sind der
 // `document.key` der Open5e-Artefakte und zugleich das Präfix jedes Main-Keys
 // ("srd-2024_alert", "homebrew-sam_runenhammer"). Ein anderer Wert lässt den
 // Pack-Build abbrechen.
+//
+// Neben den drei Kern-Werten (srd-2024/phb-2024/homebrew-sam) tragen einige
+// Zauber Fremd-/Legacy-Herkünfte: `dndapi-2014` (Alt-Bestand aus dem früheren
+// dnd5eapi-Import, nicht in Open5e-2024), `srd-2014`, `deepm` (Kobold Press) und
+// `a5e-ag` (Level Up A5E) — 2024er Open5e führt diese Zauber nicht.
 
-export const SOURCE_KEYS = ['srd-2024', 'phb-2024', 'homebrew-sam'] as const;
+export const SOURCE_KEYS = [
+  'srd-2024',
+  'phb-2024',
+  'homebrew-sam',
+  // Fremd-/Legacy-Herkünfte (nur Zauber, die Open5e-2024 nicht führt):
+  'dndapi-2014',
+  'srd-2014',
+  'deepm',
+  'a5e-ag',
+] as const;
 export type SourceKey = (typeof SOURCE_KEYS)[number];
 
 /** Default für alles, was in der App neu entsteht. */
@@ -39,6 +53,10 @@ export const SOURCE_LABELS: Record<SourceKey, string> = {
   'srd-2024': 'SRD 5.2',
   'phb-2024': 'PHB 2024',
   'homebrew-sam': 'Eigen',
+  'dndapi-2014': 'D&D API 2014',
+  'srd-2014': 'SRD 5.1',
+  deepm: 'Deep Magic',
+  'a5e-ag': 'Level Up A5E',
 };
 
 /** Anzeigename einer Herkunft; unbekannte Werte (Fremdimport) unverändert durchreichen. */
@@ -69,11 +87,13 @@ const LEGACY_SOURCES: Record<string, SourceKey> = {
 };
 
 /**
- * Beliebige Herkunftsangabe → einer der drei gültigen Werte.
+ * Beliebige Herkunftsangabe → einer der gültigen `SOURCE_KEYS`.
  *
- * Unbekanntes (leer, Fremdimport, Open5e-Dokumente außerhalb SRD 5.2 wie
- * `srd-2014`) fällt auf `homebrew-sam`. Das ist die sichere Richtung: der Pack
- * ist codiert, das Material landet also nie ungeprüft in einer offenen Library.
+ * Bekannte Fremd-/Legacy-Dokumente (`srd-2014`, `deepm`, `a5e-ag`) stehen jetzt
+ * selbst in `SOURCE_KEYS` und werden unverändert durchgereicht (eigene Libraries,
+ * siehe libraries.yaml). Wirklich Unbekanntes (leer, sonstiger Fremdimport) fällt
+ * weiterhin auf `homebrew-sam` — die sichere Richtung: der Pack ist codiert, das
+ * Material landet also nie ungeprüft in einer offenen Library.
  */
 export function toSourceKey(raw: string | undefined | null): SourceKey {
   const s = raw ?? '';

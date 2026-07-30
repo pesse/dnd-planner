@@ -31,7 +31,7 @@ import { collectGrants } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
-import { getSpellLibrary } from '$lib/spellLibrary';
+import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUpMachine';
 import {
   buildSpellSelection,
@@ -232,6 +232,16 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   const hasPicks =
     w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
   if (hasPicks || riders.length) {
+    // Zauber per Key an die Bibliothek binden (wie inventory[].sourceKey); Namens-Fallback
+    // bleibt, wenn kein eindeutiger Key auflöst. Index einmal für beide Zweige.
+    const spellLib = await getSpellLibrary();
+    const spellIndex = buildSpellIndex(spellLib);
+    const linkRef = (name: string): { sourceKey?: string } => {
+      const hit = matchSpell(spellIndex, { name });
+      const unique = !spellIndex.ambiguous.has(name.trim().toLowerCase());
+      return hit?.key && unique ? { sourceKey: hit.key } : {};
+    };
+
     // Die eigene Wahl zuerst — ihre Namen sind bereits kanonisch (aus der Bibliothek
     // gewählt), sie legt also die Vorbereitungs-Markierung fest. Ein Zauber, der DANACH
     // noch als gewährt hereinkommt, überschreibt sie nicht.
@@ -248,21 +258,23 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
         preparedPicks: w.pickedPrepared,
         featurePicks,
       });
-      c.spells.cantrips = [...sel.cantrips];
-      for (const [level, entries] of sel.byLevel) c.spells.byLevel[String(level)] = entries.map((e) => ({ ...e }));
+      c.spells.cantrips = sel.cantrips.map((name) => ({ name, ...linkRef(name) }));
+      for (const [level, entries] of sel.byLevel)
+        c.spells.byLevel[String(level)] = entries.map((e) => ({ name: e.name, prepared: e.prepared, ...linkRef(e.name) }));
     }
 
     // Gewährte Zauber (Elfenlinie, Domänenzauber …): stets vorbereitet, zählen nicht gegen
     // das Kontingent. Namen kommen vom LLM und müssen erst kanonisiert werden.
     if (riders.length) {
-      const validated = validateRiderSpells(riders, await getSpellLibrary(), w.klass.name);
-      for (const name of validated.grantedCantrips) if (!c.spells.cantrips.includes(name)) c.spells.cantrips.push(name);
+      const validated = validateRiderSpells(riders, spellLib, w.klass.name);
+      for (const name of validated.grantedCantrips)
+        if (!c.spells.cantrips.some((e) => e.name === name)) c.spells.cantrips.push({ name, ...linkRef(name) });
       for (const { level, name } of validated.grantedPrepared) {
         const lvl = String(level);
         const arr = c.spells.byLevel[lvl] ?? [];
         const seen = arr.find((e) => e.name === name);
         if (seen) seen.prepared = true;
-        else arr.push({ name, prepared: true });
+        else arr.push({ name, prepared: true, ...linkRef(name) });
         c.spells.byLevel[lvl] = arr;
       }
     }

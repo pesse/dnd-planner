@@ -65,7 +65,7 @@ export function buildCharacterProtocol(
   const spells: string[] = [];
   const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);
   if (slots.length) spells.push(`Zauberplätze: ${slots.map((s) => `Grad ${s.lvl}: ${s.total}`).join(', ')}`);
-  if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.join(', ')}`);
+  if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.map((x) => x.name).join(', ')}`);
   // Nach `prepared` trennen, nicht nach Herkunft: aus dem gespeicherten Charakter ist nicht
   // ablesbar, ob ein Zauber gewählt oder gewährt wurde — die Markierung ist es aber, und beim
   // Magier ist genau sie die interessante Information (Buch ⊋ Vorbereitung).

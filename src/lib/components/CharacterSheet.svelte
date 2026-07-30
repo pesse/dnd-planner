@@ -20,7 +20,7 @@
   import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { getSpellLibrary, loadSpellByPath, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { getSpellLibrary, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import {
     getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
     buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
@@ -155,7 +155,10 @@
           break;
         }
         case 'cantrip':
-          if (!next.spells.cantrips.includes(c.name)) next.spells.cantrips = [...next.spells.cantrips, c.name];
+          if (!next.spells.cantrips.some((e) => e.name === c.name)) {
+            const key = resolveSpell({ name: c.name })?.key;
+            next.spells.cantrips = [...next.spells.cantrips, { name: c.name, ...(key ? { sourceKey: key } : {}) }];
+          }
           break;
         case 'spellcastingClass':
           if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
@@ -170,7 +173,10 @@
           if (!c.name.trim()) break;
           const lvl = String(c.level);
           const arr = next.spells.byLevel[lvl] ?? [];
-          if (!arr.some((e) => e.name === c.name)) arr.push({ name: c.name, prepared: c.prepared });
+          if (!arr.some((e) => e.name === c.name)) {
+            const key = resolveSpell({ name: c.name })?.key;
+            arr.push({ name: c.name, prepared: c.prepared, ...(key ? { sourceKey: key } : {}) });
+          }
           next.spells.byLevel[lvl] = arr;
           break;
         }
@@ -324,11 +330,11 @@
     activeFile.set({ name, path: libItem.path, type: 'item' });
   }
 
-  async function openSpellPage(spellName: string) {
-    const info = spellInfoMap.get(spellName);
+  async function openSpellPage(ref: { name: string; sourceKey?: string }) {
+    const info = resolveSpell(ref);
     if (!info?.path) return;
     if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? ref.name;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
@@ -345,10 +351,12 @@
     return s;
   }
 
-  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
-  const spellSchoolMap = $derived(new Map(spellLibrary.map(s => [s.name, s.school])));
-  function spellColor(name: string): string {
-    const school = spellSchoolMap.get(name);
+  // Zauber werden per Key (Fallback Name) an die Bibliothek gebunden — wie Items.
+  const spellIndex = $derived(buildSpellIndex(spellLibrary));
+  const resolveSpell = (ref: { name: string; sourceKey?: string }): SpellInfo | undefined =>
+    matchSpell(spellIndex, ref);
+  function spellColor(ref: { name: string; sourceKey?: string }): string {
+    const school = resolveSpell(ref)?.school;
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
   }
 
@@ -361,15 +369,16 @@
   $effect(() => {
     const spells = character?.spells;
     if (!spells) return;
-    const names = [
+    const refs = [
       ...(spells.cantrips ?? []),
       ...['1','2','3','4','5','6','7','8','9'].flatMap(
-        lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
+        lvl => spells.byLevel[lvl] ?? []
       ),
     ];
-    for (const name of names) {
+    for (const ref of refs) {
+      const name = ref.name;
       if (spellDataCache.has(name)) continue;
-      const info = spellInfoMap.get(name);
+      const info = resolveSpell(ref);
       if (!info?.path) continue;
       spellDataCache.set(name, null);  // als „in Arbeit" markieren
       spellDataCache = new Map(spellDataCache);
@@ -403,23 +412,23 @@
     printingSpells = true;
 
     try {
-      // Alle Zaubernamen sammeln: Zaubertricks + Stufe 1-9
-      const names: string[] = [
+      // Alle Zauber-Verweise sammeln: Zaubertricks + Stufe 1-9
+      const refs = [
         ...(spells.cantrips ?? []),
         ...(['1','2','3','4','5','6','7','8','9'].flatMap(
-          lvl => (spells.byLevel[lvl] ?? []).map(s => s.name)
+          lvl => spells.byLevel[lvl] ?? []
         )),
       ];
 
-      // Für jeden Namen: Pfad aus Index, dann Daten laden (Cache nutzen)
+      // Für jeden Verweis: Pfad aus Index (Key/Name), dann Daten laden (Cache nutzen)
       const spellObjects: Spell[] = [];
-      for (const name of names) {
-        let data = spellDataCache.get(name) ?? null;
+      for (const ref of refs) {
+        let data = spellDataCache.get(ref.name) ?? null;
         if (!data) {
-          const info = spellInfoMap.get(name);
+          const info = resolveSpell(ref);
           if (info?.path) {
             data = await loadSpellByPath(info.path);
-            spellDataCache.set(name, data);
+            spellDataCache.set(ref.name, data);
             spellDataCache = new Map(spellDataCache);
           }
         }
@@ -1106,19 +1115,19 @@
             {#if character.spells.cantrips.length}
               <div class="spell-level-header"><span>Zaubertricks</span></div>
               <div class="spell-cards">
-                {#each character.spells.cantrips as name}
-                  {@const info = spellInfoMap.get(name)}
-                  {@const color = spellColor(name)}
+                {#each character.spells.cantrips as c}
+                  {@const info = resolveSpell(c)}
+                  {@const color = spellColor(c)}
                   <div class="scard" class:scard-linked={!!info?.path}
                     style="--sc:{color || 'var(--border-strong)'}"
                     role="button" tabindex="0"
-                    onclick={() => openSpellPage(name)}
-                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(name)}
-                    onmouseenter={(e) => showSpellTooltip(e, name)}
+                    onclick={() => openSpellPage(c)}
+                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
+                    onmouseenter={(e) => showSpellTooltip(e, c.name)}
                     onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
                     onmouseleave={hideSpellTooltip}>
                     <div class="scard-head">
-                      <span class="scard-name">{name}</span>
+                      <span class="scard-name">{c.name}</span>
                       <span class="scard-badges">
                         {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
                       </span>
@@ -1140,13 +1149,13 @@
                 </div>
                 <div class="spell-cards">
                   {#each lvlSpells as spell}
-                    {@const info = spellInfoMap.get(spell.name)}
-                    {@const color = spellColor(spell.name)}
+                    {@const info = resolveSpell(spell)}
+                    {@const color = spellColor(spell)}
                     <div class="scard" class:prepared={spell.prepared} class:scard-linked={!!info?.path}
                       style="--sc:{color || 'var(--border-strong)'}"
                       role="button" tabindex="0"
-                      onclick={() => openSpellPage(spell.name)}
-                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.name)}
+                      onclick={() => openSpellPage(spell)}
+                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
                       onmouseenter={(e) => showSpellTooltip(e, spell.name)}
                       onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
                       onmouseleave={hideSpellTooltip}>

@@ -3,11 +3,11 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
   import type { SkillName } from '../schemas/shared';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
-  import { getSpellLibrary, searchSpells, loadSpellByPath, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
+  import { getSpellLibrary, searchSpells, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, buildItemIndex, matchItem, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
@@ -222,7 +222,8 @@
   let spellAttackBonus = $state(character.spells?.attackBonus ?? 0);
   let spellAutoCalc = $state(character.spells?.autoCalc ?? true);
   let slotTotals = $state(Array.from({ length: 9 }, (_, i) => character.spells?.slots[i]?.total ?? 0));
-  let cantrips = $state([...(character.spells?.cantrips ?? [])]);
+  // Deep-Copy: Link-Mutationen (sourceKey setzen) dürfen nicht das character-Prop aliasieren.
+  let cantrips = $state<SpellRef[]>((character.spells?.cantrips ?? []).map((c) => ({ ...c })));
   let cantripInput = $state('');
   let spellsByLevel = $state<Record<string, SpellEntry[]>>(
     Object.fromEntries(
@@ -507,6 +508,91 @@
     }
   }
 
+  /** Bibliotheksname eines gelinkten Gegenstands, wenn er vom gespeicherten `name` abweicht. */
+  function divergedItemName(line: { name: string; sourceKey?: string }): string | undefined {
+    const key = line.sourceKey?.trim();
+    if (!key) return undefined;
+    const hit = itemIndex.byKey.get(key);
+    if (!hit) return undefined;
+    const canonical = displayName(hit);
+    return canonical.trim() !== line.name.trim() ? canonical : undefined;
+  }
+
+  const divergedItemCount = $derived(inventory.filter((line) => divergedItemName(line)).length);
+
+  function syncInventoryNames() {
+    for (const line of inventory) {
+      const canonical = divergedItemName(line);
+      if (canonical) line.name = canonical;
+    }
+  }
+
+  /**
+   * Nachverlinkbare Zauber (Zaubertricks + byLevel): Altbestand ohne `sourceKey`, dessen
+   * Name eindeutig in der Bibliothek auflöst. Wie beim Inventar eine sichtbare Aktion pro
+   * Charakter — der synchrone Schema-Upgrade käme an die Bibliothek nicht heran.
+   */
+  const linkableSpellCount = $derived.by(() => {
+    const isLinkable = (ref: SpellRef): boolean => {
+      if (ref.sourceKey?.trim()) return false;
+      const nm = ref.name.trim().toLowerCase();
+      if (!nm || spellIndex.ambiguous.has(nm)) return false;
+      return !!spellIndex.byName.get(nm)?.key;
+    };
+    let n = cantrips.filter(isLinkable).length;
+    for (const arr of Object.values(spellsByLevel)) n += arr.filter(isLinkable).length;
+    return n;
+  });
+
+  function linkSpellRows() {
+    const link = (ref: SpellRef) => {
+      if (ref.sourceKey?.trim()) return;
+      const nm = ref.name.trim().toLowerCase();
+      if (!nm || spellIndex.ambiguous.has(nm)) return;
+      const hit = spellIndex.byName.get(nm);
+      if (!hit?.key) return;
+      ref.sourceKey = hit.key;
+      ref.name = hit.name; // deutschen Bibliotheksnamen mitziehen (wie beim Inventar)
+    };
+    cantrips.forEach(link);
+    cantrips = [...cantrips];
+    for (const lvl of Object.keys(spellsByLevel)) {
+      spellsByLevel[lvl].forEach(link);
+      spellsByLevel[lvl] = [...spellsByLevel[lvl]];
+    }
+  }
+
+  /**
+   * Der Bibliotheksname zu einem gelinkten Zauber, wenn er vom gespeicherten `name`
+   * abweicht (nur über den KEY verglichen — der Fallback-Name-Treffer wäre trivial gleich).
+   * `undefined` = kein Link, kein Treffer oder identisch.
+   */
+  function divergedSpellName(ref: SpellRef): string | undefined {
+    const key = ref.sourceKey?.trim();
+    if (!key) return undefined;
+    const canonical = spellIndex.byKey.get(key)?.name;
+    return canonical && canonical.trim() !== ref.name.trim() ? canonical : undefined;
+  }
+
+  const divergedSpellCount = $derived.by(() => {
+    let n = cantrips.filter((c) => divergedSpellName(c)).length;
+    for (const arr of Object.values(spellsByLevel)) n += arr.filter((e) => divergedSpellName(e)).length;
+    return n;
+  });
+
+  function syncSpellNames() {
+    const fix = (ref: SpellRef) => {
+      const canonical = divergedSpellName(ref);
+      if (canonical) ref.name = canonical;
+    };
+    cantrips.forEach(fix);
+    cantrips = [...cantrips];
+    for (const lvl of Object.keys(spellsByLevel)) {
+      spellsByLevel[lvl].forEach(fix);
+      spellsByLevel[lvl] = [...spellsByLevel[lvl]];
+    }
+  }
+
   // ─── Gegenstands-Tooltip + Sprung zur Karte (wie im Bogen) ──
   let itemDataByPath = $state(new Map<string, Item | null>());
   let itemTooltip = $state<Item | null>(null);
@@ -558,17 +644,17 @@
     getSpellLibrary().then(lib => { spellLibrary = lib; });
   });
 
-  const spellSchoolMap = $derived(
-    new Map(spellLibrary.map(s => [s.name, s.school]))
-  );
+  // Zauber werden per Key (Fallback Name) an die Bibliothek gebunden — wie Items.
+  const spellIndex = $derived(buildSpellIndex(spellLibrary));
+  const resolveSpell = (ref: { name: string; sourceKey?: string }): SpellInfo | undefined =>
+    matchSpell(spellIndex, ref);
 
-  function spellColor(name: string): string {
-    const school = spellSchoolMap.get(name);
+  function spellColor(ref: { name: string; sourceKey?: string }): string {
+    const school = resolveSpell(ref)?.school;
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
   }
 
   // ─── Zauber-Hover-Tooltip (analog Gegenstands-Tooltip) ───
-  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
   let spellDataCache = $state(new Map<string, Spell | null>());
   let spellTooltip = $state<Spell | null>(null);
   let tooltipX = $state(0);
@@ -576,13 +662,14 @@
 
   // Alle aktuell eingetragenen Zauber vorab laden → sofortiger Tooltip beim Hover.
   $effect(() => {
-    const names = [
+    const refs = [
       ...cantrips,
-      ...Object.values(spellsByLevel).flat().map(s => s.name),
+      ...Object.values(spellsByLevel).flat(),
     ];
-    for (const name of names) {
+    for (const ref of refs) {
+      const name = ref.name;
       if (spellDataCache.has(name)) continue;
-      const info = spellInfoMap.get(name);
+      const info = resolveSpell(ref);
       if (!info?.path) continue;
       spellDataCache.set(name, null);
       spellDataCache = new Map(spellDataCache);
@@ -607,11 +694,11 @@
   }
   function hideSpellTooltip() { spellTooltip = null; }
 
-  async function openSpellPage(spellName: string) {
-    const info = spellInfoMap.get(spellName);
+  async function openSpellPage(ref: { name: string; sourceKey?: string }) {
+    const info = resolveSpell(ref);
     if (!info?.path) return;
     if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    const name = info.path.split('/').pop()?.replace('.json', '') ?? spellName;
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? ref.name;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
@@ -629,15 +716,20 @@
     spellSugIndex = -1;
   });
 
-  function selectCantripSuggestion(name: string) {
-    if (!cantrips.includes(name)) cantrips.push(name);
+  // Aus der Autocomplete gewählt → Key gleich am SpellInfo abgreifen (wie selectInventoryItem).
+  function selectCantripSuggestion(sug: SpellSuggestion) {
+    if (!cantrips.some((c) => c.name === sug.spell.name))
+      cantrips.push({ name: sug.spell.name, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) });
     cantripInput = '';
     cantripSuggestions = [];
   }
 
-  function selectSpellSuggestion(name: string) {
+  function selectSpellSuggestion(sug: SpellSuggestion) {
     const existing = spellsByLevel[spellInputLvl] ?? [];
-    spellsByLevel[spellInputLvl] = [...existing, { name, prepared: spellInputPrepared }];
+    spellsByLevel[spellInputLvl] = [
+      ...existing,
+      { name: sug.spell.name, prepared: spellInputPrepared, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) },
+    ];
     spellInput = '';
     spellInputPrepared = false;
     spellSuggestions = [];
@@ -649,7 +741,7 @@
     else if (e.key === 'Escape') { cantripSuggestions = []; }
     else if (e.key === 'Enter') {
       if (cantripSugIndex >= 0 && cantripSuggestions[cantripSugIndex]) {
-        selectCantripSuggestion(cantripSuggestions[cantripSugIndex].spell.name);
+        selectCantripSuggestion(cantripSuggestions[cantripSugIndex]);
       } else {
         addCantrip();
       }
@@ -662,7 +754,7 @@
     else if (e.key === 'Escape') { spellSuggestions = []; }
     else if (e.key === 'Enter') {
       if (spellSugIndex >= 0 && spellSuggestions[spellSugIndex]) {
-        selectSpellSuggestion(spellSuggestions[spellSugIndex].spell.name);
+        selectSpellSuggestion(spellSuggestions[spellSugIndex]);
       } else {
         addSpell();
       }
@@ -672,7 +764,8 @@
   function addCantrip(e?: KeyboardEvent) {
     if (e && e.key !== 'Enter') return;
     const v = cantripInput.trim();
-    if (v && !cantrips.includes(v)) cantrips.push(v);
+    // Frei getippt → ohne Key; matchSpell löst später über den Namen auf.
+    if (v && !cantrips.some((c) => c.name === v)) cantrips.push({ name: v });
     cantripInput = '';
     cantripSuggestions = [];
   }
@@ -1418,7 +1511,7 @@
       attackBonus: spellAutoActive ? computedSpellAttack! : spellAttackBonus,
       autoCalc: spellAutoCalc,
       slots: slotTotals.map((total, i) => ({ total, used: slotsUsedInit[i] ?? 0 })),
-      cantrips: [...cantrips],
+      cantrips: cantrips.map((c) => ({ ...c })),
       byLevel: Object.fromEntries(
         Object.entries(spellsByLevel)
           .filter(([, v]) => v.length > 0)
@@ -2187,6 +2280,9 @@
                     onmousemove={moveItemTooltip}
                     onmouseleave={hideItemTooltip}
                   >{item.name}</button>
+                  {#if divergedItemName(item)}
+                    <span class="name-diverged" title="Bibliothek: {divergedItemName(item)}">≠</span>
+                  {/if}
                   <button type="button" class="link-edit" title="Anderen Gegenstand wählen oder frei benennen"
                     onclick={() => { editingItemRow = i; hideItemTooltip(); }}>✎</button>
                   {#if !item.sourceKey?.trim() && itemIndex.ambiguous.has(item.name.trim().toLowerCase())}
@@ -2256,6 +2352,12 @@
           🔗 {linkableRows.length} {linkableRows.length === 1 ? 'Gegenstand' : 'Gegenstände'} verlinken
         </button>
       {/if}
+      {#if divergedItemCount > 0}
+        <button class="btn-link-all" onclick={syncInventoryNames}
+          title="Diese Zeilen sind verlinkt, ihr Name weicht aber vom Bibliothekseintrag ab. Übernimmt den Bibliotheksnamen.">
+          ✎ {divergedItemCount} Namen an die Bibliothek angleichen
+        </button>
+      {/if}
     </div>
     <label style="display:block; margin-top:0.5rem" use:diffMark={dirOf(saved?.inventoryNotes, inventoryNotes)}>
       Notizen
@@ -2299,6 +2401,19 @@
       <p class="auto-hint">Zauberattribut nicht erkannt – wähle oben eines aus der Liste, damit die Berechnung greift.</p>
     {/if}
 
+    {#if linkableSpellCount > 0}
+      <button class="btn-link-all" onclick={linkSpellRows}
+        title="Setzt bei diesen Zaubern den Bibliotheks-Link (sourceKey). Wird beim Speichern übernommen.">
+        🔗 {linkableSpellCount} Zauber verlinken
+      </button>
+    {/if}
+    {#if divergedSpellCount > 0}
+      <button class="btn-link-all" onclick={syncSpellNames}
+        title="Diese Zauber sind verlinkt, ihr Name weicht aber vom Bibliothekseintrag ab. Übernimmt den Bibliotheksnamen.">
+        ✎ {divergedSpellCount} Namen an die Bibliothek angleichen
+      </button>
+    {/if}
+
     <h3 style="margin-top:0.75rem">Slots je Stufe</h3>
     <div class="slot-edit-row">
       {#each slotTotals as _, i}
@@ -2309,14 +2424,14 @@
     <h3 style="margin-top:0.75rem">Zaubertricks</h3>
     <div class="tag-editor">
       {#each cantrips as c}
-        <span class="tag" style="color:{spellColor(c) || 'inherit'}" use:diffMark={!saved ? 'none' : (saved.spells?.cantrips ?? []).includes(c) ? 'none' : 'up'}><span
-          class="spell-link" class:linked={!!spellInfoMap.get(c)?.path}
+        <span class="tag" style="color:{spellColor(c) || 'inherit'}" use:diffMark={!saved ? 'none' : (saved.spells?.cantrips ?? []).some((s) => s.name === c.name) ? 'none' : 'up'}><span
+          class="spell-link" class:linked={!!resolveSpell(c)?.path}
           role="button" tabindex="0"
           onclick={() => openSpellPage(c)}
           onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
-          onmouseenter={(e) => showSpellTooltip(e, c)}
+          onmouseenter={(e) => showSpellTooltip(e, c.name)}
           onmousemove={moveSpellTooltip}
-          onmouseleave={hideSpellTooltip}>{c}</span><button onclick={() => { cantrips = cantrips.filter(x => x !== c); }}>✕</button></span>
+          onmouseleave={hideSpellTooltip}>{c.name}</span>{#if divergedSpellName(c)}<span class="name-diverged" title="Bibliothek: {divergedSpellName(c)}">≠</span>{/if}<button onclick={() => { cantrips = cantrips.filter(x => x !== c); }}>✕</button></span>
       {/each}
       <div class="autocomplete-wrap">
         <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
@@ -2326,7 +2441,7 @@
           <ul class="suggestions">
             {#each cantripSuggestions as sug, i}
               <li class:active={i === cantripSugIndex} class:out-of-class={!sug.inClass}
-                onmousedown={() => selectCantripSuggestion(sug.spell.name)}>
+                onmousedown={() => selectCantripSuggestion(sug)}>
                 <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
                 {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
               </li>
@@ -2352,7 +2467,7 @@
           <ul class="suggestions">
             {#each spellSuggestions as sug, i}
               <li class:active={i === spellSugIndex} class:out-of-class={!sug.inClass}
-                onmousedown={() => selectSpellSuggestion(sug.spell.name)}>
+                onmousedown={() => selectSpellSuggestion(sug)}>
                 <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
                 {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
               </li>
@@ -2378,14 +2493,15 @@
                 {spell.prepared ? '●' : '○'}
               </button>
               <span class="spell-item-name" class:prepared={spell.prepared}
-                class:linked={!!spellInfoMap.get(spell.name)?.path}
-                style="color:{spellColor(spell.name) || 'inherit'}"
+                class:linked={!!resolveSpell(spell)?.path}
+                style="color:{spellColor(spell) || 'inherit'}"
                 role="button" tabindex="0"
-                onclick={() => openSpellPage(spell.name)}
-                onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.name)}
+                onclick={() => openSpellPage(spell)}
+                onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
                 onmouseenter={(e) => showSpellTooltip(e, spell.name)}
                 onmousemove={moveSpellTooltip}
                 onmouseleave={hideSpellTooltip}>{spell.name}</span>
+              {#if divergedSpellName(spell)}<span class="name-diverged" title="Bibliothek: {divergedSpellName(spell)}">≠</span>{/if}
               <button class="remove-btn" onclick={() => { spellsByLevel[lvl] = spells.filter((_, j) => j !== i); }}>✕</button>
             </div>
           {/each}
@@ -2897,6 +3013,15 @@
     font-size: 0.68rem;
     font-style: italic;
     color: var(--copper, var(--ink-muted));
+  }
+
+  /* Marker an einer gelinkten Zeile, deren Name von der Bibliothek abweicht. */
+  .name-diverged {
+    flex-shrink: 0;
+    margin: 0 0.15rem;
+    font-weight: 700;
+    color: var(--copper, var(--ink-muted));
+    cursor: help;
   }
 
   .inv-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }

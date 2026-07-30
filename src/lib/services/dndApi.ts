@@ -3,11 +3,10 @@
  *
  * Läuft über das Tauri-`http_request`-Kommando (Rust/reqwest) — umgeht die
  * CORS-Beschränkung des Webviews, genau wie der LLM-HTTP-Pfad. Nur noch für
- * Monster und Zauber; Gegenstände kommen aus Open5e v2 (`open5eApi.ts`).
+ * Monster; Gegenstände UND Zauber kommen aus Open5e v2 (`open5eApi.ts`).
  */
 import { invoke } from '@tauri-apps/api/core';
-import type { Monster, Spell } from '../types';
-import { SPELL_SCHOOLS } from '../types';
+import type { Monster } from '../types';
 
 export const DND_API = 'https://www.dnd5eapi.co/api/2014';
 
@@ -25,15 +24,10 @@ export async function apiGet(url: string): Promise<unknown> {
   return JSON.parse(text);
 }
 
-type ApiCategory = 'monsters' | 'spells';
-
-async function searchCategory(category: ApiCategory, q: string): Promise<DndApiRef[]> {
-  const raw = (await apiGet(`${DND_API}/${category}?name=${encodeURIComponent(q)}`)) as Record<string, unknown>;
+export async function searchMonsters(q: string): Promise<DndApiRef[]> {
+  const raw = (await apiGet(`${DND_API}/monsters?name=${encodeURIComponent(q)}`)) as Record<string, unknown>;
   return (raw.results as DndApiRef[]) ?? [];
 }
-
-export const searchMonsters = (q: string): Promise<DndApiRef[]> => searchCategory('monsters', q);
-export const searchSpells = (q: string): Promise<DndApiRef[]> => searchCategory('spells', q);
 
 /** Holt eine vollständige Ressource per API-URL (relativ wie `/api/2014/monsters/goblin` oder absolut). */
 export async function getResource(urlOrPath: string): Promise<Record<string, unknown>> {
@@ -163,82 +157,5 @@ export function mapApiResourceToMonster(d: Record<string, unknown>): Monster {
   };
 }
 
-// ── Zauber (Mapping API → App-Schema, mit deutscher Konvertierung) ───────────
-
-function convertRange(r: string): string {
-  return r
-    .replace(/(\d+)-foot[-\s]/gi, (_, n) => `${ftToM(parseInt(n))}-`)
-    .replace(/(\d+)\s*feet?/gi, (_, n) => ftToM(parseInt(n)))
-    .replace(/\bTouch\b/gi, 'Berührung').replace(/\bSelf\b/gi, 'Selbst')
-    .replace(/\bSight\b/gi, 'Sichtlinie').replace(/\bUnlimited\b/gi, 'Unbegrenzt')
-    .replace(/\bSpecial\b/gi, 'Besonders').replace(/\bsphere\b/gi, 'Sphäre')
-    .replace(/\bcone\b/gi, 'Kegel').replace(/\bcube\b/gi, 'Würfel')
-    .replace(/\bline\b/gi, 'Linie').replace(/\bcylinder\b/gi, 'Zylinder')
-    .replace(/\bradius\b/gi, 'Radius');
-}
-
-function convertDuration(d: string): string {
-  return d
-    .replace(/\bConcentration,\s*up to\s*/gi, 'Konzentration, bis zu ')
-    .replace(/(\d+)\s*minutes?/gi, (_, n) => `${n} Minute${n === '1' ? '' : 'n'}`)
-    .replace(/(\d+)\s*hours?/gi, (_, n) => `${n} Stunde${n === '1' ? '' : 'n'}`)
-    .replace(/(\d+)\s*days?/gi, (_, n) => `${n} Tag${n === '1' ? '' : 'e'}`)
-    .replace(/(\d+)\s*rounds?/gi, (_, n) => `${n} Runde${n === '1' ? '' : 'n'}`)
-    .replace(/\bInstantaneous\b/gi, 'Unmittelbar').replace(/\bUntil dispelled\b/gi, 'Bis aufgelöst')
-    .replace(/\bPermanent\b/gi, 'Dauerhaft').replace(/\bSpecial\b/gi, 'Besonders');
-}
-
-function convertCastingTime(ct: string): string {
-  return ct
-    .replace(/\b1 action\b/gi, '1 Aktion').replace(/\b1 bonus action\b/gi, '1 Bonusaktion')
-    .replace(/\b1 reaction\b/gi, '1 Reaktion')
-    .replace(/(\d+)\s*minutes?/gi, (_, n) => `${n} Minute${n === '1' ? '' : 'n'}`)
-    .replace(/(\d+)\s*hours?/gi, (_, n) => `${n} Stunde${n === '1' ? '' : 'n'}`)
-    .replace(/\bwhich you take when\b/gi, 'die du nimmst, wenn');
-}
-
-/** Wandelt eine rohe DnD-API-Zauber-Ressource in unser `Spell`-Schema (mit deutscher Konvertierung). */
-export function mapApiResourceToSpell(data: Record<string, unknown>): Spell {
-  const comps = (data.components as string[]) ?? [];
-  const school = (data.school as Record<string, unknown>)?.index as string;
-  const damage = data.damage as {
-    damage_type: { index: string; name: string };
-    damage_at_slot_level?: Record<string, string>;
-    damage_at_character_level?: Record<string, string>;
-  } | undefined;
-  const dc = data.dc as Record<string, unknown> | undefined;
-  return {
-    index: data.index as string,
-    name: data.name as string,
-    level: Number(data.level ?? 0),
-    school: (school in SPELL_SCHOOLS ? school : 'evocation') as Spell['school'],
-    casting_time: convertCastingTime(String(data.casting_time ?? '')),
-    range: convertRange(String(data.range ?? '')),
-    components: {
-      verbal: comps.includes('V'),
-      somatic: comps.includes('S'),
-      material: comps.includes('M'),
-      materials_needed: (data.material as string) ?? null,
-    },
-    duration: convertDuration(String(data.duration ?? '')),
-    concentration: Boolean(data.concentration),
-    ritual: Boolean(data.ritual),
-    classes: ((data.classes as Array<{ index: string }>) ?? []).map((c) => c.index),
-    desc: (data.desc as string[]) ?? [],
-    desc_de: [],
-    higher_level: (data.higher_level as string[])?.length ? (data.higher_level as string[]) : null,
-    higher_level_de: [],
-    damage: damage
-      ? {
-          damage_type: { index: damage.damage_type.index, name: damage.damage_type.name },
-          damage_at_slot_level: damage.damage_at_slot_level,
-          damage_at_character_level: damage.damage_at_character_level,
-        }
-      : undefined,
-    dc: dc
-      ? { dc_type: dc.dc_type as { index: string; name: string }, dc_success: String(dc.dc_success ?? '') }
-      : undefined,
-    area_of_effect: data.area_of_effect as Spell['area_of_effect'],
-    source: 'srd-2024',
-  };
-}
+// Zauber-Mapping ist nach `open5eApi.ts` (mapOpen5eSpell) umgezogen — Zauber
+// kommen jetzt aus Open5e v2, nicht mehr aus dnd5eapi.co.

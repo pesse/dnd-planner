@@ -16,8 +16,8 @@
   import CreateCardModal from './CreateCardModal.svelte';
   import CharacterWizard from './CharacterWizard.svelte';
   import type { Character } from '../schemas/character';
-  import { searchMonsters, searchSpells, mapApiResourceToMonster, mapApiResourceToSpell } from '../services/dndApi';
-  import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem } from '../services/open5eApi';
+  import { searchMonsters, mapApiResourceToMonster } from '../services/dndApi';
+  import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem, searchOpen5eSpells, getSpell, mapOpen5eSpell } from '../services/open5eApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
   import { createSpellAction } from '../services/aiActions/spellAction';
   import { createItemAction } from '../services/aiActions/itemAction';
@@ -712,6 +712,10 @@
   /** Open5e-v2-Item-Key → anpassbare Homebrew-Kopie (nur Ausrüstung). */
   async function loadApiItem(ref: { url: string }): Promise<Item> {
     return toHomebrewCopy(mapOpen5eItem(await getOpen5eItem(ref.url)));
+  }
+
+  async function loadApiSpell(ref: { url: string }): Promise<Spell> {
+    return mapOpen5eSpell(await getSpell(ref.url));
   }
 
   /** Anzeige-Label eines Item-Ordners; Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
@@ -1823,8 +1827,8 @@
     <CreateCardModal
       type="spell"
       title="Neuer Zauber"
-      searchApi={searchSpells}
-      mapApi={mapApiResourceToSpell}
+      searchApi={searchOpen5eSpells}
+      loadApi={loadApiSpell}
       searchLibrary={searchSpellLibrary}
       blank={blankSpell}
       buildAction={createSpellAction}

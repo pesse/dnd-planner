@@ -54,5 +54,9 @@
     "type": "string",
     "size": 0
   },
-  "source": "homebrew-sam"
+  "source": "homebrew-sam",
+  "document": {
+    "key": "string",
+    "gamesystem": "string"
+  }
 }

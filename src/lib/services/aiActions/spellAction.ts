@@ -8,6 +8,11 @@ import { toLlmJsonSchema } from '../../schemas/shared';
 import { parseSpell } from '../../utils/schemaValidation';
 import { buildCreateAction, buildEditAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';
+import {
+  OPEN5E_SPELL_TOOLS_ANTHROPIC,
+  OPEN5E_SPELL_TOOLS_OPENAI,
+  executeOpen5eSpellTool,
+} from '../open5eSpellTools';
 
 export function isSpell(data: unknown): data is Spell {
   return parseSpell(data).ok;
@@ -19,6 +24,9 @@ const spellSpec: EntityActionSpec<Spell> = {
   currentHeading: 'Aktueller Zauber',
   jsonSchema: toLlmJsonSchema(spellSchema),
   validate: isSpell,
+  anthropicTools: OPEN5E_SPELL_TOOLS_ANTHROPIC,
+  openAiTools: OPEN5E_SPELL_TOOLS_OPENAI,
+  execute: executeOpen5eSpellTool,
   buildCreatePrompt({ templateBlock, nameHint }) {
     if (templateBlock) {
       return `Du bist ein Assistent für Dungeons & Dragons (5e). Du erstellst aus einer Vorlage und den Wünschen des Nutzers einen Zauber als JSON im App-Schema.
@@ -26,14 +34,14 @@ ${templateBlock}
 
 ## Vorgehen
 1. Nutze die Vorlage als Basis; wende die Wünsche des Nutzers an.
-2. DnD-API-Tools (category "spells") nur bei fehlenden Referenzwerten nutzen.
+2. Die Open5e-Zauber-Tools (\`search_open5e_spells\`, \`get_open5e_spell\`, SRD 5.2) nur bei fehlenden Referenzwerten nutzen.
 3. \`school\` ist ein englischer Schlüssel, \`level\` 0–9.
 4. Setze \`source\` immer auf "homebrew-sam" — auch wenn die Vorlage aus dem SRD stammt. Gib IMMER das VOLLSTÄNDIGE Spell-JSON aus.${nameHint}`;
     }
     return `Du bist ein Assistent für Dungeons & Dragons (5e). Aus einer Beschreibung erstellst du einen Zauber als JSON im App-Schema.
 
 ## Vorgehen
-1. Gibt es einen passenden SRD-Zauber, suche ihn mit \`search_dnd_api\` (category "spells", englischer Begriff) und lade ihn mit \`get_dnd_api_resource\` als Basis.
+1. Gibt es einen passenden SRD-Zauber, suche ihn mit \`search_open5e_spells\` (englischer Begriff) und lade ihn mit \`get_open5e_spell\` als Basis.
 2. Andernfalls baue den Zauber plausibel selbst mit konsistenten Werten.
 3. \`school\` ist ein englischer Schlüssel, \`level\` 0–9.
 4. Setze \`source\` auf "srd-2024", wenn du einen SRD-Zauber unverändert übernimmst — sonst immer auf "homebrew-sam".

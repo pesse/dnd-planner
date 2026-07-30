@@ -221,7 +221,7 @@ function spellcastingBlock(c: Character): string | null {
     .filter((s) => s.total > 0)
     .map((s) => `  - Grad ${s.lvl}: ${s.total - s.used}/${s.total} frei`);
   if (slotLines.length) lines.push('- Slots:', ...slotLines);
-  if (sp.cantrips.length) lines.push(`- Zaubertricks: ${sp.cantrips.join(', ')}`);
+  if (sp.cantrips.length) lines.push(`- Zaubertricks: ${sp.cantrips.map((c) => c.name).join(', ')}`);
   for (const g of grades) {
     const entries = sp.byLevel[String(g)] ?? [];
     if (!entries.length) continue;

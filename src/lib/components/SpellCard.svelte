@@ -16,7 +16,7 @@
   import Markdown from './Markdown.svelte';
   import { createHtmlFitter, paginateMarkdown } from '$lib/utils/paginateMarkdown';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
-  import { searchSpells, getResource, mapApiResourceToSpell, type DndApiRef } from '$lib/services/dndApi';
+  import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
 
@@ -70,11 +70,11 @@
     ed.draft = r.ok ? r.data : revised;
   }
 
-  /** Lädt einen SRD-Zauber und übernimmt ihn als Draft. */
-  async function importFromApi(ref: DndApiRef) {
+  /** Lädt einen SRD-Zauber aus Open5e v2 und übernimmt ihn als Draft. */
+  async function importFromApi(result: Open5eItemSearchResult) {
     importError = '';
     try {
-      const mapped = mapApiResourceToSpell(await getResource(ref.url));
+      const mapped = mapOpen5eSpell(await getSpell(result.url));
       const r = _parseSpell(mapped);
       ed.draft = r.ok ? r.data : mapped;
     } catch (e) {
@@ -245,7 +245,7 @@
             <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
             <button class="ai-btn" onclick={() => (showAi = true)}>✨ KI überarbeiten…</button>
           </div>
-          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchSpells} onselect={importFromApi} />
+          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchOpen5eSpells} onselect={importFromApi} />
           {#if importError}<span class="import-error">{importError}</span>{/if}
         </div>
       {/if}

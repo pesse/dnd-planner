@@ -121,12 +121,16 @@
       }
     ],
     "cantrips": [
-      "string"
+      {
+        "name": "string",
+        "sourceKey": "string"
+      }
     ],
     "byLevel": {
       "<key>": [
         {
           "name": "string",
+          "sourceKey": "string",
           "prepared": false
         }
       ]

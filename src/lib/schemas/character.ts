@@ -33,8 +33,14 @@ const attackSchema = z.object({
     .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
 });
 
-const spellEntrySchema = z.object({
+// Zauber-Verweis: wie inventory[] ein Bibliotheks-Link auf spell.key mit Namens-Fallback.
+// `sourceKey` fehlt bei frei getippten/Alt-Zaubern — dann löst matchSpell über den Namen auf.
+const spellRefSchema = z.object({
   name: z.string(),
+  sourceKey: z.string().optional(),
+});
+
+const spellEntrySchema = spellRefSchema.extend({
   prepared: z.boolean().default(false),
 });
 
@@ -49,7 +55,7 @@ const characterSpellsSchema = z
       .array(z.object({ total: z.number().int(), used: z.number().int() }))
       .default(() => Array.from({ length: 9 }, () => ({ total: 0, used: 0 })))
       .describe('Index 0 = Stufe 1 … Index 8 = Stufe 9.'),
-    cantrips: z.array(z.string()).default([]),
+    cantrips: z.array(spellRefSchema).default([]),
     byLevel: z.record(z.string(), z.array(spellEntrySchema)).default({}),
   })
   .default(() => ({
@@ -265,6 +271,7 @@ export type CharacterSpells = z.infer<typeof characterSpellsSchema>;
 export type Attack = z.infer<typeof attackSchema>;
 export type AttackModifier = z.infer<typeof attackModifierSchema>;
 export type SpellEntry = z.infer<typeof spellEntrySchema>;
+export type SpellRef = z.infer<typeof spellRefSchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
 export type CharacterFeatureEntry = z.infer<typeof characterFeatureSchema>;
@@ -355,7 +362,7 @@ export function parseClassLevelText(text: string): CharacterClass[] {
 // `services/characterUpgrade.ts`.
 
 /** Aktuelle Charakter-Schemaversion. Bei jeder Formatänderung erhöhen. */
-export const CHARACTER_VERSION = 4;
+export const CHARACTER_VERSION = 5;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -429,6 +436,18 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       const known = new Set(existing.map((e) => `${e.sourceKey ?? ''}|${e.name ?? ''}`));
       c.features = [...existing, ...legacy.filter((e) => !known.has(`${e.sourceKey}|${e.name}`))];
       delete c.references;
+    },
+  },
+  {
+    to: 5,
+    label: 'Zauber: Zaubertricks als Objektliste (Vorbereitung Key-Verknüpfung)',
+    apply: (c) => {
+      const sp = c.spells as Record<string, unknown> | undefined;
+      if (!sp || typeof sp !== 'object' || !Array.isArray(sp.cantrips)) return;
+      // Idempotent + inhaltlich abgesichert: nur noch-Strings wandeln; bereits migrierte
+      // {name,…}-Objekte bleiben unangetastet (Legacy-Dateien ohne/mit zu niedrigem _version).
+      // Keys werden NICHT erfunden — sourceKey bleibt leer und löst zur Laufzeit über den Namen auf.
+      sp.cantrips = (sp.cantrips as unknown[]).map((x) => (typeof x === 'string' ? { name: x } : x));
     },
   },
 ];

@@ -10,6 +10,7 @@ import type {
   CharacterSpells,
   Attack,
   SpellEntry,
+  SpellRef,
   ProficiencyFlags,
   PersonalData,
   CharacterFeatureEntry,
@@ -27,6 +28,7 @@ export type {
   CharacterSpells,
   Attack,
   SpellEntry,
+  SpellRef,
   ProficiencyFlags,
   PersonalData,
   CharacterFeatureEntry,
@@ -222,10 +224,10 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     spellSlots.push({ total, used });
   }
 
-  const cantrips: string[] = [];
+  const cantrips: CharacterSpells['cantrips'] = [];
   for (let i = 1; i <= 8; i++) {
     const name = f(`Zaubertrick${i}`);
-    if (name) cantrips.push(name);
+    if (name) cantrips.push({ name });
   }
 
   // Spell count per level in Taendler v2.8.x: 1-4 → 13, 5-7 → 9, 8-9 → 7

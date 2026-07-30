@@ -200,3 +200,53 @@ export function searchSpells(
     inClass: englishClass ? spell.classes.includes(englishClass) : true,
   }));
 }
+
+// ── Key-Index + Matcher (analog itemLibrary.ts) ─────────────────────────────────
+
+export interface SpellIndex {
+  byKey: Map<string, SpellInfo>;
+  /** Kleingeschrieben, deutscher (`name`) UND englischer (`name_en`) Name. */
+  byName: Map<string, SpellInfo>;
+  /** Namen, die mehr als einen Zauber treffen: anzeigen ja, automatisch verlinken nein. */
+  ambiguous: Set<string>;
+}
+
+export function buildSpellIndex(library: SpellInfo[]): SpellIndex {
+  const byKey = new Map<string, SpellInfo>();
+  const byName = new Map<string, SpellInfo>();
+  const ambiguous = new Set<string>();
+
+  const addName = (name: string | undefined, spell: SpellInfo) => {
+    const k = name?.trim().toLowerCase();
+    if (!k) return;
+    if (byName.has(k)) {
+      if (byName.get(k)?.path !== spell.path) ambiguous.add(k);
+      return;
+    }
+    byName.set(k, spell);
+  };
+
+  for (const spell of library) {
+    if (spell.key) byKey.set(spell.key, spell);
+    addName(spell.name, spell);
+    addName(spell.name_en, spell);
+  }
+
+  return { byKey, byName, ambiguous };
+}
+
+/** Bibliothekseintrag zu einem Verweis; `undefined` = die Bibliothek kennt ihn nicht. */
+export function matchSpell(
+  index: SpellIndex,
+  ref: { sourceKey?: string; name?: string },
+): SpellInfo | undefined {
+  const key = ref.sourceKey?.trim();
+  if (key) {
+    const hit = index.byKey.get(key);
+    // Kein früher Ausstieg bei Fehltreffer: ein Key aus einer nicht installierten
+    // Bibliothek darf trotzdem über den Namen auflösen.
+    if (hit) return hit;
+  }
+  const name = ref.name?.trim().toLowerCase();
+  return name ? index.byName.get(name) : undefined;
+}
