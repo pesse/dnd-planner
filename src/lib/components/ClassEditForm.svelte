@@ -51,7 +51,7 @@
   // Bibliothek stattfindet (Zweigwahl mit Konsequenz je Option); `expertise` deklariert nur
   // eine Anzahl. Was hier NICHT steht (`spellAccess`), bleibt Hand-JSON und läuft über 'other'.
   const CHOICE_LABELS: Record<string, string> = {
-    weaponMastery: 'Waffenmeisterschaft',
+    weaponMastery: 'Waffenbeherrschung',
     fightingStyle: 'Kampfstil',
     spellcasting: 'Zauberwirken',
     optionList: 'Optionsliste (Zweigwahl)',

@@ -144,7 +144,7 @@ export function stripMasterySuffix(name: string): string {
 
 /**
  * Die Zauberwerte eines merkmals-gewährten Zugangs im Klassenmerkmale-Text:
- * „Magiekundiger: Magier-Liste, Zauber über Charisma **(SG 13, Angriff +5)**".
+ * „Eingeweihter der Magie: Magier-Liste, Zauber über Charisma **(SG 13, Angriff +5)**".
  *
  * Das PDF hat nur EINEN Zauberblock, und der gehört der Klasse. Die Marke entsteht deshalb
  * erst beim Export (gerechnet, nicht gespeichert — der Übungsbonus steigt auf 5/9/13/17) und

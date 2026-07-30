@@ -1,5 +1,5 @@
 /**
- * Eval: der Talent-Pfad des Stufenaufstiegs (Kämpfer 3→4, „Magiekundiger").
+ * Eval: der Talent-Pfad des Stufenaufstiegs (Kämpfer 3→4, „Eingeweihter der Magie").
  *
  * Der Pfad war nie gemessen. Die Strecke fährt ihn zweimal — einmal über die KI-Deutung
  * (Fall A, wie bis 2026-07-30), einmal über die Deklaration (Fall B, ohne LLM) — mit
@@ -18,7 +18,7 @@ import { buildMagicInitiateCases, type FeatPathResult } from './cases/levelUpFea
 defineEval<FeatPathResult>({
   name: 'levelUpFeat',
   description:
-    'Kämpfer 3→4 nimmt „Magiekundiger": Zauberliste, Zauberattribut und Kontingent — ' +
+    'Kämpfer 3→4 nimmt „Eingeweihter der Magie": Zauberliste, Zauberattribut und Kontingent — ' +
     'KI-Deutung (A) gegen deklarierten Zugang (B), gleiche Prüfungen',
   cases: buildMagicInitiateCases,
 });

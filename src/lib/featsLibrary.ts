@@ -25,12 +25,15 @@ export const FEATS_PATH = './vault/feats';
  * Deutsche Anzeige-Labels der vier Talent-Kategorien. Das Vokabular selbst steht in
  * `schemas/shared.ts` (FEAT_CATEGORIES), damit Zod ohne Umweg über die Anzeige-Schicht
  * darauf zugreifen kann — analog zu `MASTERY_INFO` in `itemLibrary.ts`.
+ *
+ * Die Labels sind die Kategorienamen des deutschen SRD 5.2 („Herkunft, Allgemein,
+ * Kampfstil oder Epische Gabe"), nicht freie Übersetzungen.
  */
 export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
-  Origin: 'Ursprung',
+  Origin: 'Herkunft',
   General: 'Allgemein',
   'Fighting Style': 'Kampfstil',
-  'Epic Boon': 'Epischer Segen',
+  'Epic Boon': 'Epische Gabe',
 };
 
 export interface FeatEntry {
@@ -48,7 +51,7 @@ export interface FeatEntry {
   /** Übungen, die das Talent gewährt (siehe schemas/feat.ts); fehlt bei inline erzeugten. */
   proficiencyGrant?: ProficiencyGrant;
   /**
-   * Mechanik-gebundene Wahl des Talents („Magiekundiger": `kind: "spellAccess"`). Der Flow
+   * Mechanik-gebundene Wahl des Talents („Eingeweihter der Magie": `kind: "spellAccess"`). Der Flow
    * fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen.
    */
   grantsChoice?: FeatureChoiceGrant;

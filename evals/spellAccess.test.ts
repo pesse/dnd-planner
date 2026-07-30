@@ -2,7 +2,7 @@
  * Deterministischer Test des deklarierten Zauber-Zugangs — OHNE LLM.
  *
  * Er sichert genau die Zuständigkeitsgrenze ab, die Stufe 1 gezogen hat: Zauberliste,
- * Zauberattribut und Kontingent des „Magiekundigen" kommen aus `vault/feats/magic-initiate.json`
+ * Zauberattribut und Kontingent des „Eingeweihten der Magie" kommen aus `vault/feats/magic-initiate.json`
  * (`grantsChoice.kind === "spellAccess"`), nicht aus der Merkmalsdeutung — und das Talent
  * verschwindet dafür aus dem KI-Eingang, ohne aus dem deutschen Merkmalstext zu fallen.
  *
@@ -33,7 +33,7 @@ const FIGHTER_ACOLYTE = {
   background: { sourceKey: 'srd-2024_acolyte', name: 'Akolyth' },
 } as const;
 
-describe('deklarierter Zauber-Zugang (Magiekundiger)', () => {
+describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
   it('liest Liste, Attribut und Kontingent aus dem Vault', async () => {
     const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
     expect(prep.spellAccess).toHaveLength(1);
@@ -86,7 +86,7 @@ describe('deklarierter Zauber-Zugang (Magiekundiger)', () => {
     const open: SpellAccessGrant = {
       featureKey: MAGIC_INITIATE_KEY,
       feature: 'Magic Initiate',
-      featureDe: 'Magiekundiger',
+      featureDe: 'Eingeweihter der Magie',
       lists: ['cleric', 'druid', 'wizard'],
       abilities: ['Intelligence', 'Wisdom', 'Charisma'],
       picks: [{ level: 0, count: 2 }],

@@ -330,7 +330,7 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  *   - `spellcasting`: das Zauberwirken-Merkmal selbst („Spellcasting", „Pact Magic"). `count`
  *     wird IGNORIERT — Zaubertricks und vorbereitete Zauber kommen aus der Stufentabelle
  *     (`spellcastingOffer`, services/spellcasting.ts), die Optionen aus `vault/spells`.
- *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Magiekundiger").
+ *   - `spellAccess`: ein Zauber-Zugang NEBEN dem Klassen-Zauberwirken („Eingeweihter der Magie").
  *     Liste, Attribut und Kontingent stehen in `spellLists`/`spellAbilities`/`spellPicks`.
  *   - `expertise`: Expertise in `count` der GEÜBTEN Fertigkeiten. Der einzige `kind`, dessen
  *     Optionen nicht im Vault stehen können — sie sind der Übungsstand DIESES Charakters.

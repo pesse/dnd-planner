@@ -10,7 +10,7 @@
 
 ## Befund
 
-Der Reasoning-Pass soll Entscheidungen finden. Bei „Magiekundiger" (`vault/feats/magic-initiate.json`)
+Der Reasoning-Pass soll Entscheidungen finden. Bei „Eingeweihter der Magie" (`vault/feats/magic-initiate.json`)
 findet er zwei — und trägt daneben vier Dinge, die keine Deutung brauchen:
 
 | Bestandteil des Talents | heute | geschlossene Menge? |
@@ -44,7 +44,7 @@ Zwei Nebenbefunde dazu:
 
 Das Muster ist im Repo schon zweimal gelöst: Waffenbeherrschung und Kampfstil werden über
 `grantsChoice` **deklariert** und fliegen deshalb vor der KI aus dem Eingang
-(`levelUp.ts:90`, `isFlowOwnedChoiceFeature`). Magiekundiger ist derselbe Fall — nur an einem
+(`levelUp.ts:90`, `isFlowOwnedChoiceFeature`). Eingeweihter der Magie ist derselbe Fall — nur an einem
 **Talent** statt an einem Klassenmerkmal, und dort gibt es das Feld noch nicht.
 
 ## Was bleibt KI-Arbeit
@@ -68,7 +68,7 @@ der Klasse". Es trägt bewusst keine Parameter, weil alle vier aus dem Besitzer 
 Kontingente aus der Stufentabelle, Liste aus der Klasse selbst, Attribut aus
 `CASTER_ABILITY_KEY`. `count` ist dort ausdrücklich „ignoriert" (`shared.ts:210-212`).
 
-Magiekundiger ist der umgekehrte Fall: ein Talent hat keine Stufentabelle, keine eigene
+Eingeweihter der Magie ist der umgekehrte Fall: ein Talent hat keine Stufentabelle, keine eigene
 Zauberliste und kein Attribut. Nichts ist ableitbar, alles muss **in** der Deklaration stehen.
 
 Derselbe Mechanismus, andere Herkunft der Zahlen — deshalb ein zweiter `kind` statt
@@ -103,7 +103,7 @@ spellPicks: z.array(z.object({
 **Die eine Regel, die beide Listen tragen: Länge 1 = fest, Länge > 1 = protokollierte
 Entscheidung.** Die Deklaration sagt nicht „frag das ab", sondern welche Werte zulässig sind;
 gefragt wird nur, wo es mehr als einen gibt. Damit fällt der Sonderfall Hintergrund von selbst
-weg (siehe 1d), und ein Homebrew-Talent „Magiekundiger (Magier)" ist eine Datenzeile, kein
+weg (siehe 1d), und ein Homebrew-Talent „Eingeweihter der Magie (Magier)" ist eine Datenzeile, kein
 Code-Zweig.
 
 `count` bleibt unberührt bei `featCategory`; `spellPicks` ist die Kontingent-Angabe dieser Art.
@@ -228,7 +228,7 @@ es braucht kein Feld in `character.spells`, keinen `_version`-Bump. Umgesetzt is
   Dieselbe Doktrin wie bei der Waffenmeisterschaft: am Ort der Darstellung auflösen, nichts
   zurückschreiben. Der Übungsbonus steigt auf 5/9/13/17 — eine gespeicherte Zahl wäre ab
   Stufe 5 falsch, und **eine falsche Zahl auf dem Bogen ist schlechter als keine**.
-* **Die Bogen-Notiz trägt nur das Attribut** (Variante (i)) — „Magiekundiger: Magier-Liste,
+* **Die Bogen-Notiz trägt nur das Attribut** (Variante (i)) — „Eingeweihter der Magie: Magier-Liste,
   Zauber über Charisma". Fertiges Deutsch, kein Übersetzungs-Call, Budget
   `SHEET_NOTE_MAX_CHARS`. Der PDF-Freitext wird nie nachgerechnet, deshalb steht dort keine
   Zahl.
@@ -257,7 +257,7 @@ Das Taendler-PDF hat nur **einen** Zauberblock, und der gehört der Klasse. Die 
 Zugangs gehen deshalb dorthin, wo sein Merkmal schon steht — an die Notizzeile:
 
 ```
-Magiekundiger: Magier-Liste, Zauber über Charisma (SG 13, Angriff +5)
+Eingeweihter der Magie: Magier-Liste, Zauber über Charisma (SG 13, Angriff +5)
 ```
 
 **Gerechnet beim Export, nicht gespeichert.** `character.classFeatures` ist gespeicherter
@@ -526,7 +526,7 @@ KI-Eingang **und** wird im Aufstiegs-Protokoll gemeldet statt still zu verschwin
 
 Stufe 1 hing nur am Erstell-Wizard. Im Aufstieg schob `LevelUpAssistant.featuresFor('feat')`
 jedes gewählte Talent über `featToGainedFeature` **komplett** an die Deutung — die Deklaration
-am Talent wurde dort nie gelesen. Wer Magiekundiger auf Stufe 4 nimmt, ließ Liste, Attribut und
+am Talent wurde dort nie gelesen. Wer Eingeweihter der Magie auf Stufe 4 nimmt, ließ Liste, Attribut und
 Kontingent also erneut vom Modell suchen, obwohl sie als Daten im Vault stehen.
 
 ### Hypothese und Erwartung (notiert VOR der Messung)
@@ -577,7 +577,7 @@ und ~6–7 k Output-Tokens **je Lauf** — für ein einzelnes Talent. Latenz B: 
 verpatzte Kontingent (`max: 1` statt 2). Die Rohdaten sagen etwas anderes: *wenn* die
 Zauber-Wahlen kamen (2 von 5), waren `max: 2` und `max: 1` **richtig**. In den anderen drei
 Läufen fehlten sie **ganz** — die Analyse stellte nur die Listen-Frage (einmal Liste +
-Attribut) und keine einzige Zauber-Wahl. Der Spieler nimmt Magiekundiger und wählt dann
+Attribut) und keine einzige Zauber-Wahl. Der Spieler nimmt Eingeweihter der Magie und wählt dann
 überhaupt keinen Zauber. Das ist kein Off-by-one, das ist Totalverlust, und es erklärt die drei
 40-%-Zeilen: sie messen dasselbe Ereignis dreimal.
 

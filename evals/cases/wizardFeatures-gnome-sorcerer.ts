@@ -133,11 +133,11 @@ const analyzeCore: Checks<StepResult> = {
   // Welche Zauber die Abstammung gewährt, steht erst nach der Wahl fest — vorher ist jeder
   // geerdete Zauber eine Vorwegnahme (Wald- ODER Felsgnom).
   'erdet noch keinen Zauber': (r) => asAnalysis(r)?.spellsToGround.length === 0,
-  // Der Magiekundige deklariert seinen Zauber-Zugang und steht deshalb NICHT im Eingang
+  // Der Eingeweihte der Magie deklariert seinen Zauber-Zugang und steht deshalb NICHT im Eingang
   // (`analysisGained`): Liste, Attribut und Anzahl fragt der Wizard deterministisch ab
   // (`services/spellAccess.ts`, geprüft in `evals/spellAccess.test.ts`). Jede Wahl dazu ist
   // hier also erfunden — genau wie beim Klassen-Zauberwirken.
-  'erfindet keine Wahl zum flow-eigenen Magiekundigen': (r) => {
+  'erfindet keine Wahl zum flow-eigenen Eingeweihten der Magie': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
     return !a.choices.some((c) => c.featureKey === MAGIC_INITIATE_KEY || magicInitiateRe.test(label(c)));
@@ -210,7 +210,7 @@ const analyzeSoft: Checks<StepResult> = {
     const help = c ? c.helpDe.trim() || c.help.trim() : '';
     return !!help && help.length <= 120 && !/[\n\r]/.test(help);
   },
-  // Nur noch Abstammung + ihr Zauberattribut: alles zum Magiekundigen führt der Flow.
+  // Nur noch Abstammung + ihr Zauberattribut: alles zum Eingeweihten der Magie führt der Flow.
   // Mehr heißt: das Modell zerlegt eine Wahl in Unterfragen oder erfindet welche.
   'stellt nicht mehr als zwei Wahlen': (r) => (asAnalysis(r)?.choices.length ?? 99) <= 2,
   'Prosa begründet die Abhängigkeit der Zauber von der Abstammung': (r) => {
@@ -256,7 +256,7 @@ const finalizeCore: Checks<StepResult> = {
   },
   // Das Talent steht nicht im Eingang: ein Rider dazu wäre erfunden — und würde dem Charakter
   // Zauber erden, die der Spieler erst im Zauber-Schritt selbst wählt.
-  'erfindet keinen Rider zum flow-eigenen Magiekundigen': (r) => {
+  'erfindet keinen Rider zum flow-eigenen Eingeweihten der Magie': (r) => {
     const fe = asEffects(r);
     if (!fe) return false;
     return !fe.riders.some(
@@ -266,7 +266,7 @@ const finalizeCore: Checks<StepResult> = {
   // Bis 2026-07-30 stand hier „Größe und Bewegungsrate tragen keine Bogen-Notiz". Beide
   // Merkmale sind seit dem `sheetValue`-Schnitt gar nicht mehr im Eingang, die Probe wäre also
   // trivial erfüllt (kein Rider → leere Notiz). Ersetzt durch die stärkere Forderung: gar kein
-  // Rider dazu — wie beim flow-eigenen Magiekundigen.
+  // Rider dazu — wie beim flow-eigenen Eingeweihten der Magie.
   'erfindet keinen Rider zu Größe oder Bewegungsrate': (r) => {
     const fe = asEffects(r);
     if (!fe) return false;
@@ -282,7 +282,7 @@ const finalizeCore: Checks<StepResult> = {
     return !!fe && fe.riders.every((rider) => rider.proficiencies.savingThrows.length === 0);
   },
   // Pass-C-Regel 7 protokolliert AUSSCHLIESSLICH Wahlen aus <resolved_choices>. Die
-  // Zauber-Wahlen des Magiekundigen fallen erst im Zauber-Schritt und sind hier unbeantwortet
+  // Zauber-Wahlen des Eingeweihten der Magie fallen erst im Zauber-Schritt und sind hier unbeantwortet
   // — ein Protokoll-Eintrag zu ihnen landet mit LEERER Antwort am Charakter (`fillDecisions`
   // findet keine). Gemessen 2026-07-29: passierte in 2 von 3 verwertbaren Läufen.
   'protokolliert keine unbeantwortete Wahl': (r) => {
@@ -360,7 +360,7 @@ export async function buildGnomeSorcererCases(): Promise<EvalCase<StepResult>[]>
 
   return [
     {
-      label: 'Call 1 — Analyse: Abstammung offen, Magiekundiger als Zauber-Wahl',
+      label: 'Call 1 — Analyse: Abstammung offen, Eingeweihter der Magie als Zauber-Wahl',
       input: JSON.stringify(ctx),
       run: async (cfg: LlmConfig): Promise<StepResult> => ({
         kind: 'analysis',

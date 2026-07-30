@@ -189,7 +189,7 @@ Regeltext, den ein thinking-freier 4-Sekunden-Call nicht braucht. **Status: unbe
 ### B17 — Pass C protokolliert Wahlen, die niemand beantwortet hat
 
 Regel 7 (`:104`) bindet `decisions` an `<resolved_choices>`. Gemessen (Baseline, Gnom, Call C):
-in 2 von 3 verwertbaren Läufen trug der Magiekundigen-Rider zwei `decisions` für die beiden
+in 2 von 3 verwertbaren Läufen trug der Rider des Eingeweihten der Magie zwei `decisions` für die beiden
 **Zauber**-Wahlen — die im Wizard erst im Zauber-Schritt fallen und hier unbeantwortet sind.
 `fillDecisions` findet dann keine Antwort und schreibt einen Protokoll-Eintrag mit leerem
 `answer` an den Charakter. Keine Assertion fing das; eine neue tut es jetzt
@@ -243,7 +243,7 @@ die Rate über die **verwertbaren** Läufe — nur letztere ist ein Qualitätssi
 
 | Assertion | roh | verwertbar |
 |---|---|---|
-| 8 Core-Assertions (Rider je Merkmal, Waldgnom-Zauber, kein Felsgnom, Wahl protokolliert, featureKey, keine Magiekundigen-Zauber, keine RW-Übung, keine Attributserhöhung) | 3/5 | 3/3 |
+| 8 Core-Assertions (Rider je Merkmal, Waldgnom-Zauber, kein Felsgnom, Wahl protokolliert, featureKey, keine Zauber des Eingeweihten der Magie, keine RW-Übung, keine Attributserhöhung) | 3/5 | 3/3 |
 | ● protokolliert keine unbeantwortete Wahl *(neu, retroaktiv aus `runs.jsonl`)* | 1/5 | **1/3** |
 | ○ Einfache Illusion als benannter Grant *(verschärft, retroaktiv)* | 2/5 | **2/3** |
 | ○ Bogen-Notizen einzeilig ≤ 180 | 2/5 | **2/3** |
@@ -304,7 +304,7 @@ User-Turn ist der, an dem das Modell handelt.
 unverändert 5/5.
 
 *Entscheidung:* übernommen, aber **nicht erledigt**. Die Restfälle sind immer dieselben zwei
-Magiekundigen-Wahlen. Der saubere Riegel ist deterministisch und gehört in `fillDecisions`:
+Wahlen des Eingeweihten der Magie. Der saubere Riegel ist deterministisch und gehört in `fillDecisions`:
 die App weiß genau, welche ids beantwortet wurden, und kann jede andere verwerfen. Ich habe
 ihn NICHT gebaut, weil er die Assertion per Konstruktion grün macht und damit das
 Prompt-Signal blendet — die Entscheidung gehört dem Auftraggeber.

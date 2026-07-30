@@ -290,7 +290,7 @@ export async function resolveCharacterFeatures(c: {
 }
 
 /**
- * Zauberwerte der merkmals-gewährten Zugänge (Magiekundiger & Co.), zur Anzeigezeit aus
+ * Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie & Co.), zur Anzeigezeit aus
  * Deklaration + Ledger gerechnet. Nichts wird zurückgeschrieben: der Übungsbonus steigt, ein
  * gespeicherter SG würde altern. Ohne beantwortetes Attribut fällt der Zugang heraus.
  */

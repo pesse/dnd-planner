@@ -123,7 +123,7 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
       proficiencyBonus: PROF_BONUS,
       chaMod: MODS.cha,
       features: [
-        { sourceKey: MAGIC_INITIATE_KEY, name: 'Magiekundiger', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
+        { sourceKey: MAGIC_INITIATE_KEY, name: 'Eingeweihter der Magie', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
         ...ledgerOf('Charisma').map((e) => ({ ...e, name: '', choiceDe: '', gainedAt: 4, desc: '' })),
       ],
     });

@@ -49,7 +49,7 @@ const grantOfMagicInitiate = async () => {
   return grant;
 };
 
-describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Magiekundiger)', () => {
+describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweihter der Magie)', () => {
   it('liest die Deklaration ohne Vorgabe des Hintergrunds vollständig aus', async () => {
     const grant = await grantOfMagicInitiate();
     expect(grant.featureKey).toBe(MAGIC_INITIATE_KEY);

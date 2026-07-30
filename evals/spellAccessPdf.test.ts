@@ -20,12 +20,12 @@ import { CHOSEN_LIST, MAGIC_INITIATE_KEY } from './fixtures/fighter-l4-magic-ini
 const TEMPLATE = 'vault/templates/ataendler_v2.8.2.pdf';
 
 /** Die Notizzeile, die der Flow schreibt (`spellAccessNoteLines`) — ohne Zahl. */
-const NOTE = 'Magiekundiger: Magier-Liste, Zauber über Charisma';
+const NOTE = 'Eingeweihter der Magie: Magier-Liste, Zauber über Charisma';
 const MARK = ' (SG 13, Angriff +5)';
 
 const values = (over: Partial<SpellAccessValues> = {}): SpellAccessValues => ({
   featureKey: MAGIC_INITIATE_KEY,
-  featureDe: 'Magiekundiger',
+  featureDe: 'Eingeweihter der Magie',
   abilityDe: 'Charisma',
   saveDC: 13,
   attackBonus: 5,
@@ -40,7 +40,7 @@ const fighterWithAccess = (classFeatures: string) =>
     chaMod: 3,
     classFeatures,
     features: [
-      { sourceKey: MAGIC_INITIATE_KEY, name: 'Magiekundiger', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
+      { sourceKey: MAGIC_INITIATE_KEY, name: 'Eingeweihter der Magie', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
       { sourceKey: MAGIC_INITIATE_KEY, name: '', choice: CHOSEN_LIST, choiceDe: '', gainedAt: 4, desc: '' },
       { sourceKey: MAGIC_INITIATE_KEY, name: '', choice: 'Charisma', choiceDe: '', gainedAt: 4, desc: '' },
     ],
@@ -74,22 +74,22 @@ describe('Zauberwerte im Klassenmerkmale-Text', () => {
 
     expect(out).toContain(`${NOTE}${MARK}`);
     // Kein zweiter Eintrag zum selben Merkmal, und die übrigen Zeilen unberührt.
-    expect(out.match(/Magiekundiger/g)).toHaveLength(1);
+    expect(out.match(/Eingeweihter der Magie/g)).toHaveLength(1);
     expect(out.split('\n')).toHaveLength(text.split('\n').length);
     expect(out).toContain('Kampfstil: Verteidigung.');
   });
 
   it('legt eine Zeile in derselben Form an, wenn die Notiz fehlt — und nur einmal', () => {
     const first = withSpellValues('Zweiter Angriff.', [values()]);
-    expect(first).toBe(`Zweiter Angriff.\nMagiekundiger: Zauber über Charisma${MARK}`);
+    expect(first).toBe(`Zweiter Angriff.\nEingeweihter der Magie: Zauber über Charisma${MARK}`);
 
     // Was der Import daraus macht, ist wieder eine gültige Notizzeile …
     const imported = stripSpellValues(first);
-    expect(imported).toBe('Zweiter Angriff.\nMagiekundiger: Zauber über Charisma');
+    expect(imported).toBe('Zweiter Angriff.\nEingeweihter der Magie: Zauber über Charisma');
     // … die der nächste Export anreichert statt eine zweite anzulegen.
     const second = withSpellValues(imported, [values()]);
     expect(second).toBe(first);
-    expect(second.match(/Magiekundiger/g)).toHaveLength(1);
+    expect(second.match(/Eingeweihter der Magie/g)).toHaveLength(1);
   });
 
   it('rät nichts ohne beantwortetes Attribut (keine Zeilen → Text zeichengleich)', () => {

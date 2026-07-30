@@ -1,6 +1,6 @@
 /**
  * Fixture: Kämpfer 3 → 4 (Champion), Attributsverbesserung als TALENT genommen —
- * „Magiekundiger".
+ * „Eingeweihter der Magie".
  *
  * Warum dieser Fall: auf Stufe 4 bringt der Kämpfer nur die Attributsverbesserung, und die
  * ist ein Wahl-Zeiger (`isFlowOwnedChoiceFeature`). Der Merkmals-Eingang ist damit LEER — die

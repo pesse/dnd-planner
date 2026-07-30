@@ -1,5 +1,5 @@
 /**
- * Eval-Case: der TALENT-Pfad des Stufenaufstiegs (Kämpfer 3→4, „Magiekundiger").
+ * Eval-Case: der TALENT-Pfad des Stufenaufstiegs (Kämpfer 3→4, „Eingeweihter der Magie").
  *
  * Zwei Fälle, EIN Satz Assertions — die beiden Wege, auf denen der Zauber-Zugang eines
  * Talents entstehen kann:

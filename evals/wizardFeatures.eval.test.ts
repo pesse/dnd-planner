@@ -3,7 +3,7 @@
  *
  * Gegenstück zur `featureEffects`-Strecke (Stufenaufstieg): dort steckt die Wahl in einem
  * Subklassen-Merkmal, hier in der SPEZIES („Gnomische Abstammung") und im Herkunftstalent
- * des Hintergrunds („Magiekundiger" = eine reine Zauber-Wahl). Gemessen wird derselbe
+ * des Hintergrunds („Eingeweihter der Magie" = eine reine Zauber-Wahl). Gemessen wird derselbe
  * Zweiphasen-Pfad, aber mit dem Eingang, den `CharacterWizard.kickoff()` baut.
  *
  * Macht ECHTE LLM-Calls über QualityMinds und ist daher per env-Key gated — ohne
@@ -25,6 +25,6 @@ defineEval<StepResult>({
   name: 'wizardFeatures',
   description:
     'Gnom-Zauberer / Weiser auf Stufe 1 — Volks-Abstammung als blockierende Aufbau-Wahl, ' +
-    'Magiekundiger als Zauber-Wahl je Gradband, fünf wahllose Merkmale als Negativprobe',
+    'Eingeweihter der Magie als Zauber-Wahl je Gradband, fünf wahllose Merkmale als Negativprobe',
   cases: buildGnomeSorcererCases,
 });

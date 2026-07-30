@@ -55,7 +55,7 @@
   // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
   let featEntries = $state<ResolvedFeature[]>([]);
   let orphanChoices = $state<ResolvedFeature[]>([]);
-  // Zauberwerte der merkmals-gewährten Zugänge (Magiekundiger): zur Anzeigezeit gerechnet,
+  // Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie): zur Anzeigezeit gerechnet,
   // damit ein steigender Übungsbonus sie mitnimmt — gespeichert würden sie altern.
   let spellAccessRows = $state<SpellAccessValues[]>([]);
   $effect(() => {

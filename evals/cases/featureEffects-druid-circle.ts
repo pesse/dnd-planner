@@ -78,7 +78,7 @@ const analyzeCore: Checks<StepResult> = {
 
 const analyzeSoft: Checks<StepResult> = {
   // „Land's Aid" ist das einzige verbleibende Merkmal der Stufe 3 — es wirkt „Cure Wounds"
-  // über eine Wildgestalt-Nutzung, gewährt den Zauber aber NICHT dauerhaft.
+  // über eine Tiergestalt-Nutzung, gewährt den Zauber aber NICHT dauerhaft.
   'erdet überhaupt keinen Zauber': (r) => asAnalysis(r)?.spellsToGround.length === 0,
 };
 
@@ -100,7 +100,7 @@ const finalizeCore: Checks<StepResult> = {
 
 /**
  * Weiche Prüfungen der Finalisierung: die Bogen-Notiz des verbleibenden Merkmals
- * („Land's Aid" — Wildgestalt-Nutzung gegen einen Heilzauber). Sie muss knapp und einzeilig
+ * („Land's Aid" — Tiergestalt-Nutzung gegen einen Heilzauber). Sie muss knapp und einzeilig
  * sein und darf keinen Zaubernamen ausbuchstabieren, den die Zauberliste ohnehin führt.
  *
  * Die frühere Probe „Notiz nennt die Landart-Wahl pro langer Rast" ist hier WEG, nicht

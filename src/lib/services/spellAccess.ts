@@ -1,6 +1,6 @@
 /**
  * Deklarierter Zauber-Zugang eines Merkmals (`grantsChoice.kind === 'spellAccess'`) —
- * „Magiekundiger" und alles, was mechanisch dasselbe tut: eine Zauberliste, ein
+ * „Eingeweihter der Magie" und alles, was mechanisch dasselbe tut: eine Zauberliste, ein
  * Zauberattribut und ein Kontingent je Gradband, alles NEBEN dem Klassen-Zauberwirken.
  *
  * Kein LLM. Wie `weaponMastery.ts`/`fightingStyle.ts` ist das die deterministische Antwort

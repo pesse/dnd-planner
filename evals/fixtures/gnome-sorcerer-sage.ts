@@ -6,7 +6,7 @@
  *  1. Die erzwungene Wahl steckt in einem SPEZIES-Merkmal („Gnomische Abstammung":
  *     Waldgnom vs. Felsgnom) — und sie bestimmt, welche Zauber gewährt werden. Die Analyse
  *     muss also blockieren und darf noch keinen Zauber erden.
- *  2. Das Herkunftstalent des Hintergrunds („Magiekundiger") ist FLOW-EIGEN: es deklariert
+ *  2. Das Herkunftstalent des Hintergrunds („Eingeweihter der Magie") ist FLOW-EIGEN: es deklariert
  *     seinen Zauber-Zugang (`grantsChoice.kind === "spellAccess"`), also fragt der Wizard
  *     Liste, Attribut und Kontingent deterministisch ab und das Talent steht NICHT im
  *     KI-Eingang. Damit ist es hier die zweite Negativprobe — jede Wahl dazu wäre erfunden.

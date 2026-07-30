@@ -66,7 +66,7 @@
     { id: 'abilities', label: 'Attribute' },
     { id: 'background', label: 'Hintergrund-Bonus' },
     { id: 'proficiencies', label: 'Übungen' },
-    { id: 'mastery', label: 'Waffenmeisterschaft' },
+    { id: 'mastery', label: 'Waffenbeherrschung' },
     { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'features', label: 'Merkmale' },
     { id: 'spells', label: 'Zauber' },
@@ -302,7 +302,7 @@
   // Gleiches Muster wie Waffenmeisterschaft/Kampfstil: die Kontingente kommen aus der
   // Klassentabelle, die Optionen aus `vault/spells` — kein KI-Job. Der Schritt erscheint auch
   // für Nicht-Zauberwirker, wenn ein Merkmal eine Zauber-Wahl erzwingt (Kämpfer mit dem
-  // Hintergrund Akolyth → Talent „Magiekundiger").
+  // Hintergrund Akolyth → Talent „Eingeweihter der Magie").
   let spellOffer = $state<SpellcastingOffer | null>(null);
   $effect(() => {
     const key = w.klass.sourceKey;
@@ -641,7 +641,7 @@
 
       {:else if currentStep === 'mastery'}
         {#if !mastery}
-          <p class="hint">Lade Waffenmeisterschaft …</p>
+          <p class="hint">Lade Waffenbeherrschung …</p>
         {:else}
           <p class="hint">Wähle die Waffenarten, deren Meisterschaftseigenschaft du nutzen darfst.</p>
           <WeaponMasteryPicker offer={mastery} bind:masteries={w.masteries} />

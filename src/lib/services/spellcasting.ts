@@ -46,7 +46,7 @@ export const CASTER_ABILITY_DE: Record<AbilityKey, string> = {
   int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
 };
 
-// EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge (Magiekundiger): zwei Fassungen
+// EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge (Eingeweihter der Magie): zwei Fassungen
 // laufen auseinander, sobald eine davon angefasst wird.
 export const spellSaveDC = (profBonus: number, abilityMod: number): number => 8 + profBonus + abilityMod;
 export const spellAttackBonus = (profBonus: number, abilityMod: number): number => profBonus + abilityMod;
@@ -216,7 +216,7 @@ export interface SpellSelection {
  * bei `open-list` (Kleriker/Druide) ist der bekannt-Bestand die ganze Klassenliste und wird
  * deshalb GAR NICHT persistiert, bei `fixed-list` fallen beide Mengen zusammen.
  *
- * `featurePicks` (z.B. der Grad-1-Zauber aus „Magiekundiger") sind stets vorbereitet und
+ * `featurePicks` (z.B. der Grad-1-Zauber aus „Eingeweihter der Magie") sind stets vorbereitet und
  * zählen nicht gegen das Klassenkontingent.
  */
 export function buildSpellSelection(input: {

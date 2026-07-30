@@ -5,7 +5,7 @@
 > Was die Umsetzung am Plan korrigiert hat, steht in Abschnitt „Korrekturen aus der
 > Umsetzung"; die Stufen-Abschnitte selbst sind der ursprüngliche Entwurf.
 > Übergeordnet zu `docs/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
-> (Magiekundiger) aus der Kette, dieser beschreibt den Endzustand, in dem die Kette nichts
+> (Eingeweihter der Magie) aus der Kette, dieser beschreibt den Endzustand, in dem die Kette nichts
 > mehr zu deuten hat. Zahlengrundlage ist `docs/analyse-system-prompts.md` (Modell QM/vLLM
 > `Qwen3.6-35B-A3B-AWQ-4bit`, `--runs 5`); Bestandszahlen sind am 2026-07-30 aus dem Vault
 > gezählt. Zeilennummern: Stand `analyse-prompts-wt`.
@@ -124,7 +124,7 @@ wie heute.
 |---|---|---|---|
 | `vault/classes` | 28 Dateien | **249** Merkmale | 17 `grantsChoice`, 6 `grantsSpells` |
 | `vault/species` | 10 | **56** Traits | 0 (nur `proficiencyGrant`/`sheetValue`) |
-| `vault/feats` | 23 | **23** | 1 geplant (Magiekundiger) |
+| `vault/feats` | 23 | **23** | 1 geplant (Eingeweihter der Magie) |
 | | | **328** | ~23 |
 
 328 Einträge zu triagieren, davon trägt die große Mehrheit gar keine Mechanik (`grants: {}`).
