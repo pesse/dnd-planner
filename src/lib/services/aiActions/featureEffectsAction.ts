@@ -36,6 +36,7 @@ import type { DeclaredFeature } from '../declaredFeature';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
+import { chosenOption } from '../featureDeclaration';
 import { getSpellLibrary, resolveClass } from '../../spellLibrary';
 import { resolveSpell } from '../levelUpMachine';
 import type { PastChoice } from '../characterFeatures';
@@ -91,7 +92,7 @@ Write ENGLISH throughout. The app translates your sheet notes afterwards; German
 
 ## Rules
 1. Emit EXACTLY ONE rider per entry in <gained_features>, in the same order, with featureName and featureKey copied verbatim. A feature without any mechanical grant still gets its rider — leave the grant fields at their empty defaults and only fill sheetNote (see rule 10). Never invent a rider for a feature that is not in <gained_features>.
-2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn. A cantrip the feature makes you KNOW BY NAME ("You know the Minor Illusion cantrip") is such a grant and belongs here too — the sheet can only record it if you name it.
+2. grantedSpells: spells a feature makes ALWAYS PREPARED / grants for free (subclass/circle/domain lists, spell-granting feats), already reflecting the resolved choice. Canonical ENGLISH SRD names. NEVER spells the player merely MAY learn. A cantrip the feature makes you KNOW BY NAME ("You know the Minor Illusion cantrip") is such a grant and belongs here too — the sheet can only record it if you name it. ONE exception: a feature that arrives WITH its "choice" already fixed reaches you for its PROSE alone. The app has itself read the spells the chosen branch grants at this level, so leave grantedSpells EMPTY for such a feature and keep those names out of its sheetNote as well (the sheet's spell list carries them). Repeating one there records it twice, and a name from a HIGHER-level row of that branch's table hands the character a spell it does not have yet.
 3. extraCantrips / extraPreparedCount: how many ADDITIONAL cantrips the player may freely PICK resp. how many more spells they may prepare than the class table allows. A cantrip you named in grantedSpells is not a free pick — do not count it here as well, or the character gets it twice.
 4. expertiseSkills: the CHOSEN skills that gain Expertise (double proficiency), taken from <resolved_choices>. Never a list of options. Use the canonical English skill names listed in rule 5.
 5. proficiencies: what the feature grants, in CLOSED vocabularies — anything outside them cannot be recorded on the character sheet:
@@ -106,7 +107,7 @@ Write ENGLISH throughout. The app translates your sheet notes afterwards; German
 9. Never invent mechanics that are not in the feature's own rules text. When in doubt, leave a field empty.
 
 ## sheetNote (rule 10)
-10. sheetNote is that entry for THIS feature, squeezed into ONE line for the sheet's "class features" field: no line breaks, no markdown, HARD LIMIT ${SHEET_NOTE_EN_MAX_CHARS} characters — that is about 20 words, so decide per clause whether it still fits. The line is translated into German afterwards and merged with the player's own free text, so there is no room beyond it: over budget you drop words (articles, "you can", spelled-out numbers), never the mechanic. Start it with the feature's English name, then ": ". Empty string ("") where the doctrine below wants no entry. Write only what is true AT THIS LEVEL: how the feature grows later ("2d6, rising to 3d6 at level 10 and 4d6 at level 14") is not table information yet, and the sheet is rewritten at every level-up anyway — that clause alone regularly costs a third of the line. NEVER spell out the names you put in grantedSpells — the sheet carries its own spell list, and a dozen spell names eat the whole line; name the mechanism instead ("Circle Spells: land type chosen after each Long Rest, all its listed spells prepared"). Here, "an option the player picked" means an entry in <resolved_choices>; that choice is also stored structurally (it comes back as <past_choices> on later level-ups), so it only earns a note when it adds an ongoing mechanic.
+10. sheetNote is that entry for THIS feature, squeezed into ONE line for the sheet's "class features" field: no line breaks, no markdown, HARD LIMIT ${SHEET_NOTE_EN_MAX_CHARS} characters — that is about 20 words, so decide per clause whether it still fits. The line is translated into German afterwards and merged with the player's own free text, so there is no room beyond it: over budget you drop words (articles, "you can", spelled-out numbers), never the mechanic. Start it with the feature's English name, then ": ". Empty string ("") where the doctrine below wants no entry. Write only what is true AT THIS LEVEL: how the feature grows later ("2d6, rising to 3d6 at level 10 and 4d6 at level 14") is not table information yet, and the sheet is rewritten at every level-up anyway — that clause alone regularly costs a third of the line. NEVER spell out spell names the sheet records anyway — the ones you put in grantedSpells, and equally the ones the app grants itself, a chosen branch's whole table included (its later rows too, which are not even true yet). The sheet carries its own spell list, and a dozen spell names eat the whole line; name the mechanism instead ("Circle Spells: land type chosen after each Long Rest, all its listed spells prepared") and spend the line on what only the prose says (an increased Darkvision range, an extra use per Long Rest). Here, "an option the player picked" means an entry in <resolved_choices>; that choice is also stored structurally (it comes back as <past_choices> on later level-ups), so it only earns a note when it adds an ongoing mechanic.
 
 ${SHEET_NOTE_CONTENT}
 
@@ -119,7 +120,7 @@ ${SHEET_NOTE_EXAMPLE_EN}`;
  */
 export const FEATURE_EFFECTS_ANALYSIS_SYSTEM = `You are a rules analyst for Dungeons & Dragons 5e (SRD 5.2).
 You receive the game features/feats a character has JUST gained (<gained_features>) plus class context (<class_context>). Each feature carries its rules text in "desc".
-A feature may additionally carry "choice": a specialisation the character's ORIGIN already fixed (the Sage background grants Magic Initiate with its spell list named: "Wizard"). Treat it as FINAL — never turn it into a question, and let it drive whatever it decides (a spell-pick's spellClass, for instance).
+A feature may additionally carry "choice": a specialisation that is ALREADY SETTLED — the character's origin fixed it (the Sage background grants Magic Initiate with its spell list named: "Wizard") or the player answered it a moment ago. Treat it as FINAL — never turn it into a question, and let it drive whatever it decides (a spell-pick's spellClass, for instance). Such a feature reaches you for its PROSE alone: whatever its own table states, the app has already read from that table — the named branch's spells included, level by level. So never ground a spell that the chosen branch's table lists; describe only the mechanics the prose adds beyond it (an increased Darkvision range, say).
 Your ONLY job is to ANALYSE these features so a later deterministic step and a separate formatting step can turn your analysis into concrete mechanics. Do NOT build the app's result structures here — reason in prose and end with one compact manifest.
 Write ENGLISH throughout — questions, options, help texts, everything. A separate step translates the choices for the player's German UI; German wording here would be thrown away.
 
@@ -131,7 +132,7 @@ Write ENGLISH throughout — questions, options, help texts, everything. A separ
    - **isBuildDecision**: true only for a PERMANENT character-building choice (Primal Order, Divine Order, Expertise skills, an elven lineage, metamagic options). false for a choice that is forced now but re-made on each USE of the feature — it gets answered, not recorded. Options a feature offers only in the moment of use (Channel Divinity's Divine Spark vs Turn Undead, Cunning Strike effects, Brutal Strike effects) are not forced now and, by the rule above, do not belong in the manifest at all.
    - **Choosing SPELLS is its own type.** If the choice is "pick N spells/cantrips from the X spell list" (Magic Initiate, Magical Discoveries, Mystic Arcanum), set type="spell-pick", fill spellLevels (0 = cantrip) and spellClass with the ENGLISH class key of that list ("cleric", "druid", "wizard", "bard", "sorcerer", "warlock", "ranger", "paladin"), and leave options EMPTY. Some sources name the list by tradition — map "Arcane"→wizard, "Divine"→cleric, "Primal"→druid. The player picks from the local spell library, so any spell name you wrote here could only be an invention. Emit ONE spell-pick per level band: cantrips and level 1+ spells are separate choices — and set each one's "max" to HOW MANY spells of that band the feature lets the player pick ("two cantrips of your choice" plus "a level 1 spell" → max 2 and max 1). The app opens exactly "max" slots, so a max of 1 for two cantrips silently costs the character one.
 2. Mechanical dependencies: state clearly which grants depend on which choice and which grants are unconditional.
-3. Spells the feature hands the character for free — both those it makes ALWAYS PREPARED (subclass/circle/domain lists, spell-granting feats) and a cantrip it makes you KNOW BY NAME ("You know the Minor Illusion cantrip") — canonical ENGLISH SRD names. A named cantrip that is missing here cannot be recorded later: the effects pass is bound to this list. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn, and never a spell the player PICKS: a spell-pick choice covers those, even when the picked spell ends up always prepared.
+3. Spells the feature hands the character for free — both those it makes ALWAYS PREPARED (subclass/circle/domain lists, spell-granting feats) and a cantrip it makes you KNOW BY NAME ("You know the Minor Illusion cantrip") — canonical ENGLISH SRD names. A feature carrying "choice" is the exception stated above: its branch's spells are already recorded, so they never belong here. A named cantrip that is missing here cannot be recorded later: the effects pass is bound to this list. List a spell ONLY once no still-open choice blocks it. Never list spells the player merely MAY learn, and never a spell the player PICKS: a spell-pick choice covers those, even when the picked spell ends up always prepared.
 4. Any other concrete mechanical grants (proficiencies, fixed ability increases, extra cantrips/prepared spells) — describe them in prose. You do NOT need to structure these; the next step reads your prose.
 
 ## <past_choices>
@@ -428,7 +429,49 @@ async function buildSpellResolution(spellsToGround: string[], klasseName: string
   return `<spell_resolution>\n${lines.join('\n')}\n</spell_resolution>`;
 }
 
-function buildTranscriptionInstruction(spellResolution: string): string {
+/**
+ * Die Zauber, die eine bereits getroffene Zweigwahl deterministisch gewährt
+ * (`options[].spells` der gewählten Option, ALLE Stufenzeilen).
+ *
+ * Als Code-Regel und nicht nur als Prompt-Regel, aus demselben Grund wie
+ * `withDeclaredGrants`: das Modell sieht die Deklaration gar nicht —
+ * `buildFeatureEffectsInput` projiziert nur die Prosa, in der die volle Zweig-Tabelle steht.
+ * Die Prompt-Regel allein hielt messbar nicht (evals/unredactedChoice: 2/5 bzw. 4/5 am
+ * 2026-07-30, während die Ergänzung im Prompt bleibt, weil sie die Quote deutlich hebt).
+ *
+ * ALLE Zeilen, nicht nur die bis zur aktuellen Stufe: eine Zeile für Stufe 3 ist auf Stufe 1
+ * ein Vorgriff, und auf Stufe 3 liefert sie `optionListRider` selbst — in beiden Fällen ist
+ * die Nennung durch das Modell überzählig.
+ */
+function declaredBranchSpells(features: GainedFeature[]): Set<string> {
+  const out = new Set<string>();
+  for (const f of features) {
+    if (!f.choice) continue;
+    for (const row of chosenOption(f, f.choice)?.spells ?? [])
+      for (const name of row.names) if (name.trim()) out.add(name.trim().toLowerCase());
+  }
+  return out;
+}
+
+/** Dieselben Zauber aus den Ridern streichen — der Grant kommt aus der Deklaration. */
+function withoutDeclaredSpells(effects: FeatureEffects, declared: Set<string>): FeatureEffects {
+  if (!declared.size) return effects;
+  return {
+    ...effects,
+    riders: effects.riders.map((r) => ({
+      ...r,
+      grantedSpells: r.grantedSpells.filter((s) => !declared.has(s.trim().toLowerCase())),
+    })),
+  };
+}
+
+/**
+ * Der letzte Turn vor der Ausgabe. `settled` sind die Merkmale mit bereits getroffener
+ * Zweigwahl: sie NAMENTLICH zu nennen wirkt, wo die allgemeine Regel 10 nicht trug (gemessen
+ * 4/5 Notizen zählten die Zauber weiter auf, evals/unredactedChoice). Bewusst OHNE die
+ * Zaubernamen — eine Verbotsliste im Prompt ist die halbe Einladung, sie abzuschreiben.
+ */
+function buildTranscriptionInstruction(spellResolution: string, settled: string[] = []): string {
   const parts = [
     'Now emit the result in exactly the required schema — one rider per feature in ' +
       '<gained_features>, in the same order, with featureName and featureKey copied verbatim. ' +
@@ -441,6 +484,19 @@ function buildTranscriptionInstruction(spellResolution: string): string {
       'leave it empty otherwise. Keep it short and ENGLISH — it gets translated, and space on ' +
       'the sheet is tight.',
   ];
+  if (settled.length) {
+    parts.push(
+      `These features arrive with their choice already settled: ${settled.join(', ')}. ` +
+        'The app has read their chosen branch itself and records every spell it grants, at this ' +
+        'level and at later ones. So give each of them an EMPTY grantedSpells, and let its ' +
+        'sheetNote carry only what the prose adds on top of that branch table — no spell names ' +
+        'at all, not even as a reminder of what is prepared. Watch which half of the prose is ' +
+        'already in force: a clause the feature ties to a LATER level ("when you reach character ' +
+        'levels 3 and 5 … you can cast it once without a spell slot") is not true yet and would ' +
+        'promise the player a mechanic they do not have. Where only the branch\'s current line ' +
+        'remains, a single short clause IS the whole note.',
+    );
+  }
   if (spellResolution) {
     parts.push(
       'For grantedSpells use only the canonical English names from <spell_resolution>; ' +
@@ -559,15 +615,23 @@ export async function finalizeFeatureEffects(
     manifest = after.manifest;
   }
 
-  // Bei offener Wahl gibt es noch nichts zu erden.
+  // Bei offener Wahl gibt es noch nichts zu erden. Und was die getroffene Zweigwahl schon
+  // gewährt, wird nicht geerdet: `<spell_resolution>` ist die Aufforderung, genau diese Namen
+  // in `grantedSpells` zu setzen — gemessen der Auslöser der Dublette (evals/unredactedChoice).
+  const declaredSpells = declaredBranchSpells(ctx.features);
   const spellResolution = manifest.blocked
     ? ''
-    : await buildSpellResolution(manifest.spellsToGround, ctx.classContext.klasseName);
+    : await buildSpellResolution(
+        manifest.spellsToGround.filter((s) => !declaredSpells.has(s.trim().toLowerCase())),
+        ctx.classContext.klasseName,
+      );
 
+  // Namentlich, nicht als Regel: nur diese Merkmale tragen eine schon getroffene Zweigwahl.
+  const settled = ctx.features.filter((f) => f.choice && chosenOption(f, f.choice)).map((f) => f.name);
   const messages: ChatMessage[] = [
     { role: 'system', content: FEATURE_EFFECTS_SYSTEM },
     ...turns,
-    { role: 'user', content: buildTranscriptionInstruction(spellResolution) },
+    { role: 'user', content: buildTranscriptionInstruction(spellResolution, settled) },
   ];
 
   const runPassC = async (): Promise<FeatureEffects | null> => {
@@ -588,7 +652,7 @@ export async function finalizeFeatureEffects(
 
   // Beim Direkteinstieg trägt nur das nachgeholte Manifest die Wahlen (dann ohne Übersetzung).
   const choiceList = analysis.choices.length ? analysis.choices : manifest.choices;
-  const withDecisions = fillDecisions(result, choiceList, ctx.resolvedChoices ?? []);
+  const withDecisions = fillDecisions(withoutDeclaredSpells(result, declaredSpells), choiceList, ctx.resolvedChoices ?? []);
   return germanizeSheetNotes(config, withDecisions, ctx.features, choiceList, opts);
 }
 
