@@ -13,7 +13,7 @@ import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
-import { spellAccessGrantOf, type SpellAccessGrant } from '../spellAccess';
+import { spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant } from '../spellAccess';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { EffectFeature } from '../aiActions/levelUpEffectsAction';
@@ -112,8 +112,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
 
   // Was der Flow selbst abfragt, sieht die KI nicht: sonst erfindet sie eine zweite,
   // konkurrierende Wahl (und beim Zauber-Kontingent eine falsche Anzahl).
-  const flowOwned = new Set(spellAccess.map((a) => a.featureKey).filter(Boolean));
-  const analysisGained = gained.filter((g) => !flowOwned.has(g.key ?? ''));
+  const analysisGained = withoutSpellAccessFeatures(gained, spellAccess);
 
   const toSummary = (g: GainedFeature): SummaryFeature => ({
     name: g.name,

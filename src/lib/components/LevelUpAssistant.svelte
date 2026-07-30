@@ -49,6 +49,10 @@
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
+    spellAccessChoices, spellAccessGrantOf, spellListChoiceId, withoutSpellAccessFeatures,
+    type SpellAccessGrant,
+  } from '../services/spellAccess';
+  import {
     parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
@@ -60,7 +64,7 @@
   import type { Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
-  import { OWN_SOURCE } from '../schemas/shared';
+  import { OWN_SOURCE, type FeatureChoiceGrant } from '../schemas/shared';
 
   let { character, onApply, onclose }: {
     character: Character;
@@ -94,7 +98,12 @@
   let featsToPick = $state(0);
   // Englisch geführt (`name`/`desc` = Deutungs-Eingang), deutsche Fassung für Anzeige und
   // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
-  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string }[]>([]);
+  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant }[]>([]);
+  /**
+   * Deklarierter Zauber-Zugang der gewählten Talente („Magiekundiger") — am Schritt
+   * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
+   */
+  let featAccess = $state<SpellAccessGrant[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
   let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let flagged = $state<string[]>([]);
@@ -333,7 +342,20 @@
   }
   let allAnswered = $derived(isAnswered(decisions, answers));
   let allBaseChoices = $derived(isAnswered(baseChoices, answers));
-  let allFeatChoices = $derived(isAnswered(featChoices, answers));
+
+  /**
+   * Die Wahlen der deklarierten Zauber-Zugänge. Reaktiv, weil die Zauber-Wahlen erst mit der
+   * beantworteten Liste entstehen — ohne Klassenfilter würde der Picker die ganze Bibliothek
+   * anbieten.
+   */
+  let featAccessChoices = $derived.by<LevelUpQuestion[]>(() =>
+    featAccess.flatMap((g) =>
+      buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
+    ),
+  );
+  /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
+  let featChoiceQs = $derived([...featChoices, ...featAccessChoices]);
+  let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
@@ -408,7 +430,9 @@
       delta: delta!,
       featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
       baseChoices: baseChoices.length,
-      featChoices: featChoices.length,
+      // Auch die deklarierten Wahlen zählen: sonst überspringt die Maschine den Checkpoint,
+      // wenn das Talent gar nicht mehr bei der KI war — und niemand wählt die Zauber.
+      featChoices: featChoiceQs.length,
     };
   }
   const answered = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : (v ?? '').toString().trim() !== '');
@@ -482,8 +506,19 @@
       case 'class-features-merge':
         await mergeClassFeatures(alive);
         break;
-      // assemble-decisions / feat-links: rein deterministisch → keine Aktion,
-      // das Dokument leitet diese Änderungen selbst aus dem State ab.
+      case 'feat-links':
+        // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im
+        // Vault, also fragt der Flow sie ab statt die KI sie aus der Prosa zu deuten.
+        featAccess = chosenFeats
+          .map((f) => spellAccessGrantOf(f))
+          .filter((g): g is SpellAccessGrant => g !== null);
+        if (featAccess.length) {
+          initFeatureChoices(featAccessChoices);
+          pushStep(`${featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
+        }
+        break;
+      // assemble-decisions: rein deterministisch → keine Aktion, das Dokument leitet
+      // diese Änderungen selbst aus dem State ab.
     }
   }
 
@@ -503,7 +538,7 @@
   function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
     return kind === 'base'
       ? gainedFeatures
-      : chosenFeats.map((f) => featToGainedFeature(f, delta!.toLevel));
+      : withoutSpellAccessFeatures(chosenFeats.map((f) => featToGainedFeature(f, delta!.toLevel)), featAccess);
   }
 
   /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
@@ -521,7 +556,8 @@
     initFeatureChoices(choiceQs);
     if (kind === 'base') { baseAnalysis = analysis; baseChoices = choiceQs; }
     else { featAnalysis = analysis; featChoices = choiceQs; }
-    pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
+    if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
+    else pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
   }
 
   /**
@@ -532,6 +568,8 @@
    * Der WERT, nicht das Label: der Verlauf ist englisch, das deutsche Label kennt er nicht.
    */
   function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
+    // Nur die KI-erkannten Wahlen: das Merkmal einer deklarierten Wahl steht nicht im Eingang,
+    // das Modell könnte ihre id nur einem erfundenen Rider zuordnen.
     const qs = kind === 'base' ? baseChoices : featChoices;
     const out: ResolvedChoice[] = [];
     for (const q of qs) {
@@ -639,7 +677,7 @@
     chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
     declaredSpells = noDeclaredSpells();
     baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
-    chosenFeats = []; featRiders = []; flagged = [];
+    chosenFeats = []; featAccess = []; featRiders = []; flagged = [];
     hpPerLevelSources = []; narrativeSummary = ''; featuresText = '';
     validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
     validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
@@ -696,7 +734,8 @@
     const idx = chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
     if (chosenFeats.length >= featsToPick) return;
-    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe }];
+    // `grantsChoice` reist mit: nur damit kann `feat-links` den Zugang deterministisch lesen.
+    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice }];
     featQuery = '';
   }
 
@@ -809,7 +848,7 @@
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt })),
-      baseChoiceQs: baseChoices, featChoiceQs: featChoices, gainedFeatures,
+      baseChoiceQs: baseChoices, featChoiceQs, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });
   });
@@ -1009,8 +1048,12 @@
 
   <!-- ── Talent-Wahlen (direkt nach der Talent-Analyse) ─── -->
   {#if phase === 'feat-choices'}
-    <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
-    {@render choiceBlock(featChoices)}
+    {#if featChoices.length}
+      <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
+    {:else}
+      <p class="hint">Wahl(en) der gewählten Talente — Liste, Attribut und Anzahl stehen in der Bibliothek, hier wird nur ausgewählt.</p>
+    {/if}
+    {@render choiceBlock(featChoiceQs)}
   {/if}
 
   <!-- ── Fragebogen (Entscheidungen) ─── -->

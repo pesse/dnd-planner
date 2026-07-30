@@ -442,6 +442,97 @@ Deckung über den ganzen Vault (jeder erkannte Fall ist deklariert, kein Tabelle
 unerkannt), Erkennung ohne englische Prosa, und eine Ankündigung ohne lesbare Tabelle bleibt im
 KI-Eingang **und** wird im Aufstiegs-Protokoll gemeldet statt still zu verschwinden.
 
+## 1g Der Aufstieg zieht nach (2026-07-30)
+
+Stufe 1 hing nur am Erstell-Wizard. Im Aufstieg schob `LevelUpAssistant.featuresFor('feat')`
+jedes gewählte Talent über `featToGainedFeature` **komplett** an die Deutung — die Deklaration
+am Talent wurde dort nie gelesen. Wer Magiekundiger auf Stufe 4 nimmt, ließ Liste, Attribut und
+Kontingent also erneut vom Modell suchen, obwohl sie als Daten im Vault stehen.
+
+### Hypothese und Erwartung (notiert VOR der Messung)
+
+**Hypothese.** Der KI-Pfad findet die vier Wahlen des Talents nicht zuverlässig; vor allem das
+Kontingent („two cantrips" → `max: 2`) ist die Stelle, an der ein Fehler still teuer ist: bei
+`max: 1` wählt der Spieler einen Zaubertrick statt zwei und merkt es nie. Der deklarierte Pfad
+kann diese Fehler strukturell nicht machen, weil die Zahlen nicht gedeutet, sondern gelesen
+werden.
+
+**Erwartung.** Fall B (deklariert) hält alle Core-Assertions 5/5 bei ~0 ms und 0 Tokens.
+Fall A (KI) hält die weichen Formvorgaben eher als die Zahlen; die drei Prüfungen, die ich am
+ehesten fallen sehe, sind das Zaubertrick-Kontingent, `spellClass` als geschlossenes Vokabular
+(„Wizard"/„Magier" statt `wizard`) und „genau vier Wahlen". Latenz von Fall A: die Kette ist
+Analyse + Finalisierung auf **einem** Merkmal, thinking-frei also grob 15–25 s.
+
+**Abweichung von „Baseline, dann Änderung" — bewusst.** Beide Stände stecken in EINEM Report
+als Fall A und Fall B derselben Strecke, mit demselben Satz Assertions. Grund: der Unterschied
+liegt nicht in einem Prompt, sondern darin, welchen Weg die Svelte-Komponente nimmt — und die
+ist aus dem Node-Eval nicht erreichbar. Ein zweiter Lauf nach der Umstellung würde exakt
+denselben Code messen (`spellAccess.ts` wird von der Umstellung nicht angefasst). Ein Report
+mit beiden Armen ist dafür der stärkere Vergleich: gleiches Modell, gleiche Serverlast, gleiche
+Fixture, kein Stand-Drift. Dass die Komponente danach wirklich Arm B fährt, sichert
+`evals/levelUpFeatAccess.test.ts` deterministisch — bis in die entstehenden `Change`s.
+
+### Ergebnis (2 × 5 Läufe, `--concurrency 1`)
+
+Reports: `2026-07-30T08-31-27-483Z-levelupfeat-ki-vs-deklariert` (vor der Umstellung) und
+`…T08-41-06-483Z-levelupfeat-nach-umstellung` (danach, unveränderte Dienste — die
+Wiederholung ist die Varianz-Probe). Modell `cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit`.
+
+| Prüfung | KI-Pfad (A), Lauf 1 | A, Lauf 2 | deklariert (B) |
+|---|---:|---:|---:|
+| Zaubertricks: eine Wahl mit `max: 2` | 40 % | 40 % | **100 %** |
+| Grad-1-Zauber: eine Wahl mit `max: 1` | 40 % | 40 % | **100 %** |
+| genau zwei Zauber-Wahlen | 40 % | 40 % | **100 %** |
+| `spellClass` ist ein erlaubter Listen-Key | 0 % | 0 % | **100 %** |
+| Zauberliste als Wahl aus genau drei Listen | 100 % | 80 % | **100 %** |
+| Zauberattribut als Wahl aus Int/Wei/Cha | 20 % | 0 % | **100 %** |
+| genau vier Wahlen | 0 % | 0 % | **100 %** |
+| nennt keine Zaubernamen | 100 % | 100 % | **100 %** |
+| jede Wahl hängt am Talent-Key | 100 % | 80 % | **100 %** |
+
+Latenz A: 49,1 s bzw. 57,8 s im Schnitt (Median 46,5 / 41,2; einmal 142 s), ~17–18 k Input-
+und ~6–7 k Output-Tokens **je Lauf** — für ein einzelnes Talent. Latenz B: 1 ms, 0 Tokens.
+
+**Die Hypothese traf im Ergebnis, nicht im Mechanismus — Korrektur.** Erwartet hatte ich das
+verpatzte Kontingent (`max: 1` statt 2). Die Rohdaten sagen etwas anderes: *wenn* die
+Zauber-Wahlen kamen (2 von 5), waren `max: 2` und `max: 1` **richtig**. In den anderen drei
+Läufen fehlten sie **ganz** — die Analyse stellte nur die Listen-Frage (einmal Liste +
+Attribut) und keine einzige Zauber-Wahl. Der Spieler nimmt Magiekundiger und wählt dann
+überhaupt keinen Zauber. Das ist kein Off-by-one, das ist Totalverlust, und es erklärt die drei
+40-%-Zeilen: sie messen dasselbe Ereignis dreimal.
+
+Der zweite Befund war gar nicht vorhergesehen: **`spellClass` war in 10 von 10 Läufen leer.**
+`buildFeatureChoices` gibt das Feld unverändert an den `SpellPicker` weiter — ohne Klassenfilter
+bietet er die *ganze* Zauberbibliothek an. Selbst der beste der fünf Läufe hätte den Spieler also
+Zauber wählen lassen, die das Talent nicht gewährt.
+
+### Umgesetzt
+
+* `withoutSpellAccessFeatures` (spellAccess.ts) — EIN Filter für Wizard und Aufstieg; der
+  Wizard nutzt jetzt denselben statt seiner eigenen zwei Zeilen.
+* `LevelUpAssistant`: `grantsChoice` reist am gewählten Talent mit, der deterministische Schritt
+  `feat-links` liest daraus die Zugänge, `featAccessChoices` erzeugt die Wahlen reaktiv (die
+  Zauber-Wahlen entstehen erst mit der beantworteten Liste), und `featChoiceQs` = KI-erkannt +
+  deklariert speist Checkpoint, Antwort-Gatter, Schritt-Übergang und Dokument.
+* Der Übergang zählt die deklarierten Wahlen mit: sonst überspringt die Maschine den
+  Talent-Checkpoint, weil die KI nichts mehr zu erkennen hat — und niemand wählt die Zauber.
+* Was an das Modell zurückgeht (`gatherDecisions`), bleibt auf die KI-erkannten Wahlen
+  beschränkt: das deklarierte Merkmal steht nicht in seinem Eingang.
+
+Fünf deterministische Zusicherungen (`evals/levelUpFeatAccess.test.ts`, LLM-frei) — darunter
+die Kette bis in die `Change`s (zwei `cantrip`, ein `preparedSpell` Grad 1, `featureChoice` für
+Liste und Attribut) und zwei Deckungs-Proben: jedes Talent mit `spellAccess` ist auflösbar, und
+**kein Klassenmerkmal** deklariert einen Zugang — täte es eins, fiele es stumm aus, weil nur der
+Talent-Pfad ihn abfragt.
+
+### Offen
+
+* Ein Talent darf mehrfach genommen werden, „but you must choose a different spell list each
+  time". Die schon belegte Liste wird nicht aus den Optionen entfernt — regelwidrig wählbar.
+* Nicht deklarierte Talente gehen weiter komplett an die KI (richtig: sie tragen echte
+  Deutungsarbeit). Ein *zauber*-gewährendes Talent ohne Deklaration fiele aber in Fall A —
+  dagegen steht nur der Deckungstest über `vault/feats`.
+
 ## Reihenfolge
 
 1. 1e entscheiden (Senke fürs Attribut).

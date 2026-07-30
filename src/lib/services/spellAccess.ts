@@ -74,6 +74,19 @@ export function spellAccessGrantOf(
   };
 }
 
+/**
+ * Merkmale OHNE die, deren Zauber-Zugang der Flow deterministisch führt — der KI-Eingang.
+ * EINE Regel für Wizard und Aufstieg: ein zweiter Filter würde auseinanderlaufen und das
+ * Merkmal auf einem der beiden Wege doppelt fragen lassen.
+ */
+export function withoutSpellAccessFeatures<T extends { key?: string }>(
+  features: T[],
+  grants: SpellAccessGrant[],
+): T[] {
+  const owned = new Set(grants.map((g) => g.featureKey).filter(Boolean));
+  return features.filter((f) => !owned.has(f.key ?? ''));
+}
+
 // ── Wahl-ids ────────────────────────────────────────────────────────────────────
 // Stabil und vom KI-Namensraum (`choice_<slug>_1`) unterscheidbar: die Antworten der
 // deklarierten Wahlen gehen NICHT als <resolved_choices> ans Modell (das Merkmal steht

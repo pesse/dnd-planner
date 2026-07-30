@@ -137,6 +137,9 @@ Bestehende Strecken:
   Verlauf mit fester Analyse-Antwort und nachgereichter Wahl (Vorlage für `chatCase`).
 - `featureEffects.eval.test.ts` — Merkmals-Effekte beim Stufenaufstieg (mehrstufiger
   Produktionspfad, Fall-Aufbau lädt Vault-Daten).
+- `levelUpFeat.eval.test.ts` — der Talent-Pfad des Aufstiegs (Kämpfer 3→4, „Magiekundiger"):
+  KI-Deutung (Fall A, Referenz) gegen deklarierten Zauber-Zugang (Fall B, gatet, ohne LLM) mit
+  denselben Prüfungen.
 - `wizardFeatures.eval.test.ts` — Merkmalsanalyse im Charakter-Erstell-Wizard (Stufe 1,
   Gnom-Zauberer / Weiser): Volks-Wahl blockiert die Zauber, das Herkunftstalent ist eine
   Zauber-Wahl, fünf wahllose Merkmale sind die Negativprobe. Eingang über
