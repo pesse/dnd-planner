@@ -37,7 +37,16 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import { expertiseChoice, expertiseChoiceId, expertiseRider, optionListChoices, optionListRiders } from '../featureDeclaration';
+import {
+  expertiseChoice,
+  expertiseChoiceId,
+  expertiseRider,
+  optionListChoices,
+  optionListRiders,
+  withDeclaredGrants,
+  type DeclaredChoiceSource,
+  type DeclaredGrantSource,
+} from '../featureDeclaration';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
 import type { FeatureEffects, FeatureRider, FieldSummary } from '$lib/schemas/levelUp';
@@ -146,7 +155,7 @@ export class CharacterWizard {
   pickedPrepared = $state<string[]>([]);
   /**
    * Zauber aus Merkmals-Wahlen (`spell-pick`), je Wahl-`id`. Getrennt vom Klassenkontingent,
-   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Magiekundiger").
+   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Eingeweihter der Magie").
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
@@ -154,7 +163,7 @@ export class CharacterWizard {
   /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
   /**
-   * Deklarierte Zauber-Zugänge („Magiekundiger") — stehen sofort, ohne KI und ohne QM.
+   * Deklarierte Zauber-Zugänge („Eingeweihter der Magie") — stehen sofort, ohne KI und ohne QM.
    * Gefüllt aus `buildFeaturePrep`, deshalb `$state` statt Getter (die Aufbereitung ist async).
    */
   spellAccess = $state<SpellAccessGrant[]>([]);
@@ -172,6 +181,18 @@ export class CharacterWizard {
   optionListFeatures = $state<ClassFeature[]>([]);
   /** Merkmale mit deklarierter Expertise-Wahl (Schurke Stufe 1). */
   expertiseFeatures = $state<ClassFeature[]>([]);
+  /**
+   * Speziesmerkmale mit deklarierter Wahl (`optionList`/`expertise`). Eigene Liste, weil nur
+   * die Klassenlisten die Bogen-Zeile im Klassenmerkmale-Feld erzeugen — ein Trait steht im
+   * Volksmerkmale-Text (siehe `FeaturePrep.analysisSpeciesFeatures`).
+   */
+  speciesChoiceFeatures = $state<DeclaredChoiceSource[]>([]);
+  /**
+   * Alle Merkmale samt ihrer unbedingten Deklaration (`grants`) — Quelle von
+   * `withDeclaredGrants`. Ohne sie wäre eine Übung oder ein Zaubertrick am Merkmal
+   * deklarierbar, aber wirkungslos, sobald das Merkmal nicht (oder falsch) bei der KI landet.
+   */
+  grantFeatures = $state<DeclaredGrantSource[]>([]);
   /**
    * Fest gewährte Fertigkeitsübungen (aus `collectGrants`, gesetzt vom Übungen-Schritt).
    * Zusammen mit `chosenSkills` die Optionsliste der Expertise-Wahl — ein Vault-Feld kann sie
@@ -221,8 +242,11 @@ export class CharacterWizard {
       const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
       return spellAccessChoices(grant, answer);
     });
-    const branches = optionListChoices(this.optionListFeatures);
-    const expertise = this.expertiseFeatures
+    // Klassen- und Speziesmerkmale in EINEM Durchgang: beide Builder liefern `null` für
+    // Merkmale des jeweils anderen `kind`, ein Vorsortieren wäre ein zweiter Filter.
+    const declaredFeatures = [...this.optionListFeatures, ...this.expertiseFeatures, ...this.speciesChoiceFeatures];
+    const branches = optionListChoices(declaredFeatures);
+    const expertise = declaredFeatures
       .map((f) => expertiseChoice(f, this.proficientSkills))
       .filter((c): c is AnalysisChoice => c !== null);
     return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...expertise, ...spells];
@@ -253,14 +277,19 @@ export class CharacterWizard {
    * Fertige Merkmals-Rider: die des Effekt-Jobs (leer, solange er läuft/übersprungen ist)
    * plus die der deklarierten Zweigwahlen — dieselbe Form, damit `riderExtras` und die
    * Assembly sie nicht unterscheiden müssen.
+   *
+   * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
+   * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
    */
   get riders() {
     const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-    const declared = optionListRiders(this.optionListFeatures, answerOf);
-    const expertise = this.expertiseFeatures
+    const declaredFeatures = [...this.optionListFeatures, ...this.expertiseFeatures, ...this.speciesChoiceFeatures];
+    const declared = optionListRiders(declaredFeatures, answerOf);
+    const expertise = declaredFeatures
       .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
       .filter((r): r is FeatureRider => r !== null);
-    return [...(this.effects.result?.riders ?? []), ...declared, ...expertise];
+    const ai = withDeclaredGrants(this.effects.result?.riders ?? [], this.grantFeatures);
+    return [...ai, ...declared, ...expertise];
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
@@ -288,6 +317,8 @@ export class CharacterWizard {
       this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
       this.optionListFeatures = prep.optionListFeatures;
       this.expertiseFeatures = prep.expertiseFeatures;
+      this.speciesChoiceFeatures = prep.speciesChoiceFeatures;
+      this.grantFeatures = prep.grantFeatures;
     }, () => {});
 
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen

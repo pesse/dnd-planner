@@ -17,8 +17,9 @@ import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
 import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
+import { withoutDeclaredChoiceFeatures } from './featureDeclaration';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { FeatureGrant } from '../schemas/shared';
+import type { FeatureChoiceGrant, FeatureGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
@@ -172,6 +173,7 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
     key: f.key ?? '',
     gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
     grants: f.grants,
+    grantsChoice: f.grantsChoice,
   };
 }
 
@@ -194,17 +196,28 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
  * Zauberlisten (Kreissprüche, Domänenzauber …): sie stehen als Tabelle im Merkmalstext und
  * werden deterministisch gelesen (`declaredSpellGrants`). Sie im Eingang zu lassen hieße,
  * das Modell eine Liste abschreiben zu lassen, die schon als Daten vorliegt.
+ *
+ * Subklassen-Merkmale laufen bewusst NICHT durch `isFlowOwnedChoiceFeature`, sondern nur durch
+ * `withoutDeclaredChoiceFeatures`: dessen Namens-Fallbacks („Spellcasting") treffen bei einer
+ * Subklasse ein Merkmal mit echter Mechanik — der Arkane Trickser bekäme sein Zauberwirken aus
+ * keiner Quelle mehr, weil die Stufentabelle der Grundklasse keine Zauberspalte hat.
  */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
     ...withoutSpellGrantFeatures(delta.featuresGained.filter((f) => !isFlowOwnedChoiceFeature(f)))
       .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
-    ...withoutSpellGrantFeatures(delta.subclassFeaturesGained)
+    ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(delta.subclassFeaturesGained))
       .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }
 
-/** Zweiter deterministischer Pass: Subklassen-Merkmale NACH der Wahl nachladen. */
+/**
+ * Zweiter deterministischer Pass: Subklassen-Merkmale NACH der Wahl nachladen.
+ *
+ * Liefert sie VOLLSTÄNDIG — der Aufrufer braucht sie so für die Info-Einträge („Neues
+ * Merkmal: …") und die deklarierten Wahlen; für den KI-Eingang siebt er mit denselben zwei
+ * Filtern wie `gainedFeaturesFor`.
+ */
 export async function computeSubclassFeatures(subclassKey: string, from: number, to: number): Promise<GainedFeature[]> {
   const prog = await getProgressionByKey(subclassKey);
   if (!prog) return [];
@@ -213,7 +226,15 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
 
 /** Ein Talent als GainedFeature für die Effekt-Deutung (englisch geführt, DE als Beilage). */
 export function featToGainedFeature(
-  f: { name: string; nameDe?: string; desc: string; descDe?: string; key?: string; grants?: FeatureGrant },
+  f: {
+    name: string;
+    nameDe?: string;
+    desc: string;
+    descDe?: string;
+    key?: string;
+    grants?: FeatureGrant;
+    grantsChoice?: FeatureChoiceGrant;
+  },
   gainedAt: number,
 ): GainedFeature {
   return {
@@ -224,6 +245,7 @@ export function featToGainedFeature(
     source: 'feat',
     gainedAt,
     grants: f.grants,
+    grantsChoice: f.grantsChoice,
     ...(f.key ? { key: f.key } : {}),
   };
 }
@@ -649,7 +671,7 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
 
 /**
  * Zauber, die eine MERKMALS-Wahl den Spieler wählen ließ (Fragen vom Typ `spell-picker` aus
- * `buildFeatureChoices`, z.B. „Magiekundiger"). Ohne diesen Builder würde die Wahl nur als
+ * `buildFeatureChoices`, z.B. „Eingeweihter der Magie"). Ohne diesen Builder würde die Wahl nur als
  * Notiz protokolliert, aber nie am Charakter landen. Stets vorbereitet: ein Merkmal, das
  * Zauber wählen lässt, gewährt sie auch (sie zählen nicht gegen das Klassenkontingent).
  */

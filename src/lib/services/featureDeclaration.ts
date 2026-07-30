@@ -16,6 +16,10 @@
  * Die Wahl entsteht als `AnalysisChoice`, die Wirkung als `FeatureRider` — dieselben zwei
  * Typen, die die KI liefert. Damit ist alles dahinter unverändert: `buildDecisions`,
  * `riderChanges`, `validateRiderSpells`, `learnInfo`.
+ *
+ * Dazu die beiden weiteren Deklarationen, die dieselben Typen füllen: `expertise` (Optionen aus
+ * dem Übungsstand des Charakters) und das unbedingte `grants` am Merkmal selbst
+ * (`withDeclaredGrants` — das einzige, das den KI-Rider nicht ersetzt, sondern überstimmt).
  */
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { FeatureRider } from '../schemas/levelUp';
@@ -68,14 +72,24 @@ export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisCho
   return features.map(optionListChoice).filter((c): c is AnalysisChoice => c !== null);
 }
 
+/** Ob der Flow die Wahl dieses Merkmals selbst führt — `optionList` oder `expertise`. */
+export function isDeclaredChoiceFeature(f: DeclaredChoiceSource): boolean {
+  return isOptionListFeature(f) || isExpertiseFeature(f);
+}
+
 /**
- * Merkmale OHNE die, deren Zweigwahl der Flow deterministisch führt — der KI-Eingang.
+ * Merkmale OHNE die, deren Wahl der Flow deterministisch führt — der KI-Eingang.
  * EINE Regel für Wizard und Aufstieg, aus demselben Grund wie bei
  * `withoutSpellAccessFeatures`: ein zweiter Filter liefe auseinander und das Merkmal würde
  * auf einem der beiden Wege doppelt gefragt.
+ *
+ * Für Klassenmerkmale des Aufstiegs erledigt das schon `isFlowOwnedChoiceFeature`
+ * (services/levelUp.ts). Dieser Filter deckt die beiden Wege, die dort NICHT durchlaufen:
+ * Speziesmerkmale (der Wizard hat für sie kein Sieb) und die nach der Subklassen-Wahl
+ * nachgeladenen Subklassen-Merkmale (`computeSubclassFeatures`).
  */
-export function withoutOptionListFeatures<T extends DeclaredChoiceSource>(features: T[]): T[] {
-  return features.filter((f) => !isOptionListFeature(f));
+export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(features: T[]): T[] {
+  return features.filter((f) => !isDeclaredChoiceFeature(f));
 }
 
 /** Die gewählte Option, gematcht über den kanonischen (englischen) Wert. */
@@ -98,19 +112,7 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string): Featur
   const option = chosenOption(f, answer);
   const grants = option?.grants;
   if (!grants || isEmptyFeatureGrant(grants)) return null;
-  return {
-    ...emptyRider(f),
-    extraCantrips: grants.extraCantrips,
-    extraPreparedCount: grants.extraPreparedCount,
-    proficiencies: {
-      skills: [...grants.proficiencies.skills.fixed],
-      tools: [],
-      weapons: [...grants.proficiencies.weapons],
-      armor: [...grants.proficiencies.armor],
-      languages: [],
-      savingThrows: [...grants.proficiencies.savingThrows],
-    },
-  };
+  return withGrant(emptyRider(f), grants);
 }
 
 /**
@@ -120,7 +122,7 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string): Featur
  * kommt aus `optionListNoteLines`, das Protokoll aus `featureChoiceChanges`. Ein Eintrag
  * hier wäre jeweils die zweite Ausfertigung.
  */
-function emptyRider(f: DeclaredChoiceSource): FeatureRider {
+function emptyRider(f: { key?: string; name: string }): FeatureRider {
   return {
     featureName: f.name,
     featureKey: f.key ?? '',
@@ -238,4 +240,87 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     !p.weaponsOther.length &&
     !p.armor.length
   );
+}
+
+// ── Unbedingte Deklaration (`grants` am Merkmal selbst) ──────────────────────────
+//
+// Die einzige der drei Deklarationen, die das Merkmal NICHT aus dem KI-Eingang nimmt: es trägt
+// weiter Prosa, für die Pass C eine `sheetNote` schreiben soll (Stufe 5 ist offen). Also sieht
+// das Modell dasselbe Merkmal und liefert dafür einen eigenen Rider — ohne Auflösung zählte ein
+// deklariertes `extraCantrips` zweimal.
+
+/** Ein Merkmal mit unbedingter Deklaration — Klassenmerkmal, Trait und Talent erfüllen es. */
+export interface DeclaredGrantSource {
+  key?: string;
+  name: string;
+  nameDe?: string;
+  grants?: FeatureGrant;
+}
+
+/**
+ * Trägt eine Deklaration in einen Rider ein — und zwar GENAU die Felder, die
+ * `featureGrantSchema` ausdrücken kann. Alles Übrige des Riders bleibt stehen, weil die
+ * Deklaration darüber nichts sagt: `grantedSpells` gehört `grantsSpells`, `expertiseSkills`
+ * gehört `grantsChoice.kind === 'expertise'`, `abilityScoreIncrease` ist bewusst nicht im
+ * Schema (Korrektur 2 des Plans) und `tools`/`languages` sind kein geschlossenes Vokabular.
+ * `perLevel` fehlt hier absichtlich: es wirkt je Charakterstufe und läuft über
+ * `hpPerLevelSources`, nicht über den Rider.
+ */
+function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRider {
+  const p = grants.proficiencies;
+  return {
+    ...rider,
+    extraCantrips: grants.extraCantrips,
+    extraPreparedCount: grants.extraPreparedCount,
+    proficiencies: {
+      ...rider.proficiencies,
+      skills: [...p.skills.fixed],
+      weapons: [...p.weapons],
+      armor: [...p.armor],
+      savingThrows: [...p.savingThrows],
+    },
+  };
+}
+
+/**
+ * **Die Deklaration gewinnt.** Für jedes Merkmal mit nicht-leerem `grants` werden die
+ * deklarierten Werte in seinen Rider geschrieben; existiert keiner, entsteht einer. Damit ist
+ * `grants` erstmals auch dann wirksam, wenn das Merkmal aus dem KI-Eingang fiel, die Deutung
+ * übersprungen wurde (kein QM-Modell) oder sie das Merkmal übersah.
+ *
+ * Als Code-Regel an EINER Stelle statt als Prompt-Regel: das Modell kann die Deklaration gar
+ * nicht sehen — `buildFeatureEffectsInput` projiziert nur die Prosa-Felder.
+ *
+ * `grants: {}` heißt „geprüft, gewährt nichts" (`isEmptyFeatureGrant`) — dann gibt es nichts zu
+ * ersetzen und der KI-Rider bleibt unangetastet. Fehlt das Feld ganz, ist das Merkmal nicht
+ * redigiert und die KI behält das letzte Wort.
+ *
+ * Gematcht über `featureKey`, ersatzweise über den englischen Namen — dieselbe Kette, mit der
+ * Pass C seine Rider an die Merkmale bindet.
+ */
+export function withDeclaredGrants(riders: FeatureRider[], features: DeclaredGrantSource[]): FeatureRider[] {
+  const byKey = new Map<string, DeclaredGrantSource>();
+  const byName = new Map<string, DeclaredGrantSource>();
+  for (const f of features) {
+    if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
+    // Erster Treffer gewinnt: dasselbe Merkmal erreicht den Flow aus mehreren Richtungen
+    // (Delta und nachgeladene Subklassen-Merkmale), ein zweiter Rider wäre die Dublette.
+    const key = f.key?.trim();
+    if (key && !byKey.has(key)) byKey.set(key, f);
+    const name = f.name.trim().toLowerCase();
+    if (name && !byName.has(name)) byName.set(name, f);
+  }
+  if (!byKey.size && !byName.size) return riders;
+
+  const applied = new Set<DeclaredGrantSource>();
+  const out = riders.map((r) => {
+    const key = r.featureKey.trim();
+    const f = (key ? byKey.get(key) : undefined) ?? byName.get(r.featureName.trim().toLowerCase());
+    if (!f?.grants) return r;
+    applied.add(f);
+    return withGrant(r, f.grants);
+  });
+  for (const f of new Set([...byKey.values(), ...byName.values()]))
+    if (!applied.has(f)) out.push(withGrant(emptyRider(f), f.grants!));
+  return out;
 }

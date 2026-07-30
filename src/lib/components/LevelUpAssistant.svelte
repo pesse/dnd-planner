@@ -52,6 +52,7 @@
   import {
     expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature,
     isOptionListFeature, optionListChoices, optionListNoteLines, optionListRiders,
+    withDeclaredGrants, withoutDeclaredChoiceFeatures,
   } from '../services/featureDeclaration';
   import {
     spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
@@ -106,7 +107,7 @@
   // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
   let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant; grants?: FeatureGrant }[]>([]);
   /**
-   * Deklarierter Zauber-Zugang der gewählten Talente („Magiekundiger") — am Schritt
+   * Deklarierter Zauber-Zugang der gewählten Talente („Eingeweihter der Magie") — am Schritt
    * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
    */
   let featAccess = $state<SpellAccessGrant[]>([]);
@@ -364,14 +365,19 @@
   let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
 
   /**
-   * Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden).
-   * Quelle sind die `ClassFeature`-Objekte des Deltas: die `GainedFeature`-Projektion trägt
-   * `grantsChoice` nicht — und sie ist ohnehin schon um diese Merkmale beschnitten
-   * (`isFlowOwnedChoiceFeature`).
+   * Alle Merkmale dieses Aufstiegs, aus denen eine Deklaration gelesen werden kann.
+   *
+   * `subFeatures` gehört dazu, weil die Subklassen-Merkmale bei einer JETZT getroffenen
+   * Subklassen-Wahl nur dort stehen (`delta.subclassFeaturesGained` ist dann leer) — sonst
+   * verlöre eine Subklasse mit `optionList` ihre Wahl. Beide Quellen überschneiden sich
+   * nicht: das Delta füllt die eine, der Nachlade-Pass die andere.
    */
-  let declaredOptionFeatures = $derived(
-    delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isOptionListFeature) : [],
+  let declaredSources = $derived(
+    delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained, ...subFeatures] : [],
   );
+
+  /** Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden). */
+  let declaredOptionFeatures = $derived(declaredSources.filter(isOptionListFeature));
   let baseOptionChoices = $derived(buildFeatureChoices(optionListChoices(declaredOptionFeatures)));
 
   /**
@@ -380,9 +386,7 @@
    * Vault. Schon verdoppelte Fertigkeiten fallen heraus: Expertise stapelt nicht, der
    * Schurke wählt auf Stufe 6 zwei WEITERE.
    */
-  let declaredExpertiseFeatures = $derived(
-    delta ? [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isExpertiseFeature) : [],
-  );
+  let declaredExpertiseFeatures = $derived(declaredSources.filter(isExpertiseFeature));
   let sheetSkills = $derived.by(() => {
     const prof: string[] = [];
     const exp: string[] = [];
@@ -527,8 +531,13 @@
         subFeatures = await computeSubclassFeatures(chosenSubclass!.key, delta!.fromLevel, delta!.toLevel);
         if (!alive()) return;
         // `subFeatures` bleibt vollständig (Info-Einträge „Neues Merkmal: …"), der KI-Eingang
-        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch.
-        gainedFeatures = [...gainedFeaturesFor(delta!), ...withoutSpellGrantFeatures(subFeatures)];
+        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch,
+        // die deklarierten Wahlen führt der Flow selbst — dieselben zwei Filter, die
+        // `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
+        gainedFeatures = [
+          ...gainedFeaturesFor(delta!),
+          ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(subFeatures)),
+        ];
         declaredSpells = resolveDeclaredSpells(
           [...delta!.featuresGained, ...delta!.subclassFeaturesGained, ...subFeatures],
           delta!.toLevel,
@@ -668,7 +677,15 @@
             .filter((r): r is FeatureRider => r !== null),
         ]
       : [];
-    const validated = validateRiderSpells([...parsed, ...declared], spellLib, delta!.klasseName);
+    // Die Deklaration gewinnt über den KI-Rider desselben Merkmals (und springt ein, wo gar
+    // keiner kam). Nur auf `parsed` angewandt: die Rider der Zweigwahlen tragen die Grants der
+    // GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
+    const grantSources = kind === 'base' ? declaredSources : chosenFeats;
+    const validated = validateRiderSpells(
+      [...withDeclaredGrants(parsed, grantSources), ...declared],
+      spellLib,
+      delta!.klasseName,
+    );
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {
       validatedBase = validated;

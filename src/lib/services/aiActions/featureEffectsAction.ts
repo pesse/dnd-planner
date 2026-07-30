@@ -31,7 +31,13 @@ import {
 } from '../../schemas/levelUp';
 import { SHEET_NOTE_CONTENT, SHEET_NOTE_EXAMPLE_EN } from './fieldSummaryAction';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
-import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES, type FeatureGrant } from '../../schemas/shared';
+import {
+  ARMOR_TRAININGS,
+  SKILL_NAMES,
+  WEAPON_CATEGORIES,
+  type FeatureChoiceGrant,
+  type FeatureGrant,
+} from '../../schemas/shared';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
@@ -61,6 +67,13 @@ export interface GainedFeature {
    * (`buildFeatureEffectsInput` projiziert nur die Prosa-Felder).
    */
   grants?: FeatureGrant;
+  /**
+   * Deklarierte Wahl aus der Bibliothek (`featureChoiceGrantSchema`) — reist mit und geht
+   * ebenso NICHT an das Modell. Ohne dieses Feld verlöre ein nach der Subklassen-Wahl
+   * NACHGELADENES Merkmal (`computeSubclassFeatures` projiziert auf diesen Typ) seine
+   * Deklaration und würde doppelt gefragt: einmal deterministisch, einmal von der KI.
+   */
+  grantsChoice?: FeatureChoiceGrant;
 }
 
 /**
@@ -232,7 +245,7 @@ export interface AnalysisChoice {
   featureKey: string;
   question: string;
   /**
-   * `spell-pick` = die Wahl ist eine ZAUBER-Wahl („Magiekundiger": 2 Zaubertricks aus der
+   * `spell-pick` = die Wahl ist eine ZAUBER-Wahl („Eingeweihter der Magie": 2 Zaubertricks aus der
    * Klerikerliste). Dann trägt `options` bewusst NICHTS: die Namen kommen aus `vault/spells`,
    * gefiltert über `spellLevels` + `spellClass`. Sonst wären es erfundene Zauber.
    */

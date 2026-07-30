@@ -8,7 +8,13 @@
  * Deutsche wird per LLM-Übersetzung nachgefüllt; Open5e liefert nur Englisch.
  */
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant, featureGrantSchema } from './shared';
+import {
+  sourceField,
+  proficiencyGrantSchema,
+  emptyProficiencyGrant,
+  featureChoiceGrantSchema,
+  featureGrantSchema,
+} from './shared';
 
 /**
  * Merkmale, deren ganzer Inhalt ein Wert ist, den der Bogen in einem eigenen Feld führt —
@@ -33,6 +39,17 @@ export const traitSchema = z.object({
   descDe: z.string().optional(),
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
+  /**
+   * Deklariert eine Wahl, die dieses Merkmal gewährt (`featureChoiceGrantSchema`, shared.ts) —
+   * am Trait tragen `optionList` (Zweigwahl mit Konsequenz je Option) und `expertise`.
+   * Wie `grants` optional OHNE Default: fehlt das Feld, ist das Merkmal nicht redigiert und
+   * seine Wahl bleibt bei der KI-Kette.
+   *
+   * Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert — sie tragen eine zweite
+   * Wahl in derselben Prosa bzw. speisen den Text anderer Merkmale (Korrektur 5 in
+   * docs/plan-wahlen-deklarieren.md).
+   */
+  grantsChoice: featureChoiceGrantSchema.optional(),
   /**
    * Deterministisch anwendbare Mechanik des Merkmals (`featureGrantSchema`, shared.ts).
    * FEHLT das Feld, ist das Merkmal nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
