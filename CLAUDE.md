@@ -126,9 +126,24 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   carrying only count/level/class list — **never spell names**.
 - **A class feature whose only content is a choice declares it**, via `grantsChoice`
   (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
-  `spellcasting`). That declaration is what keeps it out of the AI feature analysis; the
-  name-based predicates (`isWeaponMasteryFeature`, `isSpellcastingFeature`) are only the
-  fallback for vault entries that do not carry the field yet.
+  `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
+  it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
+  `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
+  yet. `optionList` carries the consequence **next to each option** (`options[].grants`), which
+  is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
+  A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
+- **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
+  filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
+  `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from
+  vanishing off the character sheet. Same for the mechanics: check there is a sink before
+  declaring a grant (`riderChanges` for the level-up `Change[]`, `assembleCharacter` for the
+  wizard). Weapon/armor proficiencies had none until `weaponProficiency`/`armorTraining`.
+- **`grants` is optional WITHOUT a default** (`featureGrantSchema`, plus `grantsChoice`/
+  `grantsSpells` alongside it). Missing field = the entry was never redacted and still runs
+  through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every
+  coverage gap goes silent — an imported or homebrew feature would lose its mechanics
+  unnoticed. It is also why there is no cut-over date: the chain shrinks with coverage
+  (`docs/plan-wahlen-deklarieren.md`).
 - **New entity create/edit actions are not hand-written**: describe the differences in an
   `EntityActionSpec` (`services/aiActions/spec.ts`) and let `factory.ts` build the action.
 - **Gate LLM features on `LlmCapabilities`, never on provider names** (`services/llmClient.ts`).
