@@ -8,13 +8,7 @@
  * Deutsche wird per LLM-Übersetzung nachgefüllt; Open5e liefert nur Englisch.
  */
 import { z } from 'zod';
-import {
-  sourceField,
-  proficiencyGrantSchema,
-  emptyProficiencyGrant,
-  featureChoiceGrantSchema,
-  featureGrantSchema,
-} from './shared';
+import { sourceField, featureDeclarationFields, foldLegacyProficiencyGrant, migrateSourceLegacy } from './shared';
 
 /**
  * Merkmale, deren ganzer Inhalt ein Wert ist, den der Bogen in einem eigenen Feld führt —
@@ -37,25 +31,11 @@ export const traitSchema = z.object({
   nameDe: z.string().optional(),
   desc: z.string().default(''),
   descDe: z.string().optional(),
-  proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
-  /**
-   * Deklariert eine Wahl, die dieses Merkmal gewährt (`featureChoiceGrantSchema`, shared.ts) —
-   * am Trait tragen `optionList` (Zweigwahl mit Konsequenz je Option) und `expertise`.
-   * Wie `grants` optional OHNE Default: fehlt das Feld, ist das Merkmal nicht redigiert und
-   * seine Wahl bleibt bei der KI-Kette.
-   *
-   * Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert — sie tragen eine zweite
-   * Wahl in derselben Prosa bzw. speisen den Text anderer Merkmale (Korrektur 5 in
-   * docs/plan-wahlen-deklarieren.md).
-   */
-  grantsChoice: featureChoiceGrantSchema.optional(),
-  /**
-   * Deterministisch anwendbare Mechanik des Merkmals (`featureGrantSchema`, shared.ts).
-   * FEHLT das Feld, ist das Merkmal nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
-   * `proficiencyGrant` daneben bleibt die Übungs-Senke (eine Form für alle vier Artefakttypen).
-   */
-  grants: featureGrantSchema.optional(),
+  // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Talent.
+  // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in derselben
+  // Prosa bzw. Eingang für den Text anderer Merkmale (Korrektur 5, plan-wahlen-deklarieren.md).
+  ...featureDeclarationFields,
 });
 
 export const speciesSchema = z.object({
@@ -73,3 +53,15 @@ export const speciesSchema = z.object({
 
 export type Trait = z.infer<typeof traitSchema>;
 export type Species = z.infer<typeof speciesSchema>;
+
+/**
+ * Altformat: `traits[].proficiencyGrant` → `traits[].grants.proficiencies`.
+ * Muss VOR jedem `speciesSchema.parse` laufen (auch in `speciesLibrary`, das eigenständig
+ * parst) — das Schema ist nicht `strict` und würde das Altfeld sonst stumm verwerfen.
+ */
+export function migrateSpeciesLegacy(raw: unknown): Record<string, unknown> {
+  const obj = migrateSourceLegacy(raw as Record<string, unknown>);
+  if (Array.isArray(obj.traits))
+    obj.traits = obj.traits.map((t) => foldLegacyProficiencyGrant((t ?? {}) as Record<string, unknown>));
+  return obj;
+}

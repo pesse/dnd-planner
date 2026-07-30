@@ -12,6 +12,7 @@
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateFeatsCache, FEAT_CATEGORY_DE } from '$lib/featsLibrary';
   import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
+  import DeclarationBadge from './DeclarationBadge.svelte';
 
   function parseFeat(json: string): Feat | null {
     try {
@@ -90,7 +91,7 @@
           {/if}
           <div class="badges">
             <span class="kategorie">{FEAT_CATEGORY_DE[draft!.category]}</span>
-            <span class="declaration {declBadge.tone}" title={declBadge.title}>{declBadge.text}</span>
+            <DeclarationBadge badge={declBadge} />
           </div>
           {#if prereq(draft!)}
             <div class="meta">Voraussetzung: {prereq(draft!)}</div>
@@ -171,18 +172,6 @@
   }
 
   /* Deklarations-Abdeckung: Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
-  .declaration {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
-    border-radius: 3px; padding: 0.05rem 0.4rem;
-  }
-  .declaration.open {
-    color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
-    background: color-mix(in srgb, var(--gold) 12%, var(--bg));
-  }
-  .declaration.done {
-    color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--bg));
-    background: var(--bg);
-  }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); margin-top: 0.2rem; font-style: italic; }
 
   .body { padding: 0.7rem 1.2rem 1rem; font-size: 0.85rem; line-height: 1.55; }

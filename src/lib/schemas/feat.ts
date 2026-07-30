@@ -9,10 +9,9 @@
 import { z } from 'zod';
 import {
   sourceField,
-  proficiencyGrantSchema,
-  emptyProficiencyGrant,
-  featureChoiceGrantSchema,
-  featureGrantSchema,
+  featureDeclarationFields,
+  foldLegacyProficiencyGrant,
+  migrateSourceLegacy,
   FEAT_CATEGORIES,
 } from './shared';
 
@@ -37,23 +36,17 @@ export const featSchema = z.object({
    * bewusst als `{choose: 3, from: []}` abgebildet — dass auch WERKZEUGE zulässig
    * sind, kann `skillGrant` nicht ausdrücken und bleibt der Prosa überlassen.
    */
-  proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
-  /**
-   * Mechanik-gebundene Wahl, die das Talent gewährt — dasselbe Feld wie am Klassenmerkmal
-   * (`classFeatureSchema`). Im SRD 5.2 betrifft das nur `srd-2024_magic-initiate`
-   * (`kind: "spellAccess"`): Zauberliste, Zauberattribut und Kontingent stehen dort als
-   * Daten, damit der Flow sie deterministisch abfragt statt die KI sie aus der Prosa zu
-   * deuten (`services/spellAccess.ts`).
-   */
-  grantsChoice: featureChoiceGrantSchema.optional(),
-  /**
-   * Deterministisch anwendbare Mechanik des Talents (`featureGrantSchema`, shared.ts).
-   * FEHLT das Feld, ist das Talent nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
-   */
-  grants: featureGrantSchema.optional(),
+  // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Trait.
+  // Im SRD 5.2 trägt nur `srd-2024_magic-initiate` eine Wahl (`kind: "spellAccess"`).
+  ...featureDeclarationFields,
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),
 });
 
 export type Feat = z.infer<typeof featSchema>;
+
+/** Altformat: `proficiencyGrant` → `grants.proficiencies` (siehe `migrateSpeciesLegacy`). */
+export function migrateFeatLegacy(raw: unknown): Record<string, unknown> {
+  return foldLegacyProficiencyGrant(migrateSourceLegacy(raw as Record<string, unknown>));
+}

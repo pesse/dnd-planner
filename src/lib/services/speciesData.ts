@@ -6,7 +6,7 @@
  * einem In-Memory-Cache (pro Session) halten. `nameDe`/`descDe` bleiben beim
  * Import leer und werden per LLM-Übersetzung nachgefüllt.
  */
-import { speciesSchema, type Species, type Trait } from '$lib/schemas/species';
+import { speciesSchema, migrateSpeciesLegacy, type Species, type Trait } from '$lib/schemas/species';
 import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/shared';
 import { getSpecies as fetchSpecies } from './open5eApi';
 
@@ -57,7 +57,9 @@ export function mapV2Species(raw: Record<string, unknown>): Species {
     document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
     traits,
   };
-  return speciesSchema.parse(mapped);
+  // Der Mapper schreibt die Altform `proficiencyGrant`; `migrateSpeciesLegacy` hebt sie in die
+  // Deklaration. Ohne das würde der Parse sie stumm verwerfen (das Schema ist nicht `strict`).
+  return speciesSchema.parse(migrateSpeciesLegacy(mapped));
 }
 
 // ── Cache + Zugriff ──────────────────────────────────────────────────────────

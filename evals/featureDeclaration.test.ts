@@ -26,6 +26,13 @@ import {
   optionListRiders,
 } from '../src/lib/services/featureDeclaration';
 import { riderChanges } from '../src/lib/services/levelUpMachine';
+import { forClassFeaturesField } from '../src/lib/services/declaredFeature';
+import { classFeatureSchema } from '../src/lib/schemas/classProgression';
+import { traitSchema, migrateSpeciesLegacy } from '../src/lib/schemas/species';
+import { featSchema, migrateFeatLegacy } from '../src/lib/schemas/feat';
+import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../src/lib/schemas/shared';
+import { spellAccessGrantOf } from '../src/lib/services/spellAccess';
+import { declaredFeatures as tagged } from '../src/lib/services/declaredFeature';
 
 const declaredFeatures = async (): Promise<{ klass: string; feature: ClassFeature }[]> => {
   const out: { klass: string; feature: ClassFeature }[] = [];
@@ -192,5 +199,132 @@ describe('deklarierte Zweigwahlen', () => {
     expect(prep.expertiseFeatures).toEqual([]);
     expect(prep.gained.map((f) => f.name)).not.toContain('Primal Order');
     expect(prep.analysisGained.map((f) => f.name)).not.toContain('Primal Order');
+  });
+});
+
+/**
+ * Die Zusicherung, auf die der Symmetrie-Umbau hinausläuft: DERSELBE `optionList`-Fall
+ * liefert dieselbe Wahl und denselben Rider, egal ob er als Klassenmerkmal, als
+ * Speziesmerkmal oder als Talent daherkommt. Fällt sie, ist irgendwo wieder ein
+ * herkunfts-spezifischer Zweig eingezogen.
+ */
+describe('die Herkunft entscheidet nichts über die Mechanik', () => {
+  const DECL = {
+    key: 'test_order',
+    name: 'Test Order',
+    nameDe: 'Testorden',
+    desc: 'Choose one.',
+    grantsChoice: featureChoiceGrantSchema.parse({
+      kind: 'optionList',
+      options: [
+        { value: 'Warden', labelDe: 'Wächter', helpDe: 'Kriegswaffen', grants: { proficiencies: { weapons: ['Martial'] } } },
+        { value: 'Magician', labelDe: 'Magier', helpDe: 'Ein Zaubertrick', grants: { extraCantrips: 1 } },
+      ],
+    }),
+  };
+  const carriers = ['class', 'subclass', 'species', 'feat'] as const;
+
+  it('liefert je Herkunft dieselbe Wahl', () => {
+    const choices = carriers.map((source) => optionListChoice({ ...DECL, source }));
+    for (const c of choices) {
+      expect(c?.options).toEqual(['Warden', 'Magician']);
+      expect(c?.optionsDe).toEqual(['Wächter', 'Magier']);
+      expect(c?.determinesFurtherEffects, 'die Wirkung steht neben der Option').toBe(false);
+    }
+    // Bis auf nichts: die Wahl ist über alle Herkünfte identisch.
+    expect(new Set(choices.map((c) => JSON.stringify(c))).size).toBe(1);
+  });
+
+  it('liefert je Herkunft denselben Rider — nur `source` unterscheidet sich', () => {
+    const riders = carriers.map(
+      (source) => optionListRiders([{ ...DECL, source }], () => 'Warden')[0],
+    );
+    for (const [i, r] of riders.entries()) {
+      expect(r.featureKey).toBe('test_order');
+      expect(r.proficiencies.weapons).toEqual(['Martial']);
+      // Die Provenienz folgt dem Merkmal statt pauschal 'class' zu sein.
+      expect(r.source).toBe(carriers[i]);
+    }
+    expect(new Set(riders.map((r) => JSON.stringify({ ...r, source: '' }))).size).toBe(1);
+  });
+
+  it('gibt die Bogen-Zeile nur den Nicht-Spezies-Herkünften', () => {
+    const all = carriers.map((source) => ({ ...DECL, source }));
+    const lines = optionListNoteLines(all.filter(forClassFeaturesField), () => 'Warden');
+    expect(lines.length, 'Klasse, Subklasse und Talent — nicht die Spezies').toBe(3);
+    // Ein Trait steht im Volksmerkmale-Text und trägt seine Wahl dort.
+    expect(all.filter(forClassFeaturesField).map((f) => f.source)).toEqual(['class', 'subclass', 'feat']);
+  });
+});
+
+/** Die drei Deklarationen müssen an allen drei Trägern dasselbe Feld sein. */
+describe('die Deklaration ist an allen Trägern dieselbe', () => {
+  const decl = {
+    grants: { proficiencies: { skills: { fixed: ['Stealth'] } } },
+    grantsChoice: { kind: 'expertise', count: 2 },
+    grantsSpells: { kind: 'levelTable' },
+  };
+
+  it('überlebt Klassenmerkmal, Speziesmerkmal und Talent gleich', () => {
+    const parsed = [
+      classFeatureSchema.parse({ name: 'X', ...decl }),
+      traitSchema.parse({ name: 'X', ...decl }),
+      featSchema.parse({ name: 'X', ...decl }),
+    ];
+    for (const p of parsed) {
+      expect(p.grants?.proficiencies.skills.fixed).toEqual(['Stealth']);
+      expect(p.grantsChoice?.count).toBe(2);
+      expect(p.grantsSpells?.kind).toBe('levelTable');
+    }
+  });
+
+  it('hebt ein Altformat-`proficiencyGrant` in die Deklaration und löscht es', () => {
+    const legacy = { skills: { fixed: [], choose: 1, from: ['Insight'] } };
+    const trait = traitSchema.parse(
+      (migrateSpeciesLegacy({ traits: [{ name: 'Keen Senses', proficiencyGrant: legacy }] }).traits as unknown[])[0],
+    );
+    expect(trait.grants?.proficiencies.skills.choose).toBe(1);
+    expect(trait.grants?.proficiencies.skills.from).toEqual(['Insight']);
+    expect('proficiencyGrant' in trait, 'keine zweite Wahrheit').toBe(false);
+
+    const feat = featSchema.parse(migrateFeatLegacy({ name: 'Skilled', proficiencyGrant: { skills: { choose: 3 } } }));
+    expect(feat.grants?.proficiencies.skills.choose).toBe(3);
+  });
+
+  it('lässt eine vorhandene Deklaration gewinnen', () => {
+    const folded = migrateFeatLegacy({
+      name: 'X',
+      proficiencyGrant: { skills: { fixed: ['Stealth'] } },
+      grants: { proficiencies: { skills: { fixed: ['Arcana'] } } },
+    });
+    expect(featSchema.parse(folded).grants?.proficiencies.skills.fixed).toEqual(['Arcana']);
+  });
+});
+
+describe('die Senke des kind entscheidet, nicht der Träger', () => {
+  // Der Editor leitet sein Dropdown aus dieser Liste ab. Stünde `spellAccess` darin, verlöre
+  // „Eingeweihter der Magie" seinen Editor — und es ist der einzige Vault-Eintrag mit `kind`.
+  it('braucht nur die drei Stufentabellen-kinds die Klasse', () => {
+    expect([...CLASS_TABLE_CHOICE_KINDS].sort()).toEqual(['featCategory', 'spellcasting', 'weaponMastery']);
+  });
+
+  it('liest denselben Zauber-Zugang an Klassenmerkmal, Speziesmerkmal und Talent', () => {
+    const decl = {
+      name: 'Cantrip',
+      grantsChoice: featureChoiceGrantSchema.parse({
+        kind: 'spellAccess',
+        spellLists: ['wizard'],
+        spellAbilities: ['Intelligence'],
+        spellPicks: [{ level: 0, count: 1 }],
+      }),
+    };
+    const grants = (['class', 'species', 'feat'] as const).map(
+      (src) => spellAccessGrantOf(tagged(src, [decl])[0]),
+    );
+    for (const g of grants) {
+      expect(g?.lists).toEqual(['wizard']);
+      expect(g?.abilities).toEqual(['Intelligence']);
+      expect(g?.picks).toEqual([{ level: 0, count: 1 }]);
+    }
   });
 });

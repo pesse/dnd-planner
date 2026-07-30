@@ -132,7 +132,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   cleric/druid the known pool *is* the class list and is deliberately not written to the file.
   A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
   carrying only count/level/class list — **never spell names**.
-- **A class feature whose only content is a choice declares it**, via `grantsChoice`
+- **A feature whose only content is a choice declares it**, via `grantsChoice`
   (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
   `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
   it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
@@ -140,6 +140,24 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   yet. `optionList` carries the consequence **next to each option** (`options[].grants`), which
   is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
   A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
+- **The declaration triple is identical at class feature, trait and feat** — one spread,
+  `featureDeclarationFields` (`schemas/shared.ts`), so a fourth field reaches all three
+  carriers by itself. Consequently **the origin of a feature decides exactly one thing**: which
+  sheet field its note line goes into (`forClassFeaturesField`, `services/declaredFeature.ts`).
+  `source` lives on `DeclaredFeature`, never in a vault schema — a trait does not know it is a
+  trait, the flow does. Both flows carry ONE tagged list (`FeaturePrep.declared`,
+  `declaredSources`) and filter it by declaration kind, never by origin.
+- **A spell level table is read at a different level depending on the carrier**: class feature →
+  CLASS level, trait/feat → CHARACTER level (the elf lineage table 1/3/5 hangs on it). In a
+  multiclass those differ, which is why `declaredSpellGrants` is called twice
+  (`declaredSpells` vs `charLevelSpells`) instead of over one merged list.
+- **At a FEATURE, `grants.proficiencies` is the only proficiency sink.** `proficiencyGrant`
+  survives only at the class head and the background — those are not features.
+  `foldLegacyProficiencyGrant` lifts the old field and **must run on every read path**
+  (`schemaValidation`, `speciesLibrary`, `featsLibrary`, both Open5e mappers): the schemas are
+  not `strict`, so a forgotten path loses the proficiency without a parse error.
+  `skills.choose` IS used there (elf, human, `skilled`) — but by `collectGrants`, which asks
+  the question, while `withGrant`/`proficiencyGrantChanges` only apply `skills.fixed`.
 - **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
   filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
   `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from

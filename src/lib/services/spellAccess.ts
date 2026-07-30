@@ -13,21 +13,17 @@
  * ist allein die Herkunft. Deutsch kommt aus vorhandenen Tabellen (`CLASS_NAME_DE_BY_SLUG`,
  * `CASTER_ABILITY_DE`), nicht aus einem Übersetzungs-Call.
  */
-import type { AbilityName, FeatureChoiceGrant } from '$lib/schemas/shared';
+import type { AbilityName } from '$lib/schemas/shared';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
 import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
 import { declaredChoice } from './declaredChoice';
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
+import type { DeclaredChoiceSource } from './featureDeclaration';
 
-/** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN (Talent oder Klassenmerkmal). */
-export interface SpellAccessSource {
-  key?: string;
-  name: string;
-  nameDe?: string;
-  grantsChoice?: FeatureChoiceGrant;
-}
+/** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN — formgleich, daher ein Alias. */
+export type SpellAccessSource = DeclaredChoiceSource;
 
 /** Der aufgelöste Zugang: Listen/Attribute schon auf die zulässigen Werte eingeschränkt. */
 export interface SpellAccessGrant {

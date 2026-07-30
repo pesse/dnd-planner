@@ -31,13 +31,8 @@ import {
 } from '../../schemas/levelUp';
 import { SHEET_NOTE_CONTENT, SHEET_NOTE_EXAMPLE_EN } from './fieldSummaryAction';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
-import {
-  ARMOR_TRAININGS,
-  SKILL_NAMES,
-  WEAPON_CATEGORIES,
-  type FeatureChoiceGrant,
-  type FeatureGrant,
-} from '../../schemas/shared';
+import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
+import type { DeclaredFeature } from '../declaredFeature';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';
 import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
@@ -51,29 +46,15 @@ import { stripJsonFence } from '../jsonFence';
  *
  * Die deutschen Felder gehen NICHT an die Deutungs-Calls (siehe
  * `buildFeatureEffectsInput`) — sie sind die Quelle der beiden Übersetzungs-Calls.
+ *
+ * Erbt `DeclaredFeature`: damit speist eine `GainedFeature[]` die Deklarations-Strecke ohne
+ * Projektion. Die Deklarationen reisen mit, gehen aber nicht ans Modell.
  */
-export interface GainedFeature {
-  name: string; // Englischer Name — der Anker, den die Rider wörtlich zurückgeben
-  nameDe?: string; // Deutscher Anzeigename (Übersetzer-Glossar)
+export interface GainedFeature extends DeclaredFeature {
   desc: string; // Original-Regeltext (EN) — maßgeblich für die Mechanik
   descDe?: string; // Übersetzung — Quelle der wörtlich zitierten deutschen Optionslabels
-  source: 'class' | 'subclass' | 'feat' | 'species';
   gainedAt: number;
-  key?: string; // Open5e-v2-Schlüssel des Merkmals (Provenienz im LevelUp-Dokument)
   choice?: string; // Bereits getroffene Entscheidung (EN) — verhindert, dass sie erneut gefragt wird
-  /**
-   * Deklarierte Mechanik aus der Bibliothek (`featureGrantSchema`). Reist mit, weil dieser Typ
-   * der Transport neu gewonnener Merkmale durch beide Flows ist — sie geht NICHT an das Modell
-   * (`buildFeatureEffectsInput` projiziert nur die Prosa-Felder).
-   */
-  grants?: FeatureGrant;
-  /**
-   * Deklarierte Wahl aus der Bibliothek (`featureChoiceGrantSchema`) — reist mit und geht
-   * ebenso NICHT an das Modell. Ohne dieses Feld verlöre ein nach der Subklassen-Wahl
-   * NACHGELADENES Merkmal (`computeSubclassFeatures` projiziert auf diesen Typ) seine
-   * Deklaration und würde doppelt gefragt: einmal deterministisch, einmal von der KI.
-   */
-  grantsChoice?: FeatureChoiceGrant;
 }
 
 /**

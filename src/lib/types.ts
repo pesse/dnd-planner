@@ -280,7 +280,6 @@ export const FEAT_TEMPLATE: Feat = {
   category: 'General',
   prerequisite: '',
   desc: '',
-  proficiencyGrant: emptyProficiencyGrant(),
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
 };
 

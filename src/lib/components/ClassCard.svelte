@@ -15,6 +15,7 @@
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateClassCache } from '$lib/classLibrary';
   import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
+  import DeclarationBadge from './DeclarationBadge.svelte';
 
   function parseClass(json: string): ClassProgression | null {
     try {
@@ -127,7 +128,7 @@
             {#if draft!.hitDie} · Trefferwürfel W{draft!.hitDie}{/if}
           </div>
           {#if coverage.total}
-            <div class="declaration {declBadge.tone}" title={declBadge.title}>{declBadge.text}</div>
+            <DeclarationBadge badge={declBadge} />
           {/if}
         </div>
 
@@ -231,20 +232,6 @@
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--copper) 70%, var(--ink)); margin-top: 0.2rem; }
 
-  /* Deklarations-Abdeckung: Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
-  .declaration {
-    display: inline-block; margin-top: 0.35rem;
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
-    border-radius: 3px; padding: 0.05rem 0.4rem;
-  }
-  .declaration.open {
-    color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
-    background: color-mix(in srgb, var(--gold) 12%, var(--bg));
-  }
-  .declaration.done {
-    color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--bg));
-    background: var(--bg);
-  }
 
   .core-traits {
     padding: 0.6rem 1.2rem 0; display: flex; flex-direction: column; gap: 0.2rem;

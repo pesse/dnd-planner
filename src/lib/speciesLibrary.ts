@@ -5,7 +5,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { FeatureRef } from './classLibrary';
-import { speciesSchema, type Species } from './schemas/species';
+import { speciesSchema, migrateSpeciesLegacy, type Species } from './schemas/species';
 
 export const SPECIES_PATH = './vault/species';
 
@@ -95,7 +95,7 @@ export async function getSpeciesByKey(key: string): Promise<Species | null> {
     const info = (await getSpeciesList()).find((s) => s.key === key);
     if (!info) return null;
     const data = JSON.parse(await invoke<string>('read_file_content', { path: info.path }));
-    const r = speciesSchema.safeParse(data);
+    const r = speciesSchema.safeParse(migrateSpeciesLegacy(data));
     return r.success ? r.data : null;
   } catch {
     return null;

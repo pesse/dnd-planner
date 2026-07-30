@@ -21,7 +21,7 @@ import type {
   SkillName,
   WeaponCategory,
 } from '$lib/schemas/shared';
-import { readAbilityName } from '$lib/schemas/shared';
+import { isEmptyProficiencyGrant, readAbilityName } from '$lib/schemas/shared';
 import { SKILL_DEFS } from '$lib/pdf/characterFields';
 import type { ProficiencyFlags } from '$lib/schemas/character';
 import type { Change } from '$lib/schemas/levelUp';
@@ -63,13 +63,7 @@ export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as Ski
 export const abilityLabelDe = (en: string): string => ABILITY_LABEL_DE[en as AbilityName] ?? en;
 
 /** true, wenn ein Grant überhaupt etwas gewährt (steuert leere UI-Abschnitte). */
-export function isEmptyGrant(g: ProficiencyGrant | undefined): boolean {
-  if (!g) return true;
-  return (
-    !g.skills.fixed.length && !g.skills.choose &&
-    !g.savingThrows.length && !g.weapons.length && !g.weaponsOther.length && !g.armor.length
-  );
-}
+export const isEmptyGrant = isEmptyProficiencyGrant;
 
 /** Kurze deutsche Zusammenfassung eines Fertigkeits-Grants („2 aus 6", „Athletik, Einschüchtern"). */
 export function skillGrantSummary(g: SkillGrant | undefined): string {
@@ -256,7 +250,7 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
       if (bg.featKey) {
         const originFeat = findFeat(featLib, bg.featKey, '');
         if (originFeat)
-          addGrant(out, originFeat.proficiencyGrant, {
+          addGrant(out, originFeat.grants?.proficiencies, {
             label: `Herkunftstalent: ${featDisplayName(originFeat)}`,
             sourceKey: bg.featKey,
           });
@@ -274,14 +268,16 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
     else addSkillGrant(out, prog.skillGrantMulticlass, source);
   }
 
-  // ── Spezies + Unterspezies: der Grant hängt am einzelnen Merkmal ──
+  // ── Spezies + Unterspezies: der Grant hängt am einzelnen MERKMAL, und dort ist
+  //    `grants.proficiencies` die einzige Übungs-Senke (am Klassenkopf/Hintergrund
+  //    bleibt `proficiencyGrant` — die sind keine Merkmale). ──
   for (const key of [c.species?.sourceKey, c.species?.subspeciesKey]) {
     if (!key) continue;
     const spec = await getSpeciesByKey(key);
     if (!spec) continue;
     const specName = spec.nameDe || spec.name || key;
     for (const trait of spec.traits)
-      addGrant(out, trait.proficiencyGrant, {
+      addGrant(out, trait.grants?.proficiencies, {
         label: `${specName}: ${trait.nameDe || trait.name}`,
         sourceKey: trait.key || key,
       });
@@ -293,7 +289,7 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
   for (const ref of c.features ?? []) {
     const entry = findFeat(featLib, ref.sourceKey, ref.name ?? '');
     if (!entry) continue;
-    addGrant(out, entry.proficiencyGrant, {
+    addGrant(out, entry.grants?.proficiencies, {
       label: `Talent: ${featDisplayName(entry)}`,
       sourceKey: entry.sourceKey ?? '',
     });

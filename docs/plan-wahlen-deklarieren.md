@@ -201,6 +201,29 @@ Sechs Dinge sahen im Code anders aus als im Entwurf:
    `grantsChoice` nicht. Heute betrifft das nichts (beide redigierten Merkmale sind
    Grundklassen-Merkmale der Stufe 1), aber eine Subklasse mit `optionList` würde ihre Wahl
    verlieren. Fällig, sobald eine redigiert wird.
+7. **Eine Übungs-Senke am Merkmal, und `skills.choose` steht darin.** `trait.proficiencyGrant`
+   und `feat.proficiencyGrant` sind nach `grants.proficiencies` gewandert (am Klassenkopf und
+   Hintergrund bleiben sie — keine Merkmale). Der Satz aus Abschnitt 1, `skills.choose` sei
+   „eine Wahl, kein Grant", war als Feldregel falsch: alle drei Vault-Fälle (Elf, Mensch,
+   Skilled) sind offene Wahlen. Richtig ist die Senken-Trennung — `collectGrants` fragt die
+   offene Wahl, `withGrant`/`proficiencyGrantChanges` wenden nur `skills.fixed` an.
+8. **`grantsSpells` je Option hat keine lesbare Senke.** Abschnitt 1 wollte
+   `grantsSpells: spellGrantSchema` an `choiceOptionSchema`. Nicht möglich: `spellGrantSchema`
+   ist ein Diskriminator (`kind: 'levelTable'`), die Zaubernamen stehen in der Tabelle im
+   `desc`. Eine Option hat kein eigenes `desc`, ein Options-`levelTable` würde alle Zweige
+   parsen und jedem Zweig die Zauber der anderen geben. Wenn ein Zweig je Zauber gewährt, wäre
+   die Form `options[].spells: string[]` → `rider.grantedSpells`. **Nicht erneut vorschlagen.**
+   Am TRÄGER ist `grantsSpells` dagegen jetzt überall (Klassenmerkmal, Trait, Talent) — mit
+   Senke in beiden Flows.
+9. **Welche `kind`s ein Träger deklarieren darf, entscheidet die SENKE, nicht die Herkunft.**
+   Der Editor führte kurz eine Hand-Liste je Artefakt („Klassenmerkmal kann alles, Trait und
+   Talent zwei Formen") — genau die Asymmetrie, die die eine Deklaration löscht. Sie hatte
+   `spellAccess` ganz verloren, obwohl ausgerechnet ein **Talent** der einzige Vault-Eintrag
+   damit ist. Richtig ist `CLASS_TABLE_CHOICE_KINDS` (`schemas/shared.ts`): drei `kind`s lesen
+   ihr Kontingent aus der Klassen-Stufentabelle und sind an Trait/Talent nicht auflösbar, alle
+   übrigen gelten überall. Dafür musste die `spellAccess`-Senke von „nur Talent" auf die eine
+   getaggte Liste beider Flows wachsen (`prep.declared`, `baseDeclared`/`featDeclared`) — der
+   Hochelf-Zaubertrick ist mechanisch dasselbe wie „Eingeweihter der Magie".
 
 ## Stufe 0 — `levelUpEffectsAction` ersatzlos streichen ✅
 

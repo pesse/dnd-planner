@@ -32,7 +32,13 @@ import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { choiceLabelsDe } from '../aiActions/featureEffectsAction';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
-import { validateRiderSpells, riderGrantChanges } from '../levelUpMachine';
+import {
+  declaredSpellChanges,
+  resolveDeclaredSpells,
+  riderGrantChanges,
+  validateRiderSpells,
+} from '../levelUpMachine';
+import { isSpellGrantFeature } from '../grantedSpells';
 import {
   buildSpellSelection,
   CASTER_ABILITY_DE,
@@ -44,6 +50,7 @@ import {
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellAccess';
 import { declaredGrantChanges, optionListNoteLines } from '../featureDeclaration';
+import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
@@ -180,7 +187,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
       ...riderGrantChanges(riders, { step: 'wizard-features', source: 'class-feature' }),
       // Was die Deklaration gewährt, der Rider aber nicht tragen kann (eingeschränkte
       // Waffen-Übungen) — im Aufstieg macht das `buildDoc` an derselben Stelle.
-      ...declaredGrantChanges(w.grantFeatures, { step: 'wizard-features', source: 'class-feature' }),
+      ...declaredGrantChanges(w.declared, { step: 'wizard-features', source: 'class-feature' }),
     ],
     { classIndex: 0 },
   );
@@ -234,7 +241,10 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     .flatMap(([, picks]) => picks);
   const hasPicks =
     w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
-  if (hasPicks || riders.length) {
+  // Merkmale mit deklarierter Zauberliste (Abstammung, Talent). Vorgefiltert, damit ein
+  // Nicht-Zauberwirker ohne solche Deklaration die Bibliothek nicht lädt.
+  const spellGrantFeatures = w.declared.filter(isSpellGrantFeature);
+  if (hasPicks || riders.length || spellGrantFeatures.length) {
     // Zauber per Key an die Bibliothek binden (wie inventory[].sourceKey); Namens-Fallback
     // bleibt, wenn kein eindeutiger Key auflöst. Index einmal für beide Zweige.
     const spellLib = await getSpellLibrary();
@@ -281,6 +291,16 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
         c.spells.byLevel[lvl] = arr;
       }
     }
+
+    // Deklarierte Zauberlisten auf Charakterstufe 1 — über dieselbe Senke wie der Aufstieg
+    // (`declaredSpellChanges` → `applyChanges`) statt einer dritten Hand-Anwendung. ZULETZT,
+    // weil die eigene Wahl die Vorbereitungs-Markierung festlegt; der Applier dedupliziert.
+    if (spellGrantFeatures.length) {
+      applyChanges(c, declaredSpellChanges(resolveDeclaredSpells(spellGrantFeatures, 1, spellLib, w.klass.name)), {
+        classIndex: 0,
+        resolveSpellKey: (name) => linkRef(name).sourceKey,
+      });
+    }
   }
 
   // ── Waffenmeisterschaft (deterministisch, im Wizard gewählt) ──
@@ -306,7 +326,8 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
     w.spellAccess,
     Object.fromEntries(w.declaredAnswers.map((a) => [a.id, a.choice])),
   );
-  const branchNotes = optionListNoteLines(w.optionListFeatures, declaredAnswerOf);
+  // `forClassFeaturesField` ist die EINZIGE Stelle, an der die Herkunft entscheidet.
+  const branchNotes = optionListNoteLines(w.declared.filter(forClassFeaturesField), declaredAnswerOf);
   c.classFeatures = [w.classText.result?.text?.trim() ?? '', ...branchNotes, ...accessNotes]
     .filter(Boolean)
     .join('\n');

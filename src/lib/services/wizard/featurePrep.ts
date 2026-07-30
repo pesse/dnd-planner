@@ -20,14 +20,9 @@ import type { AnalysisChoice } from '../aiActions/featureEffectsAction';
 import type { FeatureClassContext, GainedFeature } from '../aiActions/featureEffectsAction';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { PerLevelFeature } from '../perLevelEffects';
-import {
-  isDeclaredChoiceFeature,
-  isExpertiseFeature,
-  isOptionListFeature,
-  withoutDeclaredChoiceFeatures,
-  type DeclaredChoiceSource,
-  type DeclaredGrantSource,
-} from '../featureDeclaration';
+import { withoutDeclaredChoiceFeatures } from '../featureDeclaration';
+import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
+import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
 
 /** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
@@ -66,27 +61,12 @@ export interface FeaturePrep {
   /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe) — deterministisch. */
   effectFeatures: PerLevelFeature[];
   /**
-   * KLASSEN-/Subklassenmerkmale mit deklarierter Zweigwahl (Urtümlicher/Göttlicher Orden).
-   * Sie stehen NICHT in `gained` (`isFlowOwnedChoiceFeature` filtert sie), also braucht der
-   * Wizard sie hier, um Wahl, Rider UND die Bogen-Zeile daraus zu bauen
-   * (`optionListNoteLines` → Klassenmerkmale-Feld).
+   * ALLE Stufe-1-Merkmale mit Herkunft — die eine Quelle jeder Deklarationsauswertung
+   * (Wahlen, Grants, Zauberlisten). Bewusst UNGEFILTERT: ein Merkmal, das wegen seiner Wahl
+   * aus dem KI-Eingang fällt, gewährt sein `grants` trotzdem. Gefiltert wird an der
+   * Aufrufstelle, nach Deklarationsart — nicht nach Herkunft.
    */
-  optionListFeatures: ClassFeature[];
-  /** Klassenmerkmale mit deklarierter Expertise-Wahl (Schurke Stufe 1) — Optionen zur Laufzeit. */
-  expertiseFeatures: ClassFeature[];
-  /**
-   * SPEZIESmerkmale mit deklarierter Wahl (`optionList` oder `expertise`). Getrennt von den
-   * Klassenlisten, weil nur diese über die Feld-Zuständigkeit entscheidet: eine Zeile im
-   * Klassenmerkmale-Feld gehört einem Klassenmerkmal, ein Trait steht im Volksmerkmale-Text.
-   */
-  speciesChoiceFeatures: DeclaredChoiceSource[];
-  /**
-   * Alle Merkmale, die eine unbedingte Mechanik deklarieren KÖNNEN — Klasse, Subklasse,
-   * Spezies, Herkunftstalent, englisch benannt (`withDeclaredGrants` matcht gegen den
-   * Rider-Namen). Bewusst UNGEFILTERT: ein Merkmal, das wegen seiner Wahl aus dem KI-Eingang
-   * fällt, gewährt sein `grants` trotzdem.
-   */
-  grantFeatures: DeclaredGrantSource[];
+  declared: DeclaredFeature[];
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
@@ -125,14 +105,11 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     p
       ? featuresUpTo(p, 1)
           .filter((f) => !isFlowOwnedChoiceFeature(f))
-          .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key, grants: f.grants, grantsChoice: f.grantsChoice }))
+          .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key, grants: f.grants, grantsChoice: f.grantsChoice, grantsSpells: f.grantsSpells }))
       : [];
 
   const gained: GainedFeature[] = [...level1(prog, 'class'), ...level1(sub, 'subclass')];
-  const level1Features = [prog, sub].flatMap((p) => (p ? featuresUpTo(p, 1) : []));
-  const optionListFeatures = level1Features.filter(isOptionListFeature);
-  const expertiseFeatures = level1Features.filter(isExpertiseFeature);
-  const spellAccess: SpellAccessGrant[] = [];
+  const traits = spec?.traits ?? [];
 
   // Herkunftstalent als eigenes Merkmal (steht nicht in features[], kommt aus dem Hintergrund).
   if (bg?.featKey) {
@@ -149,18 +126,34 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
         key: bg.featKey,
         choice: specialisation || undefined,
         grants: feat.grants,
+        // Ohne die beiden wäre die Deklaration des Herkunftstalents unsichtbar — es ist das
+        // einzige Merkmal, das nur über `gained` in die Liste kommt.
+        grantsChoice: feat.grantsChoice,
+        grantsSpells: feat.grantsSpells,
       });
-      const access = spellAccessGrantOf(
-        { key: bg.featKey, name: feat.name || featDisplayName(feat), nameDe: featDisplayName(feat), grantsChoice: feat.grantsChoice },
-        specialisation,
-      );
-      if (access) spellAccess.push(access);
     }
   }
 
+  // Die eine Liste. Klasse und Subklasse getrennt getaggt (`gained` flacht sie zusammen) und
+  // aus der ROHEN Progression, weil `gained` um die flow-eigenen Wahlen beschnitten ist; das
+  // Herkunftstalent steckt umgekehrt nur in `gained`.
+  const declared: DeclaredFeature[] = [
+    ...declaredFeatures('class', prog ? featuresUpTo(prog, 1) : []),
+    ...declaredFeatures('subclass', sub ? featuresUpTo(sub, 1) : []),
+    ...declaredFeatures('species', traits),
+    ...declaredFeatures('feat', gained.filter((f) => f.source === 'feat')),
+  ];
+
+  // Aus DERSELBEN Liste wie jede andere Deklaration — der Hochelf gewährt einen Zaubertrick
+  // aus der Magier-Liste, das ist mechanisch dasselbe wie beim Talent. Die Spezialisierung
+  // („Magic Initiate (Wizard)") kennt nur der Hintergrund, sie gilt also allein seinem Talent.
+  const spellAccess: SpellAccessGrant[] = declared
+    .map((f) => spellAccessGrantOf(f, bg?.featKey && f.key === bg.featKey ? featSpecialisation(bg) : ''))
+    .filter((g): g is SpellAccessGrant => g !== null);
+
   // Was der Flow selbst abfragt, sieht die KI nicht: sonst erfindet sie eine zweite,
   // konkurrierende Wahl (und beim Zauber-Kontingent eine falsche Anzahl).
-  const analysisGained = withoutSpellAccessFeatures(gained, spellAccess);
+  const analysisGained = withoutSpellGrantFeatures(withoutSpellAccessFeatures(gained, spellAccess));
 
   const toSummary = (g: GainedFeature): SummaryFeature => ({
     name: g.name,
@@ -171,8 +164,6 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     gainedAt: g.gainedAt,
     choice: g.choice,
   });
-
-  const traits = spec?.traits ?? [];
 
   // Speziesmerkmale als Analyse-Eingang: nur so erkennt die KI erzwungene Volks-Wahlen
   // (Drakonische Urahnen, Elfenlinie …).
@@ -186,15 +177,16 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     key: t.key,
     grants: t.grants,
     grantsChoice: t.grantsChoice,
+    grantsSpells: t.grantsSpells,
   }));
   // Größe und Bewegungsrate haben ein eigenes Bogenfeld: ein Rider dazu ist leeres Gerüst.
   const sheetValueKeys = new Set(traits.filter(isSheetValueTrait).map((t) => t.key));
   // Zusätzlich raus: Traits mit deklarierter Wahl — sonst fragt der Flow deterministisch UND
   // die KI erfindet dieselbe Wahl ein zweites Mal.
-  const analysisSpeciesFeatures = withoutDeclaredChoiceFeatures(
-    speciesFeatures.filter((f) => !sheetValueKeys.has(f.key ?? '')),
+  // Ebenso raus: Traits mit deklarierter Zauberliste — die liest `resolveDeclaredSpells`.
+  const analysisSpeciesFeatures = withoutSpellGrantFeatures(
+    withoutDeclaredChoiceFeatures(speciesFeatures.filter((f) => !sheetValueKeys.has(f.key ?? ''))),
   );
-  const speciesChoiceFeatures = traits.filter(isDeclaredChoiceFeature);
 
   const summaryClass = gained.map(toSummary);
   const summarySpecies: SummaryFeature[] = speciesFeatures.map((f) => ({
@@ -211,14 +203,6 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     name: f.nameDe || f.name,
     grants: f.grants,
   }));
-
-  // Quelle der unbedingten Deklarationen. `level1Features` statt `gained`, weil letzteres um
-  // die flow-eigenen Wahlen beschnitten ist; das Herkunftstalent steckt nur in `gained`.
-  const grantFeatures: DeclaredGrantSource[] = [
-    ...level1Features,
-    ...traits,
-    ...gained.filter((f) => f.source === 'feat'),
-  ];
 
   const slug = klass.sourceKey.split('_').pop() ?? '';
   const classContext: FeatureClassContext = {
@@ -238,10 +222,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     speciesFeatures,
     analysisSpeciesFeatures,
     effectFeatures,
-    optionListFeatures,
-    expertiseFeatures,
-    speciesChoiceFeatures,
-    grantFeatures,
+    declared,
     summaryClass,
     summarySpecies,
     classContext,

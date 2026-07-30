@@ -300,14 +300,27 @@ export const emptyPerLevelGrant = (): PerLevelGrant => ({ hpMax: 0 });
 export const featureGrantSchema = z.object({
   /**
    * Übungen in derselben Form wie an Klasse/Hintergrund/Spezies/Talent — genau darum ist die
-   * Summierung über alle Quellen EINE Funktion (services/proficiencyGrants.ts). `skills.choose`
-   * bleibt hier ungenutzt: eine offene Fertigkeits-Wahl ist eine Wahl, kein Grant.
+   * Summierung über alle Quellen EINE Funktion (services/proficiencyGrants.ts).
+   *
+   * `skills.choose` ist erlaubt und wird benutzt (Elf „Keen Senses", Talent „Skilled"), aber
+   * von einer ANDEREN Senke: `collectGrants` stellt die Frage im Fertigkeitsschritt, während
+   * `withGrant`/`proficiencyGrantChanges` nur `skills.fixed` anwenden. Die beiden Wege sind
+   * disjunkt — eine offene Wahl wird gefragt, ein fester Grant gesetzt.
    */
   proficiencies: proficiencyGrantSchema.default(emptyProficiencyGrant),
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
 });
+
+/** true, wenn der Grant nichts gewährt. */
+export function isEmptyProficiencyGrant(g: ProficiencyGrant | undefined): boolean {
+  if (!g) return true;
+  return (
+    !g.skills.fixed.length && !g.skills.choose &&
+    !g.savingThrows.length && !g.weapons.length && !g.weaponsOther.length && !g.armor.length
+  );
+}
 
 export type PerLevelGrant = z.infer<typeof perLevelGrantSchema>;
 export type FeatureGrant = z.infer<typeof featureGrantSchema>;
@@ -352,6 +365,20 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  */
 export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
+
+/**
+ * Die `kind`s, deren Kontingent aus der KLASSEN-Stufentabelle kommt (`masteryAllowanceFor`,
+ * `fightingStyleOffer`, `spellcastingOffer`) — an einem Trait oder Talent nicht auflösbar.
+ * Die übrigen tragen ihr Kontingent in der Deklaration selbst und gelten an jedem Träger.
+ *
+ * Also entscheidet die SENKE, wer was deklarieren darf, nicht die Herkunft: `spellAccess`
+ * ist der Beweisfall — sein einziger Vault-Eintrag ist ein Talent.
+ */
+export const CLASS_TABLE_CHOICE_KINDS: readonly FeatureChoiceKind[] = [
+  'weaponMastery',
+  'featCategory',
+  'spellcasting',
+];
 
 /** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
 export const spellPickGrantSchema = z.object({
@@ -413,6 +440,47 @@ export const featureChoiceGrantSchema = z.object({
     .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
 });
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
+
+/**
+ * Die DREI Deklarationen — identisch an `classFeatureSchema`, `traitSchema` und `featSchema`.
+ *
+ * Als Feldgruppe statt dreimal einzeln, damit Symmetrie strukturell ist: ein viertes Feld
+ * erreicht alle drei Träger von selbst. Die Herkunft eines Merkmals entscheidet damit nur
+ * noch über seine Bogen-Zeile, nicht über seine Mechanik (services/declaredFeature.ts).
+ *
+ * Alle drei OPTIONAL OHNE DEFAULT: fehlt das Feld, ist das Merkmal nicht redigiert und läuft
+ * weiter über die KI-Kette; `{}` heißt „geprüft, gewährt nichts".
+ */
+export const featureDeclarationFields = {
+  grants: featureGrantSchema.optional().describe('Deterministisch anwendbare Mechanik des Merkmals.'),
+  grantsChoice: featureChoiceGrantSchema.optional().describe('Mechanik-gebundene Wahl, die das Merkmal gewährt.'),
+  grantsSpells: spellGrantSchema
+    .optional()
+    .describe('Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im desc.'),
+} as const;
+
+/**
+ * Altformat: die Übungs-Senke stand als `proficiencyGrant` NEBEN der Deklaration; jetzt darin
+ * (`grants.proficiencies`). Betrifft Speziesmerkmale und Talente — am Klassenkopf und am
+ * Hintergrund bleibt `proficiencyGrant`, dort ist es kein Merkmal.
+ *
+ * Das Altfeld wird GELÖSCHT, damit keine zweite Wahrheit zurückbleibt; eine vorhandene
+ * Deklaration gewinnt. Muss auf JEDEM Lesepfad laufen: `traitSchema`/`featSchema` sind nicht
+ * `strict`, ein vergessener Pfad verliert die Übung also stumm statt mit Parse-Fehler.
+ */
+export function foldLegacyProficiencyGrant(obj: Record<string, unknown>): Record<string, unknown> {
+  const legacy = obj.proficiencyGrant;
+  delete obj.proficiencyGrant;
+  const parsed = proficiencyGrantSchema.safeParse(legacy);
+  if (!parsed.success || isEmptyProficiencyGrant(parsed.data)) return obj;
+
+  const grants = (obj.grants ?? {}) as Record<string, unknown>;
+  if (isEmptyProficiencyGrant(proficiencyGrantSchema.safeParse(grants.proficiencies).data)) {
+    grants.proficiencies = parsed.data;
+    obj.grants = grants;
+  }
+  return obj;
+}
 
 /**
  * Lookup-Schlüssel eines Regelbegriffs: kleingeschrieben, OHNE jedes Leerzeichen.

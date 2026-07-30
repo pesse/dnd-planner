@@ -19,7 +19,7 @@ import { getProgressionByKey } from './classProgression';
 import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
 import { declaredGrantChanges, withoutDeclaredChoiceFeatures, type DeclaredGrantSource } from './featureDeclaration';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { FeatureChoiceGrant, FeatureGrant } from '../schemas/shared';
+import type { FeatureChoiceGrant, FeatureGrant, SpellGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, RiderProficiencies, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
@@ -234,6 +234,7 @@ export function featToGainedFeature(
     key?: string;
     grants?: FeatureGrant;
     grantsChoice?: FeatureChoiceGrant;
+    grantsSpells?: SpellGrant;
   },
   gainedAt: number,
 ): GainedFeature {
@@ -246,6 +247,7 @@ export function featToGainedFeature(
     gainedAt,
     grants: f.grants,
     grantsChoice: f.grantsChoice,
+    grantsSpells: f.grantsSpells,
     ...(f.key ? { key: f.key } : {}),
   };
 }
@@ -321,8 +323,7 @@ export function resolveDeclaredSpells(
  * KI-Schritt. Das ist der zweite Gewinn neben der Zuverlässigkeit: ohne QM-Modell (Analyse
  * übersprungen) bekam der Charakter seine Domänen-/Kreiszauber vorher überhaupt nicht.
  */
-export function declaredSpellChanges(g: DeclaredSpells): Change[] {
-  const step: StepId = 'subclass-delta';
+export function declaredSpellChanges(g: DeclaredSpells, step: StepId = 'subclass-delta'): Change[] {
   return [
     ...g.cantrips.map((name): Change => ({
       target: 'cantrip', name, step, source: 'class-feature', label: `Zaubertrick: ${name}`,
@@ -869,6 +870,12 @@ export interface DocInput {
   subFeatures: GainedFeature[];            // NUR die Subklassen-Merkmale (für Info-Einträge)
   /** Deterministisch gelesene, immer-vorbereitete Zauberlisten (Kreissprüche, Domäne …). */
   declaredSpells: DeclaredSpells;
+  /**
+   * Zauber der Merkmale, deren Stufentabelle an der CHARAKTERstufe hängt (Spezies, Talente) —
+   * getrennt von `declaredSpells`, weil dort die KLASSENstufe gilt. Im Mehrklassen-Fall sind
+   * das verschiedene Zahlen.
+   */
+  charLevelSpells: DeclaredSpells;
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
@@ -911,6 +918,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...baseDeltaChanges(p.delta, p.hitDice),
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
     ...declaredSpellChanges(p.declaredSpells),
+    ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),

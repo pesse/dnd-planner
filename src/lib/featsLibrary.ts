@@ -12,12 +12,13 @@ import {
   FEAT_CATEGORIES,
   featureChoiceGrantSchema,
   featureGrantSchema,
-  proficiencyGrantSchema,
+  spellGrantSchema,
   type FeatCategory,
   type FeatureChoiceGrant,
   type FeatureGrant,
-  type ProficiencyGrant,
+  type SpellGrant,
 } from './schemas/shared';
+import { migrateFeatLegacy } from './schemas/feat';
 
 export const FEATS_PATH = './vault/feats';
 
@@ -48,13 +49,13 @@ export interface FeatEntry {
   category?: FeatCategory;
   /** Open5e-Key des Talents (identisch zur Charakter-Referenz `sourceKey`). */
   sourceKey?: string;
-  /** Übungen, die das Talent gewährt (siehe schemas/feat.ts); fehlt bei inline erzeugten. */
-  proficiencyGrant?: ProficiencyGrant;
   /**
    * Mechanik-gebundene Wahl des Talents („Eingeweihter der Magie": `kind: "spellAccess"`). Der Flow
    * fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen.
    */
   grantsChoice?: FeatureChoiceGrant;
+  /** Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im `desc`. */
+  grantsSpells?: SpellGrant;
   /**
    * Deterministisch anwendbare Mechanik („Zäh": +2 TP je Stufe). Fehlt = nicht redigiert,
    * `{}` = geprüft und ohne Mechanik (siehe `featureGrantSchema`).
@@ -96,7 +97,9 @@ export async function getFeats(): Promise<FeatEntry[]> {
         const path = `${FEATS_PATH}/${filename}`;
         try {
           const content = await invoke<string>('read_file_content', { path });
-          const data = JSON.parse(content);
+          // Der Fold hebt ein Altformat-`proficiencyGrant` in die Deklaration — dieser Pfad
+          // parst feldweise, das Schema-Gate läuft hier also nicht.
+          const data = migrateFeatLegacy(JSON.parse(content)) as Record<string, any>;
           return {
             name: data.name ?? filename.replace('.json', ''),
             nameDe: data.nameDe,
@@ -109,9 +112,8 @@ export async function getFeats(): Promise<FeatEntry[]> {
               : undefined,
             // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
             sourceKey: data.sourceKey ?? data.key,
-            // Nur bei Bibliotheks-Talenten vorhanden; inline gespeicherte tragen keinen Grant.
-            proficiencyGrant: proficiencyGrantSchema.safeParse(data.proficiencyGrant).data,
             grantsChoice: featureChoiceGrantSchema.safeParse(data.grantsChoice).data,
+            grantsSpells: spellGrantSchema.safeParse(data.grantsSpells).data,
             grants: featureGrantSchema.safeParse(data.grants).data,
             path,
           } as FeatEntry;

@@ -9,7 +9,6 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
-import { emptyProficiencyGrant } from '../src/lib/schemas/shared';
 import type { Trait } from '../src/lib/schemas/species';
 import { isSheetValueTrait, withoutSheetValueTraits } from '../src/lib/services/sheetValueTraits';
 import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
@@ -64,8 +63,9 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
     for (const t of declared) {
       const text = `${t.trait.desc} ${t.trait.descDe ?? ''}`;
       expect(INTERPRETABLE.test(text), `${label(t)}: „${t.trait.desc}"`).toBe(false);
-      // Ein Grant am Merkmal wäre der stille Verlust, den dieser Schnitt verursachen könnte.
-      expect(t.trait.proficiencyGrant, label(t)).toEqual(emptyProficiencyGrant());
+      // Eine Deklaration am Merkmal wäre der stille Verlust, den dieser Schnitt verursachen
+      // könnte — ein reiner Bogenwert gewährt nichts.
+      expect(t.trait.grants, label(t)).toBeUndefined();
     }
   });
 

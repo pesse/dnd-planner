@@ -24,19 +24,30 @@
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { Change, FeatureRider } from '../schemas/levelUp';
 import { declaredChoice } from './declaredChoice';
-import { SKILL_NAMES, type ChoiceOption, type FeatureGrant, type SkillName } from '../schemas/shared';
+import {
+  SKILL_NAMES,
+  type ChoiceOption,
+  type FeatureChoiceGrant,
+  type FeatureGrant,
+  type SkillName,
+} from '../schemas/shared';
 import { proficiencyGrantChanges, skillLabelDe } from './proficiencyGrants';
+import type { FeatureSource } from './declaredFeature';
 
 /** Was der Builder von einem Merkmal braucht — Klassenmerkmal, Trait und Talent erfüllen es. */
 export interface DeclaredChoiceSource {
   key?: string;
   name: string;
   nameDe?: string;
-  grantsChoice?: { kind: string; options?: ChoiceOption[]; count?: number };
+  source?: FeatureSource;
+  grantsChoice?: FeatureChoiceGrant;
 }
 
-export function isOptionListFeature(f: DeclaredChoiceSource): boolean {
-  return f.grantsChoice?.kind === 'optionList' && (f.grantsChoice.options?.length ?? 0) > 0;
+/** Ein Merkmal, dessen Deklaration feststeht — spart die Nicht-Null-Behauptungen dahinter. */
+type Declared = DeclaredChoiceSource & { grantsChoice: FeatureChoiceGrant };
+
+export function isOptionListFeature(f: DeclaredChoiceSource): f is Declared {
+  return f.grantsChoice?.kind === 'optionList' && f.grantsChoice.options.length > 0;
 }
 
 /** Die id der Wahl. Trägt den Merkmals-Key, damit zwei Zweigwahlen nie kollidieren. */
@@ -54,7 +65,7 @@ export const optionChoiceId = (f: DeclaredChoiceSource): string =>
  */
 export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null {
   if (!isOptionListFeature(f)) return null;
-  const options = f.grantsChoice!.options!;
+  const options = f.grantsChoice.options;
   const nameDe = f.nameDe || f.name;
   return {
     ...declaredChoice({ id: optionChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
@@ -71,6 +82,12 @@ export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null
 export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisChoice[] {
   return features.map(optionListChoice).filter((c): c is AnalysisChoice => c !== null);
 }
+
+/**
+ * Ob das Merkmal überhaupt eine Wahl DEKLARIERT — herkunftsfrei, denn jeder `kind` ist per
+ * Definition flow-eigen: die Optionen kommen aus der Bibliothek, nie aus dem Modell.
+ */
+export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => !!f.grantsChoice;
 
 /** Ob der Flow die Wahl dieses Merkmals selbst führt — `optionList` oder `expertise`. */
 export function isDeclaredChoiceFeature(f: DeclaredChoiceSource): boolean {
@@ -96,7 +113,7 @@ export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(fe
 export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOption | null {
   if (!isOptionListFeature(f)) return null;
   const want = answer.trim();
-  return f.grantsChoice!.options!.find((o) => o.value === want) ?? null;
+  return f.grantsChoice.options.find((o) => o.value === want) ?? null;
 }
 
 /**
@@ -122,11 +139,13 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string): Featur
  * kommt aus `optionListNoteLines`, das Protokoll aus `featureChoiceChanges`. Ein Eintrag
  * hier wäre jeweils die zweite Ausfertigung.
  */
-function emptyRider(f: { key?: string; name: string }): FeatureRider {
+function emptyRider(f: { key?: string; name: string; source?: FeatureSource }): FeatureRider {
   return {
     featureName: f.name,
     featureKey: f.key ?? '',
-    source: 'class',
+    // Aus dem Merkmal, nicht pauschal 'class': ein Talent- oder Speziesmerkmals-Rider war
+    // sonst falsch etikettiert (unsichtbar, weil das Feld einen Default hat).
+    source: f.source ?? 'class',
     grantedSpells: [],
     extraCantrips: 0,
     extraPreparedCount: 0,
@@ -158,7 +177,7 @@ export function optionListRiders(
 // keine Charakter-Zusammenfassung mit (Attribute/Slots wären Token-Ballast), das Modell
 // kennt die geübten Fertigkeiten also nicht — es konnte nur eine Auswahlliste erfinden.
 
-export function isExpertiseFeature(f: DeclaredChoiceSource): boolean {
+export function isExpertiseFeature(f: DeclaredChoiceSource): f is Declared {
   return f.grantsChoice?.kind === 'expertise';
 }
 
@@ -182,7 +201,7 @@ export function expertiseChoice(
   const taken = new Set(already);
   const options = proficient.filter((s) => !taken.has(s));
   if (!options.length) return null;
-  const count = Math.max(1, f.grantsChoice!.count ?? 1);
+  const count = Math.max(1, f.grantsChoice.count);
   const nameDe = f.nameDe || f.name;
   return {
     ...declaredChoice({ id: expertiseChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
@@ -289,6 +308,7 @@ export interface DeclaredGrantSource {
   key?: string;
   name: string;
   nameDe?: string;
+  source?: FeatureSource;
   grants?: FeatureGrant;
 }
 

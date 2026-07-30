@@ -4,30 +4,37 @@
   "nameDe": "string",
   "desc": "string",
   "descDe": "string",
-  "proficiencyGrant": {
-    "skills": {
-      "fixed": [
-        "Acrobatics"
+  "sheetValue": "size",
+  "grants": {
+    "proficiencies": {
+      "skills": {
+        "fixed": [
+          "Acrobatics"
+        ],
+        "choose": 0,
+        "from": [
+          "Acrobatics"
+        ]
+      },
+      "savingThrows": [
+        "Strength"
       ],
-      "choose": 0,
-      "from": [
-        "Acrobatics"
+      "weapons": [
+        "Simple"
+      ],
+      "weaponsOther": [
+        "string"
+      ],
+      "armor": [
+        "Light"
       ]
     },
-    "savingThrows": [
-      "Strength"
-    ],
-    "weapons": [
-      "Simple"
-    ],
-    "weaponsOther": [
-      "string"
-    ],
-    "armor": [
-      "Light"
-    ]
+    "extraCantrips": 0,
+    "extraPreparedCount": 0,
+    "perLevel": {
+      "hpMax": 0
+    }
   },
-  "sheetValue": "size",
   "grantsChoice": {
     "kind": "weaponMastery",
     "options": [
@@ -82,34 +89,7 @@
       }
     ]
   },
-  "grants": {
-    "proficiencies": {
-      "skills": {
-        "fixed": [
-          "Acrobatics"
-        ],
-        "choose": 0,
-        "from": [
-          "Acrobatics"
-        ]
-      },
-      "savingThrows": [
-        "Strength"
-      ],
-      "weapons": [
-        "Simple"
-      ],
-      "weaponsOther": [
-        "string"
-      ],
-      "armor": [
-        "Light"
-      ]
-    },
-    "extraCantrips": 0,
-    "extraPreparedCount": 0,
-    "perLevel": {
-      "hpMax": 0
-    }
+  "grantsSpells": {
+    "kind": "levelTable"
   }
 }

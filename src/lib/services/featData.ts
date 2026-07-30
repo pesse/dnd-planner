@@ -6,7 +6,7 @@
  * zusammengefasst. `nameDe`/`descDe`/`prerequisiteDe` bleiben beim Import leer und
  * werden per LLM-Übersetzung nachgefüllt.
  */
-import { featSchema, type Feat } from '$lib/schemas/feat';
+import { featSchema, migrateFeatLegacy, type Feat } from '$lib/schemas/feat';
 import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant, FEAT_CATEGORIES } from '$lib/schemas/shared';
 
 /** Bildet ein rohes v2-Talent auf das offene, zweisprachige Schema ab. */
@@ -32,5 +32,6 @@ export function mapV2Feat(raw: Record<string, unknown>): Feat {
     proficiencyGrant: skills ? { ...emptyProficiencyGrant(), skills } : emptyProficiencyGrant(),
     document: { key: doc.key ?? '', gamesystem: doc.gamesystem?.key ?? '' },
   };
-  return featSchema.parse(mapped);
+  // Wie bei der Spezies: der Mapper schreibt die Altform, der Fold hebt sie in `grants`.
+  return featSchema.parse(migrateFeatLegacy(mapped));
 }

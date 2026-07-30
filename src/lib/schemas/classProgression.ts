@@ -18,9 +18,7 @@ import {
   migrateSourceLegacy,
   proficiencyGrantSchema,
   skillGrantSchema,
-  featureChoiceGrantSchema,
-  featureGrantSchema,
-  spellGrantSchema,
+  featureDeclarationFields,
   emptyProficiencyGrant,
   emptySkillGrant,
   type AbilityName,
@@ -55,28 +53,9 @@ export const classFeatureSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   featureType: z.string().optional(),
-  /**
-   * Deklariert eine mechanik-gebundene Wahl, die dieses Merkmal gewährt (Waffenbeherrschung,
-   * Kampfstil). Vom Vault gepflegt, NICHT aus Open5e importiert (`mapV2` lässt es leer). Ist es
-   * gesetzt, hält der Flow das Merkmal aus der KI-Merkmalsanalyse heraus und bietet die Optionen
-   * stattdessen aus der Bibliothek an (services/weaponMastery.ts, services/fightingStyle.ts).
-   * Siehe `featureChoiceGrantSchema` (shared.ts) für die Erkennungs-Doktrin.
-   */
-  grantsChoice: featureChoiceGrantSchema.optional(),
-  /**
-   * Deklariert, dass dieses Merkmal eine immer-vorbereitete Zauberliste trägt (Kreis-,
-   * Domänen-, Eid-, Patronen-, Drachenzauber) und in welcher Form sie im `desc` steht. Vom
-   * Vault gepflegt, NICHT aus Open5e importiert. Ist es gesetzt, liest `grantedSpells.ts` die
-   * Liste deterministisch und das Merkmal fliegt aus dem KI-Eingang — es wäre sonst eine
-   * Aufzählung, die schon als Daten vorliegt. Siehe `spellGrantSchema` (shared.ts).
-   */
-  grantsSpells: spellGrantSchema.optional(),
-  /**
-   * Deklariert die deterministisch anwendbare Mechanik dieses Merkmals (siehe
-   * `featureGrantSchema`, shared.ts). Vom Vault gepflegt, NICHT aus Open5e importiert.
-   * FEHLT das Feld, ist das Merkmal nicht redigiert; `{}` heißt „geprüft, gewährt nichts".
-   */
-  grants: featureGrantSchema.optional(),
+  // Die drei Deklarationen (shared.ts). Vom Vault gepflegt, NICHT aus Open5e importiert
+  // (`mapV2` lässt sie leer) — ein Re-Import darf sie nicht überschreiben.
+  ...featureDeclarationFields,
 });
 
 export const classProgressionSchema = z.object({

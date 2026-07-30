@@ -19,6 +19,7 @@ import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from '.
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
 import type { FeatureGrant } from '$lib/schemas/shared';
+import { declaredFeatures, type DeclaredFeature } from './declaredFeature';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
 export interface ResolvedFeature {
@@ -371,4 +372,18 @@ export async function resolvePastChoices(c: {
  */
 export function isOrphanChoice(f: ResolvedFeature): boolean {
   return !!f.unresolved && !!f.choice;
+}
+
+/**
+ * Die Speziesmerkmale eines Charakters als Deklarationsquelle.
+ *
+ * Nicht `resolveSpeciesTraits`: das liefert `descDe || desc` fürs Anzeigen, hier braucht es
+ * den ENGLISCHEN Text — die Zauber-Stufentabelle wird daraus gelesen (`grantedSpells.ts`).
+ */
+export async function declaredSpeciesFeatures(
+  species: CharacterSpecies | undefined,
+): Promise<DeclaredFeature[]> {
+  const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
+  const specs = await Promise.all(keys.map((k) => getSpeciesByKey(k)));
+  return specs.flatMap((spec) => (spec ? declaredFeatures('species', spec.traits) : []));
 }
