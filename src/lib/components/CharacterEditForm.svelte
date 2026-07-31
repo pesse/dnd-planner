@@ -20,20 +20,8 @@
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
   import {
-    getFeats, searchFeats, featDisplayName, featDesc, featPrereq, matchFeatEntry,
-    FEAT_CATEGORY_DE, type FeatEntry,
-  } from '../featsLibrary';
-  import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
-  import {
-    resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
-    splitFeatureEntries, keysOf, withChoices, type ResolvedFeatureGroup,
+    resolveCharacterFeatures, type ResolvedFeatureGroup,
   } from '../services/characterFeatures';
-  import {
-    buildCharacterChoices, choiceGrantChanges, choiceHint, collectChoiceSlots, openChoiceBadge,
-    sheetSkillProficiencies, withChoiceAnswer, type CharacterChoice, type ChoiceSlot,
-  } from '../services/characterChoices';
-  import { changesWouldAlter, type ApplyContext } from '../services/applyChanges';
-  import type { Change } from '../schemas/levelUp';
   import { llmConfig } from '../stores/llm';
   import { runAiAction } from '../services/aiActions/runner';
   import {
@@ -45,18 +33,17 @@
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import SpellTooltip from './SpellTooltip.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
-  import FeatTooltip from './FeatTooltip.svelte';
-  import CreateCardModal from './CreateCardModal.svelte';
-  import Markdown from './Markdown.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
-  import FeatureChoicePicker from './FeatureChoicePicker.svelte';
-  import DeclarationBadge from './DeclarationBadge.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
   // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
   // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
-  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade, onApplyChanges }: {
+  //
+  // `character.features` gehört NICHT dazu: das Merkmals-Ledger besitzt die
+  // Merkmals-Seitenleiste (`CharacterFeaturePanel`). Genau ein Schreiber — sonst
+  // überschriebe der nächste Tastendruck hier jede Leisten-Änderung.
+  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
     character: Character;
     dirPath: string;
     saved?: Character | null;
@@ -64,12 +51,6 @@
     pendingUpgrade?: PendingCharacterUpgrade | null;
     upgradeAccepted?: boolean;
     onAcceptUpgrade?: () => void;
-    /**
-     * „Übernehmen" einer Merkmalswahl. Läuft über den Eltern-Editor, weil das Anwenden den
-     * DRAFT per neuer Referenz ersetzt (Formular-Remount) — das Formular kann sich nicht
-     * selbst neu aufsetzen.
-     */
-    onApplyChanges?: (changes: Change[]) => void;
   } = $props();
 
   // Diff-Highlighting: vergleicht ein Quell-Feld gegen die gespeicherte Version.
@@ -217,14 +198,6 @@
     ...(a.modifiers ? { modifiers: a.modifiers.map(m => ({ ...m })) } : {}),
   })));
   let classFeatures = $state(character.classFeatures ?? '');
-  // Das Merkmals-Ledger wird beim Bearbeiten AUFGETEILT: Talent-Links (`refFeats`) und
-  // getroffene Entscheidungen (`choiceEntries`). Ohne diese Trennung würde `cleanRefs` die
-  // Entscheidungen beim Speichern verschlucken — sie tragen keinen `name`.
-  // Beide sind editierbar: die Entscheidungen über die Wahl-Picker weiter unten.
-  let refFeats = $state((character.features ?? []).filter(r => !r.choice?.trim()).map(r => ({ ...r })));
-  let choiceEntries = $state((character.features ?? []).filter(r => !!r.choice?.trim()).map(r => ({ ...r })));
-  // Gegenstück für das Diff-Highlighting (Zuordnung über den Key, siehe `featDir`).
-  const savedFeatLinks = $derived((saved?.features ?? []).filter(r => !r.choice?.trim()));
   let traits = $state(character.traits ?? '');
   let ideals = $state(character.ideals ?? '');
   let bonds = $state(character.bonds ?? '');
@@ -780,11 +753,14 @@
   let grants = $state<CollectedGrants | null>(null);
 
   // Nur die LINKS sind Abhängigkeit — nicht die Häkchen, sonst lüde es bei jedem Klick neu.
+  // Die Talent-Links kommen direkt aus dem Draft (die Seitenleiste pflegt sie): so ziehen
+  // die ◆-Herkunftsmarker nach, sobald dort ein Talent dazukommt. Kein Read-after-Write,
+  // weil der Sync-$effect unten `features` nicht mehr schreibt.
   const grantLinks = $derived.by(() => ({
     classes: classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, subclassKey: c.subclassKey })),
     species: { sourceKey: species.sourceKey, subspeciesKey: species.subspeciesKey },
     backgroundRef: { sourceKey: backgroundRef.sourceKey },
-    features: refFeats.map((f) => ({ sourceKey: f.sourceKey, name: f.name })),
+    features: character.features.filter((e) => !e.choice.trim()).map((f) => ({ sourceKey: f.sourceKey, name: f.name })),
   }));
 
   $effect(() => {
@@ -929,10 +905,6 @@
     inventory.splice(i, 1);
     editingItemRow = -1;
   }
-
-  // Ledger-Einträge, die der Editor anlegt, sind immer Talent-Links (siehe `pickFeat`) —
-  // Entscheidungen entstehen ausschließlich im Stufenaufstieg.
-  function removeRef(list: typeof refFeats, i: number) { list.splice(i, 1); }
 
   // ─── Klassen/Level (strukturiert, multiclass-fähig) ──────────────────────────
   function addClass() { classes.push({ sourceKey: '', name: '', level: 1 }); editingClassRow = classes.length - 1; }
@@ -1156,93 +1128,6 @@
     if (pendingUpgrade) onAcceptUpgrade?.();
   }
 
-  // ─── Merkmals-Auflösung aus der Bibliothek ─────────────────────────────────────
-  // Zeigt im Editor, welche Klassen-/Subklassen-Merkmale bzw. Volks-Traits der
-  // gewählte Link bis zur Stufe liefert (reagiert live auf Klasse/Stufe/Subklasse/Volk).
-  //
-  // Die Auflösung liest BEWUSST nicht `choiceEntries`: sonst löste jede getroffene Antwort
-  // eine neue Bibliotheksauflösung aus. Die Verknüpfung mit dem Ledger sind die `$derived`
-  // darunter.
-  let rawClassGroups = $state<ResolvedFeatureGroup[]>([]);
-  let rawSpeciesGroups = $state<ResolvedFeatureGroup[]>([]);
-  let rawBackgroundGroups = $state<ResolvedFeatureGroup[]>([]);
-  let choiceSlots = $state<ChoiceSlot[]>([]);
-  $effect(() => {
-    const cls = $state.snapshot(classes);
-    const spec = $state.snapshot(species);
-    const bg = $state.snapshot(backgroundRef);
-    // Talent-LINKS gehören zu den Abhängigkeiten: ein Talent kann selbst eine Wahl
-    // deklarieren (Expertise, Zweigliste).
-    const feats = $state.snapshot(refFeats);
-    void (async () => {
-      const [c, s, b, slots] = await Promise.all([
-        resolveClassFeatures(cls),
-        resolveSpeciesTraits(spec),
-        resolveBackground(bg),
-        collectChoiceSlots({ classes: cls, species: spec, backgroundRef: bg, features: feats }),
-      ]);
-      rawClassGroups = c;
-      rawSpeciesGroups = s ?? [];
-      rawBackgroundGroups = b ? [b] : [];
-      choiceSlots = slots;
-    })();
-  });
-
-  const featureAnnotations = $derived(
-    splitFeatureEntries(choiceEntries, keysOf([...rawClassGroups, ...rawSpeciesGroups, ...rawBackgroundGroups])).annotations,
-  );
-  const classFeatureGroups = $derived(withChoices(rawClassGroups, featureAnnotations));
-  const speciesTraitGroups = $derived(withChoices(rawSpeciesGroups, featureAnnotations));
-  const backgroundGroups = $derived(withChoices(rawBackgroundGroups, featureAnnotations));
-
-  // ─── Deklarierte Merkmalswahlen (services/characterChoices.ts) ─────────────────
-  // Die Expertise-Optionen sind der LIVE-Übungsstand des Formulars — deshalb ist die
-  // Verknüpfung ein `$derived` über `computedSkills`, nicht Teil der Auflösung oben.
-  const characterChoices = $derived(
-    buildCharacterChoices(choiceSlots, {
-      proficient: sheetSkillProficiencies(computedSkills).prof,
-      ledger: choiceEntries,
-    }),
-  );
-  /** Zuordnung Merkmal → seine Wahl-Plätze; der Index zeigt in `choiceGrants`. */
-  const choicesByFeature = $derived.by(() => {
-    const map = new Map<string, { ch: CharacterChoice; i: number }[]>();
-    characterChoices.forEach((ch, i) => {
-      const key = ch.slot.feature.key ?? '';
-      if (!key) return;
-      map.set(key, [...(map.get(key) ?? []), { ch, i }]);
-    });
-    return map;
-  });
-  /**
-   * Wirkung je Wahl plus die Frage, ob sie am Bogen noch etwas ändern würde — geprüft am
-   * DRAFT-Snapshot, den der Sync-Effekt unten aktuell hält. Ein „Übernehmen"-Knopf, der
-   * nichts mehr tut, verschwindet damit von selbst.
-   */
-  const choiceGrants = $derived.by(() => {
-    // Erst mit geladener Zauberbibliothek: davor wäre JEDER Options-Zauber „nicht gefunden",
-    // und der Picker meldete eine Lücke, die es nicht gibt.
-    if (!spellLibrary.length) return [];
-    const snap = $state.snapshot(character) as Character;
-    const ctx: ApplyContext = { classIndex: 0, resolveSpellKey: (n) => resolveSpell({ name: n })?.key };
-    return characterChoices.map((ch) => {
-      const g = choiceGrantChanges(ch, spellLibrary);
-      return { ...g, wouldAlter: changesWouldAlter(snap, g.changes, ctx) };
-    });
-  });
-  const choiceBadge = $derived(openChoiceBadge(characterChoices));
-
-  /** Die GESPEICHERTE Antwort eines Platzes — Grundlage für Diff-Tönung und Wechsel-Hinweis. */
-  const savedChoiceEntries = $derived((saved?.features ?? []).filter((r) => !!r.choice?.trim()));
-  function savedAnswerOf(ch: CharacterChoice): string {
-    const key = ch.slot.feature.key ?? '';
-    const hit =
-      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt === ch.slot.gainedAt) ??
-      // Altbestand trägt kein `gainedAt` — dieselbe Nachsicht wie `buildCharacterChoices`.
-      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt == null);
-    return hit?.choice ?? '';
-  }
-
   // ─── KI: die beiden Merkmals-Freitextfelder verdichten ─────────────────────────
   // Ein Prompt für beide Felder (`fieldSummaryAction`) — dieselbe Doktrin, die im
   // Stufenaufstieg die `sheetNote`s erzeugt. Rohstoff sind die aus der Bibliothek
@@ -1275,12 +1160,14 @@
     summaryBusy = field;
     summaryError = '';
     try {
-      const feats = await resolveFeatLinks($state.snapshot(refFeats));
+      // Einmal auflösen statt drei stehende Derived: die Merkmale wohnen in der
+      // Seitenleiste, hier braucht es sie nur im Augenblick des Klicks.
+      const resolved = await resolveCharacterFeatures($state.snapshot(character) as Character);
       const features = [
-        ...summaryFeaturesOf($state.snapshot(classFeatureGroups), 'class'),
-        ...summaryFeaturesOf($state.snapshot(speciesTraitGroups), 'species'),
-        ...summaryFeaturesOf($state.snapshot(backgroundGroups), 'background'),
-        ...feats.map((f): SummaryFeature => ({
+        ...summaryFeaturesOf(resolved.classGroups, 'class'),
+        ...summaryFeaturesOf(resolved.speciesGroups, 'species'),
+        ...summaryFeaturesOf(resolved.backgroundGroups, 'background'),
+        ...resolved.featEntries.map((f): SummaryFeature => ({
           name: f.name, desc: f.desc, source: 'feat',
           ...(f.gainedAt != null ? { gainedAt: f.gainedAt } : {}),
         })),
@@ -1315,120 +1202,6 @@
     if (field === 'classFeatures') classFeatures = prev;
     else rassenmerkmale = prev;
     summaryUndo = { ...summaryUndo, [field]: undefined };
-  }
-
-  // ─── Talente: nur Bibliotheks-Links ──────────────────────────────────────────
-  // Ein Talent kommt ausschließlich aus der Bibliothek — freier Text erzeugt hier
-  // keinen Eintrag mehr. Fehlt ein Talent, wird es über den „Neues Talent"-Dialog
-  // als Karte angelegt (und ist danach im Picker wählbar).
-  let featsLibrary = $state<FeatEntry[]>([]);
-  // Vor dem ersten Laden sieht JEDER Link unverlinkt aus → „⚠"-Zeilen erst danach zeigen.
-  let featsLoaded = $state(false);
-  $effect(() => { getFeats().then((x) => { featsLibrary = x; featsLoaded = true; }); });
-
-  /** Ziel des offenen Pickers: neuer Eintrag ('add') oder Ersatz für Zeile i. */
-  let featPickerTarget = $state<'add' | number | null>(null);
-  let featQuery = $state('');
-  let featSugIndex = $state(-1);
-  let showFeatCreate = $state(false);
-
-  // Leere Eingabe = ganze Bibliothek als Dropdown; schon verlinkte Talente fallen raus.
-  const featOptions = $derived.by(() => {
-    const taken = new Set(
-      refFeats
-        .map((r) => matchFeatEntry(featsLibrary, { sourceKey: r.sourceKey, name: r.name })?.path)
-        .filter((p): p is string => !!p),
-    );
-    const pool = featsLibrary.filter((f) => !f.path || !taken.has(f.path));
-    return featQuery.trim() ? searchFeats(pool, featQuery, 8) : pool;
-  });
-
-  function openFeatPicker(target: 'add' | number) {
-    featPickerTarget = target;
-    featQuery = '';
-    featSugIndex = -1;
-  }
-  function closeFeatPicker() {
-    featPickerTarget = null;
-    featQuery = '';
-    featSugIndex = -1;
-    hideFeatTooltip(); // Vorschlag verschwindet aus dem DOM → kein mouseleave mehr
-  }
-
-  // ─── Talent-Hover-Karte (analog Zauber-Tooltip; teilt dessen Cursor-Position,
-  // weil nur ein Element unter dem Zeiger liegen kann) ─────────────────────────
-  let featTooltip = $state<FeatEntry | null>(null);
-
-  function showFeatTooltip(e: MouseEvent, entry: FeatEntry) {
-    featTooltip = entry;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function moveFeatTooltip(e: MouseEvent) {
-    if (!featTooltip) return;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function hideFeatTooltip() { featTooltip = null; }
-
-  /** Übernimmt den LINK (Name + Key); Beschreibung kommt zur Laufzeit aus der Bibliothek. */
-  function pickFeat(target: 'add' | number, f: FeatEntry) {
-    const link = { sourceKey: f.sourceKey ?? '', name: featDisplayName(f) };
-    if (target === 'add') refFeats.push({ ...link, choice: '', choiceDe: '', gainedAt: undefined, desc: '' });
-    else {
-      refFeats[target].sourceKey = link.sourceKey;
-      refFeats[target].name = link.name;
-      refFeats[target].desc = ''; // Legacy-Freitext-Beschreibung weicht der Bibliothek
-    }
-    closeFeatPicker();
-  }
-
-  function onFeatPickerKey(e: KeyboardEvent, target: 'add' | number) {
-    if (featPickerTarget !== target) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); featSugIndex = Math.min(featSugIndex + 1, featOptions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); featSugIndex = Math.max(featSugIndex - 1, -1); }
-    else if (e.key === 'Escape') closeFeatPicker();
-    // Enter ohne markierten Treffer tut bewusst nichts — freier Text darf kein Talent anlegen.
-    else if (e.key === 'Enter' && featSugIndex >= 0 && featOptions[featSugIndex]) {
-      e.preventDefault();
-      pickFeat(target, featOptions[featSugIndex]);
-    }
-  }
-
-  /**
-   * Diff-Richtung einer Talent-Zeile. Die Baseline wird über den Key (Fallback: Name)
-   * gesucht, NICHT über den Index: `cleanRefs` filtert beim Speichern namenlose
-   * Ledger-Einträge weg, wodurch die gespeicherte Liste verschoben sein kann — mit
-   * Index-Zuordnung bliebe dann jede Folgezeile dauerhaft grün.
-   * Verglichen wird nur, was diese Zeile pflegt: Link und erworbene Stufe.
-   */
-  function featDir(ref: { sourceKey?: string; name: string; gainedAt?: number }): DiffDir {
-    if (!saved || !ref.name.trim()) return 'none';
-    const key = (ref.sourceKey ?? '').trim();
-    // „Unverändert" = es gibt einen gespeicherten Eintrag mit gleichem Link UND gleicher
-    // Stufe. Über die Stufe, weil dasselbe Talent mehrfach vergeben sein darf.
-    const unchanged = savedFeatLinks.some(
-      (s) =>
-        (key ? (s.sourceKey ?? '').trim() === key : !(s.sourceKey ?? '').trim()) &&
-        s.name === ref.name &&
-        (s.gainedAt ?? null) === (ref.gainedAt ?? null),
-    );
-    return unchanged ? 'none' : 'up';
-  }
-
-  /** Öffnet die Talent-Karte der Bibliothek (verlässt den Charakter → Guard). */
-  async function openFeatPage(entry: FeatEntry) {
-    if (!entry.path) return;
-    if (!(await confirmNavigation())) return;
-    activeFile.set({ name: entry.path.split('/').pop()!.replace('.json', ''), path: entry.path, type: 'feat' });
-  }
-
-  /** „Neues Talent": derselbe Dialog wie in der Sidebar. Er öffnet den Entwurf im
-   *  Editor, der Charakter wird also verlassen — daher Guard schon vor dem Dialog. */
-  async function createFeatCard() {
-    if (!(await confirmNavigation())) return;
-    closeFeatPicker();
-    showFeatCreate = true;
   }
 
   // Formularzustand fortlaufend in den Draft (ed.draft) spiegeln → Dirty-Tracking und
@@ -1524,20 +1297,9 @@
       shields: profShields,
     };
     character.masteries = [...masteries];
-    const cleanRefs = (list: typeof refFeats) =>
-      list
-        .filter((r) => r.name.trim() !== '')
-        .map((r) => ({
-          sourceKey: r.sourceKey ?? '',
-          name: r.name,
-          choice: '',
-          choiceDe: '',
-          gainedAt: r.gainedAt == null || Number.isNaN(r.gainedAt) ? undefined : Number(r.gainedAt),
-          desc: r.desc ?? '',
-        }));
-    // Die Entscheidungen als KOPIE: sonst teilte der Draft die Objekte mit `choiceEntries`
-    // und ein Picker schriebe am Sync-Effekt vorbei in den Draft.
-    character.features = [...cleanRefs(refFeats), ...choiceEntries.map((e) => ({ ...e }))];
+    // `character.features` bewusst NICHT: das Merkmals-Ledger gehört der Seitenleiste
+    // (`CharacterFeaturePanel`). Stünde die Zeile hier, überschriebe der nächste
+    // Tastendruck in irgendeinem Feld jede dort getroffene Wahl.
     character.portraitFile = portraitFile || undefined;
   });
 
@@ -1553,94 +1315,6 @@
 
 <div class="edit-form">
   <!-- Speichern/Verwerfen übernimmt die EditorPanel-Save-Bar (kein eigener Button). -->
-
-  <!-- Eine deklarierte Merkmalswahl (services/characterChoices.ts). Der Index zeigt in
-       `choiceGrants` — beide Listen entstehen aus `characterChoices` und sind index-gleich. -->
-  {#snippet choiceRow(ch: CharacterChoice, i: number)}
-    {@const g = choiceGrants[i]}
-    {@const savedAnswer = savedAnswerOf(ch)}
-    <!-- `showLevel`: die Stufe beschriftet nur, was sie unterscheidet — die Mehrfachvergabe. -->
-    <FeatureChoicePicker
-      choice={ch.choice}
-      answer={ch.answer}
-      open={ch.open}
-      gainedAt={ch.slot.gainedAt}
-      showLevel={(choicesByFeature.get(ch.slot.feature.key ?? '')?.length ?? 1) > 1}
-      pendingGrants={!!g?.wouldAlter}
-      hint={g ? choiceHint(ch, g, { wouldAlter: g.wouldAlter, changed: !!savedAnswer && savedAnswer !== ch.answer.join(', ') }) : ''}
-      flagged={g?.flagged ?? []}
-      diff={dirOf(savedAnswer, ch.answer.join(', '))}
-      onchange={(next) => (choiceEntries = withChoiceAnswer(choiceEntries, ch, next))}
-      onapply={() => onApplyChanges?.(g?.changes ?? [])}
-    />
-  {/snippet}
-
-  <!-- Merkmals-Auflösung aus der Bibliothek: was der Klassen-/Volks-LINK liefert. Read-only
-       bis auf die deklarierten Wahlen — die sind hier jederzeit änderbar. -->
-  {#snippet featureGroups(groups: ResolvedFeatureGroup[], emptyHint: string)}
-    {#if !groups.length}
-      <p class="fp-empty">{emptyHint}</p>
-    {:else}
-      {#each groups as g}
-        <div class="fp-group">
-          <span class="fp-title">{g.title}</span>
-          {#if g.unresolved}
-            <span class="fp-unresolved">— nicht in der Bibliothek verlinkt</span>
-          {:else if g.features.length}
-            <ul class="fp-list">
-              {#each g.features as f}
-                {@const slots = choicesByFeature.get(f.key ?? '') ?? []}
-                <li>
-                  <div class="fp-head">
-                    <span class="fp-name">{f.name}</span>
-                    {#if f.gainedAt}<span class="fp-lvl">Stufe {f.gainedAt}</span>{/if}
-                    <!-- Ein deklariertes Merkmal zeigt seine Wahl als Picker (unten), nicht
-                         als Chip — sonst stünde dieselbe Antwort zweimal. -->
-                    {#if f.choice && !slots.length}<span class="fp-choice">Entscheidung: {f.choice}</span>{/if}
-                  </div>
-                  {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
-                  {#each slots as s}{@render choiceRow(s.ch, s.i)}{/each}
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <span class="fp-unresolved">— keine</span>
-          {/if}
-        </div>
-      {/each}
-    {/if}
-  {/snippet}
-
-  <!-- Talent-Picker: Dropdown über die Bibliothek. Einmal zum Hinzufügen, einmal je
-       Altdaten-Zeile zum Ersetzen — deshalb als Snippet mit Ziel-Parameter. -->
-  {#snippet featPicker(target: 'add' | number, placeholder: string)}
-    <div class="autocomplete-wrap feat-picker">
-      <input
-        value={featPickerTarget === target ? featQuery : ''}
-        {placeholder}
-        onfocus={() => openFeatPicker(target)}
-        oninput={(e) => { featPickerTarget = target; featQuery = (e.currentTarget as HTMLInputElement).value; featSugIndex = -1; }}
-        onkeydown={(e) => onFeatPickerKey(e, target)}
-        onblur={() => setTimeout(() => { if (featPickerTarget === target) closeFeatPicker(); }, 150)}
-      />
-      {#if featPickerTarget === target}
-        <ul class="suggestions">
-          {#each featOptions as opt, si}
-            <li class:active={si === featSugIndex} onmousedown={() => pickFeat(target, opt)}
-              onmouseenter={(e) => showFeatTooltip(e, opt)}
-              onmousemove={moveFeatTooltip}
-              onmouseleave={hideFeatTooltip}>
-              <span>{featDisplayName(opt)}</span>
-              {#if opt.category}<span class="sug-cat">{FEAT_CATEGORY_DE[opt.category]}</span>{/if}
-            </li>
-          {/each}
-          {#if !featOptions.length}
-            <li class="sug-empty">Kein Treffer in der Bibliothek — mit „+ Neues Talent" anlegen.</li>
-          {/if}
-        </ul>
-      {/if}
-    </div>
-  {/snippet}
 
   <!-- KI-Verdichtung eines Freitextfeldes — ein Knopf je Feld, gleiche Aktion. -->
   {#snippet summaryBtn(field: SummaryField)}
@@ -2097,84 +1771,6 @@
     {#if summaryError}<p class="summary-error">{summaryError}</p>{/if}
   </section>
 
-  <!-- ── Verknüpfte Merkmale & Talente ─── -->
-  <!-- Klasse & Volk liefern ihre Merkmale read-only aus der Bibliothek (abgeleitet aus
-       Link + Stufe, nicht hier editiert). Talente werden als Link gepflegt. -->
-  <section>
-    <details class="ref-section">
-      <!-- Der Zähler MUSS am summary hängen: die Sektion ist zugeklappt, ein rein inliner
-           Marker an der offenen Wahl wäre unsichtbar. -->
-      <summary>
-        Verknüpfte Merkmale & Talente
-        {#if choiceBadge}<span class="summary-badge"><DeclarationBadge badge={choiceBadge} /></span>{/if}
-      </summary>
-      <p class="ref-hint">Klassen-, Volks- & Hintergrundmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente kommen immer aus der Bibliothek — fehlt eines, zuerst als Talent-Karte anlegen. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
-
-      <div class="ref-block">
-        <h4>Klassenmerkmale</h4>
-        {@render featureGroups(classFeatureGroups, 'Keine verlinkte Klasse — oben eine Klasse aus der Bibliothek wählen.')}
-      </div>
-      <div class="ref-block">
-        <h4>Volksmerkmale</h4>
-        {@render featureGroups(speciesTraitGroups, 'Kein verlinktes Volk — oben ein Volk aus der Bibliothek wählen.')}
-      </div>
-      <div class="ref-block">
-        <h4>Hintergrund</h4>
-        {@render featureGroups(backgroundGroups, 'Kein verlinkter Hintergrund — oben einen Hintergrund aus der Bibliothek wählen.')}
-      </div>
-
-      <div class="ref-block">
-        <h4>Talente</h4>
-        <!-- Gleiche Karten-Optik wie die aufgelösten Klassen-/Volksmerkmale (fp-*),
-             nur mit Stufe/Entfernen als Bedienelemente. -->
-        {#if refFeats.length}
-          <ul class="fp-list">
-            {#each refFeats as ref, i}
-              {@const entry = matchFeatEntry(featsLibrary, { sourceKey: ref.sourceKey, name: ref.name })}
-              <li class="feat-row" use:diffMark={featDir(ref)}>
-                <div class="fp-head">
-                  {#if entry}
-                    <button type="button" class="fp-name fp-name-link" title="Talent-Karte öffnen" onclick={() => openFeatPage(entry)}>{featDisplayName(entry)}</button>
-                    {#if entry.category}<span class="fp-choice">{FEAT_CATEGORY_DE[entry.category]}</span>{/if}
-                  {:else if featPickerTarget === i}
-                    {@render featPicker(i, 'Talent aus der Bibliothek…')}
-                  {:else if !featsLoaded}
-                    <span class="fp-name feat-loading">{ref.name}</span>
-                  {:else}
-                    <!-- Altdaten: Freitext ohne Bibliotheks-Quelle. Ersetzen oder löschen. -->
-                    <span class="fp-name ref-unlinked" title="Kein Talent dieses Namens in der Bibliothek">⚠ {ref.name.trim() || '(ohne Namen)'}</span>
-                    <button type="button" class="link-edit" title="Aus der Bibliothek wählen" onclick={() => openFeatPicker(i)}>✎</button>
-                  {/if}
-                  <span class="feat-row-actions">
-                    <label class="feat-lvl" title="Charakterstufe, auf der das Talent erworben wurde (nur Herkunftsangabe, ohne Regelwirkung)">Stufe
-                      <input class="ref-level" type="number" min="1" max="20" value={ref.gainedAt ?? ''}
-                        oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); ref.gainedAt = Number.isNaN(v) ? undefined : v; }} />
-                    </label>
-                    <button class="remove-btn" title="Talent entfernen" onclick={() => removeRef(refFeats, i)}>✕</button>
-                  </span>
-                </div>
-                {#if entry}
-                  {@const prereq = featPrereq(entry)}
-                  {@const desc = featDesc(entry)}
-                  {#if prereq}<div class="fp-prereq">Voraussetzung: {prereq}</div>{/if}
-                  {#if desc}<div class="fp-desc"><Markdown source={desc} /></div>{/if}
-                  <!-- Ein Talent deklariert seine Wahl genauso wie ein Klassenmerkmal. -->
-                  {#each choicesByFeature.get(entry.sourceKey ?? '') ?? [] as s}{@render choiceRow(s.ch, s.i)}{/each}
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="fp-empty">Noch keine Talente verlinkt.</p>
-        {/if}
-        <div class="feat-add-row">
-          {@render featPicker('add', 'Talent hinzufügen — Bibliothek durchsuchen…')}
-          <button type="button" class="btn-add" title="Talent-Karte in der Bibliothek anlegen (öffnet den Talent-Editor)" onclick={createFeatCard}>+ Neues Talent</button>
-        </div>
-      </div>
-    </details>
-  </section>
-
   <!-- ── Persönlichkeit ─── -->
   <section>
     <h3>Persönlichkeit</h3>
@@ -2566,22 +2162,7 @@
 </div>
 
 <SpellTooltip spell={spellTooltip} x={tooltipX} y={tooltipY} />
-<FeatTooltip feat={featTooltip} x={tooltipX} y={tooltipY} />
 <ItemTooltip item={itemTooltip} x={tooltipX} y={tooltipY} />
-
-<!-- Derselbe „Neues Talent"-Dialog wie in der Sidebar; er öffnet den Entwurf im Editor. -->
-{#if showFeatCreate}
-  <CreateCardModal
-    type="feat"
-    title="Neues Talent"
-    searchApi={searchOpen5eFeats}
-    loadApi={loadOpen5eFeat}
-    searchLibrary={searchFeatLibrary}
-    blank={blankFeat}
-    nameOf={featDraftName}
-    onclose={() => (showFeatCreate = false)}
-  />
-{/if}
 
 <style>
   .edit-form {
@@ -2769,25 +2350,6 @@
     width: 100%;
     min-width: 40px;
   }
-  /* ── Referenzen (Berechnungsgrundlage) ── */
-  .ref-section summary {
-    cursor: pointer;
-    user-select: none;
-    list-style: none;
-    font-weight: 600;
-    color: var(--ink-muted);
-  }
-  .ref-section summary::-webkit-details-marker { display: none; }
-  .ref-section summary::before { content: '› '; color: var(--border); }
-  .ref-section[open] summary::before { content: '▾ '; }
-  /* Der Wahl-Zähler sitzt IM summary (die Sektion ist zugeklappt) — hier nur der Abstand,
-     die Farben kommen aus DeclarationBadge. */
-  .summary-badge { margin-left: 0.4rem; font-weight: 400; }
-  .ref-hint {
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-    margin: 0.3rem 0 0.6rem;
-  }
   .ref-block { margin-bottom: 0.8rem; }
   .ref-block h4 {
     font-size: 0.8rem;
@@ -2820,31 +2382,6 @@
   .species-block { max-width: 24rem; }
   .species-picker { max-width: 18rem; }
   .species-hint { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
-  .fp-group { margin-top: 0.9rem; }
-  .fp-group:first-child { margin-top: 0.3rem; }
-  .fp-title {
-    font-weight: 700; font-size: 0.95rem; color: var(--copper);
-    padding-bottom: 0.2rem; border-bottom: 1px solid var(--surface);
-    display: block;
-  }
-  .fp-unresolved { color: var(--ink-muted); font-style: italic; font-size: 0.8rem; margin-left: 0.3rem; }
-  .fp-list { list-style: none; margin: 0.45rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-  .fp-list li {
-    margin: 0; padding: 0.4rem 0.55rem;
-    border: 1px solid var(--border); border-radius: 5px;
-    background: color-mix(in srgb, var(--surface) 40%, transparent);
-  }
-  .fp-head { display: flex; align-items: baseline; gap: 0.5rem; }
-  .fp-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
-  .fp-lvl { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
-  .fp-choice {
-    color: var(--gold); font-size: 0.72rem; font-weight: 600;
-    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
-    background: color-mix(in srgb, var(--surface) 60%, transparent);
-  }
-  .fp-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
-  .fp-empty { color: var(--ink-muted); font-style: italic; font-size: 0.8rem; margin: 0.3rem 0 0; }
-  .ref-unlinked { display: inline-block; margin-top: 0.15rem; font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
   .class-linked { display: flex; align-items: center; gap: 0.25rem; }
   .class-link {
     background: none; border: none; padding: 0.1rem 0; cursor: pointer;
@@ -3142,27 +2679,6 @@
   }
   .remove-btn:hover { color: var(--danger); }
 
-  /* Talent-Karten: Optik der aufgelösten Merkmale (.fp-*), Name klickbar.
-     Stufe/Entfernen sitzen in der Kopfzeile → mittig statt an der Grundlinie. */
-  .feat-row .fp-head { align-items: center; }
-  .fp-name-link {
-    background: none; border: none; padding: 0; font: inherit; cursor: pointer;
-    font-weight: 700; font-variant: small-caps; color: var(--ink);
-    text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--gold) 55%, transparent);
-    text-underline-offset: 0.15em;
-  }
-  .fp-name-link:hover { color: var(--gold); }
-  .fp-prereq { margin-top: 0.15rem; font-size: 0.74rem; font-style: italic; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); }
-  .feat-row-actions { margin-left: auto; display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
-  .feat-lvl { display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--ink-muted); }
-  .feat-lvl .ref-level { width: 3.2rem; font: inherit; font-size: 0.78rem; }
-  .feat-loading { color: var(--ink-muted); }
-
-  /* Talent-Picker: Eingabe + „Neues Talent" in einer Zeile. */
-  .feat-add-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
-  .feat-picker { flex: 1; max-width: 22rem; }
-  .feat-add-row .btn-add { flex-shrink: 0; white-space: nowrap; }
-  .sug-empty { color: var(--ink-muted); font-style: italic; cursor: default; }
 
   .btn-add {
     background: var(--surface);

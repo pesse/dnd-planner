@@ -14,11 +14,11 @@
   import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
+  import CharacterFeaturePanel from './CharacterFeaturePanel.svelte';
   import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import SpellTooltip from './SpellTooltip.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
-  import Markdown from './Markdown.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { getSpellLibrary, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
@@ -32,10 +32,9 @@
   import type { WeaponMastery } from '../schemas/shared';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
-  import {
-    resolveCharacterFeatures, resolveSpellAccess,
-    type ResolvedFeatureGroup, type ResolvedFeature,
-  } from '../services/characterFeatures';
+  import { resolveSpellAccess } from '../services/characterFeatures';
+  import type { CoverageBadge } from '../services/declarationCoverage';
+  import { dragPanelWidth } from '../utils/panelResize';
   import type { SpellAccessValues } from '../services/spellAccess';
   import type { Spell, Item } from '../types';
 
@@ -45,16 +44,6 @@
 
   let { dirPath }: Props = $props();
 
-  // ─── Merkmals-Auflösung (Karte): Klasse/Volk/Hintergrund/Talente aus den LINKS ───
-  // Der Charakter speichert nur Verknüpfungen; die Merkmale/Traits/Vorteile werden zur
-  // Laufzeit aus vault/{classes,species,backgrounds,feats} aufgelöst (analog Zauber).
-  let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
-  let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
-  let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
-  // Talent-Links und verwaiste Entscheidungen (Klassen-Link getauscht, Key verschoben)
-  // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
-  let featEntries = $state<ResolvedFeature[]>([]);
-  let orphanChoices = $state<ResolvedFeature[]>([]);
   // Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie): zur Anzeigezeit gerechnet,
   // damit ein steigender Übungsbonus sie mitnimmt — gespeichert würden sie altern.
   let spellAccessRows = $state<SpellAccessValues[]>([]);
@@ -72,34 +61,39 @@
       });
     })();
   });
-  // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
-  // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
-  // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
-  let featuresOpen = $state(false);
-  $effect(() => {
-    if (!featuresOpen) return;
-    const c = character;
-    if (!c) return;
-    void (async () => {
-      const r = await resolveCharacterFeatures(c);
-      classFeatureGroups = r.classGroups;
-      speciesTraitGroups = r.speciesGroups;
-      backgroundGroups = r.backgroundGroups;
-      featEntries = r.featEntries;
-      orphanChoices = r.orphanChoices;
-    })();
-  });
-  // Günstiger, synchroner Check, ob überhaupt Merkmals-Verknüpfungen existieren —
-  // steuert die Sichtbarkeit der Aufklappbox, ohne die Bibliothek anzufassen.
-  const hasFeatureRefs = $derived.by(() => {
-    const c = character;
-    if (!c) return false;
-    const hasClass = (c.classes ?? []).some((cl) => cl.name?.trim() || cl.sourceKey);
-    const hasSpecies = !!(c.species && (c.species.sourceKey || c.species.name?.trim()));
-    const hasBackground = !!(c.backgroundRef && (c.backgroundRef.sourceKey || c.backgroundRef.name?.trim()));
-    const hasLedger = (c.features?.length ?? 0) > 0;
-    return hasClass || hasSpecies || hasBackground || hasLedger;
-  });
+  // ─── Merkmals-Seitenleiste (rechts, tab-unabhängig) ───────────────────────────
+  // Zustand wie beim KI-Panel (`routes/+page.svelte`): Breite und Zuklapp-Zustand in
+  // `localStorage`, Zuklappen ist eine Breiten-Transition auf 0 — die Komponente bleibt
+  // montiert, damit der Zähler an der Lasche auch zugeklappt stimmt. Standard: OFFEN.
+  const FEAT_MIN_W = 240;
+  const FEAT_MAX_W = 720;
+  let featsWidth = $state(parseInt(localStorage.getItem('char-features-width') ?? '360'));
+  let featsCollapsed = $state(localStorage.getItem('char-features-collapsed') === '1');
+  let featsDragging = $state(false);
+  const effFeatWidth = $derived(featsCollapsed ? 0 : featsWidth);
+  // Aus der Leiste hochgereicht: Stand der deklarierten Wahlen für die Lasche.
+  let featBadge = $state<CoverageBadge | null>(null);
+  let featOpenCount = $state(0);
+
+  function toggleFeats() {
+    featsCollapsed = !featsCollapsed;
+    localStorage.setItem('char-features-collapsed', featsCollapsed ? '1' : '0');
+  }
+
+  function startFeatResize(e: MouseEvent) {
+    featsDragging = true;
+    dragPanelWidth(e, {
+      start: featsWidth,
+      min: FEAT_MIN_W,
+      max: FEAT_MAX_W,
+      invert: true, // die Leiste hängt rechts — nach links ziehen vergrößert
+      onWidth: (w) => { featsWidth = w; },
+      ondone: () => {
+        localStorage.setItem('char-features-width', String(featsWidth));
+        featsDragging = false;
+      },
+    });
+  }
 
   // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
   // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
@@ -194,11 +188,12 @@
   }
 
   /**
-   * „Übernehmen" einer deklarierten Merkmalswahl aus dem Bearbeiten-Tab — dasselbe Muster wie
-   * `applyLevelUp`, nur ohne Struktur-Teil: die Wahl ändert keine Klassenstufe.
+   * „Übernehmen" einer deklarierten Merkmalswahl aus der Merkmals-Leiste — dasselbe Muster
+   * wie `applyLevelUp`, nur ohne Struktur-Teil: die Wahl ändert keine Klassenstufe.
    *
    * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im Draft
-   * haben, sonst verliert der Referenz-Swap die letzten Eingaben.
+   * haben, sonst verliert der Referenz-Swap die letzten Eingaben. Die Leiste selbst steht
+   * außerhalb des `{#key ed.draft}` und übersteht den Swap.
    */
   async function applyChoiceGrants(changes: Change[]) {
     if (!ed.draft || !changes.length) return;
@@ -764,397 +759,319 @@
       <LevelUpAssistant character={ed.draft} onApply={applyLevelUp} onclose={() => (showLevelUp = false)} />
     {/if}
 
-    <EditorPanel
-      bind:tab={ed.tab}
-      dirty={ed.dirty}
-      saveError={ed.saveError}
-      onsave={() => ed.save()}
-      ondiscard={() => { upgradeAccepted = false; ed.discard(); }}
-      onsavejson={(json) => ed.saveJson(json)}
-      getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
-      extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
-      style="--ep-accent: var(--arcane)"
-    >
-      {#snippet karte()}
-      <div class="content">
-        <!-- Attribute -->
-        <div class="section attributes">
-          {#each ATTRS as attr}
-            <div class="attr-box">
-              <div class="attr-label">{attr.label}</div>
-              <div class="has-tip attr-mod">
-                {sign((character as any)[attr.mod])}
-                <span class="tip">{@html attrModTip(attr.label, (character as any)[attr.key])}</span>
+    <!-- Tab-Bereich links, Merkmals-Leiste rechts. Die Leiste liegt AUSSERHALB des
+         {#key ed.draft} und übersteht den Referenz-Swap von `applyChoiceGrants`. -->
+    <div class="sheet-body">
+      <EditorPanel
+        bind:tab={ed.tab}
+        dirty={ed.dirty}
+        saveError={ed.saveError}
+        onsave={() => ed.save()}
+        ondiscard={() => { upgradeAccepted = false; ed.discard(); }}
+        onsavejson={(json) => ed.saveJson(json)}
+        getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
+        extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
+        saveBarAllTabs
+        style="--ep-accent: var(--arcane)"
+      >
+        {#snippet karte()}
+        <div class="content">
+          <!-- Attribute -->
+          <div class="section attributes">
+            {#each ATTRS as attr}
+              <div class="attr-box">
+                <div class="attr-label">{attr.label}</div>
+                <div class="has-tip attr-mod">
+                  {sign((character as any)[attr.mod])}
+                  <span class="tip">{@html attrModTip(attr.label, (character as any)[attr.key])}</span>
+                </div>
+                <div class="attr-score">{(character as any)[attr.key]}</div>
               </div>
-              <div class="attr-score">{(character as any)[attr.key]}</div>
-            </div>
-          {/each}
-        </div>
-
-        <div class="two-col">
-          <!-- Kampfwerte -->
-          <div class="section">
-            <h3>Kampf</h3>
-            <div class="stats-grid">
-              <div class="stat"><span class="sl">RK</span><span class="sv">{character.ac}</span></div>
-              <div class="stat"><span class="sl">Initiative</span><span class="sv">{character.initiative}</span></div>
-              <div class="stat"><span class="sl">Bewegung</span><span class="sv">{character.speed}m</span></div>
-              <div class="stat"><span class="sl">TP max</span><span class="sv">{character.hpMax}</span></div>
-              <div class="stat"><span class="sl">TP aktuell</span><span class="sv">{character.hpCurrent || '—'}</span></div>
-              <div class="stat"><span class="sl">Temp. TP</span><span class="sv">{character.hpTemp || '—'}</span></div>
-              <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>
-              <div class="stat"><span class="sl">Übungsbonus</span><span class="sv">{sign(character.proficiencyBonus)}</span></div>
-              <div class="stat"><span class="sl">Passiv Wahr.</span><span class="sv">{character.passivePerception}</span></div>
-            </div>
-
-            {#if character.attacks.length}
-              <h3>Angriffe</h3>
-              <table class="attack-table">
-                <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
-                <tbody>
-                  {#each character.attacks as atk}
-                    {@const atkMastery = masteryOf(atk.name)}
-                    <tr>
-                      <td>
-                        {atk.name}
-                        {#if atkMastery}
-                          <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
-                        {/if}
-                      </td>
-                      <td class="has-tip">
-                        {atk.bonus}
-                        <span class="tip tip-left">{@html attackBonusTip(atk.bonus)}</span>
-                      </td>
-                      <td class="has-tip">
-                        {atk.damage} {atk.type}
-                        <span class="tip tip-left">{@html attackDamageTip(atk.damage, atk.type)}</span>
-                      </td>
-                      <td>{atk.range || '—'}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            {/if}
+            {/each}
           </div>
 
-          <!-- Rettungswürfe -->
+          <div class="two-col">
+            <!-- Kampfwerte -->
+            <div class="section">
+              <h3>Kampf</h3>
+              <div class="stats-grid">
+                <div class="stat"><span class="sl">RK</span><span class="sv">{character.ac}</span></div>
+                <div class="stat"><span class="sl">Initiative</span><span class="sv">{character.initiative}</span></div>
+                <div class="stat"><span class="sl">Bewegung</span><span class="sv">{character.speed}m</span></div>
+                <div class="stat"><span class="sl">TP max</span><span class="sv">{character.hpMax}</span></div>
+                <div class="stat"><span class="sl">TP aktuell</span><span class="sv">{character.hpCurrent || '—'}</span></div>
+                <div class="stat"><span class="sl">Temp. TP</span><span class="sv">{character.hpTemp || '—'}</span></div>
+                <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>
+                <div class="stat"><span class="sl">Übungsbonus</span><span class="sv">{sign(character.proficiencyBonus)}</span></div>
+                <div class="stat"><span class="sl">Passiv Wahr.</span><span class="sv">{character.passivePerception}</span></div>
+              </div>
+
+              {#if character.attacks.length}
+                <h3>Angriffe</h3>
+                <table class="attack-table">
+                  <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
+                  <tbody>
+                    {#each character.attacks as atk}
+                      {@const atkMastery = masteryOf(atk.name)}
+                      <tr>
+                        <td>
+                          {atk.name}
+                          {#if atkMastery}
+                            <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
+                          {/if}
+                        </td>
+                        <td class="has-tip">
+                          {atk.bonus}
+                          <span class="tip tip-left">{@html attackBonusTip(atk.bonus)}</span>
+                        </td>
+                        <td class="has-tip">
+                          {atk.damage} {atk.type}
+                          <span class="tip tip-left">{@html attackDamageTip(atk.damage, atk.type)}</span>
+                        </td>
+                        <td>{atk.range || '—'}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/if}
+            </div>
+
+            <!-- Rettungswürfe -->
+            <div class="section">
+              <h3>Rettungswürfe</h3>
+              <div class="save-list">
+                {#each SAVES as save}
+                  {@const proficient = (character as any)[save.profKey]}
+                  {@const value = (character as any)[save.modKey] + (proficient ? character.proficiencyBonus : 0)}
+                  <div class="save-row has-tip" class:proficient>
+                    <span class="prof-dot">{proficient ? '●' : '○'}</span>
+                    <span class="save-label">{save.label}</span>
+                    <span class="save-val">{sign(value)}</span>
+                    <span class="tip tip-left">{@html saveTip(save.modKey, save.label, proficient)}</span>
+                  </div>
+                {/each}
+              </div>
+
+              <h3>Sprachen</h3>
+              <div class="tag-list">
+                {#each character.languages as lang}<span class="tag">{lang}</span>{/each}
+              </div>
+
+              {#if character.tools.length}
+                <h3>Werkzeuge</h3>
+                <div class="tag-list">
+                  {#each character.tools as tool}<span class="tag">{tool}</span>{/each}
+                </div>
+              {/if}
+
+              {#if character.proficiencies}
+                {@const pf = character.proficiencies}
+                {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
+                {#if anyProf}
+                  <h3>Übungen &amp; Rüstungsausbildung</h3>
+                  <div class="tag-list">
+                    {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
+                    {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
+                    {#if pf.lightArmor}<span class="tag">Leichte Rüstung</span>{/if}
+                    {#if pf.mediumArmor}<span class="tag">Mittlere Rüstung</span>{/if}
+                    {#if pf.heavyArmor}<span class="tag">Schwere Rüstung</span>{/if}
+                    {#if pf.shields}<span class="tag">Schilde</span>{/if}
+                  </div>
+                  {#if pf.otherWeapons && pf.otherWeapons.trim()}
+                    <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
+                  {/if}
+                {/if}
+              {/if}
+
+              <!-- Waffenbeherrschung: die Wahl selbst; die Eigenschaft kommt aus der
+                   Bibliothek, der Regeltext hängt im Tooltip. -->
+              {#if masteryChips.length}
+                <h3>Waffenbeherrschung</h3>
+                <div class="tag-list">
+                  {#each masteryChips as chip}
+                    {#if chip.mastery}
+                      <span class="tag mastery-tag-full" title={MASTERY_INFO[chip.mastery].descDe}>
+                        {chip.name} <span class="mastery-prop">({masteryLabel(chip.mastery)})</span>
+                      </span>
+                    {:else}
+                      <span class="tag" title="Waffe nicht in der Bibliothek — Eigenschaft unbekannt">
+                        {chip.name} <span class="mastery-unknown">(?)</span>
+                      </span>
+                    {/if}
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Fertigkeiten -->
           <div class="section">
-            <h3>Rettungswürfe</h3>
-            <div class="save-list">
-              {#each SAVES as save}
-                {@const proficient = (character as any)[save.profKey]}
-                {@const value = (character as any)[save.modKey] + (proficient ? character.proficiencyBonus : 0)}
-                <div class="save-row has-tip" class:proficient>
-                  <span class="prof-dot">{proficient ? '●' : '○'}</span>
-                  <span class="save-label">{save.label}</span>
-                  <span class="save-val">{sign(value)}</span>
-                  <span class="tip tip-left">{@html saveTip(save.modKey, save.label, proficient)}</span>
+            <h3>Fertigkeiten {character.alleskoenner ? '<small>(Alleskönner)</small>' : ''}</h3>
+            <div class="skill-grid">
+              {#each Object.entries(character.skills) as [name, skill]}
+                <div class="skill-row has-tip" class:proficient={skill.prof} class:expertise={skill.exp}>
+                  <span class="prof-dot">{skill.exp ? '★' : skill.prof ? '●' : '○'}</span>
+                  <span class="skill-name">{skillLabelMap.get(name) ?? name}</span>
+                  <span class="skill-val">{sign(skill.value)}</span>
+                  <span class="tip">{@html skillTip(name, skill)}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Persönlichkeit & Klassenmerkmale -->
+          <div class="two-col">
+            <div class="section">
+              <h3>Persönlichkeit</h3>
+              {#if character.traits}<p><strong>Merkmale:</strong> {character.traits}</p>{/if}
+              {#if character.ideals}<p><strong>Ideale:</strong> {character.ideals}</p>{/if}
+              {#if character.bonds}<p><strong>Bindungen:</strong> {character.bonds}</p>{/if}
+              {#if character.flaws}<p><strong>Makel:</strong> {character.flaws}</p>{/if}
+            </div>
+            <div class="section">
+              <h3>Klassenmerkmale</h3>
+              <p class="preformatted">{character.classFeatures}</p>
+            </div>
+          </div>
+
+          <!-- Persönliches -->
+          {#if character.personal}
+            {@const p = character.personal}
+            {@const hasAnyPersonal = p.alter || p.geschlecht || p.sizeCat || p.koerpergroesse || p.gewicht || p.gesinnung || p.glaube || p.lebensstil || p.taeglicheKosten || p.augenfarbe || p.haarfarbe || p.hautfarbe || p.aussehen || p.rassenmerkmale}
+            {#if hasAnyPersonal}
+              <div class="two-col">
+                <div class="section">
+                  <h3>Persönliches</h3>
+                  <div class="personal-stats">
+                    {#if p.alter}<div class="stat"><span class="sl">Alter</span><span class="sv">{p.alter}</span></div>{/if}
+                    {#if p.geschlecht}<div class="stat"><span class="sl">Geschlecht</span><span class="sv">{p.geschlecht}</span></div>{/if}
+                    {#if p.gesinnung}<div class="stat"><span class="sl">Gesinnung</span><span class="sv">{p.gesinnung}</span></div>{/if}
+                    {#if p.glaube}<div class="stat"><span class="sl">Glaube</span><span class="sv">{p.glaube}</span></div>{/if}
+                    {#if p.sizeCat}<div class="stat"><span class="sl">Größe</span><span class="sv">{p.sizeCat}</span></div>{/if}
+                    {#if p.koerpergroesse}<div class="stat"><span class="sl">Körpergröße</span><span class="sv">{p.koerpergroesse}</span></div>{/if}
+                    {#if p.gewicht}<div class="stat"><span class="sl">Gewicht</span><span class="sv">{p.gewicht}</span></div>{/if}
+                    {#if p.augenfarbe}<div class="stat"><span class="sl">Augen</span><span class="sv">{p.augenfarbe}</span></div>{/if}
+                    {#if p.haarfarbe}<div class="stat"><span class="sl">Haar</span><span class="sv">{p.haarfarbe}</span></div>{/if}
+                    {#if p.hautfarbe}<div class="stat"><span class="sl">Haut</span><span class="sv">{p.hautfarbe}</span></div>{/if}
+                    {#if p.lebensstil}<div class="stat"><span class="sl">Lebensstil</span><span class="sv">{p.lebensstil}</span></div>{/if}
+                    {#if p.taeglicheKosten}<div class="stat"><span class="sl">Tägl. Kosten</span><span class="sv">{p.taeglicheKosten}</span></div>{/if}
+                  </div>
+                  {#if p.aussehen}<p class="preformatted"><strong>Aussehen:</strong> {p.aussehen}</p>{/if}
+                </div>
+                {#if p.rassenmerkmale}
+                  <div class="section">
+                    <h3>Volksmerkmale</h3>
+                    <p class="preformatted">{p.rassenmerkmale}</p>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
+
+          <!-- Merkmale stehen in der rechten Seitenleiste (CharacterFeaturePanel) — auf
+               jedem Tab sichtbar und dort auch änderbar. -->
+
+          <!-- Inventar -->
+          <div class="section">
+            <h3>Inventar</h3>
+            <div class="currency-row">
+              {#each [['KM','Kupfer'],['SM','Silber'],['EM','Elektrum'],['GM','Gold'],['PM','Platin']] as [key, label]}
+                {@const val = (character.currency as any)[key.toLowerCase()]}
+                <div class="coin" class:empty={!val}>
+                  <span class="coin-val">{val || '—'}</span>
+                  <span class="coin-lbl">{key}</span>
                 </div>
               {/each}
             </div>
 
-            <h3>Sprachen</h3>
-            <div class="tag-list">
-              {#each character.languages as lang}<span class="tag">{lang}</span>{/each}
-            </div>
-
-            {#if character.tools.length}
-              <h3>Werkzeuge</h3>
-              <div class="tag-list">
-                {#each character.tools as tool}<span class="tag">{tool}</span>{/each}
-              </div>
-            {/if}
-
-            {#if character.proficiencies}
-              {@const pf = character.proficiencies}
-              {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
-              {#if anyProf}
-                <h3>Übungen &amp; Rüstungsausbildung</h3>
-                <div class="tag-list">
-                  {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
-                  {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
-                  {#if pf.lightArmor}<span class="tag">Leichte Rüstung</span>{/if}
-                  {#if pf.mediumArmor}<span class="tag">Mittlere Rüstung</span>{/if}
-                  {#if pf.heavyArmor}<span class="tag">Schwere Rüstung</span>{/if}
-                  {#if pf.shields}<span class="tag">Schilde</span>{/if}
-                </div>
-                {#if pf.otherWeapons && pf.otherWeapons.trim()}
-                  <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
-                {/if}
+            {#if character.inventory.length}
+              <table class="inv-table">
+                <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
+                <tbody>
+                  {#each character.inventory as item}
+                    {@const libItem = matchItem(itemIndex, item)}
+                    {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
+                    <tr
+                      class:inv-linked={!!libItem}
+                      onclick={() => libItem && openItemPage(libItem)}
+                      onmouseenter={(e) => libItem && showItemTooltip(e, libItem)}
+                      onmousemove={(e) => tooltipItem && updateTooltipPos(e)}
+                      onmouseleave={hideItemTooltip}
+                    >
+                      <td>
+                        {#if libItem}
+                          <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
+                        {/if}
+                        {libItem ? displayName(libItem) : item.name}
+                        {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
+                          <span class="inv-weapon-info">{inlineWeaponInfo(fullItem)}</span>
+                        {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
+                          <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
+                        {:else if fullItem?.rarity}
+                          <span class="inv-weapon-info">{formatRarity(fullItem.rarity)}</span>
+                        {/if}
+                      </td>
+                      <td class="num">{item.count || '—'}</td>
+                      <td class="num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) + ' kg' : '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              {#if totalWeightKg(character.inventory) > 0}
+                <div class="weight-total">Gesamtlast: <strong>{formatKg(totalWeightKg(character.inventory))} kg</strong></div>
               {/if}
+            {:else}
+              <span class="empty-hint">Kein Inventar eingetragen</span>
             {/if}
 
-            <!-- Waffenbeherrschung: die Wahl selbst; die Eigenschaft kommt aus der
-                 Bibliothek, der Regeltext hängt im Tooltip. -->
-            {#if masteryChips.length}
-              <h3>Waffenbeherrschung</h3>
-              <div class="tag-list">
-                {#each masteryChips as chip}
-                  {#if chip.mastery}
-                    <span class="tag mastery-tag-full" title={MASTERY_INFO[chip.mastery].descDe}>
-                      {chip.name} <span class="mastery-prop">({masteryLabel(chip.mastery)})</span>
-                    </span>
-                  {:else}
-                    <span class="tag" title="Waffe nicht in der Bibliothek — Eigenschaft unbekannt">
-                      {chip.name} <span class="mastery-unknown">(?)</span>
-                    </span>
-                  {/if}
-                {/each}
-              </div>
+            {#if character.inventoryNotes}
+              <p class="preformatted" style="margin-top: 0.5rem">{character.inventoryNotes}</p>
             {/if}
           </div>
-        </div>
 
-        <!-- Fertigkeiten -->
-        <div class="section">
-          <h3>Fertigkeiten {character.alleskoenner ? '<small>(Alleskönner)</small>' : ''}</h3>
-          <div class="skill-grid">
-            {#each Object.entries(character.skills) as [name, skill]}
-              <div class="skill-row has-tip" class:proficient={skill.prof} class:expertise={skill.exp}>
-                <span class="prof-dot">{skill.exp ? '★' : skill.prof ? '●' : '○'}</span>
-                <span class="skill-name">{skillLabelMap.get(name) ?? name}</span>
-                <span class="skill-val">{sign(skill.value)}</span>
-                <span class="tip">{@html skillTip(name, skill)}</span>
+          <!-- Zauber -->
+          {#if character.spells?.cantrips.length || Object.keys(character.spells?.byLevel ?? {}).length || character.spells?.spellcastingClass}
+            <div class="section">
+              <div class="section-head-row">
+                <h3>Zauberwirken</h3>
+                <button class="btn-spell-pdf" onclick={printSpellList} disabled={printingSpells}
+                  title="Alle Zauber als druckbare Karten (A6, 9/Seite)">
+                  {printingSpells ? '…' : '🖨 PDF'}
+                </button>
               </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Persönlichkeit & Klassenmerkmale -->
-        <div class="two-col">
-          <div class="section">
-            <h3>Persönlichkeit</h3>
-            {#if character.traits}<p><strong>Merkmale:</strong> {character.traits}</p>{/if}
-            {#if character.ideals}<p><strong>Ideale:</strong> {character.ideals}</p>{/if}
-            {#if character.bonds}<p><strong>Bindungen:</strong> {character.bonds}</p>{/if}
-            {#if character.flaws}<p><strong>Makel:</strong> {character.flaws}</p>{/if}
-          </div>
-          <div class="section">
-            <h3>Klassenmerkmale</h3>
-            <p class="preformatted">{character.classFeatures}</p>
-          </div>
-        </div>
-
-        <!-- Persönliches -->
-        {#if character.personal}
-          {@const p = character.personal}
-          {@const hasAnyPersonal = p.alter || p.geschlecht || p.sizeCat || p.koerpergroesse || p.gewicht || p.gesinnung || p.glaube || p.lebensstil || p.taeglicheKosten || p.augenfarbe || p.haarfarbe || p.hautfarbe || p.aussehen || p.rassenmerkmale}
-          {#if hasAnyPersonal}
-            <div class="two-col">
-              <div class="section">
-                <h3>Persönliches</h3>
-                <div class="personal-stats">
-                  {#if p.alter}<div class="stat"><span class="sl">Alter</span><span class="sv">{p.alter}</span></div>{/if}
-                  {#if p.geschlecht}<div class="stat"><span class="sl">Geschlecht</span><span class="sv">{p.geschlecht}</span></div>{/if}
-                  {#if p.gesinnung}<div class="stat"><span class="sl">Gesinnung</span><span class="sv">{p.gesinnung}</span></div>{/if}
-                  {#if p.glaube}<div class="stat"><span class="sl">Glaube</span><span class="sv">{p.glaube}</span></div>{/if}
-                  {#if p.sizeCat}<div class="stat"><span class="sl">Größe</span><span class="sv">{p.sizeCat}</span></div>{/if}
-                  {#if p.koerpergroesse}<div class="stat"><span class="sl">Körpergröße</span><span class="sv">{p.koerpergroesse}</span></div>{/if}
-                  {#if p.gewicht}<div class="stat"><span class="sl">Gewicht</span><span class="sv">{p.gewicht}</span></div>{/if}
-                  {#if p.augenfarbe}<div class="stat"><span class="sl">Augen</span><span class="sv">{p.augenfarbe}</span></div>{/if}
-                  {#if p.haarfarbe}<div class="stat"><span class="sl">Haar</span><span class="sv">{p.haarfarbe}</span></div>{/if}
-                  {#if p.hautfarbe}<div class="stat"><span class="sl">Haut</span><span class="sv">{p.hautfarbe}</span></div>{/if}
-                  {#if p.lebensstil}<div class="stat"><span class="sl">Lebensstil</span><span class="sv">{p.lebensstil}</span></div>{/if}
-                  {#if p.taeglicheKosten}<div class="stat"><span class="sl">Tägl. Kosten</span><span class="sv">{p.taeglicheKosten}</span></div>{/if}
-                </div>
-                {#if p.aussehen}<p class="preformatted"><strong>Aussehen:</strong> {p.aussehen}</p>{/if}
-              </div>
-              {#if p.rassenmerkmale}
-                <div class="section">
-                  <h3>Volksmerkmale</h3>
-                  <p class="preformatted">{p.rassenmerkmale}</p>
+              {#if character.spells.spellcastingClass || character.spells.saveDC}
+                <div class="stats-grid" style="margin-bottom:0.6rem">
+                  {#if character.spells.spellcastingClass}<div class="stat"><span class="sl">Klasse</span><span class="sv">{character.spells.spellcastingClass}</span></div>{/if}
+                  {#if character.spells.spellcastingAbility}<div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{character.spells.spellcastingAbility}</span></div>{/if}
+                  {#if character.spells.saveDC}<div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{character.spells.saveDC}</span></div>{/if}
+                  {#if character.spells.attackBonus}<div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(character.spells.attackBonus)}</span></div>{/if}
                 </div>
               {/if}
-            </div>
-          {/if}
-        {/if}
-
-        <!-- Verknüpfte Merkmale (aus der Bibliothek aufgelöst, read-only) -->
-        {#snippet featureList(feature: ResolvedFeature)}
-          <li>
-            <div class="ref-view-head">
-              <span class="ref-view-name">{feature.name}</span>
-              {#if feature.gainedAt}<span class="ref-view-level">Stufe {feature.gainedAt}</span>{/if}
-              {#if feature.choice}<span class="ref-view-choice">Entscheidung: {feature.choice}</span>{/if}
-            </div>
-            {#if feature.desc}<div class="ref-view-desc"><Markdown source={feature.desc} /></div>{/if}
-          </li>
-        {/snippet}
-        {#snippet groupBlock(group: ResolvedFeatureGroup)}
-          <div class="section">
-            <h3>{group.title}</h3>
-            {#if group.unresolved}
-              <p class="ref-unresolved">Nicht in der Bibliothek verlinkt – im Editor zuordnen oder anlegen.</p>
-            {:else if group.features.length}
-              <ul class="ref-view-list">
-                {#each group.features as feature}{@render featureList(feature)}{/each}
-              </ul>
-            {/if}
-          </div>
-        {/snippet}
-        {#if hasFeatureRefs}
-          <details class="ref-view" bind:open={featuresOpen}>
-            <summary>Verknüpfte Merkmale (Klasse, Volk, Hintergrund, Talente)</summary>
-            <div class="ref-view-body">
-              {#each classFeatureGroups as group}{@render groupBlock(group)}{/each}
-              {#each speciesTraitGroups as group}{@render groupBlock(group)}{/each}
-              {#each backgroundGroups as group}{@render groupBlock(group)}{/each}
-              {#if featEntries.length}
-                <div class="section">
-                  <h3>Talente</h3>
-                  <ul class="ref-view-list">
-                    {#each featEntries as feature}{@render featureList(feature)}{/each}
-                  </ul>
+              {#each spellAccessRows as acc}
+                <div class="stats-grid spell-access" style="margin-bottom:0.6rem">
+                  <div class="stat"><span class="sl">Merkmal</span><span class="sv">{acc.featureDe}</span></div>
+                  <div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{acc.abilityDe}</span></div>
+                  <div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{acc.saveDC}</span></div>
+                  <div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(acc.attackBonus)}</span></div>
                 </div>
-              {/if}
-              {#if orphanChoices.length}
-                <div class="section">
-                  <h3>Entscheidungen ohne zugeordnetes Merkmal</h3>
-                  <p class="ref-unresolved">Verlinkung prüfen – das Merkmal steckt in keiner Klasse, keinem Volk und keinem Hintergrund dieses Charakters.</p>
-                  <ul class="ref-view-list">
-                    {#each orphanChoices as feature}{@render featureList(feature)}{/each}
-                  </ul>
-                </div>
-              {/if}
-            </div>
-          </details>
-        {/if}
+              {/each}
 
-        <!-- Inventar -->
-        <div class="section">
-          <h3>Inventar</h3>
-          <div class="currency-row">
-            {#each [['KM','Kupfer'],['SM','Silber'],['EM','Elektrum'],['GM','Gold'],['PM','Platin']] as [key, label]}
-              {@const val = (character.currency as any)[key.toLowerCase()]}
-              <div class="coin" class:empty={!val}>
-                <span class="coin-val">{val || '—'}</span>
-                <span class="coin-lbl">{key}</span>
-              </div>
-            {/each}
-          </div>
-
-          {#if character.inventory.length}
-            <table class="inv-table">
-              <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
-              <tbody>
-                {#each character.inventory as item}
-                  {@const libItem = matchItem(itemIndex, item)}
-                  {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
-                  <tr
-                    class:inv-linked={!!libItem}
-                    onclick={() => libItem && openItemPage(libItem)}
-                    onmouseenter={(e) => libItem && showItemTooltip(e, libItem)}
-                    onmousemove={(e) => tooltipItem && updateTooltipPos(e)}
-                    onmouseleave={hideItemTooltip}
-                  >
-                    <td>
-                      {#if libItem}
-                        <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
-                      {/if}
-                      {libItem ? displayName(libItem) : item.name}
-                      {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
-                        <span class="inv-weapon-info">{inlineWeaponInfo(fullItem)}</span>
-                      {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
-                        <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
-                      {:else if fullItem?.rarity}
-                        <span class="inv-weapon-info">{formatRarity(fullItem.rarity)}</span>
-                      {/if}
-                    </td>
-                    <td class="num">{item.count || '—'}</td>
-                    <td class="num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) + ' kg' : '—'}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-            {#if totalWeightKg(character.inventory) > 0}
-              <div class="weight-total">Gesamtlast: <strong>{formatKg(totalWeightKg(character.inventory))} kg</strong></div>
-            {/if}
-          {:else}
-            <span class="empty-hint">Kein Inventar eingetragen</span>
-          {/if}
-
-          {#if character.inventoryNotes}
-            <p class="preformatted" style="margin-top: 0.5rem">{character.inventoryNotes}</p>
-          {/if}
-        </div>
-
-        <!-- Zauber -->
-        {#if character.spells?.cantrips.length || Object.keys(character.spells?.byLevel ?? {}).length || character.spells?.spellcastingClass}
-          <div class="section">
-            <div class="section-head-row">
-              <h3>Zauberwirken</h3>
-              <button class="btn-spell-pdf" onclick={printSpellList} disabled={printingSpells}
-                title="Alle Zauber als druckbare Karten (A6, 9/Seite)">
-                {printingSpells ? '…' : '🖨 PDF'}
-              </button>
-            </div>
-            {#if character.spells.spellcastingClass || character.spells.saveDC}
-              <div class="stats-grid" style="margin-bottom:0.6rem">
-                {#if character.spells.spellcastingClass}<div class="stat"><span class="sl">Klasse</span><span class="sv">{character.spells.spellcastingClass}</span></div>{/if}
-                {#if character.spells.spellcastingAbility}<div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{character.spells.spellcastingAbility}</span></div>{/if}
-                {#if character.spells.saveDC}<div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{character.spells.saveDC}</span></div>{/if}
-                {#if character.spells.attackBonus}<div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(character.spells.attackBonus)}</span></div>{/if}
-              </div>
-            {/if}
-            {#each spellAccessRows as acc}
-              <div class="stats-grid spell-access" style="margin-bottom:0.6rem">
-                <div class="stat"><span class="sl">Merkmal</span><span class="sv">{acc.featureDe}</span></div>
-                <div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{acc.abilityDe}</span></div>
-                <div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{acc.saveDC}</span></div>
-                <div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(acc.attackBonus)}</span></div>
-              </div>
-            {/each}
-
-            {#if character.spells.cantrips.length}
-              <div class="spell-level-header"><span>Zaubertricks</span></div>
-              <div class="spell-cards">
-                {#each character.spells.cantrips as c}
-                  {@const info = resolveSpell(c)}
-                  {@const color = spellColor(c)}
-                  <div class="scard" class:scard-linked={!!info?.path}
-                    style="--sc:{color || 'var(--border-strong)'}"
-                    role="button" tabindex="0"
-                    onclick={() => openSpellPage(c)}
-                    onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
-                    onmouseenter={(e) => showSpellTooltip(e, c.name)}
-                    onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
-                    onmouseleave={hideSpellTooltip}>
-                    <div class="scard-head">
-                      <span class="scard-name">{c.name}</span>
-                      <span class="scard-badges">
-                        {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
-                      </span>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-
-            {#each ['1','2','3','4','5','6','7','8','9'] as lvl}
-              {@const slots = character.spells.slots[Number(lvl) - 1]}
-              {@const lvlSpells = character.spells.byLevel[lvl] ?? []}
-              {#if lvlSpells.length || (slots?.total ?? 0) > 0}
-                <div class="spell-level-header">
-                  <span>{LEVEL_LABEL[lvl]}</span>
-                  {#if slots?.total}
-                    <span class="slot-badge">{slots.total} Slots</span>
-                  {/if}
-                </div>
+              {#if character.spells.cantrips.length}
+                <div class="spell-level-header"><span>Zaubertricks</span></div>
                 <div class="spell-cards">
-                  {#each lvlSpells as spell}
-                    {@const info = resolveSpell(spell)}
-                    {@const color = spellColor(spell)}
-                    <div class="scard" class:prepared={spell.prepared} class:scard-linked={!!info?.path}
+                  {#each character.spells.cantrips as c}
+                    {@const info = resolveSpell(c)}
+                    {@const color = spellColor(c)}
+                    <div class="scard" class:scard-linked={!!info?.path}
                       style="--sc:{color || 'var(--border-strong)'}"
                       role="button" tabindex="0"
-                      onclick={() => openSpellPage(spell)}
-                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
-                      onmouseenter={(e) => showSpellTooltip(e, spell.name)}
+                      onclick={() => openSpellPage(c)}
+                      onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
+                      onmouseenter={(e) => showSpellTooltip(e, c.name)}
                       onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
                       onmouseleave={hideSpellTooltip}>
                       <div class="scard-head">
-                        <span class="scard-prep">{spell.prepared ? '●' : '○'}</span>
-                        <span class="scard-name">{spell.name}</span>
+                        <span class="scard-name">{c.name}</span>
                         <span class="scard-badges">
                           {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
                         </span>
@@ -1163,56 +1080,123 @@
                   {/each}
                 </div>
               {/if}
-            {/each}
-          </div>
-        {/if}
-      </div>
-      {/snippet}
 
-      {#snippet bearbeiten()}
-        <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
-        <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
-             frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
-        {#if ed.draft}
-          {#key ed.draft}
-            <div class="edit-wrapper" style="width:100%">
-              <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
-                   Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
-              <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
-                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)}
-                onApplyChanges={applyChoiceGrants} />
+              {#each ['1','2','3','4','5','6','7','8','9'] as lvl}
+                {@const slots = character.spells.slots[Number(lvl) - 1]}
+                {@const lvlSpells = character.spells.byLevel[lvl] ?? []}
+                {#if lvlSpells.length || (slots?.total ?? 0) > 0}
+                  <div class="spell-level-header">
+                    <span>{LEVEL_LABEL[lvl]}</span>
+                    {#if slots?.total}
+                      <span class="slot-badge">{slots.total} Slots</span>
+                    {/if}
+                  </div>
+                  <div class="spell-cards">
+                    {#each lvlSpells as spell}
+                      {@const info = resolveSpell(spell)}
+                      {@const color = spellColor(spell)}
+                      <div class="scard" class:prepared={spell.prepared} class:scard-linked={!!info?.path}
+                        style="--sc:{color || 'var(--border-strong)'}"
+                        role="button" tabindex="0"
+                        onclick={() => openSpellPage(spell)}
+                        onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
+                        onmouseenter={(e) => showSpellTooltip(e, spell.name)}
+                        onmousemove={(e) => spellTooltip && updateTooltipPos(e)}
+                        onmouseleave={hideSpellTooltip}>
+                        <div class="scard-head">
+                          <span class="scard-prep">{spell.prepared ? '●' : '○'}</span>
+                          <span class="scard-name">{spell.name}</span>
+                          <span class="scard-badges">
+                            {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                          </span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              {/each}
             </div>
-          {/key}
+          {/if}
+        </div>
+        {/snippet}
+
+        {#snippet bearbeiten()}
+          <!-- ─── Bearbeiten-Tab ──────────────────────────────────── -->
+          <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
+               frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
+          {#if ed.draft}
+            {#key ed.draft}
+              <div class="edit-wrapper" style="width:100%">
+                <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
+                     Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
+                <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
+                  {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
+              </div>
+            {/key}
+          {/if}
+        {/snippet}
+
+        {#snippet extra(id)}
+        {#if id === 'notes'}
+        <!-- GM-Notizen Tab -->
+        <div class="freetext-area">
+          <div class="freetext-hint">
+            <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
+            <span class="freetext-status" class:unsaved={gmNotesSaving === 'unsaved'} class:saving={gmNotesSaving === 'saving'}>
+              {gmNotesSaving === 'saving' ? 'Speichert…' : gmNotesSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            </span>
+          </div>
+          <RichTextEditor value={gmNotes} onChange={onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
+        </div>
+
+      {:else}
+        <!-- Details Tab (Freitext) — wird beim PDF-Export als weitere Seite(n) angehängt -->
+        <div class="freetext-area">
+          <div class="freetext-hint">
+            <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
+            <span class="freetext-status" class:unsaved={freitextSaving === 'unsaved'} class:saving={freitextSaving === 'saving'}>
+              {freitextSaving === 'saving' ? 'Speichert…' : freitextSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            </span>
+          </div>
+          <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
+        </div>
         {/if}
-      {/snippet}
+        {/snippet}
+      </EditorPanel>
 
-      {#snippet extra(id)}
-      {#if id === 'notes'}
-      <!-- GM-Notizen Tab -->
-      <div class="freetext-area">
-        <div class="freetext-hint">
-          <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
-          <span class="freetext-status" class:unsaved={gmNotesSaving === 'unsaved'} class:saving={gmNotesSaving === 'saving'}>
-            {gmNotesSaving === 'saving' ? 'Speichert…' : gmNotesSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
-          </span>
-        </div>
-        <RichTextEditor value={gmNotes} onChange={onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
+      <div
+        class="resize-handle"
+        class:hidden={featsCollapsed}
+        role="separator"
+        aria-label="Merkmals-Leiste verbreitern"
+        onmousedown={startFeatResize}
+      ></div>
+
+      <div class="feat-wrap" class:no-transition={featsDragging} style="width: {effFeatWidth}px">
+        <!-- Neuaufbau beim CHARAKTERwechsel, nicht bei jedem Draft-Swap: sonst steht die
+             Bibliotheksauflösung des vorigen Charakters noch, während die neue läuft, und
+             ein alter Wahl-Platz gegen das neue Ledger meldet „1 offene Entscheidung". -->
+        {#key dirPath}
+          {#if ed.draft}
+            <CharacterFeaturePanel character={ed.draft} saved={savedCharacter}
+              onApplyChanges={applyChoiceGrants}
+              bind:badge={featBadge} bind:openCount={featOpenCount} />
+          {/if}
+        {/key}
       </div>
 
-    {:else}
-      <!-- Details Tab (Freitext) — wird beim PDF-Export als weitere Seite(n) angehängt -->
-      <div class="freetext-area">
-        <div class="freetext-hint">
-          <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
-          <span class="freetext-status" class:unsaved={freitextSaving === 'unsaved'} class:saving={freitextSaving === 'saving'}>
-            {freitextSaving === 'saving' ? 'Speichert…' : freitextSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
-          </span>
-        </div>
-        <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
-      </div>
-      {/if}
-      {/snippet}
-    </EditorPanel>
+      <button
+        class="feat-toggle"
+        class:no-transition={featsDragging}
+        style="right: {effFeatWidth}px"
+        onclick={toggleFeats}
+        title={featBadge?.title || (featsCollapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen')}
+        aria-label={featsCollapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen'}
+      >
+        <span class="ft-arrow">{featsCollapsed ? '☰' : '›'}</span>
+        {#if featOpenCount}<span class="ft-count">{featOpenCount}</span>{/if}
+      </button>
+    </div>
   {:else}
     <div class="loading">Lade Charakterbogen…</div>
   {/if}
@@ -1311,6 +1295,76 @@
 
   .edit-wrapper {
     min-height: 0;
+  }
+
+  /* ─── Hülle unter dem Header: Tab-Bereich + Merkmals-Leiste ──────────── */
+  .sheet-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    position: relative;   /* Bezug der absolut positionierten Lasche */
+  }
+
+  .feat-wrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    transition: width 0.2s ease;
+  }
+  .feat-wrap.no-transition { transition: none; }
+
+  .resize-handle {
+    width: 4px;
+    flex-shrink: 0;
+    background: var(--surface);
+    cursor: col-resize;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+  }
+  .resize-handle:hover,
+  .resize-handle:active { background: var(--red); }
+  .resize-handle.hidden { display: none; }
+
+  /* Lasche am linken Rand der Leiste. Nicht auf halber Höhe: bei zugeklapptem
+     KI-Panel säße sie sonst genau unter dessen Lasche. */
+  .feat-toggle {
+    position: absolute;
+    top: 25%;
+    z-index: 20;
+    width: 24px;
+    min-height: 80px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0;
+    background: var(--bg-panel);
+    color: var(--ink-muted);
+    border: 1px solid var(--surface);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+    box-shadow: -2px 0 6px rgba(0, 0, 0, 0.15);
+    transition: right 0.2s ease, color 0.1s, background 0.1s;
+  }
+  .feat-toggle.no-transition { transition: color 0.1s, background 0.1s; }
+  .feat-toggle:hover { color: var(--arcane); background: var(--surface); }
+  .ft-arrow { line-height: 1; }
+  .ft-count {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--gold);
+    border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
+    border-radius: 999px;
+    padding: 0.05rem 0.25rem;
+    line-height: 1.2;
   }
 
 
@@ -1451,37 +1505,6 @@
   .mastery-unknown { color: var(--ink-muted); cursor: help; }
 
   .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
-
-  /* ─── Referenzen (strukturiert, read-only) ───────────── */
-  .ref-view { margin: 0.6rem 0; }
-  .ref-view summary {
-    cursor: pointer;
-    user-select: none;
-    list-style: none;
-    font-weight: 600;
-    color: var(--ink-muted);
-    font-size: 0.85rem;
-  }
-  .ref-view summary::-webkit-details-marker { display: none; }
-  .ref-view summary::before { content: '› '; color: var(--border); }
-  .ref-view[open] summary::before { content: '▾ '; }
-  .ref-view-body { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
-  .ref-view-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-  .ref-view-list li {
-    margin: 0; padding: 0.4rem 0.55rem;
-    border: 1px solid var(--border); border-radius: 5px;
-    background: color-mix(in srgb, var(--surface) 40%, transparent);
-  }
-  .ref-view-head { display: flex; align-items: baseline; gap: 0.5rem; }
-  .ref-view-name { font-weight: 700; font-variant: small-caps; color: var(--ink); }
-  .ref-view-level { color: var(--ink-muted); font-size: 0.72rem; font-style: italic; }
-  .ref-view-choice {
-    color: var(--gold); font-size: 0.72rem; font-weight: 600;
-    border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
-    background: color-mix(in srgb, var(--surface) 60%, transparent);
-  }
-  .ref-view-desc { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.5; margin-top: 0.15rem; }
-  .ref-unresolved { color: var(--ink-muted); font-size: 0.78rem; font-style: italic; }
 
   /* ─── Zauber (Anzeige im Bogen) ──────────────────────── */
   .spell-level-header {
