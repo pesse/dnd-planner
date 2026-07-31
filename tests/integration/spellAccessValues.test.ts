@@ -8,9 +8,9 @@
  *   npm run eval -- --eval spellAccessValues
  */
 import { describe, expect, it } from 'vitest';
-import { characterSchema } from '../src/lib/schemas/character';
-import { SHEET_NOTE_MAX_CHARS } from '../src/lib/schemas/levelUp';
-import { resolveSpellAccess } from '../src/lib/services/characterFeatures';
+import { characterSchema } from '../../src/lib/schemas/character';
+import { SHEET_NOTE_MAX_CHARS } from '../../src/lib/schemas/levelUp';
+import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';
 import {
   answeredAbility,
   spellAbilityChoiceId,
@@ -19,9 +19,9 @@ import {
   spellAccessValues,
   spellListChoiceId,
   type SpellAccessGrant,
-} from '../src/lib/services/spellAccess';
-import { spellSaveDC } from '../src/lib/services/spellcasting';
-import { CHOSEN_LIST, loadMagicInitiate, MAGIC_INITIATE_KEY } from './fixtures/fighter-l4-magic-initiate';
+} from '../../src/lib/services/spellAccess';
+import { spellSaveDC } from '../../src/lib/services/spellcasting';
+import { CHOSEN_LIST, loadMagicInitiate, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
 
 /** Attributs-Modifikatoren wie am Charakter (`intMod` …): CHA +3 ist der Prüfwert. */
 const MODS = { str: 1, ges: 2, kon: 1, int: 0, wei: -1, cha: 3 } as const;

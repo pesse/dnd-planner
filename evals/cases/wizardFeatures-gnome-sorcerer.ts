@@ -46,7 +46,7 @@ import {
   ROCK_GNOME_SPELLS,
   ROCK_GNOME_SPELLS_DE,
   SORCERER_SPELLCASTING_KEY,
-} from '../fixtures/gnome-sorcerer-sage';
+} from '../../tests/fixtures/gnome-sorcerer-sage';
 
 // ── Zuordnung Wahl → Merkmal ────────────────────────────────────────────────────
 //

@@ -83,7 +83,7 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     default:
       throw new Error(
         `[eval] Tauri-Command "${cmd}" ist im Eval-Shim nicht implementiert ` +
-          `(evals/setup/tauriInvokeShim.ts). Nur lesende Vault-Commands werden unterstützt.`,
+          `(tests/support/tauriInvokeShim.ts). Nur lesende Vault-Commands werden unterstützt.`,
       );
   }
 }

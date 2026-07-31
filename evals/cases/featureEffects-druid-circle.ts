@@ -38,7 +38,7 @@ import {
   EXPECTED_CIRCLE_SPELLS,
   EXPECTED_CIRCLE_SPELLS_DE,
   TOO_HIGH_CIRCLE_SPELLS,
-} from '../fixtures/druid-l3-circle-of-land';
+} from '../../tests/fixtures/druid-l3-circle-of-land';
 
 const landRe = /land|gelände|terrain/i;
 
@@ -130,7 +130,7 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
   if (features.length === 0) {
     throw new Error(
       '[eval] Keine Subklassen-Merkmale geladen — Vault-Shim aktiv? ' +
-        '(vault/classes/circle-of-the-land.json, evals/setup/tauriInvokeShim.ts)',
+        '(vault/classes/circle-of-the-land.json, tests/support/tauriInvokeShim.ts)',
     );
   }
 

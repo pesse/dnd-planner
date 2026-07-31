@@ -7,9 +7,9 @@
  * weiter, plus die neue, dass `enable_thinking:false` wirklich auf der Leitung liegt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyzeFeatureEffects, type FeatureEffectsContext } from '../src/lib/services/aiActions/featureEffectsAction';
-import { qualitymindsChat } from '../src/lib/services/llmService';
-import type { LlmConfig } from '../src/lib/types';
+import { analyzeFeatureEffects, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import { qualitymindsChat } from '../../src/lib/services/llmService';
+import type { LlmConfig } from '../../src/lib/types';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

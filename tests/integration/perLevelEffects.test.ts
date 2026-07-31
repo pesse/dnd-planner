@@ -10,11 +10,11 @@
  *   npm run eval -- --eval perLevelEffects
  */
 import { describe, expect, it } from 'vitest';
-import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
-import { getFeats } from '../src/lib/featsLibrary';
-import { hpPerLevelSources, hpPerLevelSum } from '../src/lib/services/perLevelEffects';
-import { featureGrantSchema } from '../src/lib/schemas/shared';
-import { libraryKey } from './libraryKey';
+import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
+import { getFeats } from '../../src/lib/featsLibrary';
+import { hpPerLevelSources, hpPerLevelSum } from '../../src/lib/services/perLevelEffects';
+import { featureGrantSchema } from '../../src/lib/schemas/shared';
+import { libraryKey } from '../support/libraryKey';
 
 describe('pro-Stufe-Effekte aus der Deklaration', () => {
   it('deklariert im ganzen Vault genau die zwei bekannten Fälle', async () => {

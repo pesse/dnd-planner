@@ -71,7 +71,7 @@ Während des Laufs zeigt die Konsole live pro Call eine Zeile
 (`· <Step>: run i/N …` → `→ ok 21.3s (server 20.9s), 340 tok, core 4/5`), sodass du
 den Fortschritt und die Dauer je Request direkt siehst.
 
-`npm run eval:watch` für den Watch-Modus. Die `.env` wird von `vitest.config.ts` geladen.
+`npm run eval:watch` für den Watch-Modus. Die `.env` wird von `vitest.evals.config.ts` geladen.
 Der Report wird **nach jedem Step inkrementell** geschrieben — ein Timeout verliert also
 keine bereits gemessenen Daten.
 
@@ -125,9 +125,13 @@ npm run eval:index
   via `step.run`, sonst `runAiAction`), prüft je Lauf die Assertions und aggregiert
   **Pass-Raten** (`runEval`).
 - `report.ts` — Capture der echten Requests/Responses + die vier Report-Artefakte.
-- `fixtures/` / `cases/` — **nur bei größeren Fällen**: geladene Inputs bzw. Assertions
-  in eigenen Dateien (Muster: `druid-l3-circle-of-land.ts` + `featureEffects-druid-circle.ts`).
-- `*.eval.test.ts` — eine Strecke je Datei.
+- `cases/` — **nur bei größeren Fällen**: die Assertions in einer eigenen Datei
+  (Muster: `../tests/fixtures/druid-l3-circle-of-land.ts` + `cases/featureEffects-druid-circle.ts`).
+- `*.eval.test.ts` — eine Strecke je Datei. **Nur** diese Dateien laufen hier; was ohne LLM
+  auskommt, gehört nach `tests/unit` bzw. `tests/integration` (`npm run test`).
+
+Die geladenen Inputs liegen unter **`../tests/fixtures/`**, weil beide Strecken sie brauchen —
+die Eval-Fälle und die LLM-freien Integrationstests.
 
 Bestehende Strecken:
 - `spell.eval.test.ts` — Zauber anlegen/überarbeiten (einfacher Ein-Call-Prompt, alles in

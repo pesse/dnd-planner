@@ -39,7 +39,7 @@ import {
   loadBaseFeatures,
   loadMagicInitiate,
   MAGIC_INITIATE_KEY,
-} from '../fixtures/fighter-l4-magic-initiate';
+} from '../../tests/fixtures/fighter-l4-magic-initiate';
 
 /** Ergebnis EINES Talent-Pfads: die zu treffenden Wahlen plus die (nur im KI-Pfad) Rider. */
 export interface FeatPathResult {

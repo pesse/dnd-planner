@@ -72,7 +72,7 @@ import {
   OTHER_BRANCH_SPELLS_DE,
   unredactedFeatures,
   withRedactedBranch,
-} from '../fixtures/elf-fighter-elven-lineage';
+} from '../../tests/fixtures/elf-fighter-elven-lineage';
 
 /**
  * Ergebnis eines Pfads. `inputNames` gehört dazu, weil in dieser Strecke der EINGANG die

@@ -15,7 +15,7 @@
  * Produktionspfad zusammengestellt, exakt wie der Assistent im `subclass-delta`-Schritt:
  * `computeLevelUpDelta` → `gainedFeaturesFor` (Klassenmerkmale) + `computeSubclassFeatures`
  * (Subklassen-Merkmale). Vault-Reads laufen im Node-Eval über den fs-Shim
- * (evals/setup/tauriInvokeShim.ts).
+ * (tests/support/tauriInvokeShim.ts).
  */
 import { characterSchema } from '../../src/lib/schemas/character';
 import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';

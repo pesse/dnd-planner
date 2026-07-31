@@ -1,9 +1,8 @@
 /**
  * Eval-Case: trägt die spell-pick-Regel des Analyse-Prompts ihren Kunden?
  *
- * Gemessen wird „Magische Entdeckungen" (Barde 5→6, Kolleg des Wissens) — nach der Inventur
- * (`evals/spellChoiceCoverage.test.ts`) eines von fünf Klassenmerkmalen, die eine Zauber-Wahl
- * NICHT deklariert bekommen können und deshalb weiter am Modell hängen. Diese Strecke ist
+ * Gemessen wird „Magische Entdeckungen" (Barde 5→6, Kolleg des Wissens) — eines von fünf
+ * Klassenmerkmalen, die eine Zauber-Wahl NICHT deklariert bekommen können und deshalb weiter am Modell hängen. Diese Strecke ist
  * damit die Entscheidungsgrundlage für den Prompt-Schnitt aus 1f: wer die Regel entfernen
  * will, muss zeigen, dass sie hier nichts leistet.
  *
@@ -28,7 +27,7 @@ import {
   bardClassContext,
   EXPECTED_PICK_COUNT,
   loadMagicalDiscoveries,
-} from '../fixtures/bard-l6-college-of-lore';
+} from '../../tests/fixtures/bard-l6-college-of-lore';
 
 const spellPicks = (a: FeatureAnalysis): AnalysisChoice[] => a.choices.filter((c) => c.type === 'spell-pick');
 
@@ -105,7 +104,7 @@ export async function buildBardLoreCases(): Promise<EvalCase<StepResult>[]> {
   if (features.length !== 1) {
     throw new Error(
       `[eval] Erwartet genau „Magical Discoveries", geladen: ${features.length} ` +
-        '(vault/classes/college-of-lore.json, evals/setup/tauriInvokeShim.ts)',
+        '(vault/classes/college-of-lore.json, tests/support/tauriInvokeShim.ts)',
     );
   }
 

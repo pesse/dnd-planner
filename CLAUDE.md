@@ -9,14 +9,21 @@ the source.
 | Task | Command | Where |
 |---|---|---|
 | Typecheck + lint — **the** verification gate | `npm run check` | WSL |
+| Unit + integration tests (LLM-free, no API key) | `npm run test` | WSL |
 | Browser-only dev server (UI work without Tauri commands) | `npm run dev` → `:1420` | WSL |
 | Full app | `.\dev-windows.ps1` | Windows PowerShell |
 | Watch the running app | `tail -f /mnt/c/dev/privat/dnd-planner/tauri-dev.log` | WSL |
 | Install packages | `npm install` | Windows PowerShell |
 | Prompt-quality evals (`evals/README.md`) | `npm run eval` | **the user runs these, never Claude** |
 
-There is no `test` script — Vitest exists only for the eval suite, which makes real, paid LLM
-calls. `npm run check` is what verifies a change.
+**Two Vitest tracks, and only one of them is Claude's to run.** `tests/` (config
+`vitest.config.ts`) is LLM-free and runs without an API key — `tests/unit` needs nothing but the
+process, `tests/integration` reads the **real vault** through the production load path via the
+`@tauri-apps/api/core` shim in `tests/support/tauriInvokeShim.ts`. `evals/` (config
+`vitest.evals.config.ts`, only `*.eval.test.ts`) makes real, paid LLM calls. Shared test data
+lives in `tests/fixtures/` and is used by both.
+
+`npm run check` plus `npm run test` is what verifies a change.
 
 ## Environment: Windows runs the app, WSL edits it
 

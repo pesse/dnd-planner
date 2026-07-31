@@ -10,10 +10,10 @@
  *   npm run eval -- --eval featureDeclaration
  */
 import { describe, expect, it } from 'vitest';
-import { getClasses } from '../src/lib/classLibrary';
-import { libraryKey } from './libraryKey';
-import { getProgressionByKey } from '../src/lib/services/classProgression';
-import type { ClassFeature } from '../src/lib/schemas/classProgression';
+import { getClasses } from '../../src/lib/classLibrary';
+import { libraryKey } from '../support/libraryKey';
+import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import type { ClassFeature } from '../../src/lib/schemas/classProgression';
 import {
   chosenOption,
   expertiseChoice,
@@ -25,17 +25,17 @@ import {
   optionListChoice,
   optionListNoteLines,
   optionListRiders,
-} from '../src/lib/services/featureDeclaration';
-import { riderChanges } from '../src/lib/services/levelUpMachine';
-import { forClassFeaturesField } from '../src/lib/services/declaredFeature';
-import { classFeatureSchema } from '../src/lib/schemas/classProgression';
-import { traitSchema, migrateSpeciesLegacy } from '../src/lib/schemas/species';
-import { featSchema, migrateFeatLegacy } from '../src/lib/schemas/feat';
-import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../src/lib/schemas/shared';
-import { spellAccessGrantOf } from '../src/lib/services/spellAccess';
-import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../src/lib/services/featureDeclaration';
-import { getSpeciesByKey } from '../src/lib/speciesLibrary';
-import { declaredFeatures as tagged } from '../src/lib/services/declaredFeature';
+} from '../../src/lib/services/featureDeclaration';
+import { riderChanges } from '../../src/lib/services/levelUpMachine';
+import { forClassFeaturesField } from '../../src/lib/services/declaredFeature';
+import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
+import { traitSchema, migrateSpeciesLegacy } from '../../src/lib/schemas/species';
+import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
+import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/shared';
+import { spellAccessGrantOf } from '../../src/lib/services/spellAccess';
+import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
+import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
+import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 
 const declaredFeatures = async (): Promise<{ klass: string; feature: ClassFeature }[]> => {
   const out: { klass: string; feature: ClassFeature }[] = [];
@@ -193,7 +193,7 @@ describe('deklarierte Zweigwahlen', () => {
   });
 
   it('hält die deklarierten Merkmale aus dem KI-Eingang des Wizards heraus', async () => {
-    const { buildFeaturePrep } = await import('../src/lib/services/wizard/featurePrep');
+    const { buildFeaturePrep } = await import('../../src/lib/services/wizard/featurePrep');
     const prep = await buildFeaturePrep({
       species: { sourceKey: 'srd-2024_dwarf', name: 'Zwerg' },
       klass: { sourceKey: 'srd-2024_druid', name: 'Druide' },

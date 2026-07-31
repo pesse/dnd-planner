@@ -1,6 +1,6 @@
 /**
  * CLI-Wrapper für die Evals: übersetzt `--flags` in `EVAL_*`-Env-Variablen und
- * startet dann Vitest (identisch zu `vitest run --config vitest.config.ts`, nur mit
+ * startet dann Vitest (identisch zu `vitest run --config vitest.evals.config.ts`, nur mit
  * angereicherter Umgebung). So lassen sich Titel/Beschreibung bequem als
  * CLI-Parameter übergeben — plattformunabhängig, auch aus Windows PowerShell —
  * statt vorher env-Variablen zu setzen.
@@ -92,7 +92,7 @@ const pkg = require('vitest/package.json');
 const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin.vitest;
 const vitestBin = join(dirname(pkgPath), binRel);
 
-const child = spawn(process.execPath, [vitestBin, 'run', '--config', 'vitest.config.ts', ...fileFilters], {
+const child = spawn(process.execPath, [vitestBin, 'run', '--config', 'vitest.evals.config.ts', ...fileFilters], {
   stdio: 'inherit',
   env: process.env,
 });

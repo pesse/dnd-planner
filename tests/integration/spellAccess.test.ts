@@ -12,20 +12,20 @@
  * Die Vault-Reads laufen über denselben fs-Shim wie die Eval-Fixtures (vitest.config.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { getFeats } from '../src/lib/featsLibrary';
-import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
+import { getFeats } from '../../src/lib/featsLibrary';
+import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import {
   spellAccessChoices,
   spellListChoiceId,
   type SpellAccessGrant,
-} from '../src/lib/services/spellAccess';
+} from '../../src/lib/services/spellAccess';
 import {
   GNOME_SORCERER_BASICS,
   MAGIC_INITIATE_CANTRIPS,
   MAGIC_INITIATE_KEY,
   MAGIC_INITIATE_LEVEL1,
   MAGIC_INITIATE_LIST,
-} from './fixtures/gnome-sorcerer-sage';
+} from '../fixtures/gnome-sorcerer-sage';
 
 /** Ein Nicht-Zauberwirker mit Akolyth: dieselbe Deklaration, andere Liste (Kleriker). */
 const FIGHTER_ACOLYTE = {

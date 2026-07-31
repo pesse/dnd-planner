@@ -8,21 +8,21 @@
  *   npm run eval -- --eval grantedSpells
  */
 import { describe, expect, it } from 'vitest';
-import { getClasses } from '../src/lib/classLibrary';
-import { getProgressionByKey } from '../src/lib/services/classProgression';
-import type { ClassFeature } from '../src/lib/schemas/classProgression';
+import { getClasses } from '../../src/lib/classLibrary';
+import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import type { ClassFeature } from '../../src/lib/schemas/classProgression';
 import {
   declaredSpellGrants,
   isSpellGrantFeature,
   parseSpellGrantRows,
   unreadableSpellGrant,
   withoutSpellGrantFeatures,
-} from '../src/lib/services/grantedSpells';
+} from '../../src/lib/services/grantedSpells';
 import {
   CIRCLE_OF_LAND_KEY,
   EXPECTED_CIRCLE_SPELLS,
   TOO_HIGH_CIRCLE_SPELLS,
-} from './fixtures/druid-l3-circle-of-land';
+} from '../fixtures/druid-l3-circle-of-land';
 
 const features = async (key: string): Promise<ClassFeature[]> => (await getProgressionByKey(key))?.features ?? [];
 

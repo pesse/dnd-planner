@@ -21,7 +21,7 @@
  * WICHTIG — kein Drift zur Realität: der Eingang entsteht über den ECHTEN Wizard-Pfad
  * (`buildFeaturePrep` → Vault-Bibliotheken), exakt wie `CharacterWizard.kickoff()` ihn für
  * `analyzeFeatureEffects` baut. Vault-Reads laufen im Node-Eval über den fs-Shim
- * (evals/setup/tauriInvokeShim.ts).
+ * (tests/support/tauriInvokeShim.ts).
  */
 import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
 import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';

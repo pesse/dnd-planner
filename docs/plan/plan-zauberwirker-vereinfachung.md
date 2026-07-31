@@ -480,7 +480,7 @@ Zwei Folgen für die Tests:
 
 * Der **Runaway kann auf diesem Pfad nicht mehr entstehen** (30 Läufe, keiner). `runawayRetry.test.ts`
   ließ sich damit nicht mehr herstellen — ein winziges Budget liefert jetzt abgeschnittenen, aber
-  nicht leeren Inhalt. Ersetzt durch `evals/featureAnalysisCall.test.ts`: dieselben drei
+  nicht leeren Inhalt. Ersetzt durch `tests/unit/featureAnalysisCall.test.ts`: dieselben drei
   Zusicherungen, aber über einen gestubten `fetch` statt über echte Calls — **plus** die neue
   Zusicherung, dass `enable_thinking:false` wirklich auf der Leitung liegt (die Regression, die
   die halbierte Wartezeit still zurücknehmen würde). Der zweite Versuch bleibt im Code: er kostet
@@ -641,11 +641,12 @@ genau das hält die Zusicherung „kein Klassenmerkmal deklariert einen Zugang" 
 `evals/levelUpFeatAccess.test.ts` fest.
 
 **Damit ist der Prompt-Schnitt aus 1f nicht gedeckt.** Er hätte diesen fünf Merkmalen die einzige
-Regel entzogen, die ihre Wahl überhaupt entstehen lässt. Festgehalten in
-`evals/spellChoiceCoverage.test.ts` (LLM-frei): jeder Fund ist eingeordnet (ein neuer bricht den
-Test), die fünf Aufbau-Wahlen sind namentlich fixiert, keine ist deklariert, und alle fünf
-kommen durch die beiden Filter von `gainedFeaturesFor` bis in den Eingang. Der Test fand beim
-ersten Lauf einen Fall, den ich beim Sichten übersehen hatte (Sculpt Spells).
+Regel entzogen, die ihre Wahl überhaupt entstehen lässt. Das hielt eine LLM-freie Inventur
+(`spellChoiceCoverage`) fest: jeder Fund war eingeordnet, die fünf Aufbau-Wahlen namentlich
+fixiert, keine deklariert, und alle fünf kamen durch die beiden Filter von `gainedFeaturesFor`
+bis in den Eingang. Sie fand beim ersten Lauf einen Fall, den ich beim Sichten übersehen hatte
+(Sculpt Spells) — **am 2026-07-31 gelöscht**: jede Umformulierung eines Merkmalstexts ließ ihr
+weites Regex-Netz neue Kandidaten fangen, die von Hand einzuordnen waren.
 
 ### Statt blind zu schneiden: messen, ob die Regel trägt
 

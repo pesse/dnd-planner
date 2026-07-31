@@ -2,9 +2,9 @@
  * Eval: leistet die spell-pick-Regel des Analyse-Prompts etwas für die Merkmale, die noch
  * an ihr hängen? Referenzfall „Magische Entdeckungen" (Barde 5→6, Kolleg des Wissens).
  *
- * Diese Strecke existiert, weil der geplante Prompt-Schnitt (1f) sonst blind wäre: die
- * Inventur (`evals/spellChoiceCoverage.test.ts`) zeigt fünf Klassenmerkmale, deren
- * Zauber-Wahl NICHT deklariert werden kann — für sie ist die Regel das einzige, was zwischen
+ * Diese Strecke existiert, weil der geplante Prompt-Schnitt (1f) sonst blind wäre: fünf
+ * Klassenmerkmale (Magische Entdeckungen, Mystisches Arkanum, Hervorrufungs-Gelehrter,
+ * Signaturzauber, Zaubermeisterschaft) haben eine Zauber-Wahl, die NICHT deklariert werden kann — für sie ist die Regel das einzige, was zwischen
  * dem Spieler und einer fehlenden Zauber-Auswahl steht. Gemessen wird deshalb der Prompt
  * MIT Regel gegen den Prompt OHNE (zwei Läufe, `--title`).
  *

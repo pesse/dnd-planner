@@ -61,7 +61,7 @@ import {
   RESISTANCE_DAMAGE,
   RESISTANCE_DE,
   undeclaredContext,
-} from '../fixtures/tiefling-l1-fiendish-legacy';
+} from '../../tests/fixtures/tiefling-l1-fiendish-legacy';
 
 /** Was am Ende am Charakter steht — auf beiden Wegen dieselbe Form. */
 export interface LegacyResult {

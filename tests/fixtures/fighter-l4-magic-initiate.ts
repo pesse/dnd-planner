@@ -11,7 +11,7 @@
  * WICHTIG — kein Drift zur Realität: Delta und Talent kommen über den ECHTEN Produktionspfad
  * (`computeLevelUpDelta`, `getFeats`), das Talent wird mit `featToGainedFeature` normalisiert,
  * genau wie `LevelUpAssistant.featuresFor('feat')` es tut. Vault-Reads laufen im Node-Eval
- * über den fs-Shim (evals/setup/tauriInvokeShim.ts).
+ * über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
 import { characterSchema } from '../../src/lib/schemas/character';
 import { getFeats, featDisplayName, type FeatEntry } from '../../src/lib/featsLibrary';

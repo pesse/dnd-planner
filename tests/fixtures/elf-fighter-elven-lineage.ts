@@ -18,7 +18,7 @@
  * Herkunftstalent „Wilder Angreifer" gewährt keine Zauber). Jeder Zauber, der in dieser
  * Strecke auftaucht, kann also nur aus der Abstammungs-Tabelle stammen.
  *
- * Vault-Reads laufen im Node-Eval über den fs-Shim (evals/setup/tauriInvokeShim.ts).
+ * Vault-Reads laufen im Node-Eval über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
 import type {
   FeatureEffectsContext,

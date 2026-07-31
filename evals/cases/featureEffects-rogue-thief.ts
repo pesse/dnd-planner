@@ -33,7 +33,7 @@ import {
   FILTERED_FEATURE_NAME,
   loadRogueThiefFeatures,
   rogueClassContext,
-} from '../fixtures/rogue-l3-thief';
+} from '../../tests/fixtures/rogue-l3-thief';
 
 const subclassRe = /unterklasse|subklasse|subclass/i;
 
@@ -101,7 +101,7 @@ export async function buildRogueThiefCases(): Promise<EvalCase<StepResult>[]> {
   if (features.length === 0) {
     throw new Error(
       '[eval] Keine Merkmale geladen — Vault-Shim aktiv? ' +
-        '(vault/classes/rogue.json + thief.json, evals/setup/tauriInvokeShim.ts)',
+        '(vault/classes/rogue.json + thief.json, tests/support/tauriInvokeShim.ts)',
     );
   }
   if (features.some((f) => f.name === FILTERED_FEATURE_NAME)) {

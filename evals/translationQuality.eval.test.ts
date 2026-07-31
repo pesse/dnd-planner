@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { defineEval } from './defineEval';
 import { promptCase } from './promptCase';
 import { mentions } from './checks';
-import { TRANSLATION_PAIRS, type TranslationPair } from './fixtures/spellTranslationPairs';
+import { TRANSLATION_PAIRS, type TranslationPair } from '../tests/fixtures/spellTranslationPairs';
 
 // ── Ergebnis-Form ─────────────────────────────────────────────────────────────
 

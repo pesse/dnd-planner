@@ -2,7 +2,7 @@
  * Fixture: Barde 5 → 6 mit „Kolleg des Wissens" — „Magische Entdeckungen".
  *
  * Warum dieser Fall: er ist der härteste verbleibende Kunde der spell-pick-Regel im
- * Analyse-Prompt (Inventur in `evals/spellChoiceCoverage.test.ts`). Zwei Zauber „of your
+ * Analyse-Prompt. Zwei Zauber „of your
  * choice" aus DREI Listen, Gradband „ein Zaubertrick oder ein Grad, für den du Plätze hast"
  * — auf Stufe 6 also 0 bis 3. Die Regel muss daraus Kontingent (2), Gradband und Liste
  * ableiten; nichts davon steht als Zahl im Text.

@@ -16,7 +16,7 @@
  * Produktionspfad geladen (`computeSubclassFeatures` → `getProgressionByKey` → Vault),
  * exakt wie der Aufstiegs-Assistent im `subclass-delta`-Schritt. Der an die KI gehende
  * Merkmalstext (EN, inkl. vollständiger Zaubertabelle) ist damit identisch zur App.
- * Vault-Reads laufen im Node-Eval über den fs-Shim (evals/setup/tauriInvokeShim.ts).
+ * Vault-Reads laufen im Node-Eval über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
 import type { CharacterSummary } from '../../src/lib/services/aiActions/levelUpAction';
 import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
