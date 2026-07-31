@@ -11,6 +11,7 @@
  * `hasDeclaredMechanics` nach seinem Inhalt — die beiden Fragen sind nicht dieselbe.
  */
 import type { FeatureGrant, FeatureChoiceGrant, ProficiencyGrant, SpellGrant } from '$lib/schemas/shared';
+import { isEmptyCharacterProperties } from './characterProperties';
 
 /**
  * Der Ausschnitt, den Klassenmerkmal, Speziesmerkmal und Talent teilen — strukturell
@@ -40,7 +41,8 @@ const hasProficiency = (p: ProficiencyGrant): boolean =>
 
 /** `grants: {}` nach dem Zod-Parse: alle Felder auf ihrem Default. */
 const grantIsEmpty = (g: FeatureGrant): boolean =>
-  !hasProficiency(g.proficiencies) && g.extraCantrips === 0 && g.extraPreparedCount === 0 && g.perLevel.hpMax === 0;
+  !hasProficiency(g.proficiencies) && g.extraCantrips === 0 && g.extraPreparedCount === 0 &&
+  g.perLevel.hpMax === 0 && isEmptyCharacterProperties(g.properties);
 
 /** Angesehen und entschieden — unabhängig davon, ob dabei Mechanik herauskam. */
 export const isRedacted = (f: DeclarableFeature): boolean =>

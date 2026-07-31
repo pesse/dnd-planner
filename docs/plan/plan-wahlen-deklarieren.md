@@ -1,7 +1,7 @@
 # Alle Merkmalswahlen deklarieren — die KI-Deutung abbauen
 
 > Umsetzungsplan, erstellt am 2026-07-30 im Worktree `analyse-prompts`.
-> **Stand 2026-07-30: Stufe 0, 1 und 2 sind umgesetzt** (fünf Commits), Stufe 3–5 offen.
+> **Stand 2026-07-31: Stufe 0, 1, 2 und 2b sind umgesetzt**, Stufe 3–5 offen.
 > Was die Umsetzung am Plan korrigiert hat, steht in Abschnitt „Korrekturen aus der
 > Umsetzung"; die Stufen-Abschnitte selbst sind der ursprüngliche Entwurf.
 > Übergeordnet zu `docs/plan/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
@@ -269,8 +269,10 @@ schon ab (`!!f.grantsChoice`), aber der **Speziespfad** braucht dieselbe Filteru
 es `withoutSpellAccessFeatures` (`spellAccess.ts:84`) nur für Zauber-Zugänge.
 
 Achtung Reihenfolge: `withoutOwnedChoices` (`declaredChoice.ts`) existiert genau für Merkmale,
-die im KI-Eingang **bleiben** müssen (deutscher Speziestext für Größe). Diese Ausnahme bleibt,
-solange Stufe 5 offen ist.
+die im KI-Eingang **bleiben** müssen. Diese Ausnahme bleibt, solange Stufe 5 offen ist.
+(Das Beispiel war die Größe von Mensch/Tiefling — seit Stufe 2b ist sie deklariert und fällt
+über `withoutDeclaredChoiceFeatures` aus dem Eingang; übrig bleiben die Merkmale mit `grants`
+ohne Wahl und die Zweigwahlen, deren Option nichts deklariert.)
 
 **Verifikation:** die Druiden- und Gnom-Assertions aus `evals/cases/` werden zu Vitest-Tests
 gegen `buildRider` — **ohne LLM-Kosten**. Der Druiden-Fall (Baseline 0/5 auf sechs
@@ -303,6 +305,53 @@ schon sagt: kein Grant, sondern Text — künftig ein deklarierter `sheetNoteDe`
 einer Prompt-Regel.
 
 **Verifikation:** Unit-Tests; `npm run check`. Ein Schurke St. 1 im Wizard.
+
+## Stufe 2b — Grundeigenschaften: `grants.properties` + `kind: 'characterProperty'` ✅
+
+Der Fall, den die bisherigen Stufen nicht erreichten, weil ihm die **Senke** fehlte: eine
+Deklaration konnte Übungen, Zauber und TP je Stufe ausdrücken, aber nicht „setze Eigenschaft X
+auf Wert Y". Also las die Größe sich aus dem englischen Merkmalstext (`services/speciesSize.ts`,
+Wortsuche gegen `MONSTER_SIZES`) und die Bewegungsrate aus deutscher Prosa
+(`metersFromSpeedText`) — zwei Heuristiken neben der Deklaration.
+
+| | fest | Wahl |
+|---|---|---|
+| `size` | 7 Spezies (`grants.properties.size`) | 3 (`phb-2024_fairy`, `srd-2024_human`, `srd-2024_tiefling`) |
+| `speedFeet` | 10 Spezies | 0 — bedingte Raten (Barbar, Mönch, Waldläufer) bleiben Prosa |
+
+**Warum ein eigener `kind` und nicht `optionList` mit `grants` je Option:** die Optionen sind
+ein geschlossenes Vokabular, das die App schon hat. Die Deklaration nennt nur Eigenschaft und
+zugelassene Werte (`property`, `propertyValues`), Labels kommen aus `MONSTER_SIZES` — im Vault
+stehen vier Zeilen statt vierzehn, und eine Homebrew-Spezies kann die Wahl anbieten, ohne
+deutsche Labels zu pflegen.
+
+**Der Weg an den Charakter ist `Change`, nicht Rider.** Der Rider ist das Ausgabevokabular des
+Modells; eine Größe darin hieße, Pass C dürfte sie erfinden. Also `sizeCategory`/`speedFeet` in
+`changeSchema` mit `case` in `applyChanges` — **dort** liegt die Übersetzungsgrenze
+(`'Small'` → „Klein", 35 ft → „10,5"), wie bei Fertigkeit und Waffe.
+
+**Drei Dinge, die im selben Schnitt zugehen mussten:** `isEmptyFeatureGrant` und `grantIsEmpty`
+(`declarationCoverage.ts`) hätten ein Merkmal, dessen einziger Grant eine Eigenschaft ist, als
+„geprüft, gewährt nichts" übersprungen — der Wert wäre still verschwunden, dieselbe Lücke wie
+zuvor bei `weaponsOther`. Und `withGrant` zählt die Felder von `FeatureGrant` von Hand auf;
+daneben steht jetzt `GRANT_SINKS`, total über `keyof`.
+
+**Der Parser bleibt als Fallback.** `sizeChoiceOf` liefert für ein redigiertes Merkmal `null`
+(`isRedacted`-Guard), sonst stünde die Größenfrage zweimal; für undeklarierte und frisch
+importierte Spezies bleibt er der Weg. Ebenso die Namensregel für `speed`. `sheetValue` ist
+davon unberührt und weiterhin nötig: `grants` allein nimmt ein Merkmal NICHT aus dem KI-Eingang.
+
+**Verdrahtet in allen drei Flows** (Wizard, Aufstieg, Charakter-Editor). Der Aufstieg hat heute
+keinen Vault-Fall — die Symmetrie kostet dort einen Aufrufparameter (`choiceSources` an
+`buildDoc`), ihr Fehlen hätte später eine stille Lücke gekostet.
+
+**Verifikation:** `evals/characterProperties.test.ts` (neu, ohne LLM: Bestandsabdeckung,
+Optionen aus dem Vokabular, Antwort → `Change` → Bogenwert, Wizard-Eingang genau einmal);
+`evals/speciesSize.test.ts` ist auf die Fallback-Rolle umgeschrieben.
+
+**Nicht dabei:** Kreaturentyp und Dunkelsicht. Beide haben am Charakter kein Feld, im Bestand
+keinen Wahl-Fall, und die App wertet sie nirgends aus — sie sind Bogen-Notiz (Stufe 5), keine
+Eigenschaft.
 
 ## Stufe 3 — Batch-Redaktion der restlichen ~300 Einträge
 
@@ -338,7 +387,7 @@ Median für die ganze Kette, und die drei Wiederholungen des `<gained_features>`
 (~15 000 gesendete Tokens je Lauf) fallen auf eine.
 
 **Verifikation:** die Rider-Gleichheit ist die Abnahme — derselbe Charakter, derselbe Aufstieg,
-Rider aus Builder gegen Rider aus der Kette (Fixtures aus `evals/fixtures`).
+Rider aus Builder gegen Rider aus der Kette (Fixtures aus `tests/fixtures`).
 
 ## Stufe 5 — offen: `sheetNoteDe` deklarieren?
 

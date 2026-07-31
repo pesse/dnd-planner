@@ -18,8 +18,10 @@ export interface DeclaredChoiceBase {
 
 /**
  * KI-Wahlen zu Merkmalen, deren Wahl der Flow schon führt, fallen weg — sonst wird zweimal
- * gefragt. Nötig, wo das Merkmal im KI-Eingang BLEIBT (Größe von Mensch/Tiefling): dort kann
- * kein Eingangsfilter greifen, der deutsche Speziestext braucht es weiter.
+ * gefragt. Nötig, wo das Merkmal im KI-Eingang BLEIBT: dort kann kein Eingangsfilter greifen.
+ * Das sind die Merkmale mit `grants`, aber ohne deklarierte Wahl, und die Zweigwahlen, deren
+ * gewählte Option nichts deklariert (`unredactedChoiceFeatures`) — bei ihnen deutet Pass C
+ * weiter die Prosa. Die Größe war bis zur Deklaration der Grundeigenschaften das Beispiel.
  */
 export function withoutOwnedChoices(declared: AnalysisChoice[], fromAi: AnalysisChoice[]): AnalysisChoice[] {
   const owned = new Set(declared.map((c) => c.featureKey).filter(Boolean));

@@ -269,6 +269,26 @@ export type SkillGrant = z.infer<typeof skillGrantSchema>;
 export type ProficiencyGrant = z.infer<typeof proficiencyGrantSchema>;
 
 /**
+ * Die sechs Kreaturengrößen, englisch → deutsch. EIN Vokabular für Monster UND Charaktere;
+ * der Name ist historisch (die Tabelle entstand für den Monster-Statblock).
+ *
+ * Liegt hier statt in `types.ts`, weil zwei Schemas darauf stehen (`monsterSchema.size`,
+ * `characterPropertiesSchema.size`) und ein Import aus `types.ts` in diese Datei ein Zyklus
+ * wäre — `types.ts` liest Werte von hier. Dort steht der Re-Export.
+ */
+export const MONSTER_SIZES = {
+  Tiny:        'Winzig',
+  Small:       'Klein',
+  Medium:      'Mittelgroß',
+  Large:       'Groß',
+  Huge:        'Riesig',
+  Gargantuan:  'Gigantisch',
+} as const;
+export type MonsterSize = keyof typeof MONSTER_SIZES;
+/** Dasselbe Vokabular als Liste — für `z.enum` und für Picker. */
+export const MONSTER_SIZE_KEYS = Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]];
+
+/**
  * Fortlaufende, PRO CHARAKTERSTUFE wirkende Zunahme. Heute nur das TP-Maximum
  * (Zwergische Zähigkeit +1, Talent „Zäh" +2) — als Objekt statt als Zahl, damit ein
  * zweites Ziel keine Schemamigration braucht.
@@ -283,6 +303,40 @@ export const perLevelGrantSchema = z.object({
 
 /** Leerer pro-Stufe-Grant (Default-Literal für `.default()`). */
 export const emptyPerLevelGrant = (): PerLevelGrant => ({ hpMax: 0 });
+
+/**
+ * Grundsätzliche Charaktereigenschaften, die ein Merkmal FESTLEGT — Größe und
+ * Grundbewegungsrate. Bis hierher konnte eine Deklaration Übungen, Zauber und TP je Stufe
+ * ausdrücken, aber nicht „setze Eigenschaft X auf Wert Y"; genau deshalb las die Größe sich
+ * bis dahin aus dem englischen Merkmalstext (`services/speciesSize.ts`).
+ *
+ * Je Eigenschaft ein eigenes Feld mit eigenem Werte-Typ statt eines `{property, value}`-Paars:
+ * nur so steht die Wertemenge im Schema, und nur so ist die Senke über `keyof` total
+ * (`PROPERTY_ROUTES`, services/characterProperties.ts).
+ *
+ * Werte in der SPRACHE DER REGELN: englische Größe, Fuß statt Meter. Deutsch und metrisch wird
+ * beim Anwenden des `Change` — dieselbe Grenze wie bei Fertigkeit und Waffe.
+ *
+ * Wächst mit dem Bedarf: Kreaturentyp und Dunkelsicht stehen bewusst NICHT hier. Sie haben am
+ * Charakter kein Feld, im Bestand keinen Wahl-Fall, und die App wertet sie nirgends aus — sie
+ * sind Bogen-Notiz, keine Eigenschaft.
+ */
+export const CHARACTER_PROPERTIES = ['size', 'speedFeet'] as const;
+export type CharacterPropertyName = (typeof CHARACTER_PROPERTIES)[number];
+
+export const characterPropertiesSchema = z.object({
+  size: z
+    .enum(MONSTER_SIZE_KEYS)
+    .optional()
+    .describe('Größenkategorie, englisches Vokabular. Fehlt = das Merkmal legt sie nicht fest.'),
+  speedFeet: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Grundbewegungsrate in FUSS (Einheit des Regeltexts); die Umrechnung in Meter passiert beim Anwenden.'),
+});
+export type CharacterProperties = z.infer<typeof characterPropertiesSchema>;
 
 /**
  * Was ein Merkmal deterministisch GEWÄHRT — dritte Deklaration neben `grantsChoice`
@@ -311,6 +365,12 @@ export const featureGrantSchema = z.object({
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
+  /**
+   * Grundeigenschaften. Die einzige Grant-Art, die NICHT über den Rider reist: der Rider ist
+   * das Ausgabevokabular des Modells, eine Größe darin hieße, Pass C dürfte sie erfinden.
+   * Senke ist `characterPropertyChanges` (services/characterProperties.ts).
+   */
+  properties: characterPropertiesSchema.default({}),
 });
 
 /** true, wenn der Grant nichts gewährt. */
@@ -350,6 +410,11 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  *     Deklariert wird nur die Anzahl; die Liste baut der Flow zur Laufzeit. Genau deshalb
  *     konnte die KI hier nie liefern: `buildFeatureEffectsInput` schickt bewusst keine
  *     Charakter-Zusammenfassung mit, das Modell kennt die geübten Fertigkeiten also nicht.
+ *   - `characterProperty`: eine Grundeigenschaft, die das Merkmal zur WAHL stellt statt sie
+ *     festzulegen („Klein oder Mittelgroß, entschieden bei der Spezieswahl"). `property` nennt
+ *     die Eigenschaft, `propertyValues` verengt ihr Vokabular; Optionen und deutsche Labels
+ *     kommen aus dem Vokabular selbst, nicht aus der Deklaration. Der feste Fall derselben
+ *     Eigenschaft steht in `grants.properties` — dieselbe Senke, ohne Frage.
  *   - `optionList`: die generische Zweigwahl — das Merkmal bietet eine im Regeltext
  *     ausgeschriebene Optionsliste an (Urtümlicher Orden, Göttlicher Orden), und JEDE Option
  *     trägt ihre Konsequenz neben sich (`options[].grants`). Genau das macht die Wahl
@@ -363,7 +428,7 @@ export type FeatureGrant = z.infer<typeof featureGrantSchema>;
  * (services/spellcasting.ts) „dies ist das Klassen-Zauberwirken" bedeutet und über
  * `spellcastingOffer` entscheidet — ein Talent darf dieses Prädikat nicht wahr machen.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'characterProperty'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -457,6 +522,18 @@ export const featureChoiceGrantSchema = z.object({
     .array(spellPickGrantSchema)
     .default([])
     .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
+  // Die zwei Felder von kind="characterProperty". `propertyValues` ist bewusst `string[]` und
+  // kein Enum: welche Werte zulässig sind, hängt an `property`, und ein zweites Vokabular im
+  // Schema würde die Frage doppelt beantworten. Geprüft wird gegen die Registry
+  // (`characterPropertyOptions`) — unbekannte Werte fallen dort weg, wie bei `spellLists`.
+  property: z
+    .enum(CHARACTER_PROPERTIES)
+    .optional()
+    .describe('Nur bei kind="characterProperty": welche Grundeigenschaft gewählt wird.'),
+  propertyValues: z
+    .array(z.string())
+    .default([])
+    .describe('Nur bei kind="characterProperty": zulässige Werte aus dem Vokabular der Eigenschaft. Leer = alle.'),
 });
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 

@@ -11,7 +11,8 @@
    * nichts"), und die kann nur der Aufrufer treffen, der das Merkmal bzw. die Option hält.
    * Diese Komponente bekommt immer ein vorhandenes Objekt.
    */
-  import type { FeatureGrant } from '$lib/schemas/shared';
+  import { MONSTER_SIZES, MONSTER_SIZE_KEYS, type FeatureGrant, type MonsterSize } from '$lib/schemas/shared';
+  import { characterPropertyLabelDe } from '$lib/services/characterProperties';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
 
   let {
@@ -28,6 +29,19 @@
   function mark() {
     onchange();
   }
+
+  // Leere Auswahl heißt „legt die Eigenschaft nicht fest" — das Feld verschwindet dann, statt
+  // einen Wert vorzutäuschen (dieselbe Unterscheidung wie fehlendes `grants` gegen `{}`).
+  function setSize(value: string) {
+    grant.properties.size = value ? (value as MonsterSize) : undefined;
+    onchange();
+  }
+
+  function setSpeed(value: string) {
+    const feet = parseInt(value, 10);
+    grant.properties.speedFeet = Number.isFinite(feet) && feet > 0 ? feet : undefined;
+    onchange();
+  }
 </script>
 
 <div class="grant-block">
@@ -40,6 +54,27 @@
     </label>
     <label class="lbl-inline" title="Zunahme des TP-Maximums JE Charakterstufe (Zwergische Zähigkeit +1, Zäh +2)">TP je Stufe +
       <input class="ef num" type="number" min="0" bind:value={grant.perLevel.hpMax} oninput={mark} />
+    </label>
+  </div>
+
+  <div class="sub-title">Grundeigenschaften</div>
+  <div class="num-row">
+    <label class="lbl-inline" title="Größenkategorie, die dieses Merkmal FESTLEGT. Zur Wahl gestellt wird sie über „Gewährt Wahl“ → Grundeigenschaft.">
+      {characterPropertyLabelDe('size')}
+      <select class="ef sel" value={grant.properties.size ?? ''} onchange={(e) => setSize((e.target as HTMLSelectElement).value)}>
+        <option value="">—</option>
+        {#each MONSTER_SIZE_KEYS as size}
+          <option value={size}>{MONSTER_SIZES[size]}</option>
+        {/each}
+      </select>
+    </label>
+    <label class="lbl-inline" title="Grundbewegungsrate in Fuß (Regeltext-Einheit); der Bogen zeigt Meter.">
+      {characterPropertyLabelDe('speedFeet')} (ft)
+      <input
+        class="ef num" type="number" min="0" step="5"
+        value={grant.properties.speedFeet ?? ''}
+        oninput={(e) => setSpeed((e.target as HTMLInputElement).value)}
+      />
     </label>
   </div>
 

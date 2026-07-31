@@ -348,7 +348,7 @@
     gainedAt={ch.slot.gainedAt}
     showLevel={(choicesByFeature.get(ch.slot.feature.key ?? '')?.length ?? 1) > 1}
     pendingGrants={!!g?.wouldAlter}
-    hint={g ? choiceHint(ch, g, { wouldAlter: g.wouldAlter, changed: !!savedAnswer && savedAnswer !== ch.answer.join(', ') }) : ''}
+    hint={g ? choiceHint(ch, g, { wouldAlter: g.wouldAlter }) : ''}
     flagged={g?.flagged ?? []}
     diff={dirOf(savedAnswer, ch.answer.join(', '))}
     onchange={(next) => writeLedger(withChoiceAnswer(character.features, ch, next))}

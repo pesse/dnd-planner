@@ -17,7 +17,11 @@ import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
 import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
-import { declaredGrantChanges, withoutDeclaredChoiceFeatures, type DeclaredGrantSource } from './featureDeclaration';
+import {
+  declaredGrantChanges, withoutDeclaredChoiceFeatures,
+  type DeclaredChoiceSource, type DeclaredGrantSource,
+} from './featureDeclaration';
+import { characterPropertyAnswerChanges } from './characterProperties';
 import type { ClassFeature } from '../schemas/classProgression';
 import type { FeatureChoiceGrant, FeatureGrant, SpellGrant } from '../schemas/shared';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
@@ -907,6 +911,12 @@ export interface DocInput {
    * dem KI-Eingang gefallen sind.
    */
   grantSources: DeclaredGrantSource[];
+  /**
+   * Die deklarierten Wahlen BEIDER Checkpoints — nur für die, deren Antwort keinen Rider
+   * erzeugt (Grundeigenschaften). Zweite Liste neben `grantSources`, weil sie die Talent-Seite
+   * mit einschließt: `chosenFeats` trägt nur `grants`, nicht die Wahl-Deklaration.
+   */
+  choiceSources: DeclaredChoiceSource[];
   // Die Wahl-Fragebögen beider Checkpoints — Quelle der `featureChoice`-Changes; die
   // Merkmalsliste liefert dazu die Stufe je Merkmals-Key.
   baseChoiceQs: LevelUpQuestion[];
@@ -927,6 +937,12 @@ export interface DocInput {
  * Antwort, neu gewählte Subklasse) ersetzt automatisch nur seine eigenen Einträge.
  */
 export function buildDoc(p: DocInput): LevelUpDoc {
+  // Die kanonische (englische) Antwort einer deklarierten Wahl — dieselbe Ableitung, die
+  // `featureChoiceChanges` für das Ledger benutzt.
+  const answerOf = (id: string): string => {
+    const q = [...p.baseChoiceQs, ...p.featChoiceQs].find((x) => x.id === id);
+    return q ? answerValues(q, p.answers[id]) : '';
+  };
   const gainedAtByKey = new Map<string, number>();
   for (const f of [...p.gainedFeatures, ...p.subFeatures]) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
   for (const f of p.chosenFeats) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
@@ -940,6 +956,9 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
+    // Grundeigenschaften: der einzige Wahl-Typ ohne Rider, also braucht er hier seine eigene
+    // Zeile. Beide Checkpoints in einem Aufruf — die Antwort-id trennt sie ohnehin.
+    ...characterPropertyAnswerChanges(p.choiceSources, answerOf, { step: 'assemble-decisions', source: 'feature' }),
     ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions'),
     ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),

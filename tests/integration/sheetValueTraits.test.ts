@@ -8,12 +8,13 @@
  *   npm run eval -- --eval sheetValueTraits
  */
 import { describe, expect, it } from 'vitest';
-import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
-import type { Trait } from '../src/lib/schemas/species';
-import { isSheetValueTrait, withoutSheetValueTraits } from '../src/lib/services/sheetValueTraits';
-import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
-import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
-import { libraryKey } from './libraryKey';
+import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
+import type { Trait } from '../../src/lib/schemas/species';
+import { isEmptyProficiencyGrant } from '../../src/lib/schemas/shared';
+import { isSheetValueTrait, withoutSheetValueTraits } from '../../src/lib/services/sheetValueTraits';
+import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
+import { GNOME_SORCERER_BASICS } from '../fixtures/gnome-sorcerer-sage';
+import { libraryKey } from '../support/libraryKey';
 
 const allTraits = async (): Promise<{ species: string; trait: Trait }[]> => {
   const list = await getSpeciesList();
@@ -65,9 +66,17 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
     for (const t of declared) {
       const text = `${t.trait.desc} ${t.trait.descDe ?? ''}`;
       expect(INTERPRETABLE.test(text), `${label(t)}: „${t.trait.desc}"`).toBe(false);
-      // Eine Deklaration am Merkmal wäre der stille Verlust, den dieser Schnitt verursachen
-      // könnte — ein reiner Bogenwert gewährt nichts.
-      expect(t.trait.grants, label(t)).toBeUndefined();
+      // Ein reiner Bogenwert gewährt genau EINES: seinen Wert. Vorher stand hier
+      // `toBeUndefined()` — ohne Senke für Grundeigenschaften wäre jede Deklaration am
+      // Merkmal der stille Verlust gewesen, den dieser Schnitt verursachen kann. Jetzt ist
+      // die Deklaration der Weg, und die Prüfung dreht sich um: nichts ANDERES als die
+      // Eigenschaft (keine Übung, kein Zaubertrick, kein TP je Stufe).
+      const g = t.trait.grants;
+      if (g) {
+        expect(isEmptyProficiencyGrant(g.proficiencies), label(t)).toBe(true);
+        expect(g.extraCantrips + g.extraPreparedCount + g.perLevel.hpMax, label(t)).toBe(0);
+        expect(Object.keys(g.properties).length, `${label(t)}: setzt seinen Bogenwert`).toBeGreaterThan(0);
+      }
     }
   });
 

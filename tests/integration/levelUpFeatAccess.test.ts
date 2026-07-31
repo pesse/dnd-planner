@@ -8,20 +8,20 @@
  *   npm run eval -- --eval levelUpFeatAccess
  */
 import { describe, expect, it } from 'vitest';
-import { getClasses } from '../src/lib/classLibrary';
-import { getFeats } from '../src/lib/featsLibrary';
-import { getProgressionByKey } from '../src/lib/services/classProgression';
+import { getClasses } from '../../src/lib/classLibrary';
+import { getFeats } from '../../src/lib/featsLibrary';
+import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import {
   spellAbilityChoiceId,
   spellAccessChoices,
   spellAccessGrantOf,
   spellListChoiceId,
   withoutSpellAccessFeatures,
-} from '../src/lib/services/spellAccess';
-import { buildDoc, buildFeatureChoices, featToGainedFeature } from '../src/lib/services/levelUpMachine';
-import { noDeclaredSpells } from '../src/lib/services/levelUpMachine';
-import { encodePick } from '../src/lib/services/spellcasting';
-import type { Change } from '../src/lib/schemas/levelUp';
+} from '../../src/lib/services/spellAccess';
+import { buildDoc, buildFeatureChoices, featToGainedFeature } from '../../src/lib/services/levelUpMachine';
+import { noDeclaredSpells } from '../../src/lib/services/levelUpMachine';
+import { encodePick } from '../../src/lib/services/spellcasting';
+import type { Change } from '../../src/lib/schemas/levelUp';
 import {
   CANTRIP_COUNT,
   CHOSEN_LIST,
@@ -35,7 +35,7 @@ import {
   loadMagicInitiate,
   MAGIC_INITIATE_KEY,
   TO_LEVEL,
-} from './fixtures/fighter-l4-magic-initiate';
+} from '../fixtures/fighter-l4-magic-initiate';
 
 const grantOfMagicInitiate = async () => {
   const feat = await loadMagicInitiate();
@@ -119,7 +119,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       subFeatures: [],
       declaredSpells: noDeclaredSpells(),
       charLevelSpells: noDeclaredSpells(),
-      grantSources: [],
+      grantSources: [], choiceSources: [],
       validatedBase: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       validatedFeats: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       answers,

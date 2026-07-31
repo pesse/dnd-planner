@@ -29,6 +29,7 @@
     spellAccess: { value: 'spellAccess', de: 'Zauber-Zugang' },
     optionList: { value: 'optionList', de: 'Optionsliste (Zweigwahl)' },
     expertise: { value: 'expertise', de: 'Expertise' },
+    characterProperty: { value: 'characterProperty', de: 'Grundeigenschaft' },
   };
 
   /**
@@ -56,6 +57,7 @@
    * weshalb die Felder optional ohne Default sind — sie darf die UI nicht einebnen.
    */
   import { featureChoiceGrantSchema, featureGrantSchema, spellGrantSchema } from '$lib/schemas/shared';
+  import CharacterPropertyEditForm from './CharacterPropertyEditForm.svelte';
   import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
   import SpellAccessEditForm from './SpellAccessEditForm.svelte';
@@ -100,6 +102,12 @@
     if (value === 'fightingStyle')
       feature.grantsChoice = newChoice({ kind: 'featCategory', featCategory: 'Fighting Style', count: prev?.count ?? 1 });
     else if (value === 'optionList') feature.grantsChoice = newChoice({ kind: 'optionList', options: prev?.options ?? [] });
+    else if (value === 'characterProperty')
+      feature.grantsChoice = newChoice({
+        kind: 'characterProperty',
+        property: prev?.property ?? 'size',
+        propertyValues: prev?.propertyValues ?? [],
+      });
     else if (value === 'spellAccess')
       feature.grantsChoice = newChoice({
         kind: 'spellAccess',
@@ -166,6 +174,10 @@
 
   {#if feature.grantsChoice && kindOf(feature) === 'spellAccess'}
     <SpellAccessEditForm bind:grant={feature.grantsChoice} {onchange} />
+  {/if}
+
+  {#if feature.grantsChoice && kindOf(feature) === 'characterProperty'}
+    <CharacterPropertyEditForm bind:grant={feature.grantsChoice} {onchange} />
   {/if}
 
   <div class="row">

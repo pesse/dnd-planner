@@ -47,6 +47,7 @@ import {
   unredactedChoiceFeatures,
   withDeclaredGrants,
 } from '../featureDeclaration';
+import { characterPropertyChoices } from '../characterProperties';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
@@ -237,7 +238,10 @@ export class CharacterWizard {
     const expertise = this.declared
       .map((f) => expertiseChoice(f, this.proficientSkills, []))
       .filter((c): c is AnalysisChoice => c !== null);
-    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...expertise, ...spells];
+    // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
+    // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
+    const properties = characterPropertyChoices(this.declared);
+    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...properties, ...branches, ...expertise, ...spells];
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */

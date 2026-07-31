@@ -178,6 +178,15 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
   then `savingThrows`/`weaponsOther`/`tools`/`languages` — all four silently dropped by the
   level-up while the wizard applied them. **Do not hand-enumerate fields next to these tables.**
+- **A character property is a `Change`, never a rider field.** `grants.properties`
+  (`size`, `speedFeet`) and `grantsChoice.kind === 'characterProperty'` both end in
+  `services/characterProperties.ts` → `sizeCategory`/`speedFeet` changes → `applyChanges`,
+  where the translation happens (`'Small'` → „Klein", 35 ft → „10,5"). The rider is the
+  *model's* output vocabulary — a size in it would mean Pass C may invent one. `speciesSize.ts`
+  and the `/(_speed$|^speed$)/i` rule in `assembleCharacter` survive as the FALLBACK for
+  undeclared/homebrew species; `sizeChoiceOf` returns null for a redacted trait, otherwise the
+  size is asked twice. `sheetValue` is orthogonal and stays: `grants` alone does not remove a
+  feature from the AI input.
 - **`grants` is optional WITHOUT a default** (`featureGrantSchema`, plus `grantsChoice`/
   `grantsSpells` alongside it). Missing field = the entry was never redacted and still runs
   through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every

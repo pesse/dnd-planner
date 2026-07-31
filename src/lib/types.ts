@@ -10,7 +10,8 @@ import type { ClassProgression, ClassFeature } from './schemas/classProgression'
 import type { Species, Trait } from './schemas/species';
 import type { Feat } from './schemas/feat';
 import type { Background, Benefit } from './schemas/background';
-import { OWN_SOURCE, emptyProficiencyGrant, emptySkillGrant } from './schemas/shared';
+import { OWN_SOURCE, emptyProficiencyGrant, emptySkillGrant, MONSTER_SIZES, MONSTER_SIZE_KEYS } from './schemas/shared';
+import type { MonsterSize } from './schemas/shared';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
@@ -117,15 +118,12 @@ export interface LlmConfig {
 
 // --- Monster ---
 
-export const MONSTER_SIZES = {
-  Tiny:        'Winzig',
-  Small:       'Klein',
-  Medium:      'Mittelgroß',
-  Large:       'Groß',
-  Huge:        'Riesig',
-  Gargantuan:  'Gigantisch',
-} as const;
-export type MonsterSize = keyof typeof MONSTER_SIZES;
+// Die Größentabelle liegt in `schemas/shared.ts` — sie ist nicht mehr nur Monster-Vokabular,
+// sondern auch das der Charaktereigenschaft `size`, und ein Import von dort hierher wäre ein
+// Zyklus (diese Datei liest schon Werte aus `shared.ts`). Re-Export, damit „aus $lib/types"
+// weiter stimmt und es genau EINE Tabelle gibt.
+export { MONSTER_SIZES, MONSTER_SIZE_KEYS };
+export type { MonsterSize };
 
 export const MONSTER_TYPES = {
   aberration:  'Aberration',

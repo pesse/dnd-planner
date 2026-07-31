@@ -56,6 +56,7 @@
     optionSpellNames, unredactedChoiceFeatures,
     withDeclaredGrants, withoutDeclaredChoiceFeatures,
   } from '../services/featureDeclaration';
+  import { characterPropertyChoices } from '../services/characterProperties';
   import { declaredFeatures } from '../services/declaredFeature';
   import {
     spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
@@ -425,11 +426,18 @@
       buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
     ),
   );
+  /**
+   * Deklarierte Grundeigenschaften (Größe). Am Aufstieg heute ohne Vault-Fall — die Spezies
+   * steht auf Stufe 1 fest —, aber aus derselben Liste wie alles andere: ein Talent oder
+   * Klassenmerkmal, das eine Eigenschaft zur Wahl stellt, verlöre sie sonst still.
+   */
+  let basePropertyChoices = $derived(buildFeatureChoices(characterPropertyChoices(baseDeclared)));
   /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
   let baseChoiceQs = $derived([
     ...baseChoices,
     ...baseOptionChoices,
     ...baseExpertiseChoices,
+    ...basePropertyChoices,
     ...baseAccessChoices,
   ]);
   let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
@@ -443,6 +451,7 @@
       ...featExpertiseFeatures
         .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
         .filter((c): c is AnalysisChoice => c !== null),
+      ...characterPropertyChoices(featDeclared),
     ]),
   );
   /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
@@ -450,7 +459,7 @@
   let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
   /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Schlüssel der Option. */
   const optionAnswer = (id: string): string => {
-    const q = [...baseOptionChoices, ...baseExpertiseChoices, ...featDeclaredChoices].find((x) => x.id === id);
+    const q = [...baseOptionChoices, ...baseExpertiseChoices, ...basePropertyChoices, ...featDeclaredChoices].find((x) => x.id === id);
     return q ? answerValues(q, answers[id]) : '';
   };
 
@@ -1017,7 +1026,7 @@
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
-      grantSources: baseDeclared, charLevelSpells,
+      grantSources: baseDeclared, choiceSources: declaredSources, charLevelSpells,
       baseChoiceQs, featChoiceQs, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });

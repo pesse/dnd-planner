@@ -20,7 +20,8 @@
  */
 import type { Character } from '../schemas/character';
 import type { Change } from '../schemas/levelUp';
-import type { SkillName } from '../schemas/shared';
+import { MONSTER_SIZES, type SkillName } from '../schemas/shared';
+import { ftToMVal } from '../itemLibrary';
 import { skillSheetKey } from '../pdf/characterFields';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
 
@@ -133,6 +134,15 @@ export function applyChanges(next: Character, changes: readonly Change[], ctx: A
         break;
       case 'armorTraining':
         markArmorTraining(next.proficiencies, c.value);
+        break;
+      // Grundeigenschaften: SETZEND, nicht additiv — es gibt nur einen Wert, und das Merkmal
+      // legt ihn fest. Hier liegt die Übersetzungsgrenze: der Change trägt die Regelsprache
+      // (englische Größe, Fuß), der Bogen den deutschen bzw. metrischen Wert.
+      case 'sizeCategory':
+        next.personal.sizeCat = MONSTER_SIZES[c.value];
+        break;
+      case 'speedFeet':
+        next.speed = String(ftToMVal(c.value)).replace('.', ',');
         break;
       case 'savingThrow':
         markSavingThrow(next, c.value);

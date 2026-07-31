@@ -34,6 +34,9 @@ import {
   chosenOption, expertiseChoice, expertiseRider, isDeclaredChoiceFeature, isExpertiseFeature,
   optionListChoice, optionListRider,
 } from './featureDeclaration';
+import {
+  characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
+} from './characterProperties';
 import { riderChanges, validateRiderSpells } from './levelUpMachine';
 
 /** Ein Wahl-Platz: deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
@@ -73,9 +76,10 @@ const keyOf = (slot: ChoiceSlot): string => slot.feature.key?.trim() ?? '';
 /**
  * Alle Wahl-Plätze eines Charakters, aus der Bibliothek aufgelöst.
  *
- * `kind`-Auswahl über `isDeclaredChoiceFeature`: `optionList` und `expertise` — die beiden
- * Arten, deren Antwort im Merkmals-Ledger landet. `weaponMastery` hat seinen eigenen Picker,
- * `spellcasting` gehört dem Zauber-Block, `spellAccess`/`featCategory` bleiben draußen.
+ * `kind`-Auswahl über `isDeclaredChoiceFeature`: `optionList`, `expertise` und
+ * `characterProperty` — die Arten, deren Antwort im Merkmals-Ledger landet. `weaponMastery`
+ * hat seinen eigenen Picker, `spellcasting` gehört dem Zauber-Block, `spellAccess`/
+ * `featCategory` bleiben draußen.
  */
 export async function collectChoiceSlots(c: {
   classes?: CharacterClass[];
@@ -162,7 +166,7 @@ export function buildCharacterChoices(
     const already = answers.filter((_, j) => j !== si && isExpertiseFeature(slots[j].feature)).flat();
     const choice = isExpertiseFeature(slot.feature)
       ? expertiseChoice(slot.feature, ctx.proficient, already)
-      : optionListChoice(slot.feature);
+      : characterPropertyChoice(slot.feature) ?? optionListChoice(slot.feature);
     if (!choice) continue;
 
     const stored = entryOf[si] >= 0 ? ctx.ledger[entryOf[si]] : undefined;
@@ -201,6 +205,14 @@ export interface ChoiceGrants {
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
   const f = ch.slot.feature;
+  // Eine Grundeigenschaft hat keinen Rider — sie ist ein Bogenwert, kein Merkmalseffekt.
+  if (isCharacterPropertyFeature(f)) {
+    const changes = characterPropertyAnswerChanges([f], () => ch.answer[0] ?? '', {
+      step: 'feature-effects',
+      source: keyOf(ch.slot),
+    });
+    return { changes, flagged: [], rider: null, matched: changes.length > 0 };
+  }
   const expertise = isExpertiseFeature(f);
   const rider = expertise
     ? expertiseRider(f, ch.answer)
@@ -213,32 +225,20 @@ export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): C
   return { changes: riderChanges(v, 'feature-effects'), flagged: v.flagged, rider, matched };
 }
 
-/**
- * Was am Platz steht, wenn dort KEIN „Übernehmen" erscheint — drei ehrliche Fassungen plus
- * der Hinweis auf die fehlende Rücknahme.
- *
- * `applyChanges` ist durchgehend additiv: wer Wächter → Magier wechselt, behält die
- * Kriegswaffen-Übung. Ein Entfernen-Pfad wäre ein eigener Entwurf; bis dahin sagt der Picker
- * es, statt es zu verschweigen.
- */
-export function choiceHint(
-  ch: CharacterChoice,
-  g: ChoiceGrants,
-  p: { wouldAlter: boolean; changed: boolean },
-): string {
+/** Was am Platz steht, wenn dort KEIN „Übernehmen" erscheint — drei ehrliche Fassungen. */
+export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter: boolean }): string {
   if (!ch.answer.length) return '';
   if (!g.matched) return 'Diese Antwort passt zu keiner Option — Altbestand oder Tippfehler. Bitte neu wählen.';
-  const stale = p.changed
-    ? 'Die Wirkung der vorigen Antwort bleibt am Bogen — Übungen werden nur ergänzt, nie entfernt.'
-    : '';
-  if (p.wouldAlter) return stale;
+  if (p.wouldAlter) return '';
   // Zauber-Kontingent ist kein Bogenfeld: `spellcastingOffer` zieht es aus den Ridern,
   // ein Knopf dafür täte nichts.
   if (g.rider && (g.rider.extraCantrips || g.rider.extraPreparedCount))
-    return [stale, 'Zusätzliche Zaubertricks/Zauber dieser Option zählen im Zauber-Block.'].filter(Boolean).join(' ');
-  if (!g.rider)
-    return [stale, 'Keine deklarierte Mechanik — die Wirkung deutet die KI beim Aufstieg.'].filter(Boolean).join(' ');
-  return [stale, '✓ übernommen'].filter(Boolean).join(' ');
+    return 'Zusätzliche Zaubertricks/Zauber dieser Option zählen im Zauber-Block.';
+  // `changes` ohne Rider ist der Eigenschafts-Fall (Größe): angewendet, nur nicht über den
+  // Rider — ohne diese Bedingung stünde dort „keine deklarierte Mechanik".
+  if (!g.rider && !g.changes.length)
+    return 'Keine deklarierte Mechanik — die Wirkung deutet die KI beim Aufstieg.';
+  return '✓ übernommen';
 }
 
 /**

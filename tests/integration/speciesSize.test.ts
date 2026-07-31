@@ -1,29 +1,36 @@
 /**
- * Die Größenkategorie landet im Bogenfeld — OHNE LLM, über den ECHTEN Vault.
+ * Der TEXTPARSER für die Größenkategorie — OHNE LLM, über den ECHTEN Vault.
  *
- * Sie stand vorher nirgends: `personal.sizeCat` blieb leer, weil niemand sie schrieb. Hier hängt
- * die Zusicherung, dass jede Spezies einen Wert liefert und die WAHL von Mensch und Tiefling
- * nicht still zu einer Vorgabe wird (Begründung in `docs/plan/plan-zauberwirker-vereinfachung.md`).
+ * Seit der Deklaration von Grundeigenschaften ist er der FALLBACK: ein redigiertes Merkmal
+ * führt seine Größe über `grants.properties` bzw. `kind: 'characterProperty'`
+ * (`evals/characterProperties.test.ts`), und dann schweigt der Parser. Übrig bleibt er für
+ * Homebrew und frische Open5e-Importe, deren Größe nur als Prosa vorliegt.
+ *
+ * Was hier hängt: dass der Parser jede Spezies des Bestands lesen KANN (die Deklaration soll
+ * ihn ersetzen, nicht ihn nötig machen), dass er nichts errät — und dass er einer vorhandenen
+ * Deklaration nicht ins Wort fällt.
  *
  *   npm run eval -- --eval speciesSize
  */
 import { describe, expect, it } from 'vitest';
-import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
-import { isSheetValueTrait } from '../src/lib/services/sheetValueTraits';
-import { withoutOwnedChoices } from '../src/lib/services/declaredChoice';
+import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
+import { isSheetValueTrait } from '../../src/lib/services/sheetValueTraits';
+import { withoutOwnedChoices } from '../../src/lib/services/declaredChoice';
 import {
   resolveSizeCat,
   sizeChoiceId,
   sizeChoiceOf,
   sizeOptionsOf,
   sizeTraitOf,
-} from '../src/lib/services/speciesSize';
-import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
-import { buildWizardCharacter } from '../src/lib/services/wizard/assembleCharacter';
-import type { CharacterWizard } from '../src/lib/services/wizard/characterWizard.svelte';
-import { pointBuyStart } from '../src/lib/services/wizard/pointBuy';
-import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
-import { libraryKey } from './libraryKey';
+} from '../../src/lib/services/speciesSize';
+import { characterPropertyChoice, propertyChoiceId } from '../../src/lib/services/characterProperties';
+import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
+import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
+import { buildWizardCharacter } from '../../src/lib/services/wizard/assembleCharacter';
+import type { CharacterWizard } from '../../src/lib/services/wizard/characterWizard.svelte';
+import { pointBuyStart } from '../../src/lib/services/wizard/pointBuy';
+import { GNOME_SORCERER_BASICS } from '../fixtures/gnome-sorcerer-sage';
+import { libraryKey } from '../support/libraryKey';
 
 /**
  * Die Spezies, deren Größe eine Wahl ist — alle anderen liegen fest. Der Wert ist die
@@ -108,9 +115,14 @@ describe('Größenkategorie der Spezies', () => {
     });
   });
 
-  it('macht aus zwei genannten Kategorien eine Wahl, aus einer keine', async () => {
+  it('macht aus zwei genannten Kategorien eine Wahl, aus einer keine', () => {
+    // Synthetisch, weil im Bestand keine Spezies mehr undeklariert ist: das ist genau der
+    // Homebrew-Fall, für den es den Parser noch gibt.
     for (const key of CHOOSING) {
-      const spec = await getSpeciesByKey(key);
+      const desc = key === 'phb-2024_fairy'
+        ? 'Small (about 2–4 feet tall) or Medium (about 4–6 feet tall)'
+        : 'Medium (about 4–7 feet tall) or Small (about 2–4 feet tall)';
+      const spec = { key, traits: [{ key: `${key}_size`, name: 'Size', nameDe: 'Größe', desc }] };
       const choice = sizeChoiceOf(spec);
       expect(choice, key).not.toBeNull();
       // Englisch als Wert, deutsch als Label — Textreihenfolge, nicht Tabellenreihenfolge.
@@ -118,12 +130,27 @@ describe('Größenkategorie der Spezies', () => {
       expect(choice!.optionsDe, key).toEqual(CHOOSING_ORDER[key].map((o) => SIZE_DE[o]));
       expect(choice!.id, key).toBe(sizeChoiceId(key));
       // Der Wert steht in `personal.sizeCat`; ein Ledger-Eintrag wäre eine zweite Wahrheit.
+      // (Der deklarierte Pfad entscheidet das anders — dort ist die Antwort auffindbar.)
       expect(choice!.isBuildDecision, key).toBe(false);
       expect(choice!.determinesFurtherEffects, key).toBe(false);
-      // Und das Merkmal bleibt undeklariert, sonst verschwände die Wahl aus dem KI-Eingang.
-      expect(sizeTraitOf(spec!.traits) && isSheetValueTrait(sizeTraitOf(spec!.traits)!), key).toBe(false);
     }
-    expect(sizeChoiceOf(await getSpeciesByKey('srd-2024_gnome'))).toBeNull();
+    expect(sizeChoiceOf({ key: 'homebrew_x', traits: [{ name: 'Size', desc: 'Medium' }] })).toBeNull();
+  });
+
+  /**
+   * Die Reihenfolge-Regel des ganzen Fallbacks: wo eine Deklaration steht, fragt der Parser
+   * nicht mehr. Ohne diesen Riegel stünde die Größenfrage im Wizard zweimal.
+   */
+  it('schweigt, wo das Merkmal redigiert ist', async () => {
+    for (const key of CHOOSING) {
+      const spec = await getSpeciesByKey(key);
+      const trait = sizeTraitOf(spec!.traits)!;
+      expect(trait.grantsChoice?.kind, key).toBe('characterProperty');
+      expect(sizeChoiceOf(spec), key).toBeNull();
+      // Die drei tragen weiterhin KEINEN Bogenwert-Diskriminator: die Wahl nimmt sie über
+      // `withoutDeclaredChoiceFeatures` aus dem KI-Eingang, nicht `sheetValue`.
+      expect(isSheetValueTrait(trait), key).toBe(false);
+    }
   });
 
   it('errät nichts: ohne Antwort bleibt das Feld leer', async () => {
@@ -139,23 +166,24 @@ describe('Größenkategorie der Spezies', () => {
     expect(sizeChoiceOf({ key: 'homebrew_x', traits: [{ name: 'Size', desc: 'winzig klein' }] })).toBeNull();
   });
 
-  it('hängt die Wahl in die deklarierten Wahlen des echten Wizard-Eingangs', async () => {
+  it('liefert dem echten Wizard-Eingang nichts mehr, solange der Bestand redigiert ist', async () => {
     expect((await buildFeaturePrep(GNOME_SORCERER_BASICS)).sizeChoice).toBeNull();
     const human = await buildFeaturePrep({
       ...GNOME_SORCERER_BASICS,
       species: { sourceKey: 'srd-2024_human', name: 'Mensch' },
     });
-    expect(human.sizeChoice?.id).toBe(sizeChoiceId('srd-2024_human'));
-    expect(human.sizeChoice?.questionDe).toBe('Größenkategorie');
+    // Die Frage stellt jetzt der Eigenschafts-Pfad (`declaredChoices`) — hier nur die
+    // Zusicherung, dass sie nicht ZUSÄTZLICH aus dem Parser kommt.
+    expect(human.sizeChoice).toBeNull();
   });
 
   /**
-   * Die Größe von Mensch/Tiefling bleibt im KI-Eingang (der Speziestext braucht sie), also kann
-   * das Modell dieselbe Wahl stellen. Gefragt wird trotzdem nur einmal.
+   * Ein Merkmal, das im KI-Eingang bleibt, kann dieselbe Wahl vom Modell gestellt bekommen.
+   * Gefragt wird trotzdem nur einmal — die Regel gilt unabhängig davon, wer die Wahl führt.
    */
   it('verdrängt eine KI-Wahl zum selben Merkmal', async () => {
     const spec = await getSpeciesByKey('srd-2024_human');
-    const declared = sizeChoiceOf(spec)!;
+    const declared = characterPropertyChoice(sizeTraitOf(spec!.traits)!)!;
     const fromAi = [
       { ...declared, id: 'choice_size_1', isBuildDecision: true },
       { ...declared, id: 'choice_skillful_1', featureKey: 'srd-2024_human_skillful' },
@@ -174,17 +202,20 @@ describe('Größenkategorie der Spezies', () => {
     expect(gnome.speed).toBe('9');
 
     const humanSpecies = { sourceKey: 'srd-2024_human', name: 'Mensch' };
+    const human = await getSpeciesByKey('srd-2024_human');
+    const declared = tagged('species', [sizeTraitOf(human!.traits)!]);
     const answered = await buildWizardCharacter(
       wizardStub({
         species: humanSpecies,
-        declaredAnswers: [{ id: sizeChoiceId('srd-2024_human'), choice: 'Small' }],
+        declared,
+        declaredAnswers: [{ id: propertyChoiceId(declared[0]), choice: 'Small' }],
       }),
     );
     expect(answered.personal.sizeCat).toBe('Klein');
 
     // Unbeantwortet bleibt leer statt geraten — die Oberfläche erzwingt die Antwort
     // (`declaredChoicesDone`), und ein Standardwert wäre eine erfundene Regelentscheidung.
-    const unanswered = await buildWizardCharacter(wizardStub({ species: humanSpecies }));
+    const unanswered = await buildWizardCharacter(wizardStub({ species: humanSpecies, declared }));
     expect(unanswered.personal.sizeCat).toBe('');
   });
 });

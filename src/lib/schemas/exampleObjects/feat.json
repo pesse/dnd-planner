@@ -36,6 +36,10 @@
     "extraPreparedCount": 0,
     "perLevel": {
       "hpMax": 0
+    },
+    "properties": {
+      "size": "Tiny",
+      "speedFeet": 1
     }
   },
   "grantsChoice": {
@@ -73,6 +77,10 @@
           "extraPreparedCount": 0,
           "perLevel": {
             "hpMax": 0
+          },
+          "properties": {
+            "size": "Tiny",
+            "speedFeet": 1
           }
         },
         "spells": [
@@ -98,6 +106,10 @@
         "level": 0,
         "count": 1
       }
+    ],
+    "property": "size",
+    "propertyValues": [
+      "string"
     ]
   },
   "grantsSpells": {

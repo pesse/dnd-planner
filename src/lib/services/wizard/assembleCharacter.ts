@@ -50,6 +50,7 @@ import {
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellAccess';
 import { declaredGrantChanges, optionListNoteLines } from '../featureDeclaration';
+import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
@@ -127,8 +128,8 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   // ── Bogenwerte der Spezies (deutsch aus den Merkmalen; die Felder selbst sind leer) ──
   const speedTrait = spec?.traits.find((t) => /(_speed$|^speed$)/i.test(t.key) || t.name.toLowerCase() === 'speed');
   c.speed = metersFromSpeedText(speedTrait?.descDe, speedTrait?.desc || spec?.speed);
-  const sizeAnswer = w.declaredAnswers.find((a) => a.id === sizeChoiceId(spec?.key ?? ''))?.choice ?? '';
-  c.personal.sizeCat = resolveSizeCat(spec?.traits ?? [], sizeAnswer);
+  const declaredAnswerOf = (id: string): string => w.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
+  c.personal.sizeCat = resolveSizeCat(spec?.traits ?? [], declaredAnswerOf(sizeChoiceId(spec?.key ?? '')));
 
   // ── Attribute: Point-Buy → Hintergrund-ASI → (Rider-Erhöhungen weiter unten) ──
   let scores: AbilityScores = applyAsi(w.scores, w.asi);
@@ -186,8 +187,14 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
       ),
       ...riderGrantChanges(riders, { step: 'wizard-features', source: 'class-feature' }),
       // Was die Deklaration gewährt, der Rider aber nicht tragen kann (eingeschränkte
-      // Waffen-Übungen) — im Aufstieg macht das `buildDoc` an derselben Stelle.
+      // Waffen-Übungen, Grundeigenschaften) — im Aufstieg macht das `buildDoc` an derselben
+      // Stelle. Steht bewusst NACH `c.speed`/`c.personal.sizeCat` oben: der deklarierte Wert
+      // überschreibt den geparsten, Reihenfolge ist der Vorrang.
       ...declaredGrantChanges(w.declared, { step: 'wizard-features', source: 'class-feature' }),
+      ...characterPropertyAnswerChanges(w.declared, declaredAnswerOf, {
+        step: 'wizard-features',
+        source: 'species-trait',
+      }),
     ],
     { classIndex: 0 },
   );
@@ -321,7 +328,6 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   // ── Merkmals-Text (KI) + die deterministische Zeile deklarierter Zauber-Zugänge ──
   // Dieselbe Funktion wie im Aufstieg: der Zugang hat keinen Rider, der eine Notiz schreiben
   // könnte, und ohne die Zeile stünde das gewählte Attribut nirgends auf dem Bogen.
-  const declaredAnswerOf = (id: string): string => w.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
   const accessNotes = spellAccessNoteLines(
     w.spellAccess,
     Object.fromEntries(w.declaredAnswers.map((a) => [a.id, a.choice])),

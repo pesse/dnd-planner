@@ -32,6 +32,11 @@ import {
   type SkillName,
 } from '../schemas/shared';
 import { proficiencyGrantChanges, skillLabelDe } from './proficiencyGrants';
+import {
+  characterPropertyChanges,
+  isCharacterPropertyFeature,
+  isEmptyCharacterProperties,
+} from './characterProperties';
 import type { FeatureSource } from './declaredFeature';
 
 /** Was der Builder von einem Merkmal braucht — Klassenmerkmal, Trait und Talent erfüllen es. */
@@ -89,9 +94,9 @@ export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisCho
  */
 export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => !!f.grantsChoice;
 
-/** Ob der Flow die Wahl dieses Merkmals selbst führt — `optionList` oder `expertise`. */
+/** Ob der Flow die Wahl dieses Merkmals selbst führt — `optionList`, `expertise` oder Eigenschaft. */
 export function isDeclaredChoiceFeature(f: DeclaredChoiceSource): boolean {
-  return isOptionListFeature(f) || isExpertiseFeature(f);
+  return isOptionListFeature(f) || isExpertiseFeature(f) || isCharacterPropertyFeature(f);
 }
 
 /**
@@ -339,12 +344,12 @@ export function declaredGrantChanges(
     const id = f.key || f.name.trim().toLowerCase();
     if (seen.has(id)) continue;
     seen.add(id);
+    const source = { ...meta, source: f.key || meta.source };
     out.push(
-      ...proficiencyGrantChanges(
-        f.grants.proficiencies,
-        { ...meta, source: f.key || meta.source },
-        ['skills', 'savingThrows', 'weapons', 'armor'],
-      ),
+      ...proficiencyGrantChanges(f.grants.proficiencies, source, ['skills', 'savingThrows', 'weapons', 'armor']),
+      // Grundeigenschaften stehen NICHT in der Ausschlussliste: sie reisen nie über den
+      // Rider, dieser Weg ist ihr einziger.
+      ...characterPropertyChanges(f.grants.properties, source),
     );
   }
   return out;
@@ -362,7 +367,8 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     !p.savingThrows.length &&
     !p.weapons.length &&
     !p.weaponsOther.length &&
-    !p.armor.length
+    !p.armor.length &&
+    isEmptyCharacterProperties(g.properties)
   );
 }
 
@@ -381,6 +387,25 @@ export interface DeclaredGrantSource {
   source?: FeatureSource;
   grants?: FeatureGrant;
 }
+
+/**
+ * Wohin jedes Feld von `FeatureGrant` fließt — die Aufzählung in `withGrant` ist von Hand und
+ * würde ein neues Feld STILL ignorieren. Diese Tabelle ist über `keyof` total und bricht dann
+ * den Build; dieselbe Absicherung wie bei `proficiencyGrantChanges`/`riderGrantChanges`.
+ *
+ *   `rider`    → über `withGrant` in den `FeatureRider` und von dort in `riderGrantChanges`
+ *   `change`   → direkt als `Change` (`declaredGrantChanges`), weil der Rider das
+ *                Ausgabevokabular des Modells ist und die Wirkung darin nichts zu suchen hat
+ *   `perLevel` → je Charakterstufe, über `hpPerLevelSources`
+ */
+const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' } = {
+  proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
+  extraCantrips: 'rider',
+  extraPreparedCount: 'rider',
+  perLevel: 'perLevel',
+  properties: 'change',
+};
+void GRANT_SINKS;
 
 /**
  * Trägt eine Deklaration in einen Rider ein — und zwar GENAU die Felder, die

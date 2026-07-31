@@ -118,6 +118,20 @@
     "label": "string"
   },
   {
+    "target": "sizeCategory",
+    "value": "Tiny",
+    "step": "string",
+    "source": "string",
+    "label": "string"
+  },
+  {
+    "target": "speedFeet",
+    "value": -9007199254740991,
+    "step": "string",
+    "source": "string",
+    "label": "string"
+  },
+  {
     "target": "weaponProficiencyOther",
     "value": "string",
     "step": "string",

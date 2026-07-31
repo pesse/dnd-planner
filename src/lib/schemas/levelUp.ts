@@ -12,7 +12,7 @@
  * `name`-Feld) — die Runtime-Guards leben hier.
  */
 import { z } from 'zod';
-import { toLlmJsonSchema, ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from './shared';
+import { toLlmJsonSchema, ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './shared';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -239,6 +239,12 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
+  // Grundeigenschaften aus einer Merkmals-Deklaration (`grants.properties`, kind
+  // "characterProperty"). Sie reisen NICHT über den Rider — der ist das Ausgabevokabular des
+  // Modells. Der Wert steht in der Sprache der Regeln (englische Größe, Fuß); deutsch und
+  // metrisch wird er beim Anwenden, wie bei Fertigkeit und Waffe.
+  z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),
+  z.object({ target: z.literal('speedFeet'), value: z.number().int(), ...changeBase }),
   // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
   // die Einschränkung nicht ausdrücken, der Bogen führt sie als Freitextzeile.
   z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),
