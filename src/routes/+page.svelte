@@ -31,6 +31,7 @@
   import { invalidateItemCache } from '$lib/itemLibrary';
   import { campaignCharacterData, reloadCampaignCharacters } from '$lib/stores/context';
   import { parseFrontmatter, replaceFrontmatterCharacters } from '$lib/utils/frontmatter';
+  import { dragPanelWidth } from '$lib/utils/panelResize';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
   import { marked } from 'marked';
@@ -290,31 +291,20 @@
   }
 
   function startResize(side: 'sidebar' | 'llm', e: MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = side === 'sidebar' ? sidebarWidth : llmWidth;
-    if (side === 'llm') llmDragging = true;
-
-    function onMove(mv: MouseEvent) {
-      const delta = mv.clientX - startX;
-      if (side === 'sidebar') {
-        sidebarWidth = Math.max(MIN_W, Math.min(MAX_SIDEBAR, startW + delta));
-      } else {
-        // LLM-Panel ist rechts — nach links ziehen vergrößert
-        llmWidth = Math.max(MIN_W, Math.min(MAX_LLM, startW - delta));
-      }
-    }
-
-    function onUp() {
-      localStorage.setItem('sidebar-width', String(sidebarWidth));
-      localStorage.setItem('llm-width', String(llmWidth));
-      llmDragging = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    }
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    const sidebar = side === 'sidebar';
+    if (!sidebar) llmDragging = true;
+    dragPanelWidth(e, {
+      start: sidebar ? sidebarWidth : llmWidth,
+      min: MIN_W,
+      max: sidebar ? MAX_SIDEBAR : MAX_LLM,
+      invert: !sidebar, // LLM-Panel ist rechts — nach links ziehen vergrößert
+      onWidth: (w) => { if (sidebar) sidebarWidth = w; else llmWidth = w; },
+      ondone: () => {
+        localStorage.setItem('sidebar-width', String(sidebarWidth));
+        localStorage.setItem('llm-width', String(llmWidth));
+        llmDragging = false;
+      },
+    });
   }
 
   // Prüft beim Start, ob in einem früheren Installationsverzeichnis noch
