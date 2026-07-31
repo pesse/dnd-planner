@@ -17,6 +17,7 @@
     tabactions,
     extraTabs = [],
     extra,
+    saveBarAllTabs = false,
     style = '',
   }: {
     tab?: Tab;
@@ -42,18 +43,47 @@
     extraTabs?: { id: string; label: string }[];
     /** Inhalt eines Extra-Tabs; bekommt die aktive Tab-Id. */
     extra?: Snippet<[string]>;
+    /**
+     * Save-Bar auf JEDEM Tab. Opt-in für Karten, die den Draft auch außerhalb des
+     * Bearbeiten-Tabs ändern können (Charakter: Merkmals-Seitenleiste).
+     */
+    saveBarAllTabs?: boolean;
   } = $props();
 
   const isExtraTab = $derived(extraTabs.some((t) => t.id === tab));
 
   let rawJson  = $state('');
   let jsonError = $state('');
+  /** Im Textarea getippt — ab dann gehört der Text dem Nutzer. */
+  let jsonTouched = $state(false);
+  /** Der Draft ist weitergezogen, der Text von Hand geändert → Hinweis statt Überschreiben. */
+  let jsonStale = $state(false);
+  let lastSynced = $state('');
+
+  /**
+   * Der Rohtext folgt dem Draft, solange niemand hineingetippt hat — sonst verschluckt ein
+   * Speichern aus dem JSON-Tab, was nebenan (Seitenleiste) entstanden ist.
+   */
+  $effect(() => {
+    if (tab !== 'json') return;
+    const fresh = getJson();
+    if (fresh === lastSynced) return;
+    if (jsonTouched) { jsonStale = true; return; }
+    rawJson = fresh;
+    lastSynced = fresh;
+  });
+
+  /** Text neu aus dem Draft holen — beim Tab-Wechsel und über „Neu laden". */
+  function syncJson() {
+    rawJson = getJson();
+    lastSynced = rawJson;
+    jsonTouched = false;
+    jsonStale = false;
+    jsonError = '';
+  }
 
   function switchTab(t: Tab) {
-    if (t === 'json') {
-      rawJson   = getJson();
-      jsonError = '';
-    }
+    if (t === 'json') syncJson();
     tab = t;
   }
 
@@ -85,8 +115,9 @@
       {/if}
     </div>
 
-    <!-- Speichern-Leiste (nur für den character.json-Draft: nicht auf Karte und nicht in Extra-Tabs) -->
-    {#if dirty && tab !== 'karte' && !isExtraTab}
+    <!-- Speichern-Leiste: standardmäßig nicht auf Karte und nicht in Extra-Tabs
+         (dort gibt es nichts zu speichern) — außer bei `saveBarAllTabs`. -->
+    {#if dirty && (saveBarAllTabs || (tab !== 'karte' && !isExtraTab))}
       <div class="save-bar">
         {#if saveError}<span class="save-error">{saveError}</span>{/if}
         <button class="save-btn"   onclick={tab === 'json' ? saveJson : onsave}>Speichern</button>
@@ -103,7 +134,14 @@
   {:else if tab === 'json'}
     <div class="json-editor">
       {#if jsonError}<div class="json-error-bar">{jsonError}</div>{/if}
-      <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"></textarea>
+      {#if jsonStale}
+        <div class="json-stale-bar">
+          Der Entwurf hat sich seit dem Öffnen geändert — dieser Text ist nicht mehr aktuell.
+          <button class="json-reload-btn" onclick={syncJson}>Neu laden</button>
+        </div>
+      {/if}
+      <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"
+        oninput={() => (jsonTouched = true)}></textarea>
       <div class="json-actions">
         <button class="save-btn"   onclick={saveJson}>Speichern</button>
         <button class="cancel-btn" onclick={() => switchTab('bearbeiten')}>Abbrechen</button>
@@ -118,6 +156,9 @@
   .editor-panel {
     flex: 1;
     min-height: 0;
+    /* Der Charakter setzt das Panel in eine ZEILE neben die Merkmals-Leiste; ohne
+       `min-width: 0` überliefe es sie, statt beim Ziehen schmaler zu werden. */
+    min-width: 0;
     overflow-y: auto;
     padding: 0 1.5rem 1.5rem;
     background: var(--bg);
@@ -241,6 +282,30 @@
   }
 
   .json-error-bar { color: var(--danger); font-size: 0.8rem; padding: 0.2rem 0; }
+
+  .json-stale-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--gold);
+    border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
+    border-radius: 4px;
+    padding: 0.3rem 0.6rem;
+  }
+  .json-reload-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.76rem;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .json-reload-btn:hover { border-color: var(--gold); color: var(--gold); }
 
   .json-textarea {
     min-height: 560px;
