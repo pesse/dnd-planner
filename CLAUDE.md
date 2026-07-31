@@ -8,7 +8,8 @@ the source.
 
 | Task | Command | Where |
 |---|---|---|
-| Typecheck + lint — **the** verification gate | `npm run check` | WSL |
+| Everything below in one go — **the** gate before a commit | `npm run verify` | WSL |
+| Typecheck + lint | `npm run check` | WSL |
 | Unit + integration tests (LLM-free, no API key) | `npm run test` | WSL |
 | Browser-only dev server (UI work without Tauri commands) | `npm run dev` → `:1420` | WSL |
 | Full app | `.\dev-windows.ps1` | Windows PowerShell |
@@ -23,7 +24,8 @@ process, `tests/integration` reads the **real vault** through the production loa
 `vitest.evals.config.ts`, only `*.eval.test.ts`) makes real, paid LLM calls. Shared test data
 lives in `tests/fixtures/` and is used by both.
 
-`npm run check` plus `npm run test` is what verifies a change.
+`npm run verify` is what verifies a change: `check` + `check:evals` (the eval track only
+typechecks, it never runs here) + `schema:examples:check` + `test`.
 
 ## Environment: Windows runs the app, WSL edits it
 
@@ -56,12 +58,29 @@ One legacy exception, at the PDF boundary: parts of `character.*` carry German k
 they mirror the German Taendler character sheet. **Do not extend it** — new character fields get
 English names, the way `hpMax`, `strSaveProf` and `proficiencies.lightArmor` already do.
 
+### One file, one responsibility
+
+Guideline: service/schema module ≤ 300 lines, component ≤ 400 including markup, `<style>` block
+≤ 150. Going over is allowed but has to be defensible — „only one thing happens here, it is just
+big". A file that needs a table of contents needs a directory instead.
+
+### A section banner is a missing module or a missing function
+
+`// ── Zauber-Picker ──` is not documentation, it is an unextracted `function spellPicker()` or an
+unwritten file — write that instead. Numbered step comments (`// 3) Encounter speichern`) say the
+same thing about a function: it is a sequence of unnamed phases.
+
 ### Comments carry why-it-is-not-the-obvious-way — nothing else
 
 Delete it if it is in `git log` („Ersetzt den früheren …") or in the code right below it; move it
 if it describes a different file. What survives: choices a reader would otherwise undo (`Bewusst
 tool-frei — sonst fährt runAiAction einen Agent-Loop`), constraints a type cannot express, causal
 chains. 1–3 lines, naming the consequence. Repetition wants a factory, not a comment about it.
+
+Budget: module head max 3 lines (what, not how). JSDoc only when it says something name plus
+signature do not already say — `/** Zeigt den deutschen Namen, falls vorhanden. */` over
+`displayName()` goes. One exception: in `aiActions/*` prompt-near explanation is *content*
+(`SHEET_NOTE_*`), not comment, and stays.
 
 ### One Zod schema per artifact
 

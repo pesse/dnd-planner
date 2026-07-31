@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "verify": "npm run check && npm run check:evals && npm run schema:examples:check && npm run test",
     "check:evals": "tsc -p tsconfig.evals.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
