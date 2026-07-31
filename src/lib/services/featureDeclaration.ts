@@ -38,6 +38,7 @@ import {
   isEmptyCharacterProperties,
 } from './characterProperties';
 import type { FeatureSource } from './declaredFeature';
+import { featureIdOf } from '$lib/utils/text';
 
 /** Was der Builder von einem Merkmal braucht — Klassenmerkmal, Trait und Talent erfüllen es. */
 export interface DeclaredChoiceSource {
@@ -341,7 +342,7 @@ export function declaredGrantChanges(
   const seen = new Set<string>();
   for (const f of features) {
     if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
-    const id = f.key || f.name.trim().toLowerCase();
+    const id = featureIdOf(f);
     if (seen.has(id)) continue;
     seen.add(id);
     const source = { ...meta, source: f.key || meta.source };

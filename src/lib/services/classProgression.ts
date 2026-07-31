@@ -34,7 +34,8 @@ import {
   type WeaponCategory,
 } from '$lib/schemas/shared';
 import { getClass, DEFAULT_DOCUMENT } from './open5eApi';
-import { getClasses } from '$lib/classLibrary';
+import { findClassByKey } from '$lib/classLibrary';
+import { firstInt, numOr } from '$lib/utils/num';
 
 // ── Namens-/Attribut-Maps ──────────────────────────────────────────────────────
 /** Deutscher Klassenname → Open5e-Slug (die 12 SRD-Grundklassen). */
@@ -54,17 +55,10 @@ export const CLASS_NAME_DE_BY_SLUG: Record<string, string> = Object.fromEntries(
   Object.entries(DE_TO_SLUG).map(([de, slug]) => [slug, de]),
 );
 
-export const ABILITY_FROM_EN: Record<string, AbilityKey> = {
-  strength: 'str', dexterity: 'ges', constitution: 'kon',
-  intelligence: 'int', wisdom: 'wei', charisma: 'cha',
-};
-
-/**
- * Umkehrung von `ABILITY_FROM_EN` (App-Schlüssel → englischer SRD-Name). Lebt im
- * Schema, weil die Altdaten-Migration sie braucht; hier nur re-exportiert, damit
- * beide Übersetzungsrichtungen an derselben Stelle auffindbar bleiben.
- */
-export { ABILITY_TO_EN } from '$lib/schemas/classProgression';
+// Beide Übersetzungsrichtungen bleiben hier auffindbar; das Vokabular selbst
+// steht in schemas/abilities.ts.
+import { ABILITY_FROM_EN, ABILITY_TO_EN } from '$lib/schemas/abilities';
+export { ABILITY_FROM_EN, ABILITY_TO_EN };
 
 /** v2-Kopf-`saving_throws` (`[{name: "Strength"}]`) → englische Attributsnamen. */
 const readAbilityNames = (raw: { name?: string }[]): AbilityName[] =>
@@ -107,7 +101,7 @@ export function parseSkillGrant(raw: string, context = 'Skill Proficiencies'): S
   const value = raw.trim();
   if (!value || /^none$/i.test(value)) return { fixed: [], choose: 0, from: [] };
 
-  const choose = Number(value.match(/choose\s+(?:any\s+)?(\d+)/i)?.[1] ?? 0);
+  const choose = numOr(value.match(/choose\s+(?:any\s+)?(\d+)/i)?.[1]);
   if (!choose) return { fixed: parseSkillNames(value, context), choose: 0, from: [] };
 
   // Die Auswahlliste steht nach dem Doppelpunkt; ohne Doppelpunkt („any 3 skills")
@@ -238,7 +232,7 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
     name: (raw.name as string) ?? '',
     subclassOf,
     casterType: (raw.caster_type as string) ?? 'NONE',
-    hitDie: Number(String(raw.hit_dice ?? hp.hit_dice ?? '').match(/(\d+)/)?.[1] ?? 0),
+    hitDie: firstInt(raw.hit_dice ?? hp.hit_dice),
     hpAt1st: hp.hit_points_at_1st_level ?? '',
     hpHigher: hp.hit_points_at_higher_levels ?? '',
     // Kerntabelle. Fehlt sie (Subklassen, Homebrew), bleibt `saving_throws` aus dem
@@ -267,18 +261,10 @@ const cache = new Map<string, ClassProgression | null>();
  * daher schneller als der Open5e-Netzabruf UND enthalten Homebrew/eigene Subklassen
  * (z.B. „Circle of the Moon"), die im SRD-Dokument fehlen. null = nicht lokal vorhanden.
  */
-async function getLocalProgression(key: string): Promise<ClassProgression | null> {
-  try {
-    const info = (await getClasses()).find((c) => c.key === key);
-    if (!info) return null;
-    const data = JSON.parse(await invoke<string>('read_file_content', { path: info.path }));
-    // ÜBER den Migrator parsen — Altbestand trägt `savingThrows` noch in deutschen
-    // App-Schlüsseln am Klassenkopf statt englisch im `proficiencyGrant`.
-    const r = classProgressionSchema.safeParse(migrateClassLegacy(data));
-    return r.success ? r.data : null;
-  } catch {
-    return null;
-  }
+function getLocalProgression(key: string): Promise<ClassProgression | null> {
+  // ÜBER den Migrator parsen — Altbestand trägt `savingThrows` noch in deutschen
+  // App-Schlüsseln am Klassenkopf statt englisch im `proficiencyGrant`.
+  return findClassByKey(key, (data) => classProgressionSchema.safeParse(migrateClassLegacy(data)).data ?? null);
 }
 
 /** Baut den v2-Key aus deutschem Klassennamen + Quelle (Default SRD 5.2). */
@@ -343,12 +329,12 @@ export function spellSlotsAt(prog: ClassProgression, level: number): number[] {
   const ord = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
   const std = ord.map((c) => {
     const v = cols[c];
-    return v && v !== '-' ? Number(v) || 0 : 0;
+    return numOr(v);
   });
   if (std.some((n) => n > 0)) return std;
   // Pact Magic (Warlock): „Spell Slots" (Anzahl) auf Grad „Slot Level".
-  const count = Number(cols['Spell Slots']) || 0;
-  const grade = Number(String(cols['Slot Level'] ?? '').match(/(\d+)/)?.[1] ?? 0);
+  const count = numOr(cols['Spell Slots']);
+  const grade = firstInt(cols['Slot Level']);
   return Array.from({ length: 9 }, (_, i) => (count > 0 && grade >= 1 && grade <= 9 && i === grade - 1 ? count : 0));
 }
 

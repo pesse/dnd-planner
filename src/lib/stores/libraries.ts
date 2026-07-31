@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { pushError } from './errors';
 import { invalidateVault } from './campaign';
 import { invalidateSpellLibrary } from '../spellLibrary';
-import { invalidateClassCache, invalidateClassFeatureCache } from '../classLibrary';
+import { invalidateClassCache } from '../classLibrary';
 import { invalidateSpeciesCache } from '../speciesLibrary';
 import { invalidateFeatsCache } from '../featsLibrary';
 import { invalidateBackgroundsCache } from '../backgroundsLibrary';
@@ -179,7 +179,6 @@ export async function forgetAccessCode(id: string): Promise<void> {
 function invalidateLibraryCaches(): void {
   invalidateSpellLibrary();
   invalidateClassCache();
-  invalidateClassFeatureCache();
   invalidateSpeciesCache();
   invalidateFeatsCache();
   invalidateBackgroundsCache();

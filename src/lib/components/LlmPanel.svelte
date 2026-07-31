@@ -30,6 +30,7 @@
   import DebugEntryView from './DebugEntryView.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
+  import { slugKeepUmlauts } from '../utils/text';
   import { ANTHROPIC_MODELS, GROQ_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
 
   type LlmMode = 'chat' | 'generate' | 'agent' | 'debug';
@@ -361,15 +362,6 @@
     return results;
   }
 
-  function slugify(name: string): string {
-    const umlautMap: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
-    return name
-      .toLowerCase()
-      .replace(/[äöüß]/g, (c) => umlautMap[c] ?? c)
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
-
   let saveStatus = $state<Record<number, 'saving' | 'saved' | 'error'>>({});
 
   // ── Markdown-Erkennung ───────────────────────────────────────────────────────
@@ -462,7 +454,7 @@
     saveStatus = { ...saveStatus, [index]: 'saving' };
     try {
       const name = (block.data.name as string) || 'unbekannt';
-      const slug = slugify(name);
+      const slug = slugKeepUmlauts(name);
       const path =
         block.type === 'monster'
           ? `./vault/monsters/${slug}.json`

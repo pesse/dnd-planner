@@ -16,7 +16,7 @@
   import Markdown from './Markdown.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
   import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
-  import { slugify } from '$lib/editor/saveAs';
+  import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
 
   function parseSpell(json: string): Spell | null {
@@ -37,7 +37,7 @@
     type: 'spell',
     label: 'Zauber',
     parse: parseSpell,
-    defaultName: (s) => slugify(s.name || 'zauber'),
+    defaultName: (s) => slugKeepUmlauts(s.name || 'zauber'),
     location: {
       bucketLabel: 'Schule',
       bucketOf: (s) => SCHOOL_TO_DIR[s.school],

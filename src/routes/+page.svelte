@@ -36,6 +36,7 @@
   import { onMount } from 'svelte';
   import { marked } from 'marked';
   import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
+  import { slugKeepUmlauts } from '$lib/utils/text';
 
   let isPdfCharacter = $derived(
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
@@ -199,7 +200,7 @@
 
     if (file.type === 'campaign') {
       const newName = renameValue.trim();
-      const newSlug = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const newSlug = slugKeepUmlauts(newName);
       const campaign = $activeCampaign;
       if (!campaign || newSlug === campaign.path) return;
 
@@ -220,7 +221,7 @@
         });
       }
     } else if (file.type === 'item') {
-      const slug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const slug = slugKeepUmlauts(renameValue);
       const newName = `${slug}.json`;
       if (!slug || newName === file.name) return;
 
@@ -238,7 +239,7 @@
       }
     } else if (file.type === 'act') {
       // Akte sind Verzeichnisse — das Verzeichnis umbenennen, index.md bleibt
-      const newSlug = renameValue.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
+      const newSlug = slugKeepUmlauts(renameValue);
       const oldActDir = file.path.substring(0, file.path.lastIndexOf('/index.md'));
       const actsDir = oldActDir.substring(0, oldActDir.lastIndexOf('/'));
       const newActDir = `${actsDir}/${newSlug}`;

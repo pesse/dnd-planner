@@ -5,16 +5,14 @@
   import { onMount } from 'svelte';
   import { pushError } from '../stores/errors';
   import { getSpellLibrary, loadSpellByPath, searchSpells, SCHOOL_COLORS, type SpellSuggestion } from '../spellLibrary';
-  import {
-    getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
-    DAMAGE_TYPE_LABELS,
-    type ItemInfo, type ItemSuggestion,
-  } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, buildItemIndex, matchItem, structuralType, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS } from '../itemLabels';
+  import { formatRarity, formatDamageDice } from '../itemFormat';
   import type { Item } from '../types';
   import type { Spell } from '../types';
   import { spellDesc, spellHigherLevel } from '../types';
-  import { SKILL_DEFS } from '../pdf/characterFields';
+  import { SKILL_DEFS, mod } from '../domain/skills';
+  import { sign } from '../utils/num';
   import Markdown from './Markdown.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
 
@@ -91,12 +89,8 @@
     } catch { return null; }
   }
 
-  function modNum(score: number): number { return Math.floor((score - 10) / 2); }
-  function modStr(score: number): string {
-    const m = modNum(score);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
-  function sign(n: number): string { return n >= 0 ? `+${n}` : `${n}`; }
+  const modNum = mod;
+  const modStr = (score: number): string => sign(mod(score));
 
   const STAT_LABELS: (keyof NpcStats)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   const STAT_NAMES: Record<keyof NpcStats, string> = {

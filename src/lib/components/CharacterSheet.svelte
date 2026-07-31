@@ -3,7 +3,9 @@
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { parseCharacterData, emptySpells, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { SKILL_DEFS } from '../domain/skills';
+  import { sign } from '../utils/num';
   import { applyChanges } from '../services/applyChanges';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
@@ -22,12 +24,9 @@
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { getSpellLibrary, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
-  import {
-    getItemsByDir, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
-    DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel,
-    type ItemInfo,
-  } from '../itemLibrary';
+  import { getItemsByDir, displayName, buildItemIndex, matchItem, structuralType, type ItemInfo } from '../itemLibrary';
+  import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel } from '../itemLabels';
+  import { formatRarity, formatDamageDice } from '../itemFormat';
   import { isMastered, masteredKinds } from '../services/weaponMastery';
   import type { WeaponMastery } from '../schemas/shared';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
@@ -637,10 +636,6 @@
     let bin = '';
     for (const b of bytes) bin += String.fromCharCode(b);
     return btoa(bin);
-  }
-
-  function sign(n: number): string {
-    return n >= 0 ? `+${n}` : `${n}`;
   }
 
   const ATTR_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };

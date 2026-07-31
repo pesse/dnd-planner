@@ -18,7 +18,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '$lib/stores/campaign';
 import { preferredCardTab } from '$lib/stores/uiPrefs';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
-import { openSaveAs, slugify, type SaveAsBucket } from '$lib/editor/saveAs';
+import { openSaveAs, type SaveAsBucket } from '$lib/editor/saveAs';
+import { slugKeepUmlauts } from '$lib/utils/text';
 import { pushError } from '$lib/stores/errors';
 import type { FileEntry } from '$lib/types';
 
@@ -236,7 +237,7 @@ export class CardEditor<T> {
     });
     if (!result) return; // abgebrochen → bleibt dirty/neu
 
-    const path = loc.resolvePath(this.draft, slugify(result.name), result.bucket);
+    const path = loc.resolvePath(this.draft, slugKeepUmlauts(result.name), result.bucket);
     const content = this.#serialize(this.draft);
     try {
       await invoke('write_file_content', { path, content });

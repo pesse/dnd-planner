@@ -21,9 +21,10 @@
 import type { Character } from '../schemas/character';
 import type { Change } from '../schemas/levelUp';
 import { MONSTER_SIZES, type SkillName } from '../schemas/shared';
-import { ftToMVal } from '../itemLibrary';
+import { ftToMVal } from '../itemFormat';
 import { skillSheetKey } from '../pdf/characterFields';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
+import { int } from '$lib/utils/num';
 
 export interface ApplyContext {
   /** Index der Klasse, an der `subclass` landet. */
@@ -69,7 +70,7 @@ export function applyChanges(next: Character, changes: readonly Change[], ctx: A
   for (const c of changes) {
     switch (c.target) {
       case 'hpMax': // Freitext-Zahl additiv (bewahrt item-/manuelle Boni)
-        next.hpMax = String((parseInt(next.hpMax, 10) || 0) + c.value);
+        next.hpMax = String(int(next.hpMax) + c.value);
         break;
       case 'hitDice':
         next.hitDice = c.value;

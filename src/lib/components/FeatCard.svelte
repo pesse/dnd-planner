@@ -8,7 +8,7 @@
   import { translateFeat } from '$lib/services/aiActions/translateAction';
   import type { FeatTranslation } from '$lib/schemas/translation';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
-  import { slugify } from '$lib/editor/saveAs';
+  import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateFeatsCache, FEAT_CATEGORY_DE } from '$lib/featsLibrary';
   import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
@@ -25,7 +25,7 @@
     type: 'feat',
     label: 'Talent',
     parse: parseFeat,
-    defaultName: (f) => slugify(f.nameDe || f.name || 'talent'),
+    defaultName: (f) => slugKeepUmlauts(f.nameDe || f.name || 'talent'),
     location: {
       resolvePath: (_f, name) => `./vault/feats/${name}.json`,
     },

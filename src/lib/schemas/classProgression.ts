@@ -24,19 +24,8 @@ import {
   type AbilityName,
 } from './shared';
 
-/** App-Attribut-Schlüssel (dex→ges, wis→wei). */
-export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-export type AbilityKey = (typeof ABILITY_KEYS)[number];
-
-/**
- * App-Attributsschlüssel → englischer SRD-Name. Gegenstück zu `ABILITY_FROM_EN`
- * (services/classProgression.ts, dort re-exportiert). Steht hier, weil die
- * Altdaten-Migration unten sie braucht.
- */
-export const ABILITY_TO_EN: Record<AbilityKey, AbilityName> = {
-  str: 'Strength', ges: 'Dexterity', kon: 'Constitution',
-  int: 'Intelligence', wei: 'Wisdom', cha: 'Charisma',
-};
+import { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey } from './abilities';
+export { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey };
 
 /** Eine Stufe: alle Tabellenspalten offen als name→Wert (Rohwert wie in v2). */
 export const classLevelSchema = z.object({

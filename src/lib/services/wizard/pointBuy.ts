@@ -10,12 +10,8 @@
  * Hintergrund-ASI), 27 Punkte Budget.
  */
 
-/** Die sechs Attribut-Schlüssel, wie sie am Charakter gespeichert sind. */
-export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-export type AbilityKey = (typeof ABILITY_KEYS)[number];
-
-/** Eine vollständige Attributs-Belegung. */
-export type AbilityScores = Record<AbilityKey, number>;
+import { ABILITY_KEYS, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
+export { ABILITY_KEYS, type AbilityKey, type AbilityScores };
 
 export const POINT_BUY_BUDGET = 27;
 export const POINT_BUY_MIN = 8;

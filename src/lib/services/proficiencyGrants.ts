@@ -39,10 +39,8 @@ import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 
 const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.label]));
 
-export const ABILITY_LABEL_DE: Record<AbilityName, string> = {
-  Strength: 'Stärke', Dexterity: 'Geschicklichkeit', Constitution: 'Konstitution',
-  Intelligence: 'Intelligenz', Wisdom: 'Weisheit', Charisma: 'Charisma',
-};
+import { abilityKeyOf, ABILITY_LABEL_DE } from '$lib/schemas/abilities';
+export { ABILITY_LABEL_DE };
 
 export const WEAPON_LABEL_DE: Record<WeaponCategory, string> = {
   Simple: 'Einfache Waffen',
@@ -160,14 +158,9 @@ export type SaveProfFlags = { [K in AbilityKey as `${K}SaveProf`]: boolean };
 
 /** Englischer Attributsname → Rettungswurf-Häkchen. Dritte Abbildung derselben Art. */
 export function markSavingThrow(flags: SaveProfFlags, en: string): void {
-  const ability = readAbilityName(en);
-  const key = ability ? ABILITY_KEY_BY_EN.get(ability) : undefined;
+  const key = abilityKeyOf(readAbilityName(en));
   if (key) flags[`${key}SaveProf`] = true;
 }
-
-const ABILITY_KEY_BY_EN = new Map<AbilityName, AbilityKey>(
-  (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
-);
 
 /**
  * Die Vault-Übungsform als `Change[]` — die Sprache, in der BEIDE Flows anwenden

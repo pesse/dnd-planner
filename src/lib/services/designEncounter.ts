@@ -19,6 +19,7 @@ import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';
 import { createMonsterAction } from './aiActions/monsterAction';
 import { toActLocalJson } from '../schemas/shared';
+import { slugKeepUmlauts, slugToName } from '../utils/text';
 
 export interface DesignEncounterContext {
   config: LlmConfig;
@@ -54,14 +55,6 @@ export interface DesignEncounterResult {
   path: string;
   reusedSlugs: string[];
   generatedSlugs: string[];
-}
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
-}
-
-function slugToName(slug: string): string {
-  return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -173,7 +166,7 @@ export async function designEncounter(
 
   // 3) Encounter speichern
   throwIfAborted();
-  const filename = `${slugify(encounter.name) || 'encounter'}.json`;
+  const filename = `${slugKeepUmlauts(encounter.name) || 'encounter'}.json`;
   const path = `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
   onPhase('Speichere Encounter…');
   await invoke('write_file_content', { path, content: JSON.stringify(encounter, null, 2) });

@@ -155,11 +155,8 @@ export function stepReached(current: StepId, step: string): boolean {
   return ci >= si;
 }
 
-export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-export type AbilityKey = (typeof ABILITY_KEYS)[number];
-export const ABILITY_LABEL: Record<AbilityKey, string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution', int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
+import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey } from '$lib/schemas/abilities';
+export { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey };
 
 // ── Feature-Normalisierung ─────────────────────────────────────────────────────
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {

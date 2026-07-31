@@ -13,6 +13,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Item } from '../schemas/item';
 import type { Spell } from '../schemas/spell';
 import { WEAPON_MASTERIES } from '../schemas/shared';
+import { keySlug } from '$lib/utils/text';
 
 export const OPEN5E_V2 = 'https://api.open5e.com/v2';
 
@@ -318,7 +319,7 @@ export function mapOpen5eItem(raw: Record<string, unknown>): Item {
 
   const item: Item = {
     key,
-    index: baseKey ? baseKey.slice(baseKey.indexOf('_') + 1) : '',
+    index: keySlug(baseKey),
     name: String(raw.name ?? ''),
     equipment_category: {
       index: String(category?.key ?? 'adventuring-gear'),
@@ -452,7 +453,7 @@ export function mapOpen5eSpell(raw: Record<string, unknown>): Spell {
 
   const spell: Spell = {
     key,
-    index: key ? key.slice(key.indexOf('_') + 1) : '',
+    index: keySlug(key),
     name: String(raw.name ?? ''),
     name_en: String(raw.name ?? ''),
     level,
@@ -469,7 +470,7 @@ export function mapOpen5eSpell(raw: Record<string, unknown>): Spell {
     concentration: Boolean(raw.concentration),
     ritual: Boolean(raw.ritual),
     classes: ((raw.classes as Array<{ key?: string }>) ?? [])
-      .map((c) => (c.key ? c.key.slice(c.key.indexOf('_') + 1) : ''))
+      .map((c) => keySlug(c.key))
       .filter(Boolean),
     desc: descToParagraphs(raw.desc),
     desc_de: [],

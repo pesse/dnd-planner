@@ -20,7 +20,8 @@ import type {
 } from '../schemas/character';
 import type { SkillName } from '../schemas/shared';
 import type { SpellAccessValues } from '../services/spellAccess';
-import { MASTERY_BY_LABEL } from '../itemLibrary';
+import { MASTERY_BY_LABEL } from '../itemLabels';
+import { int as toInt, sign } from '../utils/num';
 
 export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
 
@@ -189,13 +190,9 @@ export function mod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function sign(n: number): string {
-  return n >= 0 ? `+${n}` : `${n}`;
-}
-
 export function parseCharacterData(fields: Record<string, string>): CharacterData {
   const f = (key: string) => fields[key] ?? '';
-  const num = (key: string) => parseInt(f(key)) || 0;
+  const num = (key: string) => toInt(f(key));
   const prof = (key: string) => f(key) !== 'Off' && f(key) !== '';
 
   const str = num('Str'); const ges = num('Ges'); const kon = num('Kon');

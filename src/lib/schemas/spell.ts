@@ -3,6 +3,7 @@
  * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
  */
 import { z } from 'zod';
+import { slugAscii } from '../utils/text';
 import { SPELL_SCHOOLS, type SpellSchool } from '../types';
 import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE } from './shared';
 
@@ -64,9 +65,6 @@ export const spellSchema = z.object({
 export type Spell = z.infer<typeof spellSchema>;
 export type SpellDamage = NonNullable<z.infer<typeof spellSchema>['damage']>;
 
-const slugify = (s: string): string =>
-  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-
 /**
  * Identität eines Zaubers, auch ohne `key` in der Datei (Altbestand/Homebrew). Analog
  * zu `itemKeyOf`: der Import setzt `key` explizit, hier greift nur der Backfill. Slug
@@ -78,7 +76,7 @@ export function spellKeyOf(raw: Record<string, unknown>): string {
   const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
   const en = typeof raw.name_en === 'string' && raw.name_en ? raw.name_en : '';
   const name = en || (typeof raw.name === 'string' ? raw.name : '');
-  return name ? `${source}_${slugify(name)}` : '';
+  return name ? `${source}_${slugAscii(name)}` : '';
 }
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */

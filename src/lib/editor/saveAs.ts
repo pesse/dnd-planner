@@ -29,10 +29,3 @@ export function openSaveAs(
   });
 }
 
-/** Datei-/Slug-freundliche Form eines Namens (gemeinsam für alle Editoren). */
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-äöüß]/g, '');
-}

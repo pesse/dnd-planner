@@ -10,7 +10,7 @@
  * Erkennt englische (feet/foot/ft, mile/miles) UND deutsche Rest-Einheiten
  * (Fuß, Meile/Meilen), damit auch eine LLM-Ausgabe nachkonvertiert werden kann.
  */
-import { ftToMVal } from '../itemLibrary';
+import { ftToMVal } from '../itemFormat';
 
 const MI_TO_KM = 1.6;
 

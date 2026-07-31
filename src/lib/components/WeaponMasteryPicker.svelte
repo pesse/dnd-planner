@@ -12,7 +12,7 @@
    * nicht in eine Kindkomponente).
    */
   import { masteryName, type MasteryOffer } from '../services/weaponMastery';
-  import { MASTERY_INFO, masteryLabel } from '../itemLibrary';
+  import { MASTERY_INFO, masteryLabel } from '../itemLabels';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {

@@ -5,32 +5,9 @@
   import { onMount } from 'svelte';
   import { pushError } from '$lib/stores/errors';
   import type { Item } from '$lib/types';
-  import {
-    CATEGORY_LABELS,
-    CATEGORY_TO_DIR,
-    RARITY_LABELS,
-    DAMAGE_TYPE_LABELS,
-    PROPERTY_LABELS,
-    PROPERTY_INDEX_BY_LABEL,
-    MASTERY_INFO,
-    masteryLabel,
-    COST_UNIT_LABELS,
-    WEAPON_CATEGORY_LABELS,
-    WEAPON_RANGE_LABELS,
-    ARMOR_CATEGORY_LABELS,
-    ITEMS_PATH,
-    dirOf,
-    structuralType,
-    isMagicItem,
-    rarityColor,
-    invalidateItemCache,
-    formatCost,
-    formatRarity,
-    formatDamageDice,
-    ftToM,
-    ftToMVal,
-    mToFt,
-  } from '$lib/itemLibrary';
+  import { ITEMS_PATH, dirOf, structuralType, isMagicItem, invalidateItemCache } from '$lib/itemLibrary';
+  import { CATEGORY_LABELS, CATEGORY_TO_DIR, RARITY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS, PROPERTY_INDEX_BY_LABEL, MASTERY_INFO, masteryLabel, COST_UNIT_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, rarityColor } from '$lib/itemLabels';
+  import { formatCost, formatRarity, formatDamageDice, ftToM, ftToMVal, mToFt } from '$lib/itemFormat';
   import { translateItem } from '$lib/services/aiActions/translateAction';
   import type { ItemTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
@@ -46,6 +23,7 @@
   import TranslateModal from './TranslateModal.svelte';
   import Markdown from './Markdown.svelte';
   import { registerEditorGuard } from '$lib/stores/navigationGuard';
+  import { slugKeepUmlauts } from '$lib/utils/text';
 
   // ── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -73,10 +51,6 @@
   // Noch nicht gespeicherter Entwurf (KI- oder manuelle Anlage). Ist er gesetzt,
   // startet die Card direkt im Bearbeiten-Modus; gespeichert wird erst per "Speichern".
   let newDraft = $state<{ item: Item; dir: string } | null>(null);
-
-  function slugify(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
-  }
 
   onMount(() => {
     async function load(path: string) {
@@ -279,7 +253,7 @@
     applyDraftFields();
     if (newDraft) {
       // Neuer Entwurf: Dateiname abfragen (vorausgefüllt), noch nicht schreiben.
-      newFilename = slugify(draft.name_de || draft.name || 'gegenstand');
+      newFilename = slugKeepUmlauts(draft.name_de || draft.name || 'gegenstand');
       showSaveAs = true;
       return;
     }
@@ -297,7 +271,7 @@
   /** Legt die Datei für einen neuen Entwurf unter dem gewählten Namen an. */
   async function confirmSaveAs() {
     if (!draft || !newDraft) return;
-    const name = slugify(newFilename || draft.name_de || draft.name || 'gegenstand');
+    const name = slugKeepUmlauts(newFilename || draft.name_de || draft.name || 'gegenstand');
     if (!name) return;
     const dir = categoryKeyOf(draft);   // folgt der (ggf. geänderten) Kategorie im Editor
     const filename = `${name}.json`;
@@ -332,7 +306,7 @@
       draftDescDeText = (parsedItem.desc_de ?? []).join('\n\n');
       draftPropsText  = (parsedItem.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
       draftRarityName = parsedItem.rarity?.name ?? '';
-      newFilename = slugify(parsedItem.name_de || parsedItem.name || 'gegenstand');
+      newFilename = slugKeepUmlauts(parsedItem.name_de || parsedItem.name || 'gegenstand');
       showSaveAs = true;
       tab = 'bearbeiten';
       return;

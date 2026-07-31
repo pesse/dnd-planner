@@ -177,8 +177,8 @@ export const SKILL_NAMES = [
 ] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
-export const ABILITY_NAMES = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] as const;
-export type AbilityName = (typeof ABILITY_NAMES)[number];
+import { ABILITY_NAMES, type AbilityName } from './abilities';
+export { ABILITY_NAMES, type AbilityName };
 
 export const WEAPON_CATEGORIES = ['Simple', 'Martial'] as const;
 export type WeaponCategory = (typeof WEAPON_CATEGORIES)[number];

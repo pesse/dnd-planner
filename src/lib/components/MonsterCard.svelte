@@ -14,7 +14,7 @@
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
   import { searchMonsters, getResource, mapApiResourceToMonster, type DndApiRef } from '../services/dndApi';
-  import { slugify } from '../editor/saveAs';
+  import { slugKeepUmlauts } from '../utils/text';
   import { invalidateVault } from '../stores/campaign';
 
   function parseMonster(json: string): Monster | null {
@@ -28,7 +28,7 @@
     type: 'monster',
     label: 'Monster',
     parse: parseMonster,
-    defaultName: (m) => slugify(m.name || 'monster'),
+    defaultName: (m) => slugKeepUmlauts(m.name || 'monster'),
     location: {
       // Ablage nach Creature-Type (Bucket). Typwechsel im Editor verschiebt die Datei.
       bucketLabel: 'Typ',

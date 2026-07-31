@@ -14,6 +14,7 @@ import type { AbilityKey, ClassFeature, ClassProgression } from '$lib/schemas/cl
 import type { FeatureRider } from '$lib/schemas/levelUp';
 import { resolveClass } from '$lib/spellLibrary';
 import { columnValue, getProgressionByKey, spellSlotsAt } from './classProgression';
+import { keySlug } from '$lib/utils/text';
 
 /**
  * - `spellbook`  Magier: das Buch ist der bekannt-Bestand, die Vorbereitung eine freie
@@ -41,10 +42,9 @@ export const CASTER_ABILITY_KEY: Record<string, AbilityKey> = {
   ranger: 'wei', sorcerer: 'cha', warlock: 'cha', wizard: 'int',
 };
 
-export const CASTER_ABILITY_DE: Record<AbilityKey, string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-  int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
+/** Das Zauberattribut in Anzeigeform; dieselbe Tabelle wie überall (`ABILITY_LABEL`). */
+import { ABILITY_LABEL } from '$lib/schemas/abilities';
+export { ABILITY_LABEL as CASTER_ABILITY_DE };
 
 // EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge (Eingeweihter der Magie): zwei Fassungen
 // laufen auseinander, sobald eine davon angefasst wird.
@@ -155,7 +155,7 @@ export async function spellcastingOffer(input: {
   if (!prog) return emptyOffer();
 
   const level = Math.min(20, Math.max(1, input.level));
-  const slug = input.classKey.split('_').pop() ?? '';
+  const slug = keySlug(input.classKey);
   const prepared = preparedOrKnownCount(prog, level).count;
   const spellbook = isSpellbookClass(input.classKey, input.klasseName);
 

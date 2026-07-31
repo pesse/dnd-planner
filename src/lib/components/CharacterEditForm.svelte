@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
+  import { sign } from '../utils/num';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
@@ -15,7 +16,9 @@
   // Umbenannt, weil `spellSaveDC`/`spellAttackBonus` hier die Eingabefelder sind.
   import { spellAttackBonus as attackBonusFor, spellSaveDC as saveDcFor } from '../services/spellcasting';
   import { getSpellLibrary, searchSpells, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo, type SpellSuggestion } from '../spellLibrary';
-  import { getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY, buildItemIndex, matchItem, formatDamageDice, ftToMVal, DAMAGE_TYPE_LABELS, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { getItemsByDir, searchItems, displayName, buildItemIndex, matchItem, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
+  import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS } from '../itemLabels';
+  import { formatDamageDice, ftToMVal } from '../itemFormat';
   import { getClasses, searchClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, type SpeciesInfo } from '../speciesLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, type BackgroundInfo } from '../backgroundsLibrary';
@@ -743,7 +746,6 @@
     return result;
   });
 
-  function sign(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
   // ─── Übungs-Grants aus den Bibliotheks-Links ─────────────
   // Deterministisch abgeleitet (Hintergrund + Startklasse + Mehrklassen + Spezies-

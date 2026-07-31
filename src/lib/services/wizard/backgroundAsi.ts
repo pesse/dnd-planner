@@ -10,20 +10,14 @@
  * Rein deterministisch, framework-frei. Arbeitet auf denselben deutschen
  * Attribut-Schlüsseln wie `pointBuy.ts` (VOR-ASI-Basiswerte + diese Erhöhung).
  */
-import { ABILITY_TO_EN } from '$lib/schemas/classProgression';
-import { readAbilityName, type AbilityName } from '$lib/schemas/shared';
-import { ABILITY_KEYS, type AbilityKey, type AbilityScores } from './pointBuy';
+import { readAbilityName } from '$lib/schemas/shared';
+import { abilityKeyOf, ABILITY_KEYS, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
 
 /** Verteilte Erhöhungen je Attribut (0, 1 oder 2). Fehlende Schlüssel = 0. */
 export type AsiAllocation = Partial<Record<AbilityKey, number>>;
 
 /** Der Gesamtbonus, den ein Hintergrund vergibt (2024: immer +3). */
 export const BACKGROUND_ASI_TOTAL = 3;
-
-/** Englischer SRD-Attributsname → deutscher App-Schlüssel (Umkehrung von ABILITY_TO_EN). */
-const KEY_BY_EN = new Map<AbilityName, AbilityKey>(
-  (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
-);
 
 /**
  * Die drei zulässigen Attribute eines Hintergrunds als deutsche Schlüssel.
@@ -33,8 +27,7 @@ const KEY_BY_EN = new Map<AbilityName, AbilityKey>(
 export function allowedKeys(abilityScores: string[]): AbilityKey[] {
   const out: AbilityKey[] = [];
   for (const raw of abilityScores) {
-    const en = readAbilityName(raw);
-    const key = en ? KEY_BY_EN.get(en) : undefined;
+    const key = abilityKeyOf(readAbilityName(raw));
     if (key && !out.includes(key)) out.push(key);
   }
   return out;

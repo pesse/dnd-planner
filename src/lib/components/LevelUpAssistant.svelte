@@ -20,6 +20,7 @@
    * analog ContextActionModal.svelte / bisheriger Assistent.
    */
   import { onDestroy } from 'svelte';
+  import { mod } from '../domain/skills';
   import { llmConfig, saveConfig, loadApiKeyForProvider } from '../stores/llm';
   import { modelsFor, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
   import { runAiAction } from '../services/aiActions/runner';
@@ -126,7 +127,6 @@
   let narrativeSummary = $state(''); // KI-Narrativ (Zusammenfassung) → doc.summary
   let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (KI-Merge + Nachbearbeitung)
 
-  const modOf = (s: number) => Math.floor((s - 10) / 2);
 
   const classList = $derived(character.classes ?? []);
   const hasClasses = $derived(classList.length > 0);
@@ -167,7 +167,7 @@
       str: character.str, ges: character.ges, kon: character.kon,
       int: character.int, wei: character.wei, cha: character.cha,
     };
-    const mods = Object.fromEntries(Object.entries(abilities).map(([k, v]) => [k, modOf(v)]));
+    const mods = Object.fromEntries(Object.entries(abilities).map(([k, v]) => [k, mod(v)]));
     return {
       name: character.name,
       classes: classList.map((c) => ({ name: c.name, level: c.level, subclassName: c.subclassName ?? '' })),
@@ -1022,7 +1022,7 @@
     return buildDoc({
       delta, hitDice: character.hitDice ?? '',
       chosenSubclass, subFeatures, declaredSpells, validatedBase, validatedFeats,
-      answers, konMod: modOf(character.kon),
+      answers, konMod: mod(character.kon),
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
       chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),

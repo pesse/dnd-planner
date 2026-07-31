@@ -6,7 +6,7 @@ import type { Item } from '../../types';
 import { itemSchema } from '../../schemas/item';
 import { toLlmJsonSchema } from '../../schemas/shared';
 import { parseItem } from '../../utils/schemaValidation';
-import { CATEGORY_LABELS } from '../../itemLibrary';
+import { CATEGORY_LABELS } from '../../itemLabels';
 import { OPEN5E_ITEM_TOOLS_ANTHROPIC, OPEN5E_ITEM_TOOLS_OPENAI, executeOpen5eItemTool } from '../open5eItemTools';
 import { buildCreateAction, buildEditAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';

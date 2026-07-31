@@ -30,19 +30,8 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
   import { CHARACTER_VERSION } from '../schemas/character';
-  import {
-    ITEMS_PATH,
-    CATEGORY_LABELS as ITEM_CAT_LABELS,
-    DIR_TO_CATEGORY as ITEM_DIR_TO_CAT,
-    rarityColor,
-    invalidateItemCache,
-    getItemsByDir,
-    searchItems,
-    displayName as itemDisplayName,
-    blankItem,
-    dirOf as itemDirOf,
-    toHomebrewCopy,
-  } from '../itemLibrary';
+  import { ITEMS_PATH, invalidateItemCache, getItemsByDir, searchItems, displayName as itemDisplayName, blankItem, dirOf as itemDirOf, toHomebrewCopy } from '../itemLibrary';
+  import { CATEGORY_LABELS as ITEM_CAT_LABELS, DIR_TO_CATEGORY as ITEM_DIR_TO_CAT, rarityColor } from '../itemLabels';
   import { SCHOOL_COLORS } from '../spellLibrary';
   import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
   import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
@@ -61,6 +50,7 @@
   import { OWN_SOURCE } from '../schemas/shared';
   import type { ClassProgression, Species, Background } from '../types';
   import type { DndApiRef } from '../services/dndApi';
+  import { slugKeepUmlauts, slugToName } from '../utils/text';
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -117,14 +107,6 @@
     }
   }
 
-  function slugify(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöüß]/g, '');
-  }
-
-  function slugToName(slug: string): string {
-    return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
   /**
    * Löscht einen Vault-Eintrag (Datei oder Ordner) nach Bestätigung und ruft die
    * passende Reload-Funktion. Räumt activeFile auf, falls der gelöschte Eintrag
@@ -178,7 +160,7 @@
     const raw = newCampaignInput.trim();
     if (!raw) return;
 
-    const slug = slugify(raw);
+    const slug = slugKeepUmlauts(raw);
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
     const campaignMd = `${VAULT_BASE}/${slug}/campaign.md`;
 
@@ -351,7 +333,7 @@
     const raw = newCharInput.trim();
     if (!raw) return;
 
-    const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '');
+    const slug = slugKeepUmlauts(raw, '_');
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
     const dirPath = `${CHARACTERS_PATH}/${slug}`;
 
@@ -403,7 +385,7 @@
   /** Übernimmt den vom Wizard fertig zusammengesetzten Charakter: Verzeichnis + Dateien anlegen, öffnen. */
   async function createFromWizard(character: Character) {
     const raw = (character.name || 'Neuer Charakter').trim();
-    const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöü]/g, '') || 'charakter';
+    const slug = slugKeepUmlauts(raw, '_') || 'charakter';
     const dirPath = `${CHARACTERS_PATH}/${slug}`;
     const gmNotes = `# GM-Notizen: ${raw}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
     try {
@@ -455,7 +437,7 @@
       if (!data.spells) data.spells = emptySpells();
 
       const charName = data.name || path.split(/[/\\]/).pop()?.replace(/\.pdf$/i, '') || 'unbekannt';
-      const slug = charName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      const slug = slugKeepUmlauts(charName, '_');
       const dirPath = `${CHARACTERS_PATH}/${slug}`;
       const pdfFilename = path.split(/[/\\]/).pop() ?? path;
 
@@ -1072,7 +1054,7 @@
     const raw = newActEncounterInput[actKey]?.trim();
     if (!raw) return;
 
-    const slug = slugify(raw);
+    const slug = slugKeepUmlauts(raw);
     const filename = slug + '.json';
     const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     const template = {
@@ -1255,7 +1237,7 @@
     const raw = newFileInput[key]?.trim();
     if (!raw) return;
 
-    const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-äöü]/g, '');
+    const slug = slugKeepUmlauts(raw);
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
     const isNpc = section.type === 'npc';

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get } from 'svelte/store';
+  import { ABILITY_LABEL } from '$lib/schemas/abilities';
   import { onMount } from 'svelte';
   import { llmConfig } from '../stores/llm';
   import { CharacterWizard, toolPickKey, type Job } from '../services/wizard/characterWizard.svelte';
@@ -49,11 +50,6 @@
   import SpellPickField from './SpellPickField.svelte';
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
-
-  const ABILITY_LABEL: Record<AbilityKey, string> = {
-    str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-    int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-  };
 
   const w = new CharacterWizard(() => get(llmConfig));
 

@@ -11,7 +11,7 @@
   import { translateRule } from '$lib/services/aiActions/translateAction';
   import type { RuleTranslation } from '$lib/schemas/translation';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
-  import { slugify } from '$lib/editor/saveAs';
+  import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateClassCache } from '$lib/classLibrary';
   import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
@@ -28,7 +28,7 @@
     type: 'class',
     label: 'Klasse',
     parse: parseClass,
-    defaultName: (c) => slugify(c.nameDe || c.name || 'klasse'),
+    defaultName: (c) => slugKeepUmlauts(c.nameDe || c.name || 'klasse'),
     location: {
       resolvePath: (_c, name) => `./vault/classes/${name}.json`,
     },

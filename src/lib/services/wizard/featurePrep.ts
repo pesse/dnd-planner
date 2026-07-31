@@ -24,6 +24,7 @@ import { withoutDeclaredChoiceFeatures } from '../featureDeclaration';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
+import { keySlug } from '$lib/utils/text';
 
 /** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
 export interface FeatureBasics {
@@ -204,7 +205,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     grants: f.grants,
   }));
 
-  const slug = klass.sourceKey.split('_').pop() ?? '';
+  const slug = keySlug(klass.sourceKey);
   const classContext: FeatureClassContext = {
     klasseName: klass.name,
     subclassName: klass.subclassName ?? '',

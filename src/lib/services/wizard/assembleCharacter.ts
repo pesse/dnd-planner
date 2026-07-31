@@ -55,9 +55,11 @@ import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
-import { ftToMVal, matchItem } from '$lib/itemLibrary';
+import { matchItem } from '$lib/itemLibrary';
+import { ftToMVal } from '$lib/itemFormat';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
+import { keySlug } from '$lib/utils/text';
 
 /**
  * `character.speed` ist eine reine Meterzahl (der Editor lässt nichts anderes zu, der Bogen
@@ -227,7 +229,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   }
 
   // ── Zauber-Block: Klassenwerte (det.) → eigene Wahl → gewährte Zauber aus Merkmalen ──
-  const slug = w.klass.sourceKey.split('_').pop() ?? '';
+  const slug = keySlug(w.klass.sourceKey);
   const abilityKey = CASTER_ABILITY_KEY[slug];
   if (prog && prog.casterType !== 'NONE' && abilityKey) {
     const abilityMod = mod(scores[abilityKey]);

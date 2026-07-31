@@ -10,19 +10,16 @@
  * {Frage, Antwort}-Fassung kommt daher optional von außen (aus den KI-Ridern).
  */
 import type { Character } from '../schemas/character';
-import { SKILL_DEFS } from '../pdf/characterFields';
+import { SKILL_DEFS } from '../domain/skills';
+import { ABILITY_KEYS, ABILITY_LABEL } from '../schemas/abilities';
+import { sign } from '../utils/num';
 
 export interface ProtocolGroup {
   heading: string;
   lines: string[];
 }
 
-const ABILITY_ORDER = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-const ABILITY_LABEL: Record<(typeof ABILITY_ORDER)[number], string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-  int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
-const signed = (n: number): string => (n >= 0 ? `+${n}` : String(n));
+
 
 /** Baut das gruppierte Überblicks-Protokoll; leere Gruppen fallen weg. */
 export function buildCharacterProtocol(
@@ -34,7 +31,7 @@ export function buildCharacterProtocol(
     if (lines.length) groups.push({ heading, lines });
   };
 
-  add('Attribute', ABILITY_ORDER.map((k) => `${ABILITY_LABEL[k]} ${c[k]} (${signed(c[`${k}Mod`])})`));
+  add('Attribute', ABILITY_KEYS.map((k) => `${ABILITY_LABEL[k]} ${c[k]} (${sign(c[`${k}Mod`])})`));
 
   add('Werte', [
     ...(c.hpMax ? [`Trefferpunkte: ${c.hpMax}`] : []),
@@ -45,7 +42,7 @@ export function buildCharacterProtocol(
 
   add('Geübte Fertigkeiten', SKILL_DEFS.filter((d) => c.skills[d.key]?.prof && !c.skills[d.key]?.exp).map((d) => d.label));
   add('Expertise', SKILL_DEFS.filter((d) => c.skills[d.key]?.exp).map((d) => d.label));
-  add('Rettungswurf-Übungen', ABILITY_ORDER.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k]));
+  add('Rettungswurf-Übungen', ABILITY_KEYS.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k]));
 
   add('Waffen', [
     ...(c.proficiencies.simpleWeapons ? ['Einfache Waffen'] : []),

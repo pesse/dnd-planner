@@ -3,6 +3,7 @@
  * für die UI (statt `🔧 search_dnd_api ({"query":...})`).
  */
 import type { AgentStep } from '../vaultTools';
+import { keySlug } from '$lib/utils/text';
 
 export interface StepLabel {
   icon: string;
@@ -34,7 +35,7 @@ export function describeAiStep(s: AgentStep): StepLabel | null {
       case 'search_open5e_items':
         return { icon: '🔍', text: `Suche Ausrüstung nach „${arg(s, 'query')}“…`, muted: false };
       case 'get_open5e_item': {
-        const slug = (arg(s, 'key').split('_').pop()) ?? '';
+        const slug = keySlug(arg(s, 'key'));
         return { icon: '📥', text: `Lade Gegenstand „${slug}“…`, muted: false };
       }
       case 'json-korrektur':

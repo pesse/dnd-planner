@@ -1,10 +1,8 @@
 <script lang="ts">
   import type { Item } from '../types';
-  import {
-    PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS,
-    DAMAGE_TYPE_LABELS, formatCost, formatRarity, formatDamageDice, ftToM, masteryLabel,
-    structuralType,
-  } from '../itemLibrary';
+  import { structuralType } from '../itemLibrary';
+  import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel } from '../itemLabels';
+  import { formatCost, formatRarity, formatDamageDice, ftToM } from '../itemFormat';
   import Markdown from './Markdown.svelte';
 
   let { item, x, y }: { item: Item | null; x: number; y: number } = $props();

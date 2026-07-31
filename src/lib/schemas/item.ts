@@ -4,6 +4,7 @@
  * adaptiert dessen inline weapon/armor-Detailobjekte in flache Felder (siehe open5eApi.ts).
  */
 import { z } from 'zod';
+import { slugAscii } from '../utils/text';
 import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE, WEAPON_MASTERIES } from './shared';
 
 const damageSchema = z.object({
@@ -76,11 +77,6 @@ function titleizeSlug(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-/** Name → URL-Slug für den Fallback-`key` ("Ring of Protection" → "ring-of-protection"). */
-function slugify(s: string): string {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
 /**
  * Identität eines Items, auch ohne `key` in der Datei (Homebrew, Altbestand). MUSS von
  * jedem Leser benutzt werden, der Items identifiziert: sonst vergibt der Index, der die
@@ -92,7 +88,7 @@ export function itemKeyOf(raw: Record<string, unknown>): string {
   const migrated = migrateSourceLegacy({ ...raw });
   const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
   const name = typeof raw.name === 'string' ? raw.name : '';
-  return name ? `${source}_${slugify(name)}` : '';
+  return name ? `${source}_${slugAscii(name)}` : '';
 }
 
 /**

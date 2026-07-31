@@ -1,9 +1,7 @@
 import type { Item } from '../types';
-import {
-  structuralType, dirOf, formatCost, formatRarity, formatDamageDice, ftToM,
-  DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS,
-  ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, masteryLabel, masteryRuleDe,
-} from '../itemLibrary';
+import { structuralType, dirOf } from '../itemLibrary';
+import { DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, masteryLabel, masteryRuleDe } from '../itemLabels';
+import { formatCost, formatRarity, formatDamageDice, ftToM } from '../itemFormat';
 import { renderMarkdown, ruleText } from './markdown';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
 

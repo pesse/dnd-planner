@@ -13,6 +13,7 @@
  * modelliert — er war es auch vorher nicht (Regel 4 des alten Prompts schloss ihn aus).
  */
 import type { FeatureGrant } from '../schemas/shared';
+import { featureIdOf } from '$lib/utils/text';
 
 /** Ein Merkmal, wie beide Flows es liefern können: Identität + Deklaration. */
 export interface PerLevelFeature {
@@ -40,7 +41,7 @@ export function hpPerLevelSources(features: PerLevelFeature[]): PerLevelSource[]
   const seen = new Set<string>();
   const out: PerLevelSource[] = [];
   for (const f of features) {
-    const id = f.key || f.name.trim().toLowerCase();
+    const id = featureIdOf(f);
     if (!id || seen.has(id)) continue;
     seen.add(id);
     const amount = f.grants?.perLevel?.hpMax ?? 0;
