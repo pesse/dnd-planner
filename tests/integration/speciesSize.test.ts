@@ -3,7 +3,7 @@
  *
  * Seit der Deklaration von Grundeigenschaften ist er der FALLBACK: ein redigiertes Merkmal
  * führt seine Größe über `grants.properties` bzw. `kind: 'characterProperty'`
- * (`evals/characterProperties.test.ts`), und dann schweigt der Parser. Übrig bleibt er für
+ * (`tests/integration/characterProperties.test.ts`), und dann schweigt der Parser. Übrig bleibt er für
  * Homebrew und frische Open5e-Importe, deren Größe nur als Prosa vorliegt.
  *
  * Was hier hängt: dass der Parser jede Spezies des Bestands lesen KANN (die Deklaration soll

@@ -12,7 +12,7 @@
  *
  * Die zwölf Kreissprüche selbst sind seit 2026-07-29 KEINE KI-Aufgabe mehr: sie stehen als
  * Tabelle im Merkmalstext und werden deterministisch gelesen (`services/grantedSpells.ts`,
- * geprüft in `evals/grantedSpells.test.ts`). Das Merkmal fliegt daher vor der Deutung aus
+ * geprüft in `tests/integration/grantedSpells.test.ts`). Das Merkmal fliegt daher vor der Deutung aus
  * dem Eingang, und diese Strecke ist für die Zauber jetzt eine NEGATIVprobe: was hier noch
  * an Kreissprüchen auftaucht, wäre geraten und stünde doppelt am Charakter.
  *
@@ -65,7 +65,7 @@ const analyzeCore: Checks<StepResult> = {
   },
   'nicht blockiert (keine offene Wahl hält Zauber zurück)': (r) => asAnalysis(r)?.blocked === false,
   // Die Kreissprüche stehen als Tabelle im Merkmalstext und werden deterministisch gelesen
-  // (`services/grantedSpells.ts`, geprüft in `evals/grantedSpells.test.ts`); das Merkmal ist
+  // (`services/grantedSpells.ts`, geprüft in `tests/integration/grantedSpells.test.ts`); das Merkmal ist
   // deshalb nicht mehr im Eingang. Was hier an Kreissprüchen auftaucht, wäre also aus dem
   // Kontext geraten — genau der Fehler, den das Modell vorher machen KONNTE.
   'erdet keinen Kreisspruch mehr (kommt deterministisch)': (r) => {

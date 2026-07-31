@@ -57,7 +57,7 @@ Schema-Bruch, keine Charakter-Migration.**
 ## Verifikation
 
 * `npm run check`
-* `evals/featureDeclaration.test.ts`: Frage entsteht bei drei Attributen, keine bei einem,
+* `tests/integration/featureDeclaration.test.ts`: Frage entsteht bei drei Attributen, keine bei einem,
   keine bei einem Zweig ohne Zauber
 * Eval-Strecke `declaredVsAi` (der Fall, der die Lücke gefunden hat): die Soft-Probe
   „Zauberattribut wird erfragt" muss im deklarierten Pfad von 0/5 auf 5/5 gehen —

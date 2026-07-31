@@ -52,7 +52,7 @@ export const OTHER_BRANCHES_DE = ['Hochelf', 'Waldelf'] as const;
 
 /**
  * Die Zauber des gewählten Zweigs kommen DETERMINISTISCH aus `options[].spells`
- * (`optionListRider`, geprüft in `evals/featureDeclaration.test.ts`) — hier sind sie deshalb
+ * (`optionListRider`, geprüft in `tests/integration/featureDeclaration.test.ts`) — hier sind sie deshalb
  * eine NEGATIVprobe. Getrennt nach Stufe, weil die beiden Hälften unterschiedlich weh tun:
  *
  *  - Stufe 1 („Tanzende Lichter") ist die DUBLETTE: derselbe Zaubertrick aus zwei Quellen.

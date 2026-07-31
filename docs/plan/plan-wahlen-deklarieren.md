@@ -345,9 +345,9 @@ davon unberührt und weiterhin nötig: `grants` allein nimmt ein Merkmal NICHT a
 keinen Vault-Fall — die Symmetrie kostet dort einen Aufrufparameter (`choiceSources` an
 `buildDoc`), ihr Fehlen hätte später eine stille Lücke gekostet.
 
-**Verifikation:** `evals/characterProperties.test.ts` (neu, ohne LLM: Bestandsabdeckung,
+**Verifikation:** `tests/integration/characterProperties.test.ts` (neu, ohne LLM: Bestandsabdeckung,
 Optionen aus dem Vokabular, Antwort → `Change` → Bogenwert, Wizard-Eingang genau einmal);
-`evals/speciesSize.test.ts` ist auf die Fallback-Rolle umgeschrieben.
+`tests/integration/speciesSize.test.ts` ist auf die Fallback-Rolle umgeschrieben.
 
 **Nicht dabei:** Kreaturentyp und Dunkelsicht. Beide haben am Charakter kein Feld, im Bestand
 keinen Wahl-Fall, und die App wertet sie nirgends aus — sie sind Bogen-Notiz (Stufe 5), keine

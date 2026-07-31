@@ -16,7 +16,7 @@
  *       findet für ihn gar kein Call statt.
  *
  * Die LLM-freien Zusicherungen (Optionen als Zitat, Staffelung der Zauber über die Stufen,
- * `unredactedChoiceFeatures` selbst) liegen in `evals/featureDeclaration.test.ts` und werden
+ * `unredactedChoiceFeatures` selbst) liegen in `tests/integration/featureDeclaration.test.ts` und werden
  * hier NICHT wiederholt. Fall B ist die einzige Berührung — dort über den echten
  * Wizard-Eingang statt über ein handgebautes Merkmal.
  *

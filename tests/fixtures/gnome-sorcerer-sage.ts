@@ -113,7 +113,7 @@ export const ROCK_GNOME_SPELLS_DE = ['Ausbessern', 'Taschenspielerei'] as const;
  * Die Zauberliste des Talents: Der Vault führt „Magic Initiate" in seiner GENERISCHEN Fassung
  * („Cleric, Druid, or Wizard") und deklariert sie als `grantsChoice.spellLists`; der
  * Hintergrund „Weiser" legt sie in seinen `benefits` auf die Magierliste fest. `spellAccessOffer`
- * verengt die Deklaration damit auf EINEN Wert — geprüft in `evals/spellAccess.test.ts`.
+ * verengt die Deklaration damit auf EINEN Wert — geprüft in `tests/integration/spellAccess.test.ts`.
  */
 export const MAGIC_INITIATE_LIST = 'wizard';
 

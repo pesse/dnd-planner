@@ -14,7 +14,7 @@
  * Erkannt wird über die Deklaration `grantsSpells` (shared.ts), nie am Merkmalsnamen — die
  * sechs Vault-Merkmale heißen alle anders. Die englische Zusicherung „always have … prepared"
  * bleibt Fallback für ungepflegte Einträge, wie `isWeaponMasteryFeature` neben `grantsChoice`.
- * `evals/grantedSpells.test.ts` fegt den Vault und hält die Deckung fest.
+ * `tests/integration/grantedSpells.test.ts` fegt den Vault und hält die Deckung fest.
  */
 
 import type { SpellGrant } from '$lib/schemas/shared';

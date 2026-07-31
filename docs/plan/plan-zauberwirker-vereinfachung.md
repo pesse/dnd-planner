@@ -245,7 +245,7 @@ statt null. Damit bleibt auch kein Modell-Pfad berührt: im Wizard wird die Zeil
 `classText`-Job angehängt, im Aufstieg erreicht sie ein Modell nur, wenn der Merge aus anderem
 Grund ohnehin läuft — und dann als Teil des bestehenden Textes wie jede nutzergeschriebene
 Zeile. Keine Eval-Strecke fährt diesen Call; gemessen wurde deshalb nicht, geprüft
-deterministisch (`evals/spellAccessValues.test.ts`, 8 Tests).
+deterministisch (`tests/integration/spellAccessValues.test.ts`, 8 Tests).
 
 **Was für Variante B übrig bleibt:** `autoCalc` gilt nur für den Klassenblock; der Zugang kennt
 keine Hand-Übersteuerung. Ein zweiter Zauberblock im PDF bleibt die Produktentscheidung „App
@@ -283,7 +283,7 @@ Notizzeile) und ist damit so sicher wie die Notiz selbst; nur die Fallback-Zeile
 und wird bei sehr langen Texten als erste beschnitten — dieselbe Grenze wie für jeden anderen
 Satz dort.
 
-Geprüft deterministisch (`evals/spellAccessPdf.test.ts`, 8 Tests), davon drei durch das echte
+Geprüft deterministisch (`tests/integration/spellAccessPdf.test.ts`, 8 Tests), davon drei durch das echte
 `vault/templates/ataendler_v2.8.2.pdf`: Werte in den Feldern, Klassenblock bleibt leer,
 Export→Import→Export zeichengleich, Überlauf ohne Verlust. Kein Modell-Pfad berührt (die Marke
 existiert nur im erzeugten PDF), also kein bezahlter Lauf.
@@ -366,7 +366,7 @@ Gebaut: Schema (`shared.ts`, `feat.ts`, `featsLibrary.FeatEntry`), Vault-Deklara
 `services/spellAccess.ts`, `featurePrep.analysisGained`/`spellAccess`, zwei Antwort-Kanäle im
 Wizard (`resolvedChoices` vs. `declaredAnswers`), Ledger in `assembleCharacter`, Oberfläche
 (deklarierte Wahlen unabhängig vom KI-Status) und ein LLM-freier Test
-(`evals/spellAccess.test.ts`, 5 Tests, ~0,4 s).
+(`tests/integration/spellAccess.test.ts`, 5 Tests, ~0,4 s).
 
 Beim Bauen gefunden und behoben: die id einer Zauber-Wahl trug die Liste nicht, also überlebte
 eine Auswahl den Wechsel der Zauberliste (zurück in den Merkmals-Schritt, Kleriker statt Magier
@@ -517,7 +517,7 @@ Vokabular, typisiert, testbar. **Ebenfalls verworfen: die Zaubernamen selbst ins
 — wer die Tabelle lesbar pflegen kann, braucht die Doppelpflege nicht, und zwei Fassungen
 derselben zwölf Namen laufen auseinander.
 
-Drei Zusicherungen tragen das jetzt (`evals/grantedSpells.test.ts`, LLM-frei):
+Drei Zusicherungen tragen das jetzt (`tests/integration/grantedSpells.test.ts`, LLM-frei):
 Deckung über den ganzen Vault (jeder erkannte Fall ist deklariert, kein Tabellen-Merkmal bleibt
 unerkannt), Erkennung ohne englische Prosa, und eine Ankündigung ohne lesbare Tabelle bleibt im
 KI-Eingang **und** wird im Aufstiegs-Protokoll gemeldet statt still zu verschwinden.
@@ -550,7 +550,7 @@ ist aus dem Node-Eval nicht erreichbar. Ein zweiter Lauf nach der Umstellung wü
 denselben Code messen (`spellAccess.ts` wird von der Umstellung nicht angefasst). Ein Report
 mit beiden Armen ist dafür der stärkere Vergleich: gleiches Modell, gleiche Serverlast, gleiche
 Fixture, kein Stand-Drift. Dass die Komponente danach wirklich Arm B fährt, sichert
-`evals/levelUpFeatAccess.test.ts` deterministisch — bis in die entstehenden `Change`s.
+`tests/integration/levelUpFeatAccess.test.ts` deterministisch — bis in die entstehenden `Change`s.
 
 ### Ergebnis (2 × 5 Läufe, `--concurrency 1`)
 
@@ -599,7 +599,7 @@ Zauber wählen lassen, die das Talent nicht gewährt.
 * Was an das Modell zurückgeht (`gatherDecisions`), bleibt auf die KI-erkannten Wahlen
   beschränkt: das deklarierte Merkmal steht nicht in seinem Eingang.
 
-Fünf deterministische Zusicherungen (`evals/levelUpFeatAccess.test.ts`, LLM-frei) — darunter
+Fünf deterministische Zusicherungen (`tests/integration/levelUpFeatAccess.test.ts`, LLM-frei) — darunter
 die Kette bis in die `Change`s (zwei `cantrip`, ein `preparedSpell` Grad 1, `featureChoice` für
 Liste und Attribut) und zwei Deckungs-Proben: jedes Talent mit `spellAccess` ist auflösbar, und
 **kein Klassenmerkmal** deklariert einen Zugang — täte es eins, fiele es stumm aus, weil nur der
@@ -638,7 +638,7 @@ mit `grantsChoice` aus dem KI-Eingang. Für Klassenmerkmale fragt aber niemand e
 ab — das tut nur der Talent-Pfad (1g). Eine Deklaration ohne Verbraucher würde die Wahl also
 nicht deterministisch machen, sondern **löschen**. Erst der Verbraucher, dann die Deklaration;
 genau das hält die Zusicherung „kein Klassenmerkmal deklariert einen Zugang" aus
-`evals/levelUpFeatAccess.test.ts` fest.
+`tests/integration/levelUpFeatAccess.test.ts` fest.
 
 **Damit ist der Prompt-Schnitt aus 1f nicht gedeckt.** Er hätte diesen fünf Merkmalen die einzige
 Regel entzogen, die ihre Wahl überhaupt entstehen lässt. Das hielt eine LLM-freie Inventur
@@ -819,7 +819,7 @@ Zusicherung, und ein reiner Bogenwert hat in fünf LLM-Calls nichts zu suchen.
 **Nebenbefund, nicht behoben:** Die Größe von Mensch und Tiefling ist eine Wahl, deren Antwort
 nirgends landet — `personal.sizeCat` bleibt leer, das Feld füllt niemand (auch `assembleCharacter`
 nicht, das nur `speed` aus dem Merkmal liest). Derselbe fehlende Verbraucher wie in 1e. Bis dahin
-bleibt das Merkmal bewusst bei der KI: `evals/sheetValueTraits.test.ts` hält fest, dass es dort
+bleibt das Merkmal bewusst bei der KI: `tests/integration/sheetValueTraits.test.ts` hält fest, dass es dort
 ankommt.
 
 ## Die Größenkategorie bekommt ihren Schreiber (2026-07-30)
@@ -858,7 +858,7 @@ keine Messung fällig wird.
 ist unverändert, und die deklarierte id wird aus `resolvedChoices` herausgefiltert
 (`CharacterWizard.svelte:430`). Die Analyse ist hier der deterministische Test.
 
-**Zusicherungen** (`evals/speciesSize.test.ts`, LLM-frei, echter Vault, 6 Tests): jede der neun
+**Zusicherungen** (`tests/integration/speciesSize.test.ts`, LLM-frei, echter Vault, 6 Tests): jede der neun
 Spezies hat ein Größenmerkmal und liefert einen deutschen Wert (sieben namentlich festgenagelt);
 Mensch und Tiefling ergeben eine Wahl mit `['Medium','Small']` / `['Mittelgroß','Klein']` und
 tragen weiter keinen `sheetValue`; ohne oder mit unbekannter Antwort bleibt das Feld leer; die

@@ -64,7 +64,7 @@ const abilityChoice = (r: FeatPathResult) => plainChoices(r).find((c) => sameSet
 /**
  * Die neun harten Prüfungen — dieselben auf beiden Pfaden. Sie GATEN nur Fall B: seit der
  * Umstellung (2026-07-30) nimmt der Aufstieg für ein Talent mit Deklaration Fall B, Fall A ist
- * dafür unerreichbar (die Deckung sichert `evals/levelUpFeatAccess.test.ts`). Ein 90%-Gatter auf
+ * dafür unerreichbar (die Deckung sichert `tests/integration/levelUpFeatAccess.test.ts`). Ein 90%-Gatter auf
  * Fall A würde also eine Forderung an toten Code stellen; seine Zahlen bleiben als Referenz im
  * Report — gemessen 2026-07-30, zweimal 5 Läufe, siehe docs/plan/plan-zauberwirker-vereinfachung.md.
  */
