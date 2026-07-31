@@ -67,7 +67,7 @@
   }
 </script>
 
-<Modal title="Übersetzen — {entityName}" label="Übersetzen" {onclose}>
+<Modal title="Übersetzen — {entityName}" label="Übersetzen" {onclose} contentClass="ai-modal">
   <LlmProviderSelect />
 
   <div class="row">
@@ -106,30 +106,14 @@
 </Modal>
 
 <style>
-  .row { display: flex; flex-direction: column; gap: 0.3rem; }
-
   .prompt-label-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
   .prompt-toggle {
     background: none; border: none; color: var(--ink-muted); font-size: 0.72rem;
     cursor: pointer; padding: 0; font-family: inherit; white-space: nowrap;
   }
   .prompt-toggle:hover { color: var(--red); }
-  .prompt-textarea { font-style: italic; font-size: 0.78rem; line-height: 1.5; }
+  .textarea.prompt-textarea { font-style: italic; font-size: 0.78rem; line-height: 1.5; }
 
-  .textarea {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-    resize: vertical;
-  }
-  .textarea:focus { border-color: var(--red); }
-
-  .actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; }
+  .actions { --actions-align: center; }
   .status-left { margin-right: auto; }
-
-  .steps { display: flex; flex-direction: column; gap: 0.2rem; max-height: 160px; overflow-y: auto; padding: 0.3rem 0; }
-  .step { font-size: 0.78rem; color: var(--ink-soft); }
-  .step.muted { color: var(--ink-muted); }
-
-  .hint { font-size: 0.78rem; margin: 0; }
-  .hint.err { color: var(--danger); }
 </style>

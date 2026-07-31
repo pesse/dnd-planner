@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { AutosaveFile } from '../utils/autosaveFile.svelte';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
@@ -211,9 +212,9 @@
   }
 
   let gmNotes = $state('');
-  let gmNotesSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
+  const gmNotesSave = new AutosaveFile();
   let freitext = $state('');
-  let freitextSaving = $state<'saved' | 'saving' | 'unsaved'>('saved');
+  const freitextSave = new AutosaveFile();
   let error = $state('');
   let importingPdf = $state(false);
   let exportingPdf = $state(false);
@@ -423,8 +424,8 @@
   $effect(() => {
     const dir = dirPath;
     if (!dir) return;
-    if (freitextTimer) { clearTimeout(freitextTimer); freitextTimer = null; }
-    if (gmNotesTimer) { clearTimeout(gmNotesTimer); gmNotesTimer = null; }
+    freitextSave.cancel();
+    gmNotesSave.cancel();
     error = '';
     loadSideFiles();
   });
@@ -453,8 +454,8 @@
         freitext = '';
       }
     }
-    freitextSaving = 'saved';
-    gmNotesSaving = 'saved';
+    freitextSave.markSaved();
+    gmNotesSave.markSaved();
   }
 
   async function importPdfIntoExisting() {
@@ -560,48 +561,14 @@
     }
   }
 
-  // ─── GM-Notizen (auto-save mit Debounce, wie Details) ─────────────────────
-  let gmNotesTimer: ReturnType<typeof setTimeout> | null = null;
-
-  async function writeGmNotes(path: string, content: string) {
-    try {
-      gmNotesSaving = 'saving';
-      await invoke('write_file_content', { path, content });
-      gmNotesSaving = 'saved';
-    } catch {
-      gmNotesSaving = 'unsaved';
-    }
-  }
-
   function onGmNotesChange(md: string) {
     gmNotes = md;
-    gmNotesSaving = 'unsaved';
-    const path = gmNotesPath;
-    if (gmNotesTimer) clearTimeout(gmNotesTimer);
-    gmNotesTimer = setTimeout(() => writeGmNotes(path, md), 800);
-  }
-
-  // ─── Freitext (auto-save mit Debounce, wie der Kampagnen-Editor) ──────────
-  let freitextTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Pfad beim Planen festhalten, damit ein noch laufender Timer nach einem
-  // Charakterwechsel nicht den falschen Charakter überschreibt.
-  async function writeFreitext(path: string, content: string) {
-    try {
-      freitextSaving = 'saving';
-      await invoke('write_file_content', { path, content });
-      freitextSaving = 'saved';
-    } catch {
-      freitextSaving = 'unsaved';
-    }
+    gmNotesSave.schedule(gmNotesPath, md);
   }
 
   function onFreitextChange(md: string) {
     freitext = md;
-    freitextSaving = 'unsaved';
-    const path = detailsPath;
-    if (freitextTimer) clearTimeout(freitextTimer);
-    freitextTimer = setTimeout(() => writeFreitext(path, md), 800);
+    freitextSave.schedule(detailsPath, md);
   }
 
   function base64ToBytes(b64: string): Uint8Array {
@@ -1116,8 +1083,8 @@
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
-            <span class="freetext-status" class:unsaved={gmNotesSaving === 'unsaved'} class:saving={gmNotesSaving === 'saving'}>
-              {gmNotesSaving === 'saving' ? 'Speichert…' : gmNotesSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            <span class="freetext-status" class:unsaved={gmNotesSave.status === 'unsaved'} class:saving={gmNotesSave.status === 'saving'}>
+              {gmNotesSave.status === 'saving' ? 'Speichert…' : gmNotesSave.status === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
             </span>
           </div>
           <RichTextEditor value={gmNotes} onChange={onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
@@ -1128,8 +1095,8 @@
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
-            <span class="freetext-status" class:unsaved={freitextSaving === 'unsaved'} class:saving={freitextSaving === 'saving'}>
-              {freitextSaving === 'saving' ? 'Speichert…' : freitextSaving === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            <span class="freetext-status" class:unsaved={freitextSave.status === 'unsaved'} class:saving={freitextSave.status === 'saving'}>
+              {freitextSave.status === 'saving' ? 'Speichert…' : freitextSave.status === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
             </span>
           </div>
           <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />

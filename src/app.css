@@ -111,11 +111,9 @@ h1, h2, h3, .file-title {
 .legacy-banner-btn:hover { filter: brightness(1.08); }
 
 /* Bausteine, die in vielen Komponenten unter demselben Klassennamen stehen.
- * Komponentenlokale Regeln sind durch die Svelte-Scope-Klasse höher spezifisch
- * und gewinnen weiterhin — hier steht nur die geteilte Grundform. */
+ * Komponentenlokale Regeln sind höher spezifisch und gewinnen weiterhin. */
 
-/* Inline-Feld der Karten-Editoren: unauffällig, bis man es anfasst.
- * `--mef-accent` setzt die Karte, die das Formular einbettet. */
+/* Inline-Feld der Karten-Editoren. `--mef-accent` setzt die einbettende Karte. */
 .ef {
   background: var(--bg-panel);
   border: 1px solid transparent;
@@ -146,7 +144,6 @@ h1, h2, h3, .file-title {
   color: var(--ink-muted);
 }
 
-/* #fff statt var(--on-accent): die Dialog-Knöpfe tragen bewusst reines Weiß. */
 .primary-btn {
   background: var(--red);
   border: none;
@@ -170,22 +167,51 @@ h1, h2, h3, .file-title {
   font-size: 0.85rem;
 }
 
-/* Abdunkelnder Hintergrund der wartenden Abfrage-Dialoge. */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
 .cancel-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--ink-muted);
 }
+
+/* Inhalt der KI-Aktions-Dialoge (ui/Modal.svelte mit contentClass="ai-modal").
+ * Abweichungen laufen über die Variablen, nicht über eine zweite Regel. */
+.ai-modal .row { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.ai-modal .textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  resize: vertical;
+}
+.ai-modal .textarea:focus { border-color: var(--red); }
+
+.ai-modal .actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: var(--actions-align, normal);
+  gap: 0.5rem;
+}
+
+.ai-modal .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: var(--steps-max-h, 160px);
+  overflow-y: auto;
+  padding: 0.3rem 0;
+}
+.ai-modal .step { font-size: 0.78rem; color: var(--ink-soft); }
+.ai-modal .step.muted { color: var(--ink-muted); }
+
+.ai-modal .hint { font-size: 0.78rem; margin: 0; }
+.ai-modal .hint.warn { color: var(--gold, #c89b3c); }
+.ai-modal .hint.err { color: var(--danger); }
 
 /* Pergament-Scrollbars */
 * {

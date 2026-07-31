@@ -6,6 +6,9 @@
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
   import DeclarationEditForm from './DeclarationEditForm.svelte';
+  import FormSection from './ui/FormSection.svelte';
+  import OriginalText from './ui/OriginalText.svelte';
+  import LibraryFormHeader from './ui/LibraryFormHeader.svelte';
 
   let {
     klass = $bindable<ClassProgression>(),
@@ -50,10 +53,8 @@
 </script>
 
 <!-- Grunddaten -->
-<div class="sb-header">
-  <input class="ef sb-name" bind:value={klass.nameDe} oninput={mark} placeholder="Deutscher Name" />
-  <input class="ef sb-name-en" bind:value={klass.name} oninput={mark} placeholder="Name (EN)" />
-  <div class="meta-row">
+<LibraryFormHeader bind:nameDe={klass.nameDe} bind:name={klass.name} onchange={mark}>
+  {#snippet meta()}
     <label class="lbl-inline">Schlüssel
       <input class="ef key-input" bind:value={klass.key} oninput={mark} placeholder="z.B. srd-2024_wizard" />
     </label>
@@ -80,14 +81,11 @@
         {/if}
       </select>
     </label>
-  </div>
-</div>
-
-<div class="divider"></div>
+  {/snippet}
+</LibraryFormHeader>
 
 <!-- Kerntabelle: Übungen (englische Werte, deutsche Beschriftung) -->
-<div class="section">
-  <div class="section-title">Kerntabelle</div>
+<FormSection title="Kerntabelle">
   <ProficiencyGrantEditForm bind:grant={klass.proficiencyGrant} {onchange} />
 
   <!-- Englisch ist der Prompt-Input des Wizards, Deutsch nur Anzeige (darf leer bleiben). -->
@@ -100,30 +98,24 @@
     <textarea class="ef equip" rows={2} bind:value={klass.startingEquipmentDe} oninput={mark}
       placeholder="Wähle A oder B aus: (A) … oder (B) 75 GM"></textarea>
   </label>
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Mehrklassen-Zeile: steht nicht in Open5e, wird hier gepflegt -->
-<div class="section">
-  <div class="section-title">Bei Klassenkombination</div>
-  <p class="section-hint">
+<FormSection title="Bei Klassenkombination">
+  {#snippet hint()}
     Fertigkeiten, die diese Klasse gewährt, wenn sie als ZWEITE Klasse dazukommt.
     Im SRD 5.2 nur Barde, Schurke und Waldläufer — alle übrigen gewähren keine.
-  </p>
+  {/snippet}
   <SkillGrantEditForm bind:grant={klass.skillGrantMulticlass} {onchange} />
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Merkmale -->
-<div class="section">
-  <div class="section-title">Merkmale</div>
-  <p class="section-hint">
+<FormSection title="Merkmale">
+  {#snippet hint()}
     „Gewährt Wahl" deklariert die Wahl eines Merkmals — der Aufstieg führt sie dann aus
     Bibliothek bzw. Deklaration statt aus der KI-Deutung der Beschreibung. Ohne Deklaration
     bleibt das Merkmal in der KI-Kette; das ist der Fallback, kein Fehler.
-  </p>
+  {/snippet}
   {#each klass.features as feature, i}
     <div class="feat-row">
       <div class="feat-line">
@@ -140,43 +132,18 @@
       </div>
       <DeclarationEditForm bind:feature={klass.features[i]} carrier="class" {onchange} />
       <textarea class="ef feat-desc" rows={3} bind:value={feature.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
-      <details class="orig-details">
-        <summary>Original (EN)</summary>
+      <OriginalText>
         <textarea class="ef orig-text" rows={3} bind:value={feature.desc} oninput={mark} placeholder="Beschreibung (EN)"></textarea>
-      </details>
+      </OriginalText>
     </div>
   {/each}
   <button class="add-feat" onclick={addFeature}>+ Merkmal</button>
-</div>
+</FormSection>
 
 <style>
-
-  .sb-header { margin-bottom: 0.4rem; display: flex; flex-direction: column; gap: 0.15rem; }
-  .sb-name {
-    font-size: 1.3rem; font-weight: 700; color: var(--mef-accent, var(--arcane));
-    font-variant: small-caps; width: 100%;
-  }
-  .sb-name-en { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; width: 100%; }
-
-  .meta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }
   .meta-sel { cursor: pointer; }
   .num { width: 56px; text-align: center; }
-  .key-input { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--ink-muted); min-width: 160px; }
 
-  .divider {
-    height: 2px;
-    background: linear-gradient(to right, var(--bg-raised), var(--mef-accent, var(--arcane)) 55%);
-    margin: 0.6rem 0; border-radius: 1px;
-  }
-
-  .section { display: flex; flex-direction: column; gap: 0.35rem; }
-  .section-title {
-    font-size: 1rem; font-weight: 700; color: var(--mef-accent, var(--arcane));
-    margin: 0 0 0.3rem; font-variant: small-caps;
-    border-bottom: 1px solid var(--mef-accent, var(--arcane)); padding-bottom: 0.15rem;
-  }
-
-  .section-hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.2rem; }
   .lbl-block {
     display: flex; flex-direction: column; gap: 0.15rem;
     font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.5rem;
@@ -198,10 +165,6 @@
   .feat-del:hover { color: var(--danger); }
   .feat-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
 
-
-  .orig-details { font-size: 0.78rem; }
-  .orig-details summary { color: var(--border); cursor: pointer; }
-  .orig-details summary:hover { color: var(--mef-accent, var(--arcane)); }
   .orig-text {
     background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
     color: var(--ink-muted); font-size: 0.8rem; line-height: 1.6;

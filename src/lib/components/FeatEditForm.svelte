@@ -3,6 +3,9 @@
   import DeclarationEditForm from './DeclarationEditForm.svelte';
   import { FEAT_CATEGORIES } from '$lib/schemas/vocabulary';
   import { FEAT_CATEGORY_DE } from '$lib/featsLibrary';
+  import FormSection from './ui/FormSection.svelte';
+  import OriginalText from './ui/OriginalText.svelte';
+  import LibraryFormHeader from './ui/LibraryFormHeader.svelte';
 
   let {
     feat = $bindable<Feat>(),
@@ -17,10 +20,8 @@
 </script>
 
 <!-- Grunddaten -->
-<div class="sb-header">
-  <input class="ef sb-name" bind:value={feat.nameDe} oninput={mark} placeholder="Deutscher Name" />
-  <input class="ef sb-name-en" bind:value={feat.name} oninput={mark} placeholder="Name (EN)" />
-  <div class="meta-row">
+<LibraryFormHeader bind:nameDe={feat.nameDe} bind:name={feat.name} onchange={mark}>
+  {#snippet meta()}
     <label class="lbl-inline">Kategorie
       <select class="ef" bind:value={feat.category} onchange={mark}>
         {#each FEAT_CATEGORIES as c (c)}
@@ -31,87 +32,37 @@
     <label class="lbl-inline">Schlüssel
       <input class="ef key-input" bind:value={feat.key} oninput={mark} placeholder="z.B. srd-2024_alert" />
     </label>
-  </div>
-</div>
-
-<div class="divider"></div>
+  {/snippet}
+</LibraryFormHeader>
 
 <!-- Voraussetzung -->
-<div class="section">
-  <div class="section-title">Voraussetzung</div>
+<FormSection title="Voraussetzung">
   <input class="ef wide" bind:value={feat.prerequisiteDe} oninput={mark} placeholder="Voraussetzung (DE)" />
   {#if feat.prerequisite}
-    <details class="orig-details">
-      <summary>Original (EN)</summary>
-      <div class="orig-text">{feat.prerequisite}</div>
-    </details>
+    <OriginalText text={feat.prerequisite} />
   {/if}
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Gewährte Übungen (SRD 5.2: nur „Geschult") -->
 <!-- Die drei Deklarationen -->
-<div class="section">
-  <div class="section-title">Deklaration</div>
-  <p class="section-hint">
+<FormSection title="Deklaration">
+  {#snippet hint()}
     Was das Talent gewährt, als Daten statt als Prosa — der Flow führt es dann aus der
     Deklaration statt aus der KI-Deutung. Ohne Deklaration bleibt das Talent in der KI-Kette;
     das ist der Fallback, kein Fehler.
-  </p>
+  {/snippet}
   <DeclarationEditForm bind:feature={feat} scope="skills" {onchange} />
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Beschreibung -->
-<div class="section">
-  <div class="section-title">Beschreibung (Deutsch)</div>
+<FormSection title="Beschreibung (Deutsch)">
   <textarea class="ef ability-desc" rows={8} bind:value={feat.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
   {#if feat.desc}
-    <details class="orig-details">
-      <summary>Original (EN)</summary>
-      <div class="orig-text">{feat.desc}</div>
-    </details>
+    <OriginalText text={feat.desc} />
   {/if}
-</div>
+</FormSection>
 
 <style>
-
-  .sb-header { margin-bottom: 0.4rem; display: flex; flex-direction: column; gap: 0.15rem; }
-  .sb-name {
-    font-size: 1.3rem; font-weight: 700; color: var(--mef-accent, var(--arcane));
-    font-variant: small-caps; width: 100%;
-  }
-  .sb-name-en { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; width: 100%; }
-
-  .meta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }
-  .key-input { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--ink-muted); min-width: 160px; }
-
-
-  .divider {
-    height: 2px;
-    background: linear-gradient(to right, var(--bg-raised), var(--mef-accent, var(--arcane)) 55%);
-    margin: 0.6rem 0; border-radius: 1px;
-  }
-
-  .section { display: flex; flex-direction: column; gap: 0.35rem; }
-  .section-title {
-    font-size: 1rem; font-weight: 700; color: var(--mef-accent, var(--arcane));
-    margin: 0 0 0.3rem; font-variant: small-caps;
-    border-bottom: 1px solid var(--mef-accent, var(--arcane)); padding-bottom: 0.15rem;
-  }
-
-  .section-hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.2rem; }
   .wide { width: 100%; }
   .ability-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; min-height: 3rem; }
-
-  .orig-details { font-size: 0.78rem; }
-  .orig-details summary { color: var(--border); cursor: pointer; }
-  .orig-details summary:hover { color: var(--mef-accent, var(--arcane)); }
-  .orig-text {
-    background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
-    color: var(--ink-muted); font-size: 0.8rem; line-height: 1.6;
-    padding: 0.4rem 0.6rem; white-space: pre-wrap; font-style: italic; margin-top: 0.2rem;
-  }
 </style>

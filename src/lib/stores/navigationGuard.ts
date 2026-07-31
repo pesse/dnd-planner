@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { promptDialog } from './promptDialog';
 
 /**
  * Schützt vor Datenverlust: Ist eine Karte (Gegenstand, Monster, …) im
@@ -29,8 +29,10 @@ export function registerEditorGuard(guard: EditorGuard): () => void {
 
 type Choice = 'save' | 'discard' | 'cancel';
 
+const channel = promptDialog<Record<string, never>, Choice>();
+
 /** Treibt den UnsavedChangesDialog. Null = kein Dialog offen. */
-export const unsavedPrompt = writable<{ resolve: (choice: Choice) => void } | null>(null);
+export const unsavedPrompt = channel.prompt;
 
 /**
  * Vor jeder Navigation aufrufen. Gibt true zurück, wenn navigiert werden darf.
@@ -40,10 +42,7 @@ export const unsavedPrompt = writable<{ resolve: (choice: Choice) => void } | nu
 export async function confirmNavigation(): Promise<boolean> {
   if (!current || !current.isDirty()) return true;
 
-  const choice = await new Promise<Choice>((resolve) => {
-    unsavedPrompt.set({ resolve });
-  });
-  unsavedPrompt.set(null);
+  const choice = await channel.ask({});
 
   if (choice === 'cancel') return false;
   if (choice === 'save') {

@@ -97,7 +97,7 @@
   function retry() { pendingRestart = true; userAborted = true; abort?.abort(); }
 </script>
 
-<Modal title="{action.icon} {action.label}" label={action.label} {onclose}>
+<Modal title="{action.icon} {action.label}" label={action.label} {onclose} contentClass="ai-modal">
   <LlmProviderSelect />
 
   {#if !canTools}
@@ -169,7 +169,6 @@
 </Modal>
 
 <style>
-  .row { display: flex; flex-direction: column; gap: 0.3rem; }
   .field-hint { text-transform: none; letter-spacing: 0; color: var(--ink-muted); font-size: 0.72rem; }
 
   .group-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
@@ -182,22 +181,9 @@
   .group-chip.on { border-color: var(--red); color: var(--ink); opacity: 1; }
   .group-chip:disabled { cursor: not-allowed; }
 
-  .textarea {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-    resize: vertical;
-  }
-  .textarea:focus { border-color: var(--red); }
+  .steps { --steps-max-h: 220px; }
 
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-
-  .steps { display: flex; flex-direction: column; gap: 0.2rem; max-height: 220px; overflow-y: auto; padding: 0.3rem 0; }
-  .step { font-size: 0.78rem; color: var(--ink-soft); }
-  .step.muted { color: var(--ink-muted); }
   .phase { font-size: 0.8rem; color: var(--ink); font-weight: 600; margin-top: 0.25rem; }
 
-  .hint { font-size: 0.78rem; margin: 0; }
-  .hint.warn { color: var(--gold, #c89b3c); }
-  .hint.err { color: var(--danger); }
   .hint.ok { color: var(--arcane); }
 </style>

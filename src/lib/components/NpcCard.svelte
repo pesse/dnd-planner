@@ -11,7 +11,7 @@
   import type { Item } from '../types';
   import type { Spell } from '../types';
   import { spellDesc, spellHigherLevel, spellComponents, spellSchoolLabel } from '../types';
-  import { SKILL_DEFS, mod } from '../domain/skills';
+  import { SKILL_DEFS, mod, modStr } from '../domain/skills';
   import { sign } from '../utils/num';
   import Markdown from './Markdown.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
@@ -88,9 +88,6 @@
       return obj as NpcData;
     } catch { return null; }
   }
-
-  const modNum = mod;
-  const modStr = (score: number): string => sign(mod(score));
 
   const STAT_LABELS: (keyof NpcStats)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   const STAT_NAMES: Record<keyof NpcStats, string> = {
@@ -323,7 +320,7 @@
     if (stored?.prof) {
       delete draft.savingThrows[key];
     } else {
-      const base = modNum(draft.stats[key as keyof NpcStats]);
+      const base = mod(draft.stats[key as keyof NpcStats]);
       draft.savingThrows[key] = { bonus: base + 2, prof: true };
     }
     draft = draft;
@@ -338,7 +335,7 @@
     } else {
       const skillDef = SKILL_DEFS.find(s => s.key === key);
       const statKey = skillDef ? CHAR_ATTR_TO_NPC[skillDef.attr] : 'str';
-      const base = modNum(draft.stats[statKey]);
+      const base = mod(draft.stats[statKey]);
       draft.skills[key] = { bonus: base + 2, prof: true };
     }
     draft = draft;
@@ -453,7 +450,7 @@
           <div class="save-list">
             {#each STAT_LABELS as key}
               {@const stored = draft.savingThrows[key]}
-              {@const base = modNum(draft.stats[key])}
+              {@const base = mod(draft.stats[key])}
               {@const bonus = stored ? stored.bonus : base}
               {@const prof = stored?.prof ?? false}
               <div class="save-row" class:proficient={prof}>
@@ -475,7 +472,7 @@
           {#each SKILL_DEFS as def}
             {@const stored = draft.skills[def.key]}
             {@const statKey = CHAR_ATTR_TO_NPC[def.attr]}
-            {@const base = modNum(draft.stats[statKey])}
+            {@const base = mod(draft.stats[statKey])}
             {@const bonus = stored ? stored.bonus : base}
             {@const prof = stored?.prof ?? false}
             <div class="skill-row" class:proficient={prof}>

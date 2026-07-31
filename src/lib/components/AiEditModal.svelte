@@ -76,7 +76,7 @@
   }
 </script>
 
-<Modal title="Per KI überarbeiten — {entityName}" label="Per KI überarbeiten" {onclose}>
+<Modal title="Per KI überarbeiten — {entityName}" label="Per KI überarbeiten" {onclose} contentClass="ai-modal">
   <LlmProviderSelect />
 
   {#if !canTools}
@@ -126,24 +126,3 @@
 
   {#if error}<p class="hint err">{error}</p>{/if}
 </Modal>
-
-<style>
-  .row { display: flex; flex-direction: column; gap: 0.3rem; }
-
-  .textarea {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-    resize: vertical;
-  }
-  .textarea:focus { border-color: var(--red); }
-
-  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-
-  .steps { display: flex; flex-direction: column; gap: 0.2rem; max-height: 160px; overflow-y: auto; padding: 0.3rem 0; }
-  .step { font-size: 0.78rem; color: var(--ink-soft); }
-  .step.muted { color: var(--ink-muted); }
-
-  .hint { font-size: 0.78rem; margin: 0; }
-  .hint.warn { color: var(--gold, #c89b3c); }
-  .hint.err { color: var(--danger); }
-</style>

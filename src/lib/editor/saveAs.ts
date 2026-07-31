@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { promptDialog } from '$lib/stores/promptDialog';
 
 /** Wählbarer Ablageort im Save-as-Dialog (z.B. Schule, Kategorie, Akt). */
 export interface SaveAsBucket {
@@ -14,18 +14,17 @@ export interface SaveAsRequest {
   buckets: SaveAsBucket[];
   /** Vorausgewählter Bucket. */
   bucket?: string;
-  resolve: (result: { name: string; bucket?: string } | null) => void;
 }
+
+export interface SaveAsResult {
+  name: string;
+  bucket?: string;
+}
+
+const channel = promptDialog<SaveAsRequest, SaveAsResult | null>();
 
 /** Treibt den SaveAsDialog. Null = kein Dialog offen. */
-export const saveAsPrompt = writable<SaveAsRequest | null>(null);
+export const saveAsPrompt = channel.prompt;
 
 /** Öffnet den Save-as-Dialog und liefert die Auswahl (oder null bei Abbruch). */
-export function openSaveAs(
-  req: Omit<SaveAsRequest, 'resolve'>,
-): Promise<{ name: string; bucket?: string } | null> {
-  return new Promise((resolve) => {
-    saveAsPrompt.set({ ...req, resolve });
-  });
-}
-
+export const openSaveAs = channel.ask;

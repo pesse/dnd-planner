@@ -10,6 +10,7 @@
   let {
     title,
     label = title,
+    contentClass = '',
     draggable = true,
     top = 80,
     width = 'min(560px, 92vw)',
@@ -23,6 +24,8 @@
     title: string;
     /** `aria-label` des Dialogs, falls der sichtbare Titel Zusätze trägt. */
     label?: string;
+    /** Globale Klasse für den Inhaltsstil, z.B. `ai-modal` (siehe app.css). */
+    contentClass?: string;
     draggable?: boolean;
     /** Anfangs-Abstand von oben, nur bei `draggable`. */
     top?: number;
@@ -47,7 +50,7 @@
   <div class="backdrop" role="presentation" onclick={onclose}></div>
 {/if}
 
-<div class="dialog" class:centered={!draggable} {style} role="dialog" aria-label={label}>
+<div class="dialog {contentClass}" class:centered={!draggable} {style} role="dialog" aria-label={label}>
   <div class="modal-header" class:grab={!!drag} onmousedown={drag?.startDrag} role="presentation">
     <span class="modal-title">{title}</span>
     <button class="close-btn" onmousedown={(e) => e.stopPropagation()} onclick={onclose} title="Schließen">×</button>
