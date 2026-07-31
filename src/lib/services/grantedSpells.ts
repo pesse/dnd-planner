@@ -11,13 +11,13 @@
  * die Tabelle kommt aus dem Import und überlebt jeden Re-Import. Eine zweite, gepflegte
  * Fassung derselben Liste wäre die Quelle, die irgendwann auseinanderläuft.
  *
- * Erkannt wird über die Deklaration `grantsSpells` (shared.ts), nie am Merkmalsnamen — die
+ * Erkannt wird über die Deklaration `grantsSpells` (schemas/grants.ts), nie am Merkmalsnamen — die
  * sechs Vault-Merkmale heißen alle anders. Die englische Zusicherung „always have … prepared"
  * bleibt Fallback für ungepflegte Einträge, wie `isWeaponMasteryFeature` neben `grantsChoice`.
  * `tests/integration/grantedSpells.test.ts` fegt den Vault und hält die Deckung fest.
  */
 
-import type { SpellGrant } from '$lib/schemas/shared';
+import type { SpellGrant } from '$lib/schemas/grants';
 
 /** Eine Tabellenzeile: ab dieser Klassenstufe sind diese Zauber dauerhaft vorbereitet. */
 export interface SpellGrantRow {

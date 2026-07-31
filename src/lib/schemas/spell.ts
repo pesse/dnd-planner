@@ -1,11 +1,12 @@
 /**
  * Single Source of Truth für Zauber: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
+ * LLM-JSON-Schema (siehe llmJson.ts). Label-Maps/Helper bleiben in types.ts.
  */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { SPELL_SCHOOLS, type SpellSchool } from '../types';
-import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE } from './shared';
+import { namedRef } from './llmJson';
+import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 
 const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
 

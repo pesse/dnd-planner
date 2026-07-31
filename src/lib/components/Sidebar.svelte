@@ -14,7 +14,7 @@
   import { libraries, libraryManagerOpen, updateCount } from '../stores/libraries';
   import CreateCardModal from './CreateCardModal.svelte';
   import CharacterWizard from './CharacterWizard.svelte';
-  import type { Character } from '../schemas/character';
+  import type { Character } from '../schemas/characterSchema';
   import { searchMonsters, mapApiResourceToMonster } from '../services/dndApi';
   import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem, searchOpen5eSpells, getSpell, mapOpen5eSpell } from '../services/open5eApi';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
@@ -29,7 +29,7 @@
   import { MONSTER_TEMPLATE as monsterTemplate, monsterTypeLabel } from '../types';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
-  import { CHARACTER_VERSION } from '../schemas/character';
+  import { CHARACTER_VERSION } from '../schemas/characterUpgrades';
   import { ITEMS_PATH, invalidateItemCache, getItemsByDir, searchItems, displayName as itemDisplayName, blankItem, dirOf as itemDirOf, toHomebrewCopy } from '../itemLibrary';
   import { CATEGORY_LABELS as ITEM_CAT_LABELS, DIR_TO_CATEGORY as ITEM_DIR_TO_CAT, rarityColor } from '../itemLabels';
   import { SCHOOL_COLORS } from '../spellLibrary';
@@ -47,7 +47,7 @@
   import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
   import { parseClass, parseSpecies, parseBackground } from '../utils/schemaValidation';
   import { CLASS_TEMPLATE, SPECIES_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
-  import { OWN_SOURCE } from '../schemas/shared';
+  import { OWN_SOURCE } from '../schemas/source';
   import type { ClassProgression, Species, Background } from '../types';
   import type { DndApiRef } from '../services/dndApi';
   import { slugKeepUmlauts, slugToName } from '../utils/text';

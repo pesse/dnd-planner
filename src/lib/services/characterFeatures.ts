@@ -17,8 +17,8 @@ import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
 import type { AbilityKey } from '$lib/schemas/classProgression';
-import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
-import type { FeatureGrant } from '$lib/schemas/shared';
+import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
+import type { FeatureGrant } from '$lib/schemas/grants';
 import { declaredFeatures, type DeclaredFeature, type FeatureSource } from './declaredFeature';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */

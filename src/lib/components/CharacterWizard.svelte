@@ -28,7 +28,7 @@
     ARMOR_LABEL_DE,
     type CollectedGrants,
   } from '../services/proficiencyGrants';
-  import { SKILL_NAMES, type SkillName } from '../schemas/shared';
+  import { SKILL_NAMES, type SkillName } from '../schemas/vocabulary';
   import { buildCharacterProtocol } from '../services/characterProtocol';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
@@ -43,7 +43,7 @@
   import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
-  import type { Character } from '../schemas/character';
+  import type { Character } from '../schemas/characterSchema';
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';

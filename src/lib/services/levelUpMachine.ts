@@ -23,7 +23,8 @@ import {
 } from './featureDeclaration';
 import { characterPropertyAnswerChanges } from './characterProperties';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { FeatureChoiceGrant, FeatureGrant, SpellGrant } from '../schemas/shared';
+import type { FeatureChoiceGrant } from '../schemas/featureChoice';
+import type { FeatureGrant, SpellGrant } from '../schemas/grants';
 import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { LevelUpQuestion, FeatureRider, RiderProficiencies, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';

@@ -9,8 +9,8 @@
  * Bei fehlender Progression (Homebrew / leerer sourceKey / Netzfehler) degradiert
  * der Service graceful: `isHomebrew=true`, Deltas leer → die LLM-Schicht fragt alles ab.
  */
-import type { Character } from '../schemas/character';
-import { totalLevel } from '../schemas/character';
+import type { Character } from '../schemas/characterSchema';
+import { totalLevel } from '../schemas/classLevelText';
 import type { ClassFeature, ClassProgression } from '../schemas/classProgression';
 import {
   getProgressionByKey,

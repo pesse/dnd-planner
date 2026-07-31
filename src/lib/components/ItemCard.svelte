@@ -12,7 +12,8 @@
   import type { ItemTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
-  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel, WEAPON_MASTERIES } from '$lib/schemas/shared';
+  import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel } from '$lib/schemas/source';
+  import { WEAPON_MASTERIES } from '$lib/schemas/vocabulary';
   import { prepareItemPrint } from '$lib/utils/printItem';
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';

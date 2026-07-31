@@ -19,9 +19,9 @@
  * Ledger (`declaredChoice.ts`), und die Wirkung läuft über `FeatureRider` →
  * `validateRiderSpells` → `riderChanges` → `applyChanges` — dieselbe Kette wie im Aufstieg.
  */
-import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/character';
+import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/characterSchema';
 import type { Change, FeatureRider } from '$lib/schemas/levelUp';
-import { SKILL_NAMES, type SkillName } from '$lib/schemas/shared';
+import { SKILL_NAMES, type SkillName } from '$lib/schemas/vocabulary';
 import { skillEnName, totalLevel } from '$lib/pdf/characterFields';
 import type { SpellInfo } from '$lib/spellLibrary';
 import { choiceLabelsDe, type AnalysisChoice } from './aiActions/featureEffectsAction';

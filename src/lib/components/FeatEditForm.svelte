@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Feat } from '$lib/types';
   import DeclarationEditForm from './DeclarationEditForm.svelte';
-  import { FEAT_CATEGORIES } from '$lib/schemas/shared';
+  import { FEAT_CATEGORIES } from '$lib/schemas/vocabulary';
   import { FEAT_CATEGORY_DE } from '$lib/featsLibrary';
 
   let {

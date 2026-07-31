@@ -4,7 +4,7 @@
  */
 import type { Spell } from '../../types';
 import { spellSchema } from '../../schemas/spell';
-import { toLlmJsonSchema } from '../../schemas/shared';
+import { toLlmJsonSchema } from '../../schemas/llmJson';
 import { parseSpell } from '../../utils/schemaValidation';
 import { buildCreateAction, buildEditAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';

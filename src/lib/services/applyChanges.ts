@@ -18,9 +18,9 @@
  * der Aufrufer klont vorher (Aufstieg: Referenz-Swap fürs Formular-Remount) bzw. baut es
  * gerade erst auf (Wizard).
  */
-import type { Character } from '../schemas/character';
+import type { Character } from '../schemas/characterSchema';
 import type { Change } from '../schemas/levelUp';
-import { MONSTER_SIZES, type SkillName } from '../schemas/shared';
+import { MONSTER_SIZES, type SkillName } from '../schemas/vocabulary';
 import { ftToMVal } from '../itemFormat';
 import { skillSheetKey } from '../pdf/characterFields';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';

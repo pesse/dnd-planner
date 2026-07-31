@@ -10,7 +10,7 @@
  * Rein deterministisch, framework-frei. Arbeitet auf denselben deutschen
  * Attribut-Schlüsseln wie `pointBuy.ts` (VOR-ASI-Basiswerte + diese Erhöhung).
  */
-import { readAbilityName } from '$lib/schemas/shared';
+import { readAbilityName } from '$lib/schemas/vocabulary';
 import { abilityKeyOf, ABILITY_KEYS, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
 
 /** Verteilte Erhöhungen je Attribut (0, 1 oder 2). Fehlende Schlüssel = 0. */

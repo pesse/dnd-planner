@@ -19,20 +19,10 @@ import {
   type ClassFeature,
   type AbilityKey,
 } from '$lib/schemas/classProgression';
-import {
-  toSourceKey,
-  emptyProficiencyGrant,
-  parseSkillNames,
-  readAbilityName,
-  readArmorTraining,
-  readWeaponCategory,
-  splitRuleList,
-  type AbilityName,
-  type ArmorTraining,
-  type ProficiencyGrant,
-  type SkillGrant,
-  type WeaponCategory,
-} from '$lib/schemas/shared';
+import { toSourceKey } from '$lib/schemas/source';
+import { emptyProficiencyGrant, type ProficiencyGrant, type SkillGrant } from '$lib/schemas/grants';
+import { parseSkillNames, readAbilityName, readArmorTraining, readWeaponCategory, splitRuleList, type ArmorTraining, type WeaponCategory } from '$lib/schemas/vocabulary';
+import { type AbilityName } from '$lib/schemas/abilities';
 import { getClass, DEFAULT_DOCUMENT } from './open5eApi';
 import { findClassByKey } from '$lib/classLibrary';
 import { firstInt, numOr } from '$lib/utils/num';

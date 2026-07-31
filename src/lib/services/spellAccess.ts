@@ -13,7 +13,7 @@
  * ist allein die Herkunft. Deutsch kommt aus vorhandenen Tabellen (`CLASS_NAME_DE_BY_SLUG`,
  * `CASTER_ABILITY_DE`), nicht aus einem Übersetzungs-Call.
  */
-import type { AbilityName } from '$lib/schemas/shared';
+import type { AbilityName } from '$lib/schemas/abilities';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';

@@ -5,25 +5,13 @@
 // als Single Source of Truth im Zod-Schema (schemas/character.ts) und werden hier
 // nur re-exportiert. Helper, Label-Maps und der PDF-Parser bleiben in dieser Datei.
 
-import type {
-  Character,
-  CharacterSpells,
-  Attack,
-  SpellEntry,
-  SpellRef,
-  ProficiencyFlags,
-  PersonalData,
-  CharacterFeatureEntry,
-  CharacterClass,
-  CharacterSpecies,
-  CharacterBackground,
-} from '../schemas/character';
-import type { SkillName } from '../schemas/shared';
+import type { Character, CharacterSpells, Attack, SpellEntry, SpellRef, ProficiencyFlags, PersonalData, CharacterFeatureEntry, CharacterClass, CharacterSpecies, CharacterBackground } from '../schemas/characterSchema';
+import type { SkillName } from '../schemas/vocabulary';
 import type { SpellAccessValues } from '../services/spellAccess';
 import { MASTERY_BY_LABEL } from '../itemLabels';
 import { int as toInt, sign } from '../utils/num';
 
-export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
+export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/classLevelText';
 
 export type {
   Character,
@@ -77,7 +65,7 @@ export function emptySpells(): CharacterSpells {
  * Eine Fertigkeitszeile des Bogens. `key` ist der DEUTSCHE Bogen-Schlüssel
  * (`character.skills[key]`, vom PDF-Formular diktiert), `en` der englische
  * SRD-Name — die eine Übersetzungstabelle zwischen Bibliothek (englisch) und
- * Charakter (deutsch). Siehe „Geschlossene Regel-Vokabulare" in schemas/shared.ts.
+ * Charakter (deutsch). Siehe „Geschlossene Regel-Vokabulare" in schemas/vocabulary.ts.
  */
 export interface SkillDef {
   key: string;

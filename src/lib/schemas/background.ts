@@ -13,7 +13,8 @@
  * der Link auf das Herkunftstalent in `vault/feats`).
  */
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant } from './shared';
+import { sourceField } from './source';
+import { proficiencyGrantSchema, emptyProficiencyGrant } from './grants';
 
 /** Vokabular der Vorteils-Arten — entspricht Open5es `benefits[].type`. */
 export const BENEFIT_TYPES = [

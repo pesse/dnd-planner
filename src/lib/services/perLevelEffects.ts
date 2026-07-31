@@ -1,6 +1,6 @@
 /**
  * Fortlaufende, PRO STUFE wirkende Merkmals-Effekte — deterministisch aus `grants.perLevel`
- * der Bibliothek (`featureGrantSchema`, schemas/shared.ts).
+ * der Bibliothek (`featureGrantSchema`, schemas/grants.ts).
  *
  * Ersetzt `aiActions/levelUpEffectsAction.ts`: ein Reasoning-Call, der den KOMPLETTEN
  * Merkmalsbestand des Charakters nach genau zwei Fällen durchsuchte, die im Vault stehen —
@@ -12,7 +12,7 @@
  * Vokabular. Der Einmal-Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist bewusst NICHT
  * modelliert — er war es auch vorher nicht (Regel 4 des alten Prompts schloss ihn aus).
  */
-import type { FeatureGrant } from '../schemas/shared';
+import type { FeatureGrant } from '../schemas/grants';
 import { featureIdOf } from '$lib/utils/text';
 
 /** Ein Merkmal, wie beide Flows es liefern können: Identität + Deklaration. */

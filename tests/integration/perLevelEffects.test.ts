@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { getFeats } from '../../src/lib/featsLibrary';
 import { hpPerLevelSources, hpPerLevelSum } from '../../src/lib/services/perLevelEffects';
-import { featureGrantSchema } from '../../src/lib/schemas/shared';
+import { featureGrantSchema } from '../../src/lib/schemas/grants';
 import { libraryKey } from '../support/libraryKey';
 
 describe('pro-Stufe-Effekte aus der Deklaration', () => {

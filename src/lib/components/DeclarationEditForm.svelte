@@ -1,12 +1,6 @@
 <script module lang="ts">
-  import {
-    CLASS_TABLE_CHOICE_KINDS,
-    FEATURE_CHOICE_KINDS,
-    type FeatureChoiceGrant,
-    type FeatureChoiceKind,
-    type FeatureGrant,
-    type SpellGrant,
-  } from '$lib/schemas/shared';
+  import { CLASS_TABLE_CHOICE_KINDS, FEATURE_CHOICE_KINDS, type FeatureChoiceGrant, type FeatureChoiceKind } from '$lib/schemas/featureChoice';
+  import { type FeatureGrant, type SpellGrant } from '$lib/schemas/grants';
 
   /** Was ein Merkmal deklarieren kann — Klassenmerkmal, Trait und Talent erfüllen es. */
   export interface DeclarationTarget {
@@ -47,7 +41,7 @@
 
 <script lang="ts">
   /**
-   * Editor der DREI Deklarationen eines Merkmals (`featureDeclarationFields`, schemas/shared.ts).
+   * Editor der DREI Deklarationen eines Merkmals (`featureDeclarationFields`, schemas/featureChoice.ts).
    *
    * Ein Panel für Klassenmerkmal, Speziesmerkmal und Talent: `kinds` ist das einzige, was die
    * drei Karteneditoren unterschiedlich übergeben. Vorher lag dieselbe Logik dreimal.
@@ -56,7 +50,8 @@
    * KI-Kette) und einem geparsten Default („geprüft"). Diese Unterscheidung ist der Grund,
    * weshalb die Felder optional ohne Default sind — sie darf die UI nicht einebnen.
    */
-  import { featureChoiceGrantSchema, featureGrantSchema, spellGrantSchema } from '$lib/schemas/shared';
+  import { featureChoiceGrantSchema } from '$lib/schemas/featureChoice';
+  import { featureGrantSchema, spellGrantSchema } from '$lib/schemas/grants';
   import CharacterPropertyEditForm from './CharacterPropertyEditForm.svelte';
   import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';

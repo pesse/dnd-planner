@@ -6,8 +6,11 @@
    * Fertigkeiten aus, weil Hintergründe/Merkmale/Talente im SRD 5.2 nur diese
    * gewähren.
    */
-  import { ABILITY_NAMES, ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/shared';
-  import type { AbilityName, ArmorTraining, ProficiencyGrant, WeaponCategory } from '$lib/schemas/shared';
+  import { ABILITY_NAMES } from '$lib/schemas/abilities';
+  import { ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/vocabulary';
+  import type { AbilityName } from '$lib/schemas/abilities';
+  import type { ArmorTraining, WeaponCategory } from '$lib/schemas/vocabulary';
+  import type { ProficiencyGrant } from '$lib/schemas/grants';
   import { ABILITY_LABEL_DE, ARMOR_LABEL_DE, WEAPON_LABEL_DE } from '$lib/services/proficiencyGrants';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
 

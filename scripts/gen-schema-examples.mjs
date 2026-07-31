@@ -107,7 +107,7 @@ const server = await createServer({
 const { z } = await server.ssrLoadModule('zod');
 
 const files = readdirSync(SCHEMA_DIR)
-  .filter((f) => f.endsWith('.ts') && f !== 'shared.ts')
+  .filter((f) => f.endsWith('.ts'))
   .sort();
 
 /** @type {Map<string, {json: string, from: string}>} */

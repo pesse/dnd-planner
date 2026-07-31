@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ClassProgression, ClassFeature } from '$lib/types';
-  import { featureChoiceGrantSchema, type FeatureChoiceGrant } from '$lib/schemas/shared';
+  import { featureChoiceGrantSchema, type FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';

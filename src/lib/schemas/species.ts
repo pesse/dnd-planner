@@ -8,7 +8,9 @@
  * Deutsche wird per LLM-Übersetzung nachgefüllt; Open5e liefert nur Englisch.
  */
 import { z } from 'zod';
-import { sourceField, featureDeclarationFields, foldLegacyProficiencyGrant, migrateSourceLegacy } from './shared';
+import { sourceField, migrateSourceLegacy } from './source';
+import { featureDeclarationFields } from './featureChoice';
+import { foldLegacyProficiencyGrant } from './grants';
 
 /**
  * Merkmale, deren ganzer Inhalt ein Wert ist, den der Bogen in einem eigenen Feld führt —
@@ -32,7 +34,7 @@ export const traitSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
-  // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Talent.
+  // Die drei Deklarationen (featureChoice.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Talent.
   // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in derselben
   // Prosa bzw. Eingang für den Text anderer Merkmale (Korrektur 5, docs/plan/plan-wahlen-deklarieren.md).
   ...featureDeclarationFields,

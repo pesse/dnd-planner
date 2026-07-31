@@ -119,13 +119,14 @@ coming one would lock development out of its own content.
 
 `vault/` is a separate content repo with its own `CLAUDE.md` — read it before touching vault data.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
-vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
+vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
 
 ## Rules that are invisible in the code
 
-- **The closed rule vocabularies are English** (`SKILL_NAMES`, `ABILITY_NAMES`,
-  `WEAPON_CATEGORIES`, `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/shared.ts`), and German
-  appears at exactly two boundaries: PDF sheet keys (`pdf/characterFields.ts`) and display labels
+- **The closed rule vocabularies are English** (`SKILL_NAMES`, `WEAPON_CATEGORIES`,
+  `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/vocabulary.ts`, `ABILITY_NAMES` in
+  `schemas/abilities.ts`), and German appears at exactly two boundaries: the sheet-key tables
+  (`domain/skills.ts`, `schemas/abilities.ts`) and display labels
   (`services/proficiencyGrants.ts`). **Adding a third translation table is the mistake to avoid.**
   Prompts name the vocabulary via `z.enum(SKILL_NAMES)`; translation happens when a `Change` is
   *applied*, not when it is produced.
@@ -159,7 +160,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
   carrying only count/level/class list — **never spell names**.
 - **A feature whose only content is a choice declares it**, via `grantsChoice`
-  (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
+  (`featureChoiceGrantSchema` in `schemas/featureChoice.ts`: `weaponMastery` | `featCategory` |
   `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
   it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
   `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
@@ -167,7 +168,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
   A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
 - **The declaration triple is identical at class feature, trait and feat** — one spread,
-  `featureDeclarationFields` (`schemas/shared.ts`), so a fourth field reaches all three
+  `featureDeclarationFields` (`schemas/featureChoice.ts`), so a fourth field reaches all three
   carriers by itself. Consequently **the origin of a feature decides exactly one thing**: which
   sheet field its note line goes into (`forClassFeaturesField`, `services/declaredFeature.ts`).
   `source` lives on `DeclaredFeature`, never in a vault schema — a trait does not know it is a
@@ -227,7 +228,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
 
 ## Character files are versioned
 
-They outlive every program version, so `schemas/character.ts` owns an ordered pipeline
+They outlive every program version, so `schemas/characterUpgrades.ts` owns an ordered pipeline
 (`CHARACTER_VERSION`, `CHARACTER_UPGRADES`, `upgradeCharacter`) rather than ad-hoc field repairs.
 
 A schema change means: bump `CHARACTER_VERSION` and add **exactly one** step with that `to`. Keep

@@ -12,7 +12,8 @@
  * `name`-Feld) — die Runtime-Guards leben hier.
  */
 import { z } from 'zod';
-import { toLlmJsonSchema, ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './shared';
+import { toLlmJsonSchema } from './llmJson';
+import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './vocabulary';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -61,7 +62,7 @@ const abilityDeltaSchema = z.object({
 
 // ── Feature-Effekte (KI deutet die Prosa neu gewonnener Merkmale/Talente) ───────
 //
-// Fertigkeiten/Waffen/Rüstung sind GESCHLOSSENE, englische Vokabulare (shared.ts) —
+// Fertigkeiten/Waffen/Rüstung sind GESCHLOSSENE, englische Vokabulare (schemas/vocabulary.ts) —
 // Guided Decoding kann damit gar keinen Namen erfinden, den der Bogen nicht kennt.
 // Vorher waren es freie Strings und die Zuweisung fiel still durch, weil der Bogen
 // deutsche Schlüssel führt (`MitTierenUmgehen`). Übersetzt wird beim Anwenden

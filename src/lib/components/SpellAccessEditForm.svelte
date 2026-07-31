@@ -4,7 +4,7 @@
    * „Eingeweihter der Magie" und alles mechanisch Gleiche.
    *
    * `spellAccess` heißt DEKLARIEREN, wo `spellcasting` ABLEITET: ein Talent hat keine
-   * Stufentabelle, also stehen Liste, Attribut und Kontingent hier (shared.ts).
+   * Stufentabelle, also stehen Liste, Attribut und Kontingent hier (schemas/featureChoice.ts).
    *
    * Die eine Regel, die die Oberfläche zeigen muss, weil sie sonst unsichtbar ist:
    * LÄNGE 1 = festgelegt, es entsteht keine Frage; LÄNGE > 1 = eine protokollierte
@@ -13,7 +13,8 @@
    * Die Listen sind englische Klassen-Keys wie in `SpellInfo.classes` — Freitext wie
    * `option.value`, damit hier keine weitere Übersetzungstabelle entsteht.
    */
-  import { ABILITY_NAMES, type AbilityName, type FeatureChoiceGrant } from '$lib/schemas/shared';
+  import { ABILITY_NAMES, type AbilityName } from '$lib/schemas/abilities';
+  import { type FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { ABILITY_LABEL_DE } from '$lib/services/proficiencyGrants';
 
   let {

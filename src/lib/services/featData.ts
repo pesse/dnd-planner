@@ -7,7 +7,9 @@
  * werden per LLM-Übersetzung nachgefüllt.
  */
 import { featSchema, migrateFeatLegacy, type Feat } from '$lib/schemas/feat';
-import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant, FEAT_CATEGORIES } from '$lib/schemas/shared';
+import { toSourceKey } from '$lib/schemas/source';
+import { emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/grants';
+import { FEAT_CATEGORIES } from '$lib/schemas/vocabulary';
 
 /** Bildet ein rohes v2-Talent auf das offene, zweisprachige Schema ab. */
 export function mapV2Feat(raw: Record<string, unknown>): Feat {

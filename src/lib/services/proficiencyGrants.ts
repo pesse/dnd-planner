@@ -4,7 +4,7 @@
  * nur Links, die Mechanik wird zur Laufzeit aufgelöst.
  *
  * Weil alle vier Artefakttypen dieselbe `proficiencyGrant`-Form tragen
- * (schemas/shared.ts), ist die Summierung EINE Funktion und nicht vier. Die Werte
+ * (schemas/grants.ts), ist die Summierung EINE Funktion und nicht vier. Die Werte
  * sind durchgehend ENGLISCH; übersetzt wird erst beim Anwenden auf den Bogen
  * (`skillSheetKey`, `ABILITY_FROM_EN`).
  *
@@ -13,17 +13,13 @@
  * („Schurke: 4 aus 10 — 3 von 4 belegt"). Damit ist die Ableitung idempotent und
  * braucht keine Rücknahme-Logik.
  */
-import type {
-  AbilityName,
-  ArmorTraining,
-  ProficiencyGrant,
-  SkillGrant,
-  SkillName,
-  WeaponCategory,
-} from '$lib/schemas/shared';
-import { isEmptyProficiencyGrant, readAbilityName } from '$lib/schemas/shared';
+import type { AbilityName } from '$lib/schemas/abilities';
+import type { ArmorTraining, SkillName, WeaponCategory } from '$lib/schemas/vocabulary';
+import type { ProficiencyGrant, SkillGrant } from '$lib/schemas/grants';
+import { isEmptyProficiencyGrant } from '$lib/schemas/grants';
+import { readAbilityName } from '$lib/schemas/vocabulary';
 import { SKILL_DEFS } from '$lib/pdf/characterFields';
-import type { ProficiencyFlags } from '$lib/schemas/character';
+import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
 import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
 import { getProgressionByKey } from './classProgression';

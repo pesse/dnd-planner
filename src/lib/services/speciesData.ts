@@ -7,7 +7,8 @@
  * Import leer und werden per LLM-Übersetzung nachgefüllt.
  */
 import { speciesSchema, migrateSpeciesLegacy, type Species, type Trait } from '$lib/schemas/species';
-import { toSourceKey, emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/shared';
+import { toSourceKey } from '$lib/schemas/source';
+import { emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/grants';
 import { getSpecies as fetchSpecies } from './open5eApi';
 
 interface V2Trait {

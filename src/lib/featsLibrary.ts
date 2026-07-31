@@ -4,16 +4,9 @@
  */
 import { createLibrary } from './services/library/createLibrary';
 import { normName } from './utils/text';
-import {
-  FEAT_CATEGORIES,
-  featureChoiceGrantSchema,
-  featureGrantSchema,
-  spellGrantSchema,
-  type FeatCategory,
-  type FeatureChoiceGrant,
-  type FeatureGrant,
-  type SpellGrant,
-} from './schemas/shared';
+import { FEAT_CATEGORIES, type FeatCategory } from './schemas/vocabulary';
+import { featureChoiceGrantSchema, type FeatureChoiceGrant } from './schemas/featureChoice';
+import { featureGrantSchema, spellGrantSchema, type FeatureGrant, type SpellGrant } from './schemas/grants';
 import { migrateFeatLegacy } from './schemas/feat';
 
 export const FEATS_PATH = './vault/feats';
@@ -21,7 +14,7 @@ export const FEATS_PATH = './vault/feats';
 /**
  * Die Kategorienamen des deutschen SRD 5.2 („Herkunft, Allgemein, Kampfstil oder
  * Epische Gabe"), keine freien Übersetzungen. Das Vokabular selbst steht in
- * `schemas/shared.ts`, damit Zod ohne Umweg über die Anzeige-Schicht drankommt.
+ * `schemas/vocabulary.ts`, damit Zod ohne Umweg über die Anzeige-Schicht drankommt.
  */
 export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
   Origin: 'Herkunft',

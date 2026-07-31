@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import type { Trait } from '../../src/lib/schemas/species';
-import { isEmptyProficiencyGrant } from '../../src/lib/schemas/shared';
+import { isEmptyProficiencyGrant } from '../../src/lib/schemas/grants';
 import { isSheetValueTrait, withoutSheetValueTraits } from '../../src/lib/services/sheetValueTraits';
 import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import { GNOME_SORCERER_BASICS } from '../fixtures/gnome-sorcerer-sage';

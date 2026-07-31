@@ -31,7 +31,7 @@ import {
 } from '../../schemas/levelUp';
 import { SHEET_NOTE_CONTENT, SHEET_NOTE_EXAMPLE_EN } from './fieldSummaryAction';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
-import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/shared';
+import { ARMOR_TRAININGS, SKILL_NAMES, WEAPON_CATEGORIES } from '../../schemas/vocabulary';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { LlmConfig } from '../../types';
 import type { ChatMessage } from '../llmService';

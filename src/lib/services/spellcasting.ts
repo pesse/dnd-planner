@@ -60,7 +60,7 @@ export const SPELLBOOK_START_SPELLS = 6;
 
 /**
  * Ist dies das Zauberwirken-Merkmal der Klasse? Primär DEKLARATIV über `grantsChoice`
- * (offen für Homebrew, siehe `featureChoiceGrantSchema` in shared.ts); trägt das Merkmal ein
+ * (offen für Homebrew, siehe `featureChoiceGrantSchema` in schemas/featureChoice.ts); trägt das Merkmal ein
  * `grantsChoice`, ist dessen `kind` maßgeblich. Fallback für noch nicht gepflegte Merkmale:
  * der EXAKTE Name — „Spell Mastery", „Magical Secrets" oder „Signature Spells" dürfen nicht
  * mitfallen, denn die tragen echte, eigene Mechanik.

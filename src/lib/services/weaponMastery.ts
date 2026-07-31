@@ -15,7 +15,7 @@
  *     hier nur Waffen erfinden, die der Vault nicht kennt.
  */
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
-import type { WeaponMastery } from '$lib/schemas/shared';
+import type { WeaponMastery } from '$lib/schemas/vocabulary';
 import { columnValue, featuresUpTo, getProgressionByKey } from './classProgression';
 import { getItemsByDir, displayName, type ItemInfo } from '$lib/itemLibrary';
 
@@ -27,7 +27,7 @@ const MASTERY_DEFAULT = 2;
 
 /**
  * Ist dies das Merkmal „Waffenbeherrschung"? Primär DEKLARATIV über `grantsChoice`
- * (offen für Homebrew, siehe featureChoiceGrantSchema in shared.ts). Trägt das Merkmal
+ * (offen für Homebrew, siehe featureChoiceGrantSchema in schemas/featureChoice.ts). Trägt das Merkmal
  * ein `grantsChoice`, ist dessen `kind` maßgeblich — ein Merkmal, das eine ANDERE Wahl
  * deklariert (Kampfstil), ist damit ausdrücklich KEINE Waffenbeherrschung.
  *

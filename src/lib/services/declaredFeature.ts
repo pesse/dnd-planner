@@ -7,7 +7,8 @@
  * Bibliotheksobjekte nehmen — eine Pflicht-Projektion wäre die Drift, gegen die
  * `withoutDeclaredChoiceFeatures` überhaupt geschrieben wurde.
  */
-import type { FeatureChoiceGrant, FeatureGrant, SpellGrant } from '../schemas/shared';
+import type { FeatureChoiceGrant } from '../schemas/featureChoice';
+import type { FeatureGrant, SpellGrant } from '../schemas/grants';
 
 export type FeatureSource = 'class' | 'subclass' | 'species' | 'feat';
 

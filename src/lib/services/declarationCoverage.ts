@@ -5,12 +5,13 @@
  * Stufe 3 und Risiko 1): nur ein deklariertes Merkmal fällt aus der KI-Deutung heraus,
  * und ob eines deklariert ist, sieht man einer Karte sonst nirgends an.
  *
- * Die Unterscheidung, die alles trägt (siehe `featureGrantSchema`, schemas/shared.ts):
+ * Die Unterscheidung, die alles trägt (siehe `featureGrantSchema`, schemas/grants.ts):
  * `grants` FEHLT = nie angesehen, läuft weiter über die KI-Kette; `grants: {}` = geprüft,
  * gewährt nichts. Deshalb fragt `isRedacted` nach der ANWESENHEIT des Feldes und
  * `hasDeclaredMechanics` nach seinem Inhalt — die beiden Fragen sind nicht dieselbe.
  */
-import type { FeatureGrant, FeatureChoiceGrant, ProficiencyGrant, SpellGrant } from '$lib/schemas/shared';
+import type { FeatureGrant, ProficiencyGrant, SpellGrant } from '$lib/schemas/grants';
+import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import { isEmptyCharacterProperties } from './characterProperties';
 
 /**

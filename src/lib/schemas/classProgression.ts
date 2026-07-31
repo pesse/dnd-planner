@@ -13,16 +13,10 @@
  * graceful degradation bei fremden/Homebrew-Dokumenten.
  */
 import { z } from 'zod';
-import {
-  sourceField,
-  migrateSourceLegacy,
-  proficiencyGrantSchema,
-  skillGrantSchema,
-  featureDeclarationFields,
-  emptyProficiencyGrant,
-  emptySkillGrant,
-  type AbilityName,
-} from './shared';
+import { sourceField, migrateSourceLegacy } from './source';
+import { proficiencyGrantSchema, skillGrantSchema, emptyProficiencyGrant, emptySkillGrant } from './grants';
+import { featureDeclarationFields } from './featureChoice';
+import { type AbilityName } from './abilities';
 
 import { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey } from './abilities';
 export { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey };
@@ -42,7 +36,7 @@ export const classFeatureSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   featureType: z.string().optional(),
-  // Die drei Deklarationen (shared.ts). Vom Vault gepflegt, NICHT aus Open5e importiert
+  // Die drei Deklarationen (featureChoice.ts). Vom Vault gepflegt, NICHT aus Open5e importiert
   // (`mapV2` lässt sie leer) — ein Re-Import darf sie nicht überschreiben.
   ...featureDeclarationFields,
 });
@@ -62,7 +56,7 @@ export const classProgressionSchema = z.object({
   hpHigher: z.string().default(''),
   /**
    * Die Kerntabelle („Core Traits") in strukturierter Form: Fertigkeiten,
-   * Rettungswürfe, Waffen, Rüstung — ENGLISCHE Enum-Werte (siehe shared.ts).
+   * Rettungswürfe, Waffen, Rüstung — ENGLISCHE Enum-Werte (siehe vocabulary.ts).
    * Bei Subklassen leer; die Kerntabelle hängt an der Grundklasse.
    */
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
@@ -99,7 +93,7 @@ export type ClassProgression = z.infer<typeof classProgressionSchema>;
  * → `proficiencyGrant.savingThrows: ['Constitution','Strength']` (englische Namen).
  * Bis Juli 2026 trugen alle Klassendateien die deutsche Form; seither ist die
  * Grundmechanik durchgehend englisch (siehe „Geschlossene Regel-Vokabulare",
- * shared.ts). Das Feld wird beim Migrieren entfernt, damit keine zweite Wahrheit
+ * grants.ts). Das Feld wird beim Migrieren entfernt, damit keine zweite Wahrheit
  * zurückbleibt.
  */
 export function migrateClassLegacy(raw: unknown): Record<string, unknown> {

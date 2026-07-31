@@ -10,7 +10,7 @@
    * umsortieren, sonst wäre jeder geöffnete Charakter sofort ungespeichert.
    */
   import { untrack, type Snippet } from 'svelte';
-  import type { Character, CharacterFeatureEntry } from '$lib/schemas/character';
+  import type { Character, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
   import type { Change } from '$lib/schemas/levelUp';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';

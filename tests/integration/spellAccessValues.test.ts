@@ -8,7 +8,7 @@
  *   npm run eval -- --eval spellAccessValues
  */
 import { describe, expect, it } from 'vitest';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { SHEET_NOTE_MAX_CHARS } from '../../src/lib/schemas/levelUp';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';
 import {

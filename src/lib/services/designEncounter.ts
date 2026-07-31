@@ -18,7 +18,7 @@ import { formatMinimumLine, type CharacterMinimum } from './characterContext';
 import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';
 import { createMonsterAction } from './aiActions/monsterAction';
-import { toActLocalJson } from '../schemas/shared';
+import { toActLocalJson } from '../utils/vaultJson';
 import { slugKeepUmlauts, slugToName } from '../utils/text';
 
 export interface DesignEncounterContext {

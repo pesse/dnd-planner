@@ -10,7 +10,7 @@
  */
 import type { Encounter } from '../../types';
 import { encounterSchema } from '../../schemas/encounter';
-import { toLlmJsonSchema } from '../../schemas/shared';
+import { toLlmJsonSchema } from '../../schemas/llmJson';
 import { parseEncounter } from '../../utils/schemaValidation';
 import { buildCreateAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';

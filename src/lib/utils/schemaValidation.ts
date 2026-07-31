@@ -12,12 +12,13 @@ import { spellSchema, migrateSpellLegacy } from '../schemas/spell';
 import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
-import { characterSchema, migrateCharacterLegacy, type Character } from '../schemas/character';
+import { characterSchema, type Character } from '../schemas/characterSchema';
+import { migrateCharacterLegacy } from '../schemas/characterUpgrades';
 import { classProgressionSchema, migrateClassLegacy, type ClassProgression } from '../schemas/classProgression';
 import { speciesSchema, migrateSpeciesLegacy, type Species } from '../schemas/species';
 import { featSchema, migrateFeatLegacy, type Feat } from '../schemas/feat';
 import { backgroundSchema, type Background } from '../schemas/background';
-import { migrateSourceLegacy } from '../schemas/shared';
+import { migrateSourceLegacy } from '../schemas/source';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =

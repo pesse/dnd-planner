@@ -5,13 +5,15 @@ import type { Spell, SpellDamage } from './schemas/spell';
 import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
 import type { Item } from './schemas/item';
 import type { Encounter, EncounterMonster } from './schemas/encounter';
-import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/character';
+import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/characterSchema';
 import type { ClassProgression, ClassFeature } from './schemas/classProgression';
 import type { Species, Trait } from './schemas/species';
 import type { Feat } from './schemas/feat';
 import type { Background, Benefit } from './schemas/background';
-import { OWN_SOURCE, emptyProficiencyGrant, emptySkillGrant, MONSTER_SIZES, MONSTER_SIZE_KEYS } from './schemas/shared';
-import type { MonsterSize } from './schemas/shared';
+import { OWN_SOURCE } from './schemas/source';
+import { emptyProficiencyGrant, emptySkillGrant } from './schemas/grants';
+import { MONSTER_SIZES, MONSTER_SIZE_KEYS } from './schemas/vocabulary';
+import type { MonsterSize } from './schemas/vocabulary';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
@@ -118,9 +120,9 @@ export interface LlmConfig {
 
 // --- Monster ---
 
-// Die Größentabelle liegt in `schemas/shared.ts` — sie ist nicht mehr nur Monster-Vokabular,
+// Die Größentabelle liegt in `schemas/vocabulary.ts` — sie ist nicht mehr nur Monster-Vokabular,
 // sondern auch das der Charaktereigenschaft `size`, und ein Import von dort hierher wäre ein
-// Zyklus (diese Datei liest schon Werte aus `shared.ts`). Re-Export, damit „aus $lib/types"
+// Zyklus (diese Datei liest schon Werte aus `schemas/vocabulary.ts`). Re-Export, damit „aus $lib/types"
 // weiter stimmt und es genau EINE Tabelle gibt.
 export { MONSTER_SIZES, MONSTER_SIZE_KEYS };
 export type { MonsterSize };

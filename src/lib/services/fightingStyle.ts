@@ -16,7 +16,7 @@
  * setzt.
  */
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
-import type { FeatCategory } from '$lib/schemas/shared';
+import type { FeatCategory } from '$lib/schemas/vocabulary';
 import { featuresUpTo, getProgressionByKey } from './classProgression';
 import { getFeats, featDisplayName, featDesc, featPrereq } from '$lib/featsLibrary';
 

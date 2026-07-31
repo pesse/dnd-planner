@@ -15,14 +15,9 @@
  * EINER Stelle, `PROPERTY_ROUTES` total über `keyof CharacterProperties`. Ein neues Feld am
  * Schema bricht damit den Build, statt still ohne Senke zu bleiben.
  */
-import {
-  CHARACTER_PROPERTIES,
-  MONSTER_SIZES,
-  MONSTER_SIZE_KEYS,
-  type CharacterProperties,
-  type CharacterPropertyName,
-  type FeatureChoiceGrant,
-} from '../schemas/shared';
+import { CHARACTER_PROPERTIES, type CharacterProperties, type CharacterPropertyName } from '../schemas/grants';
+import { MONSTER_SIZES, MONSTER_SIZE_KEYS } from '../schemas/vocabulary';
+import { type FeatureChoiceGrant } from '../schemas/featureChoice';
 import type { Change } from '../schemas/levelUp';
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 import { declaredChoice } from './declaredChoice';

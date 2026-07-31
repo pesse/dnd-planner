@@ -5,8 +5,8 @@
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
-  import type { SkillName } from '../schemas/shared';
-  import type { PendingCharacterUpgrade } from '../schemas/character';
+  import type { SkillName } from '../schemas/vocabulary';
+  import type { PendingCharacterUpgrade } from '../schemas/characterUpgrades';
   import {
     collectLegacyFixes,
     type LegacyFix, type LegacyFixKind, type LegacyLinkTarget, type LegacyLinkLibraries,

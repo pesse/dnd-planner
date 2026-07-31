@@ -24,13 +24,9 @@
 import type { AnalysisChoice } from './aiActions/featureEffectsAction';
 import type { Change, FeatureRider } from '../schemas/levelUp';
 import { declaredChoice } from './declaredChoice';
-import {
-  SKILL_NAMES,
-  type ChoiceOption,
-  type FeatureChoiceGrant,
-  type FeatureGrant,
-  type SkillName,
-} from '../schemas/shared';
+import { SKILL_NAMES, type SkillName } from '../schemas/vocabulary';
+import { type ChoiceOption, type FeatureChoiceGrant } from '../schemas/featureChoice';
+import { type FeatureGrant } from '../schemas/grants';
 import { proficiencyGrantChanges, skillLabelDe } from './proficiencyGrants';
 import {
   characterPropertyChanges,

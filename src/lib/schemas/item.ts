@@ -1,11 +1,13 @@
 /**
  * Single Source of Truth für Gegenstände: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Lehnt sich ans Open5e-v2-Schema an (`/v2/items/`),
+ * LLM-JSON-Schema (siehe llmJson.ts). Lehnt sich ans Open5e-v2-Schema an (`/v2/items/`),
  * adaptiert dessen inline weapon/armor-Detailobjekte in flache Felder (siehe open5eApi.ts).
  */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
-import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE, WEAPON_MASTERIES } from './shared';
+import { namedRef } from './llmJson';
+import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
+import { WEAPON_MASTERIES } from './vocabulary';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),

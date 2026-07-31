@@ -1,6 +1,6 @@
 /**
  * Single Source of Truth für Encounter: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
+ * LLM-JSON-Schema (siehe llmJson.ts). Label-Maps/Helper bleiben in types.ts.
  *
  * Ein Encounter referenziert Monster NUR per `slug` (Dateiname ohne .json). Die
  * vollständigen Statblöcke liegen als eigene Dateien (akt-lokal oder global) und

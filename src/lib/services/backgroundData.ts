@@ -12,7 +12,9 @@
  * dort keinen Fließtext, nur die Vorteile.
  */
 import { backgroundSchema, type Background, type Benefit, type BenefitType, BENEFIT_TYPES } from '$lib/schemas/background';
-import { toSourceKey, emptyProficiencyGrant, parseSkillNames, type ProficiencyGrant } from '$lib/schemas/shared';
+import { toSourceKey } from '$lib/schemas/source';
+import { emptyProficiencyGrant, type ProficiencyGrant } from '$lib/schemas/grants';
+import { parseSkillNames } from '$lib/schemas/vocabulary';
 import { getBackground as fetchBackground } from './open5eApi';
 
 interface V2Benefit {

@@ -11,7 +11,7 @@
  * Bibliothek (wie das Autocomplete im Charakter-Editor), nicht das Modell.
  */
 import { z } from 'zod';
-import { toLlmJsonSchema } from './shared';
+import { toLlmJsonSchema } from './llmJson';
 
 /**
  * Kategorien, die die Startausrüstung statt eines Gegenstands nennt: „Handwerkszeug"

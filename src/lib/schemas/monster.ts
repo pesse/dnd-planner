@@ -1,6 +1,6 @@
 /**
  * Single Source of Truth für Monster: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
+ * LLM-JSON-Schema (siehe llmJson.ts). Label-Maps/Helper bleiben in types.ts.
  */
 import { z } from 'zod';
 import {
@@ -11,7 +11,7 @@ import {
   type MonsterType,
   type MonsterAlignment,
 } from '../types';
-import { sourceField, migrateSourceLegacy } from './shared';
+import { sourceField, migrateSourceLegacy } from './source';
 
 const sizeEnum = z.enum(Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]]);
 const typeEnum = z.enum(Object.keys(MONSTER_TYPES) as [MonsterType, ...MonsterType[]]);

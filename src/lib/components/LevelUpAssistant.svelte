@@ -73,10 +73,13 @@
   import SpellPickField from './SpellPickField.svelte';
   import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
   import { sheetSkillProficiencies } from '../services/characterChoices';
-  import { totalLevel, type Character } from '../schemas/character';
+  import { totalLevel } from '../schemas/classLevelText';
+  import { type Character } from '../schemas/characterSchema';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
-  import { OWN_SOURCE, type FeatureChoiceGrant, type FeatureGrant, type SpellGrant } from '../schemas/shared';
+  import { OWN_SOURCE } from '../schemas/source';
+  import { type FeatureChoiceGrant } from '../schemas/featureChoice';
+  import { type FeatureGrant, type SpellGrant } from '../schemas/grants';
 
   let { character, onApply, onclose }: {
     character: Character;

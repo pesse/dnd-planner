@@ -11,7 +11,7 @@
  * `name_de` und dem Gegenstand Zeit-/Reichweiten-Felder abpressen.
  */
 import { z } from 'zod';
-import { toLlmJsonSchema } from './shared';
+import { toLlmJsonSchema } from './llmJson';
 
 const SAME_LENGTH = 'Same length and order as the corresponding input array; [] if that array was not in the input.';
 const ONLY_IF_PRESENT = '"" if that field was not in the input.';

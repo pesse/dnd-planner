@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { libraryKey } from '../support/libraryKey';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { applyChanges } from '../../src/lib/services/applyChanges';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 import { declaredGrantChanges } from '../../src/lib/services/featureDeclaration';

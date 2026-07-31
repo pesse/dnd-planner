@@ -7,7 +7,7 @@
  * nicht ihr Besitzer.
  */
 import type { AbilityKey } from '$lib/schemas/abilities';
-import type { SkillName } from '$lib/schemas/shared';
+import type { SkillName } from '$lib/schemas/vocabulary';
 
 /**
  * `key` ist der DEUTSCHE Bogen-Schlüssel (`character.skills[key]`, vom

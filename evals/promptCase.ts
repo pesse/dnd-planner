@@ -20,7 +20,7 @@ import type { LlmConfig } from '../src/lib/types';
 import type { ChatMessage } from '../src/lib/services/llmService';
 import { rawChatCompletion } from '../src/lib/services/llmService';
 import { jsonOutputInstruction } from '../src/lib/services/aiActions/runner';
-import { toLlmJsonSchema } from '../src/lib/schemas/shared';
+import { toLlmJsonSchema } from '../src/lib/schemas/llmJson';
 import { extractJson, stripJsonFence } from '../src/lib/services/jsonFence';
 import type { Checks, EvalCase } from './defineEval';
 

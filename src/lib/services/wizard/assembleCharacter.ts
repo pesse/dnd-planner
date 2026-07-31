@@ -11,12 +11,9 @@
  * Talent-/Merkmals-Erhöhungen → ERST DANN Modifikatoren und HP (Stufe 1 =
  * Trefferwürfel-Max + KON-Mod), sonst wäre der KON-Mod veraltet.
  */
-import {
-  CHARACTER_VERSION,
-  formatClassLevel,
-  formatSpecies,
-  type Character,
-} from '$lib/schemas/character';
+import { CHARACTER_VERSION } from '$lib/schemas/characterUpgrades';
+import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
+import { type Character } from '$lib/schemas/characterSchema';
 import {
   SKILL_DEFS,
   mod,
@@ -25,7 +22,7 @@ import {
   emptySpells,
 } from '$lib/pdf/characterFields';
 import { type AbilityKey } from '$lib/schemas/classProgression';
-import { type SkillName } from '$lib/schemas/shared';
+import { type SkillName } from '$lib/schemas/vocabulary';
 import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';

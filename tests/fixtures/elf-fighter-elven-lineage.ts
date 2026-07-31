@@ -27,7 +27,7 @@ import type {
 } from '../../src/lib/services/aiActions/featureEffectsAction';
 import type { DeclaredFeature } from '../../src/lib/services/declaredFeature';
 import { unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
-import { featureChoiceGrantSchema } from '../../src/lib/schemas/shared';
+import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 
 /** Die Grundwahl aus Schritt 1 des Wizards (Bibliotheks-Keys wie in der Sidebar). */

@@ -9,7 +9,7 @@
  * im Ledger (`character.features`) keine Fragestellung, nur die Wahl — die lesbare
  * {Frage, Antwort}-Fassung kommt daher optional von außen (aus den KI-Ridern).
  */
-import type { Character } from '../schemas/character';
+import type { Character } from '../schemas/characterSchema';
 import { SKILL_DEFS } from '../domain/skills';
 import { ABILITY_KEYS, ABILITY_LABEL } from '../schemas/abilities';
 import { sign } from '../utils/num';

@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { exportCharacterToPdf } from '../../src/lib/pdf/characterExport';
 import { parseCharacterData, stripSpellValues, withSpellValues } from '../../src/lib/pdf/characterFields';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';

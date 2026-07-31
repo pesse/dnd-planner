@@ -31,7 +31,7 @@ import { forClassFeaturesField } from '../../src/lib/services/declaredFeature';
 import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
 import { traitSchema, migrateSpeciesLegacy } from '../../src/lib/schemas/species';
 import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
-import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/shared';
+import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { spellAccessGrantOf } from '../../src/lib/services/spellAccess';
 import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';

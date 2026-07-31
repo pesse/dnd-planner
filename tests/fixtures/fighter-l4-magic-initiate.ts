@@ -13,7 +13,7 @@
  * genau wie `LevelUpAssistant.featuresFor('feat')` es tut. Vault-Reads laufen im Node-Eval
  * über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { getFeats, featDisplayName, type FeatEntry } from '../../src/lib/featsLibrary';
 import { computeLevelUpDelta, type LevelUpDelta } from '../../src/lib/services/levelUp';
 import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';

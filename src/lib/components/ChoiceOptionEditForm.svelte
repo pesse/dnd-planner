@@ -16,7 +16,8 @@
    * `grants` bleibt pro Option optional: fehlt es, hat die Option keine mechanische Wirkung.
    * Deshalb ist es ein Häkchen und kein immer vorhandener Block.
    */
-  import { featureGrantSchema, type ChoiceOption } from '$lib/schemas/shared';
+  import { featureGrantSchema } from '$lib/schemas/grants';
+  import { type ChoiceOption } from '$lib/schemas/featureChoice';
   import { isEmptyFeatureGrant } from '$lib/services/featureDeclaration';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
 

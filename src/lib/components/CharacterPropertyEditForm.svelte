@@ -11,7 +11,7 @@
    * Die Regel, die die Oberfläche zeigen muss: WENIGER ALS ZWEI Werte ergeben keine Frage —
    * ein fester Wert gehört unter „Gewährt Mechanik" (`grants.properties`), nicht hierher.
    */
-  import type { FeatureChoiceGrant } from '$lib/schemas/shared';
+  import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { characterPropertyPickers } from '$lib/services/characterProperties';
 
   let {

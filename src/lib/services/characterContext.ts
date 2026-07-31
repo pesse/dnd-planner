@@ -15,13 +15,8 @@
  * Charakter (`resolveCharacterFeatures`).
  */
 import { invoke } from '@tauri-apps/api/core';
-import {
-  type Character,
-  type PersonalData,
-  formatSpecies,
-  formatClassLevel,
-  totalLevel,
-} from '../schemas/character';
+import { type Character, type PersonalData } from '../schemas/characterSchema';
+import { formatSpecies, formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { normalizeCharacter } from '../utils/schemaValidation';
 import { skillEnName } from '../pdf/characterFields';
 import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';

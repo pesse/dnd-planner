@@ -9,7 +9,8 @@
    * Übersetzung kommt aus derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
    */
   import { SKILL_DEFS } from '$lib/pdf/characterFields';
-  import type { SkillGrant, SkillName } from '$lib/schemas/shared';
+  import type { SkillGrant } from '$lib/schemas/grants';
+  import type { SkillName } from '$lib/schemas/vocabulary';
 
   let {
     grant = $bindable<SkillGrant>(),

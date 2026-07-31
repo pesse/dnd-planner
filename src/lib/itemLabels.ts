@@ -5,7 +5,7 @@
  * Kategorie-Schlüssel = Ordnername = Open5e-v2 category.key (24 Werte, Identity-Mapping):
  * `vault/items/{key}/` enthält die Items dieser Kategorie.
  */
-import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/shared';
+import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 
 /** Farbe pro Kategorie (Catppuccin Mocha Palette) */
 export const CATEGORY_COLORS: Record<string, string> = {

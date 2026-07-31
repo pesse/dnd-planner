@@ -16,10 +16,8 @@ import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
 import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibrary';
 import { displayName, type ItemIndex } from '$lib/itemLibrary';
 import type { SpellIndex } from '$lib/spellLibrary';
-import {
-  parseClassLevelText, cleanClassName,
-  type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellRef,
-} from '$lib/schemas/character';
+import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
+import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellRef } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
 /** Zaubertricks tragen kein `prepared` — für die Verlinkung zählt nur name/sourceKey. */

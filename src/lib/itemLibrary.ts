@@ -3,7 +3,8 @@
  * plus Auflösung eines Charakter-/NPC-Eintrags auf einen Bibliothekseintrag.
  */
 import type { Item } from './types';
-import { OWN_SOURCE, WEAPON_MASTERIES, type WeaponMastery } from './schemas/shared';
+import { OWN_SOURCE } from './schemas/source';
+import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 import type { EquipmentChoiceCategory } from './schemas/wizardEquipment';
 import { itemKeyOf } from './schemas/item';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';

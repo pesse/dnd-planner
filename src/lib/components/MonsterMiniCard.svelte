@@ -3,7 +3,8 @@
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
   import { normalizeMonster } from '../utils/schemaValidation';
-  import { toActLocalJson, toLibraryJson, OWN_SOURCE } from '../schemas/shared';
+  import { toActLocalJson, toLibraryJson } from '../utils/vaultJson';
+  import { OWN_SOURCE } from '../schemas/source';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();

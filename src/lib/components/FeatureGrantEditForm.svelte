@@ -11,7 +11,8 @@
    * nichts"), und die kann nur der Aufrufer treffen, der das Merkmal bzw. die Option hält.
    * Diese Komponente bekommt immer ein vorhandenes Objekt.
    */
-  import { MONSTER_SIZES, MONSTER_SIZE_KEYS, type FeatureGrant, type MonsterSize } from '$lib/schemas/shared';
+  import { MONSTER_SIZES, MONSTER_SIZE_KEYS, type MonsterSize } from '$lib/schemas/vocabulary';
+  import { type FeatureGrant } from '$lib/schemas/grants';
   import { characterPropertyLabelDe } from '$lib/services/characterProperties';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
 

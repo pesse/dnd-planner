@@ -12,7 +12,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from '../schemas/item';
 import type { Spell } from '../schemas/spell';
-import { WEAPON_MASTERIES } from '../schemas/shared';
+import { WEAPON_MASTERIES } from '../schemas/vocabulary';
 import { keySlug } from '$lib/utils/text';
 
 export const OPEN5E_V2 = 'https://api.open5e.com/v2';

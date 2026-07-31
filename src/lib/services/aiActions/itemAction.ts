@@ -4,7 +4,7 @@
  */
 import type { Item } from '../../types';
 import { itemSchema } from '../../schemas/item';
-import { toLlmJsonSchema } from '../../schemas/shared';
+import { toLlmJsonSchema } from '../../schemas/llmJson';
 import { parseItem } from '../../utils/schemaValidation';
 import { CATEGORY_LABELS } from '../../itemLabels';
 import { OPEN5E_ITEM_TOOLS_ANTHROPIC, OPEN5E_ITEM_TOOLS_OPENAI, executeOpen5eItemTool } from '../open5eItemTools';

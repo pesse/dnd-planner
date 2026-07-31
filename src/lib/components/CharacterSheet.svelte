@@ -10,7 +10,9 @@
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
-  import { type Character, formatClassLevel, formatSpecies, pendingCharacterUpgrade } from '../schemas/character';
+  import { type Character } from '../schemas/characterSchema';
+  import { formatClassLevel, formatSpecies } from '../schemas/classLevelText';
+  import { pendingCharacterUpgrade } from '../schemas/characterUpgrades';
   import { proficiencyBonus } from '../services/classProgression';
   import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
@@ -28,7 +30,7 @@
   import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel } from '../itemLabels';
   import { formatRarity, formatDamageDice } from '../itemFormat';
   import { isMastered, masteredKinds } from '../services/weaponMastery';
-  import type { WeaponMastery } from '../schemas/shared';
+  import type { WeaponMastery } from '../schemas/vocabulary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import { resolveSpellAccess } from '../services/characterFeatures';
