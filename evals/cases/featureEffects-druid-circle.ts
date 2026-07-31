@@ -6,12 +6,15 @@
  * sondern eine Wahl, die nach jeder langen Rast neu getroffen wird. Für den Aufstieg
  * heißt das:
  *   Call 1 (analyzeFeatureEffects) — KEINE Choice (insbesondere keine Landart-Frage),
- *          nicht blockiert; stattdessen die Stufe-3-Zeile ALLER VIER Landarten als
- *          zu erdende Zauber.
- *   Call C (finalizeFeatureEffects, ohne resolvedChoices) — dieselben zwölf Kreissprüche
- *          als grantedSpells und KEINE protokollierte Entscheidung. Weich zusätzlich die
- *          Bogen-Notiz: kurz, einzeilig, erinnert an die Landart-Wahl pro langer Rast —
- *          und listet die Kreissprüche gerade NICHT auf (die stehen in der Zauberliste).
+ *          nicht blockiert, und KEIN geerdeter Zauber.
+ *   Call C (finalizeFeatureEffects, ohne resolvedChoices) — kein gewährter Kreisspruch,
+ *          keine protokollierte Entscheidung, dazu die Notiz-Qualität von „Land's Aid".
+ *
+ * Die zwölf Kreissprüche selbst sind seit 2026-07-29 KEINE KI-Aufgabe mehr: sie stehen als
+ * Tabelle im Merkmalstext und werden deterministisch gelesen (`services/grantedSpells.ts`,
+ * geprüft in `evals/grantedSpells.test.ts`). Das Merkmal fliegt daher vor der Deutung aus
+ * dem Eingang, und diese Strecke ist für die Zauber jetzt eine NEGATIVprobe: was hier noch
+ * an Kreissprüchen auftaucht, wäre geraten und stünde doppelt am Charakter.
  *
  * „Vorbereitet" bleibt bewusst außen vor: welche der vier Listen gerade gilt, entscheidet
  * die Rast am Tisch, nicht der Aufstieg. Der Aufstieg liefert nur die vollständige Liste.
@@ -32,15 +35,12 @@ import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type
 import {
   druidClassContext,
   loadCircleOfLandFeatures,
-  LAND_TYPES_DE,
   EXPECTED_CIRCLE_SPELLS,
   EXPECTED_CIRCLE_SPELLS_DE,
   TOO_HIGH_CIRCLE_SPELLS,
 } from '../fixtures/druid-l3-circle-of-land';
 
 const landRe = /land|gelände|terrain/i;
-/** Verweis auf die (lange) Rast — die Notiz soll den Wahl-Zeitpunkt nennen. */
-const restRe = /rast/i;
 
 /** Landart-bezogene Wahlen aus der Analyse (Frage/Optionen referenzieren „Land/Gelände/Terrain"). */
 function landChoices(a: FeatureAnalysis) {
@@ -64,34 +64,34 @@ const analyzeCore: Checks<StepResult> = {
     return !!a && landChoices(a).length === 0;
   },
   'nicht blockiert (keine offene Wahl hält Zauber zurück)': (r) => asAnalysis(r)?.blocked === false,
-  'erdet die Stufe-3-Kreissprüche ALLER vier Landarten': (r) => {
+  // Die Kreissprüche stehen als Tabelle im Merkmalstext und werden deterministisch gelesen
+  // (`services/grantedSpells.ts`, geprüft in `evals/grantedSpells.test.ts`); das Merkmal ist
+  // deshalb nicht mehr im Eingang. Was hier an Kreissprüchen auftaucht, wäre also aus dem
+  // Kontext geraten — genau der Fehler, den das Modell vorher machen KONNTE.
+  'erdet keinen Kreisspruch mehr (kommt deterministisch)': (r) => {
     const a = asAnalysis(r);
     if (!a) return false;
     const got = lower(a.spellsToGround);
-    return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase()));
+    return ![...EXPECTED_CIRCLE_SPELLS, ...TOO_HIGH_CIRCLE_SPELLS].some((s) => got.has(s.toLowerCase()));
   },
 };
 
 const analyzeSoft: Checks<StepResult> = {
-  // „for your Druid level and lower" — die Zeilen 5/7/9 gehören auf Stufe 3 nicht dazu.
-  'erdet keine Kreissprüche höherer Stufen': (r) => {
-    const a = asAnalysis(r);
-    if (!a) return false;
-    const got = lower(a.spellsToGround);
-    return !TOO_HIGH_CIRCLE_SPELLS.some((s) => got.has(s.toLowerCase()));
-  },
-  'erdet nicht mehr als die zwölf Kreissprüche': (r) =>
-    (asAnalysis(r)?.spellsToGround.length ?? 99) <= EXPECTED_CIRCLE_SPELLS.length,
+  // „Land's Aid" ist das einzige verbleibende Merkmal der Stufe 3 — es wirkt „Cure Wounds"
+  // über eine Tiergestalt-Nutzung, gewährt den Zauber aber NICHT dauerhaft.
+  'erdet überhaupt keinen Zauber': (r) => asAnalysis(r)?.spellsToGround.length === 0,
 };
 
 // ── Call C: Finalisierung (nichts aufzulösen) ────────────────────────────────────
 
 const finalizeCore: Checks<StepResult> = {
-  'gewährt die Stufe-3-Kreissprüche ALLER vier Landarten': (r) => {
+  // Gegenstück zur Analyse-Probe: auch die Finalisierung darf die deterministisch gewährten
+  // Kreissprüche nicht ein zweites Mal erfinden — sonst stünden sie doppelt am Charakter.
+  'gewährt keinen Kreisspruch mehr (kommt deterministisch)': (r) => {
     const fe = asEffects(r);
     if (!fe) return false;
     const got = grantedSpellsLower(fe);
-    return EXPECTED_CIRCLE_SPELLS.every((s) => got.has(s.toLowerCase()));
+    return ![...EXPECTED_CIRCLE_SPELLS, ...TOO_HIGH_CIRCLE_SPELLS].some((s) => got.has(s.toLowerCase()));
   },
   // Es wurde keine Wahl getroffen (und keine gestellt) — also gibt es nichts zu protokollieren.
   'protokolliert keine Entscheidung (Landart fällt pro Rast)': (r) =>
@@ -99,37 +99,27 @@ const finalizeCore: Checks<StepResult> = {
 };
 
 /**
- * Weiche Prüfungen der Finalisierung. Neben der Zauber-Referenzliste messen sie die
- * Bogen-Notizen — und zwar vor allem das WEGLASSEN: die Kreissprüche stehen bereits in
- * der Zauberliste des Charakters, ihre Namen haben im knappen Klassenmerkmale-Feld
- * nichts verloren. Genau daran hängt die „nur bei Bedarf"-Heuristik von Regel 10.
- * Was die Notiz dafür leisten SOLL: an den Wahl-Zeitpunkt erinnern (lange Rast).
+ * Weiche Prüfungen der Finalisierung: die Bogen-Notiz des verbleibenden Merkmals
+ * („Land's Aid" — Tiergestalt-Nutzung gegen einen Heilzauber). Sie muss knapp und einzeilig
+ * sein und darf keinen Zaubernamen ausbuchstabieren, den die Zauberliste ohnehin führt.
+ *
+ * Die frühere Probe „Notiz nennt die Landart-Wahl pro langer Rast" ist hier WEG, nicht
+ * aufgeweicht: das Kreisspruch-Merkmal steht nicht mehr im Eingang, also kann diese Kette
+ * dazu auch keine Notiz mehr liefern. Der Hinweis entsteht jetzt im deutschen
+ * Merkmalstext-Schritt (`fieldSummaryAction` aus `descDe`) — eine andere Strecke.
  */
 const finalizeSoft: Checks<StepResult> = {
-  'gewährt keine Kreissprüche höherer Stufen': (r) => {
-    const fe = asEffects(r);
-    if (!fe) return false;
-    const got = grantedSpellsLower(fe);
-    return !TOO_HIGH_CIRCLE_SPELLS.some((s) => got.has(s.toLowerCase()));
-  },
-  'gewährt nicht mehr als die zwölf Kreissprüche': (r) => {
-    const fe = asEffects(r);
-    return !!fe && grantedSpellsLower(fe).size <= EXPECTED_CIRCLE_SPELLS.length;
-  },
   'liefert mindestens eine Bogen-Notiz': (r) => sheetNotes(r).length > 0,
   [`Bogen-Notizen sind einzeilig und ≤ ${SHEET_NOTE_LIMIT} Zeichen`]: (r) => {
     const notes = sheetNotes(r);
     return notes.length > 0 && notes.every(isSheetReady);
   },
-  'Bogen-Notiz nennt die Landart-Wahl pro (langer) Rast': (r) =>
-    sheetNotes(r).some((n) => restRe.test(n) && (landRe.test(n) || LAND_TYPES_DE.some((t) => n.toLowerCase().includes(t)))),
-  // Die Notiz ist deutsch, die grantedSpells sind kanonisch englisch — geprüft wird
-  // daher gegen beide Schreibweisen.
-  'zählt die gewährten Kreissprüche NICHT in der Bogen-Notiz auf': (r) => {
+  // Die Notiz ist deutsch, die Zaubernamen kanonisch englisch — geprüft gegen beide.
+  'zählt keine Kreissprüche in der Bogen-Notiz auf': (r) => {
     const fe = asEffects(r);
     if (!fe) return false;
     const notes = sheetNotes(r).join('\n').toLowerCase();
-    const spellNames = [...grantedSpellsLower(fe), ...EXPECTED_CIRCLE_SPELLS_DE.map((s) => s.toLowerCase())];
+    const spellNames = [...EXPECTED_CIRCLE_SPELLS, ...EXPECTED_CIRCLE_SPELLS_DE].map((s) => s.toLowerCase());
     return !spellNames.some((s) => s && notes.includes(s));
   },
 };
@@ -148,7 +138,7 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
 
   return [
     {
-      label: 'Call 1 — Analyse: keine Wahl, alle vier Landarten geerdet',
+      label: 'Call 1 — Analyse: keine Wahl, kein Kreisspruch (kommt deterministisch)',
       input: JSON.stringify(ctx),
       run: async (cfg: LlmConfig): Promise<StepResult> => ({
         kind: 'analysis',
@@ -158,7 +148,7 @@ export async function buildDruidCircleCases(): Promise<EvalCase<StepResult>[]> {
       soft: analyzeSoft,
     },
     {
-      label: 'Call C — Finalisierung ohne Wahl: zwölf Kreissprüche',
+      label: 'Call C — Finalisierung ohne Wahl: nur die Notiz von „Land\'s Aid"',
       input: JSON.stringify(ctx),
       // Kette wie in der App: erst analysieren, dann finalisieren. Erkennt Call 1 keine
       // Wahl, überspringt der Flow den Checkpoint — `resolvedChoices` bleibt leer.

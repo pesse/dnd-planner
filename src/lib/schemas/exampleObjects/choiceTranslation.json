@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "string",
+      "questionDe": "string",
+      "helpDe": "string",
+      "options": [
+        {
+          "en": "string",
+          "de": "string",
+          "helpDe": "string"
+        }
+      ]
+    }
+  ]
+}

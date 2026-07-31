@@ -1,15 +1,16 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { parseCharacterData, emptySpells, SKILL_DEFS, skillSheetKey, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
-  import type { SkillName } from '../schemas/shared';
+  import { parseCharacterData, emptySpells, SKILL_DEFS, type CharacterData, type CharacterJSON } from '../pdf/characterFields';
+  import { applyChanges } from '../services/applyChanges';
   import { exportCharacterToPdf } from '../pdf/characterExport';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { parseCharacter } from '../utils/schemaValidation';
   import { type Character, formatClassLevel, formatSpecies, pendingCharacterUpgrade } from '../schemas/character';
   import { proficiencyBonus } from '../services/classProgression';
-  import type { LevelUpChangeSet } from '../schemas/levelUp';
+  import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
@@ -32,9 +33,10 @@
   import { prepareMultiSpellPrint } from '../utils/printSpell';
   import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
   import {
-    resolveCharacterFeatures,
+    resolveCharacterFeatures, resolveSpellAccess,
     type ResolvedFeatureGroup, type ResolvedFeature,
   } from '../services/characterFeatures';
+  import type { SpellAccessValues } from '../services/spellAccess';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -53,6 +55,23 @@
   // — getrennte Blöcke, statt Letztere unter „Talente" einzureihen.
   let featEntries = $state<ResolvedFeature[]>([]);
   let orphanChoices = $state<ResolvedFeature[]>([]);
+  // Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie): zur Anzeigezeit gerechnet,
+  // damit ein steigender Übungsbonus sie mitnimmt — gespeichert würden sie altern.
+  let spellAccessRows = $state<SpellAccessValues[]>([]);
+  $effect(() => {
+    const c = character;
+    if (!c) {
+      spellAccessRows = [];
+      return;
+    }
+    void (async () => {
+      spellAccessRows = await resolveSpellAccess({
+        features: c.features,
+        proficiencyBonus: c.proficiencyBonus,
+        mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+      });
+    })();
+  });
   // Ob die „Verknüpfte Merkmale"-Aufklappbox offen ist. Die Auflösung (Bibliotheks-
   // Zugriffe) ist teuer und wird — da die Box meist zu bleibt — erst beim Öffnen
   // ausgeführt. Bei offener Box hält der Effect die Merkmale bei Änderungen aktuell.
@@ -160,95 +179,35 @@
     // Übungsbonus deterministisch aus Gesamtstufe (Sicherheitsnetz; changeSet setzt ihn ebenso).
     next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
 
-    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden.
-    for (const c of changeSet.changes) {
-      switch (c.target) {
-        case 'hpMax': // Freitext-Zahl additiv (bewahrt item-/manuelle Boni)
-          next.hpMax = String((parseInt(next.hpMax, 10) || 0) + c.value);
-          break;
-        case 'hitDice':
-          next.hitDice = c.value;
-          break;
-        case 'proficiencyBonus':
-          next.proficiencyBonus = c.value;
-          break;
-        case 'spellSlot': { // additiv — bewahrt item-/manuell gewährte Slots
-          const slots = next.spells?.slots ?? [];
-          const i = c.level - 1;
-          if (slots[i]) slots[i].total += c.value;
-          break;
-        }
-        case 'cantrip':
-          if (!next.spells.cantrips.some((e) => e.name === c.name)) {
-            const key = resolveSpell({ name: c.name })?.key;
-            next.spells.cantrips = [...next.spells.cantrips, { name: c.name, ...(key ? { sourceKey: key } : {}) }];
-          }
-          break;
-        case 'spellcastingClass':
-          if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
-          break;
-        case 'ability': { // additiv + Modifikator neu berechnen
-          const score = (next[c.ability] ?? 10) + c.value;
-          next[c.ability] = score;
-          (next as unknown as Record<string, number>)[`${c.ability}Mod`] = Math.floor((score - 10) / 2);
-          break;
-        }
-        case 'preparedSpell': { // → spells.byLevel (Dedup je Grad)
-          if (!c.name.trim()) break;
-          const lvl = String(c.level);
-          const arr = next.spells.byLevel[lvl] ?? [];
-          if (!arr.some((e) => e.name === c.name)) {
-            const key = resolveSpell({ name: c.name })?.key;
-            arr.push({ name: c.name, prepared: c.prepared, ...(key ? { sourceKey: key } : {}) });
-          }
-          next.spells.byLevel[lvl] = arr;
-          break;
-        }
-        case 'feat': // Talent-Link → Merkmals-Ledger
-          next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', gainedAt: c.gainedAt, desc: '' }];
-          break;
-        // Der Change trägt den ENGLISCHEN SRD-Namen (geschlossenes Vokabular aus dem
-        // Rider-Schema); der Bogen ist deutsch geschlüsselt → hier übersetzen. Vorher
-        // schlug die Zuweisung still fehl, weil „Animal Handling" nie auf
-        // „MitTierenUmgehen" traf.
-        case 'expertise': {
-          const key = skillSheetKey(c.skill as SkillName);
-          if (next.skills[key]) next.skills[key].exp = true;
-          break;
-        }
-        case 'proficiency': {
-          const key = skillSheetKey(c.skill as SkillName);
-          if (next.skills[key]) next.skills[key].prof = true;
-          break;
-        }
-        case 'subclass': { // an der (ggf. gerade angehängten) Klasse setzen
-          const cls = delta.isNewClass ? next.classes[next.classes.length - 1] : next.classes[delta.classIndex];
-          if (cls && c.key) { cls.subclassKey = c.key; cls.subclassName = c.name; }
-          break;
-        }
-        case 'classFeaturesText': // KI-Volltext ersetzen ODER Freitext anhängen (inkl. Kampfstil)
-          if (c.mode === 'replace') next.classFeatures = c.value;
-          else next.classFeatures = [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
-          break;
-        case 'featureChoice': {
-          // Upsert über (Merkmal, Stufe): dieselbe Stufe erneut zu durchlaufen ersetzt den
-          // Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
-          if (!c.sourceKey) break;
-          const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
-          const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, gainedAt: c.gainedAt, desc: '' };
-          if (i >= 0) next.features[i] = entry;
-          else next.features = [...next.features, entry];
-          break;
-        }
-        case 'featureGained':
-          break; // Info-Eintrag — keine Anwendung (Klassen-/Subklassen-Merkmale aus Link abgeleitet)
-        case 'note':
-          break; // Info-Eintrag (Protokoll des Fragebogens) — kein Ziel am Charakter
-      }
-    }
+    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden —
+    // derselbe Applier, den die Wizard-Assembly benutzt (services/applyChanges.ts).
+    applyChanges(next, changeSet.changes, {
+      classIndex: delta.classIndex,
+      isNewClass: delta.isNewClass,
+      resolveSpellKey: (name) => resolveSpell({ name })?.key,
+    });
     next.classLevel = formatClassLevel(next.classes);
 
     // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
+    const r = parseCharacter(next);
+    ed.draft = r.ok ? r.data : next;
+  }
+
+  /**
+   * „Übernehmen" einer deklarierten Merkmalswahl aus dem Bearbeiten-Tab — dasselbe Muster wie
+   * `applyLevelUp`, nur ohne Struktur-Teil: die Wahl ändert keine Klassenstufe.
+   *
+   * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im Draft
+   * haben, sonst verliert der Referenz-Swap die letzten Eingaben.
+   */
+  async function applyChoiceGrants(changes: Change[]) {
+    if (!ed.draft || !changes.length) return;
+    await tick();
+    const next = structuredClone($state.snapshot(ed.draft)) as Character;
+    applyChanges(next, changes, {
+      classIndex: 0,
+      resolveSpellKey: (name) => resolveSpell({ name })?.key,
+    });
     const r = parseCharacter(next);
     ed.draft = r.ok ? r.data : next;
   }
@@ -609,6 +568,8 @@
         portrait,
         freitext,
         masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+        // Dieselben Werte wie im Zauber-Block der Karte — PDF und Bogen können nicht auseinanderlaufen.
+        spellAccess: spellAccessRows,
       });
       const b64 = bytesToBase64(pdfBytes);
       const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
@@ -1135,6 +1096,14 @@
                 {#if character.spells.attackBonus}<div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(character.spells.attackBonus)}</span></div>{/if}
               </div>
             {/if}
+            {#each spellAccessRows as acc}
+              <div class="stats-grid spell-access" style="margin-bottom:0.6rem">
+                <div class="stat"><span class="sl">Merkmal</span><span class="sv">{acc.featureDe}</span></div>
+                <div class="stat"><span class="sl">Fähigkeit</span><span class="sv">{acc.abilityDe}</span></div>
+                <div class="stat"><span class="sl">Zauber-SG</span><span class="sv">{acc.saveDC}</span></div>
+                <div class="stat"><span class="sl">Angriffsbonus</span><span class="sv">{sign(acc.attackBonus)}</span></div>
+              </div>
+            {/each}
 
             {#if character.spells.cantrips.length}
               <div class="spell-level-header"><span>Zaubertricks</span></div>
@@ -1210,7 +1179,8 @@
               <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
                    Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
               <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
-                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
+                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)}
+                onApplyChanges={applyChoiceGrants} />
             </div>
           {/key}
         {/if}
@@ -1406,6 +1376,12 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.2rem 0.5rem;
     margin-bottom: 0.75rem;
+  }
+
+  /* Zweiter Zauberblock: abgesetzt, damit er nicht als Klassen-Zauberwirken gelesen wird. */
+  .spell-access {
+    border-left: 2px solid var(--copper);
+    padding-left: 0.5rem;
   }
 
   .personal-stats {

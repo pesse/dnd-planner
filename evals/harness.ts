@@ -109,8 +109,12 @@ export interface StepReport {
   records: RunRecord[];
 }
 
-/** Per-Call-Timeout, damit ein hängender LLM-Request nicht den ganzen Lauf blockiert. */
-const CALL_TIMEOUT_MS = Number(process.env.EVAL_CALL_TIMEOUT_MS ?? 120_000);
+/**
+ * Per-Case-Timeout, damit ein hängender LLM-Request nicht den ganzen Lauf blockiert.
+ * 240s, weil ein Case eine ganze Call-KETTE sein kann: die Merkmals-Finalisierung fährt
+ * Analyse + Übersetzung + Nach-Analyse + Guided + Übersetzung und liegt gemessen bei ~110s.
+ */
+const CALL_TIMEOUT_MS = Number(process.env.EVAL_CALL_TIMEOUT_MS ?? 240_000);
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {

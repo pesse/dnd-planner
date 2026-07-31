@@ -21,7 +21,11 @@ import type {
   SkillName,
   WeaponCategory,
 } from '$lib/schemas/shared';
+import { isEmptyProficiencyGrant, readAbilityName } from '$lib/schemas/shared';
 import { SKILL_DEFS } from '$lib/pdf/characterFields';
+import type { ProficiencyFlags } from '$lib/schemas/character';
+import type { Change } from '$lib/schemas/levelUp';
+import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
 import { getProgressionByKey } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
@@ -59,13 +63,7 @@ export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as Ski
 export const abilityLabelDe = (en: string): string => ABILITY_LABEL_DE[en as AbilityName] ?? en;
 
 /** true, wenn ein Grant überhaupt etwas gewährt (steuert leere UI-Abschnitte). */
-export function isEmptyGrant(g: ProficiencyGrant | undefined): boolean {
-  if (!g) return true;
-  return (
-    !g.skills.fixed.length && !g.skills.choose &&
-    !g.savingThrows.length && !g.weapons.length && !g.weaponsOther.length && !g.armor.length
-  );
-}
+export const isEmptyGrant = isEmptyProficiencyGrant;
 
 /** Kurze deutsche Zusammenfassung eines Fertigkeits-Grants („2 aus 6", „Athletik, Einschüchtern"). */
 export function skillGrantSummary(g: SkillGrant | undefined): string {
@@ -140,6 +138,85 @@ function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, sou
   for (const value of grant.armor) out.armor.push({ value, source });
 }
 
+/**
+ * Englisches Übungs-Vokabular → Bogen-Flag. Die EINE Abbildung für alle Aufrufer (Wizard-
+ * Assembly, Änderungs-Anwendung des Aufstiegs) — eine zweite liefe auseinander, und genau
+ * daran ist die Fertigkeits-Zuweisung schon einmal still gescheitert (`skillSheetKey`).
+ */
+export function markWeaponProficiency(flags: ProficiencyFlags, category: string): void {
+  if (category === 'Simple') flags.simpleWeapons = true;
+  else if (category === 'Martial') flags.martialWeapons = true;
+}
+
+export function markArmorTraining(flags: ProficiencyFlags, training: string): void {
+  if (training === 'Light') flags.lightArmor = true;
+  else if (training === 'Medium') flags.mediumArmor = true;
+  else if (training === 'Heavy') flags.heavyArmor = true;
+  else if (training === 'Shields') flags.shields = true;
+}
+
+/** Die sechs Rettungswurf-Häkchen des Bogens — ein `Character` erfüllt das strukturell. */
+export type SaveProfFlags = { [K in AbilityKey as `${K}SaveProf`]: boolean };
+
+/** Englischer Attributsname → Rettungswurf-Häkchen. Dritte Abbildung derselben Art. */
+export function markSavingThrow(flags: SaveProfFlags, en: string): void {
+  const ability = readAbilityName(en);
+  const key = ability ? ABILITY_KEY_BY_EN.get(ability) : undefined;
+  if (key) flags[`${key}SaveProf`] = true;
+}
+
+const ABILITY_KEY_BY_EN = new Map<AbilityName, AbilityKey>(
+  (Object.entries(ABILITY_TO_EN) as [AbilityKey, AbilityName][]).map(([key, en]) => [en, key]),
+);
+
+/**
+ * Die Vault-Übungsform als `Change[]` — die Sprache, in der BEIDE Flows anwenden
+ * (`applyChanges`). Die Tabelle ist über `keyof ProficiencyGrant` total: ein neues Feld
+ * am Vault-Grant bricht hier den Build, statt still ohne Senke zu bleiben. Genau das ist
+ * `weaponsOther` zweimal passiert.
+ *
+ * `skills.choose` erzeugt bewusst nichts: eine offene Wahl ist kein Grant, sie wird
+ * gefragt (Wizard-Fertigkeitsschritt) und kommt als eigener `proficiency`-Change zurück.
+ */
+export function proficiencyGrantChanges(
+  g: ProficiencyGrant,
+  meta: { step: string; source: string },
+  /**
+   * Felder, die auf diesem Weg NICHT emittiert werden sollen, weil sie den Charakter schon
+   * anders erreichen (im Aufstieg reist alles außer `weaponsOther` über den Rider). Bewusst
+   * eine Ausschluss- und keine Einschlussliste: ein neues Feld am Vault-Grant landet damit
+   * per Default IM Dokument, statt still zu fehlen.
+   */
+  skip: readonly (keyof ProficiencyGrant)[] = [],
+): Change[] {
+  const out: Change[] = [];
+  const routes: { [K in keyof ProficiencyGrant]: () => void } = {
+    skills: () => {
+      for (const skill of g.skills.fixed)
+        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+    },
+    savingThrows: () => {
+      for (const value of g.savingThrows)
+        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+    },
+    weapons: () => {
+      for (const value of g.weapons)
+        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+    },
+    weaponsOther: () => {
+      for (const value of g.weaponsOther)
+        out.push({ target: 'weaponProficiencyOther', value, ...meta, label: `Übung: ${value}` });
+    },
+    armor: () => {
+      for (const value of g.armor)
+        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+    },
+  };
+  for (const [key, run] of Object.entries(routes) as [keyof ProficiencyGrant, () => void][])
+    if (!skip.includes(key)) run();
+  return out;
+}
+
 /** Talent-Eintrag zu einem Referenz-Key/-Namen (wie `resolveFeatLinks`). */
 function findFeat(lib: FeatEntry[], key: string | undefined, name: string): FeatEntry | undefined {
   const k = key?.trim();
@@ -173,7 +250,7 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
       if (bg.featKey) {
         const originFeat = findFeat(featLib, bg.featKey, '');
         if (originFeat)
-          addGrant(out, originFeat.proficiencyGrant, {
+          addGrant(out, originFeat.grants?.proficiencies, {
             label: `Herkunftstalent: ${featDisplayName(originFeat)}`,
             sourceKey: bg.featKey,
           });
@@ -191,14 +268,16 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
     else addSkillGrant(out, prog.skillGrantMulticlass, source);
   }
 
-  // ── Spezies + Unterspezies: der Grant hängt am einzelnen Merkmal ──
+  // ── Spezies + Unterspezies: der Grant hängt am einzelnen MERKMAL, und dort ist
+  //    `grants.proficiencies` die einzige Übungs-Senke (am Klassenkopf/Hintergrund
+  //    bleibt `proficiencyGrant` — die sind keine Merkmale). ──
   for (const key of [c.species?.sourceKey, c.species?.subspeciesKey]) {
     if (!key) continue;
     const spec = await getSpeciesByKey(key);
     if (!spec) continue;
     const specName = spec.nameDe || spec.name || key;
     for (const trait of spec.traits)
-      addGrant(out, trait.proficiencyGrant, {
+      addGrant(out, trait.grants?.proficiencies, {
         label: `${specName}: ${trait.nameDe || trait.name}`,
         sourceKey: trait.key || key,
       });
@@ -210,7 +289,7 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
   for (const ref of c.features ?? []) {
     const entry = findFeat(featLib, ref.sourceKey, ref.name ?? '');
     if (!entry) continue;
-    addGrant(out, entry.proficiencyGrant, {
+    addGrant(out, entry.grants?.proficiencies, {
       label: `Talent: ${featDisplayName(entry)}`,
       sourceKey: entry.sourceKey ?? '',
     });

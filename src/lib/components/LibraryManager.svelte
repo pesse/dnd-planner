@@ -48,6 +48,7 @@
     available: 'Nicht installiert',
     locked: 'Zugangscode erforderlich',
     staleCode: 'Zugangscode veraltet',
+    appOutdated: 'App-Update erforderlich',
   };
 
   const LICENSE_LABEL: Record<string, string> = {
@@ -60,13 +61,26 @@
 
   const needsCode = (lib: Library) => lib.status === 'locked' || lib.status === 'staleCode';
 
+  /** Fassung verlangt eine neuere App — daran ist hier nichts zu wählen. */
+  const needsAppUpdate = (lib: Library) => lib.status === 'appOutdated';
+
+  // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist —
+  // das Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
+  const locked = (lib: Library) => needsCode(lib) || needsAppUpdate(lib);
+  const lockTitle = (lib: Library) =>
+    needsAppUpdate(lib)
+      ? 'App-Update erforderlich'
+      : needsCode(lib)
+        ? 'Zugangscode erforderlich'
+        : 'Entsperrt';
+
   let chosen = $derived($libraries.filter((l) => selected[l.id]));
   /** Gewählte Bibliotheken, die noch auf einen Zugangscode warten. */
   let blocked = $derived(chosen.filter(needsCode));
   let canInstall = $derived(!busy && chosen.length > 0 && blocked.length === 0);
 
   function toggleAll(on: boolean) {
-    selected = Object.fromEntries($libraries.map((l) => [l.id, on]));
+    selected = Object.fromEntries($libraries.map((l) => [l.id, on && !needsAppUpdate(l)]));
   }
 
   async function doRedeem(lib: Library) {
@@ -206,13 +220,15 @@
       {#each $libraries as lib (lib.id)}
         <li class="lib" class:chosen={selected[lib.id]}>
           <label class="lib-row">
-            <input type="checkbox" bind:checked={selected[lib.id]} disabled={busy} />
+            <input
+              type="checkbox"
+              bind:checked={selected[lib.id]}
+              disabled={busy || needsAppUpdate(lib)}
+            />
             <span class="lib-main">
               <span class="lib-title">
                 {#if lib.protected}
-                  <span class="lock" title={needsCode(lib) ? 'Zugangscode erforderlich' : 'Entsperrt'}>
-                    {needsCode(lib) ? '🔒' : '🔓'}
-                  </span>
+                  <span class="lock" title={lockTitle(lib)}>{locked(lib) ? '🔒' : '🔓'}</span>
                 {/if}
                 <span class="lib-name">{lib.name}</span>
                 {#if $installing.has(lib.id)}<span class="spinner">…</span>{/if}
@@ -230,6 +246,13 @@
               </span>
             </span>
           </label>
+
+          {#if needsAppUpdate(lib)}
+            <p class="hint small err">
+              Diese Fassung setzt Version {lib.minVersion} oder neuer voraus — bitte die
+              App aktualisieren. Bereits installierte Inhalte bleiben nutzbar.
+            </p>
+          {/if}
 
           <!-- Code-Feld erscheint erst, wenn eine gesperrte Bibliothek gewählt wird. -->
           {#if selected[lib.id] && needsCode(lib)}
@@ -257,7 +280,7 @@
             {/if}
           {/if}
 
-          {#if lib.protected && !needsCode(lib)}
+          {#if lib.protected && !locked(lib)}
             <button class="link-btn forget" onclick={() => doForget(lib)}>
               Zugangscode entfernen
             </button>

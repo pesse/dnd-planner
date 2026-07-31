@@ -7,7 +7,13 @@
  * `sourceKey` der Charakter-Referenz genutzt).
  */
 import { z } from 'zod';
-import { sourceField, proficiencyGrantSchema, emptyProficiencyGrant, FEAT_CATEGORIES } from './shared';
+import {
+  sourceField,
+  featureDeclarationFields,
+  foldLegacyProficiencyGrant,
+  migrateSourceLegacy,
+  FEAT_CATEGORIES,
+} from './shared';
 
 export const featSchema = z.object({
   key: z.string().default(''),
@@ -30,10 +36,17 @@ export const featSchema = z.object({
    * bewusst als `{choose: 3, from: []}` abgebildet — dass auch WERKZEUGE zulässig
    * sind, kann `skillGrant` nicht ausdrücken und bleibt der Prosa überlassen.
    */
-  proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Trait.
+  // Im SRD 5.2 trägt nur `srd-2024_magic-initiate` eine Wahl (`kind: "spellAccess"`).
+  ...featureDeclarationFields,
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),
 });
 
 export type Feat = z.infer<typeof featSchema>;
+
+/** Altformat: `proficiencyGrant` → `grants.proficiencies` (siehe `migrateSpeciesLegacy`). */
+export function migrateFeatLegacy(raw: unknown): Record<string, unknown> {
+  return foldLegacyProficiencyGrant(migrateSourceLegacy(raw as Record<string, unknown>));
+}

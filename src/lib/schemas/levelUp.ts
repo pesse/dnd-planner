@@ -2,8 +2,9 @@
  * Schemas für den KI-gestützten Stufenaufstieg (Level-Up).
  *
  * KI-Outputs (Zod = Single Source + LLM-JSON-Schema): `featureEffectsSchema` (Rider),
- * `levelUpEffectsSchema` (pro-Stufe-Effekte), `levelUpNarrativeSchema`,
- * `fieldSummarySchema`. Das gemeinsame Dokument (`levelUpChangeSetSchema` /
+ * `levelUpNarrativeSchema`, `fieldSummarySchema`. Die pro-Stufe-Effekte sind KEIN
+ * KI-Output mehr — sie stehen als `grants.perLevel` in der Bibliothek
+ * (`services/perLevelEffects.ts`). Das gemeinsame Dokument (`levelUpChangeSetSchema` /
  * `LevelUpDoc`) ist die Single Source für Anzeige UND Anwendung — es wird deterministisch
  * aus dem Zustand gebaut (levelUpMachine.buildDoc), nicht von einem LLM.
  *
@@ -76,6 +77,13 @@ const riderProficienciesSchema = z.object({
 });
 
 /**
+ * Exportiert, weil die Projektion Rider → `Change[]` über `keyof` dieser Form läuft
+ * (`riderGrantChanges`, services/levelUpMachine.ts). Ein neues Feld hier ist damit ein
+ * Compile-Fehler dort, statt still am Charakter zu fehlen.
+ */
+export type RiderProficiencies = z.infer<typeof riderProficienciesSchema>;
+
+/**
  * Richtwert für die Länge einer `sheetNote`. Der Klassenmerkmale-Freitext landet beim
  * PDF-Export in zwei Formularfeldern à ~700 Zeichen (characterExport.splitClassFeatures)
  * und WÄCHST mit jeder Stufe — Kürze ist hier also auch ein Platzthema.
@@ -86,11 +94,33 @@ const riderProficienciesSchema = z.object({
  */
 export const SHEET_NOTE_MAX_CHARS = 160;
 
-/** Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr). */
+/**
+ * Budget der ENGLISCHEN Rohfassung: Pass C plant auf Englisch, den Bogen erreicht die
+ * übersetzte Zeile. Deutsch ist in dieser Bibliothek gemessen ~17 % länger (102k vs. 120k
+ * Zeichen über 249 Klassenmerkmale) — mit Reserve geplant, damit der Übersetzer die harte
+ * Grenze halten kann, ohne Mechanik wegzukürzen.
+ */
+export const SHEET_NOTE_EN_MAX_CHARS = 135;
+
+/**
+ * Länge der Konsequenz-Hilfe einer Wahl (Tooltip am Checkpoint). Dieselbe Asymmetrie wie
+ * bei der `sheetNote`: geplant wird englisch mit Reserve, gehalten wird die Grenze in der
+ * Zielsprache — sonst reißt sie die Übersetzung regelmäßig.
+ */
+export const CHOICE_HELP_MAX_CHARS = 120;
+export const CHOICE_HELP_EN_MAX_CHARS = 105;
+
+/**
+ * Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr).
+ *
+ * Nur `id` kommt vom Modell: Frage und Antwort füllt der Code aus dem Übersetzungs-Mapping
+ * der Analyse (`featureTranslationAction`), das beide schon auf Deutsch kennt. Das Modell
+ * danach zu fragen hieße, es dieselbe Zeichenkette ein zweites Mal erzeugen zu lassen.
+ */
 const featureDecisionSchema = z.object({
   id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
-  question: z.string().default('').describe('GERMAN question that was posed to the player.'),
-  answer: z.string().default('').describe('GERMAN label(s) the player chose (comma-joined if several).'),
+  question: z.string().default('').describe('Filled in by the app — leave empty.'),
+  answer: z.string().default('').describe('Filled in by the app — leave empty.'),
 });
 
 /**
@@ -104,7 +134,10 @@ const featureDecisionSchema = z.object({
  * Merkmal einen Eintrag; ein „nur bei Grant"-Filter wäre eine Fiktion.
  */
 const featureRiderSchema = z.object({
-  featureName: z.string().default('').describe('Which feature/feat emitted this rider.'),
+  featureName: z.string().default('').describe('Which feature/feat emitted this rider — its ENGLISH name, verbatim from the input.'),
+  // Anker für den deutschen Anzeigenamen: der kommt aus der Bibliothek, nicht aus dem Modell
+  // — sonst tauchen 2014er-Begriffe auf („Durchschnaufen" statt „Zweiter Wind").
+  featureKey: z.string().default('').describe('Library key of the feature, copied verbatim from <gained_features>[].key. Empty only if it carries none.'),
   source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
   grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
   extraCantrips: z.number().int().default(0),
@@ -114,7 +147,8 @@ const featureRiderSchema = z.object({
   abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
   decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),
   sheetNote: z.string().default('').describe(
-    `GERMAN single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_MAX_CHARS} chars. ` +
+    `ENGLISH single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_EN_MAX_CHARS} chars ` +
+      '(it gets translated into German afterwards, which runs longer). ' +
       'EMPTY when the feature needs no note — purely narrative, or already modelled elsewhere on the sheet.'),
 });
 
@@ -122,20 +156,37 @@ export const featureEffectsSchema = z.object({
   riders: z.array(featureRiderSchema).default([]),
 });
 
-// ── Fortlaufende Effekte (KI liest ALLE Merkmale → pro-Stufe-Änderungen) ─────────
-// Strukturierter, erweiterbarer Output: die KI durchsucht den KOMPLETTEN Merkmals-
-// bestand des Charakters (Spezies + Klasse/Subklasse + Talente) nach Effekten, die
-// einen Wert PRO STUFE ändern (z.B. „Zwergische Zähigkeit" = +1 TP-Max je Stufe).
-// `changes` ist ein Array, damit mehrere Merkmale denselben Wert treffen können.
-const levelUpChangeSchema = z.object({
-  target: z.string().default('hpMax').describe('Which character stat changes. Only "hpMax" is applied today; others are recorded for future use.'),
-  valueChange: z.string().default('').describe('Signed PER-LEVEL delta as a string, e.g. "+1", "+2". Applied once per character level gained.'),
-  source: z.string().default('').describe('The library KEY of the source feature/trait, copied verbatim from <all_features>[].key (e.g. "srd-2024_dwarf_dwarven-toughness"). Empty only if the source has no key.'),
+// ── Deutsche Grenze: die beiden Übersetzungs-Calls ────────────────────────────────
+//
+// Die Merkmals-Deutung reasont durchgehend ENGLISCH; Deutsch entsteht in zwei
+// thinking-off-Calls an den Rändern (`aiActions/featureTranslationAction.ts`). Beide
+// Schemas kommen ohne dynamische Objekt-Keys aus: Guided Decoding kann ein
+// `Record<string, string>` nicht ausdrücken, deshalb Paar-Arrays — den Record baut TS.
+
+const choiceOptionTranslationSchema = z.object({
+  en: z.string().default('').describe('The English option label, copied VERBATIM from the input.'),
+  de: z.string().default('').describe('Its German label, quoted verbatim from the feature\'s German rules text.'),
+  helpDe: z.string().default('').describe('This option\'s own German consequence, max 60 chars. Empty if it has none.'),
 });
 
-export const levelUpEffectsSchema = z.object({
-  level: z.number().int().default(0).describe('Target character level after this level-up (informational).'),
-  changes: z.array(levelUpChangeSchema).default([]),
+const choiceTranslationItemSchema = z.object({
+  id: z.string().default('').describe('The choice id, copied VERBATIM from the input.'),
+  questionDe: z.string().default('').describe('The German question shown to the player.'),
+  helpDe: z.string().default('').describe(`German one-liner on the mechanical trade-off, max ${CHOICE_HELP_MAX_CHARS} chars. Empty if there is none.`),
+  options: z.array(choiceOptionTranslationSchema).default([]).describe('One entry per English option, in the SAME order.'),
+});
+
+export const choiceTranslationSchema = z.object({
+  items: z.array(choiceTranslationItemSchema).default([]).describe('One entry per choice of the input, same order.'),
+});
+
+const sheetNoteTranslationSchema = z.object({
+  index: z.number().int().default(0).describe('The note\'s index, copied verbatim from the input.'),
+  noteDe: z.string().default('').describe(`The German note, max ${SHEET_NOTE_MAX_CHARS} chars, single line.`),
+});
+
+export const sheetNoteTranslationsSchema = z.object({
+  notes: z.array(sheetNoteTranslationSchema).default([]).describe('One entry per input note, same order.'),
 });
 
 // ── Narrativ (dünner KI-Pass; alle Deltas werden deterministisch assembliert) ────
@@ -177,6 +228,20 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
   z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),
+  // Waffen-/Rüstungs-Übungen aus Merkmalen. Bis Stufe 1 von docs/plan/plan-wahlen-deklarieren.md
+  // hatten sie kein Ziel: der Rider trug sie, das Dokument nicht — sie fielen im Aufstieg
+  // still weg (im Wizard nicht, dort wendet die Assembly die Rider direkt an).
+  z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('armorTraining'), value: z.string(), ...changeBase }),
+  // Die vier Übungsarten, die dieselbe Lücke hatten: der Rider trägt sie (bzw. die
+  // Vault-Form bei `weaponProficiencyOther`), das Dokument bisher nicht. `value` ist
+  // englisch für das geschlossene Vokabular (Rettungswurf), sonst Freitext.
+  z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
+  // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
+  // die Einschränkung nicht ausdrücken, der Bogen führt sie als Freitextzeile.
+  z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('subclass'), key: z.string(), name: z.string(), ...changeBase }),
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
   // Info-Eintrag: neu gewonnenes Merkmal (keine Anwendung, reines Feedback).
@@ -184,7 +249,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   // Getroffene Aufbau-Entscheidung zu einem Merkmal (z.B. Urtümlicher Orden → Wächter).
   // Landet strukturiert in `character.features[]`, verankert an (sourceKey, gainedAt) —
   // deshalb darf der Klassenmerkmale-Freitext sie weglassen.
-  z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), gainedAt: z.number().int(), ...changeBase }),
+  // `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige.
+  z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
   // Info-Eintrag: Protokoll einer Fragebogen-Antwort ohne eigenes Ziel am Charakter
   // (TP-Methode, Würfelergebnis). Keine mechanische Anwendung.
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),
@@ -206,15 +272,17 @@ export type LevelUpChangeSet = z.infer<typeof levelUpChangeSetSchema>;
 export type LevelUpDoc = LevelUpChangeSet;
 export type FeatureRider = z.infer<typeof featureRiderSchema>;
 export type FeatureEffects = z.infer<typeof featureEffectsSchema>;
-export type LevelUpChange = z.infer<typeof levelUpChangeSchema>;
-export type LevelUpEffects = z.infer<typeof levelUpEffectsSchema>;
 export type LevelUpNarrative = z.infer<typeof levelUpNarrativeSchema>;
 export type FieldSummary = z.infer<typeof fieldSummarySchema>;
+export type ChoiceTranslation = z.infer<typeof choiceTranslationSchema>;
+export type ChoiceTranslationItem = z.infer<typeof choiceTranslationItemSchema>;
+export type SheetNoteTranslations = z.infer<typeof sheetNoteTranslationsSchema>;
 
 export const featureEffectsJsonSchema = toLlmJsonSchema(featureEffectsSchema);
-export const levelUpEffectsJsonSchema = toLlmJsonSchema(levelUpEffectsSchema);
 export const levelUpNarrativeJsonSchema = toLlmJsonSchema(levelUpNarrativeSchema);
 export const fieldSummaryJsonSchema = toLlmJsonSchema(fieldSummarySchema);
+export const choiceTranslationJsonSchema = toLlmJsonSchema(choiceTranslationSchema);
+export const sheetNoteTranslationsJsonSchema = toLlmJsonSchema(sheetNoteTranslationsSchema);
 
 /** Nachsichtiger Guard: parst + füllt Defaults; null bei Schema-Verstoß. */
 export function parseLevelUpChangeSet(data: unknown): LevelUpChangeSet | null {
@@ -225,15 +293,19 @@ export function parseFeatureEffects(data: unknown): FeatureEffects | null {
   const r = featureEffectsSchema.safeParse(data);
   return r.success ? r.data : null;
 }
-export function parseLevelUpEffects(data: unknown): LevelUpEffects | null {
-  const r = levelUpEffectsSchema.safeParse(data);
-  return r.success ? r.data : null;
-}
 export function parseLevelUpNarrative(data: unknown): LevelUpNarrative | null {
   const r = levelUpNarrativeSchema.safeParse(data);
   return r.success ? r.data : null;
 }
 export function parseFieldSummary(data: unknown): FieldSummary | null {
   const r = fieldSummarySchema.safeParse(data);
+  return r.success ? r.data : null;
+}
+export function parseChoiceTranslation(data: unknown): ChoiceTranslation | null {
+  const r = choiceTranslationSchema.safeParse(data);
+  return r.success ? r.data : null;
+}
+export function parseSheetNoteTranslations(data: unknown): SheetNoteTranslations | null {
+  const r = sheetNoteTranslationsSchema.safeParse(data);
   return r.success ? r.data : null;
 }

@@ -1,8 +1,8 @@
 # TODO: Mehrklassen-Grant auf den vollen Übungs-Grant erweitern
 
-> Folgearbeit aus `plan-uebungen-kerntabelle.md`, offen seit 2026-07-28.
-> Bewusst dort ausgeklammert, weil der Plan `skillGrantMulticlass` als
-> `skillGrantSchema` festgelegt hatte.
+> Folgearbeit aus den strukturierten Übungen (Commit `118e2aa`), offen seit 2026-07-28.
+> Dort bewusst ausgeklammert, weil `skillGrantMulticlass` als `skillGrantSchema`
+> festgelegt wurde.
 
 ## Problem
 

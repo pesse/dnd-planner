@@ -83,6 +83,14 @@ an older vault in — but only when the current one is empty.
 **Adding a library type** means touching all of: `roots` in `vault/libraries.yaml`, `ALLOWED_ROOTS`
 in `src-tauri/src/libraries.rs`, and the seven vault export/import sites in `lib.rs`.
 
+**Library content declares which app version can read it**: `min_app_version` in
+`vault/libraries.yaml` → `minVersion` per `index.json` entry → `satisfies_min` / the
+`appOutdated` state in `libraries.rs`. Content that starts relying on a new schema field
+must raise the value **in the vault repo** — nothing here can detect that. The gate only
+protects clients from 0.2.1 on; older ones ignore the field. It is off in debug builds:
+the committed version is always the *last* release, so a declaration pointing at the
+coming one would lock development out of its own content.
+
 `vault/` is a separate content repo with its own `CLAUDE.md` — read it before touching vault data.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
 vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
@@ -104,6 +112,19 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   the property is resolved at render time, so a swap needs no write-back.
 - **Weapon mastery is not an AI path.** `isFlowOwnedChoiceFeature` keeps it out of the level-up
   prompt, and the options must come from the library, never from a model.
+- **The feature interpretation is monolingual English, with a translation boundary.** Analysis and
+  effects pass (`aiActions/featureEffectsAction.ts`) see English only — `buildFeatureEffectsInput`
+  strips `nameDe`/`descDe` although `GainedFeature` carries them. German is produced by the two
+  thinking-free calls in `featureTranslationAction.ts` (choices for the checkpoint, sheet notes for
+  the PDF box) and by `fieldSummaryAction`, which stays German because its input is the *player's*
+  prose. Two consequences: a German label in a choice is a **quote** from `descDe`, never a
+  translation, and a length budget always belongs to the target language (`SHEET_NOTE_EN_MAX_CHARS`
+  → `SHEET_NOTE_MAX_CHARS`). A failed translation degrades to English, it never blocks.
+- **A choice is stored twice:** `features[].choice` is the English canonical label (it goes back to
+  the model as `<past_choices>`), `choiceDe` the display. `LevelUpQuestion.options` carries the pair
+  as `value`/`label`, so `answerValues` feeds the model and `answerLabels` the sheet. Legacy files
+  hold German in `choice` — that field is also the discriminator „choice entry vs. feat link", which
+  is why upgrade step 5 copies instead of moving it.
 - **Spell selection is not an AI path either.** Counts come from `services/spellcasting.ts`
   (class table, plus the one prose constant `SPELLBOOK_START_SPELLS` — Open5e emits no column
   for the wizard's starting six), options come from `vault/spells`. 2024 has no "Spells Known":
@@ -111,11 +132,51 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   cleric/druid the known pool *is* the class list and is deliberately not written to the file.
   A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
   carrying only count/level/class list — **never spell names**.
-- **A class feature whose only content is a choice declares it**, via `grantsChoice`
+- **A feature whose only content is a choice declares it**, via `grantsChoice`
   (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
-  `spellcasting`). That declaration is what keeps it out of the AI feature analysis; the
-  name-based predicates (`isWeaponMasteryFeature`, `isSpellcastingFeature`) are only the
-  fallback for vault entries that do not carry the field yet.
+  `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
+  it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
+  `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
+  yet. `optionList` carries the consequence **next to each option** (`options[].grants`), which
+  is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
+  A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
+- **The declaration triple is identical at class feature, trait and feat** — one spread,
+  `featureDeclarationFields` (`schemas/shared.ts`), so a fourth field reaches all three
+  carriers by itself. Consequently **the origin of a feature decides exactly one thing**: which
+  sheet field its note line goes into (`forClassFeaturesField`, `services/declaredFeature.ts`).
+  `source` lives on `DeclaredFeature`, never in a vault schema — a trait does not know it is a
+  trait, the flow does. Both flows carry ONE tagged list (`FeaturePrep.declared`,
+  `declaredSources`) and filter it by declaration kind, never by origin.
+- **A spell level table is read at a different level depending on the carrier**: class feature →
+  CLASS level, trait/feat → CHARACTER level (the elf lineage table 1/3/5 hangs on it). In a
+  multiclass those differ, which is why `declaredSpellGrants` is called twice
+  (`declaredSpells` vs `charLevelSpells`) instead of over one merged list.
+- **At a FEATURE, `grants.proficiencies` is the only proficiency sink.** `proficiencyGrant`
+  survives only at the class head and the background — those are not features.
+  `foldLegacyProficiencyGrant` lifts the old field and **must run on every read path**
+  (`schemaValidation`, `speciesLibrary`, `featsLibrary`, both Open5e mappers): the schemas are
+  not `strict`, so a forgotten path loses the proficiency without a parse error.
+  `skills.choose` IS used there (elf, human, `skilled`) — but by `collectGrants`, which asks
+  the question, while `withGrant`/`proficiencyGrantChanges` only apply `skills.fixed`.
+- **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
+  filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
+  `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from
+  vanishing off the character sheet. The mechanics no longer need that check — see the next
+  rule — but the sheet line still does.
+- **A grant field without a sink is a compile error, not a silent gap.** Both flows apply
+  through the one applier (`services/applyChanges.ts`), whose `default` branch is a `never`
+  guard, and both projections into `Change[]` are tables typed over `keyof` their source form
+  (`riderGrantChanges` over `RiderProficiencies`, `proficiencyGrantChanges` over
+  `ProficiencyGrant`). Adding a field or a `Change` variant breaks the build until it has a
+  sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
+  then `savingThrows`/`weaponsOther`/`tools`/`languages` — all four silently dropped by the
+  level-up while the wizard applied them. **Do not hand-enumerate fields next to these tables.**
+- **`grants` is optional WITHOUT a default** (`featureGrantSchema`, plus `grantsChoice`/
+  `grantsSpells` alongside it). Missing field = the entry was never redacted and still runs
+  through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every
+  coverage gap goes silent — an imported or homebrew feature would lose its mechanics
+  unnoticed. It is also why there is no cut-over date: the chain shrinks with coverage
+  (`docs/plan/plan-wahlen-deklarieren.md`).
 - **New entity create/edit actions are not hand-written**: describe the differences in an
   `EntityActionSpec` (`services/aiActions/spec.ts`) and let `factory.ts` build the action.
 - **Gate LLM features on `LlmCapabilities`, never on provider names** (`services/llmClient.ts`).

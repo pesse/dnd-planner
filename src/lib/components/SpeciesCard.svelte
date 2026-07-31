@@ -12,6 +12,8 @@
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateSpeciesCache } from '$lib/speciesLibrary';
+  import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
+  import DeclarationBadge from './DeclarationBadge.svelte';
 
   function parseSpecies(json: string): Species | null {
     try {
@@ -41,6 +43,9 @@
 
   const traitName = (t: Trait): string => t.nameDe || t.name;
   const traitDesc = (t: Trait): string => t.descDe || t.desc;
+
+  let coverage = $derived(declarationCoverage(draft?.traits ?? []));
+  let declBadge = $derived(coverageBadge(coverage));
 
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
@@ -93,6 +98,9 @@
             {#if draft!.size && draft!.speed} · {/if}
             {#if draft!.speed}Geschwindigkeit: {draft!.speed}{/if}
           </div>
+          {#if coverage.total}
+            <DeclarationBadge badge={declBadge} />
+          {/if}
         </div>
         {#if draft!.traits.length}
           <div class="features">
@@ -167,6 +175,8 @@
   .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--green) 70%, var(--ink)); margin-top: 0.2rem; }
+
+  /* Deklarations-Abdeckung: Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
 
   .features { padding: 0.6rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
   .feature-name { font-weight: 700; font-variant: small-caps; color: var(--green); }

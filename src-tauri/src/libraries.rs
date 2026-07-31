@@ -13,6 +13,11 @@
 //! 1. Ein Pack darf ausschließlich in die Bibliotheksverzeichnisse schreiben.
 //!    Nutzerinhalte (`campaigns/`, `characters/`) werden nie angefasst.
 //! 2. Ein fehlender Zugangscode ist kein Fehler, sondern der Zustand `locked`.
+//!
+//! Dazu die Gegenrichtung: `minVersion` aus dem Index nennt die App-Version, die
+//! die Inhalte lesen kann (`min_app_version` in `vault/libraries.yaml`). Ist
+//! diese App älter, wird nicht installiert — sonst lägen Dateien im Vault, deren
+//! Felder hier niemand auswertet, und die Mechanik fiele still aus.
 
 use std::collections::HashMap;
 use std::fs;
@@ -73,6 +78,10 @@ pub struct IndexEntry {
     pub description: Option<String>,
     #[serde(rename = "keyVersion", default)]
     pub key_version: Option<u32>,
+    /// Älteste App-Version, die diese Fassung lesen kann. Fehlt bei Packs aus
+    /// einem Build vor `schemaVersion` 2 — dann gilt keine Schranke.
+    #[serde(rename = "minVersion", default)]
+    pub min_version: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -92,10 +101,14 @@ pub struct LibraryStatus {
     pub size: u64,
     #[serde(rename = "fileCount")]
     pub file_count: usize,
-    /// `installed` | `update` | `available` | `locked` | `staleCode`
+    /// `installed` | `update` | `available` | `locked` | `staleCode` | `appOutdated`
     pub status: String,
     #[serde(rename = "installedVersion")]
     pub installed_version: Option<String>,
+    /// Nur gesetzt, wenn der Index eine Mindest-App-Version nennt — die UI
+    /// benennt sie im Zustand `appOutdated`.
+    #[serde(rename = "minVersion")]
+    pub min_version: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,6 +184,56 @@ fn sha256_hex(data: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(data);
     format!("{:x}", h.finalize())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App-Version gegen `minVersion`
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Version, an der die Schranke gemessen wird — `None` heißt: keine Schranke.
+///
+/// Der Wert kommt aus `tauri.conf.json`, nicht aus `Cargo.toml` (nur die erste
+/// wird beim Release aus dem Tag nachgezogen). Im Dev-Build gilt keine
+/// Schranke: committet steht dort immer die Version des *letzten* Releases,
+/// eine Deklaration auf die kommende Fassung sperrte sonst die Entwicklung an
+/// den eigenen Inhalten aus.
+fn version_gate(app: &tauri::AppHandle) -> Option<String> {
+    if cfg!(debug_assertions) {
+        return None;
+    }
+    Some(app.package_info().version.to_string())
+}
+
+/// Zahlentripel einer Version. Ein Suffix (`-rc1`, `+build`, vierte Stelle)
+/// fällt weg — ein Release Candidate der verlangten Version soll die Schranke
+/// erfüllen, statt an ihr zu scheitern.
+fn version_triple(v: &str) -> Option<(u64, u64, u64)> {
+    let core = v.trim().trim_start_matches('v');
+    let core = core.split(['-', '+']).next()?;
+    let mut parts = core.split('.');
+    let major = parts.next()?.trim().parse().ok()?;
+    let minor = parts.next()?.trim().parse().ok()?;
+    let patch = parts.next()?.trim().parse().ok()?;
+    Some((major, minor, patch))
+}
+
+/// True, wenn `current` die verlangte Mindestversion erreicht.
+///
+/// Unlesbare Angaben werden nicht geraten: dann gilt die Schranke. Der Build
+/// weist solche Werte ohnehin ab (`check_version` in `build_packs.py`).
+fn satisfies_min(current: &str, min: &str) -> bool {
+    match (version_triple(current), version_triple(min)) {
+        (Some(c), Some(m)) => c >= m,
+        _ => false,
+    }
+}
+
+/// True, wenn diese App die Fassung nicht einspielen darf.
+fn too_old_for(gate: Option<&str>, min_version: Option<&str>) -> bool {
+    match (gate, min_version) {
+        (Some(current), Some(min)) => !satisfies_min(current, min),
+        _ => false,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -396,16 +459,25 @@ fn is_allowed_entry(name: &str) -> bool {
 
 /// Lädt das Verzeichnis und verschneidet es mit dem lokalen Stand.
 #[tauri::command]
-pub async fn fetch_library_index() -> Result<Vec<LibraryStatus>, String> {
+pub async fn fetch_library_index(app: tauri::AppHandle) -> Result<Vec<LibraryStatus>, String> {
+    let gate = version_gate(&app);
     let entries = fetch_index().await?;
-    Ok(entries.into_iter().map(status_for).collect())
+    Ok(entries
+        .into_iter()
+        .map(|e| status_for(e, gate.as_deref()))
+        .collect())
 }
 
-fn status_for(entry: IndexEntry) -> LibraryStatus {
+fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
     let state = read_state(&entry.id);
     let installed_version = state.as_ref().map(|s| s.version.clone());
 
-    let status = if entry.protected {
+    // Die Versionsschranke geht allen anderen Zuständen vor: sie ist die
+    // einzige, die auch ein hinterlegter Zugangscode nicht aufhebt. Ein
+    // vorhandenes Update bleibt damit sichtbar, aber unangeboten.
+    let status = if too_old_for(gate, entry.min_version.as_deref()) {
+        "appOutdated".to_string()
+    } else if entry.protected {
         match load_code(&entry.id) {
             None => "locked".to_string(),
             Some((_, stored_version)) => {
@@ -433,6 +505,7 @@ fn status_for(entry: IndexEntry) -> LibraryStatus {
         file_count: entry.file_count,
         status,
         installed_version,
+        min_version: entry.min_version,
     }
 }
 
@@ -484,12 +557,29 @@ pub async fn try_access_code(code: String) -> Result<Vec<String>, String> {
 /// Fall nichts geschrieben und `needsAdopt` gemeldet, damit die UI nachfragen
 /// kann.
 #[tauri::command]
-pub async fn install_library(id: String, adopt: bool) -> Result<InstallSummary, String> {
+pub async fn install_library(
+    app: tauri::AppHandle,
+    id: String,
+    adopt: bool,
+) -> Result<InstallSummary, String> {
     let entries = fetch_index().await?;
     let entry = entries
         .into_iter()
         .find(|e| e.id == id)
         .ok_or_else(|| format!("Unbekannte Bibliothek '{}'.", id))?;
+
+    // Zweite Sicherung neben dem Zustand `appOutdated`: hier endet der Weg auch
+    // dann, wenn die Oberfläche die Sperre nicht beachtet.
+    let gate = version_gate(&app);
+    if too_old_for(gate.as_deref(), entry.min_version.as_deref()) {
+        return Err(format!(
+            "„{}“ setzt dnd-planner {} oder neuer voraus (installiert: {}). \
+             Bitte die App aktualisieren.",
+            entry.name,
+            entry.min_version.unwrap_or_default(),
+            gate.unwrap_or_default()
+        ));
+    }
 
     let blob = fetch_pack(&entry).await?;
     let zip_bytes = if entry.protected {
@@ -814,6 +904,62 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
         blob[last] ^= 0x01; // Ciphertext kippen
         let err = decrypt_pack(&blob, "korund-flussbett-31").unwrap_err();
         assert!(err.contains("beschädigt"), "unerwartet: {}", err);
+    }
+
+    #[test]
+    fn versionsvergleich_zaehlt_das_tripel() {
+        assert!(satisfies_min("0.2.1", "0.2.1"));
+        assert!(satisfies_min("0.3.0", "0.2.1"));
+        assert!(satisfies_min("1.0.0", "0.9.9"));
+        assert!(!satisfies_min("0.2.0", "0.2.1"));
+        assert!(!satisfies_min("0.1.9", "0.2.0"));
+
+        // Ein Vorabbau der verlangten Version erfüllt die Schranke.
+        assert!(satisfies_min("0.2.1-rc1", "0.2.1"));
+        assert!(satisfies_min("v0.2.1", "0.2.1"));
+        assert!(satisfies_min("0.2.1.3", "0.2.1"));
+
+        // Unlesbares wird nicht geraten — die Schranke gilt.
+        assert!(!satisfies_min("0.2", "0.2.1"));
+        assert!(!satisfies_min("0.2.1", "demnächst"));
+    }
+
+    /// Ohne Angabe im Index gibt es keine Schranke — Packs aus einem Build vor
+    /// `schemaVersion` 2 bleiben installierbar. Ebenso ohne Gate (Dev-Build).
+    #[test]
+    fn ohne_minversion_keine_sperre() {
+        assert!(!too_old_for(Some("0.1.0"), None));
+        assert!(!too_old_for(None, Some("9.9.9")));
+        assert_ne!(status_for(test_entry(None), Some("0.1.0")).status, "appOutdated");
+        assert_ne!(status_for(test_entry(Some("9.9.9")), None).status, "appOutdated");
+    }
+
+    /// Die Schranke geht dem Zugangscode vor: eine geschützte Bibliothek meldet
+    /// nicht `locked`, wenn die App ohnehin zu alt ist.
+    #[test]
+    fn zu_alte_app_schlaegt_jeden_anderen_zustand() {
+        let entry = test_entry(Some("0.2.1"));
+        let status = status_for(entry, Some("0.2.0"));
+        assert_eq!(status.status, "appOutdated");
+        assert_eq!(status.min_version.as_deref(), Some("0.2.1"));
+    }
+
+    fn test_entry(min_version: Option<&str>) -> IndexEntry {
+        IndexEntry {
+            // Eine id, unter der kein Installationszustand liegen kann.
+            id: "test-nicht-installiert".into(),
+            name: "Test".into(),
+            version: "abcdef12".into(),
+            license: "CC-BY-4.0".into(),
+            protected: true,
+            file: "lib-test-abcdef12.enc".into(),
+            sha256: String::new(),
+            size: 0,
+            file_count: 0,
+            description: None,
+            key_version: Some(1),
+            min_version: min_version.map(str::to_string),
+        }
     }
 
     #[test]

@@ -19,10 +19,14 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import {
   analyzeFeatureEffects,
+  choiceLabelsDe,
   finalizeFeatureEffects,
+  type AnalysisChoice,
   type FeatureAnalysis,
   type ResolvedChoice,
 } from '../aiActions/featureEffectsAction';
+import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
+import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -32,9 +36,21 @@ import {
 } from '../aiActions/fieldSummaryAction';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
-import { buildLevelUpEffectsAction, buildLevelUpEffectsInput } from '../aiActions/levelUpEffectsAction';
+import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
+import {
+  expertiseChoice,
+  expertiseChoiceId,
+  expertiseRider,
+  optionListChoices,
+  optionListRiders,
+  optionChoiceId,
+  unredactedChoiceFeatures,
+  withDeclaredGrants,
+} from '../featureDeclaration';
+import type { DeclaredFeature } from '../declaredFeature';
+import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FieldSummary, LevelUpEffects } from '$lib/schemas/levelUp';
+import type { FeatureEffects, FeatureRider, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
@@ -140,12 +156,43 @@ export class CharacterWizard {
   pickedPrepared = $state<string[]>([]);
   /**
    * Zauber aus Merkmals-Wahlen (`spell-pick`), je Wahl-`id`. Getrennt vom Klassenkontingent,
-   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Magiekundiger").
+   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Eingeweihter der Magie").
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
   // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
+  /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
+  /**
+   * Deklarierte Zauber-Zugänge („Eingeweihter der Magie") — stehen sofort, ohne KI und ohne QM.
+   * Gefüllt aus `buildFeaturePrep`, deshalb `$state` statt Getter (die Aufbereitung ist async).
+   */
+  spellAccess = $state<SpellAccessGrant[]>([]);
+  /** Größen-Wahl der Spezies (Mensch, Tiefling) — wie `spellAccess` aus `buildFeaturePrep`. */
+  sizeChoice = $state<AnalysisChoice | null>(null);
+  /**
+   * Fortlaufende TP-Effekte („Zäh", Zwergische Zähigkeit) — deterministisch aus
+   * `grants.perLevel` der Bibliothek, wie `spellAccess` aus `buildFeaturePrep`.
+   */
+  hpPerLevel = $state<PerLevelSource[]>([]);
+  /**
+   * ALLE Stufe-1-Merkmale samt Deklaration und Herkunft (aus `buildFeaturePrep`) — die eine
+   * Quelle für Zweigwahlen, Expertise, `grants` und Zauberlisten. Gefiltert wird nach
+   * Deklarationsart, nicht nach Herkunft.
+   */
+  declared = $state<DeclaredFeature[]>([]);
+  /**
+   * Fest gewährte Fertigkeitsübungen (aus `collectGrants`, gesetzt vom Übungen-Schritt).
+   * Zusammen mit `chosenSkills` die Optionsliste der Expertise-Wahl — ein Vault-Feld kann sie
+   * nicht tragen, sie ist der Übungsstand DIESES Charakters.
+   */
+  grantedSkills = $state<string[]>([]);
+  /**
+   * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
+   * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
+   * Protokoll schreiben — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
+   */
+  declaredAnswers = $state<ResolvedChoice[]>([]);
 
   // ── KI-Jobs ──
   analysis = new Job<FeatureAnalysis>();
@@ -153,8 +200,6 @@ export class CharacterWizard {
   speciesText = new Job<FieldSummary>();
   effects = new Job<FeatureEffects>();
   equipment = new Job<EquipmentOptions>();
-  /** Fortlaufende TP-Effekte (Zäh, Zwergische Zähigkeit …) — für die HP-Berechnung. */
-  hpEffects = new Job<LevelUpEffects>();
 
   /** Letztes KI-Lebenszeichen (für die Stall-Anzeige der UI). */
   lastActivityMs = $state(0);
@@ -175,9 +220,35 @@ export class CharacterWizard {
     return this.#getConfig().provider === 'qualityminds';
   }
 
-  /** Erzwungene Merkmalswahlen der Analyse (leer, solange nichts erkannt/kein QM). */
-  get featureChoices() {
-    return this.analysis.result?.choices ?? [];
+  /**
+   * Die deterministischen Wahlen: Größenkategorie und die deklarierten Zauber-Zugänge. Reaktiv
+   * von `declaredAnswers` abhängig: erst die beantwortete Zauberliste macht aus dem Kontingent
+   * eine benutzbare Zauber-Wahl (der Filter der Bibliothek hängt daran).
+   */
+  get declaredChoices(): AnalysisChoice[] {
+    const spells = this.spellAccess.flatMap((grant) => {
+      const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
+      return spellAccessChoices(grant, answer);
+    });
+    // EIN Durchgang über alle Herkünfte: beide Builder liefern `null` für Merkmale des
+    // jeweils anderen `kind`, ein Vorsortieren wäre ein zweiter Filter.
+    const branches = optionListChoices(this.declared);
+    // Auf Stufe 1 hat nichts Expertise — der dritte Parameter ist bewusst leer.
+    const expertise = this.declared
+      .map((f) => expertiseChoice(f, this.proficientSkills, []))
+      .filter((c): c is AnalysisChoice => c !== null);
+    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...branches, ...expertise, ...spells];
+  }
+
+  /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
+  get featureChoices(): AnalysisChoice[] {
+    const declared = this.declaredChoices;
+    return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
+  }
+
+  /** Geübte Fertigkeiten (englisch): fest gewährte plus selbst gewählte, ohne Dubletten. */
+  get proficientSkills(): string[] {
+    return [...new Set([...this.grantedSkills, ...this.chosenSkills])];
   }
 
   /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
@@ -190,9 +261,23 @@ export class CharacterWizard {
     return this.featureChoices.filter((c) => c.type !== 'spell-pick');
   }
 
-  /** Fertige Merkmals-Rider (leer, solange der Effekt-Job läuft/übersprungen ist). */
+  /**
+   * Fertige Merkmals-Rider: die des Effekt-Jobs (leer, solange er läuft/übersprungen ist)
+   * plus die der deklarierten Zweigwahlen — dieselbe Form, damit `riderExtras` und die
+   * Assembly sie nicht unterscheiden müssen.
+   *
+   * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
+   * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
+   */
   get riders() {
-    return this.effects.result?.riders ?? [];
+    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
+    // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
+    const declared = optionListRiders(this.declared, answerOf, 1);
+    const expertise = this.declared
+      .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
+      .filter((r): r is FeatureRider => r !== null);
+    const ai = withDeclaredGrants(this.effects.result?.riders ?? [], this.declared);
+    return [...ai, ...declared, ...expertise];
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
@@ -210,6 +295,17 @@ export class CharacterWizard {
     const cfg = this.#getConfig();
     this.#prep = null; // frische Aufbereitung für die aktuelle Grundwahl
 
+    // Deklarierte Zauber-Zugänge: unabhängig vom Anbieter und vom KI-Status. Der Guard gegen
+    // die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`.
+    const pending = this.#prepare();
+    void pending.then((prep) => {
+      if (this.#prep !== pending) return;
+      this.spellAccess = prep.spellAccess;
+      this.sizeChoice = prep.sizeChoice;
+      this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
+      this.declared = prep.declared;
+    }, () => {});
+
     // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen
     // (Drakonische Urahnen usw.) als erzwungene Wahl erkannt werden.
     if (this.isQm) {
@@ -217,7 +313,7 @@ export class CharacterWizard {
         const prep = await this.#prepare();
         return analyzeFeatureEffects(
           cfg,
-          { classContext: prep.classContext, features: [...prep.gained, ...prep.speciesFeatures], pastChoices: [] },
+          { classContext: prep.classContext, features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures], pastChoices: [] },
           { signal, onActivity: this.#touch },
         );
       });
@@ -225,19 +321,6 @@ export class CharacterWizard {
       this.analysis.skip();
       this.effects.skip();
     }
-
-    // Fortlaufende TP-Effekte (Zäh/Zwergische Zähigkeit): über jeden strukturfähigen
-    // Provider; fließt in die HP-Berechnung der Assembly ein.
-    this.hpEffects.run(async (signal) => {
-      const prep = await this.#prepare();
-      if (!prep.effectFeatures.length) return { level: 1, changes: [] };
-      return runAiAction(
-        cfg,
-        buildLevelUpEffectsAction(),
-        buildLevelUpEffectsInput({ level: 1, features: prep.effectFeatures }),
-        { signal, onActivity: this.#touch },
-      );
-    });
 
     // Der Merkmals-Text (classText/speciesText) läuft BEWUSST NICHT hier: er wird erst
     // nach dem Wahl-Checkpoint über `summarizeFeatures()` gestartet, sonst steht im Text
@@ -272,6 +355,9 @@ export class CharacterWizard {
     this.classText.reset();
     this.speciesText.reset();
     this.resolvedChoices = [];
+    this.declaredAnswers = [];
+    this.spellAccess = [];
+    this.sizeChoice = null;
     this.equipmentSelection = [];
     this.toolPicks = {};
     this.masteries = [];
@@ -284,14 +370,20 @@ export class CharacterWizard {
   }
 
   /** Getroffene Aufbau-Wahlen je Merkmals-Key (resolvedChoices × Analyse-Choices) — damit
-   *  der Merkmals-Text die Wahl statt eines Platzhalters trägt (`SummaryFeature.choice`). */
+   *  der Merkmals-Text die Wahl statt eines Platzhalters trägt (`SummaryFeature.choice`).
+   *  DEUTSCH: der Merkmals-Text ist der Bogen-Freitext, nicht der Prompt-Kanal. */
   #choiceByFeatureKey(): Map<string, string> {
     const byId = new Map(this.featureChoices.map((c) => [c.id, c]));
     const map = new Map<string, string>();
-    for (const rc of this.resolvedChoices) {
-      const key = byId.get(rc.id)?.featureKey;
-      if (!key || !rc.choice.trim()) continue;
-      map.set(key, map.has(key) ? `${map.get(key)}, ${rc.choice}` : rc.choice);
+    for (const rc of [...this.resolvedChoices, ...this.declaredAnswers]) {
+      const choice = byId.get(rc.id);
+      const key = choice?.featureKey;
+      if (!key || !choice || !rc.choice.trim()) continue;
+      // Gewählte Zauber stehen im Zauber-Block des Bogens; im Merkmalstext wären sie die
+      // Dublette, die die Doktrin ausdrücklich draußen haben will.
+      if (choice.type === 'spell-pick') continue;
+      const label = choiceLabelsDe(choice, rc.choice);
+      map.set(key, map.has(key) ? `${map.get(key)}, ${label}` : label);
     }
     return map;
   }
@@ -358,13 +450,18 @@ export class CharacterWizard {
       return;
     }
     const analysis = this.analysis.result;
+    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
     this.effects.run(async (signal) => {
       const prep = await this.#prepare();
+      // Dazu die Merkmale, deren Zweig nichts deklariert: die Wahl steht (Checkpoint ist
+      // durch), die Prosa der Option deutet Pass C. `gainedAt: 1` — im Wizard alles Stufe 1.
+      const unredacted = unredactedChoiceFeatures(prep.declared, (f) => answerOf(optionChoiceId(f)))
+        .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
       return finalizeFeatureEffects(
         cfg,
         {
           classContext: prep.classContext,
-          features: [...prep.gained, ...prep.speciesFeatures],
+          features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures, ...unredacted],
           pastChoices: [],
           resolvedChoices: this.resolvedChoices,
         },
@@ -417,9 +514,7 @@ export class CharacterWizard {
 
   /** Summe der pro-Stufe wirkenden TP-Effekte (auf Stufe 1 einmal angewandt). */
   hpPerLevelBonus(): number {
-    return (this.hpEffects.result?.changes ?? [])
-      .filter((c) => c.target === 'hpMax')
-      .reduce((sum, c) => sum + (parseInt(c.valueChange, 10) || 0), 0);
+    return hpPerLevelSum(this.hpPerLevel);
   }
 
   /** Wartet, bis die für den Zusammenbau nötigen KI-Jobs settled sind (fürs „Erstellen"). */
@@ -429,7 +524,6 @@ export class CharacterWizard {
       this.classText.settle(),
       this.speciesText.settle(),
       this.equipment.settle(),
-      this.hpEffects.settle(),
     ]);
   }
 
@@ -440,6 +534,5 @@ export class CharacterWizard {
     this.speciesText.abort();
     this.effects.abort();
     this.equipment.abort();
-    this.hpEffects.abort();
   }
 }

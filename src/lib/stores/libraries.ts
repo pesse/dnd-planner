@@ -16,15 +16,17 @@ import { invalidateMonsterPaths } from './context';
  * - `installed`  aktuelle Fassung liegt im Vault
  * - `update`     neuere Fassung verfügbar
  * - `available`  noch nicht installiert, aber zugänglich
- * - `locked`     geschützt, kein Zugangscode hinterlegt
- * - `staleCode`  hinterlegter Code gehört zu einer älteren Passwortfassung
+ * - `locked`      geschützt, kein Zugangscode hinterlegt
+ * - `staleCode`   hinterlegter Code gehört zu einer älteren Passwortfassung
+ * - `appOutdated` die Fassung verlangt eine neuere App (`minVersion`)
  */
 export type LibraryState =
   | 'installed'
   | 'update'
   | 'available'
   | 'locked'
-  | 'staleCode';
+  | 'staleCode'
+  | 'appOutdated';
 
 export interface Library {
   id: string;
@@ -37,6 +39,8 @@ export interface Library {
   fileCount: number;
   status: LibraryState;
   installedVersion?: string;
+  /** App-Version, die diese Fassung mindestens verlangt (nur wenn deklariert). */
+  minVersion?: string;
 }
 
 export interface InstallSummary {
@@ -193,6 +197,14 @@ function invalidateLibraryCaches(): void {
 export async function checkLibrariesOnStartup(): Promise<void> {
   if (!inTauri()) return;
   await refreshLibraries(true);
+
+  const outdated = get(libraries).filter((l) => l.status === 'appOutdated');
+  for (const lib of outdated) {
+    console.info(
+      `Bibliothek "${lib.name}" verlangt App-Version ${lib.minVersion} oder neuer — ` +
+        'übersprungen. Bereits installierte Inhalte bleiben nutzbar.',
+    );
+  }
 
   const missing = get(libraries).filter((l) => !l.protected && l.status === 'available');
   for (const lib of missing) {

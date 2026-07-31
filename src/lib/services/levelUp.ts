@@ -20,6 +20,7 @@ import {
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
 import { cantripCount, isSpellcastingFeature, preparedOrKnownCount } from './spellcasting';
+import { isFlowOwnedDeclaration } from './featureDeclaration';
 
 export interface SubclassOption {
   key: string;
@@ -82,14 +83,16 @@ function matches(f: ClassFeature, hints: string[]): boolean {
  * Waffenbeherrschung/Kampfstil/Zauberwirken käme sogar eine LLM-ERFUNDENE Options-Liste
  * heraus statt der aus dem Vault abgeleiteten.
  *
- * Der `grantsChoice`-Zweig ist die offene, deklarative Erkennung (auch für Homebrew).
- * `isWeaponMasteryFeature`/`isSpellcastingFeature` bleiben als Namens-Fallback für noch
- * nicht gepflegte Merkmale. Bewusst ENG gebunden — „subclass" statt `SUBCLASS_HINTS` (dessen
- * weiche Begriffe patron, circle, path … treffen sonst echte Merkmale wie „Contact Patron").
+ * Zwei Hälften, und nur eine ist allgemein: `isFlowOwnedDeclaration` gilt für jede Herkunft,
+ * die Namensheuristiken darunter sind KLASSEN-Vokabular („subclass", „ability score",
+ * „Spellcasting", „Weapon Mastery"). Auf Traits oder Talente angewandt würden sie fehlzünden —
+ * und sie werden dort nicht gebraucht, weil ein nicht-redigiertes Merkmal von ihnen ohnehin nie
+ * gefiltert wurde. Bewusst ENG gebunden: „subclass" statt `SUBCLASS_HINTS` (dessen weiche
+ * Begriffe patron, circle, path … treffen sonst echte Merkmale wie „Contact Patron").
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
   return (
-    !!f.grantsChoice ||
+    isFlowOwnedDeclaration(f) ||
     /\bsubclass(es)?\b/i.test(f.name) ||
     matches(f, ASI_HINTS) ||
     isWeaponMasteryFeature(f) ||

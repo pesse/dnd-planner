@@ -58,7 +58,7 @@ export function buildCharacterProtocol(
     ...(c.proficiencies.heavyArmor ? ['Schwere Rüstung'] : []),
     ...(c.proficiencies.shields ? ['Schilde'] : []),
   ]);
-  add('Waffenmeisterschaft', c.masteries);
+  add('Waffenbeherrschung', c.masteries);
   add('Werkzeuge', c.tools);
   add('Sprachen', c.languages);
 

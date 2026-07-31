@@ -88,6 +88,48 @@
       "label": "string"
     },
     {
+      "target": "weaponProficiency",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "armorTraining",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "savingThrow",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "toolProficiency",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "language",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
+      "target": "weaponProficiencyOther",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "subclass",
       "key": "string",
       "name": "string",
@@ -115,6 +157,7 @@
       "target": "featureChoice",
       "sourceKey": "string",
       "choice": "string",
+      "choiceDe": "string",
       "gainedAt": -9007199254740991,
       "step": "string",
       "source": "string",

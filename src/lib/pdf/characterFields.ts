@@ -19,6 +19,7 @@ import type {
   CharacterBackground,
 } from '../schemas/character';
 import type { SkillName } from '../schemas/shared';
+import type { SpellAccessValues } from '../services/spellAccess';
 import { MASTERY_BY_LABEL } from '../itemLibrary';
 
 export { formatClassLevel, totalLevel, parseClassLevelText, cleanClassName, formatSpecies } from '../schemas/character';
@@ -139,6 +140,49 @@ export const skillEnName = (sheetKey: string): SkillName | undefined => EN_BY_SH
 export function stripMasterySuffix(name: string): string {
   const m = name.match(/^(.*\S)\s*\(([^()]+)\)\s*$/);
   return m && MASTERY_BY_LABEL[m[2].trim().toLowerCase()] ? m[1] : name;
+}
+
+/**
+ * Die Zauberwerte eines merkmals-gewährten Zugangs im Klassenmerkmale-Text:
+ * „Eingeweihter der Magie: Magier-Liste, Zauber über Charisma **(SG 13, Angriff +5)**".
+ *
+ * Das PDF hat nur EINEN Zauberblock, und der gehört der Klasse. Die Marke entsteht deshalb
+ * erst beim Export (gerechnet, nicht gespeichert — der Übungsbonus steigt auf 5/9/13/17) und
+ * wird beim Import wieder abgeschnitten, sonst wüchse sie bei jedem Zyklus an.
+ * Beide Richtungen stehen absichtlich hier: eine Form, eine Datei.
+ */
+const SPELL_VALUES_MARK = /\s*\(SG \d+, Angriff [+-]\d+\)/g;
+
+export function stripSpellValues(text: string): string {
+  return text.replace(SPELL_VALUES_MARK, '');
+}
+
+/** Trägt die Notizzeile dieses Zugangs schon (Merkmal + Attribut müssen passen). */
+const isNoteFor = (line: string, v: SpellAccessValues): boolean =>
+  line.trimStart().startsWith(`${v.featureDe}:`) && line.includes(`Zauber über ${v.abilityDe}`);
+
+/**
+ * Hängt die Werte an die vorhandene Notizzeile — fehlt sie (Altbestand, gelöschter Text),
+ * entsteht eine neue in derselben Form. Idempotent: eine alte Marke fällt vorher weg.
+ */
+export function withSpellValues(text: string, rows: SpellAccessValues[]): string {
+  if (!rows.length) return text;
+
+  const base = stripSpellValues(text);
+  const lines = base ? base.split('\n') : [];
+  const used = new Set<number>();
+  const added: string[] = [];
+  for (const v of rows) {
+    const mark = ` (SG ${v.saveDC}, Angriff ${sign(v.attackBonus)})`;
+    const i = lines.findIndex((l, idx) => !used.has(idx) && isNoteFor(l, v));
+    if (i >= 0) {
+      used.add(i);
+      lines[i] += mark;
+    } else {
+      added.push(`${v.featureDe}: Zauber über ${v.abilityDe}${mark}`);
+    }
+  }
+  return [...lines, ...added].join('\n');
 }
 
 export function mod(score: number): number {
@@ -275,7 +319,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     intSaveProf: prof('IntProf'), weiSaveProf: prof('WeiProf'), chaSaveProf: prof('ChaProf'),
     skills,
     attacks,
-    classFeatures: [f('Klassenmerkmale1'), f('Klassenmerkmale2')].filter(Boolean).join('\n\n'),
+    classFeatures: stripSpellValues([f('Klassenmerkmale1'), f('Klassenmerkmale2')].filter(Boolean).join('\n\n')),
     traits: f('Persönlichkeitsmerkmale'),
     ideals: f('Ideale'),
     bonds: f('Bindungen'),

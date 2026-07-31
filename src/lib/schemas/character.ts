@@ -64,7 +64,7 @@ const characterSpellsSchema = z
     cantrips: [], byLevel: {},
   }));
 
-const proficiencyFlagsSchema = z.object({
+export const proficiencyFlagsSchema = z.object({
   simpleWeapons: z.boolean().default(false),
   martialWeapons: z.boolean().default(false),
   otherWeapons: z.string().default('').describe('Freitext: weitere geübte Waffen.'),
@@ -88,12 +88,21 @@ const characterFeatureSchema = z.object({
   sourceKey: z.string().default(''), // Bibliotheks-Key, z.B. "srd-2024_healer" oder "srd-2024_druid_primal-order"
   name: z.string().default(''),
   /**
-   * Getroffene Entscheidung als deutsches Label, wörtlich wie im Merkmalstext
-   * (`descDe`) — nur so ist sie im KI-Kontext dem Optionsabsatz zuordenbar. Die
-   * WIRKUNG der Wahl steht weiterhin dort, wo sie hingehört (Übungs-Flags, Zauber,
-   * Attribute); dieses Feld ist Provenienz, keine zweite Wahrheit.
+   * Getroffene Entscheidung als ENGLISCHES kanonisches Label — die Merkmals-Deutung
+   * reasont englisch, und in dieser Sprache kommt die Wahl als `<past_choices>` wieder
+   * herein. Die WIRKUNG der Wahl steht weiterhin dort, wo sie hingehört (Übungs-Flags,
+   * Zauber, Attribute); dieses Feld ist Provenienz, keine zweite Wahrheit.
+   *
+   * Altbestand trägt hier Deutsch — bewusst so gelassen: nichts Besseres existiert, und
+   * dieses Feld ist zugleich der Diskriminator „Wahl-Eintrag vs. Talent-Link".
    */
   choice: z.string().default(''),
+  /**
+   * Dasselbe Label auf Deutsch, wörtlich wie der Merkmalstext (`descDe`) es setzt — das
+   * ist die Anzeige-Fassung (Editor, Bogen, Merkmals-Text). Bei Altbestand leer, dann
+   * trägt `choice` noch das deutsche Label (siehe Upgrade-Schritt 5).
+   */
+  choiceDe: z.string().default(''),
   gainedAt: z.number().int().optional(), // Stufe — trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
   desc: z.string().default(''),
 });
@@ -363,7 +372,7 @@ export function parseClassLevelText(text: string): CharacterClass[] {
 // `pendingCharacterUpgrade` etwas meldet.
 
 /** Aktuelle Charakter-Schemaversion. Bei jeder Formatänderung erhöhen. */
-export const CHARACTER_VERSION = 5;
+export const CHARACTER_VERSION = 6;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -449,6 +458,23 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       // {name,…}-Objekte bleiben unangetastet (Legacy-Dateien ohne/mit zu niedrigem _version).
       // Keys werden NICHT erfunden — sourceKey bleibt leer und löst zur Laufzeit über den Namen auf.
       sp.cantrips = (sp.cantrips as unknown[]).map((x) => (typeof x === 'string' ? { name: x } : x));
+    },
+  },
+  {
+    to: 6,
+    label: 'Merkmals-Wahl: deutsches Label nach choiceDe',
+    apply: (c) => {
+      // `choice` führt ab jetzt das englische Label; das bisherige deutsche wandert in die
+      // Anzeige-Fassung. `choice` bleibt dabei STEHEN: es ist an sechs Stellen der
+      // Diskriminator „Wahl-Eintrag vs. Talent-Link", und leeren würde diese Aufteilung
+      // still umwerfen. Inhaltlich abgesichert über das leere `choiceDe`.
+      const features = Array.isArray(c.features) ? (c.features as Record<string, unknown>[]) : [];
+      for (const f of features) {
+        if (!f || typeof f !== 'object') continue;
+        const choice = typeof f.choice === 'string' ? f.choice : '';
+        const choiceDe = typeof f.choiceDe === 'string' ? f.choiceDe : '';
+        if (choice.trim() && !choiceDe.trim()) f.choiceDe = choice;
+      }
     },
   },
 ];

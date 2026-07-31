@@ -33,32 +33,48 @@
   import {
     analyzeFeatureEffects, finalizeFeatureEffects,
     type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
+    type AnalysisChoice,
   } from '../services/aiActions/featureEffectsAction';
   import {
-    buildLevelUpEffectsAction, buildLevelUpEffectsInput, type EffectFeature,
-  } from '../services/aiActions/levelUpEffectsAction';
+    hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature,
+  } from '../services/perLevelEffects';
   import {
+    declaredSpeciesFeatures,
     resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
   } from '../services/characterFeatures';
   import {
-    type StepId, type AdvanceCtx, type ValidatedRiders,
+    type StepId, type AdvanceCtx, type ValidatedRiders, type DeclaredSpells,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerLabels,
+    resolveDeclaredSpells, resolveSpellNames, noDeclaredSpells,
+    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerValues,
   } from '../services/levelUpMachine';
+  import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
-    parseLevelUpEffects, parseLevelUpNarrative, parseFieldSummary,
+    expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature,
+    isOptionListFeature, optionChoiceId, optionListChoices, optionListNoteLines, optionListRiders,
+    optionSpellNames, unredactedChoiceFeatures,
+    withDeclaredGrants, withoutDeclaredChoiceFeatures,
+  } from '../services/featureDeclaration';
+  import { declaredFeatures } from '../services/declaredFeature';
+  import {
+    spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
+    withoutSpellAccessFeatures, type SpellAccessGrant,
+  } from '../services/spellAccess';
+  import {
+    parseLevelUpNarrative, parseFieldSummary,
     type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
   } from '../schemas/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { getSpellLibrary, createSpellInline, type SpellInfo } from '../spellLibrary';
   import { decodePick, encodePick } from '../services/spellcasting';
   import SpellPickField from './SpellPickField.svelte';
-  import { getFeats, searchFeats, featDisplayName, type FeatEntry } from '../featsLibrary';
-  import type { Character } from '../schemas/character';
+  import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
+  import { sheetSkillProficiencies } from '../services/characterChoices';
+  import { totalLevel, type Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
-  import { OWN_SOURCE } from '../schemas/shared';
+  import { OWN_SOURCE, type FeatureChoiceGrant, type FeatureGrant, type SpellGrant } from '../schemas/shared';
 
   let { character, onApply, onclose }: {
     character: Character;
@@ -72,6 +88,15 @@
   let chosenSubclass = $state<{ key: string; name: string } | null>(null);
   let subFeatures = $state<GainedFeature[]>([]);    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
   let gainedFeatures = $state<GainedFeature[]>([]); // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
+  /**
+   * Immer-vorbereitete Zauber aus Merkmalstabellen (Kreissprüche, Domänenzauber …) —
+   * deterministisch gelesen, deshalb hier und nicht in `validatedBase`: sie hängen am
+   * Subklassen-Schritt und stehen auch ohne KI-Analyse.
+   */
+  let declaredSpells = $state<DeclaredSpells>(noDeclaredSpells());
+  /** Zauber aus Spezies- und Talent-Deklarationen — deren Stufentabelle hängt an der
+   *  CHARAKTERstufe, nicht an der Klassenstufe (Mehrklassen: verschiedene Zahlen). */
+  let charLevelSpells = $state<DeclaredSpells>(noDeclaredSpells());
   let riders = $state<FeatureRider[]>([]);
   let validatedBase = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let decisions = $state<LevelUpQuestion[]>([]);
@@ -84,8 +109,14 @@
   let featAnalysis = $state<FeatureAnalysis | null>(null);
   let featChoices = $state<LevelUpQuestion[]>([]);
   let featsToPick = $state(0);
-  // desc = Original (EN), descDe = Übersetzung — die Effekt-KI bekommt beides.
-  let chosenFeats = $state<{ key: string; name: string; gainedAt: number; desc: string; descDe?: string }[]>([]);
+  // Englisch geführt (`name`/`desc` = Deutungs-Eingang), deutsche Fassung für Anzeige und
+  // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
+  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant; grants?: FeatureGrant; grantsSpells?: SpellGrant }[]>([]);
+  /**
+   * Deklarierter Zauber-Zugang der gewählten Talente („Eingeweihter der Magie") — am Schritt
+   * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
+   */
+  let featAccess = $state<SpellAccessGrant[]>([]);
   let featRiders = $state<FeatureRider[]>([]);
   let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
   let flagged = $state<string[]>([]);
@@ -210,6 +241,12 @@
   let reachedStep = $state<StepId>('choose-class');
   const pushStep = (text: string) => { steps = [...steps, text]; lastActivityMs = Date.now(); };
 
+  /** Angekündigte Zauberliste, die der Parser nicht lesen konnte — sonst fiele sie stumm zur KI. */
+  const reportUnreadableGrants = () => {
+    for (const name of declaredSpells.unreadable)
+      pushStep(`„${name}" kündigt eine Zauberliste an, die nicht als Tabelle lesbar ist — Zauber nicht automatisch übernommen.`);
+  };
+
   const STALL_MS = 50_000;
   let nowMs = $state(0);
   let runStartMs = 0;
@@ -317,8 +354,105 @@
     });
   }
   let allAnswered = $derived(isAnswered(decisions, answers));
-  let allBaseChoices = $derived(isAnswered(baseChoices, answers));
-  let allFeatChoices = $derived(isAnswered(featChoices, answers));
+  // steht nach `baseChoiceQs` (weiter unten) → dort definiert
+
+  /**
+   * Die Wahlen der deklarierten Zauber-Zugänge. Reaktiv, weil die Zauber-Wahlen erst mit der
+   * beantworteten Liste entstehen — ohne Klassenfilter würde der Picker die ganze Bibliothek
+   * anbieten.
+   */
+  let featAccessChoices = $derived.by<LevelUpQuestion[]>(() =>
+    featAccess.flatMap((g) =>
+      buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
+    ),
+  );
+  /**
+   * Alle Merkmale dieses Aufstiegs mit Herkunft — die eine Quelle jeder Deklaration.
+   *
+   * `subFeatures` gehört dazu, weil die Subklassen-Merkmale bei einer JETZT getroffenen
+   * Subklassen-Wahl nur dort stehen (`delta.subclassFeaturesGained` ist dann leer) — sonst
+   * verlöre eine Subklasse mit `optionList` ihre Wahl. Beide Quellen überschneiden sich
+   * nicht: das Delta füllt die eine, der Nachlade-Pass die andere.
+   *
+   * Speziesmerkmale stehen NICHT hier: ein Aufstieg erlangt kein Volksmerkmal, seine Wahl ist
+   * im Wizard gefallen. Sie erneut zu stellen wäre die Dublette.
+   */
+  let declaredSources = $derived(
+    delta
+      ? [
+          ...declaredFeatures('class', delta.featuresGained),
+          ...declaredFeatures('subclass', [...delta.subclassFeaturesGained, ...subFeatures]),
+          ...declaredFeatures('feat', chosenFeats),
+        ]
+      : [],
+  );
+  /**
+   * Aufgeteilt auf die zwei Checkpoints — der einzige Grund, weshalb die Herkunft hier zählt:
+   * die Wahl eines Talents gehört zum Talent-Schritt, nicht zum Merkmals-Schritt.
+   */
+  let baseDeclared = $derived(declaredSources.filter((f) => f.source !== 'feat'));
+  let featDeclared = $derived(declaredSources.filter((f) => f.source === 'feat'));
+
+  /** Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden). */
+  let declaredOptionFeatures = $derived(baseDeclared.filter(isOptionListFeature));
+  let baseOptionChoices = $derived(buildFeatureChoices(optionListChoices(declaredOptionFeatures)));
+
+  /**
+   * Deklarierte Expertise-Wahlen. Die Optionen sind der Übungsstand DIESES Charakters, also
+   * kommen sie aus dem Bogen (deutsche Schlüssel → englische SRD-Namen) und nicht aus dem
+   * Vault. Schon verdoppelte Fertigkeiten fallen heraus: Expertise stapelt nicht, der
+   * Schurke wählt auf Stufe 6 zwei WEITERE.
+   */
+  let declaredExpertiseFeatures = $derived(baseDeclared.filter(isExpertiseFeature));
+  let sheetSkills = $derived(sheetSkillProficiencies(character.skills));
+  let baseExpertiseChoices = $derived(
+    buildFeatureChoices(
+      declaredExpertiseFeatures
+        .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
+        .filter((c): c is AnalysisChoice => c !== null),
+    ),
+  );
+  /**
+   * Zauber-Zugang der neu gewonnenen Merkmale — dieselbe Deklaration wie am Talent, nur an
+   * einem anderen Träger. `$derived` statt `$state` wie `featAccess`: `baseDeclared` fällt
+   * direkt aus dem Delta, die Talent-Seite muss erst das Nachladen abwarten.
+   */
+  let baseAccess = $derived(
+    baseDeclared.map((f) => spellAccessGrantOf(f)).filter((g): g is SpellAccessGrant => g !== null),
+  );
+  let baseAccessChoices = $derived.by<LevelUpQuestion[]>(() =>
+    baseAccess.flatMap((g) =>
+      buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
+    ),
+  );
+  /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
+  let baseChoiceQs = $derived([
+    ...baseChoices,
+    ...baseOptionChoices,
+    ...baseExpertiseChoices,
+    ...baseAccessChoices,
+  ]);
+  let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
+
+  /** Deklarierte Wahlen der gewählten Talente — dieselben Builder wie am Merkmals-Schritt. */
+  let featOptionFeatures = $derived(featDeclared.filter(isOptionListFeature));
+  let featExpertiseFeatures = $derived(featDeclared.filter(isExpertiseFeature));
+  let featDeclaredChoices = $derived(
+    buildFeatureChoices([
+      ...optionListChoices(featOptionFeatures),
+      ...featExpertiseFeatures
+        .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
+        .filter((c): c is AnalysisChoice => c !== null),
+    ]),
+  );
+  /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
+  let featChoiceQs = $derived([...featChoices, ...featAccessChoices, ...featDeclaredChoices]);
+  let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
+  /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Schlüssel der Option. */
+  const optionAnswer = (id: string): string => {
+    const q = [...baseOptionChoices, ...baseExpertiseChoices, ...featDeclaredChoices].find((x) => x.id === id);
+    return q ? answerValues(q, answers[id]) : '';
+  };
 
   // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
@@ -392,8 +526,12 @@
     return {
       delta: delta!,
       featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
-      baseChoices: baseChoices.length,
-      featChoices: featChoices.length,
+      // Auch die deklarierten Zweigwahlen zählen: sonst überspringt die Maschine den
+      // Checkpoint, weil das Merkmal gar nicht mehr bei der KI war.
+      baseChoices: baseChoiceQs.length,
+      // Auch die deklarierten Wahlen zählen: sonst überspringt die Maschine den Checkpoint,
+      // wenn das Talent gar nicht mehr bei der KI war — und niemand wählt die Zauber.
+      featChoices: featChoiceQs.length,
     };
   }
   const answered = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : (v ?? '').toString().trim() !== '');
@@ -415,12 +553,41 @@
     switch (step) {
       case 'base-delta':
         gainedFeatures = gainedFeaturesFor(delta!);
+        // Schon bekannte Subklasse: ihre Merkmale stehen bereits im Delta. Wird die Subklasse
+        // erst in diesem Aufstieg gewählt, ergänzt `subclass-delta` unten.
+        declaredSpells = resolveDeclaredSpells(
+          [...delta!.featuresGained, ...delta!.subclassFeaturesGained],
+          delta!.toLevel,
+          await ensureSpellLib(),
+          delta!.klasseName,
+        );
+        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
+        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
+        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
+        reportUnreadableGrants();
         break;
       case 'subclass-delta':
         pushStep(`Subklasse „${chosenSubclass?.name}" — Merkmale werden geladen…`);
         subFeatures = await computeSubclassFeatures(chosenSubclass!.key, delta!.fromLevel, delta!.toLevel);
         if (!alive()) return;
-        gainedFeatures = [...gainedFeaturesFor(delta!), ...subFeatures];
+        // `subFeatures` bleibt vollständig (Info-Einträge „Neues Merkmal: …"), der KI-Eingang
+        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch,
+        // die deklarierten Wahlen führt der Flow selbst — dieselben zwei Filter, die
+        // `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
+        gainedFeatures = [
+          ...gainedFeaturesFor(delta!),
+          ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(subFeatures)),
+        ];
+        declaredSpells = resolveDeclaredSpells(
+          [...delta!.featuresGained, ...delta!.subclassFeaturesGained, ...subFeatures],
+          delta!.toLevel,
+          await ensureSpellLib(),
+          delta!.klasseName,
+        );
+        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
+        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
+        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
+        reportUnreadableGrants();
         break;
       case 'feature-analysis':
         await runAnalyze('base', alive);
@@ -439,12 +606,25 @@
         break;
       case 'ongoing-effects':
         await detectHpPerLevel(alive);
+        if (!alive()) return;
+        await resolveCharLevelSpells();
         break;
       case 'class-features-merge':
         await mergeClassFeatures(alive);
         break;
-      // assemble-decisions / feat-links: rein deterministisch → keine Aktion,
-      // das Dokument leitet diese Änderungen selbst aus dem State ab.
+      case 'feat-links':
+        // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im
+        // Vault, also fragt der Flow sie ab statt die KI sie aus der Prosa zu deuten.
+        featAccess = chosenFeats
+          .map((f) => spellAccessGrantOf(f))
+          .filter((g): g is SpellAccessGrant => g !== null);
+        if (featAccess.length) {
+          initFeatureChoices(featAccessChoices);
+          pushStep(`${featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
+        }
+        break;
+      // assemble-decisions: rein deterministisch → keine Aktion, das Dokument leitet
+      // diese Änderungen selbst aus dem State ab.
     }
   }
 
@@ -464,7 +644,9 @@
   function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
     return kind === 'base'
       ? gainedFeatures
-      : chosenFeats.map((f) => featToGainedFeature(f.name, f.desc ?? '', delta!.toLevel, f.descDe));
+      : withoutDeclaredChoiceFeatures(
+          withoutSpellAccessFeatures(chosenFeats.map((f) => featToGainedFeature(f, delta!.toLevel)), featAccess),
+        );
   }
 
   /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
@@ -480,23 +662,34 @@
     }
     const choiceQs = buildFeatureChoices(analysis.choices);
     initFeatureChoices(choiceQs);
-    if (kind === 'base') { baseAnalysis = analysis; baseChoices = choiceQs; }
+    if (kind === 'base') {
+      baseAnalysis = analysis; baseChoices = choiceQs;
+      // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
+      const declaredQs = [...baseOptionChoices, ...baseExpertiseChoices, ...baseAccessChoices];
+      initFeatureChoices(declaredQs);
+      if (declaredQs.length) pushStep(`${declaredQs.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
+    }
     else { featAnalysis = analysis; featChoices = choiceQs; }
-    pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
+    if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
+    else pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
   }
 
   /**
-   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Label).
+   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Wert).
    * Frage, Optionen und Merkmal stehen bereits in der Analyse im Verlauf; die id (aus
    * `buildFeatureChoices`, identisch zur Choice-id der Analyse) verknüpft beides.
+   *
+   * Der WERT, nicht das Label: der Verlauf ist englisch, das deutsche Label kennt er nicht.
    */
   function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
+    // Nur die KI-erkannten Wahlen: das Merkmal einer deklarierten Wahl steht nicht im Eingang,
+    // das Modell könnte ihre id nur einem erfundenen Rider zuordnen.
     const qs = kind === 'base' ? baseChoices : featChoices;
     const out: ResolvedChoice[] = [];
     for (const q of qs) {
       const v = answers[q.id];
       if (!answered(v)) continue;
-      out.push({ id: q.id, choice: answerLabels(q, v) });
+      out.push({ id: q.id, choice: answerValues(q, v) });
     }
     return out;
   }
@@ -505,9 +698,15 @@
   async function runFinalize(kind: 'base' | 'feat', alive: () => boolean) {
     await ensureSpellLib();
     if (!alive()) return;
-    const features = featuresFor(kind);
     const analysis = kind === 'base' ? baseAnalysis : featAnalysis;
     const decisionsCtx = gatherDecisions(kind);
+    // Merkmale, deren Zweig nichts deklariert, kommen ERST hier dazu: die Analyse hätte
+    // dieselbe Wahl ein zweites Mal gestellt, Pass C deutet nur noch ihre Prosa.
+    const unredacted = unredactedChoiceFeatures(
+      kind === 'base' ? baseDeclared : featDeclared,
+      (f) => optionAnswer(optionChoiceId(f)),
+    ).map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: delta!.toLevel }));
+    const features = [...featuresFor(kind), ...unredacted];
     let parsed: FeatureRider[] = [];
     if (features.length && analysis) {
       pushStep(decisionsCtx.length
@@ -518,7 +717,30 @@
       if (!alive()) return;
       parsed = eff.riders;
     }
-    const validated = validateRiderSpells(parsed, spellLib, delta!.klasseName);
+    // Deklarierte Zweigwahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
+    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen.
+    // Deklarierte Wahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
+    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen. Beide
+    // Phasen aus DERSELBEN Liste: ein Talent mit `optionList` verlor sonst seine Wirkung.
+    const grantSources = kind === 'base' ? baseDeclared : featDeclared;
+    // Die Stufe einer Options-Zauberliste: am Klassenmerkmal die KLASSEN-, am Talent die
+    // CHARAKTERstufe (`declaredSpellGrants` liest dieselbe Unterscheidung).
+    const optionLevel = kind === 'base' ? delta!.toLevel : newCharLevel();
+    const declared = [
+      ...optionListRiders(grantSources, optionAnswer, optionLevel),
+      ...grantSources
+        .filter(isExpertiseFeature)
+        .map((f) => expertiseRider(f, optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
+        .filter((r): r is FeatureRider => r !== null),
+    ];
+    // Die Deklaration gewinnt über den KI-Rider desselben Merkmals (und springt ein, wo gar
+    // keiner kam). Nur auf `parsed` angewandt: die Rider der Zweigwahlen tragen die Grants der
+    // GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
+    const validated = validateRiderSpells(
+      [...withDeclaredGrants(parsed, grantSources), ...declared],
+      spellLib,
+      delta!.klasseName,
+    );
     if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
     if (kind === 'base') {
       validatedBase = validated;
@@ -540,7 +762,7 @@
       const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
         buildNarrativeInput({
           summary: buildSummary(), delta: delta!, gainedFeatures, chosenSubclass,
-          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name })),
+          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe })),
           riders: [...riders, ...featRiders], pastChoices,
         }), runOpts());
       if (!alive()) return;
@@ -553,9 +775,23 @@
   /** Die verdichteten Bogen-Notizen dieses Aufstiegs (Merkmale + Talente). */
   const newSheetNotes = () => [...sheetNoteLines(validatedBase.riders), ...sheetNoteLines(validatedFeats.riders)];
 
-  /** Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge. */
+  /**
+   * Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge.
+   *
+   * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
+   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" würde sie den Merge-Call
+   * auslösen — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
+   */
   const seedFeaturesText = () =>
-    [character.classFeatures, ...newSheetNotes()].filter((s) => s?.trim()).join('\n');
+    [
+      character.classFeatures,
+      ...newSheetNotes(),
+      ...optionListNoteLines(declaredOptionFeatures, optionAnswer),
+      ...spellAccessNoteLines(baseAccess, answers),
+      ...spellAccessNoteLines(featAccess, answers),
+    ]
+      .filter((s) => s?.trim())
+      .join('\n');
 
   /**
    * Verschmilzt den bestehenden (nutzergeschriebenen) Freitext mit den neuen Bogen-Notizen.
@@ -596,8 +832,9 @@
     if (!isNewClass && !hasClasses) return;
     // State zurücksetzen (Neustart aus choose-class)
     chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
+    declaredSpells = noDeclaredSpells(); charLevelSpells = noDeclaredSpells();
     baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
-    chosenFeats = []; featRiders = []; flagged = [];
+    chosenFeats = []; featAccess = []; featRiders = []; flagged = [];
     hpPerLevelSources = []; narrativeSummary = ''; featuresText = '';
     validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
     validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
@@ -649,11 +886,14 @@
   function featResults(): FeatEntry[] { return featQuery.trim() ? searchFeats(featLib, featQuery, 8) : []; }
   function toggleFeat(entry: FeatEntry) {
     const key = entry.sourceKey ?? '';
-    const name = featDisplayName(entry);
+    const nameDe = featDisplayName(entry);
+    const name = entry.name || nameDe;
     const idx = chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
     if (chosenFeats.length >= featsToPick) return;
-    chosenFeats = [...chosenFeats, { key, name, gainedAt: delta!.toLevel, desc: entry.desc ?? '', descDe: entry.descDe }];
+    // `grantsChoice`/`grants` reisen mit: nur damit lesen `feat-links` den Zauber-Zugang und
+    // die pro-Stufe-Effekte deterministisch aus der Bibliothek.
+    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
     featQuery = '';
   }
 
@@ -672,15 +912,46 @@
     return ((answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
   }
   function fallbackSummary(): string {
-    const names = [...gainedFeatures.map((f) => f.name), ...chosenFeats.map((f) => f.name)];
+    const names = [...gainedFeatures.map((f) => f.nameDe || f.name), ...chosenFeats.map((f) => f.nameDe)];
     const sub = chosenSubclass ? ` · Subklasse: ${chosenSubclass.name}` : '';
     return `${delta!.klasseName} Stufe ${delta!.fromLevel} → ${delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  // Fortlaufende, PRO-STUFE wirkende Effekte: die KI liest ALLE Merkmale des
-  // Charakters (Spezies + Klasse/Subklasse + Talente, inkl. diesen Level neu
-  // gewählter) und liefert die pro-Stufe-Änderungen (heute nur TP-Max, referenziert
-  // per Bibliotheks-Key). Fehler-tolerant → bei Ausfall verhält es sich wie bisher.
+  /**
+   * Zauber der Spezies- und Talent-Deklarationen auf der NEUEN Charakterstufe.
+   *
+   * Eigener Aufruf neben `declaredSpells`, weil `declaredSpellGrants` genau EINE Stufe filtert:
+   * für ein Klassenmerkmal ist das die Klassenstufe, für ein Trait oder Talent die
+   * Charakterstufe (die Elfenlinien-Tabelle 1/3/5 hängt an ihr). Kumulativ und idempotent —
+   * `applyChanges` dedupliziert, schon gewährte Zeilen kosten nichts.
+   */
+  /** Die Charakterstufe NACH diesem Aufstieg — nicht die Klassenstufe (`delta.toLevel`). */
+  const newCharLevel = (): number => totalLevel(character.classes) + (delta!.toLevel - delta!.fromLevel);
+
+  /** Die am Charakter GESPEICHERTE Antwort eines Merkmals, englisch kanonisch. */
+  const storedChoiceOf = (f: { key?: string }): string =>
+    pastChoices.find((p) => p.featureKey === f.key)?.choice ?? '';
+
+  async function resolveCharLevelSpells() {
+    const charLevel = newCharLevel();
+    const species = await declaredSpeciesFeatures(character.species);
+    const sources = [...species, ...featDeclared];
+    const lib = await ensureSpellLib();
+    // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung Stufe
+    // 3 und 5). Die Wahl wird nicht erneut gestellt — ihre Antwort steht am Charakter.
+    charLevelSpells = resolveSpellNames(
+      optionSpellNames(species, storedChoiceOf, charLevel),
+      lib,
+      delta!.klasseName,
+      resolveDeclaredSpells(sources, charLevel, lib, delta!.klasseName),
+    );
+    if (charLevelSpells.flagged.length) flagged = [...new Set([...flagged, ...charLevelSpells.flagged])];
+  }
+
+  // Fortlaufende, PRO-STUFE wirkende Effekte: deterministisch aus `grants.perLevel` des
+  // GESAMTEN Merkmalsbestands (Spezies + Klasse/Subklasse + Talente, inkl. der diesen Level
+  // neu gewonnenen). Vormals ein KI-Call über dieselbe Liste; die Dedup steckt jetzt im
+  // Service, damit Wizard und Aufstieg dieselbe Regel benutzen.
   async function detectHpPerLevel(alive: () => boolean) {
     hpPerLevelSources = [];
     try {
@@ -691,35 +962,15 @@
       // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
       // ihr Merkmal steckt schon in `groups`.
       const featLinks = await resolveFeatLinks((character.features ?? []).filter((f) => !f.choice?.trim()));
-      const raw = [
-        ...groups.flatMap((g) => g.features).map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
-        ...featLinks.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc })),
-        ...gainedFeatures.map((f) => ({ key: '', name: f.name, desc: f.desc })),
-        ...chosenFeats.map((f) => ({ key: f.key, name: f.name, desc: f.descDe || f.desc || '' })),
-      ];
-      // Nach Key (bzw. Name, wenn kein Key) deduplizieren.
-      const seen = new Set<string>();
-      const features: EffectFeature[] = [];
-      for (const f of raw) {
-        if (!f.name.trim() && !f.key) continue;
-        const id = f.key || f.name.toLowerCase();
-        if (seen.has(id)) continue;
-        seen.add(id);
-        features.push(f);
-      }
-      if (!alive() || !features.length) return;
-      pushStep('KI prüft fortlaufende Merkmals-Effekte (TP/Stufe)…');
-      const eff = parseLevelUpEffects(await runAiAction($llmConfig, buildLevelUpEffectsAction(),
-        buildLevelUpEffectsInput({ level: delta!.toLevel, features }), runOpts()));
+      const features: PerLevelFeature[] = [
+        ...groups.flatMap((g) => g.features),
+        ...featLinks,
+        ...gainedFeatures,
+        ...chosenFeats,
+      ].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
       if (!alive()) return;
-      const nameByKey = new Map(features.filter((f) => f.key).map((f) => [f.key, f.name] as const));
-      const hpChanges = (eff?.changes ?? []).filter((c) => c.target === 'hpMax' && (parseInt(c.valueChange, 10) || 0) !== 0);
-      hpPerLevelSources = hpChanges.map((c) => ({
-        feature: nameByKey.get(c.source) || c.source || 'Merkmal',
-        sourceKey: c.source,
-        amount: parseInt(c.valueChange, 10) || 0,
-      }));
-      const perLevelSum = hpPerLevelSources.reduce((s, x) => s + x.amount, 0);
+      hpPerLevelSources = computeHpPerLevel(features);
+      const perLevelSum = hpPerLevelSum(hpPerLevelSources);
       if (perLevelSum > 0)
         pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
     } catch {
@@ -761,12 +1012,13 @@
     if (!delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
     return buildDoc({
       delta, hitDice: character.hitDice ?? '',
-      chosenSubclass, subFeatures, validatedBase, validatedFeats,
+      chosenSubclass, subFeatures, declaredSpells, validatedBase, validatedFeats,
       answers, konMod: modOf(character.kon),
       pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
       learnAsPrepared: !learnInfo(delta, riders).spellbook,
-      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.name, gainedAt: f.gainedAt })),
-      baseChoiceQs: baseChoices, featChoiceQs: featChoices, gainedFeatures,
+      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
+      grantSources: baseDeclared, charLevelSpells,
+      baseChoiceQs, featChoiceQs, gainedFeatures,
       hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
     });
   });
@@ -961,13 +1213,17 @@
   <!-- ── Merkmals-Wahlen (direkt nach der Analyse, Call 1) ─── -->
   {#if phase === 'feature-choices'}
     <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
-    {@render choiceBlock(baseChoices)}
+    {@render choiceBlock(baseChoiceQs)}
   {/if}
 
   <!-- ── Talent-Wahlen (direkt nach der Talent-Analyse) ─── -->
   {#if phase === 'feat-choices'}
-    <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
-    {@render choiceBlock(featChoices)}
+    {#if featChoices.length}
+      <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
+    {:else}
+      <p class="hint">Wahl(en) der gewählten Talente — Liste, Attribut und Anzahl stehen in der Bibliothek, hier wird nur ausgewählt.</p>
+    {/if}
+    {@render choiceBlock(featChoiceQs)}
   {/if}
 
   <!-- ── Fragebogen (Entscheidungen) ─── -->
@@ -1031,14 +1287,14 @@
       <span class="field-label">{featsToPick} Talent(e) wählen</span>
       <div class="chips">
         {#each chosenFeats as f}
-          <span class="pick">{f.name}<button type="button" onclick={() => (chosenFeats = chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
+          <span class="pick">{f.nameDe}<button type="button" onclick={() => (chosenFeats = chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
         {/each}
       </div>
       <input class="input" placeholder="Talent suchen…" value={featQuery} oninput={(e) => (featQuery = (e.target as HTMLInputElement).value)} />
       {#if featQuery.trim()}
         <div class="results">
           {#each featResults() as entry}
-            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={chosenFeats.length >= featsToPick && !chosenFeats.some((f) => f.name === featDisplayName(entry))}>{featDisplayName(entry)}</button>
+            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={chosenFeats.length >= featsToPick && !chosenFeats.some((f) => f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}</button>
           {/each}
           {#if !featResults().length}<span class="field-hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
         </div>

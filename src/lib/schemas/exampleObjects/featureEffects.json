@@ -2,6 +2,7 @@
   "riders": [
     {
       "featureName": "string",
+      "featureKey": "string",
       "source": "class",
       "grantedSpells": [
         "string"

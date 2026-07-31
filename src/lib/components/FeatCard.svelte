@@ -11,6 +11,8 @@
   import { slugify } from '$lib/editor/saveAs';
   import { invalidateVault } from '$lib/stores/campaign';
   import { invalidateFeatsCache, FEAT_CATEGORY_DE } from '$lib/featsLibrary';
+  import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
+  import DeclarationBadge from './DeclarationBadge.svelte';
 
   function parseFeat(json: string): Feat | null {
     try {
@@ -40,6 +42,9 @@
 
   const prereq = (f: Feat): string => f.prerequisiteDe || f.prerequisite;
   const desc = (f: Feat): string => f.descDe || f.desc;
+
+  // Ein Talent IST das Merkmal — die Abdeckung ist hier ein Ja/Nein, kein Zähler.
+  let declBadge = $derived(coverageBadge(declarationCoverage(draft ? [draft] : [])));
 
   // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
@@ -84,7 +89,10 @@
           {#if draft!.nameDe && draft!.name && draft!.nameDe !== draft!.name}
             <div class="name-en">{draft!.name}</div>
           {/if}
-          <div class="kategorie">{FEAT_CATEGORY_DE[draft!.category]}</div>
+          <div class="badges">
+            <span class="kategorie">{FEAT_CATEGORY_DE[draft!.category]}</span>
+            <DeclarationBadge badge={declBadge} />
+          </div>
           {#if prereq(draft!)}
             <div class="meta">Voraussetzung: {prereq(draft!)}</div>
           {/if}
@@ -154,12 +162,16 @@
   }
   .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
   .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
+  .badges {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; margin-top: 0.35rem;
+  }
   .kategorie {
-    display: inline-block; margin-top: 0.35rem;
     font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--ink-soft); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--bg));
     border-radius: 3px; padding: 0.05rem 0.4rem;
   }
+
+  /* Deklarations-Abdeckung: Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--gold) 70%, var(--ink)); margin-top: 0.2rem; font-style: italic; }
 
   .body { padding: 0.7rem 1.2rem 1rem; font-size: 0.85rem; line-height: 1.55; }

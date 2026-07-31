@@ -17,11 +17,12 @@ export const asEffects = (r: StepResult): FeatureEffects | null => (r.kind === '
 
 // ── Bogen-Notizen (sheetNote) ────────────────────────────────────────────────────
 /**
- * Obergrenze, ab der eine Notiz als „zu lang für den Bogen" gilt. Bewusst über dem
- * Prompt-Richtwert (SHEET_NOTE_MAX_CHARS = 100): gemessen wird, ob das Modell die
- * Größenordnung trifft, nicht ob es auf das Zeichen genau kürzt.
+ * Obergrenze, ab der eine Notiz als „zu lang für den Bogen" gilt. Bewusst über der harten
+ * Grenze des Übersetzungs-Calls (SHEET_NOTE_MAX_CHARS = 160): gemessen wird, ob die
+ * Größenordnung stimmt, nicht ob auf das Zeichen genau gekürzt wird. Die Notiz entsteht
+ * englisch mit ~135 Zeichen Budget und wird beim Übersetzen länger.
  */
-export const SHEET_NOTE_LIMIT = 140;
+export const SHEET_NOTE_LIMIT = 180;
 
 /** Die nicht-leeren Bogen-Notizen des Ergebnisses. */
 export const sheetNotes = (r: StepResult): string[] =>

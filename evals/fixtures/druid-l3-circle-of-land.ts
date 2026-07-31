@@ -21,6 +21,7 @@
 import type { CharacterSummary } from '../../src/lib/services/aiActions/levelUpAction';
 import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
 import { computeSubclassFeatures } from '../../src/lib/services/levelUpMachine';
+import { withoutSpellGrantFeatures } from '../../src/lib/services/grantedSpells';
 
 /** Open5e-v2-Key der Subklasse (wie am Charakter / im Delta). */
 export const CIRCLE_OF_LAND_KEY = 'srd-2024_circle-of-the-land';
@@ -33,9 +34,14 @@ export const TO_LEVEL = 3;
  * Lädt die auf Stufe 3 neu gewonnenen Subklassen-Merkmale über die ECHTE Logik —
  * dieselbe Funktion, die der Assistent nach der Subklassen-Wahl aufruft. Liefert die
  * realen GainedFeature[] (EN-Name/-desc + key) aus dem Vault, ohne Handabschrift.
+ *
+ * `withoutSpellGrantFeatures` steht hier, weil der Assistent es an derselben Stelle tut
+ * (`subclass-delta`): die immer-vorbereiteten Zauberlisten sind Tabellen im Merkmalstext und
+ * werden deterministisch gelesen, gehen also NICHT mehr an das Modell. Ohne diesen Filter
+ * würde die Strecke einen Eingang messen, den die App nicht mehr schickt.
  */
-export function loadCircleOfLandFeatures(): Promise<GainedFeature[]> {
-  return computeSubclassFeatures(CIRCLE_OF_LAND_KEY, FROM_LEVEL, TO_LEVEL);
+export async function loadCircleOfLandFeatures(): Promise<GainedFeature[]> {
+  return withoutSpellGrantFeatures(await computeSubclassFeatures(CIRCLE_OF_LAND_KEY, FROM_LEVEL, TO_LEVEL));
 }
 
 /**

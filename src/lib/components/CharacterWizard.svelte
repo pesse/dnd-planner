@@ -38,6 +38,7 @@
     type SpellcastingOffer,
   } from '../services/spellcasting';
   import { validateRiderSpells } from '../services/levelUpMachine';
+  import { optionLabel, type AnalysisChoice } from '../services/aiActions/featureEffectsAction';
   import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';
@@ -65,7 +66,7 @@
     { id: 'abilities', label: 'Attribute' },
     { id: 'background', label: 'Hintergrund-Bonus' },
     { id: 'proficiencies', label: 'Übungen' },
-    { id: 'mastery', label: 'Waffenmeisterschaft' },
+    { id: 'mastery', label: 'Waffenbeherrschung' },
     { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'features', label: 'Merkmale' },
     { id: 'spells', label: 'Zauber' },
@@ -114,7 +115,6 @@
     { label: 'Klassenmerkmale-Text', job: w.classText },
     { label: 'Volksmerkmale-Text', job: w.speciesText },
     { label: 'Startausrüstung aufbereiten', job: w.equipment },
-    { label: 'Trefferpunkte-Effekte', job: w.hpEffects },
   ]);
   const runningJobs = $derived(aiJobs.filter((j) => j.job.status === 'running'));
   const aiBusy = $derived(runningJobs.length > 0);
@@ -176,6 +176,9 @@
       backgroundRef: { sourceKey: w.background.sourceKey },
     });
     skillPicks = grants.choices.map(() => []);
+    // Fest gewährte Übungen an den Wizard-Zustand: sie sind (mit `chosenSkills`) die
+    // Optionsliste der deklarierten Expertise-Wahl im Merkmals-Schritt.
+    w.grantedSkills = grants.skills.map((g) => g.value);
     syncChosenSkills();
   }
   function allowedSkillsFor(from: SkillName[]): readonly SkillName[] {
@@ -299,7 +302,7 @@
   // Gleiches Muster wie Waffenmeisterschaft/Kampfstil: die Kontingente kommen aus der
   // Klassentabelle, die Optionen aus `vault/spells` — kein KI-Job. Der Schritt erscheint auch
   // für Nicht-Zauberwirker, wenn ein Merkmal eine Zauber-Wahl erzwingt (Kämpfer mit dem
-  // Hintergrund Akolyth → Talent „Magiekundiger").
+  // Hintergrund Akolyth → Talent „Eingeweihter der Magie").
   let spellOffer = $state<SpellcastingOffer | null>(null);
   $effect(() => {
     const key = w.klass.sourceKey;
@@ -384,9 +387,28 @@
   function setChoiceAnswer(id: string, values: string[]) {
     choiceAnswers = { ...choiceAnswers, [id]: values };
   }
-  /** Options-Liste einer Merkmalswahl inkl. Konsequenz-Tooltip für TooltipSelect. */
-  function optionsFor(choice: { options: string[]; optionHelp: Record<string, string> }): TooltipOption[] {
-    return choice.options.map((o) => ({ value: o, label: o, tooltip: choice.optionHelp[o] }));
+  /**
+   * Options-Liste einer Merkmalswahl inkl. Konsequenz-Tooltip für TooltipSelect.
+   * WERT englisch, LABEL deutsch: der Wert geht an die KI zurück und an den Charakter, das
+   * Label sieht der Spieler. Ohne Übersetzung steht Englisch da — bedienbar bleibt es.
+   */
+  /**
+   * Die deklarierten Wahlen sind Pflicht und deterministisch beantwortbar — anders als die
+   * KI-Wahlen, die auch fehlen können. Ohne sie bleibt die Zauberliste offen und der
+   * Zauber-Schritt könnte gar keine Auswahl anbieten.
+   */
+  const declaredChoicesDone = $derived(
+    w.declaredChoices
+      .filter((c) => c.type !== 'spell-pick')
+      .every((c) => (choiceAnswers[c.id] ?? []).some((v) => v.trim())),
+  );
+
+  function optionsFor(choice: AnalysisChoice): TooltipOption[] {
+    return choice.options.map((o, i) => ({
+      value: o,
+      label: optionLabel(choice, i),
+      tooltip: choice.optionHelpDe[o] || choice.optionHelp[o],
+    }));
   }
   /**
    * Baut `resolvedChoices` komplett neu (idempotent) — läuft daher gefahrlos zweimal: nach
@@ -395,7 +417,8 @@
    * (`determinesFurtherEffects` ist bei `spell-pick` immer false), die KI braucht sie nicht.
    */
   function commitFeatureChoices() {
-    w.resolvedChoices = w.featureChoices
+    const declared = new Set(w.declaredChoices.map((c) => c.id));
+    const answered = w.featureChoices
       .map((ch) => ({
         id: ch.id,
         choice:
@@ -404,6 +427,10 @@
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());
+    // Zwei Kanäle: nur die Wahlen der KI-Analyse gehen als `<resolved_choices>` zurück ans
+    // Modell — eine deklarierte id kennt es nicht (das Merkmal steht nicht in seinem Eingang).
+    w.resolvedChoices = answered.filter((rc) => !declared.has(rc.id));
+    w.declaredAnswers = answered.filter((rc) => declared.has(rc.id));
   }
 
   // ── Navigation ──
@@ -413,6 +440,7 @@
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background': return asiValid;
       case 'proficiencies': return openChoicesDone;
+      case 'features': return declaredChoicesDone;
       case 'spells': return spellPicksDone;
       case 'equipment': return toolChoicesDone;
       default: return true;
@@ -463,7 +491,7 @@
   $effect(() => {
     if (currentStep !== 'review') { preview = null; return; }
     // Job-Status mitlesen, damit die Vorschau nachzieht, sobald KI-Schritte fertig werden.
-    void [w.effects.status, w.classText.status, w.speciesText.status, w.equipment.status, w.hpEffects.status];
+    void [w.effects.status, w.classText.status, w.speciesText.status, w.equipment.status];
     let cancelled = false;
     buildWizardCharacter(w).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
     return () => { cancelled = true; };
@@ -613,7 +641,7 @@
 
       {:else if currentStep === 'mastery'}
         {#if !mastery}
-          <p class="hint">Lade Waffenmeisterschaft …</p>
+          <p class="hint">Lade Waffenbeherrschung …</p>
         {:else}
           <p class="hint">Wähle die Waffenarten, deren Meisterschaftseigenschaft du nutzen darfst.</p>
           <WeaponMasteryPicker offer={mastery} bind:masteries={w.masteries} />
@@ -636,23 +664,29 @@
         {/if}
 
       {:else if currentStep === 'features'}
+        <!-- Der KI-Status ist ein Banner, kein Entweder-oder: die deklarierten Wahlen
+             (Zauber-Zugang eines Talents) stehen deterministisch und sofort da — auch ohne QM
+             und während die Analyse noch läuft. -->
         {#if w.analysis.status === 'running'}
           <p class="hint">Die KI analysiert die Merkmale … ({statusText(w.analysis)})</p>
         {:else if w.analysis.status === 'skipped'}
           <p class="hint">Merkmals-Analyse übersprungen (kein QualityMinds-Modell aktiv). Merkmalsabhängige Wahlen kannst du später im Editor treffen.</p>
         {:else if w.analysis.status === 'error'}
           <p class="warn">{statusText(w.analysis)}</p>
-        {:else if w.plainChoices.length === 0}
-          <p class="hint">
-            Keine erzwungenen Merkmalswahlen auf Stufe 1.
-            {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
-          </p>
+        {/if}
+        {#if w.plainChoices.length === 0}
+          {#if w.analysis.status === 'done' || w.analysis.status === 'skipped'}
+            <p class="hint">
+              Keine erzwungenen Merkmalswahlen auf Stufe 1.
+              {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
+            </p>
+          {/if}
         {:else}
-          {#each w.plainChoices as choice}
+          {#each w.plainChoices as choice (choice.id)}
             <div class="field">
               <span>
-                {choice.feature}: {choice.question}
-                {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
+                {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
+                {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
               </span>
               {#if choice.type === 'text'}
                 <input type="text" value={answerFor(choice.id)[0] ?? ''} oninput={(e) => setSingleAnswer(choice.id, e.currentTarget.value)} />
@@ -746,8 +780,8 @@
           {@const bind = featurePickBinding(choice.id)}
           <div class="field">
             <span>
-              {choice.feature}: {choice.question}
-              {#if choice.help}<span class="info" title={choice.help}>ⓘ</span>{/if}
+              {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
+              {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
             </span>
             <SpellPickField
               title={choice.feature}

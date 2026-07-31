@@ -7,9 +7,14 @@
  * der Level-Up-Merge (Schritt D). Welches Feld geschrieben wird, sagt `<target_field>`
  * im Input, nicht der Prompt.
  *
- * `SHEET_NOTE_DOCTRINE` — welche Zeile ihren Platz im PDF-Kasten verdient — ist die
- * gemeinsame Quelle mit `featureEffectsAction` (dessen `sheetNote`, Regel 10). Sie steht
+ * Die Doktrin — welche Zeile ihren Platz im PDF-Kasten verdient — ist die gemeinsame Quelle
+ * mit `featureEffectsAction` (dessen `sheetNote`) und dem Übersetzungs-Call. Sie steht
  * absichtlich nur HIER; sonst optimiert man zwei Fassungen derselben Regel.
+ *
+ * Bewusst der EINE Call, der DEUTSCH schreibt, obwohl die Merkmals-Strecke sonst durchgehend
+ * englisch reasont: sein Haupt-Input ist Prosa des SPIELERS (`<current_text>`), und Regel 1/4
+ * verpflichten ihn auf deren Wortlaut und Layout. Ein Umweg über Englisch wäre ein
+ * Round-Trip über fremd-autorierten Text. Nur der Merkmals-Rohstoff kommt englisch herein.
  *
  * Tool-frei → `runAiAction` nimmt den Single-Call-Pfad; auf QM/vllm heißt guided decoding
  * zugleich `enable_thinking:false` (llmService), also kein Reasoning-Vorlauf.
@@ -22,19 +27,41 @@ import {
 } from '../../schemas/levelUp';
 
 /**
- * Die gemeinsame Doktrin: was auf den Bogen gehört und in welcher TIEFE. Genutzt von
- * diesem Prompt und der `sheetNote` der Merkmals-Deutung (dort auf eine Zeile gestaucht).
+ * Die gemeinsame Doktrin, in drei Bausteinen — sie hat drei verschiedene Leser:
  *
- * Das Beispiel am Ende ist der Maßstab, nicht die Prosa darüber — es hält die
- * Zusammenfassung davon ab, die Mechanik wegzukürzen (Feedback 2026-07-28). Es stammt
- * wörtlich aus der Bibliothek (vault/classes/fighter.json, vault/species/dwarf.json):
- * ein selbst formuliertes Beispiel schleppt sonst 2014er-Begriffe in den Prompt.
+ *   `SHEET_NOTE_CONTENT`     WAS eine Zeile verdient → dieser Prompt + Merkmals-Deutung
+ *   `SHEET_NOTE_EXAMPLE_EN`  derselbe Maßstab englisch → nur die Merkmals-Deutung
+ *   `SHEET_NOTE_GERMAN_FORM` WIE die deutsche Zeile aussieht → dieser Prompt + Übersetzer
+ *
+ * Getrennt statt doppelt: sonst optimiert man zwei Fassungen derselben Regel. Jeder Leser
+ * bekommt nur seine Bausteine — dieser Prompt schreibt direkt Deutsch und braucht daher
+ * Inhalt + deutsche Form, aber nicht das englische Beispiel (das brächte ihn auf Fuß statt
+ * Meter).
+ *
+ * Das Beispiel ist der Maßstab, nicht die Prosa darüber — es hält die Zusammenfassung davon
+ * ab, die Mechanik wegzukürzen (Feedback 2026-07-28). Beide Fassungen stammen wörtlich aus
+ * der Bibliothek (vault/classes/fighter.json, vault/species/dwarf.json): ein selbst
+ * formuliertes Beispiel schleppt sonst 2014er-Begriffe in den Prompt.
  */
-export const SHEET_NOTE_DOCTRINE = `An entry names the feature and says what it does at the table, in GERMAN: \`Merkmalsname: Wirkung\`.
+export const SHEET_NOTE_CONTENT = `An entry names the feature and says what it does at the table: \`Feature name: effect\`.
 WRITE an entry for whatever the player has to remember while playing: an ability they actively use (with its action type and how often it recharges), numbers that live nowhere else (sneak attack dice, rage, ki points, wild shape limits), the ongoing effect of an option they picked, a companion and its stats.
 LEAVE OUT pure flavour with no effect at the table, and what the sheet already records elsewhere (granted spells, proficiencies and expertise, ability increases, spell slots, proficiency bonus, hit dice).
-DEPTH: complete enough to play from, short enough to scan. One line where one is enough, two or three where dice, action type or recharge need saying. Numbers and keywords over full sentences, no rules quotes, no filler like "Du kannst" — but never cut the mechanic itself to save space.
-WORDING: take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated.
+DEPTH: complete enough to play from, short enough to scan. One line where one is enough, two or three where dice, action type or recharge need saying. Numbers and keywords over full sentences, no rules quotes, no filler like "You can" — but never cut the mechanic itself to save space.`;
+
+/**
+ * Derselbe Maßstab in ENGLISCH, für den Pass, der englisch schreibt (Merkmals-Deutung).
+ * Wörtlich aus der Bibliothek (vault/classes/fighter.json, vault/species/dwarf.json), damit
+ * kein selbst formulierter Wortlaut hineinkommt. Ohne dieses Beispiel fiel eine Sinnesnotiz
+ * („Dunkelsicht 18 m") weg — gemessen 2026-07-29, in allen drei Läufen.
+ */
+export const SHEET_NOTE_EXAMPLE_EN = `This is the depth that works — a sense with a range DOES earn its line, size and speed do NOT:
+Second Wind: bonus action, regain 1d10+fighter level HP. 2 uses; 1 back on a Short Rest, all on a Long Rest.
+Action Surge: one extra action (not Magic) once per Short/Long Rest.
+Darkvision 120 ft
+Dwarven Resilience: Resistance to Poison damage, Advantage on saves against the Poisoned condition.`;
+
+/** Die deutsche Form-Hälfte: Wortlaut, Abkürzungen, Layout. */
+export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
 This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
 [Klassenmerkmale]
 Zweiter Wind:
@@ -56,7 +83,7 @@ You rewrite ONE German free-text field of a character sheet, so the player can p
 
 ## Input (only <current_text> is always there)
 - <current_text>: the field today, written BY THE PLAYER.
-- <all_features>: the character's features with their German rules text — "source"/"group" say where each comes from, "choice" an option already picked. Raw material to boil down.
+- <all_features>: the character's features. "nameDe" is the name to WRITE — the current German 5.2.1 wording, never translate or replace it. "name" and "desc" are the source, usually English. "source"/"group" say where each comes from, "choice" an option already picked. Raw material to boil down.
 - <new_notes>: already-condensed entries that must end up in the field; keep their wording.
 - <other_fields>: what OTHER fields of the same sheet already say.
 - <chosen_subclass>.
@@ -70,7 +97,8 @@ You rewrite ONE German free-text field of a character sheet, so the player can p
 6. GERMAN only, in the single field "text". No commentary, no markdown fences.
 
 ## What belongs on the sheet
-${SHEET_NOTE_DOCTRINE}`;
+${SHEET_NOTE_CONTENT}
+${SHEET_NOTE_GERMAN_FORM}`;
 
 /** Ein Zielfeld des Bogens: deutsches Label, Zuständigkeit, feldeigene Dubletten. */
 export interface SheetFieldTarget {
@@ -115,9 +143,15 @@ export const SHEET_FIELDS = {
   },
 } as const satisfies Record<string, SheetFieldTarget>;
 
-/** Ein Merkmal als Rohstoff für die Verdichtung (Name + deutscher Regeltext). */
+/**
+ * Ein Merkmal als Rohstoff für die Verdichtung. Regeltext ENGLISCH (eine Aufbereitung für
+ * alle Merkmals-Jobs), Anzeigename deutsch — dieser Call schreibt Deutsch und braucht den
+ * 5.2.1-Wortlaut, den er nicht erfinden soll.
+ */
 export interface SummaryFeature {
   name: string;
+  /** Deutscher Anzeigename aus der Bibliothek; Fallback = `name`. */
+  nameDe?: string;
   desc: string;
   /** Entscheidet über die Feld-Zuständigkeit (siehe SHEET_FIELDS). */
   source: 'class' | 'species' | 'background' | 'feat';

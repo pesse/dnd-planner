@@ -16,12 +16,20 @@
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from './levelUp';
 import { isFightingStyleFeature } from './fightingStyle';
 import { getProgressionByKey } from './classProgression';
-import { skillLabelDe } from './proficiencyGrants';
+import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
+import { declaredGrantChanges, withoutDeclaredChoiceFeatures, type DeclaredGrantSource } from './featureDeclaration';
 import type { ClassFeature } from '../schemas/classProgression';
-import type { GainedFeature, AnalysisChoice } from './aiActions/featureEffectsAction';
-import type { LevelUpQuestion, FeatureRider, Change, LevelUpDoc } from '../schemas/levelUp';
+import type { FeatureChoiceGrant, FeatureGrant, SpellGrant } from '../schemas/shared';
+import { optionLabel, type GainedFeature, type AnalysisChoice } from './aiActions/featureEffectsAction';
+import type { LevelUpQuestion, FeatureRider, RiderProficiencies, Change, LevelUpDoc } from '../schemas/levelUp';
 import { searchSpells, type SpellInfo } from '../spellLibrary';
 import { decodePick, isSpellbookClass } from './spellcasting';
+import {
+  declaredSpellGrants,
+  unreadableSpellGrant,
+  withoutSpellGrantFeatures,
+  type SpellGrantSource,
+} from './grantedSpells';
 
 /**
  * Ein Schritt der Aufstiegs-Zustandsmaschine. `checkpoint` = die Maschine hält an
@@ -155,9 +163,18 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
   // vergebenen Merkmal (Expertise auf 1 und 6) sonst immer die erste Vergabe, womit die
   // zweite Entscheidung im Ledger die erste überschreiben würde.
   const inSpan = f.gainedAt.filter((l) => l > fromLevel && l <= toLevel);
-  // EN-Text UND Übersetzung mitgeben: die KI liest die Mechanik aus dem Original und
-  // formuliert Fragen/Optionen in den deutschen Begriffen der Übersetzung.
-  return { name: f.name, desc: f.desc ?? '', descDe: f.descDe, source, key: f.key ?? '', gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel };
+  // Englisch geführt (so deutet die KI), deutsche Fassung als Quelle der Übersetzungs-Calls.
+  return {
+    name: f.name || f.nameDe || '',
+    nameDe: f.nameDe || f.name,
+    desc: f.desc || f.descDe || '',
+    descDe: f.descDe,
+    source,
+    key: f.key ?? '',
+    gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
+    grants: f.grants,
+    grantsChoice: f.grantsChoice,
+  };
 }
 
 /** Merkmale, die eine Progression in der Spanne (from, to] erlangt. */
@@ -173,27 +190,66 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
  * Klassenmerkmale, die nur auf eine vom Flow selbst getroffene Entscheidung zeigen
  * (Subklassen-Wahl, Attributsverbesserung), fliegen hier raus: die Wahl ist beim
  * Merkmals-Schritt längst gefallen, ihre Prosa würde die Analyse aber dazu verleiten,
- * sie ein zweites Mal zu stellen. Subklassen-Merkmale bleiben unangetastet.
+ * sie ein zweites Mal zu stellen.
+ *
+ * Ebenso raus — und hier auch bei SUBKLASSEN-Merkmalen — fliegen die immer-vorbereiteten
+ * Zauberlisten (Kreissprüche, Domänenzauber …): sie stehen als Tabelle im Merkmalstext und
+ * werden deterministisch gelesen (`declaredSpellGrants`). Sie im Eingang zu lassen hieße,
+ * das Modell eine Liste abschreiben zu lassen, die schon als Daten vorliegt.
+ *
+ * Subklassen-Merkmale laufen bewusst NICHT durch `isFlowOwnedChoiceFeature`, sondern nur durch
+ * `withoutDeclaredChoiceFeatures`: dessen Namens-Fallbacks („Spellcasting") treffen bei einer
+ * Subklasse ein Merkmal mit echter Mechanik — der Arkane Trickser bekäme sein Zauberwirken aus
+ * keiner Quelle mehr, weil die Stufentabelle der Grundklasse keine Zauberspalte hat.
  */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
-    ...delta.featuresGained
-      .filter((f) => !isFlowOwnedChoiceFeature(f))
+    ...withoutSpellGrantFeatures(delta.featuresGained.filter((f) => !isFlowOwnedChoiceFeature(f)))
       .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
-    ...delta.subclassFeaturesGained.map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
+    ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(delta.subclassFeaturesGained))
+      .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }
 
-/** Zweiter deterministischer Pass: Subklassen-Merkmale NACH der Wahl nachladen. */
+/**
+ * Zweiter deterministischer Pass: Subklassen-Merkmale NACH der Wahl nachladen.
+ *
+ * Liefert sie VOLLSTÄNDIG — der Aufrufer braucht sie so für die Info-Einträge („Neues
+ * Merkmal: …") und die deklarierten Wahlen; für den KI-Eingang siebt er mit denselben zwei
+ * Filtern wie `gainedFeaturesFor`.
+ */
 export async function computeSubclassFeatures(subclassKey: string, from: number, to: number): Promise<GainedFeature[]> {
   const prog = await getProgressionByKey(subclassKey);
   if (!prog) return [];
   return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', from, to));
 }
 
-/** Ein Talent (Name + EN-/DE-Beschreibung) als GainedFeature für die Effekt-Deutung. */
-export function featToGainedFeature(name: string, desc: string, gainedAt: number, descDe?: string): GainedFeature {
-  return { name, desc, descDe, source: 'feat', gainedAt };
+/** Ein Talent als GainedFeature für die Effekt-Deutung (englisch geführt, DE als Beilage). */
+export function featToGainedFeature(
+  f: {
+    name: string;
+    nameDe?: string;
+    desc: string;
+    descDe?: string;
+    key?: string;
+    grants?: FeatureGrant;
+    grantsChoice?: FeatureChoiceGrant;
+    grantsSpells?: SpellGrant;
+  },
+  gainedAt: number,
+): GainedFeature {
+  return {
+    name: f.name || f.nameDe || '',
+    nameDe: f.nameDe || f.name,
+    desc: f.desc || f.descDe || '',
+    descDe: f.descDe,
+    source: 'feat',
+    gainedAt,
+    grants: f.grants,
+    grantsChoice: f.grantsChoice,
+    grantsSpells: f.grantsSpells,
+    ...(f.key ? { key: f.key } : {}),
+  };
 }
 
 // ── Zaubernamen-Validierung ────────────────────────────────────────────────────
@@ -219,6 +275,81 @@ export interface ValidatedRiders {
   flagged: string[]; // KI-Zaubernamen ohne Bibliothekstreffer
   grantedCantrips: string[]; // aufgelöste Grad-0-Zauber (kanonisch)
   grantedPrepared: { level: number; name: string }[]; // aufgelöste Grad-1+-Zauber (kanonisch)
+}
+
+/** Die deterministisch gelesenen Zauberlisten, aufgelöst auf Bibliothekseinträge. */
+export interface DeclaredSpells {
+  cantrips: string[];
+  prepared: { level: number; name: string }[];
+  /** Namen ohne Bibliothekstreffer — dieselbe Anzeige wie bei KI-Namen (Inline-Anlage). */
+  flagged: string[];
+  /** Merkmale mit unlesbar angekündigter Liste — bleiben beim Modell, werden aber gemeldet. */
+  unreadable: string[];
+}
+
+export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared: [], flagged: [], unreadable: [] });
+
+/**
+ * Immer-vorbereitete Zauber der Merkmale auf `classLevel`, kanonisiert.
+ *
+ * Die Namen stammen aus dem englischen Merkmalstext, der Charakterbogen führt die deutschen —
+ * `resolveSpell` ist dieselbe EN↔DE-Auflösung, die auch KI-Namen nimmt. Ein Name ohne Treffer
+ * wird gemeldet statt still verworfen: fehlt der Zauber in der Bibliothek, soll der Nutzer ihn
+ * anlegen können.
+ */
+export function resolveDeclaredSpells(
+  features: (SpellGrantSource & { name?: string; nameDe?: string })[],
+  classLevel: number,
+  library: SpellInfo[],
+  klasseName = '',
+): DeclaredSpells {
+  const out = noDeclaredSpells();
+  for (const f of features) {
+    if (!unreadableSpellGrant(f)) continue;
+    const label = f.nameDe?.trim() || f.name?.trim() || '';
+    if (label && !out.unreadable.includes(label)) out.unreadable.push(label);
+  }
+  return resolveSpellNames(declaredSpellGrants(features, classLevel), library, klasseName, out);
+}
+
+/**
+ * Englische Zaubernamen → kanonisiert und nach Zaubertrick/vorbereitet getrennt.
+ *
+ * Eigene Funktion, weil es zwei Quellen für dieselbe Senke gibt: die Stufentabelle im `desc`
+ * (`declaredSpellGrants`) und die benannten Zauber einer gewählten Option
+ * (`optionSpellNames`). `into` sammelt beide in EIN Ergebnis, ohne Merge-Hilfsfunktion.
+ */
+export function resolveSpellNames(
+  names: readonly string[],
+  library: SpellInfo[],
+  klasseName = '',
+  into: DeclaredSpells = noDeclaredSpells(),
+): DeclaredSpells {
+  const out = into;
+  for (const raw of names) {
+    const info = resolveSpell(library, raw, klasseName);
+    if (!info) { if (!out.flagged.includes(raw)) out.flagged.push(raw); continue; }
+    if (info.level === 0) { if (!out.cantrips.includes(info.name)) out.cantrips.push(info.name); }
+    else if (!out.prepared.some((p) => p.name === info.name)) out.prepared.push({ level: info.level, name: info.name });
+  }
+  return out;
+}
+
+/**
+ * Die deklarierten Zauber als Änderungen — am DETERMINISTISCHEN Subklassen-Schritt, nicht am
+ * KI-Schritt. Das ist der zweite Gewinn neben der Zuverlässigkeit: ohne QM-Modell (Analyse
+ * übersprungen) bekam der Charakter seine Domänen-/Kreiszauber vorher überhaupt nicht.
+ */
+export function declaredSpellChanges(g: DeclaredSpells, step: StepId = 'subclass-delta'): Change[] {
+  return [
+    ...g.cantrips.map((name): Change => ({
+      target: 'cantrip', name, step, source: 'class-feature', label: `Zaubertrick: ${name}`,
+    })),
+    ...g.prepared.map((p): Change => ({
+      target: 'preparedSpell', level: p.level, name: p.name, prepared: true, step,
+      source: 'class-feature', label: `Vorbereitet (Grad ${p.level}): ${p.name}`,
+    })),
+  ];
 }
 
 /** Prüft alle grantedSpells der Rider gegen die Bibliothek; kanonisiert + trennt nach Grad. */
@@ -358,9 +489,12 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
         : c.type === 'text' ? 'text'
         : c.type === 'spell-pick' ? 'spell-picker'
         : 'choice',
-      prompt: c.question,
-      help: c.help,
-      options: c.options.map((o) => opt(o, o)),
+      // Anzeige deutsch, Wert englisch: der Wert geht an die KI zurück und an den Charakter,
+      // das Label sieht der Spieler. Fehlt die Übersetzung, steht Englisch da — der
+      // Checkpoint bleibt bedienbar.
+      prompt: c.questionDe.trim() || c.question,
+      help: c.helpDe.trim() || c.help,
+      options: c.options.map((o, i) => opt(o, optionLabel(c, i))),
       spellLevels: c.spellLevels,
       spellClass: c.spellClass,
       max: c.type === 'multiselect' || c.type === 'spell-pick' ? Math.max(1, c.max) : undefined,
@@ -496,15 +630,60 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
   const abil = abilityFromRiders(v.riders);
   for (const k of ABILITY_KEYS) if (abil[k])
     out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'feature', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
-  // `skill` bleibt der ENGLISCHE SRD-Name (übersetzt wird erst beim Anwenden, via
-  // skillSheetKey); nur das Anzeige-Label ist deutsch.
-  const profs = [...new Set(v.riders.flatMap((r) => r.proficiencies.skills))];
-  for (const skill of profs)
-    out.push({ target: 'proficiency', skill, step, source: 'class-feature', label: `Übung: ${skillLabelDe(skill)}` });
-  // Gewählte Expertise (bereits entschieden, kommt aus rider.expertiseSkills).
-  const experts = [...new Set(v.riders.flatMap((r) => r.expertiseSkills))];
-  for (const skill of experts)
-    out.push({ target: 'expertise', skill, step, source: 'class-feature', label: `Expertise: ${skillLabelDe(skill)}` });
+  out.push(...riderGrantChanges(v.riders, { step, source: 'class-feature' }));
+  return out;
+}
+
+/**
+ * Die Übungen und die Expertise eines Riders als `Change[]` — geteilt mit der
+ * Wizard-Assembly, damit beide Flows dieselbe Senke benutzen (`applyChanges`).
+ *
+ * Die Tabelle ist über `keyof RiderProficiencies` TOTAL: ein neues Feld an der Rider-Form
+ * bricht hier den Build. Vorher zählte diese Funktion drei der sechs Arten von Hand auf,
+ * und `tools`/`languages`/`savingThrows` fielen im Aufstieg still weg, obwohl das Modell
+ * sie liefert und der Wizard sie anwendet.
+ *
+ * Werte bleiben ENGLISCH (geschlossenes Vokabular); übersetzt wird beim Anwenden, deutsch
+ * ist nur das Anzeige-`label`.
+ */
+export function riderGrantChanges(
+  riders: readonly FeatureRider[],
+  meta: { step: string; source: string },
+): Change[] {
+  const out: Change[] = [];
+  const values = <T>(pick: (r: FeatureRider) => readonly T[]): T[] => [...new Set(riders.flatMap(pick))];
+  const routes: { [K in keyof RiderProficiencies]: () => void } = {
+    skills: () => {
+      for (const skill of values((r) => r.proficiencies.skills))
+        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+    },
+    // Urtümlicher Orden → Wächter, Göttlicher Orden → Beschützer.
+    weapons: () => {
+      for (const value of values((r) => r.proficiencies.weapons))
+        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+    },
+    armor: () => {
+      for (const value of values((r) => r.proficiencies.armor))
+        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+    },
+    savingThrows: () => {
+      for (const value of values((r) => r.proficiencies.savingThrows))
+        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+    },
+    // Freitext, kein Vokabular — und in 2024 sind Sprachen ohnehin keine Übung mehr.
+    tools: () => {
+      for (const value of values((r) => r.proficiencies.tools))
+        if (value.trim()) out.push({ target: 'toolProficiency', value, ...meta, label: `Werkzeug: ${value}` });
+    },
+    languages: () => {
+      for (const value of values((r) => r.proficiencies.languages))
+        if (value.trim()) out.push({ target: 'language', value, ...meta, label: `Sprache: ${value}` });
+    },
+  };
+  for (const run of Object.values(routes)) run();
+  // Bereits entschiedene Expertise (rider.expertiseSkills, nicht Teil der Übungsform).
+  for (const skill of values((r) => r.expertiseSkills))
+    out.push({ target: 'expertise', skill, ...meta, label: `Expertise: ${skillLabelDe(skill)}` });
   return out;
 }
 
@@ -550,7 +729,7 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
 
 /**
  * Zauber, die eine MERKMALS-Wahl den Spieler wählen ließ (Fragen vom Typ `spell-picker` aus
- * `buildFeatureChoices`, z.B. „Magiekundiger"). Ohne diesen Builder würde die Wahl nur als
+ * `buildFeatureChoices`, z.B. „Eingeweihter der Magie"). Ohne diesen Builder würde die Wahl nur als
  * Notiz protokolliert, aber nie am Charakter landen. Stets vorbereitet: ein Merkmal, das
  * Zauber wählen lässt, gewährt sie auch (sie zählen nicht gegen das Klassenkontingent).
  */
@@ -592,6 +771,18 @@ export function answerLabels(q: LevelUpQuestion, value: string | string[] | unde
   return vals.map((v) => q.options.find((o) => o.value === v)?.label ?? v).filter((s) => s.trim()).join(', ');
 }
 
+/**
+ * Dieselbe Antwort als KANONISCHE (englische) Werte — das ist, was an die KI zurückgeht und
+ * am Charakter gespeichert wird. Bei Zauber-Wahlen und Freitext identisch zu `answerLabels`:
+ * dort gibt es kein Options-Paar, der Zaubername IST der Wert.
+ */
+export function answerValues(q: LevelUpQuestion, value: string | string[] | undefined): string {
+  if (value === undefined) return '';
+  const vals = Array.isArray(value) ? value : [value];
+  if (q.type === 'spell-picker') return vals.map((v) => decodePick(v).name).filter((s) => s.trim()).join(', ');
+  return vals.map((v) => q.options.find((o) => o.value === v)?.value ?? v).filter((s) => s.trim()).join(', ');
+}
+
 /** Ob diese Frage eine Entscheidung ins Merkmals-Ledger schreibt. */
 function recordsChoice(q: LevelUpQuestion, answers: Record<string, string | string[]>): boolean {
   return !!q.featureKey && q.isBuildDecision && !!answerLabels(q, answers[q.id]);
@@ -616,15 +807,18 @@ export function featureChoiceChanges(
   const out: Change[] = [];
   for (const q of qs) {
     if (!recordsChoice(q, answers)) continue;
-    const choice = answerLabels(q, answers[q.id]);
+    // Beides festhalten: `choice` ist der englische Prompt-Kanal, `choiceDe` die Anzeige.
+    const choice = answerValues(q, answers[q.id]);
+    const choiceDe = answerLabels(q, answers[q.id]);
     out.push({
       target: 'featureChoice',
       sourceKey: q.featureKey,
       choice,
+      choiceDe,
       gainedAt: gainedAtByKey.get(q.featureKey) ?? fallbackLevel,
       step,
       source: q.featureKey,
-      label: `${q.prompt}: ${choice}`,
+      label: `${q.prompt}: ${choiceDe}`,
     });
   }
   return out;
@@ -691,6 +885,14 @@ export interface DocInput {
   hitDice: string;
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];            // NUR die Subklassen-Merkmale (für Info-Einträge)
+  /** Deterministisch gelesene, immer-vorbereitete Zauberlisten (Kreissprüche, Domäne …). */
+  declaredSpells: DeclaredSpells;
+  /**
+   * Zauber der Merkmale, deren Stufentabelle an der CHARAKTERstufe hängt (Spezies, Talente) —
+   * getrennt von `declaredSpells`, weil dort die KLASSENstufe gilt. Im Mehrklassen-Fall sind
+   * das verschiedene Zahlen.
+   */
+  charLevelSpells: DeclaredSpells;
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
@@ -698,7 +900,13 @@ export interface DocInput {
   pickedCantrips: string[];
   pickedLearned: { level: number; name: string }[];
   learnAsPrepared: boolean;
-  chosenFeats: { key: string; name: string; gainedAt: number }[];
+  chosenFeats: { key: string; name: string; gainedAt: number; grants?: FeatureGrant }[];
+  /**
+   * Die neu gewonnenen Merkmale samt Deklaration — Quelle der Grants, die der Rider nicht
+   * ausdrücken kann (`declaredGrantChanges`). Ungefiltert, also auch die Merkmale, die aus
+   * dem KI-Eingang gefallen sind.
+   */
+  grantSources: DeclaredGrantSource[];
   // Die Wahl-Fragebögen beider Checkpoints — Quelle der `featureChoice`-Changes; die
   // Merkmalsliste liefert dazu die Stufe je Merkmals-Key.
   baseChoiceQs: LevelUpQuestion[];
@@ -726,13 +934,17 @@ export function buildDoc(p: DocInput): LevelUpDoc {
   const changes: Change[] = [
     ...baseDeltaChanges(p.delta, p.hitDice),
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
+    ...declaredSpellChanges(p.declaredSpells),
+    ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),
+    ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
     ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
     ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions'),
     ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
+    ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects'),
     ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects'),
     ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),

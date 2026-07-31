@@ -56,7 +56,11 @@ export function evalEnv(): EvalEnv {
       provider: 'qualityminds',
       model: model ?? '',
       apiKey: apiKey ?? '',
-      maxTokens: num(process.env.EVAL_MAX_TOKENS, 4096),
+      // 16384, nicht 4096: die Merkmals-Analyse ist ein Reasoning-Call, und bei 4096 ging
+      // das Budget vollständig ins Denken — die Antwort kam LEER zurück und die Strecke maß
+      // ein leeres Manifest statt der Prompt-Qualität (gemessen 2026-07-29: 0 von 3 Läufen
+      // lieferten überhaupt Wahlen). Eine Obergrenze erzwingt keine Tokens, sie erlaubt nur.
+      maxTokens: num(process.env.EVAL_MAX_TOKENS, 16384),
       // Optional: eigener OpenAI-kompatibler Endpoint (Default = QualityMinds).
       // Greift für die Prompt-Werkstatt (rawChatCompletion); Action-Pfade nutzen
       // weiterhin die Provider-Basis.

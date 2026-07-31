@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Feat } from '$lib/types';
-  import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
+  import DeclarationEditForm from './DeclarationEditForm.svelte';
   import { FEAT_CATEGORIES } from '$lib/schemas/shared';
   import { FEAT_CATEGORY_DE } from '$lib/featsLibrary';
 
@@ -13,6 +13,7 @@
   } = $props();
 
   function mark() { onchange(); }
+
 </script>
 
 <!-- Grunddaten -->
@@ -50,13 +51,15 @@
 <div class="divider"></div>
 
 <!-- Gewährte Übungen (SRD 5.2: nur „Geschult") -->
+<!-- Die drei Deklarationen -->
 <div class="section">
-  <div class="section-title">Gewährte Übungen</div>
+  <div class="section-title">Deklaration</div>
   <p class="section-hint">
-    Nur mechanisch modellierbare Fertigkeiten. „Geschult" erlaubt auch Werkzeuge —
-    das steht bewusst nur in der Prosa.
+    Was das Talent gewährt, als Daten statt als Prosa — der Flow führt es dann aus der
+    Deklaration statt aus der KI-Deutung. Ohne Deklaration bleibt das Talent in der KI-Kette;
+    das ist der Fallback, kein Fehler.
   </p>
-  <ProficiencyGrantEditForm bind:grant={feat.proficiencyGrant} scope="skills" {onchange} />
+  <DeclarationEditForm bind:feature={feat} scope="skills" {onchange} />
 </div>
 
 <div class="divider"></div>
@@ -100,6 +103,7 @@
     font-size: 0.8rem; color: var(--ink-soft);
   }
   .key-input { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--ink-muted); min-width: 160px; }
+
 
   .divider {
     height: 2px;

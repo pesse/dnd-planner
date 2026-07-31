@@ -37,7 +37,7 @@ const RANKENFESSEL: Spell = {
     'Dornige Ranken brechen an einem sichtbaren Punkt in Reichweite aus dem Boden. ' +
       'Eine Kreatur dort muss einen Rettungswurf auf Stärke bestehen oder wird festgesetzt.',
   ],
-  source: 'Homebrew',
+  source: 'homebrew-sam',
 };
 
 defineEval<Spell>({
