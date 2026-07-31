@@ -12,8 +12,19 @@ import type { Feat } from './schemas/feat';
 import type { Background, Benefit } from './schemas/background';
 import { OWN_SOURCE } from './schemas/source';
 import { emptyProficiencyGrant, emptySkillGrant } from './schemas/grants';
-import { MONSTER_SIZES, MONSTER_SIZE_KEYS } from './schemas/vocabulary';
-import type { MonsterSize } from './schemas/vocabulary';
+import {
+  MONSTER_ALIGNMENTS,
+  MONSTER_SIZES,
+  MONSTER_SIZE_KEYS,
+  MONSTER_TYPES,
+  SPELL_SCHOOLS,
+} from './schemas/vocabulary';
+import type {
+  MonsterAlignment,
+  MonsterSize,
+  MonsterType,
+  SpellSchool,
+} from './schemas/vocabulary';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
@@ -47,17 +58,6 @@ export interface FileEntry {
 
 // --- Spell ---
 
-export const SPELL_SCHOOLS = {
-  abjuration:    'Bannmagie',
-  conjuration:   'Beschwörung',
-  divination:    'Erkenntnismagie',
-  enchantment:   'Verzauberung',
-  evocation:     'Hervorrufung',
-  illusion:      'Illusionsmagie',
-  necromancy:    'Nekromantie',
-  transmutation: 'Verwandlung',
-} as const;
-export type SpellSchool = keyof typeof SPELL_SCHOOLS;
 
 export const SPELL_CLASS_LABELS: Record<string, string> = {
   sorcerer:  'Zauberer',
@@ -124,26 +124,9 @@ export interface LlmConfig {
 // sondern auch das der Charaktereigenschaft `size`, und ein Import von dort hierher wäre ein
 // Zyklus (diese Datei liest schon Werte aus `schemas/vocabulary.ts`). Re-Export, damit „aus $lib/types"
 // weiter stimmt und es genau EINE Tabelle gibt.
-export { MONSTER_SIZES, MONSTER_SIZE_KEYS };
-export type { MonsterSize };
+export { MONSTER_SIZES, MONSTER_SIZE_KEYS, MONSTER_TYPES, MONSTER_ALIGNMENTS, SPELL_SCHOOLS };
+export type { MonsterSize, MonsterType, MonsterAlignment, SpellSchool };
 
-export const MONSTER_TYPES = {
-  aberration:  'Aberration',
-  beast:       'Tier',
-  celestial:   'Himmlisches',
-  construct:   'Konstrukt',
-  dragon:      'Drache',
-  elemental:   'Elementar',
-  fey:         'Fee',
-  fiend:       'Teuflisches',
-  giant:       'Riese',
-  humanoid:    'Humanoid',
-  monstrosity: 'Ungeheuer',
-  ooze:        'Schleim',
-  plant:       'Pflanze',
-  undead:      'Untote',
-} as const;
-export type MonsterType = keyof typeof MONSTER_TYPES;
 
 /** Creature-Type → Vault-Unterordner (deutsche Plural-Kategorie). Bestimmt die Ablage. */
 export const MONSTER_TYPE_DIR: Record<MonsterType, string> = {
@@ -163,26 +146,6 @@ export const MONSTER_TYPE_DIR: Record<MonsterType, string> = {
   undead:      'untote',
 };
 
-export const MONSTER_ALIGNMENTS = {
-  'lawful good':              'Rechtschaffen Gut',
-  'neutral good':             'Neutral Gut',
-  'chaotic good':             'Chaotisch Gut',
-  'lawful neutral':           'Rechtschaffen Neutral',
-  'neutral':                  'Neutral',
-  'chaotic neutral':          'Chaotisch Neutral',
-  'lawful evil':              'Rechtschaffen Böse',
-  'neutral evil':             'Neutral Böse',
-  'chaotic evil':             'Chaotisch Böse',
-  'unaligned':                'Unausgerichtet',
-  'any alignment':            'Beliebige Gesinnung',
-  'any good alignment':       'Beliebige gute Gesinnung',
-  'any evil alignment':       'Beliebige böse Gesinnung',
-  'any non-good alignment':   'Beliebige nicht-gute Gesinnung',
-  'any non-lawful alignment': 'Beliebige nicht-rechtschaffene Gesinnung',
-  'any chaotic alignment':    'Beliebige chaotische Gesinnung',
-  'any lawful alignment':     'Beliebige rechtschaffene Gesinnung',
-} as const;
-export type MonsterAlignment = keyof typeof MONSTER_ALIGNMENTS;
 
 /**
  * Die neun Gesinnungen eines Spielercharakters, deutsch — Teilmenge von

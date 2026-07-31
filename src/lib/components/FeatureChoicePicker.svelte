@@ -14,7 +14,7 @@
    * Aufrufers greift nicht in eine Kindkomponente.
    */
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
-  import { optionLabel, type AnalysisChoice } from '../services/aiActions/featureEffectsAction';
+  import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {

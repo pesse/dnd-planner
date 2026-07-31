@@ -20,13 +20,10 @@
  *
  * Vault-Reads laufen im Node-Eval über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
-import type {
-  FeatureEffectsContext,
-  GainedFeature,
-  ResolvedChoice,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { GainedFeature, ResolvedChoice } from '../../src/lib/services/analysis/types';
 import type { DeclaredFeature } from '../../src/lib/services/declaredFeature';
-import { unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
+import { unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 

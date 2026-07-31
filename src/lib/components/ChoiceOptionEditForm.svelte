@@ -18,7 +18,7 @@
    */
   import { featureGrantSchema } from '$lib/schemas/grants';
   import { type ChoiceOption } from '$lib/schemas/featureChoice';
-  import { isEmptyFeatureGrant } from '$lib/services/featureDeclaration';
+  import { isEmptyFeatureGrant } from '$lib/services/declaration/grants';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
 
   let {

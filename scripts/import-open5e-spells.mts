@@ -26,7 +26,7 @@
  */
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { mapOpen5eSpell } from '$lib/services/open5eApi';
+import { mapOpen5eSpell } from '$lib/services/open5eSpellMapper';
 import { parseSpell } from '$lib/utils/schemaValidation';
 import type { Spell } from '$lib/schemas/spell';
 

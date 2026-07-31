@@ -20,7 +20,7 @@ import {
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
 import { cantripCount, isSpellcastingFeature, preparedOrKnownCount } from './spellcasting';
-import { isFlowOwnedDeclaration } from './featureDeclaration';
+import { isFlowOwnedDeclaration } from './declaration/optionList';
 
 export interface SubclassOption {
   key: string;

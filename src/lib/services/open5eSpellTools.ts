@@ -6,7 +6,7 @@
  * Deckt srd-2024-Zauber (`/v2/spells/`) ab; `get_open5e_spell` löst den Key auf.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { searchOpen5eSpells, getSpell } from './open5eApi';
+import { searchOpen5eSpells, getSpell } from './open5eClient';
 
 interface ToolDef {
   name: string;

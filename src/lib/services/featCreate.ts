@@ -7,7 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { FEAT_TEMPLATE, type Feat } from '$lib/types';
 import { getFeats, searchFeats, featDisplayName } from '$lib/featsLibrary';
 import { parseFeat } from '$lib/utils/schemaValidation';
-import { listFeats, getFeat as getFeatRaw } from './open5eApi';
+import { listFeats, getFeat as getFeatRaw } from './open5eClient';
 import { mapV2Feat } from './featData';
 import type { DndApiRef } from './dndApi';
 

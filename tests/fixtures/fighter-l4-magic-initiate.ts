@@ -16,8 +16,8 @@
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { getFeats, featDisplayName, type FeatEntry } from '../../src/lib/featsLibrary';
 import { computeLevelUpDelta, type LevelUpDelta } from '../../src/lib/services/levelUp';
-import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
-import { featToGainedFeature, gainedFeaturesFor } from '../../src/lib/services/levelUpMachine';
+import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/analysis/types';
+import { featToGainedFeature, gainedFeaturesFor } from '../../src/lib/services/levelUp/features';
 
 export const FIGHTER_KEY = 'srd-2024_fighter';
 export const CHAMPION_KEY = 'srd-2024_champion';

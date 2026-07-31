@@ -9,7 +9,7 @@
 import { speciesSchema, migrateSpeciesLegacy, type Species, type Trait } from '$lib/schemas/species';
 import { toSourceKey } from '$lib/schemas/source';
 import { emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/grants';
-import { getSpecies as fetchSpecies } from './open5eApi';
+import { getSpecies as fetchSpecies } from './open5eClient';
 
 interface V2Trait {
   key?: string;

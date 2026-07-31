@@ -18,7 +18,8 @@
   import { preferredCardTab } from '$lib/stores/uiPrefs';
   import DndApiSearch from './DndApiSearch.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import { getOpen5eItem, searchOpen5eItems, mapOpen5eItem, type Open5eItemSearchResult } from '$lib/services/open5eApi';
+  import { getOpen5eItem, searchOpen5eItems, type Open5eItemSearchResult } from '$lib/services/open5eClient';
+  import { mapOpen5eItem } from '$lib/services/open5eItemMapper';
   import AiEditModal from './AiEditModal.svelte';
   import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';

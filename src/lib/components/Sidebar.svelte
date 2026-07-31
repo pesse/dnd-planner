@@ -16,7 +16,9 @@
   import CharacterWizard from './CharacterWizard.svelte';
   import type { Character } from '../schemas/characterSchema';
   import { searchMonsters, mapApiResourceToMonster } from '../services/dndApi';
-  import { searchOpen5eItems, getOpen5eItem, mapOpen5eItem, searchOpen5eSpells, getSpell, mapOpen5eSpell } from '../services/open5eApi';
+  import { searchOpen5eItems, getOpen5eItem, searchOpen5eSpells, getSpell } from '../services/open5eClient';
+  import { mapOpen5eItem } from '../services/open5eItemMapper';
+  import { mapOpen5eSpell } from '../services/open5eSpellMapper';
   import { createMonsterAction } from '../services/aiActions/monsterAction';
   import { createSpellAction } from '../services/aiActions/spellAction';
   import { createItemAction } from '../services/aiActions/itemAction';
@@ -37,10 +39,7 @@
   import { getSpeciesList, searchSpecies, speciesDisplayName, invalidateSpeciesCache, type SpeciesInfo } from '../speciesLibrary';
   import { getFeats, featDisplayName, invalidateFeatsCache, type FeatEntry } from '../featsLibrary';
   import { getBackgroundsList, searchBackgrounds, backgroundDisplayName, invalidateBackgroundsCache, type BackgroundInfo } from '../backgroundsLibrary';
-  import {
-    listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw,
-    listBackgrounds, getBackground as getBackgroundRaw, DEFAULT_DOCUMENT,
-  } from '../services/open5eApi';
+  import { listClasses, getClass, listSpecies, getSpecies as getSpeciesRaw, listBackgrounds, getBackground as getBackgroundRaw, DEFAULT_DOCUMENT } from '../services/open5eClient';
   import { mapV2 } from '../services/classProgression';
   import { mapV2Species } from '../services/speciesData';
   import { mapV2Background } from '../services/backgroundData';

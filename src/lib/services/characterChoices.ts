@@ -24,20 +24,19 @@ import type { Change, FeatureRider } from '$lib/schemas/levelUp';
 import { SKILL_NAMES, type SkillName } from '$lib/schemas/vocabulary';
 import { skillEnName, totalLevel } from '$lib/pdf/characterFields';
 import type { SpellInfo } from '$lib/spellLibrary';
-import { choiceLabelsDe, type AnalysisChoice } from './aiActions/featureEffectsAction';
+import { choiceLabelsDe, type AnalysisChoice } from './analysis/types';
 import type { CoverageBadge } from './declarationCoverage';
 import type { DeclaredFeature } from './declaredFeature';
 import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
-import {
-  chosenOption, expertiseChoice, expertiseRider, isDeclaredChoiceFeature, isExpertiseFeature,
-  optionListChoice, optionListRider,
-} from './featureDeclaration';
+import { chosenOption, isDeclaredChoiceFeature, optionListChoice, optionListRider } from './declaration/optionList';
+import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
 import {
   characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
 } from './characterProperties';
-import { riderChanges, validateRiderSpells } from './levelUpMachine';
+import { riderChanges } from './levelUp/changes';
+import { validateRiderSpells } from './levelUp/spells';
 
 /** Ein Wahl-Platz: deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
 export interface ChoiceSlot {

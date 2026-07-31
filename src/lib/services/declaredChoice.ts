@@ -5,7 +5,7 @@
  * Beide Modell-Flaggen sind false: das Merkmal steht gar nicht im KI-Eingang, eine ihm
  * unbekannte id könnte es nur einem erfundenen Rider zuordnen.
  */
-import type { AnalysisChoice } from './aiActions/featureEffectsAction';
+import type { AnalysisChoice } from './analysis/types';
 
 export interface DeclaredChoiceBase {
   id: string;

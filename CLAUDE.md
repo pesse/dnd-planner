@@ -191,8 +191,8 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   vanishing off the character sheet. The mechanics no longer need that check — see the next
   rule — but the sheet line still does.
 - **A grant field without a sink is a compile error, not a silent gap.** Both flows apply
-  through the one applier (`services/applyChanges.ts`), whose `default` branch is a `never`
-  guard, and both projections into `Change[]` are tables typed over `keyof` their source form
+  through the one applier (`services/applyChanges.ts`), whose `APPLY` table is total over
+  `Change['target']`, and both projections into `Change[]` are tables typed over `keyof` their source form
   (`riderGrantChanges` over `RiderProficiencies`, `proficiencyGrantChanges` over
   `ProficiencyGrant`). Adding a field or a `Change` variant breaks the build until it has a
   sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,

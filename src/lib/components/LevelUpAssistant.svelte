@@ -31,11 +31,8 @@
   import {
     buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS,
   } from '../services/aiActions/fieldSummaryAction';
-  import {
-    analyzeFeatureEffects, finalizeFeatureEffects,
-    type GainedFeature, type FeatureClassContext, type FeatureAnalysis, type ResolvedChoice,
-    type AnalysisChoice,
-  } from '../services/aiActions/featureEffectsAction';
+  import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../services/aiActions/featureEffectsAction';
+  import { type GainedFeature, type FeatureClassContext, type ResolvedChoice, type AnalysisChoice } from '../services/analysis/types';
   import {
     hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature,
   } from '../services/perLevelEffects';
@@ -43,20 +40,16 @@
     declaredSpeciesFeatures,
     resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
   } from '../services/characterFeatures';
-  import {
-    type StepId, type AdvanceCtx, type ValidatedRiders, type DeclaredSpells,
-    gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
-    buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    resolveDeclaredSpells, resolveSpellNames, noDeclaredSpells,
-    STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerValues,
-  } from '../services/levelUpMachine';
+  import { type StepId, type AdvanceCtx, STEP_META, isCheckpoint, advance } from '../services/levelUp/steps';
+  import { type ValidatedRiders, type DeclaredSpells, validateRiderSpells, learnInfo, resolveDeclaredSpells, resolveSpellNames, noDeclaredSpells } from '../services/levelUp/spells';
+  import { gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature } from '../services/levelUp/features';
+  import { buildDecisions, buildFeatureChoices, countFeatsToPick } from '../services/levelUp/questions';
+  import { buildDoc } from '../services/levelUp/doc';
+  import { sheetNoteLines, answerValues } from '../services/levelUp/answers';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
-  import {
-    expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature,
-    isOptionListFeature, optionChoiceId, optionListChoices, optionListNoteLines, optionListRiders,
-    optionSpellNames, unredactedChoiceFeatures,
-    withDeclaredGrants, withoutDeclaredChoiceFeatures,
-  } from '../services/featureDeclaration';
+  import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from '../services/declaration/expertise';
+  import { isOptionListFeature, optionChoiceId, optionListChoices, optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures, withoutDeclaredChoiceFeatures } from '../services/declaration/optionList';
+  import { withDeclaredGrants } from '../services/declaration/grants';
   import { characterPropertyChoices } from '../services/characterProperties';
   import { declaredFeatures } from '../services/declaredFeature';
   import {

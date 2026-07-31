@@ -7,7 +7,7 @@
  * (`/v2/magicitems/`) ab; `get_open5e_item` löst den Key gegen beide Endpunkte auf.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { searchOpen5eItems, getOpen5eItem } from './open5eApi';
+import { searchOpen5eItems, getOpen5eItem } from './open5eClient';
 
 interface ToolDef {
   name: string;

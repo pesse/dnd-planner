@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
-import { SPELL_SCHOOLS, type SpellSchool } from '../types';
+import { SPELL_SCHOOLS, type SpellSchool } from './vocabulary';
 import { namedRef } from './llmJson';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 

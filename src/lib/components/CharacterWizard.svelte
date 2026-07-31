@@ -38,8 +38,8 @@
     spellcastingOffer,
     type SpellcastingOffer,
   } from '../services/spellcasting';
-  import { validateRiderSpells } from '../services/levelUpMachine';
-  import { optionLabel, type AnalysisChoice } from '../services/aiActions/featureEffectsAction';
+  import { validateRiderSpells } from '../services/levelUp/spells';
+  import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
   import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
   import { getToolChoices, displayName as itemDisplayName } from '../itemLibrary';
   import type { EquipmentChoiceCategory } from '../schemas/wizardEquipment';

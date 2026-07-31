@@ -10,7 +10,7 @@ import {
   type MonsterSize,
   type MonsterType,
   type MonsterAlignment,
-} from '../types';
+} from './vocabulary';
 import { sourceField, migrateSourceLegacy } from './source';
 
 const sizeEnum = z.enum(Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]]);

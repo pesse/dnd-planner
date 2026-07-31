@@ -19,9 +19,9 @@ import { CHARACTER_PROPERTIES, type CharacterProperties, type CharacterPropertyN
 import { MONSTER_SIZES, MONSTER_SIZE_KEYS } from '../schemas/vocabulary';
 import { type FeatureChoiceGrant } from '../schemas/featureChoice';
 import type { Change } from '../schemas/levelUp';
-import type { AnalysisChoice } from './aiActions/featureEffectsAction';
+import type { AnalysisChoice } from './analysis/types';
 import { declaredChoice } from './declaredChoice';
-import type { DeclaredChoiceSource } from './featureDeclaration';
+import type { DeclaredChoiceSource } from './declaration/source';
 
 /** Herkunft eines Change — dieselbe Form wie bei `proficiencyGrantChanges`. */
 type Meta = { step: string; source: string };

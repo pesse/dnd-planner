@@ -19,8 +19,8 @@
  * Vault-Reads laufen im Node-Eval über den fs-Shim (tests/support/tauriInvokeShim.ts).
  */
 import type { CharacterSummary } from '../../src/lib/services/aiActions/levelUpAction';
-import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
-import { computeSubclassFeatures } from '../../src/lib/services/levelUpMachine';
+import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/analysis/types';
+import { computeSubclassFeatures } from '../../src/lib/services/levelUp/features';
 import { withoutSpellGrantFeatures } from '../../src/lib/services/grantedSpells';
 
 /** Open5e-v2-Key der Subklasse (wie am Charakter / im Delta). */

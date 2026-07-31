@@ -17,14 +17,8 @@
  * Provider (`runAiAction`), das Ausrüstungs-Matching ebenso.
  */
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
-import {
-  analyzeFeatureEffects,
-  choiceLabelsDe,
-  finalizeFeatureEffects,
-  type AnalysisChoice,
-  type FeatureAnalysis,
-  type ResolvedChoice,
-} from '../aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
+import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
 import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
@@ -37,16 +31,9 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import {
-  expertiseChoice,
-  expertiseChoiceId,
-  expertiseRider,
-  optionListChoices,
-  optionListRiders,
-  optionChoiceId,
-  unredactedChoiceFeatures,
-  withDeclaredGrants,
-} from '../featureDeclaration';
+import { expertiseChoice, expertiseChoiceId, expertiseRider } from '../declaration/expertise';
+import { optionListChoices, optionListRiders, optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
+import { withDeclaredGrants } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';

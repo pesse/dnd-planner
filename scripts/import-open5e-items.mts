@@ -33,7 +33,7 @@
  */
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { mapOpen5eItem } from '$lib/services/open5eApi';
+import { mapOpen5eItem } from '$lib/services/open5eItemMapper';
 import { parseItem } from '$lib/utils/schemaValidation';
 import type { Item } from '$lib/schemas/item';
 

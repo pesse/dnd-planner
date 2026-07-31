@@ -154,6 +154,23 @@ export function resolveClass(germanClass: string): string | null {
   return null;
 }
 
+/**
+ * Löst einen (oft ENGLISCHEN, von der KI gelieferten) Zaubernamen auf einen lokalen
+ * Bibliothekseintrag auf. Matcht EN↔DE: gegen `name` (DE), `name_en` (EN) und `key`
+ * (Open5e). Exakttreffer zuerst, sonst ein starker Suchtreffer, sonst null.
+ */
+export function resolveSpell(library: SpellInfo[], name: string, klasseName = ''): SpellInfo | null {
+  const q = name.trim().toLowerCase();
+  if (!q) return null;
+  const eq = (s: SpellInfo) =>
+    s.name.toLowerCase() === q || (s.name_en ?? '').toLowerCase() === q || (s.key ?? '').toLowerCase() === q;
+  const exact = library.find(eq);
+  if (exact) return exact;
+  const hit = searchSpells(library, name.trim(), null, klasseName, 1)[0];
+  // Nur akzeptieren, wenn der Treffer denselben Namen (DE oder EN) trägt (kein loser Teilstring).
+  return hit && eq(hit.spell) ? hit.spell : null;
+}
+
 export interface SpellSuggestion {
   spell: SpellInfo;
   /** true = Zauber gehört zur Klasse des Charakters */

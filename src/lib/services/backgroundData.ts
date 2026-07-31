@@ -15,7 +15,7 @@ import { backgroundSchema, type Background, type Benefit, type BenefitType, BENE
 import { toSourceKey } from '$lib/schemas/source';
 import { emptyProficiencyGrant, type ProficiencyGrant } from '$lib/schemas/grants';
 import { parseSkillNames } from '$lib/schemas/vocabulary';
-import { getBackground as fetchBackground } from './open5eApi';
+import { getBackground as fetchBackground } from './open5eClient';
 
 interface V2Benefit {
   name?: string;

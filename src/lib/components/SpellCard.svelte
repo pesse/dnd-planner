@@ -15,7 +15,8 @@
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import Markdown from './Markdown.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
-  import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
+  import { searchOpen5eSpells, getSpell, type Open5eItemSearchResult } from '$lib/services/open5eClient';
+  import { mapOpen5eSpell } from '$lib/services/open5eSpellMapper';
   import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
 

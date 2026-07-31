@@ -18,9 +18,9 @@
  * (tests/support/tauriInvokeShim.ts).
  */
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
-import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/analysis/types';
 import { computeLevelUpDelta } from '../../src/lib/services/levelUp';
-import { computeSubclassFeatures, gainedFeaturesFor } from '../../src/lib/services/levelUpMachine';
+import { computeSubclassFeatures, gainedFeaturesFor } from '../../src/lib/services/levelUp/features';
 
 /** Open5e-v2-Keys von Grund- und Subklasse (wie am Charakter / im Delta). */
 export const ROGUE_KEY = 'srd-2024_rogue';

@@ -14,26 +14,16 @@ import { getClasses } from '../../src/lib/classLibrary';
 import { libraryKey } from '../support/libraryKey';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import type { ClassFeature } from '../../src/lib/schemas/classProgression';
-import {
-  chosenOption,
-  expertiseChoice,
-  expertiseChoiceId,
-  expertiseRider,
-  isExpertiseFeature,
-  isOptionListFeature,
-  optionChoiceId,
-  optionListChoice,
-  optionListNoteLines,
-  optionListRiders,
-} from '../../src/lib/services/featureDeclaration';
-import { riderChanges } from '../../src/lib/services/levelUpMachine';
+import { chosenOption, isOptionListFeature, optionChoiceId, optionListChoice, optionListNoteLines, optionListRiders } from '../../src/lib/services/declaration/optionList';
+import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from '../../src/lib/services/declaration/expertise';
+import { riderChanges } from '../../src/lib/services/levelUp/changes';
 import { forClassFeaturesField } from '../../src/lib/services/declaredFeature';
 import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
 import { traitSchema, migrateSpeciesLegacy } from '../../src/lib/schemas/species';
 import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
 import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { spellAccessGrantOf } from '../../src/lib/services/spellAccess';
-import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
+import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 

@@ -19,8 +19,8 @@ import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
 import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
 import { declaredChoice } from './declaredChoice';
-import type { AnalysisChoice } from './aiActions/featureEffectsAction';
-import type { DeclaredChoiceSource } from './featureDeclaration';
+import type { AnalysisChoice } from './analysis/types';
+import type { DeclaredChoiceSource } from './declaration/optionList';
 
 /** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN — formgleich, daher ein Alias. */
 export type SpellAccessSource = DeclaredChoiceSource;

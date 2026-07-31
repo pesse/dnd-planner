@@ -130,3 +130,59 @@ export function parseSkillNames(raw: string, context = 'Fertigkeitsliste'): Skil
   }
   return out;
 }
+
+/**
+ * Zauberschule, Kreaturentyp und Gesinnung — englischer Schlüssel → deutsche Anzeige,
+ * wie `MONSTER_SIZES`. Sie stehen hier statt in `types.ts`, weil Schemas darauf `z.enum`
+ * bauen und ein Import aus `types.ts` ein Zyklus wäre; dort steht der Re-Export.
+ */
+export const SPELL_SCHOOLS = {
+  abjuration:    'Bannmagie',
+  conjuration:   'Beschwörung',
+  divination:    'Erkenntnismagie',
+  enchantment:   'Verzauberung',
+  evocation:     'Hervorrufung',
+  illusion:      'Illusionsmagie',
+  necromancy:    'Nekromantie',
+  transmutation: 'Verwandlung',
+} as const;
+export type SpellSchool = keyof typeof SPELL_SCHOOLS;
+
+export const MONSTER_TYPES = {
+  aberration:  'Aberration',
+  beast:       'Tier',
+  celestial:   'Himmlisches',
+  construct:   'Konstrukt',
+  dragon:      'Drache',
+  elemental:   'Elementar',
+  fey:         'Fee',
+  fiend:       'Teuflisches',
+  giant:       'Riese',
+  humanoid:    'Humanoid',
+  monstrosity: 'Ungeheuer',
+  ooze:        'Schleim',
+  plant:       'Pflanze',
+  undead:      'Untote',
+} as const;
+export type MonsterType = keyof typeof MONSTER_TYPES;
+
+export const MONSTER_ALIGNMENTS = {
+  'lawful good':              'Rechtschaffen Gut',
+  'neutral good':             'Neutral Gut',
+  'chaotic good':             'Chaotisch Gut',
+  'lawful neutral':           'Rechtschaffen Neutral',
+  'neutral':                  'Neutral',
+  'chaotic neutral':          'Chaotisch Neutral',
+  'lawful evil':              'Rechtschaffen Böse',
+  'neutral evil':             'Neutral Böse',
+  'chaotic evil':             'Chaotisch Böse',
+  'unaligned':                'Unausgerichtet',
+  'any alignment':            'Beliebige Gesinnung',
+  'any good alignment':       'Beliebige gute Gesinnung',
+  'any evil alignment':       'Beliebige böse Gesinnung',
+  'any non-good alignment':   'Beliebige nicht-gute Gesinnung',
+  'any non-lawful alignment': 'Beliebige nicht-rechtschaffene Gesinnung',
+  'any chaotic alignment':    'Beliebige chaotische Gesinnung',
+  'any lawful alignment':     'Beliebige rechtschaffene Gesinnung',
+} as const;
+export type MonsterAlignment = keyof typeof MONSTER_ALIGNMENTS;

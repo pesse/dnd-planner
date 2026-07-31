@@ -17,13 +17,8 @@
  * Die Merkmale kommen wie beim Druiden über den echten Ladepfad (siehe Fixture); der
  * Wahl-Zeiger „Rogue Subclass" ist dort bereits deterministisch herausgefiltert.
  */
-import {
-  analyzeFeatureEffects,
-  finalizeFeatureEffects,
-  type FeatureAnalysis,
-  type FeatureEffectsContext,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
-import { ABILITY_KEYS } from '../../src/lib/services/levelUpMachine';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import { ABILITY_KEYS } from '../../src/lib/schemas/abilities';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
 import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type StepResult } from './featureEffectsStep';

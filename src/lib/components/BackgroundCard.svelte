@@ -14,7 +14,7 @@
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
   import { ABILITY_FROM_EN } from '$lib/services/classProgression';
-  import { ABILITY_LABEL } from '$lib/services/levelUpMachine';
+  import { ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
 
   function parseBackground(json: string): Background | null {

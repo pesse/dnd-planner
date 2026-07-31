@@ -18,7 +18,7 @@
 import type { AiAction } from './types';
 import type { LevelUpDelta } from '../levelUp';
 import type { FeatureRider } from '../../schemas/levelUp';
-import type { GainedFeature } from './featureEffectsAction';
+import type { GainedFeature } from '../analysis/types';
 import type { PastChoice } from '../characterFeatures';
 import {
   levelUpNarrativeJsonSchema,

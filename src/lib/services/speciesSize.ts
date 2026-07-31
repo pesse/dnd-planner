@@ -17,7 +17,7 @@
 import { MONSTER_SIZES, MONSTER_SIZE_KEYS, type MonsterSize } from '$lib/types';
 import { declaredChoice } from './declaredChoice';
 import { isRedacted, type DeclarableFeature } from './declarationCoverage';
-import type { AnalysisChoice } from './aiActions/featureEffectsAction';
+import type { AnalysisChoice } from './analysis/types';
 
 /** Kreaturengröße ist EIN Vokabular; die Tabelle heißt historisch `MONSTER_SIZES`. */
 export type SizeCategory = MonsterSize;

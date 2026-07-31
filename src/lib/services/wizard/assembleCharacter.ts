@@ -26,15 +26,11 @@ import { type SkillName } from '$lib/schemas/vocabulary';
 import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
-import { choiceLabelsDe } from '../aiActions/featureEffectsAction';
+import { choiceLabelsDe } from '../analysis/types';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
-import {
-  declaredSpellChanges,
-  resolveDeclaredSpells,
-  riderGrantChanges,
-  validateRiderSpells,
-} from '../levelUpMachine';
+import { declaredSpellChanges, resolveDeclaredSpells, validateRiderSpells } from '../levelUp/spells';
+import { riderGrantChanges } from '../levelUp/changes';
 import { isSpellGrantFeature } from '../grantedSpells';
 import {
   buildSpellSelection,
@@ -46,7 +42,8 @@ import {
 } from '../spellcasting';
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellAccess';
-import { declaredGrantChanges, optionListNoteLines } from '../featureDeclaration';
+import { declaredGrantChanges } from '../declaration/grants';
+import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
