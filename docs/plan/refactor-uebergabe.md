@@ -13,11 +13,29 @@
 | 1 · Geteilte Kleinteile | `5cb7489` | `utils/text.ts`, `utils/num.ts`, `schemas/abilities.ts`, `domain/skills.ts`, `services/library/{createLibrary,nameIndex}.ts`; `itemLibrary` → `itemLabels`/`itemFormat` |
 | 2 · Schemas entflechten | `7673740` | `shared.ts` weg → `source`/`vocabulary`/`grants`/`featureChoice`/`llmJson` + `utils/vaultJson`; `character.ts` → `characterSchema`/`characterUpgrades`/`classLevelText` |
 | 3 · Zyklus + Domänenmitte | `0352eeb` | `analysis/types.ts`; `levelUp/*` (7), `declaration/*` (5), `featureEffects*` (4), `open5e*` (4), `classTableParse`; `applyChanges` als Tabelle. **0 Import-Zyklen** |
+| 4 · Lange Funktionen | `da062c8` | `contextPrompt`/`contextJsonFormat`/`contextTypes`, `llm/*` (4, `llmService.ts` entfällt); `if (true)`-Block weg; `SKILL_DEFS` und die Zauber-Feldzahlen entdoppelt |
 
 ## Offen
 
-Etappe 4 bis 8 aus `plan-modul-refactor.md`. Reihenfolge einhalten — 4 und 5 verkleinern die
-Dateien, die 7 dann anfasst.
+Etappe 5 bis 8 aus `plan-modul-refactor.md`. Reihenfolge einhalten — 5 verkleinert die Dateien,
+die 7 dann anfasst.
+
+Was Etappe 4 für die nächsten hinterlässt:
+
+- **Etappe 5 kann direkt aufsetzen.** `stores/context.ts` (438) hält nur noch Stores, `invoke()`-Lader
+  und Pin-Verwaltung; die Datenformen liegen schon in `contextTypes.ts`, also entsteht kein Zyklus,
+  wenn `services/contextLoad.ts` die Lader übernimmt. `refreshCharacterContexts` ist ein DRITTER
+  `get(store)`-Zugriff — der Plan nennt zwei.
+- **`pdf/characterFields.ts` ist noch Typ-Fassade** für `Character`/`CharacterData`/`Attack`/… aus
+  `characterSchema`; vier große Komponenten hängen daran. Bewusst stehengelassen, weil Etappe 7
+  dieselben Komponenten zerlegt.
+- **`contextJsonFormat.ts` ist die konkrete Verletzung von „One Zod schema per artifact"**:
+  Encounter-, Monster- und NPC-Schema stehen dort als Prosa. Sobald Etappe 7 `schemas/npc.ts`
+  anlegt, lassen sich die drei Blöcke generieren — dafür liegt die Datei isoliert.
+- **`writeSaves` in `characterExport.ts` schreibt erst alle 6 Häkchen, dann alle 6 Werte.** Das ist
+  die Feldreihenfolge des Originals; nicht zu einer Schleife zusammenziehen.
+- `vaultTools.ts` ist noch stärker der Sammelpunkt „Typen + Temperatur + Toolset" und trägt eigene
+  Banner — Kandidat für Etappe 8.
 
 ## Das Gate
 
@@ -26,7 +44,8 @@ und **0 Fehler** ist die Grenze (56 Warnungen sind der Bestand, sie dürfen nich
 Zyklen prüft `npx madge --circular --extensions ts,svelte src/lib` — muss „No circular
 dependency found" sagen.
 
-Referenzstand nach Etappe 3: **870 Dateien, 0 Fehler, 56 Warnungen, 88 Tests grün.**
+Referenzstand nach Etappe 4: **876 Dateien, 0 Fehler, 56 Warnungen, 88 Tests grün, 48.737 Zeilen
+in `src`.**
 
 ## Fallen, die schon Zeit gekostet haben
 
@@ -46,6 +65,11 @@ Referenzstand nach Etappe 3: **870 Dateien, 0 Fehler, 56 Warnungen, 88 Tests gr�
   `scripts/`. Die Eval-Strecke wird nicht ausgeführt, aber typgeprüft.
 - **Kein Re-Export-Shim stehen lassen.** Wenn ein Modul aufgeteilt wird, zeigen die
   Importstellen direkt aufs neue Modul; sonst bleibt die alte Kopplung als Sichtachse zurück.
+- **„Keine Verhaltensänderung" ist messbar, nicht behauptbar.** Etappe 4 hat jede umgebaute
+  Funktion gegen ihren Vorgänger aus `git show HEAD` laufen lassen (Prompt-Bau über 481
+  Kombinationen, PDF-Export feldweise, Aufstiegs-Delta über 12 Klassen × 9 Stufen) und die
+  Vergleichsdateien danach gelöscht. Das ist der Nachweis, den ein reiner Typecheck nicht führt —
+  und der Grund, warum kein neuer Testbestand entstanden ist.
 
 ## Was in diesen Etappen entstanden ist und benutzt werden soll
 
