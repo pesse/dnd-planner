@@ -4,21 +4,17 @@
  * die passenden Buttons — neue Aktionen (z.B. „Gegenstand entwerfen") hängen sich
  * einfach als weiterer Eintrag an, ohne UI-Umbau.
  *
- * Hier lebt das App-Wiring (Stores lesen/schreiben, Datei öffnen, Kontext neu
- * laden). Die eigentliche Generierungs-Logik steckt in den jeweiligen Services
- * (z.B. services/designEncounter.ts).
+ * Hier lebt das App-Wiring (Datei öffnen, Kontext neu laden). Die eigentliche
+ * Generierungs-Logik steckt in den jeweiligen Services (z.B.
+ * services/designEncounter.ts); der gelesene UI-Zustand kommt als `ContextActionState`
+ * vom Aufrufer.
  */
-import { get } from 'svelte/store';
 import type { FileEntry, LlmConfig } from '../types';
 import type { AgentStep } from './vaultTools';
-import { activeFile, fileContent, invalidateVault } from '../stores/campaign';
-import {
-  campaignCharacterData,
-  monsterLibrary,
-  contextFlags,
-  loadEncounterContext,
-  invalidateMonsterPaths,
-} from '../stores/context';
+import { activeFile, invalidateVault } from '../stores/campaign';
+import { loadEncounterContext } from '../stores/context';
+import { invalidateMonsterPaths } from './contextLoad';
+import type { CharacterCompact, MonsterLibraryEntry } from './contextTypes';
 import { designEncounter } from './designEncounter';
 
 export interface ContextActionCallbacks {
@@ -35,6 +31,16 @@ export interface ContextActionOptions {
   monsterGroups?: string[];
 }
 
+/** Der UI-Zustand, den eine Aktion braucht — der Aufrufer liest die Stores, nicht die Aktion. */
+export interface ContextActionState {
+  activeFile: FileEntry | null;
+  fileContent: string;
+  party: CharacterCompact[];
+  monsterLibrary: MonsterLibraryEntry[];
+  /** Global kuratierte Monster-Gruppen (`contextFlags.monsterGroups`). */
+  monsterGroups: string[];
+}
+
 export interface ContextAction {
   /** Stabile ID, z.B. 'design-encounter'. */
   id: string;
@@ -49,7 +55,7 @@ export interface ContextAction {
   /** Dialog soll einen Monster-Gruppen-Picker für den Kontext anzeigen. */
   selectsMonsterGroups?: boolean;
   /** Führt die Aktion aus; liefert eine kurze Erfolgsmeldung für die UI. */
-  run(config: LlmConfig, userInput: string, cb: ContextActionCallbacks, options?: ContextActionOptions): Promise<string>;
+  run(state: ContextActionState, config: LlmConfig, userInput: string, cb: ContextActionCallbacks, options?: ContextActionOptions): Promise<string>;
 }
 
 /** Leitet campaignPath + actDirName aus dem Pfad der geöffneten Akt-Datei ab. */
@@ -66,22 +72,22 @@ const designEncounterAction: ContextAction = {
   placeholder: 'z.B. ein mittelschwerer Hinterhalt am Nordtor mit fehlerhaften Automaten',
   appliesTo: ['act'],
   selectsMonsterGroups: true,
-  async run(config, userInput, cb, options) {
-    const file = get(activeFile);
+  async run(state, config, userInput, cb, options) {
+    const file = state.activeFile;
     if (!file || file.type !== 'act') throw new Error('Kein Akt geöffnet.');
     const { campaignPath, actDirName } = parseActPath(file.path);
 
     // Im Dialog gewählte Gruppen haben Vorrang; sonst die globale Kuratierung.
-    const groups = options?.monsterGroups ?? get(contextFlags).monsterGroups;
+    const groups = options?.monsterGroups ?? state.monsterGroups;
 
     const result = await designEncounter(
       {
         config,
         campaignPath,
         actDirName,
-        actContent: get(fileContent),
-        party: get(campaignCharacterData),
-        library: get(monsterLibrary),
+        actContent: state.fileContent,
+        party: state.party,
+        library: state.monsterLibrary,
         // Nur die gewählten Monster-Gruppen, gekappt — hält den Entwurfs-Prompt klein.
         // Leere Gruppenliste ⇒ keine Bibliothek im Prompt (Modell erdet dann via SRD-Suche).
         libraryOptions: { groups, maxEntries: 40 },

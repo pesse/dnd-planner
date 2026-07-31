@@ -6,7 +6,7 @@
   import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
   import { Markdown } from 'tiptap-markdown';
   import { invoke } from '@tauri-apps/api/core';
-  import { fileContent, activeFile, historyState, undoContent, redoContent } from '../stores/campaign';
+  import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent } from '../stores/campaign';
   import { openVaultLink } from '../services/vaultLinks';
   import { parseFrontmatter } from '../utils/frontmatter';
   import './editor.css';
@@ -53,7 +53,7 @@
     if (!href) return;
     e.preventDefault();
     const fromPath = get(activeFile)?.path ?? '';
-    void openVaultLink(href, fromPath).then((handled) => {
+    void openVaultLink(href, fromPath, get(activeCampaign)?.path).then((handled) => {
       if (!handled && /^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener');
     });
   }

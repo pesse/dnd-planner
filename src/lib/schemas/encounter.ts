@@ -4,7 +4,7 @@
  *
  * Ein Encounter referenziert Monster NUR per `slug` (Dateiname ohne .json). Die
  * vollständigen Statblöcke liegen als eigene Dateien (akt-lokal oder global) und
- * werden beim Anzeigen aufgelöst — siehe stores/context.ts:loadEncounterMonsters.
+ * werden beim Anzeigen aufgelöst — siehe services/contextLoad.ts:fetchEncounterMonsters.
  */
 import { z } from 'zod';
 

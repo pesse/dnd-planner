@@ -1,10 +1,7 @@
-import { derived, writable, get, type Writable } from 'svelte/store';
-import { invoke } from '@tauri-apps/api/core';
+import { derived, writable, type Writable } from 'svelte/store';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
-import { normalizeMonster, normalizeCharacter } from '../utils/schemaValidation';
 import {
-  characterMinimum,
   buildCharacterContextFromRaw,
   loadCharacterNotes,
   characterDirOf,
@@ -13,6 +10,15 @@ import {
   type CharacterNotes,
 } from '../services/characterContext';
 import { buildSystemPrompt } from '../services/contextPrompt';
+import {
+  fetchActSummaries,
+  fetchCampaignContent,
+  fetchCampaignParty,
+  fetchEncounterMonsters,
+  fetchEncounterSummaries,
+  fetchMonsterLibrary,
+  invalidateMonsterPaths,
+} from '../services/contextLoad';
 import type {
   ActSummaryEntry,
   CharacterCompact,
@@ -22,8 +28,6 @@ import type {
   PinDetailLevel,
   PinnedEntry,
 } from '../services/contextTypes';
-import { extractActSummary, extractActTitle } from '../utils/actExtract';
-import { parseFrontmatter } from '../utils/frontmatter';
 
 const FLAG_DEFAULTS: ContextFlags = {
   campaign: true,
@@ -73,49 +77,6 @@ export const campaignContent = writable<string>('');
 /** Geladene Charakterdaten aus dem Frontmatter der campaign.md. */
 export const campaignCharacterData = writable<CharacterCompact[]>([]);
 
-export async function loadCampaignContent(campaignPath: string): Promise<void> {
-  try {
-    const content = await invoke<string>('read_file_content', {
-      path: `./vault/campaigns/${campaignPath}/campaign.md`,
-    });
-    campaignContent.set(content);
-    await loadCampaignCharacters(content);
-  } catch {
-    campaignContent.set('');
-    campaignCharacterData.set([]);
-  }
-}
-
-/** Neu-laden der Charakterdaten aus einem gegebenen campaign.md-Inhalt (z.B. nach Frontmatter-Edit). */
-export async function reloadCampaignCharacters(campaignMd: string): Promise<void> {
-  campaignContent.set(campaignMd);
-  await loadCampaignCharacters(campaignMd);
-}
-
-async function loadCampaignCharacters(campaignMd: string): Promise<void> {
-  const { frontmatter } = parseFrontmatter(campaignMd);
-  const slugs = frontmatter.characters ?? [];
-  if (slugs.length === 0) {
-    campaignCharacterData.set([]);
-    return;
-  }
-  const results = await Promise.all(
-    slugs.map(async (slug): Promise<CharacterCompact | null> => {
-      try {
-        const raw = await invoke<string>('read_file_content', {
-          path: `./vault/characters/${slug}/character.json`,
-        });
-        // Über normalizeCharacter statt roher Feldzugriffe: bevorzugt die Links
-        // (classes/species/backgroundRef) und fällt auf die abgeleiteten Strings zurück.
-        return characterMinimum(normalizeCharacter(JSON.parse(raw)), slug);
-      } catch {
-        return null;
-      }
-    })
-  );
-  campaignCharacterData.set(results.filter((c): c is CharacterCompact => c !== null));
-}
-
 /** Encounter-Summaries der aktiven Kampagne. */
 export const encounterSummaries = writable<EncounterSummaryEntry[]>([]);
 
@@ -125,209 +86,39 @@ export const monsterLibrary = writable<MonsterLibraryEntry[]>([]);
 /** Vollständige Monster-Definitionen für den aktuell geöffneten Encounter. */
 export const encounterMonsterDefs = writable<Monster[]>([]);
 
+export async function loadCampaignContent(campaignPath: string): Promise<void> {
+  try {
+    const content = await fetchCampaignContent(campaignPath);
+    campaignContent.set(content);
+    campaignCharacterData.set(await fetchCampaignParty(content));
+  } catch {
+    campaignContent.set('');
+    campaignCharacterData.set([]);
+  }
+}
+
+/** Neu-laden der Charakterdaten aus einem gegebenen campaign.md-Inhalt (z.B. nach Frontmatter-Edit). */
+export async function reloadCampaignCharacters(campaignMd: string): Promise<void> {
+  campaignContent.set(campaignMd);
+  campaignCharacterData.set(await fetchCampaignParty(campaignMd));
+}
+
 /** Lädt Encounter-Summaries und Monster-Namen für eine Kampagne. */
 export async function loadEncounterContext(campaignPath: string): Promise<void> {
   invalidateMonsterPaths(); // Slug→Pfad-Cache neu aufbauen (Vault kann sich geändert haben)
-  // Monster-Bibliothek zuerst laden, damit Encounter-Listen Name+CR anreichern können
-  let libraryMap = new Map<string, { name: string; cr: string }>();
-  try {
-    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
-    const groups = entries.filter((e) => e.is_dir).map((e) => e.name);
-    const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
-
-    async function loadMonsterFile(path: string, group: string, filename: string): Promise<MonsterLibraryEntry> {
-      const slug = filename.replace('.json', '');
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        const m = JSON.parse(content);
-        return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string, group: m.type as string || group };
-      } catch {
-        return { slug, name: slug, cr: '?', size: '?', type: '?', group };
-      }
-    }
-
-    const groupedEntries = await Promise.all(
-      groups.flatMap(async (group) => {
-        try {
-          const files = await invoke<string[]>('list_json_files', { path: `./vault/monsters/${group}` });
-          return Promise.all(files.map((f) => loadMonsterFile(`./vault/monsters/${group}/${f}`, group, f)));
-        } catch { return []; }
-      })
-    );
-    const rootEntries = await Promise.all(
-      rootFiles.map((f) => loadMonsterFile(`./vault/monsters/${f}`, 'Sonstige', f))
-    );
-
-    const library = [...groupedEntries.flat(), ...rootEntries];
-    monsterLibrary.set(library);
-    libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.cr }]));
-  } catch {
-    monsterLibrary.set([]);
-  }
-
-  try {
-    const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-      path: `./vault/campaigns/${campaignPath}/acts`,
-    });
-    const actDirs = actEntries.filter((e) => e.is_dir).map((e) => e.name);
-
-    const allEncounters: EncounterSummaryEntry[] = [];
-    for (const actDirName of actDirs) {
-      // Akt-lokale Monster laden (überschreiben globale Einträge für diesen Akt)
-      const actMap = new Map(libraryMap);
-      try {
-        const localFiles = await invoke<string[]>('list_json_files', {
-          path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters`,
-        });
-        await Promise.all(
-          localFiles.map(async (filename) => {
-            const slug = filename.replace('.json', '');
-            try {
-              const content = await invoke<string>('read_file_content', {
-                path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters/${filename}`,
-              });
-              const m = JSON.parse(content);
-              actMap.set(slug, { name: m.name as string, cr: m.cr as string });
-            } catch { /* ignorieren */ }
-          })
-        );
-      } catch { /* kein lokaler monsters-Ordner */ }
-
-      try {
-        const files = await invoke<string[]>('list_json_files', {
-          path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters`,
-        });
-        const actEncounters = await Promise.all(
-          files.map(async (filename) => {
-            const path = `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
-            const content = await invoke<string>('read_file_content', { path });
-            const enc = JSON.parse(content);
-            const monsterList = (enc.monsters as Array<{ count: number; slug: string }>)
-              .map((m) => {
-                const lib = actMap.get(m.slug);
-                const label = lib ? `${lib.name} (CR ${lib.cr})` : m.slug;
-                return `${m.count}× ${label}`;
-              })
-              .join(', ');
-            return {
-              slug: filename.replace('.json', ''),
-              actSlug: actDirName,
-              name: enc.name as string,
-              difficulty: enc.difficulty as string,
-              xpTotal: enc.xp_total as number,
-              monsterList,
-              status: (enc.status as 'planned' | 'done' | 'skipped') ?? 'planned',
-            };
-          })
-        );
-        allEncounters.push(...actEncounters);
-      } catch { /* Akt hat noch keine Encounters */ }
-    }
-    encounterSummaries.set(allEncounters);
-  } catch {
-    encounterSummaries.set([]);
-  }
+  // Monster-Bibliothek zuerst, damit die Encounter-Listen Name+CR anreichern können
+  const library = await fetchMonsterLibrary();
+  monsterLibrary.set(library);
+  encounterSummaries.set(await fetchEncounterSummaries(campaignPath, library));
 }
 
-/**
- * Slug → Dateipfad der globalen Monster (über ALLE Typ-Unterordner + Root von
- * vault/monsters/). Lazy gebaut und gecacht; via `invalidateMonsterPaths()`
- * verwerfen, wenn neue globale Monster angelegt wurden.
- */
-let monsterPathCache: Map<string, string> | null = null;
-
-export function invalidateMonsterPaths(): void {
-  monsterPathCache = null;
-}
-
-async function buildMonsterPathCache(): Promise<Map<string, string>> {
-  const cache = new Map<string, string>();
-  try {
-    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
-    // Root-Dateien (flach abgelegt)
-    for (const e of entries) {
-      if (!e.is_dir && e.name.endsWith('.json')) cache.set(e.name.replace('.json', ''), `./vault/monsters/${e.name}`);
-    }
-    // Typ-Unterordner (humanoide/, tiere/, …)
-    const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
-    await Promise.all(
-      dirs.map(async (dir) => {
-        try {
-          const files = await invoke<string[]>('list_json_files', { path: `./vault/monsters/${dir}` });
-          for (const f of files) cache.set(f.replace('.json', ''), `./vault/monsters/${dir}/${f}`);
-        } catch { /* Ordner nicht lesbar */ }
-      }),
-    );
-  } catch { /* vault/monsters nicht vorhanden */ }
-  return cache;
-}
-
-/** Liest ein globales Monster anhand seines Slugs — egal in welchem Typ-Unterordner. */
-async function readGlobalMonster(slug: string): Promise<string | null> {
-  if (!monsterPathCache) monsterPathCache = await buildMonsterPathCache();
-  const path = monsterPathCache.get(slug);
-  if (!path) return null;
-  try {
-    return await invoke<string>('read_file_content', { path });
-  } catch {
-    return null;
-  }
-}
-
-/** Lädt die vollständigen Monster-Definitionen für einen geöffneten Encounter.
- *  Lookup-Reihenfolge: akt-lokal (acts/{akt}/monsters/) → global (vault/monsters/<typ>/)
- */
 export async function loadEncounterMonsters(encounterContent: string, encounterPath?: string): Promise<void> {
-  // Akt-lokalen Monsters-Ordner aus dem Encounter-Pfad ableiten
-  const actMonsterBase = encounterPath
-    ? encounterPath.replace(/\/encounters\/[^/]+\.json$/, '/monsters')
-    : null;
-
-  try {
-    const enc = JSON.parse(encounterContent) as { monsters: Array<{ slug: string }> };
-    const defs = await Promise.all(
-      enc.monsters.map(async (m) => {
-        // Akt-lokal zuerst
-        if (actMonsterBase) {
-          try {
-            const content = await invoke<string>('read_file_content', { path: `${actMonsterBase}/${m.slug}.json` });
-            return normalizeMonster(JSON.parse(content) as Monster);
-          } catch { /* nicht gefunden, global versuchen */ }
-        }
-        // Global fallback: alle Typ-Unterordner durchsuchen
-        const content = await readGlobalMonster(m.slug);
-        return content ? normalizeMonster(JSON.parse(content) as Monster) : null;
-      })
-    );
-    encounterMonsterDefs.set(defs.filter((d): d is Monster => d !== null));
-  } catch {
-    encounterMonsterDefs.set([]);
-  }
+  encounterMonsterDefs.set(await fetchEncounterMonsters(encounterContent, encounterPath));
 }
 
 /** Lädt alle Akt-Summaries für eine Kampagne. Aufruf beim Kampagnen-Wechsel. */
 export async function loadActSummaries(campaignPath: string): Promise<void> {
-  try {
-    const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-      path: `./vault/campaigns/${campaignPath}/acts`,
-    });
-    const actDirs = actEntries.filter((e) => e.is_dir).map((e) => e.name);
-    const entries = await Promise.all(
-      actDirs.map(async (dirName) => {
-        const path = `./vault/campaigns/${campaignPath}/acts/${dirName}/index.md`;
-        const content = await invoke<string>('read_file_content', { path });
-        return {
-          name: dirName,
-          title: extractActTitle(content),
-          summary: extractActSummary(content),
-          path,
-        };
-      })
-    );
-    actSummaries.set(entries);
-  } catch {
-    actSummaries.set([]);
-  }
+  actSummaries.set(await fetchActSummaries(campaignPath));
 }
 
 export const systemPrompt = derived(
@@ -405,11 +196,12 @@ export function setPinDetailLevel(path: string, level: PinDetailLevel) {
  * überholten Laufs, sonst gewinnt bei schnellem Datei-Wechsel der langsamere Lauf.
  */
 let runToken = 0;
-async function refreshCharacterContexts(): Promise<void> {
+async function refreshCharacterContexts(
+  af: FileEntry | null,
+  fc: string,
+  pins: PinnedEntry[],
+): Promise<void> {
   const token = ++runToken;
-  const af = get(activeFile);
-  const fc = get(fileContent);
-  const pins = get(pinnedEntries);
 
   const jobs = new Map<string, { raw: string; level: CharacterContextLevel; notes?: CharacterNotes }>();
   for (const pin of pins) {
@@ -433,6 +225,6 @@ async function refreshCharacterContexts(): Promise<void> {
 }
 
 // Neu füllen, sobald der geöffnete Charakter, sein Inhalt oder die Pins sich ändern.
-derived([activeFile, fileContent, pinnedEntries], (v) => v).subscribe(() => {
-  void refreshCharacterContexts();
+derived([activeFile, fileContent, pinnedEntries], (v) => v).subscribe(([af, fc, pins]) => {
+  void refreshCharacterContexts(af, fc, pins);
 });

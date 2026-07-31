@@ -6,9 +6,8 @@
 // Karten-Typen (npc/monster/encounter/spell/item/character) laden ihren Inhalt
 // selbst via activeFile-Subscription; nur Editor-Typen brauchen setFileContent.
 
-import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import { activeFile, activeCampaign, setFileContent } from '../stores/campaign';
+import { activeFile, setFileContent } from '../stores/campaign';
 import { confirmNavigation } from '../stores/navigationGuard';
 import { loadActSummaries } from '../stores/context';
 import type { FileEntry } from '../types';
@@ -73,12 +72,17 @@ function displayName(path: string, type: FileEntry['type']): string {
 }
 
 /**
- * Öffnet das Ziel eines Markdown-Links innerhalb der App.
+ * Öffnet das Ziel eines Markdown-Links innerhalb der App. `campaignPath` reicht der
+ * Aufrufer aus dem Store herein — nur für den Akt-Kontext-Seiteneffekt unten.
  * @returns true, wenn der Link intern behandelt wurde (auch bei Abbruch durch den
  *          Guard); false bei externen/nicht auflösbaren Links – der Aufrufer kann
  *          dann z.B. im System-Browser öffnen.
  */
-export async function openVaultLink(href: string, fromFilePath: string): Promise<boolean> {
+export async function openVaultLink(
+  href: string,
+  fromFilePath: string,
+  campaignPath?: string,
+): Promise<boolean> {
   if (!href || !fromFilePath || isExternal(href)) return false;
 
   let decoded = href;
@@ -112,10 +116,7 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
   // Öffnen eines Akts (openFile). Encounter/NPC/Karten lösen bewusst keinen
   // Kontext-Reload aus (die laufen nur bei Kampagnen-Wechsel), damit die Navigation
   // sich identisch zur erprobten Sidebar verhält.
-  if (type === 'act') {
-    const campaignPath = get(activeCampaign)?.path;
-    if (campaignPath) loadActSummaries(campaignPath);
-  }
+  if (type === 'act' && campaignPath) loadActSummaries(campaignPath);
 
   return true;
 }

@@ -8,7 +8,7 @@ import { invalidateSpeciesCache } from '../speciesLibrary';
 import { invalidateFeatsCache } from '../featsLibrary';
 import { invalidateBackgroundsCache } from '../backgroundsLibrary';
 import { invalidateItemCache } from '../itemLibrary';
-import { invalidateMonsterPaths } from './context';
+import { invalidateMonsterPaths } from '../services/contextLoad';
 
 /**
  * Zustand einer verteilten Bibliothek.

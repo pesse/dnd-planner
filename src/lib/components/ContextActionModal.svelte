@@ -4,7 +4,8 @@
   import { getClient } from '../services/llmClient';
   import { describeAiStep } from '../services/aiActions/describeStep';
   import { modelsFor, defaultModelFor, defaultBaseUrlFor } from '../llmModels';
-  import { monsterLibrary } from '../stores/context';
+  import { activeFile, fileContent } from '../stores/campaign';
+  import { monsterLibrary, campaignCharacterData, contextFlags } from '../stores/context';
   import { monsterTypeLabel } from '../types';
   import type { LlmProvider } from '../types';
   import type { AgentStep } from '../services/vaultTools';
@@ -114,7 +115,14 @@
     abort = new AbortController();
     startClock();
     try {
-      result = await action.run($llmConfig, description.trim(), {
+      const state = {
+        activeFile: $activeFile,
+        fileContent: $fileContent,
+        party: $campaignCharacterData,
+        monsterLibrary: $monsterLibrary,
+        monsterGroups: $contextFlags.monsterGroups,
+      };
+      result = await action.run(state, $llmConfig, description.trim(), {
         onStep: (s) => { log = [...log, { kind: 'step', step: s }]; lastActivityMs = Date.now(); },
         onActivity: () => { lastActivityMs = Date.now(); },
         onPhase: (text) => { log = [...log, { kind: 'phase', text }]; lastActivityMs = Date.now(); },
