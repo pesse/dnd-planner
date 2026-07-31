@@ -450,7 +450,9 @@ Nicht „einer von fünf": über alle 110 gespeicherten Läufe **2**, beide auf 
 (50 Läufe → 4 %; Druide und Schurke je 30 Läufe → 0). Selten, aber teuer: 170 s Wartezeit
 *und* Totalverlust. Behoben in `featureEffectsAction.reason()` (zweiter Versuch) plus
 `llmService` (`delta.reasoning` wird gelesen → Lebenszeichen während des Denkens, Denk-Text
-im Mitschnitt, wenn die Antwort leer blieb). Festgenagelt in `evals/runawayRetry.test.ts`.
+im Mitschnitt, wenn die Antwort leer blieb). Festgenagelt zunächst in `runawayRetry.test.ts`,
+seit 2026-07-30 in `tests/unit/featureAnalysisCall.test.ts` — thinking-frei ließ sich der Fall
+nicht mehr herstellen (nächster Abschnitt, „Zwei Folgen für die Tests").
 
 ## Thinking-frei — gemessen und übernommen (2026-07-30)
 
