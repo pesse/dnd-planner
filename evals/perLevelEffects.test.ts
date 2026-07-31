@@ -1,7 +1,7 @@
 /**
  * Fortlaufende pro-Stufe-Effekte — OHNE LLM, über den ECHTEN Vault.
  *
- * Bis `docs/plan-wahlen-deklarieren.md` Stufe 0 war das ein Reasoning-Call
+ * Bis `docs/plan/plan-wahlen-deklarieren.md` Stufe 0 war das ein Reasoning-Call
  * (`levelUpEffectsAction`) über den gesamten Merkmalsbestand, und deshalb ungetestet:
  * einen LLM-Call kann man nicht in einer Zusicherung festhalten. Jetzt ist es eine
  * Deklaration im Vault (`grants.perLevel.hpMax`) — und diese Datei ist die Stelle, die

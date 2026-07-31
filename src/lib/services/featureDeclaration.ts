@@ -11,7 +11,7 @@
  * Der eigentliche Gewinn liegt nicht im Weglassen eines Calls, sondern im Wegfall eines
  * ZUSTANDS: weil die Wirkung neben der Option steht, gibt es kein „Antwort bekannt, Wirkung
  * erst danach berechenbar" mehr — kein `determinesFurtherEffects`, kein `blocked`, keine
- * Nach-Analyse (gemessen 30–40 s je Kette, `docs/analyse-system-prompts.md` §7).
+ * Nach-Analyse (gemessen 30–40 s je Kette, `docs/analysis/analyse-system-prompts.md` §7).
  *
  * Die Wahl entsteht als `AnalysisChoice`, die Wirkung als `FeatureRider` — dieselben zwei
  * Typen, die die KI liefert. Damit ist alles dahinter unverändert: `buildDecisions`,

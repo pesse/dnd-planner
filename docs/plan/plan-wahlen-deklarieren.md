@@ -4,9 +4,9 @@
 > **Stand 2026-07-30: Stufe 0, 1 und 2 sind umgesetzt** (fünf Commits), Stufe 3–5 offen.
 > Was die Umsetzung am Plan korrigiert hat, steht in Abschnitt „Korrekturen aus der
 > Umsetzung"; die Stufen-Abschnitte selbst sind der ursprüngliche Entwurf.
-> Übergeordnet zu `docs/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
+> Übergeordnet zu `docs/plan/plan-zauberwirker-vereinfachung.md`: der zieht **einen** Fall
 > (Eingeweihter der Magie) aus der Kette, dieser beschreibt den Endzustand, in dem die Kette nichts
-> mehr zu deuten hat. Zahlengrundlage ist `docs/analyse-system-prompts.md` (Modell QM/vLLM
+> mehr zu deuten hat. Zahlengrundlage ist `docs/analysis/analyse-system-prompts.md` (Modell QM/vLLM
 > `Qwen3.6-35B-A3B-AWQ-4bit`, `--runs 5`); Bestandszahlen sind am 2026-07-30 aus dem Vault
 > gezählt. Zeilennummern: Stand `analyse-prompts-wt`.
 
@@ -134,7 +134,7 @@ Das ist die Größenordnung eines Redaktions-Nachmittags, nicht eines Projekts.
 
 Der Vorschlag steht ausdrücklich darauf, dass die Anlage billig ist — und die Messreihe belegt
 das: im Endstand stehen **alle 24 Core-Assertions über drei Fälle auf 5/5**, erzeugt von einem
-35B-4bit-Modell (`docs/analyse-system-prompts.md`, Abschnitt 9). Was die Kette heute pro
+35B-4bit-Modell (`docs/analysis/analyse-system-prompts.md`, Abschnitt 9). Was die Kette heute pro
 Aufstieg leistet, muss sie künftig nur einmal pro Bibliothekseintrag leisten.
 
 Der Unterschied ist nicht die Fähigkeit, sondern die Fehlerfolge:
@@ -193,7 +193,7 @@ Sechs Dinge sahen im Code anders aus als im Entwurf:
    Gnomen- und Elfenabstammung tragen je eine ZWEITE Wahl in derselben Prosa („Intelligenz,
    Weisheit oder Charisma ist dein Zauberattribut") und die Elfen-Variante zusätzlich eine
    Stufentabelle (1/3/5) — das ist `spellAccess` mit Zweig, nicht `optionList`. Sie gehören
-   zu `docs/plan-zauberwirker-vereinfachung.md`. Die Drachenabstammung bleibt aus einem
+   zu `docs/plan/plan-zauberwirker-vereinfachung.md`. Die Drachenabstammung bleibt aus einem
    dritten Grund draußen: ihre Antwort ist Eingang für den TEXT ANDERER Merkmale
    (Odemwaffe, Schadensresistenz) — der interlockte Fall, der das Modell wirklich braucht.
 6. **Subklassen-Merkmale nach der Subklassen-Wahl sind nicht abgedeckt.**
@@ -249,7 +249,7 @@ dafür keinen Test — der Pfad hing an einem LLM). Sichtbar in der App: Aufstie
 
 ## Stufe 1 — `optionList` mit Konsequenz je Option ✅ (ohne Spezies, siehe Korrektur 5)
 
-Die Zweigwahl, an der die Kette heute am teuersten arbeitet. `docs/plan-zauberwirker-vereinfachung.md`
+Die Zweigwahl, an der die Kette heute am teuersten arbeitet. `docs/plan/plan-zauberwirker-vereinfachung.md`
 nennt die Gnomische Abstammung ausdrücklich als „bleibt Modellarbeit, weil die Zauber am Zweig
 hängen" — mit Grants **je Option** fällt dieses Argument, denn der Zweig steht dann als Daten da.
 
@@ -278,7 +278,7 @@ Core-Assertions, geheilt durch K1) wird damit von einer Prompt-Frage zu einer
 Builder-Frage.
 
 **Das muss im Bericht stehen:** dass eine Assertion grün ist, heißt ab hier nicht mehr
-„der Prompt ist gut". Es ist dieselbe Warnung, die `analyse-system-prompts.md` unter
+„der Prompt ist gut". Es ist dieselbe Warnung, die `docs/analysis/analyse-system-prompts.md` unter
 Empfehlung 1 für `fillDecisions` formuliert — hier gilt sie für die ganze Strecke.
 
 ## Stufe 2 — `expertise` und `abilityIncrease` ✅ (nur `expertise`)
@@ -379,7 +379,7 @@ erfindet, die still am Charakter landet.** Das ist der Gewinn, nicht die Token.
 4. **Keine Charakter-Migration.** Alles hier sind Bibliotheksdaten; `features[].choice` /
    `choiceDe` am Charakter bleiben unverändert, `CHARACTER_VERSION` wird nicht angefasst.
 5. **Der Eval-Bericht wird zur Hälfte historisch.** K1–K7 beschreiben Prompt-Änderungen an
-   Prompts, die dieser Plan löscht. `docs/analyse-system-prompts.md` bekommt am Kopf einen
+   Prompts, die dieser Plan löscht. `docs/analysis/analyse-system-prompts.md` bekommt am Kopf einen
    Satz, der auf diesen Plan zeigt — die Messungen bleiben die Begründung, nicht der Zustand.
 6. **Reihenfolge ist verhandelbar, Stufe 0 nicht.** Sie ist der Beweis am kleinsten Fall: ein
    ganzer Call gegen zwei Vault-Zeilen, ohne jede Berührung der Rider-Kette.
@@ -389,6 +389,6 @@ erfindet, die still am Charakter landet.** Das ist der Gewinn, nicht die Token.
 - KI-gestütztes **Erzeugen** von Homebrew-Talenten/-Klassen (der eigentliche Zielzustand der
   Umkehrung — eigener Plan, baut auf `spec.ts`/`factory.ts`)
 - `startingEquipment` strukturieren (macht `equipmentMatchAction` überflüssig)
-- Die Architektur-Frage aus `analyse-system-prompts.md` §7 (drei Reasoning-Durchläufe über
+- Die Architektur-Frage aus `docs/analysis/analyse-system-prompts.md` §7 (drei Reasoning-Durchläufe über
   denselben Block) — sie **erledigt** sich hier, war aber nicht ihr Anlass
 - `class_context.spellcastingAbility` vereinheitlichen (B12) — kleiner, unabhängiger Fix

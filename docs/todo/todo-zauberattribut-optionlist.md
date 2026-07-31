@@ -1,6 +1,6 @@
 # TODO: Zauberattribut für `optionList`-Zweige mit Zaubern
 
-> Folgearbeit aus `plan-wahlen-deklarieren.md`, Stufe 2. Aufgefallen 2026-07-31 beim
+> Folgearbeit aus `docs/plan/plan-wahlen-deklarieren.md`, Stufe 2. Aufgefallen 2026-07-31 beim
 > A/B-Vergleich der Eval-Strecke `declaredVsAi` (Höllische Abstammung, Tiefling Stufe 1).
 > Es ist der **einzige** gemessene Punkt, an dem die Deklaration heute schlechter ist als
 > der KI-Pfad, den sie ersetzt.

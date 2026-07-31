@@ -3,7 +3,7 @@
  *
  * Sie stand vorher nirgends: `personal.sizeCat` blieb leer, weil niemand sie schrieb. Hier hängt
  * die Zusicherung, dass jede Spezies einen Wert liefert und die WAHL von Mensch und Tiefling
- * nicht still zu einer Vorgabe wird (Begründung in `docs/plan-zauberwirker-vereinfachung.md`).
+ * nicht still zu einer Vorgabe wird (Begründung in `docs/plan/plan-zauberwirker-vereinfachung.md`).
  *
  *   npm run eval -- --eval speciesSize
  */

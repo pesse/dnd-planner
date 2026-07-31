@@ -4,7 +4,7 @@
  * Zweck: die spell-pick-Regel im Analyse-Prompt hat Kunden, und dieser Test benennt sie.
  * Fällt ein neues Merkmal durch einen Re-Import herein, bricht er und erzwingt eine
  * Einordnung, statt die Regel stillschweigend über- oder unterdeckt zu lassen.
- * Begründung der Einordnungen: `docs/plan-zauberwirker-vereinfachung.md` (Stufe 2).
+ * Begründung der Einordnungen: `docs/plan/plan-zauberwirker-vereinfachung.md` (Stufe 2).
  *
  *   npm run eval -- --eval spellChoiceCoverage
  */

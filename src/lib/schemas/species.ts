@@ -34,7 +34,7 @@ export const traitSchema = z.object({
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
   // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Talent.
   // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in derselben
-  // Prosa bzw. Eingang für den Text anderer Merkmale (Korrektur 5, plan-wahlen-deklarieren.md).
+  // Prosa bzw. Eingang für den Text anderer Merkmale (Korrektur 5, docs/plan/plan-wahlen-deklarieren.md).
   ...featureDeclarationFields,
 });
 

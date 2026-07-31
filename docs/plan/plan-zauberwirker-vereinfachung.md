@@ -1,7 +1,7 @@
 # Zauberwirker-Anteile aus der KI-Merkmalsdeutung herausziehen
 
 > Umsetzungsplan, erstellt am 2026-07-29 im Worktree `analyse-prompts`, noch nicht begonnen.
-> Folgearbeit zu `docs/analyse-system-prompts.md` — dort war die Architektur der Kette
+> Folgearbeit zu `docs/analysis/analyse-system-prompts.md` — dort war die Architektur der Kette
 > (Anzahl der Calls, Sprachgrenze) ausdrücklich außerhalb des Auftrags; hier ist sie das Thema.
 >
 > Alle Latenz-/Token-Zahlen stammen aus den dort gemessenen Läufen (Modell: QM/vLLM,
@@ -343,7 +343,7 @@ danach `20-58-43-wizardfeatures-stufe1-spellaccess`.
 Die Schätzung „15–20 % der erzeugten Tokens" war zu vorsichtig: die eingesparte Arbeit steckte
 vor allem im Reasoning-Vorlauf von Call 1 (−43 % Ausgabe-Tokens), nicht nur im Rider.
 
-**Qualität** (Details in `docs/analyse-system-prompts.md`, Abschnitt zu dieser Strecke):
+**Qualität** (Details in `docs/analysis/analyse-system-prompts.md`, Abschnitt zu dieser Strecke):
 
 * Call 1: alle **14** Core-Assertions 5/5, keine Fehler (Baseline: 1 Runaway-Lauf, daher 4/5).
 * Call C: alle Assertions 4/5 — der eine Ausfall ist ein Reasoning-Runaway von Pass A

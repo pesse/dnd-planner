@@ -521,7 +521,7 @@ function guardQualityMinds(config: LlmConfig): void {
  *
  * THINKING-FREI: dieser Call findet Entscheidungen, dafür kauft der Vorlauf nichts (gemessen
  * 2026-07-30, alle drei Strecken halbiert, keine Assertion verloren — Zahlen in
- * `docs/plan-zauberwirker-vereinfachung.md`). Ohne Vorlauf entfällt auch der Runaway (leerer
+ * `docs/plan/plan-zauberwirker-vereinfachung.md`). Ohne Vorlauf entfällt auch der Runaway (leerer
  * `content` bei `finish_reason: "length"`); der zweite Versuch bleibt als Netz für eine leere
  * Antwort aus anderem Grund. Festgenagelt in `evals/featureAnalysisCall.test.ts`.
  */

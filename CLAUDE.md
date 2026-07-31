@@ -176,7 +176,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every
   coverage gap goes silent — an imported or homebrew feature would lose its mechanics
   unnoticed. It is also why there is no cut-over date: the chain shrinks with coverage
-  (`docs/plan-wahlen-deklarieren.md`).
+  (`docs/plan/plan-wahlen-deklarieren.md`).
 - **New entity create/edit actions are not hand-written**: describe the differences in an
   `EntityActionSpec` (`services/aiActions/spec.ts`) and let `factory.ts` build the action.
 - **Gate LLM features on `LlmCapabilities`, never on provider names** (`services/llmClient.ts`).

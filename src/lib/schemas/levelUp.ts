@@ -228,7 +228,7 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
   z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),
-  // Waffen-/Rüstungs-Übungen aus Merkmalen. Bis Stufe 1 von docs/plan-wahlen-deklarieren.md
+  // Waffen-/Rüstungs-Übungen aus Merkmalen. Bis Stufe 1 von docs/plan/plan-wahlen-deklarieren.md
   // hatten sie kein Ziel: der Rider trug sie, das Dokument nicht — sie fielen im Aufstieg
   // still weg (im Wizard nicht, dort wendet die Assembly die Rider direkt an).
   z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),

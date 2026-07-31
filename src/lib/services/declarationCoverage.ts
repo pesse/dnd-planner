@@ -1,7 +1,7 @@
 /**
  * Der Bibliotheks-Linter: wie viele Merkmale einer Bibliothek sind DEKLARIERT?
  *
- * Ohne diese Sichtbarkeit ist die Abdeckung blind (docs/plan-wahlen-deklarieren.md,
+ * Ohne diese Sichtbarkeit ist die Abdeckung blind (docs/plan/plan-wahlen-deklarieren.md,
  * Stufe 3 und Risiko 1): nur ein deklariertes Merkmal fällt aus der KI-Deutung heraus,
  * und ob eines deklariert ist, sieht man einer Karte sonst nirgends an.
  *

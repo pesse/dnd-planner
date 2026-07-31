@@ -5,7 +5,7 @@
  * Diese Datei hält die zwei Zusicherungen fest, die vorher am Prompt hingen:
  * die Optionen sind ZITATE aus dem Regeltext (ein erfundenes Label bricht die gespeicherte
  * Antwort still), und die Wirkung steht neben der Option (`determinesFurtherEffects` kann
- * damit nie wieder true werden). Begründung: `docs/plan-wahlen-deklarieren.md`, Stufe 1.
+ * damit nie wieder true werden). Begründung: `docs/plan/plan-wahlen-deklarieren.md`, Stufe 1.
  *
  *   npm run eval -- --eval featureDeclaration
  */

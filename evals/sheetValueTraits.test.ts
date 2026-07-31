@@ -3,7 +3,7 @@
  *
  * Der Schnitt nimmt Merkmale aus dem KI-Eingang; ein Fehlurteil verliert still einen Grant.
  * Diese Zusicherungen sind die einzige Stelle, die das bemerkt (Begründung und Messung in
- * `docs/plan-zauberwirker-vereinfachung.md`, Abschnitt „Stufe 3").
+ * `docs/plan/plan-zauberwirker-vereinfachung.md`, Abschnitt „Stufe 3").
  *
  *   npm run eval -- --eval sheetValueTraits
  */
