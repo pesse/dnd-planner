@@ -42,6 +42,23 @@ function pushUnique(list: string[], value: string): void {
   if (v && !list.includes(v)) list.push(v);
 }
 
+/**
+ * Ob diese Changes am Charakter noch etwas ändern würden — die Frage hinter einem
+ * „Übernehmen"-Knopf, der verschwinden soll, sobald er nichts mehr tut.
+ *
+ * Geprüft am KLON, nicht an einer handgeführten Liste von Zielfeldern: die wäre die zweite
+ * Ausfertigung von `applyChanges` und liefe auseinander, sobald eine Variante dazukommt.
+ * Der Aufrufer übergibt einen SNAPSHOT (`$state.snapshot`) — `structuredClone` kann keinen
+ * Svelte-Proxy klonen.
+ */
+export function changesWouldAlter(c: Character, changes: readonly Change[], ctx: ApplyContext): boolean {
+  if (!changes.length) return false;
+  const before = JSON.stringify(c);
+  const next = structuredClone(c);
+  applyChanges(next, changes, ctx);
+  return JSON.stringify(next) !== before;
+}
+
 export function applyChanges(next: Character, changes: readonly Change[], ctx: ApplyContext): void {
   const spellKey = (name: string): { sourceKey?: string } => {
     const key = ctx.resolveSpellKey?.(name);

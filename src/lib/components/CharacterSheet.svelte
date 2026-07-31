@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { PDFDocument } from 'pdf-lib';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
@@ -9,7 +10,7 @@
   import { parseCharacter } from '../utils/schemaValidation';
   import { type Character, formatClassLevel, formatSpecies, pendingCharacterUpgrade } from '../schemas/character';
   import { proficiencyBonus } from '../services/classProgression';
-  import type { LevelUpChangeSet } from '../schemas/levelUp';
+  import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
   import type { LevelUpDelta } from '../services/levelUp';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
@@ -188,6 +189,25 @@
     next.classLevel = formatClassLevel(next.classes);
 
     // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
+    const r = parseCharacter(next);
+    ed.draft = r.ok ? r.data : next;
+  }
+
+  /**
+   * „Übernehmen" einer deklarierten Merkmalswahl aus dem Bearbeiten-Tab — dasselbe Muster wie
+   * `applyLevelUp`, nur ohne Struktur-Teil: die Wahl ändert keine Klassenstufe.
+   *
+   * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im Draft
+   * haben, sonst verliert der Referenz-Swap die letzten Eingaben.
+   */
+  async function applyChoiceGrants(changes: Change[]) {
+    if (!ed.draft || !changes.length) return;
+    await tick();
+    const next = structuredClone($state.snapshot(ed.draft)) as Character;
+    applyChanges(next, changes, {
+      classIndex: 0,
+      resolveSpellKey: (name) => resolveSpell({ name })?.key,
+    });
     const r = parseCharacter(next);
     ed.draft = r.ok ? r.data : next;
   }
@@ -1159,7 +1179,8 @@
               <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
                    Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
               <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
-                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
+                {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)}
+                onApplyChanges={applyChoiceGrants} />
             </div>
           {/key}
         {/if}

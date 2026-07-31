@@ -70,7 +70,7 @@
   import { decodePick, encodePick } from '../services/spellcasting';
   import SpellPickField from './SpellPickField.svelte';
   import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
-  import { skillEnName } from '../pdf/characterFields';
+  import { sheetSkillProficiencies } from '../services/characterChoices';
   import { totalLevel, type Character } from '../schemas/character';
   import type { Spell, LlmProvider } from '../types';
   import { SPELL_SCHOOLS } from '../types';
@@ -404,17 +404,7 @@
    * Schurke wählt auf Stufe 6 zwei WEITERE.
    */
   let declaredExpertiseFeatures = $derived(baseDeclared.filter(isExpertiseFeature));
-  let sheetSkills = $derived.by(() => {
-    const prof: string[] = [];
-    const exp: string[] = [];
-    for (const [key, row] of Object.entries(character.skills ?? {})) {
-      const en = skillEnName(key);
-      if (!en || !row?.prof) continue;
-      prof.push(en);
-      if (row.exp) exp.push(en);
-    }
-    return { prof, exp };
-  });
+  let sheetSkills = $derived(sheetSkillProficiencies(character.skills));
   let baseExpertiseChoices = $derived(
     buildFeatureChoices(
       declaredExpertiseFeatures

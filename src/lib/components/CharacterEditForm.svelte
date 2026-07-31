@@ -28,6 +28,12 @@
     resolveClassFeatures, resolveSpeciesTraits, resolveBackground, resolveFeatLinks,
     splitFeatureEntries, keysOf, withChoices, type ResolvedFeatureGroup,
   } from '../services/characterFeatures';
+  import {
+    buildCharacterChoices, choiceGrantChanges, choiceHint, collectChoiceSlots, openChoiceBadge,
+    sheetSkillProficiencies, withChoiceAnswer, type CharacterChoice, type ChoiceSlot,
+  } from '../services/characterChoices';
+  import { changesWouldAlter, type ApplyContext } from '../services/applyChanges';
+  import type { Change } from '../schemas/levelUp';
   import { llmConfig } from '../stores/llm';
   import { runAiAction } from '../services/aiActions/runner';
   import {
@@ -43,12 +49,14 @@
   import CreateCardModal from './CreateCardModal.svelte';
   import Markdown from './Markdown.svelte';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
+  import FeatureChoicePicker from './FeatureChoicePicker.svelte';
+  import DeclarationBadge from './DeclarationBadge.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
 
   // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
   // eigenen lokalen Zustand und spiegelt ihn unten über einen $effect zurück in den
   // Draft (kein eigener Speichern-Button — das übernimmt die EditorPanel-Save-Bar).
-  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
+  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade, onApplyChanges }: {
     character: Character;
     dirPath: string;
     saved?: Character | null;
@@ -56,6 +64,12 @@
     pendingUpgrade?: PendingCharacterUpgrade | null;
     upgradeAccepted?: boolean;
     onAcceptUpgrade?: () => void;
+    /**
+     * „Übernehmen" einer Merkmalswahl. Läuft über den Eltern-Editor, weil das Anwenden den
+     * DRAFT per neuer Referenz ersetzt (Formular-Remount) — das Formular kann sich nicht
+     * selbst neu aufsetzen.
+     */
+    onApplyChanges?: (changes: Change[]) => void;
   } = $props();
 
   // Diff-Highlighting: vergleicht ein Quell-Feld gegen die gespeicherte Version.
@@ -203,11 +217,12 @@
     ...(a.modifiers ? { modifiers: a.modifiers.map(m => ({ ...m })) } : {}),
   })));
   let classFeatures = $state(character.classFeatures ?? '');
-  // Das Merkmals-Ledger wird beim Bearbeiten AUFGETEILT: editierbar sind nur die
-  // Talent-Links, die Entscheidungen laufen unangetastet durch. Ohne diese Trennung
-  // würde `cleanRefs` sie beim Speichern verschlucken — sie tragen keinen `name`.
+  // Das Merkmals-Ledger wird beim Bearbeiten AUFGETEILT: Talent-Links (`refFeats`) und
+  // getroffene Entscheidungen (`choiceEntries`). Ohne diese Trennung würde `cleanRefs` die
+  // Entscheidungen beim Speichern verschlucken — sie tragen keinen `name`.
+  // Beide sind editierbar: die Entscheidungen über die Wahl-Picker weiter unten.
   let refFeats = $state((character.features ?? []).filter(r => !r.choice?.trim()).map(r => ({ ...r })));
-  const choiceEntries = (character.features ?? []).filter(r => !!r.choice?.trim()).map(r => ({ ...r }));
+  let choiceEntries = $state((character.features ?? []).filter(r => !!r.choice?.trim()).map(r => ({ ...r })));
   // Gegenstück für das Diff-Highlighting (Zuordnung über den Key, siehe `featDir`).
   const savedFeatLinks = $derived((saved?.features ?? []).filter(r => !r.choice?.trim()));
   let traits = $state(character.traits ?? '');
@@ -1141,25 +1156,92 @@
     if (pendingUpgrade) onAcceptUpgrade?.();
   }
 
-  // ─── Read-only Merkmals-Vorschau (aus der Bibliothek aufgelöst) ────────────────
+  // ─── Merkmals-Auflösung aus der Bibliothek ─────────────────────────────────────
   // Zeigt im Editor, welche Klassen-/Subklassen-Merkmale bzw. Volks-Traits der
   // gewählte Link bis zur Stufe liefert (reagiert live auf Klasse/Stufe/Subklasse/Volk).
-  let classFeatureGroups = $state<ResolvedFeatureGroup[]>([]);
-  let speciesTraitGroups = $state<ResolvedFeatureGroup[]>([]);
-  let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
+  //
+  // Die Auflösung liest BEWUSST nicht `choiceEntries`: sonst löste jede getroffene Antwort
+  // eine neue Bibliotheksauflösung aus. Die Verknüpfung mit dem Ledger sind die `$derived`
+  // darunter.
+  let rawClassGroups = $state<ResolvedFeatureGroup[]>([]);
+  let rawSpeciesGroups = $state<ResolvedFeatureGroup[]>([]);
+  let rawBackgroundGroups = $state<ResolvedFeatureGroup[]>([]);
+  let choiceSlots = $state<ChoiceSlot[]>([]);
   $effect(() => {
     const cls = $state.snapshot(classes);
     const spec = $state.snapshot(species);
     const bg = $state.snapshot(backgroundRef);
+    // Talent-LINKS gehören zu den Abhängigkeiten: ein Talent kann selbst eine Wahl
+    // deklarieren (Expertise, Zweigliste).
+    const feats = $state.snapshot(refFeats);
     void (async () => {
-      const [c, s, b] = await Promise.all([resolveClassFeatures(cls), resolveSpeciesTraits(spec), resolveBackground(bg)]);
-      const bgGroups = b ? [b] : [];
-      const { annotations } = splitFeatureEntries(choiceEntries, keysOf([...c, ...(s ?? []), ...bgGroups]));
-      classFeatureGroups = withChoices(c, annotations);
-      speciesTraitGroups = withChoices(s ?? [], annotations);
-      backgroundGroups = withChoices(bgGroups, annotations);
+      const [c, s, b, slots] = await Promise.all([
+        resolveClassFeatures(cls),
+        resolveSpeciesTraits(spec),
+        resolveBackground(bg),
+        collectChoiceSlots({ classes: cls, species: spec, backgroundRef: bg, features: feats }),
+      ]);
+      rawClassGroups = c;
+      rawSpeciesGroups = s ?? [];
+      rawBackgroundGroups = b ? [b] : [];
+      choiceSlots = slots;
     })();
   });
+
+  const featureAnnotations = $derived(
+    splitFeatureEntries(choiceEntries, keysOf([...rawClassGroups, ...rawSpeciesGroups, ...rawBackgroundGroups])).annotations,
+  );
+  const classFeatureGroups = $derived(withChoices(rawClassGroups, featureAnnotations));
+  const speciesTraitGroups = $derived(withChoices(rawSpeciesGroups, featureAnnotations));
+  const backgroundGroups = $derived(withChoices(rawBackgroundGroups, featureAnnotations));
+
+  // ─── Deklarierte Merkmalswahlen (services/characterChoices.ts) ─────────────────
+  // Die Expertise-Optionen sind der LIVE-Übungsstand des Formulars — deshalb ist die
+  // Verknüpfung ein `$derived` über `computedSkills`, nicht Teil der Auflösung oben.
+  const characterChoices = $derived(
+    buildCharacterChoices(choiceSlots, {
+      proficient: sheetSkillProficiencies(computedSkills).prof,
+      ledger: choiceEntries,
+    }),
+  );
+  /** Zuordnung Merkmal → seine Wahl-Plätze; der Index zeigt in `choiceGrants`. */
+  const choicesByFeature = $derived.by(() => {
+    const map = new Map<string, { ch: CharacterChoice; i: number }[]>();
+    characterChoices.forEach((ch, i) => {
+      const key = ch.slot.feature.key ?? '';
+      if (!key) return;
+      map.set(key, [...(map.get(key) ?? []), { ch, i }]);
+    });
+    return map;
+  });
+  /**
+   * Wirkung je Wahl plus die Frage, ob sie am Bogen noch etwas ändern würde — geprüft am
+   * DRAFT-Snapshot, den der Sync-Effekt unten aktuell hält. Ein „Übernehmen"-Knopf, der
+   * nichts mehr tut, verschwindet damit von selbst.
+   */
+  const choiceGrants = $derived.by(() => {
+    // Erst mit geladener Zauberbibliothek: davor wäre JEDER Options-Zauber „nicht gefunden",
+    // und der Picker meldete eine Lücke, die es nicht gibt.
+    if (!spellLibrary.length) return [];
+    const snap = $state.snapshot(character) as Character;
+    const ctx: ApplyContext = { classIndex: 0, resolveSpellKey: (n) => resolveSpell({ name: n })?.key };
+    return characterChoices.map((ch) => {
+      const g = choiceGrantChanges(ch, spellLibrary);
+      return { ...g, wouldAlter: changesWouldAlter(snap, g.changes, ctx) };
+    });
+  });
+  const choiceBadge = $derived(openChoiceBadge(characterChoices));
+
+  /** Die GESPEICHERTE Antwort eines Platzes — Grundlage für Diff-Tönung und Wechsel-Hinweis. */
+  const savedChoiceEntries = $derived((saved?.features ?? []).filter((r) => !!r.choice?.trim()));
+  function savedAnswerOf(ch: CharacterChoice): string {
+    const key = ch.slot.feature.key ?? '';
+    const hit =
+      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt === ch.slot.gainedAt) ??
+      // Altbestand trägt kein `gainedAt` — dieselbe Nachsicht wie `buildCharacterChoices`.
+      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt == null);
+    return hit?.choice ?? '';
+  }
 
   // ─── KI: die beiden Merkmals-Freitextfelder verdichten ─────────────────────────
   // Ein Prompt für beide Felder (`fieldSummaryAction`) — dieselbe Doktrin, die im
@@ -1453,7 +1535,9 @@
           gainedAt: r.gainedAt == null || Number.isNaN(r.gainedAt) ? undefined : Number(r.gainedAt),
           desc: r.desc ?? '',
         }));
-    character.features = [...cleanRefs(refFeats), ...choiceEntries];
+    // Die Entscheidungen als KOPIE: sonst teilte der Draft die Objekte mit `choiceEntries`
+    // und ein Picker schriebe am Sync-Effekt vorbei in den Draft.
+    character.features = [...cleanRefs(refFeats), ...choiceEntries.map((e) => ({ ...e }))];
     character.portraitFile = portraitFile || undefined;
   });
 
@@ -1470,7 +1554,29 @@
 <div class="edit-form">
   <!-- Speichern/Verwerfen übernimmt die EditorPanel-Save-Bar (kein eigener Button). -->
 
-  <!-- Read-only Merkmals-Auflösung (aus der Bibliothek): was der Klassen-/Volks-LINK liefert. -->
+  <!-- Eine deklarierte Merkmalswahl (services/characterChoices.ts). Der Index zeigt in
+       `choiceGrants` — beide Listen entstehen aus `characterChoices` und sind index-gleich. -->
+  {#snippet choiceRow(ch: CharacterChoice, i: number)}
+    {@const g = choiceGrants[i]}
+    {@const savedAnswer = savedAnswerOf(ch)}
+    <!-- `showLevel`: die Stufe beschriftet nur, was sie unterscheidet — die Mehrfachvergabe. -->
+    <FeatureChoicePicker
+      choice={ch.choice}
+      answer={ch.answer}
+      open={ch.open}
+      gainedAt={ch.slot.gainedAt}
+      showLevel={(choicesByFeature.get(ch.slot.feature.key ?? '')?.length ?? 1) > 1}
+      pendingGrants={!!g?.wouldAlter}
+      hint={g ? choiceHint(ch, g, { wouldAlter: g.wouldAlter, changed: !!savedAnswer && savedAnswer !== ch.answer.join(', ') }) : ''}
+      flagged={g?.flagged ?? []}
+      diff={dirOf(savedAnswer, ch.answer.join(', '))}
+      onchange={(next) => (choiceEntries = withChoiceAnswer(choiceEntries, ch, next))}
+      onapply={() => onApplyChanges?.(g?.changes ?? [])}
+    />
+  {/snippet}
+
+  <!-- Merkmals-Auflösung aus der Bibliothek: was der Klassen-/Volks-LINK liefert. Read-only
+       bis auf die deklarierten Wahlen — die sind hier jederzeit änderbar. -->
   {#snippet featureGroups(groups: ResolvedFeatureGroup[], emptyHint: string)}
     {#if !groups.length}
       <p class="fp-empty">{emptyHint}</p>
@@ -1483,13 +1589,17 @@
           {:else if g.features.length}
             <ul class="fp-list">
               {#each g.features as f}
+                {@const slots = choicesByFeature.get(f.key ?? '') ?? []}
                 <li>
                   <div class="fp-head">
                     <span class="fp-name">{f.name}</span>
                     {#if f.gainedAt}<span class="fp-lvl">Stufe {f.gainedAt}</span>{/if}
-                    {#if f.choice}<span class="fp-choice">Entscheidung: {f.choice}</span>{/if}
+                    <!-- Ein deklariertes Merkmal zeigt seine Wahl als Picker (unten), nicht
+                         als Chip — sonst stünde dieselbe Antwort zweimal. -->
+                    {#if f.choice && !slots.length}<span class="fp-choice">Entscheidung: {f.choice}</span>{/if}
                   </div>
                   {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
+                  {#each slots as s}{@render choiceRow(s.ch, s.i)}{/each}
                 </li>
               {/each}
             </ul>
@@ -1992,7 +2102,12 @@
        Link + Stufe, nicht hier editiert). Talente werden als Link gepflegt. -->
   <section>
     <details class="ref-section">
-      <summary>Verknüpfte Merkmale & Talente</summary>
+      <!-- Der Zähler MUSS am summary hängen: die Sektion ist zugeklappt, ein rein inliner
+           Marker an der offenen Wahl wäre unsichtbar. -->
+      <summary>
+        Verknüpfte Merkmale & Talente
+        {#if choiceBadge}<span class="summary-badge"><DeclarationBadge badge={choiceBadge} /></span>{/if}
+      </summary>
       <p class="ref-hint">Klassen-, Volks- & Hintergrundmerkmale werden aus der Bibliothek aufgelöst (read-only). Talente kommen immer aus der Bibliothek — fehlt eines, zuerst als Talent-Karte anlegen. Beschreibungen kommen aus der Bibliothek, nicht ins PDF.</p>
 
       <div class="ref-block">
@@ -2043,6 +2158,8 @@
                   {@const desc = featDesc(entry)}
                   {#if prereq}<div class="fp-prereq">Voraussetzung: {prereq}</div>{/if}
                   {#if desc}<div class="fp-desc"><Markdown source={desc} /></div>{/if}
+                  <!-- Ein Talent deklariert seine Wahl genauso wie ein Klassenmerkmal. -->
+                  {#each choicesByFeature.get(entry.sourceKey ?? '') ?? [] as s}{@render choiceRow(s.ch, s.i)}{/each}
                 {/if}
               </li>
             {/each}
@@ -2663,6 +2780,9 @@
   .ref-section summary::-webkit-details-marker { display: none; }
   .ref-section summary::before { content: '› '; color: var(--border); }
   .ref-section[open] summary::before { content: '▾ '; }
+  /* Der Wahl-Zähler sitzt IM summary (die Sektion ist zugeklappt) — hier nur der Abstand,
+     die Farben kommen aus DeclarationBadge. */
+  .summary-badge { margin-left: 0.4rem; font-weight: 400; }
   .ref-hint {
     font-size: 0.75rem;
     color: var(--ink-muted);

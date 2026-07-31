@@ -19,7 +19,7 @@ import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from '.
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
 import type { FeatureGrant } from '$lib/schemas/shared';
-import { declaredFeatures, type DeclaredFeature } from './declaredFeature';
+import { declaredFeatures, type DeclaredFeature, type FeatureSource } from './declaredFeature';
 
 /** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
 export interface ResolvedFeature {
@@ -386,4 +386,102 @@ export async function declaredSpeciesFeatures(
   const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
   const specs = await Promise.all(keys.map((k) => getSpeciesByKey(k)));
   return specs.flatMap((spec) => (spec ? declaredFeatures('species', spec.traits) : []));
+}
+
+/**
+ * Ein deklariertes Merkmal samt TRÄGER — der Rohstoff der Wahl-Plätze
+ * (`services/characterChoices.ts`).
+ *
+ * `gainedAt` steht hier statt an `DeclaredFeature`, weil es zum Träger gehört, nicht zur
+ * Deklaration: dasselbe Bibliotheks-Merkmal ist am Charakter mehrfach vergeben (Expertise
+ * auf 1 UND 6), und genau daran hängt die Anzahl der Plätze.
+ */
+export interface DeclaredSlotSource {
+  feature: DeclaredFeature;
+  /** Anzeigegruppe des Trägers („Schurke 6" · „Elf" · „Talente"). */
+  group: string;
+  /** Vergabe-Stufen des Merkmals — ein Wahl-Platz je Stufe. */
+  gainedAt: number[];
+  /**
+   * Maßgebliche Stufe für `options[].spells`: KLASSENstufe am Klassenmerkmal,
+   * CHARAKTERstufe bei Spezies und Talent — dieselbe Unterscheidung, die
+   * `declaredSpellGrants` zweimal aufgerufen bekommt.
+   */
+  level: number;
+}
+
+/**
+ * Klassen- und Subklassenmerkmale bis zur jeweiligen Stufe, mit ihren Vergabe-Stufen.
+ *
+ * Nicht `resolveClassFeatures`: das faltet die Mehrfachvergabe auf `firstGainedAt`
+ * zusammen und liefert deutschen Anzeigetext. Hier zählt beides umgekehrt — die
+ * VOLLE `gainedAt`-Liste (sonst schuldet ein Schurke der Stufe 6 nur eine Expertise
+ * statt zwei) und der englische Text der Deklaration.
+ */
+export async function declaredClassFeatures(classes: CharacterClass[]): Promise<DeclaredSlotSource[]> {
+  const out: DeclaredSlotSource[] = [];
+  for (const cls of classes ?? []) {
+    const level = cls.level || 1;
+    const carriers: { key: string; source: FeatureSource; name: string }[] = [];
+    if (cls.sourceKey) carriers.push({ key: cls.sourceKey, source: 'class', name: cls.name.trim() });
+    if (cls.subclassKey) carriers.push({ key: cls.subclassKey, source: 'subclass', name: cls.subclassName?.trim() ?? '' });
+    for (const carrier of carriers) {
+      const prog = await getProgressionByKey(carrier.key);
+      if (!prog) continue;
+      const group = `${carrier.name || prog.nameDe || prog.name || carrier.key} ${level}`;
+      const raw = featuresUpTo(prog, level);
+      // Index-gleich: `declaredFeatures` mappt 1:1 — `gainedAt` steht nur am Rohmerkmal.
+      declaredFeatures(carrier.source, raw).forEach((feature, i) => {
+        out.push({ feature, group, gainedAt: raw[i].gainedAt, level });
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Verlinkte Talente (inkl. Herkunftstalent des Hintergrunds) als Deklarationsquelle.
+ *
+ * Erwartet das ganze Ledger und siebt die Talent-Links selbst heraus — `choice` ist der
+ * Diskriminator (schemas/character.ts), und die Wahl-Einträge sind gerade das, was die
+ * Plätze BEANTWORTET, nicht was sie erzeugt.
+ */
+export async function declaredFeatFeatures(
+  features: CharacterFeatureEntry[] | undefined,
+  background: CharacterBackground | undefined,
+  charLevel: number,
+): Promise<DeclaredSlotSource[]> {
+  const links = (features ?? []).filter((e) => !e.choice.trim() && (e.sourceKey || e.name.trim()));
+  const bg = background?.sourceKey ? await getBackgroundByKey(background.sourceKey) : null;
+  const refs = [
+    ...links.map((e) => ({ sourceKey: e.sourceKey, name: e.name, gainedAt: e.gainedAt ?? 1 })),
+    // Das Herkunftstalent steht NICHT im Ledger — es kommt allein aus dem Hintergrund.
+    ...(bg?.featKey ? [{ sourceKey: bg.featKey, name: '', gainedAt: 1 }] : []),
+  ];
+  if (!refs.length) return [];
+
+  const lib = await getFeats();
+  const out: DeclaredSlotSource[] = [];
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    const entry = matchFeatEntry(lib, ref);
+    if (!entry) continue;
+    const key = entry.sourceKey || entry.name.trim().toLowerCase();
+    // Ein von Hand verlinktes Herkunftstalent käme sonst zweimal.
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const [feature] = declaredFeatures('feat', [{
+      key: entry.sourceKey,
+      name: entry.name,
+      nameDe: entry.nameDe,
+      desc: entry.desc,
+      grants: entry.grants,
+      grantsChoice: entry.grantsChoice,
+      grantsSpells: entry.grantsSpells,
+    }]);
+    // Gekappt an der Charakterstufe: eine Erwerbsstufe über ihr (Altdaten, Tippfehler)
+    // würde ihren Platz sonst wegfiltern und die Wahl unsichtbar machen.
+    out.push({ feature, group: 'Talente', gainedAt: [Math.min(ref.gainedAt, charLevel)], level: charLevel });
+  }
+  return out;
 }
