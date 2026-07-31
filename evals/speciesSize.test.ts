@@ -23,6 +23,7 @@ import { buildWizardCharacter } from '../src/lib/services/wizard/assembleCharact
 import type { CharacterWizard } from '../src/lib/services/wizard/characterWizard.svelte';
 import { pointBuyStart } from '../src/lib/services/wizard/pointBuy';
 import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
+import { libraryKey } from './libraryKey';
 
 /**
  * Die Spezies, deren Größe eine Wahl ist — alle anderen liegen fest. Der Wert ist die
@@ -64,9 +65,9 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     // Wie am echten Wizard immer gesetzt; `buildWizardCharacter` liest es für die Bogen-Notiz
     // des Zauber-Zugangs.
     spellAccess: [],
-    // Ebenso immer gesetzt: deklarierte Zweigwahlen (Urtümlicher Orden) und die daraus
+    // Ebenso immer gesetzt: die deklarierten Merkmale (Urtümliche Ordnung) und die daraus
     // gebauten Rider, die `buildWizardCharacter` neben den KI-Ridern anwendet.
-    optionListFeatures: [],
+    declared: [],
     riders: [],
     featureChoices: [],
     spellPickChoices: [],
@@ -86,13 +87,14 @@ describe('Größenkategorie der Spezies', () => {
 
     const fixed: Record<string, string> = {};
     for (const info of list) {
-      const traits = await traitsOf(info.key);
+      const key = libraryKey(info);
+      const traits = await traitsOf(key);
       // Jede Spezies MUSS ein Größenmerkmal haben — fehlt es, bleibt der Bogen leer.
-      expect(sizeTraitOf(traits), info.key).toBeDefined();
+      expect(sizeTraitOf(traits), key).toBeDefined();
       const options = sizeOptionsOf(traits);
-      expect(options.length, `${info.key}: erkannte Kategorien`).toBeGreaterThan(0);
-      if (options.length === 1) fixed[info.key] = resolveSizeCat(traits);
-      else expect(CHOOSING, `${info.key} wählt seine Größe`).toContain(info.key);
+      expect(options.length, `${key}: erkannte Kategorien`).toBeGreaterThan(0);
+      if (options.length === 1) fixed[key] = resolveSizeCat(traits);
+      else expect(CHOOSING, `${key} wählt seine Größe`).toContain(key);
     }
 
     expect(fixed).toEqual({

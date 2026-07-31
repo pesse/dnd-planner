@@ -46,13 +46,14 @@
     type StepId, type AdvanceCtx, type ValidatedRiders, type DeclaredSpells,
     gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature, validateRiderSpells,
     buildDecisions, buildFeatureChoices, countFeatsToPick, learnInfo,
-    resolveDeclaredSpells, noDeclaredSpells,
+    resolveDeclaredSpells, resolveSpellNames, noDeclaredSpells,
     STEP_META, isCheckpoint, advance, buildDoc, sheetNoteLines, answerValues,
   } from '../services/levelUpMachine';
   import { withoutSpellGrantFeatures } from '../services/grantedSpells';
   import {
     expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature,
-    isOptionListFeature, optionListChoices, optionListNoteLines, optionListRiders,
+    isOptionListFeature, optionChoiceId, optionListChoices, optionListNoteLines, optionListRiders,
+    optionSpellNames, unredactedChoiceFeatures,
     withDeclaredGrants, withoutDeclaredChoiceFeatures,
   } from '../services/featureDeclaration';
   import { declaredFeatures } from '../services/declaredFeature';
@@ -707,9 +708,15 @@
   async function runFinalize(kind: 'base' | 'feat', alive: () => boolean) {
     await ensureSpellLib();
     if (!alive()) return;
-    const features = featuresFor(kind);
     const analysis = kind === 'base' ? baseAnalysis : featAnalysis;
     const decisionsCtx = gatherDecisions(kind);
+    // Merkmale, deren Zweig nichts deklariert, kommen ERST hier dazu: die Analyse hätte
+    // dieselbe Wahl ein zweites Mal gestellt, Pass C deutet nur noch ihre Prosa.
+    const unredacted = unredactedChoiceFeatures(
+      kind === 'base' ? baseDeclared : featDeclared,
+      (f) => optionAnswer(optionChoiceId(f)),
+    ).map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: delta!.toLevel }));
+    const features = [...featuresFor(kind), ...unredacted];
     let parsed: FeatureRider[] = [];
     if (features.length && analysis) {
       pushStep(decisionsCtx.length
@@ -726,8 +733,11 @@
     // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen. Beide
     // Phasen aus DERSELBEN Liste: ein Talent mit `optionList` verlor sonst seine Wirkung.
     const grantSources = kind === 'base' ? baseDeclared : featDeclared;
+    // Die Stufe einer Options-Zauberliste: am Klassenmerkmal die KLASSEN-, am Talent die
+    // CHARAKTERstufe (`declaredSpellGrants` liest dieselbe Unterscheidung).
+    const optionLevel = kind === 'base' ? delta!.toLevel : newCharLevel();
     const declared = [
-      ...optionListRiders(grantSources, optionAnswer),
+      ...optionListRiders(grantSources, optionAnswer, optionLevel),
       ...grantSources
         .filter(isExpertiseFeature)
         .map((f) => expertiseRider(f, optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
@@ -925,10 +935,26 @@
    * Charakterstufe (die Elfenlinien-Tabelle 1/3/5 hängt an ihr). Kumulativ und idempotent —
    * `applyChanges` dedupliziert, schon gewährte Zeilen kosten nichts.
    */
+  /** Die Charakterstufe NACH diesem Aufstieg — nicht die Klassenstufe (`delta.toLevel`). */
+  const newCharLevel = (): number => totalLevel(character.classes) + (delta!.toLevel - delta!.fromLevel);
+
+  /** Die am Charakter GESPEICHERTE Antwort eines Merkmals, englisch kanonisch. */
+  const storedChoiceOf = (f: { key?: string }): string =>
+    pastChoices.find((p) => p.featureKey === f.key)?.choice ?? '';
+
   async function resolveCharLevelSpells() {
-    const charLevel = totalLevel(character.classes) + (delta!.toLevel - delta!.fromLevel);
-    const sources = [...(await declaredSpeciesFeatures(character.species)), ...featDeclared];
-    charLevelSpells = resolveDeclaredSpells(sources, charLevel, await ensureSpellLib(), delta!.klasseName);
+    const charLevel = newCharLevel();
+    const species = await declaredSpeciesFeatures(character.species);
+    const sources = [...species, ...featDeclared];
+    const lib = await ensureSpellLib();
+    // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung Stufe
+    // 3 und 5). Die Wahl wird nicht erneut gestellt — ihre Antwort steht am Charakter.
+    charLevelSpells = resolveSpellNames(
+      optionSpellNames(species, storedChoiceOf, charLevel),
+      lib,
+      delta!.klasseName,
+      resolveDeclaredSpells(sources, charLevel, lib, delta!.klasseName),
+    );
     if (charLevelSpells.flagged.length) flagged = [...new Set([...flagged, ...charLevelSpells.flagged])];
   }
 

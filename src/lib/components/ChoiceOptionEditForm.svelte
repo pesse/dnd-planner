@@ -40,7 +40,19 @@
   }
 
   function addOption() {
-    options = [...options, { value: '', labelDe: '', helpDe: '' }];
+    options = [...options, { value: '', labelDe: '', helpDe: '', spells: [] }];
+    onchange();
+  }
+
+  // EIN Zauber je Zeile statt einer Komma-Liste: `optionSpellsUpTo` vereinigt Zeilen gleicher
+  // Stufe, und ein Textfeld ohne Trennzeichen-Parsing braucht keinen lokalen Zustand.
+  function addSpellRow(option: ChoiceOption) {
+    option.spells = [...option.spells, { level: 1, names: [''] }];
+    onchange();
+  }
+
+  function removeSpellRow(option: ChoiceOption, i: number) {
+    option.spells = option.spells.filter((_, idx) => idx !== i);
     onchange();
   }
 
@@ -95,6 +107,19 @@
         </span>
         <input class="ef" bind:value={option.helpDe} oninput={mark} placeholder="z.B. Übung mit Kriegswaffen, mittlere Rüstung" />
       </label>
+
+      <!-- Benannte Zauber DIESER Option (Elfenabstammung 1/3/5). Nicht `grantsSpells`: das
+           zeigt auf eine Tabelle im desc des Trägers, den alle Zweige teilen. -->
+      {#each option.spells as row, ri}
+        <div class="spell-row">
+          <label class="lbl-inline">ab Stufe
+            <input class="ef num" type="number" min="1" max="20" bind:value={row.level} oninput={mark} />
+          </label>
+          <input class="ef spell-name" bind:value={row.names[0]} oninput={mark} placeholder="Zauber (EN), z.B. Misty Step" />
+          <button class="opt-del" onclick={() => removeSpellRow(option, ri)} title="Zauberzeile entfernen">×</button>
+        </div>
+      {/each}
+      <button class="add-spell" onclick={() => addSpellRow(option)}>+ Zauber je Stufe</button>
 
       <label class="chk" class:off={!option.grants}>
         <input
@@ -169,10 +194,16 @@
     border-left: 1px dashed var(--border); padding-left: 0.5rem; margin-top: 0.1rem;
   }
 
-  .add-opt {
+  .spell-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem; }
+  .lbl-inline { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--ink-soft); flex-shrink: 0; }
+  .num { width: 48px; text-align: center; }
+  .spell-name { flex: 1; }
+
+  .add-opt, .add-spell {
     align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; color: var(--ink-soft); cursor: pointer;
     font-family: inherit; font-size: 0.78rem; padding: 0.2rem 0.55rem; margin-top: 0.2rem;
   }
-  .add-opt:hover { border-color: var(--mef-accent, var(--arcane)); color: var(--mef-accent, var(--arcane)); }
+  .add-opt:hover, .add-spell:hover { border-color: var(--mef-accent, var(--arcane)); color: var(--mef-accent, var(--arcane)); }
+  .add-spell { font-size: 0.72rem; margin-top: 0.15rem; }
 </style>

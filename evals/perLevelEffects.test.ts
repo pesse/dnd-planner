@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../src/lib/speciesLibrary';
 import { getFeats } from '../src/lib/featsLibrary';
 import { hpPerLevelSources, hpPerLevelSum } from '../src/lib/services/perLevelEffects';
+import { featureGrantSchema } from '../src/lib/schemas/shared';
+import { libraryKey } from './libraryKey';
 
 describe('pro-Stufe-Effekte aus der Deklaration', () => {
   it('deklariert im ganzen Vault genau die zwei bekannten Fälle', async () => {
@@ -21,7 +23,7 @@ describe('pro-Stufe-Effekte aus der Deklaration', () => {
 
     const declared: string[] = [];
     for (const info of list) {
-      const spec = await getSpeciesByKey(info.key);
+      const spec = await getSpeciesByKey(libraryKey(info));
       for (const t of spec?.traits ?? []) {
         if (t.grants?.perLevel?.hpMax) declared.push(`${t.key} = ${t.grants.perLevel.hpMax}`);
       }
@@ -56,7 +58,7 @@ describe('pro-Stufe-Effekte aus der Deklaration', () => {
   });
 
   it('zählt dasselbe Merkmal nicht doppelt, egal aus welcher Richtung es kommt', () => {
-    const grants = { perLevel: { hpMax: 1 } };
+    const grants = featureGrantSchema.parse({ perLevel: { hpMax: 1 } });
     // Bibliotheks-Trait (deutscher Anzeigename) und neu gewonnenes Merkmal (englisch) —
     // vor der Dedup über den Key hätte der Name sie nicht zusammengeführt.
     const sources = hpPerLevelSources([
@@ -70,14 +72,14 @@ describe('pro-Stufe-Effekte aus der Deklaration', () => {
   it('ignoriert Merkmale ohne und mit leerer Deklaration', () => {
     expect(hpPerLevelSources([
       { key: 'a', name: 'nicht redigiert' },
-      { key: 'b', name: 'geprüft, ohne Mechanik', grants: { perLevel: { hpMax: 0 } } },
+      { key: 'b', name: 'geprüft, ohne Mechanik', grants: featureGrantSchema.parse({ perLevel: { hpMax: 0 } }) },
     ])).toEqual([]);
   });
 
   it('fällt ohne Key auf den Namen zurück (Altdaten ohne Bibliotheks-Link)', () => {
     const sources = hpPerLevelSources([
-      { name: 'Zäh', grants: { perLevel: { hpMax: 2 } } },
-      { name: 'zäh', grants: { perLevel: { hpMax: 2 } } },
+      { name: 'Zäh', grants: featureGrantSchema.parse({ perLevel: { hpMax: 2 } }) },
+      { name: 'zäh', grants: featureGrantSchema.parse({ perLevel: { hpMax: 2 } }) },
     ]);
     expect(sources).toHaveLength(1);
     expect(sources[0].sourceKey).toBe('');

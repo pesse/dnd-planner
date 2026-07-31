@@ -43,6 +43,8 @@ import {
   expertiseRider,
   optionListChoices,
   optionListRiders,
+  optionChoiceId,
+  unredactedChoiceFeatures,
   withDeclaredGrants,
 } from '../featureDeclaration';
 import type { DeclaredFeature } from '../declaredFeature';
@@ -269,7 +271,8 @@ export class CharacterWizard {
    */
   get riders() {
     const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-    const declared = optionListRiders(this.declared, answerOf);
+    // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
+    const declared = optionListRiders(this.declared, answerOf, 1);
     const expertise = this.declared
       .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
       .filter((r): r is FeatureRider => r !== null);
@@ -447,13 +450,18 @@ export class CharacterWizard {
       return;
     }
     const analysis = this.analysis.result;
+    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
     this.effects.run(async (signal) => {
       const prep = await this.#prepare();
+      // Dazu die Merkmale, deren Zweig nichts deklariert: die Wahl steht (Checkpoint ist
+      // durch), die Prosa der Option deutet Pass C. `gainedAt: 1` — im Wizard alles Stufe 1.
+      const unredacted = unredactedChoiceFeatures(prep.declared, (f) => answerOf(optionChoiceId(f)))
+        .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
       return finalizeFeatureEffects(
         cfg,
         {
           classContext: prep.classContext,
-          features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures],
+          features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures, ...unredacted],
           pastChoices: [],
           resolvedChoices: this.resolvedChoices,
         },

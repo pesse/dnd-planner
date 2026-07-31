@@ -395,11 +395,30 @@ export const spellPickGrantSchema = z.object({
  * sie als `<past_choices>` zurück. `labelDe` ist ein ZITAT aus `descDe` — keine Übersetzung;
  * die deutsche Fassung des Regeltexts hat das Wort schon (**Wächter.**).
  */
+/** Eine Stufenzeile der Zauber einer Option: ab dieser Stufe gewährt sie diese Zauber. */
+export const optionSpellRowSchema = z.object({
+  level: z
+    .number()
+    .int()
+    .min(1)
+    .max(20)
+    .describe('Stufe, ab der die Zauber gelten — Charakterstufe bei Trait/Talent, Klassenstufe am Klassenmerkmal.'),
+  names: z.array(z.string()).default([]).describe('Kanonische ENGLISCHE Zaubernamen, wörtlich aus der Tabelle.'),
+});
+export type OptionSpellRow = z.infer<typeof optionSpellRowSchema>;
+
 export const choiceOptionSchema = z.object({
   value: z.string().describe('Englisches Options-Label, wörtlich aus dem Regeltext ("Warden").'),
   labelDe: z.string().default('').describe('Deutsches Anzeige-Label — Zitat aus descDe ("Wächter"). Leer = englisch anzeigen.'),
   helpDe: z.string().default('').describe('Konsequenz DIESER Option, kurz (Richtwert 60 Zeichen).'),
   grants: featureGrantSchema.optional().describe('Was diese Option gewährt. Fehlt = ohne mechanische Wirkung.'),
+  // WÖRTLICHE Namen, nicht `grantsSpells`: das ist ein Zeiger auf eine Tabelle im `desc` des
+  // TRÄGERS, und ein Träger hat nur einen — jeder Zweig bekäme die Zauber aller Zweige
+  // (Elfenabstammung, Höllische Abstammung: Zeile = Zweig, Spalte = Stufe).
+  spells: z
+    .array(optionSpellRowSchema)
+    .default([])
+    .describe('Benannte Zauber dieser Option je Stufe (Elfenabstammung 1/3/5). Leer = die Option gewährt keine.'),
 });
 export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
 

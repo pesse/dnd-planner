@@ -109,6 +109,38 @@ export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(fe
   return features.filter((f) => !isDeclaredChoiceFeature(f));
 }
 
+/**
+ * Merkmale, deren WAHL deklariert ist, deren WIRKUNG aber nicht — mit der getroffenen Antwort
+ * als `choice`.
+ *
+ * Sie gehören in den Eingang von Pass C, nicht in den der Analyse: dort würde das Modell
+ * dieselbe Frage ein zweites Mal stellen. Nach dem Checkpoint steht die Antwort, und der
+ * Prompt behandelt `choice` als FINAL — damit deutet die KI genau das, was die Deklaration
+ * nicht ausdrücken kann (Elfenabstammung: „Reichweite deiner Dunkelsicht erhöht sich auf
+ * 36 Meter", eine Mechanik, für die `featureGrant` kein Feld hat).
+ *
+ * Der Diskriminator ist derselbe wie an jeder Deklaration: `options[].grants` FEHLT = nie
+ * redigiert, also deutet die KI. `{}` = geprüft, gewährt nichts — dann gibt es nichts zu
+ * deuten und das Merkmal bleibt draußen. Ohne diese Unterscheidung zöge jede reine Zweigwahl
+ * (Urtümlicher Orden) den KI-Call zurück, den die Deklaration gerade eingespart hat.
+ *
+ * Nur `optionList`: bei `expertise` IST die Wahl der ganze Inhalt.
+ */
+export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choice?: string }>(
+  features: T[],
+  answerOf: (f: DeclaredChoiceSource) => string,
+): (T & { choice: string })[] {
+  const out: (T & { choice: string })[] = [];
+  for (const f of features) {
+    if (!isOptionListFeature(f)) continue;
+    const answer = answerOf(f);
+    const option = chosenOption(f, answer);
+    if (!option || option.grants) continue;
+    out.push({ ...f, choice: answer });
+  }
+  return out;
+}
+
 /** Die gewählte Option, gematcht über den kanonischen (englischen) Wert. */
 export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOption | null {
   if (!isOptionListFeature(f)) return null;
@@ -125,11 +157,48 @@ export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOpt
  * Modells. `decisions` bleibt ebenfalls leer — die Wahl protokolliert
  * `featureChoiceChanges` aus dem Fragebogen, ein zweiter Eintrag wäre eine Dublette.
  */
-export function optionListRider(f: DeclaredChoiceSource, answer: string): FeatureRider | null {
+export function optionListRider(f: DeclaredChoiceSource, answer: string, level: number): FeatureRider | null {
   const option = chosenOption(f, answer);
-  const grants = option?.grants;
-  if (!grants || isEmptyFeatureGrant(grants)) return null;
-  return withGrant(emptyRider(f), grants);
+  if (!option) return null;
+  const spells = optionSpellsUpTo(option, level);
+  const grants = option.grants;
+  const declaresGrant = !!grants && !isEmptyFeatureGrant(grants);
+  if (!declaresGrant && !spells.length) return null;
+  const base: FeatureRider = { ...emptyRider(f), grantedSpells: spells };
+  return declaresGrant ? withGrant(base, grants) : base;
+}
+
+/**
+ * Die Zauber einer Option bis `level` — kumulativ wie die Stufentabelle („für deine Stufe und
+ * niedriger", `declaredSpellGrants`). Höhere Zeilen kommen beim Aufstieg dazu, deshalb liest
+ * `optionSpellNames` sie später über die GESPEICHERTE Antwort noch einmal.
+ */
+function optionSpellsUpTo(option: ChoiceOption, level: number): string[] {
+  const out: string[] = [];
+  for (const row of option.spells) {
+    if (row.level > level) continue;
+    for (const name of row.names) if (name.trim() && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+/**
+ * Die Zauber der bereits GEWÄHLTEN Option auf `level` — der Weg für Zeilen, die erst später
+ * greifen (Elfenabstammung Stufe 3 und 5). Die Antwort steht am Charakter, nicht im Fragebogen:
+ * ein Aufstieg stellt die Wahl der Erschaffung nicht erneut.
+ */
+export function optionSpellNames(
+  features: DeclaredChoiceSource[],
+  answerOf: (f: DeclaredChoiceSource) => string,
+  level: number,
+): string[] {
+  const out: string[] = [];
+  for (const f of features) {
+    const option = chosenOption(f, answerOf(f));
+    if (!option) continue;
+    for (const name of optionSpellsUpTo(option, level)) if (!out.includes(name)) out.push(name);
+  }
+  return out;
 }
 
 /**
@@ -157,13 +226,14 @@ function emptyRider(f: { key?: string; name: string; source?: FeatureSource }): 
   };
 }
 
-/** Rider aller beantworteten Zweigwahlen einer Merkmalsliste. */
+/** Rider aller beantworteten Zweigwahlen einer Merkmalsliste. `level` gilt für `options[].spells`. */
 export function optionListRiders(
   features: DeclaredChoiceSource[],
   answerOf: (choiceId: string) => string,
+  level: number,
 ): FeatureRider[] {
   return features
-    .map((f) => optionListRider(f, answerOf(optionChoiceId(f))))
+    .map((f) => optionListRider(f, answerOf(optionChoiceId(f)), level))
     .filter((r): r is FeatureRider => r !== null);
 }
 

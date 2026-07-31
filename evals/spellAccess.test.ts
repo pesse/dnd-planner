@@ -12,6 +12,7 @@
  * Die Vault-Reads laufen über denselben fs-Shim wie die Eval-Fixtures (vitest.config.ts).
  */
 import { describe, expect, it } from 'vitest';
+import { getFeats } from '../src/lib/featsLibrary';
 import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
 import {
   spellAccessChoices,
@@ -33,13 +34,20 @@ const FIGHTER_ACOLYTE = {
   background: { sourceKey: 'srd-2024_acolyte', name: 'Akolyth' },
 } as const;
 
+/** Der deutsche Name kommt aus dem Vault — eine Umbenennung im Inhalt ist kein Testbruch. */
+const magicInitiateDe = async (): Promise<string> => {
+  const feat = (await getFeats()).find((f) => f.sourceKey === MAGIC_INITIATE_KEY);
+  if (!feat?.nameDe) throw new Error(`${MAGIC_INITIATE_KEY} fehlt im Vault oder hat kein nameDe`);
+  return feat.nameDe;
+};
+
 describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
   it('liest Liste, Attribut und Kontingent aus dem Vault', async () => {
     const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
     expect(prep.spellAccess).toHaveLength(1);
     const grant = prep.spellAccess[0];
     expect(grant.featureKey).toBe(MAGIC_INITIATE_KEY);
-    expect(grant.featureDe).toMatch(/magiekundig/i);
+    expect(grant.featureDe).toBe(await magicInitiateDe());
     // Der Hintergrund „Weiser" legt die Liste fest → keine Frage mehr, nur noch ein Wert.
     expect(grant.lists).toEqual([MAGIC_INITIATE_LIST]);
     expect(grant.abilities).toEqual(['Intelligence', 'Wisdom', 'Charisma']);
@@ -55,7 +63,8 @@ describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
     expect(keys(prep.gained)).toContain(MAGIC_INITIATE_KEY);
     expect(keys(prep.analysisGained)).not.toContain(MAGIC_INITIATE_KEY);
     // Der deutsche Bogen-Text entsteht aus `gained` — er darf das Talent nicht verlieren.
-    expect(prep.summaryClass.some((s) => /magiekundig/i.test(s.nameDe ?? s.name))).toBe(true);
+    const nameDe = await magicInitiateDe();
+    expect(prep.summaryClass.some((s) => (s.nameDe ?? s.name) === nameDe)).toBe(true);
     expect(prep.analysisGained.length).toBe(prep.gained.length - 1);
   });
 

@@ -309,7 +309,24 @@ export function resolveDeclaredSpells(
     const label = f.nameDe?.trim() || f.name?.trim() || '';
     if (label && !out.unreadable.includes(label)) out.unreadable.push(label);
   }
-  for (const raw of declaredSpellGrants(features, classLevel)) {
+  return resolveSpellNames(declaredSpellGrants(features, classLevel), library, klasseName, out);
+}
+
+/**
+ * Englische Zaubernamen → kanonisiert und nach Zaubertrick/vorbereitet getrennt.
+ *
+ * Eigene Funktion, weil es zwei Quellen für dieselbe Senke gibt: die Stufentabelle im `desc`
+ * (`declaredSpellGrants`) und die benannten Zauber einer gewählten Option
+ * (`optionSpellNames`). `into` sammelt beide in EIN Ergebnis, ohne Merge-Hilfsfunktion.
+ */
+export function resolveSpellNames(
+  names: readonly string[],
+  library: SpellInfo[],
+  klasseName = '',
+  into: DeclaredSpells = noDeclaredSpells(),
+): DeclaredSpells {
+  const out = into;
+  for (const raw of names) {
     const info = resolveSpell(library, raw, klasseName);
     if (!info) { if (!out.flagged.includes(raw)) out.flagged.push(raw); continue; }
     if (info.level === 0) { if (!out.cantrips.includes(info.name)) out.cantrips.push(info.name); }

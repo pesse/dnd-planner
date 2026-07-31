@@ -53,7 +53,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
   it('liest die Deklaration ohne Vorgabe des Hintergrunds vollständig aus', async () => {
     const grant = await grantOfMagicInitiate();
     expect(grant.featureKey).toBe(MAGIC_INITIATE_KEY);
-    expect(grant.featureDe).toMatch(/magiekundig/i);
+    // Gegen den Vault, nicht gegen ein Literal: eine Umbenennung im Inhalt ist kein Testbruch.
+    expect(grant.featureDe).toBe((await loadMagicInitiate()).nameDe);
     // Kein Hintergrund legt hier fest → alle drei Listen bleiben zulässig, es wird gefragt.
     expect(grant.lists).toEqual([...DECLARED_LISTS]);
     expect(grant.abilities).toEqual([...DECLARED_ABILITIES]);
@@ -117,6 +118,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       chosenSubclass: null,
       subFeatures: [],
       declaredSpells: noDeclaredSpells(),
+      charLevelSpells: noDeclaredSpells(),
+      grantSources: [],
       validatedBase: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       validatedFeats: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       answers,

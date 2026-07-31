@@ -1,0 +1,16 @@
+// Typecheck für die Eval-/Test-Strecke, die `tsconfig.json` NICHT erfasst: dessen `include`
+// stammt aus `.svelte-kit/tsconfig.json` und deckt nur `src`/`tests` ab. Ohne diese Datei
+// bemerkt kein Gate, wenn ein Umbau an einer Produktions-Signatur (z. B. ein neues Pflichtfeld
+// an `DocInput`) einen Eval-Aufruf bricht — er fällt erst zur Laufzeit auf.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Die `.mjs`-Werkzeuge der Strecke (CLI, Report-Index) sind bewusst außen vor — sie sind
+    // reines Skript-JS, und `checkJs` aus der Basis würde sie sonst mitprüfen.
+    "allowJs": false,
+    "checkJs": false,
+    "types": ["node"]
+  },
+  "include": ["evals/**/*.ts"]
+}

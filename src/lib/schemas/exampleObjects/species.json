@@ -83,7 +83,15 @@
               "perLevel": {
                 "hpMax": 0
               }
-            }
+            },
+            "spells": [
+              {
+                "level": 1,
+                "names": [
+                  "string"
+                ]
+              }
+            ]
           }
         ],
         "featCategory": "Origin",

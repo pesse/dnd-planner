@@ -51,7 +51,8 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     const values = spellAccessValues(grant, ledgerOf('Charisma'), MODS, PROF_BONUS);
 
     expect(values?.abilityDe).toBe('Charisma');
-    expect(values?.featureDe).toMatch(/magiekundig/i);
+    // Gegen den Vault, nicht gegen ein Literal: eine Umbenennung im Inhalt ist kein Testbruch.
+    expect(values?.featureDe).toBe((await loadMagicInitiate()).nameDe);
     // 8 + Übungsbonus 2 + CHA 3 bzw. 2 + 3 — die Zahlen, nicht die Formel gegen sich selbst.
     expect(values?.saveDC).toBe(13);
     expect(values?.attackBonus).toBe(5);

@@ -13,13 +13,15 @@ import type { Trait } from '../src/lib/schemas/species';
 import { isSheetValueTrait, withoutSheetValueTraits } from '../src/lib/services/sheetValueTraits';
 import { buildFeaturePrep } from '../src/lib/services/wizard/featurePrep';
 import { GNOME_SORCERER_BASICS } from './fixtures/gnome-sorcerer-sage';
+import { libraryKey } from './libraryKey';
 
 const allTraits = async (): Promise<{ species: string; trait: Trait }[]> => {
   const list = await getSpeciesList();
   const out: { species: string; trait: Trait }[] = [];
   for (const info of list) {
-    const spec = await getSpeciesByKey(info.key);
-    for (const trait of spec?.traits ?? []) out.push({ species: info.key, trait });
+    const key = libraryKey(info);
+    const spec = await getSpeciesByKey(key);
+    for (const trait of spec?.traits ?? []) out.push({ species: key, trait });
   }
   return out;
 };

@@ -26,7 +26,7 @@ export interface SizeTraitSource {
 
 /** Das Größenmerkmal — am Namen, wie schon bei der Bewegungsrate: es müssen ALLE gefunden
  *  werden, auch die zwei ohne Diskriminator. */
-export function sizeTraitOf(traits: SizeTraitSource[]): SizeTraitSource | undefined {
+export function sizeTraitOf<T extends SizeTraitSource>(traits: T[]): T | undefined {
   return traits.find((t) => /(_size$|^size$)/i.test(t.key ?? '') || t.name.toLowerCase() === 'size');
 }
 
