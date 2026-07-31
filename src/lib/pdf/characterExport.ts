@@ -4,7 +4,8 @@
  */
 import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
-import { SKILL_DEFS, withSpellValues } from './characterFields';
+import { SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
+import { SKILL_DEFS } from '../domain/skills';
 import type { SpellAccessValues } from '../services/spellAccess';
 import { appendMarkdownPages } from './markdownPdf';
 import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
@@ -16,9 +17,6 @@ export interface PortraitInput {
 }
 
 export type PdfExportFormat = 'taendler_v2_8';
-
-// Anzahl Zauber-Textfelder pro Stufe in Taendler v2.8.x
-const SPELL_COUNT: Record<number, number> = { 1:13, 2:13, 3:13, 4:13, 5:9, 6:9, 7:9, 8:7, 9:7 };
 
 function setText(doc: PDFDocument, fieldName: string, value: string) {
   try {
@@ -130,11 +128,214 @@ function withMasterySuffix(name: string, resolve?: (attackName: string) => strin
   return label ? `${name} (${label})` : name;
 }
 
+/** Die drei Schreibarten eines Formularfeldes: Text, mehrzeiliger Text, Häkchen. */
+interface FieldSink {
+  t: (key: string, value: string | number) => void;
+  m: (key: string, value: string, fontSize?: number) => void;
+  c: (key: string, checked: boolean) => void;
+}
+
+function fieldSink(doc: PDFDocument): FieldSink {
+  return {
+    t: (key, value) => setText(doc, key, String(value ?? '')),
+    m: (key, value, fontSize) => setMultilineText(doc, key, value ?? '', fontSize),
+    c: (key, checked) => setCheck(doc, key, checked),
+  };
+}
+
+function writeHead({ t }: FieldSink, ch: CharacterJSON) {
+  t('Charaktername_page1', ch.name);
+  t('Charaktername_page2', ch.name);
+  t('KlasseUndStufe', ch.classLevel);
+  t('Spielername', ch.playerName);
+  t('Hintergrund', ch.background);
+  t('Volk', ch.race);
+  t('Erfahrungspunkte', ch.xp);
+}
+
+function writeAbilities({ t }: FieldSink, ch: CharacterJSON) {
+  t('Str', ch.str); t('StrMod', ch.strMod);
+  t('Ges', ch.ges); t('GesMod', ch.gesMod);
+  t('Kon', ch.kon); t('KonMod', ch.konMod);
+  t('Int', ch.int); t('IntMod', ch.intMod);
+  t('Wei', ch.wei); t('WeiMod', ch.weiMod);
+  t('Cha', ch.cha); t('ChaMod', ch.chaMod);
+}
+
+function writeCombat({ t }: FieldSink, ch: CharacterJSON) {
+  t('Übungsbonus', ch.proficiencyBonus);
+  t('Rüstungsklasse', ch.ac);
+  t('Initiative', ch.initiative);
+  t('Bewegungsrate', ch.speed);
+  t('TrefferpunkteMaximum', ch.hpMax);
+  t('AktTrefferpunkte', ch.hpCurrent);
+  t('TempTrefferpunkte', ch.hpTemp);
+  t('Trefferwürfel', ch.hitDice);
+  t('PassiveWeisheit', ch.passivePerception);
+}
+
+/** Häkchen UND gerechneter Wert — das PDF hat für den Rettungswurf beides. */
+function writeSaves({ t, c }: FieldSink, ch: CharacterJSON) {
+  const pb = ch.proficiencyBonus;
+  const rows = [
+    ['Str', ch.strMod, ch.strSaveProf],
+    ['Ges', ch.gesMod, ch.gesSaveProf],
+    ['Kon', ch.konMod, ch.konSaveProf],
+    ['Int', ch.intMod, ch.intSaveProf],
+    ['Wei', ch.weiMod, ch.weiSaveProf],
+    ['Cha', ch.chaMod, ch.chaSaveProf],
+  ] as const;
+  for (const [key, abilityMod, proficient] of rows) c(`${key}Prof`, proficient);
+  for (const [key, abilityMod, proficient] of rows) t(`${key}RW`, abilityMod + (proficient ? pb : 0));
+}
+
+function writeSkills({ t, c }: FieldSink, ch: CharacterJSON) {
+  c('Alleskoenner', ch.alleskoenner);
+  for (const skill of SKILL_DEFS) {
+    const entry = ch.skills?.[skill.key];
+    if (!entry) continue;
+    c(skill.profField, entry.prof);
+    c(skill.expField, entry.exp);
+    t(skill.valField, entry.value);
+  }
+}
+
 /**
- * Exportiert einen Charakter als ausgefülltes Taendler-PDF.
- * @param character  Der zu exportierende Charakter
- * @param templateBytes  Bytes der Blanko-Vorlage (ataendler_v2.8.2.pdf)
+ * Die Meisterschaftseigenschaft hängt am Waffennamen: das Taendler-PDF hat keine
+ * freie Spalte dafür. Der Import schneidet das Suffix wieder ab
+ * (`stripMasterySuffix`), sonst wüchse es bei jedem Zyklus an.
  */
+function writeAttacks({ t }: FieldSink, ch: CharacterJSON, masteryOf?: (attackName: string) => string | undefined) {
+  for (let i = 0; i < 5; i++) {
+    const atk = ch.attacks?.[i];
+    t(`Angriff${i+1}`, withMasterySuffix(atk?.name ?? '', masteryOf));
+    t(`Bonus${i+1}`, atk?.bonus ?? '');
+    t(`Schaden${i+1}`, atk?.damage ?? '');
+    t(`Schadentyp${i+1}`, atk?.type ?? '');
+    t(`Reichweite${i+1}`, atk?.range ?? '');
+  }
+}
+
+/**
+ * Feld 1 zuerst füllen, Feld 2 nimmt den Überlauf. Die Zauberwerte eines Merkmals-Zugangs
+ * hängen sich an die Notizzeile, weil das PDF nur EINEN Zauberblock hat und der der Klasse
+ * gehört — vor dem Trennen, damit die Marke am Überlauf teilnimmt statt hinter Feld 2 zu
+ * verschwinden.
+ */
+function writeClassFeatures({ m }: FieldSink, ch: CharacterJSON, spellAccess: SpellAccessValues[]) {
+  const [a, b] = splitClassFeatures(withSpellValues(ch.classFeatures ?? '', spellAccess));
+  m('Klassenmerkmale1', a, 9);
+  m('Klassenmerkmale2', b, 9);
+}
+
+function writePersonality({ m }: FieldSink, ch: CharacterJSON) {
+  m('Persönlichkeitsmerkmale', ch.traits ?? '', 9);
+  m('Ideale', ch.ideals ?? '', 9);
+  m('Bindungen', ch.bonds ?? '', 9);
+  m('Makel', ch.flaws ?? '', 9);
+}
+
+function writePersonal({ t, m }: FieldSink, ch: CharacterJSON) {
+  const p = ch.personal;
+  if (!p) return;
+  m('Rassenmerkmale', p.rassenmerkmale ?? '', 9);
+  t('Alter', p.alter);
+  t('Geschlecht', p.geschlecht);
+  t('SizeCat', p.sizeCat);
+  t('Gesinnung', p.gesinnung);
+  t('Glaube', p.glaube);
+  t('Lebensstil', p.lebensstil);
+  t('TäglicheKosten', p.taeglicheKosten);
+  t('Augenfarbe', p.augenfarbe);
+  t('Haarfarbe', p.haarfarbe);
+  t('Hautfarbe', p.hautfarbe);
+  t('Gewicht', p.gewicht);
+  t('Körpergrösse', p.koerpergroesse);
+  m('Aussehen', p.aussehen ?? '', 9);
+}
+
+function writeProficiencies({ t, c }: FieldSink, ch: CharacterJSON) {
+  const pr = ch.proficiencies;
+  if (!pr) return;
+  c('EinfachWaffenProf', pr.simpleWeapons);
+  c('KriegswaffenProf', pr.martialWeapons);
+  t('SonstigeWaffen', pr.otherWeapons ?? '');
+  c('SonstigeWaffenProf', (pr.otherWeapons ?? '').trim() !== '');
+  c('LeichteRüstungProf', pr.lightArmor);
+  c('MittlereRüstungProf', pr.mediumArmor);
+  c('SchwereRüstungProf', pr.heavyArmor);
+  c('SchildeProf', pr.shields);
+}
+
+async function writePortrait(doc: PDFDocument, portrait?: PortraitInput) {
+  if (!portrait) return;
+  try {
+    const image = portrait.format === 'png'
+      ? await doc.embedPng(portrait.bytes)
+      : await doc.embedJpg(portrait.bytes);
+    drawImageIntoButtonField(doc, 'AussehenBild', image);
+  } catch { /* Portrait-Embed fehlgeschlagen → ignorieren */ }
+}
+
+function writeLanguagesAndTools({ t }: FieldSink, ch: CharacterJSON) {
+  for (let i = 0; i < 6; i++) {
+    t(`Sprache${i+1}`, ch.languages?.[i] ?? '');
+    t(`WerkzeugUndAndere${i+1}`, ch.tools?.[i] ?? '');
+  }
+}
+
+/** Gesamtlast automatisch aus Anzahl × Gewicht/Stück (siehe inventoryWeight). */
+function writeCurrency({ t }: FieldSink, ch: CharacterJSON) {
+  t('KM', ch.currency?.km ?? '');
+  t('SM', ch.currency?.sm ?? '');
+  t('EM', ch.currency?.em ?? '');
+  t('GM', ch.currency?.gm ?? '');
+  t('PM', ch.currency?.pm ?? '');
+  const gesamtlast = totalWeightKg(ch.inventory ?? []);
+  t('Gesamtlast', gesamtlast > 0 ? formatKg(gesamtlast) : '');
+}
+
+function writeInventory({ t }: FieldSink, ch: CharacterJSON) {
+  for (let i = 0; i < 55; i++) {
+    const item = ch.inventory?.[i];
+    const lineKg = item ? lineWeightKg(item) : 0;
+    t(`Inventar${i+1}`, item?.name ?? '');
+    t(`InventarAnz${i+1}`, item?.count ?? '');
+    t(`InventarGew${i+1}`, lineKg > 0 ? formatKg(lineKg) : '');
+  }
+}
+
+function writeSpells({ t, c }: FieldSink, ch: CharacterJSON) {
+  const sp = ch.spells;
+  if (!sp) return;
+  t('Zauberklasse', sp.spellcastingClass);
+  t('AttributZauberwirken', sp.spellcastingAbility);
+  t('ZauberRettungswurfSG', sp.saveDC || '');
+  t('ZauberAngriffsbonus', sp.attackBonus || '');
+
+  for (let lvl = 1; lvl <= 9; lvl++) {
+    const slot = sp.slots?.[lvl - 1];
+    t(`ZauberplätzeGesamt${lvl}`, slot?.total ?? '');
+    t(`ZauberplätzeVerbraucht${lvl}`, slot?.used ?? '');
+  }
+
+  for (let i = 0; i < 8; i++) t(`Zaubertrick${i+1}`, sp.cantrips?.[i]?.name ?? '');
+
+  for (let lvl = 1; lvl <= 9; lvl++) {
+    const spells = sp.byLevel?.[String(lvl)] ?? [];
+    for (let i = 0; i < SPELL_FIELDS_PER_LEVEL[lvl]; i++) {
+      const spell = spells[i];
+      t(`Zauber${lvl}_${i+1}`, spell?.name ?? '');
+      c(`ZauberActive${lvl}_${i+1}`, spell?.prepared ?? false);
+    }
+  }
+}
+
+async function appendFreitext(doc: PDFDocument, ch: CharacterJSON, freitext?: string) {
+  if (freitext?.trim()) await appendMarkdownPages(doc, freitext, { title: ch.name });
+}
+
+/** Füllt die Blanko-Vorlage; jede Feldgruppe des Bogens ist eine Schreibfunktion. */
 export async function exportCharacterToPdf(
   character: CharacterJSON,
   templateBytes: Uint8Array,
@@ -149,196 +350,24 @@ export async function exportCharacterToPdf(
   } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
+  const sink = fieldSink(pdf);
 
-  const t = (k: string, v: string | number) => setText(pdf, k, String(v ?? ''));
-  const m = (k: string, v: string, size = 9) => setMultilineText(pdf, k, v ?? '', size);
-  const c = (k: string, v: boolean) => setCheck(pdf, k, v);
+  writeHead(sink, character);
+  writeAbilities(sink, character);
+  writeCombat(sink, character);
+  writeSaves(sink, character);
+  writeSkills(sink, character);
+  writeAttacks(sink, character, options.masteryOf);
+  writeClassFeatures(sink, character, options.spellAccess ?? []);
+  writePersonality(sink, character);
+  writePersonal(sink, character);
+  writeProficiencies(sink, character);
+  await writePortrait(pdf, options.portrait);
+  writeLanguagesAndTools(sink, character);
+  writeCurrency(sink, character);
+  writeInventory(sink, character);
+  writeSpells(sink, character);
+  await appendFreitext(pdf, character, options.freitext);
 
-  // --- Kopf ---
-  t('Charaktername_page1', character.name);
-  t('Charaktername_page2', character.name);
-  t('KlasseUndStufe', character.classLevel);
-  t('Spielername', character.playerName);
-  t('Hintergrund', character.background);
-  t('Volk', character.race);
-  t('Erfahrungspunkte', character.xp);
-
-  // --- Attribute ---
-  t('Str', character.str); t('StrMod', character.strMod);
-  t('Ges', character.ges); t('GesMod', character.gesMod);
-  t('Kon', character.kon); t('KonMod', character.konMod);
-  t('Int', character.int); t('IntMod', character.intMod);
-  t('Wei', character.wei); t('WeiMod', character.weiMod);
-  t('Cha', character.cha); t('ChaMod', character.chaMod);
-
-  // --- Kampfwerte ---
-  t('Übungsbonus', character.proficiencyBonus);
-  t('Rüstungsklasse', character.ac);
-  t('Initiative', character.initiative);
-  t('Bewegungsrate', character.speed);
-  t('TrefferpunkteMaximum', character.hpMax);
-  t('AktTrefferpunkte', character.hpCurrent);
-  t('TempTrefferpunkte', character.hpTemp);
-  t('Trefferwürfel', character.hitDice);
-  t('PassiveWeisheit', character.passivePerception);
-
-  // --- Rettungswürfe (Übungen + berechnete Werte) ---
-  c('StrProf', character.strSaveProf);
-  c('GesProf', character.gesSaveProf);
-  c('KonProf', character.konSaveProf);
-  c('IntProf', character.intSaveProf);
-  c('WeiProf', character.weiSaveProf);
-  c('ChaProf', character.chaSaveProf);
-
-  const pb = character.proficiencyBonus;
-  t('StrRW', character.strMod + (character.strSaveProf ? pb : 0));
-  t('GesRW', character.gesMod + (character.gesSaveProf ? pb : 0));
-  t('KonRW', character.konMod + (character.konSaveProf ? pb : 0));
-  t('IntRW', character.intMod + (character.intSaveProf ? pb : 0));
-  t('WeiRW', character.weiMod + (character.weiSaveProf ? pb : 0));
-  t('ChaRW', character.chaMod + (character.chaSaveProf ? pb : 0));
-
-  // --- Fertigkeiten ---
-  c('Alleskoenner', character.alleskoenner);
-  for (const skill of SKILL_DEFS) {
-    const entry = character.skills?.[skill.key];
-    if (!entry) continue;
-    c(skill.profField, entry.prof);
-    c(skill.expField, entry.exp);
-    t(skill.valField, entry.value);
-  }
-
-  // --- Angriffe ---
-  // Die Meisterschaftseigenschaft hängt am Waffennamen: das Taendler-PDF hat keine
-  // freie Spalte dafür. Der Import schneidet das Suffix wieder ab
-  // (`stripMasterySuffix`), sonst wüchse es bei jedem Zyklus an.
-  for (let i = 0; i < 5; i++) {
-    const atk = character.attacks?.[i];
-    t(`Angriff${i+1}`, withMasterySuffix(atk?.name ?? '', options.masteryOf));
-    t(`Bonus${i+1}`, atk?.bonus ?? '');
-    t(`Schaden${i+1}`, atk?.damage ?? '');
-    t(`Schadentyp${i+1}`, atk?.type ?? '');
-    t(`Reichweite${i+1}`, atk?.range ?? '');
-  }
-
-  // --- Klassenmerkmale (Feld 1 zuerst füllen, dann Feld 2 als Überlauf) ---
-  // Die Zauberwerte eines Merkmals-Zugangs hängen sich an die Notizzeile, weil das PDF nur
-  // EINEN Zauberblock hat und der der Klasse gehört. Vor dem Trennen, damit die Marke am
-  // Überlauf teilnimmt statt hinter Feld 2 zu verschwinden.
-  const klm = withSpellValues(character.classFeatures ?? '', options.spellAccess ?? []);
-  const [klmA, klmB] = splitClassFeatures(klm);
-  m('Klassenmerkmale1', klmA, 9);
-  m('Klassenmerkmale2', klmB, 9);
-
-  // --- Persönlichkeit ---
-  m('Persönlichkeitsmerkmale', character.traits ?? '', 9);
-  m('Ideale', character.ideals ?? '', 9);
-  m('Bindungen', character.bonds ?? '', 9);
-  m('Makel', character.flaws ?? '', 9);
-
-  // --- Persönliches (Personalbogen-Block) ---
-  const p = character.personal;
-  if (p) {
-    m('Rassenmerkmale', p.rassenmerkmale ?? '', 9);
-    t('Alter', p.alter);
-    t('Geschlecht', p.geschlecht);
-    t('SizeCat', p.sizeCat);
-    t('Gesinnung', p.gesinnung);
-    t('Glaube', p.glaube);
-    t('Lebensstil', p.lebensstil);
-    t('TäglicheKosten', p.taeglicheKosten);
-    t('Augenfarbe', p.augenfarbe);
-    t('Haarfarbe', p.haarfarbe);
-    t('Hautfarbe', p.hautfarbe);
-    t('Gewicht', p.gewicht);
-    t('Körpergrösse', p.koerpergroesse);
-    m('Aussehen', p.aussehen ?? '', 9);
-  }
-
-  // --- Waffenübungen & Rüstungsausbildung ---
-  const pr = character.proficiencies;
-  if (pr) {
-    c('EinfachWaffenProf', pr.simpleWeapons);
-    c('KriegswaffenProf', pr.martialWeapons);
-    t('SonstigeWaffen', pr.otherWeapons ?? '');
-    c('SonstigeWaffenProf', (pr.otherWeapons ?? '').trim() !== '');
-    c('LeichteRüstungProf', pr.lightArmor);
-    c('MittlereRüstungProf', pr.mediumArmor);
-    c('SchwereRüstungProf', pr.heavyArmor);
-    c('SchildeProf', pr.shields);
-  }
-
-  // --- Portrait (AussehenBild) ---
-  // Bild direkt als Seiteninhalt an die Feld-Position zeichnen (statt als
-  // Button-Icon, das viele Viewer nicht anzeigen) und den Button entfernen.
-  if (options.portrait) {
-    try {
-      const image = options.portrait.format === 'png'
-        ? await pdf.embedPng(options.portrait.bytes)
-        : await pdf.embedJpg(options.portrait.bytes);
-      drawImageIntoButtonField(pdf, 'AussehenBild', image);
-    } catch { /* Portrait-Embed fehlgeschlagen → ignorieren */ }
-  }
-
-  // --- Sprachen & Werkzeuge ---
-  for (let i = 0; i < 6; i++) {
-    t(`Sprache${i+1}`, character.languages?.[i] ?? '');
-    t(`WerkzeugUndAndere${i+1}`, character.tools?.[i] ?? '');
-  }
-
-  // --- Währung ---
-  t('KM', character.currency?.km ?? '');
-  t('SM', character.currency?.sm ?? '');
-  t('EM', character.currency?.em ?? '');
-  t('GM', character.currency?.gm ?? '');
-  t('PM', character.currency?.pm ?? '');
-  // Gesamtlast automatisch aus Anzahl × Gewicht/Stück (siehe inventoryWeight).
-  const gesamtlast = totalWeightKg(character.inventory ?? []);
-  t('Gesamtlast', gesamtlast > 0 ? formatKg(gesamtlast) : '');
-
-  // --- Inventar (55 Slots) ---
-  for (let i = 0; i < 55; i++) {
-    const item = character.inventory?.[i];
-    const lineKg = item ? lineWeightKg(item) : 0;
-    t(`Inventar${i+1}`, item?.name ?? '');
-    t(`InventarAnz${i+1}`, item?.count ?? '');
-    t(`InventarGew${i+1}`, lineKg > 0 ? formatKg(lineKg) : '');
-  }
-
-  // --- Zauber ---
-  const sp = character.spells;
-  if (sp) {
-    t('Zauberklasse', sp.spellcastingClass);
-    t('AttributZauberwirken', sp.spellcastingAbility);
-    t('ZauberRettungswurfSG', sp.saveDC || '');
-    t('ZauberAngriffsbonus', sp.attackBonus || '');
-
-    for (let lvl = 1; lvl <= 9; lvl++) {
-      const slot = sp.slots?.[lvl - 1];
-      t(`ZauberplätzeGesamt${lvl}`, slot?.total ?? '');
-      t(`ZauberplätzeVerbraucht${lvl}`, slot?.used ?? '');
-    }
-
-    for (let i = 0; i < 8; i++) {
-      t(`Zaubertrick${i+1}`, sp.cantrips?.[i]?.name ?? '');
-    }
-
-    for (let lvl = 1; lvl <= 9; lvl++) {
-      const spells = sp.byLevel?.[String(lvl)] ?? [];
-      const count = SPELL_COUNT[lvl];
-      for (let i = 0; i < count; i++) {
-        const spell = spells[i];
-        t(`Zauber${lvl}_${i+1}`, spell?.name ?? '');
-        c(`ZauberActive${lvl}_${i+1}`, spell?.prepared ?? false);
-      }
-    }
-  }
-
-  // --- Freitext als zusätzliche Seite(n) anhängen ---
-  if (options.freitext?.trim()) {
-    await appendMarkdownPages(pdf, options.freitext, { title: character.name });
-  }
-
-  const bytes = await pdf.save();
-  return bytes;
+  return pdf.save();
 }

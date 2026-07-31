@@ -13,7 +13,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig, Monster, Encounter } from '../types';
-import type { MonsterLibraryEntry } from '../stores/context';
+import type { MonsterLibraryEntry } from './contextTypes';
 import { formatMinimumLine, type CharacterMinimum } from './characterContext';
 import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';

@@ -11,14 +11,14 @@
  *                        erste Option, die das Modell angeboten hat").
  *
  * Beide gehen über dieselbe Transport-Schicht wie die App (`rawChatCompletion` in
- * llmService.ts) — also mit Streaming, Rate-Limit-Retry, Token-Zählung und
+ * llm/transport.ts) — also mit Streaming, Rate-Limit-Retry, Token-Zählung und
  * Debug-Mitschnitt, den der Report ausliest. Jeder Live-Turn ist im Report ein
  * eigener Call mit eigenem Request/Response.
  */
 import { z } from 'zod';
 import type { LlmConfig } from '../src/lib/types';
-import type { ChatMessage } from '../src/lib/services/llmService';
-import { rawChatCompletion } from '../src/lib/services/llmService';
+import type { ChatMessage } from '../src/lib/services/vaultTools';
+import { rawChatCompletion } from '../src/lib/services/llm/openAiCompatible';
 import { jsonOutputInstruction } from '../src/lib/services/aiActions/runner';
 import { toLlmJsonSchema } from '../src/lib/schemas/llmJson';
 import { extractJson, stripJsonFence } from '../src/lib/services/jsonFence';
@@ -28,7 +28,7 @@ import type { Checks, EvalCase } from './defineEval';
  * Wie das Schema an den Server geht:
  *  - `'native'` (Default, sobald ein Schema da ist) — vllm guided decoding über
  *    `structured_outputs.json`; erzwingt zusätzlich `enable_thinking:false`, weil
- *    die Grammatik sonst nicht greift (siehe llmService).
+ *    die Grammatik sonst nicht greift (siehe llm/openAiCompatible).
  *  - `'prompt'` — Schema NUR als Instruktion (exakt der Wortlaut, den der Runner ohne
  *    nativen Structured Output nutzt), Antwort wird tolerant geparst. Der Vergleich
  *    `'native'` vs. `'prompt'` ist damit ein zweiter Lauf bzw. ein zweiter Fall.

@@ -8,7 +8,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeFeatureEffects, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
-import { qualitymindsChat } from '../../src/lib/services/llmService';
+import { qualitymindsChat } from '../../src/lib/services/llm/openAiCompatible';
 import type { LlmConfig } from '../../src/lib/types';
 
 const originalFetch = globalThis.fetch;

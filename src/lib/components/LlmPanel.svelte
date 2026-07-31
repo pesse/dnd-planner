@@ -17,15 +17,15 @@
     loadEncounterContext,
     loadEncounterMonsters,
   } from '../stores/context';
-  import type { ContextFlags } from '../stores/context';
+  import type { ContextFlags } from '../services/contextTypes';
   import { CHARACTER_CONTEXT_LEVELS, CHARACTER_CONTEXT_LABELS, CHARACTER_CONTEXT_HINTS } from '../services/characterContext';
   import { monsterTypeLabel } from '../types';
   import { activeFile, fileContent, appendContent, replaceContent, activeCampaign, invalidateVault } from '../stores/campaign';
-  import { modelSupportsTemperature } from '../services/llmService';
+  import { modelSupportsTemperature } from '../services/anthropicService';
   import { getClient } from '../services/llmClient';
   import { composeToolsets, VAULT_TOOLSET } from '../services/vaultTools';
   import { RULES_TOOLSET } from '../services/rulesTools';
-  import type { AgentStep, AgentOptions } from '../services/llmService';
+  import type { AgentStep, AgentOptions } from '../services/vaultTools';
   import { debugLog, clearDebugLog } from '../stores/debug';
   import DebugEntryView from './DebugEntryView.svelte';
   import { invoke } from '@tauri-apps/api/core';

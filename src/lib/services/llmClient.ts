@@ -1,17 +1,14 @@
 import type { LlmConfig, LlmProvider } from '../types';
+import { ollamaChat, ollamaGenerate } from './llm/ollama';
 import {
-  ollamaChat,
-  ollamaGenerate,
   groqChat,
   groqGenerate,
   qualitymindsChat,
   qualitymindsGenerate,
   qualitymindsGenerateStructured,
-  anthropicChat,
-  anthropicGenerate,
-  agentLoop as agentLoopDispatch,
-  modelSupportsTemperature,
-} from './llmService';
+} from './llm/openAiCompatible';
+import { agentLoop as agentLoopDispatch } from './llm/agentLoop';
+import { anthropicChat, anthropicGenerate, modelSupportsTemperature } from './anthropicService';
 import { generateStructured as anthropicGenerateStructured } from './anthropicExtras';
 import { TASK_TEMPERATURE } from './vaultTools';
 import type { ChatMessage, AgentOptions, TaskKind, AgentToolset } from './vaultTools';

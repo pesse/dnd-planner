@@ -18,7 +18,7 @@ import type { ArmorTraining, SkillName, WeaponCategory } from '$lib/schemas/voca
 import type { ProficiencyGrant, SkillGrant } from '$lib/schemas/grants';
 import { isEmptyProficiencyGrant } from '$lib/schemas/grants';
 import { readAbilityName } from '$lib/schemas/vocabulary';
-import { SKILL_DEFS } from '$lib/pdf/characterFields';
+import { SKILL_DEFS } from '$lib/domain/skills';
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
 import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';

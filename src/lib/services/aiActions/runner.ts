@@ -8,7 +8,8 @@
  */
 import type { LlmConfig } from '../../types';
 import { getClient } from '../llmClient';
-import { agentLoop, TASK_TEMPERATURE } from '../llmService';
+import { agentLoop } from '../llm/agentLoop';
+import { TASK_TEMPERATURE } from '../vaultTools';
 import type { AgentStep, AgentToolset } from '../vaultTools';
 import type { AiAction } from './types';
 import { extractJson } from '../jsonFence';

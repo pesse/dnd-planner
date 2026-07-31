@@ -4,7 +4,9 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
-  import { SKILL_DEFS, skillSheetKey, emptyPersonal, emptyProficiencies, formatClassLevel, totalLevel, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
+  import { emptyPersonal, emptyProficiencies, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
+  import { SKILL_DEFS, skillSheetKey } from '../domain/skills';
+  import { formatClassLevel, totalLevel } from '../schemas/classLevelText';
   import type { SkillName } from '../schemas/vocabulary';
   import type { PendingCharacterUpgrade } from '../schemas/characterUpgrades';
   import {

@@ -9,7 +9,7 @@
  *                             Deutsche, in der Form, die der Bogen braucht.
  *
  * Beide sind bewusst REASONING-FREI: `qualitymindsGenerateStructured` fährt guided decoding,
- * und das heißt auf QM/vllm zugleich `enable_thinking:false` (llmService) — also schnell.
+ * und das heißt auf QM/vllm zugleich `enable_thinking:false` (llm/openAiCompatible) — also schnell.
  *
  * Beide degradieren, statt zu blocken: schlägt ein Call fehl oder passt seine Antwort nicht
  * zur Eingabe, bleibt der englische Text stehen. Ein unübersetzter Checkpoint ist bedienbar,
@@ -30,7 +30,7 @@ import {
   type ChoiceTranslationItem,
 } from '../../schemas/levelUp';
 import type { LlmConfig } from '../../types';
-import { qualitymindsGenerateStructured } from '../llmService';
+import { qualitymindsGenerateStructured } from '../llm/openAiCompatible';
 import { SHEET_NOTE_GERMAN_FORM } from './fieldSummaryAction';
 
 /** Was der Übersetzer je Merkmal als Quelle braucht (EN-Regeltext + DE-Fassung). */

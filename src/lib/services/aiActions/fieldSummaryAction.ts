@@ -17,7 +17,7 @@
  * Round-Trip über fremd-autorierten Text. Nur der Merkmals-Rohstoff kommt englisch herein.
  *
  * Tool-frei → `runAiAction` nimmt den Single-Call-Pfad; auf QM/vllm heißt guided decoding
- * zugleich `enable_thinking:false` (llmService), also kein Reasoning-Vorlauf.
+ * zugleich `enable_thinking:false` (llm/openAiCompatible), also kein Reasoning-Vorlauf.
  */
 import type { AiAction } from './types';
 import {

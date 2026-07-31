@@ -22,7 +22,8 @@
 import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/characterSchema';
 import type { Change, FeatureRider } from '$lib/schemas/levelUp';
 import { SKILL_NAMES, type SkillName } from '$lib/schemas/vocabulary';
-import { skillEnName, totalLevel } from '$lib/pdf/characterFields';
+import { skillEnName } from '$lib/domain/skills';
+import { totalLevel } from '$lib/schemas/classLevelText';
 import type { SpellInfo } from '$lib/spellLibrary';
 import { choiceLabelsDe, type AnalysisChoice } from './analysis/types';
 import type { CoverageBadge } from './declarationCoverage';

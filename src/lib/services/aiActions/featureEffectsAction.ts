@@ -13,8 +13,9 @@
 import { featureEffectsJsonSchema, parseFeatureEffects, type FeatureEffects } from '../../schemas/levelUp';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
 import type { LlmConfig } from '../../types';
-import type { ChatMessage } from '../llmService';
-import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages, TASK_TEMPERATURE } from '../llmService';
+import type { ChatMessage } from '../vaultTools';
+import { TASK_TEMPERATURE } from '../vaultTools';
+import { qualitymindsChat, qualitymindsGenerateStructuredFromMessages } from '../llm/openAiCompatible';
 import type { PastChoice } from '../characterFeatures';
 import { chosenOption } from '../declaration/optionList';
 import {

@@ -8,7 +8,7 @@
    * Die Werte sind ENGLISCH (`SkillName`), die Beschriftung deutsch — die
    * Übersetzung kommt aus derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
    */
-  import { SKILL_DEFS } from '$lib/pdf/characterFields';
+  import { SKILL_DEFS } from '$lib/domain/skills';
   import type { SkillGrant } from '$lib/schemas/grants';
   import type { SkillName } from '$lib/schemas/vocabulary';
 

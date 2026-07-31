@@ -2,53 +2,28 @@ import { derived, writable, get, type Writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
-import { monsterSizeLabel, monsterTypeLabel } from '../types';
 import { normalizeMonster, normalizeCharacter } from '../utils/schemaValidation';
 import {
   characterMinimum,
-  formatMinimumLine,
   buildCharacterContextFromRaw,
   loadCharacterNotes,
   characterDirOf,
   CHARACTER_CONTEXT_LABELS,
-  type CharacterMinimum,
   type CharacterContextLevel,
   type CharacterNotes,
 } from '../services/characterContext';
+import { buildSystemPrompt } from '../services/contextPrompt';
+import type {
+  ActSummaryEntry,
+  CharacterCompact,
+  ContextFlags,
+  EncounterSummaryEntry,
+  MonsterLibraryEntry,
+  PinDetailLevel,
+  PinnedEntry,
+} from '../services/contextTypes';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
-import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
-
-export interface EncounterSummaryEntry {
-  slug: string;
-  actSlug: string;
-  name: string;
-  difficulty: string;
-  xpTotal: number;
-  monsterList: string;
-  status: 'planned' | 'done' | 'skipped';
-}
-
-/** Tiefe eines gepinnten Charakters — die drei Kontext-Stufen (Alias). */
-export type PinDetailLevel = CharacterContextLevel;
-
-export interface MonsterLibraryEntry {
-  slug: string;
-  name: string;
-  cr: string;
-  size: string;
-  type: string;
-  group: string;
-}
-
-export interface ContextFlags {
-  campaign: boolean;
-  characters: boolean;
-  acts: boolean;
-  encounters: boolean;
-  monsterGroups: string[];
-  encounterMonsters: boolean;
-  activeFile: boolean;
-}
+import { parseFrontmatter } from '../utils/frontmatter';
 
 const FLAG_DEFAULTS: ContextFlags = {
   campaign: true,
@@ -79,22 +54,6 @@ function createContextFlags(): Writable<ContextFlags> {
 
 export const contextFlags = createContextFlags();
 
-export interface PinnedEntry {
-  entry: FileEntry;
-  content: string;
-  detailLevel: PinDetailLevel;
-  isCharacter: boolean;
-  /** Begleitdateien (details.md/gm-notes.md) — nur bei Charakteren, für die Stufe `full`. */
-  notes?: CharacterNotes;
-}
-
-export interface ActSummaryEntry {
-  name: string;
-  title: string;
-  summary: string;
-  path: string;
-}
-
 export const pinnedEntries = writable<PinnedEntry[]>([]);
 
 /**
@@ -110,9 +69,6 @@ export const actSummaries = writable<ActSummaryEntry[]>([]);
 
 /** Inhalt der campaign.md der aktiven Kampagne. */
 export const campaignContent = writable<string>('');
-
-/** Identitäts-Extrakt eines Charakters (Alias auf die Minimum-Sicht des Kontext-Service). */
-export type CharacterCompact = CharacterMinimum;
 
 /** Geladene Charakterdaten aus dem Frontmatter der campaign.md. */
 export const campaignCharacterData = writable<CharacterCompact[]>([]);
@@ -374,270 +330,23 @@ export async function loadActSummaries(campaignPath: string): Promise<void> {
   }
 }
 
-function getFileTypeFocus(type: FileEntry['type'] | undefined): string {
-  switch (type) {
-    case 'campaign':
-      return (
-        'You are working on the **campaign overview** — the top-level reference document for this campaign. ' +
-        'It should contain ONLY what cannot be found elsewhere: Prämisse (1-2 sentences), Hauptkonflikt (overarching arc), ' +
-        'Fraktionen (name + goal), Spielercharaktere (name, class, motivation), Ton & Stil (mood/themes), ' +
-        'Offene Geheimnisse (campaign-wide unresolved mysteries). ' +
-        'Do NOT include: NPC details (use npcs/*.md), session events (use sessions/*.md), ' +
-        'act-level content (use acts/*/index.md), or world-building details (use world/*.md). ' +
-        'Keep it concise — this document is always included in the LLM context, so every line must earn its place.'
-      );
-    case 'act':
-      return (
-        'You are working on an **act**. ' +
-        'Structure: ## Summary (2-3 sentences), ## Ergebnis (what players achieved), ' +
-        '## Details (challenges, NPC motivations, player choices & consequences). ' +
-        'Always maintain this structure when editing.'
-      );
-    case 'session':
-      return 'You are working on a **session note** — short, informal DM notes. No fixed structure.';
-    case 'npc':
-      return 'You are working on an **NPC**. Output as a single ```json ... ``` block matching the schema.';
-    case 'world':
-      return (
-        'You are working on a **world-building entry**. ' +
-        'Structure: ## Summary (brief overview), ## Details (history, geography, factions, culture, ' +
-        'game-relevant specifics). Always maintain this structure when editing.'
-      );
-    case 'character':
-      return (
-        'You are working on a **player character**. ' +
-        'Focus: background, personality, connections to the world, open story hooks.'
-      );
-    default:
-      return '';
-  }
-}
-
 export const systemPrompt = derived(
   [activeFile, activeCampaign, fileContent, pinnedEntries, actSummaries, encounterSummaries, monsterLibrary, encounterMonsterDefs, campaignContent, contextFlags, campaignCharacterData, characterContextBlocks],
-  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags, $campaignCharacterData, $characterContextBlocks]) => {
-    const parts: string[] = [];
-
-    parts.push(
-      'You are a helpful assistant for a Dungeon Master. ' +
-        'You help create and manage D&D campaigns, scenarios, NPCs, and world-building. ' +
-        'Always respond in the same language the user writes in.'
-    );
-
-    const focus = getFileTypeFocus($activeFile?.type);
-    if (focus) parts.push(`\n## Current Focus\n${focus}`);
-
-    if (true) {
-      if ($activeCampaign && $contextFlags.campaign) {
-        if ($campaignContent && $activeFile?.type !== 'campaign') {
-          const campaignBody = stripFrontmatter($campaignContent);
-          parts.push(`\n## Campaign Overview\n\`\`\`markdown\n${campaignBody}\n\`\`\``);
-        } else {
-          parts.push(`\n## Active Campaign\nName: ${$activeCampaign.name}`);
-        }
-      }
-
-      // Partycharaktere aus campaign.md Frontmatter
-      if ($campaignCharacterData.length > 0 && $contextFlags.characters) {
-        // Bei Session: nur die im Frontmatter genannten Charaktere zeigen
-        let partyToShow = $campaignCharacterData;
-        if ($activeFile?.type === 'session' && $fileContent) {
-          const { frontmatter: sessionFm } = parseFrontmatter($fileContent);
-          if (sessionFm.characters && sessionFm.characters.length > 0) {
-            const slugSet = new Set(sessionFm.characters);
-            partyToShow = $campaignCharacterData.filter((c) => slugSet.has(c.slug));
-          }
-        }
-        if (partyToShow.length > 0) {
-          parts.push(`\n## Party Characters\n${partyToShow.map(formatMinimumLine).join('\n')}`);
-        }
-      }
-
-      // Other acts: Summary + Ergebnis only. Active act: full content below.
-      if ($actSummaries.length > 0 && $contextFlags.acts) {
-        const activeActPath = $activeFile?.type === 'act' ? $activeFile.path : null;
-        const summaryLines = $actSummaries.map((act) => {
-          if (act.path === activeActPath) return null;
-          return `### ${act.title}\n${act.summary}`;
-        }).filter(Boolean);
-
-        if (summaryLines.length > 0) {
-          parts.push(`\n## Act Overviews\n${summaryLines.join('\n\n---\n\n')}`);
-        }
-      }
-
-      if ($encounterSummaries.length > 0 && $contextFlags.encounters) {
-        // Aktuellen Akt aus dem aktiven Dateipfad ableiten
-        const actSlugMatch = $activeFile?.path?.match(/\/acts\/([^/]+)\//);
-        const currentActSlug = actSlugMatch ? actSlugMatch[1] : null;
-        const sortedActNames = [...$actSummaries].sort((a, b) => a.name.localeCompare(b.name)).map((a) => a.name);
-        const currentActIndex = currentActSlug ? sortedActNames.indexOf(currentActSlug) : -1;
-        const pastActSlugs = new Set(currentActIndex >= 0 ? sortedActNames.slice(0, currentActIndex) : []);
-
-        // Aktuell geöffneten Encounter aus der Liste ausblenden (Inhalt ist bereits als Active File enthalten)
-        const activeEncSlug = $activeFile?.type === 'encounter' ? $activeFile.name : null;
-        const activeEncActSlug = $activeFile?.path?.match(/\/acts\/([^/]+)\/encounters\//)?.[1] ?? null;
-        const isActiveEnc = (e: { slug: string; actSlug: string }) =>
-          e.slug === activeEncSlug && e.actSlug === activeEncActSlug;
-
-        const pastEnc = $encounterSummaries.filter((e) => pastActSlugs.has(e.actSlug) && !isActiveEnc(e));
-        const upcomingEnc = $encounterSummaries.filter((e) => !pastActSlugs.has(e.actSlug) && !isActiveEnc(e));
-
-        if (pastEnc.length > 0) {
-          const lines = pastEnc.map((e) => {
-            const tag = e.status === 'skipped' ? ' [skipped]' : ' [done]';
-            return `- **${e.name}** (${e.actSlug}${tag}, ${e.difficulty}, ${e.xpTotal} XP): ${e.monsterList}`;
-          });
-          parts.push(`\n## Past Encounters\n${lines.join('\n')}`);
-        }
-
-        if (upcomingEnc.length > 0) {
-          const lines = upcomingEnc.map((e) => {
-            const tag = e.status !== 'planned' ? ` [${e.status}]` : '';
-            return `- **${e.name}** (${e.actSlug}${tag}, ${e.difficulty}, ${e.xpTotal} XP): ${e.monsterList}`;
-          });
-          parts.push(`\n## Planned Encounters\n${lines.join('\n')}`);
-        }
-      }
-
-      if ($contextFlags.monsterGroups.length > 0) {
-        const filtered = $monsterLibrary.filter((m) => $contextFlags.monsterGroups.includes(m.group));
-        if (filtered.length > 0) {
-          const lines = filtered.map((m) => `- ${m.name} (CR ${m.cr}, ${monsterSizeLabel(m.size)} ${monsterTypeLabel(m.type)})`);
-          parts.push(`\n## Monster Library\n${lines.join('\n')}`);
-        }
-      }
-
-      if ($encounterMonsterDefs.length > 0 && $contextFlags.encounterMonsters && $activeFile?.type === 'encounter') {
-        const monsterJsons = $encounterMonsterDefs.map((m) => JSON.stringify(m, null, 2)).join(',\n');
-        parts.push(`\n## Monsters in This Encounter\n\`\`\`json\n[${monsterJsons}]\n\`\`\``);
-      }
-
-      if ($activeFile?.type === 'encounter' || $activeFile?.type === 'monster' || $activeFile?.type === 'act' || $activeFile?.type === 'npc') {
-        const showNpc = $activeFile.type === 'npc';
-        const showMonster = $activeFile.type === 'monster' || $activeFile.type === 'act';
-        const showEncounter = $activeFile.type === 'encounter' || $activeFile.type === 'act';
-        const lines: string[] = ['\n## JSON Format for Generation',
-          'When outputting a monster, encounter, or NPC, wrap it in a single ```json ... ``` block.',
-          '**CRITICAL rules — violation will break the app:**',
-          '- Output EXACTLY the fields listed below — no extra fields, no omissions.',
-          '- Use the exact field names (snake_case, lowercase).',
-          '- Respect the listed types strictly (number vs string, array vs object).',
-          '- Enum values must match exactly (case-sensitive).',
-          '- Never add markdown, prose, or comments inside the JSON block.',
-          '- Output only ONE JSON object per block (no arrays at top level).',
-        ];
-        if (showEncounter) lines.push(
-          '\n**Encounter schema** (all fields required):\n```\n' +
-          '{\n' +
-          '  "name": string,\n' +
-          '  "description": string,\n' +
-          '  "read_aloud": string,\n' +
-          '  "monsters": [ { "slug": string, "count": number, "notes": string } ],\n' +
-          '  "difficulty": "leicht" | "mittel" | "schwer" | "tödlich",\n' +
-          '  "xp_total": number,\n' +
-          '  "party_size": number,\n' +
-          '  "party_level": number,\n' +
-          '  "location": string,\n' +
-          '  "loot": string,\n' +
-          '  "notes": string,\n' +
-          '  "status": "planned" | "done" | "skipped"\n' +
-          '}\n```\n' +
-          'Notes: `monsters[].slug` must match an existing monster filename (without .json). ' +
-          'Use empty string "" for unknown slugs, 0 for unknown numbers, [] for empty arrays. ' +
-          'The same slug may appear multiple times in the array (e.g. two separate waves of the same monster type). ' +
-          '`read_aloud` is an optional atmospheric text for the DM to read aloud to players; use "" if not applicable.'
-        );
-        if (showMonster) lines.push(
-          '\n**Monster schema** (all fields required):\n```\n' +
-          '{\n' +
-          '  "name": string,\n' +
-          '  "size": string,\n' +
-          '  "type": string,\n' +
-          '  "alignment": string,\n' +
-          '  "ac": { "value": number, "note": string },\n' +
-          '  "hp": { "average": number, "formula": string },\n' +
-          '  "speed": string,\n' +
-          '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
-          '  "saving_throws": { [ability: string]: string },\n' +
-          '  "skills": { [skill: string]: string },\n' +
-          '  "damage_resistances": string[],\n' +
-          '  "damage_immunities": string[],\n' +
-          '  "condition_immunities": string[],\n' +
-          '  "senses": string,\n' +
-          '  "languages": string,\n' +
-          '  "cr": string,\n' +
-          '  "xp": number,\n' +
-          '  "traits": [ { "name": string, "description": string } ],\n' +
-          '  "actions": [ { "name": string, "description": string, "attack_bonus"?: number, "damage"?: string } ],\n' +
-          '  "reactions": [ { "name": string, "description": string } ],\n' +
-          '  "legendary_actions": [ { "name": string, "description": string } ],\n' +
-          '  "tags": string[]\n' +
-          '}\n```'
-        );
-        if (showNpc) lines.push(
-          '\n**NPC schema** (all fields required):\n```\n' +
-          '{\n' +
-          '  "name": string,\n' +
-          '  "role": string,\n' +
-          '  "status": "lebendig" | "tot" | "vermisst" | "unbekannt",\n' +
-          '  "appearance": string,\n' +
-          '  "personality": string,\n' +
-          '  "motivation": string,\n' +
-          '  "secret": string,\n' +
-          '  "notes": string,\n' +
-          '  "ac": number,\n' +
-          '  "hp": string,\n' +
-          '  "speed": string,\n' +
-          '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
-          '  "savingThrows": { "<ability>": { "bonus": number, "prof": boolean } },\n' +
-          '  "skills": { "<skill>": { "bonus": number, "prof": boolean } },\n' +
-          '  "spells": [ { "name": string, "level": number } ],\n' +
-          '  "inventory": string[],\n' +
-          '  "tags": string[]\n' +
-          '}\n```\n' +
-          'Notes: `hp` is a string like "27 (5W8+5)". ' +
-          '`savingThrows` uses ability keys: str, dex, con, int, wis, cha — only include saves with proficiency or a bonus deviating from the plain ability modifier. ' +
-          '`skills` uses ONLY these valid D&D 5e skill names: Akrobatik, ArkaneKunde, Athletik, Auftreten, Einschüchtern, Fingerfertigkeit, Geschichte, Heilkunde, Heimlichkeit, MitTierenUmgehen, MotivErkennen, Nachforschungen, Naturkunde, Religion, Täuschen, Überlebenskunst, Überzeugen, Wahrnehmung — only include skills with proficiency or a notable bonus. ' +
-          '`speed` uses meters (e.g. "9 m"), NOT feet. ' +
-          '`spells` level 0 = Zaubertrick, 1–9 = Zaubergrad. `inventory` is a list of notable items as individual strings. Use "" for unknown strings, 0 for unknown numbers, [] for empty arrays.'
-        );
-        parts.push(lines.join('\n'));
-      }
-
-      // Active file (full content)
-      if ($activeFile && $fileContent && $contextFlags.activeFile) {
-        if ($activeFile.type === 'character') {
-          // Immer der voll aufgelöste Block aus der Map (nie das rohe JSON). Fehlt er
-          // noch, läuft die Auflösung — dann nichts ausgeben, kein JSON-Dump.
-          const block = $characterContextBlocks.get($activeFile.path);
-          if (block) parts.push(`\n${block}`);
-        } else {
-          const label = $activeFile.type === 'act'
-            ? `Active Act: ${$activeFile.name}`
-            : `Current File: ${$activeFile.name} (${$activeFile.type})`;
-          const lang = ($activeFile.type === 'encounter' || $activeFile.type === 'monster' || $activeFile.type === 'npc') ? 'json' : 'markdown';
-          const isMarkdown = lang === 'markdown';
-          const displayContent = isMarkdown ? stripFrontmatter($fileContent) : $fileContent;
-          parts.push(`\n## ${label}\n\`\`\`${lang}\n${displayContent}\n\`\`\``);
-        }
-      }
-    }
-
-    // Gepinnte Einträge
-    for (const pin of $pinnedEntries) {
-      if (pin.isCharacter) {
-        // Doppelung vermeiden: der offene Charakter steht schon als Active File drin.
-        if ($activeFile?.type === 'character' && pin.entry.path === $activeFile.path && $contextFlags.activeFile) continue;
-        const block = $characterContextBlocks.get(pin.entry.path);
-        if (block) parts.push(`\n${block}`); // fehlt noch → nichts (kein rohes JSON)
-      } else {
-        parts.push(`\n## ${pin.entry.name}\n\`\`\`markdown\n${pin.content}\n\`\`\``);
-      }
-    }
-
-    return parts.join('\n');
-  }
+  ([$activeFile, $activeCampaign, $fileContent, $pinnedEntries, $actSummaries, $encounterSummaries, $monsterLibrary, $encounterMonsterDefs, $campaignContent, $contextFlags, $campaignCharacterData, $characterContextBlocks]) =>
+    buildSystemPrompt({
+      activeFile: $activeFile,
+      activeCampaign: $activeCampaign,
+      fileContent: $fileContent,
+      pinnedEntries: $pinnedEntries,
+      actSummaries: $actSummaries,
+      encounterSummaries: $encounterSummaries,
+      monsterLibrary: $monsterLibrary,
+      encounterMonsterDefs: $encounterMonsterDefs,
+      campaignContent: $campaignContent,
+      flags: $contextFlags,
+      party: $campaignCharacterData,
+      characterBlocks: $characterContextBlocks,
+    }),
 );
 
 export const contextSummary = derived(
