@@ -127,13 +127,19 @@ export function buildCharacterChoices(
   const used = new Set<number>();
   const entryOf = slots.map(() => -1);
   const claim = (si: number, i: number) => { used.add(i); entryOf[si] = i; };
+  // Nur ein Eintrag MIT Antwort ist beanspruchbar — `choice` ist der Diskriminator
+  // (`schemas/character.ts`), sonst überschriebe eine Wahl ihren eigenen Talent-Link:
+  // der Slot eines Talent-Merkmals trägt denselben `sourceKey` wie sein Link. Erst dieser
+  // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben — und nur dann ist `entry`
+  // ein Index ins echte Ledger, das `withChoiceAnswer` reihenfolge-treu schreiben kann.
+  const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
   slots.forEach((slot, si) => {
-    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && !!keyOf(slot) && e.sourceKey === keyOf(slot) && e.gainedAt === slot.gainedAt);
+    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && answered(e) && !!keyOf(slot) && e.sourceKey === keyOf(slot) && e.gainedAt === slot.gainedAt);
     if (i >= 0) claim(si, i);
   });
   slots.forEach((slot, si) => {
     if (entryOf[si] >= 0) return;
-    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && !!keyOf(slot) && e.sourceKey === keyOf(slot));
+    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && answered(e) && !!keyOf(slot) && e.sourceKey === keyOf(slot));
     if (i >= 0) claim(si, i);
   });
 
@@ -267,17 +273,19 @@ export function withChoiceAnswer(
 }
 
 /**
- * Der Zähler an der zugeklappten Sektion — in der Sprache, die die Bibliothekskarten schon
- * sprechen (`CoverageBadge`, gold = offen). null = dieser Charakter hat keine Wahlen.
+ * Der Zähler an der Merkmals-Leiste — in der Sprache, die die Bibliothekskarten schon
+ * sprechen (`CoverageBadge`, gold = offen).
+ *
+ * null, sobald nichts OFFEN ist: „alle getroffen" ist keine Meldung wert, sondern der
+ * Normalfall. Der `title` listet trotzdem alle Wahlen, damit die getroffenen im Tooltip
+ * nachlesbar bleiben.
  */
 export function openChoiceBadge(list: CharacterChoice[]): CoverageBadge | null {
-  if (!list.length) return null;
   const open = list.filter((c) => c.open);
+  if (!open.length) return null;
   const title = list
     .map((c) => `${c.slot.group} · ${c.choice.featureDe}: ${c.open ? 'offen' : c.answerDe}`)
     .join('\n');
-  if (!open.length)
-    return { text: `Alle ${list.length} Entscheidungen getroffen`, title, tone: 'done' };
   return {
     text: open.length === 1 ? '1 offene Entscheidung' : `${open.length} offene Entscheidungen`,
     title,
