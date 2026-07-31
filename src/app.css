@@ -110,6 +110,83 @@ h1, h2, h3, .file-title {
 }
 .legacy-banner-btn:hover { filter: brightness(1.08); }
 
+/* Bausteine, die in vielen Komponenten unter demselben Klassennamen stehen.
+ * Komponentenlokale Regeln sind durch die Svelte-Scope-Klasse höher spezifisch
+ * und gewinnen weiterhin — hier steht nur die geteilte Grundform. */
+
+/* Inline-Feld der Karten-Editoren: unauffällig, bis man es anfasst.
+ * `--mef-accent` setzt die Karte, die das Formular einbettet. */
+.ef {
+  background: var(--bg-panel);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 0.15rem 0.3rem;
+  outline: none;
+}
+.ef:hover { border-color: var(--border); }
+.ef:focus { border-color: var(--mef-accent, var(--arcane)); }
+
+/* Beschriftung neben einem Inline-Feld. */
+.lbl-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* Feldüberschrift in den Dialogen. */
+.field-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+/* #fff statt var(--on-accent): die Dialog-Knöpfe tragen bewusst reines Weiß. */
+.primary-btn {
+  background: var(--red);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.secondary-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+/* Abdunkelnder Hintergrund der wartenden Abfrage-Dialoge. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
 /* Pergament-Scrollbars */
 * {
   scrollbar-width: thin;

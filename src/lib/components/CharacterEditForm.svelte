@@ -4,6 +4,7 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { activeFile } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
+  import { openItemPage } from '../services/vaultLinks';
   import { emptyPersonal, emptyProficiencies, type Character, type CharacterData, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellEntry, type SpellRef, type Attack } from '../pdf/characterFields';
   import { SKILL_DEFS, skillSheetKey } from '../domain/skills';
   import { formatClassLevel, totalLevel } from '../schemas/classLevelText';
@@ -568,12 +569,6 @@
     tooltipY = e.clientY + 14;
   }
   function hideItemTooltip() { itemTooltip = null; }
-
-  async function openItemPage(lib: ItemInfo) {
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    const name = lib.path.split('/').pop()?.replace('.json', '') ?? lib.name;
-    activeFile.set({ name, path: lib.path, type: 'item' });
-  }
 
   // ─── Zauber-Autocomplete ─────────────────────────────────
   let spellLibrary = $state<SpellInfo[]>([]);

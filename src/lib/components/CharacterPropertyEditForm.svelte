@@ -75,12 +75,6 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
   .sel { font-size: 0.8rem; }
 
   .cp-block { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -92,7 +86,7 @@
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
     color: var(--ink-muted); margin-top: 0.2rem;
   }
-  .lbl-inline { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--ink-soft); }
+  .lbl-inline { font-size: 0.78rem; }
 
   .flag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.15rem 0.4rem; }
   .chk {

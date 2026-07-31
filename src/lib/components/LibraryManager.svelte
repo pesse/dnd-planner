@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Modal from './ui/Modal.svelte';
   import {
     libraries,
     librariesLoading,
@@ -189,14 +190,7 @@
   }
 </script>
 
-<div class="backdrop" role="presentation" onclick={onclose}></div>
-
-<div class="dialog" role="dialog" aria-label="Bibliotheken">
-  <div class="modal-header">
-    <span class="modal-title">Bibliotheken</span>
-    <button class="close-btn" onclick={onclose} title="Schließen">×</button>
-  </div>
-
+<Modal title="Bibliotheken" draggable={false} width="min(580px, 92vw)" {onclose}>
   <p class="hint">
     Wähle, welche Bibliotheken installiert werden sollen. Deine Kampagnen und
     Charaktere bleiben unberührt.
@@ -312,52 +306,9 @@
     <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noreferrer">
       CC BY 4.0</a>.
   </p>
-</div>
+</Modal>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 999;
-  }
-  .dialog {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(580px, 92vw);
-    max-height: 84vh;
-    overflow-y: auto;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0 1.1rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-  }
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-    margin: 0 -1.1rem 0.2rem;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid var(--surface);
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-  }
-  .modal-title { font-weight: 700; font-size: 1rem; color: var(--ink); }
-  .close-btn {
-    background: none; border: none; color: var(--ink-muted);
-    font-size: 1.3rem; cursor: pointer; line-height: 1;
-  }
-  .close-btn:hover { color: var(--ink); }
-
   .select-all { display: flex; gap: 0.4rem; align-items: center; font-size: 0.72rem; }
   .select-all .sep { color: var(--ink-muted); }
 
@@ -391,16 +342,7 @@
     display: flex; justify-content: flex-end; gap: 0.6rem; align-items: center;
     border-top: 1px solid var(--surface); padding-top: 0.6rem;
   }
-  .primary-btn {
-    background: var(--red); border: none; border-radius: 4px; color: #fff;
-    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
-  }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .secondary-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink-soft); padding: 0.3rem 0.8rem; cursor: pointer;
-    font-family: inherit; font-size: 0.82rem;
-  }
+  .secondary-btn { padding: 0.3rem 0.8rem; font-size: 0.82rem; }
   .secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .link-btn {
     background: none; border: none; color: var(--ink-muted);

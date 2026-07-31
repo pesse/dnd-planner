@@ -60,6 +60,13 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   return null;
 }
 
+/** Öffnet den Bibliothekseintrag eines Gegenstands; der Guard entscheidet vorher. */
+export async function openItemPage(item: { name: string; path: string }): Promise<void> {
+  if (!(await confirmNavigation())) return;
+  const name = item.path.split('/').pop()?.replace('.json', '') ?? item.name;
+  activeFile.set({ name, path: item.path, type: 'item' });
+}
+
 /** Anzeigename wie beim Sidebar-Öffnen (Akt = Verzeichnis-Slug, sonst Dateiname). */
 function displayName(path: string, type: FileEntry['type']): string {
   if (type === 'campaign') return 'campaign';

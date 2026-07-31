@@ -6,11 +6,11 @@
   import { pushError } from '../stores/errors';
   import { getSpellLibrary, loadSpellByPath, searchSpells, SCHOOL_COLORS, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, buildItemIndex, matchItem, structuralType, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
-  import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS } from '../itemLabels';
-  import { formatRarity, formatDamageDice } from '../itemFormat';
+  import { CATEGORY_COLORS, DIR_TO_CATEGORY } from '../itemLabels';
+  import { formatRarity, weaponDamageLine } from '../itemFormat';
   import type { Item } from '../types';
   import type { Spell } from '../types';
-  import { spellDesc, spellHigherLevel } from '../types';
+  import { spellDesc, spellHigherLevel, spellComponents, spellSchoolLabel } from '../types';
   import { SKILL_DEFS, mod } from '../domain/skills';
   import { sign } from '../utils/num';
   import Markdown from './Markdown.svelte';
@@ -174,13 +174,6 @@
     activeFile.set({ name, path: libItem.path, type: 'item' });
   }
 
-  function inlineWeaponInfo(item: Item): string {
-    if (!item.damage) return '';
-    const dice = formatDamageDice(item.damage.damage_dice);
-    const typeKey = item.damage.damage_type.index;
-    return `${dice} ${(DAMAGE_TYPE_LABELS[typeKey] ?? item.damage.damage_type.name).replace('schaden', '')}`;
-  }
-
   function onItemInput() {
     itemSuggestions = searchItems(itemLoadedByDir, newItem, 8);
     itemSugIndex = -1;
@@ -229,20 +222,6 @@
         loadingSpells.delete(name); loadingSpells = new Set(loadingSpells);
       }
     }
-  }
-
-  const SCHOOL_LABELS: Record<string, string> = {
-    abjuration: 'Bannmagie', conjuration: 'Beschwörung', divination: 'Erkenntnismagie',
-    enchantment: 'Verzauberung', evocation: 'Hervorrufung', illusion: 'Illusionsmagie',
-    necromancy: 'Nekromantie', transmutation: 'Verwandlung',
-  };
-
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
   }
 
   function onSpellInput() {
@@ -527,7 +506,7 @@
                 <span class="spell-level-badge">{spell.level === 0 ? 'ZT' : spell.level}</span>
                 <span class="scard-name">{spell.name}</span>
                 <span class="scard-badges">
-                  {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                  {#if info?.school}<span class="scard-school">{spellSchoolLabel(info.school)}</span>{/if}
                 </span>
                 <button class="scard-remove" onclick={(e) => { e.stopPropagation(); removeSpell(i); }} title="Entfernen">×</button>
                 <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
@@ -540,7 +519,7 @@
                     <div class="scard-props">
                       <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
                       <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
-                      <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
+                      <span class="sp-label">Komponenten</span><span class="sp-val">{spellComponents(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
                       <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
                     </div>
                     <div class="scard-divider"></div>
@@ -601,7 +580,7 @@
                 onclick={() => libItem && openItemPage(libItem)}
               >{libItem ? displayName(libItem) : item}</span>
               {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
-                <span class="item-inline-info">{inlineWeaponInfo(fullItem)}</span>
+                <span class="item-inline-info">{weaponDamageLine(fullItem)}</span>
               {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
                 <span class="item-inline-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
               {:else if fullItem?.rarity}

@@ -1,14 +1,10 @@
 <script lang="ts">
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import { modStr } from '../domain/skills';
   import Markdown from './Markdown.svelte';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
-
-  function mod(n: number): string {
-    const m = Math.floor((n - 10) / 2);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
 
   const STAT_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
   const STAT_LABELS = ['STR', 'DEX', 'KON', 'INT', 'WEI', 'CHA'];
@@ -33,7 +29,7 @@
     {#each STAT_KEYS as key, i}
       <div class="sb-stat">
         <div class="sb-stat-lbl">{STAT_LABELS[i]}</div>
-        <div class="sb-stat-val">{monster.stats[key]} ({mod(monster.stats[key])})</div>
+        <div class="sb-stat-val">{monster.stats[key]} ({modStr(monster.stats[key])})</div>
       </div>
     {/each}
   </div>

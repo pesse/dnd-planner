@@ -24,7 +24,7 @@
   import { createItemAction } from '../services/aiActions/itemAction';
   import { parseMonster, normalizeItem } from '../utils/schemaValidation';
   import { ensureCharacterJson } from '../pdf/characterImport';
-  import { getSpellLibrary, searchSpells as searchSpellLib, loadSpellByPath } from '../spellLibrary';
+  import { blankSpell, getSpellLibrary, searchSpells as searchSpellLib, loadSpellByPath } from '../spellLibrary';
   import type { Monster, Spell, Item } from '../types';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../stores/context';
   import type { Campaign, FileEntry } from '../types';
@@ -46,7 +46,6 @@
   import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../services/featCreate';
   import { parseClass, parseSpecies, parseBackground } from '../utils/schemaValidation';
   import { CLASS_TEMPLATE, SPECIES_TEMPLATE, BACKGROUND_TEMPLATE } from '../types';
-  import { OWN_SOURCE } from '../schemas/source';
   import type { ClassProgression, Species, Background } from '../types';
   import type { DndApiRef } from '../services/dndApi';
   import { slugKeepUmlauts, slugToName } from '../utils/text';
@@ -634,16 +633,6 @@
   // Welches Create-Modal offen ist (Monster/Zauber via DnD-API + optionaler KI,
   // Klasse/Spezies via Open5e v2).
   let createModal = $state<'monster' | 'spell' | 'class' | 'species' | 'feat' | 'background' | null>(null);
-
-  function blankSpell(name: string): Spell {
-    return {
-      name: name || 'Neuer Zauber', level: 1, school: 'evocation',
-      casting_time: '1 Aktion', range: '9 Meter',
-      components: { verbal: true, somatic: false, material: false, materials_needed: null },
-      duration: 'Unmittelbar', concentration: false, ritual: false,
-      classes: [], desc: [''], source: OWN_SOURCE,
-    };
-  }
 
   // ── Vorlagensuche (Bibliothek) für die Create-Modals ─────────────────────────
   async function searchSpellLibrary(q: string): Promise<{ name: string; load: () => Promise<Spell> }[]> {

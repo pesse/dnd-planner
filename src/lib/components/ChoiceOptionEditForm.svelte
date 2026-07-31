@@ -146,13 +146,7 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-    width: 100%;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
+  .ef { width: 100%; }
 
   .opt-block { display: flex; flex-direction: column; gap: 0.3rem; }
   .hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.1rem; line-height: 1.45; }
@@ -196,7 +190,7 @@
   }
 
   .spell-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem; }
-  .lbl-inline { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--ink-soft); flex-shrink: 0; }
+  .lbl-inline { gap: 0.25rem; font-size: 0.75rem; flex-shrink: 0; }
   .num { width: 48px; text-align: center; }
   .spell-name { flex: 1; }
 

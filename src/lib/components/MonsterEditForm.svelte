@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Monster, MonsterAction } from '../types';
   import { MONSTER_SIZES, MONSTER_TYPES, MONSTER_ALIGNMENTS } from '../types';
+  import { modStr } from '../domain/skills';
 
   let {
     monster = $bindable<Monster>(),
@@ -9,11 +10,6 @@
     monster: Monster;
     onchange?: () => void;
   } = $props();
-
-  function mod(score: number): string {
-    const m = Math.floor((score - 10) / 2);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
 
   const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
@@ -100,7 +96,7 @@
     <div class="stat-cell">
       <span class="stat-lbl">{label}</span>
       <input class="ef stat-in" type="number" bind:value={monster.stats[STAT_KEYS[i]]} oninput={onchange} />
-      <span class="stat-mod">({mod(monster.stats[STAT_KEYS[i]])})</span>
+      <span class="stat-mod">({modStr(monster.stats[STAT_KEYS[i]])})</span>
     </div>
   {/each}
 </div>

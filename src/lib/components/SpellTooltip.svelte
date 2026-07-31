@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Spell } from '../types';
-  import { SPELL_SCHOOLS, spellLevelLabel, spellDesc, spellHigherLevel } from '../types';
+  import { SPELL_SCHOOLS, spellLevelLabel, spellDesc, spellHigherLevel, spellComponents } from '../types';
   import { SCHOOL_COLORS } from '../spellLibrary';
   import Markdown from './Markdown.svelte';
 
@@ -17,13 +17,6 @@
   const left = $derived(x + boxW > winW ? Math.max(8, x - boxW - 28) : x);
   const top  = $derived(Math.max(8, Math.min(y, winH - boxH - 8)));
 
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
-  }
 </script>
 
 <svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
@@ -47,7 +40,7 @@
     <div class="tt-props">
       <span class="tt-label">Zauberdauer</span><span class="tt-pval">{spell.casting_time}</span>
       <span class="tt-label">Reichweite</span><span class="tt-pval">{spell.range}</span>
-      <span class="tt-label">Komponenten</span><span class="tt-pval">{componentStr(spell)}{spell.components.materials_needed ? ` (${spell.components.materials_needed})` : ''}</span>
+      <span class="tt-label">Komponenten</span><span class="tt-pval">{spellComponents(spell)}{spell.components.materials_needed ? ` (${spell.components.materials_needed})` : ''}</span>
       <span class="tt-label">Dauer</span><span class="tt-pval">{spell.duration}</span>
     </div>
 

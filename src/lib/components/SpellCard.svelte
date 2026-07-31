@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Spell } from '$lib/types';
-  import { spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
+  import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
   import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
@@ -107,14 +107,6 @@
     if (t.duration) s.duration = convertDistances(t.duration);
   }
 
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
-  }
-
   function printSpell() {
     if (!draft) return;
     const html = prepareSpellPrint(draft, document);
@@ -151,7 +143,7 @@
     {/snippet}
     {#snippet karte()}
       {@const higherLevel = spellHigherLevel(draft!)}
-      {@const comps = componentStr(draft!)}
+      {@const comps = spellComponents(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
       <div class="card-wrap">
         <div class="spell-card" style="--c: {pc}">

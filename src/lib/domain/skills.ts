@@ -6,6 +6,7 @@
  * Lag in `pdf/characterFields.ts` — der PDF-Rand ist ein Leser dieser Tabelle,
  * nicht ihr Besitzer.
  */
+import { sign } from '$lib/utils/num';
 import type { AbilityKey } from '$lib/schemas/abilities';
 import type { SkillName } from '$lib/schemas/vocabulary';
 
@@ -62,3 +63,6 @@ export const skillEnName = (sheetKey: string): SkillName | undefined => EN_BY_SH
 export function mod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
+
+/** Modifikator in Bogen-Schreibweise: 12 → „+1", 8 → „-1". */
+export const modStr = (score: number): string => sign(mod(score));

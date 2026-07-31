@@ -25,10 +25,11 @@
   import ItemTooltip from './ItemTooltip.svelte';
   import { activeFile, invalidateVault } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
+  import { openItemPage } from '../services/vaultLinks';
   import { getSpellLibrary, loadSpellByPath, buildSpellIndex, matchSpell, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import { getItemsByDir, displayName, buildItemIndex, matchItem, structuralType, type ItemInfo } from '../itemLibrary';
-  import { CATEGORY_COLORS, DIR_TO_CATEGORY, DAMAGE_TYPE_LABELS, MASTERY_INFO, masteryLabel } from '../itemLabels';
-  import { formatRarity, formatDamageDice } from '../itemFormat';
+  import { CATEGORY_COLORS, DIR_TO_CATEGORY, MASTERY_INFO, masteryLabel } from '../itemLabels';
+  import { formatRarity, weaponDamageLine } from '../itemFormat';
   import { isMastered, masteredKinds } from '../services/weaponMastery';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import { prepareMultiSpellPrint } from '../utils/printSpell';
@@ -37,6 +38,7 @@
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { dragPanelWidth } from '../utils/panelResize';
   import type { SpellAccessValues } from '../services/spellAccess';
+  import { spellSchoolLabel } from '../types';
   import type { Spell, Item } from '../types';
 
   interface Props {
@@ -303,31 +305,12 @@
   }
   function hideItemTooltip() { tooltipItem = null; }
 
-  async function openItemPage(libItem: ItemInfo) {
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
-    activeFile.set({ name, path: libItem.path, type: 'item' });
-  }
-
   async function openSpellPage(ref: { name: string; sourceKey?: string }) {
     const info = resolveSpell(ref);
     if (!info?.path) return;
     if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = info.path.split('/').pop()?.replace('.json', '') ?? ref.name;
     activeFile.set({ name, path: info.path, type: 'spell' });
-  }
-
-  function inlineWeaponInfo(item: Item): string {
-    if (!item.damage) return '';
-    const dice = formatDamageDice(item.damage.damage_dice);
-    const typeKey = item.damage.damage_type.index;
-    const typeLabel = (DAMAGE_TYPE_LABELS[typeKey] ?? item.damage.damage_type.name).replace('schaden', '');
-    let s = `${dice} ${typeLabel}`;
-    if (item.two_handed_damage) {
-      const d2 = formatDamageDice(item.two_handed_damage.damage_dice);
-      s += ` / ${d2}`;
-    }
-    return s;
   }
 
   // Zauber werden per Key (Fallback Name) an die Bibliothek gebunden — wie Items.
@@ -375,12 +358,6 @@
     updateTooltipPos(e);
   }
   function hideSpellTooltip() { spellTooltip = null; }
-
-  const SCHOOL_LABELS: Record<string, string> = {
-    abjuration: 'Bannmagie', conjuration: 'Beschwörung', divination: 'Erkenntnismagie',
-    enchantment: 'Verzauberung', evocation: 'Hervorrufung', illusion: 'Illusionsmagie',
-    necromancy: 'Nekromantie', transmutation: 'Verwandlung',
-  };
 
   let printingSpells = $state(false);
 
@@ -1001,7 +978,7 @@
                         {/if}
                         {libItem ? displayName(libItem) : item.name}
                         {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
-                          <span class="inv-weapon-info">{inlineWeaponInfo(fullItem)}</span>
+                          <span class="inv-weapon-info">{weaponDamageLine(fullItem, true)}</span>
                         {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
                           <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
                         {:else if fullItem?.rarity}
@@ -1070,7 +1047,7 @@
                       <div class="scard-head">
                         <span class="scard-name">{c.name}</span>
                         <span class="scard-badges">
-                          {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                          {#if info?.school}<span class="scard-school">{spellSchoolLabel(info.school)}</span>{/if}
                         </span>
                       </div>
                     </div>
@@ -1104,7 +1081,7 @@
                           <span class="scard-prep">{spell.prepared ? '●' : '○'}</span>
                           <span class="scard-name">{spell.name}</span>
                           <span class="scard-badges">
-                            {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
+                            {#if info?.school}<span class="scard-school">{spellSchoolLabel(info.school)}</span>{/if}
                           </span>
                         </div>
                       </div>

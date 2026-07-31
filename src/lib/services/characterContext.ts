@@ -18,6 +18,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { type Character, type PersonalData } from '../schemas/characterSchema';
 import { formatSpecies, formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { normalizeCharacter } from '../utils/schemaValidation';
+import { sign } from '../utils/num';
 import { skillEnName } from '../domain/skills';
 import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
 import {
@@ -91,10 +92,6 @@ export interface CharacterNotes {
   gmNotes?: string;
 }
 
-function signed(n: number): string {
-  return n >= 0 ? `+${n}` : `${n}`;
-}
-
 /** `### Title` + Zeilen, oder null, wenn nach dem Filtern nichts übrig bleibt. */
 function section(title: string, lines: (string | false | null | undefined)[]): string | null {
   const body = lines.filter((l): l is string => typeof l === 'string' && l.length > 0);
@@ -127,7 +124,7 @@ function abilitiesBlock(c: Character): string | null {
     const val = nums[key] ?? 0;
     const mod = nums[`${key}Mod`] ?? 0;
     const save = flags[`${key}SaveProf`] ? ', Rettungswurf geübt' : '';
-    return `- ${label} ${val} (${signed(mod)}${save})`;
+    return `- ${label} ${val} (${sign(mod)}${save})`;
   });
   return section('Abilities', rows);
 }
@@ -140,7 +137,7 @@ function combatBlock(c: Character): string | null {
     (c.hpCurrent.trim() || c.hpMax.trim()) &&
       `- HP: ${c.hpCurrent.trim() || '?'}/${c.hpMax.trim() || '?'}${c.hpTemp.trim() ? ` (temp ${c.hpTemp.trim()})` : ''}`,
     c.hitDice.trim() && `- Hit Dice: ${c.hitDice}`,
-    `- Proficiency Bonus: ${signed(c.proficiencyBonus)}`,
+    `- Proficiency Bonus: ${sign(c.proficiencyBonus)}`,
     c.passivePerception.trim() && `- Passive Perception: ${c.passivePerception}`,
   ];
   return section('Combat', lines);
@@ -151,7 +148,7 @@ function skillsBlock(c: Character): string | null {
   for (const [key, s] of Object.entries(c.skills ?? {})) {
     if (!s.prof && !s.exp) continue;
     const label = skillLabelDe(skillEnName(key) ?? key);
-    lines.push(`- ${label}: ${signed(s.value)}${s.exp ? ' (Expertise)' : ''}`);
+    lines.push(`- ${label}: ${sign(s.value)}${s.exp ? ' (Expertise)' : ''}`);
   }
   return section('Skill Proficiencies', lines);
 }
@@ -209,7 +206,7 @@ function spellcastingBlock(c: Character): string | null {
     sp.spellcastingClass.trim() && `- Class: ${sp.spellcastingClass}`,
     sp.spellcastingAbility.trim() && `- Ability: ${sp.spellcastingAbility}`,
     sp.saveDC > 0 && `- Save DC: ${sp.saveDC}`,
-    sp.attackBonus !== 0 && `- Attack Bonus: ${signed(sp.attackBonus)}`,
+    sp.attackBonus !== 0 && `- Attack Bonus: ${sign(sp.attackBonus)}`,
   ];
   const slotLines = sp.slots
     .map((s, i) => ({ lvl: i + 1, ...s }))

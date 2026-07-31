@@ -76,6 +76,20 @@ export function spellLevelLabel(level: number): string {
   return level === 0 ? 'Zaubertrick' : `${level}. Grad`;
 }
 
+/** Deutscher Schulname; ein unbekannter Schlüssel bleibt unverändert. */
+export function spellSchoolLabel(school: string): string {
+  return SPELL_SCHOOLS[school as SpellSchool] ?? school;
+}
+
+/** Komponenten-Kürzel: „V, G, M"; ohne Komponenten „—". */
+export function spellComponents(spell: Spell): string {
+  const parts: string[] = [];
+  if (spell.components.verbal) parts.push('V');
+  if (spell.components.somatic) parts.push('G');
+  if (spell.components.material) parts.push('M');
+  return parts.join(', ') || '—';
+}
+
 /** Zeigt deutsche Beschreibung, fällt auf Englisch zurück. */
 export function spellDesc(spell: Spell): string {
   const arr = spell.desc_de?.length ? spell.desc_de : spell.desc;

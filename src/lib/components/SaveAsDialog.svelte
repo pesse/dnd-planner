@@ -64,15 +64,6 @@
 {/if}
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
 
   .dialog {
     background: var(--bg-raised);
@@ -137,10 +128,5 @@
   }
   .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .cancel-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--ink-muted);
-  }
   .cancel-btn:hover { color: var(--ink); }
 </style>

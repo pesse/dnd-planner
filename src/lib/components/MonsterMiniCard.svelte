@@ -2,6 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import { modStr } from '../domain/skills';
   import { normalizeMonster } from '../utils/schemaValidation';
   import { toActLocalJson, toLibraryJson } from '../utils/vaultJson';
   import { OWN_SOURCE } from '../schemas/source';
@@ -206,8 +207,6 @@
   const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
   const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-
-  function mod(v: number): string { const m = Math.floor((v - 10) / 2); return m >= 0 ? `+${m}` : `${m}`; }
 </script>
 
 <div class="mini-card" class:edit-mode={editMode} class:act-local={source === 'act'}>
@@ -259,7 +258,7 @@
             <div class="c-stat">
               <span class="c-stat-lbl">{STAT_LABELS[i]}</span>
               <span class="c-stat-val">{saved.stats[key]}</span>
-              <span class="c-stat-mod">{mod(saved.stats[key])}</span>
+              <span class="c-stat-mod">{modStr(saved.stats[key])}</span>
             </div>
           {/each}
         </div>

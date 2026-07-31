@@ -49,15 +49,6 @@
 {/if}
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
 
   .dialog {
     background: var(--bg-raised);
@@ -170,10 +161,5 @@
   }
   .ok-btn:not(:disabled):hover { filter: brightness(1.1); }
 
-  .cancel-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--ink-muted);
-  }
   .cancel-btn:not(:disabled):hover { color: var(--ink); }
 </style>

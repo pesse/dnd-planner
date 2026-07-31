@@ -1,5 +1,5 @@
 import type { Spell } from '../types';
-import { spellDesc, spellHigherLevel, spellLevelLabel } from '../types';
+import { spellComponents, spellDesc, spellHigherLevel, spellLevelLabel, spellSchoolLabel } from '../types';
 import { renderMarkdownInline } from './markdown';
 import { createHtmlFitter, paginateMarkdown } from './paginateMarkdown';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
@@ -15,17 +15,6 @@ const SCHOOL_COLORS: Record<string, string> = {
   illusion:      '#30a0b8',
   necromancy:    '#8858c8',
   transmutation: '#c07030',
-};
-
-const SCHOOL_LABELS: Record<string, string> = {
-  abjuration:    'Bannmagie',
-  conjuration:   'Beschwörung',
-  divination:    'Erkenntnismagie',
-  enchantment:   'Verzauberung',
-  evocation:     'Hervorrufung',
-  illusion:      'Illusionsmagie',
-  necromancy:    'Nekromantie',
-  transmutation: 'Verwandlung',
 };
 
 const CLASS_LABELS: Record<string, string> = {
@@ -58,14 +47,6 @@ function esc(s: string): string {
 
 function levelLabel(level: number): string {
   return spellLevelLabel(level);
-}
-
-function componentStr(s: Spell): string {
-  const parts: string[] = [];
-  if (s.components.verbal)   parts.push('V');
-  if (s.components.somatic)  parts.push('G');
-  if (s.components.material) parts.push('M');
-  return parts.join(', ') || '—';
 }
 
 // ── DOM-basierte Seitenaufteilung ─────────────────────────────────────────────
@@ -146,7 +127,7 @@ function higherHtmlOf(spell: Spell): string {
 /** `descHtml` ist fertig gerendertes Markdown (aus `paginateDescription`). */
 function renderFirstCard(spell: Spell, descHtml: string, isLast: boolean): string {
   const color  = SCHOOL_COLORS[spell.school] ?? '#888';
-  const comps  = componentStr(spell);
+  const comps  = spellComponents(spell);
   const matNote = spell.components.materials_needed
     ? ` <span class="mat">(${esc(spell.components.materials_needed)})</span>` : '';
   const classes = spell.classes.map(c => CLASS_LABELS[c] ?? c).join(' · ');
@@ -156,7 +137,7 @@ function renderFirstCard(spell: Spell, descHtml: string, isLast: boolean): strin
 
   <div class="head">
     <div class="name">${esc(spell.name)}${spell.ritual ? ' <span class="ritual">Ritual</span>' : ''}</div>
-    <div class="meta">${esc(levelLabel(spell.level))} · ${esc(SCHOOL_LABELS[spell.school] ?? spell.school)}</div>
+    <div class="meta">${esc(levelLabel(spell.level))} · ${esc(spellSchoolLabel(spell.school))}</div>
   </div>
   ${ORNDIV}
   <div class="props">

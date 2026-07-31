@@ -283,9 +283,6 @@
     background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.78rem;
     font-style: italic; color: var(--arcane, var(--red)); margin-right: auto; text-align: left;
   }
-  .primary-btn {
-    background: var(--arcane, var(--red)); color: var(--on-accent, #fff); border: none;
-    border-radius: 5px; padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
-  }
+  .primary-btn { background: var(--arcane, var(--red)); color: var(--on-accent, #fff); border-radius: 5px; }
   .field-hint { color: var(--ink-muted); font-size: 0.72rem; margin-right: auto; }
 </style>

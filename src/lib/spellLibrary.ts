@@ -5,7 +5,19 @@
 import { invoke } from '@tauri-apps/api/core';
 import { slugKeepUmlauts } from './utils/text';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
+import { OWN_SOURCE } from './schemas/source';
 import type { Spell } from './types';
+
+/** Leerer Zauber-Entwurf für die Anlage in der Bibliothek. */
+export function blankSpell(name: string, level = 1, school = 'evocation', nameEn = ''): Spell {
+  return {
+    name: name || 'Neuer Zauber', name_en: nameEn.trim() || undefined, level, school: school as Spell['school'],
+    casting_time: '1 Aktion', range: '9 Meter',
+    components: { verbal: true, somatic: false, material: false, materials_needed: null },
+    duration: 'Unmittelbar', concentration: false, ritual: false,
+    classes: [], desc: [''], source: OWN_SOURCE,
+  };
+}
 
 export interface SpellInfo {
   name: string;

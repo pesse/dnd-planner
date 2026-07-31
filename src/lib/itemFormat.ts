@@ -1,5 +1,7 @@
 /** Einheiten und Zahlenformate der Gegenstands-Anzeige (Fuß→Meter, Münzen, Würfel). */
-import { COST_UNIT_LABELS, RARITY_LABELS } from './itemLabels';
+import { COST_UNIT_LABELS, DAMAGE_TYPE_LABELS, RARITY_LABELS } from './itemLabels';
+
+type DamageRef = { damage_dice: string; damage_type: { index: string; name: string } };
 
 /** Fuß → Meter als Zahl (1,5 m pro 5 ft). */
 export function ftToMVal(ft: number): number {
@@ -28,4 +30,20 @@ export function formatRarity(rarity: { name: string } | undefined): string {
 
 export function formatDamageDice(dice: string): string {
   return dice.replace(/\bd(\d+)\b/gi, (_, n) => `W${n}`);
+}
+
+/**
+ * Kurze Schadenszeile einer Waffe („1W8 Stich"), wie sie neben dem Inventareintrag steht.
+ * `twoHanded` hängt den zweihändigen Würfel an — der NPC-Bogen zeigt ihn bewusst nicht.
+ */
+export function weaponDamageLine(
+  item: { damage?: DamageRef; two_handed_damage?: DamageRef },
+  twoHanded = false,
+): string {
+  if (!item.damage) return '';
+  const typeKey = item.damage.damage_type.index;
+  const typeLabel = (DAMAGE_TYPE_LABELS[typeKey] ?? item.damage.damage_type.name).replace('schaden', '');
+  let out = `${formatDamageDice(item.damage.damage_dice)} ${typeLabel}`;
+  if (twoHanded && item.two_handed_damage) out += ` / ${formatDamageDice(item.two_handed_damage.damage_dice)}`;
+  return out;
 }

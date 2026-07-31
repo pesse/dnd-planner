@@ -113,18 +113,6 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel);
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--ink);
-    font-family: inherit;
-    font-size: 0.88rem;
-    padding: 0.15rem 0.3rem;
-    outline: none;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
 
   .sb-header { margin-bottom: 0.4rem; display: flex; flex-direction: column; gap: 0.15rem; }
   .sb-name {
@@ -134,10 +122,6 @@
   .sb-name-en { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; width: 100%; }
 
   .meta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }
-  .lbl-inline {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.8rem; color: var(--ink-soft);
-  }
   .lbl-block {
     display: flex; flex-direction: column; gap: 0.15rem;
     font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.3rem;

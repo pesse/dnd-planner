@@ -210,18 +210,6 @@
 
 <style>
   /* ── Basis-Input ── */
-  .ef {
-    background: var(--bg-panel);
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--ink);
-    font-family: inherit;
-    font-size: 0.88rem;
-    padding: 0.15rem 0.3rem;
-    outline: none;
-  }
-  .ef:hover { border-color: var(--border); background: var(--bg-panel); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); background: var(--bg-panel); }
 
   /* ── Header ── */
   .sb-header { margin-bottom: 0.4rem; }
