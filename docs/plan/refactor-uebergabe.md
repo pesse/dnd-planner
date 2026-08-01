@@ -20,13 +20,14 @@
 | 7c · Charakter | `8c62f86`, `36bbfd3` | CharacterSheet 1770 → 685, Wizard 994 → 424, **CharacterEditForm 2898 → 421** |
 | 7d · LLM, Aufstieg | `2487848` | LlmPanel 2116 → 495, LevelUpAssistant 1438 → 628 (**Tooltip-Bugfix**) |
 | 8 · Kommentare | `617e899` | 13,8 % → 8,6 %; Banner 101 → 20 |
+| 9 · Autocomplete, NpcCard | `8f110e7` | `utils/suggestNav.svelte.ts` (8 Kopien), `ui/FeatureRow.svelte` (3); NpcCard 1056 → 549 |
 
 ## Was nicht erreicht ist
 
 | Kennzahl | Start | Ende | Ziel |
 |---|---|---|---|
-| Dateien > 700 Zeilen | 14 | **3** | 0 |
-| Größte Datei | 2.899 | **1.056** (`NpcCard`) | < 400 |
+| Dateien > 700 Zeilen | 14 | **1** (`EncounterCard`, 750) | 0 |
+| Größte Datei | 2.899 | **750** | < 400 |
 | Abschnitts-Banner | 323 | **20** | 0 |
 | Kommentarquote | 13,5 % | **8,6 %** | < 6 % |
 | Scoped CSS | 8.332 | **6.163** | ~6.000 ✓ |
@@ -36,8 +37,8 @@
 
 Priorisierte Restliste:
 
-1. **`NpcCard` (1.056), `EncounterCard` (750), `CharacterFeaturePanel` (726) zerlegen** — löst
-   zugleich 6 der 20 Banner und die Kennzahl „größte Datei".
+1. **`EncounterCard` (750) zerlegen** — die letzte Datei über der Grenze. `NpcCard` und
+   `CharacterFeaturePanel` sind in Etappe 9 darunter gerutscht.
 2. **Die vier `get(store)`-Lesestellen auflösen**: `services/renameFile.ts`,
    `services/levelUp/runSteps.ts`, `services/sidebar/deleteEntry.ts`, `editor/cardEditor.svelte.ts`.
    Die letzten drei sind bei Zerlegungen aus Komponenten mitgewandert — **die Kennzahl ist heute
@@ -124,3 +125,21 @@ nicht mehr). Der PDF-Export ist feldweise geprüft, der Rest nicht. Zuerst:
 3. **NPC ändern und sofort wegklicken** → der „Ungespeicherte Änderungen"-Dialog muss kommen.
 4. **Gegenstand mit Kategoriewechsel speichern** → die Datei muss umziehen.
 5. Alle 12 Seitenleisten-Abschnitte, je eine Karte pro Bibliothekstyp, die vier KI-Modi.
+
+## Verbliebene CSS-Duplikate (nach Etappe 9)
+
+Echte Duplikation: **428 Zeilen in 56 Gruppen** (vor Etappe 9: 587 in 67). Die lohnenden Reste:
+
+- `MonsterEditForm` ↔ `SpellEditForm` (`.meta-sel`, `.meta-row`, `.prop`, `.ability-desc`, `.ef`;
+  ~45 Z.) — die beiden Editoren sind sich so ähnlich, dass ein `libraryEditor.css` naheliegt.
+- `CharacterFeaturePanel` ↔ `form.css` (`input`, `.btn-add`, `.remove-btn`; 35 Z.) — nur zusammen
+  mit der Entscheidung, ob `form.css` zur globalen Formularsprache wird. Die Leiste lebt bewusst
+  außerhalb von `.edit-form`.
+- `.ornament-top::before` ↔ `toolbar.css` (21 Z.), `.resize-handle` ×2.
+- `.add-opt`/`.add-spell`/`.add-pick` gegen `.add-feat` (7 Z., braucht eine Größenvariante).
+
+**Nicht anfassen — Scheinduplikation.** Ein Skript, das identische *Deklarationen* statt
+identischer *Regelkörper* zählt, meldet „~2.300 Zeilen sparbar", weil `color: var(--danger)` 30×
+vorkommt. Das sind 30 verschiedene Selektoren mit derselben einen Zeile. Dazu kommt: Svelte 5
+hängt `:where(.svelte-hash)` an jeden Selektorteil außer dem ersten, weshalb eine lokale Regel
+eine globale Utility-Klasse fast immer schlägt.
