@@ -1,0 +1,100 @@
+/**
+ * Abgeleitete Werte des Zauber-Schritts: Kontingente, gewährte Zauber, Fertig-Kriterium.
+ * Der Rahmen braucht `done` fürs Weiter-Gating, die Schritt-Komponente den Rest — beide
+ * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
+ */
+import type { CharacterWizard } from './characterWizard.svelte';
+import { decodePick, riderExtras, type SpellcastingOffer } from '../spellcasting';
+import { validateRiderSpells } from '../levelUp/spells';
+import type { SpellInfo } from '../../spellLibrary';
+
+export interface SpellStepValues {
+  readonly extras: { cantrips: number; prepared: number };
+  readonly cantripMax: number;
+  /** Im Zauberbuch-Regime die Buchgröße, sonst unmittelbar die Vorbereitung. */
+  readonly spellMax: number;
+  readonly preparedMax: number;
+  readonly isSpellbook: boolean;
+  /** Zaubergrade, für die auf Stufe 1 Plätze existieren (1 … maxSpellLevel). */
+  readonly spellLevels: number[];
+  readonly grantedSpells: { cantrips: string[]; prepared: { level: number; name: string }[] };
+  readonly fixedCantrips: { level: number; name: string }[];
+  readonly cantripPicks: string[];
+  readonly knownPicks: string[];
+  readonly done: boolean;
+}
+
+export function createSpellStepValues(
+  w: CharacterWizard,
+  offer: () => SpellcastingOffer | null,
+  library: () => SpellInfo[],
+): SpellStepValues {
+  const extras = $derived(riderExtras(w.riders));
+  const cantripMax = $derived((offer()?.cantrips ?? 0) + extras.cantrips);
+  const spellMax = $derived.by(() => {
+    const o = offer();
+    return o ? (o.known || o.prepared) + extras.prepared : 0;
+  });
+  const preparedMax = $derived.by(() => {
+    const o = offer();
+    return o ? o.prepared + extras.prepared : 0;
+  });
+  const isSpellbook = $derived(offer()?.regime === 'spellbook');
+  const spellLevels = $derived(
+    Array.from({ length: Math.max(0, offer()?.maxSpellLevel ?? 0) }, (_, i) => i + 1),
+  );
+
+  /** Von Merkmalen gewährte Zauber: fest, nicht entfernbar, zählen nicht gegen das Kontingent. */
+  const grantedSpells = $derived.by(() => {
+    const lib = library();
+    if (!lib.length || !w.riders.length) return { cantrips: [], prepared: [] };
+    const v = validateRiderSpells(w.riders, lib, w.klass.name);
+    return { cantrips: v.grantedCantrips, prepared: v.grantedPrepared };
+  });
+  const fixedCantrips = $derived(grantedSpells.cantrips.map((name) => ({ level: 0, name })));
+
+  // Ein Zauber, den der Nutzer selbst gewählt hat und der DANACH als gewährt hereinkommt
+  // (der Effekt-Job landet spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen —
+  // er zählt dann nicht mehr gegen das Kontingent. Beim nächsten Schreiben verschwindet er
+  // auch aus dem Zustand; hier wird nichts mutiert.
+  const lower = (v: string) => decodePick(v).name.toLowerCase();
+  const grantedNames = $derived({
+    cantrips: new Set(grantedSpells.cantrips.map((n) => n.toLowerCase())),
+    spells: new Set(grantedSpells.prepared.map((p) => p.name.toLowerCase())),
+  });
+  const cantripPicks = $derived(w.pickedCantrips.filter((v) => !grantedNames.cantrips.has(lower(v))));
+  const knownPicks = $derived(w.pickedKnown.filter((v) => !grantedNames.spells.has(lower(v))));
+
+  /**
+   * Gated wird nur gegen die DETERMINISTISCHEN Kontingente aus der Klassentabelle: der
+   * Merkmals-Effekt-Job läuft beim Betreten des Schritts womöglich noch, und ein
+   * nachträglicher Aufschlag darf den Nutzer nicht blockieren (er sieht ihn als Hinweis).
+   */
+  const done = $derived.by(() => {
+    const base = offer();
+    if (base?.isCaster) {
+      if (cantripPicks.length < base.cantrips) return false;
+      // Nur fordern, was auch wählbar ANGEBOTEN wird: eine Klasse mit „Prepared Spells"-Spalte
+      // aber ohne Zauberplatz-Spalten (Homebrew-Lücke) würde den Wizard sonst blockieren.
+      if (spellLevels.length > 0) {
+        if (knownPicks.length < (base.known || base.prepared)) return false;
+        if (isSpellbook && w.pickedPrepared.length < base.prepared) return false;
+      }
+    }
+    return w.spellPickChoices.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max);
+  });
+
+  return {
+    get extras() { return extras; },
+    get cantripMax() { return cantripMax; },
+    get spellMax() { return spellMax; },
+    get preparedMax() { return preparedMax; },
+    get isSpellbook() { return isSpellbook; },
+    get spellLevels() { return spellLevels; },
+    get grantedSpells() { return grantedSpells; },
+    get fixedCantrips() { return fixedCantrips; },
+    get cantripPicks() { return cantripPicks; },
+    get knownPicks() { return knownPicks; },
+    get done() { return done; },
+  };
+}

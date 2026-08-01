@@ -1,16 +1,27 @@
 /**
- * Rohe PDF-Ein-/Ausgabe für Charakterbögen: Dateiwahl, Bytes, Formularfelder.
+ * PDF-Ein-/Ausgabe für Charakterbögen: Dateiwahl, Bytes, Formularfelder, Export.
  * Die fachliche Deutung der Felder liegt in `characterFields`/`characterImport`.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
 import { PDFDocument } from 'pdf-lib';
+import { exportCharacterToPdf } from './characterExport';
+import { parseCharacterData, type CharacterData, type CharacterJSON } from './characterFields';
+import type { SpellAccessValues } from '../services/spellAccess';
+
+const TEMPLATE_PATH = './vault/templates/ataendler_v2.8.2.pdf';
 
 export function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
+}
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
 
 /** Öffnet die Dateiauswahl für einen Charakterbogen; null = abgebrochen. */
@@ -43,4 +54,86 @@ export async function readPdfFields(absPdfPath: string): Promise<Record<string, 
     }
   }
   return fields;
+}
+
+/**
+ * Importiert einen Bogen in einen BESTEHENDEN Charakter: schreibt `character.json` neu und
+ * gibt den geschriebenen Inhalt zurück. Die Zauber bleiben erhalten — sie werden manuell
+ * gepflegt und stehen so im PDF nicht.
+ */
+export async function importPdfIntoCharacter(
+  pdfPath: string,
+  dirPath: string,
+  keepSpells: CharacterData['spells'],
+): Promise<string> {
+  const imported = parseCharacterData(await readPdfFields(pdfPath));
+  imported.spells = keepSpells;
+
+  const json: CharacterJSON = {
+    ...imported,
+    // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
+    // Upgrade-Pipeline (schemas/characterUpgrades.ts) strukturiert sie beim ersten Laden.
+    _version: 1,
+    _importedFrom: pdfPath.split(/[/\\]/).pop() ?? '',
+    _importedAt: new Date().toISOString(),
+  };
+  const content = JSON.stringify(json, null, 2);
+  await invoke('write_file_content', { path: `${dirPath}/character.json`, content });
+  return content;
+}
+
+export interface CharacterPdfExport {
+  /** Quelle der Import-Metadaten; leer = kein PDF-Ursprung. */
+  importedFrom: string;
+  /** Verzeichnis des Charakters — Fundort der Portraitdatei. */
+  dirPath: string;
+  freitext?: string;
+  /** Angriffsname → deutscher Name der Meisterschaftseigenschaft (leer = nicht beherrscht). */
+  masteryOf?: (attackName: string) => string | undefined;
+  /** Zauberwerte der Merkmals-Zugänge — dieselben Zeilen, die die Karte zeigt. */
+  spellAccess?: SpellAccessValues[];
+}
+
+/** Füllt das Taendler-Template und speichert es über die Zielwahl; false = abgebrochen. */
+export async function exportCharacterPdfFile(
+  character: CharacterData,
+  opts: CharacterPdfExport,
+): Promise<boolean> {
+  const templateB64 = await invoke<string>('read_file_base64', { path: TEMPLATE_PATH });
+  const templateBytes = base64ToBytes(templateB64);
+  const json = {
+    _version: 1 as const,
+    _importedFrom: opts.importedFrom || undefined,
+    _importedAt: new Date().toISOString(),
+    ...character,
+  };
+
+  let portrait: { bytes: Uint8Array; format: 'png' | 'jpg' } | undefined;
+  if (character.portraitFile) {
+    try {
+      const portraitB64 = await invoke<string>('read_file_base64', {
+        path: `${opts.dirPath}/${character.portraitFile}`,
+      });
+      portrait = {
+        bytes: base64ToBytes(portraitB64),
+        format: character.portraitFile.toLowerCase().endsWith('.png') ? 'png' : 'jpg',
+      };
+    } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
+  }
+
+  const pdfBytes = await exportCharacterToPdf(json, templateBytes, {
+    portrait,
+    freitext: opts.freitext,
+    masteryOf: opts.masteryOf,
+    spellAccess: opts.spellAccess,
+  });
+  const b64 = bytesToBase64(pdfBytes);
+  const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';
+  const target = await saveFileDialog({
+    defaultPath: `${safeName}-export.pdf`,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (!target) return false;
+  await invoke('write_file_base64', { path: target, data: b64 });
+  return true;
 }

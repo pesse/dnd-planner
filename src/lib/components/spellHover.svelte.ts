@@ -4,13 +4,13 @@ import type { Spell } from '../types';
 /**
  * Vollständige Zauberdaten für den Hover-Tooltip, MODUL-weit geteilt: Auswahl-Zeile und
  * Auswahl-Dialog sind gleichzeitig montiert (Zaubertricks, Grad 1+, je Merkmals-Wahl eine)
- * und greifen auf dieselben Zauber zu. Anders als im Charakterbogen wird NICHT vorab
- * geladen — der Dialog zeigt die ganze Klassenliste, das wären Dutzende Dateizugriffe für
- * einen Hover.
+ * und greifen auf dieselben Zauber zu. Vorab geladen wird nur, wo der Aufrufer eine kurze
+ * Liste nennt (`preload`) — der Dialog zeigt die ganze Klassenliste, das wären Dutzende
+ * Dateizugriffe für einen Hover.
  */
 const spellCache = new Map<string, Spell | null>();
 
-async function loadSpell(name: string, path: string): Promise<Spell | null> {
+export async function loadSpellCached(name: string, path: string): Promise<Spell | null> {
   const hit = spellCache.get(name);
   if (hit !== undefined) return hit;
   const data = await loadSpellByPath(path);
@@ -29,15 +29,35 @@ export interface SpellHover {
 
 /**
  * Hover-Tooltip-Zustand für eine Zauberliste. `byName` wird als Getter übergeben, damit die
- * Bibliothek des Aufrufers (nachladend) reaktiv bleibt.
+ * Bibliothek des Aufrufers (nachladend) reaktiv bleibt; `preload` nennt die Namen, deren
+ * Daten schon vor dem ersten Hover geholt werden sollen.
  */
-export function createSpellHover(byName: () => Map<string, SpellInfo>): SpellHover {
+export function createSpellHover(
+  byName: () => Map<string, SpellInfo>,
+  preload?: () => Iterable<string>,
+): SpellHover {
   let spell = $state<Spell | null>(null);
   let x = $state(0);
   let y = $state(0);
   /** Name, über dem die Maus JETZT steht — verhindert, dass ein langsamer Ladevorgang
    *  den Tooltip aufpoppt, nachdem die Maus längst weiter ist. */
   let hovering = '';
+
+  if (preload) {
+    // Merker außerhalb der Runen: der Cache füllt sich erst nach dem Lesen, ein erneuter
+    // Effektlauf würde denselben Zauber sonst ein zweites Mal holen.
+    const requested = new Set<string>();
+    $effect(() => {
+      const index = byName();
+      for (const name of preload()) {
+        if (requested.has(name)) continue;
+        const path = index.get(name)?.path;
+        if (!path) continue;
+        requested.add(name);
+        void loadSpellCached(name, path);
+      }
+    });
+  }
 
   return {
     get spell() {
@@ -55,7 +75,7 @@ export function createSpellHover(byName: () => Map<string, SpellInfo>): SpellHov
       hovering = name;
       const info = byName().get(name);
       if (!info?.path) return;
-      const data = await loadSpell(name, info.path);
+      const data = await loadSpellCached(name, info.path);
       if (data && hovering === name) spell = data;
     },
     move(e: MouseEvent) {
