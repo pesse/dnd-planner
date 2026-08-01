@@ -119,12 +119,6 @@
     cursor: default;
   }
 
-  .ok-btn {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    font-weight: 600;
-  }
   .ok-btn:not(:disabled):hover { filter: brightness(1.1); }
 
   .cancel-btn:not(:disabled):hover { color: var(--ink); }

@@ -81,10 +81,10 @@
       <div class="generate-header">
         <span>Ergebnis</span>
         <div class="header-actions">
-          <button class="icon-btn" onclick={() => copyText(result)} title="In Zwischenablage kopieren">
+          <button class="plain-btn" onclick={() => copyText(result)} title="In Zwischenablage kopieren">
             {copied ? '✓' : '⎘'}
           </button>
-          <button class="icon-btn" onclick={clear}>✕</button>
+          <button class="plain-btn" onclick={clear}>✕</button>
         </div>
       </div>
       <ResponseBlocks text={result} />
@@ -193,16 +193,6 @@
     display: flex;
     gap: 0.1rem;
     align-items: center;
-  }
-
-  .icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.15rem 0.3rem;
   }
 
   .apply-row {

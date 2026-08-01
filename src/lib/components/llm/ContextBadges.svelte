@@ -106,7 +106,7 @@
     {/if}
   </div>
   <button
-    class="icon-btn"
+    class="plain-btn"
     onclick={() => (showPrompt = !showPrompt)}
     title="System-Prompt anzeigen">{showPrompt ? '▲' : '▼'}</button
   >
@@ -213,16 +213,6 @@
     background: transparent;
   }
   .ctx-badge.pin-badge:hover { background: var(--surface); }
-
-  .icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.15rem 0.3rem;
-  }
 
   .pinned-list {
     border-bottom: 1px solid var(--surface);

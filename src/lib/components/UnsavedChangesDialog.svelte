@@ -20,7 +20,7 @@
     {#snippet actions()}
       <button class="cancel-btn" onclick={() => choose('cancel')}>Abbrechen</button>
       <button class="discard-btn" onclick={() => choose('discard')}>Verwerfen</button>
-      <button class="save-btn" onclick={() => choose('save')}>Speichern</button>
+      <button class="ok-btn" onclick={() => choose('save')}>Speichern</button>
     {/snippet}
   </PromptDialog>
 {/if}
@@ -31,13 +31,6 @@
     font-size: 0.85rem;
     color: var(--ink-muted);
     line-height: 1.5;
-  }
-
-  .save-btn {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    font-weight: 600;
   }
 
   .discard-btn {

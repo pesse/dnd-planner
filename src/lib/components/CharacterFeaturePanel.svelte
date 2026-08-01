@@ -26,6 +26,7 @@
   import { getSpellLibrary, buildSpellIndex, matchSpell, type SpellInfo } from '../spellLibrary';
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
+  import { createSuggestNav } from '../utils/suggestNav.svelte';
   import DeclarationBadge from './DeclarationBadge.svelte';
   import FeatureChoicePicker from './FeatureChoicePicker.svelte';
   import FeatTooltip from './FeatTooltip.svelte';
@@ -193,7 +194,6 @@
 
   let featPickerTarget = $state<'add' | number | null>(null);
   let featQuery = $state('');
-  let featSugIndex = $state(-1);
   let showFeatCreate = $state(false);
 
   const featOptions = $derived.by(() => {
@@ -209,12 +209,12 @@
   function openFeatPicker(target: 'add' | number) {
     featPickerTarget = target;
     featQuery = '';
-    featSugIndex = -1;
+    featNav.reset();
   }
   function closeFeatPicker() {
     featPickerTarget = null;
     featQuery = '';
-    featSugIndex = -1;
+    featNav.reset();
     hideFeatTooltip(); // Vorschlag verschwindet aus dem DOM → kein mouseleave mehr
   }
 
@@ -244,16 +244,16 @@
     closeFeatPicker();
   }
 
+  // Ohne `enter`: freier Text darf kein Talent anlegen.
+  const featNav = createSuggestNav<FeatEntry>({
+    items: () => featOptions,
+    pick: (opt) => { if (featPickerTarget !== null) pickFeat(featPickerTarget, opt); },
+    escape: closeFeatPicker,
+  });
+
   function onFeatPickerKey(e: KeyboardEvent, target: 'add' | number) {
     if (featPickerTarget !== target) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); featSugIndex = Math.min(featSugIndex + 1, featOptions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); featSugIndex = Math.max(featSugIndex - 1, -1); }
-    else if (e.key === 'Escape') closeFeatPicker();
-    // Enter ohne markierten Treffer tut bewusst nichts — freier Text darf kein Talent anlegen.
-    else if (e.key === 'Enter' && featSugIndex >= 0 && featOptions[featSugIndex]) {
-      e.preventDefault();
-      pickFeat(target, featOptions[featSugIndex]);
-    }
+    featNav.onkeydown(e);
   }
 
   const savedFeatLinks = $derived((saved?.features ?? []).filter((r) => !r.choice?.trim()));
@@ -385,14 +385,14 @@
       value={featPickerTarget === target ? featQuery : ''}
       {placeholder}
       onfocus={() => openFeatPicker(target)}
-      oninput={(e) => { featPickerTarget = target; featQuery = (e.currentTarget as HTMLInputElement).value; featSugIndex = -1; }}
+      oninput={(e) => { featPickerTarget = target; featQuery = (e.currentTarget as HTMLInputElement).value; featNav.reset(); }}
       onkeydown={(e) => onFeatPickerKey(e, target)}
       onblur={() => setTimeout(() => { if (featPickerTarget === target) closeFeatPicker(); }, 150)}
     />
     {#if featPickerTarget === target}
-      <ul class="suggestions">
+      <ul class="suggestions compact">
         {#each featOptions as opt, si}
-          <li class:active={si === featSugIndex} onmousedown={() => pickFeat(target, opt)}
+          <li class:active={si === featNav.index} onmousedown={() => pickFeat(target, opt)}
             onmouseenter={(e) => showFeatTooltip(e, opt)}
             onmousemove={moveFeatTooltip}
             onmouseleave={hideFeatTooltip}>
@@ -691,36 +691,5 @@
   }
   .btn-add:hover { background: var(--border); }
 
-  .autocomplete-wrap { position: relative; }
-  .autocomplete-wrap input { width: 100%; box-sizing: border-box; }
-
-  .suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    list-style: none;
-    margin: 0;
-    padding: 0.2rem 0;
-    max-height: 180px;
-    overflow-y: auto;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-  }
-  .suggestions li {
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    color: var(--ink);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.4rem;
-  }
-  .suggestions li:hover, .suggestions li.active { background: var(--surface); }
-  .sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
   .sug-empty { color: var(--ink-muted); font-style: italic; cursor: default; }
 </style>

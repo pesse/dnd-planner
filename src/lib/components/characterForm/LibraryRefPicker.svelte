@@ -4,6 +4,7 @@
    * Ändern) oder als Autocomplete-Eingabe. Dreimal benutzt — Klassenzeile, Volk,
    * Hintergrund; die Trefferliste und was ein Treffer bedeutet, liefert der Aufrufer.
    */
+  import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import './form.css';
 
   let {
@@ -37,12 +38,11 @@
 
   let active = $state(false);
   let suggestions = $state<T[]>([]);
-  let sugIndex = $state(-1);
 
   function type(value: string) {
     oninput(value);
     active = true;
-    sugIndex = -1;
+    nav.reset();
     suggestions = value.trim() ? search(value) : [];
   }
 
@@ -50,19 +50,19 @@
     onselect(hit);
     suggestions = [];
     active = false;
-    sugIndex = -1;
+    nav.reset();
     onediting(false);
   }
 
+  const nav = createSuggestNav<T>({
+    items: () => suggestions,
+    pick,
+    escape: () => { suggestions = []; active = false; },
+  });
+
   function onkeydown(e: KeyboardEvent) {
     if (!active) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); sugIndex = Math.min(sugIndex + 1, suggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); sugIndex = Math.max(sugIndex - 1, -1); }
-    else if (e.key === 'Escape') { suggestions = []; active = false; }
-    else if (e.key === 'Enter' && sugIndex >= 0 && suggestions[sugIndex]) {
-      e.preventDefault();
-      pick(suggestions[sugIndex]);
-    }
+    nav.onkeydown(e);
   }
 
   function onblur() {
@@ -91,7 +91,7 @@
     {#if active && suggestions.length > 0}
       <ul class="suggestions">
         {#each suggestions as sug, i}
-          <li class:active={i === sugIndex} onmousedown={() => pick(sug)}>
+          <li class:active={i === nav.index} onmousedown={() => pick(sug)}>
             <span>{label(sug)}</span>
           </li>
         {/each}

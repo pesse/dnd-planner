@@ -45,10 +45,6 @@
   .row.two { flex-direction: row; gap: 0.5rem; }
   .row.two > * { flex: 1; }
 
-  .input, .select {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-  }
   .input:focus, .select:focus { border-color: var(--red); }
   .row.arcane .input:focus, .row.arcane .select:focus { border-color: var(--arcane, var(--red)); }
 </style>

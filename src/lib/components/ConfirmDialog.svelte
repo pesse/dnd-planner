@@ -48,12 +48,5 @@
   }
   .danger-btn:hover { filter: brightness(1.1); }
 
-  .ok-btn {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    font-weight: 600;
-  }
-
   .cancel-btn:hover { color: var(--ink); }
 </style>

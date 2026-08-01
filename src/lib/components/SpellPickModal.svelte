@@ -232,11 +232,6 @@
   .counter { font-size: 0.75rem; color: var(--ink-muted); }
   .close-btn { background: none; border: none; color: var(--ink-muted); font-size: 1.3rem; line-height: 1; cursor: pointer; }
   .close-btn:hover { color: var(--ink); }
-  .input {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none;
-    font-family: inherit; width: 100%;
-  }
   .input:focus { border-color: var(--arcane, var(--red)); }
   .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.7rem; }
   .section { display: flex; flex-direction: column; gap: 0.3rem; }

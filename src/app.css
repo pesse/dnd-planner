@@ -127,6 +127,18 @@ h1, h2, h3, .file-title {
 .ef:hover { border-color: var(--border); }
 .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
 
+/* Rumpf und Anfüge-Knopf der Merkmalslisten (ui/FeatureRow.svelte). Global, weil
+ * beides AUSSERHALB der Zeile steht — der Rumpf im Aufrufer, der Knopf am Abschnitt.
+ * Nach `.ef`, weil dessen Schriftgröße hier überschrieben wird. */
+.feat-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
+
+.add-feat {
+  align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--ink-soft); cursor: pointer;
+  font-family: inherit; font-size: 0.8rem; padding: 0.25rem 0.6rem; margin-top: 0.3rem;
+}
+.add-feat:hover { border-color: var(--mef-accent, var(--arcane)); color: var(--mef-accent, var(--arcane)); }
+
 /* Beschriftung neben einem Inline-Feld. */
 .lbl-inline {
   display: inline-flex;
@@ -136,12 +148,95 @@ h1, h2, h3, .file-title {
   color: var(--ink-soft);
 }
 
+/* Autocomplete: Eingabefeld mit darunter hängender Trefferliste (utils/suggestNav).
+ * Global, weil acht Stellen dieselbe Liste zeigen; `.compact` ist die kleinere
+ * Variante der Talent-Auswahl. Die Breite des Rahmens setzt der Aufrufer. */
+.autocomplete-wrap { position: relative; }
+.autocomplete-wrap input { width: 100%; box-sizing: border-box; }
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+.suggestions li {
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.suggestions li:hover,
+.suggestions li.active { background: var(--surface); }
+
+.suggestions.compact {
+  border-top: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0;
+  max-height: 180px;
+}
+.suggestions.compact li {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+
+/* Zweite Spalte eines Treffers (Kategorie, Ordner). */
+.sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
+
 /* Feldüberschrift in den Dialogen. */
 .field-label {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-muted);
+}
+
+/* Feld in den Dialogen. Die Fokusfarbe setzt der jeweilige Dialog. */
+.input, .select, .textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+}
+
+/* Randloser Knopf, der nur aus seinem Zeichen besteht. */
+.plain-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.3rem;
+}
+
+/* Zustimmender Knopf eines Dialogs (ui/PromptDialog.svelte). */
+.ok-btn {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  font-weight: 600;
 }
 
 .primary-btn {
@@ -177,18 +272,7 @@ h1, h2, h3, .file-title {
  * Abweichungen laufen über die Variablen, nicht über eine zweite Regel. */
 .ai-modal .row { display: flex; flex-direction: column; gap: 0.3rem; }
 
-.ai-modal .textarea {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--ink);
-  font-size: 0.85rem;
-  padding: 0.35rem 0.5rem;
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  resize: vertical;
-}
+.ai-modal .textarea { resize: vertical; }
 .ai-modal .textarea:focus { border-color: var(--red); }
 
 .ai-modal .actions {

@@ -11,6 +11,7 @@
   import { CATEGORY_COLORS } from '../../itemLabels';
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
+  import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
@@ -32,7 +33,6 @@
   } = $props();
 
   let suggestions = $state<ItemSuggestion[]>([]);
-  let sugIndex = $state(-1);
   let activeRow = $state(-1);
   /** Zeile, die trotz Link gerade neu getippt wird (✎). */
   let editingRow = $state(-1);
@@ -47,7 +47,7 @@
     editingRow = i;
     activeRow = i;
     suggestions = searchItems(itemsByDir, value, 8);
-    sugIndex = -1;
+    nav.reset();
   }
 
   function selectItem(i: number, sug: ItemSuggestion) {
@@ -58,19 +58,16 @@
     inventory[i].weight = sug.item.weight != null ? String(sug.item.weight) : '';
     suggestions = [];
     activeRow = -1;
-    sugIndex = -1;
+    nav.reset();
     editingRow = -1;
   }
 
-  function onNameKey(e: KeyboardEvent, i: number) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); sugIndex = Math.min(sugIndex + 1, suggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); sugIndex = Math.max(sugIndex - 1, -1); }
-    else if (e.key === 'Escape') { suggestions = []; activeRow = -1; editingRow = -1; }
-    else if (e.key === 'Enter' && sugIndex >= 0 && suggestions[sugIndex]) {
-      e.preventDefault();
-      selectItem(i, suggestions[sugIndex]);
-    }
-  }
+  // Die Liste hängt immer an `activeRow` — ein Treffer kann keine andere Zeile meinen.
+  const nav = createSuggestNav<ItemSuggestion>({
+    items: () => suggestions,
+    pick: (sug) => selectItem(activeRow, sug),
+    escape: () => { suggestions = []; activeRow = -1; editingRow = -1; },
+  });
 
   function divergedName(line: InventoryLine): string | undefined {
     const key = line.sourceKey?.trim();
@@ -167,7 +164,7 @@
                 value={item.name}
                 placeholder="Seil (15m)"
                 oninput={(e) => { item.name = e.currentTarget.value; onNameInput(i, item.name); }}
-                onkeydown={(e) => onNameKey(e, i)}
+                onkeydown={nav.onkeydown}
                 onblur={() => setTimeout(() => {
                   if (activeRow === i) { suggestions = []; activeRow = -1; }
                   if (editingRow === i) editingRow = -1;
@@ -176,7 +173,7 @@
               {#if activeRow === i && suggestions.length > 0}
                 <ul class="suggestions">
                   {#each suggestions as sug, si}
-                    <li class:active={si === sugIndex} onmousedown={() => selectItem(i, sug)}>
+                    <li class:active={si === nav.index} onmousedown={() => selectItem(i, sug)}>
                       <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
                       <span class="sug-cat">{sug.dir}</span>
                     </li>

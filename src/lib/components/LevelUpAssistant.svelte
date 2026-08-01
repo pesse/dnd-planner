@@ -580,10 +580,6 @@
   .result:hover { border-color: var(--arcane, var(--red)); color: var(--ink); }
   .result:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .input, .select, .textarea {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-  }
   .input:focus, .select:focus, .textarea:focus { border-color: var(--arcane, var(--red)); }
   .textarea { resize: vertical; }
 

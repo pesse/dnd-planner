@@ -9,7 +9,7 @@
 <div class="debug-output">
   <div class="debug-toolbar">
     <span class="debug-count">{$debugLog.length} Einträge</span>
-    <button class="icon-btn" onclick={clearDebugLog} title="Log leeren">✕ Leeren</button>
+    <button class="plain-btn" onclick={clearDebugLog} title="Log leeren">✕ Leeren</button>
   </div>
   {#if $debugLog.length === 0}
     <div class="debug-empty">Noch keine API-Calls — Chat oder Generieren nutzen.</div>
@@ -58,16 +58,6 @@
     border-bottom: 1px solid var(--surface);
     background: var(--bg-deep);
     flex-shrink: 0;
-  }
-
-  .icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.15rem 0.3rem;
   }
 
   .debug-count {

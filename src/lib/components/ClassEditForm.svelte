@@ -9,6 +9,7 @@
   import FormSection from './ui/FormSection.svelte';
   import OriginalText from './ui/OriginalText.svelte';
   import LibraryFormHeader from './ui/LibraryFormHeader.svelte';
+  import FeatureRow from './ui/FeatureRow.svelte';
 
   let {
     klass = $bindable<ClassProgression>(),
@@ -117,10 +118,10 @@
     bleibt das Merkmal in der KI-Kette; das ist der Fallback, kein Fehler.
   {/snippet}
   {#each klass.features as feature, i}
-    <div class="feat-row">
-      <div class="feat-line">
-        <input class="ef feat-name" bind:value={feature.nameDe} oninput={mark} placeholder="Merkmal (DE)" />
-        <input class="ef feat-name-en" bind:value={feature.name} oninput={mark} placeholder="Name (EN)" />
+    <FeatureRow bind:nameDe={feature.nameDe} bind:name={feature.name}
+      namePlaceholder="Merkmal (DE)" removeTitle="Merkmal entfernen"
+      onchange={mark} onremove={() => removeFeature(i)}>
+      {#snippet trail()}
         <input
           class="ef feat-levels"
           value={feature.gainedAt.join(', ')}
@@ -128,14 +129,13 @@
           placeholder="Stufen"
           title="Stufen, z.B. 1, 4, 8"
         />
-        <button class="feat-del" onclick={() => removeFeature(i)} title="Merkmal entfernen">×</button>
-      </div>
+      {/snippet}
       <DeclarationEditForm bind:feature={klass.features[i]} carrier="class" {onchange} />
       <textarea class="ef feat-desc" rows={3} bind:value={feature.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
       <OriginalText>
         <textarea class="ef orig-text" rows={3} bind:value={feature.desc} oninput={mark} placeholder="Beschreibung (EN)"></textarea>
       </OriginalText>
-    </div>
+    </FeatureRow>
   {/each}
   <button class="add-feat" onclick={addFeature}>+ Merkmal</button>
 </FormSection>
@@ -150,20 +150,7 @@
   }
   .equip { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
 
-  .feat-row {
-    display: flex; flex-direction: column; gap: 0.25rem;
-    padding: 0.4rem 0; border-bottom: 1px solid var(--surface);
-  }
-  .feat-line { display: flex; gap: 0.3rem; align-items: center; }
-  .feat-name { flex: 2; font-weight: 600; }
-  .feat-name-en { flex: 2; font-style: italic; color: var(--ink-soft); font-size: 0.8rem; }
   .feat-levels { width: 80px; text-align: center; font-size: 0.8rem; }
-  .feat-del {
-    background: none; border: none; color: var(--ink-muted); font-size: 1.1rem;
-    cursor: pointer; line-height: 1; flex-shrink: 0; padding: 0 0.2rem;
-  }
-  .feat-del:hover { color: var(--danger); }
-  .feat-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
 
   .orig-text {
     background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
@@ -171,11 +158,4 @@
     padding: 0.4rem 0.6rem; white-space: pre-wrap; font-style: italic; margin-top: 0.2rem;
     width: 100%; resize: vertical; font-family: inherit;
   }
-
-  .add-feat {
-    align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; color: var(--ink-soft); cursor: pointer;
-    font-family: inherit; font-size: 0.8rem; padding: 0.25rem 0.6rem; margin-top: 0.3rem;
-  }
-  .add-feat:hover { border-color: var(--mef-accent, var(--arcane)); color: var(--mef-accent, var(--arcane)); }
 </style>

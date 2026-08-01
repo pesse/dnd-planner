@@ -12,6 +12,7 @@
     computeAttackBonus, computeAttackDamage, toggleAttackMode, type WeaponAttackContext,
   } from '../../services/attackCalc';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
+  import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import './form.css';
@@ -25,12 +26,11 @@
 
   let search = $state('');
   let suggestions = $state<ItemSuggestion[]>([]);
-  let sugIndex = $state(-1);
 
   $effect(() => {
-    if (!search.trim()) { suggestions = []; sugIndex = -1; return; }
+    if (!search.trim()) { suggestions = []; nav.reset(); return; }
     suggestions = searchItems({ weapon: weaponItems }, search, 8);
-    sugIndex = -1;
+    nav.reset();
   });
 
   async function selectWeapon(sug: ItemSuggestion) {
@@ -43,29 +43,25 @@
     }
     search = '';
     suggestions = [];
-    sugIndex = -1;
+    nav.reset();
   }
 
-  function onSearchKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); sugIndex = Math.min(sugIndex + 1, suggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); sugIndex = Math.max(sugIndex - 1, -1); }
-    else if (e.key === 'Escape') { suggestions = []; sugIndex = -1; }
-    else if (e.key === 'Enter' && sugIndex >= 0 && suggestions[sugIndex]) {
-      e.preventDefault();
-      selectWeapon(suggestions[sugIndex]);
-    }
-  }
+  const nav = createSuggestNav<ItemSuggestion>({
+    items: () => suggestions,
+    pick: selectWeapon,
+    escape: () => { suggestions = []; },
+  });
 </script>
 
 <div class="autocomplete-wrap weapon-picker">
-  <input placeholder="Waffe aus Bibliothek hinzufügen…" bind:value={search} onkeydown={onSearchKey} />
+  <input placeholder="Waffe aus Bibliothek hinzufügen…" bind:value={search} onkeydown={nav.onkeydown} />
   {#if suggestions.length}
     <ul class="suggestions">
       {#each suggestions as sug, i}
         <li
-          class:active={i === sugIndex}
+          class:active={i === nav.index}
           onclick={() => selectWeapon(sug)}
-          onmouseenter={() => (sugIndex = i)}
+          onmouseenter={() => (nav.index = i)}
         >
           <span>{displayName(sug.item)}</span>
           <span class="sug-cat" style:color={CATEGORY_COLORS[sug.item.category] ?? 'var(--ink-muted)'}>

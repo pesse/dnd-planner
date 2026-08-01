@@ -301,10 +301,6 @@
   .ai-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--ink-soft); cursor: pointer; user-select: none; }
   .ai-toggle input { accent-color: var(--red); cursor: pointer; }
 
-  .input, .select {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.35rem 0.5rem; outline: none; font-family: inherit; width: 100%;
-  }
   .input:focus, .select:focus { border-color: var(--red); }
 
   .template { display: flex; flex-direction: column; gap: 0.4rem; }

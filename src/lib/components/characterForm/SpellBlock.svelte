@@ -17,6 +17,7 @@
     type CharacterFormFields,
   } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
+  import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
   import type { Character, SpellRef } from '../../schemas/characterSchema';
   import type { Spell } from '../../types';
@@ -86,25 +87,23 @@
 
   let cantripInput = $state('');
   let cantripSuggestions = $state<SpellSuggestion[]>([]);
-  let cantripSugIndex = $state(-1);
   let spellInput = $state('');
   let spellInputLvl = $state('1');
   let spellInputPrepared = $state(false);
   let spellSuggestions = $state<SpellSuggestion[]>([]);
-  let spellSugIndex = $state(-1);
 
   $effect(() => {
     cantripSuggestions = cantripInput.length > 0
       ? searchSpells(spellLibrary, cantripInput, 0, spells.spellcastingClass)
       : [];
-    cantripSugIndex = -1;
+    cantripNav.reset();
   });
 
   $effect(() => {
     spellSuggestions = spellInput.length > 0
       ? searchSpells(spellLibrary, spellInput, Number(spellInputLvl), spells.spellcastingClass)
       : [];
-    spellSugIndex = -1;
+    spellNav.reset();
   });
 
   function selectCantrip(sug: SpellSuggestion) {
@@ -143,25 +142,19 @@
     spellSuggestions = [];
   }
 
-  function onCantripKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); cantripSugIndex = Math.min(cantripSugIndex + 1, cantripSuggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); cantripSugIndex = Math.max(cantripSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { cantripSuggestions = []; }
-    else if (e.key === 'Enter') {
-      if (cantripSugIndex >= 0 && cantripSuggestions[cantripSugIndex]) selectCantrip(cantripSuggestions[cantripSugIndex]);
-      else addCantrip();
-    }
-  }
+  const cantripNav = createSuggestNav<SpellSuggestion>({
+    items: () => cantripSuggestions,
+    pick: selectCantrip,
+    enter: addCantrip,
+    escape: () => { cantripSuggestions = []; },
+  });
 
-  function onSpellKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); spellSugIndex = Math.min(spellSugIndex + 1, spellSuggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); spellSugIndex = Math.max(spellSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { spellSuggestions = []; }
-    else if (e.key === 'Enter') {
-      if (spellSugIndex >= 0 && spellSuggestions[spellSugIndex]) selectSpell(spellSuggestions[spellSugIndex]);
-      else addSpell();
-    }
-  }
+  const spellNav = createSuggestNav<SpellSuggestion>({
+    items: () => spellSuggestions,
+    pick: selectSpell,
+    enter: addSpell,
+    escape: () => { spellSuggestions = []; },
+  });
 
   // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataCache = $state(new Map<string, Spell | null>());
@@ -266,12 +259,12 @@
   {/each}
   <div class="autocomplete-wrap">
     <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
-      onkeydown={onCantripKey}
+      onkeydown={cantripNav.onkeydown}
       onblur={() => setTimeout(() => { cantripSuggestions = []; }, 150)} />
     {#if cantripSuggestions.length > 0}
       <ul class="suggestions">
         {#each cantripSuggestions as sug, i}
-          <li class:active={i === cantripSugIndex} class:out-of-class={!sug.inClass}
+          <li class:active={i === cantripNav.index} class:out-of-class={!sug.inClass}
             onmousedown={() => selectCantrip(sug)}>
             <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
             {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
@@ -292,12 +285,12 @@
   </select>
   <div class="autocomplete-wrap spell-autocomplete">
     <input class="spell-name-input" bind:value={spellInput} placeholder="Zauber-Name…"
-      onkeydown={onSpellKey}
+      onkeydown={spellNav.onkeydown}
       onblur={() => setTimeout(() => { spellSuggestions = []; }, 150)} />
     {#if spellSuggestions.length > 0}
       <ul class="suggestions">
         {#each spellSuggestions as sug, i}
-          <li class:active={i === spellSugIndex} class:out-of-class={!sug.inClass}
+          <li class:active={i === spellNav.index} class:out-of-class={!sug.inClass}
             onmousedown={() => selectSpell(sug)}>
             <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
             {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}

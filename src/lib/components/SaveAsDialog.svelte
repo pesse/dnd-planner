@@ -53,7 +53,7 @@
 
     {#snippet actions()}
       <button class="cancel-btn" onclick={cancel}>Abbrechen</button>
-      <button class="save-btn" onclick={confirm} disabled={!name.trim()}>Speichern</button>
+      <button class="ok-btn" onclick={confirm} disabled={!name.trim()}>Speichern</button>
     {/snippet}
   </PromptDialog>
 {/if}
@@ -83,13 +83,7 @@
   .field input:focus,
   .field select:focus { border-color: var(--gold); }
 
-  .save-btn {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    font-weight: 600;
-  }
-  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ok-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .cancel-btn:hover { color: var(--ink); }
 </style>

@@ -167,48 +167,40 @@
    Übungen ableiten gehört in Erstellung/Level-Up, nicht in den Editor). */
 .edit-form .grant-mark { color: var(--copper); font-size: 0.62rem; cursor: help; }
 
-/* Angriffe */
-.edit-form .attack-table {
+/* Angriffe, Klassen-/Volksbezug und Inventar sind dieselbe Tabelle; abweichend ist
+   allein der Abstand unter der Bezugstabelle. */
+.edit-form .attack-table,
+.edit-form .ref-table,
+.edit-form .inv-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 0.4rem;
   font-size: 0.8rem;
 }
-.edit-form .attack-table th {
+.edit-form .ref-table { margin-bottom: 0.3rem; }
+
+.edit-form .attack-table th,
+.edit-form .ref-table th,
+.edit-form .inv-table th {
   text-align: left;
   color: var(--ink-muted);
   font-weight: 400;
   padding: 0.1rem 0.3rem;
   border-bottom: 1px solid var(--surface);
 }
-.edit-form .attack-table td {
-  padding: 0.15rem 0.2rem;
-}
-.edit-form .attack-table input {
-  width: 100%;
-  min-width: 40px;
-}
+.edit-form .attack-table td,
+.edit-form .ref-table td,
+.edit-form .inv-table td { padding: 0.15rem 0.2rem; }
+.edit-form .attack-table input,
+.edit-form .ref-table input,
+.edit-form .inv-table input { width: 100%; min-width: 40px; }
+
 .edit-form .ref-block { margin-bottom: 0.8rem; }
 .edit-form .ref-block h4 {
   font-size: 0.8rem;
   font-weight: 600;
   margin: 0 0 0.2rem;
 }
-.edit-form .ref-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 0.3rem;
-  font-size: 0.8rem;
-}
-.edit-form .ref-table th {
-  text-align: left;
-  color: var(--ink-muted);
-  font-weight: 400;
-  padding: 0.1rem 0.3rem;
-  border-bottom: 1px solid var(--surface);
-}
-.edit-form .ref-table td { padding: 0.15rem 0.2rem; }
-.edit-form .ref-table input { width: 100%; min-width: 40px; }
 .edit-form .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
 .edit-form .class-block { margin-top: 0.6rem; }
 .edit-form .class-total { color: var(--ink-muted); font-weight: 400; font-size: 0.75rem; }
@@ -375,21 +367,6 @@
 }
 
 /* Inventar */
-.edit-form .inv-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 0.4rem;
-  font-size: 0.8rem;
-}
-.edit-form .inv-table th {
-  text-align: left;
-  color: var(--ink-muted);
-  font-weight: 400;
-  padding: 0.1rem 0.3rem;
-  border-bottom: 1px solid var(--surface);
-}
-.edit-form .inv-table td { padding: 0.15rem 0.2rem; }
-.edit-form .inv-table input { width: 100%; min-width: 40px; }
 .edit-form .inv-table .num { text-align: right; white-space: nowrap; }
 .edit-form .num-input { text-align: right; }
 .edit-form .inv-fixed-cell {
@@ -456,44 +433,13 @@
 }
 .edit-form .btn-link-all:hover { color: var(--ink); border-color: var(--ink-muted); }
 
+/* Rahmen und Liste liegen global in app.css — hier nur die Formular-Breite und
+   der Zauber-Sonderfall „nicht in der Klassenliste". */
 .edit-form .autocomplete-wrap {
-  position: relative;
   flex: 1;
   min-width: 100px;
 }
-.edit-form .autocomplete-wrap input { width: 100%; box-sizing: border-box; }
 
-.edit-form .suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 6px 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 220px;
-  overflow-y: auto;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-}
-.edit-form .suggestions li {
-  padding: 0.3rem 0.6rem;
-  cursor: pointer;
-  font-size: 0.82rem;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: space-between;
-}
-.edit-form .suggestions li:hover,
-.edit-form .suggestions li.active {
-  background: var(--surface);
-}
 .edit-form .suggestions li.out-of-class {
   color: var(--ink-muted);
 }
@@ -502,7 +448,6 @@
   background: var(--bg-raised);
   color: var(--ink-faint);
 }
-.edit-form .sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
 .edit-form .sug-hint {
   font-size: 0.7rem;
   color: var(--border);
