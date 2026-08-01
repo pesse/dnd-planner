@@ -2,6 +2,7 @@
  * Lese-Index der Gegenstands-Bibliothek (`vault/items`, ein Ordner je Kategorie)
  * plus Auflösung eines Charakter-/NPC-Eintrags auf einen Bibliothekseintrag.
  */
+import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';
 import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
@@ -93,6 +94,23 @@ export function toHomebrewCopy(item: Item): Item {
 }
 
 let cache: Record<string, ItemInfo[]> = {};
+let knownDirs: string[] = [];
+
+/** Kategorie-Ordner der Bibliothek, alphabetisch. */
+export async function listItemDirs(): Promise<string[]> {
+  try {
+    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: ITEMS_PATH });
+    knownDirs = entries.filter((e) => e.is_dir).map((e) => e.name).sort();
+  } catch {
+    knownDirs = [];
+  }
+  return knownDirs;
+}
+
+/** Zuletzt gelesene Kategorie-Ordner — für Aufrufer ohne await (leerer Draft). */
+export function loadedItemDirs(): string[] {
+  return knownDirs;
+}
 
 export function invalidateItemCache(dir?: string) {
   if (dir) {

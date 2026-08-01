@@ -1,0 +1,289 @@
+/* Baum-Vokabular der Seitenleiste. Global, aber an `.sidebar` gebunden, weil
+   Sidebar, SidebarSection und GroupedSection dieselben Zeilen zeichnen. */
+
+.sidebar .top-section {
+  padding: 0.5rem 0;
+}
+
+.sidebar .section-row {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .section-toggle {
+  flex: 1;
+  text-align: left;
+  padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sidebar .chars-toggle {
+  padding-left: 1rem;
+}
+
+.sidebar .section-toggle:hover {
+  color: var(--ink);
+}
+
+.sidebar .add-btn {
+  padding: 0 0.6rem;
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.sidebar .section-row:hover .add-btn {
+  opacity: 1;
+}
+
+.sidebar .add-btn:hover {
+  color: var(--arcane);
+}
+
+.sidebar .arrow {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.sidebar .arrow.open {
+  transform: rotate(90deg);
+}
+
+.sidebar .file-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar .file-entry {
+  width: 100%;
+  text-align: left;
+  padding: 0.25rem 1rem 0.25rem 2.5rem;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar .file-entry:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sidebar .file-entry.active {
+  background: var(--border);
+  color: var(--arcane);
+}
+
+/* Zeile mit Hover-Löschbutton (.file-entry/.campaign-title + .entry-del) */
+.sidebar .entry-row {
+  position: relative;
+}
+.sidebar .entry-del {
+  padding: 0 0.6rem;
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.1s;
+}
+/* In Blatt-Zeilen den Button rechts über die Zeile legen (volle Hover-Breite). */
+.sidebar .entry-row > .entry-del {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+}
+.sidebar .entry-row:hover .entry-del {
+  opacity: 1;
+}
+.sidebar .entry-del:hover {
+  color: var(--danger);
+}
+
+.sidebar .monster-group-header {
+  width: 100%;
+  text-align: left;
+  padding: 0.2rem 1rem 0.2rem 1.5rem;
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sidebar .monster-group-header:hover { color: var(--ink); }
+
+/* Item-Gruppen tragen keine Kategoriefarbe — der Farbcode liegt (per Seltenheit) auf den Items. */
+.sidebar .item-group-header { color: var(--ink-soft); }
+.sidebar .item-group-header:hover { color: var(--ink); }
+
+.sidebar .monster-group-header .arrow {
+  display: inline-block;
+  font-size: 0.9rem;
+  transition: transform 0.15s;
+  transform: rotate(0deg);
+  color: var(--ink-muted);
+}
+
+.sidebar .monster-group-header .arrow.open {
+  transform: rotate(90deg);
+}
+
+.sidebar .group-count {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.sidebar .monster-subentry {
+  padding-left: 3.5rem;
+}
+
+/* Bibliothek (Klassen/Spezies/Talente): 1. Ebene ohne Kategorie-Level → flach
+   eingerückt wie die 1. Ebene bei Monstern/Gegenständen (spart Platz). */
+.sidebar .lib-entry {
+  padding-left: 1.75rem;
+}
+
+/* Subklasse als Unterpunkt der Basisklasse: eine Stufe tiefer als .lib-entry, dezent. */
+.sidebar .class-subentry {
+  padding-left: 3rem;
+  font-size: 0.9em;
+  color: var(--ink-muted);
+}
+
+/* HG-Badge (Herausforderungsgrad) vor Monster-Einträgen */
+.sidebar .monster-cr-badge {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 0.25rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  color: var(--red);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Grad-Badge vor Zauber-Einträgen */
+.sidebar .spell-level-badge {
+  display: inline-block;
+  min-width: 1.1rem;
+  padding: 0 0.2rem;
+  margin-right: 0.4rem;
+  border-radius: 0.25rem;
+  color: var(--bg);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.15rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.sidebar .char-entry {
+  padding-left: 1rem;
+}
+
+/* Seltenheits-Punkt vor Item-Einträgen (Farbe = Seltenheit) */
+.sidebar .rarity-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-right: 0.45rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.sidebar .encounter-entry { color: color-mix(in srgb, var(--steel) 53%, transparent); }
+.sidebar .encounter-entry:hover { color: var(--steel); }
+.sidebar .encounter-entry.active { color: var(--steel); }
+
+.sidebar .act-entry {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar .act-enc-entry {
+  padding-left: 3.5rem;
+  font-size: 0.8rem;
+}
+
+.sidebar .act-enc-input {
+  padding-left: 3rem;
+}
+
+.sidebar .empty {
+  padding: 0.2rem 1rem 0.2rem 2.5rem;
+  font-size: 0.8rem;
+  color: var(--border);
+  font-style: italic;
+}
+
+/* Steht bewusst NACH .act-enc-input: die Kurzform gewinnt, der Encounter-Einzug
+   bleibt bei 2rem wie bisher. */
+.sidebar .new-file-row {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem 0.25rem 2rem;
+  gap: 0.25rem;
+}
+
+.sidebar .new-file-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  outline: none;
+  min-width: 0;
+}
+
+.sidebar .new-file-input:focus {
+  border-color: var(--arcane);
+}
+
+.sidebar .confirm-btn {
+  background: none;
+  border: none;
+  color: var(--green);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.2rem;
+}

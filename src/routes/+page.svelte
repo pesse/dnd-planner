@@ -2,137 +2,38 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
-  import MonsterCard from '$lib/components/MonsterCard.svelte';
-  import NpcCard from '$lib/components/NpcCard.svelte';
-  import EncounterCard from '$lib/components/EncounterCard.svelte';
-  import SpellCard from '$lib/components/SpellCard.svelte';
-  import ItemCard from '$lib/components/ItemCard.svelte';
-  import ClassCard from '$lib/components/ClassCard.svelte';
-  import SpeciesCard from '$lib/components/SpeciesCard.svelte';
-  import FeatCard from '$lib/components/FeatCard.svelte';
-  import BackgroundCard from '$lib/components/BackgroundCard.svelte';
+  import CardHost from '$lib/components/CardHost.svelte';
+  import CharacterBadgeBar from '$lib/components/CharacterBadgeBar.svelte';
+  import FileTitle from '$lib/components/FileTitle.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
   import ErrorToast from '$lib/components/ErrorToast.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
-  import { checkForUpdate } from '$lib/stores/update';
-  import { checkLibrariesOnStartup } from '$lib/stores/libraries';
-  import { getRulesIndex } from '$lib/services/rulesReference';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-  import { confirmAction } from '$lib/stores/confirmDialog';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
+  import { cardTypeOf } from '$lib/components/cardRegistry';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
-  import { pushError } from '$lib/stores/errors';
-  import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent, replaceContent, invalidateVault } from '$lib/stores/campaign';
-  import { invalidateItemCache } from '$lib/itemLibrary';
-  import { campaignCharacterData, reloadCampaignCharacters } from '$lib/stores/context';
-  import { parseFrontmatter, replaceFrontmatterCharacters } from '$lib/utils/frontmatter';
+  import { runStartupTasks } from '$lib/services/startupTasks';
+  import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent } from '$lib/stores/campaign';
   import { dragPanelWidth } from '$lib/utils/panelResize';
-  import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
   import { marked } from 'marked';
   import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
-  import { slugKeepUmlauts } from '$lib/utils/text';
+  import '$lib/components/toolbar.css';
 
   let isPdfCharacter = $derived(
     $activeFile?.type === 'character' && !!$activeFile?.dirPath
   );
 
-  // Aktuell in der Datei gespeicherte Charakter-Slugs (aus Frontmatter)
-  let activeSlugs = $derived(
-    (() => {
-      if ($activeFile?.type === 'campaign') {
-        return $campaignCharacterData.map((c) => c.slug);
-      }
-      if ($activeFile?.type === 'session' && $fileContent) {
-        const { frontmatter } = parseFrontmatter($fileContent);
-        if (frontmatter.characters !== undefined) return frontmatter.characters;
-        // Kein Frontmatter-Key → implizit alle Kampagnen-Chars
-        return $campaignCharacterData.map((c) => c.slug);
-      }
-      return [] as string[];
-    })()
-  );
-
-  // Angezeigte Badge-Daten (CharacterCompact oder nur Slug, falls noch nicht geladen)
-  let characterBadges = $derived(
-    (() => {
-      const slugSet = new Set(activeSlugs);
-      // Bereichere mit geladenen Daten, zeige sonst nur den Slug
-      const rich = $campaignCharacterData.filter((c) => slugSet.has(c.slug));
-      const richSlugs = new Set(rich.map((c) => c.slug));
-      const plain = activeSlugs
-        .filter((s) => !richSlugs.has(s))
-        .map((s) => ({ slug: s, name: s, classLevel: '', species: '', background: '', totalLevel: 0, playerName: '' }));
-      return [...rich, ...plain];
-    })()
-  );
-
-  // Verfügbare Chars zum Hinzufügen: alle Vault-Chars nicht bereits drin
-  let allVaultSlugs = $state<string[]>([]);
-  let showCharPicker = $state(false);
-
-  let pickerSlugs = $derived(
-    (() => {
-      const current = new Set(activeSlugs);
-      // Session: nur Kampagnen-Chars anbieten; Kampagne: alle Vault-Chars
-      const pool = $activeFile?.type === 'session'
-        ? $campaignCharacterData.map((c) => c.slug)
-        : allVaultSlugs;
-      return pool.filter((s) => !current.has(s));
-    })()
-  );
-
-  async function loadVaultSlugs() {
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-        path: './vault/characters',
-      });
-      allVaultSlugs = entries.filter((e) => e.is_dir).map((e) => e.name);
-    } catch {
-      allVaultSlugs = [];
-    }
-  }
-
-  async function updateSlugs(newSlugs: string[]) {
-    const newContent = replaceFrontmatterCharacters($fileContent, newSlugs);
-    replaceContent(newContent);
-    if ($activeFile?.type === 'campaign') {
-      await reloadCampaignCharacters(newContent);
-    }
-  }
-
-  function removeChar(slug: string) {
-    updateSlugs(activeSlugs.filter((s) => s !== slug));
-  }
-
-  function addChar(slug: string) {
-    showCharPicker = false;
-    updateSlugs([...activeSlugs, slug]);
-  }
-
-  // Picker öffnen → Vault-Slugs laden (falls noch nicht geschehen)
-  function togglePicker() {
-    if (!showCharPicker) loadVaultSlugs();
-    showCharPicker = !showCharPicker;
-  }
-
   const showCharBar = $derived(
     $activeFile?.type === 'campaign' || $activeFile?.type === 'session'
   );
-  let isNpc = $derived($activeFile?.type === 'npc');
-  let isMonster = $derived($activeFile?.type === 'monster');
-  let isEncounter = $derived($activeFile?.type === 'encounter');
-  let isSpell = $derived($activeFile?.type === 'spell');
-  let isItem = $derived($activeFile?.type === 'item');
-  let isClass = $derived($activeFile?.type === 'class');
-  let isSpecies = $derived($activeFile?.type === 'species');
-  let isFeat = $derived($activeFile?.type === 'feat');
-  let isBackground = $derived($activeFile?.type === 'background');
+
+  let cardType = $derived(cardTypeOf($activeFile?.type));
 
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
@@ -170,110 +71,6 @@
     }, 0);
   }
 
-  // Titel aus dem Markdown-Inhalt extrahieren (erste # Zeile)
-  let docTitle = $derived(() => {
-    if (!$fileContent) return $activeFile?.name?.replace('.md', '') ?? '';
-    const match = $fileContent.match(/^#\s+(.+)$/m);
-    return match ? match[1].trim() : ($activeFile?.name?.replace('.md', '') ?? '');
-  });
-
-  // Rename-State
-  let renaming = $state(false);
-  let renameValue = $state('');
-
-  function startRename() {
-    if ($activeFile?.type === 'campaign') {
-      renameValue = $activeCampaign?.name ?? '';
-    } else if ($activeFile?.type === 'item') {
-      renameValue = $activeFile?.name?.replace(/\.json$/, '') ?? '';
-    } else {
-      renameValue = $activeFile?.name?.replace('.md', '') ?? '';
-    }
-    renaming = true;
-  }
-
-  async function commitRename() {
-    if (!renaming) return;
-    renaming = false;
-    const file = $activeFile;
-    if (!file || !renameValue.trim()) return;
-
-    if (file.type === 'campaign') {
-      const newName = renameValue.trim();
-      const newSlug = slugKeepUmlauts(newName);
-      const campaign = $activeCampaign;
-      if (!campaign || newSlug === campaign.path) return;
-
-      const oldFolder = `./vault/campaigns/${campaign.path}`;
-      const newFolder = `./vault/campaigns/${newSlug}`;
-      const newFilePath = `${newFolder}/campaign.md`;
-
-      try {
-        await invoke('rename_file', { oldPath: oldFolder, newPath: newFolder });
-        activeCampaign.set({ ...campaign, path: newSlug, name: newName });
-        activeFile.set({ ...file, path: newFilePath });
-        invalidateVault();
-      } catch (e) {
-        await confirmAction({
-          title: 'Umbenennen fehlgeschlagen',
-          message: `${e}`,
-          confirmLabel: 'OK',
-        });
-      }
-    } else if (file.type === 'item') {
-      const slug = slugKeepUmlauts(renameValue);
-      const newName = `${slug}.json`;
-      if (!slug || newName === file.name) return;
-
-      const dir = file.path.substring(0, file.path.lastIndexOf('/'));
-      const newPath = `${dir}/${newName}`;
-      const itemDir = dir.split('/').pop() ?? '';
-
-      try {
-        await invoke('rename_file', { oldPath: file.path, newPath });
-        activeFile.set({ ...file, name: newName, path: newPath });
-        if (itemDir) invalidateItemCache(itemDir);
-        invalidateVault();
-      } catch (e) {
-        pushError(`Umbenennen fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
-      }
-    } else if (file.type === 'act') {
-      // Akte sind Verzeichnisse — das Verzeichnis umbenennen, index.md bleibt
-      const newSlug = slugKeepUmlauts(renameValue);
-      const oldActDir = file.path.substring(0, file.path.lastIndexOf('/index.md'));
-      const actsDir = oldActDir.substring(0, oldActDir.lastIndexOf('/'));
-      const newActDir = `${actsDir}/${newSlug}`;
-      if (newActDir === oldActDir) return;
-
-      try {
-        await invoke('rename_file', { oldPath: oldActDir, newPath: newActDir });
-        activeFile.set({ ...file, name: newSlug, path: `${newActDir}/index.md` });
-        invalidateVault();
-      } catch (e) {
-        console.error('Umbenennen fehlgeschlagen:', e);
-      }
-    } else {
-      const newName = renameValue.trim() + '.md';
-      if (newName === file.name) return;
-
-      const dir = file.path.substring(0, file.path.lastIndexOf('/'));
-      const newPath = `${dir}/${newName}`;
-
-      try {
-        await invoke('rename_file', { oldPath: file.path, newPath });
-        activeFile.set({ ...file, name: newName, path: newPath });
-        invalidateVault();
-      } catch (e) {
-        console.error('Umbenennen fehlgeschlagen:', e);
-      }
-    }
-  }
-
-  function handleRenameKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') commitRename();
-    if (e.key === 'Escape') renaming = false;
-  }
-
   const MIN_W = 140;
   const MAX_SIDEBAR = 520;
   const MAX_LLM = 1400;
@@ -308,89 +105,7 @@
     });
   }
 
-  // Prüft beim Start, ob in einem früheren Installationsverzeichnis noch
-  // Vault-Daten liegen, und bietet den Umzug in den aktuellen Vault an.
-  // Die Originaldaten bleiben dabei als Backup erhalten.
-  async function maybeMigrateLegacyVault() {
-    try {
-      const legacy = await invoke<{ path: string; files: number; target: string } | null>(
-        'find_legacy_vault',
-      );
-      if (!legacy) return;
-
-      const ok = await confirmAction({
-        title: 'Alte Vault-Daten gefunden',
-        message:
-          `In einem früheren Installationsverzeichnis wurden ${legacy.files} Datei(en) gefunden:\n` +
-          `${legacy.path}\n\n` +
-          `In den aktuellen Vault übernehmen? Die Originaldaten bleiben als Backup erhalten.`,
-        confirmLabel: 'Übernehmen',
-      });
-      if (!ok) return;
-
-      const res = await invoke<{ copied: number; skipped: number }>('migrate_legacy_vault', {
-        source: legacy.path,
-      });
-      invalidateVault();
-
-      await confirmAction({
-        title: 'Migration abgeschlossen',
-        message:
-          `${res.copied} Datei(en) übernommen` +
-          (res.skipped ? `, ${res.skipped} bereits vorhanden und übersprungen` : '') +
-          '.',
-        confirmLabel: 'OK',
-      });
-    } catch (e) {
-      pushError(`Vault-Migration fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
-    }
-  }
-
-  onMount(() => {
-    // Debug-CWD asynchron loggen, ohne den (synchron erwarteten) Cleanup-Return zu blockieren
-    void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
-
-    // Auf verwaiste Vault-Daten aus früheren Versionen prüfen (No-op im Dev/Browser).
-    void maybeMigrateLegacyVault();
-
-    // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
-    void checkForUpdate();
-
-    // Bibliotheksverzeichnis prüfen. Offene, noch nicht vorhandene Bibliotheken
-    // werden dabei installiert, damit eine frische Installation ohne
-    // Zugangscode sofort brauchbar ist. Updates nie ungefragt — dafür der Badge.
-    void checkLibrariesOnStartup();
-
-    // Regel-Suchindex (MiniSearch) einmalig vorwärmen, damit die erste
-    // search_rules-Abfrage im KI-Panel nicht kalt startet. Nach dem ersten Paint.
-    setTimeout(() => getRulesIndex(), 0);
-
-    function onError(e: ErrorEvent) {
-      pushError(e.message || String(e));
-    }
-    // Wird ein laufender Stream-Request abgebrochen (z.B. beim Schließen des
-    // Charakter-Wizards, der KI-Jobs nebenläufig fährt), räumt der Tauri-HTTP-Plugin
-    // die Body-Ressource doppelt ab: das zweite `fetch_cancel_body` läuft ins Leere
-    // und der Plugin `void`t die Rejection → sie landet hier als unhandled. Diese
-    // Teardown-Rennen sind bedeutungslos; nur echte Fehler sollen einen Toast erzeugen.
-    const isBenignAbortNoise = (msg: string): boolean =>
-      msg === 'Request cancelled' || /the resource id \d+ is invalid/i.test(msg);
-    function onUnhandled(e: PromiseRejectionEvent) {
-      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
-      if (isBenignAbortNoise(msg)) {
-        e.preventDefault();
-        return;
-      }
-      pushError(msg);
-    }
-
-    window.addEventListener('error', onError);
-    window.addEventListener('unhandledrejection', onUnhandled);
-    return () => {
-      window.removeEventListener('error', onError);
-      window.removeEventListener('unhandledrejection', onUnhandled);
-    };
-  });
+  onMount(runStartupTasks);
 </script>
 
 <div class="app">
@@ -409,117 +124,15 @@
     <div class="dragon-watermark"><DragonMark size={240} title="" /></div>
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
-    {:else if isNpc}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title npc-title">👤 {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <NpcCard />
-    {:else if isMonster}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title monster-title">⚔ {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <MonsterCard />
-    {:else if isEncounter}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title encounter-title">⚡ {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <EncounterCard />
-    {:else if isSpell}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title spell-title">✦ {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <SpellCard />
-    {:else if isItem}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            {#if renaming}
-              <input
-                class="rename-input"
-                bind:value={renameValue}
-                onkeydown={handleRenameKey}
-                onblur={commitRename}
-                autofocus
-              />
-            {:else}
-              <span class="file-title item-title">◆ {$activeFile.name.replace(/\.json$/, '')}</span>
-              <button class="rename-btn" onclick={startRename} title="Datei umbenennen">✏</button>
-            {/if}
-          </div>
-        {/if}
-      </div>
-      <ItemCard />
-    {:else if isClass}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title class-title">📖 {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <ClassCard />
-    {:else if isSpecies}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title species-title">🧬 {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <SpeciesCard />
-    {:else if isFeat}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title feat-title">✴ {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <FeatCard />
-    {:else if isBackground}
-      <div class="toolbar">
-        {#if $activeFile}
-          <div class="file-title-area">
-            <span class="file-title background-title">🎭 {$activeFile.name}</span>
-          </div>
-        {/if}
-      </div>
-      <BackgroundCard />
+    {:else if cardType}
+      <CardHost type={cardType} />
     {:else}
       <div class="toolbar">
         {#if $activeFile}
-          <div class="file-title-area">
-            {#if renaming}
-              <input
-                class="rename-input"
-                bind:value={renameValue}
-                onkeydown={handleRenameKey}
-                onblur={commitRename}
-                autofocus
-              />
-            {:else}
-              <span class="file-title">
-                {$activeFile.type === 'campaign' ? ($activeCampaign?.path ?? '') : $activeFile.name.replace('.md', '')}
-              </span>
-              <button class="rename-btn" onclick={startRename} title="Datei umbenennen">✏</button>
-            {/if}
-          </div>
+          <FileTitle
+            label={$activeFile.type === 'campaign' ? ($activeCampaign?.path ?? '') : $activeFile.name.replace('.md', '')}
+            renamable
+          />
         {/if}
 
         <div class="toolbar-sep"></div>
@@ -546,33 +159,7 @@
       </div>
 
       {#if showCharBar}
-        <div class="char-badges-bar">
-          {#each characterBadges as char}
-            <span class="char-badge" title={char.playerName ? `Spieler: ${char.playerName}` : char.name}>
-              {char.name}{char.classLevel ? ` · ${char.classLevel}` : ''}
-              <button class="char-remove" onclick={() => removeChar(char.slug)} title="Entfernen">×</button>
-            </span>
-          {/each}
-
-          <div class="char-picker-wrap">
-            <button class="char-add-btn" onclick={togglePicker} title="Charakter hinzufügen">+</button>
-            {#if showCharPicker}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                class="char-picker"
-                onmouseleave={() => { showCharPicker = false; }}
-              >
-                {#if pickerSlugs.length === 0}
-                  <span class="picker-empty">Keine weiteren Chars</span>
-                {:else}
-                  {#each pickerSlugs as slug}
-                    <button class="picker-item" onclick={() => addChar(slug)}>{slug}</button>
-                  {/each}
-                {/if}
-              </div>
-            {/if}
-          </div>
-        </div>
+        <CharacterBadgeBar />
       {/if}
 
       <StructureHint />
@@ -723,132 +310,8 @@
     z-index: 0;
   }
 
-  .toolbar {
-    display: flex;
-    gap: 0.25rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--surface);
-    position: relative;
-  }
-
-  /* Gold/Rot-Zierleiste am oberen Toolbar-Rand */
-  .toolbar::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(
-      to right,
-      transparent 0%,
-      var(--gold) 18%,
-      var(--red) 50%,
-      var(--gold) 82%,
-      transparent 100%
-    );
-    opacity: 0.7;
-    pointer-events: none;
-  }
-
-  .toolbar button {
-    background: none;
-    border: 1px solid var(--surface);
-    border-radius: 4px;
-    color: var(--ink-muted);
-    padding: 0.25rem 0.75rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-
-  .toolbar button.active {
-    background: var(--surface);
-    color: var(--ink);
-  }
-
   .toolbar-sep {
     flex: 1;
-  }
-
-  .file-title-area {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    margin-left: 0.5rem;
-    min-width: 0;
-    max-width: 40%;
-  }
-
-  .file-title {
-    font-size: 0.82rem;
-    color: var(--ink);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 500;
-  }
-
-  .npc-title {
-    color: var(--arcane);
-  }
-
-  .monster-title {
-    color: var(--danger);
-  }
-
-  .encounter-title {
-    color: var(--steel);
-  }
-
-  .spell-title {
-    color: var(--arcane);
-  }
-
-  .item-title {
-    color: var(--copper);
-  }
-
-  .class-title {
-    color: var(--copper);
-  }
-
-  .species-title {
-    color: var(--green);
-  }
-
-  .feat-title {
-    color: var(--gold);
-  }
-
-  .background-title {
-    color: var(--teal);
-  }
-
-  .rename-btn {
-    background: transparent;
-    border: none;
-    color: var(--border);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0.1rem 0.2rem;
-    flex-shrink: 0;
-    border-radius: 3px;
-  }
-
-  .rename-btn:hover { color: var(--red); background: var(--surface); }
-
-  .rename-input {
-    background: var(--bg);
-    border: 1px solid var(--red);
-    border-radius: 4px;
-    color: var(--ink);
-    font-size: 0.82rem;
-    padding: 0.2rem 0.4rem;
-    outline: none;
-    min-width: 0;
-    width: 220px;
-    font-family: inherit;
   }
 
   .history-btn {
@@ -875,94 +338,6 @@
   .context-action-btn:hover {
     border-color: var(--red);
     color: var(--red);
-  }
-
-  .char-badges-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 1.5rem;
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--surface);
-  }
-
-  .char-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.72rem;
-    padding: 0.15rem 0.4rem 0.15rem 0.55rem;
-    border-radius: 99px;
-    background: var(--surface);
-    color: var(--arcane);
-    border: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  .char-remove {
-    background: none;
-    border: none;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1;
-    padding: 0 0.1rem;
-    border-radius: 99px;
-    transition: color 0.1s;
-  }
-  .char-remove:hover { color: var(--danger); }
-
-  .char-picker-wrap {
-    position: relative;
-  }
-
-  .char-add-btn {
-    background: none;
-    border: 1px dashed var(--border);
-    border-radius: 99px;
-    color: var(--ink-muted);
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1;
-    padding: 0.1rem 0.45rem;
-    transition: color 0.1s, border-color 0.1s;
-  }
-  .char-add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
-
-  .char-picker {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.25rem;
-    z-index: 50;
-    min-width: 140px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  }
-
-  .picker-item {
-    background: none;
-    border: none;
-    color: var(--ink);
-    cursor: pointer;
-    font-size: 0.78rem;
-    padding: 0.3rem 0.6rem;
-    border-radius: 4px;
-    text-align: left;
-    transition: background 0.1s;
-  }
-  .picker-item:hover { background: var(--surface); color: var(--arcane); }
-
-  .picker-empty {
-    font-size: 0.75rem;
-    color: var(--border);
-    padding: 0.3rem 0.6rem;
   }
 
   .content {

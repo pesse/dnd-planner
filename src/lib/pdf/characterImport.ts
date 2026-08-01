@@ -6,36 +6,8 @@
  * die danach die alleinige Datenquelle des Editors ist.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { PDFDocument } from 'pdf-lib';
 import { parseCharacterData, type CharacterData, type CharacterJSON } from './characterFields';
-
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
-/** Liest alle Formularfelder eines PDFs (Text + Checkboxen) als String-Map. */
-export async function readPdfFields(absPdfPath: string): Promise<Record<string, string>> {
-  const base64 = await invoke<string>('read_file_base64', { path: absPdfPath });
-  const pdf = await PDFDocument.load(base64ToBytes(base64), { ignoreEncryption: true });
-  const form = pdf.getForm();
-  const fields: Record<string, string> = {};
-  for (const field of form.getFields()) {
-    const name = field.getName();
-    try {
-      fields[name] = form.getTextField(name).getText() ?? '';
-    } catch {
-      try {
-        fields[name] = form.getCheckBox(name).isChecked() ? 'On' : 'Off';
-      } catch {
-        fields[name] = '';
-      }
-    }
-  }
-  return fields;
-}
+import { readPdfFields } from './characterPdfIo';
 
 /** Parst ein PDF-Feld-Set in unsere CharacterData. */
 export function characterFromPdfFields(fields: Record<string, string>): CharacterData {
