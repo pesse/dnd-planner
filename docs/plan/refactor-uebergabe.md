@@ -1,9 +1,8 @@
 # Modul-Refactor: Übergabe-Stand
 
-> Arbeitsstand zu `plan-modul-refactor.md`. Branch **`refactor/module-schnitt`**, abgezweigt von
-> `main` auf `1e3b16c`. Jede Etappe ist ein Commit. Dieses Dokument ist der Einstieg für jede
-> Etappe, die noch offen ist — es hält fest, was schon gilt und welche Fallen die ersten vier
-> Etappen gekostet haben.
+> Abschlussstand zu `plan-modul-refactor.md`. Branch **`refactor/module-schnitt`**, abgezweigt von
+> `main` auf `1e3b16c`. Jede Etappe ist ein Commit. Alle acht sind umgesetzt; was offen blieb,
+> steht unter „Was nicht erreicht ist".
 
 ## Erledigt
 
@@ -13,36 +12,65 @@
 | 1 · Geteilte Kleinteile | `5cb7489` | `utils/text.ts`, `utils/num.ts`, `schemas/abilities.ts`, `domain/skills.ts`, `services/library/{createLibrary,nameIndex}.ts`; `itemLibrary` → `itemLabels`/`itemFormat` |
 | 2 · Schemas entflechten | `7673740` | `shared.ts` weg → `source`/`vocabulary`/`grants`/`featureChoice`/`llmJson` + `utils/vaultJson`; `character.ts` → `characterSchema`/`characterUpgrades`/`classLevelText` |
 | 3 · Zyklus + Domänenmitte | `0352eeb` | `analysis/types.ts`; `levelUp/*` (7), `declaration/*` (5), `featureEffects*` (4), `open5e*` (4), `classTableParse`; `applyChanges` als Tabelle. **0 Import-Zyklen** |
-| 4 · Lange Funktionen | `da062c8` | `contextPrompt`/`contextJsonFormat`/`contextTypes`, `llm/*` (4, `llmService.ts` entfällt); `if (true)`-Block weg; `SKILL_DEFS` und die Zauber-Feldzahlen entdoppelt |
+| 4 · Lange Funktionen | `da062c8` | `contextPrompt`/`contextJsonFormat`/`contextTypes`, `llm/*` (4, `llmService.ts` entfällt); `if (true)`-Block weg |
+| 5 · Schichtung | `0751685` | `services/contextLoad.ts`; **0 `get(store)`-Lesezugriffe** in Services, `stores/context.ts` 438 → 230 |
+| 6 · UI-Atome und CSS | `f447258`, `1e7dfd1` | `components/ui/` mit 9 Atomen; `dragDialog`/`runClock`/`autosaveFile`; `promptDialog()`-Fabrik |
+| 7a · Karten-Editoren | `681ec00` | `schemas/npc.ts`; ItemCard 1248 → 718, NpcCard über `createCardEditor` (**Guard-Bugfix**) |
+| 7b · Seitenleiste, Rahmen | `1e2e5ff` | Sidebar 2522 → 452, `+page.svelte` 974 → 349; Registry statt 12 Blöcke |
+| 7c · Charakter | `8c62f86`, `36bbfd3` | CharacterSheet 1770 → 685, Wizard 994 → 424, **CharacterEditForm 2898 → 421** |
+| 7d · LLM, Aufstieg | `2487848` | LlmPanel 2116 → 495, LevelUpAssistant 1438 → 628 (**Tooltip-Bugfix**) |
+| 8 · Kommentare | `617e899` | 13,8 % → 8,6 %; Banner 101 → 20 |
 
-## Offen
+## Was nicht erreicht ist
 
-Etappe 5 bis 8 aus `plan-modul-refactor.md`. Reihenfolge einhalten — 5 verkleinert die Dateien,
-die 7 dann anfasst.
+| Kennzahl | Start | Ende | Ziel |
+|---|---|---|---|
+| Dateien > 700 Zeilen | 14 | **3** | 0 |
+| Größte Datei | 2.899 | **1.056** (`NpcCard`) | < 400 |
+| Abschnitts-Banner | 323 | **20** | 0 |
+| Kommentarquote | 13,5 % | **8,6 %** | < 6 % |
+| Scoped CSS | 8.332 | **6.163** | ~6.000 ✓ |
+| Import-Zyklen | 1 | **0** ✓ | 0 |
+| Services mit `get(store)` | 2 | **4** ✗ verschlechtert | 0 |
+| Entitätstypen ohne Zod-Schema | 1 | **0** ✓ | 0 |
 
-Was Etappe 4 für die nächsten hinterlässt:
+Priorisierte Restliste:
 
-- **Etappe 5 kann direkt aufsetzen.** `stores/context.ts` (438) hält nur noch Stores, `invoke()`-Lader
-  und Pin-Verwaltung; die Datenformen liegen schon in `contextTypes.ts`, also entsteht kein Zyklus,
-  wenn `services/contextLoad.ts` die Lader übernimmt. `refreshCharacterContexts` ist ein DRITTER
-  `get(store)`-Zugriff — der Plan nennt zwei.
-- **`pdf/characterFields.ts` ist noch Typ-Fassade** für `Character`/`CharacterData`/`Attack`/… aus
-  `characterSchema`; vier große Komponenten hängen daran. Bewusst stehengelassen, weil Etappe 7
-  dieselben Komponenten zerlegt.
-- **`contextJsonFormat.ts` ist die konkrete Verletzung von „One Zod schema per artifact"**:
-  Encounter-, Monster- und NPC-Schema stehen dort als Prosa. Sobald Etappe 7 `schemas/npc.ts`
-  anlegt, lassen sich die drei Blöcke generieren — dafür liegt die Datei isoliert.
-- **`writeSaves` in `characterExport.ts` schreibt erst alle 6 Häkchen, dann alle 6 Werte.** Das ist
-  die Feldreihenfolge des Originals; nicht zu einer Schleife zusammenziehen.
-- `vaultTools.ts` ist noch stärker der Sammelpunkt „Typen + Temperatur + Toolset" und trägt eigene
-  Banner — Kandidat für Etappe 8.
+1. **`NpcCard` (1.056), `EncounterCard` (750), `CharacterFeaturePanel` (726) zerlegen** — löst
+   zugleich 6 der 20 Banner und die Kennzahl „größte Datei".
+2. **Die vier `get(store)`-Lesestellen auflösen**: `services/renameFile.ts`,
+   `services/levelUp/runSteps.ts`, `services/sidebar/deleteEntry.ts`, `editor/cardEditor.svelte.ts`.
+   Die letzten drei sind bei Zerlegungen aus Komponenten mitgewandert — **die Kennzahl ist heute
+   schlechter als vor dem Refactor.**
+3. **`vaultTools.ts` dreiteilen** (4 Banner, 18 Importstellen).
+4. **`schemas/levelUp.ts` je Artefakt trennen** — fünf Artefakte in einer Datei, „One Zod schema
+   per artifact" gilt dort noch nicht.
+5. **`contextJsonFormat.ts`**: Encounter-, Monster- und NPC-Schema stehen dort als Prosa. Seit
+   `schemas/npc.ts` existiert, ließen sich alle drei Blöcke generieren.
+6. **`pdf/characterFields.ts` ist noch Typ-Fassade** für `Character`/`Attack`/… aus
+   `characterSchema`.
+
+## Bestandsfehler, die dabei sichtbar wurden (nicht behoben)
+
+- **Der PDF-Export scheitert bei `vault/characters/silvara`**: der `classFeatures`-Text enthält
+  ein Emoji (U+1F532), das pdf-lib nicht in WinAnsi kodieren kann. Vor dem Refactor genauso —
+  feldweise gegen die alte Fassung nachgewiesen.
+- Nach „Neues Monster"/„Neuer Zauber" bleibt die Sektion leer, bis man sie zu- und aufklappt
+  (nur Gegenstände hängen an `vaultVersion`).
+- `class:active={$activeFile?.path === info.path}` markiert bei Talenten *ohne* `path` alle
+  Einträge aktiv, sobald keine Datei offen ist.
+- `npm run dev` (Browser ohne Tauri) rendert die App nicht mehr: `runStartupTasks` ruft `invoke`
+  und wirft. Damit ist die browserbasierte Sichtprüfung tot.
 
 ## Das Gate
 
 `npm run verify` = `check` + `check:evals` + `schema:examples:check` + `test`. Vor jedem Commit,
-und **0 Fehler** ist die Grenze (56 Warnungen sind der Bestand, sie dürfen nicht wachsen).
-Zyklen prüft `npx madge --circular --extensions ts,svelte src/lib` — muss „No circular
-dependency found" sagen.
+und **0 Fehler** ist die Grenze (**39 Warnungen** sind der Bestand, sie dürfen nicht wachsen —
+zu Beginn waren es 56). Zyklen prüft `npx madge --circular --extensions ts,svelte src/lib` — muss
+„No circular dependency found" sagen.
+
+**Die Warnliste namentlich vergleichen, nicht nur zählen.** Eine verwaiste CSS-Regel und ein neu
+greifender Selektor heben sich in der Summe auf.
 
 Referenzstand nach Etappe 4: **876 Dateien, 0 Fehler, 56 Warnungen, 88 Tests grün, 48.737 Zeilen
 in `src`.**
@@ -84,3 +112,15 @@ in `src`.**
   flache Vault-Bibliothek, plus `scanJsonFolder` für den Ordner-Scan allein.
 - `services/library/nameIndex.ts` — `buildNameIndex`/`matchByRef` (byKey + byName + ambiguous).
 - `services/analysis/types.ts` — die Typen der Merkmals-Deutung, neutral.
+
+## Was die manuelle Prüfung in der laufenden App noch schuldet
+
+Kein Agent konnte die App starten (Tauri läuft nur unter Windows, der Browser-Server rendert
+nicht mehr). Der PDF-Export ist feldweise geprüft, der Rest nicht. Zuerst:
+
+1. **Ein vollständiger Stufenaufstieg**, danach muss das Charakterformular die Änderungen zeigen
+   (Reference-Swap) — und die Wahl-Boxen tragen jetzt Tooltips.
+2. **PDF-Export und -Import** an einem echten Charakter.
+3. **NPC ändern und sofort wegklicken** → der „Ungespeicherte Änderungen"-Dialog muss kommen.
+4. **Gegenstand mit Kategoriewechsel speichern** → die Datei muss umziehen.
+5. Alle 12 Seitenleisten-Abschnitte, je eine Karte pro Bibliothekstyp, die vier KI-Modi.
