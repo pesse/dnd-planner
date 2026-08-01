@@ -1,0 +1,705 @@
+/* Anzeigesprache des Charakter-Formulars. Global unter `.edit-form`, weil die
+   Feldgruppen eigene Komponenten sind und dieselben Feld-, Tabellen- und
+   Autocomplete-Regeln brauchen. Muster wie character/sheet.css. */
+
+.edit-form {
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.edit-form section {
+  margin-bottom: 1.25rem;
+}
+
+.edit-form h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--surface);
+  padding-bottom: 0.2rem;
+}
+
+/* Feld-Kopfzeile: Titel links, KI-Knöpfe rechts — die Trennlinie wandert vom
+   Titel auf die Zeile, sonst endet sie mitten im Kopf. */
+.edit-form .field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--surface);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.2rem;
+}
+.edit-form .field-head.sub { margin-top: 0.9rem; }
+.edit-form .field-head h3 { border-bottom: none; margin: 0; padding: 0; }
+.edit-form .field-title {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.edit-form .summary-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+.edit-form .ai-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  cursor: pointer;
+}
+.edit-form .ai-btn:hover:not(:disabled) { border-color: var(--arcane); color: var(--arcane); }
+.edit-form .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.edit-form .summary-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--danger);
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.edit-form input,
+.edit-form textarea,
+.edit-form select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  padding: 0.25rem 0.4rem;
+  font-size: 0.82rem;
+  outline: none;
+  font-family: inherit;
+}
+.edit-form input:focus, .edit-form textarea:focus { border-color: var(--arcane); }
+.edit-form input[type="number"] { width: 4rem; }
+.edit-form input[type="checkbox"] { width: auto; }
+
+.edit-form .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.edit-form .grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+/* Attribute */
+.edit-form .attr-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.edit-form .attr-box {
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 58px;
+}
+.edit-form .attr-mod-display {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--arcane);
+}
+.edit-form .attr-label {
+  font-size: 0.65rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+}
+.edit-form .attr-input {
+  width: 3rem !important;
+  text-align: center;
+  padding: 0.15rem;
+}
+
+/* Rettungswürfe */
+.edit-form .save-checks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem 0.5rem;
+}
+.edit-form .check-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+.edit-form .check-label { flex: 1; }
+.edit-form .check-val { font-weight: 600; min-width: 2rem; text-align: right; color: var(--ink-soft); }
+.edit-form .alleskoenner { margin-bottom: 0.5rem; }
+
+/* Fertigkeiten */
+.edit-form .skill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem 0.5rem;
+}
+.edit-form .skill-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+.edit-form .skill-name { color: var(--ink-soft); }
+.edit-form .skill-name.proficient { color: var(--green); }
+.edit-form .skill-name.expertise { color: var(--steel); }
+.edit-form .skill-val { font-weight: 600; margin-left: auto; }
+
+/* ◆-Herkunftsmarker an Fertigkeiten/Übungen (das aktive Grant-Panel wurde entfernt —
+   Übungen ableiten gehört in Erstellung/Level-Up, nicht in den Editor). */
+.edit-form .grant-mark { color: var(--copper); font-size: 0.62rem; cursor: help; }
+
+/* Angriffe */
+.edit-form .attack-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+}
+.edit-form .attack-table th {
+  text-align: left;
+  color: var(--ink-muted);
+  font-weight: 400;
+  padding: 0.1rem 0.3rem;
+  border-bottom: 1px solid var(--surface);
+}
+.edit-form .attack-table td {
+  padding: 0.15rem 0.2rem;
+}
+.edit-form .attack-table input {
+  width: 100%;
+  min-width: 40px;
+}
+.edit-form .ref-block { margin-bottom: 0.8rem; }
+.edit-form .ref-block h4 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0 0 0.2rem;
+}
+.edit-form .ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+}
+.edit-form .ref-table th {
+  text-align: left;
+  color: var(--ink-muted);
+  font-weight: 400;
+  padding: 0.1rem 0.3rem;
+  border-bottom: 1px solid var(--surface);
+}
+.edit-form .ref-table td { padding: 0.15rem 0.2rem; }
+.edit-form .ref-table input { width: 100%; min-width: 40px; }
+.edit-form .ref-table .ref-level { width: 3.5rem; min-width: 3rem; }
+.edit-form .class-block { margin-top: 0.6rem; }
+.edit-form .class-total { color: var(--ink-muted); font-weight: 400; font-size: 0.75rem; }
+/* .legacy-banner* liegt global in app.css — hier nur der mehrzeilige Sammel-Hinweis. */
+.edit-form .upgrade-banner { align-items: flex-start; margin: 0 0 0.8rem; }
+.edit-form .upgrade-steps { margin: 0.25rem 0 0; padding-left: 1.2rem; list-style: '· '; }
+.edit-form .upgrade-done { flex-shrink: 0; font-size: 0.8rem; color: var(--green); }
+.edit-form .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
+.edit-form .species-block { max-width: 24rem; }
+.edit-form .species-picker { max-width: 18rem; }
+.edit-form .species-hint { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
+.edit-form .class-linked { display: flex; align-items: center; gap: 0.25rem; }
+.edit-form .class-link {
+  background: none; border: none; padding: 0.1rem 0; cursor: pointer;
+  color: var(--accent, var(--ink)); text-decoration: underline; font: inherit; text-align: left;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.edit-form .class-link:hover { text-decoration: none; }
+.edit-form .link-edit {
+  background: none; border: none; cursor: pointer; padding: 0 0.2rem;
+  color: var(--ink-muted); font-size: 0.8rem; flex-shrink: 0;
+}
+.edit-form .link-edit:hover { color: var(--ink); }
+.edit-form .ref-table select { width: 100%; min-width: 90px; font: inherit; }
+.edit-form .subclass-na { color: var(--ink-muted); }
+.edit-form .computed-cell {
+  display: inline-block;
+  font-weight: 600;
+  color: var(--arcane);
+  padding: 0.15rem 0.1rem;
+}
+.edit-form .computed-block {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  width: 4rem;
+  text-align: center;
+}
+.edit-form .mode-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.2rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+.edit-form .mode-btn:hover { opacity: 1; }
+.edit-form .mode-btn.active { opacity: 1; }
+
+.edit-form .attack-auto-row td {
+  padding: 0 0.2rem 0.4rem;
+}
+.edit-form .auto-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  background: var(--surface);
+  /* Unten eckig: `.attack-mods` schließt direkt an und rundet dort ab. */
+  border-radius: 4px 4px 0 0;
+  padding: 0.35rem 0.5rem;
+  margin-top: -0.1rem;
+}
+.edit-form .ac-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+.edit-form .ac-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+.edit-form .ac-check input { width: auto; }
+.edit-form .ac-dice { width: 5rem !important; }
+.edit-form .ac-magic { width: 3.5rem !important; }
+
+.edit-form .attack-mods {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--surface);
+  border-radius: 0 0 4px 4px;
+  border-top: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+}
+.edit-form .am-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.edit-form .am-label { flex: 1; min-width: 8rem; }
+.edit-form .am-num { width: 3.5rem !important; }
+.edit-form .am-add {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.72rem;
+  color: var(--gold);
+  cursor: pointer;
+}
+.edit-form .am-add:hover { text-decoration: underline; }
+
+.edit-form .spell-auto-toggle { margin-top: 0.5rem; }
+.edit-form .auto-hint {
+  font-size: 0.72rem;
+  color: var(--gold);
+  margin: 0.3rem 0 0;
+}
+
+/* Tags */
+.edit-form .tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+.edit-form .tag {
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem 0.1rem 0.5rem;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.edit-form .tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--border);
+  font-size: 0.7rem;
+  padding: 0;
+  line-height: 1;
+}
+.edit-form .tag button:hover { color: var(--danger); }
+.edit-form .tag-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* Währung */
+.edit-form .currency-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.edit-form .coin-label {
+  flex-direction: column;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+.edit-form .coin-input {
+  width: 4rem;
+  text-align: center;
+}
+
+/* Inventar */
+.edit-form .inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+}
+.edit-form .inv-table th {
+  text-align: left;
+  color: var(--ink-muted);
+  font-weight: 400;
+  padding: 0.1rem 0.3rem;
+  border-bottom: 1px solid var(--surface);
+}
+.edit-form .inv-table td { padding: 0.15rem 0.2rem; }
+.edit-form .inv-table input { width: 100%; min-width: 40px; }
+.edit-form .inv-table .num { text-align: right; white-space: nowrap; }
+.edit-form .num-input { text-align: right; }
+.edit-form .inv-fixed-cell {
+  color: var(--ink-muted);
+  font-style: italic;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.edit-form .inv-line-col { text-align: right !important; }
+.edit-form .inv-line-cell { color: var(--ink-muted); }
+.edit-form .inv-total-row td {
+  border-top: 1px solid var(--surface);
+  padding-top: 0.3rem;
+  color: var(--ink-soft);
+}
+.edit-form .inv-total-row td:first-child {
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.edit-form .inv-name-cell { position: relative; }
+
+.edit-form .inv-linked-name { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+.edit-form .inv-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0; display: inline-block;
+}
+.edit-form .inv-name-link {
+  background: none; border: none; padding: 0.1rem 0; cursor: pointer;
+  color: var(--accent, var(--ink)); text-decoration: underline; font: inherit; text-align: left;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.edit-form .inv-name-link:hover { text-decoration: none; }
+.edit-form .inv-ambiguous {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--copper, var(--ink-muted));
+}
+
+/* Marker an einer gelinkten Zeile, deren Name von der Bibliothek abweicht. */
+.edit-form .name-diverged {
+  flex-shrink: 0;
+  margin: 0 0.15rem;
+  font-weight: 700;
+  color: var(--copper, var(--ink-muted));
+  cursor: help;
+}
+
+.edit-form .inv-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.edit-form .btn-link-all {
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.edit-form .btn-link-all:hover { color: var(--ink); border-color: var(--ink-muted); }
+
+.edit-form .autocomplete-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+}
+.edit-form .autocomplete-wrap input { width: 100%; box-sizing: border-box; }
+
+.edit-form .suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+}
+.edit-form .suggestions li {
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+.edit-form .suggestions li:hover,
+.edit-form .suggestions li.active {
+  background: var(--surface);
+}
+.edit-form .suggestions li.out-of-class {
+  color: var(--ink-muted);
+}
+.edit-form .suggestions li.out-of-class:hover,
+.edit-form .suggestions li.out-of-class.active {
+  background: var(--bg-raised);
+  color: var(--ink-faint);
+}
+.edit-form .sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
+.edit-form .sug-hint {
+  font-size: 0.7rem;
+  color: var(--border);
+  white-space: nowrap;
+}
+
+.edit-form .ta-large {
+  width: 100%;
+  min-height: 240px;
+  resize: vertical;
+}
+.edit-form .ta-medium {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+.edit-form .ta-small {
+  width: 100%;
+  min-height: 50px;
+  resize: vertical;
+}
+.edit-form section label textarea { resize: vertical; min-height: 50px; }
+
+.edit-form .remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--border);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.2rem;
+}
+.edit-form .remove-btn:hover { color: var(--danger); }
+
+.edit-form .btn-add {
+  background: var(--surface);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.edit-form .btn-add:hover { background: var(--border); }
+
+.edit-form .btn-add-sm {
+  background: var(--surface);
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+/* Zauber */
+.edit-form .slot-edit-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.edit-form .slot-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  gap: 0.1rem;
+}
+.edit-form .slot-label input { width: 2.8rem; text-align: center; }
+
+.edit-form .spell-add-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.edit-form .spell-level-select {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+.edit-form .spell-name-input {
+  flex: 1;
+  min-width: 100px;
+  width: 100%;
+}
+.edit-form .spell-autocomplete {
+  flex: 1;
+}
+.edit-form .prep-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.edit-form .spell-level-block {
+  margin: 0.4rem 0 0.2rem;
+}
+.edit-form .spell-level-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  margin-bottom: 0.2rem;
+}
+.edit-form .spell-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  padding: 0.05rem 0;
+}
+.edit-form .spell-item-name { flex: 1; color: var(--ink-soft); }
+.edit-form .spell-item-name.prepared { font-weight: 600; }
+.edit-form .spell-item-name.linked { cursor: pointer; }
+.edit-form .spell-item-name.linked:hover { text-decoration: underline; }
+
+.edit-form .spell-link { cursor: help; }
+.edit-form .spell-link.linked { cursor: pointer; }
+.edit-form .spell-link.linked:hover { text-decoration: underline; }
+
+.edit-form .prep-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.62rem;
+  color: var(--border);
+  padding: 0;
+  width: 0.9rem;
+}
+.edit-form .spell-edit-row .prep-toggle:hover { color: var(--green); }
+
+/* Persönliches / Portrait */
+.edit-form .personal-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.edit-form .portrait-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.edit-form .portrait-preview {
+  width: 160px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.edit-form .portrait-placeholder {
+  width: 160px;
+  height: 200px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+}
+.edit-form .portrait-actions {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.edit-form .personal-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+.edit-form .block-label {
+  display: block;
+  margin-top: 0.7rem;
+}
+.edit-form .error-sm {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.edit-form .prof-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.2rem 0.5rem;
+}
+
+.edit-form .weapon-picker { margin-bottom: 0.5rem; max-width: 320px; }
