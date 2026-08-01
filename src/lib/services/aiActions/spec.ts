@@ -1,11 +1,52 @@
 /**
- * Beschreibt die ENTITY-spezifischen Unterschiede einer KI-Aktion. Das gemeinsame
- * Gerüst (AiAction-Boilerplate, JSON-Kontextblöcke, Namens-/Kategorie-Hinweis,
- * Tool-Anbindung) lebt in factory.ts. So bleibt pro Entität nur die Prosa + das
- * Schema übrig — der Create/Edit-Workflow ist „immer gleich, mit anderen Details".
+ * Das gemeinsame Gerüst jeder KI-Aktion — Kennung, Label, Schema, Werkzeuge — und die
+ * Beschreibung dessen, was eine Entität daran ändert. Anlage/Überarbeitung setzt
+ * factory.ts darauf, die Übersetzung translateAction.ts.
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import type { AiAction } from './types';
+
+/** Was jede Aktion trägt, gleich ob Anlage, Überarbeitung oder Übersetzung. */
+export interface ActionSpec<T> {
+  entity: string; // 'item' | 'monster' | 'spell' | …
+  nounDe: string; // fürs Label: „Gegenstand"
+  jsonSchema: object;
+  validate: (data: unknown) => data is T;
+}
+
+/**
+ * Recherche-Werkzeuge einer Aktion. Die drei gehören zusammen — eines allein zu setzen
+ * lässt den Tool-Loop ins Leere laufen.
+ */
+export interface ActionTools {
+  anthropicTools: Anthropic.Tool[];
+  openAiTools: unknown[];
+  execute: (name: string, args: Record<string, unknown>) => Promise<string>;
+}
+
+/** Tool-frei — sonst fährt `runAiAction` einen Agent-Loop statt eines einzelnen Calls. */
+export const NO_TOOLS: ActionTools = {
+  anthropicTools: [],
+  openAiTools: [],
+  execute: async () => '',
+};
+
+export function assembleAction<T>(
+  spec: ActionSpec<T>,
+  verb: { id: string; label: string },
+  tools: ActionTools,
+  buildSystemPrompt: () => string,
+): AiAction<T> {
+  return {
+    id: `${verb.id}-${spec.entity}`,
+    label: `${spec.nounDe} ${verb.label}`,
+    ...tools,
+    jsonSchema: spec.jsonSchema,
+    validate: spec.validate,
+    buildSystemPrompt,
+  };
+}
 
 /** Vom Factory vorgefertigte Prompt-Bausteine; jeder ist '', wo er nicht zutrifft. */
 export interface PromptParts {
@@ -15,21 +56,14 @@ export interface PromptParts {
   categoryHint: string; // nur Item
 }
 
-export interface EntityActionSpec<T> {
-  entity: string; // 'item' | 'monster' | 'spell' | …
-  nounDe: string; // fürs Label: „Gegenstand"
+export interface EntityActionSpec<T> extends ActionSpec<T> {
   currentHeading: string; // Überschrift des Edit-Kontextblocks
-  jsonSchema: object;
-  validate: (data: unknown) => data is T;
   /** Verzweigt selbst nach `parts.templateBlock` (mit/ohne Vorlage). */
   buildCreatePrompt: (parts: PromptParts) => string;
   buildEditPrompt: (parts: PromptParts) => string;
   nameHint?: (name: string) => string; // sonst Standard-Formulierung
   categoryHint?: (categoryKey: string) => string; // nur Item
-  /**
-   * Recherche-Tools; fehlen sie, greifen die DnD-API-Tools (Monster/Zauber). Die drei
-   * gehören zusammen — eines allein zu setzen lässt den Tool-Loop ins Leere laufen.
-   */
+  /** Fehlen sie, greifen die DnD-API-Tools (Monster/Zauber). */
   anthropicTools?: Anthropic.Tool[];
   openAiTools?: unknown[];
   execute?: (name: string, args: Record<string, unknown>) => Promise<string>;

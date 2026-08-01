@@ -6,6 +6,11 @@
 import { decodePick } from '../spellcasting';
 import type { Change, FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 
+/** Ob eine Frage beantwortet ist — bei Mehrfachauswahl: mindestens ein Eintrag. */
+export function hasAnswer(value: string | string[] | undefined): boolean {
+  return Array.isArray(value) ? value.length > 0 : (value ?? '').toString().trim() !== '';
+}
+
 /**
  * Die Antwort auf eine Frage als deutsche Label-Liste (Mehrfachauswahl komma-verbunden).
  * Ein Wert ohne passende Option ist Freitext und bleibt, wie er ist.

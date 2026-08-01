@@ -1,8 +1,6 @@
 /**
  * EN→DE-Übersetzung der Bibliotheks-Artefakte: das Gerüst (Intro, Glossar-Pins,
  * Ausgabe-Regeln) steht einmal hier, je Artefakt-Typ bleiben Schema + Input-Beschreibung.
- *
- * Bewusst TOOL-FREI — sonst fährt `runAiAction` einen Agent-Loop statt eines Calls.
  */
 import { buildTerminologyBlock } from '../glossary';
 import {
@@ -26,13 +24,10 @@ import {
   type SpellTranslation,
 } from '../../schemas/translation';
 import type { AiAction } from './types';
+import { assembleAction, NO_TOOLS, type ActionSpec } from './spec';
 
 /** Was eine Übersetzung pro Artefakt-Typ unterscheidet — der Rest ist gemeinsames Gerüst. */
-export interface TranslationSpec<T> {
-  entity: string; // 'item' | 'spell' | 'rule' | …
-  nounDe: string; // fürs Label: „Gegenstand übersetzen"
-  jsonSchema: object;
-  validate: (data: unknown) => data is T;
+export interface TranslationSpec<T> extends ActionSpec<T> {
   instructions: string; // Input-Beschreibung + typ-eigene Regeln, englisch, XML-gegliedert
 }
 
@@ -67,23 +62,13 @@ export function buildTranslationRun<T>(
   const sourceEn = JSON.stringify(payload, null, 2);
   return {
     input: `<source_en>\n${sourceEn}\n</source_en>`,
-    action: {
-      id: `translate-${spec.entity}`,
-      label: `${spec.nounDe} übersetzen`,
-      anthropicTools: [],
-      openAiTools: [],
-      execute: async () => '',
-      jsonSchema: spec.jsonSchema,
-      validate: spec.validate,
-      buildSystemPrompt: () =>
-        [TRANSLATOR_INTRO, spec.instructions, buildTerminologyBlock(sourceEn), OUTPUT_RULES]
-          .filter(Boolean)
-          .join('\n\n'),
-    },
+    action: assembleAction(spec, { id: 'translate', label: 'übersetzen' }, NO_TOOLS, () =>
+      [TRANSLATOR_INTRO, spec.instructions, buildTerminologyBlock(sourceEn), OUTPUT_RULES]
+        .filter(Boolean)
+        .join('\n\n'),
+    ),
   };
 }
-
-// ── Specs ─────────────────────────────────────────────────────────────────────
 
 const itemSpec: TranslationSpec<ItemTranslation> = {
   entity: 'item',
@@ -178,8 +163,6 @@ JSON with these fields:
 - Convert coin abbreviations: GP → GM, SP → SM, CP → KM.
 </rules>`,
 };
-
-// ── Öffentliche API (eine Zeile je Artefakt-Typ) ───────────────────────────────
 
 /** „Gegenstand übersetzen" — Payload: `{ name?, desc? }`. */
 export const translateItem = (payload: Record<string, unknown>) => buildTranslationRun(itemSpec, payload);

@@ -11,6 +11,19 @@ import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
 import type { GainedFeature } from '../analysis/types';
 
+/** Ein im Aufstieg gewähltes Talent: englisch geführt, deutsche Fassung als Beilage. */
+export interface ChosenFeat {
+  key: string;
+  name: string;
+  nameDe: string;
+  gainedAt: number;
+  desc: string;
+  descDe?: string;
+  grantsChoice?: FeatureChoiceGrant;
+  grants?: FeatureGrant;
+  grantsSpells?: SpellGrant;
+}
+
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {
   // Die Stufe ist die NIEDRIGSTE innerhalb der aufgestiegenen Spanne — bei einem mehrfach
   // vergebenen Merkmal (Expertise auf 1 und 6) sonst immer die erste Vergabe, womit die

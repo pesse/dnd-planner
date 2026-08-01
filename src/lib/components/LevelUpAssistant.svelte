@@ -2,77 +2,33 @@
   /**
    * KI-gestützter Stufenaufstieg-Assistent als mehrstufiger Wizard mit Checkpoints.
    *
-   * Ablauf (deterministische Zustandsmaschine in levelUpMachine.ts):
+   * Ablauf (deterministische Zustandsmaschine in levelUp/steps.ts):
    *   Klasse wählen → Basis-Delta (det.) → [Subklasse wählen] → Subklassen-Delta (det.)
    *   → Merkmals-Analyse (KI, Call 1) → [Merkmals-Wahlen] → Merkmals-Effekte (KI, Call C)
    *   → Spieler-Entscheidungen → [Talente wählen → Talent-Analyse (KI) → [Talent-Wahlen]
    *   → Talent-Effekte (KI)] → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
    *
-   * Erkennt Call 1 (Analyse) erzwungene Feature-Wahlen (Landart, Kampfstil, Expertise …),
-   * hält die Maschine DIREKT DANACH am Choice-Checkpoint an; der finalisierende Effekt-Call
-   * bäckt die getroffene Entscheidung ein. Der Rider trägt nur Ergebnisse + die Entscheidung.
-   *
-   * Das Muster „Analyse → [Wahlen] → Effekte" gilt für Merkmale UND Talente. Fehlende
-   * Zauber lassen sich inline anlegen, ohne den Dialog zu schließen. Alle Zahlen werden
-   * deterministisch assembliert; die KI liefert nur Prosa-Deutung + Narrativ.
-   *
+   * Diese Datei ist die Oberfläche; Lauf und Zustand liegen in `levelUp/run.svelte.ts`,
+   * die abgeleiteten Wahlen in `levelUp/choices.svelte.ts`. Fehlende Zauber lassen sich
+   * inline anlegen, ohne den Dialog zu schließen.
    */
   import { onDestroy } from 'svelte';
-  import { mod } from '../domain/skills';
-  import { llmConfig } from '../stores/llm';
-  import { runAiAction } from '../services/aiActions/runner';
-  import { computeLevelUpDelta, type LevelUpDelta } from '../services/levelUp';
-  import {
-    buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary,
-  } from '../services/aiActions/levelUpAction';
-  import {
-    buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS,
-  } from '../services/aiActions/fieldSummaryAction';
-  import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../services/aiActions/featureEffectsAction';
-  import { type GainedFeature, type FeatureClassContext, type ResolvedChoice, type AnalysisChoice } from '../services/analysis/types';
-  import {
-    hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature,
-  } from '../services/perLevelEffects';
-  import {
-    declaredSpeciesFeatures,
-    resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks, resolvePastChoices, type PastChoice,
-  } from '../services/characterFeatures';
-  import { type StepId, type AdvanceCtx, STEP_META, isCheckpoint, advance } from '../services/levelUp/steps';
-  import { type ValidatedRiders, type DeclaredSpells, validateRiderSpells, learnInfo, resolveDeclaredSpells, resolveSpellNames, noDeclaredSpells } from '../services/levelUp/spells';
-  import { gainedFeaturesFor, computeSubclassFeatures, featToGainedFeature } from '../services/levelUp/features';
-  import { buildDecisions, buildFeatureChoices, countFeatsToPick } from '../services/levelUp/questions';
-  import { buildDoc } from '../services/levelUp/doc';
-  import { sheetNoteLines, answerValues } from '../services/levelUp/answers';
-  import { withoutSpellGrantFeatures } from '../services/grantedSpells';
-  import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from '../services/declaration/expertise';
-  import { isOptionListFeature, optionChoiceId, optionListChoices, optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures, withoutDeclaredChoiceFeatures } from '../services/declaration/optionList';
-  import { withDeclaredGrants } from '../services/declaration/grants';
-  import { characterPropertyChoices } from '../services/characterProperties';
-  import { declaredFeatures } from '../services/declaredFeature';
-  import {
-    spellAccessChoices, spellAccessGrantOf, spellAccessNoteLines, spellListChoiceId,
-    withoutSpellAccessFeatures, type SpellAccessGrant,
-  } from '../services/spellAccess';
-  import {
-    parseLevelUpNarrative, parseFieldSummary,
-    type LevelUpQuestion, type FeatureRider, type Change, type LevelUpChangeSet, type LevelUpDoc,
-  } from '../schemas/levelUp';
+  import { createLevelUpRun } from '../services/levelUp/run.svelte';
+  import { hasAnswer } from '../services/levelUp/answers';
+  import { type StepId, STEP_META } from '../services/levelUp/steps';
+  import { type LevelUpDelta } from '../services/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
-  import { blankSpell, getSpellLibrary, createSpellInline, type SpellInfo } from '../spellLibrary';
+  import { blankSpell, getSpellLibrary, createSpellInline } from '../spellLibrary';
   import { decodePick, encodePick } from '../services/spellcasting';
+  import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '../schemas/levelUp';
   import SpellPickField from './SpellPickField.svelte';
+  import FeatureChoicePicker from './FeatureChoicePicker.svelte';
   import Modal from './ui/Modal.svelte';
   import AiStatusBanner from './ui/AiStatusBanner.svelte';
   import LlmProviderSelect from './ui/LlmProviderSelect.svelte';
-  import { createRunClock } from '../utils/runClock.svelte';
-  import { getFeats, searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
-  import { sheetSkillProficiencies } from '../services/characterChoices';
-  import { totalLevel } from '../schemas/classLevelText';
+  import { searchFeats, featDesc, featDisplayName, type FeatEntry } from '../featsLibrary';
   import { type Character } from '../schemas/characterSchema';
-  import type { Spell } from '../types';
   import { SPELL_SCHOOLS } from '../types';
-  import { type FeatureChoiceGrant } from '../schemas/featureChoice';
-  import { type FeatureGrant, type SpellGrant } from '../schemas/grants';
 
   let { character, onApply, onclose }: {
     character: Character;
@@ -80,54 +36,17 @@
     onclose: () => void;
   } = $props();
 
-  // ── State-Machine ──────────────────────────────────────────────────────────────
-  let phase = $state<StepId | 'running'>('choose-class');
-  let delta = $state<LevelUpDelta | null>(null);
-  let chosenSubclass = $state<{ key: string; name: string } | null>(null);
-  let subFeatures = $state<GainedFeature[]>([]);    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
-  let gainedFeatures = $state<GainedFeature[]>([]); // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
-  /**
-   * Immer-vorbereitete Zauber aus Merkmalstabellen (Kreissprüche, Domänenzauber …) —
-   * deterministisch gelesen, deshalb hier und nicht in `validatedBase`: sie hängen am
-   * Subklassen-Schritt und stehen auch ohne KI-Analyse.
-   */
-  let declaredSpells = $state<DeclaredSpells>(noDeclaredSpells());
-  /** Zauber aus Spezies- und Talent-Deklarationen — deren Stufentabelle hängt an der
-   *  CHARAKTERstufe, nicht an der Klassenstufe (Mehrklassen: verschiedene Zahlen). */
-  let charLevelSpells = $state<DeclaredSpells>(noDeclaredSpells());
-  let riders = $state<FeatureRider[]>([]);
-  let validatedBase = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
-  let decisions = $state<LevelUpQuestion[]>([]);
-  let answers = $state<Record<string, string | string[]>>({});
-  // Merkmals-/Talent-Analyse (Call 1) + die daraus abgeleiteten Wahl-Fragen für den
-  // Checkpoint DIREKT nach Call 1. Der finalisierende Effekt-Call (Call C) bäckt die
-  // getroffene Entscheidung ein — kein iterativer Loop mehr.
-  let baseAnalysis = $state<FeatureAnalysis | null>(null);
-  let baseChoices = $state<LevelUpQuestion[]>([]);
-  let featAnalysis = $state<FeatureAnalysis | null>(null);
-  let featChoices = $state<LevelUpQuestion[]>([]);
-  let featsToPick = $state(0);
-  // Englisch geführt (`name`/`desc` = Deutungs-Eingang), deutsche Fassung für Anzeige und
-  // Übersetzungs-Call. `nameDe` ist auch der Anzeigename in der Talent-Auswahl.
-  let chosenFeats = $state<{ key: string; name: string; nameDe: string; gainedAt: number; desc: string; descDe?: string; grantsChoice?: FeatureChoiceGrant; grants?: FeatureGrant; grantsSpells?: SpellGrant }[]>([]);
-  /**
-   * Deklarierter Zauber-Zugang der gewählten Talente („Eingeweihter der Magie") — am Schritt
-   * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
-   */
-  let featAccess = $state<SpellAccessGrant[]>([]);
-  let featRiders = $state<FeatureRider[]>([]);
-  let validatedFeats = $state<ValidatedRiders>({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
-  let flagged = $state<string[]>([]);
-  // Pro-Stufe-TP-Max aus dem Voll-Kontext-Effekt-Pass (z.B. Zwergische Zähigkeit).
-  let hpPerLevelSources = $state<{ feature: string; sourceKey: string; amount: number }[]>([]);
-  let narrativeSummary = $state(''); // KI-Narrativ (Zusammenfassung) → doc.summary
-  let featuresText = $state(''); // editierbarer Klassenmerkmale-Volltext (KI-Merge + Nachbearbeitung)
+  const run = createLevelUpRun({ get character() { return character; } });
+  const st = run.st;
+  const clock = run.clock;
+  onDestroy(() => run.destroy());
 
+  // Woran die KI/der Schritt gerade arbeitet = die zuletzt gemeldete Aktivität.
+  const currentActivity = $derived(st.steps.length ? st.steps[st.steps.length - 1] : '');
 
   const classList = $derived(character.classes ?? []);
   const hasClasses = $derived(classList.length > 0);
 
-  // ── Klasse & Zielstufe ───────────────────────────────────────────────────────
   let classChoice = $state((character.classes ?? []).length ? '0' : 'new');
   const isNewClass = $derived(classChoice === 'new');
   const classIndex = $derived(isNewClass ? classList.length : Number(classChoice));
@@ -136,10 +55,6 @@
   let libClasses = $state<ClassInfo[]>([]);
   $effect(() => { getClasses().then((cs) => { libClasses = cs.filter((c) => c.key && !c.subclassOf); }); });
 
-  // Entscheidungen früherer Stufen: die Analyse darf sie nicht erneut stellen und muss
-  // ihre Folgen als gesetzt behandeln (Wächter ⇒ Kriegswaffen + mittlere Rüstung).
-  let pastChoices = $state<PastChoice[]>([]);
-  $effect(() => { resolvePastChoices(character).then((p) => { pastChoices = p; }); });
   let newClassKey = $state('');
   let newClassName = $state('');
   function selectNewClass(key: string) {
@@ -153,284 +68,47 @@
     if (targetLevel <= effectiveFrom || targetLevel > 20) targetLevel = Math.min(20, effectiveFrom + 1);
   });
 
-  // ── Bibliotheken (Zauber/Talente), lazy ─────────────────────────────────────────
-  let spellLib = $state<SpellInfo[]>([]);
-  let featLib = $state<FeatEntry[]>([]);
-  async function ensureSpellLib() { if (!spellLib.length) spellLib = await getSpellLibrary(); return spellLib; }
-
-  function buildSummary(): CharacterSummary {
-    const abilities: Record<string, number> = {
-      str: character.str, ges: character.ges, kon: character.kon,
-      int: character.int, wei: character.wei, cha: character.cha,
-    };
-    const mods = Object.fromEntries(Object.entries(abilities).map(([k, v]) => [k, mod(v)]));
-    return {
-      name: character.name,
-      classes: classList.map((c) => ({ name: c.name, level: c.level, subclassName: c.subclassName ?? '' })),
-      totalLevel: classList.reduce((s, c) => s + (c.level || 0), 0),
-      abilities, mods,
-      hitDice: character.hitDice ?? '',
-      spellcasting: {
-        class: character.spells?.spellcastingClass ?? '',
-        ability: character.spells?.spellcastingAbility ?? '',
-        currentSlots: (character.spells?.slots ?? []).map((s) => s.total),
-      },
-    };
+  function startFlow() {
+    if (st.running) return;
+    if (isNewClass && !newClassKey) { st.error = 'Bitte eine Klasse für das Multiclassing wählen.'; return; }
+    if (!isNewClass && !hasClasses) return;
+    run.start(classIndex, targetLevel, isNewClass && newClassKey ? { sourceKey: newClassKey, name: newClassName } : undefined);
   }
 
-  function classContext(): FeatureClassContext {
-    return {
-      klasseName: delta?.klasseName ?? '',
-      // In dieser Spanne gewählt (chosenSubclass) oder längst bekannt (Delta).
-      subclassName: chosenSubclass?.name ?? delta?.subclassName ?? '',
-      casterType: delta?.casterType ?? 'NONE',
-      casterKind: delta?.casterKind ?? 'none',
-      spellcastingAbility: character.spells?.spellcastingAbility ?? '',
-      toLevel: delta?.toLevel ?? 1,
-    };
+  const allAnswered = $derived(run.choices.isAnswered(st.decisions));
+
+  function setIn(id: string, v: string) {
+    st.answers[id] = v;
   }
-
-  /** Höchster Zaubergrad, den der Charakter nach dem Aufstieg wirken kann. */
-  function maxSpellLevel(): number {
-    let m = 0;
-    for (let i = 0; i < 9; i++) {
-      const total = (character.spells?.slots?.[i]?.total ?? 0) + (delta?.spellSlotDelta?.[i] ?? 0);
-      if (total > 0) m = i + 1;
-    }
-    return m;
-  }
-
-  // ── Lauf-State + Uhr ──────────────────────────────────────────────────────────
-  let steps = $state<string[]>([]);
-  let running = $state(false);
-  let error = $state('');
-  let abort: AbortController | null = null;
-  let userAborted = false;
-  let runToken = 0;
-  let resumePhase = $state<StepId>('choose-class');
-  // Weitester bereits abgeschlossener Schritt — steuert, was das Dokument WÄHREND eines
-  // Laufs zeigt. Wird pro Schritt hochgezählt, damit deterministische Teilschritte (z.B.
-  // Subklassen-Delta) im JSON erscheinen, BEVOR die nachfolgende KI-Aktion läuft.
-  let reachedStep = $state<StepId>('choose-class');
-  const pushStep = (text: string) => { steps = [...steps, text]; clock.touch(); };
-
-  /** Angekündigte Zauberliste, die der Parser nicht lesen konnte — sonst fiele sie stumm zur KI. */
-  const reportUnreadableGrants = () => {
-    for (const name of declaredSpells.unreadable)
-      pushStep(`„${name}" kündigt eine Zauberliste an, die nicht als Tabelle lesbar ist — Zauber nicht automatisch übernommen.`);
-  };
-
-  const clock = createRunClock(() => running);
-  // Woran die KI/der Schritt gerade arbeitet = die zuletzt gemeldete Aktivität.
-  let currentActivity = $derived(steps.length ? steps[steps.length - 1] : '');
-
-  onDestroy(() => abort?.abort());
-
-  const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-  const runOpts = () => ({ onActivity: () => clock.touch(), signal: abort!.signal });
-
-  /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard, Uhr und Fehler-Rücksprung. */
-  async function runSegment(resume: StepId, body: (alive: () => boolean) => Promise<void>) {
-    if (running) return;
-    running = true; error = ''; userAborted = false; resumePhase = resume; reachedStep = resume;
-    const myToken = ++runToken;
-    abort = new AbortController(); clock.start();
-    phase = 'running';
-    try {
-      await body(() => myToken === runToken);
-    } catch (e) {
-      if (myToken === runToken && !userAborted) { error = msg(e); phase = resume; }
-    } finally {
-      if (myToken === runToken) { clock.stop(); running = false; abort = null; }
-    }
-  }
-
-  function stop() {
-    userAborted = true; runToken++; abort?.abort(); clock.stop();
-    running = false; abort = null; phase = resumePhase;
-  }
-
-  // ── Delta-Zusammenfassung fürs Schritt-Log ──────────────────────────────────────
-  function summarizeDelta(d: LevelUpDelta): string {
-    if (d.isHomebrew) return `${d.klasseName || 'Klasse'} ${d.fromLevel} → ${d.toLevel} · Homebrew (KI fragt alles ab)`;
-    const parts = [`${d.klasseName || 'Klasse'} ${d.fromLevel} → ${d.toLevel}`];
-    if (d.profBonusTo !== d.profBonusFrom) parts.push(`Übungsbonus +${d.profBonusFrom}→+${d.profBonusTo}`);
-    const slotGain = d.spellSlotDelta.reduce((a, b) => a + b, 0);
-    if (slotGain > 0) parts.push(`+${slotGain} Zauberplatz${slotGain > 1 ? 'e' : ''}`);
-    if (d.cantripDelta > 0) parts.push(`+${d.cantripDelta} Zaubertrick${d.cantripDelta > 1 ? 's' : ''}`);
-    if (d.preparedDelta > 0) parts.push(`+${d.preparedDelta} vorbereitbar`);
-    const feats = d.featuresGained.length + d.subclassFeaturesGained.length;
-    if (feats > 0) parts.push(`${feats} Merkmal${feats > 1 ? 'e' : ''}`);
-    return parts.join(' · ');
-  }
-
-  // ── Antworten-Handling ──────────────────────────────────────────────────────────
-  function initAnswers(questions: LevelUpQuestion[]) {
-    // Bestehende Antworten ERHALTEN; nur für neue Fragen Defaults setzen.
-    const a: Record<string, string | string[]> = { ...answers };
-    for (const q of questions) {
-      if (q.id in a) continue;
-      if (q.type === 'multiselect' || q.type === 'spell-picker') a[q.id] = [];
-      else if (q.type === 'choice') a[q.id] = q.defaultValue || q.options[0]?.value || '';
-      else a[q.id] = q.defaultValue ?? '';
-    }
-    answers = a;
-  }
-  /**
-   * Init für die Feature-Wahlen (Checkpoint nach Call 1): bewusst LEER vorbelegen (kein
-   * Auto-Default auf die erste Option), damit der Spieler jede Wahl aktiv trifft — sonst
-   * würde z.B. eine folgenreiche Landart stillschweigend feststehen.
-   */
-  function initFeatureChoices(questions: LevelUpQuestion[]) {
-    const a: Record<string, string | string[]> = { ...answers };
-    for (const q of questions) {
-      if (q.id in a) continue;
-      a[q.id] = q.type === 'multiselect' || q.type === 'spell-picker' ? [] : '';
-    }
-    answers = a;
-  }
-  function setIn(_store: 'a' | 'f', id: string, v: string) {
-    answers[id] = v;
-  }
-  function toggleIn(_store: 'a' | 'f', id: string, v: string, max?: number) {
-    const cur = (answers[id] as string[]) ?? [];
+  function toggleIn(id: string, v: string, max?: number) {
+    const cur = (st.answers[id] as string[]) ?? [];
     let nextArr = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
     if (max && nextArr.length > max) nextArr = nextArr.slice(nextArr.length - max);
-    answers[id] = nextArr;
+    st.answers[id] = nextArr;
   }
-
-  function isAnswered(questions: LevelUpQuestion[], rec: Record<string, string | string[]>): boolean {
-    return questions.every((q) => {
-      if (!q.required) return true;
-      const v = rec[q.id];
-      if (Array.isArray(v)) return v.length > 0;
-      return (v ?? '').toString().trim() !== '';
-    });
-  }
-  let allAnswered = $derived(isAnswered(decisions, answers));
-  // steht nach `baseChoiceQs` (weiter unten) → dort definiert
-
-  /**
-   * Die Wahlen der deklarierten Zauber-Zugänge. Reaktiv, weil die Zauber-Wahlen erst mit der
-   * beantworteten Liste entstehen — ohne Klassenfilter würde der Picker die ganze Bibliothek
-   * anbieten.
-   */
-  let featAccessChoices = $derived.by<LevelUpQuestion[]>(() =>
-    featAccess.flatMap((g) =>
-      buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
-    ),
-  );
-  /**
-   * Alle Merkmale dieses Aufstiegs mit Herkunft — die eine Quelle jeder Deklaration.
-   *
-   * `subFeatures` gehört dazu, weil die Subklassen-Merkmale bei einer JETZT getroffenen
-   * Subklassen-Wahl nur dort stehen (`delta.subclassFeaturesGained` ist dann leer) — sonst
-   * verlöre eine Subklasse mit `optionList` ihre Wahl. Beide Quellen überschneiden sich
-   * nicht: das Delta füllt die eine, der Nachlade-Pass die andere.
-   *
-   * Speziesmerkmale stehen NICHT hier: ein Aufstieg erlangt kein Volksmerkmal, seine Wahl ist
-   * im Wizard gefallen. Sie erneut zu stellen wäre die Dublette.
-   */
-  let declaredSources = $derived(
-    delta
-      ? [
-          ...declaredFeatures('class', delta.featuresGained),
-          ...declaredFeatures('subclass', [...delta.subclassFeaturesGained, ...subFeatures]),
-          ...declaredFeatures('feat', chosenFeats),
-        ]
-      : [],
-  );
-  /**
-   * Aufgeteilt auf die zwei Checkpoints — der einzige Grund, weshalb die Herkunft hier zählt:
-   * die Wahl eines Talents gehört zum Talent-Schritt, nicht zum Merkmals-Schritt.
-   */
-  let baseDeclared = $derived(declaredSources.filter((f) => f.source !== 'feat'));
-  let featDeclared = $derived(declaredSources.filter((f) => f.source === 'feat'));
-
-  /** Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden). */
-  let declaredOptionFeatures = $derived(baseDeclared.filter(isOptionListFeature));
-  let baseOptionChoices = $derived(buildFeatureChoices(optionListChoices(declaredOptionFeatures)));
-
-  /**
-   * Deklarierte Expertise-Wahlen. Die Optionen sind der Übungsstand DIESES Charakters, also
-   * kommen sie aus dem Bogen (deutsche Schlüssel → englische SRD-Namen) und nicht aus dem
-   * Vault. Schon verdoppelte Fertigkeiten fallen heraus: Expertise stapelt nicht, der
-   * Schurke wählt auf Stufe 6 zwei WEITERE.
-   */
-  let declaredExpertiseFeatures = $derived(baseDeclared.filter(isExpertiseFeature));
-  let sheetSkills = $derived(sheetSkillProficiencies(character.skills));
-  let baseExpertiseChoices = $derived(
-    buildFeatureChoices(
-      declaredExpertiseFeatures
-        .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
-        .filter((c): c is AnalysisChoice => c !== null),
-    ),
-  );
-  /**
-   * Zauber-Zugang der neu gewonnenen Merkmale — dieselbe Deklaration wie am Talent, nur an
-   * einem anderen Träger. `$derived` statt `$state` wie `featAccess`: `baseDeclared` fällt
-   * direkt aus dem Delta, die Talent-Seite muss erst das Nachladen abwarten.
-   */
-  let baseAccess = $derived(
-    baseDeclared.map((f) => spellAccessGrantOf(f)).filter((g): g is SpellAccessGrant => g !== null),
-  );
-  let baseAccessChoices = $derived.by<LevelUpQuestion[]>(() =>
-    baseAccess.flatMap((g) =>
-      buildFeatureChoices(spellAccessChoices(g, (answers[spellListChoiceId(g)] as string) ?? '')),
-    ),
-  );
-  /**
-   * Deklarierte Grundeigenschaften (Größe). Am Aufstieg heute ohne Vault-Fall — die Spezies
-   * steht auf Stufe 1 fest —, aber aus derselben Liste wie alles andere: ein Talent oder
-   * Klassenmerkmal, das eine Eigenschaft zur Wahl stellt, verlöre sie sonst still.
-   */
-  let basePropertyChoices = $derived(buildFeatureChoices(characterPropertyChoices(baseDeclared)));
-  /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
-  let baseChoiceQs = $derived([
-    ...baseChoices,
-    ...baseOptionChoices,
-    ...baseExpertiseChoices,
-    ...basePropertyChoices,
-    ...baseAccessChoices,
-  ]);
-  let allBaseChoices = $derived(isAnswered(baseChoiceQs, answers));
-
-  /** Deklarierte Wahlen der gewählten Talente — dieselben Builder wie am Merkmals-Schritt. */
-  let featOptionFeatures = $derived(featDeclared.filter(isOptionListFeature));
-  let featExpertiseFeatures = $derived(featDeclared.filter(isExpertiseFeature));
-  let featDeclaredChoices = $derived(
-    buildFeatureChoices([
-      ...optionListChoices(featOptionFeatures),
-      ...featExpertiseFeatures
-        .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
-        .filter((c): c is AnalysisChoice => c !== null),
-      ...characterPropertyChoices(featDeclared),
-    ]),
-  );
-  /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
-  let featChoiceQs = $derived([...featChoices, ...featAccessChoices, ...featDeclaredChoices]);
-  let allFeatChoices = $derived(isAnswered(featChoiceQs, answers));
-  /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Schlüssel der Option. */
-  const optionAnswer = (id: string): string => {
-    const q = [...baseOptionChoices, ...baseExpertiseChoices, ...basePropertyChoices, ...featDeclaredChoices].find((x) => x.id === id);
-    return q ? answerValues(q, answers[id]) : '';
+  /** Die Auswahl einer deklarierten/erkannten Wahl — der Picker führt sie immer als Liste. */
+  const answerList = (id: string): string[] => {
+    const v = st.answers[id];
+    return Array.isArray(v) ? v : v ? [v] : [];
   };
+  function setAnswerList(q: LevelUpQuestion, next: string[]) {
+    st.answers[q.id] = q.type === 'multiselect' ? next : (next[0] ?? '');
+  }
 
-  // ── Zauber-Picker ────────────────────────────────────────────────────────────────
   /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
   const pickBinding = (id: string) =>
-    [() => (answers[id] as string[]) ?? [], (v: string[]) => (answers[id] = v)] as const;
+    [() => (st.answers[id] as string[]) ?? [], (v: string[]) => (st.answers[id] = v)] as const;
 
-  // ── Trefferwürfel würfeln (echtes Würfeln, kein Selbst-Eintragen) ────────────────
+  // Trefferwürfel würfeln (echtes Würfeln, kein Selbst-Eintragen).
   let hpRolls = $state<Record<string, number[]>>({});
   function rollHp(q: LevelUpQuestion) {
     const sides = q.dieSides ?? 6;
     const count = Math.max(1, q.rollCount ?? 1);
     const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * sides));
     hpRolls[q.id] = rolls;
-    answers[q.id] = String(rolls.reduce((a, b) => a + b, 0));
+    st.answers[q.id] = String(rolls.reduce((a, b) => a + b, 0));
   }
-  // ── Inline-Zauberanlage ─────────────────────────────────────────────────────────
+
   let spellCreator = $state<{ targetQ: string | null; name: string; nameEn: string; level: number; school: string; levels: number[] } | null>(null);
   const SCHOOL_KEYS = Object.keys(SPELL_SCHOOLS);
   function openSpellCreator(name: string, levels: number[], targetQ: string | null) {
@@ -447,7 +125,7 @@
     const s = spellCreator;
     try {
       const canonical = await createSpellInline(blankSpell(s.name, s.level, s.school, s.nameEn));
-      spellLib = await getSpellLibrary();
+      st.spellLib = await getSpellLibrary();
       if (s.targetQ) {
         // Direkt in die Antwort der auslösenden Frage übernehmen (der Picker liest sie).
         const [read, write] = pickBinding(s.targetQ);
@@ -456,527 +134,47 @@
       } else {
         // Review-Inline-Anlage: neuen Zauber als gewährten Zauber ergänzen (fließt via buildDoc ein).
         if (s.level === 0) {
-          if (!validatedBase.grantedCantrips.includes(canonical)) validatedBase.grantedCantrips = [...validatedBase.grantedCantrips, canonical];
-        } else if (!validatedBase.grantedPrepared.some((p) => p.name === canonical)) {
-          validatedBase.grantedPrepared = [...validatedBase.grantedPrepared, { level: s.level, name: canonical }];
+          if (!st.validatedBase.grantedCantrips.includes(canonical)) st.validatedBase.grantedCantrips = [...st.validatedBase.grantedCantrips, canonical];
+        } else if (!st.validatedBase.grantedPrepared.some((p) => p.name === canonical)) {
+          st.validatedBase.grantedPrepared = [...st.validatedBase.grantedPrepared, { level: s.level, name: canonical }];
         }
-        flagged = flagged.filter((f) => f.toLowerCase() !== s.name.toLowerCase() && f.toLowerCase() !== s.nameEn.toLowerCase());
+        st.flagged = st.flagged.filter((f) => f.toLowerCase() !== s.name.toLowerCase() && f.toLowerCase() !== s.nameEn.toLowerCase());
       }
       spellCreator = null;
     } catch (e) {
-      error = `Zauber konnte nicht angelegt werden: ${msg(e)}`;
+      st.error = `Zauber konnte nicht angelegt werden: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       creatingSpell = false;
     }
   }
 
-  // ── Zustandsmaschine: Pipeline-Antrieb ──────────────────────────────────────────
-  // Die Komponente hält den State + das Lauf-Gerüst; die Übergänge kommen aus
-  // `advance()` (levelUpMachine.ts). `pipelineBody` läuft Arbeitsschritte ab, bis ein
-  // Checkpoint erreicht ist. Das gemeinsame Dokument (`doc`) ist eine reine Projektion
-  // des States (buildDoc) — deterministische Schritte brauchen daher keine Aktion.
-  function advCtx(): AdvanceCtx {
-    return {
-      delta: delta!,
-      featsToPick: delta ? countFeatsToPick(delta, answers) : 0,
-      // Auch die deklarierten Zweigwahlen zählen: sonst überspringt die Maschine den
-      // Checkpoint, weil das Merkmal gar nicht mehr bei der KI war.
-      baseChoices: baseChoiceQs.length,
-      // Auch die deklarierten Wahlen zählen: sonst überspringt die Maschine den Checkpoint,
-      // wenn das Talent gar nicht mehr bei der KI war — und niemand wählt die Zauber.
-      featChoices: featChoiceQs.length,
-    };
-  }
-  const answered = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : (v ?? '').toString().trim() !== '');
-
-  async function pipelineBody(from: StepId, alive: () => boolean) {
-    let step = advance(from, advCtx());
-    while (!isCheckpoint(step)) {
-      await runStep(step, alive);
-      if (!alive()) return;
-      reachedStep = step; // Schritt fertig → seine Änderungen werden im Dokument sichtbar
-      step = advance(step, advCtx());
-    }
-    onEnterCheckpoint(step);
-    reachedStep = step;
-    phase = step;
-  }
-
-  async function runStep(step: StepId, alive: () => boolean) {
-    switch (step) {
-      case 'base-delta':
-        gainedFeatures = gainedFeaturesFor(delta!);
-        // Schon bekannte Subklasse: ihre Merkmale stehen bereits im Delta. Wird die Subklasse
-        // erst in diesem Aufstieg gewählt, ergänzt `subclass-delta` unten.
-        declaredSpells = resolveDeclaredSpells(
-          [...delta!.featuresGained, ...delta!.subclassFeaturesGained],
-          delta!.toLevel,
-          await ensureSpellLib(),
-          delta!.klasseName,
-        );
-        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
-        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
-        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
-        reportUnreadableGrants();
-        break;
-      case 'subclass-delta':
-        pushStep(`Subklasse „${chosenSubclass?.name}" — Merkmale werden geladen…`);
-        subFeatures = await computeSubclassFeatures(chosenSubclass!.key, delta!.fromLevel, delta!.toLevel);
-        if (!alive()) return;
-        // `subFeatures` bleibt vollständig (Info-Einträge „Neues Merkmal: …"), der KI-Eingang
-        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch,
-        // die deklarierten Wahlen führt der Flow selbst — dieselben zwei Filter, die
-        // `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
-        gainedFeatures = [
-          ...gainedFeaturesFor(delta!),
-          ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(subFeatures)),
-        ];
-        declaredSpells = resolveDeclaredSpells(
-          [...delta!.featuresGained, ...delta!.subclassFeaturesGained, ...subFeatures],
-          delta!.toLevel,
-          await ensureSpellLib(),
-          delta!.klasseName,
-        );
-        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
-        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
-        if (declaredSpells.flagged.length) flagged = [...new Set([...flagged, ...declaredSpells.flagged])];
-        reportUnreadableGrants();
-        break;
-      case 'feature-analysis':
-        await runAnalyze('base', alive);
-        break;
-      case 'feature-effects':
-        await runFinalize('base', alive);
-        break;
-      case 'feat-analysis':
-        await runAnalyze('feat', alive);
-        break;
-      case 'feat-effects':
-        await runFinalize('feat', alive);
-        break;
-      case 'narrative':
-        await runNarrative(alive);
-        break;
-      case 'ongoing-effects':
-        await detectHpPerLevel(alive);
-        if (!alive()) return;
-        await resolveCharLevelSpells();
-        break;
-      case 'class-features-merge':
-        await mergeClassFeatures(alive);
-        break;
-      case 'feat-links':
-        // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im
-        // Vault, also fragt der Flow sie ab statt die KI sie aus der Prosa zu deuten.
-        featAccess = chosenFeats
-          .map((f) => spellAccessGrantOf(f))
-          .filter((g): g is SpellAccessGrant => g !== null);
-        if (featAccess.length) {
-          initFeatureChoices(featAccessChoices);
-          pushStep(`${featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
-        }
-        break;
-      // assemble-decisions: rein deterministisch → keine Aktion, das Dokument leitet
-      // diese Änderungen selbst aus dem State ab.
-    }
-  }
-
-  function onEnterCheckpoint(step: StepId) {
-    if (step === 'feat-choice') {
-      featsToPick = countFeatsToPick(delta!, answers);
-      chosenFeats = [];
-      getFeats().then((f) => { featLib = f; });
-    } else if (step === 'class-features' && !featuresText.trim()) {
-      // Sicherheitsnetz: normalerweise hat `class-features-merge` den Text längst gesetzt.
-      featuresText = seedFeaturesText();
-    }
-  }
-
-  // ── KI-Arbeitsschritte (setzen State; das Dokument ist abgeleitet) ───────────────
-  /** Merkmale bzw. Talente als GainedFeature[] für die jeweilige Phase. */
-  function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
-    return kind === 'base'
-      ? gainedFeatures
-      : withoutDeclaredChoiceFeatures(
-          withoutSpellAccessFeatures(chosenFeats.map((f) => featToGainedFeature(f, delta!.toLevel)), featAccess),
-        );
-  }
-
-  /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
-  async function runAnalyze(kind: 'base' | 'feat', alive: () => boolean) {
-    await ensureSpellLib();
-    if (!alive()) return;
-    const features = featuresFor(kind);
-    let analysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
-    if (features.length) {
-      pushStep(`KI analysiert ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      analysis = await analyzeFeatureEffects($llmConfig, { classContext: classContext(), features, pastChoices }, runOpts());
-      if (!alive()) return;
-    }
-    const choiceQs = buildFeatureChoices(analysis.choices);
-    initFeatureChoices(choiceQs);
-    if (kind === 'base') {
-      baseAnalysis = analysis; baseChoices = choiceQs;
-      // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
-      const declaredQs = [...baseOptionChoices, ...baseExpertiseChoices, ...baseAccessChoices];
-      initFeatureChoices(declaredQs);
-      if (declaredQs.length) pushStep(`${declaredQs.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
-    }
-    else { featAnalysis = analysis; featChoices = choiceQs; }
-    if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
-    else pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
-  }
-
-  /**
-   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Wert).
-   * Frage, Optionen und Merkmal stehen bereits in der Analyse im Verlauf; die id (aus
-   * `buildFeatureChoices`, identisch zur Choice-id der Analyse) verknüpft beides.
-   *
-   * Der WERT, nicht das Label: der Verlauf ist englisch, das deutsche Label kennt er nicht.
-   */
-  function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
-    // Nur die KI-erkannten Wahlen: das Merkmal einer deklarierten Wahl steht nicht im Eingang,
-    // das Modell könnte ihre id nur einem erfundenen Rider zuordnen.
-    const qs = kind === 'base' ? baseChoices : featChoices;
-    const out: ResolvedChoice[] = [];
-    for (const q of qs) {
-      const v = answers[q.id];
-      if (!answered(v)) continue;
-      out.push({ id: q.id, choice: answerValues(q, v) });
-    }
-    return out;
-  }
-
-  /** Call C (KI): finalisiert die Effekte mit den getroffenen Entscheidungen → Rider. */
-  async function runFinalize(kind: 'base' | 'feat', alive: () => boolean) {
-    await ensureSpellLib();
-    if (!alive()) return;
-    const analysis = kind === 'base' ? baseAnalysis : featAnalysis;
-    const decisionsCtx = gatherDecisions(kind);
-    // Merkmale, deren Zweig nichts deklariert, kommen ERST hier dazu: die Analyse hätte
-    // dieselbe Wahl ein zweites Mal gestellt, Pass C deutet nur noch ihre Prosa.
-    const unredacted = unredactedChoiceFeatures(
-      kind === 'base' ? baseDeclared : featDeclared,
-      (f) => optionAnswer(optionChoiceId(f)),
-    ).map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: delta!.toLevel }));
-    const features = [...featuresFor(kind), ...unredacted];
-    let parsed: FeatureRider[] = [];
-    if (features.length && analysis) {
-      pushStep(decisionsCtx.length
-        ? 'KI berücksichtigt die getroffene Wahl und leitet die Effekte ab…'
-        : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      const eff = await finalizeFeatureEffects($llmConfig,
-        { classContext: classContext(), features, pastChoices, resolvedChoices: decisionsCtx }, analysis, runOpts());
-      if (!alive()) return;
-      parsed = eff.riders;
-    }
-    // Deklarierte Zweigwahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
-    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen.
-    // Deklarierte Wahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
-    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen. Beide
-    // Phasen aus DERSELBEN Liste: ein Talent mit `optionList` verlor sonst seine Wirkung.
-    const grantSources = kind === 'base' ? baseDeclared : featDeclared;
-    // Die Stufe einer Options-Zauberliste: am Klassenmerkmal die KLASSEN-, am Talent die
-    // CHARAKTERstufe (`declaredSpellGrants` liest dieselbe Unterscheidung).
-    const optionLevel = kind === 'base' ? delta!.toLevel : newCharLevel();
-    const declared = [
-      ...optionListRiders(grantSources, optionAnswer, optionLevel),
-      ...grantSources
-        .filter(isExpertiseFeature)
-        .map((f) => expertiseRider(f, optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
-        .filter((r): r is FeatureRider => r !== null),
-    ];
-    // Die Deklaration gewinnt über den KI-Rider desselben Merkmals (und springt ein, wo gar
-    // keiner kam). Nur auf `parsed` angewandt: die Rider der Zweigwahlen tragen die Grants der
-    // GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
-    const validated = validateRiderSpells(
-      [...withDeclaredGrants(parsed, grantSources), ...declared],
-      spellLib,
-      delta!.klasseName,
-    );
-    if (validated.flagged.length) flagged = [...new Set([...flagged, ...validated.flagged])];
-    if (kind === 'base') {
-      validatedBase = validated;
-      riders = validated.riders;
-      decisions = buildDecisions(delta!, riders, { maxSpellLevel: maxSpellLevel(), klasseName: delta!.klasseName });
-      initAnswers(decisions);
-      pushStep(decisions.length ? `${decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
-    } else {
-      validatedFeats = validated;
-      featRiders = validated.riders;
-    }
-  }
-
-  /** Narrativ (KI, Schritt C) → doc.summary. */
-  async function runNarrative(alive: () => boolean) {
-    let n = { summary: '' };
-    try {
-      pushStep('KI formuliert das Narrativ…');
-      const raw = await runAiAction($llmConfig, buildLevelUpNarrativeAction(),
-        buildNarrativeInput({
-          summary: buildSummary(), delta: delta!, gainedFeatures, chosenSubclass,
-          chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe })),
-          riders: [...riders, ...featRiders], pastChoices,
-        }), runOpts());
-      if (!alive()) return;
-      n = parseLevelUpNarrative(raw) ?? n;
-    } catch { /* Narrativ ist optional → deterministischer Fallback */ }
-    narrativeSummary = n.summary || fallbackSummary();
-  }
-
-  // ── Klassenmerkmale-Freitext ────────────────────────────────────────────────────
-  /** Die verdichteten Bogen-Notizen dieses Aufstiegs (Merkmale + Talente). */
-  const newSheetNotes = () => [...sheetNoteLines(validatedBase.riders), ...sheetNoteLines(validatedFeats.riders)];
-
-  /**
-   * Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge.
-   *
-   * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
-   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" würde sie den Merge-Call
-   * auslösen — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
-   */
-  const seedFeaturesText = () =>
-    [
-      character.classFeatures,
-      ...newSheetNotes(),
-      ...optionListNoteLines(declaredOptionFeatures, optionAnswer),
-      ...spellAccessNoteLines(baseAccess, answers),
-      ...spellAccessNoteLines(featAccess, answers),
-    ]
-      .filter((s) => s?.trim())
-      .join('\n');
-
-  /**
-   * Verschmilzt den bestehenden (nutzergeschriebenen) Freitext mit den neuen Bogen-Notizen.
-   * Scheitert der Call, bleibt die rohe Saat stehen — der Aufstieg darf daran nicht hängen.
-   */
-  async function mergeClassFeatures(alive: () => boolean, currentText = seedFeaturesText()) {
-    const notes = newSheetNotes();
-    featuresText = currentText;
-    // Ohne neue Notizen gibt es nichts zusammenzuführen — den nutzergeschriebenen Text
-    // dann NICHT durch die KI schicken, das kann nur schaden.
-    if (!notes.length) {
-      pushStep('Keine neuen Merkmale fürs Klassenmerkmale-Feld.');
-      return;
-    }
-    try {
-      pushStep('KI führt die Klassenmerkmale zusammen…');
-      const raw = await runAiAction($llmConfig, buildFieldSummaryAction(),
-        buildFieldSummaryInput({
-          target: SHEET_FIELDS.classFeatures,
-          currentText,
-          newNotes: notes,
-          otherFields: [{ label: SHEET_FIELDS.speciesTraits.label, text: character.personal?.rassenmerkmale ?? '' }],
-          chosenSubclass,
-        }), runOpts());
-      if (!alive()) return;
-      const r = parseFieldSummary(raw);
-      if (r && r.text.trim()) { featuresText = r.text; pushStep('Klassenmerkmale zusammengeführt.'); }
-      else pushStep('Keine Zusammenführung erhalten — Rohfassung bleibt stehen.');
-    } catch {
-      pushStep('Zusammenführung fehlgeschlagen — Rohfassung bleibt stehen.');
-    }
-  }
-
-  // ── Checkpoint-Aktionen (Nutzer klickt „Weiter") ────────────────────────────────
-  function startFlow() {
-    if (running) return;
-    if (isNewClass && !newClassKey) { error = 'Bitte eine Klasse für das Multiclassing wählen.'; return; }
-    if (!isNewClass && !hasClasses) return;
-    // State zurücksetzen (Neustart aus choose-class)
-    chosenSubclass = null; subFeatures = []; gainedFeatures = []; riders = []; decisions = []; answers = {};
-    declaredSpells = noDeclaredSpells(); charLevelSpells = noDeclaredSpells();
-    baseAnalysis = null; baseChoices = []; featAnalysis = null; featChoices = [];
-    chosenFeats = []; featAccess = []; featRiders = []; flagged = [];
-    hpPerLevelSources = []; narrativeSummary = ''; featuresText = '';
-    validatedBase = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
-    validatedFeats = { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] };
-
-    runSegment('choose-class', async (alive) => {
-      steps = [];
-      pushStep('Progression & Aufstiegs-Delta werden berechnet…');
-      const d = await computeLevelUpDelta(
-        character, classIndex, targetLevel,
-        isNewClass && newClassKey ? { sourceKey: newClassKey, name: newClassName } : undefined,
-      );
-      if (!alive()) return;
-      delta = d;
-      if (d.atLevelCap) { error = 'Diese Klasse ist bereits auf Stufe 20.'; phase = 'choose-class'; return; }
-      if (d.isHomebrew) {
-        error = 'Stufenaufstieg ist nur mit hinterlegter Klassen-Progression möglich — für diese Klasse gibt es keine Progressionsdaten.';
-        phase = 'choose-class';
-        return;
-      }
-      pushStep(`Delta: ${summarizeDelta(d)}`);
-      await pipelineBody('choose-class', alive);
-    });
-  }
-
-  function confirmSubclass(key: string, name: string) {
-    if (!delta) return;
-    chosenSubclass = { key, name };
-    runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
-  }
-
-  // ── Feature-Wahl-Checkpoints: getroffen → finalisierender Effekt-Call ─────────────
-  function submitFeatureChoices() {
-    if (!delta) return;
-    runSegment('feature-choices', (alive) => pipelineBody('feature-choices', alive));
-  }
-  function submitFeatChoices() {
-    if (!delta) return;
-    runSegment('feat-choices', (alive) => pipelineBody('feat-choices', alive));
-  }
-
-  // ── Schritt 3: Entscheidungen abschicken → Talente oder Assemblierung ────────────
-  function submitDecisions() {
-    if (!delta) return;
-    runSegment('player-decisions', (alive) => pipelineBody('player-decisions', alive));
-  }
-
-  // ── Schritt 4: Talente wählen → Talent-Effekte (KI) ─────────────────────────────
   let featQuery = $state('');
-  function featResults(): FeatEntry[] { return featQuery.trim() ? searchFeats(featLib, featQuery, 8) : []; }
+  function featResults(): FeatEntry[] { return featQuery.trim() ? searchFeats(st.featLib, featQuery, 8) : []; }
   function toggleFeat(entry: FeatEntry) {
     const key = entry.sourceKey ?? '';
     const nameDe = featDisplayName(entry);
     const name = entry.name || nameDe;
-    const idx = chosenFeats.findIndex((f) => f.name === name);
-    if (idx >= 0) { chosenFeats = chosenFeats.filter((_, i) => i !== idx); return; }
-    if (chosenFeats.length >= featsToPick) return;
+    const idx = st.chosenFeats.findIndex((f) => f.name === name);
+    if (idx >= 0) { st.chosenFeats = st.chosenFeats.filter((_, i) => i !== idx); return; }
+    if (st.chosenFeats.length >= st.featsToPick) return;
     // `grantsChoice`/`grants` reisen mit: nur damit lesen `feat-links` den Zauber-Zugang und
     // die pro-Stufe-Effekte deterministisch aus der Bibliothek.
-    chosenFeats = [...chosenFeats, { key, name, nameDe, gainedAt: delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
+    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
     featQuery = '';
-  }
-
-  function confirmFeats() {
-    if (!delta) return;
-    runSegment('feat-choice', (alive) => pipelineBody('feat-choice', alive));
-  }
-
-  // ── Hilfsfunktionen für die Dokument-Projektion ─────────────────────────────────
-  function gatherLearned(): { level: number; name: string }[] {
-    const q = decisions.find((d) => d.id === 'learned_spells');
-    if (!q) return [];
-    return ((answers['learned_spells'] as string[]) ?? []).map(decodePick);
-  }
-  function gatherCantrips(): string[] {
-    return ((answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
-  }
-  function fallbackSummary(): string {
-    const names = [...gainedFeatures.map((f) => f.nameDe || f.name), ...chosenFeats.map((f) => f.nameDe)];
-    const sub = chosenSubclass ? ` · Subklasse: ${chosenSubclass.name}` : '';
-    return `${delta!.klasseName} Stufe ${delta!.fromLevel} → ${delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
-  }
-
-  /**
-   * Zauber der Spezies- und Talent-Deklarationen auf der NEUEN Charakterstufe.
-   *
-   * Eigener Aufruf neben `declaredSpells`, weil `declaredSpellGrants` genau EINE Stufe filtert:
-   * für ein Klassenmerkmal ist das die Klassenstufe, für ein Trait oder Talent die
-   * Charakterstufe (die Elfenlinien-Tabelle 1/3/5 hängt an ihr). Kumulativ und idempotent —
-   * `applyChanges` dedupliziert, schon gewährte Zeilen kosten nichts.
-   */
-  /** Die Charakterstufe NACH diesem Aufstieg — nicht die Klassenstufe (`delta.toLevel`). */
-  const newCharLevel = (): number => totalLevel(character.classes) + (delta!.toLevel - delta!.fromLevel);
-
-  /** Die am Charakter GESPEICHERTE Antwort eines Merkmals, englisch kanonisch. */
-  const storedChoiceOf = (f: { key?: string }): string =>
-    pastChoices.find((p) => p.featureKey === f.key)?.choice ?? '';
-
-  async function resolveCharLevelSpells() {
-    const charLevel = newCharLevel();
-    const species = await declaredSpeciesFeatures(character.species);
-    const sources = [...species, ...featDeclared];
-    const lib = await ensureSpellLib();
-    // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung Stufe
-    // 3 und 5). Die Wahl wird nicht erneut gestellt — ihre Antwort steht am Charakter.
-    charLevelSpells = resolveSpellNames(
-      optionSpellNames(species, storedChoiceOf, charLevel),
-      lib,
-      delta!.klasseName,
-      resolveDeclaredSpells(sources, charLevel, lib, delta!.klasseName),
-    );
-    if (charLevelSpells.flagged.length) flagged = [...new Set([...flagged, ...charLevelSpells.flagged])];
-  }
-
-  // Fortlaufende, PRO-STUFE wirkende Effekte: deterministisch aus `grants.perLevel` des
-  // GESAMTEN Merkmalsbestands (Spezies + Klasse/Subklasse + Talente, inkl. der diesen Level
-  // neu gewonnenen). Vormals ein KI-Call über dieselbe Liste; die Dedup steckt jetzt im
-  // Service, damit Wizard und Aufstieg dieselbe Regel benutzen.
-  async function detectHpPerLevel(alive: () => boolean) {
-    hpPerLevelSources = [];
-    try {
-      const groups = [
-        ...((await resolveSpeciesTraits(character.species)) ?? []),
-        ...(await resolveClassFeatures(character.classes)),
-      ];
-      // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
-      // ihr Merkmal steckt schon in `groups`.
-      const featLinks = await resolveFeatLinks((character.features ?? []).filter((f) => !f.choice?.trim()));
-      const features: PerLevelFeature[] = [
-        ...groups.flatMap((g) => g.features),
-        ...featLinks,
-        ...gainedFeatures,
-        ...chosenFeats,
-      ].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
-      if (!alive()) return;
-      hpPerLevelSources = computeHpPerLevel(features);
-      const perLevelSum = hpPerLevelSum(hpPerLevelSources);
-      if (perLevelSum > 0)
-        pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
-    } catch {
-      hpPerLevelSources = [];
-    }
-  }
-
-  /**
-   * „Nochmal zusammenführen" auf Klick: derselbe Merge, aber auf dem aktuell im Textfeld
-   * stehenden (ggf. handbearbeiteten) Stand statt auf der Rohfassung.
-   */
-  function reworkFeatures() {
-    if (!delta) return;
-    runSegment('class-features', async (alive) => {
-      await mergeClassFeatures(alive, featuresText);
-      phase = 'class-features';
-    });
   }
 
   // Der editierte Klassenmerkmale-Freitext fließt via buildDoc automatisch ins Dokument.
   function confirmClassFeatures() {
-    phase = 'review';
+    st.phase = 'review';
   }
 
   function apply() {
-    if (delta) onApply($state.snapshot(doc) as LevelUpChangeSet, delta);
-    phase = 'done';
+    if (st.delta) onApply($state.snapshot(run.doc) as LevelUpChangeSet, st.delta);
+    st.phase = 'done';
     onclose();
   }
 
-  // ── Gemeinsames LevelUp-Dokument (reine Projektion des States; buildDoc) ─────────
-  // Jeder Schritt schreibt in seine State-Eingaben; das Dokument ist dadurch stets
-  // synchron. Anzeige (Protokoll) UND Anwendung (apply) lesen dasselbe Dokument.
-  // Phasenstand fürs Dokument: während eines Laufs der zuletzt ABGESCHLOSSENE Schritt
-  // (progressiv hochgezählt) — so erscheinen fertige deterministische Teilschritte im
-  // JSON, bevor die nächste KI-Aktion läuft, ohne Vorgriff auf noch laufende Schritte.
-  let viewStep = $derived<StepId>(phase === 'running' ? reachedStep : phase);
-  let doc = $derived.by<LevelUpDoc>(() => {
-    if (!delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
-    return buildDoc({
-      delta, hitDice: character.hitDice ?? '',
-      chosenSubclass, subFeatures, declaredSpells, validatedBase, validatedFeats,
-      answers, konMod: mod(character.kon),
-      pickedCantrips: gatherCantrips(), pickedLearned: gatherLearned(),
-      learnAsPrepared: !learnInfo(delta, riders).spellbook,
-      chosenFeats: chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
-      grantSources: baseDeclared, choiceSources: declaredSources, charLevelSpells,
-      baseChoiceQs, featChoiceQs, gainedFeatures,
-      hpPerLevelSources, narrativeSummary, featuresText, upTo: viewStep,
-    });
-  });
-
-  // ── Progression = Sicht auf das Dokument (gruppiert nach erzeugendem Schritt) ─────
+  // Progression = Sicht auf das Dokument, gruppiert nach erzeugendem Schritt.
   function changeLine(c: Change): string {
     switch (c.target) {
       case 'hpMax':
@@ -990,10 +188,10 @@
   }
   // doc.changes stehen bereits in kanonischer Schritt-Reihenfolge (buildDoc) → die
   // Gruppen entstehen in Erst-Auftritts-Reihenfolge, kein Sortieren nötig.
-  let progressionGroups = $derived.by<{ heading: string; lines: string[] }[]>(() => {
+  const progressionGroups = $derived.by<{ heading: string; lines: string[] }[]>(() => {
     const groups: { heading: string; lines: string[] }[] = [];
     const idx = new Map<string, number>();
-    for (const c of doc.changes) {
+    for (const c of run.doc.changes) {
       let i = idx.get(c.step);
       if (i === undefined) {
         i = groups.length;
@@ -1004,10 +202,10 @@
     }
     return groups;
   });
-  let reviewLines = $derived(doc.changes.map(changeLine));
+  const reviewLines = $derived(run.doc.changes.map(changeLine));
 
   // Live-JSON des gemeinsamen Dokuments (zum Ansehen/Kopieren des Formats).
-  let docJson = $derived(JSON.stringify(doc, null, 2));
+  const docJson = $derived(JSON.stringify(run.doc, null, 2));
   let jsonCopied = $state(false);
   async function copyDoc() {
     try {
@@ -1031,7 +229,6 @@
   <LlmProviderSelect accent="arcane" />
 
   <div class="body">
-  <!-- ── Progression (immer sichtbar) ─── -->
   <aside class="protocol">
     <span class="field-label">Progression</span>
     {#if progressionGroups.length}
@@ -1049,8 +246,7 @@
   </aside>
 
   <div class="main">
-  <!-- ── Klasse wählen ─── -->
-  {#if phase === 'choose-class'}
+  {#if st.phase === 'choose-class'}
     <div class="row">
       <span class="field-label">Welche Klasse steigt auf?</span>
       <select class="select" value={classChoice} onchange={(e) => (classChoice = (e.target as HTMLSelectElement).value)}>
@@ -1090,112 +286,109 @@
     </div>
   {/if}
 
-  <!-- ── Läuft ─── -->
-  {#if phase === 'running'}
+  {#if st.phase === 'running'}
     <AiStatusBanner accent="arcane" text="{currentActivity || 'KI arbeitet…'} ({clock.elapsedSec}s)" />
   {/if}
   {#if clock.stalled}
     <p class="hint warn">Seit {clock.stalledSec}s keine Antwort — du kannst abbrechen und neu starten.</p>
   {/if}
 
-  <!-- ── Subklasse wählen ─── -->
-  {#if phase === 'subclass-choice' && delta}
+  {#if st.phase === 'subclass-choice' && st.delta}
     <div class="row">
-      <span class="field-label">Subklasse für {delta.klasseName}</span>
+      <span class="field-label">Subklasse für {st.delta.klasseName}</span>
       <span class="field-hint">Die Wahl schaltet die Subklassen-Merkmale frei.</span>
       <div class="group-chips">
-        {#each delta.subclassOptions as sc}
-          <button type="button" class="group-chip" class:on={chosenSubclass?.key === sc.key}
-                  onclick={() => (chosenSubclass = { key: sc.key, name: sc.name })}>{sc.name}</button>
+        {#each st.delta.subclassOptions as sc}
+          <button type="button" class="group-chip" class:on={st.chosenSubclass?.key === sc.key}
+                  onclick={() => (st.chosenSubclass = { key: sc.key, name: sc.name })}>{sc.name}</button>
         {/each}
       </div>
-      {#if !delta.subclassOptions.length}<span class="field-hint">Keine Subklassen gefunden.</span>{/if}
+      {#if !st.delta.subclassOptions.length}<span class="field-hint">Keine Subklassen gefunden.</span>{/if}
     </div>
   {/if}
 
-  <!-- ── Feature-Wahlen (gemeinsames Rendering für Merkmale + Talente) ─── -->
+  <!-- Feature-Wahlen (gemeinsames Rendering für Merkmale + Talente) -->
   {#snippet choiceBlock(list: LevelUpQuestion[])}
     <div class="questions">
       {#each list as q (q.id)}
-        <div class="row">
-          <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
-          {#if q.help}<span class="field-hint">{q.help}</span>{/if}
-          {#if q.type === 'choice'}
-            <select class="select" value={answers[q.id] as string} onchange={(e) => setIn('a', q.id, (e.target as HTMLSelectElement).value)}>
-              <option value="">— bitte wählen —</option>
-              {#each q.options as opt}<option value={opt.value}>{opt.label}</option>{/each}
-            </select>
-          {:else if q.type === 'multiselect'}
-            <div class="group-chips">
-              {#each q.options as opt}
-                <button type="button" class="group-chip" class:on={(answers[q.id] as string[])?.includes(opt.value)} onclick={() => toggleIn('a', q.id, opt.value, q.max)}>{opt.label}</button>
-              {/each}
-            </div>
-          {:else if q.type === 'number'}
-            <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
-          {:else if q.type === 'spell-picker'}
-            {@const bind = pickBinding(q.id)}
-            <SpellPickField
-              title={q.prompt}
-              library={spellLib}
-              spellLevels={q.spellLevels}
-              spellClass={q.spellClass}
-              max={q.max ?? 1}
-              bind:picks={bind[0], bind[1]}
-              allowCreate
-              onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
-            />
-          {:else}
-            <textarea class="textarea" rows="2" value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
-          {/if}
-        </div>
+        {@const choice = run.choices.analysisById.get(q.id)}
+        {#if choice && (q.type === 'choice' || q.type === 'multiselect')}
+          <FeatureChoicePicker
+            {choice}
+            answer={answerList(q.id)}
+            open={!hasAnswer(st.answers[q.id])}
+            gainedAt={st.delta?.toLevel ?? 0}
+            onchange={(next) => setAnswerList(q, next)}
+            onapply={() => {}}
+          />
+        {:else}
+          <div class="row">
+            <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
+            {#if q.help}<span class="field-hint">{q.help}</span>{/if}
+            {#if q.type === 'number'}
+              <input class="input" type="number" min={q.min} max={q.max} value={st.answers[q.id] as string} oninput={(e) => setIn(q.id, (e.target as HTMLInputElement).value)} />
+            {:else if q.type === 'spell-picker'}
+              {@const bind = pickBinding(q.id)}
+              <SpellPickField
+                title={q.prompt}
+                library={st.spellLib}
+                spellLevels={q.spellLevels}
+                spellClass={q.spellClass}
+                max={q.max ?? 1}
+                bind:picks={bind[0], bind[1]}
+                allowCreate
+                onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
+              />
+            {:else}
+              <textarea class="textarea" rows="2" value={st.answers[q.id] as string} oninput={(e) => setIn(q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
+            {/if}
+          </div>
+        {/if}
       {/each}
     </div>
   {/snippet}
 
-  <!-- ── Merkmals-Wahlen (direkt nach der Analyse, Call 1) ─── -->
-  {#if phase === 'feature-choices'}
+  {#if st.phase === 'feature-choices'}
     <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
-    {@render choiceBlock(baseChoiceQs)}
+    {@render choiceBlock(run.choices.baseChoiceQs)}
   {/if}
 
-  <!-- ── Talent-Wahlen (direkt nach der Talent-Analyse) ─── -->
-  {#if phase === 'feat-choices'}
-    {#if featChoices.length}
+  {#if st.phase === 'feat-choices'}
+    {#if st.featChoices.length}
       <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
     {:else}
       <p class="hint">Wahl(en) der gewählten Talente — Liste, Attribut und Anzahl stehen in der Bibliothek, hier wird nur ausgewählt.</p>
     {/if}
-    {@render choiceBlock(featChoiceQs)}
+    {@render choiceBlock(run.choices.featChoiceQs)}
   {/if}
 
-  <!-- ── Fragebogen (Entscheidungen) ─── -->
-  {#if phase === 'player-decisions'}
-    {#if decisions.length === 0}
+  <!-- Fragebogen (Entscheidungen) -->
+  {#if st.phase === 'player-decisions'}
+    {#if st.decisions.length === 0}
       <p class="hint">Keine offenen Entscheidungen — direkt zum Vorschlag.</p>
     {/if}
     <div class="questions">
-      {#each decisions as q (q.id)}
+      {#each st.decisions as q (q.id)}
         <div class="row">
           <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
           {#if q.help}<span class="field-hint">{q.help}</span>{/if}
           {#if q.type === 'choice'}
-            <select class="select" value={answers[q.id] as string} onchange={(e) => setIn('a', q.id, (e.target as HTMLSelectElement).value)}>
+            <select class="select" value={st.answers[q.id] as string} onchange={(e) => setIn(q.id, (e.target as HTMLSelectElement).value)}>
               {#each q.options as opt}<option value={opt.value}>{opt.label}</option>{/each}
             </select>
           {:else if q.type === 'multiselect'}
             <div class="group-chips">
               {#each q.options as opt}
-                <button type="button" class="group-chip" class:on={(answers[q.id] as string[])?.includes(opt.value)} onclick={() => toggleIn('a', q.id, opt.value, q.max)}>{opt.label}</button>
+                <button type="button" class="group-chip" class:on={(st.answers[q.id] as string[])?.includes(opt.value)} onclick={() => toggleIn(q.id, opt.value, q.max)}>{opt.label}</button>
               {/each}
             </div>
           {:else if q.type === 'number'}
-            <input class="input" type="number" min={q.min} max={q.max} value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLInputElement).value)} />
+            <input class="input" type="number" min={q.min} max={q.max} value={st.answers[q.id] as string} oninput={(e) => setIn(q.id, (e.target as HTMLInputElement).value)} />
           {:else if q.type === 'spell-picker'}
             {@const bind = pickBinding(q.id)}
             <SpellPickField
               title={q.prompt}
-              library={spellLib}
+              library={st.spellLib}
               spellLevels={q.spellLevels}
               spellClass={q.spellClass}
               max={q.max ?? 1}
@@ -1204,11 +397,11 @@
               onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
             />
           {:else if q.type === 'hp-roll'}
-            {#if answers['hp_method'] === 'roll'}
+            {#if st.answers['hp_method'] === 'roll'}
               <div class="roll">
                 <button type="button" class="secondary-btn" onclick={() => rollHp(q)}>🎲 {hpRolls[q.id]?.length ? 'Neu würfeln' : 'Würfeln'}</button>
                 {#if hpRolls[q.id]?.length}
-                  <span class="roll-result">{hpRolls[q.id].join(' + ')} = <strong>{answers[q.id]}</strong> (+ KON je Stufe)</span>
+                  <span class="roll-result">{hpRolls[q.id].join(' + ')} = <strong>{st.answers[q.id]}</strong> (+ KON je Stufe)</span>
                 {:else}
                   <span class="field-hint">Noch nicht gewürfelt.</span>
                 {/if}
@@ -1217,52 +410,51 @@
               <span class="field-hint">„Durchschnitt" gewählt — kein Wurf nötig.</span>
             {/if}
           {:else}
-            <textarea class="textarea" rows="2" value={answers[q.id] as string} oninput={(e) => setIn('a', q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
+            <textarea class="textarea" rows="2" value={st.answers[q.id] as string} oninput={(e) => setIn(q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
           {/if}
         </div>
       {/each}
     </div>
   {/if}
 
-  <!-- ── Talente wählen ─── -->
-  {#if phase === 'feat-choice' && delta}
+  <!-- Talente wählen -->
+  {#if st.phase === 'feat-choice' && st.delta}
     <div class="row">
-      <span class="field-label">{featsToPick} Talent(e) wählen</span>
+      <span class="field-label">{st.featsToPick} Talent(e) wählen</span>
       <div class="chips">
-        {#each chosenFeats as f}
-          <span class="pick">{f.nameDe}<button type="button" onclick={() => (chosenFeats = chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
+        {#each st.chosenFeats as f}
+          <span class="pick">{f.nameDe}<button type="button" onclick={() => (st.chosenFeats = st.chosenFeats.filter((x) => x.name !== f.name))}>×</button></span>
         {/each}
       </div>
       <input class="input" placeholder="Talent suchen…" value={featQuery} oninput={(e) => (featQuery = (e.target as HTMLInputElement).value)} />
       {#if featQuery.trim()}
         <div class="results">
           {#each featResults() as entry}
-            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={chosenFeats.length >= featsToPick && !chosenFeats.some((f) => f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}</button>
+            <button type="button" class="result" onclick={() => toggleFeat(entry)} disabled={st.chosenFeats.length >= st.featsToPick && !st.chosenFeats.some((f) => f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}</button>
           {/each}
           {#if !featResults().length}<span class="field-hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
         </div>
       {/if}
-      <span class="field-hint">{chosenFeats.length} / {featsToPick} gewählt</span>
+      <span class="field-hint">{st.chosenFeats.length} / {st.featsToPick} gewählt</span>
     </div>
   {/if}
 
-
-  <!-- ── Klassenmerkmale prüfen (bereits zusammengeführt) ─── -->
-  {#if phase === 'class-features'}
+  <!-- Klassenmerkmale prüfen (bereits zusammengeführt) -->
+  {#if st.phase === 'class-features'}
     <div class="row">
       <span class="field-label">Klassenmerkmale & Eigenschaften</span>
       <span class="field-hint">Die KI hat die neuen Merkmale bereits verkürzt ins bestehende Feld eingearbeitet. Du kannst frei nachbearbeiten oder erneut zusammenführen lassen.</span>
-      {#if gainedFeatures.length}
+      {#if st.gainedFeatures.length}
         <div class="facts">
-          {#each gainedFeatures as gf}<div class="fact">• {gf.name}{gf.source === 'subclass' ? ' (Subklasse)' : ''}</div>{/each}
+          {#each st.gainedFeatures as gf}<div class="fact">• {gf.name}{gf.source === 'subclass' ? ' (Subklasse)' : ''}</div>{/each}
         </div>
       {/if}
-      <textarea class="textarea ta-features" rows="10" bind:value={featuresText}></textarea>
-      <button type="button" class="secondary-btn rework-btn" onclick={reworkFeatures} disabled={running}>🪄 Nochmal zusammenführen</button>
+      <textarea class="textarea ta-features" rows="10" bind:value={st.featuresText}></textarea>
+      <button type="button" class="secondary-btn rework-btn" onclick={run.rework} disabled={st.running}>🪄 Nochmal zusammenführen</button>
     </div>
   {/if}
 
-  <!-- ── Inline-Zauberanlage ─── -->
+  <!-- Inline-Zauberanlage -->
   {#if spellCreator}
     <div class="creator">
       <span class="field-label">Neuen Zauber anlegen</span>
@@ -1284,18 +476,18 @@
     </div>
   {/if}
 
-  <!-- ── Review ─── -->
-  {#if phase === 'review'}
-    {#if doc.summary}<p class="hint">{doc.summary}</p>{/if}
+  <!-- Review -->
+  {#if st.phase === 'review'}
+    {#if run.doc.summary}<p class="hint">{run.doc.summary}</p>{/if}
     <div class="review">
-      <div class="review-line">✦ {doc.klasse || 'Klasse'}: Stufe {doc.fromLevel} → {doc.toLevel}</div>
+      <div class="review-line">✦ {run.doc.klasse || 'Klasse'}: Stufe {run.doc.fromLevel} → {run.doc.toLevel}</div>
       {#each reviewLines as line}<div class="review-line">✦ {line}</div>{/each}
       {#if reviewLines.length === 0}<div class="review-line muted">Keine automatischen Änderungen erkannt.</div>{/if}
     </div>
-    {#if flagged.length}
+    {#if st.flagged.length}
       <div class="flagged">
         <span class="field-label warn">Nicht in der Bibliothek gefunden</span>
-        {#each flagged as f}
+        {#each st.flagged as f}
           <div class="flagged-line">⚠ {f}
             <button type="button" class="link-btn" onclick={() => openSpellCreator(f, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], null)}>anlegen</button>
           </div>
@@ -1305,35 +497,34 @@
     <p class="field-hint">Die Änderungen werden additiv in den Entwurf übernommen (bestehende Item-Boni bleiben erhalten) und farblich hervorgehoben. Speichern/Verwerfen wie gewohnt.</p>
   {/if}
 
-  {#if error}<p class="hint err">{error}</p>{/if}
+  {#if st.error}<p class="hint err">{st.error}</p>{/if}
 
-  <!-- ── Aktionen ─── -->
   <div class="actions">
-    {#if phase === 'running'}
-      <button class="secondary-btn" onclick={stop}>Abbrechen</button>
-    {:else if phase === 'choose-class'}
+    {#if st.phase === 'running'}
+      <button class="secondary-btn" onclick={run.stop}>Abbrechen</button>
+    {:else if st.phase === 'choose-class'}
       <button class="secondary-btn" onclick={onclose}>Schließen</button>
       <button class="primary-btn" onclick={startFlow}
               disabled={(isNewClass && !newClassKey) || (!isNewClass && effectiveFrom >= 20)}>Weiter</button>
-    {:else if phase === 'subclass-choice'}
+    {:else if st.phase === 'subclass-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => chosenSubclass && confirmSubclass(chosenSubclass.key, chosenSubclass.name)} disabled={!chosenSubclass}>Weiter</button>
-    {:else if phase === 'feature-choices'}
+      <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
+    {:else if st.phase === 'feature-choices'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitFeatureChoices} disabled={!allBaseChoices}>Weiter</button>
-    {:else if phase === 'player-decisions'}
+      <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
+    {:else if st.phase === 'player-decisions'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitDecisions} disabled={!allAnswered}>Weiter</button>
-    {:else if phase === 'feat-choice'}
+      <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!allAnswered}>Weiter</button>
+    {:else if st.phase === 'feat-choice'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={confirmFeats} disabled={chosenFeats.length !== featsToPick}>Weiter</button>
-    {:else if phase === 'feat-choices'}
+      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={st.chosenFeats.length !== st.featsToPick}>Weiter</button>
+    {:else if st.phase === 'feat-choices'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={submitFeatChoices} disabled={!allFeatChoices}>Weiter</button>
-    {:else if phase === 'class-features'}
+      <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
+    {:else if st.phase === 'class-features'}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={confirmClassFeatures}>Weiter</button>
-    {:else if phase === 'review'}
+    {:else if st.phase === 'review'}
       <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
       <button class="primary-btn" onclick={apply}>In den Entwurf übernehmen</button>
     {/if}
@@ -1341,8 +532,7 @@
   </div><!-- .main -->
   </div><!-- .body -->
 
-  <!-- ── JSON-Dokument (volle Breite, unten) ─── -->
-  {#if delta}
+  {#if st.delta}
     <details class="json-view">
       <summary>
         <span>JSON-Dokument</span>
