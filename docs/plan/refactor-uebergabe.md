@@ -72,8 +72,8 @@ zu Beginn waren es 56). Zyklen prüft `npx madge --circular --extensions ts,svel
 **Die Warnliste namentlich vergleichen, nicht nur zählen.** Eine verwaiste CSS-Regel und ein neu
 greifender Selektor heben sich in der Summe auf.
 
-Referenzstand nach Etappe 4: **876 Dateien, 0 Fehler, 56 Warnungen, 88 Tests grün, 48.737 Zeilen
-in `src`.**
+Referenzstand am Ende: **966 Dateien, 0 Fehler, 39 Warnungen, 88 Tests grün, 44.703 Zeilen in
+`src`** (Start: 48.433).
 
 ## Fallen, die schon Zeit gekostet haben
 
