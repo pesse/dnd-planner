@@ -6,7 +6,7 @@
   import DragonMark from './DragonMark.svelte';
   import VaultTransferModal from './VaultTransferModal.svelte';
   import LibraryManager from './LibraryManager.svelte';
-  import { activeCampaign, activeFile, setFileContent, vaultVersion, newItemDraft } from '../stores/campaign';
+  import { activeCampaign, activeFile, setFileContent, vaultVersion } from '../stores/campaign';
   import { confirmNavigation } from '../stores/navigationGuard';
   import { confirmAction } from '../stores/confirmDialog';
   import { pushError } from '../stores/errors';
@@ -32,7 +32,7 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { parseCharacterData, emptySpells, emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
   import { CHARACTER_VERSION } from '../schemas/characterUpgrades';
-  import { ITEMS_PATH, invalidateItemCache, getItemsByDir, searchItems, displayName as itemDisplayName, blankItem, dirOf as itemDirOf, toHomebrewCopy } from '../itemLibrary';
+  import { ITEMS_PATH, invalidateItemCache, getItemsByDir, searchItems, displayName as itemDisplayName, blankItem, toHomebrewCopy } from '../itemLibrary';
   import { CATEGORY_LABELS as ITEM_CAT_LABELS, DIR_TO_CATEGORY as ITEM_DIR_TO_CAT, rarityColor } from '../itemLabels';
   import { SCHOOL_COLORS } from '../spellLibrary';
   import { getClasses, getClassTree, searchClasses, classDisplayName, invalidateClassCache, type ClassNode } from '../classLibrary';
@@ -1754,7 +1754,6 @@
       blank={(name) => blankItem(name, itemDirs[0] ?? 'other')}
       buildAction={createItemAction}
       nameOf={(i: Item) => i.name_de || i.name || 'Gegenstand'}
-      onCreated={(item: Item) => newItemDraft.set({ item, dir: itemDirOf(item) })}
       onclose={() => (showItemModal = false)}
     />
   {/if}

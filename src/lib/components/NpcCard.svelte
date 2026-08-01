@@ -1,9 +1,5 @@
 <script lang="ts">
-  import { activeFile, fileContent, setFileContent } from '../stores/campaign';
   import { invoke } from '@tauri-apps/api/core';
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { pushError } from '../stores/errors';
   import { getSpellLibrary, loadSpellByPath, searchSpells, SCHOOL_COLORS, type SpellSuggestion } from '../spellLibrary';
   import { getItemsByDir, searchItems, displayName, buildItemIndex, matchItem, structuralType, type ItemInfo, type ItemSuggestion } from '../itemLibrary';
   import { CATEGORY_COLORS, DIR_TO_CATEGORY } from '../itemLabels';
@@ -13,81 +9,34 @@
   import { spellDesc, spellHigherLevel, spellComponents, spellSchoolLabel } from '../types';
   import { SKILL_DEFS, mod, modStr } from '../domain/skills';
   import { sign } from '../utils/num';
+  import { createCardEditor } from '../editor/cardEditor.svelte';
+  import { normalizeNpc } from '../utils/schemaValidation';
+  import { openItemPage } from '../services/vaultLinks';
+  import type { Npc, NpcStats } from '../schemas/npc';
   import Markdown from './Markdown.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
 
-  interface NpcStats {
-    str: number; dex: number; con: number;
-    int: number; wis: number; cha: number;
-  }
-
-  interface NpcSkill {
-    bonus: number;
-    prof: boolean;
-  }
-
-  interface NpcSpell {
-    name: string;
-    level: number; // 0 = Zaubertrick
-  }
-
-  interface NpcData {
-    name: string;
-    role: string;
-    status: 'lebendig' | 'tot' | 'vermisst' | 'unbekannt';
-    appearance: string;
-    personality: string;
-    motivation: string;
-    secret: string;
-    notes: string;
-    ac: number;
-    hp: string;
-    speed: string;
-    stats: NpcStats;
-    savingThrows: Record<string, NpcSkill>;
-    skills: Record<string, NpcSkill>;
-    spells: NpcSpell[];
-    inventory: string[];
-    tags: string[];
-  }
-
-  function parseNpc(json: string): NpcData | null {
+  function parseNpc(json: string): Npc | null {
     try {
-      const obj = JSON.parse(json);
-      if (!obj || typeof obj !== 'object') return null;
-      obj.name        ??= '';
-      obj.role        ??= '';
-      obj.status      ??= 'lebendig';
-      obj.appearance  ??= '';
-      obj.personality ??= '';
-      obj.motivation  ??= '';
-      obj.secret      ??= '';
-      obj.notes       ??= '';
-      obj.ac          ??= 10;
-      obj.hp          ??= '';
-      obj.speed       ??= '';
-      obj.stats        ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-      obj.savingThrows ??= {};
-      obj.skills       ??= {};
-      obj.spells       ??= [];
-      obj.inventory    ??= [];
-      obj.tags         ??= [];
-      // migrate old string-valued skills/savingThrows → { bonus, prof }
-      for (const key of Object.keys(obj.skills)) {
-        const v = obj.skills[key];
-        if (typeof v === 'string') obj.skills[key] = { bonus: parseInt(v) || 0, prof: false };
-      }
-      for (const key of Object.keys(obj.savingThrows)) {
-        const v = obj.savingThrows[key];
-        if (typeof v === 'string') obj.savingThrows[key] = { bonus: parseInt(v) || 0, prof: false };
-      }
-      // migrate old string spells → { name, level }
-      obj.spells = (obj.spells as unknown[]).map((s) =>
-        typeof s === 'string' ? { name: s, level: 1 } : s
-      );
-      return obj as NpcData;
+      const raw = JSON.parse(json);
+      if (!raw || typeof raw !== 'object') return null;
+      return normalizeNpc(raw);
     } catch { return null; }
   }
+
+  const ed = createCardEditor<Npc>({ type: 'npc', label: 'NPC', parse: parseNpc });
+  const draft = $derived(ed.draft);
+
+  /**
+   * Der Bogen hat keine Speichern-Leiste — er schreibt 600 ms nach der letzten
+   * Änderung selbst. Der Guard deckt genau dieses Fenster ab.
+   */
+  const draftJson = $derived(draft ? JSON.stringify(draft) : '');
+  $effect(() => {
+    if (!draftJson || !ed.dirty) return;
+    const timer = setTimeout(() => ed.save(), 600);
+    return () => clearTimeout(timer);
+  });
 
   const STAT_LABELS: (keyof NpcStats)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   const STAT_NAMES: Record<keyof NpcStats, string> = {
@@ -99,9 +48,6 @@
     str: 'str', ges: 'dex', kon: 'con', int: 'int', wei: 'wis', cha: 'cha',
   };
 
-  let draft = $state<NpcData | null>(null);
-  let dirty = $state(false);
-  let saveError = $state('');
   let showJson = $state(false);
   let rawJson = $state('');
   let jsonError = $state('');
@@ -165,11 +111,6 @@
     tooltipY = e.clientY + 14;
   }
   function hideItemTooltip() { tooltipItem = null; }
-
-  function openItemPage(libItem: ItemInfo) {
-    const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
-    activeFile.set({ name, path: libItem.path, type: 'item' });
-  }
 
   function onItemInput() {
     itemSuggestions = searchItems(itemLoadedByDir, newItem, 8);
@@ -246,57 +187,6 @@
       }
     }
   }
-  let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
-  onMount(() => {
-    async function load(path: string) {
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        const parsed = parseNpc(content);
-        draft = parsed ? structuredClone(parsed) : null;
-        dirty = false;
-        saveError = '';
-        setFileContent(content);
-      } catch (e) {
-        pushError(`NPC konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
-        draft = null;
-      }
-    }
-
-    const initial = get(activeFile);
-    if (initial?.type === 'npc' && initial.path) load(initial.path);
-
-    const unsub = activeFile.subscribe((file) => {
-      if (file?.type === 'npc' && file.path) load(file.path);
-    });
-
-    const unsubContent = fileContent.subscribe((content) => {
-      const file = get(activeFile);
-      if (!content || file?.type !== 'npc') return;
-      const parsed = parseNpc(content);
-      if (parsed) { draft = structuredClone(parsed); dirty = false; }
-    });
-
-    return () => { unsub(); unsubContent(); };
-  });
-
-  function scheduleSave() {
-    dirty = true;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 600);
-  }
-
-  async function save() {
-    const file = get(activeFile);
-    if (!file?.path || !draft) return;
-    try {
-      const content = JSON.stringify(draft, null, 2);
-      await invoke('write_file_content', { path: file.path, content });
-      setFileContent(content);
-      dirty = false;
-      saveError = '';
-    } catch (e) { saveError = String(e); }
-  }
 
   function openJson() {
     if (!draft) return;
@@ -308,9 +198,8 @@
   function applyJson() {
     const parsed = parseNpc(rawJson);
     if (!parsed) { jsonError = 'Ungültiges JSON'; return; }
-    draft = parsed;
+    ed.draft = parsed;
     showJson = false;
-    scheduleSave();
   }
 
   // Saving throws: click prof-dot to toggle proficiency on/off
@@ -323,8 +212,6 @@
       const base = mod(draft.stats[key as keyof NpcStats]);
       draft.savingThrows[key] = { bonus: base + 2, prof: true };
     }
-    draft = draft;
-    scheduleSave();
   }
 
   function toggleSkillProf(key: string) {
@@ -338,32 +225,26 @@
       const base = mod(draft.stats[statKey]);
       draft.skills[key] = { bonus: base + 2, prof: true };
     }
-    draft = draft;
-    scheduleSave();
   }
 
   function addSpell() {
     if (!draft || !newSpell.trim()) return;
     draft.spells = [...draft.spells, { name: newSpell.trim(), level: newSpellLevel }];
     newSpell = ''; newSpellLevel = 1; spellSuggestions = [];
-    scheduleSave();
   }
   function removeSpell(i: number) {
     if (!draft) return;
     draft.spells = draft.spells.filter((_, idx) => idx !== i);
-    scheduleSave();
   }
 
   function addItem() {
     if (!draft || !newItem.trim()) return;
     draft.inventory = [...draft.inventory, newItem.trim()];
     newItem = '';
-    scheduleSave();
   }
   function removeItem(i: number) {
     if (!draft) return;
     draft.inventory = draft.inventory.filter((_, idx) => idx !== i);
-    scheduleSave();
   }
 
   function tagsString(tags: string[]): string { return tags.join(', '); }
@@ -371,7 +252,7 @@
     return s.split(',').map((t) => t.trim()).filter(Boolean);
   }
 
-  const STATUS_LABELS: Record<NpcData['status'], string> = {
+  const STATUS_LABELS: Record<Npc['status'], string> = {
     lebendig: 'Lebendig', tot: 'Tot', vermisst: 'Vermisst', unbekannt: 'Unbekannt',
   };
 </script>
@@ -395,18 +276,18 @@
     <!-- Header -->
     <div class="npc-header">
       <div class="name-block">
-        <input class="npc-name" bind:value={draft.name} oninput={scheduleSave} placeholder="Name" />
-        <input class="npc-role" bind:value={draft.role} oninput={scheduleSave} placeholder="Rolle" />
+        <input class="npc-name" bind:value={draft.name} placeholder="Name" />
+        <input class="npc-role" bind:value={draft.role} placeholder="Rolle" />
       </div>
       <div class="header-right">
-        <select class="npc-status status-{draft.status}" bind:value={draft.status} onchange={scheduleSave}>
+        <select class="npc-status status-{draft.status}" bind:value={draft.status}>
           {#each Object.entries(STATUS_LABELS) as [val, label]}
             <option value={val}>{label}</option>
           {/each}
         </select>
         <div class="header-foot">
-          {#if saveError}<span class="save-error-msg">{saveError}</span>{/if}
-          <span class="dirty-dot">{dirty ? '●' : ''}</span>
+          {#if ed.saveError}<span class="save-error-msg">{ed.saveError}</span>{/if}
+          <span class="dirty-dot">{ed.dirty ? '●' : ''}</span>
           <button class="json-btn" onclick={openJson}>JSON</button>
         </div>
       </div>
@@ -420,7 +301,7 @@
           <div class="attr-box">
             <div class="attr-label">{STAT_NAMES[attr]}</div>
             <div class="attr-mod">{modStr(draft.stats[attr])}</div>
-            <input class="attr-score" type="number" bind:value={draft.stats[attr]} oninput={scheduleSave} />
+            <input class="attr-score" type="number" bind:value={draft.stats[attr]} />
           </div>
         {/each}
       </div>
@@ -432,15 +313,15 @@
           <div class="stats-grid">
             <div class="stat">
               <span class="sl">RK</span>
-              <input class="sv sv-input" type="number" bind:value={draft.ac} oninput={scheduleSave} />
+              <input class="sv sv-input" type="number" bind:value={draft.ac} />
             </div>
             <div class="stat">
               <span class="sl">TP</span>
-              <input class="sv sv-input wide" bind:value={draft.hp} oninput={scheduleSave} placeholder="z.B. 27 (5W8+5)" />
+              <input class="sv sv-input wide" bind:value={draft.hp} placeholder="z.B. 27 (5W8+5)" />
             </div>
             <div class="stat">
               <span class="sl">Tempo</span>
-              <input class="sv sv-input wide" bind:value={draft.speed} oninput={scheduleSave} placeholder="z.B. 9 m" />
+              <input class="sv sv-input wide" bind:value={draft.speed} placeholder="z.B. 9 m" />
             </div>
           </div>
         </div>
@@ -617,8 +498,8 @@
             <div class="npc-field">
               <label>{field.label}</label>
               <textarea
-                value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                value={draft[field.key as keyof Npc] as string}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -630,8 +511,8 @@
             <div class="npc-field">
               <label>{field.label}</label>
               <textarea
-                value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                value={draft[field.key as keyof Npc] as string}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -642,7 +523,7 @@
       <!-- Geheimnis -->
       <div class="section secret-section">
         <h3>Geheimnis</h3>
-        <textarea class="secret-ta" bind:value={draft.secret} oninput={scheduleSave} rows="2" placeholder="—"></textarea>
+        <textarea class="secret-ta" bind:value={draft.secret} rows="2" placeholder="—"></textarea>
       </div>
 
       <!-- Tags -->
@@ -651,7 +532,7 @@
         <input
           class="tags-input"
           value={tagsString(draft.tags)}
-          oninput={(e) => { draft!.tags = parseTags((e.currentTarget as HTMLInputElement).value); scheduleSave(); }}
+          oninput={(e) => { draft.tags = parseTags((e.currentTarget as HTMLInputElement).value); }}
           placeholder="kommagetrennt"
         />
       </div>
@@ -896,9 +777,6 @@
   }
   .skill-row.proficient .skill-val { color: var(--green); }
 
-  .prof-dot-static { font-size: 0.65rem; color: var(--ink-muted); width: 0.8rem; }
-  .proficient .prof-dot-static { color: var(--green); }
-
   .skill-name { flex: 1; color: var(--ink-soft); }
   .skill-val  { font-weight: 600; min-width: 2rem; text-align: right; }
 
@@ -1097,17 +975,6 @@
     color: var(--ink-muted);
     white-space: nowrap;
   }
-
-  .prof-check {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .prof-check input { cursor: pointer; }
 
   .add-btn {
     background: none;

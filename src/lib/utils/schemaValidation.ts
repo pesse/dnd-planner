@@ -12,6 +12,7 @@ import { spellSchema, migrateSpellLegacy } from '../schemas/spell';
 import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
+import { npcSchema, migrateNpcLegacy, type Npc } from '../schemas/npc';
 import { characterSchema, type Character } from '../schemas/characterSchema';
 import { migrateCharacterLegacy } from '../schemas/characterUpgrades';
 import { classProgressionSchema, migrateClassLegacy, type ClassProgression } from '../schemas/classProgression';
@@ -58,6 +59,9 @@ export const parseMonster = (raw: unknown): ParseResult<Monster> => parse(monste
 // ── Item ───────────────────────────────────────────────────────────────────────
 export const normalizeItem = (raw: unknown): Item => normalize(itemSchema, migrateItemLegacy, raw);
 export const parseItem = (raw: unknown): ParseResult<Item> => parse(itemSchema, migrateItemLegacy, raw);
+
+// ── NPC ────────────────────────────────────────────────────────────────────────
+export const normalizeNpc = (raw: unknown): Npc => normalize(npcSchema, migrateNpcLegacy, raw);
 
 // ── Encounter ────────────────────────────────────────────────────────────────────
 export const normalizeEncounter = (raw: unknown): Encounter => normalize(encounterSchema, migrateEncounterLegacy, raw);

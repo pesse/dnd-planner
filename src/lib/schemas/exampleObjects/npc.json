@@ -1,0 +1,45 @@
+{
+  "name": "string",
+  "role": "string",
+  "status": "lebendig",
+  "appearance": "string",
+  "personality": "string",
+  "motivation": "string",
+  "secret": "string",
+  "notes": "string",
+  "ac": 10,
+  "hp": "string",
+  "speed": "string",
+  "stats": {
+    "str": -9007199254740991,
+    "dex": -9007199254740991,
+    "con": -9007199254740991,
+    "int": -9007199254740991,
+    "wis": -9007199254740991,
+    "cha": -9007199254740991
+  },
+  "savingThrows": {
+    "<key>": {
+      "bonus": 0,
+      "prof": false
+    }
+  },
+  "skills": {
+    "<key>": {
+      "bonus": 0,
+      "prof": false
+    }
+  },
+  "spells": [
+    {
+      "name": "string",
+      "level": 1
+    }
+  ],
+  "inventory": [
+    "string"
+  ],
+  "tags": [
+    "string"
+  ]
+}

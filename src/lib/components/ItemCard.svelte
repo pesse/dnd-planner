@@ -1,37 +1,27 @@
 <script lang="ts">
-  import { activeFile, setFileContent, newItemDraft, invalidateVault } from '$lib/stores/campaign';
-  import { invoke } from '@tauri-apps/api/core';
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { pushError } from '$lib/stores/errors';
   import type { Item } from '$lib/types';
   import { ITEMS_PATH, dirOf, structuralType, isMagicItem, invalidateItemCache } from '$lib/itemLibrary';
-  import { CATEGORY_LABELS, CATEGORY_TO_DIR, RARITY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS, PROPERTY_INDEX_BY_LABEL, MASTERY_INFO, masteryLabel, COST_UNIT_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, rarityColor } from '$lib/itemLabels';
-  import { formatCost, formatRarity, formatDamageDice, ftToM, ftToMVal, mToFt } from '$lib/itemFormat';
+  import { CATEGORY_LABELS, CATEGORY_TO_DIR, DAMAGE_TYPE_LABELS, PROPERTY_LABELS, PROPERTY_INDEX_BY_LABEL, MASTERY_INFO, masteryLabel, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, rarityColor } from '$lib/itemLabels';
+  import { formatCost, formatRarity, formatDamageDice, ftToM } from '$lib/itemFormat';
   import { translateItem } from '$lib/services/aiActions/translateAction';
   import type { ItemTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { normalizeItem } from '$lib/utils/schemaValidation';
   import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel } from '$lib/schemas/source';
-  import { WEAPON_MASTERIES } from '$lib/schemas/vocabulary';
   import { prepareItemPrint } from '$lib/utils/printItem';
-  import { preferredCardTab } from '$lib/stores/uiPrefs';
-  import DndApiSearch from './DndApiSearch.svelte';
+  import { createCardEditor } from '$lib/editor/cardEditor.svelte';
+  import { slugKeepUmlauts } from '$lib/utils/text';
+  import { activeFile, invalidateVault } from '$lib/stores/campaign';
   import EditorPanel from './EditorPanel.svelte';
-  import { getOpen5eItem, searchOpen5eItems, type Open5eItemSearchResult } from '$lib/services/open5eClient';
-  import { mapOpen5eItem } from '$lib/services/open5eItemMapper';
   import AiEditModal from './AiEditModal.svelte';
   import { editItemAction } from '$lib/services/aiActions/itemAction';
   import TranslateModal from './TranslateModal.svelte';
   import Markdown from './Markdown.svelte';
-  import { registerEditorGuard } from '$lib/stores/navigationGuard';
-  import { slugKeepUmlauts } from '$lib/utils/text';
-
-  // ── Konstanten ───────────────────────────────────────────────────────────────
-
-  const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'];
-  const COST_UNITS = ['gp', 'sp', 'cp', 'ep', 'pp'];
-  const ARMOR_CATEGORIES = ['Light', 'Medium', 'Heavy', 'Shield'];
+  import MagicFacetFields from './item/MagicFacetFields.svelte';
+  import WeaponFields from './item/WeaponFields.svelte';
+  import ArmorFields from './item/ArmorFields.svelte';
+  import CostWeightFields from './item/CostWeightFields.svelte';
+  import Open5eImportPanel from './item/Open5eImportPanel.svelte';
 
   /** Aktueller Kategorie-Schlüssel (= Ordnername). Quelle: equipment_category (via dirOf). */
   const categoryKeyOf = dirOf;
@@ -42,183 +32,15 @@
   }
 
   function setDraftCategory(catKey: string) {
-    if (!draft) return;
-    draft.equipment_category = { index: catKey, name: categoryApiName(catKey) };
+    if (!ed.draft) return;
+    ed.draft.equipment_category = { index: catKey, name: categoryApiName(catKey) };
   }
 
-  // ── State ────────────────────────────────────────────────────────────────────
-
-  let rawJson = $state('');
-
-  // Noch nicht gespeicherter Entwurf (KI- oder manuelle Anlage). Ist er gesetzt,
-  // startet die Card direkt im Bearbeiten-Modus; gespeichert wird erst per "Speichern".
-  let newDraft = $state<{ item: Item; dir: string } | null>(null);
-
-  onMount(() => {
-    async function load(path: string) {
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        // Editier-State zurücksetzen, damit das neue Item frisch initialisiert.
-        editing = false;
-        draft = null;
-        apiRawResponse = null;
-        importError = '';
-        showSaveAs = false;
-        // Im übergreifend zuletzt gewählten Modus öffnen (Karte/Bearbeiten).
-        tab = get(preferredCardTab);
-        rawJson = content;
-        setFileContent(content);
-      } catch (e) {
-        pushError(`Gegenstand konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
-        rawJson = '{}';
-      }
-    }
-
-    const initial = get(activeFile);
-    if (initial?.type === 'item' && initial.path) load(initial.path);
-
-    const unsubFile = activeFile.subscribe((file) => {
-      if (file?.type === 'item' && file.path) load(file.path);
-    });
-
-    // Entwurf: rohes JSON setzen und direkt in den Bearbeiten-Modus wechseln.
-    const unsubDraft = newItemDraft.subscribe((d) => {
-      newDraft = d;
-      if (d) {
-        rawJson = JSON.stringify(d.item, null, 2);
-        setFileContent(rawJson);
-        editing = false;       // erzwingt frisches startEdit über den $effect
-        draft = null;
-        tab = 'bearbeiten';
-      }
-    });
-
-    const unguard = registerEditorGuard({
-      isDirty: () => dirty,
-      save: async () => {
-        const keepTab = tab;
-        await save();
-        // Neuer Entwurf: save() öffnet erst „Speichern unter" (Dateiname nötig) →
-        // Navigation abbrechen, bis der Nutzer den Namen bestätigt hat.
-        if (newDraft) throw new Error('Dateiname erforderlich');
-        tab = keepTab;   // Bearbeiten-Modus über die Navigation hinweg erhalten
-      },
-      discard: () => {
-        const keepTab = tab;
-        discard();
-        tab = keepTab;
-      },
-    });
-
-    return () => { unsubFile(); unsubDraft(); unguard(); };
-  });
-
-  let parsed = $derived.by(() => {
-    if (!rawJson) return { item: null as Item | null, parseError: null as string | null };
-    try {
-      return { item: normalizeItem(JSON.parse(rawJson)), parseError: null };
-    } catch (e) {
-      return { item: null, parseError: e instanceof Error ? e.message : String(e) };
-    }
-  });
-  let item = $derived(parsed.item);
-  let parseError = $derived(parsed.parseError);
-  let color = $derived(rarityColor(item?.rarity));
-
-  // ── Bearbeiten ───────────────────────────────────────────────────────────────
-
-  type Tab = 'karte' | 'bearbeiten' | 'json';
-  let tab     = $state<Tab>('karte');
-  let editing = $state(false);
-  let draft   = $state<Item | null>(null);
-  // Beim Editier-Start erfasster Stand (Draft inkl. Text-Spiegel, durch mergeDraftFields
-  // serialisiert). Vergleichsbasis für „wirklich geändert?".
-  let editBaseline = $state('');
-
-  // Wirklich geändert? (nicht bloß „im Bearbeiten-Modus"). Beide Seiten laufen durch
-  // denselben (verlustbehafteten) mergeDraftFields-Roundtrip, daher kein Falsch-Positiv
-  // aus der Rekonstruktion. Ungespeicherte Neuanlagen gelten immer als dirty.
-  let dirty   = $derived.by(() => {
-    if (newDraft) return true;
-    if (!editing || !draft) return false;
-    return JSON.stringify(mergeDraftFields($state.snapshot(draft) as Item)) !== editBaseline;
-  });
-
-  // Beim Wechsel auf Bearbeiten-Tab Draft initialisieren
-  $effect(() => {
-    if (tab === 'bearbeiten' && !editing && item) startEdit();
-  });
-
-  // Tab-Wechsel übergreifend merken (json bewusst ausgenommen).
-  $effect(() => {
-    if (tab === 'karte' || tab === 'bearbeiten') preferredCardTab.set(tab);
-  });
-  let draftDescText  = $state('');
+  // Text-Spiegel der Listen-/Objektfelder: im Formular Text, im Draft Struktur.
+  let draftDescText   = $state('');
   let draftDescDeText = $state('');
-  let draftPropsText = $state('');
+  let draftPropsText  = $state('');
   let draftRarityName = $state('');
-
-  function startEdit() {
-    if (!item) return;
-    draft = JSON.parse(JSON.stringify(item));
-    draftDescText   = (item.desc    ?? []).join('\n\n');
-    draftDescDeText = (item.desc_de ?? []).join('\n\n');
-    draftPropsText  = (item.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
-    draftRarityName = item.rarity?.name ?? '';
-    editing = true;
-    // Baseline nach Setzen aller Spiegel erfassen (gleicher Roundtrip wie der Dirty-Check).
-    editBaseline = JSON.stringify(mergeDraftFields($state.snapshot(draft) as Item));
-  }
-
-  // Speichern-unter-State für noch nicht gespeicherte Entwürfe.
-  let showSaveAs = $state(false);
-  let newFilename = $state('');
-
-  function discard() {
-    if (newDraft) {
-      // Ungespeicherten Entwurf verwerfen → Card schließen.
-      newItemDraft.set(null);
-      activeFile.set(null);
-    }
-    editing = false;
-    draft = null;
-    apiRawResponse = null;
-    importError = '';
-    showSaveAs = false;
-    tab = 'karte';
-  }
-
-  /** Schreibt JSON; verschiebt die Datei in den Kategorie-Ordner, falls sich die Kategorie geändert hat. */
-  async function persistItem(json: string, newCatKey: string): Promise<boolean> {
-    const file = $activeFile;
-    if (!file?.path) return false;
-
-    const oldPath = file.path;
-    const filename = oldPath.split('/').pop() ?? '';
-    const oldDir = oldPath.split('/').at(-2) ?? '';
-    const newDir = CATEGORY_TO_DIR[newCatKey] ?? oldDir;
-    const moveNeeded = !!newDir && newDir !== oldDir;
-    const newPath = moveNeeded ? `${ITEMS_PATH}/${newDir}/${filename}` : oldPath;
-
-    try {
-      if (moveNeeded) {
-        await invoke('rename_file', { oldPath, newPath });
-      }
-      await invoke('write_file_content', { path: newPath, content: json });
-
-      if (oldDir) invalidateItemCache(oldDir);
-      if (moveNeeded) {
-        invalidateItemCache(newDir);
-        activeFile.set({ ...file, path: newPath });
-      }
-      rawJson = json;
-      setFileContent(json);
-      return true;
-    } catch (e) {
-      pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
-      return false;
-    }
-  }
 
   /** Pure: liefert eine Kopie von `base` mit eingearbeiteten Text-Spiegeln (Beschreibung,
    *  Eigenschaften, Seltenheit) — ohne `base` zu verändern. Basis für Speichern & Dirty-Check. */
@@ -240,125 +62,85 @@
     return d;
   }
 
-  /** Überträgt die Text-Spiegel (Beschreibung, Eigenschaften, Seltenheit) in den Draft. */
-  function applyDraftFields() {
-    if (!draft) return;
-    const merged = mergeDraftFields($state.snapshot(draft) as Item);
-    draft.desc       = merged.desc;
-    draft.desc_de    = merged.desc_de;
-    draft.rarity     = merged.rarity;
-    draft.properties = merged.properties;
+  function merged(draft: Item, indent?: number): string {
+    return JSON.stringify(mergeDraftFields($state.snapshot(draft) as Item), null, indent);
   }
 
-  async function save() {
-    if (!draft) return;
-    applyDraftFields();
-    if (newDraft) {
-      // Neuer Entwurf: Dateiname abfragen (vorausgefüllt), noch nicht schreiben.
-      newFilename = slugKeepUmlauts(draft.name_de || draft.name || 'gegenstand');
-      showSaveAs = true;
-      return;
-    }
-    if (!$activeFile) return;
-    const json = JSON.stringify($state.snapshot(draft), null, 2);
-    if (await persistItem(json, categoryKeyOf(draft))) {
-      editing = false;
-      draft = null;
-      apiRawResponse = null;
-      importError = '';
-      tab = 'karte';
-    }
+  function parseItem(content: string): Item | null {
+    try { return normalizeItem(JSON.parse(content)); } catch { return null; }
   }
 
-  /** Legt die Datei für einen neuen Entwurf unter dem gewählten Namen an. */
-  async function confirmSaveAs() {
-    if (!draft || !newDraft) return;
-    const name = slugKeepUmlauts(newFilename || draft.name_de || draft.name || 'gegenstand');
-    if (!name) return;
-    const dir = categoryKeyOf(draft);   // folgt der (ggf. geänderten) Kategorie im Editor
-    const filename = `${name}.json`;
-    const path = `${ITEMS_PATH}/${dir}/${filename}`;
-    const json = JSON.stringify($state.snapshot(draft), null, 2);
+  /** Ordnername eines Item-Pfads (…/items/<dir>/<datei>.json). */
+  function dirOfPath(path: string): string {
+    return path.split('/').at(-2) ?? '';
+  }
+
+  const ed = createCardEditor<Item>({
+    type: 'item',
+    label: 'Gegenstand',
+    parse: parseItem,
+    serialize: (d) => merged(d, 2),
+    snapshot: (d) => merged(d),
+    defaultName: (d) => slugKeepUmlauts(d.name_de || d.name || 'gegenstand'),
+    location: {
+      // Ablage nach Kategorie (Bucket). Kategoriewechsel im Editor verschiebt die Datei.
+      bucketLabel: 'Kategorie',
+      bucketOf: (d) => CATEGORY_TO_DIR[categoryKeyOf(d)],
+      buckets: () => Object.entries(CATEGORY_LABELS)
+        .map(([key, label]) => ({ value: CATEGORY_TO_DIR[key] ?? key, label })),
+      resolvePath: (d, name, bucket) =>
+        `${ITEMS_PATH}/${bucket ?? CATEGORY_TO_DIR[categoryKeyOf(d)] ?? 'other'}/${name}.json`,
+    },
+    onSaved: (path, { moved, oldPath }) => {
+      invalidateItemCache(dirOfPath(oldPath ?? path));
+      if (moved) invalidateItemCache(dirOfPath(path));
+      invalidateVault();
+    },
+  });
+
+  /** Spiegel neu aus dem Draft ziehen — die Baseline gilt erst danach. */
+  function syncMirrors(item: Item | null) {
+    mirrored = item;
+    draftDescText   = (item?.desc    ?? []).join('\n\n');
+    draftDescDeText = (item?.desc_de ?? []).join('\n\n');
+    draftPropsText  = (item?.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
+    draftRarityName = item?.rarity?.name ?? '';
+    ed.captureBaseline();
+  }
+
+  // Der Editor ersetzt den Draft bei Laden, Verwerfen, JSON-Übernahme und Neuanlage;
+  // die Spiegel gehören zum Inhalt und müssen jedes Mal mitziehen.
+  let mirrored: Item | null = null;
+  $effect(() => { if (ed.draft !== mirrored) syncMirrors(ed.draft); });
+
+  // Die Karte zeigt den gespeicherten Stand; ein ungespeicherter Neuanlage-Draft hat keinen.
+  const saved = $derived.by(() => {
+    if (ed.isNew) return { item: ed.draft, parseError: null as string | null };
+    if (!ed.lastSavedContent) return { item: null as Item | null, parseError: null };
     try {
-      await invoke('write_file_content', { path, content: json });
+      return { item: normalizeItem(JSON.parse(ed.lastSavedContent)), parseError: null };
     } catch (e) {
-      pushError(`Speichern fehlgeschlagen: ${e instanceof Error ? e.message : e}`);
-      return;
+      return { item: null, parseError: e instanceof Error ? e.message : String(e) };
     }
-    invalidateItemCache(dir);
-    invalidateVault();
-    newItemDraft.set(null);   // löscht den Entwurf → Subscription setzt newDraft = null
-    showSaveAs = false;
-    editing = false;
-    draft = null;
-    apiRawResponse = null;
-    importError = '';
-    rawJson = json;
-    setFileContent(json);
-    tab = 'karte';
-    activeFile.set({ name: filename, path, type: 'item' });  // ab jetzt echte Datei
+  });
+  const item = $derived(saved.item);
+  const color = $derived(rarityColor(item?.rarity));
+
+  /** Übernimmt einen Open5e-Import in den Draft (deutsche Beschreibung bleibt leer). */
+  function applyImport(imported: Item) {
+    if (!ed.draft) return;
+    Object.assign(ed.draft, imported);
+    draftDescText   = imported.desc.join('\n\n');
+    draftDescDeText = '';
+    draftPropsText  = (imported.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
+    draftRarityName = imported.rarity?.name ?? '';
   }
-
-  async function saveJson(json: string) {
-    if (newDraft) {
-      // JSON-Tab bei neuem Entwurf: als Draft übernehmen, dann Dateiname abfragen.
-      const parsedItem = JSON.parse(json) as Item;
-      draft = parsedItem;
-      draftDescText   = (parsedItem.desc    ?? []).join('\n\n');
-      draftDescDeText = (parsedItem.desc_de ?? []).join('\n\n');
-      draftPropsText  = (parsedItem.properties ?? []).map(p => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
-      draftRarityName = parsedItem.rarity?.name ?? '';
-      newFilename = slugKeepUmlauts(parsedItem.name_de || parsedItem.name || 'gegenstand');
-      showSaveAs = true;
-      tab = 'bearbeiten';
-      return;
-    }
-    let catKey = '';
-    try {
-      catKey = categoryKeyOf(JSON.parse(json) as Item);
-    } catch { /* leave folder unchanged */ }
-    if (await persistItem(json, catKey)) {
-      editing = false;
-      draft = null;
-    }
-  }
-
-  // ── Open5e-v2-Import (Ausrüstung + Magie) ─────────────────────────────────────
-
-  let apiRawResponse = $state<string | null>(null);
-  let showApiRaw = $state(false);
-  let importError = $state('');
-
-  const searchItems = searchOpen5eItems;
-
-  async function importFromApi(result: Open5eItemSearchResult) {
-    if (!draft) return;
-    try {
-      const data = await getOpen5eItem(result.url);
-      apiRawResponse = JSON.stringify(data, null, 2);
-      showApiRaw = false;
-
-      const item = mapOpen5eItem(data);
-      Object.assign(draft, item);
-
-      draftDescText   = item.desc.join('\n\n');
-      draftDescDeText = '';
-      draftPropsText  = (item.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
-      draftRarityName = item.rarity?.name ?? '';
-
-      importError = '';
-    } catch (e) {
-      importError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`;
-    }
-  }
-
-  // ── LLM-Übersetzung ──────────────────────────────────────────────────────────
 
   /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
-    if (!draft) return null;
+    if (!ed.draft) return null;
     const toTranslate: Record<string, unknown> = {};
-    if (draft.name) toTranslate.name = draft.name;
+    if (ed.draft.name) toTranslate.name = ed.draft.name;
     const desc = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
     if (desc.length) toTranslate.desc = desc;
     if (Object.keys(toTranslate).length === 0) return null;
@@ -367,24 +149,22 @@
 
   /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: ItemTranslation) {
-    if (!draft) return;
-    if (t.name_de) draft.name_de = convertDistances(t.name_de);
+    if (!ed.draft) return;
+    if (t.name_de) ed.draft.name_de = convertDistances(t.name_de);
     if (t.desc_de.length) {
       const de = t.desc_de.map(convertDistances);
-      draft.desc_de = de;
+      ed.draft.desc_de = de;
       draftDescDeText = de.join('\n\n');
     }
   }
-
-  // ── KI-Werkzeuge (Dialoge) ───────────────────────────────────────────────────
 
   let showAiModal = $state(false);
   let showTranslateModal = $state(false);
 
   /** Übernimmt das vom KI-Dialog überarbeitete Item in den Draft (überschreibt bestehende Werte). */
   function applyAiResult(result: Item) {
-    if (!draft) return;
-    Object.assign(draft, result);
+    if (!ed.draft) return;
+    Object.assign(ed.draft, result);
     draftDescText   = (result.desc ?? []).join('\n\n');
     draftDescDeText = (result.desc_de ?? []).join('\n\n');
     draftPropsText  = (result.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
@@ -412,12 +192,17 @@
 </script>
 
 <EditorPanel
-  bind:tab
-  {dirty}
-  onsave={save}
-  ondiscard={discard}
-  onsavejson={saveJson}
-  getJson={() => draft ? JSON.stringify($state.snapshot(draft), null, 2) : rawJson}
+  bind:tab={ed.tab}
+  dirty={ed.dirty}
+  saveError={ed.saveError}
+  onsave={async () => { await ed.save(); if (!ed.dirty) ed.tab = 'karte'; }}
+  ondiscard={() => { ed.discard(); ed.tab = 'karte'; }}
+  onsavejson={async (json) => {
+    if (ed.isNew) { ed.draft = normalizeItem(JSON.parse(json)); syncMirrors(ed.draft); await ed.saveAs(); return; }
+    await ed.saveJson(json);
+    syncMirrors(ed.draft);
+  }}
+  getJson={() => ed.draft ? merged(ed.draft, 2) : ed.lastSavedContent}
   style="--ep-accent: {color}"
 >
 
@@ -524,10 +309,10 @@
         </div>
       </div>
     </div>
-  {:else if parseError}
+  {:else if saved.parseError}
     <div class="error">
       <div class="error-title">Ungültiges JSON — Gegenstand kann nicht angezeigt werden</div>
-      <pre class="error-detail">{parseError}</pre>
+      <pre class="error-detail">{saved.parseError}</pre>
     </div>
   {:else}
     <div class="error">Gegenstand konnte nicht geladen werden.</div>
@@ -535,39 +320,26 @@
 {/snippet}
 
 {#snippet bearbeiten()}
-  {#if draft}
+  {#if ed.draft}
     <!-- ── Bearbeitungsmodus ── -->
     <div class="item-card edit-mode" style="--cat-color: {rarityColor(draftRarityName)}">
-      {#if newDraft}
+      {#if ed.isNew}
         <div class="new-banner">Neuer Gegenstand — noch nicht gespeichert.</div>
-      {/if}
-      {#if showSaveAs}
-        <div class="saveas">
-          <span class="saveas-label">Speichern als</span>
-          <div class="saveas-row">
-            <span class="saveas-dir">{CATEGORY_LABELS[categoryKeyOf(draft)] ?? categoryKeyOf(draft)}/</span>
-            <input class="edit-input saveas-name" bind:value={newFilename}
-              onkeydown={(e) => { if (e.key === 'Enter') confirmSaveAs(); }} />
-            <span class="saveas-ext">.json</span>
-            <button class="saveas-confirm" onclick={confirmSaveAs} disabled={!newFilename.trim()}>Speichern</button>
-            <button class="saveas-cancel" onclick={() => (showSaveAs = false)} title="Abbrechen">×</button>
-          </div>
-        </div>
       {/if}
       <div class="card-header">
         <div class="edit-header-top">
-          <input class="edit-name" bind:value={draft.name_de} placeholder="Name (Deutsch)" />
+          <input class="edit-name" bind:value={ed.draft.name_de} placeholder="Name (Deutsch)" />
         </div>
-        <input class="edit-name-original" bind:value={draft.name} placeholder="Original (Englisch)" />
+        <input class="edit-name-original" bind:value={ed.draft.name} placeholder="Original (Englisch)" />
         <div class="edit-header-meta">
           <select class="edit-select"
-            value={categoryKeyOf(draft)}
+            value={categoryKeyOf(ed.draft)}
             onchange={(e) => setDraftCategory((e.target as HTMLSelectElement).value)}>
             {#each Object.entries(CATEGORY_LABELS) as [key, label]}
               <option value={key}>{label}</option>
             {/each}
           </select>
-          <select class="edit-select" bind:value={draft.source}>
+          <select class="edit-select" bind:value={ed.draft.source}>
             {#each SOURCE_KEYS as key}
               <option value={key}>{SOURCE_LABELS[key]}</option>
             {/each}
@@ -577,250 +349,19 @@
 
       <!-- Typ-spezifische Felder -->
       <div class="card-props">
-
         <!-- Magie-Facette (additiv, unabhängig vom Strukturtyp): auch eine magische Waffe zeigt das -->
-        {#if isMagicItem(draft)}
-          <!-- Seltenheit + Einstimmung -->
-          <div class="prop-row">
-            <span class="prop-label">Seltenheit</span>
-            <select class="edit-select" bind:value={draftRarityName}>
-              <option value="">— keine —</option>
-              {#each RARITY_OPTIONS as r}
-                <option value={r}>{RARITY_LABELS[r] ?? r}</option>
-              {/each}
-            </select>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Einstimmung</span>
-            <label class="edit-check">
-              <input type="checkbox" bind:checked={draft.attunement} />
-              Erforderlich
-            </label>
-          </div>
-          {#if draft.attunement}
-            <div class="prop-row">
-              <span class="prop-label">Voraussetzung</span>
-              <input class="edit-input" bind:value={draft.attunement_by} placeholder="z.B. by a wizard" />
-            </div>
-          {/if}
+        {#if isMagicItem(ed.draft)}
+          <MagicFacetFields bind:draft={ed.draft} bind:rarityName={draftRarityName} />
         {/if}
 
         <!-- Statwerte-Block nach Strukturtyp (= Kategorie): eine magische Waffe bekommt hier ihre Waffenfelder -->
-        {#if structuralType(draft) === 'weapon'}
-          <!-- Waffe: Kategorie, Reichweite, Schaden, Eigenschaften -->
-          <div class="prop-row">
-            <span class="prop-label">Kategorie</span>
-            <div class="inline-row">
-              <select class="edit-select" bind:value={draft.weapon_category}>
-                <option value="">—</option>
-                <option value="Simple">Einfache Waffe</option>
-                <option value="Martial">Kriegswaffe</option>
-              </select>
-              <select class="edit-select" bind:value={draft.weapon_range}>
-                <option value="">—</option>
-                <option value="Melee">Nahkampf</option>
-                <option value="Ranged">Fernkampf</option>
-              </select>
-            </div>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Schaden</span>
-            <div class="damage-inputs">
-              <input class="edit-input"
-                value={draft.damage?.damage_dice ?? ''}
-                oninput={(e) => {
-                  const v = (e.target as HTMLInputElement).value;
-                  draft!.damage = v ? { damage_dice: v, damage_type: draft!.damage?.damage_type ?? { index: '', name: '' } } : undefined;
-                }}
-                placeholder="z.B. 1d8" />
-              <select class="edit-select damage-type-select"
-                value={draft.damage?.damage_type.index ?? ''}
-                onchange={(e) => {
-                  const idx = (e.target as HTMLSelectElement).value;
-                  if (draft!.damage) draft!.damage.damage_type = { index: idx, name: idx.charAt(0).toUpperCase() + idx.slice(1) };
-                }}>
-                <option value="">— Typ —</option>
-                {#each Object.entries(DAMAGE_TYPE_LABELS) as [idx, label]}
-                  <option value={idx}>{label}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Reichweite</span>
-            <div class="inline-row">
-              <div class="ft-input-wrap">
-                <input class="edit-input ft-m-input" type="number" min="0" step="0.5"
-                  value={draft.range?.normal != null ? ftToMVal(draft.range.normal) : ''}
-                  oninput={(e) => {
-                    const m = parseFloat((e.target as HTMLInputElement).value);
-                    draft!.range = m ? { normal: mToFt(m), long: draft!.range?.long } : undefined;
-                  }}
-                  placeholder="m" />
-                <span class="ft-unit">m</span>
-              </div>
-              <div class="ft-input-wrap">
-                <input class="edit-input ft-m-input" type="number" min="0" step="0.5"
-                  value={draft.range?.long != null ? ftToMVal(draft.range.long) : ''}
-                  oninput={(e) => {
-                    const m = parseFloat((e.target as HTMLInputElement).value);
-                    if (m && draft!.range) draft!.range = { ...draft!.range, long: mToFt(m) };
-                    else if (draft!.range) draft!.range = { normal: draft!.range.normal };
-                  }}
-                  placeholder="m" />
-                <span class="ft-unit">m</span>
-                <span class="ft-sublabel" title="Maximale Reichweite mit Nachteil auf den Angriffswurf">Nachteil</span>
-              </div>
-            </div>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Wurfweite</span>
-            <div class="inline-row">
-              <div class="ft-input-wrap">
-                <input class="edit-input ft-m-input" type="number" min="0" step="0.5"
-                  value={draft.throw_range?.normal != null ? ftToMVal(draft.throw_range.normal) : ''}
-                  oninput={(e) => {
-                    const m = parseFloat((e.target as HTMLInputElement).value);
-                    draft!.throw_range = m ? { normal: mToFt(m), long: draft!.throw_range?.long ?? 0 } : undefined;
-                  }}
-                  placeholder="m" />
-                <span class="ft-unit">m</span>
-              </div>
-              <div class="ft-input-wrap">
-                <input class="edit-input ft-m-input" type="number" min="0" step="0.5"
-                  value={draft.throw_range?.long != null ? ftToMVal(draft.throw_range.long) : ''}
-                  oninput={(e) => {
-                    const m = parseFloat((e.target as HTMLInputElement).value);
-                    if (draft!.throw_range) draft!.throw_range = { ...draft!.throw_range, long: mToFt(m) || 0 };
-                  }}
-                  placeholder="m" />
-                <span class="ft-unit">m</span>
-                <span class="ft-sublabel" title="Maximale Wurfweite mit Nachteil auf den Angriffswurf">Nachteil</span>
-              </div>
-            </div>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Eigenschaften</span>
-            <input class="edit-input" bind:value={draftPropsText} placeholder="kommagetrennt, z.B. Finesse, Light" />
-          </div>
-          <div class="prop-row">
-            <span class="prop-label" title="Meisterschaftseigenschaft der Waffenart (5e 2024)">Meisterschaft</span>
-            <select class="edit-select"
-              value={draft.mastery ?? ''}
-              onchange={(e) => {
-                const v = (e.currentTarget as HTMLSelectElement).value;
-                draft!.mastery = v ? (v as typeof WEAPON_MASTERIES[number]) : undefined;
-              }}>
-              <option value="">—</option>
-              {#each WEAPON_MASTERIES as m}
-                <option value={m}>{MASTERY_INFO[m].nameDe}</option>
-              {/each}
-            </select>
-          </div>
-          {#if draft.mastery}
-            <p class="mastery-rule">{MASTERY_INFO[draft.mastery].descDe}</p>
-          {/if}
-          <div class="prop-row">
-            <span class="prop-label" title="Magischer Bonus auf Angriffs- und Schadenswürfe">Magischer Bonus</span>
-            <input class="edit-input" type="number" min="0" step="1"
-              value={draft.magic_bonus ?? ''}
-              oninput={(e) => {
-                const v = (e.target as HTMLInputElement).value;
-                draft!.magic_bonus = v ? parseInt(v) : undefined;
-              }}
-              placeholder="z.B. 1 (leer = keiner)" />
-          </div>
-
-        {:else if structuralType(draft) === 'armor'}
-          <!-- Rüstung: Kategorie, RK, Stärke, Heimlichkeit -->
-          <div class="prop-row">
-            <span class="prop-label">Kategorie</span>
-            <select class="edit-select" bind:value={draft.armor_category}>
-              <option value="">—</option>
-              {#each ARMOR_CATEGORIES as c}
-                <option value={c}>{ARMOR_CATEGORY_LABELS[c]}</option>
-              {/each}
-            </select>
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">RK Basis</span>
-            <input class="edit-input" type="number" min="0"
-              value={draft.armor_class?.base ?? ''}
-              oninput={(e) => {
-                const v = (e.target as HTMLInputElement).value;
-                draft!.armor_class = v ? {
-                  base: parseInt(v),
-                  dex_bonus: draft!.armor_class?.dex_bonus ?? false,
-                  max_bonus: draft!.armor_class?.max_bonus ?? null,
-                } : undefined;
-              }}
-              placeholder="z.B. 16" />
-          </div>
-          {#if draft.armor_class}
-            <div class="prop-row">
-              <span class="prop-label">GES-Bonus</span>
-              <label class="edit-check">
-                <input type="checkbox" bind:checked={draft.armor_class.dex_bonus} />
-                erlaubt
-                {#if draft.armor_class.dex_bonus}
-                  <input class="edit-input max-bonus-input" type="number" min="0"
-                    value={draft.armor_class.max_bonus ?? ''}
-                    oninput={(e) => {
-                      const v = (e.target as HTMLInputElement).value;
-                      draft!.armor_class!.max_bonus = v ? parseInt(v) : null;
-                    }}
-                    placeholder="max." />
-                {/if}
-              </label>
-            </div>
-          {/if}
-          <div class="prop-row">
-            <span class="prop-label">Stärke mind.</span>
-            <input class="edit-input" type="number" min="0"
-              value={draft.str_minimum ?? ''}
-              oninput={(e) => {
-                const v = (e.target as HTMLInputElement).value;
-                draft!.str_minimum = v ? parseInt(v) : undefined;
-              }}
-              placeholder="—" />
-          </div>
-          <div class="prop-row">
-            <span class="prop-label">Heimlichkeit</span>
-            <label class="edit-check">
-              <input type="checkbox" bind:checked={draft.stealth_disadvantage} />
-              Nachteil
-            </label>
-          </div>
+        {#if structuralType(ed.draft) === 'weapon'}
+          <WeaponFields bind:draft={ed.draft} bind:propsText={draftPropsText} />
+        {:else if structuralType(ed.draft) === 'armor'}
+          <ArmorFields bind:draft={ed.draft} />
         {/if}
 
-        <!-- Gemeinsame Felder: Kosten + Gewicht -->
-        <div class="prop-row">
-          <span class="prop-label">Kosten</span>
-          <div class="cost-inputs">
-            <input class="edit-input cost-qty" type="number" min="0"
-              value={draft.cost?.quantity ?? ''}
-              oninput={(e) => {
-                const v = (e.target as HTMLInputElement).value;
-                draft!.cost = v ? { quantity: parseFloat(v), unit: draft!.cost?.unit ?? 'gp' } : undefined;
-              }}
-              placeholder="0" />
-            <select class="edit-select"
-              value={draft.cost?.unit ?? 'gp'}
-              onchange={(e) => { if (draft!.cost) draft!.cost.unit = (e.target as HTMLSelectElement).value; }}>
-              {#each COST_UNITS as u}<option value={u}>{COST_UNIT_LABELS[u] ?? u}</option>{/each}
-            </select>
-          </div>
-        </div>
-        <div class="prop-row">
-          <span class="prop-label">Gewicht</span>
-          <input class="edit-input" type="number" min="0" step="0.5"
-            value={draft.weight ?? ''}
-            oninput={(e) => {
-              const v = (e.target as HTMLInputElement).value;
-              draft!.weight = v ? parseFloat(v) : undefined;
-            }}
-            placeholder="lbs" />
-        </div>
+        <CostWeightFields bind:draft={ed.draft} />
       </div>
 
       <div class="card-divider"></div>
@@ -854,24 +395,9 @@
 
       <div class="card-divider"></div>
 
-      <!-- Open5e-v2-Import (Ausrüstung + Magie) -->
-      <div class="edit-section api-section">
-        <DndApiSearch
-          label="Aus Open5e laden"
-          placeholder="Name suchen (englisch)…"
-          onsearch={searchItems}
-          onselect={importFromApi}
-        />
-        {#if importError}<span class="translate-error">{importError}</span>{/if}
-        {#if apiRawResponse}
-          <button class="api-raw-toggle" onclick={() => { showApiRaw = !showApiRaw; }}>
-            API-Antwort {showApiRaw ? '▲' : '▼'}
-          </button>
-          {#if showApiRaw}
-            <pre class="api-raw-pre">{apiRawResponse}</pre>
-          {/if}
-        {/if}
-      </div>
+      {#key $activeFile?.path}
+        <Open5eImportPanel onimport={applyImport} />
+      {/key}
     </div>
 
   {:else}
@@ -881,18 +407,18 @@
 
 </EditorPanel>
 
-{#if showAiModal && draft}
+{#if showAiModal && ed.draft}
   <AiEditModal
-    entityName={draft.name_de || draft.name || 'Gegenstand'}
-    buildAction={() => editItemAction($state.snapshot(draft) as Item)}
+    entityName={ed.draft.name_de || ed.draft.name || 'Gegenstand'}
+    buildAction={() => editItemAction($state.snapshot(ed.draft) as Item)}
     onresult={applyAiResult}
     onclose={() => (showAiModal = false)}
   />
 {/if}
 
-{#if showTranslateModal && draft}
+{#if showTranslateModal && ed.draft}
   <TranslateModal
-    entityName={draft.name_de || draft.name || 'Gegenstand'}
+    entityName={ed.draft.name_de || ed.draft.name || 'Gegenstand'}
     build={buildTranslationRun}
     onresult={applyTranslation}
     onclose={() => (showTranslateModal = false)}
@@ -1064,7 +590,12 @@
   /* Props (Bearbeiten-Modus) */
   .card-props { padding: 0.9rem 1.4rem; display: flex; flex-direction: column; gap: 0.45rem; }
 
-  .prop-row {
+  /*
+   * Feldraster und Feld-Grundformen gelten für die Unterformulare mit — sie sind
+   * Teile DIESER Karte, keine eigenständigen Bausteine. Eine Kopie je Unterformular
+   * wäre dieselbe Regel fünfmal.
+   */
+  .item-card :global(.prop-row) {
     display: grid;
     grid-template-columns: 7.5rem 1fr;
     gap: 0.5rem;
@@ -1073,7 +604,7 @@
     align-items: center;
   }
 
-  .prop-label {
+  .item-card :global(.prop-label) {
     color: var(--ink-muted);
     font-weight: 600;
     font-size: 0.8rem;
@@ -1081,11 +612,27 @@
     letter-spacing: 0.04em;
   }
 
-  /* Regeltext der gewählten Meisterschaft — im Editor direkt unter dem Select,
-     linksbündig zur Wertespalte der .prop-row (7.5rem Label + 0.5rem gap). */
-  .mastery-rule {
-    margin: -0.2rem 0 0.1rem 8rem;
-    font-size: 0.78rem; line-height: 1.5; font-style: italic; color: var(--ink-muted);
+  .item-card :global(.edit-select) {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); font-size: 0.82rem; padding: 0.2rem 0.4rem;
+    outline: none; font-family: inherit;
+  }
+  .item-card :global(.edit-select:focus) { border-color: var(--cat-color); }
+
+  .item-card :global(.edit-input) {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); font-size: 0.85rem; padding: 0.2rem 0.5rem;
+    outline: none; font-family: inherit; width: 100%;
+  }
+  .item-card :global(.edit-input:focus) { border-color: var(--cat-color); }
+
+  .item-card :global(.edit-check) {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.85rem; color: var(--ink-soft); cursor: pointer;
+  }
+
+  .item-card :global(.edit-section) {
+    padding: 0.7rem 1.4rem; display: flex; flex-direction: column; gap: 0.4rem;
   }
 
   .card-divider { height: 1px; background: var(--surface); margin: 0 1.4rem; }
@@ -1115,41 +662,6 @@
 
   .edit-header-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
-  .edit-select {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.82rem; padding: 0.2rem 0.4rem;
-    outline: none; font-family: inherit;
-  }
-  .edit-select:focus { border-color: var(--cat-color); }
-
-  .edit-input {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); font-size: 0.85rem; padding: 0.2rem 0.5rem;
-    outline: none; font-family: inherit; width: 100%;
-  }
-  .edit-input:focus { border-color: var(--cat-color); }
-
-  .edit-check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--ink-soft); cursor: pointer; }
-
-  .inline-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-
-  .ft-input-wrap { display: flex; align-items: center; gap: 0.3rem; }
-  .ft-m-input { width: 4.5rem; }
-  .ft-unit { font-size: 0.78rem; color: var(--ink-muted); }
-  .ft-sublabel {
-    font-size: 0.68rem;
-    color: var(--border);
-    cursor: help;
-    border-bottom: 1px dotted var(--border);
-  }
-  .cost-inputs { display: flex; gap: 0.3rem; align-items: center; }
-  .cost-qty { width: 5rem; flex-shrink: 0; }
-  .max-bonus-input { width: 4rem; flex-shrink: 0; }
-  .damage-inputs { display: flex; flex-direction: row; gap: 0.4rem; flex: 1; }
-  .damage-inputs .edit-input { flex: 1; min-width: 0; }
-  .damage-type-select { flex: 1; min-width: 0; }
-
-  .edit-section { padding: 0.7rem 1.4rem; display: flex; flex-direction: column; gap: 0.4rem; }
   .edit-section-collapsible { cursor: default; }
   .edit-section-collapsible summary { cursor: pointer; user-select: none; list-style: none; }
   .edit-section-collapsible summary::before { content: '› '; color: var(--border); }
@@ -1168,35 +680,11 @@
   .edit-textarea:focus { border-color: var(--cat-color); }
   .edit-textarea-secondary { color: var(--ink-muted); font-style: italic; }
 
-  /* Neuer Entwurf / Speichern-unter */
   .new-banner {
     font-size: 0.78rem; color: var(--gold, #c89b3c);
     background: color-mix(in srgb, var(--gold, #c89b3c) 12%, var(--bg-panel));
     border-radius: 4px; padding: 0.3rem 0.5rem; margin-bottom: 0.5rem;
   }
-  .saveas {
-    display: flex; flex-direction: column; gap: 0.3rem;
-    background: color-mix(in srgb, var(--arcane) 8%, var(--bg-panel));
-    border: 1px solid var(--border); border-radius: 4px;
-    padding: 0.5rem; margin-bottom: 0.6rem;
-  }
-  .saveas-label {
-    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--ink-muted);
-  }
-  .saveas-row { display: flex; align-items: center; gap: 0.3rem; }
-  .saveas-dir { font-size: 0.8rem; color: var(--ink-muted); white-space: nowrap; }
-  .saveas-name { flex: 1; min-width: 0; }
-  .saveas-ext { font-size: 0.8rem; color: var(--ink-muted); }
-  .saveas-confirm {
-    background: var(--arcane); border: none; border-radius: 4px; color: #fff;
-    font-size: 0.8rem; padding: 0.25rem 0.7rem; cursor: pointer; white-space: nowrap; font-family: inherit;
-  }
-  .saveas-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
-  .saveas-cancel {
-    background: none; border: none; color: var(--ink-muted); font-size: 1.1rem; cursor: pointer; line-height: 1;
-  }
-  .saveas-cancel:hover { color: var(--ink); }
 
   /* KI-Ausfüllen */
   .ai-section {
@@ -1218,25 +706,6 @@
   }
   .ai-btn:hover:not(:disabled) { color: var(--arcane); border-color: var(--arcane); }
   .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* API-Import */
-  .api-section {
-    background: color-mix(in srgb, var(--cat-color) 5%, var(--bg-panel));
-    border-top: 1px solid var(--surface);
-  }
-
-  .api-raw-toggle {
-    background: none; border: none; color: var(--border); font-size: 0.72rem;
-    cursor: pointer; padding: 0.2rem 0; font-family: inherit; text-align: left;
-  }
-  .api-raw-toggle:hover { color: var(--ink-muted); }
-
-  .api-raw-pre {
-    background: var(--bg-deep); border: 1px solid var(--surface); border-radius: 4px;
-    color: var(--ink-muted); font-size: 0.72rem; line-height: 1.5;
-    padding: 0.6rem 0.8rem; overflow-x: auto; white-space: pre;
-    margin: 0; max-height: 300px; overflow-y: auto;
-  }
 
   .error { color: var(--danger); padding: 2rem; font-size: 0.9rem; }
   .error-title { font-weight: 600; margin-bottom: 0.6rem; }
