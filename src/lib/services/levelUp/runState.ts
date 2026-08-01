@@ -23,51 +23,41 @@ export interface LevelUpRunState {
   subFeatures: GainedFeature[];    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
   gainedFeatures: GainedFeature[]; // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
   /**
-   * Immer-vorbereitete Zauber aus Merkmalstabellen (Kreissprüche, Domänenzauber …) —
-   * deterministisch gelesen, deshalb hier und nicht in `validatedBase`: sie hängen am
-   * Subklassen-Schritt und stehen auch ohne KI-Analyse.
+   * Immer-vorbereitete Zauber aus Merkmalstabellen — nicht in `validatedBase`, weil sie am
+   * Subklassen-Schritt hängen und auch ohne KI-Analyse stehen.
    */
   declaredSpells: DeclaredSpells;
-  /** Zauber aus Spezies- und Talent-Deklarationen — deren Stufentabelle hängt an der
-   *  CHARAKTERstufe, nicht an der Klassenstufe (Mehrklassen: verschiedene Zahlen). */
+  /** Deren Stufentabelle hängt an der CHARAKTERstufe, nicht an der Klassenstufe. */
   charLevelSpells: DeclaredSpells;
   riders: FeatureRider[];
   validatedBase: ValidatedRiders;
   decisions: LevelUpQuestion[];
   answers: Record<string, string | string[]>;
-  // Merkmals-/Talent-Analyse (Call 1) + die daraus abgeleiteten Wahl-Fragen für den
-  // Checkpoint DIREKT nach Call 1. Der finalisierende Effekt-Call (Call C) bäckt die
-  // getroffene Entscheidung ein — kein iterativer Loop mehr.
   baseAnalysis: FeatureAnalysis | null;
   baseChoices: LevelUpQuestion[];
   featAnalysis: FeatureAnalysis | null;
   featChoices: LevelUpQuestion[];
   featsToPick: number;
   chosenFeats: ChosenFeat[];
-  /**
-   * Deklarierter Zauber-Zugang der gewählten Talente („Eingeweihter der Magie") — am Schritt
-   * `feat-links` aus der Bibliothek gelesen. Damit fällt das Talent aus dem KI-Eingang.
-   */
+  /** Aus der Bibliothek gelesen — damit fällt das Talent aus dem KI-Eingang. */
   featAccess: SpellAccessGrant[];
   featRiders: FeatureRider[];
   validatedFeats: ValidatedRiders;
   flagged: string[];
-  /** Pro-Stufe-TP-Max aus dem Voll-Kontext-Effekt-Pass (z.B. Zwergische Zähigkeit). */
   hpPerLevelSources: HpPerLevelSource[];
-  narrativeSummary: string; // KI-Narrativ (Zusammenfassung) → doc.summary
-  featuresText: string; // editierbarer Klassenmerkmale-Volltext (KI-Merge + Nachbearbeitung)
+  narrativeSummary: string;
+  featuresText: string; // editierbarer Volltext: KI-Merge plus Nachbearbeitung
   steps: string[];
   running: boolean;
   error: string;
   resumePhase: StepId;
-  // Weitester bereits abgeschlossener Schritt — steuert, was das Dokument WÄHREND eines
-  // Laufs zeigt. Wird pro Schritt hochgezählt, damit deterministische Teilschritte (z.B.
-  // Subklassen-Delta) im JSON erscheinen, BEVOR die nachfolgende KI-Aktion läuft.
+  // Pro Schritt hochgezählt, damit deterministische Teilschritte im Dokument erscheinen,
+  // BEVOR die nachfolgende KI-Aktion läuft.
   reachedStep: StepId;
   spellLib: SpellInfo[];
   featLib: FeatEntry[];
-  // Entscheidungen früherer Stufen: die Analyse darf sie nicht erneut stellen und muss
-  // ihre Folgen als gesetzt behandeln (Wächter ⇒ Kriegswaffen + mittlere Rüstung).
+  // Die Analyse darf frühere Entscheidungen nicht erneut stellen und muss ihre Folgen als
+  // gesetzt behandeln (Wächter ⇒ Kriegswaffen + mittlere Rüstung).
   pastChoices: PastChoice[];
 }
 

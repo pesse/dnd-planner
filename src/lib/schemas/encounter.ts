@@ -1,10 +1,7 @@
 /**
- * Single Source of Truth für Encounter: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe llmJson.ts). Label-Maps/Helper bleiben in types.ts.
- *
- * Ein Encounter referenziert Monster NUR per `slug` (Dateiname ohne .json). Die
- * vollständigen Statblöcke liegen als eigene Dateien (akt-lokal oder global) und
- * werden beim Anzeigen aufgelöst — siehe services/contextLoad.ts:fetchEncounterMonsters.
+ * Single Source of Truth für Encounter. Monster stehen NUR als `slug` darin; die
+ * Statblöcke liegen als eigene Dateien und werden beim Anzeigen aufgelöst
+ * (`contextLoad.ts:fetchEncounterMonsters`).
  */
 import { z } from 'zod';
 
@@ -38,11 +35,10 @@ export const encounterSchema = z.object({
 export type Encounter = z.infer<typeof encounterSchema>;
 export type EncounterMonster = z.infer<typeof encounterMonsterSchema>;
 
-/** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
+/** Idempotent. */
 export function migrateEncounterLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const e = { ...(raw as Record<string, unknown>) };
-  // loot wurde früher teils als String-Array gepflegt → zu Fließtext zusammenführen.
   if (Array.isArray(e.loot)) e.loot = (e.loot as unknown[]).map(String).join('; ');
   return e;
 }

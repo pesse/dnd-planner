@@ -1,17 +1,10 @@
 /**
- * Fixture: Kämpfer 3 → 4 (Champion), Attributsverbesserung als TALENT genommen —
- * „Eingeweihter der Magie".
+ * Fixture: Kämpfer 3 → 4 (Champion), Attributsverbesserung als TALENT genommen.
  *
- * Warum dieser Fall: auf Stufe 4 bringt der Kämpfer nur die Attributsverbesserung, und die
- * ist ein Wahl-Zeiger (`isFlowOwnedChoiceFeature`). Der Merkmals-Eingang ist damit LEER — die
- * einzige KI-Arbeit des ganzen Aufstiegs ist der Talent-Pfad. Der Fall isoliert also genau
- * die Strecke, um die es geht, und der Kämpfer ist Nicht-Zauberwirker: was das Talent gewährt,
- * ist die einzige Magie am Bogen.
- *
- * WICHTIG — kein Drift zur Realität: Delta und Talent kommen über den ECHTEN Produktionspfad
- * (`computeLevelUpDelta`, `getFeats`), das Talent wird mit `featToGainedFeature` normalisiert,
- * genau wie `LevelUpAssistant.featuresFor('feat')` es tut. Vault-Reads laufen im Node-Eval
- * über den fs-Shim (tests/support/tauriInvokeShim.ts).
+ * Stufe 4 bringt dem Kämpfer nur die Attributsverbesserung, und die ist ein Wahl-Zeiger
+ * (`isFlowOwnedChoiceFeature`) — der Merkmals-Eingang ist LEER und der Talent-Pfad die
+ * einzige KI-Arbeit. Der Kämpfer ist Nicht-Zauberwirker, also ist alles Magische am Bogen
+ * das Talent. Delta und Talent kommen über den ECHTEN Produktionspfad.
  */
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { getFeats, featDisplayName, type FeatEntry } from '../../src/lib/featsLibrary';
@@ -26,9 +19,8 @@ export const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 export const FROM_LEVEL = 3;
 export const TO_LEVEL = 4;
 
-// ── Was der Vault DEKLARIERT (`grantsChoice.kind === "spellAccess"`) ────────────────
-// Diese vier Zahlen/Listen sind die Erwartung an BEIDE Pfade: der deklarierte liest sie,
-// der KI-Pfad müsste sie aus derselben Prosa wiederfinden.
+// Was der Vault deklariert (`grantsChoice.kind === "spellAccess"`) — Erwartung an BEIDE
+// Pfade: der deklarierte liest es, der KI-Pfad müsste es aus derselben Prosa wiederfinden.
 export const DECLARED_LISTS = ['cleric', 'druid', 'wizard'] as const;
 export const DECLARED_ABILITIES = ['Intelligence', 'Wisdom', 'Charisma'] as const;
 /** Das Kontingent — `max: 1` für die Zaubertricks kostet den Charakter still einen Trick. */
@@ -40,10 +32,7 @@ export const CHOSEN_LIST = 'wizard';
 /** Erwartete Anzahl Wahlen: Liste, Zauberattribut, Zaubertricks, Grad-1-Zauber. */
 export const EXPECTED_CHOICE_COUNT = 4;
 
-/**
- * Charakter VOR dem Aufstieg: Kämpfer 3 mit Champion — der Zustand, in dem der Assistent
- * startet. Über `characterSchema.parse`, damit alle übrigen Felder echte Defaults tragen.
- */
+/** Zustand, in dem der Assistent startet; `parse` gibt den übrigen Feldern echte Defaults. */
 const fighterBefore = characterSchema.parse({
   name: 'Bram Eisenhand',
   classes: [
@@ -80,9 +69,8 @@ export function featAsGained(feat: FeatEntry): GainedFeature {
 }
 
 /**
- * Der Merkmals-Eingang dieses Aufstiegs — erwartet LEER: Stufe 4 bringt dem Kämpfer nur die
- * Attributsverbesserung, und die führt der Flow selbst. Wird hier etwas zurückgegeben, ist die
- * Isolation des Falls verloren (dann misst die Strecke zwei Ketten statt einer).
+ * Erwartet LEER. Kommt hier etwas zurück, ist die Isolation des Falls hin — die Strecke
+ * misst dann zwei Ketten statt einer.
  */
 export async function loadBaseFeatures(): Promise<GainedFeature[]> {
   return gainedFeaturesFor(await loadFighterDelta());

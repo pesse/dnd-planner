@@ -48,7 +48,6 @@
   // Ein Talent IST das Merkmal — die Abdeckung ist hier ein Ja/Nein, kein Zähler.
   let declBadge = $derived(coverageBadge(declarationCoverage(draft ? [draft] : [])));
 
-  // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
   /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */

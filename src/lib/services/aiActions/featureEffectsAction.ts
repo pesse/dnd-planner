@@ -1,14 +1,7 @@
 /**
  * Deutung neu gewonnener Merkmale/Talente: aus der Regelprosa die mechanischen Effekte
  * („Rider"), die erzwungenen Spielerwahlen und je Merkmal eine `sheetNote` fürs PDF.
- *
- * ZWEI Calls mit Checkpoint dazwischen, damit der User direkt nach der Analyse entscheidet:
- * `analyzeFeatureEffects` (Reasoning, bewusst ohne Rider-Vokabular) → der Flow zeigt die
- * Choices → `finalizeFeatureEffects` (Nach-Analyse im Verlauf + Grounding + Guided).
- * QM-only, Prompts englisch (`featureEffectsPrompts.ts`).
- *
- * Ein Detail trägt die Qualität messbar (evals/featureAnalysis.eval.test.ts): die
- * getroffenen Wahlen kommen als eigener Folge-Turn statt im Erst-Prompt.
+ * QM-only; ZWEI Calls mit Wahl-Checkpoint dazwischen, Prompts in `featureEffectsPrompts.ts`.
  */
 import { featureEffectsJsonSchema, parseFeatureEffects, type FeatureEffects } from '../../schemas/levelUp';
 import { translateChoices, translateSheetNotes, type TranslationSource } from './featureTranslationAction';
@@ -63,7 +56,6 @@ export interface FeatureAnalysis {
   analysisText: string; // rohe Pass-A-Prosa, geht so an Pass C
 }
 
-/** Die Merkmale als Quelle für die Übersetzer (deutsche Felder inklusive). */
 function translationSources(features: GainedFeature[]): TranslationSource[] {
   return features.map((f) => ({ name: f.name, nameDe: f.nameDe, desc: f.desc, descDe: f.descDe, key: f.key }));
 }
@@ -115,13 +107,11 @@ function guardQualityMinds(config: LlmConfig): void {
 }
 
 /**
- * `turns` ist der Analyse-Verlauf OHNE System-Prompt.
- *
- * THINKING-FREI: dieser Call findet Entscheidungen, dafür kauft der Vorlauf nichts (gemessen
- * 2026-07-30, alle drei Strecken halbiert, keine Assertion verloren — Zahlen in
- * `docs/plan/plan-zauberwirker-vereinfachung.md`). Ohne Vorlauf entfällt auch der Runaway (leerer
- * `content` bei `finish_reason: "length"`); der zweite Versuch bleibt als Netz für eine leere
- * Antwort aus anderem Grund. Festgenagelt in `tests/unit/featureAnalysisCall.test.ts`.
+ * `turns` ist der Analyse-Verlauf OHNE System-Prompt. THINKING-FREI: der Vorlauf kauft hier
+ * nichts (gemessen 2026-07-30, `docs/plan/plan-zauberwirker-vereinfachung.md`) und mit ihm
+ * entfällt der Runaway (leerer `content` bei `finish_reason: "length"`); der zweite Versuch
+ * bleibt das Netz für eine leere Antwort aus anderem Grund.
+ * Festgenagelt in `tests/unit/featureAnalysisCall.test.ts`.
  */
 async function reason(
   config: LlmConfig,
@@ -142,8 +132,6 @@ async function reason(
     true,
   );
   if (!text.trim()) {
-    // `noRetry` ist der Eval-Schalter: dort soll der Ausfall sichtbar bleiben, sonst
-    // kaschiert der zweite Versuch die First-Try-Qualität des Prompts.
     if (attempt === 1 && !opts.noRetry) return reason(config, turns, opts, attempt + 1);
     throw new Error(
       'Die Merkmals-Analyse kam zweimal leer zurück — das Modell hat sein Antwort-Budget ' +
@@ -172,15 +160,11 @@ export async function analyzeFeatureEffects(
 }
 
 /**
- * Call 2 — Nach-Analyse + Grounding + Pass C ins Rider-Schema, dann die deutsche Grenze
- * (Wahl-Protokolle deterministisch, Bogen-Notizen per Übersetzungs-Call).
- *
- * Der Verlauf aus Call 1 wird FORTGESCHRIEBEN statt neu aufgebaut, weil erst die
- * Nach-Analyse auf demselben Verlauf choice-abhängige Zauber benennen kann. Ohne
- * getroffene Wahl entfällt sie und spart einen Reasoning-Call.
- *
- * Die Übersetzung sitzt bewusst HIER und nicht beim Aufrufer: beide Flows und die
- * Eval-Strecke sehen damit denselben fertigen, deutschen Rider.
+ * Call 2 — Nach-Analyse + Grounding + Pass C ins Rider-Schema, dann die deutsche Grenze.
+ * Der Verlauf aus Call 1 wird FORTGESCHRIEBEN statt neu aufgebaut, weil erst die Nach-Analyse
+ * auf demselben Verlauf choice-abhängige Zauber benennen kann; ohne getroffene Wahl entfällt
+ * sie und spart einen Reasoning-Call. Die Übersetzung sitzt HIER und nicht beim Aufrufer:
+ * beide Flows und die Eval-Strecke sehen denselben fertigen, deutschen Rider.
  */
 export async function finalizeFeatureEffects(
   config: LlmConfig,
@@ -206,6 +190,8 @@ export async function finalizeFeatureEffects(
     { role: 'assistant', content: text },
   ];
 
+  // Als eigener Folge-Turn statt im Erst-Prompt — das trägt die Qualität messbar
+  // (evals/featureAnalysis.eval.test.ts).
   if (ctx.resolvedChoices?.length) {
     const answerTurn = buildResolvedChoicesTurn(ctx.resolvedChoices);
     const after = await reason(config, [...turns, { role: 'user', content: answerTurn }], opts);
@@ -255,10 +241,9 @@ export async function finalizeFeatureEffects(
 }
 
 /**
- * Frage und Antwort der protokollierten Wahlen deterministisch nachtragen — beide stehen
- * schon auf Deutsch in der Analyse bzw. in der Antwort des Spielers. Das Modell danach zu
- * fragen hieße, dieselbe Zeichenkette ein zweites Mal erzeugen zu lassen; genau dabei drifteten
- * Frage und Label früher auseinander.
+ * Frage und Antwort der protokollierten Wahlen deterministisch nachtragen — beide stehen schon
+ * deutsch in der Analyse bzw. der Spielerantwort. Das Modell erneut danach zu fragen hieße,
+ * dieselbe Zeichenkette zweimal erzeugen zu lassen; dabei drifteten Frage und Label früher.
  */
 function fillDecisions(effects: FeatureEffects, choices: AnalysisChoice[], resolved: ResolvedChoice[]): FeatureEffects {
   if (!resolved.length) return effects;

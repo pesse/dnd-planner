@@ -1,12 +1,8 @@
 <script lang="ts">
   /**
-   * Editor für einen `skillGrant` — die 18 Fertigkeiten als Raster mit zwei
-   * Häkchen je Zeile: „fest gewährt" und „in der Auswahlliste". Genau die Form,
-   * die auch der Charakterbogen benutzt (Übung | Expertise), damit das Muster
-   * wiedererkennbar bleibt.
-   *
-   * Die Werte sind ENGLISCH (`SkillName`), die Beschriftung deutsch — die
-   * Übersetzung kommt aus derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
+   * Die 18 Fertigkeiten als Raster mit „fest gewährt" und „in der Auswahlliste" — dieselbe
+   * Form wie Übung | Expertise am Bogen. Werte ENGLISCH, Beschriftung deutsch aus
+   * derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
    */
   import { SKILL_DEFS } from '$lib/domain/skills';
   import type { SkillGrant } from '$lib/schemas/grants';

@@ -16,11 +16,7 @@
 
   function mark() { onchange(); }
 
-  /**
-   * `abilityScores` ist im Schema ein Array englischer Attributsnamen, wird hier
-   * aber als komma-getrennte Zeile bearbeitet — genau die Form, in der Open5e sie
-   * auch liefert.
-   */
+  /** Komma-getrennte Zeile statt Array — genau die Form, in der Open5e sie liefert. */
   let abilityText = $state(background.abilityScores.join(', '));
 
   function onAbilityInput() {
@@ -43,7 +39,6 @@
   }
 </script>
 
-<!-- Grunddaten -->
 <LibraryFormHeader bind:nameDe={background.nameDe} bind:name={background.name} onchange={mark}>
   {#snippet meta()}
     <label class="lbl-inline">Schlüssel
@@ -58,7 +53,7 @@
   </label>
 </LibraryFormHeader>
 
-<!-- Fertigkeitsübungen (Mechanik; die Vorteils-Liste bleibt die Anzeigeebene) -->
+<!-- Die Vorteils-Liste bleibt daneben die reine Anzeigeebene. -->
 <FormSection title="Fertigkeiten">
   {#snippet hint()}
     Die Mechanik zum <em>Fertigkeiten</em>-Vorteil. Alle SRD-Hintergründe gewähren
@@ -67,7 +62,6 @@
   <ProficiencyGrantEditForm bind:grant={background.proficiencyGrant} scope="skills" {onchange} />
 </FormSection>
 
-<!-- Beschreibung -->
 <FormSection title="Beschreibung">
   <textarea class="ef feat-desc" rows={4} bind:value={background.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
   {#if background.desc}
@@ -75,7 +69,6 @@
   {/if}
 </FormSection>
 
-<!-- Vorteile -->
 <FormSection title="Vorteile">
   {#each background.benefits as benefit, i}
     <div class="feat-row">

@@ -7,14 +7,12 @@ import type { AnalysisChoice } from '../analysis/types';
 import { stripJsonFence } from '../jsonFence';
 import { resolveClass } from '../../spellLibrary';
 
-/** Das JSON, das Pass A am Ende seiner Prosa deklariert. */
 export interface EffectsManifest {
   choices: AnalysisChoice[];
   spellsToGround: string[];
   blocked: boolean;
 }
 
-/** Normalisiert einen rohen Choice-Eintrag aus dem Manifest; verwirft, was keine Frage trägt. */
 export function normalizeChoice(raw: unknown): AnalysisChoice | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;

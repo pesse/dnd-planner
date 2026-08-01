@@ -45,7 +45,6 @@
     onSaved: () => invalidateVault(),
   });
 
-  // ── KI-Werkzeuge ──────────────────────────────────────────────────────────
   let showAi = $state(false);
   let importError = $state('');
 
@@ -64,7 +63,6 @@
     }
   }
 
-  // ── Übersetzen ────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
   /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */

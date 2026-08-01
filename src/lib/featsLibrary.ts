@@ -12,9 +12,8 @@ import { migrateFeatLegacy } from './schemas/feat';
 export const FEATS_PATH = './vault/feats';
 
 /**
- * Die Kategorienamen des deutschen SRD 5.2 („Herkunft, Allgemein, Kampfstil oder
- * Epische Gabe"), keine freien Übersetzungen. Das Vokabular selbst steht in
- * `schemas/vocabulary.ts`, damit Zod ohne Umweg über die Anzeige-Schicht drankommt.
+ * Die Kategorienamen des deutschen SRD 5.2, keine freien Übersetzungen. Das Vokabular selbst
+ * steht in `schemas/vocabulary.ts`, damit Zod nicht über die Anzeige-Schicht muss.
  */
 export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
   Origin: 'Herkunft',
@@ -28,16 +27,13 @@ export interface FeatEntry {
   nameDe?: string;
   desc?: string;
   descDe?: string;
-  /** Voraussetzung als Prosa (für Hover-Karte & Anzeige); fehlt bei inline erzeugten. */
+  /** Fehlt bei inline erzeugten Talenten. */
   prerequisite?: string;
   prerequisiteDe?: string;
   category?: FeatCategory;
-  /** Open5e-Key des Talents (identisch zur Charakter-Referenz `sourceKey`). */
+  /** Identisch zur Charakter-Referenz `sourceKey`. */
   sourceKey?: string;
-  /**
-   * Mechanik-gebundene Wahl des Talents („Eingeweihter der Magie": `kind: "spellAccess"`). Der Flow
-   * fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen.
-   */
+  /** Der Flow fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen. */
   grantsChoice?: FeatureChoiceGrant;
   /** Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im `desc`. */
   grantsSpells?: SpellGrant;
@@ -46,7 +42,7 @@ export interface FeatEntry {
    * `{}` = geprüft und ohne Mechanik (siehe `featureGrantSchema`).
    */
   grants?: FeatureGrant;
-  /** Vault-Pfad der Datei (für die Sidebar-Bibliothek); bei inline erzeugten leer. */
+  /** Bei inline erzeugten Talenten leer. */
   path?: string;
 }
 
@@ -67,8 +63,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
   displayName: featDisplayName,
   maxResults: 8,
   read: (raw, { path, filename }) => {
-    // Der Fold hebt ein Altformat-`proficiencyGrant` in die Deklaration — dieser Pfad
-    // parst feldweise, das Schema-Gate läuft hier also nicht.
+    // Dieser Pfad parst feldweise, das Schema-Gate läuft hier nicht — der Fold muss sein.
     const data = migrateFeatLegacy(raw) as Record<string, any>;
     return {
       name: data.name ?? filename.replace('.json', ''),

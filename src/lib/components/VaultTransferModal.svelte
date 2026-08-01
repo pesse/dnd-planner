@@ -66,7 +66,6 @@
     return Object.fromEntries(LIBS.map((l) => [l.key, c[l.key]])) as Record<LibKey, boolean>;
   }
 
-  // ── Export ──────────────────────────────────────────────────────────────
   let overview = $state<VaultContents | null>(null);
   let expCampaigns = $state<Record<string, boolean>>({});
   let expCharacters = $state<Record<string, boolean>>({});
@@ -121,7 +120,6 @@
     }
   }
 
-  // ── Import ──────────────────────────────────────────────────────────────
   let zipPath = $state<string | null>(null);
   let manifest = $state<VaultContents | null>(null);
   let impCampaigns = $state<Record<string, boolean>>({});

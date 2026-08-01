@@ -1,9 +1,7 @@
 /**
- * Herkunft eines Bibliotheks-Artefakts: Vokabular, Anzeige, Schema-Feld, Migration.
- *
- * Der Wert steuert, in welchen verteilbaren Pack eine Datei fällt
- * (vault/libraries.yaml, fail-closed), ist der `document.key` der Open5e-Artefakte und
- * das Präfix jedes Main-Keys. Ein anderer Wert lässt den Pack-Build abbrechen.
+ * Herkunft eines Bibliotheks-Artefakts. Der Wert steuert, in welchen verteilbaren Pack
+ * eine Datei fällt (vault/libraries.yaml, fail-closed), ist der `document.key` der
+ * Open5e-Artefakte und das Präfix jedes Main-Keys — ein anderer bricht den Pack-Build ab.
  */
 import { z } from 'zod';
 
@@ -33,24 +31,20 @@ export const SOURCE_LABELS: Record<SourceKey, string> = {
   'a5e-ag': 'Level Up A5E',
 };
 
-/** Anzeigename einer Herkunft; unbekannte Werte (Fremdimport) unverändert durchreichen. */
+/** Unbekannte Werte (Fremdimport) unverändert durchreichen. */
 export function sourceLabel(source: string | undefined): string {
   return SOURCE_LABELS[source as SourceKey] ?? source ?? '';
 }
 
 /**
- * Das `source`-Feld für ein Entity-Schema.
- *
- * Bewusst `z.enum` statt Freitext: so kann ein LLM gar keinen erfundenen Wert
- * liefern, und ein falsch gepflegter Editor fällt schon im Parse-Gate auf statt
- * erst im Pack-Build. Altbestand fängt `migrateSourceLegacy` ab, das vor jedem
- * Parse läuft.
+ * `z.enum` statt Freitext: ein LLM kann keinen erfundenen Wert liefern, und ein falsch
+ * gepflegter Editor fällt im Parse-Gate auf statt erst im Pack-Build. Altbestand fängt
+ * `migrateSourceLegacy` ab, das vor jedem Parse läuft.
  */
 export const sourceField = () =>
   z.enum(SOURCE_KEYS).default(OWN_SOURCE).describe('Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.');
 
-// Bis Juli 2026 gültige Herkunftsangaben. `document.key` trug schon die neuen
-// Werte, `source` eine eigene, uneinheitliche Liste.
+// Altbestand: `source` führte eine eigene, uneinheitliche Liste neben `document.key`.
 const LEGACY_SOURCES: Record<string, SourceKey> = {
   SRD: 'srd-2024',
   'PHB-2024 (kein SRD)': 'phb-2024',
@@ -61,9 +55,8 @@ const LEGACY_SOURCES: Record<string, SourceKey> = {
 };
 
 /**
- * Beliebige Herkunftsangabe → einer der gültigen `SOURCE_KEYS`. Unbekanntes fällt auf
- * `homebrew-sam`: die sichere Richtung, weil dieser Pack codiert ist und das Material
- * so nie ungeprüft in einer offenen Library landet.
+ * Unbekanntes fällt auf `homebrew-sam`: die sichere Richtung, weil dieser Pack codiert
+ * ist und das Material so nie ungeprüft in einer offenen Library landet.
  */
 export function toSourceKey(raw: string | undefined | null): SourceKey {
   const s = raw ?? '';
@@ -71,11 +64,7 @@ export function toSourceKey(raw: string | undefined | null): SourceKey {
   return (SOURCE_KEYS as readonly string[]).includes(s) ? (s as SourceKey) : OWN_SOURCE;
 }
 
-/**
- * Bringt die Herkunft eines eingelesenen Artefakts auf das aktuelle Vokabular.
- * Fehlt `source` ganz, springt `document.key` ein (Open5e-Artefakte trugen die
- * Herkunft früher nur dort); sonst gilt der Default.
- */
+/** Fehlt `source` ganz, springt `document.key` ein; sonst gilt der Default. */
 export function migrateSourceLegacy(raw: Record<string, unknown>): Record<string, unknown> {
   const doc = raw.document as { key?: unknown } | undefined;
   const current =

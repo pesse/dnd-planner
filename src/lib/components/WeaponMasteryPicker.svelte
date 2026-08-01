@@ -1,15 +1,9 @@
 <script lang="ts">
   /**
-   * Waffenbeherrschung-Picker (5e 2024): das gemeinsame UI für Charakterbogen UND
-   * Erstell-Wizard. Rein präsentierend — das Kontingent + die wählbaren Waffen (`offer`)
-   * beschafft der Aufrufer über `masteryOffer(...)`, weil beide Kontexte an
-   * unterschiedlicher Stelle darüber entscheiden (Panel-Sichtbarkeit vs. optionaler
-   * Wizard-Schritt). Hier lebt nur die Auswahl-Logik + Darstellung, damit sie nicht
-   * zweimal existiert.
-   *
-   * `diff` blendet die globale Diff-Tönung (`.diff-up`/`.diff-down`) direkt auf dem
-   * Panel ein — der Aufrufer kann sie nicht per `use:diffMark` setzen (Actions greifen
-   * nicht in eine Kindkomponente).
+   * Gemeinsames Picker-UI für Charakterbogen UND Erstell-Wizard, rein präsentierend:
+   * Kontingent und wählbare Waffen beschafft der Aufrufer über `masteryOffer(...)`, weil
+   * beide Kontexte anderswo über die Sichtbarkeit entscheiden. `diff` blendet die Tönung
+   * selbst ein — eine `use:diffMark` des Aufrufers griffe hier nicht.
    */
   import { masteryName, type MasteryOffer } from '../services/weaponMastery';
   import { MASTERY_INFO, masteryLabel } from '../itemLabels';
@@ -89,8 +83,6 @@
 {/if}
 
 <style>
-  /* Bewusst dieselbe Optik wie das Grant-Panel im Charakterbogen (Kupfer-Box), damit
-     Bogen und Wizard identisch aussehen. */
   .mastery-panel {
     border: 1px solid color-mix(in srgb, var(--copper) 35%, var(--surface));
     border-radius: 5px; background: color-mix(in srgb, var(--copper) 6%, var(--bg-panel));

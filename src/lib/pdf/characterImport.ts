@@ -1,23 +1,18 @@
 /**
- * Charakter-Import aus Taendler-PDFs. Zentral, damit Sidebar (Erstanlage beim Öffnen)
- * und CharacterSheet (manueller „PDF importieren"-Button) dieselbe Logik nutzen.
- *
- * PDF ist reine Import-Quelle: einmal eingelesen, wird daraus eine character.json,
- * die danach die alleinige Datenquelle des Editors ist.
+ * Charakter-Import aus Taendler-PDFs. Das PDF ist reine Import-QUELLE: einmal eingelesen,
+ * ist die entstandene `character.json` die alleinige Datenquelle des Editors.
  */
 import { invoke } from '@tauri-apps/api/core';
 import { parseCharacterData, type CharacterData, type CharacterJSON } from './characterFields';
 import { readPdfFields } from './characterPdfIo';
 
-/** Parst ein PDF-Feld-Set in unsere CharacterData. */
 export function characterFromPdfFields(fields: Record<string, string>): CharacterData {
   return parseCharacterData(fields);
 }
 
 /**
- * Stellt sicher, dass im Charakter-Ordner eine `character.json` existiert. Fehlt sie,
- * wird sie einmalig aus einer vorhandenen PDF angelegt. Liefert true, wenn danach eine
- * JSON vorhanden ist (oder bereits war), sonst false (weder JSON noch PDF gefunden).
+ * Legt die `character.json` einmalig aus einer vorhandenen PDF an, falls sie fehlt.
+ * false = weder JSON noch PDF gefunden.
  */
 export async function ensureCharacterJson(dirPath: string): Promise<boolean> {
   try {
@@ -33,7 +28,7 @@ export async function ensureCharacterJson(dirPath: string): Promise<boolean> {
   const json: CharacterJSON = {
     ...data,
     // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
-    // Upgrade-Pipeline (schemas/character.ts) strukturiert sie beim ersten Laden.
+    // Upgrade-Pipeline (schemas/characterUpgrades.ts) strukturiert sie beim ersten Laden.
     _version: 1,
     _importedFrom: pdfName,
     _importedAt: new Date().toISOString(),

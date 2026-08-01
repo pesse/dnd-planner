@@ -10,9 +10,8 @@ export interface FileContext {
 }
 
 /**
- * Liest einen Ordner Datei für Datei. `list_json_files` liefert `[]` bei fehlendem
- * Ordner, eine unparsebare Datei fällt auf `fallback` — eine leere oder kaputte
- * Bibliothek darf weder werfen noch einen Eintrag verschlucken.
+ * Eine leere oder kaputte Bibliothek darf weder werfen noch einen Eintrag verschlucken:
+ * fehlender Ordner → `[]`, unparsebare Datei → `fallback`.
  */
 export async function scanJsonFolder<T>(
   dir: string,
@@ -40,7 +39,7 @@ export interface LibrarySpec<T> {
   fallback?(ctx: FileContext): T;
   /** Anzeigename (deutsch zuerst) — bestimmt Sortierung und Suchreihenfolge. */
   displayName(entry: T): string;
-  /** Bibliotheks-Key eines Eintrags, für `loadByKey`. */
+  /** Ohne diese Funktion kann `loadByKey` nichts finden. */
   key?(entry: T): string | undefined;
   maxResults?: number;
 }
@@ -49,9 +48,8 @@ export interface Library<T> {
   path: string;
   list(): Promise<T[]>;
   invalidate(): void;
-  /** Volle Datei zum Bibliotheks-Key; null = nicht vorhanden oder unparsebar. */
+  /** Liest die VOLLE Datei nach; `list()` trägt nur den Index. */
   loadByKey<R>(key: string, parse: (raw: Record<string, unknown>) => R | null): Promise<R | null>;
-  /** Namenssuche: deutsche Anzeige zuerst, englischer Originalname als Fallback. */
   search(library: T[], query: string, maxResults?: number): T[];
 }
 

@@ -1,16 +1,8 @@
 <script lang="ts">
   /**
-   * KI-gestützter Stufenaufstieg-Assistent als mehrstufiger Wizard mit Checkpoints.
-   *
-   * Ablauf (deterministische Zustandsmaschine in levelUp/steps.ts):
-   *   Klasse wählen → Basis-Delta (det.) → [Subklasse wählen] → Subklassen-Delta (det.)
-   *   → Merkmals-Analyse (KI, Call 1) → [Merkmals-Wahlen] → Merkmals-Effekte (KI, Call C)
-   *   → Spieler-Entscheidungen → [Talente wählen → Talent-Analyse (KI) → [Talent-Wahlen]
-   *   → Talent-Effekte (KI)] → Narrativ (KI) + Vorschlag (det.) → Review → in den Draft.
-   *
-   * Diese Datei ist die Oberfläche; Lauf und Zustand liegen in `levelUp/run.svelte.ts`,
-   * die abgeleiteten Wahlen in `levelUp/choices.svelte.ts`. Fehlende Zauber lassen sich
-   * inline anlegen, ohne den Dialog zu schließen.
+   * Oberfläche des Stufenaufstieg-Assistenten. Die Zustandsmaschine liegt in
+   * `levelUp/steps.ts`, Lauf und Zustand in `levelUp/run.svelte.ts`, die abgeleiteten
+   * Wahlen in `levelUp/choices.svelte.ts`.
    */
   import { onDestroy } from 'svelte';
   import { createLevelUpRun } from '../services/levelUp/run.svelte';
@@ -41,7 +33,6 @@
   const clock = run.clock;
   onDestroy(() => run.destroy());
 
-  // Woran die KI/der Schritt gerade arbeitet = die zuletzt gemeldete Aktivität.
   const currentActivity = $derived(st.steps.length ? st.steps[st.steps.length - 1] : '');
 
   const classList = $derived(character.classes ?? []);
@@ -86,7 +77,6 @@
     if (max && nextArr.length > max) nextArr = nextArr.slice(nextArr.length - max);
     st.answers[id] = nextArr;
   }
-  /** Die Auswahl einer deklarierten/erkannten Wahl — der Picker führt sie immer als Liste. */
   const answerList = (id: string): string[] => {
     const v = st.answers[id];
     return Array.isArray(v) ? v : v ? [v] : [];
@@ -95,11 +85,9 @@
     st.answers[q.id] = q.type === 'multiselect' ? next : (next[0] ?? '');
   }
 
-  /** Lese-/Schreib-Paar für `bind:picks` einer Zauber-Frage (Antworten liegen in `answers`). */
   const pickBinding = (id: string) =>
     [() => (st.answers[id] as string[]) ?? [], (v: string[]) => (st.answers[id] = v)] as const;
 
-  // Trefferwürfel würfeln (echtes Würfeln, kein Selbst-Eintragen).
   let hpRolls = $state<Record<string, number[]>>({});
   function rollHp(q: LevelUpQuestion) {
     const sides = q.dieSides ?? 6;
@@ -114,8 +102,8 @@
   function openSpellCreator(name: string, levels: number[], targetQ: string | null) {
     const lv = levels.length ? levels : [1];
     const trimmed = name.trim();
-    // Der auslösende Name ist oft der englische KI-Vorschlag → als name_en vormerken,
-    // damit künftige EN↔DE-Treffer funktionieren; der deutsche Anzeigename ist editierbar.
+    // Der auslösende Name ist oft der englische KI-Vorschlag — als `name_en` vormerken,
+    // damit künftige EN↔DE-Treffer greifen.
     spellCreator = { targetQ, name: trimmed, nameEn: trimmed, level: lv[0], school: 'evocation', levels: lv };
   }
   let creatingSpell = $state(false);
@@ -127,12 +115,10 @@
       const canonical = await createSpellInline(blankSpell(s.name, s.level, s.school, s.nameEn));
       st.spellLib = await getSpellLibrary();
       if (s.targetQ) {
-        // Direkt in die Antwort der auslösenden Frage übernehmen (der Picker liest sie).
         const [read, write] = pickBinding(s.targetQ);
         const val = encodePick(s.level, canonical);
         if (!read().includes(val)) write([...read(), val]);
       } else {
-        // Review-Inline-Anlage: neuen Zauber als gewährten Zauber ergänzen (fließt via buildDoc ein).
         if (s.level === 0) {
           if (!st.validatedBase.grantedCantrips.includes(canonical)) st.validatedBase.grantedCantrips = [...st.validatedBase.grantedCantrips, canonical];
         } else if (!st.validatedBase.grantedPrepared.some((p) => p.name === canonical)) {
@@ -157,13 +143,12 @@
     const idx = st.chosenFeats.findIndex((f) => f.name === name);
     if (idx >= 0) { st.chosenFeats = st.chosenFeats.filter((_, i) => i !== idx); return; }
     if (st.chosenFeats.length >= st.featsToPick) return;
-    // `grantsChoice`/`grants` reisen mit: nur damit lesen `feat-links` den Zauber-Zugang und
-    // die pro-Stufe-Effekte deterministisch aus der Bibliothek.
+    // `grantsChoice`/`grants` reisen mit — nur damit lesen `feat-links` Zauber-Zugang und
+    // pro-Stufe-Effekte deterministisch aus der Bibliothek statt aus der KI.
     st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
     featQuery = '';
   }
 
-  // Der editierte Klassenmerkmale-Freitext fließt via buildDoc automatisch ins Dokument.
   function confirmClassFeatures() {
     st.phase = 'review';
   }
@@ -174,7 +159,6 @@
     onclose();
   }
 
-  // Progression = Sicht auf das Dokument, gruppiert nach erzeugendem Schritt.
   function changeLine(c: Change): string {
     switch (c.target) {
       case 'hpMax':
@@ -186,8 +170,7 @@
         return c.label; // Label trägt Wert/Detail bereits (z.B. „Stärke +1", „Talent: X")
     }
   }
-  // doc.changes stehen bereits in kanonischer Schritt-Reihenfolge (buildDoc) → die
-  // Gruppen entstehen in Erst-Auftritts-Reihenfolge, kein Sortieren nötig.
+  // `doc.changes` steht bereits in kanonischer Schritt-Reihenfolge — kein Sortieren nötig.
   const progressionGroups = $derived.by<{ heading: string; lines: string[] }[]>(() => {
     const groups: { heading: string; lines: string[] }[] = [];
     const idx = new Map<string, number>();
@@ -204,7 +187,6 @@
   });
   const reviewLines = $derived(run.doc.changes.map(changeLine));
 
-  // Live-JSON des gemeinsamen Dokuments (zum Ansehen/Kopieren des Formats).
   const docJson = $derived(JSON.stringify(run.doc, null, 2));
   let jsonCopied = $state(false);
   async function copyDoc() {
@@ -307,7 +289,6 @@
     </div>
   {/if}
 
-  <!-- Feature-Wahlen (gemeinsames Rendering für Merkmale + Talente) -->
   {#snippet choiceBlock(list: LevelUpQuestion[])}
     <div class="questions">
       {#each list as q (q.id)}
@@ -362,7 +343,6 @@
     {@render choiceBlock(run.choices.featChoiceQs)}
   {/if}
 
-  <!-- Fragebogen (Entscheidungen) -->
   {#if st.phase === 'player-decisions'}
     {#if st.decisions.length === 0}
       <p class="hint">Keine offenen Entscheidungen — direkt zum Vorschlag.</p>
@@ -417,7 +397,6 @@
     </div>
   {/if}
 
-  <!-- Talente wählen -->
   {#if st.phase === 'feat-choice' && st.delta}
     <div class="row">
       <span class="field-label">{st.featsToPick} Talent(e) wählen</span>
@@ -439,7 +418,6 @@
     </div>
   {/if}
 
-  <!-- Klassenmerkmale prüfen (bereits zusammengeführt) -->
   {#if st.phase === 'class-features'}
     <div class="row">
       <span class="field-label">Klassenmerkmale & Eigenschaften</span>
@@ -454,7 +432,6 @@
     </div>
   {/if}
 
-  <!-- Inline-Zauberanlage -->
   {#if spellCreator}
     <div class="creator">
       <span class="field-label">Neuen Zauber anlegen</span>
@@ -476,7 +453,6 @@
     </div>
   {/if}
 
-  <!-- Review -->
   {#if st.phase === 'review'}
     {#if run.doc.summary}<p class="hint">{run.doc.summary}</p>{/if}
     <div class="review">

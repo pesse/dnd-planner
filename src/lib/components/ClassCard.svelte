@@ -53,12 +53,10 @@
   const featureName = (f: ClassFeature): string => f.nameDe || f.name;
   const featureDesc = (f: ClassFeature): string => f.descDe || f.desc;
 
-  // Deklarations-Abdeckung dieser Datei; eine Subklasse ist eine eigene Progression
-  // und wird mit ihrer eigenen Merkmalsliste gezählt.
+  // Eine Subklasse ist eine eigene Progression und zählt mit ihrer eigenen Merkmalsliste.
   let coverage = $derived(declarationCoverage(draft?.features ?? []));
   let declBadge = $derived(coverageBadge(coverage));
 
-  // ── Kerntabelle als Zeilen der Karte (deutsch beschriftet, Werte englisch geführt) ──
   let coreRows = $derived.by(() => {
     const g = draft?.proficiencyGrant;
     if (!g) return [] as { label: string; value: string }[];
@@ -72,17 +70,14 @@
     ].filter((r) => r.value);
   });
 
-  /** Wählbare Fertigkeiten der Kerntabelle, deutsch — als eigene Zeile unter „Fertigkeiten". */
   let choiceList = $derived(
     (draft?.proficiencyGrant.skills.choose ?? 0) > 0
       ? (draft?.proficiencyGrant.skills.from ?? []).map((s) => skillLabelDe(s))
       : [],
   );
 
-  // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     const c = ed.draft;
     if (!c) return null;
@@ -94,7 +89,7 @@
     return translateRule(payload);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: RuleTranslation) {
     const c = ed.draft;
     if (!c) return;

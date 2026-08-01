@@ -1,17 +1,12 @@
 <script lang="ts">
   /**
-   * Editor eines deklarierten Zauber-Zugangs (`grantsChoice.kind === 'spellAccess'`) —
-   * „Eingeweihter der Magie" und alles mechanisch Gleiche.
+   * Editor eines deklarierten Zauber-Zugangs. `spellAccess` DEKLARIERT, wo `spellcasting`
+   * ABLEITET: ein Talent hat keine Stufentabelle, also stehen Liste, Attribut und
+   * Kontingent hier.
    *
-   * `spellAccess` heißt DEKLARIEREN, wo `spellcasting` ABLEITET: ein Talent hat keine
-   * Stufentabelle, also stehen Liste, Attribut und Kontingent hier (schemas/featureChoice.ts).
-   *
-   * Die eine Regel, die die Oberfläche zeigen muss, weil sie sonst unsichtbar ist:
-   * LÄNGE 1 = festgelegt, es entsteht keine Frage; LÄNGE > 1 = eine protokollierte
-   * Entscheidung des Spielers (`spellAccessChoices`, services/spellAccess.ts).
-   *
-   * Die Listen sind englische Klassen-Keys wie in `SpellInfo.classes` — Freitext wie
-   * `option.value`, damit hier keine weitere Übersetzungstabelle entsteht.
+   * Zwei unsichtbare Regeln, die die Oberfläche zeigen muss: bei LÄNGE 1 ist die Liste
+   * festgelegt und es entsteht keine Frage, ab LÄNGE 2 eine protokollierte Entscheidung;
+   * die Einträge sind englische Klassen-Keys, damit keine Übersetzungstabelle entsteht.
    */
   import { ABILITY_NAMES, type AbilityName } from '$lib/schemas/abilities';
   import { type FeatureChoiceGrant } from '$lib/schemas/featureChoice';

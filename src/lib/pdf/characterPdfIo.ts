@@ -35,7 +35,7 @@ export async function choosePdfFile(defaultDir: string): Promise<string | null> 
   return (selected as string | null) ?? null;
 }
 
-/** Liest alle Formularfelder eines PDFs (Text + Checkboxen) als String-Map. */
+/** Checkboxen kommen als „On"/„Off" heraus, damit alle Felder eine String-Map bilden. */
 export async function readPdfFields(absPdfPath: string): Promise<Record<string, string>> {
   const base64 = await invoke<string>('read_file_base64', { path: absPdfPath });
   const pdf = await PDFDocument.load(base64ToBytes(base64), { ignoreEncryption: true });

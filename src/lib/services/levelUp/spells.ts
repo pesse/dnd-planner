@@ -1,7 +1,6 @@
 /**
- * Zaubernamen aus KI-Ridern und aus Deklarationen gegen die lokale Bibliothek
- * auflösen, kanonisieren und nach Grad trennen. Ein Name ohne Treffer wird
- * `flagged`, nie stillschweigend übernommen.
+ * Zaubernamen aus KI-Ridern und Deklarationen gegen die lokale Bibliothek auflösen,
+ * kanonisieren, nach Grad trennen. Ein Name ohne Treffer wird `flagged`, nie übernommen.
  */
 import { resolveSpell, type SpellInfo } from '../../spellLibrary';
 import type { Change, FeatureRider } from '../../schemas/levelUp';
@@ -21,11 +20,9 @@ export interface ValidatedRiders {
   grantedPrepared: { level: number; name: string }[]; // aufgelöste Grad-1+-Zauber (kanonisch)
 }
 
-/** Die deterministisch gelesenen Zauberlisten, aufgelöst auf Bibliothekseinträge. */
 export interface DeclaredSpells {
   cantrips: string[];
   prepared: { level: number; name: string }[];
-  /** Namen ohne Bibliothekstreffer — dieselbe Anzeige wie bei KI-Namen (Inline-Anlage). */
   flagged: string[];
   /** Merkmale mit unlesbar angekündigter Liste — bleiben beim Modell, werden aber gemeldet. */
   unreadable: string[];
@@ -34,12 +31,8 @@ export interface DeclaredSpells {
 export const noDeclaredSpells = (): DeclaredSpells => ({ cantrips: [], prepared: [], flagged: [], unreadable: [] });
 
 /**
- * Immer-vorbereitete Zauber der Merkmale auf `classLevel`, kanonisiert.
- *
- * Die Namen stammen aus dem englischen Merkmalstext, der Charakterbogen führt die deutschen —
- * `resolveSpell` ist dieselbe EN↔DE-Auflösung, die auch KI-Namen nimmt. Ein Name ohne Treffer
- * wird gemeldet statt still verworfen: fehlt der Zauber in der Bibliothek, soll der Nutzer ihn
- * anlegen können.
+ * Immer-vorbereitete Zauber der Merkmale auf `classLevel`. Ein Name ohne Bibliothekstreffer
+ * wird gemeldet statt still verworfen — der Nutzer soll den fehlenden Zauber anlegen können.
  */
 export function resolveDeclaredSpells(
   features: (SpellGrantSource & { name?: string; nameDe?: string })[],
@@ -57,11 +50,9 @@ export function resolveDeclaredSpells(
 }
 
 /**
- * Englische Zaubernamen → kanonisiert und nach Zaubertrick/vorbereitet getrennt.
- *
- * Eigene Funktion, weil es zwei Quellen für dieselbe Senke gibt: die Stufentabelle im `desc`
- * (`declaredSpellGrants`) und die benannten Zauber einer gewählten Option
- * (`optionSpellNames`). `into` sammelt beide in EIN Ergebnis, ohne Merge-Hilfsfunktion.
+ * Zwei Quellen speisen dieselbe Senke — die Stufentabelle im `desc` (`declaredSpellGrants`)
+ * und die Zauber einer gewählten Option (`optionSpellNames`). `into` sammelt beide in EIN
+ * Ergebnis, ohne Merge-Hilfsfunktion.
  */
 export function resolveSpellNames(
   names: readonly string[],
@@ -80,9 +71,8 @@ export function resolveSpellNames(
 }
 
 /**
- * Die deklarierten Zauber als Änderungen — am DETERMINISTISCHEN Subklassen-Schritt, nicht am
- * KI-Schritt. Das ist der zweite Gewinn neben der Zuverlässigkeit: ohne QM-Modell (Analyse
- * übersprungen) bekam der Charakter seine Domänen-/Kreiszauber vorher überhaupt nicht.
+ * Am DETERMINISTISCHEN Subklassen-Schritt, nicht am KI-Schritt: ohne QM-Modell (Analyse
+ * übersprungen) bekäme der Charakter seine Domänen-/Kreiszauber sonst überhaupt nicht.
  */
 export function declaredSpellChanges(g: DeclaredSpells, step: StepId = 'subclass-delta'): Change[] {
   return [
@@ -96,7 +86,6 @@ export function declaredSpellChanges(g: DeclaredSpells, step: StepId = 'subclass
   ];
 }
 
-/** Prüft alle grantedSpells der Rider gegen die Bibliothek; kanonisiert + trennt nach Grad. */
 export function validateRiderSpells(riders: FeatureRider[], library: SpellInfo[], klasseName = ''): ValidatedRiders {
   const flagged: string[] = [];
   const grantedCantrips: string[] = [];
@@ -122,10 +111,8 @@ export interface LearnInfo {
 }
 
 /**
- * Ermittelt, ob und wie viele Zauber beim Aufstieg ERLERNT werden. „Vorbereiten" ist
- * KEIN Teil des Aufstiegs — reine Vorbereiter (Druide/Kleriker) lernen nichts dazu und
- * bekommen daher keine Auswahl. Known-Caster lernen ihre neuen bekannten Zauber; der
- * Magier trägt (2 je Stufe) ins Zauberbuch ein.
+ * „Vorbereiten" ist KEIN Teil des Aufstiegs: reine Vorbereiter (Druide/Kleriker) lernen nichts
+ * dazu und bekommen keine Auswahl. Der Magier trägt 2 je Stufe ins Zauberbuch ein.
  */
 export function learnInfo(delta: LevelUpDelta, riders: FeatureRider[]): LearnInfo {
   const spellbook = isSpellbookClass(delta.sourceKey, delta.klasseName);

@@ -5,10 +5,8 @@
 import { z } from 'zod';
 
 /**
- * `{ index, name }`-Referenzobjekt (Schadenstyp, Equipment-Kategorie, …).
- *
- * Bewusst eine Factory (frische Instanz pro Aufruf), damit `z.toJSONSchema`
- * die Definition INLINE ausgibt statt sie über `$ref`/`$defs` zu deduplizieren —
+ * Bewusst eine Factory (frische Instanz pro Aufruf), damit `z.toJSONSchema` die
+ * Definition INLINE ausgibt statt sie über `$ref`/`$defs` zu deduplizieren —
  * Anthropics Structured-Outputs erwartet das aufgelöste Schema.
  */
 export const namedRef = (desc?: string) => {
@@ -17,14 +15,9 @@ export const namedRef = (desc?: string) => {
 };
 
 /**
- * Wandelt ein Zod-Schema in das JSON-Schema um, das Anthropics
- * `output_config.format.json_schema` erwartet.
- *
- * - `io: 'output'` → Felder mit `.default()` gelten als immer vorhanden (required),
- *   genau das gewünschte „strikte, vollständige" LLM-Ergebnis.
- * - `sanitize` erzwingt `additionalProperties: false` auf allen Objekten MIT
- *   `properties` (Records mit Schema-`additionalProperties` bleiben unangetastet)
- *   und entfernt JSON-Schema-Meta (`$schema`), das die API nicht braucht.
+ * `io: 'output'` → Felder mit `.default()` gelten als required, also als „strikt und
+ * vollständig". `sanitize` erzwingt `additionalProperties: false` auf Objekten MIT
+ * `properties` (Records bleiben unangetastet) und entfernt Meta, das die API nicht braucht.
  */
 export function toLlmJsonSchema(schema: z.ZodType): Record<string, unknown> {
   const json = z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'output', unrepresentable: 'any' });

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DebugEntry } from '../stores/debug';
-  import { describeEntry, prettyJson } from '../utils/debugFormat';
+  import { describeEntry } from '../utils/debugFormat';
+  import { prettyJson } from '../utils/debugJson';
 
   let { entry }: { entry: DebugEntry } = $props();
 

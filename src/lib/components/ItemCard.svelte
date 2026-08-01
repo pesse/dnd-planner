@@ -23,10 +23,9 @@
   import CostWeightFields from './item/CostWeightFields.svelte';
   import Open5eImportPanel from './item/Open5eImportPanel.svelte';
 
-  /** Aktueller Kategorie-Schlüssel (= Ordnername). Quelle: equipment_category (via dirOf). */
   const categoryKeyOf = dirOf;
 
-  /** Kategorie-Schlüssel → DnD-API-konformer Anzeigename (z.B. "wondrous-items" → "Wondrous Items"). */
+  /** Der Anzeigename muss DnD-API-konform sein: "wondrous-items" → "Wondrous Items". */
   function categoryApiName(catKey: string): string {
     return catKey.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   }
@@ -42,8 +41,7 @@
   let draftPropsText  = $state('');
   let draftRarityName = $state('');
 
-  /** Pure: liefert eine Kopie von `base` mit eingearbeiteten Text-Spiegeln (Beschreibung,
-   *  Eigenschaften, Seltenheit) — ohne `base` zu verändern. Basis für Speichern & Dirty-Check. */
+  /** Kopie mit eingearbeiteten Text-Spiegeln — Basis für Speichern UND Dirty-Check. */
   function mergeDraftFields(base: Item): Item {
     const d = JSON.parse(JSON.stringify(base)) as Item;
     d.desc    = draftDescText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
@@ -70,7 +68,6 @@
     try { return normalizeItem(JSON.parse(content)); } catch { return null; }
   }
 
-  /** Ordnername eines Item-Pfads (…/items/<dir>/<datei>.json). */
   function dirOfPath(path: string): string {
     return path.split('/').at(-2) ?? '';
   }
@@ -83,7 +80,7 @@
     snapshot: (d) => merged(d),
     defaultName: (d) => slugKeepUmlauts(d.name_de || d.name || 'gegenstand'),
     location: {
-      // Ablage nach Kategorie (Bucket). Kategoriewechsel im Editor verschiebt die Datei.
+      // Ein Kategoriewechsel im Editor verschiebt die Datei.
       bucketLabel: 'Kategorie',
       bucketOf: (d) => CATEGORY_TO_DIR[categoryKeyOf(d)],
       buckets: () => Object.entries(CATEGORY_LABELS)
@@ -98,7 +95,6 @@
     },
   });
 
-  /** Spiegel neu aus dem Draft ziehen — die Baseline gilt erst danach. */
   function syncMirrors(item: Item | null) {
     mirrored = item;
     draftDescText   = (item?.desc    ?? []).join('\n\n');
@@ -126,7 +122,6 @@
   const item = $derived(saved.item);
   const color = $derived(rarityColor(item?.rarity));
 
-  /** Übernimmt einen Open5e-Import in den Draft (deutsche Beschreibung bleibt leer). */
   function applyImport(imported: Item) {
     if (!ed.draft) return;
     Object.assign(ed.draft, imported);
@@ -136,7 +131,6 @@
     draftRarityName = imported.rarity?.name ?? '';
   }
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     if (!ed.draft) return null;
     const toTranslate: Record<string, unknown> = {};
@@ -147,7 +141,7 @@
     return translateItem(toTranslate);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: ItemTranslation) {
     if (!ed.draft) return;
     if (t.name_de) ed.draft.name_de = convertDistances(t.name_de);
@@ -161,7 +155,6 @@
   let showAiModal = $state(false);
   let showTranslateModal = $state(false);
 
-  /** Übernimmt das vom KI-Dialog überarbeitete Item in den Draft (überschreibt bestehende Werte). */
   function applyAiResult(result: Item) {
     if (!ed.draft) return;
     Object.assign(ed.draft, result);
@@ -171,7 +164,6 @@
     draftRarityName = result.rarity?.name ?? '';
   }
 
-  /** Druckt den aktuellen Gegenstand als PDF (eine Karte, nur deutsche Beschreibung). */
   function printItem() {
     if (!item) return;
     const html = prepareItemPrint(item, document);
@@ -214,7 +206,6 @@
   {#if item}
     {@const stype = structuralType(item)}
     {@const cat = categoryKeyOf(item)}
-    <!-- ── Anzeigemodus (Kartenstil, getönt nach Seltenheit) ── -->
     <div class="cards-wrap">
       <div class="item-card-view" style="--c: {color}">
         <div class="head">
@@ -237,7 +228,6 @@
 
         <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
-        <!-- Spielwerte je nach Typ -->
         {#if stype === 'weapon'}
           <div class="props">
             {#if item.damage}
@@ -286,7 +276,6 @@
           <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
         {/if}
 
-        <!-- Beschreibung -->
         {#if item.desc_de?.length}
           <div class="desc"><Markdown source={item.desc_de} /></div>
           {#if item.desc?.length}
@@ -321,7 +310,6 @@
 
 {#snippet bearbeiten()}
   {#if ed.draft}
-    <!-- ── Bearbeitungsmodus ── -->
     <div class="item-card edit-mode" style="--cat-color: {rarityColor(draftRarityName)}">
       {#if ed.isNew}
         <div class="new-banner">Neuer Gegenstand — noch nicht gespeichert.</div>
@@ -347,14 +335,12 @@
         </div>
       </div>
 
-      <!-- Typ-spezifische Felder -->
       <div class="card-props">
-        <!-- Magie-Facette (additiv, unabhängig vom Strukturtyp): auch eine magische Waffe zeigt das -->
+        <!-- Additiv, unabhängig vom Strukturtyp: auch eine magische Waffe zeigt das. -->
         {#if isMagicItem(ed.draft)}
           <MagicFacetFields bind:draft={ed.draft} bind:rarityName={draftRarityName} />
         {/if}
 
-        <!-- Statwerte-Block nach Strukturtyp (= Kategorie): eine magische Waffe bekommt hier ihre Waffenfelder -->
         {#if structuralType(ed.draft) === 'weapon'}
           <WeaponFields bind:draft={ed.draft} bind:propsText={draftPropsText} />
         {:else if structuralType(ed.draft) === 'armor'}
@@ -366,7 +352,6 @@
 
       <div class="card-divider"></div>
 
-      <!-- Beschreibung (Deutsch) — primär -->
       <div class="edit-section">
         <span class="edit-section-label">Beschreibung (Deutsch)</span>
         <textarea class="edit-textarea" bind:value={draftDescDeText} rows={6}
@@ -375,7 +360,6 @@
 
       <div class="card-divider"></div>
 
-      <!-- Beschreibung (Original) — sekundär, einklappbar -->
       <details class="edit-section edit-section-collapsible">
         <summary class="edit-section-label">Beschreibung (Original / Englisch)</summary>
         <textarea class="edit-textarea edit-textarea-secondary" bind:value={draftDescText} rows={5}
@@ -384,7 +368,6 @@
 
       <div class="card-divider"></div>
 
-      <!-- KI-Werkzeuge -->
       <div class="edit-section ai-section">
         <span class="ai-label">KI-Werkzeuge</span>
         <div class="ai-tools-row">
@@ -427,7 +410,6 @@
 
 <style>
 
-  /* ── Anzeige-Karte (Druckstil, getönt nach Seltenheit per --c) ── */
   .cards-wrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
   .item-card-view {
@@ -525,7 +507,6 @@
     border-radius: 99px; font-size: 0.7rem; padding: 0.05rem 0.5rem; color: var(--ink-soft);
   }
   .item-card-view .disadv { color: var(--danger); }
-  /* Meisterschaft hebt sich von den Eigenschaften-Pillen ab (Regeltext im title). */
   .item-card-view .mastery-pill {
     border-color: color-mix(in srgb, var(--c) 60%, transparent);
     color: var(--ink); font-weight: 600; cursor: help;
@@ -580,21 +561,16 @@
     height: fit-content;
   }
 
-  /* Header */
   .card-header {
     background: color-mix(in srgb, var(--cat-color) 18%, var(--bg-panel));
     border-bottom: 3px solid var(--cat-color);
     padding: 1.2rem 1.4rem 1rem;
   }
 
-  /* Props (Bearbeiten-Modus) */
   .card-props { padding: 0.9rem 1.4rem; display: flex; flex-direction: column; gap: 0.45rem; }
 
-  /*
-   * Feldraster und Feld-Grundformen gelten für die Unterformulare mit — sie sind
-   * Teile DIESER Karte, keine eigenständigen Bausteine. Eine Kopie je Unterformular
-   * wäre dieselbe Regel fünfmal.
-   */
+  /* `:global`, weil die Unterformulare Teile DIESER Karte sind und keine eigenständigen
+     Bausteine — eine Kopie je Unterformular wäre dieselbe Regel fünfmal. */
   .item-card :global(.prop-row) {
     display: grid;
     grid-template-columns: 7.5rem 1fr;
@@ -637,7 +613,6 @@
 
   .card-divider { height: 1px; background: var(--surface); margin: 0 1.4rem; }
 
-  /* Edit mode */
   .edit-header-top {
     display: flex; align-items: center; justify-content: space-between;
     gap: 0.5rem; margin-bottom: 0.6rem;
@@ -686,7 +661,6 @@
     border-radius: 4px; padding: 0.3rem 0.5rem; margin-bottom: 0.5rem;
   }
 
-  /* KI-Ausfüllen */
   .ai-section {
     background: color-mix(in srgb, var(--arcane) 6%, var(--bg-panel));
     border-top: 1px solid var(--surface);

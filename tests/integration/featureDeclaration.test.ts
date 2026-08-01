@@ -7,7 +7,7 @@
  * Antwort still), und die Wirkung steht neben der Option (`determinesFurtherEffects` kann
  * damit nie wieder true werden). Begründung: `docs/plan/plan-wahlen-deklarieren.md`, Stufe 1.
  *
- *   npm run eval -- --eval featureDeclaration
+ *   npm run test -- featureDeclaration
  */
 import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';

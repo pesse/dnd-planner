@@ -30,10 +30,8 @@
 
   interface EntryInfo { name: string; is_dir: boolean; }
 
-  /** Welcher „Neues X"-Dialog offen ist. */
   let createModal = $state<CreateKind | null>(null);
   let showTransferModal = $state(false);
-  /** Anzahl Bibliotheken mit Update — hebt den Bibliotheks-Knopf hervor. */
   let libUpdates = $derived(updateCount($libraries));
 
   type Reloadable = { reload: () => Promise<void> };
@@ -48,12 +46,10 @@
 
   let charactersExpanded = $state(false);
   let characterEntries: EntryInfo[] = $state([]);
-  // Anzeige-Meta je Charakter-Eintrag (dir-name → Name, Klassen-Icon, Klasse, Level).
   type CharClass = { icon: string; label: string; level: number | null };
   let characterMeta: Record<string, { name: string; classes: CharClass[] }> = $state({});
 
-  // Deutsche Klassennamen → Icon + Label. Erkennung per Substring in classLevel
-  // (ASCII-Schreibweisen zeigen auf dasselbe Label).
+  // Erkennung per Substring in `classLevel`; ASCII-Schreibweisen zeigen aufs selbe Label.
   const CLASS_INFO: Record<string, { icon: string; label: string }> = {
     barbar: { icon: '🪓', label: 'Barbar' },
     barde: { icon: '🎶', label: 'Barde' },
@@ -79,8 +75,7 @@
     }
     return { icon: '👤', label: classLevel || 'Unbekannte Klasse' };
   }
-  // Zerlegt einen classLevel-String in einzelne Klassen (Multiclassing), z. B.
-  // "Magier 5 / Zauberer 3" → zwei Einträge mit je Icon + Level.
+  // "Magier 5 / Zauberer 3" → zwei Einträge mit je Icon und Level.
   function parseClasses(classLevel: string): CharClass[] {
     const segments = classLevel
       .split(/[/,&+]/)
@@ -108,7 +103,6 @@
     } catch {
       characterEntries = [];
     }
-    // Name + Klassen (inkl. Multiclassing) aus der character.json je Verzeichnis nachladen.
     const meta: Record<string, { name: string; classes: CharClass[] }> = {};
     await Promise.all(
       characterEntries
@@ -123,7 +117,6 @@
               classes: parseClasses(classLevel),
             };
           } catch {
-            // kein/ungültiges JSON → Fallback auf Verzeichnisnamen im Template
           }
         })
     );
@@ -135,8 +128,7 @@
     if (charactersExpanded) await loadCharacters();
   }
 
-  // Ein Charakter wird von außen geöffnet (z.B. Link-Navigation) → Sektion aufklappen.
-  // untrack verhindert ein Re-Expandieren, wenn der Nutzer manuell zuklappt.
+  // `untrack` verhindert ein Re-Expandieren, wenn der Nutzer manuell zuklappt.
   $effect(() => {
     const path = $activeFile?.path;
     if (!path?.startsWith(`${CHARACTERS_PATH}/`)) return;
@@ -149,7 +141,7 @@
     if (!(await confirmNavigation())) return;
     if (entry.is_dir) {
       const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
-      // PDF ist reine Import-Quelle: fehlt die character.json, einmalig aus PDF anlegen.
+      // PDF ist reine Import-Quelle — fehlt die character.json, einmalig daraus anlegen.
       await ensureCharacterJson(dirPath);
       activeFile.set({ name: entry.name, path: `${dirPath}/character.json`, type: 'character', dirPath });
       setFileContent('');
@@ -393,7 +385,6 @@
     color: var(--arcane);
   }
 
-  /* Update-Hinweis: dauerhaft sichtbar + hervorgehoben, nicht nur bei Hover. */
   .update-btn {
     opacity: 1;
     color: var(--gold);
@@ -401,8 +392,6 @@
   .sidebar-header .update-btn { opacity: 1; }
   .update-btn:hover { color: var(--gold); filter: brightness(1.2); }
 
-  /* Bibliotheks-Update: gleiche Logik wie beim App-Update — dauerhaft
-     sichtbar, sobald es etwas zu holen gibt. */
   .header-btn.library-update { color: var(--gold); opacity: 1; }
   .header-btn.library-update:hover { filter: brightness(1.2); }
 
@@ -412,7 +401,6 @@
     margin: 0.25rem 0;
   }
 
-  /* Klassen-Icon + Level-Badge vor Charakter-Einträgen */
   .char-classes {
     display: inline-flex;
     align-items: center;
@@ -426,7 +414,6 @@
     font-size: 0.9rem;
     line-height: 1;
   }
-  /* Level klein, halb über dem Klassen-Icon (oben rechts) – erlaubt mehrere Klassen nebeneinander */
   .char-level-badge {
     position: absolute;
     top: -0.45em;

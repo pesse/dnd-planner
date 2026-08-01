@@ -1,6 +1,5 @@
 /**
- * HTTP-Transport aller LLM-Provider außer Anthropic (das hat sein SDK): ein
- * Einzel-Request über Rust und ein OpenAI-kompatibler SSE-Stream. Hier hängen
+ * HTTP-Transport aller LLM-Provider außer Anthropic (das hat sein SDK). Hier hängen
  * Debug-Mitschnitt, Token-Zählung und Rate-Limit-Retry.
  */
 import { invoke } from '@tauri-apps/api/core';
@@ -70,7 +69,6 @@ export async function rustFetch(
   }
 }
 
-/** Akkumuliert die delta-basierten, indexierten `tool_calls` eines Streams. */
 function mergeToolCallDeltas(toolCalls: StreamToolCall[], deltas: Array<Record<string, unknown>>): void {
   for (const d of deltas) {
     const idx = (d.index as number) ?? 0;
@@ -83,14 +81,10 @@ function mergeToolCallDeltas(toolCalls: StreamToolCall[], deltas: Array<Record<s
 }
 
 /**
- * Streamt eine OpenAI-kompatible `/chat/completions`-Antwort chunk-weise.
- * Setzt `stream: true` + `stream_options.include_usage`. Verhindert nginx-504s, da der
- * Server bereits Tokens sendet, bevor er fertig ist. `onDelta` erhält jeden content-Teil live.
- *
- * `onReasoning` ist der GETRENNTE Kanal für den Denk-Vorlauf eines Reasoning-Modells.
- * Getrennt, weil beides Verschiedenes will: `onDelta` speist sichtbaren Text (der Denk-Text
- * gehört dort nicht hin), `onReasoning` nur das Lebenszeichen — ohne es sieht der Aufrufer
- * minutenlang keine Aktivität und hält den Lauf für hängengeblieben.
+ * Chunk-weise, weil der Server damit Tokens sendet, bevor er fertig ist — das verhindert
+ * die nginx-504s. `onReasoning` ist der GETRENNTE Kanal für den Denk-Vorlauf: `onDelta`
+ * speist sichtbaren Text, in den der Denk-Text nicht gehört, `onReasoning` nur das
+ * Lebenszeichen — ohne es hält der Aufrufer den Lauf minutenlang für hängengeblieben.
  */
 export async function rustFetchStream(
   url: string,
@@ -104,11 +98,8 @@ export async function rustFetchStream(
   if (signal?.aborted) throw new Error('Agent abgebrochen.');
   const fullBody = { ...body, stream: true, stream_options: { include_usage: true } };
 
-  // Ein einzelner Stream-Versuch. Wird bei Rate-Limit (429) von withRateLimitRetry
-  // erneut aufgerufen — daher lebt der gesamte mutable State hier in der Closure,
-  // damit jeder Versuch frisch startet. Ein 429 kommt beim Status-Check an, bevor
-  // Tokens gestreamt werden, es wurden also noch keine Teil-Deltas an onDelta
-  // ausgeliefert.
+  // Der mutable State lebt in der Closure, damit jeder Retry frisch startet. Ein 429 kommt
+  // beim Status-Check an, bevor Tokens fließen — es wurde also noch kein Delta ausgeliefert.
   const attempt = async (): Promise<StreamResult> => {
     const start = Date.now();
     logDebug({
@@ -129,10 +120,8 @@ export async function rustFetchStream(
       if (!choice) return;
       const delta = (choice.delta as Record<string, unknown>) ?? {};
       if (typeof delta.content === 'string') { content += delta.content; onDelta?.(delta.content); }
-      // Der Denk-Vorlauf. Dieser Server nennt das Feld `reasoning`; `reasoning_content` ist
-      // der Name anderer OpenAI-kompatibler Builds — beide mitnehmen, sonst hängt die
-      // Sichtbarkeit des Denkens am Server-Build (per Sonde 2026-07-29 verifiziert: hier
-      // kommt `reasoning`, und ohne diesen Zweig sah der Client vom Denken NICHTS).
+      // Beide Feldnamen mitnehmen, sonst hängt die Sichtbarkeit des Denkens am Server-Build
+      // (Sonde 2026-07-29: hier kommt `reasoning`, ohne diesen Zweig sah der Client nichts).
       const think = typeof delta.reasoning === 'string' ? delta.reasoning
         : typeof delta.reasoning_content === 'string' ? delta.reasoning_content
         : '';
@@ -158,11 +147,9 @@ export async function rustFetchStream(
     };
 
     try {
-      // Rust-backed fetch (plugin-http) im Tauri-Kontext — derselbe Weg wie der
-      // Anthropic-SDK-Pfad: umgeht CORS, streamt den Body inkrementell und
-      // unterstützt echtes Abbrechen über das AbortSignal (`fetch_cancel`).
-      // Außerhalb von Tauri (headless Node/Eval-Harness) fällt httpFetch auf das
-      // globale fetch zurück, das Streaming + AbortSignal ebenfalls unterstützt.
+      // Rust-backed fetch im Tauri-Kontext: umgeht CORS, streamt inkrementell und kann
+      // echt abbrechen. Außerhalb von Tauri (Eval-Harness) fällt httpFetch aufs globale
+      // fetch zurück, das beides ebenfalls kann.
       const res = await httpFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -204,9 +191,8 @@ export async function rustFetchStream(
     return { content, toolCalls: compact, finishReason, reasoningChars: reasoning.length };
   };
 
-  // Rate-Limits (HTTP 429) abwarten + erneut versuchen — transparent für die Aufrufer.
-  // Der sichtbare Hinweis (Toast) wird zentral in withRateLimitRetry erzeugt; hier
-  // halten wir nur die UI-Aktivität (onActivity-Lebenszeichen) während der Wartezeit am Leben.
+  // Den Toast erzeugt `withRateLimitRetry` selbst; `onWait` hält hier nur das
+  // Lebenszeichen der UI während der Wartezeit wach.
   return withRateLimitRetry(attempt, {
     signal,
     provider: meta.provider,

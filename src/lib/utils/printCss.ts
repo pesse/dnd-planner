@@ -1,10 +1,7 @@
 /**
- * Regeltext-Styles für die Druck-Iframes.
- *
- * Die Druck-Dokumente sind eigenständige HTML-Seiten und sehen die Theme-Tokens
- * aus app.css nicht. Deshalb wird `ruleText.css` unverändert über `?inline` als
- * Text geholt (erster Einsatz dieses Vite-Imports im Projekt) und ihm ein Block
- * mit Papierwerten vorangestellt — so bleibt eine Quelle für Karte und PDF.
+ * Regeltext-Styles für die Druck-Iframes. Die Druck-Dokumente sind eigene HTML-Seiten und
+ * sehen die Theme-Tokens aus app.css nicht; `ruleText.css` kommt deshalb per `?inline` als
+ * Text herein, mit Papierwerten davor — eine Quelle für Karte und PDF.
  */
 import ruleTextCss from '../components/ruleText.css?inline';
 

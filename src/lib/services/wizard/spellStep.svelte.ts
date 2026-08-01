@@ -1,6 +1,5 @@
 /**
- * Abgeleitete Werte des Zauber-Schritts: Kontingente, gewährte Zauber, Fertig-Kriterium.
- * Der Rahmen braucht `done` fürs Weiter-Gating, die Schritt-Komponente den Rest — beide
+ * Abgeleitete Werte des Zauber-Schritts. Rahmen (`done` fürs Gating) und Schritt-Komponente
  * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
  */
 import type { CharacterWizard } from './characterWizard.svelte';
@@ -53,10 +52,9 @@ export function createSpellStepValues(
   });
   const fixedCantrips = $derived(grantedSpells.cantrips.map((name) => ({ level: 0, name })));
 
-  // Ein Zauber, den der Nutzer selbst gewählt hat und der DANACH als gewährt hereinkommt
-  // (der Effekt-Job landet spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen —
-  // er zählt dann nicht mehr gegen das Kontingent. Beim nächsten Schreiben verschwindet er
-  // auch aus dem Zustand; hier wird nichts mutiert.
+  // Ein selbst gewählter Zauber, der DANACH als gewährt hereinkommt (der Effekt-Job landet
+  // spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen. Hier nichts mutieren —
+  // beim nächsten Schreiben verschwindet er ohnehin aus dem Zustand.
   const lower = (v: string) => decodePick(v).name.toLowerCase();
   const grantedNames = $derived({
     cantrips: new Set(grantedSpells.cantrips.map((n) => n.toLowerCase())),
@@ -66,9 +64,8 @@ export function createSpellStepValues(
   const knownPicks = $derived(w.pickedKnown.filter((v) => !grantedNames.spells.has(lower(v))));
 
   /**
-   * Gated wird nur gegen die DETERMINISTISCHEN Kontingente aus der Klassentabelle: der
-   * Merkmals-Effekt-Job läuft beim Betreten des Schritts womöglich noch, und ein
-   * nachträglicher Aufschlag darf den Nutzer nicht blockieren (er sieht ihn als Hinweis).
+   * Gated nur gegen die DETERMINISTISCHEN Kontingente: der Effekt-Job läuft beim Betreten
+   * womöglich noch, und sein nachträglicher Aufschlag darf den Nutzer nicht blockieren.
    */
   const done = $derived.by(() => {
     const base = offer();

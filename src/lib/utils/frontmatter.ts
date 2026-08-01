@@ -3,13 +3,9 @@ export interface Frontmatter {
   characters?: string[];
 }
 
-/** Parses YAML-style frontmatter from a markdown string.
- *  Handles both strict YAML indentation and linter-reformatted variants
- *  (blank lines between items, no indentation on list items).
- *  Returns the raw frontmatter block (including delimiters) for round-trip preservation.
- *
- *  frontmatter.characters is set (possibly []) whenever the `characters:` key exists.
- *  It remains undefined when the key is absent entirely.
+/**
+ * Verkraftet auch vom Linter umformatiertes YAML (Leerzeilen, uneingerückte Listen).
+ * `rawBlock` enthält die Trenner mit, damit das Dokument verlustfrei zurückgeschrieben wird.
  */
 export function parseFrontmatter(markdown: string): { frontmatter: Frontmatter; body: string; rawBlock: string } {
   const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);

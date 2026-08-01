@@ -1,5 +1,4 @@
 <script lang="ts">
-  /** Kampfwerte: RK, Initiative, Bewegung, Trefferwürfel, Trefferpunkte, Übungsbonus. */
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import type { Character } from '../../schemas/characterSchema';
   import './form.css';
@@ -17,9 +16,8 @@
   } = $props();
 
   /**
-   * Bewegungsrate ist eine Meterzahl, kein Freitext: „9 Meter" / „30 feet" tippt sich hier
-   * nicht mehr ein. Das Schema-Feld bleibt ein String (PDF-Grenze), die Eingabe wird auf
-   * Ziffern plus EIN Komma reduziert.
+   * Bewegungsrate ist eine Meterzahl, kein Freitext. Das Schema-Feld bleibt ein String
+   * (PDF-Grenze), die Eingabe wird auf Ziffern plus EIN Komma reduziert.
    */
   function cleanSpeed(raw: string): string {
     const [head, ...rest] = raw.replace(/[^\d.,]/g, '').replace(/\./g, ',').split(',');

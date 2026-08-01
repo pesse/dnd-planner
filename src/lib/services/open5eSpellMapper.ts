@@ -1,23 +1,17 @@
 /**
- * Rohes Open5e-v2-Spell → internes `Spell`-Schema.
- *
- * Wie `open5eItemMapper` bewusst OHNE `invoke`, damit der Node-Importer
- * (`scripts/import-open5e-spells.mts`) ihn direkt bündeln kann. Die Deutsch-Konverter sind
- * selbstständig (portiert aus dem alten `dndApi.ts`), damit auch ungematchte Zauber
- * vernünftige deutsche Felder tragen.
+ * Rohes Open5e-v2-Spell → internes `Spell`-Schema. Wie `open5eItemMapper` ohne `invoke`,
+ * damit der Node-Importer ihn bündeln kann; die Deutsch-Konverter stehen deshalb hier
+ * selbstständig, sonst trüge ein ungematchter Zauber gar keine deutschen Felder.
  */
 import type { Spell } from '../schemas/spell';
 import { keySlug } from '$lib/utils/text';
 import { capitalize, DEFAULT_DOCUMENT, descToParagraphs } from './open5eSource';
-
-// Importer casting_time/range/duration ohnehin mit den gepflegten Vault-Werten.
 
 const SPELL_SCHOOL_KEYS = new Set([
   'abjuration', 'conjuration', 'divination', 'enchantment',
   'evocation', 'illusion', 'necromancy', 'transmutation',
 ]);
 
-/** Fuß → Meter (0,3-Konstante), selbstständig gehalten für den Node-Importer. */
 function spellFtToM(feet: number): string {
   return `${Math.round(feet * 3) / 10} m`.replace('.', ',');
 }
@@ -54,7 +48,6 @@ function convertCastingTime(ct: string): string {
     .replace(/\bwhich you take when\b/gi, 'die du nimmst, wenn');
 }
 
-/** Open5e-casting_time-Token ("action", "bonus_action", "reaction") → englische Phrase. */
 function castingTokenToPhrase(token: string): string {
   const t = token.replace(/_/g, ' ').trim().toLowerCase();
   if (t === 'action') return '1 action';
@@ -63,11 +56,7 @@ function castingTokenToPhrase(token: string): string {
   return token; // z.B. "1 minute" — convertCastingTime bildet das ab
 }
 
-/**
- * Rohes Open5e-v2-Spell → internes `Spell`. `name` = englischer Name (das gepflegte
- * Deutsch übernimmt der Importer per `name_en`-Match); `desc_de`/`higher_level_de`
- * bleiben leer.
- */
+/** `name` bleibt englisch — das gepflegte Deutsch setzt der Importer per `name_en`-Match. */
 export function mapOpen5eSpell(raw: Record<string, unknown>): Spell {
   const doc = raw.document as { key?: string; gamesystem?: { key?: string } } | undefined;
   const school = (raw.school as { key?: string } | undefined)?.key ?? '';

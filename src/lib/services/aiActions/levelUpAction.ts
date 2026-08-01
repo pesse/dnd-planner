@@ -1,19 +1,7 @@
 /**
- * KI-Aktionen für den Stufenaufstieg — die tool-freien Prosa-Pässe.
- *
- * `buildLevelUpNarrativeAction` (C): deutsche Zusammenfassung des Aufstiegs.
- *
- * Schritt D (Klassenmerkmale-Freitext + neue `sheetNote`s verschmelzen) liegt in
- * `fieldSummaryAction` — derselbe Prompt bedient die Zusammenfass-Buttons im
- * Charakter-Editor.
- *
- * Alle Zahlen werden deterministisch (levelUpMachine.buildDoc) assembliert; die KI
- * liefert hier nur Prosa. Aufstieg ist nur mit Progressionsdaten möglich — der
- * frühere Homebrew-Fallback (Fragen/Vorschlag) wurde entfernt.
- *
- * Leere Tool-Arrays → `runAiAction` nimmt den tool-freien Pfad (Anthropic:
- * generateStructured; sonst generate+extractJson). Prompts ENGLISCH; nur
- * nutzer-sichtbare Feldinhalte Deutsch.
+ * Der Narrativ-Pass des Stufenaufstiegs (Schritt C): alle Zahlen assembliert `levelUp/doc.ts`
+ * deterministisch, die KI liefert nur deutsche Prosa. Schritt D (Merkmalstext verschmelzen)
+ * liegt in `fieldSummaryAction`, weil derselbe Prompt die Editor-Knöpfe bedient.
  */
 import type { AiAction } from './types';
 import type { LevelUpDelta } from '../levelUp';
@@ -37,9 +25,6 @@ export interface CharacterSummary {
   spellcasting: { class: string; ability: string; currentSlots: number[] };
 }
 
-// ── Dünner Narrativ-Pass (Standard-/deterministischer Pfad) ─────────────────────
-// Alle Deltas werden deterministisch in levelUpMachine.buildDoc gebaut; die KI
-// liefert NUR das deutsche Narrativ (Zusammenfassung + Merkmals-Text zum Anhängen).
 const NARRATIVE_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 Write a short GERMAN narrative for a character's level-up. You are given the class span, the features/feats gained
 and the mechanical riders (granted spells etc.) — all numbers are already applied deterministically, so do NOT
@@ -53,6 +38,7 @@ export function buildLevelUpNarrativeAction(): AiAction<LevelUpNarrative> {
   return {
     id: 'levelup-narrative',
     label: 'Stufenaufstieg: Narrativ',
+    // Leere Tool-Arrays → `runAiAction` nimmt den tool-freien Single-Call-Pfad.
     anthropicTools: [],
     openAiTools: [],
     execute: async () => '',
@@ -62,7 +48,6 @@ export function buildLevelUpNarrativeAction(): AiAction<LevelUpNarrative> {
   };
 }
 
-/** userInput für den Narrativ-Pass. */
 export function buildNarrativeInput(ctx: {
   summary: CharacterSummary;
   delta: LevelUpDelta;

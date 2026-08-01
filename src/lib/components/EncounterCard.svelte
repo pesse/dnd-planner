@@ -57,7 +57,6 @@
     },
   });
 
-  // Lese-Aliase fürs bestehende Markup; Mutationen an draft.* triggern den Dirty-Check.
   let draft = $derived(ed.draft);
   let dirty = $derived(ed.dirty);
   let saveError = $derived(ed.saveError);
@@ -79,7 +78,6 @@
     }
   }
 
-  // ── Print ──────────────────────────────────────────────────────────────────
   let printLoading = $state(false);
   let printError = $state('');
 
@@ -109,7 +107,7 @@
 
       const html = buildPrintHtml(draft, monsters);
 
-      // Self-contained HTML in unsichtbarem iframe drucken — umgeht Svelte CSS-Scoping
+      // Self-contained HTML im unsichtbaren iframe — umgeht Sveltes CSS-Scoping.
       const iframe = document.createElement('iframe');
       iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
       document.body.appendChild(iframe);
@@ -142,7 +140,6 @@
     mark();
   }
 
-  // ── Monster-Picker ──────────────────────────────────────────────────────────
   let showPicker = $state(false);
   let pickerTag = $state<string | null>(null);
 
@@ -195,7 +192,6 @@
     {/if}
 
     <div class="enc-card">
-      <!-- Header -->
       <div class="enc-header">
         <input
           class="editable-field enc-name-input"
@@ -234,7 +230,6 @@
         rows="5"
       ></textarea>
 
-      <!-- Read-aloud -->
       <div class="read-aloud-section">
         <h3 class="enc-section-title read-aloud-title">Vorlesetext</h3>
         <textarea
@@ -246,7 +241,6 @@
         ></textarea>
       </div>
 
-      <!-- Meta -->
       <div class="enc-meta">
         <div class="enc-meta-item">
           <span class="meta-label">Ort</span>
@@ -267,7 +261,6 @@
 
       <div class="enc-divider"></div>
 
-      <!-- Monster list -->
       <h3 class="enc-section-title">Monster</h3>
       <div class="enc-monster-list">
         {#each draft.monsters as m, i}
@@ -320,7 +313,6 @@
 
       <div class="enc-divider"></div>
 
-      <!-- Loot -->
       <h3 class="enc-section-title">Beute</h3>
       <textarea
         class="editable-field enc-text-input"
@@ -332,7 +324,6 @@
 
       <div class="enc-divider"></div>
 
-      <!-- Notes -->
       <h3 class="enc-section-title">Notizen</h3>
       <textarea
         class="editable-field enc-text-input enc-notes-input"
@@ -352,7 +343,6 @@
     </div>
     </div><!-- enc-main-col -->
 
-    <!-- Monster mini cards -->
     {#if draft.monsters.some(m => m.slug)}
       <div class="enc-monsters-col">
         {#each draft.monsters as m, i (i)}
@@ -451,7 +441,6 @@
     font-size: 0.88rem;
   }
 
-  /* ── Editable field base ── */
   .editable-field {
     background: transparent;
     border: 1px solid transparent;
@@ -473,7 +462,6 @@
     background: var(--bg-raised);
   }
 
-  /* ── Header ── */
   .enc-header {
     display: flex;
     align-items: center;
@@ -553,7 +541,6 @@
     font-size: 0.85rem;
   }
 
-  /* ── Meta ── */
   .enc-meta {
     display: flex;
     flex-wrap: wrap;
@@ -574,7 +561,6 @@
   .meta-num-input { width: 44px; text-align: center; }
   .meta-xp { width: 60px; }
 
-  /* ── Divider ── */
   .enc-divider {
     height: 1px;
     background: var(--steel);
@@ -590,7 +576,6 @@
     margin: 0 0 0.4rem;
   }
 
-  /* ── Monster list ── */
   .enc-monster-list {
     display: flex;
     flex-direction: column;
@@ -710,7 +695,6 @@
   .picker-mon-cr { color: var(--gold); font-size: 0.75rem; margin-left: 0.5rem; }
   .picker-empty { color: var(--ink-muted); font-size: 0.8rem; padding: 0.2rem 0.4rem; }
 
-  /* ── Text areas ── */
   .enc-text-input {
     width: 100%;
     resize: vertical;
@@ -720,7 +704,6 @@
 
   .enc-notes-input { white-space: pre-wrap; font-size: 0.82rem; }
 
-  /* ── Footer ── */
   .enc-footer {
     display: flex;
     justify-content: flex-end;
@@ -740,7 +723,6 @@
   }
   .json-btn:hover { border-color: var(--ink-muted); color: var(--ink-muted); }
 
-  /* ── JSON Editor ── */
   .json-editor { display: flex; flex-direction: column; width: 100%; max-width: 700px; gap: 0.5rem; }
   .json-toolbar { display: flex; align-items: center; gap: 0.5rem; }
   .json-label { flex: 1; font-size: 0.85rem; color: var(--ink-muted); }

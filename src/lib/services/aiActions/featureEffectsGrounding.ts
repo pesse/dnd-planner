@@ -28,15 +28,10 @@ export async function buildSpellResolution(spellsToGround: string[], klasseName:
  * Die Zauber, die eine bereits getroffene Zweigwahl deterministisch gewährt
  * (`options[].spells` der gewählten Option, ALLE Stufenzeilen).
  *
- * Als Code-Regel und nicht nur als Prompt-Regel, aus demselben Grund wie
- * `withDeclaredGrants`: das Modell sieht die Deklaration gar nicht —
- * `buildFeatureEffectsInput` projiziert nur die Prosa, in der die volle Zweig-Tabelle steht.
- * Die Prompt-Regel allein hielt messbar nicht (evals/unredactedChoice: 2/5 bzw. 4/5 am
- * 2026-07-30, während die Ergänzung im Prompt bleibt, weil sie die Quote deutlich hebt).
- *
- * ALLE Zeilen, nicht nur die bis zur aktuellen Stufe: eine Zeile für Stufe 3 ist auf Stufe 1
- * ein Vorgriff, und auf Stufe 3 liefert sie `optionListRider` selbst — in beiden Fällen ist
- * die Nennung durch das Modell überzählig.
+ * Code-Regel statt nur Prompt-Regel: das Modell sieht die Deklaration gar nicht, nur die
+ * Prosa mit der vollen Zweig-Tabelle, und die Prompt-Regel allein hielt messbar nicht
+ * (evals/unredactedChoice 2/5 bzw. 4/5, 2026-07-30). ALLE Zeilen, weil eine spätere Zeile
+ * heute ein Vorgriff und später `optionListRider`s eigene Aufgabe ist.
  */
 export function declaredBranchSpells(features: GainedFeature[]): Set<string> {
   const out = new Set<string>();

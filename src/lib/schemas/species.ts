@@ -1,11 +1,6 @@
 /**
- * Zweisprachiges Spezies-Bibliotheks-Schema — analog zur Klassen-Progression
- * (`classProgression.ts`), aber ohne Stufen-Konzept.
- *
- * Ein dünner Adapter über das Open5e-**v2**-Format (`/v2/species/{key}`): die
- * Merkmale (`traits`) tragen — wie bei Zaubern/Gegenständen — je einen englischen
- * (`name`/`desc`) und einen optionalen deutschen (`nameDe`/`descDe`) Wert. Das
- * Deutsche wird per LLM-Übersetzung nachgefüllt; Open5e liefert nur Englisch.
+ * Adapter über Open5e v2 (`/v2/species/{key}`), zweisprachig wie Zauber und Gegenstände:
+ * Englisch kommt aus der Quelle, Deutsch füllt die LLM-Übersetzung nach.
  */
 import { z } from 'zod';
 import { sourceField, migrateSourceLegacy } from './source';
@@ -21,11 +16,8 @@ export const SHEET_VALUE_TRAITS = ['size', 'speed'] as const;
 export type SheetValueTrait = (typeof SHEET_VALUE_TRAITS)[number];
 
 /**
- * Ein Speziesmerkmal (Trait); zweisprachig (EN Pflicht, DE optional).
- *
  * Der Grant hängt am MERKMAL, nicht an der Spezies: im SRD 5.2 gewähren nur zwei
- * Merkmale eine Fertigkeit (Elf „Keen Senses", Mensch „Skillful"), und beide sind
- * eine Wahl. Für alles Übrige bleibt er leer.
+ * Merkmale eine Fertigkeit (Elf „Keen Senses", Mensch „Skillful"), beide als Wahl.
  */
 export const traitSchema = z.object({
   key: z.string().default(''),
@@ -34,9 +26,8 @@ export const traitSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
-  // Die drei Deklarationen (featureChoice.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Talent.
-  // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in derselben
-  // Prosa bzw. Eingang für den Text anderer Merkmale (Korrektur 5, docs/plan/plan-wahlen-deklarieren.md).
+  // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in
+  // derselben Prosa bzw. Eingang für den Text anderer Merkmale.
   ...featureDeclarationFields,
 });
 

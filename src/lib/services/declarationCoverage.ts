@@ -1,23 +1,15 @@
 /**
- * Der Bibliotheks-Linter: wie viele Merkmale einer Bibliothek sind DEKLARIERT?
- *
- * Ohne diese Sichtbarkeit ist die Abdeckung blind (docs/plan/plan-wahlen-deklarieren.md,
- * Stufe 3 und Risiko 1): nur ein deklariertes Merkmal fällt aus der KI-Deutung heraus,
- * und ob eines deklariert ist, sieht man einer Karte sonst nirgends an.
- *
- * Die Unterscheidung, die alles trägt (siehe `featureGrantSchema`, schemas/grants.ts):
- * `grants` FEHLT = nie angesehen, läuft weiter über die KI-Kette; `grants: {}` = geprüft,
- * gewährt nichts. Deshalb fragt `isRedacted` nach der ANWESENHEIT des Feldes und
- * `hasDeclaredMechanics` nach seinem Inhalt — die beiden Fragen sind nicht dieselbe.
+ * Der Bibliotheks-Linter: wie viele Merkmale sind DEKLARIERT? Trägt die Unterscheidung
+ * `grants` FEHLT (nie angesehen, läuft über die KI-Kette) gegen `grants: {}` (geprüft,
+ * gewährt nichts) — `isRedacted` fragt nach der ANWESENHEIT, `hasDeclaredMechanics` nach Inhalt.
  */
 import type { FeatureGrant, ProficiencyGrant, SpellGrant } from '$lib/schemas/grants';
 import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import { isEmptyCharacterProperties } from './characterProperties';
 
 /**
- * Der Ausschnitt, den Klassenmerkmal, Speziesmerkmal und Talent teilen — strukturell
- * statt als Union, damit derselbe Zähler für alle drei Artefakttypen gilt. Ein Typ
- * ohne `grantsChoice`/`grantsSpells` (Trait) passt hier hinein, weil beide optional sind.
+ * Der Ausschnitt, den Klassenmerkmal, Speziesmerkmal und Talent teilen — strukturell statt
+ * als Union, damit derselbe Zähler für alle drei Artefakttypen gilt.
  */
 export interface DeclarableFeature {
   grants?: FeatureGrant;
@@ -26,13 +18,10 @@ export interface DeclarableFeature {
 }
 
 export interface DeclarationCoverage {
-  /** Betrachtete Merkmale (bei einem Talent: 1 — das Talent selbst). */
   total: number;
-  /** Redigiert: mindestens eine der drei Deklarationen ist gesetzt, auch leer. */
+  /** Mindestens eine der drei Deklarationen ist gesetzt — auch leer. */
   redacted: number;
-  /** Davon: trägt tatsächlich Mechanik. */
   withMechanics: number;
-  /** Nicht redigiert — läuft weiter über die KI-Deutung. */
   undeclared: number;
 }
 
@@ -53,11 +42,6 @@ export const isRedacted = (f: DeclarableFeature): boolean =>
 export const hasDeclaredMechanics = (f: DeclarableFeature): boolean =>
   f.grantsChoice !== undefined || f.grantsSpells !== undefined || (f.grants !== undefined && !grantIsEmpty(f.grants));
 
-/**
- * Zählt die Abdeckung einer Merkmalsliste. Taugt für `classProgression.features`
- * (auch die einer Subklasse — die ist eine eigene Progression mit eigener Liste),
- * `species.traits` und ein einzelnes Talent (`[feat]`).
- */
 export function declarationCoverage(features: readonly DeclarableFeature[]): DeclarationCoverage {
   const redactedList = features.filter(isRedacted);
   return {
@@ -68,17 +52,13 @@ export function declarationCoverage(features: readonly DeclarableFeature[]): Dec
   };
 }
 
-/** Anzeigeform des Abdeckungsstands: `tone` steuert nur die Farbe, nicht den Text. */
 export interface CoverageBadge {
   text: string;
   title: string;
   tone: 'open' | 'done';
 }
 
-/**
- * Badge-Text für eine Bibliothekskarte. Bei genau einem Merkmal (ein Talent ist eines)
- * ist die Aussage ein Ja/Nein — ein Zähler „1 von 1" wäre dort nur Rauschen.
- */
+/** Bei genau einem Merkmal (ein Talent) ein Ja/Nein — „1 von 1" wäre nur Rauschen. */
 export function coverageBadge(c: DeclarationCoverage): CoverageBadge {
   const title = `${c.withMechanics} mit Mechanik · ${c.redacted - c.withMechanics} geprüft ohne Wirkung · ${c.undeclared} undeklariert`;
   if (c.total === 1) {

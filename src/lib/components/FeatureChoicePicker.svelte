@@ -1,17 +1,11 @@
 <script lang="ts">
   /**
-   * EINE deklarierte Merkmalswahl am Charakter — nach dem Muster von `WeaponMasteryPicker`:
-   * rein präsentierend, Props rein, Ereignisse raus, kein Bibliotheks- und kein
-   * Charakterzugriff. Die Frage, die Antwort und die Wirkung beschafft der Aufrufer über
-   * `services/characterChoices.ts`.
+   * EINE deklarierte Merkmalswahl, rein präsentierend: Frage, Antwort und Wirkung
+   * beschafft der Aufrufer über `services/characterChoices.ts`.
    *
-   * „Übernehmen" statt Auto-Anwendung: die Wahl ändert Übungen, Zauber und Häkchen am Bogen,
-   * und `applyChanges` ist additiv — ein Klick auf eine Option darf das nicht im Vorbeigehen
-   * tun. Der Knopf erscheint nur, wenn die Changes am Bogen wirklich noch etwas ändern
-   * würden; sonst sagt `hint`, warum nicht.
-   *
-   * `diff` blendet die globale Diff-Tönung selbst ein — eine `use:diffMark`-Action des
-   * Aufrufers greift nicht in eine Kindkomponente.
+   * „Übernehmen" statt Auto-Anwendung, weil `applyChanges` additiv ist und ein Klick auf
+   * eine Option Übungen, Zauber und Häkchen nicht im Vorbeigehen setzen darf. `diff`
+   * blendet die Tönung selbst ein — eine `use:diffMark` des Aufrufers griffe hier nicht.
    */
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
@@ -34,12 +28,10 @@
     /** Kanonische (englische) Werte; leer = offen. */
     answer: string[];
     open: boolean;
-    /** Vergabe-Stufe — beschriftet die Zeile, wenn ein Merkmal mehrfach wählt. */
     gainedAt: number;
     showLevel?: boolean;
     pendingGrants?: boolean;
     hint?: string;
-    /** Zaubernamen der Option ohne Bibliothekstreffer. */
     flagged?: string[];
     diff?: DiffDir;
     onchange: (next: string[]) => void;
@@ -94,8 +86,6 @@
 </div>
 
 <style>
-  /* Dieselbe Kupfer-Box wie Grant- und Beherrschungs-Panel; Gold nur für „offen",
-     die Sprache der Deklarations-Badges. */
   .choice {
     border: 1px solid color-mix(in srgb, var(--copper) 35%, var(--surface));
     border-radius: 5px; background: color-mix(in srgb, var(--copper) 6%, var(--bg-panel));

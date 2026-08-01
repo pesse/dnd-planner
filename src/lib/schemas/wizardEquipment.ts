@@ -1,23 +1,14 @@
 /**
- * Ergebnis-Schema der thinking-freien Ausrüstungs-Aufbereitung im Erstell-Wizard:
- * die englische Startausrüstungs-Prosa (Klasse + Hintergrund) wird in WÄHLBARE,
- * deutsche Optionen zerlegt — je Herkunft eine Gruppe, je Gruppe eine oder mehrere
- * Optionen (A/B/C). Der Nutzer wählt pro Gruppe genau eine Option; die Gegenstände
- * sind schon konkret benannt und (wo möglich) an Bibliotheks-Items angelehnt — außer
- * dort, wo die Regel selbst nur eine Kategorie nennt (`choiceFrom`).
- * Single Source of Truth → Typ + LLM-JSON-Schema.
- *
- * Bewusst OHNE Gewicht: das füllt die Assembly deterministisch aus der Item-
- * Bibliothek (wie das Autocomplete im Charakter-Editor), nicht das Modell.
+ * Die Startausrüstungs-Prosa als WÄHLBARE deutsche Optionen: je Herkunft eine Gruppe,
+ * je Gruppe wählt der Nutzer genau eine Option. Bewusst OHNE Gewicht — das füllt die
+ * Assembly deterministisch aus der Item-Bibliothek, nicht das Modell.
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
 
 /**
- * Kategorien, die die Startausrüstung statt eines Gegenstands nennt: „Handwerkszeug"
- * ist im SRD die Kategorie über 17 Werkzeugen, „Musikinstrument" über 10 — beides
- * keine Gegenstände, die es in der Bibliothek gäbe. Das Modell setzt hier die
- * Kategorie, den konkreten Gegenstand wählt der Nutzer im Wizard.
+ * „Handwerkszeug" steht im SRD für 17 Werkzeuge, „Musikinstrument" für 10 — beides keine
+ * Gegenstände der Bibliothek. Das Modell setzt die Kategorie, der Nutzer wählt im Wizard.
  */
 export const EQUIPMENT_CHOICE_CATEGORIES = ['artisan-tools', 'instrument'] as const;
 export type EquipmentChoiceCategory = (typeof EQUIPMENT_CHOICE_CATEGORIES)[number];
@@ -67,7 +58,6 @@ export type EquipmentOptions = z.infer<typeof equipmentOptionsSchema>;
 
 export const equipmentOptionsJsonSchema = toLlmJsonSchema(equipmentOptionsSchema);
 
-/** Nachsichtiger Parser (füllt Defaults, strippt Unbekanntes); null bei Schema-Bruch. */
 export function parseEquipmentOptions(raw: unknown): EquipmentOptions | null {
   const r = equipmentOptionsSchema.safeParse(raw);
   return r.success ? r.data : null;

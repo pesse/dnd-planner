@@ -1,15 +1,7 @@
 /**
- * Orchestriert „Encounter inkl. Monster entwerfen": erzeugt das Encounter-JSON per
- * KI und stellt sicher, dass alle referenzierten Monster existieren.
- *
- * Monster-Auflösung (erfüllt „Bibliothek/SRD bevorzugen, Rest generieren"):
- *   - akt-lokal vorhanden  → wiederverwenden
- *   - in globaler Bibliothek → wiederverwenden (löst dank Typ-Ordner-Suche korrekt auf)
- *   - sonst                → per createMonsterAction generieren (zieht selbst SRD vor)
- *                            und akt-lokal unter acts/{akt}/monsters/ ablegen.
- *
- * Reine Service-Logik ohne Store-/UI-Kopplung — das App-Wiring (Datei öffnen,
- * Kontext neu laden) lebt in services/contextActions.ts.
+ * Erzeugt das Encounter-JSON per KI und stellt sicher, dass alle referenzierten Monster
+ * existieren. Reine Service-Logik ohne Store-/UI-Kopplung — das App-Wiring lebt in
+ * `services/contextActions.ts`.
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { LlmConfig, Monster, Encounter } from '../types';
@@ -30,22 +22,18 @@ export interface DesignEncounterContext {
   party: CharacterMinimum[];
   /** Globale Monster-Bibliothek (für Wiederverwendung bekannter Slugs). */
   library: MonsterLibraryEntry[];
-  /** Steuert, wie viel der Monster-Bibliothek in den Entwurfs-Prompt einfließt
-   *  (Tokens sparen). Default: nur kuratierte Gruppen, gekappt auf maxEntries. */
+  /** Wie viel Bibliothek in den Prompt einfließt — Tokens sparen. */
   libraryOptions?: LibraryOptions;
 }
 
 export interface LibraryOptions {
-  /** Bibliotheks-Block ganz weglassen. Default: true (einbeziehen). */
   include?: boolean;
-  /** Nur diese Monster-Gruppen (= types) einbeziehen. Leer/undefined → alle. */
+  /** Leer/undefined → alle Gruppen. */
   groups?: string[];
-  /** Obergrenze für die Anzahl gelisteter Monster. Default: 30. */
   maxEntries?: number;
 }
 
 export interface DesignEncounterCallbacks extends RunOptions {
-  /** Grobe Phasen-Meldung für die UI (z.B. „Generiere Monster „x"…"). */
   onPhase?: (text: string) => void;
 }
 
@@ -68,9 +56,10 @@ async function fileExists(path: string): Promise<boolean> {
 
 const DEFAULT_MAX_LIBRARY_ENTRIES = 30;
 
-/** Wählt die für den Entwurf einzubeziehenden Bibliotheks-Einträge gemäß Optionen.
- *  `groups` undefined → alle Gruppen; gesetzt (auch leer) → nur diese (leer ⇒ keine,
- *  konsistent mit der Monster-Gruppen-Kuratierung im Chat-Kontext, context.ts:499). */
+/**
+ * `groups` undefined → alle; gesetzt (auch leer) → nur diese. Eine leere Liste heißt also
+ * KEINE Bibliothek, konsistent mit der Gruppen-Kuratierung im Chat-Kontext.
+ */
 function selectLibrary(library: MonsterLibraryEntry[], opts?: LibraryOptions): MonsterLibraryEntry[] {
   if (opts?.include === false) return [];
   const groups = opts?.groups;
@@ -113,28 +102,21 @@ function buildMonsterPrompt(slug: string, notes: string, enc: Encounter): string
   return parts.filter(Boolean).join('\n');
 }
 
-export async function designEncounter(
-  ctx: DesignEncounterContext,
-  userPrompt: string,
-  cb: DesignEncounterCallbacks = {},
-): Promise<DesignEncounterResult> {
-  const { config, campaignPath, actDirName, actContent, party, library, libraryOptions } = ctx;
-  const onPhase = cb.onPhase ?? (() => {});
-  const runOpts: RunOptions = { onStep: cb.onStep, onActivity: cb.onActivity, signal: cb.signal };
-  const throwIfAborted = () => {
-    if (cb.signal?.aborted) throw new DOMException('Abgebrochen', 'AbortError');
-  };
-
-  // 1) Encounter-JSON generieren (tool-frei → ein Call)
-  onPhase('Entwerfe Encounter…');
-  const preamble = buildPreamble(actContent, party, library, libraryOptions);
-  const auftrag = userPrompt.trim() || 'Design a fitting combat encounter for this act.';
-  const userInput = `${preamble}\n\n## Task\n${auftrag}`;
-  const encounter = await runAiAction<Encounter>(config, createEncounterAction(), userInput, runOpts);
-
-  // 2) Referenzierte Monster auflösen (vorhandene wiederverwenden, fehlende generieren)
-  const actMonsterDir = `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters`;
-  const librarySlugs = new Set(library.map((m) => m.slug));
+/**
+ * Akt-lokal oder in der globalen Bibliothek vorhandene Monster werden wiederverwendet, alles
+ * Übrige generiert und unter `acts/{akt}/monsters/` abgelegt.
+ */
+async function resolveMonsters(input: {
+  encounter: Encounter;
+  actMonsterDir: string;
+  library: MonsterLibraryEntry[];
+  config: LlmConfig;
+  runOpts: RunOptions;
+  onPhase: (text: string) => void;
+  throwIfAborted: () => void;
+}): Promise<{ reusedSlugs: string[]; generatedSlugs: string[] }> {
+  const { encounter, actMonsterDir, config, runOpts, onPhase, throwIfAborted } = input;
+  const librarySlugs = new Set(input.library.map((m) => m.slug));
   const uniqueSlugs = [...new Set(encounter.monsters.map((m) => m.slug).filter(Boolean))];
   const reusedSlugs: string[] = [];
   const generatedSlugs: string[] = [];
@@ -163,8 +145,32 @@ export async function designEncounter(
     });
     generatedSlugs.push(slug);
   }
+  return { reusedSlugs, generatedSlugs };
+}
 
-  // 3) Encounter speichern
+export async function designEncounter(
+  ctx: DesignEncounterContext,
+  userPrompt: string,
+  cb: DesignEncounterCallbacks = {},
+): Promise<DesignEncounterResult> {
+  const { config, campaignPath, actDirName, actContent, party, library, libraryOptions } = ctx;
+  const onPhase = cb.onPhase ?? (() => {});
+  const runOpts: RunOptions = { onStep: cb.onStep, onActivity: cb.onActivity, signal: cb.signal };
+  const throwIfAborted = () => {
+    if (cb.signal?.aborted) throw new DOMException('Abgebrochen', 'AbortError');
+  };
+
+  onPhase('Entwerfe Encounter…');
+  const preamble = buildPreamble(actContent, party, library, libraryOptions);
+  const auftrag = userPrompt.trim() || 'Design a fitting combat encounter for this act.';
+  const userInput = `${preamble}\n\n## Task\n${auftrag}`;
+  const encounter = await runAiAction<Encounter>(config, createEncounterAction(), userInput, runOpts);
+
+  const actMonsterDir = `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters`;
+  const { reusedSlugs, generatedSlugs } = await resolveMonsters({
+    encounter, actMonsterDir, library, config, runOpts, onPhase, throwIfAborted,
+  });
+
   throwIfAborted();
   const filename = `${slugKeepUmlauts(encounter.name) || 'encounter'}.json`;
   const path = `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters/${filename}`;

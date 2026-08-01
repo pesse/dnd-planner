@@ -21,27 +21,25 @@ export interface ItemInfo {
   rarity: string;
   weight?: number;
   path: string;
-  /** Identität des Bibliothekseintrags („{source}_{slug}"). Ziel von `inventory[].sourceKey`. */
+  /** Ziel von `inventory[].sourceKey`. */
   key?: string;
   /** Basis-Slug der Waffenart: „shortbow" trägt auch der Eidbogen (Kurzbogen). */
   index?: string;
   magic: boolean;
-  // Der Index liest die Datei ohnehin vollständig; diese drei Waffen-Facetten mitzunehmen
-  // erspart der Waffenbeherrschung (services/weaponMastery.ts) und der
-  // Angriffstabelle im Bogen, jede Waffendatei ein zweites Mal zu laden.
+  // Der Index liest die Datei ohnehin ganz; diese drei Facetten mitzunehmen erspart
+  // Waffenbeherrschung und Angriffstabelle ein zweites Laden jeder Waffendatei.
   weapon_category?: string; // Simple | Martial
   weapon_range?: string; // Melee | Ranged
   mastery?: WeaponMastery;
 }
 
-/** Zeigt den deutschen Namen, falls vorhanden, sonst den Originalnamen. */
 export function displayName(item: ItemInfo): string {
   return item.name_de ?? item.name;
 }
 
 const MAGIC_CATEGORIES = ['ring', 'rod', 'staff', 'wand', 'scroll', 'potion', 'wondrous-item', 'spellcasting-focus'];
 
-/** Grobe „Schublade" einer Kategorie. Magie-Kategorien (Ring, Trank …) liefern hier `magic`. */
+/** Magie-Kategorien (Ring, Trank …) liefern `magic`. */
 export function categoryToCoarseType(catKey: string): 'weapon' | 'armor' | 'magic' | 'gear' {
   if (catKey === 'weapon' || catKey === 'ammunition') return 'weapon';
   if (catKey === 'armor' || catKey === 'shield') return 'armor';
@@ -49,29 +47,26 @@ export function categoryToCoarseType(catKey: string): 'weapon' | 'armor' | 'magi
   return 'gear';
 }
 
-/** Leitet den Zielordner (Kategorie) aus einem Item ab — einzig aus `equipment_category`. */
+/** Einzig aus `equipment_category` — nichts anderes entscheidet den Ordner. */
 export function dirOf(item: Item): string {
   const idx = item.equipment_category?.index;
   return idx ? (API_CATEGORY_MAP[idx] ?? 'other') : 'other';
 }
 
 /**
- * Struktureller Typ (steuert, welcher Statwerte-Block angezeigt wird): rein aus
- * `equipment_category` abgeleitet, damit Anzeige, Ordner und Dropdown immer übereinstimmen.
- * Reine Magie-Kategorien (Ring, Trank …) haben keine Waffen-/Rüstungswerte → wie „gear".
+ * Rein aus `equipment_category`, damit Anzeige, Ordner und Dropdown übereinstimmen. Reine
+ * Magie-Kategorien haben keine Waffen-/Rüstungswerte und laufen wie „gear".
  */
 export function structuralType(item: Item): 'weapon' | 'armor' | 'gear' {
   const t = categoryToCoarseType(dirOf(item));
   return t === 'magic' ? 'gear' : t;
 }
 
-/** Hat das Item magische Facetten (Magie-Kategorie oder Seltenheit/Einstimmung/Bonus)? */
 export function isMagicItem(item: Item): boolean {
   return categoryToCoarseType(dirOf(item)) === 'magic'
     || !!item.rarity || !!item.attunement || item.magic_bonus != null;
 }
 
-/** Leeres Item für die gewählte Kategorie (equipment_category passend gesetzt). */
 export function blankItem(name: string, dir: string): Item {
   const apiName = dir.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   return {
@@ -86,17 +81,15 @@ export function blankItem(name: string, dir: string): Item {
   };
 }
 
-/** Vorlage → anpassbare Homebrew-Kopie (ohne Verknüpfung zur Quelle). */
 export function toHomebrewCopy(item: Item): Item {
-  // `key`/`index` leeren, damit die Kopie eine EIGENE Identität bekommt (der neue
-  // `key` wird beim Laden aus source+name backfilled); Herkunft auf Eigen setzen.
+  // `key`/`index` leeren: die Kopie braucht eine EIGENE Identität, der Key wird beim
+  // Laden aus source+name backfilled.
   return { ...item, source: OWN_SOURCE, key: '', index: undefined, document: { key: OWN_SOURCE, gamesystem: '' } };
 }
 
 let cache: Record<string, ItemInfo[]> = {};
 let knownDirs: string[] = [];
 
-/** Kategorie-Ordner der Bibliothek, alphabetisch. */
 export async function listItemDirs(): Promise<string[]> {
   try {
     const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: ITEMS_PATH });
@@ -107,7 +100,7 @@ export async function listItemDirs(): Promise<string[]> {
   return knownDirs;
 }
 
-/** Zuletzt gelesene Kategorie-Ordner — für Aufrufer ohne await (leerer Draft). */
+/** Für Aufrufer ohne `await` (leerer Draft). */
 export function loadedItemDirs(): string[] {
   return knownDirs;
 }
@@ -121,13 +114,9 @@ export function invalidateItemCache(dir?: string) {
 }
 
 /**
- * Die 17 Handwerkszeuge des SRD 5.2 als Open5e-`index`. „Handwerkszeug" ist eine
- * Kategorie über ihnen, kein Gegenstand — und aus den Dateien NICHT ableitbar:
- * `items/tools/` mischt Handwerkszeug, Musikinstrumente, Spielsets und
- * Sonderwerkzeuge, und die „Craft:"-Zeile trifft auch Verkleidungs-,
- * Kräuterkunde- und Giftmischerausrüstung (die im SRD keine Handwerkszeuge sind).
- * Nur englische Keys, wie die anderen geschlossenen Vokabulare — die Anzeige kommt
- * aus `name_de` der Bibliothek, keine zweite Übersetzungstabelle.
+ * Aus den Dateien NICHT ableitbar: `items/tools/` mischt Handwerkszeug, Instrumente, Spielsets
+ * und Sonderwerkzeuge, und die „Craft:"-Zeile trifft auch Ausrüstung, die im SRD kein
+ * Handwerkszeug ist. Englische Keys, Anzeige aus `name_de` — keine zweite Übersetzungstabelle.
  */
 export const ARTISAN_TOOL_INDEXES = [
   'alchemists-supplies', 'brewers-supplies', 'calligraphers-supplies', 'carpenters-tools',
@@ -137,10 +126,8 @@ export const ARTISAN_TOOL_INDEXES = [
 ] as const;
 
 /**
- * Wählbare Gegenstände einer Werkzeug-KATEGORIE, alphabetisch — für die Stellen,
- * an denen die Regel keine Wahl trifft (Mönch: „Handwerkszeug", Barde:
- * „Musikinstrument deiner Wahl"). Musikinstrumente hängen am `index`-Präfix, die
- * Handwerkszeuge an `ARTISAN_TOOL_INDEXES`.
+ * Für die Stellen, an denen die Regel keine Wahl trifft („Handwerkszeug deiner Wahl").
+ * Instrumente hängen am `index`-Präfix, Handwerkszeuge an `ARTISAN_TOOL_INDEXES`.
  */
 export async function getToolChoices(category: EquipmentChoiceCategory): Promise<ItemInfo[]> {
   const tools = await getItemsByDir('tools').catch(() => []);
@@ -151,7 +138,6 @@ export async function getToolChoices(category: EquipmentChoiceCategory): Promise
   return tools.filter(match).sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
 }
 
-/** Lädt alle Items einer Kategorie (mit Cache). */
 export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
   if (cache[dir]) return cache[dir];
   try {
@@ -170,8 +156,8 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
         magic: isMagicItem(data as Item),
         weapon_category: data.weapon_category,
         weapon_range: data.weapon_range,
-        // Nur ein Wert aus dem geschlossenen Vokabular kommt durch — eine falsch
-        // gepflegte Datei liefert `undefined` statt einen Fremdwert weiterzutragen.
+        // Nur geschlossenes Vokabular: eine falsch gepflegte Datei liefert `undefined`
+        // statt einen Fremdwert weiterzutragen.
         mastery: (WEAPON_MASTERIES as readonly string[]).includes(data.mastery) ? data.mastery : undefined,
       }),
       ({ path, filename }) => ({
@@ -208,7 +194,6 @@ export interface ItemSuggestion {
   filename: string;
 }
 
-/** Sucht über alle geladenen Kategorien nach Name. */
 export function searchItems(
   loadedByDir: Record<string, ItemInfo[]>,
   query: string,

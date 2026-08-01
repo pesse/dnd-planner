@@ -5,7 +5,7 @@
  * gehen sie durch die Klassenmerkmale-Felder des Taendler-PDFs. Kernzusicherung ist der
  * RUNDLAUF: der Import schneidet die Marke ab, sonst wüchse sie bei jedem Zyklus an.
  *
- *   npm run eval -- --eval spellAccessPdf
+ *   npm run test -- spellAccessPdf
  */
 import { readFileSync } from 'node:fs';
 import { PDFDocument } from 'pdf-lib';

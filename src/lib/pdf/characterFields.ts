@@ -27,7 +27,7 @@ export type CharacterData = Character;
 /** JSON-Speicherformat (Metadaten sind Teil von Character). */
 export type CharacterJSON = Character;
 
-/** Anzahl Zauber-Textfelder je Grad in der Taendler-Vorlage: 1–4 → 13, 5–7 → 9, 8–9 → 7. */
+/** Zauber-Textfelder je Grad in der Taendler-Vorlage. */
 export const SPELL_FIELDS_PER_LEVEL: Record<number, number> = { 1:13, 2:13, 3:13, 4:13, 5:9, 6:9, 7:9, 8:7, 9:7 };
 
 export function emptyProficiencies(): ProficiencyFlags {
@@ -60,13 +60,9 @@ export function emptySpells(): CharacterSpells {
 }
 
 /**
- * Schneidet ein „ (Auslaugen)"-Suffix vom Waffennamen ab, das der PDF-Export an
- * beherrschte Waffen hängt (`withMasterySuffix`, characterExport.ts) — ohne das
- * wüchse der Name bei jedem Export/Import-Zyklus weiter an.
- *
- * Entfernt wird NUR eine bekannte Meisterschaftseigenschaft; „Langschwert (+1)" oder
- * „Dolch (geweiht)" bleiben unangetastet. `MASTERY_BY_LABEL` ist dabei dieselbe
- * Tabelle wie für die Anzeige, nur rückwärts gelesen — keine zweite Wahrheit.
+ * Gegenstück zu `withMasterySuffix` (characterExport.ts) — ohne das wüchse der Waffenname
+ * bei jedem Export/Import-Zyklus. Entfernt NUR eine bekannte Meisterschaftseigenschaft,
+ * „Langschwert (+1)" bleibt; `MASTERY_BY_LABEL` ist die Anzeigetabelle rückwärts gelesen.
  */
 export function stripMasterySuffix(name: string): string {
   const m = name.match(/^(.*\S)\s*\(([^()]+)\)\s*$/);
@@ -74,13 +70,10 @@ export function stripMasterySuffix(name: string): string {
 }
 
 /**
- * Die Zauberwerte eines merkmals-gewährten Zugangs im Klassenmerkmale-Text:
- * „Eingeweihter der Magie: Magier-Liste, Zauber über Charisma **(SG 13, Angriff +5)**".
- *
- * Das PDF hat nur EINEN Zauberblock, und der gehört der Klasse. Die Marke entsteht deshalb
- * erst beim Export (gerechnet, nicht gespeichert — der Übungsbonus steigt auf 5/9/13/17) und
- * wird beim Import wieder abgeschnitten, sonst wüchse sie bei jedem Zyklus an.
- * Beide Richtungen stehen absichtlich hier: eine Form, eine Datei.
+ * „Eingeweihter der Magie: … **(SG 13, Angriff +5)**" — das PDF hat nur EINEN Zauberblock und
+ * der gehört der Klasse. Die Marke wird beim Export gerechnet statt gespeichert (der
+ * Übungsbonus steigt auf 5/9/13/17) und beim Import wieder abgeschnitten, sonst wächst sie
+ * je Zyklus. Beide Richtungen stehen hier: eine Form, eine Datei.
  */
 const SPELL_VALUES_MARK = /\s*\(SG \d+, Angriff [+-]\d+\)/g;
 

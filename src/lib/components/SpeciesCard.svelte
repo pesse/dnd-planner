@@ -49,7 +49,6 @@
   let coverage = $derived(declarationCoverage(draft?.traits ?? []));
   let declBadge = $derived(coverageBadge(coverage));
 
-  // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
   /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */

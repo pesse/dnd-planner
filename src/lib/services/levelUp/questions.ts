@@ -19,11 +19,7 @@ const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQ
   resolvesEffects: false, featureKey: '', isBuildDecision: false, ...q,
 });
 
-/**
- * Leitet die zu treffenden Spieler-Entscheidungen deterministisch aus dem Delta und den
- * (bereits validierten) Merkmals-Ridern ab. `maxSpellLevel` = höchster Zaubergrad, den der
- * Charakter (nach Aufstieg) wirken kann — bestimmt die im Picker wählbaren Grade.
- */
+/** `maxSpellLevel` begrenzt die im Picker wählbaren Grade. */
 export function buildDecisions(
   delta: LevelUpDelta,
   riders: FeatureRider[],
@@ -31,7 +27,7 @@ export function buildDecisions(
 ): LevelUpQuestion[] {
   const qs: LevelUpQuestion[] = [];
 
-  // Trefferpunkte — bei „Würfeln" wird tatsächlich gewürfelt (Roll-Button), nicht getippt.
+  // Bei „Würfeln" wird tatsächlich gewürfelt (Roll-Button), nicht getippt.
   if (delta.hitDie > 0) {
     qs.push(baseQuestion({
       id: 'hp_method', type: 'choice', prompt: 'Trefferpunkte bestimmen',
@@ -46,7 +42,6 @@ export function buildDecisions(
     }));
   }
 
-  // ASI vs. Talent — eine Entscheidung je ASI-Stufe in der Spanne
   for (let i = 1; i <= delta.asiCount; i++) {
     qs.push(baseQuestion({
       id: `asi_or_feat_${i}`, type: 'choice',
@@ -64,7 +59,6 @@ export function buildDecisions(
     }));
   }
 
-  // Zaubertricks
   const cantripGain = delta.cantripDelta + riders.reduce((s, r) => s + r.extraCantrips, 0);
   if (cantripGain > 0) {
     qs.push(baseQuestion({
@@ -73,10 +67,8 @@ export function buildDecisions(
     }));
   }
 
-  // Zauber ERLERNEN (nicht: vorbereiten). Nur Klassen, die Zauber dauerhaft aufnehmen
-  // (known-Caster + Magier-Zauberbuch). Reine Vorbereiter bekommen hier keine Auswahl —
-  // ihre Vorbereitung passiert täglich außerhalb des Aufstiegs. Immer-vorbereitete
-  // Merkmalszauber werden ohnehin separat automatisch ergänzt.
+  // Zauber ERLERNEN, nicht vorbereiten: die Vorbereitung passiert täglich außerhalb des
+  // Aufstiegs, immer-vorbereitete Merkmalszauber kommen separat dazu.
   const learn = learnInfo(delta, riders);
   if (learn.learns && learn.count > 0 && opts.maxSpellLevel >= 1) {
     const levels = Array.from({ length: opts.maxSpellLevel }, (_, i) => i + 1);
@@ -89,16 +81,12 @@ export function buildDecisions(
     }));
   }
 
-  // Kampfstil/Expertise + sonstige erzwungene Feature-Wahlen sind NICHT mehr hier — sie
-  // werden von der Merkmals-Analyse (Call 1) erkannt und am Choice-Checkpoint entschieden.
   return qs;
 }
 
 /**
- * Wandelt die von der Analyse (Call 1) erkannten Wahlen in Fragebogen-Fragen für den
- * Checkpoint. Eine `spell-pick`-Wahl wird zum `spell-picker` — der Nutzer wählt dann aus der
- * Bibliothek (gefiltert über `spellLevels`/`spellClass`) statt aus einer Options-Liste, die
- * das Modell nur erfinden könnte.
+ * Eine `spell-pick`-Wahl wird zum `spell-picker`: die Optionen kommen aus der Bibliothek
+ * (gefiltert über `spellLevels`/`spellClass`), nicht aus einer vom Modell erfundenen Liste.
  */
 export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[] {
   return choices.map((c) =>
@@ -109,8 +97,7 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
         : c.type === 'text' ? 'text'
         : c.type === 'spell-pick' ? 'spell-picker'
         : 'choice',
-      // Anzeige deutsch, Wert englisch: der Wert geht an die KI zurück und an den Charakter,
-      // das Label sieht der Spieler. Fehlt die Übersetzung, steht Englisch da — der
+      // Anzeige deutsch, Wert englisch. Fehlt die Übersetzung, steht Englisch da — der
       // Checkpoint bleibt bedienbar.
       prompt: c.questionDe.trim() || c.question,
       help: c.helpDe.trim() || c.help,
@@ -125,7 +112,6 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
   );
 }
 
-/** Anzahl zu wählender Talente = Anzahl ASI-Stufen, für die „Talent" gewählt wurde. */
 export function countFeatsToPick(delta: LevelUpDelta, answers: Record<string, string | string[]>): number {
   let n = 0;
   for (let i = 1; i <= delta.asiCount; i++) if (answers[`asi_or_feat_${i}`] === 'feat') n++;

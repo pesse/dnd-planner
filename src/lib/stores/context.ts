@@ -44,7 +44,6 @@ function createContextFlags(): Writable<ContextFlags> {
   try {
     const saved = localStorage.getItem('context-flags');
     if (saved) {
-      // Merge mit Defaults: neue Felder bekommen ihren Default-Wert
       initial = { ...FLAG_DEFAULTS, ...JSON.parse(saved) };
     }
   } catch { /* kein localStorage (z.B. SSR) oder ungültiges JSON */ }
@@ -61,29 +60,21 @@ export const contextFlags = createContextFlags();
 export const pinnedEntries = writable<PinnedEntry[]>([]);
 
 /**
- * Gepufferte, voll aufgelöste Charakter-Kontextblöcke je `character.json`-Pfad. Weil
- * die Merkmalstexte im Vault liegen, ist ihr Aufbau asynchron — `systemPrompt` (ein
- * synchrones `derived`) liest deshalb nur diese Map, die `refreshCharacterContexts`
- * füllt.
+ * Der Aufbau ist asynchron (Merkmalstexte liegen im Vault), `systemPrompt` aber ein
+ * synchrones `derived` — es liest deshalb nur diese Map.
  */
 export const characterContextBlocks = writable<Map<string, string>>(new Map());
 
-/** Akt-Summaries der aktiven Kampagne — wird beim Kampagnen-Wechsel geladen. */
 export const actSummaries = writable<ActSummaryEntry[]>([]);
 
-/** Inhalt der campaign.md der aktiven Kampagne. */
 export const campaignContent = writable<string>('');
 
-/** Geladene Charakterdaten aus dem Frontmatter der campaign.md. */
 export const campaignCharacterData = writable<CharacterCompact[]>([]);
 
-/** Encounter-Summaries der aktiven Kampagne. */
 export const encounterSummaries = writable<EncounterSummaryEntry[]>([]);
 
-/** Kondensierte Monster-Bibliothek (Name, CR, Größe, Typ). */
 export const monsterLibrary = writable<MonsterLibraryEntry[]>([]);
 
-/** Vollständige Monster-Definitionen für den aktuell geöffneten Encounter. */
 export const encounterMonsterDefs = writable<Monster[]>([]);
 
 export async function loadCampaignContent(campaignPath: string): Promise<void> {
@@ -97,16 +88,14 @@ export async function loadCampaignContent(campaignPath: string): Promise<void> {
   }
 }
 
-/** Neu-laden der Charakterdaten aus einem gegebenen campaign.md-Inhalt (z.B. nach Frontmatter-Edit). */
 export async function reloadCampaignCharacters(campaignMd: string): Promise<void> {
   campaignContent.set(campaignMd);
   campaignCharacterData.set(await fetchCampaignParty(campaignMd));
 }
 
-/** Lädt Encounter-Summaries und Monster-Namen für eine Kampagne. */
 export async function loadEncounterContext(campaignPath: string): Promise<void> {
   invalidateMonsterPaths(); // Slug→Pfad-Cache neu aufbauen (Vault kann sich geändert haben)
-  // Monster-Bibliothek zuerst, damit die Encounter-Listen Name+CR anreichern können
+  // Bibliothek zuerst — die Encounter-Listen reichern Name+CR daraus an.
   const library = await fetchMonsterLibrary();
   monsterLibrary.set(library);
   encounterSummaries.set(await fetchEncounterSummaries(campaignPath, library));
@@ -116,7 +105,6 @@ export async function loadEncounterMonsters(encounterContent: string, encounterP
   encounterMonsterDefs.set(await fetchEncounterMonsters(encounterContent, encounterPath));
 }
 
-/** Lädt alle Akt-Summaries für eine Kampagne. Aufruf beim Kampagnen-Wechsel. */
 export async function loadActSummaries(campaignPath: string): Promise<void> {
   actSummaries.set(await fetchActSummaries(campaignPath));
 }
@@ -169,7 +157,6 @@ export function pinEntry(entry: FileEntry, content: string) {
     // Voreinstellung „Voll" ist bewusst großzügig; klein schaltbar am Pin.
     return [...pins, { entry, content, detailLevel: 'full', isCharacter }];
   });
-  // Begleitdateien nachladen und an den Pin hängen (löst über pinnedEntries einen Refresh aus).
   if (isCharacter) {
     void loadCharacterNotes(characterDirOf(entry.path)).then((notes) => {
       pinnedEntries.update((pins) =>
@@ -190,10 +177,8 @@ export function setPinDetailLevel(path: string, level: PinDetailLevel) {
 }
 
 /**
- * Baut die Charakter-Kontextblöcke neu: der geöffnete Charakter (immer `full`) plus
- * alle Charakter-Pins (mit ihrer jeweiligen Tiefe). Ein Eintrag je Pfad — ist der offene
- * Charakter auch gepinnt, gewinnt der offene. Ein `runToken` verwirft das Ergebnis eines
- * überholten Laufs, sonst gewinnt bei schnellem Datei-Wechsel der langsamere Lauf.
+ * Ein Eintrag je Pfad; ist der offene Charakter auch gepinnt, gewinnt der offene (`full`).
+ * Der `runToken` verwirft überholte Läufe — sonst gewinnt bei schnellem Wechsel der langsamere.
  */
 let runToken = 0;
 async function refreshCharacterContexts(

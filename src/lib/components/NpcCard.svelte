@@ -43,7 +43,6 @@
     str: 'STR', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
   };
 
-  // Maps SKILL_DEFS.attr (character keys) to NpcStats keys
   const CHAR_ATTR_TO_NPC: Record<string, keyof NpcStats> = {
     str: 'str', ges: 'dex', kon: 'con', int: 'int', wei: 'wis', cha: 'cha',
   };
@@ -52,7 +51,6 @@
   let rawJson = $state('');
   let jsonError = $state('');
 
-  // Spell editing + autocomplete
   let newSpell = $state('');
   let newSpellLevel = $state(1);
   let spellLibrary = $state<Awaited<ReturnType<typeof getSpellLibrary>>>([]);
@@ -61,7 +59,6 @@
 
   $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
 
-  // Item autocomplete
   let newItem = $state('');
   let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
   let itemSuggestions = $state<ItemSuggestion[]>([]);
@@ -81,7 +78,6 @@
 
   const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
 
-  // Item-Volldata-Cache + Tooltip
   let itemDataRecord = $state<Record<string, Item | null>>({});
   let tooltipItem = $state<Item | null>(null);
   let tooltipX = $state(0);
@@ -138,7 +134,6 @@
 
   const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
 
-  // Spell cards (expand/collapse)
   let expandedSpells = $state(new Set<string>());
   let spellDataCache = $state(new Map<string, Spell | null>());
   let loadingSpells = $state(new Set<string>());
@@ -202,7 +197,6 @@
     showJson = false;
   }
 
-  // Saving throws: click prof-dot to toggle proficiency on/off
   function toggleSaveProf(key: string) {
     if (!draft) return;
     const stored = draft.savingThrows[key];
@@ -273,7 +267,6 @@
 {:else}
   <div class="npc-sheet">
 
-    <!-- Header -->
     <div class="npc-header">
       <div class="name-block">
         <input class="npc-name" bind:value={draft.name} placeholder="Name" />
@@ -295,7 +288,6 @@
 
     <div class="npc-content">
 
-      <!-- Attribute -->
       <div class="section attributes">
         {#each STAT_LABELS as attr}
           <div class="attr-box">
@@ -306,7 +298,6 @@
         {/each}
       </div>
 
-      <!-- Kampf + Rettungswürfe -->
       <div class="two-col">
         <div class="section">
           <h3>Kampf</h3>
@@ -346,7 +337,6 @@
         </div>
       </div>
 
-      <!-- Fertigkeiten -->
       <div class="section">
         <h3>Fertigkeiten <span class="h3-hint">● = Klick zum Umschalten</span></h3>
         <div class="skill-grid">
@@ -367,7 +357,6 @@
         </div>
       </div>
 
-      <!-- Zauber -->
       <div class="section">
         <h3>Zauber</h3>
         <div class="spell-cards">
@@ -437,7 +426,6 @@
         </div>
       </div>
 
-      <!-- Inventar -->
       <div class="section">
         <h3>Inventar</h3>
         <div class="item-list">
@@ -490,7 +478,6 @@
         </div>
       </div>
 
-      <!-- Beschreibung + Hintergrund -->
       <div class="two-col">
         <div class="section">
           <h3>Beschreibung</h3>
@@ -520,13 +507,11 @@
         </div>
       </div>
 
-      <!-- Geheimnis -->
       <div class="section secret-section">
         <h3>Geheimnis</h3>
         <textarea class="secret-ta" bind:value={draft.secret} rows="2" placeholder="—"></textarea>
       </div>
 
-      <!-- Tags -->
       <div class="section">
         <h3>Tags</h3>
         <input
@@ -546,7 +531,6 @@
 <style>
   .npc-empty { padding: 2rem; color: var(--ink-muted); }
 
-  /* ── Sheet container ─────────────────────────────── */
   .npc-sheet {
     flex: 1;
     overflow-y: auto;
@@ -555,7 +539,6 @@
     font-size: 0.9rem;
   }
 
-  /* ── Header ──────────────────────────────────────── */
   .npc-header {
     padding: 0.9rem 1.5rem 0.6rem;
     border-bottom: 1px solid var(--surface);
@@ -637,7 +620,6 @@
   }
   .json-btn:hover { border-color: var(--ink-muted); color: var(--ink); }
 
-  /* ── Content area ────────────────────────────────── */
   .npc-content {
     padding: 1rem 1.5rem;
     display: flex;
@@ -645,7 +627,6 @@
     gap: 1rem;
   }
 
-  /* ── Section ─────────────────────────────────────── */
   .section h3 {
     margin: 0 0 0.4rem;
     font-size: 0.75rem;
@@ -667,7 +648,6 @@
     font-weight: 400;
   }
 
-  /* ── Attributes ──────────────────────────────────── */
   .attributes {
     display: flex;
     gap: 0.5rem;
@@ -701,14 +681,12 @@
   }
   .attr-score:focus { border-top-color: var(--red); }
 
-  /* ── Two-column layout ───────────────────────────── */
   .two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
 
-  /* ── Stats grid (Kampf) ──────────────────────────── */
   .stats-grid {
     display: flex;
     flex-direction: column;
@@ -735,7 +713,6 @@
   .sv-input.wide { width: 8rem; text-align: left; }
   .sv-input:focus { border-color: var(--red); }
 
-  /* ── Saving throws ───────────────────────────────── */
   .save-list { display: flex; flex-direction: column; gap: 0.15rem; }
 
   .save-row {
@@ -761,7 +738,6 @@
   .save-label { flex: 1; color: var(--ink-soft); }
   .save-val   { font-weight: 600; min-width: 2rem; text-align: right; }
 
-  /* ── Skills ──────────────────────────────────────── */
   .skill-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -780,7 +756,6 @@
   .skill-name { flex: 1; color: var(--ink-soft); }
   .skill-val  { font-weight: 600; min-width: 2rem; text-align: right; }
 
-  /* ── Spell cards ─────────────────────────────────── */
   .spell-cards {
     display: flex;
     flex-direction: column;
@@ -867,7 +842,6 @@
   .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
   .scard-loading { font-size: 0.78rem; color: var(--border); font-style: italic; }
 
-  /* ── Inventory list ──────────────────────────────── */
   .item-list {
     display: flex;
     flex-direction: column;
@@ -912,7 +886,6 @@
   }
   .row-remove:hover { color: var(--danger); }
 
-  /* ── Add row ─────────────────────────────────────── */
   .add-row {
     display: flex;
     gap: 0.35rem;
@@ -988,7 +961,6 @@
   }
   .add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
 
-  /* ── Narrative fields ────────────────────────────── */
   .npc-field { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.35rem; }
 
   .npc-field label {
@@ -1045,7 +1017,6 @@
   }
   .tags-input:focus { border-color: var(--red); }
 
-  /* ── JSON view ───────────────────────────────────── */
   .npc-json-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
   .json-toolbar {

@@ -1,11 +1,7 @@
 <script lang="ts">
   /**
-   * Zauber-Auswahl als kompakte Formularzeile: gewählte Zauber als Badges, Zähler,
-   * „Auswählen"-Knopf. Die eigentliche Wahl passiert im `SpellPickModal` — der Schritt bzw.
-   * Fragebogen bleibt dadurch kurz, statt pro Kontingent eine offene Suchliste zu tragen.
-   *
-   * Prop-gleich zum früheren Inline-Picker (plus `title` für den Dialogkopf), damit
-   * Erstell-Wizard und Stufenaufstieg dieselbe Zeile benutzen.
+   * Kompakte Formularzeile; die eigentliche Wahl passiert im `SpellPickModal`, damit
+   * Schritt und Fragebogen kurz bleiben statt je Kontingent eine offene Suchliste zu tragen.
    */
   import { decodePick } from '../services/spellcasting';
   import type { SpellInfo } from '../spellLibrary';
@@ -26,19 +22,16 @@
     allowCreate = false,
     onCreate = undefined,
   }: {
-    /** Klartext-Titel des Auswahl-Dialogs. */
     title: string;
     library: SpellInfo[];
-    /** Erlaubte Zaubergrade; `[0]` = nur Zaubertricks. */
     spellLevels: number[];
-    /** Klassenfilter (deutsch oder englischer Key); leer = alle Klassen. */
+    /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
     max: number;
     /** Gewählte Zauber, `encodePick`-kodiert. */
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
-    /** Nur für das Zauberbuch: Teilmenge von `picks`, die als vorbereitet gilt. */
     prepared?: string[] | undefined;
     preparedMax?: number;
     allowCreate?: boolean;

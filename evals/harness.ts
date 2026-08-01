@@ -1,17 +1,11 @@
 /**
- * Generischer Eval-Harness für die Prompt-Qualität der KI-Actions.
+ * Generischer Eval-Harness für die Prompt-Qualität der KI-Actions: eine Action läuft N-mal
+ * gegen echte LLM-Calls, gezählt wird die PASS-RATE über die Läufe — ein einzelnes Ergebnis
+ * sagt bei nicht-deterministischen Antworten nichts. `runEval` misst immer GENAU EINEN
+ * Prompt; Prompts vergleicht man, indem man die Reports zweier Läufe nebeneinanderlegt.
  *
- * Idee: Eine Action wird mit einem definierten Input N-mal gegen einen echten
- * LLM-Call ausgeführt; jeder Lauf wird gegen eine Liste von Assertions geprüft.
- * Weil LLM-Antworten nicht deterministisch sind, zählt die **Pass-Rate** über N
- * Läufe, nicht ein einzelnes Ergebnis. Ausgewertet wird immer GENAU EIN Prompt
- * (`runEval`); um Prompts zu vergleichen, führt man mehrere Läufe aus und legt die
- * entstehenden Reports (jeweils mit eigenem Titel/Beschreibung) nebeneinander.
- *
- * Der Netzwerk-Transport läuft über den echten Produktionspfad (`runAiAction`);
- * außerhalb von Tauri fällt `httpFetch` auf das globale `fetch` zurück
- * (siehe src/lib/services/httpFetch.ts). Pro Lauf werden Latenz, Server-Zeit,
- * Token-Usage sowie der echte Request/Response mitgeschnitten (siehe report.ts).
+ * Transport über den echten Produktionspfad (`runAiAction`); mitgeschnitten werden Latenz,
+ * Server-Zeit, Tokens und der echte Request/Response (siehe report.ts).
  */
 import type { LlmConfig } from '../src/lib/types';
 import type { AiAction } from '../src/lib/services/aiActions/types';

@@ -2,11 +2,9 @@ import { loadSpellByPath, type SpellInfo } from '../spellLibrary';
 import type { Spell } from '../types';
 
 /**
- * Vollständige Zauberdaten für den Hover-Tooltip, MODUL-weit geteilt: Auswahl-Zeile und
- * Auswahl-Dialog sind gleichzeitig montiert (Zaubertricks, Grad 1+, je Merkmals-Wahl eine)
- * und greifen auf dieselben Zauber zu. Vorab geladen wird nur, wo der Aufrufer eine kurze
- * Liste nennt (`preload`) — der Dialog zeigt die ganze Klassenliste, das wären Dutzende
- * Dateizugriffe für einen Hover.
+ * Zauberdaten des Hover-Tooltips, MODUL-weit geteilt: Zeile und Dialog sind gleichzeitig
+ * montiert und greifen auf dieselben Zauber zu. Vorab geladen wird nur, was der Aufrufer
+ * in `preload` nennt — die ganze Klassenliste wären Dutzende Dateizugriffe für ein Hover.
  */
 const spellCache = new Map<string, Spell | null>();
 
@@ -27,11 +25,7 @@ export interface SpellHover {
   hide(): void;
 }
 
-/**
- * Hover-Tooltip-Zustand für eine Zauberliste. `byName` wird als Getter übergeben, damit die
- * Bibliothek des Aufrufers (nachladend) reaktiv bleibt; `preload` nennt die Namen, deren
- * Daten schon vor dem ersten Hover geholt werden sollen.
- */
+/** `byName` ist ein Getter, damit die nachladende Bibliothek des Aufrufers reaktiv bleibt. */
 export function createSpellHover(
   byName: () => Map<string, SpellInfo>,
   preload?: () => Iterable<string>,
@@ -39,8 +33,8 @@ export function createSpellHover(
   let spell = $state<Spell | null>(null);
   let x = $state(0);
   let y = $state(0);
-  /** Name, über dem die Maus JETZT steht — verhindert, dass ein langsamer Ladevorgang
-   *  den Tooltip aufpoppt, nachdem die Maus längst weiter ist. */
+  // Verhindert, dass ein langsamer Ladevorgang den Tooltip aufpoppt, wenn die Maus
+  // längst weiter ist.
   let hovering = '';
 
   if (preload) {

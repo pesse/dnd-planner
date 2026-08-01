@@ -1,13 +1,7 @@
 /**
- * Registry kontextsensitiver KI-Aktionen: Aktionen, die nur für bestimmte
- * `activeFile.type` angeboten werden. Die Toolbar rendert per `actionsFor(type)`
- * die passenden Buttons — neue Aktionen (z.B. „Gegenstand entwerfen") hängen sich
- * einfach als weiterer Eintrag an, ohne UI-Umbau.
- *
- * Hier lebt das App-Wiring (Datei öffnen, Kontext neu laden). Die eigentliche
- * Generierungs-Logik steckt in den jeweiligen Services (z.B.
- * services/designEncounter.ts); der gelesene UI-Zustand kommt als `ContextActionState`
- * vom Aufrufer.
+ * Registry der KI-Aktionen je `activeFile.type`; eine neue Aktion ist ein Eintrag, kein
+ * UI-Umbau. Hier lebt nur das App-Wiring — die Generierung steckt im jeweiligen Service, der
+ * UI-Zustand kommt als `ContextActionState` vom Aufrufer.
  */
 import type { FileEntry, LlmConfig } from '../types';
 import type { AgentStep } from './vaultTools';
@@ -20,45 +14,36 @@ import { designEncounter } from './designEncounter';
 export interface ContextActionCallbacks {
   onStep?: (s: AgentStep) => void;
   onActivity?: () => void;
-  /** Grobe Phasen-Meldung (zwischen den KI-Läufen). */
   onPhase?: (text: string) => void;
   signal?: AbortSignal;
 }
 
-/** Vom Dialog erfasste, lauf-spezifische Optionen (überschreiben globale Defaults). */
 export interface ContextActionOptions {
-  /** Im Dialog gewählte Monster-Gruppen für den Kontext. undefined → globale contextFlags. */
+  /** undefined → globale `contextFlags`. */
   monsterGroups?: string[];
 }
 
-/** Der UI-Zustand, den eine Aktion braucht — der Aufrufer liest die Stores, nicht die Aktion. */
+/** Der Aufrufer liest die Stores, nicht die Aktion. */
 export interface ContextActionState {
   activeFile: FileEntry | null;
   fileContent: string;
   party: CharacterCompact[];
   monsterLibrary: MonsterLibraryEntry[];
-  /** Global kuratierte Monster-Gruppen (`contextFlags.monsterGroups`). */
+  /** Global kuratiert (`contextFlags.monsterGroups`). */
   monsterGroups: string[];
 }
 
 export interface ContextAction {
-  /** Stabile ID, z.B. 'design-encounter'. */
   id: string;
-  /** Button-Beschriftung. */
   label: string;
-  /** Icon für den Button. */
   icon: string;
-  /** Prompt-Platzhalter für das Eingabefeld. */
   placeholder: string;
-  /** Für welche activeFile-Typen die Aktion angeboten wird. */
   appliesTo: FileEntry['type'][];
-  /** Dialog soll einen Monster-Gruppen-Picker für den Kontext anzeigen. */
   selectsMonsterGroups?: boolean;
-  /** Führt die Aktion aus; liefert eine kurze Erfolgsmeldung für die UI. */
+  /** Liefert eine kurze Erfolgsmeldung für die UI. */
   run(state: ContextActionState, config: LlmConfig, userInput: string, cb: ContextActionCallbacks, options?: ContextActionOptions): Promise<string>;
 }
 
-/** Leitet campaignPath + actDirName aus dem Pfad der geöffneten Akt-Datei ab. */
 function parseActPath(path: string): { campaignPath: string; actDirName: string } {
   const m = path.match(/campaigns\/([^/]+)\/acts\/([^/]+)\/index\.md$/);
   if (!m) throw new Error('Akt-Pfad nicht erkannt.');
@@ -77,7 +62,6 @@ const designEncounterAction: ContextAction = {
     if (!file || file.type !== 'act') throw new Error('Kein Akt geöffnet.');
     const { campaignPath, actDirName } = parseActPath(file.path);
 
-    // Im Dialog gewählte Gruppen haben Vorrang; sonst die globale Kuratierung.
     const groups = options?.monsterGroups ?? state.monsterGroups;
 
     const result = await designEncounter(
@@ -88,15 +72,14 @@ const designEncounterAction: ContextAction = {
         actContent: state.fileContent,
         party: state.party,
         library: state.monsterLibrary,
-        // Nur die gewählten Monster-Gruppen, gekappt — hält den Entwurfs-Prompt klein.
-        // Leere Gruppenliste ⇒ keine Bibliothek im Prompt (Modell erdet dann via SRD-Suche).
+        // Gekappt, damit der Entwurfs-Prompt klein bleibt; leere Liste = keine Bibliothek
+        // im Prompt, das Modell erdet dann über die SRD-Suche.
         libraryOptions: { groups, maxEntries: 40 },
       },
       userInput,
       cb,
     );
 
-    // Vault-/Kontext-Caches auffrischen und neuen Encounter öffnen
     invalidateMonsterPaths();
     invalidateVault();
     await loadEncounterContext(campaignPath);

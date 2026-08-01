@@ -1,15 +1,7 @@
 /**
- * Hintergrund-Bibliotheks-Adapter — gespeist DIREKT aus Open5e v2
- * (`/v2/backgrounds/`). Muster wie `speciesData.ts`.
- *
- * Die typisierten `benefits[]` werden 1:1 übernommen (Open5e liefert
- * `{name, desc, type}`) und um deterministische Keys ergänzt. Zusätzlich werden
- * die beiden maschinell nutzbaren Felder abgeleitet: `abilityScores` aus dem
- * `ability_score`-Vorteil und `featKey` aus dem `feat`-Vorteil.
- *
- * `nameDe`/`descDe` bleiben beim Import leer und werden per LLM-Übersetzung
- * nachgefüllt. Bei den SRD-5.2-Hintergründen ist auch `desc` leer — Open5e führt
- * dort keinen Fließtext, nur die Vorteile.
+ * Hintergrund-Adapter aus Open5e v2 (`/v2/backgrounds/`), Muster wie `speciesData.ts`.
+ * `nameDe`/`descDe` bleiben beim Import leer; bei den SRD-5.2-Hintergründen auch `desc` —
+ * Open5e führt dort keinen Fließtext, nur die Vorteile.
  */
 import { backgroundSchema, type Background, type Benefit, type BenefitType, BENEFIT_TYPES } from '$lib/schemas/background';
 import { toSourceKey } from '$lib/schemas/source';
@@ -23,7 +15,6 @@ interface V2Benefit {
   type?: string;
 }
 
-/** Deterministischer Slug aus einem Namen (für stabile Benefit-/Talent-Keys). */
 function slug(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -33,10 +24,7 @@ function readBenefitType(raw: string | undefined): BenefitType {
   return (BENEFIT_TYPES as readonly string[]).includes(raw ?? '') ? (raw as BenefitType) : 'other';
 }
 
-/**
- * Attributsnamen aus dem `ability_score`-Vorteil lesen.
- * Open5e schreibt sie als Aufzählung: "Strength, Dexterity, Constitution".
- */
+/** Open5e schreibt sie als Aufzählung: "Strength, Dexterity, Constitution". */
 function readAbilityScores(desc: string): string[] {
   return desc
     .split(',')
@@ -44,11 +32,7 @@ function readAbilityScores(desc: string): string[] {
     .filter(Boolean);
 }
 
-/**
- * Bibliotheks-Key des Herkunftstalents aus dem `feat`-Vorteil ableiten.
- * Der Klammerzusatz gehört nicht zum Talent-Namen ("Magic Initiate (Cleric)" ist
- * das Talent `magic-initiate`), wird also abgeschnitten.
- */
+/** Der Klammerzusatz gehört nicht zum Talent: "Magic Initiate (Cleric)" → `magic-initiate`. */
 function readFeatKey(desc: string, source: string): string {
   const name = desc.split('(')[0];
   const s = slug(name);
@@ -56,9 +40,8 @@ function readFeatKey(desc: string, source: string): string {
 }
 
 /**
- * Übungs-Grant aus dem `skill_proficiency`-Vorteil. Open5e schreibt ihn als
- * Aufzählung ohne Wahl („Insight and Religion"); alle 16 SRD-Hintergründe haben
- * genau zwei FESTE Fertigkeiten. Ein unbekannter Name wirft (siehe `parseSkillNames`).
+ * Eine Aufzählung ohne Wahl („Insight and Religion") — alle 16 SRD-Hintergründe haben
+ * genau zwei FESTE Fertigkeiten. Ein unbekannter Name wirft, statt still zu fehlen.
  */
 function readSkillGrant(benefits: Benefit[], bgKey: string): ProficiencyGrant {
   const desc = benefits.find((b) => b.type === 'skill_proficiency')?.desc?.trim();
@@ -69,15 +52,14 @@ function readSkillGrant(benefits: Benefit[], bgKey: string): ProficiencyGrant {
   };
 }
 
-/** Bildet einen rohen v2-Hintergrund auf das offene, zweisprachige Schema ab. */
 export function mapV2Background(raw: Record<string, unknown>): Background {
   const rawBenefits = (raw.benefits as V2Benefit[]) ?? [];
   const doc = (raw.document as { key?: string; gamesystem?: { key?: string } }) ?? {};
   const bgKey = (raw.key as string) ?? '';
   const source = toSourceKey(doc.key);
 
-  // Open5e liefert keine Benefit-Keys → deterministisch aus Hintergrund-Key +
-  // Name-Slug erzeugen (wie bei den Spezies-Merkmalen).
+  // Open5e liefert keine Benefit-Keys; ohne einen deterministischen wären sie nicht
+  // referenzierbar (wie bei den Spezies-Merkmalen).
   const benefits: Benefit[] = rawBenefits.map((b) => ({
     key: bgKey && b.name ? `${bgKey}_${slug(b.name)}` : '',
     type: readBenefitType(b.type),
@@ -102,13 +84,9 @@ export function mapV2Background(raw: Record<string, unknown>): Background {
   return backgroundSchema.parse(mapped);
 }
 
-// ── Cache + Zugriff ──────────────────────────────────────────────────────────
 const cache = new Map<string, Background | null>();
 
-/**
- * Holt (und cached) einen Hintergrund zu einem v2-Key. Netzfehler / unbekannter
- * Key / unparsebares Dokument → null (Aufrufer degradieren, statt zu raten).
- */
+/** Jeder Fehlschlag wird zu `null` — der Aufrufer degradiert, statt zu raten. */
 export async function getBackground(key: string): Promise<Background | null> {
   if (cache.has(key)) return cache.get(key)!;
   try {

@@ -71,70 +71,55 @@ export const proficiencyFlagsSchema = z.object({
 });
 
 /**
- * Ein Eintrag des Merkmals-Ledgers. Zwei Arten, unterschieden ALLEIN am `sourceKey` —
- * kein Typ-Flag, weil die Auflöser ihre Keys ohnehin liefern:
- *   - Key trifft ein über `classes[]`/`species`/`backgroundRef` abgeleitetes Merkmal
- *     → der Eintrag ANNOTIERT es mit der getroffenen Entscheidung (`choice`).
- *   - Key trifft dort nichts → der Eintrag IST der Grund für das Merkmal (Talent-Link).
- *
- * `name`/`desc` überleben nur, weil Altbestand Einträge ohne `sourceKey` enthält
- * (unverlinktes Talent aus einem Import); sie werden nicht mehr gepflegt.
+ * Ein Eintrag des Merkmals-Ledgers. Zwei Arten, unterschieden ALLEIN am `sourceKey`:
+ * trifft er ein aus `classes[]`/`species`/`backgroundRef` abgeleitetes Merkmal, ANNOTIERT
+ * der Eintrag es mit der Wahl; trifft er nichts, IST er der Grund (Talent-Link).
+ * `name`/`desc` überleben nur für Altbestand ohne `sourceKey` und werden nicht gepflegt.
  */
 const characterFeatureSchema = z.object({
-  sourceKey: z.string().default(''), // Bibliotheks-Key, z.B. "srd-2024_healer" oder "srd-2024_druid_primal-order"
+  sourceKey: z.string().default(''), // z.B. "srd-2024_healer" oder "srd-2024_druid_primal-order"
   name: z.string().default(''),
   /**
-   * Getroffene Entscheidung als ENGLISCHES kanonisches Label — die Merkmals-Deutung
-   * reasont englisch, und in dieser Sprache kommt die Wahl als `<past_choices>` wieder
-   * herein. Die WIRKUNG der Wahl steht weiterhin dort, wo sie hingehört (Übungs-Flags,
-   * Zauber, Attribute); dieses Feld ist Provenienz, keine zweite Wahrheit.
-   *
-   * Altbestand trägt hier Deutsch — bewusst so gelassen: nichts Besseres existiert, und
-   * dieses Feld ist zugleich der Diskriminator „Wahl-Eintrag vs. Talent-Link".
+   * Die Wahl als ENGLISCHES kanonisches Label, weil sie in dieser Sprache als
+   * `<past_choices>` wieder hereinkommt; die WIRKUNG steht anderswo (Übungen, Zauber,
+   * Attribute), das hier ist Provenienz. Altbestand trägt Deutsch — bewusst gelassen,
+   * das Feld ist zugleich der Diskriminator „Wahl-Eintrag vs. Talent-Link".
    */
   choice: z.string().default(''),
   /**
-   * Dasselbe Label auf Deutsch, wörtlich wie der Merkmalstext (`descDe`) es setzt — das
-   * ist die Anzeige-Fassung (Editor, Bogen, Merkmals-Text). Bei Altbestand leer, dann
-   * trägt `choice` noch das deutsche Label (siehe Upgrade-Schritt 5).
+   * Anzeige-Fassung, wörtlich aus `descDe` zitiert. Bei Altbestand leer, dann trägt
+   * `choice` noch das deutsche Label (siehe Upgrade-Schritt 5).
    */
   choiceDe: z.string().default(''),
-  gainedAt: z.number().int().optional(), // Stufe — trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
+  gainedAt: z.number().int().optional(), // trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
   desc: z.string().default(''),
 });
 
-/** Eine gepflegte Klasse eines Charakters (multiclass-fähig; Basis für Progression-Check). */
 const characterClassSchema = z.object({
-  sourceKey: z.string().default(''), // Bibliotheks-Key der GRUNDklasse; leer = noch nicht verlinkt (Legacy)
-  name: z.string().default(''), // Anzeigename der Grundklasse (DE)
-  subclassKey: z.string().optional(), // Bibliotheks-Key der Subklasse (innerhalb der Grundklasse)
-  subclassName: z.string().optional(), // Anzeigename der Subklasse (DE) — für abgeleiteten Anzeige-String
+  sourceKey: z.string().default(''), // GRUNDklasse; leer = noch nicht verlinkt (Legacy)
+  name: z.string().default(''),
+  subclassKey: z.string().optional(),
+  subclassName: z.string().optional(),
   level: z.number().int().min(1).max(20).default(1),
 });
 
 /**
- * Verknüpfte Spezies eines Charakters (Link auf `vault/species`). Analog zu
- * `classes[]`: der Charakter speichert nur den Link; die Traits werden zur Laufzeit
- * aus der Bibliothek aufgelöst. Leerer `sourceKey` = noch nicht verlinkt (Legacy).
+ * Wie `classes[]` nur der Link; die Traits werden zur Laufzeit aus der Bibliothek
+ * aufgelöst. Leerer `sourceKey` = noch nicht verlinkt (Legacy).
  */
 const characterSpeciesSchema = z
   .object({
-    sourceKey: z.string().default(''), // Bibliotheks-Key der Spezies
-    name: z.string().default(''), // Anzeigename (DE)
-    subspeciesKey: z.string().optional(), // Bibliotheks-Key der Unterspezies (falls vorhanden)
+    sourceKey: z.string().default(''),
+    name: z.string().default(''),
+    subspeciesKey: z.string().optional(),
     subspeciesName: z.string().optional(),
   })
   .default({ sourceKey: '', name: '' });
 
-/**
- * Verknüpfter Hintergrund eines Charakters (Link auf `vault/backgrounds`). Analog zu
- * `species`: der Charakter speichert nur den Link, die Vorteile werden zur Laufzeit
- * aus der Bibliothek aufgelöst. Leerer `sourceKey` = noch nicht verlinkt (Legacy).
- */
 const characterBackgroundSchema = z
   .object({
-    sourceKey: z.string().default(''), // Bibliotheks-Key des Hintergrunds
-    name: z.string().default(''), // Anzeigename (DE)
+    sourceKey: z.string().default(''),
+    name: z.string().default(''),
   })
   .default({ sourceKey: '', name: '' });
 
@@ -162,29 +147,22 @@ const skillEntrySchema = z.object({
 });
 
 export const characterSchema = z.object({
-  // Kopf
+  // `classes`/`backgroundRef`/`species` sind die Source of Truth; `classLevel`/`background`/
+  // `race` daraus abgeleitete Anzeige-Strings für Header und PDF, nicht direkt editiert.
   name: z.string(),
-  // Strukturierte Klassen/Level-Items (Source-of-Truth, multiclass-fähig).
   classes: z.array(characterClassSchema).default([]),
-  // Abgeleiteter Anzeige-String aus `classes` (für Header/PDF); nicht mehr direkt editiert.
   classLevel: z.string().default(''),
   playerName: z.string().default(''),
-  // Strukturierter Hintergrund-Link (Source-of-Truth). `background` wird daraus abgeleitet.
   backgroundRef: characterBackgroundSchema,
-  // Abgeleiteter Anzeige-String aus `backgroundRef` (für Header/PDF); nicht mehr direkt editiert.
   background: z.string().default(''),
-  // Strukturierter Spezies-Link (Source-of-Truth). `race` wird daraus abgeleitet.
   species: characterSpeciesSchema,
-  // Abgeleiteter Anzeige-String aus `species` (für Header/PDF); nicht mehr direkt editiert.
   race: z.string().default(''),
   xp: z.string().default(''),
-  // Attribute (Basiswerte)
   str: z.number().int().default(10), ges: z.number().int().default(10), kon: z.number().int().default(10),
   int: z.number().int().default(10), wei: z.number().int().default(10), cha: z.number().int().default(10),
-  // Modifikatoren (berechnet)
+  // aus den Basiswerten berechnet
   strMod: z.number().int().default(0), gesMod: z.number().int().default(0), konMod: z.number().int().default(0),
   intMod: z.number().int().default(0), weiMod: z.number().int().default(0), chaMod: z.number().int().default(0),
-  // Kampf
   ac: z.string().default(''),
   initiative: z.string().default(''),
   speed: z.string().default(''),
@@ -194,26 +172,18 @@ export const characterSchema = z.object({
   proficiencyBonus: z.number().int().default(2),
   passivePerception: z.string().default(''),
   hitDice: z.string().default(''),
-  // Rettungswürfe (Übungen)
   strSaveProf: z.boolean().default(false), gesSaveProf: z.boolean().default(false), konSaveProf: z.boolean().default(false),
   intSaveProf: z.boolean().default(false), weiSaveProf: z.boolean().default(false), chaSaveProf: z.boolean().default(false),
-  // Fertigkeiten (Übungen + Expertise)
   skills: z.record(z.string(), skillEntrySchema).default({}),
-  // Angriffe
   attacks: z.array(attackSchema).default([]),
-  // Klassenmerkmale
   classFeatures: z.string().default(''),
-  // Persönlichkeit
   traits: z.string().default(''), ideals: z.string().default(''), bonds: z.string().default(''), flaws: z.string().default(''),
-  // Sprachen & Werkzeuge
   languages: z.array(z.string()).default([]),
   tools: z.array(z.string()).default([]),
   alleskoenner: z.boolean().default(false),
-  // Währung
   currency: z
     .object({ km: z.string(), sm: z.string(), em: z.string(), gm: z.string(), pm: z.string() })
     .default({ km: '', sm: '', em: '', gm: '', pm: '' }),
-  // Inventar
   inventory: z
     .array(
       z.object({
@@ -230,42 +200,30 @@ export const characterSchema = z.object({
     .default([]),
   inventoryNotes: z.string().default(''),
   totalWeight: z.string().default(''),
-  // Zauber
   spells: characterSpellsSchema,
-  // Persönliches (immer vorhanden → Bindings/Anzeige sicher)
   personal: personalDataSchema.default({
     rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '', gesinnung: '', glaube: '',
     lebensstil: '', taeglicheKosten: '', augenfarbe: '', haarfarbe: '', hautfarbe: '',
     gewicht: '', koerpergroesse: '', aussehen: '',
   }),
-  // Waffenübungen & Rüstungsausbildung (immer vorhanden)
   proficiencies: proficiencyFlagsSchema.default({
     simpleWeapons: false, martialWeapons: false, otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   }),
   /**
-   * Waffennamen, aufgelöst über `matchItem` — bewusst OHNE `sourceKey`, anders als das
-   * Inventar: die Liste nennt Waffenarten statt Besitz und wird pro Rast getauscht.
-   *
-   * Die Eigenschaft selbst steht am Item (`item.mastery`), nicht hier: sie hängt an
-   * der Waffenart, nicht am Charakter. Ein Tausch (nach jeder langen Rast erlaubt)
-   * ist deshalb eine reine Änderung dieser Liste.
+   * Waffen*namen*, bewusst OHNE `sourceKey`: die Liste nennt Waffenarten statt Besitz. Die
+   * Eigenschaft selbst steht am Item (`item.mastery`), also ist der nach jeder langen Rast
+   * erlaubte Tausch eine reine Änderung dieser Liste — ohne Rückschreiben.
    */
   masteries: z
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
-  /**
-   * Merkmals-Ledger: Talent-Links UND getroffene Merkmals-Entscheidungen in einer Liste
-   * (additiv zum Freitext; NICHT im PDF, Berechnungsgrundlage). Siehe
-   * `characterFeatureSchema` für die beiden Eintragsarten.
-   */
+  // Merkmals-Ledger, additiv zum Freitext: NICHT im PDF, aber Berechnungsgrundlage.
   features: z.array(characterFeatureSchema).default([]),
-  // Portrait (Datei im Charakter-Ordner)
-  portraitFile: z.string().optional(),
-  // ── Metadaten (nicht editierbar; werden im Draft mitgeführt) ──
-  // Schemaversion der Datei — bewusst offen (int), damit eine künftige Version
-  // eine ältere App nicht am Laden hindert. Siehe CHARACTER_VERSION unten.
+  portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
+  // `_version` bewusst offener int, kein Literal-Union: eine von einer neueren App
+  // geschriebene Datei soll in einer älteren trotzdem laden.
   _version: z.number().int().min(1).optional(),
   _importedFrom: z.string().optional(),
   _importedAt: z.string().optional(),

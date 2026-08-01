@@ -12,7 +12,6 @@ import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight'
 
 export interface PortraitInput {
   bytes: Uint8Array;
-  /** 'png' oder 'jpg' — entscheidet, welcher pdf-lib Embed-Aufruf genutzt wird */
   format: 'png' | 'jpg';
 }
 
@@ -28,10 +27,8 @@ function setText(doc: PDFDocument, fieldName: string, value: string) {
 }
 
 /**
- * Setzt Text in einem mehrzeiligen Feld mit fester Schriftgröße.
- * Das Taendler-PDF nutzt /Sz 0 (Auto-Fit). pdf-lib bäckt jedoch beim Speichern
- * Appearance-Streams ein und wählt bei wenig Text + großem Feld eine riesige
- * Schrift. Eine explizite Größe verhindert das.
+ * Feste Schriftgröße nötig: das Taendler-PDF setzt /Sz 0 (Auto-Fit), und pdf-lib bäckt
+ * beim Speichern Appearance-Streams ein — bei wenig Text im großen Feld riesig.
  */
 function setMultilineText(doc: PDFDocument, fieldName: string, value: string, fontSize = 9) {
   try {
@@ -53,12 +50,9 @@ function setCheck(doc: PDFDocument, fieldName: string, checked: boolean) {
 }
 
 /**
- * Zeichnet ein Bild direkt als Seiteninhalt an die Position eines Button-Feldes
- * (Seitenverhältnis erhalten, zentriert) und entfernt anschließend den Button.
- *
- * Robuster als PDFButton.setImage: Button-Icon-Appearances werden von vielen
- * Viewern (Adobe, Browser, Preview) nicht gerendert — direkt gezeichneter
- * Seiteninhalt dagegen immer, auch beim Drucken/Flatten.
+ * Bild als Seiteninhalt an die Position des Button-Feldes, dann den Button entfernen.
+ * Nicht `PDFButton.setImage`: dessen Icon-Appearances rendern viele Viewer (Adobe,
+ * Browser, Preview) nicht, gezeichneter Seiteninhalt dagegen immer — auch beim Flatten.
  */
 function drawImageIntoButtonField(doc: PDFDocument, fieldName: string, image: PDFImage) {
   const form = doc.getForm();
@@ -67,7 +61,6 @@ function drawImageIntoButtonField(doc: PDFDocument, fieldName: string, image: PD
   const widget = field.acroField.getWidgets()[0];
   if (!widget) return;
   const rect = widget.getRectangle();
-  // Seite finden, auf der das Widget liegt
   const widgetDict = widget.dict;
   let targetPage: PDFPage | undefined;
   for (const page of doc.getPages()) {
@@ -79,7 +72,6 @@ function drawImageIntoButtonField(doc: PDFDocument, fieldName: string, image: PD
     if (targetPage) break;
   }
   if (!targetPage) return;
-  // In das Feld einpassen (Seitenverhältnis erhalten), zentriert
   const fit = image.scaleToFit(rect.width, rect.height);
   targetPage.drawImage(image, {
     x: rect.x + (rect.width - fit.width) / 2,
@@ -87,19 +79,14 @@ function drawImageIntoButtonField(doc: PDFDocument, fieldName: string, image: PD
     width: fit.width,
     height: fit.height,
   });
-  // Button (inkl. Platzhalter "Hier klicken um Bild auszuwählen") entfernen
-  form.removeField(field);
+  form.removeField(field); // nimmt den Platzhalter „Hier klicken um Bild auszuwählen" mit
+
 }
 
 /**
- * Splittet einen Text so, dass Feld 1 zuerst gefüllt wird (bis ~limit Zeichen
- * am nächsten Absatzumbruch); Rest landet in Feld 2.
- *
- * Das Limit entspricht der ungefähren sichtbaren Kapazität von Feld 1 in der
- * Taendler-Vorlage. Getrennt wird ab dem Limit an der nächsten Leerzeile
- * (auch mit Whitespace, z.B. "\n \n"); fehlt eine, wird auf einfachen
- * Zeilenumbruch bzw. Wortgrenze zurückgefallen, damit auch ein langer
- * Block ohne Absätze nicht komplett in Feld 1 überläuft.
+ * Feld 1 zuerst füllen, Rest nach Feld 2. `limit` ist die sichtbare Kapazität von Feld 1
+ * in der Taendler-Vorlage; die Fallback-Kette verhindert, dass ein Block ohne Absätze
+ * komplett in Feld 1 überläuft.
  */
 function splitClassFeatures(text: string, limit = 700): [string, string] {
   if (!text) return ['', ''];
@@ -117,11 +104,9 @@ function splitClassFeatures(text: string, limit = 700): [string, string] {
 }
 
 /**
- * „Langschwert" → „Langschwert (Auslaugen)", wenn die Waffe beherrscht wird.
- *
- * Aufgelöst wird NICHT hier: der Aufrufer übergibt denselben Resolver, der im
- * Charakterbogen die Pille zeichnet — so können PDF und Bogen nicht auseinanderlaufen,
- * und dieses Modul bleibt frei von Bibliotheks-Zugriffen.
+ * „Langschwert" → „Langschwert (Auslaugen)". Aufgelöst wird NICHT hier: der Aufrufer reicht
+ * denselben Resolver herein, der die Pille auf dem Bogen zeichnet — so laufen PDF und Bogen
+ * nicht auseinander und das Modul bleibt frei von Bibliotheks-Zugriffen.
  */
 function withMasterySuffix(name: string, resolve?: (attackName: string) => string | undefined): string {
   const label = name.trim() ? resolve?.(name) : undefined;
@@ -174,7 +159,11 @@ function writeCombat({ t }: FieldSink, ch: CharacterJSON) {
   t('PassiveWeisheit', ch.passivePerception);
 }
 
-/** Häkchen UND gerechneter Wert — das PDF hat für den Rettungswurf beides. */
+/**
+ * Häkchen UND gerechneter Wert — das PDF hat für den Rettungswurf beides. Erst alle sechs
+ * Häkchen, dann alle sechs Werte: das ist die Feldreihenfolge des Originalbogens und darf
+ * nicht zu einer Schleife zusammengezogen werden.
+ */
 function writeSaves({ t, c }: FieldSink, ch: CharacterJSON) {
   const pb = ch.proficiencyBonus;
   const rows = [
@@ -217,10 +206,9 @@ function writeAttacks({ t }: FieldSink, ch: CharacterJSON, masteryOf?: (attackNa
 }
 
 /**
- * Feld 1 zuerst füllen, Feld 2 nimmt den Überlauf. Die Zauberwerte eines Merkmals-Zugangs
- * hängen sich an die Notizzeile, weil das PDF nur EINEN Zauberblock hat und der der Klasse
- * gehört — vor dem Trennen, damit die Marke am Überlauf teilnimmt statt hinter Feld 2 zu
- * verschwinden.
+ * Die Zauberwerte eines Merkmals-Zugangs hängen an der Notizzeile, weil das PDF nur EINEN
+ * Zauberblock hat und der der Klasse gehört — eingesetzt VOR dem Trennen, sonst verschwindet
+ * die Marke hinter Feld 2 statt am Überlauf teilzunehmen.
  */
 function writeClassFeatures({ m }: FieldSink, ch: CharacterJSON, spellAccess: SpellAccessValues[]) {
   const [a, b] = splitClassFeatures(withSpellValues(ch.classFeatures ?? '', spellAccess));

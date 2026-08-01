@@ -25,14 +25,13 @@
   type SummaryField = keyof typeof SHEET_FIELDS;
   let busy = $state<SummaryField | null>(null);
   let error = $state('');
-  // Vorfassung je Feld — ein Fehlgriff der KI bleibt damit zurücknehmbar.
   let undoText = $state<Partial<Record<SummaryField, string>>>({});
 
   function featuresOf(groups: ResolvedFeatureGroup[], source: SummaryFeature['source']): SummaryFeature[] {
     return groups.flatMap((g) =>
       g.features.map((f) => ({
-        // Hier sind Name und Text schon aufgelöst und deutsch (Bibliothek) — anders als im
-        // Wizard, der die englische Fassung durchreicht. `nameDe` trägt deshalb dasselbe.
+        // Anders als im Wizard sind Name und Text hier schon deutsch aufgelöst — `nameDe`
+        // trägt deshalb dasselbe.
         name: f.name,
         nameDe: f.name,
         desc: f.desc,
@@ -49,8 +48,8 @@
     busy = field;
     error = '';
     try {
-      // Einmal auflösen statt drei stehende Derived: die Merkmale wohnen in der
-      // Seitenleiste, hier braucht es sie nur im Augenblick des Klicks.
+      // Einmal auflösen statt stehender Derived — hier braucht es die Merkmale nur im
+      // Augenblick des Klicks.
       const resolved = await resolveCharacterFeatures($state.snapshot(character) as Character);
       const features = [
         ...featuresOf(resolved.classGroups, 'class'),

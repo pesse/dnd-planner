@@ -1,9 +1,6 @@
 /**
- * Geteilte Zugriffe auf die offizielle D&D-5e-SRD-API (dnd5eapi.co).
- *
- * Läuft über das Tauri-`http_request`-Kommando (Rust/reqwest) — umgeht die
- * CORS-Beschränkung des Webviews, genau wie der LLM-HTTP-Pfad. Nur noch für
- * Monster; Gegenstände UND Zauber kommen aus Open5e v2 (`open5eApi.ts`).
+ * Zugriffe auf dnd5eapi.co — nur noch für Monster, alles andere kommt aus Open5e v2.
+ * Läuft über das Tauri-`http_request`-Kommando statt `fetch`, sonst blockt CORS.
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Monster } from '../types';
@@ -16,7 +13,6 @@ export interface DndApiRef {
   url: string;
 }
 
-/** GET gegen die DnD-API via Rust-HTTP; liefert das geparste JSON. */
 export async function apiGet(url: string): Promise<unknown> {
   const text = await invoke<string>('http_request', {
     req: { url, method: 'GET', headers: {}, body: '' },
@@ -29,13 +25,11 @@ export async function searchMonsters(q: string): Promise<DndApiRef[]> {
   return (raw.results as DndApiRef[]) ?? [];
 }
 
-/** Holt eine vollständige Ressource per API-URL (relativ wie `/api/2014/monsters/goblin` oder absolut). */
+/** Nimmt beides: `/api/2014/monsters/goblin` oder eine volle URL. */
 export async function getResource(urlOrPath: string): Promise<Record<string, unknown>> {
   const url = urlOrPath.startsWith('http') ? urlOrPath : `https://www.dnd5eapi.co${urlOrPath}`;
   return (await apiGet(url)) as Record<string, unknown>;
 }
-
-// ── Monster (Mapping API → App-Schema, mit deutscher Konvertierung) ──────────
 
 function crFromNumber(n: number): string {
   if (n === 0.125) return '1/8';
@@ -44,7 +38,7 @@ function crFromNumber(n: number): string {
   return String(n);
 }
 
-/** "30" / "30 ft." → "9 m" (5 ft = 1,5 m, deutsches Komma). */
+/** 5 ft = 1,5 m, mit deutschem Komma; die Eingabe kommt als "30" oder "30 ft.". */
 function ftToM(val: string | number): string {
   const n = typeof val === 'string' ? parseInt(val) : val;
   return `${Math.round(n * 3) / 10} m`.replace('.', ',');
@@ -119,7 +113,7 @@ function mapMonsterActions(arr: Array<Record<string, unknown>>): Monster['action
   });
 }
 
-/** Wandelt eine rohe DnD-API-Monster-Ressource in unser `Monster`-Schema (mit deutscher Konvertierung). */
+/** Übersetzt beim Abbilden: Reichweiten in Meter, Schadensarten und Fertigkeiten ins Deutsche. */
 export function mapApiResourceToMonster(d: Record<string, unknown>): Monster {
   const profs = (d.proficiencies as ProfEntry[]) ?? [];
   const acArr = (d.armor_class as Array<{ value: number; type: string }> | undefined) ?? [];
@@ -156,6 +150,3 @@ export function mapApiResourceToMonster(d: Record<string, unknown>): Monster {
     legendary_actions: mapMonsterActions((d.legendary_actions as Array<Record<string, unknown>>) ?? []),
   };
 }
-
-// Zauber-Mapping ist nach `open5eApi.ts` (mapOpen5eSpell) umgezogen — Zauber
-// kommen jetzt aus Open5e v2, nicht mehr aus dnd5eapi.co.

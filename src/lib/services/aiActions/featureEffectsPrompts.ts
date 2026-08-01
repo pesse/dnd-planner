@@ -1,12 +1,7 @@
 /**
  * Die Prompt-Doktrin der Merkmals-Deutung: Pass A (Analyse) und Pass C (Guided) plus die
- * Serialisierung des Eingangs.
- *
- * EINSPRACHIG ENGLISCH: `buildFeatureEffectsInput` streicht `nameDe`/`descDe` beim
- * Serialisieren, obwohl `GainedFeature` sie trägt — eine Aufbereitung, zwei Projektionen.
- * Deutsch entsteht ausschließlich in den beiden thinking-off-Calls von
- * `featureTranslationAction`. **Dieser Pass entscheidet, WAS gilt, der Übersetzer, WIE es
- * dasteht.**
+ * Serialisierung des Eingangs. Einsprachig ENGLISCH — Deutsch entsteht ausschließlich in
+ * den beiden thinking-freien Calls von `featureTranslationAction`.
  */
 import {
   CHOICE_HELP_EN_MAX_CHARS,

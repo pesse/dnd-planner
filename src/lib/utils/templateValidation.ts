@@ -24,10 +24,7 @@ export interface TemplateValidation {
   valid: boolean;
 }
 
-/**
- * Returns null for file types without a required structure (campaign, character, unknown).
- * Returns a TemplateValidation object otherwise.
- */
+/** `null` für Dateitypen ohne vorgeschriebene Struktur (Kampagne, Charakter, unbekannt). */
 export function validateTemplate(
   type: FileEntry['type'] | undefined,
   content: string
@@ -40,10 +37,7 @@ export function validateTemplate(
   return { required, missing, valid: missing.length === 0 };
 }
 
-/**
- * Appends any missing required sections to the document, in template order.
- * Existing sections are preserved as-is.
- */
+/** Hängt fehlende Sektionen in Template-Reihenfolge an; vorhandene bleiben unangetastet. */
 export function fixTemplate(type: FileEntry['type'] | undefined, content: string): string {
   if (!type) return content;
   const required = REQUIRED_SECTIONS[type];

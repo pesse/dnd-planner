@@ -34,14 +34,9 @@ export interface ChoiceSources {
 export function createLevelUpChoices(src: ChoiceSources) {
   /**
    * Alle Merkmale dieses Aufstiegs mit Herkunft — die eine Quelle jeder Deklaration.
-   *
-   * `subFeatures` gehört dazu, weil die Subklassen-Merkmale bei einer JETZT getroffenen
-   * Subklassen-Wahl nur dort stehen (`delta.subclassFeaturesGained` ist dann leer) — sonst
-   * verlöre eine Subklasse mit `optionList` ihre Wahl. Beide Quellen überschneiden sich
-   * nicht: das Delta füllt die eine, der Nachlade-Pass die andere.
-   *
-   * Speziesmerkmale stehen NICHT hier: ein Aufstieg erlangt kein Volksmerkmal, seine Wahl ist
-   * im Wizard gefallen. Sie erneut zu stellen wäre die Dublette.
+   * `subFeatures` gehört dazu, weil bei einer JETZT getroffenen Subklassen-Wahl nur dort
+   * Merkmale stehen (`delta.subclassFeaturesGained` ist dann leer); überschneiden können sich
+   * die beiden nicht. Speziesmerkmale NICHT: ihre Wahl ist im Wizard gefallen.
    */
   const declaredSources = $derived<DeclaredFeature[]>(
     src.delta
@@ -52,23 +47,16 @@ export function createLevelUpChoices(src: ChoiceSources) {
         ]
       : [],
   );
-  /**
-   * Aufgeteilt auf die zwei Checkpoints — der einzige Grund, weshalb die Herkunft hier zählt:
-   * die Wahl eines Talents gehört zum Talent-Schritt, nicht zum Merkmals-Schritt.
-   */
+  // Der einzige Grund, weshalb die Herkunft hier zählt: die Wahl eines Talents gehört zum
+  // Talent-Checkpoint, nicht zum Merkmals-Checkpoint.
   const baseDeclared = $derived(declaredSources.filter((f) => f.source !== 'feat'));
   const featDeclared = $derived(declaredSources.filter((f) => f.source === 'feat'));
 
-  /** Deklarierte Zweigwahlen der neu gewonnenen Merkmale (Urtümlicher/Göttlicher Orden). */
   const declaredOptionFeatures = $derived(baseDeclared.filter(isOptionListFeature));
   const baseOptionAnalysis = $derived(optionListChoices(declaredOptionFeatures));
 
-  /**
-   * Deklarierte Expertise-Wahlen. Die Optionen sind der Übungsstand DIESES Charakters, also
-   * kommen sie aus dem Bogen (deutsche Schlüssel → englische SRD-Namen) und nicht aus dem
-   * Vault. Schon verdoppelte Fertigkeiten fallen heraus: Expertise stapelt nicht, der
-   * Schurke wählt auf Stufe 6 zwei WEITERE.
-   */
+  // Die Expertise-Optionen kommen aus dem BOGEN (deutsche Schlüssel → englische SRD-Namen),
+  // nicht aus dem Vault: sie sind der Übungsstand dieses Charakters.
   const sheetSkills = $derived(sheetSkillProficiencies(src.skills));
   const baseExpertiseAnalysis = $derived(
     baseDeclared
@@ -77,27 +65,20 @@ export function createLevelUpChoices(src: ChoiceSources) {
       .filter((c): c is AnalysisChoice => c !== null),
   );
   /**
-   * Zauber-Zugang der neu gewonnenen Merkmale — dieselbe Deklaration wie am Talent, nur an
-   * einem anderen Träger. Abgeleitet statt geladen wie `featAccess`: `baseDeclared` fällt
-   * direkt aus dem Delta, die Talent-Seite muss erst das Nachladen abwarten.
+   * Abgeleitet statt geladen wie `featAccess`: `baseDeclared` fällt direkt aus dem Delta,
+   * die Talent-Seite muss erst das Nachladen abwarten.
    */
   const baseAccess = $derived(
     baseDeclared.map((f) => spellAccessGrantOf(f)).filter((g): g is SpellAccessGrant => g !== null),
   );
-  /**
-   * Die Wahlen der deklarierten Zauber-Zugänge. Reaktiv, weil die Zauber-Wahlen erst mit der
-   * beantworteten Liste entstehen — ohne Klassenfilter würde der Picker die ganze Bibliothek
-   * anbieten.
-   */
+  // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren
+  // Klassenfilter böte der Picker die ganze Bibliothek an.
   const accessAnalysis = (grants: SpellAccessGrant[]) =>
     grants.flatMap((g) => spellAccessChoices(g, (src.answers[spellListChoiceId(g)] as string) ?? ''));
   const baseAccessAnalysis = $derived.by(() => accessAnalysis(baseAccess));
   const featAccessAnalysis = $derived.by(() => accessAnalysis(src.featAccess));
-  /**
-   * Deklarierte Grundeigenschaften (Größe). Am Aufstieg heute ohne Vault-Fall — die Spezies
-   * steht auf Stufe 1 fest —, aber aus derselben Liste wie alles andere: ein Talent oder
-   * Klassenmerkmal, das eine Eigenschaft zur Wahl stellt, verlöre sie sonst still.
-   */
+  // Heute ohne Vault-Fall (die Spezies steht auf Stufe 1 fest), trotzdem aus derselben Liste:
+  // ein Talent, das eine Grundeigenschaft zur Wahl stellt, verlöre sie sonst still.
   const basePropertyAnalysis = $derived(characterPropertyChoices(baseDeclared));
 
   const baseOptionChoices = $derived(buildFeatureChoices(baseOptionAnalysis));
@@ -106,7 +87,6 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const baseAccessChoices = $derived(buildFeatureChoices(baseAccessAnalysis));
   const featAccessChoices = $derived(buildFeatureChoices(featAccessAnalysis));
 
-  /** Deklarierte Wahlen der gewählten Talente — dieselben Builder wie am Merkmals-Schritt. */
   const featDeclaredAnalysis = $derived([
     ...optionListChoices(featDeclared.filter(isOptionListFeature)),
     ...featDeclared
@@ -117,7 +97,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   ]);
   const featDeclaredChoices = $derived(buildFeatureChoices(featDeclaredAnalysis));
 
-  /** Der Merkmals-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
+  // Beide Checkpoints zeigen beide Herkünfte: KI-erkannt und deklariert.
   const baseChoiceQs = $derived([
     ...src.baseChoices,
     ...baseOptionChoices,
@@ -125,13 +105,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...basePropertyChoices,
     ...baseAccessChoices,
   ]);
-  /** Der Talent-Checkpoint zeigt beide Herkünfte: KI-erkannt und deklariert. */
   const featChoiceQs = $derived([...src.featChoices, ...featAccessChoices, ...featDeclaredChoices]);
 
-  /**
-   * Die Analyse-Form jeder Frage, unter ihrer id. Nur sie trägt die Options-Tooltips
-   * (`optionHelpDe`), die der Fragebogen-Typ nicht kennt.
-   */
+  /** Nur die Analyse-Form trägt die Options-Tooltips (`optionHelpDe`), der Fragebogen nicht. */
   const analysisById = $derived.by(() => {
     const map = new Map<string, AnalysisChoice>();
     for (const c of [

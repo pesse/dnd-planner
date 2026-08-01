@@ -1,7 +1,4 @@
-/**
- * Single Source of Truth für NPCs: Zod-Schema → TS-Type + Runtime-Validator.
- * Anzeige-Labels bleiben in der Karte.
- */
+/** Single Source of Truth für NPCs; Anzeige-Labels bleiben in der Karte. */
 import { z } from 'zod';
 
 export const NPC_STATUS = ['lebendig', 'tot', 'vermisst', 'unbekannt'] as const;
@@ -62,10 +59,7 @@ function migrateBonusMap(value: unknown): unknown {
   return out;
 }
 
-/**
- * Altformate: String-Boni bei Fertigkeiten/Rettungswürfen, String-Zauber ohne Grad,
- * unbekannter Status (→ Default). Idempotent.
- */
+/** Idempotent; ein unbekannter Status fällt auf den Default zurück. */
 export function migrateNpcLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const npc = { ...(raw as Record<string, unknown>) };

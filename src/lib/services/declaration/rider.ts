@@ -1,7 +1,4 @@
-/**
- * Rider-Gerüst eines deklarierten Merkmals: alles leer bis auf die Identität.
- * Gemeinsam für alle Deklarationsarten.
- */
+/** Rider-Gerüst eines deklarierten Merkmals: alles leer bis auf die Identität. */
 import type { FeatureRider } from '../../schemas/levelUp';
 import type { FeatureSource } from '../declaredFeature';
 
@@ -14,8 +11,8 @@ export function emptyRider(f: { key?: string; name: string; source?: FeatureSour
   return {
     featureName: f.name,
     featureKey: f.key ?? '',
-    // Aus dem Merkmal, nicht pauschal 'class': ein Talent- oder Speziesmerkmals-Rider war
-    // sonst falsch etikettiert (unsichtbar, weil das Feld einen Default hat).
+    // Aus dem Merkmal, nicht pauschal 'class' — der Default machte die Fehletikettierung
+    // eines Talent-Riders unsichtbar.
     source: f.source ?? 'class',
     grantedSpells: [],
     extraCantrips: 0,

@@ -2,10 +2,9 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Item } from '../types';
 
 /**
- * Vollständige Gegenstandsdaten für den Hover-Tooltip, MODUL-weit geteilt: Bogen und
- * Bearbeiten-Formular zeigen dieselben Inventarzeilen. Anders als beim Zauber-Picker wird
- * VORAB geladen (`paths`) — der Tooltip soll ohne Verzögerung erscheinen, und der Bogen
- * zeigt die Waffen-/Rüstungszeile schon in der Tabelle.
+ * Gegenstandsdaten des Hover-Tooltips, MODUL-weit geteilt von Bogen und Formular. Anders
+ * als beim Zauber-Picker wird VORAB geladen: der Bogen zeigt die Waffen-/Rüstungszeile
+ * schon in der Tabelle.
  */
 const itemCache = new Map<string, Item>();
 
@@ -13,7 +12,7 @@ export interface ItemHover {
   readonly item: Item | null;
   readonly x: number;
   readonly y: number;
-  /** Vorab geladene Volldaten einer Zeile; null solange (oder falls) nichts kam. */
+  /** null, solange (oder falls) nichts kam. */
   data(path: string): Item | null;
   show(e: MouseEvent, path: string): void;
   move(e: MouseEvent): void;

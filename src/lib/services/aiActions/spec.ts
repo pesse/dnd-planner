@@ -7,7 +7,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AiAction } from './types';
 
-/** Was jede Aktion trägt, gleich ob Anlage, Überarbeitung oder Übersetzung. */
 export interface ActionSpec<T> {
   entity: string; // 'item' | 'monster' | 'spell' | …
   nounDe: string; // fürs Label: „Gegenstand"

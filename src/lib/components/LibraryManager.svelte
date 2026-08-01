@@ -15,11 +15,8 @@
 
   let { onclose }: { onclose: () => void } = $props();
 
-  /** Auswahl für die Installation, je Bibliotheks-id. */
   let selected = $state<Record<string, boolean>>({});
-  /** Zugangscode-Eingabe je Bibliothek — erscheint, wenn eine gesperrte gewählt wird. */
   let codeInput = $state<Record<string, string>>({});
-  /** id der Bibliothek, deren Code gerade geprüft wird. */
   let redeeming = $state<string | null>(null);
 
   let busy = $state(false);
@@ -31,9 +28,7 @@
     refreshLibraries(false);
   });
 
-  // Vorauswahl beim ersten Eintreffen der Liste: alles, was ohne weiteres Zutun
-  // installiert oder aktualisiert werden kann. Gesperrtes bleibt ungewählt,
-  // damit nicht sofort überall Code-Felder aufklappen.
+  // Gesperrtes bleibt ungewählt, damit nicht sofort überall Code-Felder aufklappen.
   $effect(() => {
     const list = $libraries;
     if (initialized || !list.length) return;
@@ -62,11 +57,10 @@
 
   const needsCode = (lib: Library) => lib.status === 'locked' || lib.status === 'staleCode';
 
-  /** Fassung verlangt eine neuere App — daran ist hier nichts zu wählen. */
   const needsAppUpdate = (lib: Library) => lib.status === 'appOutdated';
 
-  // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist —
-  // das Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
+  // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist — das
+  // Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
   const locked = (lib: Library) => needsCode(lib) || needsAppUpdate(lib);
   const lockTitle = (lib: Library) =>
     needsAppUpdate(lib)
@@ -76,7 +70,6 @@
         : 'Entsperrt';
 
   let chosen = $derived($libraries.filter((l) => selected[l.id]));
-  /** Gewählte Bibliotheken, die noch auf einen Zugangscode warten. */
   let blocked = $derived(chosen.filter(needsCode));
   let canInstall = $derived(!busy && chosen.length > 0 && blocked.length === 0);
 
@@ -123,8 +116,7 @@
       const ids = chosen.map((l) => l.id);
       let result = await installMany(ids);
 
-      // Bestandsdateien: einmal für alle betroffenen Bibliotheken nachfragen,
-      // statt pro Bibliothek einen eigenen Dialog zu zeigen.
+      // Einmal für alle betroffenen Bibliotheken fragen, nicht pro Bibliothek.
       const adoptIds = Object.keys(result.needsAdopt);
       if (adoptIds.length) {
         const total = adoptIds.reduce((n, id) => n + result.needsAdopt[id], 0);
@@ -156,8 +148,8 @@
       }
       message = describe(result);
 
-      // Erledigtes abwählen, damit der Knopf zeigt, was noch offen ist.
-      // Fehlgeschlagene bleiben gewählt, um sie erneut versuchen zu können.
+      // Erledigtes abwählen, Fehlgeschlagenes bleibt gewählt — der Knopf zeigt so, was
+      // noch offen ist.
       const done = new Set(
         $libraries.filter((l) => l.status === 'installed').map((l) => l.id),
       );
@@ -248,7 +240,6 @@
             </p>
           {/if}
 
-          <!-- Code-Feld erscheint erst, wenn eine gesperrte Bibliothek gewählt wird. -->
           {#if selected[lib.id] && needsCode(lib)}
             <div class="code-row">
               <input

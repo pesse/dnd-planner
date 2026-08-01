@@ -1,14 +1,7 @@
 /**
- * Deklarierte Zweigwahl eines Merkmals (`grantsChoice.kind === 'optionList'`) — Urtümlicher
- * Orden, Göttlicher Orden und alles, was mechanisch dasselbe tut.
- *
- * Kein LLM, und der Gewinn liegt nicht im Weglassen eines Calls, sondern im Wegfall eines
- * ZUSTANDS: weil die Wirkung neben der Option steht, gibt es kein „Antwort bekannt, Wirkung
- * erst danach berechenbar" mehr — kein `determinesFurtherEffects`, kein `blocked`, keine
- * Nach-Analyse (gemessen 30–40 s je Kette).
- *
- * Die Wahl entsteht als `AnalysisChoice`, die Wirkung als `FeatureRider` — dieselben zwei
- * Typen, die die KI liefert. Damit ist alles dahinter unverändert.
+ * Deklarierte Zweigwahl (`grantsChoice.kind === 'optionList'`), ohne LLM. Weil die Wirkung
+ * NEBEN der Option steht, entfällt der Zustand „Antwort bekannt, Wirkung erst danach": kein
+ * `determinesFurtherEffects`, kein `blocked`, keine Nach-Analyse.
  */
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
@@ -33,13 +26,8 @@ export const optionChoiceId = (f: DeclaredChoiceSource): string =>
   `optionlist_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
 /**
- * Die Wahl eines deklarierten Zweig-Merkmals. `determinesFurtherEffects` ist per Konstruktion
- * false — die Wirkung steht schon in der Deklaration. `isBuildDecision` ist true: eine
- * Zweigwahl ist dauerhaft und gehört ins Merkmals-Ledger.
- *
- * Deutsch kommt aus der Deklaration (`labelDe` = Zitat aus `descDe`), nicht aus einem
- * Übersetzungs-Call. Fehlt es, zeigt die Oberfläche den englischen Wert — wie bei einer
- * fehlgeschlagenen Übersetzung.
+ * Deutsch kommt aus der Deklaration (`labelDe` = Zitat aus `descDe`), nie aus einem
+ * Übersetzungs-Call; fehlt es, zeigt die Oberfläche den englischen Wert.
  */
 export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null {
   if (!isOptionListFeature(f)) return null;
@@ -56,7 +44,6 @@ export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null
   };
 }
 
-/** Alle deklarierten Zweigwahlen einer Merkmalsliste, in Eingangsreihenfolge. */
 export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisChoice[] {
   return features.map(optionListChoice).filter((c): c is AnalysisChoice => c !== null);
 }
@@ -73,36 +60,23 @@ export function isDeclaredChoiceFeature(f: DeclaredChoiceSource): boolean {
 }
 
 /**
- * Merkmale OHNE die, deren Wahl der Flow deterministisch führt — der KI-Eingang.
- * EINE Regel für Wizard und Aufstieg, aus demselben Grund wie bei
- * `withoutSpellAccessFeatures`: ein zweiter Filter liefe auseinander und das Merkmal würde
- * auf einem der beiden Wege doppelt gefragt.
- *
- * Für Klassenmerkmale des Aufstiegs erledigt das schon `isFlowOwnedChoiceFeature`
- * (services/levelUp.ts). Dieser Filter deckt die beiden Wege, die dort NICHT durchlaufen:
- * Speziesmerkmale (der Wizard hat für sie kein Sieb) und die nach der Subklassen-Wahl
- * nachgeladenen Subklassen-Merkmale (`computeSubclassFeatures`).
+ * Der KI-Eingang, EINE Regel für Wizard und Aufstieg — ein zweiter Filter liefe auseinander
+ * und das Merkmal würde auf einem der beiden Wege doppelt gefragt. Deckt die Wege, die
+ * `isFlowOwnedChoiceFeature` nicht sieht: Spezies- und nachgeladene Subklassen-Merkmale.
  */
 export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(features: T[]): T[] {
   return features.filter((f) => !isDeclaredChoiceFeature(f));
 }
 
 /**
- * Merkmale, deren WAHL deklariert ist, deren WIRKUNG aber nicht — mit der getroffenen Antwort
- * als `choice`.
+ * Merkmale, deren WAHL deklariert ist, deren WIRKUNG aber nicht. Sie gehören in den Eingang
+ * von Pass C, nicht in den der Analyse — dort stellte das Modell dieselbe Frage ein zweites
+ * Mal; nach dem Checkpoint deutet es nur noch, was `featureGrant` nicht ausdrücken kann.
  *
- * Sie gehören in den Eingang von Pass C, nicht in den der Analyse: dort würde das Modell
- * dieselbe Frage ein zweites Mal stellen. Nach dem Checkpoint steht die Antwort, und der
- * Prompt behandelt `choice` als FINAL — damit deutet die KI genau das, was die Deklaration
- * nicht ausdrücken kann (Elfenabstammung: „Reichweite deiner Dunkelsicht erhöht sich auf
- * 36 Meter", eine Mechanik, für die `featureGrant` kein Feld hat).
- *
- * Der Diskriminator ist derselbe wie an jeder Deklaration: `options[].grants` FEHLT = nie
- * redigiert, also deutet die KI. `{}` = geprüft, gewährt nichts — dann gibt es nichts zu
- * deuten und das Merkmal bleibt draußen. Ohne diese Unterscheidung zöge jede reine Zweigwahl
- * (Urtümlicher Orden) den KI-Call zurück, den die Deklaration gerade eingespart hat.
- *
- * Nur `optionList`: bei `expertise` IST die Wahl der ganze Inhalt.
+ * Diskriminator wie an jeder Deklaration: `options[].grants` FEHLT = nie redigiert, die KI
+ * deutet. `{}` = geprüft, gewährt nichts — sonst zöge jede reine Zweigwahl den KI-Call
+ * zurück, den die Deklaration gerade eingespart hat. Nur `optionList`: bei `expertise` IST
+ * die Wahl der ganze Inhalt.
  */
 export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choice?: string }>(
   features: T[],
@@ -119,7 +93,7 @@ export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choi
   return out;
 }
 
-/** Die gewählte Option, gematcht über den kanonischen (englischen) Wert. */
+/** Gematcht über den kanonischen (englischen) Wert. */
 export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOption | null {
   if (!isOptionListFeature(f)) return null;
   const want = answer.trim();
@@ -127,12 +101,8 @@ export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOpt
 }
 
 /**
- * Die Wirkung der getroffenen Wahl als `FeatureRider` — leer, solange nichts gewählt ist
- * oder die Option nichts gewährt.
- *
- * `sheetNote` bleibt LEER: die Notiz ist noch KI-Arbeit (Pass C sieht sie über
- * `<past_choices>`), und eine hier erfundene deutsche Zeile stünde neben der englischen des
- * Modells. `decisions` bleibt ebenfalls leer — die Wahl protokolliert
+ * `sheetNote` bleibt LEER — die Notiz ist Pass-C-Arbeit, eine hier erfundene deutsche Zeile
+ * stünde neben der englischen des Modells. `decisions` ebenso: die Wahl protokolliert
  * `featureChoiceChanges` aus dem Fragebogen, ein zweiter Eintrag wäre eine Dublette.
  */
 export function optionListRider(f: DeclaredChoiceSource, answer: string, level: number): FeatureRider | null {
@@ -147,8 +117,7 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string, level: 
 }
 
 /**
- * Die Zauber einer Option bis `level` — kumulativ wie die Stufentabelle („für deine Stufe und
- * niedriger", `declaredSpellGrants`). Höhere Zeilen kommen beim Aufstieg dazu, deshalb liest
+ * Kumulativ wie die Stufentabelle. Höhere Zeilen kommen beim Aufstieg dazu, deshalb liest
  * `optionSpellNames` sie später über die GESPEICHERTE Antwort noch einmal.
  */
 function optionSpellsUpTo(option: ChoiceOption, level: number): string[] {
@@ -161,9 +130,8 @@ function optionSpellsUpTo(option: ChoiceOption, level: number): string[] {
 }
 
 /**
- * Die Zauber der bereits GEWÄHLTEN Option auf `level` — der Weg für Zeilen, die erst später
- * greifen (Elfenabstammung Stufe 3 und 5). Die Antwort steht am Charakter, nicht im Fragebogen:
- * ein Aufstieg stellt die Wahl der Erschaffung nicht erneut.
+ * Für Zeilen, die erst später greifen (Elfenabstammung 3 und 5): die Antwort steht am
+ * Charakter, nicht im Fragebogen — ein Aufstieg stellt die Wahl der Erschaffung nicht erneut.
  */
 export function optionSpellNames(
   features: DeclaredChoiceSource[],
@@ -179,7 +147,7 @@ export function optionSpellNames(
   return out;
 }
 
-/** Rider aller beantworteten Zweigwahlen einer Merkmalsliste. `level` gilt für `options[].spells`. */
+/** `level` gilt für `options[].spells`. */
 export function optionListRiders(
   features: DeclaredChoiceSource[],
   answerOf: (choiceId: string) => string,
@@ -191,12 +159,9 @@ export function optionListRiders(
 }
 
 /**
- * Die Bogen-Zeile einer getroffenen Zweigwahl, deutsch, aus der Deklaration.
- *
- * Nötig aus demselben Grund wie `spellAccessNoteLines`: das Merkmal steht nicht mehr im
- * KI-Eingang, also schreibt Pass C keine `sheetNote` mehr dafür — ohne diese Zeile stünde
- * die getroffene Wahl nirgends auf dem Bogen. Und hier zahlt sich `labelDe`/`helpDe` aus:
- * die Zeile ist ein Zitat plus eine redigierte Konsequenz, keine Übersetzung zur Laufzeit.
+ * Das Merkmal steht nicht mehr im KI-Eingang, also schreibt Pass C keine `sheetNote` dafür —
+ * ohne diese Zeile stünde die getroffene Wahl nirgends auf dem Bogen. Sie ist ein Zitat aus
+ * `labelDe`/`helpDe`, keine Übersetzung zur Laufzeit.
  */
 export function optionListNoteLines(
   features: DeclaredChoiceSource[],

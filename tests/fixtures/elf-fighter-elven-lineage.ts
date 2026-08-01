@@ -1,24 +1,17 @@
 /**
- * Fixture: Elf-Kämpfer (Hintergrund „Soldat") auf Stufe 1 — der Fall „unredigierter Zweig
- * geht an Pass C".
+ * Fixture: Elf-Kämpfer („Soldat"), Stufe 1 — der Fall „unredigierter Zweig geht an Pass C".
  *
- * Warum dieser Fall: „Elfenabstammung" ist der einzige Vault-Eintrag, bei dem die WAHL
- * deklariert ist (`grantsChoice.kind = 'optionList'`, drei Zweige), die WIRKUNG der Stufe 1
- * aber nicht — `options[].spells` trägt die Zauber 1/3/5, ein `options[].grants` fehlt. Damit
- * bleibt genau eine Sache KI-Arbeit: die Prosa der gewählten Tabellenzeile („The range of
- * your Darkvision increases to 120 feet"), für die `featureGrant` kein Feld hat.
+ * „Elfenabstammung" ist der einzige Vault-Eintrag, bei dem die WAHL deklariert ist
+ * (`grantsChoice.kind = 'optionList'`), die WIRKUNG der Stufe 1 aber nicht: `options[].spells`
+ * trägt die Zauber 1/3/5, `options[].grants` fehlt. KI-Arbeit bleibt nur die Prosa der
+ * gewählten Zeile („Darkvision increases to 120 feet"), für die `featureGrant` kein Feld hat.
  *
- * Der Weg dorthin ist der WIZARD, nicht der Aufstieg: `declaredSources` im Aufstieg trägt
- * keine Speziesmerkmale („ein Aufstieg erlangt kein Volksmerkmal"), die Wahl fällt bei der
- * Erschaffung. Deshalb entsteht der Eingang über `buildFeaturePrep` — denselben Weg, den
- * `CharacterWizard.kickoff()` und `finalizeFeatures()` nehmen.
+ * Der Weg ist der WIZARD, nicht der Aufstieg: dessen `declaredSources` trägt keine
+ * Speziesmerkmale, die Wahl fällt bei der Erschaffung — daher `buildFeaturePrep`.
  *
- * Kämpfer und „Soldat" sind mit Bedacht gewählt: beide bringen KEINE zweite Zauber-Quelle
- * mit (Kampfstil und Waffenbeherrschung sind flow-eigen und fallen aus dem Eingang, das
- * Herkunftstalent „Wilder Angreifer" gewährt keine Zauber). Jeder Zauber, der in dieser
- * Strecke auftaucht, kann also nur aus der Abstammungs-Tabelle stammen.
- *
- * Vault-Reads laufen im Node-Eval über den fs-Shim (tests/support/tauriInvokeShim.ts).
+ * Kämpfer und „Soldat" bringen KEINE zweite Zauber-Quelle mit (Kampfstil und
+ * Waffenbeherrschung sind flow-eigen, „Wilder Angreifer" gewährt nichts). Jeder Zauber in
+ * dieser Strecke kann also nur aus der Abstammungs-Tabelle stammen.
  */
 import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
 import type { GainedFeature, ResolvedChoice } from '../../src/lib/services/analysis/types';
@@ -27,7 +20,6 @@ import { unredactedChoiceFeatures } from '../../src/lib/services/declaration/opt
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 
-/** Die Grundwahl aus Schritt 1 des Wizards (Bibliotheks-Keys wie in der Sidebar). */
 export const ELF_FIGHTER_BASICS = {
   species: { sourceKey: 'srd-2024_elf', name: 'Elf' },
   klass: { sourceKey: 'srd-2024_fighter', name: 'Kämpfer' },
@@ -48,13 +40,9 @@ export const OTHER_BRANCHES = ['High Elf', 'Wood Elf'] as const;
 export const OTHER_BRANCHES_DE = ['Hochelf', 'Waldelf'] as const;
 
 /**
- * Die Zauber des gewählten Zweigs kommen DETERMINISTISCH aus `options[].spells`
- * (`optionListRider`, geprüft in `tests/integration/featureDeclaration.test.ts`) — hier sind sie deshalb
- * eine NEGATIVprobe. Getrennt nach Stufe, weil die beiden Hälften unterschiedlich weh tun:
- *
- *  - Stufe 1 („Tanzende Lichter") ist die DUBLETTE: derselbe Zaubertrick aus zwei Quellen.
- *  - Stufe 3/5 wäre ein Zauber, den der Charakter auf Stufe 1 noch NICHT hat — der Fehler,
- *    den nur die Staffelung über die Antwort verhindert.
+ * NEGATIVprobe: die Zauber kommen deterministisch aus `options[].spells` (`optionListRider`).
+ * Nach Stufe getrennt, weil die Hälften unterschiedlich weh tun — Stufe 1 wäre die DUBLETTE
+ * aus zwei Quellen, Stufe 3/5 ein Zauber, den der Charakter noch gar nicht hat.
  */
 export const DROW_SPELLS_L1 = ['Dancing Lights'] as const;
 export const DROW_SPELLS_L1_DE = ['Tanzende Lichter'] as const;
@@ -76,19 +64,16 @@ export const OTHER_BRANCH_SPELLS_DE = [
 ] as const;
 
 /**
- * Die Stufe-1-Mechanik des Drow-Zweigs, an der die Notiz erkennbar ist: die
- * Dunkelsicht-Reichweite — englisch „120 feet", deutsch „36 Meter" (der Übersetzungs-Call
- * rechnet auf die Einheit des Bogens um). Geprüft wird gegen beide, weil eine
- * fehlgeschlagene Übersetzung die englische Zeile stehen lässt.
+ * Dunkelsicht-Reichweite, an der die Notiz erkennbar ist: „120 feet" bzw. „36 Meter".
+ * Beide, weil eine fehlgeschlagene Übersetzung die englische Zeile stehen lässt.
  */
 export const DARKVISION_RANGE = ['120', '36'] as const;
 
 export const loadElfFighterPrep = (): Promise<FeaturePrep> => buildFeaturePrep(ELF_FIGHTER_BASICS);
 
 /**
- * Eingang von Call 1 — genau wie `kickoff()`: Klassen- und Speziesmerkmale OHNE die mit
- * deklarierter Wahl. Die Elfenabstammung fehlt hier bewusst; die Analyse würde sonst
- * dieselbe Frage ein zweites Mal stellen.
+ * Eingang von Call 1 wie `kickoff()`: OHNE die Merkmale mit deklarierter Wahl. Die
+ * Elfenabstammung fehlt bewusst — die Analyse stellte sonst dieselbe Frage ein zweites Mal.
  */
 export function analysisContext(prep: FeaturePrep): FeatureEffectsContext {
   return {
@@ -98,10 +83,7 @@ export function analysisContext(prep: FeaturePrep): FeatureEffectsContext {
   };
 }
 
-/**
- * Die unredigierten Zweig-Merkmale als Pass-C-Eingang — der Aufruf aus `finalizeFeatures()`.
- * `gainedAt: 1`, weil im Wizard alles Stufe 1 ist.
- */
+/** Der Aufruf aus `finalizeFeatures()`; `gainedAt: 1`, weil im Wizard alles Stufe 1 ist. */
 export function unredactedFeatures(declared: DeclaredFeature[], branch = CHOSEN_BRANCH): GainedFeature[] {
   return unredactedChoiceFeatures(declared, (f) => (f.key === LINEAGE_KEY ? branch : '')).map((f) => ({
     ...f,

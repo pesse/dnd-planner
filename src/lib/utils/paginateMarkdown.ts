@@ -1,33 +1,23 @@
 /**
- * Blockweise Seitenaufteilung von Regeltext — Grundlage der Zauberkarten.
- *
- * Vorher wurde der Klartext an Zeichenpositionen geschnitten. Mit Markdown geht
- * das nicht: eine an beliebiger Stelle geteilte Tabelle rendert auf beiden Karten
- * als Müll. Ein Top-Level-Block ist deshalb die kleinste Einheit; nur ein Block,
- * der allein auf keine Seite passt, wird geteilt — Tabellen zeilenweise mit
- * wiederholtem Kopf, Listen elementweise, Absätze an Wortgrenzen.
- *
- * Gemessen wird nicht geschätzt: `fits` bekommt fertiges HTML und befragt den
- * Browser (siehe `createHtmlFitter`).
+ * Blockweise Seitenaufteilung von Regeltext (Zauberkarten). Ein Top-Level-Block ist die
+ * kleinste Einheit — an beliebiger Stelle geschnittenes Markdown rendert als Müll. Gemessen
+ * wird am Browser statt geschätzt: `fits` bekommt fertiges HTML (siehe `createHtmlFitter`).
  */
 import type { Tokens } from 'marked';
 import { markdownBlocks, renderMarkdown, type MarkdownBlock } from './markdown';
 
-/** Passt dieses HTML in einen Bereich der Höhe `height` (px)? */
+/** Höhe in px. */
 export type FitsFn = (html: string, height: number) => boolean;
 
 export interface PaginateOptions {
-  /** Höhe der Seite mit diesem Index in px (erste Karte ist kleiner als die Folgekarten). */
+  /** Höhe je Seitenindex in px — die erste Karte ist kleiner als die Folgekarten. */
   heightOf: (pageIndex: number) => number;
   fits: FitsFn;
   /** HTML, das auf der letzten Seite zusätzlich Platz braucht (z.B. „Auf höheren Graden."). */
   tailHtml?: string;
 }
 
-/**
- * Größter Präfix von `units`, der als HTML noch passt — Binärsuche, weil jede
- * Messung ein Reflow ist. Gibt 0 zurück, wenn schon eine Einheit zu groß ist.
- */
+/** Binärsuche, weil jede Messung ein Reflow ist; 0, wenn schon eine Einheit zu groß ist. */
 function longestFittingPrefix(
   units: string[],
   toHtml: (count: number) => string,
@@ -47,7 +37,6 @@ function longestFittingPrefix(
   return lo;
 }
 
-/** Zerlegt `units` in Gruppen, die je auf eine Seite passen. */
 function chunkUnits(
   units: string[],
   toHtml: (slice: string[]) => string,
@@ -62,10 +51,8 @@ function chunkUnits(
   while (rest.length) {
     const height = heightOf(page);
     let take = longestFittingPrefix(rest, (n) => toHtml(rest.slice(0, n)), fits, height);
-    // Nichts passt: eine Einheit erzwingen, sonst läuft die Schleife endlos.
-    // Diese Seite läuft dann über und wird im Druck von `overflow: hidden`
-    // beschnitten — bei echter Kartengeometrie tritt der Fall nicht auf (geprüft
-    // über die gesamte Bibliothek), er ist nur das Netz gegen Endlosschleifen.
+    // Netz gegen die Endlosschleife: die Seite läuft dann über und wird im Druck von
+    // `overflow: hidden` beschnitten. Über die ganze Bibliothek tritt der Fall nie ein.
     if (take === 0) take = 1;
     out.push(toHtml(rest.slice(0, take)));
     rest = rest.slice(take);
@@ -75,14 +62,10 @@ function chunkUnits(
   return out;
 }
 
-/** Zeilen des Rohblocks ohne Leerzeilen. */
 const rawLines = (block: MarkdownBlock): string[] =>
   block.raw.split('\n').filter((l) => l.trim().length > 0);
 
-/**
- * Teilt einen Block, der allein keine Seite füllt, in mehrere HTML-Stücke.
- * Geteilt wird immer am Rohtext und neu gerendert — nie am fertigen HTML.
- */
+/** Geteilt wird immer am Rohtext und neu gerendert — nie am fertigen HTML. */
 function splitBlock(
   block: MarkdownBlock,
   fits: FitsFn,
@@ -92,8 +75,7 @@ function splitBlock(
   const render = (md: string) => renderMarkdown(md);
 
   if (block.token.type === 'table') {
-    // Kopf + Trennzeile stehen auf jeder Folgeseite erneut, sonst verliert die
-    // zweite Hälfte ihre Spaltenbedeutung (und wäre gar keine Tabelle mehr).
+    // Kopf + Trennzeile wiederholen sich, sonst verliert die Folgeseite die Spaltenbedeutung.
     const lines = rawLines(block);
     const head = lines.slice(0, 2);
     const rows = lines.slice(2);
@@ -115,23 +97,18 @@ function splitBlock(
     }
   }
 
-  // Zeilengebundene Blöcke (Zitat, Codeblock): an Zeilengrenzen teilen, damit
-  // Präfixe wie „> " erhalten bleiben.
+  // Zeilengebundene Blöcke (Zitat, Codeblock) nur an Zeilengrenzen — Präfixe wie „> " bleiben.
   const lines = rawLines(block);
   if (lines.length > 1 && lines.every((l) => /^\s*[>|]/.test(l))) {
     return chunkUnits(lines, (slice) => render(slice.join('\n')), fits, heightOf, firstPageIndex);
   }
 
-  // Absatz & Rest: an Wortgrenzen. Der Block bleibt gültiges Markdown, weil ein
-  // Absatz an jeder Wortgrenze wieder ein Absatz ist.
+  // Absatz & Rest an Wortgrenzen: ein Absatz bleibt an jeder Wortgrenze gültiges Markdown.
   const words = block.raw.trim().split(/\s+/);
   return chunkUnits(words, (slice) => render(slice.join(' ')), fits, heightOf, firstPageIndex);
 }
 
-/**
- * Verteilt Regeltext auf Seiten. Rückgabe: je Seite ein HTML-String (bereits
- * gerendert — nicht erneut durch einen Markdown-Renderer schicken).
- */
+/** Je Seite ein HTML-String — bereits gerendert, nicht erneut durch den Renderer schicken. */
 export function paginateMarkdown(source: string, opts: PaginateOptions): string[] {
   const { heightOf, fits, tailHtml = '' } = opts;
   const blocks = markdownBlocks(source);
@@ -165,8 +142,7 @@ export function paginateMarkdown(source: string, opts: PaginateOptions): string[
 
   if (current || !pages.length) push();
 
-  // Der Schluss-Zusatz („Auf höheren Graden.") darf die letzte Karte nicht
-  // überlaufen lassen — sonst bekommt er eine eigene.
+  // Passt der Schluss-Zusatz nicht mehr auf die letzte Karte, bekommt er eine eigene.
   if (tailHtml) {
     const lastIdx = pages.length - 1;
     if (!fits(pages[lastIdx] + tailHtml, heightOf(lastIdx))) pages.push('');
@@ -177,7 +153,7 @@ export function paginateMarkdown(source: string, opts: PaginateOptions): string[
 
 export interface HtmlFitterOptions {
   doc: Document;
-  /** Breite des Textbereichs inkl. Padding (border-box), z.B. "69mm" oder "346px". */
+  /** Inkl. Padding (border-box), z.B. "69mm". */
   width: string;
   fontFamily: string;
   fontSize: string;
@@ -186,9 +162,8 @@ export interface HtmlFitterOptions {
 }
 
 /**
- * Unsichtbares Mess-Element, das die Geometrie des Ziel-Bereichs nachbildet.
- * Trägt die Klasse `md`, damit die Blockabstände aus `ruleText.css` mitgemessen
- * werden — ohne das misst der Fitter zu wenig und der Text läuft im Druck über.
+ * Unsichtbares Mess-Element in der Geometrie des Zielbereichs. Die Klasse `md` muss dran
+ * bleiben: ohne die Blockabstände aus `ruleText.css` misst der Fitter zu wenig.
  */
 export function createHtmlFitter(o: HtmlFitterOptions): { fits: FitsFn; destroy: () => void } {
   const el = o.doc.createElement('div');

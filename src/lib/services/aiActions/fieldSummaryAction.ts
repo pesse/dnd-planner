@@ -1,23 +1,7 @@
 /**
  * Verdichtet ein deutsches Freitext-Feld des Charakterbogens („Klassenmerkmale &
- * Eigenschaften", „Volksmerkmale") — aus dem bisherigen Feldinhalt, dem vollen
- * Merkmalsbestand und/oder schon verdichteten Notizzeilen.
- *
- * EIN Prompt für alle Aufrufer: die zwei Zusammenfassen-Knöpfe im Charakter-Editor und
- * der Level-Up-Merge (Schritt D). Welches Feld geschrieben wird, sagt `<target_field>`
- * im Input, nicht der Prompt.
- *
- * Die Doktrin — welche Zeile ihren Platz im PDF-Kasten verdient — ist die gemeinsame Quelle
- * mit `featureEffectsAction` (dessen `sheetNote`) und dem Übersetzungs-Call. Sie steht
- * absichtlich nur HIER; sonst optimiert man zwei Fassungen derselben Regel.
- *
- * Bewusst der EINE Call, der DEUTSCH schreibt, obwohl die Merkmals-Strecke sonst durchgehend
- * englisch reasont: sein Haupt-Input ist Prosa des SPIELERS (`<current_text>`), und Regel 1/4
- * verpflichten ihn auf deren Wortlaut und Layout. Ein Umweg über Englisch wäre ein
- * Round-Trip über fremd-autorierten Text. Nur der Merkmals-Rohstoff kommt englisch herein.
- *
- * Tool-frei → `runAiAction` nimmt den Single-Call-Pfad; auf QM/vllm heißt guided decoding
- * zugleich `enable_thinking:false` (llm/openAiCompatible), also kein Reasoning-Vorlauf.
+ * Eigenschaften", „Volksmerkmale"). EIN Prompt für alle Aufrufer — welches Feld
+ * geschrieben wird, sagt `<target_field>` im Input, nicht der Prompt.
  */
 import type { AiAction } from './types';
 import {
@@ -27,21 +11,12 @@ import {
 } from '../../schemas/levelUp';
 
 /**
- * Die gemeinsame Doktrin, in drei Bausteinen — sie hat drei verschiedene Leser:
- *
+ * Die gemeinsame Doktrin in drei Bausteinen, weil sie drei Leser hat:
  *   `SHEET_NOTE_CONTENT`     WAS eine Zeile verdient → dieser Prompt + Merkmals-Deutung
  *   `SHEET_NOTE_EXAMPLE_EN`  derselbe Maßstab englisch → nur die Merkmals-Deutung
  *   `SHEET_NOTE_GERMAN_FORM` WIE die deutsche Zeile aussieht → dieser Prompt + Übersetzer
- *
- * Getrennt statt doppelt: sonst optimiert man zwei Fassungen derselben Regel. Jeder Leser
- * bekommt nur seine Bausteine — dieser Prompt schreibt direkt Deutsch und braucht daher
- * Inhalt + deutsche Form, aber nicht das englische Beispiel (das brächte ihn auf Fuß statt
- * Meter).
- *
- * Das Beispiel ist der Maßstab, nicht die Prosa darüber — es hält die Zusammenfassung davon
- * ab, die Mechanik wegzukürzen (Feedback 2026-07-28). Beide Fassungen stammen wörtlich aus
- * der Bibliothek (vault/classes/fighter.json, vault/species/dwarf.json): ein selbst
- * formuliertes Beispiel schleppt sonst 2014er-Begriffe in den Prompt.
+ * Zusammengelegt optimiert man zwei Fassungen derselben Regel. Dieser Prompt schreibt direkt
+ * Deutsch und bekommt daher kein englisches Beispiel — das brächte ihn auf Fuß statt Meter.
  */
 export const SHEET_NOTE_CONTENT = `An entry names the feature and says what it does at the table: \`Feature name: effect\`.
 WRITE an entry for whatever the player has to remember while playing: an ability they actively use (with its action type and how often it recharges), numbers that live nowhere else (sneak attack dice, rage, ki points, wild shape limits), the ongoing effect of an option they picked, a companion and its stats.
@@ -50,9 +25,8 @@ DEPTH: complete enough to play from, short enough to scan. One line where one is
 
 /**
  * Derselbe Maßstab in ENGLISCH, für den Pass, der englisch schreibt (Merkmals-Deutung).
- * Wörtlich aus der Bibliothek (vault/classes/fighter.json, vault/species/dwarf.json), damit
- * kein selbst formulierter Wortlaut hineinkommt. Ohne dieses Beispiel fiel eine Sinnesnotiz
- * („Dunkelsicht 18 m") weg — gemessen 2026-07-29, in allen drei Läufen.
+ * Wörtlich aus der Bibliothek (fighter.json, dwarf.json) — selbst formulierter Wortlaut
+ * schleppt 2014er-Begriffe ein. Ohne das Beispiel fiel „Dunkelsicht 18 m" weg (2026-07-29).
  */
 export const SHEET_NOTE_EXAMPLE_EN = `This is the depth that works — a sense with a range DOES earn its line, size and speed do NOT:
 Second Wind: bonus action, regain 1d10+fighter level HP. 2 uses; 1 back on a Short Rest, all on a Long Rest.
@@ -60,7 +34,10 @@ Action Surge: one extra action (not Magic) once per Short/Long Rest.
 Darkvision 120 ft
 Dwarven Resilience: Resistance to Poison damage, Advantage on saves against the Poisoned condition.`;
 
-/** Die deutsche Form-Hälfte: Wortlaut, Abkürzungen, Layout. */
+/**
+ * Wortlaut, Abkürzungen, Layout. Das Beispiel ist der Maßstab, nicht die Prosa darüber —
+ * es hält die Zusammenfassung davon ab, die Mechanik wegzukürzen (Feedback 2026-07-28).
+ */
 export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
 This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
 [Klassenmerkmale]
@@ -78,6 +55,9 @@ Dunkelsicht 36 m
 Zwergische Widerstandskraft:
 Resistenz gegen Giftschaden, Vorteil auf RW gegen den Zustand Vergiftet.`;
 
+// Der EINE Call, der DEUTSCH schreibt, obwohl die Merkmals-Strecke sonst englisch reasont:
+// sein Haupt-Input ist Prosa des SPIELERS (`<current_text>`), und Regel 1/4 verpflichten ihn
+// auf deren Wortlaut und Layout. Englisch dazwischen wäre ein Round-Trip über fremden Text.
 const FIELD_SUMMARY_SYSTEM = `You are a rules assistant for Dungeons & Dragons 5e (SRD 5.2 / German 5.2.1 terminology).
 You rewrite ONE German free-text field of a character sheet, so the player can play from it. <target_field> says which field it is and what belongs in it. Return its FULL new text.
 
@@ -100,16 +80,14 @@ You rewrite ONE German free-text field of a character sheet, so the player can p
 ${SHEET_NOTE_CONTENT}
 ${SHEET_NOTE_GERMAN_FORM}`;
 
-/** Ein Zielfeld des Bogens: deutsches Label, Zuständigkeit, feldeigene Dubletten. */
 export interface SheetFieldTarget {
   label: string;
-  /** Englisch — geht als Zuständigkeits-Beschreibung ins Modell. */
+  /** Englisch — geht so ins Modell. */
   belongs: string;
   /**
-   * Was der Bogen für DIESES Feld schon in eigenen Formularfeldern führt. Getrennt je
-   * Feld statt zwei Prompts: die Aufgabe ist dieselbe, nur die Dubletten unterscheiden sich.
-   * Jeder Begriff mit seinem deutschen Wortlaut in Klammern — das Modell schreibt Deutsch
-   * und erkennt die Dublette sonst nicht wieder.
+   * Was der Bogen für DIESES Feld schon in eigenen Formularfeldern führt. Je Feld statt
+   * zwei Prompts — die Aufgabe ist dieselbe, nur die Dubletten unterscheiden sich. Jeder
+   * Begriff mit deutschem Wortlaut, sonst erkennt das deutsch schreibende Modell ihn nicht.
    */
   omit: string;
 }
@@ -132,7 +110,6 @@ export const SHEET_FIELDS = {
   speciesTraits: {
     label: 'Volksmerkmale',
     belongs: 'species and subspecies traits only — no class features, no feats',
-    // Genau die Dubletten, die der Nutzer im Feld gefunden hat (Größe, Bewegungsrate …).
     omit:
       'size category ("Größe"), height and weight ("Körpergrösse", "Gewicht"), the walking speed ' +
       '("Bewegungsrate"), age or lifespan ("Alter"), creature type ("Kreaturentyp"), known languages ' +
@@ -144,20 +121,18 @@ export const SHEET_FIELDS = {
 } as const satisfies Record<string, SheetFieldTarget>;
 
 /**
- * Ein Merkmal als Rohstoff für die Verdichtung. Regeltext ENGLISCH (eine Aufbereitung für
- * alle Merkmals-Jobs), Anzeigename deutsch — dieser Call schreibt Deutsch und braucht den
- * 5.2.1-Wortlaut, den er nicht erfinden soll.
+ * Rohstoff der Verdichtung: Regeltext ENGLISCH (eine Aufbereitung für alle Merkmals-Jobs),
+ * Anzeigename deutsch — diesen 5.2.1-Wortlaut soll der Call nicht erfinden müssen.
  */
 export interface SummaryFeature {
   name: string;
-  /** Deutscher Anzeigename aus der Bibliothek; Fallback = `name`. */
+  /** Fallback = `name`. */
   nameDe?: string;
   desc: string;
   /** Entscheidet über die Feld-Zuständigkeit (siehe SHEET_FIELDS). */
   source: 'class' | 'species' | 'background' | 'feat';
   /** Herkunftsgruppe wie im Editor angezeigt („Waldläufer 5", „Kreis des Mondes", „Zwerg"). */
   group?: string;
-  /** Stufe, auf der es erlangt wurde — nur gesetzt, wo bekannt. */
   gainedAt?: number;
   /** Getroffene Wahl (z.B. Kampfstil) — trägt die Doktrin-Regel „ongoing mechanic". */
   choice?: string;
@@ -167,6 +142,8 @@ export function buildFieldSummaryAction(): AiAction<FieldSummary> {
   return {
     id: 'sheet-field-summary',
     label: 'Bogen-Feld zusammenfassen',
+    // Bewusst tool-frei → `runAiAction` nimmt den Single-Call-Pfad; auf QM/vllm heißt guided
+    // decoding zugleich `enable_thinking:false`, also kein Reasoning-Vorlauf.
     anthropicTools: [],
     openAiTools: [],
     execute: async () => '',
@@ -176,7 +153,6 @@ export function buildFieldSummaryAction(): AiAction<FieldSummary> {
   };
 }
 
-/** userInput: XML-gegliedert, JSON-Inhalt. Leere Sektionen bleiben weg. */
 export function buildFieldSummaryInput(ctx: {
   target: SheetFieldTarget;
   currentText: string;

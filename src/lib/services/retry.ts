@@ -2,14 +2,9 @@ import { logDebug } from '../stores/debug';
 import { pushRateLimitWait, clearRateLimitWait } from '../stores/rateLimit';
 
 /**
- * Rate-Limit-Erkennung + Backoff für die portablen HTTP-Provider.
- *
- * Hintergrund: schnelle Provider (z.B. Groq) laufen bei großen Kontexten in
- * Tokens-per-Minute-Limits und antworten mit `HTTP 429` plus einer Meldung wie
- * `Please try again in 12.475s`. Statt den Fehler durchzureichen, warten wir die
- * angegebene (bzw. eine exponentiell wachsende) Zeit ab und versuchen es erneut.
- *
- * Anthropic braucht das nicht — dessen SDK macht 429/5xx-Retries selbst.
+ * Rate-Limit-Erkennung + Backoff für die portablen HTTP-Provider: schnelle Anbieter (Groq)
+ * laufen bei großen Kontexten in TPM-Limits und nennen im 429 selbst eine Wartezeit.
+ * Nur für sie — Anthropics SDK macht seine 429/5xx-Retries selbst.
  */
 
 export interface RetryOptions {
@@ -23,16 +18,11 @@ export interface RetryOptions {
   provider?: string;
 }
 
-/** True, wenn die Fehlermeldung ein Rate-Limit (HTTP 429) signalisiert. */
 export function isRateLimitError(message: string): boolean {
   return /\bHTTP 429\b/.test(message) || /\b429\b/.test(message) || /rate.?limit/i.test(message);
 }
 
-/**
- * Parst die vom Server vorgeschlagene Wartezeit (in ms) aus einer 429-Meldung.
- * Erkennt das Groq/OpenAI-Format `try again in 12.475s` sowie `…in 90ms`,
- * `…in 1m30s` und `retry-after: 12`-Hinweise. `null` = nicht erkennbar.
- */
+/** Die vom Server vorgeschlagene Wartezeit in ms; `null` = die Meldung nennt keine. */
 export function parseRetryDelayMs(message: string): number | null {
   // "try again in 90ms"
   const ms = message.match(/try again in\s+([\d.]+)\s*ms/i);
@@ -74,11 +64,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/**
- * Führt `fn` aus und wiederholt bei Rate-Limit-Fehlern (HTTP 429), nachdem die
- * vom Server genannte Wartezeit (oder ein exponentieller Backoff) abgewartet
- * wurde. Andere Fehler werden unverändert durchgereicht.
- */
+/** Andere Fehler als 429 werden unverändert durchgereicht. */
 export async function withRateLimitRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
   const maxRetries = opts.maxRetries ?? 5;
   for (let attempt = 0; ; attempt++) {

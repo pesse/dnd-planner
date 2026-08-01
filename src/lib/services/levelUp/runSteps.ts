@@ -1,7 +1,6 @@
 /**
- * Die Arbeitsschritte eines Aufstiegs: die drei KI-Pässe (Analyse, Effekte, Narrativ),
- * die deterministischen Nachläufe und die Projektionen, die sie brauchen. Sie schreiben in
- * den Lauf-Zustand; angetrieben werden sie von `run.svelte.ts`.
+ * Die Arbeitsschritte eines Aufstiegs — drei KI-Pässe, deterministische Nachläufe und ihre
+ * Projektionen. Sie schreiben in den Lauf-Zustand, angetrieben von `run.svelte.ts`.
  */
 import { get } from 'svelte/store';
 import { mod } from '../../domain/skills';
@@ -80,7 +79,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
     };
   }
 
-  /** Höchster Zaubergrad, den der Charakter nach dem Aufstieg wirken kann. */
   function maxSpellLevel(): number {
     let m = 0;
     for (let i = 0; i < 9; i++) {
@@ -109,9 +107,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
     st.answers = a;
   }
   /**
-   * Init für die Feature-Wahlen (Checkpoint nach Call 1): bewusst LEER vorbelegen (kein
-   * Auto-Default auf die erste Option), damit der Spieler jede Wahl aktiv trifft — sonst
-   * würde z.B. eine folgenreiche Landart stillschweigend feststehen.
+   * Bewusst LEER vorbelegen statt auf die erste Option: der Spieler soll jede Wahl aktiv
+   * treffen, sonst stünde etwa eine folgenreiche Landart stillschweigend fest.
    */
   function initFeatureChoices(questions: LevelUpQuestion[]) {
     const a: Record<string, string | string[]> = { ...st.answers };
@@ -122,7 +119,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
     st.answers = a;
   }
 
-  /** Merkmale bzw. Talente als GainedFeature[] für die jeweilige Phase. */
   function featuresFor(kind: 'base' | 'feat'): GainedFeature[] {
     return kind === 'base'
       ? st.gainedFeatures
@@ -157,11 +153,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   /**
-   * Getroffene Feature-Wahlen als Folge-Turn für Call C — bewusst minimal (id + Wert).
-   * Frage, Optionen und Merkmal stehen bereits in der Analyse im Verlauf; die id (aus
-   * `buildFeatureChoices`, identisch zur Choice-id der Analyse) verknüpft beides.
-   *
-   * Der WERT, nicht das Label: der Verlauf ist englisch, das deutsche Label kennt er nicht.
+   * Folge-Turn für Call C, bewusst minimal (id + Wert): Frage, Optionen und Merkmal stehen
+   * schon im Verlauf. Der WERT, nicht das Label — der Verlauf ist englisch.
    */
   function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
     // Nur die KI-erkannten Wahlen: das Merkmal einer deklarierten Wahl steht nicht im Eingang,
@@ -199,9 +192,9 @@ export function createRunSteps(ctx: RunStepsDeps) {
       if (!alive()) return;
       parsed = eff.riders;
     }
-    // Deklarierte Wahlen liefern ihren Rider aus der Bibliothek, nicht aus dem Modell —
-    // dieselbe Form, damit `riderChanges`/`learnInfo` sie nicht unterscheiden müssen. Beide
-    // Phasen aus DERSELBEN Liste: ein Talent mit `optionList` verlor sonst seine Wirkung.
+    // Deklarierte Wahlen liefern ihren Rider aus der Bibliothek statt aus dem Modell, in
+    // derselben Form. Beide Phasen aus DERSELBEN Liste — ein Talent mit `optionList` verlöre
+    // sonst seine Wirkung.
     const grantSources = kind === 'base' ? choices.baseDeclared : choices.featDeclared;
     // Die Stufe einer Options-Zauberliste: am Klassenmerkmal die KLASSEN-, am Talent die
     // CHARAKTERstufe (`declaredSpellGrants` liest dieselbe Unterscheidung).
@@ -213,9 +206,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
         .map((f) => expertiseRider(f, choices.optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
         .filter((r): r is FeatureRider => r !== null),
     ];
-    // Die Deklaration gewinnt über den KI-Rider desselben Merkmals (und springt ein, wo gar
-    // keiner kam). Nur auf `parsed` angewandt: die Rider der Zweigwahlen tragen die Grants der
-    // GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
+    // Nur auf `parsed`: die Rider der Zweigwahlen tragen die Grants der GEWÄHLTEN OPTION,
+    // die das unbedingte `grants` des Merkmals nicht ersetzen darf.
     const validated = validateRiderSpells(
       [...withDeclaredGrants(parsed, grantSources), ...declared],
       st.spellLib,
@@ -234,7 +226,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
     }
   }
 
-  /** Narrativ (KI, Schritt C) → doc.summary. */
   async function runNarrative(alive: () => boolean) {
     let n = { summary: '' };
     try {
@@ -257,15 +248,12 @@ export function createRunSteps(ctx: RunStepsDeps) {
     return `${st.delta!.klasseName} Stufe ${st.delta!.fromLevel} → ${st.delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  /** Die verdichteten Bogen-Notizen dieses Aufstiegs (Merkmale + Talente). */
   const newSheetNotes = () => [...sheetNoteLines(st.validatedBase.riders), ...sheetNoteLines(st.validatedFeats.riders)];
 
   /**
-   * Rohe Saat: bestehendes Feld + neue Notizzeilen — die Fassung ohne KI-Merge.
-   *
    * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
-   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" würde sie den Merge-Call
-   * auslösen — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
+   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" löste sie den Merge-Call
+   * aus — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
    */
   const seedFeaturesText = () =>
     [
@@ -278,15 +266,11 @@ export function createRunSteps(ctx: RunStepsDeps) {
       .filter((s) => s?.trim())
       .join('\n');
 
-  /**
-   * Verschmilzt den bestehenden (nutzergeschriebenen) Freitext mit den neuen Bogen-Notizen.
-   * Scheitert der Call, bleibt die rohe Saat stehen — der Aufstieg darf daran nicht hängen.
-   */
+  /** Scheitert der Call, bleibt die rohe Saat stehen — der Aufstieg darf daran nicht hängen. */
   async function mergeClassFeatures(alive: () => boolean, currentText = seedFeaturesText()) {
     const notes = newSheetNotes();
     st.featuresText = currentText;
-    // Ohne neue Notizen gibt es nichts zusammenzuführen — den nutzergeschriebenen Text
-    // dann NICHT durch die KI schicken, das kann nur schaden.
+    // Ohne neue Notizen den nutzergeschriebenen Text NICHT durch die KI schicken.
     if (!notes.length) {
       pushStep('Keine neuen Merkmale fürs Klassenmerkmale-Feld.');
       return;
@@ -311,20 +295,17 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   /**
-   * Zauber der Spezies- und Talent-Deklarationen auf der NEUEN Charakterstufe.
-   *
    * Eigener Aufruf neben `declaredSpells`, weil `declaredSpellGrants` genau EINE Stufe filtert:
-   * für ein Klassenmerkmal ist das die Klassenstufe, für ein Trait oder Talent die
-   * Charakterstufe (die Elfenlinien-Tabelle 1/3/5 hängt an ihr). Kumulativ und idempotent —
-   * `applyChanges` dedupliziert, schon gewährte Zeilen kosten nichts.
+   * am Klassenmerkmal die Klassen-, am Trait oder Talent die CHARAKTERstufe (die
+   * Elfenlinien-Tabelle 1/3/5 hängt daran). Idempotent, `applyChanges` dedupliziert.
    */
   async function resolveCharLevelSpells() {
     const charLevel = newCharLevel();
     const species = await declaredSpeciesFeatures(ctx.character.species);
     const sources = [...species, ...choices.featDeclared];
     const lib = await ensureSpellLib();
-    // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung Stufe
-    // 3 und 5). Die Wahl wird nicht erneut gestellt — ihre Antwort steht am Charakter.
+    // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung 3/5):
+    // die Wahl wird nicht erneut gestellt, ihre Antwort steht am Charakter.
     st.charLevelSpells = resolveSpellNames(
       optionSpellNames(species, storedChoiceOf, charLevel),
       lib,
@@ -334,10 +315,9 @@ export function createRunSteps(ctx: RunStepsDeps) {
     if (st.charLevelSpells.flagged.length) st.flagged = [...new Set([...st.flagged, ...st.charLevelSpells.flagged])];
   }
 
-  // Fortlaufende, PRO-STUFE wirkende Effekte: deterministisch aus `grants.perLevel` des
-  // GESAMTEN Merkmalsbestands (Spezies + Klasse/Subklasse + Talente, inkl. der diesen Level
-  // neu gewonnenen). Vormals ein KI-Call über dieselbe Liste; die Dedup steckt jetzt im
-  // Service, damit Wizard und Aufstieg dieselbe Regel benutzen.
+  // Über den GESAMTEN Merkmalsbestand, nicht nur den neuen: `grants.perLevel` wirkt
+  // rückwirkend auf alle Stufen. Die Dedup liegt im Service, damit Wizard und Aufstieg
+  // dieselbe Regel benutzen.
   async function detectHpPerLevel(alive: () => boolean) {
     st.hpPerLevelSources = [];
     try {

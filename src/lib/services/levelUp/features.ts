@@ -1,6 +1,6 @@
 /**
- * Normalisierung der neu gewonnenen Merkmale und Talente auf `GainedFeature` — die
- * Einheit, in der die Deutungs-Strecke und die Deklarations-Strecke beide lesen.
+ * Neu gewonnene Merkmale und Talente auf `GainedFeature` normalisiert — die Einheit, in der
+ * Deutungs- und Deklarations-Strecke beide lesen.
  */
 import { getProgressionByKey } from '../classProgression';
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
@@ -11,7 +11,7 @@ import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
 import type { GainedFeature } from '../analysis/types';
 
-/** Ein im Aufstieg gewähltes Talent: englisch geführt, deutsche Fassung als Beilage. */
+/** Englisch geführt, deutsche Fassung als Beilage — so deutet die KI. */
 export interface ChosenFeat {
   key: string;
   name: string;
@@ -25,11 +25,9 @@ export interface ChosenFeat {
 }
 
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {
-  // Die Stufe ist die NIEDRIGSTE innerhalb der aufgestiegenen Spanne — bei einem mehrfach
-  // vergebenen Merkmal (Expertise auf 1 und 6) sonst immer die erste Vergabe, womit die
-  // zweite Entscheidung im Ledger die erste überschreiben würde.
+  // Die NIEDRIGSTE Stufe innerhalb der aufgestiegenen Spanne: bei einem mehrfach vergebenen
+  // Merkmal (Expertise auf 1 und 6) überschriebe die zweite Entscheidung im Ledger sonst die erste.
   const inSpan = f.gainedAt.filter((l) => l > fromLevel && l <= toLevel);
-  // Englisch geführt (so deutet die KI), deutsche Fassung als Quelle der Übersetzungs-Calls.
   return {
     name: f.name || f.nameDe || '',
     nameDe: f.nameDe || f.name,
@@ -43,7 +41,6 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
   };
 }
 
-/** Merkmale, die eine Progression in der Spanne (from, to] erlangt. */
 function featuresBetween(features: ClassFeature[], from: number, to: number): ClassFeature[] {
   return features
     .filter((f) => f.gainedAt.some((l) => l > from && l <= to))
@@ -51,22 +48,15 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
 }
 
 /**
- * Basis- + (falls bereits bekannt) Subklassen-Merkmale aus dem Delta als GainedFeature[].
+ * Was hier herausfliegt, fliegt aus dem KI-Eingang:
+ * - flow-eigene Wahlen (Subklasse, Attributsverbesserung) — die Analyse stellte sie sonst
+ *   ein zweites Mal;
+ * - immer-vorbereitete Zauberlisten, auch bei SUBKLASSEN-Merkmalen — sie werden aus der
+ *   Tabelle im Merkmalstext deterministisch gelesen (`declaredSpellGrants`).
  *
- * Klassenmerkmale, die nur auf eine vom Flow selbst getroffene Entscheidung zeigen
- * (Subklassen-Wahl, Attributsverbesserung), fliegen hier raus: die Wahl ist beim
- * Merkmals-Schritt längst gefallen, ihre Prosa würde die Analyse aber dazu verleiten,
- * sie ein zweites Mal zu stellen.
- *
- * Ebenso raus — und hier auch bei SUBKLASSEN-Merkmalen — fliegen die immer-vorbereiteten
- * Zauberlisten (Kreissprüche, Domänenzauber …): sie stehen als Tabelle im Merkmalstext und
- * werden deterministisch gelesen (`declaredSpellGrants`). Sie im Eingang zu lassen hieße,
- * das Modell eine Liste abschreiben zu lassen, die schon als Daten vorliegt.
- *
- * Subklassen-Merkmale laufen bewusst NICHT durch `isFlowOwnedChoiceFeature`, sondern nur durch
- * `withoutDeclaredChoiceFeatures`: dessen Namens-Fallbacks („Spellcasting") treffen bei einer
- * Subklasse ein Merkmal mit echter Mechanik — der Arkane Trickser bekäme sein Zauberwirken aus
- * keiner Quelle mehr, weil die Stufentabelle der Grundklasse keine Zauberspalte hat.
+ * Subklassen-Merkmale laufen bewusst NICHT durch `isFlowOwnedChoiceFeature`: dessen
+ * Namens-Fallbacks („Spellcasting") treffen dort echte Mechanik — der Arkane Trickser bekäme
+ * sein Zauberwirken aus keiner Quelle mehr.
  */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
@@ -78,11 +68,8 @@ export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
 }
 
 /**
- * Zweiter deterministischer Pass: Subklassen-Merkmale NACH der Wahl nachladen.
- *
- * Liefert sie VOLLSTÄNDIG — der Aufrufer braucht sie so für die Info-Einträge („Neues
- * Merkmal: …") und die deklarierten Wahlen; für den KI-Eingang siebt er mit denselben zwei
- * Filtern wie `gainedFeaturesFor`.
+ * Subklassen-Merkmale NACH der Wahl nachladen, VOLLSTÄNDIG: der Aufrufer braucht sie so für
+ * Info-Einträge und deklarierte Wahlen und siebt für den KI-Eingang selbst.
  */
 export async function computeSubclassFeatures(subclassKey: string, from: number, to: number): Promise<GainedFeature[]> {
   const prog = await getProgressionByKey(subclassKey);
@@ -90,7 +77,6 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
   return featuresBetween(prog.features, from, to).map((f) => featureToGained(f, 'subclass', from, to));
 }
 
-/** Ein Talent als GainedFeature für die Effekt-Deutung (englisch geführt, DE als Beilage). */
 export function featToGainedFeature(
   f: {
     name: string;

@@ -127,7 +127,7 @@
   function snap<T>(val: T): T { return JSON.parse(JSON.stringify(val)); }
 
   async function startEdit() {
-    // Copy-on-write: globales Monster → erst akt-lokale Kopie anlegen
+    // Copy-on-write: vom globalen Monster erst eine akt-lokale Kopie anlegen.
     if (source === 'global' && actMonsterBasePath && saved) {
       const actPath = `${actMonsterBasePath}/${slug}.json`;
       // Die Kopie ist akt-lokal — die Herkunft des Originals gilt für sie nicht mehr.
@@ -179,8 +179,7 @@
   async function promoteToLibrary() {
     if (source !== 'act') return;
     promoteError = '';
-    // Guard: existiert der Slug bereits global (flach ODER in einer Gruppe),
-    // würde rename_file ein Duplikat anlegen → abbrechen.
+    // Existiert der Slug global schon, legte `rename_file` ein Duplikat an.
     const existing = await findGlobalPath(slug);
     if (existing) {
       promoteError = `„${slug}" existiert bereits in der Bibliothek (${existing}). Verschieben abgebrochen.`;
@@ -221,7 +220,6 @@
 
   {:else if saved && draft}
     {#if editMode}
-      <!-- ── Full edit view ── -->
       <div class="edit-header">
         <span class="source-badge source-{source}">{source === 'act' ? 'akt-lokal' : 'bibliothek'}</span>
         {#if dirty}
@@ -236,7 +234,6 @@
       </div>
 
     {:else}
-      <!-- ── Compact read-only view ── -->
       <div class="compact">
         <div class="c-header">
           <span class="c-name">{saved.name}</span>
@@ -329,7 +326,6 @@
     width: 460px;
   }
 
-  /* ── Loading / Missing ── */
   .mini-placeholder {
     padding: 0.5rem 0.75rem;
     color: var(--border);
@@ -356,7 +352,6 @@
     font-style: italic;
   }
 
-  /* ── Compact view ── */
   .compact {
     padding: 0.6rem 0.75rem;
     display: flex;
@@ -510,10 +505,8 @@
     color: var(--gold);
     border: 1px solid color-mix(in srgb, var(--gold) 27%, transparent);
   }
-  /* global badge ist unsichtbar in compact view (leerer Text) */
   .source-global { display: none; }
 
-  /* ── Edit view ── */
   .edit-header {
     display: flex;
     align-items: center;

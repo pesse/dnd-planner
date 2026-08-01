@@ -5,7 +5,7 @@
  * fest, hier wählt der Spieler sie. Geprüft wird die ganze Kette bis zum Änderungs-Dokument,
  * denn erst sie beweist, dass die Wahlen am Charakter ankommen.
  *
- *   npm run eval -- --eval levelUpFeatAccess
+ *   npm run test -- levelUpFeatAccess
  */
 import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';

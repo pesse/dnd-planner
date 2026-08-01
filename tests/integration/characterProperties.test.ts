@@ -8,7 +8,7 @@
  * Charakter wie jeder andere Grant (`Change` → `applyChanges`), inklusive der
  * Übersetzungsgrenze englisch/deutsch und Fuß/Meter.
  *
- *   npm run eval -- --eval characterProperties
+ *   npm run test -- characterProperties
  */
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';

@@ -1,15 +1,8 @@
 /**
- * Nachziehbarer Altbestand eines Charakters: was lässt sich noch mit der Bibliothek
- * verknüpfen oder ins strukturierte Format überführen?
- *
- * Bewusst KEIN Schritt in `CHARACTER_UPGRADES`: dessen `apply` ist synchron und käme an
- * die Bibliothek nicht heran. Darum ein sichtbares Angebot pro Charakter — und darum ein
- * eigenes Modul: es ist die einzige Stelle, die diese Frage beantwortet, gelesen sowohl
- * vom Sammel-Hinweis oben im Editor als auch von den Angeboten an den einzelnen Feldern.
- *
- * Svelte-frei und ohne eigenen Zustand: die Funktion bekommt die Formular-Objekte herein
- * und `apply` mutiert sie in place. Reaktivität und UI-Nachlauf (Anzeige-Spiegel `race`,
- * offene Picker schließen) bleiben beim Aufrufer — hier werden nur Daten nachgezogen.
+ * Die EINE Stelle, die sagt, was an einem Charakter noch mit der Bibliothek verknüpfbar
+ * ist — kein `CHARACTER_UPGRADES`-Schritt, dessen `apply` ist synchron und käme an die
+ * Bibliothek nicht heran. `apply` mutiert die Formular-Objekte in place; den UI-Nachlauf
+ * (Anzeige-Spiegel, offene Picker) macht der Aufrufer.
  */
 import { classDisplayName, type ClassInfo } from '$lib/classLibrary';
 import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
@@ -27,13 +20,11 @@ export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' |
 
 export interface LegacyFix {
   kind: LegacyFixKind;
-  /** Deutsche Beschreibung fürs Angebot, z.B. „3 Zauber mit der Bibliothek verknüpfen". */
   label: string;
-  /** Zieht die Daten nach. Idempotent — ein zweiter Aufruf findet nichts mehr. */
+  /** Idempotent — ein zweiter Aufruf findet nichts mehr. */
   apply: () => void;
 }
 
-/** Die Formular-Objekte, die nachgezogen werden (werden in place mutiert). */
 export interface LegacyLinkTarget {
   classes: CharacterClass[];
   /** Ursprünglicher Freitext („Kämpfer 5 / Schurke 2"), falls `classes` leer geblieben ist. */
@@ -45,7 +36,7 @@ export interface LegacyLinkTarget {
   spellsByLevel: Record<string, SpellRefLike[]>;
 }
 
-/** Geladene Bibliotheks-Indizes. Was noch lädt, wird schlicht nicht angeboten. */
+/** Was noch lädt, wird schlicht nicht angeboten. */
 export interface LegacyLinkLibraries {
   classes: ClassInfo[];
   species: SpeciesInfo[];
@@ -54,11 +45,7 @@ export interface LegacyLinkLibraries {
   spells: SpellIndex;
 }
 
-/**
- * Exakter, sicherer Bibliotheks-Treffer für einen Freitext-Namen — deutscher oder
- * englischer Name, und nur mit vorhandenem Key. KEIN Substring-Matching: ein falscher
- * Link wäre schlimmer als keiner.
- */
+/** Exakt, deutsch oder englisch, nie Substring — ein falscher Link wäre schlimmer als keiner. */
 function exactMatch<T extends { key?: string; name: string; nameDe?: string }>(
   index: T[],
   rawName: string,
@@ -108,10 +95,7 @@ export function backgroundFix(target: LegacyLinkTarget, libs: LegacyLinkLibrarie
   };
 }
 
-/**
- * Klassen: Freitext zerlegen und/oder Grundklassen verlinken. Beides in einem Angebot,
- * weil der Freitext ohne Zerlegung nicht verlinkbar ist.
- */
+/** Zerlegen und Verlinken in EINEM Angebot — Freitext ist ohne Zerlegung nicht verlinkbar. */
 export function classesFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const needsStructuring = target.classes.length === 0 && target.legacyClassLevel.trim().length > 0;
   const base = target.classes.length > 0 ? target.classes : parseClassLevelText(target.legacyClassLevel);
@@ -139,7 +123,6 @@ export function classesFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
   };
 }
 
-/** Inventarzeilen ohne `sourceKey`, deren Name eindeutig in der Bibliothek auflöst. */
 export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const rows = target.inventory.filter((line) => {
     if (line.sourceKey?.trim()) return false;
@@ -157,8 +140,7 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
         const hit = libs.items.byName.get(line.name.trim().toLowerCase());
         if (!hit?.key) continue;
         line.sourceKey = hit.key;
-        // Name mitziehen (englischer Altbestand → deutscher Bibliotheksname), damit
-        // Anzeige, Datei und PDF dasselbe sagen.
+        // Den Namen mitziehen, damit Anzeige, Datei und PDF dasselbe sagen.
         line.name = displayName(hit);
         line.weight = hit.weight != null ? String(hit.weight) : '';
       }
@@ -166,12 +148,10 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
   };
 }
 
-/** Alle Zauber-Verweise des Charakters (Zaubertricks + alle Grade) in einer Liste. */
 function allSpellRefs(target: LegacyLinkTarget): SpellRefLike[] {
   return [...target.cantrips, ...Object.values(target.spellsByLevel).flat()];
 }
 
-/** Zauber ohne `sourceKey`, deren Name eindeutig in der Bibliothek auflöst. */
 export function spellsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const refs = allSpellRefs(target).filter((ref) => {
     if (ref.sourceKey?.trim()) return false;
@@ -194,10 +174,7 @@ export function spellsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): 
   };
 }
 
-/**
- * Alles Nachziehbare in Anzeige-Reihenfolge. Leer = der Charakter ist vollständig
- * verknüpft (oder die Bibliotheken sind noch nicht geladen).
- */
+/** Leer heißt: vollständig verknüpft — oder die Bibliotheken sind noch nicht geladen. */
 export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix[] {
   return [
     classesFix(target, libs),

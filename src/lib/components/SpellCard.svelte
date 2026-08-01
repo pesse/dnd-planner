@@ -29,7 +29,7 @@
     } catch { return null; }
   }
 
-  // school (englisch im JSON) → Ordnername (deutsch im Vault)
+  // Schule englisch im JSON, Ordnername deutsch im Vault.
   const SCHOOL_TO_DIR: Record<string, string> = {
     abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
     enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
@@ -53,7 +53,6 @@
     onSaved: () => invalidateVault(),
   });
 
-  // Lese-Aliase fürs bestehende Markup; Schreibzugriffe (tab, draft-Bindung) gehen direkt auf ed.*
   let draft = $derived(ed.draft);
   let dirty = $derived(ed.dirty);
   let saveError = $derived(ed.saveError);
@@ -62,7 +61,6 @@
   const discard = () => ed.discard();
   const saveJson = (json: string) => ed.saveJson(json);
 
-  // ── Werkzeuge (KI + DnD-API) ──────────────────────────────────────────────
   let showAi = $state(false);
   let showTranslate = $state(false);
   let importError = $state('');
@@ -72,7 +70,6 @@
     ed.draft = r.ok ? r.data : revised;
   }
 
-  /** Lädt einen SRD-Zauber aus Open5e v2 und übernimmt ihn als Draft. */
   async function importFromApi(result: Open5eItemSearchResult) {
     importError = '';
     try {
@@ -84,7 +81,6 @@
     }
   }
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     const s = ed.draft;
     if (!s) return null;
@@ -97,7 +93,7 @@
     return translateSpell(payload);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: SpellTranslation) {
     const s = ed.draft;
     if (!s) return;
@@ -199,7 +195,6 @@
     {/snippet}
   </EditorPanel>
 {:else}
-  <!-- Fehler-Fallback wenn kein Draft (ungültiges JSON oder noch nicht geladen) -->
   <EditorPanel
     bind:tab={ed.tab}
     dirty={false}
@@ -236,7 +231,6 @@
 <style>
   .import-error { color: var(--danger); font-size: 0.78rem; }
 
-  /* ── Karten-Container ── */
   .card-wrap {
     display: flex;
     flex-direction: column;
@@ -244,7 +238,6 @@
     width: 100%;
   }
 
-  /* ── Karte (Druckstil) ── */
   .spell-card {
     width: 100%;
     max-width: 380px;
@@ -400,7 +393,6 @@
     border-color: var(--ink-muted);
   }
 
-  /* ── Bearbeiten-Container ── */
   .edit-wrap {
     background: var(--bg);
     border: 1px solid color-mix(in srgb, var(--mef-accent, var(--arcane)) 25%, var(--surface));

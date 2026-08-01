@@ -1,10 +1,6 @@
 /**
- * Streift einen ```json / ``` -Codeblock ab; ohne Fence: getrimmter Originaltext.
- *
- * LLMs verpacken JSON-Antworten oft in einen Markdown-Codeblock, auch wenn per
- * Structured Output (`output_config.format` / `response_format`) rohes JSON
- * angefordert wurde. Diese Utility ist das gemeinsame Sicherheitsnetz vor
- * `JSON.parse` auf den nativen Structured-Output-Pfaden.
+ * Das Sicherheitsnetz vor `JSON.parse` auf den NATIVEN Structured-Output-Pfaden: auch dort
+ * verpacken Modelle ihre Antwort gern noch in einen Markdown-Codeblock.
  */
 export function stripJsonFence(text: string): string {
   if (!text) return text;
@@ -15,12 +11,8 @@ export function stripJsonFence(text: string): string {
 }
 
 /**
- * Versucht, ein JSON-Objekt aus Freitext zu extrahieren (Fence-Block, rohes JSON,
- * erstes `{…}`). Gibt `null` zurück, wenn nichts Parsebares gefunden wurde.
- *
- * Das ist die tolerante Variante für Pfade OHNE nativen Structured Output — der
- * Runner nutzt sie nach dem Agent-Loop, die Eval-Prompt-Werkstatt für den
- * `structured: 'prompt'`-Vergleich.
+ * Die tolerante Variante für Pfade OHNE nativen Structured Output (Agent-Loop,
+ * Eval-Prompt-Werkstatt): Fence, rohes JSON, erstes `{…}` — sonst `null`.
  */
 export function extractJson(text: string): unknown {
   if (!text) return null;

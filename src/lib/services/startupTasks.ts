@@ -1,7 +1,4 @@
-/**
- * Was einmalig beim App-Start läuft. Liefert die Aufräumfunktion für die
- * Fenster-Fehlerlauscher zurück.
- */
+/** Was einmalig beim App-Start läuft; zurück kommt der Teardown der Fehlerlauscher. */
 import { invoke } from '@tauri-apps/api/core';
 import { invalidateVault } from '../stores/campaign';
 import { confirmAction } from '../stores/confirmDialog';
@@ -10,10 +7,6 @@ import { checkLibrariesOnStartup } from '../stores/libraries';
 import { checkForUpdate } from '../stores/update';
 import { getRulesIndex } from './rulesReference';
 
-/**
- * Prüft, ob in einem früheren Installationsverzeichnis noch Vault-Daten liegen,
- * und bietet den Umzug an. Die Originaldaten bleiben als Backup erhalten.
- */
 async function maybeMigrateLegacyVault(): Promise<void> {
   try {
     const legacy = await invoke<{ path: string; files: number; target: string } | null>(
@@ -50,32 +43,25 @@ async function maybeMigrateLegacyVault(): Promise<void> {
 }
 
 /**
- * Wird ein laufender Stream-Request abgebrochen (z.B. beim Schließen des
- * Charakter-Wizards, der KI-Jobs nebenläufig fährt), räumt der Tauri-HTTP-Plugin
- * die Body-Ressource doppelt ab: das zweite `fetch_cancel_body` läuft ins Leere
- * und der Plugin `void`t die Rejection → sie landet als unhandled. Diese
- * Teardown-Rennen sind bedeutungslos; nur echte Fehler sollen einen Toast erzeugen.
+ * Beim Abbruch eines Stream-Requests räumt das Tauri-HTTP-Plugin die Body-Ressource
+ * doppelt ab; die zweite Rejection landet als unhandled. Solche Teardown-Rennen dürfen
+ * keinen Toast erzeugen, echte Fehler schon.
  */
 const isBenignAbortNoise = (msg: string): boolean =>
   msg === 'Request cancelled' || /the resource id \d+ is invalid/i.test(msg);
 
 export function runStartupTasks(): () => void {
-  // Debug-CWD asynchron loggen, ohne den (synchron erwarteten) Cleanup-Return zu blockieren
+  // Alles hier `void`: der Cleanup-Return wird synchron erwartet und darf nicht warten.
   void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
-
-  // Auf verwaiste Vault-Daten aus früheren Versionen prüfen (No-op im Dev/Browser).
   void maybeMigrateLegacyVault();
-
-  // Beim Start einmalig auf eine neuere Version prüfen (No-op außerhalb von Tauri).
   void checkForUpdate();
 
-  // Bibliotheksverzeichnis prüfen. Offene, noch nicht vorhandene Bibliotheken
-  // werden dabei installiert, damit eine frische Installation ohne
-  // Zugangscode sofort brauchbar ist. Updates nie ungefragt — dafür der Badge.
+  // Installiert offene Bibliotheken gleich mit, damit eine frische Installation ohne
+  // Zugangscode brauchbar ist. Updates nie ungefragt — dafür gibt es den Badge.
   void checkLibrariesOnStartup();
 
-  // Regel-Suchindex (MiniSearch) einmalig vorwärmen, damit die erste
-  // search_rules-Abfrage im KI-Panel nicht kalt startet. Nach dem ersten Paint.
+  // Den Regel-Suchindex nach dem ersten Paint vorwärmen, sonst startet die erste
+  // `search_rules`-Abfrage im KI-Panel kalt.
   setTimeout(() => getRulesIndex(), 0);
 
   function onError(e: ErrorEvent) {

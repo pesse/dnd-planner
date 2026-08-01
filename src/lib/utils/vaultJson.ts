@@ -1,17 +1,10 @@
 /**
- * Serialisierung in den Vault. Die Herkunft hängt nicht am Artefakt, sondern an
- * seinem Ablageort:
- *
- *   akt-lokal (campaigns/*​/acts/*​/monsters/)  → KEIN `source`
- *   Bibliothek (vault/monsters/, spells/, …)  → genau ein gültiger `source`
- *
- * Akt-lokales Material wird nie als Bibliothek verteilt, sondern nur mit seiner
- * Kampagne — die Herkunftsfrage stellt sich dort nicht. Erst die Übernahme in die
- * Bibliothek vergibt eine. Siehe vault/CLAUDE.md.
+ * Serialisierung in den Vault: die Herkunft hängt am Ablageort, nicht am Artefakt.
+ * Akt-lokales Material wird nur mit seiner Kampagne verteilt und trägt deshalb KEIN
+ * `source` — erst die Übernahme in die Bibliothek vergibt eines (vault/CLAUDE.md).
  */
 import { toSourceKey } from '../schemas/source';
 
-/** Akt-lokales Artefakt: ohne Herkunft ablegen. */
 export function toActLocalJson(entity: unknown): string {
   const obj = { ...(entity as Record<string, unknown>) };
   delete obj.source;
@@ -19,11 +12,8 @@ export function toActLocalJson(entity: unknown): string {
 }
 
 /**
- * Bibliotheks-Artefakt: mit gültiger Herkunft ablegen.
- *
- * Setzt `source` an Ort und Stelle (Feldreihenfolge bleibt erhalten) und
- * normalisiert dabei Altwerte. Wer eine bestimmte Herkunft erzwingen will —
- * etwa die Übernahme aus einem Akt — übergibt sie mitsamt dem Artefakt.
+ * Setzt `source` an Ort und Stelle (Feldreihenfolge bleibt erhalten) und normalisiert
+ * dabei Altwerte. Eine bestimmte Herkunft erzwingt man über das Artefakt selbst.
  */
 export function toLibraryJson(entity: unknown): string {
   const obj = { ...(entity as Record<string, unknown>) };

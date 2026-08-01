@@ -26,7 +26,6 @@
     itemIndex: ItemIndex;
     itemsByDir: Record<string, ItemInfo[]>;
     saved?: Character | null;
-    /** Text des Altformat-Angebots; fehlt es, gibt es nichts nachzuverlinken. */
     fixLabel?: string;
     onfix: () => void;
     dirOf: (old: unknown, now: unknown) => DiffDir;
@@ -73,7 +72,6 @@
     }
   }
 
-  /** Bibliotheksname eines gelinkten Gegenstands, wenn er vom gespeicherten `name` abweicht. */
   function divergedName(line: InventoryLine): string | undefined {
     const key = line.sourceKey?.trim();
     if (!key) return undefined;
@@ -92,7 +90,7 @@
     }
   }
 
-  // Gegenstands-Tooltip: vorab laden → erscheint ohne Verzögerung.
+  // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataByPath = $state(new Map<string, Item | null>());
   let tooltip = $state<Item | null>(null);
   let tooltipX = $state(0);

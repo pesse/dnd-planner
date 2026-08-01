@@ -21,7 +21,6 @@ export function fetchCampaignContent(campaignPath: string): Promise<string> {
   });
 }
 
-/** Charakterdaten der Party aus dem Frontmatter einer campaign.md. */
 export async function fetchCampaignParty(campaignMd: string): Promise<CharacterCompact[]> {
   const { frontmatter } = parseFrontmatter(campaignMd);
   const slugs = frontmatter.characters ?? [];
@@ -32,8 +31,8 @@ export async function fetchCampaignParty(campaignMd: string): Promise<CharacterC
         const raw = await invoke<string>('read_file_content', {
           path: `./vault/characters/${slug}/character.json`,
         });
-        // Über normalizeCharacter statt roher Feldzugriffe: bevorzugt die Links
-        // (classes/species/backgroundRef) und fällt auf die abgeleiteten Strings zurück.
+        // Über `normalizeCharacter` statt roher Feldzugriffe: nur so gewinnen die Links
+        // vor den abgeleiteten Freitext-Strings.
         return characterMinimum(normalizeCharacter(JSON.parse(raw)), slug);
       } catch {
         return null;
@@ -54,7 +53,7 @@ async function readMonsterEntry(path: string, group: string, filename: string): 
   }
 }
 
-/** Kondensierte Monster-Bibliothek über alle Typ-Unterordner und die Root-Dateien. */
+/** Über alle Typ-Unterordner UND die flach abgelegten Root-Dateien. */
 export async function fetchMonsterLibrary(): Promise<MonsterLibraryEntry[]> {
   try {
     const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
@@ -166,9 +165,8 @@ export async function fetchEncounterSummaries(
 }
 
 /**
- * Slug → Dateipfad der globalen Monster (über ALLE Typ-Unterordner + Root von
- * vault/monsters/). Lazy gebaut und gecacht; via `invalidateMonsterPaths()`
- * verwerfen, wenn neue globale Monster angelegt wurden.
+ * Slug → Dateipfad, lazy über alle Typ-Unterordner und die Root-Dateien. Wer ein
+ * globales Monster anlegt, muss `invalidateMonsterPaths()` rufen.
  */
 let monsterPathCache: Map<string, string> | null = null;
 
@@ -180,11 +178,9 @@ async function buildMonsterPathCache(): Promise<Map<string, string>> {
   const cache = new Map<string, string>();
   try {
     const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
-    // Root-Dateien (flach abgelegt)
     for (const e of entries) {
       if (!e.is_dir && e.name.endsWith('.json')) cache.set(e.name.replace('.json', ''), `./vault/monsters/${e.name}`);
     }
-    // Typ-Unterordner (humanoide/, tiere/, …)
     const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
     await Promise.all(
       dirs.map(async (dir) => {
@@ -198,7 +194,7 @@ async function buildMonsterPathCache(): Promise<Map<string, string>> {
   return cache;
 }
 
-/** Liest ein globales Monster anhand seines Slugs — egal in welchem Typ-Unterordner. */
+/** Egal, in welchem Typ-Unterordner es liegt. */
 async function readGlobalMonster(slug: string): Promise<string | null> {
   if (!monsterPathCache) monsterPathCache = await buildMonsterPathCache();
   const path = monsterPathCache.get(slug);
@@ -210,11 +206,8 @@ async function readGlobalMonster(slug: string): Promise<string | null> {
   }
 }
 
-/** Vollständige Monster-Definitionen eines Encounters.
- *  Lookup-Reihenfolge: akt-lokal (acts/{akt}/monsters/) → global (vault/monsters/<typ>/)
- */
+/** Reihenfolge: akt-lokal (`acts/{akt}/monsters/`) schlägt global (`vault/monsters/`). */
 export async function fetchEncounterMonsters(encounterContent: string, encounterPath?: string): Promise<Monster[]> {
-  // Akt-lokalen Monsters-Ordner aus dem Encounter-Pfad ableiten
   const actMonsterBase = encounterPath
     ? encounterPath.replace(/\/encounters\/[^/]+\.json$/, '/monsters')
     : null;
@@ -223,14 +216,12 @@ export async function fetchEncounterMonsters(encounterContent: string, encounter
     const enc = JSON.parse(encounterContent) as { monsters: Array<{ slug: string }> };
     const defs = await Promise.all(
       enc.monsters.map(async (m) => {
-        // Akt-lokal zuerst
         if (actMonsterBase) {
           try {
             const content = await invoke<string>('read_file_content', { path: `${actMonsterBase}/${m.slug}.json` });
             return normalizeMonster(JSON.parse(content) as Monster);
           } catch { /* nicht gefunden, global versuchen */ }
         }
-        // Global fallback: alle Typ-Unterordner durchsuchen
         const content = await readGlobalMonster(m.slug);
         return content ? normalizeMonster(JSON.parse(content) as Monster) : null;
       })

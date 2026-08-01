@@ -1,7 +1,6 @@
 /**
- * Single Source of Truth für Gegenstände: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe llmJson.ts). Lehnt sich ans Open5e-v2-Schema an (`/v2/items/`),
- * adaptiert dessen inline weapon/armor-Detailobjekte in flache Felder (siehe open5eApi.ts).
+ * Single Source of Truth für Gegenstände. Lehnt sich an Open5e v2 (`/v2/items/`) an,
+ * adaptiert dessen inline weapon/armor-Detailobjekte aber in flache Felder.
  */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
@@ -74,7 +73,6 @@ export const itemSchema = z.object({
 
 export type Item = z.infer<typeof itemSchema>;
 
-/** Großschreibung je Wort für einen Slug („wondrous-item" → „Wondrous Item"). */
 function titleizeSlug(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
@@ -103,10 +101,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   shields: 'shield',
 };
 
-/**
- * Migriert Altformat-Felder, sorgt für ein vorhandenes `equipment_category` (die einzige
- * Typ-Quelle) und entfernt das abgelöste `item_type`. Idempotent.
- */
+/** Idempotent; jeder Lesepfad muss sie vor dem Parse durchlaufen. */
 export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const r = { ...(raw as Record<string, unknown>) };
@@ -127,8 +122,7 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   if (!Array.isArray(r.desc)) r.desc = [];
   delete r.url; // dnd5eapi-Relikt, unter Open5e bedeutungslos
 
-  // equipment_category ist die einzige Typ-Quelle. Fehlt sie (Altbestand), aus den
-  // vorhandenen Feldern bzw. dem abgelösten item_type ableiten.
+  // `equipment_category` ist die einzige Typ-Quelle — fehlt sie, ableiten statt leer lassen.
   const hasCat = !!(r.equipment_category as { index?: string } | undefined)?.index;
   if (!hasCat) {
     let idx: string;
@@ -142,7 +136,6 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
   }
   delete r.item_type;
 
-  // Alt-Kategorievokabular (dnd5eapi) → Open5e v2.
   const ec = r.equipment_category as { index?: string; name?: string } | undefined;
   if (ec?.index && CATEGORY_ALIASES[ec.index]) {
     ec.index = CATEGORY_ALIASES[ec.index];
@@ -151,9 +144,7 @@ export function migrateItemLegacy(raw: unknown): Record<string, unknown> {
 
   const migrated = migrateSourceLegacy(r);
 
-  // `key` + `document` backfillen, damit auch Altbestand/Homebrew das einheitliche
-  // Identitäts-/Herkunftsmodell trägt (source === document.key). Der Importer setzt
-  // beides für SRD-Items explizit; hier greift nur, was noch keins hat.
+  // `key` + `document` backfillen, damit auch Altbestand `source === document.key` trägt.
   const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
   migrated.key = itemKeyOf(migrated);
   const doc = migrated.document as { key?: string; gamesystem?: string } | undefined;

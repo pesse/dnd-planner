@@ -1,16 +1,7 @@
 /**
- * Gemeinsames Fundament für alle Karten-Editoren (Monster, Zauber, Encounter,
- * Gegenstand, Charakter).
- *
- * Der Controller besitzt den kompletten Lebenszyklus — Laden bei `activeFile`-Wechsel,
- * Dirty-Tracking (abgeleitet aus `snapshot(draft) !== baseline`, kein manuelles `mark()`),
- * Speichern (inkl. Ordner-Umzug bei Bucket-Wechsel), Verwerfen, JSON-Speichern,
- * Neuanlage als ungespeicherter Draft + „Speichern unter" und die Registrierung beim
- * Navigations-Guard.
- *
- * Eager Draft: die Karte rendert direkt den Draft. Darstellung und Erweiterungen
- * (KI-Aktionen, Druck, …) bleiben Sache der Komponente. Gleiches Fundament,
- * unterschiedlich ausgebaut.
+ * Der Lebenszyklus JEDES Karten-Editors — Laden, Speichern, Verwerfen, Neuanlage und die
+ * Registrierung beim Navigations-Guard. Dirty ist abgeleitet (`snapshot(draft) !== baseline`),
+ * es gibt bewusst kein manuelles `mark()`; Darstellung bleibt Sache der Komponente.
  */
 import { onMount } from 'svelte';
 import { get, writable } from 'svelte/store';
@@ -23,55 +14,37 @@ import { slugKeepUmlauts } from '$lib/utils/text';
 import { pushError } from '$lib/stores/errors';
 import type { FileEntry } from '$lib/types';
 
-// Standard-Tabs + beliebige Extra-Tab-Ids (z.B. Charakter: 'details', 'notes').
 export type CardTab = 'karte' | 'bearbeiten' | 'json' | (string & {});
 
-/**
- * Ablage-Abstraktion: wo lebt die Datei? Der „Bucket" ist typ-spezifisch
- * (Monster: flach, Zauber: Schule, Gegenstand: Kategorie, Encounter: Akt).
- */
+/** Der „Bucket" ist typ-spezifisch: Monster flach, Zauber Schule, Gegenstand Kategorie. */
 export interface LocationConfig<T> {
-  /** Beschriftung des Bucket-Selektors im Save-as-Dialog. Fehlt → flach (kein Selektor). */
+  /** Fehlt → flache Ablage, kein Selektor im Save-as-Dialog. */
   bucketLabel?: string;
-  /** Aktueller Bucket eines Drafts (aus Draft-Daten oder Kontext). */
   bucketOf?: (draft: T) => string | undefined;
-  /** Auswählbare Buckets für den Save-as-Dialog. */
   buckets?: () => SaveAsBucket[] | Promise<SaveAsBucket[]>;
-  /** Voller Dateipfad für Draft + (geslugteten) Namen + Bucket. */
   resolvePath: (draft: T, name: string, bucket?: string) => string;
 }
 
-/** Pending-Draft für Neuanlagen — die passende Karte übernimmt ihn via startNew. */
+/** Die passende Karte übernimmt ihn via `startNew`. */
 export const newCardDraft = writable<{ type: FileEntry['type']; data: unknown } | null>(null);
 
 export interface CardEditorConfig<T> {
-  /** FileEntry.type, den dieser Editor lädt (z.B. 'monster'). */
   type: FileEntry['type'];
-  /** Dateiinhalt → getyptes Objekt (null bei ungültig/Schema-Fehler). */
+  /** null bei ungültigem Inhalt oder Schema-Fehler. */
   parse: (content: string) => T | null;
-  /** Draft → Dateiinhalt. Default: JSON.stringify(snapshot, null, 2). */
+  /** Default: `JSON.stringify(snapshot, null, 2)`. */
   serialize?: (draft: T) => string;
-  /** Erzwingt einen festen Start-Tab (überschreibt den übergreifend gemerkten Modus). */
+  /** Überschreibt den übergreifend gemerkten Modus. */
   defaultTab?: CardTab;
-  /**
-   * Serialisierter Vergleichsstand für den Dirty-Check. Default = serialize(draft).
-   * Überschreiben, wenn zusätzlicher Komponenten-State zum Inhalt beiträgt
-   * (z.B. ItemCard mit Text-Spiegeln).
-   */
+  /** Überschreiben, wenn zusätzlicher Komponenten-State zum Inhalt beiträgt. */
   snapshot?: (draft: T) => string;
-  /** Default `() => draft != null`. ItemCard: nur im Bearbeiten-Modus dirty. */
+  /** Default `() => draft != null`. */
   isEditing?: () => boolean;
-  /** Zusätzliche Dirty-Bedingung (ODER-verknüpft). */
   extraDirty?: () => boolean;
-  /** Fehlertext-Präfix für Lade-Fehler. */
   label?: string;
-  /** Vorbelegter Name im Save-as-Dialog. */
   defaultName?: (draft: T) => string;
-  /** Ablage-/Pfad-Logik (für Ordner-Umzug & Save-as). */
   location?: LocationConfig<T>;
-  /** Nach erfolgreichem Speichern (Cache invalidieren etc.). */
   onSaved?: (path: string, info: { moved: boolean; oldPath?: string }) => void;
-  /** Nach erfolgreichem Laden (Seitendaten nachladen). */
   onLoad?: (content: string, path: string) => void;
 }
 
@@ -80,7 +53,7 @@ export class CardEditor<T> {
   draft = $state<T | null>(null);
   saveError = $state('');
   lastSavedContent = $state('');
-  /** true = ungespeicherter Neuanlage-Draft ohne Backing-Datei. */
+  /** Neuanlage-Draft ohne Backing-Datei. */
   isNew = $state(false);
   #baseline = $state('');
 
@@ -88,11 +61,9 @@ export class CardEditor<T> {
 
   constructor(cfg: CardEditorConfig<T>) {
     this.#cfg = cfg;
-    // Start im übergreifend zuletzt gewählten Modus (Karte/Bearbeiten), sofern der
-    // Editor keinen festen defaultTab erzwingt.
     this.tab = cfg.defaultTab ?? get(preferredCardTab);
 
-    // Tab-Wechsel des Nutzers übergreifend merken (json bewusst ausgenommen).
+    // Übergreifend merken; `json` bewusst ausgenommen.
     $effect(() => {
       if (this.tab === 'karte' || this.tab === 'bearbeiten') preferredCardTab.set(this.tab as 'karte' | 'bearbeiten');
     });
@@ -105,7 +76,6 @@ export class CardEditor<T> {
         if (file?.type === cfg.type && file.path) this.#load(file.path);
       });
 
-      // Neuanlage: passenden Pending-Draft übernehmen.
       const unsubNew = newCardDraft.subscribe((pending) => {
         if (pending && pending.type === cfg.type) {
           this.startNew(pending.data as T);
@@ -136,7 +106,6 @@ export class CardEditor<T> {
     return this.#cfg.snapshot ? this.#cfg.snapshot(draft) : this.#serialize(draft);
   }
 
-  /** Erfasst den aktuellen Stand als Vergleichsbasis für „wirklich geändert?". */
   captureBaseline() {
     this.#baseline = this.draft != null ? this.#snapshot(this.draft) : '';
   }
@@ -154,8 +123,6 @@ export class CardEditor<T> {
       const content = await invoke<string>('read_file_content', { path });
       this.applyContent(content);
       this.isNew = false;
-      // Bestehenden Datensatz im übergreifend zuletzt gewählten Modus öffnen
-      // (fester defaultTab hat Vorrang).
       this.tab = this.#cfg.defaultTab ?? get(preferredCardTab);
       this.#cfg.onLoad?.(content, path);
     } catch (e) {
@@ -165,7 +132,6 @@ export class CardEditor<T> {
     }
   }
 
-  /** Setzt den Editor auf den gegebenen Dateiinhalt. */
   applyContent(content: string) {
     this.lastSavedContent = content;
     const parsed = this.#cfg.parse(content);
@@ -175,7 +141,6 @@ export class CardEditor<T> {
     this.captureBaseline();
   }
 
-  /** Startet eine Neuanlage als ungespeicherten Draft (Anlage-Flow ruft das auf). */
   startNew(draft: T) {
     this.draft = structuredClone(draft) as T;
     this.lastSavedContent = '';
@@ -197,8 +162,7 @@ export class CardEditor<T> {
       let targetPath = file.path;
       let moved = false;
 
-      // Bucket-Wechsel (z.B. Kategorie/Schule) → Datei umziehen. Nur bei bekanntem
-      // Bucket, sonst bleibt die Datei am Ort (keine versehentlichen Umzüge).
+      // Nur bei bekanntem Bucket umziehen — sonst bleibt die Datei am Ort.
       if (this.#cfg.location?.bucketOf) {
         const bucket = this.#cfg.location.bucketOf(this.draft);
         if (bucket) {
@@ -224,7 +188,6 @@ export class CardEditor<T> {
     }
   }
 
-  /** „Speichern unter": Name + Bucket abfragen und neue Datei anlegen. */
   async saveAs() {
     if (this.draft == null || !this.#cfg.location) return;
     const loc = this.#cfg.location;
@@ -245,20 +208,17 @@ export class CardEditor<T> {
       this.saveError = `${e}`;
       return;
     }
-    // Dirty sofort (synchron) auflösen, damit der Navigations-Guard nicht noch
-    // „ungespeichert" sieht, bevor der asynchrone Reload greift.
+    // Synchron auflösen: sonst sieht der Navigations-Guard vor dem Reload „ungespeichert".
     this.isNew = false;
     this.lastSavedContent = content;
     this.captureBaseline();
     this.saveError = '';
     this.#cfg.onSaved?.(path, { moved: false });
-    // activeFile umsetzen → Subscription lädt frisch von der neuen Datei.
     activeFile.set({ name: path.split('/').pop()!.replace(/\.json$/, ''), path, type: this.#cfg.type });
   }
 
   discard() {
     if (this.isNew) {
-      // Ungespeicherte Neuanlage verwerfen → Karte schließen.
       this.isNew = false;
       this.draft = null;
       this.saveError = '';
@@ -271,7 +231,6 @@ export class CardEditor<T> {
     this.captureBaseline();
   }
 
-  /** Übernimmt rohes (bereits als JSON valides) JSON als neuen Stand und schreibt es. */
   async saveJson(rawJson: string) {
     const file = get(activeFile);
     if (!file?.path) return;

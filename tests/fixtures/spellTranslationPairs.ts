@@ -1,16 +1,12 @@
 /**
- * Fixtures: EN/DE-Zauberpaare mit BEKANNTEM Befund — Prüfstand für den Richter-Prompt.
+ * EN/DE-Zauberpaare mit BEKANNTEM Befund — Prüfstand für den Richter-Prompt.
  *
- * Die Texte sind hier **eingefroren**, nicht aus dem Vault geladen: die defekten
- * Fassungen werden repariert, sobald der Sweep läuft, und ein Fixture, das mitwandert,
- * verwandelt sich lautlos in eine Negativ-Kontrolle. `origin` nennt jeweils die Quelle,
- * damit die Herkunft nachvollziehbar bleibt.
- *
- * Der Satz deckt beide Fehlerrichtungen (Auslassung UND quellenloser Zusatz) und beide
- * Fallen ab, an denen ein Sprachqualitäts-Richter scheitert:
- *  - `enlarge-alt` ist flüssiges, idiomatisches Deutsch — aus dem Regelwerk von 2014,
- *  - `enlarge-neu` ist holpriges Deutsch — inhaltlich vollständig.
- * Wer nach Sprachgefühl urteilt, dreht diese beiden genau falsch.
+ * Die Texte sind eingefroren statt aus dem Vault geladen: die defekten Fassungen werden
+ * repariert, sobald der Sweep läuft, und ein mitwanderndes Fixture würde lautlos zur
+ * Negativ-Kontrolle. Der Satz deckt beide Fehlerrichtungen (Auslassung wie quellenloser
+ * Zusatz) und die Falle, an der Richter scheitern: `enlarge-alt` ist flüssiges Deutsch mit
+ * Regelabweichung, `enlarge-neu` holpriges und vollständiges. Wer nach Sprachgefühl urteilt,
+ * dreht die beiden genau falsch.
  */
 
 /** Ein Prüffall: englischer Quelltext, deutsche Fassung, erwartete Bewertung. */
@@ -20,7 +16,7 @@ export interface TranslationPair {
   /** Zaubername, wie in der Bibliothek. */
   name: string;
   nameEn: string;
-  /** Woher der Text stammt — Datei bzw. git-Stand. Dokumentation, damit der Fall rückverfolgbar bleibt. */
+  /** Datei bzw. git-Stand — hält den Fall rückverfolgbar. */
   origin: string;
   desc: string[];
   descDe: string[];

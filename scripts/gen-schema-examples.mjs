@@ -1,20 +1,7 @@
 /**
- * Generiert JE Zod-Schema ein Beispiel-Objekt nach `src/lib/schemas/exampleObjects/`.
- *
- * Die Zod-Schemas bleiben die Single Source of Truth — die JSONs sind nur eine
- * abgeleitete, scannbare Sicht auf die Form (Schlüssel, Verschachtelung, Typ). Sie
- * stehen bewusst NEBEN den Schema-Dateien statt als Kommentarblock darin: so kostet
- * sie nur, wer sie liest.
- *
- * Werte sind Platzhalter, aber gültig: `.default()` wenn aussagekräftig, sonst
- * "string" / 0 / false, Enums der erste Wert. Jedes erzeugte Beispiel wird gegen sein
- * Schema geparst — schlägt das fehl, ist der Generator (oder das Schema) kaputt.
- *
- *   npm run schema:examples            # schreibt/aktualisiert die JSONs
- *   npm run schema:examples:check      # exit 1, wenn ein JSON veraltet ist (CI/Gate)
- *
- * Läuft in WSL: lädt die TS-Schemas über eine minimale Vite-Instanz (configFile:false,
- * ohne SvelteKit-Plugins) — kein tsx/vitest nötig.
+ * Generiert je Zod-Schema ein Beispiel-Objekt nach `src/lib/schemas/exampleObjects/`.
+ * Die Werte sind Platzhalter, aber GÜLTIG — jedes Beispiel wird gegen sein Schema geparst.
+ * Lädt die TS-Schemas über eine minimale Vite-Instanz, damit kein tsx/vitest nötig ist.
  */
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +13,6 @@ const SCHEMA_DIR = join(ROOT, 'src/lib/schemas');
 const OUT_DIR = join(SCHEMA_DIR, 'exampleObjects');
 const CHECK = process.argv.includes('--check');
 
-// ── JSON-Schema-Knoten → Beispielwert ────────────────────────────────────────
 function unionBranches(node) {
   const branches = node?.anyOf || node?.oneOf;
   if (!Array.isArray(branches)) return null;
@@ -96,7 +82,6 @@ aussagekräftig, sonst \`"string"\` / \`0\` / \`false\`, bei Enums der erste Wer
 ein Element, \`z.record()\` einen \`<key>\`-Eintrag, Unions alle Varianten.
 `;
 
-// ── Main ─────────────────────────────────────────────────────────────────────
 const server = await createServer({
   configFile: false,
   server: { middlewareMode: true },

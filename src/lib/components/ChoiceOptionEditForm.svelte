@@ -1,20 +1,13 @@
 <script lang="ts">
   /**
-   * Editor für die Optionen einer deklarierten Zweigwahl (`grantsChoice.kind === 'optionList'`)
-   * — Urtümlicher Orden, Göttlicher Orden und alles mechanisch Gleiche.
+   * Editor der Optionen einer deklarierten Zweigwahl (`grantsChoice.kind === 'optionList'`),
+   * artefakt-neutral: nur `ChoiceOption[]`, damit dieselbe Komponente an Klassenmerkmal,
+   * Trait und Talent hängt.
    *
-   * Artefakt-neutral: die Komponente kennt nur `ChoiceOption[]`, keine Klasse und kein
-   * Merkmal. Damit hängt sie unverändert an Klassenmerkmal, Spezies-Trait und Talent.
-   *
-   * Zwei Dinge, die die Oberfläche sichtbar machen muss, weil sie sonst still brechen:
-   *   - `value` ist der stabile Schlüssel, gegen den die am Charakter gespeicherte Antwort
-   *     matcht (`chosenOption`, services/featureDeclaration.ts). Wörtlich aus dem englischen
-   *     Regeltext — ein „verbessertes" Label findet seinen Zweig nie wieder.
-   *   - `labelDe` ist ein ZITAT aus `descDe`, keine Übersetzung: der deutsche Regeltext hat
-   *     das Wort schon (**Wächter.**).
-   *
-   * `grants` bleibt pro Option optional: fehlt es, hat die Option keine mechanische Wirkung.
-   * Deshalb ist es ein Häkchen und kein immer vorhandener Block.
+   * Zwei Dinge, die still brechen, wenn die Oberfläche sie nicht zeigt: `value` ist der
+   * stabile Schlüssel der gespeicherten Antwort und steht wörtlich im englischen Regeltext
+   * — ein „verbessertes" Label findet seinen Zweig nie wieder; `labelDe` ist ein ZITAT aus
+   * `descDe` (**Wächter.**), keine Übersetzung.
    */
   import { featureGrantSchema } from '$lib/schemas/grants';
   import { type ChoiceOption } from '$lib/schemas/featureChoice';
@@ -28,12 +21,11 @@
   }: {
     /** Muss mit `bind:` übergeben werden — Hinzufügen/Entfernen/Ordnen ersetzt das Array. */
     options: ChoiceOption[];
-    /** Wird an die Übungen der Option durchgereicht ('skills' für Trait/Talent). */
     scope?: 'full' | 'skills';
     onchange?: () => void;
   } = $props();
 
-  /** Richtwert für `helpDe` — die Zeile landet so auf dem Charakterbogen. */
+  /** Richtwert: die Zeile landet so auf dem Charakterbogen. */
   const HELP_MAX = 60;
 
   function mark() {
@@ -62,7 +54,6 @@
     onchange();
   }
 
-  /** Reihenfolge = Anzeigereihenfolge der Wahl; Tauschen statt Drag&Drop (zwei bis zehn Optionen). */
   function moveOption(i: number, delta: number) {
     const j = i + delta;
     if (j < 0 || j >= options.length) return;

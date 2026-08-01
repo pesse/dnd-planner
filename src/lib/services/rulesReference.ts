@@ -1,12 +1,7 @@
 /**
- * Regel-Nachschlagewerk (SRD 5.2.1 DE) — Laufzeit.
- *
- * Stufe 1: strukturierter Term-Lookup über das Regelglossar (exakt / EN-DE-Alias /
- *          Fuzzy-Fallback) — deterministisch, autoritativ.
- * Stufe 2: lexikalische Volltextsuche (MiniSearch) über die Regel-Prosa-Chunks —
- *          lazy aufgebauter In-Memory-Index (Muster wie spellLibrary.ts).
- *
- * Daten kommen gebündelt aus src/lib/data/ (offline generiert, siehe scripts/srd/).
+ * Regel-Nachschlagewerk (SRD 5.2.1 DE): `lookupRule` ist der autoritative Term-Lookup,
+ * `searchRules` die unscharfe Volltextsuche darunter. Die Daten liegen gebündelt in
+ * `src/lib/data/`, offline erzeugt von `scripts/srd/`.
  */
 import MiniSearch from 'minisearch';
 import glossaryData from '$lib/data/rules-glossary.json';
@@ -31,20 +26,24 @@ interface Chunk {
 const ENTRIES = glossaryData as RuleEntry[];
 const CHUNKS = chunkData as Chunk[];
 
-/** Alle deutschen Regelbegriffe — z.B. um den Term-Index in einen Prompt zu pinnen. */
+/** Alle deutschen Regelbegriffe — etwa um den Term-Index in einen Prompt zu pinnen. */
 export const RULES_TERMS: string[] = ENTRIES.map((e) => e.de);
 
-// ── Normalisierung (identisch für Lookup-Keys und MiniSearch-Terme) ────────────
+/** Faltung für Lookup-Keys UND MiniSearch-Terme — beide müssen dieselbe Form sehen. */
 const fold = (s: string): string =>
   s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
 const norm = (s: string): string => fold(s).replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 
-// ── Stufe 1: Lookup-Map (normalisiertes de + en als Alias) ─────────────────────
-const lookupMap = new Map<string, RuleEntry>();
-for (const e of ENTRIES) {
-  lookupMap.set(norm(e.de), e);
-  if (!lookupMap.has(norm(e.en))) lookupMap.set(norm(e.en), e);
+/** Normalisiertes Deutsch, englischer Begriff als Alias — Deutsch gewinnt bei Kollision. */
+function buildLookupMap(): Map<string, RuleEntry> {
+  const map = new Map<string, RuleEntry>();
+  for (const e of ENTRIES) {
+    map.set(norm(e.de), e);
+    if (!map.has(norm(e.en))) map.set(norm(e.en), e);
+  }
+  return map;
 }
+const lookupMap = buildLookupMap();
 
 /** Levenshtein-Distanz (klein gehalten; nur für den Fuzzy-Fallback). */
 function editDistance(a: string, b: string): number {
@@ -73,7 +72,7 @@ export interface RuleLookup {
   suggestions?: string[];
 }
 
-/** Schlägt einen Regelbegriff nach — deutsch oder englisch, tolerant gegen Tippfehler. */
+/** Deutsch oder englisch, tolerant gegen Tippfehler. */
 export function lookupRule(term: string): RuleLookup {
   const key = norm(term);
   if (!key) return { found: false, suggestions: [] };
@@ -101,10 +100,9 @@ export function lookupRule(term: string): RuleLookup {
   return { found: false, suggestions };
 }
 
-// ── Stufe 2: MiniSearch-Index (lazy singleton) ─────────────────────────────────
 let index: MiniSearch<Chunk> | null = null;
 
-/** Baut (einmalig) den Volltext-Index über die Regel-Chunks und cached ihn. */
+/** Baut den Volltext-Index über die Regel-Chunks beim ersten Zugriff und cached ihn. */
 export function getRulesIndex(): MiniSearch<Chunk> {
   if (index) return index;
   const ms = new MiniSearch<Chunk>({
@@ -126,7 +124,6 @@ export interface RuleSearchResult {
   text: string;
 }
 
-/** Volltextsuche über die Regel-Prosa; liefert die Top-k Passagen mit Sektion + Seite. */
 export function searchRules(query: string, k = 5): RuleSearchResult[] {
   if (!query.trim()) return [];
   return getRulesIndex()

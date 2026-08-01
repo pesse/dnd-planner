@@ -31,28 +31,19 @@
   }: {
     type: FileEntry['type'];
     title: string;
-    /** API-Suche (englischer Begriff). */
     searchApi: (q: string) => Promise<DndApiRef[]>;
-    /** Rohe DnD-API-Ressource → Draft (dnd5eapi.co-Pfad in ref.url). Optional, wenn loadApi gesetzt. */
+    /** Rohe DnD-API-Ressource → Draft. Optional, wenn `loadApi` gesetzt ist. */
     mapApi?: (data: Record<string, unknown>) => T;
-    /**
-     * Alternative zum DnD-API-Pfad: lädt einen Treffer selbst (z.B. Open5e v2, wo
-     * ref.url der v2-Key ist). Hat Vorrang vor mapApi + getResource.
-     */
+    /** Lädt einen Treffer selbst (Open5e v2) — hat Vorrang vor `mapApi`. */
     loadApi?: (ref: DndApiRef) => Promise<T>;
-    /** Optionale Bibliothekssuche (bestehende Vault-Einträge als Vorlage). */
     searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
-    /** Leerer Draft mit gegebenem Namen. */
     blank: (name: string) => T;
-    /** KI-Anlage-Aktion. Fehlt → keine KI-Unterstützung. */
+    /** Fehlt → der Dialog bietet keinen KI-Pfad an. */
     buildAction?: (opts: { name?: string; template?: T }) => AiAction<T>;
-    /** Anzeigename eines Drafts (für activeFile-Platzhalter). */
     nameOf: (draft: T) => string;
     /**
-     * Optionale typ-spezifische Auswahl (z.B. „Subklasse von" bei Klassen). Wird als
-     * Dropdown gezeigt; bei nicht-leerer Auswahl auf den fertigen Draft angewandt —
-     * unabhängig vom Anlage-Pfad (manuell/Vorlage/KI). Leere Auswahl lässt den Draft
-     * unangetastet (Import-Werte bleiben erhalten).
+     * Typ-spezifische Auswahl („Subklasse von"), auf jedem Anlage-Pfad angewandt. Eine
+     * LEERE Auswahl lässt den Draft unangetastet, damit Import-Werte erhalten bleiben.
      */
     extraSelect?: {
       label: string;
@@ -60,15 +51,11 @@
       load: () => Promise<{ value: string; label: string }[]>;
       apply: (draft: T, value: string) => void;
     };
-    /**
-     * Optional: übernimmt den fertigen Draft selbst (statt Standard `newCardDraft`).
-     * Für Entities mit eigenem Draft-Store (z.B. Item: `newItemDraft` mit Zielordner).
-     */
+    /** Für Entities mit eigenem Draft-Store statt `newCardDraft` (Item: Zielordner). */
     onCreated?: (draft: T) => void;
     onclose: () => void;
   } = $props();
 
-  /** Vereinheitlichter Vorlagen-Treffer (Bibliothek oder SRD). */
   type TemplateHit = { name: string; badge: string; api: boolean; load: () => Promise<T> };
 
   let aiEnabled = $state(false);
@@ -82,11 +69,7 @@
 
   function capitalize(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  /**
-   * Öffnet den (noch ungespeicherten) Draft im Editor und schließt den Dialog.
-   * Der Navigations-Guard greift bereits beim Öffnen dieses Dialogs (siehe
-   * createMonster/createSpell/openItemModal in der Sidebar), daher hier nicht erneut.
-   */
+  /** Kein Guard: der greift schon beim Öffnen dieses Dialogs (Sidebar). */
   function openDraft(draft: T) {
     if (extraSelect && extraValue) extraSelect.apply(draft, extraValue);
     if (onCreated) onCreated(draft);

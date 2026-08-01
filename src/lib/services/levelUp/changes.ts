@@ -1,11 +1,6 @@
 /**
- * Die Change-Builder: jeder liefert `Change[]`, getaggt mit dem erzeugenden Schritt
- * (Provenienz). Ein erneut ausgeführter Schritt ersetzt per `upsertStep` nur seine
- * eigenen Einträge, erzeugt also kein Duplikat.
- *
- * REIHENFOLGE-INVARIANTE: `applyLevelUp` verarbeitet changes in Array-Reihenfolge, also
- * muss `classFeaturesText` 'replace' NACH allen übrigen Einträgen stehen — `upsertStep`
- * sortiert dazu stabil nach `STEP_ORDER`.
+ * Die Change-Builder: jeder liefert `Change[]`, getaggt mit dem erzeugenden Schritt.
+ * `upsertStep` ersetzt damit bei einem erneuten Lauf nur die eigenen Einträge.
  */
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
 import { isFightingStyleFeature } from '../fightingStyle';
@@ -25,7 +20,6 @@ import { declaredSpellChanges, learnInfo, type DeclaredSpells, type ValidatedRid
 
 const isAbility = (v: unknown): v is AbilityKey => typeof v === 'string' && (ABILITY_KEYS as readonly string[]).includes(v);
 
-/** Erhöht die Trefferwürfel-Notation für den passenden Würfeltyp; Fallback: anhängen. */
 function bumpHitDice(current: string, die: number, add: number, toLevel: number): string {
   if (!die) return current;
   const re = new RegExp(`(\\d+)\\s*[WwDd]\\s*${die}\\b`);
@@ -35,15 +29,10 @@ function bumpHitDice(current: string, die: number, add: number, toLevel: number)
   return `${current} + ${add}W${die}`;
 }
 
-// Jeder Builder liefert Change[] getaggt mit seinem erzeugenden Schritt (Provenienz).
-// Die Komponente schreibt die Ergebnisse per `upsertStep` ins lebende Dokument; ein
-// erneut ausgeführter Schritt ersetzt so NUR seine eigenen Einträge (kein Duplikat).
-//
-// REIHENFOLGE-INVARIANTE: `applyLevelUp` verarbeitet changes in Array-Reihenfolge.
-// classFeaturesText 'replace' (Schritt 'class-features') muss deshalb NACH allen
-// übrigen Einträgen stehen — `upsertStep` sortiert dazu stabil nach STEP_ORDER.
-
-/** Kanonische Schritt-Reihenfolge im Dokument (bestimmt die Sortierung in upsertStep). */
+/**
+ * REIHENFOLGE-INVARIANTE: `applyLevelUp` verarbeitet Changes in Array-Reihenfolge, also muss
+ * `classFeaturesText` 'replace' NACH allen übrigen stehen — `upsertStep` sortiert stabil hiernach.
+ */
 export const STEP_ORDER = [
   'base-delta', 'subclass-delta', 'feature-effects', 'assemble-decisions',
   'feat-links', 'feat-effects',
@@ -54,7 +43,6 @@ export type BuilderStep = (typeof STEP_ORDER)[number];
 type AbilityMap = Record<AbilityKey, number>;
 const zeroAbil = (): AbilityMap => ({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 });
 
-/** Attributsverbesserungen aus den ASI-Antworten (+2 auf A, oder +1/+1 auf A+B). */
 function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string | string[]>): AbilityMap {
   const abil = zeroAbil();
   for (let i = 1; i <= delta.asiCount; i++) {
@@ -67,14 +55,13 @@ function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string 
   return abil;
 }
 
-/** Feste Attributsboni, die Merkmale/Talente selbst gewähren (nicht spielergewählt). */
+/** Feste Boni der Merkmale — nicht spielergewählt, anders als `abilityFromAnswers`. */
 function abilityFromRiders(riders: FeatureRider[]): AbilityMap {
   const abil = zeroAbil();
   for (const r of riders) for (const k of ABILITY_KEYS) abil[k] += r.abilityScoreIncrease[k] ?? 0;
   return abil;
 }
 
-/** Basis-Delta: Übungsbonus, Zauberplätze, Zauberklasse, Trefferwürfel + Klassen-Merkmale (Info). */
 export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[] {
   const step: BuilderStep = 'base-delta';
   const out: Change[] = [];
@@ -83,23 +70,20 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
   delta.spellSlotDelta.forEach((n, i) => {
     if (n > 0) out.push({ target: 'spellSlot', level: i + 1, value: n, step, source: 'class-progression', label: `Zauberplätze Grad ${i + 1}` });
   });
-  // Zauberwirken NUR eintragen, wenn es in dieser Spanne erstmals erlangt wird
-  // (nicht bei jedem Aufstieg eines längst zaubernden Charakters, z.B. Druide 2→3).
+  // Nur beim ERSTMALIGEN Erlangen — sonst stünde es bei jedem Aufstieg eines längst
+  // zaubernden Charakters erneut da (Druide 2→3).
   if (delta.castingIsNew && delta.klasseName)
     out.push({ target: 'spellcastingClass', value: delta.klasseName, step, source: 'class-progression', label: `Zauberwirken: ${delta.klasseName}` });
   const hd = bumpHitDice(hitDice, delta.hitDie, delta.levelsGained, delta.toLevel);
   if (hd) out.push({ target: 'hitDice', value: hd, step, source: 'class-progression', label: 'Trefferwürfel' });
-  // Waffenbeherrschung: nur ein HINWEIS, keine Wahl. Welche Waffen es sind, entscheidet
-  // der Charakterbogen aus der Item-Bibliothek — die Wahl ist ohnehin nach jeder langen
-  // Rast änderbar, und eine KI-Frage hier würde eine erfundene Waffenliste anbieten.
+  // Nur ein HINWEIS, keine Wahl: die Waffen kommen im Charakterbogen aus der Item-Bibliothek,
+  // eine KI-Frage hier böte eine erfundene Waffenliste an.
   if (delta.masteryTo > delta.masteryFrom) {
     const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });
   }
-  // Kampfstil: wie die Waffenbeherrschung nur ein HINWEIS, keine KI-Frage — das Merkmal ist
-  // über `grantsChoice` als flow-eigene Wahl markiert und fliegt daher aus der Merkmals-
-  // Analyse. Die eigentliche Wahl trifft der Charakterbogen (FightingStylePicker) aus der
-  // Talent-Bibliothek; ein Kampfstil ist ein Talent-Link und nach jeder Kämpferstufe tauschbar.
+  // Wie die Waffenbeherrschung nur ein HINWEIS: über `grantsChoice` als flow-eigene Wahl
+  // markiert, die eigentliche Wahl trifft der Bogen aus der Talent-Bibliothek.
   const styleFeatures = [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isFightingStyleFeature);
   if (styleFeatures.length) {
     const value = styleFeatures.length > 1
@@ -112,7 +96,6 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
   return out;
 }
 
-/** Subklassen-Wahl: Subklasse setzen + neu erlangte Subklassen-Merkmale (Info). */
 export function subclassChanges(subclass: { key: string; name: string } | null, subFeatures: GainedFeature[]): Change[] {
   const step: BuilderStep = 'subclass-delta';
   const out: Change[] = [];
@@ -123,11 +106,7 @@ export function subclassChanges(subclass: { key: string; name: string } | null, 
   return out;
 }
 
-/**
- * Rider-abgeleitete AUTOMATISCHE Grants (kein Spieler-Choice): gewährte Zauber/Tricks,
- * feste Attributsboni, gewährte Übungen. `step` unterscheidet Basis-Merkmale
- * ('feature-effects') von Talenten ('feat-effects').
- */
+/** Rider-abgeleitete AUTOMATISCHE Grants — kein Spieler-Choice. */
 export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat-effects'): Change[] {
   const out: Change[] = [];
   for (const name of v.grantedCantrips)
@@ -142,16 +121,9 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
 }
 
 /**
- * Die Übungen und die Expertise eines Riders als `Change[]` — geteilt mit der
- * Wizard-Assembly, damit beide Flows dieselbe Senke benutzen (`applyChanges`).
- *
- * Die Tabelle ist über `keyof RiderProficiencies` TOTAL: ein neues Feld an der Rider-Form
- * bricht hier den Build. Vorher zählte diese Funktion drei der sechs Arten von Hand auf,
- * und `tools`/`languages`/`savingThrows` fielen im Aufstieg still weg, obwohl das Modell
- * sie liefert und der Wizard sie anwendet.
- *
- * Werte bleiben ENGLISCH (geschlossenes Vokabular); übersetzt wird beim Anwenden, deutsch
- * ist nur das Anzeige-`label`.
+ * Geteilt mit der Wizard-Assembly, damit beide Flows dieselbe Senke benutzen. Die Tabelle ist
+ * über `keyof RiderProficiencies` TOTAL: ein neues Feld an der Rider-Form bricht hier den Build,
+ * statt wie früher still zu verschwinden. Werte bleiben ENGLISCH, deutsch ist nur das `label`.
  */
 export function riderGrantChanges(
   riders: readonly FeatureRider[],
@@ -164,7 +136,6 @@ export function riderGrantChanges(
       for (const skill of values((r) => r.proficiencies.skills))
         out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
     },
-    // Urtümlicher Orden → Wächter, Göttlicher Orden → Beschützer.
     weapons: () => {
       for (const value of values((r) => r.proficiencies.weapons))
         out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
@@ -188,7 +159,7 @@ export function riderGrantChanges(
     },
   };
   for (const run of Object.values(routes)) run();
-  // Bereits entschiedene Expertise (rider.expertiseSkills, nicht Teil der Übungsform).
+  // Expertise steht außerhalb der Übungsform und damit außerhalb der Tabelle.
   for (const skill of values((r) => r.expertiseSkills))
     out.push({ target: 'expertise', skill, ...meta, label: `Expertise: ${skillLabelDe(skill)}` });
   return out;
@@ -203,13 +174,12 @@ export interface DecisionChangesParams {
   learnAsPrepared: boolean;
 }
 
-/** Spieler-Entscheidungen: Trefferpunkte, ASI, gewählte Zaubertricks/Zauber, Expertise. */
 export function decisionChanges(p: DecisionChangesParams): Change[] {
   const step: BuilderStep = 'assemble-decisions';
   const { delta, answers } = p;
   const out: Change[] = [];
 
-  // Trefferpunkte. Beim Würfeln ist `hp_roll` bereits die SUMME aller Stufen; KON je Stufe.
+  // Beim Würfeln ist `hp_roll` bereits die SUMME aller Stufen; KON zählt je Stufe.
   if (delta.hitDie > 0) {
     const avg = Math.floor(delta.hitDie / 2) + 1;
     const rolled = Number(answers['hp_roll']);
@@ -235,10 +205,9 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
 }
 
 /**
- * Zauber, die eine MERKMALS-Wahl den Spieler wählen ließ (Fragen vom Typ `spell-picker` aus
- * `buildFeatureChoices`, z.B. „Eingeweihter der Magie"). Ohne diesen Builder würde die Wahl nur als
- * Notiz protokolliert, aber nie am Charakter landen. Stets vorbereitet: ein Merkmal, das
- * Zauber wählen lässt, gewährt sie auch (sie zählen nicht gegen das Klassenkontingent).
+ * Zauber aus einer MERKMALS-Wahl („Eingeweihter der Magie") — ohne diesen Builder bliebe die
+ * Wahl eine Notiz und landete nie am Charakter. Stets vorbereitet: sie zählen nicht gegen
+ * das Klassenkontingent.
  */
 export function featureSpellChanges(
   questions: LevelUpQuestion[],
@@ -260,20 +229,16 @@ export function featureSpellChanges(
   return out;
 }
 
-/** Gewählte Talente als Referenz-Links (references.feats). */
 export function featChanges(chosenFeats: { key: string; name: string; gainedAt: number }[]): Change[] {
   const step: BuilderStep = 'feat-links';
   return chosenFeats.map((f) => ({ target: 'feat' as const, sourceKey: f.key, name: f.name, gainedAt: f.gainedAt, step, source: f.key || 'feat', label: `Talent: ${f.name}` }));
 }
 
 /**
- * Getroffene Aufbau-Entscheidungen als `featureChoice`-Changes — der strukturierte Teil,
- * der im Merkmals-Ledger des Charakters landet. Nur Fragen, die ein Bibliotheks-Merkmal
- * stellt (`featureKey`) UND die eine dauerhafte Wahl sind (`isBuildDecision`); Wahlen pro
- * Einsatz werden beantwortet, aber nicht festgeschrieben.
- *
- * Die Stufe kommt aus dem Merkmal selbst, nicht aus der Zielstufe: bei einem Sprung über
- * mehrere Stufen gehört die Wahl zu der Stufe, auf der das Merkmal kam.
+ * Der strukturierte Teil, der ins Merkmals-Ledger geht — nur dauerhafte Wahlen
+ * (`isBuildDecision`), Wahlen pro Einsatz werden beantwortet, aber nicht festgeschrieben.
+ * Die Stufe kommt aus dem MERKMAL, nicht aus der Zielstufe: bei einem Sprung über mehrere
+ * Stufen gehört die Wahl zu der Stufe, auf der das Merkmal kam.
  */
 export function featureChoiceChanges(
   qs: LevelUpQuestion[],
@@ -285,7 +250,7 @@ export function featureChoiceChanges(
   const out: Change[] = [];
   for (const q of qs) {
     if (!recordsChoice(q, answers)) continue;
-    // Beides festhalten: `choice` ist der englische Prompt-Kanal, `choiceDe` die Anzeige.
+    // `choice` ist der englische Prompt-Kanal, `choiceDe` die Anzeige — beides festhalten.
     const choice = answerValues(q, answers[q.id]);
     const choiceDe = answerLabels(q, answers[q.id]);
     out.push({
@@ -302,7 +267,6 @@ export function featureChoiceChanges(
   return out;
 }
 
-/** Fortlaufende Pro-Stufe-TP (je Quelle ein eigener Eintrag; Betrag × gewonnene Stufen). */
 export function ongoingChanges(sources: { feature: string; sourceKey?: string; amount: number }[], levelsGained: number): Change[] {
   const step: BuilderStep = 'ongoing-effects';
   return sources
@@ -310,7 +274,6 @@ export function ongoingChanges(sources: { feature: string; sourceKey?: string; a
     .filter((c) => c.value);
 }
 
-/** Klassenmerkmale-Freitext als Volltext-Ersatz (aus dem editierbaren Feld / KI-Rewrite). */
 export function classFeaturesChanges(text: string): Change[] {
   if (!text?.trim()) return [];
   return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Klassenmerkmale (überarbeitet)' }];

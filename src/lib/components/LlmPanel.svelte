@@ -26,12 +26,10 @@
 
   $effect(() => { localStorage.setItem('llm-mode', mode); });
 
-  // Aktueller LLM-Client (Provider-Adapter + Capabilities) — reaktiv zur Config.
   let client = $derived(getClient($llmConfig));
 
   let showSettings = $state(false);
   let generateResult = $state('');
-  // Index der gerade live gestreamten Assistant-Nachricht in $llmMessages (null = kein Stream).
   let streamingIndex = $state<number | null>(null);
 
   let agentSteps = $state<AgentStep[]>([]);
@@ -51,7 +49,7 @@
   async function agentWriteFile(path: string, content: string): Promise<void> {
     const active = $activeFile;
     if (active && path === active.path) {
-      // Aktive Datei über replaceContent — nur so bleibt sie in der Undo-Kette.
+      // Über `replaceContent`, nur so bleibt die Änderung in der Undo-Kette.
       replaceContent(content);
       invalidateVault();
     } else {
@@ -102,7 +100,7 @@
 
     try {
       if (mode === 'chat') {
-        // History VOR dem Update snapshot — dann userMsg anhängen
+        // History VOR dem Update snapshotten, erst danach `userMsg` anhängen.
         const history = $llmMessages;
         llmMessages.update((msgs) => [...msgs, { role: 'user', content: userMsg }]);
 
@@ -112,7 +110,6 @@
           { role: 'user' as const, content: userMsg },
         ];
 
-        // Leeren Assistant-Platzhalter anlegen und live mit Token-Deltas füllen.
         let idx = -1;
         llmMessages.update((msgs) => { idx = msgs.length; return [...msgs, { role: 'assistant', content: '' }]; });
         streamingIndex = idx;
@@ -125,7 +122,7 @@
         };
 
         const response = await client.chat(messages, 'chat', onDelta);
-        // Finalen Content setzen (deckt nicht-streamende Provider ab; bei Stream idempotent).
+        // Deckt nicht-streamende Provider ab; beim Stream idempotent.
         llmMessages.update((msgs) => {
           const copy = [...msgs];
           copy[idx] = { ...copy[idx], content: response };
@@ -139,7 +136,6 @@
     } catch (e) {
       const errMsg = `⚠️ Fehler: ${e instanceof Error ? e.message : JSON.stringify(e)}`;
       if (mode === 'chat') {
-        // Platzhalter mit Fehler füllen statt eine zweite Nachricht anzuhängen.
         if (streamingIndex !== null) {
           const idx = streamingIndex;
           llmMessages.update((msgs) => {

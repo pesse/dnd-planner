@@ -29,14 +29,11 @@
 
   let expanded: Record<string, boolean> = $state({});
   let sectionFiles: Record<string, string[]> = $state({});
-  /** Maps full vault path → extracted document title (# Heading) */
   let fileTitles: Record<string, string> = $state({});
   let newFileInput: Record<string, string> = $state({});
   let showNewFileInput: Record<string, boolean> = $state({});
 
-  // Encounter liegen je Akt-Verzeichnis; Key: `${campaignPath}/${actDirName}`.
   let encounterFiles: Record<string, string[]> = $state({});
-  // Key: `${campaignPath}/${actDirName}/${filename}`
   let encounterNames: Record<string, string> = $state({});
   let showNewActEncounterInput: Record<string, boolean> = $state({});
   let newActEncounterInput: Record<string, string> = $state({});
@@ -73,8 +70,8 @@
 
   onMount(loadCampaigns);
 
-  // Reaktives Laden: immer wenn activeCampaign sich ändert, Kontext neu laden.
-  // Fixes: (1) HMR-Store-Reset, (2) Code-Pfade die activeCampaign.set() ohne Lade-Calls aufrufen.
+  // Am Store, nicht am Aufrufer: sonst fehlt der Kontext nach HMR-Store-Reset und auf
+  // Pfaden, die `activeCampaign.set()` ohne eigenen Lade-Call benutzen.
   $effect(() => {
     const campaign = $activeCampaign;
     if (campaign?.path) {
@@ -100,7 +97,6 @@
       showNewCampaignInput = false;
       newCampaignInput = '';
       await loadCampaigns();
-      // Neue Kampagne gleich öffnen
       const newCampaign = campaigns.find((c) => c.path === slug);
       if (newCampaign) {
         activeCampaign.set(newCampaign);
@@ -141,7 +137,7 @@
     if (!(await confirmNavigation())) return;
     const path = `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
     activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
-    // EncounterCard lädt den Inhalt + Monster selbst via $effect
+    // Inhalt und Monster lädt die EncounterCard selbst.
   }
 
   async function createActEncounter(campaignPath: string, actDirName: string, e: KeyboardEvent | MouseEvent) {
@@ -241,7 +237,6 @@
     }
   }
 
-  // Reload all currently expanded sections when vault files change (e.g. after agent writes).
   $effect(() => {
     const _v = $vaultVersion;
     const campaign = $activeCampaign;
@@ -258,10 +253,8 @@
     if (expanded[key]) await loadSection(campaignPath, section);
   }
 
-  // Öffnet eine Datei (z.B. via Link-Navigation) → die zugehörige Sektion im Baum
-  // aufklappen, damit der aktive Eintrag sichtbar/markiert ist. Reagiert nur auf den
-  // Pfad-Wechsel (untrack verhindert ein Re-Expandieren, wenn der Nutzer manuell
-  // zuklappt). Encounters erscheinen automatisch, sobald die Akte-Sektion geladen ist.
+  // Reagiert nur auf den Pfad-Wechsel: `untrack` verhindert ein Re-Expandieren, wenn der
+  // Nutzer manuell zuklappt.
   $effect(() => {
     const path = $activeFile?.path;
     if (!path) return;
@@ -296,7 +289,6 @@
     }
   }
 
-  /** Kampagne wechseln — vorher ungespeicherte Änderungen abfragen. */
   async function selectCampaign(campaign: Campaign) {
     if (!(await confirmNavigation())) return;
     activeCampaign.set({ ...campaign });
@@ -360,7 +352,6 @@
   }
 </script>
 
-<!-- Hover-Löschbutton für eine Baumzeile; in `.entry-row` neben den .file-entry-Button gesetzt. -->
 {#snippet delBtn(onDelete: () => void)}
   <button class="entry-del" title="Löschen" onclick={(e) => { e.stopPropagation(); onDelete(); }}>🗑</button>
 {/snippet}

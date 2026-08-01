@@ -1,16 +1,7 @@
 /**
- * Interner, bewusst OFFENER Typ für Klassen-Progression — ein dünner Adapter über
- * das Open5e-**v2**-Format (`/v2/classes/{key}`), NICHT eine starre SRD-Projektion.
- *
- * v2 liefert die Stufentabelle datengetrieben (jede Spalte — „1st"…„9th",
- * „Proficiency Bonus", „Cantrips", „Rages", „Weapon Mastery", … — ist ein Feature
- * mit `data_for_class_table`). Diesem Prinzip folgt der Typ: `levels[].columns` ist
- * eine offene Map, damit beliebige (auch Homebrew-/2024-)Spalten überleben statt in
- * Catch-alls zu verschwinden. Merkmale tragen `gainedAt` (mehrere Stufen möglich).
- *
- * Zweck des Adapters: Entkopplung von Open5e-Churn/künftigen Quellen, Trimmen des
- * v2-Ballasts (crossreferences/permalinks), stabile Feldnamen, Zod-Validierung für
- * graceful degradation bei fremden/Homebrew-Dokumenten.
+ * Adapter über Open5e v2 (`/v2/classes/{key}`), bewusst OFFEN gehalten: `levels[].columns`
+ * ist eine freie Map, damit beliebige Homebrew- und 2024-Spalten überleben statt in
+ * Catch-alls zu verschwinden — v2 liefert die Stufentabelle selbst datengetrieben.
  */
 import { z } from 'zod';
 import { sourceField, migrateSourceLegacy } from './source';
@@ -21,13 +12,12 @@ import { type AbilityName } from './abilities';
 import { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey } from './abilities';
 export { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey };
 
-/** Eine Stufe: alle Tabellenspalten offen als name→Wert (Rohwert wie in v2). */
 export const classLevelSchema = z.object({
   level: z.number().int().min(1).max(20),
-  columns: z.record(z.string(), z.string()).default({}),
+  columns: z.record(z.string(), z.string()).default({}), // Rohwerte wie in v2
 });
 
-/** Ein Klassenmerkmal; `gainedAt` kann mehrere Stufen enthalten (z.B. ASI 4/8/12/16). */
+/** `gainedAt` kann mehrere Stufen enthalten (z.B. ASI 4/8/12/16). */
 export const classFeatureSchema = z.object({
   key: z.string().default(''),
   name: z.string(),
@@ -54,26 +44,17 @@ export const classProgressionSchema = z.object({
   hitDie: z.number().int().default(0).describe('Seitenzahl aus "D6" → 6.'),
   hpAt1st: z.string().default(''),
   hpHigher: z.string().default(''),
-  /**
-   * Die Kerntabelle („Core Traits") in strukturierter Form: Fertigkeiten,
-   * Rettungswürfe, Waffen, Rüstung — ENGLISCHE Enum-Werte (siehe vocabulary.ts).
-   * Bei Subklassen leer; die Kerntabelle hängt an der Grundklasse.
-   */
+  /** Bei Subklassen leer — die Kerntabelle hängt an der Grundklasse. */
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
   /**
-   * Was diese Klasse gewährt, wenn sie als ZWEITE (Multiclass-)Klasse dazukommt.
-   * Steht NICHT in Open5e v2 (nur im SRD-Abschnitt „Als Charakter mit
-   * Klassenkombination") — wird im Vault gepflegt und beim Re-Import erhalten.
-   * Nur Barde/Schurke/Waldläufer gewähren hier eine Fertigkeit, die übrigen neun nichts.
+   * Steht NICHT in Open5e v2, nur im SRD-Abschnitt „Als Charakter mit Klassenkombination" —
+   * wird im Vault gepflegt und muss einen Re-Import überleben.
    */
   skillGrantMulticlass: skillGrantSchema.default(emptySkillGrant),
   /**
-   * Anfangsausrüstung als Prosa: die Kerntabelle nennt Pakete und Wahloptionen
-   * („Choose (A) … or (B) 155 GP"), kein einzelnes Item — ein Grant hätte kein Ziel.
-   * Aufgelöst wird im Wizard (`equipmentMatchAction.ts` → `equipmentIndex`).
-   * Zweisprachig wie die Hintergrund-Vorteile: die ENGLISCHE Fassung geht als
-   * `<class_equipment>` in den Wizard-Prompt, die deutsche ist reine Anzeige
-   * (ClassCard) und darf fehlen — dann zeigt die Karte die englische.
+   * Prosa statt Grant: die Kerntabelle nennt Pakete und Wahloptionen („Choose (A) … or (B)
+   * 155 GP"), kein einzelnes Item — ein Grant hätte kein Ziel. Die ENGLISCHE Fassung geht
+   * in den Wizard-Prompt, die deutsche ist reine Anzeige und darf fehlen.
    */
   startingEquipment: z.string().default(''),
   startingEquipmentDe: z.string().default(''),
@@ -89,12 +70,8 @@ export type ClassFeature = z.infer<typeof classFeatureSchema>;
 export type ClassProgression = z.infer<typeof classProgressionSchema>;
 
 /**
- * Altformat: `savingThrows: ['kon','str']` (deutsche App-Schlüssel) am Klassenkopf
- * → `proficiencyGrant.savingThrows: ['Constitution','Strength']` (englische Namen).
- * Bis Juli 2026 trugen alle Klassendateien die deutsche Form; seither ist die
- * Grundmechanik durchgehend englisch (siehe „Geschlossene Regel-Vokabulare",
- * grants.ts). Das Feld wird beim Migrieren entfernt, damit keine zweite Wahrheit
- * zurückbleibt.
+ * Altformat `savingThrows: ['kon','str']` → `proficiencyGrant.savingThrows`
+ * (englische Namen). Das alte Feld wird entfernt, damit keine zweite Wahrheit bleibt.
  */
 export function migrateClassLegacy(raw: unknown): Record<string, unknown> {
   const obj = migrateSourceLegacy(raw as Record<string, unknown>);

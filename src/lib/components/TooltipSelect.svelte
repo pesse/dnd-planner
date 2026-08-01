@@ -2,19 +2,15 @@
   export interface TooltipOption {
     value: string;
     label: string;
-    /** Optionale Konsequenz-Erklärung, als Schwebe-Tooltip beim Überfahren gezeigt. */
     tooltip?: string;
   }
 </script>
 
 <script lang="ts">
   /**
-   * Wiederverwendbares Dropdown mit Schwebe-Tooltip je Option — dieselbe Cursor-Karte
-   * wie die Talente-Auswahl im Charakter-Editor (FeatTooltip-Muster). Ein natives
-   * <select> kann keine Hover-Events je <option> feuern, darum ein Button-Popup.
-   *
-   * Einfach- und Mehrfachauswahl über `multiple`; die Auswahl ist immer ein string[]
-   * (bei Einfachwahl mit 0/1 Einträgen), damit der Aufrufer nur einen Typ kennt.
+   * Dropdown mit Schwebe-Tooltip je Option. Ein natives <select> kann keine Hover-Events
+   * je <option> feuern, darum ein Button-Popup; die Auswahl ist auch bei Einfachwahl ein
+   * `string[]`, damit der Aufrufer nur einen Typ kennt.
    */
   let {
     options,
@@ -27,7 +23,7 @@
     options: TooltipOption[];
     selected?: string[];
     multiple?: boolean;
-    /** Obergrenze bei Mehrfachwahl (0 = unbegrenzt). */
+    /** 0 = unbegrenzt. */
     max?: number;
     placeholder?: string;
     onchange: (selected: string[]) => void;

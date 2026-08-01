@@ -1,13 +1,7 @@
 /**
- * Die geschlossenen Regel-Vokabulare und die Leser, die Regel-Prosa darauf abbilden.
- *
- * **Grundmechanik ist immer englisch.** Übungen sind in 5e 2024 geschlossene
- * Vokabulare (18 Fertigkeiten, 6 Rettungswürfe, 2 Waffenkategorien, 4 Rüstungs-
- * stufen) — die Bibliotheks-Artefakte tragen sie in SRD-Schreibweise. Der
- * Charakterbogen (`character.skills`, `*SaveProf`, `proficiencies.*`) bleibt
- * deutsch, weil das PDF-Formular die Feldnamen diktiert. Zwischen beidem liegt
- * GENAU EINE Übersetzungstabelle: `SKILL_DEFS.en` (domain/skills.ts) und
- * `ABILITY_FROM_EN`/`ABILITY_TO_EN` (schemas/abilities.ts).
+ * Die geschlossenen Regel-Vokabulare (englisch, SRD-Schreibweise) und die Leser, die
+ * Regel-Prosa darauf abbilden. Zum deutschen Charakterbogen hin gibt es GENAU EINE
+ * Übersetzungstabelle: `SKILL_DEFS.en` (domain/skills.ts) und `ABILITY_*` (abilities.ts).
  */
 import { ABILITY_NAMES, type AbilityName } from './abilities';
 
@@ -26,38 +20,25 @@ export const ARMOR_TRAININGS = ['Light', 'Medium', 'Heavy', 'Shields'] as const;
 export type ArmorTraining = (typeof ARMOR_TRAININGS)[number];
 
 /**
- * Die acht Meisterschaftseigenschaften (Weapon Mastery, 5e 2024). Jede Waffe trägt
- * genau eine; fünf Klassen dürfen die von N Waffenarten ihrer Wahl nutzen.
- *
- * Wie bei `sourceField()` bewusst ein Enum statt Freitext: so kann ein LLM keinen
- * erfundenen Wert liefern. Deutsche Namen und Regeltexte liegen in
- * `itemLibrary.ts` (`MASTERY_INFO`) — hier steht nur das Vokabular, damit Zod es
- * ohne Umweg über die Anzeige-Schicht nutzen kann.
+ * Enum statt Freitext, damit ein LLM keinen erfundenen Wert liefern kann. Deutsche Namen
+ * und Regeltexte stehen in `itemLibrary.ts` (`MASTERY_INFO`) — hier nur das Vokabular,
+ * damit Zod es ohne Umweg über die Anzeige-Schicht nutzen kann.
  */
 export const WEAPON_MASTERIES = ['Cleave', 'Graze', 'Nick', 'Push', 'Sap', 'Slow', 'Topple', 'Vex'] as const;
 export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
 
 /**
- * Die vier Talent-Kategorien aus 5e 2024. Sie entscheiden, WANN ein Talent
- * genommen werden darf: Origin beim Hintergrund, General ab Stufe 4 (statt einer
- * Attributserhöhung), Fighting Style nur mit dem gleichnamigen Klassenmerkmal,
- * Epic Boon ab Stufe 19.
- *
- * Open5e nennt das Feld `type`; hier heißt es `category`, weil `type` im Rest der
- * App schon die Artefaktart bezeichnet (`activeFile.type`). Deutsche Labels in
- * `featsLibrary.ts` (`FEAT_CATEGORY_DE`) — hier steht nur das Vokabular, damit Zod
- * es ohne Umweg über die Anzeige-Schicht nutzen kann.
+ * Entscheidet, WANN ein Talent genommen werden darf: Origin beim Hintergrund, General ab
+ * Stufe 4, Fighting Style nur mit dem gleichnamigen Klassenmerkmal, Epic Boon ab 19.
+ * Open5e nennt das Feld `type` — hier `category`, weil `type` schon die Artefaktart ist.
  */
 export const FEAT_CATEGORIES = ['Origin', 'General', 'Fighting Style', 'Epic Boon'] as const;
 export type FeatCategory = (typeof FEAT_CATEGORIES)[number];
 
 /**
- * Die sechs Kreaturengrößen, englisch → deutsch. EIN Vokabular für Monster UND Charaktere;
- * der Name ist historisch (die Tabelle entstand für den Monster-Statblock).
- *
- * Liegt hier statt in `types.ts`, weil zwei Schemas darauf stehen (`monsterSchema.size`,
- * `characterPropertiesSchema.size`) und ein Import aus `types.ts` in diese Datei ein Zyklus
- * wäre — `types.ts` liest Werte von hier. Dort steht der Re-Export.
+ * EIN Größen-Vokabular für Monster UND Charaktere; der Name ist historisch. Liegt hier
+ * statt in `types.ts`, weil zwei Schemas darauf `z.enum` bauen und der Import ein Zyklus
+ * wäre — `types.ts` liest von hier und re-exportiert.
  */
 export const MONSTER_SIZES = {
   Tiny:        'Winzig',
@@ -68,13 +49,11 @@ export const MONSTER_SIZES = {
   Gargantuan:  'Gigantisch',
 } as const;
 export type MonsterSize = keyof typeof MONSTER_SIZES;
-/** Dasselbe Vokabular als Liste — für `z.enum` und für Picker. */
 export const MONSTER_SIZE_KEYS = Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]];
 
 /**
- * Lookup-Schlüssel eines Regelbegriffs: kleingeschrieben, OHNE jedes Leerzeichen.
- * Fängt Open5es Datenmüll ab — die v2-Kerntabellen enthalten „Na ture" (Druide)
- * und „In sight" (Magier), also eingestreute Leerzeichen mitten im Namen.
+ * Ohne JEDES Leerzeichen, weil Open5es v2-Kerntabellen „Na ture" (Druide) und
+ * „In sight" (Magier) enthalten — Leerzeichen mitten im Namen.
  */
 const foldRuleName = (s: string): string => s.toLowerCase().replace(/\s+/g, '');
 
@@ -88,25 +67,20 @@ const WEAPON_LOOKUP = vocabularyLookup(WEAPON_CATEGORIES);
 // „Shield" (Singular) kommt in der Prosa ebenso vor wie „Shields".
 const ARMOR_LOOKUP = new Map([...vocabularyLookup(ARMOR_TRAININGS), ['shield', 'Shields' as ArmorTraining]]);
 
-/** Erkennt eine Fertigkeit; null, wenn der Begriff keine ist. */
 export const readSkillName = (raw: string): SkillName | null =>
   SKILL_LOOKUP.get(foldRuleName(raw.replace(/\bskills?\b/gi, ''))) ?? null;
 
-/** Erkennt ein Attribut (englischer Name); null, wenn der Begriff keines ist. */
 export const readAbilityName = (raw: string): AbilityName | null => ABILITY_LOOKUP.get(foldRuleName(raw)) ?? null;
 
-/** Erkennt eine Waffenkategorie; null bei allem, was eine Einzel-/Sonderregel ist. */
 export const readWeaponCategory = (raw: string): WeaponCategory | null =>
   WEAPON_LOOKUP.get(foldRuleName(raw.replace(/\bweapons?\b/gi, ''))) ?? null;
 
-/** Erkennt eine Rüstungsstufe; null bei allem Übrigen (inkl. „None"). */
 export const readArmorTraining = (raw: string): ArmorTraining | null =>
   ARMOR_LOOKUP.get(foldRuleName(raw.replace(/\barmou?r\b/gi, '').replace(/\btraining\b/gi, ''))) ?? null;
 
 /**
  * Zerlegt eine SRD-Aufzählung („Light, Medium, and Heavy armor and Shields",
- * „Animal Handling, Athletics, or Survival") in ihre Glieder. Trennt an Kommas
- * sowie an „and"/„or" und wirft Füllwörter weg.
+ * „Animal Handling, Athletics, or Survival") in ihre Glieder.
  */
 export function splitRuleList(raw: string): string[] {
   return raw
@@ -116,9 +90,8 @@ export function splitRuleList(raw: string): string[] {
 }
 
 /**
- * Liest eine Fertigkeits-Aufzählung. Wirft bei einem unbekannten Glied — beide
- * Quellen (Open5e v2 und der deutsche SRD-Auszug) sind bekannt deckungsgleich,
- * eine Abweichung ist also ein Parser-Fehler und soll sichtbar werden statt
+ * Wirft bei einem unbekannten Glied: Open5e v2 und der deutsche SRD-Auszug sind bekannt
+ * deckungsgleich, eine Abweichung ist ein Parser-Fehler und soll sichtbar werden, statt
  * still eine Fertigkeit zu verschlucken.
  */
 export function parseSkillNames(raw: string, context = 'Fertigkeitsliste'): SkillName[] {
@@ -131,11 +104,7 @@ export function parseSkillNames(raw: string, context = 'Fertigkeitsliste'): Skil
   return out;
 }
 
-/**
- * Zauberschule, Kreaturentyp und Gesinnung — englischer Schlüssel → deutsche Anzeige,
- * wie `MONSTER_SIZES`. Sie stehen hier statt in `types.ts`, weil Schemas darauf `z.enum`
- * bauen und ein Import aus `types.ts` ein Zyklus wäre; dort steht der Re-Export.
- */
+/** Zauberschule, Kreaturentyp und Gesinnung — hier aus demselben Zyklus-Grund wie `MONSTER_SIZES`. */
 export const SPELL_SCHOOLS = {
   abjuration:    'Bannmagie',
   conjuration:   'Beschwörung',

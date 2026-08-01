@@ -1,15 +1,7 @@
 /**
- * Schemas für den KI-gestützten Stufenaufstieg (Level-Up).
- *
- * KI-Outputs (Zod = Single Source + LLM-JSON-Schema): `featureEffectsSchema` (Rider),
- * `levelUpNarrativeSchema`, `fieldSummarySchema`. Die pro-Stufe-Effekte sind KEIN
- * KI-Output mehr — sie stehen als `grants.perLevel` in der Bibliothek
- * (`services/perLevelEffects.ts`). Das gemeinsame Dokument (`levelUpChangeSetSchema` /
- * `LevelUpDoc`) ist die Single Source für Anzeige UND Anwendung — es wird deterministisch
- * aus dem Zustand gebaut (levelUpMachine.buildDoc), nicht von einem LLM.
- *
- * Bewusst KEINE Anbindung an schemaValidation.ts (dessen `parse` verlangt ein
- * `name`-Feld) — die Runtime-Guards leben hier.
+ * Schemas des Stufenaufstiegs: KI-Outputs (Rider, Narrativ, Feldtext) und das
+ * deterministisch gebaute Änderungsdokument. Bewusst ohne `schemaValidation.ts` —
+ * dessen `parse` verlangt ein `name`-Feld, die Runtime-Guards stehen deshalb hier.
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
@@ -39,15 +31,10 @@ const questionSchema = z.object({
   // Nur für type "hp-roll": Würfelseiten (Trefferwürfel) + Anzahl Würfe (= gewonnene Stufen).
   dieSides: z.number().int().optional(),
   rollCount: z.number().int().optional(),
-  // true = die Antwort BESTIMMT weitere mechanische Grants, die der Effekt-Pass DANACH
-  // berechnen muss (z.B. Zirkel des Landes: Landart → immer vorbereitete Kreissprüche).
-  // false für Wahlen, deren Antwort direkt der Effekt ist (Skill, +1 Attribut, Kampfstil).
+  // false für Wahlen, deren Antwort direkt der Effekt ist (Skill, +1 Attribut, Kampfstil);
+  // true nur, wenn erst der Effekt-Pass daraus Grants macht (Zirkel des Landes → Kreissprüche).
   resolvesEffects: z.boolean().default(false).describe('true = the choice determines further grants; run the effects pass again with it resolved before finishing.'),
-  // Anker, unter dem die Antwort im Merkmals-Ledger des Charakters landet. Leer bei
-  // Fragen, die kein Bibliotheks-Merkmal stellt (TP-Methode, ASI-Verteilung).
   featureKey: z.string().default('').describe('Library key of the feature that forces this choice; empty for questions the flow itself asks.'),
-  // false = Wahl pro Einsatz; sie wird beantwortet, aber nicht als Aufbau-Entscheidung
-  // im Ledger festgehalten.
   isBuildDecision: z.boolean().default(false).describe('true = permanent build decision worth recording on the character.'),
 });
 
@@ -60,14 +47,9 @@ const abilityDeltaSchema = z.object({
   cha: z.number().int().default(0),
 });
 
-// ── Feature-Effekte (KI deutet die Prosa neu gewonnener Merkmale/Talente) ───────
-//
-// Fertigkeiten/Waffen/Rüstung sind GESCHLOSSENE, englische Vokabulare (schemas/vocabulary.ts) —
-// Guided Decoding kann damit gar keinen Namen erfinden, den der Bogen nicht kennt.
-// Vorher waren es freie Strings und die Zuweisung fiel still durch, weil der Bogen
-// deutsche Schlüssel führt (`MitTierenUmgehen`). Übersetzt wird beim Anwenden
-// (`skillSheetKey`). `tools`/`languages` bleiben Freitext (kein Vokabular, und in
-// 2024 sind Sprachen ohnehin keine Übung mehr).
+// Fertigkeiten/Waffen/Rüstung als GESCHLOSSENE englische Vokabulare: mit freien Strings
+// fällt die Zuweisung still durch, weil der Bogen deutsche Schlüssel führt
+// (`MitTierenUmgehen`; übersetzt wird beim Anwenden). `tools`/`languages` bleiben Freitext.
 const riderProficienciesSchema = z.object({
   skills: z.array(z.enum(SKILL_NAMES)).default([]),
   tools: z.array(z.string()).default([]),
@@ -79,44 +61,32 @@ const riderProficienciesSchema = z.object({
 
 /**
  * Exportiert, weil die Projektion Rider → `Change[]` über `keyof` dieser Form läuft
- * (`riderGrantChanges`, services/levelUpMachine.ts). Ein neues Feld hier ist damit ein
+ * (`riderGrantChanges`, services/levelUp/changes.ts). Ein neues Feld hier ist damit ein
  * Compile-Fehler dort, statt still am Charakter zu fehlen.
  */
 export type RiderProficiencies = z.infer<typeof riderProficienciesSchema>;
 
 /**
- * Richtwert für die Länge einer `sheetNote`. Der Klassenmerkmale-Freitext landet beim
- * PDF-Export in zwei Formularfeldern à ~700 Zeichen (characterExport.splitClassFeatures)
- * und WÄCHST mit jeder Stufe — Kürze ist hier also auch ein Platzthema.
- *
- * 160 statt der früheren 100 Zeichen: bei 100 fiel regelmäßig die Mechanik selbst raus
- * (Aktionsart, Würfel, Wiederaufladung). Wird der Kasten zu voll, verdichtet der
- * Zusammenfassen-Knopf im Charakter-Editor das ganze Feld neu.
+ * Der Klassenmerkmale-Freitext landet beim PDF-Export in zwei Feldern à ~700 Zeichen
+ * (`characterExport.splitClassFeatures`) und wächst mit jeder Stufe; unter 160 Zeichen
+ * fällt allerdings die Mechanik selbst raus (Aktionsart, Würfel, Wiederaufladung).
  */
 export const SHEET_NOTE_MAX_CHARS = 160;
 
 /**
- * Budget der ENGLISCHEN Rohfassung: Pass C plant auf Englisch, den Bogen erreicht die
- * übersetzte Zeile. Deutsch ist in dieser Bibliothek gemessen ~17 % länger (102k vs. 120k
- * Zeichen über 249 Klassenmerkmale) — mit Reserve geplant, damit der Übersetzer die harte
- * Grenze halten kann, ohne Mechanik wegzukürzen.
+ * Budget der ENGLISCHEN Rohfassung: Deutsch läuft in dieser Bibliothek gemessen ~17 %
+ * länger (102k vs. 120k Zeichen über 249 Klassenmerkmale), also plant Pass C mit Reserve,
+ * damit der Übersetzer die harte Grenze hält, ohne Mechanik wegzukürzen.
  */
 export const SHEET_NOTE_EN_MAX_CHARS = 135;
 
-/**
- * Länge der Konsequenz-Hilfe einer Wahl (Tooltip am Checkpoint). Dieselbe Asymmetrie wie
- * bei der `sheetNote`: geplant wird englisch mit Reserve, gehalten wird die Grenze in der
- * Zielsprache — sonst reißt sie die Übersetzung regelmäßig.
- */
+/** Konsequenz-Hilfe einer Wahl; dieselbe Asymmetrie wie bei der `sheetNote`. */
 export const CHOICE_HELP_MAX_CHARS = 120;
 export const CHOICE_HELP_EN_MAX_CHARS = 105;
 
 /**
- * Eine bereits GETROFFENE Feature-Wahl (nur Protokoll — KEINE Optionslisten mehr).
- *
  * Nur `id` kommt vom Modell: Frage und Antwort füllt der Code aus dem Übersetzungs-Mapping
- * der Analyse (`featureTranslationAction`), das beide schon auf Deutsch kennt. Das Modell
- * danach zu fragen hieße, es dieselbe Zeichenkette ein zweites Mal erzeugen zu lassen.
+ * der Analyse (`featureTranslationAction`), das beide schon auf Deutsch kennt.
  */
 const featureDecisionSchema = z.object({
   id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
@@ -125,19 +95,14 @@ const featureDecisionSchema = z.object({
 });
 
 /**
- * Ein „Rider" = die Deutung EINES neu gewonnenen Merkmals/Talents — bereits unter
- * Berücksichtigung getroffener Spielerwahlen. Der Rider trägt NUR Ergebnisse und die
- * getroffenen Entscheidungen (`decisions`), KEINE offenen Wahl-Möglichkeiten mehr
- * (die leben transient in der Analyse von Call 1).
- *
- * Es gibt genau EINEN Rider je Merkmal — auch für Merkmale ohne mechanischen Grant, die
- * dann nur `sheetNote` (oder gar nichts) tragen. Guided Decoding erzeugt ohnehin für jedes
- * Merkmal einen Eintrag; ein „nur bei Grant"-Filter wäre eine Fiktion.
+ * Die Deutung EINES neu gewonnenen Merkmals: nur Ergebnisse und getroffene Entscheidungen,
+ * keine offenen Wahl-Möglichkeiten (die leben transient in der Analyse von Call 1). Genau
+ * ein Rider je Merkmal, auch ohne Grant — Guided Decoding erzeugt ohnehin für jedes einen.
  */
 const featureRiderSchema = z.object({
   featureName: z.string().default('').describe('Which feature/feat emitted this rider — its ENGLISH name, verbatim from the input.'),
-  // Anker für den deutschen Anzeigenamen: der kommt aus der Bibliothek, nicht aus dem Modell
-  // — sonst tauchen 2014er-Begriffe auf („Durchschnaufen" statt „Zweiter Wind").
+  // Anker für den deutschen Anzeigenamen aus der Bibliothek; aus dem Modell kämen
+  // 2014er-Begriffe („Durchschnaufen" statt „Zweiter Wind").
   featureKey: z.string().default('').describe('Library key of the feature, copied verbatim from <gained_features>[].key. Empty only if it carries none.'),
   source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
   grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
@@ -157,12 +122,8 @@ export const featureEffectsSchema = z.object({
   riders: z.array(featureRiderSchema).default([]),
 });
 
-// ── Deutsche Grenze: die beiden Übersetzungs-Calls ────────────────────────────────
-//
-// Die Merkmals-Deutung reasont durchgehend ENGLISCH; Deutsch entsteht in zwei
-// thinking-off-Calls an den Rändern (`aiActions/featureTranslationAction.ts`). Beide
-// Schemas kommen ohne dynamische Objekt-Keys aus: Guided Decoding kann ein
-// `Record<string, string>` nicht ausdrücken, deshalb Paar-Arrays — den Record baut TS.
+// Paar-Arrays statt `Record<string, string>`: Guided Decoding kann keine dynamischen
+// Objekt-Keys ausdrücken, den Record baut TS daraus.
 
 const choiceOptionTranslationSchema = z.object({
   en: z.string().default('').describe('The English option label, copied VERBATIM from the input.'),
@@ -190,31 +151,20 @@ export const sheetNoteTranslationsSchema = z.object({
   notes: z.array(sheetNoteTranslationSchema).default([]).describe('One entry per input note, same order.'),
 });
 
-// ── Narrativ (dünner KI-Pass; alle Deltas werden deterministisch assembliert) ────
-// Bewusst NUR die Zusammenfassung: den Merkmalstext fürs Klassenmerkmale-Feld liefert
-// `featureRiderSchema.sheetNote` aus der Merkmals-Deutung — der Pass dort kennt die
-// Regelprosa und die getroffenen Wahlen und kann daher besser verdichten als dieser hier.
+// Bewusst NUR die Zusammenfassung: den Merkmalstext liefert `featureRiderSchema.sheetNote`,
+// dessen Pass Regelprosa und getroffene Wahlen kennt und besser verdichtet als dieser hier.
 export const levelUpNarrativeSchema = z.object({
   summary: z.string().default('').describe('GERMAN one-paragraph summary of what changes this level.'),
 });
 
-// ── Freitext-Feld eines Charakterbogens (Zusammenfassen/Verschmelzen) ───────────
-// Ein Artefakt für alle Aufrufer (Klassenmerkmale, Volksmerkmale, Level-Up-Merge) —
-// welches Feld gemeint ist, sagt der Prompt-Input, nicht das Schema.
+// Ein Artefakt für alle Aufrufer — welches Feld gemeint ist, sagt der Prompt-Input.
 export const fieldSummarySchema = z.object({
   text: z.string().default('').describe('The FULL revised GERMAN text of the target character-sheet field.'),
 });
 
-// ── Gemeinsames Änderungsformat (Single Source für Anzeige UND Anwendung) ────────
-// Jede Level-Up-Änderung als uniformer Eintrag mit Quelle (`source`, Key oder
-// synthetisch) + deutscher Anzeige (`label`). Discriminated Union über `target`
-// hält je Typ die passende Wertform (typsicher). NICHT an ein LLM gesendet →
-// keine toLlmJsonSchema-Restriktion; wird deterministisch aus dem State gebaut (buildDoc).
-// `step` = ID des Schritts, der diesen Eintrag erzeugt hat (Provenienz). Bewusst
-// `string`, KEIN Enum → das Schema bleibt vom Maschinen-Enum (levelUpMachine.ts)
-// entkoppelt. Ermöglicht: Protokoll-Gruppierung je Schritt + erneutes Ausführen
-// eines Schritts, das per upsertStep NUR dessen Einträge ersetzt (kein Duplikat).
-// `source` bleibt orthogonal (Feature-Key / 'hit-dice+kon' / 'asi' / 'class-progression').
+// Geht NICHT an ein LLM (keine toLlmJsonSchema-Restriktion), sondern wird deterministisch
+// aus dem Zustand gebaut. `step` ist bewusst `string` statt Enum — das hält das Schema vom
+// Schritt-Enum des Ablaufs entkoppelt und lässt `upsertStep` genau dessen Einträge ersetzen.
 const changeBase = { step: z.string().default(''), source: z.string().default(''), label: z.string().default('') };
 
 export const changeSchema = z.discriminatedUnion('target', [
@@ -229,21 +179,15 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
   z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),
-  // Waffen-/Rüstungs-Übungen aus Merkmalen. Bis Stufe 1 von docs/plan/plan-wahlen-deklarieren.md
-  // hatten sie kein Ziel: der Rider trug sie, das Dokument nicht — sie fielen im Aufstieg
-  // still weg (im Wizard nicht, dort wendet die Assembly die Rider direkt an).
   z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('armorTraining'), value: z.string(), ...changeBase }),
-  // Die vier Übungsarten, die dieselbe Lücke hatten: der Rider trägt sie (bzw. die
-  // Vault-Form bei `weaponProficiencyOther`), das Dokument bisher nicht. `value` ist
-  // englisch für das geschlossene Vokabular (Rettungswurf), sonst Freitext.
+  // `value` englisch, wo ein geschlossenes Vokabular greift (Rettungswurf), sonst Freitext.
   z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
-  // Grundeigenschaften aus einer Merkmals-Deklaration (`grants.properties`, kind
-  // "characterProperty"). Sie reisen NICHT über den Rider — der ist das Ausgabevokabular des
-  // Modells. Der Wert steht in der Sprache der Regeln (englische Größe, Fuß); deutsch und
-  // metrisch wird er beim Anwenden, wie bei Fertigkeit und Waffe.
+  // Grundeigenschaften reisen NICHT über den Rider — der ist das Ausgabevokabular des
+  // Modells, eine Größe darin hieße: Pass C darf sie erfinden. Der Wert steht in der
+  // Sprache der Regeln (englische Größe, Fuß) und wird erst beim Anwenden übersetzt.
   z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),
   z.object({ target: z.literal('speedFeet'), value: z.number().int(), ...changeBase }),
   // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
@@ -251,15 +195,13 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('subclass'), key: z.string(), name: z.string(), ...changeBase }),
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
-  // Info-Eintrag: neu gewonnenes Merkmal (keine Anwendung, reines Feedback).
+  // Reines Feedback, keine Anwendung am Charakter.
   z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), ...changeBase }),
-  // Getroffene Aufbau-Entscheidung zu einem Merkmal (z.B. Urtümlicher Orden → Wächter).
   // Landet strukturiert in `character.features[]`, verankert an (sourceKey, gainedAt) —
-  // deshalb darf der Klassenmerkmale-Freitext sie weglassen.
+  // deshalb darf der Klassenmerkmale-Freitext die Wahl weglassen.
   // `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige.
   z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
-  // Info-Eintrag: Protokoll einer Fragebogen-Antwort ohne eigenes Ziel am Charakter
-  // (TP-Methode, Würfelergebnis). Keine mechanische Anwendung.
+  // Protokoll einer Antwort ohne eigenes Ziel am Charakter (TP-Methode, Würfelergebnis).
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),
 ]);
 
@@ -267,7 +209,7 @@ export const levelUpChangeSetSchema = z.object({
   fromLevel: z.number().int().default(0),
   toLevel: z.number().int().default(0),
   klasse: z.string().default(''),
-  summary: z.string().default(''), // deutsches Narrativ (KI-Schritt C), rein informativ
+  summary: z.string().default(''), // rein informativ
   changes: z.array(changeSchema).default([]),
 });
 
@@ -275,7 +217,6 @@ export type LevelUpQuestionOption = z.infer<typeof questionOptionSchema>;
 export type LevelUpQuestion = z.infer<typeof questionSchema>;
 export type Change = z.infer<typeof changeSchema>;
 export type LevelUpChangeSet = z.infer<typeof levelUpChangeSetSchema>;
-/** Das gemeinsame, akkumulierende LevelUp-Dokument (identisch zum Change-Set). */
 export type LevelUpDoc = LevelUpChangeSet;
 export type FeatureRider = z.infer<typeof featureRiderSchema>;
 export type FeatureEffects = z.infer<typeof featureEffectsSchema>;
@@ -291,7 +232,6 @@ export const fieldSummaryJsonSchema = toLlmJsonSchema(fieldSummarySchema);
 export const choiceTranslationJsonSchema = toLlmJsonSchema(choiceTranslationSchema);
 export const sheetNoteTranslationsJsonSchema = toLlmJsonSchema(sheetNoteTranslationsSchema);
 
-/** Nachsichtiger Guard: parst + füllt Defaults; null bei Schema-Verstoß. */
 export function parseLevelUpChangeSet(data: unknown): LevelUpChangeSet | null {
   const r = levelUpChangeSetSchema.safeParse(data);
   return r.success ? r.data : null;

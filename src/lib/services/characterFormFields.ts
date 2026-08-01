@@ -18,7 +18,7 @@ type InventoryLine = Character['inventory'][number];
 type Currency = Character['currency'];
 type SkillFlags = { prof: boolean; exp: boolean };
 
-/** Zauberblock des Formulars: `slotTotals` statt `slots`, weil `used` nicht editiert wird. */
+/** `slotTotals` statt `slots`, weil `used` nicht editiert wird. */
 export interface SpellFormFields {
   spellcastingClass: string;
   spellcastingAbility: string;
@@ -70,15 +70,12 @@ export interface CharacterFormFields {
   portraitFile: string;
 }
 
-/**
- * Werte, die das Formular nicht bearbeitet, aber zurückschreiben muss. Einmalig beim
- * Anlegen erfasst, damit der Rückschreib-Effekt sie NICHT reaktiv liest.
- */
+/** Einmalig beim Anlegen erfasst, damit der Rückschreib-Effekt sie NICHT reaktiv liest. */
 export interface CharacterFormCarry {
   passivePerception: string;
   totalWeight: string;
   slotsUsed: number[];
-  /** Freitext-Klassenstring VOR der Ableitung aus `classes` — Grundlage der Altformat-Umstellung. */
+  /** VOR der Ableitung aus `classes` — Grundlage der Altformat-Umstellung. */
   legacyClassLevel: string;
 }
 
@@ -124,8 +121,8 @@ export function computeSkills(f: CharacterFormFields): Character['skills'] {
   return result;
 }
 
-// Deutsche Namen und Kurzformen, die `abilityKeyOf` (englisch + Bogen-Schlüssel) nicht kennt.
-// Das Zauberattribut ist ein Freitextfeld und trägt im Altbestand jede dieser Schreibweisen.
+// Das Zauberattribut ist Freitext und trägt im Altbestand Schreibweisen, die `abilityKeyOf`
+// nicht kennt.
 const ABILITY_ALIASES: Record<string, AbilityKey> = {
   stä: 'str', staerke: 'str', stärke: 'str',
   geschicklichkeit: 'ges', dex: 'ges',
@@ -134,7 +131,7 @@ const ABILITY_ALIASES: Record<string, AbilityKey> = {
   weisheit: 'wei', wis: 'wei',
 };
 
-/** Modifikator des eingetragenen Zauberattributs; `null` = Schreibweise nicht erkannt. */
+/** `null` = Schreibweise nicht erkannt. */
 export function spellAbilityMod(f: CharacterFormFields): number | null {
   const raw = f.spells.spellcastingAbility.trim().toLowerCase();
   const key = abilityKeyOf(raw) ?? ABILITY_ALIASES[raw];
@@ -143,7 +140,6 @@ export function spellAbilityMod(f: CharacterFormFields): number | null {
   return ({ str: m.strMod, ges: m.gesMod, kon: m.konMod, int: m.intMod, wei: m.weiMod, cha: m.chaMod })[key];
 }
 
-/** true, wenn Auto aktiv UND das Zauberattribut erkannt wurde. */
 export function spellAutoActive(f: CharacterFormFields): boolean {
   return f.spells.autoCalc && spellAbilityMod(f) !== null;
 }
@@ -159,14 +155,13 @@ export function computedSpellAttack(f: CharacterFormFields): number | null {
 }
 
 /**
- * Ein Wert aus einer Altdatei (oder aus dem PDF-Import) steht nicht zwingend in der Liste.
- * Er kommt deshalb als eigener Eintrag vorne dazu — sonst zeigt das Select ihn nicht an und
- * die erste Auswahl würde ihn stillschweigend verwerfen.
+ * Ein Altdaten-Wert steht nicht zwingend in der Liste und kommt deshalb vorne dazu — sonst
+ * zeigt das Select ihn nicht und die erste Auswahl verwürfe ihn stillschweigend.
  */
 export const withCurrent = (options: readonly string[], current: string): readonly string[] =>
   current.trim() && !options.includes(current) ? [current, ...options] : options;
 
-/** Vorgabewerte als Reihenfolge- und Typquelle; `undefined`/`null` im Bestand fällt darauf zurück. */
+/** Vorgabewerte als Reihenfolge- UND Typquelle; Lücken im Bestand fallen darauf zurück. */
 function withDefaults<T extends object>(base: T, given: Partial<T> | undefined): T {
   const out = { ...base };
   for (const key of Object.keys(base) as (keyof T)[]) {
@@ -179,8 +174,8 @@ function withDefaults<T extends object>(base: T, given: Partial<T> | undefined):
 export function initialFormFields(character: Character): CharacterFormFields {
   return {
     name: character.name ?? '',
-    // `modifiers` und alle Zeilen mitkopieren, sonst teilt das Formular die Instanz mit
-    // dem Draft und schreibt am Rückschreib-Effekt vorbei.
+    // Tief kopieren: sonst teilt das Formular die Instanz mit dem Draft und schreibt am
+    // Rückschreib-Effekt vorbei.
     classes: (character.classes ?? []).map((c) => ({ ...c })),
     playerName: character.playerName ?? '',
     backgroundRef: { ...(character.backgroundRef ?? { sourceKey: '', name: '' }) },
@@ -256,23 +251,21 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
 }
 
 /**
- * Schlüssel-Reihenfolge entspricht dem Zod-Schema, damit ein frisch geladener Charakter
- * NICHT „dirty" wirkt. `features` fehlt bewusst: das Merkmals-Ledger gehört der
- * Merkmals-Seitenleiste — stünde es hier, überschriebe der nächste Tastendruck jede
- * dort getroffene Wahl.
+ * Schlüssel-Reihenfolge wie im Zod-Schema, sonst wirkt ein frisch geladener Charakter dirty.
+ * `features` fehlt bewusst: stünde das Ledger hier, überschriebe der nächste Tastendruck
+ * jede in der Merkmals-Seitenleiste getroffene Wahl.
  */
 export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry): CharacterFormPatch {
   const mods = abilityMods(f);
   const ctx = attackContext(f);
   const autoSpells = spellAutoActive(f);
-  // classes = Source-of-Truth; classLevel wird als Anzeige-String daraus abgeleitet.
+  // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {
     name: f.name,
     classes: cleanedClasses,
     classLevel: formatClassLevel(cleanedClasses),
     playerName: f.playerName,
-    // backgroundRef/species = Source-of-Truth; background/race sind die Anzeige-Strings.
     backgroundRef: { ...f.backgroundRef },
     background: f.background,
     species: { ...f.species },
@@ -304,14 +297,12 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     currency: { ...f.currency },
     inventory: f.inventory
       .filter((i) => i.name.trim() !== '')
-      // Ein leerer `sourceKey` ist kein Link — das Feld fällt dann ganz weg.
       .map((i) => {
         const key = i.sourceKey?.trim();
         return { name: i.name, ...(key ? { sourceKey: key } : {}), count: i.count, weight: i.weight };
       }),
     inventoryNotes: f.inventoryNotes,
-    // Die Gesamtlast wird überall live aus Anzahl × Gewicht/Stück berechnet
-    // (inventoryWeight); das gespeicherte Feld ist Alt-Ballast → unverändert durchreichen.
+    // Die Gesamtlast rechnet `inventoryWeight` live; das gespeicherte Feld ist Alt-Ballast.
     totalWeight: carry.totalWeight,
     spells: {
       spellcastingClass: f.spells.spellcastingClass,

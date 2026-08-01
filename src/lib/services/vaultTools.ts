@@ -20,22 +20,22 @@ export interface AgentStep {
 
 export interface AgentOptions {
   onStep: (step: AgentStep) => void;
-  /** Custom write handler — allows the caller to intercept file writes for undo support. */
+  /** Fängt Schreibzugriffe ab — der Aufrufer braucht sie für sein Undo. */
   writeFile?: (path: string, content: string) => Promise<void>;
   /** Abort signal — wenn abgebrochen, wirft der Loop einen Fehler. */
   signal?: AbortSignal;
   /** Task-Temperatur für den Agent-Lauf (Default: TASK_TEMPERATURE.agent). */
   temperature?: number;
-  /** Lebenszeichen: zu Beginn jeder Iteration und pro Streaming-Delta. Setzt die
-   *  „Stuck"-Erkennung der UI nach jeder Antwort/Aktivität zurück. */
+  /** Setzt die „Stuck"-Erkennung der UI zurück; feuert pro Iteration und Streaming-Delta. */
   onActivity?: () => void;
 }
 
 // ── Temperatur-Presets je Kontext ──────────────────────────────────────────────
-// Pro Call-Site gewählt; ein gesetzter config.temperature überschreibt sie global.
-// Hinweis: Auf Anthropic-Modellen ab Opus 4.7 (inkl. 4.8 / Fable 5) wird Temperature
-// serverseitig ignoriert bzw. abgelehnt — dort steuert effort + Prompting (siehe anthropicService).
 
+/**
+ * Pro Call-Site gewählt; ein gesetzter `config.temperature` überschreibt sie global.
+ * Anthropic ab Opus 4.7 ignoriert Temperature serverseitig — dort steuert effort.
+ */
 export const TASK_TEMPERATURE = {
   agent: 0.0,       // Tool-Calling — maximale Reproduzierbarkeit
   structured: 0.3,  // JSON-Generierung (Monster/Encounter/Übersetzung) — wenig Streuung
@@ -107,13 +107,11 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-kompatibles Tool-Format (function calling). */
 export const VAULT_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
   type: 'function',
   function: { name: t.name, description: t.description, parameters: t.params },
 }));
 
-/** Anthropic-kompatibles Tool-Format. */
 export const VAULT_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
   name: t.name,
   description: t.description,
@@ -121,12 +119,10 @@ export const VAULT_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
 }));
 
 // ── Generisches Toolset für den Agent-Loop ──────────────────────────────────
-// Erlaubt es, denselben Loop mit anderen Tools (z.B. DnD-API) zu betreiben.
 
+/** Damit derselbe Loop auch mit anderen Tools (z.B. der DnD-API) läuft. */
 export interface AgentToolset {
-  /** Anthropic-native Tool-Defs. */
   anthropicTools: Anthropic.Tool[];
-  /** OpenAI-/Groq-kompatible Tool-Defs. */
   openAiTools: unknown[];
   /** Führt einen Tool-Aufruf aus. `writeFile` ist nur für Vault-Tools relevant. */
   execute(
@@ -136,7 +132,6 @@ export interface AgentToolset {
   ): Promise<string>;
 }
 
-/** Standard-Toolset: Vault-Dateioperationen (bisheriges Verhalten des Agent-Loops). */
 export const VAULT_TOOLSET: AgentToolset = {
   anthropicTools: VAULT_TOOLS_ANTHROPIC,
   openAiTools: VAULT_TOOLS_OPENAI,
@@ -144,10 +139,8 @@ export const VAULT_TOOLSET: AgentToolset = {
 };
 
 /**
- * Kombiniert mehrere Toolsets zu einem: konkateniert die Tool-Arrays und delegiert
- * `execute` der Reihe nach. Jeder Sub-Executor wirft bei unbekanntem Namen einen
- * „Unknown …"-Fehler → dann wird das nächste Set versucht. Tool-Namen müssen über
- * alle Sets EINDEUTIG sein.
+ * Delegiert `execute` der Reihe nach: ein Sub-Executor wirft bei unbekanntem Namen einen
+ * „Unknown …"-Fehler, dann kommt das nächste Set. Tool-Namen müssen also EINDEUTIG sein.
  */
 export function composeToolsets(...sets: AgentToolset[]): AgentToolset {
   return {
@@ -166,8 +159,6 @@ export function composeToolsets(...sets: AgentToolset[]): AgentToolset {
     },
   };
 }
-
-// ── Tool-Ausführung (Tauri) ─────────────────────────────────────────────────
 
 export async function executeTool(
   name: string,

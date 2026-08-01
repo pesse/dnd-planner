@@ -29,7 +29,6 @@
     spellLibrary: SpellInfo[];
     spellIndex: SpellIndex;
     saved?: Character | null;
-    /** Text des Altformat-Angebots; fehlt es, gibt es nichts nachzuverlinken. */
     fixLabel?: string;
     onfix: () => void;
     dirOf: (old: unknown, now: unknown) => DiffDir;
@@ -50,10 +49,7 @@
     return school ? (SCHOOL_COLORS[school] ?? '') : '';
   };
 
-  /**
-   * Der Bibliotheksname zu einem gelinkten Zauber, wenn er vom gespeicherten `name`
-   * abweicht (nur über den KEY verglichen — der Fallback-Name-Treffer wäre trivial gleich).
-   */
+  /** Nur über den KEY verglichen — ein Name-Treffer wäre trivial gleich. */
   function divergedName(ref: SpellRef): string | undefined {
     const key = ref.sourceKey?.trim();
     if (!key) return undefined;
@@ -111,7 +107,6 @@
     spellSugIndex = -1;
   });
 
-  // Aus der Autocomplete gewählt → Key gleich am SpellInfo abgreifen (wie beim Inventar).
   function selectCantrip(sug: SpellSuggestion) {
     if (!spells.cantrips.some((c) => c.name === sug.spell.name))
       spells.cantrips.push({ name: sug.spell.name, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) });
@@ -121,7 +116,7 @@
 
   function addCantrip() {
     const v = cantripInput.trim();
-    // Frei getippt → ohne Key; matchSpell löst später über den Namen auf.
+    // Ohne Key — `matchSpell` löst später über den Namen auf.
     if (v && !spells.cantrips.some((c) => c.name === v)) spells.cantrips.push({ name: v });
     cantripInput = '';
     cantripSuggestions = [];
@@ -168,7 +163,7 @@
     }
   }
 
-  // Alle eingetragenen Zauber vorab laden → sofortiger Tooltip beim Hover.
+  // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataCache = $state(new Map<string, Spell | null>());
   let tooltip = $state<Spell | null>(null);
   let tooltipX = $state(0);

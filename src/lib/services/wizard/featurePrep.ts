@@ -1,10 +1,7 @@
 /**
- * Aufbereitung der Stufe-1-Merkmale für die KI-Jobs des Erstell-Wizards.
- *
- * Bewusst RUNENFREI und aus `characterWizard.svelte.ts` herausgezogen: die Eval-Strecke
- * läuft in `environment: 'node'` ohne Svelte-Compiler und kann eine `.svelte.ts` nicht
- * importieren. Ohne diese Trennung müsste die Fixture den Aufbau abschreiben — und würde
- * vom echten Wizard-Eingang wegdriften.
+ * Aufbereitung der Stufe-1-Merkmale für die KI-Jobs des Erstell-Wizards. Bewusst RUNENFREI
+ * und außerhalb von `characterWizard.svelte.ts`: die Eval-Strecke läuft ohne Svelte-Compiler
+ * und müsste den Aufbau sonst abschreiben — und würde vom echten Wizard-Eingang wegdriften.
  */
 import { getProgressionByKey, featuresUpTo } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
@@ -27,46 +24,34 @@ import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
 import { keySlug } from '$lib/utils/text';
 
-/** Die Grundwahl, aus der die Aufbereitung entsteht (strukturell = die Felder des Wizards). */
 export interface FeatureBasics {
   species: { sourceKey: string; name: string };
   klass: { sourceKey: string; name: string; subclassKey?: string; subclassName?: string };
   background: { sourceKey: string; name: string };
 }
 
-/** Was `buildFeaturePrep` einmalig aufbereitet (von allen Merkmals-Jobs geteilt). */
 export interface FeaturePrep {
-  /** Klassen-/Subklassen-/Talent-Merkmale — Grundlage für Analyse UND Klassentext. */
   gained: GainedFeature[];
   /**
-   * Eingang der KI-Analyse: `gained` OHNE die Merkmale, deren Wahl der Flow deterministisch
-   * führt (deklarierter Zauber-Zugang, siehe `spellAccess`). Getrennt von `gained`, weil der
+   * `gained` ohne die Merkmale, deren Wahl der Flow deterministisch führt. Getrennt, weil der
    * deutsche Merkmalstext sie weiter braucht — er entsteht aus `descDe`, nicht aus der Deutung.
    */
   analysisGained: GainedFeature[];
-  /** Deklarierte Zauber-Zugänge („Eingeweihter der Magie") — deterministisch, ohne KI. */
   spellAccess: SpellAccessGrant[];
-  /** Größen-Wahl der Spezies (nur Mensch und Tiefling), sonst null — deterministisch, ohne KI. */
   sizeChoice: AnalysisChoice | null;
-  /** Speziesmerkmale als Analyse-Eingang: erzwungene Wahlen (Drakonische Urahnen,
-   *  Elfenlinie …) stecken hier, nicht in `gained` (das wäre sonst im Klassentext). */
+  /** Erzwungene Speziesmerkmals-Wahlen stecken hier, nicht in `gained` — sonst im Klassentext. */
   speciesFeatures: GainedFeature[];
   /**
-   * Eingang der KI-Analyse: `speciesFeatures` ohne die reinen Bogenwerte (Größe,
-   * Bewegungsrate) und ohne die Merkmale mit deklarierter Wahl. Index-gleich zu
-   * `summarySpecies` bleibt `speciesFeatures` — der deutsche Speziestext braucht den vollen
-   * Bestand, und genau das ist die Bogen-Zeile eines deklarierten Speziesmerkmals: es bleibt
-   * im Volksmerkmale-Text (mitsamt der getroffenen Wahl als `SummaryFeature.choice`), also
-   * braucht es keine deterministische Notiz-Zeile wie ein Klassenmerkmal.
+   * `speciesFeatures` ohne die reinen Bogenwerte und die deklarierten Wahlen. Index-gleich zu
+   * `summarySpecies` bleibt `speciesFeatures`: ein deklariertes Speziesmerkmal steht mitsamt
+   * seiner Wahl im Volksmerkmale-Text und braucht keine eigene Notiz-Zeile.
    */
   analysisSpeciesFeatures: GainedFeature[];
-  /** Kompletter Merkmalsbestand für die fortlaufenden Effekte (TP/Stufe) — deterministisch. */
   effectFeatures: PerLevelFeature[];
   /**
-   * ALLE Stufe-1-Merkmale mit Herkunft — die eine Quelle jeder Deklarationsauswertung
-   * (Wahlen, Grants, Zauberlisten). Bewusst UNGEFILTERT: ein Merkmal, das wegen seiner Wahl
-   * aus dem KI-Eingang fällt, gewährt sein `grants` trotzdem. Gefiltert wird an der
-   * Aufrufstelle, nach Deklarationsart — nicht nach Herkunft.
+   * Die eine Quelle jeder Deklarationsauswertung, bewusst UNGEFILTERT: ein Merkmal, das wegen
+   * seiner Wahl aus dem KI-Eingang fällt, gewährt sein `grants` trotzdem. Gefiltert wird an
+   * der Aufrufstelle nach Deklarationsart, nie nach Herkunft.
    */
   declared: DeclaredFeature[];
   summaryClass: SummaryFeature[];
@@ -75,14 +60,10 @@ export interface FeaturePrep {
 }
 
 /**
- * Spezialisierung, die der HINTERGRUND seinem Herkunftstalent mitgibt — „Magic Initiate
- * (Wizard)" → „Wizard". Nur der Hintergrund legt sie fest: im Talent-Wörterbuch steht
- * die generische Fassung („Cleric, Druid, or Wizard"), die KI müsste die Liste also raten.
- * Leer bei allen Talenten ohne Klammer-Zusatz (Zäh, Wachsam, Geschult …).
- *
- * ENGLISCH zuerst: der Wert landet im Analyse-Prompt und treibt dort `spellClass`. Das
- * deutsche „Magier" wäre genau die Zauberer/Magier-Kollision, die CLASS_MAP schon einmal
- * verdreht hat.
+ * „Magic Initiate (Wizard)" → „Wizard". Nur der Hintergrund legt die Spezialisierung fest —
+ * im Talent-Wörterbuch steht die generische Fassung, die KI müsste die Liste raten.
+ * ENGLISCH zuerst, weil der Wert im Prompt `spellClass` treibt: „Magier" wäre genau die
+ * Zauberer/Magier-Kollision, die CLASS_MAP schon einmal verdreht hat.
  */
 function featSpecialisation(bg: Background | null): string {
   const benefit = bg?.benefits.find((b) => b.type === 'feat');
@@ -90,7 +71,6 @@ function featSpecialisation(bg: Background | null): string {
   return raw.match(/\(([^)]+)\)/)?.[1]?.trim() ?? '';
 }
 
-/** Klassen-/Subklassen-Merkmale bis Stufe 1, ohne die flow-eigenen Wahlen. */
 function level1Features(p: ClassProgression | null, source: 'class' | 'subclass'): GainedFeature[] {
   if (!p) return [];
   return featuresUpTo(p, 1)
@@ -99,9 +79,8 @@ function level1Features(p: ClassProgression | null, source: 'class' | 'subclass'
 }
 
 /**
- * Das Herkunftstalent steht nicht in `features[]`, es kommt aus dem Hintergrund — und nur
- * über `gained` in die Listen. Ohne `grantsChoice`/`grantsSpells` hier wäre seine
- * Deklaration deshalb unsichtbar.
+ * Das Herkunftstalent kommt aus dem Hintergrund und nur über `gained` in die Listen — ohne
+ * `grantsChoice`/`grantsSpells` hier wäre seine Deklaration unsichtbar.
  */
 function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | null {
   if (!bg?.featKey) return null;
@@ -124,9 +103,8 @@ function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | 
 }
 
 /**
- * Die eine Deklarations-Liste. Klasse und Subklasse getrennt getaggt (`gained` flacht sie
- * zusammen) und aus der ROHEN Progression, weil `gained` um die flow-eigenen Wahlen
- * beschnitten ist; das Herkunftstalent steckt umgekehrt nur in `gained`.
+ * Aus der ROHEN Progression, weil `gained` um die flow-eigenen Wahlen beschnitten ist;
+ * das Herkunftstalent steckt umgekehrt nur in `gained`.
  */
 function declaredSources(
   prog: ClassProgression | null,
@@ -144,8 +122,7 @@ function declaredSources(
 
 /**
  * Aus DERSELBEN Liste wie jede andere Deklaration — der Hochelf gewährt einen Zaubertrick
- * aus der Magier-Liste, das ist mechanisch dasselbe wie beim Talent. Die Spezialisierung
- * („Magic Initiate (Wizard)") kennt nur der Hintergrund, sie gilt also allein seinem Talent.
+ * wie ein Talent. Die Spezialisierung gilt allein dem Talent des Hintergrunds.
  */
 function spellAccessGrants(declared: DeclaredFeature[], bg: Background | null): SpellAccessGrant[] {
   return declared
@@ -169,10 +146,9 @@ function traitFeatures(traits: Trait[]): GainedFeature[] {
 }
 
 /**
- * Was der Flow selbst abfragt, sieht die KI nicht: sonst erfindet sie eine zweite,
- * konkurrierende Wahl (und beim Zauber-Kontingent eine falsche Anzahl). Bei den Traits
- * fallen zusätzlich die reinen Bogenwerte weg — Größe und Bewegungsrate haben ein eigenes
- * Bogenfeld, ein Rider dazu ist leeres Gerüst.
+ * Was der Flow selbst abfragt, sieht die KI nicht — sonst erfindet sie eine zweite,
+ * konkurrierende Wahl. Dazu fallen die reinen Bogenwerte weg: Größe und Bewegungsrate haben
+ * ein eigenes Bogenfeld, ein Rider dazu wäre leeres Gerüst.
  */
 function analysisSpeciesInput(speciesFeatures: GainedFeature[], traits: Trait[]): GainedFeature[] {
   const sheetValueKeys = new Set(traits.filter(isSheetValueTrait).map((t) => t.key));
@@ -181,7 +157,6 @@ function analysisSpeciesInput(speciesFeatures: GainedFeature[], traits: Trait[])
   );
 }
 
-/** Voller Merkmalsbestand für die fortlaufenden TP-Effekte (Zäh, Zwergische Zähigkeit). */
 function perLevelInput(gained: GainedFeature[], speciesFeatures: GainedFeature[]): PerLevelFeature[] {
   return [...gained, ...speciesFeatures].map((f) => ({
     key: f.key ?? '',
@@ -212,9 +187,8 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     getFeats(),
   ]);
 
-  // EINE Aufbereitung, englisch geführt: `name`/`desc` sind die kanonischen Felder (so
-  // liest sie jeder Deutungs-Call), `nameDe`/`descDe` reisen als Quelle der beiden
-  // Übersetzungs-Calls mit. Fehlt eine Sprachfassung, fällt sie auf die andere zurück.
+  // Englisch geführt: `name`/`desc` sind kanonisch (so liest sie jeder Deutungs-Call),
+  // `nameDe`/`descDe` reisen als Quelle der Übersetzungs-Calls mit.
   const gained: GainedFeature[] = [...level1Features(prog, 'class'), ...level1Features(sub, 'subclass')];
   const feat = originFeat(bg, feats);
   if (feat) gained.push(feat);

@@ -36,8 +36,8 @@
 
   let { dirPath }: Props = $props();
 
-  // Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie): zur Anzeigezeit gerechnet,
-  // damit ein steigender Übungsbonus sie mitnimmt — gespeichert würden sie altern.
+  // Merkmals-gewährte Zauberwerte zur Anzeigezeit gerechnet, damit ein steigender
+  // Übungsbonus sie mitnimmt — gespeichert würden sie altern.
   let spellAccessRows = $state<SpellAccessValues[]>([]);
   $effect(() => {
     const c = character;
@@ -54,17 +54,14 @@
     })();
   });
 
-  // ─── Merkmals-Seitenleiste (rechts, tab-unabhängig) ───────────────────────────
-  // Zustand wie beim KI-Panel (`routes/+page.svelte`): Breite und Zuklapp-Zustand in
-  // `localStorage`, Zuklappen ist eine Breiten-Transition auf 0 — die Komponente bleibt
-  // montiert, damit der Zähler an der Lasche auch zugeklappt stimmt. Standard: OFFEN.
+  // Zuklappen ist eine Breiten-Transition auf 0, die Komponente bleibt montiert — sonst
+  // stimmte der Zähler an der Lasche im zugeklappten Zustand nicht.
   const FEAT_MIN_W = 240;
   const FEAT_MAX_W = 720;
   let featsWidth = $state(parseInt(localStorage.getItem('char-features-width') ?? '360'));
   let featsCollapsed = $state(localStorage.getItem('char-features-collapsed') === '1');
   let featsDragging = $state(false);
   const effFeatWidth = $derived(featsCollapsed ? 0 : featsWidth);
-  // Aus der Leiste hochgereicht: Stand der deklarierten Wahlen für die Lasche.
   let featBadge = $state<CoverageBadge | null>(null);
   let featOpenCount = $state(0);
 
@@ -88,8 +85,6 @@
     });
   }
 
-  // Karten-Editor-Fundament: besitzt Laden (character.json via activeFile), Dirty-
-  // Tracking, Speichern (kein Sprung zur Bogen-Ansicht), JSON-Tab, Navigations-Guard.
   const ed = createCardEditor<Character>({
     type: 'character',
     label: 'Charakter',
@@ -97,21 +92,16 @@
       const r = parseCharacter(JSON.parse(content));
       return r.ok ? r.data : null;
     },
-    // Das angenommene Schema-Upgrade ist die einzige Änderung, die den Draft NICHT
-    // anfasst (`parse` hat sie beim Laden längst angewandt) — ohne diesen Hook bliebe der
-    // Editor sauber und die Speichern-Leiste unerreichbar. Rückgabetyp annotiert, weil
+    // Das angenommene Schema-Upgrade ist die einzige Änderung, die den Draft NICHT anfasst
+    // (`parse` hat sie beim Laden längst angewandt) — ohne diesen Hook bliebe der Editor
+    // sauber und die Speichern-Leiste unerreichbar. Rückgabetyp annotiert, weil
     // `pendingUpgrade` seinerseits `ed.lastSavedContent` liest (Inferenzkreis).
     extraDirty: (): boolean => upgradeAccepted && !!pendingUpgrade,
     onSaved: () => invalidateVault(),
   });
-  // Read-only-Sicht auf den Draft für die Bogen-Anzeige.
-  // (Der Bearbeiten-Tab bindet ed.draft direkt und mutiert ihn in place.)
   const character = $derived(ed.draft);
-  // Zuletzt gespeicherte Version als Baseline für das Diff-Highlighting im
-  // Bearbeiten-Formular. Bei neuem/nie gespeichertem Charakter (leerer Content)
-  // oder ungültigem JSON → null → keine Hervorhebungen. save() ersetzt ed.draft
-  // nicht, setzt aber lastSavedContent neu → dieser Derived rechnet neu → alle
-  // Highlights verschwinden in-place.
+  // Baseline des Diff-Highlightings: `save()` ersetzt `ed.draft` nicht, setzt aber
+  // `lastSavedContent` neu — dieser Derived rechnet nach, die Tönungen verschwinden.
   const savedCharacter = $derived.by<Character | null>(() => {
     if (!ed.lastSavedContent) return null;
     try {
@@ -121,7 +111,6 @@
       return null;
     }
   });
-  // Quelle der PDF-Import-Metadaten (nicht editierbar).
   const pdfName = $derived(character?._importedFrom ?? '');
 
   // Gegen den ROHEN Dateiinhalt geprüft, nicht gegen den Draft: `parseCharacter`
@@ -134,7 +123,6 @@
       return null; // ungültiges JSON — dafür meldet sich bereits der Lade-Fehler
     }
   });
-  // Angebot angenommen → `extraDirty` greift, geschrieben wird über die Speichern-Leiste.
   let upgradeAccepted = $state(false);
   // Beim Dateiwechsel zurücksetzen, sonst wirkt der nächste Charakter ungespeichert.
   $effect(() => {
@@ -145,27 +133,23 @@
   let showLevelUp = $state(false);
 
   /**
-   * Wendet den KI-Vorschlag ADDITIV auf einen frischen Draft-Klon an und ersetzt
-   * `ed.draft` per NEUER Referenz. Der Referenz-Swap ist tragend: er löst
-   * `{#key ed.draft}` (Formular-Remount → Diff-Highlighting) und `ed.dirty` aus.
-   * Numerische Werte werden addiert, damit item-gewährte Boni erhalten bleiben.
+   * Der Referenz-Swap am Ende ist tragend: er löst `{#key ed.draft}` (Formular-Remount →
+   * Diff-Highlighting) und `ed.dirty` aus. Additiv, damit item-gewährte Boni bleiben.
    */
   function applyLevelUp(changeSet: LevelUpChangeSet, delta: LevelUpDelta) {
     if (!ed.draft) return;
     const next = structuredClone($state.snapshot(ed.draft)) as Character;
 
-    // Struktur (Identität, aus delta — kein additives Delta): Klassenstufe / Multiclass.
+    // Struktur aus `delta`, nicht additiv: Klassenstufe / Multiclass sind Identität.
     if (delta.isNewClass) {
       next.classes.push({ sourceKey: delta.sourceKey, name: delta.klasseName, level: delta.toLevel });
     } else {
       const cls = next.classes[delta.classIndex];
       if (cls) cls.level = delta.toLevel;
     }
-    // Übungsbonus deterministisch aus Gesamtstufe (Sicherheitsnetz; changeSet setzt ihn ebenso).
+    // Sicherheitsnetz; das `changeSet` setzt den Übungsbonus ebenso.
     next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
 
-    // Alle übrigen Änderungen additiv/settend aus dem gemeinsamen Format anwenden —
-    // derselbe Applier, den die Wizard-Assembly benutzt (services/applyChanges.ts).
     applyChanges(next, changeSet.changes, {
       classIndex: delta.classIndex,
       isNewClass: delta.isNewClass,
@@ -173,18 +157,13 @@
     });
     next.classLevel = formatClassLevel(next.classes);
 
-    // Referenz-Swap → {#key ed.draft} remountet das Formular; parseCharacter normalisiert.
     const r = parseCharacter(next);
     ed.draft = r.ok ? r.data : next;
   }
 
   /**
-   * „Übernehmen" einer deklarierten Merkmalswahl aus der Merkmals-Leiste — dasselbe Muster
-   * wie `applyLevelUp`, nur ohne Struktur-Teil: die Wahl ändert keine Klassenstufe.
-   *
-   * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im Draft
-   * haben, sonst verliert der Referenz-Swap die letzten Eingaben. Die Leiste selbst steht
-   * außerhalb des `{#key ed.draft}` und übersteht den Swap.
+   * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im
+   * Draft haben, sonst verliert der Referenz-Swap die letzten Eingaben.
    */
   async function applyChoiceGrants(changes: Change[]) {
     if (!ed.draft || !changes.length) return;
@@ -234,16 +213,13 @@
     });
   });
 
-  // Zauber werden per Key (Fallback Name) an die Bibliothek gebunden — wie Items.
   const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
   const spellIndex = $derived(buildSpellIndex(spellLibrary));
 
   /**
-   * Waffenbeherrschung (5e 2024) eines Angriffs bzw. einer Waffe: die Eigenschaft
-   * hängt am Item (`mastery`), die Erlaubnis an `character.masteries`. Aufgelöst wird
-   * über Name und Waffenart — dieselbe Brücke wie beim Inventar. Ein Tausch der
-   * beherrschten Waffen wirkt deshalb sofort auf alle Angriffe, ohne dass etwas
-   * zurückgeschrieben werden müsste (`attacks[]` bleibt unberührt).
+   * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
+   * Name und Waffenart: ein Waffentausch wirkt sofort auf alle Angriffe, ohne dass in
+   * `attacks[]` etwas zurückgeschrieben werden müsste.
    */
   const masteredWeaponKinds = $derived(
     masteredKinds(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
@@ -256,9 +232,8 @@
   }
 
   /**
-   * Beherrschte Waffen als „Name (Eigenschaft)". Namen, die die Bibliothek nicht (mehr)
-   * kennt, bleiben bewusst STEHEN — sonst zeigte der Bogen weniger als die Datei
-   * enthält; der Editor markiert sie dort als Überhang.
+   * Namen, die die Bibliothek nicht (mehr) kennt, bleiben bewusst STEHEN — sonst zeigte
+   * der Bogen weniger als die Datei enthält; der Editor markiert sie als Überhang.
    */
   const masteryChips = $derived(
     (character?.masteries ?? []).map((n) => ({ name: n, mastery: matchItem(itemIndex, { name: n })?.mastery })),
@@ -268,8 +243,7 @@
   const detailsPath = $derived(`${dirPath}/details.md`);
   const legacyDetailsPath = $derived(`${dirPath}/freitext.md`);  // Migration: altes Format
 
-  // GM-Notizen & Details laden, wenn der Charakter (dirPath) wechselt.
-  // character.json selbst lädt der Karten-Editor (ed) über activeFile.
+  // Nur die Nebendateien — `character.json` lädt der Karten-Editor über `activeFile`.
   $effect(() => {
     const dir = dirPath;
     if (!dir) return;
@@ -280,7 +254,6 @@
   });
 
   async function loadSideFiles() {
-    // GM-Notizen laden (oder aus Template anlegen).
     try {
       gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
     } catch {
@@ -292,8 +265,7 @@
       await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
     }
 
-    // Details laden (optional — leer, wenn noch nicht vorhanden).
-    // Migration: alte freitext.md weiterlesen, solange noch keine details.md existiert.
+    // Alte `freitext.md` weiterlesen, solange noch keine `details.md` existiert.
     try {
       freitext = await invoke<string>('read_file_content', { path: detailsPath });
     } catch {
@@ -315,9 +287,8 @@
     importingPdf = true;
     error = '';
     try {
-      // Zauber aus dem aktuellen Charakter behalten (manuell gepflegt).
+      // Zauber aus dem aktuellen Charakter behalten — das PDF trägt sie nicht.
       const content = await importPdfIntoCharacter(selected, dirPath, character?.spells ?? emptySpells());
-      // In den Editor übernehmen (Draft + Baseline → nicht „dirty").
       ed.applyContent(content);
     } catch (e) {
       error = `PDF-Import fehlgeschlagen: ${e}`;
@@ -335,10 +306,8 @@
         importedFrom: pdfName,
         dirPath,
         freitext,
-        // Derselbe Resolver wie für die Pille in der Angriffstabelle — PDF und Bogen
-        // zeigen damit garantiert dieselbe Eigenschaft.
+        // Resolver und Werte der Karte, damit PDF und Bogen nicht auseinanderlaufen können.
         masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
-        // Dieselben Werte wie im Zauber-Block der Karte — PDF und Bogen können nicht auseinanderlaufen.
         spellAccess: spellAccessRows,
       });
     } catch (e) {
@@ -363,7 +332,6 @@
   {#if error}
     <div class="error">{error}</div>
   {:else if character}
-    <!-- Header (bleibt über allen Tabs sichtbar) -->
     <div class="header">
       {#if portraitUrl}
         <img class="portrait-thumb" src={portraitUrl} alt="Portrait von {character.name}" />
@@ -401,8 +369,8 @@
       <LevelUpAssistant character={ed.draft} onApply={applyLevelUp} onclose={() => (showLevelUp = false)} />
     {/if}
 
-    <!-- Tab-Bereich links, Merkmals-Leiste rechts. Die Leiste liegt AUSSERHALB des
-         {#key ed.draft} und übersteht den Referenz-Swap von `applyChoiceGrants`. -->
+    <!-- Die Leiste liegt AUSSERHALB des {#key ed.draft} und übersteht damit den
+         Referenz-Swap von `applyChoiceGrants`. -->
     <div class="sheet-body">
       <EditorPanel
         bind:tab={ed.tab}
@@ -421,13 +389,11 @@
         {/snippet}
 
         {#snippet bearbeiten()}
-          <!-- Bei Last-/Verwerfen-Wechsel des Drafts neu aufsetzen, damit das Formular
-               frisch aus dem Draft initialisiert (es mutiert ed.draft in place). -->
+          <!-- Remount bei Draft-Wechsel: das Formular initialisiert nur einmal aus dem
+               Draft und mutiert ihn danach in place. -->
           {#if ed.draft}
             {#key ed.draft}
               <div class="edit-wrapper" style="width:100%">
-                <!-- Das Formular zeigt den Schema-Rückstand der Datei zusammen mit allem
-                     Nachverlinkbaren in EINEM Angebot — es kennt die Bibliotheks-Treffer. -->
                 <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
                   {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
               </div>
@@ -437,7 +403,6 @@
 
         {#snippet extra(id)}
         {#if id === 'notes'}
-        <!-- GM-Notizen Tab -->
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
@@ -449,7 +414,6 @@
         </div>
 
       {:else}
-        <!-- Details Tab (Freitext) — wird beim PDF-Export als weitere Seite(n) angehängt -->
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
@@ -472,9 +436,8 @@
       ></div>
 
       <div class="feat-wrap" class:no-transition={featsDragging} style="width: {effFeatWidth}px">
-        <!-- Neuaufbau beim CHARAKTERwechsel, nicht bei jedem Draft-Swap: sonst steht die
-             Bibliotheksauflösung des vorigen Charakters noch, während die neue läuft, und
-             ein alter Wahl-Platz gegen das neue Ledger meldet „1 offene Entscheidung". -->
+        <!-- Neuaufbau beim CHARAKTERwechsel, nicht bei jedem Draft-Swap: sonst meldete ein
+             Wahl-Platz der alten Auflösung gegen das neue Ledger „1 offene Entscheidung". -->
         {#key dirPath}
           {#if ed.draft}
             <CharacterFeaturePanel character={ed.draft} saved={savedCharacter}
@@ -592,7 +555,6 @@
     min-height: 0;
   }
 
-  /* ─── Hülle unter dem Header: Tab-Bereich + Merkmals-Leiste ──────────── */
   .sheet-body {
     flex: 1;
     min-height: 0;
@@ -623,8 +585,8 @@
   .resize-handle:active { background: var(--red); }
   .resize-handle.hidden { display: none; }
 
-  /* Lasche am linken Rand der Leiste. Nicht auf halber Höhe: bei zugeklapptem
-     KI-Panel säße sie sonst genau unter dessen Lasche. */
+  /* Nicht auf halber Höhe: bei zugeklapptem KI-Panel säße die Lasche sonst
+     genau unter dessen Lasche. */
   .feat-toggle {
     position: absolute;
     top: 25%;
@@ -662,7 +624,6 @@
     line-height: 1.2;
   }
 
-  /* Freitext */
   .freetext-area {
     display: flex;
     flex-direction: column;

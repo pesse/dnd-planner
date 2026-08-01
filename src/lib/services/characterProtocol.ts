@@ -1,13 +1,7 @@
 /**
- * Verdichtet einen fertig zusammengesetzten `Character` zu einem gruppierten
- * „das steht drauf"-Protokoll (Attribute, Werte, Übungen, Zauber, Ausrüstung …) — die
- * gemeinsame Quelle für jede Ansicht, die zeigen will, was ein Charakter KONKRET bekommt
- * (heute: der Wizard-Überblick, analog zur Progression des Stufenaufstiegs).
- *
- * Bewusst rein, ohne Framework/Datei-Zugriff, und alles aus dem Objekt abgeleitet, damit
- * die Vorschau exakt dem entspricht, was gespeichert wird. Merkmals-Entscheidungen tragen
- * im Ledger (`character.features`) keine Fragestellung, nur die Wahl — die lesbare
- * {Frage, Antwort}-Fassung kommt daher optional von außen (aus den KI-Ridern).
+ * Ein gruppiertes „das steht drauf"-Protokoll eines fertigen `Character`. Alles aus dem
+ * Objekt abgeleitet, damit die Vorschau exakt dem entspricht, was gespeichert wird; die
+ * Fragestellung zu einer Wahl steht nicht im Ledger und kommt daher von außen.
  */
 import type { Character } from '../schemas/characterSchema';
 import { SKILL_DEFS } from '../domain/skills';
@@ -21,7 +15,6 @@ export interface ProtocolGroup {
 
 
 
-/** Baut das gruppierte Überblicks-Protokoll; leere Gruppen fallen weg. */
 export function buildCharacterProtocol(
   c: Character,
   extras: { decisions?: { question: string; answer: string }[] } = {},
@@ -63,9 +56,8 @@ export function buildCharacterProtocol(
   const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);
   if (slots.length) spells.push(`Zauberplätze: ${slots.map((s) => `Grad ${s.lvl}: ${s.total}`).join(', ')}`);
   if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.map((x) => x.name).join(', ')}`);
-  // Nach `prepared` trennen, nicht nach Herkunft: aus dem gespeicherten Charakter ist nicht
-  // ablesbar, ob ein Zauber gewählt oder gewährt wurde — die Markierung ist es aber, und beim
-  // Magier ist genau sie die interessante Information (Buch ⊋ Vorbereitung).
+  // Nach `prepared` trennen, nicht nach Herkunft: gewählt vs. gewährt ist am gespeicherten
+  // Charakter nicht ablesbar, die Markierung dagegen schon (Magier: Buch ⊋ Vorbereitung).
   const entries = Object.entries(c.spells.byLevel)
     .sort(([a], [b]) => Number(a) - Number(b))
     .flatMap(([lvl, arr]) => arr.map((e) => ({ ...e, label: `${e.name} (Grad ${lvl})` })));

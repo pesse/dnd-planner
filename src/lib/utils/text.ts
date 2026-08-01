@@ -1,6 +1,4 @@
-/**
- * Namens-Normalisierung und Slugs für Dateinamen und Bibliotheks-Keys.
- */
+/** Namens-Normalisierung und Slugs für Dateinamen und Bibliotheks-Keys. */
 
 /** Vergleichsform eines Namens: Index-Schlüssel, Suche, Gleichheit. */
 export function normName(s: string | undefined | null): string {

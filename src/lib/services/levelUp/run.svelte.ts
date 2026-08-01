@@ -98,11 +98,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
     return {
       delta: st.delta!,
       featsToPick: st.delta ? countFeatsToPick(st.delta, st.answers) : 0,
-      // Auch die deklarierten Zweigwahlen zählen: sonst überspringt die Maschine den
-      // Checkpoint, weil das Merkmal gar nicht mehr bei der KI war.
+      // Die deklarierten Wahlen zählen mit: sonst überspringt die Maschine den Checkpoint,
+      // weil das Merkmal gar nicht mehr bei der KI war, und niemand wählt.
       baseChoices: choices.baseChoiceQs.length,
-      // Auch die deklarierten Wahlen zählen: sonst überspringt die Maschine den Checkpoint,
-      // wenn das Talent gar nicht mehr bei der KI war — und niemand wählt die Zauber.
       featChoices: choices.featChoiceQs.length,
     };
   }
@@ -141,10 +139,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
         pushStep(`Subklasse „${st.chosenSubclass?.name}" — Merkmale werden geladen…`);
         st.subFeatures = await computeSubclassFeatures(st.chosenSubclass!.key, st.delta!.fromLevel, st.delta!.toLevel);
         if (!alive()) return;
-        // `subFeatures` bleibt vollständig (Info-Einträge „Neues Merkmal: …"), der KI-Eingang
-        // nicht: die immer-vorbereiteten Zauberlisten liest `declaredSpells` deterministisch,
-        // die deklarierten Wahlen führt der Flow selbst — dieselben zwei Filter, die
-        // `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
+        // `subFeatures` bleibt vollständig (Info-Einträge), der KI-Eingang nicht — dieselben
+        // zwei Filter, die `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
         st.gainedFeatures = [
           ...gainedFeaturesFor(st.delta!),
           ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(st.subFeatures)),
@@ -192,8 +188,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
           pushStep(`${st.featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
         }
         break;
-      // assemble-decisions: rein deterministisch → keine Aktion, das Dokument leitet
-      // diese Änderungen selbst aus dem State ab.
+      // `assemble-decisions` fehlt hier absichtlich: das Dokument leitet diese Änderungen
+      // selbst aus dem Zustand ab.
     }
   }
 
@@ -208,9 +204,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
     }
   }
 
-  // Phasenstand fürs Dokument: während eines Laufs der zuletzt ABGESCHLOSSENE Schritt
-  // (progressiv hochgezählt) — so erscheinen fertige deterministische Teilschritte im
-  // JSON, bevor die nächste KI-Aktion läuft, ohne Vorgriff auf noch laufende Schritte.
+  // Während eines Laufs der zuletzt ABGESCHLOSSENE Schritt — so erscheinen fertige
+  // Teilschritte im Dokument, ohne Vorgriff auf den noch laufenden.
   const viewStep = $derived<StepId>(st.phase === 'running' ? st.reachedStep : st.phase);
   const doc = $derived.by<LevelUpDoc>(() => {
     if (!st.delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
@@ -236,7 +231,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get doc() { return doc; },
     ensureSpellLib,
 
-    /** Startet den Lauf neu: Zustand zurücksetzen, Delta rechnen, Pipeline anwerfen. */
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
       if (st.running) return;
       st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.riders = []; st.decisions = []; st.answers = {};
@@ -264,7 +258,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
       });
     },
 
-    /** Checkpoint bestätigt → weiterlaufen bis zum nächsten. */
     resume(from: StepId) {
       if (!st.delta) return;
       runSegment(from, (alive) => pipelineBody(from, alive));
@@ -276,10 +269,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
     },
 
-    /**
-     * „Nochmal zusammenführen" auf Klick: derselbe Merge, aber auf dem aktuell im Textfeld
-     * stehenden (ggf. handbearbeiteten) Stand statt auf der Rohfassung.
-     */
+    /** Derselbe Merge, aber auf dem handbearbeiteten Textfeld-Stand statt auf der Rohfassung. */
     rework() {
       if (!st.delta) return;
       runSegment('class-features', async (alive) => {

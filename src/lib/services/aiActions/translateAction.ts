@@ -26,7 +26,6 @@ import {
 import type { AiAction } from './types';
 import { assembleAction, NO_TOOLS, type ActionSpec } from './spec';
 
-/** Was eine Übersetzung pro Artefakt-Typ unterscheidet — der Rest ist gemeinsames Gerüst. */
 export interface TranslationSpec<T> extends ActionSpec<T> {
   instructions: string; // Input-Beschreibung + typ-eigene Regeln, englisch, XML-gegliedert
 }
@@ -164,15 +163,9 @@ JSON with these fields:
 </rules>`,
 };
 
-/** „Gegenstand übersetzen" — Payload: `{ name?, desc? }`. */
 export const translateItem = (payload: Record<string, unknown>) => buildTranslationRun(itemSpec, payload);
-/** „Zauber übersetzen" — Payload: `{ desc?, higher_level?, materials_needed?, casting_time?, range?, duration? }`. */
 export const translateSpell = (payload: Record<string, unknown>) => buildTranslationRun(spellSpec, payload);
-/** „Monster übersetzen" — Payload: Statblock-Textfelder, in place. */
 export const translateMonster = (payload: Record<string, unknown>) => buildTranslationRun(monsterSpec, payload);
-/** „Klasse/Spezies übersetzen" — Payload: `{ name?, features: [{name, desc}] }` (Spezies reicht ihre `traits` als `features` ein). */
 export const translateRule = (payload: Record<string, unknown>) => buildTranslationRun(ruleSpec, payload);
-/** „Talent übersetzen" — Payload: `{ name?, prerequisite?, desc? }`. */
 export const translateFeat = (payload: Record<string, unknown>) => buildTranslationRun(featSpec, payload);
-/** „Hintergrund übersetzen" — Payload: `{ name?, desc?, benefits: [{name, desc}] }`. */
 export const translateBackground = (payload: Record<string, unknown>) => buildTranslationRun(backgroundSpec, payload);

@@ -1,15 +1,8 @@
 <script lang="ts">
   /**
-   * Zauber-Auswahl-Dialog: alle wählbaren Zauber als Toggle-Chips, nach Zaubergrad gruppiert.
-   * Geöffnet wird er ausschließlich aus `SpellPickField`.
-   *
-   * Die Optionen kommen AUSSCHLIESSLICH aus `vault/spells`, gefiltert über `spellLevels` +
-   * `spellClass` — nie aus einer KI-Antwort. Das ist der Halluzinationsschutz, dieselbe
-   * Doktrin wie beim `WeaponMasteryPicker`.
-   *
-   * `picks`/`prepared` werden live durchgeschrieben: Schließen heißt „fertig", es gibt kein
-   * Abbrechen. Damit bleibt das Gating des Aufrufers (`spellPicksDone`) ohne Zwischenzustand
-   * reaktiv.
+   * Die Optionen kommen AUSSCHLIESSLICH aus `vault/spells`, nie aus einer KI-Antwort —
+   * derselbe Halluzinationsschutz wie beim `WeaponMasteryPicker`. `picks`/`prepared`
+   * schreiben live durch: Schließen heißt „fertig", es gibt kein Abbrechen.
    */
   import { onMount } from 'svelte';
   import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
@@ -33,19 +26,15 @@
   }: {
     title: string;
     library: SpellInfo[];
-    /** Erlaubte Zaubergrade; `[0]` = nur Zaubertricks. */
     spellLevels: number[];
-    /** Klassenfilter (deutsch oder englischer Key); leer = alle Klassen. */
+    /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
     max: number;
     /** Gewählte Zauber, `encodePick`-kodiert. */
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
-    /**
-     * Nur für das Zauberbuch: Teilmenge von `picks`, die als vorbereitet gilt. Ist sie
-     * gesetzt, bekommt jeder gewählte Chip einen Vorbereitungs-Schalter.
-     */
+    /** Nur gesetzt fürs Zauberbuch — dann bekommt jeder Chip einen Vorbereitungs-Schalter. */
     prepared?: string[] | undefined;
     preparedMax?: number;
     allowCreate?: boolean;
@@ -65,11 +54,8 @@
     [...new Set([...spellLevels, ...fixed.map((f) => f.level)])].sort((a, b) => a - b),
   );
 
-  /**
-   * Kandidaten: ohne Sucheingabe die vollständige klassen-/gradgefilterte Liste — als Chips
-   * bewusst NICHT gekappt (der Body scrollt), ein stilles Abschneiden würde die Auswahl
-   * unvollständig aussehen lassen.
-   */
+  // Bewusst NICHT gekappt (der Body scrollt): ein stilles Abschneiden ließe die Auswahl
+  // unvollständig aussehen.
   const candidates = $derived.by(() => {
     const pool = query.trim()
       ? searchSpells(library, query, null, spellClass, 200).map((s) => s.spell)

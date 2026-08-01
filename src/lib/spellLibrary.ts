@@ -1,14 +1,10 @@
-/**
- * Lädt und cached den Zauber-Index aus vault/spells.
- * Stellt Suchfunktionen bereit inkl. Klassen-Filterung.
- */
+/** Lädt und cached den Zauber-Index aus `vault/spells`, inkl. Klassen-Filterung. */
 import { invoke } from '@tauri-apps/api/core';
 import { slugKeepUmlauts } from './utils/text';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
 import { OWN_SOURCE } from './schemas/source';
 import type { Spell } from './types';
 
-/** Leerer Zauber-Entwurf für die Anlage in der Bibliothek. */
 export function blankSpell(name: string, level = 1, school = 'evocation', nameEn = ''): Spell {
   return {
     name: name || 'Neuer Zauber', name_en: nameEn.trim() || undefined, level, school: school as Spell['school'],
@@ -23,7 +19,7 @@ export interface SpellInfo {
   name: string;
   /** Kanonischer englischer SRD-Name (für EN↔DE-Matching); leer, wenn nicht hinterlegt. */
   name_en?: string;
-  /** Open5e-Key (z.B. "srd-2024_moonbeam"); bei Zaubern meist leer — Identität ist der Name. */
+  /** Bei Zaubern meist leer — die Identität ist der Name. */
   key?: string;
   level: number;
   classes: string[];
@@ -31,7 +27,6 @@ export interface SpellInfo {
   path: string;
 }
 
-/** Farbe pro Zauberschule (Catppuccin Mocha Palette) */
 export const SCHOOL_COLORS: Record<string, string> = {
   abjuration:    'var(--steel)',
   conjuration:   'var(--green)',
@@ -43,7 +38,6 @@ export const SCHOOL_COLORS: Record<string, string> = {
   transmutation: 'var(--copper)',
 };
 
-// Singleton-Cache
 let cache: SpellInfo[] | null = null;
 let loading: Promise<SpellInfo[]> | null = null;
 
@@ -57,13 +51,12 @@ export async function getSpellLibrary(): Promise<SpellInfo[]> {
   return loading;
 }
 
-/** Entwertet den Zauber-Index-Cache; nächster `getSpellLibrary()`-Aufruf lädt neu. */
 export function invalidateSpellLibrary(): void {
   cache = null;
   loading = null;
 }
 
-// school (englisch im JSON) → Ordnername (deutsch im Vault); identisch zu SpellCard.svelte.
+// school (englisch im JSON) → Ordnername (deutsch im Vault); auch in SpellCard.svelte.
 const SPELL_SCHOOL_DIR: Record<string, string> = {
   abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
   enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
@@ -71,10 +64,8 @@ const SPELL_SCHOOL_DIR: Record<string, string> = {
 };
 
 /**
- * Legt einen Zauber direkt im Vault an (`vault/spells/{schule}/{slug}.json`), ohne einen
- * CardEditor zu öffnen — für die Inline-Anlage im Stufenaufstieg. Invalidiert danach den
- * Index-Cache und lädt ihn neu, damit der neue Zauber sofort auflöst. Gibt die
- * kanonische (getrimmte) Namensform zurück.
+ * Ohne CardEditor, für die Inline-Anlage im Stufenaufstieg: entwertet danach den Cache und
+ * lädt neu, damit der Zauber sofort auflöst.
  */
 export async function createSpellInline(spell: Spell): Promise<string> {
   const dir = SPELL_SCHOOL_DIR[spell.school] ?? 'hervorrufung';
@@ -86,7 +77,6 @@ export async function createSpellInline(spell: Spell): Promise<string> {
   return name;
 }
 
-/** Lädt die vollständigen Zauberdaten für einen bekannten Pfad. */
 export async function loadSpellByPath(path: string): Promise<import('./types').Spell | null> {
   try {
     const content = await invoke<string>('read_file_content', { path });
@@ -97,12 +87,9 @@ export async function loadSpellByPath(path: string): Promise<import('./types').S
 }
 
 /**
- * Deutsch → Englisch Klassenmapping für die Bibliotheks-Filterung.
- * Mehrere deutsche Varianten können auf denselben englischen Key zeigen.
- *
- * **Zauberer = sorcerer, Magier = wizard** — maßgeblich ist `DE_TO_SLUG` in
- * `services/classProgression.ts` (und `nameDe` der Vault-Klassen). Die Verwechslung ist
- * teuer: sie filtert die Zauberauswahl eines Zauberers auf die Magier-Liste.
+ * **Zauberer = sorcerer, Magier = wizard**; maßgeblich ist `DE_TO_SLUG` in
+ * `services/classProgression.ts`. Die Verwechslung filtert die Zauberauswahl eines
+ * Zauberers auf die Magier-Liste.
  */
 const CLASS_MAP: Record<string, string> = {
   'magier': 'wizard',
@@ -127,7 +114,6 @@ const CLASS_NAMES_BY_LENGTH: [string, string][] = Object.entries(CLASS_MAP).sort
   (a, b) => b[0].length - a[0].length,
 );
 
-/** Die englischen Klassen-Keys, wie sie in `SpellInfo.classes` stehen. */
 const ENGLISH_CLASS_KEYS = new Set(Object.values(CLASS_MAP));
 
 /**
@@ -142,24 +128,18 @@ const TRADITION_MAP: Record<string, string> = {
 };
 
 /**
- * Normalisiert einen Klassennamen auf den englischen Key oder gibt null zurück.
- * Nimmt deutsche Anzeigenamen („Magier", „Zauberer Level 5") UND bereits englische Keys —
- * letztere kommen aus Merkmals-Prosa und LLM-Antworten („pick two cantrips from the Cleric
- * spell list"), wo kein deutscher Name auftaucht.
+ * Nimmt deutsche Anzeigenamen UND englische Keys — letztere kommen aus Merkmals-Prosa und
+ * LLM-Antworten, wo kein deutscher Name auftaucht.
  */
 export function resolveClass(germanClass: string): string | null {
   const key = germanClass.toLowerCase().trim();
   if (!key) return null;
-  // Bereits ein englischer Key
   if (ENGLISH_CLASS_KEYS.has(key)) return key;
-  // Direkter Treffer
   if (CLASS_MAP[key]) return CLASS_MAP[key];
   if (TRADITION_MAP[key]) return TRADITION_MAP[key];
-  // Teilstring-Treffer (z.B. "Zauberer Level 5" → "sorcerer")
   for (const [de, en] of CLASS_NAMES_BY_LENGTH) {
     if (key.includes(de)) return en;
   }
-  // Englischer Key als Teilstring („Cleric spell list", „Magic Initiate (Wizard)")
   for (const en of ENGLISH_CLASS_KEYS) {
     if (key.includes(en)) return en;
   }
@@ -167,9 +147,8 @@ export function resolveClass(germanClass: string): string | null {
 }
 
 /**
- * Löst einen (oft ENGLISCHEN, von der KI gelieferten) Zaubernamen auf einen lokalen
- * Bibliothekseintrag auf. Matcht EN↔DE: gegen `name` (DE), `name_en` (EN) und `key`
- * (Open5e). Exakttreffer zuerst, sonst ein starker Suchtreffer, sonst null.
+ * Der Name kommt oft ENGLISCH von der KI: gematcht wird gegen `name`, `name_en` und `key`,
+ * Exakttreffer zuerst.
  */
 export function resolveSpell(library: SpellInfo[], name: string, klasseName = ''): SpellInfo | null {
   const q = name.trim().toLowerCase();
@@ -189,13 +168,7 @@ export interface SpellSuggestion {
   inClass: boolean;
 }
 
-/**
- * Sucht Zauber nach Eingabetext.
- * @param query      Suchbegriff (mindestens 1 Zeichen)
- * @param levelFilter  null = alle (Zaubertricks), number = nur diese Stufe
- * @param spellClass   Zauberwirkerklasse des Charakters (Deutsch)
- * @param maxResults   Maximale Anzahl Vorschläge
- */
+/** `levelFilter` null = alle Grade; `spellClass` ist der DEUTSCHE Klassenname. */
 export function searchSpells(
   library: SpellInfo[],
   query: string,
@@ -213,7 +186,6 @@ export function searchSpells(
     return s.name.toLowerCase().includes(q) || (s.name_en ?? '').toLowerCase().includes(q);
   });
 
-  // Sortierung: Klassen-Treffer zuerst, dann alphabetisch
   matches.sort((a, b) => {
     const aIn = englishClass ? a.classes.includes(englishClass) : false;
     const bIn = englishClass ? b.classes.includes(englishClass) : false;

@@ -1,31 +1,17 @@
 /**
- * Fortlaufende, PRO STUFE wirkende Merkmals-Effekte — deterministisch aus `grants.perLevel`
- * der Bibliothek (`featureGrantSchema`, schemas/grants.ts).
- *
- * Ersetzt `aiActions/levelUpEffectsAction.ts`: ein Reasoning-Call, der den KOMPLETTEN
- * Merkmalsbestand des Charakters nach genau zwei Fällen durchsuchte, die im Vault stehen —
- * Zwergische Zähigkeit (+1/Stufe) und das Talent „Zäh" (+2/Stufe). Der Prompt nannte beide
- * selbst als Beispiel; damit war er eine Suchfunktion über Daten, die schon strukturiert
- * vorliegen konnten.
- *
- * Wie `spellAccess.ts`/`weaponMastery.ts` die deterministische Antwort auf ein geschlossenes
- * Vokabular. Der Einmal-Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist bewusst NICHT
- * modelliert — er war es auch vorher nicht (Regel 4 des alten Prompts schloss ihn aus).
+ * Fortlaufende, PRO STUFE wirkende TP-Effekte, deterministisch aus `grants.perLevel`.
+ * Der Einmal-Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist bewusst NICHT
+ * modelliert — kein Flow wendet ihn an.
  */
 import type { FeatureGrant } from '../schemas/grants';
 import { featureIdOf } from '$lib/utils/text';
 
-/** Ein Merkmal, wie beide Flows es liefern können: Identität + Deklaration. */
 export interface PerLevelFeature {
   key?: string;
   name: string;
   grants?: FeatureGrant;
 }
 
-/**
- * Eine beitragende Quelle. Feldnamen wie bisher, damit `buildDoc`/`ongoingChanges`
- * (levelUpMachine.ts) unverändert bleiben.
- */
 export interface PerLevelSource {
   feature: string;
   sourceKey: string;
@@ -33,9 +19,8 @@ export interface PerLevelSource {
 }
 
 /**
- * Die TP-Beiträge je Stufe, dedupliziert über Key (ersatzweise Name): derselbe Merkmalstext
- * erreicht die Flows aus mehreren Richtungen — als Bibliotheks-Trait, als neu gewonnenes
- * Merkmal und als Talent-Link. Ohne Dedup zählte „Zäh" beim Erwerbs-Aufstieg doppelt.
+ * Dedupliziert über Key (ersatzweise Name): dasselbe Merkmal erreicht die Flows aus mehreren
+ * Richtungen (Bibliotheks-Trait, neu gewonnen, Talent-Link) und zählte sonst doppelt.
  */
 export function hpPerLevelSources(features: PerLevelFeature[]): PerLevelSource[] {
   const seen = new Set<string>();

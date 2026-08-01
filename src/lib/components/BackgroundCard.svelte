@@ -50,14 +50,10 @@
   const benefitName = (b: Benefit): string => b.nameDe || b.name;
   const benefitDesc = (b: Benefit): string => b.descDe || b.desc;
 
-  /** Gewährte Fertigkeiten, deutsch — die Mechanik-Zeile des Hintergrunds. */
   let grantedSkills = $derived((draft?.proficiencyGrant.skills.fixed ?? []).map(skillLabelDe));
 
-  /**
-   * Vorteile nach Art gruppiert, in der Reihenfolge des Vokabulars.
-   * `skill_proficiency` fällt heraus, sobald der strukturierte Grant gefüllt ist —
-   * die Chip-Reihe im Kopf zeigt dieselbe Information, nur deutsch beschriftet.
-   */
+  // `skill_proficiency` fällt heraus, sobald der strukturierte Grant gefüllt ist — die
+  // Chip-Reihe im Kopf zeigt dasselbe, nur deutsch beschriftet.
   let groupedBenefits = $derived.by(() => {
     const bs = draft?.benefits ?? [];
     const skipSkills = grantedSkills.length > 0;
@@ -67,7 +63,7 @@
       .filter((g) => g.items.length);
   });
 
-  /** Attributsnamen deutsch anzeigen; unbekannte Werte bleiben unverändert stehen. */
+  /** Unbekannte Werte bleiben unverändert stehen. */
   let abilityLabels = $derived(
     (draft?.abilityScores ?? []).map((en) => {
       const key = ABILITY_FROM_EN[en.trim().toLowerCase()];
@@ -75,9 +71,7 @@
     }),
   );
 
-  // ── Herkunftstalent auflösen ────────────────────────────────────────────────
-  // Der `featKey` ist ein Link in die Talent-Bibliothek. Fehlt das Talent lokal,
-  // wird das — wie bei Klassen/Spezies — sichtbar gemacht statt still verschluckt.
+  // Fehlt das verlinkte Talent lokal, wird das sichtbar gemacht statt still verschluckt.
   let featIndex = $state<FeatEntry[]>([]);
   $effect(() => { void getFeats().then((f) => (featIndex = f)); });
 
@@ -94,10 +88,8 @@
     });
   }
 
-  // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     const b = ed.draft;
     if (!b) return null;
@@ -110,7 +102,7 @@
     return translateBackground(payload);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: BackgroundTranslation) {
     const b = ed.draft;
     if (!b) return;

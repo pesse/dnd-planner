@@ -1,15 +1,11 @@
 <script lang="ts">
   /**
-   * Editor einer deklarierten Grundeigenschafts-WAHL (`grantsChoice.kind === 'characterProperty'`)
-   * — „Klein oder Mittelgroß" bei Feenwesen, Mensch und Tiefling.
-   *
-   * Optionen und deutsche Labels stehen NICHT in der Deklaration: sie kommen aus dem Vokabular
-   * der Eigenschaft (`characterPropertyPickers`, services/characterProperties.ts). Deklariert
-   * wird nur, WELCHE Eigenschaft und welche Werte davon zulässig sind — genau darum kann eine
+   * Editor einer deklarierten Grundeigenschafts-WAHL. Optionen und deutsche Labels stehen
+   * NICHT in der Deklaration, sondern im Vokabular der Eigenschaft — nur deshalb kann eine
    * Homebrew-Spezies dieselbe Wahl anbieten, ohne dass jemand Labels pflegt.
    *
-   * Die Regel, die die Oberfläche zeigen muss: WENIGER ALS ZWEI Werte ergeben keine Frage —
-   * ein fester Wert gehört unter „Gewährt Mechanik" (`grants.properties`), nicht hierher.
+   * Die Regel, die die Oberfläche zeigen muss: unter ZWEI Werten entsteht keine Frage — ein
+   * fester Wert gehört unter „Gewährt Mechanik" (`grants.properties`).
    */
   import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { characterPropertyPickers } from '$lib/services/characterProperties';
@@ -24,7 +20,7 @@
 
   const pickers = characterPropertyPickers();
   let picker = $derived(pickers.find((p) => p.property === grant.property) ?? pickers[0]);
-  /** Leer = das ganze Vokabular ist zugelassen (so liest es auch `characterPropertyOptions`). */
+  /** Leer = das ganze Vokabular, so liest es auch `characterPropertyOptions`. */
   let allowed = $derived(grant.propertyValues.length ? grant.propertyValues : picker.values.map((v) => v.value));
 
   function setProperty(value: string) {

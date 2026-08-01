@@ -37,18 +37,14 @@
   import SpellBlock from './characterForm/SpellBlock.svelte';
   import './characterForm/form.css';
 
-  // `character` ist der ed.draft-Proxy aus CharacterSheet. Das Formular pflegt seinen
-  // eigenen Zustand und spiegelt ihn über `createCharacterFormState` in den Draft zurück
-  // (kein eigener Speichern-Knopf — das übernimmt die EditorPanel-Save-Bar).
-  //
-  // `character.features` gehört NICHT dazu: das Merkmals-Ledger besitzt die
-  // Merkmals-Seitenleiste (`CharacterFeaturePanel`). Genau ein Schreiber — sonst
-  // überschriebe der nächste Tastendruck hier jede Leisten-Änderung.
+  // `character.features` spiegelt das Formular NICHT zurück: das Ledger gehört der
+  // Merkmals-Seitenleiste. Genau ein Schreiber — sonst überschriebe der nächste
+  // Tastendruck hier jede Leisten-Änderung.
   let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
     character: Character;
     dirPath: string;
     saved?: Character | null;
-    /** Schema-Rückstand der DATEI (aus CharacterSheet) — Teil des Umstellungs-Hinweises oben. */
+    /** Schema-Rückstand der DATEI, nicht des Drafts. */
     pendingUpgrade?: PendingCharacterUpgrade | null;
     upgradeAccepted?: boolean;
     onAcceptUpgrade?: () => void;
@@ -62,13 +58,10 @@
   const skills = $derived(computeSkills(form));
   const classLevelPreview = $derived(formatClassLevel(form.classes));
 
-  // Diff-Highlighting: vergleicht ein Quell-Feld gegen die gespeicherte Version.
-  // Ohne Baseline (neuer/nie gespeicherter Charakter) → keine Hervorhebung.
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
   const savedField = (key: string): unknown => (saved as Record<string, unknown> | null | undefined)?.[key];
 
-  // Welcher Picker offen steht, liegt hier und nicht im Unterformular: `applyFix`
-  // schließt ihn beim Nachziehen.
+  // Der offene Picker liegt hier, nicht im Unterformular: `applyFix` schließt ihn.
   let editingClassRow = $state(-1);
   let editingSpecies = $state(!form.species.sourceKey && !form.species.name.trim());
   let editingBackground = $state(!form.backgroundRef.sourceKey && !form.backgroundRef.name.trim());
@@ -95,15 +88,13 @@
     editingBackground = false;
   }
 
-  // Übungs-Grants aus den Bibliotheks-Links: deterministisch abgeleitet (Hintergrund +
-  // Startklasse + Mehrklassen + Spezies-Merkmale + Talente). Im Editor NUR Herkunfts-
-  // ANZEIGE (◆) — das aktive „Übernehmen" gehört in Erstellung/Level-Up.
+  // Im Editor NUR Herkunfts-ANZEIGE (◆) — das aktive „Übernehmen" gehört in
+  // Erstellung und Level-Up.
   let grants = $state<CollectedGrants | null>(null);
 
   // Nur die LINKS sind Abhängigkeit — nicht die Häkchen, sonst lüde es bei jedem Klick neu.
-  // Die Talent-Links kommen direkt aus dem Draft (die Seitenleiste pflegt sie): so ziehen
-  // die ◆-Herkunftsmarker nach, sobald dort ein Talent dazukommt. Kein Read-after-Write,
-  // weil der Rückschreib-Effekt `features` nicht schreibt.
+  // Die Talent-Links kommen aus dem Draft, damit die ◆-Marker nachziehen, sobald die
+  // Seitenleiste ein Talent ergänzt; kein Read-after-Write, sie schreibt hier nichts.
   const grantLinks = $derived.by(() => ({
     classes: form.classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, subclassKey: c.subclassKey })),
     species: { sourceKey: form.species.sourceKey, subspeciesKey: form.species.subspeciesKey },
@@ -120,7 +111,6 @@
     return () => { cancelled = true; };
   });
 
-  /** Herkunfts-Marker je Bogen-Fertigkeit: „Soldat", „Schurke (Wahl)", … */
   const grantMarks = $derived.by(() => {
     const marks = new Map<string, string[]>();
     const add = (en: SkillName, label: string) => {
@@ -135,15 +125,12 @@
     return marks;
   });
 
-  /** Herkunfts-Labels zu einem gewährten Wert („Schurke · Soldat"); leer = kein Grant. */
   function grantSourcesFor(entries: { value: string; source: { label: string } }[] | undefined, value: string): string {
     return (entries ?? []).filter((e) => e.value === value).map((e) => e.source.label).join(' · ');
   }
 
-  // Waffenbeherrschung (5e 2024): anders als beim Grant-Panel sind die Übungs-HÄKCHEN
-  // hier Eingabe — „zwei Waffenarten deiner Wahl, in denen du geübt bist". Ein Klick auf
-  // „Kriegswaffen" darf die Auswahlmenge sofort ändern; teuer ist das nicht, weil der
-  // Item-Index gecacht ist.
+  // Anders als beim Grant-Panel sind die Übungs-Häkchen hier EINGABE: ein Klick auf
+  // „Kriegswaffen" ändert die wählbaren Waffen sofort.
   let mastery = $state<MasteryOffer | null>(null);
 
   const masteryInput = $derived.by(() => ({
@@ -163,9 +150,8 @@
     return () => { cancelled = true; };
   });
 
-  // Nachziehbarer Altbestand: Erkennung UND Verlinkung liegen in
-  // `services/characterLegacyLinks.ts`; hier bleiben nur der Zustand, den es mutiert,
-  // und der UI-Nachlauf (Anzeige-Spiegel, offene Picker).
+  // Erkennung UND Verlinkung liegen in `services/characterLegacyLinks.ts`; hier bleiben
+  // nur der mutierte Zustand und der UI-Nachlauf.
   const legacyTarget = $derived<LegacyLinkTarget>({
     classes: form.classes,
     legacyClassLevel: mirror.legacyClassLevel,
@@ -182,11 +168,7 @@
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
 
-  /**
-   * Zieht ein Angebot nach und räumt hinterher die UI auf: `race`/`background` sind
-   * abgeleitete Anzeige-Strings (auch fürs PDF), und ein frisch verlinktes Feld soll als
-   * Bibliotheks-Link statt als offener Picker erscheinen.
-   */
+  /** `race`/`background` sind abgeleitete Anzeige-Strings — auch fürs PDF. */
   function applyFix(fix: LegacyFix | undefined) {
     if (!fix) return;
     fix.apply();
@@ -198,9 +180,8 @@
   }
 
   /**
-   * Sammel-Aktion des Hinweises oben: alles Nachziehbare auf einmal. Der Schema-Stempel
-   * der DATEI fasst den Draft nicht an und läuft darum über `onAcceptUpgrade` beim
-   * Eltern-Editor, sonst bliebe die Speichern-Leiste unerreichbar.
+   * Der Schema-Stempel der DATEI fasst den Draft nicht an und läuft darum über
+   * `onAcceptUpgrade`, sonst bliebe die Speichern-Leiste unerreichbar.
    */
   function applyAllFixes() {
     for (const fix of legacyFixes) applyFix(fix);
@@ -209,7 +190,6 @@
 </script>
 
 <div class="edit-form">
-  <!-- Speichern/Verwerfen übernimmt die EditorPanel-Save-Bar (kein eigener Button). -->
   <UpgradeBanner {pendingUpgrade} {upgradeAccepted} fixLabels={legacyFixes.map((f) => f.label)} onapply={applyAllFixes} />
 
   <section>

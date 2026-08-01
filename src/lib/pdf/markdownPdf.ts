@@ -1,13 +1,7 @@
 /**
- * Rendert Markdown in zusätzliche PDF-Seiten (pdf-lib).
- *
- * Wird vom Charakter-Export genutzt, um den Freitext des Charakters als
- * weitere Seite(n) an das ausgefüllte Charakterbogen-PDF anzuhängen.
- *
- * Unterstützt: Überschriften (H1–H6), Absätze, fett/kursiv/durchgestrichen,
- * Inline-Code, Code-Blöcke, Aufzählungen (geordnet/ungeordnet, verschachtelt),
- * Zitate und horizontale Linien. Komplexere Konstrukte (Tabellen, Bilder) werden
- * als Klartext bestmöglich dargestellt.
+ * Rendert Markdown als zusätzliche PDF-Seiten (pdf-lib) — der Freitext hinter dem
+ * ausgefüllten Charakterbogen. Was der Renderer unten nicht kennt (Tabellen, Bilder),
+ * landet als Klartext auf der Seite statt zu fehlen.
  */
 import { PDFDocument, PDFFont, StandardFonts, rgb, type RGB } from 'pdf-lib';
 import { marked, type Token, type Tokens } from 'marked';
@@ -40,7 +34,6 @@ interface Cursor {
   fonts: Fonts;
 }
 
-/** Ein gestyltes Text-Stück innerhalb einer Zeile. */
 interface Run {
   text: string;
   font: PDFFont;
@@ -53,7 +46,6 @@ function newPage(cur: Cursor) {
   cur.y = PAGE_HEIGHT - MARGIN;
 }
 
-/** Stellt sicher, dass mindestens `needed` Punkte Platz auf der Seite sind. */
 function ensureSpace(cur: Cursor, needed: number) {
   if (cur.y - needed < MARGIN) newPage(cur);
 }
@@ -66,7 +58,6 @@ function pickFont(fonts: Fonts, bold: boolean, italic: boolean, code: boolean): 
   return fonts.regular;
 }
 
-/** Wandelt Inline-Tokens (marked) rekursiv in gestylte Runs um. */
 function inlineRuns(
   tokens: Token[] | undefined,
   fonts: Fonts,
@@ -114,10 +105,7 @@ function inlineRuns(
   return runs;
 }
 
-/**
- * WinAnsi (Standardfonts) deckt nicht alle Unicode-Zeichen ab. Häufige
- * Sonderzeichen ersetzen, damit das Encoding beim Zeichnen nicht wirft.
- */
+/** WinAnsi deckt nicht ganz Unicode ab — ohne Ersatz wirft das Encoding beim Zeichnen. */
 function sanitize(s: string): string {
   return (s ?? '')
     .replace(/[‘’‚‹›]/g, "'")
@@ -126,14 +114,12 @@ function sanitize(s: string): string {
     .replace(/…/g, '...')
     .replace(/ /g, ' ')
     .replace(/[•]/g, '-')
-    // alles außerhalb des druckbaren WinAnsi-Bereichs (+ Zeilenumbruch/Tab) entfernen
     .replace(/[^\n\t\x20-\xFF]/g, '');
 }
 
-/** Bricht Runs in Zeilen um und zeichnet sie ab x mit Zeilenhöhe lineHeight. */
 function drawRuns(cur: Cursor, runs: Run[], x: number, lineHeight: number) {
   const maxWidth = PAGE_WIDTH - MARGIN - x;
-  // Runs in Wort-Einheiten zerlegen (Style bleibt erhalten).
+  // Umbruch je Wort statt je Run — der Style muss dabei am Wort hängen bleiben.
   type Word = { text: string; font: PDFFont; size: number; color: RGB; hardBreak?: boolean };
   const words: Word[] = [];
   for (const run of runs) {
@@ -203,9 +189,9 @@ function drawList(cur: Cursor, token: Tokens.List, depth = 0) {
   for (const item of token.items) {
     const marker = token.ordered ? `${n}.` : '-';
     n++;
-    // Marker zeichnen
     const lh = 10.5 * 1.5;
-    // Zuerst Text der Item-Tokens sammeln und zeichnen; Marker auf erste Zeile setzen
+    // Erst die Item-Tokens sammeln: der Marker muss auf der ERSTEN Zeile sitzen, seine
+    // y-Position steht also erst fest, wenn der Umbruch des Textes bekannt ist.
     const inlineTokens: Token[] = [];
     const subLists: Tokens.List[] = [];
     for (const sub of item.tokens) {
@@ -214,7 +200,6 @@ function drawList(cur: Cursor, token: Tokens.List, depth = 0) {
       else if (sub.type === 'paragraph') inlineTokens.push(...((sub as Tokens.Paragraph).tokens ?? []));
     }
     ensureSpace(cur, lh);
-    // Marker links vom Text
     const markerY = cur.y - lh;
     cur.page.drawText(marker, { x: indent - 12, y: markerY, size: 10.5, font: cur.fonts.regular, color: INK_SOFT });
     const runs = inlineRuns(inlineTokens, cur.fonts, 10.5, INK);
@@ -235,7 +220,6 @@ function drawBlockquote(cur: Cursor, token: Tokens.Blockquote) {
       cur.y -= 4;
     }
   }
-  // Zitatbalken links zeichnen
   cur.page.drawRectangle({
     x: MARGIN + 2,
     y: cur.y,
@@ -269,12 +253,7 @@ function drawHr(cur: Cursor) {
   cur.y -= 8;
 }
 
-/**
- * Hängt den gerenderten Markdown-Text als neue Seite(n) an das Dokument an.
- * Gibt nichts zurück (mutiert das übergebene PDFDocument).
- *
- * @param title  Optionale Überschrift, die als H1 oben auf der ersten neuen Seite steht.
- */
+/** Mutiert `pdf`: hängt die Seiten an, `title` wird zur H1 der ersten neuen Seite. */
 export async function appendMarkdownPages(
   pdf: PDFDocument,
   markdown: string,

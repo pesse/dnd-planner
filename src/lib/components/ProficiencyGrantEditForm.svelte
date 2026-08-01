@@ -1,10 +1,8 @@
 <script lang="ts">
   /**
-   * Editor für einen `proficiencyGrant` — die geschlossenen Übungs-Vokabulare.
-   * Wird von allen vier Bibliotheks-Editoren benutzt (Klasse, Hintergrund,
-   * Spezies-Merkmal, Talent); `scope="skills"` blendet alles außer den
-   * Fertigkeiten aus, weil Hintergründe/Merkmale/Talente im SRD 5.2 nur diese
-   * gewähren.
+   * Editor der geschlossenen Übungs-Vokabulare, von allen vier Bibliotheks-Editoren
+   * benutzt. `scope="skills"` blendet alles außer den Fertigkeiten aus, weil
+   * Hintergrund, Merkmal und Talent im SRD 5.2 nur diese gewähren.
    */
   import { ABILITY_NAMES } from '$lib/schemas/abilities';
   import { ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/vocabulary';
@@ -20,7 +18,6 @@
     onchange = () => void 0,
   }: {
     grant: ProficiencyGrant;
-    /** 'skills' = nur Fertigkeiten (Hintergrund/Merkmal/Talent). */
     scope?: 'full' | 'skills';
     onchange?: () => void;
   } = $props();
@@ -40,8 +37,8 @@
     onchange();
   }
 
-  // `weaponsOther` sind Einzel-/Sonderregeln („Martial weapons that have the Light
-  // property") — englischer Freitext, eine Zeile mit Semikolon getrennt.
+  // Englischer Freitext („Martial weapons that have the Light property"), eine Zeile
+  // mit Semikolon getrennt.
   let otherText = $state(grant.weaponsOther.join('; '));
 
   function onOtherInput() {

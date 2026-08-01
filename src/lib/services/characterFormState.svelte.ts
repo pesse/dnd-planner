@@ -1,7 +1,6 @@
 /**
- * Der Formularzustand des Charakter-Editors: einmal aus dem Draft gefüllt, dann über
- * EINEN Effekt fortlaufend dorthin zurückgespiegelt (Dirty-Tracking und Save-Bar des
- * EditorPanel greifen ohne eigenen Speichern-Knopf).
+ * Formularzustand des Charakter-Editors: aus dem Draft gefüllt und über EINEN Effekt dorthin
+ * zurückgespiegelt — nur so greifen Dirty-Tracking und Save-Bar ohne eigenen Knopf.
  */
 import {
   formDraftPatch, initialFormCarry, initialFormFields, type CharacterFormFields,

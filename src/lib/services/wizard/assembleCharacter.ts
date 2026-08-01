@@ -44,10 +44,8 @@ import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 import { keySlug } from '$lib/utils/text';
 
-/** Antwort auf eine deklarierte Wahl, per Wahl-Id. */
 type AnswerLookup = (id: string) => string;
 
-/** Leerer Charakter im aktuellen Schemaformat (wie `Sidebar.createCharacter`). */
 function blankCharacter(name: string): Character {
   return {
     _version: CHARACTER_VERSION,
@@ -94,10 +92,8 @@ function applyLinks(c: Character, w: CharacterWizard): void {
 }
 
 /**
- * `character.speed` ist eine reine Meterzahl (der Editor lässt nichts anderes zu, der Bogen
- * hängt das „m" selbst an). Das Speed-Merkmal liefert aber Prosa: „9 Meter" / „30 feet".
- * Die deutsche Seite ist bereits metrisch, die englische wird umgerechnet — sonst stünden
- * 30 Fuß als „30 Meter" im Bogen.
+ * `character.speed` ist eine reine METERZAHL, das Speed-Merkmal liefert Prosa („9 Meter" /
+ * „30 feet"). Die englische Fassung wird umgerechnet, sonst stünden 30 Fuß als 30 Meter da.
  */
 function metersFromSpeedText(de?: string, en?: string): string {
   const deNum = (de ?? '').match(/\d+(?:[.,]\d+)?/)?.[0];
@@ -106,7 +102,6 @@ function metersFromSpeedText(de?: string, en?: string): string {
   return feet ? String(ftToMVal(parseFloat(feet))).replace('.', ',') : '';
 }
 
-/** Bogenwerte der Spezies — deutsch aus den Merkmalen, die Felder selbst sind leer. */
 function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: AnswerLookup): void {
   const speedTrait = spec?.traits.find((t) => /(_speed$|^speed$)/i.test(t.key) || t.name.toLowerCase() === 'speed');
   c.speed = metersFromSpeedText(speedTrait?.descDe, speedTrait?.desc || spec?.speed);
@@ -114,8 +109,8 @@ function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: A
 }
 
 /**
- * Point-Buy → Hintergrund-ASI → Talent-/Merkmals-Erhöhungen. Die Reihenfolge ist tragend:
- * erst danach dürfen Modifikatoren und HP fallen, sonst ist der KON-Mod veraltet.
+ * Point-Buy → Hintergrund-ASI → Merkmals-Erhöhungen. Modifikatoren und TP dürfen erst
+ * DANACH fallen, sonst rechnen sie mit einem veralteten KON-Mod.
  */
 function finalScores(w: CharacterWizard): AbilityScores {
   const scores = applyAsi(w.scores, w.asi);
@@ -133,7 +128,6 @@ function applyScores(c: Character, scores: AbilityScores): void {
   }
 }
 
-/** Trefferwürfel-Max + KON-Mod + pro-Stufe-Boni (Zäh, Zwergische Zähigkeit) für Stufe 1. */
 function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
   const hitDie = prog?.hitDie ?? 0;
   if (hitDie <= 0) return;
@@ -143,11 +137,8 @@ function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression
 }
 
 /**
- * Übungen: verlinkte Artefakte + eigene Wahl + Rider, alles über EINE Senke.
- *
- * Die Assembly wendete dieselben Daten früher von Hand an, während der Aufstieg über
- * `Change[]` ging. Zwei Senken, die auseinanderliefen: die des Aufstiegs verlor
- * Rettungswürfe, Werkzeuge, Sprachen und die eingeschränkten Waffen-Übungen still.
+ * Verlinkte Artefakte + eigene Wahl + Rider, alles über EINE Senke (`applyChanges`) — zwei
+ * Senken liefen hier schon einmal auseinander und verloren dabei still ganze Übungsarten.
  */
 async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: AnswerLookup): Promise<void> {
   const grants = await collectGrants({
@@ -164,8 +155,8 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
     [
       ...proficiencyGrantChanges(
         {
-          // Feste Grants und die im Fertigkeitsschritt getroffene Wahl sind am Charakter
-          // dasselbe Häkchen — die Provenienz bleibt in `collectGrants`, nicht am Bogen.
+          // Feste Grants und die getroffene Wahl sind am Charakter dasselbe Häkchen — die
+          // Provenienz bleibt in `collectGrants`, nicht am Bogen.
           skills: { fixed: [...grants.skills.map((g) => g.value), ...(w.chosenSkills as SkillName[])], choose: 0, from: [] },
           savingThrows: grants.savingThrows.map((g) => g.value),
           weapons: grants.weapons.map((g) => g.value),
@@ -177,10 +168,8 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
       // Der GETTER, nicht das rohe Job-Ergebnis: er hängt die Rider der deklarierten
       // Zweigwahlen an (Urtümlicher Orden → Kriegswaffen), die kein Modell geliefert hat.
       ...riderGrantChanges(w.riders, { step: 'wizard-features', source: 'class-feature' }),
-      // Was die Deklaration gewährt, der Rider aber nicht tragen kann (eingeschränkte
-      // Waffen-Übungen, Grundeigenschaften) — im Aufstieg macht das `buildDoc` an derselben
-      // Stelle. Steht bewusst NACH `applySpeciesSheetValues`: der deklarierte Wert
-      // überschreibt den geparsten, Reihenfolge ist der Vorrang.
+      // Was die Deklaration gewährt, der Rider aber nicht tragen kann. Bewusst NACH
+      // `applySpeciesSheetValues`: der deklarierte Wert überschreibt den geparsten.
       ...declaredGrantChanges(w.declared, { step: 'wizard-features', source: 'class-feature' }),
       ...characterPropertyAnswerChanges(w.declared, answerOf, {
         step: 'wizard-features',
@@ -191,7 +180,6 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
   );
 }
 
-/** Fertigkeitswerte aus den gesetzten Häkchen: Attribut-Mod + Übungsbonus, Expertise ×2. */
 function applySkillValues(c: Character, scores: AbilityScores): void {
   for (const def of SKILL_DEFS) {
     const row = c.skills[def.key];
@@ -201,10 +189,9 @@ function applySkillValues(c: Character, scores: AbilityScores): void {
 }
 
 /**
- * Merkmals-Ledger: getroffene Aufbau-Entscheidungen aus BEIDEN Kanälen (KI-Analyse und
- * deklarierte Wahlen), weil beide Aufbau-Entscheidungen sind — der Zauber-Zugang eines
- * Talents (Liste, Attribut) ist so dauerhaft wie eine Subklassen-Wahl. Zauber-Wahlen tragen
- * `isBuildDecision: false`; die gewählten Zauber stehen im Zauber-Block.
+ * Aus BEIDEN Kanälen (KI-Analyse und deklarierte Wahlen): der Zauber-Zugang eines Talents ist
+ * so dauerhaft wie eine Subklassen-Wahl. Zauber-Wahlen selbst tragen `isBuildDecision: false`
+ * — sie stehen im Zauber-Block.
  */
 function applyFeatureLedger(c: Character, w: CharacterWizard): void {
   const byId = new Map(w.featureChoices.map((ch) => [ch.id, ch]));
@@ -223,7 +210,6 @@ function applyFeatureLedger(c: Character, w: CharacterWizard): void {
   }
 }
 
-/** Die deterministischen Klassenwerte des Zauberblocks (SG, Angriff, Plätze). */
 function applySpellcastingValues(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
   const abilityKey = CASTER_ABILITY_KEY[keySlug(w.klass.sourceKey)];
   if (!prog || prog.casterType === 'NONE' || !abilityKey) return;
@@ -237,14 +223,12 @@ function applySpellcastingValues(c: Character, w: CharacterWizard, prog: ClassPr
 }
 
 /**
- * Die gewählten und die gewährten Zauber. Reihenfolge ist Vorrang: die eigene Wahl zuerst
- * (ihre Namen sind kanonisch aus der Bibliothek und legen die Vorbereitungs-Markierung fest),
- * dann Rider-Zauber, zuletzt die deklarierten Listen.
+ * Reihenfolge ist Vorrang: die eigene Wahl zuerst (ihre Namen sind kanonisch und legen die
+ * Vorbereitungs-Markierung fest), dann Rider-Zauber, zuletzt die deklarierten Listen.
  */
 async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> {
-  // Nur Picks zu Wahlen, die es JETZT noch gibt: wer im Merkmals-Schritt die Zauberliste
-  // wechselt (oder dessen Analyse neu lief), lässt sonst die Zauber der alten Liste im
-  // Zustand zurück — sie würden hier stumm mit auf den Bogen wandern.
+  // Nur Picks zu Wahlen, die es JETZT noch gibt: wer die Zauberliste wechselt, ließe sonst
+  // die Zauber der alten im Zustand zurück und stumm mit auf den Bogen wandern.
   const livePickIds = new Set(w.spellPickChoices.map((ch) => ch.id));
   const featurePicks = Object.entries(w.featureSpellPicks)
     .filter(([id]) => livePickIds.has(id))
@@ -256,8 +240,7 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
   const riders = w.riders;
   if (!hasPicks && !riders.length && !spellGrantFeatures.length) return;
 
-  // Zauber per Key an die Bibliothek binden (wie inventory[].sourceKey); Namens-Fallback
-  // bleibt, wenn kein eindeutiger Key auflöst. Index einmal für alle Zweige.
+  // Zauber per Key an die Bibliothek binden; ohne eindeutigen Key bleibt der Namens-Fallback.
   const spellLib = await getSpellLibrary();
   const spellIndex = buildSpellIndex(spellLib);
   const linkRef = (name: string): { sourceKey?: string } => {
@@ -311,9 +294,8 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
 }
 
 /**
- * Kampfstile als Talent-Links im Merkmals-Ledger: ein Kampfstil ist ein echtes Talent
- * (z.B. Verteidigung), daher ein Link per sourceKey — NICHT ein bloßer Name wie bei der
- * Waffenbeherrschung. Die Mechanik löst der Bogen wie bei jedem Talent-Link auf.
+ * Ein Kampfstil ist ein echtes Talent, also ein Link per `sourceKey` — NICHT ein bloßer Name
+ * wie bei der Waffenbeherrschung. Die Mechanik löst der Bogen wie bei jedem Talent-Link auf.
  */
 async function applyFightingStyles(c: Character, w: CharacterWizard): Promise<void> {
   if (!w.fightingStyles.length) return;
@@ -324,10 +306,9 @@ async function applyFightingStyles(c: Character, w: CharacterWizard): Promise<vo
   }
 }
 
-/** Merkmals-Text (KI) plus die deterministischen Zeilen der Deklarationen. */
 function applyFeatureText(c: Character, w: CharacterWizard, answerOf: AnswerLookup): void {
-  // Dieselbe Funktion wie im Aufstieg: der Zugang hat keinen Rider, der eine Notiz schreiben
-  // könnte, und ohne die Zeile stünde das gewählte Attribut nirgends auf dem Bogen.
+  // Der Zugang hat keinen Rider, der eine Notiz schreiben könnte — ohne diese Zeile stünde
+  // das gewählte Attribut nirgends auf dem Bogen.
   const accessNotes = spellAccessNoteLines(
     w.spellAccess,
     Object.fromEntries(w.declaredAnswers.map((a) => [a.id, a.choice])),
@@ -340,7 +321,6 @@ function applyFeatureText(c: Character, w: CharacterWizard, answerOf: AnswerLook
   c.personal.rassenmerkmale = w.speciesText.result?.text?.trim() ?? '';
 }
 
-/** Ausrüstung aus den gewählten Optionen der KI-Aufbereitung. */
 async function applyEquipment(c: Character, w: CharacterWizard): Promise<void> {
   const eq = w.selectedEquipment();
   if (!eq.items.length && eq.goldPieces <= 0) return;
@@ -360,7 +340,6 @@ async function applyEquipment(c: Character, w: CharacterWizard): Promise<void> {
   if (eq.goldPieces > 0) c.currency.gm = String(eq.goldPieces);
 }
 
-/** Baut den vollständigen Charakter aus dem Wizard-Zustand. */
 export async function buildWizardCharacter(w: CharacterWizard): Promise<Character> {
   const c = blankCharacter(w.name.trim() || 'Neuer Charakter');
   const [prog, spec] = await Promise.all([

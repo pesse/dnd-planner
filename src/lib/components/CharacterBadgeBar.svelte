@@ -4,7 +4,6 @@
   import { campaignCharacterData, reloadCampaignCharacters } from '../stores/context';
   import { parseFrontmatter, replaceFrontmatterCharacters } from '../utils/frontmatter';
 
-  // Aktuell in der Datei gespeicherte Charakter-Slugs (aus Frontmatter)
   let activeSlugs = $derived(
     (() => {
       if ($activeFile?.type === 'campaign') {
@@ -13,18 +12,16 @@
       if ($activeFile?.type === 'session' && $fileContent) {
         const { frontmatter } = parseFrontmatter($fileContent);
         if (frontmatter.characters !== undefined) return frontmatter.characters;
-        // Kein Frontmatter-Key → implizit alle Kampagnen-Chars
+        // Kein Frontmatter-Key heißt: implizit alle Kampagnen-Charaktere.
         return $campaignCharacterData.map((c) => c.slug);
       }
       return [] as string[];
     })()
   );
 
-  // Angezeigte Badge-Daten (CharacterCompact oder nur Slug, falls noch nicht geladen)
   let characterBadges = $derived(
     (() => {
       const slugSet = new Set(activeSlugs);
-      // Bereichere mit geladenen Daten, zeige sonst nur den Slug
       const rich = $campaignCharacterData.filter((c) => slugSet.has(c.slug));
       const richSlugs = new Set(rich.map((c) => c.slug));
       const plain = activeSlugs
@@ -34,14 +31,12 @@
     })()
   );
 
-  // Verfügbare Chars zum Hinzufügen: alle Vault-Chars nicht bereits drin
   let allVaultSlugs = $state<string[]>([]);
   let showCharPicker = $state(false);
 
   let pickerSlugs = $derived(
     (() => {
       const current = new Set(activeSlugs);
-      // Session: nur Kampagnen-Chars anbieten; Kampagne: alle Vault-Chars
       const pool = $activeFile?.type === 'session'
         ? $campaignCharacterData.map((c) => c.slug)
         : allVaultSlugs;
@@ -77,7 +72,6 @@
     updateSlugs([...activeSlugs, slug]);
   }
 
-  // Picker öffnen → Vault-Slugs laden (falls noch nicht geschehen)
   function togglePicker() {
     if (!showCharPicker) loadVaultSlugs();
     showCharPicker = !showCharPicker;

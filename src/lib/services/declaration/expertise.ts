@@ -1,11 +1,7 @@
 /**
- * Expertise (`grantsChoice.kind === 'expertise'`) — der einzige `kind`, dessen Optionen
- * NICHT im Vault stehen KÖNNEN: „Expertise in zwei deiner Fertigkeitsübungen deiner Wahl"
- * heißt, die Liste ist der Übungsstand dieses Charakters. Deklariert wird nur die Anzahl.
- *
- * Genau darum konnte die KI hier nie liefern: `buildFeatureEffectsInput` schickt bewusst
- * keine Charakter-Zusammenfassung mit, das Modell kennt die geübten Fertigkeiten also nicht
- * — es konnte nur eine Auswahlliste erfinden.
+ * Expertise — der einzige `grantsChoice.kind`, dessen Optionen NICHT im Vault stehen können:
+ * die Liste ist der Übungsstand DIESES Charakters, deklariert wird nur die Anzahl. Die KI
+ * kennt ihn nicht (`buildFeatureEffectsInput` schickt keine Charakter-Zusammenfassung mit).
  */
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
@@ -24,12 +20,8 @@ export const expertiseChoiceId = (f: DeclaredChoiceSource): string =>
   `expertise_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
 /**
- * Die Expertise-Wahl: `count` aus den geübten Fertigkeiten, die noch keine Expertise haben.
- * Ohne geübte Fertigkeit gibt es keine Wahl (statt einer leeren Liste) — das passiert nur
- * bei kaputten Altdaten, und eine unbeantwortbare Frage würde den Checkpoint blockieren.
- *
- * `already` fällt heraus, weil Expertise nicht stapelbar ist: der Schurke wählt auf Stufe 6
- * zwei WEITERE, nicht dieselben.
+ * Ohne geübte Fertigkeit gar keine Wahl statt einer leeren Liste — eine unbeantwortbare Frage
+ * würde den Checkpoint blockieren. `already` fällt heraus, weil Expertise nicht stapelbar ist.
  */
 export function expertiseChoice(
   f: DeclaredChoiceSource,

@@ -6,33 +6,31 @@
 import type { LevelUpDelta } from '../levelUp';
 
 /**
- * Ein Schritt der Aufstiegs-Zustandsmaschine. `checkpoint` = die Maschine hält an
- * und die UI rendert (Nutzer-Interaktion nötig); `deterministic`/`ai` = Arbeits-
- * schritte, die die Komponente ohne Halt durchläuft. `running` ist KEIN Step,
+ * Bei `checkpoint` hält die Maschine an und die UI rendert. `running` ist KEIN Step,
  * sondern transienter UI-Zustand der Komponente während eines async-Arbeitsschritts.
  */
 export type StepKind = 'deterministic' | 'ai' | 'checkpoint';
 export type StepId =
-  | 'choose-class'        // checkpoint
-  | 'base-delta'          // det.
-  | 'subclass-choice'     // checkpoint
-  | 'subclass-delta'      // det.
-  | 'feature-analysis'    // ai (Call 1: Choices ermitteln)
-  | 'feature-choices'     // checkpoint (Wahlen direkt nach Call 1)
-  | 'feature-effects'     // ai (Call C: finalisieren)
-  | 'player-decisions'    // checkpoint
-  | 'assemble-decisions'  // det.
-  | 'feat-choice'         // checkpoint
-  | 'feat-links'          // det.
-  | 'feat-analysis'       // ai (Call 1, Talente)
-  | 'feat-choices'        // checkpoint (Talent-Wahlen)
-  | 'feat-effects'        // ai (Call C, Talente)
-  | 'narrative'           // ai (C)
-  | 'ongoing-effects'     // ai (F)
-  | 'class-features-merge'// ai (D: Freitext + sheetNotes verschmelzen)
-  | 'class-features'      // checkpoint (+ D erneut auf Klick)
-  | 'review'              // checkpoint
-  | 'done';               // terminal
+  | 'choose-class'
+  | 'base-delta'
+  | 'subclass-choice'
+  | 'subclass-delta'
+  | 'feature-analysis'    // Call 1: Choices ermitteln
+  | 'feature-choices'
+  | 'feature-effects'     // Call C: finalisieren
+  | 'player-decisions'
+  | 'assemble-decisions'
+  | 'feat-choice'
+  | 'feat-links'
+  | 'feat-analysis'       // Call 1, Talente
+  | 'feat-choices'
+  | 'feat-effects'        // Call C, Talente
+  | 'narrative'
+  | 'ongoing-effects'
+  | 'class-features-merge'// Freitext + sheetNotes verschmelzen
+  | 'class-features'      // Checkpoint, stößt das Verschmelzen erneut an
+  | 'review'
+  | 'done';
 
 export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
   'choose-class':      { kind: 'checkpoint',    label: 'Klasse & Zielstufe' },
@@ -59,7 +57,6 @@ export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
 
 export const isCheckpoint = (s: StepId): boolean => STEP_META[s].kind === 'checkpoint';
 
-/** Laufzeit-Kontext für die Übergangsentscheidung (aus dem Komponenten-State). */
 export interface AdvanceCtx {
   delta: LevelUpDelta;
   featsToPick: number;  // countFeatsToPick(delta, answers)
@@ -68,12 +65,8 @@ export interface AdvanceCtx {
 }
 
 /**
- * Nächster Schritt nach `from`. Eine bewusst lineare, lesbare Funktion mit den
- * Verzweigungen des Ablaufs (Subklasse? / erkannte Wahlen? / Talente?) — KEINE rigide
- * Übergangstabelle. Merkmale (und Talente) laufen als Analyse → [Wahlen] → Effekte:
- * erkennt Call 1 erzwungene Wahlen, hält die Maschine DIREKT DANACH am Choice-Checkpoint
- * an; der finalisierende Effekt-Call folgt mit der getroffenen Entscheidung. Die Komponente
- * läuft Arbeitsschritte ab, bis ein Checkpoint kommt:
+ * Bewusst eine lineare Funktion statt einer Übergangstabelle — die Verzweigungen bleiben
+ * lesbar. Der Aufrufer läuft Arbeitsschritte ab, bis ein Checkpoint kommt:
  * `while (!isCheckpoint(next)) { await run(next); next = advance(next, ctx); }`.
  */
 export function advance(from: StepId, ctx: AdvanceCtx): StepId {
@@ -82,7 +75,7 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
     case 'base-delta':         return needsSubclassChoice(ctx.delta) ? 'subclass-choice' : 'feature-analysis';
     case 'subclass-choice':    return 'subclass-delta';
     case 'subclass-delta':     return 'feature-analysis';
-    // Merkmale: Analyse (Call 1) → bei erkannten Wahlen anhalten → Effekte (Call C).
+    // Analyse → bei erkannten Wahlen anhalten → Effekte, mit der getroffenen Entscheidung.
     case 'feature-analysis':   return ctx.baseChoices > 0 ? 'feature-choices' : 'feature-effects';
     case 'feature-choices':    return 'feature-effects';
     case 'feature-effects':    return 'player-decisions';
@@ -90,7 +83,6 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
     case 'assemble-decisions': return ctx.featsToPick > 0 ? 'feat-choice' : 'narrative';
     case 'feat-choice':        return 'feat-links';
     case 'feat-links':         return 'feat-analysis';
-    // Talente: analog Analyse → [Wahlen] → Effekte.
     case 'feat-analysis':      return ctx.featChoices > 0 ? 'feat-choices' : 'feat-effects';
     case 'feat-choices':       return 'feat-effects';
     case 'feat-effects':       return 'narrative';
@@ -104,10 +96,8 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
 }
 
 /**
- * Zeitliche Gesamtreihenfolge ALLER Schritte (Checkpoints + interne). Bestimmt, welche
- * Änderungen im Dokument bereits „gelaufen" sind: ein Schritt ist erreicht, sobald der
- * aktuelle Phasenstand ihn erreicht oder überschritten hat. Verhindert, dass das Dokument
- * Einträge künftiger Schritte zeigt (z.B. Trefferpunkte VOR dem Entscheidungs-Checkpoint).
+ * Zeitliche Gesamtreihenfolge ALLER Schritte — verhindert, dass das Dokument Einträge
+ * künftiger Schritte zeigt (Trefferpunkte VOR dem Entscheidungs-Checkpoint).
  */
 const TIMELINE: StepId[] = [
   'choose-class', 'base-delta', 'subclass-choice', 'subclass-delta',
@@ -117,7 +107,6 @@ const TIMELINE: StepId[] = [
   'class-features-merge', 'class-features', 'review', 'done',
 ];
 
-/** Ist der (Builder-)Schritt `step` beim aktuellen Phasenstand `current` bereits gelaufen? */
 export function stepReached(current: StepId, step: string): boolean {
   const ci = TIMELINE.indexOf(current);
   const si = TIMELINE.indexOf(step as StepId);
@@ -125,11 +114,7 @@ export function stepReached(current: StepId, step: string): boolean {
   return ci >= si;
 }
 
-/**
- * Nächster Schritt nach `feature-effects`/`player-decisions`. Reine Skip-Logik;
- * die async-Arbeit (Delta, KI) orchestriert die Komponente. `homebrew` wird separat
- * behandelt (Rückfall auf den alten Frage-→-Vorschlag-KI-Pfad).
- */
+/** `homebrew` fällt hier durch — dort greift der Frage-→-Vorschlag-KI-Pfad. */
 export function needsSubclassChoice(delta: LevelUpDelta): boolean {
   return delta.triggersSubclassChoice && !delta.subclassKey && delta.subclassOptions.length > 0;
 }

@@ -1,7 +1,6 @@
 /**
- * Angriffswerte im Auto-Modus: Bonus, Schaden, Herleitungs-Tooltips und die
- * Vergleichsform fürs Diff-Highlighting. Rein — die Attributsmodifikatoren und
- * der Übungsbonus kommen als `AttackCalcContext` herein.
+ * Angriffswerte im Auto-Modus: Bonus, Schaden, Herleitungs-Tooltips, Vergleichsform.
+ * Rein — Attributsmodifikatoren und Übungsbonus kommen als `AttackCalcContext` herein.
  */
 import { sign } from '../utils/num';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
@@ -28,7 +27,6 @@ export function attackAbilityMod(a: Pick<Attack, 'ability'>, ctx: AttackCalcCont
   return ctx.strMod;
 }
 
-/** Summe der benannten Zusatzeffekte, getrennt nach Angriffswurf und Schaden. */
 export function attackModifierTotals(a: Attack): { attack: number; damage: number } {
   let attack = 0, damage = 0;
   for (const m of a.modifiers ?? []) {
@@ -38,13 +36,12 @@ export function attackModifierTotals(a: Attack): { attack: number; damage: numbe
   return { attack, damage };
 }
 
-/** Angriffsbonus = Attributsmod + (geübt ? Übungsbonus) + magischer Bonus + Zusatzeffekte. */
 export function computeAttackBonus(a: Attack, ctx: AttackCalcContext): string {
   return sign(attackAbilityMod(a, ctx) + (a.proficient ? ctx.proficiencyBonus : 0)
     + (a.magicBonus ?? 0) + attackModifierTotals(a).attack);
 }
 
-/** Schaden = Würfel + Attributsmod + magischer Bonus + Zusatzeffekte (Übungsbonus zählt NICHT). */
+/** Der Übungsbonus zählt hier NICHT mit — nur beim Angriffswurf. */
 export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
   const base = (a.baseDamage ?? '').trim();
   if (!base) return '';
@@ -52,10 +49,7 @@ export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
   return base + (m !== 0 ? sign(m) : '');
 }
 
-/**
- * Mehrzeilige Herleitung fürs `title`-Attribut der berechneten Zellen. Bewusst Plaintext:
- * das HTML-Tooltip-System (`row`/`total`) liegt im Charakterbogen.
- */
+/** Plaintext fürs `title`-Attribut — das HTML-Tooltip-System liegt im Charakterbogen. */
 export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
   const lines = [`${ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
   if (a.proficient) lines.push(`geübt ${sign(ctx.proficiencyBonus)}`);
@@ -76,11 +70,9 @@ export function attackDamageTip(a: Attack, ctx: AttackCalcContext): string {
 }
 
 /**
- * Vergleichsform fürs Diff-Highlighting. Zwei Angleichungen, ohne die eine Zeile nach
- * dem Speichern dauerhaft grün bliebe:
- *  - leeres `modifiers` gilt wie keins (gespeichert wird der Schlüssel dann nicht),
- *  - im Auto-Modus sind `bonus`/`damage` abgeleitet: der State trägt noch den Text vom
- *    Anlegen, in die Datei geht der berechnete Wert. Beide Seiten neu rechnen.
+ * Zwei Angleichungen, ohne die eine Zeile nach dem Speichern dauerhaft grün bliebe:
+ * leeres `modifiers` gilt wie keins, und im Auto-Modus trägt der State noch den Text
+ * vom Anlegen, während in die Datei der berechnete Wert geht.
  */
 export function attackForDiff(a: Attack, ctx: AttackCalcContext): Attack {
   const r = { ...a };
@@ -92,7 +84,6 @@ export function attackForDiff(a: Attack, ctx: AttackCalcContext): Attack {
   return r;
 }
 
-/** Speicherform eines Angriffs: berechnete Werte einfrieren, leere Effektzeilen fallen weg. */
 export function attackForSave(a: Attack, ctx: AttackCalcContext): Attack {
   const modifiers = (a.modifiers ?? [])
     .filter((m) => m.label.trim() !== '' || m.attackBonus !== 0 || m.damageBonus !== 0)
@@ -100,8 +91,8 @@ export function attackForSave(a: Attack, ctx: AttackCalcContext): Attack {
   const out = a.auto
     ? { ...a, bonus: computeAttackBonus(a, ctx), damage: computeAttackDamage(a, ctx) }
     : { ...a };
-  // Leeres `modifiers` NICHT schreiben: sonst bekäme jede Waffe ohne Effekte den
-  // Schlüssel, und der Diff gegen den geladenen Stand bliebe dauerhaft „geändert".
+  // Leeres `modifiers` NICHT schreiben, sonst bliebe der Diff gegen den geladenen
+  // Stand für jede Waffe ohne Effekte dauerhaft „geändert".
   if (modifiers.length) out.modifiers = modifiers;
   else delete out.modifiers;
   return out;
@@ -114,11 +105,6 @@ export function blankAttack(): Attack {
   };
 }
 
-/**
- * Baut einen Attack-Eintrag aus einem Waffen-Item der Bibliothek. Wählt das Attribut nach
- * Reichweite/Finesse, übernimmt Waffenübung, Schadenswürfel und magischen Bonus
- * (`item.magic_bonus`); Bonus/Schaden werden danach reaktiv berechnet (`auto = true`).
- */
 export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Attack {
   const name = item.name_de ?? item.name;
   const isRanged = item.weapon_range === 'Ranged';
@@ -133,7 +119,7 @@ export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Att
 
   const damageTypeIdx = item.damage?.damage_type?.index ?? '';
   const damageTypeLabel = DAMAGE_TYPE_LABELS[damageTypeIdx] ?? item.damage?.damage_type?.name ?? '';
-  // Kurzform für PDF-Spalte: "Hieb" / "Stich" / "Wucht"
+  // Die PDF-Spalte ist schmal und will die Kurzform: „Hieb" statt „Hiebschaden".
   const damageTypeShort = damageTypeLabel.replace(/schaden$/i, '').trim();
 
   let range = '';
@@ -158,21 +144,21 @@ export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Att
   return atk;
 }
 
-/** Schaltet einen Angriff zwischen reaktiver Berechnung und manueller Eingabe um (mutiert). */
+/** Mutiert `a` in place — der Aufrufer hält das Angriffsobjekt reaktiv. */
 export function toggleAttackMode(a: Attack, ctx: AttackCalcContext): void {
   if (a.auto) {
-    // → manuell: aktuelle Werte als Freitext einfrieren
+    // Nach manuell: die berechneten Werte als Freitext einfrieren, sonst stünde dort nichts.
     a.bonus = computeAttackBonus(a, ctx);
     a.damage = computeAttackDamage(a, ctx);
     a.auto = false;
     return;
   }
-  // → auto: Felder initialisieren, Würfel aus vorhandenem Schaden ableiten
   a.ability ??= 'str';
   a.proficient ??= false;
   a.magicBonus ??= 0;
   a.modifiers ??= [];
   if (a.baseDamage == null || a.baseDamage === '') {
+    // Rückweg nach auto: den Würfel aus dem eingefrorenen Freitext zurückgewinnen.
     const m = a.damage.match(/^\s*(\d*\s*[WwDd]\s*\d+)/);
     a.baseDamage = m ? m[1].replace(/\s/g, '').replace(/[dD]/, 'W') : '';
   }

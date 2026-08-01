@@ -1,13 +1,9 @@
 /**
- * Anzeige-Vokabular des Gegenstands-Bereichs: Kategorien, Seltenheiten, Waffen- und
- * Rüstungseigenschaften, Meisterschaften. Deutsche Labels, englische Schlüssel.
- *
- * Kategorie-Schlüssel = Ordnername = Open5e-v2 category.key (24 Werte, Identity-Mapping):
- * `vault/items/{key}/` enthält die Items dieser Kategorie.
+ * Anzeige-Vokabular des Gegenstands-Bereichs: deutsche Labels, englische Schlüssel.
+ * Kategorie-Schlüssel = Ordnername = Open5e-v2 `category.key` — ein Identity-Mapping.
  */
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 
-/** Farbe pro Kategorie (Catppuccin Mocha Palette) */
 export const CATEGORY_COLORS: Record<string, string> = {
   'weapon':             'var(--danger)',
   'armor':              'var(--red)',
@@ -36,20 +32,18 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'other':              'var(--ink-muted)',
 };
 
-/** Legacy-Ordner (dnd5eapi/2014) → Open5e-Kategorie; fängt unangetasteten Homebrew ab. */
+/** Fängt unangetasteten Homebrew aus der dnd5eapi-Zeit ab. */
 const LEGACY_DIR_ALIASES: Record<string, string> = {
   'wondrous-items': 'wondrous-item',
   'mounts-and-vehicles': 'mount',
   'shields': 'shield',
 };
 
-/** Ordnername → Kategorie-Schlüssel (identity + Legacy-Aliase). */
 export const DIR_TO_CATEGORY: Record<string, string> = {
   ...Object.fromEntries(Object.keys(CATEGORY_COLORS).map((k) => [k, k])),
   ...LEGACY_DIR_ALIASES,
 };
 
-/** Kategorie-Schlüssel → Ordnername (identity; Neu-Anlage nutzt die aktuellen Keys). */
 export const CATEGORY_TO_DIR: Record<string, string> = Object.fromEntries(
   Object.keys(CATEGORY_COLORS).map((k) => [k, k]),
 );
@@ -91,7 +85,6 @@ export const RARITY_LABELS: Record<string, string> = {
   Artifact:    'Artefakt',
 };
 
-/** Farbe pro Seltenheit (D&D-Konvention, ans Pergament-Theme angepasst). */
 export const RARITY_COLORS: Record<string, string> = {
   Common:      'var(--ink-muted)', // neutral
   Uncommon:    'var(--green)',
@@ -101,7 +94,6 @@ export const RARITY_COLORS: Record<string, string> = {
   Artifact:    'var(--danger)',    // rot
 };
 
-/** Seltenheitsfarbe; ohne Seltenheit (gewöhnliche Items) → neutrale „Common"-Farbe. */
 export function rarityColor(rarity?: string | { name?: string } | null): string {
   const name = typeof rarity === 'string' ? rarity : rarity?.name;
   return (name && RARITY_COLORS[name]) || RARITY_COLORS.Common;
@@ -155,17 +147,13 @@ export const PROPERTY_LABELS: Record<string, string> = {
   monk:        'Mönchswaffe',
 };
 
-/** Deutsch → index (für Rück-Mapping aus Edit-Eingabe) */
 export const PROPERTY_INDEX_BY_LABEL: Record<string, string> = Object.fromEntries(
   Object.entries(PROPERTY_LABELS).map(([index, label]) => [label.toLowerCase(), index])
 );
 
 /**
- * Anzeigename und Regeltext der acht Meisterschaftseigenschaften. Die Texte sind
- * EINMALIG abgeschrieben: englisch aus SRD 5.2, deutsch aus dem Repo-Auszug
- * `src/lib/data/rules-chunks.json` (`waffen-auslaugen-p103` …), beide CC-BY-4.0.
+ * Die Texte sind EINMALIG abgeschrieben (SRD 5.2 / `rules-chunks.json`, beide CC-BY-4.0):
  * `rules-chunks.json` bleibt reines KI-Material und wird zur Laufzeit NICHT gelesen.
- *
  * `Record<WeaponMastery, …>` macht Vollständigkeit zum Compilerfehler.
  */
 export const MASTERY_INFO: Record<WeaponMastery, { nameDe: string; desc: string; descDe: string }> = {
@@ -211,22 +199,20 @@ export const MASTERY_INFO: Record<WeaponMastery, { nameDe: string; desc: string;
   },
 };
 
-/** Deutscher Anzeigename einer Meisterschaftseigenschaft („Sap" → „Auslaugen"). */
 export const MASTERY_LABELS: Record<WeaponMastery, string> = Object.fromEntries(
   WEAPON_MASTERIES.map((m) => [m, MASTERY_INFO[m].nameDe]),
 ) as Record<WeaponMastery, string>;
 
-/** Rückrichtung (deutscher Name kleingeschrieben → Enum-Wert); für den PDF-Import. */
+/** Rückrichtung für den PDF-Import. */
 export const MASTERY_BY_LABEL: Record<string, WeaponMastery> = Object.fromEntries(
   WEAPON_MASTERIES.map((m) => [MASTERY_INFO[m].nameDe.toLowerCase(), m]),
 );
 
-/** Anzeigename; unbekannte Werte (Fremdimport) unverändert durchreichen. */
+/** Unbekannte Werte (Fremdimport) unverändert durchreichen. */
 export function masteryLabel(mastery: string | undefined | null): string {
   return mastery ? (MASTERY_LABELS[mastery as WeaponMastery] ?? mastery) : '';
 }
 
-/** Regeltext (deutsch) einer Meisterschaftseigenschaft; leer bei unbekanntem Wert. */
 export function masteryRuleDe(mastery: string | undefined | null): string {
   return mastery ? (MASTERY_INFO[mastery as WeaponMastery]?.descDe ?? '') : '';
 }
@@ -239,10 +225,7 @@ export const COST_UNIT_LABELS: Record<string, string> = {
   pp: 'PM',
 };
 
-/**
- * equipment_category.index → unsere Kategorie (= Ordnername). Open5e liefert bereits
- * die 24 Ziel-Keys (Identity); zusätzlich Back-Compat für Legacy-/Homebrew-Werte.
- */
+/** Open5e liefert die Ziel-Keys bereits; der Rest ist Back-Compat für Legacy/Homebrew. */
 export const API_CATEGORY_MAP: Record<string, string> = {
   ...Object.fromEntries(Object.keys(CATEGORY_COLORS).map((k) => [k, k])),
   // Back-Compat (dnd5eapi/2014 & Homebrew)

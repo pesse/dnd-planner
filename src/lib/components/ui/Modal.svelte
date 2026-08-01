@@ -20,14 +20,11 @@
     onclose,
     children,
   }: {
-    /** Sichtbarer Titel in der Kopfzeile. */
     title: string;
-    /** `aria-label` des Dialogs, falls der sichtbare Titel Zusätze trägt. */
     label?: string;
-    /** Globale Klasse für den Inhaltsstil, z.B. `ai-modal` (siehe app.css). */
+    /** Globale Klasse für den Inhaltsstil, z.B. `ai-modal` (app.css). */
     contentClass?: string;
     draggable?: boolean;
-    /** Anfangs-Abstand von oben, nur bei `draggable`. */
     top?: number;
     width?: string;
     maxHeight?: string;

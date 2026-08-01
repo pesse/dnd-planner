@@ -15,7 +15,6 @@
 
   let { action, onclose }: { action: ContextAction; onclose: () => void } = $props();
 
-  // ── Monster-Gruppen-Kontext-Picker (z.B. „Encounter entwerfen") ─────────────
   // Default: alle Gruppen ausgewählt (Erdung). Der Nutzer kann pro Lauf trimmen.
   let selectedGroups = $state<string[]>([]);
   let groupsTouched = false;

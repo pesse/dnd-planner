@@ -1,17 +1,9 @@
 /**
- * Summiert die Übungen, die ein Charakter aus seinen VERLINKTEN Bibliotheks-
- * Artefakten bekommt — Muster von `characterFeatures.ts`: der Charakter speichert
- * nur Links, die Mechanik wird zur Laufzeit aufgelöst.
- *
- * Weil alle vier Artefakttypen dieselbe `proficiencyGrant`-Form tragen
- * (schemas/grants.ts), ist die Summierung EINE Funktion und nicht vier. Die Werte
- * sind durchgehend ENGLISCH; übersetzt wird erst beim Anwenden auf den Bogen
- * (`skillSheetKey`, `ABILITY_FROM_EN`).
- *
- * **Keine Provenienz im Charakter.** Die Häkchen auf dem Bogen sind die Wahrheit;
- * hier entsteht nur das Angebot, gegen das die UI den Ist-Zustand vergleicht
- * („Schurke: 4 aus 10 — 3 von 4 belegt"). Damit ist die Ableitung idempotent und
- * braucht keine Rücknahme-Logik.
+ * Summiert die Übungen aus den VERLINKTEN Bibliotheks-Artefakten — eine Funktion statt
+ * vier, weil alle dieselbe `proficiencyGrant`-Form tragen. Die Werte bleiben englisch,
+ * übersetzt wird erst beim Anwenden auf den Bogen. Am Charakter entsteht KEINE Provenienz:
+ * die Häkchen sind die Wahrheit, hier entsteht nur das Angebot, gegen das die UI
+ * vergleicht — deshalb ist die Ableitung idempotent und braucht keine Rücknahme.
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import type { ArmorTraining, SkillName, WeaponCategory } from '$lib/schemas/vocabulary';
@@ -27,12 +19,8 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 
-// ── Deutsche Anzeige-Labels ───────────────────────────────────────────────────
-//
-// Die EINE Übersetzungsrichtung für die Oberfläche. Fertigkeiten kommen aus
-// `SKILL_DEFS` (dieselbe Tabelle, die den Bogen-Schlüssel liefert), damit Karte,
-// Editor und Bogen garantiert dieselben Begriffe zeigen.
-
+// Labels aus `SKILL_DEFS`, derselben Tabelle wie der Bogen-Schlüssel — sonst zeigen Karte,
+// Editor und Bogen früher oder später verschiedene Begriffe.
 const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.label]));
 
 import { abilityKeyOf, ABILITY_LABEL_DE } from '$lib/schemas/abilities';
@@ -50,16 +38,11 @@ export const ARMOR_LABEL_DE: Record<ArmorTraining, string> = {
   Shields: 'Schilde',
 };
 
-/** Deutscher Anzeigename einer Fertigkeit; unbekannte Werte unverändert durchreichen. */
 export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as SkillName) ?? en;
-
-/** Deutscher Anzeigename eines Attributs; unbekannte Werte unverändert durchreichen. */
 export const abilityLabelDe = (en: string): string => ABILITY_LABEL_DE[en as AbilityName] ?? en;
-
-/** true, wenn ein Grant überhaupt etwas gewährt (steuert leere UI-Abschnitte). */
 export const isEmptyGrant = isEmptyProficiencyGrant;
 
-/** Kurze deutsche Zusammenfassung eines Fertigkeits-Grants („2 aus 6", „Athletik, Einschüchtern"). */
+/** Kurzform fürs Panel: „2 aus 6", „Athletik, Einschüchtern". */
 export function skillGrantSummary(g: SkillGrant | undefined): string {
   if (!g) return '';
   const parts: string[] = [];
@@ -68,20 +51,18 @@ export function skillGrantSummary(g: SkillGrant | undefined): string {
   return parts.join(' · ');
 }
 
-/** Woher ein Grant kommt — deutsche Anzeige plus Bibliotheks-Key. */
 export interface GrantSource {
-  /** z.B. „Schurke", „Soldat", „Elf: Scharfe Sinne", „Talent: Geübt". */
+  /** Deutsch, mit Herkunft davor: „Schurke", „Elf: Scharfe Sinne", „Talent: Geübt". */
   label: string;
   sourceKey: string;
 }
 
-/** Ein einzelner, ohne Wahl gewährter Wert mit seiner Herkunft. */
 export interface SourcedGrant<T> {
   value: T;
   source: GrantSource;
 }
 
-/** Eine offene Fertigkeits-Wahl: N aus `from` (leer = beliebig). */
+/** N aus `from` — eine leere `from`-Liste heißt „beliebige Fertigkeit". */
 export interface OpenChoice {
   source: GrantSource;
   choose: number;
@@ -89,9 +70,8 @@ export interface OpenChoice {
 }
 
 export interface CollectedGrants {
-  /** Ohne Wahl gewährte Fertigkeiten. */
   skills: SourcedGrant<SkillName>[];
-  /** Noch zu treffende Fertigkeits-Wahlen (eine je Quelle). */
+  /** Offene Wahlen, eine je Quelle. */
   choices: OpenChoice[];
   savingThrows: SourcedGrant<AbilityName>[];
   weapons: SourcedGrant<WeaponCategory>[];
@@ -100,9 +80,8 @@ export interface CollectedGrants {
 }
 
 /**
- * Was `collectGrants` braucht: ausschließlich die LINKS. Ein `Character` erfüllt
- * das strukturell; der Editor kann stattdessen seinen lokalen Zustand übergeben,
- * ohne den ganzen Charakter zur Abhängigkeit zu machen.
+ * Ausschließlich die LINKS: ein `Character` erfüllt das strukturell, und der Editor kann
+ * stattdessen seinen lokalen Zustand übergeben, ohne den ganzen Charakter zu binden.
  */
 export interface GrantInput {
   classes?: { sourceKey: string; name?: string; subclassKey?: string }[];
@@ -115,14 +94,12 @@ const emptyCollected = (): CollectedGrants => ({
   skills: [], choices: [], savingThrows: [], weapons: [], weaponsOther: [], armor: [],
 });
 
-/** Übernimmt einen Fertigkeits-Grant (fest + Wahl) in die Sammlung. */
 function addSkillGrant(out: CollectedGrants, grant: SkillGrant | undefined, source: GrantSource): void {
   if (!grant) return;
   for (const value of grant.fixed) out.skills.push({ value, source });
   if (grant.choose > 0) out.choices.push({ source, choose: grant.choose, from: grant.from });
 }
 
-/** Übernimmt einen vollständigen Übungs-Grant (alle vier Arten) in die Sammlung. */
 function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, source: GrantSource): void {
   if (!grant) return;
   addSkillGrant(out, grant.skills, source);
@@ -133,9 +110,8 @@ function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, sou
 }
 
 /**
- * Englisches Übungs-Vokabular → Bogen-Flag. Die EINE Abbildung für alle Aufrufer (Wizard-
- * Assembly, Änderungs-Anwendung des Aufstiegs) — eine zweite liefe auseinander, und genau
- * daran ist die Fertigkeits-Zuweisung schon einmal still gescheitert (`skillSheetKey`).
+ * Vokabular → Bogen-Flag, die EINE Abbildung für Wizard und Aufstieg. Eine zweite liefe
+ * auseinander — daran ist die Fertigkeits-Zuweisung schon einmal still gescheitert.
  */
 export function markWeaponProficiency(flags: ProficiencyFlags, category: string): void {
   if (category === 'Simple') flags.simpleWeapons = true;
@@ -152,29 +128,24 @@ export function markArmorTraining(flags: ProficiencyFlags, training: string): vo
 /** Die sechs Rettungswurf-Häkchen des Bogens — ein `Character` erfüllt das strukturell. */
 export type SaveProfFlags = { [K in AbilityKey as `${K}SaveProf`]: boolean };
 
-/** Englischer Attributsname → Rettungswurf-Häkchen. Dritte Abbildung derselben Art. */
 export function markSavingThrow(flags: SaveProfFlags, en: string): void {
   const key = abilityKeyOf(readAbilityName(en));
   if (key) flags[`${key}SaveProf`] = true;
 }
 
 /**
- * Die Vault-Übungsform als `Change[]` — die Sprache, in der BEIDE Flows anwenden
- * (`applyChanges`). Die Tabelle ist über `keyof ProficiencyGrant` total: ein neues Feld
- * am Vault-Grant bricht hier den Build, statt still ohne Senke zu bleiben. Genau das ist
- * `weaponsOther` zweimal passiert.
- *
- * `skills.choose` erzeugt bewusst nichts: eine offene Wahl ist kein Grant, sie wird
- * gefragt (Wizard-Fertigkeitsschritt) und kommt als eigener `proficiency`-Change zurück.
+ * Die Vault-Übungsform als `Change[]`, die Sprache beider Flows. Die Tabelle ist über
+ * `keyof ProficiencyGrant` total: ein neues Feld am Vault-Grant bricht den Build, statt
+ * still ohne Senke zu bleiben — genau das ist `weaponsOther` zweimal passiert.
+ * `skills.choose` erzeugt bewusst nichts: eine offene Wahl wird gefragt, nicht gewährt.
  */
 export function proficiencyGrantChanges(
   g: ProficiencyGrant,
   meta: { step: string; source: string },
   /**
-   * Felder, die auf diesem Weg NICHT emittiert werden sollen, weil sie den Charakter schon
-   * anders erreichen (im Aufstieg reist alles außer `weaponsOther` über den Rider). Bewusst
-   * eine Ausschluss- und keine Einschlussliste: ein neues Feld am Vault-Grant landet damit
-   * per Default IM Dokument, statt still zu fehlen.
+   * Was den Charakter schon anders erreicht (im Aufstieg alles außer `weaponsOther` über
+   * den Rider). Bewusst eine Ausschluss-, keine Einschlussliste: ein neues Feld am
+   * Vault-Grant landet so per Default IM Dokument, statt still zu fehlen.
    */
   skip: readonly (keyof ProficiencyGrant)[] = [],
 ): Change[] {
@@ -206,7 +177,6 @@ export function proficiencyGrantChanges(
   return out;
 }
 
-/** Talent-Eintrag zu einem Referenz-Key/-Namen (wie `resolveFeatLinks`). */
 function findFeat(lib: FeatEntry[], key: string | undefined, name: string): FeatEntry | undefined {
   const k = key?.trim();
   const n = name.trim().toLowerCase();
@@ -217,38 +187,27 @@ function findFeat(lib: FeatEntry[], key: string | undefined, name: string): Feat
   );
 }
 
+/** Das Herkunftstalent hängt am Hintergrund und steht nicht in `features`. */
+async function addBackgroundGrants(out: CollectedGrants, key: string, featLib: FeatEntry[]): Promise<void> {
+  const bg = await getBackgroundByKey(key);
+  if (!bg) return;
+  addGrant(out, bg.proficiencyGrant, { label: bg.nameDe || bg.name || key, sourceKey: key });
+  if (!bg.featKey) return;
+  const originFeat = findFeat(featLib, bg.featKey, '');
+  if (originFeat)
+    addGrant(out, originFeat.grants?.proficiencies, {
+      label: `Herkunftstalent: ${featDisplayName(originFeat)}`,
+      sourceKey: bg.featKey,
+    });
+}
+
 /**
- * Alle Übungs-Grants eines Charakters, aufgelöst gegen die lokale Bibliothek.
- *
- * Die Reihenfolge in `classes[]` ist maßgeblich: `classes[0]` ist die STARTKLASSE
- * und gewährt die volle Kerntabelle, jede weitere ist per Klassenkombination
- * dazugekommen und gewährt nur `skillGrantMulticlass` (im SRD 5.2: nur
- * Barde/Schurke/Waldläufer überhaupt eine Fertigkeit). Fehlt ein Link lokal,
- * fällt seine Quelle einfach aus — das Panel zeigt dann nichts statt zu raten.
+ * Die Reihenfolge in `classes[]` ist maßgeblich: `classes[0]` ist die STARTKLASSE mit der
+ * vollen Kerntabelle, jede weitere kam per Klassenkombination dazu und gewährt nur
+ * `skillGrantMulticlass`.
  */
-export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
-  const out = emptyCollected();
-  const featLib = await getFeats();
-
-  // ── Hintergrund (+ Herkunftstalent, das nicht in features steht) ──
-  const bgKey = c.backgroundRef?.sourceKey ?? '';
-  if (bgKey) {
-    const bg = await getBackgroundByKey(bgKey);
-    if (bg) {
-      addGrant(out, bg.proficiencyGrant, { label: bg.nameDe || bg.name || bgKey, sourceKey: bgKey });
-      if (bg.featKey) {
-        const originFeat = findFeat(featLib, bg.featKey, '');
-        if (originFeat)
-          addGrant(out, originFeat.grants?.proficiencies, {
-            label: `Herkunftstalent: ${featDisplayName(originFeat)}`,
-            sourceKey: bg.featKey,
-          });
-      }
-    }
-  }
-
-  // ── Klassen: [0] volle Kerntabelle, [1..] nur die Mehrklassen-Zeile ──
-  for (const [i, cls] of (c.classes ?? []).entries()) {
+async function addClassGrants(out: CollectedGrants, classes: NonNullable<GrantInput['classes']>): Promise<void> {
+  for (const [i, cls] of classes.entries()) {
     if (!cls.sourceKey) continue;
     const prog = await getProgressionByKey(cls.sourceKey);
     if (!prog) continue;
@@ -256,11 +215,15 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
     if (i === 0) addGrant(out, prog.proficiencyGrant, source);
     else addSkillGrant(out, prog.skillGrantMulticlass, source);
   }
+}
 
-  // ── Spezies + Unterspezies: der Grant hängt am einzelnen MERKMAL, und dort ist
-  //    `grants.proficiencies` die einzige Übungs-Senke (am Klassenkopf/Hintergrund
-  //    bleibt `proficiencyGrant` — die sind keine Merkmale). ──
-  for (const key of [c.species?.sourceKey, c.species?.subspeciesKey]) {
+/**
+ * Am einzelnen MERKMAL ist `grants.proficiencies` die einzige Übungs-Senke; das
+ * `proficiencyGrant` daneben gilt nur für Klassenkopf und Hintergrund, die keine
+ * Merkmale sind.
+ */
+async function addSpeciesGrants(out: CollectedGrants, keys: (string | undefined)[]): Promise<void> {
+  for (const key of keys) {
     if (!key) continue;
     const spec = await getSpeciesByKey(key);
     if (!spec) continue;
@@ -271,11 +234,14 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
         sourceKey: trait.key || key,
       });
   }
+}
 
-  // ── Verlinkte Talente ──
-  // Wahl-Annotationen liegen in derselben Liste; sie tragen einen Merkmals-Key, den das
-  // Talent-Wörterbuch nicht kennt, und fallen deshalb ohne Sonderfall heraus.
-  for (const ref of c.features ?? []) {
+/**
+ * Wahl-Annotationen liegen in derselben Liste; sie tragen einen Merkmals-Key, den das
+ * Talent-Wörterbuch nicht kennt, und fallen deshalb ohne Sonderfall heraus.
+ */
+function addFeatGrants(out: CollectedGrants, refs: NonNullable<GrantInput['features']>, featLib: FeatEntry[]): void {
+  for (const ref of refs) {
     const entry = findFeat(featLib, ref.sourceKey, ref.name ?? '');
     if (!entry) continue;
     addGrant(out, entry.grants?.proficiencies, {
@@ -283,11 +249,22 @@ export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
       sourceKey: entry.sourceKey ?? '',
     });
   }
+}
+
+/** Fehlt ein Link lokal, fällt seine Quelle aus — das Panel zeigt nichts, statt zu raten. */
+export async function collectGrants(c: GrantInput): Promise<CollectedGrants> {
+  const out = emptyCollected();
+  const featLib = await getFeats();
+
+  const bgKey = c.backgroundRef?.sourceKey ?? '';
+  if (bgKey) await addBackgroundGrants(out, bgKey, featLib);
+  await addClassGrants(out, c.classes ?? []);
+  await addSpeciesGrants(out, [c.species?.sourceKey, c.species?.subspeciesKey]);
+  addFeatGrants(out, c.features ?? [], featLib);
 
   return out;
 }
 
-/** Alle Fertigkeiten, die in irgendeiner offenen Wahl vorkommen dürfen. */
 export function choiceAllows(choice: OpenChoice, skill: SkillName): boolean {
   return choice.from.length === 0 || choice.from.includes(skill);
 }

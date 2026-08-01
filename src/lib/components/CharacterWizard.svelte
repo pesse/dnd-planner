@@ -33,9 +33,8 @@
 
   const w = new CharacterWizard(() => get(llmConfig));
 
-  // Schritte über eine ID adressieren, nicht über einen festen Index: der
-  // Waffenmeisterschafts-Schritt fällt weg, wenn die Klasse das Merkmal nicht gewährt,
-  // und würde sonst alle nachfolgenden Index-Prüfungen verschieben.
+  // Schritte über eine ID, nicht über einen festen Index: optionale Schritte fallen weg
+  // und verschöben sonst alle nachfolgenden Index-Prüfungen.
   type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'features' | 'spells' | 'equipment' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
     { id: 'basics', label: 'Grundwahl' },
@@ -52,18 +51,14 @@
   const steps = $derived(
     ALL_STEPS.filter(
       (s) =>
-        // Den Schritt, auf dem der Nutzer STEHT, nie herausfiltern: sonst zeigt der Kopf
-        // einen anderen Schritt als der Körper. Bedingungen können nachträglich kippen
-        // (die Merkmals-Analyse landet spät).
+        // Den Schritt, auf dem der Nutzer STEHT, nie herausfiltern — die Bedingungen
+        // kippen nachträglich (die Merkmals-Analyse landet spät).
         s.id === currentStep ||
         ((s.id !== 'mastery' || masteryAvailable) &&
           (s.id !== 'fighting-style' || fightingStyleAvailable) &&
           (s.id !== 'spells' || spellsAvailable)),
     ),
   );
-  // Der AKTUELLE Schritt ist die ID, nicht der Index: ein optionaler Schritt kann noch
-  // auftauchen, während der Nutzer schon weiter ist (der Zauber-Schritt hängt an der
-  // Merkmals-Analyse) — ein Index würde den Nutzer dann still verschieben.
   let currentStep = $state<StepId>('basics');
   const stepIndex = $derived(Math.max(0, steps.findIndex((s) => s.id === currentStep)));
 
@@ -79,11 +74,9 @@
   let creating = $state(false);
   let createError = $state('');
 
-  // Grundwahl-Signatur, um den KI-Neustart bei Änderung zu erkennen.
   let kickedOff = false;
   let lastBasicsSig = '';
 
-  // KI-Aktivitätsanzeige: sichtbar machen, dass/woran die KI gerade arbeitet.
   const aiJobs = $derived([
     { label: 'Merkmale analysieren', job: w.analysis },
     { label: 'Merkmals-Effekte ableiten', job: w.effects },
@@ -112,8 +105,7 @@
     return () => { clearInterval(clock); w.dispose(); };
   });
 
-  // Nur Grundklassen — die Unterklasse fällt auf Stufe 1 nicht an (wird erst ab Stufe 3
-  // gewählt und lässt sich sonst deterministisch aus der Progression ableiten).
+  // Nur Grundklassen — die Unterklasse fällt erst ab Stufe 3 an.
   const baseClasses = $derived(classTree.filter((n) => !n.subclassOf));
 
   function basicsSig(): string {
@@ -127,8 +119,7 @@
       backgroundRef: { sourceKey: w.background.sourceKey },
     });
     skillPicks = grants.choices.map(() => []);
-    // Fest gewährte Übungen an den Wizard-Zustand: sie sind (mit `chosenSkills`) die
-    // Optionsliste der deklarierten Expertise-Wahl im Merkmals-Schritt.
+    // Mit `chosenSkills` zusammen die Optionsliste der Expertise-Wahl im Merkmals-Schritt.
     w.grantedSkills = grants.skills.map((g) => g.value);
     syncChosenSkills();
   }
@@ -148,10 +139,7 @@
 
   const toolChoicesDone = $derived(w.pendingToolChoices() === 0);
 
-  // Waffenmeisterschaft (5e 2024, optionaler Schritt): `masteryOffer` liefert Kontingent +
-  // wählbare Waffen aus der Bibliothek (nie aus der KI). Der Schritt erscheint nur, wenn die
-  // Startklasse das Merkmal gewährt (allowance > 0). Die Waffenauswahl hängt an den
-  // Waffen-Übungen des Charakters — die kommen hier aus den geladenen Grants.
+  // Kontingent und wählbare Waffen kommen aus der Bibliothek, nie aus der KI.
   let mastery = $state<MasteryOffer | null>(null);
   const weaponProfs = $derived({
     simple: grants?.weapons.some((g) => g.value === 'Simple') ?? false,
@@ -172,9 +160,7 @@
   });
   const masteryAvailable = $derived((mastery?.allowance ?? 0) > 0);
 
-  // Gleiches Muster: auf Stufe 1 gewährt nur der Kämpfer einen Kampfstil (Paladin/Waldläufer
-  // erst ab Stufe 2). Gespeichert werden die Talent-Keys; die Assembly macht daraus
-  // Talent-Links in `features[]`.
+  // Gespeichert werden Talent-Keys; die Assembly macht daraus Talent-Links in `features[]`.
   let fightingStyle = $state<FightingStyleOffer | null>(null);
   $effect(() => {
     const key = w.klass.sourceKey;
@@ -189,10 +175,8 @@
   });
   const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
 
-  // Zauber (optionaler Schritt): Kontingente aus der Klassentabelle, Optionen aus
-  // `vault/spells` — kein KI-Job. Der Schritt erscheint auch für Nicht-Zauberwirker, wenn ein
-  // Merkmal eine Zauber-Wahl erzwingt (Kämpfer mit dem Hintergrund Akolyth → Talent
-  // „Eingeweihter der Magie").
+  // Kontingente aus der Klassentabelle, Optionen aus `vault/spells` — kein KI-Job. Der
+  // Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl erzwingt.
   let spellOffer = $state<SpellcastingOffer | null>(null);
   $effect(() => {
     const key = w.klass.sourceKey;
@@ -206,23 +190,15 @@
   const spellsAvailable = $derived((spellOffer?.isCaster ?? false) || w.spellPickChoices.length > 0);
   const spellValues = createSpellStepValues(w, () => spellOffer, () => spellLib);
 
-  /**
-   * Die deklarierten Wahlen sind Pflicht und deterministisch beantwortbar — anders als die
-   * KI-Wahlen, die auch fehlen können. Ohne sie bleibt die Zauberliste offen und der
-   * Zauber-Schritt könnte gar keine Auswahl anbieten.
-   */
+  // Nur die DEKLARIERTEN Wahlen sind Pflicht (die KI-Wahlen können ganz fehlen): ohne sie
+  // bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten.
   const declaredChoicesDone = $derived(
     w.declaredChoices
       .filter((c) => c.type !== 'spell-pick')
       .every((c) => (choiceAnswers[c.id] ?? []).some((v) => v.trim())),
   );
 
-  /**
-   * Baut `resolvedChoices` komplett neu (idempotent) — läuft daher gefahrlos zweimal: nach
-   * dem Merkmals-Schritt für die effekt-relevanten Wahlen und nach dem Zauber-Schritt, damit
-   * auch dort getroffene Zauber-Wahlen im Ledger landen. Zauber-Wahlen sind terminal
-   * (`determinesFurtherEffects` ist bei `spell-pick` immer false), die KI braucht sie nicht.
-   */
+  /** Baut alles neu und läuft deshalb gefahrlos zweimal — nach Merkmals- und Zauberschritt. */
   function commitFeatureChoices() {
     const declared = new Set(w.declaredChoices.map((c) => c.id));
     const answered = w.featureChoices
@@ -235,7 +211,7 @@
       }))
       .filter((rc) => rc.choice.trim());
     // Zwei Kanäle: nur die Wahlen der KI-Analyse gehen als `<resolved_choices>` zurück ans
-    // Modell — eine deklarierte id kennt es nicht (das Merkmal steht nicht in seinem Eingang).
+    // Modell — eine deklarierte id kennt es nicht, das Merkmal stand nie in seinem Eingang.
     w.resolvedChoices = answered.filter((rc) => !declared.has(rc.id));
     w.declaredAnswers = answered.filter((rc) => declared.has(rc.id));
   }
@@ -261,13 +237,12 @@
       else if (sig !== lastBasicsSig) { w.restart(); lastBasicsSig = sig; grants = null; choiceAnswers = {}; }
       loadAsi();
     }
-    // Merkmals-Effekte UND -Text erst nach dem Wahl-Checkpoint: so trägt der Text die
-    // getroffene Wahl statt eines Platzhalters („Resistenz gegen [Schadensart]").
+    // Erst nach dem Wahl-Checkpoint, sonst trägt der Text einen Platzhalter
+    // („Resistenz gegen [Schadensart]") statt der getroffenen Wahl.
     if (currentStep === 'features') { commitFeatureChoices(); w.finalizeFeatures(); w.summarizeFeatures(); }
     if (currentStep === 'spells') commitFeatureChoices();
     const nextStep = steps[stepIndex + 1];
     if (!nextStep) return;
-    // Beim Betreten der Übungen die Grants laden (auch die Waffenmeisterschaft baut darauf auf).
     if (nextStep.id === 'proficiencies' && !grants) loadGrants();
     currentStep = nextStep.id;
   }
@@ -393,8 +368,8 @@
   .wizard {
     background: var(--bg); color: var(--ink);
     border: 1px solid var(--border-strong); border-radius: 10px;
-    /* Einheitliche Mindesthöhe, damit das Fenster nicht je Schritt springt und ein
-       geöffnetes Dropdown Platz nach unten hat, statt den Body scrollen zu lassen. */
+    /* Feste Mindesthöhe: ein geöffnetes Dropdown braucht Platz nach unten, sonst
+       scrollt der Body. */
     width: min(760px, 92vw); min-height: min(600px, 86vh); max-height: 88vh;
     display: flex; flex-direction: column;
     box-shadow: 0 12px 40px rgba(20, 12, 2, 0.35);

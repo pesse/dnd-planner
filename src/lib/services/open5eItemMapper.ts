@@ -1,8 +1,6 @@
 /**
- * Rohes Open5e-v2-Item → internes `Item`-Schema.
- *
- * Bewusst OHNE `invoke`, damit der Node-Importer (`scripts/import-open5e-items.mts`) die
- * Funktion direkt importieren kann (esbuild tree-shakt die Transport-Schicht weg).
+ * Rohes Open5e-v2-Item → internes `Item`-Schema. Bewusst OHNE `invoke`, damit der
+ * Node-Importer (`scripts/import-open5e-items.mts`) die Funktion direkt importieren kann.
  */
 import type { Item } from '../schemas/item';
 import { WEAPON_MASTERIES } from '../schemas/vocabulary';
@@ -31,7 +29,7 @@ interface Open5eArmor {
 
 
 
-/** Open5e-Kosten (Dezimal-gp-String) → {quantity, unit}; 0/leer → undefined. */
+/** Open5e liefert die Kosten als Dezimal-gp-String; 0/leer heißt „kein Preis". */
 function parseOpen5eCost(raw: unknown): Item['cost'] | undefined {
   const n = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : NaN;
   if (!isFinite(n) || n <= 0) return undefined;
@@ -41,7 +39,7 @@ function parseOpen5eCost(raw: unknown): Item['cost'] | undefined {
   return { quantity: Math.round(n * 100), unit: 'cp' };
 }
 
-/** "Range 150/600; Arrow" → {normal:150, long:600}; Einzelwert → normal=long. */
+/** Eingabeform ist Prosa: "Range 150/600; Arrow"; ein Einzelwert wird zu normal=long. */
 function parseRangePair(detail: string | null | undefined): { normal: number; long: number } | undefined {
   if (!detail) return undefined;
   const pair = detail.match(/(\d+)\s*\/\s*(\d+)/);
@@ -50,7 +48,7 @@ function parseRangePair(detail: string | null | undefined): { normal: number; lo
   return single ? { normal: Number(single[1]), long: Number(single[1]) } : undefined;
 }
 
-/** +1/+2/+3 aus dem englischen Namen (best effort; nur so drückt Open5e den Bonus aus). */
+/** Best effort aus dem Namen — Open5e führt den Bonus in keinem eigenen Feld. */
 function magicBonusFromName(name: string): number | undefined {
   const m = name.match(/\+([123])\b/);
   return m ? Number(m[1]) : undefined;
@@ -67,8 +65,8 @@ function applyWeapon(item: Item, w: Open5eWeapon): void {
   for (const p of w.properties ?? []) {
     const name = p.property?.name ?? '';
     if (!name) continue;
-    // Meisterschaft (5e 2024) ist eine Eigenschaft mit type "Mastery" — sie landet im
-    // eigenen `mastery`-Feld, NICHT in properties.
+    // Meisterschaft kommt als Eigenschaft mit type "Mastery" — sie gehört ins eigene
+    // `mastery`-Feld, NICHT in properties (dort sucht sie niemand).
     if (p.property?.type === 'Mastery') {
       if ((WEAPON_MASTERIES as readonly string[]).includes(name)) item.mastery = name as Item['mastery'];
       continue;
@@ -104,11 +102,7 @@ function applyArmor(item: Item, a: Open5eArmor): void {
   item.stealth_disadvantage = Boolean(a.grants_stealth_disadvantage);
 }
 
-/**
- * Rohes Open5e-v2-Item (`/v2/items/` oder `/v2/magicitems/`) → internes `Item`.
- * Adaptiert die inline `weapon`/`armor`-Detailobjekte in die bestehenden Feldformen;
- * `name_de`/`desc_de` bleiben leer (Open5e ist englisch, DE wird separat gepflegt).
- */
+/** `name_de`/`desc_de` bleiben ungesetzt — Open5e ist englisch, DE wird separat gepflegt. */
 export function mapOpen5eItem(raw: Record<string, unknown>): Item {
   const doc = raw.document as { key?: string; gamesystem?: { key?: string } } | undefined;
   const category = raw.category as { key?: string; name?: string } | undefined;
@@ -135,7 +129,6 @@ export function mapOpen5eItem(raw: Record<string, unknown>): Item {
   const weight = parseFloat(String(raw.weight ?? ''));
   if (isFinite(weight) && weight > 0) item.weight = weight;
 
-  // Magie-Felder nur, wenn die Quelle sie trägt (magicitems; bei /items nie vorhanden).
   const rarity = raw.rarity as { name?: string; rank?: number } | undefined;
   if (rarity?.name) item.rarity = { name: rarity.name, rank: rarity.rank };
   if ('requires_attunement' in raw) item.attunement = Boolean(raw.requires_attunement);
