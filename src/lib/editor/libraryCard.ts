@@ -16,7 +16,7 @@ interface LibraryCardConfig<T> {
   validate: (raw: unknown) => ParseResult<T>;
   /** Dateiname, wenn der Datensatz gar keinen Namen trägt. */
   fallbackName: string;
-  /** Default: deutscher Name vor englischem. */
+  /** Default: englischer Name vor deutschem — so ist der Vault-Bestand benannt. */
   defaultName?: (draft: T) => string;
   invalidateCache: () => void;
 }
@@ -28,7 +28,7 @@ export function createLibraryCardEditor<T extends { name?: string; nameDe?: stri
     type: cfg.type,
     label: cfg.label,
     parse: jsonParser(cfg.validate),
-    defaultName: cfg.defaultName ?? ((d) => slugKeepUmlauts(d.nameDe || d.name || cfg.fallbackName)),
+    defaultName: cfg.defaultName ?? ((d) => slugKeepUmlauts(d.name || d.nameDe || cfg.fallbackName)),
     location: {
       resolvePath: (_d, name) => `./vault/${cfg.folder}/${name}.json`,
     },

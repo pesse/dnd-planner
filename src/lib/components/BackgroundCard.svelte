@@ -13,7 +13,6 @@
   import { translateBackground } from '$lib/services/aiActions/translateAction';
   import type { BackgroundTranslation } from '$lib/schemas/translation';
   import { createLibraryCardEditor } from '$lib/editor/libraryCard';
-  import { slugKeepUmlauts } from '$lib/utils/text';
   import { activeFile } from '$lib/stores/campaign';
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
@@ -27,9 +26,6 @@
     folder: 'backgrounds',
     validate: parseBackground,
     fallbackName: 'hintergrund',
-    // Dateiname aus dem ENGLISCHEN Namen — so liegen auch `species`/`feats`/`classes`
-    // im Vault (`acolyte.json`, nicht `akolyth.json`), vgl. vault/CLAUDE.md.
-    defaultName: (b) => slugKeepUmlauts(b.name || b.nameDe || 'hintergrund'),
     invalidateCache: invalidateBackgroundsCache,
   });
 

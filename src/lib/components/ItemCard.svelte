@@ -78,7 +78,7 @@
     parse: parseItem,
     serialize: (d) => merged(d, 2),
     snapshot: (d) => merged(d),
-    defaultName: (d) => slugKeepUmlauts(d.name_de || d.name || 'gegenstand'),
+    defaultName: (d) => slugKeepUmlauts(d.name || d.name_de || 'gegenstand'),
     location: {
       // Ein Kategoriewechsel im Editor verschiebt die Datei.
       bucketLabel: 'Kategorie',
