@@ -1,49 +1,34 @@
 <script lang="ts">
   import type { ClassProgression, ClassFeature } from '$lib/types';
-  import { parseClass as _parseClass } from '$lib/utils/schemaValidation';
+  import { parseClass } from '$lib/utils/schemaValidation';
   import {
     abilityLabelDe, skillLabelDe, skillGrantSummary, ARMOR_LABEL_DE, WEAPON_LABEL_DE,
   } from '$lib/services/proficiencyGrants';
   import ClassEditForm from './ClassEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import ParseError from './ui/ParseError.svelte';
+  import CardParseError from './ui/CardParseError.svelte';
+  import LibraryCardFrame from './ui/LibraryCardFrame.svelte';
+  import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { translateRule } from '$lib/services/aiActions/translateAction';
   import type { RuleTranslation } from '$lib/schemas/translation';
-  import { createCardEditor } from '$lib/editor/cardEditor.svelte';
-  import { slugKeepUmlauts } from '$lib/utils/text';
-  import { invalidateVault } from '$lib/stores/campaign';
+  import { createLibraryCardEditor } from '$lib/editor/libraryCard';
   import { invalidateClassCache } from '$lib/classLibrary';
   import { declarationCoverage, coverageBadge } from '$lib/services/declarationCoverage';
   import DeclarationBadge from './DeclarationBadge.svelte';
 
-  function parseClass(json: string): ClassProgression | null {
-    try {
-      const result = _parseClass(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
-
-  const ed = createCardEditor<ClassProgression>({
+  const ed = createLibraryCardEditor<ClassProgression>({
     type: 'class',
     label: 'Klasse',
-    parse: parseClass,
-    defaultName: (c) => slugKeepUmlauts(c.nameDe || c.name || 'klasse'),
-    location: {
-      resolvePath: (_c, name) => `./vault/classes/${name}.json`,
-    },
-    onSaved: () => { invalidateClassCache(); invalidateVault(); },
+    folder: 'classes',
+    validate: parseClass,
+    fallbackName: 'klasse',
+    invalidateCache: invalidateClassCache,
   });
 
   let draft = $derived(ed.draft);
-  let dirty = $derived(ed.dirty);
-  let saveError = $derived(ed.saveError);
-  let lastSavedContent = $derived(ed.lastSavedContent);
-  const save = () => ed.save();
-  const discard = () => ed.discard();
-  const saveJson = (json: string) => ed.saveJson(json);
 
   const CASTER_LABELS: Record<string, string> = {
     NONE: 'Kein Zauberwirker', FULL: 'Voller Zauberwirker', HALF: 'Halber Zauberwirker',
@@ -105,21 +90,17 @@
 {#if draft}
   <EditorPanel
     bind:tab={ed.tab}
-    {dirty}
-    {saveError}
-    onsave={save}
-    ondiscard={discard}
-    onsavejson={saveJson}
-    getJson={() => draft ? JSON.stringify(draft, null, 2) : lastSavedContent}
+    dirty={ed.dirty}
+    saveError={ed.saveError}
+    onsave={() => ed.save()}
+    ondiscard={() => ed.discard()}
+    onsavejson={(json) => ed.saveJson(json)}
+    getJson={() => draft ? JSON.stringify(draft, null, 2) : ed.lastSavedContent}
     style="--ep-accent: var(--copper)"
   >
     {#snippet karte()}
-      <div class="class-card">
-        <div class="head">
-          <div class="name">{draft!.nameDe || draft!.name}</div>
-          {#if draft!.nameDe && draft!.name && draft!.nameDe !== draft!.name}
-            <div class="name-en">{draft!.name}</div>
-          {/if}
+      <LibraryCardFrame accent="var(--copper)" name={draft!.name} nameDe={draft!.nameDe}>
+        {#snippet head()}
           <div class="meta">
             {CASTER_LABELS[draft!.casterType] ?? draft!.casterType}
             {#if draft!.hitDie} · Trefferwürfel W{draft!.hitDie}{/if}
@@ -127,7 +108,7 @@
           {#if coverage.total}
             <DeclarationBadge badge={declBadge} />
           {/if}
-        </div>
+        {/snippet}
 
         {#if coreRows.length || draft!.startingEquipmentDe || draft!.startingEquipment}
           <div class="core-traits">
@@ -167,32 +148,20 @@
         {:else}
           <p class="empty">Keine Merkmale.</p>
         {/if}
-      </div>
+      </LibraryCardFrame>
     {/snippet}
 
     {#snippet bearbeiten()}
       {#if ed.draft}
-        <div class="edit-wrap">
+        <CardEditWrap accent="var(--copper)">
           <ClassEditForm bind:klass={ed.draft} />
-        </div>
+        </CardEditWrap>
         <CardTools accent="var(--copper)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />
       {/if}
     {/snippet}
   </EditorPanel>
 {:else}
-  <EditorPanel
-    bind:tab={ed.tab}
-    dirty={false}
-    onsavejson={saveJson}
-    getJson={() => lastSavedContent}
-  >
-    {#snippet karte()}
-      <ParseError message="Kein gültiger Klassen-Datensatz." />
-    {/snippet}
-    {#snippet bearbeiten()}
-      <ParseError message="Ungültiges Klassen-JSON." onjson={() => (ed.tab = 'json')} />
-    {/snippet}
-  </EditorPanel>
+  <CardParseError bind:tab={ed.tab} noun="Klassen" json={ed.lastSavedContent} onsavejson={(json) => ed.saveJson(json)} />
 {/if}
 
 {#if showTranslate && ed.draft}
@@ -205,20 +174,6 @@
 {/if}
 
 <style>
-  .class-card {
-    width: 100%; max-width: 560px; background: var(--bg);
-    border: 1.5px solid var(--copper); border-radius: 8px;
-    color: var(--ink); font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-    overflow: hidden;
-  }
-  .head {
-    padding: 0.9rem 1.2rem; text-align: center;
-    background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--copper) 40%, var(--bg)) 0%,
-      color-mix(in srgb, var(--copper) 8%, var(--bg)) 100%);
-  }
-  .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
-  .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--copper) 70%, var(--ink)); margin-top: 0.2rem; }
 
   .core-traits {
@@ -235,11 +190,4 @@
   .feature-lvl { font-size: 0.72rem; color: var(--ink-muted); font-style: italic; }
   .feature-desc { font-size: 0.85rem; line-height: 1.55; margin-top: 0.15rem; }
   .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
-
-  .edit-wrap {
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--copper) 25%, var(--surface));
-    border-radius: 6px; padding: 1rem 1.25rem; max-width: 560px; width: 100%;
-    --mef-accent: var(--copper);
-  }
 </style>

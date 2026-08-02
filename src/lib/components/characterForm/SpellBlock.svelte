@@ -18,6 +18,7 @@
   } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { createHoverTip } from '../../utils/hoverTip.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
   import type { Character, SpellRef } from '../../schemas/characterSchema';
   import type { Spell } from '../../types';
@@ -158,9 +159,7 @@
 
   // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataCache = $state(new Map<string, Spell | null>());
-  let tooltip = $state<Spell | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
+  const tip = createHoverTip<Spell>();
 
   $effect(() => {
     for (const ref of [...spells.cantrips, ...Object.values(spells.byLevel).flat()]) {
@@ -177,19 +176,6 @@
     }
   });
 
-  function showTooltip(e: MouseEvent, name: string) {
-    const data = dataCache.get(name);
-    if (!data) return;
-    tooltip = data;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function moveTooltip(e: MouseEvent) {
-    if (!tooltip) return;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  const hideTooltip = () => (tooltip = null);
 </script>
 
 <div class="grid-3">
@@ -253,9 +239,9 @@
       role="button" tabindex="0"
       onclick={() => openSpellPage(c)}
       onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
-      onmouseenter={(e) => showTooltip(e, c.name)}
-      onmousemove={moveTooltip}
-      onmouseleave={hideTooltip}>{c.name}</span>{#if divergedName(c)}<span class="name-diverged" title="Bibliothek: {divergedName(c)}">≠</span>{/if}<button onclick={() => { spells.cantrips = spells.cantrips.filter((x) => x !== c); }}>✕</button></span>
+      onmouseenter={(e) => tip.show(e, dataCache.get(c.name) ?? null)}
+      onmousemove={tip.move}
+      onmouseleave={tip.hide}>{c.name}</span>{#if divergedName(c)}<span class="name-diverged" title="Bibliothek: {divergedName(c)}">≠</span>{/if}<button onclick={() => { spells.cantrips = spells.cantrips.filter((x) => x !== c); }}>✕</button></span>
   {/each}
   <div class="autocomplete-wrap">
     <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
@@ -322,9 +308,9 @@
             role="button" tabindex="0"
             onclick={() => openSpellPage(spell)}
             onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
-            onmouseenter={(e) => showTooltip(e, spell.name)}
-            onmousemove={moveTooltip}
-            onmouseleave={hideTooltip}>{spell.name}</span>
+            onmouseenter={(e) => tip.show(e, dataCache.get(spell.name) ?? null)}
+            onmousemove={tip.move}
+            onmouseleave={tip.hide}>{spell.name}</span>
           {#if divergedName(spell)}<span class="name-diverged" title="Bibliothek: {divergedName(spell)}">≠</span>{/if}
           <button class="remove-btn" onclick={() => { spells.byLevel[lvl] = levelSpells.filter((_, j) => j !== i); }}>✕</button>
         </div>
@@ -333,4 +319,4 @@
   {/if}
 {/each}
 
-<SpellTooltip spell={tooltip} x={tooltipX} y={tooltipY} />
+<SpellTooltip spell={tip.data} x={tip.x} y={tip.y} />

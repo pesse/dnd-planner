@@ -1,4 +1,5 @@
 import { loadSpellByPath, type SpellInfo } from '../spellLibrary';
+import { createHoverTip } from '../utils/hoverTip.svelte';
 import type { Spell } from '../types';
 
 /**
@@ -30,9 +31,7 @@ export function createSpellHover(
   byName: () => Map<string, SpellInfo>,
   preload?: () => Iterable<string>,
 ): SpellHover {
-  let spell = $state<Spell | null>(null);
-  let x = $state(0);
-  let y = $state(0);
+  const tip = createHoverTip<Spell>();
   // Verhindert, dass ein langsamer Ladevorgang den Tooltip aufpoppt, wenn die Maus
   // längst weiter ist.
   let hovering = '';
@@ -55,31 +54,26 @@ export function createSpellHover(
 
   return {
     get spell() {
-      return spell;
+      return tip.data;
     },
     get x() {
-      return x;
+      return tip.x;
     },
     get y() {
-      return y;
+      return tip.y;
     },
     async show(e: MouseEvent, name: string) {
-      x = e.clientX + 14;
-      y = e.clientY + 14;
+      tip.at(e);
       hovering = name;
       const info = byName().get(name);
       if (!info?.path) return;
       const data = await loadSpellCached(name, info.path);
-      if (data && hovering === name) spell = data;
+      if (data && hovering === name) tip.data = data;
     },
-    move(e: MouseEvent) {
-      if (!spell) return;
-      x = e.clientX + 14;
-      y = e.clientY + 14;
-    },
+    move: tip.move,
     hide() {
       hovering = '';
-      spell = null;
+      tip.hide();
     },
   };
 }

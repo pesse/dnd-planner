@@ -12,24 +12,17 @@
   import { translateMonster } from '../services/aiActions/translateAction';
   import type { MonsterTranslation } from '../schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
-  import { parseMonster as _parseMonster, normalizeMonster } from '../utils/schemaValidation';
+  import { parseMonster, normalizeMonster, jsonParser } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
   import { searchMonsters, getResource, mapApiResourceToMonster, type DndApiRef } from '../services/dndApi';
   import { slugKeepUmlauts } from '../utils/text';
   import { invalidateVault } from '../stores/campaign';
 
-  function parseMonster(json: string): Monster | null {
-    try {
-      const result = _parseMonster(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
-
   const ed = createCardEditor<Monster>({
     type: 'monster',
     label: 'Monster',
-    parse: parseMonster,
+    parse: jsonParser(parseMonster),
     defaultName: (m) => slugKeepUmlauts(m.name || 'monster'),
     location: {
       // Ablage nach Creature-Type (Bucket). Typwechsel im Editor verschiebt die Datei.

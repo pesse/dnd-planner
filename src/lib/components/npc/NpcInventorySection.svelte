@@ -12,6 +12,7 @@
   import { formatRarity, weaponDamageLine } from '../../itemFormat';
   import { openItemPage } from '../../services/vaultLinks';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { Npc } from '../../schemas/npc';
   import type { Item } from '../../types';
@@ -38,9 +39,7 @@
   const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
 
   let itemDataRecord = $state<Record<string, Item | null>>({});
-  let tooltipItem = $state<Item | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
+  const tip = createHoverTip<Item>();
 
   $effect(() => {
     for (const name of npc.inventory) {
@@ -53,18 +52,6 @@
       }
     }
   });
-
-  function showItemTooltip(e: MouseEvent, libItem: ItemInfo) {
-    const data = itemDataRecord[libItem.path];
-    if (!data) return;
-    tooltipItem = data;
-    updateTooltipPos(e);
-  }
-  function updateTooltipPos(e: MouseEvent) {
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function hideItemTooltip() { tooltipItem = null; }
 
   function onInput() {
     suggestions = searchItems(itemLoadedByDir, newItem, 8);
@@ -101,9 +88,9 @@
       {@const libItem = matchItem(itemIndex, { name: item })}
       {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
       <div class="item-row"
-        onmouseenter={(e) => libItem && showItemTooltip(e, libItem)}
-        onmousemove={(e) => tooltipItem && updateTooltipPos(e)}
-        onmouseleave={hideItemTooltip}
+        onmouseenter={(e) => tip.show(e, fullItem)}
+        onmousemove={tip.move}
+        onmouseleave={tip.hide}
       >
         {#if libItem}
           <span class="item-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
@@ -146,7 +133,7 @@
   </div>
 </div>
 
-<ItemTooltip item={tooltipItem} x={tooltipX} y={tooltipY} />
+<ItemTooltip item={tip.data} x={tip.x} y={tip.y} />
 
 <style>
   .item-list {

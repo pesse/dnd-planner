@@ -12,6 +12,7 @@
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
@@ -89,9 +90,7 @@
 
   // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataByPath = $state(new Map<string, Item | null>());
-  let tooltip = $state<Item | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
+  const tip = createHoverTip<Item>();
 
   $effect(() => {
     for (const line of inventory) {
@@ -108,19 +107,6 @@
     }
   });
 
-  function showTooltip(e: MouseEvent, lib: ItemInfo) {
-    const data = dataByPath.get(lib.path);
-    if (!data) return;
-    tooltip = data;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function moveTooltip(e: MouseEvent) {
-    if (!tooltip) return;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  const hideTooltip = () => (tooltip = null);
 </script>
 
 <table class="inv-table">
@@ -143,15 +129,15 @@
                 class="inv-name-link"
                 title="Gegenstandskarte öffnen"
                 onclick={() => openItemPage(lib)}
-                onmouseenter={(e) => showTooltip(e, lib)}
-                onmousemove={moveTooltip}
-                onmouseleave={hideTooltip}
+                onmouseenter={(e) => tip.show(e, dataByPath.get(lib.path) ?? null)}
+                onmousemove={tip.move}
+                onmouseleave={tip.hide}
               >{item.name}</button>
               {#if divergedName(item)}
                 <span class="name-diverged" title="Bibliothek: {divergedName(item)}">≠</span>
               {/if}
               <button type="button" class="link-edit" title="Anderen Gegenstand wählen oder frei benennen"
-                onclick={() => { editingRow = i; hideTooltip(); }}>✎</button>
+                onclick={() => { editingRow = i; tip.hide(); }}>✎</button>
               {#if !item.sourceKey?.trim() && itemIndex.ambiguous.has(item.name.trim().toLowerCase())}
                 <!-- Angezeigt wird der erste Treffer, der womöglich falsche — daher
                      der Hinweis statt eines automatischen Links. -->
@@ -230,4 +216,4 @@
   <textarea class="ta-small" bind:value={inventoryNotes}></textarea>
 </label>
 
-<ItemTooltip item={tooltip} x={tooltipX} y={tooltipY} />
+<ItemTooltip item={tip.data} x={tip.x} y={tip.y} />

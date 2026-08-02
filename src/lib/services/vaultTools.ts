@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type Anthropic from '@anthropic-ai/sdk';
+import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 // ── Geteilte Typen (Chat & Agent) ─────────────────────────────────────────────
 
@@ -46,12 +47,6 @@ export const TASK_TEMPERATURE = {
 export type TaskKind = keyof typeof TASK_TEMPERATURE;
 
 // ── Tool-Definitionen ─────────────────────────────────────────────────────────
-
-interface ToolDef {
-  name: string;
-  description: string;
-  params: Anthropic.Tool.InputSchema;
-}
 
 const TOOL_LIST: ToolDef[] = [
   {
@@ -107,16 +102,8 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-export const VAULT_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-export const VAULT_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
+export const VAULT_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
+export const VAULT_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
 // ── Generisches Toolset für den Agent-Loop ──────────────────────────────────
 

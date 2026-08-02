@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { createHoverTip } from '../utils/hoverTip.svelte';
 import type { Item } from '../types';
 
 /**
@@ -20,9 +21,7 @@ export interface ItemHover {
 }
 
 export function createItemHover(paths: () => Iterable<string>): ItemHover {
-  let item = $state<Item | null>(null);
-  let x = $state(0);
-  let y = $state(0);
+  const tip = createHoverTip<Item>();
   let loaded = $state<Record<string, Item | null>>({});
   // Merker außerhalb der Runen: `loaded` im Effekt zu LESEN würde ihn bei jedem
   // eintreffenden Ladevorgang erneut anstoßen.
@@ -47,31 +46,21 @@ export function createItemHover(paths: () => Iterable<string>): ItemHover {
 
   return {
     get item() {
-      return item;
+      return tip.data;
     },
     get x() {
-      return x;
+      return tip.x;
     },
     get y() {
-      return y;
+      return tip.y;
     },
     data(path: string) {
       return loaded[path] ?? null;
     },
     show(e: MouseEvent, path: string) {
-      const data = loaded[path];
-      if (!data) return;
-      item = data;
-      x = e.clientX + 14;
-      y = e.clientY + 14;
+      tip.show(e, loaded[path] ?? null);
     },
-    move(e: MouseEvent) {
-      if (!item) return;
-      x = e.clientX + 14;
-      y = e.clientY + 14;
-    },
-    hide() {
-      item = null;
-    },
+    move: tip.move,
+    hide: tip.hide,
   };
 }

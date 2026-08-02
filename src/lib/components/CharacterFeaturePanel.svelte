@@ -27,6 +27,7 @@
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import { createSuggestNav } from '../utils/suggestNav.svelte';
+  import { createHoverTip } from '../utils/hoverTip.svelte';
   import DeclarationBadge from './DeclarationBadge.svelte';
   import FeatureChoicePicker from './FeatureChoicePicker.svelte';
   import FeatTooltip from './FeatTooltip.svelte';
@@ -215,25 +216,10 @@
     featPickerTarget = null;
     featQuery = '';
     featNav.reset();
-    hideFeatTooltip(); // Vorschlag verschwindet aus dem DOM → kein mouseleave mehr
+    featTip.hide(); // Vorschlag verschwindet aus dem DOM → kein mouseleave mehr
   }
 
-  // ─── Talent-Hover-Karte ────────────────────────────────────────────────────────
-  let featTooltip = $state<FeatEntry | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-
-  function showFeatTooltip(e: MouseEvent, entry: FeatEntry) {
-    featTooltip = entry;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function moveFeatTooltip(e: MouseEvent) {
-    if (!featTooltip) return;
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function hideFeatTooltip() { featTooltip = null; }
+  const featTip = createHoverTip<FeatEntry>();
 
   function pickFeat(target: 'add' | number, f: FeatEntry) {
     const link = { sourceKey: f.sourceKey ?? '', name: featDisplayName(f) };
@@ -393,9 +379,9 @@
       <ul class="suggestions compact">
         {#each featOptions as opt, si}
           <li class:active={si === featNav.index} onmousedown={() => pickFeat(target, opt)}
-            onmouseenter={(e) => showFeatTooltip(e, opt)}
-            onmousemove={moveFeatTooltip}
-            onmouseleave={hideFeatTooltip}>
+            onmouseenter={(e) => featTip.show(e, opt)}
+            onmousemove={featTip.move}
+            onmouseleave={featTip.hide}>
             <span>{featDisplayName(opt)}</span>
             {#if opt.category}<span class="sug-cat">{FEAT_CATEGORY_DE[opt.category]}</span>{/if}
           </li>
@@ -516,7 +502,7 @@
   </div>
 </div>
 
-<FeatTooltip feat={featTooltip} x={tooltipX} y={tooltipY} />
+<FeatTooltip feat={featTip.data} x={featTip.x} y={featTip.y} />
 
 {#if showFeatCreate}
   <CreateCardModal

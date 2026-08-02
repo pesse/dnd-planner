@@ -3,10 +3,11 @@
   import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
-  import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
+  import { parseSpell as _parseSpell, jsonParser } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
-  import ParseError from './ui/ParseError.svelte';
+  import CardParseError from './ui/CardParseError.svelte';
+  import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -22,13 +23,6 @@
   import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
 
-  function parseSpell(json: string): Spell | null {
-    try {
-      const result = _parseSpell(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
-
   // Schule englisch im JSON, Ordnername deutsch im Vault.
   const SCHOOL_TO_DIR: Record<string, string> = {
     abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
@@ -39,7 +33,7 @@
   const ed = createCardEditor<Spell>({
     type: 'spell',
     label: 'Zauber',
-    parse: parseSpell,
+    parse: jsonParser(_parseSpell),
     defaultName: (s) => slugKeepUmlauts(s.name || 'zauber'),
     location: {
       bucketLabel: 'Schule',
@@ -54,12 +48,6 @@
   });
 
   let draft = $derived(ed.draft);
-  let dirty = $derived(ed.dirty);
-  let saveError = $derived(ed.saveError);
-  let lastSavedContent = $derived(ed.lastSavedContent);
-  const save = () => ed.save();
-  const discard = () => ed.discard();
-  const saveJson = (json: string) => ed.saveJson(json);
 
   let showAi = $state(false);
   let showTranslate = $state(false);
@@ -128,12 +116,12 @@
   {@const color = SCHOOL_COLORS[draft.school] ?? 'var(--arcane)'}
   <EditorPanel
     bind:tab={ed.tab}
-    {dirty}
-    {saveError}
-    onsave={save}
-    ondiscard={discard}
-    onsavejson={saveJson}
-    getJson={() => draft ? JSON.stringify(draft, null, 2) : lastSavedContent}
+    dirty={ed.dirty}
+    saveError={ed.saveError}
+    onsave={() => ed.save()}
+    ondiscard={() => ed.discard()}
+    onsavejson={(json) => ed.saveJson(json)}
+    getJson={() => draft ? JSON.stringify(draft, null, 2) : ed.lastSavedContent}
     style="--ep-accent: {color}"
   >
     {#snippet tabactions()}
@@ -179,9 +167,9 @@
 
     {#snippet bearbeiten()}
       {#if ed.draft}
-        <div class="edit-wrap" style="--mef-accent: {color}">
+        <CardEditWrap accent={color}>
           <SpellEditForm bind:spell={ed.draft} />
-        </div>
+        </CardEditWrap>
         <CardTools accent="var(--red)"
           actions={[
             { label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) },
@@ -195,19 +183,7 @@
     {/snippet}
   </EditorPanel>
 {:else}
-  <EditorPanel
-    bind:tab={ed.tab}
-    dirty={false}
-    onsavejson={saveJson}
-    getJson={() => lastSavedContent}
-  >
-    {#snippet karte()}
-      <ParseError message="Kein gültiger Zauber-Datensatz." />
-    {/snippet}
-    {#snippet bearbeiten()}
-      <ParseError message="Ungültiges Zauber-JSON." onjson={() => (ed.tab = 'json')} />
-    {/snippet}
-  </EditorPanel>
+  <CardParseError bind:tab={ed.tab} noun="Zauber" json={ed.lastSavedContent} onsavejson={(json) => ed.saveJson(json)} />
 {/if}
 
 {#if showAi && ed.draft}
@@ -393,12 +369,4 @@
     border-color: var(--ink-muted);
   }
 
-  .edit-wrap {
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--mef-accent, var(--arcane)) 25%, var(--surface));
-    border-radius: 6px;
-    padding: 1rem 1.25rem;
-    max-width: 560px;
-    width: 100%;
-  }
 </style>

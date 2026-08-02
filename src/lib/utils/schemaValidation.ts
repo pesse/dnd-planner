@@ -44,6 +44,16 @@ function parse<T>(schema: ZodType, migrate: Migrate, raw: unknown): ParseResult<
   return { ok: false, errors: r.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`) };
 }
 
+/** Ein Karten-Editor bekommt Dateitext: kaputtes JSON zählt wie ein Schema-Bruch. */
+export function jsonParser<T>(validate: (raw: unknown) => ParseResult<T>) {
+  return (json: string): T | null => {
+    try {
+      const result = validate(JSON.parse(json));
+      return result.ok ? result.data : null;
+    } catch { return null; }
+  };
+}
+
 export const normalizeSpell = (raw: unknown): Spell => normalize(spellSchema, migrateSpellLegacy, raw);
 export const parseSpell = (raw: unknown): ParseResult<Spell> => parse(spellSchema, migrateSpellLegacy, raw);
 

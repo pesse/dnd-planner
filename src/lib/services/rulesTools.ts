@@ -3,15 +3,9 @@
  * Beide Formate: OpenAI-Function-Calling + Anthropic native. Executor ruft die
  * Laufzeit-Helfer aus `rulesReference.ts`. Rückgaben sind JSON-Strings mit Quelle.
  */
-import type Anthropic from '@anthropic-ai/sdk';
 import type { AgentToolset } from './vaultTools';
 import { lookupRule, searchRules } from './rulesReference';
-
-interface ToolDef {
-  name: string;
-  description: string;
-  params: Anthropic.Tool.InputSchema;
-}
+import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [
   {
@@ -47,18 +41,8 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-kompatibles Tool-Format. */
-export const RULES_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-/** Anthropic-kompatibles Tool-Format. */
-export const RULES_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
+export const RULES_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
+export const RULES_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
 const GLOSSARY_SOURCE = 'DE SRD 5.2.1 Regelglossar';
 
