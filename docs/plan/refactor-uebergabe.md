@@ -21,6 +21,7 @@
 | 7d · LLM, Aufstieg | `2487848` | LlmPanel 2116 → 495, LevelUpAssistant 1438 → 628 (**Tooltip-Bugfix**) |
 | 8 · Kommentare | `617e899` | 13,8 % → 8,6 %; Banner 101 → 20 |
 | 9 · Autocomplete, NpcCard | `8f110e7` | `utils/suggestNav.svelte.ts` (8 Kopien), `ui/FeatureRow.svelte` (3); NpcCard 1056 → 549 |
+| 10 · Hover, Kartengerüst | `2065bdd` | `utils/hoverTip.svelte.ts` (7 Nutzer), `services/toolDef.ts` (5), `editor/libraryCard.ts` + 3 UI-Atome (6 Karten) |
 
 ## Was nicht erreicht ist
 
@@ -73,7 +74,7 @@ zu Beginn waren es 56). Zyklen prüft `npx madge --circular --extensions ts,svel
 **Die Warnliste namentlich vergleichen, nicht nur zählen.** Eine verwaiste CSS-Regel und ein neu
 greifender Selektor heben sich in der Summe auf.
 
-Referenzstand am Ende: **966 Dateien, 0 Fehler, 39 Warnungen, 88 Tests grün, 44.703 Zeilen in
+Referenzstand am Ende: **976 Dateien, 0 Fehler, 39 Warnungen, 88 Tests grün, 44.346 Zeilen in
 `src`** (Start: 48.433).
 
 ## Fallen, die schon Zeit gekostet haben
@@ -143,3 +144,12 @@ identischer *Regelkörper* zählt, meldet „~2.300 Zeilen sparbar", weil `color
 vorkommt. Das sind 30 verschiedene Selektoren mit derselben einen Zeile. Dazu kommt: Svelte 5
 hängt `:where(.svelte-hash)` an jeden Selektorteil außer dem ersten, weshalb eine lokale Regel
 eine globale Utility-Klasse fast immer schlägt.
+
+## Zwei Befunde aus Etappe 10, die eine Entscheidung brauchen
+
+- **`EncounterCard` baut `parseEncounter` von Hand** (Struktur-Check ohne Zod), obwohl
+  `parseEncounter` in `schemaValidation.ts` existiert. Unverändert übernommen — die Umstellung
+  wäre eine Verhaltensänderung.
+- **`BackgroundCard` bildet den Dateinamen aus dem ENGLISCHEN Namen**, `Feat`/`Species`/`Class`
+  aus dem deutschen. Der Kommentar dort behauptet, alle vier täten dasselbe. Entweder ist der
+  Dateiname falsch oder der Kommentar; Verhalten unverändert gelassen.
