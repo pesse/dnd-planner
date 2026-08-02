@@ -2,6 +2,7 @@
   import type { Spell } from '$lib/types';
   import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
+  import { printHtmlDocument } from '$lib/utils/printFrame';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
   import { parseSpell as _parseSpell, jsonParser } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
@@ -95,20 +96,7 @@
 
   function printSpell() {
     if (!draft) return;
-    const html = prepareSpellPrint(draft, document);
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument!;
-    doc.open(); doc.write(html); doc.close();
-    setTimeout(() => {
-      const prev = document.title;
-      document.title = draft!.name;
-      iframe.contentWindow!.focus();
-      iframe.contentWindow!.print();
-      document.title = prev;
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    }, 0);
+    printHtmlDocument(prepareSpellPrint(draft, document), draft.name);
   }
 </script>
 

@@ -9,6 +9,7 @@
   import { normalizeItem } from '$lib/utils/schemaValidation';
   import { SOURCE_KEYS, SOURCE_LABELS, sourceLabel } from '$lib/schemas/source';
   import { prepareItemPrint } from '$lib/utils/printItem';
+  import { printHtmlDocument } from '$lib/utils/printFrame';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { slugKeepUmlauts } from '$lib/utils/text';
   import { activeFile, invalidateVault } from '$lib/stores/campaign';
@@ -166,20 +167,7 @@
 
   function printItem() {
     if (!item) return;
-    const html = prepareItemPrint(item, document);
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument!;
-    doc.open(); doc.write(html); doc.close();
-    setTimeout(() => {
-      const prev = document.title;
-      document.title = item!.name_de ?? item!.name;
-      iframe.contentWindow!.focus();
-      iframe.contentWindow!.print();
-      document.title = prev;
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    }, 0);
+    printHtmlDocument(prepareItemPrint(item, document), item.name_de ?? item.name);
   }
 </script>
 

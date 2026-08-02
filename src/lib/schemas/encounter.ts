@@ -30,6 +30,9 @@ export const encounterSchema = z.object({
   loot: z.string().default('').describe('Beute/Belohnungen als Fließtext.'),
   notes: z.string().default('').describe('Spielleiter-Notizen, PC-Integration, Konsequenzen.'),
   status: z.enum(ENCOUNTER_STATUSES).default('planned'),
+  // Von Hand gepflegte Kampagnen-Schlagworte. Ohne Default, damit eine Datei ohne
+  // `tags` auch ohne welche zurückgeschrieben wird.
+  tags: z.array(z.string()).optional(),
 });
 
 export type Encounter = z.infer<typeof encounterSchema>;

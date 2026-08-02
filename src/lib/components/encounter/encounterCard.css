@@ -1,0 +1,99 @@
+/* Feldsprache der Encounter-Karte. Global unter `.encounter-panel`, weil Kopfzeile und
+   Monsterblock eigene Komponenten sind und dieselben Feld- und Abschnittsregeln brauchen.
+   Muster wie npc/npcCard.css.
+
+   Die Feld-Sonderregeln stehen hier statt in den Komponenten: der Präfix macht die
+   Basisregel spezifischer, ein `color` aus einer Komponente käme sonst nicht mehr an. */
+
+.encounter-panel .editable-field {
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.encounter-panel .editable-field:hover,
+.encounter-panel .editable-field:focus {
+  border-color: var(--steel);
+  background: var(--bg-raised);
+}
+
+.encounter-panel .enc-name-input {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--steel);
+  font-variant: small-caps;
+  flex: 1;
+  min-width: 120px;
+}
+
+.encounter-panel .diff-select {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.encounter-panel .diff-select option { background: var(--bg); color: var(--ink); }
+
+.encounter-panel .enc-desc-input {
+  width: 100%;
+  color: var(--ink-soft);
+  font-style: italic;
+  resize: vertical;
+  line-height: 1.6;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.encounter-panel .enc-read-aloud-input {
+  width: 100%;
+  color: var(--arcane);
+  font-style: italic;
+  resize: vertical;
+  line-height: 1.7;
+  font-size: 0.85rem;
+}
+
+.encounter-panel .meta-input { min-width: 80px; flex: 1; }
+.encounter-panel .meta-num-input { width: 44px; text-align: center; }
+.encounter-panel .meta-xp { width: 60px; }
+
+.encounter-panel .enc-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--steel);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.4rem;
+}
+
+/* Muss hier stehen, nicht in EncounterCard: die Basisregel oben ist sonst spezifischer. */
+.encounter-panel .read-aloud-title { color: var(--arcane); }
+
+.encounter-panel .mon-count-input { width: 44px; text-align: center; font-weight: 700; color: var(--gold); }
+.encounter-panel .mon-slug-input { width: 180px; font-weight: 600; }
+
+.encounter-panel .mon-notes-input {
+  width: 100%;
+  color: var(--ink-muted);
+  font-style: italic;
+  font-size: 0.82rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.encounter-panel .enc-text-input {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.encounter-panel .enc-notes-input { white-space: pre-wrap; font-size: 0.82rem; }
