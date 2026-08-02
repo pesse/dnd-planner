@@ -22,13 +22,14 @@
 | 8 · Kommentare | `617e899` | 13,8 % → 8,6 %; Banner 101 → 20 |
 | 9 · Autocomplete, NpcCard | `8f110e7` | `utils/suggestNav.svelte.ts` (8 Kopien), `ui/FeatureRow.svelte` (3); NpcCard 1056 → 549 |
 | 10 · Hover, Kartengerüst | `2065bdd` | `utils/hoverTip.svelte.ts` (7 Nutzer), `services/toolDef.ts` (5), `editor/libraryCard.ts` + 3 UI-Atome (6 Karten) |
+| — · Korrekturen | `045ad57`, `257bccc` | englische Dateinamen; EncounterCard 741 → 313 über Zod (`tags` ins Schema). **0 Dateien > 700** |
 
 ## Was nicht erreicht ist
 
 | Kennzahl | Start | Ende | Ziel |
 |---|---|---|---|
-| Dateien > 700 Zeilen | 14 | **1** (`EncounterCard`, 750) | 0 |
-| Größte Datei | 2.899 | **750** | < 400 |
+| Dateien > 700 Zeilen | 14 | **0** ✓ | 0 |
+| Größte Datei | 2.899 | **681** (`CharacterFeaturePanel`) | < 400 |
 | Abschnitts-Banner | 323 | **20** | 0 |
 | Kommentarquote | 13,5 % | **8,6 %** | < 6 % |
 | Scoped CSS | 8.332 | **6.163** | ~6.000 ✓ |
@@ -38,18 +39,16 @@
 
 Priorisierte Restliste:
 
-1. **`EncounterCard` (750) zerlegen** — die letzte Datei über der Grenze. `NpcCard` und
-   `CharacterFeaturePanel` sind in Etappe 9 darunter gerutscht.
-2. **Die vier `get(store)`-Lesestellen auflösen**: `services/renameFile.ts`,
+1. **Die vier `get(store)`-Lesestellen auflösen**: `services/renameFile.ts`,
    `services/levelUp/runSteps.ts`, `services/sidebar/deleteEntry.ts`, `editor/cardEditor.svelte.ts`.
    Die letzten drei sind bei Zerlegungen aus Komponenten mitgewandert — **die Kennzahl ist heute
    schlechter als vor dem Refactor.**
-3. **`vaultTools.ts` dreiteilen** (4 Banner, 18 Importstellen).
-4. **`schemas/levelUp.ts` je Artefakt trennen** — fünf Artefakte in einer Datei, „One Zod schema
+2. **`vaultTools.ts` dreiteilen** (4 Banner, 18 Importstellen).
+3. **`schemas/levelUp.ts` je Artefakt trennen** — fünf Artefakte in einer Datei, „One Zod schema
    per artifact" gilt dort noch nicht.
-5. **`contextJsonFormat.ts`**: Encounter-, Monster- und NPC-Schema stehen dort als Prosa. Seit
+4. **`contextJsonFormat.ts`**: Encounter-, Monster- und NPC-Schema stehen dort als Prosa. Seit
    `schemas/npc.ts` existiert, ließen sich alle drei Blöcke generieren.
-6. **`pdf/characterFields.ts` ist noch Typ-Fassade** für `Character`/`Attack`/… aus
+5. **`pdf/characterFields.ts` ist noch Typ-Fassade** für `Character`/`Attack`/… aus
    `characterSchema`.
 
 ## Bestandsfehler, die dabei sichtbar wurden (nicht behoben)
@@ -74,7 +73,7 @@ zu Beginn waren es 56). Zyklen prüft `npx madge --circular --extensions ts,svel
 **Die Warnliste namentlich vergleichen, nicht nur zählen.** Eine verwaiste CSS-Regel und ein neu
 greifender Selektor heben sich in der Summe auf.
 
-Referenzstand am Ende: **976 Dateien, 0 Fehler, 39 Warnungen, 88 Tests grün, 44.346 Zeilen in
+Referenzstand am Ende: **980 Dateien, 0 Fehler, 39 Warnungen, 88 Tests grün, 44.213 Zeilen in
 `src`** (Start: 48.433).
 
 ## Fallen, die schon Zeit gekostet haben
@@ -147,9 +146,16 @@ eine globale Utility-Klasse fast immer schlägt.
 
 ## Zwei Befunde aus Etappe 10, die eine Entscheidung brauchen
 
-- **`EncounterCard` baut `parseEncounter` von Hand** (Struktur-Check ohne Zod), obwohl
-  `parseEncounter` in `schemaValidation.ts` existiert. Unverändert übernommen — die Umstellung
-  wäre eine Verhaltensänderung.
-- **`BackgroundCard` bildet den Dateinamen aus dem ENGLISCHEN Namen**, `Feat`/`Species`/`Class`
-  aus dem deutschen. Der Kommentar dort behauptet, alle vier täten dasselbe. Entweder ist der
-  Dateiname falsch oder der Kommentar; Verhalten unverändert gelassen.
+Beide sind erledigt: `EncounterCard` validiert seit `257bccc` über Zod (dabei kam `tags` ins
+Schema, sonst wären zehn Dateien um ihre Schlagworte gebracht worden), und die Dateinamen sind
+seit `045ad57` englisch — Zauber und Monster bleiben auf Entscheidung des Nutzers deutsch, weil
+dort der Bestand deutsch ist und Homebrew-Monster oft keinen englischen Namen haben.
+
+Neu offen, gemeldet und NICHT behoben:
+
+- **`openPrint` schreibt in ein `$derived`** (`saveError = ''` überschreibt `ed.saveError`) — Rest
+  aus der Zeit vor der Ableitung. Entfernen würde sichtbares Verhalten ändern.
+- **Der Encounter-Druck löst Monster global nur flach auf** (`./vault/monsters/<slug>.json`),
+  während `contextLoad` einen unterordner-fähigen Pfad-Cache nutzt. Ein Monster im Typ-Unterordner
+  erscheint im Chat-Kontext, druckt aber als „nicht gefunden".
+- **`tags` ist reine Datenhaltung** — kein UI-Feld, kein Filter; nur über den JSON-Modus editierbar.
