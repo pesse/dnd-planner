@@ -1,4 +1,4 @@
-/** Lese-Index der Hintergrund-Bibliothek (`vault/backgrounds`, flach). */
+/** Lese-Index der Hintergrund-Bibliothek (flach). */
 import { createLibrary } from './services/library/createLibrary';
 import { parseBackground } from './utils/schemaValidation';
 import type { Background } from './schemas/background';

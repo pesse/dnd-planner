@@ -1,6 +1,6 @@
 /**
- * Lese-Index der Gegenstands-Bibliothek (`vault/items`, ein Ordner je Kategorie)
- * plus Auflösung eines Charakter-/NPC-Eintrags auf einen Bibliothekseintrag.
+ * Lese-Index der Gegenstands-Bibliothek (ein Ordner je Kategorie) plus Auflösung
+ * eines Charakter-/NPC-Eintrags auf einen Bibliothekseintrag.
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from './types';

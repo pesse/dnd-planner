@@ -1,4 +1,4 @@
-/** Lese-Index der Klassen-Bibliothek (`vault/classes`, flach) plus Subklassen-Baum. */
+/** Lese-Index der Klassen-Bibliothek (flach) plus Subklassen-Baum. */
 import { createLibrary } from './services/library/createLibrary';
 
 export const CLASSES_PATH = './vault/classes';

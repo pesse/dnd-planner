@@ -77,6 +77,23 @@ if it describes a different file. What survives: choices a reader would otherwis
 tool-frei — sonst fährt runAiAction einen Agent-Loop`), constraints a type cannot express, causal
 chains. 1–3 lines, naming the consequence. Repetition wants a factory, not a comment about it.
 
+The test: what does a reader do differently if the sentence is gone? Nothing → delete. **Being true
+is not the criterion** — a comment survives review because it is correct, not because it carries
+anything. Four ways it fails that test anyway:
+
+- **A value that stands as a constant next to it does not appear in prose** — name the identifier or
+  nothing (`vault/feats` right above `FEATS_PATH`). It stays when the value is a derivation
+  (`− 2×5mm Padding = 59mm`) or a worked example (`homebrew_alarm` → `homebrew-sam_alarm`).
+- **No negation that the positive statement already covers.** „Die Kategorienamen des deutschen SRD
+  5.2" rules out free translations by itself; „, keine freien Übersetzungen" is a defence against an
+  objection nobody raised — reasoning residue from writing it. Negate only where the reader would
+  plausibly do the wrong thing regardless (`Additiv, nie überschreibend`).
+- **No reason for the way a DIFFERENT module is cut.** The `import` line says where it lives, and
+  the why belongs in that file or nowhere. This one bites inside a single sentence: half describes
+  the caller, half constrains this type — halve it instead of deleting it.
+- **A field that mirrors a schema field is not documented twice** — `.describe()` is the source. The
+  tell is „(siehe `featureGrantSchema`)": it points at the source *and* copies it, so the copy drifts.
+
 Budget: module head max 3 lines (what, not how). JSDoc only when it says something name plus
 signature do not already say — `/** Zeigt den deutschen Namen, falls vorhanden. */` over
 `displayName()` goes. One exception: in `aiActions/*` prompt-near explanation is *content*

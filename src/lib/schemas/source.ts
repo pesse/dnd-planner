@@ -55,7 +55,7 @@ const LEGACY_SOURCES: Record<string, SourceKey> = {
 };
 
 /**
- * Unbekanntes fällt auf `homebrew-sam`: die sichere Richtung, weil dieser Pack codiert
+ * Unbekanntes fällt auf `OWN_SOURCE`: die sichere Richtung, weil dieser Pack codiert
  * ist und das Material so nie ungeprüft in einer offenen Library landet.
  */
 export function toSourceKey(raw: string | undefined | null): SourceKey {

@@ -1,6 +1,6 @@
 /**
- * Lese-Index der Talent-Bibliothek (`vault/feats`). Geschrieben wird ausschließlich
- * über den Talent-Karten-Editor — ein Charakter kann nur auf vorhandene Talente verlinken.
+ * Lese-Index der Talent-Bibliothek. Geschrieben wird ausschließlich über den
+ * Talent-Karten-Editor — ein Charakter kann nur auf vorhandene Talente verlinken.
  */
 import { createLibrary } from './services/library/createLibrary';
 import { normName } from './utils/text';
@@ -11,10 +11,7 @@ import { migrateFeatLegacy } from './schemas/feat';
 
 export const FEATS_PATH = './vault/feats';
 
-/**
- * Die Kategorienamen des deutschen SRD 5.2, keine freien Übersetzungen. Das Vokabular selbst
- * steht in `schemas/vocabulary.ts`, damit Zod nicht über die Anzeige-Schicht muss.
- */
+/** Die Kategorienamen des deutschen SRD 5.2. */
 export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
   Origin: 'Herkunft',
   General: 'Allgemein',
@@ -31,16 +28,10 @@ export interface FeatEntry {
   prerequisite?: string;
   prerequisiteDe?: string;
   category?: FeatCategory;
-  /** Identisch zur Charakter-Referenz `sourceKey`. */
   sourceKey?: string;
-  /** Der Flow fragt sie deterministisch ab; nur Bibliotheks-Talente können sie tragen. */
+  /** Nur Bibliotheks-Talente können sie tragen. */
   grantsChoice?: FeatureChoiceGrant;
-  /** Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im `desc`. */
   grantsSpells?: SpellGrant;
-  /**
-   * Deterministisch anwendbare Mechanik („Zäh": +2 TP je Stufe). Fehlt = nicht redigiert,
-   * `{}` = geprüft und ohne Mechanik (siehe `featureGrantSchema`).
-   */
   grants?: FeatureGrant;
   /** Bei inline erzeugten Talenten leer. */
   path?: string;

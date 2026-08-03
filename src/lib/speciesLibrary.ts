@@ -1,4 +1,4 @@
-/** Lese-Index der Spezies-Bibliothek (`vault/species`, flach). */
+/** Lese-Index der Spezies-Bibliothek (flach). */
 import { createLibrary } from './services/library/createLibrary';
 import { speciesSchema, migrateSpeciesLegacy, type Species } from './schemas/species';
 
