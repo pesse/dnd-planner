@@ -296,6 +296,26 @@
   </section>
 
   <section>
+    <h3>Sprachen</h3>
+    <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
+
+    <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
+    <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+  </section>
+
+  <section>
+    <h3>Übungen &amp; Rüstungsausbildung</h3>
+    <ProficiencyFields
+      proficiencies={form.proficiencies}
+      savedProficiencies={saved?.proficiencies}
+      weaponItems={libs.weapons}
+      itemIndex={libs.itemIndex}
+      sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
+      {dirOf}
+    />
+  </section>
+
+  <section>
     <h3>Angriffe</h3>
     <AttackTable
       attacks={form.attacks}
@@ -350,26 +370,6 @@
       Aussehen
       <textarea class="ta-small" bind:value={form.personal.aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
     </label>
-  </section>
-
-  <section>
-    <h3>Sprachen</h3>
-    <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
-
-    <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
-    <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
-  </section>
-
-  <section>
-    <h3>Übungen &amp; Rüstungsausbildung</h3>
-    <ProficiencyFields
-      proficiencies={form.proficiencies}
-      savedProficiencies={saved?.proficiencies}
-      weaponItems={libs.weapons}
-      itemIndex={libs.itemIndex}
-      sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
-      {dirOf}
-    />
   </section>
 
   <section>
