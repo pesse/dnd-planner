@@ -43,12 +43,8 @@
  * Lauf (Pass C stabil ~11,5 s) — der Preis der drei Prompt-Zusätze.
  */
 import type { FeatureRider } from '../../src/lib/schemas/levelUp';
-import {
-  analyzeFeatureEffects,
-  finalizeFeatureEffects,
-  type FeatureAnalysis,
-  type ResolvedChoice,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../../src/lib/services/aiActions/featureEffectsAction';
+import { type ResolvedChoice } from '../../src/lib/services/analysis/types';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
 import { isSheetReady, SHEET_NOTE_LIMIT } from './featureEffectsStep';

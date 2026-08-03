@@ -28,13 +28,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const GLOSSARY = JSON.parse(readFileSync(join(ROOT, 'src/lib/data/glossary.json'), 'utf8'));
 const OUT = join(ROOT, 'src/lib/data/rules-glossary.json');
 
-// ── Term-Map aus dem autoritativen Glossar (normalisiertes de → {en,cat,de}) ──
+// Term-Map aus dem autoritativen Glossar (normalisiertes de → {en,cat,de})
 const stripTag = (s) => s.replace(/\s*\([^)]*\)\s*$/, '').trim(); // „Blind (Zustand)" → „Blind"
 const norm = (s) => stripTag(s).toLowerCase().replace(/\s+/g, ' ').trim();
 const termMap = new Map();
 for (const t of GLOSSARY.terms) termMap.set(norm(t.de), { en: t.en, cat: t.cat, de: t.de });
 
-// ── pdftohtml -xml ────────────────────────────────────────────────────────────
 const xml = execFileSync('pdftohtml', ['-xml', '-f', FROM, '-l', TO, '-i', '-stdout', PDF], {
   encoding: 'utf8',
   maxBuffer: 128 * 1024 * 1024,
@@ -61,7 +60,7 @@ for (const fm of xml.matchAll(/<fontspec id="(\d+)" size="(\d+)" family="([^"]+)
   }
 }
 
-// ── Fragmente in globaler Lesereihenfolge (Seite → Spalte links, dann rechts) ──
+// Fragmente in globaler Lesereihenfolge (Seite → Spalte links, dann rechts)
 const frags = [];
 for (const pm of xml.matchAll(/<page number="(\d+)"[^>]*width="(\d+)"[^>]*>([\s\S]*?)<\/page>/g)) {
   const page = +pm[1];
@@ -80,7 +79,7 @@ for (const pm of xml.matchAll(/<page number="(\d+)"[^>]*width="(\d+)"[^>]*>([\s\
   }
 }
 
-// ── State-Machine: Headword-Zeilen sammeln, Body dazwischen = Definition ───────
+// State-Machine: Headword-Zeilen sammeln, Body dazwischen = Definition
 const entries = [];
 let cur = null;
 for (const f of frags) {
@@ -93,7 +92,7 @@ for (const f of frags) {
   }
 }
 
-// ── Definition säubern + „Siehe auch" abtrennen ────────────────────────────────
+// Definition säubern + „Siehe auch" abtrennen
 function dehyphenate(text) {
   return text
     .replace(/­\s*/g, '')                                   // weiches Trennzeichen
@@ -109,7 +108,7 @@ function splitSeeAlso(def) {
   return { definition: def.slice(0, idx).trim(), seeAlso };
 }
 
-// ── Join mit Glossar → nur Regelterme behalten ─────────────────────────────────
+// Join mit Glossar → nur Regelterme behalten
 const out = [];
 const seen = new Set();
 let unmatched = 0;
@@ -123,7 +122,6 @@ for (const e of entries) {
   out.push({ de: term.de, en: term.en, cat: term.cat, page: e.page, definition, seeAlso });
 }
 
-// ── Diagnose ───────────────────────────────────────────────────────────────────
 const missing = [...termMap.values()].filter((t) => !seen.has(norm(t.de)));
 const empty = out.filter((o) => !o.definition);
 console.error(`Extrahierte Headwords: ${entries.length} | verworfen (kein Regelterm): ${unmatched}`);

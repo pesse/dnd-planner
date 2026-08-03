@@ -1,21 +1,10 @@
 /**
- * Waffenbeherrschung (Weapon Mastery, 5e 2024): wie viele Waffenarten ein Charakter
- * wählen darf und welche überhaupt zur Wahl stehen.
- *
- * Vorbild und Nachbar ist `proficiencyGrants.ts` — dieselbe Bauform: eine SCHMALE
- * Eingabe statt des ganzen Charakters, damit der Editor sie aus seinem lokalen
- * `$state` bilden kann, und ein reines ANGEBOT statt stiller Änderungen. Die Wahl
- * selbst ist deterministisch und jederzeit editierbar (das deckt die Regel „nach
- * jeder langen Rast tauschbar" ab, ohne eine Rast-Mechanik zu brauchen).
- *
- * Zwei Dinge bewusst NICHT hier:
- *   - Die Eigenschaft einer Waffe. Die hängt an der Waffenart, also am Item
- *     (`item.mastery`) — es gibt keine Waffenarten-Tabelle im Code.
- *   - Eine KI-Schicht. Die Optionsliste kommt aus der Bibliothek; ein LLM könnte
- *     hier nur Waffen erfinden, die der Vault nicht kennt.
+ * Waffenbeherrschung: wie viele Waffenarten wählbar sind und welche. Ein reines ANGEBOT auf
+ * schmaler Eingabe, wie `proficiencyGrants.ts`. KEIN KI-Pfad — ein Modell könnte hier nur
+ * Waffen erfinden; die Eigenschaft selbst hängt am Item (`item.mastery`), nicht hier.
  */
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
-import type { WeaponMastery } from '$lib/schemas/shared';
+import type { WeaponMastery } from '$lib/schemas/vocabulary';
 import { columnValue, featuresUpTo, getProgressionByKey } from './classProgression';
 import { getItemsByDir, displayName, type ItemInfo } from '$lib/itemLibrary';
 
@@ -26,14 +15,9 @@ const MASTERY_COLUMN = 'Weapon Mastery';
 const MASTERY_DEFAULT = 2;
 
 /**
- * Ist dies das Merkmal „Waffenbeherrschung"? Primär DEKLARATIV über `grantsChoice`
- * (offen für Homebrew, siehe featureChoiceGrantSchema in shared.ts). Trägt das Merkmal
- * ein `grantsChoice`, ist dessen `kind` maßgeblich — ein Merkmal, das eine ANDERE Wahl
- * deklariert (Kampfstil), ist damit ausdrücklich KEINE Waffenbeherrschung.
- *
- * Fallback für noch nicht gepflegte Merkmale (Altbestand / Homebrew ohne Feld): die
- * bisherige Namensheuristik, bewusst ENG gebunden — `mastery` allein würde auch andere
- * Merkmale treffen.
+ * Deklariert das Merkmal eine ANDERE Wahl (Kampfstil), ist es ausdrücklich keine
+ * Waffenbeherrschung. Die Namensheuristik ist nur der Fallback für ungepflegte Merkmale und
+ * bewusst eng gebunden — `mastery` allein träfe auch andere.
  */
 export function isWeaponMasteryFeature(f: ClassFeature): boolean {
   if (f.grantsChoice) return f.grantsChoice.kind === 'weaponMastery';
@@ -44,18 +28,13 @@ export function isWeaponMasteryFeature(f: ClassFeature): boolean {
   );
 }
 
-/** Das Merkmal „Waffenbeherrschung", falls die Klasse es bis `level` gewährt. */
 function masteryFeatureUpTo(prog: ClassProgression, level: number): ClassFeature | undefined {
   return featuresUpTo(prog, level).find(isWeaponMasteryFeature);
 }
 
 /**
- * Wie viele Waffenarten diese Klasse auf dieser Stufe zulässt. 0 = die Klasse hat
- * Waffenbeherrschung nicht (Panel bleibt aus).
- *
- * Erste Quelle ist die Tabellenspalte (Barbar 2/3/4, Kämpfer 3/4/5/6). Paladin,
- * Schurke und Waldläufer emittiert Open5e ohne die Spalte, obwohl sie das Merkmal
- * tragen — dort gilt der konstante SRD-Wert 2. Ohne Merkmal UND ohne Spalte: 0.
+ * Paladin, Schurke und Waldläufer emittiert Open5e ohne die Spalte, obwohl sie das Merkmal
+ * tragen — dort gilt der konstante SRD-Wert. Ohne Merkmal UND ohne Spalte: 0.
  */
 export function masteryAllowanceFor(prog: ClassProgression, level: number): number {
   const raw = columnValue(prog, MASTERY_COLUMN, level);
@@ -65,22 +44,18 @@ export function masteryAllowanceFor(prog: ClassProgression, level: number): numb
 }
 
 /**
- * Beschränkt die Klasse ihre Wahl auf Nahkampfwaffen? Nur der Barbar tut das
- * („Simple or Martial **Melee** weapons", SRD S. 34) — abgelesen am Merkmalstext
- * statt am Klassen-Key, damit eine Homebrew-Klasse mit derselben Formulierung
- * genauso behandelt wird.
+ * Am Merkmalstext abgelesen statt am Klassen-Key, damit eine Homebrew-Klasse mit derselben
+ * Formulierung („Melee weapons", nur der Barbar) genauso behandelt wird.
  */
 function isMeleeOnly(f: ClassFeature | undefined): boolean {
   return /\bmelee\b/i.test(f?.desc ?? '') || /\bnahkampf/i.test(f?.descDe ?? '');
 }
 
-/** Eine wählbare Waffe: Bibliotheks-Eintrag mit gesetzter Eigenschaft. */
 export type MasteryWeapon = ItemInfo & { mastery: WeaponMastery };
 
 /**
- * Der Name, unter dem eine Waffe in `character.masteries` landet: der Anzeigename
- * (deutsch, falls vorhanden) — genau wie bei `inventory[].name`. Damit greift die
- * bestehende Auflösung über `itemByName` im Bogen ohne zweiten Mechanismus.
+ * Der Anzeigename wie bei `inventory[].name` — nur so greift die Auflösung über `itemByName`
+ * im Bogen ohne zweiten Mechanismus.
  */
 export const masteryName = (item: ItemInfo): string => displayName(item);
 
@@ -92,9 +67,8 @@ export interface MasteredKinds {
 }
 
 /**
- * Löst die gespeicherten Namen zu Waffenarten auf. Der `index` ist der Grund dafür:
- * die Auswahl bietet nur Basisarten an, beherrscht ist damit auch jedes magische
- * Stück derselben Art.
+ * Der `index` ist der Zweck: gewählt werden nur Basisarten, beherrscht ist damit auch jedes
+ * magische Stück derselben Art.
  */
 export function masteredKinds(
   masteries: readonly string[],
@@ -110,9 +84,8 @@ export function masteredKinds(
 }
 
 /**
- * Prüft neben der Art beide Namensseiten, weil ein Angriff im Bogen unter der
- * deutschen oder der englischen geführt sein kann — dieselbe Unschärfe wie beim
- * Inventar, aber an EINER Stelle behandelt.
+ * Beide Namensseiten, weil ein Angriff im Bogen deutsch oder englisch geführt sein kann —
+ * dieselbe Unschärfe wie beim Inventar, aber an EINER Stelle behandelt.
  */
 export function isMastered(kinds: MasteredKinds, item: { name: string; name_de?: string; index?: string }): boolean {
   return (
@@ -122,38 +95,26 @@ export function isMastered(kinds: MasteredKinds, item: { name: string; name_de?:
   );
 }
 
-/**
- * Was `masteryOffer` braucht: die Klassen-Links plus die zwei Waffen-Häkchen.
- * Ein `Character` erfüllt das strukturell (wie bei `GrantInput`).
- */
+/** Ein `Character` erfüllt das strukturell (wie bei `GrantInput`). */
 export interface MasteryInput {
   classes?: { sourceKey?: string; name?: string; level?: number }[];
   proficiencies?: { simpleWeapons?: boolean; martialWeapons?: boolean };
 }
 
 export interface MasteryOffer {
-  /** Zahl der wählbaren Waffenarten; 0 = die Klasse kennt Waffenbeherrschung nicht. */
+  /** 0 = die Klasse kennt Waffenbeherrschung nicht. */
   allowance: number;
-  /** Anzeigename der Klasse, die das Kontingent stellt („Kämpfer"). */
   className: string;
-  /** true = nur Nahkampfwaffen (Barbar). */
   meleeOnly: boolean;
-  /** Wählbare Waffen aus der Bibliothek, alphabetisch. */
   weapons: MasteryWeapon[];
 }
 
 const emptyOffer = (): MasteryOffer => ({ allowance: 0, className: '', meleeOnly: false, weapons: [] });
 
 /**
- * Kontingent + Auswahlmenge für einen Charakter.
- *
- * **Nur `classes[0]` zählt.** Waffenbeherrschung wird bei Klassenkombination nicht
- * erneut gewährt, also stellt die Startklasse das Kontingent — auch dann, wenn eine
- * Zweitklasse das Merkmal ebenfalls hätte.
- *
- * Gefiltert wird über die HÄKCHEN des Charakters, nicht über die Grants: die Häkchen
- * sind die Wahrheit (Doktrin des Grant-Panels, CharacterEditForm.svelte). Wer
- * „Kriegswaffen" abwählt, verliert die Kriegswaffen sofort aus der Auswahl.
+ * **Nur `classes[0]` zählt** — bei Klassenkombination wird Waffenbeherrschung nicht erneut
+ * gewährt. Gefiltert wird über die HÄKCHEN des Charakters, nicht über die Grants: die
+ * Häkchen sind die Wahrheit, wer „Kriegswaffen" abwählt, verliert sie aus der Auswahl.
  */
 export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   const first = input.classes?.[0];
@@ -170,12 +131,10 @@ export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   const simple = input.proficiencies?.simpleWeapons ?? false;
   const martial = input.proficiencies?.martialWeapons ?? false;
 
-  // Eine Waffe ohne `weapon_category` lässt sich gegen kein Häkchen prüfen und fällt
-  // deshalb heraus (Pflege-Lücke im Vault) — das Panel weist auf zu wenig Auswahl hin.
+  // Ohne `weapon_category` gegen kein Häkchen prüfbar — die Waffe fällt heraus.
   const weapons = (await getItemsByDir('weapon'))
     .filter((w): w is MasteryWeapon => Boolean(w.mastery))
-    // Gewählt wird die Waffenart, nicht das Einzelstück — magische Waffen deckt die
-    // Basisart über `index` mit ab (`isMastered`).
+    // Magische Stücke deckt die Basisart über `index` mit ab (`isMastered`).
     .filter((w) => !w.magic)
     .filter((w) => (w.weapon_category === 'Simple' && simple) || (w.weapon_category === 'Martial' && martial))
     .filter((w) => !meleeOnly || /^melee$/i.test(w.weapon_range ?? ''))

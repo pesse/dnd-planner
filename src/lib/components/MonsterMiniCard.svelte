@@ -2,8 +2,11 @@
   import { invoke } from '@tauri-apps/api/core';
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
+  import { modStr } from '../domain/skills';
   import { normalizeMonster } from '../utils/schemaValidation';
-  import { toActLocalJson, toLibraryJson, OWN_SOURCE } from '../schemas/shared';
+  import { toActLocalJson, toLibraryJson } from '../utils/vaultJson';
+  import { OWN_SOURCE } from '../schemas/source';
+  import { MONSTERS_PATH, globalMonsterCandidates, findGlobalMonsterPath } from '../monsterLibrary';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
@@ -17,8 +20,6 @@
   let source = $state<'global' | 'act'>('global');
   let savePath = $state('');
   let promoteError = $state('');
-
-  const GLOBAL_MONSTERS_PATH = './vault/monsters';
 
   let loadError = $state('');
   let schemaWarnings = $state<string[]>([]);
@@ -83,16 +84,8 @@
 
     if (seq !== loadSeq) return;
 
-    // Global fallback: Monster liegen entweder flach oder in Gruppen-Unterordnern
-    // (z.B. vault/monsters/goblinoide/…). Erst flach, dann jede Gruppe durchsuchen.
-    const tryPaths = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
-      if (seq !== loadSeq) return;
-      for (const e of entries) {
-        if (e.is_dir) tryPaths.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
-      }
-    } catch { /* Verzeichnisliste nicht verfügbar → nur flacher Pfad */ }
+    const tryPaths = await globalMonsterCandidates(s);
+    if (seq !== loadSeq) return;
 
     for (const globalPath of tryPaths) {
       try {
@@ -125,7 +118,7 @@
   function snap<T>(val: T): T { return JSON.parse(JSON.stringify(val)); }
 
   async function startEdit() {
-    // Copy-on-write: globales Monster → erst akt-lokale Kopie anlegen
+    // Copy-on-write: vom globalen Monster erst eine akt-lokale Kopie anlegen.
     if (source === 'global' && actMonsterBasePath && saved) {
       const actPath = `${actMonsterBasePath}/${slug}.json`;
       // Die Kopie ist akt-lokal — die Herkunft des Originals gilt für sie nicht mehr.
@@ -160,31 +153,16 @@
     }
   }
 
-  /** Sucht ein Monster in der globalen Bibliothek (flach + Gruppen-Unterordner). Liefert den Pfad oder null. */
-  async function findGlobalPath(s: string): Promise<string | null> {
-    const candidates = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
-      for (const e of entries) if (e.is_dir) candidates.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
-    } catch { /* nur flacher Pfad prüfbar */ }
-    for (const path of candidates) {
-      try { await invoke<string>('read_file_content', { path }); return path; }
-      catch { /* nicht hier */ }
-    }
-    return null;
-  }
-
   async function promoteToLibrary() {
     if (source !== 'act') return;
     promoteError = '';
-    // Guard: existiert der Slug bereits global (flach ODER in einer Gruppe),
-    // würde rename_file ein Duplikat anlegen → abbrechen.
-    const existing = await findGlobalPath(slug);
+    // Existiert der Slug global schon, legte `rename_file` ein Duplikat an.
+    const existing = await findGlobalMonsterPath(slug);
     if (existing) {
       promoteError = `„${slug}" existiert bereits in der Bibliothek (${existing}). Verschieben abgebrochen.`;
       return;
     }
-    const globalPath = `${GLOBAL_MONSTERS_PATH}/${slug}.json`;
+    const globalPath = `${MONSTERS_PATH}/${slug}.json`;
     try {
       await invoke('rename_file', { oldPath: savePath, newPath: globalPath });
       // In der Bibliothek gilt die Herkunftspflicht: ein übernommenes Monster ist
@@ -205,8 +183,6 @@
   const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
   const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-
-  function mod(v: number): string { const m = Math.floor((v - 10) / 2); return m >= 0 ? `+${m}` : `${m}`; }
 </script>
 
 <div class="mini-card" class:edit-mode={editMode} class:act-local={source === 'act'}>
@@ -221,7 +197,6 @@
 
   {:else if saved && draft}
     {#if editMode}
-      <!-- ── Full edit view ── -->
       <div class="edit-header">
         <span class="source-badge source-{source}">{source === 'act' ? 'akt-lokal' : 'bibliothek'}</span>
         {#if dirty}
@@ -236,7 +211,6 @@
       </div>
 
     {:else}
-      <!-- ── Compact read-only view ── -->
       <div class="compact">
         <div class="c-header">
           <span class="c-name">{saved.name}</span>
@@ -258,7 +232,7 @@
             <div class="c-stat">
               <span class="c-stat-lbl">{STAT_LABELS[i]}</span>
               <span class="c-stat-val">{saved.stats[key]}</span>
-              <span class="c-stat-mod">{mod(saved.stats[key])}</span>
+              <span class="c-stat-mod">{modStr(saved.stats[key])}</span>
             </div>
           {/each}
         </div>
@@ -329,7 +303,6 @@
     width: 460px;
   }
 
-  /* ── Loading / Missing ── */
   .mini-placeholder {
     padding: 0.5rem 0.75rem;
     color: var(--border);
@@ -356,7 +329,6 @@
     font-style: italic;
   }
 
-  /* ── Compact view ── */
   .compact {
     padding: 0.6rem 0.75rem;
     display: flex;
@@ -510,10 +482,8 @@
     color: var(--gold);
     border: 1px solid color-mix(in srgb, var(--gold) 27%, transparent);
   }
-  /* global badge ist unsichtbar in compact view (leerer Text) */
   .source-global { display: none; }
 
-  /* ── Edit view ── */
   .edit-header {
     display: flex;
     align-items: center;

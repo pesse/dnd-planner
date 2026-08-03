@@ -2,20 +2,18 @@
   export interface TooltipOption {
     value: string;
     label: string;
-    /** Optionale Konsequenz-Erklärung, als Schwebe-Tooltip beim Überfahren gezeigt. */
     tooltip?: string;
   }
 </script>
 
 <script lang="ts">
   /**
-   * Wiederverwendbares Dropdown mit Schwebe-Tooltip je Option — dieselbe Cursor-Karte
-   * wie die Talente-Auswahl im Charakter-Editor (FeatTooltip-Muster). Ein natives
-   * <select> kann keine Hover-Events je <option> feuern, darum ein Button-Popup.
-   *
-   * Einfach- und Mehrfachauswahl über `multiple`; die Auswahl ist immer ein string[]
-   * (bei Einfachwahl mit 0/1 Einträgen), damit der Aufrufer nur einen Typ kennt.
+   * Dropdown mit Schwebe-Tooltip je Option. Ein natives <select> kann keine Hover-Events
+   * je <option> feuern, darum ein Button-Popup; die Auswahl ist auch bei Einfachwahl ein
+   * `string[]`, damit der Aufrufer nur einen Typ kennt.
    */
+  import { createHoverTip } from '../utils/hoverTip.svelte';
+
   let {
     options,
     selected = [],
@@ -27,40 +25,25 @@
     options: TooltipOption[];
     selected?: string[];
     multiple?: boolean;
-    /** Obergrenze bei Mehrfachwahl (0 = unbegrenzt). */
+    /** 0 = unbegrenzt. */
     max?: number;
     placeholder?: string;
     onchange: (selected: string[]) => void;
   } = $props();
 
   let open = $state(false);
-  let tip = $state('');
-  let tipX = $state(0);
-  let tipY = $state(0);
+  const tip = createHoverTip<string>();
   let winW = $state(1280);
   let winH = $state(800);
   let tipW = $state(0);
   let tipH = $state(0);
-  const tipLeft = $derived(tipX + tipW > winW ? Math.max(8, tipX - tipW - 28) : tipX);
-  const tipTop = $derived(Math.max(8, Math.min(tipY, winH - tipH - 8)));
+  const tipLeft = $derived(tip.x + tipW > winW ? Math.max(8, tip.x - tipW - 28) : tip.x);
+  const tipTop = $derived(Math.max(8, Math.min(tip.y, winH - tipH - 8)));
 
   const labelOf = (value: string) => options.find((o) => o.value === value)?.label ?? value;
   const triggerText = $derived(
     selected.length ? selected.map(labelOf).join(', ') : placeholder,
   );
-
-  function showTip(e: MouseEvent, text: string) {
-    if (!text) return;
-    tip = text;
-    tipX = e.clientX + 14;
-    tipY = e.clientY + 14;
-  }
-  function moveTip(e: MouseEvent) {
-    if (!tip) return;
-    tipX = e.clientX + 14;
-    tipY = e.clientY + 14;
-  }
-  function hideTip() { tip = ''; }
 
   function select(e: MouseEvent, value: string) {
     // preventDefault hält den Fokus am Trigger → bei Mehrfachwahl bleibt die Liste offen.
@@ -74,7 +57,7 @@
     } else {
       onchange([value]);
       open = false;
-      hideTip();
+      tip.hide();
     }
   }
 </script>
@@ -100,9 +83,9 @@
           class="dd-opt"
           class:sel={selected.includes(opt.value)}
           onmousedown={(e) => select(e, opt.value)}
-          onmouseenter={(e) => showTip(e, opt.tooltip ?? '')}
-          onmousemove={moveTip}
-          onmouseleave={hideTip}
+          onmouseenter={(e) => tip.show(e, opt.tooltip || null)}
+          onmousemove={tip.move}
+          onmouseleave={tip.hide}
         >
           {#if multiple}<span class="dd-check" aria-hidden="true">{selected.includes(opt.value) ? '☑' : '☐'}</span>{/if}
           <span>{opt.label}</span>
@@ -112,8 +95,8 @@
   {/if}
 </div>
 
-{#if tip}
-  <div class="opt-tooltip" style="left:{tipLeft}px;top:{tipTop}px" bind:clientWidth={tipW} bind:clientHeight={tipH}>{tip}</div>
+{#if tip.data}
+  <div class="opt-tooltip" style="left:{tipLeft}px;top:{tipTop}px" bind:clientWidth={tipW} bind:clientHeight={tipH}>{tip.data}</div>
 {/if}
 
 <style>

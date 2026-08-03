@@ -8,7 +8,8 @@ the source.
 
 | Task | Command | Where |
 |---|---|---|
-| Typecheck + lint — **the** verification gate | `npm run check` | WSL |
+| Everything below in one go — **the** gate before a commit | `npm run verify` | WSL |
+| Typecheck + lint | `npm run check` | WSL |
 | Unit + integration tests (LLM-free, no API key) | `npm run test` | WSL |
 | Browser-only dev server (UI work without Tauri commands) | `npm run dev` → `:1420` | WSL |
 | Full app | `.\dev-windows.ps1` | Windows PowerShell |
@@ -23,7 +24,8 @@ process, `tests/integration` reads the **real vault** through the production loa
 `vitest.evals.config.ts`, only `*.eval.test.ts`) makes real, paid LLM calls. Shared test data
 lives in `tests/fixtures/` and is used by both.
 
-`npm run check` plus `npm run test` is what verifies a change.
+`npm run verify` is what verifies a change: `check` + `check:evals` (the eval track only
+typechecks, it never runs here) + `schema:examples:check` + `test`.
 
 ## Environment: Windows runs the app, WSL edits it
 
@@ -56,12 +58,46 @@ One legacy exception, at the PDF boundary: parts of `character.*` carry German k
 they mirror the German Taendler character sheet. **Do not extend it** — new character fields get
 English names, the way `hpMax`, `strSaveProf` and `proficiencies.lightArmor` already do.
 
+### One file, one responsibility
+
+Guideline: service/schema module ≤ 300 lines, component ≤ 400 including markup, `<style>` block
+≤ 150. Going over is allowed but has to be defensible — „only one thing happens here, it is just
+big". A file that needs a table of contents needs a directory instead.
+
+### A section banner is a missing module or a missing function
+
+`// ── Zauber-Picker ──` is not documentation, it is an unextracted `function spellPicker()` or an
+unwritten file — write that instead. Numbered step comments (`// 3) Encounter speichern`) say the
+same thing about a function: it is a sequence of unnamed phases.
+
 ### Comments carry why-it-is-not-the-obvious-way — nothing else
 
 Delete it if it is in `git log` („Ersetzt den früheren …") or in the code right below it; move it
 if it describes a different file. What survives: choices a reader would otherwise undo (`Bewusst
 tool-frei — sonst fährt runAiAction einen Agent-Loop`), constraints a type cannot express, causal
 chains. 1–3 lines, naming the consequence. Repetition wants a factory, not a comment about it.
+
+The test: what does a reader do differently if the sentence is gone? Nothing → delete. **Being true
+is not the criterion** — a comment survives review because it is correct, not because it carries
+anything. Four ways it fails that test anyway:
+
+- **A value that stands as a constant next to it does not appear in prose** — name the identifier or
+  nothing (`vault/feats` right above `FEATS_PATH`). It stays when the value is a derivation
+  (`− 2×5mm Padding = 59mm`) or a worked example (`homebrew_alarm` → `homebrew-sam_alarm`).
+- **No negation that the positive statement already covers.** „Die Kategorienamen des deutschen SRD
+  5.2" rules out free translations by itself; „, keine freien Übersetzungen" is a defence against an
+  objection nobody raised — reasoning residue from writing it. Negate only where the reader would
+  plausibly do the wrong thing regardless (`Additiv, nie überschreibend`).
+- **No reason for the way a DIFFERENT module is cut.** The `import` line says where it lives, and
+  the why belongs in that file or nowhere. This one bites inside a single sentence: half describes
+  the caller, half constrains this type — halve it instead of deleting it.
+- **A field that mirrors a schema field is not documented twice** — `.describe()` is the source. The
+  tell is „(siehe `featureGrantSchema`)": it points at the source *and* copies it, so the copy drifts.
+
+Budget: module head max 3 lines (what, not how). JSDoc only when it says something name plus
+signature do not already say — `/** Zeigt den deutschen Namen, falls vorhanden. */` over
+`displayName()` goes. One exception: in `aiActions/*` prompt-near explanation is *content*
+(`SHEET_NOTE_*`), not comment, and stays.
 
 ### One Zod schema per artifact
 
@@ -100,13 +136,14 @@ coming one would lock development out of its own content.
 
 `vault/` is a separate content repo with its own `CLAUDE.md` — read it before touching vault data.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
-vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
+vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
 
 ## Rules that are invisible in the code
 
-- **The closed rule vocabularies are English** (`SKILL_NAMES`, `ABILITY_NAMES`,
-  `WEAPON_CATEGORIES`, `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/shared.ts`), and German
-  appears at exactly two boundaries: PDF sheet keys (`pdf/characterFields.ts`) and display labels
+- **The closed rule vocabularies are English** (`SKILL_NAMES`, `WEAPON_CATEGORIES`,
+  `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/vocabulary.ts`, `ABILITY_NAMES` in
+  `schemas/abilities.ts`), and German appears at exactly two boundaries: the sheet-key tables
+  (`domain/skills.ts`, `schemas/abilities.ts`) and display labels
   (`services/proficiencyGrants.ts`). **Adding a third translation table is the mistake to avoid.**
   Prompts name the vocabulary via `z.enum(SKILL_NAMES)`; translation happens when a `Change` is
   *applied*, not when it is produced.
@@ -140,7 +177,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
   carrying only count/level/class list — **never spell names**.
 - **A feature whose only content is a choice declares it**, via `grantsChoice`
-  (`featureChoiceGrantSchema` in `schemas/shared.ts`: `weaponMastery` | `featCategory` |
+  (`featureChoiceGrantSchema` in `schemas/featureChoice.ts`: `weaponMastery` | `featCategory` |
   `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
   it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
   `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
@@ -148,7 +185,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
   A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
 - **The declaration triple is identical at class feature, trait and feat** — one spread,
-  `featureDeclarationFields` (`schemas/shared.ts`), so a fourth field reaches all three
+  `featureDeclarationFields` (`schemas/featureChoice.ts`), so a fourth field reaches all three
   carriers by itself. Consequently **the origin of a feature decides exactly one thing**: which
   sheet field its note line goes into (`forClassFeaturesField`, `services/declaredFeature.ts`).
   `source` lives on `DeclaredFeature`, never in a vault schema — a trait does not know it is a
@@ -171,8 +208,8 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
   vanishing off the character sheet. The mechanics no longer need that check — see the next
   rule — but the sheet line still does.
 - **A grant field without a sink is a compile error, not a silent gap.** Both flows apply
-  through the one applier (`services/applyChanges.ts`), whose `default` branch is a `never`
-  guard, and both projections into `Change[]` are tables typed over `keyof` their source form
+  through the one applier (`services/applyChanges.ts`), whose `APPLY` table is total over
+  `Change['target']`, and both projections into `Change[]` are tables typed over `keyof` their source form
   (`riderGrantChanges` over `RiderProficiencies`, `proficiencyGrantChanges` over
   `ProficiencyGrant`). Adding a field or a `Change` variant breaks the build until it has a
   sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
@@ -208,7 +245,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/shared.ts`.
 
 ## Character files are versioned
 
-They outlive every program version, so `schemas/character.ts` owns an ordered pipeline
+They outlive every program version, so `schemas/characterUpgrades.ts` owns an ordered pipeline
 (`CHARACTER_VERSION`, `CHARACTER_UPGRADES`, `upgradeCharacter`) rather than ad-hoc field repairs.
 
 A schema change means: bump `CHARACTER_VERSION` and add **exactly one** step with that `to`. Keep

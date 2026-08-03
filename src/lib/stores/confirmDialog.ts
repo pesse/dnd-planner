@@ -1,9 +1,8 @@
 /**
- * Generischer, Promise-basierter Bestätigungs-Dialog (analog navigationGuard).
- * `confirmAction(...)` öffnet den Dialog und löst mit `true`/`false` auf.
+ * Generischer, Promise-basierter Bestätigungs-Dialog.
  * Gerendert von components/ConfirmDialog.svelte (einmal global eingebunden).
  */
-import { writable } from 'svelte/store';
+import { promptDialog } from './promptDialog';
 
 export interface ConfirmRequest {
   title: string;
@@ -11,11 +10,12 @@ export interface ConfirmRequest {
   confirmLabel: string;
   /** Rot eingefärbter Bestätigen-Button (destruktive Aktion). */
   danger: boolean;
-  resolve: (ok: boolean) => void;
 }
 
+const channel = promptDialog<ConfirmRequest, boolean>();
+
 /** Treibt den ConfirmDialog. Null = kein Dialog offen. */
-export const confirmPrompt = writable<ConfirmRequest | null>(null);
+export const confirmPrompt = channel.prompt;
 
 export function confirmAction(opts: {
   title: string;
@@ -23,16 +23,10 @@ export function confirmAction(opts: {
   confirmLabel?: string;
   danger?: boolean;
 }): Promise<boolean> {
-  return new Promise((resolve) => {
-    confirmPrompt.set({
-      title: opts.title,
-      message: opts.message,
-      confirmLabel: opts.confirmLabel ?? 'OK',
-      danger: opts.danger ?? false,
-      resolve: (ok) => {
-        confirmPrompt.set(null);
-        resolve(ok);
-      },
-    });
+  return channel.ask({
+    title: opts.title,
+    message: opts.message,
+    confirmLabel: opts.confirmLabel ?? 'OK',
+    danger: opts.danger ?? false,
   });
 }

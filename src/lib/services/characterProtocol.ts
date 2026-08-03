@@ -1,30 +1,20 @@
 /**
- * Verdichtet einen fertig zusammengesetzten `Character` zu einem gruppierten
- * „das steht drauf"-Protokoll (Attribute, Werte, Übungen, Zauber, Ausrüstung …) — die
- * gemeinsame Quelle für jede Ansicht, die zeigen will, was ein Charakter KONKRET bekommt
- * (heute: der Wizard-Überblick, analog zur Progression des Stufenaufstiegs).
- *
- * Bewusst rein, ohne Framework/Datei-Zugriff, und alles aus dem Objekt abgeleitet, damit
- * die Vorschau exakt dem entspricht, was gespeichert wird. Merkmals-Entscheidungen tragen
- * im Ledger (`character.features`) keine Fragestellung, nur die Wahl — die lesbare
- * {Frage, Antwort}-Fassung kommt daher optional von außen (aus den KI-Ridern).
+ * Ein gruppiertes „das steht drauf"-Protokoll eines fertigen `Character`. Alles aus dem
+ * Objekt abgeleitet, damit die Vorschau exakt dem entspricht, was gespeichert wird; die
+ * Fragestellung zu einer Wahl steht nicht im Ledger und kommt daher von außen.
  */
-import type { Character } from '../schemas/character';
-import { SKILL_DEFS } from '../pdf/characterFields';
+import type { Character } from '../schemas/characterSchema';
+import { SKILL_DEFS } from '../domain/skills';
+import { ABILITY_KEYS, ABILITY_LABEL } from '../schemas/abilities';
+import { sign } from '../utils/num';
 
 export interface ProtocolGroup {
   heading: string;
   lines: string[];
 }
 
-const ABILITY_ORDER = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-const ABILITY_LABEL: Record<(typeof ABILITY_ORDER)[number], string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-  int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
-const signed = (n: number): string => (n >= 0 ? `+${n}` : String(n));
 
-/** Baut das gruppierte Überblicks-Protokoll; leere Gruppen fallen weg. */
+
 export function buildCharacterProtocol(
   c: Character,
   extras: { decisions?: { question: string; answer: string }[] } = {},
@@ -34,7 +24,7 @@ export function buildCharacterProtocol(
     if (lines.length) groups.push({ heading, lines });
   };
 
-  add('Attribute', ABILITY_ORDER.map((k) => `${ABILITY_LABEL[k]} ${c[k]} (${signed(c[`${k}Mod`])})`));
+  add('Attribute', ABILITY_KEYS.map((k) => `${ABILITY_LABEL[k]} ${c[k]} (${sign(c[`${k}Mod`])})`));
 
   add('Werte', [
     ...(c.hpMax ? [`Trefferpunkte: ${c.hpMax}`] : []),
@@ -45,7 +35,7 @@ export function buildCharacterProtocol(
 
   add('Geübte Fertigkeiten', SKILL_DEFS.filter((d) => c.skills[d.key]?.prof && !c.skills[d.key]?.exp).map((d) => d.label));
   add('Expertise', SKILL_DEFS.filter((d) => c.skills[d.key]?.exp).map((d) => d.label));
-  add('Rettungswurf-Übungen', ABILITY_ORDER.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k]));
+  add('Rettungswurf-Übungen', ABILITY_KEYS.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k]));
 
   add('Waffen', [
     ...(c.proficiencies.simpleWeapons ? ['Einfache Waffen'] : []),
@@ -66,9 +56,8 @@ export function buildCharacterProtocol(
   const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);
   if (slots.length) spells.push(`Zauberplätze: ${slots.map((s) => `Grad ${s.lvl}: ${s.total}`).join(', ')}`);
   if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.map((x) => x.name).join(', ')}`);
-  // Nach `prepared` trennen, nicht nach Herkunft: aus dem gespeicherten Charakter ist nicht
-  // ablesbar, ob ein Zauber gewählt oder gewährt wurde — die Markierung ist es aber, und beim
-  // Magier ist genau sie die interessante Information (Buch ⊋ Vorbereitung).
+  // Nach `prepared` trennen, nicht nach Herkunft: gewählt vs. gewährt ist am gespeicherten
+  // Charakter nicht ablesbar, die Markierung dagegen schon (Magier: Buch ⊋ Vorbereitung).
   const entries = Object.entries(c.spells.byLevel)
     .sort(([a], [b]) => Number(a) - Number(b))
     .flatMap(([lvl, arr]) => arr.map((e) => ({ ...e, label: `${e.name} (Grad ${lvl})` })));

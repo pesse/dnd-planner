@@ -1,61 +1,43 @@
 <script lang="ts">
   import type { Background } from '$lib/types';
   import { type Benefit, type BenefitType, BENEFIT_TYPES, BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
-  import { parseBackground as _parseBackground } from '$lib/utils/schemaValidation';
+  import { parseBackground } from '$lib/utils/schemaValidation';
   import BackgroundEditForm from './BackgroundEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import CardParseError from './ui/CardParseError.svelte';
+  import LibraryCardFrame from './ui/LibraryCardFrame.svelte';
+  import CardEditWrap from './ui/CardEditWrap.svelte';
+  import CardTools from './ui/CardTools.svelte';
   import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { translateBackground } from '$lib/services/aiActions/translateAction';
   import type { BackgroundTranslation } from '$lib/schemas/translation';
-  import { createCardEditor } from '$lib/editor/cardEditor.svelte';
-  import { slugify } from '$lib/editor/saveAs';
-  import { activeFile, invalidateVault } from '$lib/stores/campaign';
+  import { createLibraryCardEditor } from '$lib/editor/libraryCard';
+  import { activeFile } from '$lib/stores/campaign';
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
   import { ABILITY_FROM_EN } from '$lib/services/classProgression';
-  import { ABILITY_LABEL } from '$lib/services/levelUpMachine';
+  import { ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
 
-  function parseBackground(json: string): Background | null {
-    try {
-      const result = _parseBackground(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
-
-  const ed = createCardEditor<Background>({
+  const ed = createLibraryCardEditor<Background>({
     type: 'background',
     label: 'Hintergrund',
-    parse: parseBackground,
-    // Dateiname aus dem ENGLISCHEN Namen — so liegen auch `species`/`feats`/`classes`
-    // im Vault (`acolyte.json`, nicht `akolyth.json`), vgl. vault/CLAUDE.md.
-    defaultName: (b) => slugify(b.name || b.nameDe || 'hintergrund'),
-    location: {
-      resolvePath: (_b, name) => `./vault/backgrounds/${name}.json`,
-    },
-    onSaved: () => { invalidateBackgroundsCache(); invalidateVault(); },
+    folder: 'backgrounds',
+    validate: parseBackground,
+    fallbackName: 'hintergrund',
+    invalidateCache: invalidateBackgroundsCache,
   });
 
   let draft = $derived(ed.draft);
-  let dirty = $derived(ed.dirty);
-  let saveError = $derived(ed.saveError);
-  let lastSavedContent = $derived(ed.lastSavedContent);
-  const save = () => ed.save();
-  const discard = () => ed.discard();
-  const saveJson = (json: string) => ed.saveJson(json);
 
   const benefitName = (b: Benefit): string => b.nameDe || b.name;
   const benefitDesc = (b: Benefit): string => b.descDe || b.desc;
 
-  /** Gewährte Fertigkeiten, deutsch — die Mechanik-Zeile des Hintergrunds. */
   let grantedSkills = $derived((draft?.proficiencyGrant.skills.fixed ?? []).map(skillLabelDe));
 
-  /**
-   * Vorteile nach Art gruppiert, in der Reihenfolge des Vokabulars.
-   * `skill_proficiency` fällt heraus, sobald der strukturierte Grant gefüllt ist —
-   * die Chip-Reihe im Kopf zeigt dieselbe Information, nur deutsch beschriftet.
-   */
+  // `skill_proficiency` fällt heraus, sobald der strukturierte Grant gefüllt ist — die
+  // Chip-Reihe im Kopf zeigt dasselbe, nur deutsch beschriftet.
   let groupedBenefits = $derived.by(() => {
     const bs = draft?.benefits ?? [];
     const skipSkills = grantedSkills.length > 0;
@@ -65,7 +47,7 @@
       .filter((g) => g.items.length);
   });
 
-  /** Attributsnamen deutsch anzeigen; unbekannte Werte bleiben unverändert stehen. */
+  /** Unbekannte Werte bleiben unverändert stehen. */
   let abilityLabels = $derived(
     (draft?.abilityScores ?? []).map((en) => {
       const key = ABILITY_FROM_EN[en.trim().toLowerCase()];
@@ -73,9 +55,7 @@
     }),
   );
 
-  // ── Herkunftstalent auflösen ────────────────────────────────────────────────
-  // Der `featKey` ist ein Link in die Talent-Bibliothek. Fehlt das Talent lokal,
-  // wird das — wie bei Klassen/Spezies — sichtbar gemacht statt still verschluckt.
+  // Fehlt das verlinkte Talent lokal, wird das sichtbar gemacht statt still verschluckt.
   let featIndex = $state<FeatEntry[]>([]);
   $effect(() => { void getFeats().then((f) => (featIndex = f)); });
 
@@ -92,10 +72,8 @@
     });
   }
 
-  // ── Übersetzung ─────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     const b = ed.draft;
     if (!b) return null;
@@ -108,7 +86,7 @@
     return translateBackground(payload);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: BackgroundTranslation) {
     const b = ed.draft;
     if (!b) return;
@@ -127,21 +105,17 @@
 {#if draft}
   <EditorPanel
     bind:tab={ed.tab}
-    {dirty}
-    {saveError}
-    onsave={save}
-    ondiscard={discard}
-    onsavejson={saveJson}
-    getJson={() => draft ? JSON.stringify(draft, null, 2) : lastSavedContent}
+    dirty={ed.dirty}
+    saveError={ed.saveError}
+    onsave={() => ed.save()}
+    ondiscard={() => ed.discard()}
+    onsavejson={(json) => ed.saveJson(json)}
+    getJson={() => draft ? JSON.stringify(draft, null, 2) : ed.lastSavedContent}
     style="--ep-accent: var(--teal)"
   >
     {#snippet karte()}
-      <div class="bg-card">
-        <div class="head">
-          <div class="name">{draft!.nameDe || draft!.name}</div>
-          {#if draft!.nameDe && draft!.name && draft!.nameDe !== draft!.name}
-            <div class="name-en">{draft!.name}</div>
-          {/if}
+      <LibraryCardFrame accent="var(--teal)" name={draft!.name} nameDe={draft!.nameDe}>
+        {#snippet head()}
           {#if abilityLabels.length}
             <div class="meta">{abilityLabels.join(' · ')}</div>
           {/if}
@@ -150,7 +124,7 @@
               {#each grantedSkills as skill}<span class="chip">{skill}</span>{/each}
             </div>
           {/if}
-        </div>
+        {/snippet}
 
         {#if draft!.descDe || draft!.desc}
           <div class="intro"><Markdown source={draft!.descDe || draft!.desc} /></div>
@@ -188,40 +162,20 @@
         {:else}
           <p class="empty">Keine Vorteile.</p>
         {/if}
-      </div>
+      </LibraryCardFrame>
     {/snippet}
 
     {#snippet bearbeiten()}
       {#if ed.draft}
-        <div class="edit-wrap">
+        <CardEditWrap accent="var(--teal)">
           <BackgroundEditForm bind:background={ed.draft} />
-        </div>
-        <div class="ai-section">
-          <span class="ai-label">Werkzeuge</span>
-          <div class="ai-row">
-            <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
-          </div>
-        </div>
+        </CardEditWrap>
+        <CardTools accent="var(--teal)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />
       {/if}
     {/snippet}
   </EditorPanel>
 {:else}
-  <EditorPanel
-    bind:tab={ed.tab}
-    dirty={false}
-    onsavejson={saveJson}
-    getJson={() => lastSavedContent}
-  >
-    {#snippet karte()}
-      <p class="parse-error">Kein gültiger Hintergrund-Datensatz.</p>
-    {/snippet}
-    {#snippet bearbeiten()}
-      <p class="parse-error">
-        Ungültiges Hintergrund-JSON.
-        <button onclick={() => ed.tab = 'json'}>JSON bearbeiten</button>
-      </p>
-    {/snippet}
-  </EditorPanel>
+  <CardParseError bind:tab={ed.tab} noun="Hintergrund" json={ed.lastSavedContent} onsavejson={(json) => ed.saveJson(json)} />
 {/if}
 
 {#if showTranslate && ed.draft}
@@ -234,20 +188,6 @@
 {/if}
 
 <style>
-  .bg-card {
-    width: 100%; max-width: 560px; background: var(--bg);
-    border: 1.5px solid var(--teal); border-radius: 8px;
-    color: var(--ink); font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-    overflow: hidden;
-  }
-  .head {
-    padding: 0.9rem 1.2rem; text-align: center;
-    background: linear-gradient(to bottom,
-      color-mix(in srgb, var(--teal) 40%, var(--bg)) 0%,
-      color-mix(in srgb, var(--teal) 8%, var(--bg)) 100%);
-  }
-  .name { font-size: 1.3rem; font-weight: 700; font-variant: small-caps; letter-spacing: 0.02em; }
-  .name-en { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--teal) 70%, var(--ink)); margin-top: 0.2rem; }
 
   .chip-row {
@@ -281,30 +221,4 @@
   .benefit-name { font-size: 0.85rem; font-weight: 600; }
   .benefit-desc { font-size: 0.85rem; line-height: 1.55; }
   .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
-
-  .edit-wrap {
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--teal) 25%, var(--surface));
-    border-radius: 6px; padding: 1rem 1.25rem; max-width: 560px; width: 100%;
-    --mef-accent: var(--teal);
-  }
-
-  .ai-section {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 0.45rem;
-    width: 100%; max-width: 560px; margin-top: 0.6rem; padding-top: 0.6rem;
-    border-top: 1px solid var(--surface);
-  }
-  .ai-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
-  .ai-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .ai-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.82rem; font-family: inherit;
-  }
-  .ai-btn:hover { border-color: var(--teal); color: var(--teal); }
-
-  .parse-error { color: var(--danger); font-size: 0.9rem; }
-  .parse-error button {
-    background: none; border: none; color: var(--red);
-    cursor: pointer; text-decoration: underline; font-family: inherit;
-  }
 </style>

@@ -110,6 +110,193 @@ h1, h2, h3, .file-title {
 }
 .legacy-banner-btn:hover { filter: brightness(1.08); }
 
+/* Bausteine, die in vielen Komponenten unter demselben Klassennamen stehen.
+ * Komponentenlokale Regeln sind höher spezifisch und gewinnen weiterhin. */
+
+/* Inline-Feld der Karten-Editoren. `--mef-accent` setzt die einbettende Karte. */
+.ef {
+  background: var(--bg-panel);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 0.15rem 0.3rem;
+  outline: none;
+}
+.ef:hover { border-color: var(--border); }
+.ef:focus { border-color: var(--mef-accent, var(--arcane)); }
+
+/* Rumpf und Anfüge-Knopf der Merkmalslisten (ui/FeatureRow.svelte). Global, weil
+ * beides AUSSERHALB der Zeile steht — der Rumpf im Aufrufer, der Knopf am Abschnitt.
+ * Nach `.ef`, weil dessen Schriftgröße hier überschrieben wird. */
+.feat-desc { width: 100%; resize: vertical; line-height: 1.5; font-size: 0.85rem; }
+
+.add-feat {
+  align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--ink-soft); cursor: pointer;
+  font-family: inherit; font-size: 0.8rem; padding: 0.25rem 0.6rem; margin-top: 0.3rem;
+}
+.add-feat:hover { border-color: var(--mef-accent, var(--arcane)); color: var(--mef-accent, var(--arcane)); }
+
+/* Beschriftung neben einem Inline-Feld. */
+.lbl-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* Autocomplete: Eingabefeld mit darunter hängender Trefferliste (utils/suggestNav).
+ * Global, weil acht Stellen dieselbe Liste zeigen; `.compact` ist die kleinere
+ * Variante der Talent-Auswahl. Die Breite des Rahmens setzt der Aufrufer. */
+.autocomplete-wrap { position: relative; }
+.autocomplete-wrap input { width: 100%; box-sizing: border-box; }
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+.suggestions li {
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.suggestions li:hover,
+.suggestions li.active { background: var(--surface); }
+
+.suggestions.compact {
+  border-top: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0;
+  max-height: 180px;
+}
+.suggestions.compact li {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+
+/* Zweite Spalte eines Treffers (Kategorie, Ordner). */
+.sug-cat { color: var(--ink-muted); font-size: 0.75rem; flex-shrink: 0; }
+
+/* Feldüberschrift in den Dialogen. */
+.field-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+/* Feld in den Dialogen. Die Fokusfarbe setzt der jeweilige Dialog. */
+.input, .select, .textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+}
+
+/* Randloser Knopf, der nur aus seinem Zeichen besteht. */
+.plain-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.3rem;
+}
+
+/* Zustimmender Knopf eines Dialogs (ui/PromptDialog.svelte). */
+.ok-btn {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  font-weight: 600;
+}
+
+.primary-btn {
+  background: var(--red);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.secondary-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+/* Inhalt der KI-Aktions-Dialoge (ui/Modal.svelte mit contentClass="ai-modal").
+ * Abweichungen laufen über die Variablen, nicht über eine zweite Regel. */
+.ai-modal .row { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.ai-modal .textarea { resize: vertical; }
+.ai-modal .textarea:focus { border-color: var(--red); }
+
+.ai-modal .actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: var(--actions-align, normal);
+  gap: 0.5rem;
+}
+
+.ai-modal .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: var(--steps-max-h, 160px);
+  overflow-y: auto;
+  padding: 0.3rem 0;
+}
+.ai-modal .step { font-size: 0.78rem; color: var(--ink-soft); }
+.ai-modal .step.muted { color: var(--ink-muted); }
+
+.ai-modal .hint { font-size: 0.78rem; margin: 0; }
+.ai-modal .hint.warn { color: var(--gold, #c89b3c); }
+.ai-modal .hint.err { color: var(--danger); }
+
 /* Pergament-Scrollbars */
 * {
   scrollbar-width: thin;

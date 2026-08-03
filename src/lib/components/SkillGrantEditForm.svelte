@@ -1,15 +1,12 @@
 <script lang="ts">
   /**
-   * Editor für einen `skillGrant` — die 18 Fertigkeiten als Raster mit zwei
-   * Häkchen je Zeile: „fest gewährt" und „in der Auswahlliste". Genau die Form,
-   * die auch der Charakterbogen benutzt (Übung | Expertise), damit das Muster
-   * wiedererkennbar bleibt.
-   *
-   * Die Werte sind ENGLISCH (`SkillName`), die Beschriftung deutsch — die
-   * Übersetzung kommt aus derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
+   * Die 18 Fertigkeiten als Raster mit „fest gewährt" und „in der Auswahlliste" — dieselbe
+   * Form wie Übung | Expertise am Bogen. Werte ENGLISCH, Beschriftung deutsch aus
+   * derselben `SKILL_DEFS`-Tabelle wie der Bogen-Schlüssel.
    */
-  import { SKILL_DEFS } from '$lib/pdf/characterFields';
-  import type { SkillGrant, SkillName } from '$lib/schemas/shared';
+  import { SKILL_DEFS } from '$lib/domain/skills';
+  import type { SkillGrant } from '$lib/schemas/grants';
+  import type { SkillName } from '$lib/schemas/vocabulary';
 
   let {
     grant = $bindable<SkillGrant>(),
@@ -65,19 +62,9 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
   .num { width: 56px; text-align: center; }
 
   .choose-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; }
-  .lbl-inline {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.8rem; color: var(--ink-soft);
-  }
   .hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
 
   .skill-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.1rem 0.8rem; }

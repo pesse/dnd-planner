@@ -15,15 +15,9 @@ export const DEFAULT_MAX_TOKENS = 4096;
 const AGENT_MAX_ITERATIONS = 12;
 
 /**
- * Erzeugt einen Anthropic-Client, dessen HTTP-Calls über das Tauri-HTTP-Plugin
- * laufen (Rust-backed `fetch`). Das umgeht die CORS-Beschränkung des Webviews —
- * `api.anthropic.com` sendet keine CORS-Header, ein direkter `fetch` würde
- * blockiert. `dangerouslyAllowBrowser` ist hier unbedenklich: der API-Key liegt
- * ohnehin bereits im Frontend (OS-Keychain → llmConfig); es gibt keinen fremden
- * Origin, vor dem das SDK-Guard schützen müsste.
- *
- * Die `anthropic-version` setzt das SDK selbst; Retries (429/5xx) erledigt es
- * ebenfalls automatisch.
+ * HTTP über das Tauri-Plugin, weil `api.anthropic.com` keine CORS-Header sendet und ein
+ * direkter `fetch` aus dem Webview blockiert würde. `dangerouslyAllowBrowser` ist dabei
+ * unbedenklich: der Key liegt ohnehin im Frontend, es gibt keinen fremden Origin.
  */
 export function createClient(apiKey: string): Anthropic {
   return new Anthropic({
@@ -46,15 +40,13 @@ export function requireApiKey(config: LlmConfig): string {
 // ab Opus 4.7 (inkl. 4.8) und Fable/Mythos 5. Dort steuert man über effort + Prompting.
 const NO_SAMPLING = /opus-4-(7|8)|fable-5|mythos-5/;
 
-/** True, wenn das Modell `temperature` unterstützt (Opus 4.6 & älter, Sonnet 4.6, Haiku 4.5). */
 export function modelSupportsTemperature(model: string): boolean {
   return !NO_SAMPLING.test(model);
 }
 
 /**
- * Effektive Sampling-Parameter: globaler Override (config.temperature) gewinnt gegen
- * das per-Call-Preset; auf Modellen ohne sampling-Support wird Temperature still
- * verworfen (würde sonst einen 400 auslösen) — mit Debug-Hinweis.
+ * Globaler Override gewinnt gegen das per-Call-Preset; ohne sampling-Support wird
+ * Temperature still verworfen, weil sie sonst einen 400 auslöst.
  */
 function samplingParams(config: LlmConfig, perCall: number | undefined, label: string): { temperature?: number } {
   const temp = config.temperature ?? perCall;
@@ -76,10 +68,8 @@ export function firstText(message: Anthropic.Message): string {
 }
 
 /**
- * Zentraler Aufruf-Wrapper: erhält Debug-Logging + Token-Tracking (wie zuvor
- * `rustFetch`), nutzt aber die typisierte SDK-Antwort statt manuellem
- * JSON-Parsing. `signal` wird an das SDK durchgereicht, sodass laufende
- * Requests beim Abbruch tatsächlich gecancelt werden.
+ * Zentraler Aufruf-Wrapper mit Debug-Logging und Token-Tracking. `signal` geht ans SDK
+ * durch, damit ein Abbruch den laufenden Request wirklich cancelt.
  */
 export async function createMessage(
   client: Anthropic,
@@ -108,8 +98,6 @@ export async function createMessage(
     throw e;
   }
 }
-
-// ── Chat / Generate ─────────────────────────────────────────────────────────
 
 export async function anthropicChat(
   config: LlmConfig,
@@ -156,8 +144,6 @@ export async function anthropicGenerate(
   );
   return firstText(message);
 }
-
-// ── Agentic Loop ──────────────────────────────────────────────────────────────
 
 export async function anthropicAgentLoop(
   config: LlmConfig,

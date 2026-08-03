@@ -1,14 +1,12 @@
 /**
- * Generischer Runner für KI-Aktionen — hier sitzt die Provider-Matrix.
- *
- * Drei Pfade, weil nur ein Teil der Provider Schemata serverseitig erzwingt: Anthropic
- * (`output_config`) und QM/vllm (`structured_outputs`) sind nativ schema-valide, Groq und
- * Ollama bekommen das Schema als Prompt-Block und werden per Regex ausgewertet. Tools
- * können nur Anthropic und Groq — eine Aktion mit Tools auf Ollama wird abgewiesen.
+ * Generischer Runner für KI-Aktionen — hier sitzt die Provider-Matrix: drei Pfade, weil nur
+ * Anthropic und QM/vllm Schemata serverseitig erzwingen; Groq und Ollama bekommen das Schema
+ * als Prompt-Block. Tools können nur Anthropic und Groq.
  */
 import type { LlmConfig } from '../../types';
 import { getClient } from '../llmClient';
-import { agentLoop, TASK_TEMPERATURE } from '../llmService';
+import { agentLoop } from '../llm/agentLoop';
+import { TASK_TEMPERATURE } from '../vaultTools';
 import type { AgentStep, AgentToolset } from '../vaultTools';
 import type { AiAction } from './types';
 import { extractJson } from '../jsonFence';
@@ -23,7 +21,7 @@ export interface RunOptions {
 
 /**
  * Schema als Prompt-Block, für die Pfade ohne nativen Structured Output. Exportiert, damit
- * die Eval-Prompt-Werkstatt (`structured: 'prompt'`) exakt denselben Wortlaut misst.
+ * die Eval-Prompt-Werkstatt exakt denselben Wortlaut misst.
  */
 export function jsonOutputInstruction(jsonSchema: object): string {
   return (

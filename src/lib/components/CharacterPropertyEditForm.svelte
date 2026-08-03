@@ -1,17 +1,13 @@
 <script lang="ts">
   /**
-   * Editor einer deklarierten Grundeigenschafts-WAHL (`grantsChoice.kind === 'characterProperty'`)
-   * — „Klein oder Mittelgroß" bei Feenwesen, Mensch und Tiefling.
-   *
-   * Optionen und deutsche Labels stehen NICHT in der Deklaration: sie kommen aus dem Vokabular
-   * der Eigenschaft (`characterPropertyPickers`, services/characterProperties.ts). Deklariert
-   * wird nur, WELCHE Eigenschaft und welche Werte davon zulässig sind — genau darum kann eine
+   * Editor einer deklarierten Grundeigenschafts-WAHL. Optionen und deutsche Labels stehen
+   * NICHT in der Deklaration, sondern im Vokabular der Eigenschaft — nur deshalb kann eine
    * Homebrew-Spezies dieselbe Wahl anbieten, ohne dass jemand Labels pflegt.
    *
-   * Die Regel, die die Oberfläche zeigen muss: WENIGER ALS ZWEI Werte ergeben keine Frage —
-   * ein fester Wert gehört unter „Gewährt Mechanik" (`grants.properties`), nicht hierher.
+   * Die Regel, die die Oberfläche zeigen muss: unter ZWEI Werten entsteht keine Frage — ein
+   * fester Wert gehört unter „Gewährt Mechanik" (`grants.properties`).
    */
-  import type { FeatureChoiceGrant } from '$lib/schemas/shared';
+  import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { characterPropertyPickers } from '$lib/services/characterProperties';
 
   let {
@@ -24,7 +20,7 @@
 
   const pickers = characterPropertyPickers();
   let picker = $derived(pickers.find((p) => p.property === grant.property) ?? pickers[0]);
-  /** Leer = das ganze Vokabular ist zugelassen (so liest es auch `characterPropertyOptions`). */
+  /** Leer = das ganze Vokabular, so liest es auch `characterPropertyOptions`. */
   let allowed = $derived(grant.propertyValues.length ? grant.propertyValues : picker.values.map((v) => v.value));
 
   function setProperty(value: string) {
@@ -75,12 +71,6 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
   .sel { font-size: 0.8rem; }
 
   .cp-block { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -92,7 +82,7 @@
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
     color: var(--ink-muted); margin-top: 0.2rem;
   }
-  .lbl-inline { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--ink-soft); }
+  .lbl-inline { font-size: 0.78rem; }
 
   .flag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.15rem 0.4rem; }
   .chk {

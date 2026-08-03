@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Monster, MonsterAction } from '../types';
   import { MONSTER_SIZES, MONSTER_TYPES, MONSTER_ALIGNMENTS } from '../types';
+  import { modStr } from '../domain/skills';
 
   let {
     monster = $bindable<Monster>(),
@@ -10,16 +11,9 @@
     onchange?: () => void;
   } = $props();
 
-  function mod(score: number): string {
-    const m = Math.floor((score - 10) / 2);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
-
   const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
   type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
   const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-
-  // ── Schadens-Lookup ──────────────────────────────────────────────────────────
 
   const DAMAGE_TYPE_DE: Record<string, string> = {
     acid: 'Säure', bludgeoning: 'Wucht', cold: 'Kälte', fire: 'Feuer',
@@ -28,8 +22,6 @@
     thunder: 'Donner',
   };
 
-
-  // ─────────────────────────────────────────────────────────────────────────────
 
   function addAction(arr: MonsterAction[]) { arr.push({ name: 'Neue Aktion', description: '' }); onchange(); }
   function removeAction(arr: MonsterAction[], i: number) { arr.splice(i, 1); onchange(); }
@@ -50,7 +42,6 @@
   }
 </script>
 
-<!-- Header -->
 <div class="sb-header">
   <input class="ef sb-name" bind:value={monster.name} oninput={onchange} placeholder="Name" />
   <div class="meta-row">
@@ -74,7 +65,6 @@
 
 <div class="divider"></div>
 
-<!-- AC / HP / Speed -->
 <div class="section">
   <div class="prop">
     <span class="lbl">Rüstungsklasse</span>
@@ -94,20 +84,18 @@
 
 <div class="divider"></div>
 
-<!-- Ability scores -->
 <div class="stats-grid">
   {#each STAT_LABELS as label, i}
     <div class="stat-cell">
       <span class="stat-lbl">{label}</span>
       <input class="ef stat-in" type="number" bind:value={monster.stats[STAT_KEYS[i]]} oninput={onchange} />
-      <span class="stat-mod">({mod(monster.stats[STAT_KEYS[i]])})</span>
+      <span class="stat-mod">({modStr(monster.stats[STAT_KEYS[i]])})</span>
     </div>
   {/each}
 </div>
 
 <div class="divider"></div>
 
-<!-- Saving throws / Skills / Immunities etc. -->
 <div class="section">
   <div class="kv-row">
     <span class="lbl">Rettungswürfe</span>
@@ -167,7 +155,6 @@
   </div>
 </div>
 
-<!-- Traits -->
 {#if monster.traits.length || true}
   <div class="divider"></div>
   <div class="ability-list">
@@ -184,7 +171,6 @@
   </div>
 {/if}
 
-<!-- Actions -->
 <div class="divider"></div>
 <h3 class="section-title">Aktionen</h3>
 <div class="ability-list">
@@ -222,7 +208,6 @@
   <button class="add-btn" onclick={() => addAction(monster.actions)}>+ Aktion</button>
 </div>
 
-<!-- Reactions -->
 {#if monster.reactions.length || true}
   <div class="divider"></div>
   <h3 class="section-title">Reaktionen</h3>
@@ -240,7 +225,6 @@
   </div>
 {/if}
 
-<!-- Legendary actions -->
 {#if monster.legendary_actions.length || true}
   <div class="divider"></div>
   <h3 class="section-title">Legendäre Aktionen</h3>
@@ -259,7 +243,6 @@
 {/if}
 
 <style>
-  /* ── Editable field base ── */
   .ef {
     background: transparent;
     border: 1px solid transparent;
@@ -273,7 +256,6 @@
   .ef:hover { border-color: var(--border); background: var(--bg-panel); }
   .ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
 
-  /* ── Header ── */
   .sb-header { margin-bottom: 0.4rem; }
 
   .sb-name {
@@ -310,7 +292,6 @@
 
   .sep { color: var(--ink-soft); padding: 0 0.1rem; }
 
-  /* ── Divider ── */
   .divider {
     height: 2px;
     background: linear-gradient(to right, var(--red), color-mix(in srgb, var(--mef-accent, var(--danger)) 33%, transparent));
@@ -318,7 +299,6 @@
     border-radius: 1px;
   }
 
-  /* ── Section / prop rows ── */
   .section { display: flex; flex-direction: column; gap: 0.15rem; }
 
   .prop {
@@ -352,7 +332,6 @@
   .dmg-type-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
   .cr   { width: 40px; text-align: center; }
 
-  /* ── Ability scores ── */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -373,7 +352,6 @@
   .stat-in { width: 46px; text-align: center; font-size: 1rem; font-weight: 600; padding: 0.1rem; }
   .stat-mod { font-size: 0.78rem; color: var(--ink-soft); }
 
-  /* ── KV pairs ── */
   .kv-row {
     display: flex;
     align-items: flex-start;
@@ -401,7 +379,6 @@
   }
   .kv-add:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
 
-  /* ── Abilities / Actions ── */
   .section-title {
     font-size: 1rem;
     font-weight: 700;

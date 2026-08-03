@@ -5,13 +5,26 @@ import type { Spell, SpellDamage } from './schemas/spell';
 import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
 import type { Item } from './schemas/item';
 import type { Encounter, EncounterMonster } from './schemas/encounter';
-import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/character';
+import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/characterSchema';
 import type { ClassProgression, ClassFeature } from './schemas/classProgression';
 import type { Species, Trait } from './schemas/species';
 import type { Feat } from './schemas/feat';
 import type { Background, Benefit } from './schemas/background';
-import { OWN_SOURCE, emptyProficiencyGrant, emptySkillGrant, MONSTER_SIZES, MONSTER_SIZE_KEYS } from './schemas/shared';
-import type { MonsterSize } from './schemas/shared';
+import { OWN_SOURCE } from './schemas/source';
+import { emptyProficiencyGrant, emptySkillGrant } from './schemas/grants';
+import {
+  MONSTER_ALIGNMENTS,
+  MONSTER_SIZES,
+  MONSTER_SIZE_KEYS,
+  MONSTER_TYPES,
+  SPELL_SCHOOLS,
+} from './schemas/vocabulary';
+import type {
+  MonsterAlignment,
+  MonsterSize,
+  MonsterType,
+  SpellSchool,
+} from './schemas/vocabulary';
 export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
@@ -39,23 +52,10 @@ export interface FileEntry {
   name: string;
   path: string;
   type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background';
-  /** Set for directory-based characters (with PDF sheet) */
+  /** Nur bei ordnerbasierten Charakteren (mit PDF-Bogen). */
   dirPath?: string;
 }
 
-// --- Spell ---
-
-export const SPELL_SCHOOLS = {
-  abjuration:    'Bannmagie',
-  conjuration:   'Beschwörung',
-  divination:    'Erkenntnismagie',
-  enchantment:   'Verzauberung',
-  evocation:     'Hervorrufung',
-  illusion:      'Illusionsmagie',
-  necromancy:    'Nekromantie',
-  transmutation: 'Verwandlung',
-} as const;
-export type SpellSchool = keyof typeof SPELL_SCHOOLS;
 
 export const SPELL_CLASS_LABELS: Record<string, string> = {
   sorcerer:  'Zauberer',
@@ -74,13 +74,24 @@ export function spellLevelLabel(level: number): string {
   return level === 0 ? 'Zaubertrick' : `${level}. Grad`;
 }
 
-/** Zeigt deutsche Beschreibung, fällt auf Englisch zurück. */
+export function spellSchoolLabel(school: string): string {
+  return SPELL_SCHOOLS[school as SpellSchool] ?? school;
+}
+
+/** „V, G, M"; ohne Komponenten „—". */
+export function spellComponents(spell: Spell): string {
+  const parts: string[] = [];
+  if (spell.components.verbal) parts.push('V');
+  if (spell.components.somatic) parts.push('G');
+  if (spell.components.material) parts.push('M');
+  return parts.join(', ') || '—';
+}
+
 export function spellDesc(spell: Spell): string {
   const arr = spell.desc_de?.length ? spell.desc_de : spell.desc;
   return (arr ?? []).join('\n\n');
 }
 
-/** Zeigt deutsche Aufwertung, fällt auf Englisch zurück. Null wenn leer. */
 export function spellHigherLevel(spell: Spell): string | null {
   const arr = spell.higher_level_de?.length ? spell.higher_level_de
             : spell.higher_level?.length    ? spell.higher_level
@@ -112,38 +123,17 @@ export interface LlmConfig {
   apiKey?: string;
   baseUrl?: string;
   maxTokens?: number;
-  /** Globaler Temperature-Override. Wenn gesetzt, gewinnt er gegen das Task-Preset des Call-Sites. */
+  /** Gewinnt gegen das Task-Preset der Call-Site. */
   temperature?: number;
 }
 
-// --- Monster ---
+// Re-Export statt zweiter Tabelle: die Größen sind auch das Vokabular der
+// Charaktereigenschaft `size`, und ein Import von `schemas/vocabulary.ts` hierher wäre ein Zyklus.
+export { MONSTER_SIZES, MONSTER_SIZE_KEYS, MONSTER_TYPES, MONSTER_ALIGNMENTS, SPELL_SCHOOLS };
+export type { MonsterSize, MonsterType, MonsterAlignment, SpellSchool };
 
-// Die Größentabelle liegt in `schemas/shared.ts` — sie ist nicht mehr nur Monster-Vokabular,
-// sondern auch das der Charaktereigenschaft `size`, und ein Import von dort hierher wäre ein
-// Zyklus (diese Datei liest schon Werte aus `shared.ts`). Re-Export, damit „aus $lib/types"
-// weiter stimmt und es genau EINE Tabelle gibt.
-export { MONSTER_SIZES, MONSTER_SIZE_KEYS };
-export type { MonsterSize };
 
-export const MONSTER_TYPES = {
-  aberration:  'Aberration',
-  beast:       'Tier',
-  celestial:   'Himmlisches',
-  construct:   'Konstrukt',
-  dragon:      'Drache',
-  elemental:   'Elementar',
-  fey:         'Fee',
-  fiend:       'Teuflisches',
-  giant:       'Riese',
-  humanoid:    'Humanoid',
-  monstrosity: 'Ungeheuer',
-  ooze:        'Schleim',
-  plant:       'Pflanze',
-  undead:      'Untote',
-} as const;
-export type MonsterType = keyof typeof MONSTER_TYPES;
-
-/** Creature-Type → Vault-Unterordner (deutsche Plural-Kategorie). Bestimmt die Ablage. */
+/** Creature-Type → Vault-Unterordner; bestimmt die Ablage. */
 export const MONSTER_TYPE_DIR: Record<MonsterType, string> = {
   aberration:  'aberrationen',
   beast:       'tiere',
@@ -161,39 +151,14 @@ export const MONSTER_TYPE_DIR: Record<MonsterType, string> = {
   undead:      'untote',
 };
 
-export const MONSTER_ALIGNMENTS = {
-  'lawful good':              'Rechtschaffen Gut',
-  'neutral good':             'Neutral Gut',
-  'chaotic good':             'Chaotisch Gut',
-  'lawful neutral':           'Rechtschaffen Neutral',
-  'neutral':                  'Neutral',
-  'chaotic neutral':          'Chaotisch Neutral',
-  'lawful evil':              'Rechtschaffen Böse',
-  'neutral evil':             'Neutral Böse',
-  'chaotic evil':             'Chaotisch Böse',
-  'unaligned':                'Unausgerichtet',
-  'any alignment':            'Beliebige Gesinnung',
-  'any good alignment':       'Beliebige gute Gesinnung',
-  'any evil alignment':       'Beliebige böse Gesinnung',
-  'any non-good alignment':   'Beliebige nicht-gute Gesinnung',
-  'any non-lawful alignment': 'Beliebige nicht-rechtschaffene Gesinnung',
-  'any chaotic alignment':    'Beliebige chaotische Gesinnung',
-  'any lawful alignment':     'Beliebige rechtschaffene Gesinnung',
-} as const;
-export type MonsterAlignment = keyof typeof MONSTER_ALIGNMENTS;
 
-/**
- * Die neun Gesinnungen eines Spielercharakters, deutsch — Teilmenge von
- * `MONSTER_ALIGNMENTS` ohne die Monster-Sonderfälle („Unausgerichtet", „Beliebige …").
- * Über die Keys abgeleitet, damit es nur EINE deutsche Gesinnungstabelle gibt.
- */
+/** Über die Keys von `MONSTER_ALIGNMENTS` abgeleitet — nur EINE Gesinnungstabelle. */
 export const CHARACTER_ALIGNMENTS_DE: string[] = ([
   'lawful good', 'neutral good', 'chaotic good',
   'lawful neutral', 'neutral', 'chaotic neutral',
   'lawful evil', 'neutral evil', 'chaotic evil',
 ] as const satisfies readonly MonsterAlignment[]).map((k) => MONSTER_ALIGNMENTS[k]);
 
-/** Die sechs Größenkategorien, deutsch — für Charaktere dieselben wie für Monster. */
 export const SIZE_CATEGORIES_DE: string[] = Object.values(MONSTER_SIZES);
 
 export function monsterSizeLabel(size: string): string {
@@ -231,12 +196,6 @@ export const MONSTER_TEMPLATE: Monster = {
   legendary_actions: [],
 };
 
-// --- Item --- (Typ + Schema in schemas/item.ts)
-
-// --- Encounter --- (Typ + Schema in schemas/encounter.ts)
-
-// --- Klasse (Regel-Bibliothek) --- (Typ + Schema in schemas/classProgression.ts)
-
 export const CLASS_TEMPLATE: ClassProgression = {
   key: '',
   source: OWN_SOURCE,
@@ -255,8 +214,6 @@ export const CLASS_TEMPLATE: ClassProgression = {
   features: [],
 };
 
-// --- Spezies (Regel-Bibliothek) --- (Typ + Schema in schemas/species.ts)
-
 export const SPECIES_TEMPLATE: Species = {
   key: '',
   source: OWN_SOURCE,
@@ -268,8 +225,6 @@ export const SPECIES_TEMPLATE: Species = {
   traits: [],
 };
 
-// --- Talent (Regel-Bibliothek) --- (Typ + Schema in schemas/feat.ts)
-
 export const FEAT_TEMPLATE: Feat = {
   key: '',
   source: OWN_SOURCE,
@@ -280,8 +235,6 @@ export const FEAT_TEMPLATE: Feat = {
   desc: '',
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
 };
-
-// --- Hintergrund (Regel-Bibliothek) --- (Typ + Schema in schemas/background.ts)
 
 export const BACKGROUND_TEMPLATE: Background = {
   key: '',

@@ -1,14 +1,7 @@
 /**
- * Löst die am Charakter VERLINKTEN Merkmale zur Laufzeit aus der lokalen Bibliothek
- * auf — analog zum Zauber-Modell: der Charakter speichert nur Links
- * (`classes[]` → vault/classes, `species` → vault/species, `backgroundRef` →
- * vault/backgrounds, `features[]` → vault/feats), die Inhalte
- * (Name/Beschreibung) kommen aus der Bibliothek.
- *
- * Klassen-/Subklassen-Merkmale werden bis zur aktuellen Stufe aufgezählt
- * (`featuresUpTo`). Fehlt ein Link lokal (kein sourceKey oder nicht in der
- * Bibliothek), wird die Gruppe als `unresolved` markiert, damit die UI dem
- * Nutzer die Verlinkung/Anlage anbieten kann.
+ * Löst die am Charakter VERLINKTEN Merkmale zur Laufzeit aus der Bibliothek auf.
+ * Ein nicht auflösbarer Link wird als `unresolved` markiert statt verschluckt — nur so
+ * kann die UI die Verlinkung anbieten.
  */
 import { getProgressionByKey, featuresUpTo } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
@@ -17,50 +10,42 @@ import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
 import type { AbilityKey } from '$lib/schemas/classProgression';
-import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/character';
-import type { FeatureGrant } from '$lib/schemas/shared';
+import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
+import type { FeatureGrant } from '$lib/schemas/grants';
 import { declaredFeatures, type DeclaredFeature, type FeatureSource } from './declaredFeature';
 
-/** Ein aufgelöstes Merkmal (Name/Beschreibung DE-bevorzugt). */
+/** Name und Beschreibung DE-bevorzugt — das ist die Anzeigeform, nicht die KI-Eingabe. */
 export interface ResolvedFeature {
   name: string;
   desc: string;
-  gainedAt?: number; // Stufe, auf der es (zuerst) erlangt wird
+  gainedAt?: number; // Stufe, auf der es ZUERST erlangt wird
   key?: string;
-  /** Getroffene Entscheidung aus `character.features[]` — nur bei Wahl-Merkmalen gesetzt. */
   choice?: string;
-  /** Deklarierte Mechanik des Bibliotheks-Merkmals (`featureGrantSchema`); fehlt bei Altdaten. */
+  /** Fehlt bei Altdaten; `{}` heißt dagegen „geprüft, gewährt nichts". */
   grants?: FeatureGrant;
-  /** true = kein Bibliothekstreffer; Name/Beschreibung stammen aus dem Charakter selbst. */
+  /** Kein Bibliothekstreffer — Name/Beschreibung stammen aus dem Charakter selbst. */
   unresolved?: boolean;
 }
 
-/** Eine Merkmalsgruppe (eine Klasse/Subklasse/Spezies). */
 export interface ResolvedFeatureGroup {
-  title: string; // Anzeige, z.B. „Waldläufer 5" / „Kreis des Mondes" / „Zwerg"
+  title: string; // „Waldläufer 5" · „Kreis des Mondes" · „Zwerg"
   sourceKey: string;
-  /** true = Link nicht auflösbar (fehlender sourceKey oder nicht in der Bibliothek). */
   unresolved: boolean;
   features: ResolvedFeature[];
 }
 
-/** Kleinste erlangte Stufe ≤ Zielstufe (für die Anzeige „Stufe X"). */
 function firstGainedAt(gainedAt: number[], level: number): number | undefined {
   const eligible = gainedAt.filter((l) => l <= level);
   return eligible.length ? Math.min(...eligible) : undefined;
 }
 
-/**
- * Löst die Klassen-Merkmale eines Charakters bis zur jeweiligen Stufe auf,
- * inkl. Subklassen-Merkmale. Eine Gruppe je Klasse und je verlinkter Subklasse.
- */
+/** Eine Gruppe je Klasse UND je verlinkter Subklasse, jeweils bis zur Klassenstufe. */
 export async function resolveClassFeatures(classes: CharacterClass[]): Promise<ResolvedFeatureGroup[]> {
   const groups: ResolvedFeatureGroup[] = [];
   for (const cls of classes ?? []) {
     if (!cls.name.trim() && !cls.sourceKey) continue;
     const level = cls.level || 1;
 
-    // Grundklasse
     const prog = cls.sourceKey ? await getProgressionByKey(cls.sourceKey) : null;
     groups.push({
       title: cls.name.trim() || cls.sourceKey,
@@ -77,7 +62,6 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
         : [],
     });
 
-    // Subklasse (falls verlinkt)
     if (cls.subclassKey) {
       const sub = await getProgressionByKey(cls.subclassKey);
       groups.push({
@@ -99,10 +83,6 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
   return groups;
 }
 
-/**
- * Löst die Spezies-Traits eines Charakters auf (inkl. optionaler Unterspezies).
- * null, wenn kein Spezies-Link vorhanden ist.
- */
 export async function resolveSpeciesTraits(species: CharacterSpecies | undefined): Promise<ResolvedFeatureGroup[] | null> {
   if (!species || (!species.sourceKey && !species.name.trim())) return null;
   const groups: ResolvedFeatureGroup[] = [];
@@ -130,9 +110,7 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
 }
 
 /**
- * Löst die Vorteile des verlinkten Hintergrunds auf. null, wenn kein Hintergrund
- * gepflegt ist. Das Herkunftstalent wird zusätzlich gegen das Feats-Wörterbuch
- * aufgelöst und als eigener Eintrag angehängt — im Charakter steht es nicht in
+ * Das Herkunftstalent hängt hier als eigener Eintrag an: im Charakter steht es NICHT in
  * `features`, es kommt allein aus dem Hintergrund.
  */
 export async function resolveBackground(background: CharacterBackground | undefined): Promise<ResolvedFeatureGroup | null> {
@@ -163,21 +141,18 @@ export async function resolveBackground(background: CharacterBackground | undefi
 }
 
 /**
- * Teilt das Merkmals-Ledger anhand der bereits aufgelösten Merkmals-Keys in seine zwei
- * Eintragsarten: `annotations` sind Entscheidungen zu einem vorhandenen Merkmal,
- * `unmatched` alles Übrige (Talent-Links; bei getauschtem Klassen-Link auch verwaiste
- * Entscheidungen). Der Aufrufer sammelt die Keys aus seinen Gruppen — nur so bleibt es
- * für die Karte (eine Liste) und den Editor (drei getrennte Abschnitte) dasselbe Stück Logik.
- */
-/**
- * Die getroffene Wahl, wie sie einem Menschen gezeigt wird. `choice` führt das englische
- * kanonische Label (so geht es an die KI und so kommt es als `<past_choices>` zurück),
- * `choiceDe` die Anzeige — Altbestand hat nur `choice`, dort steht dann noch Deutsch.
+ * `choice` führt das englische kanonische Label (so geht es an die KI zurück), `choiceDe`
+ * die Anzeige — Altbestand hat nur `choice`, dort steht dann noch Deutsch.
  */
 export function choiceDisplay(e: { choice: string; choiceDe?: string }): string {
   return e.choiceDe?.trim() || e.choice;
 }
 
+/**
+ * Zerlegt das Ledger in Entscheidungen zu vorhandenen Merkmalen und alles Übrige
+ * (Talent-Links, bei getauschtem Klassen-Link auch verwaiste Entscheidungen). Die Keys
+ * kommen vom Aufrufer, damit Karte und Editor dieselbe Logik teilen.
+ */
 export function splitFeatureEntries(
   entries: CharacterFeatureEntry[] | undefined,
   resolvedKeys: Iterable<string>,
@@ -190,8 +165,8 @@ export function splitFeatureEntries(
       unmatched.push(e);
       continue;
     }
-    // Ein Merkmal kann mehrfach vergeben werden (Expertise auf 1 UND 6), wird aber als EIN
-    // Merkmal gerendert — die Entscheidungen sammeln sich deshalb, statt sich zu überschreiben.
+    // Mehrfachvergabe (Expertise auf 1 UND 6) rendert als EIN Merkmal — die Entscheidungen
+    // sammeln sich deshalb, statt sich zu überschreiben.
     const prev = annotations.get(e.sourceKey);
     const shown = choiceDisplay(e);
     annotations.set(e.sourceKey, prev ? `${prev}; ${shown}` : shown);
@@ -199,12 +174,10 @@ export function splitFeatureEntries(
   return { annotations, unmatched };
 }
 
-/** Alle Merkmals-Keys aufgelöster Gruppen — Eingabe für `splitFeatureEntries`. */
 export function keysOf(groups: ResolvedFeatureGroup[]): string[] {
   return groups.flatMap((g) => g.features.map((f) => f.key ?? '').filter(Boolean));
 }
 
-/** Schreibt die passenden Entscheidungen in die Merkmale einer Gruppe (ohne zu mutieren). */
 export function withChoices(groups: ResolvedFeatureGroup[], annotations: Map<string, string>): ResolvedFeatureGroup[] {
   if (!annotations.size) return groups;
   return groups.map((g) => ({
@@ -217,12 +190,8 @@ export function withChoices(groups: ResolvedFeatureGroup[], annotations: Map<str
 }
 
 /**
- * Löst die verlinkten Talente eines Charakters gegen das Feats-Wörterbuch auf
- * (Beschreibung aus der Bibliothek; Legacy-`desc` nur als letzter Fallback).
- *
- * Erwartet die Einträge, die `mergeFeatureChoices` NICHT zuordnen konnte. Ein Eintrag,
- * den auch das Wörterbuch nicht kennt, ist keine stille Lücke: `key` bleibt gesetzt,
- * damit der Aufrufer ihn als unzugeordnete Entscheidung anzeigen kann.
+ * Erwartet die von `splitFeatureEntries` NICHT zugeordneten Einträge. Ein auch im
+ * Wörterbuch unbekannter Eintrag behält seinen `key` — sonst verschwände er still.
  */
 export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefined): Promise<ResolvedFeature[]> {
   const links = feats ?? [];
@@ -231,7 +200,6 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
   return links.map((ref) => {
     const entry = matchFeatEntry(lib, ref);
     return {
-      // Ohne Treffer und ohne Namen bleibt der Key die einzige Anzeige — besser als leer.
       name: entry ? featDisplayName(entry) : ref.name || ref.sourceKey,
       desc: entry ? featDesc(entry) : (ref.desc ?? ''),
       gainedAt: ref.gainedAt,
@@ -243,29 +211,19 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
   });
 }
 
-/**
- * Vollständig aufgelöste Merkmale eines Charakters — Klasse/Subklasse, Spezies,
- * Hintergrund, Talent-Links und die verwaisten Entscheidungen, in genau den Gruppen,
- * die Karte und KI-Kontext brauchen. Die Entscheidungen sind schon in die Merkmale
- * eingetragen (`withChoices`).
- */
+/** Die Entscheidungen sind hier schon in die Merkmale eingetragen (`withChoices`). */
 export interface ResolvedCharacterFeatures {
   speciesGroups: ResolvedFeatureGroup[];
   classGroups: ResolvedFeatureGroup[];
   backgroundGroups: ResolvedFeatureGroup[];
-  featEntries: ResolvedFeature[]; // Talent-Links (kein verwaister Entscheidungs-Eintrag)
+  featEntries: ResolvedFeature[];
   orphanChoices: ResolvedFeature[]; // Entscheidung ohne zugeordnetes Merkmal
 }
 
 /**
- * Die eine Stelle, an der Klassen-/Spezies-/Hintergrund-Merkmale und Talent-Links
- * zusammen aufgelöst werden. Die Reihenfolge ist zwingend: erst alle Gruppen, dann
- * `splitFeatureEntries` über deren Keys — nur so entscheidet sich, welcher Ledger-Eintrag
- * eine Entscheidung zu einem vorhandenen Merkmal ist und welcher ein Talent-Link.
- *
- * Konsument mit anderem Zwischenbedarf (Editor: drei getrennte Abschnitte; LevelUp:
- * nur Merkmale ohne Entscheidung) bleibt bewusst bei der direkten Verwendung der
- * Einzelfunktionen — hier steht die eine Sequenz für Karte und KI-Kontext.
+ * Die Reihenfolge ist zwingend: erst alle Gruppen, dann `splitFeatureEntries` über deren
+ * Keys — nur so trennen sich Entscheidung und Talent-Link. Aufrufer mit anderem
+ * Zwischenbedarf (Editor, LevelUp) nutzen bewusst die Einzelfunktionen.
  */
 export async function resolveCharacterFeatures(c: {
   classes?: CharacterClass[];
@@ -291,8 +249,7 @@ export async function resolveCharacterFeatures(c: {
 }
 
 /**
- * Zauberwerte der merkmals-gewährten Zugänge (Eingeweihter der Magie & Co.), zur Anzeigezeit aus
- * Deklaration + Ledger gerechnet. Nichts wird zurückgeschrieben: der Übungsbonus steigt, ein
+ * Zur Anzeigezeit gerechnet, nichts wird zurückgeschrieben: der Übungsbonus steigt, ein
  * gespeicherter SG würde altern. Ohne beantwortetes Attribut fällt der Zugang heraus.
  */
 export async function resolveSpellAccess(c: {
@@ -327,16 +284,14 @@ export async function resolveSpellAccess(c: {
   return out;
 }
 
-/** Eine früher getroffene Entscheidung, aufgelöst auf den Merkmalsnamen (für KI-Kontext). */
 export interface PastChoice {
   featureKey: string;
-  feature: string; // Anzeigename des Merkmals; Fallback = Key
+  feature: string; // Anzeigename; Fallback = Key
   /** Englisches kanonisches Label — bei Altbestand noch deutsch (der Prompt sagt das). */
   choice: string;
 }
 
 /**
- * Die bereits getroffenen Entscheidungen des Charakters mit aufgelöstem Merkmalsnamen.
  * Bewusst ohne Regelprosa: die Merkmalstexte kommen im Prompt ohnehin aus der Bibliothek,
  * hier zählt allein „zu diesem Merkmal steht die Wahl schon fest".
  */
@@ -366,17 +321,14 @@ export async function resolvePastChoices(c: {
 }
 
 /**
- * Eine Entscheidung, deren Merkmal nirgends auftaucht — passiert, wenn der Klassen-Link
- * getauscht wurde oder ein Re-Import den Merkmals-Key verschoben hat. Wird angezeigt statt
- * verschluckt, damit die fehlende Verlinkung sichtbar bleibt.
+ * Entscheidung ohne Merkmal — getauschter Klassen-Link oder verschobener Key nach Re-Import.
+ * Wird angezeigt statt verschluckt, damit die fehlende Verlinkung sichtbar bleibt.
  */
 export function isOrphanChoice(f: ResolvedFeature): boolean {
   return !!f.unresolved && !!f.choice;
 }
 
 /**
- * Die Speziesmerkmale eines Charakters als Deklarationsquelle.
- *
  * Nicht `resolveSpeciesTraits`: das liefert `descDe || desc` fürs Anzeigen, hier braucht es
  * den ENGLISCHEN Text — die Zauber-Stufentabelle wird daraus gelesen (`grantedSpells.ts`).
  */
@@ -391,32 +343,26 @@ export async function declaredSpeciesFeatures(
 /**
  * Ein deklariertes Merkmal samt TRÄGER — der Rohstoff der Wahl-Plätze
  * (`services/characterChoices.ts`).
- *
- * `gainedAt` steht hier statt an `DeclaredFeature`, weil es zum Träger gehört, nicht zur
- * Deklaration: dasselbe Bibliotheks-Merkmal ist am Charakter mehrfach vergeben (Expertise
- * auf 1 UND 6), und genau daran hängt die Anzahl der Plätze.
  */
 export interface DeclaredSlotSource {
   feature: DeclaredFeature;
-  /** Anzeigegruppe des Trägers („Schurke 6" · „Elf" · „Talente"). */
-  group: string;
-  /** Vergabe-Stufen des Merkmals — ein Wahl-Platz je Stufe. */
+  group: string; // „Schurke 6" · „Elf" · „Talente"
+  /**
+   * Vergabe-Stufen, ein Wahl-Platz je Stufe. Steht am Träger, nicht an `DeclaredFeature`:
+   * dasselbe Bibliotheks-Merkmal ist mehrfach vergeben (Expertise auf 1 UND 6).
+   */
   gainedAt: number[];
   /**
    * Maßgebliche Stufe für `options[].spells`: KLASSENstufe am Klassenmerkmal,
-   * CHARAKTERstufe bei Spezies und Talent — dieselbe Unterscheidung, die
-   * `declaredSpellGrants` zweimal aufgerufen bekommt.
+   * CHARAKTERstufe bei Spezies und Talent — deshalb läuft `declaredSpellGrants` zweimal.
    */
   level: number;
 }
 
 /**
- * Klassen- und Subklassenmerkmale bis zur jeweiligen Stufe, mit ihren Vergabe-Stufen.
- *
- * Nicht `resolveClassFeatures`: das faltet die Mehrfachvergabe auf `firstGainedAt`
- * zusammen und liefert deutschen Anzeigetext. Hier zählt beides umgekehrt — die
- * VOLLE `gainedAt`-Liste (sonst schuldet ein Schurke der Stufe 6 nur eine Expertise
- * statt zwei) und der englische Text der Deklaration.
+ * Nicht `resolveClassFeatures`: das faltet die Mehrfachvergabe auf `firstGainedAt` zusammen
+ * und liefert Anzeigetext. Hier braucht es die VOLLE `gainedAt`-Liste (sonst schuldet ein
+ * Schurke der Stufe 6 nur eine Expertise statt zwei) und den englischen Text.
  */
 export async function declaredClassFeatures(classes: CharacterClass[]): Promise<DeclaredSlotSource[]> {
   const out: DeclaredSlotSource[] = [];
@@ -440,11 +386,8 @@ export async function declaredClassFeatures(classes: CharacterClass[]): Promise<
 }
 
 /**
- * Verlinkte Talente (inkl. Herkunftstalent des Hintergrunds) als Deklarationsquelle.
- *
  * Erwartet das ganze Ledger und siebt die Talent-Links selbst heraus — `choice` ist der
- * Diskriminator (schemas/character.ts), und die Wahl-Einträge sind gerade das, was die
- * Plätze BEANTWORTET, nicht was sie erzeugt.
+ * Diskriminator, und die Wahl-Einträge BEANTWORTEN Plätze, statt welche zu erzeugen.
  */
 export async function declaredFeatFeatures(
   features: CharacterFeatureEntry[] | undefined,

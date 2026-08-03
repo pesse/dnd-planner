@@ -1,27 +1,16 @@
 <script module lang="ts">
-  import {
-    CLASS_TABLE_CHOICE_KINDS,
-    FEATURE_CHOICE_KINDS,
-    type FeatureChoiceGrant,
-    type FeatureChoiceKind,
-    type FeatureGrant,
-    type SpellGrant,
-  } from '$lib/schemas/shared';
+  import { CLASS_TABLE_CHOICE_KINDS, FEATURE_CHOICE_KINDS, type FeatureChoiceGrant, type FeatureChoiceKind } from '$lib/schemas/featureChoice';
+  import { type FeatureGrant, type SpellGrant } from '$lib/schemas/grants';
 
-  /** Was ein Merkmal deklarieren kann — Klassenmerkmal, Trait und Talent erfüllen es. */
   export interface DeclarationTarget {
     grants?: FeatureGrant;
     grantsChoice?: FeatureChoiceGrant;
     grantsSpells?: SpellGrant;
   }
 
-  /** Klassenmerkmal oder Trait/Talent — der einzige Prop-Unterschied der drei Karteneditoren. */
   export type DeclarationCarrier = 'class' | 'feature';
 
-  /**
-   * Flacher Dropdown-Wert je `kind`: `fightingStyle` ist in Wahrheit
-   * `featCategory: 'Fighting Style'`, die einzige Kategorie, die ein Merkmal gewährt.
-   */
+  /** `fightingStyle` ist in Wahrheit `featCategory: 'Fighting Style'`. */
   const KIND_UI: Record<FeatureChoiceKind, { value: string; de: string }> = {
     weaponMastery: { value: 'weaponMastery', de: 'Waffenbeherrschung' },
     featCategory: { value: 'fightingStyle', de: 'Kampfstil' },
@@ -33,10 +22,9 @@
   };
 
   /**
-   * Abgeleitet aus der SENKE des `kind`, nicht je Artefakt gepflegt: was die Klassen-
-   * Stufentabelle braucht, kann ein Trait/Talent nicht auflösen — alles andere gilt überall.
-   * Eine Hand-Liste je Träger hatte genau die Asymmetrie zurückgebracht, die die eine
-   * Deklaration löscht (und `spellAccess` ganz verloren, obwohl nur Talente es tragen).
+   * Aus der SENKE des `kind` abgeleitet, nicht je Artefakt gepflegt: nur was die Klassen-
+   * Stufentabelle braucht, kann ein Trait/Talent nicht auflösen. Eine Hand-Liste je Träger
+   * brachte prompt die Asymmetrie zurück, die die eine Deklaration gerade löscht.
    */
   export function kindOptions(carrier: DeclarationCarrier): { value: string; de: string }[] {
     return FEATURE_CHOICE_KINDS.filter(
@@ -47,16 +35,15 @@
 
 <script lang="ts">
   /**
-   * Editor der DREI Deklarationen eines Merkmals (`featureDeclarationFields`, schemas/shared.ts).
-   *
-   * Ein Panel für Klassenmerkmal, Speziesmerkmal und Talent: `kinds` ist das einzige, was die
-   * drei Karteneditoren unterschiedlich übergeben. Vorher lag dieselbe Logik dreimal.
+   * Editor der drei Deklarationen eines Merkmals (`featureDeclarationFields`); `kinds` ist
+   * das einzige, was Klassenmerkmal, Trait und Talent unterschiedlich übergeben.
    *
    * Jede Checkbox schaltet zwischen FEHLENDEM Feld („nie angesehen", läuft weiter über die
-   * KI-Kette) und einem geparsten Default („geprüft"). Diese Unterscheidung ist der Grund,
-   * weshalb die Felder optional ohne Default sind — sie darf die UI nicht einebnen.
+   * KI-Kette) und geparstem Default („geprüft") — diese Unterscheidung darf die UI nicht
+   * einebnen, sonst geht jede Abdeckungslücke still verloren.
    */
-  import { featureChoiceGrantSchema, featureGrantSchema, spellGrantSchema } from '$lib/schemas/shared';
+  import { featureChoiceGrantSchema } from '$lib/schemas/featureChoice';
+  import { featureGrantSchema, spellGrantSchema } from '$lib/schemas/grants';
   import CharacterPropertyEditForm from './CharacterPropertyEditForm.svelte';
   import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
@@ -70,7 +57,6 @@
   }: {
     feature: DeclarationTarget;
     carrier?: DeclarationCarrier;
-    /** 'skills' reicht bis in die Übungen durch (Trait/Talent gewähren i.d.R. nur diese). */
     scope?: 'full' | 'skills';
     onchange?: () => void;
   } = $props();
@@ -79,10 +65,9 @@
 
   let kinds = $derived(kindOptions(carrier));
 
-  /** Der Default beim Einschalten — die generische Form, an jedem Träger gültig. */
   const DEFAULT_KIND = 'optionList';
 
-  /** Flach-Wert fürs Dropdown; 'other' = hand-editiert, Roh-JSON bleibt autoritativ. */
+  /** 'other' = hand-editiert, das Roh-JSON bleibt autoritativ. */
   function kindOf(f: DeclarationTarget): string {
     const g = f.grantsChoice;
     if (!g) return 'none';
@@ -208,12 +193,6 @@
   }
   .lbl.off { opacity: 0.6; }
   .note { font-size: 0.75rem; color: var(--ink-soft); font-style: italic; }
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
   .ef:disabled { opacity: 0.5; }
   .sel { font-size: 0.8rem; }
   .num { width: 56px; text-align: center; }

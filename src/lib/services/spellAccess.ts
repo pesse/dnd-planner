@@ -1,36 +1,23 @@
 /**
- * Deklarierter Zauber-Zugang eines Merkmals (`grantsChoice.kind === 'spellAccess'`) —
- * „Eingeweihter der Magie" und alles, was mechanisch dasselbe tut: eine Zauberliste, ein
- * Zauberattribut und ein Kontingent je Gradband, alles NEBEN dem Klassen-Zauberwirken.
- *
- * Kein LLM. Wie `weaponMastery.ts`/`fightingStyle.ts` ist das die deterministische Antwort
- * auf ein geschlossenes Vokabular: die Zahlen stehen in der Deklaration, die Zaubernamen in
- * `vault/spells`. Ein Modell könnte hier nur die Anzahl verpatzen (ein `max: 1` für zwei
- * Zaubertricks kostet den Charakter still einen) oder eine Liste erfinden.
- *
- * Die Wahlen entstehen als `AnalysisChoice` — dieselbe Form, die die KI-Analyse liefert.
- * Damit tragen Oberfläche, Merkmals-Ledger und Anzeige-Logik nur EINEN Typ; der Unterschied
- * ist allein die Herkunft. Deutsch kommt aus vorhandenen Tabellen (`CLASS_NAME_DE_BY_SLUG`,
- * `CASTER_ABILITY_DE`), nicht aus einem Übersetzungs-Call.
+ * Deklarierter Zauber-Zugang eines Merkmals — Liste, Attribut und Kontingent NEBEN dem
+ * Klassen-Zauberwirken. Kein LLM: die Zahlen stehen in der Deklaration, die Namen in
+ * `vault/spells`, und Deutsch kommt aus vorhandenen Tabellen statt aus einem Call.
  */
-import type { AbilityName } from '$lib/schemas/shared';
+import type { AbilityName } from '$lib/schemas/abilities';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
 import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
 import { declaredChoice } from './declaredChoice';
-import type { AnalysisChoice } from './aiActions/featureEffectsAction';
-import type { DeclaredChoiceSource } from './featureDeclaration';
+import type { AnalysisChoice } from './analysis/types';
+import type { DeclaredChoiceSource } from './declaration/optionList';
 
-/** Ein Merkmal, das einen Zauber-Zugang deklarieren KANN — formgleich, daher ein Alias. */
 export type SpellAccessSource = DeclaredChoiceSource;
 
-/** Der aufgelöste Zugang: Listen/Attribute schon auf die zulässigen Werte eingeschränkt. */
 export interface SpellAccessGrant {
   featureKey: string;
-  /** Englischer Merkmalsname (kanonisch). */
+  /** Englisch und kanonisch. */
   feature: string;
-  /** Deutscher Anzeigename aus der Bibliothek. */
   featureDe: string;
   /** Zulässige Zauberlisten als englische Klassen-Keys; Länge 1 = festgelegt. */
   lists: string[];
@@ -44,12 +31,9 @@ export function isSpellAccessFeature(f: SpellAccessSource): boolean {
 }
 
 /**
- * Liest die Deklaration aus und verengt sie um eine schon getroffene Festlegung.
- *
- * `specialisation` ist die Vorgabe der QUELLE des Merkmals — der Hintergrund „Weiser" gewährt
- * „Magic Initiate (Wizard)", „Kundschafter" gibt „Primal" vor. `resolveClass` normalisiert
- * beides (es kennt Klassennamen wie Traditionen); trifft die Vorgabe keinen deklarierten Wert,
- * bleibt die Liste vollständig — dann fragt der Flow, statt eine falsche Liste festzuschreiben.
+ * `specialisation` ist die Vorgabe der QUELLE des Merkmals („Magic Initiate (Wizard)").
+ * Trifft sie keinen deklarierten Wert, bleibt die Liste vollständig — dann fragt der Flow,
+ * statt eine falsche Liste festzuschreiben.
  */
 export function spellAccessGrantOf(
   feature: SpellAccessSource,
@@ -73,9 +57,8 @@ export function spellAccessGrantOf(
 }
 
 /**
- * Merkmale OHNE die, deren Zauber-Zugang der Flow deterministisch führt — der KI-Eingang.
- * EINE Regel für Wizard und Aufstieg: ein zweiter Filter würde auseinanderlaufen und das
- * Merkmal auf einem der beiden Wege doppelt fragen lassen.
+ * Der KI-Eingang, EINE Regel für Wizard und Aufstieg: ein zweiter Filter liefe auseinander
+ * und das Merkmal würde auf einem der beiden Wege doppelt gefragt.
  */
 export function withoutSpellAccessFeatures<T extends { key?: string }>(
   features: T[],
@@ -85,25 +68,20 @@ export function withoutSpellAccessFeatures<T extends { key?: string }>(
   return features.filter((f) => !owned.has(f.key ?? ''));
 }
 
-// ── Wahl-ids ────────────────────────────────────────────────────────────────────
-// Stabil und vom KI-Namensraum (`choice_<slug>_1`) unterscheidbar: die Antworten der
-// deklarierten Wahlen gehen NICHT als <resolved_choices> ans Modell (das Merkmal steht
-// nicht in dessen Eingang, es könnte die id nur einem erfundenen Rider zuordnen).
+// Vom KI-Namensraum (`choice_<slug>_1`) unterscheidbar: diese Antworten gehen NICHT als
+// <resolved_choices> ans Modell, das die id nur einem erfundenen Rider zuordnen könnte.
 const slug = (grant: SpellAccessGrant): string =>
   (grant.featureKey || grant.feature).toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 export const spellListChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_list`;
 export const spellAbilityChoiceId = (grant: SpellAccessGrant): string => `spellaccess_${slug(grant)}_ability`;
 /**
- * Die id einer Zauber-Wahl trägt die LISTE mit. Sonst überlebt eine Auswahl den Wechsel der
- * Liste: wer zurückgeht und statt Magier den Kleriker nimmt, hätte weiter seine Magier-Zauber
- * im Zustand — mit der neuen id fällt sie beim Zusammenbauen heraus (`assembleCharacter`
- * nimmt nur Picks zu aktuell existierenden Wahlen).
+ * Trägt die LISTE mit: sonst überlebte eine Auswahl den Listenwechsel — mit der neuen id
+ * fällt sie beim Zusammenbauen heraus.
  */
 export const spellPickChoiceId = (grant: SpellAccessGrant, level: number, list: string): string =>
   `spellaccess_${slug(grant)}_${list}_pick${level}`;
 
-/** Die festgelegte Zauberliste, sofern die Deklaration nur eine zulässt. */
 export function fixedList(grant: SpellAccessGrant): string {
   return grant.lists.length === 1 ? grant.lists[0] : '';
 }
@@ -117,12 +95,8 @@ const gradeLabel = (level: number, count: number): string =>
     : `${count} ${count === 1 ? 'Zauber' : 'Zauber'} des Grades ${level} wählen`;
 
 /**
- * Die Wahlen eines Zugangs, in der Reihenfolge, in der sie beantwortet werden müssen:
- * Liste → Attribut → Zauber je Gradband.
- *
- * `answeredList` ist die im Merkmals-Schritt getroffene Antwort auf die Listen-Frage. Solange
- * die Liste offen ist, entstehen KEINE Zauber-Wahlen — ein `SpellPicker` ohne Klassenfilter
- * würde die ganze Bibliothek anbieten und den Zauber-Schritt zugleich blockieren.
+ * Reihenfolge ist Pflicht: Liste → Attribut → Zauber. Solange die Liste offen ist, entstehen
+ * KEINE Zauber-Wahlen — ein Picker ohne Klassenfilter böte die ganze Bibliothek an.
  */
 export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): AnalysisChoice[] {
   const choices: AnalysisChoice[] = [];
@@ -162,8 +136,7 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
         spellLevels: [pick.level],
         spellClass: list,
         max: pick.count,
-        // Die gewählten Zauber stehen danach im Zauber-Block des Charakters — ein zweiter
-        // Eintrag im Merkmals-Ledger wäre eine zweite Wahrheit.
+        // Die Zauber stehen im Zauber-Block; ein Ledger-Eintrag wäre eine zweite Wahrheit.
         isBuildDecision: false,
       });
     }
@@ -172,20 +145,18 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
   return choices;
 }
 
-// ── Auswertung der Antwort ──────────────────────────────────────────────────────
-// Die Antworten stehen als `featureChoice` im Merkmals-Ledger (beide Wege: `buildDoc` im
-// Aufstieg, `assembleCharacter` im Wizard). Zauber-SG und Angriffsbonus entstehen daraus
-// erst zur ANZEIGEZEIT — wie die Waffenmeisterschaft, denn der Übungsbonus steigt.
-
-/** Ein Ledger-Eintrag (`character.features[]`), soweit hier gebraucht. */
+/**
+ * Ein Ledger-Eintrag, soweit hier gebraucht. SG und Angriffsbonus entstehen daraus erst zur
+ * ANZEIGEZEIT — der Übungsbonus steigt.
+ */
 export interface FeatureChoiceEntry {
   sourceKey?: string;
   choice: string;
 }
 
 /**
- * Die festgelegte Attributs-Antwort: die Deklaration sagt, welche Werte zählen — ein
- * Namensvergleich würde die ASI-Wahl desselben Merkmals („Charisma") mitgreifen.
+ * Nur deklarierte Werte zählen — ein Namensvergleich griffe die ASI-Wahl desselben Merkmals
+ * („Charisma") mit.
  */
 export function answeredAbility(grant: SpellAccessGrant, ledger: FeatureChoiceEntry[]): AbilityName | null {
   if (grant.abilities.length === 1) return grant.abilities[0];
@@ -198,7 +169,6 @@ export function answeredAbility(grant: SpellAccessGrant, ledger: FeatureChoiceEn
   return null;
 }
 
-/** Die Zauberwerte dieses Zugangs — null, solange das Attribut offen ist (nichts wird geraten). */
 export interface SpellAccessValues {
   featureKey: string;
   featureDe: string;
@@ -228,9 +198,8 @@ export function spellAccessValues(
 }
 
 /**
- * Bogen-Notiz je Zugang, direkt auf Deutsch (kein Übersetzungs-Call). **Ohne Zahl** — SG und
- * Angriffsbonus hängen am Übungsbonus und wären ab Stufe 5 falsch; der Bogen-Freitext wird
- * nicht nachgerechnet. Die Zahlen stehen stattdessen im Zauber-Block der Karte.
+ * Bogen-Notiz **ohne Zahl**: SG und Angriffsbonus hängen am Übungsbonus und wären ab Stufe 5
+ * falsch, denn der Freitext wird nicht nachgerechnet. Die Zahlen stehen auf der Karte.
  */
 export function spellAccessNoteLines(
   grants: SpellAccessGrant[],

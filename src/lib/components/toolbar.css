@@ -1,0 +1,41 @@
+/* Die Werkzeugleiste über dem Arbeitsbereich; `+page` und `CardHost` zeichnen sie
+   beide, und ihre Knopf-Regel gilt auch für Knöpfe aus Kindkomponenten. */
+
+.main > .toolbar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--surface);
+  position: relative;
+}
+
+/* Gold/Rot-Zierleiste am oberen Toolbar-Rand */
+.main > .toolbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--gold) 18%,
+    var(--red) 50%,
+    var(--gold) 82%,
+    transparent 100%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.main > .toolbar button {
+  background: none;
+  border: 1px solid var(--surface);
+  border-radius: 4px;
+  color: var(--ink-muted);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}

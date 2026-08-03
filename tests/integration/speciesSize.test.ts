@@ -1,16 +1,12 @@
 /**
- * Der TEXTPARSER für die Größenkategorie — OHNE LLM, über den ECHTEN Vault.
+ * Der TEXTPARSER für die Größenkategorie — OHNE LLM, über den ECHTEN Vault. Er ist nur noch
+ * FALLBACK für Homebrew und frische Open5e-Importe; ein redigiertes Merkmal führt seine Größe
+ * über `grants.properties` (`characterProperties.test.ts`), dann schweigt der Parser.
  *
- * Seit der Deklaration von Grundeigenschaften ist er der FALLBACK: ein redigiertes Merkmal
- * führt seine Größe über `grants.properties` bzw. `kind: 'characterProperty'`
- * (`tests/integration/characterProperties.test.ts`), und dann schweigt der Parser. Übrig bleibt er für
- * Homebrew und frische Open5e-Importe, deren Größe nur als Prosa vorliegt.
+ * Geprüft wird: er KANN jede Spezies des Bestands lesen, er errät nichts, und er fällt einer
+ * vorhandenen Deklaration nicht ins Wort.
  *
- * Was hier hängt: dass der Parser jede Spezies des Bestands lesen KANN (die Deklaration soll
- * ihn ersetzen, nicht ihn nötig machen), dass er nichts errät — und dass er einer vorhandenen
- * Deklaration nicht ins Wort fällt.
- *
- *   npm run eval -- --eval speciesSize
+ *   npm run test -- speciesSize
  */
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
@@ -47,8 +43,8 @@ const SIZE_DE: Record<string, string> = { Medium: 'Mittelgroß', Small: 'Klein' 
 const traitsOf = async (key: string) => (await getSpeciesByKey(key))?.traits ?? [];
 
 /**
- * Ein Wizard-Zustand ohne Runen und ohne KI-Ergebnisse — `assembleCharacter` importiert den Typ
- * nur, die Klasse selbst wäre in `environment: 'node'` nicht ladbar (`.svelte.ts`).
+ * Stub statt echter Klasse: `.svelte.ts` ist in `environment: 'node'` nicht ladbar,
+ * `assembleCharacter` importiert ohnehin nur den Typ.
  */
 function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
   const noJob = { result: null, status: 'skipped' };
@@ -69,11 +65,9 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     featureSpellPicks: {},
     resolvedChoices: [],
     declaredAnswers: [],
-    // Wie am echten Wizard immer gesetzt; `buildWizardCharacter` liest es für die Bogen-Notiz
-    // des Zauber-Zugangs.
+    // Am echten Wizard immer gesetzt — `buildWizardCharacter` liest alle drei (Bogen-Notiz
+    // des Zauber-Zugangs, deklarierte Merkmale, deren Rider neben den KI-Ridern).
     spellAccess: [],
-    // Ebenso immer gesetzt: die deklarierten Merkmale (Urtümliche Ordnung) und die daraus
-    // gebauten Rider, die `buildWizardCharacter` neben den KI-Ridern anwendet.
     declared: [],
     riders: [],
     featureChoices: [],

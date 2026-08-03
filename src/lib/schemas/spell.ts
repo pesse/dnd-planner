@@ -1,10 +1,9 @@
-/**
- * Single Source of Truth für Zauber: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
- */
+/** Single Source of Truth für Zauber; Label-Maps und Helfer bleiben in `types.ts`. */
 import { z } from 'zod';
-import { SPELL_SCHOOLS, type SpellSchool } from '../types';
-import { namedRef, sourceField, migrateSourceLegacy, OWN_SOURCE } from './shared';
+import { slugAscii } from '../utils/text';
+import { SPELL_SCHOOLS, type SpellSchool } from './vocabulary';
+import { namedRef } from './llmJson';
+import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 
 const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
 
@@ -64,13 +63,9 @@ export const spellSchema = z.object({
 export type Spell = z.infer<typeof spellSchema>;
 export type SpellDamage = NonNullable<z.infer<typeof spellSchema>['damage']>;
 
-const slugify = (s: string): string =>
-  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-
 /**
- * Identität eines Zaubers, auch ohne `key` in der Datei (Altbestand/Homebrew). Analog
- * zu `itemKeyOf`: der Import setzt `key` explizit, hier greift nur der Backfill. Slug
- * folgt dem englischen Namen (Open5e-Konvention `srd-2024_acid-arrow`).
+ * Identität auch ohne `key` in der Datei, analog `itemKeyOf`. Der Slug folgt dem
+ * ENGLISCHEN Namen (Open5e-Konvention `srd-2024_acid-arrow`).
  */
 export function spellKeyOf(raw: Record<string, unknown>): string {
   if (typeof raw.key === 'string' && raw.key) return raw.key;
@@ -78,7 +73,7 @@ export function spellKeyOf(raw: Record<string, unknown>): string {
   const source = typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
   const en = typeof raw.name_en === 'string' && raw.name_en ? raw.name_en : '';
   const name = en || (typeof raw.name === 'string' ? raw.name : '');
-  return name ? `${source}_${slugify(name)}` : '';
+  return name ? `${source}_${slugAscii(name)}` : '';
 }
 
 /** Migriert Altformat-Felder, bevor das Schema greift. Idempotent. */
@@ -86,16 +81,13 @@ export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const s = { ...(raw as Record<string, unknown>) };
 
-  // level: string → number
   if (typeof s.level === 'string') {
     s.level = s.level === 'cantrip' || s.level === '0' ? 0 : parseInt(s.level, 10) || 0;
   }
-  // description (alt) → desc_de
   if (typeof s.description === 'string') {
     s.desc_de ??= [s.description];
     delete s.description;
   }
-  // higher_levels (alt) → higher_level_de
   if ('higher_levels' in s) {
     const hl = s.higher_levels as string | null;
     if (hl) s.higher_level_de ??= [hl];
@@ -104,9 +96,7 @@ export function migrateSpellLegacy(raw: unknown): Record<string, unknown> {
 
   const migrated = migrateSourceLegacy(s);
 
-  // `key` + `document` backfillen, damit Altbestand/Homebrew das einheitliche
-  // Identitäts-/Herkunftsmodell trägt (source === document.key). Der Importer setzt
-  // beides explizit; hier greift nur, was noch keins hat. Idempotent.
+  // `key` + `document` backfillen, damit auch Altbestand `source === document.key` trägt.
   const source =
     typeof migrated.source === 'string' && migrated.source ? migrated.source : OWN_SOURCE;
   if (!migrated.key) {

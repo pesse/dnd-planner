@@ -11,8 +11,8 @@
  * im `subclass-delta`-Schritt des Assistenten. Der Barde selbst gewinnt auf Stufe 6 kein
  * Klassenmerkmal, der Eingang ist also genau dieses eine Merkmal.
  */
-import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/aiActions/featureEffectsAction';
-import { computeSubclassFeatures } from '../../src/lib/services/levelUpMachine';
+import type { FeatureClassContext, GainedFeature } from '../../src/lib/services/analysis/types';
+import { computeSubclassFeatures } from '../../src/lib/services/levelUp/features';
 
 export const COLLEGE_OF_LORE_KEY = 'srd-2024_college-of-lore';
 

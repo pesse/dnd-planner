@@ -1,0 +1,135 @@
+/* Anzeigesprache des Charakterbogens. Global unter `.sheet`, weil die Blöcke der
+   Karte eigene Komponenten sind und dieselben Abschnitts-, Werte- und Tooltip-Regeln
+   brauchen. Muster wie sidebar/tree.css. */
+
+.sheet .section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--surface);
+  padding-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheet .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.sheet .stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.2rem 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sheet .stat { display: flex; justify-content: space-between; }
+.sheet .sl { color: var(--ink-muted); font-size: 0.8rem; }
+.sheet .sv { font-weight: 600; color: var(--ink); }
+
+.sheet .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+.sheet .tag {
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.sheet .prof-dot { font-size: 0.65rem; color: var(--ink-muted); width: 0.8rem; }
+.sheet .proficient .prof-dot,
+.sheet .expertise .prof-dot { color: var(--green); }
+
+.sheet .preformatted { white-space: pre-wrap; font-size: 0.82rem; color: var(--ink-soft); }
+
+.sheet .inv-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ── Herleitungs-Tooltips (services/characterSheetTips.ts) ── */
+.sheet .has-tip {
+  position: relative;
+  cursor: help;
+}
+
+.sheet .tip {
+  display: none;
+  flex-direction: column;
+  gap: 0.18rem;
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.sheet .tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+
+.sheet .tip.tip-left {
+  left: 0;
+  transform: none;
+}
+.sheet .tip.tip-left::after {
+  left: 1rem;
+  transform: none;
+}
+
+.sheet .has-tip:hover > .tip {
+  display: flex;
+}
+
+.sheet .tip .tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.sheet .tip .tip-lbl { color: var(--ink-muted); }
+.sheet .tip .tip-val {
+  font-weight: 600;
+  color: var(--arcane);
+  text-align: right;
+}
+.sheet .tip .tip-div {
+  display: block;
+  border-top: 1px solid var(--border);
+  margin: 0.1rem 0;
+}
+.sheet .tip .tip-total .tip-val {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+.sheet .tip .tip-step {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  padding-left: 0.15rem;
+}

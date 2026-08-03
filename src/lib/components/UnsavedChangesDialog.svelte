@@ -1,5 +1,6 @@
 <script lang="ts">
   import { unsavedPrompt } from '$lib/stores/navigationGuard';
+  import PromptDialog from './ui/PromptDialog.svelte';
 
   function choose(choice: 'save' | 'discard' | 'cancel') {
     $unsavedPrompt?.resolve(choice);
@@ -14,75 +15,22 @@
 <svelte:window onkeydown={onKey} />
 
 {#if $unsavedPrompt}
-  <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-  <div class="overlay" onclick={() => choose('cancel')}>
-    <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-    <div class="dialog" onclick={(e) => e.stopPropagation()}>
-      <h3>Ungespeicherte Änderungen</h3>
-      <p>Diese Karte hat ungespeicherte Änderungen. Vor dem Wechsel speichern oder verwerfen?</p>
-      <div class="actions">
-        <button class="cancel-btn" onclick={() => choose('cancel')}>Abbrechen</button>
-        <button class="discard-btn" onclick={() => choose('discard')}>Verwerfen</button>
-        <button class="save-btn" onclick={() => choose('save')}>Speichern</button>
-      </div>
-    </div>
-  </div>
+  <PromptDialog title="Ungespeicherte Änderungen" onbackdrop={() => choose('cancel')}>
+    <p>Diese Karte hat ungespeicherte Änderungen. Vor dem Wechsel speichern oder verwerfen?</p>
+    {#snippet actions()}
+      <button class="cancel-btn" onclick={() => choose('cancel')}>Abbrechen</button>
+      <button class="discard-btn" onclick={() => choose('discard')}>Verwerfen</button>
+      <button class="ok-btn" onclick={() => choose('save')}>Speichern</button>
+    {/snippet}
+  </PromptDialog>
 {/if}
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .dialog {
-    background: var(--bg-raised);
-    border: 1px solid var(--red);
-    border-radius: 8px;
-    padding: 1.25rem 1.5rem;
-    max-width: 420px;
-    width: 90%;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
-    color: var(--ink);
-  }
-
-  .dialog h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1rem;
-    color: var(--gold);
-  }
-
-  .dialog p {
+  p {
     margin: 0 0 1.25rem;
     font-size: 0.85rem;
     color: var(--ink-muted);
     line-height: 1.5;
-  }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-
-  .actions button {
-    border-radius: 4px;
-    padding: 0.35rem 0.9rem;
-    cursor: pointer;
-    font-size: 0.82rem;
-    font-family: inherit;
-  }
-
-  .save-btn {
-    background: var(--green);
-    color: var(--bg);
-    border: none;
-    font-weight: 600;
   }
 
   .discard-btn {
@@ -92,10 +40,5 @@
   }
   .discard-btn:hover { background: var(--danger); color: var(--bg); }
 
-  .cancel-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--ink-muted);
-  }
   .cancel-btn:hover { color: var(--ink); }
 </style>

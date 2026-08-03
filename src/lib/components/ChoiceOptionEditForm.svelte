@@ -1,23 +1,17 @@
 <script lang="ts">
   /**
-   * Editor für die Optionen einer deklarierten Zweigwahl (`grantsChoice.kind === 'optionList'`)
-   * — Urtümlicher Orden, Göttlicher Orden und alles mechanisch Gleiche.
+   * Editor der Optionen einer deklarierten Zweigwahl (`grantsChoice.kind === 'optionList'`),
+   * artefakt-neutral: nur `ChoiceOption[]`, damit dieselbe Komponente an Klassenmerkmal,
+   * Trait und Talent hängt.
    *
-   * Artefakt-neutral: die Komponente kennt nur `ChoiceOption[]`, keine Klasse und kein
-   * Merkmal. Damit hängt sie unverändert an Klassenmerkmal, Spezies-Trait und Talent.
-   *
-   * Zwei Dinge, die die Oberfläche sichtbar machen muss, weil sie sonst still brechen:
-   *   - `value` ist der stabile Schlüssel, gegen den die am Charakter gespeicherte Antwort
-   *     matcht (`chosenOption`, services/featureDeclaration.ts). Wörtlich aus dem englischen
-   *     Regeltext — ein „verbessertes" Label findet seinen Zweig nie wieder.
-   *   - `labelDe` ist ein ZITAT aus `descDe`, keine Übersetzung: der deutsche Regeltext hat
-   *     das Wort schon (**Wächter.**).
-   *
-   * `grants` bleibt pro Option optional: fehlt es, hat die Option keine mechanische Wirkung.
-   * Deshalb ist es ein Häkchen und kein immer vorhandener Block.
+   * Zwei Dinge, die still brechen, wenn die Oberfläche sie nicht zeigt: `value` ist der
+   * stabile Schlüssel der gespeicherten Antwort und steht wörtlich im englischen Regeltext
+   * — ein „verbessertes" Label findet seinen Zweig nie wieder; `labelDe` ist ein ZITAT aus
+   * `descDe` (**Wächter.**), keine Übersetzung.
    */
-  import { featureGrantSchema, type ChoiceOption } from '$lib/schemas/shared';
-  import { isEmptyFeatureGrant } from '$lib/services/featureDeclaration';
+  import { featureGrantSchema } from '$lib/schemas/grants';
+  import { type ChoiceOption } from '$lib/schemas/featureChoice';
+  import { isEmptyFeatureGrant } from '$lib/services/declaration/grants';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
 
   let {
@@ -27,12 +21,11 @@
   }: {
     /** Muss mit `bind:` übergeben werden — Hinzufügen/Entfernen/Ordnen ersetzt das Array. */
     options: ChoiceOption[];
-    /** Wird an die Übungen der Option durchgereicht ('skills' für Trait/Talent). */
     scope?: 'full' | 'skills';
     onchange?: () => void;
   } = $props();
 
-  /** Richtwert für `helpDe` — die Zeile landet so auf dem Charakterbogen. */
+  /** Richtwert: die Zeile landet so auf dem Charakterbogen. */
   const HELP_MAX = 60;
 
   function mark() {
@@ -61,7 +54,6 @@
     onchange();
   }
 
-  /** Reihenfolge = Anzeigereihenfolge der Wahl; Tauschen statt Drag&Drop (zwei bis zehn Optionen). */
   function moveOption(i: number, delta: number) {
     const j = i + delta;
     if (j < 0 || j >= options.length) return;
@@ -145,13 +137,7 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-    width: 100%;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
+  .ef { width: 100%; }
 
   .opt-block { display: flex; flex-direction: column; gap: 0.3rem; }
   .hint { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; margin: 0 0 0.1rem; line-height: 1.45; }
@@ -195,7 +181,7 @@
   }
 
   .spell-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem; }
-  .lbl-inline { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--ink-soft); flex-shrink: 0; }
+  .lbl-inline { gap: 0.25rem; font-size: 0.75rem; flex-shrink: 0; }
   .num { width: 48px; text-align: center; }
   .spell-name { flex: 1; }
 

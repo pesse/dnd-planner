@@ -1,37 +1,20 @@
 /**
- * Die EINZIGE Stelle, an der ein Charakter für ein LLM formatiert wird. Drei Tiefen:
- *
- *   - `minimum`   — Identität (Name, Spieler, Spezies, Hintergrund, Klasse+Stufe).
- *   - `character` — `minimum` + voll aufgelöster Bogen inkl. der aus der Bibliothek
- *                   gejointen Merkmalstexte und der getroffenen Entscheidungen.
- *   - `full`      — `character` + `details.md` + `gm-notes.md` (Letzteres „DM only").
- *
- * Sprache (CLAUDE.md): Abschnittsüberschriften/Labels sind Prompt-Gerüst → englisch;
- * die Werte bleiben deutsch, wie sie im Bogen stehen. Fertigkeits-/Waffen-/Rüstungs-
- * Labels kommen aus `SKILL_DEFS` bzw. `WEAPON_LABEL_DE`/`ARMOR_LABEL_DE` — es entsteht
- * KEINE vierte Übersetzungstabelle.
- *
- * Ab `character` ist der Aufbau asynchron: die Merkmalstexte liegen im Vault, nicht am
- * Charakter (`resolveCharacterFeatures`).
+ * Die EINZIGE Stelle, an der ein Charakter für ein LLM formatiert wird. Überschriften und
+ * Labels sind Prompt-Gerüst und darum englisch, die Werte bleiben deutsch wie im Bogen —
+ * die Labels kommen aus `SKILL_DEFS`/`WEAPON_LABEL_DE`, es entsteht keine weitere Tabelle.
  */
 import { invoke } from '@tauri-apps/api/core';
-import {
-  type Character,
-  type PersonalData,
-  formatSpecies,
-  formatClassLevel,
-  totalLevel,
-} from '../schemas/character';
+import { type Character, type PersonalData } from '../schemas/characterSchema';
+import { formatSpecies, formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { normalizeCharacter } from '../utils/schemaValidation';
-import { skillEnName } from '../pdf/characterFields';
+import { sign } from '../utils/num';
+import { skillEnName } from '../domain/skills';
 import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
 import {
   resolveCharacterFeatures,
   type ResolvedFeatureGroup,
   type ResolvedFeature,
 } from './characterFeatures';
-
-// ── Stufen ────────────────────────────────────────────────────────────────────
 
 export type CharacterContextLevel = 'minimum' | 'character' | 'full';
 
@@ -50,8 +33,6 @@ export const CHARACTER_CONTEXT_HINTS: Record<CharacterContextLevel, string> = {
   full: 'Bogen zusätzlich mit Details und GM-Notizen aus dem Charakter-Ordner.',
 };
 
-// ── Minimum ─────────────────────────────────────────────────────────────────────
-
 export interface CharacterMinimum {
   slug: string;
   name: string;
@@ -62,11 +43,7 @@ export interface CharacterMinimum {
   totalLevel: number;
 }
 
-/**
- * Identitäts-Extrakt. Bevorzugt die LINKS und fällt auf die abgeleiteten Freitext-
- * Strings zurück — Altdateien, die noch nicht durch `upgradeCharacter` gelaufen sind,
- * tragen ihre Werte nur dort.
- */
+/** Erst die Links, dann der Freitext: Altdateien vor `upgradeCharacter` haben nur den. */
 export function characterMinimum(c: Character, slug = ''): CharacterMinimum {
   return {
     slug,
@@ -89,15 +66,9 @@ export function formatMinimumLine(m: CharacterMinimum): string {
   return parts.length ? `- ${m.name} (${parts.join(', ')})` : `- ${m.name}`;
 }
 
-// ── Kontext-Block ─────────────────────────────────────────────────────────────
-
 export interface CharacterNotes {
   details?: string;
   gmNotes?: string;
-}
-
-function signed(n: number): string {
-  return n >= 0 ? `+${n}` : `${n}`;
 }
 
 /** `### Title` + Zeilen, oder null, wenn nach dem Filtern nichts übrig bleibt. */
@@ -132,7 +103,7 @@ function abilitiesBlock(c: Character): string | null {
     const val = nums[key] ?? 0;
     const mod = nums[`${key}Mod`] ?? 0;
     const save = flags[`${key}SaveProf`] ? ', Rettungswurf geübt' : '';
-    return `- ${label} ${val} (${signed(mod)}${save})`;
+    return `- ${label} ${val} (${sign(mod)}${save})`;
   });
   return section('Abilities', rows);
 }
@@ -145,7 +116,7 @@ function combatBlock(c: Character): string | null {
     (c.hpCurrent.trim() || c.hpMax.trim()) &&
       `- HP: ${c.hpCurrent.trim() || '?'}/${c.hpMax.trim() || '?'}${c.hpTemp.trim() ? ` (temp ${c.hpTemp.trim()})` : ''}`,
     c.hitDice.trim() && `- Hit Dice: ${c.hitDice}`,
-    `- Proficiency Bonus: ${signed(c.proficiencyBonus)}`,
+    `- Proficiency Bonus: ${sign(c.proficiencyBonus)}`,
     c.passivePerception.trim() && `- Passive Perception: ${c.passivePerception}`,
   ];
   return section('Combat', lines);
@@ -156,7 +127,7 @@ function skillsBlock(c: Character): string | null {
   for (const [key, s] of Object.entries(c.skills ?? {})) {
     if (!s.prof && !s.exp) continue;
     const label = skillLabelDe(skillEnName(key) ?? key);
-    lines.push(`- ${label}: ${signed(s.value)}${s.exp ? ' (Expertise)' : ''}`);
+    lines.push(`- ${label}: ${sign(s.value)}${s.exp ? ' (Expertise)' : ''}`);
   }
   return section('Skill Proficiencies', lines);
 }
@@ -214,7 +185,7 @@ function spellcastingBlock(c: Character): string | null {
     sp.spellcastingClass.trim() && `- Class: ${sp.spellcastingClass}`,
     sp.spellcastingAbility.trim() && `- Ability: ${sp.spellcastingAbility}`,
     sp.saveDC > 0 && `- Save DC: ${sp.saveDC}`,
-    sp.attackBonus !== 0 && `- Attack Bonus: ${signed(sp.attackBonus)}`,
+    sp.attackBonus !== 0 && `- Attack Bonus: ${sign(sp.attackBonus)}`,
   ];
   const slotLines = sp.slots
     .map((s, i) => ({ lvl: i + 1, ...s }))
@@ -287,7 +258,6 @@ function personalBlock(c: Character): string | null {
   return section('Personal Details', lines);
 }
 
-/** Ein aufgelöstes Merkmal als Listeneintrag samt (eingerücktem) Regeltext. */
 function renderFeature(f: ResolvedFeature): string {
   const meta: string[] = [];
   if (f.gainedAt) meta.push(`Stufe ${f.gainedAt}`);
@@ -297,7 +267,6 @@ function renderFeature(f: ResolvedFeature): string {
   return desc ? `${head}\n  ${desc.replace(/\n/g, '\n  ')}` : head;
 }
 
-/** Eine Merkmalsgruppe (`#### Titel` + Merkmale). Unaufgelöste Links werden benannt. */
 function renderGroup(g: ResolvedFeatureGroup): string {
   const lines = [`#### ${g.title}`];
   if (g.unresolved)
@@ -308,7 +277,6 @@ function renderGroup(g: ResolvedFeatureGroup): string {
 
 async function featuresBlock(c: Character): Promise<string | null> {
   const r = await resolveCharacterFeatures(c);
-  // Reihenfolge: Spezies → Klasse/Subklasse → Hintergrund → Talente → verwaiste Entscheidungen.
   const groups = [...r.speciesGroups, ...r.classGroups, ...r.backgroundGroups];
   if (!groups.length && !r.featEntries.length && !r.orphanChoices.length) return null;
 
@@ -339,11 +307,6 @@ function hasProse(md: string): boolean {
   });
 }
 
-/**
- * Formatiert einen Charakter als Markdown-Block für den System-Prompt. `minimum`
- * liefert nur den Kopf; ab `character` kommen die Bogen-Abschnitte (jeder entfällt,
- * wenn leer); bei `full` zusätzlich `details.md`/`gm-notes.md` aus `notes`.
- */
 export async function buildCharacterContext(
   c: Character,
   level: CharacterContextLevel,
@@ -377,10 +340,7 @@ export async function buildCharacterContext(
   return parts.join('\n\n');
 }
 
-/**
- * Wie `buildCharacterContext`, aber aus dem rohen Datei-Inhalt (JSON-String). Läuft
- * durch `normalizeCharacter` (inkl. Upgrade-Pipeline). null bei ungültigem JSON.
- */
+/** Der Rohtext läuft durch `normalizeCharacter`, also durch die Upgrade-Pipeline. */
 export async function buildCharacterContextFromRaw(
   raw: string,
   level: CharacterContextLevel,
@@ -396,15 +356,11 @@ export async function buildCharacterContextFromRaw(
   return buildCharacterContext(normalizeCharacter(obj), level, notes);
 }
 
-/** Charakter-Ordner aus einem `…/character.json`-Pfad. */
 export function characterDirOf(path: string): string {
   return path.replace(/\/character\.json$/, '');
 }
 
-/**
- * Lädt `details.md` (Fallback auf den Altnamen `freitext.md`) und `gm-notes.md`
- * aus dem Charakter-Ordner. Fehlt eine Datei, bleibt ihr Feld leer.
- */
+/** `freitext.md` ist der Altname von `details.md` und muss weiter gelesen werden. */
 export async function loadCharacterNotes(dirPath: string): Promise<CharacterNotes> {
   const notes: CharacterNotes = {};
   try {
@@ -424,10 +380,7 @@ export async function loadCharacterNotes(dirPath: string): Promise<CharacterNote
   return notes;
 }
 
-/**
- * Lädt `character.json` aus einem Ordner und baut den Kontext. Bei `full` werden auch
- * die Begleitdateien geladen. Für den Agent-Pfad gedacht (Charakter selbst nachladen).
- */
+/** Für den Agent-Pfad: der Charakter wird selbst nachgeladen, nicht hereingereicht. */
 export async function loadCharacterContext(
   dirPath: string,
   level: CharacterContextLevel,

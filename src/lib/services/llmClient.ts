@@ -1,31 +1,22 @@
 import type { LlmConfig, LlmProvider } from '../types';
+import { ollamaChat, ollamaGenerate } from './llm/ollama';
 import {
-  ollamaChat,
-  ollamaGenerate,
   groqChat,
   groqGenerate,
   qualitymindsChat,
   qualitymindsGenerate,
   qualitymindsGenerateStructured,
-  anthropicChat,
-  anthropicGenerate,
-  agentLoop as agentLoopDispatch,
-  modelSupportsTemperature,
-} from './llmService';
+} from './llm/openAiCompatible';
+import { agentLoop as agentLoopDispatch } from './llm/agentLoop';
+import { anthropicChat, anthropicGenerate, modelSupportsTemperature } from './anthropicService';
 import { generateStructured as anthropicGenerateStructured } from './anthropicExtras';
 import { TASK_TEMPERATURE } from './vaultTools';
 import type { ChatMessage, AgentOptions, TaskKind, AgentToolset } from './vaultTools';
 
 /**
- * Capability-Deskriptor: was ein Provider (in der konkreten Config) kann.
- *
- * Diese Flags ersetzen die früher verstreuten `if (provider === …)`-Checks und
- * `throw`s. Die UI gated darüber Features (Agent-Tab, Claude-Panel, Temperatur-
- * Slider), statt Provider-Namen abzufragen.
- *
- * `tools`/`temperature` betreffen die **portable** Schicht; die übrigen Flags
- * markieren **Claude-only**-Features, deren Implementierung in `anthropicExtras`
- * lebt (nicht im LlmClient-Interface). Siehe dort.
+ * Was ein Provider in der konkreten Config kann. Die UI gated Features über DIESE Flags,
+ * nie über den Providernamen. `tools`/`temperature` gehören zur portablen Schicht, die
+ * übrigen markieren Claude-only-Features aus `anthropicExtras`.
  */
 export interface LlmCapabilities {
   /** Tool-Calling / Agent-Loop verfügbar. Ollama: nein. */
@@ -41,21 +32,16 @@ export interface LlmCapabilities {
 }
 
 /**
- * Portable LLM-Fassade. Alle Provider implementieren `chat`/`generate`;
- * `agentLoop` ist optional und nur gesetzt, wenn `capabilities.tools === true`.
- *
- * Bewusst NICHT enthalten: Claude-spezifische Fähigkeiten (Structured Outputs,
- * Prompt Caching, Token-Counting, Vision, …). Die leben in `anthropicExtras`
- * und werden von der UI nur bei `provider === 'anthropic'` angesprochen.
+ * Portable LLM-Fassade: alle Provider können `chat`/`generate`, alles Weitere ist optional
+ * und genau dann gesetzt, wenn das zugehörige Capability-Flag es sagt. Claude-Spezifisches
+ * gehört bewusst NICHT hierher, sondern in `anthropicExtras`.
  */
 export interface LlmClient {
   readonly provider: LlmProvider;
   readonly capabilities: LlmCapabilities;
-  /** Konversation mit History. `task` wählt das Temperatur-Preset (Default: chat).
-   *  `onDelta` (optional) erhält Token-Deltas live — nur bei streamenden Providern. */
+  /** `task` wählt das Temperatur-Preset (Default: chat), `onDelta` streamt — wo möglich. */
   chat(messages: ChatMessage[], task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
-  /** Einmaliger Output ohne History. `task` wählt das Temperatur-Preset.
-   *  `onDelta` (optional) erhält Token-Deltas live — nur bei streamenden Providern. */
+  /** Ohne History; `task` und `onDelta` wie bei `chat`. */
   generate(prompt: string, system?: string, task?: TaskKind, onDelta?: (delta: string) => void): Promise<string>;
   /** Agentic Loop. `toolset` optional (Default: Vault-Tools). Nur vorhanden, wenn `capabilities.tools`. */
   agentLoop?(userMessage: string, systemPromptText: string, options: AgentOptions, toolset?: AgentToolset): Promise<string>;
@@ -83,10 +69,7 @@ const OPENAI_CAPS: LlmCapabilities = {
  */
 const QUALITYMINDS_CAPS: LlmCapabilities = { ...OPENAI_CAPS, structuredOutput: true };
 
-/**
- * Liefert den passenden LlmClient für eine Config. Einziger Ort mit Provider-
- * Verzweigung — Consumer rufen nur noch `getClient(config).chat(…)`.
- */
+/** Der einzige Ort mit Provider-Verzweigung — Consumer rufen `getClient(config).chat(…)`. */
 export function getClient(config: LlmConfig): LlmClient {
   switch (config.provider) {
     case 'anthropic':

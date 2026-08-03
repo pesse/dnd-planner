@@ -1,30 +1,7 @@
 /**
- * Schnell-Baukasten für Eval-Strecken.
- *
- * Ziel: eine neue Strecke für einen (einfachen) Prompt besteht aus EINER Datei mit
- * Fällen + Assertions — kein Vitest-/Report-/Env-Boilerplate. Alles Mechanische
- * (Gate über den API-Key, LlmConfig, Capture der echten Requests, N Läufe je Fall,
- * inkrementeller Report, Qualitäts-Gate) steckt hier.
- *
- *   defineEval<Spell>({
- *     name: 'spell',
- *     cases: [
- *       {
- *         label: 'Anlage aus Beschreibung',
- *         action: () => createSpellAction({ name: 'Rankenfessel' }),
- *         input: 'Ein Zauber des 2. Grades …',
- *         core: { 'Grad 2': (s) => s.level === 2 },
- *         soft: { 'deutsche Beschreibung': (s) => nonEmpty(s.desc_de) },
- *       },
- *     ],
- *   });
- *
- * Es gibt bewusst KEINEN A/B-Vergleich: ein Lauf misst genau einen Prompt-Stand und
- * schreibt einen Report. Verglichen wird über mehrere Läufe (`--title <label>`) und
- * das Nebeneinanderlegen der Reports.
- *
- * Für komplexere Pfade (mehrere verkettete Calls, eigener Produktionspfad) statt
- * `action`/`input` einfach `run` setzen — siehe featureEffects.eval.test.ts.
+ * Eine Eval-Strecke ist EINE Datei mit Fällen und Assertions; alles Mechanische (Key-Gate,
+ * Capture, N Läufe, Report) steckt hier. Bewusst KEIN A/B-Vergleich: ein Lauf misst einen
+ * Prompt-Stand, verglichen wird über `--title` und das Nebeneinanderlegen der Reports.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { LlmConfig } from '../src/lib/types';
@@ -33,42 +10,29 @@ import { coreAssertions, printStepReport, runEval, type Assertion, type EvalStep
 import { installCapture, writeEvalReport, type EvalReport } from './report';
 import { evalEnv } from './env';
 
-/** Eine einzelne Prüfung auf dem Ergebnis eines Laufs. */
 export type Check<T> = (result: T) => boolean;
 
-/** Assertions als Objekt: Label → Prüfung. Das Label landet 1:1 im Report. */
+/** Label → Prüfung; das Label landet 1:1 im Report. */
 export type Checks<T> = Record<string, Check<T>>;
 
 export interface EvalCase<T> {
-  /** Anzeigename des Falls im Report (z.B. „Anlage aus Beschreibung"). */
   label: string;
-  /**
-   * Die zu messende Produktions-Action. Als Funktion übergeben, damit sie erst beim
-   * Lauf gebaut wird (Prompt-Änderungen greifen ohne Umweg).
-   */
+  /** Als Funktion, damit die Action erst beim Lauf gebaut wird und Prompt-Änderungen greifen. */
   action?: AiAction<T> | (() => AiAction<T>);
-  /** Nutzereingabe an die Action (das, was in der App im Eingabefeld stünde). */
   input?: string;
-  /**
-   * Eigener Aufruf STATT `action`/`input` — für mehrstufige Produktionspfade.
-   * `input` dient dann nur noch dem Report-Mitschnitt.
-   */
+  /** STATT `action`/`input` für mehrstufige Pfade; `input` ist dann nur Report-Mitschnitt. */
   run?: (config: LlmConfig) => Promise<T>;
-  /** Muss-Assertions: ihre Pass-Rate gatet den Schwellwert (rot/grün). */
+  /** Ihre Pass-Rate gatet den Schwellwert. */
   core?: Checks<T>;
-  /** Kann-Assertions: werden nur berichtet, gaten nichts. */
+  /** Werden nur berichtet, gaten nichts. */
   soft?: Checks<T>;
 }
 
 export interface EvalDefinition<T> {
-  /** Kurzer Name der Strecke — Suite-Titel und Teil des Report-Ordners. */
   name: string;
-  /** Was diese Strecke prüft (landet im Report-Kopf; EVAL_DESC überschreibt). */
+  /** Landet im Report-Kopf; `EVAL_DESC` überschreibt. */
   description?: string;
-  /**
-   * Die Fälle. Als Funktion (auch async), wenn zum Bauen erst etwas geladen werden
-   * muss — z.B. Merkmale über den echten Vault-Ladepfad.
-   */
+  /** Als Funktion, wenn zum Bauen erst geladen werden muss (echter Vault-Ladepfad). */
   cases: EvalCase<T>[] | (() => EvalCase<T>[] | Promise<EvalCase<T>[]>);
 }
 
@@ -80,7 +44,7 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
 
-/** Checks-Objekte → Assertion-Liste mit stabilen, eindeutigen IDs (aus dem Label). */
+/** IDs werden aus dem Label abgeleitet und müssen stabil bleiben — der Report matcht darauf. */
 function toAssertions<T>(core: Checks<T> = {}, soft: Checks<T> = {}): Assertion<T>[] {
   const used = new Set<string>();
   const build = (checks: Checks<T>, isCore: boolean): Assertion<T>[] =>
@@ -110,11 +74,7 @@ function toStep<T>(c: EvalCase<T>): EvalStep<T> {
   };
 }
 
-/**
- * Registriert eine komplette Eval-Suite (Vitest-`describe`) für einen Prompt-Stand.
- * Ohne API-Key/Modell wird sie übersprungen. Der Report landet unter
- * `evals/reports/<timestamp>-<name>[-<EVAL_TITLE>]/`.
- */
+/** Ohne API-Key/Modell wird die Suite übersprungen, statt zu scheitern. */
 export function defineEval<T>(def: EvalDefinition<T>): void {
   const env = evalEnv();
   const title = env.label ? `${def.name}-${env.label}` : def.name;

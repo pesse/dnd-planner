@@ -1,19 +1,14 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
-/**
- * True when running inside the Tauri webview (vs. a plain browser or headless Node).
- * Tauri injects `__TAURI_INTERNALS__` onto `window` before any app code runs.
- */
+/** Tauri setzt `__TAURI_INTERNALS__` aufs `window`, bevor App-Code läuft. */
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
 /**
- * HTTP fetch that routes through the Tauri HTTP plugin inside the app (bypasses the
- * webview's CORS restrictions) but falls back to the platform's global `fetch` when
- * running outside Tauri — e.g. plain `vite dev` in a browser or headless Node (the
- * eval/prompt-quality harness). The choice is made per call, so the same binary
- * behaves correctly in every environment.
+ * In der App über das Tauri-HTTP-Plugin (umgeht CORS der Webview), außerhalb über das
+ * globale `fetch`. Die Wahl fällt PRO AUFRUF, damit dasselbe Bundle in Browser, Node und
+ * Tauri funktioniert.
  */
 export const httpFetch: typeof fetch = (input, init) =>
   isTauri()

@@ -1,76 +1,10 @@
 /*
- * Aufbereitung von Debug-Einträgen (LlmPanel → Debug-Tab) für die Anzeige.
- *
- * Kern-Problem: `entry.data` ist ein strukturiertes Objekt, aber viele
- * verschachtelte Felder enthalten selbst JSON *als String* (OpenAI-Tool-Call-
- * `arguments`, Tool-Ergebnisse in `messages[].content`, structured-output-
- * `content`). Ein einfaches `JSON.stringify` zeigt diese doppelt escaped
- * (`"{\"query\":\"foo\"}"`). `reviveJson` entschachtelt sie vor der Anzeige.
- *
- * WICHTIG: rein anzeige-seitig. Es wird nie `entry.data` mutiert (der Store ist
- * live) und die echten API-Payloads bleiben unberührt — alle Funktionen liefern
- * neue Strukturen.
+ * Debug-Eintrag (LlmPanel → Debug-Tab) → gegliedertes Anzeige-Modell. Rein
+ * anzeige-seitig: `entry.data` wird nie mutiert, der Store ist live.
  */
 
 import type { DebugEntry } from '../stores/debug';
-
-const MAX_DEPTH = 8;
-
-/**
- * Entschachtelt eingebettete JSON-Strings rekursiv: jeder String, der sich zu
- * einem Objekt/Array parsen lässt, wird durch die geparste Struktur ersetzt.
- * Primitive-Strings ("42", "true", "foo") bleiben unverändert — sonst würden
- * Werte fälschlich uminterpretiert. Baut ausschließlich neue Objekte/Arrays.
- */
-export function reviveJson(value: unknown, depth = 0): unknown {
-  if (depth > MAX_DEPTH) return value;
-
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    // Nur Kandidaten anfassen, die wie Objekt/Array aussehen — spart Parse-Versuche.
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed !== null && typeof parsed === 'object') {
-          return reviveJson(parsed, depth + 1);
-        }
-      } catch {
-        /* kein JSON → String unverändert lassen */
-      }
-    }
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((v) => reviveJson(v, depth + 1));
-  }
-
-  if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = reviveJson(v, depth + 1);
-    }
-    return out;
-  }
-
-  return value;
-}
-
-/** `entry.data` entschachtelt + eingerückt als String (Fallback-/Roh-Ansicht). */
-export function prettyJson(value: unknown): string {
-  try {
-    return JSON.stringify(reviveJson(value), null, 2);
-  } catch {
-    // Zirkuläre Referenzen o. Ä. — best effort ohne revive.
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
-}
-
-// ── Anzeige-Modell ──────────────────────────────────────────────────────────
+import { prettyJson, reviveJson } from './debugJson';
 
 export interface DebugMessage {
   role: string;
@@ -139,10 +73,7 @@ function toMessages(raw: unknown, system?: unknown): DebugMessage[] {
   return msgs;
 }
 
-/**
- * Erkennt die Shape von `entry.data` (via vorhandene Felder + `entry.type`) und
- * liefert ein gegliedertes Anzeige-Modell. Unbekannte Shapes → `raw`.
- */
+/** Erkennt die Shape an den vorhandenen Feldern; unbekannte Shapes → `raw`. */
 export function describeEntry(entry: DebugEntry): DebugView {
   const { data, type } = entry;
 

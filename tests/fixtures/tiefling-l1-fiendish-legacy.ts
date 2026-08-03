@@ -14,13 +14,10 @@
  * Fall A entsteht dadurch, dass die Fixture die Deklaration WIEDER ENTFERNT — der „Vorher"-Stand
  * ist damit der künstliche, nicht der gemessene Zielzustand. Umgekehrt wäre B eine Handabschrift.
  */
-import type {
-  FeatureEffectsContext,
-  GainedFeature,
-  ResolvedChoice,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import type { GainedFeature, ResolvedChoice } from '../../src/lib/services/analysis/types';
 import type { DeclaredFeature } from '../../src/lib/services/declaredFeature';
-import { unredactedChoiceFeatures } from '../../src/lib/services/featureDeclaration';
+import { unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 
 export const TIEFLING_FIGHTER_BASICS = {

@@ -1,12 +1,7 @@
 /**
- * Spaltenbreite per Maus ziehen — die eine Fassung für alle Panels der App.
- *
- * Herausgezogen, weil es inzwischen drei Griffe gibt (Sidebar, KI-Panel,
- * Merkmals-Leiste) und die Kopien nur in einem Detail auseinanderlaufen: bei einem
- * Panel am RECHTEN Rand vergrößert Ziehen nach links. Das ist `invert`.
- *
- * Der Aufrufer hält seinen eigenen Zustand (Breite, „ich ziehe gerade"-Flag für die
- * abgeschaltete CSS-Transition) und bekommt ihn über `onWidth`/`ondone` gesetzt.
+ * Spaltenbreite per Maus ziehen — die eine Fassung für alle Griffe der App.
+ * Den Zustand (Breite, „ich ziehe gerade" für die abgeschaltete CSS-Transition)
+ * hält der Aufrufer und bekommt ihn über `onWidth`/`ondone` gesetzt.
  */
 export function dragPanelWidth(
   e: MouseEvent,

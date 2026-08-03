@@ -1,17 +1,11 @@
 /**
- * Node-Ersatz für `@tauri-apps/api/core` in der Eval-Strecke.
+ * Node-Ersatz für `@tauri-apps/api/core`: bedient die lesenden Vault-Commands per `node:fs`
+ * gegen den Repo-Vault, damit Fixtures über den ECHTEN Ladepfad geladen werden können.
+ * Eingehängt per Vitest-Alias (vitest.config.ts).
  *
- * Der Eval-Harness läuft in `environment: 'node'` (kein Tauri-Webview). Damit die
- * Fixtures über den ECHTEN Produktions-Ladepfad geladen werden können
- * (`computeSubclassFeatures` → `getProgressionByKey` → `getClasses`), müssen die
- * lesenden Vault-Commands funktionieren. Dieser Shim ersetzt `invoke` per Vitest-
- * Alias (siehe vitest.config.ts) und bedient die read-only-Commands direkt gegen
- * den Repo-Vault via `node:fs`.
- *
- * WICHTIG: Wir setzen bewusst KEIN `window.__TAURI_INTERNALS__` (wie es `mockIPC`
- * täte) — sonst würde `isTauri()` true und `httpFetch` die echten LLM-Calls über
- * den Tauri-HTTP-Pfad statt über das globale `fetch` leiten. Nur `invoke` wird
- * ausgetauscht; die Tauri-Erkennung bleibt korrekt "nicht in Tauri".
+ * Bewusst KEIN `window.__TAURI_INTERNALS__` (wie `mockIPC` es setzen würde) — sonst wäre
+ * `isTauri()` true und `httpFetch` schickte die LLM-Calls über den Tauri-HTTP-Pfad statt
+ * über das globale `fetch`. Nur `invoke` wird ausgetauscht.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -71,6 +65,10 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     case 'list_json_files':
       return readdirSync(vaultPath(String(a.path)))
         .filter((f) => f.endsWith('.json')) as unknown as T;
+    case 'list_json_entries':
+      return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
+        .filter((e) => e.isDirectory() || e.name.endsWith('.json'))
+        .map((e) => ({ name: e.name, is_dir: e.isDirectory() })) as unknown as T;
     case 'read_file_content':
       return readFileSync(vaultPath(String(a.path)), 'utf8') as unknown as T;
     case 'load_spells_index': {

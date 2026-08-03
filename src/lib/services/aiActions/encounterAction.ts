@@ -10,7 +10,7 @@
  */
 import type { Encounter } from '../../types';
 import { encounterSchema } from '../../schemas/encounter';
-import { toLlmJsonSchema } from '../../schemas/shared';
+import { toLlmJsonSchema } from '../../schemas/llmJson';
 import { parseEncounter } from '../../utils/schemaValidation';
 import { buildCreateAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';
@@ -23,7 +23,9 @@ const encounterSpec: EntityActionSpec<Encounter> = {
   entity: 'encounter',
   nounDe: 'Encounter',
   currentHeading: 'Aktueller Encounter',
-  jsonSchema: toLlmJsonSchema(encounterSchema),
+  // Ohne `tags`: die Schlagworte pflegt die Spielleitung von Hand, und ein optionales
+  // Feld wäre für Structured Outputs ohnehin kein gültiges Schema.
+  jsonSchema: toLlmJsonSchema(encounterSchema.omit({ tags: true })),
   validate: isEncounter,
   buildCreatePrompt({ nameHint }) {
     return `You are an assistant for Dungeons & Dragons (5e). From the act context and the user's wishes, design a complete combat encounter as JSON in the app schema. Write all human-readable content fields in German.

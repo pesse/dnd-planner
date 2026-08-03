@@ -1,0 +1,34 @@
+/* Formularsprache des Erstell-Assistenten. Global unter `.wizard`, damit die Schritt-
+   Komponenten dieselben Feld-, Chip- und Knopf-Regeln benutzen wie der Rahmen. */
+
+.wizard .field { display: flex; flex-direction: column; gap: 0.35rem; }
+.wizard .field > span { font-size: 0.82rem; color: var(--ink-soft); }
+.wizard .info { cursor: help; color: var(--arcane, var(--gold)); font-size: 0.8rem; margin-left: 0.15rem; }
+
+.wizard input[type='text'],
+.wizard select {
+  background: var(--bg-raised); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 5px; padding: 0.45rem 0.55rem; font: inherit;
+}
+.wizard input[type='text']::placeholder { color: var(--ink-muted); }
+.wizard input[type='text']:focus,
+.wizard select:focus { outline: none; border-color: var(--border-strong); }
+.wizard select { cursor: pointer; }
+
+.wizard .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.wizard .chip {
+  background: var(--surface); color: var(--ink-soft); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.25rem 0.65rem; cursor: pointer; font: inherit; font-size: 0.82rem;
+}
+.wizard .chip:hover { border-color: var(--border-strong); }
+.wizard .chip.sel { background: var(--arcane, var(--gold)); color: #fff; border-color: transparent; font-weight: 600; }
+
+.wizard .hint { font-size: 0.82rem; color: var(--ink-soft); margin: 0; }
+.wizard .warn { color: var(--danger); font-size: 0.85rem; margin: 0.3rem 0 0; }
+
+.wizard .primary,
+.wizard .secondary { border-radius: 5px; padding: 0.45rem 0.9rem; cursor: pointer; font: inherit; }
+.wizard .primary { background: var(--arcane, var(--gold)); color: #fff; border: none; font-weight: 600; }
+.wizard .primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.wizard .secondary { background: var(--surface); color: var(--ink-soft); border: 1px solid var(--border); }
+.wizard .secondary:disabled { opacity: 0.5; cursor: not-allowed; }

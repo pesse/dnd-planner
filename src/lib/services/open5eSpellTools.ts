@@ -5,14 +5,8 @@
  *
  * Deckt srd-2024-Zauber (`/v2/spells/`) ab; `get_open5e_spell` löst den Key auf.
  */
-import type Anthropic from '@anthropic-ai/sdk';
-import { searchOpen5eSpells, getSpell } from './open5eApi';
-
-interface ToolDef {
-  name: string;
-  description: string;
-  params: Anthropic.Tool.InputSchema;
-}
+import { searchOpen5eSpells, getSpell } from './open5eClient';
+import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [
   {
@@ -44,18 +38,8 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-kompatibles Tool-Format. */
-export const OPEN5E_SPELL_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-/** Anthropic-kompatibles Tool-Format. */
-export const OPEN5E_SPELL_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
+export const OPEN5E_SPELL_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
+export const OPEN5E_SPELL_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
 export async function executeOpen5eSpellTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {

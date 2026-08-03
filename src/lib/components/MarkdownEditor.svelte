@@ -6,18 +6,16 @@
   import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
   import { Markdown } from 'tiptap-markdown';
   import { invoke } from '@tauri-apps/api/core';
-  import { fileContent, activeFile, historyState, undoContent, redoContent } from '../stores/campaign';
+  import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent } from '../stores/campaign';
   import { openVaultLink } from '../services/vaultLinks';
   import { parseFrontmatter } from '../utils/frontmatter';
   import './editor.css';
 
-  // DOM-Ref für TipTap (kein $state nötig, bind:this reicht)
   let editorEl: HTMLElement | null = null;
   let editor = $state<Editor | null>(null);
 
-  // tiptap-markdown (v0.9) ist für TipTap v2 geschrieben; seine Storage-
-  // Augmentation greift unter @tiptap/core v3 nicht. Schmaler typisierter
-  // Zugriff statt verstreuter any-Casts.
+  // tiptap-markdown (v0.9) ist für TipTap v2 geschrieben, seine Storage-Augmentation greift
+  // unter @tiptap/core v3 nicht — ein typisierter Zugriff statt verstreuter any-Casts.
   function markdownStorage(ed: Editor): { getMarkdown(): string } {
     return (ed.storage as unknown as { markdown: { getMarkdown(): string } }).markdown;
   }
@@ -27,11 +25,10 @@
   let showSource = $state(false);
   let sourceValue = $state('');
 
-  // Reaktiver Zähler: incrementiert bei jedem TipTap-Event → Button-States neu auswerten
   let tick = $state(0);
 
-  // Frontmatter wird aus dem TipTap-Inhalt herausgehalten und separat gespeichert,
-  // damit es beim Speichern wieder vorangestellt wird.
+  // Frontmatter bleibt aus dem TipTap-Inhalt heraus und wird beim Speichern wieder
+  // vorangestellt.
   let rawFrontmatterBlock = ''; // der "---...---\n"-Block (leer wenn kein Frontmatter)
   let lastBody = '';             // letzter Körper (ohne Frontmatter) im Editor
 
@@ -40,33 +37,28 @@
     return { block: rawBlock, body };
   }
 
-  // Klick auf einen Markdown-Link: relativ zur aktiven Datei intern öffnen.
-  // Externe Links (http/mailto) im System-Browser; Anker etc. ignorieren.
   function onLinkClick(e: MouseEvent) {
     const anchor = (e.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null;
     if (!anchor) return;
-    // Textauswahl per Drag → nicht navigieren: der Nutzer will den Link markieren,
-    // um ihn zu bearbeiten. Nur ein einfacher Klick (Cursor) folgt dem Link.
+    // Bei aufgezogener Auswahl nicht navigieren — der Nutzer markiert den Link, um ihn
+    // zu bearbeiten.
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) return;
     const href = anchor.getAttribute('href');
     if (!href) return;
     e.preventDefault();
     const fromPath = get(activeFile)?.path ?? '';
-    void openVaultLink(href, fromPath).then((handled) => {
+    void openVaultLink(href, fromPath, get(activeCampaign)?.path).then((handled) => {
       if (!handled && /^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener');
     });
   }
 
-  // Öffnet die URL-Eingabe, vorbelegt mit dem Ziel des aktuellen Links (falls vorhanden).
   function openLinkEditor() {
     if (!editor) return;
     linkUrlValue = (editor.getAttributes('link').href as string) ?? '';
     showLinkInput = true;
   }
 
-  // Übernimmt die URL: leer → Link entfernen; Auswahl → verlinken; Cursor ohne Auswahl
-  // und ohne bestehenden Link → die URL als verlinkten Text einfügen.
   function applyLink() {
     if (!editor) { showLinkInput = false; return; }
     const url = linkUrlValue.trim();
@@ -96,7 +88,6 @@
     return rawFrontmatterBlock ? rawFrontmatterBlock + body : body;
   }
 
-  // Button-Aktiv-States (abhängig von tick)
   let isBold       = $derived(tick >= 0 && (editor?.isActive('bold') ?? false));
   let isItalic     = $derived(tick >= 0 && (editor?.isActive('italic') ?? false));
   let isStrike     = $derived(tick >= 0 && (editor?.isActive('strike') ?? false));
@@ -111,7 +102,6 @@
   let isTable      = $derived(tick >= 0 && (editor?.isActive('table') ?? false));
   let isLink       = $derived(tick >= 0 && (editor?.isActive('link') ?? false));
 
-  // Link-Editor (URL der Auswahl/des aktiven Links setzen, ändern, entfernen)
   let showLinkInput = $state(false);
   let linkUrlValue = $state('');
 
@@ -123,11 +113,9 @@
     const ed = new Editor({
       element: editorEl!,
       extensions: [
-        // link-Optionen:
-        //  - openOnClick aus: Klicks fängt onLinkClick ab und navigiert intern,
-        //    statt die Webview auf die relative URL umzuleiten.
-        //  - isAllowedUri: ()=>true: TipTap v3 verwirft sonst schemalose relative
-        //    Links (z.B. world/dorf.md) schon beim Parsen → Link-Mark ginge verloren.
+        // `openOnClick: false`, damit `onLinkClick` intern navigiert statt die Webview auf
+        // die relative URL umzuleiten; ohne `isAllowedUri` verwirft TipTap v3 schemalose
+        // relative Links (world/dorf.md) schon beim Parsen und die Link-Mark ginge verloren.
         StarterKit.configure({ link: { openOnClick: false, isAllowedUri: () => true } }),
         Table.configure({ resizable: true }),
         TableRow,
@@ -163,10 +151,8 @@
         saveStatus = 'unsaved';
         scheduleAutoSave(full);
       },
-      // tick treibt die Toolbar-Aktiv-States. In einen Microtask verschoben, damit
-      // eine während Sveltes Update-Flush ausgelöste Transaktion (z.B. der Blur beim
-      // Unmount durch Link-Navigation auf eine Kartenansicht) nicht
-      // state_unsafe_mutation wirft.
+      // Microtask, weil eine während Sveltes Update-Flush ausgelöste Transaktion (Blur beim
+      // Unmount durch Link-Navigation) sonst `state_unsafe_mutation` wirft.
       onSelectionUpdate: () => { queueMicrotask(() => { if (editor) tick++; }); },
       onTransaction:    () => { queueMicrotask(() => { if (editor) tick++; }); },
     });
@@ -175,7 +161,6 @@
 
     editorEl!.addEventListener('click', onLinkClick);
 
-    // Externe Änderungen (Undo/Redo, LLM-Panel) in den Editor übernehmen.
     const unsubscribe = fileContent.subscribe((content) => {
       const { block, body } = splitFull(content);
       if (body === lastBody && block === rawFrontmatterBlock) return;
@@ -218,15 +203,11 @@
     debounceTimer = null;
   });
 
-  // ── Quelle-Toggle ──────────────────────────────────────────────────────────
-
   function toggleSource() {
     if (!showSource) {
-      // Quellansicht zeigt den vollen Inhalt inkl. Frontmatter
       sourceValue = toFull(editor ? markdownStorage(editor).getMarkdown() : lastBody);
     } else {
       if (editor) {
-        // Aus Quelltext: Frontmatter neu extrahieren, Körper in TipTap laden
         const { block, body } = splitFull(sourceValue);
         rawFrontmatterBlock = block;
         lastBody = body;
@@ -243,7 +224,6 @@
 
   function handleSourceInput(e: Event) {
     sourceValue = (e.currentTarget as HTMLTextAreaElement).value;
-    // Sofort in fileContent schreiben (Frontmatter bleibt im sourceValue)
     const { block, body } = splitFull(sourceValue);
     rawFrontmatterBlock = block;
     lastBody = body;
@@ -268,7 +248,6 @@
 </script>
 
 <div class="editor-shell">
-  <!-- Toolbar -->
   <div class="toolbar">
     {#if !showSource}
       <button class="tb" class:on={isBold}       onclick={() => editor?.chain().focus().toggleBold().run()}           title="Fett (Strg+B)"><b>B</b></button>
@@ -307,7 +286,6 @@
     <button class="source-btn" class:active={showSource} onclick={toggleSource}>Quelle</button>
   </div>
 
-  <!-- Link-Editor: URL der aktuellen Auswahl/des Links setzen, ändern oder entfernen -->
   {#if showLinkInput}
     <div class="link-edit-row">
       <span class="link-edit-label">🔗 Link-Ziel</span>
@@ -323,10 +301,8 @@
     </div>
   {/if}
 
-  <!-- TipTap-Editor (immer im DOM, bei Quelle versteckt) -->
   <div bind:this={editorEl} class="editor-mount" class:hidden={showSource}></div>
 
-  <!-- Quelltext-Editor -->
   {#if showSource}
     <textarea
       class="source-ta"

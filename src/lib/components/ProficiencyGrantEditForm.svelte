@@ -1,13 +1,14 @@
 <script lang="ts">
   /**
-   * Editor für einen `proficiencyGrant` — die geschlossenen Übungs-Vokabulare.
-   * Wird von allen vier Bibliotheks-Editoren benutzt (Klasse, Hintergrund,
-   * Spezies-Merkmal, Talent); `scope="skills"` blendet alles außer den
-   * Fertigkeiten aus, weil Hintergründe/Merkmale/Talente im SRD 5.2 nur diese
-   * gewähren.
+   * Editor der geschlossenen Übungs-Vokabulare, von allen vier Bibliotheks-Editoren
+   * benutzt. `scope="skills"` blendet alles außer den Fertigkeiten aus, weil
+   * Hintergrund, Merkmal und Talent im SRD 5.2 nur diese gewähren.
    */
-  import { ABILITY_NAMES, ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/shared';
-  import type { AbilityName, ArmorTraining, ProficiencyGrant, WeaponCategory } from '$lib/schemas/shared';
+  import { ABILITY_NAMES } from '$lib/schemas/abilities';
+  import { ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/vocabulary';
+  import type { AbilityName } from '$lib/schemas/abilities';
+  import type { ArmorTraining, WeaponCategory } from '$lib/schemas/vocabulary';
+  import type { ProficiencyGrant } from '$lib/schemas/grants';
   import { ABILITY_LABEL_DE, ARMOR_LABEL_DE, WEAPON_LABEL_DE } from '$lib/services/proficiencyGrants';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
 
@@ -17,7 +18,6 @@
     onchange = () => void 0,
   }: {
     grant: ProficiencyGrant;
-    /** 'skills' = nur Fertigkeiten (Hintergrund/Merkmal/Talent). */
     scope?: 'full' | 'skills';
     onchange?: () => void;
   } = $props();
@@ -37,8 +37,8 @@
     onchange();
   }
 
-  // `weaponsOther` sind Einzel-/Sonderregeln („Martial weapons that have the Light
-  // property") — englischer Freitext, eine Zeile mit Semikolon getrennt.
+  // Englischer Freitext („Martial weapons that have the Light property"), eine Zeile
+  // mit Semikolon getrennt.
   let otherText = $state(grant.weaponsOther.join('; '));
 
   function onOtherInput() {
@@ -100,13 +100,7 @@
 </div>
 
 <style>
-  .ef {
-    background: var(--bg-panel); border: 1px solid transparent; border-radius: 3px;
-    color: var(--ink); font-family: inherit; font-size: 0.88rem; padding: 0.15rem 0.3rem; outline: none;
-    width: 100%;
-  }
-  .ef:hover { border-color: var(--border); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); }
+  .ef { width: 100%; }
 
   .grant-block { display: flex; flex-direction: column; gap: 0.3rem; }
   .sub-title {

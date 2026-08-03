@@ -1,24 +1,14 @@
 /**
- * Die deutsche Grenze der Merkmals-Deutung.
+ * Die deutsche Grenze der Merkmals-Deutung: `featureEffectsAction` reasont durchgehend
+ * englisch, Deutsch entsteht hier in zwei Calls an den Rändern (T1 Wahlen, T2 Bogen-Notizen).
  *
- * Analyse und Effekt-Pass reasonen durchgehend ENGLISCH (`featureEffectsAction`); Deutsch
- * entsteht hier, in zwei schlanken Calls an den Rändern:
- *   T1 `translateChoices`   — nach der Analyse: aus den englischen Wahlen die deutschen
- *                             Fragen, Optionen und Konsequenz-Hilfen für den Checkpoint.
- *   T2 `translateSheetNotes` — nach dem Effekt-Pass: die englischen Bogen-Notizen ins
- *                             Deutsche, in der Form, die der Bogen braucht.
+ * Beide sind REASONING-FREI (guided decoding heißt auf QM/vllm `enable_thinking:false`) und
+ * beide degradieren statt zu blocken: bei Fehlschlag bleibt der englische Text stehen — ein
+ * unübersetzter Checkpoint ist bedienbar, ein fehlender nicht.
  *
- * Beide sind bewusst REASONING-FREI: `qualitymindsGenerateStructured` fährt guided decoding,
- * und das heißt auf QM/vllm zugleich `enable_thinking:false` (llmService) — also schnell.
- *
- * Beide degradieren, statt zu blocken: schlägt ein Call fehl oder passt seine Antwort nicht
- * zur Eingabe, bleibt der englische Text stehen. Ein unübersetzter Checkpoint ist bedienbar,
- * ein fehlender nicht.
- *
- * Die Arbeitsteilung mit Pass C ist der Grund für den Schnitt: **Pass C entscheidet, WAS auf
- * den Bogen gehört (`SHEET_NOTE_CONTENT`), dieser Call entscheidet, WIE es dasteht
- * (`SHEET_NOTE_GERMAN_FORM`).** Deshalb liegt auch das harte Zeichenbudget hier — Deutsch
- * läuft rund 17 % länger als Englisch, und gekürzt werden muss in der Zielsprache.
+ * Pass C entscheidet, WAS auf den Bogen gehört (`SHEET_NOTE_CONTENT`), dieser Call, WIE es
+ * dasteht (`SHEET_NOTE_GERMAN_FORM`) — deshalb liegt das Zeichenbudget hier: Deutsch läuft
+ * rund 17 % länger als Englisch, und gekürzt werden muss in der Zielsprache.
  */
 import {
   choiceTranslationJsonSchema,
@@ -30,10 +20,9 @@ import {
   type ChoiceTranslationItem,
 } from '../../schemas/levelUp';
 import type { LlmConfig } from '../../types';
-import { qualitymindsGenerateStructured } from '../llmService';
+import { qualitymindsGenerateStructured } from '../llm/openAiCompatible';
 import { SHEET_NOTE_GERMAN_FORM } from './fieldSummaryAction';
 
-/** Was der Übersetzer je Merkmal als Quelle braucht (EN-Regeltext + DE-Fassung). */
 export interface TranslationSource {
   name: string;
   nameDe?: string;
@@ -42,7 +31,6 @@ export interface TranslationSource {
   key?: string;
 }
 
-/** Die englische Wahl, wie die Analyse sie liefert — Eingang für T1. */
 export interface TranslatableChoice {
   id: string;
   featureKey: string;
@@ -161,7 +149,6 @@ export async function translateChoices(
   return out;
 }
 
-/** Eine zu übersetzende Bogen-Notiz samt ihrem Merkmal. */
 export interface TranslatableNote {
   index: number;
   featureKey: string;

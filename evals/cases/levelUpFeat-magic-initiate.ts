@@ -16,14 +16,8 @@
  * Kosten: Fall A ist Analyse + Finalisierung (~4 Calls je Lauf), Fall B kostet nichts.
  */
 import type { FeatureRider } from '../../src/lib/schemas/levelUp';
-import {
-  analyzeFeatureEffects,
-  finalizeFeatureEffects,
-  type AnalysisChoice,
-  type FeatureAnalysis,
-  type FeatureEffectsContext,
-  type ResolvedChoice,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import { type AnalysisChoice, type ResolvedChoice } from '../../src/lib/services/analysis/types';
 import { spellAccessChoices, spellAccessGrantOf } from '../../src/lib/services/spellAccess';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';

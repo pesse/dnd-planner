@@ -1,27 +1,20 @@
-// Interne Navigation über Standard-Markdown-Links zwischen Vault-Dateien.
-//
-// Ein Link wie [Dorfzentrum](world/dorfzentrum.md) in einer Akt-/Kampagnendatei
-// wird relativ zur gerade geöffneten Datei aufgelöst, der Zieltyp aus dem Pfad
-// abgeleitet und – wie beim Klick in der Sidebar – mit Navigations-Guard geöffnet.
-// Karten-Typen (npc/monster/encounter/spell/item/character) laden ihren Inhalt
-// selbst via activeFile-Subscription; nur Editor-Typen brauchen setFileContent.
+// Interne Navigation über Markdown-Links zwischen Vault-Dateien: Ziel relativ zur
+// offenen Datei auflösen, Typ aus dem Pfad ableiten, über den Guard öffnen. Karten-Typen
+// laden ihren Inhalt selbst via activeFile; nur Editor-Typen brauchen setFileContent.
 
-import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import { activeFile, activeCampaign, setFileContent } from '../stores/campaign';
+import { activeFile, setFileContent } from '../stores/campaign';
 import { confirmNavigation } from '../stores/navigationGuard';
 import { loadActSummaries } from '../stores/context';
 import type { FileEntry } from '../types';
 
-/** Typen, deren Inhalt im Markdown-Editor angezeigt wird (brauchen setFileContent). */
 const EDITOR_TYPES = new Set<FileEntry['type']>(['campaign', 'act', 'session', 'world', 'notes']);
 
-/** true für externe/Anker-Links, die nicht intern navigiert werden. */
 function isExternal(href: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#') || href.startsWith('//');
 }
 
-/** Relativen Link gegen die Quelldatei auflösen; gibt einen `./vault/...`-Pfad zurück. */
+/** Ergebnis ist immer die `./vault/…`-Form, die die Tauri-Kommandos erwarten. */
 export function resolveVaultPath(fromFilePath: string, href: string): string {
   const cleanHref = href.split('#')[0].split('?')[0];
   const baseDir = fromFilePath.replace(/\/[^/]*$/, '');
@@ -35,7 +28,7 @@ export function resolveVaultPath(fromFilePath: string, href: string): string {
   return './' + out.join('/');
 }
 
-/** Dateityp aus dem Vault-Pfad ableiten (Single Source für die Routing-Logik). */
+/** Die eine Stelle, die aus einem Vault-Pfad einen Dateityp macht. */
 export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/campaign\.md$/i.test(path)) return 'campaign';
   if (/\/acts\/[^/]+\/index\.md$/i.test(path)) return 'act';
@@ -46,7 +39,6 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/sessions\/[^/]+\.md$/i.test(path)) return 'session';
   if (/\/world\/[^/]+\.md$/i.test(path)) return 'world';
   if (/\/notes\/[^/]+\.md$/i.test(path)) return 'notes';
-  // Globale Bibliotheken
   if (/\/vault\/monsters\/.+\.json$/i.test(path)) return 'monster';
   if (/\/vault\/spells\/.+\.json$/i.test(path)) return 'spell';
   if (/\/vault\/items\/.+\.json$/i.test(path)) return 'item';
@@ -54,14 +46,19 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/vault\/species\/[^/]+\.json$/i.test(path)) return 'species';
   if (/\/vault\/feats\/[^/]+\.json$/i.test(path)) return 'feat';
   if (/\/vault\/backgrounds\/[^/]+\.json$/i.test(path)) return 'background';
-  // Charaktere: verzeichnisbasiert (./vault/characters/<slug>), kein Suffix.
+  // Charaktere sind verzeichnisbasiert, tragen also kein Suffix.
   if (/\/vault\/characters\/[^/]+\/?$/i.test(path)) return 'character';
-  // Fallback: jede andere .md als Notiz behandeln
   if (/\.md$/i.test(path)) return 'notes';
   return null;
 }
 
-/** Anzeigename wie beim Sidebar-Öffnen (Akt = Verzeichnis-Slug, sonst Dateiname). */
+export async function openItemPage(item: { name: string; path: string }): Promise<void> {
+  if (!(await confirmNavigation())) return;
+  const name = item.path.split('/').pop()?.replace('.json', '') ?? item.name;
+  activeFile.set({ name, path: item.path, type: 'item' });
+}
+
+/** Muss dem Sidebar-Öffnen gleichen: beim Akt der Verzeichnis-Slug, sonst der Dateiname. */
 function displayName(path: string, type: FileEntry['type']): string {
   if (type === 'campaign') return 'campaign';
   if (type === 'act') {
@@ -73,12 +70,15 @@ function displayName(path: string, type: FileEntry['type']): string {
 }
 
 /**
- * Öffnet das Ziel eines Markdown-Links innerhalb der App.
- * @returns true, wenn der Link intern behandelt wurde (auch bei Abbruch durch den
- *          Guard); false bei externen/nicht auflösbaren Links – der Aufrufer kann
- *          dann z.B. im System-Browser öffnen.
+ * `campaignPath` reicht der Aufrufer aus dem Store herein — nur für den Akt-Seiteneffekt.
+ * @returns true = intern behandelt, auch wenn der Guard abbricht; false nur bei externen
+ *          oder nicht auflösbaren Links, die der Aufrufer dann selbst öffnen darf.
  */
-export async function openVaultLink(href: string, fromFilePath: string): Promise<boolean> {
+export async function openVaultLink(
+  href: string,
+  fromFilePath: string,
+  campaignPath?: string,
+): Promise<boolean> {
   if (!href || !fromFilePath || isExternal(href)) return false;
 
   let decoded = href;
@@ -90,7 +90,6 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
 
   if (!(await confirmNavigation())) return true; // Abbruch wegen ungespeicherter Änderungen
 
-  // Charaktere sind verzeichnisbasiert (PDF/JSON); ein evtl. Schrägstrich am Ende weg.
   const cleanTarget = type === 'character' ? target.replace(/\/$/, '') : target;
   const entry: FileEntry = { name: displayName(cleanTarget, type), path: cleanTarget, type };
   if (type === 'character') entry.dirPath = cleanTarget;
@@ -108,14 +107,9 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
     }
   }
 
-  // Kontext-Seiteneffekt nur fürs KI-Panel beim Akt – exakt wie die Sidebar beim
-  // Öffnen eines Akts (openFile). Encounter/NPC/Karten lösen bewusst keinen
-  // Kontext-Reload aus (die laufen nur bei Kampagnen-Wechsel), damit die Navigation
-  // sich identisch zur erprobten Sidebar verhält.
-  if (type === 'act') {
-    const campaignPath = get(activeCampaign)?.path;
-    if (campaignPath) loadActSummaries(campaignPath);
-  }
+  // Nur der Akt lädt Kontext nach, genau wie die Sidebar. Karten-Typen tun das bewusst
+  // nicht — sonst verhielte sich die Link-Navigation anders als die erprobte Sidebar.
+  if (type === 'act' && campaignPath) loadActSummaries(campaignPath);
 
   return true;
 }

@@ -1,16 +1,10 @@
 /**
- * Deterministischer Delta-Service für den Stufenaufstieg (kein LLM).
- *
- * Berechnet — rein aus der Open5e-v2-Progression (`classProgression.ts`) — was ein
- * Charakter beim Aufstieg einer Klasse um +1 Stufe DAZU bekommt. Alle numerischen
- * Ergebnisse sind DELTAS (Differenz alt→neu), nie Absolutwerte, damit sie später
- * additiv angewandt werden können (item-gewährte Slots etc. bleiben erhalten).
- *
- * Bei fehlender Progression (Homebrew / leerer sourceKey / Netzfehler) degradiert
- * der Service graceful: `isHomebrew=true`, Deltas leer → die LLM-Schicht fragt alles ab.
+ * Deterministischer Delta-Service für den Stufenaufstieg (kein LLM). Alle Zahlen sind DELTAS,
+ * nie Absolutwerte — nur additiv angewandt bleiben item-gewährte Slots erhalten. Ohne
+ * Progression (Homebrew, Netzfehler) degradiert er auf `isHomebrew`, und die KI fragt alles ab.
  */
-import type { Character } from '../schemas/character';
-import { totalLevel } from '../schemas/character';
+import type { Character } from '../schemas/characterSchema';
+import { totalLevel } from '../schemas/classLevelText';
 import type { ClassFeature, ClassProgression } from '../schemas/classProgression';
 import {
   getProgressionByKey,
@@ -20,7 +14,7 @@ import {
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
 import { cantripCount, isSpellcastingFeature, preparedOrKnownCount } from './spellcasting';
-import { isFlowOwnedDeclaration } from './featureDeclaration';
+import { isFlowOwnedDeclaration } from './declaration/optionList';
 
 export interface SubclassOption {
   key: string;
@@ -43,13 +37,13 @@ export interface LevelUpDelta {
   casterType: string; // FULL/HALF/NONE/…
   casterKind: 'prepared' | 'known' | 'none'; // aus casterType + Tabellenspalte abgeleitet
   spellSlotDelta: number[]; // Länge 9, idx0 = Grad 1, negativ→0
-  castingIsNew: boolean; // Zauberwirken wird in dieser Spanne ERSTMALS erlangt (nicht: schon vorher Zauberwirker)
+  castingIsNew: boolean; // ERSTMALS erlangt, nicht: ist Zauberwirker
   cantripDelta: number;
-  preparedFrom: number; // Anzahl vorbereitbarer Zauber auf fromLevel
-  preparedTo: number; // … auf toLevel
-  preparedDelta: number; // max(0, preparedTo - preparedFrom)
-  masteryFrom: number; // Waffenbeherrschung: Kontingent auf fromLevel (0 = Klasse hat sie nicht)
-  masteryTo: number; // … auf toLevel; ein Anstieg erzeugt nur einen Hinweis, keine Wahl
+  preparedFrom: number;
+  preparedTo: number;
+  preparedDelta: number;
+  masteryFrom: number; // Waffenbeherrschungs-Kontingent; 0 = Klasse hat sie nicht
+  masteryTo: number; // ein Anstieg erzeugt nur einen Hinweis, keine Wahl
   featuresGained: ClassFeature[];
   subclassFeaturesGained: ClassFeature[];
   triggersSubclassChoice: boolean;
@@ -73,22 +67,13 @@ function matches(f: ClassFeature, hints: string[]): boolean {
 }
 
 /**
- * Reine „Wahl-Zeiger" unter den Klassenmerkmalen: Merkmale, deren einziger Inhalt eine
- * Entscheidung ist, die der Aufstiegs-Flow selbst deterministisch trifft — die Subklassen-
- * Wahl („Rogue Subclass", „Cleric Subclasses") am eigenen Checkpoint, die Attributs-
- * verbesserung (Fragebogen `asi_or_feat_*` → ggf. Talent-Schritte) und jede über
- * `grantsChoice` DEKLARIERTE Wahl (Waffenbeherrschung, Kampfstil, Zauberwirken — Optionen
- * aus der Bibliothek). Eigene Mechanik tragen sie nicht; in der Merkmals-Analyse würden sie
- * die KI nur dazu verleiten, eine längst getroffene Entscheidung erneut zu erzwingen — bei
- * Waffenbeherrschung/Kampfstil/Zauberwirken käme sogar eine LLM-ERFUNDENE Options-Liste
- * heraus statt der aus dem Vault abgeleiteten.
+ * Merkmale, deren einziger Inhalt eine Wahl ist, die der Flow selbst trifft. Sie fliegen aus
+ * der Merkmals-Analyse: die KI erzwänge sonst eine längst getroffene Entscheidung erneut und
+ * böte bei Waffenbeherrschung/Kampfstil/Zauberwirken eine ERFUNDENE Options-Liste an.
  *
- * Zwei Hälften, und nur eine ist allgemein: `isFlowOwnedDeclaration` gilt für jede Herkunft,
- * die Namensheuristiken darunter sind KLASSEN-Vokabular („subclass", „ability score",
- * „Spellcasting", „Weapon Mastery"). Auf Traits oder Talente angewandt würden sie fehlzünden —
- * und sie werden dort nicht gebraucht, weil ein nicht-redigiertes Merkmal von ihnen ohnehin nie
- * gefiltert wurde. Bewusst ENG gebunden: „subclass" statt `SUBCLASS_HINTS` (dessen weiche
- * Begriffe patron, circle, path … treffen sonst echte Merkmale wie „Contact Patron").
+ * Nur `isFlowOwnedDeclaration` gilt für jede Herkunft — die Namensheuristiken darunter sind
+ * KLASSEN-Vokabular und würden auf Traits oder Talenten fehlzünden. „subclass" ist bewusst ENG
+ * gebunden statt an `SUBCLASS_HINTS`, dessen weiche Begriffe „Contact Patron" mit treffen.
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
   return (
@@ -100,127 +85,173 @@ export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
   );
 }
 
-/** Merkmale, die eine Klasse in der Spanne (fromLevel, toLevel] erlangt (Mehrfach-Aufstieg). */
 function featuresBetween(prog: ClassProgression, fromLevel: number, toLevel: number): ClassFeature[] {
   return prog.features
     .filter((f) => f.gainedAt.some((l) => l > fromLevel && l <= toLevel))
     .sort((a, b) => Math.min(...a.gainedAt) - Math.min(...b.gainedAt));
 }
 
+/** Aus Charakter + Ziel abgeleitet, ohne Progression. */
+interface LevelSpan {
+  classIndex: number;
+  isNewClass: boolean;
+  sourceKey: string;
+  klasseName: string;
+  subclassKey: string;
+  subclassName: string;
+  fromLevel: number;
+  toLevel: number;
+  /** Der Übungsbonus hängt an der GESAMTstufe, nicht an der Klassenstufe. */
+  oldTotal: number;
+  newTotalLevel: number;
+  atLevelCap: boolean;
+}
+
+function levelSpan(
+  character: Character,
+  classIndex: number,
+  targetLevel?: number,
+  newClass?: { sourceKey: string; name: string },
+): LevelSpan {
+  const classes = character.classes ?? [];
+  const existing = classes[classIndex];
+  const isNewClass = !!newClass;
+  const fromLevel = isNewClass ? 0 : (existing?.level ?? 1);
+  const toLevel = Math.min(20, Math.max(fromLevel + 1, targetLevel ?? fromLevel + 1));
+  const oldTotal = totalLevel(classes);
+  return {
+    classIndex,
+    isNewClass,
+    sourceKey: isNewClass ? newClass!.sourceKey : (existing?.sourceKey ?? ''),
+    klasseName: isNewClass ? newClass!.name : (existing?.name ?? ''),
+    subclassKey: isNewClass ? '' : (existing?.subclassKey ?? ''),
+    subclassName: isNewClass ? '' : (existing?.subclassName ?? ''),
+    fromLevel,
+    toLevel,
+    oldTotal,
+    newTotalLevel: oldTotal - fromLevel + toLevel,
+    atLevelCap: fromLevel >= 20,
+  };
+}
+
+/** Ohne Progression bleibt nur der Übungsbonus — er zählt über die Gesamtstufe. */
+function homebrewDelta(span: LevelSpan): LevelUpDelta {
+  return {
+    classIndex: span.classIndex,
+    klasseName: span.klasseName,
+    sourceKey: span.sourceKey,
+    subclassKey: span.subclassKey,
+    subclassName: span.subclassName,
+    fromLevel: span.fromLevel,
+    toLevel: span.toLevel,
+    levelsGained: Math.max(1, span.toLevel - span.fromLevel),
+    newTotalLevel: span.newTotalLevel,
+    profBonusFrom: proficiencyBonus(span.oldTotal),
+    profBonusTo: proficiencyBonus(span.newTotalLevel),
+    hitDie: 0, casterType: 'NONE', casterKind: 'none',
+    spellSlotDelta: Array(9).fill(0), castingIsNew: false, cantripDelta: 0,
+    preparedFrom: 0, preparedTo: 0, preparedDelta: 0,
+    masteryFrom: 0, masteryTo: 0,
+    featuresGained: [], subclassFeaturesGained: [], subclassOptions: [],
+    triggersSubclassChoice: false, triggersASI: false, asiCount: 0,
+    isNewClass: span.isNewClass,
+    isHomebrew: true,
+    atLevelCap: span.atLevelCap,
+  };
+}
+
+type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta'>;
+
+function spellcastingDelta(prog: ClassProgression, span: LevelSpan): SpellcastingDelta {
+  const { fromLevel, toLevel } = span;
+  const slotsFrom = fromLevel <= 0 ? Array<number>(9).fill(0) : spellSlotsAt(prog, fromLevel);
+  const slotsTo = spellSlotsAt(prog, toLevel);
+  const cantripFrom = fromLevel <= 0 ? 0 : cantripCount(prog, fromLevel);
+  const prepTo = preparedOrKnownCount(prog, toLevel);
+  const prepFrom = fromLevel <= 0 ? { count: 0, kind: prepTo.kind } : preparedOrKnownCount(prog, fromLevel);
+  // Neu ist Zauberwirken nur ohne JEDE Spur davon auf fromLevel — sonst bekäme ein längst
+  // zaubernder Charakter (Druide 2→3) bei jedem Aufstieg einen neuen Eintrag.
+  const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || cantripFrom > 0 || prepFrom.count > 0);
+  return {
+    casterType: prog.casterType,
+    casterKind: prepTo.kind,
+    spellSlotDelta: slotsTo.map((n, i) => Math.max(0, n - (slotsFrom[i] ?? 0))),
+    castingIsNew: prepTo.kind !== 'none' && !hadCasting,
+    cantripDelta: Math.max(0, cantripCount(prog, toLevel) - cantripFrom),
+    preparedFrom: prepFrom.count,
+    preparedTo: prepTo.count,
+    preparedDelta: Math.max(0, prepTo.count - prepFrom.count),
+  };
+}
+
+/** Nur die Startklasse stellt das Kontingent — Klassenkombination gewährt es nicht erneut. */
+function masteryDelta(prog: ClassProgression, span: LevelSpan): Pick<LevelUpDelta, 'masteryFrom' | 'masteryTo'> {
+  if (span.classIndex !== 0 || span.isNewClass) return { masteryFrom: 0, masteryTo: 0 };
+  return {
+    masteryFrom: span.fromLevel > 0 ? masteryAllowanceFor(prog, span.fromLevel) : 0,
+    masteryTo: masteryAllowanceFor(prog, span.toLevel),
+  };
+}
+
+function featureDelta(prog: ClassProgression, span: LevelSpan): Pick<LevelUpDelta, 'featuresGained' | 'triggersASI' | 'asiCount'> {
+  const featuresGained = featuresBetween(prog, span.fromLevel, span.toLevel);
+  const asiCount = prog.features
+    .filter((f) => matches(f, ASI_HINTS))
+    .reduce((n, f) => n + f.gainedAt.filter((l) => l > span.fromLevel && l <= span.toLevel).length, 0);
+  return { featuresGained, triggersASI: featuresGained.some((f) => matches(f, ASI_HINTS)), asiCount };
+}
+
+type SubclassDelta = Pick<LevelUpDelta, 'subclassFeaturesGained' | 'subclassOptions' | 'triggersSubclassChoice'>;
+
 /**
- * Berechnet das Aufstiegs-Delta für die Klasse `classIndex` des Charakters von ihrer
- * aktuellen Stufe bis `targetLevel` (Default: +1). Kumulativ über alle übersprungenen
- * Stufen. Übungsbonus zählt über die GESAMTstufe (Multiclass-Regel); Features/Slots/
- * Trefferwürfel kommen aus der gewählten Klasse (+ ggf. Subklasse).
+ * Die Optionen kommen NUR aus der lokalen Bibliothek (kein Open5e-Zugriff zur Laufzeit) —
+ * eine fehlende Subklasse muss zuvor lokal angelegt werden.
  */
+async function subclassDelta(span: LevelSpan, featuresGained: ClassFeature[]): Promise<SubclassDelta> {
+  const empty = { subclassFeaturesGained: [], subclassOptions: [], triggersSubclassChoice: false };
+  if (span.subclassKey) {
+    const subProg = await getProgressionByKey(span.subclassKey);
+    if (!subProg) return empty;
+    return { ...empty, subclassFeaturesGained: featuresBetween(subProg, span.fromLevel, span.toLevel) };
+  }
+
+  const options = new Map<string, SubclassOption>();
+  try {
+    for (const c of await getClasses()) {
+      if (c.subclassOf === span.sourceKey && c.key) options.set(c.key, { key: c.key, name: classDisplayName(c) });
+    }
+  } catch {
+    /* lokale Bibliothek nicht lesbar → keine Optionen, kein Blocker */
+  }
+  const subclassOptions = [...options.values()];
+  const gainsSubclassFeature = featuresGained.some((f) => matches(f, SUBCLASS_HINTS));
+  return {
+    ...empty,
+    subclassOptions,
+    triggersSubclassChoice: subclassOptions.length > 0 && (gainsSubclassFeature || span.fromLevel >= 2),
+  };
+}
+
+/** Kumulativ bis `targetLevel` (Default: +1) — auch über übersprungene Stufen hinweg. */
 export async function computeLevelUpDelta(
   character: Character,
   classIndex: number,
   targetLevel?: number,
   newClass?: { sourceKey: string; name: string },
 ): Promise<LevelUpDelta> {
-  const classes = character.classes ?? [];
-  const existing = classes[classIndex];
-  const isNewClass = !!newClass;
-  const fromLevel = isNewClass ? 0 : (existing?.level ?? 1);
-  const sourceKey = isNewClass ? newClass!.sourceKey : (existing?.sourceKey ?? '');
-  const klasseName = isNewClass ? newClass!.name : (existing?.name ?? '');
-  const atLevelCap = fromLevel >= 20;
-  const toLevel = Math.min(20, Math.max(fromLevel + 1, targetLevel ?? fromLevel + 1));
-  const oldTotal = totalLevel(classes);
-  const newTotalLevel = oldTotal - fromLevel + toLevel;
+  const span = levelSpan(character, classIndex, targetLevel, newClass);
+  const prog = await getProgressionByKey(span.sourceKey);
+  const delta = homebrewDelta(span);
+  if (!prog) return delta;
 
-  const delta: LevelUpDelta = {
-    classIndex,
-    klasseName,
-    sourceKey,
-    subclassKey: isNewClass ? '' : (existing?.subclassKey ?? ''),
-    subclassName: isNewClass ? '' : (existing?.subclassName ?? ''),
-    fromLevel,
-    toLevel,
-    levelsGained: Math.max(1, toLevel - fromLevel),
-    newTotalLevel,
-    profBonusFrom: proficiencyBonus(oldTotal),
-    profBonusTo: proficiencyBonus(newTotalLevel),
-    hitDie: 0,
-    casterType: 'NONE',
-    casterKind: 'none',
-    spellSlotDelta: Array(9).fill(0),
-    castingIsNew: false,
-    cantripDelta: 0,
-    preparedFrom: 0,
-    preparedTo: 0,
-    preparedDelta: 0,
-    masteryFrom: 0,
-    masteryTo: 0,
-    featuresGained: [],
-    subclassFeaturesGained: [],
-    triggersSubclassChoice: false,
-    triggersASI: false,
-    asiCount: 0,
-    subclassOptions: [],
-    isNewClass,
-    isHomebrew: true,
-    atLevelCap,
+  const features = featureDelta(prog, span);
+  return {
+    ...delta,
+    isHomebrew: false,
+    hitDie: prog.hitDie,
+    ...spellcastingDelta(prog, span),
+    ...masteryDelta(prog, span),
+    ...features,
+    ...(await subclassDelta(span, features.featuresGained)),
   };
-
-  const prog = await getProgressionByKey(sourceKey);
-  delta.isHomebrew = !prog;
-
-  if (prog) {
-    delta.hitDie = prog.hitDie;
-    delta.casterType = prog.casterType;
-    const slotsFrom = fromLevel <= 0 ? Array<number>(9).fill(0) : spellSlotsAt(prog, fromLevel);
-    const slotsTo = spellSlotsAt(prog, toLevel);
-    delta.spellSlotDelta = slotsTo.map((n, i) => Math.max(0, n - (slotsFrom[i] ?? 0)));
-    const cantripFrom = fromLevel <= 0 ? 0 : cantripCount(prog, fromLevel);
-    delta.cantripDelta = Math.max(0, cantripCount(prog, toLevel) - cantripFrom);
-    const prepTo = preparedOrKnownCount(prog, toLevel);
-    const prepFrom = fromLevel <= 0 ? { count: 0, kind: prepTo.kind } : preparedOrKnownCount(prog, fromLevel);
-    delta.casterKind = prepTo.kind;
-    // Zauberwirken ist NUR dann neu, wenn der Charakter auf fromLevel noch keinerlei
-    // Zauberwirken hatte (keine Plätze, Tricks oder vorbereitbaren/bekannten Zauber).
-    // Sonst (z.B. Druide 2→3) ist die Klasse längst Zauberwirker → kein neuer Eintrag.
-    const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || cantripFrom > 0 || prepFrom.count > 0);
-    delta.castingIsNew = prepTo.kind !== 'none' && !hadCasting;
-    delta.preparedFrom = prepFrom.count;
-    delta.preparedTo = prepTo.count;
-    delta.preparedDelta = Math.max(0, prepTo.count - prepFrom.count);
-    // Waffenbeherrschung wird bei Klassenkombination NICHT erneut gewährt: nur die
-    // Startklasse (classIndex 0) stellt das Kontingent. Bei jeder weiteren Klasse
-    // bleibt es 0/0 → kein Hinweis.
-    if (classIndex === 0 && !isNewClass) {
-      delta.masteryFrom = fromLevel > 0 ? masteryAllowanceFor(prog, fromLevel) : 0;
-      delta.masteryTo = masteryAllowanceFor(prog, toLevel);
-    }
-    delta.featuresGained = featuresBetween(prog, fromLevel, toLevel);
-    delta.triggersASI = delta.featuresGained.some((f) => matches(f, ASI_HINTS));
-    // Anzahl ASI-Stufen in der Spanne (jede ASI-Stufe = eine Entscheidung).
-    for (const f of prog.features) {
-      if (matches(f, ASI_HINTS)) delta.asiCount += f.gainedAt.filter((l) => l > fromLevel && l <= toLevel).length;
-    }
-
-    // Subklassen-Merkmale (falls bereits eine Subklasse gewählt ist).
-    if (delta.subclassKey) {
-      const subProg = await getProgressionByKey(delta.subclassKey);
-      if (subProg) delta.subclassFeaturesGained = featuresBetween(subProg, fromLevel, toLevel);
-    } else {
-      // Noch keine Subklasse → Optionen NUR aus der lokalen Bibliothek anbieten
-      // (kein Open5e-Zugriff zur Laufzeit). Enthält eigene/Homebrew-Subklassen wie
-      // „Circle of the Moon". Fehlende Subklassen müssen zuvor lokal angelegt werden.
-      const options = new Map<string, SubclassOption>();
-      try {
-        for (const c of await getClasses()) {
-          if (c.subclassOf === delta.sourceKey && c.key) options.set(c.key, { key: c.key, name: classDisplayName(c) });
-        }
-      } catch {
-        /* lokale Bibliothek nicht lesbar → keine Optionen, kein Blocker */
-      }
-      delta.subclassOptions = [...options.values()];
-      const gainsSubclassFeature = delta.featuresGained.some((f) => matches(f, SUBCLASS_HINTS));
-      delta.triggersSubclassChoice = delta.subclassOptions.length > 0 && (gainsSubclassFeature || fromLevel >= 2);
-    }
-  }
-
-  return delta;
 }

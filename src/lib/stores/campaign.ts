@@ -1,15 +1,8 @@
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import type { Campaign, FileEntry, Item } from '../types';
+import type { Campaign, FileEntry } from '../types';
 
 export const activeCampaign = writable<Campaign | null>(null);
-
-/**
- * Noch nicht gespeicherter Gegenstand (KI- oder manuelle Anlage). Ist er gesetzt,
- * zeigt die ItemCard ihn direkt im Bearbeiten-Modus; erst beim Speichern wird die
- * Datei angelegt. `dir` = Zielkategorie (Ordnername).
- */
-export const newItemDraft = writable<{ item: Item; dir: string } | null>(null);
 
 /** Increment to signal that vault files have changed (e.g. after an agent write). */
 export const vaultVersion = writable(0);

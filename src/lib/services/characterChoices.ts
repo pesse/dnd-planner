@@ -1,48 +1,32 @@
 /**
- * Die eine Stelle, die fragt: **welche Wahlen schuldet dieser Charakter, und welche sind
- * beantwortet?**
- *
- * Alle vorhandenen Deklarations-Prädikate (`isOptionListFeature`, `isExpertiseFeature`,
- * `isFlowOwnedDeclaration`) sind Eingangsfilter für die KI-Kette — Fragen an einen
- * ENTSTEHENDEN Aufstieg, nie an einen gespeicherten Charakter. Deshalb war eine deklarierte
- * Wahl bisher nur im Moment ihres Entstehens beantwortbar: wer nie durch den Wizard lief
- * (PDF-Import, Altbestand) oder dessen Deklaration erst später in den Vault kam, hatte keinen
- * Weg, sie zu treffen. Dieses Modul ist dieser Weg.
- *
- * Zwei Hälften, weil die Expertise-Optionen LIVE vom Übungsstand des Formulars abhängen:
- * `collectChoiceSlots` fragt die Bibliothek (async, an den Links hängend),
- * `buildCharacterChoices` verknüpft die Plätze mit Ledger und Häkchen (synchron, ein
- * `$derived`). Wer beides in einen Effekt legte, löste mit jeder Antwort eine neue
- * Bibliotheksauflösung aus.
- *
- * Erzeugt wird KEIN neuer Wahl-Typ: `AnalysisChoice` ist der eine Typ von Oberfläche und
- * Ledger (`declaredChoice.ts`), und die Wirkung läuft über `FeatureRider` →
- * `validateRiderSpells` → `riderChanges` → `applyChanges` — dieselbe Kette wie im Aufstieg.
+ * Welche Wahlen schuldet dieser Charakter, und welche sind beantwortet? Die vorhandenen
+ * Deklarations-Prädikate fragen nur einen ENTSTEHENDEN Aufstieg — für Altbestand und
+ * PDF-Import ist dies der einzige Weg, eine deklarierte Wahl noch zu treffen.
  */
-import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/character';
+import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/characterSchema';
 import type { Change, FeatureRider } from '$lib/schemas/levelUp';
-import { SKILL_NAMES, type SkillName } from '$lib/schemas/shared';
-import { skillEnName, totalLevel } from '$lib/pdf/characterFields';
+import { SKILL_NAMES, type SkillName } from '$lib/schemas/vocabulary';
+import { skillEnName } from '$lib/domain/skills';
+import { totalLevel } from '$lib/schemas/classLevelText';
 import type { SpellInfo } from '$lib/spellLibrary';
-import { choiceLabelsDe, type AnalysisChoice } from './aiActions/featureEffectsAction';
+import { choiceLabelsDe, type AnalysisChoice } from './analysis/types';
 import type { CoverageBadge } from './declarationCoverage';
 import type { DeclaredFeature } from './declaredFeature';
 import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
-import {
-  chosenOption, expertiseChoice, expertiseRider, isDeclaredChoiceFeature, isExpertiseFeature,
-  optionListChoice, optionListRider,
-} from './featureDeclaration';
+import { chosenOption, isDeclaredChoiceFeature, optionListChoice, optionListRider } from './declaration/optionList';
+import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
 import {
   characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
 } from './characterProperties';
-import { riderChanges, validateRiderSpells } from './levelUpMachine';
+import { riderChanges } from './levelUp/changes';
+import { validateRiderSpells } from './levelUp/spells';
 
-/** Ein Wahl-Platz: deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
+/** Ein deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
 export interface ChoiceSlot {
   feature: DeclaredFeature;
-  /** Anzeigegruppe des Trägers — nur Beschriftung (Badge-Titel), nie Zuordnung. */
+  /** Nur Beschriftung (Badge-Titel), nie Zuordnung. */
   group: string;
   /** Vergabe-Stufe = zweiter Teil des Ledger-Schlüssels. */
   gainedAt: number;
@@ -50,36 +34,30 @@ export interface ChoiceSlot {
   level: number;
 }
 
-/** Ein Wahl-Platz samt Frage, Antwort und Ledger-Fundstelle. */
 export interface CharacterChoice {
   slot: ChoiceSlot;
   /** Aus `optionListChoice` / `expertiseChoice` — kein zweiter Erzeuger. */
   choice: AnalysisChoice;
   /** Kanonisch (englisch); leer = OFFEN. */
   answer: string[];
-  /** Anzeigefassung der Antwort (Badge-Titel, Bogen). */
   answerDe: string;
   open: boolean;
   /**
    * Index im übergebenen Ledger, −1 = noch kein Eintrag. Lesen und Schreiben teilen ihn,
-   * damit die Zuordnungsregel (unten) nicht zweimal existiert.
+   * damit die Zuordnungsregel nicht zweimal existiert.
    */
   entry: number;
 }
 
-/** Die Antwort eines Ledger-Eintrags in ihre kanonischen Werte (so schreibt `answerValues`). */
 const splitAnswer = (choice: string): string[] => choice.split(',').map((v) => v.trim()).filter(Boolean);
 
-/** Ledger-Schlüssel eines Platzes; leer = nicht speicherbar (siehe `buildCharacterChoices`). */
+/** Leer = nicht speicherbar (siehe `buildCharacterChoices`). */
 const keyOf = (slot: ChoiceSlot): string => slot.feature.key?.trim() ?? '';
 
 /**
- * Alle Wahl-Plätze eines Charakters, aus der Bibliothek aufgelöst.
- *
- * `kind`-Auswahl über `isDeclaredChoiceFeature`: `optionList`, `expertise` und
- * `characterProperty` — die Arten, deren Antwort im Merkmals-Ledger landet. `weaponMastery`
- * hat seinen eigenen Picker, `spellcasting` gehört dem Zauber-Block, `spellAccess`/
- * `featCategory` bleiben draußen.
+ * Async und getrennt von `buildCharacterChoices`: läge beides in einem Effekt, löste jede
+ * Antwort eine neue Bibliotheksauflösung aus. `isDeclaredChoiceFeature` lässt nur die Arten
+ * durch, deren Antwort im Merkmals-Ledger landet (Waffenmeisterschaft hat eigenen Picker).
  */
 export async function collectChoiceSlots(c: {
   classes?: CharacterClass[];
@@ -115,14 +93,10 @@ export async function collectChoiceSlots(c: {
 }
 
 /**
- * Verknüpft die Plätze mit dem Ledger und dem Übungsstand des Bogens.
- *
  * Ledger-Zuordnung in ZWEI Läufen, und die Reihenfolge ist der ganze Witz: erst alle exakten
- * `(sourceKey, gainedAt)`-Treffer — dieselbe Regel wie der Upsert in `applyChanges`
- * (`case 'featureChoice'`) —, dann bekommen offene Plätze die übrigen Einträge ihres Keys.
- * Der zweite Lauf ist der Altbestand: dort fehlt `gainedAt` meist ganz (und der Aufstieg
- * matcht Spezies-Antworten ohnehin nur am Key). Ohne ihn wäre eine vorhandene Antwort
- * unsichtbar, denn der read-only Chip weicht dem Picker.
+ * `(sourceKey, gainedAt)`-Treffer — dieselbe Regel wie der Upsert in `applyChanges` —, dann
+ * bekommen offene Plätze die übrigen Einträge ihres Keys. Der zweite Lauf ist der Altbestand:
+ * dort fehlt `gainedAt` meist, und ohne ihn wäre eine vorhandene Antwort unsichtbar.
  */
 export function buildCharacterChoices(
   slots: ChoiceSlot[],
@@ -131,11 +105,9 @@ export function buildCharacterChoices(
   const used = new Set<number>();
   const entryOf = slots.map(() => -1);
   const claim = (si: number, i: number) => { used.add(i); entryOf[si] = i; };
-  // Nur ein Eintrag MIT Antwort ist beanspruchbar — `choice` ist der Diskriminator
-  // (`schemas/character.ts`), sonst überschriebe eine Wahl ihren eigenen Talent-Link:
-  // der Slot eines Talent-Merkmals trägt denselben `sourceKey` wie sein Link. Erst dieser
-  // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben — und nur dann ist `entry`
-  // ein Index ins echte Ledger, das `withChoiceAnswer` reihenfolge-treu schreiben kann.
+  // Nur ein Eintrag MIT Antwort ist beanspruchbar — `choice` ist der Diskriminator, sonst
+  // überschriebe eine Wahl ihren eigenen Talent-Link (gleicher `sourceKey`). Erst dieser
+  // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben.
   const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
   slots.forEach((slot, si) => {
     const i = ctx.ledger.findIndex((e, j) => !used.has(j) && answered(e) && !!keyOf(slot) && e.sourceKey === keyOf(slot) && e.gainedAt === slot.gainedAt);
@@ -158,11 +130,8 @@ export function buildCharacterChoices(
 
     const answer = answers[si];
     // Belegt sind die Antworten der ANDEREN Expertise-Plätze — NICHT die verdoppelten
-    // Fertigkeiten des Bogens. Bei genau den Charakteren, für die dieses Panel existiert,
-    // sind die Häkchen ja die (nur nie protokollierte) Antwort auf DIESE Wahl: filterte man
-    // danach, fehlten dem Schurken ausgerechnet die zwei Fertigkeiten, die er nachtragen
-    // will. Zwischen zwei Vergaben stapelt Expertise weiterhin nicht — die Antwort der
-    // Stufe 1 fällt bei Stufe 6 heraus und bleibt bei Stufe 1 sichtbar.
+    // Fertigkeiten des Bogens: die sind bei genau diesen Charakteren die nie protokollierte
+    // Antwort auf DIESE Wahl, ein Filter danach nähme dem Schurken seine zwei Fertigkeiten.
     const already = answers.filter((_, j) => j !== si && isExpertiseFeature(slots[j].feature)).flat();
     const choice = isExpertiseFeature(slot.feature)
       ? expertiseChoice(slot.feature, ctx.proficient, already)
@@ -183,25 +152,19 @@ export function buildCharacterChoices(
   return out;
 }
 
-/** Die Wirkung einer getroffenen Wahl, samt allem, was der Picker darüber sagen muss. */
 export interface ChoiceGrants {
   changes: Change[];
   /** Zaubernamen ohne Bibliothekstreffer — gemeldet, nicht repariert (wie im Aufstieg). */
   flagged: string[];
-  /** Die Wirkung; null = die Option gewährt nichts ODER die Antwort trifft keine Option. */
+  /** null = die Option gewährt nichts ODER die Antwort trifft keine Option. */
   rider: FeatureRider | null;
-  /** Ob die Antwort überhaupt eine Option/geübte Fertigkeit trifft. */
   matched: boolean;
 }
 
 /**
- * Antwort → `Change[]`, über die Kette des Aufstiegs.
- *
- * Braucht die Zauberbibliothek, weil eine Abstammungs-Option benannte Zauber gewährt (Elf,
- * Tiefling) — `riderGrantChanges` allein deckte nur die Übungen. Gefahrlos wiederholbar:
- * alle so erzeugten Ziele sind idempotent (Flags setzen, Zauber mit Dedup anhängen). Das
- * einzige additive Ziel in `riderChanges` ist `ability`, und das kann hier nicht entstehen —
- * `featureGrantSchema` hat kein Attributsfeld und `emptyRider` lässt es auf null.
+ * Antwort → `Change[]` über dieselbe Kette wie der Aufstieg; kein zweiter Wahl-Typ.
+ * Gefahrlos wiederholbar: alle so erzeugten Ziele sind idempotent, und das einzige additive
+ * Ziel (`ability`) kann hier nicht entstehen — `featureGrantSchema` hat kein Attributsfeld.
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
   const f = ch.slot.feature;
@@ -225,7 +188,7 @@ export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): C
   return { changes: riderChanges(v, 'feature-effects'), flagged: v.flagged, rider, matched };
 }
 
-/** Was am Platz steht, wenn dort KEIN „Übernehmen" erscheint — drei ehrliche Fassungen. */
+/** Was am Platz steht, wenn dort KEIN „Übernehmen" erscheint. */
 export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter: boolean }): string {
   if (!ch.answer.length) return '';
   if (!g.matched) return 'Diese Antwort passt zu keiner Option — Altbestand oder Tippfehler. Bitte neu wählen.';
@@ -242,9 +205,8 @@ export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter
 }
 
 /**
- * Antwort ins Ledger schreiben. Eine GELEERTE Antwort löscht ihren Eintrag: ein Eintrag mit
- * leerem `choice` wäre ein Phantom-Talent-Link (`choice` ist der Diskriminator,
- * schemas/character.ts).
+ * Eine GELEERTE Antwort löscht ihren Eintrag: ein Eintrag mit leerem `choice` wäre ein
+ * Phantom-Talent-Link, weil `choice` der Diskriminator ist.
  */
 export function withChoiceAnswer(
   ledger: CharacterFeatureEntry[],
@@ -273,12 +235,8 @@ export function withChoiceAnswer(
 }
 
 /**
- * Der Zähler an der Merkmals-Leiste — in der Sprache, die die Bibliothekskarten schon
- * sprechen (`CoverageBadge`, gold = offen).
- *
- * null, sobald nichts OFFEN ist: „alle getroffen" ist keine Meldung wert, sondern der
- * Normalfall. Der `title` listet trotzdem alle Wahlen, damit die getroffenen im Tooltip
- * nachlesbar bleiben.
+ * null, sobald nichts OFFEN ist — „alle getroffen" ist keine Meldung wert. Der `title`
+ * listet trotzdem alle Wahlen, damit die getroffenen im Tooltip nachlesbar bleiben.
  */
 export function openChoiceBadge(list: CharacterChoice[]): CoverageBadge | null {
   const open = list.filter((c) => c.open);
@@ -295,10 +253,8 @@ export function openChoiceBadge(list: CharacterChoice[]): CoverageBadge | null {
 
 /**
  * Der Übungsstand des BOGENS als englische SRD-Namen — die Optionsliste jeder
- * Expertise-Wahl (der einzige `kind`, dessen Optionen nicht im Vault stehen können).
- *
- * Hier statt inline in beiden Aufrufern (Editor und `LevelUpAssistant`): die deutsche
- * Bogen-Schlüsselung ist genau die Übersetzungsgrenze, an der zwei Fassungen auseinanderlaufen.
+ * Expertise-Wahl, der einzige `kind`, dessen Optionen nicht im Vault stehen können.
+ * Hier statt inline in beiden Aufrufern: die Bogen-Schlüsselung ist die Übersetzungsgrenze.
  */
 export function sheetSkillProficiencies(
   skills: Record<string, { prof?: boolean; exp?: boolean }> | undefined,

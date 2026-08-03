@@ -1,23 +1,21 @@
 /**
- * Runtime-Validierung & Normalisierung der Entitäten — getrieben von den
- * Zod-Schemas in schemas/ (Single Source of Truth).
- *
- * - `normalizeX(raw)`  → nachsichtig: migriert Altformate, füllt Defaults, strippt
- *   Unbekanntes. Wirft NIE (Fallback = migrierte Rohdaten), damit das Laden/
- *   Rendern von Vault-Dateien robust bleibt.
- * - `parseX(raw)`      → Validierungs-Gate mit `ParseResult` (z.B. für Editoren).
+ * Runtime-Validierung und Normalisierung aller Entitäten, getrieben von den Zod-Schemas.
+ * Jeder Typ bekommt beides: ein `normalizeX` fürs robuste Laden und, wo ein Editor davor
+ * sitzt, ein `parseX` als Gate.
  */
 import type { Spell, Monster, Item, Encounter } from '../types';
 import { spellSchema, migrateSpellLegacy } from '../schemas/spell';
 import { monsterSchema, migrateMonsterLegacy } from '../schemas/monster';
 import { itemSchema, migrateItemLegacy } from '../schemas/item';
 import { encounterSchema, migrateEncounterLegacy } from '../schemas/encounter';
-import { characterSchema, migrateCharacterLegacy, type Character } from '../schemas/character';
+import { npcSchema, migrateNpcLegacy, type Npc } from '../schemas/npc';
+import { characterSchema, type Character } from '../schemas/characterSchema';
+import { migrateCharacterLegacy } from '../schemas/characterUpgrades';
 import { classProgressionSchema, migrateClassLegacy, type ClassProgression } from '../schemas/classProgression';
 import { speciesSchema, migrateSpeciesLegacy, type Species } from '../schemas/species';
 import { featSchema, migrateFeatLegacy, type Feat } from '../schemas/feat';
 import { backgroundSchema, type Background } from '../schemas/background';
-import { migrateSourceLegacy } from '../schemas/shared';
+import { migrateSourceLegacy } from '../schemas/source';
 import type { ZodType } from 'zod';
 
 export type ParseResult<T> =
@@ -26,7 +24,7 @@ export type ParseResult<T> =
 
 type Migrate = (raw: unknown) => Record<string, unknown>;
 
-/** Nachsichtig: migrieren + parsen, bei Fehlern die migrierten Rohdaten zurückgeben. */
+/** Wirft NIE — bei Schema-Bruch gelten die migrierten Rohdaten, damit das Laden robust bleibt. */
 function normalize<T>(schema: ZodType, migrate: Migrate, raw: unknown): T {
   const migrated = migrate(raw);
   const r = schema.safeParse(migrated);
@@ -46,27 +44,33 @@ function parse<T>(schema: ZodType, migrate: Migrate, raw: unknown): ParseResult<
   return { ok: false, errors: r.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`) };
 }
 
-// ── Spell ──────────────────────────────────────────────────────────────────────
+/** Ein Karten-Editor bekommt Dateitext: kaputtes JSON zählt wie ein Schema-Bruch. */
+export function jsonParser<T>(validate: (raw: unknown) => ParseResult<T>) {
+  return (json: string): T | null => {
+    try {
+      const result = validate(JSON.parse(json));
+      return result.ok ? result.data : null;
+    } catch { return null; }
+  };
+}
+
 export const normalizeSpell = (raw: unknown): Spell => normalize(spellSchema, migrateSpellLegacy, raw);
 export const parseSpell = (raw: unknown): ParseResult<Spell> => parse(spellSchema, migrateSpellLegacy, raw);
 
-// ── Monster ──────────────────────────────────────────────────────────────────────
 export const normalizeMonster = (raw: unknown): Monster => normalize(monsterSchema, migrateMonsterLegacy, raw);
 export const parseMonster = (raw: unknown): ParseResult<Monster> => parse(monsterSchema, migrateMonsterLegacy, raw);
 
-// ── Item ───────────────────────────────────────────────────────────────────────
 export const normalizeItem = (raw: unknown): Item => normalize(itemSchema, migrateItemLegacy, raw);
 export const parseItem = (raw: unknown): ParseResult<Item> => parse(itemSchema, migrateItemLegacy, raw);
 
-// ── Encounter ────────────────────────────────────────────────────────────────────
+export const normalizeNpc = (raw: unknown): Npc => normalize(npcSchema, migrateNpcLegacy, raw);
+
 export const normalizeEncounter = (raw: unknown): Encounter => normalize(encounterSchema, migrateEncounterLegacy, raw);
 export const parseEncounter = (raw: unknown): ParseResult<Encounter> => parse(encounterSchema, migrateEncounterLegacy, raw);
 
-// ── Character ────────────────────────────────────────────────────────────────────
 export const normalizeCharacter = (raw: unknown): Character => normalize(characterSchema, migrateCharacterLegacy, raw);
 export const parseCharacter = (raw: unknown): ParseResult<Character> => parse(characterSchema, migrateCharacterLegacy, raw);
 
-// ── Regel-Bibliothek (Klasse/Spezies/Talent/Hintergrund) ───────────────────────────
 // Kein Altformat außer der Herkunft: die trugen diese Typen früher nur in
 // `document.key`, jetzt zusätzlich in `source`.
 const libraryEntry: Migrate = (raw) => migrateSourceLegacy(raw as Record<string, unknown>);

@@ -3,22 +3,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { pushError } from './errors';
 import { invalidateVault } from './campaign';
 import { invalidateSpellLibrary } from '../spellLibrary';
-import { invalidateClassCache, invalidateClassFeatureCache } from '../classLibrary';
+import { invalidateClassCache } from '../classLibrary';
 import { invalidateSpeciesCache } from '../speciesLibrary';
 import { invalidateFeatsCache } from '../featsLibrary';
 import { invalidateBackgroundsCache } from '../backgroundsLibrary';
 import { invalidateItemCache } from '../itemLibrary';
-import { invalidateMonsterPaths } from './context';
+import { invalidateMonsterPaths } from '../services/contextLoad';
 
 /**
- * Zustand einer verteilten Bibliothek.
- *
- * - `installed`  aktuelle Fassung liegt im Vault
- * - `update`     neuere Fassung verfügbar
- * - `available`  noch nicht installiert, aber zugänglich
- * - `locked`      geschützt, kein Zugangscode hinterlegt
- * - `staleCode`   hinterlegter Code gehört zu einer älteren Passwortfassung
- * - `appOutdated` die Fassung verlangt eine neuere App (`minVersion`)
+ * `installed`/`update`/`available` sind Installationsstände, die drei anderen Sperren:
+ * `locked` = kein Zugangscode hinterlegt, `staleCode` = der hinterlegte gehört zu einer
+ * älteren Passwortfassung, `appOutdated` = die Fassung verlangt eine neuere App.
  */
 export type LibraryState =
   | 'installed'
@@ -39,7 +34,7 @@ export interface Library {
   fileCount: number;
   status: LibraryState;
   installedVersion?: string;
-  /** App-Version, die diese Fassung mindestens verlangt (nur wenn deklariert). */
+  /** Nur wenn die Fassung es deklariert. */
   minVersion?: string;
 }
 
@@ -54,23 +49,18 @@ export const libraries = writable<Library[]>([]);
 export const librariesLoading = writable(false);
 export const libraryManagerOpen = writable(false);
 
-/** ids, für die gerade eine Installation läuft. */
 export const installing = writable<Set<string>>(new Set());
 
-/** True, wenn wir innerhalb der Tauri-Runtime laufen (nicht im Vite-Browser-Dev). */
+/** Im reinen Vite-Browser-Dev gibt es keine Kommandos — dann tut hier alles nichts. */
 function inTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
-/** Anzahl Bibliotheken mit verfügbarem Update — speist den Sidebar-Badge. */
 export function updateCount(list: Library[]): number {
   return list.filter((l) => l.status === 'update').length;
 }
 
-/**
- * Holt das Bibliotheksverzeichnis. Beim Start bewusst still: ohne Netz soll
- * die App normal starten, der Fehler landet nur in der Konsole.
- */
+/** Beim Start bewusst still: ohne Netz soll die App trotzdem normal starten. */
 export async function refreshLibraries(silent = true): Promise<void> {
   if (!inTauri()) return;
   librariesLoading.set(true);
@@ -88,11 +78,8 @@ export async function refreshLibraries(silent = true): Promise<void> {
 }
 
 /**
- * Löst einen Zugangscode ein.
- *
- * Der Nutzer weiß in der Regel nicht, zu welcher Bibliothek sein Code gehört —
- * deshalb wird er gegen alle geschützten Packs geprüft. Rückgabe sind die
- * Namen der entsperrten Bibliotheken.
+ * Der Nutzer weiß meist nicht, zu welcher Bibliothek sein Code gehört — deshalb wird er
+ * gegen alle geschützten Packs geprüft.
  */
 export async function redeemAccessCode(code: string): Promise<string[]> {
   const unlocked = await invoke<string[]>('try_access_code', { code });
@@ -101,11 +88,8 @@ export async function redeemAccessCode(code: string): Promise<string[]> {
 }
 
 /**
- * Installiert bzw. aktualisiert eine Bibliothek.
- *
- * Trifft die Installation auf vorhandene, aber nicht von uns verwaltete
- * Dateien (Bestandsinstallation), schreibt sie nichts und meldet `needsAdopt`.
- * Die Oberfläche fragt dann nach und ruft erneut mit `adopt = true`.
+ * Trifft die Installation auf fremde Bestandsdateien, schreibt sie NICHTS und meldet
+ * `needsAdopt`; die Oberfläche fragt nach und ruft erneut mit `adopt = true`.
  */
 export async function installLibrary(id: string, adopt = false): Promise<InstallSummary> {
   installing.update((s) => new Set(s).add(id));
@@ -125,23 +109,17 @@ export async function installLibrary(id: string, adopt = false): Promise<Install
   }
 }
 
-/** Zusammengefasstes Ergebnis über mehrere Bibliotheken. */
 export interface BatchResult {
   written: number;
   skippedModified: number;
   removed: number;
-  /** Bibliotheken, die auf Bestandsdateien getroffen sind (id → Anzahl). */
   needsAdopt: Record<string, number>;
-  /** Bibliotheken, bei denen etwas schiefging (id → Meldung). */
   failed: Record<string, string>;
 }
 
 /**
- * Installiert mehrere Bibliotheken nacheinander.
- *
- * Bewusst sequentiell: die Packs schreiben in denselben Vault, und die
- * Fortschrittsanzeige bleibt so nachvollziehbar. Ein Fehlschlag bei einer
- * Bibliothek bricht die übrigen nicht ab — er landet in `failed`.
+ * Bewusst sequentiell: die Packs schreiben in denselben Vault. Ein Fehlschlag bricht die
+ * übrigen nicht ab, er landet in `failed`.
  */
 export async function installMany(ids: string[], adopt = false): Promise<BatchResult> {
   const result: BatchResult = {
@@ -166,20 +144,16 @@ export async function installMany(ids: string[], adopt = false): Promise<BatchRe
   return result;
 }
 
-/** Entfernt einen gespeicherten Zugangscode; installierte Inhalte bleiben. */
+/** Installierte Inhalte bleiben. */
 export async function forgetAccessCode(id: string): Promise<void> {
   await invoke('forget_access_code', { id });
   await refreshLibraries(false);
 }
 
-/**
- * Entwertet alle Bibliotheks-Caches, damit frisch installierte Inhalte sofort
- * sichtbar sind. `invalidateVault` weckt zusätzlich die Sidebar-Listen.
- */
+/** `invalidateVault` weckt zusätzlich die Sidebar-Listen. */
 function invalidateLibraryCaches(): void {
   invalidateSpellLibrary();
   invalidateClassCache();
-  invalidateClassFeatureCache();
   invalidateSpeciesCache();
   invalidateFeatsCache();
   invalidateBackgroundsCache();
@@ -189,10 +163,8 @@ function invalidateLibraryCaches(): void {
 }
 
 /**
- * Prüft beim Start auf neue Fassungen und installiert offene Bibliotheken,
- * die noch gar nicht vorliegen — damit eine frische Installation ohne
- * Zugangscode sofort brauchbar ist. Updates werden nie ungefragt gezogen;
- * dafür gibt es den Badge.
+ * Installiert nur noch gar nicht vorliegende, offene Bibliotheken — damit eine frische
+ * Installation sofort brauchbar ist. UPDATES werden nie ungefragt gezogen, dafür der Badge.
  */
 export async function checkLibrariesOnStartup(): Promise<void> {
   if (!inTauri()) return;

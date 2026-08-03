@@ -11,13 +11,8 @@
  *   Call C — mit UNBEANTWORTETER Wahl: kein Zauber darf gewährt und keine Entscheidung
  *            protokolliert werden (die Zauber wählt der Spieler im Checkpoint).
  */
-import {
-  analyzeFeatureEffects,
-  finalizeFeatureEffects,
-  type AnalysisChoice,
-  type FeatureAnalysis,
-  type FeatureEffectsContext,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import { type AnalysisChoice } from '../../src/lib/services/analysis/types';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
 import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type StepResult } from './featureEffectsStep';

@@ -16,5 +16,8 @@
   "location": "string",
   "loot": "string",
   "notes": "string",
-  "status": "planned"
+  "status": "planned",
+  "tags": [
+    "string"
+  ]
 }

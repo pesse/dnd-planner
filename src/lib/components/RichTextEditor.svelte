@@ -6,9 +6,8 @@
   import './editor.css';
 
   interface Props {
-    /** Markdown-Inhalt (Body, kein Frontmatter) */
+    /** Body, kein Frontmatter. */
     value: string;
-    /** Wird bei jeder Änderung mit dem aktuellen Markdown aufgerufen */
     onChange?: (markdown: string) => void;
     placeholder?: string;
   }
@@ -18,8 +17,8 @@
   let editorEl: HTMLElement | null = null;
   let editor = $state<Editor | null>(null);
 
-  // tiptap-markdown (v0.9) ist für TipTap v2 geschrieben; schmaler typisierter
-  // Zugriff statt verstreuter any-Casts (vgl. MarkdownEditor).
+  // tiptap-markdown (v0.9) ist für TipTap v2 geschrieben — typisierter Zugriff statt
+  // verstreuter any-Casts (vgl. MarkdownEditor).
   function markdownStorage(ed: Editor): { getMarkdown(): string } {
     return (ed.storage as unknown as { markdown: { getMarkdown(): string } }).markdown;
   }
@@ -28,7 +27,6 @@
   let sourceValue = $state('');
   let lastEmitted = '';
 
-  // Reaktiver Zähler: incrementiert bei jedem TipTap-Event → Button-States neu auswerten
   let tick = $state(0);
 
   let isBold       = $derived(tick >= 0 && (editor?.isActive('bold') ?? false));
@@ -81,13 +79,11 @@
     editor = null;
   });
 
-  // Externe Wert-Änderung (z.B. Tab-Wechsel / Neuladen) in den Editor übernehmen.
   $effect(() => {
     const v = value;
     if (!editor) return;
-    // Stammt der Wert aus unserem eigenen emit (Tippen), nicht zurückschreiben.
-    // Sonst kann eine nicht-idempotente Markdown-Serialisierung (z.B. „&") eine
-    // Endlosschleife value → setContent → onUpdate → value … auslösen.
+    // Werte aus dem eigenen Emit nicht zurückschreiben: eine nicht-idempotente
+    // Markdown-Serialisierung („&") liefe sonst endlos value → setContent → onUpdate.
     if (v === lastEmitted) return;
     const current = markdownStorage(editor).getMarkdown();
     if (v === current) return;

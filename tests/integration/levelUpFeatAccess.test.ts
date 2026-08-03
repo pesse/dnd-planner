@@ -5,7 +5,7 @@
  * fest, hier wählt der Spieler sie. Geprüft wird die ganze Kette bis zum Änderungs-Dokument,
  * denn erst sie beweist, dass die Wahlen am Charakter ankommen.
  *
- *   npm run eval -- --eval levelUpFeatAccess
+ *   npm run test -- levelUpFeatAccess
  */
 import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';
@@ -18,8 +18,10 @@ import {
   spellListChoiceId,
   withoutSpellAccessFeatures,
 } from '../../src/lib/services/spellAccess';
-import { buildDoc, buildFeatureChoices, featToGainedFeature } from '../../src/lib/services/levelUpMachine';
-import { noDeclaredSpells } from '../../src/lib/services/levelUpMachine';
+import { buildDoc } from '../../src/lib/services/levelUp/doc';
+import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
+import { featToGainedFeature } from '../../src/lib/services/levelUp/features';
+import { noDeclaredSpells } from '../../src/lib/services/levelUp/spells';
 import { encodePick } from '../../src/lib/services/spellcasting';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import {

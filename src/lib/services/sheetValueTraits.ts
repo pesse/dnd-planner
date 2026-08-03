@@ -8,7 +8,6 @@
  */
 import type { SheetValueTrait } from '../schemas/species';
 
-/** Strukturelles Minimum: alles, was einen Diskriminator tragen kann. */
 export interface SheetValueSource {
   sheetValue?: SheetValueTrait;
 }

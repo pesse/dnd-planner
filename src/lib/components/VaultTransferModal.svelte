@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import Modal from './ui/Modal.svelte';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
   import { invalidateVault } from '../stores/campaign';
 
@@ -65,7 +66,6 @@
     return Object.fromEntries(LIBS.map((l) => [l.key, c[l.key]])) as Record<LibKey, boolean>;
   }
 
-  // ── Export ──────────────────────────────────────────────────────────────
   let overview = $state<VaultContents | null>(null);
   let expCampaigns = $state<Record<string, boolean>>({});
   let expCharacters = $state<Record<string, boolean>>({});
@@ -120,7 +120,6 @@
     }
   }
 
-  // ── Import ──────────────────────────────────────────────────────────────
   let zipPath = $state<string | null>(null);
   let manifest = $state<VaultContents | null>(null);
   let impCampaigns = $state<Record<string, boolean>>({});
@@ -186,14 +185,7 @@
   }
 </script>
 
-<div class="backdrop" role="presentation" onclick={onclose}></div>
-
-<div class="dialog" role="dialog" aria-label="Vault Import / Export">
-  <div class="modal-header">
-    <span class="modal-title">Vault Import / Export</span>
-    <button class="close-btn" onclick={onclose} title="Schließen">×</button>
-  </div>
-
+<Modal title="Vault Import / Export" draggable={false} width="min(520px, 92vw)" {onclose}>
   <div class="tabs">
     <button class="tab" class:active={tab === 'export'} onclick={() => (tab = 'export')}>Export</button>
     <button class="tab" class:active={tab === 'import'} onclick={() => (tab = 'import')}>Import</button>
@@ -318,49 +310,9 @@
     {#if importResult}<p class="hint ok">{importResult}</p>{/if}
     {#if importError}<p class="hint err">{importError}</p>{/if}
   {/if}
-</div>
+</Modal>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 999;
-  }
-  .dialog {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(520px, 92vw);
-    max-height: 84vh;
-    overflow-y: auto;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0 1.1rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-  }
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-    margin: 0 -1.1rem 0.2rem;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid var(--surface);
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-  }
-  .modal-title { font-weight: 700; font-size: 1rem; color: var(--ink); }
-  .close-btn { background: none; border: none; color: var(--ink-muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
-  .close-btn:hover { color: var(--ink); }
-
   .tabs { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--surface); }
   .tab {
     background: none; border: none; border-bottom: 2px solid transparent;
@@ -395,15 +347,6 @@
 
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; align-items: center; }
   .actions.left { justify-content: flex-start; }
-  .primary-btn {
-    background: var(--red); border: none; border-radius: 4px; color: #fff;
-    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
-  }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .secondary-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft);
-    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
-  }
 
   .hint { font-size: 0.78rem; margin: 0; color: var(--ink-muted); }
   .hint.ok { color: var(--gold, #c89b3c); }

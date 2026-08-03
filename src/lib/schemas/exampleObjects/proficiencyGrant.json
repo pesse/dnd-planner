@@ -1,0 +1,23 @@
+{
+  "skills": {
+    "fixed": [
+      "Acrobatics"
+    ],
+    "choose": 0,
+    "from": [
+      "Acrobatics"
+    ]
+  },
+  "savingThrows": [
+    "Strength"
+  ],
+  "weapons": [
+    "Simple"
+  ],
+  "weaponsOther": [
+    "string"
+  ],
+  "armor": [
+    "Light"
+  ]
+}

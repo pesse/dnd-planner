@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Spell } from '../types';
   import { SPELL_SCHOOLS, SPELL_CLASS_KEYS, SPELL_CLASS_LABELS } from '../types';
+  import FormSection from './ui/FormSection.svelte';
 
   let {
     spell = $bindable<Spell>(),
@@ -71,10 +72,8 @@
   </div>
 </div>
 
-<div class="divider"></div>
-
 <!-- Ausführung -->
-<div class="section">
+<FormSection gap="0.15rem">
   <div class="prop">
     <span class="lbl">Zauberdauer</span>
     <input class="ef wide" bind:value={spell.casting_time} oninput={mark} />
@@ -97,13 +96,10 @@
         placeholder="z.B. ein Rubin im Wert von 50 GM" />
     {/if}
   </div>
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Klassen -->
-<div class="section">
-  <div class="section-title">Klassen</div>
+<FormSection title="Klassen" gap="0.15rem">
   <div class="class-grid">
     {#each SPELL_CLASS_KEYS as key}
       <label class="chk">
@@ -123,13 +119,10 @@
       </label>
     {/each}
   </div>
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Beschreibung (DE) -->
-<div class="section">
-  <div class="section-title">Beschreibung (Deutsch)</div>
+<FormSection title="Beschreibung (Deutsch)" gap="0.15rem">
   <textarea class="ef ability-desc" rows={8}
     value={descDeText}
     oninput={(e) => setDescDe((e.target as HTMLTextAreaElement).value)}
@@ -142,37 +135,30 @@
       <div class="orig-text">{spell.desc.join('\n\n')}</div>
     {/if}
   {/if}
-</div>
-
-<div class="divider"></div>
+</FormSection>
 
 <!-- Auf höheren Graden -->
-<div class="section">
-  <div class="section-title">Auf höheren Graden (Deutsch)</div>
+<FormSection title="Auf höheren Graden (Deutsch)" gap="0.15rem">
   <textarea class="ef ability-desc" rows={3}
     value={higherLevelDeText}
     placeholder="Optional…"
     oninput={(e) => setHigherLevelDe((e.target as HTMLTextAreaElement).value)}
   ></textarea>
-</div>
+</FormSection>
 
 <!-- Optionale Strukturfelder -->
 {#if spell.damage}
-  <div class="divider"></div>
-  <div class="section">
-    <div class="section-title">Schaden</div>
+  <FormSection title="Schaden" gap="0.15rem">
     <div class="prop">
       <span class="lbl">Schadenstyp</span>
       <input class="ef wide" value={spell.damage.damage_type.name}
         oninput={(e) => { spell.damage!.damage_type.name = (e.target as HTMLInputElement).value; onchange(); }} />
     </div>
-  </div>
+  </FormSection>
 {/if}
 
 {#if spell.dc}
-  <div class="divider"></div>
-  <div class="section">
-    <div class="section-title">Rettungswurf</div>
+  <FormSection title="Rettungswurf" gap="0.15rem">
     <div class="prop">
       <span class="lbl">Attribut</span>
       <select class="ef" value={spell.dc.dc_type.index}
@@ -190,13 +176,11 @@
         <option value="other">Anderes</option>
       </select>
     </div>
-  </div>
+  </FormSection>
 {/if}
 
 {#if spell.area_of_effect}
-  <div class="divider"></div>
-  <div class="section">
-    <div class="section-title">Wirkungsbereich</div>
+  <FormSection title="Wirkungsbereich" gap="0.15rem">
     <div class="prop">
       <span class="lbl">Form</span>
       <select class="ef" bind:value={spell.area_of_effect.type} onchange={mark}>
@@ -205,25 +189,10 @@
       <span class="lbl-sm">Größe (ft)</span>
       <input class="ef num" type="number" bind:value={spell.area_of_effect.size} oninput={mark} />
     </div>
-  </div>
+  </FormSection>
 {/if}
 
 <style>
-  /* ── Basis-Input ── */
-  .ef {
-    background: var(--bg-panel);
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--ink);
-    font-family: inherit;
-    font-size: 0.88rem;
-    padding: 0.15rem 0.3rem;
-    outline: none;
-  }
-  .ef:hover { border-color: var(--border); background: var(--bg-panel); }
-  .ef:focus { border-color: var(--mef-accent, var(--arcane)); background: var(--bg-panel); }
-
-  /* ── Header ── */
   .sb-header { margin-bottom: 0.4rem; }
 
   .sb-name {
@@ -269,27 +238,6 @@
 
   .sep { color: var(--ink-soft); padding: 0 0.1rem; }
 
-  /* ── Divider ── */
-  .divider {
-    height: 2px;
-    background: linear-gradient(to right, var(--bg-raised), var(--mef-accent, var(--arcane)) 55%);
-    margin: 0.6rem 0;
-    border-radius: 1px;
-  }
-
-  /* ── Section ── */
-  .section { display: flex; flex-direction: column; gap: 0.15rem; }
-
-  .section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--mef-accent, var(--arcane));
-    margin: 0 0 0.3rem;
-    font-variant: small-caps;
-    border-bottom: 1px solid var(--mef-accent, var(--arcane));
-    padding-bottom: 0.15rem;
-  }
-
   .prop {
     display: flex;
     align-items: baseline;
@@ -304,7 +252,6 @@
   .wide { flex: 1; min-width: 120px; }
   .num  { width: 52px; text-align: center; }
 
-  /* ── Checkboxen ── */
   .chk {
     display: inline-flex;
     align-items: center;
@@ -315,14 +262,12 @@
     white-space: nowrap;
   }
 
-  /* ── Klassenraster ── */
   .class-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.4rem;
   }
 
-  /* ── Textareas ── */
   .ability-desc {
     width: 100%;
     resize: vertical;
@@ -332,7 +277,6 @@
     min-height: 2.5rem;
   }
 
-  /* ── Original-Anzeige ── */
   .toggle-orig {
     background: none; border: none; color: var(--border);
     font-size: 0.75rem; cursor: pointer; padding: 0;

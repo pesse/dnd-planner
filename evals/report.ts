@@ -1,15 +1,6 @@
 /**
- * Datei-Report für die Evals.
- *
- * - `installCapture()` + `captureRun()` fangen die ECHTEN Requests/Responses ein,
- *   die `logDebug` (prod) über den Tap meldet — URL, redigierte Header, Body =
- *   voller Prompt+Schema, sowie content/usage/durationMs. Via AsyncLocalStorage
- *   werden sie korrekt dem jeweiligen Lauf zugeordnet, auch bei parallelen Läufen.
- * - `writeEvalReport()` schreibt vier Artefakte nach `evals/reports/<timestamp>-<titel>/`:
- *     report.html  — self-contained (Pass-Raten + je Lauf Request/Response/Ergebnis)
- *     summary.md   — menschenlesbar (Pass-Raten, Latenz, Tokens)
- *     summary.json — maschinenlesbar (Aggregate)
- *     runs.jsonl   — ein Lauf pro Zeile mit vollem Request + roher Response + Zeiten
+ * Datei-Report für die Evals: `captureRun` fängt die ECHTEN Requests/Responses ein,
+ * `writeEvalReport` schreibt report.html, summary.md, summary.json und runs.jsonl.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,22 +13,17 @@ import { writeReportIndex } from './reportIndex.mjs';
 export type CapturedCall = DebugEntry;
 
 /**
- * Per-Lauf-Capture der echten Requests/Responses — korrekt AUCH bei parallelen Läufen.
- *
- * `logDebug` (prod) ruft den Tap; der Tap schiebt jeden Eintrag in den ALS-Kontext
- * des gerade laufenden `captureRun`. Weil AsyncLocalStorage über await-Grenzen hinweg
- * propagiert, landet jeder Eintrag zuverlässig beim richtigen Lauf, egal wie sich die
- * Requests zeitlich verschränken.
+ * AsyncLocalStorage statt einer Modulvariable: nur so landet jeder Debug-Eintrag beim
+ * richtigen Lauf, auch wenn sich parallele Requests zeitlich verschränken.
  */
 const als = new AsyncLocalStorage<CapturedCall[]>();
 
-/** Registriert den Tap (einmal in beforeAll). Rückgabe: Deinstallation (afterAll). */
+/** Rückgabe ist die Deinstallation (für `afterAll`). */
 export function installCapture(): () => void {
   setDebugTap((entry) => als.getStore()?.push(entry));
   return () => setDebugTap(null);
 }
 
-/** Führt `fn` aus und sammelt alle in diesem Kontext geloggten Debug-Einträge. */
 export async function captureRun<T>(
   fn: () => Promise<T>,
 ): Promise<{ result?: T; error?: unknown; entries: CapturedCall[] }> {
@@ -54,15 +40,12 @@ export interface EvalReport {
   generatedAt: string;
   model: string;
   provider: string;
-  /** Kurzer Titel zum Unterscheiden der Reports (z.B. der Prompt-Name). */
   title: string;
-  /** Optionale Beschreibung: was dieser Lauf testet / was am Prompt anders ist. */
   description?: string;
   runsPerStep: number;
   threshold: number;
-  /** Max. gleichzeitige Läufe je Step (1 = sequenziell, saubere Einzel-Latenz). */
+  /** 1 = sequenziell und damit saubere Einzel-Latenz. */
   concurrency: number;
-  /** Step-Reports dieses einen Prompts. */
   steps: StepReport[];
 }
 
@@ -78,7 +61,6 @@ const slugify = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
 
-/** Ordner je Report: <timestamp>[-<titel>], damit sich mehrere Läufe unterscheiden lassen. */
 function reportsDir(report: EvalReport): string {
   const ts = report.generatedAt.replace(/[:.]/g, '-');
   const title = slugify(report.title);
@@ -135,7 +117,7 @@ function md(report: EvalReport): string {
   return lines.join('\n');
 }
 
-/** Aggregat ohne die schweren Roh-Mitschnitte (die stehen in runs.jsonl). */
+/** Ohne die schweren Roh-Mitschnitte — die stehen in runs.jsonl. */
 function summaryJson(report: EvalReport): unknown {
   return {
     ...report,
@@ -176,7 +158,7 @@ function runsJsonl(report: EvalReport): string {
   return rows.join('\n') + '\n';
 }
 
-// ── Self-contained HTML-Report (reines HTML/CSS, <details> zum Aufklappen) ───────
+// Self-contained: reines HTML/CSS, kein Asset-Verweis — der Report soll allein verschickbar sein.
 
 const esc = (s: unknown) =>
   String(s ?? '')
@@ -186,11 +168,7 @@ const esc = (s: unknown) =>
 
 const secs = (ms?: number) => (ms == null ? '—' : `${(ms / 1000).toFixed(1)}s`);
 
-/**
- * Request-Debug-Eintrag → exakter, gesendeter Request. Zeigt Endpoint, alle
- * Body-Parameter außer `messages` (u.a. `response_format`, `model`, `temperature`,
- * `tools`) als JSON, dann die Messages lesbar — plus den vollständigen Roh-Body.
- */
+/** Body-Parameter außer `messages` als JSON, dann die Messages lesbar, dann der Roh-Body. */
 function renderRequest(request: unknown): string {
   const req = request as { url?: string; body?: Record<string, unknown> } | undefined;
   const body = req?.body;
@@ -215,7 +193,6 @@ function renderRequest(request: unknown): string {
   return endpoint + paramsBlock + messages + raw;
 }
 
-/** Response-Debug-Eintrag → roher content (Fallback: JSON). */
 function renderResponse(response: unknown): string {
   const content = (response as { content?: unknown })?.content;
   if (typeof content === 'string') return `<pre>${esc(content)}</pre>`;
@@ -259,7 +236,6 @@ function renderRuns(report: EvalReport): string {
             `${r.serverMs ? ` (server ${secs(r.serverMs)})` : ''}` +
             `${r.usage ? ` · ${r.usage.sent}↑/${r.usage.received}↓ tok` : ''}` +
             `${r.calls.length > 1 ? ` · ${r.calls.length} Calls` : ''}`;
-          // Jeder Call (Pass A Thinking, Pass C Guided, …) mit eigenem Request+Response.
           const callsHtml = r.calls
             .map((c, ci) => {
               const title = r.calls.length > 1 ? `Call ${ci + 1}` : 'Call';
@@ -327,7 +303,6 @@ ${renderRuns(report)}
 </body></html>`;
 }
 
-/** Schreibt summary.md / summary.json / runs.jsonl / report.html und gibt das Verzeichnis zurück. */
 export function writeEvalReport(report: EvalReport): string {
   const dir = reportsDir(report);
   mkdirSync(dir, { recursive: true });
@@ -335,8 +310,7 @@ export function writeEvalReport(report: EvalReport): string {
   writeFileSync(`${dir}summary.json`, JSON.stringify(summaryJson(report), null, 2), 'utf8');
   writeFileSync(`${dir}runs.jsonl`, runsJsonl(report), 'utf8');
   writeFileSync(`${dir}report.html`, htmlReport(report), 'utf8');
-  // Übersicht (manifest.json + index.html) automatisch aktualisieren — ein
-  // Fehler hier darf den Eval-Lauf nie kippen.
+  // Ein Fehler beim Aktualisieren der Übersicht darf den Eval-Lauf nie kippen.
   try {
     writeReportIndex(fileURLToPath(new URL('./reports/', import.meta.url)));
   } catch (err) {

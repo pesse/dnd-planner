@@ -1,11 +1,15 @@
 <script lang="ts">
   import type { Spell } from '$lib/types';
-  import { spellLevelLabel, spellDesc, spellHigherLevel, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
+  import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
+  import { printHtmlDocument } from '$lib/utils/printFrame';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
-  import { parseSpell as _parseSpell } from '$lib/utils/schemaValidation';
+  import { parseSpell as _parseSpell, jsonParser } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import CardParseError from './ui/CardParseError.svelte';
+  import CardEditWrap from './ui/CardEditWrap.svelte';
+  import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
@@ -15,18 +19,12 @@
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import Markdown from './Markdown.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
-  import { searchOpen5eSpells, getSpell, mapOpen5eSpell, type Open5eItemSearchResult } from '$lib/services/open5eApi';
-  import { slugify } from '$lib/editor/saveAs';
+  import { searchOpen5eSpells, getSpell, type Open5eItemSearchResult } from '$lib/services/open5eClient';
+  import { mapOpen5eSpell } from '$lib/services/open5eSpellMapper';
+  import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
 
-  function parseSpell(json: string): Spell | null {
-    try {
-      const result = _parseSpell(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
-
-  // school (englisch im JSON) → Ordnername (deutsch im Vault)
+  // Schule englisch im JSON, Ordnername deutsch im Vault.
   const SCHOOL_TO_DIR: Record<string, string> = {
     abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
     enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
@@ -36,8 +34,8 @@
   const ed = createCardEditor<Spell>({
     type: 'spell',
     label: 'Zauber',
-    parse: parseSpell,
-    defaultName: (s) => slugify(s.name || 'zauber'),
+    parse: jsonParser(_parseSpell),
+    defaultName: (s) => slugKeepUmlauts(s.name || 'zauber'),
     location: {
       bucketLabel: 'Schule',
       bucketOf: (s) => SCHOOL_TO_DIR[s.school],
@@ -50,16 +48,8 @@
     onSaved: () => invalidateVault(),
   });
 
-  // Lese-Aliase fürs bestehende Markup; Schreibzugriffe (tab, draft-Bindung) gehen direkt auf ed.*
   let draft = $derived(ed.draft);
-  let dirty = $derived(ed.dirty);
-  let saveError = $derived(ed.saveError);
-  let lastSavedContent = $derived(ed.lastSavedContent);
-  const save = () => ed.save();
-  const discard = () => ed.discard();
-  const saveJson = (json: string) => ed.saveJson(json);
 
-  // ── Werkzeuge (KI + DnD-API) ──────────────────────────────────────────────
   let showAi = $state(false);
   let showTranslate = $state(false);
   let importError = $state('');
@@ -69,7 +59,6 @@
     ed.draft = r.ok ? r.data : revised;
   }
 
-  /** Lädt einen SRD-Zauber aus Open5e v2 und übernimmt ihn als Draft. */
   async function importFromApi(result: Open5eItemSearchResult) {
     importError = '';
     try {
@@ -81,7 +70,6 @@
     }
   }
 
-  /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
   function buildTranslationRun() {
     const s = ed.draft;
     if (!s) return null;
@@ -94,7 +82,7 @@
     return translateSpell(payload);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /** Leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
   function applyTranslation(t: SpellTranslation) {
     const s = ed.draft;
     if (!s) return;
@@ -106,30 +94,9 @@
     if (t.duration) s.duration = convertDistances(t.duration);
   }
 
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
-  }
-
   function printSpell() {
     if (!draft) return;
-    const html = prepareSpellPrint(draft, document);
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument!;
-    doc.open(); doc.write(html); doc.close();
-    setTimeout(() => {
-      const prev = document.title;
-      document.title = draft!.name;
-      iframe.contentWindow!.focus();
-      iframe.contentWindow!.print();
-      document.title = prev;
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    }, 0);
+    printHtmlDocument(prepareSpellPrint(draft, document), draft.name);
   }
 </script>
 
@@ -137,12 +104,12 @@
   {@const color = SCHOOL_COLORS[draft.school] ?? 'var(--arcane)'}
   <EditorPanel
     bind:tab={ed.tab}
-    {dirty}
-    {saveError}
-    onsave={save}
-    ondiscard={discard}
-    onsavejson={saveJson}
-    getJson={() => draft ? JSON.stringify(draft, null, 2) : lastSavedContent}
+    dirty={ed.dirty}
+    saveError={ed.saveError}
+    onsave={() => ed.save()}
+    ondiscard={() => ed.discard()}
+    onsavejson={(json) => ed.saveJson(json)}
+    getJson={() => draft ? JSON.stringify(draft, null, 2) : ed.lastSavedContent}
     style="--ep-accent: {color}"
   >
     {#snippet tabactions()}
@@ -150,7 +117,7 @@
     {/snippet}
     {#snippet karte()}
       {@const higherLevel = spellHigherLevel(draft!)}
-      {@const comps = componentStr(draft!)}
+      {@const comps = spellComponents(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
       <div class="card-wrap">
         <div class="spell-card" style="--c: {pc}">
@@ -188,39 +155,23 @@
 
     {#snippet bearbeiten()}
       {#if ed.draft}
-        <div class="edit-wrap" style="--mef-accent: {color}">
+        <CardEditWrap accent={color}>
           <SpellEditForm bind:spell={ed.draft} />
-        </div>
-        <div class="ai-section">
-          <span class="ai-label">Werkzeuge</span>
-          <div class="ai-row">
-            <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
-            <button class="ai-btn" onclick={() => (showAi = true)}>✨ KI überarbeiten…</button>
-          </div>
+        </CardEditWrap>
+        <CardTools accent="var(--red)"
+          actions={[
+            { label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) },
+            { label: '✨ KI überarbeiten…', onclick: () => (showAi = true) },
+          ]}
+        >
           <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchOpen5eSpells} onselect={importFromApi} />
           {#if importError}<span class="import-error">{importError}</span>{/if}
-        </div>
+        </CardTools>
       {/if}
     {/snippet}
   </EditorPanel>
 {:else}
-  <!-- Fehler-Fallback wenn kein Draft (ungültiges JSON oder noch nicht geladen) -->
-  <EditorPanel
-    bind:tab={ed.tab}
-    dirty={false}
-    onsavejson={saveJson}
-    getJson={() => lastSavedContent}
-  >
-    {#snippet karte()}
-      <p class="parse-error">Kein gültiger Zauber-Datensatz.</p>
-    {/snippet}
-    {#snippet bearbeiten()}
-      <p class="parse-error">
-        Ungültiges Zauber-JSON.
-        <button onclick={() => ed.tab = 'json'}>JSON bearbeiten</button>
-      </p>
-    {/snippet}
-  </EditorPanel>
+  <CardParseError bind:tab={ed.tab} noun="Zauber" json={ed.lastSavedContent} onsavejson={(json) => ed.saveJson(json)} />
 {/if}
 
 {#if showAi && ed.draft}
@@ -242,28 +193,8 @@
 {/if}
 
 <style>
-  .ai-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.45rem;
-    width: 100%;
-    max-width: 560px;
-    margin-top: 0.6rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid var(--surface);
-  }
-  .ai-section :global(.dnd-api-search) { width: 100%; }
-  .ai-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
-  .ai-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .ai-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.82rem; font-family: inherit;
-  }
-  .ai-btn:hover { border-color: var(--red); color: var(--red); }
   .import-error { color: var(--danger); font-size: 0.78rem; }
 
-  /* ── Karten-Container ── */
   .card-wrap {
     display: flex;
     flex-direction: column;
@@ -271,7 +202,6 @@
     width: 100%;
   }
 
-  /* ── Karte (Druckstil) ── */
   .spell-card {
     width: 100%;
     max-width: 380px;
@@ -427,19 +357,4 @@
     border-color: var(--ink-muted);
   }
 
-  /* ── Bearbeiten-Container ── */
-  .edit-wrap {
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--mef-accent, var(--arcane)) 25%, var(--surface));
-    border-radius: 6px;
-    padding: 1rem 1.25rem;
-    max-width: 560px;
-    width: 100%;
-  }
-
-  .parse-error { color: var(--danger); font-size: 0.9rem; }
-  .parse-error button {
-    background: none; border: none; color: var(--red);
-    cursor: pointer; text-decoration: underline; font-family: inherit;
-  }
 </style>

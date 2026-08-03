@@ -203,7 +203,7 @@ Dann `npm run eval -- --eval item --runs 3`. Regeln der Praxis:
 Für Prompt-**Entwürfe** — es gibt noch keine `AiAction`, du willst System-Prompt,
 User-Nachricht und Server-Parameter direkt messen. `promptCase(...)` liefert einen
 normalen Fall für `defineEval`; der Call läuft über dieselbe Transport-Schicht
-(`rawChatCompletion` in `llmService.ts`), landet also mit Request/Response/Tokens im
+(`rawChatCompletion` in `llm/openAiCompatible.ts`), landet also mit Request/Response/Tokens im
 Report. Vorlage: `promptLab.eval.test.ts`.
 
 ```ts

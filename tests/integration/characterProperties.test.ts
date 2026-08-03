@@ -8,15 +8,15 @@
  * Charakter wie jeder andere Grant (`Change` → `applyChanges`), inklusive der
  * Übersetzungsgrenze englisch/deutsch und Fuß/Meter.
  *
- *   npm run eval -- --eval characterProperties
+ *   npm run test -- characterProperties
  */
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { libraryKey } from '../support/libraryKey';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { applyChanges } from '../../src/lib/services/applyChanges';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
-import { declaredGrantChanges } from '../../src/lib/services/featureDeclaration';
+import { declaredGrantChanges } from '../../src/lib/services/declaration/grants';
 import { sizeTraitOf } from '../../src/lib/services/speciesSize';
 import {
   characterPropertyAnswerChanges,

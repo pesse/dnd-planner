@@ -4,7 +4,7 @@
  */
 import type { Monster } from '../../types';
 import { monsterSchema } from '../../schemas/monster';
-import { toLlmJsonSchema } from '../../schemas/shared';
+import { toLlmJsonSchema } from '../../schemas/llmJson';
 import { parseMonster } from '../../utils/schemaValidation';
 import { buildCreateAction, buildEditAction, type CreateActionOptions } from './factory';
 import type { EntityActionSpec } from './spec';

@@ -1,19 +1,13 @@
 /**
- * Zweisprachiges Talent-(Feat-)Bibliotheks-Schema — analog zu Klasse/Spezies.
- *
- * Ein dünner Adapter über das Open5e-**v2**-Format (`/v2/feats/{key}`), zweisprachig
- * (EN Pflicht, DE optional). Kompatibel zum leichten Inline-Wörterbuch
- * (`featsLibrary.ts`), das dieselbe `vault/feats`-Sammlung liest (dort wird `key` als
- * `sourceKey` der Charakter-Referenz genutzt).
+ * Adapter über Open5e v2 (`/v2/feats/{key}`), zweisprachig wie Klasse und Spezies.
+ * `featsLibrary.ts` liest dieselbe `vault/feats`-Sammlung und nutzt `key` als
+ * `sourceKey` der Charakter-Referenz — beide Leser müssen zusammenpassen.
  */
 import { z } from 'zod';
-import {
-  sourceField,
-  featureDeclarationFields,
-  foldLegacyProficiencyGrant,
-  migrateSourceLegacy,
-  FEAT_CATEGORIES,
-} from './shared';
+import { sourceField, migrateSourceLegacy } from './source';
+import { featureDeclarationFields } from './featureChoice';
+import { foldLegacyProficiencyGrant } from './grants';
+import { FEAT_CATEGORIES } from './vocabulary';
 
 export const featSchema = z.object({
   key: z.string().default(''),
@@ -21,23 +15,17 @@ export const featSchema = z.object({
   name: z.string(),
   nameDe: z.string().optional(),
   /**
-   * Talent-Kategorie (Open5e: `type`). Default `General`, weil ein selbst erfundenes
-   * Talent ohne weitere Angabe genau das ist — die drei anderen Kategorien hängen an
-   * einer Bedingung, die dann in `prerequisite` stehen müsste.
+   * Default `General`, weil ein selbst erfundenes Talent ohne weitere Angabe genau das
+   * ist — die drei anderen Kategorien hängen an einer Bedingung in `prerequisite`.
    */
   category: z.enum(FEAT_CATEGORIES).default('General').describe('Wann das Talent genommen werden darf.'),
   prerequisite: z.string().default(''),
   prerequisiteDe: z.string().optional(),
   desc: z.string().default(''),
   descDe: z.string().optional(),
-  /**
-   * Übungen, die das Talent gewährt (englische Enum-Werte). Im SRD 5.2 betrifft das
-   * nur `srd-2024_skilled`. Dessen „any combination of three skills or tools" ist
-   * bewusst als `{choose: 3, from: []}` abgebildet — dass auch WERKZEUGE zulässig
-   * sind, kann `skillGrant` nicht ausdrücken und bleibt der Prosa überlassen.
-   */
-  // Die drei Deklarationen (shared.ts) — dieselbe Gruppe wie am Klassenmerkmal und am Trait.
-  // Im SRD 5.2 trägt nur `srd-2024_magic-initiate` eine Wahl (`kind: "spellAccess"`).
+  // Im SRD 5.2 trägt nur `srd-2024_magic-initiate` eine Wahl (`kind: "spellAccess"`) und nur
+  // `srd-2024_skilled` Übungen: dessen „three skills or tools" ist `{choose: 3, from: []}`,
+  // denn dass auch WERKZEUGE zulässig sind, kann `skillGrant` nicht ausdrücken.
   ...featureDeclarationFields,
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })

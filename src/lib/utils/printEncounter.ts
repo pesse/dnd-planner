@@ -2,13 +2,10 @@ import type { Encounter, Monster } from '../types';
 import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
 import { renderMarkdown, renderMarkdownInline } from './markdown';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
+import { mod } from '../domain/skills';
+import { sign } from './num';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
-
-function modStr(n: number): string {
-  const m = Math.floor((n - 10) / 2);
-  return m >= 0 ? `+${m}` : `${m}`;
-}
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -20,7 +17,7 @@ function renderStatBlock(pm: PrintMonster): string {
 
   const statsHtml = (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((key, i) => {
     const label = ['STR', 'DEX', 'KON', 'INT', 'WEI', 'CHA'][i];
-    return `<div class="sb-stat"><div class="stat-lbl">${label}</div><div class="stat-val">${m.stats[key]} (${modStr(m.stats[key])})</div></div>`;
+    return `<div class="sb-stat"><div class="stat-lbl">${label}</div><div class="stat-val">${m.stats[key]} (${sign(mod(m.stats[key]))})</div></div>`;
   }).join('');
 
   const props: string[] = [];

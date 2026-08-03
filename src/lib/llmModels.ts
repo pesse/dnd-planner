@@ -17,7 +17,7 @@ export const GROQ_MODELS = [
   'llama-3.1-8b-instant',
 ];
 
-/** QualityMinds (OpenAI-kompatibler vLLM-Endpunkt, feste URL in llmService). */
+/** QualityMinds (OpenAI-kompatibler vLLM-Endpunkt, feste URL in llm/openAiCompatible). */
 export const QUALITYMINDS_MODELS = [
   'cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit',
 ];

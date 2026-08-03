@@ -4,31 +4,26 @@
   import MonsterStatBlock from './MonsterStatBlock.svelte';
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
+  import ParseError from './ui/ParseError.svelte';
+  import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import DndApiSearch from './DndApiSearch.svelte';
   import { translateMonster } from '../services/aiActions/translateAction';
   import type { MonsterTranslation } from '../schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
-  import { parseMonster as _parseMonster, normalizeMonster } from '../utils/schemaValidation';
+  import { parseMonster, normalizeMonster, jsonParser } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
   import { searchMonsters, getResource, mapApiResourceToMonster, type DndApiRef } from '../services/dndApi';
-  import { slugify } from '../editor/saveAs';
+  import { slugKeepUmlauts } from '../utils/text';
   import { invalidateVault } from '../stores/campaign';
-
-  function parseMonster(json: string): Monster | null {
-    try {
-      const result = _parseMonster(JSON.parse(json));
-      return result.ok ? result.data : null;
-    } catch { return null; }
-  }
 
   const ed = createCardEditor<Monster>({
     type: 'monster',
     label: 'Monster',
-    parse: parseMonster,
-    defaultName: (m) => slugify(m.name || 'monster'),
+    parse: jsonParser(parseMonster),
+    defaultName: (m) => slugKeepUmlauts(m.name || 'monster'),
     location: {
       // Ablage nach Creature-Type (Bucket). Typwechsel im Editor verschiebt die Datei.
       bucketLabel: 'Typ',
@@ -43,7 +38,6 @@
     onSaved: () => invalidateVault(),
   });
 
-  // ── KI-Werkzeuge ──────────────────────────────────────────────────────────
   let showAi = $state(false);
   let importError = $state('');
 
@@ -62,7 +56,6 @@
     }
   }
 
-  // ── Übersetzen ────────────────────────────────────────────────────────────
   let showTranslate = $state(false);
 
   /** Baut den Übersetzungslauf; null, wenn es nichts zu übersetzen gibt. */
@@ -115,10 +108,7 @@
     {#if ed.draft}
       <MonsterStatBlock monster={ed.draft} />
     {:else}
-      <p class="parse-error">
-        Kein gültiger Monster-Datensatz.
-        <button onclick={() => ed.tab = 'json'}>JSON bearbeiten</button>
-      </p>
+      <ParseError message="Kein gültiger Monster-Datensatz." onjson={() => (ed.tab = 'json')} />
     {/if}
   {/snippet}
 
@@ -127,20 +117,17 @@
       <div class="stat-block">
         <MonsterEditForm bind:monster={ed.draft} />
       </div>
-      <div class="ai-section">
-        <span class="ai-label">Werkzeuge</span>
-        <div class="ai-row">
-          <button class="ai-btn" onclick={() => (showTranslate = true)}>🌐 Übersetzen…</button>
-          <button class="ai-btn" onclick={() => (showAi = true)}>✨ KI überarbeiten…</button>
-        </div>
+      <CardTools accent="var(--red)"
+        actions={[
+          { label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) },
+          { label: '✨ KI überarbeiten…', onclick: () => (showAi = true) },
+        ]}
+      >
         <DndApiSearch placeholder="SRD-Monster importieren…" onsearch={searchMonsters} onselect={importFromApi} />
         {#if importError}<span class="import-error">{importError}</span>{/if}
-      </div>
+      </CardTools>
     {:else}
-      <p class="parse-error">
-        Ungültiges Monster-JSON.
-        <button onclick={() => ed.tab = 'json'}>JSON bearbeiten</button>
-      </p>
+      <ParseError message="Ungültiges Monster-JSON." onjson={() => (ed.tab = 'json')} />
     {/if}
   {/snippet}
 </EditorPanel>
@@ -175,30 +162,5 @@
     color: var(--ink);
   }
 
-  .ai-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.45rem;
-    max-width: 560px;
-    width: 100%;
-    margin-top: 0.6rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid var(--surface);
-  }
-  .ai-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
-  .ai-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .ai-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink); padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.82rem; font-family: inherit;
-  }
-  .ai-btn:hover { border-color: var(--red); color: var(--red); }
   .import-error { color: var(--danger); font-size: 0.78rem; }
-  .ai-section :global(.dnd-api-search) { width: 100%; }
-
-  .parse-error { color: var(--danger); font-size: 0.9rem; }
-  .parse-error button {
-    background: none; border: none; color: var(--red);
-    cursor: pointer; text-decoration: underline; font-family: inherit;
-  }
 </style>

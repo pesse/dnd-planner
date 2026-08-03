@@ -1,16 +1,15 @@
 import { loadSpellByPath, type SpellInfo } from '../spellLibrary';
+import { createHoverTip } from '../utils/hoverTip.svelte';
 import type { Spell } from '../types';
 
 /**
- * Vollständige Zauberdaten für den Hover-Tooltip, MODUL-weit geteilt: Auswahl-Zeile und
- * Auswahl-Dialog sind gleichzeitig montiert (Zaubertricks, Grad 1+, je Merkmals-Wahl eine)
- * und greifen auf dieselben Zauber zu. Anders als im Charakterbogen wird NICHT vorab
- * geladen — der Dialog zeigt die ganze Klassenliste, das wären Dutzende Dateizugriffe für
- * einen Hover.
+ * Zauberdaten des Hover-Tooltips, MODUL-weit geteilt: Zeile und Dialog sind gleichzeitig
+ * montiert und greifen auf dieselben Zauber zu. Vorab geladen wird nur, was der Aufrufer
+ * in `preload` nennt — die ganze Klassenliste wären Dutzende Dateizugriffe für ein Hover.
  */
 const spellCache = new Map<string, Spell | null>();
 
-async function loadSpell(name: string, path: string): Promise<Spell | null> {
+export async function loadSpellCached(name: string, path: string): Promise<Spell | null> {
   const hit = spellCache.get(name);
   if (hit !== undefined) return hit;
   const data = await loadSpellByPath(path);
@@ -27,45 +26,54 @@ export interface SpellHover {
   hide(): void;
 }
 
-/**
- * Hover-Tooltip-Zustand für eine Zauberliste. `byName` wird als Getter übergeben, damit die
- * Bibliothek des Aufrufers (nachladend) reaktiv bleibt.
- */
-export function createSpellHover(byName: () => Map<string, SpellInfo>): SpellHover {
-  let spell = $state<Spell | null>(null);
-  let x = $state(0);
-  let y = $state(0);
-  /** Name, über dem die Maus JETZT steht — verhindert, dass ein langsamer Ladevorgang
-   *  den Tooltip aufpoppt, nachdem die Maus längst weiter ist. */
+/** `byName` ist ein Getter, damit die nachladende Bibliothek des Aufrufers reaktiv bleibt. */
+export function createSpellHover(
+  byName: () => Map<string, SpellInfo>,
+  preload?: () => Iterable<string>,
+): SpellHover {
+  const tip = createHoverTip<Spell>();
+  // Verhindert, dass ein langsamer Ladevorgang den Tooltip aufpoppt, wenn die Maus
+  // längst weiter ist.
   let hovering = '';
+
+  if (preload) {
+    // Merker außerhalb der Runen: der Cache füllt sich erst nach dem Lesen, ein erneuter
+    // Effektlauf würde denselben Zauber sonst ein zweites Mal holen.
+    const requested = new Set<string>();
+    $effect(() => {
+      const index = byName();
+      for (const name of preload()) {
+        if (requested.has(name)) continue;
+        const path = index.get(name)?.path;
+        if (!path) continue;
+        requested.add(name);
+        void loadSpellCached(name, path);
+      }
+    });
+  }
 
   return {
     get spell() {
-      return spell;
+      return tip.data;
     },
     get x() {
-      return x;
+      return tip.x;
     },
     get y() {
-      return y;
+      return tip.y;
     },
     async show(e: MouseEvent, name: string) {
-      x = e.clientX + 14;
-      y = e.clientY + 14;
+      tip.at(e);
       hovering = name;
       const info = byName().get(name);
       if (!info?.path) return;
-      const data = await loadSpell(name, info.path);
-      if (data && hovering === name) spell = data;
+      const data = await loadSpellCached(name, info.path);
+      if (data && hovering === name) tip.data = data;
     },
-    move(e: MouseEvent) {
-      if (!spell) return;
-      x = e.clientX + 14;
-      y = e.clientY + 14;
-    },
+    move: tip.move,
     hide() {
       hovering = '';
-      spell = null;
+      tip.hide();
     },
   };
 }

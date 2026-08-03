@@ -7,13 +7,13 @@
  * Deklaration im Vault (`grants.perLevel.hpMax`) — und diese Datei ist die Stelle, die
  * bemerkt, wenn sie verschwindet oder ein drittes Merkmal sie unbemerkt bekommt.
  *
- *   npm run eval -- --eval perLevelEffects
+ *   npm run test -- perLevelEffects
  */
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { getFeats } from '../../src/lib/featsLibrary';
 import { hpPerLevelSources, hpPerLevelSum } from '../../src/lib/services/perLevelEffects';
-import { featureGrantSchema } from '../../src/lib/schemas/shared';
+import { featureGrantSchema } from '../../src/lib/schemas/grants';
 import { libraryKey } from '../support/libraryKey';
 
 describe('pro-Stufe-Effekte aus der Deklaration', () => {

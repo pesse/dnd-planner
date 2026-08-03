@@ -5,7 +5,7 @@
  * dass der Parser genau die Listen findet, die vorher der Reasoning-Vorlauf aufzählen musste.
  * Damit ist die Zuständigkeitsgrenze festgenagelt: Tabelle = Daten, nicht Deutung.
  *
- *   npm run eval -- --eval grantedSpells
+ *   npm run test -- grantedSpells
  */
 import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';

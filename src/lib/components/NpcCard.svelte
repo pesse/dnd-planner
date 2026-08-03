@@ -1,332 +1,47 @@
 <script lang="ts">
-  import { activeFile, fileContent, setFileContent } from '../stores/campaign';
-  import { invoke } from '@tauri-apps/api/core';
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { pushError } from '../stores/errors';
-  import { getSpellLibrary, loadSpellByPath, searchSpells, SCHOOL_COLORS, type SpellSuggestion } from '../spellLibrary';
-  import {
-    getItemsByDir, searchItems, displayName, CATEGORY_COLORS, DIR_TO_CATEGORY,
-    buildItemIndex, matchItem, formatRarity, formatDamageDice, structuralType,
-    DAMAGE_TYPE_LABELS,
-    type ItemInfo, type ItemSuggestion,
-  } from '../itemLibrary';
-  import type { Item } from '../types';
-  import type { Spell } from '../types';
-  import { spellDesc, spellHigherLevel } from '../types';
-  import { SKILL_DEFS } from '../pdf/characterFields';
-  import Markdown from './Markdown.svelte';
-  import ItemTooltip from './ItemTooltip.svelte';
+  import { SKILL_DEFS, mod, modStr } from '../domain/skills';
+  import { sign } from '../utils/num';
+  import { createCardEditor } from '../editor/cardEditor.svelte';
+  import { normalizeNpc } from '../utils/schemaValidation';
+  import type { Npc, NpcStats } from '../schemas/npc';
+  import NpcSpellSection from './npc/NpcSpellSection.svelte';
+  import NpcInventorySection from './npc/NpcInventorySection.svelte';
+  import './npc/npcCard.css';
 
-  interface NpcStats {
-    str: number; dex: number; con: number;
-    int: number; wis: number; cha: number;
-  }
-
-  interface NpcSkill {
-    bonus: number;
-    prof: boolean;
-  }
-
-  interface NpcSpell {
-    name: string;
-    level: number; // 0 = Zaubertrick
-  }
-
-  interface NpcData {
-    name: string;
-    role: string;
-    status: 'lebendig' | 'tot' | 'vermisst' | 'unbekannt';
-    appearance: string;
-    personality: string;
-    motivation: string;
-    secret: string;
-    notes: string;
-    ac: number;
-    hp: string;
-    speed: string;
-    stats: NpcStats;
-    savingThrows: Record<string, NpcSkill>;
-    skills: Record<string, NpcSkill>;
-    spells: NpcSpell[];
-    inventory: string[];
-    tags: string[];
-  }
-
-  function parseNpc(json: string): NpcData | null {
+  function parseNpc(json: string): Npc | null {
     try {
-      const obj = JSON.parse(json);
-      if (!obj || typeof obj !== 'object') return null;
-      obj.name        ??= '';
-      obj.role        ??= '';
-      obj.status      ??= 'lebendig';
-      obj.appearance  ??= '';
-      obj.personality ??= '';
-      obj.motivation  ??= '';
-      obj.secret      ??= '';
-      obj.notes       ??= '';
-      obj.ac          ??= 10;
-      obj.hp          ??= '';
-      obj.speed       ??= '';
-      obj.stats        ??= { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-      obj.savingThrows ??= {};
-      obj.skills       ??= {};
-      obj.spells       ??= [];
-      obj.inventory    ??= [];
-      obj.tags         ??= [];
-      // migrate old string-valued skills/savingThrows → { bonus, prof }
-      for (const key of Object.keys(obj.skills)) {
-        const v = obj.skills[key];
-        if (typeof v === 'string') obj.skills[key] = { bonus: parseInt(v) || 0, prof: false };
-      }
-      for (const key of Object.keys(obj.savingThrows)) {
-        const v = obj.savingThrows[key];
-        if (typeof v === 'string') obj.savingThrows[key] = { bonus: parseInt(v) || 0, prof: false };
-      }
-      // migrate old string spells → { name, level }
-      obj.spells = (obj.spells as unknown[]).map((s) =>
-        typeof s === 'string' ? { name: s, level: 1 } : s
-      );
-      return obj as NpcData;
+      const raw = JSON.parse(json);
+      if (!raw || typeof raw !== 'object') return null;
+      return normalizeNpc(raw);
     } catch { return null; }
   }
 
-  function modNum(score: number): number { return Math.floor((score - 10) / 2); }
-  function modStr(score: number): string {
-    const m = modNum(score);
-    return m >= 0 ? `+${m}` : `${m}`;
-  }
-  function sign(n: number): string { return n >= 0 ? `+${n}` : `${n}`; }
+  const ed = createCardEditor<Npc>({ type: 'npc', label: 'NPC', parse: parseNpc });
+  const draft = $derived(ed.draft);
+
+  /**
+   * Der Bogen hat keine Speichern-Leiste — er schreibt 600 ms nach der letzten
+   * Änderung selbst. Der Guard deckt genau dieses Fenster ab.
+   */
+  const draftJson = $derived(draft ? JSON.stringify(draft) : '');
+  $effect(() => {
+    if (!draftJson || !ed.dirty) return;
+    const timer = setTimeout(() => ed.save(), 600);
+    return () => clearTimeout(timer);
+  });
 
   const STAT_LABELS: (keyof NpcStats)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   const STAT_NAMES: Record<keyof NpcStats, string> = {
     str: 'STR', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
   };
 
-  // Maps SKILL_DEFS.attr (character keys) to NpcStats keys
   const CHAR_ATTR_TO_NPC: Record<string, keyof NpcStats> = {
     str: 'str', ges: 'dex', kon: 'con', int: 'int', wei: 'wis', cha: 'cha',
   };
 
-  let draft = $state<NpcData | null>(null);
-  let dirty = $state(false);
-  let saveError = $state('');
   let showJson = $state(false);
   let rawJson = $state('');
   let jsonError = $state('');
-
-  // Spell editing + autocomplete
-  let newSpell = $state('');
-  let newSpellLevel = $state(1);
-  let spellLibrary = $state<Awaited<ReturnType<typeof getSpellLibrary>>>([]);
-  let spellSuggestions = $state<SpellSuggestion[]>([]);
-  let spellSugIndex = $state(-1);
-
-  $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
-
-  // Item autocomplete
-  let newItem = $state('');
-  let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
-  let itemSuggestions = $state<ItemSuggestion[]>([]);
-  let itemSugIndex = $state(-1);
-
-  $effect(() => {
-    Promise.all(
-      Object.keys(DIR_TO_CATEGORY).map(dir =>
-        getItemsByDir(dir).then(items => ({ dir, items }))
-      )
-    ).then(results => {
-      const map: Record<string, ItemInfo[]> = {};
-      for (const { dir, items } of results) map[dir] = items;
-      itemLoadedByDir = map;
-    });
-  });
-
-  const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
-
-  // Item-Volldata-Cache + Tooltip
-  let itemDataRecord = $state<Record<string, Item | null>>({});
-  let tooltipItem = $state<Item | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-
-  $effect(() => {
-    if (!draft) return;
-    for (const name of draft.inventory) {
-      const libItem = matchItem(itemIndex, { name });
-      if (libItem && !(libItem.path in itemDataRecord)) {
-        itemDataRecord[libItem.path] = null;
-        invoke<string>('read_file_content', { path: libItem.path })
-          .then(content => { itemDataRecord[libItem.path] = JSON.parse(content) as Item; })
-          .catch(() => {});
-      }
-    }
-  });
-
-  function showItemTooltip(e: MouseEvent, libItem: ItemInfo) {
-    const data = itemDataRecord[libItem.path];
-    if (!data) return;
-    tooltipItem = data;
-    updateTooltipPos(e);
-  }
-  function updateTooltipPos(e: MouseEvent) {
-    tooltipX = e.clientX + 14;
-    tooltipY = e.clientY + 14;
-  }
-  function hideItemTooltip() { tooltipItem = null; }
-
-  function openItemPage(libItem: ItemInfo) {
-    const name = libItem.path.split('/').pop()?.replace('.json', '') ?? libItem.name;
-    activeFile.set({ name, path: libItem.path, type: 'item' });
-  }
-
-  function inlineWeaponInfo(item: Item): string {
-    if (!item.damage) return '';
-    const dice = formatDamageDice(item.damage.damage_dice);
-    const typeKey = item.damage.damage_type.index;
-    return `${dice} ${(DAMAGE_TYPE_LABELS[typeKey] ?? item.damage.damage_type.name).replace('schaden', '')}`;
-  }
-
-  function onItemInput() {
-    itemSuggestions = searchItems(itemLoadedByDir, newItem, 8);
-    itemSugIndex = -1;
-  }
-
-  function selectItemSuggestion(sug: ItemSuggestion) {
-    newItem = sug.item.name; // englischer Originalname → JSON
-    itemSuggestions = [];
-    itemSugIndex = -1;
-  }
-
-  function onItemKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); itemSugIndex = Math.min(itemSugIndex + 1, itemSuggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); itemSugIndex = Math.max(itemSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { itemSuggestions = []; }
-    else if (e.key === 'Enter') {
-      if (itemSugIndex >= 0 && itemSuggestions[itemSugIndex]) {
-        selectItemSuggestion(itemSuggestions[itemSugIndex]);
-      } else {
-        addItem();
-      }
-    }
-  }
-
-  const spellInfoMap = $derived(new Map(spellLibrary.map(s => [s.name, s])));
-
-  // Spell cards (expand/collapse)
-  let expandedSpells = $state(new Set<string>());
-  let spellDataCache = $state(new Map<string, Spell | null>());
-  let loadingSpells = $state(new Set<string>());
-
-  async function toggleSpellCard(name: string) {
-    if (expandedSpells.has(name)) {
-      expandedSpells.delete(name);
-      expandedSpells = new Set(expandedSpells);
-      return;
-    }
-    expandedSpells.add(name);
-    expandedSpells = new Set(expandedSpells);
-    if (!spellDataCache.has(name) && !loadingSpells.has(name)) {
-      const info = spellInfoMap.get(name);
-      if (info?.path) {
-        loadingSpells.add(name); loadingSpells = new Set(loadingSpells);
-        const data = await loadSpellByPath(info.path);
-        spellDataCache.set(name, data); spellDataCache = new Map(spellDataCache);
-        loadingSpells.delete(name); loadingSpells = new Set(loadingSpells);
-      }
-    }
-  }
-
-  const SCHOOL_LABELS: Record<string, string> = {
-    abjuration: 'Bannmagie', conjuration: 'Beschwörung', divination: 'Erkenntnismagie',
-    enchantment: 'Verzauberung', evocation: 'Hervorrufung', illusion: 'Illusionsmagie',
-    necromancy: 'Nekromantie', transmutation: 'Verwandlung',
-  };
-
-  function componentStr(s: Spell): string {
-    const parts: string[] = [];
-    if (s.components.verbal)   parts.push('V');
-    if (s.components.somatic)  parts.push('G');
-    if (s.components.material) parts.push('M');
-    return parts.join(', ') || '—';
-  }
-
-  function onSpellInput() {
-    spellSuggestions = newSpell.length > 0
-      ? searchSpells(spellLibrary, newSpell, null, '')
-      : [];
-    spellSugIndex = -1;
-  }
-
-  function selectSpellSuggestion(name: string) {
-    newSpell = name;
-    spellSuggestions = [];
-    spellSugIndex = -1;
-  }
-
-  function onSpellKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); spellSugIndex = Math.min(spellSugIndex + 1, spellSuggestions.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); spellSugIndex = Math.max(spellSugIndex - 1, -1); }
-    else if (e.key === 'Escape') { spellSuggestions = []; }
-    else if (e.key === 'Enter') {
-      if (spellSugIndex >= 0 && spellSuggestions[spellSugIndex]) {
-        selectSpellSuggestion(spellSuggestions[spellSugIndex].spell.name);
-      } else {
-        addSpell();
-      }
-    }
-  }
-  let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
-  onMount(() => {
-    async function load(path: string) {
-      try {
-        const content = await invoke<string>('read_file_content', { path });
-        const parsed = parseNpc(content);
-        draft = parsed ? structuredClone(parsed) : null;
-        dirty = false;
-        saveError = '';
-        setFileContent(content);
-      } catch (e) {
-        pushError(`NPC konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);
-        draft = null;
-      }
-    }
-
-    const initial = get(activeFile);
-    if (initial?.type === 'npc' && initial.path) load(initial.path);
-
-    const unsub = activeFile.subscribe((file) => {
-      if (file?.type === 'npc' && file.path) load(file.path);
-    });
-
-    const unsubContent = fileContent.subscribe((content) => {
-      const file = get(activeFile);
-      if (!content || file?.type !== 'npc') return;
-      const parsed = parseNpc(content);
-      if (parsed) { draft = structuredClone(parsed); dirty = false; }
-    });
-
-    return () => { unsub(); unsubContent(); };
-  });
-
-  function scheduleSave() {
-    dirty = true;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 600);
-  }
-
-  async function save() {
-    const file = get(activeFile);
-    if (!file?.path || !draft) return;
-    try {
-      const content = JSON.stringify(draft, null, 2);
-      await invoke('write_file_content', { path: file.path, content });
-      setFileContent(content);
-      dirty = false;
-      saveError = '';
-    } catch (e) { saveError = String(e); }
-  }
 
   function openJson() {
     if (!draft) return;
@@ -338,23 +53,19 @@
   function applyJson() {
     const parsed = parseNpc(rawJson);
     if (!parsed) { jsonError = 'Ungültiges JSON'; return; }
-    draft = parsed;
+    ed.draft = parsed;
     showJson = false;
-    scheduleSave();
   }
 
-  // Saving throws: click prof-dot to toggle proficiency on/off
   function toggleSaveProf(key: string) {
     if (!draft) return;
     const stored = draft.savingThrows[key];
     if (stored?.prof) {
       delete draft.savingThrows[key];
     } else {
-      const base = modNum(draft.stats[key as keyof NpcStats]);
+      const base = mod(draft.stats[key as keyof NpcStats]);
       draft.savingThrows[key] = { bonus: base + 2, prof: true };
     }
-    draft = draft;
-    scheduleSave();
   }
 
   function toggleSkillProf(key: string) {
@@ -365,35 +76,9 @@
     } else {
       const skillDef = SKILL_DEFS.find(s => s.key === key);
       const statKey = skillDef ? CHAR_ATTR_TO_NPC[skillDef.attr] : 'str';
-      const base = modNum(draft.stats[statKey]);
+      const base = mod(draft.stats[statKey]);
       draft.skills[key] = { bonus: base + 2, prof: true };
     }
-    draft = draft;
-    scheduleSave();
-  }
-
-  function addSpell() {
-    if (!draft || !newSpell.trim()) return;
-    draft.spells = [...draft.spells, { name: newSpell.trim(), level: newSpellLevel }];
-    newSpell = ''; newSpellLevel = 1; spellSuggestions = [];
-    scheduleSave();
-  }
-  function removeSpell(i: number) {
-    if (!draft) return;
-    draft.spells = draft.spells.filter((_, idx) => idx !== i);
-    scheduleSave();
-  }
-
-  function addItem() {
-    if (!draft || !newItem.trim()) return;
-    draft.inventory = [...draft.inventory, newItem.trim()];
-    newItem = '';
-    scheduleSave();
-  }
-  function removeItem(i: number) {
-    if (!draft) return;
-    draft.inventory = draft.inventory.filter((_, idx) => idx !== i);
-    scheduleSave();
   }
 
   function tagsString(tags: string[]): string { return tags.join(', '); }
@@ -401,7 +86,7 @@
     return s.split(',').map((t) => t.trim()).filter(Boolean);
   }
 
-  const STATUS_LABELS: Record<NpcData['status'], string> = {
+  const STATUS_LABELS: Record<Npc['status'], string> = {
     lebendig: 'Lebendig', tot: 'Tot', vermisst: 'Vermisst', unbekannt: 'Unbekannt',
   };
 </script>
@@ -422,21 +107,20 @@
 {:else}
   <div class="npc-sheet">
 
-    <!-- Header -->
     <div class="npc-header">
       <div class="name-block">
-        <input class="npc-name" bind:value={draft.name} oninput={scheduleSave} placeholder="Name" />
-        <input class="npc-role" bind:value={draft.role} oninput={scheduleSave} placeholder="Rolle" />
+        <input class="npc-name" bind:value={draft.name} placeholder="Name" />
+        <input class="npc-role" bind:value={draft.role} placeholder="Rolle" />
       </div>
       <div class="header-right">
-        <select class="npc-status status-{draft.status}" bind:value={draft.status} onchange={scheduleSave}>
+        <select class="npc-status status-{draft.status}" bind:value={draft.status}>
           {#each Object.entries(STATUS_LABELS) as [val, label]}
             <option value={val}>{label}</option>
           {/each}
         </select>
         <div class="header-foot">
-          {#if saveError}<span class="save-error-msg">{saveError}</span>{/if}
-          <span class="dirty-dot">{dirty ? '●' : ''}</span>
+          {#if ed.saveError}<span class="save-error-msg">{ed.saveError}</span>{/if}
+          <span class="dirty-dot">{ed.dirty ? '●' : ''}</span>
           <button class="json-btn" onclick={openJson}>JSON</button>
         </div>
       </div>
@@ -444,33 +128,31 @@
 
     <div class="npc-content">
 
-      <!-- Attribute -->
       <div class="section attributes">
         {#each STAT_LABELS as attr}
           <div class="attr-box">
             <div class="attr-label">{STAT_NAMES[attr]}</div>
             <div class="attr-mod">{modStr(draft.stats[attr])}</div>
-            <input class="attr-score" type="number" bind:value={draft.stats[attr]} oninput={scheduleSave} />
+            <input class="attr-score" type="number" bind:value={draft.stats[attr]} />
           </div>
         {/each}
       </div>
 
-      <!-- Kampf + Rettungswürfe -->
       <div class="two-col">
         <div class="section">
           <h3>Kampf</h3>
           <div class="stats-grid">
             <div class="stat">
               <span class="sl">RK</span>
-              <input class="sv sv-input" type="number" bind:value={draft.ac} oninput={scheduleSave} />
+              <input class="sv sv-input" type="number" bind:value={draft.ac} />
             </div>
             <div class="stat">
               <span class="sl">TP</span>
-              <input class="sv sv-input wide" bind:value={draft.hp} oninput={scheduleSave} placeholder="z.B. 27 (5W8+5)" />
+              <input class="sv sv-input wide" bind:value={draft.hp} placeholder="z.B. 27 (5W8+5)" />
             </div>
             <div class="stat">
               <span class="sl">Tempo</span>
-              <input class="sv sv-input wide" bind:value={draft.speed} oninput={scheduleSave} placeholder="z.B. 9 m" />
+              <input class="sv sv-input wide" bind:value={draft.speed} placeholder="z.B. 9 m" />
             </div>
           </div>
         </div>
@@ -480,7 +162,7 @@
           <div class="save-list">
             {#each STAT_LABELS as key}
               {@const stored = draft.savingThrows[key]}
-              {@const base = modNum(draft.stats[key])}
+              {@const base = mod(draft.stats[key])}
               {@const bonus = stored ? stored.bonus : base}
               {@const prof = stored?.prof ?? false}
               <div class="save-row" class:proficient={prof}>
@@ -495,14 +177,13 @@
         </div>
       </div>
 
-      <!-- Fertigkeiten -->
       <div class="section">
         <h3>Fertigkeiten <span class="h3-hint">● = Klick zum Umschalten</span></h3>
         <div class="skill-grid">
           {#each SKILL_DEFS as def}
             {@const stored = draft.skills[def.key]}
             {@const statKey = CHAR_ATTR_TO_NPC[def.attr]}
-            {@const base = modNum(draft.stats[statKey])}
+            {@const base = mod(draft.stats[statKey])}
             {@const bonus = stored ? stored.bonus : base}
             {@const prof = stored?.prof ?? false}
             <div class="skill-row" class:proficient={prof}>
@@ -516,130 +197,10 @@
         </div>
       </div>
 
-      <!-- Zauber -->
-      <div class="section">
-        <h3>Zauber</h3>
-        <div class="spell-cards">
-          {#each draft.spells as spell, i}
-            {@const info = spellInfoMap.get(spell.name)}
-            {@const color = info ? (SCHOOL_COLORS[info.school] ?? 'var(--border-strong)') : 'var(--border-strong)'}
-            {@const expanded = expandedSpells.has(spell.name)}
-            {@const data = spellDataCache.get(spell.name) ?? null}
-            <div class="scard" class:expanded style="--sc:{color}"
-              role="button" tabindex="0"
-              onclick={() => toggleSpellCard(spell.name)}
-              onkeydown={(e) => e.key === 'Enter' && toggleSpellCard(spell.name)}>
-              <div class="scard-head">
-                <span class="spell-level-badge">{spell.level === 0 ? 'ZT' : spell.level}</span>
-                <span class="scard-name">{spell.name}</span>
-                <span class="scard-badges">
-                  {#if info?.school}<span class="scard-school">{SCHOOL_LABELS[info.school] ?? info.school}</span>{/if}
-                </span>
-                <button class="scard-remove" onclick={(e) => { e.stopPropagation(); removeSpell(i); }} title="Entfernen">×</button>
-                <span class="scard-chevron">{expanded ? '▲' : '▼'}</span>
-              </div>
-              {#if expanded}
-                <div class="scard-body" onclick={(e) => e.stopPropagation()}>
-                  {#if loadingSpells.has(spell.name)}
-                    <span class="scard-loading">Lädt…</span>
-                  {:else if data}
-                    <div class="scard-props">
-                      <span class="sp-label">Zauberdauer</span><span class="sp-val">{data.casting_time}</span>
-                      <span class="sp-label">Reichweite</span><span class="sp-val">{data.range}</span>
-                      <span class="sp-label">Komponenten</span><span class="sp-val">{componentStr(data)}{data.components.materials_needed ? ` (${data.components.materials_needed})` : ''}</span>
-                      <span class="sp-label">Dauer</span><span class="sp-val">{data.duration}</span>
-                    </div>
-                    <div class="scard-divider"></div>
-                    <div class="scard-desc"><Markdown source={spellDesc(data)} /></div>
-                    {#if spellHigherLevel(data)}
-                      <div class="scard-divider"></div>
-                      <div class="scard-higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={spellHigherLevel(data)} inline /></div>
-                    {/if}
-                  {:else}
-                    <span class="scard-loading">Nicht in Bibliothek</span>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-        <div class="add-row">
-          <div class="autocomplete-wrap">
-            <input class="add-input" bind:value={newSpell} placeholder="Zaubername"
-              oninput={onSpellInput}
-              onkeydown={onSpellKey}
-              onblur={() => setTimeout(() => { spellSuggestions = []; }, 150)} />
-            {#if spellSuggestions.length > 0}
-              <ul class="suggestions">
-                {#each spellSuggestions as sug, i}
-                  <li class:active={i === spellSugIndex}
-                    onmousedown={() => selectSpellSuggestion(sug.spell.name)}>
-                    <span style="color:{SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}">{sug.spell.name}</span>
-                    <span class="sug-level">Grad {sug.spell.level === 0 ? 'ZT' : sug.spell.level}</span>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </div>
-          <input class="add-input add-num" type="number" min="0" max="9" bind:value={newSpellLevel} placeholder="Stufe" />
-          <button class="add-btn" onclick={addSpell}>+</button>
-        </div>
-      </div>
+      <NpcSpellSection npc={draft} />
 
-      <!-- Inventar -->
-      <div class="section">
-        <h3>Inventar</h3>
-        <div class="item-list">
-          {#each draft.inventory as item, i}
-            {@const libItem = matchItem(itemIndex, { name: item })}
-            {@const fullItem = libItem ? itemDataRecord[libItem.path] : null}
-            <div class="item-row"
-              onmouseenter={(e) => libItem && showItemTooltip(e, libItem)}
-              onmousemove={(e) => tooltipItem && updateTooltipPos(e)}
-              onmouseleave={hideItemTooltip}
-            >
-              {#if libItem}
-                <span class="item-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
-              {/if}
-              <span
-                class="item-name"
-                class:item-linked={!!libItem}
-                onclick={() => libItem && openItemPage(libItem)}
-              >{libItem ? displayName(libItem) : item}</span>
-              {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
-                <span class="item-inline-info">{inlineWeaponInfo(fullItem)}</span>
-              {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
-                <span class="item-inline-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
-              {:else if fullItem?.rarity}
-                <span class="item-inline-info">{formatRarity(fullItem.rarity)}</span>
-              {/if}
-              <button class="row-remove" onclick={() => removeItem(i)}>×</button>
-            </div>
-          {/each}
-        </div>
-        <div class="add-row">
-          <div class="autocomplete-wrap">
-            <input class="add-input" bind:value={newItem} placeholder="Gegenstand"
-              oninput={onItemInput}
-              onkeydown={onItemKey}
-              onblur={() => setTimeout(() => { itemSuggestions = []; }, 150)} />
-            {#if itemSuggestions.length > 0}
-              <ul class="suggestions">
-                {#each itemSuggestions as sug, i}
-                  <li class:active={i === itemSugIndex}
-                    onmousedown={() => selectItemSuggestion(sug)}>
-                    <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
-                    <span class="sug-level">{sug.dir}</span>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </div>
-          <button class="add-btn" onclick={addItem}>+</button>
-        </div>
-      </div>
+      <NpcInventorySection npc={draft} />
 
-      <!-- Beschreibung + Hintergrund -->
       <div class="two-col">
         <div class="section">
           <h3>Beschreibung</h3>
@@ -647,8 +208,8 @@
             <div class="npc-field">
               <label>{field.label}</label>
               <textarea
-                value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                value={draft[field.key as keyof Npc] as string}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -660,8 +221,8 @@
             <div class="npc-field">
               <label>{field.label}</label>
               <textarea
-                value={draft[field.key as keyof NpcData] as string}
-                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; scheduleSave(); }}
+                value={draft[field.key as keyof Npc] as string}
+                oninput={(e) => { (draft as unknown as Record<string, unknown>)[field.key] = (e.currentTarget as HTMLTextAreaElement).value; }}
                 rows="2" placeholder="—"
               ></textarea>
             </div>
@@ -669,19 +230,17 @@
         </div>
       </div>
 
-      <!-- Geheimnis -->
       <div class="section secret-section">
         <h3>Geheimnis</h3>
-        <textarea class="secret-ta" bind:value={draft.secret} oninput={scheduleSave} rows="2" placeholder="—"></textarea>
+        <textarea class="secret-ta" bind:value={draft.secret} rows="2" placeholder="—"></textarea>
       </div>
 
-      <!-- Tags -->
       <div class="section">
         <h3>Tags</h3>
         <input
           class="tags-input"
           value={tagsString(draft.tags)}
-          oninput={(e) => { draft!.tags = parseTags((e.currentTarget as HTMLInputElement).value); scheduleSave(); }}
+          oninput={(e) => { draft.tags = parseTags((e.currentTarget as HTMLInputElement).value); }}
           placeholder="kommagetrennt"
         />
       </div>
@@ -690,12 +249,9 @@
   </div>
 {/if}
 
-<ItemTooltip item={tooltipItem} x={tooltipX} y={tooltipY} />
-
 <style>
   .npc-empty { padding: 2rem; color: var(--ink-muted); }
 
-  /* ── Sheet container ─────────────────────────────── */
   .npc-sheet {
     flex: 1;
     overflow-y: auto;
@@ -704,7 +260,6 @@
     font-size: 0.9rem;
   }
 
-  /* ── Header ──────────────────────────────────────── */
   .npc-header {
     padding: 0.9rem 1.5rem 0.6rem;
     border-bottom: 1px solid var(--surface);
@@ -786,7 +341,6 @@
   }
   .json-btn:hover { border-color: var(--ink-muted); color: var(--ink); }
 
-  /* ── Content area ────────────────────────────────── */
   .npc-content {
     padding: 1rem 1.5rem;
     display: flex;
@@ -794,29 +348,6 @@
     gap: 1rem;
   }
 
-  /* ── Section ─────────────────────────────────────── */
-  .section h3 {
-    margin: 0 0 0.4rem;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-muted);
-    border-bottom: 1px solid var(--surface);
-    padding-bottom: 0.2rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .h3-hint {
-    font-size: 0.65rem;
-    color: var(--border);
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 400;
-  }
-
-  /* ── Attributes ──────────────────────────────────── */
   .attributes {
     display: flex;
     gap: 0.5rem;
@@ -850,14 +381,12 @@
   }
   .attr-score:focus { border-top-color: var(--red); }
 
-  /* ── Two-column layout ───────────────────────────── */
   .two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
 
-  /* ── Stats grid (Kampf) ──────────────────────────── */
   .stats-grid {
     display: flex;
     flex-direction: column;
@@ -884,7 +413,6 @@
   .sv-input.wide { width: 8rem; text-align: left; }
   .sv-input:focus { border-color: var(--red); }
 
-  /* ── Saving throws ───────────────────────────────── */
   .save-list { display: flex; flex-direction: column; gap: 0.15rem; }
 
   .save-row {
@@ -910,7 +438,6 @@
   .save-label { flex: 1; color: var(--ink-soft); }
   .save-val   { font-weight: 600; min-width: 2rem; text-align: right; }
 
-  /* ── Skills ──────────────────────────────────────── */
   .skill-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -926,232 +453,9 @@
   }
   .skill-row.proficient .skill-val { color: var(--green); }
 
-  .prof-dot-static { font-size: 0.65rem; color: var(--ink-muted); width: 0.8rem; }
-  .proficient .prof-dot-static { color: var(--green); }
-
   .skill-name { flex: 1; color: var(--ink-soft); }
   .skill-val  { font-weight: 600; min-width: 2rem; text-align: right; }
 
-  /* ── Spell cards ─────────────────────────────────── */
-  .spell-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 0.35rem;
-  }
-
-  .scard {
-    border-left: 3px solid var(--sc);
-    background: var(--bg);
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.1s;
-  }
-  .scard:hover { background: var(--bg-raised); }
-  .scard.expanded { background: var(--bg-panel); }
-
-  .scard-head {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.3rem 0.5rem 0.3rem 0.6rem;
-    font-size: 0.83rem;
-  }
-
-  .spell-level-badge {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--sc);
-    background: color-mix(in srgb, var(--sc) 12%, var(--bg));
-    border-radius: 3px;
-    padding: 0.05rem 0.28rem;
-    min-width: 1.4rem;
-    text-align: center;
-    flex-shrink: 0;
-  }
-
-  .scard-name { flex: 1; color: var(--sc); font-weight: 500; }
-  .scard-badges { display: flex; gap: 0.3rem; align-items: center; }
-  .scard-school {
-    font-size: 0.68rem;
-    color: var(--border);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .scard-chevron { font-size: 0.55rem; color: var(--border); flex-shrink: 0; }
-
-  .scard-remove {
-    background: none;
-    border: none;
-    color: var(--border);
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0 0.15rem;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  .scard-remove:hover { color: var(--danger); }
-
-  .scard-body { padding: 0 0.6rem 0.6rem 0.6rem; cursor: default; }
-
-  .scard-props {
-    display: grid;
-    grid-template-columns: 7rem 1fr;
-    gap: 0.2rem 0.4rem;
-    font-size: 0.8rem;
-    padding-bottom: 0.5rem;
-  }
-  .sp-label {
-    color: var(--ink-muted);
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    align-self: start;
-    padding-top: 0.05rem;
-  }
-  .sp-val { color: var(--ink); line-height: 1.4; }
-
-  .scard-divider { height: 1px; background: var(--surface); margin: 0.4rem 0; }
-  .scard-desc { font-size: 0.82rem; color: var(--ink); line-height: 1.6; }
-  .scard-higher { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.55; }
-  .higher-lbl { color: var(--sc); font-weight: 700; margin-right: 0.3rem; }
-  .scard-loading { font-size: 0.78rem; color: var(--border); font-style: italic; }
-
-  /* ── Inventory list ──────────────────────────────── */
-  .item-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    margin-bottom: 0.35rem;
-  }
-
-  .item-row {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.82rem;
-  }
-
-  .item-name { flex: 1; color: var(--ink); }
-  .item-linked { cursor: pointer; }
-  .item-linked:hover { color: var(--red); text-decoration: underline; text-decoration-style: dotted; }
-
-  .item-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .item-inline-info {
-    font-size: 0.72rem;
-    color: var(--ink-muted);
-    font-style: italic;
-    flex-shrink: 0;
-  }
-
-  .row-remove {
-    background: none;
-    border: none;
-    color: var(--border);
-    cursor: pointer;
-    font-size: 0.8rem;
-    line-height: 1;
-    padding: 0 0.1rem;
-    flex-shrink: 0;
-  }
-  .row-remove:hover { color: var(--danger); }
-
-  /* ── Add row ─────────────────────────────────────── */
-  .add-row {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
-  }
-
-  .add-input {
-    flex: 1;
-    background: var(--bg-panel);
-    border: 1px solid var(--surface);
-    border-radius: 4px;
-    color: var(--ink);
-    font-size: 0.8rem;
-    padding: 0.2rem 0.45rem;
-    outline: none;
-    font-family: inherit;
-  }
-  .add-input:focus { border-color: var(--red); }
-  .add-num { flex: 0 0 3.5rem; text-align: right; }
-
-  .autocomplete-wrap {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-  .autocomplete-wrap .add-input { width: 100%; box-sizing: border-box; }
-
-  .suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    max-height: 220px;
-    overflow-y: auto;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-  }
-  .suggestions li {
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    font-size: 0.82rem;
-    color: var(--ink);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .suggestions li:hover,
-  .suggestions li.active { background: var(--surface); }
-
-  .sug-level {
-    font-size: 0.68rem;
-    color: var(--ink-muted);
-    white-space: nowrap;
-  }
-
-  .prof-check {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .prof-check input { cursor: pointer; }
-
-  .add-btn {
-    background: none;
-    border: 1px dashed var(--border);
-    border-radius: 4px;
-    color: var(--ink-muted);
-    font-size: 1rem;
-    line-height: 1;
-    padding: 0.15rem 0.45rem;
-    cursor: pointer;
-  }
-  .add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
-
-  /* ── Narrative fields ────────────────────────────── */
   .npc-field { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.35rem; }
 
   .npc-field label {
@@ -1175,8 +479,6 @@
     font-family: inherit;
   }
   .npc-field textarea:focus { border-color: var(--red); }
-
-  .secret-section h3 { color: var(--danger); border-bottom-color: var(--danger); }
 
   .secret-ta {
     width: 100%;
@@ -1208,7 +510,6 @@
   }
   .tags-input:focus { border-color: var(--red); }
 
-  /* ── JSON view ───────────────────────────────────── */
   .npc-json-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
   .json-toolbar {

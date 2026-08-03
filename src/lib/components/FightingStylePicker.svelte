@@ -1,14 +1,9 @@
 <script lang="ts">
   /**
-   * Kampfstil-Picker (5e 2024): gemeinsames UI für Charakterbogen UND Erstell-Wizard,
-   * exaktes Gegenstück zum `WeaponMasteryPicker`. Rein präsentierend — Kontingent + wählbare
-   * Kampfstile (`offer`) beschafft der Aufrufer über `fightingStyleOffer(...)`; die Optionen
-   * kommen aus der Bibliothek, nie aus der KI.
-   *
-   * `selected` sind die Talent-Keys (`sourceKey`) der bereits gewählten Kampfstile — ein
-   * REINER Lesewert; die Änderung meldet der Picker über `onToggle`. So bleibt in jedem
-   * Aufrufer die dortige Quelle die einzige Wahrheit (`w.fightingStyles` im Wizard,
-   * `character.features[]` im Editor) und es entsteht kein zweiter, driftender State.
+   * Gegenstück zum `WeaponMasteryPicker`: rein präsentierend, die Optionen kommen aus der
+   * Bibliothek, nie aus der KI. `selected` ist ein REINER Lesewert und die Änderung geht
+   * über `onToggle` — so bleibt die Quelle des Aufrufers die einzige Wahrheit und es
+   * entsteht kein zweiter, driftender Zustand.
    */
   import type { FightingStyleOffer } from '../services/fightingStyle';
   import type { DiffDir } from '../utils/diffHighlight';
@@ -84,7 +79,6 @@
 {/if}
 
 <style>
-  /* Bewusst dieselbe Optik wie der WeaponMasteryPicker (Kupfer-Box). */
   .style-panel {
     border: 1px solid color-mix(in srgb, var(--copper) 35%, var(--surface));
     border-radius: 5px; background: color-mix(in srgb, var(--copper) 6%, var(--bg-panel));

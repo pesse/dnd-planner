@@ -6,10 +6,7 @@
  * (`grantsChoice.kind === "spellAccess"`), nicht aus der Merkmalsdeutung — und das Talent
  * verschwindet dafür aus dem KI-Eingang, ohne aus dem deutschen Merkmalstext zu fallen.
  *
- * Läuft ohne API-Key und kostet nichts:
- *   npm run eval -- --eval spellAccess
- *
- * Die Vault-Reads laufen über denselben fs-Shim wie die Eval-Fixtures (vitest.config.ts).
+ *   npm run test -- spellAccess
  */
 import { describe, expect, it } from 'vitest';
 import { getFeats } from '../../src/lib/featsLibrary';

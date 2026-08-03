@@ -1,0 +1,34 @@
+{
+  "proficiencies": {
+    "skills": {
+      "fixed": [
+        "Acrobatics"
+      ],
+      "choose": 0,
+      "from": [
+        "Acrobatics"
+      ]
+    },
+    "savingThrows": [
+      "Strength"
+    ],
+    "weapons": [
+      "Simple"
+    ],
+    "weaponsOther": [
+      "string"
+    ],
+    "armor": [
+      "Light"
+    ]
+  },
+  "extraCantrips": 0,
+  "extraPreparedCount": 0,
+  "perLevel": {
+    "hpMax": 0
+  },
+  "properties": {
+    "size": "Tiny",
+    "speedFeet": 1
+  }
+}

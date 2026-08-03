@@ -3,14 +3,8 @@
  * Beide Formate: OpenAI-Function-Calling (Groq) + Anthropic native.
  * Der Executor ruft die geteilten Helfer aus `dndApi.ts`.
  */
-import type Anthropic from '@anthropic-ai/sdk';
 import { searchMonsters, getResource } from './dndApi';
-
-interface ToolDef {
-  name: string;
-  description: string;
-  params: Anthropic.Tool.InputSchema;
-}
+import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [
   {
@@ -49,18 +43,8 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-kompatibles Tool-Format. */
-export const DND_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-/** Anthropic-kompatibles Tool-Format. */
-export const DND_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
+export const DND_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
+export const DND_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
 export async function executeDndTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {

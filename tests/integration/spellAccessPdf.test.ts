@@ -5,12 +5,12 @@
  * gehen sie durch die Klassenmerkmale-Felder des Taendler-PDFs. Kernzusicherung ist der
  * RUNDLAUF: der Import schneidet die Marke ab, sonst wüchse sie bei jedem Zyklus an.
  *
- *   npm run eval -- --eval spellAccessPdf
+ *   npm run test -- spellAccessPdf
  */
 import { readFileSync } from 'node:fs';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { exportCharacterToPdf } from '../../src/lib/pdf/characterExport';
 import { parseCharacterData, stripSpellValues, withSpellValues } from '../../src/lib/pdf/characterFields';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';

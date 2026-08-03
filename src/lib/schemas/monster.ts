@@ -1,7 +1,4 @@
-/**
- * Single Source of Truth für Monster: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema (siehe shared.ts). Label-Maps/Helper bleiben in types.ts.
- */
+/** Single Source of Truth für Monster; Label-Maps und Helfer bleiben in `types.ts`. */
 import { z } from 'zod';
 import {
   MONSTER_SIZES,
@@ -10,8 +7,8 @@ import {
   type MonsterSize,
   type MonsterType,
   type MonsterAlignment,
-} from '../types';
-import { sourceField, migrateSourceLegacy } from './shared';
+} from './vocabulary';
+import { sourceField, migrateSourceLegacy } from './source';
 
 const sizeEnum = z.enum(Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]]);
 const typeEnum = z.enum(Object.keys(MONSTER_TYPES) as [MonsterType, ...MonsterType[]]);
@@ -74,7 +71,7 @@ export type Monster = z.infer<typeof monsterSchema>;
 export type MonsterAction = z.infer<typeof actionSchema>;
 export type MonsterDamage = z.infer<typeof damageSchema>;
 
-/** Migriert alte String-Schadensfelder in Aktionen zu MonsterDamage[]. Idempotent. */
+/** Alte String-Schadensfelder in Aktionen → `MonsterDamage[]`. Idempotent. */
 export function migrateMonsterLegacy(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const m = { ...(raw as Record<string, unknown>) };

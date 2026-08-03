@@ -23,12 +23,7 @@
  * statt eine einzelne Action zu messen.
  */
 import type { FeatureEffects } from '../../src/lib/schemas/levelUp';
-import {
-  analyzeFeatureEffects,
-  finalizeFeatureEffects,
-  type FeatureAnalysis,
-  type FeatureEffectsContext,
-} from '../../src/lib/services/aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
 import { asAnalysis, asEffects, isSheetReady, sheetNotes, SHEET_NOTE_LIMIT, type StepResult } from './featureEffectsStep';

@@ -6,14 +6,8 @@
  * Deckt srd-2024-Ausrüstung (`/v2/items/`) UND magische Gegenstände
  * (`/v2/magicitems/`) ab; `get_open5e_item` löst den Key gegen beide Endpunkte auf.
  */
-import type Anthropic from '@anthropic-ai/sdk';
-import { searchOpen5eItems, getOpen5eItem } from './open5eApi';
-
-interface ToolDef {
-  name: string;
-  description: string;
-  params: Anthropic.Tool.InputSchema;
-}
+import { searchOpen5eItems, getOpen5eItem } from './open5eClient';
+import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [
   {
@@ -47,18 +41,8 @@ const TOOL_LIST: ToolDef[] = [
   },
 ];
 
-/** OpenAI-/Groq-kompatibles Tool-Format. */
-export const OPEN5E_ITEM_TOOLS_OPENAI = TOOL_LIST.map((t) => ({
-  type: 'function',
-  function: { name: t.name, description: t.description, parameters: t.params },
-}));
-
-/** Anthropic-kompatibles Tool-Format. */
-export const OPEN5E_ITEM_TOOLS_ANTHROPIC: Anthropic.Tool[] = TOOL_LIST.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: t.params,
-}));
+export const OPEN5E_ITEM_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
+export const OPEN5E_ITEM_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
 export async function executeOpen5eItemTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {

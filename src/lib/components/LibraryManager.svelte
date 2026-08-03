@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Modal from './ui/Modal.svelte';
   import {
     libraries,
     librariesLoading,
@@ -14,11 +15,8 @@
 
   let { onclose }: { onclose: () => void } = $props();
 
-  /** Auswahl für die Installation, je Bibliotheks-id. */
   let selected = $state<Record<string, boolean>>({});
-  /** Zugangscode-Eingabe je Bibliothek — erscheint, wenn eine gesperrte gewählt wird. */
   let codeInput = $state<Record<string, string>>({});
-  /** id der Bibliothek, deren Code gerade geprüft wird. */
   let redeeming = $state<string | null>(null);
 
   let busy = $state(false);
@@ -30,9 +28,7 @@
     refreshLibraries(false);
   });
 
-  // Vorauswahl beim ersten Eintreffen der Liste: alles, was ohne weiteres Zutun
-  // installiert oder aktualisiert werden kann. Gesperrtes bleibt ungewählt,
-  // damit nicht sofort überall Code-Felder aufklappen.
+  // Gesperrtes bleibt ungewählt, damit nicht sofort überall Code-Felder aufklappen.
   $effect(() => {
     const list = $libraries;
     if (initialized || !list.length) return;
@@ -61,11 +57,10 @@
 
   const needsCode = (lib: Library) => lib.status === 'locked' || lib.status === 'staleCode';
 
-  /** Fassung verlangt eine neuere App — daran ist hier nichts zu wählen. */
   const needsAppUpdate = (lib: Library) => lib.status === 'appOutdated';
 
-  // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist —
-  // das Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
+  // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist — das
+  // Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
   const locked = (lib: Library) => needsCode(lib) || needsAppUpdate(lib);
   const lockTitle = (lib: Library) =>
     needsAppUpdate(lib)
@@ -75,7 +70,6 @@
         : 'Entsperrt';
 
   let chosen = $derived($libraries.filter((l) => selected[l.id]));
-  /** Gewählte Bibliotheken, die noch auf einen Zugangscode warten. */
   let blocked = $derived(chosen.filter(needsCode));
   let canInstall = $derived(!busy && chosen.length > 0 && blocked.length === 0);
 
@@ -122,8 +116,7 @@
       const ids = chosen.map((l) => l.id);
       let result = await installMany(ids);
 
-      // Bestandsdateien: einmal für alle betroffenen Bibliotheken nachfragen,
-      // statt pro Bibliothek einen eigenen Dialog zu zeigen.
+      // Einmal für alle betroffenen Bibliotheken fragen, nicht pro Bibliothek.
       const adoptIds = Object.keys(result.needsAdopt);
       if (adoptIds.length) {
         const total = adoptIds.reduce((n, id) => n + result.needsAdopt[id], 0);
@@ -155,8 +148,8 @@
       }
       message = describe(result);
 
-      // Erledigtes abwählen, damit der Knopf zeigt, was noch offen ist.
-      // Fehlgeschlagene bleiben gewählt, um sie erneut versuchen zu können.
+      // Erledigtes abwählen, Fehlgeschlagenes bleibt gewählt — der Knopf zeigt so, was
+      // noch offen ist.
       const done = new Set(
         $libraries.filter((l) => l.status === 'installed').map((l) => l.id),
       );
@@ -189,14 +182,7 @@
   }
 </script>
 
-<div class="backdrop" role="presentation" onclick={onclose}></div>
-
-<div class="dialog" role="dialog" aria-label="Bibliotheken">
-  <div class="modal-header">
-    <span class="modal-title">Bibliotheken</span>
-    <button class="close-btn" onclick={onclose} title="Schließen">×</button>
-  </div>
-
+<Modal title="Bibliotheken" draggable={false} width="min(580px, 92vw)" {onclose}>
   <p class="hint">
     Wähle, welche Bibliotheken installiert werden sollen. Deine Kampagnen und
     Charaktere bleiben unberührt.
@@ -254,7 +240,6 @@
             </p>
           {/if}
 
-          <!-- Code-Feld erscheint erst, wenn eine gesperrte Bibliothek gewählt wird. -->
           {#if selected[lib.id] && needsCode(lib)}
             <div class="code-row">
               <input
@@ -312,52 +297,9 @@
     <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noreferrer">
       CC BY 4.0</a>.
   </p>
-</div>
+</Modal>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 999;
-  }
-  .dialog {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(580px, 92vw);
-    max-height: 84vh;
-    overflow-y: auto;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0 1.1rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-  }
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-    margin: 0 -1.1rem 0.2rem;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid var(--surface);
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-  }
-  .modal-title { font-weight: 700; font-size: 1rem; color: var(--ink); }
-  .close-btn {
-    background: none; border: none; color: var(--ink-muted);
-    font-size: 1.3rem; cursor: pointer; line-height: 1;
-  }
-  .close-btn:hover { color: var(--ink); }
-
   .select-all { display: flex; gap: 0.4rem; align-items: center; font-size: 0.72rem; }
   .select-all .sep { color: var(--ink-muted); }
 
@@ -391,16 +333,7 @@
     display: flex; justify-content: flex-end; gap: 0.6rem; align-items: center;
     border-top: 1px solid var(--surface); padding-top: 0.6rem;
   }
-  .primary-btn {
-    background: var(--red); border: none; border-radius: 4px; color: #fff;
-    padding: 0.35rem 0.9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem;
-  }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .secondary-btn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--ink-soft); padding: 0.3rem 0.8rem; cursor: pointer;
-    font-family: inherit; font-size: 0.82rem;
-  }
+  .secondary-btn { padding: 0.3rem 0.8rem; font-size: 0.82rem; }
   .secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .link-btn {
     background: none; border: none; color: var(--ink-muted);

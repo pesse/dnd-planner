@@ -1,0 +1,131 @@
+/**
+ * Das unbedingte `grants` am Merkmal selbst — die einzige der drei Deklarationen, die das
+ * Merkmal NICHT aus dem KI-Eingang nimmt: es trägt weiter Prosa, für die Pass C eine
+ * `sheetNote` schreiben soll. Also sieht das Modell dasselbe Merkmal und liefert einen
+ * eigenen Rider — ohne Auflösung zählte ein deklariertes `extraCantrips` zweimal.
+ */
+import type { Change, FeatureRider } from '../../schemas/levelUp';
+import { isEmptyProficiencyGrant, type FeatureGrant } from '../../schemas/grants';
+import { proficiencyGrantChanges } from '../proficiencyGrants';
+import { characterPropertyChanges, isEmptyCharacterProperties } from '../characterProperties';
+import type { FeatureSource } from '../declaredFeature';
+import { featureIdOf } from '$lib/utils/text';
+import { emptyRider } from './rider';
+
+/**
+ * Was eine Deklaration gewährt, das der Rider nicht ausdrücken kann — heute die
+ * EINGESCHRÄNKTE Waffen-Übung und die Grundeigenschaften. Alles Übrige reist über
+ * `withGrant`; daher die Ausschlussliste, sonst wirkte das Feld deklarierbar, aber folgenlos.
+ */
+export function declaredGrantChanges(
+  features: readonly DeclaredGrantSource[],
+  meta: { step: string; source: string },
+): Change[] {
+  const out: Change[] = [];
+  // Dasselbe Merkmal erreicht den Aufstieg aus mehreren Richtungen — ohne Guard doppelt.
+  const seen = new Set<string>();
+  for (const f of features) {
+    if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
+    const id = featureIdOf(f);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const source = { ...meta, source: f.key || meta.source };
+    out.push(
+      ...proficiencyGrantChanges(f.grants.proficiencies, source, ['skills', 'savingThrows', 'weapons', 'armor']),
+      // Nicht in der Ausschlussliste: Eigenschaften reisen nie über den Rider.
+      ...characterPropertyChanges(f.grants.properties, source),
+    );
+  }
+  return out;
+}
+
+export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
+  const p = g.proficiencies;
+  return (
+    !g.extraCantrips &&
+    !g.extraPreparedCount &&
+    !g.perLevel.hpMax &&
+    !p.skills.fixed.length &&
+    !p.skills.choose &&
+    !p.savingThrows.length &&
+    !p.weapons.length &&
+    !p.weaponsOther.length &&
+    !p.armor.length &&
+    isEmptyCharacterProperties(g.properties)
+  );
+}
+
+/** Klassenmerkmal, Trait und Talent erfüllen das strukturell. */
+export interface DeclaredGrantSource {
+  key?: string;
+  name: string;
+  nameDe?: string;
+  source?: FeatureSource;
+  grants?: FeatureGrant;
+}
+
+/**
+ * Die Aufzählung in `withGrant` ist von Hand und ignorierte ein neues Feld STILL. Diese
+ * Tabelle ist über `keyof` total und bricht dann den Build.
+ */
+const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' } = {
+  proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
+  extraCantrips: 'rider',
+  extraPreparedCount: 'rider',
+  perLevel: 'perLevel',
+  properties: 'change',
+};
+void GRANT_SINKS;
+
+/**
+ * GENAU die Felder, die `featureGrantSchema` ausdrücken kann; alles Übrige des Riders bleibt
+ * stehen, weil die Deklaration darüber nichts sagt. `perLevel` fehlt absichtlich — es wirkt
+ * je Charakterstufe über `hpPerLevelSources`.
+ */
+export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRider {
+  const p = grants.proficiencies;
+  return {
+    ...rider,
+    extraCantrips: grants.extraCantrips,
+    extraPreparedCount: grants.extraPreparedCount,
+    proficiencies: {
+      ...rider.proficiencies,
+      skills: [...p.skills.fixed],
+      weapons: [...p.weapons],
+      armor: [...p.armor],
+      savingThrows: [...p.savingThrows],
+    },
+  };
+}
+
+/**
+ * **Die Deklaration gewinnt** — auch wenn das Merkmal aus dem KI-Eingang fiel, die Deutung
+ * übersprungen wurde oder sie es übersah. Code-Regel statt Prompt-Regel, weil das Modell die
+ * Deklaration gar nicht sieht: `buildFeatureEffectsInput` projiziert nur die Prosa-Felder.
+ * `{}` heißt „geprüft, gewährt nichts", ein fehlendes Feld lässt der KI das letzte Wort.
+ */
+export function withDeclaredGrants(riders: FeatureRider[], features: DeclaredGrantSource[]): FeatureRider[] {
+  const byKey = new Map<string, DeclaredGrantSource>();
+  const byName = new Map<string, DeclaredGrantSource>();
+  for (const f of features) {
+    if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
+    // Erster Treffer gewinnt — dasselbe Merkmal erreicht den Flow mehrfach.
+    const key = f.key?.trim();
+    if (key && !byKey.has(key)) byKey.set(key, f);
+    const name = f.name.trim().toLowerCase();
+    if (name && !byName.has(name)) byName.set(name, f);
+  }
+  if (!byKey.size && !byName.size) return riders;
+
+  const applied = new Set<DeclaredGrantSource>();
+  const out = riders.map((r) => {
+    const key = r.featureKey.trim();
+    const f = (key ? byKey.get(key) : undefined) ?? byName.get(r.featureName.trim().toLowerCase());
+    if (!f?.grants) return r;
+    applied.add(f);
+    return withGrant(r, f.grants);
+  });
+  for (const f of new Set([...byKey.values(), ...byName.values()]))
+    if (!applied.has(f)) out.push(withGrant(emptyRider(f), f.grants!));
+  return out;
+}

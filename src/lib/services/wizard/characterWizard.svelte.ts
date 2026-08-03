@@ -1,30 +1,11 @@
 /**
- * Orchestrator des Charakter-Erstell-Wizards (Stufe 1).
- *
- * Hält den gesamten Wizard-Zustand (Grundwahl, Point-Buy, Hintergrund-ASI,
- * Übungswahlen, Ausrüstung) UND die langlaufenden KI-Jobs. Der Kern ist die
- * Nebenläufigkeit: sobald Volk/Klasse/Hintergrund feststehen, feuert `kickoff()`
- * die KI-Jobs (fire-and-forget, KEIN await), während der Nutzer parallel Point-Buy
- * usw. bedient. Jeder Job trägt Status/Ergebnis reaktiv (`$state`), ist per
- * `AbortController` abbrechbar und wird bei geänderter Grundwahl neu gestartet.
- *
- * Es gibt bewusst KEINE Worker/Tauri-Hintergrundtasks — reines JS-`async` reicht:
- * ein nicht-awaited Promise blockiert die UI nicht. Muster wie `LevelUpAssistant`
- * (Stall-Clock, run-Guard), nur entkoppelt vom Bearbeiten der deterministischen Schritte.
- *
- * Graceful Degradation: die Merkmals-Deutung ist QM-only (`featureEffectsAction`),
- * fehlt QM, werden Analyse/Effekte übersprungen; der Merkmals-Text läuft über jeden
- * Provider (`runAiAction`), das Ausrüstungs-Matching ebenso.
+ * Zustand und KI-Jobs des Charakter-Erstell-Wizards (Stufe 1).
+ * Bewusst ohne Worker/Tauri-Hintergrundtask: ein nicht-awaitetes Promise blockiert die UI
+ * nicht. Fehlt QM, entfallen Analyse und Effekte — der Rest läuft über jeden Anbieter.
  */
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
-import {
-  analyzeFeatureEffects,
-  choiceLabelsDe,
-  finalizeFeatureEffects,
-  type AnalysisChoice,
-  type FeatureAnalysis,
-  type ResolvedChoice,
-} from '../aiActions/featureEffectsAction';
+import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
+import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
 import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
@@ -37,16 +18,9 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import {
-  expertiseChoice,
-  expertiseChoiceId,
-  expertiseRider,
-  optionListChoices,
-  optionListRiders,
-  optionChoiceId,
-  unredactedChoiceFeatures,
-  withDeclaredGrants,
-} from '../featureDeclaration';
+import { expertiseChoice, expertiseChoiceId, expertiseRider } from '../declaration/expertise';
+import { optionListChoices, optionListRiders, optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
+import { withDeclaredGrants } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
@@ -59,21 +33,19 @@ import type { AsiAllocation } from './backgroundAsi';
 
 export type JobStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped';
 
-/** Adresse eines Kategorie-Eintrags in `toolPicks` (Gruppe/Option/Item). */
 export function toolPickKey(groupIdx: number, optionIdx: number, itemIdx: number): string {
   return `${groupIdx}:${optionIdx}:${itemIdx}`;
 }
 
-/** Erkennt reine Münz-„Items" (Goldmünzen, 15 GM …) — die gehören in die Währung, nicht ins Inventar. */
+/** Münz-„Items" gehören in die Währung, nicht ins Inventar (siehe `selectedEquipment`). */
 function isCoinItem(name: string): boolean {
   const n = name.trim();
   return /\b\w*münzen?\b/i.test(n) || /\bgold(stücke?|)\b/i.test(n) || /^\d+\s*(gm|sm|km|em|pm|gp|sp|cp|ep|pp)$/i.test(n);
 }
 
 /**
- * Ein einzelner KI-Job: reaktiver Status + Ergebnis, abbrechbar, mit Guard gegen
- * veraltete Läufe (ein neuer `begin()` bricht den vorherigen ab; dessen verspätetes
- * Settle wird über das abgebrochene Signal verworfen).
+ * Ein KI-Job: reaktiver Status, abbrechbar. Ein neuer `run()` bricht den vorigen ab; dessen
+ * verspätetes Settle wird über das abgebrochene Signal verworfen.
  */
 export class Job<T> {
   status = $state<JobStatus>('idle');
@@ -90,7 +62,7 @@ export class Job<T> {
     return this.#ctrl.signal;
   }
 
-  /** Startet `fn` fire-and-forget; kein await. Settles landen nur, wenn nicht abgebrochen. */
+  /** Bewusst kein await — der Job läuft, während der Nutzer weiterarbeitet. */
   run(fn: (signal: AbortSignal) => Promise<T>): void {
     const signal = this.#begin();
     this.#running = fn(signal).then(
@@ -99,7 +71,7 @@ export class Job<T> {
     );
   }
 
-  /** Wartet auf das Settle des letzten Laufs — fürs finale Zusammenbauen. Nie rejektierend. */
+  /** Nie rejektierend — der Zusammenbau soll an einem gescheiterten Job nicht hängenbleiben. */
   settle(): Promise<void> { return this.#running.then(() => {}, () => {}); }
 
   skip(): void { this.abort(); this.status = 'skipped'; }
@@ -107,7 +79,6 @@ export class Job<T> {
   reset(): void { this.abort(); this.status = 'idle'; this.result = null; this.error = ''; }
 }
 
-/** Ein Bibliotheks-Link (Klasse/Volk/Hintergrund) — sourceKey + Anzeigename. */
 export interface WizardLink {
   sourceKey: string;
   name: string;
@@ -126,38 +97,29 @@ export class CharacterWizard {
   // ── Deterministische Schritte ──
   scores = $state<AbilityScores>(pointBuyStart());
   asi = $state<AsiAllocation>({});
-  /** Aus offenen Fertigkeitswahlen des Übungs-Angebots gewählte Fertigkeiten (englische Namen). */
+  /** Englische Fertigkeitsnamen (das geschlossene Vokabular), nicht die Anzeigelabels. */
   chosenSkills = $state<string[]>([]);
-  /** Gewählte Ausrüstungs-Option je Gruppe (Gruppen-Index → Options-Index). Default: erste Option. */
+  /** Gruppen-Index → Options-Index; fehlender Eintrag heißt erste Option. */
   equipmentSelection = $state<number[]>([]);
   /**
-   * Konkreter Gegenstand für die Kategorie-Einträge der Ausrüstung (`choiceFrom`):
-   * Schlüssel ist `toolPickKey(...)`, Wert der Bibliotheks-Name. Nicht am Options-
-   * Objekt selbst, weil das KI-Ergebnis bei jedem `restart()` ersetzt wird.
+   * `toolPickKey(...)` → Bibliotheks-Name für Kategorie-Einträge (`choiceFrom`). Nicht am
+   * Options-Objekt selbst, weil das KI-Ergebnis bei jedem `restart()` ersetzt wird.
    */
   toolPicks = $state<Record<string, string>>({});
-  /** Gewählte Waffen der Waffenmeisterschaft (Bibliotheks-Namen; nur wenn die Klasse sie gewährt). */
+  /** Waffenmeisterschaft: Bibliotheks-*Namen*, die Eigenschaft wird beim Rendern aufgelöst. */
   masteries = $state<string[]>([]);
-  /** Gewählte Kampfstile als Talent-Keys (sourceKey); nur wenn die Klasse einen Kampfstil gewährt. */
+  /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
   // ── Zauberwahl (Schritt „Zauber"; alle Listen `encodePick`-kodiert) ──
-  /** Zaubertricks (Grad 0) aus dem Klassenkontingent. */
   pickedCantrips = $state<string[]>([]);
-  /**
-   * Zauber ab Grad 1 aus dem Klassenkontingent. Im `spellbook`-Regime ist das der
-   * bekannt-Bestand (das Zauberbuch), sonst unmittelbar die Vorbereitung.
-   */
+  /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);
-  /**
-   * Teilmenge von `pickedKnown`, die als vorbereitet gilt — nur das `spellbook`-Regime
-   * pflegt sie (der Magier wählt „kennen" und „vorbereitet" getrennt). Bei allen anderen
-   * Klassen ist die Auswahl selbst die Vorbereitung, das Feld bleibt leer.
-   */
+  /** Bleibt außerhalb von `spellbook` leer — dort IST die Auswahl die Vorbereitung. */
   pickedPrepared = $state<string[]>([]);
   /**
-   * Zauber aus Merkmals-Wahlen (`spell-pick`), je Wahl-`id`. Getrennt vom Klassenkontingent,
-   * weil sie nicht dagegen zählen und stets vorbereitet sind (z.B. „Eingeweihter der Magie").
+   * Zauber aus `spell-pick`-Wahlen je Wahl-`id`. Getrennt vom Klassenkontingent, weil sie
+   * nicht dagegen zählen und stets vorbereitet sind.
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
@@ -165,33 +127,24 @@ export class CharacterWizard {
   /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
   /**
-   * Deklarierte Zauber-Zugänge („Eingeweihter der Magie") — stehen sofort, ohne KI und ohne QM.
-   * Gefüllt aus `buildFeaturePrep`, deshalb `$state` statt Getter (die Aufbereitung ist async).
+   * Die vier folgenden Felder kommen aus `buildFeaturePrep` und stehen ohne KI und ohne QM;
+   * `$state` statt Getter, weil die Aufbereitung async ist.
    */
   spellAccess = $state<SpellAccessGrant[]>([]);
-  /** Größen-Wahl der Spezies (Mensch, Tiefling) — wie `spellAccess` aus `buildFeaturePrep`. */
   sizeChoice = $state<AnalysisChoice | null>(null);
-  /**
-   * Fortlaufende TP-Effekte („Zäh", Zwergische Zähigkeit) — deterministisch aus
-   * `grants.perLevel` der Bibliothek, wie `spellAccess` aus `buildFeaturePrep`.
-   */
   hpPerLevel = $state<PerLevelSource[]>([]);
-  /**
-   * ALLE Stufe-1-Merkmale samt Deklaration und Herkunft (aus `buildFeaturePrep`) — die eine
-   * Quelle für Zweigwahlen, Expertise, `grants` und Zauberlisten. Gefiltert wird nach
-   * Deklarationsart, nicht nach Herkunft.
-   */
+  /** ALLE Stufe-1-Merkmale; gefiltert wird nach Deklarationsart, nie nach Herkunft. */
   declared = $state<DeclaredFeature[]>([]);
   /**
-   * Fest gewährte Fertigkeitsübungen (aus `collectGrants`, gesetzt vom Übungen-Schritt).
-   * Zusammen mit `chosenSkills` die Optionsliste der Expertise-Wahl — ein Vault-Feld kann sie
-   * nicht tragen, sie ist der Übungsstand DIESES Charakters.
+   * Fest gewährte Fertigkeitsübungen aus `collectGrants`. Zusammen mit `chosenSkills` die
+   * Optionsliste der Expertise-Wahl — ein Vault-Feld kann sie nicht tragen, sie ist der
+   * Übungsstand DIESES Charakters.
    */
   grantedSkills = $state<string[]>([]);
   /**
    * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
-   * nicht im KI-Eingang, und Pass C soll pro Eintrag in `<resolved_choices>` genau ein
-   * Protokoll schreiben — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
+   * nicht im KI-Eingang, und Pass C schreibt pro Eintrag in `<resolved_choices>` ein Protokoll
+   * — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
    */
   declaredAnswers = $state<ResolvedChoice[]>([]);
 
@@ -212,7 +165,6 @@ export class CharacterWizard {
     this.#getConfig = getConfig;
   }
 
-  // ── Ableitungen (reaktiv, weil sie $state lesen) ──
   get basicsComplete(): boolean {
     return !!(this.species.sourceKey && this.klass.sourceKey && this.background.sourceKey);
   }
@@ -222,9 +174,8 @@ export class CharacterWizard {
   }
 
   /**
-   * Die deterministischen Wahlen: Größenkategorie und die deklarierten Zauber-Zugänge. Reaktiv
-   * von `declaredAnswers` abhängig: erst die beantwortete Zauberliste macht aus dem Kontingent
-   * eine benutzbare Zauber-Wahl (der Filter der Bibliothek hängt daran).
+   * Hängt reaktiv an `declaredAnswers`: erst die beantwortete Zauberliste macht aus dem
+   * Kontingent eine benutzbare Zauber-Wahl (der Bibliotheks-Filter hängt daran).
    */
   get declaredChoices(): AnalysisChoice[] {
     const spells = this.spellAccess.flatMap((grant) => {
@@ -250,26 +201,19 @@ export class CharacterWizard {
     return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
   }
 
-  /** Geübte Fertigkeiten (englisch): fest gewährte plus selbst gewählte, ohne Dubletten. */
   get proficientSkills(): string[] {
     return [...new Set([...this.grantedSkills, ...this.chosenSkills])];
   }
 
-  /** Merkmals-Wahlen, die eine ZAUBER-Wahl sind — Optionen kommen aus `vault/spells`. */
   get spellPickChoices() {
     return this.featureChoices.filter((c) => c.type === 'spell-pick');
   }
 
-  /** Merkmals-Wahlen, die im Merkmals-Schritt gerendert werden (alles außer Zauber-Wahlen). */
   get plainChoices() {
     return this.featureChoices.filter((c) => c.type !== 'spell-pick');
   }
 
   /**
-   * Fertige Merkmals-Rider: die des Effekt-Jobs (leer, solange er läuft/übersprungen ist)
-   * plus die der deklarierten Zweigwahlen — dieselbe Form, damit `riderExtras` und die
-   * Assembly sie nicht unterscheiden müssen.
-   *
    * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
    * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
    */
@@ -286,7 +230,6 @@ export class CharacterWizard {
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
 
-  // ── Aufbereitung (einmal, von allen Merkmals-Jobs geteilt) ──
   #prepare(): Promise<FeaturePrep> {
     if (!this.#prep) {
       this.#prep = buildFeaturePrep({ species: this.species, klass: this.klass, background: this.background });
@@ -294,7 +237,6 @@ export class CharacterWizard {
     return this.#prep;
   }
 
-  // ── Hintergrund-Jobs starten (fire-and-forget) ──
   kickoff(): void {
     const cfg = this.#getConfig();
     this.#prep = null; // frische Aufbereitung für die aktuelle Grundwahl
@@ -310,8 +252,8 @@ export class CharacterWizard {
       this.declared = prep.declared;
     }, () => {});
 
-    // Merkmals-Deutung: QM-only. Klassen- UND Speziesmerkmale, damit Volks-Wahlen
-    // (Drakonische Urahnen usw.) als erzwungene Wahl erkannt werden.
+    // Klassen- UND Speziesmerkmale, damit Volks-Wahlen (Drakonische Urahnen) als erzwungene
+    // Wahl erkannt werden.
     if (this.isQm) {
       this.analysis.run(async (signal) => {
         const prep = await this.#prepare();
@@ -326,12 +268,8 @@ export class CharacterWizard {
       this.effects.skip();
     }
 
-    // Der Merkmals-Text (classText/speciesText) läuft BEWUSST NICHT hier: er wird erst
-    // nach dem Wahl-Checkpoint über `summarizeFeatures()` gestartet, sonst steht im Text
-    // ein Platzhalter statt der Wahl (z.B. „Resistenz gegen [Schadensart]").
+    // classText/speciesText laufen BEWUSST NICHT hier, sondern erst in `summarizeFeatures()`.
 
-    // Ausrüstung: die englische Prosa (Klasse + Hintergrund) sofort in wählbare deutsche
-    // Optionen aufbereiten, damit Schritt 6 direkt eine echte Auswahl anbieten kann.
     this.equipmentSelection = [];
     this.toolPicks = {};
     this.equipment.run(async (signal) => {
@@ -373,9 +311,7 @@ export class CharacterWizard {
     this.kickoff();
   }
 
-  /** Getroffene Aufbau-Wahlen je Merkmals-Key (resolvedChoices × Analyse-Choices) — damit
-   *  der Merkmals-Text die Wahl statt eines Platzhalters trägt (`SummaryFeature.choice`).
-   *  DEUTSCH: der Merkmals-Text ist der Bogen-Freitext, nicht der Prompt-Kanal. */
+  /** DEUTSCHE Labels: das Ziel ist der Bogen-Freitext, nicht der Prompt-Kanal. */
   #choiceByFeatureKey(): Map<string, string> {
     const byId = new Map(this.featureChoices.map((c) => [c.id, c]));
     const map = new Map<string, string>();
@@ -393,10 +329,8 @@ export class CharacterWizard {
   }
 
   /**
-   * Merkmals-Texte (Klassen-/Volksmerkmale) NACH dem Wahl-Checkpoint verdichten: erst wenn
-   * die getroffene Wahl feststeht, steht sie auch im Text (sonst Platzhalter wie „Resistenz
-   * gegen [Schadensart]"). Läuft über jeden Provider; die Wahl geht je Merkmal als `choice`
-   * mit ein (per featureKey den passenden Summary-Feature zugeordnet).
+   * Läuft erst NACH dem Wahl-Checkpoint: sonst steht im Text ein Platzhalter („Resistenz
+   * gegen [Schadensart]") statt der getroffenen Wahl. Über jeden Anbieter.
    */
   summarizeFeatures(): void {
     const cfg = this.#getConfig();
@@ -409,10 +343,8 @@ export class CharacterWizard {
     this.classText.run(async (signal) => {
       const prep = await this.#prepare();
       const features = prep.summaryClass.map((s, i) => withChoice(s, prep.gained[i]?.key));
-      // Gewählte Kampfstile als eigene Klassenmerkmal-Zeilen: das Kampfstil-Merkmal ist
-      // flow-eigen und daher aus `gained`/der KI-Analyse gefiltert (kein Halluzinieren), die
-      // getroffene Wahl steckt im verlinkten Talent (Source of Truth). Im Klassenmerkmale-Text
-      // soll sie trotzdem erscheinen — hier als Klassen-Merkmal mit der Talent-Beschreibung.
+      // Das Kampfstil-Merkmal ist flow-eigen und daher aus der KI-Analyse gefiltert; ohne
+      // diese Zeilen fehlte die getroffene Wahl im Klassenmerkmale-Text ganz.
       if (this.fightingStyles.length) {
         const feats = await getFeats();
         for (const key of this.fightingStyles) {
@@ -446,7 +378,7 @@ export class CharacterWizard {
     });
   }
 
-  /** Nach dem Merkmals-Checkpoint: Effekte (Rider + gewährte Zauber) finalisieren. QM-only. */
+  /** QM-only; ohne Analyse-Ergebnis bleibt der Effekt-Job übersprungen. */
   finalizeFeatures(): void {
     const cfg = this.#getConfig();
     if (!this.isQm || this.analysis.status !== 'done' || !this.analysis.result) {
@@ -457,8 +389,8 @@ export class CharacterWizard {
     const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
     this.effects.run(async (signal) => {
       const prep = await this.#prepare();
-      // Dazu die Merkmale, deren Zweig nichts deklariert: die Wahl steht (Checkpoint ist
-      // durch), die Prosa der Option deutet Pass C. `gainedAt: 1` — im Wizard alles Stufe 1.
+      // Merkmale, deren Zweig nichts deklariert: die Wahl steht, die Prosa der Option deutet
+      // Pass C. `gainedAt: 1` — im Wizard ist alles Stufe 1.
       const unredacted = unredactedChoiceFeatures(prep.declared, (f) => answerOf(optionChoiceId(f)))
         .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
       return finalizeFeatureEffects(
@@ -475,16 +407,12 @@ export class CharacterWizard {
     });
   }
 
-  /** Index der gewählten Option einer Gruppe (Default: erste), robust gegen Lücken. */
   selectedOptionIndex(groupIdx: number): number {
     const options = this.equipment.result?.groups[groupIdx]?.options ?? [];
     const idx = this.equipmentSelection[groupIdx] ?? 0;
     return options[idx] ? idx : 0;
   }
 
-  /** Gewählte Ausrüstungs-Option je Gruppe, mit den Kategorie-Einträgen aufgelöst.
-   *  Münzeinträge werden aus den Items verworfen — die Münzen stecken bereits in
-   *  `goldPieces` (→ Währung), sonst stünde das Gold zusätzlich im Inventar. */
   selectedEquipment(): { items: { name: string; count: number }[]; goldPieces: number } {
     const groups = this.equipment.result?.groups ?? [];
     const items: { name: string; count: number }[] = [];
@@ -495,8 +423,7 @@ export class CharacterWizard {
       if (!opt) return;
       opt.items.forEach((item, ii) => {
         if (isCoinItem(item.name)) return;
-        // Kategorie-Eintrag ohne Wahl fällt weg, statt „Handwerkszeug" ins Inventar zu
-        // schreiben — einen solchen Gegenstand gibt es nicht.
+        // Kategorie-Eintrag ohne Wahl fällt weg — „Handwerkszeug" ist kein Gegenstand.
         const picked = item.choiceFrom ? this.toolPicks[toolPickKey(gi, oi, ii)] : item.name;
         if (picked) items.push({ name: picked, count: item.count });
       });
@@ -505,7 +432,6 @@ export class CharacterWizard {
     return { items, goldPieces };
   }
 
-  /** Kategorie-Einträge der gewählten Optionen, denen noch ein Gegenstand fehlt. */
   pendingToolChoices(): number {
     const groups = this.equipment.result?.groups ?? [];
     return groups.reduce((sum, group, gi) => {
@@ -516,12 +442,10 @@ export class CharacterWizard {
     }, 0);
   }
 
-  /** Summe der pro-Stufe wirkenden TP-Effekte (auf Stufe 1 einmal angewandt). */
   hpPerLevelBonus(): number {
     return hpPerLevelSum(this.hpPerLevel);
   }
 
-  /** Wartet, bis die für den Zusammenbau nötigen KI-Jobs settled sind (fürs „Erstellen"). */
   async awaitPending(): Promise<void> {
     await Promise.all([
       this.effects.settle(),
@@ -531,7 +455,6 @@ export class CharacterWizard {
     ]);
   }
 
-  /** Bricht alle laufenden Jobs ab (beim Schließen des Wizards). */
   dispose(): void {
     this.analysis.abort();
     this.classText.abort();

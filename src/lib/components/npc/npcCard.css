@@ -1,0 +1,80 @@
+/* Anzeigesprache des NPC-Bogens. Global unter `.npc-sheet`, weil Zauber- und
+   Inventarblock eigene Komponenten sind und dieselben Abschnitts- und
+   Hinzufügen-Regeln brauchen. Muster wie character/sheet.css. */
+
+.npc-sheet .section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--surface);
+  padding-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Muss hier stehen, nicht in NpcCard: die Basisregel oben ist gleich spezifisch. */
+.npc-sheet .secret-section h3 { color: var(--danger); border-bottom-color: var(--danger); }
+
+.npc-sheet .h3-hint {
+  font-size: 0.65rem;
+  color: var(--border);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* Eingabezeile unter einer Liste: Autocomplete-Feld, ggf. Zahl, „+". */
+.npc-sheet .add-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.npc-sheet .add-input {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--surface);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.45rem;
+  outline: none;
+  font-family: inherit;
+}
+.npc-sheet .add-input:focus { border-color: var(--red); }
+.npc-sheet .add-num { flex: 0 0 3.5rem; text-align: right; }
+
+.npc-sheet .autocomplete-wrap { flex: 1; min-width: 0; }
+.npc-sheet .sug-level {
+  font-size: 0.68rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.npc-sheet .add-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--ink-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+}
+.npc-sheet .add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
+
+/* × am Ende einer Listenzeile. */
+.npc-sheet .row-remove {
+  background: none;
+  border: none;
+  color: var(--border);
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  flex-shrink: 0;
+}
+.npc-sheet .row-remove:hover { color: var(--danger); }

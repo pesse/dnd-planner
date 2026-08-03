@@ -5,10 +5,10 @@
  * hier wird sie gelesen. Kernzusicherung: SG und Angriffsbonus entstehen zur Anzeigezeit,
  * nichts wird gespeichert — sonst altern sie mit dem Übungsbonus.
  *
- *   npm run eval -- --eval spellAccessValues
+ *   npm run test -- spellAccessValues
  */
 import { describe, expect, it } from 'vitest';
-import { characterSchema } from '../../src/lib/schemas/character';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { SHEET_NOTE_MAX_CHARS } from '../../src/lib/schemas/levelUp';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';
 import {
