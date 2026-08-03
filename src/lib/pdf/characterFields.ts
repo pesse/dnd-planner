@@ -32,7 +32,7 @@ export const SPELL_FIELDS_PER_LEVEL: Record<number, number> = { 1:13, 2:13, 3:13
 
 export function emptyProficiencies(): ProficiencyFlags {
   return {
-    simpleWeapons: false, martialWeapons: false, otherWeapons: '',
+    simpleWeapons: false, martialWeapons: false, individualWeapons: [], otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
   };
 }
@@ -218,6 +218,10 @@ function parseProficiencies(r: FieldReader): ProficiencyFlags {
   return {
     simpleWeapons: r.prof('EinfachWaffenProf'),
     martialWeapons: r.prof('KriegswaffenProf'),
+    // Das Formular hat für Einzelwaffen nur das eine Textfeld — der Import legt alles in den
+    // Freitext, der Rundlauf ist hier bewusst verlustig. Zurück in die Liste holt es das
+    // Altbestands-Angebot im Editor (`weaponsFix`, characterLegacyLinks.ts).
+    individualWeapons: [],
     otherWeapons: r.f('SonstigeWaffen'),
     lightArmor: r.prof('LeichteRüstungProf'),
     mediumArmor: r.prof('MittlereRüstungProf'),

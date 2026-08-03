@@ -10,13 +10,13 @@ import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibr
 import { displayName, type ItemIndex } from '$lib/itemLibrary';
 import type { SpellIndex } from '$lib/spellLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
-import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type SpellRef } from '$lib/schemas/characterSchema';
+import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type ProficiencyFlags, type SpellRef } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
 /** Zaubertricks tragen kein `prepared` — für die Verlinkung zählt nur name/sourceKey. */
 type SpellRefLike = SpellRef;
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -34,6 +34,7 @@ export interface LegacyLinkTarget {
   inventory: InventoryLine[];
   cantrips: SpellRefLike[];
   spellsByLevel: Record<string, SpellRefLike[]>;
+  proficiencies: ProficiencyFlags;
 }
 
 /** Was noch lädt, wird schlicht nicht angeboten. */
@@ -174,6 +175,44 @@ export function spellsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): 
   };
 }
 
+/**
+ * Namen im Waffen-Freitext, die die Bibliothek als Waffe kennt: die wirken als
+ * `individualWeapons` (Waffenbeherrschung, Übungsbonus), als Prosa wirken sie nicht.
+ * Prosa wie „Kriegswaffen mit Finesse" trifft nichts und BLEIBT deshalb stehen.
+ */
+function splitWeaponText(text: string, libs: LegacyLinkLibraries): { movable: string[]; rest: string[] } {
+  const movable: string[] = [];
+  const rest: string[] = [];
+  for (const part of text.split(/[,;]/).map((s) => s.trim())) {
+    if (!part) continue;
+    const nm = part.toLowerCase();
+    const hit = libs.items.ambiguous.has(nm) ? undefined : libs.items.byName.get(nm);
+    if (hit?.key && hit.category === 'weapon') movable.push(displayName(hit));
+    else rest.push(part);
+  }
+  return { movable, rest };
+}
+
+/** Waffennamen aus dem Freitext in die strukturierte Liste heben. */
+export function weaponsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const { movable } = splitWeaponText(target.proficiencies.otherWeapons, libs);
+  if (!movable.length) return undefined;
+  return {
+    kind: 'weapons',
+    label: `${movable.length} ${movable.length === 1 ? 'Waffe' : 'Waffen'} aus dem Freitext als Einzelübung übernehmen`,
+    apply: () => {
+      const prof = target.proficiencies;
+      const { movable: hits, rest } = splitWeaponText(prof.otherWeapons, libs);
+      for (const name of hits) {
+        if (!prof.individualWeapons.some((x) => x.toLowerCase() === name.toLowerCase())) {
+          prof.individualWeapons.push(name);
+        }
+      }
+      prof.otherWeapons = rest.join(', ');
+    },
+  };
+}
+
 /** Leer heißt: vollständig verknüpft — oder die Bibliotheken sind noch nicht geladen. */
 export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix[] {
   return [
@@ -182,5 +221,6 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     backgroundFix(target, libs),
     inventoryFix(target, libs),
     spellsFix(target, libs),
+    weaponsFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);
 }

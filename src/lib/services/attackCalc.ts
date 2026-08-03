@@ -5,6 +5,7 @@
 import { sign } from '../utils/num';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
+import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
 
@@ -15,8 +16,9 @@ export interface AttackCalcContext {
 }
 
 export interface WeaponAttackContext extends AttackCalcContext {
-  simpleWeapons: boolean;
-  martialWeapons: boolean;
+  proficiencies: WeaponProficiencies;
+  /** Löst einen erklärten Waffennamen zur Waffenart auf, damit auch magische Stücke greifen. */
+  weaponByName?: (name: string) => { index?: string } | undefined;
 }
 
 const ABILITY_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', finesse: 'Finesse' };
@@ -111,8 +113,7 @@ export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Att
   const isFinesse = (item.properties ?? []).some((p) => p.index === 'finesse');
   const ability: Attack['ability'] = isRanged ? 'ges' : (isFinesse ? 'finesse' : 'str');
 
-  const proficient = (item.weapon_category === 'Simple' && ctx.simpleWeapons) ||
-                     (item.weapon_category === 'Martial' && ctx.martialWeapons);
+  const proficient = isProficientWithWeapon(ctx.proficiencies, item, ctx.weaponByName);
 
   const baseDamage = item.damage?.damage_dice ? formatDamageDice(item.damage.damage_dice) : '';
   const magicBonus = item.magic_bonus ?? 0;

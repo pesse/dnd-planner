@@ -247,8 +247,13 @@ function writeProficiencies({ t, c }: FieldSink, ch: CharacterJSON) {
   if (!pr) return;
   c('EinfachWaffenProf', pr.simpleWeapons);
   c('KriegswaffenProf', pr.martialWeapons);
-  t('SonstigeWaffen', pr.otherWeapons ?? '');
-  c('SonstigeWaffenProf', (pr.otherWeapons ?? '').trim() !== '');
+  // Das Formular hat für beides nur EIN Textfeld: einzeln erklärte Waffen und der Freitext
+  // gehen zusammen hinein („Kurzschwert, Kriegswaffen mit Finesse").
+  const otherWeapons = [...(pr.individualWeapons ?? []), (pr.otherWeapons ?? '').trim()]
+    .filter(Boolean)
+    .join(', ');
+  t('SonstigeWaffen', otherWeapons);
+  c('SonstigeWaffenProf', otherWeapons !== '');
   c('LeichteRüstungProf', pr.lightArmor);
   c('MittlereRüstungProf', pr.mediumArmor);
   c('SchwereRüstungProf', pr.heavyArmor);

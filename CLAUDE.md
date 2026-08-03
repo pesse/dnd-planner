@@ -156,6 +156,13 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   the property is resolved at render time, so a swap needs no write-back.
 - **Weapon mastery is not an AI path.** `isFlowOwnedChoiceFeature` keeps it out of the level-up
   prompt, and the options must come from the library, never from a model.
+- **Weapon proficiency is asked in exactly one place**: `isProficientWithWeapon`
+  (`services/weaponProficiency.ts`) — the two category flags plus
+  `proficiencies.individualWeapons`, sharing its `weaponNameSet`/`coversWeapon` matcher with
+  `character.masteries`. `proficiencies.otherWeapons` is free text with no mechanical effect
+  („Martial weapons with Finesse" is prose, not a weapon list); the legacy fix `kind: 'weapons'`
+  lifts out what the library recognises. No library schema names an individual weapon — the player
+  declares one by hand, **a model cannot invent one**.
 - **The feature interpretation is monolingual English, with a translation boundary.** Analysis and
   effects pass (`aiActions/featureEffectsAction.ts`) see English only — `buildFeatureEffectsInput`
   strips `nameDe`/`descDe` although `GainedFeature` carries them. German is produced by the two

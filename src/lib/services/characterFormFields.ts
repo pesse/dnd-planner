@@ -171,6 +171,10 @@ function withDefaults<T extends object>(base: T, given: Partial<T> | undefined):
   return out;
 }
 
+/** `individualWeapons` ist die eine Liste darin — ein Spread allein teilte sie mit dem Draft. */
+const copyProficiencies = (p: ProficiencyFlags): ProficiencyFlags =>
+  ({ ...p, individualWeapons: [...p.individualWeapons] });
+
 export function initialFormFields(character: Character): CharacterFormFields {
   return {
     name: character.name ?? '',
@@ -235,7 +239,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
       ),
     },
     personal: withDefaults(emptyPersonal(), character.personal),
-    proficiencies: withDefaults(emptyProficiencies(), character.proficiencies),
+    proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
     portraitFile: character.portraitFile ?? '',
   };
@@ -319,7 +323,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
       ),
     },
     personal: { ...f.personal },
-    proficiencies: { ...f.proficiencies },
+    proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
     portraitFile: f.portraitFile || undefined,
   };
