@@ -27,6 +27,7 @@
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import { createSuggestNav } from '../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../utils/dropdownPlacement';
   import { createHoverTip } from '../utils/hoverTip.svelte';
   import DeclarationBadge from './DeclarationBadge.svelte';
   import FeatureChoicePicker from './FeatureChoicePicker.svelte';
@@ -376,7 +377,7 @@
       onblur={() => setTimeout(() => { if (featPickerTarget === target) closeFeatPicker(); }, 150)}
     />
     {#if featPickerTarget === target}
-      <ul class="suggestions compact">
+      <ul class="suggestions compact" use:dropdownPlacement>
         {#each featOptions as opt, si}
           <li class:active={si === featNav.index} onmousedown={() => pickFeat(target, opt)}
             onmouseenter={(e) => featTip.show(e, opt)}

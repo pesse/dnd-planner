@@ -12,6 +12,7 @@
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { Character } from '../../schemas/characterSchema';
@@ -157,7 +158,7 @@
                 }, 150)}
               />
               {#if activeRow === i && suggestions.length > 0}
-                <ul class="suggestions">
+                <ul class="suggestions" use:dropdownPlacement>
                   {#each suggestions as sug, si}
                     <li class:active={si === nav.index} onmousedown={() => selectItem(i, sug)}>
                       <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>

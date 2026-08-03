@@ -18,6 +18,7 @@
   } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
   import type { Character, SpellRef } from '../../schemas/characterSchema';
@@ -248,7 +249,7 @@
       onkeydown={cantripNav.onkeydown}
       onblur={() => setTimeout(() => { cantripSuggestions = []; }, 150)} />
     {#if cantripSuggestions.length > 0}
-      <ul class="suggestions">
+      <ul class="suggestions" use:dropdownPlacement>
         {#each cantripSuggestions as sug, i}
           <li class:active={i === cantripNav.index} class:out-of-class={!sug.inClass}
             onmousedown={() => selectCantrip(sug)}>
@@ -274,7 +275,7 @@
       onkeydown={spellNav.onkeydown}
       onblur={() => setTimeout(() => { spellSuggestions = []; }, 150)} />
     {#if spellSuggestions.length > 0}
-      <ul class="suggestions">
+      <ul class="suggestions" use:dropdownPlacement>
         {#each spellSuggestions as sug, i}
           <li class:active={i === spellNav.index} class:out-of-class={!sug.inClass}
             onmousedown={() => selectSpell(sug)}>

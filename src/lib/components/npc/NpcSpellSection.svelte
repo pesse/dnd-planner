@@ -8,6 +8,7 @@
   } from '../../spellLibrary';
   import { spellDesc, spellHigherLevel, spellComponents, spellSchoolLabel } from '../../types';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import Markdown from '../Markdown.svelte';
   import type { Npc } from '../../schemas/npc';
   import type { Spell } from '../../types';
@@ -128,7 +129,7 @@
         onkeydown={nav.onkeydown}
         onblur={() => setTimeout(() => { suggestions = []; }, 150)} />
       {#if suggestions.length > 0}
-        <ul class="suggestions">
+        <ul class="suggestions" use:dropdownPlacement>
           {#each suggestions as sug, i}
             <li class:active={i === nav.index}
               onmousedown={() => select(sug.spell.name)}>

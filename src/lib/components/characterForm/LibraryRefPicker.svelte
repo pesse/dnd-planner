@@ -5,6 +5,7 @@
    * Hintergrund; die Trefferliste und was ein Treffer bedeutet, liefert der Aufrufer.
    */
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import './form.css';
 
   let {
@@ -89,7 +90,7 @@
       {onblur}
     />
     {#if active && suggestions.length > 0}
-      <ul class="suggestions">
+      <ul class="suggestions" use:dropdownPlacement>
         {#each suggestions as sug, i}
           <li class:active={i === nav.index} onmousedown={() => pick(sug)}>
             <span>{label(sug)}</span>

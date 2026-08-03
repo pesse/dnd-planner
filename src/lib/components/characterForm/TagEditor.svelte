@@ -9,6 +9,7 @@
    */
   import { diffMark } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import './form.css';
 
   interface Suggestion {
@@ -62,7 +63,7 @@
   <div class="autocomplete-wrap" class:tag-picker={!!suggest}>
     <input class="tag-input" bind:value={input} {placeholder} onkeydown={nav.onkeydown} />
     {#if suggestions.length}
-      <ul class="suggestions">
+      <ul class="suggestions" use:dropdownPlacement>
         {#each suggestions as sug, i}
           <li class:active={i === nav.index}
             onclick={() => add(sug.value)}
