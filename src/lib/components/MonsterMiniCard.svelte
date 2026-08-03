@@ -6,6 +6,7 @@
   import { normalizeMonster } from '../utils/schemaValidation';
   import { toActLocalJson, toLibraryJson } from '../utils/vaultJson';
   import { OWN_SOURCE } from '../schemas/source';
+  import { MONSTERS_PATH, globalMonsterCandidates, findGlobalMonsterPath } from '../monsterLibrary';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
@@ -19,8 +20,6 @@
   let source = $state<'global' | 'act'>('global');
   let savePath = $state('');
   let promoteError = $state('');
-
-  const GLOBAL_MONSTERS_PATH = './vault/monsters';
 
   let loadError = $state('');
   let schemaWarnings = $state<string[]>([]);
@@ -85,16 +84,8 @@
 
     if (seq !== loadSeq) return;
 
-    // Global fallback: Monster liegen entweder flach oder in Gruppen-Unterordnern
-    // (z.B. vault/monsters/goblinoide/…). Erst flach, dann jede Gruppe durchsuchen.
-    const tryPaths = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
-      if (seq !== loadSeq) return;
-      for (const e of entries) {
-        if (e.is_dir) tryPaths.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
-      }
-    } catch { /* Verzeichnisliste nicht verfügbar → nur flacher Pfad */ }
+    const tryPaths = await globalMonsterCandidates(s);
+    if (seq !== loadSeq) return;
 
     for (const globalPath of tryPaths) {
       try {
@@ -162,30 +153,16 @@
     }
   }
 
-  /** Sucht ein Monster in der globalen Bibliothek (flach + Gruppen-Unterordner). Liefert den Pfad oder null. */
-  async function findGlobalPath(s: string): Promise<string | null> {
-    const candidates = [`${GLOBAL_MONSTERS_PATH}/${s}.json`];
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: GLOBAL_MONSTERS_PATH });
-      for (const e of entries) if (e.is_dir) candidates.push(`${GLOBAL_MONSTERS_PATH}/${e.name}/${s}.json`);
-    } catch { /* nur flacher Pfad prüfbar */ }
-    for (const path of candidates) {
-      try { await invoke<string>('read_file_content', { path }); return path; }
-      catch { /* nicht hier */ }
-    }
-    return null;
-  }
-
   async function promoteToLibrary() {
     if (source !== 'act') return;
     promoteError = '';
     // Existiert der Slug global schon, legte `rename_file` ein Duplikat an.
-    const existing = await findGlobalPath(slug);
+    const existing = await findGlobalMonsterPath(slug);
     if (existing) {
       promoteError = `„${slug}" existiert bereits in der Bibliothek (${existing}). Verschieben abgebrochen.`;
       return;
     }
-    const globalPath = `${GLOBAL_MONSTERS_PATH}/${slug}.json`;
+    const globalPath = `${MONSTERS_PATH}/${slug}.json`;
     try {
       await invoke('rename_file', { oldPath: savePath, newPath: globalPath });
       // In der Bibliothek gilt die Herkunftspflicht: ein übernommenes Monster ist

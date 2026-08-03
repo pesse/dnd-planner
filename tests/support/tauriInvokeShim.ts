@@ -65,6 +65,10 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     case 'list_json_files':
       return readdirSync(vaultPath(String(a.path)))
         .filter((f) => f.endsWith('.json')) as unknown as T;
+    case 'list_json_entries':
+      return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
+        .filter((e) => e.isDirectory() || e.name.endsWith('.json'))
+        .map((e) => ({ name: e.name, is_dir: e.isDirectory() })) as unknown as T;
     case 'read_file_content':
       return readFileSync(vaultPath(String(a.path)), 'utf8') as unknown as T;
     case 'load_spells_index': {
