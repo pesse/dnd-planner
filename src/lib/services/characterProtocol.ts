@@ -4,16 +4,31 @@
  * Fragestellung zu einer Wahl steht nicht im Ledger und kommt daher von außen.
  */
 import type { Character } from '../schemas/characterSchema';
-import { SKILL_DEFS } from '../domain/skills';
-import { ABILITY_KEYS, ABILITY_LABEL } from '../schemas/abilities';
-import { sign } from '../utils/num';
+import { characterSummary, type SummarySectionId, type SummaryValue } from './characterSummary';
 
 export interface ProtocolGroup {
   heading: string;
   lines: string[];
 }
 
+const HEADINGS: Record<SummarySectionId, string> = {
+  abilities: 'Attribute',
+  coreValues: 'Werte',
+  skills: 'Geübte Fertigkeiten',
+  expertise: 'Expertise',
+  savingThrows: 'Rettungswurf-Übungen',
+  weapons: 'Waffen',
+  armor: 'Rüstung',
+  masteries: 'Waffenbeherrschung',
+  tools: 'Werkzeuge',
+  languages: 'Sprachen',
+};
 
+function summaryLine(id: SummarySectionId, v: SummaryValue): string {
+  if (id === 'abilities') return `${v.label} ${v.score} (${v.detail})`;
+  if (id === 'coreValues') return `${v.label}: ${v.detail}`;
+  return v.label;
+}
 
 export function buildCharacterProtocol(
   c: Character,
@@ -24,34 +39,8 @@ export function buildCharacterProtocol(
     if (lines.length) groups.push({ heading, lines });
   };
 
-  add('Attribute', ABILITY_KEYS.map((k) => `${ABILITY_LABEL[k]} ${c[k]} (${sign(c[`${k}Mod`])})`));
-
-  add('Werte', [
-    ...(c.hpMax ? [`Trefferpunkte: ${c.hpMax}`] : []),
-    ...(c.hitDice ? [`Trefferwürfel: ${c.hitDice}`] : []),
-    ...(c.speed ? [`Bewegungsrate: ${c.speed}`] : []),
-    `Übungsbonus: +${c.proficiencyBonus}`,
-  ]);
-
-  add('Geübte Fertigkeiten', SKILL_DEFS.filter((d) => c.skills[d.key]?.prof && !c.skills[d.key]?.exp).map((d) => d.label));
-  add('Expertise', SKILL_DEFS.filter((d) => c.skills[d.key]?.exp).map((d) => d.label));
-  add('Rettungswurf-Übungen', ABILITY_KEYS.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k]));
-
-  add('Waffen', [
-    ...(c.proficiencies.simpleWeapons ? ['Einfache Waffen'] : []),
-    ...(c.proficiencies.martialWeapons ? ['Kriegswaffen'] : []),
-    ...(c.proficiencies.individualWeapons ?? []),
-    ...(c.proficiencies.otherWeapons?.trim() ? [c.proficiencies.otherWeapons.trim()] : []),
-  ]);
-  add('Rüstung', [
-    ...(c.proficiencies.lightArmor ? ['Leichte Rüstung'] : []),
-    ...(c.proficiencies.mediumArmor ? ['Mittelschwere Rüstung'] : []),
-    ...(c.proficiencies.heavyArmor ? ['Schwere Rüstung'] : []),
-    ...(c.proficiencies.shields ? ['Schilde'] : []),
-  ]);
-  add('Waffenbeherrschung', c.masteries);
-  add('Werkzeuge', c.tools);
-  add('Sprachen', c.languages);
+  for (const s of characterSummary(c))
+    add(HEADINGS[s.id], s.values.map((v) => summaryLine(s.id, v)));
 
   const spells: string[] = [];
   const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);

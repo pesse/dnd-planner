@@ -1,6 +1,6 @@
 /**
- * Die fünf Bibliotheken, die das Charakter-Formular für Autocomplete, Tooltips und die
- * Altformat-Erkennung braucht. Geladen wird einmal je Formular, indiziert reaktiv.
+ * Die fünf Bibliotheken, die der Charakterbogen für Autocomplete, Tooltips und die
+ * Altformat-Erkennung braucht. Einmal je Charakteransicht erzeugt, indiziert reaktiv.
  */
 import { getItemsByDir, buildItemIndex, type ItemInfo } from '../itemLibrary';
 import { getSpellLibrary, buildSpellIndex, type SpellInfo } from '../spellLibrary';
@@ -8,6 +8,8 @@ import { getClasses, type ClassInfo } from '../classLibrary';
 import { getSpeciesList, type SpeciesInfo } from '../speciesLibrary';
 import { getBackgroundsList, type BackgroundInfo } from '../backgroundsLibrary';
 import { DIR_TO_CATEGORY } from '../itemLabels';
+
+export type FormLibraries = ReturnType<typeof createFormLibraries>;
 
 export function createFormLibraries() {
   let itemsByDir = $state<Record<string, ItemInfo[]>>({});

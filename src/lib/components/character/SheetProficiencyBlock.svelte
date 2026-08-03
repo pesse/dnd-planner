@@ -3,6 +3,11 @@
   import { sign } from '../../utils/num';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
   import { saveTip } from '../../services/characterSheetTips';
+  import {
+    armorProficiencyLabels,
+    hasAnyProficiency,
+    weaponProficiencyLabels,
+  } from '../../domain/proficiencies';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
 
@@ -53,17 +58,11 @@
 
   {#if character.proficiencies}
     {@const pf = character.proficiencies}
-    {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.individualWeapons?.length ?? 0) > 0 || (pf.otherWeapons && pf.otherWeapons.trim())}
-    {#if anyProf}
+    {#if hasAnyProficiency(pf)}
       <h3>Übungen &amp; Rüstungsausbildung</h3>
       <div class="tag-list">
-        {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
-        {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
-        {#each pf.individualWeapons ?? [] as weapon}<span class="tag">{weapon}</span>{/each}
-        {#if pf.lightArmor}<span class="tag">Leichte Rüstung</span>{/if}
-        {#if pf.mediumArmor}<span class="tag">Mittlere Rüstung</span>{/if}
-        {#if pf.heavyArmor}<span class="tag">Schwere Rüstung</span>{/if}
-        {#if pf.shields}<span class="tag">Schilde</span>{/if}
+        {#each weaponProficiencyLabels(pf) as label}<span class="tag">{label}</span>{/each}
+        {#each armorProficiencyLabels(pf) as label}<span class="tag">{label}</span>{/each}
       </div>
       {#if pf.otherWeapons && pf.otherWeapons.trim()}
         <p class="prof-extra"><strong>Sonstige Waffenübungen:</strong> {pf.otherWeapons}</p>

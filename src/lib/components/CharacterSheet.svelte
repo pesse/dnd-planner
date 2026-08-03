@@ -1,40 +1,37 @@
 <script lang="ts">
-  import { tick } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { AutosaveFile } from '../utils/autosaveFile.svelte';
-  import { emptySpells } from '../pdf/characterFields';
-  import { choosePdfFile, importPdfIntoCharacter, exportCharacterPdfFile } from '../pdf/characterPdfIo';
-  import { applyChanges } from '../services/applyChanges';
-  import { createCardEditor } from '../editor/cardEditor.svelte';
-  import { parseCharacter } from '../utils/schemaValidation';
-  import { type Character } from '../schemas/characterSchema';
-  import { formatClassLevel, formatSpecies } from '../schemas/classLevelText';
-  import { pendingCharacterUpgrade } from '../schemas/characterUpgrades';
-  import { proficiencyBonus } from '../services/classProgression';
-  import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
-  import type { LevelUpDelta } from '../services/levelUp';
+  import { formatSpecies } from '../schemas/classLevelText';
+  import { createCharacterEditor } from '../services/characterEditor.svelte';
+  import { createCharacterSideFiles } from '../services/characterSideFiles.svelte';
+  import { createFormLibraries } from '../services/characterFormLibraries.svelte';
+  import { createCharacterPdf } from '../pdf/useCharacterPdf.svelte';
+  import { createFeaturePanelLayout } from '../utils/featurePanelLayout.svelte';
+  import { matchItem } from '../itemLibrary';
+  import { masteryLabel } from '../itemLabels';
+  import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
+  import { resolveSpellAccess } from '../services/characterFeatures';
+  import type { WeaponMastery } from '../schemas/vocabulary';
+  import type { CoverageBadge } from '../services/declarationCoverage';
+  import type { SpellAccessValues } from '../services/spellAccess';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import CharacterFeaturePanel from './CharacterFeaturePanel.svelte';
   import CharacterSheetView from './character/CharacterSheetView.svelte';
   import LevelUpAssistant from './LevelUpAssistant.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
-  import { invalidateVault } from '../stores/campaign';
-  import { getSpellLibrary, buildSpellIndex, matchSpell, type SpellInfo } from '../spellLibrary';
-  import { getItemsByDir, buildItemIndex, matchItem, matchWeaponName, type ItemInfo } from '../itemLibrary';
-  import { DIR_TO_CATEGORY, masteryLabel } from '../itemLabels';
-  import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
-  import type { WeaponMastery } from '../schemas/vocabulary';
-  import { resolveSpellAccess } from '../services/characterFeatures';
-  import type { CoverageBadge } from '../services/declarationCoverage';
-  import { dragPanelWidth } from '../utils/panelResize';
-  import type { SpellAccessValues } from '../services/spellAccess';
 
   interface Props {
     dirPath: string;   // z.B. "./vault/characters/carric_galanodel"
   }
 
   let { dirPath }: Props = $props();
+
+  const libs = createFormLibraries();
+  const editor = createCharacterEditor({
+    itemIndex: () => libs.itemIndex,
+    spellIndex: () => libs.spellIndex,
+  });
+  const ed = editor.card;
+  const character = $derived(editor.character);
 
   // Merkmals-gewährte Zauberwerte zur Anzeigezeit gerechnet, damit ein steigender
   // Übungsbonus sie mitnimmt — gespeichert würden sie altern.
@@ -54,181 +51,17 @@
     })();
   });
 
-  // Zuklappen ist eine Breiten-Transition auf 0, die Komponente bleibt montiert — sonst
-  // stimmte der Zähler an der Lasche im zugeklappten Zustand nicht.
-  const FEAT_MIN_W = 240;
-  const FEAT_MAX_W = 720;
-  let featsWidth = $state(parseInt(localStorage.getItem('char-features-width') ?? '360'));
-  let featsCollapsed = $state(localStorage.getItem('char-features-collapsed') === '1');
-  let featsDragging = $state(false);
-  const effFeatWidth = $derived(featsCollapsed ? 0 : featsWidth);
-  let featBadge = $state<CoverageBadge | null>(null);
-  let featOpenCount = $state(0);
-
-  function toggleFeats() {
-    featsCollapsed = !featsCollapsed;
-    localStorage.setItem('char-features-collapsed', featsCollapsed ? '1' : '0');
-  }
-
-  function startFeatResize(e: MouseEvent) {
-    featsDragging = true;
-    dragPanelWidth(e, {
-      start: featsWidth,
-      min: FEAT_MIN_W,
-      max: FEAT_MAX_W,
-      invert: true, // die Leiste hängt rechts — nach links ziehen vergrößert
-      onWidth: (w) => { featsWidth = w; },
-      ondone: () => {
-        localStorage.setItem('char-features-width', String(featsWidth));
-        featsDragging = false;
-      },
-    });
-  }
-
-  const ed = createCardEditor<Character>({
-    type: 'character',
-    label: 'Charakter',
-    parse: (content) => {
-      const r = parseCharacter(JSON.parse(content));
-      return r.ok ? r.data : null;
-    },
-    // Das angenommene Schema-Upgrade ist die einzige Änderung, die den Draft NICHT anfasst
-    // (`parse` hat sie beim Laden längst angewandt) — ohne diesen Hook bliebe der Editor
-    // sauber und die Speichern-Leiste unerreichbar. Rückgabetyp annotiert, weil
-    // `pendingUpgrade` seinerseits `ed.lastSavedContent` liest (Inferenzkreis).
-    extraDirty: (): boolean => upgradeAccepted && !!pendingUpgrade,
-    onSaved: () => invalidateVault(),
-  });
-  const character = $derived(ed.draft);
-  // Baseline des Diff-Highlightings: `save()` ersetzt `ed.draft` nicht, setzt aber
-  // `lastSavedContent` neu — dieser Derived rechnet nach, die Tönungen verschwinden.
-  const savedCharacter = $derived.by<Character | null>(() => {
-    if (!ed.lastSavedContent) return null;
-    try {
-      const r = parseCharacter(JSON.parse(ed.lastSavedContent));
-      return r.ok ? r.data : null;
-    } catch {
-      return null;
-    }
-  });
-  const pdfName = $derived(character?._importedFrom ?? '');
-
-  // Gegen den ROHEN Dateiinhalt geprüft, nicht gegen den Draft: `parseCharacter`
-  // zieht beim Laden ohnehin die Pipeline durch, veraltet ist nur die Datei.
-  const pendingUpgrade = $derived.by(() => {
-    if (!ed.lastSavedContent) return null;
-    try {
-      return pendingCharacterUpgrade(JSON.parse(ed.lastSavedContent));
-    } catch {
-      return null; // ungültiges JSON — dafür meldet sich bereits der Lade-Fehler
-    }
-  });
-  let upgradeAccepted = $state(false);
-  // Beim Dateiwechsel zurücksetzen, sonst wirkt der nächste Charakter ungespeichert.
-  $effect(() => {
-    void ed.lastSavedContent;
-    upgradeAccepted = false;
-  });
-
-  let showLevelUp = $state(false);
-
-  /**
-   * Der Referenz-Swap am Ende ist tragend: er löst `{#key ed.draft}` (Formular-Remount →
-   * Diff-Highlighting) und `ed.dirty` aus. Additiv, damit item-gewährte Boni bleiben.
-   */
-  function applyLevelUp(changeSet: LevelUpChangeSet, delta: LevelUpDelta) {
-    if (!ed.draft) return;
-    const next = structuredClone($state.snapshot(ed.draft)) as Character;
-
-    // Struktur aus `delta`, nicht additiv: Klassenstufe / Multiclass sind Identität.
-    if (delta.isNewClass) {
-      next.classes.push({ sourceKey: delta.sourceKey, name: delta.klasseName, level: delta.toLevel });
-    } else {
-      const cls = next.classes[delta.classIndex];
-      if (cls) cls.level = delta.toLevel;
-    }
-    // Sicherheitsnetz; das `changeSet` setzt den Übungsbonus ebenso.
-    next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
-
-    applyChanges(next, changeSet.changes, {
-      classIndex: delta.classIndex,
-      isNewClass: delta.isNewClass,
-      resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
-      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
-    });
-    next.classLevel = formatClassLevel(next.classes);
-
-    const r = parseCharacter(next);
-    ed.draft = r.ok ? r.data : next;
-  }
-
-  /**
-   * Das `await tick()` ist tragend: der Sync-$effect des Formulars muss seine Runes im
-   * Draft haben, sonst verliert der Referenz-Swap die letzten Eingaben.
-   */
-  async function applyChoiceGrants(changes: Change[]) {
-    if (!ed.draft || !changes.length) return;
-    await tick();
-    const next = structuredClone($state.snapshot(ed.draft)) as Character;
-    applyChanges(next, changes, {
-      classIndex: 0,
-      resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
-      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
-    });
-    const r = parseCharacter(next);
-    ed.draft = r.ok ? r.data : next;
-  }
-
-  let gmNotes = $state('');
-  const gmNotesSave = new AutosaveFile();
-  let freitext = $state('');
-  const freitextSave = new AutosaveFile();
-  let error = $state('');
-  let importingPdf = $state(false);
-  let exportingPdf = $state(false);
-  let portraitUrl = $state('');
-  let spellLibrary = $state<SpellInfo[]>([]);
-  let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
-
-  $effect(() => {
-    const file = character?.portraitFile;
-    if (!file) { portraitUrl = ''; return; }
-    invoke<string>('read_file_base64', { path: `${dirPath}/${file}` })
-      .then(b64 => {
-        const mime = file.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-        portraitUrl = `data:${mime};base64,${b64}`;
-      })
-      .catch(() => { portraitUrl = ''; });
-  });
-
-  $effect(() => { getSpellLibrary().then(lib => { spellLibrary = lib; }); });
-
-  $effect(() => {
-    Promise.all(
-      Object.keys(DIR_TO_CATEGORY).map(dir =>
-        getItemsByDir(dir).then(items => ({ dir, items }))
-      )
-    ).then(results => {
-      const map: Record<string, ItemInfo[]> = {};
-      for (const { dir, items } of results) map[dir] = items;
-      itemLoadedByDir = map;
-    });
-  });
-
-  const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
-  const spellIndex = $derived(buildSpellIndex(spellLibrary));
-
   /**
    * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
    * Name und Waffenart: ein Waffentausch wirkt sofort auf alle Angriffe, ohne dass in
    * `attacks[]` etwas zurückgeschrieben werden müsste.
    */
   const masteredWeaponKinds = $derived(
-    weaponNameSet(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
+    weaponNameSet(character?.masteries ?? [], (n) => matchItem(libs.itemIndex, { name: n })),
   );
 
   function masteryOf(name: string): WeaponMastery | undefined {
-    const lib = matchItem(itemIndex, { name });
+    const lib = matchItem(libs.itemIndex, { name });
     if (!lib?.mastery) return undefined;
     return coversWeapon(masteredWeaponKinds, lib) ? lib.mastery : undefined;
   }
@@ -238,105 +71,38 @@
    * der Bogen weniger als die Datei enthält; der Editor markiert sie als Überhang.
    */
   const masteryChips = $derived(
-    (character?.masteries ?? []).map((n) => ({ name: n, mastery: matchItem(itemIndex, { name: n })?.mastery })),
+    (character?.masteries ?? []).map((n) => ({ name: n, mastery: matchItem(libs.itemIndex, { name: n })?.mastery })),
   );
 
-  const gmNotesPath = $derived(`${dirPath}/gm-notes.md`);
-  const detailsPath = $derived(`${dirPath}/details.md`);
-  const legacyDetailsPath = $derived(`${dirPath}/freitext.md`);  // Migration: altes Format
-
-  // Nur die Nebendateien — `character.json` lädt der Karten-Editor über `activeFile`.
-  $effect(() => {
-    const dir = dirPath;
-    if (!dir) return;
-    freitextSave.cancel();
-    gmNotesSave.cancel();
-    error = '';
-    loadSideFiles();
+  const side = createCharacterSideFiles({
+    dirPath: () => dirPath,
+    characterName: () => character?.name ?? '',
+    portraitFile: () => character?.portraitFile,
   });
 
-  async function loadSideFiles() {
-    try {
-      gmNotes = await invoke<string>('read_file_content', { path: gmNotesPath });
-    } catch {
-      let tmpl = '';
-      try {
-        tmpl = await invoke<string>('read_file_content', { path: './vault/templates/character.md' });
-      } catch { /* kein Template */ }
-      gmNotes = `# GM-Notizen: ${character?.name ?? ''}\n\n` + (tmpl || `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`);
-      await invoke('write_file_content', { path: gmNotesPath, content: gmNotes });
-    }
+  const pdf = createCharacterPdf({
+    dirPath: () => dirPath,
+    character: () => character,
+    pdfName: () => editor.pdfName,
+    details: () => side.details,
+    masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+    spellAccess: () => spellAccessRows,
+    applyContent: (content) => ed.applyContent(content),
+  });
 
-    // Alte `freitext.md` weiterlesen, solange noch keine `details.md` existiert.
-    try {
-      freitext = await invoke<string>('read_file_content', { path: detailsPath });
-    } catch {
-      try {
-        freitext = await invoke<string>('read_file_content', { path: legacyDetailsPath });
-      } catch {
-        freitext = '';
-      }
-    }
-    freitextSave.markSaved();
-    gmNotesSave.markSaved();
-  }
-
-  async function importPdfIntoExisting() {
-    if (!character) return;
-    const selected = await choosePdfFile(dirPath);
-    if (!selected) return;
-
-    importingPdf = true;
-    error = '';
-    try {
-      // Zauber aus dem aktuellen Charakter behalten — das PDF trägt sie nicht.
-      const content = await importPdfIntoCharacter(selected, dirPath, character?.spells ?? emptySpells());
-      ed.applyContent(content);
-    } catch (e) {
-      error = `PDF-Import fehlgeschlagen: ${e}`;
-    } finally {
-      importingPdf = false;
-    }
-  }
-
-  async function exportToPdf() {
-    if (!character) return;
-    exportingPdf = true;
-    error = '';
-    try {
-      await exportCharacterPdfFile(character, {
-        importedFrom: pdfName,
-        dirPath,
-        freitext,
-        // Resolver und Werte der Karte, damit PDF und Bogen nicht auseinanderlaufen können.
-        masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
-        spellAccess: spellAccessRows,
-      });
-    } catch (e) {
-      error = `PDF-Export fehlgeschlagen: ${e}`;
-    } finally {
-      exportingPdf = false;
-    }
-  }
-
-  function onGmNotesChange(md: string) {
-    gmNotes = md;
-    gmNotesSave.schedule(gmNotesPath, md);
-  }
-
-  function onFreitextChange(md: string) {
-    freitext = md;
-    freitextSave.schedule(detailsPath, md);
-  }
+  const feats = createFeaturePanelLayout();
+  let featBadge = $state<CoverageBadge | null>(null);
+  let featOpenCount = $state(0);
+  let showLevelUp = $state(false);
 </script>
 
 <div class="sheet">
-  {#if error}
-    <div class="error">{error}</div>
+  {#if pdf.error}
+    <div class="error">{pdf.error}</div>
   {:else if character}
     <div class="header">
-      {#if portraitUrl}
-        <img class="portrait-thumb" src={portraitUrl} alt="Portrait von {character.name}" />
+      {#if side.portraitUrl}
+        <img class="portrait-thumb" src={side.portraitUrl} alt="Portrait von {character.name}" />
       {/if}
       <div class="name-block">
         <h1>{character.name}</h1>
@@ -354,11 +120,11 @@
             <text x="11.5" y="18.5" font-size="6.5" font-weight="700" fill="currentColor" stroke="none" text-anchor="middle" font-family="sans-serif">PDF</text>
           </svg>
         {/snippet}
-        <button class="icon-btn import" class:busy={importingPdf} onclick={importPdfIntoExisting} disabled={importingPdf}
+        <button class="icon-btn import" class:busy={pdf.importing} onclick={pdf.importIntoExisting} disabled={pdf.importing}
                 aria-label="PDF importieren" title="PDF importieren, aktuelle Werte überschreiben">
           <span class="arrow">&rarr;</span>{@render pdfIcon()}
         </button>
-        <button class="icon-btn export" class:busy={exportingPdf} onclick={exportToPdf} disabled={exportingPdf}
+        <button class="icon-btn export" class:busy={pdf.exporting} onclick={pdf.exportToFile} disabled={pdf.exporting}
                 aria-label="Als PDF exportieren" title="Ausgefülltes ATaendler-PDF exportieren">
           {@render pdfIcon()}<span class="arrow">&rarr;</span>
         </button>
@@ -368,18 +134,18 @@
     </div>
 
     {#if showLevelUp && ed.draft}
-      <LevelUpAssistant character={ed.draft} onApply={applyLevelUp} onclose={() => (showLevelUp = false)} />
+      <LevelUpAssistant character={ed.draft} onApply={editor.applyLevelUp} onclose={() => (showLevelUp = false)} />
     {/if}
 
     <!-- Die Leiste liegt AUSSERHALB des {#key ed.draft} und übersteht damit den
-         Referenz-Swap von `applyChoiceGrants`. -->
+         Referenz-Swap von `editor.apply`. -->
     <div class="sheet-body">
       <EditorPanel
         bind:tab={ed.tab}
         dirty={ed.dirty}
         saveError={ed.saveError}
         onsave={() => ed.save()}
-        ondiscard={() => { upgradeAccepted = false; ed.discard(); }}
+        ondiscard={editor.discard}
         onsavejson={(json) => ed.saveJson(json)}
         getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
         extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
@@ -387,7 +153,8 @@
         style="--ep-accent: var(--arcane)"
       >
         {#snippet karte()}
-          <CharacterSheetView {character} {itemIndex} {spellIndex} {spellAccessRows} {masteryOf} {masteryChips} />
+          <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
+            {spellAccessRows} {masteryOf} {masteryChips} />
         {/snippet}
 
         {#snippet bearbeiten()}
@@ -396,8 +163,9 @@
           {#if ed.draft}
             {#key ed.draft}
               <div class="edit-wrapper" style="width:100%">
-                <CharacterEditForm bind:character={ed.draft} {dirPath} saved={savedCharacter}
-                  {pendingUpgrade} {upgradeAccepted} onAcceptUpgrade={() => (upgradeAccepted = true)} />
+                <CharacterEditForm bind:character={ed.draft} {dirPath} {libs} saved={editor.saved}
+                  pendingUpgrade={editor.pendingUpgrade} upgradeAccepted={editor.upgradeAccepted}
+                  onAcceptUpgrade={editor.acceptUpgrade} />
               </div>
             {/key}
           {/if}
@@ -408,22 +176,22 @@
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Nur für den Spielleiter — wird nicht ans PDF angehängt.</span>
-            <span class="freetext-status" class:unsaved={gmNotesSave.status === 'unsaved'} class:saving={gmNotesSave.status === 'saving'}>
-              {gmNotesSave.status === 'saving' ? 'Speichert…' : gmNotesSave.status === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            <span class="freetext-status" class:unsaved={side.gmNotesStatus === 'unsaved'} class:saving={side.gmNotesStatus === 'saving'}>
+              {side.gmNotesStatus === 'saving' ? 'Speichert…' : side.gmNotesStatus === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
             </span>
           </div>
-          <RichTextEditor value={gmNotes} onChange={onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
+          <RichTextEditor value={side.gmNotes} onChange={side.onGmNotesChange} placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
         </div>
 
       {:else}
         <div class="freetext-area">
           <div class="freetext-hint">
             <span>Wird beim PDF-Export als zusätzliche Seite(n) angehängt.</span>
-            <span class="freetext-status" class:unsaved={freitextSave.status === 'unsaved'} class:saving={freitextSave.status === 'saving'}>
-              {freitextSave.status === 'saving' ? 'Speichert…' : freitextSave.status === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
+            <span class="freetext-status" class:unsaved={side.detailsStatus === 'unsaved'} class:saving={side.detailsStatus === 'saving'}>
+              {side.detailsStatus === 'saving' ? 'Speichert…' : side.detailsStatus === 'unsaved' ? '● ungespeichert' : 'Gespeichert'}
             </span>
           </div>
-          <RichTextEditor value={freitext} onChange={onFreitextChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
+          <RichTextEditor value={side.details} onChange={side.onDetailsChange} placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
         </div>
         {/if}
         {/snippet}
@@ -431,19 +199,21 @@
 
       <div
         class="resize-handle"
-        class:hidden={featsCollapsed}
+        class:hidden={feats.collapsed}
         role="separator"
         aria-label="Merkmals-Leiste verbreitern"
-        onmousedown={startFeatResize}
+        onmousedown={feats.startResize}
       ></div>
 
-      <div class="feat-wrap" class:no-transition={featsDragging} style="width: {effFeatWidth}px">
+      <!-- Zugeklappt bleibt die Leiste MONTIERT (Breite 0) — sonst stünde der Zähler an
+           der Lasche auf 0, sobald man sie zuklappt. -->
+      <div class="feat-wrap" class:no-transition={feats.dragging} style="width: {feats.width}px">
         <!-- Neuaufbau beim CHARAKTERwechsel, nicht bei jedem Draft-Swap: sonst meldete ein
              Wahl-Platz der alten Auflösung gegen das neue Ledger „1 offene Entscheidung". -->
         {#key dirPath}
           {#if ed.draft}
-            <CharacterFeaturePanel character={ed.draft} saved={savedCharacter}
-              onApplyChanges={applyChoiceGrants}
+            <CharacterFeaturePanel character={ed.draft} saved={editor.saved}
+              onApplyChanges={editor.apply}
               bind:badge={featBadge} bind:openCount={featOpenCount} />
           {/if}
         {/key}
@@ -451,13 +221,13 @@
 
       <button
         class="feat-toggle"
-        class:no-transition={featsDragging}
-        style="right: {effFeatWidth}px"
-        onclick={toggleFeats}
-        title={featBadge?.title || (featsCollapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen')}
-        aria-label={featsCollapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen'}
+        class:no-transition={feats.dragging}
+        style="right: {feats.width}px"
+        onclick={feats.toggle}
+        title={featBadge?.title || (feats.collapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen')}
+        aria-label={feats.collapsed ? 'Merkmals-Leiste öffnen' : 'Merkmals-Leiste schließen'}
       >
-        <span class="ft-arrow">{featsCollapsed ? '☰' : '›'}</span>
+        <span class="ft-arrow">{feats.collapsed ? '☰' : '›'}</span>
         {#if featOpenCount}<span class="ft-count">{featOpenCount}</span>{/if}
       </button>
     </div>

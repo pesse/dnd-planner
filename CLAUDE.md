@@ -144,7 +144,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/vocabulary.ts`, `ABILITY_NAMES` in
   `schemas/abilities.ts`), and German appears at exactly two boundaries: the sheet-key tables
   (`domain/skills.ts`, `schemas/abilities.ts`) and display labels
-  (`services/proficiencyGrants.ts`). **Adding a third translation table is the mistake to avoid.**
+  (`domain/proficiencies.ts`). **Adding a third translation table is the mistake to avoid.**
   Prompts name the vocabulary via `z.enum(SKILL_NAMES)`; translation happens when a `Change` is
   *applied*, not when it is produced.
 - **Tools and languages stay German free text** on purpose — no closed vocabulary, and in 2024
@@ -225,6 +225,12 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
   then `savingThrows`/`weaponsOther`/`tools`/`languages` — all four silently dropped by the
   level-up while the wizard applied them. **Do not hand-enumerate fields next to these tables.**
+- **The way OUT of the character is a table too.** `PROFICIENCY_DEFS` (`domain/proficiencies.ts`)
+  is total over `keyof ProficiencyFlags` and carries the PDF field name; PDF export, sheet and
+  form read it instead of listing the fields. Everything the protocol and the AI context say
+  about abilities, skills, saves and proficiencies comes from the one projection
+  `characterSummary` (`services/characterSummary.ts`) — it yields values, the caller owns the
+  headings, which is why the same list appears English in the prompt and German on screen.
 - **A character property is a `Change`, never a rider field.** `grants.properties`
   (`size`, `speedFeet`) and `grantsChoice.kind === 'characterProperty'` both end in
   `services/characterProperties.ts` → `sizeCategory`/`speedFeet` changes → `applyChanges`,
@@ -246,7 +252,10 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   Claude-only features live in `anthropicExtras.ts`, outside the portable interface.
 - **New card editors go through `createCardEditor`** (`editor/cardEditor.svelte.ts`), and anything
   that switches the active file must go through `confirmNavigation` (`stores/navigationGuard.ts`)
-  or unsaved edits are lost silently.
+  or unsaved edits are lost silently. The character sits one layer above it in
+  `services/characterEditor.svelte.ts`: fields are edited in place on the draft, but a `Change[]`
+  is applied ONLY through `apply`/`applyLevelUp` — they replace the draft REFERENCE, which is what
+  remounts the form and re-bases the diff tinting. A second apply path loses the last keystrokes.
 - **What a character can still have linked is decided in one place**:
   `services/characterLegacyLinks.ts` (`collectLegacyFixes`). It detects *and* performs the fix;
   the editor only holds the state it mutates and the UI follow-up (display mirrors, closing

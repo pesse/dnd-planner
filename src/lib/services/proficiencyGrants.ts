@@ -26,17 +26,8 @@ const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d
 import { abilityKeyOf, ABILITY_LABEL_DE } from '$lib/schemas/abilities';
 export { ABILITY_LABEL_DE };
 
-export const WEAPON_LABEL_DE: Record<WeaponCategory, string> = {
-  Simple: 'Einfache Waffen',
-  Martial: 'Kriegswaffen',
-};
-
-export const ARMOR_LABEL_DE: Record<ArmorTraining, string> = {
-  Light: 'Leichte Rüstung',
-  Medium: 'Mittelschwere Rüstung',
-  Heavy: 'Schwere Rüstung',
-  Shields: 'Schilde',
-};
+import { WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '$lib/domain/proficiencies';
+export { WEAPON_LABEL_DE, ARMOR_LABEL_DE };
 
 export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as SkillName) ?? en;
 export const abilityLabelDe = (en: string): string => ABILITY_LABEL_DE[en as AbilityName] ?? en;
