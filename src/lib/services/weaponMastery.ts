@@ -6,6 +6,7 @@
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
 import type { WeaponMastery } from '$lib/schemas/vocabulary';
 import { columnValue, featuresUpTo, getProgressionByKey } from './classProgression';
+import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import { getItemsByDir, displayName, type ItemInfo } from '$lib/itemLibrary';
 
 /** Name der Tabellenspalte in Open5e v2 (Barbar/Kämpfer haben sie, die übrigen drei nicht). */
@@ -59,46 +60,10 @@ export type MasteryWeapon = ItemInfo & { mastery: WeaponMastery };
  */
 export const masteryName = (item: ItemInfo): string => displayName(item);
 
-const normName = (s: string): string => s.trim().toLowerCase();
-
-export interface MasteredKinds {
-  names: Set<string>;
-  indexes: Set<string>;
-}
-
-/**
- * Der `index` ist der Zweck: gewählt werden nur Basisarten, beherrscht ist damit auch jedes
- * magische Stück derselben Art.
- */
-export function masteredKinds(
-  masteries: readonly string[],
-  byName: (name: string) => { index?: string } | undefined,
-): MasteredKinds {
-  const kinds: MasteredKinds = { names: new Set(), indexes: new Set() };
-  for (const m of masteries) {
-    kinds.names.add(normName(m));
-    const index = byName(m)?.index;
-    if (index) kinds.indexes.add(index);
-  }
-  return kinds;
-}
-
-/**
- * Beide Namensseiten, weil ein Angriff im Bogen deutsch oder englisch geführt sein kann —
- * dieselbe Unschärfe wie beim Inventar, aber an EINER Stelle behandelt.
- */
-export function isMastered(kinds: MasteredKinds, item: { name: string; name_de?: string; index?: string }): boolean {
-  return (
-    (!!item.index && kinds.indexes.has(item.index)) ||
-    kinds.names.has(normName(item.name)) ||
-    (!!item.name_de && kinds.names.has(normName(item.name_de)))
-  );
-}
-
 /** Ein `Character` erfüllt das strukturell (wie bei `GrantInput`). */
 export interface MasteryInput {
   classes?: { sourceKey?: string; name?: string; level?: number }[];
-  proficiencies?: { simpleWeapons?: boolean; martialWeapons?: boolean };
+  proficiencies?: WeaponProficiencies;
 }
 
 export interface MasteryOffer {
@@ -113,8 +78,9 @@ const emptyOffer = (): MasteryOffer => ({ allowance: 0, className: '', meleeOnly
 
 /**
  * **Nur `classes[0]` zählt** — bei Klassenkombination wird Waffenbeherrschung nicht erneut
- * gewährt. Gefiltert wird über die HÄKCHEN des Charakters, nicht über die Grants: die
- * Häkchen sind die Wahrheit, wer „Kriegswaffen" abwählt, verliert sie aus der Auswahl.
+ * gewährt. Gefiltert wird über die ÜBUNGEN des Charakters (`isProficientWithWeapon`), nicht
+ * über die Grants: was am Charakter steht, ist die Wahrheit — wer „Kriegswaffen" abwählt,
+ * verliert sie aus der Auswahl, behält aber die einzeln erklärten.
  */
 export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   const first = input.classes?.[0];
@@ -128,15 +94,21 @@ export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   if (allowance <= 0) return emptyOffer();
 
   const meleeOnly = isMeleeOnly(masteryFeatureUpTo(prog, level));
-  const simple = input.proficiencies?.simpleWeapons ?? false;
-  const martial = input.proficiencies?.martialWeapons ?? false;
 
-  // Ohne `weapon_category` gegen kein Häkchen prüfbar — die Waffe fällt heraus.
-  const weapons = (await getItemsByDir('weapon'))
+  const all = await getItemsByDir('weapon');
+  const byName = (n: string): ItemInfo | undefined => {
+    const q = n.trim().toLowerCase();
+    return all.find((w) => displayName(w).toLowerCase() === q || w.name.toLowerCase() === q);
+  };
+
+  // Ohne `weapon_category` gegen kein Häkchen prüfbar — die Waffe fällt heraus, es sei denn
+  // sie ist einzeln erklärt: dann ist die Kategorie für die Übung ohnehin nicht die Quelle.
+  const weapons = all
     .filter((w): w is MasteryWeapon => Boolean(w.mastery))
-    // Magische Stücke deckt die Basisart über `index` mit ab (`isMastered`).
+    // Magische Stücke deckt die Basisart über `index` mit ab (`coversWeapon`).
     .filter((w) => !w.magic)
-    .filter((w) => (w.weapon_category === 'Simple' && simple) || (w.weapon_category === 'Martial' && martial))
+    .filter((w) => isProficientWithWeapon(input.proficiencies, w, byName))
+    // Klassen-, keine Übungsbeschränkung: liegt deshalb ÜBER der Einzelnennung.
     .filter((w) => !meleeOnly || /^melee$/i.test(w.weapon_range ?? ''))
     .sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
 

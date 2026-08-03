@@ -53,19 +53,20 @@
 
   {#if character.proficiencies}
     {@const pf = character.proficiencies}
-    {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.otherWeapons && pf.otherWeapons.trim())}
+    {@const anyProf = pf.simpleWeapons || pf.martialWeapons || pf.lightArmor || pf.mediumArmor || pf.heavyArmor || pf.shields || (pf.individualWeapons?.length ?? 0) > 0 || (pf.otherWeapons && pf.otherWeapons.trim())}
     {#if anyProf}
       <h3>Übungen &amp; Rüstungsausbildung</h3>
       <div class="tag-list">
         {#if pf.simpleWeapons}<span class="tag">Einfache Waffen</span>{/if}
         {#if pf.martialWeapons}<span class="tag">Kriegswaffen</span>{/if}
+        {#each pf.individualWeapons ?? [] as weapon}<span class="tag">{weapon}</span>{/each}
         {#if pf.lightArmor}<span class="tag">Leichte Rüstung</span>{/if}
         {#if pf.mediumArmor}<span class="tag">Mittlere Rüstung</span>{/if}
         {#if pf.heavyArmor}<span class="tag">Schwere Rüstung</span>{/if}
         {#if pf.shields}<span class="tag">Schilde</span>{/if}
       </div>
       {#if pf.otherWeapons && pf.otherWeapons.trim()}
-        <p class="prof-extra"><strong>Weitere Waffen:</strong> {pf.otherWeapons}</p>
+        <p class="prof-extra"><strong>Sonstige Waffenübungen:</strong> {pf.otherWeapons}</p>
       {/if}
     {/if}
   {/if}

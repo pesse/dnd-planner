@@ -349,6 +349,11 @@
   min-width: 80px;
   max-width: 120px;
 }
+/* Der Picker steht IN der Chip-Reihe; die Trefferliste erbt ihre Breite vom Wrapper, der
+   deshalb eine eigene, größere Mindestbreite braucht. */
+.edit-form .tag-picker { min-width: 180px; }
+.edit-form .tag-picker .tag-input { max-width: none; }
+.edit-form .tag-note { color: var(--ink-muted); }
 
 /* Währung */
 .edit-form .currency-row {

@@ -13,6 +13,7 @@
   } from '../../services/attackCalc';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import './form.css';
@@ -56,7 +57,7 @@
 <div class="autocomplete-wrap weapon-picker">
   <input placeholder="Waffe aus Bibliothek hinzufügen…" bind:value={search} onkeydown={nav.onkeydown} />
   {#if suggestions.length}
-    <ul class="suggestions">
+    <ul class="suggestions" use:dropdownPlacement>
       {#each suggestions as sug, i}
         <li
           class:active={i === nav.index}

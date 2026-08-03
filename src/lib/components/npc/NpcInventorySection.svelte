@@ -12,6 +12,7 @@
   import { formatRarity, weaponDamageLine } from '../../itemFormat';
   import { openItemPage } from '../../services/vaultLinks';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
+  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { Npc } from '../../schemas/npc';
@@ -118,7 +119,7 @@
         onkeydown={nav.onkeydown}
         onblur={() => setTimeout(() => { suggestions = []; }, 150)} />
       {#if suggestions.length > 0}
-        <ul class="suggestions">
+        <ul class="suggestions" use:dropdownPlacement>
           {#each suggestions as sug, i}
             <li class:active={i === nav.index}
               onmousedown={() => select(sug)}>

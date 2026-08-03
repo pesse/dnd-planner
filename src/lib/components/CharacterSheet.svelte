@@ -21,9 +21,9 @@
   import RichTextEditor from './RichTextEditor.svelte';
   import { invalidateVault } from '../stores/campaign';
   import { getSpellLibrary, buildSpellIndex, matchSpell, type SpellInfo } from '../spellLibrary';
-  import { getItemsByDir, buildItemIndex, matchItem, type ItemInfo } from '../itemLibrary';
+  import { getItemsByDir, buildItemIndex, matchItem, matchWeaponName, type ItemInfo } from '../itemLibrary';
   import { DIR_TO_CATEGORY, masteryLabel } from '../itemLabels';
-  import { isMastered, masteredKinds } from '../services/weaponMastery';
+  import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import { resolveSpellAccess } from '../services/characterFeatures';
   import type { CoverageBadge } from '../services/declarationCoverage';
@@ -154,6 +154,7 @@
       classIndex: delta.classIndex,
       isNewClass: delta.isNewClass,
       resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
+      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
     });
     next.classLevel = formatClassLevel(next.classes);
 
@@ -172,6 +173,7 @@
     applyChanges(next, changes, {
       classIndex: 0,
       resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
+      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
     });
     const r = parseCharacter(next);
     ed.draft = r.ok ? r.data : next;
@@ -222,13 +224,13 @@
    * `attacks[]` etwas zurückgeschrieben werden müsste.
    */
   const masteredWeaponKinds = $derived(
-    masteredKinds(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
+    weaponNameSet(character?.masteries ?? [], (n) => matchItem(itemIndex, { name: n })),
   );
 
   function masteryOf(name: string): WeaponMastery | undefined {
     const lib = matchItem(itemIndex, { name });
     if (!lib?.mastery) return undefined;
-    return isMastered(masteredWeaponKinds, lib) ? lib.mastery : undefined;
+    return coversWeapon(masteredWeaponKinds, lib) ? lib.mastery : undefined;
   }
 
   /**

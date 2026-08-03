@@ -12,6 +12,7 @@
   } from '../services/characterLegacyLinks';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  import { matchItem } from '../itemLibrary';
   import { speciesDisplayName, searchSpecies, type SpeciesInfo } from '../speciesLibrary';
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
@@ -138,6 +139,7 @@
     proficiencies: {
       simpleWeapons: form.proficiencies.simpleWeapons,
       martialWeapons: form.proficiencies.martialWeapons,
+      individualWeapons: [...form.proficiencies.individualWeapons],
     },
   }));
 
@@ -160,6 +162,7 @@
     inventory: form.inventory,
     cantrips: form.spells.cantrips,
     spellsByLevel: form.spells.byLevel,
+    proficiencies: form.proficiencies,
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
@@ -293,13 +296,33 @@
   </section>
 
   <section>
+    <h3>Sprachen</h3>
+    <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
+
+    <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
+    <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+  </section>
+
+  <section>
+    <h3>Übungen &amp; Rüstungsausbildung</h3>
+    <ProficiencyFields
+      proficiencies={form.proficiencies}
+      savedProficiencies={saved?.proficiencies}
+      weaponItems={libs.weapons}
+      itemIndex={libs.itemIndex}
+      sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
+      {dirOf}
+    />
+  </section>
+
+  <section>
     <h3>Angriffe</h3>
     <AttackTable
       attacks={form.attacks}
       ctx={{
         ...attackContext(form),
-        simpleWeapons: form.proficiencies.simpleWeapons,
-        martialWeapons: form.proficiencies.martialWeapons,
+        proficiencies: form.proficiencies,
+        weaponByName: (n) => matchItem(libs.itemIndex, { name: n }),
       }}
       weaponItems={libs.weapons}
       {saved}
@@ -347,24 +370,6 @@
       Aussehen
       <textarea class="ta-small" bind:value={form.personal.aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
     </label>
-  </section>
-
-  <section>
-    <h3>Sprachen</h3>
-    <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
-
-    <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
-    <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
-  </section>
-
-  <section>
-    <h3>Übungen &amp; Rüstungsausbildung</h3>
-    <ProficiencyFields
-      proficiencies={form.proficiencies}
-      savedProficiencies={saved?.proficiencies}
-      sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
-      {dirOf}
-    />
   </section>
 
   <section>

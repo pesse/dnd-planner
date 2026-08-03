@@ -137,6 +137,7 @@ function proficienciesBlock(c: Character): string | null {
   const weapons = [
     p.simpleWeapons && WEAPON_LABEL_DE.Simple,
     p.martialWeapons && WEAPON_LABEL_DE.Martial,
+    ...(p.individualWeapons ?? []),
     p.otherWeapons.trim(),
   ].filter(Boolean);
   const armor = [

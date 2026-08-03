@@ -63,7 +63,20 @@ const characterSpellsSchema = z
 export const proficiencyFlagsSchema = z.object({
   simpleWeapons: z.boolean().default(false),
   martialWeapons: z.boolean().default(false),
-  otherWeapons: z.string().default('').describe('Freitext: weitere geübte Waffen.'),
+  /**
+   * Einzeln erklärte Waffen — Anzeigenamen wie bei `masteries`, aufgelöst über `matchItem`.
+   * Die zwei Kategorie-Häkchen können „nur einfache Waffen, dazu das Kurzschwert" nicht
+   * ausdrücken; diese Liste WIRKT (Auswahl der Waffenbeherrschung, Übungsbonus am Angriff),
+   * anders als der Freitext daneben.
+   */
+  individualWeapons: z
+    .array(z.string())
+    .default([])
+    .describe('Namen einzelner Waffen, mit denen der Charakter geübt ist.'),
+  otherWeapons: z
+    .string()
+    .default('')
+    .describe('Freitext: Waffenübungen ohne Bibliotheks-Entsprechung, ohne mechanische Wirkung.'),
   lightArmor: z.boolean().default(false),
   mediumArmor: z.boolean().default(false),
   heavyArmor: z.boolean().default(false),
@@ -206,10 +219,12 @@ export const characterSchema = z.object({
     lebensstil: '', taeglicheKosten: '', augenfarbe: '', haarfarbe: '', hautfarbe: '',
     gewicht: '', koerpergroesse: '', aussehen: '',
   }),
-  proficiencies: proficiencyFlagsSchema.default({
-    simpleWeapons: false, martialWeapons: false, otherWeapons: '',
+  // FUNKTIONS-Default wie bei `characterSpellsSchema`: eine Literal-Liste darin wäre EIN
+  // Array für alle geparsten Charaktere, und `individualWeapons` wird in place ergänzt.
+  proficiencies: proficiencyFlagsSchema.default(() => ({
+    simpleWeapons: false, martialWeapons: false, individualWeapons: [], otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
-  }),
+  })),
   /**
    * Waffen*namen*, bewusst OHNE `sourceKey`: die Liste nennt Waffenarten statt Besitz. Die
    * Eigenschaft selbst steht am Item (`item.mastery`), also ist der nach jeder langen Rast

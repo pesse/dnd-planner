@@ -40,6 +40,7 @@ export function buildCharacterProtocol(
   add('Waffen', [
     ...(c.proficiencies.simpleWeapons ? ['Einfache Waffen'] : []),
     ...(c.proficiencies.martialWeapons ? ['Kriegswaffen'] : []),
+    ...(c.proficiencies.individualWeapons ?? []),
     ...(c.proficiencies.otherWeapons?.trim() ? [c.proficiencies.otherWeapons.trim()] : []),
   ]);
   add('Rüstung', [

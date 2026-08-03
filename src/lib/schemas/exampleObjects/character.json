@@ -155,6 +155,9 @@
   "proficiencies": {
     "simpleWeapons": false,
     "martialWeapons": false,
+    "individualWeapons": [
+      "string"
+    ],
     "otherWeapons": "string",
     "lightArmor": false,
     "mediumArmor": false,

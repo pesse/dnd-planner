@@ -188,6 +188,18 @@ export function buildItemIndex(loadedByDir: Record<string, ItemInfo[]>): ItemInd
 
 export const matchItem = matchByRef<ItemInfo>;
 
+/**
+ * Der Anzeigename, wenn der Text eine WAFFE der Bibliothek nennt — sonst `undefined`: dann ist
+ * er Prosa („Kriegswaffen mit Finesse") und wirkt nicht. Die EINE Grenze zwischen
+ * `individualWeapons` und dem Freitext daneben; Mehrdeutige bleiben liegen wie beim Inventar.
+ */
+export function matchWeaponName(index: ItemIndex, text: string): string | undefined {
+  const name = text.trim().toLowerCase();
+  if (!name || index.ambiguous.has(name)) return undefined;
+  const hit = index.byName.get(name);
+  return hit?.key && hit.category === 'weapon' ? displayName(hit) : undefined;
+}
+
 export interface ItemSuggestion {
   item: ItemInfo;
   dir: string;

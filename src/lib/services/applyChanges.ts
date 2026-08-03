@@ -12,6 +12,7 @@ import { MONSTER_SIZES, type SkillName } from '../schemas/vocabulary';
 import { ftToMVal } from '../itemFormat';
 import { mod, skillSheetKey } from '../domain/skills';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
+import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 
 export interface ApplyContext {
@@ -21,6 +22,11 @@ export interface ApplyContext {
   isNewClass?: boolean;
   /** Fehlt sie, steht der Zauber nur mit Namen da und wird beim nächsten Öffnen verlinkt. */
   resolveSpellKey?: (name: string) => string | undefined;
+  /**
+   * Der kanonische Waffenname, falls der Grant eine Waffe NENNT (`matchWeaponName`). Fehlt
+   * sie, bleibt jeder Wert Freitext — die Übung fiele also aus, wo eine Waffe gemeint war.
+   */
+  resolveWeaponName?: (name: string) => string | undefined;
 }
 
 function pushUnique(list: string[], value: string): void {
@@ -45,6 +51,7 @@ interface ApplyEnv {
   ctx: ApplyContext;
   /** Anhängbares Teil-Objekt; leer, wenn der Name unbekannt ist. */
   spellKey(name: string): { sourceKey?: string };
+  weaponName(name: string): string | undefined;
 }
 
 type ChangeOf<T extends Change['target']> = Extract<Change, { target: T }>;
@@ -102,7 +109,18 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   toolProficiency: (c, next) => pushUnique(next.tools, c.value),
   language: (c, next) => pushUnique(next.languages, c.value),
 
-  weaponProficiencyOther: (c, next) => {
+  /**
+   * Nennt der Grant eine Waffe der Bibliothek, wirkt er NUR als `individualWeapons` — der
+   * Freitext daneben hat keine mechanische Wirkung. Prosa („Kriegswaffen mit Finesse")
+   * trifft nichts und gehört dorthin, sonst stünde sie auf keinem Bogen. Dieselbe Grenze
+   * zieht `weaponsFix` am Altbestand (`matchWeaponName`).
+   */
+  weaponProficiencyOther: (c, next, env) => {
+    const weapon = env.weaponName(c.value);
+    if (weapon) {
+      addIndividualWeapon(next.proficiencies.individualWeapons, weapon);
+      return;
+    }
     const parts = next.proficiencies.otherWeapons.split(',').map((s) => s.trim()).filter(Boolean);
     pushUnique(parts, c.value);
     next.proficiencies.otherWeapons = parts.join(', ');
@@ -146,6 +164,7 @@ export function applyChanges(next: Character, changes: readonly Change[], ctx: A
       const key = ctx.resolveSpellKey?.(name);
       return key ? { sourceKey: key } : {};
     },
+    weaponName: (name) => ctx.resolveWeaponName?.(name),
   };
   for (const c of changes) {
     // TS zieht die Korrelation Variante↔Handler an der Aufrufstelle nicht mit — ein Cast.
