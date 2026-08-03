@@ -10,7 +10,7 @@ import { formatClassLevel } from '../schemas/classLevelText';
 import { invalidateVault } from '../stores/campaign';
 import { matchWeaponName, type ItemIndex } from '../itemLibrary';
 import { matchSpell, type SpellIndex } from '../spellLibrary';
-import { applyChanges } from './applyChanges';
+import { applyChanges, type ApplyContext } from './applyChanges';
 import { proficiencyBonus } from './classProgression';
 import type { Character } from '../schemas/characterSchema';
 import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
@@ -25,6 +25,11 @@ export interface CharacterEditor {
   readonly pendingUpgrade: PendingCharacterUpgrade | null;
   readonly upgradeAccepted: boolean;
   readonly pdfName: string;
+  /**
+   * Für Vorschauen (`changesWouldAlter`) — sie MÜSSEN denselben Kontext benutzen wie `apply`,
+   * sonst simulieren sie einen Freitext-Schreib, den `resolveWeaponName` gar nicht ausführt.
+   */
+  readonly applyContext: ApplyContext;
   acceptUpgrade(): void;
   discard(): void;
   apply(changes: Change[]): Promise<void>;
@@ -81,6 +86,16 @@ export function createCharacterEditor(deps: {
     upgradeAccepted = false;
   });
 
+  /** Die Auflöser lesen die Bibliotheken bei jedem Aufruf — sie laden asynchron nach. */
+  function context(delta?: LevelUpDelta): ApplyContext {
+    return {
+      classIndex: delta?.classIndex ?? 0,
+      isNewClass: delta?.isNewClass,
+      resolveSpellKey: (name) => matchSpell(deps.spellIndex(), { name })?.key,
+      resolveWeaponName: (name) => matchWeaponName(deps.itemIndex(), name),
+    };
+  }
+
   /**
    * Der Referenz-Swap am Ende ist tragend: er löst `{#key card.draft}` (Formular-Remount →
    * Diff-Highlighting) und `card.dirty` aus. Das `await tick()` davor ebenso — der
@@ -93,12 +108,7 @@ export function createCharacterEditor(deps: {
     const next = structuredClone($state.snapshot(card.draft)) as Character;
 
     if (delta) applyLevelStructure(next, delta);
-    applyChanges(next, changes, {
-      classIndex: delta?.classIndex ?? 0,
-      isNewClass: delta?.isNewClass,
-      resolveSpellKey: (name) => matchSpell(deps.spellIndex(), { name })?.key,
-      resolveWeaponName: (name) => matchWeaponName(deps.itemIndex(), name),
-    });
+    applyChanges(next, changes, context(delta));
     if (delta) next.classLevel = formatClassLevel(next.classes);
 
     const r = parseCharacter(next);
@@ -112,6 +122,7 @@ export function createCharacterEditor(deps: {
     get pendingUpgrade() { return pendingUpgrade; },
     get upgradeAccepted() { return upgradeAccepted; },
     get pdfName() { return card.draft?._importedFrom ?? ''; },
+    get applyContext() { return context(); },
     acceptUpgrade() { upgradeAccepted = true; },
     discard() {
       upgradeAccepted = false;

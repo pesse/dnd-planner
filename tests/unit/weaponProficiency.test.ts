@@ -9,7 +9,7 @@ import {
   coversWeapon, isProficientWithWeapon, weaponNameSet,
 } from '../../src/lib/services/weaponProficiency';
 import { weaponsFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
-import { applyChanges } from '../../src/lib/services/applyChanges';
+import { applyChanges, changesWouldAlter } from '../../src/lib/services/applyChanges';
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import { emptyProficiencies } from '../../src/lib/pdf/characterFields';
@@ -110,6 +110,14 @@ describe('Grant „weaponsOther" am Charakter', () => {
     const c = characterSchema.parse({ name: 'Prüfling', proficiencies: { individualWeapons: ['kurzschwert'] } });
     applyChanges(c, grant('Kurzschwert'), ctx);
     expect(c.proficiencies.individualWeapons).toEqual(['kurzschwert']);
+  });
+
+  // Die Vorschau der Merkmalsleiste („✓ übernommen") ist genau diese Frage: mit einem
+  // Kontext OHNE Auflöser stünde dort ewig „Übernehmen", weil sie den Freitext simuliert.
+  it('meldet nach dem Übernehmen keine weitere Änderung', () => {
+    const c = characterSchema.parse({ name: 'Prüfling' });
+    applyChanges(c, grant('Shortsword'), ctx);
+    expect(changesWouldAlter(c, grant('Shortsword'), ctx)).toBe(false);
   });
 
   it('bleibt ohne Auflösung Freitext', () => {

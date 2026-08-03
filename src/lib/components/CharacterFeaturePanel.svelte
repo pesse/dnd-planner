@@ -7,6 +7,7 @@
   import { untrack, type Snippet } from 'svelte';
   import type { Character } from '$lib/schemas/characterSchema';
   import type { Change } from '$lib/schemas/levelUp';
+  import type { ApplyContext } from '../services/applyChanges';
   import { collectChoiceSlots, type ChoiceSlot } from '../services/characterChoices';
   import {
     choiceDisplay, keysOf, resolveBackground, resolveClassFeatures, resolveSpeciesTraits,
@@ -23,11 +24,13 @@
   import { createChoiceState } from './featurePanel/choiceState.svelte';
   import './featurePanel/featurePanel.css';
 
-  let { character, saved = null, onApplyChanges, badge = $bindable(null), openCount = $bindable(0) }: {
+  let { character, saved = null, applyContext, onApplyChanges, badge = $bindable(null), openCount = $bindable(0) }: {
     /** Der `ed.draft`-Proxy — wird IN PLACE mutiert (immutabel je Feld, siehe `featureLedger`). */
     character: Character;
     /** Baseline des Diff-Highlightings. */
     saved?: Character | null;
+    /** Derselbe Kontext, mit dem `onApplyChanges` anwendet — sonst lügt die Vorschau. */
+    applyContext: ApplyContext;
     /**
      * „Übernehmen" einer Wahl läuft über den Eltern-Editor, weil das Anwenden den DRAFT
      * per neuer Referenz ersetzt — die Leiste kann sich nicht selbst neu aufsetzen.
@@ -86,6 +89,7 @@
     saved: () => saved,
     slots: () => choiceSlots,
     knownKeys: () => knownKeys,
+    ctx: () => applyContext,
   });
   $effect(() => {
     badge = choices.badge;

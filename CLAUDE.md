@@ -256,6 +256,9 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
   `services/characterEditor.svelte.ts`: fields are edited in place on the draft, but a `Change[]`
   is applied ONLY through `apply`/`applyLevelUp` — they replace the draft REFERENCE, which is what
   remounts the form and re-bases the diff tinting. A second apply path loses the last keystrokes.
+  A preview (`changesWouldAlter` behind „✓ übernommen") borrows the editor's `applyContext`
+  instead of building one: without the same resolvers it simulates a write that `apply` does not
+  perform, and the panel keeps asking for a grant that has long landed.
 - **What a character can still have linked is decided in one place**:
   `services/characterLegacyLinks.ts` (`collectLegacyFixes`). It detects *and* performs the fix;
   the editor only holds the state it mutates and the UI follow-up (display mirrors, closing

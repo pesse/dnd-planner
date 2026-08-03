@@ -10,7 +10,7 @@ import {
 import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges';
 import type { CoverageBadge } from '$lib/services/declarationCoverage';
 import type { LedgerRow } from '$lib/services/featureLedger';
-import { buildSpellIndex, getSpellLibrary, matchSpell, type SpellInfo } from '$lib/spellLibrary';
+import { getSpellLibrary, type SpellInfo } from '$lib/spellLibrary';
 import { classifyChange, type DiffDir } from '$lib/utils/diffHighlight';
 
 /** `i` ist der Index in `ChoiceState.grants` — beide Listen sind index-gleich. */
@@ -42,6 +42,12 @@ export function createChoiceState(o: {
   slots: () => ChoiceSlot[];
   /** Keys aller Merkmale, die der Charakter überhaupt hat. */
   knownKeys: () => string[];
+  /**
+   * Der Kontext des Editors, nicht ein eigener: „✓ übernommen" ist die Aussage, dass ein
+   * erneutes `apply` nichts täte — mit einem zweiten Kontext wäre sie über jeden Grant
+   * falsch, dessen Ziel von einem Auflöser abhängt (`resolveWeaponName`).
+   */
+  ctx: () => ApplyContext;
 }): ChoiceState {
   // Die Expertise-Optionen sind der LIVE-Übungsstand aus dem Draft, nicht aus dem Formular:
   // sonst bliebe die Wahl tot, solange das Bearbeiten-Formular nicht montiert ist.
@@ -64,14 +70,13 @@ export function createChoiceState(o: {
 
   let spellLibrary = $state<SpellInfo[]>([]);
   $effect(() => { getSpellLibrary().then((lib) => { spellLibrary = lib; }); });
-  const spellIndex = $derived(buildSpellIndex(spellLibrary));
 
   const grants = $derived.by<ChoiceGrantsView[]>(() => {
     // Erst mit geladener Zauberbibliothek: davor wäre JEDER Options-Zauber „nicht gefunden",
     // und der Picker meldete eine Lücke, die es nicht gibt.
     if (!spellLibrary.length) return [];
     const snap = $state.snapshot(o.character()) as Character;
-    const ctx: ApplyContext = { classIndex: 0, resolveSpellKey: (n) => matchSpell(spellIndex, { name: n })?.key };
+    const ctx = o.ctx();
     return all.map((ch) => {
       const g = choiceGrantChanges(ch, spellLibrary);
       return { ...g, wouldAlter: changesWouldAlter(snap, g.changes, ctx) };

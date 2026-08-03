@@ -213,7 +213,7 @@
         {#key dirPath}
           {#if ed.draft}
             <CharacterFeaturePanel character={ed.draft} saved={editor.saved}
-              onApplyChanges={editor.apply}
+              applyContext={editor.applyContext} onApplyChanges={editor.apply}
               bind:badge={featBadge} bind:openCount={featOpenCount} />
           {/if}
         {/key}
