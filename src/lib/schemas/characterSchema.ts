@@ -219,10 +219,12 @@ export const characterSchema = z.object({
     lebensstil: '', taeglicheKosten: '', augenfarbe: '', haarfarbe: '', hautfarbe: '',
     gewicht: '', koerpergroesse: '', aussehen: '',
   }),
-  proficiencies: proficiencyFlagsSchema.default({
+  // FUNKTIONS-Default wie bei `characterSpellsSchema`: eine Literal-Liste darin wäre EIN
+  // Array für alle geparsten Charaktere, und `individualWeapons` wird in place ergänzt.
+  proficiencies: proficiencyFlagsSchema.default(() => ({
     simpleWeapons: false, martialWeapons: false, individualWeapons: [], otherWeapons: '',
     lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
-  }),
+  })),
   /**
    * Waffen*namen*, bewusst OHNE `sourceKey`: die Liste nennt Waffenarten statt Besitz. Die
    * Eigenschaft selbst steht am Item (`item.mastery`), also ist der nach jeder langen Rast

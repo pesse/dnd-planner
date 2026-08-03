@@ -7,9 +7,10 @@
 import { classDisplayName, type ClassInfo } from '$lib/classLibrary';
 import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
 import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibrary';
-import { displayName, type ItemIndex } from '$lib/itemLibrary';
+import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import type { SpellIndex } from '$lib/spellLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
+import { addIndividualWeapon } from './weaponProficiency';
 import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type ProficiencyFlags, type SpellRef } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
@@ -185,9 +186,8 @@ function splitWeaponText(text: string, libs: LegacyLinkLibraries): { movable: st
   const rest: string[] = [];
   for (const part of text.split(/[,;]/).map((s) => s.trim())) {
     if (!part) continue;
-    const nm = part.toLowerCase();
-    const hit = libs.items.ambiguous.has(nm) ? undefined : libs.items.byName.get(nm);
-    if (hit?.key && hit.category === 'weapon') movable.push(displayName(hit));
+    const weapon = matchWeaponName(libs.items, part);
+    if (weapon) movable.push(weapon);
     else rest.push(part);
   }
   return { movable, rest };
@@ -203,11 +203,7 @@ export function weaponsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
     apply: () => {
       const prof = target.proficiencies;
       const { movable: hits, rest } = splitWeaponText(prof.otherWeapons, libs);
-      for (const name of hits) {
-        if (!prof.individualWeapons.some((x) => x.toLowerCase() === name.toLowerCase())) {
-          prof.individualWeapons.push(name);
-        }
-      }
+      for (const name of hits) addIndividualWeapon(prof.individualWeapons, name);
       prof.otherWeapons = rest.join(', ');
     },
   };

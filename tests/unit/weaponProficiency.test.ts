@@ -9,8 +9,11 @@ import {
   coversWeapon, isProficientWithWeapon, weaponNameSet,
 } from '../../src/lib/services/weaponProficiency';
 import { weaponsFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
+import { applyChanges } from '../../src/lib/services/applyChanges';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
+import type { Change } from '../../src/lib/schemas/levelUp';
 import { emptyProficiencies } from '../../src/lib/pdf/characterFields';
-import type { ItemInfo } from '../../src/lib/itemLibrary';
+import { buildItemIndex, matchWeaponName, type ItemInfo } from '../../src/lib/itemLibrary';
 
 const shortsword: ItemInfo = {
   name: 'Shortsword', name_de: 'Kurzschwert', category: 'weapon', rarity: '—', path: 'x/shortsword.json',
@@ -78,6 +81,44 @@ const libs = {
     ambiguous: new Set<string>(),
   },
 } as unknown as LegacyLinkLibraries;
+
+/** Dieselbe Grenze wie der Altbestands-Fix, nur am Grant statt am Bestandsfeld. */
+describe('Grant „weaponsOther" am Charakter', () => {
+  const index = buildItemIndex({ weapon: [shortsword, club, oathblade] });
+  const ctx = { classIndex: 0, resolveWeaponName: (n: string) => matchWeaponName(index, n) };
+  const grant = (value: string): Change[] => [
+    { target: 'weaponProficiencyOther', value, step: 'test', source: 'test', label: `Übung: ${value}` },
+  ];
+
+  it('wirkt als Einzelübung, wenn er eine Waffe der Bibliothek nennt', () => {
+    const c = characterSchema.parse({ name: 'Prüfling' });
+    applyChanges(c, grant('Shortsword'), ctx);
+    // Kanonisiert: die Datei trägt den Anzeigenamen, den auch der Bogen auflöst.
+    expect(c.proficiencies.individualWeapons).toEqual(['Kurzschwert']);
+    expect(c.proficiencies.otherWeapons).toBe('');
+    expect(isProficientWithWeapon(c.proficiencies, oathblade, byName)).toBe(true);
+  });
+
+  it('lässt Prosa Freitext bleiben — sonst stünde sie auf keinem Bogen', () => {
+    const c = characterSchema.parse({ name: 'Prüfling' });
+    applyChanges(c, grant('Martial weapons that have the Finesse or Light property'), ctx);
+    expect(c.proficiencies.individualWeapons).toEqual([]);
+    expect(c.proficiencies.otherWeapons).toBe('Martial weapons that have the Finesse or Light property');
+  });
+
+  it('doppelt einen schon erklärten Namen nicht, auch nicht in anderer Schreibweise', () => {
+    const c = characterSchema.parse({ name: 'Prüfling', proficiencies: { individualWeapons: ['kurzschwert'] } });
+    applyChanges(c, grant('Kurzschwert'), ctx);
+    expect(c.proficiencies.individualWeapons).toEqual(['kurzschwert']);
+  });
+
+  it('bleibt ohne Auflösung Freitext', () => {
+    const c = characterSchema.parse({ name: 'Prüfling' });
+    applyChanges(c, grant('Kurzschwert'), { classIndex: 0 });
+    expect(c.proficiencies.individualWeapons).toEqual([]);
+    expect(c.proficiencies.otherWeapons).toBe('Kurzschwert');
+  });
+});
 
 describe('Altbestand: Waffen im Freitext', () => {
   it('hebt exakte Bibliothekstreffer heraus und lässt Prosa stehen', () => {

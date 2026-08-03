@@ -61,6 +61,14 @@ export function coversWeapon(set: WeaponNameSet, item: WeaponLike): boolean {
   );
 }
 
+/**
+ * Die EINE Senke der Liste — additiv und schreibweisen-unscharf, denn der Spieler tippt
+ * „kurzschwert", wo die Bibliothek „Kurzschwert" liefert.
+ */
+export function addIndividualWeapon(list: string[], name: string): void {
+  if (!list.some((x) => normName(x) === normName(name))) list.push(name);
+}
+
 /** Die Waffen-Seite von `ProficiencyFlags`; ein `Character` erfüllt sie strukturell. */
 export interface WeaponProficiencies {
   simpleWeapons?: boolean;

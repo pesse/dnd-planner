@@ -21,7 +21,7 @@
   import RichTextEditor from './RichTextEditor.svelte';
   import { invalidateVault } from '../stores/campaign';
   import { getSpellLibrary, buildSpellIndex, matchSpell, type SpellInfo } from '../spellLibrary';
-  import { getItemsByDir, buildItemIndex, matchItem, type ItemInfo } from '../itemLibrary';
+  import { getItemsByDir, buildItemIndex, matchItem, matchWeaponName, type ItemInfo } from '../itemLibrary';
   import { DIR_TO_CATEGORY, masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
   import type { WeaponMastery } from '../schemas/vocabulary';
@@ -154,6 +154,7 @@
       classIndex: delta.classIndex,
       isNewClass: delta.isNewClass,
       resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
+      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
     });
     next.classLevel = formatClassLevel(next.classes);
 
@@ -172,6 +173,7 @@
     applyChanges(next, changes, {
       classIndex: 0,
       resolveSpellKey: (name) => matchSpell(spellIndex, { name })?.key,
+      resolveWeaponName: (name) => matchWeaponName(itemIndex, name),
     });
     const r = parseCharacter(next);
     ed.draft = r.ok ? r.data : next;

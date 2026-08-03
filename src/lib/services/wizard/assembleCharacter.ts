@@ -38,7 +38,7 @@ import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyAsi } from './backgroundAsi';
 import { equipmentIndex } from './startingEquipment';
-import { matchItem } from '$lib/itemLibrary';
+import { matchItem, matchWeaponName } from '$lib/itemLibrary';
 import { ftToMVal } from '$lib/itemFormat';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
@@ -141,11 +141,14 @@ function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression
  * Senken liefen hier schon einmal auseinander und verloren dabei still ganze Übungsarten.
  */
 async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: AnswerLookup): Promise<void> {
-  const grants = await collectGrants({
-    classes: c.classes,
-    species: { sourceKey: w.species.sourceKey, subspeciesKey: w.species.subspeciesKey },
-    backgroundRef: { sourceKey: w.background.sourceKey },
-  });
+  const [grants, items] = await Promise.all([
+    collectGrants({
+      classes: c.classes,
+      species: { sourceKey: w.species.sourceKey, subspeciesKey: w.species.subspeciesKey },
+      backgroundRef: { sourceKey: w.background.sourceKey },
+    }),
+    equipmentIndex(),
+  ]);
   // Die Zeilen müssen VOR dem Applier stehen: der setzt Häkchen an bestehenden Zeilen,
   // er legt keine an (am Bogen existieren sie immer, hier entstehen sie gerade erst).
   for (const def of SKILL_DEFS) c.skills[def.key] = { value: 0, prof: false, exp: false };
@@ -176,7 +179,7 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
         source: 'species-trait',
       }),
     ],
-    { classIndex: 0 },
+    { classIndex: 0, resolveWeaponName: (name) => matchWeaponName(items, name) },
   );
 }
 
