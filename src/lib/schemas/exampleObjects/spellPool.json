@@ -1,0 +1,17 @@
+{
+  "lists": [
+    "string"
+  ],
+  "listMode": "union",
+  "schools": [
+    "abjuration"
+  ],
+  "from": {
+    "feature": "string",
+    "quota": "string"
+  },
+  "names": [
+    "string"
+  ],
+  "fromDescTable": false
+}

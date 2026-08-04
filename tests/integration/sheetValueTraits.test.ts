@@ -121,11 +121,9 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
       'Gnomish Cunning',
       'Gnomish Lineage',
     ]);
-    expect(prep.analysisSpeciesFeatures.map((f) => f.name)).toEqual([
-      'Darkvision',
-      'Gnomish Cunning',
-      'Gnomish Lineage',
-    ]);
+    // „Gnomische Abstammung" fehlt hier seit ihrer Deklaration (`optionList` + `grantsCasting`):
+    // die Zweig-Zauber stehen benannt im Vault, das Modell könnte sie nur nacherfinden.
+    expect(prep.analysisSpeciesFeatures.map((f) => f.name)).toEqual(['Darkvision', 'Gnomish Cunning']);
     // Index-gleich zu `summarySpecies` — sonst bekäme der Speziestext fremde Keys.
     expect(prep.summarySpecies.map((s) => s.name)).toEqual(prep.speciesFeatures.map((f) => f.name));
   });
