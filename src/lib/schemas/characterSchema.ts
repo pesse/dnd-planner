@@ -16,6 +16,8 @@ const attackModifierSchema = z.object({
 
 const attackSchema = z.object({
   name: z.string().default(''),
+  sourceKey: z.string().optional()
+    .describe('Bibliotheks-Link auf item.key wie bei inventory[]; fehlt er, identifiziert der Name.'),
   bonus: z.string().default(''),
   damage: z.string().default(''),
   type: z.string().default(''),

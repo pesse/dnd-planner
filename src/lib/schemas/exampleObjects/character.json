@@ -61,6 +61,7 @@
   "attacks": [
     {
       "name": "string",
+      "sourceKey": "string",
       "bonus": "string",
       "damage": "string",
       "type": "string",

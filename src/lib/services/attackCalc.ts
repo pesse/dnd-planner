@@ -6,6 +6,7 @@ import { sign } from '../utils/num';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
+import { itemKeyOf } from '../schemas/item';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
 
@@ -107,6 +108,20 @@ export function blankAttack(): Attack {
   };
 }
 
+/**
+ * Position des Angriffs zu einer Waffe, `-1` wenn keiner eingetragen ist. Link vor Name
+ * wie `matchByRef`: Angriffe aus der Zeit vor `sourceKey` tragen nur den Anzeigenamen.
+ */
+export function attackIndexOf(attacks: Attack[], ref: { sourceKey?: string; name: string }): number {
+  const key = ref.sourceKey?.trim();
+  if (key) {
+    const i = attacks.findIndex((a) => a.sourceKey?.trim() === key);
+    if (i >= 0) return i;
+  }
+  const name = ref.name.trim().toLowerCase();
+  return name ? attacks.findIndex((a) => a.name.trim().toLowerCase() === name) : -1;
+}
+
 export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Attack {
   const name = item.name_de ?? item.name;
   const isRanged = item.weapon_range === 'Ranged';
@@ -137,7 +152,8 @@ export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Att
   }
 
   const atk: Attack = {
-    name, bonus: '', damage: '', type: damageTypeShort, range,
+    name, sourceKey: itemKeyOf(item) || undefined,
+    bonus: '', damage: '', type: damageTypeShort, range,
     auto: true, ability, proficient, baseDamage, magicBonus, modifiers: [],
   };
   atk.bonus = computeAttackBonus(atk, ctx);

@@ -425,6 +425,24 @@
   cursor: help;
 }
 
+.edit-form .atk-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.05rem 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.edit-form .atk-toggle:hover { color: var(--ink-soft); border-color: var(--border); }
+.edit-form .atk-toggle.active {
+  color: var(--red);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
 .edit-form .inv-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .edit-form .btn-link-all {
   background: none;

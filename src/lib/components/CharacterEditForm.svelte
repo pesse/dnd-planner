@@ -60,6 +60,14 @@
   const skills = $derived(computeSkills(form));
   const classLevelPreview = $derived(formatClassLevel(form.classes));
 
+  // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
+  // Inventarzeile — beide rechnen mit demselben Kontext.
+  const weaponCtx = $derived({
+    ...attackContext(form),
+    proficiencies: form.proficiencies,
+    weaponByName: (n: string) => matchItem(libs.itemIndex, { name: n }),
+  });
+
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
   const savedField = (key: string): unknown => (saved as Record<string, unknown> | null | undefined)?.[key];
 
@@ -318,16 +326,7 @@
 
   <section>
     <h3>Angriffe</h3>
-    <AttackTable
-      attacks={form.attacks}
-      ctx={{
-        ...attackContext(form),
-        proficiencies: form.proficiencies,
-        weaponByName: (n) => matchItem(libs.itemIndex, { name: n }),
-      }}
-      weaponItems={libs.weapons}
-      {saved}
-    />
+    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved} />
   </section>
 
   <!-- Direkt bei den Angriffen, weil die Wahl nach jeder langen Rast wechseln kann —
@@ -385,6 +384,8 @@
       bind:inventoryNotes={form.inventoryNotes}
       itemIndex={libs.itemIndex}
       itemsByDir={libs.itemsByDir}
+      attacks={form.attacks}
+      attackCtx={weaponCtx}
       {saved}
       fixLabel={fixOf('inventory')?.label}
       onfix={() => applyFix(fixOf('inventory'))}

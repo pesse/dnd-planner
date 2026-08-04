@@ -1,7 +1,8 @@
 <script lang="ts">
   /**
    * Inventar: Zeilen mit Bibliotheks-Link (Autocomplete, Tooltip, Sprung zur Karte),
-   * Gewicht je Stück aus der Bibliothek und die live gerechnete Gesamtlast.
+   * Gewicht je Stück aus der Bibliothek und die live gerechnete Gesamtlast. Waffenzeilen
+   * schalten ihren Eintrag in der Angriffstabelle um (⚔).
    */
   import { invoke } from '@tauri-apps/api/core';
   import { openItemPage } from '../../services/vaultLinks';
@@ -9,25 +10,31 @@
     searchItems, displayName, matchItem, type ItemIndex, type ItemInfo, type ItemSuggestion,
   } from '../../itemLibrary';
   import { CATEGORY_COLORS } from '../../itemLabels';
+  import {
+    attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
+  } from '../../services/attackCalc';
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
-  import type { Character } from '../../schemas/characterSchema';
+  import type { Attack, Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import './form.css';
 
   type InventoryLine = Character['inventory'][number];
 
   let {
-    inventory, inventoryNotes = $bindable(), itemIndex, itemsByDir, saved, fixLabel, onfix, dirOf,
+    inventory, inventoryNotes = $bindable(), itemIndex, itemsByDir, attacks, attackCtx,
+    saved, fixLabel, onfix, dirOf,
   }: {
     inventory: InventoryLine[];
     inventoryNotes: string;
     itemIndex: ItemIndex;
     itemsByDir: Record<string, ItemInfo[]>;
+    attacks: Attack[];
+    attackCtx: WeaponAttackContext;
     saved?: Character | null;
     fixLabel?: string;
     onfix: () => void;
@@ -93,20 +100,39 @@
   let dataByPath = $state(new Map<string, Item | null>());
   const tip = createHoverTip<Item>();
 
+  async function loadItem(path: string): Promise<Item | null> {
+    const cached = dataByPath.get(path);
+    if (cached) return cached;
+    try {
+      const data = JSON.parse(await invoke<string>('read_file_content', { path })) as Item;
+      dataByPath.set(path, data);
+      dataByPath = new Map(dataByPath);
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   $effect(() => {
     for (const line of inventory) {
       const lib = libItemOf(line);
       if (!lib || dataByPath.has(lib.path)) continue;
-      dataByPath.set(lib.path, null);
+      dataByPath.set(lib.path, null); // belegt den Platz, sonst lädt der nächste Lauf erneut
       dataByPath = new Map(dataByPath);
-      invoke<string>('read_file_content', { path: lib.path })
-        .then((content) => {
-          dataByPath.set(lib.path, JSON.parse(content) as Item);
-          dataByPath = new Map(dataByPath);
-        })
-        .catch(() => {});
+      void loadItem(lib.path);
     }
   });
+
+  // Identität über den Bibliothekseintrag, nicht über den Zeilentext: ein umbenanntes
+  // „Langschwert +1" im Inventar meint denselben Angriff wie die Waffe, aus der er kam.
+  const attackRefOf = (lib: ItemInfo) => ({ sourceKey: lib.key, name: displayName(lib) });
+
+  async function toggleAttack(lib: ItemInfo) {
+    const at = attackIndexOf(attacks, attackRefOf(lib));
+    if (at >= 0) { attacks.splice(at, 1); return; }
+    const data = await loadItem(lib.path);
+    if (data) attacks.push(buildAttackFromWeapon(data, attackCtx));
+  }
 
 </script>
 
@@ -125,6 +151,12 @@
                  Tastendruck in einer verlinkten Zeile den Link. -->
             <span class="inv-linked-name">
               <span class="inv-dot" style="background:{CATEGORY_COLORS[lib.category] ?? 'var(--border-strong)'}"></span>
+              {#if lib.category === 'weapon'}
+                {@const inAttacks = attackIndexOf(attacks, attackRefOf(lib)) >= 0}
+                <button type="button" class="atk-toggle" class:active={inAttacks}
+                  title={inAttacks ? 'Aus der Angriffe-Tabelle entfernen' : 'In die Angriffe-Tabelle eintragen'}
+                  onclick={() => toggleAttack(lib)}>⚔</button>
+              {/if}
               <button
                 type="button"
                 class="inv-name-link"
