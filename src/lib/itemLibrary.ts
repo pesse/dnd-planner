@@ -26,11 +26,16 @@ export interface ItemInfo {
   /** Basis-Slug der Waffenart: „shortbow" trägt auch der Eidbogen (Kurzbogen). */
   index?: string;
   magic: boolean;
-  // Der Index liest die Datei ohnehin ganz; diese drei Facetten mitzunehmen erspart
+  // Der Index liest die Datei ohnehin ganz; diese Facetten mitzunehmen erspart
   // Waffenbeherrschung und Angriffstabelle ein zweites Laden jeder Waffendatei.
   weapon_category?: string; // Simple | Martial
   weapon_range?: string; // Melee | Ranged
   mastery?: WeaponMastery;
+  damage?: Item['damage'];
+  properties?: Item['properties'];
+  magic_bonus?: Item['magic_bonus'];
+  range?: Item['range'];
+  throw_range?: Item['throw_range'];
 }
 
 export function displayName(item: ItemInfo): string {
@@ -159,6 +164,11 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
         // Nur geschlossenes Vokabular: eine falsch gepflegte Datei liefert `undefined`
         // statt einen Fremdwert weiterzutragen.
         mastery: (WEAPON_MASTERIES as readonly string[]).includes(data.mastery) ? data.mastery : undefined,
+        damage: data.damage,
+        properties: data.properties,
+        magic_bonus: data.magic_bonus,
+        range: data.range,
+        throw_range: data.throw_range,
       }),
       ({ path, filename }) => ({
         name: filename.replace('.json', ''),

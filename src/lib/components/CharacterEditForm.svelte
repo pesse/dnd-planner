@@ -172,6 +172,8 @@
     cantrips: form.spells.cantrips,
     spellsByLevel: form.spells.byLevel,
     proficiencies: form.proficiencies,
+    attacks: form.attacks,
+    weaponCtx,
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
@@ -326,7 +328,10 @@
 
   <section>
     <h3>Angriffe</h3>
-    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved} />
+    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved}
+      fixLabel={fixOf('attacks')?.label}
+      onfix={() => applyFix(fixOf('attacks'))}
+    />
   </section>
 
   <!-- Direkt bei den Angriffen, weil die Wahl nach jeder langen Rast wechseln kann —

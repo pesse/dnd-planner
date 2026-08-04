@@ -10,6 +10,15 @@ import { itemKeyOf } from '../schemas/item';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
 
+/**
+ * Erfüllt von `Item` (voll geladen) und `ItemInfo` (Index-Projektion) — beide tragen dieselben
+ * Waffenfelder. Als `Pick<Item, …>` statt `WeaponLike & …`: die Intersection mit einem Interface
+ * verliert die implizite Indexsignatur, die `itemKeyOf` (Parameter `Record<string, unknown>`) braucht.
+ */
+export type WeaponAttackSource = Pick<Item,
+  'name' | 'name_de' | 'index' | 'weapon_category' | 'weapon_range' | 'properties' | 'damage' | 'magic_bonus' | 'range' | 'throw_range'
+>;
+
 export interface AttackCalcContext {
   strMod: number;
   gesMod: number;
@@ -122,7 +131,7 @@ export function attackIndexOf(attacks: Attack[], ref: { sourceKey?: string; name
   return name ? attacks.findIndex((a) => a.name.trim().toLowerCase() === name) : -1;
 }
 
-export function buildAttackFromWeapon(item: Item, ctx: WeaponAttackContext): Attack {
+export function buildAttackFromWeapon(item: WeaponAttackSource, ctx: WeaponAttackContext): Attack {
   const name = item.name_de ?? item.name;
   const isRanged = item.weapon_range === 'Ranged';
   const isFinesse = (item.properties ?? []).some((p) => p.index === 'finesse');

@@ -11,13 +11,14 @@ import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import type { SpellIndex } from '$lib/spellLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
 import { addIndividualWeapon } from './weaponProficiency';
-import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type ProficiencyFlags, type SpellRef } from '$lib/schemas/characterSchema';
+import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
+import { type Attack, type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type ProficiencyFlags, type SpellRef } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
 /** Zaubertricks tragen kein `prepared` — für die Verlinkung zählt nur name/sourceKey. */
 type SpellRefLike = SpellRef;
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -36,6 +37,9 @@ export interface LegacyLinkTarget {
   cantrips: SpellRefLike[];
   spellsByLevel: Record<string, SpellRefLike[]>;
   proficiencies: ProficiencyFlags;
+  attacks: Attack[];
+  /** Zum Nachrechnen von Bonus/Schaden, wenn `attacksFix` einen Alt-Angriff auf `auto` umstellt. */
+  weaponCtx: WeaponAttackContext;
 }
 
 /** Was noch lädt, wird schlicht nicht angeboten. */
@@ -150,6 +154,31 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
   };
 }
 
+/** Angriffe aus der Zeit vor dem `sourceKey`-Feld: Freitext, der eine Waffe der Bibliothek nennt. */
+export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const rows = target.attacks.filter((a) => {
+    if (a.sourceKey?.trim()) return false;
+    const nm = a.name.trim().toLowerCase();
+    if (!nm || libs.items.ambiguous.has(nm)) return false;
+    const hit = libs.items.byName.get(nm);
+    return !!hit?.key && hit.category === 'weapon';
+  });
+  if (!rows.length) return undefined;
+  return {
+    kind: 'attacks',
+    label: `${rows.length} ${rows.length === 1 ? 'Angriff' : 'Angriffe'} mit der Waffen-Bibliothek verknüpfen`,
+    apply: () => {
+      for (const a of rows) {
+        const hit = libs.items.byName.get(a.name.trim().toLowerCase());
+        if (!hit?.key || hit.category !== 'weapon') continue;
+        const modifiers = a.modifiers;
+        Object.assign(a, buildAttackFromWeapon(hit, target.weaponCtx));
+        if (modifiers?.length) a.modifiers = modifiers;
+      }
+    },
+  };
+}
+
 function allSpellRefs(target: LegacyLinkTarget): SpellRefLike[] {
   return [...target.cantrips, ...Object.values(target.spellsByLevel).flat()];
 }
@@ -218,5 +247,6 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     inventoryFix(target, libs),
     spellsFix(target, libs),
     weaponsFix(target, libs),
+    attacksFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);
 }
