@@ -60,3 +60,14 @@ export function matchByRef<T>(
   const name = normName(ref.name);
   return name ? index.byName.get(name) : undefined;
 }
+
+/**
+ * Verlinkt einen rohen Namen NUR, wenn er eindeutig ist — ein falscher Key wäre schlimmer
+ * als keiner. Anders als `matchByRef` (liefert auch bei Mehrdeutigkeit den Erst-Treffer)
+ * für Aufrufer, die einen NEUEN Verweis anlegen statt einen bestehenden aufzulösen.
+ */
+export function linkByName<T extends { key?: string }>(index: NameIndex<T>, name: string): { sourceKey?: string } {
+  const key = normName(name);
+  const hit = key ? index.byName.get(key) : undefined;
+  return hit?.key && !index.ambiguous.has(key) ? { sourceKey: hit.key } : {};
+}

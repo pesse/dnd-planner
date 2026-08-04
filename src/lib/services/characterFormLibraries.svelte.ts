@@ -32,6 +32,11 @@ export function createFormLibraries() {
   $effect(() => { getSpeciesList().then((x) => { species = x; }); });
   $effect(() => { getBackgroundsList().then((x) => { backgrounds = x; }); });
 
+  /** Nach `createSpellInline`: der Modul-Cache ist neu, aber `spells` bliebe sonst der alte Stand. */
+  async function reloadSpells(): Promise<void> {
+    spells = await getSpellLibrary();
+  }
+
   const itemIndex = $derived(buildItemIndex(itemsByDir));
   const spellIndex = $derived(buildSpellIndex(spells));
 
@@ -41,6 +46,7 @@ export function createFormLibraries() {
     get itemIndex() { return itemIndex; },
     get spells() { return spells; },
     get spellIndex() { return spellIndex; },
+    reloadSpells,
     get classes() { return classes; },
     get species() { return species; },
     get backgrounds() { return backgrounds; },

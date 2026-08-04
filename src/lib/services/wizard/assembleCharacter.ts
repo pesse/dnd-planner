@@ -17,7 +17,8 @@ import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { choiceLabelsDe } from '../analysis/types';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
-import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
+import { getSpellLibrary, buildSpellIndex } from '$lib/spellLibrary';
+import { linkByName } from '../library/nameIndex';
 import { declaredSpellChanges, resolveDeclaredSpells, validateRiderSpells } from '../levelUp/spells';
 import { riderGrantChanges } from '../levelUp/changes';
 import { isSpellGrantFeature } from '../grantedSpells';
@@ -246,11 +247,7 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
   // Zauber per Key an die Bibliothek binden; ohne eindeutigen Key bleibt der Namens-Fallback.
   const spellLib = await getSpellLibrary();
   const spellIndex = buildSpellIndex(spellLib);
-  const linkRef = (name: string): { sourceKey?: string } => {
-    const hit = matchSpell(spellIndex, { name });
-    const unique = !spellIndex.ambiguous.has(name.trim().toLowerCase());
-    return hit?.key && unique ? { sourceKey: hit.key } : {};
-  };
+  const linkRef = (name: string): { sourceKey?: string } => linkByName(spellIndex, name);
 
   if (hasPicks) {
     const offer = await spellcastingOffer({

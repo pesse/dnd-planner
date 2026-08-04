@@ -2,32 +2,36 @@
   /**
    * Zauberwirken: Klasse/Attribut mit reaktivem SG und Angriffsbonus, Slots je Grad,
    * Zaubertricks und Zauberliste — jeweils mit Bibliotheks-Link, Tooltip und Sprung.
+   * Die eigentliche Auswahl läuft über den geteilten `SpellPickModal` (Wizard/Level-Up);
+   * Freitext bleibt als Notausgang für Homebrew und unverlinkten Altbestand.
    */
   import { activeFile } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { sign } from '../../utils/num';
-  import {
-    searchSpells, loadSpellByPath, matchSpell, SCHOOL_COLORS,
-    type SpellIndex, type SpellInfo, type SpellSuggestion,
-  } from '../../spellLibrary';
+  import { matchSpell, resolveClass, SCHOOL_COLORS, type SpellIndex, type SpellInfo } from '../../spellLibrary';
+  import { linkByName } from '../../services/library/nameIndex';
   import { CLASS_NAMES_DE } from '../../services/classProgression';
-  import { CASTER_ABILITY_DE } from '../../services/spellcasting';
+  import { CASTER_ABILITY_DE, spellcastingOffer, type SpellcastingOffer } from '../../services/spellcasting';
+  import {
+    cantripPicks, cantripQuota, casterRowOf, levelPickScope,
+    mergeCantripPicks, mergeSpellPicks, spellQuota,
+  } from '../../services/characterSpellPicks';
   import {
     computedSpellAttack, computedSpellSaveDC, spellAbilityMod, spellAutoActive, withCurrentSorted,
     type CharacterFormFields,
   } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
-  import { createSuggestNav } from '../../utils/suggestNav.svelte';
-  import { dropdownPlacement } from '../../utils/dropdownPlacement';
-  import { createHoverTip } from '../../utils/hoverTip.svelte';
+  import { createSpellHover } from '../spellHover.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
+  import SpellPickModal from '../SpellPickModal.svelte';
+  import SpellCreateModal from '../SpellCreateModal.svelte';
+  import SpellFreeTextRow from './SpellFreeTextRow.svelte';
   import type { Character, SpellRef } from '../../schemas/characterSchema';
-  import type { Spell } from '../../types';
   import './form.css';
 
   const LEVELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-  let { form, spellLibrary, spellIndex, saved, fixLabel, onfix, dirOf }: {
+  let { form, spellLibrary, spellIndex, saved, fixLabel, onfix, dirOf, onlibraryreload }: {
     form: CharacterFormFields;
     spellLibrary: SpellInfo[];
     spellIndex: SpellIndex;
@@ -35,6 +39,7 @@
     fixLabel?: string;
     onfix: () => void;
     dirOf: (old: unknown, now: unknown) => DiffDir;
+    onlibraryreload: () => Promise<void> | void;
   } = $props();
 
   const spells = $derived(form.spells);
@@ -87,96 +92,74 @@
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
-  let cantripInput = $state('');
-  let cantripSuggestions = $state<SpellSuggestion[]>([]);
-  let spellInput = $state('');
-  let spellInputLvl = $state('1');
-  let spellInputPrepared = $state(false);
-  let spellSuggestions = $state<SpellSuggestion[]>([]);
-
+  // Kontingent aus der Klassentabelle — nur Orientierung: der Editor kennt keine
+  // Merkmals-Extras (`riderExtras` gehört zum Stufenaufstieg), darum blockt der Dialog hier
+  // nicht (`enforceMax={false}`), anders als in Wizard und Level-Up.
+  const casterRow = $derived(casterRowOf({ classes: form.classes, spellcastingClass: spells.spellcastingClass }, resolveClass));
+  let offer = $state<SpellcastingOffer | null>(null);
   $effect(() => {
-    cantripSuggestions = cantripInput.length > 0
-      ? searchSpells(spellLibrary, cantripInput, 0, spells.spellcastingClass)
-      : [];
-    cantripNav.reset();
+    const row = casterRow;
+    if (!row) { offer = null; return; }
+    let cancelled = false;
+    void spellcastingOffer({ classKey: row.classKey, klasseName: row.klasseName, level: row.level })
+      .then((o) => { if (!cancelled) offer = o; })
+      .catch(() => { if (!cancelled) offer = null; });
+    return () => { cancelled = true; };
   });
 
-  $effect(() => {
-    spellSuggestions = spellInput.length > 0
-      ? searchSpells(spellLibrary, spellInput, Number(spellInputLvl), spells.spellcastingClass)
-      : [];
-    spellNav.reset();
-  });
+  const cantripMax = $derived(cantripQuota(offer));
+  const spellMax = $derived(spellQuota(offer));
+  // Ohne (aufgelöste) Zauberklasse bleibt Grad 1–9 offen — sonst verschwände ein Alt-Eintrag
+  // eines nicht verlinkten Charakters stumm aus dem Dialog.
+  const scope = $derived(levelPickScope(spells.byLevel, offer?.isCaster ? offer.maxSpellLevel : 9));
+  const pickClass = $derived(offer?.spellClass || spells.spellcastingClass);
+  const quotaHint = $derived(
+    casterRow
+      ? `Orientierung nach Klassentabelle (${casterRow.klasseName}, Stufe ${casterRow.level}). Von Merkmalen gewährte Zauber zählen hier mit — der Editor begrenzt nicht.`
+      : 'Kontingent unbekannt — die Klasse ist nicht mit der Bibliothek verknüpft.',
+  );
+  // Nur eindeutige Namen verlinken — ein falscher Key wäre schlimmer als keiner.
+  const resolveKey = (name: string): string | undefined => linkByName(spellIndex, name).sourceKey;
 
-  function selectCantrip(sug: SpellSuggestion) {
-    if (!spells.cantrips.some((c) => c.name === sug.spell.name))
-      spells.cantrips.push({ name: sug.spell.name, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) });
-    cantripInput = '';
-    cantripSuggestions = [];
+  let picking = $state<'cantrips' | 'spells' | null>(null);
+  let creating = $state<{ name: string; levels: number[] } | null>(null);
+
+  function applyCantripPicks(v: string[]) {
+    spells.cantrips = mergeCantripPicks(spells.cantrips, v, resolveKey);
+  }
+  function applyLevelPicks(v: string[]) {
+    spells.byLevel = mergeSpellPicks(spells.byLevel, v, { levels: scope.levels, regime: offer?.regime ?? 'fixed-list', resolveKey });
   }
 
-  function addCantrip() {
-    const v = cantripInput.trim();
-    // Ohne Key — `matchSpell` löst später über den Namen auf.
-    if (v && !spells.cantrips.some((c) => c.name === v)) spells.cantrips.push({ name: v });
-    cantripInput = '';
-    cantripSuggestions = [];
-  }
-
-  function selectSpell(sug: SpellSuggestion) {
-    const existing = spells.byLevel[spellInputLvl] ?? [];
-    spells.byLevel[spellInputLvl] = [
-      ...existing,
-      { name: sug.spell.name, prepared: spellInputPrepared, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) },
-    ];
-    spellInput = '';
-    spellInputPrepared = false;
-    spellSuggestions = [];
-  }
-
-  function addSpell() {
-    const v = spellInput.trim();
-    if (!v) return;
-    const existing = spells.byLevel[spellInputLvl] ?? [];
-    spells.byLevel[spellInputLvl] = [...existing, { name: v, prepared: spellInputPrepared }];
-    spellInput = '';
-    spellInputPrepared = false;
-    spellSuggestions = [];
-  }
-
-  const cantripNav = createSuggestNav<SpellSuggestion>({
-    items: () => cantripSuggestions,
-    pick: selectCantrip,
-    enter: addCantrip,
-    escape: () => { cantripSuggestions = []; },
-  });
-
-  const spellNav = createSuggestNav<SpellSuggestion>({
-    items: () => spellSuggestions,
-    pick: selectSpell,
-    enter: addSpell,
-    escape: () => { spellSuggestions = []; },
-  });
-
-  // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
-  let dataCache = $state(new Map<string, Spell | null>());
-  const tip = createHoverTip<Spell>();
-
-  $effect(() => {
-    for (const ref of [...spells.cantrips, ...Object.values(spells.byLevel).flat()]) {
-      const name = ref.name;
-      if (dataCache.has(name)) continue;
-      const info = resolve(ref);
-      if (!info?.path) continue;
-      dataCache.set(name, null);
-      dataCache = new Map(dataCache);
-      loadSpellByPath(info.path).then((data) => {
-        dataCache.set(name, data);
-        dataCache = new Map(dataCache);
-      });
+  function addFreeText(e: { name: string; sourceKey?: string; level: number; prepared: boolean }) {
+    const ref = { name: e.name, ...(e.sourceKey ? { sourceKey: e.sourceKey } : {}) };
+    if (e.level <= 0) {
+      if (!spells.cantrips.some((c) => c.name === e.name)) spells.cantrips = [...spells.cantrips, ref];
+      return;
     }
-  });
+    const lvl = String(e.level);
+    const existing = spells.byLevel[lvl] ?? [];
+    if (!existing.some((s) => s.name === e.name)) spells.byLevel[lvl] = [...existing, { ...ref, prepared: e.prepared }];
+  }
 
+  async function onSpellCreated(canonical: string, level: number) {
+    creating = null;
+    await onlibraryreload(); // sonst löst der neue Zauber im Formular nicht auf
+    addFreeText({ name: canonical, sourceKey: resolveKey(canonical), level, prepared: offer?.regime !== 'spellbook' });
+  }
+
+  // Modulweit geteilter Hover-Cache (wie im Wizard/Level-Up); `resolve` löst hier zusätzlich
+  // über `sourceKey`, EN-Namen und Ambiguität auf, ein reines `library.map(s => [s.name, s])`
+  // fände den Tooltip für ≠-abweichende oder englisch benannte Einträge nicht.
+  const hoverIndex = $derived.by(() => {
+    const idx = new Map<string, SpellInfo>();
+    for (const ref of [...spells.cantrips, ...Object.values(spells.byLevel).flat()]) {
+      const info = resolve(ref);
+      if (info) idx.set(ref.name, info);
+    }
+    return idx;
+  });
+  const hover = createSpellHover(() => hoverIndex, () => hoverIndex.keys());
 </script>
 
 <div class="grid-3">
@@ -240,55 +223,35 @@
       role="button" tabindex="0"
       onclick={() => openSpellPage(c)}
       onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
-      onmouseenter={(e) => tip.show(e, dataCache.get(c.name) ?? null)}
-      onmousemove={tip.move}
-      onmouseleave={tip.hide}>{c.name}</span>{#if divergedName(c)}<span class="name-diverged" title="Bibliothek: {divergedName(c)}">≠</span>{/if}<button onclick={() => { spells.cantrips = spells.cantrips.filter((x) => x !== c); }}>✕</button></span>
+      onmouseenter={(e) => hover.show(e, c.name)}
+      onmousemove={hover.move}
+      onmouseleave={hover.hide}>{c.name}</span>{#if divergedName(c)}<span class="name-diverged" title="Bibliothek: {divergedName(c)}">≠</span>{/if}<button onclick={() => { spells.cantrips = spells.cantrips.filter((x) => x !== c); }}>✕</button></span>
   {/each}
-  <div class="autocomplete-wrap">
-    <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
-      onkeydown={cantripNav.onkeydown}
-      onblur={() => setTimeout(() => { cantripSuggestions = []; }, 150)} />
-    {#if cantripSuggestions.length > 0}
-      <ul class="suggestions" use:dropdownPlacement>
-        {#each cantripSuggestions as sug, i}
-          <li class:active={i === cantripNav.index} class:out-of-class={!sug.inClass}
-            onmousedown={() => selectCantrip(sug)}>
-            <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
-            {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-  <button class="btn-add-sm" onclick={addCantrip}>+</button>
+</div>
+<div class="spell-pick-row">
+  <button type="button" class="btn-pick" disabled={!spellLibrary.length} onclick={() => (picking = 'cantrips')}>
+    📖 Aus der Bibliothek wählen
+  </button>
+  <span class="spell-quota" class:over={cantripMax > 0 && spells.cantrips.length > cantripMax} title={quotaHint}>
+    {spells.cantrips.length}{#if cantripMax > 0} / {cantripMax}{/if} Zaubertricks
+  </span>
 </div>
 
-<h3 style="margin-top:0.75rem">Zauber hinzufügen</h3>
-<div class="spell-add-row">
-  <select bind:value={spellInputLvl} class="spell-level-select">
-    {#each LEVELS as lvl}
-      <option value={lvl}>Stufe {lvl}</option>
-    {/each}
-  </select>
-  <div class="autocomplete-wrap spell-autocomplete">
-    <input class="spell-name-input" bind:value={spellInput} placeholder="Zauber-Name…"
-      onkeydown={spellNav.onkeydown}
-      onblur={() => setTimeout(() => { spellSuggestions = []; }, 150)} />
-    {#if spellSuggestions.length > 0}
-      <ul class="suggestions" use:dropdownPlacement>
-        {#each spellSuggestions as sug, i}
-          <li class:active={i === spellNav.index} class:out-of-class={!sug.inClass}
-            onmousedown={() => selectSpell(sug)}>
-            <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
-            {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-  <label class="prep-check"><input type="checkbox" bind:checked={spellInputPrepared} /> Vorb.</label>
-  <button class="btn-add-sm" onclick={addSpell}>+</button>
+<h3 style="margin-top:0.75rem">Zauber</h3>
+<div class="spell-pick-row">
+  <button type="button" class="btn-pick" disabled={!spellLibrary.length} onclick={() => (picking = 'spells')}>
+    📖 Aus der Bibliothek wählen
+  </button>
+  <span class="spell-quota" class:over={spellMax > 0 && scope.picks.length > spellMax} title={quotaHint}>
+    {scope.picks.length}{#if spellMax > 0} / {spellMax}{/if} Zauber{#if offer?.isCaster}, bis Grad {offer.maxSpellLevel}{/if}
+  </span>
 </div>
+
+<details class="spell-freetext">
+  <summary>Freitext: Homebrew &amp; Altbestand</summary>
+  <SpellFreeTextRow library={spellLibrary} spellClass={pickClass} level={0} placeholder="Zaubertrick…" onadd={addFreeText} />
+  <SpellFreeTextRow library={spellLibrary} spellClass={pickClass} level={null} placeholder="Zauber-Name…" onadd={addFreeText} />
+</details>
 
 {#each LEVELS as lvl}
   {@const levelSpells = spells.byLevel[lvl] ?? []}
@@ -309,9 +272,9 @@
             role="button" tabindex="0"
             onclick={() => openSpellPage(spell)}
             onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
-            onmouseenter={(e) => tip.show(e, dataCache.get(spell.name) ?? null)}
-            onmousemove={tip.move}
-            onmouseleave={tip.hide}>{spell.name}</span>
+            onmouseenter={(e) => hover.show(e, spell.name)}
+            onmousemove={hover.move}
+            onmouseleave={hover.hide}>{spell.name}</span>
           {#if divergedName(spell)}<span class="name-diverged" title="Bibliothek: {divergedName(spell)}">≠</span>{/if}
           <button class="remove-btn" onclick={() => { spells.byLevel[lvl] = levelSpells.filter((_, j) => j !== i); }}>✕</button>
         </div>
@@ -320,4 +283,22 @@
   {/if}
 {/each}
 
-<SpellTooltip spell={tip.data} x={tip.x} y={tip.y} />
+{#if picking === 'cantrips'}
+  <SpellPickModal title="Zaubertricks" library={spellLibrary} spellLevels={[0]} spellClass={pickClass}
+    max={cantripMax} enforceMax={false} allowCreate onCreate={(q, lv) => (creating = { name: q.trim(), levels: lv })}
+    bind:picks={() => cantripPicks(spells.cantrips), applyCantripPicks}
+    onclose={() => (picking = null)} />
+{:else if picking === 'spells'}
+  <SpellPickModal title={offer?.regime === 'spellbook' ? 'Zauberbuch' : 'Zauber'} library={spellLibrary}
+    spellLevels={scope.levels} spellClass={pickClass} max={spellMax} enforceMax={false}
+    allowCreate onCreate={(q, lv) => (creating = { name: q.trim(), levels: lv })}
+    bind:picks={() => scope.picks, applyLevelPicks}
+    onclose={() => (picking = null)} />
+{/if}
+
+{#if creating}
+  <SpellCreateModal name={creating.name} levels={creating.levels}
+    onclose={() => (creating = null)} oncreated={onSpellCreated} />
+{/if}
+
+<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />

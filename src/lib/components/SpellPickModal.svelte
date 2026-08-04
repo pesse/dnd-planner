@@ -22,6 +22,7 @@
     preparedMax = 0,
     allowCreate = false,
     onCreate = undefined,
+    enforceMax = true,
     onclose,
   }: {
     title: string;
@@ -39,6 +40,8 @@
     preparedMax?: number;
     allowCreate?: boolean;
     onCreate?: (name: string, levels: number[]) => void;
+    /** false = `max` ist nur Orientierung — der Charakter-Editor kennt keine Merkmals-Extras. */
+    enforceMax?: boolean;
     onclose: () => void;
   } = $props();
 
@@ -82,7 +85,8 @@
       .filter((sec) => sec.granted.length || sec.spells.length),
   );
 
-  const full = $derived(picks.length >= max);
+  const full = $derived(enforceMax && picks.length >= max);
+  const over = $derived(!enforceMax && picks.length > max);
   const isPicked = (s: SpellInfo) => picks.includes(encodePick(s.level, s.name));
 
   function toggle(s: SpellInfo) {
@@ -124,7 +128,7 @@
       <div class="head-text">
         <span class="modal-title">{title}</span>
         <span class="counter">
-          {picks.length} / {max} gewählt{#if prepared} · {prepared.length} / {preparedMax} vorbereitet{/if}
+          {picks.length}{#if max > 0} / {max}{/if} gewählt{#if prepared} · {prepared.length} / {preparedMax} vorbereitet{/if}
         </span>
       </div>
       <button type="button" class="close-btn" title="Schließen" onclick={onclose}>×</button>
@@ -194,6 +198,8 @@
     <footer>
       {#if full}
         <span class="field-hint">Kontingent voll — entferne einen Zauber, um zu tauschen.</span>
+      {:else if over}
+        <span class="field-hint">Über dem Kontingent ({picks.length} / {max}) — im Editor bewusst erlaubt.</span>
       {/if}
       {#if allowCreate && query.trim()}
         <!-- Schließt mit: die Inline-Zauberanlage des Aufrufers liegt im Dialog dahinter. -->

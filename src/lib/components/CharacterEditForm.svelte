@@ -403,6 +403,7 @@
       fixLabel={fixOf('spells')?.label}
       onfix={() => applyFix(fixOf('spells'))}
       {dirOf}
+      onlibraryreload={() => libs.reloadSpells()}
     />
   </section>
 </div>
