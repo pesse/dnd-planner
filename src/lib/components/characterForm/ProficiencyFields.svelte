@@ -6,6 +6,7 @@
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { displayName, matchItem, searchItems, type ItemIndex, type ItemInfo } from '../../itemLibrary';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
+  import { PROFICIENCY_FLAGS, proficiencyLabel } from '../../domain/proficiencies';
   import type { ProficiencyFlags } from '../../schemas/characterSchema';
   import TagEditor from './TagEditor.svelte';
   import './form.css';
@@ -19,16 +20,6 @@
     sourceOf: (kind: 'weapons' | 'armor', value: string) => string;
     dirOf: (old: unknown, now: unknown) => DiffDir;
   } = $props();
-
-  type BoolField = Exclude<keyof ProficiencyFlags, 'individualWeapons' | 'otherWeapons'>;
-  const CHECKS: { field: BoolField; label: string; kind: 'weapons' | 'armor'; value: string }[] = [
-    { field: 'simpleWeapons', label: 'Einfache Waffen', kind: 'weapons', value: 'Simple' },
-    { field: 'martialWeapons', label: 'Kriegswaffen', kind: 'weapons', value: 'Martial' },
-    { field: 'lightArmor', label: 'Leichte Rüstung', kind: 'armor', value: 'Light' },
-    { field: 'mediumArmor', label: 'Mittlere Rüstung', kind: 'armor', value: 'Medium' },
-    { field: 'heavyArmor', label: 'Schwere Rüstung', kind: 'armor', value: 'Heavy' },
-    { field: 'shields', label: 'Schilde', kind: 'armor', value: 'Shields' },
-  ];
 
   const suggestWeapon = (query: string) =>
     searchItems({ weapon: weaponItems }, query, 8).map((sug) => ({
@@ -44,12 +35,12 @@
 </script>
 
 <div class="prof-grid">
-  {#each CHECKS as check}
-    {@const source = sourceOf(check.kind, check.value)}
-    <label class="check-row" use:diffMark={dirOf(savedProficiencies?.[check.field], proficiencies[check.field])}>
-      <input type="checkbox" checked={proficiencies[check.field]}
-        onchange={(e) => (proficiencies[check.field] = e.currentTarget.checked)} />
-      <span class="check-label">{check.label}</span>
+  {#each PROFICIENCY_FLAGS as { field, def }}
+    {@const source = sourceOf(def.kind, def.value)}
+    <label class="check-row" use:diffMark={dirOf(savedProficiencies?.[field], proficiencies[field])}>
+      <input type="checkbox" checked={proficiencies[field]}
+        onchange={(e) => (proficiencies[field] = e.currentTarget.checked)} />
+      <span class="check-label">{proficiencyLabel(def)}</span>
       {#if source}<span class="grant-mark" title={source}>◆</span>{/if}
     </label>
   {/each}

@@ -1,8 +1,4 @@
-/**
- * Kanal für einen Dialog, der eine Frage beantwortet: Store für die offene
- * Anfrage, `ask` liefert das Ergebnis als Promise. Der Dialog wird einmal global
- * gemountet und hängt am Store; das Auflösen schließt ihn.
- */
+/** Der Dialog wird einmal global gemountet und hängt am Store; das Auflösen schließt ihn. */
 import { writable, type Readable } from 'svelte/store';
 
 export type PromptRequest<Req, Res> = Req & { resolve: (result: Res) => void };

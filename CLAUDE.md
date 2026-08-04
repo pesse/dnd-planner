@@ -138,120 +138,16 @@ coming one would lock development out of its own content.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
 vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
 
-## Rules that are invisible in the code
+## Never build a second mechanism
 
-- **The closed rule vocabularies are English** (`SKILL_NAMES`, `WEAPON_CATEGORIES`,
-  `ARMOR_TRAININGS`, `WEAPON_MASTERIES` in `schemas/vocabulary.ts`, `ABILITY_NAMES` in
-  `schemas/abilities.ts`), and German appears at exactly two boundaries: the sheet-key tables
-  (`domain/skills.ts`, `schemas/abilities.ts`) and display labels
-  (`services/proficiencyGrants.ts`). **Adding a third translation table is the mistake to avoid.**
-  Prompts name the vocabulary via `z.enum(SKILL_NAMES)`; translation happens when a `Change` is
-  *applied*, not when it is produced.
-- **Tools and languages stay German free text** on purpose — no closed vocabulary, and in 2024
-  languages are not a proficiency at all.
-- **The multiclass skill line is not in Open5e**, only in the German SRD extract. It lives in the
-  vault as `skillGrantMulticlass` and must survive a re-import.
-- **Weapon mastery is a field on the item** (`itemSchema.mastery`) — no weapon-kinds table, no
-  generator, no seeding, and a magic variant inherits nothing. The character stores weapon *names*;
-  the property is resolved at render time, so a swap needs no write-back.
-- **Weapon mastery is not an AI path.** `isFlowOwnedChoiceFeature` keeps it out of the level-up
-  prompt, and the options must come from the library, never from a model.
-- **Weapon proficiency is asked in exactly one place**: `isProficientWithWeapon`
-  (`services/weaponProficiency.ts`) — the two category flags plus
-  `proficiencies.individualWeapons`, sharing its `weaponNameSet`/`coversWeapon` matcher with
-  `character.masteries`. `proficiencies.otherWeapons` is free text with no mechanical effect
-  („Martial weapons with Finesse" is prose, not a weapon list), so a `weaponsOther` GRANT may not
-  land there when it names a weapon: `matchWeaponName` (`itemLibrary.ts`) is the one arbiter, used
-  by `applyChanges` (both flows, via `ApplyContext.resolveWeaponName`) and by the legacy fix
-  `kind: 'weapons'`. Without a resolver the value stays prose — that is a silent loss of
-  mechanics, so a new `applyChanges` call site passes one. No library schema names an individual
-  weapon — the player declares one by hand, **a model cannot invent one**.
-- **The feature interpretation is monolingual English, with a translation boundary.** Analysis and
-  effects pass (`aiActions/featureEffectsAction.ts`) see English only — `buildFeatureEffectsInput`
-  strips `nameDe`/`descDe` although `GainedFeature` carries them. German is produced by the two
-  thinking-free calls in `featureTranslationAction.ts` (choices for the checkpoint, sheet notes for
-  the PDF box) and by `fieldSummaryAction`, which stays German because its input is the *player's*
-  prose. Two consequences: a German label in a choice is a **quote** from `descDe`, never a
-  translation, and a length budget always belongs to the target language (`SHEET_NOTE_EN_MAX_CHARS`
-  → `SHEET_NOTE_MAX_CHARS`). A failed translation degrades to English, it never blocks.
-- **A choice is stored twice:** `features[].choice` is the English canonical label (it goes back to
-  the model as `<past_choices>`), `choiceDe` the display. `LevelUpQuestion.options` carries the pair
-  as `value`/`label`, so `answerValues` feeds the model and `answerLabels` the sheet. Legacy files
-  hold German in `choice` — that field is also the discriminator „choice entry vs. feat link", which
-  is why upgrade step 5 copies instead of moving it.
-- **Spell selection is not an AI path either.** Counts come from `services/spellcasting.ts`
-  (class table, plus the one prose constant `SPELLBOOK_START_SPELLS` — Open5e emits no column
-  for the wizard's starting six), options come from `vault/spells`. 2024 has no "Spells Known":
-  what is persisted follows `PrepRegime` — only the wizard's book and prepared list differ, for
-  cleric/druid the known pool *is* the class list and is deliberately not written to the file.
-  A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
-  carrying only count/level/class list — **never spell names**.
-- **A feature whose only content is a choice declares it**, via `grantsChoice`
-  (`featureChoiceGrantSchema` in `schemas/featureChoice.ts`: `weaponMastery` | `featCategory` |
-  `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
-  it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
-  `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
-  yet. `optionList` carries the consequence **next to each option** (`options[].grants`), which
-  is what makes `determinesFurtherEffects` structurally false — no blocking, no re-analysis.
-  A German option label is a **quote** from `descDe` (`labelDe`), never a translation.
-- **The declaration triple is identical at class feature, trait and feat** — one spread,
-  `featureDeclarationFields` (`schemas/featureChoice.ts`), so a fourth field reaches all three
-  carriers by itself. Consequently **the origin of a feature decides exactly one thing**: which
-  sheet field its note line goes into (`forClassFeaturesField`, `services/declaredFeature.ts`).
-  `source` lives on `DeclaredFeature`, never in a vault schema — a trait does not know it is a
-  trait, the flow does. Both flows carry ONE tagged list (`FeaturePrep.declared`,
-  `declaredSources`) and filter it by declaration kind, never by origin.
-- **A spell level table is read at a different level depending on the carrier**: class feature →
-  CLASS level, trait/feat → CHARACTER level (the elf lineage table 1/3/5 hangs on it). In a
-  multiclass those differ, which is why `declaredSpellGrants` is called twice
-  (`declaredSpells` vs `charLevelSpells`) instead of over one merged list.
-- **At a FEATURE, `grants.proficiencies` is the only proficiency sink.** `proficiencyGrant`
-  survives only at the class head and the background — those are not features.
-  `foldLegacyProficiencyGrant` lifts the old field and **must run on every read path**
-  (`schemaValidation`, `speciesLibrary`, `featsLibrary`, both Open5e mappers): the schemas are
-  not `strict`, so a forgotten path loses the proficiency without a parse error.
-  `skills.choose` IS used there (elf, human, `skilled`) — but by `collectGrants`, which asks
-  the question, while `withGrant`/`proficiencyGrantChanges` only apply `skills.fixed`.
-- **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
-  filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
-  `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from
-  vanishing off the character sheet. The mechanics no longer need that check — see the next
-  rule — but the sheet line still does.
-- **A grant field without a sink is a compile error, not a silent gap.** Both flows apply
-  through the one applier (`services/applyChanges.ts`), whose `APPLY` table is total over
-  `Change['target']`, and both projections into `Change[]` are tables typed over `keyof` their source form
-  (`riderGrantChanges` over `RiderProficiencies`, `proficiencyGrantChanges` over
-  `ProficiencyGrant`). Adding a field or a `Change` variant breaks the build until it has a
-  sink. This exists because the same gap shipped twice: `weaponProficiency`/`armorTraining`,
-  then `savingThrows`/`weaponsOther`/`tools`/`languages` — all four silently dropped by the
-  level-up while the wizard applied them. **Do not hand-enumerate fields next to these tables.**
-- **A character property is a `Change`, never a rider field.** `grants.properties`
-  (`size`, `speedFeet`) and `grantsChoice.kind === 'characterProperty'` both end in
-  `services/characterProperties.ts` → `sizeCategory`/`speedFeet` changes → `applyChanges`,
-  where the translation happens (`'Small'` → „Klein", 35 ft → „10,5"). The rider is the
-  *model's* output vocabulary — a size in it would mean Pass C may invent one. `speciesSize.ts`
-  and the `/(_speed$|^speed$)/i` rule in `assembleCharacter` survive as the FALLBACK for
-  undeclared/homebrew species; `sizeChoiceOf` returns null for a redacted trait, otherwise the
-  size is asked twice. `sheetValue` is orthogonal and stays: `grants` alone does not remove a
-  feature from the AI input.
-- **`grants` is optional WITHOUT a default** (`featureGrantSchema`, plus `grantsChoice`/
-  `grantsSpells` alongside it). Missing field = the entry was never redacted and still runs
-  through the AI chain; `{}` = reviewed, grants nothing. Erase that distinction and every
-  coverage gap goes silent — an imported or homebrew feature would lose its mechanics
-  unnoticed. It is also why there is no cut-over date: the chain shrinks with coverage
-  (`docs/plan/plan-wahlen-deklarieren.md`).
-- **New entity create/edit actions are not hand-written**: describe the differences in an
-  `EntityActionSpec` (`services/aiActions/spec.ts`) and let `factory.ts` build the action.
-- **Gate LLM features on `LlmCapabilities`, never on provider names** (`services/llmClient.ts`).
-  Claude-only features live in `anthropicExtras.ts`, outside the portable interface.
-- **New card editors go through `createCardEditor`** (`editor/cardEditor.svelte.ts`), and anything
-  that switches the active file must go through `confirmNavigation` (`stores/navigationGuard.ts`)
-  or unsaved edits are lost silently.
-- **What a character can still have linked is decided in one place**:
-  `services/characterLegacyLinks.ts` (`collectLegacyFixes`). It detects *and* performs the fix;
-  the editor only holds the state it mutates and the UI follow-up (display mirrors, closing
-  pickers). A library link can never be a `CHARACTER_UPGRADES` step — `apply` there is synchronous
-  and cannot reach the library. **Do not add a second matcher next to it.**
+- **No third translation table.** The rule vocabularies are English; German appears only at the
+  sheet-key tables and the display labels.
+- **No second matcher** next to `matchWeaponName` (`itemLibrary.ts`) or `collectLegacyFixes`
+  (`services/characterLegacyLinks.ts`).
+- **No hand-enumerated field list** next to `APPLY`, `PROFICIENCY_DEFS`, `riderGrantChanges` or
+  `proficiencyGrantChanges` — they are typed as total, so a missing sink is a compile error.
+- **Weapon mastery and spell selection are not AI paths.** Options come from the library, counts
+  from `services/spellcasting.ts`.
 
 ## Character files are versioned
 

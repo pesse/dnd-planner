@@ -21,4 +21,7 @@ tauri-dev.log
 # Eval-Report-Artefakte (echte Requests/Responses — nicht einchecken)
 evals/reports/
 
+# Fortschritts-Ledger des Kommentar-Sweeps (.claude/skills/comment-review)
+.comment-review/
+
 /vault/

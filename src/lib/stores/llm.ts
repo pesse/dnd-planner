@@ -29,12 +29,11 @@ export function resetTokenStats(): void {
   tokenStats.set({ last: { sent: 0, received: 0 }, session: { sent: 0, received: 0 } });
 }
 
-/** Lädt den gespeicherten API-Key für einen bestimmten Provider aus dem OS-Keychain. */
+/** Der Key liegt im OS-Keychain, nicht neben der übrigen Config im localStorage. */
 export async function loadApiKeyForProvider(provider: LlmProvider): Promise<string | null> {
   return invoke<string | null>('load_api_key', { provider }).catch(() => null);
 }
 
-/** Lädt gespeicherte Provider-Einstellungen + API-Key des aktiven Providers beim App-Start. */
 export async function loadSavedConfig(): Promise<void> {
   try {
     const saved = localStorage.getItem('llm-config');
@@ -58,10 +57,7 @@ export async function loadSavedConfig(): Promise<void> {
   }
 }
 
-/**
- * Speichert Provider/Modell/URL in localStorage und API-Key im OS-Keychain.
- * Leeres apiKey-Feld → bestehender Key im Keychain bleibt erhalten (nutze deleteApiKey zum Löschen).
- */
+/** Leeres apiKey-Feld → der Key im Keychain bleibt; gelöscht wird nur über `deleteApiKey`. */
 export async function saveConfig(config: LlmConfig): Promise<void> {
   localStorage.setItem(
     'llm-config',
@@ -71,7 +67,6 @@ export async function saveConfig(config: LlmConfig): Promise<void> {
   if (config.apiKey) {
     await invoke('save_api_key', { provider: config.provider, key: config.apiKey });
   }
-  // Kein else: leeres Feld = Key nicht anfassen (separater "Key löschen" Button)
 
   llmConfig.set(config);
 }

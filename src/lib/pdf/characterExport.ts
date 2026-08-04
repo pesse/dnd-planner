@@ -6,6 +6,7 @@ import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } 
 import type { CharacterJSON } from './characterFields';
 import { SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
 import { SKILL_DEFS } from '../domain/skills';
+import { PROFICIENCY_FLAGS } from '../domain/proficiencies';
 import type { SpellAccessValues } from '../services/spellAccess';
 import { appendMarkdownPages } from './markdownPdf';
 import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
@@ -245,8 +246,7 @@ function writePersonal({ t, m }: FieldSink, ch: CharacterJSON) {
 function writeProficiencies({ t, c }: FieldSink, ch: CharacterJSON) {
   const pr = ch.proficiencies;
   if (!pr) return;
-  c('EinfachWaffenProf', pr.simpleWeapons);
-  c('KriegswaffenProf', pr.martialWeapons);
+  for (const { field, def } of PROFICIENCY_FLAGS) c(def.pdfField, pr[field]);
   // Das Formular hat für beides nur EIN Textfeld: einzeln erklärte Waffen und der Freitext
   // gehen zusammen hinein („Kurzschwert, Kriegswaffen mit Finesse").
   const otherWeapons = [...(pr.individualWeapons ?? []), (pr.otherWeapons ?? '').trim()]
@@ -254,10 +254,6 @@ function writeProficiencies({ t, c }: FieldSink, ch: CharacterJSON) {
     .join(', ');
   t('SonstigeWaffen', otherWeapons);
   c('SonstigeWaffenProf', otherWeapons !== '');
-  c('LeichteRüstungProf', pr.lightArmor);
-  c('MittlereRüstungProf', pr.mediumArmor);
-  c('SchwereRüstungProf', pr.heavyArmor);
-  c('SchildeProf', pr.shields);
 }
 
 async function writePortrait(doc: PDFDocument, portrait?: PortraitInput) {

@@ -1,6 +1,6 @@
 /**
  * Schemas des Stufenaufstiegs: KI-Outputs (Rider, Narrativ, Feldtext) und das
- * deterministisch gebaute Änderungsdokument. Bewusst ohne `schemaValidation.ts` —
+ * deterministisch gebaute Änderungsdokument. Bewusst ohne `utils/schemaValidation.ts` —
  * dessen `parse` verlangt ein `name`-Feld, die Runtime-Guards stehen deshalb hier.
  */
 import { z } from 'zod';
@@ -12,7 +12,7 @@ export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 const questionOptionSchema = z.object({
   value: z.string(),
-  label: z.string(), // DE
+  label: z.string(),
 });
 
 const questionSchema = z.object({
@@ -31,8 +31,8 @@ const questionSchema = z.object({
   // Nur für type "hp-roll": Würfelseiten (Trefferwürfel) + Anzahl Würfe (= gewonnene Stufen).
   dieSides: z.number().int().optional(),
   rollCount: z.number().int().optional(),
-  // false für Wahlen, deren Antwort direkt der Effekt ist (Skill, +1 Attribut, Kampfstil);
-  // true nur, wenn erst der Effekt-Pass daraus Grants macht (Zirkel des Landes → Kreissprüche).
+  // false bei Skill, +1 Attribut, Kampfstil — die Antwort IST der Effekt;
+  // true bei Zirkel des Landes → Kreissprüche.
   resolvesEffects: z.boolean().default(false).describe('true = the choice determines further grants; run the effects pass again with it resolved before finishing.'),
   featureKey: z.string().default('').describe('Library key of the feature that forces this choice; empty for questions the flow itself asks.'),
   isBuildDecision: z.boolean().default(false).describe('true = permanent build decision worth recording on the character.'),
@@ -47,9 +47,7 @@ const abilityDeltaSchema = z.object({
   cha: z.number().int().default(0),
 });
 
-// Fertigkeiten/Waffen/Rüstung als GESCHLOSSENE englische Vokabulare: mit freien Strings
-// fällt die Zuweisung still durch, weil der Bogen deutsche Schlüssel führt
-// (`MitTierenUmgehen`; übersetzt wird beim Anwenden). `tools`/`languages` bleiben Freitext.
+/** Ausgabevokabular des Modells, wo möglich auf geschlossene Werte eingegrenzt. */
 const riderProficienciesSchema = z.object({
   skills: z.array(z.enum(SKILL_NAMES)).default([]),
   tools: z.array(z.string()).default([]),
@@ -59,35 +57,22 @@ const riderProficienciesSchema = z.object({
   savingThrows: z.array(z.string()).default([]),
 });
 
-/**
- * Exportiert, weil die Projektion Rider → `Change[]` über `keyof` dieser Form läuft
- * (`riderGrantChanges`, services/levelUp/changes.ts). Ein neues Feld hier ist damit ein
- * Compile-Fehler dort, statt still am Charakter zu fehlen.
- */
 export type RiderProficiencies = z.infer<typeof riderProficienciesSchema>;
 
 /**
- * Der Klassenmerkmale-Freitext landet beim PDF-Export in zwei Feldern à ~700 Zeichen
- * (`characterExport.splitClassFeatures`) und wächst mit jeder Stufe; unter 160 Zeichen
- * fällt allerdings die Mechanik selbst raus (Aktionsart, Würfel, Wiederaufladung).
+ * Zwei PDF-Felder à ~700 Zeichen tragen alle Stufen zusammen; unter 160 fällt die
+ * Mechanik selbst raus (Aktionsart, Würfel, Wiederaufladung).
  */
 export const SHEET_NOTE_MAX_CHARS = 160;
 
-/**
- * Budget der ENGLISCHEN Rohfassung: Deutsch läuft in dieser Bibliothek gemessen ~17 %
- * länger (102k vs. 120k Zeichen über 249 Klassenmerkmale), also plant Pass C mit Reserve,
- * damit der Übersetzer die harte Grenze hält, ohne Mechanik wegzukürzen.
- */
+/** Reserve, weil Deutsch ~17 % länger läuft als Englisch: 160 / 1,17. */
 export const SHEET_NOTE_EN_MAX_CHARS = 135;
 
-/** Konsequenz-Hilfe einer Wahl; dieselbe Asymmetrie wie bei der `sheetNote`. */
+/** Dieselbe DE/EN-Asymmetrie wie bei der `sheetNote`: ~17 % Reserve für die Übersetzung. */
 export const CHOICE_HELP_MAX_CHARS = 120;
 export const CHOICE_HELP_EN_MAX_CHARS = 105;
 
-/**
- * Nur `id` kommt vom Modell: Frage und Antwort füllt der Code aus dem Übersetzungs-Mapping
- * der Analyse (`featureTranslationAction`), das beide schon auf Deutsch kennt.
- */
+/** `question`/`answer` füllt der Code aus dem Übersetzungs-Mapping der Analyse (`featureTranslationAction`). */
 const featureDecisionSchema = z.object({
   id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
   question: z.string().default('').describe('Filled in by the app — leave empty.'),
@@ -122,9 +107,7 @@ export const featureEffectsSchema = z.object({
   riders: z.array(featureRiderSchema).default([]),
 });
 
-// Paar-Arrays statt `Record<string, string>`: Guided Decoding kann keine dynamischen
-// Objekt-Keys ausdrücken, den Record baut TS daraus.
-
+/** Paar-Array statt `Record<en, de>`: Guided Decoding kann keine dynamischen Objekt-Keys ausdrücken. */
 const choiceOptionTranslationSchema = z.object({
   en: z.string().default('').describe('The English option label, copied VERBATIM from the input.'),
   de: z.string().default('').describe('Its German label, quoted verbatim from the feature\'s German rules text.'),
@@ -151,20 +134,24 @@ export const sheetNoteTranslationsSchema = z.object({
   notes: z.array(sheetNoteTranslationSchema).default([]).describe('One entry per input note, same order.'),
 });
 
-// Bewusst NUR die Zusammenfassung: den Merkmalstext liefert `featureRiderSchema.sheetNote`,
-// dessen Pass Regelprosa und getroffene Wahlen kennt und besser verdichtet als dieser hier.
+/**
+ * Bewusst NUR die Zusammenfassung: den Merkmalstext liefert `featureRiderSchema.sheetNote`,
+ * dessen Pass Regelprosa und getroffene Wahlen kennt und besser verdichtet als dieser hier.
+ */
 export const levelUpNarrativeSchema = z.object({
   summary: z.string().default('').describe('GERMAN one-paragraph summary of what changes this level.'),
 });
 
-// Ein Artefakt für alle Aufrufer — welches Feld gemeint ist, sagt der Prompt-Input.
+/** Ein Artefakt für alle Aufrufer — welches Feld gemeint ist, sagt der Prompt-Input. */
 export const fieldSummarySchema = z.object({
   text: z.string().default('').describe('The FULL revised GERMAN text of the target character-sheet field.'),
 });
 
-// Geht NICHT an ein LLM (keine toLlmJsonSchema-Restriktion), sondern wird deterministisch
-// aus dem Zustand gebaut. `step` ist bewusst `string` statt Enum — das hält das Schema vom
-// Schritt-Enum des Ablaufs entkoppelt und lässt `upsertStep` genau dessen Einträge ersetzen.
+/**
+ * Geht NICHT an ein LLM (keine toLlmJsonSchema-Restriktion), sondern wird deterministisch
+ * aus dem Zustand gebaut. `step` ist bewusst `string` statt Enum — das hält das Schema vom
+ * Schritt-Enum des Ablaufs entkoppelt und lässt `upsertStep` genau dessen Einträge ersetzen.
+ */
 const changeBase = { step: z.string().default(''), source: z.string().default(''), label: z.string().default('') };
 
 export const changeSchema = z.discriminatedUnion('target', [
@@ -185,9 +172,6 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
-  // Grundeigenschaften reisen NICHT über den Rider — der ist das Ausgabevokabular des
-  // Modells, eine Größe darin hieße: Pass C darf sie erfinden. Der Wert steht in der
-  // Sprache der Regeln (englische Größe, Fuß) und wird erst beim Anwenden übersetzt.
   z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),
   z.object({ target: z.literal('speedFeet'), value: z.number().int(), ...changeBase }),
   // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
@@ -197,9 +181,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
   // Reines Feedback, keine Anwendung am Charakter.
   z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), ...changeBase }),
-  // Landet strukturiert in `character.features[]`, verankert an (sourceKey, gainedAt) —
-  // deshalb darf der Klassenmerkmale-Freitext die Wahl weglassen.
-  // `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige.
+  // Landet strukturiert in `character.features[]` — deshalb darf der Klassenmerkmale-Freitext die
+  // Wahl weglassen. `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige.
   z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
   // Protokoll einer Antwort ohne eigenes Ziel am Charakter (TP-Methode, Würfelergebnis).
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),

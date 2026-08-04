@@ -1,15 +1,15 @@
 /**
- * Die EINZIGE Stelle, an der ein Charakter für ein LLM formatiert wird. Überschriften und
- * Labels sind Prompt-Gerüst und darum englisch, die Werte bleiben deutsch wie im Bogen —
- * die Labels kommen aus `SKILL_DEFS`/`WEAPON_LABEL_DE`, es entsteht keine weitere Tabelle.
+ * Die EINZIGE Stelle, an der ein Charakter für ein LLM formatiert wird. Überschriften sind
+ * Prompt-Gerüst und darum englisch, die Werte bleiben deutsch wie im Bogen — sie kommen aus
+ * `characterSummary`, hier entsteht keine weitere Tabelle.
  */
 import { invoke } from '@tauri-apps/api/core';
 import { type Character, type PersonalData } from '../schemas/characterSchema';
 import { formatSpecies, formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { normalizeCharacter } from '../utils/schemaValidation';
 import { sign } from '../utils/num';
-import { skillEnName } from '../domain/skills';
-import { skillLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from './proficiencyGrants';
+import { SKILL_DEFS } from '../domain/skills';
+import { characterSummary, type SummarySectionId, type SummaryValue } from './characterSummary';
 import {
   resolveCharacterFeatures,
   type ResolvedFeatureGroup,
@@ -77,14 +77,14 @@ function section(title: string, lines: (string | false | null | undefined)[]): s
   return body.length ? `### ${title}\n${body.join('\n')}` : null;
 }
 
-const ABILITIES = [
-  { key: 'str', label: 'STR' },
-  { key: 'ges', label: 'GES' },
-  { key: 'kon', label: 'KON' },
-  { key: 'int', label: 'INT' },
-  { key: 'wei', label: 'WEI' },
-  { key: 'cha', label: 'CHA' },
-] as const;
+type SummaryValues = Record<SummarySectionId, SummaryValue[]>;
+
+const summaryValues = (c: Character): SummaryValues =>
+  Object.fromEntries(characterSummary(c).map((s) => [s.id, s.values])) as SummaryValues;
+
+/** `- Weapons: Einfache Waffen, Kriegswaffen` — alle Werte einer Sektion in einer Zeile. */
+const labelLine = (title: string, values: SummaryValue[]): string | false =>
+  values.length > 0 && `- ${title}: ${values.map((v) => v.label).join(', ')}`;
 
 function headerBlock(m: CharacterMinimum, xp: string): string {
   const lines = [`## Character: ${m.name || '(unbenannt)'}`];
@@ -96,15 +96,10 @@ function headerBlock(m: CharacterMinimum, xp: string): string {
   return lines.join('\n');
 }
 
-function abilitiesBlock(c: Character): string | null {
-  const nums = c as unknown as Record<string, number>;
-  const flags = c as unknown as Record<string, boolean>;
-  const rows = ABILITIES.map(({ key, label }) => {
-    const val = nums[key] ?? 0;
-    const mod = nums[`${key}Mod`] ?? 0;
-    const save = flags[`${key}SaveProf`] ? ', Rettungswurf geübt' : '';
-    return `- ${label} ${val} (${sign(mod)}${save})`;
-  });
+function abilitiesBlock(s: SummaryValues): string | null {
+  const rows = s.abilities.map(
+    (v) => `- ${v.short} ${v.score} (${v.detail}${v.note ? `, ${v.note}` : ''})`,
+  );
   return section('Abilities', rows);
 }
 
@@ -122,36 +117,23 @@ function combatBlock(c: Character): string | null {
   return section('Combat', lines);
 }
 
-function skillsBlock(c: Character): string | null {
-  const lines: string[] = [];
-  for (const [key, s] of Object.entries(c.skills ?? {})) {
-    if (!s.prof && !s.exp) continue;
-    const label = skillLabelDe(skillEnName(key) ?? key);
-    lines.push(`- ${label}: ${sign(s.value)}${s.exp ? ' (Expertise)' : ''}`);
-  }
+const skillOrder = (v: SummaryValue): number => SKILL_DEFS.findIndex((d) => d.label === v.label);
+
+/** Eine Zeile je Fertigkeit: Expertise steht zwischen den übrigen, nicht hinter ihnen. */
+function skillsBlock(s: SummaryValues): string | null {
+  const lines = [...s.skills, ...s.expertise]
+    .sort((a, b) => skillOrder(a) - skillOrder(b))
+    .map((v) => `- ${v.label}: ${v.detail}${v.note ? ` (${v.note})` : ''}`);
   return section('Skill Proficiencies', lines);
 }
 
-function proficienciesBlock(c: Character): string | null {
-  const p = c.proficiencies;
-  const weapons = [
-    p.simpleWeapons && WEAPON_LABEL_DE.Simple,
-    p.martialWeapons && WEAPON_LABEL_DE.Martial,
-    ...(p.individualWeapons ?? []),
-    p.otherWeapons.trim(),
-  ].filter(Boolean);
-  const armor = [
-    p.lightArmor && ARMOR_LABEL_DE.Light,
-    p.mediumArmor && ARMOR_LABEL_DE.Medium,
-    p.heavyArmor && ARMOR_LABEL_DE.Heavy,
-    p.shields && ARMOR_LABEL_DE.Shields,
-  ].filter(Boolean);
+function proficienciesBlock(c: Character, s: SummaryValues): string | null {
   const lines: (string | false)[] = [
-    weapons.length > 0 && `- Weapons: ${weapons.join(', ')}`,
-    armor.length > 0 && `- Armor: ${armor.join(', ')}`,
-    (c.masteries?.length ?? 0) > 0 && `- Weapon Masteries: ${c.masteries.join(', ')}`,
-    (c.languages?.length ?? 0) > 0 && `- Languages: ${c.languages.join(', ')}`,
-    (c.tools?.length ?? 0) > 0 && `- Tools: ${c.tools.join(', ')}`,
+    labelLine('Weapons', s.weapons),
+    labelLine('Armor', s.armor),
+    labelLine('Weapon Masteries', s.masteries),
+    labelLine('Languages', s.languages),
+    labelLine('Tools', s.tools),
     c.alleskoenner && '- Jack of all Trades: ja',
   ];
   return section('Proficiencies', lines);
@@ -316,12 +298,13 @@ export async function buildCharacterContext(
   const m = characterMinimum(c);
   if (level === 'minimum') return headerBlock(m, c.xp);
 
+  const s = summaryValues(c);
   const parts: string[] = [headerBlock(m, c.xp)];
   const sections = [
-    abilitiesBlock(c),
+    abilitiesBlock(s),
     combatBlock(c),
-    skillsBlock(c),
-    proficienciesBlock(c),
+    skillsBlock(s),
+    proficienciesBlock(c, s),
     attacksBlock(c),
     spellcastingBlock(c),
     equipmentBlock(c),

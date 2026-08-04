@@ -17,7 +17,7 @@
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
-  import { createFormLibraries } from '../services/characterFormLibraries.svelte';
+  import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import UpgradeBanner from './characterForm/UpgradeBanner.svelte';
@@ -41,9 +41,11 @@
   // `character.features` spiegelt das Formular NICHT zurück: das Ledger gehört der
   // Merkmals-Seitenleiste. Genau ein Schreiber — sonst überschriebe der nächste
   // Tastendruck hier jede Leisten-Änderung.
-  let { character = $bindable(), dirPath, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
+  let { character = $bindable(), dirPath, libs, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
     character: Character;
     dirPath: string;
+    /** Vom Bogen gehalten, nicht hier erzeugt: das Formular wird bei jedem Draft-Swap neu montiert. */
+    libs: FormLibraries;
     saved?: Character | null;
     /** Schema-Rückstand der DATEI, nicht des Drafts. */
     pendingUpgrade?: PendingCharacterUpgrade | null;
@@ -53,7 +55,6 @@
 
   const mirror = createCharacterFormState(() => character);
   const form = mirror.fields;
-  const libs = createFormLibraries();
 
   const mods = $derived(abilityMods(form));
   const skills = $derived(computeSkills(form));

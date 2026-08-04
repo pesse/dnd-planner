@@ -5,9 +5,7 @@ export type UpdateStatus = 'idle' | 'available' | 'downloading' | 'installing' |
 
 export interface UpdateState {
   status: UpdateStatus;
-  /** Neue Version laut Manifest, sobald ein Update gefunden wurde. */
   version?: string;
-  /** Release-Notes (Markdown/Plaintext aus dem Release). */
   notes?: string;
   /** Download-Fortschritt 0..1, falls die Gesamtgröße bekannt ist. */
   progress?: number;
@@ -15,21 +13,15 @@ export interface UpdateState {
 
 export const updateState = writable<UpdateState>({ status: 'idle' });
 
-/** Sichtbarkeit des Update-Dialogs (Badge öffnet, „Später"/Abschluss schließt). */
 export const updateDialogOpen = writable<boolean>(false);
 
 /** Hält das vom Plugin gelieferte Update-Objekt zwischen Prüfung und Installation. */
 let pending: import('@tauri-apps/plugin-updater').Update | null = null;
 
-/** True, wenn wir innerhalb der Tauri-Runtime laufen (nicht im reinen Vite-Browser-Dev). */
 function inTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
-/**
- * Prüft beim Start, ob eine neuere Version vorliegt. No-op außerhalb von Tauri.
- * Setzt bei Treffer status='available' + Versionsinfo; Fehler landen still im Toast.
- */
 export async function checkForUpdate(): Promise<void> {
   if (!inTauri()) return;
   try {
@@ -45,10 +37,7 @@ export async function checkForUpdate(): Promise<void> {
   }
 }
 
-/**
- * Lädt das gefundene Update herunter, installiert es und startet die App neu.
- * Zeigt Download-Fortschritt; Fehler werden als Toast gemeldet.
- */
+/** Endet im Erfolgsfall in `relaunch()` — die App startet neu, nichts danach läuft noch. */
 export async function installUpdate(): Promise<void> {
   if (!pending) return;
   let total = 0;

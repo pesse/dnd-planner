@@ -24,7 +24,7 @@ type Choice = 'save' | 'discard' | 'cancel';
 
 const channel = promptDialog<Record<string, never>, Choice>();
 
-/** Treibt den UnsavedChangesDialog. Null = kein Dialog offen. */
+/** Treibt den UnsavedChangesDialog. */
 export const unsavedPrompt = channel.prompt;
 
 /** Vor jeder Navigation aufrufen; true heißt „darf navigieren". */
