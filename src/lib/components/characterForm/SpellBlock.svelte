@@ -13,7 +13,7 @@
   import { CLASS_NAMES_DE } from '../../services/classProgression';
   import { CASTER_ABILITY_DE } from '../../services/spellcasting';
   import {
-    computedSpellAttack, computedSpellSaveDC, spellAbilityMod, spellAutoActive, withCurrent,
+    computedSpellAttack, computedSpellSaveDC, spellAbilityMod, spellAutoActive, withCurrentSorted,
     type CharacterFormFields,
   } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
@@ -43,8 +43,8 @@
   const autoSaveDC = $derived(computedSpellSaveDC(form));
   const autoAttack = $derived(computedSpellAttack(form));
 
-  const classOptions = $derived(withCurrent(CLASS_NAMES_DE, spells.spellcastingClass));
-  const abilityOptions = $derived(withCurrent(Object.values(CASTER_ABILITY_DE), spells.spellcastingAbility));
+  const classOptions = $derived(withCurrentSorted(CLASS_NAMES_DE, spells.spellcastingClass));
+  const abilityOptions = $derived(withCurrentSorted(Object.values(CASTER_ABILITY_DE), spells.spellcastingAbility));
 
   const resolve = (ref: SpellRef): SpellInfo | undefined => matchSpell(spellIndex, ref);
   const spellColor = (ref: SpellRef): string => {

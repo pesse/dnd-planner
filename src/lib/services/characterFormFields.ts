@@ -161,6 +161,10 @@ export function computedSpellAttack(f: CharacterFormFields): number | null {
 export const withCurrent = (options: readonly string[], current: string): readonly string[] =>
   current.trim() && !options.includes(current) ? [current, ...options] : options;
 
+/** Alphabetisch für Listen ohne fachliche Ordnung; der Altdaten-Wert bleibt trotzdem vorne. */
+export const withCurrentSorted = (options: readonly string[], current: string): readonly string[] =>
+  withCurrent([...options].sort((a, b) => a.localeCompare(b, 'de')), current);
+
 /** Vorgabewerte als Reihenfolge- UND Typquelle; Lücken im Bestand fallen darauf zurück. */
 function withDefaults<T extends object>(base: T, given: Partial<T> | undefined): T {
   const out = { ...base };
