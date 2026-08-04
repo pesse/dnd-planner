@@ -1,10 +1,8 @@
 import { writable } from 'svelte/store';
 
 /**
- * Aktive Rate-Limit-Wartephasen (HTTP 429). Gespeist aus dem zentralen
- * `withRateLimitRetry` (retry.ts) — daher konsistent für ALLE LLM-Pfade
- * (chat, generate, agentLoop, json-korrektur-Fallback). Ein einzelner globaler
- * Toast (RateLimitToast) rendert daraus; analog zum errors-Store/ErrorToast.
+ * Wartephasen bei HTTP 429. Einziger Erzeuger ist `withRateLimitRetry` (retry.ts) — damit
+ * gilt der Toast für alle LLM-Pfade, ohne dass ein Aufrufer etwas melden muss.
  */
 
 export interface RateLimitWait {
@@ -16,7 +14,7 @@ export interface RateLimitWait {
 let _next = 1;
 export const rateLimitWaits = writable<RateLimitWait[]>([]);
 
-/** Beginnt eine sichtbare Wartephase; gibt die ID zum späteren Entfernen zurück. */
+/** Rückgabe ist die ID für `clearRateLimitWait`. */
 export function pushRateLimitWait(info: { provider: string; waitMs: number; attempt: number }): number {
   const id = _next++;
   const seconds = (info.waitMs / 1000).toFixed(1);

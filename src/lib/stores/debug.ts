@@ -15,9 +15,8 @@ let _nextId = 0;
 export const debugLog = writable<DebugEntry[]>([]);
 
 /**
- * Optionaler Tap: erhält jeden Debug-Eintrag zusätzlich zum Store. Standard: keiner
- * (no-op) — nur die Eval-Strecke registriert einen, um Requests/Responses pro Lauf
- * korrekt zuzuordnen (auch bei parallelen Läufen). Kein Einfluss auf die App.
+ * Einziger Nutzer ist die Eval-Strecke (`evals/report.ts`): sie ordnet Requests/Responses
+ * auch bei parallelen Läufen dem richtigen Lauf zu, was über den Store allein nicht geht.
  */
 type DebugTap = (entry: DebugEntry) => void;
 let _tap: DebugTap | null = null;
@@ -31,7 +30,6 @@ export function logDebug(entry: Omit<DebugEntry, 'id' | 'timestamp'>): void {
   _tap?.(newEntry);
   debugLog.update((log) => {
     const updated = [...log, newEntry];
-    // Maximal 100 Einträge behalten
     return updated.length > 100 ? updated.slice(updated.length - 100) : updated;
   });
 }

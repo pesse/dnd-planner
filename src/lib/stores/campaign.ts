@@ -4,14 +4,12 @@ import type { Campaign, FileEntry } from '../types';
 
 export const activeCampaign = writable<Campaign | null>(null);
 
-/** Increment to signal that vault files have changed (e.g. after an agent write). */
 export const vaultVersion = writable(0);
 export function invalidateVault() { vaultVersion.update((v) => v + 1); }
 export const openFiles = writable<FileEntry[]>([]);
 export const activeFile = writable<FileEntry | null>(null);
 export const fileContent = writable<string>('');
 
-// Reaktiver State für Undo/Redo-Buttons
 export const historyState = writable({ canUndo: false, canRedo: false });
 
 const HISTORY_LIMIT = 20;
@@ -28,7 +26,7 @@ async function persistContent(content: string) {
   await invoke('write_file_content', { path: file.path, content }).catch(console.error);
 }
 
-/** Setzt fileContent ohne Undo-Eintrag (z.B. beim Laden einer Datei). */
+/** Für den Dateiwechsel: verwirft die Historie, statt sie über Dateigrenzen zu tragen. */
 export function setFileContent(content: string) {
   _undoStack.length = 0;
   _redoStack.length = 0;
@@ -36,7 +34,6 @@ export function setFileContent(content: string) {
   fileContent.set(content);
 }
 
-/** LLM-Ergebnis anhängen. Vorheriger Stand wird gesichert. */
 export function appendContent(text: string) {
   _undoStack.push(get(fileContent));
   if (_undoStack.length > HISTORY_LIMIT) _undoStack.shift();
@@ -47,7 +44,6 @@ export function appendContent(text: string) {
   persistContent(next);
 }
 
-/** LLM-Ergebnis ersetzt den gesamten Inhalt. Vorheriger Stand wird gesichert. */
 export function replaceContent(text: string) {
   _undoStack.push(get(fileContent));
   if (_undoStack.length > HISTORY_LIMIT) _undoStack.shift();
@@ -57,7 +53,6 @@ export function replaceContent(text: string) {
   persistContent(text);
 }
 
-/** Macht den letzten append/replace rückgängig. */
 export function undoContent() {
   if (_undoStack.length === 0) return;
   _redoStack.push(get(fileContent));
@@ -67,7 +62,6 @@ export function undoContent() {
   persistContent(prev);
 }
 
-/** Stellt den zuletzt rückgängig gemachten Stand wieder her. */
 export function redoContent() {
   if (_redoStack.length === 0) return;
   _undoStack.push(get(fileContent));

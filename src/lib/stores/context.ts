@@ -205,11 +205,10 @@ async function refreshCharacterContexts(
     }),
   );
 
-  if (token !== runToken) return; // überholt → Ergebnis verwerfen
+  if (token !== runToken) return;
   characterContextBlocks.set(built);
 }
 
-// Neu füllen, sobald der geöffnete Charakter, sein Inhalt oder die Pins sich ändern.
 derived([activeFile, fileContent, pinnedEntries], (v) => v).subscribe(([af, fc, pins]) => {
   void refreshCharacterContexts(af, fc, pins);
 });

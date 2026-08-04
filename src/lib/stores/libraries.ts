@@ -34,7 +34,6 @@ export interface Library {
   fileCount: number;
   status: LibraryState;
   installedVersion?: string;
-  /** Nur wenn die Fassung es deklariert. */
   minVersion?: string;
 }
 
@@ -183,7 +182,6 @@ export async function checkLibrariesOnStartup(): Promise<void> {
     try {
       const summary = await installLibrary(lib.id, false);
       if (summary.needsAdopt > 0) {
-        // Bestandsdateien vorgefunden — nicht ungefragt überschreiben.
         console.info(
           `Bibliothek "${lib.name}": ${summary.needsAdopt} vorhandene Datei(en) ` +
             'ohne Verwaltung — Übernahme im Bibliotheks-Dialog bestätigen.',

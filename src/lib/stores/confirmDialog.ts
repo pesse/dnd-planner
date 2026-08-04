@@ -1,20 +1,16 @@
-/**
- * Generischer, Promise-basierter Bestätigungs-Dialog.
- * Gerendert von components/ConfirmDialog.svelte (einmal global eingebunden).
- */
+/** Gerendert von components/ConfirmDialog.svelte. */
 import { promptDialog } from './promptDialog';
 
 export interface ConfirmRequest {
   title: string;
   message: string;
   confirmLabel: string;
-  /** Rot eingefärbter Bestätigen-Button (destruktive Aktion). */
   danger: boolean;
 }
 
 const channel = promptDialog<ConfirmRequest, boolean>();
 
-/** Treibt den ConfirmDialog. Null = kein Dialog offen. */
+/** Treibt den ConfirmDialog. */
 export const confirmPrompt = channel.prompt;
 
 export function confirmAction(opts: {
