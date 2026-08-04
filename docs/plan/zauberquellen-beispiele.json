@@ -1,0 +1,556 @@
+{
+  "_was": "grantsCasting-Deklarationen, so wie sie am Merkmal im Vault stehen würden. id/origin/labelDe/levelRef stehen NICHT hier — sie sind der Merkmals-Key bzw. daraus ableitbar.",
+
+  "declarations": [
+    {
+      "_datei": "vault/classes/wizard.json → features[] \"Spellcasting\" (gainedAt 1)",
+      "key": "srd-2024_wizard_spellcasting",
+      "grantsCasting": {
+        "ability": { "fixed": "Intelligence" },
+        "swap": { "spells": "long-rest-all", "cantrips": "long-rest-one" },
+        "quotas": [
+          {
+            "id": "cantrips",
+            "tier": "prepared",
+            "levels": [0],
+            "count": { "column": "Cantrips" },
+            "pool": { "lists": ["wizard"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "book",
+            "tier": "known",
+            "levels": "slotted",
+            "count": { "base": 6, "perLevel": 2 },
+            "pool": { "lists": ["wizard"] },
+            "swap": { "spells": "none" },
+            "cast": []
+          },
+          {
+            "id": "prepared",
+            "tier": "prepared",
+            "levels": "slotted",
+            "count": { "column": "Prepared Spells" },
+            "pool": { "from": { "quota": "book" } },
+            "cast": [
+              { "kind": "slots", "pool": "standard" },
+              { "kind": "ritual", "requiresPrepared": true }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/wizard.json → features[] \"Ritual Adept\" (gainedAt 1)",
+      "key": "srd-2024_wizard_ritual-adept",
+      "grantsCasting": {
+        "patches": [
+          {
+            "feature": "srd-2024_wizard_spellcasting",
+            "quota": "book",
+            "set": { "cast": [{ "kind": "ritual", "requiresPrepared": false }] }
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/wizard.json → features[] \"Spell Mastery\" (gainedAt 18)",
+      "key": "srd-2024_wizard_spell-mastery",
+      "grantsCasting": {
+        "ability": { "fixed": "Intelligence" },
+        "swap": { "spells": "long-rest-one" },
+        "quotas": [
+          {
+            "id": "mastery1",
+            "tier": "prepared",
+            "levels": [1],
+            "count": { "base": 1 },
+            "pool": { "from": { "feature": "srd-2024_wizard_spellcasting", "quota": "book" } },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "mastery2",
+            "tier": "prepared",
+            "levels": [2],
+            "count": { "base": 1 },
+            "pool": { "from": { "feature": "srd-2024_wizard_spellcasting", "quota": "book" } },
+            "cast": [{ "kind": "at-will" }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/wizard.json → features[] \"Signature Spells\" (gainedAt 20)",
+      "key": "srd-2024_wizard_signature-spells",
+      "grantsCasting": {
+        "ability": { "fixed": "Intelligence" },
+        "swap": { "spells": "none" },
+        "quotas": [
+          {
+            "id": "signature",
+            "tier": "prepared",
+            "levels": [3],
+            "count": { "base": 2 },
+            "pool": { "from": { "feature": "srd-2024_wizard_spellcasting", "quota": "book" } },
+            "cast": [
+              { "kind": "uses", "per": "short-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/warlock.json → features[] \"Pact Magic\" (gainedAt 1)",
+      "key": "srd-2024_warlock_pact-magic",
+      "grantsCasting": {
+        "ability": { "fixed": "Charisma" },
+        "swap": { "spells": "level-up-one", "cantrips": "level-up-one" },
+        "quotas": [
+          {
+            "id": "cantrips",
+            "tier": "prepared",
+            "levels": [0],
+            "count": { "column": "Cantrips" },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "prepared",
+            "tier": "prepared",
+            "levels": "slotted",
+            "count": { "column": "Prepared Spells" },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "slots", "pool": "pact" }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/warlock.json → features[] \"Mystic Arcanum\" (gainedAt 11,13,15,17) — EIN Merkmal über vier Stufen, deshalb ist `since` hier ausgeschrieben",
+      "key": "srd-2024_warlock_mystic-arcanum",
+      "grantsCasting": {
+        "ability": { "fixed": "Charisma" },
+        "swap": { "spells": "level-up-one" },
+        "quotas": [
+          {
+            "id": "arcanum6",
+            "since": 11,
+            "tier": "prepared",
+            "levels": [6],
+            "count": { "base": 1 },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "uses", "per": "long-rest", "count": 1 }]
+          },
+          {
+            "id": "arcanum7",
+            "since": 13,
+            "tier": "prepared",
+            "levels": [7],
+            "count": { "base": 1 },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "uses", "per": "long-rest", "count": 1 }]
+          },
+          {
+            "id": "arcanum8",
+            "since": 15,
+            "tier": "prepared",
+            "levels": [8],
+            "count": { "base": 1 },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "uses", "per": "long-rest", "count": 1 }]
+          },
+          {
+            "id": "arcanum9",
+            "since": 17,
+            "tier": "prepared",
+            "levels": [9],
+            "count": { "base": 1 },
+            "pool": { "lists": ["warlock"] },
+            "cast": [{ "kind": "uses", "per": "long-rest", "count": 1 }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/bard.json → features[] \"Spellcasting\" (gainedAt 1)",
+      "key": "srd-2024_bard_spellcasting",
+      "grantsCasting": {
+        "ability": { "fixed": "Charisma" },
+        "swap": { "spells": "level-up-one", "cantrips": "level-up-one" },
+        "quotas": [
+          {
+            "id": "cantrips",
+            "tier": "prepared",
+            "levels": [0],
+            "count": { "column": "Cantrips" },
+            "pool": { "lists": ["bard"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "prepared",
+            "tier": "prepared",
+            "levels": "slotted",
+            "count": { "column": "Prepared Spells" },
+            "pool": { "lists": ["bard"] },
+            "cast": [{ "kind": "slots", "pool": "standard" }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/bard.json → features[] \"Magical Secrets\" (gainedAt 10) — verbreitert den Pool, gewährt nichts",
+      "key": "srd-2024_bard_magical-secrets",
+      "grantsCasting": {
+        "patches": [
+          {
+            "feature": "srd-2024_bard_spellcasting",
+            "quota": "prepared",
+            "set": {
+              "pool": {
+                "lists": ["bard", "cleric", "druid", "wizard"],
+                "listMode": "union"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/sorcerer.json → features[] \"Spellcasting\" (gainedAt 1)",
+      "key": "srd-2024_sorcerer_spellcasting",
+      "grantsCasting": {
+        "ability": { "fixed": "Charisma" },
+        "swap": { "spells": "level-up-one", "cantrips": "level-up-one" },
+        "quotas": [
+          {
+            "id": "cantrips",
+            "tier": "prepared",
+            "levels": [0],
+            "count": { "column": "Cantrips" },
+            "pool": { "lists": ["sorcerer"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "prepared",
+            "tier": "prepared",
+            "levels": "slotted",
+            "count": { "column": "Prepared Spells" },
+            "pool": { "lists": ["sorcerer"] },
+            "cast": [{ "kind": "slots", "pool": "standard" }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/classes/college-of-lore.json → features[] \"Magical Discoveries\" (gainedAt 6) — zwei Zauber OBENDRAUF, eigene Quota",
+      "key": "srd-2024_college-of-lore_magical-discoveries",
+      "grantsCasting": {
+        "ability": { "fixed": "Charisma" },
+        "swap": { "spells": "level-up-one" },
+        "quotas": [
+          {
+            "id": "discoveries",
+            "tier": "prepared",
+            "levels": "cantrip-or-slotted",
+            "count": { "base": 2 },
+            "pool": {
+              "lists": ["cleric", "druid", "wizard"],
+              "listMode": "union"
+            },
+            "cast": [{ "kind": "slots", "pool": "standard" }]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/species/fairy.json → traits[] \"Fairy Magic\" — levelRef ergibt sich aus der Herkunft (Trait → Charakterstufe)",
+      "key": "phb-2024_fairy_fairy-magic",
+      "grantsCasting": {
+        "ability": { "choose": ["Intelligence", "Wisdom", "Charisma"] },
+        "swap": { "spells": "none", "cantrips": "none" },
+        "quotas": [
+          {
+            "id": "fairyCantrip",
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Druidcraft"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "fairy3",
+            "since": 3,
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Faerie Fire"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "fairy5",
+            "since": 5,
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Enlarge/Reduce"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/species/elf.json → traits[] \"Elven Lineage\" — `when` bezieht sich auf das grantsChoice.optionList DIESES Merkmals",
+      "key": "srd-2024_elf_elven-lineage",
+      "grantsCasting": {
+        "ability": { "choose": ["Intelligence", "Wisdom", "Charisma"] },
+        "swap": { "spells": "none", "cantrips": "none" },
+        "quotas": [
+          {
+            "id": "lineageCantrip",
+            "when": { "option": "Drow" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Dancing Lights"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "lineageCantrip",
+            "when": { "option": "High Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Prestidigitation"], "lists": ["wizard"] },
+            "swap": { "cantrips": "long-rest-one" },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "lineageCantrip",
+            "when": { "option": "Wood Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Druidcraft"] },
+            "cast": [{ "kind": "at-will" }]
+          },
+
+          {
+            "id": "lineage3",
+            "since": 3,
+            "when": { "option": "Drow" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Faerie Fire"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "lineage3",
+            "since": 3,
+            "when": { "option": "High Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Detect Magic"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "lineage3",
+            "since": 3,
+            "when": { "option": "Wood Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Longstrider"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+
+          {
+            "id": "lineage5",
+            "since": 5,
+            "when": { "option": "Drow" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Darkness"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "lineage5",
+            "since": 5,
+            "when": { "option": "High Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Misty Step"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "lineage5",
+            "since": 5,
+            "when": { "option": "Wood Elf" },
+            "tier": "prepared",
+            "count": { "base": 1 },
+            "pool": { "names": ["Pass without Trace"] },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "_datei": "vault/feats/magic-initiate.json — mehrfach nehmbar, deshalb trägt die Quellen-Id zur Laufzeit einen Instanz-Zusatz",
+      "key": "srd-2024_magic-initiate",
+      "grantsCasting": {
+        "ability": { "choose": ["Intelligence", "Wisdom", "Charisma"] },
+        "swap": { "spells": "level-up-one", "cantrips": "none" },
+        "quotas": [
+          {
+            "id": "cantrips",
+            "tier": "prepared",
+            "levels": [0],
+            "count": { "base": 2 },
+            "pool": {
+              "lists": ["cleric", "druid", "wizard"],
+              "listMode": "choose-one"
+            },
+            "cast": [{ "kind": "at-will" }]
+          },
+          {
+            "id": "spell1",
+            "tier": "prepared",
+            "levels": [1],
+            "count": { "base": 1 },
+            "pool": {
+              "lists": ["cleric", "druid", "wizard"],
+              "listMode": "choose-one"
+            },
+            "cast": [
+              { "kind": "uses", "per": "long-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+
+  "exampleCharacters": [
+    {
+      "_was": "Fee-Zauberer, Charakterstufe 5 — so sähe `character.spellcasting` auf der Platte aus.",
+      "spellcasting": {
+        "pools": {
+          "standard": { "used": [1, 0, 0, 0, 0, 0, 0, 0, 0] },
+          "pact": { "used": 0 }
+        },
+        "sources": {
+          "srd-2024_sorcerer_spellcasting": {
+            "picks": {
+              "cantrips": [
+                { "name": "Fire Bolt", "sourceKey": "srd-2024_fire-bolt" },
+                { "name": "Light", "sourceKey": "srd-2024_light" },
+                { "name": "Mage Hand", "sourceKey": "srd-2024_mage-hand" },
+                { "name": "Minor Illusion", "sourceKey": "srd-2024_minor-illusion" },
+                { "name": "Sorcerous Burst", "sourceKey": "srd-2024_sorcerous-burst" }
+              ],
+              "prepared": [
+                { "name": "Burning Hands", "sourceKey": "srd-2024_burning-hands" },
+                { "name": "Detect Magic", "sourceKey": "srd-2024_detect-magic" },
+                { "name": "Magic Missile", "sourceKey": "srd-2024_magic-missile" },
+                { "name": "Shield", "sourceKey": "srd-2024_shield" },
+                { "name": "Mirror Image", "sourceKey": "srd-2024_mirror-image" },
+                { "name": "Misty Step", "sourceKey": "srd-2024_misty-step" },
+                { "name": "Scorching Ray", "sourceKey": "srd-2024_scorching-ray" },
+                { "name": "Counterspell", "sourceKey": "srd-2024_counterspell" },
+                { "name": "Fireball", "sourceKey": "srd-2024_fireball" }
+              ]
+            }
+          },
+          "phb-2024_fairy_fairy-magic": {
+            "bindings": { "ability": "Charisma" },
+            "uses": { "fairy3": 1 }
+          }
+        }
+      }
+    },
+
+    {
+      "_was": "Barde (Kolleg des Wissens), Klassenstufe 10 — Magische Geheimnisse greifen.",
+      "_abgeleitet": {
+        "cantrips": "4 (Spalte Cantrips)",
+        "prepared": "15 (Spalte Prepared Spells; auf Stufe 9 waren es 14)",
+        "discoveries": "2, zusätzlich — zählen NICHT gegen die 15",
+        "slots": "4/3/3/3/2",
+        "_hinweis": "Magische Geheimnisse besitzt keine eigene Quota und taucht deshalb unten NICHT auf — es patcht nur den Pool von srd-2024_bard_spellcasting/prepared."
+      },
+      "spellcasting": {
+        "pools": {
+          "standard": { "used": [2, 1, 0, 1, 0, 0, 0, 0, 0] },
+          "pact": { "used": 0 }
+        },
+        "sources": {
+          "srd-2024_bard_spellcasting": {
+            "picks": {
+              "cantrips": [
+                { "name": "Vicious Mockery", "sourceKey": "srd-2024_vicious-mockery" },
+                { "name": "Dancing Lights", "sourceKey": "srd-2024_dancing-lights" },
+                { "name": "Minor Illusion", "sourceKey": "srd-2024_minor-illusion" },
+                { "name": "Prestidigitation", "sourceKey": "srd-2024_prestidigitation" }
+              ],
+              "prepared": [
+                { "name": "Charm Person", "sourceKey": "srd-2024_charm-person" },
+                { "name": "Cure Wounds", "sourceKey": "srd-2024_cure-wounds" },
+                { "name": "Dissonant Whispers", "sourceKey": "srd-2024_dissonant-whispers" },
+                { "name": "Faerie Fire", "sourceKey": "srd-2024_faerie-fire" },
+                { "name": "Healing Word", "sourceKey": "srd-2024_healing-word" },
+                { "name": "Heat Metal", "sourceKey": "srd-2024_heat-metal" },
+                { "name": "Invisibility", "sourceKey": "srd-2024_invisibility" },
+                { "name": "Shatter", "sourceKey": "srd-2024_shatter" },
+                { "name": "Dispel Magic", "sourceKey": "srd-2024_dispel-magic" },
+                { "name": "Fear", "sourceKey": "srd-2024_fear" },
+                { "name": "Hypnotic Pattern", "sourceKey": "srd-2024_hypnotic-pattern" },
+                { "name": "Dimension Door", "sourceKey": "srd-2024_dimension-door" },
+                { "name": "Greater Invisibility", "sourceKey": "srd-2024_greater-invisibility" },
+                { "name": "Polymorph", "sourceKey": "srd-2024_polymorph" },
+                { "name": "Wall of Force", "sourceKey": "srd-2024_wall-of-force" }
+              ]
+            }
+          },
+          "srd-2024_college-of-lore_magical-discoveries": {
+            "picks": {
+              "discoveries": [
+                { "name": "Counterspell", "sourceKey": "srd-2024_counterspell" },
+                { "name": "Spirit Guardians", "sourceKey": "srd-2024_spirit-guardians" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}
