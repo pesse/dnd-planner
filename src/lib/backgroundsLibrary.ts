@@ -19,19 +19,13 @@ export function backgroundDisplayName(info: BackgroundInfo): string {
 
 const library = createLibrary<BackgroundInfo>({
   path: BACKGROUNDS_PATH,
-  displayName: backgroundDisplayName,
   key: (b) => b.key,
-  read: (data, { path, filename }) => ({
-    name: data.name ?? filename.replace('.json', ''),
-    nameDe: data.nameDe,
-    path,
-    key: data.key,
-  }),
 });
 
 export const getBackgroundsList = library.list;
 export const invalidateBackgroundsCache = library.invalidate;
 export const searchBackgrounds = library.search;
+export const searchBackgroundDrafts = library.searchWithParser;
 
 /**
  * „Magic Initiate (Wizard)" → „Wizard": die Vorgabe, mit der der Hintergrund die Wahl seines

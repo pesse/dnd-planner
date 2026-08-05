@@ -18,9 +18,9 @@ import { mapV2 } from '../classProgression';
 import { mapV2Species } from '../speciesData';
 import { mapV2Background } from '../backgroundData';
 import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '../featCreate';
-import { getClasses, searchClasses, classDisplayName } from '../../classLibrary';
-import { getSpeciesList, searchSpecies, speciesDisplayName } from '../../speciesLibrary';
-import { getBackgroundsList, searchBackgrounds, backgroundDisplayName } from '../../backgroundsLibrary';
+import { getClasses, classDisplayName, searchClassDrafts } from '../../classLibrary';
+import { searchSpeciesDrafts } from '../../speciesLibrary';
+import { searchBackgroundDrafts } from '../../backgroundsLibrary';
 import {
   blankItem, displayName as itemDisplayName, getItemsByDir, loadedItemDirs, searchItems, toHomebrewCopy,
 } from '../../itemLibrary';
@@ -140,38 +140,9 @@ async function searchOpen5eBackgrounds(q: string): Promise<DndApiRef[]> {
     .slice(0, 15);
 }
 
-async function searchClassLibrary(q: string): Promise<{ name: string; load: () => Promise<ClassProgression> }[]> {
-  const lib = await getClasses();
-  return searchClasses(lib, q, 8).map((c) => ({
-    name: classDisplayName(c),
-    load: async () => {
-      const r = parseClass(await readJson(c.path));
-      return r.ok ? r.data : blankClass(classDisplayName(c));
-    },
-  }));
-}
-
-async function searchSpeciesLibrary(q: string): Promise<{ name: string; load: () => Promise<Species> }[]> {
-  const lib = await getSpeciesList();
-  return searchSpecies(lib, q, 8).map((s) => ({
-    name: speciesDisplayName(s),
-    load: async () => {
-      const r = parseSpecies(await readJson(s.path));
-      return r.ok ? r.data : blankSpecies(speciesDisplayName(s));
-    },
-  }));
-}
-
-async function searchBackgroundLibrary(q: string): Promise<{ name: string; load: () => Promise<Background> }[]> {
-  const lib = await getBackgroundsList();
-  return searchBackgrounds(lib, q, 8).map((b) => ({
-    name: backgroundDisplayName(b),
-    load: async () => {
-      const r = parseBackground(await readJson(b.path));
-      return r.ok ? r.data : blankBackground(backgroundDisplayName(b));
-    },
-  }));
-}
+const searchClassLibrary = (q: string) => searchClassDrafts(q, parseClass, blankClass, 8);
+const searchSpeciesLibrary = (q: string) => searchSpeciesDrafts(q, parseSpecies, blankSpecies, 8);
+const searchBackgroundLibrary = (q: string) => searchBackgroundDrafts(q, parseBackground, blankBackground, 8);
 
 /** Bindet T an der Definitionsstelle; die Registry selbst ist typunabhängig. */
 const spec = <T>(s: CreateSpec<T>): CreateSpec<unknown> => s as CreateSpec<unknown>;

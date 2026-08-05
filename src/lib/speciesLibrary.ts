@@ -18,19 +18,13 @@ export function speciesDisplayName(info: SpeciesInfo): string {
 
 const library = createLibrary<SpeciesInfo>({
   path: SPECIES_PATH,
-  displayName: speciesDisplayName,
   key: (s) => s.key,
-  read: (data, { path, filename }) => ({
-    name: data.name ?? filename.replace('.json', ''),
-    nameDe: data.nameDe,
-    path,
-    key: data.key,
-  }),
 });
 
 export const getSpeciesList = library.list;
 export const invalidateSpeciesCache = library.invalidate;
 export const searchSpecies = library.search;
+export const searchSpeciesDrafts = library.searchWithParser;
 
 /** Die volle Spezies (inkl. Traits) per Key; null = nicht lokal vorhanden/unparsebar. */
 export function getSpeciesByKey(key: string): Promise<Species | null> {
