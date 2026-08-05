@@ -9,7 +9,7 @@
   import type { AbilityName } from '$lib/schemas/abilities';
   import type { ArmorTraining, WeaponCategory } from '$lib/schemas/vocabulary';
   import type { ProficiencyGrant } from '$lib/schemas/grants';
-  import { ABILITY_LABEL_DE, ARMOR_LABEL_DE, WEAPON_LABEL_DE } from '$lib/services/proficiencyGrants';
+  import { abilityLabelDe, ARMOR_LABEL_DE, WEAPON_LABEL_DE } from '$lib/services/proficiencyGrants';
   import SkillGrantEditForm from './SkillGrantEditForm.svelte';
 
   let {
@@ -61,7 +61,7 @@
             checked={grant.savingThrows.includes(ability)}
             onchange={(e) => toggleSave(ability, (e.target as HTMLInputElement).checked)}
           />
-          {ABILITY_LABEL_DE[ability]}
+          {abilityLabelDe(ability)}
         </label>
       {/each}
     </div>

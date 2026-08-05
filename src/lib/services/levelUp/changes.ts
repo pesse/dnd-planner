@@ -40,7 +40,7 @@ export const STEP_ORDER = [
 export type BuilderStep = (typeof STEP_ORDER)[number];
 
 type AbilityMap = Record<AbilityKey, number>;
-const zeroAbil = (): AbilityMap => ({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 });
+const zeroAbil = (): AbilityMap => ({ str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 });
 
 function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string | string[]>): AbilityMap {
   const abil = zeroAbil();
@@ -167,7 +167,7 @@ export function riderGrantChanges(
 export interface DecisionChangesParams {
   delta: LevelUpDelta;
   answers: Record<string, string | string[]>;
-  konMod: number;
+  conMod: number;
   pickedCantrips: { key: string; name: string }[];
   pickedLearned: { key: string; name: string; level: number }[];
 }
@@ -182,8 +182,8 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
     const avg = Math.floor(delta.hitDie / 2) + 1;
     const rolled = Number(answers['hp_roll']);
     const hpGain = answers['hp_method'] === 'roll' && rolled > 0
-      ? rolled + p.konMod * delta.levelsGained
-      : (avg + p.konMod) * delta.levelsGained;
+      ? rolled + p.conMod * delta.levelsGained
+      : (avg + p.conMod) * delta.levelsGained;
     if (hpGain) out.push({ target: 'hpMax', value: hpGain, step, source: 'hit-dice+kon', label: 'Trefferpunkte (Würfel + KON)' });
   }
 

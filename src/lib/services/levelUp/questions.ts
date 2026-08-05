@@ -52,7 +52,7 @@ export function buildDecisions(
     qs.push(baseQuestion({
       id: `asi_ability1_${i}`, type: 'choice', prompt: 'Attribut A (bei „Werte erhöhen")',
       help: 'Erhält +2 (wenn B leer) bzw. +1.', required: false,
-      options: ABILITY_KEYS.map((k) => opt(k, ABILITY_LABEL[k])), defaultValue: 'kon',
+      options: ABILITY_KEYS.map((k) => opt(k, ABILITY_LABEL[k])), defaultValue: 'con',
     }));
     qs.push(baseQuestion({
       id: `asi_ability2_${i}`, type: 'choice', prompt: 'Attribut B (optional, für +1/+1)', required: false,

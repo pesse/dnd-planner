@@ -1,51 +1,65 @@
 /**
- * Das EINE Attributs-Vokabular: englische SRD-Namen (Bibliothek), deutsche
- * Bogen-Schlüssel (Charakter, vom PDF-Formular diktiert) und die Brücke dazwischen.
- * Eine zweite Fassung davon läuft unweigerlich auseinander — es gab schon sechs.
+ * Das EINE Attributs-Vokabular: der Schlüsselsatz ist zugleich die kleingeschriebene
+ * SRD-Abkürzung (Bibliothek, Monster, NPC, Zauber, Charakter). Deutsch bleibt an zwei
+ * Rändern: den Anzeigelabels hier (`ABILITY_ABBR_DE`, `ABILITY_LABEL`) und den
+ * PDF-Feldnamen des Taendler-Bogens (`pdf/characterFields.ts`), die das Formular diktiert.
  */
+import { z } from 'zod';
+
+export const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
+export type AbilityKey = (typeof ABILITY_KEYS)[number];
+
+export type AbilityScores = Record<AbilityKey, number>;
 
 export const ABILITY_NAMES = [
   'Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma',
 ] as const;
 export type AbilityName = (typeof ABILITY_NAMES)[number];
 
-/** App-/Bogen-Schlüssel (dex→ges, wis→wei), Reihenfolge wie auf dem Bogen. */
-export const ABILITY_KEYS = ['str', 'ges', 'kon', 'int', 'wei', 'cha'] as const;
-export type AbilityKey = (typeof ABILITY_KEYS)[number];
-
-export type AbilityScores = Record<AbilityKey, number>;
-
-export const ABILITY_TO_EN: Record<AbilityKey, AbilityName> = {
-  str: 'Strength', ges: 'Dexterity', kon: 'Constitution',
-  int: 'Intelligence', wei: 'Wisdom', cha: 'Charisma',
+export const ABILITY_ABBR: Record<AbilityKey, string> = {
+  str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA',
 };
 
-export const ABILITY_KEY_BY_EN: Record<AbilityName, AbilityKey> = Object.fromEntries(
-  ABILITY_KEYS.map((k) => [ABILITY_TO_EN[k], k]),
-) as Record<AbilityName, AbilityKey>;
+export const ABILITY_ABBR_DE: Record<AbilityKey, string> = {
+  str: 'STR', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
+};
 
-/** Kleingeschriebener englischer Name → Bogen-Schlüssel; v2-Daten kommen so. */
-export const ABILITY_FROM_EN: Record<string, AbilityKey> = Object.fromEntries(
-  ABILITY_KEYS.map((k) => [ABILITY_TO_EN[k].toLowerCase(), k]),
+export const ABILITY_LABEL: Record<AbilityKey, string> = {
+  str: 'Stärke', dex: 'Geschicklichkeit', con: 'Konstitution',
+  int: 'Intelligenz', wis: 'Weisheit', cha: 'Charisma',
+};
+
+const NAME_TO_KEY = new Map<string, AbilityKey>(
+  ABILITY_NAMES.map((name, i) => [name.toLowerCase(), ABILITY_KEYS[i]]),
 );
 
-/** Bogen-Schlüssel zu beliebiger Schreibweise („Wisdom", „wisdom", „ wei "). */
+/** Beliebige Schreibweise auf den Schlüssel („Wisdom", „wisdom", „ wis ") — der LLM-/Open5e-Rand. */
 export function abilityKeyOf(raw: string | undefined | null): AbilityKey | undefined {
   const s = (raw ?? '').trim().toLowerCase();
   if (!s) return undefined;
-  if (ABILITY_FROM_EN[s]) return ABILITY_FROM_EN[s];
+  const byName = NAME_TO_KEY.get(s);
+  if (byName) return byName;
   return (ABILITY_KEYS as readonly string[]).includes(s) ? (s as AbilityKey) : undefined;
 }
 
-/**
- * Die deutschen Attributsnamen. Der einzige Ort — vier gleichlautende Tabellen
- * standen vorher in levelUpMachine, characterProtocol, spellcasting und dem Wizard.
- */
-export const ABILITY_LABEL: Record<AbilityKey, string> = {
-  str: 'Stärke', ges: 'Geschicklichkeit', kon: 'Konstitution',
-  int: 'Intelligenz', wei: 'Weisheit', cha: 'Charisma',
-};
+const abilityRecord = <T extends z.ZodTypeAny>(field: T) =>
+  z.object(Object.fromEntries(ABILITY_KEYS.map((k) => [k, field])) as Record<AbilityKey, T>);
 
-export const ABILITY_LABEL_DE: Record<AbilityName, string> = Object.fromEntries(
-  ABILITY_KEYS.map((k) => [ABILITY_TO_EN[k], ABILITY_LABEL[k]]),
-) as Record<AbilityName, string>;
+export const abilityScoresSchema = abilityRecord(z.number().int().default(10)).default(
+  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 10])) as AbilityScores,
+);
+
+export const abilityModsSchema = abilityRecord(z.number().int().default(0)).default(
+  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0])) as AbilityScores,
+);
+
+export const abilityFlagsSchema = abilityRecord(z.boolean().default(false)).default(
+  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, false])) as Record<AbilityKey, boolean>,
+);
+export type AbilityFlags = z.infer<typeof abilityFlagsSchema>;
+
+/** Monster/NPC: sechs Pflichtfelder ohne Einzel-Default, ein Default fürs ganze Objekt. */
+export const abilityStatsSchema = abilityRecord(z.number().int()).default(
+  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 10])) as AbilityScores,
+);
+export type AbilityStats = z.infer<typeof abilityStatsSchema>;

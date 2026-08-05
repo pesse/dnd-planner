@@ -13,7 +13,7 @@ import { readAbilityName } from '$lib/schemas/vocabulary';
 import { SKILL_DEFS } from '$lib/domain/skills';
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
-import { ABILITY_TO_EN, type AbilityKey } from '$lib/schemas/classProgression';
+import { type AbilityKey } from '$lib/schemas/classProgression';
 import { getProgressionByKey } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
@@ -23,14 +23,16 @@ import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 // Editor und Bogen früher oder später verschiedene Begriffe.
 const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.label]));
 
-import { abilityKeyOf, ABILITY_LABEL_DE } from '$lib/schemas/abilities';
-export { ABILITY_LABEL_DE };
+import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
 
 import { WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '$lib/domain/proficiencies';
 export { WEAPON_LABEL_DE, ARMOR_LABEL_DE };
 
 export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as SkillName) ?? en;
-export const abilityLabelDe = (en: string): string => ABILITY_LABEL_DE[en as AbilityName] ?? en;
+export const abilityLabelDe = (en: string): string => {
+  const key = abilityKeyOf(en);
+  return key ? ABILITY_LABEL[key] : en;
+};
 export const isEmptyGrant = isEmptyProficiencyGrant;
 
 /** Kurzform fürs Panel: „2 aus 6", „Athletik, Einschüchtern". */
@@ -116,12 +118,9 @@ export function markArmorTraining(flags: ProficiencyFlags, training: string): vo
   else if (training === 'Shields') flags.shields = true;
 }
 
-/** Die sechs Rettungswurf-Häkchen des Bogens — ein `Character` erfüllt das strukturell. */
-export type SaveProfFlags = { [K in AbilityKey as `${K}SaveProf`]: boolean };
-
-export function markSavingThrow(flags: SaveProfFlags, en: string): void {
+export function markSavingThrow(flags: Record<AbilityKey, boolean>, en: string): void {
   const key = abilityKeyOf(readAbilityName(en));
-  if (key) flags[`${key}SaveProf`] = true;
+  if (key) flags[key] = true;
 }
 
 /**

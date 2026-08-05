@@ -16,8 +16,7 @@
   import { activeFile } from '$lib/stores/campaign';
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
-  import { ABILITY_FROM_EN } from '$lib/services/classProgression';
-  import { ABILITY_LABEL } from '$lib/schemas/abilities';
+  import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
 
   const ed = createLibraryCardEditor<Background>({
@@ -50,7 +49,7 @@
   /** Unbekannte Werte bleiben unverändert stehen. */
   let abilityLabels = $derived(
     (draft?.abilityScores ?? []).map((en) => {
-      const key = ABILITY_FROM_EN[en.trim().toLowerCase()];
+      const key = abilityKeyOf(en);
       return key ? ABILITY_LABEL[key] : en;
     }),
   );
