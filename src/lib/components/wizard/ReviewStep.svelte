@@ -1,6 +1,7 @@
 <script lang="ts">
   import './wizard.css';
-  import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
+  import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
+  import type { Job } from '../../services/wizard/job.svelte';
   import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
   import { buildCharacterProtocol } from '../../services/characterProtocol';
   import { loadSheetSpellcasting, type SheetSpellcasting } from '../../services/spellcasting/project';

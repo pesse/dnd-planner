@@ -30,8 +30,7 @@ import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
 import type { AsiAllocation } from './backgroundAsi';
-
-export type JobStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped';
+import { Job } from './job.svelte';
 
 export function toolPickKey(groupIdx: number, optionIdx: number, itemIdx: number): string {
   return `${groupIdx}:${optionIdx}:${itemIdx}`;
@@ -43,58 +42,19 @@ function isCoinItem(name: string): boolean {
   return /\b\w*münzen?\b/i.test(n) || /\bgold(stücke?|)\b/i.test(n) || /^\d+\s*(gm|sm|km|em|pm|gp|sp|cp|ep|pp)$/i.test(n);
 }
 
-/**
- * Ein KI-Job: reaktiver Status, abbrechbar. Ein neuer `run()` bricht den vorigen ab; dessen
- * verspätetes Settle wird über das abgebrochene Signal verworfen.
- */
-export class Job<T> {
-  status = $state<JobStatus>('idle');
-  result = $state<T | null>(null);
-  error = $state('');
-  #ctrl: AbortController | null = null;
-  #running: Promise<unknown> = Promise.resolve();
-
-  #begin(): AbortSignal {
-    this.#ctrl?.abort();
-    this.#ctrl = new AbortController();
-    this.status = 'running';
-    this.error = '';
-    return this.#ctrl.signal;
-  }
-
-  /** Bewusst kein await — der Job läuft, während der Nutzer weiterarbeitet. */
-  run(fn: (signal: AbortSignal) => Promise<T>): void {
-    const signal = this.#begin();
-    this.#running = fn(signal).then(
-      (r) => { if (!signal.aborted) { this.result = r; this.status = 'done'; } },
-      (e) => { if (!signal.aborted) { this.error = e instanceof Error ? e.message : String(e); this.status = 'error'; } },
-    );
-  }
-
-  /** Nie rejektierend — der Zusammenbau soll an einem gescheiterten Job nicht hängenbleiben. */
-  settle(): Promise<void> { return this.#running.then(() => {}, () => {}); }
-
-  skip(): void { this.abort(); this.status = 'skipped'; }
-  abort(): void { this.#ctrl?.abort(); this.#ctrl = null; }
-  reset(): void { this.abort(); this.status = 'idle'; this.result = null; this.error = ''; }
-}
-
 export interface WizardLink {
   sourceKey: string;
   name: string;
 }
 
 export class CharacterWizard {
-  // ── Kopf ──
   name = $state('');
   playerName = $state('');
 
-  // ── Grundwahl (Schritt 1) ──
   species: WizardLink & { subspeciesKey?: string; subspeciesName?: string } = $state({ sourceKey: '', name: '' });
   klass: WizardLink & { subclassKey?: string; subclassName?: string } = $state({ sourceKey: '', name: '' });
   background: WizardLink = $state({ sourceKey: '', name: '' });
 
-  // ── Deterministische Schritte ──
   scores = $state<AbilityScores>(pointBuyStart());
   asi = $state<AsiAllocation>({});
   /** Englische Fertigkeitsnamen (das geschlossene Vokabular), nicht die Anzeigelabels. */
@@ -111,7 +71,7 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  // ── Zauberwahl (Schritt „Zauber"; alle Listen `spell.key`) ──
+  /** Schritt „Zauber"; diese und die beiden folgenden Listen tragen `spell.key`. */
   pickedCantrips = $state<string[]>([]);
   /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);
@@ -123,7 +83,6 @@ export class CharacterWizard {
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
-  // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
   /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
   /**
@@ -148,7 +107,6 @@ export class CharacterWizard {
    */
   declaredAnswers = $state<ResolvedChoice[]>([]);
 
-  // ── KI-Jobs ──
   analysis = new Job<FeatureAnalysis>();
   classText = new Job<FieldSummary>();
   speciesText = new Job<FieldSummary>();
