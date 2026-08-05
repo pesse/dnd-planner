@@ -1,6 +1,7 @@
 /**
- * Lade-/Speicher-/Copy-on-write-Zustand einer Monster-Mini-Karte: eigene Datei-Logik,
- * läuft NICHT über `createCardEditor` (siehe Bericht zur Aufteilung).
+ * Lade-/Speicher-/Copy-on-write-Zustand einer Monster-Mini-Karte. Bewusst neben
+ * `createCardEditor`: dessen `CardEditorConfig` kennt keine Datei, die an zwei Pfaden
+ * liegen kann und beim ersten Bearbeiten global → akt-lokal kopiert wird.
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Monster } from '../../types';
