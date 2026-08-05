@@ -9,9 +9,6 @@ import { proficiencyGrantSchema, skillGrantSchema, emptyProficiencyGrant, emptyS
 import { featureDeclarationFields } from './featureChoice';
 import { type AbilityName } from './abilities';
 
-import { ABILITY_KEYS, type AbilityKey } from './abilities';
-export { ABILITY_KEYS, type AbilityKey };
-
 export const classLevelSchema = z.object({
   level: z.number().int().min(1).max(20),
   columns: z.record(z.string(), z.string()).default({}), // Rohwerte wie in v2

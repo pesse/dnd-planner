@@ -6,7 +6,7 @@
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { characterSchema, type Character } from '$lib/schemas/characterSchema';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
-import { type AbilityKey } from '$lib/schemas/classProgression';
+import { type AbilityKey } from '$lib/schemas/abilities';
 import { type SkillName } from '$lib/schemas/vocabulary';
 import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';

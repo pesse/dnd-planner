@@ -13,7 +13,7 @@ import { SKILL_DEFS } from '$lib/domain/skills';
 import { normName } from '$lib/utils/text';
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
-import { type AbilityKey } from '$lib/schemas/classProgression';
+import { type AbilityKey } from '$lib/schemas/abilities';
 import { getProgressionByKey } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
