@@ -1,6 +1,6 @@
 /** Lädt und cached den Zauber-Index aus `vault/spells`, inkl. Klassen-Filterung. */
 import { invoke } from '@tauri-apps/api/core';
-import { slugKeepUmlauts } from './utils/text';
+import { normName, slugKeepUmlauts } from './utils/text';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
 import { OWN_SOURCE } from './schemas/source';
 import type { Spell } from './types';
@@ -139,7 +139,7 @@ const TRADITION_MAP: Record<string, string> = {
  * LLM-Antworten, wo kein deutscher Name auftaucht.
  */
 export function resolveClass(germanClass: string): string | null {
-  const key = germanClass.toLowerCase().trim();
+  const key = normName(germanClass);
   if (!key) return null;
   if (ENGLISH_CLASS_KEYS.has(key)) return key;
   if (CLASS_MAP[key]) return CLASS_MAP[key];
@@ -158,7 +158,7 @@ export function resolveClass(germanClass: string): string | null {
  * Exakttreffer zuerst.
  */
 export function resolveSpell(library: SpellInfo[], name: string, klasseName = ''): SpellInfo | null {
-  const q = name.trim().toLowerCase();
+  const q = normName(name);
   if (!q) return null;
   const eq = (s: SpellInfo) =>
     s.name.toLowerCase() === q || (s.name_en ?? '').toLowerCase() === q || (s.key ?? '').toLowerCase() === q;

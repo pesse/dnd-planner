@@ -3,6 +3,7 @@
  * Rein — Attributsmodifikatoren und Übungsbonus kommen als `AttackCalcContext` herein.
  */
 import { sign } from '../utils/num';
+import { normName } from '../utils/text';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
@@ -128,8 +129,8 @@ export function attackIndexOf(attacks: Attack[], ref: { sourceKey?: string; name
     const i = attacks.findIndex((a) => a.sourceKey?.trim() === key);
     if (i >= 0) return i;
   }
-  const name = ref.name.trim().toLowerCase();
-  return name ? attacks.findIndex((a) => a.name.trim().toLowerCase() === name) : -1;
+  const name = normName(ref.name);
+  return name ? attacks.findIndex((a) => normName(a.name) === name) : -1;
 }
 
 export function buildAttackFromWeapon(item: WeaponAttackSource, ctx: WeaponAttackContext): Attack {

@@ -6,6 +6,7 @@
 import { speciesSchema, migrateSpeciesLegacy, type Species, type Trait } from '$lib/schemas/species';
 import { toSourceKey } from '$lib/schemas/source';
 import { emptyProficiencyGrant, parseProseSkillGrant } from '$lib/schemas/grants';
+import { slugAscii } from '$lib/utils/text';
 import { getSpecies as fetchSpecies } from './open5eClient';
 
 interface V2Trait {
@@ -21,10 +22,6 @@ function readSize(raw: unknown): string {
   return '';
 }
 
-function slug(s: string): string {
-  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
 export function mapV2Species(raw: Record<string, unknown>): Species {
   const rawTraits = (raw.traits as V2Trait[]) ?? [];
   const doc = (raw.document as { key?: string; gamesystem?: { key?: string } }) ?? {};
@@ -36,7 +33,7 @@ export function mapV2Species(raw: Record<string, unknown>): Species {
     // Nur die Fertigkeitsübung ist aus der Prosa modellierbar, der Rest bleibt Text.
     const skills = parseProseSkillGrant(t.desc ?? '');
     return {
-      key: t.key || (specKey && t.name ? `${specKey}_${slug(t.name)}` : ''),
+      key: t.key || (specKey && t.name ? `${specKey}_${slugAscii(t.name)}` : ''),
       name: t.name ?? '',
       desc: t.desc ?? '',
       proficiencyGrant: skills ? { ...emptyProficiencyGrant(), skills } : emptyProficiencyGrant(),

@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '../services/httpFetch';
 import { pushError } from './errors';
 import { invalidateVault } from './campaign';
 import { invalidateSpellLibrary } from '../spellLibrary';
@@ -89,18 +90,13 @@ export const libraryManagerOpen = writable(false);
 
 export const installing = writable<Set<string>>(new Set());
 
-/** Im reinen Vite-Browser-Dev gibt es keine Kommandos — dann tut hier alles nichts. */
-function inTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
 export function updateCount(list: Library[]): number {
   return list.filter((l) => l.install === 'update' && !l.block).length;
 }
 
 /** Beim Start bewusst still: ohne Netz soll die App trotzdem normal starten. */
 export async function refreshLibraries(silent = true): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   librariesLoading.set(true);
   try {
     libraries.set((await invoke<RawLibraryStatus[]>('fetch_library_index')).map(toLibrary));
@@ -205,7 +201,7 @@ function invalidateLibraryCaches(): void {
  * Installation sofort brauchbar ist. UPDATES werden nie ungefragt gezogen, dafür der Badge.
  */
 export async function checkLibrariesOnStartup(): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   await refreshLibraries(true);
 
   const outdated = get(libraries).filter((l) => l.block === 'appOutdated');

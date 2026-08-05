@@ -9,6 +9,7 @@ import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
 import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibrary';
 import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
+import { normName } from '$lib/utils/text';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
 import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
@@ -65,7 +66,7 @@ function exactMatch<T extends { key?: string; name: string; nameDe?: string }>(
   index: T[],
   rawName: string,
 ): T | undefined {
-  const q = rawName.trim().toLowerCase();
+  const q = normName(rawName);
   if (!q) return undefined;
   return index.find((e) => !!e.key && ((e.nameDe ?? e.name).toLowerCase() === q || e.name.toLowerCase() === q));
 }
@@ -141,7 +142,7 @@ export function classesFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
 export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const rows = target.inventory.filter((line) => {
     if (line.sourceKey?.trim()) return false;
-    const nm = line.name.trim().toLowerCase();
+    const nm = normName(line.name);
     // Mehrdeutige liegen lassen: ein falscher Key wäre schlimmer als keiner.
     if (!nm || libs.items.ambiguous.has(nm)) return false;
     return !!libs.items.byName.get(nm)?.key;
@@ -152,7 +153,7 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
     label: `${rows.length} ${rows.length === 1 ? 'Gegenstand' : 'Gegenstände'} mit der Bibliothek verknüpfen`,
     apply: () => {
       for (const line of rows) {
-        const hit = libs.items.byName.get(line.name.trim().toLowerCase());
+        const hit = libs.items.byName.get(normName(line.name));
         if (!hit?.key) continue;
         line.sourceKey = hit.key;
         // Den Namen mitziehen, damit Anzeige, Datei und PDF dasselbe sagen.
@@ -167,7 +168,7 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
 export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const rows = target.attacks.filter((a) => {
     if (a.sourceKey?.trim()) return false;
-    const nm = a.name.trim().toLowerCase();
+    const nm = normName(a.name);
     if (!nm || libs.items.ambiguous.has(nm)) return false;
     const hit = libs.items.byName.get(nm);
     return !!hit?.key && hit.category === 'weapon';
@@ -178,7 +179,7 @@ export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
     label: `${rows.length} ${rows.length === 1 ? 'Angriff' : 'Angriffe'} mit der Waffen-Bibliothek verknüpfen`,
     apply: () => {
       for (const a of rows) {
-        const hit = libs.items.byName.get(a.name.trim().toLowerCase());
+        const hit = libs.items.byName.get(normName(a.name));
         if (!hit?.key || hit.category !== 'weapon') continue;
         const modifiers = a.modifiers;
         Object.assign(a, buildAttackFromWeapon(hit, target.weaponCtx));

@@ -7,16 +7,13 @@ import { backgroundSchema, type Background, type Benefit, type BenefitType, BENE
 import { toSourceKey } from '$lib/schemas/source';
 import { emptyProficiencyGrant, type ProficiencyGrant } from '$lib/schemas/grants';
 import { parseSkillNames } from '$lib/schemas/vocabulary';
+import { slugAscii } from '$lib/utils/text';
 import { getBackground as fetchBackground } from './open5eClient';
 
 interface V2Benefit {
   name?: string;
   desc?: string;
   type?: string;
-}
-
-function slug(s: string): string {
-  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 /** Unbekannte `type`-Werte fallen auf 'other' — das Schema-Enum bleibt geschlossen. */
@@ -35,7 +32,7 @@ function readAbilityScores(desc: string): string[] {
 /** Der Klammerzusatz gehört nicht zum Talent: "Magic Initiate (Cleric)" → `magic-initiate`. */
 function readFeatKey(desc: string, source: string): string {
   const name = desc.split('(')[0];
-  const s = slug(name);
+  const s = slugAscii(name);
   return s ? `${source}_${s}` : '';
 }
 
@@ -61,7 +58,7 @@ export function mapV2Background(raw: Record<string, unknown>): Background {
   // Open5e liefert keine Benefit-Keys; ohne einen deterministischen wären sie nicht
   // referenzierbar (wie bei den Spezies-Merkmalen).
   const benefits: Benefit[] = rawBenefits.map((b) => ({
-    key: bgKey && b.name ? `${bgKey}_${slug(b.name)}` : '',
+    key: bgKey && b.name ? `${bgKey}_${slugAscii(b.name)}` : '',
     type: readBenefitType(b.type),
     name: b.name ?? '',
     desc: b.desc ?? '',

@@ -3,6 +3,7 @@
  * eines Charakter-/NPC-Eintrags auf einen Bibliothekseintrag.
  */
 import { invoke } from '@tauri-apps/api/core';
+import { normName } from './utils/text';
 import type { Item } from './types';
 import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
@@ -204,7 +205,7 @@ export const matchItem = matchByRef<ItemInfo>;
  * `individualWeapons` und dem Freitext daneben; Mehrdeutige bleiben liegen wie beim Inventar.
  */
 export function matchWeaponName(index: ItemIndex, text: string): string | undefined {
-  const name = text.trim().toLowerCase();
+  const name = normName(text);
   if (!name || index.ambiguous.has(name)) return undefined;
   const hit = index.byName.get(name);
   return hit?.key && hit.category === 'weapon' ? displayName(hit) : undefined;

@@ -61,7 +61,7 @@ export interface FileEntry {
 }
 
 
-export const SPELL_CLASS_LABELS: Record<string, string> = {
+export const SPELL_CLASS_LABELS = {
   sorcerer:  'Zauberer',
   wizard:    'Magier',
   bard:      'Barde',
@@ -71,15 +71,21 @@ export const SPELL_CLASS_LABELS: Record<string, string> = {
   warlock:   'Hexenmeister',
   paladin:   'Paladin',
   artificer: 'Erfinder',
-};
-export const SPELL_CLASS_KEYS = ['sorcerer', 'wizard', 'bard', 'druid', 'ranger', 'cleric', 'warlock', 'paladin', 'artificer'] as const;
+} as const;
+export type SpellClassKey = keyof typeof SPELL_CLASS_LABELS;
+export const SPELL_CLASS_KEYS = Object.keys(SPELL_CLASS_LABELS) as SpellClassKey[];
+
+/** Deutsches Label über eine Vokabular-Map, unbekannter Wert bleibt unübersetzt stehen. */
+export function labelOf<T extends Record<string, string>>(map: T, value: string): string {
+  return map[value as keyof T] ?? value;
+}
 
 export function spellLevelLabel(level: number): string {
   return level === 0 ? 'Zaubertrick' : `${level}. Grad`;
 }
 
 export function spellSchoolLabel(school: string): string {
-  return SPELL_SCHOOLS[school as SpellSchool] ?? school;
+  return labelOf(SPELL_SCHOOLS, school);
 }
 
 /** „V, G, M"; ohne Komponenten „—". */
@@ -166,13 +172,13 @@ export const CHARACTER_ALIGNMENTS_DE: string[] = ([
 export const SIZE_CATEGORIES_DE: string[] = Object.values(MONSTER_SIZES);
 
 export function monsterSizeLabel(size: string): string {
-  return MONSTER_SIZES[size as MonsterSize] ?? size;
+  return labelOf(MONSTER_SIZES, size);
 }
 export function monsterTypeLabel(type: string): string {
-  return MONSTER_TYPES[type as MonsterType] ?? type;
+  return labelOf(MONSTER_TYPES, type);
 }
 export function monsterAlignmentLabel(alignment: string): string {
-  return MONSTER_ALIGNMENTS[alignment as MonsterAlignment] ?? alignment;
+  return labelOf(MONSTER_ALIGNMENTS, alignment);
 }
 
 export const MONSTER_TEMPLATE: Monster = {
