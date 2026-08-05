@@ -1,11 +1,12 @@
 /**
- * Das Wizard-Angebot (`classCastingOffer`) gegen den ECHTEN Vault — Stufe 4b: der Wizard-
- * Schritt „Zauber" liest jetzt Quotas statt `spellcastingOffer()`.
+ * Das Zauber-Angebot einer Klasse (`classCastingOffer`) gegen den ECHTEN Vault — Stufe 4b:
+ * Wizard-Schritt „Zauber" und Aufstiegs-Delta lesen beide dieselbe Quota-Projektion statt
+ * `spellcastingOffer()`/`cantripCount()`/`preparedOrKnownCount()`.
  *
- *   npm run test -- classCastingOffer
+ *   npm run test -- classOffer
  */
 import { describe, expect, it } from 'vitest';
-import { classCastingOffer } from '../../src/lib/services/wizard/classCastingOffer';
+import { classCastingOffer } from '../../src/lib/services/spellcasting/classOffer';
 
 describe('Zauber-Angebot des Wizards je Klasse, Stufe 1', () => {
   it('Magier: Zauberbuch-Regime, Buch zieht die Vorbereitung', async () => {
@@ -53,5 +54,18 @@ describe('Zauber-Angebot des Wizards je Klasse, Stufe 1', () => {
   it('ohne gewählte Klasse: leeres, nicht wirkendes Angebot', async () => {
     const offer = await classCastingOffer({ classKey: '', klasseName: '', level: 1 });
     expect(offer.isCaster).toBe(false);
+  });
+
+  it('Magier-Buch wächst über Stufen — der Aufstieg diff\'t genau diese beiden Zahlen', async () => {
+    const l1 = await classCastingOffer({ classKey: 'srd-2024_wizard', klasseName: 'Magier', level: 1 });
+    const l2 = await classCastingOffer({ classKey: 'srd-2024_wizard', klasseName: 'Magier', level: 2 });
+    expect(l1.spells?.count).toBe(6);
+    expect(l2.spells?.count).toBe(8); // +2 SPELLBOOK_START_SPELLS-Nachfolgeformel: base 6 + 2/Stufe
+  });
+
+  it('Barde lernt über die Stufen dazu — Prepared-Spells-Spalte wächst', async () => {
+    const l1 = await classCastingOffer({ classKey: 'srd-2024_bard', klasseName: 'Barde', level: 1 });
+    const l2 = await classCastingOffer({ classKey: 'srd-2024_bard', klasseName: 'Barde', level: 2 });
+    expect(l2.spells!.count).toBeGreaterThan(l1.spells!.count);
   });
 });

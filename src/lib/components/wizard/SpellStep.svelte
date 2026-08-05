@@ -1,7 +1,7 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
-  import type { ClassCastingOffer } from '../../services/wizard/classCastingOffer';
+  import type { ClassCastingOffer } from '../../services/spellcasting/classOffer';
   import type { SpellStepValues } from '../../services/wizard/spellStep.svelte';
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';

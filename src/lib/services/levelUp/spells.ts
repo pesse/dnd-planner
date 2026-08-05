@@ -10,7 +10,6 @@ import {
   unreadableSpellGrant,
   type SpellGrantSource,
 } from '../grantedSpells';
-import { isSpellbookClass } from '../spellcasting';
 import type { StepId } from './steps';
 
 export interface ValidatedRiders {
@@ -111,13 +110,15 @@ export interface LearnInfo {
 }
 
 /**
- * „Vorbereiten" ist KEIN Teil des Aufstiegs: reine Vorbereiter (Druide/Kleriker) lernen nichts
- * dazu und bekommen keine Auswahl. Der Magier trägt 2 je Stufe ins Zauberbuch ein.
+ * „Vorbereiten" ist KEIN Teil des Aufstiegs: reine Vorbereiter (Druide/Kleriker, `casterKind`
+ * `'prepared'`) lernen nichts dazu und bekommen keine Auswahl — `casterKind` kommt aus
+ * `Quota.swap.spells` (`levelUp.ts::spellcastingDelta`), nicht mehr aus einer Spaltenüberschrift,
+ * und ist deshalb auch für Barde/Sorcerer/Hexenmeister/Waldläufer/Paladin korrekt `'known'`
+ * statt (wie zuvor über die Spalte „Prepared Spells") fälschlich `'prepared'`.
  */
 export function learnInfo(delta: LevelUpDelta, riders: FeatureRider[]): LearnInfo {
-  const spellbook = isSpellbookClass(delta.sourceKey, delta.klasseName);
   const known = delta.casterKind === 'known';
   const riderExtra = riders.reduce((s, r) => s + r.extraPreparedCount, 0);
-  const count = known ? delta.preparedDelta + riderExtra : spellbook ? 2 * delta.levelsGained : 0;
-  return { learns: known || spellbook, count, spellbook };
+  const count = known ? delta.preparedDelta + riderExtra : 0;
+  return { learns: known, count, spellbook: delta.spellbook };
 }

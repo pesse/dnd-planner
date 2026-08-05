@@ -4,7 +4,7 @@
  */
 import type { CharacterWizard } from './characterWizard.svelte';
 import { decodePick, riderExtras } from '../spellcasting';
-import type { ClassCastingOffer } from './classCastingOffer';
+import type { ClassCastingOffer } from '../spellcasting/classOffer';
 import { validateRiderSpells } from '../levelUp/spells';
 import type { SpellInfo } from '../../spellLibrary';
 

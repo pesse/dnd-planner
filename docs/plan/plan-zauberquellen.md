@@ -656,9 +656,38 @@ der Live-Auswahl. Das schließt zugleich die zwei `encodePick`/`decodePick`-Zeil
       UND — als Merkmals-Zugang-Anschlusstest — Eingeweihter der Magie fragt Zauberattribut plus
       zwei getrennte Zauber-Picks (2 Zaubertricks, 1 Zauber 1. Grades), ohne Listen-Nachfrage, weil
       der Hintergrund die Liste laut SRD 2024 schon festlegt (`docs`: Weiser → Magier). Neuer Test
-      `tests/integration/classCastingOffer.test.ts` (Magier/Kleriker/Barde/Hexenmeister/Kämpfer/
-      leer) gegen den echten Vault.
-- [ ] Klassen-Zauberwirken im Aufstieg (Punkt 2, Aufstiegs-Hälfte) — dieselbe Prüfpflicht
+      `tests/integration/classOffer.test.ts` (Magier/Kleriker/Barde/Hexenmeister/Kämpfer/leer)
+      gegen den echten Vault — später auf `classOffer.ts` umbenannt (Punkt darunter), weil der
+      Aufstieg denselben Aufruf braucht.
+- [x] Klassen-Zauberwirken im Aufstieg (Punkt 2, Aufstiegs-Hälfte) — im Browser gegen
+      `.\dev-windows.ps1` geprüft (2026-08-05, Paladin 1→5 „Bölgör"): Der `casterKind`-Fix greift
+      sichtbar — der Paladin bekam beim Aufstieg erstmals „N Zauber erlernen" statt nichts.
+      `wizard/classCastingOffer.ts` nach
+      `spellcasting/classOffer.ts` verschoben (`emptyClassCastingOffer` neu exportiert) — der
+      geplante `castingCharacterOf`-Adapter blieb auch hier unnötig: `levelUp.ts::spellcastingDelta`
+      ruft `classCastingOffer` einfach zweimal (`fromLevel`/`toLevel`) und diff't die Kontingente,
+      genau wie der Wizard es einmal tut. `casterKind`/`cantripDelta`/`preparedFrom/To/Delta`/
+      `spellbook` (neues Feld an `LevelUpDelta`) kommen jetzt daraus statt aus
+      `cantripCount`/`preparedOrKnownCount`/`isSpellbookClass`; `levelUp/spells.ts::learnInfo`
+      liest nur noch `delta.casterKind`/`delta.spellbook`, `isSpellbookClass`-Import entfernt.
+      `spellSlotDelta` bleibt bei `spellSlotsAt` (Plätze sind keine Quota).
+      **Nebenbefund, echter Bugfix:** `casterKind` war für Barde/Sorcerer/Hexenmeister/Waldläufer/
+      Paladin immer `'prepared'`, nie `'known'` — die alte Herleitung fragte nur die
+      Spaltenüberschrift ab, und seit dem 2024-SRD heißt die Spalte für ALLE Klassen „Prepared
+      Spells" (auch dort, wo die Auswahl wie eine feste Zauberliste zwischen Stufenaufstiegen
+      bestehen bleibt). Diese Klassen bekamen im Aufstieg deshalb NIE die Frage „N Zauber
+      erlernen" — jetzt entscheidet `Quota.swap.spells` (`'level-up-one'`/`'long-rest-one'` →
+      `known`, `'long-rest-all'` → `prepared`), nicht der Spaltenname. Test
+      `tests/integration/levelUpCasting.test.ts` (neu) hält den Barden-Fix fest.
+      **Zweiter Befund aus dem Live-Test, kein neuer Bug — bestätigt den nächsten Punkt:** Bölgörs
+      Zauber landen fragmentiert (2 in `sources[…].picks.prepared`, 9 in `manual.extra`). Ursache:
+      `applyChanges.ts`s `cantrip`/`preparedSpell`-Senken schreiben IMMER nach `manual.extra`
+      (Kommentar dort: „die Zuordnung zu einem Kontingent trifft der Zauber-Block im Editor") —
+      anders als `assembleCharacter.ts`s `applySpellPicks`, das schon eine Kontingent-Heuristik
+      hat. Der Aufstieg bekam sie nie; SICHTBAR wurde das erst jetzt, weil Paladin (wie Barde/
+      Sorcerer/Hexenmeister/Waldläufer) durch den obigen Fix überhaupt zum ersten Mal
+      „Zauber erlernen"-Fragen bekommt. Kein Datenverlust (die Bogen-Anzeige dedupliziert über den
+      Zauber-Key), nur eine fehlende Quellen-Zeile. Genau das behebt der nächste Punkt.
 - [ ] Picks-Datenform auf `(sourceId, quotaId)` heben, `encodePick`/`decodePick` aus Wizard und
       Aufstieg entfernt
 - [ ] `services/spellcasting.ts`, `services/spellAccess.ts` gelöscht;

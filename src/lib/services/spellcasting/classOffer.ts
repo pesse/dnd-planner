@@ -4,9 +4,9 @@
  * Quotas (Domänenzauber etc.) brauchen keinen Picker: sie entstehen beim Laden von selbst.
  */
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
-import { classQuotaRoles, quotaContext, quotaViews, type QuotaView } from '../spellcasting/quota';
-import { resolveCasting } from '../spellcasting/resolve';
-import { spellPools } from '../spellcasting/slots';
+import { classQuotaRoles, quotaContext, quotaViews, type QuotaView } from './quota';
+import { resolveCasting } from './resolve';
+import { spellPools } from './slots';
 
 export interface ClassCastingOffer {
   isCaster: boolean;
@@ -18,7 +18,8 @@ export interface ClassCastingOffer {
   prepared: QuotaView | null;
 }
 
-const EMPTY = (klasseName: string): ClassCastingOffer => ({
+/** Auch für den Aufstieg: die Spanne VOR einer neuen Klasse (`fromLevel` 0) hat kein Angebot. */
+export const emptyClassCastingOffer = (klasseName: string): ClassCastingOffer => ({
   isCaster: false, klasseName, spellClass: '', cantrips: null, spells: null, prepared: null,
 });
 
@@ -29,7 +30,7 @@ export async function classCastingOffer(input: {
   subclassName?: string;
   level: number;
 }): Promise<ClassCastingOffer> {
-  if (!input.classKey) return EMPTY(input.klasseName);
+  if (!input.classKey) return emptyClassCastingOffer(input.klasseName);
 
   const [spellLib, resolution] = await Promise.all([
     getSpellLibrary(),
