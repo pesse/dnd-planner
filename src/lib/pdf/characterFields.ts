@@ -275,6 +275,9 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
   }
 
   return {
+    // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die Upgrade-Pipeline
+    // (schemas/characterUpgrades.ts) strukturiert sie beim ersten Laden der geschriebenen Datei.
+    _version: 1,
     name: f('Charaktername_page1'),
     classes: [], // strukturierte Klassen: aus classLevel beim Laden migriert (best-effort)
     classLevel: f('KlasseUndStufe'),

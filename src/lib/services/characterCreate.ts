@@ -3,10 +3,8 @@
  * Weg den Verzeichnis-Slug zurück; das Öffnen bleibt Sache des Aufrufers.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { CHARACTER_VERSION } from '../schemas/characterUpgrades';
-import type { Character } from '../schemas/characterSchema';
-import { emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
-import { emptySpellcasting } from './spellcasting/write';
+import { characterSchema, type Character } from '../schemas/characterSchema';
+import type { CharacterJSON } from '../pdf/characterFields';
 import { characterFromPdfFields } from '../pdf/characterImport';
 import { choosePdfFile, readPdfFields } from '../pdf/characterPdfIo';
 import { slugKeepUmlauts } from '../utils/text';
@@ -17,34 +15,6 @@ export type PdfImportResult =
   | { status: 'ok'; slug: string }
   | { status: 'cancelled' }
   | { status: 'error'; message: string };
-
-function blankCharacterJson(name: string): CharacterJSON {
-  return {
-    // Neu in der App entstanden → schon im aktuellen Format, kein Upgrade nötig.
-    _version: CHARACTER_VERSION,
-    name,
-    classes: [],
-    classLevel: '', playerName: '',
-    backgroundRef: { sourceKey: '', name: '' }, background: '',
-    species: { sourceKey: '', name: '' }, race: '', xp: '',
-    abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    mods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
-    ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
-    proficiencyBonus: 2, passivePerception: '', hitDice: '',
-    saveProfs: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
-    skills: {},
-    attacks: [],
-    classFeatures: '', traits: '', ideals: '', bonds: '', flaws: '',
-    languages: [], tools: [], alleskoenner: false,
-    currency: { km: '', sm: '', em: '', gm: '', pm: '' },
-    inventory: [], inventoryNotes: '', totalWeight: '',
-    spellcasting: emptySpellcasting(),
-    personal: emptyPersonal(),
-    proficiencies: emptyProficiencies(),
-    masteries: [],
-    features: [],
-  };
-}
 
 const gmNotesTemplate = (name: string): string =>
   `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
@@ -62,7 +32,7 @@ export async function createBlankCharacter(rawName: string): Promise<string | nu
   const slug = slugKeepUmlauts(raw, '_');
   const name = raw.charAt(0).toUpperCase() + raw.slice(1);
   try {
-    await writeCharacter(slug, name, blankCharacterJson(name));
+    await writeCharacter(slug, name, characterSchema.parse({ name }));
     return slug;
   } catch (err) {
     console.error('Charakter konnte nicht erstellt werden:', err);
@@ -104,12 +74,9 @@ export async function importCharacterFromPdf(onPicked?: () => void): Promise<Pdf
     const charName = data.name || path.split(/[/\\]/).pop()?.replace(/\.pdf$/i, '') || 'unbekannt';
     const slug = slugKeepUmlauts(charName, '_');
     const json: CharacterJSON = {
-      // BEWUSST v1: das PDF liefert Klasse/Volk/Hintergrund als Freitext. Die
-      // Upgrade-Pipeline (schemas/character.ts) strukturiert das beim ersten Laden.
-      _version: 1,
+      ...data, // _version: 1 kommt aus parseCharacterData — frisches PDF ist unstrukturiert.
       _importedFrom: path.split(/[/\\]/).pop() ?? path,
       _importedAt: new Date().toISOString(),
-      ...data,
     };
     await invoke('write_file_content', {
       path: `${CHARACTERS_PATH}/${slug}/character.json`,

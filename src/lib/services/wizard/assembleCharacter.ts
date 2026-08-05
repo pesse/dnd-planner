@@ -3,10 +3,8 @@
  * Schritt, deterministische Rechnung und fertige KI-Ergebnisse gemischt. Bewusst OHNE
  * Tauri/Dateizugriff: das Schreiben bleibt am Aufrufer, so bleibt das hier testbar.
  */
-import { CHARACTER_VERSION } from '$lib/schemas/characterUpgrades';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
-import { type Character } from '$lib/schemas/characterSchema';
-import { emptyProficiencies, emptyPersonal } from '$lib/pdf/characterFields';
+import { characterSchema, type Character } from '$lib/schemas/characterSchema';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
 import { type AbilityKey } from '$lib/schemas/classProgression';
 import { type SkillName } from '$lib/schemas/vocabulary';
@@ -20,7 +18,7 @@ import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUp/spells';
 import { classCastingOffer } from '../spellcasting/classOffer';
-import { addExtra, emptySpellcasting, setPicks } from '../spellcasting/write';
+import { addExtra, setPicks } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellcasting/access';
@@ -38,32 +36,6 @@ import type { CharacterWizard } from './characterWizard.svelte';
 import { keySlug } from '$lib/utils/text';
 
 type AnswerLookup = (id: string) => string;
-
-function blankCharacter(name: string): Character {
-  return {
-    _version: CHARACTER_VERSION,
-    name,
-    classes: [], classLevel: '', playerName: '',
-    backgroundRef: { sourceKey: '', name: '' }, background: '',
-    species: { sourceKey: '', name: '' }, race: '', xp: '',
-    abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    mods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
-    ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
-    proficiencyBonus: 2, passivePerception: '', hitDice: '',
-    saveProfs: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
-    skills: {},
-    attacks: [],
-    classFeatures: '', traits: '', ideals: '', bonds: '', flaws: '',
-    languages: [], tools: [], alleskoenner: false,
-    currency: { km: '', sm: '', em: '', gm: '', pm: '' },
-    inventory: [], inventoryNotes: '', totalWeight: '',
-    spellcasting: emptySpellcasting(),
-    personal: emptyPersonal(),
-    proficiencies: emptyProficiencies(),
-    masteries: [],
-    features: [],
-  };
-}
 
 function applyLinks(c: Character, w: CharacterWizard): void {
   c.classes = [{
@@ -289,7 +261,7 @@ async function applyEquipment(c: Character, w: CharacterWizard): Promise<void> {
 }
 
 export async function buildWizardCharacter(w: CharacterWizard): Promise<Character> {
-  const c = blankCharacter(w.name.trim() || 'Neuer Charakter');
+  const c = characterSchema.parse({ name: w.name.trim() || 'Neuer Charakter' });
   const [prog, spec] = await Promise.all([
     getProgressionByKey(w.klass.sourceKey),
     w.species.sourceKey ? getSpeciesByKey(w.species.sourceKey) : Promise.resolve(null),
