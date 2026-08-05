@@ -26,6 +26,12 @@
   font-weight: 400;
 }
 
+.npc-sheet .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 /* Eingabezeile unter einer Liste: Autocomplete-Feld, ggf. Zahl, „+". */
 .npc-sheet .add-row {
   display: flex;
@@ -65,6 +71,19 @@
   cursor: pointer;
 }
 .npc-sheet .add-btn:hover { color: var(--arcane); border-color: var(--arcane); }
+
+/* ● = geübt, ○ = ungeübt — Klick schaltet um. Save- und Skill-Zeile teilen sich die Regel. */
+.npc-sheet .prof-dot {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.65rem;
+  color: var(--ink-muted);
+  width: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.npc-sheet .proficient .prof-dot { color: var(--green); }
 
 /* × am Ende einer Listenzeile. */
 .npc-sheet .row-remove {
