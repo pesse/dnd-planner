@@ -74,7 +74,6 @@
 .num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
 .note { min-width: 80px; color: var(--ink-soft); font-style: italic; }
 .wide { flex: 1; min-width: 120px; }
-.wide-sm { flex: 1; min-width: 80px; font-size: 0.82rem; }
 .dmg-type-sel {
   font-style: normal;
   color: var(--ink-soft);
