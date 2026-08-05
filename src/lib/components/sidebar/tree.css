@@ -126,6 +126,13 @@
   color: var(--danger);
 }
 
+/* Akt-Zeile: kein Overlay wie .entry-row, weil noch der Encounter-Hinzufügen-Button
+   danebensteht — beide teilen sich die Hover-Sichtbarkeit in normalem Fluss. */
+.sidebar .act-row:hover .entry-del,
+.sidebar .act-row:hover .add-btn {
+  opacity: 1;
+}
+
 .sidebar .monster-group-header {
   width: 100%;
   text-align: left;
