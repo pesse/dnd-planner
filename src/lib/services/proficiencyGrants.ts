@@ -24,7 +24,7 @@ const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d
 
 import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
 
-import { WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '$lib/domain/proficiencies';
+import { PROFICIENCY_FLAGS, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '$lib/domain/proficiencies';
 export { WEAPON_LABEL_DE, ARMOR_LABEL_DE };
 
 export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as SkillName) ?? en;
@@ -102,25 +102,41 @@ function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, sou
 }
 
 /**
- * Vokabular → Bogen-Flag, die EINE Abbildung für Wizard und Aufstieg. Eine zweite liefe
- * auseinander — daran ist die Fertigkeits-Zuweisung schon einmal still gescheitert.
+ * Vokabular → Bogen-Flag über `PROFICIENCY_FLAGS`, die EINE Abbildung für Wizard und
+ * Aufstieg. Eine zweite liefe auseinander — daran ist die Fertigkeits-Zuweisung schon
+ * einmal still gescheitert.
  */
-export function markWeaponProficiency(flags: ProficiencyFlags, category: string): void {
-  if (category === 'Simple') flags.simpleWeapons = true;
-  else if (category === 'Martial') flags.martialWeapons = true;
-}
-
-export function markArmorTraining(flags: ProficiencyFlags, training: string): void {
-  if (training === 'Light') flags.lightArmor = true;
-  else if (training === 'Medium') flags.mediumArmor = true;
-  else if (training === 'Heavy') flags.heavyArmor = true;
-  else if (training === 'Shields') flags.shields = true;
+export function markProficiency(flags: ProficiencyFlags, kind: 'weapons', value: WeaponCategory): void;
+export function markProficiency(flags: ProficiencyFlags, kind: 'armor', value: ArmorTraining): void;
+export function markProficiency(
+  flags: ProficiencyFlags,
+  kind: 'weapons' | 'armor',
+  value: WeaponCategory | ArmorTraining,
+): void {
+  const hit = PROFICIENCY_FLAGS.find((f) => f.def.kind === kind && f.def.value === value);
+  if (hit) flags[hit.field] = true;
 }
 
 export function markSavingThrow(flags: Record<AbilityKey, boolean>, ability: AbilityName): void {
   const key = abilityKeyOf(ability);
   if (key) flags[key] = true;
 }
+
+/**
+ * Je ein Emitter für die vier Routen, die in `proficiencyGrantChanges` UND `riderGrantChanges`
+ * (levelUp/changes.ts) zeilengleich wären — Label-Formel inklusive, hier EINMAL.
+ */
+export const skillProficiencyChange = (skill: SkillName, meta: { step: string; source: string }): Change =>
+  ({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+
+export const weaponProficiencyChange = (value: WeaponCategory, meta: { step: string; source: string }): Change =>
+  ({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value]}` });
+
+export const armorTrainingChange = (value: ArmorTraining, meta: { step: string; source: string }): Change =>
+  ({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value]}` });
+
+export const savingThrowChange = (value: AbilityName, meta: { step: string; source: string }): Change =>
+  ({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
 
 /**
  * Die Vault-Übungsform als `Change[]`, die Sprache beider Flows. Die Tabelle ist über
@@ -141,24 +157,20 @@ export function proficiencyGrantChanges(
   const out: Change[] = [];
   const routes: { [K in keyof ProficiencyGrant]: () => void } = {
     skills: () => {
-      for (const skill of g.skills.fixed)
-        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+      for (const skill of g.skills.fixed) out.push(skillProficiencyChange(skill, meta));
     },
     savingThrows: () => {
-      for (const value of g.savingThrows)
-        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+      for (const value of g.savingThrows) out.push(savingThrowChange(value, meta));
     },
     weapons: () => {
-      for (const value of g.weapons)
-        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+      for (const value of g.weapons) out.push(weaponProficiencyChange(value, meta));
     },
     weaponsOther: () => {
       for (const value of g.weaponsOther)
         out.push({ target: 'weaponProficiencyOther', value, ...meta, label: `Übung: ${value}` });
     },
     armor: () => {
-      for (const value of g.armor)
-        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+      for (const value of g.armor) out.push(armorTrainingChange(value, meta));
     },
   };
   for (const [key, run] of Object.entries(routes) as [keyof ProficiencyGrant, () => void][])

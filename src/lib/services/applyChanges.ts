@@ -11,7 +11,7 @@ import type { Change } from '../schemas/levelUp';
 import { MONSTER_SIZES } from '../schemas/vocabulary';
 import { ftToMVal } from '../itemFormat';
 import { mod, skillSheetKey } from '../domain/skills';
-import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
+import { markProficiency, markSavingThrow } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 import { addExtra, addPick } from './spellcasting/write';
@@ -113,8 +113,8 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
     if (row) row.prof = true;
   },
   // Dieselbe Grenze; die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.
-  weaponProficiency: (c, next) => markWeaponProficiency(next.proficiencies, c.value),
-  armorTraining: (c, next) => markArmorTraining(next.proficiencies, c.value),
+  weaponProficiency: (c, next) => markProficiency(next.proficiencies, 'weapons', c.value),
+  armorTraining: (c, next) => markProficiency(next.proficiencies, 'armor', c.value),
   savingThrow: (c, next) => markSavingThrow(next.saveProfs, c.value),
   toolProficiency: (c, next) => pushUnique(next.tools, c.value),
   language: (c, next) => pushUnique(next.languages, c.value),
