@@ -637,11 +637,27 @@ der Live-Auswahl. Das schließt zugleich die zwei `encodePick`/`decodePick`-Zeil
       `levelUpFeatAccess.test.ts`, `featureDeclaration.test.ts` (dessen synthetische
       Klassen/Spezies/Talent-Deklaration jetzt `grantsCasting` neben `grantsChoice` trägt) —
       reine Logikänderung, `npm run verify` grün ohne Browser.
-- [ ] `castingCharacterOf(w)`-Adapter (Wizard) + Äquivalent für den Aufstieg — jetzt Teil von
-      Punkt 2, da Punkt 1 ohne ihn auskam (`castingSourceOf` reichte)
-- [ ] Klassen-Zauberwirken im Wizard (Punkt 2, Wizard-Hälfte) — **UI-Änderung**, laut `CLAUDE.md`
-      vor „fertig" im Browser gegen `.\dev-windows.ps1` zu prüfen (Zaubertricks/Zauber/Vorbereitung
-      je Regime, Zauberbuch-Zeile, Merkmals-Kontingente)
+- [x] `castingCharacterOf(w)`-Adapter (Wizard) — **kein eigener Adapter geworden**: der
+      Wizard-Schritt braucht `species`/`backgroundRef`/`features` gar nicht, weil Merkmals-Zugang
+      (Punkt 1) und fest gewährte Subklassen-Quotas (Domänenzauber etc.) schon über andere Wege
+      laufen — Ersteres über `w.spellPickChoices`, Zweites entsteht beim Laden von selbst, ohne
+      Picker. `wizard/classCastingOffer.ts` (neu) ruft `resolveCasting({classes:[…]})` deshalb NUR
+      mit der gewählten Klasse/Subklasse auf und leitet daraus `ClassCastingOffer`
+      (`cantrips`/`spells`/`prepared` als `QuotaView`) ab; `quota.ts` bekommt dafür
+      `classQuotaRoles()` — Buch/Vorbereitung/Zaubertricks strukturell unterschieden (`levels`
+      enthält 0 → Zaubertrick; eine Quota, auf die `pool.from` einer anderen zeigt → Buch) statt
+      über `PrepRegime`/Klassennamen-Listen. Ersetzt damit zugleich das Aufstiegs-Äquivalent nicht
+      mit — dafür bleibt ein eigener Schritt (Punkt 2, Aufstiegs-Hälfte unten).
+- [x] Klassen-Zauberwirken im Wizard (Punkt 2, Wizard-Hälfte) — **UI-Änderung**, im Browser gegen
+      `.\dev-windows.ps1` geprüft (2026-08-05): `SpellStep.svelte`/`spellStep.svelte.ts` lesen
+      `ClassCastingOffer` statt `spellcastingOffer()`/`SpellcastingOffer`, `CharacterWizard.svelte`
+      ruft `classCastingOffer(...)` statt `spellcastingOffer(...)`. Live bestätigt: Zaubertrick-/
+      Zauber-/Vorbereitungs-Kontingente, Zauberbuch-Zeile beim Magier, offene Liste beim Kleriker,
+      UND — als Merkmals-Zugang-Anschlusstest — Eingeweihter der Magie fragt Zauberattribut plus
+      zwei getrennte Zauber-Picks (2 Zaubertricks, 1 Zauber 1. Grades), ohne Listen-Nachfrage, weil
+      der Hintergrund die Liste laut SRD 2024 schon festlegt (`docs`: Weiser → Magier). Neuer Test
+      `tests/integration/classCastingOffer.test.ts` (Magier/Kleriker/Barde/Hexenmeister/Kämpfer/
+      leer) gegen den echten Vault.
 - [ ] Klassen-Zauberwirken im Aufstieg (Punkt 2, Aufstiegs-Hälfte) — dieselbe Prüfpflicht
 - [ ] Picks-Datenform auf `(sourceId, quotaId)` heben, `encodePick`/`decodePick` aus Wizard und
       Aufstieg entfernt

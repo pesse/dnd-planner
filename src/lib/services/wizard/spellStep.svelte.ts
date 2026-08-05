@@ -3,7 +3,8 @@
  * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
  */
 import type { CharacterWizard } from './characterWizard.svelte';
-import { decodePick, riderExtras, type SpellcastingOffer } from '../spellcasting';
+import { decodePick, riderExtras } from '../spellcasting';
+import type { ClassCastingOffer } from './classCastingOffer';
 import { validateRiderSpells } from '../levelUp/spells';
 import type { SpellInfo } from '../../spellLibrary';
 
@@ -14,6 +15,8 @@ export interface SpellStepValues {
   readonly spellMax: number;
   readonly preparedMax: number;
   readonly isSpellbook: boolean;
+  /** true = die Vorbereitung erneuert sich frei nach jeder Langen Rast (Kleriker/Druide). */
+  readonly isOpenList: boolean;
   /** Zaubergrade, für die auf Stufe 1 Plätze existieren (1 … maxSpellLevel). */
   readonly spellLevels: number[];
   readonly grantedSpells: { cantrips: string[]; prepared: { level: number; name: string }[] };
@@ -25,23 +28,19 @@ export interface SpellStepValues {
 
 export function createSpellStepValues(
   w: CharacterWizard,
-  offer: () => SpellcastingOffer | null,
+  offer: () => ClassCastingOffer | null,
   library: () => SpellInfo[],
 ): SpellStepValues {
   const extras = $derived(riderExtras(w.riders));
-  const cantripMax = $derived((offer()?.cantrips ?? 0) + extras.cantrips);
-  const spellMax = $derived.by(() => {
-    const o = offer();
-    return o ? (o.known || o.prepared) + extras.prepared : 0;
-  });
+  const cantripMax = $derived((offer()?.cantrips?.count ?? 0) + extras.cantrips);
+  const spellMax = $derived.by(() => (offer()?.spells?.count ?? 0) + extras.prepared);
   const preparedMax = $derived.by(() => {
-    const o = offer();
-    return o ? o.prepared + extras.prepared : 0;
+    const prepared = offer()?.prepared;
+    return prepared ? prepared.count + extras.prepared : 0;
   });
-  const isSpellbook = $derived(offer()?.regime === 'spellbook');
-  const spellLevels = $derived(
-    Array.from({ length: Math.max(0, offer()?.maxSpellLevel ?? 0) }, (_, i) => i + 1),
-  );
+  const isSpellbook = $derived(!!offer()?.prepared);
+  const isOpenList = $derived(offer()?.spells?.swap.spells === 'long-rest-all');
+  const spellLevels = $derived([...(offer()?.spells?.levels.filter((l) => l > 0) ?? [])]);
 
   /** Von Merkmalen gewährte Zauber: fest, nicht entfernbar, zählen nicht gegen das Kontingent. */
   const grantedSpells = $derived.by(() => {
@@ -70,12 +69,12 @@ export function createSpellStepValues(
   const done = $derived.by(() => {
     const base = offer();
     if (base?.isCaster) {
-      if (cantripPicks.length < base.cantrips) return false;
+      if (cantripPicks.length < (base.cantrips?.count ?? 0)) return false;
       // Nur fordern, was auch wählbar ANGEBOTEN wird: eine Klasse mit „Prepared Spells"-Spalte
       // aber ohne Zauberplatz-Spalten (Homebrew-Lücke) würde den Wizard sonst blockieren.
       if (spellLevels.length > 0) {
-        if (knownPicks.length < (base.known || base.prepared)) return false;
-        if (isSpellbook && w.pickedPrepared.length < base.prepared) return false;
+        if (knownPicks.length < (base.spells?.count ?? 0)) return false;
+        if (isSpellbook && w.pickedPrepared.length < (base.prepared?.count ?? 0)) return false;
       }
     }
     return w.spellPickChoices.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max);
@@ -87,6 +86,7 @@ export function createSpellStepValues(
     get spellMax() { return spellMax; },
     get preparedMax() { return preparedMax; },
     get isSpellbook() { return isSpellbook; },
+    get isOpenList() { return isOpenList; },
     get spellLevels() { return spellLevels; },
     get grantedSpells() { return grantedSpells; },
     get fixedCantrips() { return fixedCantrips; },

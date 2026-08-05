@@ -1,14 +1,14 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
-  import type { SpellcastingOffer } from '../../services/spellcasting';
+  import type { ClassCastingOffer } from '../../services/wizard/classCastingOffer';
   import type { SpellStepValues } from '../../services/wizard/spellStep.svelte';
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';
 
   let { w, offer, library, v, statusText }: {
     w: CharacterWizard;
-    offer: SpellcastingOffer | null;
+    offer: ClassCastingOffer | null;
     library: SpellInfo[];
     v: SpellStepValues;
     statusText: (job: Job<unknown>) => string;
@@ -46,7 +46,7 @@
       {#if v.isSpellbook}
         Zauberbuch — {v.spellMax} Zauber deiner Wahl
         <span class="info" title="Das Zauberbuch ist dein dauerhafter Bestand. Aus ihm bereitest du nach jeder Langen Rast {v.preparedMax} Zauber vor — schalte sie im Auswahl-Dialog mit ● / ○ um.">ⓘ</span>
-      {:else if offer.regime === 'open-list'}
+      {:else if v.isOpenList}
         Erste Vorbereitung — {v.spellMax} Zauber
         <span class="info" title="Du kennst die ganze {offer.klasseName}-Zauberliste; nach jeder Langen Rast darfst du deine Vorbereitung völlig neu zusammenstellen. Das hier ist nur der Startzustand.">ⓘ</span>
       {:else}
@@ -60,7 +60,7 @@
       <SpellPickField
         title={v.isSpellbook
           ? 'Zauberbuch'
-          : offer.regime === 'open-list'
+          : v.isOpenList
             ? 'Erste Vorbereitung'
             : 'Zauber deiner Wahl'}
         {library}

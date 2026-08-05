@@ -180,6 +180,27 @@ export function quotaViews(
   return activeQuotas(source, issues).map((q) => quotaView(source, q, ctx, issues));
 }
 
+export interface ClassQuotaRoles {
+  cantrips: QuotaView | null;
+  /** Zauberbuch ODER die einzige Zauber-Quota Grad 1+. */
+  spells: QuotaView | null;
+  /** Zieht aus `spells` (`pool.from`) — nur beim Zauberbuch-Regime gesetzt. */
+  prepared: QuotaView | null;
+}
+
+/**
+ * Zwei-Stufigkeit ist eine Pool-Komposition, kein Klassenname: die Quota mit `pool.from`
+ * ist die Vorbereitung, die sie referenziert das Zauberbuch. Ohne eine solche Quota gibt es
+ * nur „die eine" Zauber-Quota Grad 1+, offen oder fest je nach `swap`.
+ */
+export function classQuotaRoles(quotas: QuotaView[]): ClassQuotaRoles {
+  const cantrips = quotas.find((q) => q.levels.includes(0)) ?? null;
+  const rest = quotas.filter((q) => q !== cantrips);
+  const prepared = rest.find((q) => q.pool.from) ?? null;
+  const spells = prepared ? (rest.find((q) => q.quotaId === prepared.pool.from?.quotaId) ?? null) : (rest[0] ?? null);
+  return { cantrips, spells, prepared };
+}
+
 export interface UsesContext {
   profBonus: number;
   mods: Record<AbilityKey, number>;
