@@ -145,7 +145,7 @@
     if (st.chosenFeats.length >= st.featsToPick) return;
     // `grantsChoice`/`grants` reisen mit — nur damit lesen `feat-links` Zauber-Zugang und
     // pro-Stufe-Effekte deterministisch aus der Bibliothek statt aus der KI.
-    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
+    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells, grantsCasting: entry.grantsCasting }];
     featQuery = '';
   }
 

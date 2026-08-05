@@ -99,6 +99,7 @@ function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | 
     grants: feat.grants,
     grantsChoice: feat.grantsChoice,
     grantsSpells: feat.grantsSpells,
+    grantsCasting: feat.grantsCasting,
   };
 }
 

@@ -9,6 +9,7 @@ import { withoutSpellGrantFeatures } from '../grantedSpells';
 import type { ClassFeature } from '../../schemas/classProgression';
 import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
+import type { CastingGrant } from '../../schemas/casting';
 import type { GainedFeature } from '../analysis/types';
 
 /** Englisch geführt, deutsche Fassung als Beilage — so deutet die KI. */
@@ -22,6 +23,7 @@ export interface ChosenFeat {
   grantsChoice?: FeatureChoiceGrant;
   grants?: FeatureGrant;
   grantsSpells?: SpellGrant;
+  grantsCasting?: CastingGrant;
 }
 
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {
