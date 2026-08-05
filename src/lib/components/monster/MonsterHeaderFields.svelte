@@ -45,3 +45,41 @@
     <input class="ef wide" bind:value={monster.speed} oninput={onchange} placeholder="9 m" />
   </div>
 </div>
+
+<style>
+  .sb-header { margin-bottom: 0.4rem; }
+
+  .sb-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--mef-accent, var(--danger));
+    font-variant: small-caps;
+    width: 100%;
+    margin-bottom: 0.1rem;
+  }
+
+  .meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+
+  .meta-sel {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    background: var(--bg-panel);
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+  }
+  .meta-sel:hover { border-color: var(--border); }
+  .meta-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
+
+  .note { min-width: 80px; color: var(--ink-soft); font-style: italic; }
+</style>

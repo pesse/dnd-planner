@@ -78,3 +78,24 @@
     <span class="sep"> EP)</span>
   </div>
 </div>
+
+<style>
+  .kv-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    line-height: 1.8;
+  }
+
+  .kv-list { display: flex; flex-wrap: wrap; gap: 0.2rem; align-items: center; }
+
+  .kv-pair { display: flex; align-items: center; gap: 0.1rem; }
+
+  .kv-key { width: 80px; font-size: 0.85rem; }
+  .kv-val { width: 44px; font-size: 0.85rem; color: var(--green); }
+
+  .cr { width: 40px; text-align: center; }
+
+  .sep { color: var(--ink-soft); padding: 0 0.1rem; }
+</style>

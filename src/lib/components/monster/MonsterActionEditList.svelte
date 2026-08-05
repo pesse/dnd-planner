@@ -56,3 +56,25 @@
   {/each}
   <button class="add-btn" onclick={add}>+ Aktion</button>
 </div>
+
+<style>
+  .attack-row { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+
+  .lbl-sm { font-weight: 700; color: var(--mef-accent, var(--danger)); opacity: 0.7; font-size: 0.78rem; white-space: nowrap; }
+
+  .num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
+
+  .dmg-type-sel {
+    font-style: normal;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    background: var(--bg-panel);
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    width: 80px;
+  }
+  .dmg-type-sel:hover { border-color: var(--border); }
+  .dmg-type-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
+</style>

@@ -1,5 +1,5 @@
-/* Formularfelder des Monster-Editors: MonsterEditForm.svelte und ihre Unterkomponenten
-   teilen sich diese Klassen (Eingaben, Trenner, Merkmalslisten). */
+/* Nur was mehr als eine Komponente des Monster-Editors braucht. Was nur eine Datei benutzt,
+   steht in deren <style> — dort meldet der Compiler es, wenn es niemand mehr trifft. */
 
 .ef {
   background: transparent;
@@ -13,42 +13,6 @@
 }
 .ef:hover { border-color: var(--border); background: var(--bg-panel); }
 .ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
-
-.sb-header { margin-bottom: 0.4rem; }
-
-.sb-name {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--mef-accent, var(--danger));
-  font-variant: small-caps;
-  width: 100%;
-  margin-bottom: 0.1rem;
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.15rem;
-  font-style: italic;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
-}
-
-.meta-sel {
-  font-style: italic;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
-  background: var(--bg-panel);
-  cursor: pointer;
-  padding: 0.1rem 0.2rem;
-  border: 1px solid transparent;
-  border-radius: 3px;
-}
-.meta-sel:hover { border-color: var(--border); }
-.meta-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
-
-.sep { color: var(--ink-soft); padding: 0 0.1rem; }
 
 .divider {
   height: 2px;
@@ -68,61 +32,9 @@
 }
 
 .lbl { font-weight: 700; color: var(--mef-accent, var(--danger)); white-space: nowrap; }
-.lbl-sm { font-weight: 700; color: var(--mef-accent, var(--danger)); opacity: 0.7; font-size: 0.78rem; white-space: nowrap; }
 
 .num  { width: 52px; text-align: center; }
-.num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
-.note { min-width: 80px; color: var(--ink-soft); font-style: italic; }
 .wide { flex: 1; min-width: 120px; }
-.dmg-type-sel {
-  font-style: normal;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  background: var(--bg-panel);
-  cursor: pointer;
-  padding: 0.1rem 0.2rem;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  width: 80px;
-}
-.dmg-type-sel:hover { border-color: var(--border); }
-.dmg-type-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
-.cr   { width: 40px; text-align: center; }
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  text-align: center;
-  gap: 0.25rem;
-}
-
-.stat-cell { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; }
-
-.stat-lbl {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--mef-accent, var(--danger));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-in { width: 46px; text-align: center; font-size: 1rem; font-weight: 600; padding: 0.1rem; }
-.stat-mod { font-size: 0.78rem; color: var(--ink-soft); }
-
-.kv-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  line-height: 1.8;
-}
-
-.kv-list { display: flex; flex-wrap: wrap; gap: 0.2rem; align-items: center; }
-
-.kv-pair { display: flex; align-items: center; gap: 0.1rem; }
-
-.kv-key { width: 80px; font-size: 0.85rem; }
-.kv-val { width: 44px; font-size: 0.85rem; color: var(--green); }
 
 .kv-del {
   background: none; border: none; color: var(--border);
@@ -165,8 +77,6 @@
   flex: 1;
   min-width: 0;
 }
-
-.attack-row { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 
 .ability-desc {
   width: 100%;

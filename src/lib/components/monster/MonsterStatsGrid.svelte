@@ -16,3 +16,25 @@
     </div>
   {/each}
 </div>
+
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    text-align: center;
+    gap: 0.25rem;
+  }
+
+  .stat-cell { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; }
+
+  .stat-lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mef-accent, var(--danger));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stat-in { width: 46px; text-align: center; font-size: 1rem; font-weight: 600; padding: 0.1rem; }
+  .stat-mod { font-size: 0.78rem; color: var(--ink-soft); }
+</style>
