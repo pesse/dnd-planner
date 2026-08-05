@@ -14,6 +14,7 @@ import { mod, skillSheetKey } from '../domain/skills';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
+import { addExtra } from './spellcasting/write';
 
 export interface ApplyContext {
   /** Index der Klasse, an der `subclass` landet. */
@@ -27,6 +28,13 @@ export interface ApplyContext {
    * sie, bleibt jeder Wert Freitext — die Übung fiele also aus, wo eine Waffe gemeint war.
    */
   resolveWeaponName?: (name: string) => string | undefined;
+}
+
+/** Ein Zauber ohne Bibliothekstreffer wird NICHT übernommen — gespeichert werden nur Keys. */
+function addLooseSpell(next: Character, name: string, env: ApplyEnv): void {
+  const key = env.spellKey(name).sourceKey;
+  if (!key) return;
+  addExtra(next.spellcasting, key);
 }
 
 function pushUnique(list: string[], value: string): void {
@@ -62,23 +70,22 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   hitDice: (c, next) => { next.hitDice = c.value; },
   proficiencyBonus: (c, next) => { next.proficiencyBonus = c.value; },
 
+  // Plätze sind abgeleitet; nur die Handeingabe für Klassen ohne Progression wächst mit.
   spellSlot: (c, next) => {
-    const slot = (next.spells?.slots ?? [])[c.level - 1];
-    if (slot) slot.total += c.value;
+    const totals = next.spellcasting.manual?.slotTotals;
+    if (!totals?.length) return;
+    totals[c.level - 1] = Math.max(0, (totals[c.level - 1] ?? 0) + c.value);
   },
+  // Ohne Quelle und Quota im Change bleibt nur der quellenlose Bestand; die Zuordnung zu
+  // einem Kontingent trifft der Zauber-Block im Editor.
   cantrip: (c, next, env) => {
-    if (next.spells.cantrips.some((e) => e.name === c.name)) return;
-    next.spells.cantrips = [...next.spells.cantrips, { name: c.name, ...env.spellKey(c.name) }];
+    addLooseSpell(next, c.name, env);
   },
-  spellcastingClass: (c, next) => {
-    if (!next.spells.spellcastingClass) next.spells.spellcastingClass = c.value;
+  spellcastingClass: () => {
+    /* Die Zauberklasse ergibt sich aus `classes[]` und der Deklaration. */
   },
   preparedSpell: (c, next, env) => {
-    if (!c.name.trim()) return;
-    const lvl = String(c.level);
-    const arr = next.spells.byLevel[lvl] ?? [];
-    if (!arr.some((e) => e.name === c.name)) arr.push({ name: c.name, prepared: c.prepared, ...env.spellKey(c.name) });
-    next.spells.byLevel[lvl] = arr;
+    addLooseSpell(next, c.name, env);
   },
 
   ability: (c, next) => {

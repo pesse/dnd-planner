@@ -1,0 +1,159 @@
+/**
+ * Der Umzug der Altform `character.spells` nach `character.spellcasting`: jeder Zauber in ein
+ * Kontingent, das ihn tragen kann, der Rest quellenlos. Läuft pro Charakter als Legacy-Fix,
+ * weil er die aufgelösten Quellen der Bibliothek braucht.
+ */
+import type { AbilityName } from '$lib/schemas/abilities';
+import type { CharacterSpells } from '$lib/schemas/characterSchema';
+import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
+import type { SpellInfo } from '$lib/spellLibrary';
+import type { LooseSpell, ProjectionLookup } from './project';
+import type { QuotaState, SourceState, SpellcastingState } from './state';
+import { addExtra, setAbility, setPicks, setSlotTotals, setSlotUsed } from './write';
+
+export interface FlatSpellPlan {
+  /** Vollständige Auswahl je Quota — bestehende Picks plus die übernommenen. */
+  picks: { sourceId: string; quotaId: string; keys: string[] }[];
+  abilities: { sourceId: string; ability: AbilityName }[];
+  extra: string[];
+  /** Nur wo die Progression keine Plätze hergibt. */
+  slotTotals: number[];
+  slotUsed: number[];
+  /** Namen ohne Bibliothekstreffer; sie bleiben in der Altform stehen. */
+  unresolved: LooseSpell[];
+  /** Zauber, die der Umzug bewegt. */
+  moved: number;
+}
+
+const flatRefCount = (spells: CharacterSpells): number =>
+  spells.cantrips.length + Object.values(spells.byLevel).reduce((n, refs) => n + refs.length, 0);
+
+/** Was noch Umzugsgut ist. Leer heißt: die Altform darf aus der Datei verschwinden. */
+export function hasFlatSpellContent(spells: CharacterSpells | undefined): boolean {
+  if (!spells) return false;
+  return (
+    flatRefCount(spells) > 0 ||
+    spells.slots.some((s) => s.total > 0 || s.used > 0) ||
+    !!spells.spellcastingClass.trim() ||
+    !!spells.spellcastingAbility.trim()
+  );
+}
+
+/** Die Altform kennt keine Quelle, also entscheidet der Pool, was ein Kontingent aufnimmt. */
+function accepts(quota: QuotaState, spell: LooseSpell, info: SpellInfo | undefined, taken: string[]): boolean {
+  const { view } = quota;
+  if (view.fixed || taken.length >= view.count) return false;
+  if (view.levels.length && !view.levels.includes(spell.level)) return false;
+  const { pool } = view;
+  if (pool.keys.length && !pool.keys.includes(spell.key)) return false;
+  if (pool.lists.length && !(info?.classes ?? []).some((c) => pool.lists.includes(c))) return false;
+  if (pool.schools.length && !(info && (pool.schools as string[]).includes(info.school))) return false;
+  return true;
+}
+
+/**
+ * Ein Zauberbuch nimmt alles auf, die Vorbereitung nur, was die Altform als vorbereitet führt.
+ * Ohne Buch gäbe diese Unterscheidung den unvorbereiteten Zaubern keinen Platz.
+ */
+function tierMatches(quota: QuotaState, source: SourceState, spell: LooseSpell): boolean {
+  if (quota.view.tier === 'known' || spell.level === 0 || spell.prepared) return true;
+  return !source.quotas.some((q) => q.view.tier === 'known' && !q.view.fixed);
+}
+
+export function planFlatSpellMigration(
+  block: CharacterSpellcasting,
+  state: SpellcastingState,
+  lookup: ProjectionLookup,
+  loose: LooseSpell[],
+): FlatSpellPlan {
+  // Ein gewährtes Kontingent steht nur im `covered`-Satz: als Auswahl geschrieben verdoppelte
+  // es die Gewährung.
+  const taken: { sourceId: string; quotaId: string; keys: string[] }[] = [];
+  const covered = new Set<string>();
+  for (const source of state.sources) {
+    for (const quota of source.quotas) {
+      for (const key of quota.spells) covered.add(key);
+      if (!quota.view.fixed)
+        taken.push({ sourceId: source.source.id, quotaId: quota.view.quotaId, keys: [...quota.spells] });
+    }
+  }
+  const slotOf = (sourceId: string, quotaId: string): string[] =>
+    taken.find((t) => t.sourceId === sourceId && t.quotaId === quotaId)?.keys ?? [];
+
+  const extra: string[] = [];
+  const unresolved: LooseSpell[] = [];
+  let moved = 0;
+  for (const spell of loose) {
+    if (!spell.key) {
+      unresolved.push(spell);
+      continue;
+    }
+    if (covered.has(spell.key)) continue;
+    covered.add(spell.key);
+    const info = lookup.spell(spell.key);
+    // Innerhalb einer Quelle nehmen Buch UND Vorbereitung denselben Zauber; über Quellen
+    // hinweg zählte er sonst zweimal gegen ein Kontingent.
+    let placed = false;
+    for (const source of state.sources) {
+      for (const quota of source.quotas) {
+        const slot = slotOf(source.source.id, quota.view.quotaId);
+        const from = quota.view.pool.from;
+        if (from && !slotOf(from.sourceId, from.quotaId).includes(spell.key)) continue;
+        if (!tierMatches(quota, source, spell) || !accepts(quota, spell, info, slot)) continue;
+        slot.push(spell.key);
+        placed = true;
+      }
+      if (placed) break;
+    }
+    if (!placed) extra.push(spell.key);
+    moved++;
+  }
+
+  const picks = taken.filter(
+    (t) => t.keys.length > (block.sources[t.sourceId]?.picks[t.quotaId]?.length ?? 0),
+  );
+
+  const abilities = state.sources
+    .filter((s) => s.ability && (s.source.ability?.choose.length ?? 0) > 1 && !block.sources[s.source.id]?.bindings.ability)
+    .map((s) => ({ sourceId: s.source.id, ability: s.ability as AbilityName }));
+
+  return {
+    picks,
+    abilities,
+    extra,
+    slotTotals: state.manualSlots && !block.manual?.slotTotals.length ? state.pools.standard.total : [],
+    slotUsed: block.pools.standard.used.length ? [] : state.pools.standard.used,
+    unresolved,
+    moved,
+  };
+}
+
+export const planIsEmpty = (plan: FlatSpellPlan): boolean =>
+  !plan.moved &&
+  !plan.abilities.length &&
+  !plan.slotTotals.some((n) => n > 0) &&
+  !plan.slotUsed.some((n) => n > 0);
+
+export function applyFlatSpellPlan(block: CharacterSpellcasting, plan: FlatSpellPlan): void {
+  for (const { sourceId, quotaId, keys } of plan.picks) setPicks(block, sourceId, quotaId, keys);
+  for (const { sourceId, ability } of plan.abilities) setAbility(block, sourceId, ability);
+  for (const key of plan.extra) addExtra(block, key);
+  if (plan.slotTotals.length) setSlotTotals(block, plan.slotTotals);
+  plan.slotUsed.forEach((used, i) => { if (used > 0) setSlotUsed(block, i + 1, used); });
+}
+
+/** Nach dem Umzug bleibt in der Altform nur, was die Bibliothek nicht kennt. */
+export function reduceFlatSpells(spells: CharacterSpells, plan: FlatSpellPlan): void {
+  const byLevel: CharacterSpells['byLevel'] = {};
+  for (const spell of plan.unresolved) {
+    if (spell.level === 0) continue;
+    (byLevel[String(spell.level)] ??= []).push({ name: spell.label, prepared: spell.prepared });
+  }
+  spells.spellcastingClass = '';
+  spells.spellcastingAbility = '';
+  spells.saveDC = 0;
+  spells.attackBonus = 0;
+  spells.slots = spells.slots.map(() => ({ total: 0, used: 0 }));
+  spells.cantrips = plan.unresolved.filter((s) => s.level === 0).map((s) => ({ name: s.label }));
+  spells.byLevel = byLevel;
+}

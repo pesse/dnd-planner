@@ -472,22 +472,22 @@
           "srd-2024_sorcerer_spellcasting": {
             "picks": {
               "cantrips": [
-                { "name": "Fire Bolt", "sourceKey": "srd-2024_fire-bolt" },
-                { "name": "Light", "sourceKey": "srd-2024_light" },
-                { "name": "Mage Hand", "sourceKey": "srd-2024_mage-hand" },
-                { "name": "Minor Illusion", "sourceKey": "srd-2024_minor-illusion" },
-                { "name": "Sorcerous Burst", "sourceKey": "srd-2024_sorcerous-burst" }
+                "srd-2024_fire-bolt",
+                "srd-2024_light",
+                "srd-2024_mage-hand",
+                "srd-2024_minor-illusion",
+                "srd-2024_sorcerous-burst"
               ],
               "prepared": [
-                { "name": "Burning Hands", "sourceKey": "srd-2024_burning-hands" },
-                { "name": "Detect Magic", "sourceKey": "srd-2024_detect-magic" },
-                { "name": "Magic Missile", "sourceKey": "srd-2024_magic-missile" },
-                { "name": "Shield", "sourceKey": "srd-2024_shield" },
-                { "name": "Mirror Image", "sourceKey": "srd-2024_mirror-image" },
-                { "name": "Misty Step", "sourceKey": "srd-2024_misty-step" },
-                { "name": "Scorching Ray", "sourceKey": "srd-2024_scorching-ray" },
-                { "name": "Counterspell", "sourceKey": "srd-2024_counterspell" },
-                { "name": "Fireball", "sourceKey": "srd-2024_fireball" }
+                "srd-2024_burning-hands",
+                "srd-2024_detect-magic",
+                "srd-2024_magic-missile",
+                "srd-2024_shield",
+                "srd-2024_mirror-image",
+                "srd-2024_misty-step",
+                "srd-2024_scorching-ray",
+                "srd-2024_counterspell",
+                "srd-2024_fireball"
               ]
             }
           },
@@ -517,35 +517,35 @@
           "srd-2024_bard_spellcasting": {
             "picks": {
               "cantrips": [
-                { "name": "Vicious Mockery", "sourceKey": "srd-2024_vicious-mockery" },
-                { "name": "Dancing Lights", "sourceKey": "srd-2024_dancing-lights" },
-                { "name": "Minor Illusion", "sourceKey": "srd-2024_minor-illusion" },
-                { "name": "Prestidigitation", "sourceKey": "srd-2024_prestidigitation" }
+                "srd-2024_vicious-mockery",
+                "srd-2024_dancing-lights",
+                "srd-2024_minor-illusion",
+                "srd-2024_prestidigitation"
               ],
               "prepared": [
-                { "name": "Charm Person", "sourceKey": "srd-2024_charm-person" },
-                { "name": "Cure Wounds", "sourceKey": "srd-2024_cure-wounds" },
-                { "name": "Dissonant Whispers", "sourceKey": "srd-2024_dissonant-whispers" },
-                { "name": "Faerie Fire", "sourceKey": "srd-2024_faerie-fire" },
-                { "name": "Healing Word", "sourceKey": "srd-2024_healing-word" },
-                { "name": "Heat Metal", "sourceKey": "srd-2024_heat-metal" },
-                { "name": "Invisibility", "sourceKey": "srd-2024_invisibility" },
-                { "name": "Shatter", "sourceKey": "srd-2024_shatter" },
-                { "name": "Dispel Magic", "sourceKey": "srd-2024_dispel-magic" },
-                { "name": "Fear", "sourceKey": "srd-2024_fear" },
-                { "name": "Hypnotic Pattern", "sourceKey": "srd-2024_hypnotic-pattern" },
-                { "name": "Dimension Door", "sourceKey": "srd-2024_dimension-door" },
-                { "name": "Greater Invisibility", "sourceKey": "srd-2024_greater-invisibility" },
-                { "name": "Polymorph", "sourceKey": "srd-2024_polymorph" },
-                { "name": "Wall of Force", "sourceKey": "srd-2024_wall-of-force" }
+                "srd-2024_charm-person",
+                "srd-2024_cure-wounds",
+                "srd-2024_dissonant-whispers",
+                "srd-2024_faerie-fire",
+                "srd-2024_healing-word",
+                "srd-2024_heat-metal",
+                "srd-2024_invisibility",
+                "srd-2024_shatter",
+                "srd-2024_dispel-magic",
+                "srd-2024_fear",
+                "srd-2024_hypnotic-pattern",
+                "srd-2024_dimension-door",
+                "srd-2024_greater-invisibility",
+                "srd-2024_polymorph",
+                "srd-2024_wall-of-force"
               ]
             }
           },
           "srd-2024_college-of-lore_magical-discoveries": {
             "picks": {
               "discoveries": [
-                { "name": "Counterspell", "sourceKey": "srd-2024_counterspell" },
-                { "name": "Spirit Guardians", "sourceKey": "srd-2024_spirit-guardians" }
+                "srd-2024_counterspell",
+                "srd-2024_spirit-guardians"
               ]
             }
           }

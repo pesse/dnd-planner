@@ -140,8 +140,8 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     expect(rows[0].abilityDe).toBe('Charisma');
     expect(rows[0].saveDC).toBe(13);
     // Der Klassen-Zauberblock bleibt unberührt — der Zugang steht NEBEN ihm, nicht darin.
-    expect(c.spells.spellcastingAbility).toBe('');
-    expect(c.spells.saveDC).toBe(0);
+    expect(c.spells?.spellcastingAbility ?? '').toBe('');
+    expect(c.spells?.saveDC ?? 0).toBe(0);
   });
 
   it('liefert nichts für einen Charakter ohne Talent mit Zauber-Zugang', async () => {

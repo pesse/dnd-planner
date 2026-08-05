@@ -17,6 +17,7 @@
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
+  import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
@@ -161,6 +162,9 @@
     return () => { cancelled = true; };
   });
 
+  // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
+  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells));
+
   // Erkennung UND Verlinkung liegen in `services/characterLegacyLinks.ts`; hier bleiben
   // nur der mutierte Zustand und der UI-Nachlauf.
   const legacyTarget = $derived<LegacyLinkTarget>({
@@ -169,15 +173,16 @@
     species: form.species,
     backgroundRef: form.backgroundRef,
     inventory: form.inventory,
-    cantrips: form.spells.cantrips,
-    spellsByLevel: form.spells.byLevel,
+    spells: character.spells,
+    dropSpells: () => { delete character.spells; },
+    spellcasting: form.spellcasting,
     proficiencies: form.proficiencies,
     attacks: form.attacks,
     weaponCtx,
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
-    items: libs.itemIndex, spells: libs.spellIndex,
+    items: libs.itemIndex, casting: casting.current,
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
@@ -190,6 +195,7 @@
       case 'classes': editingClassRow = -1; break;
       case 'species': form.race = form.species.name; editingSpecies = false; break;
       case 'background': form.background = form.backgroundRef.name; editingBackground = false; break;
+      case 'spells': form.spellcasting = { ...form.spellcasting }; break;
     }
   }
 
@@ -402,12 +408,11 @@
     <h3>Zauberwirken</h3>
     <SpellBlock
       {form}
+      casting={casting.current}
       spellLibrary={libs.spells}
-      spellIndex={libs.spellIndex}
       {saved}
       fixLabel={fixOf('spells')?.label}
       onfix={() => applyFix(fixOf('spells'))}
-      {dirOf}
       onlibraryreload={() => libs.reloadSpells()}
     />
   </section>

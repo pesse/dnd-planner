@@ -190,7 +190,7 @@
           "when": {
             "<key>": "string"
           },
-          "tier": "prepared",
+          "tier": "known",
           "levels": [
             0
           ],

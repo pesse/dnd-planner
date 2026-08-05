@@ -13,6 +13,7 @@ import { applyChanges, changesWouldAlter } from '../../src/lib/services/applyCha
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import { emptyProficiencies } from '../../src/lib/pdf/characterFields';
+import { emptySpellcasting } from '../../src/lib/services/spellcasting/write';
 import { buildItemIndex, matchWeaponName, type ItemInfo } from '../../src/lib/itemLibrary';
 
 const shortsword: ItemInfo = {
@@ -68,14 +69,15 @@ describe('Waffenübung', () => {
 function target(other: string, individual: string[] = []): LegacyLinkTarget {
   return {
     classes: [], legacyClassLevel: '', species: { sourceKey: '', name: '' },
-    backgroundRef: { sourceKey: '', name: '' }, inventory: [], cantrips: [], spellsByLevel: {},
+    backgroundRef: { sourceKey: '', name: '' }, inventory: [],
+    spells: undefined, dropSpells: () => {}, spellcasting: emptySpellcasting(),
     proficiencies: { ...emptyProficiencies(), individualWeapons: individual, otherWeapons: other },
     attacks: [], weaponCtx: { strMod: 0, gesMod: 0, proficiencyBonus: 0, proficiencies: emptyProficiencies() },
   } as LegacyLinkTarget;
 }
 
 const libs = {
-  classes: [], species: [], backgrounds: [], spells: { byKey: new Map(), byName: new Map(), ambiguous: new Set() },
+  classes: [], species: [], backgrounds: [], casting: null,
   items: {
     byKey: new Map([[shortsword.key!, shortsword]]),
     byName: new Map([['kurzschwert', shortsword], ['shortsword', shortsword]]),

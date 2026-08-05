@@ -5,6 +5,7 @@
 import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
 import { SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
+import type { CharacterSpells } from '../schemas/characterSchema';
 import { SKILL_DEFS } from '../domain/skills';
 import { PROFICIENCY_FLAGS } from '../domain/proficiencies';
 import type { SpellAccessValues } from '../services/spellAccess';
@@ -294,8 +295,7 @@ function writeInventory({ t }: FieldSink, ch: CharacterJSON) {
   }
 }
 
-function writeSpells({ t, c }: FieldSink, ch: CharacterJSON) {
-  const sp = ch.spells;
+function writeSpells({ t, c }: FieldSink, sp: CharacterSpells | undefined) {
   if (!sp) return;
   t('Zauberklasse', sp.spellcastingClass);
   t('AttributZauberwirken', sp.spellcastingAbility);
@@ -336,6 +336,8 @@ export async function exportCharacterToPdf(
     masteryOf?: (attackName: string) => string | undefined;
     /** Zauberwerte der Merkmals-Zugänge — dieselben Zeilen, die die Karte zeigt. */
     spellAccess?: SpellAccessValues[];
+    /** Flache Alt-Form aus `legacyFlatView`; das Template kennt nur EINEN Zauberblock. */
+    spells?: CharacterSpells;
   } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(templateBytes);
@@ -355,7 +357,7 @@ export async function exportCharacterToPdf(
   writeLanguagesAndTools(sink, character);
   writeCurrency(sink, character);
   writeInventory(sink, character);
-  writeSpells(sink, character);
+  writeSpells(sink, options.spells ?? character.spells);
   await appendFreitext(pdf, character, options.freitext);
 
   return pdf.save();

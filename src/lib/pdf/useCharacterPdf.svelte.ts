@@ -1,10 +1,12 @@
 /**
  * Die beiden PDF-Aktionen des Charakterbogens als Zustand: laufend, fehlgeschlagen.
  */
-import { emptySpells } from './characterFields';
+import { legacyFlatView } from '../services/spellcasting/legacy';
+import { loadSpellcasting } from '../services/spellcasting/project';
 import { choosePdfFile, exportCharacterPdfFile, importPdfIntoCharacter } from './characterPdfIo';
 import type { Character } from '../schemas/characterSchema';
 import type { SpellAccessValues } from '../services/spellAccess';
+import type { CharacterSpells } from '../schemas/characterSchema';
 
 export interface CharacterPdf {
   readonly importing: boolean;
@@ -27,6 +29,12 @@ export function createCharacterPdf(deps: {
   spellAccess: () => SpellAccessValues[];
   applyContent: (content: string) => void;
 }): CharacterPdf {
+  /** Das Template kennt nur einen flachen Zauberblock; die Wahrheit ist `spellcasting`. */
+  const flatSpells = async (c: Character): Promise<CharacterSpells> => {
+    const { state, lookup, legacy } = await loadSpellcasting(c);
+    return legacyFlatView(state, lookup, legacy);
+  };
+
   let importing = $state(false);
   let exporting = $state(false);
   let error = $state('');
@@ -51,7 +59,7 @@ export function createCharacterPdf(deps: {
       error = '';
       try {
         // Zauber aus dem aktuellen Charakter behalten — das PDF trägt sie nicht.
-        const content = await importPdfIntoCharacter(selected, deps.dirPath(), character.spells ?? emptySpells());
+        const content = await importPdfIntoCharacter(selected, deps.dirPath(), await flatSpells(character));
         deps.applyContent(content);
       } catch (e) {
         error = `PDF-Import fehlgeschlagen: ${e}`;
@@ -72,6 +80,7 @@ export function createCharacterPdf(deps: {
           freitext: deps.details(),
           masteryOf: deps.masteryOf,
           spellAccess: deps.spellAccess(),
+          spells: await flatSpells(character),
         });
       } catch (e) {
         error = `PDF-Export fehlgeschlagen: ${e}`;

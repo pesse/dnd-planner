@@ -280,13 +280,19 @@ spellcasting: {
   // Quellenbesitz: stirbt mit der Quelle.
   sources: Record<string, {
     bindings: { ability?: AbilityName; list?: string },
-    picks:    Record<string /* quotaId */, SpellRef[]>,
+    picks:    Record<string /* quotaId */, string[] /* spell.key */>,
     uses:     Record<string /* quotaId */, number>,
   }>,
   // Homebrew-Ausweg, bewusst schmal.
-  manual?: { slotTotals?: number[]; extra?: SpellRef[] },
+  manual?: { slotTotals?: number[]; extra?: string[] /* spell.key */ },
 }
 ```
+
+**Ein Zauber wird über `spell.key` verlinkt, nie über den Namen** — am Charakter gibt es keine
+Zaubernamen mehr. Die Deklarationen im Vault nennen weiter Namen (sie zitieren den Regeltext, und
+`fromDescTable` liest aus Prosa); übersetzt wird beim Auflösen, ein Name ohne
+Bibliotheks-Entsprechung ist `unknownSpell`. Damit fällt die Namensbrücke aus Stufe 4 auf einen
+einmaligen Migrationsschritt zusammen: gespeicherte deutsche Namen → Key.
 
 Die Trennlinie ist **geteilte Ressource vs. Quellenbesitz** — nicht „Zustand vs. Wahl". Slots
 sind geteilt (Multiclass), Freiwirkungen gehören je einer Quota (Mystic Arcanum hat vier
@@ -356,8 +362,13 @@ unverändert und ungetestet-stabil, und die Template-Arbeit ist eine eigene Aufg
 Nach Stufe 2 steht fest, ob das Modell die Regeln trifft — und es ist noch nichts weggeworfen.
 
 ### Stufe 1 — rein additiv, kein UI
-- [ ] `source.ts`, `quota.ts`, `slots.ts`, `resolve.ts` neu, nichts gelöscht
-- [ ] `slots.ts`: kombinierte Zauberwirkerstufe + Pakt-Pool daneben
+- [x] `source.ts`, `quota.ts`, `slots.ts`, `resolve.ts` neu, nichts gelöscht (2026-08-04)
+- [x] **`slots.ts`: kombinierte Zauberwirkerstufe + Pakt-Pool daneben** (2026-08-04) — Beitrag je
+      Klasse einzeln abgerundet (`FULL`/`HALF`/`THIRD`), `PACT` speist nur den zweiten Pool. Die
+      SRD-Tabelle „Multiclass Spellcaster" steht als Konstante darin: sie ist in keiner
+      Klassentabelle und damit nicht in Open5e v2 (wie `skillGrantMulticlass`). Sie greift erst
+      ab **zwei** speisenden Klassen — eine allein liest ihre eigene, sonst hätte ein Paladin 2
+      drei Plätze statt zwei.
 - [x] **`grantsCasting` als viertes Feld in `featureDeclarationFields`** (2026-08-04) —
       `schemas/casting.ts` neu, in `featureChoice.ts` eingehängt. **Musste vor die Vault-Arbeit**:
       Zod strippt unbekannte Keys, ohne Schema hätte der erste Speichervorgang im Klassen-Editor
@@ -393,47 +404,181 @@ Zauber erst beim Wirken, kein vorab gewählter Pool), Natürliche Erholung und W
 (freie Wirkung eines *ohnehin* vorbereiteten Zaubers bzw. Platzverbrauch), Magische Gegenstände
 benutzen (Gegenstände sind außerhalb dieses Plans), Schattenkünste (die Vault-Datei trägt einen
 ⚠️-Vorbehalt „FROM MEMORY / NOT SRD" — unbestätigter Inhalt wird nicht deklariert).
-- [ ] `resolve.ts` liest `grantsCasting`, wendet `patches` an, leitet `origin`/`labelDe`/`levelRef`
-      aus der Herkunft ab; die alten Pfade (`grantsChoice.kind='spellcasting'|'spellAccess'`,
-      `grantsSpells`) und die Namens-Fallbacks bleiben, solange der Vault nicht deklariert
-- [ ] `quota.ts` löst `since` (Vorgabe `min(gainedAt)`), `when` (optionList desselben Merkmals)
-      und `pool.from` (auch merkmalsübergreifend) auf
-- [ ] Tests in `tests/integration` gegen den echten Vault: je Klasse die Quotas und der
-      Tauschtakt auf Stufe 1, 5, 11, 20
-- [ ] `zauberquellen-beispiele.json` als Fixture: die 13 Deklarationen müssen zu den erwarteten
-      Quellen auflösen, und `state.ts` (Stufe 2) die zwei Beispielcharaktere reproduzieren
+- [x] **`resolve.ts` liest `grantsCasting`** (2026-08-04) — wendet `patches` an, leitet
+      `origin`/`labelDe`/`levelRef` aus der Herkunft ab, hängt `pool.from` und `ability.sameAs` an
+      Quellen-Ids und gibt Quellen ohne eigene Quota nicht heraus (Ritual Adept, Magische
+      Geheimnisse wirken allein über `patches`).
+
+      **Keine Namens-Fallbacks.** Der geplante Übergang entfällt: der Vault deklariert
+      vollständig, also synthetisiert `resolve.ts` nichts aus Merkmalsnamen, sondern MELDET —
+      eine Klasse mit `casterType != NONE`, deren Merkmale nichts deklarieren, wird
+      `undeclaredCasting`. Der Befund ist strukturell, kein zweiter Matcher neben
+      `isSpellcastingFeature`. Dazu `unresolvedPatch`, `unresolvedPool`, `unresolvedAbilityRef`,
+      `unreadableSpellTable`, `unknownBranchKey`.
+- [x] **`quota.ts`** (2026-08-04) — `since` (Vorgabe `min(gainedAt)`, höchstes erreichtes gewinnt
+      je `id`), `when` gegen die Ledger-Antwort, `pool.from`/`fromDescTable`/`names`, `count` aus
+      Spalte oder Formel, `levels` aus dem Platz-Pool der Quota. Dazu `castUses` für die vier
+      Schreibweisen freier Wirkungen.
+- [x] **Tests gegen den echten Vault** (2026-08-04) — `tests/integration/castingSources.test.ts`
+      (je Zauberklasse Kontingente und Tauschtakt auf 1/5/11/20, Zauberbuch samt Ritual-Adept-Patch,
+      Mystic Arcanum je Stufe, Magische Geheimnisse ab 10, Zweigwahl, Kreiszauber-Tabelle,
+      Spezies/Talent-Quellen, zweimal genommenes Talent) und `tests/unit/castingSlots.test.ts`
+      (Pools als reine Rechnung).
+- [x] **`zauberquellen-beispiele.json` als Fixture** (2026-08-04) —
+      `tests/integration/castingDeclarations.test.ts` hält die 13 Beispiele gegen den Vault und
+      prüft den ganzen Bestand (35): `when` trifft eine Option desselben Merkmals,
+      `patches`/`from`/`sameAs` treffen ein Ziel, `count.column` und `uses.count.column` stehen in
+      der Klassentabelle, jedes `fromDescTable` findet eine lesbare Tabelle. Verglichen wird
+      normalisiert: bei festem Pool sind `count` und `levels` redundant, der Vault schreibt sie
+      nicht mehr. `state.ts` reproduziert die zwei Beispielcharaktere in Stufe 2.
+
+Zwei Korrekturen, die die Umsetzung erzwungen hat:
+
+| Stelle | Befund |
+|---|---|
+| `quotaSchema` | `quotaPatchSchema.set` leitet die Teilform jetzt von einer vorgabenfreien Basis ab — mit `.default('prepared')` auf `tier` schaltete der Ritual-Adept-Patch das Zauberbuch von `known` auf `prepared` |
+| `FeatEntry` (`featsLibrary.ts`) | der feldweise Lesepfad kannte das vierte Feld nicht und verwarf `grantsCasting` der Talente stumm |
+
+Offen: `declarationCoverage.ts` zählt `grantsCasting` nicht mit, also gelten die 15 Merkmale, die
+NUR es tragen, weiter als „nicht redigiert". Gehört zu Stufe 5, wo die alten Felder aufgehen.
 
 ### Stufe 2 — Verifikation gegen den Bestand
-- [ ] `state.ts`, noch ohne Schreibpfad
-- [ ] Diff-Lauf über die sechs Charaktere in `vault/characters/`: abgeleiteter Zustand gegen
-      gespeichertes `character.spells`. Jede Abweichung ist entweder ein Modellfehler oder ein
-      Bestandsfehler — beides muss benannt werden, bevor es weitergeht
+- [x] **`state.ts`, noch ohne Schreibpfad** (2026-08-04) — dazu `schemas/spellcasting.ts` mit
+      `characterSpellcastingSchema` (die Persistenzform von oben) und `spellRefSchema`, das aus
+      `characterSchema.ts` dorthin gezogen ist. `tests/integration/castingState.test.ts`
+      reproduziert die zwei durchgerechneten Beispielcharaktere Feld für Feld.
+- [x] **Diff-Lauf über die sechs Charaktere** (2026-08-04). Wo der Charakter verlinkt ist,
+      stimmt der abgeleitete Zustand: Plätze (Druide 2 → 3, Druide 3 und Zauberer 3 → 4/2),
+      Attribute und Kontingente treffen den Bestand.
+
+| Charakter | Abweichung | Art |
+|---|---|---|
+| carric_galanodel (Schurke 2/Mönch 1) | zwei Plätze Grad 3, *Kältestrahl*, *Feuerball* — ohne jede Zauberklasse | Bestandsfehler |
+| phönix (`_version 1`) | `classes[]` leer, Klasse nur als Text „Magier"; 4 Tricks, 6 Zauber, 2 Plätze hängen an nichts | Bestandsfehler, erst mit der Verlinkung lösbar |
+| thromm_flechtenstein (Druide 3) | `spellcastingAbility: "CHA"` statt Weisheit | Bestandsfehler |
+| thromm_flechtenstein | 3 Zaubertricks bei Kontingent 2 — der dritte ist nur mit Urtümlicher Ordnung = *Magician* gedeckt, und diese Antwort steht nicht im Ledger | Bestandsfehler (fehlende Antwort) |
+| thromm_flechtenstein | 7 Zauber Grad 1 bei Kontingent 6, davon 3 als `prepared` markiert | Modellfolge: der Druide hat keinen „bekannt"-Bestand, der Überhang kann nur `manual.extra` werden |
+| silvara (Fee-Zauberer 3) | *Druidenkunst* und *Feenfeuer* stehen im Klassen-Kontingent | Modellfolge: nach der Umstellung gehören sie der Fee-Quelle (dort als fester Pool abgeleitet) |
+| silvara | Attributwahl der Fee ist unbeantwortet (`bindings.ability` fehlt) | Modellfolge: die Wahl entsteht mit dem Modell neu |
+
+**Was der Plan nicht nannte:** `character.spells` führt DEUTSCHE Zaubernamen, die Deklarationen
+englische. Entschieden (2026-08-04): die neue Form speichert **nur `spell.key`**, `resolveSpell`
+übersetzt beim Auflösen. Die Migration in Stufe 4 ist damit ein einmaliger Namens-Lookup je Zauber;
+was dabei nicht auflöst, ist ein benannter Bestandsfehler und kein stiller Verlust. Die
+Bestandsfehler oben bleiben so stehen.
 
 ### Stufe 3 — Lesen umstellen
-- [ ] `project.ts` inkl. `legacyFlatView`
-- [ ] `SheetSpellBlock.svelte` und `characterContext.ts:182ff` lesen die Projektion
-- [ ] `characterExport.ts` bleibt unangetastet, hängt an `legacyFlatView`
+- [x] **`project.ts`** (2026-08-04, 261 Zeilen) — `sheetSpellcasting` (Kopfzeilen je Quelle,
+      Zauber je Grad mit Platz-Zahl und Quellen-Etikett, Pakt-Pool), `contextLines` für den
+      KI-Abschnitt, `openSpellChoices` (Kontingent, Grade, Listen, `fromQuota`) und
+      `loadSpellcasting`/`loadSheetSpellcasting` als Einstieg für Komponente und Kontext.
+      SG und Angriffsbonus rechnet `state.ts` je Quelle (`SourceState.saveDC`/`attackBonus`),
+      die Projektion formatiert nur.
+- [x] **`legacy.ts`** (2026-08-04, 128 Zeilen) — beide Übergänge, statt `project.ts` über 300
+      Zeilen zu heben: `legacyFlatView` (flache Alt-Form aus der primären Klassen-Quelle) und
+      `legacySpellcasting`. Letzteres hebt den gespeicherten `spells`-Block in die Projektion,
+      solange Stufe 4 nichts schreibt — quellenlose Zauber, `slots[].used`, die Attributantwort
+      aus dem Merkmals-Ledger, und `manual.slotTotals` bzw. eine Kopfzeile aus der Datei **nur**
+      dort, wo die Progression nichts hergibt (unverlinkte Klasse). Ein Zauber, den bereits eine
+      Quota trägt, wird nicht zweitgezeigt. Die Datei fällt mit dem Schreibpfad weg.
+- [x] **`SheetSpellBlock.svelte` und `characterContext.ts` lesen die Projektion** (2026-08-04) —
+      der Bogenblock nimmt statt `character.spells` eine `SheetSpellcasting` und zeigt je Zauber
+      seine Quelle; `spellAccessRows` fällt dort weg, weil die Projektion Talent- und
+      Spezies-Quellen selbst als Kopfzeile führt (für den PDF-Text bleibt
+      `resolveSpellAccess` in `CharacterSheet.svelte`). Im KI-Kontext ersetzen
+      `- Source: <Quelle> — Ability: …, Save DC: …, Attack Bonus: …`-Zeilen den einen
+      Klassen-Block; Slot-, Trick- und Grad-Zeilen bleiben wörtlich, Zauber tragen
+      `(vorbereitet, <Quelle>)`. Der Snapshot in `characterContext.test.ts` ist entsprechend
+      nachgezogen.
+- [x] `characterExport.ts` bleibt unangetastet, hängt an `legacyFlatView`
+- [x] `tests/integration/castingProjection.test.ts` — Bogen und Kontext gegen vier
+      Vault-Charaktere (Druide mit Bestandszaubern, „CHA"-Druide → neu gerechnete Weisheit,
+      Fee-Zauberin ohne Dublette, unverlinkter Magier mit erhaltenen Slots), offene
+      Attributwahl, `legacyFlatView` inkl. Multiclass-Primärquelle, offene Wahlen des Magiers.
 
 ### Stufe 4 — Schema umkehren
-- [ ] `characterSchema.ts`: `spells` → `spellcasting` (siehe „Persistenz")
-- [ ] `SpellBlock.svelte`, `SpellPickModal.svelte`, `wizard/assembleCharacter.ts`, `levelUp.ts`
-      schreiben Picks statt abgeleiteter Werte
-- [ ] Slot-Zahlenfelder aus dem Editor entfernen (`manual.slotTotals` bleibt als Ausweg)
-- [ ] die vier Alt-Services löschen
-- [ ] die sechs Vault-Charaktere von Hand nachziehen, **kein** `CHARACTER_UPGRADES`-Schritt
+- [x] **`characterSchema.ts`: `spells` → `spellcasting`** (2026-08-04) — `characterSpellcastingSchema`
+      ist das Feld, `spells` bleibt als OPTIONALES Altfeld stehen: nur Eingang für Dateien, die
+      nie neu gespeichert wurden, und Transportform des PDF-Randes. Gelesen wird es allein von
+      `legacy.ts`, und der nächste Speichervorgang lässt es fallen. Ohne diesen Eingang hätte das
+      Parsen jeder unmigrierten Datei die Zauber verworfen — `CHARACTER_VERSION` bleibt unverändert,
+      weil die Umstellung Namen → `spell.key` braucht und `apply` nicht an die Bibliothek kommt.
+- [x] **Der Editor schreibt Picks** (2026-08-04) — `SpellBlock.svelte` (289) zeigt je Quelle die
+      Kontingente mit ihrer Auswahl, das Attribut als Wahl (sonst als Wert samt SG/Angriff) und
+      den quellenlosen Bestand; geschrieben wird nur über `services/spellcasting/write.ts`.
+      `characterFormFields.ts` hält den Block statt der flachen Felder, `pruneSpellcasting` wirft
+      leere Quellen beim Speichern heraus. Neue Projektion dafür: `spellcasting/editor.ts` (118).
+- [x] **Slot-Zahlenfelder aus dem Editor** (2026-08-04) — die Plätze stehen abgeleitet da, editiert
+      wird nur noch der VERBRAUCH; die Handeingabe erscheint allein, wenn keine Progression im
+      Vault liegt (`state.manualSlots`), und schreibt `manual.slotTotals`.
+- [x] **Die anderen Schreibpfade** (2026-08-04) — `applyChanges` (vier Ziele), `wizard/assembleCharacter.ts`,
+      `characterProtocol.ts` (nimmt die Projektion statt des Blocks), `characterCreate.ts`, der
+      PDF-Import (`characterFields.ts`) und beide PDF-Richtungen in `useCharacterPdf.svelte.ts`
+      (über `legacyFlatView`, damit der Export nach der Migration nicht leer läuft).
+- [x] **`services/characterSpellPicks.ts` gelöscht** (2026-08-04), samt seinem Unit-Test.
+- [ ] **`services/spellcasting.ts` und `services/spellAccess.ts` löschen** — offen, und zwar
+      begründet: gelöscht werden können sie erst, wenn die FRAGE-Seite von Wizard und
+      Stufenaufstieg auf Quotas steht. Beide zählen dort noch die Kontingente
+      (`SpellcastingOffer`, `PrepRegime`, `learnInfo`) und erzeugen die Zauber-Wahlen als
+      `AnalysisChoice`; `spellAccessValues` speist zusätzlich die PDF-Zeile in den
+      Klassenmerkmalen. Ihre Ergebnisse landen inzwischen in der neuen Form — der Wizard über
+      `assembleCharacter` (Bucket → Quota), der Aufstieg über `applyChanges` —, aber die
+      Zählung selbst ist Stufe 4b.
+- [x] **Umzugs-Aktion pro Charakter** (2026-08-04) — was das Einmal-Skript unten für den Vault tat,
+      macht der Editor jetzt für jede Datei: `spellcasting/migrate.ts` plant den Umzug gegen die
+      aufgelösten Quellen, `spellsFix` (`characterLegacyLinks.ts`) bietet ihn als Legacy-Fix an
+      („8 Zauber ins neue Format übernehmen"), der normale Speichervorgang schreibt ihn, und was
+      die Bibliothek nicht kennt, bleibt als Altform stehen. `tests/integration/castingMigration.test.ts`
+      fährt ihn gegen die Dateien von vor dem Umbau (`tests/fixtures/legacyCharacterFiles.ts`) und
+      vergleicht mit dem Stand im Vault — er stellt denselben Block her.
+      Zwei Nebenwirkungen: **`formDraftPatch` löscht `spells` nicht mehr** (es tat das beim
+      Montieren des Formulars, obwohl nichts den Inhalt übernommen hatte — der nächste
+      Speichervorgang verlor die Zauber), und die Auflösung der Quellen entsteht einmal im
+      Formular (`characterFormCasting.svelte.ts`) statt im Zauberblock, weil Umzug und Anzeige
+      dieselbe brauchen.
+      Weiterhin KEIN `CHARACTER_UPGRADES`-Schritt: `apply` ist synchron und kommt weder an die
+      Bibliothek (Name → `spell.key`) noch an die Kontingente (welche Quota den Zauber trägt).
+      Der Versionsstempel bekommt erst wieder etwas zu tun, wenn `spells` aus dem Schema fällt.
+- [x] **Die sechs Vault-Charaktere nachgezogen** (2026-08-04), per Einmal-Skript über den echten
+      Ladepfad, ohne `CHARACTER_UPGRADES`-Schritt. Regel: ein Zauber, den eine feste Quota
+      gewährt, wird NICHT gespeichert; sonst landet er an der ersten Quota, deren Grade und
+      Liste passen; alles Übrige in `manual.extra`. Bestandsfehler blieben unangetastet.
+
+| Charakter | Picks | `manual` |
+|---|---|---|
+| bulgur (Druide 2) | 2 Tricks + 5 Vorbereitete am Klassen-Kontingent | — |
+| carric_galanodel | — | 2 Zauber `extra`, Plätze als `slotTotals` |
+| falbala | — | — |
+| phönix | — | 10 Zauber `extra`, Plätze als `slotTotals` |
+| silvara (Fee-Zauberer 3) | 4 Tricks + 4 Vorbereitete; Attributwahl der Fee als `bindings.ability` | — |
+| thromm (Druide 3, Mondzirkel) | 2 Tricks + 5 Vorbereitete | *Vertrauten finden* (Magier-Zauber) als `extra` |
+
+*Sternenlichtfunke*, *Wunden heilen* und *Mondstrahl* stehen bei thromm nicht mehr in der Datei:
+der Mondzirkel gewährt sie, sie entstehen jetzt beim Laden. Bei silvara gilt dasselbe für
+*Druidenkunst* und *Feenfeuer*.
+
+Entscheidungen, die der Plan offenließ:
+
+| Frage | Wahl |
+|---|---|
+| Zauber eines `Change` ohne Quelle/Quota (`cantrip`, `preparedSpell`) | quellenloser Bestand (`manual.extra`); ein Name ohne Bibliothekstreffer wird gar nicht übernommen |
+| `spellSlot`-Change | wirkt nur auf `manual.slotTotals`; abgeleitete Plätze würden sonst doppelt zählen |
+| `spellcastingClass`-Change | ohne Senke — die Klasse steht in `classes[]` |
+| Bogen-Etikett einer Unterklassen-Quelle | der Merkmalsname („Zauber des Zirkels des Mondes"), nicht der Klassenname |
+| Zauberbuch im Editor | eigene Quota-Zeile („Zauberbuch") mit eigenem Picker; keine neue Ansicht |
+| Brücke bei unmigrierten Dateien | ADDITIV zum gespeicherten Block, nicht „neue Form gewinnt" — sonst verschwänden die Zauber eines Aufstiegs, der noch die Altform schreibt |
 
 ### Stufe 5 — Deklarationsdurchgang im Vault
-- [ ] `grantsCasting` an allen Zauber-Merkmalen ergänzen (9 Klassen, Unterklassen, Spezies,
-      Talente) — die 13 Beispiele sind die Vorlage
+- [x] `grantsCasting` an allen Zauber-Merkmalen (mit Stufe 1 vorgezogen, 35 Deklarationen)
 - [ ] `grantsChoice.kind='spellcasting'` und `'spellAccess'` sowie `grantsSpells` entfallen; sie
       gehen in `grantsCasting` auf
-- [ ] erst danach fallen die Namens-Fallbacks aus `resolve.ts`
+- [ ] `declarationCoverage.ts` und die KI-Eingangsfilter kennen `grantsCasting` als vierte
+      Deklaration
 
 ## Risiken
 
-- **Die Deklarationsdeckung ist heute dünn.** `grantsChoice.kind='spellcasting'` trägt nur den
-  `kind`. Bis Stufe 5 braucht `resolve.ts` weiterhin Spaltennamen-Heuristik — der Gewinn „keine
-  Namenserkennung mehr" ist verzögert, nicht sofort.
+- ~~**Die Deklarationsdeckung ist heute dünn.**~~ Erledigt mit der Inventur: alle 35 Merkmale
+  deklarieren, `resolve.ts` braucht keine Namenserkennung und meldet stattdessen.
 - **`patches` ist ein Fremdverweis zwischen Vault-Einträgen** und damit die einzige Stelle, an der
   ein Merkmal etwas über ein anderes wissen muss. Ein Tippfehler im `feature`-Key wirkt still (das
   Merkmal gewährt dann nichts), deshalb muss `resolve.ts` einen unauflösbaren Patch **melden**, wie
@@ -444,6 +589,21 @@ benutzen (Gegenstände sind außerhalb dieses Plans), Schattenkünste (die Vault
 - **Abgeleitete Slots verlieren die Handeingabe.** Für Homebrew-Klassen ohne Progression im Vault
   ist `manual.slotTotals` der einzige Weg. Wenn sich zeigt, dass das häufig gebraucht wird, ist
   das ein Signal gegen die Persistenz-Umkehr, nicht gegen das Quellenmodell.
+
+## Restschuld: `character.spells` muss weg
+
+Das Feld überlebt Stufe 4 nur als Eingang unmigrierter Dateien und als Transportform des
+PDF-Randes. Es ist **kein Zielzustand** — abzubauen sind, jeweils mit ihrem Tor:
+
+| Teil | Tor |
+|---|---|
+| `characterSpellsSchema` / `emptyFlatSpells` / `CharacterSpells` | wenn die letzten zwei Nutzer weg sind |
+| `legacyFlatView` (`legacy.ts`) | Neufassung des PDF-Templates — es kennt nur EINEN Zauberblock |
+| `legacySpellcasting` (`legacy.ts`) | wenn keine Datei mehr `spells` trägt — der Umzug dorthin ist `spellsFix`, pro Charakter |
+| `spellcasting/migrate.ts` samt `spellsFix` | mit derselben Datei: der Umzug hat dann nichts mehr zu tun |
+| `pdf/characterFields.ts`: Bogen → flache Form | mit dem Template |
+| `encodePick`/`decodePick` in Picker und Wizard | Schritt 4b (Namen statt Keys) |
+| `services/spellcasting.ts`, `services/spellAccess.ts` | Schritt 4b (Frage-Seite auf Quotas) |
 
 ## Nicht Teil dieses Plans
 

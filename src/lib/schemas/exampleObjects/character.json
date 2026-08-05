@@ -109,6 +109,42 @@
   ],
   "inventoryNotes": "string",
   "totalWeight": "string",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": [
+          0
+        ]
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "<key>": {
+        "bindings": {
+          "ability": "Strength",
+          "list": "string"
+        },
+        "picks": {
+          "<key>": [
+            "string"
+          ]
+        },
+        "uses": {
+          "<key>": 0
+        }
+      }
+    },
+    "manual": {
+      "slotTotals": [
+        0
+      ],
+      "extra": [
+        "string"
+      ]
+    }
+  },
   "spells": {
     "spellcastingClass": "string",
     "spellcastingAbility": "string",

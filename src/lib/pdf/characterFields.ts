@@ -7,6 +7,7 @@ import type { SpellAccessValues } from '../services/spellAccess';
 import { SKILL_DEFS, mod } from '../domain/skills';
 import { MASTERY_BY_LABEL } from '../itemLabels';
 import { int as toInt, sign } from '../utils/num';
+import { emptySpellcasting } from '../services/spellcasting/write';
 
 export type {
   Character,
@@ -302,6 +303,8 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     inventory: parseInventory(r),
     inventoryNotes: '',
     totalWeight: f('Gesamtlast'),
+    // Der PDF-Rand bleibt flach; `services/spellcasting/legacy.ts` hebt ihn beim Laden.
+    spellcasting: emptySpellcasting(),
     spells: parseSpells(r),
     proficiencies: parseProficiencies(r),
     personal: parsePersonal(r),

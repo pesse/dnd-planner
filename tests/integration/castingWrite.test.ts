@@ -1,0 +1,144 @@
+/**
+ * Der Schreibpfad der neuen Persistenz: Formular-Rundlauf, `applyChanges` und der Stand der
+ * sechs migrierten Charaktere im Vault.
+ *
+ *   npm run test -- castingWrite
+ */
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
+import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
+import { applyChanges } from '../../src/lib/services/applyChanges';
+import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
+import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
+import { loadSheetSpellcasting, loadSpellcasting, openSpellChoices } from '../../src/lib/services/spellcasting/project';
+import { addExtra, cloneSpellcasting, setPicks, setSlotUsed } from '../../src/lib/services/spellcasting/write';
+
+const character = (dir: string): Character =>
+  characterSchema.parse(
+    upgradeCharacter(JSON.parse(readFileSync(`vault/characters/${dir}/character.json`, 'utf-8'))).data,
+  );
+
+const blank = (): Character => characterSchema.parse({ name: 'Prüfling' });
+
+describe('Formular-Rundlauf', () => {
+  it('trägt Auswahl, Bindung und Verbrauch zurück in die Datei', () => {
+    const c = blank();
+    const form = initialFormFields(c);
+    setPicks(form.spellcasting, 'srd-2024_wizard_spellcasting', 'cantrips', ['srd-2024_light', 'srd-2024_fire-bolt']);
+    setSlotUsed(form.spellcasting, 1, 2);
+    addExtra(form.spellcasting, 'srd-2024_find-familiar');
+
+    const patch = formDraftPatch(form, initialFormCarry(c));
+    expect(patch.spellcasting.sources['srd-2024_wizard_spellcasting'].picks.cantrips)
+      .toEqual(['srd-2024_light', 'srd-2024_fire-bolt']);
+    expect(patch.spellcasting.pools.standard.used[0]).toBe(2);
+    expect(patch.spellcasting.manual?.extra).toEqual(['srd-2024_find-familiar']);
+    // Die Altform verschwindet mit dem Speichern.
+    expect(patch.spells).toBeUndefined();
+  });
+
+  it('wirft Quellen ohne Inhalt beim Speichern heraus', () => {
+    const c = blank();
+    const form = initialFormFields(c);
+    setPicks(form.spellcasting, 'srd-2024_bard_spellcasting', 'prepared', []);
+    expect(formDraftPatch(form, initialFormCarry(c)).spellcasting.sources).toEqual({});
+  });
+});
+
+describe('applyChanges', () => {
+  it('legt gewährte Zauber als Keys in den quellenlosen Bestand', () => {
+    const c = blank();
+    applyChanges(
+      c,
+      [
+        { target: 'cantrip', name: 'Licht', step: '', source: '', label: '' },
+        { target: 'preparedSpell', level: 1, name: 'Springen', prepared: true, step: '', source: '', label: '' },
+      ],
+      { classIndex: 0, resolveSpellKey: (name) => (name === 'Licht' ? 'srd-2024_light' : 'srd-2024_jump') },
+    );
+    expect(c.spellcasting.manual?.extra).toEqual(['srd-2024_light', 'srd-2024_jump']);
+  });
+
+  it('übernimmt einen Zauber ohne Bibliothekstreffer nicht', () => {
+    const c = blank();
+    applyChanges(c, [{ target: 'cantrip', name: 'Erfundener Zauber', step: '', source: '', label: '' }], {
+      classIndex: 0,
+      resolveSpellKey: () => undefined,
+    });
+    expect(c.spellcasting.manual?.extra ?? []).toEqual([]);
+  });
+
+  it('lässt abgeleitete Plätze unberührt und wächst nur bei Handeingabe', () => {
+    const derived = blank();
+    applyChanges(derived, [{ target: 'spellSlot', level: 1, value: 2, step: '', source: '', label: '' }], { classIndex: 0 });
+    expect(derived.spellcasting.manual?.slotTotals ?? []).toEqual([]);
+
+    const manual = blank();
+    manual.spellcasting.manual = { slotTotals: [1, 0, 0, 0, 0, 0, 0, 0, 0], extra: [] };
+    applyChanges(manual, [{ target: 'spellSlot', level: 1, value: 2, step: '', source: '', label: '' }], { classIndex: 0 });
+    expect(manual.spellcasting.manual?.slotTotals[0]).toBe(3);
+  });
+});
+
+describe('die migrierten Charaktere', () => {
+  it('füllt beim Druiden die Kontingente vollständig', async () => {
+    const c = character('bulgur');
+    const { state } = await loadSpellcasting(c);
+    expect(openSpellChoices(state, (await loadSpellcasting(c)).lookup)).toEqual([]);
+    const picks = c.spellcasting.sources['srd-2024_druid_spellcasting'].picks;
+    expect(picks.cantrips).toHaveLength(2);
+    expect(picks.prepared).toHaveLength(5);
+    expect(c.spellcasting.manual?.extra ?? []).toEqual([]);
+  });
+
+  it('speichert gewährte Zauber nicht, zeigt sie aber auf dem Bogen', async () => {
+    const c = character('thromm_flechtenstein');
+    const stored = Object.values(c.spellcasting.sources).flatMap((s) => Object.values(s.picks).flat());
+    expect(stored).not.toContain('phb-2024_starry-wisp');
+    expect(stored).not.toContain('srd-2024_moonbeam');
+
+    const view = await loadSheetSpellcasting(c);
+    const all = view.levels.flatMap((l) => l.spells);
+    expect(all.find((s) => s.label === 'Sternenlichtfunke')?.source).toBe('Zauber des Zirkels des Mondes');
+    // Ein Magier-Zauber am Druiden hat keine Quota und bleibt quellenlos.
+    expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('');
+  });
+
+  it('behält Plätze und Zauber des unverlinkten Charakters', async () => {
+    const c = character('phönix');
+    expect(c.spellcasting.manual?.slotTotals[0]).toBe(2);
+    expect(c.spellcasting.manual?.extra).toHaveLength(10);
+
+    const view = await loadSheetSpellcasting(c);
+    expect(view.levels.flatMap((l) => l.spells)).toHaveLength(10);
+  });
+
+  it('speist den PDF-Export weiter aus der Projektion', async () => {
+    const c = character('bulgur');
+    const { state, lookup, legacy } = await loadSpellcasting(c);
+    const flat = legacyFlatView(state, lookup, legacy);
+    expect(flat.spellcastingClass).toBe('Druide');
+    expect(flat.spellcastingAbility).toBe('Weisheit');
+    expect(flat.slots[0].total).toBe(3);
+    expect(flat.cantrips).toHaveLength(2);
+    expect(flat.byLevel['1']).toHaveLength(5);
+  });
+});
+
+describe('Reaktive Formulardaten', () => {
+  /** Ein $state-Proxy erreicht den Schreibpfad genauso; `structuredClone` bricht daran ab. */
+  it('kopiert einen Block hinter einem Proxy', async () => {
+    const c = character('bulgur');
+    const proxied = new Proxy(c.spellcasting, {});
+    expect(() => structuredClone(proxied)).toThrow();
+
+    const copy = cloneSpellcasting(proxied);
+    setSlotUsed(copy, 1, 3);
+    expect(copy.pools.standard.used[0]).toBe(3);
+    expect(c.spellcasting.pools.standard.used[0] ?? 0).toBe(0);
+
+    const view = await loadSheetSpellcasting({ ...c, spellcasting: proxied });
+    expect(view.levels.flatMap((l) => l.spells).length).toBeGreaterThan(0);
+  });
+});

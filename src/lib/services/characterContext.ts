@@ -15,6 +15,7 @@ import {
   type ResolvedFeatureGroup,
   type ResolvedFeature,
 } from './characterFeatures';
+import { contextLines, loadSheetSpellcasting } from './spellcasting/project';
 
 export type CharacterContextLevel = 'minimum' | 'character' | 'full';
 
@@ -153,36 +154,9 @@ function attacksBlock(c: Character): string | null {
   return section('Attacks', lines);
 }
 
-function spellcastingBlock(c: Character): string | null {
-  const sp = c.spells;
-  if (!sp) return null;
-  const grades = Object.keys(sp.byLevel)
-    .map(Number)
-    .filter((n) => !Number.isNaN(n))
-    .sort((a, b) => a - b);
-  const hasAny =
-    sp.spellcastingClass.trim() || sp.cantrips.length || grades.length || sp.slots.some((s) => s.total > 0);
-  if (!hasAny) return null;
-
-  const lines: (string | false)[] = [
-    sp.spellcastingClass.trim() && `- Class: ${sp.spellcastingClass}`,
-    sp.spellcastingAbility.trim() && `- Ability: ${sp.spellcastingAbility}`,
-    sp.saveDC > 0 && `- Save DC: ${sp.saveDC}`,
-    sp.attackBonus !== 0 && `- Attack Bonus: ${sign(sp.attackBonus)}`,
-  ];
-  const slotLines = sp.slots
-    .map((s, i) => ({ lvl: i + 1, ...s }))
-    .filter((s) => s.total > 0)
-    .map((s) => `  - Grad ${s.lvl}: ${s.total - s.used}/${s.total} frei`);
-  if (slotLines.length) lines.push('- Slots:', ...slotLines);
-  if (sp.cantrips.length) lines.push(`- Zaubertricks: ${sp.cantrips.map((c) => c.name).join(', ')}`);
-  for (const g of grades) {
-    const entries = sp.byLevel[String(g)] ?? [];
-    if (!entries.length) continue;
-    const names = entries.map((e) => `${e.name}${e.prepared ? ' (vorbereitet)' : ''}`).join(', ');
-    lines.push(`- Grad ${g}: ${names}`);
-  }
-  return section('Spellcasting', lines);
+async function spellcastingBlock(c: Character): Promise<string | null> {
+  const view = await loadSheetSpellcasting(c);
+  return view.hasContent ? section('Spellcasting', contextLines(view)) : null;
 }
 
 function equipmentBlock(c: Character): string | null {
@@ -306,7 +280,7 @@ export async function buildCharacterContext(
     skillsBlock(s),
     proficienciesBlock(c, s),
     attacksBlock(c),
-    spellcastingBlock(c),
+    await spellcastingBlock(c),
     equipmentBlock(c),
     personalityBlock(c),
     personalBlock(c),

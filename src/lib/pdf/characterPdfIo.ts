@@ -92,6 +92,8 @@ export interface CharacterPdfExport {
   masteryOf?: (attackName: string) => string | undefined;
   /** Zauberwerte der Merkmals-Zugänge — dieselben Zeilen, die die Karte zeigt. */
   spellAccess?: SpellAccessValues[];
+  /** Flache Alt-Form aus `legacyFlatView`. */
+  spells?: CharacterData['spells'];
 }
 
 /** Füllt das Taendler-Template und speichert es über die Zielwahl; false = abgebrochen. */
@@ -126,6 +128,7 @@ export async function exportCharacterPdfFile(
     freitext: opts.freitext,
     masteryOf: opts.masteryOf,
     spellAccess: opts.spellAccess,
+    spells: opts.spells,
   });
   const b64 = bytesToBase64(pdfBytes);
   const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';

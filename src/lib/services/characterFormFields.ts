@@ -6,29 +6,18 @@
 import { SKILL_DEFS } from '../domain/skills';
 import { abilityKeyOf, type AbilityKey } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
-import { spellAttackBonus, spellSaveDC } from './spellcasting';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
 import { emptyPersonal, emptyProficiencies } from '../pdf/characterFields';
 import type {
   Attack, Character, CharacterBackground, CharacterClass, CharacterSpecies,
-  PersonalData, ProficiencyFlags, SpellEntry, SpellRef,
+  PersonalData, ProficiencyFlags,
 } from '../schemas/characterSchema';
+import type { CharacterSpellcasting } from '../schemas/spellcasting';
+import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
 
 type InventoryLine = Character['inventory'][number];
 type Currency = Character['currency'];
 type SkillFlags = { prof: boolean; exp: boolean };
-
-/** `slotTotals` statt `slots`, weil `used` nicht editiert wird. */
-export interface SpellFormFields {
-  spellcastingClass: string;
-  spellcastingAbility: string;
-  saveDC: number;
-  attackBonus: number;
-  autoCalc: boolean;
-  slotTotals: number[];
-  cantrips: SpellRef[];
-  byLevel: Record<string, SpellEntry[]>;
-}
 
 export interface CharacterFormFields {
   name: string;
@@ -63,7 +52,7 @@ export interface CharacterFormFields {
   currency: Currency;
   inventory: InventoryLine[];
   inventoryNotes: string;
-  spells: SpellFormFields;
+  spellcasting: CharacterSpellcasting;
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
@@ -74,7 +63,6 @@ export interface CharacterFormFields {
 export interface CharacterFormCarry {
   passivePerception: string;
   totalWeight: string;
-  slotsUsed: number[];
   /** VOR der Ableitung aus `classes` — Grundlage der Altformat-Umstellung. */
   legacyClassLevel: string;
 }
@@ -119,39 +107,6 @@ export function computeSkills(f: CharacterFormFields): Character['skills'] {
     result[def.key] = { value, prof: flags.prof, exp: flags.exp };
   }
   return result;
-}
-
-// Das Zauberattribut ist Freitext und trägt im Altbestand Schreibweisen, die `abilityKeyOf`
-// nicht kennt.
-const ABILITY_ALIASES: Record<string, AbilityKey> = {
-  stä: 'str', staerke: 'str', stärke: 'str',
-  geschicklichkeit: 'ges', dex: 'ges',
-  konstitution: 'kon', con: 'kon',
-  intelligenz: 'int',
-  weisheit: 'wei', wis: 'wei',
-};
-
-/** `null` = Schreibweise nicht erkannt. */
-export function spellAbilityMod(f: CharacterFormFields): number | null {
-  const raw = f.spells.spellcastingAbility.trim().toLowerCase();
-  const key = abilityKeyOf(raw) ?? ABILITY_ALIASES[raw];
-  if (!key) return null;
-  const m = abilityMods(f);
-  return ({ str: m.strMod, ges: m.gesMod, kon: m.konMod, int: m.intMod, wei: m.weiMod, cha: m.chaMod })[key];
-}
-
-export function spellAutoActive(f: CharacterFormFields): boolean {
-  return f.spells.autoCalc && spellAbilityMod(f) !== null;
-}
-
-export function computedSpellSaveDC(f: CharacterFormFields): number | null {
-  const m = spellAbilityMod(f);
-  return m === null ? null : spellSaveDC(f.proficiencyBonus, m);
-}
-
-export function computedSpellAttack(f: CharacterFormFields): number | null {
-  const m = spellAbilityMod(f);
-  return m === null ? null : spellAttackBonus(f.proficiencyBonus, m);
 }
 
 /**
@@ -230,18 +185,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     currency: { ...character.currency },
     inventory: character.inventory.map((i) => ({ ...i })),
     inventoryNotes: character.inventoryNotes ?? '',
-    spells: {
-      spellcastingClass: character.spells?.spellcastingClass ?? '',
-      spellcastingAbility: character.spells?.spellcastingAbility ?? '',
-      saveDC: character.spells?.saveDC ?? 0,
-      attackBonus: character.spells?.attackBonus ?? 0,
-      autoCalc: character.spells?.autoCalc ?? true,
-      slotTotals: Array.from({ length: 9 }, (_, i) => character.spells?.slots[i]?.total ?? 0),
-      cantrips: (character.spells?.cantrips ?? []).map((c) => ({ ...c })),
-      byLevel: Object.fromEntries(
-        Object.entries(character.spells?.byLevel ?? {}).map(([k, v]) => [k, v.map((s) => ({ ...s }))]),
-      ),
-    },
+    spellcasting: character.spellcasting ? cloneSpellcasting(character.spellcasting) : emptySpellcasting(),
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
@@ -253,7 +197,6 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
   return {
     passivePerception: character.passivePerception,
     totalWeight: character.totalWeight,
-    slotsUsed: (character.spells?.slots ?? []).map((s) => s.used),
     legacyClassLevel: character.classLevel ?? '',
   };
 }
@@ -266,7 +209,6 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
 export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry): CharacterFormPatch {
   const mods = abilityMods(f);
   const ctx = attackContext(f);
-  const autoSpells = spellAutoActive(f);
   // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {
@@ -312,20 +254,9 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     inventoryNotes: f.inventoryNotes,
     // Die Gesamtlast rechnet `inventoryWeight` live; das gespeicherte Feld ist Alt-Ballast.
     totalWeight: carry.totalWeight,
-    spells: {
-      spellcastingClass: f.spells.spellcastingClass,
-      spellcastingAbility: f.spells.spellcastingAbility,
-      saveDC: autoSpells ? computedSpellSaveDC(f)! : f.spells.saveDC,
-      attackBonus: autoSpells ? computedSpellAttack(f)! : f.spells.attackBonus,
-      autoCalc: f.spells.autoCalc,
-      slots: f.spells.slotTotals.map((total, i) => ({ total, used: carry.slotsUsed[i] ?? 0 })),
-      cantrips: f.spells.cantrips.map((c) => ({ ...c })),
-      byLevel: Object.fromEntries(
-        Object.entries(f.spells.byLevel)
-          .filter(([, v]) => v.length > 0)
-          .map(([k, v]) => [k, v.map((s) => ({ ...s }))]),
-      ),
-    },
+    spellcasting: pruneSpellcasting(f.spellcasting),
+    // `spells` steht bewusst nicht hier: die Altform gehört dem Draft, bis der Umzug
+    // (`spellsFix`) sie übernommen hat — ein Speichern davor verlöre ihre Zauber.
     personal: { ...f.personal },
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],

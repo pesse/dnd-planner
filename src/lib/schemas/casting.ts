@@ -104,7 +104,11 @@ export const quotaLevelsSchema = z.union([
   z.literal('cantrip-or-slotted'),
 ]);
 
-export const quotaSchema = z.object({
+/**
+ * Ohne Vorgaben: `quotaPatchSchema.set` leitet die Teilform hiervon ab, und eine Vorgabe darin
+ * patchte ein Feld, das niemand gesetzt hat — Ritual Adept schaltete so `tier` auf `prepared`.
+ */
+const quotaBaseSchema = z.object({
   id: z.string().describe('Nur innerhalb des Merkmals eindeutig.'),
   since: z
     .number()
@@ -117,10 +121,7 @@ export const quotaSchema = z.object({
     .record(z.string(), z.string())
     .optional()
     .describe('Zweig-Bedingung auf dem grantsChoice.optionList DESSELBEN Merkmals, z.B. {"option":"High Elf"}.'),
-  tier: z
-    .enum(['known', 'prepared'])
-    .default('prepared')
-    .describe('known = Bestand, nicht wirkbar (Zauberbuch).'),
+  tier: z.enum(['known', 'prepared']).describe('known = Bestand, nicht wirkbar (Zauberbuch).'),
   levels: quotaLevelsSchema.optional().describe('Entfällt bei pool.names — der Grad steht am Zauber.'),
   // Entfällt bei festem Pool (`names`/`fromDescTable`): dort ist alles gewährt, eine Zahl
   // daneben wäre eine zweite, abweichbare Fassung der Listenlänge.
@@ -131,13 +132,17 @@ export const quotaSchema = z.object({
   // Leer ist zulässig und heißt „für sich nicht wirkbar" — das Zauberbuch vor Ritual Adept.
   cast: z.array(castOptionSchema),
 });
+
+export const quotaSchema = quotaBaseSchema.extend({
+  tier: quotaBaseSchema.shape.tier.default('prepared'),
+});
 export type Quota = z.infer<typeof quotaSchema>;
 
 /** Ritual Adept ergänzt das Wirken am Zauberbuch, Magische Geheimnisse den Pool der Vorbereitung. */
 export const quotaPatchSchema = z.object({
   feature: z.string().describe('Merkmals-Key, dessen Quota amendiert wird.'),
   quota: z.string(),
-  set: quotaSchema.partial().describe('Nur die geänderten Felder; Arrays ersetzen.'),
+  set: quotaBaseSchema.partial().describe('Nur die geänderten Felder; Arrays und `pool` ersetzen.'),
 });
 export type QuotaPatch = z.infer<typeof quotaPatchSchema>;
 
