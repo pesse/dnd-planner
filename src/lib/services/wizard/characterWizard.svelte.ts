@@ -6,8 +6,7 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
-import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
-import { withoutOwnedChoices } from '../declaredChoice';
+import type { SpellAccessGrant } from '../spellcasting/access';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -18,14 +17,12 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import { expertiseChoice, expertiseChoiceId, expertiseRider } from '../declaration/expertise';
-import { optionListChoices, optionListRiders, optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
-import { withDeclaredGrants } from '../declaration/grants';
-import { characterPropertyChoices } from '../characterProperties';
+import { optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
+import { wizardDeclaredChoices, wizardFeatureChoices, wizardRiders } from './wizardChoices';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FeatureRider, FieldSummary } from '$lib/schemas/levelUp';
+import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
@@ -71,7 +68,7 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  /** Schritt „Zauber"; diese und die beiden folgenden Listen tragen `spell.key`. */
+  /** Schritt „Zauber"; diese und die beiden folgenden Listen sind `encodePick`-kodiert. */
   pickedCantrips = $state<string[]>([]);
   /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);
@@ -131,32 +128,19 @@ export class CharacterWizard {
     return this.#getConfig().provider === 'qualityminds';
   }
 
-  /**
-   * Hängt reaktiv an `declaredAnswers`: erst die beantwortete Zauberliste macht aus dem
-   * Kontingent eine benutzbare Zauber-Wahl (der Bibliotheks-Filter hängt daran).
-   */
   get declaredChoices(): AnalysisChoice[] {
-    const spells = this.spellAccess.flatMap((grant) => {
-      const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
-      return spellAccessChoices(grant, answer);
+    return wizardDeclaredChoices({
+      spellAccess: this.spellAccess,
+      declaredAnswers: this.declaredAnswers,
+      declared: this.declared,
+      proficientSkills: this.proficientSkills,
+      sizeChoice: this.sizeChoice,
     });
-    // EIN Durchgang über alle Herkünfte: beide Builder liefern `null` für Merkmale des
-    // jeweils anderen `kind`, ein Vorsortieren wäre ein zweiter Filter.
-    const branches = optionListChoices(this.declared);
-    // Auf Stufe 1 hat nichts Expertise — der dritte Parameter ist bewusst leer.
-    const expertise = this.declared
-      .map((f) => expertiseChoice(f, this.proficientSkills, []))
-      .filter((c): c is AnalysisChoice => c !== null);
-    // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
-    // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
-    const properties = characterPropertyChoices(this.declared);
-    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...properties, ...branches, ...expertise, ...spells];
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
   get featureChoices(): AnalysisChoice[] {
-    const declared = this.declaredChoices;
-    return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
+    return wizardFeatureChoices(this.declaredChoices, this.analysis.result?.choices ?? []);
   }
 
   get proficientSkills(): string[] {
@@ -171,19 +155,12 @@ export class CharacterWizard {
     return this.featureChoices.filter((c) => c.type !== 'spell-pick');
   }
 
-  /**
-   * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
-   * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
-   */
   get riders() {
-    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-    // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
-    const declared = optionListRiders(this.declared, answerOf, 1);
-    const expertise = this.declared
-      .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
-      .filter((r): r is FeatureRider => r !== null);
-    const ai = withDeclaredGrants(this.effects.result?.riders ?? [], this.declared);
-    return [...ai, ...declared, ...expertise];
+    return wizardRiders({
+      declared: this.declared,
+      declaredAnswers: this.declaredAnswers,
+      effectsRiders: this.effects.result?.riders ?? [],
+    });
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
