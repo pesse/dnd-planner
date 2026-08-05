@@ -4,7 +4,7 @@
  * ein neues Schema-Feld ist damit ein Compile-Fehler statt einer stillen Lücke.
  */
 import { SKILL_DEFS } from '../domain/skills';
-import { abilityKeyOf, type AbilityKey } from '../schemas/abilities';
+import { ABILITY_KEYS, type AbilityFlags, type AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
 import { emptyPersonal, emptyProficiencies } from '../pdf/characterFields';
@@ -28,7 +28,7 @@ export interface CharacterFormFields {
   species: CharacterSpecies;
   race: string;
   xp: string;
-  str: number; ges: number; kon: number; int: number; wei: number; cha: number;
+  abilities: AbilityScores;
   ac: string;
   initiative: string;
   speed: string;
@@ -37,8 +37,7 @@ export interface CharacterFormFields {
   hpTemp: string;
   proficiencyBonus: number;
   hitDice: string;
-  strSaveProf: boolean; gesSaveProf: boolean; konSaveProf: boolean;
-  intSaveProf: boolean; weiSaveProf: boolean; chaSaveProf: boolean;
+  saveProfs: AbilityFlags;
   skillFlags: Record<string, SkillFlags>;
   attacks: Attack[];
   classFeatures: string;
@@ -71,30 +70,19 @@ export type CharacterFormPatch =
   Omit<Character, 'features' | '_version' | '_importedFrom' | '_importedAt'>
   & { portraitFile: string | undefined };
 
-export interface AbilityMods {
-  strMod: number; gesMod: number; konMod: number;
-  intMod: number; weiMod: number; chaMod: number;
-}
-
 export const mod = (score: number) => Math.floor((score - 10) / 2);
 
-export function abilityMods(f: CharacterFormFields): AbilityMods {
-  return {
-    strMod: mod(f.str), gesMod: mod(f.ges), konMod: mod(f.kon),
-    intMod: mod(f.int), weiMod: mod(f.wei), chaMod: mod(f.cha),
-  };
+export function abilityMods(f: CharacterFormFields): AbilityScores {
+  return Object.fromEntries(ABILITY_KEYS.map((k) => [k, mod(f.abilities[k])])) as AbilityScores;
 }
 
 export function attackContext(f: CharacterFormFields): AttackCalcContext {
   const m = abilityMods(f);
-  return { strMod: m.strMod, gesMod: m.gesMod, proficiencyBonus: f.proficiencyBonus };
+  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: f.proficiencyBonus };
 }
 
 export function computeSkills(f: CharacterFormFields): Character['skills'] {
-  const m = abilityMods(f);
-  const mods: Record<string, number> = {
-    str: m.strMod, ges: m.gesMod, kon: m.konMod, int: m.intMod, wei: m.weiMod, cha: m.chaMod,
-  };
+  const mods = abilityMods(f);
   const result: Character['skills'] = {};
   for (const def of SKILL_DEFS) {
     const flags = f.skillFlags[def.key];
@@ -146,12 +134,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     species: { ...(character.species ?? { sourceKey: '', name: '' }) },
     race: character.race ?? '',
     xp: character.xp ?? '',
-    str: character.str ?? 10,
-    ges: character.ges ?? 10,
-    kon: character.kon ?? 10,
-    int: character.int ?? 10,
-    wei: character.wei ?? 10,
-    cha: character.cha ?? 10,
+    abilities: { ...character.abilities },
     ac: character.ac ?? '',
     initiative: character.initiative ?? '',
     speed: character.speed ?? '',
@@ -160,12 +143,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     hpTemp: character.hpTemp ?? '',
     proficiencyBonus: character.proficiencyBonus ?? 2,
     hitDice: character.hitDice ?? '',
-    strSaveProf: character.strSaveProf ?? false,
-    gesSaveProf: character.gesSaveProf ?? false,
-    konSaveProf: character.konSaveProf ?? false,
-    intSaveProf: character.intSaveProf ?? false,
-    weiSaveProf: character.weiSaveProf ?? false,
-    chaSaveProf: character.chaSaveProf ?? false,
+    saveProfs: { ...character.saveProfs },
     skillFlags: Object.fromEntries(SKILL_DEFS.map((s) => [s.key, {
       prof: character.skills[s.key]?.prof ?? false,
       exp: character.skills[s.key]?.exp ?? false,
@@ -221,8 +199,8 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     species: { ...f.species },
     race: f.race,
     xp: f.xp,
-    str: f.str, ges: f.ges, kon: f.kon, int: f.int, wei: f.wei, cha: f.cha,
-    ...mods,
+    abilities: { ...f.abilities },
+    mods,
     ac: f.ac,
     initiative: f.initiative,
     speed: f.speed,
@@ -232,8 +210,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     proficiencyBonus: f.proficiencyBonus,
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
-    strSaveProf: f.strSaveProf, gesSaveProf: f.gesSaveProf, konSaveProf: f.konSaveProf,
-    intSaveProf: f.intSaveProf, weiSaveProf: f.weiSaveProf, chaSaveProf: f.chaSaveProf,
+    saveProfs: { ...f.saveProfs },
     skills: computeSkills(f),
     attacks: f.attacks.filter((a) => a.name.trim() !== '').map((a) => attackForSave(a, ctx)),
     classFeatures: f.classFeatures,

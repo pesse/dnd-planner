@@ -4,6 +4,7 @@
  */
 import { get } from 'svelte/store';
 import { mod } from '../../domain/skills';
+import { abilityRecordOf } from '../../schemas/abilities';
 import { llmConfig } from '../../stores/llm';
 import { runAiAction } from '../aiActions/runner';
 import { buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary } from '../aiActions/levelUpAction';
@@ -51,10 +52,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
   function buildSummary(): CharacterSummary {
     const c = ctx.character;
     const classList = c.classes ?? [];
-    const abilities: Record<string, number> = {
-      str: c.str, ges: c.ges, kon: c.kon, int: c.int, wei: c.wei, cha: c.cha,
-    };
-    const mods = Object.fromEntries(Object.entries(abilities).map(([k, v]) => [k, mod(v)]));
+    const abilities = { ...c.abilities };
+    const mods = abilityRecordOf((k) => mod(abilities[k]));
     return {
       name: c.name,
       classes: classList.map((x) => ({ name: x.name, level: x.level, subclassName: x.subclassName ?? '' })),

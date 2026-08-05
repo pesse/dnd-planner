@@ -39,9 +39,9 @@ const abilities = (c: Character): SummaryValue[] =>
   ABILITY_KEYS.map((k) => ({
     label: ABILITY_LABEL[k],
     short: k.toUpperCase(),
-    score: c[k],
-    detail: sign(c[`${k}Mod`]),
-    note: c[`${k}SaveProf`] ? 'Rettungswurf geübt' : undefined,
+    score: c.abilities[k],
+    detail: sign(c.mods[k]),
+    note: c.saveProfs[k] ? 'Rettungswurf geübt' : undefined,
   }));
 
 /** Ein leeres Bogenfeld liefert keinen Eintrag; der Übungsbonus steht immer. */
@@ -75,7 +75,7 @@ export function characterSummary(c: Character): SummarySection[] {
     { id: 'expertise', values: skills(c, (row) => !!row?.exp) },
     {
       id: 'savingThrows',
-      values: plain(ABILITY_KEYS.filter((k) => c[`${k}SaveProf`]).map((k) => ABILITY_LABEL[k])),
+      values: plain(ABILITY_KEYS.filter((k) => c.saveProfs[k]).map((k) => ABILITY_LABEL[k])),
     },
     { id: 'weapons', values: plain(weaponProficiencyLabels(pf, { withProse: true })) },
     { id: 'armor', values: plain(armorProficiencyLabels(pf)) },

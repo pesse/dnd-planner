@@ -2,6 +2,7 @@
   import type { Monster, MonsterAction } from '../types';
   import { MONSTER_SIZES, MONSTER_TYPES, MONSTER_ALIGNMENTS } from '../types';
   import { modStr } from '../domain/skills';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
 
   let {
     monster = $bindable<Monster>(),
@@ -10,10 +11,6 @@
     monster: Monster;
     onchange?: () => void;
   } = $props();
-
-  const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
-  type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
-  const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
   const DAMAGE_TYPE_DE: Record<string, string> = {
     acid: 'Säure', bludgeoning: 'Wucht', cold: 'Kälte', fire: 'Feuer',
@@ -85,11 +82,11 @@
 <div class="divider"></div>
 
 <div class="stats-grid">
-  {#each STAT_LABELS as label, i}
+  {#each ABILITY_KEYS as key}
     <div class="stat-cell">
-      <span class="stat-lbl">{label}</span>
-      <input class="ef stat-in" type="number" bind:value={monster.stats[STAT_KEYS[i]]} oninput={onchange} />
-      <span class="stat-mod">({modStr(monster.stats[STAT_KEYS[i]])})</span>
+      <span class="stat-lbl">{ABILITY_ABBR_DE[key]}</span>
+      <input class="ef stat-in" type="number" bind:value={monster.stats[key]} oninput={onchange} />
+      <span class="stat-mod">({modStr(monster.stats[key])})</span>
     </div>
   {/each}
 </div>

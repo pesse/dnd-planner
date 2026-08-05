@@ -42,8 +42,8 @@ describe('Bogen-Projektion', () => {
     const row = view.sources.find((s) => s.kind === 'class');
     expect(row?.label).toBe('Druide');
     expect(row?.abilityDe).toBe('Weisheit');
-    expect(row?.saveDC).toBe(8 + c.proficiencyBonus + c.weiMod);
-    expect(row?.attackBonus).toBe(c.proficiencyBonus + c.weiMod);
+    expect(row?.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
+    expect(row?.attackBonus).toBe(c.proficiencyBonus + c.mods.wis);
 
     expect(labels(view, 0)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
     expect(levelOf(view, 1).slots).toEqual({ total: 3, used: 0 });
@@ -56,7 +56,7 @@ describe('Bogen-Projektion', () => {
     expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks', 'uses']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
-    expect(view.sources.find((s) => s.kind === 'class')?.saveDC).toBe(8 + c.proficiencyBonus + c.weiMod);
+    expect(view.sources.find((s) => s.kind === 'class')?.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
   });
 
   it('führt Spezies-Zauber an ihrer Quelle und nicht doppelt', async () => {
@@ -124,7 +124,7 @@ describe('Übergang zum PDF-Export', () => {
 
     expect(flat.spellcastingClass).toBe('Druide');
     expect(flat.spellcastingAbility).toBe('Weisheit');
-    expect(flat.saveDC).toBe(8 + c.proficiencyBonus + c.weiMod);
+    expect(flat.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
     expect(flat.slots[0]).toEqual({ total: 3, used: 0 });
     expect(flat.cantrips.map((s) => s.name)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
     expect(flat.byLevel['1']).toHaveLength(5);
@@ -139,8 +139,7 @@ describe('Übergang zum PDF-Export', () => {
         { sourceKey: 'srd-2024_wizard', name: 'Magier', level: 3 },
         { sourceKey: 'srd-2024_cleric', name: 'Kleriker', level: 5 },
       ],
-      intMod: 3,
-      weiMod: 2,
+      mods: { int: 3, wis: 2 },
       proficiencyBonus: 4,
     });
     const { state, lookup, legacy } = await loadSpellcasting(c);

@@ -54,9 +54,11 @@ Changes under `src-tauri/` need a full Rust recompile; hot-reload covers only th
 | Code comments and commit messages | German |
 
 One legacy exception, at the PDF boundary: parts of `character.*` carry German keys
-(`ges`/`wei`/`kon`, `skills.MitTierenUmgehen`, `alleskoenner`, `currency.km`, `personal.*`) because
-they mirror the German Taendler character sheet. **Do not extend it** — new character fields get
-English names, the way `hpMax`, `strSaveProf` and `proficiencies.lightArmor` already do.
+(`skills.MitTierenUmgehen`, `alleskoenner`, `currency.km`, `personal.*`) because they mirror the
+German Taendler character sheet. **Do not extend it** — new character fields get English names,
+the way `hpMax`, `saveProfs` and `proficiencies.lightArmor` already do. The PDF *field names*
+themselves (`Ges`, `GesMod`, `GesProf`) stay German — that edge is `PDF_ABILITY_FIELD`
+(`pdf/characterFields.ts`), the one table the Taendler form dictates.
 
 ### One file, one responsibility
 

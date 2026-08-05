@@ -16,6 +16,7 @@
   import { speciesDisplayName, searchSpecies, type SpeciesInfo } from '../speciesLibrary';
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
+  import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
@@ -70,7 +71,6 @@
   });
 
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
-  const savedField = (key: string): unknown => (saved as Record<string, unknown> | null | undefined)?.[key];
 
   // Der offene Picker liegt hier, nicht im Unterformular: `applyFix` schließt ihn.
   let editingClassRow = $state(-1);
@@ -272,9 +272,8 @@
   <section>
     <h3>Attribute</h3>
     <AttributeRow
-      bind:str={form.str} bind:ges={form.ges} bind:kon={form.kon}
-      bind:int={form.int} bind:wei={form.wei} bind:cha={form.cha}
-      dirOf={(key, value) => dirOf(savedField(key), value)}
+      bind:abilities={form.abilities}
+      dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
     />
   </section>
 
@@ -291,12 +290,14 @@
   <section>
     <h3>Rettungswürfe (Übungen)</h3>
     <SavingThrowGrid
-      bind:strSaveProf={form.strSaveProf} bind:gesSaveProf={form.gesSaveProf} bind:konSaveProf={form.konSaveProf}
-      bind:intSaveProf={form.intSaveProf} bind:weiSaveProf={form.weiSaveProf} bind:chaSaveProf={form.chaSaveProf}
+      bind:saveProfs={form.saveProfs}
       {mods}
       proficiencyBonus={form.proficiencyBonus}
-      sourceOf={(en) => grantSourcesFor(grants?.savingThrows, en)}
-      dirOf={(field, value) => dirOf(savedField(field), value)}
+      sourceOf={(key) => grantSourcesFor(
+        grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
+        key,
+      )}
+      dirOf={(field, value) => dirOf(saved?.saveProfs?.[field], value)}
     />
   </section>
 

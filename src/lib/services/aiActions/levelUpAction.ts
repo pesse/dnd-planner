@@ -6,6 +6,7 @@
 import type { AiAction } from './types';
 import type { LevelUpDelta } from '../levelUp';
 import type { FeatureRider } from '../../schemas/levelUp';
+import type { AbilityScores } from '../../schemas/abilities';
 import type { GainedFeature } from '../analysis/types';
 import type { PastChoice } from '../characterFeatures';
 import {
@@ -19,8 +20,8 @@ export interface CharacterSummary {
   name: string;
   classes: { name: string; level: number; subclassName: string }[];
   totalLevel: number;
-  abilities: Record<string, number>;
-  mods: Record<string, number>;
+  abilities: AbilityScores;
+  mods: AbilityScores;
   hitDice: string;
   spellcasting: { class: string; ability: string; currentSlots: number[] };
 }

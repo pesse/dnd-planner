@@ -42,24 +42,27 @@ export function abilityKeyOf(raw: string | undefined | null): AbilityKey | undef
   return (ABILITY_KEYS as readonly string[]).includes(s) ? (s as AbilityKey) : undefined;
 }
 
-const abilityRecord = <T extends z.ZodTypeAny>(field: T) =>
-  z.object(Object.fromEntries(ABILITY_KEYS.map((k) => [k, field])) as Record<AbilityKey, T>);
+/** Der geschlossene Record über alle sechs Schlüssel — die einzige Stelle mit dem `fromEntries`-Cast. */
+export const abilityRecordOf = <T>(value: (key: AbilityKey) => T): Record<AbilityKey, T> =>
+  Object.fromEntries(ABILITY_KEYS.map((k) => [k, value(k)])) as Record<AbilityKey, T>;
 
-export const abilityScoresSchema = abilityRecord(z.number().int().default(10)).default(
-  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 10])) as AbilityScores,
+const abilityRecord = <T extends z.ZodTypeAny>(field: T) => z.object(abilityRecordOf(() => field));
+
+export const abilityScoresSchema = abilityRecord(z.number().int().default(10)).default(() =>
+  abilityRecordOf(() => 10),
 );
 
-export const abilityModsSchema = abilityRecord(z.number().int().default(0)).default(
-  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0])) as AbilityScores,
+export const abilityModsSchema = abilityRecord(z.number().int().default(0)).default(() =>
+  abilityRecordOf(() => 0),
 );
 
-export const abilityFlagsSchema = abilityRecord(z.boolean().default(false)).default(
-  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, false])) as Record<AbilityKey, boolean>,
+export const abilityFlagsSchema = abilityRecord(z.boolean().default(false)).default(() =>
+  abilityRecordOf(() => false),
 );
 export type AbilityFlags = z.infer<typeof abilityFlagsSchema>;
 
 /** Monster/NPC: sechs Pflichtfelder ohne Einzel-Default, ein Default fürs ganze Objekt. */
-export const abilityStatsSchema = abilityRecord(z.number().int()).default(
-  () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 10])) as AbilityScores,
+export const abilityStatsSchema = abilityRecord(z.number().int()).default(() =>
+  abilityRecordOf(() => 10),
 );
 export type AbilityStats = z.infer<typeof abilityStatsSchema>;

@@ -51,7 +51,7 @@
         backgroundRef: c.backgroundRef,
         features: c.features,
         proficiencyBonus: c.proficiencyBonus,
-        mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+        mods: c.mods,
       });
       spellcasting = await loadSpellcasting(c);
     })();

@@ -156,8 +156,7 @@ describe('buildCharacterProtocol', () => {
       languages: [],
       inventory: [],
       currency: { km: '', sm: '', em: '', gm: '', pm: '' },
-      weiSaveProf: false,
-      chaSaveProf: false,
+      saveProfs: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
       proficiencies: {
         simpleWeapons: false,
         martialWeapons: false,

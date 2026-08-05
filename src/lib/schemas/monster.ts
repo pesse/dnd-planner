@@ -8,6 +8,7 @@ import {
   type MonsterType,
   type MonsterAlignment,
 } from './vocabulary';
+import { abilityStatsSchema } from './abilities';
 import { sourceField, migrateSourceLegacy } from './source';
 
 const sizeEnum = z.enum(Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]]);
@@ -42,16 +43,7 @@ export const monsterSchema = z.object({
     .object({ average: z.number().int(), formula: z.string().default('').describe('z.B. "2d8+2"') })
     .default({ average: 0, formula: '' }),
   speed: z.string().default('').describe('z.B. "9 m", ggf. mit Flug/Schwimmen'),
-  stats: z
-    .object({
-      str: z.number().int(),
-      dex: z.number().int(),
-      con: z.number().int(),
-      int: z.number().int(),
-      wis: z.number().int(),
-      cha: z.number().int(),
-    })
-    .default({ str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }),
+  stats: abilityStatsSchema,
   saving_throws: z.record(z.string(), z.string()).default({}).describe('z.B. {"con":"+4"}'),
   skills: z.record(z.string(), z.string()).default({}).describe('z.B. {"Heimlichkeit":"+6"}'),
   damage_resistances: z.array(z.string()).default([]),

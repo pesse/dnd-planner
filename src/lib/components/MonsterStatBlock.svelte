@@ -2,12 +2,10 @@
   import type { Monster } from '../types';
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
   import { modStr } from '../domain/skills';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
   import Markdown from './Markdown.svelte';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
-
-  const STAT_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
-  const STAT_LABELS = ['STR', 'DEX', 'KON', 'INT', 'WEI', 'CHA'];
 </script>
 
 <div class="stat-block">
@@ -26,9 +24,9 @@
   <div class="sb-rule orange"></div>
 
   <div class="sb-stats">
-    {#each STAT_KEYS as key, i}
+    {#each ABILITY_KEYS as key}
       <div class="sb-stat">
-        <div class="sb-stat-lbl">{STAT_LABELS[i]}</div>
+        <div class="sb-stat-lbl">{ABILITY_ABBR_DE[key]}</div>
         <div class="sb-stat-val">{monster.stats[key]} ({modStr(monster.stats[key])})</div>
       </div>
     {/each}

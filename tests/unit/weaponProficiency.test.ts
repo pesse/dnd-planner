@@ -72,7 +72,7 @@ function target(other: string, individual: string[] = []): LegacyLinkTarget {
     backgroundRef: { sourceKey: '', name: '' }, inventory: [],
     spells: undefined, dropSpells: () => {}, spellcasting: emptySpellcasting(),
     proficiencies: { ...emptyProficiencies(), individualWeapons: individual, otherWeapons: other },
-    attacks: [], weaponCtx: { strMod: 0, gesMod: 0, proficiencyBonus: 0, proficiencies: emptyProficiencies() },
+    attacks: [], weaponCtx: { strMod: 0, dexMod: 0, proficiencyBonus: 0, proficiencies: emptyProficiencies() },
   } as LegacyLinkTarget;
 }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { SKILL_DEFS, mod, modStr } from '../domain/skills';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
   import { sign } from '../utils/num';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { normalizeNpc } from '../utils/schemaValidation';
@@ -29,15 +30,6 @@
     const timer = setTimeout(() => ed.save(), 600);
     return () => clearTimeout(timer);
   });
-
-  const STAT_LABELS: (keyof NpcStats)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-  const STAT_NAMES: Record<keyof NpcStats, string> = {
-    str: 'STR', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
-  };
-
-  const CHAR_ATTR_TO_NPC: Record<string, keyof NpcStats> = {
-    str: 'str', ges: 'dex', kon: 'con', int: 'int', wei: 'wis', cha: 'cha',
-  };
 
   let showJson = $state(false);
   let rawJson = $state('');
@@ -75,7 +67,7 @@
       delete draft.skills[key];
     } else {
       const skillDef = SKILL_DEFS.find(s => s.key === key);
-      const statKey = skillDef ? CHAR_ATTR_TO_NPC[skillDef.attr] : 'str';
+      const statKey = skillDef ? skillDef.attr : 'str';
       const base = mod(draft.stats[statKey]);
       draft.skills[key] = { bonus: base + 2, prof: true };
     }
@@ -129,9 +121,9 @@
     <div class="npc-content">
 
       <div class="section attributes">
-        {#each STAT_LABELS as attr}
+        {#each ABILITY_KEYS as attr}
           <div class="attr-box">
-            <div class="attr-label">{STAT_NAMES[attr]}</div>
+            <div class="attr-label">{ABILITY_ABBR_DE[attr]}</div>
             <div class="attr-mod">{modStr(draft.stats[attr])}</div>
             <input class="attr-score" type="number" bind:value={draft.stats[attr]} />
           </div>
@@ -160,7 +152,7 @@
         <div class="section">
           <h3>Rettungswürfe <span class="h3-hint">● = Klick zum Umschalten</span></h3>
           <div class="save-list">
-            {#each STAT_LABELS as key}
+            {#each ABILITY_KEYS as key}
               {@const stored = draft.savingThrows[key]}
               {@const base = mod(draft.stats[key])}
               {@const bonus = stored ? stored.bonus : base}
@@ -169,7 +161,7 @@
                 <button class="prof-dot" onclick={() => toggleSaveProf(key)} title="Profizenz umschalten">
                   {prof ? '●' : '○'}
                 </button>
-                <span class="save-label">{STAT_NAMES[key]}</span>
+                <span class="save-label">{ABILITY_ABBR_DE[key]}</span>
                 <span class="save-val">{sign(bonus)}</span>
               </div>
             {/each}
@@ -182,7 +174,7 @@
         <div class="skill-grid">
           {#each SKILL_DEFS as def}
             {@const stored = draft.skills[def.key]}
-            {@const statKey = CHAR_ATTR_TO_NPC[def.attr]}
+            {@const statKey = def.attr}
             {@const base = mod(draft.stats[statKey])}
             {@const bonus = stored ? stored.bonus : base}
             {@const prof = stored?.prof ?? false}

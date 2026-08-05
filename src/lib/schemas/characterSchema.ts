@@ -4,6 +4,7 @@
  * das den Typ von hier re-exportiert.
  */
 import { z } from 'zod';
+import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
@@ -24,7 +25,7 @@ const attackSchema = z.object({
   type: z.string().default(''),
   range: z.string().default(''),
   auto: z.boolean().optional().describe('true = bonus/damage werden aus den Feldern berechnet.'),
-  ability: z.enum(['str', 'ges', 'finesse']).optional().describe('Welcher Attributsmodifikator zählt.'),
+  ability: z.enum(['str', 'dex', 'finesse']).optional().describe('Welcher Attributsmodifikator zählt.'),
   proficient: z.boolean().optional().describe('Übungsbonus auf den Angriffswurf addieren?'),
   baseDamage: z.string().optional().describe('Schadenswürfel ohne Modifikator, z.B. "1W8".'),
   magicBonus: z.number().int().optional().describe('Magischer Bonus (+X) auf Angriff UND Schaden.'),
@@ -174,11 +175,9 @@ export const characterSchema = z.object({
   species: characterSpeciesSchema,
   race: z.string().default(''),
   xp: z.string().default(''),
-  str: z.number().int().default(10), ges: z.number().int().default(10), kon: z.number().int().default(10),
-  int: z.number().int().default(10), wei: z.number().int().default(10), cha: z.number().int().default(10),
+  abilities: abilityScoresSchema,
   // aus den Basiswerten berechnet
-  strMod: z.number().int().default(0), gesMod: z.number().int().default(0), konMod: z.number().int().default(0),
-  intMod: z.number().int().default(0), weiMod: z.number().int().default(0), chaMod: z.number().int().default(0),
+  mods: abilityModsSchema,
   ac: z.string().default(''),
   initiative: z.string().default(''),
   speed: z.string().default(''),
@@ -188,8 +187,7 @@ export const characterSchema = z.object({
   proficiencyBonus: z.number().int().default(2),
   passivePerception: z.string().default(''),
   hitDice: z.string().default(''),
-  strSaveProf: z.boolean().default(false), gesSaveProf: z.boolean().default(false), konSaveProf: z.boolean().default(false),
-  intSaveProf: z.boolean().default(false), weiSaveProf: z.boolean().default(false), chaSaveProf: z.boolean().default(false),
+  saveProfs: abilityFlagsSchema,
   skills: z.record(z.string(), skillEntrySchema).default({}),
   attacks: z.array(attackSchema).default([]),
   classFeatures: z.string().default(''),

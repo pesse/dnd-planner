@@ -53,8 +53,8 @@
               <label class="ac-field">Attribut
                 <select bind:value={atk.ability}>
                   <option value="str">STR ({sign(ctx.strMod)})</option>
-                  <option value="ges">GES ({sign(ctx.gesMod)})</option>
-                  <option value="finesse">Finesse ({sign(Math.max(ctx.strMod, ctx.gesMod))})</option>
+                  <option value="dex">GES ({sign(ctx.dexMod)})</option>
+                  <option value="finesse">Finesse ({sign(Math.max(ctx.strMod, ctx.dexMod))})</option>
                 </select>
               </label>
               <label class="ac-check">

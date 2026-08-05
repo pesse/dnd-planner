@@ -46,12 +46,11 @@ function blankCharacter(name: string): Character {
     classes: [], classLevel: '', playerName: '',
     backgroundRef: { sourceKey: '', name: '' }, background: '',
     species: { sourceKey: '', name: '' }, race: '', xp: '',
-    str: 10, ges: 10, kon: 10, int: 10, wei: 10, cha: 10,
-    strMod: 0, gesMod: 0, konMod: 0, intMod: 0, weiMod: 0, chaMod: 0,
+    abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    mods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     ac: '', initiative: '', speed: '', hpMax: '', hpCurrent: '', hpTemp: '',
     proficiencyBonus: 2, passivePerception: '', hitDice: '',
-    strSaveProf: false, gesSaveProf: false, konSaveProf: false,
-    intSaveProf: false, weiSaveProf: false, chaSaveProf: false,
+    saveProfs: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
     skills: {},
     attacks: [],
     classFeatures: '', traits: '', ideals: '', bonds: '', flaws: '',
@@ -109,23 +108,21 @@ function finalScores(w: CharacterWizard): AbilityScores {
   const scores = applyAsi(w.scores, w.asi);
   const inc = w.effects.result?.riders?.reduce<Record<AbilityKey, number>>(
     (acc, r) => { for (const k of ABILITY_KEYS) acc[k] += r.abilityScoreIncrease[k] ?? 0; return acc; },
-    { str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 },
+    { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
   );
   return inc ? ABILITY_KEYS.reduce((s, k) => ({ ...s, [k]: s[k] + inc[k] }), scores) : scores;
 }
 
 function applyScores(c: Character, scores: AbilityScores): void {
-  for (const k of ABILITY_KEYS) {
-    c[k] = scores[k];
-    c[`${k}Mod` as const] = mod(scores[k]);
-  }
+  c.abilities = { ...scores };
+  c.mods = Object.fromEntries(ABILITY_KEYS.map((k) => [k, mod(scores[k])])) as AbilityScores;
 }
 
 function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
   const hitDie = prog?.hitDie ?? 0;
   if (hitDie <= 0) return;
   c.hitDice = `1W${hitDie}`;
-  c.hpMax = String(Math.max(1, hitDie + mod(scores.kon) + w.hpPerLevelBonus()));
+  c.hpMax = String(Math.max(1, hitDie + mod(scores.con) + w.hpPerLevelBonus()));
   c.hpCurrent = c.hpMax;
 }
 

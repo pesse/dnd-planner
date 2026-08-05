@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Spell } from '../types';
   import { SPELL_SCHOOLS, SPELL_CLASS_KEYS, SPELL_CLASS_LABELS } from '../types';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
   import FormSection from './ui/FormSection.svelte';
 
   let {
@@ -16,11 +17,7 @@
     ...Array.from({ length: 9 }, (_, i) => ({ value: i + 1, label: `${i + 1}. Grad` })),
   ];
 
-  const DC_TYPES = [
-    { index: 'str', name: 'STR' }, { index: 'dex', name: 'DEX' },
-    { index: 'con', name: 'CON' }, { index: 'int', name: 'INT' },
-    { index: 'wis', name: 'WIS' }, { index: 'cha', name: 'CHA' },
-  ];
+  const DC_TYPES = ABILITY_KEYS.map((key) => ({ index: key, name: ABILITY_ABBR_DE[key] }));
 
   const AOE_TYPES = ['sphere', 'cone', 'cube', 'line', 'cylinder'];
   const AOE_LABELS: Record<string, string> = {

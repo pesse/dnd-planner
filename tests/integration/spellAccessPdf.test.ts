@@ -38,7 +38,7 @@ const fighterWithAccess = (classFeatures: string) =>
   characterSchema.parse({
     name: 'Bram Eisenhand',
     proficiencyBonus: 2,
-    chaMod: 3,
+    mods: { cha: 3 },
     classFeatures,
     features: [
       { sourceKey: MAGIC_INITIATE_KEY, name: 'Eingeweihter der Magie', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
@@ -122,7 +122,7 @@ describe('Rundlauf durch das echte Taendler-PDF', () => {
     const rows = await resolveSpellAccess({
       features: c.features,
       proficiencyBonus: c.proficiencyBonus,
-      mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+      mods: c.mods,
     });
     // Die Zahlen kommen aus dem Ledger, nicht aus dem Test: 8 + ÜB 2 + CHA 3.
     expect(rows).toHaveLength(1);

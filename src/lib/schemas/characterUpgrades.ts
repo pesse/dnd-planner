@@ -5,7 +5,7 @@
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 
-export const CHARACTER_VERSION = 7;
+export const CHARACTER_VERSION = 8;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -13,6 +13,28 @@ export interface CharacterUpgrade {
   /** Erscheint im Upgrade-Protokoll. */
   label: string;
   apply: (c: Record<string, unknown>) => void;
+}
+
+/** Altes Bogen-Feld → Attributs-Schlüssel; `str`/`int`/`cha` behalten ihre Schreibweise. */
+const OLD_ABILITY_FIELDS: Record<string, string> = { str: 'str', ges: 'dex', kon: 'con', int: 'int', wei: 'wis', cha: 'cha' };
+const OLD_MOD_FIELDS: Record<string, string> = { strMod: 'str', gesMod: 'dex', konMod: 'con', intMod: 'int', weiMod: 'wis', chaMod: 'cha' };
+const OLD_SAVE_PROF_FIELDS: Record<string, string> = { strSaveProf: 'str', gesSaveProf: 'dex', konSaveProf: 'con', intSaveProf: 'int', weiSaveProf: 'wis', chaSaveProf: 'cha' };
+
+/**
+ * Verschachtelt EIN Attributs-Feldtrio (Werte/Mods/Rettungswurf-Häkchen). Bereits vorhandene
+ * verschachtelte Werte gehen vor — so bleibt ein teilweise umgestellter Charakter
+ * (`gemischt`) unverfälscht, und ein zweiter Lauf ändert nichts mehr (Idempotenz). Die alten
+ * Felder verschwinden in jedem Fall, sonst läse eine spätere Bearbeitung aus der Altkopie.
+ */
+function mergeAbilityFields(c: Record<string, unknown>, targetKey: string, fieldMap: Record<string, string>): void {
+  const existing = c[targetKey];
+  const merged: Record<string, unknown> =
+    existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...(existing as Record<string, unknown>) } : {};
+  for (const [oldField, newKey] of Object.entries(fieldMap)) {
+    if (!(newKey in merged) && oldField in c) merged[newKey] = c[oldField];
+    delete c[oldField];
+  }
+  if (Object.keys(merged).length) c[targetKey] = merged;
 }
 
 // Ein neuer Schritt heißt: `CHARACTER_VERSION` erhöhen und GENAU EINEN Schritt mit dieser
@@ -168,6 +190,18 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       }
       block!.sources = next;
       if (features.length) c.features = features;
+    },
+  },
+  {
+    to: 8,
+    label: 'Attribute: deutsche Bogen-Felder → abilities/mods/saveProfs (englisch, verschachtelt)',
+    apply: (c) => {
+      mergeAbilityFields(c, 'abilities', OLD_ABILITY_FIELDS);
+      mergeAbilityFields(c, 'mods', OLD_MOD_FIELDS);
+      mergeAbilityFields(c, 'saveProfs', OLD_SAVE_PROF_FIELDS);
+      for (const atk of Array.isArray(c.attacks) ? (c.attacks as Record<string, unknown>[]) : []) {
+        if (atk && typeof atk === 'object' && atk.ability === 'ges') atk.ability = 'dex';
+      }
     },
   },
 ];

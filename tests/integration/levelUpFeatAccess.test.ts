@@ -131,7 +131,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       validatedBase: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       validatedFeats: { riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] },
       answers,
-      konMod: 2,
+      conMod: 2,
       pickedCantrips: [],
       pickedLearned: [],
       spellOf: (key: string) => spells[key as keyof typeof spells],

@@ -27,10 +27,10 @@ describe('buildCharacterContext', () => {
 
       ### Abilities
       - STR 16 (+3)
-      - GES 12 (+1)
-      - KON 14 (+2)
+      - DEX 12 (+1)
+      - CON 14 (+2)
       - INT 10 (+0)
-      - WEI 13 (+1, Rettungswurf geübt)
+      - WIS 13 (+1, Rettungswurf geübt)
       - CHA 18 (+4, Rettungswurf geübt)
 
       ### Combat

@@ -24,7 +24,7 @@ import { spellSaveDC } from '../../src/lib/services/spellcasting/state';
 import { CHOSEN_LIST, loadMagicInitiate, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
 
 /** Attributs-Modifikatoren wie am Charakter (`intMod` …): CHA +3 ist der Prüfwert. */
-const MODS = { str: 1, ges: 2, kon: 1, int: 0, wei: -1, cha: 3 } as const;
+const MODS = { str: 1, dex: 2, con: 1, int: 0, wis: -1, cha: 3 } as const;
 const PROF_BONUS = 2;
 
 const grantOfMagicInitiate = async (): Promise<SpellAccessGrant> => {
@@ -123,7 +123,7 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     const c = characterSchema.parse({
       name: 'Bram Eisenhand',
       proficiencyBonus: PROF_BONUS,
-      chaMod: MODS.cha,
+      mods: { cha: MODS.cha },
       features: [
         { sourceKey: MAGIC_INITIATE_KEY, name: 'Eingeweihter der Magie', choice: '', choiceDe: '', gainedAt: 4, desc: '' },
         ...ledgerOf('Charisma').map((e) => ({ ...e, name: '', choiceDe: '', gainedAt: 4, desc: '' })),
@@ -133,7 +133,7 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     const rows = await resolveSpellAccess({
       features: c.features,
       proficiencyBonus: c.proficiencyBonus,
-      mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+      mods: c.mods,
     });
 
     expect(rows).toHaveLength(1);
@@ -150,7 +150,7 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     const rows = await resolveSpellAccess({
       features: c.features,
       proficiencyBonus: c.proficiencyBonus,
-      mods: { str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 },
+      mods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     });
     expect(rows).toEqual([]);
   });

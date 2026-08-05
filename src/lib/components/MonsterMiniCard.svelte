@@ -7,6 +7,7 @@
   import { toActLocalJson, toLibraryJson } from '../utils/vaultJson';
   import { OWN_SOURCE } from '../schemas/source';
   import { MONSTERS_PATH, globalMonsterCandidates, findGlobalMonsterPath } from '../monsterLibrary';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
   import MonsterEditForm from './MonsterEditForm.svelte';
 
   let { slug, actMonsterBasePath }: { slug: string; actMonsterBasePath?: string } = $props();
@@ -179,10 +180,6 @@
   }
 
   function mark() { dirty = true; }
-
-  const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const;
-  type StatKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
-  const STAT_KEYS: StatKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 </script>
 
 <div class="mini-card" class:edit-mode={editMode} class:act-local={source === 'act'}>
@@ -228,9 +225,9 @@
         </div>
 
         <div class="c-stats">
-          {#each STAT_KEYS as key, i}
+          {#each ABILITY_KEYS as key}
             <div class="c-stat">
-              <span class="c-stat-lbl">{STAT_LABELS[i]}</span>
+              <span class="c-stat-lbl">{ABILITY_ABBR_DE[key]}</span>
               <span class="c-stat-val">{saved.stats[key]}</span>
               <span class="c-stat-mod">{modStr(saved.stats[key])}</span>
             </div>

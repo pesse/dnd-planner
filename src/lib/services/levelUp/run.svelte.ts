@@ -231,7 +231,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       delta: st.delta, hitDice: ctx.character.hitDice ?? '',
       chosenSubclass: st.chosenSubclass, subFeatures: st.subFeatures, declaredSpells: st.declaredSpells,
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
-      answers: st.answers, konMod: mod(ctx.character.kon),
+      answers: st.answers, conMod: mod(ctx.character.abilities.con),
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),

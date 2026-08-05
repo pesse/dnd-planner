@@ -1,5 +1,6 @@
 /** Single Source of Truth für NPCs; Anzeige-Labels bleiben in der Karte. */
 import { z } from 'zod';
+import { abilityStatsSchema } from './abilities';
 
 export const NPC_STATUS = ['lebendig', 'tot', 'vermisst', 'unbekannt'] as const;
 export type NpcStatus = (typeof NPC_STATUS)[number];
@@ -14,17 +15,6 @@ const npcSpellSchema = z.object({
   level: z.number().int().default(1).describe('0 = Zaubertrick'),
 });
 
-const npcStatsSchema = z
-  .object({
-    str: z.number().int(),
-    dex: z.number().int(),
-    con: z.number().int(),
-    int: z.number().int(),
-    wis: z.number().int(),
-    cha: z.number().int(),
-  })
-  .default({ str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 });
-
 export const npcSchema = z.object({
   name: z.string().default(''),
   role: z.string().default(''),
@@ -37,7 +27,7 @@ export const npcSchema = z.object({
   ac: z.number().int().default(10),
   hp: z.string().default('').describe('z.B. "27 (5W8+5)"'),
   speed: z.string().default('').describe('z.B. "9 m"'),
-  stats: npcStatsSchema,
+  stats: abilityStatsSchema,
   savingThrows: z.record(z.string(), npcSkillSchema).default({}),
   skills: z.record(z.string(), npcSkillSchema).default({}),
   spells: z.array(npcSpellSchema).default([]),
