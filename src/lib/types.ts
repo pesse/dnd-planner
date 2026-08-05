@@ -48,10 +48,14 @@ export interface Npc {
   path: string;
 }
 
+export type FileEntryType =
+  | 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character'
+  | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background';
+
 export interface FileEntry {
   name: string;
   path: string;
-  type: 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character' | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background';
+  type: FileEntryType;
   /** Nur bei ordnerbasierten Charakteren (mit PDF-Bogen). */
   dirPath?: string;
 }

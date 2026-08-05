@@ -27,13 +27,11 @@ import {
 import { blankSpell, getSpellLibrary, loadSpellByPath, searchSpells as searchSpellLib } from '../../spellLibrary';
 import { parseBackground, parseClass, parseMonster, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
 import { BACKGROUND_TEMPLATE, CLASS_TEMPLATE, MONSTER_TEMPLATE, SPECIES_TEMPLATE } from '../../types';
-import type { Background, ClassProgression, FileEntry, Item, Monster, Species, Spell } from '../../types';
-
-export type CreateKind = 'monster' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background';
+import type { Background, ClassProgression, FileEntryType, Item, Monster, Species, Spell } from '../../types';
 
 /** Deckungsgleich mit den Props von `CreateCardModal`. */
 export interface CreateSpec<T> {
-  type: FileEntry['type'];
+  type: FileEntryType;
   title: string;
   searchApi: (q: string) => Promise<DndApiRef[]>;
   mapApi?: (data: Record<string, unknown>) => T;
@@ -178,7 +176,7 @@ async function searchBackgroundLibrary(q: string): Promise<{ name: string; load:
 /** Bindet T an der Definitionsstelle; die Registry selbst ist typunabhängig. */
 const spec = <T>(s: CreateSpec<T>): CreateSpec<unknown> => s as CreateSpec<unknown>;
 
-export const CREATE_SPECS: Record<CreateKind, CreateSpec<unknown>> = {
+export const CREATE_SPECS = {
   monster: spec<Monster>({
     type: 'monster',
     title: 'Neues Monster',
@@ -255,4 +253,6 @@ export const CREATE_SPECS: Record<CreateKind, CreateSpec<unknown>> = {
     blank: blankBackground,
     nameOf: (b) => b.nameDe || b.name || 'Hintergrund',
   }),
-};
+} satisfies Partial<Record<FileEntryType, CreateSpec<unknown>>>;
+
+export type CreateKind = keyof typeof CREATE_SPECS;
