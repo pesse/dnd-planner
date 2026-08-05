@@ -48,7 +48,7 @@ interface Declaring {
   grantsCasting: CastingGrant;
 }
 
-interface Placement {
+export interface Placement {
   origin: CastingOrigin;
   level: number;
   classKey: string;
@@ -106,6 +106,20 @@ function toSource(f: Declaring, place: Placement, branch: string, used: Set<stri
     quotas: f.grantsCasting.quotas.map((q): Quota => ({ ...q, since: q.since ?? since })),
     branch,
   };
+}
+
+/**
+ * Ad-hoc-Auflösung EINER Deklaration außerhalb der vollen Pipeline — für Aufrufer, die noch
+ * keinen `CastingCharacter` haben (Merkmals-Zugang in Wizard/Aufstieg/Bogen, `spellAccess.ts`).
+ * Ohne `patches`/`pool.from`/`ability.sameAs`: die trägt nur die volle Pipeline auf.
+ */
+export function castingSourceOf(
+  f: { key?: string; name: string; nameDe?: string; desc?: string; gainedAt?: number[]; grantsCasting?: CastingGrant },
+  place: Placement,
+  branch = '',
+): CastingSource | null {
+  const [declared] = declaring([f]);
+  return declared ? toSource(declared, place, branch, new Set()) : null;
 }
 
 function collect(

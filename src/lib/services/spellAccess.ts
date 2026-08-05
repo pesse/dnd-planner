@@ -5,14 +5,17 @@
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import type { AbilityKey } from '$lib/schemas/classProgression';
+import type { CastingGrant } from '$lib/schemas/casting';
 import { resolveClass } from '$lib/spellLibrary';
 import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
 import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
+import { castingSourceOf } from './spellcasting/resolve';
+import { quotaContext, quotaViews } from './spellcasting/quota';
 import { declaredChoice } from './declaredChoice';
 import type { AnalysisChoice } from './analysis/types';
 import type { DeclaredChoiceSource } from './declaration/optionList';
 
-export type SpellAccessSource = DeclaredChoiceSource;
+export type SpellAccessSource = DeclaredChoiceSource & { grantsCasting?: CastingGrant };
 
 export interface SpellAccessGrant {
   featureKey: string;
@@ -31,18 +34,37 @@ export function isSpellAccessFeature(f: SpellAccessSource): boolean {
 }
 
 /**
+ * `spellAccess` hat heute genau einen Vault-Eintrag (Magic Initiate) — eine Talent-Quota ohne
+ * Stufenbezug, deshalb ist `level` ohne echte Charakterstufe sicher: `perLevel` ist bei jeder
+ * heutigen Deklaration 0, und `since` fällt auf 1 zurück. Ein künftiger stufenabhängiger
+ * Zauber-Zugang bräuchte hier die echte Stufe statt der Vorgabe.
+ */
+const NO_SPELL_KEY = (): undefined => undefined;
+
+/**
  * `specialisation` ist die Vorgabe der QUELLE des Merkmals („Magic Initiate (Wizard)").
  * Trifft sie keinen deklarierten Wert, bleibt die Liste vollständig — dann fragt der Flow,
- * statt eine falsche Liste festzuschreiben.
+ * statt eine falsche Liste festzuschreiben. Die Zahlen kommen aus `grantsCasting`, nicht mehr
+ * aus `grantsChoice.kind='spellAccess'` — dessen Felder bleiben nur noch das Zugehörigkeits-Signal.
  */
 export function spellAccessGrantOf(
   feature: SpellAccessSource,
   specialisation = '',
+  level = 1,
 ): SpellAccessGrant | null {
   const grant = feature.grantsChoice;
   if (!grant || grant.kind !== 'spellAccess') return null;
 
-  const declared = grant.spellLists.map((l) => l.toLowerCase().trim()).filter(Boolean);
+  const source = castingSourceOf(
+    { key: feature.key, name: feature.name, nameDe: feature.nameDe, grantsCasting: feature.grantsCasting },
+    { origin: 'feat', level, classKey: '' },
+  );
+  if (!source) return null;
+
+  const ctx = quotaContext(null, source.level, { standard: [], pact: [], casterLevel: 0 }, NO_SPELL_KEY);
+  const views = quotaViews(source, ctx);
+
+  const declared = [...new Set(views.flatMap((v) => v.pool.lists.map((l) => l.toLowerCase().trim())))];
   const fixed = specialisation.trim() ? resolveClass(specialisation) : null;
   const lists = fixed && declared.includes(fixed) ? [fixed] : declared;
 
@@ -51,8 +73,8 @@ export function spellAccessGrantOf(
     feature: feature.name,
     featureDe: feature.nameDe?.trim() || feature.name,
     lists,
-    abilities: [...grant.spellAbilities],
-    picks: grant.spellPicks.map((p) => ({ level: p.level, count: p.count })),
+    abilities: source.ability?.fixed ? [source.ability.fixed] : [...(source.ability?.choose ?? [])],
+    picks: views.map((v) => ({ level: v.levels[0] ?? 0, count: v.count })),
   };
 }
 

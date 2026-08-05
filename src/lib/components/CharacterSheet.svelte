@@ -47,6 +47,7 @@
     }
     void (async () => {
       spellAccessRows = await resolveSpellAccess({
+        classes: c.classes,
         features: c.features,
         proficiencyBonus: c.proficiencyBonus,
         mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },

@@ -568,6 +568,91 @@ Entscheidungen, die der Plan offenließ:
 | Zauberbuch im Editor | eigene Quota-Zeile („Zauberbuch") mit eigenem Picker; keine neue Ansicht |
 | Brücke bei unmigrierten Dateien | ADDITIV zum gespeicherten Block, nicht „neue Form gewinnt" — sonst verschwänden die Zauber eines Aufstiegs, der noch die Altform schreibt |
 
+### Stufe 4b — Frage-Seite von Wizard und Aufstieg auf Quotas
+
+Nur dieser Schritt erlaubt das Löschen von `services/spellcasting.ts` und `services/spellAccess.ts`
+(oben offen gelassen). Befund, 2026-08-05: der Editor hat die generische Form bereits — sie muss
+nicht neu entworfen werden, nur an zwei weiteren Stellen angeschlossen.
+
+**Der Baustein existiert schon.** `spellcastingState({ resolution, profBonus, mods, spellKey })`
+**ohne** `stored` liefert je Quelle/Quota genau `count`, `levels`, `pool.lists/keys`, `fixed`,
+`swap`, `cast` — mit `open === count`, weil nichts gewählt ist. `editorSpellcasting()`
+(`spellcasting/editor.ts`) macht daraus die UI-Form (`EditorSource`/`EditorQuota` mit Label,
+Attributwahl, SG/Angriffsbonus), die `SpellBlock.svelte` im Charakter-Editor schon rendert. Wizard
+und Aufstieg brauchen keine zweite Projektion — sie brauchen denselben Aufruf zu einem Zeitpunkt,
+zu dem noch kein vollständiger `Character` existiert.
+
+**Zwei getrennte Mechanismen, zwei Migrationen:**
+
+1. **Merkmals-Zugang** (`spellAccess.ts`, `SpellAccessGrant`) — Magic Initiate, Fiendish Legacy,
+   Elfenlinie & Co. Geteilte Infrastruktur, identisch in beiden Flows: `characterFeatures.ts`
+   (`resolveSpellAccess`, PDF-Klassenmerkmale-Zeile), `wizard/featurePrep.ts` +
+   `wizard/characterWizard.svelte.ts` (`declaredChoices`), `levelUp/choices.svelte.ts`,
+   `levelUp/run.svelte.ts`, `levelUp/runSteps.ts`. Alle lasen `grantsChoice.kind='spellAccess'`
+   über `spellAccessGrantOf(feature)`; jedes betroffene Merkmal trägt bereits `grantsCasting`
+   (Stufe 1, alle 35). **Erledigt (2026-08-05), minimaler statt des ursprünglich skizzierten
+   Wegs**: `spellAccessGrantOf` behält Signatur und Rückgabeform (`SpellAccessGrant`) bei — kein
+   Aufrufer ändert sich —, liest seine Zahlen aber über `castingSourceOf` (neu, `resolve.ts`; baut
+   EINE `CastingSource` ad-hoc, ohne die volle `resolveCasting`-Pipeline, weil `spellAccess` nie
+   `patches`/`pool.from`/Zweigwahlen trägt) + `quotaViews` statt aus `grant.spellLists/
+   spellAbilities/spellPicks`. `grantsChoice.kind==='spellAccess'` bleibt das reine
+   Zugehörigkeits-Signal (Stufe 5 entscheidet über sein Ende). Nebenbefund: `grantsCasting` fehlte
+   in `DeclaredFeature` (`declaredFeature.ts`) und in drei Konstruktionsstellen, die eine
+   `GainedFeature`/`ChosenFeat` von Hand zusammensetzen (`wizard/featurePrep.ts::originFeat`,
+   `levelUp/features.ts::ChosenFeat`, `LevelUpAssistant.svelte:148`) — dieselbe Lücke, die
+   `declarationCoverage.ts` in Stufe 5 ohnehin adressiert, hier aber schon einen echten Bug
+   gewesen wäre: ein im Aufstieg gewähltes Eingeweihter-der-Magie hätte ohne diese Fixes seinen
+   Zauber-Zugang verloren, ohne dass ein Test es gemerkt hätte.
+2. **Klassen-Zauberwirken** (`spellcasting.ts`, `SpellcastingOffer`/`PrepRegime`) — Wizard:
+   `SpellStep.svelte` + `spellStep.svelte.ts` + die `spellOffer`-Beschaffung in
+   `CharacterWizard.svelte:180-191`. Aufstieg: `learnInfo`/`isSpellbookClass`
+   (`levelUp/spells.ts:117`) + deren Renderer in `LevelUpAssistant.svelte`/`runSteps.ts`. Jeder
+   Flow behält seine eigene UI, beide lesen aber `editorSpellcasting(spellcastingState(...))`
+   statt `spellcastingOffer()`/`learnInfo()`.
+
+**Voraussetzung für beide: eine `CastingCharacter`-Sicht vor dem fertigen `Character`.**
+`resolveCasting()` erwartet `{classes?, species?, backgroundRef?, features?}`
+(`spellcasting/resolve.ts:25`) — im Wizard entsteht das erst am Ende in `applyLinks` +
+`applyFeatureLedger` (`assembleCharacter.ts`). Für die Frage-Seite braucht es denselben Zuschnitt
+**früher**: `w.klass`/`w.species`/`w.background` + die bereits beantworteten Zweigwahlen
+(`w.declaredAnswers`) reichen, weil `resolveCasting` Zweigantworten aus `features[].choice`
+liest. Ein kleiner Adapter (`castingCharacterOf(w): CastingCharacter`), einmal geschrieben, dient
+beiden Aufrufstellen (Angebot **und**, später, `applySpellPicks`). Für den Aufstieg existiert die
+Analogie bereits implizit im aktuellen Charakter plus der Delta-Klasse — dort reicht
+`resolveCasting({ ...character, classes: withDelta(character.classes, delta) })`.
+
+**Picks wandern auf `(sourceId, quotaId) → spell.key[]`, nicht auf Namen.** Sowohl
+`CharacterWizard`s `pickedCantrips`/`pickedKnown`/`pickedPrepared`/`featureSpellPicks` als auch die
+Level-Up-Entsprechung sind heute `encodePick`-kodierte Namens-Strings (`spellcasting.ts:154`).
+Wechselt die Live-Auswahl auf dieselbe Form wie `CharacterSpellcasting.sources[].picks`
+(`Record<sourceId, Record<quotaId, string[]>>`, Keys statt Namen), entfällt die
+Quota-Zuordnungs-Heuristik in `assembleCharacter.ts`s `applySpellPicks` (`cantripQuota`/
+`spellQuota`/`preparedQuota`-Suche, Zeilen 236–243) ersatzlos — die Zuordnung steht dann schon in
+der Live-Auswahl. Das schließt zugleich die zwei `encodePick`/`decodePick`-Zeilen der
+„Restschuld"-Tabelle oben.
+
+**Reihenfolge, additiv wie die Stufen davor:**
+- [x] Merkmals-Zugang (Punkt 1) migriert, alle Aufrufstellen, Tests grün (2026-08-05) —
+      `spellAccess.test.ts`, `spellAccessValues.test.ts`, `spellAccessPdf.test.ts`,
+      `levelUpFeatAccess.test.ts`, `featureDeclaration.test.ts` (dessen synthetische
+      Klassen/Spezies/Talent-Deklaration jetzt `grantsCasting` neben `grantsChoice` trägt) —
+      reine Logikänderung, `npm run verify` grün ohne Browser.
+- [ ] `castingCharacterOf(w)`-Adapter (Wizard) + Äquivalent für den Aufstieg — jetzt Teil von
+      Punkt 2, da Punkt 1 ohne ihn auskam (`castingSourceOf` reichte)
+- [ ] Klassen-Zauberwirken im Wizard (Punkt 2, Wizard-Hälfte) — **UI-Änderung**, laut `CLAUDE.md`
+      vor „fertig" im Browser gegen `.\dev-windows.ps1` zu prüfen (Zaubertricks/Zauber/Vorbereitung
+      je Regime, Zauberbuch-Zeile, Merkmals-Kontingente)
+- [ ] Klassen-Zauberwirken im Aufstieg (Punkt 2, Aufstiegs-Hälfte) — dieselbe Prüfpflicht
+- [ ] Picks-Datenform auf `(sourceId, quotaId)` heben, `encodePick`/`decodePick` aus Wizard und
+      Aufstieg entfernt
+- [ ] `services/spellcasting.ts`, `services/spellAccess.ts` gelöscht;
+      `.claude/rules/ai-paths.md` („Counts come from `services/spellcasting.ts`") nachgezogen
+
+**Risiko, das die Stufen davor nicht hatten:** Stufe 1–4 blieben komplett Browser-frei prüfbar
+(Schema, Services, Tests). Punkt 2 hier ändert laufende Svelte-Reaktivität in zwei Live-Flows —
+`spellOffer`/`spellValues` im Wizard, die entsprechenden `$derived`-Ketten im Aufstieg. Diese zwei
+Teilschritte brauchen einen laufenden `.\dev-windows.ps1`, bevor sie als erledigt gelten.
+
 ### Stufe 5 — Deklarationsdurchgang im Vault
 - [x] `grantsCasting` an allen Zauber-Merkmalen (mit Stufe 1 vorgezogen, 35 Deklarationen)
 - [ ] `grantsChoice.kind='spellcasting'` und `'spellAccess'` sowie `grantsSpells` entfallen; sie

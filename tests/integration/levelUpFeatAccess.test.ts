@@ -46,6 +46,7 @@ const grantOfMagicInitiate = async () => {
     name: feat.name,
     nameDe: feat.nameDe,
     grantsChoice: feat.grantsChoice,
+    grantsCasting: feat.grantsCasting,
   });
   if (!grant) throw new Error('vault/feats/magic-initiate.json deklariert keinen spellAccess');
   return grant;
@@ -166,7 +167,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     const declared = feats.filter((f) => f.grantsChoice?.kind === 'spellAccess');
     expect(declared.map((f) => f.sourceKey)).toEqual([MAGIC_INITIATE_KEY]);
     for (const f of declared) {
-      const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice });
+      const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice, grantsCasting: f.grantsCasting });
       expect(grant, `${f.sourceKey}: Deklaration lesbar`).not.toBeNull();
       // Ohne Kontingent gäbe es keine Zauber-Wahl — das Talent wäre stumm.
       expect(grant!.picks.length, `${f.sourceKey}: Kontingent deklariert`).toBeGreaterThan(0);

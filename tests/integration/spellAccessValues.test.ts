@@ -34,6 +34,7 @@ const grantOfMagicInitiate = async (): Promise<SpellAccessGrant> => {
     name: feat.name,
     nameDe: feat.nameDe,
     grantsChoice: feat.grantsChoice,
+    grantsCasting: feat.grantsCasting,
   });
   if (!grant) throw new Error('vault/feats/magic-initiate.json deklariert keinen spellAccess');
   return grant;

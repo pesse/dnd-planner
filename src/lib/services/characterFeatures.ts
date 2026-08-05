@@ -9,6 +9,7 @@ import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsL
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
+import { characterLevel } from './spellcasting/resolve';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';
@@ -253,6 +254,7 @@ export async function resolveCharacterFeatures(c: {
  * gespeicherter SG würde altern. Ohne beantwortetes Attribut fällt der Zugang heraus.
  */
 export async function resolveSpellAccess(c: {
+  classes?: CharacterClass[];
   features?: CharacterFeatureEntry[];
   proficiencyBonus?: number;
   mods: Record<AbilityKey, number>;
@@ -260,6 +262,7 @@ export async function resolveSpellAccess(c: {
   const entries = c.features ?? [];
   if (!entries.length) return [];
 
+  const level = characterLevel(c.classes);
   const lib = await getFeats();
   const out: SpellAccessValues[] = [];
   const seen = new Set<string>();
@@ -270,12 +273,17 @@ export async function resolveSpellAccess(c: {
 
     const feat = matchFeatEntry(lib, ref);
     if (!feat) continue;
-    const grant = spellAccessGrantOf({
-      key: feat.sourceKey,
-      name: feat.name,
-      nameDe: feat.nameDe,
-      grantsChoice: feat.grantsChoice,
-    });
+    const grant = spellAccessGrantOf(
+      {
+        key: feat.sourceKey,
+        name: feat.name,
+        nameDe: feat.nameDe,
+        grantsChoice: feat.grantsChoice,
+        grantsCasting: feat.grantsCasting,
+      },
+      '',
+      level,
+    );
     if (!grant) continue;
 
     const values = spellAccessValues(grant, entries, c.mods, c.proficiencyBonus ?? 2);
