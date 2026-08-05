@@ -6,7 +6,6 @@
    */
   import { onMount } from 'svelte';
   import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
-  import { encodePick } from '../services/spellcasting';
   import SpellTooltip from './SpellTooltip.svelte';
   import { createSpellHover } from './spellHover.svelte';
 
@@ -31,7 +30,7 @@
     /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
     max: number;
-    /** Gewählte Zauber, `encodePick`-kodiert. */
+    /** Gewählte Zauber als `spell.key`. */
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
@@ -87,10 +86,11 @@
 
   const full = $derived(enforceMax && picks.length >= max);
   const over = $derived(!enforceMax && picks.length > max);
-  const isPicked = (s: SpellInfo) => picks.includes(encodePick(s.level, s.name));
+  const isPicked = (s: SpellInfo) => !!s.key && picks.includes(s.key);
 
   function toggle(s: SpellInfo) {
-    const val = encodePick(s.level, s.name);
+    const val = s.key;
+    if (!val) return; // ohne Bibliotheks-Key nicht verlinkbar — kann nicht ausgewählt werden
     if (picks.includes(val)) {
       picks = picks.filter((x) => x !== val);
       if (prepared) prepared = prepared.filter((x) => x !== val);
@@ -154,7 +154,7 @@
               ><span class="chip-main">◆ {f.name}</span></span>
             {/each}
             {#each sec.spells as s (s.name)}
-              {@const val = encodePick(s.level, s.name)}
+              {@const val = s.key ?? ''}
               {@const picked = isPicked(s)}
               <span
                 class="chip"

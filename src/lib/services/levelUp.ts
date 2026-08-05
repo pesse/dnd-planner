@@ -22,6 +22,12 @@ export interface SubclassOption {
   name: string;
 }
 
+/** Wohin ein Change-Ziel im Zauber-Block routet — `spellcasting/write.ts`s `(sourceId, quotaId)`. */
+export interface QuotaTarget {
+  sourceId: string;
+  quotaId: string;
+}
+
 export interface LevelUpDelta {
   classIndex: number;
   klasseName: string;
@@ -44,6 +50,9 @@ export interface LevelUpDelta {
   preparedTo: number;
   preparedDelta: number;
   spellbook: boolean; // true = Zauberbuch-Regime (Vorbereitung zieht aus einem Buch-Kontingent)
+  /** Ziel-Quotas auf `toLevel` — `null` ohne Zauberwirken. Für `decisionChanges` (Aufstiegs-Picker). */
+  cantripTarget: QuotaTarget | null;
+  spellTarget: QuotaTarget | null;
   masteryFrom: number; // Waffenbeherrschungs-Kontingent; 0 = Klasse hat sie nicht
   masteryTo: number; // ein Anstieg erzeugt nur einen Hinweis, keine Wahl
   featuresGained: ClassFeature[];
@@ -153,6 +162,7 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
     hitDie: 0, casterType: 'NONE', casterKind: 'none',
     spellSlotDelta: Array(9).fill(0), castingIsNew: false, cantripDelta: 0,
     preparedFrom: 0, preparedTo: 0, preparedDelta: 0, spellbook: false,
+    cantripTarget: null, spellTarget: null,
     masteryFrom: 0, masteryTo: 0,
     featuresGained: [], subclassFeaturesGained: [], subclassOptions: [],
     triggersSubclassChoice: false, triggersASI: false, asiCount: 0,
@@ -162,7 +172,7 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
   };
 }
 
-type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta' | 'spellbook'>;
+type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta' | 'spellbook' | 'cantripTarget' | 'spellTarget'>;
 
 /**
  * Zwei Angebote (vor/nach) statt einer Absolutzahl je Grad: dasselbe `classCastingOffer`, das
@@ -201,6 +211,8 @@ async function spellcastingDelta(prog: ClassProgression, span: LevelSpan): Promi
     preparedTo: to.spells?.count ?? 0,
     preparedDelta: Math.max(0, (to.spells?.count ?? 0) - (from.spells?.count ?? 0)),
     spellbook: !!to.prepared,
+    cantripTarget: to.cantrips ? { sourceId: to.cantrips.sourceId, quotaId: to.cantrips.quotaId } : null,
+    spellTarget: to.spells ? { sourceId: to.spells.sourceId, quotaId: to.spells.quotaId } : null,
   };
 }
 

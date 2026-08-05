@@ -182,9 +182,9 @@ Quellendefinitionen allein nicht ablesbar ist:
   weil der Spieler zweimal Charisma gewählt hat. Ein Wei-Fee-Zauberer bekäme zwei SG, ohne dass
   sich am Modell etwas ändert.
 - **Die Fee speichert keine einzige Zauberwahl.** Ihre drei Zauber stehen als `pool.names` in der
-  Quelle; persistiert werden nur `bindings.ability` und ein Verbrauchszähler. Picks entstehen nur
-  dort, wo es wirklich etwas zu wählen gibt — das ist die Persistenz-Umkehr an einem konkreten
-  Fall.
+  Quelle; persistiert wird im Zauber-Block nur ein Verbrauchszähler, die Attributwahl steht als
+  Antwort am Merkmal (`character.features`). Picks entstehen nur dort, wo es wirklich etwas zu
+  wählen gibt — das ist die Persistenz-Umkehr an einem konkreten Fall.
 - **Zwei Bezugsstufen, hier zufällig gleich.** Die Fee indiziert die Charakterstufe, der Zauberer
   die Klassenstufe. Bei einer Einzelklasse fällt das zusammen; ein Zauberer 3 / Hexenmeister 2
   hätte trotzdem *Enlarge/Reduce* noch nicht, aber die Fee-Stufe-3-Zeile schon.
@@ -248,10 +248,11 @@ Die Beispiele haben den Entwurf an sechs Stellen korrigiert:
    gesetztem `names` entfällt `levels` — der Grad steht am Zauber.
 5. **`uses.count` braucht `'proficiency-bonus'`.** Der Waldgnom wirkt *Speak with Animals*
    übungsbonus-oft pro Langer Rast, nicht einmal.
-6. **Zweigwahlen werden gelesen, nicht zweitgespeichert.** `when: {option: 'High Elf'}` bezieht
+6. **Wahlen werden gelesen, nicht zweitgespeichert.** `when: {option: 'High Elf'}` bezieht
    sich auf das `grantsChoice.optionList` **desselben** Merkmals, dessen Antwort schon im
-   Merkmals-Ledger steht. Kein `bindings`-Block, kein Fremdverweis. Nur `ability` und `list` —
-   Antworten, die es heute nirgends gibt — landen in `spellcasting.sources[].bindings`.
+   Merkmals-Ledger steht. Für Attribut und Liste gilt dasselbe: sie sind Wahlen DES MERKMALS und
+   stehen als Antwort im Ledger, nicht im Zauber-Block (siehe „Dritter Befund" unten — der erste
+   Anlauf hatte hier einen `bindings`-Block, und der lief auseinander).
 
 7. **`since` ist meistens überflüssig**, weil `gainedAt` am Merkmal schon sagt, ab welcher Stufe
    es gilt. Ausgeschrieben wird es nur, wo **ein** Merkmal über mehrere Stufen Verschiedenes gibt:
@@ -277,9 +278,9 @@ spellcasting: {
     standard: { used: number[] },      // Index 0 = Grad 1
     pact:     { used: number },
   },
-  // Quellenbesitz: stirbt mit der Quelle.
+  // Quellenbesitz: stirbt mit der Quelle. Attribut und Liste stehen NICHT hier, sondern als
+  // Antwort am Merkmal (`character.features`).
   sources: Record<string, {
-    bindings: { ability?: AbilityName; list?: string },
     picks:    Record<string /* quotaId */, string[] /* spell.key */>,
     uses:     Record<string /* quotaId */, number>,
   }>,
@@ -459,7 +460,7 @@ NUR es tragen, weiter als „nicht redigiert". Gehört zu Stufe 5, wo die alten 
 | thromm_flechtenstein | 3 Zaubertricks bei Kontingent 2 — der dritte ist nur mit Urtümlicher Ordnung = *Magician* gedeckt, und diese Antwort steht nicht im Ledger | Bestandsfehler (fehlende Antwort) |
 | thromm_flechtenstein | 7 Zauber Grad 1 bei Kontingent 6, davon 3 als `prepared` markiert | Modellfolge: der Druide hat keinen „bekannt"-Bestand, der Überhang kann nur `manual.extra` werden |
 | silvara (Fee-Zauberer 3) | *Druidenkunst* und *Feenfeuer* stehen im Klassen-Kontingent | Modellfolge: nach der Umstellung gehören sie der Fee-Quelle (dort als fester Pool abgeleitet) |
-| silvara | Attributwahl der Fee ist unbeantwortet (`bindings.ability` fehlt) | Modellfolge: die Wahl entsteht mit dem Modell neu |
+| silvara | Attributwahl der Fee ist unbeantwortet | Modellfolge: die Wahl entsteht mit dem Modell neu — als Antwort am Merkmal |
 
 **Was der Plan nicht nannte:** `character.spells` führt DEUTSCHE Zaubernamen, die Deklarationen
 englische. Entschieden (2026-08-04): die neue Form speichert **nur `spell.key`**, `resolveSpell`
@@ -550,7 +551,7 @@ Bestandsfehler oben bleiben so stehen.
 | carric_galanodel | — | 2 Zauber `extra`, Plätze als `slotTotals` |
 | falbala | — | — |
 | phönix | — | 10 Zauber `extra`, Plätze als `slotTotals` |
-| silvara (Fee-Zauberer 3) | 4 Tricks + 4 Vorbereitete; Attributwahl der Fee als `bindings.ability` | — |
+| silvara (Fee-Zauberer 3) | 4 Tricks + 4 Vorbereitete; die Attributwahl der Fee steht am Merkmal | — |
 | thromm (Druide 3, Mondzirkel) | 2 Tricks + 5 Vorbereitete | *Vertrauten finden* (Magier-Zauber) als `extra` |
 
 *Sternenlichtfunke*, *Wunden heilen* und *Mondstrahl* stehen bei thromm nicht mehr in der Datei:
@@ -688,8 +689,114 @@ der Live-Auswahl. Das schließt zugleich die zwei `encodePick`/`decodePick`-Zeil
       Sorcerer/Hexenmeister/Waldläufer) durch den obigen Fix überhaupt zum ersten Mal
       „Zauber erlernen"-Fragen bekommt. Kein Datenverlust (die Bogen-Anzeige dedupliziert über den
       Zauber-Key), nur eine fehlende Quellen-Zeile. Genau das behebt der nächste Punkt.
-- [ ] Picks-Datenform auf `(sourceId, quotaId)` heben, `encodePick`/`decodePick` aus Wizard und
-      Aufstieg entfernt
+- [x] **Dritter Befund aus dem Live-Test, echter Bug — Bindung fehlte ganz** (2026-08-05,
+      Bölgör/Weiser+Eingeweihter der Magie): Attribut UND Liste eines Zauber-Zugangs wurden zwar
+      berechnet (`spellAccessGrantOf`), aber nie geschrieben, wenn die Entscheidung schon FEST
+      stand — `spellAccessChoices` fragt bei einer einzigen verbleibenden Liste/einem einzigen
+      Attribut gar nicht erst, also lief auch nie eine Antwort in `applyChanges`. Symptome: der
+      Editor zeigte die volle deklarierte Listen-Union („Kleriker, Druide, Magier" statt „Magier"),
+      der Zauber-Picker filterte entsprechend auf die falsche (erste) Liste der Union — bei Bölgör
+      unpickbar, was laut Hintergrund (Weiser → Magier) eigentlich zustand („Alarm"). Bug #1 aus
+      demselben Live-Test (Zauber schienen nach einem erneuten Aufstieg zu verschwinden) war
+      derselbe Anzeige-Effekt, kein Datenverlust — die Datei behielt alle Picks.
+
+      Der erste Anlauf legte dafür eine ZWEITE Senke an (`Change{target:'spellBinding'}`,
+      `castingSourceState.bindings`, `setAbility`/`setList`, `narrowToBoundList`) — also genau das,
+      was `.claude/rules/character-flows.md` verbietet: Attribut und Liste standen danach im
+      Merkmals-Ledger UND im Zauber-Block. Der Befund im Bestand: `bindings.ability` hatte im
+      ganzen Vault EINEN Wert (silvara/Feenmagie), und der stand in ihrem Ledger schon;
+      `bindings.list` schrieb nie jemand, `SourceState.list` las nie jemand. Zurückgenommen und
+      als eine Senke neu gebaut (Stufen A–D, 2026-08-05):
+      - **Das Merkmals-Ledger (`character.features`) ist die Senke.** `declaration/ledgerAnswers.ts`
+        ist die EINE Leseregel (`ledgerAnswers` + `pickAnswer`) — sie ersetzt drei Kopien
+        (`spellAccess.ts::answeredAbility`, `legacy.ts::ledgerAbility`, die Verengung in
+        `resolve.ts`).
+      - **`resolveCasting` verengt die Deklaration, bevor irgendwer sie liest**: Antwort →
+        `ability.fixed`, `pool.lists = [eine]`, `branch`. Die Anzeige engt nichts mehr ein, also
+        kann sie auch nicht mehr abweichen. Der `branch` wird gegen die deklarierten
+        `when.option`-Werte geprüft statt „erster Ledger-Eintrag gewinnt" — das hätte die
+        Elfen-Abstammung umgeworfen, sobald deren Attributantwort im Ledger landet.
+      - **Instanz-Identität ist `(featureKey, gainedAt)`** (`castingSourceId`): die FRÜHESTE
+        Vergabe behält den blanken Key, spätere bekommen `key@<gainedAt>`. Damit hängt jede Wahl
+        am richtigen Merkmal, auch bei Eingeweihter der Magie ×2 („a different list each time");
+        das positionsabhängige `#n` bleibt nur noch Kollisions-Fallback für Altdaten.
+        `featInstances` ist die eine Quelle dieser Instanzen, für Auflösung, Merkmals-Panel
+        und Bogen.
+      - **Der Picker sitzt am MERKMAL, nicht im Zauber-Block** — die Wahl gehört zum Merkmal, das
+        sie gewährt. `ChoiceSlot.access` lässt ein Merkmal mehrere Wahlen schulden (Zweig +
+        Attribut + Liste); im Ledger unterscheidet sie der WERT (`slotClaims`), wertgeprüfte Slots
+        greifen vor unbeschränkten. Der Zauber-Block zeigt nur noch den Hinweis „Zauberattribut
+        offen".
+      - **Die Vorgabe des Hintergrunds gilt beim LESEN**, nicht nur beim Bauen im Wizard:
+        `featSpecialisation` liegt jetzt in `backgroundsLibrary.ts`, und „Magic Initiate (Wizard)"
+        engt die Liste auf `wizard` ein, egal welcher Flow fragt. Bölgör bekommt deshalb genau EINE
+        Frage (Attribut), keine Listenfrage.
+      - **`bindings` ist aus dem Schema weg**, `CHARACTER_VERSION = 7` mit einem Schritt: `bindings`
+        löschen, `key#n` → `key@<gainedAt>` umbenennen, ein Attribut, das im Ledger fehlt,
+        nachtragen, und einen Block, dessen einziger Inhalt die Bindung war, verwerfen (wie
+        `pruneSpellcasting`).
+      - **Was FESTLIEGT, steht auch am Merkmal** (Live-Befund 2026-08-05: „die implizite
+        Entscheidung Magier-Zauberliste ist am Herkunftsmerkmal nicht ersichtlich"). Eine
+        Festlegung ist keine Frage, also auch kein Picker: `spellAccessFacts` ist die Gegenseite
+        von `spellAccessParts` — dieselben zwei Teile, gebildet aus derselben
+        `spellAccessPartChoice`, damit die deutschen Labels nicht zweimal existieren.
+        `collectChoiceSlots` gibt seitdem `{slots, facts}` aus EINEM Durchgang zurück (ein
+        zweiter Sammler hätte die ganze Merkmals-Auflösung verdoppelt), `ChoiceSection` zeigt sie
+        read-only über den Pickern, und `grant.listFromSource` trennt „der Hintergrund hat
+        gewählt" von „die Deklaration nennt nur eine". Nebenbei richtig geworden: die
+        Stufen-Beschriftung erscheint jetzt bei mehreren INSTANZEN statt bei mehreren Plätzen —
+        vorher stand an einem Merkmal mit zwei Wahlen zweimal „Stufe 1".
+      - Tests: `featureChoiceSlots.test.ts` (neu — Bölgör: EIN Slot am Herkunftsmerkmal, Antwort
+        „Charisma", keine Listenfrage; Elfen-Abstammung: Zweig und Attribut nach Wert getrennt;
+        Talent zweimal: Liste/Attribut je Instanz), dazu die Instanz-Ids und die
+        Hintergrund-Vorgabe in `castingSources.test.ts` und `castingWrite.test.ts`, plus die
+        Feststellungs-Zeile („Zauberliste: Magier — durch den Hintergrund festgelegt").
+        Browser-Prüfung an Bölgör: Picker am Herkunftsmerkmal bestätigt (2026-08-05), die
+        Feststellungs-Zeile steht noch aus.
+- [ ] **Picks-Datenform auf `(sourceId, quotaId)` heben, `encodePick`/`decodePick` aus Wizard und
+      Aufstieg entfernt** (2026-08-05, Browser-Prüfung steht noch aus) — nicht als
+      Restrukturierung von `pickedCantrips`&Co. in
+      verschachtelte Records, sondern als Beseitigung der ZWEI Heuristiken, die die Zuordnung
+      NACHTRÄGLICH neu erraten hatten, obwohl sie an der Quelle (`classCastingOffer`,
+      `spellAccessGrantOf`) längst bekannt war:
+      - `assembleCharacter.ts`s `applySpellPicks` fragt jetzt `classCastingOffer(...)` — denselben
+        Aufruf, den der Zauber-Schritt fürs Angebot nutzt — nach `cantrips`/`spells`/`prepared`
+        und schreibt deren `sourceId`/`quotaId` direkt; die alte Struktur-Suche über
+        `classSource.quotas` (`levels.includes(0)`, `tier==='known'`, `pool.from`) fällt weg.
+        `resolveCasting(c)` brauchte `applySpellPicks` dafür gar nicht mehr.
+      - `SpellAccessGrant.picks[]` trägt jetzt `sourceId`/`quotaId` aus den `QuotaView`s, die
+        `spellAccessGrantOf` ohnehin schon berechnet; `spellAccessChoices` reicht sie in die
+        `AnalysisChoice`/`LevelUpQuestion` weiter (neues Feldpaar an beiden, defaultet `''` für
+        KI-erkannte Wahlen ohne Quota). `applySpellPicks`s Feature-Schleife und
+        `changes.ts::featureSpellChanges` lesen sie direkt statt `resolution.sources.find(...)`
+        bzw. `decodePick`.
+      - Picks selbst sind jetzt `spell.key`, nicht `level::name`: `SpellPickModal`/`SpellPickField`
+        arbeiten auf `SpellInfo.key`, `SpellBlock.svelte`s `encodedOf`/`applyEncoded`-Rundlauf
+        (Key → Name → `encodePick` → Modal → `decodePick` → Name → Key) fällt ersatzlos weg.
+        Nebenbefund dabei: `createSpellInline` (Inline-Zauberanlage im Aufstieg/Editor) schrieb
+        NIE einen `key` — ein so angelegter Zauber wäre am Charakter unverlinkbar gewesen; jetzt
+        bekommt er `homebrew-sam_<slug>`, denselben Slug wie der Dateiname.
+      - `Change` (`cantrip`/`preparedSpell`) trägt jetzt optional `key`/`sourceId`/`quotaId`.
+        `applyChanges.ts`s neues `addSpell` routet an `spellcasting/write.ts`s neues `addPick`
+        (additiv, anders als `setPicks`), wenn beides gesetzt ist — sonst wie bisher
+        `manual.extra`. Riders und Stufentabellen-Zauber (`riderChanges`, `declaredSpellChanges`)
+        liefern weiterhin keine Quota (sie kennen keine) und landen unverändert dort; das war schon
+        vor diesem Punkt die getroffene Entscheidung (Stufe 4, „Entscheidungen, die der Plan
+        offenließ") und bleibt es.
+      - `LevelUpDelta` bekommt `cantripTarget`/`spellTarget` (aus denselben `to.cantrips`/
+        `to.spells`-`QuotaView`s, die `spellcastingDelta` für die Zahlen schon auflöst) — 
+        `decisionChanges`s `cantrips`/`learned_spells`-Picks routen darüber. `learnAsPrepared`
+        entfällt als eigener Parameter: er war immer nur `!delta.spellbook`.
+      - Zauber-Antworten (`spell-picker`) sind jetzt überall `spell.key[]`, nicht mehr
+        `level::name`-Strings — `answers.ts`s `answerLabels`/`answerValues` bekommen dafür einen
+        optionalen `nameOf`-Auflöser (Vorgabe: Identität), gespeist aus `spellInfoByKey(library, …)`
+        (neu, `spellLibrary.ts`) überall dort, wo eine Zauber-Antwort als Text gebraucht wird
+        (Checkpoint-Protokoll, `<resolved_choices>` an die KI, `featureChoiceChanges`).
+      `npm run verify` grün (3 Testerwartungen angepasst — `picks[]` trägt jetzt `sourceId`/
+      `quotaId` mit). **Browser-Prüfung noch offen**, und nötiger als bei Punkt 2 oben: dieser
+      Schritt ändert die Picker-Identität (Key statt Name) in DREI Live-Flows zugleich —
+      Wizard-Zauberschritt, Aufstiegs-Zauber-Picker, Editor-Zauberblock (Kontingent-Picker UND
+      Inline-Zauberanlage).
 - [ ] `services/spellcasting.ts`, `services/spellAccess.ts` gelöscht;
       `.claude/rules/ai-paths.md` („Counts come from `services/spellcasting.ts`") nachgezogen
 

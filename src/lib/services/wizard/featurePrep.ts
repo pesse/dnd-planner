@@ -7,11 +7,13 @@ import { getProgressionByKey, featuresUpTo } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import type { Trait } from '$lib/schemas/species';
-import { getBackgroundByKey } from '$lib/backgroundsLibrary';
+import { featSpecialisation, getBackgroundByKey } from '$lib/backgroundsLibrary';
 import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
-import { spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant } from '../spellAccess';
+import {
+  isSpellAccessFeature, spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant,
+} from '../spellAccess';
 import { isSheetValueTrait } from '../sheetValueTraits';
 import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../analysis/types';
@@ -57,18 +59,6 @@ export interface FeaturePrep {
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
-}
-
-/**
- * „Magic Initiate (Wizard)" → „Wizard". Nur der Hintergrund legt die Spezialisierung fest —
- * im Talent-Wörterbuch steht die generische Fassung, die KI müsste die Liste raten.
- * ENGLISCH zuerst, weil der Wert im Prompt `spellClass` treibt: „Magier" wäre genau die
- * Zauberer/Magier-Kollision, die CLASS_MAP schon einmal verdreht hat.
- */
-function featSpecialisation(bg: Background | null): string {
-  const benefit = bg?.benefits.find((b) => b.type === 'feat');
-  const raw = benefit?.desc || benefit?.descDe || '';
-  return raw.match(/\(([^)]+)\)/)?.[1]?.trim() ?? '';
 }
 
 function level1Features(p: ClassProgression | null, source: 'class' | 'subclass'): GainedFeature[] {
@@ -127,7 +117,12 @@ function declaredSources(
  */
 function spellAccessGrants(declared: DeclaredFeature[], bg: Background | null): SpellAccessGrant[] {
   return declared
-    .map((f) => spellAccessGrantOf(f, bg?.featKey && f.key === bg.featKey ? featSpecialisation(bg) : ''))
+    .filter(isSpellAccessFeature)
+    .map((f) =>
+      spellAccessGrantOf(f, {
+        specialisation: bg?.featKey && f.key === bg.featKey ? featSpecialisation(bg) : '',
+      }),
+    )
     .filter((g): g is SpellAccessGrant => g !== null);
 }
 

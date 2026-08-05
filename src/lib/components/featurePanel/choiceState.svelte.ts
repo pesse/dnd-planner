@@ -4,8 +4,8 @@
  */
 import type { Character } from '$lib/schemas/characterSchema';
 import {
-  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies,
-  type CharacterChoice, type ChoiceGrants, type ChoiceSlot,
+  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies, slotClaims,
+  type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
 } from '$lib/services/characterChoices';
 import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges';
 import type { CoverageBadge } from '$lib/services/declarationCoverage';
@@ -28,6 +28,8 @@ export interface ChoiceState {
   /** Wahl-Einträge ohne Platz UND ohne Merkmal am Charakter. */
   readonly orphans: LedgerRow[];
   slotsOf(key: string): ChoiceRow[];
+  /** Was an diesem Merkmal schon festliegt, ohne dass es je eine Frage gab. */
+  factsOf(key: string): ChoiceFact[];
   /** Antworten an einem Merkmal OHNE Wahl-Platz (KI-gedeutet, keine Optionen deklariert). */
   looseOf(key: string): LedgerRow[];
   /** Offene Wahlen unter diesen Keys — der Marker am zugeklappten Abschnitt. */
@@ -40,6 +42,7 @@ export function createChoiceState(o: {
   /** Baseline des Diff-Highlightings. */
   saved: () => Character | null;
   slots: () => ChoiceSlot[];
+  facts: () => ChoiceFact[];
   /** Keys aller Merkmale, die der Charakter überhaupt hat. */
   knownKeys: () => string[];
   /**
@@ -68,6 +71,15 @@ export function createChoiceState(o: {
     return map;
   });
 
+  const factsByFeature = $derived.by(() => {
+    const map = new Map<string, ChoiceFact[]>();
+    for (const f of o.facts()) {
+      if (!f.featureKey) continue;
+      map.set(f.featureKey, [...(map.get(f.featureKey) ?? []), f]);
+    }
+    return map;
+  });
+
   let spellLibrary = $state<SpellInfo[]>([]);
   $effect(() => { getSpellLibrary().then((lib) => { spellLibrary = lib; }); });
 
@@ -86,10 +98,13 @@ export function createChoiceState(o: {
   const savedChoiceEntries = $derived((o.saved()?.features ?? []).filter((r) => !!r.choice?.trim()));
   function savedAnswerOf(ch: CharacterChoice): string {
     const key = ch.slot.feature.key ?? '';
+    // Wertgeprüft wie in `buildCharacterChoices`: sonst läse die Attributwahl die Listen-Antwort
+    // desselben Merkmals und die Tönung meldete eine Änderung, die es nicht gab.
+    const mine = savedChoiceEntries.filter((e) => e.sourceKey === key && slotClaims(ch.slot, e.choice));
     const hit =
-      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt === ch.slot.gainedAt) ??
+      mine.find((e) => e.gainedAt === ch.slot.gainedAt) ??
       // Altbestand trägt kein `gainedAt` — dieselbe Nachsicht wie `buildCharacterChoices`.
-      savedChoiceEntries.find((e) => e.sourceKey === key && e.gainedAt == null);
+      mine.find((e) => e.gainedAt == null);
     return hit?.choice ?? '';
   }
 
@@ -126,6 +141,7 @@ export function createChoiceState(o: {
     get openCount() { return openCount; },
     get orphans() { return orphans; },
     slotsOf: (key) => byFeature.get(key) ?? [],
+    factsOf: (key) => factsByFeature.get(key) ?? [],
     looseOf: (key) => loose.get(key) ?? [],
     openIn(keys) {
       const set = new Set(keys);

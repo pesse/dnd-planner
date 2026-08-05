@@ -74,10 +74,17 @@ describe('Umzug der Altform', () => {
     expect(await sheetLabels(c)).toContain('Druidenkunst');
   });
 
-  it('trägt die Attributantwort des Merkmals-Ledgers ein', async () => {
+  /**
+   * Der Umzug schreibt das Attribut NICHT: es steht als Antwort im Merkmals-Ledger, und die
+   * Auflösung liest es von dort. Eine Kopie in `spellcasting` liefe auseinander.
+   */
+  it('lässt das Attribut im Merkmals-Ledger stehen', async () => {
     const c = legacy('silvara');
     await migrate(c);
-    expect(c.spellcasting.sources['phb-2024_fairy_fairy-magic'].bindings.ability).toBe('Charisma');
+    expect(c.features.map((f) => f.choice)).toContain('Charisma');
+    const { state } = await loadSpellcasting(c);
+    const fairy = state.sources.find((s) => s.source.featureKey === 'phb-2024_fairy_fairy-magic');
+    expect(fairy?.ability).toBe('Charisma');
   });
 
   it('nennt im Angebot die Zahl der Zauber und wiederholt sich nicht', async () => {

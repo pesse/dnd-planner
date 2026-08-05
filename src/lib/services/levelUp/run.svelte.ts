@@ -7,7 +7,7 @@ import { mod } from '../../domain/skills';
 import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
-import { resolveDeclaredSpells, noDeclaredSpells, learnInfo } from './spells';
+import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
 import { gainedFeaturesFor, computeSubclassFeatures } from './features';
 import { countFeatsToPick } from './questions';
 import { buildDoc } from './doc';
@@ -16,7 +16,8 @@ import { createRunSteps } from './runSteps';
 import { emptyRiders, emptyRunState, type LevelUpRunState } from './runState';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
-import { spellAccessGrantOf, type SpellAccessGrant } from '../spellAccess';
+import { isSpellAccessFeature, spellAccessGrantOf, type SpellAccessGrant } from '../spellAccess';
+import { nextFeatSourceId } from '../spellcasting/resolve';
 import type { LevelUpDoc } from '../../schemas/levelUp';
 import { getSpellLibrary } from '../../spellLibrary';
 import { getFeats } from '../../featsLibrary';
@@ -180,9 +181,18 @@ export function createLevelUpRun(ctx: { character: Character }) {
       case 'feat-links':
         // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im
         // Vault, also fragt der Flow sie ab statt die KI sie aus der Prosa zu deuten.
-        st.featAccess = st.chosenFeats
-          .map((f) => spellAccessGrantOf(f))
-          .filter((g): g is SpellAccessGrant => g !== null);
+        // Die Instanz-Id kommt aus dem BESTAND — ein zweites Eingeweihter der Magie ist eine
+        // eigene Quelle, und seine Zauber dürfen nicht in die Kontingente des ersten fallen.
+        st.featAccess = (
+          await Promise.all(
+            st.chosenFeats.filter(isSpellAccessFeature).map(async (f) =>
+              spellAccessGrantOf(f, {
+                gainedAt: f.gainedAt,
+                sourceId: await nextFeatSourceId(ctx.character, f.key, f.gainedAt),
+              }),
+            ),
+          )
+        ).filter((g): g is SpellAccessGrant => g !== null);
         if (st.featAccess.length) {
           steps.initFeatureChoices(choices.featAccessChoices);
           pushStep(`${st.featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
@@ -215,7 +225,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
       answers: st.answers, konMod: mod(ctx.character.kon),
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
-      learnAsPrepared: !learnInfo(st.delta, st.riders).spellbook,
+      spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
       grantSources: choices.baseDeclared, choiceSources: choices.declaredSources, charLevelSpells: st.charLevelSpells,
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,

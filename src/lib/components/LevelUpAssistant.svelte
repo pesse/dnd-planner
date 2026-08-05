@@ -11,7 +11,6 @@
   import { type LevelUpDelta } from '../services/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { blankSpell, getSpellLibrary, createSpellInline } from '../spellLibrary';
-  import { decodePick, encodePick } from '../services/spellcasting';
   import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '../schemas/levelUp';
   import SpellPickField from './SpellPickField.svelte';
   import FeatureChoicePicker from './FeatureChoicePicker.svelte';
@@ -115,9 +114,11 @@
       const canonical = await createSpellInline(blankSpell(s.name, s.level, s.school, s.nameEn));
       st.spellLib = await getSpellLibrary();
       if (s.targetQ) {
-        const [read, write] = pickBinding(s.targetQ);
-        const val = encodePick(s.level, canonical);
-        if (!read().includes(val)) write([...read(), val]);
+        const key = st.spellLib.find((sp) => sp.name === canonical)?.key;
+        if (key) {
+          const [read, write] = pickBinding(s.targetQ);
+          if (!read().includes(key)) write([...read(), key]);
+        }
       } else {
         if (s.level === 0) {
           if (!st.validatedBase.grantedCantrips.includes(canonical)) st.validatedBase.grantedCantrips = [...st.validatedBase.grantedCantrips, canonical];

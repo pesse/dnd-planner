@@ -33,6 +33,18 @@ export const getBackgroundsList = library.list;
 export const invalidateBackgroundsCache = library.invalidate;
 export const searchBackgrounds = library.search;
 
+/**
+ * „Magic Initiate (Wizard)" → „Wizard": die Vorgabe, mit der der Hintergrund die Wahl seines
+ * Herkunftstalents festlegt. ENGLISCH, weil der Wert Klassen-Keys trifft — „Magier" wäre genau
+ * die Zauberer/Magier-Kollision. Im Talent-Wörterbuch steht nur die generische Fassung, hier
+ * kommt sie also her oder von nirgends.
+ */
+export function featSpecialisation(bg: Background | null | undefined): string {
+  const benefit = bg?.benefits.find((b) => b.type === 'feat');
+  const raw = benefit?.desc || benefit?.descDe || '';
+  return raw.match(/\(([^)]+)\)/)?.[1]?.trim() ?? '';
+}
+
 /** Der volle Hintergrund (inkl. Vorteile) per Key; null = nicht lokal vorhanden/unparsebar. */
 export function getBackgroundByKey(key: string): Promise<Background | null> {
   return library.loadByKey(key, (data) => {

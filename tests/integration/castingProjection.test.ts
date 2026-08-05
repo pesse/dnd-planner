@@ -53,7 +53,7 @@ describe('Bogen-Projektion', () => {
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
     const c = character('thromm_flechtenstein');
-    expect(c.spellcasting.sources['srd-2024_druid_spellcasting']?.bindings.ability).toBeUndefined();
+    expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks', 'uses']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
     expect(view.sources.find((s) => s.kind === 'class')?.saveDC).toBe(8 + c.proficiencyBonus + c.weiMod);

@@ -63,13 +63,13 @@ export function legacyFlatView(
 }
 
 /**
- * ÜBERGANG für Dateien vor dem Umzug: aus dem gespeicherten `spells`-Block und dem
- * Merkmals-Ledger entstehen Attributantwort, Platz-Verbrauch, Kopfzeile und die quellenlosen
- * Zauber — alles, was noch keiner Quota zugeordnet ist. `spellsFix` schreibt genau das fest.
+ * ÜBERGANG für Dateien vor dem Umzug: aus dem gespeicherten `spells`-Block entstehen
+ * Platz-Verbrauch, Kopfzeile und die quellenlosen Zauber — alles, was noch keiner Quota
+ * zugeordnet ist. `spellsFix` schreibt genau das fest. Das Zauberattribut ist NICHT dabei: es
+ * steht im Merkmals-Ledger, und `resolve.ts` trägt es in die Quelle ein.
  */
 export function legacySpellcasting(
-  c: { spellcasting?: CharacterSpellcasting; spells?: CharacterSpells; features?: CharacterFeatureEntry[] },
-  sources: CastingSource[],
+  c: { spellcasting?: CharacterSpellcasting; spells?: CharacterSpells },
   derivedSlots: number[],
   lookup: ProjectionLookup,
 ): { stored: CharacterSpellcasting; sheet: LegacySheetInput } {
@@ -82,11 +82,6 @@ export function legacySpellcasting(
   if (!stored.pools.standard.used.some((n) => n > 0))
     stored.pools.standard.used = (spells?.slots ?? []).map((s) => s.used);
 
-  for (const source of sources) {
-    if (stored.sources[source.id]?.bindings.ability) continue;
-    const answer = ledgerAbility(source, c.features ?? []);
-    if (answer) stored.sources[source.id] = { bindings: { ability: answer, list: '' }, picks: {}, uses: {} };
-  }
   // Nur wo die Progression nichts hergibt (unverlinkte Klasse).
   if (!derivedSlots.some((n) => n > 0) && (spells?.slots ?? []).some((s) => s.total > 0) && !stored.manual?.slotTotals.length)
     stored.manual = { slotTotals: (spells?.slots ?? []).map((s) => s.total), extra: stored.manual?.extra ?? [] };
@@ -121,15 +116,4 @@ function legacyRow(spells: CharacterSpells | undefined): LegacySheetInput['row']
     attackBonus: spells?.attackBonus || null,
     abilityOptionsDe: [],
   };
-}
-
-function ledgerAbility(source: CastingSource, ledger: CharacterFeatureEntry[]): AbilityName | undefined {
-  const allowed = new Map((source.ability?.choose ?? []).map((a) => [a.toLowerCase(), a]));
-  if (!allowed.size) return undefined;
-  for (const entry of ledger) {
-    if (entry.sourceKey !== source.featureKey) continue;
-    const hit = allowed.get(entry.choice.trim().toLowerCase());
-    if (hit) return hit;
-  }
-  return undefined;
 }

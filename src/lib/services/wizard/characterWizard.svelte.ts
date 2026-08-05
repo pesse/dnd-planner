@@ -111,7 +111,7 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  // ── Zauberwahl (Schritt „Zauber"; alle Listen `encodePick`-kodiert) ──
+  // ── Zauberwahl (Schritt „Zauber"; alle Listen `spell.key`) ──
   pickedCantrips = $state<string[]>([]);
   /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);

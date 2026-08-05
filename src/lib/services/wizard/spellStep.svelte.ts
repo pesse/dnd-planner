@@ -3,10 +3,10 @@
  * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
  */
 import type { CharacterWizard } from './characterWizard.svelte';
-import { decodePick, riderExtras } from '../spellcasting';
+import { riderExtras } from '../spellcasting';
 import type { ClassCastingOffer } from '../spellcasting/classOffer';
 import { validateRiderSpells } from '../levelUp/spells';
-import type { SpellInfo } from '../../spellLibrary';
+import { resolveSpell, type SpellInfo } from '../../spellLibrary';
 
 export interface SpellStepValues {
   readonly extras: { cantrips: number; prepared: number };
@@ -54,13 +54,16 @@ export function createSpellStepValues(
   // Ein selbst gewählter Zauber, der DANACH als gewährt hereinkommt (der Effekt-Job landet
   // spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen. Hier nichts mutieren —
   // beim nächsten Schreiben verschwindet er ohnehin aus dem Zustand.
-  const lower = (v: string) => decodePick(v).name.toLowerCase();
-  const grantedNames = $derived({
-    cantrips: new Set(grantedSpells.cantrips.map((n) => n.toLowerCase())),
-    spells: new Set(grantedSpells.prepared.map((p) => p.name.toLowerCase())),
+  const grantedKeys = $derived.by(() => {
+    const lib = library();
+    const keyOf = (name: string) => resolveSpell(lib, name, w.klass.name)?.key;
+    return {
+      cantrips: new Set(grantedSpells.cantrips.map(keyOf).filter((k): k is string => !!k)),
+      spells: new Set(grantedSpells.prepared.map((p) => keyOf(p.name)).filter((k): k is string => !!k)),
+    };
   });
-  const cantripPicks = $derived(w.pickedCantrips.filter((v) => !grantedNames.cantrips.has(lower(v))));
-  const knownPicks = $derived(w.pickedKnown.filter((v) => !grantedNames.spells.has(lower(v))));
+  const cantripPicks = $derived(w.pickedCantrips.filter((k) => !grantedKeys.cantrips.has(k)));
+  const knownPicks = $derived(w.pickedKnown.filter((k) => !grantedKeys.spells.has(k)));
 
   /**
    * Gated nur gegen die DETERMINISTISCHEN Kontingente: der Effekt-Job läuft beim Betreten

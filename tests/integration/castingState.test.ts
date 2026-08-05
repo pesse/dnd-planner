@@ -49,6 +49,10 @@ describe('Fee-Zauberer, Charakterstufe 5', () => {
   const character: CastingCharacter = {
     classes: [{ sourceKey: 'srd-2024_sorcerer', name: 'Zauberer', level: 5 }],
     species: { sourceKey: 'phb-2024_fairy', name: 'Fee' },
+    // Die Attributwahl der Fee ist eine Antwort am Merkmal, keine Kopie im Zauber-Block.
+    features: [
+      { sourceKey: 'phb-2024_fairy_fairy-magic', name: 'Feenmagie', choice: 'Charisma', choiceDe: 'Charisma', desc: '' },
+    ],
   };
 
   it('deckt die gespeicherten Wahlen genau ab', async () => {

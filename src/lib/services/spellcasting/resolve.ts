@@ -2,9 +2,10 @@
  * Klassen, Traits und Talente des Charakters → `CastingSource[]`; Deklarationsfehler des
  * Vaults kommen als `issues` zurück.
  */
-import { getBackgroundByKey } from '$lib/backgroundsLibrary';
-import { getFeats, matchFeatEntry } from '$lib/featsLibrary';
-import type { CastingGrant, QuotaPatch } from '$lib/schemas/casting';
+import { featSpecialisation, getBackgroundByKey } from '$lib/backgroundsLibrary';
+import { getFeats, matchFeatEntry, type FeatEntry } from '$lib/featsLibrary';
+import { resolveClass } from '$lib/spellLibrary';
+import type { AbilityBinding, CastingGrant, QuotaPatch } from '$lib/schemas/casting';
 import type {
   CharacterBackground,
   CharacterClass,
@@ -13,6 +14,7 @@ import type {
 } from '$lib/schemas/characterSchema';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { featuresUpTo, getProgressionByKey } from '../classProgression';
+import { ledgerAnswers, pickAnswer } from '../declaration/ledgerAnswers';
 import type { CastingClass } from './slots';
 import {
   castingIssue,
@@ -63,36 +65,79 @@ interface Collected {
 export const characterLevel = (classes: CharacterClass[] | undefined): number =>
   Math.max(1, (classes ?? []).reduce((n, c) => n + (c.level || 0), 0));
 
-/** Zweigwahlen stehen im Merkmals-Ledger; der erste Eintrag je Merkmal gilt. */
-function branchAnswers(features: CharacterFeatureEntry[] | undefined): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const e of features ?? []) {
-    if (!e.sourceKey || !e.choice.trim() || out.has(e.sourceKey)) continue;
-    out.set(e.sourceKey, e.choice.trim());
-  }
-  return out;
+/**
+ * Was der Spieler an DIESER Instanz entschieden hat, plus die Vorgabe ihrer Quelle. Beides
+ * verengt die Deklaration, bevor irgendwer sie liest: `quota.ts` filtert `when.option` gegen
+ * `branch`, `state.ts` liest `ability.fixed`, und der Picker liest `pool.lists`.
+ */
+export interface SourceAnswers {
+  /** Antworten des Merkmals-Ledgers, `declaration/ledgerAnswers.ts`. */
+  values: readonly string[];
+  /** Vorgabe der QUELLE des Merkmals („Magic Initiate (Wizard)"), englischer Klassenname. */
+  specialisation: string;
 }
 
-/** Der erste Eintrag behält den blanken Merkmals-Key; erst die zweite Instanz trägt einen Zusatz. */
-function uniqueId(key: string, used: Set<string>): string {
-  if (!used.has(key)) {
-    used.add(key);
-    return key;
-  }
-  let n = 2;
-  while (used.has(`${key}#${n}`)) n++;
-  used.add(`${key}#${n}`);
-  return `${key}#${n}`;
-}
+const NO_ANSWERS: SourceAnswers = { values: [], specialisation: '' };
+
+/**
+ * Die Id EINER Instanz: derselbe Merkmals-Key kann zweimal vergeben sein (Eingeweihter der
+ * Magie ×2), und nur über die Vergabe-Stufe findet die Auflösung ihre Antwort und ihre
+ * gespeicherte Auswahl wieder. Die FRÜHESTE Vergabe behält den blanken Key — sonst hinge die
+ * Zuordnung an der Reihenfolge der Ledger-Einträge.
+ */
+export const castingSourceId = (featureKey: string, gainedAt: number, firstGainedAt: number): string =>
+  gainedAt > firstGainedAt ? `${featureKey}@${gainedAt}` : featureKey;
 
 /** Vorgabe für `since`: ab welcher Stufe das Merkmal überhaupt gilt. */
 const firstGain = (gainedAt: number[]): number =>
   gainedAt.length ? Math.max(1, Math.min(...gainedAt)) : 1;
 
-function toSource(f: Declaring, place: Placement, branch: string, used: Set<string>): CastingSource {
+/** Altbestand ohne unterscheidbare Vergabe-Stufe: dann trennt nur noch die Position. */
+function freeId(id: string, used: Set<string>): string {
+  let candidate = id;
+  let n = 2;
+  while (used.has(candidate)) candidate = `${id}#${n++}`;
+  used.add(candidate);
+  return candidate;
+}
+
+/** Der einzige `when`-Schlüssel, den der Flow beantworten kann (`quota.ts::branchMatches`). */
+function branchOf(quotas: Quota[], values: readonly string[]): string {
+  const declared = quotas.map((q) => q.when?.option?.trim()).filter((v): v is string => !!v);
+  return declared.length ? (pickAnswer(values, declared) ?? '') : '';
+}
+
+/** Eine beantwortete Attributwahl IST eine Festlegung — danach fragt niemand mehr nach. */
+function bindAbility(binding: AbilityBinding | undefined, values: readonly string[]): AbilityBinding | undefined {
+  if (!binding || binding.fixed || binding.choose.length < 2) return binding;
+  const answer = pickAnswer(values, binding.choose);
+  return answer ? { ...binding, fixed: answer } : binding;
+}
+
+/**
+ * `choose-one` heißt EINE Liste je Kontingent (Eingeweihter der Magie) — fest durch die Quelle
+ * des Merkmals oder beantwortet. Ohne diese Engführung bleibt `pool.lists` die volle
+ * deklarierte Union, und jeder Picker bietet die ganze Bibliothek an.
+ */
+function bindList(quota: Quota, a: SourceAnswers): Quota {
+  if (quota.pool.listMode !== 'choose-one' || quota.pool.lists.length < 2) return quota;
+  const fixed = a.specialisation.trim() ? resolveClass(a.specialisation) : null;
+  const list =
+    (fixed && quota.pool.lists.includes(fixed) ? fixed : null) ?? pickAnswer(a.values, quota.pool.lists);
+  return list ? { ...quota, pool: { ...quota.pool, lists: [list] } } : quota;
+}
+
+function toSource(
+  f: Declaring,
+  place: Placement,
+  a: SourceAnswers,
+  used: Set<string>,
+  id = f.key,
+): CastingSource {
   const since = firstGain(f.gainedAt);
+  const quotas = f.grantsCasting.quotas.map((q): Quota => bindList({ ...q, since: q.since ?? since }, a));
   return {
-    id: uniqueId(f.key, used),
+    id: freeId(id, used),
     featureKey: f.key,
     origin: place.origin,
     name: f.name,
@@ -101,10 +146,10 @@ function toSource(f: Declaring, place: Placement, branch: string, used: Set<stri
     level: place.level,
     classKey: place.classKey,
     desc: f.desc,
-    ability: f.grantsCasting.ability,
+    ability: bindAbility(f.grantsCasting.ability, a.values),
     swap: f.grantsCasting.swap ?? {},
-    quotas: f.grantsCasting.quotas.map((q): Quota => ({ ...q, since: q.since ?? since })),
-    branch,
+    quotas,
+    branch: branchOf(quotas, a.values),
   };
 }
 
@@ -116,21 +161,25 @@ function toSource(f: Declaring, place: Placement, branch: string, used: Set<stri
 export function castingSourceOf(
   f: { key?: string; name: string; nameDe?: string; desc?: string; gainedAt?: number[]; grantsCasting?: CastingGrant },
   place: Placement,
-  branch = '',
+  a: SourceAnswers = NO_ANSWERS,
+  id?: string,
 ): CastingSource | null {
   const [declared] = declaring([f]);
-  return declared ? toSource(declared, place, branch, new Set()) : null;
+  return declared ? toSource(declared, place, a, new Set(), id ?? declared.key) : null;
 }
+
+/** Die Antworten EINER Instanz; ohne Vergabe-Stufe gelten alle Einträge des Keys. */
+type AnswersOf = (featureKey: string, gainedAt?: number) => SourceAnswers;
 
 function collect(
   features: Declaring[],
   place: Placement,
-  branches: Map<string, string>,
+  answersOf: AnswersOf,
   used: Set<string>,
   into: Collected,
 ): void {
   for (const f of features) {
-    into.sources.push(toSource(f, place, branches.get(f.key) ?? '', used));
+    into.sources.push(toSource(f, place, answersOf(f.key), used));
     for (const patch of f.grantsCasting.patches) into.patches.push({ featureKey: f.key, patch });
   }
 }
@@ -151,7 +200,7 @@ const declaring = <T extends { key?: string; name: string; nameDe?: string; desc
 
 async function classCasting(
   classes: CharacterClass[],
-  branches: Map<string, string>,
+  answersOf: AnswersOf,
   used: Set<string>,
   into: Collected,
 ): Promise<CastingClass[]> {
@@ -168,8 +217,8 @@ async function classCasting(
     out.push({ prog, level, casterType });
 
     const place = { level, classKey: cls.sourceKey };
-    collect(declaring(featuresUpTo(prog, level)), { ...place, origin: 'class' }, branches, used, into);
-    if (sub) collect(declaring(featuresUpTo(sub, level)), { ...place, origin: 'subclass' }, branches, used, into);
+    collect(declaring(featuresUpTo(prog, level)), { ...place, origin: 'class' }, answersOf, used, into);
+    if (sub) collect(declaring(featuresUpTo(sub, level)), { ...place, origin: 'subclass' }, answersOf, used, into);
   }
   return out;
 }
@@ -177,7 +226,7 @@ async function classCasting(
 async function speciesCasting(
   species: CharacterSpecies | undefined,
   level: number,
-  branches: Map<string, string>,
+  answersOf: AnswersOf,
   used: Set<string>,
   into: Collected,
 ): Promise<void> {
@@ -185,45 +234,104 @@ async function speciesCasting(
   for (const key of keys) {
     const spec = await getSpeciesByKey(key);
     if (!spec) continue;
-    collect(declaring(spec.traits), { origin: 'species', level, classKey: '' }, branches, used, into);
+    collect(declaring(spec.traits), { origin: 'species', level, classKey: '' }, answersOf, used, into);
   }
 }
 
+/** Eine Talent-Instanz am Charakter: Bibliothekseintrag, Vergabe-Stufe, Identität. */
+export interface FeatInstance {
+  entry: FeatEntry;
+  /** Bibliotheks-Key des Talents = Merkmals-Key der Quelle. */
+  featureKey: string;
+  /** Vergabe-Stufe, UNGEKAPPT: sie ist Teil der Identität, kein Stufenfilter. */
+  gainedAt: number;
+  /** Quellen-Id samt Instanz (`castingSourceId`). */
+  sourceId: string;
+  /** Vorgabe des Hintergrunds, nur am Herkunftstalent. */
+  specialisation: string;
+}
+
 /**
- * Mehrere Ledger-Einträge desselben Talents sind mehrere Quellen (Eingeweihter der Magie,
- * „a different list each time"); nur das Herkunftstalent kommt nicht zweimal.
+ * Die Talent-Instanzen eines Charakters, DIE eine Regel: mehrere Ledger-Links desselben
+ * Talents sind mehrere Instanzen (Eingeweihter der Magie ×2, „a different list each time"),
+ * das Herkunftstalent kommt aus dem Hintergrund statt aus dem Ledger — und nur einmal.
+ * Aufsteigend nach Vergabe-Stufe, damit `castingSourceId` die früheste erkennt.
  */
-async function featCasting(
+export async function featInstances(
   features: CharacterFeatureEntry[] | undefined,
   background: CharacterBackground | undefined,
-  level: number,
-  branches: Map<string, string>,
-  used: Set<string>,
-  into: Collected,
-): Promise<void> {
+): Promise<FeatInstance[]> {
   const links = (features ?? []).filter((e) => !e.choice.trim() && (e.sourceKey || e.name.trim()));
   const bg = background?.sourceKey ? await getBackgroundByKey(background.sourceKey) : null;
   const bgKey = bg?.featKey ?? '';
+  const specialisation = featSpecialisation(bg);
   const refs = [
     ...links.map((e) => ({ sourceKey: e.sourceKey, name: e.name, gainedAt: e.gainedAt ?? 1 })),
     ...(bgKey && !links.some((e) => e.sourceKey === bgKey) ? [{ sourceKey: bgKey, name: '', gainedAt: 1 }] : []),
   ];
-  if (!refs.length) return;
+  if (!refs.length) return [];
 
   const lib = await getFeats();
-  for (const ref of refs) {
-    const entry = matchFeatEntry(lib, ref);
-    if (!entry?.grantsCasting || !entry.sourceKey) continue;
-    const declared: Declaring = {
-      key: entry.sourceKey,
-      name: entry.name,
-      nameDe: entry.nameDe,
-      desc: entry.desc ?? '',
-      // Eine Erwerbsstufe über der Charakterstufe (Altdaten) filterte sonst alle Quotas weg.
-      gainedAt: [Math.min(ref.gainedAt, level)],
-      grantsCasting: entry.grantsCasting,
+  const resolved = refs
+    .map((ref) => ({ ref, entry: matchFeatEntry(lib, ref) }))
+    .filter((r): r is { ref: (typeof refs)[number]; entry: FeatEntry } => !!r.entry?.sourceKey)
+    .sort((a, b) => a.ref.gainedAt - b.ref.gainedAt);
+
+  const firstGainedAt = new Map<string, number>();
+  for (const { ref, entry } of resolved)
+    if (!firstGainedAt.has(entry.sourceKey!)) firstGainedAt.set(entry.sourceKey!, ref.gainedAt);
+
+  return resolved.map(({ ref, entry }) => {
+    const featureKey = entry.sourceKey!;
+    return {
+      entry,
+      featureKey,
+      gainedAt: ref.gainedAt,
+      sourceId: castingSourceId(featureKey, ref.gainedAt, firstGainedAt.get(featureKey) ?? ref.gainedAt),
+      specialisation: featureKey === bgKey ? specialisation : '',
     };
-    collect([declared], { origin: 'feat', level, classKey: '' }, branches, used, into);
+  });
+}
+
+/**
+ * Die Id, die eine JETZT vergebene Instanz bekommt — der Bestand entscheidet, ob sie die
+ * erste ist. Der Aufstieg braucht sie, bevor der Charakter das Talent trägt.
+ */
+export async function nextFeatSourceId(
+  c: CastingCharacter,
+  featureKey: string,
+  gainedAt: number,
+): Promise<string> {
+  const instances = await featInstances(c.features, c.backgroundRef);
+  const earlier = instances.filter((i) => i.featureKey === featureKey).map((i) => i.gainedAt);
+  return castingSourceId(featureKey, gainedAt, Math.min(gainedAt, ...earlier));
+}
+
+async function featCasting(
+  features: CharacterFeatureEntry[] | undefined,
+  background: CharacterBackground | undefined,
+  level: number,
+  answersOf: AnswersOf,
+  used: Set<string>,
+  into: Collected,
+): Promise<void> {
+  for (const inst of await featInstances(features, background)) {
+    if (!inst.entry.grantsCasting) continue;
+    const declared: Declaring = {
+      key: inst.featureKey,
+      name: inst.entry.name,
+      nameDe: inst.entry.nameDe,
+      desc: inst.entry.desc ?? '',
+      // Eine Erwerbsstufe über der Charakterstufe (Altdaten) filterte sonst alle Quotas weg.
+      gainedAt: [Math.min(inst.gainedAt, level)],
+      grantsCasting: inst.entry.grantsCasting,
+    };
+    const answers = answersOf(inst.featureKey, inst.gainedAt);
+    into.sources.push(
+      toSource(declared, { origin: 'feat', level, classKey: '' }, { ...answers, specialisation: inst.specialisation }, used, inst.sourceId),
+    );
+    for (const patch of inst.entry.grantsCasting.patches)
+      into.patches.push({ featureKey: inst.featureKey, patch });
   }
 }
 
@@ -284,13 +392,17 @@ function reportUndeclared(classes: CastingClass[], sources: CastingSource[], iss
 
 export async function resolveCasting(c: CastingCharacter): Promise<CastingResolution> {
   const level = characterLevel(c.classes);
-  const branches = branchAnswers(c.features);
+  const ledger = c.features ?? [];
+  const answersOf: AnswersOf = (key, gainedAt) => ({
+    values: ledgerAnswers(ledger, key, gainedAt),
+    specialisation: '',
+  });
   const used = new Set<string>();
   const collected: Collected = { sources: [], patches: [] };
 
-  const classes = await classCasting(c.classes ?? [], branches, used, collected);
-  await speciesCasting(c.species, level, branches, used, collected);
-  await featCasting(c.features, c.backgroundRef, level, branches, used, collected);
+  const classes = await classCasting(c.classes ?? [], answersOf, used, collected);
+  await speciesCasting(c.species, level, answersOf, used, collected);
+  await featCasting(c.features, c.backgroundRef, level, answersOf, used, collected);
 
   const issues: CastingIssue[] = [];
   applyPatches(collected.sources, collected.patches, issues);

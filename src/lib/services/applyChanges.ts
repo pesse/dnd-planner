@@ -14,7 +14,7 @@ import { mod, skillSheetKey } from '../domain/skills';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
-import { addExtra } from './spellcasting/write';
+import { addExtra, addPick } from './spellcasting/write';
 
 export interface ApplyContext {
   /** Index der Klasse, an der `subclass` landet. */
@@ -30,11 +30,16 @@ export interface ApplyContext {
   resolveWeaponName?: (name: string) => string | undefined;
 }
 
-/** Ein Zauber ohne Bibliothekstreffer wird NICHT übernommen — gespeichert werden nur Keys. */
-function addLooseSpell(next: Character, name: string, env: ApplyEnv): void {
-  const key = env.spellKey(name).sourceKey;
+/**
+ * Ein Zauber ohne Bibliothekstreffer wird NICHT übernommen — gespeichert werden nur Keys.
+ * Kennt der Change seine Quota (Wizard-/Aufstiegs-Picker), landet er dort statt im
+ * quellenlosen Bestand — Rider und Stufentabellen-Zauber haben keine und bleiben dort.
+ */
+function addSpell(next: Character, c: { name: string; key?: string; sourceId?: string; quotaId?: string }, env: ApplyEnv): void {
+  const key = c.key ?? env.spellKey(c.name).sourceKey;
   if (!key) return;
-  addExtra(next.spellcasting, key);
+  if (c.sourceId && c.quotaId) addPick(next.spellcasting, c.sourceId, c.quotaId, key);
+  else addExtra(next.spellcasting, key);
 }
 
 function pushUnique(list: string[], value: string): void {
@@ -76,16 +81,14 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
     if (!totals?.length) return;
     totals[c.level - 1] = Math.max(0, (totals[c.level - 1] ?? 0) + c.value);
   },
-  // Ohne Quelle und Quota im Change bleibt nur der quellenlose Bestand; die Zuordnung zu
-  // einem Kontingent trifft der Zauber-Block im Editor.
   cantrip: (c, next, env) => {
-    addLooseSpell(next, c.name, env);
+    addSpell(next, c, env);
   },
   spellcastingClass: () => {
     /* Die Zauberklasse ergibt sich aus `classes[]` und der Deklaration. */
   },
   preparedSpell: (c, next, env) => {
-    addLooseSpell(next, c.name, env);
+    addSpell(next, c, env);
   },
 
   ability: (c, next) => {

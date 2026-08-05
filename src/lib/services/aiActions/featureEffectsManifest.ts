@@ -41,6 +41,9 @@ export function normalizeChoice(raw: unknown): AnalysisChoice | null {
     options: Array.isArray(o.options) ? o.options.filter((x): x is string => typeof x === 'string') : [],
     spellLevels: type === 'spell-pick' ? spellLevels : [],
     spellClass: type === 'spell-pick' ? spellClass : '',
+    // KI-erkannte Wahlen hängen an keiner Quota — sie kommen aus Prosa, nicht aus `grantsCasting`.
+    sourceId: '',
+    quotaId: '',
     help: typeof o.help === 'string' ? o.help.trim() : '',
     optionHelp:
       o.optionHelp && typeof o.optionHelp === 'object' && !Array.isArray(o.optionHelp)

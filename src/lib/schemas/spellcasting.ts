@@ -4,7 +4,6 @@
  * (`services/spellcasting/`).
  */
 import { z } from 'zod';
-import { ABILITY_NAMES } from './abilities';
 
 /** Ein Zauber wird über `spell.key` verlinkt, nie über den Namen. */
 const spellKeySchema = z.string().min(1);
@@ -20,14 +19,12 @@ export const spellcastingPoolsSchema = z.object({
 /**
  * Quellenbesitz, geschlüsselt nach `CastingSource.id`. Verwaiste Blöcke bleiben stehen: eine
  * beim Laden nicht auflösbare Bibliothek löschte sonst die Auswahl.
+ *
+ * Zauberattribut und Zauberliste stehen NICHT hier, sondern als Antwort im Merkmals-Ledger
+ * (`character.features`): sie sind Wahlen des Merkmals, und `spellcasting/resolve.ts` verengt
+ * die Quelle damit. Ein zweiter Ort dafür lief auseinander — siehe Upgrade-Schritt 7.
  */
 export const castingSourceStateSchema = z.object({
-  bindings: z
-    .object({
-      ability: z.enum(ABILITY_NAMES).optional(),
-      list: z.string().default('').describe('Gewählte Liste bei pool.listMode="choose-one".'),
-    })
-    .default({ list: '' }),
   picks: z.record(z.string(), z.array(spellKeySchema)).default({}).describe('Zauber-Keys je Quota-Id.'),
   uses: z.record(z.string(), z.number().int().min(0)).default({}).describe('Verbrauchte freie Wirkungen je Quota-Id.'),
 });

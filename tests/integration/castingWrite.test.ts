@@ -92,6 +92,20 @@ describe('die migrierten Charaktere', () => {
     expect(c.spellcasting.manual?.extra ?? []).toEqual([]);
   });
 
+  /**
+   * Der Fall aus dem Live-Test: das Attribut steht als Antwort im Merkmals-Ledger, die Liste
+   * legt der Hintergrund fest („Weiser" ist immer Magier). Beides muss im Zauberblock stehen,
+   * ohne dass der Wert irgendwo ein zweites Mal gespeichert wird.
+   */
+  it('liest Attribut und Liste des Herkunftstalents aus Ledger und Hintergrund', async () => {
+    const c = character('bölgör');
+    const { state } = await loadSpellcasting(c);
+    const access = state.sources.find((s) => s.source.featureKey === 'srd-2024_magic-initiate');
+    expect(access?.ability).toBe('Charisma');
+    expect(access?.saveDC).not.toBeNull();
+    expect(access?.quotas.map((q) => q.view.pool.lists)).toEqual([['wizard'], ['wizard']]);
+  });
+
   it('speichert gewährte Zauber nicht, zeigt sie aber auf dem Bogen', async () => {
     const c = character('thromm_flechtenstein');
     const stored = Object.values(c.spellcasting.sources).flatMap((s) => Object.values(s.picks).flat());

@@ -28,6 +28,10 @@ const questionSchema = z.object({
   // Nur für type "spell-picker": erlaubte Zaubergrade + Klassenfilter für die Bibliothekssuche.
   spellLevels: z.array(z.number().int()).default([]),
   spellClass: z.string().default(''),
+  // Nur gesetzt, wenn die Wahl an einer Quota hängt (Merkmals-Zauber-Zugang) — dann routen
+  // `cantrip`/`preparedSpell`-Changes dorthin statt in den quellenlosen Bestand.
+  sourceId: z.string().default(''),
+  quotaId: z.string().default(''),
   // Nur für type "hp-roll": Würfelseiten (Trefferwürfel) + Anzahl Würfe (= gewonnene Stufen).
   dieSides: z.number().int().optional(),
   rollCount: z.number().int().optional(),
@@ -159,10 +163,12 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('hitDice'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('proficiencyBonus'), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('spellSlot'), level: z.number().int(), value: z.number().int(), ...changeBase }),
-  z.object({ target: z.literal('cantrip'), name: z.string(), ...changeBase }),
+  // `key`/`sourceId`/`quotaId` fehlen, wenn der Aufrufer sie nicht kennt (KI-Rider, Stufentabelle) —
+  // dann bleibt es beim quellenlosen Bestand (`applyChanges.ts`).
+  z.object({ target: z.literal('cantrip'), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), ...changeBase }),
   z.object({ target: z.literal('spellcastingClass'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('ability'), ability: z.enum(['str', 'ges', 'kon', 'int', 'wei', 'cha']), value: z.number().int(), ...changeBase }),
-  z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), prepared: z.boolean().default(true), ...changeBase }),
+  z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), prepared: z.boolean().default(true), ...changeBase }),
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
   z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),

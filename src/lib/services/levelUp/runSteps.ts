@@ -26,8 +26,7 @@ import {
 import { withDeclaredGrants } from '../declaration/grants';
 import { spellAccessNoteLines, withoutSpellAccessFeatures } from '../spellAccess';
 import { parseLevelUpNarrative, parseFieldSummary, type FeatureRider, type LevelUpQuestion } from '../../schemas/levelUp';
-import type { SpellInfo } from '../../spellLibrary';
-import { decodePick } from '../spellcasting';
+import { spellInfoByKey, type SpellInfo } from '../../spellLibrary';
 import { totalLevel } from '../../schemas/classLevelText';
 import type { Character } from '../../schemas/characterSchema';
 import type { LevelUpChoices } from './choices.svelte';
@@ -45,6 +44,9 @@ export interface RunStepsDeps {
 
 export function createRunSteps(ctx: RunStepsDeps) {
   const { st, choices, pushStep, runOpts, ensureSpellLib } = ctx;
+
+  /** `spell.key` → Bibliotheks-Eintrag; erst nach `ensureSpellLib()` sinnvoll befüllt. */
+  const spellOf = (key: string) => spellInfoByKey(st.spellLib, key);
 
   function buildSummary(): CharacterSummary {
     const c = ctx.character;
@@ -164,7 +166,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     for (const q of qs) {
       const v = st.answers[q.id];
       if (!hasAnswer(v)) continue;
-      out.push({ id: q.id, choice: answerValues(q, v) });
+      out.push({ id: q.id, choice: answerValues(q, v, (key) => spellOf(key)?.name ?? key) });
     }
     return out;
   }
@@ -344,13 +346,17 @@ export function createRunSteps(ctx: RunStepsDeps) {
     }
   }
 
-  function gatherLearned(): { level: number; name: string }[] {
+  function gatherLearned(): { key: string; name: string; level: number }[] {
     const q = st.decisions.find((d) => d.id === 'learned_spells');
     if (!q) return [];
-    return ((st.answers['learned_spells'] as string[]) ?? []).map(decodePick);
+    return ((st.answers['learned_spells'] as string[]) ?? [])
+      .map((key) => { const info = spellOf(key); return info ? { key, name: info.name, level: info.level } : null; })
+      .filter((x): x is { key: string; name: string; level: number } => !!x);
   }
-  function gatherCantrips(): string[] {
-    return ((st.answers['cantrips'] as string[]) ?? []).map((v) => decodePick(v).name);
+  function gatherCantrips(): { key: string; name: string }[] {
+    return ((st.answers['cantrips'] as string[]) ?? [])
+      .map((key) => { const info = spellOf(key); return info ? { key, name: info.name } : null; })
+      .filter((x): x is { key: string; name: string } => !!x);
   }
 
   return {
@@ -358,7 +364,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     runAnalyze, runFinalize, runNarrative,
     seedFeaturesText, mergeClassFeatures,
     resolveCharLevelSpells, detectHpPerLevel,
-    gatherLearned, gatherCantrips,
+    gatherLearned, gatherCantrips, spellOf,
   };
 }
 

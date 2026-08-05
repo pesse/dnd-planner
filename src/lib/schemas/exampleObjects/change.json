@@ -31,6 +31,9 @@
   {
     "target": "cantrip",
     "name": "string",
+    "key": "string",
+    "sourceId": "string",
+    "quotaId": "string",
     "step": "string",
     "source": "string",
     "label": "string"
@@ -54,6 +57,9 @@
     "target": "preparedSpell",
     "level": -9007199254740991,
     "name": "string",
+    "key": "string",
+    "sourceId": "string",
+    "quotaId": "string",
     "prepared": true,
     "step": "string",
     "source": "string",

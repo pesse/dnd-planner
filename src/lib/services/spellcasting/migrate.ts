@@ -3,18 +3,21 @@
  * Kontingent, das ihn tragen kann, der Rest quellenlos. Läuft pro Charakter als Legacy-Fix,
  * weil er die aufgelösten Quellen der Bibliothek braucht.
  */
-import type { AbilityName } from '$lib/schemas/abilities';
 import type { CharacterSpells } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { SpellInfo } from '$lib/spellLibrary';
 import type { LooseSpell, ProjectionLookup } from './project';
 import type { QuotaState, SourceState, SpellcastingState } from './state';
-import { addExtra, setAbility, setPicks, setSlotTotals, setSlotUsed } from './write';
+import { addExtra, setPicks, setSlotTotals, setSlotUsed } from './write';
 
+/**
+ * Ohne Attribut: das stand in der Altform nur als deutscher Freitext und als Antwort im
+ * Merkmals-Ledger — von dort liest `spellcasting/resolve.ts` es ohnehin. Ein Umzug hätte es
+ * bloß ein zweites Mal hingeschrieben.
+ */
 export interface FlatSpellPlan {
   /** Vollständige Auswahl je Quota — bestehende Picks plus die übernommenen. */
   picks: { sourceId: string; quotaId: string; keys: string[] }[];
-  abilities: { sourceId: string; ability: AbilityName }[];
   extra: string[];
   /** Nur wo die Progression keine Plätze hergibt. */
   slotTotals: number[];
@@ -113,13 +116,8 @@ export function planFlatSpellMigration(
     (t) => t.keys.length > (block.sources[t.sourceId]?.picks[t.quotaId]?.length ?? 0),
   );
 
-  const abilities = state.sources
-    .filter((s) => s.ability && (s.source.ability?.choose.length ?? 0) > 1 && !block.sources[s.source.id]?.bindings.ability)
-    .map((s) => ({ sourceId: s.source.id, ability: s.ability as AbilityName }));
-
   return {
     picks,
-    abilities,
     extra,
     slotTotals: state.manualSlots && !block.manual?.slotTotals.length ? state.pools.standard.total : [],
     slotUsed: block.pools.standard.used.length ? [] : state.pools.standard.used,
@@ -129,14 +127,10 @@ export function planFlatSpellMigration(
 }
 
 export const planIsEmpty = (plan: FlatSpellPlan): boolean =>
-  !plan.moved &&
-  !plan.abilities.length &&
-  !plan.slotTotals.some((n) => n > 0) &&
-  !plan.slotUsed.some((n) => n > 0);
+  !plan.moved && !plan.slotTotals.some((n) => n > 0) && !plan.slotUsed.some((n) => n > 0);
 
 export function applyFlatSpellPlan(block: CharacterSpellcasting, plan: FlatSpellPlan): void {
   for (const { sourceId, quotaId, keys } of plan.picks) setPicks(block, sourceId, quotaId, keys);
-  for (const { sourceId, ability } of plan.abilities) setAbility(block, sourceId, ability);
   for (const key of plan.extra) addExtra(block, key);
   if (plan.slotTotals.length) setSlotTotals(block, plan.slotTotals);
   plan.slotUsed.forEach((used, i) => { if (used > 0) setSlotUsed(block, i + 1, used); });

@@ -8,13 +8,12 @@
   import { activeFile } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { sign } from '../../utils/num';
-  import { ABILITY_LABEL_DE, type AbilityName } from '../../schemas/abilities';
-  import { resolveSpell, SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
-  import { decodePick, encodePick } from '../../services/spellcasting';
+  import { ABILITY_LABEL_DE } from '../../schemas/abilities';
+  import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { editorSpellcasting, type EditorQuota } from '../../services/spellcasting/editor';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
-  import { addExtra, removeExtra, setAbility, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
+  import { addExtra, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
   import { createSpellHover } from '../spellHover.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -59,22 +58,6 @@
 
   function applyPicks(quota: EditorQuota, keys: string[]) {
     setPicks(block, quota.sourceId, quota.quotaId, keys);
-    form.spellcasting = { ...block };
-  }
-
-  /** Der Dialog arbeitet auf `grad::name`; gespeichert werden Keys. */
-  const encodedOf = (quota: EditorQuota): string[] =>
-    quota.spells.map((s) => encodePick(s.level, s.label));
-
-  function applyEncoded(quota: EditorQuota, encoded: string[]) {
-    const keys = encoded
-      .map((v) => resolveSpell(spellLibrary, decodePick(v).name)?.key)
-      .filter((k): k is string => !!k);
-    applyPicks(quota, keys);
-  }
-
-  function onAbility(sourceId: string, value: string) {
-    setAbility(block, sourceId, (value as AbilityName) || '');
     form.spellcasting = { ...block };
   }
 
@@ -144,12 +127,10 @@
       <div class="source-head">
         <span class="source-label">{source.label}</span>
         {#if source.abilityOptions.length}
-          <label class="ability-pick">Zauberattribut
-            <select value="" onchange={(e) => onAbility(source.id, e.currentTarget.value)}>
-              <option value="">— wählen —</option>
-              {#each source.abilityOptions as a}<option value={a}>{ABILITY_LABEL_DE[a]}</option>{/each}
-            </select>
-          </label>
+          <!-- Nur der Hinweis: die Wahl gehört zum MERKMAL und steht in der Merkmalsleiste. -->
+          <span class="ability-open" title="Zauberattribut in der Merkmals-Leiste wählen">
+            Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_DE[a]).join('/')})
+          </span>
         {:else if source.abilityDe}
           <span class="source-values">
             {source.abilityDe}{#if source.saveDC !== null} · SG {source.saveDC}{/if}{#if source.attackBonus !== null} · Angriff {sign(source.attackBonus)}{/if}
@@ -256,7 +237,7 @@
   {@const quota = picking}
   <SpellPickModal title={quota.label} library={spellLibrary}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
-    bind:picks={() => encodedOf(quota), (v) => applyEncoded(quota, v)}
+    bind:picks={() => quota.spells.map((s) => s.key), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
 {/if}
 
@@ -276,7 +257,7 @@
   .source-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
   .source-label { font-weight: 600; font-family: var(--font-display, inherit); }
   .source-values { font-size: 0.78rem; color: var(--ink-muted); }
-  .ability-pick { font-size: 0.75rem; display: inline-flex; gap: 0.3rem; align-items: center; }
+  .ability-open { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
   .quota-row { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
   .quota-label {
     font-size: 0.75rem; color: var(--ink-muted); min-width: 11rem;

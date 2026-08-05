@@ -11,7 +11,6 @@ import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '.
 import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey } from '../../schemas/abilities';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '../../schemas/levelUp';
-import { decodePick } from '../spellcasting';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { SpellGrantSource } from '../grantedSpells';
 import { answerLabels, answerValues, recordsChoice } from './answers';
@@ -169,9 +168,8 @@ export interface DecisionChangesParams {
   delta: LevelUpDelta;
   answers: Record<string, string | string[]>;
   konMod: number;
-  pickedCantrips: string[];
-  pickedLearned: { level: number; name: string }[];
-  learnAsPrepared: boolean;
+  pickedCantrips: { key: string; name: string }[];
+  pickedLearned: { key: string; name: string; level: number }[];
 }
 
 export function decisionChanges(p: DecisionChangesParams): Change[] {
@@ -193,12 +191,21 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
   for (const k of ABILITY_KEYS) if (abil[k])
     out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'asi', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
 
-  for (const name of p.pickedCantrips)
-    out.push({ target: 'cantrip', name, step, source: 'class-progression', label: `Zaubertrick: ${name}` });
+  const cantripTarget = delta.cantripTarget ?? {};
+  for (const s of p.pickedCantrips)
+    out.push({ target: 'cantrip', name: s.name, key: s.key, ...cantripTarget, step, source: 'class-progression', label: `Zaubertrick: ${s.name}` });
 
+  // „Erlernt" heißt hier ins Buch, wenn die Zauberwirkende ein Buch führt (Magier) — sonst
+  // IST die Auswahl die Vorbereitung (`delta.spellbook` kommt aus `Quota.swap.spells`).
+  const learnAsPrepared = !delta.spellbook;
+  const spellTarget = delta.spellTarget ?? {};
   for (const s of p.pickedLearned) {
     if (!s.name?.trim()) continue;
-    out.push({ target: 'preparedSpell', level: s.level, name: s.name, prepared: p.learnAsPrepared, step, source: 'class-progression', label: `${p.learnAsPrepared ? 'Vorbereitet' : 'Zauberbuch'} (Grad ${s.level}): ${s.name}` });
+    out.push({
+      target: 'preparedSpell', level: s.level, name: s.name, key: s.key, ...spellTarget,
+      prepared: learnAsPrepared, step, source: 'class-progression',
+      label: `${learnAsPrepared ? 'Vorbereitet' : 'Zauberbuch'} (Grad ${s.level}): ${s.name}`,
+    });
   }
 
   return out;
@@ -213,17 +220,19 @@ export function featureSpellChanges(
   questions: LevelUpQuestion[],
   answers: Record<string, string | string[]>,
   step: BuilderStep,
+  spellOf: (key: string) => { name: string; level: number } | undefined,
 ): Change[] {
   const out: Change[] = [];
   for (const q of questions) {
     if (q.type !== 'spell-picker') continue;
     const picks = answers[q.id];
     if (!Array.isArray(picks)) continue;
-    for (const v of picks) {
-      const { level, name } = decodePick(v);
-      if (!name.trim()) continue;
-      if (level === 0) out.push({ target: 'cantrip', name, step, source: q.featureKey || 'feature', label: `Zaubertrick: ${name}` });
-      else out.push({ target: 'preparedSpell', level, name, prepared: true, step, source: q.featureKey || 'feature', label: `Vorbereitet (Grad ${level}): ${name}` });
+    const target = q.sourceId && q.quotaId ? { sourceId: q.sourceId, quotaId: q.quotaId } : {};
+    for (const key of picks) {
+      const info = spellOf(key);
+      if (!info) continue;
+      if (info.level === 0) out.push({ target: 'cantrip', name: info.name, key, ...target, step, source: q.featureKey || 'feature', label: `Zaubertrick: ${info.name}` });
+      else out.push({ target: 'preparedSpell', level: info.level, name: info.name, key, ...target, prepared: true, step, source: q.featureKey || 'feature', label: `Vorbereitet (Grad ${info.level}): ${info.name}` });
     }
   }
   return out;
@@ -246,13 +255,14 @@ export function featureChoiceChanges(
   gainedAtByKey: Map<string, number>,
   fallbackLevel: number,
   step: 'assemble-decisions' | 'feat-effects',
+  nameOf: (key: string) => string = (k) => k,
 ): Change[] {
   const out: Change[] = [];
   for (const q of qs) {
     if (!recordsChoice(q, answers)) continue;
     // `choice` ist der englische Prompt-Kanal, `choiceDe` die Anzeige — beides festhalten.
-    const choice = answerValues(q, answers[q.id]);
-    const choiceDe = answerLabels(q, answers[q.id]);
+    const choice = answerValues(q, answers[q.id], nameOf);
+    const choiceDe = answerLabels(q, answers[q.id], nameOf);
     out.push({
       target: 'featureChoice',
       sourceKey: q.featureKey,

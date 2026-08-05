@@ -42,9 +42,10 @@ export interface DocInput {
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
   konMod: number;
-  pickedCantrips: string[];
-  pickedLearned: { level: number; name: string }[];
-  learnAsPrepared: boolean;
+  pickedCantrips: { key: string; name: string }[];
+  pickedLearned: { key: string; name: string; level: number }[];
+  /** `spell.key` → Name + Grad, für Zauber-Antworten, die nur den Key tragen. */
+  spellOf: (key: string) => { name: string; level: number } | undefined;
   chosenFeats: { key: string; name: string; gainedAt: number; grants?: FeatureGrant }[];
   /**
    * Quelle der Grants, die der Rider nicht ausdrücken kann. Ungefiltert, also auch die
@@ -72,10 +73,11 @@ export interface DocInput {
  * und ein erneut ausgeführter Schritt ersetzt nur seine eigenen Einträge.
  */
 export function buildDoc(p: DocInput): LevelUpDoc {
+  const nameOf = (key: string): string => p.spellOf(key)?.name ?? key;
   // Kanonische (englische) Antwort — dieselbe Ableitung, die `featureChoiceChanges` benutzt.
   const answerOf = (id: string): string => {
     const q = [...p.baseChoiceQs, ...p.featChoiceQs].find((x) => x.id === id);
-    return q ? answerValues(q, p.answers[id]) : '';
+    return q ? answerValues(q, p.answers[id], nameOf) : '';
   };
   const gainedAtByKey = new Map<string, number>();
   for (const f of [...p.gainedFeatures, ...p.subFeatures]) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
@@ -88,18 +90,18 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
-    ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned, learnAsPrepared: p.learnAsPrepared }),
-    ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions'),
+    ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned }),
+    ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions', nameOf),
     // Grundeigenschaften: der einzige Wahl-Typ ohne Rider, also braucht er hier seine eigene
     // Zeile. Beide Checkpoints in einem Aufruf — die Antwort-id trennt sie ohnehin.
     ...characterPropertyAnswerChanges(p.choiceSources, answerOf, { step: 'assemble-decisions', source: 'feature' }),
-    ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions'),
+    ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions', p.spellOf),
     ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
     ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
-    ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects'),
-    ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects'),
+    ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects', nameOf),
+    ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects', p.spellOf),
     ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),
     ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),

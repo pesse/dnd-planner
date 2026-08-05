@@ -14,9 +14,8 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
-  import { decodePick } from '../services/spellcasting';
   import { classCastingOffer, type ClassCastingOffer } from '../services/spellcasting/classOffer';
-  import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
+  import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';
@@ -213,7 +212,7 @@
         id: ch.id,
         choice:
           ch.type === 'spell-pick'
-            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => decodePick(v).name).join(', ')
+            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => spellInfoByKey(spellLib, v)?.name ?? v).join(', ')
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());

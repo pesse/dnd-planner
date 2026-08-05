@@ -5,7 +5,7 @@
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 
-export const CHARACTER_VERSION = 6;
+export const CHARACTER_VERSION = 7;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -104,6 +104,70 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
         const choiceDe = typeof f.choiceDe === 'string' ? f.choiceDe : '';
         if (choice.trim() && !choiceDe.trim()) f.choiceDe = choice;
       }
+    },
+  },
+  {
+    to: 7,
+    label: 'Zauberquellen: Attribut ins Merkmals-Ledger, Instanz-Id nach Vergabe-Stufe',
+    apply: (c) => {
+      const block = c.spellcasting as { sources?: Record<string, Record<string, unknown>> } | undefined;
+      const sources = block?.sources;
+      if (!sources || typeof sources !== 'object') return;
+      const features = Array.isArray(c.features) ? (c.features as Record<string, unknown>[]) : [];
+      const answered = (key: string, value: string): boolean =>
+        features.some(
+          (f) => f?.sourceKey === key && String(f.choice ?? '').trim().toLowerCase() === value.toLowerCase(),
+        );
+
+      /**
+       * Vergabe-Stufen der Talent-Links eines Keys, in DATEI-Reihenfolge — das war die alte
+       * Zuordnung: der erste Link bekam den blanken Key, der zweite `#2`. Ein `#n`, dessen
+       * Link fehlt, bleibt stehen und verwaist; im Bestand gibt es keins.
+       */
+      const gainsOf = (key: string): number[] =>
+        features
+          .filter((f) => f?.sourceKey === key && !String(f.choice ?? '').trim())
+          .map((f) => (typeof f.gainedAt === 'number' ? f.gainedAt : 1));
+
+      /** Wie `pruneSpellcasting`: ein Block, dessen einziger Inhalt die Bindung war, trägt nichts. */
+      const carries = (state: Record<string, unknown>): boolean => {
+        const values = (field: unknown): unknown[] =>
+          field && typeof field === 'object' ? Object.values(field as Record<string, unknown>) : [];
+        return (
+          values(state.picks).some((keys) => Array.isArray(keys) && keys.length > 0) ||
+          values(state.uses).some((n) => typeof n === 'number' && n > 0)
+        );
+      };
+
+      const next: Record<string, Record<string, unknown>> = {};
+      const used = new Set<string>();
+      for (const [id, state] of Object.entries(sources)) {
+        // `bindings` war die Kopie einer Ledger-Antwort; fehlt sie dort, wird sie nachgetragen.
+        const ability = (state.bindings as { ability?: unknown } | undefined)?.ability;
+        delete state.bindings;
+
+        const hash = /^(.*)#(\d+)$/.exec(id);
+        const gains = hash ? gainsOf(hash[1]) : [];
+        const at = hash ? gains[Number(hash[2]) - 1] : undefined;
+        const renamed = at !== undefined && at > Math.min(...gains) ? `${hash![1]}@${at}` : id;
+        const target = used.has(renamed) ? id : renamed;
+        used.add(target);
+        if (carries(state)) next[target] = state;
+
+        if (typeof ability !== 'string' || !ability.trim()) continue;
+        const featureKey = target.split(/[@#]/)[0];
+        if (answered(featureKey, ability)) continue;
+        features.push({
+          sourceKey: featureKey,
+          name: '',
+          choice: ability,
+          choiceDe: ability,
+          gainedAt: Number(/@(\d+)$/.exec(target)?.[1] ?? 1),
+          desc: '',
+        });
+      }
+      block!.sources = next;
+      if (features.length) c.features = features;
     },
   },
 ];

@@ -314,13 +314,18 @@ describe('Quellen jenseits der Klasse', () => {
     expect(presence?.ability?.sameAs).toBe('srd-2024_tiefling_fiendish-legacy');
   });
 
+  /**
+   * Die Instanz-Id trägt die Vergabe-Stufe, nicht die Position im Ledger: nur so findet jede
+   * Instanz ihre eigene Antwort und ihre eigene gespeicherte Auswahl wieder. Die früheste
+   * behält den blanken Key, damit die Persistenz einer einmaligen Vergabe gültig bleibt.
+   */
   it('führt ein zweimal genommenes Talent als zwei Quellen', async () => {
     const { res, views } = await resolveViews({
       classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 8 }],
-      features: [link('srd-2024_magic-initiate', 1), link('srd-2024_magic-initiate', 4)],
+      features: [link('srd-2024_magic-initiate', 4), link('srd-2024_magic-initiate', 1)],
     });
     const ids = res.sources.filter((s) => s.featureKey === 'srd-2024_magic-initiate').map((s) => s.id);
-    expect(ids).toEqual(['srd-2024_magic-initiate', 'srd-2024_magic-initiate#2']);
+    expect(ids).toEqual(['srd-2024_magic-initiate', 'srd-2024_magic-initiate@4']);
     const first = views.get('srd-2024_magic-initiate');
     expect(countsOf(first ?? [])).toEqual({ cantrips: 2, spell1: 1 });
     expect(viewOf(first, 'cantrips').pool.listMode).toBe('choose-one');
@@ -328,6 +333,40 @@ describe('Quellen jenseits der Klasse', () => {
       { kind: 'uses', per: 'long-rest', count: 1 },
       { kind: 'slots', pool: 'standard' },
     ]);
+  });
+
+  /** „A different list each time": jede Antwort gilt der Instanz, an deren Stufe sie steht. */
+  it('gibt jeder Instanz ihre eigene Liste und ihr eigenes Attribut', async () => {
+    const key = 'srd-2024_magic-initiate';
+    const { res, views } = await resolveViews({
+      classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 8 }],
+      features: [
+        link(key, 1),
+        link(key, 4),
+        { ...answer(key, 'wizard'), gainedAt: 1 },
+        { ...answer(key, 'Intelligence'), gainedAt: 1 },
+        { ...answer(key, 'cleric'), gainedAt: 4 },
+        { ...answer(key, 'Wisdom'), gainedAt: 4 },
+      ],
+    });
+    const abilityOf = (id: string) => res.sources.find((s) => s.id === id)?.ability?.fixed;
+    expect([abilityOf(key), abilityOf(`${key}@4`)]).toEqual(['Intelligence', 'Wisdom']);
+    expect(viewOf(views.get(key), 'cantrips').pool.lists).toEqual(['wizard']);
+    expect(viewOf(views.get(`${key}@4`), 'cantrips').pool.lists).toEqual(['cleric']);
+  });
+
+  /**
+   * Der Hintergrund legt die Liste seines Herkunftstalents fest („Weiser" ist immer Magier) —
+   * zur LESEZEIT, nicht nur beim Erstellen. Sonst zeigte der Zauberblock die volle Union.
+   */
+  it('verengt die Liste des Herkunftstalents auf die Vorgabe des Hintergrunds', async () => {
+    const { res, views } = await resolveViews({
+      classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 4 }],
+      backgroundRef: { sourceKey: 'srd-2024_sage', name: '' },
+    });
+    const source = res.sources.find((s) => s.featureKey === 'srd-2024_magic-initiate');
+    expect(source?.id).toBe('srd-2024_magic-initiate');
+    expect(viewOf(views.get('srd-2024_magic-initiate'), 'cantrips').pool.lists).toEqual(['wizard']);
   });
 
   it('meldet einen Zauberwirker ohne Deklaration, statt still nichts zu gewähren', async () => {

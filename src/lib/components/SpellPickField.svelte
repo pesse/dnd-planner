@@ -3,8 +3,7 @@
    * Kompakte Formularzeile; die eigentliche Wahl passiert im `SpellPickModal`, damit
    * Schritt und Fragebogen kurz bleiben statt je Kontingent eine offene Suchliste zu tragen.
    */
-  import { decodePick } from '../services/spellcasting';
-  import type { SpellInfo } from '../spellLibrary';
+  import { spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import SpellTooltip from './SpellTooltip.svelte';
   import SpellPickModal from './SpellPickModal.svelte';
   import { createSpellHover } from './spellHover.svelte';
@@ -28,7 +27,7 @@
     /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
     max: number;
-    /** Gewählte Zauber, `encodePick`-kodiert. */
+    /** Gewählte Zauber als `spell.key`. */
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
@@ -43,6 +42,7 @@
   const label = (level: number, name: string) => (level > 0 ? `${name} (Grad ${level})` : name);
   const complete = $derived(picks.length >= max && (!prepared || prepared.length >= preparedMax));
   const hover = createSpellHover(() => new Map(library.map((s) => [s.name, s])));
+  const infoOf = (key: string) => spellInfoByKey(library, key);
 </script>
 
 <div class="field-row">
@@ -58,17 +58,17 @@
       >◆ {label(f.level, f.name)}</span>
     {/each}
     {#each picks as val (val)}
-      {@const dp = decodePick(val)}
+      {@const info = infoOf(val)}
       <span
         class="pick"
         class:unprepared={prepared ? !prepared.includes(val) : false}
-        onmouseenter={(e) => hover.show(e, dp.name)}
+        onmouseenter={(e) => info && hover.show(e, info.name)}
         onmousemove={(e) => hover.move(e)}
         onmouseleave={() => hover.hide()}
         role="note"
       >
         <!-- Nur Anzeige: geschaltet wird die Vorbereitung im Auswahl-Dialog. -->
-        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{label(dp.level, dp.name)}
+        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{info ? label(info.level, info.name) : val}
       </span>
     {/each}
     {#if !picks.length && !fixed.length}

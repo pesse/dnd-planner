@@ -25,6 +25,7 @@ const MARK = ' (SG 13, Angriff +5)';
 
 const values = (over: Partial<SpellAccessValues> = {}): SpellAccessValues => ({
   featureKey: MAGIC_INITIATE_KEY,
+  sourceId: MAGIC_INITIATE_KEY,
   featureDe: 'Eingeweihter der Magie',
   abilityDe: 'Charisma',
   saveDC: 13,

@@ -252,7 +252,7 @@ export async function loadSpellcasting(
     className: (classKey) => classNames.get(classKey) ?? '',
   };
 
-  const legacy = legacySpellcasting({ ...c, spellcasting: stored ?? c.spellcasting }, resolution.sources, spellPools(resolution.classes).standard, lookup);
+  const legacy = legacySpellcasting({ ...c, spellcasting: stored ?? c.spellcasting }, spellPools(resolution.classes).standard, lookup);
   const state = spellcastingState({
     resolution,
     stored: legacy.stored,

@@ -462,7 +462,7 @@
 
   "exampleCharacters": [
     {
-      "_was": "Fee-Zauberer, Charakterstufe 5 — so sähe `character.spellcasting` auf der Platte aus.",
+      "_was": "Fee-Zauberer, Charakterstufe 5 — so sähe `character.spellcasting` auf der Platte aus. Die Attributwahl der Fee steht NICHT hier, sondern als Antwort in `character.features`.",
       "spellcasting": {
         "pools": {
           "standard": { "used": [1, 0, 0, 0, 0, 0, 0, 0, 0] },
@@ -492,7 +492,6 @@
             }
           },
           "phb-2024_fairy_fairy-magic": {
-            "bindings": { "ability": "Charisma" },
             "uses": { "fairy3": 1 }
           }
         }

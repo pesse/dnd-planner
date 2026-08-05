@@ -60,6 +60,9 @@ export interface AnalysisChoice {
   spellLevels: number[];
   /** Nur bei `spell-pick`: englischer Klassen-Key der Zauberliste („cleric", „druid", „wizard"). */
   spellClass: string;
+  /** Nur bei `spell-pick` aus einer Deklaration: Ziel-Quota, sonst leer (quellenloser Bestand). */
+  sourceId: string;
+  quotaId: string;
   help: string;
   /** Schlüssel = Options-Label, Wert = seine Konsequenz: „Black" → „acid damage". */
   optionHelp: Record<string, string>;

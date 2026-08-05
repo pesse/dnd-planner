@@ -1,8 +1,4 @@
 {
-  "bindings": {
-    "ability": "Strength",
-    "list": "string"
-  },
   "picks": {
     "<key>": [
       "string"

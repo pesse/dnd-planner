@@ -29,8 +29,6 @@ export interface SourceState {
   ability: AbilityName | null;
   /** Zu wählende Attribute; leer, wenn festgelegt oder beantwortet. */
   abilityOptions: AbilityName[];
-  /** Gewählte Liste bei `pool.listMode = 'choose-one'`. */
-  list: string;
   /** null, solange das Attribut offen ist. */
   saveDC: number | null;
   attackBonus: number | null;
@@ -70,19 +68,17 @@ function poolState(pools: SpellPools, stored: CharacterSpellcasting | undefined)
 }
 
 /**
- * Reihenfolge: Festlegung der Klasse, dann die gespeicherte Antwort, dann der Verweis auf ein
- * anderes Merkmal. Eine einelementige Wahlliste IST eine Festlegung.
+ * `fixed` deckt beides ab: die Festlegung der Klasse UND die beantwortete Wahl — die trägt
+ * `spellcasting/resolve.ts` aus dem Merkmals-Ledger ein. Danach bleibt der Verweis auf ein
+ * anderes Merkmal, und eine einelementige Wahlliste IST eine Festlegung.
  */
 function abilityOf(
   source: CastingSource,
-  stored: CharacterSpellcasting | undefined,
   resolved: Map<string, AbilityName | null>,
 ): AbilityName | null {
   const binding = source.ability;
   if (!binding) return null;
   if (binding.fixed) return binding.fixed;
-  const answer = stored?.sources[source.id]?.bindings.ability;
-  if (answer && (!binding.choose.length || binding.choose.includes(answer))) return answer;
   if (binding.sameAs) return resolved.get(binding.sameAs) ?? null;
   return binding.choose.length === 1 ? binding.choose[0] : null;
 }
@@ -110,7 +106,7 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
     const prog = progOf.get(source.classKey) ?? null;
     const ctx = quotaContext(prog, source.level, pools, input.spellKey);
     const usesCtx = { profBonus: input.profBonus, mods: input.mods, column: ctx.column };
-    const ability = abilityOf(source, stored, abilities);
+    const ability = abilityOf(source, abilities);
     abilities.set(source.id, ability);
 
     const quotas = quotaViews(source, ctx, issues).map((view) => {
@@ -122,7 +118,6 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
       source,
       ability,
       abilityOptions: ability ? [] : (source.ability?.choose ?? []),
-      list: stored?.sources[source.id]?.bindings.list ?? '',
       saveDC: ability ? spellSaveDC(input.profBonus, mod) : null,
       attackBonus: ability ? spellAttackBonus(input.profBonus, mod) : null,
       quotas,

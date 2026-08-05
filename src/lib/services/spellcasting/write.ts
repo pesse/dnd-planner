@@ -2,7 +2,6 @@
  * Die schreibenden Zugriffe auf `character.spellcasting`. Editor, Wizard und Stufenaufstieg
  * gehen hier durch, damit die Blockstruktur an einer Stelle entsteht.
  */
-import type { AbilityName } from '$lib/schemas/abilities';
 import { emptyCharacterSpellcasting, type CastingSourceState, type CharacterSpellcasting } from '$lib/schemas/spellcasting';
 
 export const emptySpellcasting = emptyCharacterSpellcasting;
@@ -15,7 +14,7 @@ export const cloneSpellcasting = (block: CharacterSpellcasting): CharacterSpellc
 function sourceState(block: CharacterSpellcasting, sourceId: string): CastingSourceState {
   const existing = block.sources[sourceId];
   if (existing) return existing;
-  const fresh: CastingSourceState = { bindings: { list: '' }, picks: {}, uses: {} };
+  const fresh: CastingSourceState = { picks: {}, uses: {} };
   block.sources[sourceId] = fresh;
   return fresh;
 }
@@ -35,14 +34,12 @@ export function setPicks(
   sourceState(block, sourceId).picks[quotaId] = [...new Set(keys.filter(Boolean))];
 }
 
-export function setAbility(block: CharacterSpellcasting, sourceId: string, ability: AbilityName | ''): void {
-  const state = sourceState(block, sourceId);
-  if (ability) state.bindings.ability = ability;
-  else delete state.bindings.ability;
-}
-
-export function setList(block: CharacterSpellcasting, sourceId: string, list: string): void {
-  sourceState(block, sourceId).bindings.list = list;
+/** Additiv, anders als `setPicks`: ein Aufstieg legt Zauber ZU der bestehenden Auswahl. */
+export function addPick(block: CharacterSpellcasting, sourceId: string, quotaId: string, key: string): void {
+  if (!key.trim()) return;
+  const picks = sourceState(block, sourceId).picks;
+  const list = picks[quotaId] ?? [];
+  if (!list.includes(key)) picks[quotaId] = [...list, key];
 }
 
 export function setUses(block: CharacterSpellcasting, sourceId: string, quotaId: string, used: number): void {
@@ -84,9 +81,8 @@ export function pruneSpellcasting(block: CharacterSpellcasting): CharacterSpellc
   for (const [id, state] of Object.entries(block.sources)) {
     const picks = Object.fromEntries(Object.entries(state.picks).filter(([, keys]) => keys.length > 0));
     const uses = Object.fromEntries(Object.entries(state.uses).filter(([, n]) => n > 0));
-    const hasBinding = !!state.bindings.ability || !!state.bindings.list.trim();
-    if (!hasBinding && !Object.keys(picks).length && !Object.keys(uses).length) continue;
-    sources[id] = { bindings: state.bindings, picks, uses };
+    if (!Object.keys(picks).length && !Object.keys(uses).length) continue;
+    sources[id] = { picks, uses };
   }
   const manualBlock = block.manual;
   const keepManual = !!manualBlock && (manualBlock.slotTotals.some((n) => n > 0) || manualBlock.extra.length > 0);

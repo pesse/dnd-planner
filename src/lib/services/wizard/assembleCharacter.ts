@@ -19,12 +19,9 @@ import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUp/spells';
-import { resolveCasting } from '../spellcasting/resolve';
+import { classCastingOffer } from '../spellcasting/classOffer';
 import { addExtra, emptySpellcasting, setPicks } from '../spellcasting/write';
-import type { CastingSource } from '../spellcasting/source';
-import type { Quota } from '$lib/schemas/casting';
 import { riderGrantChanges } from '../levelUp/changes';
-import { decodePick } from '../spellcasting';
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellAccess';
 import { declaredGrantChanges } from '../declaration/grants';
@@ -210,48 +207,35 @@ function applyFeatureLedger(c: Character, w: CharacterWizard): void {
 }
 
 /**
- * Die Wahlen des Wizards landen an der Quota, zu der sie gehören: Zaubertricks am
- * Trick-Kontingent, gewählte Zauber am größten Zauber-Kontingent der Klassenquelle,
- * Merkmals-Wahlen an der Quota des Merkmals. Rider-Zauber der KI haben keine Quota und
- * werden quellenloser Bestand.
+ * Die Wahlen des Wizards landen an der Quota, zu der sie gehören — `w.pickedCantrips` &Co. sind
+ * bereits `spell.key`, und `offer`/`w.spellPickChoices` tragen ihre Ziel-Quota schon (dasselbe
+ * `classCastingOffer`, das der Zauber-Schritt anzeigt; keine zweite Ableitung). Rider-Zauber der
+ * KI haben keine Quota und werden quellenloser Bestand.
  */
 async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> {
-  const livePickIds = new Set(w.spellPickChoices.map((ch) => ch.id));
   const featurePicks = w.spellPickChoices
-    .filter((ch) => livePickIds.has(ch.id))
     .map((ch) => ({ choice: ch, picks: w.featureSpellPicks[ch.id] ?? [] }))
     .filter((entry) => entry.picks.length > 0);
   const hasPicks = w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
   if (!hasPicks && !w.riders.length) return;
 
-  const spellLib = await getSpellLibrary();
-  const keyOf = (encoded: string): string | undefined =>
-    resolveSpell(spellLib, decodePick(encoded).name, w.klass.name)?.key;
-  const resolution = await resolveCasting(c);
-
-  const classSource = resolution.sources.find(
-    (src: CastingSource) => src.classKey === w.klass.sourceKey && (src.origin === 'class' || src.origin === 'subclass'),
-  );
-  if (classSource) {
-    const quotas = classSource.quotas;
-    const cantripQuota = quotas.find((q: Quota) => Array.isArray(q.levels) && q.levels.includes(0));
-    const spellQuota = quotas.find((q: Quota) => q.tier === 'known') ?? quotas.find((q: Quota) => q !== cantripQuota);
-    if (cantripQuota) setPicks(c.spellcasting, classSource.id, cantripQuota.id, keysOf(w.pickedCantrips, keyOf));
-    if (spellQuota) setPicks(c.spellcasting, classSource.id, spellQuota.id, keysOf(w.pickedKnown, keyOf));
-    // Das Zauberbuch trennt Bestand und Vorbereitung — die zweite Quota zieht aus der ersten.
-    const preparedQuota = quotas.find((q: Quota) => q.pool.from?.quota === spellQuota?.id);
-    if (preparedQuota) setPicks(c.spellcasting, classSource.id, preparedQuota.id, keysOf(w.pickedPrepared, keyOf));
-  }
+  const offer = await classCastingOffer({
+    classKey: w.klass.sourceKey,
+    klasseName: w.klass.name,
+    subclassKey: w.klass.subclassKey,
+    subclassName: w.klass.subclassName,
+    level: 1,
+  });
+  if (offer.cantrips) setPicks(c.spellcasting, offer.cantrips.sourceId, offer.cantrips.quotaId, w.pickedCantrips);
+  if (offer.spells) setPicks(c.spellcasting, offer.spells.sourceId, offer.spells.quotaId, w.pickedKnown);
+  if (offer.prepared) setPicks(c.spellcasting, offer.prepared.sourceId, offer.prepared.quotaId, w.pickedPrepared);
 
   for (const { choice, picks } of featurePicks) {
-    const source = resolution.sources.find((src: CastingSource) => src.featureKey === choice.featureKey);
-    const quota = source?.quotas.find(
-      (q: Quota) => Array.isArray(q.levels) && q.levels.some((lvl: number) => (choice.spellLevels ?? []).includes(lvl)),
-    );
-    if (source && quota) setPicks(c.spellcasting, source.id, quota.id, keysOf(picks, keyOf));
+    if (choice.sourceId && choice.quotaId) setPicks(c.spellcasting, choice.sourceId, choice.quotaId, picks);
   }
 
   if (w.riders.length) {
+    const spellLib = await getSpellLibrary();
     const validated = validateRiderSpells(w.riders, spellLib, w.klass.name);
     for (const name of [...validated.grantedCantrips, ...validated.grantedPrepared.map((p) => p.name)]) {
       const key = resolveSpell(spellLib, name, w.klass.name)?.key;
@@ -259,9 +243,6 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
     }
   }
 }
-
-const keysOf = (encoded: string[], keyOf: (v: string) => string | undefined): string[] =>
-  encoded.map(keyOf).filter((k): k is string => !!k);
 
 /**
  * Ein Kampfstil ist ein echtes Talent, also ein Link per `sourceKey` — NICHT ein bloßer Name
