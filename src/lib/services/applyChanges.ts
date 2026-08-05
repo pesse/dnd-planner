@@ -8,7 +8,7 @@
  */
 import type { Character } from '../schemas/characterSchema';
 import type { Change } from '../schemas/levelUp';
-import { MONSTER_SIZES, type SkillName } from '../schemas/vocabulary';
+import { MONSTER_SIZES } from '../schemas/vocabulary';
 import { ftToMVal } from '../itemFormat';
 import { mod, skillSheetKey } from '../domain/skills';
 import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
@@ -105,11 +105,11 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   // liegt die Übersetzung. Expertise setzt die Übung mit: ohne das Häkchen rechnet der Bogen
   // den doppelten Übungsbonus gar nicht.
   expertise: (c, next) => {
-    const row = next.skills[skillSheetKey(c.skill as SkillName)];
+    const row = next.skills[skillSheetKey(c.skill)];
     if (row) { row.prof = true; row.exp = true; }
   },
   proficiency: (c, next) => {
-    const row = next.skills[skillSheetKey(c.skill as SkillName)];
+    const row = next.skills[skillSheetKey(c.skill)];
     if (row) row.prof = true;
   },
   // Dieselbe Grenze; die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.

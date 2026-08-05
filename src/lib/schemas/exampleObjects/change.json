@@ -76,35 +76,35 @@
   },
   {
     "target": "expertise",
-    "skill": "string",
+    "skill": "Acrobatics",
     "step": "string",
     "source": "string",
     "label": "string"
   },
   {
     "target": "proficiency",
-    "skill": "string",
+    "skill": "Acrobatics",
     "step": "string",
     "source": "string",
     "label": "string"
   },
   {
     "target": "weaponProficiency",
-    "value": "string",
+    "value": "Simple",
     "step": "string",
     "source": "string",
     "label": "string"
   },
   {
     "target": "armorTraining",
-    "value": "string",
+    "value": "Light",
     "step": "string",
     "source": "string",
     "label": "string"
   },
   {
     "target": "savingThrow",
-    "value": "string",
+    "value": "Strength",
     "step": "string",
     "source": "string",
     "label": "string"

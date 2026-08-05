@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
-import { ABILITY_KEYS, abilityModsSchema } from './abilities';
+import { ABILITY_KEYS, ABILITY_NAMES, abilityModsSchema } from './abilities';
 import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './vocabulary';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
@@ -162,12 +162,11 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('ability'), ability: z.enum(ABILITY_KEYS), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), prepared: z.boolean().default(true), ...changeBase }),
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
-  z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
-  z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),
-  z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),
-  z.object({ target: z.literal('armorTraining'), value: z.string(), ...changeBase }),
-  // `value` englisch, wo ein geschlossenes Vokabular greift (Rettungswurf), sonst Freitext.
-  z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('expertise'), skill: z.enum(SKILL_NAMES), ...changeBase }),
+  z.object({ target: z.literal('proficiency'), skill: z.enum(SKILL_NAMES), ...changeBase }),
+  z.object({ target: z.literal('weaponProficiency'), value: z.enum(WEAPON_CATEGORIES), ...changeBase }),
+  z.object({ target: z.literal('armorTraining'), value: z.enum(ARMOR_TRAININGS), ...changeBase }),
+  z.object({ target: z.literal('savingThrow'), value: z.enum(ABILITY_NAMES), ...changeBase }),
   z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),

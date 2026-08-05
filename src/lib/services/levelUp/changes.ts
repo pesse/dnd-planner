@@ -8,7 +8,8 @@ import { declaredGrantChanges, type DeclaredGrantSource } from '../declaration/g
 import { type DeclaredChoiceSource } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '../proficiencyGrants';
-import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey } from '../../schemas/abilities';
+import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey, type AbilityName } from '../../schemas/abilities';
+import { readAbilityName } from '../../schemas/vocabulary';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '../../schemas/levelUp';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
@@ -143,8 +144,13 @@ export function riderGrantChanges(
       for (const value of values((r) => r.proficiencies.armor))
         out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
     },
+    // Der Rider ist LLM-Ausgabe und bewusst tolerant (`z.string()`); erst hier wird sie auf
+    // das geschlossene Vokabular normalisiert, Unlesbares fällt weg statt den Transport aufzuweichen.
     savingThrows: () => {
-      for (const value of values((r) => r.proficiencies.savingThrows))
+      const names = values((r) => r.proficiencies.savingThrows)
+        .map(readAbilityName)
+        .filter((v): v is AbilityName => v !== null);
+      for (const value of new Set(names))
         out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
     },
     // Freitext, kein Vokabular — und in 2024 sind Sprachen ohnehin keine Übung mehr.

@@ -9,7 +9,6 @@ import type { AbilityName } from '$lib/schemas/abilities';
 import type { ArmorTraining, SkillName, WeaponCategory } from '$lib/schemas/vocabulary';
 import type { ProficiencyGrant, SkillGrant } from '$lib/schemas/grants';
 import { isEmptyProficiencyGrant } from '$lib/schemas/grants';
-import { readAbilityName } from '$lib/schemas/vocabulary';
 import { SKILL_DEFS } from '$lib/domain/skills';
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
@@ -118,8 +117,8 @@ export function markArmorTraining(flags: ProficiencyFlags, training: string): vo
   else if (training === 'Shields') flags.shields = true;
 }
 
-export function markSavingThrow(flags: Record<AbilityKey, boolean>, en: string): void {
-  const key = abilityKeyOf(readAbilityName(en));
+export function markSavingThrow(flags: Record<AbilityKey, boolean>, ability: AbilityName): void {
+  const key = abilityKeyOf(ability);
   if (key) flags[key] = true;
 }
 
