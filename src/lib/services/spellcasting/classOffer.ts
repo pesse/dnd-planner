@@ -4,9 +4,21 @@
  * Quotas (Domänenzauber etc.) brauchen keinen Picker: sie entstehen beim Laden von selbst.
  */
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
+import type { AbilityName } from '$lib/schemas/abilities';
+import type { ClassProgression } from '$lib/schemas/classProgression';
 import { classQuotaRoles, quotaContext, quotaViews, type QuotaView } from './quota';
 import { resolveCasting } from './resolve';
 import { spellPools } from './slots';
+
+/**
+ * Das Zauberattribut der Klasse steht in ihrer Deklaration (`grantsCasting.ability.fixed`) —
+ * eine Klasse→Attribut-Tabelle im Code wäre die zweite Quelle und blind für Homebrew. Ohne
+ * Stufengrenze: das Attribut gehört der Klasse, auch wenn Paladin und Waldläufer erst auf
+ * Stufe 2 zu wirken beginnen.
+ */
+export function classCastingAbility(prog: ClassProgression | null): AbilityName | '' {
+  return prog?.features.find((f) => f.grantsCasting?.ability?.fixed)?.grantsCasting?.ability?.fixed ?? '';
+}
 
 export interface ClassCastingOffer {
   isCaster: boolean;

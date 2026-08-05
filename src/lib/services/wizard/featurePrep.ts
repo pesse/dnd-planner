@@ -12,8 +12,9 @@ import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
 import {
-  isSpellAccessFeature, spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant,
-} from '../spellAccess';
+  spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant,
+} from '../spellcasting/access';
+import { isSpellAccessFeature } from '../declaration/casting';
 import { isSheetValueTrait } from '../sheetValueTraits';
 import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../analysis/types';
@@ -23,8 +24,8 @@ import type { PerLevelFeature } from '../perLevelEffects';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
-import { CASTER_ABILITY_DE, CASTER_ABILITY_KEY } from '../spellcasting';
-import { keySlug } from '$lib/utils/text';
+import { ABILITY_LABEL_DE } from '$lib/schemas/abilities';
+import { classCastingAbility } from '../spellcasting/classOffer';
 
 export interface FeatureBasics {
   species: { sourceKey: string; name: string };
@@ -163,12 +164,13 @@ function perLevelInput(gained: GainedFeature[], speciesFeatures: GainedFeature[]
 
 function classContextOf(klass: FeatureBasics['klass'], prog: ClassProgression | null): FeatureClassContext {
   const casterType = prog?.casterType ?? 'NONE';
+  const ability = classCastingAbility(prog);
   return {
     klasseName: klass.name,
     subclassName: klass.subclassName ?? '',
     casterType,
     casterKind: casterType === 'NONE' ? 'none' : 'prepared',
-    spellcastingAbility: CASTER_ABILITY_DE[CASTER_ABILITY_KEY[keySlug(klass.sourceKey)]] ?? '',
+    spellcastingAbility: ability ? ABILITY_LABEL_DE[ability] : '',
     toLevel: 1,
   };
 }

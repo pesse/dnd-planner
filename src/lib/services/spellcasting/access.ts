@@ -3,18 +3,18 @@
  * Klassen-Zauberwirken. Kein LLM: die Zahlen stehen in der Deklaration, die Namen in
  * `vault/spells`, und Deutsch kommt aus vorhandenen Tabellen statt aus einem Call.
  */
-import type { AbilityName } from '$lib/schemas/abilities';
+import { ABILITY_LABEL, ABILITY_LABEL_DE, type AbilityName } from '$lib/schemas/abilities';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CastingGrant } from '$lib/schemas/casting';
 import { resolveClass } from '$lib/spellLibrary';
-import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from './classProgression';
-import { CASTER_ABILITY_DE, spellAttackBonus, spellSaveDC } from './spellcasting';
-import { castingSourceOf } from './spellcasting/resolve';
-import { quotaContext, quotaViews } from './spellcasting/quota';
-import { ledgerAnswers, pickAnswer, type LedgerAnswerEntry } from './declaration/ledgerAnswers';
-import { declaredChoice } from './declaredChoice';
-import type { AnalysisChoice } from './analysis/types';
-import type { DeclaredChoiceSource } from './declaration/optionList';
+import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from '../classProgression';
+import { castingSourceOf } from './resolve';
+import { quotaContext, quotaViews } from './quota';
+import { spellAttackBonus, spellSaveDC } from './state';
+import { ledgerAnswers, pickAnswer, type LedgerAnswerEntry } from '../declaration/ledgerAnswers';
+import { declaredChoice } from '../declaredChoice';
+import type { AnalysisChoice } from '../analysis/types';
+import type { DeclaredChoiceSource } from '../declaration/optionList';
 
 export type SpellAccessSource = DeclaredChoiceSource & { grantsCasting?: CastingGrant };
 
@@ -45,10 +45,6 @@ export interface SpellAccessPlacement {
   gainedAt?: number;
   /** Vorgabe ist der Merkmals-Key, also die früheste Vergabe. */
   sourceId?: string;
-}
-
-export function isSpellAccessFeature(f: SpellAccessSource): boolean {
-  return f.grantsChoice?.kind === 'spellAccess';
 }
 
 /**
@@ -185,7 +181,7 @@ export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccess
     question: 'Which spellcasting ability?',
     questionDe: 'Zauberattribut',
     options: [...grant.abilities],
-    optionsDe: grant.abilities.map((a) => CASTER_ABILITY_DE[ABILITY_FROM_EN[a.toLowerCase()]] ?? a),
+    optionsDe: grant.abilities.map((a) => ABILITY_LABEL_DE[a] ?? a),
     help: 'Sets attack bonus and save DC of this feature’s spells.',
     helpDe: 'Bestimmt Angriffsbonus und Rettungswurf-SG der Zauber dieses Merkmals.',
   };
@@ -297,7 +293,7 @@ export function spellAccessValues(
     featureKey: grant.featureKey,
     sourceId: grant.sourceId,
     featureDe: spellAccessLabel(grant),
-    abilityDe: CASTER_ABILITY_DE[key],
+    abilityDe: ABILITY_LABEL[key],
     saveDC: spellSaveDC(profBonus, abilityMod),
     attackBonus: spellAttackBonus(profBonus, abilityMod),
   };
@@ -326,7 +322,7 @@ export function spellAccessNoteLines(
     const list = fixedList(grant) || answered(spellListChoiceId(grant));
     const listDe = list ? (CLASS_NAME_DE_BY_SLUG[resolveClass(list) ?? list] ?? '') : '';
     const source = listDe ? `${listDe}-Liste, ` : '';
-    lines.push(`${spellAccessLabel(grant)}: ${source}Zauber über ${CASTER_ABILITY_DE[abilityKey]}`);
+    lines.push(`${spellAccessLabel(grant)}: ${source}Zauber über ${ABILITY_LABEL[abilityKey]}`);
   }
   return lines;
 }

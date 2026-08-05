@@ -3,11 +3,15 @@
  */
 import { ABILITY_KEY_BY_EN, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
-import { spellAttackBonus, spellSaveDC } from '../spellcasting';
 import { castUses, quotaContext, quotaViews, type QuotaView } from './quota';
 import type { CastingResolution } from './resolve';
 import { spellPools, type SpellPools } from './slots';
 import type { CastingIssue, CastingSource } from './source';
+
+// EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge: zwei Fassungen laufen
+// auseinander, sobald eine davon angefasst wird.
+export const spellSaveDC = (profBonus: number, abilityMod: number): number => 8 + profBonus + abilityMod;
+export const spellAttackBonus = (profBonus: number, abilityMod: number): number => profBonus + abilityMod;
 
 export interface PoolState {
   standard: { total: number[]; used: number[] };

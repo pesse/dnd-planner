@@ -13,7 +13,7 @@ import {
 } from './classProgression';
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
-import { isSpellcastingFeature } from './spellcasting';
+import { isSpellcastingFeature } from './declaration/casting';
 import { classCastingOffer, emptyClassCastingOffer, type ClassCastingOffer } from './spellcasting/classOffer';
 import { isFlowOwnedDeclaration } from './declaration/optionList';
 

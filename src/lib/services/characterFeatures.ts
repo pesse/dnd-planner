@@ -8,7 +8,7 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
-import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
+import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellcasting/access';
 import { characterLevel, featInstances } from './spellcasting/resolve';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';

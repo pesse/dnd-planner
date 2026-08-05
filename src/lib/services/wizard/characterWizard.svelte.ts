@@ -6,7 +6,7 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
-import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
+import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
 import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
 import {

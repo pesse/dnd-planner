@@ -2,11 +2,21 @@
  * Abgeleitete Werte des Zauber-Schritts. Rahmen (`done` fürs Gating) und Schritt-Komponente
  * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
  */
+import type { FeatureRider } from '$lib/schemas/levelUp';
 import type { CharacterWizard } from './characterWizard.svelte';
-import { riderExtras } from '../spellcasting';
 import type { ClassCastingOffer } from '../spellcasting/classOffer';
 import { validateRiderSpells } from '../levelUp/spells';
 import { resolveSpell, type SpellInfo } from '../../spellLibrary';
+
+/**
+ * Kann nur wachsen, nie schrumpfen — deshalb darf die Oberfläche das Kontingent nachträglich
+ * erhöhen, ohne getroffene Wahlen zu entwerten.
+ */
+const riderExtras = (riders: FeatureRider[]): { cantrips: number; prepared: number } =>
+  riders.reduce(
+    (acc, r) => ({ cantrips: acc.cantrips + r.extraCantrips, prepared: acc.prepared + r.extraPreparedCount }),
+    { cantrips: 0, prepared: 0 },
+  );
 
 export interface SpellStepValues {
   readonly extras: { cantrips: number; prepared: number };

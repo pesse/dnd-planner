@@ -23,7 +23,7 @@ import { traitSchema, migrateSpeciesLegacy } from '../../src/lib/schemas/species
 import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
 import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { castingGrantSchema } from '../../src/lib/schemas/casting';
-import { spellAccessGrantOf } from '../../src/lib/services/spellAccess';
+import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
 import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';

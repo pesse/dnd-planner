@@ -14,7 +14,7 @@ import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { exportCharacterToPdf } from '../../src/lib/pdf/characterExport';
 import { parseCharacterData, stripSpellValues, withSpellValues } from '../../src/lib/pdf/characterFields';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';
-import type { SpellAccessValues } from '../../src/lib/services/spellAccess';
+import type { SpellAccessValues } from '../../src/lib/services/spellcasting/access';
 import { CHOSEN_LIST, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
 
 const TEMPLATE = 'vault/templates/ataendler_v2.8.2.pdf';

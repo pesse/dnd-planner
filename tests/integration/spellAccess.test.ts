@@ -15,7 +15,7 @@ import {
   spellAccessChoices,
   spellListChoiceId,
   type SpellAccessGrant,
-} from '../../src/lib/services/spellAccess';
+} from '../../src/lib/services/spellcasting/access';
 import {
   GNOME_SORCERER_BASICS,
   MAGIC_INITIATE_CANTRIPS,

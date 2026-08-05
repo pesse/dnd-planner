@@ -517,14 +517,11 @@ Bestandsfehler oben bleiben so stehen.
       PDF-Import (`characterFields.ts`) und beide PDF-Richtungen in `useCharacterPdf.svelte.ts`
       (über `legacyFlatView`, damit der Export nach der Migration nicht leer läuft).
 - [x] **`services/characterSpellPicks.ts` gelöscht** (2026-08-04), samt seinem Unit-Test.
-- [ ] **`services/spellcasting.ts` und `services/spellAccess.ts` löschen** — offen, und zwar
-      begründet: gelöscht werden können sie erst, wenn die FRAGE-Seite von Wizard und
-      Stufenaufstieg auf Quotas steht. Beide zählen dort noch die Kontingente
-      (`SpellcastingOffer`, `PrepRegime`, `learnInfo`) und erzeugen die Zauber-Wahlen als
-      `AnalysisChoice`; `spellAccessValues` speist zusätzlich die PDF-Zeile in den
-      Klassenmerkmalen. Ihre Ergebnisse landen inzwischen in der neuen Form — der Wizard über
-      `assembleCharacter` (Bucket → Quota), der Aufstieg über `applyChanges` —, aber die
-      Zählung selbst ist Stufe 4b.
+- [x] **`services/spellcasting.ts` und `services/spellAccess.ts` löschen** (2026-08-05) — erst
+      möglich, nachdem die FRAGE-Seite von Wizard und Stufenaufstieg auf Quotas stand: bis dahin
+      zählten beide dort die Kontingente (`SpellcastingOffer`, `PrepRegime`, `learnInfo`) und
+      erzeugten die Zauber-Wahlen als `AnalysisChoice`. Wohin die vier zuletzt noch lebenden Teile
+      gingen, steht in Stufe 4b.
 - [x] **Umzugs-Aktion pro Charakter** (2026-08-04) — was das Einmal-Skript unten für den Vault tat,
       macht der Editor jetzt für jede Datei: `spellcasting/migrate.ts` plant den Umzug gegen die
       aufgelösten Quellen, `spellsFix` (`characterLegacyLinks.ts`) bietet ihn als Legacy-Fix an
@@ -797,8 +794,16 @@ der Live-Auswahl. Das schließt zugleich die zwei `encodePick`/`decodePick`-Zeil
       Schritt ändert die Picker-Identität (Key statt Name) in DREI Live-Flows zugleich —
       Wizard-Zauberschritt, Aufstiegs-Zauber-Picker, Editor-Zauberblock (Kontingent-Picker UND
       Inline-Zauberanlage).
-- [ ] `services/spellcasting.ts`, `services/spellAccess.ts` gelöscht;
-      `.claude/rules/ai-paths.md` („Counts come from `services/spellcasting.ts`") nachgezogen
+- [x] `services/spellcasting.ts` gelöscht, `services/spellAccess.ts` nach
+      `spellcasting/access.ts` gezogen (2026-08-05) — die vier zuletzt noch lebenden Teile sind
+      verteilt statt umgezogen: `spellSaveDC`/`spellAttackBonus` nach `spellcasting/state.ts` (eine
+      Formel für Klasse UND Merkmals-Zugang), `isSpellcastingFeature`/`isSpellAccessFeature` nach
+      `declaration/casting.ts`, `riderExtras` in seinen einzigen Aufrufer
+      (`wizard/spellStep.svelte.ts`). Die Tabelle `CASTER_ABILITY_KEY` (Klasse → Attribut) ist
+      dabei **gestorben, nicht umgezogen**: `classCastingAbility()` (`spellcasting/classOffer.ts`)
+      liest `grantsCasting.ability.fixed` aus der Deklaration, damit Homebrew nicht durchfällt.
+      `.claude/rules/ai-paths.md` („Counts come from `services/spellcasting.ts`") und
+      `CLAUDE.md` nachgezogen; `npm run verify` grün (238 Tests).
 
 **Risiko, das die Stufen davor nicht hatten:** Stufe 1–4 blieben komplett Browser-frei prüfbar
 (Schema, Services, Tests). Punkt 2 hier ändert laufende Svelte-Reaktivität in zwei Live-Flows —
@@ -839,8 +844,8 @@ PDF-Randes. Es ist **kein Zielzustand** — abzubauen sind, jeweils mit ihrem To
 | `legacySpellcasting` (`legacy.ts`) | wenn keine Datei mehr `spells` trägt — der Umzug dorthin ist `spellsFix`, pro Charakter |
 | `spellcasting/migrate.ts` samt `spellsFix` | mit derselben Datei: der Umzug hat dann nichts mehr zu tun |
 | `pdf/characterFields.ts`: Bogen → flache Form | mit dem Template |
-| `encodePick`/`decodePick` in Picker und Wizard | Schritt 4b (Namen statt Keys) |
-| `services/spellcasting.ts`, `services/spellAccess.ts` | Schritt 4b (Frage-Seite auf Quotas) |
+| ~~`encodePick`/`decodePick` in Picker und Wizard~~ | erledigt in Schritt 4b (Picks tragen `spell.key`) |
+| ~~`services/spellcasting.ts`, `services/spellAccess.ts`~~ | erledigt in Schritt 4b |
 
 ## Nicht Teil dieses Plans
 

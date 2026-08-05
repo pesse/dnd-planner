@@ -7,7 +7,7 @@ import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plug
 import { PDFDocument } from 'pdf-lib';
 import { exportCharacterToPdf } from './characterExport';
 import { parseCharacterData, type CharacterData, type CharacterJSON } from './characterFields';
-import type { SpellAccessValues } from '../services/spellAccess';
+import type { SpellAccessValues } from '../services/spellcasting/access';
 
 const TEMPLATE_PATH = './vault/templates/ataendler_v2.8.2.pdf';
 

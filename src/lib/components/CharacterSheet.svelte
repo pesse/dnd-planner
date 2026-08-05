@@ -12,7 +12,7 @@
   import { loadSheetSpellcasting, type SheetSpellcasting } from '../services/spellcasting/project';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
-  import type { SpellAccessValues } from '../services/spellAccess';
+  import type { SpellAccessValues } from '../services/spellcasting/access';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import CharacterFeaturePanel from './CharacterFeaturePanel.svelte';

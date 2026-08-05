@@ -8,7 +8,7 @@ import { SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
 import type { CharacterSpells } from '../schemas/characterSchema';
 import { SKILL_DEFS } from '../domain/skills';
 import { PROFICIENCY_FLAGS } from '../domain/proficiencies';
-import type { SpellAccessValues } from '../services/spellAccess';
+import type { SpellAccessValues } from '../services/spellcasting/access';
 import { appendMarkdownPages } from './markdownPdf';
 import { lineWeightKg, totalWeightKg, formatKg } from '../utils/inventoryWeight';
 

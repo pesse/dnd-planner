@@ -5,7 +5,7 @@ import { legacyFlatView } from '../services/spellcasting/legacy';
 import { loadSpellcasting } from '../services/spellcasting/project';
 import { choosePdfFile, exportCharacterPdfFile, importPdfIntoCharacter } from './characterPdfIo';
 import type { Character } from '../schemas/characterSchema';
-import type { SpellAccessValues } from '../services/spellAccess';
+import type { SpellAccessValues } from '../services/spellcasting/access';
 import type { CharacterSpells } from '../schemas/characterSchema';
 
 export interface CharacterPdf {

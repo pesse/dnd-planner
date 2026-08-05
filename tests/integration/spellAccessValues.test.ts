@@ -19,8 +19,8 @@ import {
   spellAccessValues,
   spellListChoiceId,
   type SpellAccessGrant,
-} from '../../src/lib/services/spellAccess';
-import { spellSaveDC } from '../../src/lib/services/spellcasting';
+} from '../../src/lib/services/spellcasting/access';
+import { spellSaveDC } from '../../src/lib/services/spellcasting/state';
 import { CHOSEN_LIST, loadMagicInitiate, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
 
 /** Attributs-Modifikatoren wie am Charakter (`intMod` …): CHA +3 ist der Prüfwert. */

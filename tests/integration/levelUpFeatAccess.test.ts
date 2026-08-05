@@ -17,7 +17,7 @@ import {
   spellAccessGrantOf,
   spellListChoiceId,
   withoutSpellAccessFeatures,
-} from '../../src/lib/services/spellAccess';
+} from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
 import { featToGainedFeature } from '../../src/lib/services/levelUp/features';

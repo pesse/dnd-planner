@@ -19,7 +19,7 @@ import { chosenOption, isDeclaredChoiceFeature, optionListChoice, optionListRide
 import {
   spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessParts,
   type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
-} from './spellAccess';
+} from './spellcasting/access';
 import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
 import {
   characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
@@ -257,7 +257,7 @@ export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter
   if (ch.slot.access) return '✓ übernommen — wirkt im Zauber-Block';
   if (!g.matched) return 'Diese Antwort passt zu keiner Option — Altbestand oder Tippfehler. Bitte neu wählen.';
   if (p.wouldAlter) return '';
-  // Zauber-Kontingent ist kein Bogenfeld: `spellcastingOffer` zieht es aus den Ridern,
+  // Zauber-Kontingent ist kein Bogenfeld: der Zauber-Block zieht es aus den Ridern,
   // ein Knopf dafür täte nichts.
   if (g.rider && (g.rider.extraCantrips || g.rider.extraPreparedCount))
     return 'Zusätzliche Zaubertricks/Zauber dieser Option zählen im Zauber-Block.';

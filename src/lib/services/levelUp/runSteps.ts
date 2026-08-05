@@ -24,7 +24,7 @@ import {
   withoutDeclaredChoiceFeatures,
 } from '../declaration/optionList';
 import { withDeclaredGrants } from '../declaration/grants';
-import { spellAccessNoteLines, withoutSpellAccessFeatures } from '../spellAccess';
+import { spellAccessNoteLines, withoutSpellAccessFeatures } from '../spellcasting/access';
 import { parseLevelUpNarrative, parseFieldSummary, type FeatureRider, type LevelUpQuestion } from '../../schemas/levelUp';
 import { spellInfoByKey, type SpellInfo } from '../../spellLibrary';
 import { totalLevel } from '../../schemas/classLevelText';

@@ -7,12 +7,13 @@ import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoice, isExpertiseFeature } from '../declaration/expertise';
+import { isSpellAccessFeature } from '../declaration/casting';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
 import { sheetSkillProficiencies } from '../characterChoices';
 import {
-  isSpellAccessFeature, spellAccessChoices, spellAccessGrantOf, spellListChoiceId, type SpellAccessGrant,
-} from '../spellAccess';
+  spellAccessChoices, spellAccessGrantOf, spellListChoiceId, type SpellAccessGrant,
+} from '../spellcasting/access';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { LevelUpDelta } from '../levelUp';
 import type { Character } from '../../schemas/characterSchema';

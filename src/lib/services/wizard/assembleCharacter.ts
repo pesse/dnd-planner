@@ -23,7 +23,7 @@ import { classCastingOffer } from '../spellcasting/classOffer';
 import { addExtra, emptySpellcasting, setPicks } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
-import { spellAccessNoteLines } from '../spellAccess';
+import { spellAccessNoteLines } from '../spellcasting/access';
 import { declaredGrantChanges } from '../declaration/grants';
 import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
