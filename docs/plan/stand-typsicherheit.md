@@ -40,6 +40,12 @@ hier nicht (18 von 25 Testdateien brauchen den echten Vault). Nicht löschen, ke
 | `fb30fa3` | refactor: CharacterSheet aufgeteilt | 18ff (§5b) |
 | `a3388a2` | refactor: Sidebar aufgeteilt | 18ff (§5b) |
 | `7c37b11` | refactor: CharacterEditForm aufgeteilt | 18ff (§5b) |
+| `cc3c9c3` | fix: Kompaktansicht bringt ihr Aussehen selbst mit | Nachlese |
+| `c3d399d` | refactor: Grant-Leerheit an einer Stelle, total über keyof | Nachlese |
+| `c404164` | refactor: komponenteneigenes Monster-Formular-CSS in die Komponente | Nachlese |
+
+Die drei „Nachlese"-Commits stammen aus der Durchsicht unter der Frage, wie viele Dateien **eine**
+Änderung anfasst — sie standen nicht im Plan.
 
 `npm run verify` ist nach jedem Commit grün. Warnungen: **42 → 38**, allein durch das Aufteilen
 (drei gleiche `autofocus`-Stellen wurden eine geteilte `NewEntryRow`, eine tote CSS-Regel fiel).
@@ -90,6 +96,24 @@ Gestaltungsentscheidung, nicht Beiwerk eines Struktur-Refactors.
 - **`MonsterEditForm::addAction` vergibt in allen vier Kategorien hart `name: 'Neue Aktion'`**, auch
   bei „Eigenschaft"/„Reaktion". Beim Aufteilen bewusst unverändert übernommen — echter kleiner Bug,
   eigene Entscheidung.
+
+## Funde der Lokalitäts-Durchsicht
+
+Kriterium: wie viele Dateien muss anfassen, wer *eine* Sache ändert.
+
+- **Behoben.** Die Grant-Leerheit stand dreimal als handgeschriebene Feldkette (`c3d399d`), das
+  komponenteneigene Aussehen der Monster-Formularteile in einer von fünf Komponenten geteilten
+  `.css` (`c404164`), und `MonsterCompactView` hatte beim Aufteilen gar keinen eigenen Stil
+  mitbekommen (`cc3c9c3`).
+- **`.ef` steht zweimal**, in `app.css` und in `monsterEditForm.css`, mit unterschiedlichen Werten.
+  Beide sind global, also entscheidet die Bündelreihenfolge, und die Monster-Variante gilt heute für
+  jedes Formular der App. Nicht angefasst: jede Auflösung ändert sichtbar das Aussehen und gehört
+  in eine eigene Entscheidung.
+- **`libraries.rs`/`lib.rs` zählen die Bibliothekstypen an neun Stellen von Hand auf.** Derselbe
+  Schnitt wie hier, aber auf der Rust-Seite — braucht einen vollen Recompile und liegt außerhalb
+  dieses Branches.
+- **Kein Fund:** dass `templates` in den Export-/Import-Stellen fehlt, ist Absicht —
+  `vault/libraries.yaml:71-73` führt sie als „funktional erforderlich … nicht als Inhalt behandelt".
 
 ## Offen
 
