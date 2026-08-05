@@ -50,7 +50,7 @@
     appOutdated: 'App-Update erforderlich',
   };
 
-  /** Ein Sperrgrund verdrängt die Anzeige des Installationsstands, wie zuvor die Rust-Kette. */
+  /** Ein Sperrgrund verdrängt die Anzeige des Installationsstands. */
   const stateLabel = (lib: Library) => (lib.block ? BLOCK_LABEL[lib.block] : INSTALL_LABEL[lib.install]);
 
   const LICENSE_LABEL: Record<string, string> = {

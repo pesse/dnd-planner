@@ -8,6 +8,7 @@
   import { createLevelUpRun } from '../services/levelUp/run.svelte';
   import { hasAnswer } from '../services/levelUp/answers';
   import { type StepId, STEP_META } from '../services/levelUp/steps';
+  import { isPausedAt, stepOf } from '../services/levelUp/runState';
   import { type LevelUpDelta } from '../services/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { blankSpell, getSpellLibrary, createSpellInline } from '../spellLibrary';
@@ -59,8 +60,11 @@
   });
 
   function startFlow() {
-    if (st.running) return;
-    if (isNewClass && !newClassKey) { st.error = 'Bitte eine Klasse für das Multiclassing wählen.'; return; }
+    if (st.run.kind === 'running') return;
+    if (isNewClass && !newClassKey) {
+      st.run = { kind: 'error', at: 'choose-class', message: 'Bitte eine Klasse für das Multiclassing wählen.' };
+      return;
+    }
     if (!isNewClass && !hasClasses) return;
     run.start(classIndex, targetLevel, isNewClass && newClassKey ? { sourceKey: newClassKey, name: newClassName } : undefined);
   }
@@ -129,7 +133,10 @@
       }
       spellCreator = null;
     } catch (e) {
-      st.error = `Zauber konnte nicht angelegt werden: ${e instanceof Error ? e.message : String(e)}`;
+      st.run = {
+        kind: 'error', at: stepOf(st.run),
+        message: `Zauber konnte nicht angelegt werden: ${e instanceof Error ? e.message : String(e)}`,
+      };
     } finally {
       creatingSpell = false;
     }
@@ -151,12 +158,12 @@
   }
 
   function confirmClassFeatures() {
-    st.phase = 'review';
+    st.run = { kind: 'paused', at: 'review' };
   }
 
   function apply() {
     if (st.delta) onApply($state.snapshot(run.doc) as LevelUpChangeSet, st.delta);
-    st.phase = 'done';
+    st.run = { kind: 'paused', at: 'done' };
     onclose();
   }
 
@@ -229,7 +236,7 @@
   </aside>
 
   <div class="main">
-  {#if st.phase === 'choose-class'}
+  {#if isPausedAt(st.run, 'choose-class')}
     <div class="row">
       <span class="field-label">Welche Klasse steigt auf?</span>
       <select class="select" value={classChoice} onchange={(e) => (classChoice = (e.target as HTMLSelectElement).value)}>
@@ -269,14 +276,14 @@
     </div>
   {/if}
 
-  {#if st.phase === 'running'}
+  {#if st.run.kind === 'running'}
     <AiStatusBanner accent="arcane" text="{currentActivity || 'KI arbeitet…'} ({clock.elapsedSec}s)" />
   {/if}
   {#if clock.stalled}
     <p class="hint warn">Seit {clock.stalledSec}s keine Antwort — du kannst abbrechen und neu starten.</p>
   {/if}
 
-  {#if st.phase === 'subclass-choice' && st.delta}
+  {#if isPausedAt(st.run, 'subclass-choice') && st.delta}
     <div class="row">
       <span class="field-label">Subklasse für {st.delta.klasseName}</span>
       <span class="field-hint">Die Wahl schaltet die Subklassen-Merkmale frei.</span>
@@ -331,12 +338,12 @@
     </div>
   {/snippet}
 
-  {#if st.phase === 'feature-choices'}
+  {#if isPausedAt(st.run, 'feature-choices')}
     <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
     {@render choiceBlock(run.choices.baseChoiceQs)}
   {/if}
 
-  {#if st.phase === 'feat-choices'}
+  {#if isPausedAt(st.run, 'feat-choices')}
     {#if st.featChoices.length}
       <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
     {:else}
@@ -345,7 +352,7 @@
     {@render choiceBlock(run.choices.featChoiceQs)}
   {/if}
 
-  {#if st.phase === 'player-decisions'}
+  {#if isPausedAt(st.run, 'player-decisions')}
     {#if st.decisions.length === 0}
       <p class="hint">Keine offenen Entscheidungen — direkt zum Vorschlag.</p>
     {/if}
@@ -400,7 +407,7 @@
     </div>
   {/if}
 
-  {#if st.phase === 'feat-choice' && st.delta}
+  {#if isPausedAt(st.run, 'feat-choice') && st.delta}
     <div class="row">
       <span class="field-label">{st.featsToPick} Talent(e) wählen</span>
       <div class="chips">
@@ -421,7 +428,7 @@
     </div>
   {/if}
 
-  {#if st.phase === 'class-features'}
+  {#if isPausedAt(st.run, 'class-features')}
     <div class="row">
       <span class="field-label">Klassenmerkmale & Eigenschaften</span>
       <span class="field-hint">Die KI hat die neuen Merkmale bereits verkürzt ins bestehende Feld eingearbeitet. Du kannst frei nachbearbeiten oder erneut zusammenführen lassen.</span>
@@ -431,7 +438,7 @@
         </div>
       {/if}
       <textarea class="textarea ta-features" rows="10" bind:value={st.featuresText}></textarea>
-      <button type="button" class="secondary-btn rework-btn" onclick={run.rework} disabled={st.running}>🪄 Nochmal zusammenführen</button>
+      <button type="button" class="secondary-btn rework-btn" onclick={run.rework} disabled={st.run.kind === 'running'}>🪄 Nochmal zusammenführen</button>
     </div>
   {/if}
 
@@ -456,7 +463,7 @@
     </div>
   {/if}
 
-  {#if st.phase === 'review'}
+  {#if isPausedAt(st.run, 'review')}
     {#if run.doc.summary}<p class="hint">{run.doc.summary}</p>{/if}
     <div class="review">
       <div class="review-line">✦ {run.doc.klasse || 'Klasse'}: Stufe {run.doc.fromLevel} → {run.doc.toLevel}</div>
@@ -476,34 +483,34 @@
     <p class="field-hint">Die Änderungen werden additiv in den Entwurf übernommen (bestehende Item-Boni bleiben erhalten) und farblich hervorgehoben. Speichern/Verwerfen wie gewohnt.</p>
   {/if}
 
-  {#if st.error}<p class="hint err">{st.error}</p>{/if}
+  {#if st.run.kind === 'error'}<p class="hint err">{st.run.message}</p>{/if}
 
   <div class="actions">
-    {#if st.phase === 'running'}
+    {#if st.run.kind === 'running'}
       <button class="secondary-btn" onclick={run.stop}>Abbrechen</button>
-    {:else if st.phase === 'choose-class'}
+    {:else if isPausedAt(st.run, 'choose-class')}
       <button class="secondary-btn" onclick={onclose}>Schließen</button>
       <button class="primary-btn" onclick={startFlow}
               disabled={(isNewClass && !newClassKey) || (!isNewClass && effectiveFrom >= 20)}>Weiter</button>
-    {:else if st.phase === 'subclass-choice'}
+    {:else if isPausedAt(st.run, 'subclass-choice')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
-    {:else if st.phase === 'feature-choices'}
+    {:else if isPausedAt(st.run, 'feature-choices')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
-    {:else if st.phase === 'player-decisions'}
+    {:else if isPausedAt(st.run, 'player-decisions')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!allAnswered}>Weiter</button>
-    {:else if st.phase === 'feat-choice'}
+    {:else if isPausedAt(st.run, 'feat-choice')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={st.chosenFeats.length !== st.featsToPick}>Weiter</button>
-    {:else if st.phase === 'feat-choices'}
+    {:else if isPausedAt(st.run, 'feat-choices')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
-    {:else if st.phase === 'class-features'}
+    {:else if isPausedAt(st.run, 'class-features')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={confirmClassFeatures}>Weiter</button>
-    {:else if st.phase === 'review'}
+    {:else if isPausedAt(st.run, 'review')}
       <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
       <button class="primary-btn" onclick={apply}>In den Entwurf übernehmen</button>
     {/if}
