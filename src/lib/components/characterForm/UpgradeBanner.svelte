@@ -26,7 +26,12 @@
       <ul class="upgrade-steps">
         {#if pendingUpgrade}
           {#each pendingUpgrade.applied as step}<li>{step}</li>{/each}
-          {#if !pendingUpgrade.applied.length}<li>Versionsstempel nachtragen</li>{/if}
+          {#if !pendingUpgrade.applied.length && !pendingUpgrade.failed}<li>Versionsstempel nachtragen</li>{/if}
+          {#if pendingUpgrade.failed}
+            <li class="upgrade-failed">
+              ⚠ „{pendingUpgrade.failed}" scheitert an dieser Datei — die Version bleibt darunter stehen.
+            </li>
+          {/if}
         {/if}
         {#each fixLabels as label}<li>{label}</li>{/each}
       </ul>

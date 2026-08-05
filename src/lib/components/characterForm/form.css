@@ -208,6 +208,7 @@
 .edit-form .upgrade-banner { align-items: flex-start; margin: 0 0 0.8rem; }
 .edit-form .upgrade-steps { margin: 0.25rem 0 0; padding-left: 1.2rem; list-style: '· '; }
 .edit-form .upgrade-done { flex-shrink: 0; font-size: 0.8rem; color: var(--green); }
+.edit-form .upgrade-failed { color: var(--red); list-style: none; margin-left: -1.2rem; }
 .edit-form .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
 .edit-form .species-block { max-width: 24rem; }
 .edit-form .species-picker { max-width: 18rem; }
