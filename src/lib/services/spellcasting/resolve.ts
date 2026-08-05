@@ -21,6 +21,7 @@ import {
   type CastingIssue,
   type CastingOrigin,
   type CastingSource,
+  originCountsClassLevel,
   type Quota,
 } from './source';
 
@@ -142,7 +143,7 @@ function toSource(
     origin: place.origin,
     name: f.name,
     labelDe: f.nameDe?.trim() || f.name,
-    levelRef: place.origin === 'class' || place.origin === 'subclass' ? 'class' : 'character',
+    levelRef: originCountsClassLevel(place.origin) ? 'class' : 'character',
     level: place.level,
     classKey: place.classKey,
     desc: f.desc,

@@ -5,9 +5,14 @@
  */
 import type { AbilityBinding, Quota, SwapRule } from '$lib/schemas/casting';
 export type { AbilityBinding, CastOption, Quota, SpellPool, SwapRule } from '$lib/schemas/casting';
+import type { FeatureSource } from '../declaredFeature';
 
-/** Bestimmt die Bezugsstufe und später die Bogen-Zeile. */
-export type CastingOrigin = 'class' | 'subclass' | 'species' | 'feat';
+/** Bestimmt die Bezugsstufe und später die Bogen-Zeile; deckungsgleich mit `FeatureSource`. */
+export type CastingOrigin = FeatureSource;
+
+/** Klassen- und Subklassenmerkmale zählen nach Klassenstufe, Species/Feat nach Charakterstufe. */
+export const originCountsClassLevel = (origin: CastingOrigin): boolean =>
+  origin === 'class' || origin === 'subclass';
 
 export interface CastingSource {
   /** Merkmals-Key; nur eine WIEDERHOLTE Quelle (Eingeweihter der Magie ×2) trägt einen Zusatz. */

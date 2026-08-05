@@ -11,7 +11,7 @@ import { legacySpellcasting } from './legacy';
 import { resolveCasting } from './resolve';
 import { spellPools } from './slots';
 import type { ResolvedPool } from './quota';
-import type { CastingSource } from './source';
+import { originCountsClassLevel, type CastingSource } from './source';
 import { spellcastingState, type SpellcastingState } from './state';
 
 export interface ProjectionLookup {
@@ -79,7 +79,7 @@ function sourceRows(state: SpellcastingState, lookup: ProjectionLookup): SheetSo
     .filter((s) => s.ability || s.abilityOptions.length)
     .map((s) => ({
       id: s.source.id,
-      kind: s.source.origin === 'class' || s.source.origin === 'subclass' ? ('class' as const) : ('feature' as const),
+      kind: originCountsClassLevel(s.source.origin) ? ('class' as const) : ('feature' as const),
       label: sourceLabel(s.source, lookup),
       abilityDe: abilityDe(s.ability),
       saveDC: s.saveDC,
