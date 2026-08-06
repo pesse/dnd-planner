@@ -24,7 +24,7 @@ import type { PerLevelFeature } from '../perLevelEffects';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
-import { ABILITY_LABEL_DE } from '$lib/schemas/abilities';
+import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import { classCastingAbility } from '../spellcasting/classOffer';
 
 export interface FeatureBasics {
@@ -170,7 +170,7 @@ function classContextOf(klass: FeatureBasics['klass'], prog: ClassProgression | 
     subclassName: klass.subclassName ?? '',
     casterType,
     casterKind: casterType === 'NONE' ? 'none' : 'prepared',
-    spellcastingAbility: ability ? ABILITY_LABEL_DE[ability] : '',
+    spellcastingAbility: ability ? ABILITY_LABEL_BY_NAME[ability] : '',
     toLevel: 1,
   };
 }

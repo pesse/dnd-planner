@@ -8,7 +8,7 @@
   import { activeFile } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { sign } from '../../utils/num';
-  import { ABILITY_LABEL_DE } from '../../schemas/abilities';
+  import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
@@ -155,7 +155,7 @@
         {#if source.abilityOptions.length}
           <!-- Nur der Hinweis: die Wahl gehört zum MERKMAL und steht in der Merkmalsleiste. -->
           <span class="ability-open" title="Zauberattribut in der Merkmals-Leiste wählen">
-            Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_DE[a]).join('/')})
+            Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_BY_NAME[a]).join('/')})
           </span>
         {:else if source.abilityDe}
           <span class="source-values">

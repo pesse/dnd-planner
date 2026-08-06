@@ -4,7 +4,7 @@
  * Form — nur der Editor schreibt, dafür trägt jedes Kontingent seine Ids.
  */
 import type { AbilityName } from '$lib/schemas/abilities';
-import { ABILITY_LABEL_DE } from '$lib/schemas/abilities';
+import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import type { SwapCadence } from '$lib/schemas/casting';
 import { sourceLabel, type ProjectionLookup } from './project';
 import type { QuotaState, SpellcastingState } from './state';
@@ -161,7 +161,7 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
       id: source.source.id,
       label,
       featureDe: source.source.labelDe === label ? '' : source.source.labelDe,
-      abilityDe: source.ability ? ABILITY_LABEL_DE[source.ability] : '',
+      abilityDe: source.ability ? ABILITY_LABEL_BY_NAME[source.ability] : '',
       abilityOptions: source.ability ? [] : [...source.abilityOptions],
       saveDC: source.saveDC,
       attackBonus: source.attackBonus,

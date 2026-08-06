@@ -3,11 +3,10 @@
  * Klassen-Zauberwirken. Kein LLM: die Zahlen stehen in der Deklaration, die Namen in
  * `vault/spells`, und Deutsch kommt aus vorhandenen Tabellen statt aus einem Call.
  */
-import { ABILITY_LABEL, ABILITY_LABEL_DE, type AbilityName } from '$lib/schemas/abilities';
-import type { AbilityKey } from '$lib/schemas/classProgression';
+import { ABILITY_LABEL, ABILITY_LABEL_BY_NAME, abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
 import type { CastingGrant } from '$lib/schemas/casting';
 import { resolveClass } from '$lib/spellLibrary';
-import { ABILITY_FROM_EN, CLASS_NAME_DE_BY_SLUG } from '../classProgression';
+import { CLASS_NAME_DE_BY_SLUG } from '../classProgression';
 import { castingSourceOf } from './resolve';
 import { quotaContext, quotaViews } from './quota';
 import { spellAttackBonus, spellSaveDC } from './state';
@@ -181,7 +180,7 @@ export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccess
     question: 'Which spellcasting ability?',
     questionDe: 'Zauberattribut',
     options: [...grant.abilities],
-    optionsDe: grant.abilities.map((a) => ABILITY_LABEL_DE[a] ?? a),
+    optionsDe: grant.abilities.map((a) => ABILITY_LABEL_BY_NAME[a] ?? a),
     help: 'Sets attack bonus and save DC of this feature’s spells.',
     helpDe: 'Bestimmt Angriffsbonus und Rettungswurf-SG der Zauber dieses Merkmals.',
   };
@@ -285,7 +284,7 @@ export function spellAccessValues(
   profBonus: number,
 ): SpellAccessValues | null {
   const ability = answeredAbility(grant, ledger);
-  const key = ability ? ABILITY_FROM_EN[ability.toLowerCase()] : undefined;
+  const key = abilityKeyOf(ability);
   if (!key) return null;
 
   const abilityMod = mods[key] ?? 0;
@@ -316,7 +315,7 @@ export function spellAccessNoteLines(
   for (const grant of grants) {
     const fixedAbility = grant.abilities.length === 1 ? grant.abilities[0] : '';
     const ability = fixedAbility || answered(spellAbilityChoiceId(grant));
-    const abilityKey = ability ? ABILITY_FROM_EN[ability.toLowerCase()] : undefined;
+    const abilityKey = abilityKeyOf(ability);
     if (!abilityKey) continue;
 
     const list = fixedList(grant) || answered(spellListChoiceId(grant));

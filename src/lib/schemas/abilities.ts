@@ -29,6 +29,14 @@ export const ABILITY_LABEL: Record<AbilityKey, string> = {
   int: 'Intelligenz', wis: 'Weisheit', cha: 'Charisma',
 };
 
+/**
+ * Dasselbe Label, adressiert über den englischen SRD-Namen — die Form, in der Zauber-Zugang und
+ * Merkmals-Grants aus der Bibliothek kommen. Abgeleitet, damit es EINE Labelquelle bleibt.
+ */
+export const ABILITY_LABEL_BY_NAME: Record<AbilityName, string> = Object.fromEntries(
+  ABILITY_KEYS.map((k, i) => [ABILITY_NAMES[i], ABILITY_LABEL[k]]),
+) as Record<AbilityName, string>;
+
 const NAME_TO_KEY = new Map<string, AbilityKey>(
   ABILITY_NAMES.map((name, i) => [name.toLowerCase(), ABILITY_KEYS[i]]),
 );
