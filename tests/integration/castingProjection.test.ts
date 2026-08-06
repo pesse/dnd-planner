@@ -171,6 +171,7 @@ describe('Offene Wahlen', () => {
       lists: ['wizard'],
     });
     expect(open.find((o) => o.quotaId === 'book')).toMatchObject({ count: 6, levels: [1] });
-    expect(open.find((o) => o.quotaId === 'prepared')?.fromQuota).toBe('book');
+    // `from` heißt wie in der Deklaration (`pool.from`) und nennt auch die Quelle.
+    expect(open.find((o) => o.quotaId === 'prepared')?.from).toMatchObject({ quotaId: 'book' });
   });
 });

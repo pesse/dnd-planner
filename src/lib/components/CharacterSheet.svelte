@@ -9,7 +9,7 @@
   import { masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
   import { resolveSpellAccess } from '../services/characterFeatures';
-  import { loadSheetSpellcasting, type SheetSpellcasting } from '../services/spellcasting/project';
+  import { loadSpellcasting, type LoadedSpellcasting } from '../services/spellcasting/project';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
   import type { SpellAccessValues } from '../services/spellcasting/access';
@@ -37,7 +37,7 @@
   // Merkmals-gewährte Zauberwerte zur Anzeigezeit gerechnet, damit ein steigender
   // Übungsbonus sie mitnimmt — gespeichert würden sie altern.
   let spellAccessRows = $state<SpellAccessValues[]>([]);
-  let spellcasting = $state<SheetSpellcasting | null>(null);
+  let spellcasting = $state<LoadedSpellcasting | null>(null);
   $effect(() => {
     const c = character;
     if (!c) {
@@ -53,7 +53,7 @@
         proficiencyBonus: c.proficiencyBonus,
         mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
       });
-      spellcasting = await loadSheetSpellcasting(c);
+      spellcasting = await loadSpellcasting(c);
     })();
   });
 

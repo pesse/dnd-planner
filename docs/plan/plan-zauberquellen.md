@@ -508,7 +508,12 @@ Bestandsfehler oben bleiben so stehen.
       Kontingente mit ihrer Auswahl, das Attribut als Wahl (sonst als Wert samt SG/Angriff) und
       den quellenlosen Bestand; geschrieben wird nur über `services/spellcasting/write.ts`.
       `characterFormFields.ts` hält den Block statt der flachen Felder, `pruneSpellcasting` wirft
-      leere Quellen beim Speichern heraus. Neue Projektion dafür: `spellcasting/editor.ts` (118).
+      leere Quellen beim Speichern heraus. Neue Projektion dafür: `spellcasting/grouped.ts`.
+- [x] **Die Charakter-Karte liest dieselbe Gruppierung** (2026-08-06) — `SheetSpellBlock.svelte`
+      zeigt nicht mehr nach Zaubergrad sortierte Karten, sondern die Quellen-Blöcke des Editors
+      (Merkmal, Attribut/SG/Angriff, Kontingente mit Wirkweise, Plätze, Bestand). Deshalb heißt die
+      Projektion `grouped.ts` und nicht `editor.ts`: zwei Ansichten, eine Form. `sheetSpellcasting`
+      (nach Grad) bleibt für KI-Kontext, Charakter-Protokoll und PDF-Übergang.
 - [x] **Slot-Zahlenfelder aus dem Editor** (2026-08-04) — die Plätze stehen abgeleitet da, editiert
       wird nur noch der VERBRAUCH; die Handeingabe erscheint allein, wenn keine Progression im
       Vault liegt (`state.manualSlots`), und schreibt `manual.slotTotals`.
@@ -574,9 +579,9 @@ nicht neu entworfen werden, nur an zwei weiteren Stellen angeschlossen.
 
 **Der Baustein existiert schon.** `spellcastingState({ resolution, profBonus, mods, spellKey })`
 **ohne** `stored` liefert je Quelle/Quota genau `count`, `levels`, `pool.lists/keys`, `fixed`,
-`swap`, `cast` — mit `open === count`, weil nichts gewählt ist. `editorSpellcasting()`
-(`spellcasting/editor.ts`) macht daraus die UI-Form (`EditorSource`/`EditorQuota` mit Label,
-Attributwahl, SG/Angriffsbonus), die `SpellBlock.svelte` im Charakter-Editor schon rendert. Wizard
+`swap`, `cast` — mit `open === count`, weil nichts gewählt ist. `groupedSpellcasting()`
+(`spellcasting/grouped.ts`) macht daraus die UI-Form (`SpellSourceGroup`/`SpellQuotaGroup` mit
+Label, Attributwahl, SG/Angriffsbonus), die `SpellBlock.svelte` im Charakter-Editor schon rendert. Wizard
 und Aufstieg brauchen keine zweite Projektion — sie brauchen denselben Aufruf zu einem Zeitpunkt,
 zu dem noch kein vollständiger `Character` existiert.
 

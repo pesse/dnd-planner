@@ -11,7 +11,7 @@
   import { ABILITY_LABEL_DE } from '../../schemas/abilities';
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
-  import { editorSpellcasting, type EditorQuota } from '../../services/spellcasting/editor';
+  import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import { addExtra, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
@@ -33,7 +33,7 @@
   } = $props();
 
   const block = $derived(form.spellcasting);
-  const view = $derived(casting ? editorSpellcasting(casting.state, casting.lookup) : null);
+  const view = $derived(casting ? groupedSpellcasting(casting.state, casting.lookup) : null);
 
   const byKey = $derived(new Map(spellLibrary.filter((s) => s.key).map((s) => [s.key as string, s])));
   const infoOf = (key: string): SpellInfo | undefined => byKey.get(key);
@@ -46,17 +46,27 @@
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
-  let picking = $state<EditorQuota | null>(null);
+  let picking = $state<SpellQuotaGroup | null>(null);
   let creating = $state<{ name: string; levels: number[] } | null>(null);
   let extraQuery = $state('');
 
   const listLabel = (lists: string[]): string =>
     lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l).join(', ');
 
-  const pickLevels = (quota: EditorQuota): number[] =>
+  const pickLevels = (quota: SpellQuotaGroup): number[] =>
     quota.levels.length ? quota.levels : Array.from({ length: 10 }, (_, i) => i);
 
-  function applyPicks(quota: EditorQuota, keys: string[]) {
+  /**
+   * Ist der Pool eine andere Quota (Vorbereitung aus dem Zauberbuch), darf der Dialog NUR
+   * deren Zauber anbieten — die Klassenliste wäre die falsche Menge.
+   */
+  const pickLibrary = (quota: SpellQuotaGroup): SpellInfo[] => {
+    if (!quota.from) return spellLibrary;
+    const keys = new Set(quota.from.spells.map((s) => s.key));
+    return spellLibrary.filter((s) => s.key && keys.has(s.key));
+  };
+
+  function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
     setPicks(block, quota.sourceId, quota.quotaId, keys);
     form.spellcasting = { ...block };
   }
@@ -125,7 +135,10 @@
   {#each view.sources as source (source.id)}
     <div class="source-block">
       <div class="source-head">
-        <span class="source-label">{source.label}</span>
+        <div class="source-title">
+          <span class="source-label">{source.label}</span>
+          {#if source.featureDe}<span class="source-feature">{source.featureDe}</span>{/if}
+        </div>
         {#if source.abilityOptions.length}
           <!-- Nur der Hinweis: die Wahl gehört zum MERKMAL und steht in der Merkmalsleiste. -->
           <span class="ability-open" title="Zauberattribut in der Merkmals-Leiste wählen">
@@ -143,7 +156,9 @@
           <span class="quota-label">
             {quota.label}
             {#if !quota.fixed}<span class="quota-count" class:over={quota.spells.length > quota.count}>{quota.spells.length} / {quota.count}</span>{/if}
-            {#if quota.lists.length}<span class="quota-lists">{listLabel(quota.lists)}</span>{/if}
+            {#if quota.lists.length}<span class="quota-lists">{listLabel(quota.lists)}</span>
+            {:else if quota.from}<span class="quota-lists">aus „{quota.from.label}"</span>{/if}
+            <span class="quota-cast">{quota.castNote}</span>
           </span>
           <div class="tag-editor">
             {#each quota.spells as spell (spell.key)}
@@ -163,7 +178,9 @@
             {/each}
           </div>
           {#if !quota.fixed}
-            <button type="button" class="btn-pick" disabled={!spellLibrary.length} onclick={() => (picking = quota)}>
+            <button type="button" class="btn-pick" disabled={!spellLibrary.length}
+              title={quota.swapNote || 'Zauber dieses Kontingents wählen'}
+              onclick={() => (picking = quota)}>
               📖 Wählen
             </button>
           {/if}
@@ -235,7 +252,8 @@
 
 {#if picking}
   {@const quota = picking}
-  <SpellPickModal title={quota.label} library={spellLibrary}
+  <SpellPickModal title={quota.from ? `${quota.label} — aus „${quota.from.label}"` : quota.label}
+    library={pickLibrary(quota)}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
     bind:picks={() => quota.spells.map((s) => s.key), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
@@ -255,7 +273,9 @@
     display: flex; flex-direction: column; gap: 0.4rem;
   }
   .source-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .source-title { display: flex; flex-direction: column; gap: 0.05rem; }
   .source-label { font-weight: 600; font-family: var(--font-display, inherit); }
+  .source-feature { font-size: 0.72rem; color: var(--ink-muted); }
   .source-values { font-size: 0.78rem; color: var(--ink-muted); }
   .ability-open { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
   .quota-row { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
@@ -266,6 +286,7 @@
   .quota-count { font-variant-numeric: tabular-nums; }
   .quota-count.over { color: var(--red); font-weight: 600; }
   .quota-lists { font-style: italic; }
+  .quota-cast { font-size: 0.7rem; color: var(--ink-faint); }
   .tag-editor { flex: 1 1 12rem; }
   .tag.fresh { outline: 1px solid var(--gold); }
   .slot-total { font-size: 0.7rem; color: var(--ink-muted); }

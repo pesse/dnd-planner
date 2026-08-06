@@ -7,7 +7,7 @@
   import type { SpellIndex } from '../../spellLibrary';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
-  import type { SheetSpellcasting } from '../../services/spellcasting/project';
+  import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
@@ -17,7 +17,7 @@
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
-    spellcasting: SheetSpellcasting | null;
+    spellcasting: LoadedSpellcasting | null;
     masteryOf: (name: string) => WeaponMastery | undefined;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
   } = $props();
@@ -123,7 +123,7 @@
        jedem Tab sichtbar und dort auch änderbar. -->
 
   <SheetInventoryBlock {character} {itemIndex} />
-  <SheetSpellBlock characterName={character.name} view={spellcasting} {spellIndex} />
+  <SheetSpellBlock characterName={character.name} casting={spellcasting} {spellIndex} />
 </div>
 
 <style>

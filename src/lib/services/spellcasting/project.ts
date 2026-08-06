@@ -10,6 +10,7 @@ import { sign } from '$lib/utils/num';
 import { legacySpellcasting } from './legacy';
 import { resolveCasting } from './resolve';
 import { spellPools } from './slots';
+import type { ResolvedPool } from './quota';
 import type { CastingSource } from './source';
 import { spellcastingState, type SpellcastingState } from './state';
 
@@ -206,8 +207,8 @@ export interface OpenSpellChoice {
   levels: number[];
   /** Zauberlisten als englische Klassen-Keys. */
   lists: string[];
-  /** Der Pool ist die Auswahl einer anderen Quota (Zauberbuch). */
-  fromQuota: string;
+  /** `pool.from` unverändert: der Pool IST die Auswahl einer anderen Quota (Zauberbuch). */
+  from: ResolvedPool['from'] | null;
 }
 
 export function openSpellChoices(state: SpellcastingState, lookup: ProjectionLookup): OpenSpellChoice[] {
@@ -223,7 +224,7 @@ export function openSpellChoices(state: SpellcastingState, lookup: ProjectionLoo
         count: quota.open,
         levels: quota.view.levels,
         lists: quota.view.pool.lists,
-        fromQuota: quota.view.pool.from?.quotaId ?? '',
+        from: quota.view.pool.from ?? null,
       });
     }
   }
