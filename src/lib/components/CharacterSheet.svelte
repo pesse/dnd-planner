@@ -9,9 +9,10 @@
   import { masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
   import { resolveSpellAccess } from '../services/characterFeatures';
+  import { loadSpellcasting, type LoadedSpellcasting } from '../services/spellcasting/project';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
-  import type { SpellAccessValues } from '../services/spellAccess';
+  import type { SpellAccessValues } from '../services/spellcasting/access';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import CharacterFeaturePanel from './CharacterFeaturePanel.svelte';
@@ -36,18 +37,23 @@
   // Merkmals-gewährte Zauberwerte zur Anzeigezeit gerechnet, damit ein steigender
   // Übungsbonus sie mitnimmt — gespeichert würden sie altern.
   let spellAccessRows = $state<SpellAccessValues[]>([]);
+  let spellcasting = $state<LoadedSpellcasting | null>(null);
   $effect(() => {
     const c = character;
     if (!c) {
       spellAccessRows = [];
+      spellcasting = null;
       return;
     }
     void (async () => {
       spellAccessRows = await resolveSpellAccess({
+        classes: c.classes,
+        backgroundRef: c.backgroundRef,
         features: c.features,
         proficiencyBonus: c.proficiencyBonus,
         mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
       });
+      spellcasting = await loadSpellcasting(c);
     })();
   });
 
@@ -154,7 +160,7 @@
       >
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
-            {spellAccessRows} {masteryOf} {masteryChips} />
+            {spellcasting} {masteryOf} {masteryChips} />
         {/snippet}
 
         {#snippet bearbeiten()}

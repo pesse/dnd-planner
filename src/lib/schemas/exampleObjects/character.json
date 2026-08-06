@@ -61,6 +61,7 @@
   "attacks": [
     {
       "name": "string",
+      "sourceKey": "string",
       "bonus": "string",
       "damage": "string",
       "type": "string",
@@ -108,6 +109,38 @@
   ],
   "inventoryNotes": "string",
   "totalWeight": "string",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": [
+          0
+        ]
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "<key>": {
+        "picks": {
+          "<key>": [
+            "string"
+          ]
+        },
+        "uses": {
+          "<key>": 0
+        }
+      }
+    },
+    "manual": {
+      "slotTotals": [
+        0
+      ],
+      "extra": [
+        "string"
+      ]
+    }
+  },
   "spells": {
     "spellcastingClass": "string",
     "spellcastingAbility": "string",

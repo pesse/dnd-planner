@@ -147,7 +147,7 @@ vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
 - **No hand-enumerated field list** next to `APPLY`, `PROFICIENCY_DEFS`, `riderGrantChanges` or
   `proficiencyGrantChanges` — they are typed as total, so a missing sink is a compile error.
 - **Weapon mastery and spell selection are not AI paths.** Options come from the library, counts
-  from `services/spellcasting.ts`.
+  from the quotas a feature declares (`services/spellcasting/`).
 
 ## Character files are versioned
 

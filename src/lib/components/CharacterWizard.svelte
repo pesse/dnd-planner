@@ -14,8 +14,8 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
-  import { decodePick, spellcastingOffer, type SpellcastingOffer } from '../services/spellcasting';
-  import { getSpellLibrary, type SpellInfo } from '../spellLibrary';
+  import { classCastingOffer, type ClassCastingOffer } from '../services/spellcasting/classOffer';
+  import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';
@@ -177,12 +177,18 @@
 
   // Kontingente aus der Klassentabelle, Optionen aus `vault/spells` — kein KI-Job. Der
   // Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl erzwingt.
-  let spellOffer = $state<SpellcastingOffer | null>(null);
+  let spellOffer = $state<ClassCastingOffer | null>(null);
   $effect(() => {
     const key = w.klass.sourceKey;
     if (!key) { spellOffer = null; return; }
     let cancelled = false;
-    void spellcastingOffer({ classKey: key, klasseName: w.klass.name, level: 1 })
+    void classCastingOffer({
+      classKey: key,
+      klasseName: w.klass.name,
+      subclassKey: w.klass.subclassKey,
+      subclassName: w.klass.subclassName,
+      level: 1,
+    })
       .then((o) => { if (!cancelled) spellOffer = o; })
       .catch(() => { if (!cancelled) spellOffer = null; });
     return () => { cancelled = true; };
@@ -206,7 +212,7 @@
         id: ch.id,
         choice:
           ch.type === 'spell-pick'
-            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => decodePick(v).name).join(', ')
+            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => spellInfoByKey(spellLib, v)?.name ?? v).join(', ')
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());

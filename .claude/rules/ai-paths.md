@@ -11,13 +11,15 @@ paths:
 
 - **Weapon mastery is not an AI path.** `isFlowOwnedChoiceFeature` keeps it out of the level-up
   prompt, and the options must come from the library, never from a model.
-- **Spell selection is not an AI path either.** Counts come from `services/spellcasting.ts`
-  (class table, plus the one prose constant `SPELLBOOK_START_SPELLS` — Open5e emits no column
-  for the wizard's starting six), options come from `vault/spells`. 2024 has no "Spells Known":
-  what is persisted follows `PrepRegime` — only the wizard's book and prepared list differ, for
-  cleric/druid the known pool *is* the class list and is deliberately not written to the file.
-  A feature that lets the player choose spells emits an `AnalysisChoice` of type `spell-pick`
-  carrying only count/level/class list — **never spell names**.
+- **Spell selection is not an AI path either.** Counts come from the quotas a feature declares in
+  the vault (`grantsCasting.quotas`, schema `schemas/casting.ts`), resolved by
+  `services/spellcasting/{resolve,quota}.ts` — one path for class spellcasting, species traits and
+  feat access alike, so a starting book size or a per-level formula is content, not code. Options
+  come from `vault/spells`, filtered by the quota's `pool`. What is persisted is per source and
+  quota (`spellcasting.sources[id].picks[quotaId]`, spell **keys**); a pool that *is* the class
+  list (`swap.spells: 'long-rest-all'`) still holds only the prepared choice. A feature that lets
+  the player choose spells emits an `AnalysisChoice` of type `spell-pick` carrying only
+  count/level/class list — **never spell names**.
 - **The feature interpretation is monolingual English, with a translation boundary.** Analysis and
   effects pass (`aiActions/featureEffectsAction.ts`) see English only — `buildFeatureEffectsInput`
   strips `nameDe`/`descDe` although `GainedFeature` carries them. German is produced by the two

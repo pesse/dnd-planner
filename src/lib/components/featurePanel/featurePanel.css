@@ -99,6 +99,13 @@
   border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.4rem;
   background: color-mix(in srgb, var(--surface) 60%, transparent);
 }
+.fpanel .fp-fact {
+  display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
+  margin-top: 0.35rem; font-size: 0.75rem;
+}
+.fpanel .fp-fact-label { color: var(--ink-muted); }
+.fpanel .fp-fact-value { color: var(--ink); font-weight: 600; }
+.fpanel .fp-fact-note { color: var(--ink-muted); font-style: italic; font-size: 0.72rem; }
 .fpanel .chip-x {
   background: none; border: none; cursor: pointer; font: inherit;
   padding: 0 0 0 0.25rem; color: var(--ink-muted);

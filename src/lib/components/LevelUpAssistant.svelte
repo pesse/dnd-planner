@@ -11,7 +11,6 @@
   import { type LevelUpDelta } from '../services/levelUp';
   import { getClasses, classDisplayName, type ClassInfo } from '../classLibrary';
   import { blankSpell, getSpellLibrary, createSpellInline } from '../spellLibrary';
-  import { decodePick, encodePick } from '../services/spellcasting';
   import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '../schemas/levelUp';
   import SpellPickField from './SpellPickField.svelte';
   import FeatureChoicePicker from './FeatureChoicePicker.svelte';
@@ -115,9 +114,11 @@
       const canonical = await createSpellInline(blankSpell(s.name, s.level, s.school, s.nameEn));
       st.spellLib = await getSpellLibrary();
       if (s.targetQ) {
-        const [read, write] = pickBinding(s.targetQ);
-        const val = encodePick(s.level, canonical);
-        if (!read().includes(val)) write([...read(), val]);
+        const key = st.spellLib.find((sp) => sp.name === canonical)?.key;
+        if (key) {
+          const [read, write] = pickBinding(s.targetQ);
+          if (!read().includes(key)) write([...read(), key]);
+        }
       } else {
         if (s.level === 0) {
           if (!st.validatedBase.grantedCantrips.includes(canonical)) st.validatedBase.grantedCantrips = [...st.validatedBase.grantedCantrips, canonical];
@@ -145,7 +146,7 @@
     if (st.chosenFeats.length >= st.featsToPick) return;
     // `grantsChoice`/`grants` reisen mit — nur damit lesen `feat-links` Zauber-Zugang und
     // pro-Stufe-Effekte deterministisch aus der Bibliothek statt aus der KI.
-    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells }];
+    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells, grantsCasting: entry.grantsCasting }];
     featQuery = '';
   }
 
@@ -316,6 +317,7 @@
                 spellLevels={q.spellLevels}
                 spellClass={q.spellClass}
                 max={q.max ?? 1}
+                known={run.knownSpells.except(q.id)}
                 bind:picks={bind[0], bind[1]}
                 allowCreate
                 onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
@@ -372,6 +374,7 @@
               spellLevels={q.spellLevels}
               spellClass={q.spellClass}
               max={q.max ?? 1}
+              known={run.knownSpells.except(q.id)}
               bind:picks={bind[0], bind[1]}
               allowCreate
               onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}

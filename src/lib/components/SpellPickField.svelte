@@ -3,8 +3,8 @@
    * Kompakte Formularzeile; die eigentliche Wahl passiert im `SpellPickModal`, damit
    * Schritt und Fragebogen kurz bleiben statt je Kontingent eine offene Suchliste zu tragen.
    */
-  import { decodePick } from '../services/spellcasting';
-  import type { SpellInfo } from '../spellLibrary';
+  import { spellInfoByKey, type SpellInfo } from '../spellLibrary';
+  import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
   import SpellPickModal from './SpellPickModal.svelte';
   import { createSpellHover } from './spellHover.svelte';
@@ -17,6 +17,7 @@
     max,
     picks = $bindable(),
     fixed = [],
+    known = NO_KNOWN_SPELLS,
     prepared = $bindable(undefined),
     preparedMax = 0,
     allowCreate = false,
@@ -28,10 +29,12 @@
     /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
     max: number;
-    /** Gewählte Zauber, `encodePick`-kodiert. */
+    /** Gewählte Zauber als `spell.key`. */
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
+    /** Woanders schon beherrscht — ausgegraut, aber wählbar. */
+    known?: KnownSpells;
     prepared?: string[] | undefined;
     preparedMax?: number;
     allowCreate?: boolean;
@@ -43,6 +46,7 @@
   const label = (level: number, name: string) => (level > 0 ? `${name} (Grad ${level})` : name);
   const complete = $derived(picks.length >= max && (!prepared || prepared.length >= preparedMax));
   const hover = createSpellHover(() => new Map(library.map((s) => [s.name, s])));
+  const infoOf = (key: string) => spellInfoByKey(library, key);
 </script>
 
 <div class="field-row">
@@ -58,17 +62,20 @@
       >◆ {label(f.level, f.name)}</span>
     {/each}
     {#each picks as val (val)}
-      {@const dp = decodePick(val)}
+      {@const info = infoOf(val)}
+      {@const from = known.get(val) ?? ''}
       <span
         class="pick"
+        class:doubled={!!from}
         class:unprepared={prepared ? !prepared.includes(val) : false}
-        onmouseenter={(e) => hover.show(e, dp.name)}
+        title={from ? `Beherrschst du schon (${from}) — die zweite Wahl bringt nichts Neues.` : undefined}
+        onmouseenter={(e) => info && hover.show(e, info.name)}
         onmousemove={(e) => hover.move(e)}
         onmouseleave={() => hover.hide()}
         role="note"
       >
         <!-- Nur Anzeige: geschaltet wird die Vorbereitung im Auswahl-Dialog. -->
-        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{label(dp.level, dp.name)}
+        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{#if from}◇ {/if}{info ? label(info.level, info.name) : val}
       </span>
     {/each}
     {#if !picks.length && !fixed.length}
@@ -95,6 +102,7 @@
     {max}
     bind:picks
     {fixed}
+    {known}
     bind:prepared
     {preparedMax}
     {allowCreate}
@@ -114,6 +122,7 @@
     padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); cursor: help;
   }
   .pick.granted { border-style: dashed; color: var(--ink-soft); }
+  .pick.doubled { border-style: dotted; color: var(--ink-muted); font-style: italic; }
   .pick.unprepared { color: var(--ink-muted); }
   .controls { flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; }
   .counter { font-size: 0.72rem; color: var(--ink-muted); white-space: nowrap; }

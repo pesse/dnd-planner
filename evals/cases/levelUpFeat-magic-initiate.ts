@@ -6,7 +6,7 @@
  *   A „KI-Pfad" — das Talent geht komplett an die Deutung (`analyzeFeatureEffects` +
  *      `finalizeFeatureEffects`), wie es der Aufstieg bis 2026-07-30 tat.
  *   B „deklarierter Pfad" — Liste, Attribut und Kontingent kommen aus
- *      `grantsChoice.kind === "spellAccess"` (`services/spellAccess.ts`), ohne LLM.
+ *      `grantsChoice.kind === "spellAccess"` (`services/spellcasting/access.ts`), ohne LLM.
  *
  * Beide liefern denselben Ergebnistyp (`AnalysisChoice[]`) — das ist der Grund, weshalb
  * dieselben Prüfungen auf beiden laufen können und der Vergleich nicht an unterschiedlichen
@@ -18,7 +18,7 @@
 import type { FeatureRider } from '../../src/lib/schemas/levelUp';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
 import { type AnalysisChoice, type ResolvedChoice } from '../../src/lib/services/analysis/types';
-import { spellAccessChoices, spellAccessGrantOf } from '../../src/lib/services/spellAccess';
+import { spellAccessChoices, spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
 import {

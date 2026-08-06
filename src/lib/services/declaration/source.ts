@@ -2,6 +2,7 @@
  * Was jede Deklarations-Prüfung von einem Merkmal braucht. Eigenes Modul, weil sonst jede
  * Deklarationsart einen Zyklus zu der schließt, die den Typ zufällig hält.
  */
+import type { CastingGrant } from '../../schemas/casting';
 import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureSource } from '../declaredFeature';
 
@@ -12,6 +13,8 @@ export interface DeclaredChoiceSource {
   nameDe?: string;
   source?: FeatureSource;
   grantsChoice?: FeatureChoiceGrant;
+  /** Stellt Liste und Attribut zur Wahl — unabhängig von `grantsChoice.kind`. */
+  grantsCasting?: CastingGrant;
 }
 
 /** Ein Merkmal, dessen Deklaration feststeht — spart die Nicht-Null-Behauptungen dahinter. */

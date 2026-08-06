@@ -5,6 +5,7 @@
  */
 import type { Character } from '../schemas/characterSchema';
 import { characterSummary, type SummarySectionId, type SummaryValue } from './characterSummary';
+import type { SheetSpellcasting } from './spellcasting/project';
 
 export interface ProtocolGroup {
   heading: string;
@@ -24,15 +25,39 @@ const HEADINGS: Record<SummarySectionId, string> = {
   languages: 'Sprachen',
 };
 
+function spellLines(view: SheetSpellcasting | undefined): string[] {
+  if (!view) return [];
+  const lines: string[] = [];
+  const slots = view.levels.filter((l) => l.slots);
+  if (slots.length)
+    lines.push(`Zauberplätze: ${slots.map((l) => `Grad ${l.level}: ${l.slots!.total}`).join(', ')}`);
+  if (view.pact) lines.push(`Pakt-Plätze: ${view.pact.total} × Grad ${view.pact.level}`);
+  for (const source of view.sources)
+    if (source.abilityDe) lines.push(`${source.label}: Zauber über ${source.abilityDe}`);
+  for (const level of view.levels) {
+    if (!level.spells.length) continue;
+    const names = level.spells.map((s) => s.label).join(', ');
+    lines.push(level.level === 0 ? `Zaubertricks: ${names}` : `Grad ${level.level}: ${names}`);
+  }
+  return lines;
+}
+
 function summaryLine(id: SummarySectionId, v: SummaryValue): string {
   if (id === 'abilities') return `${v.label} ${v.score} (${v.detail})`;
   if (id === 'coreValues') return `${v.label}: ${v.detail}`;
   return v.label;
 }
 
+/**
+ * Die Zauber-Zeilen kommen als Projektion herein: Kontingente und Plätze sind abgeleitet
+ * (`services/spellcasting/project.ts`) und am gespeicherten Charakter nicht ablesbar.
+ */
 export function buildCharacterProtocol(
   c: Character,
-  extras: { decisions?: { question: string; answer: string }[] } = {},
+  extras: {
+    decisions?: { question: string; answer: string }[];
+    spellcasting?: SheetSpellcasting;
+  } = {},
 ): ProtocolGroup[] {
   const groups: ProtocolGroup[] = [];
   const add = (heading: string, lines: string[]): void => {
@@ -42,20 +67,7 @@ export function buildCharacterProtocol(
   for (const s of characterSummary(c))
     add(HEADINGS[s.id], s.values.map((v) => summaryLine(s.id, v)));
 
-  const spells: string[] = [];
-  const slots = c.spells.slots.map((s, i) => ({ lvl: i + 1, total: s.total })).filter((s) => s.total > 0);
-  if (slots.length) spells.push(`Zauberplätze: ${slots.map((s) => `Grad ${s.lvl}: ${s.total}`).join(', ')}`);
-  if (c.spells.cantrips.length) spells.push(`Zaubertricks: ${c.spells.cantrips.map((x) => x.name).join(', ')}`);
-  // Nach `prepared` trennen, nicht nach Herkunft: gewählt vs. gewährt ist am gespeicherten
-  // Charakter nicht ablesbar, die Markierung dagegen schon (Magier: Buch ⊋ Vorbereitung).
-  const entries = Object.entries(c.spells.byLevel)
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .flatMap(([lvl, arr]) => arr.map((e) => ({ ...e, label: `${e.name} (Grad ${lvl})` })));
-  const prepared = entries.filter((e) => e.prepared);
-  const inBook = entries.filter((e) => !e.prepared);
-  if (prepared.length) spells.push(`Vorbereitet: ${prepared.map((e) => e.label).join(', ')}`);
-  if (inBook.length) spells.push(`Im Zauberbuch (nicht vorbereitet): ${inBook.map((e) => e.label).join(', ')}`);
-  add('Zauber', spells);
+  add('Zauber', spellLines(extras.spellcasting));
 
   add(
     'Merkmals-Entscheidungen',

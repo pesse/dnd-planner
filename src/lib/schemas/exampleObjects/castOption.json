@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "slots",
+    "pool": "standard"
+  },
+  {
+    "kind": "uses",
+    "per": "long-rest",
+    "count": {
+      "column": "string"
+    }
+  },
+  {
+    "kind": "at-will"
+  },
+  {
+    "kind": "ritual",
+    "requiresPrepared": false
+  }
+]

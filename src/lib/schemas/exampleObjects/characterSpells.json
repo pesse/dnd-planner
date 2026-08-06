@@ -1,0 +1,28 @@
+{
+  "spellcastingClass": "string",
+  "spellcastingAbility": "string",
+  "saveDC": 0,
+  "attackBonus": 0,
+  "autoCalc": true,
+  "slots": [
+    {
+      "total": -9007199254740991,
+      "used": -9007199254740991
+    }
+  ],
+  "cantrips": [
+    {
+      "name": "string",
+      "sourceKey": "string"
+    }
+  ],
+  "byLevel": {
+    "<key>": [
+      {
+        "name": "string",
+        "sourceKey": "string",
+        "prepared": false
+      }
+    ]
+  }
+}

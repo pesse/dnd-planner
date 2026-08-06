@@ -1,0 +1,59 @@
+{
+  "feature": "string",
+  "quota": "string",
+  "set": {
+    "id": "string",
+    "since": 1,
+    "when": {
+      "<key>": "string"
+    },
+    "tier": "known",
+    "levels": [
+      0
+    ],
+    "count": {
+      "column": "string"
+    },
+    "pool": {
+      "lists": [
+        "string"
+      ],
+      "listMode": "union",
+      "schools": [
+        "abjuration"
+      ],
+      "from": {
+        "feature": "string",
+        "quota": "string"
+      },
+      "names": [
+        "string"
+      ],
+      "fromDescTable": false
+    },
+    "swap": {
+      "spells": "none",
+      "cantrips": "none"
+    },
+    "cast": [
+      {
+        "kind": "slots",
+        "pool": "standard"
+      },
+      {
+        "kind": "uses",
+        "per": "long-rest",
+        "count": {
+          "column": "string"
+        }
+      },
+      {
+        "kind": "at-will"
+      },
+      {
+        "kind": "ritual",
+        "requiresPrepared": false
+      }
+    ]
+  }
+}

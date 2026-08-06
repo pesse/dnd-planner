@@ -7,15 +7,32 @@
  */
 import { describe, expect, it } from 'vitest';
 import { buildCharacterProtocol } from '../../src/lib/services/characterProtocol';
+import type { SheetSpellcasting } from '../../src/lib/services/spellcasting/project';
 import {
   allProficienciesCharacter,
   allProficienciesDecisions,
 } from '../fixtures/character-all-proficiencies';
 
+/** Die Zauber-Zeilen kommen als Projektion herein, nicht aus dem Charakter. */
+const SPELLCASTING: SheetSpellcasting = {
+  sources: [{
+    id: 'srd-2024_paladin_spellcasting', kind: 'class', label: 'Paladin',
+    abilityDe: 'Charisma', saveDC: 14, attackBonus: 6, abilityOptionsDe: [],
+  }],
+  levels: [
+    { level: 0, slots: null, spells: [{ key: 'srd-2024_light', label: 'Licht', prepared: true, source: 'Paladin' }] },
+    { level: 1, slots: { total: 4, used: 0 }, spells: [{ key: 'srd-2024_divine-favor', label: 'Göttliche Gunst', prepared: true, source: 'Paladin' }] },
+    { level: 2, slots: { total: 2, used: 0 }, spells: [{ key: 'srd-2024_spiritual-weapon', label: 'Waffe des Glaubens', prepared: true, source: 'Paladin' }] },
+  ],
+  pact: null,
+  hasContent: true,
+};
+
 describe('buildCharacterProtocol', () => {
   it('gruppiert den vollständigen Bogen', () => {
     const groups = buildCharacterProtocol(allProficienciesCharacter, {
       decisions: allProficienciesDecisions,
+      spellcasting: SPELLCASTING,
     });
 
     expect(groups).toMatchInlineSnapshot(`
@@ -104,9 +121,10 @@ describe('buildCharacterProtocol', () => {
           "heading": "Zauber",
           "lines": [
             "Zauberplätze: Grad 1: 4, Grad 2: 2",
+            "Paladin: Zauber über Charisma",
             "Zaubertricks: Licht",
-            "Vorbereitet: Göttliche Gunst (Grad 1), Waffe des Glaubens (Grad 2)",
-            "Im Zauberbuch (nicht vorbereitet): Heldentum (Grad 1)",
+            "Grad 1: Göttliche Gunst",
+            "Grad 2: Waffe des Glaubens",
           ],
         },
         {
@@ -150,7 +168,6 @@ describe('buildCharacterProtocol', () => {
         heavyArmor: false,
         shields: false,
       },
-      spells: { ...allProficienciesCharacter.spells, slots: [], cantrips: [], byLevel: {} },
     });
 
     expect(groups.map((g) => g.heading)).toMatchInlineSnapshot(`

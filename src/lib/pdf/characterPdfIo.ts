@@ -7,7 +7,7 @@ import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plug
 import { PDFDocument } from 'pdf-lib';
 import { exportCharacterToPdf } from './characterExport';
 import { parseCharacterData, type CharacterData, type CharacterJSON } from './characterFields';
-import type { SpellAccessValues } from '../services/spellAccess';
+import type { SpellAccessValues } from '../services/spellcasting/access';
 
 const TEMPLATE_PATH = './vault/templates/ataendler_v2.8.2.pdf';
 
@@ -92,6 +92,8 @@ export interface CharacterPdfExport {
   masteryOf?: (attackName: string) => string | undefined;
   /** Zauberwerte der Merkmals-Zugänge — dieselben Zeilen, die die Karte zeigt. */
   spellAccess?: SpellAccessValues[];
+  /** Flache Alt-Form aus `legacyFlatView`. */
+  spells?: CharacterData['spells'];
 }
 
 /** Füllt das Taendler-Template und speichert es über die Zielwahl; false = abgebrochen. */
@@ -126,6 +128,7 @@ export async function exportCharacterPdfFile(
     freitext: opts.freitext,
     masteryOf: opts.masteryOf,
     spellAccess: opts.spellAccess,
+    spells: opts.spells,
   });
   const b64 = bytesToBase64(pdfBytes);
   const safeName = character.name.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_') || 'charakter';

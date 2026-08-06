@@ -7,10 +7,13 @@ import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoice, isExpertiseFeature } from '../declaration/expertise';
+import { isSpellAccessFeature } from '../declaration/casting';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
 import { sheetSkillProficiencies } from '../characterChoices';
-import { spellAccessChoices, spellAccessGrantOf, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
+import {
+  spellAccessChoices, spellAccessGrantOf, spellListChoiceId, type SpellAccessGrant,
+} from '../spellcasting/access';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { LevelUpDelta } from '../levelUp';
 import type { Character } from '../../schemas/characterSchema';
@@ -69,7 +72,10 @@ export function createLevelUpChoices(src: ChoiceSources) {
    * die Talent-Seite muss erst das Nachladen abwarten.
    */
   const baseAccess = $derived(
-    baseDeclared.map((f) => spellAccessGrantOf(f)).filter((g): g is SpellAccessGrant => g !== null),
+    baseDeclared
+      .filter(isSpellAccessFeature)
+      .map((f) => spellAccessGrantOf(f))
+      .filter((g): g is SpellAccessGrant => g !== null),
   );
   // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren
   // Klassenfilter böte der Picker die ganze Bibliothek an.

@@ -5,7 +5,7 @@
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 
-export const CHARACTER_VERSION = 6;
+export const CHARACTER_VERSION = 7;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -106,6 +106,70 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       }
     },
   },
+  {
+    to: 7,
+    label: 'Zauberquellen: Attribut ins Merkmals-Ledger, Instanz-Id nach Vergabe-Stufe',
+    apply: (c) => {
+      const block = c.spellcasting as { sources?: Record<string, Record<string, unknown>> } | undefined;
+      const sources = block?.sources;
+      if (!sources || typeof sources !== 'object') return;
+      const features = Array.isArray(c.features) ? (c.features as Record<string, unknown>[]) : [];
+      const answered = (key: string, value: string): boolean =>
+        features.some(
+          (f) => f?.sourceKey === key && String(f.choice ?? '').trim().toLowerCase() === value.toLowerCase(),
+        );
+
+      /**
+       * Vergabe-Stufen der Talent-Links eines Keys, in DATEI-Reihenfolge — das war die alte
+       * Zuordnung: der erste Link bekam den blanken Key, der zweite `#2`. Ein `#n`, dessen
+       * Link fehlt, bleibt stehen und verwaist; im Bestand gibt es keins.
+       */
+      const gainsOf = (key: string): number[] =>
+        features
+          .filter((f) => f?.sourceKey === key && !String(f.choice ?? '').trim())
+          .map((f) => (typeof f.gainedAt === 'number' ? f.gainedAt : 1));
+
+      /** Wie `pruneSpellcasting`: ein Block, dessen einziger Inhalt die Bindung war, trägt nichts. */
+      const carries = (state: Record<string, unknown>): boolean => {
+        const values = (field: unknown): unknown[] =>
+          field && typeof field === 'object' ? Object.values(field as Record<string, unknown>) : [];
+        return (
+          values(state.picks).some((keys) => Array.isArray(keys) && keys.length > 0) ||
+          values(state.uses).some((n) => typeof n === 'number' && n > 0)
+        );
+      };
+
+      const next: Record<string, Record<string, unknown>> = {};
+      const used = new Set<string>();
+      for (const [id, state] of Object.entries(sources)) {
+        // `bindings` war die Kopie einer Ledger-Antwort; fehlt sie dort, wird sie nachgetragen.
+        const ability = (state.bindings as { ability?: unknown } | undefined)?.ability;
+        delete state.bindings;
+
+        const hash = /^(.*)#(\d+)$/.exec(id);
+        const gains = hash ? gainsOf(hash[1]) : [];
+        const at = hash ? gains[Number(hash[2]) - 1] : undefined;
+        const renamed = at !== undefined && at > Math.min(...gains) ? `${hash![1]}@${at}` : id;
+        const target = used.has(renamed) ? id : renamed;
+        used.add(target);
+        if (carries(state)) next[target] = state;
+
+        if (typeof ability !== 'string' || !ability.trim()) continue;
+        const featureKey = target.split(/[@#]/)[0];
+        if (answered(featureKey, ability)) continue;
+        features.push({
+          sourceKey: featureKey,
+          name: '',
+          choice: ability,
+          choiceDe: ability,
+          gainedAt: Number(/@(\d+)$/.exec(target)?.[1] ?? 1),
+          desc: '',
+        });
+      }
+      block!.sources = next;
+      if (features.length) c.features = features;
+    },
+  },
 ];
 
 /** Ohne `_version` gilt 1 — so waren die Dateien, bevor es das Feld gab. */
@@ -117,33 +181,41 @@ export function characterVersionOf(raw: unknown): number {
 export interface CharacterUpgradeResult {
   data: Record<string, unknown>;
   fromVersion: number;
+  /** Ziel, nicht Ergebnis: gestempelt wird `data._version`. */
   toVersion: number;
   applied: string[];
+  /** Der Schritt, der an diesen Daten scheiterte — ab ihm bleibt der Stempel stehen. */
+  failed: string;
 }
 
 /**
- * Wirft nie: ein Schritt, der an kaputten Daten scheitert, wird übersprungen, damit
- * ein einzelnes Feld nicht die ganze Datei unlesbar macht.
+ * Wirft nie: ein Schritt, der an kaputten Daten scheitert, hält die Pipeline an, statt die
+ * Datei unlesbar zu machen. **Der Stempel bleibt dann VOR ihm** — sonst wäre die Version die
+ * Behauptung einer Umstellung, die nie lief, und der Schritt käme nie wieder dran.
  */
 export function upgradeCharacter(raw: unknown): CharacterUpgradeResult {
-  const empty = { data: {}, fromVersion: CHARACTER_VERSION, toVersion: CHARACTER_VERSION, applied: [] };
+  const empty = { data: {}, fromVersion: CHARACTER_VERSION, toVersion: CHARACTER_VERSION, applied: [], failed: '' };
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return empty;
 
   const data = { ...(raw as Record<string, unknown>) };
   const fromVersion = characterVersionOf(data);
   const applied: string[] = [];
+  let reached = fromVersion;
+  let failed = '';
 
   for (const step of CHARACTER_UPGRADES) {
     if (step.to <= fromVersion) continue;
     try {
       step.apply(data);
-      applied.push(step.label);
     } catch {
-      /* Einzelschritt übersprungen — der Rest der Datei bleibt nutzbar. */
+      failed = step.label;
+      break;
     }
+    applied.push(step.label);
+    reached = step.to;
   }
-  data._version = CHARACTER_VERSION;
-  return { data, fromVersion, toVersion: CHARACTER_VERSION, applied };
+  data._version = failed ? reached : CHARACTER_VERSION;
+  return { data, fromVersion, toVersion: CHARACTER_VERSION, applied, failed };
 }
 
 export interface PendingCharacterUpgrade {
@@ -151,6 +223,8 @@ export interface PendingCharacterUpgrade {
   toVersion: number;
   /** Beschreibungen der Schritte, die greifen würden. Leer = nur der Versionsstempel fehlt. */
   applied: string[];
+  /** Gesetzt, wenn ein Schritt an der Datei scheitert; sie bleibt dann unter `toVersion`. */
+  failed: string;
 }
 
 /**
@@ -163,8 +237,9 @@ export function pendingCharacterUpgrade(raw: unknown): PendingCharacterUpgrade |
   const before = JSON.stringify(raw);
   const fromVersion = characterVersionOf(raw);
   const result = upgradeCharacter(raw);
-  if (before === JSON.stringify(result.data)) return null;
-  return { fromVersion, toVersion: result.toVersion, applied: result.applied };
+  // Ein scheiternder Schritt ändert nichts und wäre ohne diese Meldung unsichtbar.
+  if (!result.failed && before === JSON.stringify(result.data)) return null;
+  return { fromVersion, toVersion: result.toVersion, applied: result.applied, failed: result.failed };
 }
 
 /** Eintritt für `normalizeCharacter`/`parseCharacter`, bevor das Schema greift. */

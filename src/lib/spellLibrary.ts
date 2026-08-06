@@ -70,11 +70,18 @@ const SPELL_SCHOOL_DIR: Record<string, string> = {
 export async function createSpellInline(spell: Spell): Promise<string> {
   const dir = SPELL_SCHOOL_DIR[spell.school] ?? 'hervorrufung';
   const name = (spell.name || 'Neuer Zauber').trim();
-  const path = `./vault/spells/${dir}/${slugKeepUmlauts(name)}.json`;
-  await invoke('write_file_content', { path, content: JSON.stringify({ ...spell, name }, null, 2) });
+  const slug = slugKeepUmlauts(name);
+  const path = `./vault/spells/${dir}/${slug}.json`;
+  // Ohne `key` wäre der Zauber am Charakter nicht verlinkbar (Picks tragen nur Keys) — derselbe
+  // Slug wie im Dateipfad, damit beide zusammen eindeutig bleiben.
+  await invoke('write_file_content', { path, content: JSON.stringify({ ...spell, name, key: `${OWN_SOURCE}_${slug}` }, null, 2) });
   invalidateSpellLibrary();
   await getSpellLibrary();
   return name;
+}
+
+export function spellInfoByKey(library: SpellInfo[], key: string): SpellInfo | undefined {
+  return key ? library.find((s) => s.key === key) : undefined;
 }
 
 export async function loadSpellByPath(path: string): Promise<import('./types').Spell | null> {

@@ -18,11 +18,13 @@
   import type { Item } from '../../types';
   import './form.css';
 
-  let { attacks, ctx, weaponItems, saved }: {
+  let { attacks, ctx, weaponItems, saved, fixLabel, onfix }: {
     attacks: Attack[];
     ctx: WeaponAttackContext;
     weaponItems: ItemInfo[];
     saved?: Character | null;
+    fixLabel?: string;
+    onfix?: () => void;
   } = $props();
 
   let search = $state('');
@@ -152,4 +154,12 @@
     {/each}
   </tbody>
 </table>
-<button class="btn-add" onclick={() => attacks.push(blankAttack())}>+ Angriff</button>
+<div class="inv-actions">
+  <button class="btn-add" onclick={() => attacks.push(blankAttack())}>+ Angriff</button>
+  {#if fixLabel}
+    <button class="btn-link-all" onclick={onfix}
+      title="Setzt bei diesen Zeilen den Bibliotheks-Link und rechnet Bonus/Schaden reaktiv. Wird beim Speichern übernommen.">
+      🔗 {fixLabel}
+    </button>
+  {/if}
+</div>

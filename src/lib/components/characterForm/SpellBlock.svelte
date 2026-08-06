@@ -1,323 +1,317 @@
 <script lang="ts">
   /**
-   * Zauberwirken: Klasse/Attribut mit reaktivem SG und Angriffsbonus, Slots je Grad,
-   * Zaubertricks und Zauberliste — jeweils mit Bibliotheks-Link, Tooltip und Sprung.
+   * Zauberwirken je Quelle: Kontingente mit ihrer Auswahl, abgeleitete Plätze, quellenloser
+   * Bestand. Geschrieben werden nur Entscheidungen (`services/spellcasting/write.ts`) —
+   * Plätze, SG und Angriffsbonus stehen hier read-only, außer die Klasse hat keine
+   * Progression im Vault.
    */
   import { activeFile } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { sign } from '../../utils/num';
-  import {
-    searchSpells, loadSpellByPath, matchSpell, SCHOOL_COLORS,
-    type SpellIndex, type SpellInfo, type SpellSuggestion,
-  } from '../../spellLibrary';
-  import { CLASS_NAMES_DE } from '../../services/classProgression';
-  import { CASTER_ABILITY_DE } from '../../services/spellcasting';
-  import {
-    computedSpellAttack, computedSpellSaveDC, spellAbilityMod, spellAutoActive, withCurrent,
-    type CharacterFormFields,
-  } from '../../services/characterFormFields';
-  import { diffMark, type DiffDir } from '../../utils/diffHighlight';
-  import { createSuggestNav } from '../../utils/suggestNav.svelte';
-  import { dropdownPlacement } from '../../utils/dropdownPlacement';
-  import { createHoverTip } from '../../utils/hoverTip.svelte';
+  import { ABILITY_LABEL_DE } from '../../schemas/abilities';
+  import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
+  import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
+  import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
+  import { knownSpellGroups, knownSpells, quotaGroupId, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
+  import type { LoadedSpellcasting } from '../../services/spellcasting/project';
+  import { addExtra, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
+  import type { CharacterFormFields } from '../../services/characterFormFields';
+  import { createSpellHover } from '../spellHover.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
-  import type { Character, SpellRef } from '../../schemas/characterSchema';
-  import type { Spell } from '../../types';
+  import SpellPickModal from '../SpellPickModal.svelte';
+  import SpellCreateModal from '../SpellCreateModal.svelte';
+  import type { Character } from '../../schemas/characterSchema';
   import './form.css';
 
-  const LEVELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-  let { form, spellLibrary, spellIndex, saved, fixLabel, onfix, dirOf }: {
+  let { form, casting, spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
     form: CharacterFormFields;
+    casting: LoadedSpellcasting | null;
     spellLibrary: SpellInfo[];
-    spellIndex: SpellIndex;
     saved?: Character | null;
     fixLabel?: string;
     onfix: () => void;
-    dirOf: (old: unknown, now: unknown) => DiffDir;
+    onlibraryreload: () => Promise<void> | void;
   } = $props();
 
-  const spells = $derived(form.spells);
-  const abilityMod = $derived(spellAbilityMod(form));
-  const autoActive = $derived(spellAutoActive(form));
-  const autoSaveDC = $derived(computedSpellSaveDC(form));
-  const autoAttack = $derived(computedSpellAttack(form));
+  const block = $derived(form.spellcasting);
+  const view = $derived(casting ? groupedSpellcasting(casting.state, casting.lookup) : null);
 
-  const classOptions = $derived(withCurrent(CLASS_NAMES_DE, spells.spellcastingClass));
-  const abilityOptions = $derived(withCurrent(Object.values(CASTER_ABILITY_DE), spells.spellcastingAbility));
+  const byKey = $derived(new Map(spellLibrary.filter((s) => s.key).map((s) => [s.key as string, s])));
+  const infoOf = (key: string): SpellInfo | undefined => byKey.get(key);
 
-  const resolve = (ref: SpellRef): SpellInfo | undefined => matchSpell(spellIndex, ref);
-  const spellColor = (ref: SpellRef): string => {
-    const school = resolve(ref)?.school;
-    return school ? (SCHOOL_COLORS[school] ?? '') : '';
-  };
-
-  /** Nur über den KEY verglichen — ein Name-Treffer wäre trivial gleich. */
-  function divergedName(ref: SpellRef): string | undefined {
-    const key = ref.sourceKey?.trim();
-    if (!key) return undefined;
-    const canonical = spellIndex.byKey.get(key)?.name;
-    return canonical && canonical.trim() !== ref.name.trim() ? canonical : undefined;
-  }
-
-  const divergedCount = $derived.by(() => {
-    let n = spells.cantrips.filter((c) => divergedName(c)).length;
-    for (const arr of Object.values(spells.byLevel)) n += arr.filter((e) => divergedName(e)).length;
-    return n;
-  });
-
-  function syncNames() {
-    const fix = (ref: SpellRef) => {
-      const canonical = divergedName(ref);
-      if (canonical) ref.name = canonical;
-    };
-    spells.cantrips.forEach(fix);
-    spells.cantrips = [...spells.cantrips];
-    for (const lvl of Object.keys(spells.byLevel)) {
-      spells.byLevel[lvl].forEach(fix);
-      spells.byLevel[lvl] = [...spells.byLevel[lvl]];
-    }
-  }
-
-  async function openSpellPage(ref: SpellRef) {
-    const info = resolve(ref);
+  async function openSpellPage(key: string) {
+    const info = infoOf(key);
     if (!info?.path) return;
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    const name = info.path.split('/').pop()?.replace('.json', '') ?? ref.name;
+    if (!(await confirmNavigation())) return;
+    const name = info.path.split('/').pop()?.replace('.json', '') ?? key;
     activeFile.set({ name, path: info.path, type: 'spell' });
   }
 
-  let cantripInput = $state('');
-  let cantripSuggestions = $state<SpellSuggestion[]>([]);
-  let spellInput = $state('');
-  let spellInputLvl = $state('1');
-  let spellInputPrepared = $state(false);
-  let spellSuggestions = $state<SpellSuggestion[]>([]);
+  let picking = $state<SpellQuotaGroup | null>(null);
+  let creating = $state<{ name: string; levels: number[] } | null>(null);
+  let extraQuery = $state('');
 
-  $effect(() => {
-    cantripSuggestions = cantripInput.length > 0
-      ? searchSpells(spellLibrary, cantripInput, 0, spells.spellcastingClass)
-      : [];
-    cantripNav.reset();
+  const listLabel = (lists: string[]): string =>
+    lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l).join(', ');
+
+  const pickLevels = (quota: SpellQuotaGroup): number[] =>
+    quota.levels.length ? quota.levels : Array.from({ length: 10 }, (_, i) => i);
+
+  /**
+   * Ist der Pool eine andere Quota (Vorbereitung aus dem Zauberbuch), darf der Dialog NUR
+   * deren Zauber anbieten — die Klassenliste wäre die falsche Menge.
+   */
+  const pickLibrary = (quota: SpellQuotaGroup): SpellInfo[] => {
+    if (!quota.from) return spellLibrary;
+    const keys = new Set(quota.from.spells.map((s) => s.key));
+    return spellLibrary.filter((s) => s.key && keys.has(s.key));
+  };
+
+  /**
+   * Das eigene Kontingent ist nicht „schon bekannt", und speist es sich aus einem anderen
+   * (Vorbereitung aus dem Zauberbuch), gilt das für dessen Zauber genauso — sonst wäre im
+   * Vorbereitungs-Dialog jede Option ausgegraut.
+   */
+  const pickerKnown = $derived.by(() => {
+    if (!view || !picking) return NO_KNOWN_SPELLS;
+    const exclude = [quotaGroupId(picking.sourceId, picking.quotaId)];
+    if (picking.from) exclude.push(quotaGroupId(picking.from.sourceId, picking.from.quotaId));
+    return knownSpells(knownSpellGroups(view), exclude);
   });
 
-  $effect(() => {
-    spellSuggestions = spellInput.length > 0
-      ? searchSpells(spellLibrary, spellInput, Number(spellInputLvl), spells.spellcastingClass)
-      : [];
-    spellNav.reset();
-  });
-
-  function selectCantrip(sug: SpellSuggestion) {
-    if (!spells.cantrips.some((c) => c.name === sug.spell.name))
-      spells.cantrips.push({ name: sug.spell.name, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) });
-    cantripInput = '';
-    cantripSuggestions = [];
+  function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
+    setPicks(block, quota.sourceId, quota.quotaId, keys);
+    form.spellcasting = { ...block };
   }
 
-  function addCantrip() {
-    const v = cantripInput.trim();
-    // Ohne Key — `matchSpell` löst später über den Namen auf.
-    if (v && !spells.cantrips.some((c) => c.name === v)) spells.cantrips.push({ name: v });
-    cantripInput = '';
-    cantripSuggestions = [];
+  function onSlotUsed(level: number, used: number) {
+    setSlotUsed(block, level, used);
+    form.spellcasting = { ...block };
   }
 
-  function selectSpell(sug: SpellSuggestion) {
-    const existing = spells.byLevel[spellInputLvl] ?? [];
-    spells.byLevel[spellInputLvl] = [
-      ...existing,
-      { name: sug.spell.name, prepared: spellInputPrepared, ...(sug.spell.key ? { sourceKey: sug.spell.key } : {}) },
-    ];
-    spellInput = '';
-    spellInputPrepared = false;
-    spellSuggestions = [];
+  function onSlotTotals(level: number, total: number) {
+    const totals = Array.from({ length: 9 }, (_, i) => block.manual?.slotTotals[i] ?? 0);
+    totals[level - 1] = total;
+    setSlotTotals(block, totals);
+    form.spellcasting = { ...block };
   }
 
-  function addSpell() {
-    const v = spellInput.trim();
-    if (!v) return;
-    const existing = spells.byLevel[spellInputLvl] ?? [];
-    spells.byLevel[spellInputLvl] = [...existing, { name: v, prepared: spellInputPrepared }];
-    spellInput = '';
-    spellInputPrepared = false;
-    spellSuggestions = [];
+  function addExtraSpell(info: SpellInfo | undefined) {
+    if (!info?.key) return;
+    addExtra(block, info.key);
+    form.spellcasting = { ...block };
+    extraQuery = '';
   }
 
-  const cantripNav = createSuggestNav<SpellSuggestion>({
-    items: () => cantripSuggestions,
-    pick: selectCantrip,
-    enter: addCantrip,
-    escape: () => { cantripSuggestions = []; },
+  function dropExtra(key: string) {
+    removeExtra(block, key);
+    form.spellcasting = { ...block };
+  }
+
+  async function onSpellCreated(canonical: string) {
+    creating = null;
+    await onlibraryreload();
+    addExtraSpell(spellLibrary.find((s) => s.name === canonical));
+  }
+
+  const extraMatches = $derived.by(() => {
+    const q = extraQuery.trim().toLowerCase();
+    if (!q) return [];
+    return spellLibrary
+      .filter((s) => s.name.toLowerCase().includes(q) || (s.name_en ?? '').toLowerCase().includes(q))
+      .slice(0, 8);
   });
 
-  const spellNav = createSuggestNav<SpellSuggestion>({
-    items: () => spellSuggestions,
-    pick: selectSpell,
-    enter: addSpell,
-    escape: () => { spellSuggestions = []; },
-  });
-
-  // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
-  let dataCache = $state(new Map<string, Spell | null>());
-  const tip = createHoverTip<Spell>();
-
-  $effect(() => {
-    for (const ref of [...spells.cantrips, ...Object.values(spells.byLevel).flat()]) {
-      const name = ref.name;
-      if (dataCache.has(name)) continue;
-      const info = resolve(ref);
-      if (!info?.path) continue;
-      dataCache.set(name, null);
-      dataCache = new Map(dataCache);
-      loadSpellByPath(info.path).then((data) => {
-        dataCache.set(name, data);
-        dataCache = new Map(dataCache);
-      });
-    }
-  });
-
+  const hover = createSpellHover(() => new Map(spellLibrary.map((s) => [s.name, s])));
+  const spellColor = (key: string): string => SCHOOL_COLORS[infoOf(key)?.school ?? ''] ?? '';
+  const savedKeys = $derived(
+    new Set(
+      Object.values(saved?.spellcasting?.sources ?? {}).flatMap((s) => Object.values(s.picks).flat()),
+    ),
+  );
 </script>
-
-<div class="grid-3">
-  <label use:diffMark={dirOf(saved?.spells?.spellcastingClass, spells.spellcastingClass)}>Zauberklasse
-    <select bind:value={spells.spellcastingClass}>
-      <option value="">—</option>
-      {#each classOptions as c}<option value={c}>{c}</option>{/each}
-    </select>
-  </label>
-  <label use:diffMark={dirOf(saved?.spells?.spellcastingAbility, spells.spellcastingAbility)}>Fähigkeit
-    <select bind:value={spells.spellcastingAbility}>
-      <option value="">—</option>
-      {#each abilityOptions as a}<option value={a}>{a}</option>{/each}
-    </select>
-  </label>
-  {#if autoActive}
-    <label title="8 + Übungsbonus + Zauberattribut-Mod">Zauber-SG
-      <span class="computed-cell computed-block">{autoSaveDC}</span>
-    </label>
-    <label title="Übungsbonus + Zauberattribut-Mod">Angriffsbonus
-      <span class="computed-cell computed-block">{sign(autoAttack ?? 0)}</span>
-    </label>
-  {:else}
-    <label use:diffMark={dirOf(saved?.spells?.saveDC, spells.saveDC)}>Zauber-SG<input type="number" min="0" bind:value={spells.saveDC} /></label>
-    <label use:diffMark={dirOf(saved?.spells?.attackBonus, spells.attackBonus)}>Angriffsbonus<input type="number" bind:value={spells.attackBonus} /></label>
-  {/if}
-</div>
-<label class="check-row spell-auto-toggle" use:diffMark={dirOf(saved?.spells?.autoCalc, spells.autoCalc)}>
-  <input type="checkbox" bind:checked={spells.autoCalc} />
-  <span>Zauber-SG &amp; Angriffsbonus automatisch berechnen</span>
-</label>
-{#if spells.autoCalc && abilityMod === null}
-  <p class="auto-hint">Zauberattribut nicht erkannt – wähle oben eines aus der Liste, damit die Berechnung greift.</p>
-{/if}
 
 {#if fixLabel}
   <button class="btn-link-all" onclick={onfix}
-    title="Setzt bei diesen Zaubern den Bibliotheks-Link (sourceKey). Wird beim Speichern übernommen.">
+    title="Übernimmt den alten Zauberblock in Kontingente und quellenlosen Bestand. Wird beim Speichern geschrieben.">
     🔗 {fixLabel}
   </button>
 {/if}
-{#if divergedCount > 0}
-  <button class="btn-link-all" onclick={syncNames}
-    title="Diese Zauber sind verlinkt, ihr Name weicht aber vom Bibliothekseintrag ab. Übernimmt den Bibliotheksnamen.">
-    ✎ {divergedCount} Namen an die Bibliothek angleichen
-  </button>
-{/if}
 
-<h3 style="margin-top:0.75rem">Slots je Stufe</h3>
-<div class="slot-edit-row">
-  {#each spells.slotTotals as _, i}
-    <label class="slot-label" use:diffMark={dirOf(saved?.spells?.slots?.[i]?.total, spells.slotTotals[i])}>S{i + 1}<input type="number" min="0" max="9" bind:value={spells.slotTotals[i]} /></label>
-  {/each}
-</div>
+{#if !view}
+  <p class="auto-hint">Zauberquellen werden aufgelöst …</p>
+{:else}
+  {#if !view.sources.length}
+    <p class="auto-hint">Keine Zauberquelle — Klasse, Volk oder Talent müssen mit der Bibliothek verknüpft sein.</p>
+  {/if}
 
-<h3 style="margin-top:0.75rem">Zaubertricks</h3>
-<div class="tag-editor">
-  {#each spells.cantrips as c}
-    <span class="tag" style="color:{spellColor(c) || 'inherit'}" use:diffMark={!saved ? 'none' : (saved.spells?.cantrips ?? []).some((s) => s.name === c.name) ? 'none' : 'up'}><span
-      class="spell-link" class:linked={!!resolve(c)?.path}
-      role="button" tabindex="0"
-      onclick={() => openSpellPage(c)}
-      onkeydown={(e) => e.key === 'Enter' && openSpellPage(c)}
-      onmouseenter={(e) => tip.show(e, dataCache.get(c.name) ?? null)}
-      onmousemove={tip.move}
-      onmouseleave={tip.hide}>{c.name}</span>{#if divergedName(c)}<span class="name-diverged" title="Bibliothek: {divergedName(c)}">≠</span>{/if}<button onclick={() => { spells.cantrips = spells.cantrips.filter((x) => x !== c); }}>✕</button></span>
-  {/each}
-  <div class="autocomplete-wrap">
-    <input class="tag-input" bind:value={cantripInput} placeholder="Zaubertrick…"
-      onkeydown={cantripNav.onkeydown}
-      onblur={() => setTimeout(() => { cantripSuggestions = []; }, 150)} />
-    {#if cantripSuggestions.length > 0}
-      <ul class="suggestions" use:dropdownPlacement>
-        {#each cantripSuggestions as sug, i}
-          <li class:active={i === cantripNav.index} class:out-of-class={!sug.inClass}
-            onmousedown={() => selectCantrip(sug)}>
-            <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
-            {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-  <button class="btn-add-sm" onclick={addCantrip}>+</button>
-</div>
+  {#each view.sources as source (source.id)}
+    <div class="source-block">
+      <div class="source-head">
+        <div class="source-title">
+          <span class="source-label">{source.label}</span>
+          {#if source.featureDe}<span class="source-feature">{source.featureDe}</span>{/if}
+        </div>
+        {#if source.abilityOptions.length}
+          <!-- Nur der Hinweis: die Wahl gehört zum MERKMAL und steht in der Merkmalsleiste. -->
+          <span class="ability-open" title="Zauberattribut in der Merkmals-Leiste wählen">
+            Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_DE[a]).join('/')})
+          </span>
+        {:else if source.abilityDe}
+          <span class="source-values">
+            {source.abilityDe}{#if source.saveDC !== null} · SG {source.saveDC}{/if}{#if source.attackBonus !== null} · Angriff {sign(source.attackBonus)}{/if}
+          </span>
+        {/if}
+      </div>
 
-<h3 style="margin-top:0.75rem">Zauber hinzufügen</h3>
-<div class="spell-add-row">
-  <select bind:value={spellInputLvl} class="spell-level-select">
-    {#each LEVELS as lvl}
-      <option value={lvl}>Stufe {lvl}</option>
-    {/each}
-  </select>
-  <div class="autocomplete-wrap spell-autocomplete">
-    <input class="spell-name-input" bind:value={spellInput} placeholder="Zauber-Name…"
-      onkeydown={spellNav.onkeydown}
-      onblur={() => setTimeout(() => { spellSuggestions = []; }, 150)} />
-    {#if spellSuggestions.length > 0}
-      <ul class="suggestions" use:dropdownPlacement>
-        {#each spellSuggestions as sug, i}
-          <li class:active={i === spellNav.index} class:out-of-class={!sug.inClass}
-            onmousedown={() => selectSpell(sug)}>
-            <span style={sug.inClass ? `color:${SCHOOL_COLORS[sug.spell.school] ?? 'inherit'}` : ''}>{sug.spell.name}</span>
-            {#if !sug.inClass}<span class="sug-hint">nicht in Klasse</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-  <label class="prep-check"><input type="checkbox" bind:checked={spellInputPrepared} /> Vorb.</label>
-  <button class="btn-add-sm" onclick={addSpell}>+</button>
-</div>
-
-{#each LEVELS as lvl}
-  {@const levelSpells = spells.byLevel[lvl] ?? []}
-  {#if levelSpells.length || spells.slotTotals[Number(lvl) - 1] > 0}
-    <div class="spell-level-block">
-      <span class="spell-level-label">Stufe {lvl} ({spells.slotTotals[Number(lvl) - 1]} Slots)</span>
-      {#each levelSpells as spell, i}
-        {@const savedSpell = saved?.spells?.byLevel?.[lvl]?.find((s) => s.name === spell.name)}
-        {@const spellDir = !saved ? 'none' : !savedSpell ? 'up' : savedSpell.prepared !== spell.prepared ? 'up' : 'none'}
-        <div class="spell-edit-row" use:diffMark={spellDir}>
-          <button class="prep-toggle" title={spell.prepared ? 'Vorbereitet' : 'Nicht vorbereitet'}
-            onclick={() => { levelSpells[i] = { ...spell, prepared: !spell.prepared }; spells.byLevel[lvl] = [...levelSpells]; }}>
-            {spell.prepared ? '●' : '○'}
-          </button>
-          <span class="spell-item-name" class:prepared={spell.prepared}
-            class:linked={!!resolve(spell)?.path}
-            style="color:{spellColor(spell) || 'inherit'}"
-            role="button" tabindex="0"
-            onclick={() => openSpellPage(spell)}
-            onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell)}
-            onmouseenter={(e) => tip.show(e, dataCache.get(spell.name) ?? null)}
-            onmousemove={tip.move}
-            onmouseleave={tip.hide}>{spell.name}</span>
-          {#if divergedName(spell)}<span class="name-diverged" title="Bibliothek: {divergedName(spell)}">≠</span>{/if}
-          <button class="remove-btn" onclick={() => { spells.byLevel[lvl] = levelSpells.filter((_, j) => j !== i); }}>✕</button>
+      {#each source.quotas as quota (quota.quotaId)}
+        <div class="quota-row">
+          <span class="quota-label">
+            {quota.label}
+            {#if !quota.fixed}<span class="quota-count" class:over={quota.spells.length > quota.count}>{quota.spells.length} / {quota.count}</span>{/if}
+            {#if quota.lists.length}<span class="quota-lists">{listLabel(quota.lists)}</span>
+            {:else if quota.from}<span class="quota-lists">aus „{quota.from.label}"</span>{/if}
+            <span class="quota-cast">{quota.castNote}</span>
+          </span>
+          <div class="tag-editor">
+            {#each quota.spells as spell (spell.key)}
+              <span class="tag" style="color:{spellColor(spell.key) || 'inherit'}"
+                class:fresh={!savedKeys.has(spell.key) && !quota.fixed}>
+                <span class="spell-link" class:linked={!!infoOf(spell.key)?.path}
+                  role="button" tabindex="0"
+                  onclick={() => openSpellPage(spell.key)}
+                  onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.key)}
+                  onmouseenter={(e) => hover.show(e, spell.label)}
+                  onmousemove={hover.move}
+                  onmouseleave={hover.hide}>{spell.label}</span>
+                {#if !quota.fixed}
+                  <button onclick={() => applyPicks(quota, quota.spells.filter((s) => s.key !== spell.key).map((s) => s.key))}>✕</button>
+                {/if}
+              </span>
+            {/each}
+          </div>
+          {#if !quota.fixed}
+            <button type="button" class="btn-pick" disabled={!spellLibrary.length}
+              title={quota.swapNote || 'Zauber dieses Kontingents wählen'}
+              onclick={() => (picking = quota)}>
+              📖 Wählen
+            </button>
+          {/if}
         </div>
       {/each}
     </div>
-  {/if}
-{/each}
+  {/each}
 
-<SpellTooltip spell={tip.data} x={tip.x} y={tip.y} />
+  <h3 style="margin-top:0.75rem">Zauberplätze</h3>
+  {#if view.manualSlots}
+    <p class="auto-hint">Keine Progression in der Bibliothek — Plätze von Hand.</p>
+    <div class="slot-edit-row">
+      {#each Array.from({ length: 9 }, (_, i) => i + 1) as level}
+        <label class="slot-label">S{level}
+          <input type="number" min="0" max="9"
+            value={block.manual?.slotTotals[level - 1] ?? 0}
+            onchange={(e) => onSlotTotals(level, Number(e.currentTarget.value) || 0)} />
+        </label>
+      {/each}
+    </div>
+  {:else if !view.slots.length}
+    <p class="auto-hint">Keine Zauberplätze auf dieser Stufe.</p>
+  {/if}
+  {#if view.slots.length}
+    <div class="slot-edit-row">
+      {#each view.slots as slot (slot.level)}
+        <label class="slot-label" title="Verbraucht von {slot.total}">S{slot.level}
+          <input type="number" min="0" max={slot.total} value={slot.used}
+            onchange={(e) => onSlotUsed(slot.level, Number(e.currentTarget.value) || 0)} />
+          <span class="slot-total">/ {slot.total}</span>
+        </label>
+      {/each}
+    </div>
+  {/if}
+  {#if view.pact}
+    <p class="auto-hint">Pakt-Plätze: {view.pact.total} × Grad {view.pact.level} (Kurze Rast)</p>
+  {/if}
+
+  <h3 style="margin-top:0.75rem">Ohne Quelle</h3>
+  <div class="tag-editor">
+    {#each view.extra as spell (spell.key)}
+      <span class="tag" style="color:{spellColor(spell.key) || 'inherit'}">
+        <span class="spell-link" class:linked={!!infoOf(spell.key)?.path}
+          role="button" tabindex="0"
+          onclick={() => openSpellPage(spell.key)}
+          onkeydown={(e) => e.key === 'Enter' && openSpellPage(spell.key)}
+          onmouseenter={(e) => hover.show(e, spell.label)}
+          onmousemove={hover.move}
+          onmouseleave={hover.hide}>{spell.label}</span>
+        <button onclick={() => dropExtra(spell.key)}>✕</button>
+      </span>
+    {/each}
+  </div>
+  <div class="extra-add">
+    <input class="input" placeholder="Zauber suchen…" bind:value={extraQuery} />
+    {#if extraMatches.length}
+      <ul class="extra-list">
+        {#each extraMatches as match (match.key ?? match.name)}
+          <li><button type="button" onclick={() => addExtraSpell(match)}>{match.name}</button></li>
+        {/each}
+      </ul>
+    {:else if extraQuery.trim()}
+      <button type="button" class="create-btn" onclick={() => (creating = { name: extraQuery.trim(), levels: [] })}>
+        ＋ „{extraQuery.trim()}" anlegen
+      </button>
+    {/if}
+  </div>
+{/if}
+
+{#if picking}
+  {@const quota = picking}
+  <SpellPickModal title={quota.from ? `${quota.label} — aus „${quota.from.label}"` : quota.label}
+    library={pickLibrary(quota)}
+    spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
+    known={pickerKnown}
+    bind:picks={() => quota.spells.map((s) => s.key), (keys) => applyPicks(quota, keys)}
+    onclose={() => (picking = null)} />
+{/if}
+
+{#if creating}
+  <SpellCreateModal name={creating.name} levels={creating.levels}
+    onclose={() => (creating = null)} oncreated={onSpellCreated} />
+{/if}
+
+<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
+
+<style>
+  .source-block {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.5rem 0.6rem; margin-bottom: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+  .source-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .source-title { display: flex; flex-direction: column; gap: 0.05rem; }
+  .source-label { font-weight: 600; font-family: var(--font-display, inherit); }
+  .source-feature { font-size: 0.72rem; color: var(--ink-muted); }
+  .source-values { font-size: 0.78rem; color: var(--ink-muted); }
+  .ability-open { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
+  .quota-row { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+  .quota-label {
+    font-size: 0.75rem; color: var(--ink-muted); min-width: 11rem;
+    display: flex; flex-direction: column; gap: 0.1rem;
+  }
+  .quota-count { font-variant-numeric: tabular-nums; }
+  .quota-count.over { color: var(--red); font-weight: 600; }
+  .quota-lists { font-style: italic; }
+  .quota-cast { font-size: 0.7rem; color: var(--ink-faint); }
+  .tag-editor { flex: 1 1 12rem; }
+  .tag.fresh { outline: 1px solid var(--gold); }
+  .slot-total { font-size: 0.7rem; color: var(--ink-muted); }
+  .extra-add { display: flex; flex-direction: column; gap: 0.25rem; max-width: 22rem; }
+  .extra-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .extra-list button {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.78rem; padding: 0.15rem 0.55rem; cursor: pointer; color: var(--ink-soft);
+  }
+  .create-btn {
+    background: none; border: none; cursor: pointer; font-style: italic;
+    font-size: 0.78rem; color: var(--arcane, var(--red)); text-align: left; padding: 0;
+  }
+</style>

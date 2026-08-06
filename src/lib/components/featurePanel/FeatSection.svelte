@@ -184,7 +184,7 @@
           {@const desc = featDesc(entry)}
           {#if prereq}<div class="fp-prereq">Voraussetzung: {prereq}</div>{/if}
           {#if desc}<div class="fp-desc"><Markdown source={desc} /></div>{/if}
-          <ChoiceSection {slots} {choices} {ledger} {onapply} />
+          <ChoiceSection {slots} facts={choices.factsOf(entry.sourceKey || e.sourceKey)} {choices} {ledger} {onapply} />
         {/if}
       </li>
     {/each}

@@ -6,7 +6,7 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
-import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellAccess';
+import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
 import { withoutOwnedChoices } from '../declaredChoice';
 import { runAiAction } from '../aiActions/runner';
 import {
@@ -111,7 +111,7 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  // ── Zauberwahl (Schritt „Zauber"; alle Listen `encodePick`-kodiert) ──
+  // ── Zauberwahl (Schritt „Zauber"; alle Listen `spell.key`) ──
   pickedCantrips = $state<string[]>([]);
   /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);

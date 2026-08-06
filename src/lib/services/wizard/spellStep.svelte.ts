@@ -2,10 +2,22 @@
  * Abgeleitete Werte des Zauber-Schritts. Rahmen (`done` fürs Gating) und Schritt-Komponente
  * lesen dieselbe Instanz, damit nichts doppelt gerechnet wird.
  */
+import type { FeatureRider } from '$lib/schemas/levelUp';
 import type { CharacterWizard } from './characterWizard.svelte';
-import { decodePick, riderExtras, type SpellcastingOffer } from '../spellcasting';
+import type { ClassCastingOffer } from '../spellcasting/classOffer';
 import { validateRiderSpells } from '../levelUp/spells';
-import type { SpellInfo } from '../../spellLibrary';
+import type { KnownSpellGroup } from '../spellcasting/known';
+import { resolveSpell, type SpellInfo } from '../../spellLibrary';
+
+/**
+ * Kann nur wachsen, nie schrumpfen — deshalb darf die Oberfläche das Kontingent nachträglich
+ * erhöhen, ohne getroffene Wahlen zu entwerten.
+ */
+const riderExtras = (riders: FeatureRider[]): { cantrips: number; prepared: number } =>
+  riders.reduce(
+    (acc, r) => ({ cantrips: acc.cantrips + r.extraCantrips, prepared: acc.prepared + r.extraPreparedCount }),
+    { cantrips: 0, prepared: 0 },
+  );
 
 export interface SpellStepValues {
   readonly extras: { cantrips: number; prepared: number };
@@ -14,34 +26,37 @@ export interface SpellStepValues {
   readonly spellMax: number;
   readonly preparedMax: number;
   readonly isSpellbook: boolean;
+  /** true = die Vorbereitung erneuert sich frei nach jeder Langen Rast (Kleriker/Druide). */
+  readonly isOpenList: boolean;
   /** Zaubergrade, für die auf Stufe 1 Plätze existieren (1 … maxSpellLevel). */
   readonly spellLevels: number[];
   readonly grantedSpells: { cantrips: string[]; prepared: { level: number; name: string }[] };
   readonly fixedCantrips: { level: number; name: string }[];
   readonly cantripPicks: string[];
   readonly knownPicks: string[];
+  /** Jeder Zauber-Eingang des Schritts als eigene Gruppe — die Picker gräuen die fremden aus. */
+  readonly knownGroups: KnownSpellGroup[];
   readonly done: boolean;
 }
 
+export const CANTRIP_GROUP = 'cantrips';
+export const SPELL_GROUP = 'spells';
+
 export function createSpellStepValues(
   w: CharacterWizard,
-  offer: () => SpellcastingOffer | null,
+  offer: () => ClassCastingOffer | null,
   library: () => SpellInfo[],
 ): SpellStepValues {
   const extras = $derived(riderExtras(w.riders));
-  const cantripMax = $derived((offer()?.cantrips ?? 0) + extras.cantrips);
-  const spellMax = $derived.by(() => {
-    const o = offer();
-    return o ? (o.known || o.prepared) + extras.prepared : 0;
-  });
+  const cantripMax = $derived((offer()?.cantrips?.count ?? 0) + extras.cantrips);
+  const spellMax = $derived.by(() => (offer()?.spells?.count ?? 0) + extras.prepared);
   const preparedMax = $derived.by(() => {
-    const o = offer();
-    return o ? o.prepared + extras.prepared : 0;
+    const prepared = offer()?.prepared;
+    return prepared ? prepared.count + extras.prepared : 0;
   });
-  const isSpellbook = $derived(offer()?.regime === 'spellbook');
-  const spellLevels = $derived(
-    Array.from({ length: Math.max(0, offer()?.maxSpellLevel ?? 0) }, (_, i) => i + 1),
-  );
+  const isSpellbook = $derived(!!offer()?.prepared);
+  const isOpenList = $derived(offer()?.spells?.swap.spells === 'long-rest-all');
+  const spellLevels = $derived([...(offer()?.spells?.levels.filter((l) => l > 0) ?? [])]);
 
   /** Von Merkmalen gewährte Zauber: fest, nicht entfernbar, zählen nicht gegen das Kontingent. */
   const grantedSpells = $derived.by(() => {
@@ -55,13 +70,27 @@ export function createSpellStepValues(
   // Ein selbst gewählter Zauber, der DANACH als gewährt hereinkommt (der Effekt-Job landet
   // spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen. Hier nichts mutieren —
   // beim nächsten Schreiben verschwindet er ohnehin aus dem Zustand.
-  const lower = (v: string) => decodePick(v).name.toLowerCase();
-  const grantedNames = $derived({
-    cantrips: new Set(grantedSpells.cantrips.map((n) => n.toLowerCase())),
-    spells: new Set(grantedSpells.prepared.map((p) => p.name.toLowerCase())),
+  const grantedKeys = $derived.by(() => {
+    const lib = library();
+    const keyOf = (name: string) => resolveSpell(lib, name, w.klass.name)?.key;
+    return {
+      cantrips: new Set(grantedSpells.cantrips.map(keyOf).filter((k): k is string => !!k)),
+      spells: new Set(grantedSpells.prepared.map((p) => keyOf(p.name)).filter((k): k is string => !!k)),
+    };
   });
-  const cantripPicks = $derived(w.pickedCantrips.filter((v) => !grantedNames.cantrips.has(lower(v))));
-  const knownPicks = $derived(w.pickedKnown.filter((v) => !grantedNames.spells.has(lower(v))));
+  const cantripPicks = $derived(w.pickedCantrips.filter((k) => !grantedKeys.cantrips.has(k)));
+  const knownPicks = $derived(w.pickedKnown.filter((k) => !grantedKeys.spells.has(k)));
+
+  const knownGroups = $derived<KnownSpellGroup[]>([
+    { id: 'granted', label: 'von einem Merkmal gewährt', keys: [...grantedKeys.cantrips, ...grantedKeys.spells] },
+    { id: CANTRIP_GROUP, label: 'Zaubertricks', keys: cantripPicks },
+    { id: SPELL_GROUP, label: isSpellbook ? 'Zauberbuch' : 'Zauber deiner Wahl', keys: knownPicks },
+    ...w.spellPickChoices.map((c) => ({
+      id: c.id,
+      label: c.featureDe || c.feature,
+      keys: w.featureSpellPicks[c.id] ?? [],
+    })),
+  ]);
 
   /**
    * Gated nur gegen die DETERMINISTISCHEN Kontingente: der Effekt-Job läuft beim Betreten
@@ -70,12 +99,12 @@ export function createSpellStepValues(
   const done = $derived.by(() => {
     const base = offer();
     if (base?.isCaster) {
-      if (cantripPicks.length < base.cantrips) return false;
+      if (cantripPicks.length < (base.cantrips?.count ?? 0)) return false;
       // Nur fordern, was auch wählbar ANGEBOTEN wird: eine Klasse mit „Prepared Spells"-Spalte
       // aber ohne Zauberplatz-Spalten (Homebrew-Lücke) würde den Wizard sonst blockieren.
       if (spellLevels.length > 0) {
-        if (knownPicks.length < (base.known || base.prepared)) return false;
-        if (isSpellbook && w.pickedPrepared.length < base.prepared) return false;
+        if (knownPicks.length < (base.spells?.count ?? 0)) return false;
+        if (isSpellbook && w.pickedPrepared.length < (base.prepared?.count ?? 0)) return false;
       }
     }
     return w.spellPickChoices.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max);
@@ -87,11 +116,13 @@ export function createSpellStepValues(
     get spellMax() { return spellMax; },
     get preparedMax() { return preparedMax; },
     get isSpellbook() { return isSpellbook; },
+    get isOpenList() { return isOpenList; },
     get spellLevels() { return spellLevels; },
     get grantedSpells() { return grantedSpells; },
     get fixedCantrips() { return fixedCantrips; },
     get cantripPicks() { return cantripPicks; },
     get knownPicks() { return knownPicks; },
+    get knownGroups() { return knownGroups; },
     get done() { return done; },
   };
 }

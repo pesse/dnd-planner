@@ -8,16 +8,23 @@ import { classDisplayName, type ClassInfo } from '$lib/classLibrary';
 import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
 import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibrary';
 import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
-import type { SpellIndex } from '$lib/spellLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
+import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
-import { type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type ProficiencyFlags, type SpellRef } from '$lib/schemas/characterSchema';
+import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
+import type { LoadedSpellcasting } from './spellcasting/project';
+import {
+  applyFlatSpellPlan,
+  hasFlatSpellContent,
+  planFlatSpellMigration,
+  planIsEmpty,
+  reduceFlatSpells,
+} from './spellcasting/migrate';
+import { type Attack, type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type CharacterSpells, type ProficiencyFlags } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
-/** Zaubertricks tragen kein `prepared` — für die Verlinkung zählt nur name/sourceKey. */
-type SpellRefLike = SpellRef;
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -33,9 +40,14 @@ export interface LegacyLinkTarget {
   species: CharacterSpecies;
   backgroundRef: CharacterBackground;
   inventory: InventoryLine[];
-  cantrips: SpellRefLike[];
-  spellsByLevel: Record<string, SpellRefLike[]>;
+  /** Die Altform am Draft; `dropSpells` löscht sie, sobald der Umzug sie leer zurücklässt. */
+  spells: CharacterSpells | undefined;
+  dropSpells: () => void;
+  spellcasting: CharacterSpellcasting;
   proficiencies: ProficiencyFlags;
+  attacks: Attack[];
+  /** Zum Nachrechnen von Bonus/Schaden, wenn `attacksFix` einen Alt-Angriff auf `auto` umstellt. */
+  weaponCtx: WeaponAttackContext;
 }
 
 /** Was noch lädt, wird schlicht nicht angeboten. */
@@ -44,7 +56,8 @@ export interface LegacyLinkLibraries {
   species: SpeciesInfo[];
   backgrounds: BackgroundInfo[];
   items: ItemIndex;
-  spells: SpellIndex;
+  /** Die aufgelösten Zauberquellen zum aktuellen Formularstand. */
+  casting: LoadedSpellcasting | null;
 }
 
 /** Exakt, deutsch oder englisch, nie Substring — ein falscher Link wäre schlimmer als keiner. */
@@ -150,28 +163,53 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
   };
 }
 
-function allSpellRefs(target: LegacyLinkTarget): SpellRefLike[] {
-  return [...target.cantrips, ...Object.values(target.spellsByLevel).flat()];
+/** Angriffe aus der Zeit vor dem `sourceKey`-Feld: Freitext, der eine Waffe der Bibliothek nennt. */
+export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const rows = target.attacks.filter((a) => {
+    if (a.sourceKey?.trim()) return false;
+    const nm = a.name.trim().toLowerCase();
+    if (!nm || libs.items.ambiguous.has(nm)) return false;
+    const hit = libs.items.byName.get(nm);
+    return !!hit?.key && hit.category === 'weapon';
+  });
+  if (!rows.length) return undefined;
+  return {
+    kind: 'attacks',
+    label: `${rows.length} ${rows.length === 1 ? 'Angriff' : 'Angriffe'} mit der Waffen-Bibliothek verknüpfen`,
+    apply: () => {
+      for (const a of rows) {
+        const hit = libs.items.byName.get(a.name.trim().toLowerCase());
+        if (!hit?.key || hit.category !== 'weapon') continue;
+        const modifiers = a.modifiers;
+        Object.assign(a, buildAttackFromWeapon(hit, target.weaponCtx));
+        if (modifiers?.length) a.modifiers = modifiers;
+      }
+    },
+  };
 }
 
+/**
+ * Der Umzug der Altform in `spellcasting`. Ohne aufgelöste Quellen wird nichts angeboten:
+ * welches Kontingent einen Zauber trägt, weiß erst die Bibliothek.
+ */
 export function spellsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
-  const refs = allSpellRefs(target).filter((ref) => {
-    if (ref.sourceKey?.trim()) return false;
-    const nm = ref.name.trim().toLowerCase();
-    if (!nm || libs.spells.ambiguous.has(nm)) return false;
-    return !!libs.spells.byName.get(nm)?.key;
-  });
-  if (!refs.length) return undefined;
+  const spells = target.spells;
+  if (!spells || !libs.casting || !hasFlatSpellContent(spells)) return undefined;
+  const { state, lookup, legacy } = libs.casting;
+  const plan = planFlatSpellMigration(target.spellcasting, state, lookup, legacy.spells);
+  if (planIsEmpty(plan)) return undefined;
+
+  const moved = [plan.moved && `${plan.moved} Zauber`, plan.slotTotals.some((n) => n > 0) && 'Zauberplätze']
+    .filter(Boolean)
+    .join(' und ');
+  const rest = plan.unresolved.length ? ` (${plan.unresolved.length} ohne Bibliothekstreffer bleiben stehen)` : '';
   return {
     kind: 'spells',
-    label: `${refs.length} Zauber mit der Bibliothek verknüpfen`,
+    label: `${moved || 'Zauberblock'} ins neue Format übernehmen${rest}`,
     apply: () => {
-      for (const ref of refs) {
-        const hit = libs.spells.byName.get(ref.name.trim().toLowerCase());
-        if (!hit?.key) continue;
-        ref.sourceKey = hit.key;
-        ref.name = hit.name; // deutschen Bibliotheksnamen mitziehen (wie beim Inventar)
-      }
+      applyFlatSpellPlan(target.spellcasting, plan);
+      reduceFlatSpells(spells, plan);
+      if (!hasFlatSpellContent(spells)) target.dropSpells();
     },
   };
 }
@@ -218,5 +256,6 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     inventoryFix(target, libs),
     spellsFix(target, libs),
     weaponsFix(target, libs),
+    attacksFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);
 }

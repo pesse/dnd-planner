@@ -13,12 +13,19 @@ import {
 } from './classProgression';
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
-import { cantripCount, isSpellcastingFeature, preparedOrKnownCount } from './spellcasting';
+import { isSpellcastingFeature } from './declaration/casting';
+import { classCastingOffer, emptyClassCastingOffer, type ClassCastingOffer } from './spellcasting/classOffer';
 import { isFlowOwnedDeclaration } from './declaration/optionList';
 
 export interface SubclassOption {
   key: string;
   name: string;
+}
+
+/** Wohin ein Change-Ziel im Zauber-Block routet — `spellcasting/write.ts`s `(sourceId, quotaId)`. */
+export interface QuotaTarget {
+  sourceId: string;
+  quotaId: string;
 }
 
 export interface LevelUpDelta {
@@ -42,6 +49,10 @@ export interface LevelUpDelta {
   preparedFrom: number;
   preparedTo: number;
   preparedDelta: number;
+  spellbook: boolean; // true = Zauberbuch-Regime (Vorbereitung zieht aus einem Buch-Kontingent)
+  /** Ziel-Quotas auf `toLevel` — `null` ohne Zauberwirken. Für `decisionChanges` (Aufstiegs-Picker). */
+  cantripTarget: QuotaTarget | null;
+  spellTarget: QuotaTarget | null;
   masteryFrom: number; // Waffenbeherrschungs-Kontingent; 0 = Klasse hat sie nicht
   masteryTo: number; // ein Anstieg erzeugt nur einen Hinweis, keine Wahl
   featuresGained: ClassFeature[];
@@ -150,7 +161,8 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
     profBonusTo: proficiencyBonus(span.newTotalLevel),
     hitDie: 0, casterType: 'NONE', casterKind: 'none',
     spellSlotDelta: Array(9).fill(0), castingIsNew: false, cantripDelta: 0,
-    preparedFrom: 0, preparedTo: 0, preparedDelta: 0,
+    preparedFrom: 0, preparedTo: 0, preparedDelta: 0, spellbook: false,
+    cantripTarget: null, spellTarget: null,
     masteryFrom: 0, masteryTo: 0,
     featuresGained: [], subclassFeaturesGained: [], subclassOptions: [],
     triggersSubclassChoice: false, triggersASI: false, asiCount: 0,
@@ -160,27 +172,47 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
   };
 }
 
-type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta'>;
+type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta' | 'spellbook' | 'cantripTarget' | 'spellTarget'>;
 
-function spellcastingDelta(prog: ClassProgression, span: LevelSpan): SpellcastingDelta {
+/**
+ * Zwei Angebote (vor/nach) statt einer Absolutzahl je Grad: dasselbe `classCastingOffer`, das
+ * der Wizard-Schritt „Zauber" nutzt, macht die Klassentabellen-Sonderfälle (Zauberbuch-Wachstum,
+ * Spaltenname je Klasse) zur Quota-Struktur statt zu `cantripCount`/`preparedOrKnownCount`. Nur
+ * die Plätze bleiben Tabellenspalten — kein Quota trägt sie, sie sind kein Kontingent.
+ */
+async function spellcastingDelta(prog: ClassProgression, span: LevelSpan): Promise<SpellcastingDelta> {
   const { fromLevel, toLevel } = span;
   const slotsFrom = fromLevel <= 0 ? Array<number>(9).fill(0) : spellSlotsAt(prog, fromLevel);
   const slotsTo = spellSlotsAt(prog, toLevel);
-  const cantripFrom = fromLevel <= 0 ? 0 : cantripCount(prog, fromLevel);
-  const prepTo = preparedOrKnownCount(prog, toLevel);
-  const prepFrom = fromLevel <= 0 ? { count: 0, kind: prepTo.kind } : preparedOrKnownCount(prog, fromLevel);
+
+  const at = (level: number): Promise<ClassCastingOffer> =>
+    level <= 0
+      ? Promise.resolve(emptyClassCastingOffer(span.klasseName))
+      : classCastingOffer({
+          classKey: span.sourceKey, klasseName: span.klasseName, level,
+          ...(span.subclassKey ? { subclassKey: span.subclassKey, subclassName: span.subclassName } : {}),
+        });
+  const [from, to] = await Promise.all([at(fromLevel), at(toLevel)]);
+
+  // „known" heißt hier: die Auswahl bleibt zwischen Ruhen bestehen (Zauberbuch, feste Liste),
+  // nicht die Klassentabellen-Spaltenüberschrift — `long-rest-all` (Kleriker/Druide) ist die
+  // einzige Regel-Familie ohne einen zu lernenden Bestand.
+  const known = !!(to.spells && to.spells.swap.spells !== 'long-rest-all');
   // Neu ist Zauberwirken nur ohne JEDE Spur davon auf fromLevel — sonst bekäme ein längst
   // zaubernder Charakter (Druide 2→3) bei jedem Aufstieg einen neuen Eintrag.
-  const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || cantripFrom > 0 || prepFrom.count > 0);
+  const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || from.isCaster);
   return {
     casterType: prog.casterType,
-    casterKind: prepTo.kind,
+    casterKind: to.isCaster ? (known ? 'known' : 'prepared') : 'none',
     spellSlotDelta: slotsTo.map((n, i) => Math.max(0, n - (slotsFrom[i] ?? 0))),
-    castingIsNew: prepTo.kind !== 'none' && !hadCasting,
-    cantripDelta: Math.max(0, cantripCount(prog, toLevel) - cantripFrom),
-    preparedFrom: prepFrom.count,
-    preparedTo: prepTo.count,
-    preparedDelta: Math.max(0, prepTo.count - prepFrom.count),
+    castingIsNew: to.isCaster && !hadCasting,
+    cantripDelta: Math.max(0, (to.cantrips?.count ?? 0) - (from.cantrips?.count ?? 0)),
+    preparedFrom: from.spells?.count ?? 0,
+    preparedTo: to.spells?.count ?? 0,
+    preparedDelta: Math.max(0, (to.spells?.count ?? 0) - (from.spells?.count ?? 0)),
+    spellbook: !!to.prepared,
+    cantripTarget: to.cantrips ? { sourceId: to.cantrips.sourceId, quotaId: to.cantrips.quotaId } : null,
+    spellTarget: to.spells ? { sourceId: to.spells.sourceId, quotaId: to.spells.quotaId } : null,
   };
 }
 
@@ -249,7 +281,7 @@ export async function computeLevelUpDelta(
     ...delta,
     isHomebrew: false,
     hitDie: prog.hitDie,
-    ...spellcastingDelta(prog, span),
+    ...(await spellcastingDelta(prog, span)),
     ...masteryDelta(prog, span),
     ...features,
     ...(await subclassDelta(span, features.featuresGained)),

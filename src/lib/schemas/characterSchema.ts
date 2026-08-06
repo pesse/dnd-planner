@@ -4,6 +4,7 @@
  * das den Typ von hier re-exportiert.
  */
 import { z } from 'zod';
+import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -16,6 +17,8 @@ const attackModifierSchema = z.object({
 
 const attackSchema = z.object({
   name: z.string().default(''),
+  sourceKey: z.string().optional()
+    .describe('Bibliotheks-Link auf item.key wie bei inventory[]; fehlt er, identifiziert der Name.'),
   bonus: z.string().default(''),
   damage: z.string().default(''),
   type: z.string().default(''),
@@ -29,8 +32,8 @@ const attackSchema = z.object({
     .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
 });
 
-// Zauber-Verweis: wie inventory[] ein Bibliotheks-Link auf spell.key mit Namens-Fallback.
-// `sourceKey` fehlt bei frei getippten/Alt-Zaubern — dann löst matchSpell über den Namen auf.
+// Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu
+// gespeichert wurden, und ist die Transportform des PDF-Randes; Wahrheit ist `spellcasting`.
 const spellRefSchema = z.object({
   name: z.string(),
   sourceKey: z.string().optional(),
@@ -40,25 +43,25 @@ const spellEntrySchema = spellRefSchema.extend({
   prepared: z.boolean().default(false),
 });
 
-const characterSpellsSchema = z
-  .object({
-    spellcastingClass: z.string().default(''),
-    spellcastingAbility: z.string().default(''),
-    saveDC: z.number().int().default(0),
-    attackBonus: z.number().int().default(0),
-    autoCalc: z.boolean().default(true).describe('true = saveDC/attackBonus aus Übungsbonus + Zauberattribut-Mod.'),
-    slots: z
-      .array(z.object({ total: z.number().int(), used: z.number().int() }))
-      .default(() => Array.from({ length: 9 }, () => ({ total: 0, used: 0 })))
-      .describe('Index 0 = Stufe 1 … Index 8 = Stufe 9.'),
-    cantrips: z.array(spellRefSchema).default([]),
-    byLevel: z.record(z.string(), z.array(spellEntrySchema)).default({}),
-  })
-  .default(() => ({
-    spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: true,
-    slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
-    cantrips: [], byLevel: {},
-  }));
+export const characterSpellsSchema = z.object({
+  spellcastingClass: z.string().default(''),
+  spellcastingAbility: z.string().default(''),
+  saveDC: z.number().int().default(0),
+  attackBonus: z.number().int().default(0),
+  autoCalc: z.boolean().default(true),
+  slots: z
+    .array(z.object({ total: z.number().int(), used: z.number().int() }))
+    .default(() => Array.from({ length: 9 }, () => ({ total: 0, used: 0 })))
+    .describe('Index 0 = Stufe 1 … Index 8 = Stufe 9.'),
+  cantrips: z.array(spellRefSchema).default([]),
+  byLevel: z.record(z.string(), z.array(spellEntrySchema)).default({}),
+});
+
+export const emptyFlatSpells = (): CharacterSpells => ({
+  spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: true,
+  slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
+  cantrips: [], byLevel: {},
+});
 
 export const proficiencyFlagsSchema = z.object({
   simpleWeapons: z.boolean().default(false),
@@ -213,7 +216,12 @@ export const characterSchema = z.object({
     .default([]),
   inventoryNotes: z.string().default(''),
   totalWeight: z.string().default(''),
-  spells: characterSpellsSchema,
+  spellcasting: characterSpellcastingSchema.default(emptyCharacterSpellcasting),
+  /**
+   * ALTFELD: nur noch Eingang. `services/spellcasting/legacy.ts` baut daraus beim Laden die
+   * neue Form, und der nächste Speichervorgang lässt es fallen — nichts liest es sonst.
+   */
+  spells: characterSpellsSchema.optional(),
   personal: personalDataSchema.default({
     rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '', gesinnung: '', glaube: '',
     lebensstil: '', taeglicheKosten: '', augenfarbe: '', haarfarbe: '', hautfarbe: '',

@@ -5,7 +5,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { CHARACTER_VERSION } from '../schemas/characterUpgrades';
 import type { Character } from '../schemas/characterSchema';
-import { emptyPersonal, emptyProficiencies, emptySpells, type CharacterJSON } from '../pdf/characterFields';
+import { emptyPersonal, emptyProficiencies, type CharacterJSON } from '../pdf/characterFields';
+import { emptySpellcasting } from './spellcasting/write';
 import { characterFromPdfFields } from '../pdf/characterImport';
 import { choosePdfFile, readPdfFields } from '../pdf/characterPdfIo';
 import { slugKeepUmlauts } from '../utils/text';
@@ -38,7 +39,7 @@ function blankCharacterJson(name: string): CharacterJSON {
     languages: [], tools: [], alleskoenner: false,
     currency: { km: '', sm: '', em: '', gm: '', pm: '' },
     inventory: [], inventoryNotes: '', totalWeight: '',
-    spells: emptySpells(),
+    spellcasting: emptySpellcasting(),
     personal: emptyPersonal(),
     proficiencies: emptyProficiencies(),
     masteries: [],
@@ -100,7 +101,6 @@ export async function importCharacterFromPdf(onPicked?: () => void): Promise<Pdf
   onPicked?.();
   try {
     const data = characterFromPdfFields(await readPdfFields(path));
-    if (!data.spells) data.spells = emptySpells();
 
     const charName = data.name || path.split(/[/\\]/).pop()?.replace(/\.pdf$/i, '') || 'unbekannt';
     const slug = slugKeepUmlauts(charName, '_');

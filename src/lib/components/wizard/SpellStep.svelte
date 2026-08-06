@@ -1,18 +1,21 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
-  import type { SpellcastingOffer } from '../../services/spellcasting';
-  import type { SpellStepValues } from '../../services/wizard/spellStep.svelte';
+  import type { ClassCastingOffer } from '../../services/spellcasting/classOffer';
+  import { CANTRIP_GROUP, SPELL_GROUP, type SpellStepValues } from '../../services/wizard/spellStep.svelte';
+  import { knownSpells } from '../../services/spellcasting/known';
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';
 
   let { w, offer, library, v, statusText }: {
     w: CharacterWizard;
-    offer: SpellcastingOffer | null;
+    offer: ClassCastingOffer | null;
     library: SpellInfo[];
     v: SpellStepValues;
     statusText: (job: Job<unknown>) => string;
   } = $props();
+
+  const knownExcept = (id: string) => knownSpells(v.knownGroups, [id]);
 
   /** Lese-/Schreib-Paar für `bind:picks` einer Merkmals-Zauber-Wahl. */
   const featurePickBinding = (id: string) =>
@@ -36,6 +39,7 @@
         spellClass={offer.spellClass}
         max={v.cantripMax}
         fixed={v.fixedCantrips}
+        known={knownExcept(CANTRIP_GROUP)}
         bind:picks={() => v.cantripPicks, (val) => (w.pickedCantrips = val)}
       />
     </div>
@@ -46,7 +50,7 @@
       {#if v.isSpellbook}
         Zauberbuch — {v.spellMax} Zauber deiner Wahl
         <span class="info" title="Das Zauberbuch ist dein dauerhafter Bestand. Aus ihm bereitest du nach jeder Langen Rast {v.preparedMax} Zauber vor — schalte sie im Auswahl-Dialog mit ● / ○ um.">ⓘ</span>
-      {:else if offer.regime === 'open-list'}
+      {:else if v.isOpenList}
         Erste Vorbereitung — {v.spellMax} Zauber
         <span class="info" title="Du kennst die ganze {offer.klasseName}-Zauberliste; nach jeder Langen Rast darfst du deine Vorbereitung völlig neu zusammenstellen. Das hier ist nur der Startzustand.">ⓘ</span>
       {:else}
@@ -60,7 +64,7 @@
       <SpellPickField
         title={v.isSpellbook
           ? 'Zauberbuch'
-          : offer.regime === 'open-list'
+          : v.isOpenList
             ? 'Erste Vorbereitung'
             : 'Zauber deiner Wahl'}
         {library}
@@ -68,6 +72,7 @@
         spellClass={offer.spellClass}
         max={v.spellMax}
         fixed={v.grantedSpells.prepared}
+        known={knownExcept(SPELL_GROUP)}
         bind:picks={() => v.knownPicks, (val) => (w.pickedKnown = val)}
         bind:prepared={
           () => (v.isSpellbook ? w.pickedPrepared : undefined),
@@ -107,6 +112,7 @@
       spellLevels={choice.spellLevels}
       spellClass={choice.spellClass}
       max={choice.max}
+      known={knownExcept(choice.id)}
       bind:picks={bind[0], bind[1]}
     />
   </div>

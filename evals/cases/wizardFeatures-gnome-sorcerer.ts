@@ -129,7 +129,7 @@ const analyzeCore: Checks<StepResult> = {
   'erdet noch keinen Zauber': (r) => asAnalysis(r)?.spellsToGround.length === 0,
   // Der Eingeweihte der Magie deklariert seinen Zauber-Zugang und steht deshalb NICHT im Eingang
   // (`analysisGained`): Liste, Attribut und Anzahl fragt der Wizard deterministisch ab
-  // (`services/spellAccess.ts`, geprüft in `tests/integration/spellAccess.test.ts`). Jede Wahl dazu ist
+  // (`services/spellcasting/access.ts`, geprüft in `tests/integration/spellAccess.test.ts`). Jede Wahl dazu ist
   // hier also erfunden — genau wie beim Klassen-Zauberwirken.
   'erfindet keine Wahl zum flow-eigenen Eingeweihten der Magie': (r) => {
     const a = asAnalysis(r);

@@ -19,8 +19,8 @@ import {
   spellAccessValues,
   spellListChoiceId,
   type SpellAccessGrant,
-} from '../../src/lib/services/spellAccess';
-import { spellSaveDC } from '../../src/lib/services/spellcasting';
+} from '../../src/lib/services/spellcasting/access';
+import { spellSaveDC } from '../../src/lib/services/spellcasting/state';
 import { CHOSEN_LIST, loadMagicInitiate, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
 
 /** Attributs-Modifikatoren wie am Charakter (`intMod` …): CHA +3 ist der Prüfwert. */
@@ -34,6 +34,7 @@ const grantOfMagicInitiate = async (): Promise<SpellAccessGrant> => {
     name: feat.name,
     nameDe: feat.nameDe,
     grantsChoice: feat.grantsChoice,
+    grantsCasting: feat.grantsCasting,
   });
   if (!grant) throw new Error('vault/feats/magic-initiate.json deklariert keinen spellAccess');
   return grant;
@@ -140,8 +141,8 @@ describe('Zauberwerte eines deklarierten Zauber-Zugangs', () => {
     expect(rows[0].abilityDe).toBe('Charisma');
     expect(rows[0].saveDC).toBe(13);
     // Der Klassen-Zauberblock bleibt unberührt — der Zugang steht NEBEN ihm, nicht darin.
-    expect(c.spells.spellcastingAbility).toBe('');
-    expect(c.spells.saveDC).toBe(0);
+    expect(c.spells?.spellcastingAbility ?? '').toBe('');
+    expect(c.spells?.saveDC ?? 0).toBe(0);
   });
 
   it('liefert nichts für einen Charakter ohne Talent mit Zauber-Zugang', async () => {

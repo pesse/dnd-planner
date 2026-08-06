@@ -59,10 +59,7 @@ describe('buildCharacterContext', () => {
       - **Langschwert** — Angriff +6, Schaden 1W8+3 Hieb, Reichweite Nahkampf
 
       ### Spellcasting
-      - Class: Paladin
-      - Ability: Charisma
-      - Save DC: 15
-      - Attack Bonus: +7
+      - Source: Paladin — Ability: Charisma, Save DC: 15, Attack Bonus: +7
       - Slots:
         - Grad 1: 3/4 frei
         - Grad 2: 2/2 frei

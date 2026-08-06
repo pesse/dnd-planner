@@ -8,7 +8,8 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
-import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellAccess';
+import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellcasting/access';
+import { characterLevel, featInstances } from './spellcasting/resolve';
 import type { AbilityKey } from '$lib/schemas/classProgression';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';
@@ -253,32 +254,29 @@ export async function resolveCharacterFeatures(c: {
  * gespeicherter SG würde altern. Ohne beantwortetes Attribut fällt der Zugang heraus.
  */
 export async function resolveSpellAccess(c: {
+  classes?: CharacterClass[];
+  species?: CharacterSpecies;
+  backgroundRef?: CharacterBackground;
   features?: CharacterFeatureEntry[];
   proficiencyBonus?: number;
   mods: Record<AbilityKey, number>;
 }): Promise<SpellAccessValues[]> {
-  const entries = c.features ?? [];
-  if (!entries.length) return [];
-
-  const lib = await getFeats();
+  const level = characterLevel(c.classes);
   const out: SpellAccessValues[] = [];
-  const seen = new Set<string>();
-  for (const ref of entries) {
-    const key = ref.sourceKey ?? '';
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-
-    const feat = matchFeatEntry(lib, ref);
-    if (!feat) continue;
-    const grant = spellAccessGrantOf({
-      key: feat.sourceKey,
-      name: feat.name,
-      nameDe: feat.nameDe,
-      grantsChoice: feat.grantsChoice,
-    });
+  for (const inst of await featInstances(c.features, c.backgroundRef)) {
+    const grant = spellAccessGrantOf(
+      {
+        key: inst.featureKey,
+        name: inst.entry.name,
+        nameDe: inst.entry.nameDe,
+        grantsChoice: inst.entry.grantsChoice,
+        grantsCasting: inst.entry.grantsCasting,
+      },
+      { specialisation: inst.specialisation, level, gainedAt: inst.gainedAt, sourceId: inst.sourceId },
+    );
     if (!grant) continue;
 
-    const values = spellAccessValues(grant, entries, c.mods, c.proficiencyBonus ?? 2);
+    const values = spellAccessValues(grant, c.features ?? [], c.mods, c.proficiencyBonus ?? 2);
     if (values) out.push(values);
   }
   return out;
@@ -357,6 +355,10 @@ export interface DeclaredSlotSource {
    * CHARAKTERstufe bei Spezies und Talent — deshalb läuft `declaredSpellGrants` zweimal.
    */
   level: number;
+  /** Vorgabe der QUELLE des Merkmals; nur das Herkunftstalent trägt eine. */
+  specialisation?: string;
+  /** Quellen-Id der Instanz; Vorgabe ist der Merkmals-Key (`castingSourceId`). */
+  sourceId?: string;
 }
 
 /**
@@ -386,45 +388,38 @@ export async function declaredClassFeatures(classes: CharacterClass[]): Promise<
 }
 
 /**
- * Erwartet das ganze Ledger und siebt die Talent-Links selbst heraus — `choice` ist der
- * Diskriminator, und die Wahl-Einträge BEANTWORTEN Plätze, statt welche zu erzeugen.
+ * Ein Wahl-Platz je INSTANZ, nicht je Talent-Key: `featInstances` trennt ein zweimal
+ * genommenes Talent und hält das von Hand verlinkte Herkunftstalent mit dem aus dem
+ * Hintergrund zusammen. `spellAccess` trägt zusätzlich Vorgabe und Quellen-Id, weil beide
+ * seine Frage bestimmen.
  */
 export async function declaredFeatFeatures(
   features: CharacterFeatureEntry[] | undefined,
   background: CharacterBackground | undefined,
   charLevel: number,
 ): Promise<DeclaredSlotSource[]> {
-  const links = (features ?? []).filter((e) => !e.choice.trim() && (e.sourceKey || e.name.trim()));
-  const bg = background?.sourceKey ? await getBackgroundByKey(background.sourceKey) : null;
-  const refs = [
-    ...links.map((e) => ({ sourceKey: e.sourceKey, name: e.name, gainedAt: e.gainedAt ?? 1 })),
-    // Das Herkunftstalent steht NICHT im Ledger — es kommt allein aus dem Hintergrund.
-    ...(bg?.featKey ? [{ sourceKey: bg.featKey, name: '', gainedAt: 1 }] : []),
-  ];
-  if (!refs.length) return [];
-
-  const lib = await getFeats();
   const out: DeclaredSlotSource[] = [];
-  const seen = new Set<string>();
-  for (const ref of refs) {
-    const entry = matchFeatEntry(lib, ref);
-    if (!entry) continue;
-    const key = entry.sourceKey || entry.name.trim().toLowerCase();
-    // Ein von Hand verlinktes Herkunftstalent käme sonst zweimal.
-    if (seen.has(key)) continue;
-    seen.add(key);
+  for (const inst of await featInstances(features, background)) {
     const [feature] = declaredFeatures('feat', [{
-      key: entry.sourceKey,
-      name: entry.name,
-      nameDe: entry.nameDe,
-      desc: entry.desc,
-      grants: entry.grants,
-      grantsChoice: entry.grantsChoice,
-      grantsSpells: entry.grantsSpells,
+      key: inst.featureKey,
+      name: inst.entry.name,
+      nameDe: inst.entry.nameDe,
+      desc: inst.entry.desc,
+      grants: inst.entry.grants,
+      grantsChoice: inst.entry.grantsChoice,
+      grantsSpells: inst.entry.grantsSpells,
+      grantsCasting: inst.entry.grantsCasting,
     }]);
-    // Gekappt an der Charakterstufe: eine Erwerbsstufe über ihr (Altdaten, Tippfehler)
-    // würde ihren Platz sonst wegfiltern und die Wahl unsichtbar machen.
-    out.push({ feature, group: 'Talente', gainedAt: [Math.min(ref.gainedAt, charLevel)], level: charLevel });
+    out.push({
+      feature,
+      group: 'Talente',
+      // Gekappt an der Charakterstufe: eine Erwerbsstufe über ihr (Altdaten, Tippfehler)
+      // würde ihren Platz sonst wegfiltern und die Wahl unsichtbar machen.
+      gainedAt: [Math.min(inst.gainedAt, charLevel)],
+      level: charLevel,
+      specialisation: inst.specialisation,
+      sourceId: inst.sourceId,
+    });
   }
   return out;
 }

@@ -17,12 +17,11 @@ import {
   spellAccessGrantOf,
   spellListChoiceId,
   withoutSpellAccessFeatures,
-} from '../../src/lib/services/spellAccess';
+} from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
 import { featToGainedFeature } from '../../src/lib/services/levelUp/features';
 import { noDeclaredSpells } from '../../src/lib/services/levelUp/spells';
-import { encodePick } from '../../src/lib/services/spellcasting';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import {
   CANTRIP_COUNT,
@@ -46,6 +45,7 @@ const grantOfMagicInitiate = async () => {
     name: feat.name,
     nameDe: feat.nameDe,
     grantsChoice: feat.grantsChoice,
+    grantsCasting: feat.grantsCasting,
   });
   if (!grant) throw new Error('vault/feats/magic-initiate.json deklariert keinen spellAccess');
   return grant;
@@ -61,8 +61,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     expect(grant.lists).toEqual([...DECLARED_LISTS]);
     expect(grant.abilities).toEqual([...DECLARED_ABILITIES]);
     expect(grant.picks).toEqual([
-      { level: 0, count: CANTRIP_COUNT },
-      { level: 1, count: LEVEL1_COUNT },
+      { level: 0, count: CANTRIP_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
+      { level: 1, count: LEVEL1_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
     ]);
   });
 
@@ -107,11 +107,17 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
 
     const cantrips = questions.find((q) => q.spellLevels.includes(0))!;
     const level1 = questions.find((q) => q.spellLevels.includes(1))!;
+    // Antworten tragen `spell.key` — `spellOf` unten löst sie wieder in Name/Grad auf.
+    const spells = {
+      'srd-2024_fire-bolt': { name: 'Feuerpfeil', level: 0 },
+      'srd-2024_light': { name: 'Licht', level: 0 },
+      'srd-2024_magic-missile': { name: 'Magisches Geschoss', level: 1 },
+    };
     const answers: Record<string, string | string[]> = {
       [spellListChoiceId(grant)]: CHOSEN_LIST,
       [spellAbilityChoiceId(grant)]: 'Intelligence',
-      [cantrips.id]: [encodePick(0, 'Feuerpfeil'), encodePick(0, 'Licht')],
-      [level1.id]: [encodePick(1, 'Magisches Geschoss')],
+      [cantrips.id]: ['srd-2024_fire-bolt', 'srd-2024_light'],
+      [level1.id]: ['srd-2024_magic-missile'],
     };
 
     const doc = buildDoc({
@@ -128,7 +134,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       konMod: 2,
       pickedCantrips: [],
       pickedLearned: [],
-      learnAsPrepared: true,
+      spellOf: (key: string) => spells[key as keyof typeof spells],
       chosenFeats: [{ key: MAGIC_INITIATE_KEY, name: feat.nameDe ?? feat.name, gainedAt: TO_LEVEL }],
       baseChoiceQs: [],
       featChoiceQs: questions,
@@ -166,7 +172,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     const declared = feats.filter((f) => f.grantsChoice?.kind === 'spellAccess');
     expect(declared.map((f) => f.sourceKey)).toEqual([MAGIC_INITIATE_KEY]);
     for (const f of declared) {
-      const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice });
+      const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice, grantsCasting: f.grantsCasting });
       expect(grant, `${f.sourceKey}: Deklaration lesbar`).not.toBeNull();
       // Ohne Kontingent gäbe es keine Zauber-Wahl — das Talent wäre stumm.
       expect(grant!.picks.length, `${f.sourceKey}: Kontingent deklariert`).toBeGreaterThan(0);

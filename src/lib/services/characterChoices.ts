@@ -16,6 +16,10 @@ import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
 import { chosenOption, isDeclaredChoiceFeature, optionListChoice, optionListRider } from './declaration/optionList';
+import {
+  spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessParts,
+  type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
+} from './spellcasting/access';
 import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
 import {
   characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
@@ -32,6 +36,33 @@ export interface ChoiceSlot {
   gainedAt: number;
   /** Maßgebliche Stufe für `options[].spells` (siehe `DeclaredSlotSource.level`). */
   level: number;
+  /**
+   * Gesetzt = dieser Platz ist eine Wahl der ZAUBER-Deklaration (Liste oder Attribut), nicht
+   * die `grantsChoice` des Merkmals. Ein Merkmal kann beides schulden: die Elfenabstammung
+   * stellt ihre Zweigwahl UND ihr Zauberattribut.
+   */
+  access?: { grant: SpellAccessGrant; part: SpellAccessPart };
+}
+
+/**
+ * Ob dieser Platz den Wert beanspruchen darf. Liste, Attribut und Zweigwahl stehen unter
+ * DEMSELBEN `sourceKey` und derselben Vergabe-Stufe — auseinander hält sie nur der Wert.
+ */
+export function slotClaims(slot: ChoiceSlot, value: string): boolean {
+  if (!slot.access) return true;
+  const { grant, part } = slot.access;
+  return spellAccessOptions(grant, part).some((v) => v.toLowerCase() === value.trim().toLowerCase());
+}
+
+/** Eine Festlegung am Merkmal, die kein Platz mehr abfragt (`spellAccessFacts`). */
+export interface ChoiceFact extends SpellAccessFact {
+  featureKey: string;
+  gainedAt: number;
+}
+
+export interface ChoiceCollection {
+  slots: ChoiceSlot[];
+  facts: ChoiceFact[];
 }
 
 export interface CharacterChoice {
@@ -64,7 +95,7 @@ export async function collectChoiceSlots(c: {
   species?: CharacterSpecies;
   backgroundRef?: CharacterBackground;
   features?: CharacterFeatureEntry[];
-}): Promise<ChoiceSlot[]> {
+}): Promise<ChoiceCollection> {
   const charLevel = totalLevel(c.classes ?? []) || 1;
   const [cls, species, feats] = await Promise.all([
     declaredClassFeatures(c.classes ?? []),
@@ -81,15 +112,32 @@ export async function collectChoiceSlots(c: {
   ];
 
   const out: ChoiceSlot[] = [];
+  const facts: ChoiceFact[] = [];
   for (const s of sources) {
-    if (!isDeclaredChoiceFeature(s.feature)) continue;
     const levels = s.gainedAt.filter((l) => l <= s.level).sort((a, b) => a - b);
     // Ohne gepflegte Vergabe-Stufe bleibt Stufe 1 — dieselbe Belegung, die die
     // Wizard-Assembly und `featureChoiceChanges` schreiben.
-    for (const gainedAt of levels.length ? levels : [1])
-      out.push({ feature: s.feature, group: s.group, gainedAt, level: s.level });
+    const gains = levels.length ? levels : [1];
+    const base = { feature: s.feature, group: s.group, level: s.level };
+    if (isDeclaredChoiceFeature(s.feature))
+      for (const gainedAt of gains) out.push({ ...base, gainedAt });
+
+    // Liste und Attribut fallen laut Regeltext beim ERHALT des Merkmals, also an seiner
+    // ersten Vergabe-Stufe. Legt die Quelle die Liste fest („Weiser" ist immer Magier),
+    // entsteht kein Platz, sondern eine Feststellung — sonst gälte sie unsichtbar.
+    const grant = spellAccessGrantOf(s.feature, {
+      specialisation: s.specialisation,
+      level: s.level,
+      gainedAt: gains[0],
+      sourceId: s.sourceId,
+    });
+    if (!grant) continue;
+    for (const part of spellAccessParts(grant))
+      out.push({ ...base, gainedAt: gains[0], access: { grant, part } });
+    for (const fact of spellAccessFacts(grant))
+      facts.push({ ...fact, featureKey: grant.featureKey, gainedAt: grant.gainedAt });
   }
-  return out;
+  return { slots: out, facts };
 }
 
 /**
@@ -97,6 +145,10 @@ export async function collectChoiceSlots(c: {
  * `(sourceKey, gainedAt)`-Treffer — dieselbe Regel wie der Upsert in `applyChanges` —, dann
  * bekommen offene Plätze die übrigen Einträge ihres Keys. Der zweite Lauf ist der Altbestand:
  * dort fehlt `gainedAt` meist, und ohne ihn wäre eine vorhandene Antwort unsichtbar.
+ *
+ * Innerhalb eines Laufs kommen die WERT-geprüften Plätze zuerst dran (`slotClaims`): sonst
+ * griffe die Zweigwahl der Elfenabstammung das „Intelligence" ihres Zauberattributs, das unter
+ * demselben Key und derselben Stufe steht.
  */
 export function buildCharacterChoices(
   slots: ChoiceSlot[],
@@ -109,15 +161,19 @@ export function buildCharacterChoices(
   // überschriebe eine Wahl ihren eigenen Talent-Link (gleicher `sourceKey`). Erst dieser
   // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben.
   const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
-  slots.forEach((slot, si) => {
-    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && answered(e) && !!keyOf(slot) && e.sourceKey === keyOf(slot) && e.gainedAt === slot.gainedAt);
-    if (i >= 0) claim(si, i);
-  });
-  slots.forEach((slot, si) => {
-    if (entryOf[si] >= 0) return;
-    const i = ctx.ledger.findIndex((e, j) => !used.has(j) && answered(e) && !!keyOf(slot) && e.sourceKey === keyOf(slot));
-    if (i >= 0) claim(si, i);
-  });
+  const order = slots.map((_, si) => si).sort((a, b) => Number(!slots[a].access) - Number(!slots[b].access));
+  for (const exact of [true, false])
+    for (const si of order) {
+      if (entryOf[si] >= 0) continue;
+      const slot = slots[si];
+      const key = keyOf(slot);
+      const i = ctx.ledger.findIndex(
+        (e, j) =>
+          !used.has(j) && answered(e) && !!key && e.sourceKey === key &&
+          (!exact || e.gainedAt === slot.gainedAt) && slotClaims(slot, e.choice),
+      );
+      if (i >= 0) claim(si, i);
+    }
 
   const answers = slots.map((_, si) => splitAnswer(entryOf[si] >= 0 ? ctx.ledger[entryOf[si]].choice : ''));
 
@@ -132,10 +188,14 @@ export function buildCharacterChoices(
     // Belegt sind die Antworten der ANDEREN Expertise-Plätze — NICHT die verdoppelten
     // Fertigkeiten des Bogens: die sind bei genau diesen Charakteren die nie protokollierte
     // Antwort auf DIESE Wahl, ein Filter danach nähme dem Schurken seine zwei Fertigkeiten.
-    const already = answers.filter((_, j) => j !== si && isExpertiseFeature(slots[j].feature)).flat();
-    const choice = isExpertiseFeature(slot.feature)
-      ? expertiseChoice(slot.feature, ctx.proficient, already)
-      : characterPropertyChoice(slot.feature) ?? optionListChoice(slot.feature);
+    const already = answers
+      .filter((_, j) => j !== si && !slots[j].access && isExpertiseFeature(slots[j].feature))
+      .flat();
+    const choice = slot.access
+      ? spellAccessPartChoice(slot.access.grant, slot.access.part)
+      : isExpertiseFeature(slot.feature)
+        ? expertiseChoice(slot.feature, ctx.proficient, already)
+        : characterPropertyChoice(slot.feature) ?? optionListChoice(slot.feature);
     if (!choice) continue;
 
     const stored = entryOf[si] >= 0 ? ctx.ledger[entryOf[si]] : undefined;
@@ -168,6 +228,9 @@ export interface ChoiceGrants {
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
   const f = ch.slot.feature;
+  // Liste und Attribut wirken über die AUFLÖSUNG — `spellcasting/resolve.ts` liest die Antwort
+  // aus dem Ledger und verengt die Quelle damit. Es gibt nichts anzuwenden.
+  if (ch.slot.access) return { changes: [], flagged: [], rider: null, matched: true };
   // Eine Grundeigenschaft hat keinen Rider — sie ist ein Bogenwert, kein Merkmalseffekt.
   if (isCharacterPropertyFeature(f)) {
     const changes = characterPropertyAnswerChanges([f], () => ch.answer[0] ?? '', {
@@ -191,9 +254,10 @@ export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): C
 /** Was am Platz steht, wenn dort KEIN „Übernehmen" erscheint. */
 export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter: boolean }): string {
   if (!ch.answer.length) return '';
+  if (ch.slot.access) return '✓ übernommen — wirkt im Zauber-Block';
   if (!g.matched) return 'Diese Antwort passt zu keiner Option — Altbestand oder Tippfehler. Bitte neu wählen.';
   if (p.wouldAlter) return '';
-  // Zauber-Kontingent ist kein Bogenfeld: `spellcastingOffer` zieht es aus den Ridern,
+  // Zauber-Kontingent ist kein Bogenfeld: der Zauber-Block zieht es aus den Ridern,
   // ein Knopf dafür täte nichts.
   if (g.rider && (g.rider.extraCantrips || g.rider.extraPreparedCount))
     return 'Zusätzliche Zaubertricks/Zauber dieser Option zählen im Zauber-Block.';

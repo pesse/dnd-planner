@@ -208,6 +208,7 @@
 .edit-form .upgrade-banner { align-items: flex-start; margin: 0 0 0.8rem; }
 .edit-form .upgrade-steps { margin: 0.25rem 0 0; padding-left: 1.2rem; list-style: '· '; }
 .edit-form .upgrade-done { flex-shrink: 0; font-size: 0.8rem; color: var(--green); }
+.edit-form .upgrade-failed { color: var(--red); list-style: none; margin-left: -1.2rem; }
 .edit-form .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
 .edit-form .species-block { max-width: 24rem; }
 .edit-form .species-picker { max-width: 18rem; }
@@ -425,6 +426,24 @@
   cursor: help;
 }
 
+.edit-form .atk-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.05rem 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.edit-form .atk-toggle:hover { color: var(--ink-soft); border-color: var(--border); }
+.edit-form .atk-toggle.active {
+  color: var(--red);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
 .edit-form .inv-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .edit-form .btn-link-all {
   background: none;
@@ -595,6 +614,36 @@
   width: 0.9rem;
 }
 .edit-form .spell-edit-row .prep-toggle:hover { color: var(--green); }
+
+.edit-form .spell-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.3rem 0 0.6rem;
+}
+.edit-form .btn-pick {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+.edit-form .btn-pick:hover { border-color: var(--arcane, var(--red)); }
+.edit-form .btn-pick:disabled { cursor: not-allowed; opacity: 0.6; }
+.edit-form .spell-quota { font-size: 0.75rem; color: var(--ink-muted); }
+.edit-form .spell-quota.over { color: var(--gold, var(--ink-soft)); }
+
+.edit-form .spell-freetext { margin: 0.4rem 0 0.6rem; }
+.edit-form .spell-freetext > summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  margin-bottom: 0.4rem;
+}
+.edit-form .spell-freetext > summary:hover { color: var(--ink); }
 
 /* Persönliches / Portrait */
 .edit-form .personal-grid {

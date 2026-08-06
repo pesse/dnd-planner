@@ -8,7 +8,7 @@
   import type { Character } from '$lib/schemas/characterSchema';
   import type { Change } from '$lib/schemas/levelUp';
   import type { ApplyContext } from '../services/applyChanges';
-  import { collectChoiceSlots, type ChoiceSlot } from '../services/characterChoices';
+  import { collectChoiceSlots, type ChoiceFact, type ChoiceSlot } from '../services/characterChoices';
   import {
     choiceDisplay, keysOf, resolveBackground, resolveClassFeatures, resolveSpeciesTraits,
     type ResolvedFeatureGroup,
@@ -59,12 +59,13 @@
   let speciesGroups = $state<ResolvedFeatureGroup[]>([]);
   let backgroundGroups = $state<ResolvedFeatureGroup[]>([]);
   let choiceSlots = $state<ChoiceSlot[]>([]);
+  let choiceFacts = $state<ChoiceFact[]>([]);
   $effect(() => {
     void linkKey;
     const c = untrack(() => $state.snapshot(character)) as Character;
     let cancelled = false;
     void (async () => {
-      const [cls, spec, bg, slots] = await Promise.all([
+      const [cls, spec, bg, declared] = await Promise.all([
         resolveClassFeatures(c.classes ?? []),
         resolveSpeciesTraits(c.species),
         resolveBackground(c.backgroundRef),
@@ -74,10 +75,24 @@
       classGroups = cls;
       speciesGroups = spec ?? [];
       backgroundGroups = bg ? [bg] : [];
-      choiceSlots = slots;
+      choiceSlots = declared.slots;
+      choiceFacts = declared.facts;
     })();
     return () => { cancelled = true; };
   });
+
+  /**
+   * Ein von Hand verlinktes Herkunftstalent steht in BEIDEN Abschnitten — im Talent-Abschnitt
+   * mit Beschreibung und Stufe. Ohne diesen Schnitt stünde derselbe Picker zweimal da und
+   * beide schrieben in denselben Ledger-Eintrag.
+   */
+  const linkedFeatKeys = $derived(new Set(featRows.map(({ e }) => e.sourceKey).filter(Boolean)));
+  const backgroundView = $derived(
+    backgroundGroups.map((g) => ({
+      ...g,
+      features: g.features.filter((f) => !f.key || !linkedFeatKeys.has(f.key)),
+    })),
+  );
 
   const knownKeys = $derived([
     ...keysOf([...classGroups, ...speciesGroups, ...backgroundGroups]),
@@ -88,6 +103,7 @@
     character: () => character,
     saved: () => saved,
     slots: () => choiceSlots,
+    facts: () => choiceFacts,
     knownKeys: () => knownKeys,
     ctx: () => applyContext,
   });
@@ -121,7 +137,7 @@
                   {#if !slots.length}<LooseChoice rows={choices.looseOf(f.key ?? '')} {ledger} />{/if}
                 </div>
                 {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
-                <ChoiceSection {slots} {choices} {ledger} onapply={(c) => onApplyChanges?.(c)} />
+                <ChoiceSection {slots} facts={choices.factsOf(f.key ?? '')} {choices} {ledger} onapply={(c) => onApplyChanges?.(c)} />
               </li>
             {/each}
           </ul>
@@ -148,7 +164,7 @@
 
 {#snippet classBody()}{@render featureGroups(classGroups, 'Keine verlinkte Klasse — im Bearbeiten-Tab eine Klasse aus der Bibliothek wählen.')}{/snippet}
 {#snippet speciesBody()}{@render featureGroups(speciesGroups, 'Kein verlinktes Volk — im Bearbeiten-Tab ein Volk aus der Bibliothek wählen.')}{/snippet}
-{#snippet backgroundBody()}{@render featureGroups(backgroundGroups, 'Kein verlinkter Hintergrund — im Bearbeiten-Tab einen Hintergrund aus der Bibliothek wählen.')}{/snippet}
+{#snippet backgroundBody()}{@render featureGroups(backgroundView, 'Kein verlinkter Hintergrund — im Bearbeiten-Tab einen Hintergrund aus der Bibliothek wählen.')}{/snippet}
 {#snippet featsBody()}
   <FeatSection rows={featRows} {ledger} {choices} {saved} onapply={(c) => onApplyChanges?.(c)} />
 {/snippet}
@@ -167,7 +183,7 @@
 
     {@render block('Klassenmerkmale', 'class', choices.openIn(keysOf(classGroups)), classBody)}
     {@render block('Volksmerkmale', 'species', choices.openIn(keysOf(speciesGroups)), speciesBody)}
-    {@render block('Hintergrund', 'background', choices.openIn(keysOf(backgroundGroups)), backgroundBody)}
+    {@render block('Hintergrund', 'background', choices.openIn(keysOf(backgroundView)), backgroundBody)}
     {@render block('Talente', 'feats', choices.openIn(featRows.map(({ e }) => e.sourceKey)), featsBody)}
 
     {#if choices.orphans.length}

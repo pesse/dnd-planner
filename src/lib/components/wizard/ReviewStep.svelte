@@ -3,6 +3,7 @@
   import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
   import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
   import { buildCharacterProtocol } from '../../services/characterProtocol';
+  import { loadSheetSpellcasting, type SheetSpellcasting } from '../../services/spellcasting/project';
   import type { Character } from '../../schemas/characterSchema';
 
   let { w, aiBusy, createError, statusText }: {
@@ -25,10 +26,20 @@
     return () => { cancelled = true; };
   });
 
+  let spellcasting = $state<SheetSpellcasting | null>(null);
+  $effect(() => {
+    const c = preview;
+    if (!c) { spellcasting = null; return; }
+    let cancelled = false;
+    loadSheetSpellcasting(c).then((v) => { if (!cancelled) spellcasting = v; }).catch(() => {});
+    return () => { cancelled = true; };
+  });
+
   const protocolGroups = $derived(
     preview
       ? buildCharacterProtocol(preview, {
           decisions: (w.effects.result?.riders ?? []).flatMap((r) => r.decisions),
+          ...(spellcasting ? { spellcasting } : {}),
         })
       : [],
   );

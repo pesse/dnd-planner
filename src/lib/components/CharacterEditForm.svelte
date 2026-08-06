@@ -17,6 +17,7 @@
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
+  import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
@@ -59,6 +60,14 @@
   const mods = $derived(abilityMods(form));
   const skills = $derived(computeSkills(form));
   const classLevelPreview = $derived(formatClassLevel(form.classes));
+
+  // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
+  // Inventarzeile — beide rechnen mit demselben Kontext.
+  const weaponCtx = $derived({
+    ...attackContext(form),
+    proficiencies: form.proficiencies,
+    weaponByName: (n: string) => matchItem(libs.itemIndex, { name: n }),
+  });
 
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
   const savedField = (key: string): unknown => (saved as Record<string, unknown> | null | undefined)?.[key];
@@ -153,6 +162,9 @@
     return () => { cancelled = true; };
   });
 
+  // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
+  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells));
+
   // Erkennung UND Verlinkung liegen in `services/characterLegacyLinks.ts`; hier bleiben
   // nur der mutierte Zustand und der UI-Nachlauf.
   const legacyTarget = $derived<LegacyLinkTarget>({
@@ -161,13 +173,16 @@
     species: form.species,
     backgroundRef: form.backgroundRef,
     inventory: form.inventory,
-    cantrips: form.spells.cantrips,
-    spellsByLevel: form.spells.byLevel,
+    spells: character.spells,
+    dropSpells: () => { delete character.spells; },
+    spellcasting: form.spellcasting,
     proficiencies: form.proficiencies,
+    attacks: form.attacks,
+    weaponCtx,
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
-    items: libs.itemIndex, spells: libs.spellIndex,
+    items: libs.itemIndex, casting: casting.current,
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
@@ -180,6 +195,7 @@
       case 'classes': editingClassRow = -1; break;
       case 'species': form.race = form.species.name; editingSpecies = false; break;
       case 'background': form.background = form.backgroundRef.name; editingBackground = false; break;
+      case 'spells': form.spellcasting = { ...form.spellcasting }; break;
     }
   }
 
@@ -318,15 +334,9 @@
 
   <section>
     <h3>Angriffe</h3>
-    <AttackTable
-      attacks={form.attacks}
-      ctx={{
-        ...attackContext(form),
-        proficiencies: form.proficiencies,
-        weaponByName: (n) => matchItem(libs.itemIndex, { name: n }),
-      }}
-      weaponItems={libs.weapons}
-      {saved}
+    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved}
+      fixLabel={fixOf('attacks')?.label}
+      onfix={() => applyFix(fixOf('attacks'))}
     />
   </section>
 
@@ -385,6 +395,8 @@
       bind:inventoryNotes={form.inventoryNotes}
       itemIndex={libs.itemIndex}
       itemsByDir={libs.itemsByDir}
+      attacks={form.attacks}
+      attackCtx={weaponCtx}
       {saved}
       fixLabel={fixOf('inventory')?.label}
       onfix={() => applyFix(fixOf('inventory'))}
@@ -396,12 +408,12 @@
     <h3>Zauberwirken</h3>
     <SpellBlock
       {form}
+      casting={casting.current}
       spellLibrary={libs.spells}
-      spellIndex={libs.spellIndex}
       {saved}
       fixLabel={fixOf('spells')?.label}
       onfix={() => applyFix(fixOf('spells'))}
-      {dirOf}
+      onlibraryreload={() => libs.reloadSpells()}
     />
   </section>
 </div>

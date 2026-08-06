@@ -1,0 +1,32 @@
+{
+  "pools": {
+    "standard": {
+      "used": [
+        0
+      ]
+    },
+    "pact": {
+      "used": 0
+    }
+  },
+  "sources": {
+    "<key>": {
+      "picks": {
+        "<key>": [
+          "string"
+        ]
+      },
+      "uses": {
+        "<key>": 0
+      }
+    }
+  },
+  "manual": {
+    "slotTotals": [
+      0
+    ],
+    "extra": [
+      "string"
+    ]
+  }
+}

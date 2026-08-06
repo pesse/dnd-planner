@@ -22,7 +22,8 @@ import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
 import { traitSchema, migrateSpeciesLegacy } from '../../src/lib/schemas/species';
 import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
 import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
-import { spellAccessGrantOf } from '../../src/lib/services/spellAccess';
+import { castingGrantSchema } from '../../src/lib/schemas/casting';
+import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
 import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
@@ -307,12 +308,21 @@ describe('die Senke des kind entscheidet, nicht der Träger', () => {
 
   it('liest denselben Zauber-Zugang an Klassenmerkmal, Speziesmerkmal und Talent', () => {
     const decl = {
+      key: 'test_cantrip',
       name: 'Cantrip',
       grantsChoice: featureChoiceGrantSchema.parse({
         kind: 'spellAccess',
         spellLists: ['wizard'],
         spellAbilities: ['Intelligence'],
         spellPicks: [{ level: 0, count: 1 }],
+      }),
+      // Die Zahlen liest `spellAccessGrantOf` inzwischen von hier, `grantsChoice` bleibt nur
+      // das Zugehörigkeits-Signal.
+      grantsCasting: castingGrantSchema.parse({
+        ability: { choose: ['Intelligence'] },
+        quotas: [
+          { id: 'cantrip', tier: 'prepared', levels: [0], count: { base: 1 }, pool: { lists: ['wizard'] }, cast: [{ kind: 'at-will' }] },
+        ],
       }),
     };
     const grants = (['class', 'species', 'feat'] as const).map(
@@ -321,7 +331,7 @@ describe('die Senke des kind entscheidet, nicht der Träger', () => {
     for (const g of grants) {
       expect(g?.lists).toEqual(['wizard']);
       expect(g?.abilities).toEqual(['Intelligence']);
-      expect(g?.picks).toEqual([{ level: 0, count: 1 }]);
+      expect(g?.picks).toEqual([{ level: 0, count: 1, sourceId: 'test_cantrip', quotaId: 'cantrip' }]);
     }
   });
 });

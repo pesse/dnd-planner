@@ -6,7 +6,7 @@ import type { FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import type { GainedFeature } from '../analysis/types';
 import type { PastChoice } from '../characterFeatures';
 import type { LevelUpDelta } from '../levelUp';
-import type { SpellAccessGrant } from '../spellAccess';
+import type { SpellAccessGrant } from '../spellcasting/access';
 import type { FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import type { FeatEntry } from '../../featsLibrary';
 import type { SpellInfo } from '../../spellLibrary';

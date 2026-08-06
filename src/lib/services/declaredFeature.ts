@@ -5,6 +5,7 @@
  */
 import type { FeatureChoiceGrant } from '../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../schemas/grants';
+import type { CastingGrant } from '../schemas/casting';
 
 export type FeatureSource = 'class' | 'subclass' | 'species' | 'feat';
 
@@ -22,6 +23,7 @@ export interface DeclaredFeature {
   grants?: FeatureGrant;
   grantsChoice?: FeatureChoiceGrant;
   grantsSpells?: SpellGrant;
+  grantsCasting?: CastingGrant;
 }
 
 export function declaredFeatures<T extends Omit<DeclaredFeature, 'source'>>(

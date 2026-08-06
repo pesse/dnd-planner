@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
+import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
 import { FEAT_CATEGORIES } from './vocabulary';
 
@@ -122,4 +123,7 @@ export const featureDeclarationFields = {
   grantsSpells: spellGrantSchema
     .optional()
     .describe('Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im desc.'),
+  grantsCasting: castingGrantSchema
+    .optional()
+    .describe('Zauberwirken des Merkmals: Kontingent, Pool, Tauschtakt, Wirk-Ressource.'),
 } as const;

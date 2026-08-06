@@ -6,7 +6,7 @@
 import { CHARACTER_VERSION } from '$lib/schemas/characterUpgrades';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { type Character } from '$lib/schemas/characterSchema';
-import { emptyProficiencies, emptyPersonal, emptySpells } from '$lib/pdf/characterFields';
+import { emptyProficiencies, emptyPersonal } from '$lib/pdf/characterFields';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
 import { type AbilityKey } from '$lib/schemas/classProgression';
 import { type SkillName } from '$lib/schemas/vocabulary';
@@ -17,20 +17,13 @@ import { getFeats, featDisplayName } from '$lib/featsLibrary';
 import { choiceLabelsDe } from '../analysis/types';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
-import { getSpellLibrary, buildSpellIndex, matchSpell } from '$lib/spellLibrary';
-import { declaredSpellChanges, resolveDeclaredSpells, validateRiderSpells } from '../levelUp/spells';
+import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
+import { validateRiderSpells } from '../levelUp/spells';
+import { classCastingOffer } from '../spellcasting/classOffer';
+import { addExtra, emptySpellcasting, setPicks } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
-import { isSpellGrantFeature } from '../grantedSpells';
-import {
-  buildSpellSelection,
-  CASTER_ABILITY_DE,
-  CASTER_ABILITY_KEY,
-  spellAttackBonus,
-  spellcastingOffer,
-  spellSaveDC,
-} from '../spellcasting';
 import { applyChanges } from '../applyChanges';
-import { spellAccessNoteLines } from '../spellAccess';
+import { spellAccessNoteLines } from '../spellcasting/access';
 import { declaredGrantChanges } from '../declaration/grants';
 import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
@@ -65,7 +58,7 @@ function blankCharacter(name: string): Character {
     languages: [], tools: [], alleskoenner: false,
     currency: { km: '', sm: '', em: '', gm: '', pm: '' },
     inventory: [], inventoryNotes: '', totalWeight: '',
-    spells: emptySpells(),
+    spellcasting: emptySpellcasting(),
     personal: emptyPersonal(),
     proficiencies: emptyProficiencies(),
     masteries: [],
@@ -213,86 +206,41 @@ function applyFeatureLedger(c: Character, w: CharacterWizard): void {
   }
 }
 
-function applySpellcastingValues(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
-  const abilityKey = CASTER_ABILITY_KEY[keySlug(w.klass.sourceKey)];
-  if (!prog || prog.casterType === 'NONE' || !abilityKey) return;
-  const abilityMod = mod(scores[abilityKey]);
-  c.spells.spellcastingClass = w.klass.name;
-  c.spells.spellcastingAbility = CASTER_ABILITY_DE[abilityKey];
-  c.spells.autoCalc = true;
-  c.spells.saveDC = spellSaveDC(c.proficiencyBonus, abilityMod);
-  c.spells.attackBonus = spellAttackBonus(c.proficiencyBonus, abilityMod);
-  c.spells.slots = spellSlotsAt(prog, 1).map((total) => ({ total, used: 0 }));
-}
-
 /**
- * Reihenfolge ist Vorrang: die eigene Wahl zuerst (ihre Namen sind kanonisch und legen die
- * Vorbereitungs-Markierung fest), dann Rider-Zauber, zuletzt die deklarierten Listen.
+ * Die Wahlen des Wizards landen an der Quota, zu der sie gehören — `w.pickedCantrips` &Co. sind
+ * bereits `spell.key`, und `offer`/`w.spellPickChoices` tragen ihre Ziel-Quota schon (dasselbe
+ * `classCastingOffer`, das der Zauber-Schritt anzeigt; keine zweite Ableitung). Rider-Zauber der
+ * KI haben keine Quota und werden quellenloser Bestand.
  */
 async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> {
-  // Nur Picks zu Wahlen, die es JETZT noch gibt: wer die Zauberliste wechselt, ließe sonst
-  // die Zauber der alten im Zustand zurück und stumm mit auf den Bogen wandern.
-  const livePickIds = new Set(w.spellPickChoices.map((ch) => ch.id));
-  const featurePicks = Object.entries(w.featureSpellPicks)
-    .filter(([id]) => livePickIds.has(id))
-    .flatMap(([, picks]) => picks);
+  const featurePicks = w.spellPickChoices
+    .map((ch) => ({ choice: ch, picks: w.featureSpellPicks[ch.id] ?? [] }))
+    .filter((entry) => entry.picks.length > 0);
   const hasPicks = w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
-  // Merkmale mit deklarierter Zauberliste (Abstammung, Talent). Vorgefiltert, damit ein
-  // Nicht-Zauberwirker ohne solche Deklaration die Bibliothek nicht lädt.
-  const spellGrantFeatures = w.declared.filter(isSpellGrantFeature);
-  const riders = w.riders;
-  if (!hasPicks && !riders.length && !spellGrantFeatures.length) return;
+  if (!hasPicks && !w.riders.length) return;
 
-  // Zauber per Key an die Bibliothek binden; ohne eindeutigen Key bleibt der Namens-Fallback.
-  const spellLib = await getSpellLibrary();
-  const spellIndex = buildSpellIndex(spellLib);
-  const linkRef = (name: string): { sourceKey?: string } => {
-    const hit = matchSpell(spellIndex, { name });
-    const unique = !spellIndex.ambiguous.has(name.trim().toLowerCase());
-    return hit?.key && unique ? { sourceKey: hit.key } : {};
-  };
+  const offer = await classCastingOffer({
+    classKey: w.klass.sourceKey,
+    klasseName: w.klass.name,
+    subclassKey: w.klass.subclassKey,
+    subclassName: w.klass.subclassName,
+    level: 1,
+  });
+  if (offer.cantrips) setPicks(c.spellcasting, offer.cantrips.sourceId, offer.cantrips.quotaId, w.pickedCantrips);
+  if (offer.spells) setPicks(c.spellcasting, offer.spells.sourceId, offer.spells.quotaId, w.pickedKnown);
+  if (offer.prepared) setPicks(c.spellcasting, offer.prepared.sourceId, offer.prepared.quotaId, w.pickedPrepared);
 
-  if (hasPicks) {
-    const offer = await spellcastingOffer({
-      classKey: w.klass.sourceKey,
-      klasseName: w.klass.name,
-      level: 1,
-    });
-    const sel = buildSpellSelection({
-      regime: offer.regime,
-      cantripPicks: w.pickedCantrips,
-      knownPicks: w.pickedKnown,
-      preparedPicks: w.pickedPrepared,
-      featurePicks,
-    });
-    c.spells.cantrips = sel.cantrips.map((name) => ({ name, ...linkRef(name) }));
-    for (const [level, entries] of sel.byLevel)
-      c.spells.byLevel[String(level)] = entries.map((e) => ({ name: e.name, prepared: e.prepared, ...linkRef(e.name) }));
+  for (const { choice, picks } of featurePicks) {
+    if (choice.sourceId && choice.quotaId) setPicks(c.spellcasting, choice.sourceId, choice.quotaId, picks);
   }
 
-  // Gewährte Zauber (Elfenlinie, Domänenzauber …): stets vorbereitet, zählen nicht gegen
-  // das Kontingent. Namen kommen vom LLM und müssen erst kanonisiert werden.
-  if (riders.length) {
-    const validated = validateRiderSpells(riders, spellLib, w.klass.name);
-    for (const name of validated.grantedCantrips)
-      if (!c.spells.cantrips.some((e) => e.name === name)) c.spells.cantrips.push({ name, ...linkRef(name) });
-    for (const { level, name } of validated.grantedPrepared) {
-      const lvl = String(level);
-      const arr = c.spells.byLevel[lvl] ?? [];
-      const seen = arr.find((e) => e.name === name);
-      if (seen) seen.prepared = true;
-      else arr.push({ name, prepared: true, ...linkRef(name) });
-      c.spells.byLevel[lvl] = arr;
+  if (w.riders.length) {
+    const spellLib = await getSpellLibrary();
+    const validated = validateRiderSpells(w.riders, spellLib, w.klass.name);
+    for (const name of [...validated.grantedCantrips, ...validated.grantedPrepared.map((p) => p.name)]) {
+      const key = resolveSpell(spellLib, name, w.klass.name)?.key;
+      if (key) addExtra(c.spellcasting, key);
     }
-  }
-
-  // Deklarierte Zauberlisten auf Charakterstufe 1 — über dieselbe Senke wie der Aufstieg
-  // (`declaredSpellChanges` → `applyChanges`) statt einer dritten Hand-Anwendung.
-  if (spellGrantFeatures.length) {
-    applyChanges(c, declaredSpellChanges(resolveDeclaredSpells(spellGrantFeatures, 1, spellLib, w.klass.name)), {
-      classIndex: 0,
-      resolveSpellKey: (name) => linkRef(name).sourceKey,
-    });
   }
 }
 
@@ -359,7 +307,6 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   await applyProficiencies(c, w, answerOf);
   applySkillValues(c, scores);
   applyFeatureLedger(c, w);
-  applySpellcastingValues(c, w, prog, scores);
   await applySpellPicks(c, w);
   c.masteries = [...w.masteries]; // Waffenmeisterschaft: im Wizard gewählt, nichts zu rechnen
   await applyFightingStyles(c, w);
