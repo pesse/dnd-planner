@@ -12,6 +12,11 @@
     backgroundList: BackgroundInfo[];
   } = $props();
 
+  // `autofocus` allein greift nicht: beim Öffnen des Wizards ist das Dokument längst geladen,
+  // und ein danach eingefügtes Element fokussiert der Browser nicht mehr von selbst.
+  let nameInput: HTMLInputElement | undefined = $state();
+  $effect(() => nameInput?.focus());
+
   function selectClass(key: string) {
     const node = classes.find((n) => n.key === key);
     w.klass = { sourceKey: key, name: node ? classDisplayName(node) : '' };
@@ -28,7 +33,7 @@
 
 <label class="field">
   <span>Name</span>
-  <input type="text" bind:value={w.name} placeholder="Charaktername" autofocus />
+  <input type="text" bind:this={nameInput} bind:value={w.name} placeholder="Charaktername" />
 </label>
 <label class="field">
   <span>Spielername (optional)</span>
