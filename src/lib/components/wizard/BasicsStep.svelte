@@ -28,7 +28,7 @@
 
 <label class="field">
   <span>Name</span>
-  <input type="text" bind:value={w.name} placeholder="Charaktername" />
+  <input type="text" bind:value={w.name} placeholder="Charaktername" autofocus />
 </label>
 <label class="field">
   <span>Spielername (optional)</span>
