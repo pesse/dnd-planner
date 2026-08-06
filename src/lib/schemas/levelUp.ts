@@ -1,7 +1,8 @@
 /**
- * Schemas des Stufenaufstiegs: KI-Outputs (Rider, Narrativ, Feldtext) und das
- * deterministisch gebaute Änderungsdokument. Bewusst ohne `utils/schemaValidation.ts` —
- * dessen `parse` verlangt ein `name`-Feld, die Runtime-Guards stehen deshalb hier.
+ * Schemas des Stufenaufstiegs: KI-Outputs (Bogen-Notizen, Narrativ, Feldtext), das
+ * deterministisch gebaute Änderungsdokument und der Rider als internes Transportformat.
+ * Bewusst ohne `utils/schemaValidation.ts` — dessen `parse` verlangt ein `name`-Feld, die
+ * Runtime-Guards stehen deshalb hier.
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
@@ -38,21 +39,18 @@ const questionSchema = z.object({
   // Nur für type "hp-roll": Würfelseiten (Trefferwürfel) + Anzahl Würfe (= gewonnene Stufen).
   dieSides: z.number().int().optional(),
   rollCount: z.number().int().optional(),
-  // false bei Skill, +1 Attribut, Kampfstil — die Antwort IST der Effekt;
-  // true bei Zirkel des Landes → Kreissprüche.
-  resolvesEffects: z.boolean().default(false).describe('true = the choice determines further grants; run the effects pass again with it resolved before finishing.'),
   featureKey: z.string().default('').describe('Library key of the feature that forces this choice; empty for questions the flow itself asks.'),
   isBuildDecision: z.boolean().default(false).describe('true = permanent build decision worth recording on the character.'),
 });
 
-/** Ausgabevokabular des Modells, wo möglich auf geschlossene Werte eingegrenzt. */
+/** Übungen in derselben Form, in der `proficiencyGrantSchema` sie deklariert. */
 const riderProficienciesSchema = z.object({
   skills: z.array(z.enum(SKILL_NAMES)).default([]),
   tools: z.array(z.string()).default([]),
   weapons: z.array(z.enum(WEAPON_CATEGORIES)).default([]),
   armor: z.array(z.enum(ARMOR_TRAININGS)).default([]),
   languages: z.array(z.string()).default([]),
-  savingThrows: z.array(z.string()).default([]),
+  savingThrows: z.array(z.enum(ABILITY_NAMES)).default([]),
 });
 
 export type RiderProficiencies = z.infer<typeof riderProficienciesSchema>;
@@ -66,61 +64,43 @@ export const SHEET_NOTE_MAX_CHARS = 160;
 /** Reserve, weil Deutsch ~17 % länger läuft als Englisch: 160 / 1,17. */
 export const SHEET_NOTE_EN_MAX_CHARS = 135;
 
-/** Dieselbe DE/EN-Asymmetrie wie bei der `sheetNote`: ~17 % Reserve für die Übersetzung. */
-export const CHOICE_HELP_MAX_CHARS = 120;
-export const CHOICE_HELP_EN_MAX_CHARS = 105;
-
-/** `question`/`answer` füllt der Code aus dem Übersetzungs-Mapping der Analyse (`featureTranslationAction`). */
-const featureDecisionSchema = z.object({
-  id: z.string().default('').describe('Stable id of the choice, matching the analysis choice id.'),
-  question: z.string().default('').describe('Filled in by the app — leave empty.'),
-  answer: z.string().default('').describe('Filled in by the app — leave empty.'),
+/**
+ * Was EIN Merkmal mechanisch gewährt — internes Transportformat, kein Modell-Output: gefüllt
+ * wird es aus den Deklarationen des Vaults (`declaration/*`), und die Senken `riderGrantChanges`
+ * / `abilityFromRiders` sind über seine Felder total. Zwei Felder haben derzeit KEINEN
+ * Produzenten (`proficiencies.tools`, `abilityScoreIncrease`) — die Deklarationsform dafür fehlt
+ * noch (#30, #31); sie stehen hier, damit deren Senke schon fertig ist.
+ */
+const featureRiderSchema = z.object({
+  featureName: z.string().default(''),
+  featureKey: z.string().default(''),
+  source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
+  grantedSpells: z.array(z.string()).default([]).describe('Immer-vorbereitete/gewährte Zauber, kanonische ENGLISCHE Namen.'),
+  extraCantrips: z.number().int().default(0),
+  extraPreparedCount: z.number().int().default(0),
+  expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]),
+  proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
+  abilityScoreIncrease: abilityModsSchema,
 });
 
 /**
- * Die Deutung EINES neu gewonnenen Merkmals: nur Ergebnisse und getroffene Entscheidungen,
- * keine offenen Wahl-Möglichkeiten (die leben transient in der Analyse von Call 1). Genau
- * ein Rider je Merkmal, auch ohne Grant — Guided Decoding erzeugt ohnehin für jedes einen.
+ * Der EINZIGE Merkmals-Output des Modells: je Merkmal eine Bogenzeile. Wahlen und
+ * Zaubergewährung kommen aus der Deklaration, nicht von hier — ein `featureKey`, den der
+ * Eingang nicht enthielt, gehört zu keinem Merkmal und wird verworfen.
  */
-const featureRiderSchema = z.object({
-  featureName: z.string().default('').describe('Which feature/feat emitted this rider — its ENGLISH name, verbatim from the input.'),
+const featureNoteSchema = z.object({
+  featureName: z.string().default('').describe('Which feature this note belongs to — its ENGLISH name, verbatim from the input.'),
   // Anker für den deutschen Anzeigenamen aus der Bibliothek; aus dem Modell kämen
   // 2014er-Begriffe („Durchschnaufen" statt „Zweiter Wind").
   featureKey: z.string().default('').describe('Library key of the feature, copied verbatim from <gained_features>[].key. Empty only if it carries none.'),
-  source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
-  grantedSpells: z.array(z.string()).default([]).describe('Always-prepared/granted spells, canonical ENGLISH names (already reflecting any resolved choice).'),
-  extraCantrips: z.number().int().default(0),
-  extraPreparedCount: z.number().int().default(0).describe('Additional spells the player may prepare because of this feature.'),
-  expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]).describe('Skills that gained Expertise — the CHOSEN skills, not options.'),
-  proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
-  abilityScoreIncrease: abilityModsSchema.describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
-  decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),
   sheetNote: z.string().default('').describe(
     `ENGLISH single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_EN_MAX_CHARS} chars ` +
       '(it gets translated into German afterwards, which runs longer). ' +
       'EMPTY when the feature needs no note — purely narrative, or already modelled elsewhere on the sheet.'),
 });
 
-export const featureEffectsSchema = z.object({
-  riders: z.array(featureRiderSchema).default([]),
-});
-
-/** Paar-Array statt `Record<en, de>`: Guided Decoding kann keine dynamischen Objekt-Keys ausdrücken. */
-const choiceOptionTranslationSchema = z.object({
-  en: z.string().default('').describe('The English option label, copied VERBATIM from the input.'),
-  de: z.string().default('').describe('Its German label, quoted verbatim from the feature\'s German rules text.'),
-  helpDe: z.string().default('').describe('This option\'s own German consequence, max 60 chars. Empty if it has none.'),
-});
-
-const choiceTranslationItemSchema = z.object({
-  id: z.string().default('').describe('The choice id, copied VERBATIM from the input.'),
-  questionDe: z.string().default('').describe('The German question shown to the player.'),
-  helpDe: z.string().default('').describe(`German one-liner on the mechanical trade-off, max ${CHOICE_HELP_MAX_CHARS} chars. Empty if there is none.`),
-  options: z.array(choiceOptionTranslationSchema).default([]).describe('One entry per English option, in the SAME order.'),
-});
-
-export const choiceTranslationSchema = z.object({
-  items: z.array(choiceTranslationItemSchema).default([]).describe('One entry per choice of the input, same order.'),
+export const featureNotesSchema = z.object({
+  notes: z.array(featureNoteSchema).default([]),
 });
 
 const sheetNoteTranslationSchema = z.object({
@@ -133,7 +113,7 @@ export const sheetNoteTranslationsSchema = z.object({
 });
 
 /**
- * Bewusst NUR die Zusammenfassung: den Merkmalstext liefert `featureRiderSchema.sheetNote`,
+ * Bewusst NUR die Zusammenfassung: den Merkmalstext liefert `featureNoteSchema.sheetNote`,
  * dessen Pass Regelprosa und getroffene Wahlen kennt und besser verdichtet als dieser hier.
  */
 export const levelUpNarrativeSchema = z.object({
@@ -202,25 +182,23 @@ export type Change = z.infer<typeof changeSchema>;
 export type LevelUpChangeSet = z.infer<typeof levelUpChangeSetSchema>;
 export type LevelUpDoc = LevelUpChangeSet;
 export type FeatureRider = z.infer<typeof featureRiderSchema>;
-export type FeatureEffects = z.infer<typeof featureEffectsSchema>;
+export type FeatureNote = z.infer<typeof featureNoteSchema>;
+export type FeatureNotes = z.infer<typeof featureNotesSchema>;
 export type LevelUpNarrative = z.infer<typeof levelUpNarrativeSchema>;
 export type FieldSummary = z.infer<typeof fieldSummarySchema>;
-export type ChoiceTranslation = z.infer<typeof choiceTranslationSchema>;
-export type ChoiceTranslationItem = z.infer<typeof choiceTranslationItemSchema>;
 export type SheetNoteTranslations = z.infer<typeof sheetNoteTranslationsSchema>;
 
-export const featureEffectsJsonSchema = toLlmJsonSchema(featureEffectsSchema);
+export const featureNotesJsonSchema = toLlmJsonSchema(featureNotesSchema);
 export const levelUpNarrativeJsonSchema = toLlmJsonSchema(levelUpNarrativeSchema);
 export const fieldSummaryJsonSchema = toLlmJsonSchema(fieldSummarySchema);
-export const choiceTranslationJsonSchema = toLlmJsonSchema(choiceTranslationSchema);
 export const sheetNoteTranslationsJsonSchema = toLlmJsonSchema(sheetNoteTranslationsSchema);
 
 export function parseLevelUpChangeSet(data: unknown): LevelUpChangeSet | null {
   const r = levelUpChangeSetSchema.safeParse(data);
   return r.success ? r.data : null;
 }
-export function parseFeatureEffects(data: unknown): FeatureEffects | null {
-  const r = featureEffectsSchema.safeParse(data);
+export function parseFeatureNotes(data: unknown): FeatureNotes | null {
+  const r = featureNotesSchema.safeParse(data);
   return r.success ? r.data : null;
 }
 export function parseLevelUpNarrative(data: unknown): LevelUpNarrative | null {
@@ -229,10 +207,6 @@ export function parseLevelUpNarrative(data: unknown): LevelUpNarrative | null {
 }
 export function parseFieldSummary(data: unknown): FieldSummary | null {
   const r = fieldSummarySchema.safeParse(data);
-  return r.success ? r.data : null;
-}
-export function parseChoiceTranslation(data: unknown): ChoiceTranslation | null {
-  const r = choiceTranslationSchema.safeParse(data);
   return r.success ? r.data : null;
 }
 export function parseSheetNoteTranslations(data: unknown): SheetNoteTranslations | null {

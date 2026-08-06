@@ -11,7 +11,6 @@
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { isSheetValueTrait } from '../../src/lib/services/sheetValueTraits';
-import { withoutOwnedChoices } from '../../src/lib/services/declaredChoice';
 import {
   resolveSizeCat,
   sizeChoiceId,
@@ -62,16 +61,14 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     fightingStyles: [],
     spellcasting: emptySpellcasting(),
     featureSpellPicks: {},
-    resolvedChoices: [],
     declaredAnswers: [],
     // Am echten Wizard immer gesetzt — `buildWizardCharacter` liest alle drei (Bogen-Notiz
-    // des Zauber-Zugangs, deklarierte Merkmale, deren Rider neben den KI-Ridern).
+    // des Zauber-Zugangs, deklarierte Merkmale, deren Rider).
     spellAccess: [],
     declared: [],
     riders: [],
-    featureChoices: [],
+    declaredChoices: [],
     spellPickChoices: [],
-    effects: noJob,
     classText: noJob,
     speciesText: noJob,
     hpPerLevelBonus: () => 0,
@@ -125,7 +122,6 @@ describe('Größenkategorie der Spezies', () => {
       // Der Wert steht in `personal.sizeCat`; ein Ledger-Eintrag wäre eine zweite Wahrheit.
       // (Der deklarierte Pfad entscheidet das anders — dort ist die Antwort auffindbar.)
       expect(choice!.isBuildDecision, key).toBe(false);
-      expect(choice!.determinesFurtherEffects, key).toBe(false);
     }
     expect(sizeChoiceOf({ key: 'homebrew_x', traits: [{ name: 'Size', desc: 'Medium' }] })).toBeNull();
   });
@@ -168,23 +164,6 @@ describe('Größenkategorie der Spezies', () => {
     // Die Frage stellt jetzt der Eigenschafts-Pfad (`declaredChoices`) — hier nur die
     // Zusicherung, dass sie nicht ZUSÄTZLICH aus dem Parser kommt.
     expect(human.sizeChoice).toBeNull();
-  });
-
-  /**
-   * Ein Merkmal, das im KI-Eingang bleibt, kann dieselbe Wahl vom Modell gestellt bekommen.
-   * Gefragt wird trotzdem nur einmal — die Regel gilt unabhängig davon, wer die Wahl führt.
-   */
-  it('verdrängt eine KI-Wahl zum selben Merkmal', async () => {
-    const spec = await getSpeciesByKey('srd-2024_human');
-    const declared = characterPropertyChoice(characterPropertyRefs(sizeTraitOf(spec!.traits)!)[0])!;
-    const fromAi = [
-      { ...declared, id: 'choice_size_1', isBuildDecision: true },
-      { ...declared, id: 'choice_skillful_1', featureKey: 'srd-2024_human_skillful' },
-    ];
-    const kept = withoutOwnedChoices([declared], fromAi);
-    expect(kept.map((c) => c.id)).toEqual(['choice_skillful_1']);
-    // Ohne deklarierte Wahl bleibt jede KI-Wahl stehen.
-    expect(withoutOwnedChoices([], fromAi)).toHaveLength(2);
   });
 
   it('schreibt den Wert beim Zusammenbau in personal.sizeCat', async () => {

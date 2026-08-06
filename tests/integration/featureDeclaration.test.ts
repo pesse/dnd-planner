@@ -4,8 +4,8 @@
  *
  * Diese Datei hält die zwei Zusicherungen fest, die vorher am Prompt hingen:
  * die Optionen sind ZITATE aus dem Regeltext (ein erfundenes Label bricht die gespeicherte
- * Antwort still), und die Wirkung steht neben der Option (`determinesFurtherEffects` kann
- * damit nie wieder true werden). Begründung: `docs/plan/plan-wahlen-deklarieren.md`, Stufe 1.
+ * Antwort still), und die Wirkung steht neben der Option — seit dem KI-Schnitt ist sie die
+ * EINZIGE Quelle der Mechanik. Begründung: `docs/plan/plan-wahlen-deklarieren.md`, Stufe 1.
  *
  *   npm run test -- featureDeclaration
  */
@@ -34,7 +34,7 @@ import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
 import { optionActivatesQuota, optionListRider, optionSpellNames, unredactedChoiceFeatures, withoutDeclaredChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged, type DeclaredFeature } from '../../src/lib/services/declaredFeature';
-import { withDeclaredGrants } from '../../src/lib/services/declaration/grants';
+import { declaredGrantRiders } from '../../src/lib/services/declaration/grants';
 
 /** Die erste (hier: einzige) Wahl ihrer Art am Merkmal. */
 const optionRef = <T extends DeclaredChoiceSource>(f: T) => optionListRefs(f)[0];
@@ -88,7 +88,8 @@ describe('deklarierte Zweigwahlen', () => {
   /**
    * `helpDe` ist Pflicht, `grants` nicht: die Konsequenz muss benannt sein (sie ist die
    * Bogen-Zeile), modellierbar ist sie nur, soweit `featureGrantSchema` reicht — Zusatzschaden
-   * und Resistenz kennt es nicht. Ohne `grants` deutet Pass C die Prosa.
+   * und Resistenz kennt es nicht. Ohne `grants` bleibt der Zweig ohne Mechanik und wird
+   * gemeldet (`declarationGapLines`).
    */
   it('gibt jeder Option eine benannte Konsequenz — sonst wäre die Wahl folgenlos', async () => {
     for (const { feature } of await declaredFeatures()) {
@@ -98,7 +99,7 @@ describe('deklarierte Zweigwahlen', () => {
     }
   });
 
-  it('baut die Wahl ohne Nach-Analyse-Bedarf', async () => {
+  it('baut die Wahl vollständig aus der Bibliothek', async () => {
     const prog = await getProgressionByKey('srd-2024_druid');
     const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
     const choice = optionListChoice(optionRef(primal))!;
@@ -107,9 +108,8 @@ describe('deklarierte Zweigwahlen', () => {
     expect(choice.optionsDe).toEqual(['Magier', 'Wächter']);
     expect(choice.questionDe).toContain('Urtümliche Ordnung');
     expect(choice.featureKey).toBe('srd-2024_druid_primal-order');
-    // Die beiden Flaggen sind der Kern: dauerhaft, aber ohne Folge-Berechnung.
+    // Dauerhaft: die Antwort gehört ins Ledger, nicht nur in diesen Lauf.
     expect(choice.isBuildDecision).toBe(true);
-    expect(choice.determinesFurtherEffects).toBe(false);
   });
 
   it('liefert den Rider der getroffenen Wahl — und nur den', async () => {
@@ -122,10 +122,6 @@ describe('deklarierte Zweigwahlen', () => {
     expect(warden[0].proficiencies.weapons).toEqual(['Martial']);
     expect(warden[0].proficiencies.armor).toEqual(['Medium']);
     expect(warden[0].extraCantrips).toBe(0);
-    // Kein Protokoll-Eintrag: die Wahl schreibt `featureChoiceChanges` aus dem Fragebogen.
-    expect(warden[0].decisions).toEqual([]);
-    // Keine erfundene deutsche Notiz neben der englischen des Modells.
-    expect(warden[0].sheetNote).toBe('');
 
     // Unbeantwortet → kein Rider. Ein leerer Rider wäre ein Grant von nichts.
     expect(optionListRiders([primal], () => '', 1)).toEqual([]);
@@ -255,7 +251,6 @@ describe('deklarierte Zweigwahlen', () => {
     expect(choice.max).toBe(2);
     expect(choice.options).toEqual(['Stealth', 'Acrobatics', 'Perception']);
     expect(choice.optionsDe).toEqual(['Heimlichkeit', 'Akrobatik', 'Wahrnehmung']);
-    expect(choice.determinesFurtherEffects).toBe(false);
 
     // Expertise stapelt nicht: auf Stufe 6 sind zwei WEITERE zu wählen.
     const second = expertiseChoice(expertiseRef(feature), ['Stealth', 'Acrobatics', 'Perception'], ['Stealth'])!;
@@ -293,7 +288,6 @@ describe('deklarierte Zweigwahlen', () => {
     ]);
     expect(prep.declared.filter(isExpertiseFeature)).toEqual([]);
     expect(prep.gained.map((f) => f.name)).not.toContain('Primal Order');
-    expect(prep.analysisGained.map((f) => f.name)).not.toContain('Primal Order');
   });
 });
 
@@ -324,7 +318,10 @@ describe('die Herkunft entscheidet nichts über die Mechanik', () => {
     for (const c of choices) {
       expect(c?.options).toEqual(['Warden', 'Magician']);
       expect(c?.optionsDe).toEqual(['Wächter', 'Magier']);
-      expect(c?.determinesFurtherEffects, 'die Wirkung steht neben der Option').toBe(false);
+      expect(c?.optionHelpDe, 'die Wirkung steht neben der Option').toEqual({
+        Warden: 'Kriegswaffen',
+        Magician: 'Ein Zaubertrick',
+      });
     }
     // Bis auf nichts: die Wahl ist über alle Herkünfte identisch.
     expect(new Set(choices.map((c) => JSON.stringify(c))).size).toBe(1);
@@ -630,7 +627,7 @@ describe('deklarierte Sprachwahl', () => {
 
 /**
  * Die feste Sprache steht in `grants.languages`, NEBEN `proficiencies` — in 2024 ist sie keine
- * Übung. Am Vault hängt daran die Frage, ob eine Deklaration das Merkmal aus der KI-Deutung
+ * Übung. Am Vault hängt daran die Frage, ob eine Deklaration das Merkmal aus dem Notiz-Eingang
  * nimmt: `grantsChoice` tut es, ein reines `grants` nicht.
  */
 describe('fest gewährte Sprache', () => {
@@ -643,22 +640,22 @@ describe('fest gewährte Sprache', () => {
   const languagesOf = (features: DeclaredFeature[], answerOf: (id: string) => string = () => '') =>
     riderChanges(
       {
-        riders: [...withDeclaredGrants([], features), ...languageRiders(features, answerOf)],
+        riders: [...declaredGrantRiders(features), ...languageRiders(features, answerOf)],
         flagged: [], grantedCantrips: [], grantedPrepared: [],
       },
       'feature-effects',
     ).filter((c) => c.target === 'language').map((c) => c.value);
 
-  it('bringt „Druidisch" auf den Bogen und lässt das Merkmal trotzdem in der KI-Deutung', async () => {
+  it('bringt „Druidisch" auf den Bogen und lässt das Merkmal trotzdem im Notiz-Eingang', async () => {
     const druidic = await classFeature('srd-2024_druid', 'srd-2024_druid_druidic');
     expect(languagesOf([druidic])).toEqual(['Druidisch']);
-    // Der Dauerzauber und die Bogen-Notiz bleiben Sache des Modells — nur `grantsChoice` filtert.
+    // Die Bogen-Notiz bleibt Sache des Modells — nur `grantsChoice` filtert.
     expect(withoutDeclaredChoiceFeatures([druidic])).toEqual([druidic]);
   });
 
   it('trägt bei „Diebessprache" feste und gewählte Sprache nebeneinander', async () => {
     const cant = await classFeature('srd-2024_rogue', 'srd-2024_rogue_thieves-cant');
-    expect(withoutDeclaredChoiceFeatures([cant]), 'die Wahl nimmt es aus der KI-Deutung').toEqual([]);
+    expect(withoutDeclaredChoiceFeatures([cant]), 'die Wahl nimmt es aus dem Notiz-Eingang').toEqual([]);
     expect(languagesOf([cant], () => 'Elbisch')).toEqual(['Diebessprache', 'Elbisch']);
   });
 });

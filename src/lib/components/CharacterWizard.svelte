@@ -80,8 +80,6 @@
   let lastBasicsSig = '';
 
   const aiJobs = $derived([
-    { label: 'Merkmale analysieren', job: w.analysis },
-    { label: 'Merkmals-Effekte ableiten', job: w.effects },
     { label: 'Klassenmerkmale-Text', job: w.classText },
     { label: 'Volksmerkmale-Text', job: w.speciesText },
     { label: 'Startausrüstung aufbereiten', job: w.equipment },
@@ -188,8 +186,8 @@
     spellValues.rows.length > 0 || spellValues.loose.length > 0 || !!spellValues.error,
   );
 
-  // Nur die DEKLARIERTEN Wahlen sind Pflicht (die KI-Wahlen können ganz fehlen): ohne sie
-  // bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten.
+  // Pflicht: ohne die Antwort bliebe die Zauberliste offen und der Zauber-Schritt hätte
+  // nichts anzubieten.
   const declaredChoicesDone = $derived(
     w.declaredChoices
       .filter((c) => c.type !== 'spell-pick')
@@ -198,8 +196,7 @@
 
   /** Baut alles neu und läuft deshalb gefahrlos zweimal — nach Merkmals- und Zauberschritt. */
   function commitFeatureChoices() {
-    const declared = new Set(w.declaredChoices.map((c) => c.id));
-    const answered = w.featureChoices
+    w.declaredAnswers = w.declaredChoices
       .map((ch) => ({
         id: ch.id,
         // Eine Zauber-Wahl MIT Quota beantwortet der Zauber-Block; ihre Zauber hier noch
@@ -213,10 +210,6 @@
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());
-    // Zwei Kanäle: nur die Wahlen der KI-Analyse gehen als `<resolved_choices>` zurück ans
-    // Modell — eine deklarierte id kennt es nicht, das Merkmal stand nie in seinem Eingang.
-    w.resolvedChoices = answered.filter((rc) => !declared.has(rc.id));
-    w.declaredAnswers = answered.filter((rc) => declared.has(rc.id));
   }
 
   const canProceed = $derived.by(() => {
@@ -242,7 +235,7 @@
     }
     // Erst nach dem Wahl-Checkpoint, sonst trägt der Text einen Platzhalter
     // („Resistenz gegen [Schadensart]") statt der getroffenen Wahl.
-    if (currentStep === 'features') { commitFeatureChoices(); w.finalizeFeatures(); w.summarizeFeatures(); }
+    if (currentStep === 'features') { commitFeatureChoices(); w.summarizeFeatures(); }
     if (currentStep === 'spells') commitFeatureChoices();
     const nextStep = steps[stepIndex + 1];
     if (!nextStep) return;
@@ -329,10 +322,10 @@
         {/if}
 
       {:else if currentStep === 'features'}
-        <FeatureChoiceStep {w} bind:answers={choiceAnswers} {statusText} />
+        <FeatureChoiceStep {w} bind:answers={choiceAnswers} />
 
       {:else if currentStep === 'spells'}
-        <SpellStep {w} library={spellLib} v={spellValues} {statusText} />
+        <SpellStep {w} library={spellLib} v={spellValues} />
 
       {:else if currentStep === 'equipment'}
         <EquipmentChoiceStep {w} {statusText} done={toolChoicesDone} />

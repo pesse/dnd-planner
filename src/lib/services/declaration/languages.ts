@@ -39,7 +39,6 @@ export function languageChoice(r: DeclaredChoiceRef): AnalysisChoice | null {
     max: count,
     question: `${f.name}: name ${count} language(s) of your choice`,
     questionDe: count > 1 ? `${nameDe}: Wähle ${count} Sprachen` : `${nameDe}: Wähle eine Sprache`,
-    help: 'Free text — languages have no closed vocabulary.',
     helpDe: count > 1 ? 'Freitext, mehrere durch Komma trennen.' : 'Freitext.',
   };
 }

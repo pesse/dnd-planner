@@ -1,7 +1,7 @@
 /**
  * Eine Pflichtfrage ohne Optionen blockiert den Checkpoint dauerhaft: leerer Picker, „Weiter"
- * bleibt aus (`allBaseAnswered`). Die KI-Deutung erzeugt genau das, wo die Optionen erst zur
- * Laufzeit entstehen — sie kennt den Charakter nicht.
+ * bleibt aus (`allBaseAnswered`). Auch eine Deklaration erzeugt das, wo die Optionen erst zur
+ * Laufzeit entstehen — eine Expertise-Wahl ohne geübte Fertigkeit hat nichts anzubieten.
  *
  *   npm run test -- optionlessQuestion
  */
@@ -11,10 +11,10 @@ import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
 
 const choice = (over: Partial<AnalysisChoice>): AnalysisChoice => ({
   id: 'c1', feature: 'F', featureDe: 'F', featureKey: 'test_f',
-  question: 'Choose', questionDe: 'Wähle', help: '', helpDe: '',
-  type: 'choice', options: [], optionsDe: [], optionHelp: {}, optionHelpDe: {},
+  question: 'Choose', questionDe: 'Wähle', helpDe: '',
+  type: 'choice', options: [], optionsDe: [], optionHelpDe: {},
   spellLevels: [], spellClass: '', spellSchools: [], spellTier: 'prepared', sourceId: '', quotaId: '',
-  max: 1, determinesFurtherEffects: false, isBuildDecision: true, ...over,
+  max: 1, isBuildDecision: true, ...over,
 });
 
 describe('optionslose Wahlen', () => {

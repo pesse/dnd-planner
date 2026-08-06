@@ -14,6 +14,7 @@ import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import {
   spellAccessChoices,
   spellListChoiceId,
+  withoutSpellAccessFeatures,
   type SpellAccessGrant,
 } from '../../src/lib/services/spellcasting/access';
 import {
@@ -54,15 +55,17 @@ describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
     ]);
   });
 
-  it('hält das Talent aus dem KI-Eingang, aber im Merkmalsbestand', async () => {
+  it('hält das Talent aus dem Notiz-Eingang, aber im Merkmalsbestand', async () => {
     const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
     const keys = (fs: { key?: string }[]) => fs.map((f) => f.key ?? '');
     expect(keys(prep.gained)).toContain(MAGIC_INITIATE_KEY);
-    expect(keys(prep.analysisGained)).not.toContain(MAGIC_INITIATE_KEY);
+    // Derselbe Filter, den der Aufstieg vor dem Notiz-Pass fährt.
+    const forNotes = withoutSpellAccessFeatures(prep.gained, prep.spellAccess);
+    expect(keys(forNotes)).not.toContain(MAGIC_INITIATE_KEY);
+    expect(forNotes.length).toBe(prep.gained.length - 1);
     // Der deutsche Bogen-Text entsteht aus `gained` — er darf das Talent nicht verlieren.
     const nameDe = await magicInitiateDe();
     expect(prep.summaryClass.some((s) => (s.nameDe ?? s.name) === nameDe)).toBe(true);
-    expect(prep.analysisGained.length).toBe(prep.gained.length - 1);
   });
 
   it('erzeugt bei festgelegter Liste nur Attributsfrage und Zauber-Wahlen', async () => {

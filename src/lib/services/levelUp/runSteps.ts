@@ -1,6 +1,7 @@
 /**
- * Die Arbeitsschritte eines Aufstiegs — drei KI-Pässe, deterministische Nachläufe und ihre
- * Projektionen. Sie schreiben in den Lauf-Zustand, angetrieben von `run.svelte.ts`.
+ * Die Arbeitsschritte eines Aufstiegs — deterministische Auswertung der Deklarationen, drei
+ * KI-Pässe am Ende und ihre Projektionen. Sie schreiben in den Lauf-Zustand, angetrieben von
+ * `run.svelte.ts`.
  */
 import { get } from 'svelte/store';
 import { mod } from '../../domain/skills';
@@ -9,16 +10,16 @@ import { llmConfig } from '../../stores/llm';
 import { runAiAction } from '../aiActions/runner';
 import { buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary } from '../aiActions/levelUpAction';
 import { buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS } from '../aiActions/fieldSummaryAction';
-import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
-import type { GainedFeature, FeatureClassContext, ResolvedChoice } from '../analysis/types';
+import { summarizeFeatureNotes } from '../aiActions/featureNotesAction';
+import type { GainedFeature, FeatureClassContext } from '../analysis/types';
 import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature } from '../perLevelEffects';
 import {
   declaredSpeciesFeatures, resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks,
 } from '../characterFeatures';
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
-import { buildDecisions, buildFeatureChoices } from './questions';
-import { sheetNoteLines, answerValues, hasAnswer } from './answers';
+import { buildDecisions } from './questions';
+import { sheetNoteLines } from './answers';
 import { expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageRiders } from '../declaration/languages';
@@ -26,7 +27,8 @@ import {
   optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures,
   withoutDeclaredChoiceFeatures,
 } from '../declaration/optionList';
-import { withDeclaredGrants } from '../declaration/grants';
+import { declaredGrantRiders } from '../declaration/grants';
+import { declarationGapLines, type GapCandidate } from '../declarationGap';
 import { spellAccessNoteLines, withoutSpellAccessFeatures } from '../spellcasting/access';
 import { parseLevelUpNarrative, parseFieldSummary, type FeatureRider, type LevelUpQuestion } from '../../schemas/levelUp';
 import { spellInfoByKey, type SpellInfo } from '../../spellLibrary';
@@ -130,95 +132,42 @@ export function createRunSteps(ctx: RunStepsDeps) {
         );
   }
 
-  /** Call 1 (KI): reine Analyse → erkannte Wahlen für den Checkpoint direkt danach. */
-  async function runAnalyze(kind: 'base' | 'feat', alive: () => boolean) {
-    await ensureSpellLib();
-    if (!alive()) return;
-    const features = featuresFor(kind);
-    let analysis: FeatureAnalysis = { choices: [], spellsToGround: [], blocked: false, analysisText: '' };
-    if (features.length) {
-      pushStep(`KI analysiert ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      analysis = await analyzeFeatureEffects(get(llmConfig), { classContext: classContext(), features, pastChoices: st.pastChoices }, runOpts());
-      if (!alive()) return;
-    }
-    const choiceQs = buildFeatureChoices(analysis.choices);
-    initFeatureChoices(choiceQs);
-    if (kind === 'base') {
-      st.baseAnalysis = analysis; st.baseChoices = choiceQs;
-      // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
-      const declaredQs = [
-        ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseSkillProfChoices,
-        ...choices.baseLanguageChoices, ...choices.baseAccessChoices,
-      ];
-      initFeatureChoices(declaredQs);
-      if (declaredQs.length) pushStep(`${declaredQs.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
-    }
-    else { st.featAnalysis = analysis; st.featChoices = choiceQs; }
-    if (!features.length) pushStep(kind === 'feat' ? 'Kein Talent für die Deutung übrig.' : 'Keine Merkmale zu deuten.');
-    else pushStep(choiceQs.length ? `KI wartet auf ${choiceQs.length} Wahl(en).` : 'Keine Wahl nötig.');
+  /** Die deklarierten Wahlen der Basis-Merkmale leer vorbelegen — der Checkpoint folgt. */
+  function runDeclaredChoices() {
+    const declaredQs = [
+      ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseSkillProfChoices,
+      ...choices.baseLanguageChoices, ...choices.baseAccessChoices,
+    ];
+    initFeatureChoices(declaredQs);
+    pushStep(declaredQs.length
+      ? `${declaredQs.length} Wahl(en) aus der Bibliothek gelesen.`
+      : 'Keine Wahl nötig.');
   }
 
   /**
-   * Folge-Turn für Call C, bewusst minimal (id + Wert): Frage, Optionen und Merkmal stehen
-   * schon im Verlauf. Der WERT, nicht das Label — der Verlauf ist englisch.
+   * Die Rider einer Seite: rein aus den Deklarationen der Bibliothek und den Antworten
+   * darauf. `declaredGrantRiders` steht getrennt neben den Wahl-Ridern, weil die Rider einer
+   * Zweigwahl die Grants der GEWÄHLTEN OPTION tragen und das unbedingte `grants` des
+   * Merkmals nicht ersetzen dürfen.
    */
-  function gatherDecisions(kind: 'base' | 'feat'): ResolvedChoice[] {
-    // Nur die KI-erkannten Wahlen: das Merkmal einer deklarierten Wahl steht nicht im Eingang,
-    // das Modell könnte ihre id nur einem erfundenen Rider zuordnen.
-    const qs = kind === 'base' ? st.baseChoices : st.featChoices;
-    const out: ResolvedChoice[] = [];
-    for (const q of qs) {
-      const v = st.answers[q.id];
-      if (!hasAnswer(v)) continue;
-      out.push({ id: q.id, choice: answerValues(q, v, (key) => spellOf(key)?.name ?? key) });
-    }
-    return out;
-  }
-
-  /** Call C (KI): finalisiert die Effekte mit den getroffenen Entscheidungen → Rider. */
-  async function runFinalize(kind: 'base' | 'feat', alive: () => boolean) {
+  async function runRiders(kind: 'base' | 'feat', alive: () => boolean) {
     await ensureSpellLib();
     if (!alive()) return;
-    const analysis = kind === 'base' ? st.baseAnalysis : st.featAnalysis;
-    const decisionsCtx = gatherDecisions(kind);
-    // Merkmale, deren Zweig nichts deklariert, kommen ERST hier dazu: die Analyse hätte
-    // dieselbe Wahl ein zweites Mal gestellt, Pass C deutet nur noch ihre Prosa.
-    const unredacted = unredactedChoiceFeatures(
-      kind === 'base' ? choices.baseDeclared : choices.featDeclared,
-      (id) => choices.optionAnswer(id),
-    ).map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: st.delta!.toLevel }));
-    const features = [...featuresFor(kind), ...unredacted];
-    let parsed: FeatureRider[] = [];
-    if (features.length && analysis) {
-      pushStep(decisionsCtx.length
-        ? 'KI berücksichtigt die getroffene Wahl und leitet die Effekte ab…'
-        : `KI deutet ${features.length} ${kind === 'feat' ? 'Talent(e)' : 'neu gewonnene Merkmal(e)'}…`);
-      const eff = await finalizeFeatureEffects(get(llmConfig),
-        { classContext: classContext(), features, pastChoices: st.pastChoices, resolvedChoices: decisionsCtx }, analysis, runOpts());
-      if (!alive()) return;
-      parsed = eff.riders;
-    }
-    // Deklarierte Wahlen liefern ihren Rider aus der Bibliothek statt aus dem Modell, in
-    // derselben Form. Beide Phasen aus DERSELBEN Liste — ein Talent mit `optionList` verlöre
-    // sonst seine Wirkung.
     const grantSources = kind === 'base' ? choices.baseDeclared : choices.featDeclared;
     // Die Stufe einer Options-Zauberliste: am Klassenmerkmal die KLASSEN-, am Talent die
     // CHARAKTERstufe (`declaredSpellGrants` liest dieselbe Unterscheidung).
     const optionLevel = kind === 'base' ? st.delta!.toLevel : newCharLevel();
-    const declared = [
-      ...optionListRiders(grantSources, (id) => choices.optionAnswer(id), optionLevel),
-      ...expertiseRiders(grantSources, (id) => choices.optionAnswer(id)),
-      ...skillProficiencyRiders(grantSources, (id) => choices.optionAnswer(id)),
-      ...languageRiders(grantSources, (id) => choices.optionAnswer(id)),
+    const answerOf = (id: string) => choices.optionAnswer(id);
+    const riders: FeatureRider[] = [
+      ...declaredGrantRiders(grantSources),
+      ...optionListRiders(grantSources, answerOf, optionLevel),
+      ...expertiseRiders(grantSources, answerOf),
+      ...skillProficiencyRiders(grantSources, answerOf),
+      ...languageRiders(grantSources, answerOf),
     ];
-    // Nur auf `parsed`: die Rider der Zweigwahlen tragen die Grants der GEWÄHLTEN OPTION,
-    // die das unbedingte `grants` des Merkmals nicht ersetzen darf.
-    const validated = validateRiderSpells(
-      [...withDeclaredGrants(parsed, grantSources), ...declared],
-      st.spellLib,
-      st.delta!.klasseName,
-    );
+    const validated = validateRiderSpells(riders, st.spellLib, st.delta!.klasseName);
     if (validated.flagged.length) st.flagged = [...new Set([...st.flagged, ...validated.flagged])];
+    reportGaps(grantSources, unredactedOf(grantSources));
     if (kind === 'base') {
       st.validatedBase = validated;
       st.riders = validated.riders;
@@ -229,6 +178,57 @@ export function createRunSteps(ctx: RunStepsDeps) {
       st.validatedFeats = validated;
       st.featRiders = validated.riders;
     }
+  }
+
+  /** Merkmale, deren gewählter Zweig nichts deklariert — Wahl getroffen, Wirkung offen. */
+  const unredactedOf = (declared: typeof choices.baseDeclared) =>
+    unredactedChoiceFeatures(declared, (id) => choices.optionAnswer(id))
+      .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: st.delta!.toLevel }));
+
+  /**
+   * Der Preis des Schnitts: eine undeklarierte Wahl fängt niemand mehr auf. Ins Schritt-Log
+   * UND (über `seedFeaturesText`) ins Klassenmerkmale-Feld, damit die Lücke den Lauf überlebt.
+   */
+  function reportGaps(features: readonly GapCandidate[], unredacted: readonly { name: string; nameDe?: string }[]) {
+    const lines = declarationGapLines(features, unredacted).filter((l) => !st.gaps.includes(l));
+    if (!lines.length) return;
+    st.gaps = [...st.gaps, ...lines];
+    for (const l of lines) pushStep(l);
+  }
+
+  /**
+   * Der EINZIGE Deutungs-Call der Merkmalsstrecke: je Merkmal eine Bogenzeile. Basis- und
+   * Talentmerkmale in EINEM Call — erst hier stehen beide fest, und der Merge braucht sie
+   * als Nächstes.
+   */
+  async function runNotes(alive: () => boolean) {
+    // Merkmale, deren gewählter Zweig nichts deklariert, kommen hier dazu: mechanisch ist
+    // nichts von ihnen zu holen, ihre Prosa braucht trotzdem eine Zeile.
+    const features = [
+      ...featuresFor('base'), ...unredactedOf(choices.baseDeclared),
+      ...featuresFor('feat'), ...unredactedOf(choices.featDeclared),
+    ];
+    st.notes = [];
+    if (!features.length) {
+      pushStep('Keine Merkmale für eine Bogen-Notiz übrig.');
+      return;
+    }
+    pushStep(`KI formuliert die Bogen-Notiz für ${features.length} Merkmal(e)…`);
+    const notes = await summarizeFeatureNotes(get(llmConfig),
+      { classContext: classContext(), features, terms: choiceTerms() }, runOpts());
+    if (!alive()) return;
+    st.notes = notes;
+  }
+
+  /**
+   * Die Options-Paare aller Wahlen als feste Begriffe für die Übersetzung: eine Notiz nennt
+   * die gewählte Option („Magic Initiate (Wizard)"), und ohne das Paar wird daraus
+   * „Zauberer" statt „Magier".
+   */
+  function choiceTerms(): { en: string; de: string }[] {
+    return [...choices.baseChoiceQs, ...choices.featChoiceQs]
+      .flatMap((q) => q.options.map((o) => ({ en: o.value, de: o.label })))
+      .filter((t) => t.de && t.de !== t.en);
   }
 
   async function runNarrative(alive: () => boolean) {
@@ -253,7 +253,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     return `${st.delta!.klasseName} Stufe ${st.delta!.fromLevel} → ${st.delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  const newSheetNotes = () => [...sheetNoteLines(st.validatedBase.riders), ...sheetNoteLines(st.validatedFeats.riders)];
+  const newSheetNotes = () => sheetNoteLines(st.notes);
 
   /**
    * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
@@ -267,6 +267,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
       ...optionListNoteLines(choices.declaredOptionFeatures, (id) => choices.optionAnswer(id)),
       ...spellAccessNoteLines(choices.baseAccess, st.answers),
       ...spellAccessNoteLines(st.featAccess, st.answers),
+      ...st.gaps,
     ]
       .filter((s) => s?.trim())
       .join('\n');
@@ -364,7 +365,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
 
   return {
     initAnswers, initFeatureChoices,
-    runAnalyze, runFinalize, runNarrative,
+    runDeclaredChoices, runRiders, runNotes, runNarrative,
     seedFeaturesText, mergeClassFeatures,
     resolveCharLevelSpells, detectHpPerLevel,
     gatherLearned, gatherCantrips, spellOf,

@@ -8,7 +8,8 @@ import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { characterSchema, type Character, type CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { mod } from '$lib/domain/skills';
-import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
+import { choiceLabelsDe, type AnalysisChoice } from '../analysis/types';
+import type { DeclaredAnswer } from '../declaredChoice';
 import { cloneSpellcasting } from '../spellcasting/write';
 import { applyAsi, type AsiAllocation } from './backgroundAsi';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
@@ -18,9 +19,8 @@ export interface WizardCastingSource {
   klass: { sourceKey: string; name: string; subclassKey?: string; subclassName?: string };
   species: { sourceKey: string; name: string; subspeciesKey?: string; subspeciesName?: string };
   background: { sourceKey: string; name: string };
-  featureChoices: AnalysisChoice[];
-  resolvedChoices: ResolvedChoice[];
-  declaredAnswers: ResolvedChoice[];
+  declaredChoices: AnalysisChoice[];
+  declaredAnswers: DeclaredAnswer[];
   fightingStyles: string[];
   scores: AbilityScores;
   asi: AsiAllocation;
@@ -46,13 +46,12 @@ export function applyLinks(c: Character, w: WizardCastingSource): void {
 }
 
 /**
- * Aus BEIDEN Kanälen (KI-Analyse und deklarierte Wahlen): der Zauber-Zugang eines Talents ist
- * so dauerhaft wie eine Subklassen-Wahl. Zauber-Wahlen selbst tragen `isBuildDecision: false`
- * — sie stehen im Zauber-Block.
+ * Zauber-Wahlen tragen `isBuildDecision: false` und fallen hier durch — sie stehen im
+ * Zauber-Block, nicht im Merkmals-Ledger.
  */
 export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
-  const byId = new Map(w.featureChoices.map((ch) => [ch.id, ch]));
-  for (const rc of [...w.resolvedChoices, ...w.declaredAnswers]) {
+  const byId = new Map(w.declaredChoices.map((ch) => [ch.id, ch]));
+  for (const rc of w.declaredAnswers) {
     const ch = byId.get(rc.id);
     if (!ch?.isBuildDecision || !ch.featureKey) continue;
     // `choice` englisch (Prompt-Kanal späterer Stufen), `choiceDe` als Anzeige.
@@ -72,7 +71,7 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
 export const fightingStyleLinks = (w: WizardCastingSource): CharacterFeatureEntry[] =>
   w.fightingStyles.map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }));
 
-/** Point-Buy + Hintergrund-ASI; die Merkmals-Erhöhungen der KI legt die Montage darauf. */
+/** Point-Buy + Hintergrund-ASI; die Erhöhungen der Merkmals-Rider legt die Montage darauf. */
 export const draftScores = (w: WizardCastingSource): AbilityScores => applyAsi(w.scores, w.asi);
 
 export function applyScores(c: Character, scores: AbilityScores): void {

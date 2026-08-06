@@ -1,10 +1,10 @@
 /**
- * Speziesmerkmale, die reine Bogenwerte sind (Größe, Bewegungsrate) — sie gehen NICHT in die
- * Merkmals-Deutung: Pass C bezahlt sonst für jeden das volle, leere Rider-Gerüst, und die
- * Notiz-Doktrin verbietet dort ohnehin eine Zeile (`SHEET_NOTE_EXAMPLE_EN`).
+ * Speziesmerkmale, die reine Bogenwerte sind (Größe, Bewegungsrate): ihr Wert steht über
+ * `grants.properties` auf dem Bogen, zu deuten ist an ihnen nichts.
  *
- * Erkannt wird ausschließlich am Diskriminator `sheetValue`. Fehlt er, bleibt das Merkmal bei
- * der KI — Mensch und Tiefling wählen ihre Größe, und diese Wahl darf nicht still verschwinden.
+ * Erkannt wird ausschließlich am Diskriminator `sheetValue`. Fehlt er, gilt das Merkmal als
+ * deutungsbedürftig — Mensch und Tiefling WÄHLEN ihre Größe, und diese Wahl darf nicht still
+ * verschwinden.
  */
 import type { SheetValueTrait } from '../schemas/species';
 

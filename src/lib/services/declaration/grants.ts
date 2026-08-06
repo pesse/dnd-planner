@@ -1,8 +1,7 @@
 /**
  * Das unbedingte `grants` am Merkmal selbst — die einzige der drei Deklarationen, die das
- * Merkmal NICHT aus dem KI-Eingang nimmt: es trägt weiter Prosa, für die Pass C eine
- * `sheetNote` schreiben soll. Also sieht das Modell dasselbe Merkmal und liefert einen
- * eigenen Rider — ohne Auflösung zählte ein deklariertes `extraCantrips` zweimal.
+ * Merkmal NICHT aus dem Notiz-Eingang nimmt: es trägt weiter Prosa, die eine Bogenzeile
+ * verdient.
  */
 import type { Change, FeatureRider } from '../../schemas/levelUp';
 import { isEmptyProficiencyGrant, type FeatureGrant } from '../../schemas/grants';
@@ -101,34 +100,17 @@ export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRid
   };
 }
 
-/**
- * **Die Deklaration gewinnt** — auch wenn das Merkmal aus dem KI-Eingang fiel, die Deutung
- * übersprungen wurde oder sie es übersah. Code-Regel statt Prompt-Regel, weil das Modell die
- * Deklaration gar nicht sieht: `buildFeatureEffectsInput` projiziert nur die Prosa-Felder.
- * `{}` heißt „geprüft, gewährt nichts", ein fehlendes Feld lässt der KI das letzte Wort.
- */
-export function withDeclaredGrants(riders: FeatureRider[], features: DeclaredGrantSource[]): FeatureRider[] {
-  const byKey = new Map<string, DeclaredGrantSource>();
-  const byName = new Map<string, DeclaredGrantSource>();
+/** Ein Rider je Merkmal mit gefülltem `grants` — `{}` heißt „geprüft, gewährt nichts". */
+export function declaredGrantRiders(features: readonly DeclaredGrantSource[]): FeatureRider[] {
+  const out: FeatureRider[] = [];
+  // Dasselbe Merkmal erreicht den Flow aus mehreren Richtungen — ohne Guard doppelt.
+  const seen = new Set<string>();
   for (const f of features) {
     if (!f.grants || isEmptyFeatureGrant(f.grants)) continue;
-    // Erster Treffer gewinnt — dasselbe Merkmal erreicht den Flow mehrfach.
-    const key = f.key?.trim();
-    if (key && !byKey.has(key)) byKey.set(key, f);
-    const name = f.name.trim().toLowerCase();
-    if (name && !byName.has(name)) byName.set(name, f);
+    const id = featureIdOf(f);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(withGrant(emptyRider(f), f.grants));
   }
-  if (!byKey.size && !byName.size) return riders;
-
-  const applied = new Set<DeclaredGrantSource>();
-  const out = riders.map((r) => {
-    const key = r.featureKey.trim();
-    const f = (key ? byKey.get(key) : undefined) ?? byName.get(r.featureName.trim().toLowerCase());
-    if (!f?.grants) return r;
-    applied.add(f);
-    return withGrant(r, f.grants);
-  });
-  for (const f of new Set([...byKey.values(), ...byName.values()]))
-    if (!applied.has(f)) out.push(withGrant(emptyRider(f), f.grants!));
   return out;
 }

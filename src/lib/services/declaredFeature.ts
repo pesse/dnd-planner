@@ -24,7 +24,7 @@ export interface DeclaredFeature {
   grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
   grantsCasting?: CastingGrant;
-  /** Teil-Deklaration: den Rest deutet Pass C. */
+  /** Teil-Deklaration: für den Rest schreibt die KI eine Bogen-Notiz, mehr nicht. */
   aiInterpretsRest?: boolean;
 }
 

@@ -1,7 +1,7 @@
 /**
- * Deklarierte Zweigwahl (`grantsChoice.kind === 'optionList'`), ohne LLM. Weil die Wirkung
- * NEBEN der Option steht, entfällt der Zustand „Antwort bekannt, Wirkung erst danach": kein
- * `determinesFurtherEffects`, kein `blocked`, keine Nach-Analyse.
+ * Deklarierte Zweigwahl (`grantsChoice.kind === 'optionList'`), ohne LLM. Die Wirkung steht
+ * NEBEN der Option (`options[].grants`) — damit ist sie schon vor der Antwort bekannt und der
+ * Zustand „Antwort bekannt, Wirkung erst danach" gibt es nicht.
  */
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
@@ -49,7 +49,6 @@ export function optionListChoice(r: DeclaredChoiceRef): AnalysisChoice | null {
     questionDe: `${nameDe}: Wähle eine Option`,
     options: options.map((o) => o.value),
     optionsDe: options.map((o) => o.labelDe || o.value),
-    optionHelp: {},
     optionHelpDe: Object.fromEntries(options.filter((o) => o.helpDe.trim()).map((o) => [o.value, o.helpDe])),
   };
 }
@@ -87,17 +86,17 @@ export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(fe
 }
 
 /**
- * Merkmale, deren WAHL deklariert ist, deren WIRKUNG aber nicht. Sie gehören in den Eingang
- * von Pass C, nicht in den der Analyse — dort stellte das Modell dieselbe Frage ein zweites
- * Mal; nach dem Checkpoint deutet es nur noch, was `featureGrant` nicht ausdrücken kann.
+ * Merkmale, deren WAHL deklariert ist, deren WIRKUNG aber nicht — sie kommen erst NACH dem
+ * Checkpoint in den Notiz-Eingang, sonst stellte das Modell dieselbe Frage ein zweites Mal.
+ * Ihre Mechanik ist damit verloren, nicht nur unbenannt: der Notiz-Pass schreibt Prosa, keine
+ * Grants (`declarationGap` meldet das).
  *
  * Zwei Wege hierher: abgeleitet aus `options[].grants` (FEHLT = nie redigiert, `{}` = geprüft
  * und gewährt nichts) — das kann nur `optionList` —, oder erklärt über `aiInterpretsRest`, den
- * einzigen Weg für jede andere Wahl-Art. Dort bleibt `choice` leer: die Antwort steht im
- * Pass-C-Eingang schon als `resolvedChoices`.
+ * einzigen Weg für jede andere Wahl-Art. Dort bleibt `choice` leer, weil die Frage-id fehlt.
  *
  * Höchstens EIN Eintrag je Merkmal, auch bei mehreren Zweigwahlen: `GainedFeature.choice` ist
- * ein einzelner Wert, und zweimal dieselbe Prosa im Eingang erzeugte zwei Rider für dasselbe
+ * ein einzelner Wert, und zweimal dieselbe Prosa im Eingang erzeugte zwei Notizen für dasselbe
  * Merkmal.
  */
 export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choice?: string }>(

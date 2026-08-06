@@ -1,14 +1,12 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
-  import type { Job } from '../../services/wizard/job.svelte';
   import { optionLabel, type AnalysisChoice } from '../../services/analysis/types';
   import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';
 
-  let { w, answers = $bindable(), statusText }: {
+  let { w, answers = $bindable() }: {
     w: CharacterWizard;
     answers: Record<string, string[]>;
-    statusText: (job: Job<unknown>) => string;
   } = $props();
 
   function answerFor(id: string): string[] {
@@ -22,41 +20,32 @@
   }
 
   /**
-   * WERT englisch, LABEL deutsch: der Wert geht an die KI zurück und an den Charakter, das
-   * Label sieht der Spieler. Ohne Übersetzung steht Englisch da — bedienbar bleibt es.
+   * WERT englisch, LABEL deutsch: der Wert geht an den Charakter, das Label sieht der Spieler.
+   * Ohne deutsche Deklaration steht Englisch da — bedienbar bleibt es.
    */
   function optionsFor(choice: AnalysisChoice): TooltipOption[] {
     return choice.options.map((o, i) => ({
       value: o,
       label: optionLabel(choice, i),
-      tooltip: choice.optionHelpDe[o] || choice.optionHelp[o],
+      tooltip: choice.optionHelpDe[o],
     }));
   }
 </script>
 
-<!-- Der KI-Status ist ein Banner, kein Entweder-oder: die deklarierten Wahlen
-     (Zauber-Zugang eines Talents) stehen deterministisch und sofort da — auch ohne QM
-     und während die Analyse noch läuft. -->
-{#if w.analysis.status === 'running'}
-  <p class="hint">Die KI analysiert die Merkmale … ({statusText(w.analysis)})</p>
-{:else if w.analysis.status === 'skipped'}
-  <p class="hint">Merkmals-Analyse übersprungen (kein QualityMinds-Modell aktiv). Merkmalsabhängige Wahlen kannst du später im Editor treffen.</p>
-{:else if w.analysis.status === 'error'}
-  <p class="warn">{statusText(w.analysis)}</p>
-{/if}
+{#each w.gaps as gap}
+  <p class="warn">{gap}</p>
+{/each}
 {#if w.plainChoices.length === 0}
-  {#if w.analysis.status === 'done' || w.analysis.status === 'skipped'}
-    <p class="hint">
-      Keine erzwungenen Merkmalswahlen auf Stufe 1.
-      {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
-    </p>
-  {/if}
+  <p class="hint">
+    Keine erzwungenen Merkmalswahlen auf Stufe 1.
+    {#if w.spellPickChoices.length}Die Zauber-Wahl folgt im nächsten Schritt.{/if}
+  </p>
 {:else}
   {#each w.plainChoices as choice (choice.id)}
     <div class="field">
       <span>
         {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
-        {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
+        {#if choice.helpDe}<span class="info" title={choice.helpDe}>ⓘ</span>{/if}
       </span>
       {#if choice.type === 'text'}
         <input type="text" value={answerFor(choice.id)[0] ?? ''} oninput={(e) => setSingleAnswer(choice.id, e.currentTarget.value)} />

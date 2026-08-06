@@ -4,7 +4,7 @@
  * Beispiel für eine SCHNELLE Strecke: ein Ein-Call-Prompt, Fälle direkt hier, keine
  * eigenen fixtures/cases-Dateien. Wächst der Fall (geladene Vault-Daten, mehrere
  * verkettete Calls), zieht man Fixture + Fälle nach `fixtures/` bzw. `cases/` um —
- * siehe featureEffects.
+ * siehe featureNotes.
  *
  * Gemessen wird der echte Produktionspfad inkl. DnD-API-Tools, genau wie in
  * CreateCardModal/AiEditModal: `runAiAction(config, action, <Nutzereingabe>)`.

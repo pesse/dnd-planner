@@ -146,8 +146,8 @@ export function spellAccessGrantOf(
 }
 
 /**
- * Der KI-Eingang, EINE Regel für Wizard und Aufstieg: ein zweiter Filter liefe auseinander
- * und das Merkmal würde auf einem der beiden Wege doppelt gefragt.
+ * Der Eingang des Notiz-Passes: das Merkmal bekommt seine Bogenzeile aus
+ * `spellAccessNoteLines`, eine zweite vom Modell wäre die Dublette.
  */
 export function withoutSpellAccessFeatures<T extends { key?: string }>(
   features: T[],
@@ -157,8 +157,6 @@ export function withoutSpellAccessFeatures<T extends { key?: string }>(
   return features.filter((f) => !owned.has(f.key ?? ''));
 }
 
-// Vom KI-Namensraum (`choice_<slug>_1`) unterscheidbar: diese Antworten gehen NICHT als
-// <resolved_choices> ans Modell, das die id nur einem erfundenen Rider zuordnen könnte.
 // Über die Quellen-Id, damit ein zweimal genommenes Talent zwei Fragen stellt.
 const slug = (grant: SpellAccessGrant): string =>
   (grant.sourceId || grant.featureKey || grant.feature).toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -219,7 +217,6 @@ export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccess
       questionDe: 'Zauberliste',
       options: [...grant.lists],
       optionsDe: grant.lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l),
-      help: 'Sets which list the spells of this feature come from.',
       helpDe: 'Bestimmt, aus welcher Liste die Zauber dieses Merkmals gewählt werden.',
     };
   return {
@@ -228,7 +225,6 @@ export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccess
     questionDe: 'Zauberattribut',
     options: [...grant.abilities],
     optionsDe: grant.abilities.map((a) => ABILITY_LABEL_BY_NAME[a] ?? a),
-    help: 'Sets attack bonus and save DC of this feature’s spells.',
     helpDe: 'Bestimmt Angriffsbonus und Rettungswurf-SG der Zauber dieses Merkmals.',
   };
 }

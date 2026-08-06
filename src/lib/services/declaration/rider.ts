@@ -2,11 +2,6 @@
 import type { FeatureRider } from '../../schemas/levelUp';
 import type { FeatureSource } from '../declaredFeature';
 
-/**
- * `sheetNote` und `decisions` bleiben leer, beides bewusst: die Bogen-Zeile kommt aus
- * `optionListNoteLines`, das Protokoll aus `featureChoiceChanges`. Ein Eintrag hier wäre
- * jeweils die zweite Ausfertigung.
- */
 export function emptyRider(f: { key?: string; name: string; source?: FeatureSource }): FeatureRider {
   return {
     featureName: f.name,
@@ -20,7 +15,5 @@ export function emptyRider(f: { key?: string; name: string; source?: FeatureSour
     expertiseSkills: [],
     proficiencies: { skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] },
     abilityScoreIncrease: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
-    decisions: [],
-    sheetNote: '',
   };
 }

@@ -10,7 +10,7 @@ import { type DeclaredChoiceSource } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { SpellGrantSource } from '../grantedSpells';
-import { answerValues, decisionNotes, recordedChoiceIds, sheetNoteLines } from './answers';
+import { answerValues } from './answers';
 import { stepReached, type StepId } from './steps';
 import { declaredSpellChanges, type DeclaredSpells, type ValidatedRiders } from './spells';
 import {
@@ -96,13 +96,11 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     // Zeile. Beide Checkpoints in einem Aufruf — die Antwort-id trennt sie ohnehin.
     ...characterPropertyAnswerChanges(p.choiceSources, answerOf, { step: 'assemble-decisions', source: 'feature' }),
     ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions', p.spellOf),
-    ...decisionNotes(p.validatedBase.riders, 'assemble-decisions', recordedChoiceIds(p.baseChoiceQs, p.answers)),
     ...featChanges(p.chosenFeats),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
     ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects', nameOf),
     ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects', p.spellOf),
-    ...decisionNotes(p.validatedFeats.riders, 'feat-effects', recordedChoiceIds(p.featChoiceQs, p.answers)),
     ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),
   ];

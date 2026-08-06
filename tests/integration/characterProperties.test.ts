@@ -29,6 +29,7 @@ import {
   isCharacterPropertyFeature,
   propertyChoiceId,
 } from '../../src/lib/services/characterProperties';
+import { withoutDeclaredChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import { GNOME_SORCERER_BASICS } from '../fixtures/gnome-sorcerer-sage';
 import type { Trait } from '../../src/lib/schemas/species';
@@ -90,9 +91,7 @@ describe('die Wahl einer Grundeigenschaft', () => {
     expect(choice.questionDe).toBe('Größenkategorie');
     expect(choice.id).toBe(propertyChoiceId(ref));
     expect(choice.featureKey).toBe('phb-2024_fairy_size');
-    // Eine Deklaration kann nichts „erst danach" bestimmen, und die Antwort gehört ins
-    // Ledger — sonst wäre sie im Charakter-Editor später nicht auffindbar.
-    expect(choice.determinesFurtherEffects).toBe(false);
+    // Die Antwort gehört ins Ledger — sonst wäre sie im Charakter-Editor nicht auffindbar.
     expect(choice.isBuildDecision).toBe(true);
   });
 
@@ -121,10 +120,11 @@ describe('die Wahl einer Grundeigenschaft', () => {
     expect(choices.map((c) => c.featureKey)).toEqual(['phb-2024_fairy_size']);
     // Der Parser-Fallback schweigt daneben, sonst stünde die Größenfrage zweimal.
     expect(prep.sizeChoice).toBeNull();
-    // Und das Merkmal ist aus der KI-Deutung heraus: die Wahl führt der Flow.
-    // (`effectFeatures` ist die TP-je-Stufe-Liste und bewusst vollständig — nicht der Eingang.)
-    expect(prep.analysisSpeciesFeatures.some((f) => f.key === 'phb-2024_fairy_size')).toBe(false);
-    expect(prep.analysisSpeciesFeatures.some((f) => f.key === 'phb-2024_fairy_flight')).toBe(true);
+    // Und derselbe Filter hält das Merkmal aus dem Notiz-Eingang: die Wahl führt der Flow,
+    // die Notiz wäre die zweite Fassung derselben Frage.
+    const forNotes = withoutDeclaredChoiceFeatures(prep.speciesFeatures);
+    expect(forNotes.some((f) => f.key === 'phb-2024_fairy_size')).toBe(false);
+    expect(forNotes.some((f) => f.key === 'phb-2024_fairy_flight')).toBe(true);
   });
 
   it('stellt keine Frage, wo nichts zu wählen ist', () => {

@@ -1,7 +1,7 @@
 /**
- * Aufbereitung der Stufe-1-Merkmale für die KI-Jobs des Erstell-Wizards. Bewusst RUNENFREI
- * und außerhalb von `characterWizard.svelte.ts`: die Eval-Strecke läuft ohne Svelte-Compiler
- * und müsste den Aufbau sonst abschreiben — und würde vom echten Wizard-Eingang wegdriften.
+ * Aufbereitung der Stufe-1-Merkmale für den Erstell-Wizard. Bewusst RUNENFREI und außerhalb
+ * von `characterWizard.svelte.ts`: die Eval-Strecke läuft ohne Svelte-Compiler und müsste den
+ * Aufbau sonst abschreiben — und würde vom echten Wizard-Eingang wegdriften.
  */
 import { getProgressionByKey, featuresUpTo } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
@@ -11,19 +11,14 @@ import { featSpecialisation, getBackgroundByKey } from '$lib/backgroundsLibrary'
 import type { Background } from '$lib/schemas/background';
 import { getFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import { isFlowOwnedChoiceFeature } from '../levelUp';
-import {
-  spellAccessGrantOf, withoutSpellAccessFeatures, type SpellAccessGrant,
-} from '../spellcasting/access';
+import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import { isSpellAccessFeature } from '../declaration/casting';
-import { isSheetValueTrait } from '../sheetValueTraits';
 import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureClassContext, GainedFeature } from '../analysis/types';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { PerLevelFeature } from '../perLevelEffects';
-import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
-import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import { classCastingAbility } from '../spellcasting/classOffer';
 
@@ -35,21 +30,10 @@ export interface FeatureBasics {
 
 export interface FeaturePrep {
   gained: GainedFeature[];
-  /**
-   * `gained` ohne die Merkmale, deren Wahl der Flow deterministisch führt. Getrennt, weil der
-   * deutsche Merkmalstext sie weiter braucht — er entsteht aus `descDe`, nicht aus der Deutung.
-   */
-  analysisGained: GainedFeature[];
   spellAccess: SpellAccessGrant[];
   sizeChoice: AnalysisChoice | null;
   /** Erzwungene Speziesmerkmals-Wahlen stecken hier, nicht in `gained` — sonst im Klassentext. */
   speciesFeatures: GainedFeature[];
-  /**
-   * `speciesFeatures` ohne die reinen Bogenwerte und die deklarierten Wahlen. Index-gleich zu
-   * `summarySpecies` bleibt `speciesFeatures`: ein deklariertes Speziesmerkmal steht mitsamt
-   * seiner Wahl im Volksmerkmale-Text und braucht keine eigene Notiz-Zeile.
-   */
-  analysisSpeciesFeatures: GainedFeature[];
   effectFeatures: PerLevelFeature[];
   /**
    * Die eine Quelle jeder Deklarationsauswertung, bewusst UNGEFILTERT: ein Merkmal, das wegen
@@ -142,18 +126,6 @@ function traitFeatures(traits: Trait[]): GainedFeature[] {
   }));
 }
 
-/**
- * Was der Flow selbst abfragt, sieht die KI nicht — sonst erfindet sie eine zweite,
- * konkurrierende Wahl. Dazu fallen die reinen Bogenwerte weg: Größe und Bewegungsrate haben
- * ein eigenes Bogenfeld, ein Rider dazu wäre leeres Gerüst.
- */
-function analysisSpeciesInput(speciesFeatures: GainedFeature[], traits: Trait[]): GainedFeature[] {
-  const sheetValueKeys = new Set(traits.filter(isSheetValueTrait).map((t) => t.key));
-  return withoutSpellGrantFeatures(
-    withoutDeclaredChoiceFeatures(speciesFeatures.filter((f) => !sheetValueKeys.has(f.key ?? ''))),
-  );
-}
-
 function perLevelInput(gained: GainedFeature[], speciesFeatures: GainedFeature[]): PerLevelFeature[] {
   return [...gained, ...speciesFeatures].map((f) => ({
     key: f.key ?? '',
@@ -208,11 +180,9 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
 
   return {
     gained,
-    analysisGained: withoutSpellGrantFeatures(withoutSpellAccessFeatures(gained, spellAccess)),
     spellAccess,
     sizeChoice: sizeChoiceOf(spec),
     speciesFeatures,
-    analysisSpeciesFeatures: analysisSpeciesInput(speciesFeatures, traits),
     effectFeatures: perLevelInput(gained, speciesFeatures),
     declared,
     summaryClass: gained.map(toSummary),

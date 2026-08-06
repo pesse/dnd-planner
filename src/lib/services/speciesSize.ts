@@ -66,7 +66,6 @@ export function sizeChoiceOf(species: { key: string; traits: SizeTraitSource[] }
     questionDe: 'Größenkategorie',
     options,
     optionsDe: options.map(sizeLabel),
-    help: 'Sets the size category on the sheet.',
     helpDe: 'Bestimmt die Größenkategorie auf dem Bogen.',
     // Der Wert steht danach in `personal.sizeCat` — ein Ledger-Eintrag wäre eine zweite Wahrheit.
     isBuildDecision: false,

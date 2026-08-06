@@ -109,7 +109,6 @@ export function characterPropertyChoice(r: DeclaredChoiceRef): AnalysisChoice | 
     questionDe: propertyDe,
     options,
     optionsDe: options.map(vocab.labelDe),
-    help: `Sets ${property} on the sheet.`,
     helpDe: `Bestimmt die ${propertyDe} auf dem Bogen.`,
   };
 }

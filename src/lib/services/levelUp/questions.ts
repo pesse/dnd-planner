@@ -17,7 +17,7 @@ const opt = (value: string, label: string) => ({ value, label });
 const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQuestion['type']; prompt: string }): LevelUpQuestion => ({
   help: '', options: [], defaultValue: '', required: true, spellLevels: [], spellClass: '', spellSchools: [],
   spellTier: 'prepared', sourceId: '', quotaId: '',
-  resolvesEffects: false, featureKey: '', isBuildDecision: false, ...q,
+  featureKey: '', isBuildDecision: false, ...q,
 });
 
 /** `maxSpellLevel` begrenzt die im Picker wählbaren Grade. */
@@ -92,10 +92,7 @@ export function buildDecisions(
 const isAnswerable = (c: AnalysisChoice): boolean =>
   c.type === 'text' || c.type === 'spell-pick' || c.options.length > 0;
 
-/**
- * Eine `spell-pick`-Wahl wird zum `spell-picker`: die Optionen kommen aus der Bibliothek
- * (gefiltert über `spellLevels`/`spellClass`), nicht aus einer vom Modell erfundenen Liste.
- */
+/** Eine `spell-pick`-Wahl wird zum `spell-picker`, dessen Optionen `vault/spells` liefert. */
 export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[] {
   return choices.filter(isAnswerable).map((c) =>
     baseQuestion({
@@ -105,10 +102,10 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
         : c.type === 'text' ? 'text'
         : c.type === 'spell-pick' ? 'spell-picker'
         : 'choice',
-      // Anzeige deutsch, Wert englisch. Fehlt die Übersetzung, steht Englisch da — der
+      // Anzeige deutsch, Wert englisch. Ohne deutschen Wortlaut steht Englisch da — der
       // Checkpoint bleibt bedienbar.
       prompt: c.questionDe.trim() || c.question,
-      help: c.helpDe.trim() || c.help,
+      help: c.helpDe.trim(),
       options: c.options.map((o, i) => opt(o, optionLabel(c, i))),
       spellLevels: c.spellLevels,
       spellClass: c.spellClass,
@@ -117,7 +114,6 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
       sourceId: c.sourceId,
       quotaId: c.quotaId,
       max: c.type === 'multiselect' || c.type === 'spell-pick' ? Math.max(1, c.max) : undefined,
-      resolvesEffects: c.determinesFurtherEffects,
       featureKey: c.featureKey,
       isBuildDecision: c.isBuildDecision,
     }),
