@@ -86,11 +86,18 @@ export function buildDecisions(
 }
 
 /**
+ * Eine optionslose Auswahlfrage blockiert als Pflichtfrage den Checkpoint dauerhaft, also
+ * entfällt sie. `text` und `spell-pick` beziehen ihre Eingabe nicht aus `options`.
+ */
+const isAnswerable = (c: AnalysisChoice): boolean =>
+  c.type === 'text' || c.type === 'spell-pick' || c.options.length > 0;
+
+/**
  * Eine `spell-pick`-Wahl wird zum `spell-picker`: die Optionen kommen aus der Bibliothek
  * (gefiltert über `spellLevels`/`spellClass`), nicht aus einer vom Modell erfundenen Liste.
  */
 export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[] {
-  return choices.map((c) =>
+  return choices.filter(isAnswerable).map((c) =>
     baseQuestion({
       id: c.id,
       type:
