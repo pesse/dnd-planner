@@ -8,7 +8,7 @@ import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
-import { gainedFeaturesFor, computeSubclassFeatures } from './features';
+import { gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForAi } from './features';
 import { countFeatsToPick } from './questions';
 import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
@@ -148,12 +148,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
         pushStep(`Subklasse „${st.chosenSubclass?.name}" — Merkmale werden geladen…`);
         st.subFeatures = await computeSubclassFeatures(st.chosenSubclass!.key, st.delta!.fromLevel, st.delta!.toLevel);
         if (!alive()) return;
-        // `subFeatures` bleibt vollständig (Info-Einträge), der KI-Eingang nicht — dieselben
-        // zwei Filter, die `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
-        st.gainedFeatures = [
-          ...gainedFeaturesFor(st.delta!),
-          ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(st.subFeatures)),
-        ];
+        // `subFeatures` bleibt vollständig (Info-Einträge), der KI-Eingang nicht — derselbe
+        // Filter, den `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
+        st.gainedFeatures = [...gainedFeaturesFor(st.delta!), ...subclassFeaturesForAi(st.subFeatures)];
         st.declaredSpells = resolveDeclaredSpells(
           [...st.delta!.featuresGained, ...st.delta!.subclassFeaturesGained, ...st.subFeatures],
           st.delta!.toLevel,

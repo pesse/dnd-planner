@@ -6,6 +6,7 @@
 import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import type { SwapCadence } from '$lib/schemas/casting';
+import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { sourceLabel, type ProjectionLookup } from './project';
 import type { CastingIssue, CastingIssueKind } from './source';
 import type { QuotaState, SpellcastingState } from './state';
@@ -28,6 +29,8 @@ export interface SpellQuotaGroup {
   levels: number[];
   /** Zauberlisten als englische Klassen-Keys; leer = ganze Bibliothek oder `from`. */
   lists: string[];
+  /** Zauberschulen, auf die der Pool eingegrenzt ist; leer = alle. */
+  schools: SpellSchool[];
   /** `pool.from` aufgelöst; null = der Pool ist keine andere Quota. */
   from: QuotaPoolFrom | null;
   count: number;
@@ -214,6 +217,7 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
         swapNote: swapNote(quota),
         levels: [...quota.view.levels],
         lists: [...quota.view.pool.lists],
+        schools: [...quota.view.pool.schools],
         from: poolFromOf(quota),
         count: quota.view.count,
         fixed: quota.view.fixed,

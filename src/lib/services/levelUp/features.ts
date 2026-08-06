@@ -4,8 +4,9 @@
  */
 import { getProgressionByKey } from '../classProgression';
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
-import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
-import { withoutSpellGrantFeatures } from '../grantedSpells';
+import { withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
+import { isSpellAccessFeature } from '../declaration/casting';
+import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpells';
 import type { ClassFeature } from '../../schemas/classProgression';
 import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
@@ -50,21 +51,28 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
 }
 
 /**
+ * Der KI-Eingang der SUBKLASSEN-Merkmale, eine Regel für beide Aufrufer: deklarierte Wahlen,
+ * immer-vorbereitete Zauberlisten und deklarierte Zauber-Zugänge fliegen raus — die drei
+ * beantwortet der Flow aus der Bibliothek, die Analyse stellte sie sonst ein zweites Mal.
+ * Klassenmerkmale deckt `isFlowOwnedChoiceFeature` ab, das hier nicht laufen darf: seine
+ * Namens-Fallbacks („Spellcasting") treffen an der Subklasse echte Mechanik.
+ */
+export function subclassFeaturesForAi<T extends DeclaredChoiceSource & SpellGrantSource>(features: T[]): T[] {
+  return withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(features)).filter((f) => !isSpellAccessFeature(f));
+}
+
+/**
  * Was hier herausfliegt, fliegt aus dem KI-Eingang:
  * - flow-eigene Wahlen (Subklasse, Attributsverbesserung) — die Analyse stellte sie sonst
  *   ein zweites Mal;
  * - immer-vorbereitete Zauberlisten, auch bei SUBKLASSEN-Merkmalen — sie werden aus der
  *   Tabelle im Merkmalstext deterministisch gelesen (`declaredSpellGrants`).
- *
- * Subklassen-Merkmale laufen bewusst NICHT durch `isFlowOwnedChoiceFeature`: dessen
- * Namens-Fallbacks („Spellcasting") treffen dort echte Mechanik — der Arkane Trickser bekäme
- * sein Zauberwirken aus keiner Quelle mehr.
  */
 export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
     ...withoutSpellGrantFeatures(delta.featuresGained.filter((f) => !isFlowOwnedChoiceFeature(f)))
       .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
-    ...withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(delta.subclassFeaturesGained))
+    ...subclassFeaturesForAi(delta.subclassFeaturesGained)
       .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }

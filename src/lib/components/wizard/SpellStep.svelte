@@ -118,6 +118,7 @@
       {library}
       spellLevels={choice.spellLevels}
       spellClass={choice.spellClass}
+      spellSchools={choice.spellSchools}
       max={choice.max}
       known={v.view ? knownSpells(knownSpellGroups(v.view), ['extra']) : NO_KNOWN_SPELLS}
       bind:picks={bind[0], bind[1]}

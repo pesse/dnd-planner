@@ -35,6 +35,7 @@
             library={st.spellLib}
             spellLevels={q.spellLevels}
             spellClass={q.spellClass}
+            spellSchools={q.spellSchools}
             max={q.max ?? 1}
             known={ui.run.knownSpells.except(q.id)}
             bind:picks={bind[0], bind[1]}

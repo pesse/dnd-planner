@@ -5,9 +5,9 @@
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
-import { SPELL_SCHOOLS, type SpellSchool } from './vocabulary';
+import { SPELL_SCHOOL_KEYS } from './vocabulary';
 
-const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
+const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
 
 /**
  * Die Anzahl steckt im Wert, auch beim Zaubertrick: jede Tauschregel im Regelwerk nennt sie

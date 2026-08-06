@@ -6,6 +6,7 @@
    */
   import { onMount } from 'svelte';
   import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
   import { createSpellHover } from './spellHover.svelte';
@@ -15,6 +16,7 @@
     library,
     spellLevels,
     spellClass = '',
+    spellSchools = [],
     max,
     picks = $bindable(),
     fixed = [],
@@ -31,6 +33,8 @@
     spellLevels: number[];
     /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
+    /** Englische Schul-Keys; leer = alle Schulen. */
+    spellSchools?: SpellSchool[];
     max: number;
     /** Gewählte Zauber als `spell.key`. */
     picks: string[];
@@ -70,6 +74,7 @@
       (s) =>
         spellLevels.includes(s.level) &&
         (!englishClass || s.classes.includes(englishClass)) &&
+        (!spellSchools.length || (spellSchools as string[]).includes(s.school)) &&
         !fixedNames.has(s.name.toLowerCase()),
     );
   });

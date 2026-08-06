@@ -5,6 +5,7 @@
  */
 import { ABILITY_LABEL, ABILITY_LABEL_BY_NAME, abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
 import type { CastingGrant } from '$lib/schemas/casting';
+import { SPELL_SCHOOLS, type SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveClass } from '$lib/spellLibrary';
 import { CLASS_NAME_DE_BY_SLUG } from '../classProgression';
 import { castingSourceOf } from './resolve';
@@ -32,7 +33,19 @@ export interface SpellAccessGrant {
   listFromSource: boolean;
   /** Zulässige Zauberattribute; Länge 1 = festgelegt. */
   abilities: AbilityName[];
-  picks: { level: number; count: number; sourceId: string; quotaId: string }[];
+  picks: SpellAccessPick[];
+}
+
+export interface SpellAccessPick {
+  /** Anker von Frage-id und Beschriftung: der NIEDRIGSTE Grad des Kontingents. */
+  level: number;
+  /** Alle wählbaren Grade — ein Kontingent darf über mehrere gehen. */
+  levels: number[];
+  /** Schul-Schranke des Pools; leer = alle Schulen. */
+  schools: SpellSchool[];
+  count: number;
+  sourceId: string;
+  quotaId: string;
 }
 
 /** Woran die Instanz hängt; alles hat eine Vorgabe für den häufigen Fall „einmal, Stufe 1". */
@@ -100,9 +113,19 @@ export function spellAccessGrantOf(
     abilities: source.ability?.fixed ? [source.ability.fixed] : [...(source.ability?.choose ?? [])],
     // Ein FESTES Kontingent (Elfenabstammung: „you know the Prestidigitation cantrip") ist eine
     // Gewährung, keine Wahl — ein Picker darüber böte an, was schon dasteht.
-    picks: views
-      .filter((v) => !v.fixed)
-      .map((v) => ({ level: v.levels[0] ?? 0, count: v.count, sourceId: v.sourceId, quotaId: v.quotaId })),
+    picks: views.filter((v) => !v.fixed).map((v) => {
+      // Ohne Gradschranke bleibt es beim Zaubertrick: ein Picker über alle Grade böte hier
+      // die halbe Bibliothek an.
+      const levels = v.levels.length ? [...v.levels] : [0];
+      return {
+        level: levels[0],
+        levels,
+        schools: [...v.pool.schools],
+        count: v.count,
+        sourceId: v.sourceId,
+        quotaId: v.quotaId,
+      };
+    }),
   };
 }
 
@@ -140,10 +163,14 @@ export function fixedList(grant: SpellAccessGrant): string {
 const emptyChoice = (grant: SpellAccessGrant, id: string): AnalysisChoice =>
   declaredChoice({ id, feature: grant.feature, featureDe: grant.featureDe, featureKey: grant.featureKey });
 
-const gradeLabel = (level: number, count: number): string =>
-  level === 0
-    ? `${count} ${count === 1 ? 'Zaubertrick' : 'Zaubertricks'} wählen`
-    : `${count} ${count === 1 ? 'Zauber' : 'Zauber'} des Grades ${level} wählen`;
+const gradeLabel = (pick: SpellAccessPick): string => {
+  const spells = pick.levels.filter((l) => l > 0);
+  if (!spells.length) return `${pick.count} ${pick.count === 1 ? 'Zaubertrick' : 'Zaubertricks'} wählen`;
+  const range =
+    spells.length === 1 ? `des Grades ${spells[0]}` : `der Grade ${spells[0]}–${spells[spells.length - 1]}`;
+  const schools = pick.schools.map((s) => SPELL_SCHOOLS[s]).join(' oder ');
+  return `${pick.count} Zauber ${range}${schools ? ` aus der Schule ${schools}` : ''} wählen`;
+};
 
 /**
  * Die zwei Wahlen, die zum MERKMAL gehören — laut Regeltext beide „when you select this feat".
@@ -226,10 +253,11 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
       choices.push({
         ...emptyChoice(grant, spellPickChoiceId(grant, pick.level, list)),
         type: 'spell-pick',
-        question: gradeLabel(pick.level, pick.count),
-        questionDe: gradeLabel(pick.level, pick.count),
-        spellLevels: [pick.level],
+        question: gradeLabel(pick),
+        questionDe: gradeLabel(pick),
+        spellLevels: [...pick.levels],
         spellClass: list,
+        spellSchools: [...pick.schools],
         sourceId: pick.sourceId,
         quotaId: pick.quotaId,
         max: pick.count,

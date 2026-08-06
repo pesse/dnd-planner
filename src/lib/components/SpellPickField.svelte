@@ -4,6 +4,7 @@
    * Schritt und Fragebogen kurz bleiben statt je Kontingent eine offene Suchliste zu tragen.
    */
   import { spellInfoByKey, type SpellInfo } from '../spellLibrary';
+  import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
   import SpellPickModal from './SpellPickModal.svelte';
@@ -14,6 +15,7 @@
     library,
     spellLevels,
     spellClass = '',
+    spellSchools = [],
     max,
     picks = $bindable(),
     fixed = [],
@@ -28,6 +30,8 @@
     spellLevels: number[];
     /** Deutsch oder englischer Key; leer = alle Klassen. */
     spellClass?: string;
+    /** Englische Schul-Keys; leer = alle Schulen. */
+    spellSchools?: SpellSchool[];
     max: number;
     /** Gewählte Zauber als `spell.key`. */
     picks: string[];
@@ -99,6 +103,7 @@
     {library}
     {spellLevels}
     {spellClass}
+    {spellSchools}
     {max}
     bind:picks
     {fixed}

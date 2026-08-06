@@ -3,6 +3,7 @@
  * Erzeuger dieser Typen ist und nicht ihr Besitzer — bei ihr schlossen sie den einzigen
  * Import-Zyklus in `src/lib`.
  */
+import type { SpellSchool } from '../../schemas/vocabulary';
 import type { DeclaredFeature } from '../declaredFeature';
 
 /**
@@ -60,6 +61,11 @@ export interface AnalysisChoice {
   spellLevels: number[];
   /** Nur bei `spell-pick`: englischer Klassen-Key der Zauberliste („cleric", „druid", „wizard"). */
   spellClass: string;
+  /**
+   * Nur bei `spell-pick` aus einer Deklaration (`pool.schools`): Zauberschulen, auf die die
+   * Wahl eingegrenzt ist. Leer = alle — der KI-Weg kennt keine Schule, er füllt sie nie.
+   */
+  spellSchools: SpellSchool[];
   /** Nur bei `spell-pick` aus einer Deklaration: Ziel-Quota, sonst leer (quellenloser Bestand). */
   sourceId: string;
   quotaId: string;

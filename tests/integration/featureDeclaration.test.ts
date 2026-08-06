@@ -695,7 +695,9 @@ describe('die Senke des kind entscheidet, nicht der Träger', () => {
     for (const g of grants) {
       expect(g?.lists).toEqual(['wizard']);
       expect(g?.abilities).toEqual(['Intelligence']);
-      expect(g?.picks).toEqual([{ level: 0, count: 1, sourceId: 'test_cantrip', quotaId: 'cantrip' }]);
+      expect(g?.picks).toEqual([
+        { level: 0, levels: [0], schools: [], count: 1, sourceId: 'test_cantrip', quotaId: 'cantrip' },
+      ]);
     }
   });
 });

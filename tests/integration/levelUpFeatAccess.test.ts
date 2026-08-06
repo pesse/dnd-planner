@@ -21,7 +21,7 @@ import {
 } from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
-import { featToGainedFeature } from '../../src/lib/services/levelUp/features';
+import { featToGainedFeature, subclassFeaturesForAi } from '../../src/lib/services/levelUp/features';
 import { noDeclaredSpells } from '../../src/lib/services/levelUp/spells';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import {
@@ -62,8 +62,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     expect(grant.lists).toEqual([...DECLARED_LISTS]);
     expect(grant.abilities).toEqual([...DECLARED_ABILITIES]);
     expect(grant.picks).toEqual([
-      { level: 0, count: CANTRIP_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
-      { level: 1, count: LEVEL1_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
+      { level: 0, levels: [0], schools: [], count: CANTRIP_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
+      { level: 1, levels: [1], schools: [], count: LEVEL1_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
     ]);
   });
 
@@ -183,12 +183,11 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
   });
 
   /**
-   * Klassenmerkmale können `spellAccess` ebenfalls deklarieren (dasselbe Feld), aber der
-   * Aufstieg führt sie NICHT: `isFlowOwnedChoiceFeature` nimmt sie aus dem KI-Eingang, und
-   * nur der Talent-Pfad fragt einen Zugang ab. Ein solches Merkmal fiele also stumm aus.
-   * Solange der Vault keins hat, ist das kein Loch — dieser Test hält es zu.
+   * Der Zugang eines KLASSEN-/Subklassenmerkmals läuft über `baseAccess` statt über den
+   * Talent-Pfad, und dort steht die Stufe erst im Delta: auf der Vorgabe „Stufe 1" wäre ein
+   * gestaffeltes Kontingent (Hervorrufer ab 3) inaktiv und das Merkmal fiele stumm aus.
    */
-  it('kein Klassenmerkmal deklariert einen Zauber-Zugang (sonst muss der Pfad erweitert werden)', async () => {
+  it('fragt jeden Zauber-Zugang eines Klassenmerkmals auf seiner Stufe ab', async () => {
     const classes = await getClasses();
     expect(classes.length, 'Vault-Shim aktiv?').toBeGreaterThan(20);
     const found: string[] = [];
@@ -196,9 +195,16 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       if (!c.key) continue;
       const prog = await getProgressionByKey(c.key);
       for (const f of prog?.features ?? []) {
-        if (isSpellAccessFeature(f)) found.push(`${c.key} :: ${f.name}`);
+        if (!isSpellAccessFeature(f)) continue;
+        found.push(`${c.key} :: ${f.name}`);
+        const level = Math.max(...f.gainedAt, 1);
+        const grant = spellAccessGrantOf({ ...f, key: f.key }, { level });
+        expect(grant, `${f.key}: Deklaration lesbar`).not.toBeNull();
+        expect(grant!.picks.length, `${f.key}: Kontingent auf Stufe ${level}`).toBeGreaterThan(0);
+        // Ohne diesen Filter stellt die KI-Deutung dieselbe Zauber-Wahl ein zweites Mal.
+        expect(subclassFeaturesForAi([f]), `${f.key}: aus dem KI-Eingang`).toEqual([]);
       }
     }
-    expect(found).toEqual([]);
+    expect(found).toEqual(['srd-2024_evoker :: Evocation Savant']);
   });
 });

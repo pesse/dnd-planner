@@ -13,7 +13,7 @@ const choice = (over: Partial<AnalysisChoice>): AnalysisChoice => ({
   id: 'c1', feature: 'F', featureDe: 'F', featureKey: 'test_f',
   question: 'Choose', questionDe: 'Wähle', help: '', helpDe: '',
   type: 'choice', options: [], optionsDe: [], optionHelp: {}, optionHelpDe: {},
-  spellLevels: [], spellClass: '', sourceId: '', quotaId: '',
+  spellLevels: [], spellClass: '', spellSchools: [], sourceId: '', quotaId: '',
   max: 1, determinesFurtherEffects: false, isBuildDecision: true, ...over,
 });
 

@@ -12,12 +12,20 @@ export const pickLevels = (quota: SpellQuotaGroup): number[] =>
 
 /**
  * Ist der Pool eine andere Quota (Vorbereitung aus dem Zauberbuch), darf der Dialog NUR
- * deren Zauber anbieten — die Klassenliste wäre die falsche Menge.
+ * deren Zauber anbieten — die Klassenliste wäre die falsche Menge. Der Schul-Filter gilt
+ * zusätzlich: „Hervorrufungszauber" ist eine Schranke des Pools, keine Empfehlung.
  */
 export function pickLibrary(quota: SpellQuotaGroup, library: SpellInfo[]): SpellInfo[] {
-  if (!quota.from) return library;
-  const keys = new Set(quota.from.spells.map((s) => s.key));
-  return library.filter((s) => s.key && keys.has(s.key));
+  let out = library;
+  if (quota.from) {
+    const keys = new Set(quota.from.spells.map((s) => s.key));
+    out = out.filter((s) => s.key && keys.has(s.key));
+  }
+  if (quota.schools.length) {
+    const schools = quota.schools as string[];
+    out = out.filter((s) => schools.includes(s.school));
+  }
+  return out;
 }
 
 /**

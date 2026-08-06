@@ -116,6 +116,7 @@ export const SPELL_SCHOOLS = {
   transmutation: 'Verwandlung',
 } as const;
 export type SpellSchool = keyof typeof SPELL_SCHOOLS;
+export const SPELL_SCHOOL_KEYS = Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]];
 
 export const MONSTER_TYPES = {
   aberration:  'Aberration',

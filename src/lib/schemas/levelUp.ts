@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
 import { ABILITY_KEYS, ABILITY_NAMES, abilityModsSchema } from './abilities';
-import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './vocabulary';
+import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, SPELL_SCHOOL_KEYS, WEAPON_CATEGORIES } from './vocabulary';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -29,6 +29,7 @@ const questionSchema = z.object({
   // Nur für type "spell-picker": erlaubte Zaubergrade + Klassenfilter für die Bibliothekssuche.
   spellLevels: z.array(z.number().int()).default([]),
   spellClass: z.string().default(''),
+  spellSchools: z.array(z.enum(SPELL_SCHOOL_KEYS)).default([]).describe('Schul-Filter der Zauberliste; leer = alle.'),
   // Nur gesetzt, wenn die Wahl an einer Quota hängt (Merkmals-Zauber-Zugang) — dann routen
   // `cantrip`/`preparedSpell`-Changes dorthin statt in den quellenlosen Bestand.
   sourceId: z.string().default(''),

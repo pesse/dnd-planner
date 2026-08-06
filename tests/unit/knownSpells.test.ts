@@ -21,6 +21,7 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   swapNote: '',
   levels: [0],
   lists: [],
+  schools: [],
   from: null,
   count: keys.length,
   fixed: false,

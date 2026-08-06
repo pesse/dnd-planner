@@ -74,7 +74,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const baseAccess = $derived(
     baseDeclared
       .filter(isSpellAccessFeature)
-      .map((f) => spellAccessGrantOf(f))
+      // MIT Stufe: ein Klassen-Zugang, dessen Kontingent an `since`/`perLevel` hängt (Hervorrufer),
+      // wäre auf der Vorgabe „Stufe 1" gar nicht aktiv und fragte nichts.
+      .map((f) => spellAccessGrantOf(f, { level: src.delta?.toLevel ?? 1 }))
       .filter((g): g is SpellAccessGrant => g !== null),
   );
   // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren

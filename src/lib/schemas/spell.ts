@@ -1,11 +1,11 @@
 /** Single Source of Truth für Zauber; Label-Maps und Helfer bleiben in `types.ts`. */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
-import { SPELL_SCHOOLS, type SpellSchool } from './vocabulary';
+import { SPELL_SCHOOL_KEYS } from './vocabulary';
 import { namedRef } from './llmJson';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 
-const schoolEnum = z.enum(Object.keys(SPELL_SCHOOLS) as [SpellSchool, ...SpellSchool[]]);
+const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
 
 export const spellSchema = z.object({
   index: z.string().optional().describe('API-Slug (leer bei Homebrew).'),
