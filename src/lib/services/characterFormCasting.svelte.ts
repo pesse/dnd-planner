@@ -27,19 +27,25 @@ export function castingInput(
 }
 
 export interface FormCasting {
-  /** null, solange die Bibliothek lädt. */
+  /** null, solange die Bibliothek lädt — oder wenn sie nicht geladen werden konnte. */
   readonly current: LoadedSpellcasting | null;
+  /** Der Grund des Fehlschlags; ohne ihn bleibt der Ladehinweis für immer stehen. */
+  readonly error: string;
 }
 
 export function createFormCasting(input: () => Character): FormCasting {
   let current = $state<LoadedSpellcasting | null>(null);
+  let error = $state('');
   $effect(() => {
     const c = input();
     let cancelled = false;
     void loadSpellcasting(c)
-      .then((loaded) => { if (!cancelled) current = loaded; })
-      .catch(() => { if (!cancelled) current = null; });
+      .then((loaded) => { if (!cancelled) { current = loaded; error = ''; } })
+      .catch((e) => { if (!cancelled) { current = null; error = `${e}`; } });
     return () => { cancelled = true; };
   });
-  return { get current() { return current; } };
+  return {
+    get current() { return current; },
+    get error() { return error; },
+  };
 }

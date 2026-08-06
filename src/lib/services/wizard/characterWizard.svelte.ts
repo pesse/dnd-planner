@@ -7,6 +7,8 @@ import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
 import type { SpellAccessGrant } from '../spellcasting/access';
+import { emptySpellcasting } from '../spellcasting/write';
+import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -68,15 +70,14 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  /** Schritt „Zauber"; diese und die beiden folgenden Listen sind `encodePick`-kodiert. */
-  pickedCantrips = $state<string[]>([]);
-  /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
-  pickedKnown = $state<string[]>([]);
-  /** Bleibt außerhalb von `spellbook` leer — dort IST die Auswahl die Vorbereitung. */
-  pickedPrepared = $state<string[]>([]);
   /**
-   * Zauber aus `spell-pick`-Wahlen je Wahl-`id`. Getrennt vom Klassenkontingent, weil sie
-   * nicht dagegen zählen und stets vorbereitet sind.
+   * Schritt „Zauber": der fertige Block des Charakters, Kontingent für Kontingent
+   * geschrieben — dieselbe Form, die der Editor führt.
+   */
+  spellcasting = $state<CharacterSpellcasting>(emptySpellcasting());
+  /**
+   * Zauber der `spell-pick`-Wahlen OHNE Quota je Wahl-`id`: die KI hat sie an einem Merkmal
+   * erkannt, das keine deklariert. Sie werden quellenloser Bestand.
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
@@ -239,9 +240,7 @@ export class CharacterWizard {
     this.toolPicks = {};
     this.masteries = [];
     this.fightingStyles = [];
-    this.pickedCantrips = [];
-    this.pickedKnown = [];
-    this.pickedPrepared = [];
+    this.spellcasting = emptySpellcasting();
     this.featureSpellPicks = {};
     this.kickoff();
   }

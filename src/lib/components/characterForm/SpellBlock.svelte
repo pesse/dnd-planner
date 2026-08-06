@@ -12,7 +12,8 @@
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
-  import { knownSpellGroups, knownSpells, quotaGroupId, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
+  import { NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
+  import { pickerKnown, pickLevels, pickLibrary } from '../../services/spellcasting/picker';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import { addExtra, pickedKeys, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
@@ -23,9 +24,10 @@
   import type { Character } from '../../schemas/characterSchema';
   import './form.css';
 
-  let { form, casting, spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
+  let { form, casting, castingError = '', spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
     form: CharacterFormFields;
     casting: LoadedSpellcasting | null;
+    castingError?: string;
     spellLibrary: SpellInfo[];
     saved?: Character | null;
     fixLabel?: string;
@@ -54,30 +56,7 @@
   const listLabel = (lists: string[]): string =>
     lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l).join(', ');
 
-  const pickLevels = (quota: SpellQuotaGroup): number[] =>
-    quota.levels.length ? quota.levels : Array.from({ length: 10 }, (_, i) => i);
-
-  /**
-   * Ist der Pool eine andere Quota (Vorbereitung aus dem Zauberbuch), darf der Dialog NUR
-   * deren Zauber anbieten — die Klassenliste wäre die falsche Menge.
-   */
-  const pickLibrary = (quota: SpellQuotaGroup): SpellInfo[] => {
-    if (!quota.from) return spellLibrary;
-    const keys = new Set(quota.from.spells.map((s) => s.key));
-    return spellLibrary.filter((s) => s.key && keys.has(s.key));
-  };
-
-  /**
-   * Das eigene Kontingent ist nicht „schon bekannt", und speist es sich aus einem anderen
-   * (Vorbereitung aus dem Zauberbuch), gilt das für dessen Zauber genauso — sonst wäre im
-   * Vorbereitungs-Dialog jede Option ausgegraut.
-   */
-  const pickerKnown = $derived.by(() => {
-    if (!view || !picking) return NO_KNOWN_SPELLS;
-    const exclude = [quotaGroupId(picking.sourceId, picking.quotaId)];
-    if (picking.from) exclude.push(quotaGroupId(picking.from.sourceId, picking.from.quotaId));
-    return knownSpells(knownSpellGroups(view), exclude);
-  });
+  const modalKnown = $derived(view && picking ? pickerKnown(view, picking) : NO_KNOWN_SPELLS);
 
   function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
     setPicks(block, quota.sourceId, quota.quotaId, keys);
@@ -145,9 +124,18 @@
 {/if}
 
 {#if !view}
-  <p class="auto-hint">Zauberquellen werden aufgelöst …</p>
+  {#if castingError}
+    <p class="casting-issue">Zauberquellen konnten nicht aufgelöst werden: {castingError}</p>
+  {:else}
+    <p class="auto-hint">Zauberquellen werden aufgelöst …</p>
+  {/if}
 {:else}
-  {#if !view.sources.length}
+  <!-- Auch NEBEN vorhandenen Quellen: ein zweiter Fehlschlag bliebe sonst unsichtbar. -->
+  {#each view.issues as issue (issue.kind + issue.text)}
+    <p class="casting-issue">{issue.text}</p>
+  {/each}
+
+  {#if !view.sources.length && !view.issues.length}
     <p class="auto-hint">Keine Zauberquelle — Klasse, Volk oder Talent müssen mit der Bibliothek verknüpft sein.</p>
   {/if}
 
@@ -272,9 +260,9 @@
 {#if picking}
   {@const quota = picking}
   <SpellPickModal title={quota.from ? `${quota.label} — aus „${quota.from.label}"` : quota.label}
-    library={pickLibrary(quota)}
+    library={pickLibrary(quota, spellLibrary)}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
-    known={pickerKnown}
+    known={modalKnown}
     bind:picks={() => quotaPicks(quota), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
 {/if}
@@ -287,6 +275,11 @@
 <SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
 
 <style>
+  .casting-issue {
+    font-size: 0.75rem; color: var(--danger);
+    margin: 0.3rem 0 0; padding-left: 0.6rem;
+    border-left: 2px solid var(--danger);
+  }
   .source-block {
     border: 1px solid var(--border); border-radius: 6px;
     padding: 0.5rem 0.6rem; margin-bottom: 0.5rem;

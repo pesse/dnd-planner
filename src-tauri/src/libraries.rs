@@ -103,6 +103,11 @@ pub struct LibraryStatus {
     pub file_count: usize,
     /// `installed` | `update` | `available` | `locked` | `staleCode` | `appOutdated`
     pub status: String,
+    /// Eigene Achse neben `status`: die installierte Fassung erfüllt die
+    /// `minVersion` nicht, die der Index heute ausweist — Mechanik fehlt still.
+    /// Kein Sperrgrund, das Aktualisieren ist der Fix.
+    #[serde(rename = "contentOutdated")]
+    pub content_outdated: bool,
     #[serde(rename = "installedVersion")]
     pub installed_version: Option<String>,
     /// Nur gesetzt, wenn der Index eine Mindest-App-Version nennt — die UI
@@ -125,6 +130,10 @@ struct InstalledState {
     version: String,
     #[serde(rename = "keyVersion", default)]
     key_version: Option<u32>,
+    /// `minVersion` des Packs, aus dem installiert wurde — die Inhalts-Generation.
+    /// Fehlt bei allem, was vor dieser App-Fassung eingespielt wurde.
+    #[serde(rename = "minVersion", default)]
+    min_version: Option<String>,
     #[serde(rename = "installedAt")]
     installed_at: u64,
     files: Vec<InstalledFile>,
@@ -228,9 +237,18 @@ fn satisfies_min(current: &str, min: &str) -> bool {
     }
 }
 
-/// True, wenn diese App die Fassung nicht einspielen darf.
-fn too_old_for(gate: Option<&str>, min_version: Option<&str>) -> bool {
-    match (gate, min_version) {
+/// True, wenn `current` die verlangte Mindestversion nicht erreicht.
+///
+/// Zwei Richtungen, eine Schranke: mit der App-Version gegen `minVersion` des
+/// Index heißt es „App zu alt für diesen Inhalt"; mit der `minVersion` des
+/// INSTALLIERTEN Packs gegen die des Index heißt es „Inhalt zu alt für diese
+/// App" — der Fall, in dem Mechanik still fehlt (eine Klasse ohne
+/// `grantsCasting` wirkt als Nicht-Zauberwirker).
+///
+/// Beide Richtungen wirken nur nach vorn: ohne Angabe gilt keine Schranke, denn
+/// geraten wird nicht. Bestandsinstallationen führen `minVersion` noch nicht.
+fn too_old_for(current: Option<&str>, min_version: Option<&str>) -> bool {
+    match (current, min_version) {
         (Some(current), Some(min)) => !satisfies_min(current, min),
         _ => false,
     }
@@ -471,6 +489,10 @@ pub async fn fetch_library_index(app: tauri::AppHandle) -> Result<Vec<LibrarySta
 fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
     let state = read_state(&entry.id);
     let installed_version = state.as_ref().map(|s| s.version.clone());
+    let content_outdated = too_old_for(
+        state.as_ref().and_then(|s| s.min_version.as_deref()),
+        entry.min_version.as_deref(),
+    );
 
     // Die Versionsschranke geht allen anderen Zuständen vor: sie ist die
     // einzige, die auch ein hinterlegter Zugangscode nicht aufhebt. Ein
@@ -504,6 +526,7 @@ fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
         size: entry.size,
         file_count: entry.file_count,
         status,
+        content_outdated,
         installed_version,
         min_version: entry.min_version,
     }
@@ -707,6 +730,7 @@ fn extract_pack(entry: &IndexEntry, zip_bytes: &[u8], adopt: bool) -> Result<Ins
         &InstalledState {
             version: entry.version.clone(),
             key_version: entry.key_version,
+            min_version: entry.min_version.clone(),
             installed_at: now_secs(),
             files,
         },
@@ -715,9 +739,19 @@ fn extract_pack(entry: &IndexEntry, zip_bytes: &[u8], adopt: bool) -> Result<Ins
     Ok(summary)
 }
 
+/// Der lokale Stand einer Bibliothek, ohne Verzeichnis-Abruf. Ob er zu alt ist,
+/// steht hier NICHT: das entscheidet erst der Vergleich mit der `minVersion` des
+/// Index (`status_for`), und ohne Netz wird nicht geraten.
+#[derive(Debug, Serialize)]
+pub struct InstalledInfo {
+    pub version: String,
+    #[serde(rename = "minVersion")]
+    pub min_version: Option<String>,
+}
+
 /// Lokal installierte Bibliotheken samt Version — ohne Netzzugriff.
 #[tauri::command]
-pub fn installed_libraries() -> Result<HashMap<String, String>, String> {
+pub fn installed_libraries() -> Result<HashMap<String, InstalledInfo>, String> {
     let dir = state_dir();
     let mut out = HashMap::new();
     let entries = match fs::read_dir(&dir) {
@@ -731,7 +765,13 @@ pub fn installed_libraries() -> Result<HashMap<String, String>, String> {
         }
         if let Some(id) = path.file_stem().and_then(|s| s.to_str()) {
             if let Some(state) = read_state(id) {
-                out.insert(id.to_string(), state.version);
+                out.insert(
+                    id.to_string(),
+                    InstalledInfo {
+                        version: state.version,
+                        min_version: state.min_version,
+                    },
+                );
             }
         }
     }
@@ -932,6 +972,21 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
         assert!(!too_old_for(None, Some("9.9.9")));
         assert_ne!(status_for(test_entry(None), Some("0.1.0")).status, "appOutdated");
         assert_ne!(status_for(test_entry(Some("9.9.9")), None).status, "appOutdated");
+    }
+
+    /// Dieselbe Schranke in der Gegenrichtung: die `minVersion` des installierten
+    /// Packs gegen die, die der Index heute ausweist.
+    #[test]
+    fn zu_alter_inhalt_nutzt_dieselbe_schranke() {
+        assert!(too_old_for(Some("0.2.1"), Some("0.3.0")));
+        assert!(!too_old_for(Some("0.3.0"), Some("0.3.0")));
+        assert!(!too_old_for(Some("0.4.0"), Some("0.3.0")));
+
+        // Eine Bibliothek, die bewusst niedrig bleibt (`grundgeruest`), meldet nichts.
+        assert!(!too_old_for(Some("0.2.1"), Some("0.2.1")));
+
+        // Bestandsinstallation ohne Angabe: keine Schranke, statt sie zu raten.
+        assert!(!too_old_for(None, Some("0.3.0")));
     }
 
     /// Die Schranke geht dem Zugangscode vor: eine geschützte Bibliothek meldet

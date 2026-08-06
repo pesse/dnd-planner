@@ -46,7 +46,14 @@
     ...loose,
   ]);
   const hasContent = $derived(
-    !!view && (view.sources.length > 0 || view.slots.length > 0 || !!view.pact || spells.length > 0 || !!legacy.row),
+    !!view &&
+      (view.sources.length > 0 ||
+        view.slots.length > 0 ||
+        !!view.pact ||
+        spells.length > 0 ||
+        !!legacy.row ||
+        // Ohne die Issues bliebe die Karte leer und verschwiege, dass etwas fehlt.
+        view.issues.length > 0),
   );
 
   const listLabel = (lists: string[]): string => lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l).join(', ');
@@ -127,6 +134,10 @@
         {printingSpells ? '…' : '🖨 PDF'}
       </button>
     </div>
+
+    {#each view.issues as issue (issue.kind + issue.text)}
+      <p class="casting-issue">{issue.text}</p>
+    {/each}
 
     {#each view.sources as source (source.id)}
       <div class="source-block">
@@ -210,6 +221,13 @@
 <SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
 
 <style>
+  .casting-issue {
+    font-size: 0.75rem;
+    color: var(--danger);
+    margin: 0 0 0.4rem;
+    padding-left: 0.55rem;
+    border-left: 2px solid var(--danger);
+  }
   .source-block {
     border: 1px solid var(--border);
     border-radius: 6px;

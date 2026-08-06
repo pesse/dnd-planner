@@ -7,6 +7,7 @@ import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
 import { declaredChoice } from '../declaredChoice';
 import { type ChoiceOption, type FeatureChoiceGrant } from '../../schemas/featureChoice';
+import type { FeatureGrant } from '../../schemas/grants';
 import { isCharacterPropertyFeature } from '../characterProperties';
 import type { FeatureSource } from '../declaredFeature';
 import { featureIdOf } from '$lib/utils/text';
@@ -101,6 +102,23 @@ export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOpt
 }
 
 /**
+ * Ob die Option ein KONTINGENT einschaltet (`grantsCasting.quotas[].when.option`). Kleriker
+ * und Druide deklarieren ihren Zusatz-Zaubertrick beides: als Quota und als `extraCantrips`.
+ */
+export function optionActivatesQuota(f: DeclaredChoiceSource, optionValue: string): boolean {
+  const want = optionValue.trim();
+  return !!want && !!f.grantsCasting?.quotas.some((q) => q.when?.option?.trim() === want);
+}
+
+/**
+ * Die Quota ist die Senke der Zauber-Zahlen: schaltet die Option eine ein, zählt sie dort —
+ * ein Rider daneben zählte dasselbe ein zweites Mal (`grantsCasting` ist erst nach dieser
+ * Deklarationsart dazugekommen). Alles Übrige der Option bleibt.
+ */
+const withoutQuotaCounts = (grants: FeatureGrant): FeatureGrant =>
+  ({ ...grants, extraCantrips: 0, extraPreparedCount: 0 });
+
+/**
  * `sheetNote` bleibt LEER — die Notiz ist Pass-C-Arbeit, eine hier erfundene deutsche Zeile
  * stünde neben der englischen des Modells. `decisions` ebenso: die Wahl protokolliert
  * `featureChoiceChanges` aus dem Fragebogen, ein zweiter Eintrag wäre eine Dublette.
@@ -109,7 +127,8 @@ export function optionListRider(f: DeclaredChoiceSource, answer: string, level: 
   const option = chosenOption(f, answer);
   if (!option) return null;
   const spells = optionSpellsUpTo(option, level);
-  const grants = option.grants;
+  const grants =
+    option.grants && optionActivatesQuota(f, option.value) ? withoutQuotaCounts(option.grants) : option.grants;
   const declaresGrant = !!grants && !isEmptyFeatureGrant(grants);
   if (!declaresGrant && !spells.length) return null;
   const base: FeatureRider = { ...emptyRider(f), grantedSpells: spells };

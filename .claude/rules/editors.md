@@ -14,3 +14,5 @@ paths:
   `services/characterEditor.svelte.ts`: fields are edited in place on the draft, but a `Change[]`
   is applied ONLY through `apply`/`applyLevelUp` — they replace the draft REFERENCE, which is what
   remounts the form and re-bases the diff tinting. A second apply path loses the last keystrokes.
+- **A character folder name is a UID and never a label** — sidebar, badge bar and transfer modal
+  read their names through `services/characterDirectory.ts`.

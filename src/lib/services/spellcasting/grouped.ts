@@ -7,6 +7,7 @@ import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import type { SwapCadence } from '$lib/schemas/casting';
 import { sourceLabel, type ProjectionLookup } from './project';
+import type { CastingIssue, CastingIssueKind } from './source';
 import type { QuotaState, SpellcastingState } from './state';
 
 export interface GroupedSpell {
@@ -65,6 +66,11 @@ export interface GroupedSlot {
   used: number;
 }
 
+export interface GroupedIssue {
+  kind: CastingIssueKind;
+  text: string;
+}
+
 export interface GroupedSpellcasting {
   sources: SpellSourceGroup[];
   slots: GroupedSlot[];
@@ -72,7 +78,39 @@ export interface GroupedSpellcasting {
   /** true = keine Progression im Vault, die Plätze stehen von Hand. */
   manualSlots: boolean;
   extra: GroupedSpell[];
+  /** Warum eine erwartete Quelle fehlt oder unvollständig ist — sonst schweigt der Fehlschlag. */
+  issues: GroupedIssue[];
 }
+
+/**
+ * Jede Meldung nennt die HANDLUNG, nicht nur den Zustand: sie ist das Einzige, was der Nutzer
+ * von einem Deklarationsfehler zu sehen bekommt. Total getippt, damit eine neue Issue-Art hier
+ * einen Compile-Fehler auslöst statt still zu verschwinden.
+ */
+const ISSUE_TEXT: Record<CastingIssueKind, (issue: CastingIssue, className: (key: string) => string) => string> = {
+  unlinkedClass: (i) =>
+    `${i.detail || 'Eine Klasse'} ist nicht mit der Bibliothek verknüpft — ohne Link kennt die App ihr Zauberwirken nicht.`,
+  unknownClassKey: (i) => `„${i.detail}" fehlt in der Bibliothek — Bibliothek aktualisieren.`,
+  undeclaredCasting: (i, className) =>
+    `${className(i.featureKey) || i.featureKey} ist als Zauberwirker geführt, aber die installierte ` +
+    'Bibliotheks-Fassung deklariert kein Zauberwirken — Bibliothek aktualisieren.',
+  unresolvedPatch: (i) =>
+    `Die Bibliothek ändert ein Kontingent, das es nicht gibt (${i.detail}) — die Änderung bleibt aus.`,
+  unresolvedPool: (i) =>
+    `Ein Kontingent speist sich aus einem Pool, den es nicht gibt (${i.detail}) — es bietet die ganze Liste an.`,
+  unresolvedAbilityRef: (i) =>
+    `Das Zauberattribut soll dem Merkmal „${i.detail}" folgen, das dieser Charakter nicht hat.`,
+  unreadableSpellTable: (i) =>
+    `Die Zauber-Tabelle im Merkmalstext ist nicht lesbar (${i.detail}) — die gewährten Zauber fehlen.`,
+  unknownBranchKey: (i) =>
+    `Die Bibliothek stellt eine Bedingung, die diese App nicht kennt (${i.detail}) — das Kontingent bleibt aus.`,
+  unknownSpell: (i) => `„${i.detail}" ist in der Zauber-Bibliothek nicht zu finden.`,
+};
+
+export const groupedIssue = (issue: CastingIssue, lookup: ProjectionLookup): GroupedIssue => ({
+  kind: issue.kind,
+  text: ISSUE_TEXT[issue.kind](issue, lookup.className),
+});
 
 /**
  * Die Quota-Id ist ein technischer Schlüssel; angezeigt wird, was sie mechanisch ist.
@@ -155,7 +193,10 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
     };
   };
 
-  const sources: SpellSourceGroup[] = state.sources.map((source) => {
+  // `resolveCasting` filtert über die DEKLARIERTEN Quotas, der Zweigfilter greift erst in
+  // `activeQuotas` — ohne diesen Filter steht „Kleriker · Göttliche Ordnung" samt SG und
+  // Angriffsbonus als Überschrift ohne Inhalt da, solange Thaumaturg nicht gewählt ist.
+  const sources: SpellSourceGroup[] = state.sources.filter((s) => s.quotas.length > 0).map((source) => {
     const label = sourceLabel(source.source, lookup);
     return {
       id: source.source.id,
@@ -197,5 +238,6 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
       : null,
     manualSlots: state.manualSlots,
     extra: state.extra.map((key) => spellOf(key, lookup)),
+    issues: state.issues.map((issue) => groupedIssue(issue, lookup)),
   };
 }

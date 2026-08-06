@@ -93,7 +93,6 @@
     details: () => side.details,
     masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
     spellAccess: () => spellAccessRows,
-    applyContent: (content) => ed.applyContent(content),
   });
 
   const feats = createFeaturePanelLayout();

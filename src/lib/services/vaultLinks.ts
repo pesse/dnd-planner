@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '../stores/campaign';
 import { confirmNavigation } from '../stores/navigationGuard';
 import { loadActSummaries } from '../stores/context';
+import { characterLabel, readCharacterName } from './characterDirectory';
 import type { FileEntry } from '../types';
 
 const EDITOR_TYPES = new Set<FileEntry['type']>(['campaign', 'act', 'session', 'world', 'notes']);
@@ -92,7 +93,12 @@ export async function openVaultLink(
 
   const cleanTarget = type === 'character' ? target.replace(/\/$/, '') : target;
   const entry: FileEntry = { name: displayName(cleanTarget, type), path: cleanTarget, type };
-  if (type === 'character') entry.dirPath = cleanTarget;
+  if (type === 'character') {
+    // Das letzte Pfadsegment ist bei Charakteren eine UID — der Name kommt aus der Datei.
+    const uid = cleanTarget.split('/').pop() ?? '';
+    entry.name = characterLabel({ uid, name: await readCharacterName(uid) });
+    entry.dirPath = cleanTarget;
+  }
   activeFile.set(entry);
 
   if (type === 'character') {

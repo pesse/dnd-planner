@@ -66,8 +66,10 @@ export interface CharacterFormCarry {
   legacyClassLevel: string;
 }
 
+// `uid` ist Identität, kein Formularfeld — stünde es hier, schriebe jeder Tastendruck
+// die Identität des Charakters mit dem Formularzustand über.
 export type CharacterFormPatch =
-  Omit<Character, 'features' | '_version' | '_importedFrom' | '_importedAt'>
+  Omit<Character, 'uid' | 'features' | '_version' | '_importedFrom' | '_importedAt'>
   & { portraitFile: string | undefined };
 
 export const mod = (score: number) => Math.floor((score - 10) / 2);

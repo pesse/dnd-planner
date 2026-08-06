@@ -4,10 +4,10 @@
  *
  *   npm run test -- castingMigration
  */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
 import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
+import { vaultCharacter } from '../support/vaultCharacter';
 import { spellsFix, type LegacyFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
 import { loadSheetSpellcasting, loadSpellcasting } from '../../src/lib/services/spellcasting/project';
@@ -15,9 +15,6 @@ import { LEGACY_CHARACTERS } from '../fixtures/legacyCharacterFiles';
 
 const legacy = (name: string): Character =>
   characterSchema.parse(upgradeCharacter(structuredClone(LEGACY_CHARACTERS[name])).data);
-
-const fromVault = (dir: string): Character =>
-  characterSchema.parse(upgradeCharacter(JSON.parse(readFileSync(`vault/characters/${dir}/character.json`, 'utf-8'))).data);
 
 /** Nur die Felder, die `spellsFix` anfasst. */
 async function offer(c: Character): Promise<LegacyFix | undefined> {
@@ -43,15 +40,15 @@ const sheetLabels = async (c: Character): Promise<string[]> =>
 
 describe('Umzug der Altform', () => {
   it('stellt denselben Block her wie die Migration von Hand', async () => {
-    for (const [name, dir] of [
-      ['thromm', 'thromm_flechtenstein'],
-      ['silvara', 'silvara'],
-      ['phoenix', 'phönix'],
-      ['carric', 'carric_galanodel'],
+    for (const [name, vaultName] of [
+      ['thromm', 'Thromm Flechtenstein'],
+      ['silvara', 'Silvara/Sivral'],
+      ['phoenix', 'Phönix'],
+      ['carric', 'Carric Galanodel'],
     ]) {
       const c = legacy(name);
       await migrate(c);
-      expect(c.spellcasting, name).toEqual(fromVault(dir).spellcasting);
+      expect(c.spellcasting, name).toEqual(vaultCharacter(vaultName).spellcasting);
       expect(c.spells, name).toBeUndefined();
     }
   });

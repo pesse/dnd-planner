@@ -2,8 +2,8 @@
  * Deterministischer Test der Zauberwerte im PDF-Export — OHNE LLM.
  *
  * Gegenstück zu `spellAccessValues.test.ts`: dort entstehen die Werte für die Karte, hier
- * gehen sie durch die Klassenmerkmale-Felder des Taendler-PDFs. Kernzusicherung ist der
- * RUNDLAUF: der Import schneidet die Marke ab, sonst wüchse sie bei jedem Zyklus an.
+ * gehen sie durch die Klassenmerkmale-Felder des Taendler-PDFs. Kernzusicherung ist die
+ * IDEMPOTENZ: der Export schneidet eine vorhandene Marke ab, sonst wüchse sie je Export.
  *
  *   npm run test -- spellAccessPdf
  */
@@ -12,7 +12,7 @@ import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { exportCharacterToPdf } from '../../src/lib/pdf/characterExport';
-import { parseCharacterData, stripSpellValues, withSpellValues } from '../../src/lib/pdf/characterFields';
+import { stripSpellValues, withSpellValues } from '../../src/lib/pdf/characterFields';
 import { resolveSpellAccess } from '../../src/lib/services/characterFeatures';
 import type { SpellAccessValues } from '../../src/lib/services/spellcasting/access';
 import { CHOSEN_LIST, MAGIC_INITIATE_KEY } from '../fixtures/fighter-l4-magic-initiate';
@@ -47,7 +47,7 @@ const fighterWithAccess = (classFeatures: string) =>
     ],
   });
 
-/** Export → Formularfelder als String-Map (dieselben sechs Zeilen wie `readPdfFields`). */
+/** Export → Formularfelder als String-Map, um das erzeugte PDF nachzulesen. */
 async function exportedFields(character: ReturnType<typeof fighterWithAccess>, rows: SpellAccessValues[]) {
   const template = new Uint8Array(readFileSync(TEMPLATE));
   const bytes = await exportCharacterToPdf(character, template, { spellAccess: rows });
@@ -136,17 +136,14 @@ describe('Rundlauf durch das echte Taendler-PDF', () => {
     expect(fields.ZauberAngriffsbonus).toBe('');
   });
 
-  it('wächst über Export → Import → Export nicht an', async () => {
+  it('wächst nicht an, wenn der gespeicherte Text die Marke schon trägt', async () => {
     const original = `Zweiter Angriff.\n${NOTE}`;
-    const c = fighterWithAccess(original);
     const rows = [values()];
 
-    const first = await exportedFields(c, rows);
-    const back = parseCharacterData(first);
-    // Der Import stellt den gespeicherten Stand wieder her — die Marke ist weg.
-    expect(back.classFeatures).toBe(original);
-
-    const second = await exportedFields(fighterWithAccess(back.classFeatures), rows);
+    const first = await exportedFields(fighterWithAccess(original), rows);
+    // Ein Charakter, dessen Klassenmerkmale bereits eine Marke tragen (z.B. von Hand
+    // aus einem Export kopiert), exportiert zeichengleich — statt zwei Marken zu stapeln.
+    const second = await exportedFields(fighterWithAccess(`Zweiter Angriff.\n${NOTE}${MARK}`), rows);
     expect(second.Klassenmerkmale1).toBe(first.Klassenmerkmale1);
     expect(second.Klassenmerkmale2).toBe(first.Klassenmerkmale2);
   });
@@ -160,6 +157,7 @@ describe('Rundlauf durch das echte Taendler-PDF', () => {
     const both = `${fields.Klassenmerkmale1}\n${fields.Klassenmerkmale2}`;
     expect(both).toContain(`${NOTE}${MARK}`);
     expect(fields.Klassenmerkmale2).not.toBe('');
-    expect(parseCharacterData(fields).classFeatures.replace(/\n+/g, '\n')).toBe(long);
+    // Nichts geht beim Aufteilen verloren: ohne Marke ist der Text wieder der Ausgangstext.
+    expect(stripSpellValues(both).replace(/\n+/g, '\n')).toBe(long);
   });
 });

@@ -31,10 +31,6 @@
         <text x="11.5" y="18.5" font-size="6.5" font-weight="700" fill="currentColor" stroke="none" text-anchor="middle" font-family="sans-serif">PDF</text>
       </svg>
     {/snippet}
-    <button class="icon-btn import" class:busy={pdf.importing} onclick={pdf.importIntoExisting} disabled={pdf.importing}
-            aria-label="PDF importieren" title="PDF importieren, aktuelle Werte überschreiben">
-      <span class="arrow">&rarr;</span>{@render pdfIcon()}
-    </button>
     <button class="icon-btn export" class:busy={pdf.exporting} onclick={pdf.exportToFile} disabled={pdf.exporting}
             aria-label="Als PDF exportieren" title="Ausgefülltes ATaendler-PDF exportieren">
       {@render pdfIcon()}<span class="arrow">&rarr;</span>
@@ -103,7 +99,6 @@
   }
   .icon-btn .arrow { font-size: 0.95rem; line-height: 1; }
   .icon-btn:disabled { opacity: 0.6; cursor: default; }
-  .icon-btn.import:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.export:hover { border-color: var(--green); color: var(--green); }
   .icon-btn.levelup { justify-content: center; font-weight: 700; }
   .icon-btn.levelup:hover { border-color: var(--arcane); color: var(--arcane); }

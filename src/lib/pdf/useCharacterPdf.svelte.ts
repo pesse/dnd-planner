@@ -1,33 +1,30 @@
 /**
- * Die beiden PDF-Aktionen des Charakterbogens als Zustand: laufend, fehlgeschlagen.
+ * Der PDF-Export des Charakterbogens als Zustand: laufend, fehlgeschlagen.
  */
 import { legacyFlatView } from '../services/spellcasting/legacy';
 import { loadSpellcasting } from '../services/spellcasting/project';
-import { choosePdfFile, exportCharacterPdfFile, importPdfIntoCharacter } from './characterPdfIo';
+import { exportCharacterPdfFile } from './characterPdfIo';
 import type { Character } from '../schemas/characterSchema';
 import type { SpellAccessValues } from '../services/spellcasting/access';
 import type { CharacterSpells } from '../schemas/characterSchema';
 
 export interface CharacterPdf {
-  readonly importing: boolean;
   readonly exporting: boolean;
   /** Deutsche Meldung der letzten fehlgeschlagenen Aktion. */
   readonly error: string;
-  importIntoExisting(): Promise<void>;
   exportToFile(): Promise<void>;
 }
 
 export function createCharacterPdf(deps: {
   dirPath: () => string;
   character: () => Character | null;
-  /** Ursprungsdatei eines früheren Imports. */
+  /** Ursprungsdatei eines früheren Imports; bei neuen Charakteren leer. */
   pdfName: () => string;
   /** Wird als zusätzliche Seite(n) angehängt. */
   details: () => string;
   // Resolver und Werte der Karte, damit PDF und Bogen nicht auseinanderlaufen können.
   masteryOf: (attackName: string) => string | undefined;
   spellAccess: () => SpellAccessValues[];
-  applyContent: (content: string) => void;
 }): CharacterPdf {
   /** Das Template kennt nur einen flachen Zauberblock; die Wahrheit ist `spellcasting`. */
   const flatSpells = async (c: Character): Promise<CharacterSpells> => {
@@ -35,7 +32,6 @@ export function createCharacterPdf(deps: {
     return legacyFlatView(state, lookup, legacy);
   };
 
-  let importing = $state(false);
   let exporting = $state(false);
   let error = $state('');
 
@@ -45,28 +41,8 @@ export function createCharacterPdf(deps: {
   });
 
   return {
-    get importing() { return importing; },
     get exporting() { return exporting; },
     get error() { return error; },
-
-    async importIntoExisting() {
-      const character = deps.character();
-      if (!character) return;
-      const selected = await choosePdfFile(deps.dirPath());
-      if (!selected) return;
-
-      importing = true;
-      error = '';
-      try {
-        // Zauber aus dem aktuellen Charakter behalten — das PDF trägt sie nicht.
-        const content = await importPdfIntoCharacter(selected, deps.dirPath(), await flatSpells(character));
-        deps.applyContent(content);
-      } catch (e) {
-        error = `PDF-Import fehlgeschlagen: ${e}`;
-      } finally {
-        importing = false;
-      }
-    },
 
     async exportToFile() {
       const character = deps.character();

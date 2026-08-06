@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { onMount } from 'svelte';
   import { activeFile, fileContent, replaceContent } from '../stores/campaign';
   import { campaignCharacterData, reloadCampaignCharacters } from '../stores/context';
+  import { characterLabel, listCharacterRefs, type CharacterRef } from '../services/characterDirectory';
   import { parseFrontmatter, replaceFrontmatterCharacters } from '../utils/frontmatter';
 
   let activeSlugs = $derived(
@@ -19,6 +20,11 @@
     })()
   );
 
+  // Der Slug ist eine UID — als Beschriftung taugt er nicht. Fehlt ein Charakter in den
+  // Kampagnendaten, kommt sein Name aus dem Vault-Verzeichnis, sonst bleibt der Platzhalter.
+  let vaultRefs = $state<CharacterRef[]>([]);
+  let nameByUid = $derived(new Map(vaultRefs.map((r) => [r.uid, characterLabel(r)])));
+
   let characterBadges = $derived(
     (() => {
       const slugSet = new Set(activeSlugs);
@@ -26,33 +32,29 @@
       const richSlugs = new Set(rich.map((c) => c.slug));
       const plain = activeSlugs
         .filter((s) => !richSlugs.has(s))
-        .map((s) => ({ slug: s, name: s, classLevel: '', species: '', background: '', totalLevel: 0, playerName: '' }));
+        .map((s) => ({
+          slug: s,
+          name: nameByUid.get(s) ?? characterLabel({ uid: s, name: '' }),
+          classLevel: '', species: '', background: '', totalLevel: 0, playerName: '',
+        }));
       return [...rich, ...plain];
     })()
   );
 
-  let allVaultSlugs = $state<string[]>([]);
   let showCharPicker = $state(false);
 
-  let pickerSlugs = $derived(
+  let pickerEntries = $derived(
     (() => {
       const current = new Set(activeSlugs);
       const pool = $activeFile?.type === 'session'
-        ? $campaignCharacterData.map((c) => c.slug)
-        : allVaultSlugs;
-      return pool.filter((s) => !current.has(s));
+        ? $campaignCharacterData.map((c) => ({ uid: c.slug, name: c.name }))
+        : vaultRefs.map((r) => ({ uid: r.uid, name: characterLabel(r) }));
+      return pool.filter((e) => !current.has(e.uid));
     })()
   );
 
-  async function loadVaultSlugs() {
-    try {
-      const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-        path: './vault/characters',
-      });
-      allVaultSlugs = entries.filter((e) => e.is_dir).map((e) => e.name);
-    } catch {
-      allVaultSlugs = [];
-    }
+  async function loadVaultRefs() {
+    vaultRefs = await listCharacterRefs();
   }
 
   async function updateSlugs(newSlugs: string[]) {
@@ -73,9 +75,11 @@
   }
 
   function togglePicker() {
-    if (!showCharPicker) loadVaultSlugs();
+    if (!showCharPicker) loadVaultRefs();
     showCharPicker = !showCharPicker;
   }
+
+  onMount(loadVaultRefs);
 </script>
 
 <div class="char-badges-bar">
@@ -94,11 +98,11 @@
         class="char-picker"
         onmouseleave={() => { showCharPicker = false; }}
       >
-        {#if pickerSlugs.length === 0}
+        {#if pickerEntries.length === 0}
           <span class="picker-empty">Keine weiteren Chars</span>
         {:else}
-          {#each pickerSlugs as slug}
-            <button class="picker-item" onclick={() => addChar(slug)}>{slug}</button>
+          {#each pickerEntries as entry}
+            <button class="picker-item" onclick={() => addChar(entry.uid)}>{entry.name}</button>
           {/each}
         {/if}
       </div>

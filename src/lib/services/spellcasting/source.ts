@@ -40,6 +40,8 @@ export interface CastingSource {
 
 /** Deklarationsfehler im Vault; ohne Meldung gewährt das Merkmal einfach nichts. */
 export type CastingIssueKind =
+  | 'unlinkedClass'
+  | 'unknownClassKey'
   | 'undeclaredCasting'
   | 'unresolvedPatch'
   | 'unresolvedPool'
@@ -50,8 +52,9 @@ export type CastingIssueKind =
 
 export interface CastingIssue {
   kind: CastingIssueKind;
-  /** Merkmals-Key der DEKLARIERENDEN Quelle. */
+  /** Merkmals-Key der DEKLARIERENDEN Quelle; leer, wenn die Klasse selbst der Fehler ist. */
   featureKey: string;
+  /** Was die Meldung benennbar macht — Klassenname, Key, Quota-Pfad. */
   detail: string;
 }
 

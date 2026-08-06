@@ -24,7 +24,7 @@ import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
 import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { castingGrantSchema } from '../../src/lib/schemas/casting';
 import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
-import { optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
+import { optionActivatesQuota, optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 
@@ -100,15 +100,42 @@ describe('deklarierte Zweigwahlen', () => {
     // Keine erfundene deutsche Notiz neben der englischen des Modells.
     expect(warden[0].sheetNote).toBe('');
 
-    const magician = optionListRiders([primal], () => 'Magician', 1);
-    expect(magician[0].extraCantrips).toBe(1);
-    expect(magician[0].proficiencies.weapons).toEqual([]);
-
     // Unbeantwortet → kein Rider. Ein leerer Rider wäre ein Grant von nichts.
     expect(optionListRiders([primal], () => '', 1)).toEqual([]);
     // Ein Label, das nicht im Vokabular steht, gewährt nichts (statt irgendetwas).
     expect(chosenOption(primal, 'Wächter')).toBeNull();
     expect(optionListRiders([primal], () => 'Wächter', 1)).toEqual([]);
+  });
+
+  /**
+   * Kleriker und Druide deklarieren ihren Zusatz-Zaubertrick DOPPELT: als `extraCantrips` der
+   * Option und als Quota mit `when.option`. Zählte der Rider mit, böte der Wizard 4 statt 3+1
+   * Zaubertricks an und schriebe alle vier in die Klassen-Quota.
+   */
+  it('überlässt der Quota die Zahl, wenn die Option eine einschaltet', async () => {
+    for (const [classKey, featureKey, option] of [
+      ['srd-2024_druid', 'srd-2024_druid_primal-order', 'Magician'],
+      ['srd-2024_cleric', 'srd-2024_cleric_divine-order', 'Thaumaturge'],
+    ]) {
+      const prog = await getProgressionByKey(classKey);
+      const feature = prog!.features.find((f) => f.key === featureKey)!;
+      expect(optionActivatesQuota(feature, option)).toBe(true);
+      // Die Option gewährt SONST nichts — der Rider entfällt damit ganz.
+      expect(optionListRiders([feature], () => option, 1)).toEqual([]);
+    }
+  });
+
+  it('behält den Rider, wo keine Quota die Zahl führt', async () => {
+    const feature = {
+      key: 'homebrew-sam_test',
+      name: 'Test',
+      grantsChoice: featureChoiceGrantSchema.parse({
+        kind: 'optionList',
+        options: [{ value: 'Extra', grants: { extraCantrips: 1 } }],
+      }),
+    };
+    expect(optionActivatesQuota(feature, 'Extra')).toBe(false);
+    expect(optionListRiders([feature], () => 'Extra', 1)[0].extraCantrips).toBe(1);
   });
 
   /**

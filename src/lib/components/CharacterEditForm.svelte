@@ -330,6 +330,7 @@
     <SpellBlock
       {form}
       casting={casting.current}
+      castingError={casting.error}
       spellLibrary={libs.spells}
       {saved}
       fixLabel={fixOf('spells')?.label}

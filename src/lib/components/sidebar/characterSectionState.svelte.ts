@@ -5,13 +5,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '../../stores/campaign';
 import { confirmNavigation } from '../../stores/navigationGuard';
 import { deleteEntry } from '../../services/sidebar/deleteEntry';
-import { ensureCharacterJson } from '../../pdf/characterImport';
+import { createBlankCharacter, createWizardCharacter } from '../../services/characterCreate';
 import {
   CHARACTERS_PATH,
-  createBlankCharacter,
-  createWizardCharacter,
-  importCharacterFromPdf,
-} from '../../services/characterCreate';
+  characterLabel,
+  listCharacterRefs,
+  readCharacterName,
+} from '../../services/characterDirectory';
 import type { Character } from '../../schemas/characterSchema';
 
 export { CHARACTERS_PATH };
@@ -71,33 +71,24 @@ export class CharacterSectionState {
   showNewInput = $state(false);
   newInput = $state('');
   showWizard = $state(false);
-  pdfImporting = $state(false);
-  pdfImportError = $state('');
 
   async load(): Promise<void> {
+    let loose: EntryInfo[] = [];
     try {
-      this.entries = await invoke<EntryInfo[]>('list_entries', { path: CHARACTERS_PATH });
+      const entries = await invoke<EntryInfo[]>('list_entries', { path: CHARACTERS_PATH });
+      loose = entries.filter((e) => !e.is_dir);
     } catch {
-      this.entries = [];
+      loose = [];
     }
+    // Ordnernamen sind UIDs und damit ohne Aussage — die Reihenfolge kommt aus den
+    // Anzeigenamen, die `listCharacterRefs` schon sortiert liefert.
     const meta: Record<string, { name: string; classes: CharClass[] }> = {};
-    await Promise.all(
-      this.entries
-        .filter((e) => e.is_dir)
-        .map(async (e) => {
-          try {
-            const content = await invoke<string>('read_file_content', { path: `${CHARACTERS_PATH}/${e.name}/character.json` });
-            const data = JSON.parse(content);
-            const classLevel: string = data.classLevel?.trim() ?? '';
-            meta[e.name] = {
-              name: data.name?.trim() || e.name,
-              classes: parseClasses(classLevel),
-            };
-          } catch {
-          }
-        })
-    );
+    const refs = await listCharacterRefs();
+    for (const ref of refs) {
+      meta[ref.uid] = { name: characterLabel(ref), classes: parseClasses(ref.classLevel) };
+    }
     this.meta = meta;
+    this.entries = [...refs.map((r) => ({ name: r.uid, is_dir: true })), ...loose];
   }
 
   async reload(): Promise<void> {
@@ -113,9 +104,14 @@ export class CharacterSectionState {
     if (!(await confirmNavigation())) return;
     if (entry.is_dir) {
       const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
-      // PDF ist reine Import-Quelle — fehlt die character.json, einmalig daraus anlegen.
-      await ensureCharacterJson(dirPath);
-      activeFile.set({ name: entry.name, path: `${dirPath}/character.json`, type: 'character', dirPath });
+      // `name` ist reine Anzeige (Kontextleiste, KI-Prompt); Identität ist `dirPath`.
+      const label = this.meta[entry.name]?.name ?? (await readCharacterName(entry.name)) ?? '';
+      activeFile.set({
+        name: characterLabel({ uid: entry.name, name: label }),
+        path: `${dirPath}/character.json`,
+        type: 'character',
+        dirPath,
+      });
       setFileContent('');
     } else {
       const fullPath = `${CHARACTERS_PATH}/${entry.name}`;
@@ -131,12 +127,12 @@ export class CharacterSectionState {
 
   async createCharacter(e: KeyboardEvent | MouseEvent): Promise<void> {
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const slug = await createBlankCharacter(this.newInput);
-    if (!slug) return;
+    const uid = await createBlankCharacter(this.newInput);
+    if (!uid) return;
     this.showNewInput = false;
     this.newInput = '';
     await this.load();
-    await this.openCharacter({ name: slug, is_dir: true });
+    await this.openCharacter({ name: uid, is_dir: true });
   }
 
   cancelNewCharacter(e: KeyboardEvent): void {
@@ -144,27 +140,17 @@ export class CharacterSectionState {
   }
 
   async createFromWizard(character: Character): Promise<void> {
-    const slug = await createWizardCharacter(character);
-    if (!slug) return;
+    const uid = await createWizardCharacter(character);
+    if (!uid) return;
     this.showWizard = false;
     this.expanded = true;
     await this.load();
-    await this.openCharacter({ name: slug, is_dir: true });
-  }
-
-  async importFromPdf(): Promise<void> {
-    this.pdfImportError = '';
-    const result = await importCharacterFromPdf(() => (this.pdfImporting = true));
-    this.pdfImporting = false;
-    if (result.status === 'error') this.pdfImportError = result.message;
-    if (result.status !== 'ok') return;
-    this.expanded = true;
-    await this.load();
-    await this.openCharacter({ name: result.slug, is_dir: true });
+    await this.openCharacter({ name: uid, is_dir: true });
   }
 
   deleteCharacter(entry: EntryInfo): void {
-    deleteEntry(`${CHARACTERS_PATH}/${entry.name}`, entry.name.replace('.md', ''), entry.is_dir, () => this.load());
+    const label = this.meta[entry.name]?.name ?? entry.name.replace('.md', '');
+    deleteEntry(`${CHARACTERS_PATH}/${entry.name}`, label, entry.is_dir, () => this.load());
   }
 }
 

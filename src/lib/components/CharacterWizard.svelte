@@ -15,7 +15,8 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
-  import { classCastingOffer, type ClassCastingOffer } from '../services/spellcasting/classOffer';
+  import { createFormCasting } from '../services/characterFormCasting.svelte';
+  import { wizardCastingInput } from '../services/wizard/castingDraft';
   import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
@@ -176,26 +177,16 @@
   });
   const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
 
-  // Kontingente aus der Klassentabelle, Optionen aus `vault/spells` — kein KI-Job. Der
-  // Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl erzwingt.
-  let spellOffer = $state<ClassCastingOffer | null>(null);
-  $effect(() => {
-    const key = w.klass.sourceKey;
-    if (!key) { spellOffer = null; return; }
-    let cancelled = false;
-    void classCastingOffer({
-      classKey: key,
-      klasseName: w.klass.name,
-      subclassKey: w.klass.subclassKey,
-      subclassName: w.klass.subclassName,
-      level: 1,
-    })
-      .then((o) => { if (!cancelled) spellOffer = o; })
-      .catch(() => { if (!cancelled) spellOffer = null; });
-    return () => { cancelled = true; };
-  });
-  const spellsAvailable = $derived((spellOffer?.isCaster ?? false) || w.spellPickChoices.length > 0);
-  const spellValues = createSpellStepValues(w, () => spellOffer, () => spellLib);
+  // Die Zauberquellen des ENTSTEHENDEN Charakters, dieselbe Auflösung wie im Editor — kein
+  // KI-Job. Der Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl
+  // erzwingt.
+  const spellCasting = createFormCasting(() => wizardCastingInput(w));
+  const spellValues = createSpellStepValues(w, spellCasting, () => spellLib);
+  // Der Fehlschlag gehört mit in die Bedingung: sonst hätte er dieselbe Wirkung wie „wirkt
+  // keine Zauber" und der Schritt verschwände, statt den Grund zu nennen.
+  const spellsAvailable = $derived(
+    spellValues.rows.length > 0 || spellValues.loose.length > 0 || !!spellValues.error,
+  );
 
   // Nur die DEKLARIERTEN Wahlen sind Pflicht (die KI-Wahlen können ganz fehlen): ohne sie
   // bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten.
@@ -211,9 +202,14 @@
     const answered = w.featureChoices
       .map((ch) => ({
         id: ch.id,
+        // Eine Zauber-Wahl MIT Quota beantwortet der Zauber-Block; ihre Zauber hier noch
+        // einmal als Antworttext wären die zweite Wahrheit.
         choice:
           ch.type === 'spell-pick'
-            ? (w.featureSpellPicks[ch.id] ?? []).map((v) => spellInfoByKey(spellLib, v)?.name ?? v).join(', ')
+            ? (ch.sourceId && ch.quotaId
+                ? []
+                : (w.featureSpellPicks[ch.id] ?? []).map((v) => spellInfoByKey(spellLib, v)?.name ?? v)
+              ).join(', ')
             : (choiceAnswers[ch.id] ?? []).join(', '),
       }))
       .filter((rc) => rc.choice.trim());
@@ -336,7 +332,7 @@
         <FeatureChoiceStep {w} bind:answers={choiceAnswers} {statusText} />
 
       {:else if currentStep === 'spells'}
-        <SpellStep {w} offer={spellOffer} library={spellLib} v={spellValues} {statusText} />
+        <SpellStep {w} library={spellLib} v={spellValues} {statusText} />
 
       {:else if currentStep === 'equipment'}
         <EquipmentChoiceStep {w} {statusText} done={toolChoicesDone} />
