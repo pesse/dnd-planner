@@ -49,8 +49,8 @@ describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
     expect(grant.lists).toEqual([MAGIC_INITIATE_LIST]);
     expect(grant.abilities).toEqual(['Intelligence', 'Wisdom', 'Charisma']);
     expect(grant.picks).toEqual([
-      { level: 0, levels: [0], schools: [], count: MAGIC_INITIATE_CANTRIPS, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
-      { level: 1, levels: [1], schools: [], count: MAGIC_INITIATE_LEVEL1, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
+      { level: 0, levels: [0], schools: [], tier: 'prepared', count: MAGIC_INITIATE_CANTRIPS, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
+      { level: 1, levels: [1], schools: [], tier: 'prepared', count: MAGIC_INITIATE_LEVEL1, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
     ]);
   });
 
@@ -98,7 +98,7 @@ describe('deklarierter Zauber-Zugang (Eingeweihter der Magie)', () => {
       lists: ['cleric', 'druid', 'wizard'],
       listFromSource: false,
       abilities: ['Intelligence', 'Wisdom', 'Charisma'],
-      picks: [{ level: 0, levels: [0], schools: [], count: 2, sourceId: 'srd-2024_magic-initiate', quotaId: 'cantrips' }],
+      picks: [{ level: 0, levels: [0], schools: [], tier: 'prepared', count: 2, sourceId: 'srd-2024_magic-initiate', quotaId: 'cantrips' }],
     };
     const unanswered = spellAccessChoices(open);
     expect(unanswered.map((c) => c.type)).toEqual(['choice', 'choice']);

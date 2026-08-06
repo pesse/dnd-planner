@@ -139,6 +139,22 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
   };
 }
 
+/**
+ * Alle Kontingente, die diesen Pool stellen: das genannte selbst und jedes, das per `into`
+ * hineinlegt (Hervorrufer → Zauberbuch). Erwerb und Behälter sind zweierlei — ein Beitrag zählt
+ * weiter gegen sein eigenes Kontingent, gewählt werden kann er aus dem Behälter.
+ * Das genannte steht VORNE: die Anzeige hängt Beschriftung und Zeile daran.
+ */
+export function poolQuotas(
+  state: SpellcastingState,
+  target: { sourceId: string; quotaId: string },
+): QuotaState[] {
+  const isTarget = (ref: { sourceId: string; quotaId: string } | undefined): boolean =>
+    !!ref && ref.sourceId === target.sourceId && ref.quotaId === target.quotaId;
+  const all = state.sources.flatMap((s) => s.quotas.filter((q) => isTarget(q.view) || isTarget(q.view.into)));
+  return all.sort((a, b) => Number(isTarget(b.view)) - Number(isTarget(a.view)));
+}
+
 /** Offene Wahlen über alle Quellen — der Rohstoff für Picker und Wahl-Plätze. */
 export function openPicks(state: SpellcastingState): { sourceId: string; quotaId: string; open: number }[] {
   return state.sources

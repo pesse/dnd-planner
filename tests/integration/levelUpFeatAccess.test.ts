@@ -62,8 +62,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     expect(grant.lists).toEqual([...DECLARED_LISTS]);
     expect(grant.abilities).toEqual([...DECLARED_ABILITIES]);
     expect(grant.picks).toEqual([
-      { level: 0, levels: [0], schools: [], count: CANTRIP_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
-      { level: 1, levels: [1], schools: [], count: LEVEL1_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
+      { level: 0, levels: [0], schools: [], tier: 'prepared', count: CANTRIP_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'cantrips' },
+      { level: 1, levels: [1], schools: [], tier: 'prepared', count: LEVEL1_COUNT, sourceId: MAGIC_INITIATE_KEY, quotaId: 'spell1' },
     ]);
   });
 

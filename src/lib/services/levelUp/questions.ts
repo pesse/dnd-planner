@@ -16,7 +16,7 @@ import { learnInfo } from './spells';
 const opt = (value: string, label: string) => ({ value, label });
 const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQuestion['type']; prompt: string }): LevelUpQuestion => ({
   help: '', options: [], defaultValue: '', required: true, spellLevels: [], spellClass: '', spellSchools: [],
-  sourceId: '', quotaId: '',
+  spellTier: 'prepared', sourceId: '', quotaId: '',
   resolvesEffects: false, featureKey: '', isBuildDecision: false, ...q,
 });
 
@@ -113,6 +113,7 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
       spellLevels: c.spellLevels,
       spellClass: c.spellClass,
       spellSchools: c.spellSchools,
+      spellTier: c.spellTier,
       sourceId: c.sourceId,
       quotaId: c.quotaId,
       max: c.type === 'multiselect' || c.type === 'spell-pick' ? Math.max(1, c.max) : undefined,

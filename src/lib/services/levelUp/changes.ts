@@ -221,8 +221,9 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
 
 /**
  * Zauber aus einer MERKMALS-Wahl („Eingeweihter der Magie") — ohne diesen Builder bliebe die
- * Wahl eine Notiz und landete nie am Charakter. Stets vorbereitet: sie zählen nicht gegen
- * das Klassenkontingent.
+ * Wahl eine Notiz und landete nie am Charakter. Vorbereitet, außer die Deklaration nennt sie
+ * Bestand (Hervorrufer: „add them to your spellbook"): gegen das Klassenkontingent zählt
+ * beides nicht.
  */
 export function featureSpellChanges(
   questions: LevelUpQuestion[],
@@ -240,7 +241,10 @@ export function featureSpellChanges(
       const info = spellOf(key);
       if (!info) continue;
       if (info.level === 0) out.push({ target: 'cantrip', name: info.name, key, ...target, step, source: q.featureKey || 'feature', label: `Zaubertrick: ${info.name}` });
-      else out.push({ target: 'preparedSpell', level: info.level, name: info.name, key, ...target, prepared: true, step, source: q.featureKey || 'feature', label: `Vorbereitet (Grad ${info.level}): ${info.name}` });
+      else {
+        const prepared = q.spellTier !== 'known';
+        out.push({ target: 'preparedSpell', level: info.level, name: info.name, key, ...target, prepared, step, source: q.featureKey || 'feature', label: `${prepared ? 'Vorbereitet' : 'Zauberbuch'} (Grad ${info.level}): ${info.name}` });
+      }
     }
   }
   return out;

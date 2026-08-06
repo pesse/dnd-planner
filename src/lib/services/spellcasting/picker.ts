@@ -35,6 +35,6 @@ export function pickLibrary(quota: SpellQuotaGroup, library: SpellInfo[]): Spell
  */
 export function pickerKnown(view: GroupedSpellcasting, quota: SpellQuotaGroup): KnownSpells {
   const exclude = [quotaGroupId(quota.sourceId, quota.quotaId)];
-  if (quota.from) exclude.push(quotaGroupId(quota.from.sourceId, quota.from.quotaId));
+  for (const part of quota.from?.quotas ?? []) exclude.push(quotaGroupId(part.sourceId, part.quotaId));
   return knownSpells(knownSpellGroups(view), exclude);
 }

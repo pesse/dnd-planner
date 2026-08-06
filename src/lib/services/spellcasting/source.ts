@@ -32,7 +32,7 @@ export interface CastingSource {
   ability?: AbilityBinding;
   /** Vorgabe für alle Quotas dieser Quelle; `cast` erbt nicht mit. */
   swap: SwapRule;
-  /** `patches` sind angewandt, `since` gesetzt, `pool.from` zeigt auf Quellen-Ids. */
+  /** `patches` sind angewandt, `since` gesetzt, `pool.from` und `into` zeigen auf Quellen-Ids. */
   quotas: Quota[];
   /** Antwort auf das `optionList` DESSELBEN Merkmals; `when` prüft dagegen. */
   branch: string;
@@ -45,6 +45,7 @@ export type CastingIssueKind =
   | 'undeclaredCasting'
   | 'unresolvedPatch'
   | 'unresolvedPool'
+  | 'unresolvedPoolTarget'
   | 'unresolvedAbilityRef'
   | 'unreadableSpellTable'
   | 'unknownBranchKey'

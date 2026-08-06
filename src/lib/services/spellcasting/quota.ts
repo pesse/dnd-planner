@@ -40,6 +40,8 @@ export interface QuotaView {
   /** true = nichts zu wählen, der Pool selbst ist die Gewährung. */
   fixed: boolean;
   pool: ResolvedPool;
+  /** Das Kontingent, in das die Auswahl zusätzlich gehört (`into`) — gezählt wird sie hier. */
+  into?: { sourceId: string; quotaId: string };
   swap: SwapRule;
   cast: CastOption[];
 }
@@ -153,6 +155,7 @@ export function quotaView(
 ): QuotaView {
   const keys = poolKeys(source, quota, ctx, issues);
   const from = quota.pool.from;
+  const into = quota.into;
   return {
     sourceId: source.id,
     quotaId: quota.id,
@@ -167,6 +170,7 @@ export function quotaView(
       keys,
       ...(from ? { from: { sourceId: from.feature || source.id, quotaId: from.quota } } : {}),
     },
+    ...(into ? { into: { sourceId: into.feature || source.id, quotaId: into.quota } } : {}),
     swap: quotaSwap(source, quota),
     cast: quota.cast,
   };

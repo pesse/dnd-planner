@@ -30,6 +30,7 @@ const questionSchema = z.object({
   spellLevels: z.array(z.number().int()).default([]),
   spellClass: z.string().default(''),
   spellSchools: z.array(z.enum(SPELL_SCHOOL_KEYS)).default([]).describe('Schul-Filter der Zauberliste; leer = alle.'),
+  spellTier: z.enum(['known', 'prepared']).default('prepared').describe('known = die Zauber sind Bestand (Zauberbuch), nicht vorbereitet.'),
   // Nur gesetzt, wenn die Wahl an einer Quota hängt (Merkmals-Zauber-Zugang) — dann routen
   // `cantrip`/`preparedSpell`-Changes dorthin statt in den quellenlosen Bestand.
   sourceId: z.string().default(''),

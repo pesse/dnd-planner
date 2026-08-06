@@ -53,6 +53,13 @@ export const castOptionSchema = z.discriminatedUnion('kind', [
 ]);
 export type CastOption = z.infer<typeof castOptionSchema>;
 
+/** Zeigt auf eine Quota — `pool.from` zieht daraus, `into` legt hinein. */
+export const quotaRefSchema = z.object({
+  feature: z.string().default('').describe('Merkmals-Key; leer = dasselbe Merkmal.'),
+  quota: z.string(),
+});
+export type QuotaRef = z.infer<typeof quotaRefSchema>;
+
 /**
  * Woraus gewählt wird. `from` ist der Angelpunkt des Zauberbuchs: die Vorbereitung zieht aus
  * einer anderen Quota statt aus einer Liste, damit „bekannt vs. vorbereitet" kein Sonderfall ist.
@@ -64,13 +71,7 @@ export const spellPoolSchema = z.object({
     .default('union')
     .describe('choose-one = der Spieler legt EINE Liste je Quelle fest (Eingeweihter der Magie).'),
   schools: z.array(schoolEnum).default([]).describe('Schul-Filter; leer = alle.'),
-  from: z
-    .object({
-      feature: z.string().default('').describe('Merkmals-Key; leer = dasselbe Merkmal.'),
-      quota: z.string(),
-    })
-    .optional()
-    .describe('Der Pool IST eine andere Quota — das Zauberbuch.'),
+  from: quotaRefSchema.optional().describe('Der Pool IST eine andere Quota — das Zauberbuch.'),
   names: z
     .array(z.string())
     .default([])
@@ -127,6 +128,11 @@ const quotaBaseSchema = z.object({
   // daneben wäre eine zweite, abweichbare Fassung der Listenlänge.
   count: quotaCountSchema.optional(),
   pool: spellPoolSchema,
+  // Erwerb und Behälter sind zweierlei: „add them to your spellbook for free" gewährt die Wahl
+  // HIER (eigenes count, eigene Schranken) und legt sie DORT ab, wo die Vorbereitung sie findet.
+  into: quotaRefSchema
+    .optional()
+    .describe('Die gewählten Zauber gehören zusätzlich in dieses Kontingent (Zauberbuch).'),
   swap: swapRuleSchema.optional().describe('Überschreibt die Vorgabe der Quelle.'),
   // PFLICHT und ohne Vererbung: eine Quellen-Vorgabe wäre für Zaubertrick-Quotas immer falsch.
   // Leer ist zulässig und heißt „für sich nicht wirkbar" — das Zauberbuch vor Ritual Adept.

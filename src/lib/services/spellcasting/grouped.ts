@@ -9,7 +9,7 @@ import type { SwapCadence } from '$lib/schemas/casting';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { sourceLabel, type ProjectionLookup } from './project';
 import type { CastingIssue, CastingIssueKind } from './source';
-import type { QuotaState, SpellcastingState } from './state';
+import { poolQuotas, type QuotaState, type SpellcastingState } from './state';
 
 export interface GroupedSpell {
   key: string;
@@ -33,6 +33,8 @@ export interface SpellQuotaGroup {
   schools: SpellSchool[];
   /** `pool.from` aufgelöst; null = der Pool ist keine andere Quota. */
   from: QuotaPoolFrom | null;
+  /** `into` aufgelöst; null = die Auswahl gehört nirgendwo sonst hin. */
+  into: QuotaPoolInto | null;
   count: number;
   /** true = gewährt, nichts zu wählen. */
   fixed: boolean;
@@ -41,14 +43,23 @@ export interface SpellQuotaGroup {
 }
 
 /**
- * `pool.from` mit dem, was daran hängt: die Quota, die den Pool stellt (das Zauberbuch), samt
- * ihrer Auswahl — genau diese Zauber sind wählbar, nicht die Klassenliste.
+ * `pool.from` mit dem, was daran hängt: die Kontingente, die den Pool stellen (das Zauberbuch
+ * und was per `into` hineinlegt), samt ihrer Auswahl — genau diese Zauber sind wählbar, nicht
+ * die Klassenliste.
  */
 export interface QuotaPoolFrom {
+  /** Das genannte Kontingent zuerst, danach seine Beiträge. */
+  quotas: { sourceId: string; quotaId: string }[];
+  /** Beschriftung des genannten Kontingents. */
+  label: string;
+  spells: GroupedSpell[];
+}
+
+/** Wohin eine Auswahl zusätzlich gehört (`into`) — für die Anzeige am Kontingent. */
+export interface QuotaPoolInto {
   sourceId: string;
   quotaId: string;
   label: string;
-  spells: GroupedSpell[];
 }
 
 export interface SpellSourceGroup {
@@ -101,6 +112,8 @@ const ISSUE_TEXT: Record<CastingIssueKind, (issue: CastingIssue, className: (key
     `Die Bibliothek ändert ein Kontingent, das es nicht gibt (${i.detail}) — die Änderung bleibt aus.`,
   unresolvedPool: (i) =>
     `Ein Kontingent speist sich aus einem Pool, den es nicht gibt (${i.detail}) — es bietet die ganze Liste an.`,
+  unresolvedPoolTarget: (i) =>
+    `Ein Kontingent legt seine Zauber in ein Kontingent, das es nicht gibt (${i.detail}) — sie bleiben für sich.`,
   unresolvedAbilityRef: (i) =>
     `Das Zauberattribut soll dem Merkmal „${i.detail}" folgen, das dieser Charakter nicht hat.`,
   unreadableSpellTable: (i) =>
@@ -134,7 +147,7 @@ export function quotaLabel(quota: QuotaState): string {
  * Wie gewirkt wird. Mehrere Möglichkeiten sind der Normalfall („1× gratis ODER über einen
  * Platz"), leeres `cast` heißt: das Kontingent ist Bestand, aus sich heraus nicht wirkbar.
  */
-export function castNote(quota: QuotaState): string {
+export function castNote(quota: QuotaState, intoLabel = ''): string {
   // Die aufgelöste Zahl gehört zur ERSTEN `uses`-Option (`state.ts`) — bei mehreren nennt die
   // Zeile keine, statt die falsche zu behaupten.
   const single = quota.view.cast.filter((c) => c.kind === 'uses').length === 1;
@@ -153,7 +166,8 @@ export function castNote(quota: QuotaState): string {
         return option.requiresPrepared ? 'als Ritual' : 'als Ritual, auch unvorbereitet';
     }
   });
-  return parts.length ? parts.join(' oder ') : 'Bestand, nicht wirkbar';
+  if (parts.length) return parts.join(' oder ');
+  return intoLabel ? `Bestand im Kontingent „${intoLabel}"` : 'Bestand, nicht wirkbar';
 }
 
 const CADENCE_DE: Record<SwapCadence, string> = {
@@ -185,15 +199,26 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
   for (const source of state.sources)
     for (const quota of source.quotas) byId.set(`${quota.view.sourceId}::${quota.view.quotaId}`, quota);
 
+  const labelOf = (ref: { sourceId: string; quotaId: string }): string => {
+    const src = byId.get(`${ref.sourceId}::${ref.quotaId}`);
+    return src ? quotaLabel(src) : ref.quotaId;
+  };
+
   const poolFromOf = (quota: QuotaState): QuotaPoolFrom | null => {
     const from = quota.view.pool.from;
     if (!from) return null;
-    const src = byId.get(`${from.sourceId}::${from.quotaId}`);
+    const parts = poolQuotas(state, from);
+    const keys = [...new Set(parts.flatMap((q) => q.spells))];
     return {
-      ...from,
-      label: src ? quotaLabel(src) : from.quotaId,
-      spells: (src?.spells ?? []).map((key) => spellOf(key, lookup)),
+      quotas: parts.map((q) => ({ sourceId: q.view.sourceId, quotaId: q.view.quotaId })),
+      label: labelOf(from),
+      spells: keys.map((key) => spellOf(key, lookup)),
     };
+  };
+
+  const poolIntoOf = (quota: QuotaState): QuotaPoolInto | null => {
+    const into = quota.view.into;
+    return into ? { ...into, label: labelOf(into) } : null;
   };
 
   // `resolveCasting` filtert über die DEKLARIERTEN Quotas, der Zweigfilter greift erst in
@@ -209,21 +234,25 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
       abilityOptions: source.ability ? [] : [...source.abilityOptions],
       saveDC: source.saveDC,
       attackBonus: source.attackBonus,
-      quotas: source.quotas.map((quota) => ({
-        sourceId: source.source.id,
-        quotaId: quota.view.quotaId,
-        label: quotaLabel(quota),
-        castNote: castNote(quota),
-        swapNote: swapNote(quota),
-        levels: [...quota.view.levels],
-        lists: [...quota.view.pool.lists],
-        schools: [...quota.view.pool.schools],
-        from: poolFromOf(quota),
-        count: quota.view.count,
-        fixed: quota.view.fixed,
-        spells: quota.spells.map((key) => spellOf(key, lookup)),
-        open: quota.open,
-      })),
+      quotas: source.quotas.map((quota) => {
+        const into = poolIntoOf(quota);
+        return {
+          sourceId: source.source.id,
+          quotaId: quota.view.quotaId,
+          label: quotaLabel(quota),
+          castNote: castNote(quota, into?.label),
+          swapNote: swapNote(quota),
+          levels: [...quota.view.levels],
+          lists: [...quota.view.pool.lists],
+          schools: [...quota.view.pool.schools],
+          from: poolFromOf(quota),
+          into,
+          count: quota.view.count,
+          fixed: quota.view.fixed,
+          spells: quota.spells.map((key) => spellOf(key, lookup)),
+          open: quota.open,
+        };
+      }),
     };
   });
 

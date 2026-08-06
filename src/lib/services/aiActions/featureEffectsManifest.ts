@@ -42,8 +42,9 @@ export function normalizeChoice(raw: unknown): AnalysisChoice | null {
     spellLevels: type === 'spell-pick' ? spellLevels : [],
     spellClass: type === 'spell-pick' ? spellClass : '',
     // KI-erkannte Wahlen hängen an keiner Quota — sie kommen aus Prosa, nicht aus
-    // `grantsCasting`; die Schule einer Wahl entscheidet deshalb nur die Deklaration.
+    // `grantsCasting`; Schule und Bestandsart entscheidet deshalb nur die Deklaration.
     spellSchools: [],
+    spellTier: 'prepared',
     sourceId: '',
     quotaId: '',
     help: typeof o.help === 'string' ? o.help.trim() : '',

@@ -162,6 +162,10 @@
           ],
           "fromDescTable": false
         },
+        "into": {
+          "feature": "string",
+          "quota": "string"
+        },
         "swap": {
           "spells": "none",
           "cantrips": "none"
@@ -221,6 +225,10 @@
               "string"
             ],
             "fromDescTable": false
+          },
+          "into": {
+            "feature": "string",
+            "quota": "string"
           },
           "swap": {
             "spells": "none",

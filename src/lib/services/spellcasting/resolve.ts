@@ -5,7 +5,7 @@
 import { featSpecialisation, getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { getFeats, matchFeatEntry, type FeatEntry } from '$lib/featsLibrary';
 import { resolveClass } from '$lib/spellLibrary';
-import type { AbilityBinding, CastingGrant, QuotaPatch } from '$lib/schemas/casting';
+import type { AbilityBinding, CastingGrant, QuotaPatch, QuotaRef } from '$lib/schemas/casting';
 import type {
   CharacterBackground,
   CharacterClass,
@@ -357,19 +357,40 @@ function applyPatches(sources: CastingSource[], patches: Collected['patches'], i
   }
 }
 
-/** `pool.from.feature` trägt danach eine QUELLEN-Id — Instanz-Zusatz inbegriffen. */
+/** `feature` trägt danach eine QUELLEN-Id — Instanz-Zusatz inbegriffen; leer bleibt leer. */
+function linkRef(
+  ref: QuotaRef,
+  source: CastingSource,
+  sources: CastingSource[],
+  idOf: Map<string, string>,
+): QuotaRef | null {
+  const owner = ref.feature ? sources.find((s) => s.featureKey === ref.feature) : source;
+  if (!owner || !owner.quotas.some((q) => q.id === ref.quota)) return null;
+  return { ...ref, feature: ref.feature ? (idOf.get(ref.feature) ?? '') : '' };
+}
+
+/** Beide Richtungen: woraus eine Quota wählt (`pool.from`) und wohin sie ablegt (`into`). */
 function linkPools(sources: CastingSource[], issues: CastingIssue[]): void {
   const idOf = new Map(sources.map((s) => [s.featureKey, s.id]));
+  const path = (quota: Quota, ref: QuotaRef, source: CastingSource): string =>
+    `${quota.id} → ${ref.feature || source.featureKey}/${ref.quota}`;
+
   for (const source of sources) {
     source.quotas = source.quotas.map((quota) => {
+      let next = quota;
       const from = quota.pool.from;
-      if (!from) return quota;
-      const owner = from.feature ? sources.find((s) => s.featureKey === from.feature) : source;
-      if (!owner || !owner.quotas.some((q) => q.id === from.quota)) {
-        issues.push(castingIssue('unresolvedPool', source.featureKey, `${quota.id} → ${from.feature || source.featureKey}/${from.quota}`));
-        return { ...quota, pool: { ...quota.pool, from: undefined } };
+      if (from) {
+        const linked = linkRef(from, source, sources, idOf);
+        if (!linked) issues.push(castingIssue('unresolvedPool', source.featureKey, path(quota, from, source)));
+        next = { ...next, pool: { ...next.pool, from: linked ?? undefined } };
       }
-      return { ...quota, pool: { ...quota.pool, from: { ...from, feature: from.feature ? (idOf.get(from.feature) ?? '') : '' } } };
+      const into = quota.into;
+      if (into) {
+        const linked = linkRef(into, source, sources, idOf);
+        if (!linked) issues.push(castingIssue('unresolvedPoolTarget', source.featureKey, path(quota, into, source)));
+        next = { ...next, into: linked ?? undefined };
+      }
+      return next;
     });
   }
 }

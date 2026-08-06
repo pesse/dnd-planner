@@ -43,6 +43,8 @@ export interface SpellAccessPick {
   levels: number[];
   /** Schul-Schranke des Pools; leer = alle Schulen. */
   schools: SpellSchool[];
+  /** `known` = Bestand (Zauberbuch), nicht wirkbar — die Änderung beschriftet sich danach. */
+  tier: 'known' | 'prepared';
   count: number;
   sourceId: string;
   quotaId: string;
@@ -121,6 +123,7 @@ export function spellAccessGrantOf(
         level: levels[0],
         levels,
         schools: [...v.pool.schools],
+        tier: v.tier,
         count: v.count,
         sourceId: v.sourceId,
         quotaId: v.quotaId,
@@ -258,6 +261,7 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
         spellLevels: [...pick.levels],
         spellClass: list,
         spellSchools: [...pick.schools],
+        spellTier: pick.tier,
         sourceId: pick.sourceId,
         quotaId: pick.quotaId,
         max: pick.count,

@@ -104,9 +104,11 @@ describe('grantsCasting im Vault', () => {
       if (sameAs) expect(byKey.has(sameAs), `${d.key} → ${sameAs}`).toBe(true);
 
       for (const quota of quotasOf(d)) {
-        const from = quota.pool.from;
-        if (!from) continue;
-        expect(hasQuota(from.feature || d.key, from.quota), `${d.key}/${quota.id} → ${from.quota}`).toBe(true);
+        // Beide Richtungen: woraus die Quota wählt und wohin sie ablegt.
+        for (const ref of [quota.pool.from, quota.into]) {
+          if (!ref) continue;
+          expect(hasQuota(ref.feature || d.key, ref.quota), `${d.key}/${quota.id} → ${ref.quota}`).toBe(true);
+        }
       }
     }
   });

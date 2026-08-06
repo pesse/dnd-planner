@@ -7,7 +7,7 @@ import type { CharacterSpells } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { SpellInfo } from '$lib/spellLibrary';
 import type { LooseSpell, ProjectionLookup } from './project';
-import type { QuotaState, SourceState, SpellcastingState } from './state';
+import { poolQuotas, type QuotaState, type SourceState, type SpellcastingState } from './state';
 import { addExtra, setPicks, setSlotTotals, setSlotUsed } from './write';
 
 /**
@@ -101,7 +101,10 @@ export function planFlatSpellMigration(
       for (const quota of source.quotas) {
         const slot = slotOf(source.source.id, quota.view.quotaId);
         const from = quota.view.pool.from;
-        if (from && !slotOf(from.sourceId, from.quotaId).includes(spell.key)) continue;
+        // Der Pool sind ALLE Kontingente, die ihn stellen — ein Zauberbuch plus was per `into`
+        // hineinlegt; sonst fände ein Altbestands-Zauber die Vorbereitung nicht.
+        if (from && !poolQuotas(state, from).some((q) => slotOf(q.view.sourceId, q.view.quotaId).includes(spell.key)))
+          continue;
         if (!tierMatches(quota, source, spell) || !accepts(quota, spell, info, slot)) continue;
         slot.push(spell.key);
         placed = true;

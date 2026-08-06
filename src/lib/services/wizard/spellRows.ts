@@ -61,7 +61,10 @@ export function spellStepRows(view: GroupedSpellcasting): SpellStepRow[] {
   }
 
   for (const { source, quota } of fromPool) {
-    const target = quota.from ? byQuota.get(groupKey(quota.from.sourceId, quota.from.quotaId)) : undefined;
+    // Die Zeile hängt am GENANNTEN Kontingent (dem Zauberbuch); was per `into` hineinlegt, hat
+    // seine eigene und ist im Pool trotzdem enthalten.
+    const primary = quota.from?.quotas[0];
+    const target = primary ? byQuota.get(groupKey(primary.sourceId, primary.quotaId)) : undefined;
     // Ohne Ziel-Zeile bleibt es eine eigene Zeile; `pickLibrary` engt den Dialog trotzdem ein.
     if (!target) {
       rows.push(rowOf(source, quota));

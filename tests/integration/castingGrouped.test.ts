@@ -77,7 +77,7 @@ describe('gruppierte Sicht (Magier 1: Vorbereitung aus dem Zauberbuch)', () => {
     expect(book?.from).toBeNull();
     expect(book?.lists).toEqual(['wizard']);
     expect(prepared?.lists).toEqual([]);
-    expect(prepared?.from).toMatchObject({ sourceId: source.id, quotaId: 'book', label: 'Zauberbuch' });
+    expect(prepared?.from).toMatchObject({ quotas: [{ sourceId: source.id, quotaId: 'book' }], label: 'Zauberbuch' });
     expect(prepared?.from?.spells.map((s) => s.key)).toEqual(book?.spells.map((s) => s.key));
   });
 });

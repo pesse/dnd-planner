@@ -36,6 +36,7 @@ export function declaredChoice(base: DeclaredChoiceBase): AnalysisChoice {
     spellLevels: [],
     spellClass: '',
     spellSchools: [],
+    spellTier: 'prepared',
     sourceId: '',
     quotaId: '',
     help: '',

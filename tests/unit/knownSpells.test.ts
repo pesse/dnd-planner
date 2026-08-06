@@ -23,6 +23,7 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   lists: [],
   schools: [],
   from: null,
+  into: null,
   count: keys.length,
   fixed: false,
   spells: keys.map(spell),

@@ -30,14 +30,14 @@ const savantGrant = async (level: number) => {
 const quotaGroup = (schools: SpellQuotaGroup['schools']): SpellQuotaGroup => ({
   sourceId: SAVANT_KEY, quotaId: 'evocation-book', label: 'Zauberbuch',
   castNote: '', swapNote: '', levels: [1, 2], lists: ['wizard'], schools,
-  from: null, count: 2, fixed: false, spells: [], open: 2,
+  from: null, into: null, count: 2, fixed: false, spells: [], open: 2,
 });
 
 describe('Hervorrufer: Zauberbuch-Wahl nur aus der Hervorrufungsschule', () => {
   it('staffelt Kontingent und Grade an der Klassenstufe', async () => {
     // Stufe 3: zwei Zauber bis Grad 2. Danach je neuem Platz-Grad einer mehr.
     expect((await savantGrant(3)).picks).toEqual([
-      { level: 1, levels: [1, 2], schools: ['evocation'], count: 2, sourceId: SAVANT_KEY, quotaId: 'evocation-book' },
+      { level: 1, levels: [1, 2], schools: ['evocation'], tier: 'known', count: 2, sourceId: SAVANT_KEY, quotaId: 'evocation-book' },
     ]);
     expect((await savantGrant(5)).picks[0]).toMatchObject({ levels: [1, 2, 3], count: 3 });
     expect((await savantGrant(20)).picks[0]).toMatchObject({ levels: [1, 2, 3, 4, 5, 6, 7, 8, 9], count: 9 });

@@ -66,6 +66,11 @@ export interface AnalysisChoice {
    * Wahl eingegrenzt ist. Leer = alle — der KI-Weg kennt keine Schule, er füllt sie nie.
    */
   spellSchools: SpellSchool[];
+  /**
+   * `known` = die Zauber sind Bestand (Zauberbuch), nicht vorbereitet. Nur eine Deklaration
+   * weiß das; ohne Quota bleibt es bei `prepared`, sonst behauptete die Änderung Wirkbarkeit.
+   */
+  spellTier: 'known' | 'prepared';
   /** Nur bei `spell-pick` aus einer Deklaration: Ziel-Quota, sonst leer (quellenloser Bestand). */
   sourceId: string;
   quotaId: string;
