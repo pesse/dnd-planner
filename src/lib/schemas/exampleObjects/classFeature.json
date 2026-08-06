@@ -102,6 +102,7 @@
       ],
       "featCategory": "Origin",
       "count": 1,
+      "column": "string",
       "skills": [
         "Acrobatics"
       ],

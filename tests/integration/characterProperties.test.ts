@@ -128,7 +128,7 @@ describe('die Wahl einer Grundeigenschaft', () => {
   });
 
   it('stellt keine Frage, wo nichts zu wählen ist', () => {
-    const one = { key: 'homebrew_x', name: 'Size', grantsChoice: [{ kind: 'characterProperty' as const, property: 'size' as const, propertyValues: ['Medium'], options: [], count: 1, skills: [], spellLists: [], spellAbilities: [], spellPicks: [] }] };
+    const one = { key: 'homebrew_x', name: 'Size', grantsChoice: [{ kind: 'characterProperty' as const, property: 'size' as const, propertyValues: ['Medium'], options: [], count: 1, column: '', skills: [], spellLists: [], spellAbilities: [], spellPicks: [] }] };
     expect(characterPropertyChoice(characterPropertyRefs(one)[0])).toBeNull();
     // Eine Zahl hat kein Wahl-Vokabular: die Bewegungsrate wird deklariert, nie gefragt.
     expect(characterPropertyPickers().map((p) => p.property)).toEqual(['size']);

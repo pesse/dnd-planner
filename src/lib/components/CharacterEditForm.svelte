@@ -9,6 +9,7 @@
   } from '../services/characterLegacyLinks';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { matchItem } from '../itemLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
   import { abilityKeyOf } from '../schemas/abilities';
@@ -17,6 +18,7 @@
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
+  import OptionPoolPicker from './OptionPoolPicker.svelte';
   import UpgradeBanner from './characterForm/UpgradeBanner.svelte';
   import GeneralSection from './characterForm/GeneralSection.svelte';
   import AttributeRow from './characterForm/AttributeRow.svelte';
@@ -131,6 +133,23 @@
     void masteryOffer(input)
       .then((o) => { if (!cancelled) mastery = o; })
       .catch(() => { if (!cancelled) mastery = null; });
+    return () => { cancelled = true; };
+  });
+
+  let pools = $state<OptionPoolOffer[]>([]);
+
+  const poolInput = $derived.by(() => ({
+    classes: form.classes.map((c) => ({
+      sourceKey: c.sourceKey, subclassKey: c.subclassKey, name: c.name, level: c.level,
+    })),
+  }));
+
+  $effect(() => {
+    const input = poolInput;
+    let cancelled = false;
+    void optionPoolOffers(input)
+      .then((o) => { if (!cancelled) pools = o; })
+      .catch(() => { if (!cancelled) pools = []; });
     return () => { cancelled = true; };
   });
 
@@ -272,6 +291,18 @@
       />
     </section>
   {/if}
+
+  <!-- Wie die Waffenbeherrschung eine Wahl des Editors: der Anker (das Merkmal) steht fest,
+       tauschbar ist nur der Inhalt — bei Metamagie mit jeder Zaubererstufe. -->
+  {#each pools as pool (pool.featureKey)}
+    <section>
+      <OptionPoolPicker
+        offer={pool}
+        bind:picks={form.optionPicks}
+        diff={dirOf(saved?.optionPicks, $state.snapshot(form.optionPicks))}
+      />
+    </section>
+  {/each}
 
   <section>
     <FeatureTextFields

@@ -10,7 +10,7 @@ import { attackForSave, type AttackCalcContext } from './attackCalc';
 import { emptyPersonal, emptyProficiencies } from '../pdf/characterFields';
 import type {
   Attack, Character, CharacterBackground, CharacterClass, CharacterSpecies,
-  PersonalData, ProficiencyFlags,
+  OptionPick, PersonalData, ProficiencyFlags,
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
@@ -55,6 +55,7 @@ export interface CharacterFormFields {
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
+  optionPicks: OptionPick[];
   portraitFile: string;
 }
 
@@ -169,6 +170,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
+    optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
   };
 }
@@ -239,6 +241,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     personal: { ...f.personal },
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
+    optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
   };
 }

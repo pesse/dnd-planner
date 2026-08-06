@@ -11,7 +11,7 @@ import { sign } from '$lib/utils/num';
 
 export type SummarySectionId =
   | 'abilities' | 'coreValues' | 'skills' | 'expertise' | 'savingThrows'
-  | 'weapons' | 'armor' | 'masteries' | 'tools' | 'languages';
+  | 'weapons' | 'armor' | 'masteries' | 'optionPicks' | 'tools' | 'languages';
 
 export interface SummaryValue {
   /** Deutsch wie auf dem Bogen: „Stärke", „Akrobatik", „Einfache Waffen". */
@@ -80,6 +80,8 @@ export function characterSummary(c: Character): SummarySection[] {
     { id: 'weapons', values: plain(weaponProficiencyLabels(pf, { withProse: true })) },
     { id: 'armor', values: plain(armorProficiencyLabels(pf)) },
     { id: 'masteries', values: plain(c.masteries) },
+    // `valueDe` ist das Zitat aus der Deklaration; ohne es bliebe nur das englische Label.
+    { id: 'optionPicks', values: plain((c.optionPicks ?? []).map((p) => p.valueDe || p.value)) },
     { id: 'tools', values: plain(c.tools) },
     { id: 'languages', values: plain(c.languages) },
   ];

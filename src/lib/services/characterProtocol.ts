@@ -21,6 +21,7 @@ const HEADINGS: Record<SummarySectionId, string> = {
   weapons: 'Waffen',
   armor: 'Rüstung',
   masteries: 'Waffenbeherrschung',
+  optionPicks: 'Merkmals-Optionen',
   tools: 'Werkzeuge',
   languages: 'Sprachen',
 };

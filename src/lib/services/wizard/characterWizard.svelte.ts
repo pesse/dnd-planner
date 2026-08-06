@@ -9,6 +9,7 @@ import type { DeclaredAnswer } from '../declaredChoice';
 import type { SpellAccessGrant } from '../spellcasting/access';
 import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
+import type { OptionPick } from '$lib/schemas/characterSchema';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -70,6 +71,8 @@ export class CharacterWizard {
   masteries = $state<string[]>([]);
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
+  /** Options-Pools (Metamagie): dieselbe flache Liste wie am Charakter, über alle Pools. */
+  optionPicks = $state<OptionPick[]>([]);
 
   /**
    * Schritt „Zauber": der fertige Block des Charakters, Kontingent für Kontingent
@@ -212,6 +215,7 @@ export class CharacterWizard {
     this.toolPicks = {};
     this.masteries = [];
     this.fightingStyles = [];
+    this.optionPicks = [];
     this.spellcasting = emptySpellcasting();
     this.featureSpellPicks = {};
     this.kickoff();

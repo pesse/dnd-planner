@@ -207,6 +207,13 @@
   "masteries": [
     "string"
   ],
+  "optionPicks": [
+    {
+      "sourceKey": "string",
+      "value": "string",
+      "valueDe": "string"
+    }
+  ],
   "features": [
     {
       "sourceKey": "string",

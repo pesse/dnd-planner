@@ -120,6 +120,17 @@ const characterFeatureSchema = z.object({
   desc: z.string().default(''),
 });
 
+/**
+ * Eine Wahl aus einem Options-Pool. `value` ist das kanonische ENGLISCHE Label der Deklaration
+ * (`choiceOptionSchema.value`) und damit der Anker, `valueDe` das Zitat fürs Anzeigen —
+ * dieselbe Aufteilung wie `choice`/`choiceDe` im Ledger.
+ */
+const optionPickSchema = z.object({
+  sourceKey: z.string().default('').describe('Key des Merkmals, dessen Pool die Option stellt.'),
+  value: z.string().default(''),
+  valueDe: z.string().default(''),
+});
+
 const characterClassSchema = z.object({
   sourceKey: z.string().default(''), // GRUNDklasse; leer = noch nicht verlinkt (Legacy)
   name: z.string().default(''),
@@ -251,6 +262,15 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
+  /**
+   * EINE flache Liste für ALLE Pools, geschlüsselt am Merkmal — die Anrufungen des
+   * Hexenmeisters brauchen damit kein zweites Feld. Nicht ins Merkmals-Ledger: das trägt die
+   * Anker, nicht die Inhalte (Zauber stehen im Zauberblock, Waffen in `masteries`).
+   */
+  optionPicks: z
+    .array(optionPickSchema)
+    .default([])
+    .describe('Gewählte Optionen aus deklarierten Options-Pools (Metamagie), je Merkmal.'),
   // Merkmals-Ledger, additiv zum Freitext: NICHT im PDF, aber Berechnungsgrundlage.
   features: z.array(characterFeatureSchema).default([]),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
@@ -272,6 +292,7 @@ export type SpellRef = z.infer<typeof spellRefSchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
 export type CharacterFeatureEntry = z.infer<typeof characterFeatureSchema>;
+export type OptionPick = z.infer<typeof optionPickSchema>;
 export type CharacterClass = z.infer<typeof characterClassSchema>;
 export type CharacterSpecies = z.infer<typeof characterSpeciesSchema>;
 export type CharacterBackground = z.infer<typeof characterBackgroundSchema>;
