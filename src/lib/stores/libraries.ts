@@ -29,6 +29,8 @@ export interface Library {
   /** Installationsstand — unabhängig davon, ob `block` das Ziehen gerade verhindert. */
   install: InstallState;
   block?: BlockReason;
+  /** Der installierte Inhalt ist älter als diese App ihn liest; Aktualisieren behebt es. */
+  contentOutdated: boolean;
   installedVersion?: string;
   minVersion?: string;
 }
@@ -44,6 +46,7 @@ interface RawLibraryStatus {
   size: number;
   fileCount: number;
   status: string;
+  contentOutdated: boolean;
   installedVersion?: string;
   minVersion?: string;
 }
@@ -72,6 +75,7 @@ function toLibrary(raw: RawLibraryStatus): Library {
     fileCount: raw.fileCount,
     install,
     block: BLOCK_REASONS.has(raw.status) ? (raw.status as BlockReason) : undefined,
+    contentOutdated: raw.contentOutdated,
     installedVersion: raw.installedVersion,
     minVersion: raw.minVersion,
   };
@@ -209,6 +213,16 @@ export async function checkLibrariesOnStartup(): Promise<void> {
     console.info(
       `Bibliothek "${lib.name}" verlangt App-Version ${lib.minVersion} oder neuer — ` +
         'übersprungen. Bereits installierte Inhalte bleiben nutzbar.',
+    );
+  }
+
+  // Sichtbar, nicht als Konsolen-Notiz: hier fehlt dem Nutzer Mechanik, und das Aktualisieren
+  // ist die Handlung. Updates zieht die App weiterhin nie ungefragt.
+  const stale = get(libraries).filter((l) => l.contentOutdated);
+  if (stale.length) {
+    pushError(
+      `Der installierte Inhalt von ${stale.map((l) => `„${l.name}"`).join(', ')} ist älter als ` +
+        'diese App-Version — Zauber und Mechaniken können fehlen. Im Bibliotheks-Dialog aktualisieren.',
     );
   }
 

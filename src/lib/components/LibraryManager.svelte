@@ -34,7 +34,12 @@
     if (initialized || !list.length) return;
     initialized = true;
     selected = Object.fromEntries(
-      list.map((l) => [l.id, !l.block && (l.install === 'available' || l.install === 'update')]),
+      // Veralteter Inhalt ist vorgewählt, obwohl er als „installiert" gilt — sonst müsste der
+      // Nutzer erst verstehen, dass Neuziehen die fehlende Mechanik nachliefert.
+      list.map((l) => [
+        l.id,
+        !l.block && (l.install === 'available' || l.install === 'update' || l.contentOutdated),
+      ]),
     );
   });
 
@@ -51,7 +56,12 @@
   };
 
   /** Ein Sperrgrund verdrängt die Anzeige des Installationsstands. */
-  const stateLabel = (lib: Library) => (lib.block ? BLOCK_LABEL[lib.block] : INSTALL_LABEL[lib.install]);
+  const stateLabel = (lib: Library) =>
+    lib.block
+      ? BLOCK_LABEL[lib.block]
+      : lib.contentOutdated
+        ? 'Inhalt veraltet'
+        : INSTALL_LABEL[lib.install];
 
   const LICENSE_LABEL: Record<string, string> = {
     'CC-BY-4.0': 'SRD 5.2, frei weitergebbar',
@@ -243,6 +253,11 @@
             <p class="hint small err">
               Diese Fassung setzt Version {lib.minVersion} oder neuer voraus — bitte die
               App aktualisieren. Bereits installierte Inhalte bleiben nutzbar.
+            </p>
+          {:else if lib.contentOutdated}
+            <p class="hint small err">
+              Der installierte Inhalt ist älter als diese App-Version — Zauber und Mechaniken
+              können fehlen. Aktualisieren behebt es.
             </p>
           {/if}
 
