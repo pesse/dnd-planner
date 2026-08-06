@@ -1,4 +1,5 @@
 {
+  "uid": "string",
   "name": "string",
   "classes": [
     {

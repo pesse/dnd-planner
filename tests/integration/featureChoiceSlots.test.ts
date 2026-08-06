@@ -9,10 +9,9 @@
  *
  *   npm run test -- featureChoiceSlots
  */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { characterSchema, type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
-import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
+import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
+import { vaultCharacter } from '../support/vaultCharacter';
 import {
   buildCharacterChoices, collectChoiceSlots, type CharacterChoice, type ChoiceFact,
 } from '../../src/lib/services/characterChoices';
@@ -20,10 +19,6 @@ import {
 const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 const ELF_LINEAGE_KEY = 'srd-2024_elf_elven-lineage';
 
-const character = (dir: string): Character =>
-  characterSchema.parse(
-    upgradeCharacter(JSON.parse(readFileSync(`vault/characters/${dir}/character.json`, 'utf-8'))).data,
-  );
 
 type TestCharacter = Parameters<typeof collectChoiceSlots>[0] & { skills?: Character['skills'] };
 
@@ -58,7 +53,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
    * „Weiser" legt sie fest —, das ATTRIBUT hängt am Talent und ist beantwortet.
    */
   it('stellt genau die Attributwahl, und zwar am Talent-Key', async () => {
-    const c = character('bölgör');
+    const c = vaultCharacter('Bölgör');
     const rows = shape(await choicesOf(c)).filter((r) => r.key === MAGIC_INITIATE_KEY);
 
     expect(rows).toEqual([
@@ -71,7 +66,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
    * Magier-Liste unsichtbar, und der Zauber-Picker filterte scheinbar grundlos.
    */
   it('nennt die vom Hintergrund festgelegte Liste als Feststellung', async () => {
-    const facts = (await factsOf(character('bölgör'))).filter((f) => f.featureKey === MAGIC_INITIATE_KEY);
+    const facts = (await factsOf(vaultCharacter('Bölgör'))).filter((f) => f.featureKey === MAGIC_INITIATE_KEY);
 
     expect(facts).toEqual([
       { part: 'list', labelDe: 'Zauberliste', valueDe: 'Magier', fromSource: true, featureKey: MAGIC_INITIATE_KEY, gainedAt: 1 },
@@ -83,7 +78,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
    * darf auch keinen fremden besetzen: der Attribut-Platz beansprucht nur seine eigenen Werte.
    */
   it('greift die Antwort eines anderen Merkmals nicht ab', async () => {
-    const c = character('bölgör');
+    const c = vaultCharacter('Bölgör');
     const list = await choicesOf(c);
     const claimed = list.map((ch) => c.features[ch.entry]?.choice);
 

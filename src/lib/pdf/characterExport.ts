@@ -191,8 +191,8 @@ function writeSkills({ t, c }: FieldSink, ch: CharacterJSON) {
 
 /**
  * Die Meisterschaftseigenschaft hängt am Waffennamen: das Taendler-PDF hat keine
- * freie Spalte dafür. Der Import schneidet das Suffix wieder ab
- * (`stripMasterySuffix`), sonst wüchse es bei jedem Zyklus an.
+ * freie Spalte dafür. Das Suffix entsteht erst hier beim Schreiben und steht nie im
+ * gespeicherten Angriffsnamen — sonst wüchse es bei jedem Export.
  */
 function writeAttacks({ t }: FieldSink, ch: CharacterJSON, masteryOf?: (attackName: string) => string | undefined) {
   for (let i = 0; i < 5; i++) {

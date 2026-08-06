@@ -53,7 +53,7 @@ Changes under `src-tauri/` need a full Rust recompile; hot-reload covers only th
 | Vault content fields (`nameDe`, descriptions, rule text) | German |
 | Code comments and commit messages | German |
 
-One legacy exception, at the PDF boundary: parts of `character.*` carry German keys
+One legacy exception, at the PDF export boundary: parts of `character.*` carry German keys
 (`skills.MitTierenUmgehen`, `alleskoenner`, `currency.km`, `personal.*`) because they mirror the
 German Taendler character sheet. **Do not extend it** — new character fields get English names,
 the way `hpMax`, `saveProfs` and `proficiencies.lightArmor` already do. The PDF *field names*

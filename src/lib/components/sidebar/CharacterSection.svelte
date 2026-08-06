@@ -25,9 +25,6 @@
 <div class="top-section">
   <SectionHeader label="Charaktere" expanded={state.expanded} ontoggle={() => state.toggle()} top>
     {#snippet actions()}
-      <button class="add-btn" title="Aus PDF importieren" disabled={state.pdfImporting} onclick={() => state.importFromPdf()}>
-        {state.pdfImporting ? '…' : 'PDF'}
-      </button>
       <button class="add-btn" title="Neuer Charakter" onclick={() => (state.showWizard = true)}>
         +
       </button>
@@ -43,7 +40,9 @@
             <button
               class="file-entry"
               class:char-entry={!!meta}
-              class:active={$activeFile?.path?.endsWith(entry.name)}
+              class:active={entry.is_dir
+                ? $activeFile?.dirPath === `${CHARACTERS_PATH}/${entry.name}`
+                : $activeFile?.path === `${CHARACTERS_PATH}/${entry.name}`}
               onclick={() => state.openCharacter(entry)}
             >
               {#if meta}
@@ -69,10 +68,6 @@
         {/each}
       {:else if !state.showNewInput}
         <span class="empty">Keine Charaktere</span>
-      {/if}
-
-      {#if state.pdfImportError}
-        <span class="pdf-error">{state.pdfImportError}</span>
       {/if}
 
       {#if state.showNewInput}
@@ -125,10 +120,4 @@
     line-height: 0.72rem;
   }
 
-  .pdf-error {
-    width: 100%;
-    font-size: 0.72rem;
-    color: var(--danger);
-    padding-left: 0.1rem;
-  }
 </style>

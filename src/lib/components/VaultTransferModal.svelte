@@ -9,7 +9,8 @@
 
   interface VaultContents {
     campaigns: string[];
-    characters: string[];
+    /** `uid` ist der Ordnername im Vault, `name` reine Anzeige. */
+    characters: { uid: string; name: string }[];
     items: boolean;
     monsters: boolean;
     spells: boolean;
@@ -80,7 +81,7 @@
     try {
       overview = await invoke<VaultContents>('get_vault_overview');
       expCampaigns = initMap(overview.campaigns, true);
-      expCharacters = initMap(overview.characters, true);
+      expCharacters = initMap(overview.characters.map((c) => c.uid), true);
       expLibs = libsFrom(overview);
     } catch (e) {
       exportError = `Vault konnte nicht gelesen werden: ${e}`;
@@ -152,7 +153,7 @@
     try {
       manifest = await invoke<VaultContents>('inspect_import_zip', { zipPath: selected });
       impCampaigns = initMap(manifest.campaigns, true);
-      impCharacters = initMap(manifest.characters, true);
+      impCharacters = initMap(manifest.characters.map((c) => c.uid), true);
       impLibs = libsFrom(manifest);
     } catch (e) {
       manifest = null;
@@ -212,10 +213,10 @@
       {#if overview.characters.length}
         <fieldset class="group">
           <legend>Charaktere</legend>
-          {#each overview.characters as slug}
+          {#each overview.characters as char}
             <label class="check">
-              <input type="checkbox" bind:checked={expCharacters[slug]} />
-              <span>{pretty(slug)}</span>
+              <input type="checkbox" bind:checked={expCharacters[char.uid]} />
+              <span>{char.name || 'Unbenannter Charakter'}</span>
             </label>
           {/each}
         </fieldset>
@@ -269,10 +270,10 @@
       {#if manifest.characters.length}
         <fieldset class="group">
           <legend>Charaktere</legend>
-          {#each manifest.characters as slug}
+          {#each manifest.characters as char}
             <label class="check">
-              <input type="checkbox" bind:checked={impCharacters[slug]} />
-              <span>{pretty(slug)}</span>
+              <input type="checkbox" bind:checked={impCharacters[char.uid]} />
+              <span>{char.name || 'Unbenannter Charakter'}</span>
             </label>
           {/each}
         </fieldset>

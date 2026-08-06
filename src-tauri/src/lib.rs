@@ -182,20 +182,6 @@ fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
     Ok(result)
 }
 
-/// Sucht die erste .pdf-Datei in einem Verzeichnis
-#[tauri::command]
-fn find_pdf_in_dir(path: String) -> Result<Option<String>, String> {
-    let path = resolve_path(&path);
-    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    for entry in entries.filter_map(|e| e.ok()) {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name.ends_with(".pdf") {
-            return Ok(Some(name));
-        }
-    }
-    Ok(None)
-}
-
 /// Gibt den absoluten Pfad eines (ggf. relativen) Vault-Pfades zurück.
 #[tauri::command]
 fn get_absolute_path(path: String) -> Result<String, String> {
@@ -437,11 +423,18 @@ pub struct TransferSelection {
     backgrounds: bool,
 }
 
+/// Ein Charakter für die Auswahl: `uid` ist der Ordnername, `name` nur Anzeige.
+#[derive(Serialize)]
+pub struct CharacterRef {
+    uid: String,
+    name: String,
+}
+
 /// Inhaltsübersicht eines Vaults bzw. eines Export-ZIPs.
 #[derive(Serialize)]
 pub struct VaultContents {
     campaigns: Vec<String>,
-    characters: Vec<String>,
+    characters: Vec<CharacterRef>,
     items: bool,
     monsters: bool,
     spells: bool,
@@ -476,6 +469,29 @@ fn subdirs(path: &Path) -> Vec<String> {
     };
     v.sort();
     v
+}
+
+/// Anzeigename aus einer `character.json`; leer, wenn nichts Brauchbares drinsteht.
+fn character_name_from_json(raw: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(raw)
+        .ok()
+        .and_then(|v| v.get("name").and_then(|n| n.as_str()).map(str::to_string))
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Charakterordner mit ihrem Anzeigenamen. Der Ordnername ist eine UID und taugt
+/// nicht als Beschriftung — fehlt der Name, muss die UI selbst einspringen.
+fn character_refs(dir: &Path) -> Vec<CharacterRef> {
+    subdirs(dir)
+        .into_iter()
+        .map(|uid| {
+            let name = fs::read_to_string(dir.join(&uid).join("character.json"))
+                .map(|raw| character_name_from_json(&raw))
+                .unwrap_or_default();
+            CharacterRef { uid, name }
+        })
+        .collect()
 }
 
 /// True, wenn `path` (rekursiv) mindestens eine Datei enthält.
@@ -527,7 +543,7 @@ fn get_vault_overview() -> VaultContents {
     let vault = project_root().join("vault");
     VaultContents {
         campaigns: subdirs(&vault.join("campaigns")),
-        characters: subdirs(&vault.join("characters")),
+        characters: character_refs(&vault.join("characters")),
         items: dir_has_files(&vault.join("items")),
         monsters: dir_has_files(&vault.join("monsters")),
         spells: dir_has_files(&vault.join("spells")),
@@ -630,20 +646,32 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
         zip::ZipArchive::new(file).map_err(|e| format!("Kein gültiges ZIP: {}", e))?;
 
     let mut campaigns = std::collections::BTreeSet::new();
-    let mut characters = std::collections::BTreeSet::new();
+    // uid -> Anzeigename; der Name kommt erst mit dem `character.json`-Eintrag dazu.
+    let mut characters: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     let (mut items, mut monsters, mut spells) = (false, false, false);
     let (mut classes, mut species, mut feats, mut backgrounds) = (false, false, false, false);
 
     for i in 0..archive.len() {
-        let f = archive.by_index(i).map_err(|e| e.to_string())?;
+        let mut f = archive.by_index(i).map_err(|e| e.to_string())?;
         let name = f.name().replace('\\', "/");
         let segs: Vec<&str> = name.split('/').filter(|s| !s.is_empty()).collect();
         match segs.as_slice() {
             ["campaigns", slug, ..] => {
                 campaigns.insert(slug.to_string());
             }
-            ["characters", slug, ..] => {
-                characters.insert(slug.to_string());
+            ["characters", uid, rest @ ..] => {
+                let uid = uid.to_string();
+                if rest == ["character.json"] {
+                    let mut raw = String::new();
+                    if f.read_to_string(&mut raw).is_ok() {
+                        let display = character_name_from_json(&raw);
+                        if !display.is_empty() {
+                            characters.insert(uid, display);
+                            continue;
+                        }
+                    }
+                }
+                characters.entry(uid).or_default();
             }
             ["items", ..] => items = true,
             ["monsters", ..] => monsters = true,
@@ -658,7 +686,10 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
 
     Ok(VaultContents {
         campaigns: campaigns.into_iter().collect(),
-        characters: characters.into_iter().collect(),
+        characters: characters
+            .into_iter()
+            .map(|(uid, name)| CharacterRef { uid, name })
+            .collect(),
         items,
         monsters,
         spells,
@@ -898,7 +929,6 @@ pub fn run() {
             get_absolute_path,
             list_directory,
             list_entries,
-            find_pdf_in_dir,
             read_file_content,
             read_file_base64,
             write_file_content,

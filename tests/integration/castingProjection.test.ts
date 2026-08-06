@@ -4,10 +4,9 @@
  *
  *   npm run test -- castingProjection
  */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
-import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
+import { vaultCharacter } from '../support/vaultCharacter';
 import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import {
   contextLines,
@@ -19,10 +18,6 @@ import {
   type SheetSpellcasting,
 } from '../../src/lib/services/spellcasting/project';
 
-const character = (dir: string): Character =>
-  characterSchema.parse(
-    upgradeCharacter(JSON.parse(readFileSync(`vault/characters/${dir}/character.json`, 'utf-8'))).data,
-  );
 
 const levelOf = (view: SheetSpellcasting, level: number): SheetLevel => {
   const hit = view.levels.find((l) => l.level === level);
@@ -35,7 +30,7 @@ const labels = (view: SheetSpellcasting, level: number): string[] =>
 
 describe('Bogen-Projektion', () => {
   it('zeigt Klasse, Attribut und die gespeicherten Zauber eines Druiden', async () => {
-    const c = character('bulgur');
+    const c = vaultCharacter('Bulgur');
     const view = await loadSheetSpellcasting(c);
 
     expect(view.hasContent).toBe(true);
@@ -52,7 +47,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
-    const c = character('thromm_flechtenstein');
+    const c = vaultCharacter('Thromm Flechtenstein');
     expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks', 'uses']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
@@ -60,7 +55,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('führt Spezies-Zauber an ihrer Quelle und nicht doppelt', async () => {
-    const view = await loadSheetSpellcasting(character('silvara'));
+    const view = await loadSheetSpellcasting(vaultCharacter('Silvara/Sivral'));
     const druidcraft = levelOf(view, 0).spells.filter((s) => s.label === 'Druidenkunst');
     expect(druidcraft).toHaveLength(1);
     expect(druidcraft[0].source).toBe('Feenmagie');
@@ -72,7 +67,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('behält Slots und Zauber eines Charakters ohne Klassen-Verlinkung', async () => {
-    const c = character('phönix');
+    const c = vaultCharacter('Phönix');
     expect(c.classes).toEqual([]);
     const view = await loadSheetSpellcasting(c);
 
@@ -83,7 +78,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('lässt einen Charakter ohne Zauber leer', async () => {
-    const view = await loadSheetSpellcasting(character('falbala'));
+    const view = await loadSheetSpellcasting(vaultCharacter('Falbala'));
     expect(view.hasContent).toBe(false);
     expect(view.levels).toEqual([]);
     expect(view.sources).toEqual([]);
@@ -92,7 +87,7 @@ describe('Bogen-Projektion', () => {
 
 describe('KI-Kontext', () => {
   it('nennt Quelle, Werte, Slots und Zauber je Grad', async () => {
-    const lines = contextLines(await loadSheetSpellcasting(character('bulgur')));
+    const lines = contextLines(await loadSheetSpellcasting(vaultCharacter('Bulgur')));
     expect(lines[0]).toMatch(/^- Source: Druide — Ability: Weisheit, Save DC: \d+, Attack Bonus: [+-]\d+$/);
     expect(lines).toContain('- Slots:');
     expect(lines.some((l) => l === '  - Grad 1: 3/3 frei')).toBe(true);
@@ -101,7 +96,7 @@ describe('KI-Kontext', () => {
   });
 
   it('meldet ein offenes Zauberattribut als offen', async () => {
-    const c = character('silvara');
+    const c = vaultCharacter('Silvara/Sivral');
     // Ohne Ledger-Antwort UND ohne gespeicherte Bindung bleibt die Wahl der Fee offen.
     const { state, lookup, legacy } = await loadSpellcasting({
       ...c,
@@ -118,7 +113,7 @@ describe('KI-Kontext', () => {
 
 describe('Übergang zum PDF-Export', () => {
   it('liefert die flache Alt-Form aus der primären Klassen-Quelle', async () => {
-    const c = character('bulgur');
+    const c = vaultCharacter('Bulgur');
     const { state, lookup, legacy } = await loadSpellcasting(c);
     const flat = legacyFlatView(state, lookup, legacy);
 

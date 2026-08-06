@@ -165,6 +165,9 @@ const skillEntrySchema = z.object({
 });
 
 export const characterSchema = z.object({
+  // Identität des Charakters und zugleich sein Ordnername unter `vault/characters/`.
+  // Nachgeschlagen wird über den Ordner; das Feld macht die Datei selbstbeschreibend.
+  uid: z.string().default(''),
   // `classes`/`backgroundRef`/`species` sind die Source of Truth; `classLevel`/`background`/
   // `race` daraus abgeleitete Anzeige-Strings für Header und PDF, nicht direkt editiert.
   name: z.string(),

@@ -43,5 +43,10 @@ drifted apart. A second call site is the mistake, not a missing feature.
   the editor only holds the state it mutates and the UI follow-up (display mirrors, closing
   pickers). A library link can never be a `CHARACTER_UPGRADES` step — `apply` there is synchronous
   and cannot reach the library. **Do not add a second matcher next to it.**
+- **A character's folder name is a generated UID, never their name**, and the one place that turns
+  a folder into a display name is `services/characterDirectory.ts` — rendering a folder name is the
+  bug, not a fallback. Campaign and session frontmatter (`characters: [...]`) plus vault links hold
+  those UIDs, which is why there is no rename: `services/migrateCharacterUids.ts` rewrote
+  `vault/campaigns/**` once for the old name-slug folders and gets no successor.
 - **The multiclass skill line is not in Open5e**, only in the German SRD extract. It lives in the
   vault as `skillGrantMulticlass` and must survive a re-import.
