@@ -61,6 +61,7 @@ interface Collected {
   sources: CastingSource[];
   /** Fremdverweise, erst nach der Sammlung anwendbar. */
   patches: { featureKey: string; patch: QuotaPatch }[];
+  issues: CastingIssue[];
 }
 
 export const characterLevel = (classes: CharacterClass[] | undefined): number =>
@@ -207,11 +208,18 @@ async function classCasting(
 ): Promise<CastingClass[]> {
   const out: CastingClass[] = [];
   for (const cls of classes) {
-    if (!cls.sourceKey) continue;
+    if (!cls.sourceKey) {
+      into.issues.push(castingIssue('unlinkedClass', '', cls.name.trim()));
+      continue;
+    }
     const level = cls.level || 1;
     const prog = await getProgressionByKey(cls.sourceKey);
-    if (!prog) continue;
+    if (!prog) {
+      into.issues.push(castingIssue('unknownClassKey', '', cls.sourceKey));
+      continue;
+    }
     const sub = cls.subclassKey ? await getProgressionByKey(cls.subclassKey) : null;
+    if (cls.subclassKey && !sub) into.issues.push(castingIssue('unknownClassKey', '', cls.subclassKey));
 
     // Drittel-Zauberwirker deklarieren an der Subklasse; die Stufentabelle bleibt die der Grundklasse.
     const casterType = prog.casterType !== 'NONE' ? prog.casterType : (sub?.casterType ?? 'NONE');
@@ -399,13 +407,13 @@ export async function resolveCasting(c: CastingCharacter): Promise<CastingResolu
     specialisation: '',
   });
   const used = new Set<string>();
-  const collected: Collected = { sources: [], patches: [] };
+  const collected: Collected = { sources: [], patches: [], issues: [] };
 
   const classes = await classCasting(c.classes ?? [], answersOf, used, collected);
   await speciesCasting(c.species, level, answersOf, used, collected);
   await featCasting(c.features, c.backgroundRef, level, answersOf, used, collected);
 
-  const issues: CastingIssue[] = [];
+  const issues = collected.issues;
   applyPatches(collected.sources, collected.patches, issues);
   linkPools(collected.sources, issues);
   linkAbilities(collected.sources, issues);

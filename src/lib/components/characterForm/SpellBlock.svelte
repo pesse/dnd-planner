@@ -23,9 +23,10 @@
   import type { Character } from '../../schemas/characterSchema';
   import './form.css';
 
-  let { form, casting, spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
+  let { form, casting, castingError = '', spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
     form: CharacterFormFields;
     casting: LoadedSpellcasting | null;
+    castingError?: string;
     spellLibrary: SpellInfo[];
     saved?: Character | null;
     fixLabel?: string;
@@ -145,9 +146,18 @@
 {/if}
 
 {#if !view}
-  <p class="auto-hint">Zauberquellen werden aufgelöst …</p>
+  {#if castingError}
+    <p class="casting-issue">Zauberquellen konnten nicht aufgelöst werden: {castingError}</p>
+  {:else}
+    <p class="auto-hint">Zauberquellen werden aufgelöst …</p>
+  {/if}
 {:else}
-  {#if !view.sources.length}
+  <!-- Auch NEBEN vorhandenen Quellen: ein zweiter Fehlschlag bliebe sonst unsichtbar. -->
+  {#each view.issues as issue (issue.kind + issue.text)}
+    <p class="casting-issue">{issue.text}</p>
+  {/each}
+
+  {#if !view.sources.length && !view.issues.length}
     <p class="auto-hint">Keine Zauberquelle — Klasse, Volk oder Talent müssen mit der Bibliothek verknüpft sein.</p>
   {/if}
 
@@ -287,6 +297,11 @@
 <SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
 
 <style>
+  .casting-issue {
+    font-size: 0.75rem; color: var(--danger);
+    margin: 0.3rem 0 0; padding-left: 0.6rem;
+    border-left: 2px solid var(--danger);
+  }
   .source-block {
     border: 1px solid var(--border); border-radius: 6px;
     padding: 0.5rem 0.6rem; margin-bottom: 0.5rem;

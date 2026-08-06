@@ -55,6 +55,7 @@ const VIEW: GroupedSpellcasting = {
   pact: null,
   manualSlots: false,
   extra: [spell('guidance')],
+  issues: [],
 };
 
 describe('knownSpells', () => {
