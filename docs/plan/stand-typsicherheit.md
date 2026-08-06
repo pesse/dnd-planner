@@ -16,7 +16,7 @@ hier nicht (18 von 25 Testdateien brauchen den echten Vault). Nicht löschen, ke
 |---|---|---|
 | `8b6d58f` | docs: Aufräum-Plan Typsicherheit und Duplikation | — |
 | `d79f8a2` | feat: ein englischer Attributs-Schlüsselsatz (abilities.ts) | 1 (§1a) |
-| `fa05a29` | feat!: Attribute als verschachtelte Records, CHARACTER_VERSION 7 | 2–6 (§1b–§1g) |
+| `a517247` | feat!: Attribute als verschachtelte Records, CHARACTER_VERSION 8 | 2–6 (§1b–§1g) |
 | `c6a830b` | fix: Change-Vokabular bis zur Senke geschlossen | 7 (§2a) |
 | `111763d` | refactor: Übungs-Häkchen aus PROFICIENCY_DEFS statt if-Kette | 8 (§2b/2c) |
 | `c07152a` | refactor: Entitätstyp-Unions abgeleitet | 9 (§3a) |
@@ -115,6 +115,30 @@ Kriterium: wie viele Dateien muss anfassen, wer *eine* Sache ändert.
 - **Kein Fund:** dass `templates` in den Export-/Import-Stellen fehlt, ist Absicht —
   `vault/libraries.yaml:71-73` führt sie als „funktional erforderlich … nicht als Inhalt behandelt".
 
+## Rebase auf main (v0.3.0)
+
+Die 32 Commits sitzen jetzt auf `main` (`6e09ae0`). Sicherung: `backup/pre-rebase-typsicherheit`.
+Elf Konflikte, drei Sorten:
+
+- **`CHARACTER_VERSION` war doppelt vergeben.** Beide Seiten hatten unabhängig eine Stufe 7
+  geschrieben — main „Zauberquellen: Attribut ins Merkmals-Ledger", ich die Attribut-Umstellung.
+  Mains Sieben ist mit **v0.3.0 released**, also trägt sie den Stempel: meine wurde Stufe **8**,
+  `CHARACTER_VERSION = 8`. Hätte ich die Sieben behalten, bekäme jede Datei, die eine 0.3.0
+  bereits gestempelt hat, die Attributs-Migration nie zu sehen.
+- **Drei Dateien hat main aufgelöst** (`services/spellcasting.ts`, `services/spellAccess.ts`,
+  `spellcasting/editor.ts`), ich hatte sie nur umbenannt — Löschung übernommen, meine Zeilen
+  am neuen Ort nachgezogen.
+- **Gleiche Stelle, verschiedene Absicht:** wo main den Inhalt weiterentwickelt hat (Zauber-Picks
+  tragen jetzt `spell.key`, `known={run.knownSpells.except(...)}`), gilt mains Fassung, meine
+  Umbenennung obendrauf. Beim `LevelUpAssistant` heißt das: meine Aufteilung behalten und mains
+  vier Hunks in die ausgelagerten Panels tragen.
+
+**Was der Rebase NICHT meldet und der Typecheck fand:** mains neue Dateien
+(`spellcasting/access.ts`, `grouped.ts`, `wizard/featurePrep.ts`) benutzen den alten
+Schlüsselsatz. Neun Fehler, behoben in `45e8b76`. Ein `ABILITY_LABEL_DE` über `AbilityName`
+brauchte main an fünf Stellen — als `ABILITY_LABEL_BY_NAME` aus `ABILITY_LABEL` abgeleitet, nicht
+als zweite Tabelle.
+
 ## Offen
 
 1. **`npm run eval` durch den Nutzer** — Halt nach Plan-Commit 6. Berührter Prompt:
@@ -136,5 +160,8 @@ Kriterium: wie viele Dateien muss anfassen, wer *eine* Sache ändert.
      ungespeicherten Änderungen navigieren (`confirmNavigation` ist die empfindlichste Stelle).
      Zwei Stellen verdienen einen gezielten Blick: der Hover-Reveal von Papierkorb und „+" in der
      Akt-Zeile der Kampagnen-Leiste, und die Übernahme eines Stufenaufstiegs ins Bearbeiten-Formular.
-3. **Der Branch hängt hinter `rework-spellcasting`** (`41c5082` fehlt hier) — vor dem Merge
-   abgleichen.
+3. **Drei Integrationstests sind rot — auch auf main.** `castingMigration`, `castingProjection`
+   und `castingWrite` lesen den echten Vault; die dortigen Testcharaktere sind untracked und
+   abgedriftet (`thromm_flechtenstein` steht auf `_version: 4`, `spellcasting.sources: null`).
+   Gegen `main` in einem eigenen Worktree geprüft: dieselben drei fallen dort ebenso. Also
+   Vault-Stand, nicht Code — gehört in den Vault repariert.
