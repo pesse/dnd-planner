@@ -1,13 +1,21 @@
 <script lang="ts">
-  import { appErrors, dismissError } from '../stores/errors';
+  import { toasts, dismissToast, type Toast } from '../stores/toasts';
+
+  function run(toast: Toast) {
+    toast.action?.run();
+    dismissToast(toast.id);
+  }
 </script>
 
-{#if $appErrors.length > 0}
+{#if $toasts.length > 0}
   <div class="toast-container">
-    {#each $appErrors as err (err.id)}
-      <div class="toast">
-        <span class="toast-msg">{err.message}</span>
-        <button class="toast-close" onclick={() => dismissError(err.id)}>✕</button>
+    {#each $toasts as toast (toast.id)}
+      <div class="toast" class:notice={toast.kind === 'notice'}>
+        <span class="toast-msg">{toast.message}</span>
+        {#if toast.action}
+          <button class="toast-action" onclick={() => run(toast)}>{toast.action.label}</button>
+        {/if}
+        <button class="toast-close" onclick={() => dismissToast(toast.id)}>✕</button>
       </div>
     {/each}
   </div>
@@ -40,10 +48,26 @@
     animation: slide-in 0.15s ease-out;
   }
 
+  .toast.notice { border-color: var(--gold); }
+
   .toast-msg {
     flex: 1;
     word-break: break-word;
   }
+
+  .toast-action {
+    background: none;
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    color: var(--gold);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .toast-action:hover { filter: brightness(1.2); }
 
   .toast-close {
     background: none;

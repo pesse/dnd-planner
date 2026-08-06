@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
 import { activeCampaign, activeFile, invalidateVault } from '../stores/campaign';
 import { confirmAction } from '../stores/confirmDialog';
-import { pushError } from '../stores/errors';
+import { pushError } from '../stores/toasts';
 import { invalidateItemCache } from '../itemLibrary';
 import type { FileEntry } from '../types';
 import { slugKeepUmlauts } from '../utils/text';

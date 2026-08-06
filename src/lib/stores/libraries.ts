@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '../services/httpFetch';
-import { pushError } from './errors';
+import { pushError, pushNotice } from './toasts';
 import { invalidateVault } from './campaign';
 import { invalidateSpellLibrary } from '../spellLibrary';
 import { invalidateClassCache } from '../classLibrary';
@@ -94,8 +94,13 @@ export const libraryManagerOpen = writable(false);
 
 export const installing = writable<Set<string>>(new Set());
 
+/** Was der Nutzer jetzt ziehen könnte — Badge und Start-Hinweis müssen dieselbe Menge meinen. */
+export function pendingUpdates(list: Library[]): Library[] {
+  return list.filter((l) => l.install === 'update' && !l.block);
+}
+
 export function updateCount(list: Library[]): number {
-  return list.filter((l) => l.install === 'update' && !l.block).length;
+  return pendingUpdates(list).length;
 }
 
 /** Beim Start bewusst still: ohne Netz soll die App trotzdem normal starten. */
@@ -200,9 +205,19 @@ function invalidateLibraryCaches(): void {
   invalidateVault();
 }
 
+function describeUpdates(list: Library[]): string {
+  if (list.length === 1) {
+    const [lib] = list;
+    return `Neue Fassung von „${lib.name}“ verfügbar (${lib.installedVersion} → ${lib.version}).`;
+  }
+  const names = list.map((l) => `„${l.name}“`).join(', ');
+  return `Für ${list.length} Bibliotheken liegen neue Fassungen bereit: ${names}.`;
+}
+
 /**
  * Installiert nur noch gar nicht vorliegende, offene Bibliotheken — damit eine frische
- * Installation sofort brauchbar ist. UPDATES werden nie ungefragt gezogen, dafür der Badge.
+ * Installation sofort brauchbar ist. UPDATES werden nie ungefragt gezogen, dafür Badge und
+ * Hinweis.
  */
 export async function checkLibrariesOnStartup(): Promise<void> {
   if (!isTauri()) return;
@@ -224,6 +239,16 @@ export async function checkLibrariesOnStartup(): Promise<void> {
       `Der installierte Inhalt von ${stale.map((l) => `„${l.name}"`).join(', ')} ist älter als ` +
         'diese App-Version — Zauber und Mechaniken können fehlen. Im Bibliotheks-Dialog aktualisieren.',
     );
+  }
+
+  // Der Badge trägt das Signal dauerhaft, aber leicht zu übersehen; einmal pro Start steht es
+  // hier sichtbar. Gezogen wird trotzdem erst auf Anforderung.
+  const updates = pendingUpdates(get(libraries));
+  if (updates.length) {
+    pushNotice(describeUpdates(updates), {
+      label: 'Bibliotheken öffnen',
+      run: () => libraryManagerOpen.set(true),
+    });
   }
 
   const missing = get(libraries).filter((l) => !l.protected && !l.block && l.install === 'available');

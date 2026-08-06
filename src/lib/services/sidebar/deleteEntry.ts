@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
 import { activeFile, setFileContent, vaultVersion } from '../../stores/campaign';
 import { confirmAction } from '../../stores/confirmDialog';
-import { pushError } from '../../stores/errors';
+import { pushError } from '../../stores/toasts';
 
 /**
  * Löscht einen Vault-Eintrag (Datei oder Ordner) nach Bestätigung und ruft die

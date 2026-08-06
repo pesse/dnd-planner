@@ -11,7 +11,7 @@ import { preferredCardTab } from '$lib/stores/uiPrefs';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
 import { openSaveAs, type SaveAsBucket } from '$lib/editor/saveAs';
 import { slugKeepUmlauts } from '$lib/utils/text';
-import { pushError } from '$lib/stores/errors';
+import { pushError } from '$lib/stores/toasts';
 import type { FileEntry } from '$lib/types';
 
 export type CardTab = 'karte' | 'bearbeiten' | 'json' | (string & {});
