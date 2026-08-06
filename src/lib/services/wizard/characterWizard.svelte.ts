@@ -6,8 +6,7 @@
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
-import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
-import { withoutOwnedChoices } from '../declaredChoice';
+import type { SpellAccessGrant } from '../spellcasting/access';
 import { runAiAction } from '../aiActions/runner';
 import {
   buildFieldSummaryAction,
@@ -18,20 +17,17 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import { expertiseChoice, expertiseChoiceId, expertiseRider } from '../declaration/expertise';
-import { optionListChoices, optionListRiders, optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
-import { withDeclaredGrants } from '../declaration/grants';
-import { characterPropertyChoices } from '../characterProperties';
+import { optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
+import { wizardDeclaredChoices, wizardFeatureChoices, wizardRiders } from './wizardChoices';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FeatureRider, FieldSummary } from '$lib/schemas/levelUp';
+import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
 import type { AsiAllocation } from './backgroundAsi';
-
-export type JobStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped';
+import { Job } from './job.svelte';
 
 export function toolPickKey(groupIdx: number, optionIdx: number, itemIdx: number): string {
   return `${groupIdx}:${optionIdx}:${itemIdx}`;
@@ -43,58 +39,19 @@ function isCoinItem(name: string): boolean {
   return /\b\w*münzen?\b/i.test(n) || /\bgold(stücke?|)\b/i.test(n) || /^\d+\s*(gm|sm|km|em|pm|gp|sp|cp|ep|pp)$/i.test(n);
 }
 
-/**
- * Ein KI-Job: reaktiver Status, abbrechbar. Ein neuer `run()` bricht den vorigen ab; dessen
- * verspätetes Settle wird über das abgebrochene Signal verworfen.
- */
-export class Job<T> {
-  status = $state<JobStatus>('idle');
-  result = $state<T | null>(null);
-  error = $state('');
-  #ctrl: AbortController | null = null;
-  #running: Promise<unknown> = Promise.resolve();
-
-  #begin(): AbortSignal {
-    this.#ctrl?.abort();
-    this.#ctrl = new AbortController();
-    this.status = 'running';
-    this.error = '';
-    return this.#ctrl.signal;
-  }
-
-  /** Bewusst kein await — der Job läuft, während der Nutzer weiterarbeitet. */
-  run(fn: (signal: AbortSignal) => Promise<T>): void {
-    const signal = this.#begin();
-    this.#running = fn(signal).then(
-      (r) => { if (!signal.aborted) { this.result = r; this.status = 'done'; } },
-      (e) => { if (!signal.aborted) { this.error = e instanceof Error ? e.message : String(e); this.status = 'error'; } },
-    );
-  }
-
-  /** Nie rejektierend — der Zusammenbau soll an einem gescheiterten Job nicht hängenbleiben. */
-  settle(): Promise<void> { return this.#running.then(() => {}, () => {}); }
-
-  skip(): void { this.abort(); this.status = 'skipped'; }
-  abort(): void { this.#ctrl?.abort(); this.#ctrl = null; }
-  reset(): void { this.abort(); this.status = 'idle'; this.result = null; this.error = ''; }
-}
-
 export interface WizardLink {
   sourceKey: string;
   name: string;
 }
 
 export class CharacterWizard {
-  // ── Kopf ──
   name = $state('');
   playerName = $state('');
 
-  // ── Grundwahl (Schritt 1) ──
   species: WizardLink & { subspeciesKey?: string; subspeciesName?: string } = $state({ sourceKey: '', name: '' });
   klass: WizardLink & { subclassKey?: string; subclassName?: string } = $state({ sourceKey: '', name: '' });
   background: WizardLink = $state({ sourceKey: '', name: '' });
 
-  // ── Deterministische Schritte ──
   scores = $state<AbilityScores>(pointBuyStart());
   asi = $state<AsiAllocation>({});
   /** Englische Fertigkeitsnamen (das geschlossene Vokabular), nicht die Anzeigelabels. */
@@ -111,7 +68,7 @@ export class CharacterWizard {
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
 
-  // ── Zauberwahl (Schritt „Zauber"; alle Listen `spell.key`) ──
+  /** Schritt „Zauber"; diese und die beiden folgenden Listen sind `encodePick`-kodiert. */
   pickedCantrips = $state<string[]>([]);
   /** Nur im `spellbook`-Regime der bekannt-Bestand; sonst unmittelbar die Vorbereitung. */
   pickedKnown = $state<string[]>([]);
@@ -123,7 +80,6 @@ export class CharacterWizard {
    */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
-  // ── Merkmalswahlen (Checkpoint, Schritt 5) ──
   /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
   resolvedChoices = $state<ResolvedChoice[]>([]);
   /**
@@ -148,7 +104,6 @@ export class CharacterWizard {
    */
   declaredAnswers = $state<ResolvedChoice[]>([]);
 
-  // ── KI-Jobs ──
   analysis = new Job<FeatureAnalysis>();
   classText = new Job<FieldSummary>();
   speciesText = new Job<FieldSummary>();
@@ -173,32 +128,19 @@ export class CharacterWizard {
     return this.#getConfig().provider === 'qualityminds';
   }
 
-  /**
-   * Hängt reaktiv an `declaredAnswers`: erst die beantwortete Zauberliste macht aus dem
-   * Kontingent eine benutzbare Zauber-Wahl (der Bibliotheks-Filter hängt daran).
-   */
   get declaredChoices(): AnalysisChoice[] {
-    const spells = this.spellAccess.flatMap((grant) => {
-      const answer = this.declaredAnswers.find((a) => a.id === spellListChoiceId(grant))?.choice ?? '';
-      return spellAccessChoices(grant, answer);
+    return wizardDeclaredChoices({
+      spellAccess: this.spellAccess,
+      declaredAnswers: this.declaredAnswers,
+      declared: this.declared,
+      proficientSkills: this.proficientSkills,
+      sizeChoice: this.sizeChoice,
     });
-    // EIN Durchgang über alle Herkünfte: beide Builder liefern `null` für Merkmale des
-    // jeweils anderen `kind`, ein Vorsortieren wäre ein zweiter Filter.
-    const branches = optionListChoices(this.declared);
-    // Auf Stufe 1 hat nichts Expertise — der dritte Parameter ist bewusst leer.
-    const expertise = this.declared
-      .map((f) => expertiseChoice(f, this.proficientSkills, []))
-      .filter((c): c is AnalysisChoice => c !== null);
-    // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
-    // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
-    const properties = characterPropertyChoices(this.declared);
-    return [...(this.sizeChoice ? [this.sizeChoice] : []), ...properties, ...branches, ...expertise, ...spells];
   }
 
   /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
   get featureChoices(): AnalysisChoice[] {
-    const declared = this.declaredChoices;
-    return [...declared, ...withoutOwnedChoices(declared, this.analysis.result?.choices ?? [])];
+    return wizardFeatureChoices(this.declaredChoices, this.analysis.result?.choices ?? []);
   }
 
   get proficientSkills(): string[] {
@@ -213,19 +155,12 @@ export class CharacterWizard {
     return this.featureChoices.filter((c) => c.type !== 'spell-pick');
   }
 
-  /**
-   * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
-   * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
-   */
   get riders() {
-    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-    // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
-    const declared = optionListRiders(this.declared, answerOf, 1);
-    const expertise = this.declared
-      .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
-      .filter((r): r is FeatureRider => r !== null);
-    const ai = withDeclaredGrants(this.effects.result?.riders ?? [], this.declared);
-    return [...ai, ...declared, ...expertise];
+    return wizardRiders({
+      declared: this.declared,
+      declaredAnswers: this.declaredAnswers,
+      effectsRiders: this.effects.result?.riders ?? [],
+    });
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };

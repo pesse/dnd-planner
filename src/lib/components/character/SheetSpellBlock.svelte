@@ -12,7 +12,7 @@
   import { prepareMultiSpellPrint } from '../../utils/printSpell';
   import { createSpellHover, loadSpellCached } from '../spellHover.svelte';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
-  import { ABILITY_LABEL_DE } from '../../schemas/abilities';
+  import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
   import { groupedSpellcasting } from '../../services/spellcasting/grouped';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -141,7 +141,7 @@
             </span>
           {:else if source.abilityOptions.length}
             <span class="source-open">
-              Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_DE[a]).join('/')})
+              Zauberattribut offen ({source.abilityOptions.map((a) => ABILITY_LABEL_BY_NAME[a]).join('/')})
             </span>
           {/if}
         </div>

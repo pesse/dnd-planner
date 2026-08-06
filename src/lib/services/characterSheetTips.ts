@@ -3,9 +3,8 @@
  * (`tip-row`, `tip-total`, …) stylt `components/character/sheet.css`.
  */
 import { sign } from '../utils/num';
+import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
-
-const ATTR_ABBR: Record<string, string> = { str: 'STR', ges: 'GES', kon: 'KON', int: 'INT', wei: 'WEI', cha: 'CHA' };
 
 function row(label: string, val: string | number): string {
   const v = typeof val === 'number' ? sign(val) : val;
@@ -23,8 +22,9 @@ export function attrModTip(attr: string, score: number): string {
   return row(attr, String(score)) + step('− 10') + step('÷ 2') + divider() + total(m);
 }
 
-export function saveTip(character: Character, modKey: string, attrLabel: string, proficient: boolean): string {
-  const attrMod = (character as unknown as Record<string, number>)[modKey];
+export function saveTip(character: Character, key: AbilityKey, proficient: boolean): string {
+  const attrLabel = ABILITY_ABBR_DE[key];
+  const attrMod = character.mods[key];
   const pb = character.proficiencyBonus;
   if (proficient) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(attrMod + pb);
   return row(`${attrLabel}-Mod`, attrMod) + divider() + total(attrMod);
@@ -32,12 +32,12 @@ export function saveTip(character: Character, modKey: string, attrLabel: string,
 
 export function skillTip(
   character: Character,
-  attr: string | undefined,
+  attr: AbilityKey | undefined,
   skill: { value: number; prof: boolean; exp: boolean },
 ): string {
   if (!attr) return '';
-  const attrLabel = ATTR_ABBR[attr] ?? attr.toUpperCase();
-  const attrMod = (character as unknown as Record<string, number>)[`${attr}Mod`];
+  const attrLabel = ABILITY_ABBR_DE[attr];
+  const attrMod = character.mods[attr];
   const pb = character.proficiencyBonus;
   if (skill.exp) return row(`${attrLabel}-Mod`, attrMod) + row('2× Übungsbonus', pb * 2) + divider() + total(skill.value);
   if (skill.prof) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(skill.value);

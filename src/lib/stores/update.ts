@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { isTauri } from '../services/httpFetch';
 import { pushError } from './errors';
 
 export type UpdateStatus = 'idle' | 'available' | 'downloading' | 'installing' | 'error';
@@ -18,12 +19,8 @@ export const updateDialogOpen = writable<boolean>(false);
 /** Hält das vom Plugin gelieferte Update-Objekt zwischen Prüfung und Installation. */
 let pending: import('@tauri-apps/plugin-updater').Update | null = null;
 
-function inTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
 export async function checkForUpdate(): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   try {
     const { check } = await import('@tauri-apps/plugin-updater');
     const update = await check();

@@ -2,7 +2,7 @@
  * `SpellcastingState` → Bogen-Sicht, KI-Kontext und offene Wahlen.
  */
 import type { AbilityName } from '$lib/schemas/abilities';
-import { ABILITY_LABEL_DE } from '$lib/schemas/abilities';
+import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
 import type { Character, CharacterFeatureEntry, CharacterSpells } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { getSpellLibrary, resolveSpell, type SpellInfo } from '$lib/spellLibrary';
@@ -11,7 +11,7 @@ import { legacySpellcasting } from './legacy';
 import { resolveCasting } from './resolve';
 import { spellPools } from './slots';
 import type { ResolvedPool } from './quota';
-import type { CastingSource } from './source';
+import { originCountsClassLevel, type CastingSource } from './source';
 import { spellcastingState, type SpellcastingState } from './state';
 
 export interface ProjectionLookup {
@@ -59,7 +59,11 @@ export interface SheetSpellcasting {
   hasContent: boolean;
 }
 
-export const abilityDe = (a: AbilityName | null): string => (a ? ABILITY_LABEL_DE[a] : '');
+export const abilityDe = (a: AbilityName | null): string => {
+  if (!a) return '';
+  const key = abilityKeyOf(a);
+  return key ? ABILITY_LABEL[key] : a;
+};
 
 /** Nur die Grundklasse steht als Klassenname; alles andere nennt sein Merkmal. */
 export function sourceLabel(source: CastingSource, lookup: ProjectionLookup): string {
@@ -75,12 +79,12 @@ function sourceRows(state: SpellcastingState, lookup: ProjectionLookup): SheetSo
     .filter((s) => s.ability || s.abilityOptions.length)
     .map((s) => ({
       id: s.source.id,
-      kind: s.source.origin === 'class' || s.source.origin === 'subclass' ? ('class' as const) : ('feature' as const),
+      kind: originCountsClassLevel(s.source.origin) ? ('class' as const) : ('feature' as const),
       label: sourceLabel(s.source, lookup),
       abilityDe: abilityDe(s.ability),
       saveDC: s.saveDC,
       attackBonus: s.attackBonus,
-      abilityOptionsDe: s.abilityOptions.map((a) => ABILITY_LABEL_DE[a]),
+      abilityOptionsDe: s.abilityOptions.map(abilityDe),
     }));
 }
 
@@ -258,7 +262,7 @@ export async function loadSpellcasting(
     resolution,
     stored: legacy.stored,
     profBonus: c.proficiencyBonus,
-    mods: { str: c.strMod, ges: c.gesMod, kon: c.konMod, int: c.intMod, wei: c.weiMod, cha: c.chaMod },
+    mods: c.mods,
     spellKey: (name) => resolveSpell(library, name)?.key,
   });
   return { state, lookup, legacy: legacy.sheet };

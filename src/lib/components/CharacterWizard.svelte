@@ -2,7 +2,8 @@
   import { get } from 'svelte/store';
   import { onMount } from 'svelte';
   import { llmConfig } from '../stores/llm';
-  import { CharacterWizard, type Job } from '../services/wizard/characterWizard.svelte';
+  import { CharacterWizard } from '../services/wizard/characterWizard.svelte';
+  import type { Job } from '../services/wizard/job.svelte';
   import { buildWizardCharacter } from '../services/wizard/assembleCharacter';
   import { isComplete as pointBuyComplete } from '../services/wizard/pointBuy';
   import { allowedKeys, isValidAllocation, type AsiAllocation } from '../services/wizard/backgroundAsi';

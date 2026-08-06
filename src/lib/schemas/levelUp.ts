@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { toLlmJsonSchema } from './llmJson';
+import { ABILITY_KEYS, ABILITY_NAMES, abilityModsSchema } from './abilities';
 import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, WEAPON_CATEGORIES } from './vocabulary';
 
 export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
@@ -40,15 +41,6 @@ const questionSchema = z.object({
   resolvesEffects: z.boolean().default(false).describe('true = the choice determines further grants; run the effects pass again with it resolved before finishing.'),
   featureKey: z.string().default('').describe('Library key of the feature that forces this choice; empty for questions the flow itself asks.'),
   isBuildDecision: z.boolean().default(false).describe('true = permanent build decision worth recording on the character.'),
-});
-
-const abilityDeltaSchema = z.object({
-  str: z.number().int().default(0),
-  ges: z.number().int().default(0),
-  kon: z.number().int().default(0),
-  int: z.number().int().default(0),
-  wei: z.number().int().default(0),
-  cha: z.number().int().default(0),
 });
 
 /** Ausgabevokabular des Modells, wo möglich auf geschlossene Werte eingegrenzt. */
@@ -99,7 +91,7 @@ const featureRiderSchema = z.object({
   extraPreparedCount: z.number().int().default(0).describe('Additional spells the player may prepare because of this feature.'),
   expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]).describe('Skills that gained Expertise — the CHOSEN skills, not options.'),
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
-  abilityScoreIncrease: abilityDeltaSchema.default({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 }).describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
+  abilityScoreIncrease: abilityModsSchema.describe('Ability increases this feature grants — fixed ones AND any resolved "+1 to one of…" choice.'),
   decisions: z.array(featureDecisionSchema).default([]).describe('Feature-forced player choices already MADE (record only — no option lists).'),
   sheetNote: z.string().default('').describe(
     `ENGLISH single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_EN_MAX_CHARS} chars ` +
@@ -167,15 +159,14 @@ export const changeSchema = z.discriminatedUnion('target', [
   // dann bleibt es beim quellenlosen Bestand (`applyChanges.ts`).
   z.object({ target: z.literal('cantrip'), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), ...changeBase }),
   z.object({ target: z.literal('spellcastingClass'), value: z.string(), ...changeBase }),
-  z.object({ target: z.literal('ability'), ability: z.enum(['str', 'ges', 'kon', 'int', 'wei', 'cha']), value: z.number().int(), ...changeBase }),
+  z.object({ target: z.literal('ability'), ability: z.enum(ABILITY_KEYS), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), prepared: z.boolean().default(true), ...changeBase }),
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
-  z.object({ target: z.literal('expertise'), skill: z.string(), ...changeBase }),
-  z.object({ target: z.literal('proficiency'), skill: z.string(), ...changeBase }),
-  z.object({ target: z.literal('weaponProficiency'), value: z.string(), ...changeBase }),
-  z.object({ target: z.literal('armorTraining'), value: z.string(), ...changeBase }),
-  // `value` englisch, wo ein geschlossenes Vokabular greift (Rettungswurf), sonst Freitext.
-  z.object({ target: z.literal('savingThrow'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('expertise'), skill: z.enum(SKILL_NAMES), ...changeBase }),
+  z.object({ target: z.literal('proficiency'), skill: z.enum(SKILL_NAMES), ...changeBase }),
+  z.object({ target: z.literal('weaponProficiency'), value: z.enum(WEAPON_CATEGORIES), ...changeBase }),
+  z.object({ target: z.literal('armorTraining'), value: z.enum(ARMOR_TRAININGS), ...changeBase }),
+  z.object({ target: z.literal('savingThrow'), value: z.enum(ABILITY_NAMES), ...changeBase }),
   z.object({ target: z.literal('toolProficiency'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),

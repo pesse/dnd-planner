@@ -1,6 +1,7 @@
 <script lang="ts">
   import './wizard.css';
-  import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
+  import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
+  import type { Job } from '../../services/wizard/job.svelte';
   import type { ClassCastingOffer } from '../../services/spellcasting/classOffer';
   import { CANTRIP_GROUP, SPELL_GROUP, type SpellStepValues } from '../../services/wizard/spellStep.svelte';
   import { knownSpells } from '../../services/spellcasting/known';

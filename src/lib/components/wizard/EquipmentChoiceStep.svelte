@@ -1,6 +1,7 @@
 <script lang="ts">
   import './wizard.css';
-  import { CharacterWizard, toolPickKey, type Job } from '../../services/wizard/characterWizard.svelte';
+  import { CharacterWizard, toolPickKey } from '../../services/wizard/characterWizard.svelte';
+  import type { Job } from '../../services/wizard/job.svelte';
   import { getToolChoices, displayName as itemDisplayName } from '../../itemLibrary';
   import type { EquipmentChoiceCategory } from '../../schemas/wizardEquipment';
   import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';

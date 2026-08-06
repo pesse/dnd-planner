@@ -116,12 +116,20 @@ export const featureGrantSchema = z.object({
   properties: characterPropertiesSchema.default({}),
 });
 
+/**
+ * Über `keyof ProficiencyGrant` total: ein neues Übungsfeld bricht den Build, statt hier
+ * still als „leer" durchzugehen — und ein leerer Grant filtert das ganze Merkmal weg.
+ */
 export function isEmptyProficiencyGrant(g: ProficiencyGrant | undefined): boolean {
   if (!g) return true;
-  return (
-    !g.skills.fixed.length && !g.skills.choose &&
-    !g.savingThrows.length && !g.weapons.length && !g.weaponsOther.length && !g.armor.length
-  );
+  const filled: { [K in keyof ProficiencyGrant]: () => boolean } = {
+    skills: () => g.skills.fixed.length > 0 || g.skills.choose > 0,
+    savingThrows: () => g.savingThrows.length > 0,
+    weapons: () => g.weapons.length > 0,
+    weaponsOther: () => g.weaponsOther.length > 0,
+    armor: () => g.armor.length > 0,
+  };
+  return !Object.values(filled).some((has) => has());
 }
 
 export type PerLevelGrant = z.infer<typeof perLevelGrantSchema>;

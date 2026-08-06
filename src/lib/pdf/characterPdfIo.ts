@@ -70,10 +70,7 @@ export async function importPdfIntoCharacter(
   imported.spells = keepSpells;
 
   const json: CharacterJSON = {
-    ...imported,
-    // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die
-    // Upgrade-Pipeline (schemas/characterUpgrades.ts) strukturiert sie beim ersten Laden.
-    _version: 1,
+    ...imported, // _version: 1 kommt aus parseCharacterData — frisches PDF ist unstrukturiert.
     _importedFrom: pdfPath.split(/[/\\]/).pop() ?? '',
     _importedAt: new Date().toISOString(),
   };
@@ -103,12 +100,6 @@ export async function exportCharacterPdfFile(
 ): Promise<boolean> {
   const templateB64 = await invoke<string>('read_file_base64', { path: TEMPLATE_PATH });
   const templateBytes = base64ToBytes(templateB64);
-  const json = {
-    _version: 1 as const,
-    _importedFrom: opts.importedFrom || undefined,
-    _importedAt: new Date().toISOString(),
-    ...character,
-  };
 
   let portrait: { bytes: Uint8Array; format: 'png' | 'jpg' } | undefined;
   if (character.portraitFile) {
@@ -123,7 +114,7 @@ export async function exportCharacterPdfFile(
     } catch { /* Portrait nicht ladbar → ohne weitermachen */ }
   }
 
-  const pdfBytes = await exportCharacterToPdf(json, templateBytes, {
+  const pdfBytes = await exportCharacterToPdf(character, templateBytes, {
     portrait,
     freitext: opts.freitext,
     masteryOf: opts.masteryOf,

@@ -8,10 +8,7 @@ import {
   migrateClassLegacy,
   type ClassProgression,
   type ClassFeature,
-  type AbilityKey,
 } from '$lib/schemas/classProgression';
-import { ABILITY_FROM_EN, ABILITY_TO_EN } from '$lib/schemas/abilities';
-export { ABILITY_FROM_EN, ABILITY_TO_EN };
 import { getClass, DEFAULT_DOCUMENT } from './open5eClient';
 import { findClassByKey } from '$lib/classLibrary';
 import { mapV2 } from './classTableParse';

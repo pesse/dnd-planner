@@ -24,8 +24,8 @@ export function classDisplayName(info: ClassInfo): string {
 
 const library = createLibrary<ClassInfo>({
   path: CLASSES_PATH,
-  displayName: classDisplayName,
   key: (c) => c.key,
+  // Eigener `read` statt Standard: `subclassOf` ist ClassInfos Erweiterung der Basisform.
   read: (data, { path, filename }) => ({
     name: data.name ?? filename.replace('.json', ''),
     nameDe: data.nameDe,
@@ -39,6 +39,7 @@ export const getClasses = library.list;
 export const invalidateClassCache = library.invalidate;
 export const searchClasses = library.search;
 export const findClassByKey = library.loadByKey;
+export const searchClassDrafts = library.searchWithParser;
 
 /**
  * Zweistufige Hierarchie über `subclassOf` ↔ `key`. Eine Subklasse ohne vorhandene

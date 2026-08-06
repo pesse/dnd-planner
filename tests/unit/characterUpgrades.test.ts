@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  CHARACTER_UPGRADES,
   CHARACTER_VERSION,
   pendingCharacterUpgrade,
   upgradeCharacter,
@@ -46,5 +47,83 @@ describe('Stempel der Schemaversion', () => {
   it('hält einen aktuellen Charakter für fertig', () => {
     const current = upgradeCharacter({ _version: 1, classLevel: 'Magier 1' }).data;
     expect(pendingCharacterUpgrade(current)).toBeNull();
+  });
+});
+
+describe('Schritt 7: Attribute deutsch-flach → englisch-verschachtelt', () => {
+  const step7 = CHARACTER_UPGRADES.find((s) => s.to === 7)!;
+  const expectedAbilities = { str: 12, dex: 14, con: 13, int: 10, wis: 8, cha: 15 };
+  const expectedMods = { str: 1, dex: 2, con: 1, int: 0, wis: -1, cha: 2 };
+  const expectedSaveProfs = { str: true, dex: false, con: true, int: false, wis: false, cha: false };
+
+  it('verschachtelt einen rein deutsch-flachen Charakter', () => {
+    const c = upgradeCharacter({
+      _version: 6,
+      str: 12, ges: 14, kon: 13, int: 10, wei: 8, cha: 15,
+      strMod: 1, gesMod: 2, konMod: 1, intMod: 0, weiMod: -1, chaMod: 2,
+      strSaveProf: true, gesSaveProf: false, konSaveProf: true,
+      intSaveProf: false, weiSaveProf: false, chaSaveProf: false,
+      attacks: [{ name: 'Kurzschwert', ability: 'ges' }],
+    }).data;
+    expect(c.abilities).toEqual(expectedAbilities);
+    expect(c.mods).toEqual(expectedMods);
+    expect(c.saveProfs).toEqual(expectedSaveProfs);
+    expect((c.attacks as { ability: string }[])[0].ability).toBe('dex');
+    for (const oldField of ['str', 'ges', 'kon', 'int', 'wei', 'cha', 'strMod', 'gesMod', 'konMod', 'intMod', 'weiMod', 'chaMod', 'strSaveProf', 'gesSaveProf', 'konSaveProf', 'intSaveProf', 'weiSaveProf', 'chaSaveProf'])
+      expect(c).not.toHaveProperty(oldField);
+  });
+
+  it('lässt einen schon englisch-verschachtelten Charakter unverändert', () => {
+    const nested = {
+      _version: 6,
+      abilities: { ...expectedAbilities },
+      mods: { ...expectedMods },
+      saveProfs: { ...expectedSaveProfs },
+      attacks: [{ name: 'Kurzschwert', ability: 'dex' }],
+    };
+    const c = upgradeCharacter(nested).data;
+    expect(c.abilities).toEqual(expectedAbilities);
+    expect(c.mods).toEqual(expectedMods);
+    expect(c.saveProfs).toEqual(expectedSaveProfs);
+    expect((c.attacks as { ability: string }[])[0].ability).toBe('dex');
+  });
+
+  it('mischt teilweise verschachtelte mit noch flachen Feldern', () => {
+    const mixed = {
+      _version: 6,
+      abilities: { str: 12, dex: 14 },
+      kon: 13, int: 10, wei: 8, cha: 15,
+      mods: { str: 1 },
+      gesMod: 2, konMod: 1, intMod: 0, weiMod: -1, chaMod: 2,
+      saveProfs: { str: true },
+      gesSaveProf: false, konSaveProf: true, intSaveProf: false, weiSaveProf: false, chaSaveProf: false,
+    };
+    const c = upgradeCharacter(mixed).data;
+    expect(c.abilities).toEqual(expectedAbilities);
+    expect(c.mods).toEqual(expectedMods);
+    expect(c.saveProfs).toEqual(expectedSaveProfs);
+  });
+
+  it('erfindet nichts, wenn gar keine Attributsfelder vorhanden sind', () => {
+    const c = upgradeCharacter({ _version: 6, name: 'Leer' }).data;
+    expect(c.abilities).toBeUndefined();
+    expect(c.mods).toBeUndefined();
+    expect(c.saveProfs).toBeUndefined();
+  });
+
+  it('ist bei zweifacher Anwendung idempotent', () => {
+    const raw = {
+      _version: 6,
+      str: 12, ges: 14, kon: 13, int: 10, wei: 8, cha: 15,
+      strMod: 1, gesMod: 2, konMod: 1, intMod: 0, weiMod: -1, chaMod: 2,
+      strSaveProf: true, gesSaveProf: false, konSaveProf: true,
+      intSaveProf: false, weiSaveProf: false, chaSaveProf: false,
+      attacks: [{ name: 'Kurzschwert', ability: 'ges' }],
+    };
+    const once = structuredClone(raw);
+    step7.apply(once);
+    const twice = structuredClone(once);
+    step7.apply(twice);
+    expect(twice).toEqual(once);
   });
 });

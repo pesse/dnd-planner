@@ -8,6 +8,12 @@ import { SKILL_DEFS, mod } from '../domain/skills';
 import { MASTERY_BY_LABEL } from '../itemLabels';
 import { int as toInt, sign } from '../utils/num';
 import { emptySpellcasting } from '../services/spellcasting/write';
+import { ABILITY_KEYS, type AbilityKey, type AbilityScores } from '../schemas/abilities';
+
+/** Der legitime Übersetzungsrand — die PDF-Feldnamen, vom Taendler-Formular diktiert. */
+export const PDF_ABILITY_FIELD: Record<AbilityKey, string> = {
+  str: 'Str', dex: 'Ges', con: 'Kon', int: 'Int', wis: 'Wei', cha: 'Cha',
+};
 
 export type {
   Character,
@@ -125,7 +131,7 @@ function fieldReader(fields: Record<string, string>): FieldReader {
 /** Fertigkeitswerte nach der Formel des PDF-Skripts (Alleskönner = halber Bonus, abgerundet). */
 function parseSkills(
   r: FieldReader,
-  attrMods: Record<string, number>,
+  attrMods: AbilityScores,
   profBonus: number,
   alleskoenner: boolean,
 ): CharacterData['skills'] {
@@ -254,16 +260,24 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
   const r = fieldReader(fields);
   const { f, num } = r;
 
-  const str = num('Str'); const ges = num('Ges'); const kon = num('Kon');
-  const int = num('Int'); const wei = num('Wei'); const cha = num('Cha');
   const profBonus = num('Übungsbonus');
   const alleskoenner = r.prof('Alleskoenner');
-  const attrMods: Record<string, number> = {
-    str: mod(str), ges: mod(ges), kon: mod(kon),
-    int: mod(int), wei: mod(wei), cha: mod(cha),
-  };
+
+  const abilities = {} as AbilityScores;
+  const mods = {} as AbilityScores;
+  const saveProfs = {} as Record<AbilityKey, boolean>;
+  for (const key of ABILITY_KEYS) {
+    const field = PDF_ABILITY_FIELD[key];
+    const score = num(field);
+    abilities[key] = score;
+    mods[key] = mod(score);
+    saveProfs[key] = r.prof(`${field}Prof`);
+  }
 
   return {
+    // BEWUSST v1: PDF-Felder sind Freitext (Klasse/Volk/Hintergrund). Die Upgrade-Pipeline
+    // (schemas/characterUpgrades.ts) strukturiert sie beim ersten Laden der geschriebenen Datei.
+    _version: 1,
     name: f('Charaktername_page1'),
     classes: [], // strukturierte Klassen: aus classLevel beim Laden migriert (best-effort)
     classLevel: f('KlasseUndStufe'),
@@ -275,9 +289,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     species: { sourceKey: '', name: f('Volk') },
     race: f('Volk'),
     xp: f('Erfahrungspunkte'),
-    str, ges, kon, int, wei, cha,
-    strMod: mod(str), gesMod: mod(ges), konMod: mod(kon),
-    intMod: mod(int), weiMod: mod(wei), chaMod: mod(cha),
+    abilities, mods, saveProfs,
     ac: f('Rüstungsklasse'),
     initiative: f('Initiative'),
     speed: f('Bewegungsrate'),
@@ -287,9 +299,7 @@ export function parseCharacterData(fields: Record<string, string>): CharacterDat
     proficiencyBonus: profBonus,
     passivePerception: f('PassiveWeisheit'),
     hitDice: f('Trefferwürfel'),
-    strSaveProf: r.prof('StrProf'), gesSaveProf: r.prof('GesProf'), konSaveProf: r.prof('KonProf'),
-    intSaveProf: r.prof('IntProf'), weiSaveProf: r.prof('WeiProf'), chaSaveProf: r.prof('ChaProf'),
-    skills: parseSkills(r, attrMods, profBonus, alleskoenner),
+    skills: parseSkills(r, mods, profBonus, alleskoenner),
     attacks: parseAttacks(r),
     classFeatures: stripSpellValues([f('Klassenmerkmale1'), f('Klassenmerkmale2')].filter(Boolean).join('\n\n')),
     traits: f('Persönlichkeitsmerkmale'),

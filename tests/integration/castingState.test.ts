@@ -20,7 +20,7 @@ const stored = (index: number): CharacterSpellcasting => {
   return characterSpellcastingSchema.parse(file.exampleCharacters[index].spellcasting);
 };
 
-const NO_MODS = { str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 3 } as const;
+const NO_MODS = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 3 } as const;
 
 async function state(c: CastingCharacter, index: number): Promise<SpellcastingState> {
   const lib = await getSpellLibrary();

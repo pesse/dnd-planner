@@ -3,6 +3,7 @@ import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../ty
 import { renderMarkdown, renderMarkdownInline } from './markdown';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
 import { mod } from '../domain/skills';
+import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
 import { sign } from './num';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
@@ -15,10 +16,9 @@ function renderStatBlock(pm: PrintMonster): string {
   if (!pm.monster) return `<div class="missing">${esc(pm.slug)} — nicht gefunden</div>`;
   const m = pm.monster;
 
-  const statsHtml = (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((key, i) => {
-    const label = ['STR', 'DEX', 'KON', 'INT', 'WEI', 'CHA'][i];
-    return `<div class="sb-stat"><div class="stat-lbl">${label}</div><div class="stat-val">${m.stats[key]} (${sign(mod(m.stats[key]))})</div></div>`;
-  }).join('');
+  const statsHtml = ABILITY_KEYS.map((key) =>
+    `<div class="sb-stat"><div class="stat-lbl">${ABILITY_ABBR_DE[key]}</div><div class="stat-val">${m.stats[key]} (${sign(mod(m.stats[key]))})</div></div>`,
+  ).join('');
 
   const props: string[] = [];
   if (Object.keys(m.saving_throws ?? {}).length)

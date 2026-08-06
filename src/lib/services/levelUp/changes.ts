@@ -7,8 +7,15 @@ import { isFightingStyleFeature } from '../fightingStyle';
 import { declaredGrantChanges, type DeclaredGrantSource } from '../declaration/grants';
 import { type DeclaredChoiceSource } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
-import { skillLabelDe, abilityLabelDe, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '../proficiencyGrants';
-import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey } from '../../schemas/abilities';
+import {
+  skillLabelDe,
+  skillProficiencyChange,
+  weaponProficiencyChange,
+  armorTrainingChange,
+  savingThrowChange,
+} from '../proficiencyGrants';
+import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey, type AbilityName } from '../../schemas/abilities';
+import { readAbilityName } from '../../schemas/vocabulary';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '../../schemas/levelUp';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
@@ -40,7 +47,7 @@ export const STEP_ORDER = [
 export type BuilderStep = (typeof STEP_ORDER)[number];
 
 type AbilityMap = Record<AbilityKey, number>;
-const zeroAbil = (): AbilityMap => ({ str: 0, ges: 0, kon: 0, int: 0, wei: 0, cha: 0 });
+const zeroAbil = (): AbilityMap => ({ str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 });
 
 function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string | string[]>): AbilityMap {
   const abil = zeroAbil();
@@ -132,20 +139,21 @@ export function riderGrantChanges(
   const values = <T>(pick: (r: FeatureRider) => readonly T[]): T[] => [...new Set(riders.flatMap(pick))];
   const routes: { [K in keyof RiderProficiencies]: () => void } = {
     skills: () => {
-      for (const skill of values((r) => r.proficiencies.skills))
-        out.push({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
+      for (const skill of values((r) => r.proficiencies.skills)) out.push(skillProficiencyChange(skill, meta));
     },
     weapons: () => {
-      for (const value of values((r) => r.proficiencies.weapons))
-        out.push({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value] ?? value}` });
+      for (const value of values((r) => r.proficiencies.weapons)) out.push(weaponProficiencyChange(value, meta));
     },
     armor: () => {
-      for (const value of values((r) => r.proficiencies.armor))
-        out.push({ target: 'armorTraining', value, ...meta, label: `Vertrautheit: ${ARMOR_LABEL_DE[value] ?? value}` });
+      for (const value of values((r) => r.proficiencies.armor)) out.push(armorTrainingChange(value, meta));
     },
+    // Der Rider ist LLM-Ausgabe und bewusst tolerant (`z.string()`); erst hier wird sie auf
+    // das geschlossene Vokabular normalisiert, Unlesbares fällt weg statt den Transport aufzuweichen.
     savingThrows: () => {
-      for (const value of values((r) => r.proficiencies.savingThrows))
-        out.push({ target: 'savingThrow', value, ...meta, label: `Rettungswurf: ${abilityLabelDe(value)}` });
+      const names = values((r) => r.proficiencies.savingThrows)
+        .map(readAbilityName)
+        .filter((v): v is AbilityName => v !== null);
+      for (const value of new Set(names)) out.push(savingThrowChange(value, meta));
     },
     // Freitext, kein Vokabular — und in 2024 sind Sprachen ohnehin keine Übung mehr.
     tools: () => {
@@ -167,7 +175,7 @@ export function riderGrantChanges(
 export interface DecisionChangesParams {
   delta: LevelUpDelta;
   answers: Record<string, string | string[]>;
-  konMod: number;
+  conMod: number;
   pickedCantrips: { key: string; name: string }[];
   pickedLearned: { key: string; name: string; level: number }[];
 }
@@ -182,8 +190,8 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
     const avg = Math.floor(delta.hitDie / 2) + 1;
     const rolled = Number(answers['hp_roll']);
     const hpGain = answers['hp_method'] === 'roll' && rolled > 0
-      ? rolled + p.konMod * delta.levelsGained
-      : (avg + p.konMod) * delta.levelsGained;
+      ? rolled + p.conMod * delta.levelsGained
+      : (avg + p.conMod) * delta.levelsGained;
     if (hpGain) out.push({ target: 'hpMax', value: hpGain, step, source: 'hit-dice+kon', label: 'Trefferpunkte (Würfel + KON)' });
   }
 

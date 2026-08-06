@@ -39,20 +39,20 @@ export function declaredGrantChanges(
   return out;
 }
 
+/**
+ * Über `keyof FeatureGrant` total, weil das Ergebnis in `declaredGrantChanges` filtert: ein
+ * neues Feld, das hier fehlte, ließe ein Merkmal, dessen einzige Mechanik es ist, komplett
+ * ausfallen — noch bevor die geprüften Senken es zu sehen bekämen.
+ */
 export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
-  const p = g.proficiencies;
-  return (
-    !g.extraCantrips &&
-    !g.extraPreparedCount &&
-    !g.perLevel.hpMax &&
-    !p.skills.fixed.length &&
-    !p.skills.choose &&
-    !p.savingThrows.length &&
-    !p.weapons.length &&
-    !p.weaponsOther.length &&
-    !p.armor.length &&
-    isEmptyCharacterProperties(g.properties)
-  );
+  const filled: { [K in keyof FeatureGrant]: () => boolean } = {
+    proficiencies: () => !isEmptyProficiencyGrant(g.proficiencies),
+    extraCantrips: () => g.extraCantrips > 0,
+    extraPreparedCount: () => g.extraPreparedCount > 0,
+    perLevel: () => g.perLevel.hpMax !== 0,
+    properties: () => !isEmptyCharacterProperties(g.properties),
+  };
+  return !Object.values(filled).some((has) => has());
 }
 
 /** Klassenmerkmal, Trait und Talent erfüllen das strukturell. */

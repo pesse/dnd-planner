@@ -35,10 +35,10 @@ export const druidSummary: CharacterSummary = {
   name: 'Thalia Eichenschild',
   classes: [{ name: 'Druide', level: 3, subclassName: 'Zirkel des Landes' }],
   totalLevel: 3,
-  abilities: { str: 10, ges: 14, kon: 14, int: 12, wei: 16, cha: 10 },
-  mods: { str: 0, ges: 2, kon: 2, int: 1, wei: 3, cha: 0 },
+  abilities: { str: 10, dex: 14, con: 14, int: 12, wis: 16, cha: 10 },
+  mods: { str: 0, dex: 2, con: 2, int: 1, wis: 3, cha: 0 },
   hitDice: '3d8',
-  spellcasting: { class: 'Druide', ability: 'wei', currentSlots: [4, 2] },
+  spellcasting: { class: 'Druide', ability: 'Weisheit', currentSlots: [4, 2] },
 };
 
 /**

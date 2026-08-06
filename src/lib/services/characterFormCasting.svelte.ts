@@ -19,7 +19,8 @@ export function castingInput(
     backgroundRef: { ...form.backgroundRef },
     features: features.map((f) => ({ ...f })),
     proficiencyBonus: form.proficiencyBonus,
-    ...abilityMods(form),
+    abilities: { ...form.abilities },
+    mods: abilityMods(form),
     spellcasting: cloneSpellcasting(form.spellcasting),
     ...(spells ? { spells } : {}),
   } as Character;

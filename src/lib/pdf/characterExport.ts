@@ -4,8 +4,9 @@
  */
 import { PDFDocument, PDFCheckBox, PDFTextField, PDFButton, PDFImage, PDFPage } from 'pdf-lib';
 import type { CharacterJSON } from './characterFields';
-import { SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
+import { PDF_ABILITY_FIELD, SPELL_FIELDS_PER_LEVEL, withSpellValues } from './characterFields';
 import type { CharacterSpells } from '../schemas/characterSchema';
+import { ABILITY_KEYS } from '../schemas/abilities';
 import { SKILL_DEFS } from '../domain/skills';
 import { PROFICIENCY_FLAGS } from '../domain/proficiencies';
 import type { SpellAccessValues } from '../services/spellcasting/access';
@@ -141,12 +142,11 @@ function writeHead({ t }: FieldSink, ch: CharacterJSON) {
 }
 
 function writeAbilities({ t }: FieldSink, ch: CharacterJSON) {
-  t('Str', ch.str); t('StrMod', ch.strMod);
-  t('Ges', ch.ges); t('GesMod', ch.gesMod);
-  t('Kon', ch.kon); t('KonMod', ch.konMod);
-  t('Int', ch.int); t('IntMod', ch.intMod);
-  t('Wei', ch.wei); t('WeiMod', ch.weiMod);
-  t('Cha', ch.cha); t('ChaMod', ch.chaMod);
+  for (const key of ABILITY_KEYS) {
+    const field = PDF_ABILITY_FIELD[key];
+    t(field, ch.abilities[key]);
+    t(`${field}Mod`, ch.mods[key]);
+  }
 }
 
 function writeCombat({ t }: FieldSink, ch: CharacterJSON) {
@@ -168,16 +168,14 @@ function writeCombat({ t }: FieldSink, ch: CharacterJSON) {
  */
 function writeSaves({ t, c }: FieldSink, ch: CharacterJSON) {
   const pb = ch.proficiencyBonus;
-  const rows = [
-    ['Str', ch.strMod, ch.strSaveProf],
-    ['Ges', ch.gesMod, ch.gesSaveProf],
-    ['Kon', ch.konMod, ch.konSaveProf],
-    ['Int', ch.intMod, ch.intSaveProf],
-    ['Wei', ch.weiMod, ch.weiSaveProf],
-    ['Cha', ch.chaMod, ch.chaSaveProf],
-  ] as const;
-  for (const [key, abilityMod, proficient] of rows) c(`${key}Prof`, proficient);
-  for (const [key, abilityMod, proficient] of rows) t(`${key}RW`, abilityMod + (proficient ? pb : 0));
+  for (const key of ABILITY_KEYS) {
+    const field = PDF_ABILITY_FIELD[key];
+    c(`${field}Prof`, ch.saveProfs[key]);
+  }
+  for (const key of ABILITY_KEYS) {
+    const field = PDF_ABILITY_FIELD[key];
+    t(`${field}RW`, ch.mods[key] + (ch.saveProfs[key] ? pb : 0));
+  }
 }
 
 function writeSkills({ t, c }: FieldSink, ch: CharacterJSON) {

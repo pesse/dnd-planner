@@ -5,6 +5,7 @@
  */
 import glossaryData from '$lib/data/glossary.json';
 import { findImperial, type ImperialMatch } from '$lib/utils/distanceText';
+import { normName } from '$lib/utils/text';
 
 interface RawTerm {
   en: string;
@@ -80,7 +81,7 @@ export function selectTerms(sourceEn: string, glossary: GlossaryTerm[] = GLOSSAR
 }
 
 export function pinForField(value: string, set: string, glossary: GlossaryTerm[] = GLOSSARY): GlossaryTerm | null {
-  const v = value.trim().toLowerCase();
+  const v = normName(value);
   return glossary.find((t) => t.cat === set && t.en.toLowerCase() === v) ?? null;
 }
 

@@ -1,0 +1,101 @@
+/* Nur was mehr als eine Komponente des Monster-Editors braucht. Was nur eine Datei benutzt,
+   steht in deren <style> — dort meldet der Compiler es, wenn es niemand mehr trifft. */
+
+.ef {
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.1s, background 0.1s;
+}
+.ef:hover { border-color: var(--border); background: var(--bg-panel); }
+.ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
+
+.divider {
+  height: 2px;
+  background: linear-gradient(to right, var(--red), color-mix(in srgb, var(--mef-accent, var(--danger)) 33%, transparent));
+  margin: 0.6rem 0;
+  border-radius: 1px;
+}
+
+.section { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.prop {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  line-height: 1.8;
+}
+
+.lbl { font-weight: 700; color: var(--mef-accent, var(--danger)); white-space: nowrap; }
+
+.num  { width: 52px; text-align: center; }
+.wide { flex: 1; min-width: 120px; }
+
+.kv-del {
+  background: none; border: none; color: var(--border);
+  cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; line-height: 1;
+}
+.kv-del:hover { color: var(--mef-accent, var(--danger)); }
+
+.kv-add {
+  background: none; border: 1px dashed var(--border); color: var(--ink-muted);
+  cursor: pointer; font-size: 0.8rem; padding: 0.05rem 0.35rem; border-radius: 3px;
+}
+.kv-add:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--mef-accent, var(--danger));
+  margin: 0 0 0.3rem;
+  font-variant: small-caps;
+  border-bottom: 1px solid var(--mef-accent, var(--danger));
+  padding-bottom: 0.15rem;
+}
+
+.ability-list { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.ability-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-left: 2px solid var(--mef-dim, color-mix(in srgb, var(--mef-accent, var(--danger)) 27%, transparent));
+  padding-left: 0.5rem;
+}
+
+.ability-hdr { display: flex; align-items: center; gap: 0.25rem; }
+
+.ability-name {
+  font-weight: 700;
+  font-style: italic;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+}
+
+.ability-desc {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+  font-size: 0.85rem;
+  color: var(--ink);
+  min-height: 2.5rem;
+}
+
+.del-btn {
+  background: none; border: none; color: var(--border);
+  cursor: pointer; font-size: 1rem; padding: 0 0.2rem; flex-shrink: 0;
+}
+.del-btn:hover { color: var(--mef-accent, var(--danger)); }
+
+.add-btn {
+  background: none; border: 1px dashed var(--border); color: var(--ink-muted);
+  cursor: pointer; font-size: 0.8rem; padding: 0.15rem 0.5rem;
+  border-radius: 3px; align-self: flex-start;
+}
+.add-btn:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }

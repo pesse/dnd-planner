@@ -1,80 +1,25 @@
 <script lang="ts">
   /**
-   * Angriffe: Waffe aus der Bibliothek übernehmen, Bonus/Schaden reaktiv berechnen oder
-   * manuell eintragen, dazu die benannten nicht-magischen Zusatzeffekte.
+   * Angriffe: Bonus/Schaden reaktiv berechnen oder manuell eintragen, dazu die
+   * benannten nicht-magischen Zusatzeffekte.
    */
-  import { invoke } from '@tauri-apps/api/core';
   import { sign } from '../../utils/num';
-  import { searchItems, displayName, type ItemInfo, type ItemSuggestion } from '../../itemLibrary';
-  import { CATEGORY_COLORS } from '../../itemLabels';
   import {
-    attackBonusTip, attackDamageTip, attackForDiff, blankAttack, buildAttackFromWeapon,
+    attackBonusTip, attackDamageTip, attackForDiff, blankAttack,
     computeAttackBonus, computeAttackDamage, toggleAttackMode, type WeaponAttackContext,
   } from '../../services/attackCalc';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
-  import { createSuggestNav } from '../../utils/suggestNav.svelte';
-  import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import type { Attack, Character } from '../../schemas/characterSchema';
-  import type { Item } from '../../types';
   import './form.css';
 
-  let { attacks, ctx, weaponItems, saved, fixLabel, onfix }: {
+  let { attacks, ctx, saved, fixLabel, onfix }: {
     attacks: Attack[];
     ctx: WeaponAttackContext;
-    weaponItems: ItemInfo[];
     saved?: Character | null;
     fixLabel?: string;
     onfix?: () => void;
   } = $props();
-
-  let search = $state('');
-  let suggestions = $state<ItemSuggestion[]>([]);
-
-  $effect(() => {
-    if (!search.trim()) { suggestions = []; nav.reset(); return; }
-    suggestions = searchItems({ weapon: weaponItems }, search, 8);
-    nav.reset();
-  });
-
-  async function selectWeapon(sug: ItemSuggestion) {
-    try {
-      const content = await invoke<string>('read_file_content', { path: sug.item.path });
-      attacks.push(buildAttackFromWeapon(JSON.parse(content) as Item, ctx));
-    } catch {
-      // Item nicht ladbar → Auto-Angriff mit dem Namen anlegen
-      attacks.push({ ...blankAttack(), name: displayName(sug.item), range: 'Nah' });
-    }
-    search = '';
-    suggestions = [];
-    nav.reset();
-  }
-
-  const nav = createSuggestNav<ItemSuggestion>({
-    items: () => suggestions,
-    pick: selectWeapon,
-    escape: () => { suggestions = []; },
-  });
 </script>
-
-<div class="autocomplete-wrap weapon-picker">
-  <input placeholder="Waffe aus Bibliothek hinzufügen…" bind:value={search} onkeydown={nav.onkeydown} />
-  {#if suggestions.length}
-    <ul class="suggestions" use:dropdownPlacement>
-      {#each suggestions as sug, i}
-        <li
-          class:active={i === nav.index}
-          onclick={() => selectWeapon(sug)}
-          onmouseenter={() => (nav.index = i)}
-        >
-          <span>{displayName(sug.item)}</span>
-          <span class="sug-cat" style:color={CATEGORY_COLORS[sug.item.category] ?? 'var(--ink-muted)'}>
-            {sug.item.category}
-          </span>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-</div>
 
 <table class="attack-table">
   <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>Typ</th><th>RW</th><th></th><th></th></tr></thead>
@@ -108,8 +53,8 @@
               <label class="ac-field">Attribut
                 <select bind:value={atk.ability}>
                   <option value="str">STR ({sign(ctx.strMod)})</option>
-                  <option value="ges">GES ({sign(ctx.gesMod)})</option>
-                  <option value="finesse">Finesse ({sign(Math.max(ctx.strMod, ctx.gesMod))})</option>
+                  <option value="dex">GES ({sign(ctx.dexMod)})</option>
+                  <option value="finesse">Finesse ({sign(Math.max(ctx.strMod, ctx.dexMod))})</option>
                 </select>
               </label>
               <label class="ac-check">

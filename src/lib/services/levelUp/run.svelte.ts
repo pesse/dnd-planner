@@ -14,7 +14,7 @@ import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
 import { createLevelUpKnownSpells } from './knownSpells.svelte';
 import { createRunSteps } from './runSteps';
-import { emptyRiders, emptyRunState, type LevelUpRunState } from './runState';
+import { emptyRiders, emptyRunState, stepOf, type LevelUpRunState } from './runState';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
@@ -49,7 +49,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     answers: () => st.answers,
   });
 
-  const clock = createRunClock(() => st.running);
+  const clock = createRunClock(() => st.run.kind === 'running');
   let abort: AbortController | null = null;
   let userAborted = false;
   let runToken = 0;
@@ -89,17 +89,17 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
   /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard, Uhr und Fehler-Rücksprung. */
   async function runSegment(resume: StepId, body: (alive: () => boolean) => Promise<void>) {
-    if (st.running) return;
-    st.running = true; st.error = ''; userAborted = false; st.resumePhase = resume; st.reachedStep = resume;
+    if (st.run.kind === 'running') return;
+    userAborted = false; st.reachedStep = resume;
     const myToken = ++runToken;
     abort = new AbortController(); clock.start();
-    st.phase = 'running';
+    st.run = { kind: 'running', step: resume };
     try {
       await body(() => myToken === runToken);
     } catch (e) {
-      if (myToken === runToken && !userAborted) { st.error = msg(e); st.phase = resume; }
+      if (myToken === runToken && !userAborted) st.run = { kind: 'error', at: resume, message: msg(e) };
     } finally {
-      if (myToken === runToken) { clock.stop(); st.running = false; abort = null; }
+      if (myToken === runToken) { clock.stop(); abort = null; }
     }
   }
 
@@ -124,7 +124,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     }
     onEnterCheckpoint(step);
     st.reachedStep = step;
-    st.phase = step;
+    st.run = { kind: 'paused', at: step };
   }
 
   async function runStep(step: StepId, alive: () => boolean) {
@@ -224,14 +224,14 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
   // Während eines Laufs der zuletzt ABGESCHLOSSENE Schritt — so erscheinen fertige
   // Teilschritte im Dokument, ohne Vorgriff auf den noch laufenden.
-  const viewStep = $derived<StepId>(st.phase === 'running' ? st.reachedStep : st.phase);
+  const viewStep = $derived<StepId>(st.run.kind === 'running' ? st.reachedStep : stepOf(st.run));
   const doc = $derived.by<LevelUpDoc>(() => {
     if (!st.delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
     return buildDoc({
       delta: st.delta, hitDice: ctx.character.hitDice ?? '',
       chosenSubclass: st.chosenSubclass, subFeatures: st.subFeatures, declaredSpells: st.declaredSpells,
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
-      answers: st.answers, konMod: mod(ctx.character.kon),
+      answers: st.answers, conMod: mod(ctx.character.abilities.con),
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
@@ -251,7 +251,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     ensureSpellLib,
 
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
-      if (st.running) return;
+      if (st.run.kind === 'running') return;
       st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.riders = []; st.decisions = []; st.answers = {};
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
       st.baseAnalysis = null; st.baseChoices = []; st.featAnalysis = null; st.featChoices = [];
@@ -266,10 +266,15 @@ export function createLevelUpRun(ctx: { character: Character }) {
         const d = await computeLevelUpDelta(ctx.character, classIndex, targetLevel, newClass);
         if (!alive()) return;
         st.delta = d;
-        if (d.atLevelCap) { st.error = 'Diese Klasse ist bereits auf Stufe 20.'; st.phase = 'choose-class'; return; }
+        if (d.atLevelCap) {
+          st.run = { kind: 'error', at: 'choose-class', message: 'Diese Klasse ist bereits auf Stufe 20.' };
+          return;
+        }
         if (d.isHomebrew) {
-          st.error = 'Stufenaufstieg ist nur mit hinterlegter Klassen-Progression möglich — für diese Klasse gibt es keine Progressionsdaten.';
-          st.phase = 'choose-class';
+          st.run = {
+            kind: 'error', at: 'choose-class',
+            message: 'Stufenaufstieg ist nur mit hinterlegter Klassen-Progression möglich — für diese Klasse gibt es keine Progressionsdaten.',
+          };
           return;
         }
         pushStep(`Delta: ${summarizeDelta(d)}`);
@@ -293,13 +298,14 @@ export function createLevelUpRun(ctx: { character: Character }) {
       if (!st.delta) return;
       runSegment('class-features', async (alive) => {
         await steps.mergeClassFeatures(alive, st.featuresText);
-        st.phase = 'class-features';
+        st.run = { kind: 'paused', at: 'class-features' };
       });
     },
 
     stop() {
       userAborted = true; runToken++; abort?.abort(); clock.stop();
-      st.running = false; abort = null; st.phase = st.resumePhase;
+      if (st.run.kind === 'running') st.run = { kind: 'paused', at: st.run.step };
+      abort = null;
     },
 
     destroy() { abort?.abort(); },

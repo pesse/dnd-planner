@@ -16,8 +16,30 @@ import type { StepId } from './steps';
 
 export interface HpPerLevelSource { feature: string; sourceKey: string; amount: number }
 
+/** `running` und `error` tragen den Schritt selbst — dorthin fällt ein Abbruch oder Fehler zurück. */
+export type RunPhase =
+  | { kind: 'idle' }
+  | { kind: 'running'; step: StepId }
+  | { kind: 'paused'; at: StepId }
+  | { kind: 'error'; at: StepId; message: string };
+
+/** Der Schritt, den die aktuelle Ansicht zeigt — `idle` liegt vor jedem Lauf an `choose-class`. */
+export function stepOf(run: RunPhase): StepId {
+  switch (run.kind) {
+    case 'idle': return 'choose-class';
+    case 'running': return run.step;
+    case 'paused': return run.at;
+    case 'error': return run.at;
+  }
+}
+
+/** Sichtbarer Checkpoint: während eines Laufs ist keiner sichtbar, ein Fehler zeigt seinen. */
+export function isPausedAt(run: RunPhase, step: StepId): boolean {
+  return run.kind !== 'running' && stepOf(run) === step;
+}
+
 export interface LevelUpRunState {
-  phase: StepId | 'running';
+  run: RunPhase;
   delta: LevelUpDelta | null;
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
@@ -48,9 +70,6 @@ export interface LevelUpRunState {
   narrativeSummary: string;
   featuresText: string; // editierbarer Volltext: KI-Merge plus Nachbearbeitung
   steps: string[];
-  running: boolean;
-  error: string;
-  resumePhase: StepId;
   // Pro Schritt hochgezählt, damit deterministische Teilschritte im Dokument erscheinen,
   // BEVOR die nachfolgende KI-Aktion läuft.
   reachedStep: StepId;
@@ -65,7 +84,7 @@ export const emptyRiders = (): ValidatedRiders => ({ riders: [], flagged: [], gr
 
 export function emptyRunState(): LevelUpRunState {
   return {
-    phase: 'choose-class',
+    run: { kind: 'idle' },
     delta: null,
     chosenSubclass: null,
     subFeatures: [],
@@ -90,9 +109,6 @@ export function emptyRunState(): LevelUpRunState {
     narrativeSummary: '',
     featuresText: '',
     steps: [],
-    running: false,
-    error: '',
-    resumePhase: 'choose-class',
     reachedStep: 'choose-class',
     spellLib: [],
     featLib: [],

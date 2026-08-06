@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '../services/httpFetch';
 import { pushError } from './errors';
 import { invalidateVault } from './campaign';
 import { invalidateSpellLibrary } from '../spellLibrary';
@@ -10,18 +11,11 @@ import { invalidateBackgroundsCache } from '../backgroundsLibrary';
 import { invalidateItemCache } from '../itemLibrary';
 import { invalidateMonsterPaths } from '../services/contextLoad';
 
-/**
- * `installed`/`update`/`available` sind Installationsstände, die drei anderen Sperren:
- * `locked` = kein Zugangscode hinterlegt, `staleCode` = der hinterlegte gehört zu einer
- * älteren Passwortfassung, `appOutdated` = die Fassung verlangt eine neuere App.
- */
-export type LibraryState =
-  | 'installed'
-  | 'update'
-  | 'available'
-  | 'locked'
-  | 'staleCode'
-  | 'appOutdated';
+export type InstallState = 'installed' | 'update' | 'available';
+
+/** `locked` = kein Zugangscode hinterlegt, `staleCode` = der hinterlegte gehört zu einer
+ * älteren Passwortfassung, `appOutdated` = die Fassung verlangt eine neuere App. */
+export type BlockReason = 'locked' | 'staleCode' | 'appOutdated';
 
 export interface Library {
   id: string;
@@ -32,9 +26,55 @@ export interface Library {
   version: string;
   size: number;
   fileCount: number;
-  status: LibraryState;
+  /** Installationsstand — unabhängig davon, ob `block` das Ziehen gerade verhindert. */
+  install: InstallState;
+  block?: BlockReason;
   installedVersion?: string;
   minVersion?: string;
+}
+
+/** Rohform von `fetch_library_index` — `status` ist dort die Rust-seitige Prioritätskette. */
+interface RawLibraryStatus {
+  id: string;
+  name: string;
+  description?: string;
+  license: string;
+  protected: boolean;
+  version: string;
+  size: number;
+  fileCount: number;
+  status: string;
+  installedVersion?: string;
+  minVersion?: string;
+}
+
+const BLOCK_REASONS: ReadonlySet<string> = new Set<BlockReason>(['locked', 'staleCode', 'appOutdated']);
+
+/**
+ * Rust liefert `status` bereits als Prioritätskette (ein Sperrgrund verdrängt den
+ * Installationsstand). Der Installationsstand lässt sich trotzdem verlustfrei aus
+ * `installedVersion`/`version` rekonstruieren — hier, statt zwei Achsen im Rust-Modell.
+ */
+function toLibrary(raw: RawLibraryStatus): Library {
+  const install: InstallState = !raw.installedVersion
+    ? 'available'
+    : raw.installedVersion === raw.version
+      ? 'installed'
+      : 'update';
+  return {
+    id: raw.id,
+    name: raw.name,
+    description: raw.description,
+    license: raw.license,
+    protected: raw.protected,
+    version: raw.version,
+    size: raw.size,
+    fileCount: raw.fileCount,
+    install,
+    block: BLOCK_REASONS.has(raw.status) ? (raw.status as BlockReason) : undefined,
+    installedVersion: raw.installedVersion,
+    minVersion: raw.minVersion,
+  };
 }
 
 export interface InstallSummary {
@@ -50,21 +90,16 @@ export const libraryManagerOpen = writable(false);
 
 export const installing = writable<Set<string>>(new Set());
 
-/** Im reinen Vite-Browser-Dev gibt es keine Kommandos — dann tut hier alles nichts. */
-function inTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
 export function updateCount(list: Library[]): number {
-  return list.filter((l) => l.status === 'update').length;
+  return list.filter((l) => l.install === 'update' && !l.block).length;
 }
 
 /** Beim Start bewusst still: ohne Netz soll die App trotzdem normal starten. */
 export async function refreshLibraries(silent = true): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   librariesLoading.set(true);
   try {
-    libraries.set(await invoke<Library[]>('fetch_library_index'));
+    libraries.set((await invoke<RawLibraryStatus[]>('fetch_library_index')).map(toLibrary));
   } catch (e) {
     if (silent) {
       console.warn('Bibliotheksverzeichnis nicht erreichbar:', e);
@@ -166,10 +201,10 @@ function invalidateLibraryCaches(): void {
  * Installation sofort brauchbar ist. UPDATES werden nie ungefragt gezogen, dafür der Badge.
  */
 export async function checkLibrariesOnStartup(): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   await refreshLibraries(true);
 
-  const outdated = get(libraries).filter((l) => l.status === 'appOutdated');
+  const outdated = get(libraries).filter((l) => l.block === 'appOutdated');
   for (const lib of outdated) {
     console.info(
       `Bibliothek "${lib.name}" verlangt App-Version ${lib.minVersion} oder neuer — ` +
@@ -177,7 +212,7 @@ export async function checkLibrariesOnStartup(): Promise<void> {
     );
   }
 
-  const missing = get(libraries).filter((l) => !l.protected && l.status === 'available');
+  const missing = get(libraries).filter((l) => !l.protected && !l.block && l.install === 'available');
   for (const lib of missing) {
     try {
       const summary = await installLibrary(lib.id, false);

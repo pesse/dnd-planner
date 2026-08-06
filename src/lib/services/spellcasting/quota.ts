@@ -2,7 +2,7 @@
  * Eine Quota gegen die Stufe der Quelle: `since`, `when`, Kontingent, Grade und Pool.
  */
 import type { AbilityKey } from '$lib/schemas/abilities';
-import { ABILITY_KEY_BY_EN } from '$lib/schemas/abilities';
+import { abilityKeyOf } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { firstInt } from '$lib/utils/num';
@@ -215,6 +215,6 @@ export function castUses(option: CastOption, ctx: UsesContext): number | null {
   if (typeof count === 'number') return count;
   if (count === 'proficiency-bonus') return ctx.profBonus;
   if ('column' in count) return firstInt(ctx.column(count.column));
-  const mod = ctx.mods[ABILITY_KEY_BY_EN[count.abilityMod]] ?? 0;
+  const mod = ctx.mods[abilityKeyOf(count.abilityMod) ?? 'str'] ?? 0;
   return Math.max(count.min, mod);
 }

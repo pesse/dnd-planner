@@ -1,7 +1,6 @@
 /**
- * Punktekauf-Tabelle 2024 (Basis 8, Maximum 15, 27 Punkte) auf den sechs DEUTSCHEN
- * Attribut-Schlüsseln — er greift VOR jeder Hintergrunds-Erhöhung und fließt direkt
- * in die `Character`-Basiswerte.
+ * Punktekauf-Tabelle 2024 (Basis 8, Maximum 15, 27 Punkte) — er greift VOR jeder
+ * Hintergrunds-Erhöhung und fließt direkt in `character.abilities`.
  */
 
 import { ABILITY_KEYS, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
@@ -17,7 +16,7 @@ export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
 const COST: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
 
 export function pointBuyStart(): AbilityScores {
-  return { str: POINT_BUY_MIN, ges: POINT_BUY_MIN, kon: POINT_BUY_MIN, int: POINT_BUY_MIN, wei: POINT_BUY_MIN, cha: POINT_BUY_MIN };
+  return { str: POINT_BUY_MIN, dex: POINT_BUY_MIN, con: POINT_BUY_MIN, int: POINT_BUY_MIN, wis: POINT_BUY_MIN, cha: POINT_BUY_MIN };
 }
 
 export function costOf(score: number): number {

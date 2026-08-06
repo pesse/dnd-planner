@@ -25,24 +25,24 @@ export interface SkillDef {
 }
 
 export const SKILL_DEFS = [
-  { key: 'Akrobatik',         en: 'Acrobatics',      label: 'Akrobatik',          attr: 'ges', profField: 'AkrobatikProf',         expField: 'AkrobatikExp',         valField: 'AkrobatikGes' },
+  { key: 'Akrobatik',         en: 'Acrobatics',      label: 'Akrobatik',          attr: 'dex', profField: 'AkrobatikProf',         expField: 'AkrobatikExp',         valField: 'AkrobatikGes' },
   { key: 'ArkaneKunde',       en: 'Arcana',          label: 'Arkane Kunde',       attr: 'int', profField: 'ArkaneKundeProf',        expField: 'ArkaneKundeExp',        valField: 'ArkaneKundeInt' },
   { key: 'Athletik',          en: 'Athletics',       label: 'Athletik',           attr: 'str', profField: 'AthletikProf',           expField: 'AthletikExp',           valField: 'AthletikStr' },
   { key: 'Auftreten',         en: 'Performance',     label: 'Auftreten',          attr: 'cha', profField: 'AuftretenProf',          expField: 'AuftretenExp',          valField: 'AuftretenCha' },
   { key: 'Einschüchtern',     en: 'Intimidation',    label: 'Einschüchtern',      attr: 'cha', profField: 'EinschüchternProf',      expField: 'EinschüchternExp',      valField: 'EinschüchternCha' },
-  { key: 'Fingerfertigkeit',  en: 'Sleight of Hand', label: 'Fingerfertigkeit',   attr: 'ges', profField: 'FingerfertigkeitProf',   expField: 'FingerfertigkeitExp',   valField: 'FingerfertigkeitGes' },
+  { key: 'Fingerfertigkeit',  en: 'Sleight of Hand', label: 'Fingerfertigkeit',   attr: 'dex', profField: 'FingerfertigkeitProf',   expField: 'FingerfertigkeitExp',   valField: 'FingerfertigkeitGes' },
   { key: 'Geschichte',        en: 'History',         label: 'Geschichte',         attr: 'int', profField: 'GeschichteProf',         expField: 'GeschichteExp',         valField: 'GeschichteInt' },
-  { key: 'Heilkunde',         en: 'Medicine',        label: 'Heilkunde',          attr: 'wei', profField: 'HeilkundeProf',          expField: 'HeilkundeExp',          valField: 'HeilkundeWei' },
-  { key: 'Heimlichkeit',      en: 'Stealth',         label: 'Heimlichkeit',       attr: 'ges', profField: 'HeimlichkeitProf',       expField: 'HeimlichkeitExp',       valField: 'HeimlichkeitGes' },
-  { key: 'MitTierenUmgehen',  en: 'Animal Handling', label: 'Mit Tieren umgehen', attr: 'wei', profField: 'MitTierenUmgehenProf',   expField: 'MitTierenUmgehenExp',   valField: 'MitTierenUmgehenWei' },
-  { key: 'MotivErkennen',     en: 'Insight',         label: 'Motiv erkennen',     attr: 'wei', profField: 'MotivErkennenProf',      expField: 'MotivErkennenExp',      valField: 'MotivErkennenWei' },
+  { key: 'Heilkunde',         en: 'Medicine',        label: 'Heilkunde',          attr: 'wis', profField: 'HeilkundeProf',          expField: 'HeilkundeExp',          valField: 'HeilkundeWei' },
+  { key: 'Heimlichkeit',      en: 'Stealth',         label: 'Heimlichkeit',       attr: 'dex', profField: 'HeimlichkeitProf',       expField: 'HeimlichkeitExp',       valField: 'HeimlichkeitGes' },
+  { key: 'MitTierenUmgehen',  en: 'Animal Handling', label: 'Mit Tieren umgehen', attr: 'wis', profField: 'MitTierenUmgehenProf',   expField: 'MitTierenUmgehenExp',   valField: 'MitTierenUmgehenWei' },
+  { key: 'MotivErkennen',     en: 'Insight',         label: 'Motiv erkennen',     attr: 'wis', profField: 'MotivErkennenProf',      expField: 'MotivErkennenExp',      valField: 'MotivErkennenWei' },
   { key: 'Nachforschungen',   en: 'Investigation',   label: 'Nachforschungen',    attr: 'int', profField: 'NachforschungenProf',    expField: 'NachforschungenExp',    valField: 'NachforschungenInt' },
   { key: 'Naturkunde',        en: 'Nature',          label: 'Naturkunde',         attr: 'int', profField: 'NaturkundeProf',         expField: 'NaturkundeExp',         valField: 'NaturkundeInt' },
   { key: 'Religion',          en: 'Religion',        label: 'Religion',           attr: 'int', profField: 'ReligionProf',           expField: 'ReligionExp',           valField: 'ReligionInt' },
   { key: 'Täuschen',          en: 'Deception',       label: 'Täuschen',           attr: 'cha', profField: 'TäuschenProf',           expField: 'TäuschenExp',           valField: 'TäuschenCha' },
-  { key: 'Überlebenskunst',   en: 'Survival',        label: 'Überlebenskunst',    attr: 'wei', profField: 'ÜberlebenskunstProf',    expField: 'ÜberlebenskunstExp',    valField: 'ÜberlebenskunstWei' },
+  { key: 'Überlebenskunst',   en: 'Survival',        label: 'Überlebenskunst',    attr: 'wis', profField: 'ÜberlebenskunstProf',    expField: 'ÜberlebenskunstExp',    valField: 'ÜberlebenskunstWei' },
   { key: 'Überzeugen',        en: 'Persuasion',      label: 'Überzeugen',         attr: 'cha', profField: 'ÜberzeugenProf',         expField: 'ÜberzeugenExp',         valField: 'ÜberzeugenCha' },
-  { key: 'Wahrnehmung',       en: 'Perception',      label: 'Wahrnehmung',        attr: 'wei', profField: 'WahrnehmungProf',        expField: 'WahrnehmungExp',        valField: 'WahrnehmungWei' },
+  { key: 'Wahrnehmung',       en: 'Perception',      label: 'Wahrnehmung',        attr: 'wis', profField: 'WahrnehmungProf',        expField: 'WahrnehmungExp',        valField: 'WahrnehmungWei' },
 ] as const satisfies readonly SkillDef[];
 
 // Vollständigkeit ist compilergeprüft: fehlt eine der 18 Fertigkeiten (oder ist eine

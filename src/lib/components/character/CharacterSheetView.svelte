@@ -2,6 +2,7 @@
   import './sheet.css';
   import { sign } from '../../utils/num';
   import { SKILL_DEFS } from '../../domain/skills';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS, type AbilityKey } from '../../schemas/abilities';
   import { attrModTip, skillTip } from '../../services/characterSheetTips';
   import type { ItemIndex } from '../../itemLibrary';
   import type { SpellIndex } from '../../spellLibrary';
@@ -22,33 +23,22 @@
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
   } = $props();
 
-  const ATTRS = [
-    { key: 'str', label: 'STR', mod: 'strMod' },
-    { key: 'ges', label: 'GES', mod: 'gesMod' },
-    { key: 'kon', label: 'KON', mod: 'konMod' },
-    { key: 'int', label: 'INT', mod: 'intMod' },
-    { key: 'wei', label: 'WEI', mod: 'weiMod' },
-    { key: 'cha', label: 'CHA', mod: 'chaMod' },
-  ] as const;
-
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
   // Record) und können auch Fremd-/Altbestand enthalten.
-  const skillAttrMap = new Map<string, string>(SKILL_DEFS.map((s) => [s.key, s.attr]));
+  const skillAttrMap = new Map<string, AbilityKey>(SKILL_DEFS.map((s) => [s.key, s.attr]));
   const skillLabelMap = new Map<string, string>(SKILL_DEFS.map((s) => [s.key, s.label]));
-
-  const num = (key: string): number => (character as unknown as Record<string, number>)[key];
 </script>
 
 <div class="content">
   <div class="section attributes">
-    {#each ATTRS as attr}
+    {#each ABILITY_KEYS as key}
       <div class="attr-box">
-        <div class="attr-label">{attr.label}</div>
+        <div class="attr-label">{ABILITY_ABBR_DE[key]}</div>
         <div class="has-tip attr-mod">
-          {sign(num(attr.mod))}
-          <span class="tip">{@html attrModTip(attr.label, num(attr.key))}</span>
+          {sign(character.mods[key])}
+          <span class="tip">{@html attrModTip(ABILITY_ABBR_DE[key], character.abilities[key])}</span>
         </div>
-        <div class="attr-score">{num(attr.key)}</div>
+        <div class="attr-score">{character.abilities[key]}</div>
       </div>
     {/each}
   </div>

@@ -8,10 +8,10 @@
  */
 import type { Character } from '../schemas/characterSchema';
 import type { Change } from '../schemas/levelUp';
-import { MONSTER_SIZES, type SkillName } from '../schemas/vocabulary';
+import { MONSTER_SIZES } from '../schemas/vocabulary';
 import { ftToMVal } from '../itemFormat';
 import { mod, skillSheetKey } from '../domain/skills';
-import { markArmorTraining, markSavingThrow, markWeaponProficiency } from './proficiencyGrants';
+import { markProficiency, markSavingThrow } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 import { addExtra, addPick } from './spellcasting/write';
@@ -92,9 +92,9 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   },
 
   ability: (c, next) => {
-    const score = (next[c.ability] ?? 10) + c.value;
-    next[c.ability] = score;
-    (next as unknown as Record<string, number>)[`${c.ability}Mod`] = mod(score);
+    const score = next.abilities[c.ability] + c.value;
+    next.abilities[c.ability] = score;
+    next.mods[c.ability] = mod(score);
   },
 
   feat: (c, next) => {
@@ -105,17 +105,17 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   // liegt die Übersetzung. Expertise setzt die Übung mit: ohne das Häkchen rechnet der Bogen
   // den doppelten Übungsbonus gar nicht.
   expertise: (c, next) => {
-    const row = next.skills[skillSheetKey(c.skill as SkillName)];
+    const row = next.skills[skillSheetKey(c.skill)];
     if (row) { row.prof = true; row.exp = true; }
   },
   proficiency: (c, next) => {
-    const row = next.skills[skillSheetKey(c.skill as SkillName)];
+    const row = next.skills[skillSheetKey(c.skill)];
     if (row) row.prof = true;
   },
   // Dieselbe Grenze; die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.
-  weaponProficiency: (c, next) => markWeaponProficiency(next.proficiencies, c.value),
-  armorTraining: (c, next) => markArmorTraining(next.proficiencies, c.value),
-  savingThrow: (c, next) => markSavingThrow(next, c.value),
+  weaponProficiency: (c, next) => markProficiency(next.proficiencies, 'weapons', c.value),
+  armorTraining: (c, next) => markProficiency(next.proficiencies, 'armor', c.value),
+  savingThrow: (c, next) => markSavingThrow(next.saveProfs, c.value),
   toolProficiency: (c, next) => pushUnique(next.tools, c.value),
   language: (c, next) => pushUnique(next.languages, c.value),
 

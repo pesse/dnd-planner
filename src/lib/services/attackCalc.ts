@@ -3,10 +3,12 @@
  * Rein — Attributsmodifikatoren und Übungsbonus kommen als `AttackCalcContext` herein.
  */
 import { sign } from '../utils/num';
+import { normName } from '../utils/text';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import { itemKeyOf } from '../schemas/item';
+import { ABILITY_ABBR_DE } from '../schemas/abilities';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
 
@@ -21,7 +23,7 @@ export type WeaponAttackSource = Pick<Item,
 
 export interface AttackCalcContext {
   strMod: number;
-  gesMod: number;
+  dexMod: number;
   proficiencyBonus: number;
 }
 
@@ -31,11 +33,11 @@ export interface WeaponAttackContext extends AttackCalcContext {
   weaponByName?: (name: string) => { index?: string } | undefined;
 }
 
-const ABILITY_LABEL: Record<string, string> = { str: 'STR', ges: 'GES', finesse: 'Finesse' };
+const ATTACK_ABILITY_LABEL: Record<string, string> = { ...ABILITY_ABBR_DE, finesse: 'Finesse' };
 
 export function attackAbilityMod(a: Pick<Attack, 'ability'>, ctx: AttackCalcContext): number {
-  if (a.ability === 'ges') return ctx.gesMod;
-  if (a.ability === 'finesse') return Math.max(ctx.strMod, ctx.gesMod);
+  if (a.ability === 'dex') return ctx.dexMod;
+  if (a.ability === 'finesse') return Math.max(ctx.strMod, ctx.dexMod);
   return ctx.strMod;
 }
 
@@ -63,7 +65,7 @@ export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
 
 /** Plaintext fürs `title`-Attribut — das HTML-Tooltip-System liegt im Charakterbogen. */
 export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
-  const lines = [`${ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
+  const lines = [`${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
   if (a.proficient) lines.push(`geübt ${sign(ctx.proficiencyBonus)}`);
   if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
   for (const m of a.modifiers ?? [])
@@ -74,7 +76,7 @@ export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
 export function attackDamageTip(a: Attack, ctx: AttackCalcContext): string {
   const base = (a.baseDamage ?? '').trim();
   if (!base) return 'Kein Schadenswürfel eingetragen';
-  const lines = [`Würfel ${base}`, `${ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
+  const lines = [`Würfel ${base}`, `${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
   if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
   for (const m of a.modifiers ?? [])
     if (m.damageBonus) lines.push(`${m.label.trim() || 'Effekt'} ${sign(m.damageBonus)}`);
@@ -127,15 +129,15 @@ export function attackIndexOf(attacks: Attack[], ref: { sourceKey?: string; name
     const i = attacks.findIndex((a) => a.sourceKey?.trim() === key);
     if (i >= 0) return i;
   }
-  const name = ref.name.trim().toLowerCase();
-  return name ? attacks.findIndex((a) => a.name.trim().toLowerCase() === name) : -1;
+  const name = normName(ref.name);
+  return name ? attacks.findIndex((a) => normName(a.name) === name) : -1;
 }
 
 export function buildAttackFromWeapon(item: WeaponAttackSource, ctx: WeaponAttackContext): Attack {
   const name = item.name_de ?? item.name;
   const isRanged = item.weapon_range === 'Ranged';
   const isFinesse = (item.properties ?? []).some((p) => p.index === 'finesse');
-  const ability: Attack['ability'] = isRanged ? 'ges' : (isFinesse ? 'finesse' : 'str');
+  const ability: Attack['ability'] = isRanged ? 'dex' : (isFinesse ? 'finesse' : 'str');
 
   const proficient = isProficientWithWeapon(ctx.proficiencies, item, ctx.weaponByName);
 

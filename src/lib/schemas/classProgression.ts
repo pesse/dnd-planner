@@ -9,9 +9,6 @@ import { proficiencyGrantSchema, skillGrantSchema, emptyProficiencyGrant, emptyS
 import { featureDeclarationFields } from './featureChoice';
 import { type AbilityName } from './abilities';
 
-import { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey } from './abilities';
-export { ABILITY_KEYS, ABILITY_TO_EN, type AbilityKey };
-
 export const classLevelSchema = z.object({
   level: z.number().int().min(1).max(20),
   columns: z.record(z.string(), z.string()).default({}), // Rohwerte wie in v2
@@ -70,6 +67,15 @@ export type ClassFeature = z.infer<typeof classFeatureSchema>;
 export type ClassProgression = z.infer<typeof classProgressionSchema>;
 
 /**
+ * Vor-Schema-Kürzel dieses Altfelds — nicht die heutige `AbilityKey`-Schreibweise, die
+ * Kürzel dieser Zeit waren die deutschen Bogen-Schlüssel von damals.
+ */
+const LEGACY_SAVE_ABILITY: Record<string, AbilityName> = {
+  str: 'Strength', ges: 'Dexterity', kon: 'Constitution',
+  int: 'Intelligence', wei: 'Wisdom', cha: 'Charisma',
+};
+
+/**
  * Altformat `savingThrows: ['kon','str']` → `proficiencyGrant.savingThrows`
  * (englische Namen). Das alte Feld wird entfernt, damit keine zweite Wahrheit bleibt.
  */
@@ -82,7 +88,7 @@ export function migrateClassLegacy(raw: unknown): Record<string, unknown> {
   const grant = (obj.proficiencyGrant ?? {}) as Record<string, unknown>;
   if (!Array.isArray(grant.savingThrows) || !grant.savingThrows.length) {
     grant.savingThrows = legacy
-      .map((k) => ABILITY_TO_EN[k as AbilityKey])
+      .map((k) => LEGACY_SAVE_ABILITY[k as string])
       .filter((n): n is AbilityName => Boolean(n));
     obj.proficiencyGrant = grant;
   }

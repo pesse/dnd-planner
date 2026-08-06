@@ -34,10 +34,10 @@
       },
       "abilityScoreIncrease": {
         "str": 0,
-        "ges": 0,
-        "kon": 0,
+        "dex": 0,
+        "con": 0,
         "int": 0,
-        "wei": 0,
+        "wis": 0,
         "cha": 0
       },
       "decisions": [

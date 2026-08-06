@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Spell } from '$lib/types';
-  import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS } from '$lib/types';
+  import { spellLevelLabel, spellDesc, spellHigherLevel, spellComponents, SPELL_SCHOOLS, SPELL_CLASS_LABELS, labelOf } from '$lib/types';
   import { prepareSpellPrint } from '$lib/utils/printSpell';
   import { printHtmlDocument } from '$lib/utils/printFrame';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
@@ -147,7 +147,7 @@
             <div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <Markdown source={higherLevel} inline /></div>
           {/if}
           <div class="foot">
-            <span>{draft!.classes.map(c => SPELL_CLASS_LABELS[c] ?? c).join(' · ')}</span>
+            <span>{draft!.classes.map(c => labelOf(SPELL_CLASS_LABELS, c)).join(' · ')}</span>
           </div>
         </div>
       </div>

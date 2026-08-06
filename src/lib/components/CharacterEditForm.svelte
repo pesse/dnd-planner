@@ -1,8 +1,5 @@
 <script lang="ts">
-  import { activeFile } from '../stores/campaign';
-  import { confirmNavigation } from '../stores/navigationGuard';
   import { SKILL_DEFS, skillSheetKey } from '../domain/skills';
-  import { formatClassLevel } from '../schemas/classLevelText';
   import type { Character } from '../schemas/characterSchema';
   import type { SkillName } from '../schemas/vocabulary';
   import type { PendingCharacterUpgrade } from '../schemas/characterUpgrades';
@@ -13,17 +10,15 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { matchItem } from '../itemLibrary';
-  import { speciesDisplayName, searchSpecies, type SpeciesInfo } from '../speciesLibrary';
-  import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../backgroundsLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
+  import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import UpgradeBanner from './characterForm/UpgradeBanner.svelte';
-  import RefBlock from './characterForm/RefBlock.svelte';
-  import ClassLevelTable from './characterForm/ClassLevelTable.svelte';
+  import GeneralSection from './characterForm/GeneralSection.svelte';
   import AttributeRow from './characterForm/AttributeRow.svelte';
   import CombatFields from './characterForm/CombatFields.svelte';
   import SavingThrowGrid from './characterForm/SavingThrowGrid.svelte';
@@ -59,7 +54,6 @@
 
   const mods = $derived(abilityMods(form));
   const skills = $derived(computeSkills(form));
-  const classLevelPreview = $derived(formatClassLevel(form.classes));
 
   // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
   // Inventarzeile — beide rechnen mit demselben Kontext.
@@ -70,34 +64,12 @@
   });
 
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
-  const savedField = (key: string): unknown => (saved as Record<string, unknown> | null | undefined)?.[key];
 
-  // Der offene Picker liegt hier, nicht im Unterformular: `applyFix` schließt ihn.
+  // Der offene Picker liegt in GeneralSection, nicht hier — `applyFix` schließt ihn
+  // über dieselben `$bindable`-Felder.
   let editingClassRow = $state(-1);
   let editingSpecies = $state(!form.species.sourceKey && !form.species.name.trim());
   let editingBackground = $state(!form.backgroundRef.sourceKey && !form.backgroundRef.name.trim());
-
-  async function openLibraryPage(path: string | undefined, type: 'species' | 'background') {
-    if (!path) return;
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type });
-  }
-
-  function selectSpecies(info: SpeciesInfo) {
-    form.species.name = speciesDisplayName(info);
-    form.species.sourceKey = info.key ?? '';
-    form.species.subspeciesKey = undefined;
-    form.species.subspeciesName = undefined;
-    form.race = form.species.name;
-    editingSpecies = false;
-  }
-
-  function selectBackground(info: BackgroundInfo) {
-    form.backgroundRef.name = backgroundDisplayName(info);
-    form.backgroundRef.sourceKey = info.key ?? '';
-    form.background = form.backgroundRef.name;
-    editingBackground = false;
-  }
 
   // Im Editor NUR Herkunfts-ANZEIGE (◆) — das aktive „Übernehmen" gehört in
   // Erstellung und Level-Up.
@@ -212,69 +184,16 @@
 <div class="edit-form">
   <UpgradeBanner {pendingUpgrade} {upgradeAccepted} fixLabels={legacyFixes.map((f) => f.label)} onapply={applyAllFixes} />
 
-  <section>
-    <h3>Allgemein</h3>
-    <div class="grid-2">
-      <label use:diffMark={dirOf(saved?.name, form.name)}>Name<input bind:value={form.name} placeholder="Charaktername" /></label>
-      <label use:diffMark={dirOf(saved?.playerName, form.playerName)}>Spieler<input bind:value={form.playerName} placeholder="Spielername" /></label>
-      <label use:diffMark={dirOf(saved?.xp, form.xp)}>EP<input bind:value={form.xp} placeholder="0" /></label>
-    </div>
-
-    <RefBlock
-      title="Hintergrund"
-      kindLabel="Hintergrund"
-      name={form.backgroundRef.name}
-      sourceKey={form.backgroundRef.sourceKey}
-      placeholder="z.B. Soldat"
-      editTitle="Hintergrund ändern"
-      diff={dirOf(saved?.background, form.background)}
-      hasFix={!!fixOf('background')}
-      onfix={() => applyFix(fixOf('background'))}
-      editing={editingBackground}
-      search={(q) => searchBackgrounds(libs.backgrounds, q, 8)}
-      label={backgroundDisplayName}
-      onopen={() => openLibraryPage(libs.backgrounds.find((b) => b.key === form.backgroundRef.sourceKey)?.path, 'background')}
-      oninput={(v) => { form.backgroundRef.name = v; form.background = v; form.backgroundRef.sourceKey = ''; }}
-      onselect={selectBackground}
-      onediting={(v) => (editingBackground = v)}
-    />
-
-    <RefBlock
-      title="Volk"
-      kindLabel="Volk"
-      name={form.species.name}
-      sourceKey={form.species.sourceKey}
-      placeholder="z.B. Zwerg"
-      editTitle="Volk ändern"
-      diff={dirOf(saved?.race, form.race)}
-      hasFix={!!fixOf('species')}
-      onfix={() => applyFix(fixOf('species'))}
-      editing={editingSpecies}
-      search={(q) => searchSpecies(libs.species, q, 8)}
-      label={speciesDisplayName}
-      onopen={() => openLibraryPage(libs.species.find((s) => s.key === form.species.sourceKey)?.path, 'species')}
-      oninput={(v) => { form.species.name = v; form.race = v; form.species.sourceKey = ''; }}
-      onselect={selectSpecies}
-      onediting={(v) => (editingSpecies = v)}
-    />
-
-    <ClassLevelTable
-      classes={form.classes}
-      classIndex={libs.classes}
-      diff={dirOf(saved?.classLevel, classLevelPreview)}
-      fixLabel={fixOf('classes')?.label}
-      onfix={() => applyFix(fixOf('classes'))}
-      editingRow={editingClassRow}
-      oneditingRow={(row) => (editingClassRow = row)}
-    />
-  </section>
+  <GeneralSection
+    {form} {saved} {dirOf} {libs} {fixOf} onApplyFix={applyFix}
+    bind:editingClassRow bind:editingSpecies bind:editingBackground
+  />
 
   <section>
     <h3>Attribute</h3>
     <AttributeRow
-      bind:str={form.str} bind:ges={form.ges} bind:kon={form.kon}
-      bind:int={form.int} bind:wei={form.wei} bind:cha={form.cha}
-      dirOf={(key, value) => dirOf(savedField(key), value)}
+      bind:abilities={form.abilities}
+      dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
     />
   </section>
 
@@ -291,12 +210,14 @@
   <section>
     <h3>Rettungswürfe (Übungen)</h3>
     <SavingThrowGrid
-      bind:strSaveProf={form.strSaveProf} bind:gesSaveProf={form.gesSaveProf} bind:konSaveProf={form.konSaveProf}
-      bind:intSaveProf={form.intSaveProf} bind:weiSaveProf={form.weiSaveProf} bind:chaSaveProf={form.chaSaveProf}
+      bind:saveProfs={form.saveProfs}
       {mods}
       proficiencyBonus={form.proficiencyBonus}
-      sourceOf={(en) => grantSourcesFor(grants?.savingThrows, en)}
-      dirOf={(field, value) => dirOf(savedField(field), value)}
+      sourceOf={(key) => grantSourcesFor(
+        grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
+        key,
+      )}
+      dirOf={(field, value) => dirOf(saved?.saveProfs?.[field], value)}
     />
   </section>
 
@@ -334,7 +255,7 @@
 
   <section>
     <h3>Angriffe</h3>
-    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved}
+    <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
       fixLabel={fixOf('attacks')?.label}
       onfix={() => applyFix(fixOf('attacks'))}
     />

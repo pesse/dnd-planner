@@ -8,6 +8,7 @@
     hasAnyProficiency,
     weaponProficiencyLabels,
   } from '../../domain/proficiencies';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
 
@@ -15,31 +16,19 @@
     character: Character;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
   } = $props();
-
-  const SAVES = [
-    { label: 'STR', modKey: 'strMod', profKey: 'strSaveProf' },
-    { label: 'GES', modKey: 'gesMod', profKey: 'gesSaveProf' },
-    { label: 'KON', modKey: 'konMod', profKey: 'konSaveProf' },
-    { label: 'INT', modKey: 'intMod', profKey: 'intSaveProf' },
-    { label: 'WEI', modKey: 'weiMod', profKey: 'weiSaveProf' },
-    { label: 'CHA', modKey: 'chaMod', profKey: 'chaSaveProf' },
-  ] as const;
-
-  const num = (key: string): number => (character as unknown as Record<string, number>)[key];
-  const flag = (key: string): boolean => (character as unknown as Record<string, boolean>)[key];
 </script>
 
 <div class="section">
   <h3>Rettungswürfe</h3>
   <div class="save-list">
-    {#each SAVES as save}
-      {@const proficient = flag(save.profKey)}
-      {@const value = num(save.modKey) + (proficient ? character.proficiencyBonus : 0)}
+    {#each ABILITY_KEYS as key}
+      {@const proficient = character.saveProfs[key]}
+      {@const value = character.mods[key] + (proficient ? character.proficiencyBonus : 0)}
       <div class="save-row has-tip" class:proficient>
         <span class="prof-dot">{proficient ? '●' : '○'}</span>
-        <span class="save-label">{save.label}</span>
+        <span class="save-label">{ABILITY_ABBR_DE[key]}</span>
         <span class="save-val">{sign(value)}</span>
-        <span class="tip tip-left">{@html saveTip(character, save.modKey, save.label, proficient)}</span>
+        <span class="tip tip-left">{@html saveTip(character, key, proficient)}</span>
       </div>
     {/each}
   </div>

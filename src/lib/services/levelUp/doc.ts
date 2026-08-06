@@ -41,7 +41,7 @@ export interface DocInput {
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
-  konMod: number;
+  conMod: number;
   pickedCantrips: { key: string; name: string }[];
   pickedLearned: { key: string; name: string; level: number }[];
   /** `spell.key` → Name + Grad, für Zauber-Antworten, die nur den Key tragen. */
@@ -90,7 +90,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
-    ...decisionChanges({ delta: p.delta, answers: p.answers, konMod: p.konMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned }),
+    ...decisionChanges({ delta: p.delta, answers: p.answers, conMod: p.conMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions', nameOf),
     // Grundeigenschaften: der einzige Wahl-Typ ohne Rider, also braucht er hier seine eigene
     // Zeile. Beide Checkpoints in einem Aufruf — die Antwort-id trennt sie ohnehin.

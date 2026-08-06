@@ -10,7 +10,7 @@
    */
   import { ABILITY_NAMES, type AbilityName } from '$lib/schemas/abilities';
   import { type FeatureChoiceGrant } from '$lib/schemas/featureChoice';
-  import { ABILITY_LABEL_DE } from '$lib/services/proficiencyGrants';
+  import { abilityLabelDe } from '$lib/services/proficiencyGrants';
 
   let {
     grant = $bindable<FeatureChoiceGrant>(),
@@ -67,7 +67,7 @@
           checked={grant.spellAbilities.includes(ability)}
           onchange={(e) => toggleAbility(ability, (e.target as HTMLInputElement).checked)}
         />
-        {ABILITY_LABEL_DE[ability]}
+        {abilityLabelDe(ability)}
       </label>
     {/each}
   </div>

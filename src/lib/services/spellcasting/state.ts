@@ -1,7 +1,7 @@
 /**
  * Aufgelöste Quellen + gespeicherte Entscheidungen → der Zauber-Zustand eines Charakters.
  */
-import { ABILITY_KEY_BY_EN, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
+import { abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { castUses, quotaContext, quotaViews, type QuotaView } from './quota';
 import type { CastingResolution } from './resolve';
@@ -117,7 +117,7 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
       const option = view.cast.find((c) => c.kind === 'uses');
       return quotaState(view, stored, option ? castUses(option, usesCtx) : null);
     });
-    const mod = ability ? (input.mods[ABILITY_KEY_BY_EN[ability]] ?? 0) : 0;
+    const mod = ability ? (input.mods[abilityKeyOf(ability) ?? 'str'] ?? 0) : 0;
     sources.push({
       source,
       ability,

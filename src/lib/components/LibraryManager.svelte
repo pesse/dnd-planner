@@ -34,18 +34,24 @@
     if (initialized || !list.length) return;
     initialized = true;
     selected = Object.fromEntries(
-      list.map((l) => [l.id, l.status === 'available' || l.status === 'update']),
+      list.map((l) => [l.id, !l.block && (l.install === 'available' || l.install === 'update')]),
     );
   });
 
-  const STATE_LABEL: Record<Library['status'], string> = {
+  const INSTALL_LABEL: Record<Library['install'], string> = {
     installed: 'Installiert',
     update: 'Update verfügbar',
     available: 'Nicht installiert',
+  };
+
+  const BLOCK_LABEL: Record<NonNullable<Library['block']>, string> = {
     locked: 'Zugangscode erforderlich',
     staleCode: 'Zugangscode veraltet',
     appOutdated: 'App-Update erforderlich',
   };
+
+  /** Ein Sperrgrund verdrängt die Anzeige des Installationsstands. */
+  const stateLabel = (lib: Library) => (lib.block ? BLOCK_LABEL[lib.block] : INSTALL_LABEL[lib.install]);
 
   const LICENSE_LABEL: Record<string, string> = {
     'CC-BY-4.0': 'SRD 5.2, frei weitergebbar',
@@ -55,9 +61,9 @@
 
   const kib = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KiB`;
 
-  const needsCode = (lib: Library) => lib.status === 'locked' || lib.status === 'staleCode';
+  const needsCode = (lib: Library) => lib.block === 'locked' || lib.block === 'staleCode';
 
-  const needsAppUpdate = (lib: Library) => lib.status === 'appOutdated';
+  const needsAppUpdate = (lib: Library) => lib.block === 'appOutdated';
 
   // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist — das
   // Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
@@ -151,7 +157,7 @@
       // Erledigtes abwählen, Fehlgeschlagenes bleibt gewählt — der Knopf zeigt so, was
       // noch offen ist.
       const done = new Set(
-        $libraries.filter((l) => l.status === 'installed').map((l) => l.id),
+        $libraries.filter((l) => l.install === 'installed').map((l) => l.id),
       );
       selected = Object.fromEntries(
         Object.entries(selected).map(([id, on]) => [id, on && !done.has(id)]),
@@ -223,10 +229,10 @@
                 <span class="lib-desc">{lib.description}</span>
               {/if}
               <span class="lib-meta">
-                {STATE_LABEL[lib.status]}
+                {stateLabel(lib)}
                 · {lib.fileCount} Dateien · {kib(lib.size)}
                 · {LICENSE_LABEL[lib.license] ?? lib.license}
-                {#if lib.installedVersion && lib.status === 'update'}
+                {#if lib.installedVersion && lib.install === 'update'}
                   · <code>{lib.installedVersion}</code> → <code>{lib.version}</code>
                 {/if}
               </span>
@@ -258,7 +264,7 @@
                 {redeeming === lib.id ? 'Prüfe…' : 'Einlösen'}
               </button>
             </div>
-            {#if lib.status === 'staleCode'}
+            {#if lib.block === 'staleCode'}
               <p class="hint small err">
                 Der hinterlegte Code gehört zu einer älteren Fassung — bitte den neuen eingeben.
               </p>
