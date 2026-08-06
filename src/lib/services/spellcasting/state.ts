@@ -7,6 +7,7 @@ import { castUses, quotaContext, quotaViews, type QuotaView } from './quota';
 import type { CastingResolution } from './resolve';
 import { spellPools, type SpellPools } from './slots';
 import type { CastingIssue, CastingSource } from './source';
+import { pickedKeys } from './write';
 
 // EINE Formel für Klassen-Zauberwirken UND Merkmals-Zugänge: zwei Fassungen laufen
 // auseinander, sobald eine davon angefasst wird.
@@ -88,7 +89,7 @@ function abilityOf(
 }
 
 function quotaState(view: QuotaView, stored: CharacterSpellcasting | undefined, uses: number | null): QuotaState {
-  const picks = stored?.sources[view.sourceId]?.picks[view.quotaId] ?? [];
+  const picks = stored ? pickedKeys(stored, view.sourceId, view.quotaId) : [];
   const spells = view.fixed ? view.pool.keys : picks;
   return {
     view,

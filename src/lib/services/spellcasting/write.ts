@@ -1,6 +1,6 @@
 /**
- * Die schreibenden Zugriffe auf `character.spellcasting`. Editor, Wizard und Stufenaufstieg
- * gehen hier durch, damit die Blockstruktur an einer Stelle entsteht.
+ * Die Zugriffe auf `character.spellcasting`. Editor, Wizard und Stufenaufstieg gehen hier
+ * durch, damit die Blockstruktur an einer Stelle entsteht.
  */
 import { emptyCharacterSpellcasting, type CastingSourceState, type CharacterSpellcasting } from '$lib/schemas/spellcasting';
 
@@ -23,6 +23,10 @@ function manual(block: CharacterSpellcasting): NonNullable<CharacterSpellcasting
   block.manual ??= { slotTotals: [], extra: [] };
   return block.manual;
 }
+
+/** Die gespeicherte Auswahl einer Quota; leer heißt „nichts gewählt". */
+export const pickedKeys = (block: CharacterSpellcasting, sourceId: string, quotaId: string): string[] =>
+  block.sources[sourceId]?.picks[quotaId] ?? [];
 
 /** Leere Auswahl heißt „nichts gewählt", nicht „Quota gelöscht" — der leere Eintrag bleibt. */
 export function setPicks(

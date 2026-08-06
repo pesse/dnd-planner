@@ -12,7 +12,7 @@ import { applyChanges } from '../../src/lib/services/applyChanges';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
 import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import { loadSheetSpellcasting, loadSpellcasting, openSpellChoices } from '../../src/lib/services/spellcasting/project';
-import { addExtra, cloneSpellcasting, setPicks, setSlotUsed } from '../../src/lib/services/spellcasting/write';
+import { addExtra, cloneSpellcasting, pickedKeys, setPicks, setSlotUsed } from '../../src/lib/services/spellcasting/write';
 
 const character = (dir: string): Character =>
   characterSchema.parse(
@@ -43,6 +43,20 @@ describe('Formular-Rundlauf', () => {
     const form = initialFormFields(c);
     setPicks(form.spellcasting, 'srd-2024_bard_spellcasting', 'prepared', []);
     expect(formDraftPatch(form, initialFormCarry(c)).spellcasting.sources).toEqual({});
+  });
+
+  // Der Zauber-Picker im Editor liest seine offene Auswahl über `pickedKeys` — ein Leser, der
+  // eine ungeschriebene Quota nicht als „leer" meldet, ließe ihn nichts abwählen.
+  it('liest zurück, was geschrieben wurde, und Ungeschriebenes als leer', () => {
+    const block = initialFormFields(blank()).spellcasting;
+    expect(pickedKeys(block, 'srd-2024_cleric_spellcasting', 'prepared')).toEqual([]);
+
+    setPicks(block, 'srd-2024_cleric_spellcasting', 'prepared', ['srd-2024_bless', 'srd-2024_bless']);
+    expect(pickedKeys(block, 'srd-2024_cleric_spellcasting', 'prepared')).toEqual(['srd-2024_bless']);
+    expect(pickedKeys(block, 'srd-2024_cleric_spellcasting', 'cantrips')).toEqual([]);
+
+    setPicks(block, 'srd-2024_cleric_spellcasting', 'prepared', []);
+    expect(pickedKeys(block, 'srd-2024_cleric_spellcasting', 'prepared')).toEqual([]);
   });
 });
 

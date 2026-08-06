@@ -166,7 +166,7 @@
                 role="note"
               ><span class="chip-main">◆ {f.name}</span></span>
             {/each}
-            {#each sec.spells as s (s.name)}
+            {#each sec.spells as s (s.key ?? s.name)}
               {@const val = s.key ?? ''}
               {@const picked = isPicked(s)}
               {@const from = known.get(val) ?? ''}

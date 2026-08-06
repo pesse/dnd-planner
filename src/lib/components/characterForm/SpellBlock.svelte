@@ -14,7 +14,7 @@
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
   import { knownSpellGroups, knownSpells, quotaGroupId, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
-  import { addExtra, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
+  import { addExtra, pickedKeys, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
   import { createSpellHover } from '../spellHover.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -83,6 +83,12 @@
     setPicks(block, quota.sourceId, quota.quotaId, keys);
     form.spellcasting = { ...block };
   }
+
+  // Aus `block` und NICHT aus `quota.spells`: `picking` friert das Kontingent der damaligen
+  // `view` ein, und `view` entsteht asynchron neu — der offene Dialog sähe seine eigenen
+  // Schreibvorgänge nie und könnte nichts abwählen.
+  const quotaPicks = (quota: SpellQuotaGroup): string[] =>
+    pickedKeys(block, quota.sourceId, quota.quotaId);
 
   function onSlotUsed(level: number, used: number) {
     setSlotUsed(block, level, used);
@@ -185,7 +191,7 @@
                   onmousemove={hover.move}
                   onmouseleave={hover.hide}>{spell.label}</span>
                 {#if !quota.fixed}
-                  <button onclick={() => applyPicks(quota, quota.spells.filter((s) => s.key !== spell.key).map((s) => s.key))}>✕</button>
+                  <button onclick={() => applyPicks(quota, quotaPicks(quota).filter((k) => k !== spell.key))}>✕</button>
                 {/if}
               </span>
             {/each}
@@ -269,7 +275,7 @@
     library={pickLibrary(quota)}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
     known={pickerKnown}
-    bind:picks={() => quota.spells.map((s) => s.key), (keys) => applyPicks(quota, keys)}
+    bind:picks={() => quotaPicks(quota), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
 {/if}
 
