@@ -1,11 +1,11 @@
 /**
  * Zustand und KI-Jobs des Charakter-Erstell-Wizards (Stufe 1).
  * Bewusst ohne Worker/Tauri-Hintergrundtask: ein nicht-awaitetes Promise blockiert die UI
- * nicht. Fehlt QM, entfallen Analyse und Effekte — der Rest läuft über jeden Anbieter.
+ * nicht. Mechanik kommt vollständig aus der Deklaration; die KI schreibt nur Bogen-Freitext.
  */
 import { getFeats, featDesc, featDisplayName } from '$lib/featsLibrary';
-import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../aiActions/featureEffectsAction';
-import { choiceLabelsDe, type AnalysisChoice, type ResolvedChoice } from '../analysis/types';
+import { choiceLabelsDe, type AnalysisChoice } from '../analysis/types';
+import type { DeclaredAnswer } from '../declaredChoice';
 import type { SpellAccessGrant } from '../spellcasting/access';
 import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
@@ -20,11 +20,12 @@ import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
-import { wizardDeclaredChoices, wizardFeatureChoices, wizardRiders } from './wizardChoices';
+import { declarationGapLines } from '../declarationGap';
+import { wizardDeclaredChoices, wizardRiders } from './wizardChoices';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
-import type { FeatureEffects, FieldSummary } from '$lib/schemas/levelUp';
+import type { FieldSummary } from '$lib/schemas/levelUp';
 import type { EquipmentOptions } from '$lib/schemas/wizardEquipment';
 import { equipmentCandidateNames, gatherStartingEquipment } from './startingEquipment';
 import { pointBuyStart, type AbilityScores } from './pointBuy';
@@ -75,14 +76,9 @@ export class CharacterWizard {
    * geschrieben — dieselbe Form, die der Editor führt.
    */
   spellcasting = $state<CharacterSpellcasting>(emptySpellcasting());
-  /**
-   * Zauber der `spell-pick`-Wahlen OHNE Quota je Wahl-`id`: die KI hat sie an einem Merkmal
-   * erkannt, das keine deklariert. Sie werden quellenloser Bestand.
-   */
+  /** Zauber einer `spell-pick`-Wahl ohne Quota je Wahl-`id` — sie werden quellenloser Bestand. */
   featureSpellPicks = $state<Record<string, string[]>>({});
 
-  /** Antworten auf die Wahlen der KI-ANALYSE — genau das, was als `<resolved_choices>` zurückgeht. */
-  resolvedChoices = $state<ResolvedChoice[]>([]);
   /**
    * Die vier folgenden Felder kommen aus `buildFeaturePrep` und stehen ohne KI und ohne QM;
    * `$state` statt Getter, weil die Aufbereitung async ist.
@@ -98,17 +94,11 @@ export class CharacterWizard {
    * Übungsstand DIESES Charakters.
    */
   grantedSkills = $state<string[]>([]);
-  /**
-   * Antworten auf die DEKLARIERTEN Wahlen. Bewusst ein zweiter Kanal: diese Merkmale stehen
-   * nicht im KI-Eingang, und Pass C schreibt pro Eintrag in `<resolved_choices>` ein Protokoll
-   * — eine ihm unbekannte id kann er nur einem erfundenen Rider zuordnen.
-   */
-  declaredAnswers = $state<ResolvedChoice[]>([]);
+  /** Antworten auf die deklarierten Wahlen — der einzige Antwort-Kanal des Wizards. */
+  declaredAnswers = $state<DeclaredAnswer[]>([]);
 
-  analysis = new Job<FeatureAnalysis>();
   classText = new Job<FieldSummary>();
   speciesText = new Job<FieldSummary>();
-  effects = new Job<FeatureEffects>();
   equipment = new Job<EquipmentOptions>();
 
   /** Letztes KI-Lebenszeichen (für die Stall-Anzeige der UI). */
@@ -139,29 +129,29 @@ export class CharacterWizard {
     });
   }
 
-  /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
-  get featureChoices(): AnalysisChoice[] {
-    return wizardFeatureChoices(this.declaredChoices, this.analysis.result?.choices ?? []);
-  }
-
   get proficientSkills(): string[] {
     return [...new Set([...this.grantedSkills, ...this.chosenSkills])];
   }
 
   get spellPickChoices() {
-    return this.featureChoices.filter((c) => c.type === 'spell-pick');
+    return this.declaredChoices.filter((c) => c.type === 'spell-pick');
   }
 
   get plainChoices() {
-    return this.featureChoices.filter((c) => c.type !== 'spell-pick');
+    return this.declaredChoices.filter((c) => c.type !== 'spell-pick');
   }
 
   get riders() {
-    return wizardRiders({
-      declared: this.declared,
-      declaredAnswers: this.declaredAnswers,
-      effectsRiders: this.effects.result?.riders ?? [],
-    });
+    return wizardRiders({ declared: this.declared, declaredAnswers: this.declaredAnswers });
+  }
+
+  /**
+   * Merkmale, deren Prosa eine Mechanik ankündigt, für die keine Deklaration steht — sie fällt
+   * aus, und der Spieler muss das sehen. Dieselbe Regel wie im Aufstieg.
+   */
+  get gaps(): string[] {
+    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
+    return declarationGapLines(this.declared, unredactedChoiceFeatures(this.declared, answerOf));
   }
 
   #touch = (): void => { this.lastActivityMs = performance.now(); };
@@ -188,22 +178,6 @@ export class CharacterWizard {
       this.declared = prep.declared;
     }, () => {});
 
-    // Klassen- UND Speziesmerkmale, damit Volks-Wahlen (Drakonische Urahnen) als erzwungene
-    // Wahl erkannt werden.
-    if (this.isQm) {
-      this.analysis.run(async (signal) => {
-        const prep = await this.#prepare();
-        return analyzeFeatureEffects(
-          cfg,
-          { classContext: prep.classContext, features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures], pastChoices: [] },
-          { signal, onActivity: this.#touch },
-        );
-      });
-    } else {
-      this.analysis.skip();
-      this.effects.skip();
-    }
-
     // classText/speciesText laufen BEWUSST NICHT hier, sondern erst in `summarizeFeatures()`.
 
     this.equipmentSelection = [];
@@ -229,10 +203,8 @@ export class CharacterWizard {
 
   /** Grundwahl nach dem Start geändert → laufende Jobs verwerfen und neu starten. */
   restart(): void {
-    this.effects.reset();
     this.classText.reset();
     this.speciesText.reset();
-    this.resolvedChoices = [];
     this.declaredAnswers = [];
     this.spellAccess = [];
     this.sizeChoice = null;
@@ -247,9 +219,9 @@ export class CharacterWizard {
 
   /** DEUTSCHE Labels: das Ziel ist der Bogen-Freitext, nicht der Prompt-Kanal. */
   #choiceByFeatureKey(): Map<string, string> {
-    const byId = new Map(this.featureChoices.map((c) => [c.id, c]));
+    const byId = new Map(this.declaredChoices.map((c) => [c.id, c]));
     const map = new Map<string, string>();
-    for (const rc of [...this.resolvedChoices, ...this.declaredAnswers]) {
+    for (const rc of this.declaredAnswers) {
       const choice = byId.get(rc.id);
       const key = choice?.featureKey;
       if (!key || !choice || !rc.choice.trim()) continue;
@@ -312,35 +284,6 @@ export class CharacterWizard {
     });
   }
 
-  /** QM-only; ohne Analyse-Ergebnis bleibt der Effekt-Job übersprungen. */
-  finalizeFeatures(): void {
-    const cfg = this.#getConfig();
-    if (!this.isQm || this.analysis.status !== 'done' || !this.analysis.result) {
-      this.effects.skip();
-      return;
-    }
-    const analysis = this.analysis.result;
-    const answerOf = (id: string): string => this.declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-    this.effects.run(async (signal) => {
-      const prep = await this.#prepare();
-      // Merkmale, deren Zweig nichts deklariert: die Wahl steht, die Prosa der Option deutet
-      // Pass C. `gainedAt: 1` — im Wizard ist alles Stufe 1.
-      const unredacted = unredactedChoiceFeatures(prep.declared, answerOf)
-        .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
-      return finalizeFeatureEffects(
-        cfg,
-        {
-          classContext: prep.classContext,
-          features: [...prep.analysisGained, ...prep.analysisSpeciesFeatures, ...unredacted],
-          pastChoices: [],
-          resolvedChoices: this.resolvedChoices,
-        },
-        analysis,
-        { signal, onActivity: this.#touch },
-      );
-    });
-  }
-
   selectedOptionIndex(groupIdx: number): number {
     const options = this.equipment.result?.groups[groupIdx]?.options ?? [];
     const idx = this.equipmentSelection[groupIdx] ?? 0;
@@ -381,19 +324,12 @@ export class CharacterWizard {
   }
 
   async awaitPending(): Promise<void> {
-    await Promise.all([
-      this.effects.settle(),
-      this.classText.settle(),
-      this.speciesText.settle(),
-      this.equipment.settle(),
-    ]);
+    await Promise.all([this.classText.settle(), this.speciesText.settle(), this.equipment.settle()]);
   }
 
   dispose(): void {
-    this.analysis.abort();
     this.classText.abort();
     this.speciesText.abort();
-    this.effects.abort();
     this.equipment.abort();
   }
 }

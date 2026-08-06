@@ -34,10 +34,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get delta() { return st.delta; },
     get subFeatures() { return st.subFeatures; },
     get chosenFeats() { return st.chosenFeats; },
-    get baseAnalysisChoices() { return st.baseAnalysis?.choices ?? []; },
-    get featAnalysisChoices() { return st.featAnalysis?.choices ?? []; },
-    get baseChoices() { return st.baseChoices; },
-    get featChoices() { return st.featChoices; },
     get baseAccess() { return st.baseAccess; },
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
@@ -163,17 +159,17 @@ export function createLevelUpRun(ctx: { character: Character }) {
         if (st.declaredSpells.flagged.length) st.flagged = [...new Set([...st.flagged, ...st.declaredSpells.flagged])];
         reportUnreadableGrants();
         break;
-      case 'feature-analysis':
-        await steps.runAnalyze('base', alive);
+      case 'declared-choices':
+        steps.runDeclaredChoices();
         break;
       case 'feature-effects':
-        await steps.runFinalize('base', alive);
-        break;
-      case 'feat-analysis':
-        await steps.runAnalyze('feat', alive);
+        await steps.runRiders('base', alive);
         break;
       case 'feat-effects':
-        await steps.runFinalize('feat', alive);
+        await steps.runRiders('feat', alive);
+        break;
+      case 'feature-notes':
+        await steps.runNotes(alive);
         break;
       case 'narrative':
         await steps.runNarrative(alive);
@@ -201,10 +197,10 @@ export function createLevelUpRun(ctx: { character: Character }) {
             ),
           )
         ).filter((g): g is SpellAccessGrant => g !== null);
-        if (st.featAccess.length) {
-          steps.initFeatureChoices(choices.featAccessChoices);
-          pushStep(`${st.featAccess.length} Zauber-Zugang aus der Bibliothek gelesen (ohne KI).`);
-        }
+        if (st.featAccess.length) pushStep(`${st.featAccess.length} Zauber-Zugang aus der Bibliothek gelesen.`);
+        // Beide Talent-Wahl-Arten in einem Griff: der Zauber-Zugang und die übrigen
+        // Deklarationen des Talents halten am selben Checkpoint.
+        steps.initFeatureChoices(choices.featChoiceQs);
         break;
       // `assemble-decisions` fehlt hier absichtlich: das Dokument leitet diese Änderungen
       // selbst aus dem Zustand ab.
@@ -254,7 +250,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       if (st.run.kind === 'running') return;
       st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.riders = []; st.decisions = []; st.answers = {};
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
-      st.baseAnalysis = null; st.baseChoices = []; st.featAnalysis = null; st.featChoices = [];
+      st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.featAccess = []; st.featRiders = []; st.flagged = [];
       st.hpPerLevelSources = []; st.narrativeSummary = ''; st.featuresText = '';
       st.validatedBase = emptyRiders();

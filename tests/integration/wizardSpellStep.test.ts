@@ -24,8 +24,7 @@ const source = (over: Partial<WizardCastingSource> = {}): WizardCastingSource =>
   // Ein Hintergrund OHNE Zauber-Talent; der Weise bringt Eingeweihter der Magie mit und
   // hätte in jeder Erwartung unten eigene Zeilen (siehe letzter Fall).
   background: { sourceKey: 'srd-2024_soldier', name: 'Soldat' },
-  featureChoices: [],
-  resolvedChoices: [],
+  declaredChoices: [],
   declaredAnswers: [],
   fightingStyles: [],
   scores: pointBuyStart(),
@@ -39,7 +38,7 @@ async function withDivineOrder(w: WizardCastingSource, answer: string): Promise<
   const prog = await getProgressionByKey(CLERIC);
   const feature = prog!.features.find((f) => f.key === `${CLERIC}_divine-order`)!;
   const choice = optionListChoice(optionListRefs(feature)[0])!;
-  return { ...w, featureChoices: [choice], declaredAnswers: [{ id: choice.id, choice: answer }] };
+  return { ...w, declaredChoices: [choice], declaredAnswers: [{ id: choice.id, choice: answer }] };
 }
 
 async function rowsOf(w: WizardCastingSource): Promise<SpellStepRow[]> {

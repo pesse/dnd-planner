@@ -1,13 +1,15 @@
 /**
- * Die Form des Analyse-Calls (`reason()`): thinking-frei, und das Verhalten bei leerer Antwort.
+ * Die Form des Notiz-Calls — des einzigen KI-Calls, der Merkmale noch liest: guided, dadurch
+ * thinking-frei, mit Lebenszeichen und einem zweiten Versuch bei leerer Antwort.
  *
  * Ohne LLM — außerhalb von Tauri geht `httpFetch` aufs globale `fetch`, das hier gestubt wird.
- * Ersetzt `runawayRetry.test.ts`, dessen Prämisse (Runaway per Hunger-Budget erzwingen) mit dem
- * abgeschalteten Vorlauf nicht mehr herstellbar ist; dessen drei Zusicherungen stehen hier
- * weiter, plus die neue, dass `enable_thinking:false` wirklich auf der Leitung liegt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyzeFeatureEffects, type FeatureEffectsContext } from '../../src/lib/services/aiActions/featureEffectsAction';
+import {
+  summarizeFeatureNotes,
+  type FeatureNotesContext,
+} from '../../src/lib/services/aiActions/featureNotesAction';
+import { featureNotesJsonSchema } from '../../src/lib/schemas/levelUp';
 import { qualitymindsChat } from '../../src/lib/services/llm/openAiCompatible';
 import type { LlmConfig } from '../../src/lib/types';
 
@@ -50,7 +52,9 @@ function stubFetch(bodies: string[]): Record<string, unknown>[] {
 const config = (): LlmConfig =>
   ({ provider: 'qualityminds', apiKey: 'test-key', model: 'test-model' }) as LlmConfig;
 
-const ctx = (): FeatureEffectsContext => ({
+const FEATURE_KEY = 'srd-2024_circle-of-the-land_lands-aid';
+
+const ctx = (): FeatureNotesContext => ({
   classContext: {
     klasseName: 'Druide',
     subclassName: 'Zirkel des Landes',
@@ -66,27 +70,29 @@ const ctx = (): FeatureEffectsContext => ({
       desc: 'As a Magic action, you can expend a use of Wild Shape to cast Cure Wounds.',
       source: 'subclass',
       gainedAt: 3,
-      key: 'srd-2024_circle-of-the-land_lands-aid',
+      key: FEATURE_KEY,
     },
   ],
-  pastChoices: [],
 });
 
-/** Ein Manifest ohne Wahlen — dann bleibt der Übersetzungs-Call aus (er hätte nichts zu tun). */
-const MANIFEST = 'Prosa.\n```json\n{"choices":[],"spellsToGround":[],"blocked":false}\n```';
+const notesBody = (sheetNote: string): string =>
+  JSON.stringify({ notes: [{ featureName: "Land's Aid", featureKey: FEATURE_KEY, sheetNote }] });
+
+/** Leere Notiz heißt „braucht keine Zeile" — und der Übersetzungs-Call bleibt aus. */
+const NO_NOTE = notesBody('');
 
 const thinkingKwargs = (body: Record<string, unknown>): unknown =>
   (body.chat_template_kwargs as Record<string, unknown> | undefined)?.enable_thinking;
 
-describe('Form des Analyse-Calls', () => {
-  it('schaltet den Denk-Vorlauf ab — ohne guided schema', async () => {
-    const sent = stubFetch([answer(MANIFEST)]);
-    await analyzeFeatureEffects(config(), ctx(), { noRetry: true });
+describe('Form des Notiz-Calls', () => {
+  it('geht guided raus und schaltet damit den Denk-Vorlauf ab', async () => {
+    const sent = stubFetch([answer(NO_NOTE)]);
+    await summarizeFeatureNotes(config(), ctx(), { noRetry: true });
 
     expect(sent).toHaveLength(1);
+    expect(sent[0].structured_outputs).toEqual({ json: featureNotesJsonSchema });
+    // Auf diesem Server greift guided decoding nur ohne Vorlauf — der Schalter hängt am Schema.
     expect(thinkingKwargs(sent[0])).toBe(false);
-    // Der Schalter kommt hier NICHT vom guided decoding — Pass A ist ungeguidet.
-    expect(sent[0].structured_outputs).toBeUndefined();
   });
 
   it('lässt jedem anderen Chat seinen Denk-Vorlauf', async () => {
@@ -96,43 +102,57 @@ describe('Form des Analyse-Calls', () => {
     expect(sent).toHaveLength(1);
     expect(thinkingKwargs(sent[0])).toBeUndefined();
   });
+
+  it('meldet Lebenszeichen je Inhalts-Delta', async () => {
+    stubFetch([answer(NO_NOTE)]);
+    let activity = 0;
+    await summarizeFeatureNotes(config(), ctx(), { noRetry: true, onActivity: () => activity++ });
+
+    expect(activity).toBeGreaterThan(0);
+  });
+
+  it('schickt eine gefüllte Notiz durch die deutsche Grenze', async () => {
+    const noteDe = 'Beistand des Landes: Tiergestalt-Nutzung, um Wunden heilen zu wirken.';
+    const sent = stubFetch([
+      answer(notesBody("Land's Aid: spend a Wild Shape use to cast Cure Wounds.")),
+      answer(JSON.stringify({ notes: [{ index: 0, noteDe }] })),
+    ]);
+    const notes = await summarizeFeatureNotes(config(), ctx(), { noRetry: true });
+
+    expect(sent).toHaveLength(2);
+    expect(notes[0].sheetNote).toBe(noteDe);
+  });
 });
 
-describe('Leere Antwort der Merkmals-Analyse', () => {
-  it('meldet im Eval-Pfad (noRetry) sofort, mit der Ursache statt „Budget zu klein"', async () => {
+describe('Leere Antwort des Notiz-Passes', () => {
+  it('meldet im Eval-Pfad (noRetry) sofort', async () => {
     const sent = stubFetch([emptyAfterThinking()]);
-    const err = await analyzeFeatureEffects(config(), ctx(), { noRetry: true }).then(
+    const err = await summarizeFeatureNotes(config(), ctx(), { noRetry: true }).then(
       () => null,
       (e: Error) => e,
     );
 
     expect(sent).toHaveLength(1); // genau ein Versuch — sonst kaschiert er die Prompt-Qualität
     expect(err).toBeInstanceOf(Error);
-    expect(err?.message).toMatch(/Reasoning-Vorlauf/);
+    expect(err?.message).toMatch(/schema-valide/);
   });
 
-  it('versucht es im App-Pfad ein zweites Mal und hält das Lebenszeichen am Leben', async () => {
+  it('versucht es im App-Pfad ein zweites Mal', async () => {
     const sent = stubFetch([emptyAfterThinking()]);
-    let activity = 0;
-    const err = await analyzeFeatureEffects(config(), ctx(), { onActivity: () => activity++ }).then(
+    const err = await summarizeFeatureNotes(config(), ctx(), {}).then(
       () => null,
       (e: Error) => e,
     );
 
     expect(sent).toHaveLength(2);
     expect(err).toBeInstanceOf(Error);
-    expect(err?.message).toMatch(/zweimal leer/);
-    // Der Denk-Kanal (`delta.reasoning`) bleibt verdrahtet: schickt ein Server-Build doch
-    // einen Vorlauf, sieht die Oberfläche Aktivität statt scheinbaren Stillstands.
-    expect(activity).toBeGreaterThan(0);
   });
 
   it('nimmt den zweiten Versuch als Ergebnis, wenn er trägt', async () => {
-    const sent = stubFetch([emptyAfterThinking(), answer(MANIFEST)]);
-    const analysis = await analyzeFeatureEffects(config(), ctx(), {});
+    const sent = stubFetch([emptyAfterThinking(), answer(NO_NOTE)]);
+    const notes = await summarizeFeatureNotes(config(), ctx(), {});
 
     expect(sent).toHaveLength(2);
-    expect(analysis.analysisText).toContain('Prosa');
-    expect(analysis.blocked).toBe(false);
+    expect(notes.map((n) => n.featureKey)).toEqual([FEATURE_KEY]);
   });
 });

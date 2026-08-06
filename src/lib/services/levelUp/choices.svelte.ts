@@ -1,6 +1,6 @@
 /**
  * Die Wahl-Ketten beider Checkpoints: aus den Deklarationen der neu gewonnenen Merkmale
- * und aus der KI-Analyse entstehen die Fragen. Reine Ableitung, kein DOM und kein Laden.
+ * entstehen die Fragen. Reine Ableitung, kein DOM und kein Laden.
  */
 import { buildFeatureChoices } from './questions';
 import type { ChosenFeat } from './features';
@@ -23,11 +23,6 @@ export interface ChoiceSources {
   /** Nachgeladene Subklassen-Merkmale einer JETZT getroffenen Subklassen-Wahl. */
   subFeatures: GainedFeature[];
   chosenFeats: ChosenFeat[];
-  /** Von der KI erkannte Wahlen — Analyse-Form (Tooltips) und Fragebogen-Form. */
-  baseAnalysisChoices: AnalysisChoice[];
-  featAnalysisChoices: AnalysisChoice[];
-  baseChoices: LevelUpQuestion[];
-  featChoices: LevelUpQuestion[];
   /**
    * Geladen statt abgeleitet, beide Seiten gleich: der Zugang eines Klassenmerkmals hängt an
    * der ganzen Progression (auch längst erworbene Kontingente wachsen), der eines Talents am
@@ -97,9 +92,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   ]);
   const featDeclaredChoices = $derived(buildFeatureChoices(featDeclaredAnalysis));
 
-  // Beide Checkpoints zeigen beide Herkünfte: KI-erkannt und deklariert.
   const baseChoiceQs = $derived([
-    ...src.baseChoices,
     ...baseOptionChoices,
     ...baseExpertiseChoices,
     ...baseSkillProfChoices,
@@ -107,14 +100,12 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...basePropertyChoices,
     ...baseAccessChoices,
   ]);
-  const featChoiceQs = $derived([...src.featChoices, ...featAccessChoices, ...featDeclaredChoices]);
+  const featChoiceQs = $derived([...featAccessChoices, ...featDeclaredChoices]);
 
-  /** Nur die Analyse-Form trägt die Options-Tooltips (`optionHelpDe`), der Fragebogen nicht. */
+  /** Nur die Wahl-Form trägt die Options-Tooltips (`optionHelpDe`), der Fragebogen nicht. */
   const analysisById = $derived.by(() => {
     const map = new Map<string, AnalysisChoice>();
     for (const c of [
-      ...src.baseAnalysisChoices,
-      ...src.featAnalysisChoices,
       ...baseOptionAnalysis,
       ...baseExpertiseAnalysis,
       ...baseSkillProfAnalysis,

@@ -57,11 +57,11 @@ function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: A
  */
 function finalScores(w: CharacterWizard): AbilityScores {
   const scores = draftScores(w);
-  const inc = w.effects.result?.riders?.reduce<Record<AbilityKey, number>>(
+  const inc = w.riders.reduce<Record<AbilityKey, number>>(
     (acc, r) => { for (const k of ABILITY_KEYS) acc[k] += r.abilityScoreIncrease[k] ?? 0; return acc; },
     { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
   );
-  return inc ? ABILITY_KEYS.reduce((s, k) => ({ ...s, [k]: s[k] + inc[k] }), scores) : scores;
+  return ABILITY_KEYS.reduce((s, k) => ({ ...s, [k]: s[k] + inc[k] }), scores);
 }
 
 function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {

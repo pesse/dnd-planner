@@ -5,6 +5,7 @@
  */
 import type { FeatureGrant, SpellGrant } from '$lib/schemas/grants';
 import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
+import type { CastingGrant } from '$lib/schemas/casting';
 import { isEmptyFeatureGrant } from './declaration/grants';
 
 /**
@@ -15,6 +16,7 @@ export interface DeclarableFeature {
   grants?: FeatureGrant;
   grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
+  grantsCasting?: CastingGrant;
 }
 
 export interface DeclarationCoverage {
@@ -28,11 +30,13 @@ export interface DeclarationCoverage {
 
 /** Angesehen und entschieden — unabhängig davon, ob dabei Mechanik herauskam. */
 export const isRedacted = (f: DeclarableFeature): boolean =>
-  f.grants !== undefined || f.grantsChoice !== undefined || f.grantsSpells !== undefined;
+  f.grants !== undefined || f.grantsChoice !== undefined || f.grantsSpells !== undefined
+  || f.grantsCasting !== undefined;
 
 /** Trägt deterministisch anwendbare Mechanik oder eine deklarierte Wahl. */
 export const hasDeclaredMechanics = (f: DeclarableFeature): boolean =>
-  f.grantsChoice !== undefined || f.grantsSpells !== undefined || (f.grants !== undefined && !isEmptyFeatureGrant(f.grants));
+  f.grantsChoice !== undefined || f.grantsSpells !== undefined || f.grantsCasting !== undefined
+  || (f.grants !== undefined && !isEmptyFeatureGrant(f.grants));
 
 export function declarationCoverage(features: readonly DeclarableFeature[]): DeclarationCoverage {
   const redactedList = features.filter(isRedacted);

@@ -87,16 +87,12 @@
   {/if}
 
   {#if isPausedAt(st.run, 'feature-choices')}
-    <p class="hint">Diese Wahl(en) bestimmen die konkreten Effekte — nach dem Bestätigen leitet die KI sie ab (z.B. gewährte Zauber, Kampfstil, Expertise).</p>
+    <p class="hint">Wahl(en) der neuen Merkmale — Optionen und Wirkung stehen in der Bibliothek, hier wird nur ausgewählt.</p>
     <QuestionsPanel {ui} list={ui.choices.baseChoiceQs} />
   {/if}
 
   {#if isPausedAt(st.run, 'feat-choices')}
-    {#if st.featChoices.length}
-      <p class="hint">Wahl(en) durch die gewählten Talente — nach dem Bestätigen leitet die KI die Effekte ab.</p>
-    {:else}
-      <p class="hint">Wahl(en) der gewählten Talente — Liste, Attribut und Anzahl stehen in der Bibliothek, hier wird nur ausgewählt.</p>
-    {/if}
+    <p class="hint">Wahl(en) der gewählten Talente — Liste, Attribut und Anzahl stehen in der Bibliothek, hier wird nur ausgewählt.</p>
     <QuestionsPanel {ui} list={ui.choices.featChoiceQs} />
   {/if}
 

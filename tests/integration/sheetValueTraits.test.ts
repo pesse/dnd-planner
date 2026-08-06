@@ -1,9 +1,9 @@
 /**
  * Die Grenze „reiner Bogenwert vs. Deutung" — OHNE LLM, über den ECHTEN Vault.
  *
- * Der Schnitt nimmt Merkmale aus dem KI-Eingang; ein Fehlurteil verliert still einen Grant.
- * Diese Zusicherungen sind die einzige Stelle, die das bemerkt (Begründung und Messung in
- * `docs/plan/plan-zauberwirker-vereinfachung.md`, Abschnitt „Stufe 3").
+ * `sheetValue` sagt zu, dass am Merkmal nichts als sein Wert steckt. Wird es an einem Merkmal
+ * gesetzt, das noch eine Wahl oder eine Wirkung trägt, verliert diese still ihre Deutung;
+ * diese Zusicherungen sind die einzige Stelle, die das bemerkt.
  *
  *   npm run test -- sheetValueTraits
  */
@@ -111,8 +111,8 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
     ]);
   });
 
-  /** Der Schnitt am ECHTEN Eingang: `speciesFeatures` trägt weiter alles (deutscher Speziestext). */
-  it('nimmt im Wizard-Eingang genau die Bogenwerte heraus', async () => {
+  /** Am ECHTEN Wizard-Pfad: die Bogenwerte bleiben in der Liste, die den Speziestext schreibt. */
+  it('trägt die Bogenwerte durch bis in den Speziestext', async () => {
     const prep = await buildFeaturePrep(GNOME_SORCERER_BASICS);
     expect(prep.speciesFeatures.map((f) => f.name)).toEqual([
       'Size',
@@ -121,9 +121,6 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
       'Gnomish Cunning',
       'Gnomish Lineage',
     ]);
-    // „Gnomische Abstammung" fehlt hier seit ihrer Deklaration (`optionList` + `grantsCasting`):
-    // die Zweig-Zauber stehen benannt im Vault, das Modell könnte sie nur nacherfinden.
-    expect(prep.analysisSpeciesFeatures.map((f) => f.name)).toEqual(['Darkvision', 'Gnomish Cunning']);
     // Index-gleich zu `summarySpecies` — sonst bekäme der Speziestext fremde Keys.
     expect(prep.summarySpecies.map((s) => s.name)).toEqual(prep.speciesFeatures.map((f) => f.name));
   });

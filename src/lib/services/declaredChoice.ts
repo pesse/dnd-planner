@@ -1,8 +1,18 @@
 /**
- * Gerüst einer FLOW-EIGENEN Wahl — dieselbe Form, die die KI-Analyse liefert, damit
- * Oberfläche und Merkmals-Ledger nur EINEN Typ tragen; der Unterschied ist die Herkunft.
+ * Gerüst einer deklarierten Wahl — eine Form für alle Wahl-Arten, damit Oberfläche und
+ * Merkmals-Ledger nur EINEN Typ tragen.
  */
 import type { AnalysisChoice } from './analysis/types';
+
+/**
+ * Die Antwort auf eine Wahl, kanonisch (englisch). Als Liste statt als Record, weil der
+ * Wizard sie in dieser Form durch seine Schritte trägt — der Aufstieg führt seine Antworten
+ * dagegen als `answers`-Record am Lauf-Zustand.
+ */
+export interface DeclaredAnswer {
+  id: string;
+  choice: string;
+}
 
 export interface DeclaredChoiceBase {
   id: string;
@@ -13,20 +23,6 @@ export interface DeclaredChoiceBase {
   featureKey: string;
 }
 
-/**
- * KI-Wahlen zu Merkmalen, deren Wahl der Flow schon führt, fallen weg — sonst wird zweimal
- * gefragt. Nötig für Merkmale, die im KI-Eingang BLEIBEN (mit `grants` aber ohne deklarierte
- * Wahl, und Zweigwahlen mit undeklarierter Option): dort greift kein Eingangsfilter.
- */
-export function withoutOwnedChoices(declared: AnalysisChoice[], fromAi: AnalysisChoice[]): AnalysisChoice[] {
-  const owned = new Set(declared.map((c) => c.featureKey).filter(Boolean));
-  return fromAi.filter((c) => !owned.has(c.featureKey));
-}
-
-/**
- * `determinesFurtherEffects: false` ist Absicht: das Merkmal steht gar nicht im KI-Eingang,
- * eine ihm unbekannte id könnte das Modell nur einem erfundenen Rider zuordnen.
- */
 export function declaredChoice(base: DeclaredChoiceBase): AnalysisChoice {
   return {
     ...base,
@@ -39,10 +35,7 @@ export function declaredChoice(base: DeclaredChoiceBase): AnalysisChoice {
     spellTier: 'prepared',
     sourceId: '',
     quotaId: '',
-    help: '',
-    optionHelp: {},
     max: 1,
-    determinesFurtherEffects: false,
     isBuildDecision: true,
     questionDe: '',
     helpDe: '',

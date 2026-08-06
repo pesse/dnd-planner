@@ -47,11 +47,11 @@
     choice.options.map((value, i) => ({
       value,
       label: optionLabel(choice, i),
-      tooltip: choice.optionHelpDe[value] || choice.optionHelp[value] || '',
+      tooltip: choice.optionHelpDe[value] || '',
     })),
   );
   const label = $derived(choice.questionDe?.trim() || choice.question);
-  const help = $derived(choice.helpDe?.trim() || choice.help);
+  const help = $derived(choice.helpDe?.trim() ?? '');
 
   const splitText = (raw: string): string[] => raw.split(',').map((s) => s.trim()).filter(Boolean);
 </script>

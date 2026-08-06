@@ -2,7 +2,7 @@
 
 Test-Strecke, um die **Antwort-Qualität** der KI-Actions zu messen und Prompts zu
 optimieren, ohne dass die Qualität sinkt. Läuft headless (ohne Tauri) über den
-**echten Produktionspfad** (z.B. der QM-Dreipass `generateFeatureEffects`); außerhalb
+**echten Produktionspfad** (z.B. `summarizeFeatureNotes` samt Übersetzungs-Call); außerhalb
 von Tauri fällt der HTTP-Transport via `src/lib/services/httpFetch.ts` auf das globale
 `fetch` zurück.
 
@@ -126,7 +126,7 @@ npm run eval:index
   **Pass-Raten** (`runEval`).
 - `report.ts` — Capture der echten Requests/Responses + die vier Report-Artefakte.
 - `cases/` — **nur bei größeren Fällen**: die Assertions in einer eigenen Datei
-  (Muster: `../tests/fixtures/druid-l3-circle-of-land.ts` + `cases/featureEffects-druid-circle.ts`).
+  (Muster: `../tests/fixtures/druid-l3-circle-of-land.ts` + `cases/featureNotes-druid-circle.ts`).
 - `*.eval.test.ts` — eine Strecke je Datei. **Nur** diese Dateien laufen hier; was ohne LLM
   auskommt, gehört nach `tests/unit` bzw. `tests/integration` (`npm run test`).
 
@@ -137,25 +137,11 @@ Bestehende Strecken:
 - `spell.eval.test.ts` — Zauber anlegen/überarbeiten (einfacher Ein-Call-Prompt, alles in
   einer Datei) — die Vorlage zum Abschauen.
 - `promptLab.eval.test.ts` — roher Prompt ohne Action (Vorlage für Prompt-Entwürfe).
-- `featureAnalysis.eval.test.ts` — Pass-A-Manifest als Prompt-Entwurf: ein Call vs.
-  Verlauf mit fester Analyse-Antwort und nachgereichter Wahl (Vorlage für `chatCase`).
-- `featureEffects.eval.test.ts` — Merkmals-Effekte beim Stufenaufstieg (mehrstufiger
-  Produktionspfad, Fall-Aufbau lädt Vault-Daten).
-- `levelUpFeat.eval.test.ts` — der Talent-Pfad des Aufstiegs (Kämpfer 3→4, „Eingeweihter der Magie"):
-  KI-Deutung (Fall A, Referenz) gegen deklarierten Zauber-Zugang (Fall B, gatet, ohne LLM) mit
-  denselben Prüfungen.
-- `unredactedChoice.eval.test.ts` — der unredigierte Zweig einer deklarierten Wahl (Elf-Kämpfer
-  Stufe 1, Elfenabstammung → „Drow"): Pass C deutet die Prosa der gewählten Tabellenzeile,
-  erfindet weder Zauber noch eine zweite Wahl. Fall B ist die Gegenprobe ohne LLM
-  (`grants: {}` → das Merkmal fällt aus dem Eingang).
-- `declaredVsAi.eval.test.ts` — dasselbe Merkmal auf beiden Wegen („Unholdisches Erbe",
-  Tiefling Stufe 1): komplett per KI gedeutet (Fall A, der Stand vor der Deklaration) gegen
-  deklarierte Zweigwahl (Fall B). Ein Satz Prüfungen für beide — der Vergleich sind die
-  Pass-Raten plus Latenz/Tokens im Report.
-- `wizardFeatures.eval.test.ts` — Merkmalsanalyse im Charakter-Erstell-Wizard (Stufe 1,
-  Gnom-Zauberer / Weiser): Volks-Wahl blockiert die Zauber, das Herkunftstalent ist eine
-  Zauber-Wahl, fünf wahllose Merkmale sind die Negativprobe. Eingang über
-  `buildFeaturePrep` — denselben Weg, den `CharacterWizard.kickoff()` nimmt.
+- `featureNotes.eval.test.ts` — die Bogen-Notiz beim Stufenaufstieg, seit dem KI-Schnitt der
+  einzige Merkmals-Pass (Produktionspfad inkl. Übersetzung, Fall-Aufbau lädt Vault-Daten).
+  Zwei Strecken: Druide 2→3 („darf die Kreissprüche NICHT aufzählen") und Schurke 2→3
+  („muss je Merkmal eine Zeile schreiben") — getrennt, damit sich die beiden Quoten nicht
+  gegeneinander verrechnen.
 
 ## Neue Strecke in 5 Minuten
 
@@ -196,7 +182,7 @@ Dann `npm run eval -- --eval item --runs 3`. Regeln der Praxis:
   Prüfung: die KI soll **nur** das Gewünschte anfassen.
 - Braucht ein Fall mehrere verkettete Calls oder geladene Vault-Daten, statt
   `action`/`input` ein `run: (config) => Promise<T>` setzen und `cases` als (async)
-  Funktion übergeben — siehe `cases/featureEffects-druid-circle.ts`.
+  Funktion übergeben — siehe `cases/featureNotes-druid-circle.ts`.
 
 ## Nur einen Prompt testen (ohne Action)
 
@@ -249,18 +235,18 @@ Entscheidung, dann die eigentliche Antwort — stellt `chatCase` die Turns frei
 zusammen (`user(…)`, `assistant(…)`, `reply(…)`):
 
 ```ts
-chatCase<Manifest>({
-  label: 'Wahl auf vorgegebene Analyse nachgereicht',
+chatCase<FeatureNotes>({
+  label: 'Notiz auf vorgegebene Deutung nachgereicht',
   system: SYSTEM,
-  schema: manifestSchema,
+  schema: featureNotesSchema,
   structured: 'parse',
   turns: [
     user(INPUT),
-    assistant(ANALYSIS_FIXTURE),          // feste Antwort #1 — kein Call
-    user('<resolved_choices>…</resolved_choices> Gib das aktualisierte Manifest aus.'),
-    reply<Manifest>({ label: 'nach-wahl' }),  // ECHTE Antwort — das wird gemessen
+    assistant(READING_FIXTURE),           // feste Antwort #1 — kein Call
+    user('Fasse das jetzt als Bogenzeile.'),
+    reply<FeatureNotes>({ label: 'notiz' }),  // ECHTE Antwort — das wird gemessen
   ],
-  core: { 'Zauber jetzt gewährt': (m) => m.spellsToGround.length > 0 },
+  core: { 'liefert eine Zeile': (n) => n.notes.length > 0 },
 });
 ```
 
@@ -275,8 +261,6 @@ chatCase<Manifest>({
 - Assertions: `core`/`soft` am Fall gelten der Antwort des **letzten** `reply(…)`;
   jeder `reply(…)` kann eigene mitbringen (im Report als `[label] …`).
 - Jeder Live-Turn ist im Report ein eigener Call mit Request/Response/Tokens.
-
-Vorlage: `featureAnalysis.eval.test.ts`.
 
 Trägt der Prompt, gießt man ihn in eine `AiAction` und stellt die Fälle auf
 `action`/`input` um — die Assertions bleiben unverändert.

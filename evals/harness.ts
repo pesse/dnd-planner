@@ -31,8 +31,8 @@ export interface EvalStep<T> {
   action?: AiAction<T>;
   /**
    * Optionaler Eigen-Aufruf STATT `runAiAction(action, input)`. Für Actions, deren
-   * Produktionspfad nicht der generische Ein-Call ist — z.B. der featureEffects-
-   * Zweiphasen-Pfad (analyze/finalizeFeatureEffects). Ist `run` gesetzt, werden
+   * Produktionspfad nicht der generische Ein-Call ist — z.B. der Notiz-Pass mit
+   * anschließendem Übersetzungs-Call. Ist `run` gesetzt, werden
    * `action`/`input` für den Aufruf ignoriert (`input` bleibt nur für den Report-Mitschnitt).
    */
   run?: (config: LlmConfig) => Promise<T>;
@@ -81,7 +81,7 @@ export interface RunRecord {
   serverMs?: number;
   /** Tokens über ALLE Calls des Laufs summiert. */
   usage?: { sent: number; received: number };
-  /** Alle LLM-Calls dieses Laufs in Reihenfolge. Ein-Call-Pfad: 1; QM-Dreipass: mehrere. */
+  /** Alle LLM-Calls dieses Laufs in Reihenfolge. Ein-Call-Pfad: 1; mit Übersetzung: mehrere. */
   calls: RunCall[];
   /** Geparstes, schema-valides Ergebnis (null bei Fehler). */
   result?: unknown;
@@ -164,8 +164,8 @@ function stats(xs: number[]): LatencyStats {
 /**
  * Paart die Debug-Einträge eines Laufs zu einzelnen Calls (Request→Response) und summiert
  * Server-Zeit/Tokens über ALLE Calls. Requests kommen sequenziell vor ihrer Response, daher
- * genügt es, jede Response dem zuletzt geöffneten Call zuzuordnen — so werden auch die
- * mehreren Calls des QM-Dreipasses (Pass A Thinking + Pass C Guided) vollständig erfasst.
+ * genügt es, jede Response dem zuletzt geöffneten Call zuzuordnen — so wird auch der
+ * Übersetzungs-Call hinter dem Notiz-Pass vollständig erfasst.
  */
 function summarizeCalls(entries: CapturedCall[]): Pick<RunRecord, 'calls' | 'serverMs' | 'usage'> {
   const calls: RunCall[] = [];

@@ -80,8 +80,8 @@ function resolveCall(opts: CallOptions, what: string): ResolvedCall {
 }
 
 /**
- * Bevorzugt den LETZTEN ```json-Block, wie `parseManifest` in der Produktion: ein
- * Beispiel-Block mitten im Text darf das abschließende Ergebnis nicht verdrängen.
+ * Bevorzugt den LETZTEN ```json-Block: ein Beispiel-Block mitten im Text darf das
+ * abschließende Ergebnis nicht verdrängen.
  */
 function extractTrailingJson(content: string): unknown {
   const last = [...content.matchAll(/```json\s*([\s\S]*?)```/gi)].map((m) => m[1]).at(-1);

@@ -3,14 +3,14 @@
  * frei von `$state` und damit unverändert aus reaktiven Gettern aufrufbar.
  */
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
-import { withoutOwnedChoices } from '../declaredChoice';
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyChoices, skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageChoices, languageRiders } from '../declaration/languages';
 import { optionListChoices, optionListRiders } from '../declaration/optionList';
-import { withDeclaredGrants } from '../declaration/grants';
+import { declaredGrantRiders } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
-import type { AnalysisChoice, ResolvedChoice } from '../analysis/types';
+import type { AnalysisChoice } from '../analysis/types';
+import type { DeclaredAnswer } from '../declaredChoice';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { FeatureRider } from '$lib/schemas/levelUp';
 
@@ -20,7 +20,7 @@ import type { FeatureRider } from '$lib/schemas/levelUp';
  */
 export function wizardDeclaredChoices(params: {
   spellAccess: SpellAccessGrant[];
-  declaredAnswers: ResolvedChoice[];
+  declaredAnswers: DeclaredAnswer[];
   declared: DeclaredFeature[];
   proficientSkills: string[];
   sizeChoice: AnalysisChoice | null;
@@ -47,27 +47,23 @@ export function wizardDeclaredChoices(params: {
   ];
 }
 
-/** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
-export function wizardFeatureChoices(declaredChoices: AnalysisChoice[], analysisChoices: AnalysisChoice[]): AnalysisChoice[] {
-  return [...declaredChoices, ...withoutOwnedChoices(declaredChoices, analysisChoices)];
-}
-
 /**
- * `withDeclaredGrants` liegt NUR auf den KI-Ridern: die Rider der Zweigwahlen tragen die
- * Grants der GEWÄHLTEN OPTION, die das unbedingte `grants` des Merkmals nicht ersetzen darf.
+ * `declaredGrantRiders` steht getrennt neben den Wahl-Ridern, weil die Rider einer Zweigwahl
+ * die Grants der GEWÄHLTEN OPTION tragen und das unbedingte `grants` des Merkmals nicht
+ * ersetzen dürfen.
  */
 export function wizardRiders(params: {
   declared: DeclaredFeature[];
-  declaredAnswers: ResolvedChoice[];
-  effectsRiders: FeatureRider[];
+  declaredAnswers: DeclaredAnswer[];
 }): FeatureRider[] {
-  const { declared, declaredAnswers, effectsRiders } = params;
+  const { declared, declaredAnswers } = params;
   const answerOf = (id: string): string => declaredAnswers.find((a) => a.id === id)?.choice ?? '';
-  // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
-  const declaredRiders = optionListRiders(declared, answerOf, 1);
-  const expertise = expertiseRiders(declared, answerOf);
-  const skillProf = skillProficiencyRiders(declared, answerOf);
-  const languages = languageRiders(declared, answerOf);
-  const ai = withDeclaredGrants(effectsRiders, declared);
-  return [...ai, ...declaredRiders, ...expertise, ...skillProf, ...languages];
+  return [
+    ...declaredGrantRiders(declared),
+    // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
+    ...optionListRiders(declared, answerOf, 1),
+    ...expertiseRiders(declared, answerOf),
+    ...skillProficiencyRiders(declared, answerOf),
+    ...languageRiders(declared, answerOf),
+  ];
 }

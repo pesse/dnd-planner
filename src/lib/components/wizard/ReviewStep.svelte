@@ -4,6 +4,7 @@
   import type { Job } from '../../services/wizard/job.svelte';
   import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
   import { buildCharacterProtocol } from '../../services/characterProtocol';
+  import { choiceLabelsDe } from '../../services/analysis/types';
   import { loadSheetSpellcasting, type SheetSpellcasting } from '../../services/spellcasting/project';
   import type { Character } from '../../schemas/characterSchema';
 
@@ -14,14 +15,13 @@
     statusText: (job: Job<unknown>) => string;
   } = $props();
 
-  // Genau wie beim Stufenaufstieg SICHTBAR machen, was der Charakter bekommt —
-  // deterministisch (Attribute, TP, Übungen, Ausrüstung) UND KI (gewährte Zauber,
-  // Entscheidungen). Aus dem fertig zusammengesetzten Charakter abgeleitet, damit die
-  // Vorschau exakt dem entspricht, was gespeichert wird — nicht bloß den Ridern.
+  // Genau wie beim Stufenaufstieg SICHTBAR machen, was der Charakter bekommt. Aus dem fertig
+  // zusammengesetzten Charakter abgeleitet, damit die Vorschau exakt dem entspricht, was
+  // gespeichert wird — nicht bloß den Ridern.
   let preview = $state<Character | null>(null);
   $effect(() => {
     // Job-Status mitlesen, damit die Vorschau nachzieht, sobald KI-Schritte fertig werden.
-    void [w.effects.status, w.classText.status, w.speciesText.status, w.equipment.status];
+    void [w.classText.status, w.speciesText.status, w.equipment.status];
     let cancelled = false;
     buildWizardCharacter(w).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
     return () => { cancelled = true; };
@@ -36,12 +36,22 @@
     return () => { cancelled = true; };
   });
 
+  /**
+   * Die getroffenen Wahlen, aus Frage und Antwort neu gebaut: gewählte Zauber stehen im
+   * Zauber-Block und wären hier die Dublette.
+   */
+  const decisions = $derived.by(() => {
+    const byId = new Map(w.declaredChoices.map((c) => [c.id, c]));
+    return w.declaredAnswers.flatMap((a) => {
+      const ch = byId.get(a.id);
+      if (!ch?.isBuildDecision || ch.type === 'spell-pick') return [];
+      return [{ question: ch.questionDe || ch.question, answer: choiceLabelsDe(ch, a.choice) }];
+    });
+  });
+
   const protocolGroups = $derived(
     preview
-      ? buildCharacterProtocol(preview, {
-          decisions: (w.effects.result?.riders ?? []).flatMap((r) => r.decisions),
-          ...(spellcasting ? { spellcasting } : {}),
-        })
+      ? buildCharacterProtocol(preview, { decisions, ...(spellcasting ? { spellcasting } : {}) })
       : [],
   );
 </script>
@@ -62,12 +72,6 @@
       {/each}
     {/if}
   </div>
-
-  {#if w.effects.status === 'skipped'}
-    <p class="hint">Merkmals-Effekte übersprungen (kein QualityMinds-Modell) — im Editor ergänzbar.</p>
-  {:else if w.effects.status === 'error'}
-    <p class="warn">Merkmals-Effekte: {w.effects.error}</p>
-  {/if}
 
   <ul class="jobs">
     <li>Klassenmerkmals-Text: {statusText(w.classText)}</li>

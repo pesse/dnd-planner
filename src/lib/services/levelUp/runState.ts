@@ -2,12 +2,11 @@
  * Was ein Aufstiegs-Lauf anhäuft: Eingaben des Spielers, Ergebnisse der Schritte und der
  * Stand der Maschine. Reine Datenform — gefüllt von `runSteps`, getrieben von `run`.
  */
-import type { FeatureAnalysis } from '../aiActions/featureEffectsAction';
 import type { GainedFeature } from '../analysis/types';
 import type { PastChoice } from '../characterFeatures';
 import type { LevelUpDelta } from '../levelUp';
 import type { SpellAccessGrant } from '../spellcasting/access';
-import type { FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
+import type { FeatureNote, FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import type { FeatEntry } from '../../featsLibrary';
 import type { SpellInfo } from '../../spellLibrary';
 import type { ChosenFeat } from './features';
@@ -43,10 +42,10 @@ export interface LevelUpRunState {
   delta: LevelUpDelta | null;
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
-  gainedFeatures: GainedFeature[]; // Klassen- + Subklassen-Merkmale (KI-Input + UI-Liste)
+  gainedFeatures: GainedFeature[]; // Klassen- + Subklassen-Merkmale (Notiz-Eingang + UI-Liste)
   /**
    * Immer-vorbereitete Zauber aus Merkmalstabellen — nicht in `validatedBase`, weil sie am
-   * Subklassen-Schritt hängen und auch ohne KI-Analyse stehen.
+   * Subklassen-Schritt hängen.
    */
   declaredSpells: DeclaredSpells;
   /** Deren Stufentabelle hängt an der CHARAKTERstufe, nicht an der Klassenstufe. */
@@ -55,15 +54,18 @@ export interface LevelUpRunState {
   validatedBase: ValidatedRiders;
   decisions: LevelUpQuestion[];
   answers: Record<string, string | string[]>;
-  baseAnalysis: FeatureAnalysis | null;
-  baseChoices: LevelUpQuestion[];
-  /** Aus der Progression gelesen — damit fällt das Klassenmerkmal aus dem KI-Eingang. */
+  /** Aus der Progression gelesen — damit fällt das Klassenmerkmal aus dem Notiz-Eingang. */
   baseAccess: SpellAccessGrant[];
-  featAnalysis: FeatureAnalysis | null;
-  featChoices: LevelUpQuestion[];
+  /** Bogenzeilen des Notiz-Passes, Basis- und Talentmerkmale in einem Satz. */
+  notes: FeatureNote[];
+  /**
+   * Merkmale, deren Prosa eine Mechanik ankündigt, für die keine Deklaration steht — sie
+   * fällt aus, und das darf nicht still passieren (`declarationGapLines`).
+   */
+  gaps: string[];
   featsToPick: number;
   chosenFeats: ChosenFeat[];
-  /** Aus der Bibliothek gelesen — damit fällt das Talent aus dem KI-Eingang. */
+  /** Aus der Bibliothek gelesen — damit fällt das Talent aus dem Notiz-Eingang. */
   featAccess: SpellAccessGrant[];
   featRiders: FeatureRider[];
   validatedFeats: ValidatedRiders;
@@ -77,8 +79,8 @@ export interface LevelUpRunState {
   reachedStep: StepId;
   spellLib: SpellInfo[];
   featLib: FeatEntry[];
-  // Die Analyse darf frühere Entscheidungen nicht erneut stellen und muss ihre Folgen als
-  // gesetzt behandeln (Wächter ⇒ Kriegswaffen + mittlere Rüstung).
+  // Wahlen früherer Stufen: die Zauberliste einer damals gewählten Option hängt daran
+  // (`optionSpellNames`), und das Narrativ soll sie nicht als neu ausgeben.
   pastChoices: PastChoice[];
 }
 
@@ -97,11 +99,9 @@ export function emptyRunState(): LevelUpRunState {
     validatedBase: emptyRiders(),
     decisions: [],
     answers: {},
-    baseAnalysis: null,
-    baseChoices: [],
     baseAccess: [],
-    featAnalysis: null,
-    featChoices: [],
+    notes: [],
+    gaps: [],
     featsToPick: 0,
     chosenFeats: [],
     featAccess: [],

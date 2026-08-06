@@ -66,27 +66,14 @@ export async function qualitymindsGenerateStructured(
   prompt: string,
   schema: object,
   system?: string,
-  opts?: { signal?: AbortSignal },
-): Promise<unknown> {
-  return qualitymindsGenerateStructuredFromMessages(config, withSystem(prompt, system), schema, opts);
-}
-
-/**
- * Dasselbe über einen vollen Chat-Verlauf: der Dreipass der Merkmals-Effekte schickt seine
- * Analyse als `assistant`-Turn mit und lässt diesen guided Call sie ins Schema gießen.
- */
-export async function qualitymindsGenerateStructuredFromMessages(
-  config: LlmConfig,
-  messages: ChatMessage[],
-  schema: object,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; onDelta?: (delta: string) => void },
 ): Promise<unknown> {
   const content = await openAiCompatChat(
     config,
     QUALITYMINDS_API,
-    messages,
+    withSystem(prompt, system),
     TASK_TEMPERATURE.structured,
-    undefined,
+    opts?.onDelta,
     schema,
     opts?.signal,
   );

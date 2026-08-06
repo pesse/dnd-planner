@@ -1,7 +1,6 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
-  import type { Job } from '../../services/wizard/job.svelte';
   import type { SpellStepValues } from '../../services/wizard/spellStep.svelte';
   import type { SpellStepRow } from '../../services/wizard/spellRows';
   import { knownSpellGroups, knownSpells, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
@@ -10,11 +9,10 @@
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';
 
-  let { w, library, v, statusText }: {
+  let { w, library, v }: {
     w: CharacterWizard;
     library: SpellInfo[];
     v: SpellStepValues;
-    statusText: (job: Job<unknown>) => string;
   } = $props();
 
   // Gelesen wird aus dem BLOCK, nicht aus `row.spells`: die Sicht entsteht asynchron neu, ein
@@ -111,7 +109,7 @@
   <div class="field">
     <span>
       {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
-      {#if choice.helpDe || choice.help}<span class="info" title={choice.helpDe || choice.help}>ⓘ</span>{/if}
+      {#if choice.helpDe}<span class="info" title={choice.helpDe}>ⓘ</span>{/if}
     </span>
     <SpellPickField
       title={choice.feature}
@@ -126,13 +124,7 @@
   </div>
 {/each}
 
-{#if w.effects.status === 'running'}
-  <p class="hint">
-    Die KI leitet noch die Merkmals-Effekte ab ({statusText(w.effects)}) — kommt dabei ein
-    zusätzlicher Zaubertrick heraus, wächst das Angebot oben nach. Getroffene Wahlen bleiben
-    erhalten.
-  </p>
-{:else if !v.rows.length && !v.loose.length && !v.error}
+{#if !v.rows.length && !v.loose.length && !v.error}
   <p class="hint">Diese Figur wirkt auf Stufe 1 keine Zauber.</p>
 {/if}
 

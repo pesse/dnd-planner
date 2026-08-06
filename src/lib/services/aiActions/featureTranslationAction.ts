@@ -1,23 +1,18 @@
 /**
- * Die deutsche Grenze der Merkmals-Deutung: `featureEffectsAction` reasont durchgehend
- * englisch, Deutsch entsteht hier in zwei Calls an den Rändern (T1 Wahlen, T2 Bogen-Notizen).
+ * Die deutsche Grenze der Merkmals-Strecke: `featureNotesAction` formuliert englisch, Deutsch
+ * entsteht hier in EINEM Call am Rand.
  *
- * Beide sind REASONING-FREI (guided decoding heißt auf QM/vllm `enable_thinking:false`) und
- * beide degradieren statt zu blocken: bei Fehlschlag bleibt der englische Text stehen — ein
- * unübersetzter Checkpoint ist bedienbar, ein fehlender nicht.
+ * Er ist REASONING-FREI (guided decoding heißt auf QM/vllm `enable_thinking:false`) und
+ * degradiert statt zu blocken: bei Fehlschlag bleibt der englische Text stehen.
  *
- * Pass C entscheidet, WAS auf den Bogen gehört (`SHEET_NOTE_CONTENT`), dieser Call, WIE es
- * dasteht (`SHEET_NOTE_GERMAN_FORM`) — deshalb liegt das Zeichenbudget hier: Deutsch läuft
- * rund 17 % länger als Englisch, und gekürzt werden muss in der Zielsprache.
+ * Der Notiz-Pass entscheidet, WAS auf den Bogen gehört (`SHEET_NOTE_CONTENT`), dieser Call,
+ * WIE es dasteht (`SHEET_NOTE_GERMAN_FORM`) — deshalb liegt das Zeichenbudget hier: Deutsch
+ * läuft rund 17 % länger als Englisch, und gekürzt werden muss in der Zielsprache.
  */
 import {
-  choiceTranslationJsonSchema,
-  parseChoiceTranslation,
   parseSheetNoteTranslations,
   sheetNoteTranslationsJsonSchema,
-  CHOICE_HELP_MAX_CHARS,
   SHEET_NOTE_MAX_CHARS,
-  type ChoiceTranslationItem,
 } from '../../schemas/levelUp';
 import type { LlmConfig } from '../../types';
 import { qualitymindsGenerateStructured } from '../llm/openAiCompatible';
@@ -30,37 +25,6 @@ export interface TranslationSource {
   descDe?: string;
   key?: string;
 }
-
-export interface TranslatableChoice {
-  id: string;
-  featureKey: string;
-  question: string;
-  help: string;
-  options: string[];
-  optionHelp: Record<string, string>;
-}
-
-/** Das Übersetzungsergebnis einer Wahl; leere Felder heißen „nimm den englischen Text". */
-export interface ChoiceTranslationResult {
-  questionDe: string;
-  helpDe: string;
-  /** Parallel zu `options` der Eingabe — gleiche Länge, gleiche Reihenfolge. */
-  optionsDe: string[];
-  /** Geschlüsselt mit dem ENGLISCHEN Options-Label (der stabilen Kennung). */
-  optionHelpDe: Record<string, string>;
-}
-
-const CHOICE_TRANSLATION_SYSTEM = `You translate the forced player choices of a Dungeons & Dragons 5e character (SRD 5.2 / German 5.2.1 terminology) into German, for a character sheet app whose UI is German.
-<choices> holds the choices in English. <features> holds the features that raise them, each with the English rules text ("desc") and its official German translation ("descDe").
-
-## Rules
-1. An option label is a QUOTE, not a translation. Find the option in the feature's "descDe" and copy its German wording VERBATIM — for a bolded option paragraph \`**Wächter.**\` the label is \`Wächter\`. The player's stored answer is matched against that text later, so never paraphrase, expand, re-case or annotate it (no "Waldgnom (Forest Gnome)").
-2. Only if "descDe" is missing or does not contain the option, translate it yourself using the current German 5.2.1 terminology.
-3. Return the options in the SAME ORDER as the input and copy each "en" label verbatim — it is the key the app matches on.
-4. questionDe: the question as you would ask a German player, short and direct.
-5. helpDe: one German line on the MECHANICAL trade-off, e.g. "Wächter → Kriegswaffen + mittlere Rüstung; Magier → ein zusätzlicher bekannter Zaubertrick". HARD LIMIT ${CHOICE_HELP_MAX_CHARS} characters — German runs longer than English, so condense (arrows, no filler) rather than overshoot. Empty string if the options carry no notable consequence.
-6. Each option's own helpDe: its concrete German consequence, ≤60 chars (e.g. "Schwarz" → "Säureschaden"). Empty string where an option has none.
-7. Translate ONLY. Never add, drop, merge or reorder choices or options, and never invent a mechanic that is not in the rules text.`;
 
 const SHEET_NOTE_TRANSLATION_SYSTEM = `You translate character-sheet notes for a Dungeons & Dragons 5e app (SRD 5.2 / German 5.2.1 terminology) from English into German.
 <notes> holds the English notes, each with an index and the feature it belongs to. <features> holds those features with their official German rules text ("descDe") and German name ("nameDe"). <glossary_de> adds further fixed term pairs.
@@ -75,80 +39,6 @@ const SHEET_NOTE_TRANSLATION_SYSTEM = `You translate character-sheet notes for a
 ## How the German line reads
 ${SHEET_NOTE_GERMAN_FORM}`;
 
-/** Nur die Merkmale, die eine der Wahlen wirklich stellt — der Rest ist hier Ballast. */
-function sourcesForChoices(choices: TranslatableChoice[], features: TranslationSource[]): TranslationSource[] {
-  const keys = new Set(choices.map((c) => c.featureKey).filter(Boolean));
-  const hit = features.filter((f) => f.key && keys.has(f.key));
-  // Ohne verwertbaren Key lieber alle Merkmale mitschicken als den Wortlaut zu verlieren.
-  return hit.length ? hit : features;
-}
-
-/**
- * T1 — deutsche Fassung der erkannten Wahlen, geschlüsselt nach Choice-id.
- * Leere Map bei Fehlschlag; der Aufrufer fällt dann auf die englischen Texte zurück.
- */
-export async function translateChoices(
-  config: LlmConfig,
-  ctx: { choices: TranslatableChoice[]; features: TranslationSource[] },
-  opts: { signal?: AbortSignal } = {},
-): Promise<Map<string, ChoiceTranslationResult>> {
-  const out = new Map<string, ChoiceTranslationResult>();
-  if (!ctx.choices.length) return out;
-
-  const sources = sourcesForChoices(ctx.choices, ctx.features).map((f) => ({
-    name: f.name,
-    nameDe: f.nameDe ?? '',
-    key: f.key ?? '',
-    desc: f.desc,
-    descDe: f.descDe ?? '',
-  }));
-  const input = [
-    `<features>${JSON.stringify(sources)}</features>`,
-    `<choices>${JSON.stringify(
-      ctx.choices.map((c) => ({
-        id: c.id,
-        featureKey: c.featureKey,
-        question: c.question,
-        help: c.help,
-        options: c.options,
-        optionHelp: c.options.map((o) => ({ en: o, help: c.optionHelp[o] ?? '' })),
-      })),
-    )}</choices>`,
-  ].join('\n');
-
-  let items: ChoiceTranslationItem[];
-  try {
-    const raw = await qualitymindsGenerateStructured(config, input, choiceTranslationJsonSchema, CHOICE_TRANSLATION_SYSTEM, {
-      signal: opts.signal,
-    });
-    items = parseChoiceTranslation(raw)?.items ?? [];
-  } catch (e) {
-    if (opts.signal?.aborted) throw e; // Abbruch nie verschlucken
-    return out;
-  }
-
-  const byId = new Map(items.map((i) => [i.id, i]));
-  for (const choice of ctx.choices) {
-    const item = byId.get(choice.id);
-    if (!item) continue;
-    // Eine Options-Liste anderer Länge ist keine Übersetzung mehr, sondern eine zweite
-    // Meinung: dann bleibt Englisch stehen, damit Label und Wert nicht auseinanderlaufen.
-    const byEn = new Map(item.options.map((o) => [o.en, o]));
-    const usable = choice.options.every((o) => byEn.get(o)?.de.trim());
-    out.set(choice.id, {
-      questionDe: item.questionDe.trim(),
-      helpDe: item.helpDe.trim(),
-      optionsDe: usable ? choice.options.map((o) => byEn.get(o)!.de.trim()) : [],
-      optionHelpDe: usable
-        ? Object.fromEntries(
-            choice.options.map((o) => [o, byEn.get(o)?.helpDe.trim() ?? '']).filter(([, v]) => !!v),
-          )
-        : {},
-    });
-  }
-  return out;
-}
-
 export interface TranslatableNote {
   index: number;
   featureKey: string;
@@ -157,8 +47,8 @@ export interface TranslatableNote {
 }
 
 /**
- * T2 — deutsche Bogen-Notizen, geschlüsselt nach `index`. Leere Map bei Fehlschlag; der
- * Aufrufer lässt dann die englische Notiz stehen.
+ * Deutsche Bogen-Notizen, geschlüsselt nach `index`. Leere Map bei Fehlschlag; der Aufrufer
+ * lässt dann die englische Notiz stehen.
  */
 export async function translateSheetNotes(
   config: LlmConfig,
