@@ -27,9 +27,10 @@ import { featSchema, migrateFeatLegacy } from '../../src/lib/schemas/feat';
 import { CLASS_TABLE_CHOICE_KINDS, featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { castingGrantSchema } from '../../src/lib/schemas/casting';
 import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
-import { optionActivatesQuota, optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
+import { optionActivatesQuota, optionListRider, optionSpellNames, unredactedChoiceFeatures, withoutDeclaredChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
-import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
+import { declaredFeatures as tagged, type DeclaredFeature } from '../../src/lib/services/declaredFeature';
+import { withDeclaredGrants } from '../../src/lib/services/declaration/grants';
 
 /** Die erste (hier: einzige) Wahl ihrer Art am Merkmal. */
 const optionRef = <T extends DeclaredChoiceSource>(f: T) => optionListRefs(f)[0];
@@ -393,10 +394,9 @@ describe('deklarierte Sprachwahl', () => {
       const prog = await getProgressionByKey(libraryKey(info));
       for (const f of prog?.features ?? []) if (isLanguagesFeature(f)) found.push(f.key);
     }
-    // „Diebessprache" fehlt mit Absicht: sie gewährt neben der freien Sprache die
-    // Diebessprache FEST, und dafür gibt es keine Senke — deklariert man nur die Wahl,
-    // fällt das Merkmal aus der KI-Deutung und die feste Sprache verschwindet still.
-    expect(found).toEqual(['srd-2024_ranger_deft-explorer']);
+    // „Diebessprache" gewährt neben der freien Wahl eine FESTE Sprache. Die steht in
+    // `grants.languages`, sonst fiele sie mit dem Merkmal aus der KI-Deutung.
+    expect(found.sort()).toEqual(['srd-2024_ranger_deft-explorer', 'srd-2024_rogue_thieves-cant']);
   });
 
   it('fragt als Freitext, nicht als Optionsliste', async () => {
@@ -431,6 +431,41 @@ describe('deklarierte Sprachwahl', () => {
     expect(declaredChoiceRefs(f).map((r) => r.grant.kind)).toEqual(['expertise', 'languages']);
     expect([...expertiseChoices([f], ['Stealth']), ...languageChoices([f])].map((c) => c.id))
       .toEqual(['expertise_srd-2024-ranger-deft-explorer', LANGUAGE_ID]);
+  });
+});
+
+/**
+ * Die feste Sprache steht in `grants.languages`, NEBEN `proficiencies` — in 2024 ist sie keine
+ * Übung. Am Vault hängt daran die Frage, ob eine Deklaration das Merkmal aus der KI-Deutung
+ * nimmt: `grantsChoice` tut es, ein reines `grants` nicht.
+ */
+describe('fest gewährte Sprache', () => {
+  const classFeature = async (classKey: string, featureKey: string) => {
+    const prog = await getProgressionByKey(classKey);
+    const f = prog?.features.find((x) => x.key === featureKey);
+    expect(f, `${featureKey} im Vault`).toBeTruthy();
+    return tagged('class', [f!])[0];
+  };
+  const languagesOf = (features: DeclaredFeature[], answerOf: (id: string) => string = () => '') =>
+    riderChanges(
+      {
+        riders: [...withDeclaredGrants([], features), ...languageRiders(features, answerOf)],
+        flagged: [], grantedCantrips: [], grantedPrepared: [],
+      },
+      'feature-effects',
+    ).filter((c) => c.target === 'language').map((c) => c.value);
+
+  it('bringt „Druidisch" auf den Bogen und lässt das Merkmal trotzdem in der KI-Deutung', async () => {
+    const druidic = await classFeature('srd-2024_druid', 'srd-2024_druid_druidic');
+    expect(languagesOf([druidic])).toEqual(['Druidisch']);
+    // Der Dauerzauber und die Bogen-Notiz bleiben Sache des Modells — nur `grantsChoice` filtert.
+    expect(withoutDeclaredChoiceFeatures([druidic])).toEqual([druidic]);
+  });
+
+  it('trägt bei „Diebessprache" feste und gewählte Sprache nebeneinander', async () => {
+    const cant = await classFeature('srd-2024_rogue', 'srd-2024_rogue_thieves-cant');
+    expect(withoutDeclaredChoiceFeatures([cant]), 'die Wahl nimmt es aus der KI-Deutung').toEqual([]);
+    expect(languagesOf([cant], () => 'Elbisch')).toEqual(['Diebessprache', 'Elbisch']);
   });
 });
 

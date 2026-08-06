@@ -47,6 +47,7 @@ export function declaredGrantChanges(
 export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
   const filled: { [K in keyof FeatureGrant]: () => boolean } = {
     proficiencies: () => !isEmptyProficiencyGrant(g.proficiencies),
+    languages: () => g.languages.length > 0,
     extraCantrips: () => g.extraCantrips > 0,
     extraPreparedCount: () => g.extraPreparedCount > 0,
     perLevel: () => g.perLevel.hpMax !== 0,
@@ -70,6 +71,7 @@ export interface DeclaredGrantSource {
  */
 const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' } = {
   proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
+  languages: 'rider',
   extraCantrips: 'rider',
   extraPreparedCount: 'rider',
   perLevel: 'perLevel',
@@ -94,6 +96,7 @@ export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRid
       weapons: [...p.weapons],
       armor: [...p.armor],
       savingThrows: [...p.savingThrows],
+      languages: [...grants.languages],
     },
   };
 }

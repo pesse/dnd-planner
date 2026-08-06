@@ -15,10 +15,12 @@ What a schema field means for the flows that read it — none of it is visible f
   Prompts name the vocabulary via `z.enum(SKILL_NAMES)`; translation happens when a `Change` is
   *applied*, not when it is produced.
 - **Tools and languages stay German free text** on purpose — no closed vocabulary, and in 2024
-  languages are not a proficiency at all.
+  languages are not a proficiency at all. That is why a language sits in `grants.languages` /
+  `grantsChoice.kind = 'languages'` beside `grants.proficiencies`, never inside it, and why the
+  value a player types is the value the sheet shows — there is no list to canonicalise against.
 - **A feature whose only content is a choice declares it**, via `grantsChoice`
-  (`featureChoiceGrantSchema` in `schemas/featureChoice.ts`: `weaponMastery` | `featCategory` |
-  `spellcasting` | `spellAccess` | `optionList` | `expertise`). That declaration is what keeps
+  (`featureChoiceGrantSchema` in `schemas/featureChoice.ts`, kinds in `FEATURE_CHOICE_KINDS`).
+  A feature may declare SEVERAL — the field is a list. That declaration is what keeps
   it out of the AI feature analysis; the name-based predicates (`isWeaponMasteryFeature`,
   `isSpellcastingFeature`) are only the fallback for vault entries that do not carry the field
   yet. `optionList` carries the consequence **next to each option** (`options[].grants`), which

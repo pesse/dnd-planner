@@ -41,6 +41,9 @@
             "Light"
           ]
         },
+        "languages": [
+          "string"
+        ],
         "extraCantrips": 0,
         "extraPreparedCount": 0,
         "perLevel": {
@@ -83,6 +86,9 @@
                     "Light"
                   ]
                 },
+                "languages": [
+                  "string"
+                ],
                 "extraCantrips": 0,
                 "extraPreparedCount": 0,
                 "perLevel": {
