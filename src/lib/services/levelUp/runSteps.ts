@@ -19,9 +19,9 @@ import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from '.
 import { featToGainedFeature } from './features';
 import { buildDecisions, buildFeatureChoices } from './questions';
 import { sheetNoteLines, answerValues, hasAnswer } from './answers';
-import { expertiseChoiceId, expertiseRider, isExpertiseFeature } from '../declaration/expertise';
+import { expertiseRiders } from '../declaration/expertise';
 import {
-  optionChoiceId, optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures,
+  optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures,
   withoutDeclaredChoiceFeatures,
 } from '../declaration/optionList';
 import { withDeclaredGrants } from '../declaration/grants';
@@ -180,7 +180,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     // dieselbe Wahl ein zweites Mal gestellt, Pass C deutet nur noch ihre Prosa.
     const unredacted = unredactedChoiceFeatures(
       kind === 'base' ? choices.baseDeclared : choices.featDeclared,
-      (f) => choices.optionAnswer(optionChoiceId(f)),
+      (id) => choices.optionAnswer(id),
     ).map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: st.delta!.toLevel }));
     const features = [...featuresFor(kind), ...unredacted];
     let parsed: FeatureRider[] = [];
@@ -202,10 +202,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     const optionLevel = kind === 'base' ? st.delta!.toLevel : newCharLevel();
     const declared = [
       ...optionListRiders(grantSources, (id) => choices.optionAnswer(id), optionLevel),
-      ...grantSources
-        .filter(isExpertiseFeature)
-        .map((f) => expertiseRider(f, choices.optionAnswer(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
-        .filter((r): r is FeatureRider => r !== null),
+      ...expertiseRiders(grantSources, (id) => choices.optionAnswer(id)),
     ];
     // Nur auf `parsed`: die Rider der Zweigwahlen tragen die Grants der GEWÄHLTEN OPTION,
     // die das unbedingte `grants` des Merkmals nicht ersetzen darf.

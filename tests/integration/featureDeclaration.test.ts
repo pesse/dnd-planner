@@ -14,8 +14,9 @@ import { getClasses } from '../../src/lib/classLibrary';
 import { libraryKey } from '../support/libraryKey';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import type { ClassFeature } from '../../src/lib/schemas/classProgression';
-import { chosenOption, isOptionListFeature, optionChoiceId, optionListChoice, optionListNoteLines, optionListRiders } from '../../src/lib/services/declaration/optionList';
-import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from '../../src/lib/services/declaration/expertise';
+import { chosenOption, declaredChoiceRefs, isOptionListFeature, optionChoiceId, optionListChoice, optionListChoices, optionListNoteLines, optionListRefs, optionListRiders } from '../../src/lib/services/declaration/optionList';
+import { expertiseChoice, expertiseChoiceId, expertiseChoices, expertiseRefs, expertiseRider, isExpertiseFeature } from '../../src/lib/services/declaration/expertise';
+import type { DeclaredChoiceSource } from '../../src/lib/services/declaration/source';
 import { riderChanges } from '../../src/lib/services/levelUp/changes';
 import { forClassFeaturesField } from '../../src/lib/services/declaredFeature';
 import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
@@ -27,6 +28,10 @@ import { spellAccessGrantOf } from '../../src/lib/services/spellcasting/access';
 import { optionActivatesQuota, optionListRider, optionSpellNames, unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { getSpeciesByKey } from '../../src/lib/speciesLibrary';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
+
+/** Die erste (hier: einzige) Wahl ihrer Art am Merkmal. */
+const optionRef = <T extends DeclaredChoiceSource>(f: T) => optionListRefs(f)[0];
+const expertiseRef = <T extends DeclaredChoiceSource>(f: T) => expertiseRefs(f)[0];
 
 const declaredFeatures = async (): Promise<{ klass: string; feature: ClassFeature }[]> => {
   const out: { klass: string; feature: ClassFeature }[] = [];
@@ -52,7 +57,7 @@ describe('deklarierte Zweigwahlen', () => {
 
   it('nimmt jedes Options-Label WÖRTLICH aus dem Regeltext (beide Sprachen)', async () => {
     for (const { feature } of await declaredFeatures()) {
-      for (const o of feature.grantsChoice!.options) {
+      for (const o of feature.grantsChoice!.flatMap((g) => g.options)) {
         // Der englische Wert ist der Schlüssel, gegen den die gespeicherte Antwort matcht —
         // eine Paraphrase findet ihren Zweig nie wieder.
         expect(feature.desc, `${feature.key} / ${o.value}`).toContain(`**${o.value}.**`);
@@ -64,7 +69,7 @@ describe('deklarierte Zweigwahlen', () => {
 
   it('gibt jeder Option eine Konsequenz — sonst wäre die Wahl folgenlos', async () => {
     for (const { feature } of await declaredFeatures()) {
-      for (const o of feature.grantsChoice!.options) {
+      for (const o of feature.grantsChoice!.flatMap((g) => g.options)) {
         expect(o.grants, `${feature.key} / ${o.value}`).toBeTruthy();
         expect(o.helpDe.trim(), `${feature.key} / ${o.value}`).not.toBe('');
       }
@@ -74,7 +79,7 @@ describe('deklarierte Zweigwahlen', () => {
   it('baut die Wahl ohne Nach-Analyse-Bedarf', async () => {
     const prog = await getProgressionByKey('srd-2024_druid');
     const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
-    const choice = optionListChoice(primal)!;
+    const choice = optionListChoice(optionRef(primal))!;
 
     expect(choice.options).toEqual(['Magician', 'Warden']);
     expect(choice.optionsDe).toEqual(['Magier', 'Wächter']);
@@ -88,7 +93,7 @@ describe('deklarierte Zweigwahlen', () => {
   it('liefert den Rider der getroffenen Wahl — und nur den', async () => {
     const prog = await getProgressionByKey('srd-2024_druid');
     const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
-    const id = optionChoiceId(primal);
+    const id = optionChoiceId(optionRef(primal));
 
     const warden = optionListRiders([primal], (q) => (q === id ? 'Warden' : ''), 1);
     expect(warden).toHaveLength(1);
@@ -129,10 +134,10 @@ describe('deklarierte Zweigwahlen', () => {
     const feature = {
       key: 'homebrew-sam_test',
       name: 'Test',
-      grantsChoice: featureChoiceGrantSchema.parse({
+      grantsChoice: [featureChoiceGrantSchema.parse({
         kind: 'optionList',
         options: [{ value: 'Extra', grants: { extraCantrips: 1 } }],
-      }),
+      })],
     };
     expect(optionActivatesQuota(feature, 'Extra')).toBe(false);
     expect(optionListRiders([feature], () => 'Extra', 1)[0].extraCantrips).toBe(1);
@@ -145,7 +150,7 @@ describe('deklarierte Zweigwahlen', () => {
   it('schreibt die getroffene Wahl deutsch auf den Bogen', async () => {
     const prog = await getProgressionByKey('srd-2024_druid');
     const primal = prog!.features.find((f) => f.key === 'srd-2024_druid_primal-order')!;
-    const id = optionChoiceId(primal);
+    const id = optionChoiceId(optionRef(primal));
 
     expect(optionListNoteLines([primal], (q) => (q === id ? 'Warden' : ''))).toEqual([
       'Urtümliche Ordnung: Wächter — Übung mit Kriegswaffen, mittelschwere Rüstung',
@@ -180,7 +185,7 @@ describe('deklarierte Zweigwahlen', () => {
     const prog = await getProgressionByKey('srd-2024_rogue');
     const feature = prog!.features.find((f) => f.key === 'srd-2024_rogue_expertise')!;
 
-    const choice = expertiseChoice(feature, ['Stealth', 'Acrobatics', 'Perception'])!;
+    const choice = expertiseChoice(expertiseRef(feature), ['Stealth', 'Acrobatics', 'Perception'])!;
     expect(choice.type).toBe('multiselect');
     expect(choice.max).toBe(2);
     expect(choice.options).toEqual(['Stealth', 'Acrobatics', 'Perception']);
@@ -188,26 +193,26 @@ describe('deklarierte Zweigwahlen', () => {
     expect(choice.determinesFurtherEffects).toBe(false);
 
     // Expertise stapelt nicht: auf Stufe 6 sind zwei WEITERE zu wählen.
-    const second = expertiseChoice(feature, ['Stealth', 'Acrobatics', 'Perception'], ['Stealth'])!;
+    const second = expertiseChoice(expertiseRef(feature), ['Stealth', 'Acrobatics', 'Perception'], ['Stealth'])!;
     expect(second.options).toEqual(['Acrobatics', 'Perception']);
     // Mehr Plätze als Optionen wäre eine unerfüllbare Pflichtfrage.
-    expect(expertiseChoice(feature, ['Stealth'], [])!.max).toBe(1);
+    expect(expertiseChoice(expertiseRef(feature), ['Stealth'], [])!.max).toBe(1);
     // Ohne geübte Fertigkeit gar keine Frage (statt einer leeren Liste).
-    expect(expertiseChoice(feature, [])).toBeNull();
+    expect(expertiseChoice(expertiseRef(feature), [])).toBeNull();
   });
 
   it('macht aus der Expertise-Antwort einen Rider mit englischem Vokabular', async () => {
     const prog = await getProgressionByKey('srd-2024_rogue');
     const feature = prog!.features.find((f) => f.key === 'srd-2024_rogue_expertise')!;
-    expect(expertiseChoiceId(feature)).toBe('expertise_srd-2024-rogue-expertise');
+    expect(expertiseChoiceId(expertiseRef(feature))).toBe('expertise_srd-2024-rogue-expertise');
 
-    const rider = expertiseRider(feature, ['Stealth', 'Sleight of Hand'])!;
+    const rider = expertiseRider(expertiseRef(feature), ['Stealth', 'Sleight of Hand'])!;
     expect(rider.expertiseSkills).toEqual(['Stealth', 'Sleight of Hand']);
     expect(rider.featureKey).toBe('srd-2024_rogue_expertise');
     // Ein deutscher Wert wäre der stille Ausfall, den `skillSheetKey` abfangen soll —
     // hier fällt er stattdessen ganz heraus.
-    expect(expertiseRider(feature, ['Heimlichkeit'])).toBeNull();
-    expect(expertiseRider(feature, [])).toBeNull();
+    expect(expertiseRider(expertiseRef(feature), ['Heimlichkeit'])).toBeNull();
+    expect(expertiseRider(expertiseRef(feature), [])).toBeNull();
   });
 
   it('hält die deklarierten Merkmale aus dem KI-Eingang des Wizards heraus', async () => {
@@ -239,18 +244,18 @@ describe('die Herkunft entscheidet nichts über die Mechanik', () => {
     name: 'Test Order',
     nameDe: 'Testorden',
     desc: 'Choose one.',
-    grantsChoice: featureChoiceGrantSchema.parse({
+    grantsChoice: [featureChoiceGrantSchema.parse({
       kind: 'optionList',
       options: [
         { value: 'Warden', labelDe: 'Wächter', helpDe: 'Kriegswaffen', grants: { proficiencies: { weapons: ['Martial'] } } },
         { value: 'Magician', labelDe: 'Magier', helpDe: 'Ein Zaubertrick', grants: { extraCantrips: 1 } },
       ],
-    }),
+    })],
   };
   const carriers = ['class', 'subclass', 'species', 'feat'] as const;
 
   it('liefert je Herkunft dieselbe Wahl', () => {
-    const choices = carriers.map((source) => optionListChoice({ ...DECL, source }));
+    const choices = carriers.map((source) => optionListChoice(optionRef({ ...DECL, source })));
     for (const c of choices) {
       expect(c?.options).toEqual(['Warden', 'Magician']);
       expect(c?.optionsDe).toEqual(['Wächter', 'Magier']);
@@ -298,7 +303,7 @@ describe('die Deklaration ist an allen Trägern dieselbe', () => {
     ];
     for (const p of parsed) {
       expect(p.grants?.proficiencies.skills.fixed).toEqual(['Stealth']);
-      expect(p.grantsChoice?.count).toBe(2);
+      expect(p.grantsChoice?.[0].count).toBe(2);
       expect(p.grantsSpells?.kind).toBe('levelTable');
     }
   });
@@ -314,6 +319,41 @@ describe('die Deklaration ist an allen Trägern dieselbe', () => {
 
     const feat = featSchema.parse(migrateFeatLegacy({ name: 'Skilled', proficiencyGrant: { skills: { choose: 3 } } }));
     expect(feat.grants?.proficiencies.skills.choose).toBe(3);
+  });
+
+  /**
+   * Gelesen wird immer eine Liste. Das Einzelobjekt bleibt gültige Eingabe, sonst müsste der
+   * ganze Vault umgeschrieben werden, ehe ein Merkmal seine zweite Wahl bekommen darf.
+   */
+  it('liest ein Einzelobjekt wie eine Liste mit einem Eintrag', () => {
+    const one = featSchema.parse({ name: 'X', grantsChoice: { kind: 'expertise', count: 2 } });
+    const many = featSchema.parse({
+      name: 'X',
+      grantsChoice: [{ kind: 'expertise', count: 2 }, { kind: 'optionList', options: [{ value: 'Forest' }] }],
+    });
+
+    expect(one.grantsChoice?.map((g) => g.kind)).toEqual(['expertise']);
+    expect(many.grantsChoice?.map((g) => g.kind)).toEqual(['expertise', 'optionList']);
+    // Die leere Liste ist die geprüfte Form („angesehen, gewährt keine Wahl") und bleibt
+    // vom fehlenden Feld unterscheidbar.
+    expect(featSchema.parse({ name: 'X', grantsChoice: [] }).grantsChoice).toEqual([]);
+    expect(featSchema.parse({ name: 'X' }).grantsChoice).toBeUndefined();
+  });
+
+  it('stellt jede Wahl eines Merkmals einzeln — mit eigener Frage-id', () => {
+    const deft = tagged('feat', [featSchema.parse({
+      key: 'test_deft',
+      name: 'Deft Explorer',
+      grantsChoice: [
+        { kind: 'expertise', count: 1 },
+        { kind: 'optionList', options: [{ value: 'Forest', labelDe: 'Wald' }, { value: 'Desert' }] },
+      ],
+    })])[0];
+
+    expect(optionListChoices([deft]).map((c) => c.id)).toEqual(['optionlist_test-deft']);
+    expect(expertiseChoices([deft], ['Stealth']).map((c) => c.id)).toEqual(['expertise_test-deft']);
+    // Beide zusammen, in Deklarationsreihenfolge — das ist, was die Merkmalsleiste anzeigt.
+    expect(declaredChoiceRefs(deft).map((r) => r.grant.kind)).toEqual(['expertise', 'optionList']);
   });
 
   it('lässt eine vorhandene Deklaration gewinnen', () => {
@@ -337,12 +377,12 @@ describe('die Senke des kind entscheidet, nicht der Träger', () => {
     const decl = {
       key: 'test_cantrip',
       name: 'Cantrip',
-      grantsChoice: featureChoiceGrantSchema.parse({
+      grantsChoice: [featureChoiceGrantSchema.parse({
         kind: 'spellAccess',
         spellLists: ['wizard'],
         spellAbilities: ['Intelligence'],
         spellPicks: [{ level: 0, count: 1 }],
-      }),
+      })],
       // Die Zahlen liest `spellAccessGrantOf` inzwischen von hier, `grantsChoice` bleibt nur
       // das Zugehörigkeits-Signal.
       grantsCasting: castingGrantSchema.parse({
@@ -374,17 +414,17 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
   it('deklariert die drei Abstammungen', async () => {
     const f = await lineage();
     expect(isOptionListFeature(f)).toBe(true);
-    expect(f.grantsChoice?.options.map((o) => o.value)).toEqual(['Drow', 'High Elf', 'Wood Elf']);
+    expect(f.grantsChoice?.flatMap((g) => g.options).map((o) => o.value)).toEqual(['Drow', 'High Elf', 'Wood Elf']);
   });
 
   it('staffelt die Zauber des gewählten Zweigs über die Stufen', async () => {
     const f = await lineage();
-    expect(optionListRider(f, 'High Elf', 1)?.grantedSpells).toEqual(['Prestidigitation']);
-    expect(optionListRider(f, 'High Elf', 3)?.grantedSpells).toEqual(['Prestidigitation', 'Detect Magic']);
-    expect(optionListRider(f, 'High Elf', 5)?.grantedSpells)
+    expect(optionListRider(optionRef(f), 'High Elf', 1)?.grantedSpells).toEqual(['Prestidigitation']);
+    expect(optionListRider(optionRef(f), 'High Elf', 3)?.grantedSpells).toEqual(['Prestidigitation', 'Detect Magic']);
+    expect(optionListRider(optionRef(f), 'High Elf', 5)?.grantedSpells)
       .toEqual(['Prestidigitation', 'Detect Magic', 'Misty Step']);
     // Kein Zweig bekommt die Zauber eines anderen — genau das konnte `grantsSpells` nicht.
-    expect(optionListRider(f, 'Drow', 5)?.grantedSpells).toEqual(['Dancing Lights', 'Faerie Fire', 'Darkness']);
+    expect(optionListRider(optionRef(f), 'Drow', 5)?.grantedSpells).toEqual(['Dancing Lights', 'Faerie Fire', 'Darkness']);
   });
 
   it('liest die Stufen 3 und 5 später aus der gespeicherten Antwort', async () => {
@@ -405,10 +445,10 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
     // nichts zu deuten und der Call fällt weg.
     const redacted = {
       ...f,
-      grantsChoice: featureChoiceGrantSchema.parse({
+      grantsChoice: [featureChoiceGrantSchema.parse({
         kind: 'optionList',
         options: [{ value: 'Drow', grants: {} }],
-      }),
+      })],
     };
     expect(unredactedChoiceFeatures([redacted], () => 'Drow')).toEqual([]);
   });

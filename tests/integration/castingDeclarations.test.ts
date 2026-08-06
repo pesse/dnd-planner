@@ -24,7 +24,7 @@ const DECLARATION_COUNT = 35;
 interface Declaration {
   key: string;
   desc: string;
-  grantsChoice?: FeatureChoiceGrant;
+  grantsChoice?: FeatureChoiceGrant[];
   grantsCasting: CastingGrant;
   /** Nur bei Klassenmerkmalen: die Tabelle, aus der `count.column` liest. */
   table: ClassProgression | null;
@@ -80,7 +80,7 @@ describe('grantsCasting im Vault', () => {
 
   it('bezieht jedes `when` auf eine Option desselben Merkmals', async () => {
     for (const d of await declarations()) {
-      const options = (d.grantsChoice?.options ?? []).map((o) => o.value);
+      const options = (d.grantsChoice ?? []).flatMap((g) => g.options).map((o) => o.value);
       for (const quota of quotasOf(d)) {
         for (const [key, value] of Object.entries(quota.when ?? {})) {
           expect(key, `${d.key}/${quota.id}`).toBe('option');

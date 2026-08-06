@@ -16,21 +16,20 @@ import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
 import {
-  chosenOption, isDeclaredChoiceFeature, optionActivatesQuota, optionChoiceId, optionListChoice,
+  chosenOptionOf, declaredChoiceRefs, optionActivatesQuota, optionChoiceId, optionListChoice,
   optionListRider,
 } from './declaration/optionList';
+import type { DeclaredChoiceRef } from './declaration/source';
 import {
   spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessPartId,
   spellAccessParts, type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
 } from './spellcasting/access';
-import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from './declaration/expertise';
-import {
-  characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature, propertyChoiceId,
-} from './characterProperties';
+import { expertiseChoice, expertiseChoiceId, expertiseRider } from './declaration/expertise';
+import { characterPropertyChange, characterPropertyChoice, propertyChoiceId } from './characterProperties';
 import { riderChanges } from './levelUp/changes';
 import { validateRiderSpells } from './levelUp/spells';
 
-/** Ein deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
+/** EINE deklarierte Wahl + EINE Vergabe-Stufe des Merkmals, das sie stellt. */
 export interface ChoiceSlot {
   feature: DeclaredFeature;
   /** Nur Beschriftung (Badge-Titel), nie Zuordnung. */
@@ -39,6 +38,8 @@ export interface ChoiceSlot {
   gainedAt: number;
   /** Maßgebliche Stufe für `options[].spells` (siehe `DeclaredSlotSource.level`). */
   level: number;
+  /** Die `grantsChoice`-Wahl dieses Platzes; fehlt genau dann, wenn `access` steht. */
+  declared?: DeclaredChoiceRef<DeclaredFeature>;
   /**
    * Gesetzt = dieser Platz ist eine Wahl der ZAUBER-Deklaration (Liste oder Attribut), nicht
    * die `grantsChoice` des Merkmals. Ein Merkmal kann beides schulden: die Elfenabstammung
@@ -64,11 +65,14 @@ export function slotClaims(slot: ChoiceSlot, value: string): boolean {
  */
 type SlotKind = 'access' | 'expertise' | 'property' | 'optionList';
 
-function slotKind(slot: ChoiceSlot): SlotKind {
+function slotKind(slot: ChoiceSlot): SlotKind | null {
   if (slot.access) return 'access';
-  if (isExpertiseFeature(slot.feature)) return 'expertise';
-  if (isCharacterPropertyFeature(slot.feature)) return 'property';
-  return 'optionList';
+  switch (slot.declared?.grant.kind) {
+    case 'expertise': return 'expertise';
+    case 'characterProperty': return 'property';
+    case 'optionList': return 'optionList';
+    default: return null;
+  }
 }
 
 /**
@@ -80,9 +84,10 @@ function slotKind(slot: ChoiceSlot): SlotKind {
 export function choiceIdOf(slot: ChoiceSlot): string {
   switch (slotKind(slot)) {
     case 'access': return spellAccessPartId(slot.access!.grant, slot.access!.part);
-    case 'expertise': return expertiseChoiceId(slot.feature);
-    case 'property': return propertyChoiceId(slot.feature);
-    case 'optionList': return optionChoiceId(slot.feature);
+    case 'expertise': return expertiseChoiceId(slot.declared!);
+    case 'property': return propertyChoiceId(slot.declared!);
+    case 'optionList': return optionChoiceId(slot.declared!);
+    default: return '';
   }
 }
 
@@ -119,7 +124,7 @@ const keyOf = (slot: ChoiceSlot): string => slot.feature.key?.trim() ?? '';
 
 /**
  * Async und getrennt von `buildCharacterChoices`: läge beides in einem Effekt, löste jede
- * Antwort eine neue Bibliotheksauflösung aus. `isDeclaredChoiceFeature` lässt nur die Arten
+ * Antwort eine neue Bibliotheksauflösung aus. `declaredChoiceRefs` lässt nur die Arten
  * durch, deren Antwort im Merkmals-Ledger landet (Waffenmeisterschaft hat eigenen Picker).
  */
 export async function collectChoiceSlots(c: {
@@ -151,8 +156,8 @@ export async function collectChoiceSlots(c: {
     // Wizard-Assembly und `featureChoiceChanges` schreiben.
     const gains = levels.length ? levels : [1];
     const base = { feature: s.feature, group: s.group, level: s.level };
-    if (isDeclaredChoiceFeature(s.feature))
-      for (const gainedAt of gains) out.push({ ...base, gainedAt });
+    for (const declared of declaredChoiceRefs(s.feature))
+      for (const gainedAt of gains) out.push({ ...base, gainedAt, declared });
 
     // Liste und Attribut fallen laut Regeltext beim ERHALT des Merkmals, also an seiner
     // ersten Vergabe-Stufe. Legt die Quelle die Liste fest („Weiser" ist immer Magier),
@@ -233,14 +238,15 @@ export function buildCharacterChoices(
     // Fertigkeiten des Bogens: die sind bei genau diesen Charakteren die nie protokollierte
     // Antwort auf DIESE Wahl, ein Filter danach nähme dem Schurken seine zwei Fertigkeiten.
     const already = answers
-      .filter((_, j) => j !== si && !slots[j].access && isExpertiseFeature(slots[j].feature))
+      .filter((_, j) => j !== si && slots[j].declared?.grant.kind === 'expertise')
       .flat();
     const choice = ((): AnalysisChoice | null => {
       switch (slotKind(slot)) {
         case 'access': return spellAccessPartChoice(slot.access!.grant, slot.access!.part);
-        case 'expertise': return expertiseChoice(slot.feature, ctx.proficient, already);
-        case 'property': return characterPropertyChoice(slot.feature);
-        case 'optionList': return optionListChoice(slot.feature);
+        case 'expertise': return expertiseChoice(slot.declared!, ctx.proficient, already);
+        case 'property': return characterPropertyChoice(slot.declared!);
+        case 'optionList': return optionListChoice(slot.declared!);
+        default: return null;
       }
     })();
     if (!choice) continue;
@@ -274,25 +280,25 @@ export interface ChoiceGrants {
  * Ziel (`ability`) kann hier nicht entstehen — `featureGrantSchema` hat kein Attributsfeld.
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
-  const f = ch.slot.feature;
+  const ref = ch.slot.declared;
   // Liste und Attribut wirken über die AUFLÖSUNG — `spellcasting/resolve.ts` liest die Antwort
   // aus dem Ledger und verengt die Quelle damit. Es gibt nichts anzuwenden.
-  if (ch.slot.access) return { changes: [], flagged: [], rider: null, matched: true };
+  if (!ref) return { changes: [], flagged: [], rider: null, matched: true };
   // Eine Grundeigenschaft hat keinen Rider — sie ist ein Bogenwert, kein Merkmalseffekt.
-  if (isCharacterPropertyFeature(f)) {
-    const changes = characterPropertyAnswerChanges([f], () => ch.answer[0] ?? '', {
+  if (ref.grant.kind === 'characterProperty') {
+    const change = characterPropertyChange(ref, ch.answer[0] ?? '', {
       step: 'feature-effects',
       source: keyOf(ch.slot),
     });
-    return { changes, flagged: [], rider: null, matched: changes.length > 0 };
+    return { changes: change ? [change] : [], flagged: [], rider: null, matched: !!change };
   }
-  const expertise = isExpertiseFeature(f);
+  const expertise = ref.grant.kind === 'expertise';
   const rider = expertise
-    ? expertiseRider(f, ch.answer)
-    : optionListRider(f, ch.answer[0] ?? '', ch.slot.level);
+    ? expertiseRider(ref, ch.answer)
+    : optionListRider(ref, ch.answer[0] ?? '', ch.slot.level);
   const matched = expertise
     ? ch.answer.some((s) => (SKILL_NAMES as readonly string[]).includes(s))
-    : chosenOption(f, ch.answer[0] ?? '') !== null;
+    : chosenOptionOf(ref, ch.answer[0] ?? '') !== null;
   if (!rider) return { changes: [], flagged: [], rider: null, matched };
   const v = validateRiderSpells([rider], library);
   return { changes: riderChanges(v, 'feature-effects'), flagged: v.flagged, rider, matched };

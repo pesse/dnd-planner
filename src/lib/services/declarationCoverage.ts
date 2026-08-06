@@ -13,7 +13,7 @@ import { isEmptyFeatureGrant } from './declaration/grants';
  */
 export interface DeclarableFeature {
   grants?: FeatureGrant;
-  grantsChoice?: FeatureChoiceGrant;
+  grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
 }
 

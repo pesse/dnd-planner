@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';
 import { getFeats } from '../../src/lib/featsLibrary';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import { isSpellAccessFeature } from '../../src/lib/services/declaration/casting';
 import {
   spellAbilityChoiceId,
   spellAccessChoices,
@@ -169,7 +170,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     const feats = await getFeats();
     expect(feats.length, 'Vault-Shim aktiv?').toBeGreaterThan(10);
 
-    const declared = feats.filter((f) => f.grantsChoice?.kind === 'spellAccess');
+    const declared = feats.filter(isSpellAccessFeature);
     expect(declared.map((f) => f.sourceKey)).toEqual([MAGIC_INITIATE_KEY]);
     for (const f of declared) {
       const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice, grantsCasting: f.grantsCasting });
@@ -195,7 +196,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       if (!c.key) continue;
       const prog = await getProgressionByKey(c.key);
       for (const f of prog?.features ?? []) {
-        if (f.grantsChoice?.kind === 'spellAccess') found.push(`${c.key} :: ${f.name}`);
+        if (isSpellAccessFeature(f)) found.push(`${c.key} :: ${f.name}`);
       }
     }
     expect(found).toEqual([]);

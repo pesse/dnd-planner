@@ -4,7 +4,7 @@
  */
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
 import { withoutOwnedChoices } from '../declaredChoice';
-import { expertiseChoice, expertiseChoiceId, expertiseRider } from '../declaration/expertise';
+import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { optionListChoices, optionListRiders } from '../declaration/optionList';
 import { withDeclaredGrants } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
@@ -32,9 +32,7 @@ export function wizardDeclaredChoices(params: {
   // jeweils anderen `kind`, ein Vorsortieren wäre ein zweiter Filter.
   const branches = optionListChoices(declared);
   // Auf Stufe 1 hat nichts Expertise — der dritte Parameter ist bewusst leer.
-  const expertise = declared
-    .map((f) => expertiseChoice(f, proficientSkills, []))
-    .filter((c): c is AnalysisChoice => c !== null);
+  const expertise = expertiseChoices(declared, proficientSkills, []);
   // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
   // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
   const properties = characterPropertyChoices(declared);
@@ -59,9 +57,7 @@ export function wizardRiders(params: {
   const answerOf = (id: string): string => declaredAnswers.find((a) => a.id === id)?.choice ?? '';
   // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
   const declaredRiders = optionListRiders(declared, answerOf, 1);
-  const expertise = declared
-    .map((f) => expertiseRider(f, answerOf(expertiseChoiceId(f)).split(',').map((x) => x.trim())))
-    .filter((r): r is FeatureRider => r !== null);
+  const expertise = expertiseRiders(declared, answerOf);
   const ai = withDeclaredGrants(effectsRiders, declared);
   return [...ai, ...declaredRiders, ...expertise];
 }

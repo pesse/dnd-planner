@@ -13,9 +13,12 @@ import { describe, expect, it } from 'vitest';
 import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
 import { vaultCharacter } from '../support/vaultCharacter';
 import {
-  buildCharacterChoices, choiceIdOf, collectChoiceSlots, type CharacterChoice, type ChoiceFact,
-  type ChoiceSlot,
+  buildCharacterChoices, choiceIdOf, collectChoiceSlots, withChoiceAnswer, type CharacterChoice,
+  type ChoiceFact, type ChoiceSlot,
 } from '../../src/lib/services/characterChoices';
+import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
+import { declaredChoiceRefs, optionChoiceId } from '../../src/lib/services/declaration/optionList';
+import { declaredFeatures } from '../../src/lib/services/declaredFeature';
 
 const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 const ELF_LINEAGE_KEY = 'srd-2024_elf_elven-lineage';
@@ -216,6 +219,67 @@ describe('Der Anker einer Antwort', () => {
     const rows = buildCharacterChoices(slots, { proficient: [], ledger });
 
     expect(rows.find((ch) => ch.slot === branch)!.answer).toEqual(['High Elf']);
+  });
+});
+
+/**
+ * Ein Merkmal darf MEHRERE Wahlen deklarieren (Waldläufer „Deft Explorer": Expertise plus
+ * eine zweite Wahl). Sie stehen unter demselben `sourceKey` und derselben Vergabe-Stufe —
+ * getrennt hält sie nur die Frage-id, hier über den ganzen Weg Platz → Ledger → Platz.
+ */
+describe('Ein Merkmal, mehrere Wahlen', () => {
+  const DEFT = classFeatureSchema.parse({
+    key: 'test_deft-explorer',
+    name: 'Deft Explorer',
+    nameDe: 'Gewandter Kundschafter',
+    desc: 'Choose one.',
+    grantsChoice: [
+      { kind: 'expertise', count: 1 },
+      { kind: 'optionList', options: [{ value: 'Forest', labelDe: 'Wald' }, { value: 'Desert', labelDe: 'Wüste' }] },
+    ],
+  });
+
+  const deftSlots = (): ChoiceSlot[] => {
+    const feature = declaredFeatures('class', [DEFT])[0];
+    return declaredChoiceRefs(feature).map((declared) => ({
+      feature, group: 'Waldläufer', gainedAt: 1, level: 1, declared,
+    }));
+  };
+
+  it('speichert beide Antworten nebeneinander und liest jede wieder an ihrem Platz', () => {
+    const slots = deftSlots();
+    let ledger: CharacterFeatureEntry[] = [];
+    const rows = () => buildCharacterChoices(slots, { proficient: ['Stealth', 'Perception'], ledger });
+
+    ledger = withChoiceAnswer(ledger, rows()[0], ['Stealth']);
+    ledger = withChoiceAnswer(ledger, rows()[1], ['Forest']);
+
+    // Ohne die Frage im Upsert-Schlüssel hätte die zweite Antwort die erste ersetzt.
+    expect(ledger.map((e) => [e.choiceId, e.choice])).toEqual([
+      ['expertise_test-deft-explorer', 'Stealth'],
+      ['optionlist_test-deft-explorer', 'Forest'],
+    ]);
+    expect(rows().map((ch) => ch.answer.join(', '))).toEqual(['Stealth', 'Forest']);
+  });
+
+  /**
+   * Zwei Wahlen DERSELBEN Art trennt nur die laufende Nummer — und die erste bleibt
+   * suffixlos, sonst verlöre jede heute gespeicherte Antwort ihren Anker.
+   */
+  it('nummeriert erst ab der zweiten Wahl derselben Art', () => {
+    const twoBranches = classFeatureSchema.parse({
+      ...DEFT,
+      grantsChoice: [
+        { kind: 'optionList', options: [{ value: 'Forest' }] },
+        { kind: 'optionList', options: [{ value: 'Elvish' }] },
+      ],
+    });
+    const feature = declaredFeatures('class', [twoBranches])[0];
+
+    expect(declaredChoiceRefs(feature).map(optionChoiceId)).toEqual([
+      'optionlist_test-deft-explorer',
+      'optionlist_test-deft-explorer_2',
+    ]);
   });
 });
 

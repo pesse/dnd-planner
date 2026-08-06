@@ -6,7 +6,7 @@ import { buildFeatureChoices } from './questions';
 import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
-import { expertiseChoice, isExpertiseFeature } from '../declaration/expertise';
+import { expertiseChoices } from '../declaration/expertise';
 import { isSpellAccessFeature } from '../declaration/casting';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
@@ -61,12 +61,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // Die Expertise-Optionen kommen aus dem BOGEN (deutsche Schlüssel → englische SRD-Namen),
   // nicht aus dem Vault: sie sind der Übungsstand dieses Charakters.
   const sheetSkills = $derived(sheetSkillProficiencies(src.skills));
-  const baseExpertiseAnalysis = $derived(
-    baseDeclared
-      .filter(isExpertiseFeature)
-      .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
-      .filter((c): c is AnalysisChoice => c !== null),
-  );
+  const baseExpertiseAnalysis = $derived(expertiseChoices(baseDeclared, sheetSkills.prof, sheetSkills.exp));
   /**
    * Abgeleitet statt geladen wie `featAccess`: `baseDeclared` fällt direkt aus dem Delta,
    * die Talent-Seite muss erst das Nachladen abwarten.
@@ -95,10 +90,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
 
   const featDeclaredAnalysis = $derived([
     ...optionListChoices(featDeclared.filter(isOptionListFeature)),
-    ...featDeclared
-      .filter(isExpertiseFeature)
-      .map((f) => expertiseChoice(f, sheetSkills.prof, sheetSkills.exp))
-      .filter((c): c is AnalysisChoice => c !== null),
+    ...expertiseChoices(featDeclared, sheetSkills.prof, sheetSkills.exp),
     ...characterPropertyChoices(featDeclared),
   ]);
   const featDeclaredChoices = $derived(buildFeatureChoices(featDeclaredAnalysis));

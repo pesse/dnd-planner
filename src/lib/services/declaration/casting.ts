@@ -3,7 +3,7 @@
  * Zugang daneben. Beide Antworten halten das Merkmal aus der KI-Deutung heraus.
  */
 import type { ClassFeature } from '$lib/schemas/classProgression';
-import type { DeclaredChoiceSource } from './source';
+import { choiceGrants, type DeclaredChoiceSource } from './source';
 
 /**
  * Der EXAKTE Name ist nur der Fallback für Merkmale ohne `grantsChoice`: „Spell Mastery",
@@ -13,10 +13,10 @@ import type { DeclaredChoiceSource } from './source';
 const CASTING_FEATURE_NAMES = /^(spellcasting|pact magic|zauberwirken|paktmagie)$/i;
 
 export function isSpellcastingFeature(f: ClassFeature): boolean {
-  if (f.grantsChoice) return f.grantsChoice.kind === 'spellcasting';
+  if (f.grantsChoice) return choiceGrants(f).some((g) => g.kind === 'spellcasting');
   return CASTING_FEATURE_NAMES.test(f.name.trim()) || CASTING_FEATURE_NAMES.test((f.nameDe ?? '').trim());
 }
 
 export function isSpellAccessFeature(f: DeclaredChoiceSource): boolean {
-  return f.grantsChoice?.kind === 'spellAccess';
+  return choiceGrants(f).some((g) => g.kind === 'spellAccess');
 }

@@ -113,13 +113,26 @@ export const featureChoiceGrantSchema = z.object({
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 
 /**
+ * Ein Merkmal kann MEHRERE Wahlen erzwingen (Waldläufer „Deft Explorer": Expertise + zwei
+ * Sprachen). Das Einzelobjekt bleibt gültige Eingabe, damit der Bestand ohne Vault-Sweep
+ * weiterliest — gelesen wird immer eine Liste, und die Nachsicht steckt IM Schema, weil ein
+ * Normalisierer sonst auf jedem Lesepfad einzeln stünde und auf einem vergessen würde.
+ */
+export const featureChoiceGrantsSchema = z.preprocess(
+  (v) => (v === undefined || Array.isArray(v) ? v : [v]),
+  z.array(featureChoiceGrantSchema),
+);
+
+/**
  * Eine Feldgruppe statt dreimal einzeln an Klassenmerkmal, Trait und Talent: ein viertes Feld
  * erreicht alle drei Träger von selbst, und die Herkunft entscheidet nur noch über die
  * Bogen-Zeile. Alle drei OPTIONAL OHNE DEFAULT — fehlt = nicht redigiert, `{}` = geprüft.
  */
 export const featureDeclarationFields = {
   grants: featureGrantSchema.optional().describe('Deterministisch anwendbare Mechanik des Merkmals.'),
-  grantsChoice: featureChoiceGrantSchema.optional().describe('Mechanik-gebundene Wahl, die das Merkmal gewährt.'),
+  grantsChoice: featureChoiceGrantsSchema
+    .optional()
+    .describe('Mechanik-gebundene Wahlen, die das Merkmal gewährt. Einzelobjekt = genau eine.'),
   grantsSpells: spellGrantSchema
     .optional()
     .describe('Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im desc.'),

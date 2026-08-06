@@ -18,6 +18,7 @@ import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/fea
 import type { GainedFeature, ResolvedChoice } from '../../src/lib/services/analysis/types';
 import type { DeclaredFeature } from '../../src/lib/services/declaredFeature';
 import { unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
+import { branchAnswerOf } from '../support/branchAnswer';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 
 export const TIEFLING_FIGHTER_BASICS = {
@@ -95,7 +96,7 @@ export function declaredAnalysisContext(prep: FeaturePrep): FeatureEffectsContex
 /** Fall B, Pass C: derselbe Eingang plus der unredigierte Zweig mit der getroffenen Antwort. */
 export function declaredFinalizeContext(prep: FeaturePrep, resolvedChoices: ResolvedChoice[]): FeatureEffectsContext {
   const base = declaredAnalysisContext(prep);
-  const unredacted = unredactedChoiceFeatures(prep.declared, (f) => (f.key === LEGACY_KEY ? CHOSEN_LEGACY : ''))
+  const unredacted = unredactedChoiceFeatures(prep.declared, branchAnswerOf(prep.declared, LEGACY_KEY, CHOSEN_LEGACY))
     .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
   return { ...base, features: [...base.features, ...unredacted], resolvedChoices };
 }

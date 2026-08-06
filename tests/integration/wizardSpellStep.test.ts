@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
-import { optionListChoice } from '../../src/lib/services/declaration/optionList';
+import { optionListChoice, optionListRefs } from '../../src/lib/services/declaration/optionList';
 import { groupedSpellcasting } from '../../src/lib/services/spellcasting/grouped';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 import { emptySpellcasting, setPicks } from '../../src/lib/services/spellcasting/write';
@@ -38,7 +38,7 @@ const source = (over: Partial<WizardCastingSource> = {}): WizardCastingSource =>
 async function withDivineOrder(w: WizardCastingSource, answer: string): Promise<WizardCastingSource> {
   const prog = await getProgressionByKey(CLERIC);
   const feature = prog!.features.find((f) => f.key === `${CLERIC}_divine-order`)!;
-  const choice = optionListChoice(feature)!;
+  const choice = optionListChoice(optionListRefs(feature)[0])!;
   return { ...w, featureChoices: [choice], declaredAnswers: [{ id: choice.id, choice: answer }] };
 }
 

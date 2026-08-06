@@ -19,7 +19,7 @@ import {
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { buildEquipmentOptionsAction, buildEquipmentOptionsInput } from '../aiActions/equipmentMatchAction';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
-import { optionChoiceId, unredactedChoiceFeatures } from '../declaration/optionList';
+import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { wizardDeclaredChoices, wizardFeatureChoices, wizardRiders } from './wizardChoices';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
@@ -325,7 +325,7 @@ export class CharacterWizard {
       const prep = await this.#prepare();
       // Merkmale, deren Zweig nichts deklariert: die Wahl steht, die Prosa der Option deutet
       // Pass C. `gainedAt: 1` — im Wizard ist alles Stufe 1.
-      const unredacted = unredactedChoiceFeatures(prep.declared, (f) => answerOf(optionChoiceId(f)))
+      const unredacted = unredactedChoiceFeatures(prep.declared, answerOf)
         .map((f) => ({ ...f, desc: f.desc ?? '', gainedAt: 1 }));
       return finalizeFeatureEffects(
         cfg,
