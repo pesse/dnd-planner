@@ -10,7 +10,8 @@ import { SKILL_NAMES, type SkillName } from '../../schemas/vocabulary';
 import { skillLabelDe } from '../proficiencyGrants';
 import { emptyRider } from './rider';
 import {
-  choiceIdSuffix, declaredChoicesOfKind, featureIdPart, type DeclaredChoiceRef, type DeclaredChoiceSource,
+  choiceIdSuffix, declaredChoicesOfKind, featureIdPart, splitChoiceAnswer,
+  type DeclaredChoiceRef, type DeclaredChoiceSource,
 } from './source';
 
 export const isExpertiseRef = (r: DeclaredChoiceRef): boolean => r.grant.kind === 'expertise';
@@ -68,13 +69,11 @@ export function expertiseRider(r: DeclaredChoiceRef, picked: readonly string[]):
   return { ...emptyRider(r.feature), expertiseSkills: [...skills] };
 }
 
-const splitAnswer = (answer: string): string[] => answer.split(',').map((s) => s.trim());
-
 export function expertiseRiders(
   features: DeclaredChoiceSource[],
   answerOf: (choiceId: string) => string,
 ): FeatureRider[] {
   return features
-    .flatMap((f) => expertiseRefs(f).map((r) => expertiseRider(r, splitAnswer(answerOf(expertiseChoiceId(r))))))
+    .flatMap((f) => expertiseRefs(f).map((r) => expertiseRider(r, splitChoiceAnswer(answerOf(expertiseChoiceId(r))))))
     .filter((r): r is FeatureRider => r !== null);
 }

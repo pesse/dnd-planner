@@ -4,8 +4,8 @@
  */
 import type { Character } from '$lib/schemas/characterSchema';
 import {
-  buildCharacterChoices, choiceGrantChanges, choiceIdOf, openChoiceBadge, sheetSkillProficiencies,
-  slotClaims, type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
+  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies,
+  type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
 } from '$lib/services/characterChoices';
 import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges';
 import type { CoverageBadge } from '$lib/services/declarationCoverage';
@@ -95,23 +95,20 @@ export function createChoiceState(o: {
     });
   });
 
-  const savedChoiceEntries = $derived((o.saved()?.features ?? []).filter((r) => !!r.choice?.trim()));
-  const askedIds = $derived(new Set(o.slots().map(choiceIdOf)));
-  function savedAnswerOf(ch: CharacterChoice): string {
-    const key = ch.slot.feature.key ?? '';
-    const id = choiceIdOf(ch.slot);
-    const mine = savedChoiceEntries.filter((e) => e.sourceKey === key);
-    // Dieselbe Rangfolge wie `buildCharacterChoices`, sonst läse die Attributwahl die
-    // Listen-Antwort desselben Merkmals und die Tönung meldete eine Änderung, die es nicht gab.
-    const stamped = mine.filter((e) => !!e.choiceId && e.choiceId === id);
-    // Ohne fremden Stempel: Altbestand und KI-gedeutete Antworten, deren Frage niemand stellt.
-    const legacy = mine.filter((e) => !askedIds.has(e.choiceId) && slotClaims(ch.slot, e.choice));
-    const hit =
-      stamped.find((e) => e.gainedAt === ch.slot.gainedAt) ??
-      legacy.find((e) => e.gainedAt === ch.slot.gainedAt) ??
-      legacy.find((e) => e.gainedAt == null);
-    return hit?.choice ?? '';
-  }
+  /**
+   * Die Baseline der Tönung entsteht über DIESELBE Zuordnung wie die aktuellen Antworten —
+   * eine nachgebaute Rangfolge liefe auseinander und meldete Änderungen, die es nicht gab.
+   * Geschlüsselt am Platz selbst: beide Läufe bekommen dasselbe `o.slots()`.
+   */
+  const savedAnswers = $derived.by(() => {
+    const saved = o.saved();
+    if (!saved) return null;
+    const list = buildCharacterChoices(o.slots(), {
+      proficient: sheetSkillProficiencies(saved.skills).prof,
+      ledger: saved.features,
+    });
+    return new Map(list.map((ch) => [ch.slot, ch.answer.join(', ')]));
+  });
 
   const claimed = $derived(new Set(all.map((c) => c.entry).filter((i) => i >= 0)));
 
@@ -153,7 +150,7 @@ export function createChoiceState(o: {
       return all.filter((c) => c.open && set.has(c.slot.feature.key ?? '')).length;
     },
     answerDiff(ch) {
-      return o.saved() ? classifyChange(savedAnswerOf(ch), ch.answer.join(', ')) : 'none';
+      return savedAnswers ? classifyChange(savedAnswers.get(ch.slot) ?? '', ch.answer.join(', ')) : 'none';
     },
   };
 }

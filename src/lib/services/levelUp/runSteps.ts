@@ -20,6 +20,7 @@ import { featToGainedFeature } from './features';
 import { buildDecisions, buildFeatureChoices } from './questions';
 import { sheetNoteLines, answerValues, hasAnswer } from './answers';
 import { expertiseRiders } from '../declaration/expertise';
+import { languageRiders } from '../declaration/languages';
 import {
   optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures,
   withoutDeclaredChoiceFeatures,
@@ -144,7 +145,10 @@ export function createRunSteps(ctx: RunStepsDeps) {
     if (kind === 'base') {
       st.baseAnalysis = analysis; st.baseChoices = choiceQs;
       // Die deklarierten Zweigwahlen stehen schon (ohne KI) — hier nur leer vorbelegen.
-      const declaredQs = [...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseAccessChoices];
+      const declaredQs = [
+        ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseLanguageChoices,
+        ...choices.baseAccessChoices,
+      ];
       initFeatureChoices(declaredQs);
       if (declaredQs.length) pushStep(`${declaredQs.length} Wahl(en) aus der Bibliothek gelesen (ohne KI).`);
     }
@@ -203,6 +207,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     const declared = [
       ...optionListRiders(grantSources, (id) => choices.optionAnswer(id), optionLevel),
       ...expertiseRiders(grantSources, (id) => choices.optionAnswer(id)),
+      ...languageRiders(grantSources, (id) => choices.optionAnswer(id)),
     ];
     // Nur auf `parsed`: die Rider der Zweigwahlen tragen die Grants der GEWÄHLTEN OPTION,
     // die das unbedingte `grants` des Merkmals nicht ersetzen darf.

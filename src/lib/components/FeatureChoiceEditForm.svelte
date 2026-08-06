@@ -11,6 +11,7 @@
     spellAccess: { value: 'spellAccess', de: 'Zauber-Zugang' },
     optionList: { value: 'optionList', de: 'Optionsliste (Zweigwahl)' },
     expertise: { value: 'expertise', de: 'Expertise' },
+    languages: { value: 'languages', de: 'Sprachen' },
     characterProperty: { value: 'characterProperty', de: 'Grundeigenschaft' },
   };
 
@@ -110,6 +111,12 @@
         <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
       </span>
       <span class="note">Optionen zur Laufzeit: die geübten Fertigkeiten des Charakters</span>
+    {/if}
+    {#if kind === 'languages'}
+      <span class="lbl">Sprachen
+        <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
+      </span>
+      <span class="note">Freitext — Sprachen haben kein Vokabular</span>
     {/if}
     <button type="button" class="rm" onclick={onremove} title="Diese Wahl entfernen">×</button>
   </div>

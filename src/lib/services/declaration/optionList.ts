@@ -17,6 +17,7 @@ import {
 export type { DeclaredChoiceRef, DeclaredChoiceSource };
 import { isEmptyFeatureGrant, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
+import { isLanguagesRef } from './languages';
 
 
 /** Ohne Optionen gibt es nichts zu fragen — die Deklaration ist dann unvollständig. */
@@ -64,9 +65,9 @@ export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisCho
  */
 export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => choiceGrants(f).length > 0;
 
-/** Ob der Flow diese Wahl selbst führt — `optionList`, `expertise` oder Grundeigenschaft. */
+/** Ob der Flow diese Wahl selbst führt — Zweigwahl, Expertise, Sprache oder Grundeigenschaft. */
 export const isDeclaredChoiceRef = (r: DeclaredChoiceRef): boolean =>
-  isOptionListRef(r) || isExpertiseRef(r) || isCharacterPropertyRef(r);
+  isOptionListRef(r) || isExpertiseRef(r) || isLanguagesRef(r) || isCharacterPropertyRef(r);
 
 /** Die selbstgeführten Wahlen eines Merkmals, in Deklarationsreihenfolge. */
 export const declaredChoiceRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>

@@ -15,12 +15,14 @@ import { FEAT_CATEGORIES } from './vocabulary';
  *   - `weaponMastery`/`spellcasting` IGNORIEREN `count` — Kontingent aus der Stufentabelle.
  *   - `expertise` ist der einzige `kind`, dessen Optionen nicht im Vault stehen KÖNNEN: sie
  *     sind der Übungsstand des Charakters. Deklariert wird nur die Anzahl.
+ *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
+ *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein
  *     Talent darf `isSpellcastingFeature` („dies ist das Klassen-Zauberwirken") nicht erfüllen.
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
  *     „Antwort bekannt, Wirkung offen".
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'characterProperty'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'languages', 'characterProperty'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -82,7 +84,7 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="languages": wie viele Sprachen). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.

@@ -13,8 +13,8 @@ import { describe, expect, it } from 'vitest';
 import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
 import { vaultCharacter } from '../support/vaultCharacter';
 import {
-  buildCharacterChoices, choiceIdOf, collectChoiceSlots, withChoiceAnswer, type CharacterChoice,
-  type ChoiceFact, type ChoiceSlot,
+  buildCharacterChoices, choiceGrantChanges, choiceIdOf, collectChoiceSlots, withChoiceAnswer,
+  type CharacterChoice, type ChoiceFact, type ChoiceSlot,
 } from '../../src/lib/services/characterChoices';
 import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
 import { declaredChoiceRefs, optionChoiceId } from '../../src/lib/services/declaration/optionList';
@@ -260,6 +260,36 @@ describe('Ein Merkmal, mehrere Wahlen', () => {
       ['optionlist_test-deft-explorer', 'Forest'],
     ]);
     expect(rows().map((ch) => ch.answer.join(', '))).toEqual(['Stealth', 'Forest']);
+  });
+
+  /**
+   * Der Altbestand trägt keinen Stempel: dort trennt nur der WERT die beiden Plätze. Der
+   * Diskriminator ist die Art des Vokabulars — Fertigkeiten sind das geschlossene englische
+   * `SKILL_NAMES`, Sprachen deutscher Freitext. Ohne ihn griffe der Expertise-Platz den
+   * erstbesten Eintrag des Merkmals, hier also „Elbisch, Zwergisch".
+   */
+  it('trennt ungestempelte Antworten am Vokabular, nicht an der Reihenfolge', () => {
+    const feature = declaredFeatures('class', [classFeatureSchema.parse({
+      ...DEFT,
+      grantsChoice: [{ kind: 'expertise', count: 1 }, { kind: 'languages', count: 2 }],
+    })])[0];
+    const slots: ChoiceSlot[] = declaredChoiceRefs(feature).map((declared) => ({
+      feature, group: 'Waldläufer', gainedAt: 2, level: 2, declared,
+    }));
+    const ledger = [
+      answer('test_deft-explorer', 'Elbisch, Zwergisch', 2),
+      answer('test_deft-explorer', 'Stealth', 2),
+    ];
+
+    const rows = buildCharacterChoices(slots, { proficient: ['Stealth', 'Perception'], ledger });
+    expect(rows.map((ch) => [choiceIdOf(ch.slot), ch.answer.join(', ')])).toEqual([
+      ['expertise_test-deft-explorer', 'Stealth'],
+      ['languages_test-deft-explorer', 'Elbisch, Zwergisch'],
+    ]);
+    // Und die Sprachen kommen als Änderung am Charakter an, nicht nur als Protokollzeile.
+    const languages = rows.find((ch) => ch.slot.declared?.grant.kind === 'languages')!;
+    expect(choiceGrantChanges(languages, []).changes.filter((c) => c.target === 'language').map((c) => c.value))
+      .toEqual(['Elbisch', 'Zwergisch']);
   });
 
   /**

@@ -59,6 +59,13 @@ export function declaredChoicesOfKind<T extends DeclaredChoiceSource>(
  */
 export const choiceIdSuffix = (ordinal: number): string => (ordinal ? `_${ordinal + 1}` : '');
 
+/**
+ * Die Einzelwerte EINER Antwort. Das Ledger führt je Wahl genau einen `choice`-String, also
+ * trägt das Komma die Mehrzahl — bei Expertise wie bei Sprachen.
+ */
+export const splitChoiceAnswer = (answer: string): string[] =>
+  answer.split(',').map((s) => s.trim()).filter(Boolean);
+
 /** Der Merkmals-Teil jeder Frage-id: Key, sonst Name. */
 export const featureIdPart = (f: DeclaredChoiceSource): string =>
   (f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');

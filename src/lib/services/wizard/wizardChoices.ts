@@ -5,6 +5,7 @@
 import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
 import { withoutOwnedChoices } from '../declaredChoice';
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
+import { languageChoices, languageRiders } from '../declaration/languages';
 import { optionListChoices, optionListRiders } from '../declaration/optionList';
 import { withDeclaredGrants } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
@@ -33,10 +34,11 @@ export function wizardDeclaredChoices(params: {
   const branches = optionListChoices(declared);
   // Auf Stufe 1 hat nichts Expertise — der dritte Parameter ist bewusst leer.
   const expertise = expertiseChoices(declared, proficientSkills, []);
+  const languages = languageChoices(declared);
   // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
   // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
   const properties = characterPropertyChoices(declared);
-  return [...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...expertise, ...spells];
+  return [...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...expertise, ...languages, ...spells];
 }
 
 /** Erzwungene Merkmalswahlen: deklarierte zuerst, dann die von der KI erkannten. */
@@ -58,6 +60,7 @@ export function wizardRiders(params: {
   // Stufe 1: nur die erste Zeile einer Options-Zauberliste greift (Elfenabstammung).
   const declaredRiders = optionListRiders(declared, answerOf, 1);
   const expertise = expertiseRiders(declared, answerOf);
+  const languages = languageRiders(declared, answerOf);
   const ai = withDeclaredGrants(effectsRiders, declared);
-  return [...ai, ...declaredRiders, ...expertise];
+  return [...ai, ...declaredRiders, ...expertise, ...languages];
 }

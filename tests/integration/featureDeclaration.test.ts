@@ -16,6 +16,8 @@ import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import type { ClassFeature } from '../../src/lib/schemas/classProgression';
 import { chosenOption, declaredChoiceRefs, isOptionListFeature, optionChoiceId, optionListChoice, optionListChoices, optionListNoteLines, optionListRefs, optionListRiders } from '../../src/lib/services/declaration/optionList';
 import { expertiseChoice, expertiseChoiceId, expertiseChoices, expertiseRefs, expertiseRider, isExpertiseFeature } from '../../src/lib/services/declaration/expertise';
+import { isLanguagesFeature, languageChoices, languageRiders } from '../../src/lib/services/declaration/languages';
+import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
 import type { DeclaredChoiceSource } from '../../src/lib/services/declaration/source';
 import { riderChanges } from '../../src/lib/services/levelUp/changes';
 import { forClassFeaturesField } from '../../src/lib/services/declaredFeature';
@@ -178,7 +180,12 @@ describe('deklarierte Zweigwahlen', () => {
       const prog = await getProgressionByKey(libraryKey(info));
       for (const f of prog?.features ?? []) if (isExpertiseFeature(f)) found.push(f.key);
     }
-    expect(found.sort()).toEqual(['srd-2024_bard_expertise', 'srd-2024_rogue_expertise']);
+    expect(found.sort()).toEqual([
+      'srd-2024_bard_expertise',
+      // Nicht das Expertise-Merkmal der Klasse, sondern eine von ZWEI Wahlen an einem Merkmal.
+      'srd-2024_ranger_deft-explorer',
+      'srd-2024_rogue_expertise',
+    ]);
   });
 
   it('baut die Expertise-Wahl aus dem Übungsstand, nicht aus dem Vault', async () => {
@@ -363,6 +370,67 @@ describe('die Deklaration ist an allen Trägern dieselbe', () => {
       grants: { proficiencies: { skills: { fixed: ['Arcana'] } } },
     });
     expect(featSchema.parse(folded).grants?.proficiencies.skills.fixed).toEqual(['Arcana']);
+  });
+});
+
+/**
+ * Die Sprachwahl hat als einziger `kind` KEIN Vokabular. Diese Datei hält deshalb fest, dass
+ * sie eine Freitextfrage stellt statt einer leeren Optionsliste — ein Picker ohne Optionen
+ * wäre unbeantwortbar — und dass die getippten Namen unverändert bis zur Änderung durchkommen.
+ */
+describe('deklarierte Sprachwahl', () => {
+  const LANGUAGE_ID = 'languages_srd-2024-ranger-deft-explorer';
+  const deft = async () => {
+    const prog = await getProgressionByKey('srd-2024_ranger');
+    const f = prog?.features.find((x) => x.key === 'srd-2024_ranger_deft-explorer');
+    expect(f, 'Geschickte Erkundung im Vault').toBeTruthy();
+    return tagged('class', [f!])[0];
+  };
+
+  it('deklariert die Sprachwahl im ganzen Vault nur dort, wo sie der ganze Rest ist', async () => {
+    const found: string[] = [];
+    for (const info of await getClasses()) {
+      const prog = await getProgressionByKey(libraryKey(info));
+      for (const f of prog?.features ?? []) if (isLanguagesFeature(f)) found.push(f.key);
+    }
+    // „Diebessprache" fehlt mit Absicht: sie gewährt neben der freien Sprache die
+    // Diebessprache FEST, und dafür gibt es keine Senke — deklariert man nur die Wahl,
+    // fällt das Merkmal aus der KI-Deutung und die feste Sprache verschwindet still.
+    expect(found).toEqual(['srd-2024_ranger_deft-explorer']);
+  });
+
+  it('fragt als Freitext, nicht als Optionsliste', async () => {
+    const [choice, ...rest] = languageChoices([await deft()]);
+    expect(rest).toEqual([]);
+    expect(choice.id).toBe(LANGUAGE_ID);
+    expect(choice.type).toBe('text');
+    expect(choice.max).toBe(2);
+    expect(choice.options, 'ohne Vokabular gibt es nichts anzubieten').toEqual([]);
+    // Der Fragebogen macht daraus ein Eingabefeld — als `choice` bliebe die Frage tot.
+    expect(buildFeatureChoices([choice])[0].type).toBe('text');
+  });
+
+  it('schreibt die getippten Sprachen ins Änderungs-Dokument', async () => {
+    const f = await deft();
+    const riders = languageRiders([f], (id) => (id === LANGUAGE_ID ? 'Elbisch, Zwergisch' : ''));
+    const changes = riderChanges(
+      { riders, flagged: [], grantedCantrips: [], grantedPrepared: [] },
+      'feature-effects',
+    );
+    // Deutsch bis auf den Bogen: es gibt keine Liste, aus der eine englische Kanonform käme.
+    expect(changes.filter((c) => c.target === 'language').map((c) => c.value)).toEqual(['Elbisch', 'Zwergisch']);
+    expect(languageRiders([f], () => '')).toEqual([]);
+  });
+
+  /**
+   * Beide Hälften desselben Merkmals stehen nebeneinander — deklarierte man nur die Sprachen,
+   * fiele das Merkmal aus dem KI-Eingang und die Expertise verschwände still.
+   */
+  it('stellt Expertise und Sprachen als zwei Fragen an einem Merkmal', async () => {
+    const f = await deft();
+    expect(declaredChoiceRefs(f).map((r) => r.grant.kind)).toEqual(['expertise', 'languages']);
+    expect([...expertiseChoices([f], ['Stealth']), ...languageChoices([f])].map((c) => c.id))
+      .toEqual(['expertise_srd-2024-ranger-deft-explorer', LANGUAGE_ID]);
   });
 });
 
