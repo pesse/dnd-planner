@@ -57,6 +57,8 @@ export interface LevelUpRunState {
   answers: Record<string, string | string[]>;
   baseAnalysis: FeatureAnalysis | null;
   baseChoices: LevelUpQuestion[];
+  /** Aus der Progression gelesen — damit fällt das Klassenmerkmal aus dem KI-Eingang. */
+  baseAccess: SpellAccessGrant[];
   featAnalysis: FeatureAnalysis | null;
   featChoices: LevelUpQuestion[];
   featsToPick: number;
@@ -97,6 +99,7 @@ export function emptyRunState(): LevelUpRunState {
     answers: {},
     baseAnalysis: null,
     baseChoices: [],
+    baseAccess: [],
     featAnalysis: null,
     featChoices: [],
     featsToPick: 0,

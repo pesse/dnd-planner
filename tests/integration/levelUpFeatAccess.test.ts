@@ -21,7 +21,8 @@ import {
 } from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
-import { featToGainedFeature, subclassFeaturesForAi } from '../../src/lib/services/levelUp/features';
+import { computeSubclassFeatures, featToGainedFeature, subclassFeaturesForAi } from '../../src/lib/services/levelUp/features';
+import { declaredFeatures } from '../../src/lib/services/declaredFeature';
 import { noDeclaredSpells } from '../../src/lib/services/levelUp/spells';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import {
@@ -180,6 +181,24 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       expect(grant!.lists.length, `${f.sourceKey}: Zauberliste deklariert`).toBeGreaterThan(0);
       expect(grant!.abilities.length, `${f.sourceKey}: Zauberattribut deklariert`).toBeGreaterThan(0);
     }
+  });
+
+  /**
+   * Wird die Subklasse IM Aufstieg gewählt, kommen ihre Merkmale nicht aus dem Delta, sondern
+   * nachgeladen (`computeSubclassFeatures`). Fällt dabei ein Deklarationsfeld weg, schweigt der
+   * Zugang doppelt: `grantsChoice` nimmt das Merkmal aus dem KI-Eingang, und ohne
+   * `grantsCasting` entsteht auch keine Frage.
+   */
+  it('trägt die Kontingent-Deklaration durch das Nachladen der Subklasse', async () => {
+    const gained = await computeSubclassFeatures('srd-2024_evoker', 2, 3);
+    const declared = declaredFeatures('subclass', gained).filter(isSpellAccessFeature);
+    expect(declared.map((f) => f.name)).toEqual(['Evocation Savant']);
+
+    const grant = spellAccessGrantOf(declared[0], { level: 3 });
+    expect(grant?.picks, 'Kontingent auf Stufe 3').toHaveLength(1);
+    const [question] = buildFeatureChoices(spellAccessChoices(grant!));
+    expect(question?.type).toBe('spell-picker');
+    expect(question?.max).toBe(2);
   });
 
   /**

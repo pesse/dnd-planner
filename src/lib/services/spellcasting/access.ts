@@ -56,6 +56,11 @@ export interface SpellAccessPlacement {
   specialisation?: string;
   /** Charakterstufe — maßgeblich für stufenabhängige Kontingente. */
   level?: number;
+  /**
+   * Stufe VOR dem Aufstieg: dann sind die Kontingente der Zuwachs dieser Spanne, nicht der
+   * Gesamtstand. Ohne sie fragte ein Aufstieg alles noch einmal, was schon gewählt ist.
+   */
+  fromLevel?: number;
   gainedAt?: number;
   /** Vorgabe ist der Merkmals-Key, also die früheste Vergabe. */
   sourceId?: string;
@@ -88,16 +93,22 @@ export function spellAccessGrantOf(
 
   const featureKey = feature.key ?? '';
   const sourceId = place.sourceId || featureKey;
-  const source = castingSourceOf(
-    { key: featureKey, name: feature.name, nameDe: feature.nameDe, grantsCasting: feature.grantsCasting },
-    { origin: 'feat', level: place.level ?? 1, classKey: '' },
-    undefined,
-    sourceId,
-  );
+  const declaration = { key: featureKey, name: feature.name, nameDe: feature.nameDe, grantsCasting: feature.grantsCasting };
+  const sourceAt = (level: number) =>
+    castingSourceOf(declaration, { origin: 'feat', level, classKey: '' }, undefined, sourceId);
+
+  const source = sourceAt(place.level ?? 1);
   if (!source) return null;
 
-  const ctx = quotaContext(null, source.level, { standard: [], pact: [], casterLevel: 0 }, NO_SPELL_KEY);
-  const views = quotaViews(source, ctx);
+  const viewsOf = (src: NonNullable<ReturnType<typeof sourceAt>>) =>
+    quotaViews(src, quotaContext(null, src.level, { standard: [], pact: [], casterLevel: 0 }, NO_SPELL_KEY));
+  const views = viewsOf(source);
+
+  // Was auf der Ausgangsstufe schon galt, ist keine neue Wahl: das Kontingent des Hervorrufers
+  // wächst mit jedem neuen Platz-Grad, gefragt wird nur der eine hinzugekommene Zauber.
+  const before = new Map<string, number>();
+  const previous = place.fromLevel ? sourceAt(place.fromLevel) : null;
+  if (previous) for (const v of viewsOf(previous)) before.set(v.quotaId, v.count);
 
   const declared = [...new Set(views.flatMap((v) => v.pool.lists.map((l) => l.toLowerCase().trim())))];
   const fixed = place.specialisation?.trim() ? resolveClass(place.specialisation) : null;
@@ -115,19 +126,21 @@ export function spellAccessGrantOf(
     abilities: source.ability?.fixed ? [source.ability.fixed] : [...(source.ability?.choose ?? [])],
     // Ein FESTES Kontingent (Elfenabstammung: „you know the Prestidigitation cantrip") ist eine
     // Gewährung, keine Wahl — ein Picker darüber böte an, was schon dasteht.
-    picks: views.filter((v) => !v.fixed).map((v) => {
+    picks: views.filter((v) => !v.fixed).flatMap((v) => {
+      const count = v.count - (before.get(v.quotaId) ?? 0);
+      if (count <= 0) return [];
       // Ohne Gradschranke bleibt es beim Zaubertrick: ein Picker über alle Grade böte hier
       // die halbe Bibliothek an.
       const levels = v.levels.length ? [...v.levels] : [0];
-      return {
+      return [{
         level: levels[0],
         levels,
         schools: [...v.pool.schools],
         tier: v.tier,
-        count: v.count,
+        count,
         sourceId: v.sourceId,
         quotaId: v.quotaId,
-      };
+      }];
     }),
   };
 }

@@ -8,7 +8,7 @@ import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
-import { gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForAi } from './features';
+import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForAi } from './features';
 import { countFeatsToPick } from './questions';
 import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
@@ -38,6 +38,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get featAnalysisChoices() { return st.featAnalysis?.choices ?? []; },
     get baseChoices() { return st.baseChoices; },
     get featChoices() { return st.featChoices; },
+    get baseAccess() { return st.baseAccess; },
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
     get skills() { return ctx.character.skills; },
@@ -131,6 +132,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     switch (step) {
       case 'base-delta':
         st.gainedFeatures = gainedFeaturesFor(st.delta!);
+        st.baseAccess = await classAccessGrants(st.delta!);
         // Schon bekannte Subklasse: ihre Merkmale stehen bereits im Delta. Wird die Subklasse
         // erst in diesem Aufstieg gewählt, ergänzt `subclass-delta` unten.
         st.declaredSpells = resolveDeclaredSpells(
@@ -151,6 +153,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
         // `subFeatures` bleibt vollständig (Info-Einträge), der KI-Eingang nicht — derselbe
         // Filter, den `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
         st.gainedFeatures = [...gainedFeaturesFor(st.delta!), ...subclassFeaturesForAi(st.subFeatures)];
+        st.baseAccess = await classAccessGrants(st.delta!, st.chosenSubclass!.key);
         st.declaredSpells = resolveDeclaredSpells(
           [...st.delta!.featuresGained, ...st.delta!.subclassFeaturesGained, ...st.subFeatures],
           st.delta!.toLevel,

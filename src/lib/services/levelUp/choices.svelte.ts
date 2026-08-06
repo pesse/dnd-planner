@@ -9,13 +9,10 @@ import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
 import { skillProficiencyChoices } from '../declaration/skillProficiency';
 import { languageChoices } from '../declaration/languages';
-import { isSpellAccessFeature } from '../declaration/casting';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
 import { sheetSkillProficiencies } from '../characterChoices';
-import {
-  spellAccessChoices, spellAccessGrantOf, spellListChoiceId, type SpellAccessGrant,
-} from '../spellcasting/access';
+import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { LevelUpDelta } from '../levelUp';
 import type { Character } from '../../schemas/characterSchema';
@@ -31,6 +28,12 @@ export interface ChoiceSources {
   featAnalysisChoices: AnalysisChoice[];
   baseChoices: LevelUpQuestion[];
   featChoices: LevelUpQuestion[];
+  /**
+   * Geladen statt abgeleitet, beide Seiten gleich: der Zugang eines Klassenmerkmals hängt an
+   * der ganzen Progression (auch längst erworbene Kontingente wachsen), der eines Talents am
+   * Bestand des Charakters.
+   */
+  baseAccess: SpellAccessGrant[];
   featAccess: SpellAccessGrant[];
   answers: Record<string, string | string[]>;
   skills: Character['skills'];
@@ -67,23 +70,11 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // Gegenschnitt derselben Liste: gewählt wird, was noch nicht geübt ist.
   const baseSkillProfAnalysis = $derived(skillProficiencyChoices(baseDeclared, sheetSkills.prof));
   const baseLanguageAnalysis = $derived(languageChoices(baseDeclared));
-  /**
-   * Abgeleitet statt geladen wie `featAccess`: `baseDeclared` fällt direkt aus dem Delta,
-   * die Talent-Seite muss erst das Nachladen abwarten.
-   */
-  const baseAccess = $derived(
-    baseDeclared
-      .filter(isSpellAccessFeature)
-      // MIT Stufe: ein Klassen-Zugang, dessen Kontingent an `since`/`perLevel` hängt (Hervorrufer),
-      // wäre auf der Vorgabe „Stufe 1" gar nicht aktiv und fragte nichts.
-      .map((f) => spellAccessGrantOf(f, { level: src.delta?.toLevel ?? 1 }))
-      .filter((g): g is SpellAccessGrant => g !== null),
-  );
   // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren
   // Klassenfilter böte der Picker die ganze Bibliothek an.
   const accessAnalysis = (grants: SpellAccessGrant[]) =>
     grants.flatMap((g) => spellAccessChoices(g, (src.answers[spellListChoiceId(g)] as string) ?? ''));
-  const baseAccessAnalysis = $derived.by(() => accessAnalysis(baseAccess));
+  const baseAccessAnalysis = $derived.by(() => accessAnalysis(src.baseAccess));
   const featAccessAnalysis = $derived.by(() => accessAnalysis(src.featAccess));
   // Heute ohne Vault-Fall (die Spezies steht auf Stufe 1 fest), trotzdem aus derselben Liste:
   // ein Talent, das eine Grundeigenschaft zur Wahl stellt, verlöre sie sonst still.
@@ -144,7 +135,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseDeclared() { return baseDeclared; },
     get featDeclared() { return featDeclared; },
     get declaredOptionFeatures() { return declaredOptionFeatures; },
-    get baseAccess() { return baseAccess; },
+    get baseAccess() { return src.baseAccess; },
     get baseOptionChoices() { return baseOptionChoices; },
     get baseExpertiseChoices() { return baseExpertiseChoices; },
     get baseSkillProfChoices() { return baseSkillProfChoices; },

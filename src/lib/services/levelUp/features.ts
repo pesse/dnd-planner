@@ -7,6 +7,7 @@ import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
 import { withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
 import { isSpellAccessFeature } from '../declaration/casting';
 import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpells';
+import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import type { ClassFeature } from '../../schemas/classProgression';
 import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
@@ -41,6 +42,9 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
     gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
     grants: f.grants,
     grantsChoice: f.grantsChoice,
+    // Ohne `grantsCasting` bleibt ein Zauber-Zugang stumm: `grantsChoice` allein nimmt das
+    // Merkmal aus dem KI-Eingang, die Frage stellt aber erst die Kontingent-Deklaration.
+    grantsCasting: f.grantsCasting,
   };
 }
 
@@ -75,6 +79,33 @@ export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
     ...subclassFeaturesForAi(delta.subclassFeaturesGained)
       .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
+}
+
+/**
+ * Die deklarierten Zauber-Zugänge der Klasse für DIESE Spanne — aus der ganzen Progression,
+ * nicht nur aus den neu gewonnenen Merkmalen: das Kontingent eines längst erworbenen Merkmals
+ * wächst mit der Stufe („whenever you gain access to a new level of spell slots"), und der
+ * Zuwachs fiele sonst aus. `fromLevel` sorgt dafür, dass nur er gefragt wird.
+ */
+export async function classAccessGrants(
+  delta: Pick<LevelUpDelta, 'sourceKey' | 'subclassKey' | 'fromLevel' | 'toLevel'>,
+  subclassKey = '',
+): Promise<SpellAccessGrant[]> {
+  const progs = await Promise.all(
+    [delta.sourceKey, subclassKey || delta.subclassKey].filter(Boolean).map(getProgressionByKey),
+  );
+  const grants: SpellAccessGrant[] = [];
+  for (const prog of progs) {
+    for (const f of prog?.features ?? []) {
+      if (!isSpellAccessFeature(f) || !f.gainedAt.some((l) => l <= delta.toLevel)) continue;
+      const grant = spellAccessGrantOf(
+        { ...f, key: f.key },
+        { level: delta.toLevel, fromLevel: delta.fromLevel, gainedAt: Math.min(...f.gainedAt) },
+      );
+      if (grant?.picks.length) grants.push(grant);
+    }
+  }
+  return grants;
 }
 
 /**

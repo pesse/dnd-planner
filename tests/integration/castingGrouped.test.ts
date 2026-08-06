@@ -77,7 +77,12 @@ describe('gruppierte Sicht (Magier 1: Vorbereitung aus dem Zauberbuch)', () => {
     expect(book?.from).toBeNull();
     expect(book?.lists).toEqual(['wizard']);
     expect(prepared?.lists).toEqual([]);
-    expect(prepared?.from).toMatchObject({ quotas: [{ sourceId: source.id, quotaId: 'book' }], label: 'Zauberbuch' });
-    expect(prepared?.from?.spells.map((s) => s.key)).toEqual(book?.spells.map((s) => s.key));
+    // Das Buch steht vorne und gibt die Beschriftung; ein Beitrag der Subklasse (`into`) kommt
+    // dahinter — geprüft wird die Bindung, nicht die Zahl der Beiträge.
+    expect(prepared?.from?.quotas[0]).toEqual({ sourceId: source.id, quotaId: 'book' });
+    expect(prepared?.from?.label).toBe('Zauberbuch');
+    expect(prepared?.from?.spells.map((s) => s.key)).toEqual(
+      expect.arrayContaining(book?.spells.map((s) => s.key) ?? []),
+    );
   });
 });
