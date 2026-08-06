@@ -700,5 +700,3 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.2rem 0.5rem;
 }
-
-.edit-form .weapon-picker { margin-bottom: 0.5rem; max-width: 320px; }

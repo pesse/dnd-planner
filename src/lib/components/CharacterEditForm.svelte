@@ -334,7 +334,7 @@
 
   <section>
     <h3>Angriffe</h3>
-    <AttackTable attacks={form.attacks} ctx={weaponCtx} weaponItems={libs.weapons} {saved}
+    <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
       fixLabel={fixOf('attacks')?.label}
       onfix={() => applyFix(fixOf('attacks'))}
     />
