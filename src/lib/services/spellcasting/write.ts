@@ -74,6 +74,11 @@ export function addExtra(block: CharacterSpellcasting, key: string): void {
   if (!extra.includes(key)) extra.push(key);
 }
 
+/** Der ganze quellenlose Bestand auf einmal — der Wizard wählt ihn als Kontingent. */
+export function setExtra(block: CharacterSpellcasting, keys: string[]): void {
+  manual(block).extra = [...new Set(keys.filter(Boolean))];
+}
+
 export function removeExtra(block: CharacterSpellcasting, key: string): void {
   if (!block.manual) return;
   block.manual.extra = block.manual.extra.filter((k) => k !== key);

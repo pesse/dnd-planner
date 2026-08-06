@@ -25,6 +25,7 @@ import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import { buildWizardCharacter } from '../../src/lib/services/wizard/assembleCharacter';
 import type { CharacterWizard } from '../../src/lib/services/wizard/characterWizard.svelte';
 import { pointBuyStart } from '../../src/lib/services/wizard/pointBuy';
+import { emptySpellcasting } from '../../src/lib/services/spellcasting/write';
 import { GNOME_SORCERER_BASICS } from '../fixtures/gnome-sorcerer-sage';
 import { libraryKey } from '../support/libraryKey';
 
@@ -59,9 +60,7 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     chosenSkills: [],
     masteries: [],
     fightingStyles: [],
-    pickedCantrips: [],
-    pickedKnown: [],
-    pickedPrepared: [],
+    spellcasting: emptySpellcasting(),
     featureSpellPicks: {},
     resolvedChoices: [],
     declaredAnswers: [],

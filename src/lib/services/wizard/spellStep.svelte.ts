@@ -4,125 +4,68 @@
  */
 import type { FeatureRider } from '$lib/schemas/levelUp';
 import type { CharacterWizard } from './characterWizard.svelte';
-import type { ClassCastingOffer } from '../spellcasting/classOffer';
+import { spellStepDone, spellStepRows, type SpellStepRow } from './spellRows';
 import { validateRiderSpells } from '../levelUp/spells';
-import type { KnownSpellGroup } from '../spellcasting/known';
-import { resolveSpell, type SpellInfo } from '../../spellLibrary';
+import { groupedSpellcasting, type GroupedSpellcasting } from '../spellcasting/grouped';
+import type { LoadedSpellcasting } from '../spellcasting/project';
+import type { AnalysisChoice } from '../analysis/types';
+import type { SpellInfo } from '../../spellLibrary';
 
 /**
- * Kann nur wachsen, nie schrumpfen — deshalb darf die Oberfläche das Kontingent nachträglich
- * erhöhen, ohne getroffene Wahlen zu entwerten.
+ * Was kein Kontingent zählt: die Deklaration eines Merkmals gewinnt (`optionListRider`
+ * streicht, was seine Quota schon führt), übrig bleibt die Deutung der KI.
  */
-const riderExtras = (riders: FeatureRider[]): { cantrips: number; prepared: number } =>
-  riders.reduce(
-    (acc, r) => ({ cantrips: acc.cantrips + r.extraCantrips, prepared: acc.prepared + r.extraPreparedCount }),
-    { cantrips: 0, prepared: 0 },
-  );
+const uncoveredExtras = (riders: FeatureRider[]): number =>
+  riders.reduce((n, r) => n + r.extraCantrips + r.extraPreparedCount, 0);
 
 export interface SpellStepValues {
-  readonly extras: { cantrips: number; prepared: number };
-  readonly cantripMax: number;
-  /** Im Zauberbuch-Regime die Buchgröße, sonst unmittelbar die Vorbereitung. */
-  readonly spellMax: number;
-  readonly preparedMax: number;
-  readonly isSpellbook: boolean;
-  /** true = die Vorbereitung erneuert sich frei nach jeder Langen Rast (Kleriker/Druide). */
-  readonly isOpenList: boolean;
-  /** Zaubergrade, für die auf Stufe 1 Plätze existieren (1 … maxSpellLevel). */
-  readonly spellLevels: number[];
-  readonly grantedSpells: { cantrips: string[]; prepared: { level: number; name: string }[] };
-  readonly fixedCantrips: { level: number; name: string }[];
-  readonly cantripPicks: string[];
-  readonly knownPicks: string[];
-  /** Jeder Zauber-Eingang des Schritts als eigene Gruppe — die Picker gräuen die fremden aus. */
-  readonly knownGroups: KnownSpellGroup[];
+  /** null, solange die Auflösung lädt oder fehlschlug. */
+  readonly view: GroupedSpellcasting | null;
+  readonly rows: SpellStepRow[];
+  /** Von einem Merkmal gewährt: fest, nicht wählbar, ohne Kontingent. */
+  readonly granted: { level: number; name: string }[];
+  /** Freie Zauber ohne Kontingent — quellenloser Bestand. */
+  readonly extraMax: number;
+  /** `spell-pick`-Wahlen, denen keine Deklaration eine Quota mitgibt. */
+  readonly loose: AnalysisChoice[];
   readonly done: boolean;
 }
 
-export const CANTRIP_GROUP = 'cantrips';
-export const SPELL_GROUP = 'spells';
-
 export function createSpellStepValues(
   w: CharacterWizard,
-  offer: () => ClassCastingOffer | null,
+  casting: () => LoadedSpellcasting | null,
   library: () => SpellInfo[],
 ): SpellStepValues {
-  const extras = $derived(riderExtras(w.riders));
-  const cantripMax = $derived((offer()?.cantrips?.count ?? 0) + extras.cantrips);
-  const spellMax = $derived.by(() => (offer()?.spells?.count ?? 0) + extras.prepared);
-  const preparedMax = $derived.by(() => {
-    const prepared = offer()?.prepared;
-    return prepared ? prepared.count + extras.prepared : 0;
+  const view = $derived.by(() => {
+    const loaded = casting();
+    return loaded ? groupedSpellcasting(loaded.state, loaded.lookup) : null;
   });
-  const isSpellbook = $derived(!!offer()?.prepared);
-  const isOpenList = $derived(offer()?.spells?.swap.spells === 'long-rest-all');
-  const spellLevels = $derived([...(offer()?.spells?.levels.filter((l) => l > 0) ?? [])]);
+  const rows = $derived(view ? spellStepRows(view) : []);
 
-  /** Von Merkmalen gewährte Zauber: fest, nicht entfernbar, zählen nicht gegen das Kontingent. */
-  const grantedSpells = $derived.by(() => {
+  const granted = $derived.by(() => {
     const lib = library();
-    if (!lib.length || !w.riders.length) return { cantrips: [], prepared: [] };
+    if (!lib.length || !w.riders.length) return [];
     const v = validateRiderSpells(w.riders, lib, w.klass.name);
-    return { cantrips: v.grantedCantrips, prepared: v.grantedPrepared };
+    return [...v.grantedCantrips.map((name) => ({ level: 0, name })), ...v.grantedPrepared];
   });
-  const fixedCantrips = $derived(grantedSpells.cantrips.map((name) => ({ level: 0, name })));
-
-  // Ein selbst gewählter Zauber, der DANACH als gewährt hereinkommt (der Effekt-Job landet
-  // spät), wird aus der Auswahl gefiltert statt doppelt zu erscheinen. Hier nichts mutieren —
-  // beim nächsten Schreiben verschwindet er ohnehin aus dem Zustand.
-  const grantedKeys = $derived.by(() => {
-    const lib = library();
-    const keyOf = (name: string) => resolveSpell(lib, name, w.klass.name)?.key;
-    return {
-      cantrips: new Set(grantedSpells.cantrips.map(keyOf).filter((k): k is string => !!k)),
-      spells: new Set(grantedSpells.prepared.map((p) => keyOf(p.name)).filter((k): k is string => !!k)),
-    };
-  });
-  const cantripPicks = $derived(w.pickedCantrips.filter((k) => !grantedKeys.cantrips.has(k)));
-  const knownPicks = $derived(w.pickedKnown.filter((k) => !grantedKeys.spells.has(k)));
-
-  const knownGroups = $derived<KnownSpellGroup[]>([
-    { id: 'granted', label: 'von einem Merkmal gewährt', keys: [...grantedKeys.cantrips, ...grantedKeys.spells] },
-    { id: CANTRIP_GROUP, label: 'Zaubertricks', keys: cantripPicks },
-    { id: SPELL_GROUP, label: isSpellbook ? 'Zauberbuch' : 'Zauber deiner Wahl', keys: knownPicks },
-    ...w.spellPickChoices.map((c) => ({
-      id: c.id,
-      label: c.featureDe || c.feature,
-      keys: w.featureSpellPicks[c.id] ?? [],
-    })),
-  ]);
+  const extraMax = $derived(uncoveredExtras(w.riders));
+  const loose = $derived(w.spellPickChoices.filter((c) => !(c.sourceId && c.quotaId)));
 
   /**
-   * Gated nur gegen die DETERMINISTISCHEN Kontingente: der Effekt-Job läuft beim Betreten
-   * womöglich noch, und sein nachträglicher Aufschlag darf den Nutzer nicht blockieren.
+   * Nur die Kontingente und die offenen KI-Wahlen: `extraMax` wächst mit dem Effekt-Job, der
+   * beim Betreten womöglich noch läuft, und dürfte den Nutzer nicht blockieren. Eine
+   * fehlgeschlagene Auflösung hat keine Zeilen und hält den Wizard deshalb nicht an.
    */
-  const done = $derived.by(() => {
-    const base = offer();
-    if (base?.isCaster) {
-      if (cantripPicks.length < (base.cantrips?.count ?? 0)) return false;
-      // Nur fordern, was auch wählbar ANGEBOTEN wird: eine Klasse mit „Prepared Spells"-Spalte
-      // aber ohne Zauberplatz-Spalten (Homebrew-Lücke) würde den Wizard sonst blockieren.
-      if (spellLevels.length > 0) {
-        if (knownPicks.length < (base.spells?.count ?? 0)) return false;
-        if (isSpellbook && w.pickedPrepared.length < (base.prepared?.count ?? 0)) return false;
-      }
-    }
-    return w.spellPickChoices.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max);
-  });
+  const done = $derived(
+    spellStepDone(rows) && loose.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max),
+  );
 
   return {
-    get extras() { return extras; },
-    get cantripMax() { return cantripMax; },
-    get spellMax() { return spellMax; },
-    get preparedMax() { return preparedMax; },
-    get isSpellbook() { return isSpellbook; },
-    get isOpenList() { return isOpenList; },
-    get spellLevels() { return spellLevels; },
-    get grantedSpells() { return grantedSpells; },
-    get fixedCantrips() { return fixedCantrips; },
-    get cantripPicks() { return cantripPicks; },
-    get knownPicks() { return knownPicks; },
-    get knownGroups() { return knownGroups; },
+    get view() { return view; },
+    get rows() { return rows; },
+    get granted() { return granted; },
+    get extraMax() { return extraMax; },
+    get loose() { return loose; },
     get done() { return done; },
   };
 }

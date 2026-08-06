@@ -12,7 +12,8 @@
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
-  import { knownSpellGroups, knownSpells, quotaGroupId, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
+  import { NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
+  import { pickerKnown, pickLevels, pickLibrary } from '../../services/spellcasting/picker';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import { addExtra, pickedKeys, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
@@ -55,30 +56,7 @@
   const listLabel = (lists: string[]): string =>
     lists.map((l) => CLASS_NAME_DE_BY_SLUG[l] ?? l).join(', ');
 
-  const pickLevels = (quota: SpellQuotaGroup): number[] =>
-    quota.levels.length ? quota.levels : Array.from({ length: 10 }, (_, i) => i);
-
-  /**
-   * Ist der Pool eine andere Quota (Vorbereitung aus dem Zauberbuch), darf der Dialog NUR
-   * deren Zauber anbieten — die Klassenliste wäre die falsche Menge.
-   */
-  const pickLibrary = (quota: SpellQuotaGroup): SpellInfo[] => {
-    if (!quota.from) return spellLibrary;
-    const keys = new Set(quota.from.spells.map((s) => s.key));
-    return spellLibrary.filter((s) => s.key && keys.has(s.key));
-  };
-
-  /**
-   * Das eigene Kontingent ist nicht „schon bekannt", und speist es sich aus einem anderen
-   * (Vorbereitung aus dem Zauberbuch), gilt das für dessen Zauber genauso — sonst wäre im
-   * Vorbereitungs-Dialog jede Option ausgegraut.
-   */
-  const pickerKnown = $derived.by(() => {
-    if (!view || !picking) return NO_KNOWN_SPELLS;
-    const exclude = [quotaGroupId(picking.sourceId, picking.quotaId)];
-    if (picking.from) exclude.push(quotaGroupId(picking.from.sourceId, picking.from.quotaId));
-    return knownSpells(knownSpellGroups(view), exclude);
-  });
+  const modalKnown = $derived(view && picking ? pickerKnown(view, picking) : NO_KNOWN_SPELLS);
 
   function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
     setPicks(block, quota.sourceId, quota.quotaId, keys);
@@ -282,9 +260,9 @@
 {#if picking}
   {@const quota = picking}
   <SpellPickModal title={quota.from ? `${quota.label} — aus „${quota.from.label}"` : quota.label}
-    library={pickLibrary(quota)}
+    library={pickLibrary(quota, spellLibrary)}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
-    known={pickerKnown}
+    known={modalKnown}
     bind:picks={() => quotaPicks(quota), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
 {/if}

@@ -3,7 +3,6 @@
  * Schritt, deterministische Rechnung und fertige KI-Ergebnisse gemischt. Bewusst OHNE
  * Tauri/Dateizugriff: das Schreiben bleibt am Aufrufer, so bleibt das hier testbar.
  */
-import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { characterSchema, type Character } from '$lib/schemas/characterSchema';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
 import { type AbilityKey } from '$lib/schemas/abilities';
@@ -12,13 +11,11 @@ import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import type { Species } from '$lib/schemas/species';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
-import { choiceLabelsDe } from '../analysis/types';
 import { getProgressionByKey, spellSlotsAt } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUp/spells';
-import { classCastingOffer } from '../spellcasting/classOffer';
-import { addExtra, setPicks } from '../spellcasting/write';
+import { addExtra, cloneSpellcasting, pruneSpellcasting } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellcasting/access';
@@ -27,7 +24,7 @@ import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
-import { applyAsi } from './backgroundAsi';
+import { applyFeatureLedger, applyLinks, applyScores, draftScores, fightingStyleLinks } from './castingDraft';
 import { equipmentIndex } from './startingEquipment';
 import { matchItem, matchWeaponName } from '$lib/itemLibrary';
 import { ftToMVal } from '$lib/itemFormat';
@@ -36,24 +33,6 @@ import type { CharacterWizard } from './characterWizard.svelte';
 import { keySlug } from '$lib/utils/text';
 
 type AnswerLookup = (id: string) => string;
-
-function applyLinks(c: Character, w: CharacterWizard): void {
-  c.classes = [{
-    sourceKey: w.klass.sourceKey,
-    name: w.klass.name,
-    ...(w.klass.subclassKey ? { subclassKey: w.klass.subclassKey, subclassName: w.klass.subclassName } : {}),
-    level: 1,
-  }];
-  c.species = {
-    sourceKey: w.species.sourceKey,
-    name: w.species.name,
-    ...(w.species.subspeciesKey ? { subspeciesKey: w.species.subspeciesKey, subspeciesName: w.species.subspeciesName } : {}),
-  };
-  c.backgroundRef = { sourceKey: w.background.sourceKey, name: w.background.name };
-  c.classLevel = formatClassLevel(c.classes);
-  c.race = formatSpecies(c.species);
-  c.background = w.background.name;
-}
 
 /**
  * `character.speed` ist eine reine METERZAHL, das Speed-Merkmal liefert Prosa („9 Meter" /
@@ -77,17 +56,12 @@ function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: A
  * DANACH fallen, sonst rechnen sie mit einem veralteten KON-Mod.
  */
 function finalScores(w: CharacterWizard): AbilityScores {
-  const scores = applyAsi(w.scores, w.asi);
+  const scores = draftScores(w);
   const inc = w.effects.result?.riders?.reduce<Record<AbilityKey, number>>(
     (acc, r) => { for (const k of ABILITY_KEYS) acc[k] += r.abilityScoreIncrease[k] ?? 0; return acc; },
     { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
   );
   return inc ? ABILITY_KEYS.reduce((s, k) => ({ ...s, [k]: s[k] + inc[k] }), scores) : scores;
-}
-
-function applyScores(c: Character, scores: AbilityScores): void {
-  c.abilities = { ...scores };
-  c.mods = Object.fromEntries(ABILITY_KEYS.map((k) => [k, mod(scores[k])])) as AbilityScores;
 }
 
 function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
@@ -154,62 +128,25 @@ function applySkillValues(c: Character, scores: AbilityScores): void {
 }
 
 /**
- * Aus BEIDEN Kanälen (KI-Analyse und deklarierte Wahlen): der Zauber-Zugang eines Talents ist
- * so dauerhaft wie eine Subklassen-Wahl. Zauber-Wahlen selbst tragen `isBuildDecision: false`
- * — sie stehen im Zauber-Block.
- */
-function applyFeatureLedger(c: Character, w: CharacterWizard): void {
-  const byId = new Map(w.featureChoices.map((ch) => [ch.id, ch]));
-  for (const rc of [...w.resolvedChoices, ...w.declaredAnswers]) {
-    const ch = byId.get(rc.id);
-    if (!ch?.isBuildDecision || !ch.featureKey) continue;
-    // `choice` englisch (Prompt-Kanal späterer Stufen), `choiceDe` als Anzeige.
-    c.features.push({
-      sourceKey: ch.featureKey,
-      name: '',
-      choice: rc.choice,
-      choiceDe: choiceLabelsDe(ch, rc.choice),
-      gainedAt: 1,
-      desc: '',
-    });
-  }
-}
-
-/**
- * Die Wahlen des Wizards landen an der Quota, zu der sie gehören — `w.pickedCantrips` &Co. sind
- * bereits `spell.key`, und `offer`/`w.spellPickChoices` tragen ihre Ziel-Quota schon (dasselbe
- * `classCastingOffer`, das der Zauber-Schritt anzeigt; keine zweite Ableitung). Rider-Zauber der
- * KI haben keine Quota und werden quellenloser Bestand.
+ * Der Zauber-Block ENTSTEHT im Schritt „Zauber", Kontingent für Kontingent
+ * (`wizard/spellRows.ts`) — hier wird er nur übernommen. Was keine Quota hat, ist
+ * quellenloser Bestand: die gewährten Rider-Zauber und die Zauber einer KI-Wahl, der keine
+ * Deklaration eine Quota mitgibt.
  */
 async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> {
-  const featurePicks = w.spellPickChoices
-    .map((ch) => ({ choice: ch, picks: w.featureSpellPicks[ch.id] ?? [] }))
-    .filter((entry) => entry.picks.length > 0);
-  const hasPicks = w.pickedCantrips.length > 0 || w.pickedKnown.length > 0 || featurePicks.length > 0;
-  if (!hasPicks && !w.riders.length) return;
+  c.spellcasting = pruneSpellcasting(cloneSpellcasting(w.spellcasting));
 
-  const offer = await classCastingOffer({
-    classKey: w.klass.sourceKey,
-    klasseName: w.klass.name,
-    subclassKey: w.klass.subclassKey,
-    subclassName: w.klass.subclassName,
-    level: 1,
-  });
-  if (offer.cantrips) setPicks(c.spellcasting, offer.cantrips.sourceId, offer.cantrips.quotaId, w.pickedCantrips);
-  if (offer.spells) setPicks(c.spellcasting, offer.spells.sourceId, offer.spells.quotaId, w.pickedKnown);
-  if (offer.prepared) setPicks(c.spellcasting, offer.prepared.sourceId, offer.prepared.quotaId, w.pickedPrepared);
+  const looseKeys = w.spellPickChoices
+    .filter((ch) => !(ch.sourceId && ch.quotaId))
+    .flatMap((ch) => w.featureSpellPicks[ch.id] ?? []);
+  for (const key of looseKeys) addExtra(c.spellcasting, key);
 
-  for (const { choice, picks } of featurePicks) {
-    if (choice.sourceId && choice.quotaId) setPicks(c.spellcasting, choice.sourceId, choice.quotaId, picks);
-  }
-
-  if (w.riders.length) {
-    const spellLib = await getSpellLibrary();
-    const validated = validateRiderSpells(w.riders, spellLib, w.klass.name);
-    for (const name of [...validated.grantedCantrips, ...validated.grantedPrepared.map((p) => p.name)]) {
-      const key = resolveSpell(spellLib, name, w.klass.name)?.key;
-      if (key) addExtra(c.spellcasting, key);
-    }
+  if (!w.riders.length) return;
+  const spellLib = await getSpellLibrary();
+  const validated = validateRiderSpells(w.riders, spellLib, w.klass.name);
+  for (const name of [...validated.grantedCantrips, ...validated.grantedPrepared.map((p) => p.name)]) {
+    const key = resolveSpell(spellLib, name, w.klass.name)?.key;
+    if (key) addExtra(c.spellcasting, key);
   }
 }
 
@@ -218,11 +155,12 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
  * wie bei der Waffenbeherrschung. Die Mechanik löst der Bogen wie bei jedem Talent-Link auf.
  */
 async function applyFightingStyles(c: Character, w: CharacterWizard): Promise<void> {
-  if (!w.fightingStyles.length) return;
+  const links = fightingStyleLinks(w);
+  if (!links.length) return;
   const feats = await getFeats();
-  for (const key of w.fightingStyles) {
-    const feat = feats.find((f) => f.sourceKey === key);
-    c.features.push({ sourceKey: key, name: feat ? featDisplayName(feat) : '', choice: '', choiceDe: '', gainedAt: 1, desc: '' });
+  for (const link of links) {
+    const feat = feats.find((f) => f.sourceKey === link.sourceKey);
+    c.features.push({ ...link, name: feat ? featDisplayName(feat) : '' });
   }
 }
 

@@ -15,7 +15,9 @@ import type { DeclaredFeature } from './declaredFeature';
 import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
-import { chosenOption, isDeclaredChoiceFeature, optionListChoice, optionListRider } from './declaration/optionList';
+import {
+  chosenOption, isDeclaredChoiceFeature, optionActivatesQuota, optionListChoice, optionListRider,
+} from './declaration/optionList';
 import {
   spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessParts,
   type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
@@ -257,10 +259,10 @@ export function choiceHint(ch: CharacterChoice, g: ChoiceGrants, p: { wouldAlter
   if (ch.slot.access) return '✓ übernommen — wirkt im Zauber-Block';
   if (!g.matched) return 'Diese Antwort passt zu keiner Option — Altbestand oder Tippfehler. Bitte neu wählen.';
   if (p.wouldAlter) return '';
-  // Zauber-Kontingent ist kein Bogenfeld: der Zauber-Block zieht es aus den Ridern,
-  // ein Knopf dafür täte nichts.
-  if (g.rider && (g.rider.extraCantrips || g.rider.extraPreparedCount))
-    return 'Zusätzliche Zaubertricks/Zauber dieser Option zählen im Zauber-Block.';
+  // Ein Kontingent ist kein Bogenfeld — ein Knopf dafür täte nichts. Vor der Prüfung auf
+  // fehlende Mechanik: die Option schaltet eines ein, hat aber oft keinen Rider mehr.
+  if (optionActivatesQuota(ch.slot.feature, ch.answer[0] ?? ''))
+    return '✓ übernommen — wirkt im Zauber-Block';
   // `changes` ohne Rider ist der Eigenschafts-Fall (Größe): angewendet, nur nicht über den
   // Rider — ohne diese Bedingung stünde dort „keine deklarierte Mechanik".
   if (!g.rider && !g.changes.length)
