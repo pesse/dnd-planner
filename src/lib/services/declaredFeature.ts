@@ -24,6 +24,8 @@ export interface DeclaredFeature {
   grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
   grantsCasting?: CastingGrant;
+  /** Teil-Deklaration: den Rest deutet Pass C. */
+  aiInterpretsRest?: boolean;
 }
 
 export function declaredFeatures<T extends Omit<DeclaredFeature, 'source'>>(

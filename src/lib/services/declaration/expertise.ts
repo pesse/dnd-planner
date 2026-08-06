@@ -25,8 +25,9 @@ export const expertiseChoiceId = (r: DeclaredChoiceRef): string =>
   `expertise_${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
 
 /**
- * Ohne geübte Fertigkeit gar keine Wahl statt einer leeren Liste — eine unbeantwortbare Frage
- * würde den Checkpoint blockieren. `already` fällt heraus, weil Expertise nicht stapelbar ist.
+ * Ohne wählbare Fertigkeit gar keine Wahl statt einer leeren Liste — eine unbeantwortbare Frage
+ * würde den Checkpoint blockieren. `already` fällt heraus, weil Expertise nicht stapelbar ist,
+ * und `grant.skills` grenzt auf den von der Regel erlaubten Ausschnitt ein.
  */
 export function expertiseChoice(
   r: DeclaredChoiceRef,
@@ -36,7 +37,9 @@ export function expertiseChoice(
   if (!isExpertiseRef(r)) return null;
   const f = r.feature;
   const taken = new Set(already);
-  const options = proficient.filter((s) => !taken.has(s));
+  // Leeres `skills` = keine Eingrenzung; sonst schneidet die Regel den Übungsstand zu.
+  const allowed = new Set<string>(r.grant.skills);
+  const options = proficient.filter((s) => !taken.has(s) && (!allowed.size || allowed.has(s)));
   if (!options.length) return null;
   const count = Math.max(1, r.grant.count);
   const nameDe = f.nameDe || f.name;

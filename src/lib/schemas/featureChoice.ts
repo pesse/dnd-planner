@@ -6,15 +6,17 @@ import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
-import { FEAT_CATEGORIES } from './vocabulary';
+import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
 
 /**
  * Die Optionen einer deklarierten Wahl löst der Flow aus der Bibliothek auf, NIE aus der KI —
  * sie könnte hier nur einen erfundenen Kampfstil liefern. Deklarativ statt am Merkmalsnamen,
  * damit Homebrew dieselbe Wahl ohne Code-Änderung gewährt. Was die Feldnamen nicht sagen:
  *   - `weaponMastery`/`spellcasting` IGNORIEREN `count` — Kontingent aus der Stufentabelle.
- *   - `expertise` ist der einzige `kind`, dessen Optionen nicht im Vault stehen KÖNNEN: sie
- *     sind der Übungsstand des Charakters. Deklariert wird nur die Anzahl.
+ *   - `expertise` und `skillProficiency` sind die zwei `kind`s, deren Optionen nicht im Vault
+ *     stehen KÖNNEN: sie hängen am Übungsstand — Expertise wählt aus den geübten Fertigkeiten,
+ *     `skillProficiency` aus den nicht geübten. Deklariert wird die Anzahl, plus `skills`, wo
+ *     die Regel eingrenzt (Magier „Gelehrter").
  *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
  *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein
@@ -22,7 +24,7 @@ import { FEAT_CATEGORIES } from './vocabulary';
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
  *     „Antwort bekannt, Wirkung offen".
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'languages', 'characterProperty'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'skillProficiency', 'languages', 'characterProperty'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -84,7 +86,11 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="languages": wie viele Sprachen). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+  skills: z
+    .array(z.enum(SKILL_NAMES))
+    .default([])
+    .describe('Nur bei kind="expertise"/"skillProficiency": Auswahl auf diese Fertigkeiten beschränken (englische SRD-Namen). Leer = keine Eingrenzung.'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.
@@ -141,4 +147,9 @@ export const featureDeclarationFields = {
   grantsCasting: castingGrantSchema
     .optional()
     .describe('Zauberwirken des Merkmals: Kontingent, Pool, Tauschtakt, Wirk-Ressource.'),
+  /** Die Ausnahme von „die Deklaration deckt das GANZE Merkmal ab"; ohne Default wie oben. */
+  aiInterpretsRest: z
+    .boolean()
+    .optional()
+    .describe('true = die Deklaration deckt nur EINEN Teil des Merkmals; den Rest deutet die KI. Nur Pass C, nie die Analyse — die stellte die deklarierte Frage sonst ein zweites Mal.'),
 } as const;

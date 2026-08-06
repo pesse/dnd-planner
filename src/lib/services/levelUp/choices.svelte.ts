@@ -7,6 +7,7 @@ import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
+import { skillProficiencyChoices } from '../declaration/skillProficiency';
 import { languageChoices } from '../declaration/languages';
 import { isSpellAccessFeature } from '../declaration/casting';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
@@ -63,6 +64,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // nicht aus dem Vault: sie sind der Übungsstand dieses Charakters.
   const sheetSkills = $derived(sheetSkillProficiencies(src.skills));
   const baseExpertiseAnalysis = $derived(expertiseChoices(baseDeclared, sheetSkills.prof, sheetSkills.exp));
+  // Gegenschnitt derselben Liste: gewählt wird, was noch nicht geübt ist.
+  const baseSkillProfAnalysis = $derived(skillProficiencyChoices(baseDeclared, sheetSkills.prof));
   const baseLanguageAnalysis = $derived(languageChoices(baseDeclared));
   /**
    * Abgeleitet statt geladen wie `featAccess`: `baseDeclared` fällt direkt aus dem Delta,
@@ -86,6 +89,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
 
   const baseOptionChoices = $derived(buildFeatureChoices(baseOptionAnalysis));
   const baseExpertiseChoices = $derived(buildFeatureChoices(baseExpertiseAnalysis));
+  const baseSkillProfChoices = $derived(buildFeatureChoices(baseSkillProfAnalysis));
   const baseLanguageChoices = $derived(buildFeatureChoices(baseLanguageAnalysis));
   const basePropertyChoices = $derived(buildFeatureChoices(basePropertyAnalysis));
   const baseAccessChoices = $derived(buildFeatureChoices(baseAccessAnalysis));
@@ -94,6 +98,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const featDeclaredAnalysis = $derived([
     ...optionListChoices(featDeclared.filter(isOptionListFeature)),
     ...expertiseChoices(featDeclared, sheetSkills.prof, sheetSkills.exp),
+    ...skillProficiencyChoices(featDeclared, sheetSkills.prof),
     ...languageChoices(featDeclared),
     ...characterPropertyChoices(featDeclared),
   ]);
@@ -104,6 +109,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...src.baseChoices,
     ...baseOptionChoices,
     ...baseExpertiseChoices,
+    ...baseSkillProfChoices,
     ...baseLanguageChoices,
     ...basePropertyChoices,
     ...baseAccessChoices,
@@ -118,6 +124,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
       ...src.featAnalysisChoices,
       ...baseOptionAnalysis,
       ...baseExpertiseAnalysis,
+      ...baseSkillProfAnalysis,
       ...baseLanguageAnalysis,
       ...basePropertyAnalysis,
       ...baseAccessAnalysis,
@@ -138,6 +145,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseAccess() { return baseAccess; },
     get baseOptionChoices() { return baseOptionChoices; },
     get baseExpertiseChoices() { return baseExpertiseChoices; },
+    get baseSkillProfChoices() { return baseSkillProfChoices; },
     get baseLanguageChoices() { return baseLanguageChoices; },
     get baseAccessChoices() { return baseAccessChoices; },
     get featAccessChoices() { return featAccessChoices; },
@@ -150,8 +158,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
     /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Options-Schlüssel. */
     optionAnswer(id: string): string {
       const q = [
-        ...baseOptionChoices, ...baseExpertiseChoices, ...baseLanguageChoices, ...basePropertyChoices,
-        ...featDeclaredChoices,
+        ...baseOptionChoices, ...baseExpertiseChoices, ...baseSkillProfChoices, ...baseLanguageChoices,
+        ...basePropertyChoices, ...featDeclaredChoices,
       ].find((x) => x.id === id);
       return q ? answerValues(q, src.answers[id]) : '';
     },

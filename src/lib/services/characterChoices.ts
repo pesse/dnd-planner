@@ -25,6 +25,9 @@ import {
   spellAccessParts, type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
 } from './spellcasting/access';
 import { expertiseChoice, expertiseChoiceId, expertiseRider } from './declaration/expertise';
+import {
+  skillProficiencyChoice, skillProficiencyChoiceId, skillProficiencyRider,
+} from './declaration/skillProficiency';
 import { languageChoice, languageChoiceId, languageRider } from './declaration/languages';
 import {
   characterPropertyChange, characterPropertyChoice, characterPropertyOptions, propertyChoiceId,
@@ -66,12 +69,13 @@ export function slotClaims(slot: ChoiceSlot, value: string): boolean {
  * Welche Wahl-Art dieser Platz stellt. EINE Verzweigung für Frage-id und Frage — liefen sie
  * auseinander, stempelte das Schreiben eine id, die das Lesen nie wiederfände.
  */
-type SlotKind = 'access' | 'expertise' | 'languages' | 'property' | 'optionList';
+type SlotKind = 'access' | 'expertise' | 'skillProficiency' | 'languages' | 'property' | 'optionList';
 
 function slotKind(slot: ChoiceSlot): SlotKind | null {
   if (slot.access) return 'access';
   switch (slot.declared?.grant.kind) {
     case 'expertise': return 'expertise';
+    case 'skillProficiency': return 'skillProficiency';
     case 'languages': return 'languages';
     case 'characterProperty': return 'property';
     case 'optionList': return 'optionList';
@@ -90,7 +94,7 @@ export function slotOwnsValue(slot: ChoiceSlot, value: string): boolean {
   const has = (options: readonly string[]) => options.some((o) => values.includes(o.toLowerCase()));
   switch (slotKind(slot)) {
     case 'access': return has(spellAccessOptions(slot.access!.grant, slot.access!.part));
-    case 'expertise': return has(SKILL_NAMES);
+    case 'expertise': case 'skillProficiency': return has(SKILL_NAMES);
     case 'property': return has(characterPropertyOptions(slot.declared!.grant));
     case 'optionList': return has(slot.declared!.grant.options.map((o) => o.value));
     // Sprachen: kein Vokabular, also nie über den Wert — sie greifen erst im Nachsichts-Lauf.
@@ -108,6 +112,7 @@ export function choiceIdOf(slot: ChoiceSlot): string {
   switch (slotKind(slot)) {
     case 'access': return spellAccessPartId(slot.access!.grant, slot.access!.part);
     case 'expertise': return expertiseChoiceId(slot.declared!);
+    case 'skillProficiency': return skillProficiencyChoiceId(slot.declared!);
     case 'languages': return languageChoiceId(slot.declared!);
     case 'property': return propertyChoiceId(slot.declared!);
     case 'optionList': return optionChoiceId(slot.declared!);
@@ -270,6 +275,9 @@ export function buildCharacterChoices(
       switch (slotKind(slot)) {
         case 'access': return spellAccessPartChoice(slot.access!.grant, slot.access!.part);
         case 'expertise': return expertiseChoice(slot.declared!, ctx.proficient, already);
+        // `answer` als `keep`: angewendet steht sie in `ctx.proficient` und fiele sonst aus
+        // ihren eigenen Optionen.
+        case 'skillProficiency': return skillProficiencyChoice(slot.declared!, ctx.proficient, answer);
         case 'languages': return languageChoice(slot.declared!);
         case 'property': return characterPropertyChoice(slot.declared!);
         case 'optionList': return optionListChoice(slot.declared!);
@@ -324,6 +332,11 @@ export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): C
       case 'expertise':
         return {
           rider: expertiseRider(ref, ch.answer),
+          matched: ch.answer.some((s) => (SKILL_NAMES as readonly string[]).includes(s)),
+        };
+      case 'skillProficiency':
+        return {
+          rider: skillProficiencyRider(ref, ch.answer),
           matched: ch.answer.some((s) => (SKILL_NAMES as readonly string[]).includes(s)),
         };
       // Freitext: es gibt kein Vokabular, an dem eine Antwort vorbeigehen könnte.

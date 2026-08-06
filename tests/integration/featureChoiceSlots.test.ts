@@ -84,16 +84,18 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
   });
 
   /**
-   * Die undeklarierte Wahl des Volksmerkmals („Blue", von der KI gedeutet) hat keinen Platz und
-   * darf auch keinen fremden besetzen: der Attribut-Platz beansprucht nur seine eigenen Werte.
+   * Jeder Platz beansprucht nur seine EIGENE Antwort: die Abstammungswahl des Volksmerkmals
+   * („Blue") und das Zauberattribut des Talents liegen beide im Ledger, ohne sich zu kreuzen.
    */
   it('greift die Antwort eines anderen Merkmals nicht ab', async () => {
     const c = vaultCharacter('Bölgör');
     const list = await choicesOf(c);
-    const claimed = list.map((ch) => c.features[ch.entry]?.choice);
+    const claimed = list.map((ch) => [ch.slot.feature.key, c.features[ch.entry]?.choice]);
 
-    expect(claimed).toEqual(['Charisma']);
-    expect(c.features.some((e) => e.choice === 'Blue')).toBe(true);
+    expect(claimed).toEqual([
+      ['srd-2024_dragonborn_draconic-ancestry', 'Blue'],
+      [MAGIC_INITIATE_KEY, 'Charisma'],
+    ]);
   });
 });
 

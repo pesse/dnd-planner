@@ -111,6 +111,9 @@
           ],
           "featCategory": "Origin",
           "count": 1,
+          "skills": [
+            "Acrobatics"
+          ],
           "spellLists": [
             "string"
           ],
@@ -262,7 +265,8 @@
           "spells": "none",
           "cantrips": "none"
         }
-      }
+      },
+      "aiInterpretsRest": false
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
 export type { DeclaredChoiceRef, DeclaredChoiceSource };
 import { isEmptyFeatureGrant, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
+import { isSkillProficiencyRef } from './skillProficiency';
 import { isLanguagesRef } from './languages';
 
 
@@ -65,9 +66,10 @@ export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisCho
  */
 export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => choiceGrants(f).length > 0;
 
-/** Ob der Flow diese Wahl selbst führt — Zweigwahl, Expertise, Sprache oder Grundeigenschaft. */
+/** Ob der Flow diese Wahl selbst führt — Zweigwahl, Übung, Expertise, Sprache oder Eigenschaft. */
 export const isDeclaredChoiceRef = (r: DeclaredChoiceRef): boolean =>
-  isOptionListRef(r) || isExpertiseRef(r) || isLanguagesRef(r) || isCharacterPropertyRef(r);
+  isOptionListRef(r) || isExpertiseRef(r) || isSkillProficiencyRef(r) || isLanguagesRef(r)
+  || isCharacterPropertyRef(r);
 
 /** Die selbstgeführten Wahlen eines Merkmals, in Deklarationsreihenfolge. */
 export const declaredChoiceRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
@@ -89,10 +91,10 @@ export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(fe
  * von Pass C, nicht in den der Analyse — dort stellte das Modell dieselbe Frage ein zweites
  * Mal; nach dem Checkpoint deutet es nur noch, was `featureGrant` nicht ausdrücken kann.
  *
- * Diskriminator wie an jeder Deklaration: `options[].grants` FEHLT = nie redigiert, die KI
- * deutet. `{}` = geprüft, gewährt nichts — sonst zöge jede reine Zweigwahl den KI-Call
- * zurück, den die Deklaration gerade eingespart hat. Nur `optionList`: bei `expertise` IST
- * die Wahl der ganze Inhalt.
+ * Zwei Wege hierher: abgeleitet aus `options[].grants` (FEHLT = nie redigiert, `{}` = geprüft
+ * und gewährt nichts) — das kann nur `optionList` —, oder erklärt über `aiInterpretsRest`, den
+ * einzigen Weg für jede andere Wahl-Art. Dort bleibt `choice` leer: die Antwort steht im
+ * Pass-C-Eingang schon als `resolvedChoices`.
  *
  * Höchstens EIN Eintrag je Merkmal, auch bei mehreren Zweigwahlen: `GainedFeature.choice` ist
  * ein einzelner Wert, und zweimal dieselbe Prosa im Eingang erzeugte zwei Rider für dasselbe
@@ -104,6 +106,10 @@ export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choi
 ): (T & { choice: string })[] {
   const out: (T & { choice: string })[] = [];
   for (const f of features) {
+    if (f.aiInterpretsRest) {
+      out.push({ ...f, choice: '' });
+      continue;
+    }
     for (const r of optionListRefs(f)) {
       const answer = answerOf(optionChoiceId(r));
       const option = chosenOptionOf(r, answer);

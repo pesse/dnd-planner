@@ -16,6 +16,8 @@ export interface DeclaredChoiceSource {
   grantsChoice?: FeatureChoiceGrant[];
   /** Stellt Liste und Attribut zur Wahl — unabhängig von jedem `grantsChoice.kind`. */
   grantsCasting?: CastingGrant;
+  /** Deklaration deckt nur einen Teil; den Rest deutet Pass C (`unredactedChoiceFeatures`). */
+  aiInterpretsRest?: boolean;
 }
 
 /**

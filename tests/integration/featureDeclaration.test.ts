@@ -16,7 +16,11 @@ import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import type { ClassFeature } from '../../src/lib/schemas/classProgression';
 import { chosenOption, declaredChoiceRefs, isOptionListFeature, optionChoiceId, optionListChoice, optionListChoices, optionListNoteLines, optionListRefs, optionListRiders } from '../../src/lib/services/declaration/optionList';
 import { expertiseChoice, expertiseChoiceId, expertiseChoices, expertiseRefs, expertiseRider, isExpertiseFeature } from '../../src/lib/services/declaration/expertise';
+import {
+  isSkillProficiencyFeature, skillProficiencyChoice, skillProficiencyRefs, skillProficiencyRiders,
+} from '../../src/lib/services/declaration/skillProficiency';
 import { isLanguagesFeature, languageChoices, languageRiders } from '../../src/lib/services/declaration/languages';
+import { SKILL_NAMES } from '../../src/lib/schemas/vocabulary';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
 import type { DeclaredChoiceSource } from '../../src/lib/services/declaration/source';
 import { riderChanges } from '../../src/lib/services/levelUp/changes';
@@ -53,27 +57,42 @@ describe('deklarierte Zweigwahlen', () => {
     const declared = await declaredFeatures();
     expect((await getClasses()).length, 'Vault-Shim aktiv?').toBeGreaterThan(5);
     expect(declared.map((d) => d.feature.key).sort()).toEqual([
+      // Zweigwahl MIT modellierter Wirkung (`options[].grants`)…
       'srd-2024_cleric_divine-order',
       'srd-2024_druid_primal-order',
-    ]);
+      // …und die, deren Wirkung `featureGrantSchema` nicht ausdrückt: deterministisch ist bei
+      // ihnen die FRAGE, die Prosa deutet weiterhin Pass C.
+      'srd-2024_cleric_blessed-strikes',
+      'srd-2024_druid_elemental-fury',
+      'srd-2024_ranger_hunter_defensive-tactics',
+      'srd-2024_ranger_hunter_hunters-prey',
+      'srd-2024_sorcerer_draconic-sorcery_elemental-affinity',
+    ].sort());
   });
 
+  /**
+   * Wörtlich, aber nicht mehr nur als Fettmarke `**Option.**`: Optionen stehen auch in einer
+   * Tabelle (Drakonische Urahnen) oder als Prosa-Aufzählung.
+   */
   it('nimmt jedes Options-Label WÖRTLICH aus dem Regeltext (beide Sprachen)', async () => {
     for (const { feature } of await declaredFeatures()) {
       for (const o of feature.grantsChoice!.flatMap((g) => g.options)) {
-        // Der englische Wert ist der Schlüssel, gegen den die gespeicherte Antwort matcht —
-        // eine Paraphrase findet ihren Zweig nie wieder.
-        expect(feature.desc, `${feature.key} / ${o.value}`).toContain(`**${o.value}.**`);
+        // Der englische Wert ist der Schlüssel, gegen den die gespeicherte Antwort matcht.
+        expect(feature.desc, `${feature.key} / ${o.value}`).toContain(o.value);
         // Das deutsche Label ist ein ZITAT aus descDe, keine Übersetzung.
-        if (o.labelDe) expect(feature.descDe ?? '', `${feature.key} / ${o.labelDe}`).toContain(`**${o.labelDe}.**`);
+        if (o.labelDe) expect(feature.descDe ?? '', `${feature.key} / ${o.labelDe}`).toContain(o.labelDe);
       }
     }
   });
 
-  it('gibt jeder Option eine Konsequenz — sonst wäre die Wahl folgenlos', async () => {
+  /**
+   * `helpDe` ist Pflicht, `grants` nicht: die Konsequenz muss benannt sein (sie ist die
+   * Bogen-Zeile), modellierbar ist sie nur, soweit `featureGrantSchema` reicht — Zusatzschaden
+   * und Resistenz kennt es nicht. Ohne `grants` deutet Pass C die Prosa.
+   */
+  it('gibt jeder Option eine benannte Konsequenz — sonst wäre die Wahl folgenlos', async () => {
     for (const { feature } of await declaredFeatures()) {
       for (const o of feature.grantsChoice!.flatMap((g) => g.options)) {
-        expect(o.grants, `${feature.key} / ${o.value}`).toBeTruthy();
         expect(o.helpDe.trim(), `${feature.key} / ${o.value}`).not.toBe('');
       }
     }
@@ -185,8 +204,46 @@ describe('deklarierte Zweigwahlen', () => {
       'srd-2024_bard_expertise',
       // Nicht das Expertise-Merkmal der Klasse, sondern eine von ZWEI Wahlen an einem Merkmal.
       'srd-2024_ranger_deft-explorer',
+      'srd-2024_ranger_expertise',
       'srd-2024_rogue_expertise',
+      // Expertise aus SECHS Fertigkeiten — die einzige eingegrenzte Wahl im Vault.
+      'srd-2024_wizard_scholar',
     ]);
+  });
+
+  /**
+   * Ohne Deklaration fiele das Merkmal in den KI-Pfad, der den Übungsstand nicht kennt
+   * (`buildFeatureEffectsInput` schickt keine Charakter-Zusammenfassung mit) — die Frage käme
+   * optionslos zurück. Regelseitig gehört Expertise beim Waldläufer auf Stufe 2 und 9.
+   */
+  it('deklariert die Expertise des Waldläufers mit der Anzahl der Regel', async () => {
+    const prog = await getProgressionByKey('srd-2024_ranger');
+    const deft = prog!.features.find((f) => f.key === 'srd-2024_ranger_deft-explorer')!;
+    const nine = prog!.features.find((f) => f.key === 'srd-2024_ranger_expertise')!;
+    expect(deft.gainedAt).toEqual([2]);
+    expect(nine.gainedAt).toEqual([9]);
+    expect(expertiseRef(deft).grant.count).toBe(1);
+    expect(expertiseRef(nine).grant.count).toBe(2);
+    expect(expertiseChoice(expertiseRef(nine), ['Stealth', 'Survival'])!.max).toBe(2);
+  });
+
+  it('grenzt die Wahl des Gelehrten auf die sechs Fertigkeiten der Regel ein', async () => {
+    const prog = await getProgressionByKey('srd-2024_wizard');
+    const scholar = prog!.features.find((f) => f.key === 'srd-2024_wizard_scholar')!;
+    const ref = expertiseRef(scholar);
+    expect(ref.grant.count).toBe(1);
+
+    // Geschnitten wird der Übungsstand: nur was BEIDES ist, geübt und erlaubt.
+    const choice = expertiseChoice(ref, ['Stealth', 'Arcana', 'Perception', 'History'])!;
+    expect(choice.options).toEqual(['Arcana', 'History']);
+    expect(choice.optionsDe).toEqual(['Arkane Kunde', 'Geschichte']);
+    expect(choice.max).toBe(1);
+    // Keine der sechs geübt → gar keine Frage statt einer leeren.
+    expect(expertiseChoice(ref, ['Stealth', 'Perception'])).toBeNull();
+    // Und ohne Eingrenzung bleibt der ganze Übungsstand wählbar.
+    const rogue = await getProgressionByKey('srd-2024_rogue');
+    const open = rogue!.features.find((f) => f.key === 'srd-2024_rogue_expertise')!;
+    expect(expertiseChoice(expertiseRef(open), ['Stealth', 'Arcana'])!.options).toEqual(['Stealth', 'Arcana']);
   });
 
   it('baut die Expertise-Wahl aus dem Übungsstand, nicht aus dem Vault', async () => {
@@ -371,6 +428,143 @@ describe('die Deklaration ist an allen Trägern dieselbe', () => {
       grants: { proficiencies: { skills: { fixed: ['Arcana'] } } },
     });
     expect(featSchema.parse(folded).grants?.proficiencies.skills.fixed).toEqual(['Arcana']);
+  });
+});
+
+/**
+ * `skillProficiency` ist der Gegenschnitt zu `expertise` — dieselbe Fertigkeitsliste, gewählt
+ * wird das noch nicht Geübte. Steht hier, damit die beiden Schnitte nicht auseinanderlaufen.
+ */
+describe('deklarierte Fertigkeitsübung', () => {
+  const SKILLPROF_ID = 'skillprof_srd-2024-college-of-lore-bonus-proficiencies';
+  const lore = async () => {
+    const prog = await getProgressionByKey('srd-2024_college-of-lore');
+    const f = prog?.features.find((x) => x.key === 'srd-2024_college-of-lore_bonus-proficiencies');
+    expect(f, 'Zusätzliche Übungen im Vault').toBeTruthy();
+    return tagged('subclass', [f!])[0];
+  };
+
+  it('deklariert die Übungswahl im ganzen Vault nur, wo sie der ganze Inhalt ist', async () => {
+    const found: string[] = [];
+    for (const info of await getClasses()) {
+      const prog = await getProgressionByKey(libraryKey(info));
+      for (const f of prog?.features ?? []) if (isSkillProficiencyFeature(f)) found.push(f.key);
+    }
+    // Barbar „Urtümliches Wissen" gewährt daneben den STÄRKE-Wurf im Kampfrausch — deshalb
+    // trägt es `aiInterpretsRest` (eigener Test unten), sonst fiele diese Hälfte still weg.
+    expect(found.sort()).toEqual([
+      'srd-2024_barbarian_primal-knowledge',
+      'srd-2024_college-of-lore_bonus-proficiencies',
+    ]);
+  });
+
+  it('grenzt die Wahl des Barbaren auf seine Klassen-Fertigkeiten ein', async () => {
+    const prog = await getProgressionByKey('srd-2024_barbarian');
+    const f = prog!.features.find((x) => x.key === 'srd-2024_barbarian_primal-knowledge')!;
+    const ref = skillProficiencyRefs(f)[0];
+    expect(ref.grant.count).toBe(1);
+    // Die Liste der Klasse aus Stufe 1 — NICHT alle 18 Fertigkeiten.
+    expect(ref.grant.skills).toEqual(prog!.proficiencyGrant?.skills.from ?? []);
+
+    const choice = skillProficiencyChoice(ref, ['Athletics', 'Arcana'])!;
+    // Athletics ist geübt (fällt heraus), Arcana steht der Klasse gar nicht offen.
+    expect(choice.options).toEqual(['Animal Handling', 'Intimidation', 'Nature', 'Perception', 'Survival']);
+    expect(choice.max).toBe(1);
+  });
+
+  it('bietet die noch NICHT geübten Fertigkeiten an', async () => {
+    const f = await lore();
+    const ref = skillProficiencyRefs(f)[0];
+    const choice = skillProficiencyChoice(ref, ['Stealth', 'Arcana'])!;
+    expect(choice.id).toBe(SKILLPROF_ID);
+    expect(choice.type).toBe('multiselect');
+    expect(choice.max).toBe(3);
+    expect(choice.options).not.toContain('Stealth');
+    expect(choice.options).toContain('Perception');
+    expect(choice.options).toHaveLength(SKILL_NAMES.length - 2);
+    expect(choice.optionsDe[choice.options.indexOf('Perception')]).toBe('Wahrnehmung');
+    // Mehr Plätze als Optionen wäre eine unerfüllbare Pflichtfrage.
+    expect(skillProficiencyChoice(ref, SKILL_NAMES.slice(0, 16))!.max).toBe(2);
+    // Alles geübt → gar keine Frage statt einer leeren (wie bei Expertise).
+    expect(skillProficiencyChoice(ref, SKILL_NAMES)).toBeNull();
+  });
+
+  /** Sonst zeigte der Editor eine beantwortete Wahl als „passt zu keiner Option". */
+  it('behält die schon getroffene Antwort in den Optionen', async () => {
+    const ref = skillProficiencyRefs(await lore())[0];
+    const choice = skillProficiencyChoice(ref, ['Stealth', 'Arcana'], ['Arcana'])!;
+    expect(choice.options).toContain('Arcana');
+    expect(choice.options).not.toContain('Stealth');
+  });
+
+  it('macht aus der Antwort einen Übungs-Rider und daraus Änderungen', async () => {
+    const f = await lore();
+    const riders = skillProficiencyRiders([f], (id) => (id === SKILLPROF_ID ? 'History, Insight' : ''));
+    expect(riders).toHaveLength(1);
+    expect(riders[0].proficiencies.skills).toEqual(['History', 'Insight']);
+    // Keine Expertise: das ist der andere Schnitt und ein anderes Bogen-Flag.
+    expect(riders[0].expertiseSkills).toEqual([]);
+    expect(riders[0].source).toBe('subclass');
+
+    const changes = riderChanges(
+      { riders, flagged: [], grantedCantrips: [], grantedPrepared: [] },
+      'feature-effects',
+    );
+    expect(changes.filter((c) => c.target === 'proficiency').map((c) => c.skill)).toEqual(['History', 'Insight']);
+    expect(changes.some((c) => c.target === 'expertise')).toBe(false);
+
+    // Deutsch gewählt → kein Rider: `skillSheetKey` erwartet das englische Vokabular.
+    expect(skillProficiencyRiders([f], () => 'Geschichte')).toEqual([]);
+    expect(skillProficiencyRiders([f], () => '')).toEqual([]);
+  });
+
+  it('nimmt das Merkmal aus dem KI-Eingang — sonst würde zweimal gefragt', async () => {
+    const f = await lore();
+    expect(withoutDeclaredChoiceFeatures([f])).toEqual([]);
+  });
+});
+
+/**
+ * `aiInterpretsRest` schiebt das Merkmal nur in Pass C zurück, NICHT in die Analyse — dort
+ * käme die deklarierte Frage ein zweites Mal.
+ */
+describe('Teil-Deklaration mit KI für den Rest', () => {
+  const primal = async () => {
+    const prog = await getProgressionByKey('srd-2024_barbarian');
+    const f = prog?.features.find((x) => x.key === 'srd-2024_barbarian_primal-knowledge');
+    expect(f, 'Urtümliches Wissen im Vault').toBeTruthy();
+    return tagged('class', [f!])[0];
+  };
+
+  it('bleibt aus der Analyse heraus, kommt aber in Pass C', async () => {
+    const f = await primal();
+    expect(f.aiInterpretsRest, 'Flagge im Vault').toBe(true);
+    // Analyse: draußen — die Übungswahl stellt die Deklaration.
+    expect(withoutDeclaredChoiceFeatures([f])).toEqual([]);
+    // Pass C: drin — dort deutet die KI den Stärke-Wurf im Kampfrausch.
+    const passC = unredactedChoiceFeatures([f], () => '');
+    expect(passC.map((x) => x.key)).toEqual(['srd-2024_barbarian_primal-knowledge']);
+    // Leer: die getroffene Wahl reist über `resolvedChoices`, nicht zweimal.
+    expect(passC[0].choice).toBe('');
+  });
+
+  it('lässt ein vollständig deklariertes Merkmal weiterhin aus Pass C heraus', async () => {
+    const prog = await getProgressionByKey('srd-2024_college-of-lore');
+    const lore = tagged('subclass', [prog!.features.find((x) => x.key === 'srd-2024_college-of-lore_bonus-proficiencies')!])[0];
+    expect(lore.aiInterpretsRest ?? false).toBe(false);
+    expect(unredactedChoiceFeatures([lore], () => 'History')).toEqual([]);
+  });
+
+  it('zählt höchstens einmal, auch neben einer unredigierten Zweigwahl', () => {
+    const both = {
+      key: 'test_both', name: 'Both', nameDe: 'Beides', source: 'class' as const,
+      aiInterpretsRest: true,
+      grantsChoice: [featureChoiceGrantSchema.parse({
+        kind: 'optionList',
+        options: [{ value: 'A', labelDe: 'A', helpDe: 'Folge A' }],
+      })],
+    };
+    expect(unredactedChoiceFeatures([both], () => 'A')).toHaveLength(1);
   });
 });
 
