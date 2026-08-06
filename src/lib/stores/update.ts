@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { isTauri } from '../services/httpFetch';
-import { pushError } from './errors';
+import { pushError } from './toasts';
 
 export type UpdateStatus = 'idle' | 'available' | 'downloading' | 'installing' | 'error';
 

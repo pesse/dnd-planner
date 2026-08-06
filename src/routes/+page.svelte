@@ -8,7 +8,7 @@
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
-  import ErrorToast from '$lib/components/ErrorToast.svelte';
+  import ToastStack from '$lib/components/ToastStack.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
@@ -196,7 +196,7 @@
   >{llmCollapsed ? '✦' : '›'}</button>
 </div>
 
-<ErrorToast />
+<ToastStack />
 <UpdateDialog />
 <RateLimitToast />
 <UnsavedChangesDialog />

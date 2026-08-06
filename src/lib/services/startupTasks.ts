@@ -2,7 +2,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { invalidateVault } from '../stores/campaign';
 import { confirmAction } from '../stores/confirmDialog';
-import { pushError } from '../stores/errors';
+import { pushError } from '../stores/toasts';
 import { checkLibrariesOnStartup } from '../stores/libraries';
 import { checkForUpdate } from '../stores/update';
 import { legacyCharacterDirs, migrateCharacterUids } from './migrateCharacterUids';
@@ -92,7 +92,7 @@ export function runStartupTasks(): () => void {
   void checkForUpdate();
 
   // Installiert offene Bibliotheken gleich mit, damit eine frische Installation ohne
-  // Zugangscode brauchbar ist. Updates nie ungefragt — dafür gibt es den Badge.
+  // Zugangscode brauchbar ist. Updates nie ungefragt — dafür Badge und Hinweis.
   void checkLibrariesOnStartup();
 
   // Den Regel-Suchindex nach dem ersten Paint vorwärmen, sonst startet die erste
