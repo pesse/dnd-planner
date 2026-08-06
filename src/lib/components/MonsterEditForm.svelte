@@ -16,30 +16,39 @@
   } = $props();
 </script>
 
-<MonsterHeaderFields {monster} {onchange} />
+<div class="mef">
+  <MonsterHeaderFields {monster} {onchange} />
 
-<div class="divider"></div>
-
-<MonsterStatsGrid {monster} {onchange} />
-
-<div class="divider"></div>
-
-<MonsterDefensesSection {monster} {onchange} />
-
-{#if monster.traits.length || true}
   <div class="divider"></div>
-  <MonsterAbilityEditList bind:items={monster.traits} placeholder="Eigenschaft" addLabel="Eigenschaft" {onchange} />
-{/if}
 
-<div class="divider"></div>
-<MonsterActionEditList bind:items={monster.actions} {onchange} />
+  <MonsterStatsGrid {monster} {onchange} />
 
-{#if monster.reactions.length || true}
   <div class="divider"></div>
-  <MonsterAbilityEditList bind:items={monster.reactions} heading="Reaktionen" placeholder="Reaktion" addLabel="Reaktion" {onchange} />
-{/if}
 
-{#if monster.legendary_actions.length || true}
+  <MonsterDefensesSection {monster} {onchange} />
+
+  {#if monster.traits.length || true}
+    <div class="divider"></div>
+    <MonsterAbilityEditList bind:items={monster.traits} placeholder="Eigenschaft" addLabel="Eigenschaft" {onchange} />
+  {/if}
+
   <div class="divider"></div>
-  <MonsterAbilityEditList bind:items={monster.legendary_actions} heading="Legendäre Aktionen" placeholder="Legendäre Aktion" addLabel="Legendäre Aktion" {onchange} />
-{/if}
+  <MonsterActionEditList bind:items={monster.actions} {onchange} />
+
+  {#if monster.reactions.length || true}
+    <div class="divider"></div>
+    <MonsterAbilityEditList bind:items={monster.reactions} heading="Reaktionen" placeholder="Reaktion" addLabel="Reaktion" {onchange} />
+  {/if}
+
+  {#if monster.legendary_actions.length || true}
+    <div class="divider"></div>
+    <MonsterAbilityEditList bind:items={monster.legendary_actions} heading="Legendäre Aktionen" placeholder="Legendäre Aktion" addLabel="Legendäre Aktion" {onchange} />
+  {/if}
+</div>
+
+<style>
+  /* Trägt nur die Sichtbarkeit von monsterEditForm.css — `display: contents`, weil die
+     Abschnitte weiterhin direkte Kinder des Rahmens sein müssen (MonsterMiniCard
+     verteilt sie per flex-gap auf `.sb-full`). */
+  .mef { display: contents; }
+</style>

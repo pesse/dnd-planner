@@ -32,33 +32,33 @@
   width: 460px;
 }
 
-.mini-placeholder {
+.mini-card .mini-placeholder {
   padding: 0.5rem 0.75rem;
   color: var(--border);
   font-style: italic;
   font-size: 0.78rem;
 }
 
-.mini-missing {
+.mini-card .mini-missing {
   padding: 0.5rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
 }
 
-.missing-slug {
+.mini-card .missing-slug {
   color: color-mix(in srgb, var(--danger) 53%, transparent);
   font-family: monospace;
   font-size: 0.78rem;
 }
 
-.missing-note {
+.mini-card .missing-note {
   color: var(--border);
   font-size: 0.75rem;
   font-style: italic;
 }
 
-.source-badge {
+.mini-card .source-badge {
   font-size: 0.62rem;
   font-weight: 700;
   padding: 0.05rem 0.3rem;
@@ -67,14 +67,14 @@
   letter-spacing: 0.04em;
   flex-shrink: 0;
 }
-.source-act {
+.mini-card .source-act {
   background: color-mix(in srgb, var(--gold) 15%, transparent);
   color: var(--gold);
   border: 1px solid color-mix(in srgb, var(--gold) 27%, transparent);
 }
-.source-global { display: none; }
+.mini-card .source-global { display: none; }
 
-.edit-header {
+.mini-card .edit-header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -84,9 +84,9 @@
   flex-wrap: wrap;
 }
 
-.save-error { color: var(--danger); font-size: 0.75rem; flex: 1; }
+.mini-card .save-error { color: var(--danger); font-size: 0.75rem; flex: 1; }
 
-.save-btn {
+.mini-card .save-btn {
   background: var(--green);
   color: var(--bg);
   border: none;
@@ -97,7 +97,7 @@
   font-weight: 600;
 }
 
-.cancel-btn {
+.mini-card .cancel-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--ink-muted);
@@ -107,7 +107,7 @@
   font-size: 0.78rem;
 }
 
-.sb-full {
+.mini-card .sb-full {
   padding: 0.6rem 0.75rem;
   display: flex;
   flex-direction: column;

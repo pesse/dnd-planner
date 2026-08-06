@@ -1,7 +1,9 @@
 /* Nur was mehr als eine Komponente des Monster-Editors braucht. Was nur eine Datei benutzt,
-   steht in deren <style> — dort meldet der Compiler es, wenn es niemand mehr trifft. */
+   steht in deren <style> — dort meldet der Compiler es, wenn es niemand mehr trifft.
+   Alles unter `.mef` (Wurzel in MonsterEditForm.svelte): die Klassennamen hier sind so
+   allgemein, dass sie ungepräfixt in halbe App leuchten. Muster wie sidebar/tree.css. */
 
-.ef {
+.mef .ef {
   background: transparent;
   border: 1px solid transparent;
   color: inherit;
@@ -11,19 +13,19 @@
   outline: none;
   transition: border-color 0.1s, background 0.1s;
 }
-.ef:hover { border-color: var(--border); background: var(--bg-panel); }
-.ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
+.mef .ef:hover { border-color: var(--border); background: var(--bg-panel); }
+.mef .ef:focus { border-color: var(--mef-accent, var(--danger)); background: var(--bg-panel); }
 
-.divider {
+.mef .divider {
   height: 2px;
   background: linear-gradient(to right, var(--red), color-mix(in srgb, var(--mef-accent, var(--danger)) 33%, transparent));
   margin: 0.6rem 0;
   border-radius: 1px;
 }
 
-.section { display: flex; flex-direction: column; gap: 0.15rem; }
+.mef .section { display: flex; flex-direction: column; gap: 0.15rem; }
 
-.prop {
+.mef .prop {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -31,24 +33,24 @@
   line-height: 1.8;
 }
 
-.lbl { font-weight: 700; color: var(--mef-accent, var(--danger)); white-space: nowrap; }
+.mef .lbl { font-weight: 700; color: var(--mef-accent, var(--danger)); white-space: nowrap; }
 
-.num  { width: 52px; text-align: center; }
-.wide { flex: 1; min-width: 120px; }
+.mef .num { width: 52px; text-align: center; }
+.mef .wide { flex: 1; min-width: 120px; }
 
-.kv-del {
+.mef .kv-del {
   background: none; border: none; color: var(--border);
   cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; line-height: 1;
 }
-.kv-del:hover { color: var(--mef-accent, var(--danger)); }
+.mef .kv-del:hover { color: var(--mef-accent, var(--danger)); }
 
-.kv-add {
+.mef .kv-add {
   background: none; border: 1px dashed var(--border); color: var(--ink-muted);
   cursor: pointer; font-size: 0.8rem; padding: 0.05rem 0.35rem; border-radius: 3px;
 }
-.kv-add:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
+.mef .kv-add:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
 
-.section-title {
+.mef .section-title {
   font-size: 1rem;
   font-weight: 700;
   color: var(--mef-accent, var(--danger));
@@ -58,9 +60,9 @@
   padding-bottom: 0.15rem;
 }
 
-.ability-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.mef .ability-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
-.ability-block {
+.mef .ability-block {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -68,9 +70,9 @@
   padding-left: 0.5rem;
 }
 
-.ability-hdr { display: flex; align-items: center; gap: 0.25rem; }
+.mef .ability-hdr { display: flex; align-items: center; gap: 0.25rem; }
 
-.ability-name {
+.mef .ability-name {
   font-weight: 700;
   font-style: italic;
   color: var(--ink);
@@ -78,7 +80,7 @@
   min-width: 0;
 }
 
-.ability-desc {
+.mef .ability-desc {
   width: 100%;
   resize: vertical;
   line-height: 1.5;
@@ -87,15 +89,15 @@
   min-height: 2.5rem;
 }
 
-.del-btn {
+.mef .del-btn {
   background: none; border: none; color: var(--border);
   cursor: pointer; font-size: 1rem; padding: 0 0.2rem; flex-shrink: 0;
 }
-.del-btn:hover { color: var(--mef-accent, var(--danger)); }
+.mef .del-btn:hover { color: var(--mef-accent, var(--danger)); }
 
-.add-btn {
+.mef .add-btn {
   background: none; border: 1px dashed var(--border); color: var(--ink-muted);
   cursor: pointer; font-size: 0.8rem; padding: 0.15rem 0.5rem;
   border-radius: 3px; align-self: flex-start;
 }
-.add-btn:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
+.mef .add-btn:hover { border-color: var(--mef-accent, var(--danger)); color: var(--mef-accent, var(--danger)); }
