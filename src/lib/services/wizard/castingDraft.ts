@@ -61,6 +61,7 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
       name: '',
       choice: rc.choice,
       choiceDe: choiceLabelsDe(ch, rc.choice),
+      choiceId: ch.id,
       gainedAt: 1,
       desc: '',
     });
@@ -69,7 +70,7 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
 
 /** Ohne Anzeigenamen — den holt die Montage aus der Talent-Bibliothek. */
 export const fightingStyleLinks = (w: WizardCastingSource): CharacterFeatureEntry[] =>
-  w.fightingStyles.map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', gainedAt: 1, desc: '' }));
+  w.fightingStyles.map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }));
 
 /** Point-Buy + Hintergrund-ASI; die Merkmals-Erhöhungen der KI legt die Montage darauf. */
 export const draftScores = (w: WizardCastingSource): AbilityScores => applyAsi(w.scores, w.asi);

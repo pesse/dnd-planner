@@ -16,15 +16,16 @@ import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
 import {
-  chosenOption, isDeclaredChoiceFeature, optionActivatesQuota, optionListChoice, optionListRider,
+  chosenOption, isDeclaredChoiceFeature, optionActivatesQuota, optionChoiceId, optionListChoice,
+  optionListRider,
 } from './declaration/optionList';
 import {
-  spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessParts,
-  type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
+  spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessPartId,
+  spellAccessParts, type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
 } from './spellcasting/access';
-import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
+import { expertiseChoice, expertiseChoiceId, expertiseRider, isExpertiseFeature } from './declaration/expertise';
 import {
-  characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
+  characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature, propertyChoiceId,
 } from './characterProperties';
 import { riderChanges } from './levelUp/changes';
 import { validateRiderSpells } from './levelUp/spells';
@@ -47,13 +48,42 @@ export interface ChoiceSlot {
 }
 
 /**
- * Ob dieser Platz den Wert beanspruchen darf. Liste, Attribut und Zweigwahl stehen unter
- * DEMSELBEN `sourceKey` und derselben Vergabe-Stufe — auseinander hält sie nur der Wert.
+ * Ob dieser Platz einen Wert OHNE gestellte Frage beanspruchen darf (Altbestand, PDF-Import,
+ * KI-Deutung). Liste, Attribut und Zweigwahl stehen unter DEMSELBEN `sourceKey` und derselben
+ * Vergabe-Stufe — auseinander hält sie dort nur der Wert.
  */
 export function slotClaims(slot: ChoiceSlot, value: string): boolean {
   if (!slot.access) return true;
   const { grant, part } = slot.access;
   return spellAccessOptions(grant, part).some((v) => v.toLowerCase() === value.trim().toLowerCase());
+}
+
+/**
+ * Welche Wahl-Art dieser Platz stellt. EINE Verzweigung für Frage-id und Frage — liefen sie
+ * auseinander, stempelte das Schreiben eine id, die das Lesen nie wiederfände.
+ */
+type SlotKind = 'access' | 'expertise' | 'property' | 'optionList';
+
+function slotKind(slot: ChoiceSlot): SlotKind {
+  if (slot.access) return 'access';
+  if (isExpertiseFeature(slot.feature)) return 'expertise';
+  if (isCharacterPropertyFeature(slot.feature)) return 'property';
+  return 'optionList';
+}
+
+/**
+ * Die Kennung der Frage dieses Platzes — derselbe Wert, den `featureChoiceChanges` als
+ * `LevelUpQuestion.id` ins Ledger schreibt. Damit hängt eine Antwort an der FRAGE und nicht
+ * mehr an ihrer Position: zwei Wahlen desselben Merkmals auf derselben Vergabe-Stufe
+ * überschreiben einander nicht.
+ */
+export function choiceIdOf(slot: ChoiceSlot): string {
+  switch (slotKind(slot)) {
+    case 'access': return spellAccessPartId(slot.access!.grant, slot.access!.part);
+    case 'expertise': return expertiseChoiceId(slot.feature);
+    case 'property': return propertyChoiceId(slot.feature);
+    case 'optionList': return optionChoiceId(slot.feature);
+  }
 }
 
 /** Eine Festlegung am Merkmal, die kein Platz mehr abfragt (`spellAccessFacts`). */
@@ -143,12 +173,18 @@ export async function collectChoiceSlots(c: {
 }
 
 /**
- * Ledger-Zuordnung in ZWEI Läufen, und die Reihenfolge ist der ganze Witz: erst alle exakten
- * `(sourceKey, gainedAt)`-Treffer — dieselbe Regel wie der Upsert in `applyChanges` —, dann
- * bekommen offene Plätze die übrigen Einträge ihres Keys. Der zweite Lauf ist der Altbestand:
- * dort fehlt `gainedAt` meist, und ohne ihn wäre eine vorhandene Antwort unsichtbar.
+ * Ledger-Zuordnung in vier Läufen, und die Reihenfolge ist der ganze Witz. `byId` zuerst: eine
+ * gestempelte Antwort nennt ihre Frage selbst, das ist dieselbe Regel wie der Upsert in
+ * `applyChanges`. Danach der Altbestand, der keinen Stempel trägt — für ihn bleibt die alte
+ * Nachsicht, sonst wäre eine vorhandene Antwort unsichtbar. `exact` unterscheidet in beiden
+ * Fällen die eigene Vergabe-Stufe von einer fremden: Altbestand und PDF-Import führen kein
+ * `gainedAt`, und eine geänderte Deklaration verschiebt es.
  *
- * Innerhalb eines Laufs kommen die WERT-geprüften Plätze zuerst dran (`slotClaims`): sonst
+ * Ein Stempel macht den Eintrag für die Altbestands-Läufe tabu — aber nur, solange es seine
+ * Frage noch GIBT. Ohne diese Einschränkung bliebe eine KI-gedeutete Antwort (`choice_…`) für
+ * immer lose, sobald das Merkmal später eine Deklaration bekommt.
+ *
+ * Unter den ungestempelten kommen die WERT-geprüften Plätze zuerst dran (`slotClaims`): sonst
  * griffe die Zweigwahl der Elfenabstammung das „Intelligence" ihres Zauberattributs, das unter
  * demselben Key und derselben Stufe steht.
  */
@@ -163,19 +199,25 @@ export function buildCharacterChoices(
   // überschriebe eine Wahl ihren eigenen Talent-Link (gleicher `sourceKey`). Erst dieser
   // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben.
   const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
+  const asked = new Set(slots.map(choiceIdOf));
   const order = slots.map((_, si) => si).sort((a, b) => Number(!slots[a].access) - Number(!slots[b].access));
-  for (const exact of [true, false])
-    for (const si of order) {
-      if (entryOf[si] >= 0) continue;
-      const slot = slots[si];
-      const key = keyOf(slot);
-      const i = ctx.ledger.findIndex(
-        (e, j) =>
-          !used.has(j) && answered(e) && !!key && e.sourceKey === key &&
-          (!exact || e.gainedAt === slot.gainedAt) && slotClaims(slot, e.choice),
-      );
-      if (i >= 0) claim(si, i);
-    }
+  for (const byId of [true, false])
+    for (const exact of [true, false])
+      for (const si of order) {
+        if (entryOf[si] >= 0) continue;
+        const slot = slots[si];
+        const key = keyOf(slot);
+        if (!key) continue;
+        const id = choiceIdOf(slot);
+        const i = ctx.ledger.findIndex((e, j) => {
+          if (used.has(j) || !answered(e) || e.sourceKey !== key) return false;
+          if (exact && e.gainedAt !== slot.gainedAt) return false;
+          return byId
+            ? !!e.choiceId && e.choiceId === id
+            : (!e.choiceId || !asked.has(e.choiceId)) && slotClaims(slot, e.choice);
+        });
+        if (i >= 0) claim(si, i);
+      }
 
   const answers = slots.map((_, si) => splitAnswer(entryOf[si] >= 0 ? ctx.ledger[entryOf[si]].choice : ''));
 
@@ -193,11 +235,14 @@ export function buildCharacterChoices(
     const already = answers
       .filter((_, j) => j !== si && !slots[j].access && isExpertiseFeature(slots[j].feature))
       .flat();
-    const choice = slot.access
-      ? spellAccessPartChoice(slot.access.grant, slot.access.part)
-      : isExpertiseFeature(slot.feature)
-        ? expertiseChoice(slot.feature, ctx.proficient, already)
-        : characterPropertyChoice(slot.feature) ?? optionListChoice(slot.feature);
+    const choice = ((): AnalysisChoice | null => {
+      switch (slotKind(slot)) {
+        case 'access': return spellAccessPartChoice(slot.access!.grant, slot.access!.part);
+        case 'expertise': return expertiseChoice(slot.feature, ctx.proficient, already);
+        case 'property': return characterPropertyChoice(slot.feature);
+        case 'optionList': return optionListChoice(slot.feature);
+      }
+    })();
     if (!choice) continue;
 
     const stored = entryOf[si] >= 0 ? ctx.ledger[entryOf[si]] : undefined;
@@ -285,13 +330,14 @@ export function withChoiceAnswer(
     if (ch.entry >= 0) next.splice(ch.entry, 1);
     return next;
   }
-  // Genau die Form, die `applyChanges` upsertet — inklusive `gainedAt`, das ein
+  // Genau die Form, die `applyChanges` upsertet — inklusive `gainedAt` und `choiceId`, die ein
   // Altbestands-Eintrag damit nachträglich bekommt.
   const entry: CharacterFeatureEntry = {
     sourceKey: keyOf(ch.slot),
     name: '',
     choice: values.join(', '),
     choiceDe: choiceLabelsDe(ch.choice, values.join(', ')),
+    choiceId: ch.choice.id,
     gainedAt: ch.slot.gainedAt,
     desc: '',
   };

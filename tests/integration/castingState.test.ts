@@ -51,7 +51,7 @@ describe('Fee-Zauberer, Charakterstufe 5', () => {
     species: { sourceKey: 'phb-2024_fairy', name: 'Fee' },
     // Die Attributwahl der Fee ist eine Antwort am Merkmal, keine Kopie im Zauber-Block.
     features: [
-      { sourceKey: 'phb-2024_fairy_fairy-magic', name: 'Feenmagie', choice: 'Charisma', choiceDe: 'Charisma', desc: '' },
+      { sourceKey: 'phb-2024_fairy_fairy-magic', name: 'Feenmagie', choice: 'Charisma', choiceDe: 'Charisma', choiceId: '', desc: '' },
     ],
   };
 

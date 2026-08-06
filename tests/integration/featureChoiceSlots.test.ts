@@ -13,7 +13,8 @@ import { describe, expect, it } from 'vitest';
 import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
 import { vaultCharacter } from '../support/vaultCharacter';
 import {
-  buildCharacterChoices, collectChoiceSlots, type CharacterChoice, type ChoiceFact,
+  buildCharacterChoices, choiceIdOf, collectChoiceSlots, type CharacterChoice, type ChoiceFact,
+  type ChoiceSlot,
 } from '../../src/lib/services/characterChoices';
 
 const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
@@ -39,12 +40,18 @@ const shape = (list: CharacterChoice[]) =>
     optionen: ch.choice.options.length,
   }));
 
+/** Altbestand: ohne Stempel, zugeordnet über Wert und Vergabe-Stufe. */
 const answer = (sourceKey: string, choice: string, gainedAt: number): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice, choiceDe: '', desc: '', gainedAt,
+  sourceKey, name: '', choice, choiceDe: '', choiceId: '', desc: '', gainedAt,
+});
+
+/** Was jeder heutige Schreibweg hinterlässt: die Antwort nennt ihre Frage. */
+const stamped = (sourceKey: string, choiceId: string, choice: string, gainedAt?: number): CharacterFeatureEntry => ({
+  sourceKey, name: '', choice, choiceDe: '', choiceId, desc: '', ...(gainedAt === undefined ? {} : { gainedAt }),
 });
 
 const link = (sourceKey: string, gainedAt: number): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice: '', choiceDe: '', desc: '', gainedAt,
+  sourceKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '', gainedAt,
 });
 
 describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
@@ -106,6 +113,109 @@ describe('Zwei Wahlen an EINEM Merkmal', () => {
       { key: ELF_LINEAGE_KEY, part: '', frage: 'Elfenabstammung: Wähle eine Option', antwort: 'High Elf', optionen: 3 },
       { key: ELF_LINEAGE_KEY, part: 'ability', frage: 'Zauberattribut', antwort: 'Intelligence', optionen: 3 },
     ]);
+  });
+});
+
+/**
+ * Der Anker: eine Antwort hängt an ihrer FRAGE (`choiceId`), nicht an ihrer Position im
+ * Ledger. Erst damit trennt der Anker zwei Wahlen desselben Merkmals auf derselben
+ * Vergabe-Stufe — Vorbedingung dafür, dass ein Merkmal mehr als eine Wahl deklarieren darf.
+ */
+describe('Der Anker einer Antwort', () => {
+  /**
+   * Frage-id und Zuordnungs-id kommen aus derselben Verzweigung (`slotKind`). Liefen sie
+   * auseinander, stempelte der Fragebogen eine id, die die Merkmalsleiste nie wiederfände —
+   * die Antwort wäre gespeichert und trotzdem unsichtbar.
+   */
+  it('stempelt jede Antwort mit genau der id, die ihre Frage trägt', async () => {
+    const c = {
+      // Alle vier Wahl-Arten in einem Charakter: Expertise (Schurke), Zweigwahl (Druide),
+      // Grundeigenschaft und Zauberattribut (Fee), Zauberliste (Herkunftstalent).
+      classes: [
+        { sourceKey: 'srd-2024_rogue', name: '', level: 6 },
+        { sourceKey: 'srd-2024_druid', name: '', level: 1 },
+      ],
+      species: { sourceKey: 'phb-2024_fairy', name: '' },
+      features: [link(MAGIC_INITIATE_KEY, 4)],
+    };
+    const list = await choicesOf(c);
+
+    expect(list.length).toBeGreaterThan(4);
+    expect(list.map((ch) => choiceIdOf(ch.slot))).toEqual(list.map((ch) => ch.choice.id));
+  });
+
+  const twiceTaken = {
+    classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 8 }],
+    features: [link(MAGIC_INITIATE_KEY, 1), link(MAGIC_INITIATE_KEY, 4)],
+  };
+
+  const listSlotsOf = async (): Promise<{ slots: ChoiceSlot[]; lists: ChoiceSlot[] }> => {
+    const { slots } = await collectChoiceSlots(twiceTaken);
+    return { slots, lists: slots.filter((s) => s.access?.part === 'list') };
+  };
+
+  /**
+   * Die beiden Instanzen tragen dieselben zulässigen Werte, also kann der Wert sie nicht
+   * trennen; ohne `gainedAt` bliebe nur die Reihenfolge im Ledger, und die erste Instanz
+   * bekäme die Antwort der zweiten.
+   */
+  it('ordnet gestempelte Antworten über die Frage zu, nicht über die Position', async () => {
+    const { slots, lists } = await listSlotsOf();
+    const rows = buildCharacterChoices(slots, {
+      proficient: [],
+      ledger: [
+        ...twiceTaken.features,
+        stamped(MAGIC_INITIATE_KEY, choiceIdOf(lists[1]), 'cleric'),
+        stamped(MAGIC_INITIATE_KEY, choiceIdOf(lists[0]), 'wizard'),
+      ],
+    });
+
+    expect(rows.filter((ch) => ch.slot.access?.part === 'list').map((ch) => ch.answer.join(', ')))
+      .toEqual(['wizard', 'cleric']);
+  });
+
+  /**
+   * Bölgörs Volksmerkmal zeigt die andere Hälfte: eine von der KI gedeutete Antwort steht
+   * ungestempelt am selben Key. Sie darf den Platz nicht besetzen, nur weil sie im Ledger
+   * vorn steht.
+   */
+  const elf = {
+    classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 5 }],
+    species: { sourceKey: 'srd-2024_elf', name: '' },
+  };
+
+  const branchSlot = async (): Promise<{ slots: ChoiceSlot[]; branch: ChoiceSlot }> => {
+    const { slots } = await collectChoiceSlots(elf);
+    return { slots, branch: slots.find((s) => !s.access && s.feature.key === ELF_LINEAGE_KEY)! };
+  };
+
+  it('zieht die gestempelte Antwort der losen desselben Merkmals vor', async () => {
+    const { slots, branch } = await branchSlot();
+    const ledger = [
+      answer(ELF_LINEAGE_KEY, 'Blue', 1),
+      stamped(ELF_LINEAGE_KEY, choiceIdOf(branch), 'High Elf', 1),
+    ];
+
+    const rows = buildCharacterChoices(slots, { proficient: [], ledger });
+    const chosen = rows.find((ch) => ch.slot === branch)!;
+
+    expect(chosen.answer).toEqual(['High Elf']);
+    // Die lose Antwort bleibt unbeansprucht — die Merkmalsleiste führt sie als solche.
+    expect(rows.some((ch) => ch.answer.includes('Blue'))).toBe(false);
+  });
+
+  /**
+   * Eine KI-gedeutete Antwort trägt die id ihrer Prompt-Frage (`choice_…`), nie die eines
+   * Platzes. Bekommt das Merkmal später eine Deklaration, muss der neue Platz sie trotzdem
+   * finden — ein Stempel schützt nur, solange seine Frage gestellt wird.
+   */
+  it('adoptiert eine Antwort, deren Stempel zu keiner gestellten Frage gehört', async () => {
+    const { slots, branch } = await branchSlot();
+    const ledger = [stamped(ELF_LINEAGE_KEY, 'choice_elven-lineage_1', 'High Elf', 1)];
+
+    const rows = buildCharacterChoices(slots, { proficient: [], ledger });
+
+    expect(rows.find((ch) => ch.slot === branch)!.answer).toEqual(['High Elf']);
   });
 });
 

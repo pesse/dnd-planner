@@ -69,7 +69,7 @@
 
   function pickFeat(target: 'add' | number, f: FeatEntry) {
     const link = { sourceKey: f.sourceKey ?? '', name: featDisplayName(f) };
-    if (target === 'add') ledger.append({ ...link, choice: '', choiceDe: '', desc: '' });
+    if (target === 'add') ledger.append({ ...link, choice: '', choiceDe: '', choiceId: '', desc: '' });
     // `desc: ''` — die Legacy-Freitext-Beschreibung weicht der Bibliothek.
     else ledger.update(target, { ...link, desc: '' });
     closeFeatPicker();

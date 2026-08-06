@@ -4,8 +4,8 @@
  */
 import type { Character } from '$lib/schemas/characterSchema';
 import {
-  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies, slotClaims,
-  type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
+  buildCharacterChoices, choiceGrantChanges, choiceIdOf, openChoiceBadge, sheetSkillProficiencies,
+  slotClaims, type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
 } from '$lib/services/characterChoices';
 import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges';
 import type { CoverageBadge } from '$lib/services/declarationCoverage';
@@ -96,15 +96,20 @@ export function createChoiceState(o: {
   });
 
   const savedChoiceEntries = $derived((o.saved()?.features ?? []).filter((r) => !!r.choice?.trim()));
+  const askedIds = $derived(new Set(o.slots().map(choiceIdOf)));
   function savedAnswerOf(ch: CharacterChoice): string {
     const key = ch.slot.feature.key ?? '';
-    // Wertgeprüft wie in `buildCharacterChoices`: sonst läse die Attributwahl die Listen-Antwort
-    // desselben Merkmals und die Tönung meldete eine Änderung, die es nicht gab.
-    const mine = savedChoiceEntries.filter((e) => e.sourceKey === key && slotClaims(ch.slot, e.choice));
+    const id = choiceIdOf(ch.slot);
+    const mine = savedChoiceEntries.filter((e) => e.sourceKey === key);
+    // Dieselbe Rangfolge wie `buildCharacterChoices`, sonst läse die Attributwahl die
+    // Listen-Antwort desselben Merkmals und die Tönung meldete eine Änderung, die es nicht gab.
+    const stamped = mine.filter((e) => !!e.choiceId && e.choiceId === id);
+    // Ohne fremden Stempel: Altbestand und KI-gedeutete Antworten, deren Frage niemand stellt.
+    const legacy = mine.filter((e) => !askedIds.has(e.choiceId) && slotClaims(ch.slot, e.choice));
     const hit =
-      mine.find((e) => e.gainedAt === ch.slot.gainedAt) ??
-      // Altbestand trägt kein `gainedAt` — dieselbe Nachsicht wie `buildCharacterChoices`.
-      mine.find((e) => e.gainedAt == null);
+      stamped.find((e) => e.gainedAt === ch.slot.gainedAt) ??
+      legacy.find((e) => e.gainedAt === ch.slot.gainedAt) ??
+      legacy.find((e) => e.gainedAt == null);
     return hit?.choice ?? '';
   }
 

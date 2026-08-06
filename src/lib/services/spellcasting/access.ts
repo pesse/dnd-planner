@@ -154,6 +154,10 @@ const gradeLabel = (level: number, count: number): string =>
 export const SPELL_ACCESS_PARTS = ['list', 'ability'] as const;
 export type SpellAccessPart = (typeof SPELL_ACCESS_PARTS)[number];
 
+/** Die id der Frage — zugleich `choiceId` ihrer Antwort im Merkmals-Ledger. */
+export const spellAccessPartId = (grant: SpellAccessGrant, part: SpellAccessPart): string =>
+  part === 'list' ? spellListChoiceId(grant) : spellAbilityChoiceId(grant);
+
 /** Die zulässigen Werte eines Teils — auch die Zuordnungsregel des Ledgers fragt hier. */
 export function spellAccessOptions(grant: SpellAccessGrant, part: SpellAccessPart): readonly string[] {
   return part === 'list' ? grant.lists : grant.abilities;
@@ -167,7 +171,7 @@ export function spellAccessParts(grant: SpellAccessGrant): SpellAccessPart[] {
 export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccessPart): AnalysisChoice {
   if (part === 'list')
     return {
-      ...emptyChoice(grant, spellListChoiceId(grant)),
+      ...emptyChoice(grant, spellAccessPartId(grant, part)),
       question: 'Which spell list?',
       questionDe: 'Zauberliste',
       options: [...grant.lists],
@@ -176,7 +180,7 @@ export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccess
       helpDe: 'Bestimmt, aus welcher Liste die Zauber dieses Merkmals gewählt werden.',
     };
   return {
-    ...emptyChoice(grant, spellAbilityChoiceId(grant)),
+    ...emptyChoice(grant, spellAccessPartId(grant, part)),
     question: 'Which spellcasting ability?',
     questionDe: 'Zauberattribut',
     options: [...grant.abilities],

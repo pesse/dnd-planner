@@ -179,8 +179,9 @@ export const changeSchema = z.discriminatedUnion('target', [
   // Reines Feedback, keine Anwendung am Charakter.
   z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), ...changeBase }),
   // Landet strukturiert in `character.features[]` — deshalb darf der Klassenmerkmale-Freitext die
-  // Wahl weglassen. `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige.
-  z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
+  // Wahl weglassen. `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige,
+  // `choiceId` = die Frage (`LevelUpQuestion.id`) und damit der Upsert-Schlüssel im Ledger.
+  z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choiceId: z.string().default(''), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
   // Protokoll einer Antwort ohne eigenes Ziel am Charakter (TP-Methode, Würfelergebnis).
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),
 ]);

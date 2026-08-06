@@ -109,6 +109,13 @@ const characterFeatureSchema = z.object({
    * `choice` noch das deutsche Label (siehe Upgrade-Schritt 5).
    */
   choiceDe: z.string().default(''),
+  /**
+   * WELCHE Frage beantwortet wurde — die id der Wahl, identisch auf beiden Seiten
+   * (`choiceIdOf` beim Lesen, `LevelUpQuestion.id` beim Schreiben). `sourceKey` + `gainedAt`
+   * trennen sie nicht: ein Merkmal stellt mehrere Fragen auf derselben Vergabe-Stufe.
+   * Leer = Altbestand, dann ordnet die Nachsicht in `buildCharacterChoices` zu.
+   */
+  choiceId: z.string().default(''),
   gainedAt: z.number().int().optional(), // trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
   desc: z.string().default(''),
 });

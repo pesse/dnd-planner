@@ -213,6 +213,7 @@
       "name": "string",
       "choice": "string",
       "choiceDe": "string",
+      "choiceId": "string",
       "gainedAt": -9007199254740991,
       "desc": "string"
     }
