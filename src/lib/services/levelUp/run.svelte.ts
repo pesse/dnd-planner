@@ -12,6 +12,7 @@ import { gainedFeaturesFor, computeSubclassFeatures } from './features';
 import { countFeatsToPick } from './questions';
 import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
+import { createLevelUpKnownSpells } from './knownSpells.svelte';
 import { createRunSteps } from './runSteps';
 import { emptyRiders, emptyRunState, type LevelUpRunState } from './runState';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
@@ -40,6 +41,12 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
     get skills() { return ctx.character.skills; },
+  });
+
+  const knownSpells = createLevelUpKnownSpells({
+    get character() { return ctx.character; },
+    questions: () => [...choices.baseChoiceQs, ...choices.featChoiceQs, ...st.decisions],
+    answers: () => st.answers,
   });
 
   const clock = createRunClock(() => st.running);
@@ -239,6 +246,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     st,
     clock,
     choices,
+    knownSpells,
     get doc() { return doc; },
     ensureSpellLib,
 

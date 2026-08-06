@@ -12,6 +12,7 @@
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
+  import { knownSpellGroups, knownSpells, quotaGroupId, NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import { addExtra, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
@@ -65,6 +66,18 @@
     const keys = new Set(quota.from.spells.map((s) => s.key));
     return spellLibrary.filter((s) => s.key && keys.has(s.key));
   };
+
+  /**
+   * Das eigene Kontingent ist nicht „schon bekannt", und speist es sich aus einem anderen
+   * (Vorbereitung aus dem Zauberbuch), gilt das für dessen Zauber genauso — sonst wäre im
+   * Vorbereitungs-Dialog jede Option ausgegraut.
+   */
+  const pickerKnown = $derived.by(() => {
+    if (!view || !picking) return NO_KNOWN_SPELLS;
+    const exclude = [quotaGroupId(picking.sourceId, picking.quotaId)];
+    if (picking.from) exclude.push(quotaGroupId(picking.from.sourceId, picking.from.quotaId));
+    return knownSpells(knownSpellGroups(view), exclude);
+  });
 
   function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
     setPicks(block, quota.sourceId, quota.quotaId, keys);
@@ -255,6 +268,7 @@
   <SpellPickModal title={quota.from ? `${quota.label} — aus „${quota.from.label}"` : quota.label}
     library={pickLibrary(quota)}
     spellLevels={pickLevels(quota)} spellClass={quota.lists[0] ?? ''} max={quota.count} enforceMax={false}
+    known={pickerKnown}
     bind:picks={() => quota.spells.map((s) => s.key), (keys) => applyPicks(quota, keys)}
     onclose={() => (picking = null)} />
 {/if}

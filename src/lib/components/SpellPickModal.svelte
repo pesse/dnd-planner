@@ -6,6 +6,7 @@
    */
   import { onMount } from 'svelte';
   import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
   import { createSpellHover } from './spellHover.svelte';
 
@@ -17,6 +18,7 @@
     max,
     picks = $bindable(),
     fixed = [],
+    known = NO_KNOWN_SPELLS,
     prepared = $bindable(undefined),
     preparedMax = 0,
     allowCreate = false,
@@ -34,6 +36,8 @@
     picks: string[];
     /** Fest gewährte Zauber (Merkmale) — angezeigt, nicht wählbar, zählen nicht mit. */
     fixed?: { level: number; name: string }[];
+    /** Woanders schon beherrscht — ausgegraut, aber wählbar. */
+    known?: KnownSpells;
     /** Nur gesetzt fürs Zauberbuch — dann bekommt jeder Chip einen Vorbereitungs-Schalter. */
     prepared?: string[] | undefined;
     preparedMax?: number;
@@ -87,6 +91,15 @@
   const full = $derived(enforceMax && picks.length >= max);
   const over = $derived(!enforceMax && picks.length > max);
   const isPicked = (s: SpellInfo) => !!s.key && picks.includes(s.key);
+  const doubled = $derived(picks.filter((k) => known.has(k)));
+
+  function chipTitle(s: SpellInfo, picked: boolean, from: string): string | undefined {
+    if (!picked && full) return 'Kontingent voll — entferne einen Zauber, um zu tauschen.';
+    const parts = [];
+    if (from) parts.push(`Beherrschst du schon (${from})`);
+    if (s.name_en && s.name_en !== s.name) parts.push(s.name_en);
+    return parts.join(' · ') || undefined;
+  }
 
   function toggle(s: SpellInfo) {
     const val = s.key;
@@ -156,9 +169,11 @@
             {#each sec.spells as s (s.name)}
               {@const val = s.key ?? ''}
               {@const picked = isPicked(s)}
+              {@const from = known.get(val) ?? ''}
               <span
                 class="chip"
                 class:sel={picked}
+                class:known={!!from && !picked}
                 class:unprepared={picked && prepared ? !prepared.includes(val) : false}
                 style="border-left: 3px solid {SCHOOL_COLORS[s.school] ?? 'var(--border)'}"
               >
@@ -167,16 +182,12 @@
                   class="chip-main"
                   class:blocked={!picked && full}
                   aria-pressed={picked}
-                  title={!picked && full
-                    ? 'Kontingent voll — entferne einen Zauber, um zu tauschen.'
-                    : s.name_en && s.name_en !== s.name
-                      ? s.name_en
-                      : undefined}
+                  title={chipTitle(s, picked, from)}
                   onmouseenter={(e) => hover.show(e, s.name)}
                   onmousemove={(e) => hover.move(e)}
                   onmouseleave={() => hover.hide()}
                   onclick={() => toggle(s)}
-                >{s.name}</button>
+                >{#if from}◇ {/if}{s.name}</button>
                 {#if picked && prepared}
                   <button
                     type="button"
@@ -196,19 +207,28 @@
     </div>
 
     <footer>
-      {#if full}
-        <span class="field-hint">Kontingent voll — entferne einen Zauber, um zu tauschen.</span>
-      {:else if over}
-        <span class="field-hint">Über dem Kontingent ({picks.length} / {max}) — im Editor bewusst erlaubt.</span>
-      {/if}
-      {#if allowCreate && query.trim()}
-        <!-- Schließt mit: die Inline-Zauberanlage des Aufrufers liegt im Dialog dahinter. -->
-        <button
-          type="button"
-          class="create-btn"
-          onclick={() => { onCreate?.(query, spellLevels); onclose(); }}
-        >＋ „{query}" als neuen Zauber anlegen</button>
-      {/if}
+      <div class="notes">
+        {#if full}
+          <span class="field-hint">Kontingent voll — entferne einen Zauber, um zu tauschen.</span>
+        {:else if over}
+          <span class="field-hint">Über dem Kontingent ({picks.length} / {max}) — im Editor bewusst erlaubt.</span>
+        {/if}
+        {#if doubled.length}
+          <span class="field-hint">
+            ◇ {doubled.length === 1
+              ? 'Ein gewählter Zauber ist schon anderweitig bekannt'
+              : `${doubled.length} gewählte Zauber sind schon anderweitig bekannt`} — erlaubt, bringt aber nichts Neues.
+          </span>
+        {/if}
+        {#if allowCreate && query.trim()}
+          <!-- Schließt mit: die Inline-Zauberanlage des Aufrufers liegt im Dialog dahinter. -->
+          <button
+            type="button"
+            class="create-btn"
+            onclick={() => { onCreate?.(query, spellLevels); onclose(); }}
+          >＋ „{query}" als neuen Zauber anlegen</button>
+        {/if}
+      </div>
       <button type="button" class="primary-btn" onclick={onclose}>Fertig</button>
     </footer>
   </div>
@@ -254,6 +274,8 @@
   .chip.sel { background: var(--arcane, var(--gold)); border-color: transparent; }
   .chip.sel .chip-main { color: var(--on-accent, #fff); font-weight: 600; }
   .chip.granted { border-style: dashed; cursor: help; }
+  .chip.known { border-style: dotted; background: none; }
+  .chip.known .chip-main { color: var(--ink-muted); opacity: 0.55; font-style: italic; }
   .chip-main {
     background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem;
     color: var(--ink-soft); padding: 0.25rem 0.65rem;
@@ -266,10 +288,11 @@
     color: var(--on-accent, #fff); padding: 0.25rem 0.5rem 0.25rem 0;
   }
   footer { display: flex; align-items: center; gap: 0.6rem; justify-content: flex-end; }
+  .notes { display: flex; flex-direction: column; gap: 0.15rem; margin-right: auto; min-width: 0; }
   .create-btn {
     background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.78rem;
-    font-style: italic; color: var(--arcane, var(--red)); margin-right: auto; text-align: left;
+    font-style: italic; color: var(--arcane, var(--red)); text-align: left; padding: 0;
   }
   .primary-btn { background: var(--arcane, var(--red)); color: var(--on-accent, #fff); border-radius: 5px; }
-  .field-hint { color: var(--ink-muted); font-size: 0.72rem; margin-right: auto; }
+  .field-hint { color: var(--ink-muted); font-size: 0.72rem; }
 </style>

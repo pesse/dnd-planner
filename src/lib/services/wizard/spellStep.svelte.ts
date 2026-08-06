@@ -6,6 +6,7 @@ import type { FeatureRider } from '$lib/schemas/levelUp';
 import type { CharacterWizard } from './characterWizard.svelte';
 import type { ClassCastingOffer } from '../spellcasting/classOffer';
 import { validateRiderSpells } from '../levelUp/spells';
+import type { KnownSpellGroup } from '../spellcasting/known';
 import { resolveSpell, type SpellInfo } from '../../spellLibrary';
 
 /**
@@ -33,8 +34,13 @@ export interface SpellStepValues {
   readonly fixedCantrips: { level: number; name: string }[];
   readonly cantripPicks: string[];
   readonly knownPicks: string[];
+  /** Jeder Zauber-Eingang des Schritts als eigene Gruppe — die Picker gräuen die fremden aus. */
+  readonly knownGroups: KnownSpellGroup[];
   readonly done: boolean;
 }
+
+export const CANTRIP_GROUP = 'cantrips';
+export const SPELL_GROUP = 'spells';
 
 export function createSpellStepValues(
   w: CharacterWizard,
@@ -75,6 +81,17 @@ export function createSpellStepValues(
   const cantripPicks = $derived(w.pickedCantrips.filter((k) => !grantedKeys.cantrips.has(k)));
   const knownPicks = $derived(w.pickedKnown.filter((k) => !grantedKeys.spells.has(k)));
 
+  const knownGroups = $derived<KnownSpellGroup[]>([
+    { id: 'granted', label: 'von einem Merkmal gewährt', keys: [...grantedKeys.cantrips, ...grantedKeys.spells] },
+    { id: CANTRIP_GROUP, label: 'Zaubertricks', keys: cantripPicks },
+    { id: SPELL_GROUP, label: isSpellbook ? 'Zauberbuch' : 'Zauber deiner Wahl', keys: knownPicks },
+    ...w.spellPickChoices.map((c) => ({
+      id: c.id,
+      label: c.featureDe || c.feature,
+      keys: w.featureSpellPicks[c.id] ?? [],
+    })),
+  ]);
+
   /**
    * Gated nur gegen die DETERMINISTISCHEN Kontingente: der Effekt-Job läuft beim Betreten
    * womöglich noch, und sein nachträglicher Aufschlag darf den Nutzer nicht blockieren.
@@ -105,6 +122,7 @@ export function createSpellStepValues(
     get fixedCantrips() { return fixedCantrips; },
     get cantripPicks() { return cantripPicks; },
     get knownPicks() { return knownPicks; },
+    get knownGroups() { return knownGroups; },
     get done() { return done; },
   };
 }

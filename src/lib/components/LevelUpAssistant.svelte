@@ -317,6 +317,7 @@
                 spellLevels={q.spellLevels}
                 spellClass={q.spellClass}
                 max={q.max ?? 1}
+                known={run.knownSpells.except(q.id)}
                 bind:picks={bind[0], bind[1]}
                 allowCreate
                 onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}
@@ -373,6 +374,7 @@
               spellLevels={q.spellLevels}
               spellClass={q.spellClass}
               max={q.max ?? 1}
+              known={run.knownSpells.except(q.id)}
               bind:picks={bind[0], bind[1]}
               allowCreate
               onCreate={(name, levels) => openSpellCreator(name, levels, q.id)}

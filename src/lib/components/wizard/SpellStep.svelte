@@ -2,7 +2,8 @@
   import './wizard.css';
   import type { CharacterWizard, Job } from '../../services/wizard/characterWizard.svelte';
   import type { ClassCastingOffer } from '../../services/spellcasting/classOffer';
-  import type { SpellStepValues } from '../../services/wizard/spellStep.svelte';
+  import { CANTRIP_GROUP, SPELL_GROUP, type SpellStepValues } from '../../services/wizard/spellStep.svelte';
+  import { knownSpells } from '../../services/spellcasting/known';
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';
 
@@ -13,6 +14,8 @@
     v: SpellStepValues;
     statusText: (job: Job<unknown>) => string;
   } = $props();
+
+  const knownExcept = (id: string) => knownSpells(v.knownGroups, [id]);
 
   /** Lese-/Schreib-Paar für `bind:picks` einer Merkmals-Zauber-Wahl. */
   const featurePickBinding = (id: string) =>
@@ -36,6 +39,7 @@
         spellClass={offer.spellClass}
         max={v.cantripMax}
         fixed={v.fixedCantrips}
+        known={knownExcept(CANTRIP_GROUP)}
         bind:picks={() => v.cantripPicks, (val) => (w.pickedCantrips = val)}
       />
     </div>
@@ -68,6 +72,7 @@
         spellClass={offer.spellClass}
         max={v.spellMax}
         fixed={v.grantedSpells.prepared}
+        known={knownExcept(SPELL_GROUP)}
         bind:picks={() => v.knownPicks, (val) => (w.pickedKnown = val)}
         bind:prepared={
           () => (v.isSpellbook ? w.pickedPrepared : undefined),
@@ -107,6 +112,7 @@
       spellLevels={choice.spellLevels}
       spellClass={choice.spellClass}
       max={choice.max}
+      known={knownExcept(choice.id)}
       bind:picks={bind[0], bind[1]}
     />
   </div>
