@@ -181,8 +181,12 @@
   // KI-Job. Der Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl
   // erzwingt.
   const spellCasting = createFormCasting(() => wizardCastingInput(w));
-  const spellValues = createSpellStepValues(w, () => spellCasting.current, () => spellLib);
-  const spellsAvailable = $derived(spellValues.rows.length > 0 || spellValues.loose.length > 0);
+  const spellValues = createSpellStepValues(w, spellCasting, () => spellLib);
+  // Der Fehlschlag gehört mit in die Bedingung: sonst hätte er dieselbe Wirkung wie „wirkt
+  // keine Zauber" und der Schritt verschwände, statt den Grund zu nennen.
+  const spellsAvailable = $derived(
+    spellValues.rows.length > 0 || spellValues.loose.length > 0 || !!spellValues.error,
+  );
 
   // Nur die DEKLARIERTEN Wahlen sind Pflicht (die KI-Wahlen können ganz fehlen): ohne sie
   // bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten.

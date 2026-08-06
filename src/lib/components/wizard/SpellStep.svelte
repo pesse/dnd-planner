@@ -40,6 +40,10 @@
     ] as const;
 </script>
 
+{#if v.error}
+  <p class="warn">Zauberquellen konnten nicht aufgelöst werden: {v.error}</p>
+{/if}
+
 {#each v.view?.issues ?? [] as issue (issue.kind + issue.text)}
   <p class="warn">{issue.text}</p>
 {/each}
@@ -127,7 +131,7 @@
     zusätzlicher Zaubertrick heraus, wächst das Angebot oben nach. Getroffene Wahlen bleiben
     erhalten.
   </p>
-{:else if !v.rows.length && !v.loose.length}
+{:else if !v.rows.length && !v.loose.length && !v.error}
   <p class="hint">Diese Figur wirkt auf Stufe 1 keine Zauber.</p>
 {/if}
 

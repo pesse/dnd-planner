@@ -7,7 +7,7 @@ import type { CharacterWizard } from './characterWizard.svelte';
 import { spellStepDone, spellStepRows, type SpellStepRow } from './spellRows';
 import { validateRiderSpells } from '../levelUp/spells';
 import { groupedSpellcasting, type GroupedSpellcasting } from '../spellcasting/grouped';
-import type { LoadedSpellcasting } from '../spellcasting/project';
+import type { FormCasting } from '../characterFormCasting.svelte';
 import type { AnalysisChoice } from '../analysis/types';
 import type { SpellInfo } from '../../spellLibrary';
 
@@ -28,16 +28,18 @@ export interface SpellStepValues {
   readonly extraMax: number;
   /** `spell-pick`-Wahlen, denen keine Deklaration eine Quota mitgibt. */
   readonly loose: AnalysisChoice[];
+  /** Der Grund einer fehlgeschlagenen Auflösung; ohne ihn fiele der Schritt still weg. */
+  readonly error: string;
   readonly done: boolean;
 }
 
 export function createSpellStepValues(
   w: CharacterWizard,
-  casting: () => LoadedSpellcasting | null,
+  casting: FormCasting,
   library: () => SpellInfo[],
 ): SpellStepValues {
   const view = $derived.by(() => {
-    const loaded = casting();
+    const loaded = casting.current;
     return loaded ? groupedSpellcasting(loaded.state, loaded.lookup) : null;
   });
   const rows = $derived(view ? spellStepRows(view) : []);
@@ -66,6 +68,7 @@ export function createSpellStepValues(
     get granted() { return granted; },
     get extraMax() { return extraMax; },
     get loose() { return loose; },
+    get error() { return casting.error; },
     get done() { return done; },
   };
 }
