@@ -15,12 +15,14 @@ import { FEAT_CATEGORIES } from './vocabulary';
  *   - `weaponMastery`/`spellcasting` IGNORIEREN `count` — Kontingent aus der Stufentabelle.
  *   - `expertise` ist der einzige `kind`, dessen Optionen nicht im Vault stehen KÖNNEN: sie
  *     sind der Übungsstand des Charakters. Deklariert wird nur die Anzahl.
+ *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
+ *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein
  *     Talent darf `isSpellcastingFeature` („dies ist das Klassen-Zauberwirken") nicht erfüllen.
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
  *     „Antwort bekannt, Wirkung offen".
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'characterProperty'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'languages', 'characterProperty'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -82,7 +84,7 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="languages": wie viele Sprachen). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.
@@ -113,13 +115,26 @@ export const featureChoiceGrantSchema = z.object({
 export type FeatureChoiceGrant = z.infer<typeof featureChoiceGrantSchema>;
 
 /**
+ * Ein Merkmal kann MEHRERE Wahlen erzwingen (Waldläufer „Deft Explorer": Expertise + zwei
+ * Sprachen). Das Einzelobjekt bleibt gültige Eingabe, damit der Bestand ohne Vault-Sweep
+ * weiterliest — gelesen wird immer eine Liste, und die Nachsicht steckt IM Schema, weil ein
+ * Normalisierer sonst auf jedem Lesepfad einzeln stünde und auf einem vergessen würde.
+ */
+export const featureChoiceGrantsSchema = z.preprocess(
+  (v) => (v === undefined || Array.isArray(v) ? v : [v]),
+  z.array(featureChoiceGrantSchema),
+);
+
+/**
  * Eine Feldgruppe statt dreimal einzeln an Klassenmerkmal, Trait und Talent: ein viertes Feld
  * erreicht alle drei Träger von selbst, und die Herkunft entscheidet nur noch über die
  * Bogen-Zeile. Alle drei OPTIONAL OHNE DEFAULT — fehlt = nicht redigiert, `{}` = geprüft.
  */
 export const featureDeclarationFields = {
   grants: featureGrantSchema.optional().describe('Deterministisch anwendbare Mechanik des Merkmals.'),
-  grantsChoice: featureChoiceGrantSchema.optional().describe('Mechanik-gebundene Wahl, die das Merkmal gewährt.'),
+  grantsChoice: featureChoiceGrantsSchema
+    .optional()
+    .describe('Mechanik-gebundene Wahlen, die das Merkmal gewährt. Einzelobjekt = genau eine.'),
   grantsSpells: spellGrantSchema
     .optional()
     .describe('Immer-vorbereitete Zauberliste; die Namen stehen als Tabelle im desc.'),

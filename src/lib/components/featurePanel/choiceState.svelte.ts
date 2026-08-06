@@ -4,7 +4,7 @@
  */
 import type { Character } from '$lib/schemas/characterSchema';
 import {
-  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies, slotClaims,
+  buildCharacterChoices, choiceGrantChanges, openChoiceBadge, sheetSkillProficiencies,
   type CharacterChoice, type ChoiceFact, type ChoiceGrants, type ChoiceSlot,
 } from '$lib/services/characterChoices';
 import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges';
@@ -95,18 +95,20 @@ export function createChoiceState(o: {
     });
   });
 
-  const savedChoiceEntries = $derived((o.saved()?.features ?? []).filter((r) => !!r.choice?.trim()));
-  function savedAnswerOf(ch: CharacterChoice): string {
-    const key = ch.slot.feature.key ?? '';
-    // Wertgeprüft wie in `buildCharacterChoices`: sonst läse die Attributwahl die Listen-Antwort
-    // desselben Merkmals und die Tönung meldete eine Änderung, die es nicht gab.
-    const mine = savedChoiceEntries.filter((e) => e.sourceKey === key && slotClaims(ch.slot, e.choice));
-    const hit =
-      mine.find((e) => e.gainedAt === ch.slot.gainedAt) ??
-      // Altbestand trägt kein `gainedAt` — dieselbe Nachsicht wie `buildCharacterChoices`.
-      mine.find((e) => e.gainedAt == null);
-    return hit?.choice ?? '';
-  }
+  /**
+   * Die Baseline der Tönung entsteht über DIESELBE Zuordnung wie die aktuellen Antworten —
+   * eine nachgebaute Rangfolge liefe auseinander und meldete Änderungen, die es nicht gab.
+   * Geschlüsselt am Platz selbst: beide Läufe bekommen dasselbe `o.slots()`.
+   */
+  const savedAnswers = $derived.by(() => {
+    const saved = o.saved();
+    if (!saved) return null;
+    const list = buildCharacterChoices(o.slots(), {
+      proficient: sheetSkillProficiencies(saved.skills).prof,
+      ledger: saved.features,
+    });
+    return new Map(list.map((ch) => [ch.slot, ch.answer.join(', ')]));
+  });
 
   const claimed = $derived(new Set(all.map((c) => c.entry).filter((i) => i >= 0)));
 
@@ -148,7 +150,7 @@ export function createChoiceState(o: {
       return all.filter((c) => c.open && set.has(c.slot.feature.key ?? '')).length;
     },
     answerDiff(ch) {
-      return o.saved() ? classifyChange(savedAnswerOf(ch), ch.answer.join(', ')) : 'none';
+      return savedAnswers ? classifyChange(savedAnswers.get(ch.slot) ?? '', ch.answer.join(', ')) : 'none';
     },
   };
 }

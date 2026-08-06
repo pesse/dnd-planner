@@ -9,7 +9,9 @@ import { type FeatureChoiceGrant } from '../schemas/featureChoice';
 import type { Change } from '../schemas/levelUp';
 import type { AnalysisChoice } from './analysis/types';
 import { declaredChoice } from './declaredChoice';
-import type { DeclaredChoiceSource } from './declaration/source';
+import {
+  choiceIdSuffix, declaredChoicesOfKind, featureIdPart, type DeclaredChoiceRef, type DeclaredChoiceSource,
+} from './declaration/source';
 
 type Meta = { step: string; source: string };
 
@@ -61,15 +63,20 @@ export function characterPropertyChanges(props: CharacterProperties | undefined,
 export const isEmptyCharacterProperties = (p: CharacterProperties | undefined): boolean =>
   !p || CHARACTER_PROPERTIES.every((name) => p[name] === undefined);
 
-type PropertyDeclared = DeclaredChoiceSource & { grantsChoice: FeatureChoiceGrant & { property: CharacterPropertyName } };
-
-export function isCharacterPropertyFeature(f: DeclaredChoiceSource): f is PropertyDeclared {
-  const c = f.grantsChoice;
-  return c?.kind === 'characterProperty' && !!c.property && !!PROPERTY_VOCABULARY[c.property];
+/** Ohne Vokabular gibt es nichts anzubieten (`PROPERTY_VOCABULARY`). */
+export function isCharacterPropertyRef(r: DeclaredChoiceRef): boolean {
+  const g = r.grant;
+  return g.kind === 'characterProperty' && !!g.property && !!PROPERTY_VOCABULARY[g.property];
 }
 
-export const propertyChoiceId = (f: DeclaredChoiceSource): string =>
-  `property_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+export const characterPropertyRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
+  declaredChoicesOfKind(f, 'characterProperty').filter(isCharacterPropertyRef);
+
+export const isCharacterPropertyFeature = (f: DeclaredChoiceSource): boolean =>
+  characterPropertyRefs(f).length > 0;
+
+export const propertyChoiceId = (r: DeclaredChoiceRef): string =>
+  `property_${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
 
 /**
  * Ein unbekannter Wert fällt weg statt die Liste zu vergiften: die Deklaration ist
@@ -87,48 +94,53 @@ export function characterPropertyOptions(grant: FeatureChoiceGrant): string[] {
  * `grants.properties` ans Merkmal. `isBuildDecision` ist true, denn erst der Ledger-Eintrag
  * macht die Antwort im Charakter-Editor auffindbar; `personal.sizeCat` bleibt der Bogenwert.
  */
-export function characterPropertyChoice(f: DeclaredChoiceSource): AnalysisChoice | null {
-  if (!isCharacterPropertyFeature(f)) return null;
-  const grant = f.grantsChoice;
+export function characterPropertyChoice(r: DeclaredChoiceRef): AnalysisChoice | null {
+  if (!isCharacterPropertyRef(r)) return null;
+  const { feature: f, grant } = r;
+  const property = grant.property!;
   const options = characterPropertyOptions(grant);
   if (options.length < 2) return null;
-  const vocab = PROPERTY_VOCABULARY[grant.property]!;
+  const vocab = PROPERTY_VOCABULARY[property]!;
   const nameDe = f.nameDe || f.name;
-  const propertyDe = PROPERTY_LABEL_DE[grant.property];
+  const propertyDe = PROPERTY_LABEL_DE[property];
   return {
-    ...declaredChoice({ id: propertyChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
+    ...declaredChoice({ id: propertyChoiceId(r), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
     question: `${f.name}: choose one`,
     questionDe: propertyDe,
     options,
     optionsDe: options.map(vocab.labelDe),
-    help: `Sets ${grant.property} on the sheet.`,
+    help: `Sets ${property} on the sheet.`,
     helpDe: `Bestimmt die ${propertyDe} auf dem Bogen.`,
   };
 }
 
 export function characterPropertyChoices(features: DeclaredChoiceSource[]): AnalysisChoice[] {
-  return features.map(characterPropertyChoice).filter((c): c is AnalysisChoice => c !== null);
+  return features
+    .flatMap((f) => characterPropertyRefs(f).map(characterPropertyChoice))
+    .filter((c): c is AnalysisChoice => c !== null);
 }
 
 /**
  * Derselbe `Change`, den die feste Deklaration erzeugt. Eine Antwort außerhalb des Vokabulars
  * wird verworfen — sie stammt aus einer geänderten Deklaration.
  */
+export function characterPropertyChange(r: DeclaredChoiceRef, answer: string, meta: Meta): Change | null {
+  if (!isCharacterPropertyRef(r)) return null;
+  const value = answer.trim();
+  if (!value || !characterPropertyOptions(r.grant).includes(value)) return null;
+  const source = { ...meta, source: r.feature.key || meta.source };
+  // Verzweigt, weil die Werte je Eigenschaft verschiedene Typen haben (Enum vs. Zahl).
+  if (r.grant.property === 'size' && (MONSTER_SIZE_KEYS as readonly string[]).includes(value))
+    return PROPERTY_ROUTES.size(value as (typeof MONSTER_SIZE_KEYS)[number], source);
+  return null;
+}
+
 export function characterPropertyAnswerChanges(
   features: DeclaredChoiceSource[],
   answerOf: (choiceId: string) => string,
   meta: Meta,
 ): Change[] {
-  const out: Change[] = [];
-  for (const f of features) {
-    if (!isCharacterPropertyFeature(f)) continue;
-    const grant = f.grantsChoice;
-    const answer = answerOf(propertyChoiceId(f)).trim();
-    if (!answer || !characterPropertyOptions(grant).includes(answer)) continue;
-    const source = { ...meta, source: f.key || meta.source };
-    // Verzweigt, weil die Werte je Eigenschaft verschiedene Typen haben (Enum vs. Zahl).
-    if (grant.property === 'size' && (MONSTER_SIZE_KEYS as readonly string[]).includes(answer))
-      out.push(PROPERTY_ROUTES.size(answer as (typeof MONSTER_SIZE_KEYS)[number], source));
-  }
-  return out;
+  return features
+    .flatMap((f) => characterPropertyRefs(f).map((r) => characterPropertyChange(r, answerOf(propertyChoiceId(r)), meta)))
+    .filter((c): c is Change => c !== null);
 }

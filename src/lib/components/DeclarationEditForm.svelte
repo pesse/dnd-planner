@@ -1,35 +1,12 @@
 <script module lang="ts">
-  import { CLASS_TABLE_CHOICE_KINDS, FEATURE_CHOICE_KINDS, type FeatureChoiceGrant, type FeatureChoiceKind } from '$lib/schemas/featureChoice';
+  import { type FeatureChoiceGrant } from '$lib/schemas/featureChoice';
   import { type FeatureGrant, type SpellGrant } from '$lib/schemas/grants';
+  export { kindOptions, type DeclarationCarrier } from './FeatureChoiceEditForm.svelte';
 
   export interface DeclarationTarget {
     grants?: FeatureGrant;
-    grantsChoice?: FeatureChoiceGrant;
+    grantsChoice?: FeatureChoiceGrant[];
     grantsSpells?: SpellGrant;
-  }
-
-  export type DeclarationCarrier = 'class' | 'feature';
-
-  /** `fightingStyle` ist in Wahrheit `featCategory: 'Fighting Style'`. */
-  const KIND_UI: Record<FeatureChoiceKind, { value: string; de: string }> = {
-    weaponMastery: { value: 'weaponMastery', de: 'Waffenbeherrschung' },
-    featCategory: { value: 'fightingStyle', de: 'Kampfstil' },
-    spellcasting: { value: 'spellcasting', de: 'Zauberwirken' },
-    spellAccess: { value: 'spellAccess', de: 'Zauber-Zugang' },
-    optionList: { value: 'optionList', de: 'Optionsliste (Zweigwahl)' },
-    expertise: { value: 'expertise', de: 'Expertise' },
-    characterProperty: { value: 'characterProperty', de: 'Grundeigenschaft' },
-  };
-
-  /**
-   * Aus der SENKE des `kind` abgeleitet, nicht je Artefakt gepflegt: nur was die Klassen-
-   * Stufentabelle braucht, kann ein Trait/Talent nicht auflösen. Eine Hand-Liste je Träger
-   * brachte prompt die Asymmetrie zurück, die die eine Deklaration gerade löscht.
-   */
-  export function kindOptions(carrier: DeclarationCarrier): { value: string; de: string }[] {
-    return FEATURE_CHOICE_KINDS.filter(
-      (k) => carrier === 'class' || !CLASS_TABLE_CHOICE_KINDS.includes(k),
-    ).map((k) => KIND_UI[k]);
   }
 </script>
 
@@ -40,14 +17,12 @@
    *
    * Jede Checkbox schaltet zwischen FEHLENDEM Feld („nie angesehen", läuft weiter über die
    * KI-Kette) und geparstem Default („geprüft") — diese Unterscheidung darf die UI nicht
-   * einebnen, sonst geht jede Abdeckungslücke still verloren.
+   * einebnen, sonst geht jede Abdeckungslücke still verloren. Bei den Wahlen ist die leere
+   * LISTE die geprüfte Form.
    */
-  import { featureChoiceGrantSchema } from '$lib/schemas/featureChoice';
   import { featureGrantSchema, spellGrantSchema } from '$lib/schemas/grants';
-  import CharacterPropertyEditForm from './CharacterPropertyEditForm.svelte';
-  import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
+  import FeatureChoiceEditForm, { DEFAULT_CHOICE_KIND, newChoice, type DeclarationCarrier } from './FeatureChoiceEditForm.svelte';
   import FeatureGrantEditForm from './FeatureGrantEditForm.svelte';
-  import SpellAccessEditForm from './SpellAccessEditForm.svelte';
 
   let {
     feature = $bindable<DeclarationTarget>(),
@@ -61,52 +36,18 @@
     onchange?: () => void;
   } = $props();
 
-  const mark = () => onchange();
-
-  let kinds = $derived(kindOptions(carrier));
-
-  const DEFAULT_KIND = 'optionList';
-
-  /** 'other' = hand-editiert, das Roh-JSON bleibt autoritativ. */
-  function kindOf(f: DeclarationTarget): string {
-    const g = f.grantsChoice;
-    if (!g) return 'none';
-    if (g.kind === 'featCategory' && g.featCategory !== 'Fighting Style') return 'other';
-    const value = KIND_UI[g.kind].value;
-    return kinds.some((k) => k.value === value) ? value : 'other';
-  }
-
-  // Die Listenfelder (`spellLists` & Co.) füllt das Schema — hand-gesetzte Literale fehlten
-  // sonst bei jedem neuen Feld.
-  const newChoice = (g: Partial<FeatureChoiceGrant>): FeatureChoiceGrant => featureChoiceGrantSchema.parse(g);
-
-  function setKind(value: string) {
-    const prev = feature.grantsChoice;
-    // Beim Wechsel Optionen bzw. Anzahl mitnehmen: ein Fehlgriff im Dropdown soll keine
-    // Redaktionsarbeit löschen.
-    if (value === 'fightingStyle')
-      feature.grantsChoice = newChoice({ kind: 'featCategory', featCategory: 'Fighting Style', count: prev?.count ?? 1 });
-    else if (value === 'optionList') feature.grantsChoice = newChoice({ kind: 'optionList', options: prev?.options ?? [] });
-    else if (value === 'characterProperty')
-      feature.grantsChoice = newChoice({
-        kind: 'characterProperty',
-        property: prev?.property ?? 'size',
-        propertyValues: prev?.propertyValues ?? [],
-      });
-    else if (value === 'spellAccess')
-      feature.grantsChoice = newChoice({
-        kind: 'spellAccess',
-        spellLists: prev?.spellLists ?? [],
-        spellAbilities: prev?.spellAbilities ?? [],
-        spellPicks: prev?.spellPicks ?? [],
-      });
-    else if (value !== 'other' && value !== 'none')
-      feature.grantsChoice = newChoice({ kind: value as FeatureChoiceKind, count: prev?.count ?? 1 });
-    onchange();
-  }
+  const emptyChoice = () => newChoice({ kind: DEFAULT_CHOICE_KIND, options: [] });
 
   const toggleChoice = (on: boolean) => {
-    feature.grantsChoice = on ? newChoice({ kind: DEFAULT_KIND, options: [] }) : undefined;
+    feature.grantsChoice = on ? [emptyChoice()] : undefined;
+    onchange();
+  };
+  const addChoice = () => {
+    feature.grantsChoice = [...(feature.grantsChoice ?? []), emptyChoice()];
+    onchange();
+  };
+  const removeChoice = (i: number) => {
+    feature.grantsChoice = (feature.grantsChoice ?? []).filter((_, j) => j !== i);
     onchange();
   };
   const toggleGrants = (on: boolean) => {
@@ -125,44 +66,24 @@
       <input type="checkbox" checked={!!feature.grantsChoice} onchange={(e) => toggleChoice((e.target as HTMLInputElement).checked)} />
       Gewährt Wahl
     </label>
-    <select
-      class="ef sel"
-      disabled={!feature.grantsChoice}
-      value={feature.grantsChoice ? kindOf(feature) : DEFAULT_KIND}
-      onchange={(e) => setKind((e.target as HTMLSelectElement).value)}
-    >
-      {#each kinds as kind}
-        <option value={kind.value}>{kind.de}</option>
-      {/each}
-      {#if kindOf(feature) === 'other'}
-        <option value="other" disabled selected>
-          Aus JSON: {feature.grantsChoice?.kind}{feature.grantsChoice?.featCategory ? ` / ${feature.grantsChoice.featCategory}` : ''}
-        </option>
-      {/if}
-    </select>
-    {#if feature.grantsChoice && kindOf(feature) === 'fightingStyle'}
-      <span class="lbl">Anzahl
-        <input class="ef num" type="number" min="1" bind:value={feature.grantsChoice.count} oninput={mark} />
-      </span>
-    {/if}
-    {#if feature.grantsChoice && kindOf(feature) === 'expertise'}
-      <span class="lbl">Fertigkeiten
-        <input class="ef num" type="number" min="1" bind:value={feature.grantsChoice.count} oninput={mark} />
-      </span>
-      <span class="note">Optionen zur Laufzeit: die geübten Fertigkeiten des Charakters</span>
+    {#if feature.grantsChoice}
+      <button type="button" class="add" onclick={addChoice}>+ Wahl</button>
     {/if}
   </div>
 
-  {#if feature.grantsChoice && kindOf(feature) === 'optionList'}
-    <ChoiceOptionEditForm bind:options={feature.grantsChoice.options} {scope} {onchange} />
-  {/if}
-
-  {#if feature.grantsChoice && kindOf(feature) === 'spellAccess'}
-    <SpellAccessEditForm bind:grant={feature.grantsChoice} {onchange} />
-  {/if}
-
-  {#if feature.grantsChoice && kindOf(feature) === 'characterProperty'}
-    <CharacterPropertyEditForm bind:grant={feature.grantsChoice} {onchange} />
+  {#if feature.grantsChoice}
+    {#each feature.grantsChoice as _, i (i)}
+      <FeatureChoiceEditForm
+        bind:grant={feature.grantsChoice[i]}
+        {carrier}
+        {scope}
+        {onchange}
+        onremove={() => removeChoice(i)}
+      />
+    {/each}
+    {#if !feature.grantsChoice.length}
+      <span class="note">Geprüft: dieses Merkmal gewährt keine Wahl</span>
+    {/if}
   {/if}
 
   <div class="row">
@@ -193,7 +114,8 @@
   }
   .lbl.off { opacity: 0.6; }
   .note { font-size: 0.75rem; color: var(--ink-soft); font-style: italic; }
-  .ef:disabled { opacity: 0.5; }
-  .sel { font-size: 0.8rem; }
-  .num { width: 56px; text-align: center; }
+  .add {
+    border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer;
+    font-size: 0.75rem; padding: 0.1rem 0.4rem; color: var(--ink-soft);
+  }
 </style>

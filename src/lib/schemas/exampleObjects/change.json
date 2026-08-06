@@ -171,6 +171,7 @@
   {
     "target": "featureChoice",
     "sourceKey": "string",
+    "choiceId": "string",
     "choice": "string",
     "choiceDe": "string",
     "gainedAt": -9007199254740991,

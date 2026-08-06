@@ -7,35 +7,41 @@ import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
 import { declaredChoice } from '../declaredChoice';
 import { SKILL_NAMES, type SkillName } from '../../schemas/vocabulary';
-import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
 import { skillLabelDe } from '../proficiencyGrants';
 import { emptyRider } from './rider';
-import type { Declared, DeclaredChoiceSource } from './source';
+import {
+  choiceIdSuffix, declaredChoicesOfKind, featureIdPart, splitChoiceAnswer,
+  type DeclaredChoiceRef, type DeclaredChoiceSource,
+} from './source';
 
-export function isExpertiseFeature(f: DeclaredChoiceSource): f is Declared {
-  return f.grantsChoice?.kind === 'expertise';
-}
+export const isExpertiseRef = (r: DeclaredChoiceRef): boolean => r.grant.kind === 'expertise';
 
-export const expertiseChoiceId = (f: DeclaredChoiceSource): string =>
-  `expertise_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+export const expertiseRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
+  declaredChoicesOfKind(f, 'expertise');
+
+export const isExpertiseFeature = (f: DeclaredChoiceSource): boolean => expertiseRefs(f).length > 0;
+
+export const expertiseChoiceId = (r: DeclaredChoiceRef): string =>
+  `expertise_${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
 
 /**
  * Ohne geübte Fertigkeit gar keine Wahl statt einer leeren Liste — eine unbeantwortbare Frage
  * würde den Checkpoint blockieren. `already` fällt heraus, weil Expertise nicht stapelbar ist.
  */
 export function expertiseChoice(
-  f: DeclaredChoiceSource,
+  r: DeclaredChoiceRef,
   proficient: readonly string[],
   already: readonly string[] = [],
 ): AnalysisChoice | null {
-  if (!isExpertiseFeature(f)) return null;
+  if (!isExpertiseRef(r)) return null;
+  const f = r.feature;
   const taken = new Set(already);
   const options = proficient.filter((s) => !taken.has(s));
   if (!options.length) return null;
-  const count = Math.max(1, f.grantsChoice.count);
+  const count = Math.max(1, r.grant.count);
   const nameDe = f.nameDe || f.name;
   return {
-    ...declaredChoice({ id: expertiseChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
+    ...declaredChoice({ id: expertiseChoiceId(r), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
     type: 'multiselect',
     max: Math.min(count, options.length),
     question: `${f.name}: choose ${count} of your skill proficiencies`,
@@ -46,9 +52,28 @@ export function expertiseChoice(
   };
 }
 
+export function expertiseChoices(
+  features: DeclaredChoiceSource[],
+  proficient: readonly string[],
+  already: readonly string[] = [],
+): AnalysisChoice[] {
+  return features
+    .flatMap((f) => expertiseRefs(f).map((r) => expertiseChoice(r, proficient, already)))
+    .filter((c): c is AnalysisChoice => c !== null);
+}
+
 /** Rider der getroffenen Expertise-Wahl (englische SRD-Namen — das Vokabular des Riders). */
-export function expertiseRider(f: DeclaredChoiceSource, picked: readonly string[]): FeatureRider | null {
+export function expertiseRider(r: DeclaredChoiceRef, picked: readonly string[]): FeatureRider | null {
   const skills = picked.filter((s): s is SkillName => (SKILL_NAMES as readonly string[]).includes(s));
-  if (!isExpertiseFeature(f) || !skills.length) return null;
-  return { ...emptyRider(f), expertiseSkills: [...skills] };
+  if (!isExpertiseRef(r) || !skills.length) return null;
+  return { ...emptyRider(r.feature), expertiseSkills: [...skills] };
+}
+
+export function expertiseRiders(
+  features: DeclaredChoiceSource[],
+  answerOf: (choiceId: string) => string,
+): FeatureRider[] {
+  return features
+    .flatMap((f) => expertiseRefs(f).map((r) => expertiseRider(r, splitChoiceAnswer(answerOf(expertiseChoiceId(r))))))
+    .filter((r): r is FeatureRider => r !== null);
 }

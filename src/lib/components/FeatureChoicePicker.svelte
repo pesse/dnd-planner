@@ -39,6 +39,10 @@
   } = $props();
 
   const multiple = $derived(choice.type === 'multiselect');
+  // Ohne Optionen wäre ein Picker eine Lüge: die Sprachwahl hat kein Vokabular, also ein
+  // Eingabefeld. Übernommen wird beim Verlassen — pro Tastendruck ins Ledger zu schreiben
+  // zerschnitte jede Eingabe am ersten Komma.
+  const freeText = $derived(choice.type === 'text');
   const options = $derived<TooltipOption[]>(
     choice.options.map((value, i) => ({
       value,
@@ -48,6 +52,8 @@
   );
   const label = $derived(choice.questionDe?.trim() || choice.question);
   const help = $derived(choice.helpDe?.trim() || choice.help);
+
+  const splitText = (raw: string): string[] => raw.split(',').map((s) => s.trim()).filter(Boolean);
 </script>
 
 <div class="choice" class:open class:diff-up={diff === 'up'} class:diff-down={diff === 'down'}>
@@ -56,21 +62,31 @@
     {#if showLevel}<span class="ch-lvl">Stufe {gainedAt}</span>{/if}
     {#if open}
       <span class="ch-open" title="Diese Wahl ist noch nicht getroffen">offen</span>
-    {:else if multiple && choice.max > 1}
+    {:else if (multiple || freeText) && choice.max > 1}
       <span class="ch-count" class:full={answer.length >= choice.max}>{answer.length} von {choice.max}</span>
     {/if}
   </div>
 
   <div class="ch-body">
     <div class="ch-select">
-      <TooltipSelect
-        {options}
-        selected={answer}
-        {multiple}
-        max={choice.max}
-        placeholder="— offen —"
-        onchange={(next) => onchange(next)}
-      />
+      {#if freeText}
+        <input
+          class="input"
+          type="text"
+          value={answer.join(', ')}
+          placeholder={choice.max > 1 ? `${choice.max} Angaben, durch Komma getrennt` : '— offen —'}
+          onchange={(e) => onchange(splitText(e.currentTarget.value))}
+        />
+      {:else}
+        <TooltipSelect
+          {options}
+          selected={answer}
+          {multiple}
+          max={choice.max}
+          placeholder="— offen —"
+          onchange={(next) => onchange(next)}
+        />
+      {/if}
     </div>
     {#if pendingGrants}
       <button type="button" class="ch-apply" title="Übungen, Häkchen und Zauber dieser Wahl in den Bogen eintragen"

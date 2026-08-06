@@ -39,11 +39,11 @@ const asClass = (sourceKey: string, level: number, subclassKey?: string): Castin
 });
 
 const answer = (sourceKey: string, choice: string): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice, choiceDe: '', desc: '',
+  sourceKey, name: '', choice, choiceDe: '', choiceId: '', desc: '',
 });
 
 const link = (sourceKey: string, gainedAt = 1): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice: '', choiceDe: '', desc: '', gainedAt,
+  sourceKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '', gainedAt,
 });
 
 const countsOf = (views: QuotaView[]): Record<string, number> =>

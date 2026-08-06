@@ -30,7 +30,8 @@
 import type { FeatureRider } from '../../src/lib/schemas/levelUp';
 import { analyzeFeatureEffects, finalizeFeatureEffects, type FeatureAnalysis } from '../../src/lib/services/aiActions/featureEffectsAction';
 import { type ResolvedChoice } from '../../src/lib/services/analysis/types';
-import { optionChoiceId, optionListChoices, optionListRiders } from '../../src/lib/services/declaration/optionList';
+import { optionListChoices, optionListRiders } from '../../src/lib/services/declaration/optionList';
+import { branchAnswerOf } from '../../tests/support/branchAnswer';
 import { withDeclaredGrants } from '../../src/lib/services/declaration/grants';
 import type { LlmConfig } from '../../src/lib/types';
 import type { Checks, EvalCase } from '../defineEval';
@@ -202,7 +203,7 @@ export async function buildFiendishLegacyCases(): Promise<EvalCase<LegacyResult>
         const effects = await finalizeFeatureEffects(cfg, ctx, analysis, { noRetry: true });
         // Wie `CharacterWizard.riders`: KI-Rider (mit deklarierten Grants) plus die Rider der
         // Zweigwahlen. Stufe 1 → nur die erste Zeile der Options-Zauberliste greift.
-        const answerOf = (id: string) => (id === optionChoiceId(legacyDecl) ? CHOSEN_LEGACY : '');
+        const answerOf = branchAnswerOf([legacyDecl], legacyDecl.key ?? '', CHOSEN_LEGACY);
         return {
           riders: [...withDeclaredGrants(effects.riders, declared), ...optionListRiders(declared, answerOf, 1)],
           // Die Wahl stellt der Flow aus der Deklaration — ohne Call.

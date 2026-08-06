@@ -274,6 +274,7 @@ export function featureChoiceChanges(
     out.push({
       target: 'featureChoice',
       sourceKey: q.featureKey,
+      choiceId: q.id,
       choice,
       choiceDe,
       gainedAt: gainedAtByKey.get(q.featureKey) ?? fallbackLevel,

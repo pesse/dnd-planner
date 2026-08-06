@@ -20,7 +20,7 @@ export interface ChosenFeat {
   gainedAt: number;
   desc: string;
   descDe?: string;
-  grantsChoice?: FeatureChoiceGrant;
+  grantsChoice?: FeatureChoiceGrant[];
   grants?: FeatureGrant;
   grantsSpells?: SpellGrant;
   grantsCasting?: CastingGrant;
@@ -87,7 +87,7 @@ export function featToGainedFeature(
     descDe?: string;
     key?: string;
     grants?: FeatureGrant;
-    grantsChoice?: FeatureChoiceGrant;
+    grantsChoice?: FeatureChoiceGrant[];
     grantsSpells?: SpellGrant;
   },
   gainedAt: number,

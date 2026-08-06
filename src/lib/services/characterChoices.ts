@@ -16,20 +16,23 @@ import {
   declaredClassFeatures, declaredFeatFeatures, declaredSpeciesFeatures, type DeclaredSlotSource,
 } from './characterFeatures';
 import {
-  chosenOption, isDeclaredChoiceFeature, optionActivatesQuota, optionListChoice, optionListRider,
+  chosenOptionOf, declaredChoiceRefs, optionActivatesQuota, optionChoiceId, optionListChoice,
+  optionListRider,
 } from './declaration/optionList';
+import { splitChoiceAnswer, type DeclaredChoiceRef } from './declaration/source';
 import {
-  spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessParts,
-  type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
+  spellAccessFacts, spellAccessGrantOf, spellAccessOptions, spellAccessPartChoice, spellAccessPartId,
+  spellAccessParts, type SpellAccessFact, type SpellAccessGrant, type SpellAccessPart,
 } from './spellcasting/access';
-import { expertiseChoice, expertiseRider, isExpertiseFeature } from './declaration/expertise';
+import { expertiseChoice, expertiseChoiceId, expertiseRider } from './declaration/expertise';
+import { languageChoice, languageChoiceId, languageRider } from './declaration/languages';
 import {
-  characterPropertyAnswerChanges, characterPropertyChoice, isCharacterPropertyFeature,
+  characterPropertyChange, characterPropertyChoice, characterPropertyOptions, propertyChoiceId,
 } from './characterProperties';
 import { riderChanges } from './levelUp/changes';
 import { validateRiderSpells } from './levelUp/spells';
 
-/** Ein deklariertes Merkmal + EINE seiner Vergabe-Stufen. */
+/** EINE deklarierte Wahl + EINE Vergabe-Stufe des Merkmals, das sie stellt. */
 export interface ChoiceSlot {
   feature: DeclaredFeature;
   /** Nur Beschriftung (Badge-Titel), nie Zuordnung. */
@@ -38,6 +41,8 @@ export interface ChoiceSlot {
   gainedAt: number;
   /** Maßgebliche Stufe für `options[].spells` (siehe `DeclaredSlotSource.level`). */
   level: number;
+  /** Die `grantsChoice`-Wahl dieses Platzes; fehlt genau dann, wenn `access` steht. */
+  declared?: DeclaredChoiceRef<DeclaredFeature>;
   /**
    * Gesetzt = dieser Platz ist eine Wahl der ZAUBER-Deklaration (Liste oder Attribut), nicht
    * die `grantsChoice` des Merkmals. Ein Merkmal kann beides schulden: die Elfenabstammung
@@ -47,13 +52,67 @@ export interface ChoiceSlot {
 }
 
 /**
- * Ob dieser Platz den Wert beanspruchen darf. Liste, Attribut und Zweigwahl stehen unter
- * DEMSELBEN `sourceKey` und derselben Vergabe-Stufe — auseinander hält sie nur der Wert.
+ * Ob dieser Platz einen Wert OHNE gestellte Frage beanspruchen darf (Altbestand, PDF-Import,
+ * KI-Deutung). Liste, Attribut und Zweigwahl stehen unter DEMSELBEN `sourceKey` und derselben
+ * Vergabe-Stufe — auseinander hält sie dort nur der Wert.
  */
 export function slotClaims(slot: ChoiceSlot, value: string): boolean {
   if (!slot.access) return true;
   const { grant, part } = slot.access;
   return spellAccessOptions(grant, part).some((v) => v.toLowerCase() === value.trim().toLowerCase());
+}
+
+/**
+ * Welche Wahl-Art dieser Platz stellt. EINE Verzweigung für Frage-id und Frage — liefen sie
+ * auseinander, stempelte das Schreiben eine id, die das Lesen nie wiederfände.
+ */
+type SlotKind = 'access' | 'expertise' | 'languages' | 'property' | 'optionList';
+
+function slotKind(slot: ChoiceSlot): SlotKind | null {
+  if (slot.access) return 'access';
+  switch (slot.declared?.grant.kind) {
+    case 'expertise': return 'expertise';
+    case 'languages': return 'languages';
+    case 'characterProperty': return 'property';
+    case 'optionList': return 'optionList';
+    default: return null;
+  }
+}
+
+/**
+ * Ob der WERT diesen Platz NACHWEIST — die schärfere Fassung von `slotClaims`. Beantworten kann
+ * das nur ein geschlossenes Vokabular, und genau daran trennen sich zwei Wahlen desselben
+ * Merkmals: der Waldläufer bekommt Expertise (englisches `SKILL_NAMES`) UND zwei Sprachen
+ * (deutscher Freitext) unter demselben `sourceKey` und derselben Vergabe-Stufe.
+ */
+export function slotOwnsValue(slot: ChoiceSlot, value: string): boolean {
+  const values = splitChoiceAnswer(value).map((v) => v.toLowerCase());
+  const has = (options: readonly string[]) => options.some((o) => values.includes(o.toLowerCase()));
+  switch (slotKind(slot)) {
+    case 'access': return has(spellAccessOptions(slot.access!.grant, slot.access!.part));
+    case 'expertise': return has(SKILL_NAMES);
+    case 'property': return has(characterPropertyOptions(slot.declared!.grant));
+    case 'optionList': return has(slot.declared!.grant.options.map((o) => o.value));
+    // Sprachen: kein Vokabular, also nie über den Wert — sie greifen erst im Nachsichts-Lauf.
+    default: return false;
+  }
+}
+
+/**
+ * Die Kennung der Frage dieses Platzes — derselbe Wert, den `featureChoiceChanges` als
+ * `LevelUpQuestion.id` ins Ledger schreibt. Damit hängt eine Antwort an der FRAGE und nicht
+ * mehr an ihrer Position: zwei Wahlen desselben Merkmals auf derselben Vergabe-Stufe
+ * überschreiben einander nicht.
+ */
+export function choiceIdOf(slot: ChoiceSlot): string {
+  switch (slotKind(slot)) {
+    case 'access': return spellAccessPartId(slot.access!.grant, slot.access!.part);
+    case 'expertise': return expertiseChoiceId(slot.declared!);
+    case 'languages': return languageChoiceId(slot.declared!);
+    case 'property': return propertyChoiceId(slot.declared!);
+    case 'optionList': return optionChoiceId(slot.declared!);
+    default: return '';
+  }
 }
 
 /** Eine Festlegung am Merkmal, die kein Platz mehr abfragt (`spellAccessFacts`). */
@@ -82,14 +141,12 @@ export interface CharacterChoice {
   entry: number;
 }
 
-const splitAnswer = (choice: string): string[] => choice.split(',').map((v) => v.trim()).filter(Boolean);
-
 /** Leer = nicht speicherbar (siehe `buildCharacterChoices`). */
 const keyOf = (slot: ChoiceSlot): string => slot.feature.key?.trim() ?? '';
 
 /**
  * Async und getrennt von `buildCharacterChoices`: läge beides in einem Effekt, löste jede
- * Antwort eine neue Bibliotheksauflösung aus. `isDeclaredChoiceFeature` lässt nur die Arten
+ * Antwort eine neue Bibliotheksauflösung aus. `declaredChoiceRefs` lässt nur die Arten
  * durch, deren Antwort im Merkmals-Ledger landet (Waffenmeisterschaft hat eigenen Picker).
  */
 export async function collectChoiceSlots(c: {
@@ -121,8 +178,8 @@ export async function collectChoiceSlots(c: {
     // Wizard-Assembly und `featureChoiceChanges` schreiben.
     const gains = levels.length ? levels : [1];
     const base = { feature: s.feature, group: s.group, level: s.level };
-    if (isDeclaredChoiceFeature(s.feature))
-      for (const gainedAt of gains) out.push({ ...base, gainedAt });
+    for (const declared of declaredChoiceRefs(s.feature))
+      for (const gainedAt of gains) out.push({ ...base, gainedAt, declared });
 
     // Liste und Attribut fallen laut Regeltext beim ERHALT des Merkmals, also an seiner
     // ersten Vergabe-Stufe. Legt die Quelle die Liste fest („Weiser" ist immer Magier),
@@ -143,14 +200,22 @@ export async function collectChoiceSlots(c: {
 }
 
 /**
- * Ledger-Zuordnung in ZWEI Läufen, und die Reihenfolge ist der ganze Witz: erst alle exakten
- * `(sourceKey, gainedAt)`-Treffer — dieselbe Regel wie der Upsert in `applyChanges` —, dann
- * bekommen offene Plätze die übrigen Einträge ihres Keys. Der zweite Lauf ist der Altbestand:
- * dort fehlt `gainedAt` meist, und ohne ihn wäre eine vorhandene Antwort unsichtbar.
+ * Ledger-Zuordnung in drei Läufen mal zwei, und die Reihenfolge ist der ganze Witz. `id`
+ * zuerst: eine gestempelte Antwort nennt ihre Frage selbst, dieselbe Regel wie der Upsert in
+ * `applyChanges`. Dann `value` für den Altbestand, der keinen Stempel trägt — er trennt die
+ * Plätze eines Merkmals daran, wessen Vokabular den Wert bestätigt („Intelligence" gehört dem
+ * Zauberattribut der Elfenabstammung, nicht ihrer Zweigwahl). Zuletzt `loose`: was kein
+ * Vokabular kennt, darf trotzdem landen, sonst wäre eine vorhandene Antwort unsichtbar.
  *
- * Innerhalb eines Laufs kommen die WERT-geprüften Plätze zuerst dran (`slotClaims`): sonst
- * griffe die Zweigwahl der Elfenabstammung das „Intelligence" ihres Zauberattributs, das unter
- * demselben Key und derselben Stufe steht.
+ * Im Nachsichts-Lauf kommen die FREITEXT-Plätze zuerst dran: nur für sie ist er gemeint, und
+ * sonst nähme die Expertise-Wahl des Waldläufers das „Elbisch" seiner Sprachwahl.
+ *
+ * `exact` unterscheidet in jedem Lauf die eigene Vergabe-Stufe von einer fremden: Altbestand
+ * und PDF-Import führen kein `gainedAt`, und eine geänderte Deklaration verschiebt es.
+ *
+ * Ein Stempel macht den Eintrag für die beiden Altbestands-Läufe tabu — aber nur, solange es
+ * seine Frage noch GIBT. Ohne diese Einschränkung bliebe eine KI-gedeutete Antwort (`choice_…`)
+ * für immer lose, sobald das Merkmal später eine Deklaration bekommt.
  */
 export function buildCharacterChoices(
   slots: ChoiceSlot[],
@@ -163,21 +228,29 @@ export function buildCharacterChoices(
   // überschriebe eine Wahl ihren eigenen Talent-Link (gleicher `sourceKey`). Erst dieser
   // Guard erlaubt es, das VOLLSTÄNDIGE `features` zu übergeben.
   const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
-  const order = slots.map((_, si) => si).sort((a, b) => Number(!slots[a].access) - Number(!slots[b].access));
-  for (const exact of [true, false])
-    for (const si of order) {
-      if (entryOf[si] >= 0) continue;
-      const slot = slots[si];
-      const key = keyOf(slot);
-      const i = ctx.ledger.findIndex(
-        (e, j) =>
-          !used.has(j) && answered(e) && !!key && e.sourceKey === key &&
-          (!exact || e.gainedAt === slot.gainedAt) && slotClaims(slot, e.choice),
-      );
-      if (i >= 0) claim(si, i);
-    }
+  const asked = new Set(slots.map(choiceIdOf));
+  const index = slots.map((_, si) => si);
+  const freeText = (si: number) => slotKind(slots[si]) === 'languages';
+  const looseOrder = [...index].sort((a, b) => Number(!freeText(a)) - Number(!freeText(b)));
+  for (const mode of ['id', 'value', 'loose'] as const)
+    for (const exact of [true, false])
+      for (const si of mode === 'loose' ? looseOrder : index) {
+        if (entryOf[si] >= 0) continue;
+        const slot = slots[si];
+        const key = keyOf(slot);
+        if (!key) continue;
+        const id = choiceIdOf(slot);
+        const i = ctx.ledger.findIndex((e, j) => {
+          if (used.has(j) || !answered(e) || e.sourceKey !== key) return false;
+          if (exact && e.gainedAt !== slot.gainedAt) return false;
+          if (mode === 'id') return !!e.choiceId && e.choiceId === id;
+          if (e.choiceId && asked.has(e.choiceId)) return false;
+          return mode === 'value' ? slotOwnsValue(slot, e.choice) : slotClaims(slot, e.choice);
+        });
+        if (i >= 0) claim(si, i);
+      }
 
-  const answers = slots.map((_, si) => splitAnswer(entryOf[si] >= 0 ? ctx.ledger[entryOf[si]].choice : ''));
+  const answers = slots.map((_, si) => splitChoiceAnswer(entryOf[si] >= 0 ? ctx.ledger[entryOf[si]].choice : ''));
 
   const out: CharacterChoice[] = [];
   for (const [si, slot] of slots.entries()) {
@@ -191,13 +264,18 @@ export function buildCharacterChoices(
     // Fertigkeiten des Bogens: die sind bei genau diesen Charakteren die nie protokollierte
     // Antwort auf DIESE Wahl, ein Filter danach nähme dem Schurken seine zwei Fertigkeiten.
     const already = answers
-      .filter((_, j) => j !== si && !slots[j].access && isExpertiseFeature(slots[j].feature))
+      .filter((_, j) => j !== si && slots[j].declared?.grant.kind === 'expertise')
       .flat();
-    const choice = slot.access
-      ? spellAccessPartChoice(slot.access.grant, slot.access.part)
-      : isExpertiseFeature(slot.feature)
-        ? expertiseChoice(slot.feature, ctx.proficient, already)
-        : characterPropertyChoice(slot.feature) ?? optionListChoice(slot.feature);
+    const choice = ((): AnalysisChoice | null => {
+      switch (slotKind(slot)) {
+        case 'access': return spellAccessPartChoice(slot.access!.grant, slot.access!.part);
+        case 'expertise': return expertiseChoice(slot.declared!, ctx.proficient, already);
+        case 'languages': return languageChoice(slot.declared!);
+        case 'property': return characterPropertyChoice(slot.declared!);
+        case 'optionList': return optionListChoice(slot.declared!);
+        default: return null;
+      }
+    })();
     if (!choice) continue;
 
     const stored = entryOf[si] >= 0 ? ctx.ledger[entryOf[si]] : undefined;
@@ -229,25 +307,35 @@ export interface ChoiceGrants {
  * Ziel (`ability`) kann hier nicht entstehen — `featureGrantSchema` hat kein Attributsfeld.
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
-  const f = ch.slot.feature;
+  const ref = ch.slot.declared;
   // Liste und Attribut wirken über die AUFLÖSUNG — `spellcasting/resolve.ts` liest die Antwort
   // aus dem Ledger und verengt die Quelle damit. Es gibt nichts anzuwenden.
-  if (ch.slot.access) return { changes: [], flagged: [], rider: null, matched: true };
+  if (!ref) return { changes: [], flagged: [], rider: null, matched: true };
   // Eine Grundeigenschaft hat keinen Rider — sie ist ein Bogenwert, kein Merkmalseffekt.
-  if (isCharacterPropertyFeature(f)) {
-    const changes = characterPropertyAnswerChanges([f], () => ch.answer[0] ?? '', {
+  if (ref.grant.kind === 'characterProperty') {
+    const change = characterPropertyChange(ref, ch.answer[0] ?? '', {
       step: 'feature-effects',
       source: keyOf(ch.slot),
     });
-    return { changes, flagged: [], rider: null, matched: changes.length > 0 };
+    return { changes: change ? [change] : [], flagged: [], rider: null, matched: !!change };
   }
-  const expertise = isExpertiseFeature(f);
-  const rider = expertise
-    ? expertiseRider(f, ch.answer)
-    : optionListRider(f, ch.answer[0] ?? '', ch.slot.level);
-  const matched = expertise
-    ? ch.answer.some((s) => (SKILL_NAMES as readonly string[]).includes(s))
-    : chosenOption(f, ch.answer[0] ?? '') !== null;
+  const { rider, matched } = ((): { rider: FeatureRider | null; matched: boolean } => {
+    switch (ref.grant.kind) {
+      case 'expertise':
+        return {
+          rider: expertiseRider(ref, ch.answer),
+          matched: ch.answer.some((s) => (SKILL_NAMES as readonly string[]).includes(s)),
+        };
+      // Freitext: es gibt kein Vokabular, an dem eine Antwort vorbeigehen könnte.
+      case 'languages':
+        return { rider: languageRider(ref, ch.answer), matched: ch.answer.length > 0 };
+      default:
+        return {
+          rider: optionListRider(ref, ch.answer[0] ?? '', ch.slot.level),
+          matched: chosenOptionOf(ref, ch.answer[0] ?? '') !== null,
+        };
+    }
+  })();
   if (!rider) return { changes: [], flagged: [], rider: null, matched };
   const v = validateRiderSpells([rider], library);
   return { changes: riderChanges(v, 'feature-effects'), flagged: v.flagged, rider, matched };
@@ -285,13 +373,14 @@ export function withChoiceAnswer(
     if (ch.entry >= 0) next.splice(ch.entry, 1);
     return next;
   }
-  // Genau die Form, die `applyChanges` upsertet — inklusive `gainedAt`, das ein
+  // Genau die Form, die `applyChanges` upsertet — inklusive `gainedAt` und `choiceId`, die ein
   // Altbestands-Eintrag damit nachträglich bekommt.
   const entry: CharacterFeatureEntry = {
     sourceKey: keyOf(ch.slot),
     name: '',
     choice: values.join(', '),
     choiceDe: choiceLabelsDe(ch.choice, values.join(', ')),
+    choiceId: ch.choice.id,
     gainedAt: ch.slot.gainedAt,
     desc: '',
   };

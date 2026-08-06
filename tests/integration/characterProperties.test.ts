@@ -23,6 +23,7 @@ import {
   characterPropertyChanges,
   characterPropertyChoice,
   characterPropertyChoices,
+  characterPropertyRefs,
   characterPropertyOptions,
   characterPropertyPickers,
   isCharacterPropertyFeature,
@@ -55,7 +56,7 @@ describe('der Bestand deklariert seine Grundeigenschaften', () => {
 
       if (key in CHOOSING) {
         expect(size.grants?.properties.size, `${key}: Wahl statt Festwert`).toBeUndefined();
-        expect(characterPropertyOptions(size.grantsChoice!), key).toEqual(CHOOSING[key]);
+        expect(characterPropertyRefs(size).map((r) => characterPropertyOptions(r.grant)), key).toEqual([CHOOSING[key]]);
       } else {
         expect(size.grants?.properties.size, `${key}: feste Größe deklariert`).toBeDefined();
         expect(size.grantsChoice, `${key}: kein Wahl-Merkmal`).toBeUndefined();
@@ -80,13 +81,14 @@ describe('die Wahl einer Grundeigenschaft', () => {
   it('baut Optionen und Labels aus dem Vokabular, nicht aus der Deklaration', async () => {
     const fairy = await getSpeciesByKey('phb-2024_fairy');
     const trait = tagged('species', [sizeTraitOf(fairy!.traits)!])[0];
-    const choice = characterPropertyChoice(trait)!;
+    const ref = characterPropertyRefs(trait)[0];
+    const choice = characterPropertyChoice(ref)!;
 
     expect(isCharacterPropertyFeature(trait)).toBe(true);
     expect(choice.options).toEqual(['Small', 'Medium']);
     expect(choice.optionsDe).toEqual(['Klein', 'Mittelgroß']);
     expect(choice.questionDe).toBe('Größenkategorie');
-    expect(choice.id).toBe(propertyChoiceId(trait));
+    expect(choice.id).toBe(propertyChoiceId(ref));
     expect(choice.featureKey).toBe('phb-2024_fairy_size');
     // Eine Deklaration kann nichts „erst danach" bestimmen, und die Antwort gehört ins
     // Ledger — sonst wäre sie im Charakter-Editor später nicht auffindbar.
@@ -126,8 +128,8 @@ describe('die Wahl einer Grundeigenschaft', () => {
   });
 
   it('stellt keine Frage, wo nichts zu wählen ist', () => {
-    const one = { key: 'homebrew_x', name: 'Size', grantsChoice: { kind: 'characterProperty' as const, property: 'size' as const, propertyValues: ['Medium'], options: [], count: 1, spellLists: [], spellAbilities: [], spellPicks: [] } };
-    expect(characterPropertyChoice(one)).toBeNull();
+    const one = { key: 'homebrew_x', name: 'Size', grantsChoice: [{ kind: 'characterProperty' as const, property: 'size' as const, propertyValues: ['Medium'], options: [], count: 1, spellLists: [], spellAbilities: [], spellPicks: [] }] };
+    expect(characterPropertyChoice(characterPropertyRefs(one)[0])).toBeNull();
     // Eine Zahl hat kein Wahl-Vokabular: die Bewegungsrate wird deklariert, nie gefragt.
     expect(characterPropertyPickers().map((p) => p.property)).toEqual(['size']);
   });

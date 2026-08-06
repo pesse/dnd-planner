@@ -13,8 +13,12 @@ import { describe, expect, it } from 'vitest';
 import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
 import { vaultCharacter } from '../support/vaultCharacter';
 import {
-  buildCharacterChoices, collectChoiceSlots, type CharacterChoice, type ChoiceFact,
+  buildCharacterChoices, choiceGrantChanges, choiceIdOf, collectChoiceSlots, withChoiceAnswer,
+  type CharacterChoice, type ChoiceFact, type ChoiceSlot,
 } from '../../src/lib/services/characterChoices';
+import { classFeatureSchema } from '../../src/lib/schemas/classProgression';
+import { declaredChoiceRefs, optionChoiceId } from '../../src/lib/services/declaration/optionList';
+import { declaredFeatures } from '../../src/lib/services/declaredFeature';
 
 const MAGIC_INITIATE_KEY = 'srd-2024_magic-initiate';
 const ELF_LINEAGE_KEY = 'srd-2024_elf_elven-lineage';
@@ -39,12 +43,18 @@ const shape = (list: CharacterChoice[]) =>
     optionen: ch.choice.options.length,
   }));
 
+/** Altbestand: ohne Stempel, zugeordnet über Wert und Vergabe-Stufe. */
 const answer = (sourceKey: string, choice: string, gainedAt: number): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice, choiceDe: '', desc: '', gainedAt,
+  sourceKey, name: '', choice, choiceDe: '', choiceId: '', desc: '', gainedAt,
+});
+
+/** Was jeder heutige Schreibweg hinterlässt: die Antwort nennt ihre Frage. */
+const stamped = (sourceKey: string, choiceId: string, choice: string, gainedAt?: number): CharacterFeatureEntry => ({
+  sourceKey, name: '', choice, choiceDe: '', choiceId, desc: '', ...(gainedAt === undefined ? {} : { gainedAt }),
 });
 
 const link = (sourceKey: string, gainedAt: number): CharacterFeatureEntry => ({
-  sourceKey, name: '', choice: '', choiceDe: '', desc: '', gainedAt,
+  sourceKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '', gainedAt,
 });
 
 describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
@@ -105,6 +115,200 @@ describe('Zwei Wahlen an EINEM Merkmal', () => {
     expect(rows).toEqual([
       { key: ELF_LINEAGE_KEY, part: '', frage: 'Elfenabstammung: Wähle eine Option', antwort: 'High Elf', optionen: 3 },
       { key: ELF_LINEAGE_KEY, part: 'ability', frage: 'Zauberattribut', antwort: 'Intelligence', optionen: 3 },
+    ]);
+  });
+});
+
+/**
+ * Der Anker: eine Antwort hängt an ihrer FRAGE (`choiceId`), nicht an ihrer Position im
+ * Ledger. Erst damit trennt der Anker zwei Wahlen desselben Merkmals auf derselben
+ * Vergabe-Stufe — Vorbedingung dafür, dass ein Merkmal mehr als eine Wahl deklarieren darf.
+ */
+describe('Der Anker einer Antwort', () => {
+  /**
+   * Frage-id und Zuordnungs-id kommen aus derselben Verzweigung (`slotKind`). Liefen sie
+   * auseinander, stempelte der Fragebogen eine id, die die Merkmalsleiste nie wiederfände —
+   * die Antwort wäre gespeichert und trotzdem unsichtbar.
+   */
+  it('stempelt jede Antwort mit genau der id, die ihre Frage trägt', async () => {
+    const c = {
+      // Alle vier Wahl-Arten in einem Charakter: Expertise (Schurke), Zweigwahl (Druide),
+      // Grundeigenschaft und Zauberattribut (Fee), Zauberliste (Herkunftstalent).
+      classes: [
+        { sourceKey: 'srd-2024_rogue', name: '', level: 6 },
+        { sourceKey: 'srd-2024_druid', name: '', level: 1 },
+      ],
+      species: { sourceKey: 'phb-2024_fairy', name: '' },
+      features: [link(MAGIC_INITIATE_KEY, 4)],
+    };
+    const list = await choicesOf(c);
+
+    expect(list.length).toBeGreaterThan(4);
+    expect(list.map((ch) => choiceIdOf(ch.slot))).toEqual(list.map((ch) => ch.choice.id));
+  });
+
+  const twiceTaken = {
+    classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 8 }],
+    features: [link(MAGIC_INITIATE_KEY, 1), link(MAGIC_INITIATE_KEY, 4)],
+  };
+
+  const listSlotsOf = async (): Promise<{ slots: ChoiceSlot[]; lists: ChoiceSlot[] }> => {
+    const { slots } = await collectChoiceSlots(twiceTaken);
+    return { slots, lists: slots.filter((s) => s.access?.part === 'list') };
+  };
+
+  /**
+   * Die beiden Instanzen tragen dieselben zulässigen Werte, also kann der Wert sie nicht
+   * trennen; ohne `gainedAt` bliebe nur die Reihenfolge im Ledger, und die erste Instanz
+   * bekäme die Antwort der zweiten.
+   */
+  it('ordnet gestempelte Antworten über die Frage zu, nicht über die Position', async () => {
+    const { slots, lists } = await listSlotsOf();
+    const rows = buildCharacterChoices(slots, {
+      proficient: [],
+      ledger: [
+        ...twiceTaken.features,
+        stamped(MAGIC_INITIATE_KEY, choiceIdOf(lists[1]), 'cleric'),
+        stamped(MAGIC_INITIATE_KEY, choiceIdOf(lists[0]), 'wizard'),
+      ],
+    });
+
+    expect(rows.filter((ch) => ch.slot.access?.part === 'list').map((ch) => ch.answer.join(', ')))
+      .toEqual(['wizard', 'cleric']);
+  });
+
+  /**
+   * Bölgörs Volksmerkmal zeigt die andere Hälfte: eine von der KI gedeutete Antwort steht
+   * ungestempelt am selben Key. Sie darf den Platz nicht besetzen, nur weil sie im Ledger
+   * vorn steht.
+   */
+  const elf = {
+    classes: [{ sourceKey: 'srd-2024_fighter', name: '', level: 5 }],
+    species: { sourceKey: 'srd-2024_elf', name: '' },
+  };
+
+  const branchSlot = async (): Promise<{ slots: ChoiceSlot[]; branch: ChoiceSlot }> => {
+    const { slots } = await collectChoiceSlots(elf);
+    return { slots, branch: slots.find((s) => !s.access && s.feature.key === ELF_LINEAGE_KEY)! };
+  };
+
+  it('zieht die gestempelte Antwort der losen desselben Merkmals vor', async () => {
+    const { slots, branch } = await branchSlot();
+    const ledger = [
+      answer(ELF_LINEAGE_KEY, 'Blue', 1),
+      stamped(ELF_LINEAGE_KEY, choiceIdOf(branch), 'High Elf', 1),
+    ];
+
+    const rows = buildCharacterChoices(slots, { proficient: [], ledger });
+    const chosen = rows.find((ch) => ch.slot === branch)!;
+
+    expect(chosen.answer).toEqual(['High Elf']);
+    // Die lose Antwort bleibt unbeansprucht — die Merkmalsleiste führt sie als solche.
+    expect(rows.some((ch) => ch.answer.includes('Blue'))).toBe(false);
+  });
+
+  /**
+   * Eine KI-gedeutete Antwort trägt die id ihrer Prompt-Frage (`choice_…`), nie die eines
+   * Platzes. Bekommt das Merkmal später eine Deklaration, muss der neue Platz sie trotzdem
+   * finden — ein Stempel schützt nur, solange seine Frage gestellt wird.
+   */
+  it('adoptiert eine Antwort, deren Stempel zu keiner gestellten Frage gehört', async () => {
+    const { slots, branch } = await branchSlot();
+    const ledger = [stamped(ELF_LINEAGE_KEY, 'choice_elven-lineage_1', 'High Elf', 1)];
+
+    const rows = buildCharacterChoices(slots, { proficient: [], ledger });
+
+    expect(rows.find((ch) => ch.slot === branch)!.answer).toEqual(['High Elf']);
+  });
+});
+
+/**
+ * Ein Merkmal darf MEHRERE Wahlen deklarieren (Waldläufer „Deft Explorer": Expertise plus
+ * eine zweite Wahl). Sie stehen unter demselben `sourceKey` und derselben Vergabe-Stufe —
+ * getrennt hält sie nur die Frage-id, hier über den ganzen Weg Platz → Ledger → Platz.
+ */
+describe('Ein Merkmal, mehrere Wahlen', () => {
+  const DEFT = classFeatureSchema.parse({
+    key: 'test_deft-explorer',
+    name: 'Deft Explorer',
+    nameDe: 'Gewandter Kundschafter',
+    desc: 'Choose one.',
+    grantsChoice: [
+      { kind: 'expertise', count: 1 },
+      { kind: 'optionList', options: [{ value: 'Forest', labelDe: 'Wald' }, { value: 'Desert', labelDe: 'Wüste' }] },
+    ],
+  });
+
+  const deftSlots = (): ChoiceSlot[] => {
+    const feature = declaredFeatures('class', [DEFT])[0];
+    return declaredChoiceRefs(feature).map((declared) => ({
+      feature, group: 'Waldläufer', gainedAt: 1, level: 1, declared,
+    }));
+  };
+
+  it('speichert beide Antworten nebeneinander und liest jede wieder an ihrem Platz', () => {
+    const slots = deftSlots();
+    let ledger: CharacterFeatureEntry[] = [];
+    const rows = () => buildCharacterChoices(slots, { proficient: ['Stealth', 'Perception'], ledger });
+
+    ledger = withChoiceAnswer(ledger, rows()[0], ['Stealth']);
+    ledger = withChoiceAnswer(ledger, rows()[1], ['Forest']);
+
+    // Ohne die Frage im Upsert-Schlüssel hätte die zweite Antwort die erste ersetzt.
+    expect(ledger.map((e) => [e.choiceId, e.choice])).toEqual([
+      ['expertise_test-deft-explorer', 'Stealth'],
+      ['optionlist_test-deft-explorer', 'Forest'],
+    ]);
+    expect(rows().map((ch) => ch.answer.join(', '))).toEqual(['Stealth', 'Forest']);
+  });
+
+  /**
+   * Der Altbestand trägt keinen Stempel: dort trennt nur der WERT die beiden Plätze. Der
+   * Diskriminator ist die Art des Vokabulars — Fertigkeiten sind das geschlossene englische
+   * `SKILL_NAMES`, Sprachen deutscher Freitext. Ohne ihn griffe der Expertise-Platz den
+   * erstbesten Eintrag des Merkmals, hier also „Elbisch, Zwergisch".
+   */
+  it('trennt ungestempelte Antworten am Vokabular, nicht an der Reihenfolge', () => {
+    const feature = declaredFeatures('class', [classFeatureSchema.parse({
+      ...DEFT,
+      grantsChoice: [{ kind: 'expertise', count: 1 }, { kind: 'languages', count: 2 }],
+    })])[0];
+    const slots: ChoiceSlot[] = declaredChoiceRefs(feature).map((declared) => ({
+      feature, group: 'Waldläufer', gainedAt: 2, level: 2, declared,
+    }));
+    const ledger = [
+      answer('test_deft-explorer', 'Elbisch, Zwergisch', 2),
+      answer('test_deft-explorer', 'Stealth', 2),
+    ];
+
+    const rows = buildCharacterChoices(slots, { proficient: ['Stealth', 'Perception'], ledger });
+    expect(rows.map((ch) => [choiceIdOf(ch.slot), ch.answer.join(', ')])).toEqual([
+      ['expertise_test-deft-explorer', 'Stealth'],
+      ['languages_test-deft-explorer', 'Elbisch, Zwergisch'],
+    ]);
+    // Und die Sprachen kommen als Änderung am Charakter an, nicht nur als Protokollzeile.
+    const languages = rows.find((ch) => ch.slot.declared?.grant.kind === 'languages')!;
+    expect(choiceGrantChanges(languages, []).changes.filter((c) => c.target === 'language').map((c) => c.value))
+      .toEqual(['Elbisch', 'Zwergisch']);
+  });
+
+  /**
+   * Zwei Wahlen DERSELBEN Art trennt nur die laufende Nummer — und die erste bleibt
+   * suffixlos, sonst verlöre jede heute gespeicherte Antwort ihren Anker.
+   */
+  it('nummeriert erst ab der zweiten Wahl derselben Art', () => {
+    const twoBranches = classFeatureSchema.parse({
+      ...DEFT,
+      grantsChoice: [
+        { kind: 'optionList', options: [{ value: 'Forest' }] },
+        { kind: 'optionList', options: [{ value: 'Elvish' }] },
+      ],
+    });
+    const feature = declaredFeatures('class', [twoBranches])[0];
+
+    expect(declaredChoiceRefs(feature).map(optionChoiceId)).toEqual([
+      'optionlist_test-deft-explorer',
+      'optionlist_test-deft-explorer_2',
     ]);
   });
 });

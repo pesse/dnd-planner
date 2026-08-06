@@ -4,7 +4,9 @@
  * echtes Talent, also ein LINK in `character.features[]`, kein Name in einem String-Array.
  */
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
+import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import type { FeatCategory } from '$lib/schemas/vocabulary';
+import { choiceGrants } from './declaration/source';
 import { featuresUpTo, getProgressionByKey } from './classProgression';
 import { getFeats, featDisplayName, featDesc, featPrereq } from '$lib/featsLibrary';
 
@@ -12,8 +14,11 @@ const FIGHTING_STYLE_CATEGORY: FeatCategory = 'Fighting Style';
 
 /** Rein deklarativ, damit Homebrew mit derselben Deklaration genauso behandelt wird. */
 export function isFightingStyleFeature(f: ClassFeature): boolean {
-  return f.grantsChoice?.kind === 'featCategory' && f.grantsChoice.featCategory === FIGHTING_STYLE_CATEGORY;
+  return fightingStyleGrants(f).length > 0;
 }
+
+const fightingStyleGrants = (f: ClassFeature): FeatureChoiceGrant[] =>
+  choiceGrants(f).filter((g) => g.kind === 'featCategory' && g.featCategory === FIGHTING_STYLE_CATEGORY);
 
 export interface FightingStyleOption {
   /** Landet als `sourceKey` im Merkmals-Ledger des Charakters. */
@@ -38,8 +43,8 @@ const emptyOffer = (): FightingStyleOffer => ({ allowance: 0, className: '', opt
 
 function styleCountUpTo(prog: ClassProgression, level: number): number {
   return featuresUpTo(prog, level)
-    .filter(isFightingStyleFeature)
-    .reduce((sum, f) => sum + (f.grantsChoice?.count ?? 1), 0);
+    .flatMap(fightingStyleGrants)
+    .reduce((sum, g) => sum + g.count, 0);
 }
 
 /**

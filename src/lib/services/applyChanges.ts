@@ -98,7 +98,7 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   },
 
   feat: (c, next) => {
-    next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', choiceDe: '', gainedAt: c.gainedAt, desc: '' }];
+    next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', choiceDe: '', choiceId: '', gainedAt: c.gainedAt, desc: '' }];
   },
 
   // Der Change trägt den ENGLISCHEN SRD-Namen, der Bogen ist deutsch geschlüsselt — hier
@@ -152,12 +152,26 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
       : [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
   },
 
-  // Upsert über (Merkmal, Stufe): dieselbe Stufe erneut zu durchlaufen ersetzt den Eintrag,
-  // eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) legt einen an.
+  /**
+   * Upsert über (Merkmal, Stufe, FRAGE): dieselbe Stufe erneut zu durchlaufen ersetzt den
+   * Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) und eine zweite Frage
+   * derselben Vergabe (Zauberliste neben Attribut) legen je einen eigenen an. Ohne `choiceId`
+   * im Schlüssel überschrieben sich die beiden letzten Fälle — und der Talent-Link desselben
+   * Merkmals gleich mit, denn er steht unter Key und Stufe seiner Wahl.
+   */
   featureChoice: (c, next) => {
     if (!c.sourceKey) return;
-    const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt);
-    const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, choiceDe: c.choiceDe, gainedAt: c.gainedAt, desc: '' };
+    const here = (e: { sourceKey: string; choice: string; gainedAt?: number }) =>
+      e.sourceKey === c.sourceKey && e.gainedAt === c.gainedAt && !!e.choice.trim();
+    let i = c.choiceId ? next.features.findIndex((e) => here(e) && e.choiceId === c.choiceId) : -1;
+    if (i < 0) {
+      // Ungestempelten Altbestand übernimmt der Stempel — aber nur, wenn er EINDEUTIG ist:
+      // bei mehreren Antworten derselben Vergabe ist nicht entscheidbar, welche gemeint war,
+      // und ein Fehlgriff überschriebe die andere Wahl.
+      const legacy = next.features.flatMap((e, j) => (here(e) && !e.choiceId ? [j] : []));
+      i = legacy.length === 1 ? legacy[0] : -1;
+    }
+    const entry = { sourceKey: c.sourceKey, name: '', choice: c.choice, choiceDe: c.choiceDe, choiceId: c.choiceId, gainedAt: c.gainedAt, desc: '' };
     if (i >= 0) next.features[i] = entry;
     else next.features = [...next.features, entry];
   },

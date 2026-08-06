@@ -19,7 +19,7 @@ import {
   sizeOptionsOf,
   sizeTraitOf,
 } from '../../src/lib/services/speciesSize';
-import { characterPropertyChoice, propertyChoiceId } from '../../src/lib/services/characterProperties';
+import { characterPropertyChoice, characterPropertyRefs, propertyChoiceId } from '../../src/lib/services/characterProperties';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 import { buildFeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 import { buildWizardCharacter } from '../../src/lib/services/wizard/assembleCharacter';
@@ -138,7 +138,7 @@ describe('Größenkategorie der Spezies', () => {
     for (const key of CHOOSING) {
       const spec = await getSpeciesByKey(key);
       const trait = sizeTraitOf(spec!.traits)!;
-      expect(trait.grantsChoice?.kind, key).toBe('characterProperty');
+      expect(trait.grantsChoice?.map((g) => g.kind), key).toEqual(['characterProperty']);
       expect(sizeChoiceOf(spec), key).toBeNull();
       // Die drei tragen weiterhin KEINEN Bogenwert-Diskriminator: die Wahl nimmt sie über
       // `withoutDeclaredChoiceFeatures` aus dem KI-Eingang, nicht `sheetValue`.
@@ -176,7 +176,7 @@ describe('Größenkategorie der Spezies', () => {
    */
   it('verdrängt eine KI-Wahl zum selben Merkmal', async () => {
     const spec = await getSpeciesByKey('srd-2024_human');
-    const declared = characterPropertyChoice(sizeTraitOf(spec!.traits)!)!;
+    const declared = characterPropertyChoice(characterPropertyRefs(sizeTraitOf(spec!.traits)!)[0])!;
     const fromAi = [
       { ...declared, id: 'choice_size_1', isBuildDecision: true },
       { ...declared, id: 'choice_skillful_1', featureKey: 'srd-2024_human_skillful' },
@@ -201,7 +201,7 @@ describe('Größenkategorie der Spezies', () => {
       wizardStub({
         species: humanSpecies,
         declared,
-        declaredAnswers: [{ id: propertyChoiceId(declared[0]), choice: 'Small' }],
+        declaredAnswers: [{ id: propertyChoiceId(characterPropertyRefs(declared[0])[0]), choice: 'Small' }],
       }),
     );
     expect(answered.personal.sizeCat).toBe('Klein');

@@ -6,7 +6,7 @@ import { createLibrary } from './services/library/createLibrary';
 import { normName } from './utils/text';
 import { FEAT_CATEGORIES, type FeatCategory } from './schemas/vocabulary';
 import { castingGrantSchema, type CastingGrant } from './schemas/casting';
-import { featureChoiceGrantSchema, type FeatureChoiceGrant } from './schemas/featureChoice';
+import { featureChoiceGrantsSchema, type FeatureChoiceGrant } from './schemas/featureChoice';
 import { featureGrantSchema, spellGrantSchema, type FeatureGrant, type SpellGrant } from './schemas/grants';
 import { migrateFeatLegacy } from './schemas/feat';
 
@@ -31,7 +31,7 @@ export interface FeatEntry {
   category?: FeatCategory;
   sourceKey?: string;
   /** Nur Bibliotheks-Talente können sie tragen. */
-  grantsChoice?: FeatureChoiceGrant;
+  grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
   grants?: FeatureGrant;
   grantsCasting?: CastingGrant;
@@ -70,7 +70,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
         : undefined,
       // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
       sourceKey: data.sourceKey ?? data.key,
-      grantsChoice: featureChoiceGrantSchema.safeParse(data.grantsChoice).data,
+      grantsChoice: featureChoiceGrantsSchema.safeParse(data.grantsChoice).data,
       grantsSpells: spellGrantSchema.safeParse(data.grantsSpells).data,
       grants: featureGrantSchema.safeParse(data.grants).data,
       grantsCasting: castingGrantSchema.safeParse(data.grantsCasting).data,

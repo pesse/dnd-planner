@@ -6,36 +6,44 @@
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureRider } from '../../schemas/levelUp';
 import { declaredChoice } from '../declaredChoice';
-import { type ChoiceOption, type FeatureChoiceGrant } from '../../schemas/featureChoice';
+import { type ChoiceOption } from '../../schemas/featureChoice';
 import type { FeatureGrant } from '../../schemas/grants';
-import { isCharacterPropertyFeature } from '../characterProperties';
-import type { FeatureSource } from '../declaredFeature';
-import { featureIdOf } from '$lib/utils/text';
+import { isCharacterPropertyRef } from '../characterProperties';
 import { emptyRider } from './rider';
-import type { Declared, DeclaredChoiceSource } from './source';
-export type { DeclaredChoiceSource };
+import {
+  choiceGrants, choiceIdSuffix, declaredChoicesOf, declaredChoicesOfKind, featureIdPart,
+  type DeclaredChoiceRef, type DeclaredChoiceSource,
+} from './source';
+export type { DeclaredChoiceRef, DeclaredChoiceSource };
 import { isEmptyFeatureGrant, withGrant } from './grants';
-import { isExpertiseFeature } from './expertise';
+import { isExpertiseRef } from './expertise';
+import { isLanguagesRef } from './languages';
 
 
-export function isOptionListFeature(f: DeclaredChoiceSource): f is Declared {
-  return f.grantsChoice?.kind === 'optionList' && f.grantsChoice.options.length > 0;
-}
+/** Ohne Optionen gibt es nichts zu fragen — die Deklaration ist dann unvollständig. */
+export const isOptionListRef = (r: DeclaredChoiceRef): boolean =>
+  r.grant.kind === 'optionList' && r.grant.options.length > 0;
+
+export const optionListRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
+  declaredChoicesOfKind(f, 'optionList').filter(isOptionListRef);
+
+export const isOptionListFeature = (f: DeclaredChoiceSource): boolean => optionListRefs(f).length > 0;
 
 /** Die id der Wahl. Trägt den Merkmals-Key, damit zwei Zweigwahlen nie kollidieren. */
-export const optionChoiceId = (f: DeclaredChoiceSource): string =>
-  `optionlist_${(f.key || f.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+export const optionChoiceId = (r: DeclaredChoiceRef): string =>
+  `optionlist_${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
 
 /**
  * Deutsch kommt aus der Deklaration (`labelDe` = Zitat aus `descDe`), nie aus einem
  * Übersetzungs-Call; fehlt es, zeigt die Oberfläche den englischen Wert.
  */
-export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null {
-  if (!isOptionListFeature(f)) return null;
-  const options = f.grantsChoice.options;
+export function optionListChoice(r: DeclaredChoiceRef): AnalysisChoice | null {
+  if (!isOptionListRef(r)) return null;
+  const { feature: f, grant } = r;
+  const options = grant.options;
   const nameDe = f.nameDe || f.name;
   return {
-    ...declaredChoice({ id: optionChoiceId(f), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
+    ...declaredChoice({ id: optionChoiceId(r), feature: f.name, featureDe: nameDe, featureKey: f.key ?? '' }),
     question: `${f.name}: choose one`,
     questionDe: `${nameDe}: Wähle eine Option`,
     options: options.map((o) => o.value),
@@ -46,19 +54,26 @@ export function optionListChoice(f: DeclaredChoiceSource): AnalysisChoice | null
 }
 
 export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisChoice[] {
-  return features.map(optionListChoice).filter((c): c is AnalysisChoice => c !== null);
+  return features.flatMap((f) => optionListRefs(f).map(optionListChoice)).filter((c): c is AnalysisChoice => c !== null);
 }
 
 /**
  * Ob das Merkmal überhaupt eine Wahl DEKLARIERT — herkunftsfrei, denn jeder `kind` ist per
- * Definition flow-eigen: die Optionen kommen aus der Bibliothek, nie aus dem Modell.
+ * Definition flow-eigen: die Optionen kommen aus der Bibliothek, nie aus dem Modell. Nach
+ * INHALT, nicht nach Anwesenheit: die leere Liste heißt „geprüft, gewährt keine Wahl", und
+ * dann bleibt die Prosa des Merkmals Sache der KI-Kette.
  */
-export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => !!f.grantsChoice;
+export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => choiceGrants(f).length > 0;
 
-/** Ob der Flow die Wahl dieses Merkmals selbst führt — `optionList`, `expertise` oder Eigenschaft. */
-export function isDeclaredChoiceFeature(f: DeclaredChoiceSource): boolean {
-  return isOptionListFeature(f) || isExpertiseFeature(f) || isCharacterPropertyFeature(f);
-}
+/** Ob der Flow diese Wahl selbst führt — Zweigwahl, Expertise, Sprache oder Grundeigenschaft. */
+export const isDeclaredChoiceRef = (r: DeclaredChoiceRef): boolean =>
+  isOptionListRef(r) || isExpertiseRef(r) || isLanguagesRef(r) || isCharacterPropertyRef(r);
+
+/** Die selbstgeführten Wahlen eines Merkmals, in Deklarationsreihenfolge. */
+export const declaredChoiceRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
+  declaredChoicesOf(f).filter(isDeclaredChoiceRef);
+
+export const isDeclaredChoiceFeature = (f: DeclaredChoiceSource): boolean => declaredChoiceRefs(f).length > 0;
 
 /**
  * Der KI-Eingang, EINE Regel für Wizard und Aufstieg — ein zweiter Filter liefe auseinander
@@ -78,27 +93,46 @@ export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(fe
  * deutet. `{}` = geprüft, gewährt nichts — sonst zöge jede reine Zweigwahl den KI-Call
  * zurück, den die Deklaration gerade eingespart hat. Nur `optionList`: bei `expertise` IST
  * die Wahl der ganze Inhalt.
+ *
+ * Höchstens EIN Eintrag je Merkmal, auch bei mehreren Zweigwahlen: `GainedFeature.choice` ist
+ * ein einzelner Wert, und zweimal dieselbe Prosa im Eingang erzeugte zwei Rider für dasselbe
+ * Merkmal.
  */
 export function unredactedChoiceFeatures<T extends DeclaredChoiceSource & { choice?: string }>(
   features: T[],
-  answerOf: (f: DeclaredChoiceSource) => string,
+  answerOf: (choiceId: string) => string,
 ): (T & { choice: string })[] {
   const out: (T & { choice: string })[] = [];
   for (const f of features) {
-    if (!isOptionListFeature(f)) continue;
-    const answer = answerOf(f);
-    const option = chosenOption(f, answer);
-    if (!option || option.grants) continue;
-    out.push({ ...f, choice: answer });
+    for (const r of optionListRefs(f)) {
+      const answer = answerOf(optionChoiceId(r));
+      const option = chosenOptionOf(r, answer);
+      if (!option || option.grants) continue;
+      out.push({ ...f, choice: answer });
+      break;
+    }
   }
   return out;
 }
 
-/** Gematcht über den kanonischen (englischen) Wert. */
-export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOption | null {
-  if (!isOptionListFeature(f)) return null;
+/** Die Option DIESER Wahl, gematcht über den kanonischen (englischen) Wert. */
+export function chosenOptionOf(r: DeclaredChoiceRef, answer: string): ChoiceOption | null {
+  if (!isOptionListRef(r)) return null;
   const want = answer.trim();
-  return f.grantsChoice.options.find((o) => o.value === want) ?? null;
+  return r.grant.options.find((o) => o.value === want) ?? null;
+}
+
+/**
+ * Nur der WERT ist bekannt, nicht die Frage: der KI-Weg trägt die Antwort am MERKMAL
+ * (`GainedFeature.choice`, `pastChoices`), nicht unter einer Frage-id. Über alle Zweigwahlen
+ * des Merkmals gesucht — zwei davon böten dasselbe Label nur bei einer kaputten Deklaration an.
+ */
+export function chosenOption(f: DeclaredChoiceSource, answer: string): ChoiceOption | null {
+  for (const r of optionListRefs(f)) {
+    const option = chosenOptionOf(r, answer);
+    if (option) return option;
+  }
+  return null;
 }
 
 /**
@@ -123,15 +157,15 @@ const withoutQuotaCounts = (grants: FeatureGrant): FeatureGrant =>
  * stünde neben der englischen des Modells. `decisions` ebenso: die Wahl protokolliert
  * `featureChoiceChanges` aus dem Fragebogen, ein zweiter Eintrag wäre eine Dublette.
  */
-export function optionListRider(f: DeclaredChoiceSource, answer: string, level: number): FeatureRider | null {
-  const option = chosenOption(f, answer);
+export function optionListRider(r: DeclaredChoiceRef, answer: string, level: number): FeatureRider | null {
+  const option = chosenOptionOf(r, answer);
   if (!option) return null;
   const spells = optionSpellsUpTo(option, level);
   const grants =
-    option.grants && optionActivatesQuota(f, option.value) ? withoutQuotaCounts(option.grants) : option.grants;
+    option.grants && optionActivatesQuota(r.feature, option.value) ? withoutQuotaCounts(option.grants) : option.grants;
   const declaresGrant = !!grants && !isEmptyFeatureGrant(grants);
   if (!declaresGrant && !spells.length) return null;
-  const base: FeatureRider = { ...emptyRider(f), grantedSpells: spells };
+  const base: FeatureRider = { ...emptyRider(r.feature), grantedSpells: spells };
   return declaresGrant ? withGrant(base, grants) : base;
 }
 
@@ -173,7 +207,7 @@ export function optionListRiders(
   level: number,
 ): FeatureRider[] {
   return features
-    .map((f) => optionListRider(f, answerOf(optionChoiceId(f)), level))
+    .flatMap((f) => optionListRefs(f).map((r) => optionListRider(r, answerOf(optionChoiceId(r)), level)))
     .filter((r): r is FeatureRider => r !== null);
 }
 
@@ -187,12 +221,13 @@ export function optionListNoteLines(
   answerOf: (choiceId: string) => string,
 ): string[] {
   const lines: string[] = [];
-  for (const f of features) {
-    const option = chosenOption(f, answerOf(optionChoiceId(f)));
-    if (!option) continue;
-    const label = option.labelDe || option.value;
-    const help = option.helpDe.trim();
-    lines.push(`${f.nameDe || f.name}: ${label}${help ? ` — ${help}` : ''}`);
-  }
+  for (const f of features)
+    for (const r of optionListRefs(f)) {
+      const option = chosenOptionOf(r, answerOf(optionChoiceId(r)));
+      if (!option) continue;
+      const label = option.labelDe || option.value;
+      const help = option.helpDe.trim();
+      lines.push(`${f.nameDe || f.name}: ${label}${help ? ` — ${help}` : ''}`);
+    }
   return lines;
 }

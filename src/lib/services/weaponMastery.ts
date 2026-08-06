@@ -6,6 +6,7 @@
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
 import type { WeaponMastery } from '$lib/schemas/vocabulary';
 import { columnValue, featuresUpTo, getProgressionByKey } from './classProgression';
+import { choiceGrants } from './declaration/source';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import { getItemsByDir, displayName, type ItemInfo } from '$lib/itemLibrary';
 
@@ -21,7 +22,7 @@ const MASTERY_DEFAULT = 2;
  * bewusst eng gebunden — `mastery` allein träfe auch andere.
  */
 export function isWeaponMasteryFeature(f: ClassFeature): boolean {
-  if (f.grantsChoice) return f.grantsChoice.kind === 'weaponMastery';
+  if (f.grantsChoice) return choiceGrants(f).some((g) => g.kind === 'weaponMastery');
   return (
     /weapon[-\s]?mastery/i.test(f.key ?? '') ||
     /\bweapon mastery\b/i.test(f.name) ||

@@ -21,7 +21,7 @@ export interface DeclaredFeature {
   desc?: string;
   source: FeatureSource;
   grants?: FeatureGrant;
-  grantsChoice?: FeatureChoiceGrant;
+  grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
   grantsCasting?: CastingGrant;
 }

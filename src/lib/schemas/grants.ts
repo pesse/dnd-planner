@@ -106,6 +106,12 @@ export const featureGrantSchema = z.object({
    * `skills.fixed` an. Offene Wahl wird gefragt, fester Grant gesetzt.
    */
   proficiencies: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  /**
+   * Steht NEBEN `proficiencies`, nicht darin: in 2024 ist eine Sprache keine Übung. Sie hat
+   * auch kein Vokabular, also ist der Wert der deutsche Name, den der Bogen anzeigt — dasselbe
+   * Format, das `grantsChoice.kind = "languages"` den Spieler tippen lässt.
+   */
+  languages: z.array(z.string()).default([]).describe('Fest gewährte Sprachen, deutsch („Druidisch", „Diebessprache").'),
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),

@@ -17,6 +17,7 @@ import type { FeatureEffectsContext } from '../../src/lib/services/aiActions/fea
 import type { GainedFeature, ResolvedChoice } from '../../src/lib/services/analysis/types';
 import type { DeclaredFeature } from '../../src/lib/services/declaredFeature';
 import { unredactedChoiceFeatures } from '../../src/lib/services/declaration/optionList';
+import { branchAnswerOf } from '../support/branchAnswer';
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { buildFeaturePrep, type FeaturePrep } from '../../src/lib/services/wizard/featurePrep';
 
@@ -85,7 +86,8 @@ export function analysisContext(prep: FeaturePrep): FeatureEffectsContext {
 
 /** Der Aufruf aus `finalizeFeatures()`; `gainedAt: 1`, weil im Wizard alles Stufe 1 ist. */
 export function unredactedFeatures(declared: DeclaredFeature[], branch = CHOSEN_BRANCH): GainedFeature[] {
-  return unredactedChoiceFeatures(declared, (f) => (f.key === LINEAGE_KEY ? branch : '')).map((f) => ({
+  const answerOf = branchAnswerOf(declared, LINEAGE_KEY, branch);
+  return unredactedChoiceFeatures(declared, answerOf).map((f) => ({
     ...f,
     desc: f.desc ?? '',
     gainedAt: 1,
@@ -117,10 +119,12 @@ export function withRedactedBranch(declared: DeclaredFeature[], branch = CHOSEN_
       ...f,
       // Neu geparst, damit `grants: {}` die vollen Defaults trägt — wie ein Vault-Eintrag,
       // der die Redaktion mitbringt.
-      grantsChoice: featureChoiceGrantSchema.parse({
-        ...f.grantsChoice,
-        options: f.grantsChoice.options.map((o) => (o.value === branch ? { ...o, grants: {} } : o)),
-      }),
+      grantsChoice: f.grantsChoice.map((g) =>
+        featureChoiceGrantSchema.parse({
+          ...g,
+          options: g.options.map((o) => (o.value === branch ? { ...o, grants: {} } : o)),
+        }),
+      ),
     };
   });
 }
