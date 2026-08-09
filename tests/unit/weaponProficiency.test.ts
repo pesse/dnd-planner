@@ -10,9 +10,8 @@ import {
 } from '../../src/lib/services/weaponProficiency';
 import { weaponsFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
 import { applyChanges, changesWouldAlter } from '../../src/lib/services/applyChanges';
-import { characterSchema } from '../../src/lib/schemas/characterSchema';
+import { characterSchema, emptyProficiencies } from '../../src/lib/schemas/characterSchema';
 import type { Change } from '../../src/lib/schemas/levelUp';
-import { emptyProficiencies } from '../../src/lib/pdf/characterFields';
 import { emptySpellcasting } from '../../src/lib/services/spellcasting/write';
 import { buildItemIndex, matchWeaponName, type ItemInfo } from '../../src/lib/itemLibrary';
 

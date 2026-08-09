@@ -29,7 +29,7 @@ const savantGrant = async (level: number) => {
 
 const quotaGroup = (schools: SpellQuotaGroup['schools']): SpellQuotaGroup => ({
   sourceId: SAVANT_KEY, quotaId: 'evocation-book', label: 'Zauberbuch',
-  castNote: '', swapNote: '', levels: [1, 2], lists: ['wizard'], schools,
+  cast: [], castNote: '', swapNote: '', levels: [1, 2], lists: ['wizard'], schools,
   from: null, into: null, count: 2, fixed: false, spells: [], open: 2,
 });
 

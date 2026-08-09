@@ -1,7 +1,6 @@
 /**
  * Single Source of Truth für Charaktere: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema. Label-Maps und der PDF-Parser leben in `pdf/characterFields.ts`,
- * das den Typ von hier re-exportiert.
+ * LLM-JSON-Schema.
  */
 import { z } from 'zod';
 import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
@@ -35,7 +34,7 @@ const attackSchema = z.object({
 });
 
 // Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu
-// gespeichert wurden, und ist die Transportform des PDF-Randes; Wahrheit ist `spellcasting`.
+// gespeichert wurden; Wahrheit ist `spellcasting`.
 const spellRefSchema = z.object({
   name: z.string(),
   sourceKey: z.string().optional(),
@@ -86,6 +85,11 @@ export const proficiencyFlagsSchema = z.object({
   mediumArmor: z.boolean().default(false),
   heavyArmor: z.boolean().default(false),
   shields: z.boolean().default(false),
+});
+
+export const emptyProficiencies = (): ProficiencyFlags => ({
+  simpleWeapons: false, martialWeapons: false, individualWeapons: [], otherWeapons: '',
+  lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
 });
 
 /**
@@ -176,6 +180,13 @@ const personalDataSchema = z.object({
   aussehen: z.string().default(''),
 });
 
+export const emptyPersonal = (): PersonalData => ({
+  rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '',
+  gesinnung: '', glaube: '', lebensstil: '', taeglicheKosten: '',
+  augenfarbe: '', haarfarbe: '', hautfarbe: '', gewicht: '',
+  koerpergroesse: '', aussehen: '',
+});
+
 const skillEntrySchema = z.object({
   value: z.number().int().default(0),
   prof: z.boolean().default(false),
@@ -187,7 +198,7 @@ export const characterSchema = z.object({
   // Nachgeschlagen wird über den Ordner; das Feld macht die Datei selbstbeschreibend.
   uid: z.string().default(''),
   // `classes`/`backgroundRef`/`species` sind die Source of Truth; `classLevel`/`background`/
-  // `race` daraus abgeleitete Anzeige-Strings für Header und PDF, nicht direkt editiert.
+  // `race` daraus abgeleitete Anzeige-Strings für Header und Bogen, nicht direkt editiert.
   name: z.string(),
   classes: z.array(characterClassSchema).default([]),
   classLevel: z.string().default(''),
@@ -271,7 +282,7 @@ export const characterSchema = z.object({
     .array(optionPickSchema)
     .default([])
     .describe('Gewählte Optionen aus deklarierten Options-Pools (Metamagie), je Merkmal.'),
-  // Merkmals-Ledger, additiv zum Freitext: NICHT im PDF, aber Berechnungsgrundlage.
+  // Merkmals-Ledger, additiv zum Freitext: Berechnungsgrundlage, keine Anzeigequelle.
   features: z.array(characterFeatureSchema).default([]),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
   // `_version` bewusst offener int, kein Literal-Union: eine von einer neueren App

@@ -17,6 +17,7 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   sourceId,
   quotaId,
   label: quotaId,
+  cast: [],
   castNote: '',
   swapNote: '',
   levels: [0],

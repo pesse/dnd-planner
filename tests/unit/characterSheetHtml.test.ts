@@ -1,0 +1,230 @@
+/**
+ * Der Dokumentbau: Hülle, Auswahl, Entwertung — und die Übungs-Senke, die zuvor über die
+ * Taendler-Felder geprüft wurde (`characterProficienciesPdf`, mit derselben Fixture).
+ *
+ *   npm run test -- characterSheetHtml
+ */
+import { describe, expect, it } from 'vitest';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
+import { buildCharacterSheetHtml } from '../../src/lib/print/character/document';
+import { defaultSelection, sheetSections } from '../../src/lib/print/character/sections';
+import type { CharacterPrintData } from '../../src/lib/print/character/data';
+import type { SpellQuotaGroup } from '../../src/lib/services/spellcasting/grouped';
+import { allProficienciesCharacter } from '../fixtures/character-all-proficiencies';
+
+const dataFor = (character: CharacterPrintData['character']): CharacterPrintData => ({
+  character,
+  portraitUrl: '',
+  freetext: '',
+  attacks: [],
+  features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
+  grouped: { sources: [], slots: [], pact: null, manualSlots: false, extra: [], issues: [] },
+  mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },
+  pools: [],
+  resources: [],
+  spellCards: '',
+});
+
+const build = (d: CharacterPrintData, over: Record<string, boolean> = {}): string =>
+  buildCharacterSheetHtml(d, { ...defaultSelection(sheetSections(d)), ...over });
+
+const full = () => build(dataFor(allProficienciesCharacter));
+
+/** Auf den Blocktitel prüfen, nicht auf das blanke Wort — das steht auch im Stylesheet. */
+const title = (label: string) => `<span class="btitle">${label}</span>`;
+
+const quota = (over: Partial<SpellQuotaGroup>): SpellQuotaGroup => ({
+  sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
+  levels: [], lists: [], schools: [], from: null, into: null,
+  count: 0, fixed: false, spells: [], open: 0, ...over,
+});
+
+const wizardSource = (quotas: SpellQuotaGroup[]) => ({
+  id: 'cls:wizard', label: 'Magier', featureDe: '', abilityDe: 'Intelligenz',
+  abilityOptions: [], saveDC: 13, attackBonus: 5, quotas,
+});
+
+describe('HTML-Charakterbogen', () => {
+  it('liefert genau ein A4-Dokument', () => {
+    const html = full();
+
+    expect(html.match(/<!DOCTYPE html>/g)).toHaveLength(1);
+    expect(html.match(/@page \{ size: A4 portrait/g)).toHaveLength(1);
+    expect(html).toContain('<title>Miriel Sturmklinge – Charakterbogen</title>');
+  });
+
+  it('bringt jede Übungsquelle auf den Bogen: Kategorien als Ringe, Einzelwaffe und Freitext als Text', () => {
+    const html = full();
+
+    expect(html).toContain('<i class="pm on"></i>Einfache Waffen');
+    expect(html).toContain('<i class="pm on"></i>Kriegswaffen');
+    expect(html).toContain('<i class="pm on"></i>Schilde');
+    expect(html).toContain('<span class="o-plbl">Sonstige Waffen</span>Kurzschwert, Kriegswaffen mit Finesse');
+  });
+
+  it('lässt die Waffenzeile ganz weg, wenn weder Einzelwaffe noch Freitext da ist', () => {
+    const bare = characterSchema.parse({
+      ...allProficienciesCharacter,
+      proficiencies: { individualWeapons: [], otherWeapons: '   ' },
+      tools: [], languages: [],
+    });
+    const html = build(dataFor(bare));
+
+    // Der Druck ist Ausgabe: ohne Wert keine Beschriftung, kein Feld.
+    expect(html).not.toContain('<span class="o-plbl">Sonstige Waffen</span>');
+    expect(html).not.toContain('Kriegswaffen mit Finesse');
+  });
+
+  it('nimmt eine abgewählte Sektion aus dem Dokument', () => {
+    const d = dataFor(allProficienciesCharacter);
+
+    expect(build(d)).toContain(title('Ausrüstung &amp; Geldmittel'));
+    expect(build(d, { inventory: false })).not.toContain(title('Ausrüstung &amp; Geldmittel'));
+  });
+
+  it('lässt eine Seite ganz weg, für die nichts gewählt ist', () => {
+    const d = dataFor(allProficienciesCharacter);
+    const onlyOverview = Object.fromEntries(sheetSections(d).map((s) => [s.id, s.page === 'overview']));
+    const withoutOverview = Object.fromEntries(sheetSections(d).map((s) => [s.id, s.page !== 'overview']));
+
+    expect(buildCharacterSheetHtml(d, onlyOverview)).not.toContain('<div class="page">');
+    expect(buildCharacterSheetHtml(d, withoutOverview)).not.toContain('<section class="sheet">');
+    expect(buildCharacterSheetHtml(d, withoutOverview).match(/<div class="page">/g)).toHaveLength(1);
+  });
+
+  it('entwertet Zeichen, die sonst Markup wären', () => {
+    const tricky = characterSchema.parse({ ...allProficienciesCharacter, name: 'Bob & <script>' });
+
+    const html = build(dataFor(tricky));
+    expect(html).toContain('Bob &amp; &lt;script&gt;');
+    expect(html).not.toContain('<script>');
+  });
+
+  it('zeigt Zauberpunkte als Kästchen und den Hinterhältigen Angriff als Wert', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.resources = [{
+      className: 'Zauberer',
+      tracks: [
+        { column: 'Sorcery Points', label: 'Zauberpunkte', kind: 'count', max: 3, text: '3', spell: true },
+        { column: 'Sneak Attack', label: 'Hinterhältiger Angriff', kind: 'value', max: 0, text: '2d6', spell: false },
+      ],
+    }];
+    const html = build(d);
+    // Ab dem Kopf des Zauberblatts: davor liegen die Kästchen der Übersicht.
+    const top = html.split('class="sp-top"')[1];
+
+    expect(top).toContain(title('Zauberpunkte'));
+    expect(top.match(/<i class="tick"><\/i>/g)).toHaveLength(3);
+    expect(html).toContain('<span class="res-value">2d6</span>');
+  });
+
+  it('führt einen Zauber je Quelle einmal, mit dem Hinweis, der etwas sagt', () => {
+    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0 };
+    const bolt2 = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1 };
+    const d = dataFor(allProficienciesCharacter);
+    d.grouped = {
+      sources: [wizardSource([
+        quota({ quotaId: 'book', label: 'Zauberbuch', spells: [bolt, bolt2] }),
+        quota({
+          quotaId: 'prepared', cast: [{ kind: 'slots', pool: 'standard' }], castNote: 'über Zauberplätze',
+          from: { quotas: [{ sourceId: 'cls:wizard', quotaId: 'book' }], label: 'Zauberbuch', spells: [] },
+          spells: [bolt2],
+        }),
+        quota({
+          quotaId: 'mastery', label: 'Gewährt', spells: [bolt2],
+          cast: [{ kind: 'uses', per: 'long-rest', count: 1 }], castNote: '1× ohne Zauberplatz pro Lange Rast',
+        }),
+      ])],
+      slots: [], pact: null, manualSlots: false, extra: [], issues: [],
+    };
+    const html = build(d);
+
+    expect(html.match(/Magisches Geschoss/g)).toHaveLength(1);
+    expect(html).toContain('<span class="spell-note">1× ohne Zauberplatz pro Lange Rast</span>');
+    // Der Normalweg bleibt stumm: das Zauberbuch speist „vorbereitet", die Plätze stehen als Kasten.
+    expect(html).not.toContain('über Zauberplätze');
+  });
+
+  it('druckt nur, was eingetragen ist — Zeilen zum Nachtragen gibt es nur für offene Wahlen', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.attacks = [{ name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m' }];
+    d.grouped = {
+      ...d.grouped,
+      sources: [wizardSource([
+        quota({ spells: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] }),
+        quota({ quotaId: 'offen', label: 'Zaubertricks', open: 2 }),
+      ])],
+    };
+    const html = build(d);
+
+    // Angriffe: der eine eingetragene, dazu leere Zeilen zum Nachtragen, keine Beschreibungsfläche.
+    const attacks = html.split('<table class="o-atk">')[1].split('</table>')[0];
+    expect(attacks.match(/<tr>/g)).toHaveLength(2 + 8);
+    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(8);
+    expect(attacks).not.toContain('Beschreibung');
+    // Zauber: eine Zeile je gewähltem Zauber, plus eine je offener Wahl.
+    expect(html.match(/<span class="sname write"><\/span>/g)).toHaveLength(2);
+  });
+
+  it('druckt keinen beschrifteten Kasten ohne Wert', () => {
+    const bare = characterSchema.parse({
+      ...allProficienciesCharacter,
+      ac: '', initiative: '', speed: '', hitDice: '', passivePerception: '',
+      playerName: '', xp: '', classFeatures: '',
+    });
+    const html = build(dataFor(bare));
+
+    for (const label of ['Rüstungsklasse', 'Initiative', 'Bewegungsrate', 'Passive Wahrnehmung',
+      'Spieler*in', 'Erfahrungspunkte', 'Klassenmerkmale']) {
+      expect(html, label).not.toContain(`>${label}<`);
+    }
+    // Was im Spiel abgestrichen wird, bleibt: die Trefferpunkt-Fläche und die Todesretter.
+    expect(html).toContain('>Aktuelle Trefferpunkte<');
+    expect(html).toContain('>Rettungswürfe gegen Tod<');
+    // Ohne Gesamtwert bleibt der Trefferwürfel-Kasten, aber ohne seine Kopfzeile.
+    expect(html).toContain('>Trefferwürfel<');
+    expect(html).not.toContain('>Gesamt<');
+  });
+
+  it('bricht Freitext in Absätze, auch mit CRLF, und macht Gliederungszeilen zu Zwischentiteln', () => {
+    const text = '[Klassenmerkmale]\r\nErster Absatz.\r\n\r\n[Eigenschaften]\r\nZweiter Absatz.';
+    const d = dataFor(characterSchema.parse({ ...allProficienciesCharacter, classFeatures: text }));
+    const html = build(d);
+
+    // Die führende Zeile wiederholt den Kastentitel und fällt weg, die spätere gliedert.
+    expect(html).toContain('<p>Erster Absatz.</p>');
+    expect(html).toContain('<b class="phead">Eigenschaften</b><br>Zweiter Absatz.');
+    expect(html).not.toContain('[Klassenmerkmale]');
+    expect(html).not.toContain('[Eigenschaften]');
+  });
+
+  it('hält im Ausrüstungskasten Platz frei und stellt alle fünf Münzsorten an seinen rechten Rand', () => {
+    const money = (html: string) => html.split('class="inv-money"')[1].split('</section>')[0];
+    const html = full();
+
+    // Je Spalte vier Zeilen zum Nachtragen — der Kasten hat kein eigenes Notizfeld.
+    const inventory = html.split('class="block wide long inv"')[1].split('</section>')[0];
+    expect(inventory.match(/<span class="wcell"><\/span>/g)).toHaveLength(3 * 4);
+    expect(inventory).not.toContain('>Notizen<');
+    for (const coin of ['KM', 'SM', 'EM', 'GM', 'PM']) {
+      expect(money(html), coin).toContain(coin);
+    }
+
+    // Auch ohne Gegenstand und ohne Münze bleibt der Kasten: er ist die Schreibfläche.
+    const bare = characterSchema.parse({
+      ...allProficienciesCharacter, inventory: [], inventoryNotes: '',
+      currency: { km: '', sm: '', em: '', gm: '', pm: '' },
+    });
+    expect(build(dataFor(bare))).toContain(title('Ausrüstung &amp; Geldmittel'));
+  });
+
+  it('nimmt Karten und Karten-Stylesheet nur ins Dokument, wenn sie gewählt sind', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.grouped = { ...d.grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] };
+    d.spellCards = '<div class="cards">EINE KARTE</div>';
+
+    expect(build(d)).not.toContain('EINE KARTE');
+    expect(build(d, { spellCards: true })).toContain('EINE KARTE');
+    expect(build(d, { spellCards: true })).toContain('@page cards');
+  });
+});

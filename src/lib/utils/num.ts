@@ -1,5 +1,5 @@
 /**
- * Zahlen aus Text, der aus PDF-Feldern, Markdown-Tabellen und Fremd-APIs kommt.
+ * Zahlen aus Text, der aus Formularfeldern, Markdown-Tabellen und Fremd-APIs kommt.
  * Alle drei liefern statt einer Zahl auch „", „-" oder „2d6" — nie ein Wurf.
  */
 

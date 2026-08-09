@@ -4,7 +4,6 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { characterSchema, type Character } from '../schemas/characterSchema';
-import type { CharacterJSON } from '../pdf/characterFields';
 import { CHARACTERS_PATH, freshCharacterUid } from './characterDirectory';
 
 export { CHARACTERS_PATH };
@@ -12,7 +11,7 @@ export { CHARACTERS_PATH };
 const gmNotesTemplate = (name: string): string =>
   `# GM-Notizen: ${name}\n\n## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
 
-async function writeCharacter(uid: string, notesName: string, json: CharacterJSON): Promise<void> {
+async function writeCharacter(uid: string, notesName: string, json: Character): Promise<void> {
   const dirPath = `${CHARACTERS_PATH}/${uid}`;
   await invoke('write_file_content', { path: `${dirPath}/character.json`, content: JSON.stringify({ ...json, uid }, null, 2) });
   await invoke('write_file_content', { path: `${dirPath}/gm-notes.md`, content: gmNotesTemplate(notesName) });

@@ -2,22 +2,20 @@
   import { createCharacterEditor } from '../services/characterEditor.svelte';
   import { createCharacterSideFiles } from '../services/characterSideFiles.svelte';
   import { createFormLibraries } from '../services/characterFormLibraries.svelte';
-  import { createCharacterPdf } from '../pdf/useCharacterPdf.svelte';
   import { createFeaturePanelLayout } from '../utils/featurePanelLayout.svelte';
   import { matchItem } from '../itemLibrary';
   import { masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
-  import { resolveSpellAccess } from '../services/characterFeatures';
   import { loadSpellcasting, type LoadedSpellcasting } from '../services/spellcasting/project';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
-  import type { SpellAccessValues } from '../services/spellcasting/access';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import CharacterSheetView from './character/CharacterSheetView.svelte';
   import SheetHeader from './character/SheetHeader.svelte';
   import SheetFeatureSidebar from './character/SheetFeatureSidebar.svelte';
   import SheetFreetextTab from './character/SheetFreetextTab.svelte';
+  import SheetPrintDialog from './character/SheetPrintDialog.svelte';
   import LevelUpAssistant from './LevelUpAssistant.svelte';
 
   interface Props {
@@ -34,27 +32,14 @@
   const ed = editor.card;
   const character = $derived(editor.character);
 
-  // Merkmals-gewährte Zauberwerte zur Anzeigezeit gerechnet, damit ein steigender
-  // Übungsbonus sie mitnimmt — gespeichert würden sie altern.
-  let spellAccessRows = $state<SpellAccessValues[]>([]);
   let spellcasting = $state<LoadedSpellcasting | null>(null);
   $effect(() => {
     const c = character;
     if (!c) {
-      spellAccessRows = [];
       spellcasting = null;
       return;
     }
-    void (async () => {
-      spellAccessRows = await resolveSpellAccess({
-        classes: c.classes,
-        backgroundRef: c.backgroundRef,
-        features: c.features,
-        proficiencyBonus: c.proficiencyBonus,
-        mods: c.mods,
-      });
-      spellcasting = await loadSpellcasting(c);
-    })();
+    void (async () => { spellcasting = await loadSpellcasting(c); })();
   });
 
   /**
@@ -86,26 +71,28 @@
     portraitFile: () => character?.portraitFile,
   });
 
-  const pdf = createCharacterPdf({
-    dirPath: () => dirPath,
-    character: () => character,
-    pdfName: () => editor.pdfName,
-    details: () => side.details,
-    masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
-    spellAccess: () => spellAccessRows,
-  });
-
   const feats = createFeaturePanelLayout();
   let featBadge = $state<CoverageBadge | null>(null);
   let featOpenCount = $state(0);
   let showLevelUp = $state(false);
+  let showPrint = $state(false);
 </script>
 
 <div class="sheet">
-  {#if pdf.error}
-    <div class="error">{pdf.error}</div>
-  {:else if character}
-    <SheetHeader {character} portraitUrl={side.portraitUrl} {pdf} onLevelUp={() => (showLevelUp = true)} />
+  {#if character}
+    <SheetHeader {character} portraitUrl={side.portraitUrl}
+      onPrint={() => (showPrint = true)} onLevelUp={() => (showLevelUp = true)} />
+
+    {#if showPrint}
+      <SheetPrintDialog onclose={() => (showPrint = false)}
+        input={{
+          character,
+          portraitUrl: side.portraitUrl,
+          freetext: side.details,
+          masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
+          loaded: spellcasting,
+        }} />
+    {/if}
 
     {#if showLevelUp && ed.draft}
       <LevelUpAssistant character={ed.draft} onApply={editor.applyLevelUp} onclose={() => (showLevelUp = false)} />
@@ -148,12 +135,12 @@
         {#snippet extra(id)}
         {#if id === 'notes'}
         <SheetFreetextTab value={side.gmNotes} onChange={side.onGmNotesChange} status={side.gmNotesStatus}
-          hint="Nur für den Spielleiter — wird nicht ans PDF angehängt."
+          hint="Nur für den Spielleiter — steht nicht auf dem Charakterbogen."
           placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />
       {:else}
         <SheetFreetextTab value={side.details} onChange={side.onDetailsChange} status={side.detailsStatus}
-          hint="Wird beim PDF-Export als zusätzliche Seite(n) angehängt."
-          placeholder="Hintergrundgeschichte, Tagebuch, Notizen … – wird ans PDF angehängt." />
+          hint="Im Druck-Dialog als Abschnitt „Notizen“ der Merkmalsseite wählbar."
+          placeholder="Hintergrundgeschichte, Tagebuch, Notizen …" />
         {/if}
         {/snippet}
       </EditorPanel>
@@ -178,12 +165,11 @@
     font-size: 0.9rem;
   }
 
-  .loading, .error {
+  .loading {
     padding: 2rem;
     color: var(--ink-muted);
     text-align: center;
   }
-  .error { color: var(--danger); }
 
   .edit-wrapper {
     min-height: 0;

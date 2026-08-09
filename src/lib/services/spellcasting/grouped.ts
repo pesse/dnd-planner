@@ -5,7 +5,7 @@
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
-import type { SwapCadence } from '$lib/schemas/casting';
+import type { CastOption, SwapCadence } from '$lib/schemas/casting';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { sourceLabel, type ProjectionLookup } from './project';
 import type { CastingIssue, CastingIssueKind } from './source';
@@ -21,6 +21,8 @@ export interface SpellQuotaGroup {
   sourceId: string;
   quotaId: string;
   label: string;
+  /** Die deklarierten Wirkwege — `castNote` ist ihre ausformulierte Fassung. */
+  cast: CastOption[];
   /** Wie diese Zauber gewirkt werden (`cast`). */
   castNote: string;
   /** Der Tauschtakt (`swap`); leer, wenn die Deklaration keinen nennt. */
@@ -240,6 +242,7 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
           sourceId: source.source.id,
           quotaId: quota.view.quotaId,
           label: quotaLabel(quota),
+          cast: [...quota.view.cast],
           castNote: castNote(quota, into?.label),
           swapNote: swapNote(quota),
           levels: [...quota.view.levels],

@@ -7,10 +7,10 @@ import { SKILL_DEFS } from '../domain/skills';
 import { ABILITY_KEYS, type AbilityFlags, type AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
-import { emptyPersonal, emptyProficiencies } from '../pdf/characterFields';
-import type {
-  Attack, Character, CharacterBackground, CharacterClass, CharacterSpecies,
-  OptionPick, PersonalData, ProficiencyFlags,
+import {
+  emptyPersonal, emptyProficiencies,
+  type Attack, type Character, type CharacterBackground, type CharacterClass,
+  type CharacterSpecies, type OptionPick, type PersonalData, type ProficiencyFlags,
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';

@@ -28,8 +28,12 @@ export function formatRarity(rarity: { name: string } | undefined): string {
   return RARITY_LABELS[rarity.name] ?? rarity.name;
 }
 
+/**
+ * `1d8+2` → `1W8+2`. Die Wurfanzahl muss Teil des Musters sein: zwischen Ziffer und `d` steht
+ * keine Wortgrenze, ein `\bd`-Muster trifft nur das alleinstehende `d8`.
+ */
 export function formatDamageDice(dice: string): string {
-  return dice.replace(/\bd(\d+)\b/gi, (_, n) => `W${n}`);
+  return dice.replace(/\b(\d*)[dD](\d+)\b/g, (_, count, faces) => `${count}W${faces}`);
 }
 
 /**
