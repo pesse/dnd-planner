@@ -8,16 +8,18 @@ import type { CharacterPrintData } from './data';
 import { renderOverview } from './pages/overview';
 import { renderInventory, renderMasteries, renderResources, sheetResources } from './pages/extras';
 import {
-  renderClassFeatures, renderFeats, renderFreetext, renderPersonal, renderSpeciesFeatures,
+  renderClassFeatures, renderFeats, renderFreetext, renderPersonal, renderPinnedFeatures,
+  renderSpeciesFeatures,
 } from './pages/details';
 import { renderExtraSpells, renderSpellSource, renderSpellTop, spellSourceGroups } from './pages/spells';
 
-export type SheetPageId = 'overview' | 'details' | 'spells' | 'spellCards';
+export type SheetPageId = 'overview' | 'details' | 'spells' | 'pinned' | 'spellCards';
 
 export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
   { id: 'overview', label: 'Übersicht' },
   { id: 'details', label: 'Merkmale & Ausrüstung' },
   { id: 'spells', label: 'Zauber' },
+  { id: 'pinned', label: 'Anhang' },
   { id: 'spellCards', label: 'Zauberkarten' },
 ];
 
@@ -29,7 +31,7 @@ export const STATIC_SECTION_IDS = [
   'overview',
   'masteries', 'resources', 'personal',
   'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
-  'spellTop', 'spellsExtra', 'spellCards',
+  'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards',
 ] as const;
 
 export type StaticSectionId = (typeof STATIC_SECTION_IDS)[number];
@@ -85,6 +87,9 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
                  available: (d) => !!renderSpellTop(d), render: renderSpellTop },
   spellsExtra: { label: 'Weitere Zauber',     page: 'spells', defaultOn: true,
                  available: (d) => !!renderExtraSpells(d), render: renderExtraSpells },
+  // Nachschlagetext, kein Bogen: er steht hinter allem, was am Tisch bedient wird.
+  featuresPinned: { label: 'Gepinnte Merkmale', page: 'pinned', defaultOn: true,
+                 available: (d) => !!renderPinnedFeatures(d), render: renderPinnedFeatures },
   // Neun Karten je Blatt — bei einem Magier sind das mehrere Seiten, deshalb nicht vorgewählt.
   spellCards:  { label: 'Volltext-Karten (3×3)', page: 'spellCards', defaultOn: false,
                  available: hasSpells, render: (d) => d.spellCards },

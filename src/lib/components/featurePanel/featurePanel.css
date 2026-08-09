@@ -135,6 +135,15 @@
 }
 .fpanel .link-edit:hover { color: var(--ink); }
 
+/* Ungepinnt bleibt die Nadel blass: sie steht an jedem Merkmal und darf die Zeile nicht führen. */
+.fpanel .pin-btn {
+  background: none; border: none; cursor: pointer; padding: 0 0.15rem;
+  font-size: 0.78rem; line-height: 1; flex-shrink: 0;
+  filter: grayscale(1); opacity: 0.35;
+}
+.fpanel .pin-btn:hover { opacity: 0.8; }
+.fpanel .pin-btn.on { filter: none; opacity: 1; }
+
 .fpanel .remove-btn {
   background: none; border: none; cursor: pointer;
   color: var(--border); font-size: 0.75rem; padding: 0.1rem 0.2rem;

@@ -89,10 +89,9 @@ function mergedSpells(quotas: SpellQuotaGroup[]): SheetSpell[] {
   const byKey = new Map<string, SheetSpell>();
   for (const q of quotas) {
     for (const s of q.spells) {
-      // Woher er kommt, entscheidet am Tisch, ob er gegen das Kontingent zählt.
-      const origin = q.fixed ? q.label : '';
-      const note = [origin, isOrdinaryCast(q, s.level, feeders) ? '' : q.castNote]
-        .filter(Boolean).join(' · ');
+      // Aus welchem Kontingent er stammt, bleibt bewusst weg: am Tisch ändert allein der
+      // Wirkweg etwas, und der steht im Kastenkopf oder hier.
+      const note = isOrdinaryCast(q, s.level, feeders) ? '' : q.castNote;
       const seen = byKey.get(s.key);
       if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note });
       else if (!seen.note) seen.note = note;

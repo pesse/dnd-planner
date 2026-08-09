@@ -14,6 +14,7 @@
     type ResolvedFeatureGroup,
   } from '../services/characterFeatures';
   import { createFeatureLedger, featLinkRows } from '../services/featureLedger';
+  import { createFeaturePins } from '../services/featurePins';
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { createCollapsibleSections } from '../utils/collapsibleSections.svelte';
   import DeclarationBadge from './DeclarationBadge.svelte';
@@ -21,6 +22,7 @@
   import ChoiceSection from './featurePanel/ChoiceSection.svelte';
   import FeatSection from './featurePanel/FeatSection.svelte';
   import LooseChoice from './featurePanel/LooseChoice.svelte';
+  import PinToggle from './featurePanel/PinToggle.svelte';
   import { createChoiceState } from './featurePanel/choiceState.svelte';
   import './featurePanel/featurePanel.css';
 
@@ -42,6 +44,7 @@
   } = $props();
 
   const ledger = createFeatureLedger(() => character);
+  const pins = createFeaturePins(() => character);
   const featRows = $derived(featLinkRows(character.features));
 
   // Abhängigkeit sind allein die LINKS, als Wertschlüssel: läse der Effekt
@@ -135,6 +138,7 @@
                   {#if f.gainedAt}<span class="fp-lvl">Stufe {f.gainedAt}</span>{/if}
                   <!-- Mit Platz zeigt der Picker die Wahl; ein Chip daneben wäre die Dublette. -->
                   {#if !slots.length}<LooseChoice rows={choices.looseOf(f.key ?? '')} {ledger} />{/if}
+                  <span class="feat-row-actions"><PinToggle {pins} featureKey={f.key} /></span>
                 </div>
                 {#if f.desc}<div class="fp-desc"><Markdown source={f.desc} /></div>{/if}
                 <ChoiceSection {slots} facts={choices.factsOf(f.key ?? '')} {choices} {ledger} onapply={(c) => onApplyChanges?.(c)} />
@@ -166,7 +170,7 @@
 {#snippet speciesBody()}{@render featureGroups(speciesGroups, 'Kein verlinktes Volk — im Bearbeiten-Tab ein Volk aus der Bibliothek wählen.')}{/snippet}
 {#snippet backgroundBody()}{@render featureGroups(backgroundView, 'Kein verlinkter Hintergrund — im Bearbeiten-Tab einen Hintergrund aus der Bibliothek wählen.')}{/snippet}
 {#snippet featsBody()}
-  <FeatSection rows={featRows} {ledger} {choices} {saved} onapply={(c) => onApplyChanges?.(c)} />
+  <FeatSection rows={featRows} {ledger} {pins} {choices} {saved} onapply={(c) => onApplyChanges?.(c)} />
 {/snippet}
 
 <div class="fpanel">
@@ -178,7 +182,8 @@
   <div class="fpanel-body">
     <p class="fp-hint">
       Klassen-, Volks- &amp; Hintergrundmerkmale kommen aus der Bibliothek (read-only). Änderungen
-      hier landen im Entwurf — gespeichert wird über die Speichern-Leiste.
+      hier landen im Entwurf — gespeichert wird über die Speichern-Leiste. 📌 hängt ein Merkmal
+      im Volltext an den Ausdruck.
     </p>
 
     {@render block('Klassenmerkmale', 'class', choices.openIn(keysOf(classGroups)), classBody)}

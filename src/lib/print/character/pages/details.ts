@@ -1,9 +1,11 @@
 /**
- * Die Detailseite: Volks- und Klassenmerkmale als Freitext, Talente im Volltext,
- * Persönliches, Freitext. Die Textkästen nehmen die ganze Breite und spalten sich innen (`cols`).
+ * Die Detailseite: Volks- und Klassenmerkmale als Freitext, Talente und gepinnte Merkmale im
+ * Volltext, Persönliches, Freitext. Die Textkästen nehmen die ganze Breite und spalten sich
+ * innen (`cols`).
  */
 import { renderMarkdown, ruleText } from '$lib/utils/markdown';
 import type { ResolvedFeature } from '$lib/services/characterFeatures';
+import { pinnedFeatures } from '$lib/services/featurePins';
 import type { CharacterPrintData } from '../data';
 import { block, esc, escLines, row } from '../html';
 
@@ -31,6 +33,16 @@ export function renderFeats(d: CharacterPrintData): string {
   const entries = d.features.featEntries;
   if (!entries.length) return '';
   return block('Talente', entries.map(feature).join(''), { cls: 'wide cols' });
+}
+
+/**
+ * Was der Freitext nicht führt, aber am Tisch gebraucht wird: die in der Merkmalsleiste
+ * gepinnten Merkmale mit dem Text der Bibliothek.
+ */
+export function renderPinnedFeatures(d: CharacterPrintData): string {
+  const entries = pinnedFeatures(d.features, d.character.pinnedFeatures);
+  if (!entries.length) return '';
+  return block('Gepinnte Merkmale', entries.map(feature).join(''), { cls: 'wide cols' });
 }
 
 const PERSONAL_ROWS: [string, keyof CharacterPrintData['character']['personal']][] = [

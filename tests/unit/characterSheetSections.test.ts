@@ -4,7 +4,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
-import { defaultSelection, sheetSections, STATIC_SECTION_IDS } from '../../src/lib/print/character/sections';
+import {
+  defaultSelection, sheetSections, SHEET_PAGES, STATIC_SECTION_IDS,
+} from '../../src/lib/print/character/sections';
 import type { CharacterPrintData } from '../../src/lib/print/character/data';
 
 const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData => ({
@@ -63,6 +65,25 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(d)).toContain('featuresClass');
     expect(render(d, 'featuresClass')).toContain('Wildgestalt: 2× pro Rast');
     expect(render(d, 'overview')).not.toContain('Wildgestalt: 2× pro Rast');
+  });
+
+  it('bietet gepinnte Merkmale erst an, wenn ein Pin auch ein Merkmal trifft', () => {
+    const wildShape = { name: 'Wildgestalt', desc: 'Du verwandelst dich.', key: 'srd-2024_druid_wild-shape' };
+    const groups = [{ title: 'Druide 3', sourceKey: 'srd-2024_druid', unresolved: false, features: [wildShape] }];
+    const pinned = (keys: string[]) => emptyData({
+      character: characterSchema.parse({ name: 'Testfigur', pinnedFeatures: keys }),
+      features: { ...emptyData().features, classGroups: groups },
+    });
+
+    expect(ids(pinned([]))).not.toContain('featuresPinned');
+    // Ein Pin auf ein Merkmal, das die Bibliothek nicht mehr führt, ist kein leerer Kasten.
+    expect(ids(pinned(['srd-2024_rogue_evasion']))).not.toContain('featuresPinned');
+
+    const d = pinned([wildShape.key]);
+    expect(ids(d)).toContain('featuresPinned');
+    expect(render(d, 'featuresPinned')).toContain('Du verwandelst dich.');
+    // Nachschlagetext gehört hinter alles, was am Tisch bedient wird — auch hinter die Zauber.
+    expect(ids(d).filter((id) => id !== 'spellCards').at(-1)).toBe('featuresPinned');
   });
 
   it('führt einen Zauber ohne Quelle nur, solange kein Kontingent ihn schon führt', () => {
@@ -138,10 +159,10 @@ describe('Sektionen des Charakterbogens', () => {
     expect(Object.keys(selection)).toEqual(ids(d));
   });
 
-  it('gibt jeder Sektion eines der vier Blätter', () => {
+  it('gibt jeder Sektion eines der Blätter', () => {
     const pages = new Set(sheetSections(emptyData()).map((s) => s.page));
 
-    expect([...pages].every((p) => ['overview', 'details', 'spells', 'spellCards'].includes(p))).toBe(true);
+    expect([...pages].every((p) => SHEET_PAGES.some((page) => page.id === p))).toBe(true);
   });
 
   it('führt keine Id doppelt', () => {

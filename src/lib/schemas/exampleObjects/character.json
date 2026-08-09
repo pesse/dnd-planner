@@ -225,6 +225,9 @@
       "desc": "string"
     }
   ],
+  "pinnedFeatures": [
+    "string"
+  ],
   "portraitFile": "string",
   "_version": 8,
   "_importedFrom": "string",

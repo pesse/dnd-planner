@@ -284,6 +284,14 @@ export const characterSchema = z.object({
     .describe('Gewählte Optionen aus deklarierten Options-Pools (Metamagie), je Merkmal.'),
   // Merkmals-Ledger, additiv zum Freitext: Berechnungsgrundlage, keine Anzeigequelle.
   features: z.array(characterFeatureSchema).default([]),
+  /**
+   * Reine Ausgabe-Auswahl, ohne Regelwirkung — deshalb nicht ins Merkmals-Ledger, das die
+   * Anker der Mechanik trägt. Ein Key ohne Merkmal (getauschter Klassen-Link) bleibt stehen.
+   */
+  pinnedFeatures: z
+    .array(z.string())
+    .default([])
+    .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
   // `_version` bewusst offener int, kein Literal-Union: eine von einer neueren App
   // geschriebene Datei soll in einer älteren trotzdem laden. Default nur für neu

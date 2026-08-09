@@ -68,9 +68,10 @@ export interface CharacterFormCarry {
 }
 
 // `uid` ist Identität, kein Formularfeld — stünde es hier, schriebe jeder Tastendruck
-// die Identität des Charakters mit dem Formularzustand über.
+// die Identität des Charakters mit dem Formularzustand über. `features` und `pinnedFeatures`
+// gehören der Merkmals-Seitenleiste, aus demselben Grund wie bei `formDraftPatch`.
 export type CharacterFormPatch =
-  Omit<Character, 'uid' | 'features' | '_version' | '_importedFrom' | '_importedAt'>
+  Omit<Character, 'uid' | 'features' | 'pinnedFeatures' | '_version' | '_importedFrom' | '_importedAt'>
   & { portraitFile: string | undefined };
 
 export const mod = (score: number) => Math.floor((score - 10) / 2);
@@ -185,8 +186,8 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
 
 /**
  * Schlüssel-Reihenfolge wie im Zod-Schema, sonst wirkt ein frisch geladener Charakter dirty.
- * `features` fehlt bewusst: stünde das Ledger hier, überschriebe der nächste Tastendruck
- * jede in der Merkmals-Seitenleiste getroffene Wahl.
+ * `features` und `pinnedFeatures` fehlen bewusst: stünden sie hier, überschriebe der nächste
+ * Tastendruck jede in der Merkmals-Seitenleiste getroffene Wahl.
  */
 export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry): CharacterFormPatch {
   const mods = abilityMods(f);

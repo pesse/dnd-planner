@@ -22,7 +22,7 @@ const isOn = (selection: SheetSelection, s: SheetSection): boolean => selection[
  * Ein Eintrag = ein Satz Blätter, jeder fängt vorne an. Merkmale und Zauber teilen sich einen:
  * getrennt bleibt von beiden je eine halbe Seite weiß.
  */
-const SHEET_GROUPS: SheetPageId[][] = [['overview'], ['details', 'spells'], ['spellCards']];
+const SHEET_GROUPS: SheetPageId[][] = [['overview'], ['details', 'spells', 'pinned'], ['spellCards']];
 
 /**
  * Übersicht und Zauberkarten bringen ihr eigenes Seitenraster mit und werden nicht in den

@@ -218,6 +218,27 @@ describe('HTML-Charakterbogen', () => {
     expect(build(dataFor(bare))).toContain(title('Ausrüstung &amp; Geldmittel'));
   });
 
+  it('hängt gepinnte Merkmale an und lässt sie auf Wunsch weg', () => {
+    const d = dataFor(characterSchema.parse({
+      ...allProficienciesCharacter,
+      pinnedFeatures: ['srd-2024_druid_wild-shape'],
+    }));
+    d.features = {
+      ...d.features,
+      classGroups: [{
+        title: 'Druide 3', sourceKey: 'srd-2024_druid', unresolved: false,
+        features: [{
+          name: 'Wildgestalt', desc: 'Du verwandelst dich in ein Tier.',
+          gainedAt: 2, key: 'srd-2024_druid_wild-shape',
+        }],
+      }],
+    };
+
+    expect(build(d)).toContain(title('Gepinnte Merkmale'));
+    expect(build(d)).toContain('Du verwandelst dich in ein Tier.');
+    expect(build(d, { featuresPinned: false })).not.toContain(title('Gepinnte Merkmale'));
+  });
+
   it('nimmt Karten und Karten-Stylesheet nur ins Dokument, wenn sie gewählt sind', () => {
     const d = dataFor(allProficienciesCharacter);
     d.grouped = { ...d.grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] };
