@@ -43,7 +43,9 @@ describe('Bogen-Projektion', () => {
     expect(labels(view, 0)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
     expect(levelOf(view, 1).slots).toEqual({ total: 3, used: 0 });
     expect(labels(view, 1)).toContain('Springen');
-    expect(labels(view, 1)).toHaveLength(5);
+    // Vier vorbereitete plus „Vertrauten finden" aus dem Wilden Gefährten.
+    expect(labels(view, 1)).toContain('Vertrauten finden');
+    expect(labels(view, 1)).toHaveLength(6);
   });
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
@@ -122,7 +124,7 @@ describe('Übergang zum PDF-Export', () => {
     expect(flat.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
     expect(flat.slots[0]).toEqual({ total: 3, used: 0 });
     expect(flat.cantrips.map((s) => s.name)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
-    expect(flat.byLevel['1']).toHaveLength(5);
+    expect(flat.byLevel['1']).toHaveLength(6);
     // Der Bibliotheks-Link bleibt am Eintrag, der Name ist nur die PDF-Zelle.
     expect(flat.cantrips[0].sourceKey).toBeTruthy();
   });

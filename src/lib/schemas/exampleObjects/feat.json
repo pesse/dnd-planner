@@ -190,6 +190,10 @@
             "kind": "at-will"
           },
           {
+            "kind": "resource",
+            "labelDe": "string"
+          },
+          {
             "kind": "ritual",
             "requiresPrepared": false
           }
@@ -252,6 +256,10 @@
             },
             {
               "kind": "at-will"
+            },
+            {
+              "kind": "resource",
+              "labelDe": "string"
             },
             {
               "kind": "ritual",

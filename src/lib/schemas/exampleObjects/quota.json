@@ -52,6 +52,10 @@
       "kind": "at-will"
     },
     {
+      "kind": "resource",
+      "labelDe": "string"
+    },
+    {
       "kind": "ritual",
       "requiresPrepared": false
     }

@@ -86,7 +86,8 @@ describe('Umzug der Altform', () => {
 
   it('nennt im Angebot die Zahl der Zauber und wiederholt sich nicht', async () => {
     const c = legacy('thromm');
-    expect((await offer(c))?.label).toBe('8 Zauber ins neue Format übernehmen');
+    // Sieben, nicht acht: „Vertrauten finden" gewährt der Wilde Gefährte, es zieht nichts um.
+    expect((await offer(c))?.label).toBe('7 Zauber ins neue Format übernehmen');
     await migrate(c);
     expect(await offer(c)).toBeUndefined();
   });

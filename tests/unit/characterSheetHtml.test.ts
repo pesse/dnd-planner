@@ -131,7 +131,7 @@ describe('HTML-Charakterbogen', () => {
           spells: [bolt2],
         }),
         quota({
-          quotaId: 'mastery', label: 'Gewährt', spells: [bolt2],
+          quotaId: 'mastery', label: 'Gewährt', fixed: true, spells: [bolt2],
           cast: [{ kind: 'uses', per: 'long-rest', count: 1 }], castNote: '1× ohne Zauberplatz pro Lange Rast',
         }),
       ])],
@@ -143,6 +143,8 @@ describe('HTML-Charakterbogen', () => {
     expect(html).toContain('<span class="spell-note">1× ohne Zauberplatz pro Lange Rast</span>');
     // Der Normalweg bleibt stumm: das Zauberbuch speist „vorbereitet", die Plätze stehen als Kasten.
     expect(html).not.toContain('über Zauberplätze');
+    // Die Herkunft des Kontingents ist keine Tischinformation, nur der Wirkweg.
+    expect(html).not.toContain('Gewährt');
   });
 
   it('druckt nur, was eingetragen ist — Zeilen zum Nachtragen gibt es nur für offene Wahlen', () => {

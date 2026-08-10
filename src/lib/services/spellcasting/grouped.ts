@@ -164,6 +164,8 @@ export function castNote(quota: QuotaState, intoLabel = ''): string {
       }
       case 'at-will':
         return 'beliebig oft';
+      case 'resource':
+        return `über ${option.labelDe}`;
       case 'ritual':
         return option.requiresPrepared ? 'als Ritual' : 'als Ritual, auch unvorbereitet';
     }

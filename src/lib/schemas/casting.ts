@@ -44,6 +44,13 @@ export const castOptionSchema = z.discriminatedUnion('kind', [
       .describe('Freie Wirkungen ohne Platz — Zahl, Übungsbonus, Tabellenspalte oder Attributsmodifikator.'),
   }),
   z.object({ kind: z.literal('at-will') }),
+  // Der Vorrat gehört einem ANDEREN Merkmal (Tiergestalt, Fokuspunkte) und wird dort gezählt;
+  // hier steht nur die Zeile, die der Bogen braucht — ein Verweis, den keine Buchung einlöst,
+  // wäre ein zweites Ressourcenmodell.
+  z.object({
+    kind: z.literal('resource'),
+    labelDe: z.string().describe('Was aufgewendet wird, in der Sprache des Bogens ("eine Anwendung von Tiergestalt").'),
+  }),
   z.object({
     kind: z.literal('ritual'),
     requiresPrepared: z

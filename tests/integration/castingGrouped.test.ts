@@ -67,6 +67,15 @@ describe('gruppierte Sicht (Paladin 5 mit Eingeweihter der Magie)', () => {
   });
 });
 
+describe('gruppierte Sicht (Druide 3: Wirken aus fremder Ressource)', () => {
+  it('nennt die Ressource des anderen Merkmals als Wirkweg', async () => {
+    const quota = only(byFeature(await sourcesOf('Thromm Flechtenstein'), 'Wilder Gefährte'));
+
+    expect(quota.spells.map((s) => s.label)).toEqual(['Vertrauten finden']);
+    expect(quota.castNote).toBe('über eine Anwendung von Tiergestalt oder über Zauberplätze');
+  });
+});
+
 describe('gruppierte Sicht (Magier 1: Vorbereitung aus dem Zauberbuch)', () => {
   it('bindet den Pool der Vorbereitung an die Buch-Quota statt an die Klassenliste', async () => {
     const source = byFeature(await sourcesOf('Bälgär'), 'Zauberwirken');

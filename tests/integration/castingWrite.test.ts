@@ -124,8 +124,8 @@ describe('die migrierten Charaktere', () => {
     const view = await loadSheetSpellcasting(c);
     const all = view.levels.flatMap((l) => l.spells);
     expect(all.find((s) => s.label === 'Sternenlichtfunke')?.source).toBe('Zauber des Zirkels des Mondes');
-    // Ein Magier-Zauber am Druiden hat keine Quota und bleibt quellenlos.
-    expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('');
+    // Seit der Wilde Gefährte deklariert ist, hängt „Vertrauten finden" an der Klasse.
+    expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('Druide');
   });
 
   it('behält Plätze und Zauber des unverlinkten Charakters', async () => {
@@ -145,7 +145,7 @@ describe('die migrierten Charaktere', () => {
     expect(flat.spellcastingAbility).toBe('Weisheit');
     expect(flat.slots[0].total).toBe(3);
     expect(flat.cantrips).toHaveLength(2);
-    expect(flat.byLevel['1']).toHaveLength(5);
+    expect(flat.byLevel['1']).toHaveLength(6);
   });
 });
 
