@@ -123,6 +123,24 @@ describe('HTML-Charakterbogen', () => {
     expect(top).toContain('<span class="res-value">2d6</span>');
   });
 
+  it('stellt die Zauberliste als `sp-list` direkt hinter den Vorrat', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.resources = [{
+      id: 'srd-2024_wizard_spellcasting/slots', featureKey: 'srd-2024_wizard_spellcasting',
+      labelDe: 'Zauberplätze', origin: 'class', classKey: 'srd-2024_wizard', recharge: 'long-rest',
+      shared: '', kind: 'points', max: [2], additions: [],
+    }];
+    d.grouped = {
+      sources: [wizardSource([quota({ spells: [{ key: 'shield', label: 'Schild', level: 1 }] })])],
+      resources: [], extra: [], issues: [],
+    };
+    const html = build(d);
+
+    // Diese Nachbarschaft trägt `.sp-top + .sp-list { break-before: avoid }`: bricht das Blatt,
+    // dann vor dem Vorrat statt zwischen ihm und der Liste.
+    expect(html).toMatch(/<\/div><section class="block sp-list/);
+  });
+
   it('füllt das Häkchen für vorbereitete Zauber und lässt das Zauberbuch leer', () => {
     const bolt = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1 };
     const shield = { key: 'shield', label: 'Schild', level: 1 };

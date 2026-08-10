@@ -36,7 +36,12 @@ export const BLOCK_CSS = `
 .tbl.inv tbody tr:last-child td { border-bottom: 0.15mm dotted var(--rule-soft); }
 
 /* Kopf des Zauberblatts: Plätze, Punkte und Metamagie in einer Reihe */
-.sp-top { column-span: all; display: flex; flex-wrap: wrap; gap: 0 2.5mm; align-items: stretch; }
+.sp-top { column-span: all; break-inside: avoid; display: flex; flex-wrap: wrap;
+          gap: 0 2.5mm; align-items: stretch; }
+/* Der Vorrat wird mit der Zauberliste gelesen: bricht das Blatt, dann davor. Die Regel hängt an
+   der Liste, nicht als break-after am Vorrat — sonst zöge ein Bogen ohne Zauber die gepinnten
+   Merkmale mit. */
+.sp-top + .sp-list { break-before: avoid; page-break-before: avoid; }
 /* Plätze und Punkte sind so breit wie ihre Kreisreihe, der Options-Pool nimmt den Rest.
    Unter 30 mm ragt „Zauberplätze" links aus dem Rahmen heraus. */
 .sp-top > .block { flex: 0 1 auto; min-width: 30mm; margin-bottom: 2mm;

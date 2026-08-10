@@ -182,7 +182,7 @@ export function renderSpellSource(d: CharacterPrintData, groupId: string): strin
   const spells = mergedSpells(quotas);
   const groups = byLevel(spells).length + quotas.filter((q) => q.open > 0).length;
   return block(group.label, head + spellList(spells) + open,
-    { cls: listWidth(groups), hint: group.hint });
+    { cls: `sp-list ${listWidth(groups)}`, hint: group.hint });
 }
 
 /**
@@ -240,5 +240,6 @@ export function renderExtraSpells(d: CharacterPrintData): string {
   if (!spells.length) return '';
   // Ohne Quelle gibt es keine gerechneten Werte — der Kasten bleibt eine reine Liste.
   return block('Weitere Zauber', spellList(asSheetSpells(spells)),
-    { cls: listWidth(byLevel(asSheetSpells(spells)).length), hint: 'keiner Quelle zugeordnet' });
+    { cls: `sp-list ${listWidth(byLevel(asSheetSpells(spells)).length)}`,
+      hint: 'keiner Quelle zugeordnet' });
 }
