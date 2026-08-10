@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
+import { resourceGrantSchema } from './resource';
 import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
 
 /**
@@ -158,6 +159,9 @@ export const featureDeclarationFields = {
   grantsCasting: castingGrantSchema
     .optional()
     .describe('Zauberwirken des Merkmals: Kontingent, Pool, Tauschtakt, Wirk-Ressource.'),
+  grantsResource: resourceGrantSchema
+    .optional()
+    .describe('Vorräte des Merkmals — Einsätze, Punkte, Zauberplätze — und Zuschläge auf fremde.'),
   /** Die Ausnahme von „die Deklaration deckt das GANZE Merkmal ab"; ohne Default wie oben. */
   aiInterpretsRest: z
     .boolean()

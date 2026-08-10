@@ -1,0 +1,23 @@
+[
+  {
+    "kind": "counter",
+    "max": {
+      "column": "string"
+    }
+  },
+  {
+    "kind": "points",
+    "max": {
+      "column": "string"
+    }
+  },
+  {
+    "kind": "slots",
+    "levels": {
+      "columns": [
+        "string"
+      ]
+    },
+    "combine": "caster-level"
+  }
+]

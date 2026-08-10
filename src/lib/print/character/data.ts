@@ -10,7 +10,8 @@ import { groupedSpellcasting, type GroupedSpellcasting } from '$lib/services/spe
 import { masteryOffer, type MasteryOffer } from '$lib/services/weaponMastery';
 import { optionPoolOffers, type OptionPoolOffer } from '$lib/services/declaration/optionPool';
 import { getProgressionByKey, levelColumns } from '$lib/services/classProgression';
-import { resourceTracks, type ResourceTrack } from '$lib/domain/classResources';
+import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
+import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import { formatDamageDice } from '$lib/itemFormat';
 
@@ -22,10 +23,10 @@ export interface PrintAttack {
   range: string;
 }
 
-/** Ein Ressourcen-Block trägt seine Klasse, weil zwei Klassen gleichnamige Spalten führen. */
-export interface ClassResources {
+/** Ein Werte-Block trägt seine Klasse, weil zwei Klassen gleichnamige Spalten führen. */
+export interface ClassValues {
   className: string;
-  tracks: ResourceTrack[];
+  tracks: ValueTrack[];
 }
 
 export interface CharacterPrintData {
@@ -39,7 +40,10 @@ export interface CharacterPrintData {
   grouped: GroupedSpellcasting;
   mastery: MasteryOffer;
   pools: OptionPoolOffer[];
-  resources: ClassResources[];
+  /** Vorräte mit Maximum — Einsätze, Punkte, Zauberplätze. */
+  resources: ResolvedResource[];
+  /** Die skalierenden Spalten daneben: Rauschschaden, Hinterhältiger Angriff, Bardenwürfel. */
+  values: ClassValues[];
   /**
    * Fertige Kartenseiten. Leer, bis der Dialog sie anfordert: die Karten messen ihren Text im
    * DOM aus (`spellCards.ts`), und das darf nicht bei jedem Öffnen der Vorschau laufen.
@@ -79,13 +83,13 @@ function printAttacks(c: Character, masteryOf?: (name: string) => string | undef
   });
 }
 
-async function classResources(c: Character): Promise<ClassResources[]> {
-  const out: ClassResources[] = [];
+async function classValues(c: Character): Promise<ClassValues[]> {
+  const out: ClassValues[] = [];
   for (const cls of c.classes ?? []) {
     if (!cls.sourceKey) continue;
     const prog = await getProgressionByKey(cls.sourceKey).catch(() => null);
     if (!prog) continue;
-    const tracks = resourceTracks(levelColumns(prog, cls.level));
+    const tracks = valueTracks(levelColumns(prog, cls.level));
     if (tracks.length) out.push({ className: cls.name || prog.nameDe || prog.name, tracks });
   }
   return out;
@@ -93,17 +97,19 @@ async function classResources(c: Character): Promise<ClassResources[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, resources] = await Promise.all([
+  const [features, loaded, mastery, pools, values] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
     safe(optionPoolOffers(c), [] as OptionPoolOffer[]),
-    safe(classResources(c), [] as ClassResources[]),
+    safe(classValues(c), [] as ClassValues[]),
   ]);
 
+  // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
+  // ein zweites Mal durch Klassen, Talente und Gegenstandsbibliothek.
   const grouped = loaded
     ? groupedSpellcasting(loaded.state, loaded.lookup)
-    : { sources: [], slots: [], pact: null, manualSlots: false, extra: [], issues: [] };
+    : { sources: [], resources: [], extra: [], issues: [] };
 
   return {
     character: c,
@@ -114,7 +120,8 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     grouped,
     mastery,
     pools: pools.filter((p) => p.allowance > 0),
-    resources,
+    resources: grouped.resources,
+    values,
     spellCards: '',
   };
 }

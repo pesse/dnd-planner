@@ -21,6 +21,7 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   castNote: '',
   swapNote: '',
   levels: [0],
+  tier: 'known' as const,
   lists: [],
   schools: [],
   from: null,
@@ -54,9 +55,7 @@ const VIEW: GroupedSpellcasting = {
       quotas: [quota('wizard', 'cantrips', ['fire-bolt', 'mending'])],
     },
   ],
-  slots: [],
-  pact: null,
-  manualSlots: false,
+  resources: [],
   extra: [spell('guidance')],
   issues: [],
 };

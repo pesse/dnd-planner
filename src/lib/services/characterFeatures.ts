@@ -9,7 +9,8 @@ import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsL
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
 import { spellAccessGrantOf, spellAccessValues, type SpellAccessValues } from './spellcasting/access';
-import { characterLevel, featInstances } from './spellcasting/resolve';
+import { characterLevel } from './declaration/carriers';
+import { featInstances } from './declaration/featInstances';
 import type { AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';

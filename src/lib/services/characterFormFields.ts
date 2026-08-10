@@ -231,7 +231,14 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
       .filter((i) => i.name.trim() !== '')
       .map((i) => {
         const key = i.sourceKey?.trim();
-        return { name: i.name, ...(key ? { sourceKey: key } : {}), count: i.count, weight: i.weight };
+        return {
+          name: i.name,
+          ...(key ? { sourceKey: key } : {}),
+          count: i.count,
+          weight: i.weight,
+          ...(i.equipped ? { equipped: true } : {}),
+          ...(i.attuned ? { attuned: true } : {}),
+        };
       }),
     inventoryNotes: f.inventoryNotes,
     // Die Gesamtlast rechnet `inventoryWeight` live; das gespeicherte Feld ist Alt-Ballast.

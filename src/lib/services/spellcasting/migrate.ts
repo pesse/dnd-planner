@@ -8,7 +8,8 @@ import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { SpellInfo } from '$lib/spellLibrary';
 import type { LooseSpell, ProjectionLookup } from './project';
 import { poolQuotas, type QuotaState, type SourceState, type SpellcastingState } from './state';
-import { addExtra, setPicks, setSlotTotals, setSlotUsed } from './write';
+import { SLOT_POOL } from '../resources/slots';
+import { addExtra, setPicks, setSlotTotals } from './write';
 
 /**
  * Ohne Attribut: das stand in der Altform nur als deutscher Freitext und als Antwort im
@@ -21,7 +22,6 @@ export interface FlatSpellPlan {
   extra: string[];
   /** Nur wo die Progression keine Plätze hergibt. */
   slotTotals: number[];
-  slotUsed: number[];
   /** Namen ohne Bibliothekstreffer; sie bleiben in der Altform stehen. */
   unresolved: LooseSpell[];
   /** Zauber, die der Umzug bewegt. */
@@ -119,24 +119,25 @@ export function planFlatSpellMigration(
     (t) => t.keys.length > (block.sources[t.sourceId]?.picks[t.quotaId]?.length ?? 0),
   );
 
+  // Ein Vorrat mit `origin: 'manual'` steht für Plätze, die keine Stufentabelle hergibt: erst
+  // die Altform trägt sie, und mit ihr verschwänden sie.
+  const hand = state.resources.find((p) => p.shared === SLOT_POOL && p.origin === 'manual');
   return {
     picks,
     extra,
-    slotTotals: state.manualSlots && !block.manual?.slotTotals.length ? state.pools.standard.total : [],
-    slotUsed: block.pools.standard.used.length ? [] : state.pools.standard.used,
+    slotTotals: hand && !block.manual?.slotTotals.length ? hand.max : [],
     unresolved,
     moved,
   };
 }
 
 export const planIsEmpty = (plan: FlatSpellPlan): boolean =>
-  !plan.moved && !plan.slotTotals.some((n) => n > 0) && !plan.slotUsed.some((n) => n > 0);
+  !plan.moved && !plan.slotTotals.some((n) => n > 0);
 
 export function applyFlatSpellPlan(block: CharacterSpellcasting, plan: FlatSpellPlan): void {
   for (const { sourceId, quotaId, keys } of plan.picks) setPicks(block, sourceId, quotaId, keys);
   for (const key of plan.extra) addExtra(block, key);
   if (plan.slotTotals.length) setSlotTotals(block, plan.slotTotals);
-  plan.slotUsed.forEach((used, i) => { if (used > 0) setSlotUsed(block, i + 1, used); });
 }
 
 /** Nach dem Umzug bleibt in der Altform nur, was die Bibliothek nicht kennt. */

@@ -1,0 +1,10 @@
+{
+  "target": {
+    "feature": "string",
+    "pool": "string",
+    "shared": "string"
+  },
+  "addMax": {
+    "column": "string"
+  }
+}

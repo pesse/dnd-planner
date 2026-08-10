@@ -3,9 +3,10 @@
  */
 import { abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
+import type { ResolvedResource, ResourceIssue, ResourceResolution } from '../resources/resolve';
+import { slotLookup } from '../resources/project';
 import { castUses, quotaContext, quotaViews, type QuotaView } from './quota';
 import type { CastingResolution } from './resolve';
-import { spellPools, type SpellPools } from './slots';
 import type { CastingIssue, CastingSource } from './source';
 import { pickedKeys } from './write';
 
@@ -14,10 +15,6 @@ import { pickedKeys } from './write';
 export const spellSaveDC = (profBonus: number, abilityMod: number): number => 8 + profBonus + abilityMod;
 export const spellAttackBonus = (profBonus: number, abilityMod: number): number => profBonus + abilityMod;
 
-export interface PoolState {
-  standard: { total: number[]; used: number[] };
-  pact: { total: number[]; used: number };
-}
 
 export interface QuotaState {
   view: QuotaView;
@@ -25,7 +22,8 @@ export interface QuotaState {
   spells: string[];
   /** Wie viele noch zu wählen sind. */
   open: number;
-  uses: { max: number; used: number } | null;
+  /** Freie Wirkungen ohne Platz; null = die Quota kennt keine. */
+  uses: number | null;
 }
 
 export interface SourceState {
@@ -40,14 +38,16 @@ export interface SourceState {
   quotas: QuotaState[];
 }
 
+/** Zauberpfad und Vorräte melden in EINEN Strom — der Leser ist derselbe Kasten. */
+export type SheetIssue = CastingIssue | ResourceIssue;
+
 export interface SpellcastingState {
   characterLevel: number;
-  pools: PoolState;
-  /** true = keine Progression im Vault; nur dann zählt `manual.slotTotals`. */
-  manualSlots: boolean;
+  /** Die aufgelösten Vorräte; Plätze sind darin der Pool `shared: 'standard'`. */
+  resources: ResolvedResource[];
   sources: SourceState[];
-  /** Aus `resolve.ts` durchgereicht, dazu was `quota.ts` beim Auflösen findet. */
-  issues: CastingIssue[];
+  /** Aus beiden `resolve.ts` durchgereicht, dazu was `quota.ts` beim Auflösen findet. */
+  issues: SheetIssue[];
   /** Zauber-Keys ohne Quelle (Homebrew). */
   extra: string[];
 }
@@ -57,19 +57,10 @@ export interface SpellcastingInput {
   stored?: CharacterSpellcasting;
   profBonus: number;
   mods: Record<AbilityKey, number>;
+  /** Die aufgelösten Vorräte: von dort kommen Plätze, nicht aus einer zweiten Rechnung. */
+  resources: ResourceResolution;
   /** Deklarierter Zaubername → `spell.key`, aus `resolveSpell` der Bibliothek. */
   spellKey: (name: string) => string | undefined;
-}
-
-/** `manual.slotTotals` überschreibt nur, wo es Werte trägt. */
-function poolState(pools: SpellPools, stored: CharacterSpellcasting | undefined): PoolState {
-  const manual = stored?.manual?.slotTotals ?? [];
-  const total = pools.standard.map((n, i) => (manual[i] !== undefined ? manual[i] : n));
-  const used = stored?.pools.standard.used ?? [];
-  return {
-    standard: { total, used: total.map((_, i) => used[i] ?? 0) },
-    pact: { total: pools.pact, used: stored?.pools.pact.used ?? 0 },
-  };
 }
 
 /**
@@ -95,13 +86,13 @@ function quotaState(view: QuotaView, stored: CharacterSpellcasting | undefined, 
     view,
     spells,
     open: Math.max(0, view.count - spells.length),
-    uses: uses === null ? null : { max: uses, used: stored?.sources[view.sourceId]?.uses[view.quotaId] ?? 0 },
+    uses,
   };
 }
 
 export function spellcastingState(input: SpellcastingInput): SpellcastingState {
   const { resolution, stored } = input;
-  const pools = spellPools(resolution.classes);
+  const slotsOf = slotLookup(input.resources.pools);
   const progOf = new Map(resolution.classes.map((c) => [c.prog.key, c.prog]));
   const issues = [...resolution.issues];
 
@@ -109,14 +100,13 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
   const sources: SourceState[] = [];
   for (const source of resolution.sources) {
     const prog = progOf.get(source.classKey) ?? null;
-    const ctx = quotaContext(prog, source.level, pools, input.spellKey);
-    const usesCtx = { profBonus: input.profBonus, mods: input.mods, column: ctx.column };
+    const ctx = quotaContext(prog, source.level, slotsOf, input.spellKey, input);
     const ability = abilityOf(source, abilities);
     abilities.set(source.id, ability);
 
     const quotas = quotaViews(source, ctx, issues).map((view) => {
       const option = view.cast.find((c) => c.kind === 'uses');
-      return quotaState(view, stored, option ? castUses(option, usesCtx) : null);
+      return quotaState(view, stored, option ? castUses(option, ctx) : null);
     });
     const mod = ability ? (input.mods[abilityKeyOf(ability) ?? 'str'] ?? 0) : 0;
     sources.push({
@@ -131,10 +121,9 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
 
   return {
     characterLevel: resolution.characterLevel,
-    pools: poolState(pools, stored),
-    manualSlots: !pools.standard.some((n) => n > 0),
+    resources: input.resources.pools,
     sources,
-    issues,
+    issues: [...issues, ...input.resources.issues],
     extra: stored?.manual?.extra ?? [],
   };
 }

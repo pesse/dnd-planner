@@ -11,11 +11,12 @@
   import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
+  import { resourceViews } from '../../services/resources/project';
   import { groupedSpellcasting, type SpellQuotaGroup } from '../../services/spellcasting/grouped';
   import { NO_KNOWN_SPELLS } from '../../services/spellcasting/known';
   import { pickerKnown, pickLevels, pickLibrary } from '../../services/spellcasting/picker';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
-  import { addExtra, pickedKeys, removeExtra, setPicks, setSlotTotals, setSlotUsed } from '../../services/spellcasting/write';
+  import { addExtra, pickedKeys, removeExtra, setPicks, setSlotTotals } from '../../services/spellcasting/write';
   import type { CharacterFormFields } from '../../services/characterFormFields';
   import { createSpellHover } from '../spellHover.svelte';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -37,6 +38,9 @@
 
   const block = $derived(form.spellcasting);
   const view = $derived(casting ? groupedSpellcasting(casting.state, casting.lookup) : null);
+  const resources = $derived(resourceViews(view?.resources ?? []));
+  // Von Hand nur, wo keine Klassentabelle Plätze hergibt — sonst schlüge die Eingabe die Progression.
+  const manualSlots = $derived(!(view?.resources ?? []).some((p) => p.kind === 'slots' && p.origin !== 'manual'));
 
   const byKey = $derived(new Map(spellLibrary.filter((s) => s.key).map((s) => [s.key as string, s])));
   const infoOf = (key: string): SpellInfo | undefined => byKey.get(key);
@@ -68,11 +72,6 @@
   // Schreibvorgänge nie und könnte nichts abwählen.
   const quotaPicks = (quota: SpellQuotaGroup): string[] =>
     pickedKeys(block, quota.sourceId, quota.quotaId);
-
-  function onSlotUsed(level: number, used: number) {
-    setSlotUsed(block, level, used);
-    form.spellcasting = { ...block };
-  }
 
   function onSlotTotals(level: number, total: number) {
     const totals = Array.from({ length: 9 }, (_, i) => block.manual?.slotTotals[i] ?? 0);
@@ -196,8 +195,22 @@
     </div>
   {/each}
 
-  <h3 style="margin-top:0.75rem">Zauberplätze</h3>
-  {#if view.manualSlots}
+  <h3 style="margin-top:0.75rem">Vorräte</h3>
+  <p class="auto-hint">
+    Abgeleitet aus Klasse, Merkmalen und angelegten Gegenständen. Verbraucht wird auf dem
+    gedruckten Bogen.
+  </p>
+  {#each resources as pool (pool.id)}
+    <div class="quota-row">
+      <span class="quota-label">{pool.label}{#if pool.hint}<span class="quota-cast">{pool.hint}</span>{/if}</span>
+      <div class="tag-list">
+        {#each pool.cells as cell (cell.label)}
+          <span class="tag slot-tag">{cell.label ? `${cell.label}: ` : ''}{cell.count}</span>
+        {/each}
+      </div>
+    </div>
+  {/each}
+  {#if manualSlots}
     <p class="auto-hint">Keine Progression in der Bibliothek — Plätze von Hand.</p>
     <div class="slot-edit-row">
       {#each Array.from({ length: 9 }, (_, i) => i + 1) as level}
@@ -208,22 +221,8 @@
         </label>
       {/each}
     </div>
-  {:else if !view.slots.length}
-    <p class="auto-hint">Keine Zauberplätze auf dieser Stufe.</p>
-  {/if}
-  {#if view.slots.length}
-    <div class="slot-edit-row">
-      {#each view.slots as slot (slot.level)}
-        <label class="slot-label" title="Verbraucht von {slot.total}">S{slot.level}
-          <input type="number" min="0" max={slot.total} value={slot.used}
-            onchange={(e) => onSlotUsed(slot.level, Number(e.currentTarget.value) || 0)} />
-          <span class="slot-total">/ {slot.total}</span>
-        </label>
-      {/each}
-    </div>
-  {/if}
-  {#if view.pact}
-    <p class="auto-hint">Pakt-Plätze: {view.pact.total} × Grad {view.pact.level} (Kurze Rast)</p>
+  {:else if !resources.length}
+    <p class="auto-hint">Keine Vorräte auf dieser Stufe.</p>
   {/if}
 
   <h3 style="margin-top:0.75rem">Ohne Quelle</h3>

@@ -6,7 +6,7 @@
  */
 import type { DeclarableFeature } from './declarationCoverage';
 
-export type DeclarationGapKind = 'spells' | 'ability' | 'choice';
+export type DeclarationGapKind = 'spells' | 'resource' | 'ability' | 'choice';
 
 export interface DeclarationGap {
   /** Deutscher Anzeigename, falls vorhanden — die Meldung liest ein Mensch. */
@@ -33,6 +33,10 @@ const GAP_RULES: {
   spells: {
     signal: /\byou (?:always have|know) the\b|\bcantrip\b/i,
     declared: (f) => f.grantsSpells !== undefined || f.grantsCasting !== undefined,
+  },
+  resource: {
+    signal: /\bexpended uses?\b|\bnumber of (?:times|uses)\b/i,
+    declared: (f) => f.grantsResource !== undefined || f.grantsCasting !== undefined,
   },
   ability: {
     signal: /\bincrease (?:your|one) [^.]*\bscore\b/i,
@@ -74,6 +78,7 @@ export function declarationGaps(features: readonly GapCandidate[]): DeclarationG
 
 const GAP_TEXT: Record<DeclarationGapKind, string> = {
   spells: 'kündigt in seiner Regelprosa Zauber an, die die Bibliothek nicht deklariert',
+  resource: 'zählt in seiner Regelprosa Anwendungen, für die kein Vorrat deklariert ist',
   ability: 'erhöht ein Attribut, das die Bibliothek nicht deklariert — der Wert bleibt aus',
   choice: 'kündigt in seiner Regelprosa eine Wahl an, die die Bibliothek nicht deklariert',
 };

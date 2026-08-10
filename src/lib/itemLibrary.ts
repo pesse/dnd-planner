@@ -9,6 +9,7 @@ import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 import type { EquipmentChoiceCategory } from './schemas/wizardEquipment';
 import { itemKeyOf } from './schemas/item';
+import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
 import { scanJsonFolder } from './services/library/createLibrary';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
@@ -35,6 +36,8 @@ export interface ItemInfo {
   damage?: Item['damage'];
   properties?: Item['properties'];
   magic_bonus?: Item['magic_bonus'];
+  attunement?: boolean;
+  grantsResource?: ResourceGrant;
   range?: Item['range'];
   throw_range?: Item['throw_range'];
 }
@@ -168,6 +171,8 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
         damage: data.damage,
         properties: data.properties,
         magic_bonus: data.magic_bonus,
+        attunement: data.attunement === true,
+        grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
         range: data.range,
         throw_range: data.throw_range,
       }),

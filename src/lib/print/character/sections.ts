@@ -80,8 +80,7 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
   freetext:    { label: 'Notizen',            page: 'details', defaultOn: false,
                  available: (d) => hasText(d.freetext), render: renderFreetext },
 
-  // Der Kopf des Zauberblatts: Plätze, Klassen-Ressourcen, Metamagie in einer Reihe.
-  spellTop:    { label: 'Vorrat: Plätze, Ressourcen, Metamagie', page: 'spells', defaultOn: true,
+  spellTop:    { label: 'Vorräte, Werte und Options-Pools', page: 'spells', defaultOn: true,
                  available: (d) => !!renderSpellTop(d), render: renderSpellTop },
   spellsExtra: { label: 'Weitere Zauber',     page: 'spells', defaultOn: true,
                  available: (d) => !!renderExtraSpells(d), render: renderExtraSpells },

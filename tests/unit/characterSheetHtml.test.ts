@@ -18,10 +18,11 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   freetext: '',
   attacks: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
-  grouped: { sources: [], slots: [], pact: null, manualSlots: false, extra: [], issues: [] },
+  grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },
   pools: [],
   resources: [],
+  values: [],
   spellCards: '',
 });
 
@@ -36,7 +37,7 @@ const title = (label: string) => `<span class="btitle">${label}</span>`;
 const quota = (over: Partial<SpellQuotaGroup>): SpellQuotaGroup => ({
   sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
   levels: [], lists: [], schools: [], from: null, into: null,
-  count: 0, fixed: false, spells: [], open: 0, ...over,
+  count: 0, tier: 'prepared', fixed: false, spells: [], open: 0, ...over,
 });
 
 const wizardSource = (quotas: SpellQuotaGroup[]) => ({
@@ -103,19 +104,40 @@ describe('HTML-Charakterbogen', () => {
   it('zählt den Vorrat als Kästchen und den Hinterhältigen Angriff als Wert', () => {
     const d = dataFor(allProficienciesCharacter);
     d.resources = [{
-      className: 'Zauberer',
-      tracks: [
-        { column: 'Sorcery Points', label: 'Zauberpunkte', kind: 'count', max: 3, text: '3' },
-        { column: 'Sneak Attack', label: 'Hinterhältiger Angriff', kind: 'value', max: 0, text: '2d6' },
-      ],
+      id: 'srd-2024_sorcerer_font-of-magic/points', featureKey: 'srd-2024_sorcerer_font-of-magic',
+      labelDe: 'Zauberpunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest',
+      shared: '', kind: 'points', max: [3], additions: [],
+    }];
+    d.values = [{
+      className: 'Schurke',
+      tracks: [{ column: 'Sneak Attack', label: 'Hinterhältiger Angriff', text: '2d6' }],
     }];
     const html = build(d);
     // Alle Vorräte stehen am Kopf des Zauberblatts; davor liegen die Kästchen der Übersicht.
     const top = html.split('class="sp-top"')[1];
 
-    expect(top).toContain(title('Vorräte'));
+    expect(top).toContain(title('Zauberpunkte'));
+    expect(top).toContain('Lange Rast');
     expect(top.match(/<i class="tick"><\/i>/g)).toHaveLength(3);
+    expect(top).toContain(title('Werte'));
     expect(top).toContain('<span class="res-value">2d6</span>');
+  });
+
+  it('füllt das Häkchen für vorbereitete Zauber und lässt das Zauberbuch leer', () => {
+    const bolt = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1 };
+    const shield = { key: 'shield', label: 'Schild', level: 1 };
+    const d = dataFor(allProficienciesCharacter);
+    d.grouped = {
+      sources: [wizardSource([
+        quota({ quotaId: 'book', label: 'Zauberbuch', tier: 'known', spells: [bolt, shield] }),
+        quota({ quotaId: 'prepared', tier: 'prepared', spells: [bolt] }),
+      ])],
+      resources: [], extra: [], issues: [],
+    };
+    const html = build(d);
+
+    expect(html).toContain('<i class="cbox on"></i><span class="sname">Magisches Geschoss</span>');
+    expect(html).toContain('<i class="cbox"></i><span class="sname">Schild</span>');
   });
 
   it('führt einen Zauber je Quelle einmal, mit dem Hinweis, der etwas sagt', () => {
@@ -135,7 +157,7 @@ describe('HTML-Charakterbogen', () => {
           cast: [{ kind: 'uses', per: 'long-rest', count: 1 }], castNote: '1× ohne Zauberplatz pro Lange Rast',
         }),
       ])],
-      slots: [], pact: null, manualSlots: false, extra: [], issues: [],
+      resources: [], extra: [], issues: [],
     };
     const html = build(d);
 

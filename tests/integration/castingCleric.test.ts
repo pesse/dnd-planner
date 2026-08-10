@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
+import { sharedSlots } from '../../src/lib/services/resources/project';
 import { resolveCasting } from '../../src/lib/services/spellcasting/resolve';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 import { groupedSpellcasting } from '../../src/lib/services/spellcasting/grouped';
@@ -111,7 +112,7 @@ describe('Kleriker-Zauberquellen', () => {
     const source = view.sources.find((s) => s.id === `${CLERIC}_spellcasting`);
     expect(source?.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
     expect(source?.attackBonus).toBe(c.proficiencyBonus + c.mods.wis);
-    expect(view.slots.map((s) => s.total)).toEqual([4, 3, 2]);
+    expect(sharedSlots(view.resources, 'standard').slice(0, 4)).toEqual([4, 3, 2, 0]);
   });
 });
 

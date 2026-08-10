@@ -4,7 +4,7 @@
  * stehen zusammen. Die Kästen nehmen die ganze Breite und spalten sich innen, damit die Grade
  * beieinander bleiben.
  */
-import type { ResourceTrack } from '$lib/domain/classResources';
+import { resourceViews } from '$lib/services/resources/project';
 import type { GroupedSpell, SpellQuotaGroup, SpellSourceGroup } from '$lib/services/spellcasting/grouped';
 import { sign } from '$lib/utils/num';
 import type { CharacterPrintData } from '../data';
@@ -23,6 +23,8 @@ interface SheetSpell {
   label: string;
   level: number;
   note: string;
+  /** Aus einem `prepared`-Kontingent — das Häkchen ist gesetzt, nicht am Tisch zu setzen. */
+  prepared: boolean;
 }
 
 /**
@@ -94,15 +96,19 @@ function mergedSpells(quotas: SpellQuotaGroup[]): SheetSpell[] {
       // Wirkweg etwas, und der steht im Kastenkopf oder hier.
       const note = isOrdinaryCast(q, s.level, feeders) ? '' : q.castNote;
       const seen = byKey.get(s.key);
-      if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note });
-      else if (!seen.note) seen.note = note;
+      const prepared = q.tier === 'prepared';
+      if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note, prepared });
+      else {
+        if (!seen.note) seen.note = note;
+        seen.prepared ||= prepared;
+      }
     }
   }
   return [...byKey.values()];
 }
 
 const asSheetSpells = (spells: GroupedSpell[]): SheetSpell[] =>
-  spells.map((s) => ({ label: s.label, level: s.level, note: '' }));
+  spells.map((s) => ({ label: s.label, level: s.level, note: '', prepared: false }));
 
 function byLevel(spells: SheetSpell[]): [number, SheetSpell[]][] {
   const map = new Map<number, SheetSpell[]>();
@@ -114,9 +120,9 @@ function byLevel(spells: SheetSpell[]): [number, SheetSpell[]][] {
   return [...map].sort((a, b) => a[0] - b[0]);
 }
 
-/** Das Kästchen bleibt LEER: es ist das Vorbereitet-Häkchen, das am Tisch gesetzt wird. */
+/** Das Häkchen heißt „vorbereitet": beim Zauberbuch leer, bei der Vorbereitung gesetzt. */
 const spellLine = (s: SheetSpell): string =>
-  `<div class="spell">${checkbox(false)}<span class="sname">${esc(s.label)}</span>` +
+  `<div class="spell">${checkbox(s.prepared)}<span class="sname">${esc(s.label)}</span>` +
   (s.note ? `<span class="spell-note">${esc(s.note)}</span>` : '') + '</div>';
 
 /** Eine Zeile für eine Wahl, die noch offen ist — der einzige Platz, der beschrieben wird. */
@@ -179,35 +185,35 @@ export function renderSpellSource(d: CharacterPrintData, groupId: string): strin
     { cls: listWidth(groups), hint: group.hint });
 }
 
-/** Ein Feld je Grad, nebeneinander — der Vorrat steht am Kopf des Blattes, nicht in einer Liste. */
-function slotsBox(d: CharacterPrintData): string {
-  const g = d.grouped;
-  const cell = (label: string, total: number, used: number): string =>
-    `<div class="sp-slot"><span class="sp-slot-lbl">${esc(label)}</span>${slotCircles(total, used)}</div>`;
-  const cells = g.slots.filter((s) => s.total > 0).map((s) => cell(LEVEL_LABEL(s.level), s.total, s.used));
-  if (g.pact) cells.push(cell(`Pakt ${LEVEL_LABEL(g.pact.level)}`, g.pact.total, g.pact.used));
-  if (!cells.length) return '';
-  // Der Hinweis steht im Kasten, nicht im Titel: der ist nur so breit wie die Kreisreihe.
-  const note = g.manualSlots ? '<div class="cast-note">von Hand gepflegt</div>' : '';
-  return block('Zauberplätze', `<div class="sp-slots">${cells.join('')}</div>${note}`,
-    { cls: 'sp-tight' });
+/**
+ * Ein Kasten je Vorrat: Plätze zerfallen in Kreisreihen je Grad, Zähler und Punkte stehen als
+ * eine Kästchenreihe unter dem Kastentitel.
+ */
+function resourcesBox(d: CharacterPrintData): string {
+  return resourceViews(d.resources)
+    .map((view) => {
+      const cells = view.cells
+        .map(({ label, count }) =>
+          label
+            ? `<div class="sp-slot"><span class="sp-slot-lbl">${esc(label)}</span>${slotCircles(count)}</div>`
+            : `<div class="sp-slot">${tickBoxes(count)}<span class="pick-help">max. ${count}</span></div>`,
+        )
+        .join('');
+      return block(view.label, `<div class="sp-slots">${cells}</div>`, { cls: 'sp-tight', hint: view.hint });
+    })
+    .join('');
 }
 
-/** Zauberpunkte und Verwandte: die Klassenspalten, die als Zauber-Ressource deklariert sind. */
-function resourcesBox(d: CharacterPrintData): string {
-  const tracks = d.resources.flatMap((cls) => cls.tracks);
+/** Die skalierenden Klassenspalten daneben: Rauschschaden, Hinterhältiger Angriff, Bardenwürfel. */
+function valuesBox(d: CharacterPrintData): string {
+  const tracks = d.values.flatMap((cls) => cls.tracks);
   if (!tracks.length) return '';
-  const single = tracks.length === 1;
-  const value = (t: ResourceTrack): string => t.kind === 'count'
-    ? `${tickBoxes(t.max)}<span class="pick-help">max. ${t.max}</span>`
-    : `<span class="res-value">${esc(t.text)}</span>`;
   const body = tracks.map((t) => `<div class="sp-points">
-      ${single ? '' : `<span class="sp-slot-lbl">${esc(t.label)}</span>`}
-      ${value(t)}
+      <span class="sp-slot-lbl">${esc(t.label)}</span>
+      <span class="res-value">${esc(t.text)}</span>
     </div>`).join('');
-  const classes = [...new Set(d.resources.map((cls) => cls.className))];
-  return block(single ? tracks[0].label : 'Vorräte', body,
-    { cls: 'sp-tight', hint: classes.length === 1 ? classes[0] : '' });
+  const classes = [...new Set(d.values.map((cls) => cls.className))];
+  return block('Werte', body, { cls: 'sp-tight', hint: classes.length === 1 ? classes[0] : '' });
 }
 
 /**
@@ -216,7 +222,7 @@ function resourcesBox(d: CharacterPrintData): string {
  * Vorräte sind Kreisreihen und schmal; die Pools tragen Namen samt Regeltext und den Rest.
  */
 export function renderSpellTop(d: CharacterPrintData): string {
-  const boxes = slotsBox(d) + resourcesBox(d) + renderOptionPools(d, 'sp-grow');
+  const boxes = resourcesBox(d) + valuesBox(d) + renderOptionPools(d, 'sp-grow');
   return boxes ? `<div class="sp-top">${boxes}</div>` : '';
 }
 

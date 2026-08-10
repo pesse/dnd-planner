@@ -97,7 +97,6 @@ body {
 .ticks, .slots { display: inline-flex; flex-wrap: wrap; gap: 0.9mm; vertical-align: middle; }
 .tick  { width: 3.2mm; height: 3.2mm; border: 0.3mm solid var(--rule); border-radius: 50%; display: inline-block; }
 .slot  { width: 3.2mm; height: 3.2mm; border: 0.3mm solid var(--rule); border-radius: 50%; display: inline-block; }
-.slot.spent { background: var(--rule); }
 /* Zeile zum Eintragen, wo eine Wahl noch offen ist. */
 .wline { min-height: 4mm; border-bottom: 0.2mm dotted var(--rule); margin-top: 1mm; }
 /* Dasselbe in einer Tabellenzeile: die Linie kommt von der Zelle, die Höhe von hier. */

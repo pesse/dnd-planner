@@ -61,8 +61,8 @@ describe('buildCharacterContext', () => {
       ### Spellcasting
       - Source: Paladin — Ability: Charisma, Save DC: 15, Attack Bonus: +7
       - Slots:
-        - Grad 1: 3/4 frei
-        - Grad 2: 2/2 frei
+        - Grad 1: 4
+        - Grad 2: 2
       - Zaubertricks: Licht
       - Grad 1: Göttliche Gunst (vorbereitet), Heldentum
       - Grad 2: Waffe des Glaubens (vorbereitet)

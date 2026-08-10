@@ -13,6 +13,7 @@
   import { createSpellHover, loadSpellCached } from '../spellHover.svelte';
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
+  import { resourceViews } from '../../services/resources/project';
   import { groupedSpellcasting } from '../../services/spellcasting/grouped';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -34,6 +35,7 @@
   const view = $derived(casting ? groupedSpellcasting(casting.state, casting.lookup) : null);
   /** Noch nicht umgezogene Dateien: Kopfzeile und Zauber stehen im alten Block (`spellsFix`). */
   const legacy = $derived(casting?.legacy ?? { row: null, spells: [] });
+  const resources = $derived(resourceViews(view?.resources ?? []));
 
   const loose = $derived<CardSpell[]>([
     ...(view?.extra ?? []).map((s) => ({ key: s.key, label: s.label, prepared: true })),
@@ -48,8 +50,7 @@
   const hasContent = $derived(
     !!view &&
       (view.sources.length > 0 ||
-        view.slots.length > 0 ||
-        !!view.pact ||
+        resources.length > 0 ||
         spells.length > 0 ||
         !!legacy.row ||
         // Ohne die Issues bliebe die Karte leer und verschwiege, dass etwas fehlt.
@@ -191,19 +192,16 @@
       </div>
     {/if}
 
-    {#if view.slots.length || view.pact}
+    {#each resources as pool (pool.id)}
       <div class="quota-row">
-        <span class="quota-label">Zauberplätze{#if view.manualSlots}<span class="quota-cast">von Hand</span>{/if}</span>
+        <span class="quota-label">{pool.label}{#if pool.hint}<span class="quota-cast">{pool.hint}</span>{/if}</span>
         <div class="tag-list">
-          {#each view.slots as slot (slot.level)}
-            <span class="tag slot-tag" title="{slot.used} verbraucht">Grad {slot.level}: {slot.total - slot.used} / {slot.total}</span>
+          {#each pool.cells as cell (cell.label)}
+            <span class="tag slot-tag">{cell.label ? `${cell.label}: ` : ''}{cell.count}</span>
           {/each}
-          {#if view.pact}
-            <span class="tag slot-tag">Pakt: {view.pact.total - view.pact.used} / {view.pact.total} × Grad {view.pact.level} (Kurze Rast)</span>
-          {/if}
         </div>
       </div>
-    {/if}
+    {/each}
 
     {#if loose.length}
       <div class="quota-row">

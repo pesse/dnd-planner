@@ -12,6 +12,38 @@
     "rank": -9007199254740991
   },
   "attunement": false,
+  "grantsResource": {
+    "pools": [
+      {
+        "id": "string",
+        "labelDe": "string",
+        "since": 1,
+        "when": {
+          "<key>": "string"
+        },
+        "recharge": "long-rest",
+        "shared": "string",
+        "shape": {
+          "kind": "counter",
+          "max": {
+            "column": "string"
+          }
+        }
+      }
+    ],
+    "mods": [
+      {
+        "target": {
+          "feature": "string",
+          "pool": "string",
+          "shared": "string"
+        },
+        "addMax": {
+          "column": "string"
+        }
+      }
+    ]
+  },
   "attunement_by": "string",
   "variant": false,
   "variants": [

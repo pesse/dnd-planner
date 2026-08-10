@@ -1,0 +1,15 @@
+[
+  {
+    "column": "string"
+  },
+  {
+    "abilityMod": "Strength",
+    "min": 1
+  },
+  {
+    "base": 0,
+    "perLevel": 0,
+    "divide": 1,
+    "round": "down"
+  }
+]

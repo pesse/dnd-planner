@@ -1,0 +1,11 @@
+[
+  {
+    "columns": [
+      "string"
+    ]
+  },
+  {
+    "countColumn": "string",
+    "levelColumn": "string"
+  }
+]

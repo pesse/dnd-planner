@@ -31,7 +31,7 @@ function spellLines(view: SheetSpellcasting | undefined): string[] {
   const lines: string[] = [];
   const slots = view.levels.filter((l) => l.slots);
   if (slots.length)
-    lines.push(`Zauberplätze: ${slots.map((l) => `Grad ${l.level}: ${l.slots!.total}`).join(', ')}`);
+    lines.push(`Zauberplätze: ${slots.map((l) => `Grad ${l.level}: ${l.slots}`).join(', ')}`);
   if (view.pact) lines.push(`Pakt-Plätze: ${view.pact.total} × Grad ${view.pact.level}`);
   for (const source of view.sources)
     if (source.abilityDe) lines.push(`${source.label}: Zauber über ${source.abilityDe}`);

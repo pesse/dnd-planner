@@ -41,7 +41,7 @@ describe('Bogen-Projektion', () => {
     expect(row?.attackBonus).toBe(c.proficiencyBonus + c.mods.wis);
 
     expect(labels(view, 0)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
-    expect(levelOf(view, 1).slots).toEqual({ total: 3, used: 0 });
+    expect(levelOf(view, 1).slots).toBe(3);
     expect(labels(view, 1)).toContain('Springen');
     // Vier vorbereitete plus „Vertrauten finden" aus dem Wilden Gefährten.
     expect(labels(view, 1)).toContain('Vertrauten finden');
@@ -50,7 +50,7 @@ describe('Bogen-Projektion', () => {
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
     const c = vaultCharacter('Thromm Flechtenstein');
-    expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks', 'uses']);
+    expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
     expect(view.sources.find((s) => s.kind === 'class')?.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
@@ -73,7 +73,7 @@ describe('Bogen-Projektion', () => {
     expect(c.classes).toEqual([]);
     const view = await loadSheetSpellcasting(c);
 
-    expect(levelOf(view, 1).slots).toEqual({ total: 2, used: 0 });
+    expect(levelOf(view, 1).slots).toBe(2);
     expect(labels(view, 0)).toHaveLength(4);
     expect(labels(view, 1)).toHaveLength(6);
     expect(view.levels.every((l) => l.spells.every((s) => s.source === ''))).toBe(true);
@@ -92,7 +92,7 @@ describe('KI-Kontext', () => {
     const lines = contextLines(await loadSheetSpellcasting(vaultCharacter('Bulgur')));
     expect(lines[0]).toMatch(/^- Source: Druide — Ability: Weisheit, Save DC: \d+, Attack Bonus: [+-]\d+$/);
     expect(lines).toContain('- Slots:');
-    expect(lines.some((l) => l === '  - Grad 1: 3/3 frei')).toBe(true);
+    expect(lines.some((l) => l === '  - Grad 1: 3')).toBe(true);
     expect(lines.some((l) => l.startsWith('- Zaubertricks: Flammen erzeugen'))).toBe(true);
     expect(lines.some((l) => l.startsWith('- Grad 1: '))).toBe(true);
   });

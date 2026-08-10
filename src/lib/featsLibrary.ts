@@ -9,6 +9,7 @@ import { castingGrantSchema, type CastingGrant } from './schemas/casting';
 import { featureChoiceGrantsSchema, type FeatureChoiceGrant } from './schemas/featureChoice';
 import { featureGrantSchema, spellGrantSchema, type FeatureGrant, type SpellGrant } from './schemas/grants';
 import { migrateFeatLegacy } from './schemas/feat';
+import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 
 export const FEATS_PATH = './vault/feats';
 
@@ -35,6 +36,7 @@ export interface FeatEntry {
   grantsSpells?: SpellGrant;
   grants?: FeatureGrant;
   grantsCasting?: CastingGrant;
+  grantsResource?: ResourceGrant;
   /** Bei inline erzeugten Talenten leer. */
   path?: string;
 }
@@ -74,6 +76,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
       grantsSpells: spellGrantSchema.safeParse(data.grantsSpells).data,
       grants: featureGrantSchema.safeParse(data.grants).data,
       grantsCasting: castingGrantSchema.safeParse(data.grantsCasting).data,
+      grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
       path,
     };
   },

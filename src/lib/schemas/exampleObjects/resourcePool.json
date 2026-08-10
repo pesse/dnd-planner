@@ -1,0 +1,16 @@
+{
+  "id": "string",
+  "labelDe": "string",
+  "since": 1,
+  "when": {
+    "<key>": "string"
+  },
+  "recharge": "long-rest",
+  "shared": "string",
+  "shape": {
+    "kind": "counter",
+    "max": {
+      "column": "string"
+    }
+  }
+}

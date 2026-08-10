@@ -26,7 +26,8 @@ in das der Wert fließt. Deshalb steht am Anfang jeder Zeile unten die Senke, ni
 | `languages[]`, `tools[]` | ✅ (`Change` `language`/`toolProficiency`) | **fehlt** — keine Wahl-Form |
 | `attacks[].modifiers` (Angriffs-/Schadensbonus) | ✅ | **fehlt** — nie deklarativ befüllt |
 | `ac`, `initiative` | nur Freitext-Feld, keine Berechnung | offene Entscheidung |
-| Resistenzen, Sinne, Bewegungsarten, Ressourcen-Pools, Kreaturentyp, Tragkraft | ❌ kein Feld | offene Entscheidung |
+| Vorräte (Wut, Tiergestalt, Zauberpunkte, Kanal, Zauberplätze) | ✅ abgeleitet aus `grantsResource` | ✅ deklariert |
+| Resistenzen, Sinne, Bewegungsarten, Kreaturentyp, Tragkraft | ❌ kein Feld | offene Entscheidung |
 
 Wo keine Senke existiert, ist „deterministisch machen" **zwei** Entscheidungen: erst ein
 Charakterfeld (also `CHARACTER_VERSION`-Arbeit), dann die Deklaration. Das trennt die billigen
@@ -130,7 +131,7 @@ würde sie schließen — und ist Voraussetzung dafür, dass eine Homebrew-Klass
 | Initiative-Bonus | `alert` (+Übungsbonus) | `initiative` ist Freitext | klein, sobald man das Feld berechnen will |
 | Bewegungsarten (Fliegen/Klettern/Schwimmen) | Fairy `Flight`, Dragonborn `Draconic Flight`, Ranger `Roving` | **kein Feld** | Feld + Bogenfrage |
 | Schadensresistenz | Dwarf, Draconic Ancestry, `boon-of-the-night-spirit`, Monk `Superior Defense`, Draconic Sorcery | **kein Feld** | Feld + Bogenfrage |
-| Ressourcen-Pools (Fokus, Wut, Glück, Kanalisierte Göttlichkeit) | ~15 Merkmale, Zahl meist aus Stufentabellenspalte | **kein Feld** | groß; die Spalten liegen als `levels[].columns` schon vor |
+| ~~Ressourcen-Pools (Fokus, Wut, Glück, Kanalisierte Göttlichkeit)~~ | ~15 Merkmale, Zahl meist aus Stufentabellenspalte | **erledigt**: `grantsResource` → `services/resources/`, kein Charakterfeld nötig (nichts wird verbraucht) | — |
 
 Die untere Hälfte dieser Tabelle ist die eigentliche Grundsatzfrage: **wie weit soll der
 Charakterbogen rechnen?** Solange RK, Initiative und Resistenzen Freitextfelder sind, ist

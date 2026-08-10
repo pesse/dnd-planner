@@ -53,6 +53,12 @@
     },
     {
       "kind": "resource",
+      "resource": {
+        "feature": "string",
+        "pool": "string",
+        "shared": "string"
+      },
+      "amount": 1,
       "labelDe": "string"
     },
     {

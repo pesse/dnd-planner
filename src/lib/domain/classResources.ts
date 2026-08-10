@@ -3,7 +3,6 @@
  * Abstreichen), was ein skalierender Wert (Zahl) und was schon anderswo auf dem Bogen steht.
  */
 import { formatDamageDice, ftToM } from '$lib/itemFormat';
-import { firstInt } from '$lib/utils/num';
 
 export type ResourceKind = 'skip' | 'count' | 'value';
 
@@ -46,12 +45,9 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Bardic Die': { kind: 'value', labelDe: 'Bardenwürfel' },
 };
 
-export interface ResourceTrack {
+export interface ValueTrack {
   column: string;
   label: string;
-  kind: 'count' | 'value';
-  /** Zahl der Kästchen; bei `value` immer 0. */
-  max: number;
   /** Der Spaltenwert in Bogen-Schreibweise: `1W6` statt `1d6`, Meter statt Fuß. */
   text: string;
 }
@@ -65,20 +61,15 @@ const sheetValue = (raw: string): string =>
 /**
  * Aus den Spalten EINER Klassenstufe. Eine unbekannte Spalte fällt still heraus — dieselbe
  * Degradation wie `getProgressionByKey → null`, damit Homebrew den Bogen nicht sprengt.
+ * Die `count`-Spalten stehen NICHT hier: sie sind Vorräte und kommen aus `grantsResource`.
  */
-export function resourceTracks(columns: Record<string, string>): ResourceTrack[] {
-  const tracks: ResourceTrack[] = [];
+export function valueTracks(columns: Record<string, string>): ValueTrack[] {
+  const tracks: ValueTrack[] = [];
   for (const [column, def] of Object.entries(CLASS_RESOURCE_COLUMNS)) {
-    if (def.kind === 'skip') continue;
+    if (def.kind !== 'value') continue;
     const raw = columns[column];
     if (raw === undefined || isEmpty(raw)) continue;
-    if (def.kind === 'count') {
-      const max = firstInt(raw);
-      if (max > 0)
-        tracks.push({ column, label: def.labelDe, kind: 'count', max, text: sheetValue(raw) });
-    } else {
-      tracks.push({ column, label: def.labelDe, kind: 'value', max: 0, text: sheetValue(raw) });
-    }
+    tracks.push({ column, label: def.labelDe, text: sheetValue(raw) });
   }
   return tracks;
 }

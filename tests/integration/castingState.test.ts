@@ -7,6 +7,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { characterSpellcastingSchema, type CharacterSpellcasting } from '../../src/lib/schemas/spellcasting';
+import { sharedSlots } from '../../src/lib/services/resources/project';
+import { resolveResources } from '../../src/lib/services/resources/resolve';
 import { resolveCasting, type CastingCharacter } from '../../src/lib/services/spellcasting/resolve';
 import { openPicks, spellcastingState, type SourceState, type SpellcastingState } from '../../src/lib/services/spellcasting/state';
 import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
@@ -29,9 +31,13 @@ async function state(c: CastingCharacter, index: number): Promise<SpellcastingSt
     stored: stored(index),
     profBonus: 3,
     mods: { ...NO_MODS },
+    resources: await resolveResources(c),
     spellKey: (name) => resolveSpell(lib, name)?.key,
   });
 }
+
+const slotsOf = (s: SpellcastingState, shared: string): number[] =>
+  sharedSlots(s.resources, shared);
 
 const sourceOf = (s: SpellcastingState, id: string): SourceState => {
   const hit = s.sources.find((x) => x.source.id === id);
@@ -68,12 +74,11 @@ describe('Fee-Zauberer, Charakterstufe 5', () => {
 
   it('teilt einen Platz-Pool zwischen Klasse und Spezies', async () => {
     const s = await state(character, 0);
-    expect(s.pools.standard.total.slice(0, 4)).toEqual([4, 3, 2, 0]);
-    expect(s.pools.standard.used.slice(0, 3)).toEqual([1, 0, 0]);
-    expect(s.pools.pact.total).toEqual(Array(9).fill(0));
+    expect(slotsOf(s, 'standard').slice(0, 4)).toEqual([4, 3, 2, 0]);
+    expect(slotsOf(s, 'pact')).toEqual(Array(9).fill(0));
   });
 
-  it('speichert von der Fee nur Attributwahl und Verbrauch', async () => {
+  it('speichert von der Fee nur die Attributwahl', async () => {
     const s = await state(character, 0);
     const fairy = sourceOf(s, 'phb-2024_fairy_fairy-magic');
     expect(fairy.ability).toBe('Charisma');
@@ -83,8 +88,8 @@ describe('Fee-Zauberer, Charakterstufe 5', () => {
       ['srd-2024_faerie-fire'],
       ['srd-2024_enlargereduce'],
     ]);
-    expect(quotaOf(fairy, 'fairy3').uses).toEqual({ max: 1, used: 1 });
-    expect(quotaOf(fairy, 'fairy5').uses).toEqual({ max: 1, used: 0 });
+    expect(quotaOf(fairy, 'fairy3').uses).toBe(1);
+    expect(quotaOf(fairy, 'fairy5').uses).toBe(1);
     expect(quotaOf(fairy, 'fairyCantrip').uses).toBeNull();
   });
 });
@@ -98,8 +103,7 @@ describe('Barde (Kolleg des Wissens), Klassenstufe 10', () => {
     const s = await state(character, 1);
     expect(s.issues).toEqual([]);
     expect(openPicks(s)).toEqual([]);
-    expect(s.pools.standard.total.slice(0, 6)).toEqual([4, 3, 3, 3, 2, 0]);
-    expect(s.pools.standard.used.slice(0, 4)).toEqual([2, 1, 0, 1]);
+    expect(slotsOf(s, 'standard').slice(0, 6)).toEqual([4, 3, 3, 3, 2, 0]);
 
     const bard = sourceOf(s, 'srd-2024_bard_spellcasting');
     expect(quotaOf(bard, 'cantrips').spells).toHaveLength(4);

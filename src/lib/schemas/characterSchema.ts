@@ -242,6 +242,9 @@ export const characterSchema = z.object({
         sourceKey: z.string().optional(),
         count: z.string().default(''),
         weight: z.string().default(''),
+        /** Optional wie `sourceKey`: fehlt das Feld, wirkt der Gegenstand nicht. */
+        equipped: z.boolean().optional(),
+        attuned: z.boolean().optional(),
       }),
     )
     .default([]),
@@ -303,6 +306,7 @@ export const characterSchema = z.object({
 });
 
 export type Character = z.infer<typeof characterSchema>;
+export type CharacterInventoryEntry = Character['inventory'][number];
 export type CharacterSpells = z.infer<typeof characterSpellsSchema>;
 export type Attack = z.infer<typeof attackSchema>;
 export type AttackModifier = z.infer<typeof attackModifierSchema>;

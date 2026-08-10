@@ -68,6 +68,8 @@ async function fetchAllItems(): Promise<Record<string, unknown>[]> {
 interface OldEntry {
   name_de?: string;
   desc_de?: string[];
+  /** Handgepflegt: Open5e kennt das Feld nicht, der Re-Import darf es trotzdem nicht verlieren. */
+  grantsResource?: unknown;
   path: string;
   source: string;
 }
@@ -100,6 +102,7 @@ function buildOldIndex(): Map<string, OldEntry> {
     byName.set(key, {
       name_de: typeof data.name_de === 'string' ? data.name_de : undefined,
       desc_de: Array.isArray(data.desc_de) ? (data.desc_de as string[]) : undefined,
+      grantsResource: data.grantsResource,
       path,
       source,
     });
@@ -139,6 +142,7 @@ async function main(): Promise<void> {
     const match = oldByName.get(item.name.toLowerCase());
     if (match?.name_de) item.name_de = match.name_de;
     if (match?.desc_de?.length) item.desc_de = match.desc_de;
+    if (match?.grantsResource) item.grantsResource = match.grantsResource as Item['grantsResource'];
     if (item.mastery) withMastery++;
 
     const folder = item.equipment_category.index;

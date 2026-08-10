@@ -128,10 +128,9 @@ describe('Zauberbuch und Vorbereitung', () => {
     expect(source.picks.cantrips).toEqual(['srd-2024_fire-bolt']);
   });
 
-  it('übernimmt den Verbrauch der Plätze, nicht ihre Zahl', async () => {
+  it('übernimmt keine Zahl der Plätze — die Klassentabelle führt sie', async () => {
     const c = wizard();
     await migrate(c);
-    expect(c.spellcasting.pools.standard.used[0]).toBe(1);
     expect(c.spellcasting.manual?.slotTotals ?? []).toEqual([]);
   });
 });

@@ -39,10 +39,9 @@ export const writeLines = (n: number): string =>
 export const tickBoxes = (n: number): string =>
   `<span class="ticks">${'<i class="tick"></i>'.repeat(Math.max(0, n))}</span>`;
 
-/** Zauberplätze: gefüllt = verbraucht, damit ein gespeicherter Stand mitgedruckt wird. */
-export const slotCircles = (total: number, used = 0): string =>
-  `<span class="slots">${Array.from({ length: Math.max(0, total) }, (_, i) =>
-    `<i class="slot${i < used ? ' spent' : ''}"></i>`).join('')}</span>`;
+/** Zauberplätze zum Abstreichen — der Verbrauch am Tisch steht in keiner Datei. */
+export const slotCircles = (total: number): string =>
+  `<span class="slots">${'<i class="slot"></i>'.repeat(Math.max(0, total))}</span>`;
 
 /** Verbundene Kreise wie bei den Rettungswürfen gegen Tod: ○–○–○, eine Reihe, kein Trio. */
 export const chainCircles = (n: number): string =>

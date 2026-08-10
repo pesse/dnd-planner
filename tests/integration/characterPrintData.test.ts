@@ -20,8 +20,12 @@ const sheetOf = async (character: Parameters<typeof loadCharacterPrintData>[0]['
   return { data, html: buildCharacterSheetHtml(data, defaultSelection(sheetSections(data))) };
 };
 
-const trackFor = (data: Awaited<ReturnType<typeof sheetOf>>['data'], label: string) =>
-  data.resources.flatMap((r) => r.tracks).find((t) => t.label === label);
+type Sheet = Awaited<ReturnType<typeof sheetOf>>['data'];
+
+const poolFor = (data: Sheet, label: string) => data.resources.find((p) => p.labelDe === label);
+
+const valueFor = (data: Sheet, label: string) =>
+  data.values.flatMap((r) => r.tracks).find((t) => t.label === label);
 
 describe('Charakterbogen-Bündel über den echten Vault', () => {
   it('zieht die Zauberpunkte des Zauberers als Kästchen-Vorrat aus der Klassentabelle', async () => {
@@ -30,7 +34,7 @@ describe('Charakterbogen-Bündel über den echten Vault', () => {
       classes: [{ sourceKey: 'srd-2024_sorcerer', name: 'Zauberer', level: 5 }],
     }));
 
-    expect(trackFor(data, 'Zauberpunkte')).toMatchObject({ kind: 'count', max: 5 });
+    expect(poolFor(data, 'Zauberpunkte')).toMatchObject({ kind: 'points', max: [5] });
     // Der Vorrat steht am Kopf des Zauberblatts, neben den Zauberplätzen.
     expect(html.split('class="sp-top"')[1]).toContain('<span class="btitle">Zauberpunkte</span>');
   });
@@ -50,7 +54,7 @@ describe('Charakterbogen-Bündel über den echten Vault', () => {
       classes: [{ sourceKey: 'srd-2024_rogue', name: 'Schurke', level: 3 }],
     }));
 
-    expect(trackFor(data, 'Hinterhältiger Angriff')).toMatchObject({ kind: 'value', text: '2W6' });
+    expect(valueFor(data, 'Hinterhältiger Angriff')).toMatchObject({ text: '2W6' });
   });
 
   it('trägt SG und Angriffsbonus des Talent-Zugangs in die Zauberseite', async () => {

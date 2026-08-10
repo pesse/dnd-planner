@@ -111,31 +111,20 @@
       "name": "string",
       "sourceKey": "string",
       "count": "string",
-      "weight": "string"
+      "weight": "string",
+      "equipped": false,
+      "attuned": false
     }
   ],
   "inventoryNotes": "string",
   "totalWeight": "string",
   "spellcasting": {
-    "pools": {
-      "standard": {
-        "used": [
-          0
-        ]
-      },
-      "pact": {
-        "used": 0
-      }
-    },
     "sources": {
       "<key>": {
         "picks": {
           "<key>": [
             "string"
           ]
-        },
-        "uses": {
-          "<key>": 0
         }
       }
     },

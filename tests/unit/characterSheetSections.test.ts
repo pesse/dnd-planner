@@ -15,10 +15,11 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   freetext: '',
   attacks: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
-  grouped: { sources: [], slots: [], pact: null, manualSlots: false, extra: [], issues: [] },
+  grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },
   pools: [],
   resources: [],
+  values: [],
   spellCards: '',
   ...over,
 });
@@ -44,7 +45,11 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       mastery: { allowance: 2, className: 'Kämpfer', meleeOnly: false, weapons: [] },
       pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, options: [] }],
-      resources: [{ className: 'Barbar', tracks: [{ column: 'Rages', label: 'Kampfrausch', kind: 'count', max: 3, text: '3' }] }],
+      resources: [{
+        id: 'srd-2024_barbarian_rage/uses', featureKey: 'srd-2024_barbarian_rage', labelDe: 'Kampfrausch',
+        origin: 'class', classKey: 'srd-2024_barbarian', recharge: 'long-rest', shared: '', kind: 'counter',
+        max: [3], additions: [],
+      }],
     });
 
     expect(ids(d)).toContain('masteries');
@@ -93,7 +98,7 @@ describe('Sektionen des Charakterbogens', () => {
     const quota = {
       sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
       levels: [], lists: [], schools: [], from: null, into: null,
-      count: 0, fixed: false, spells: [bolt], open: 0,
+      count: 0, tier: 'prepared' as const, fixed: false, spells: [bolt], open: 0,
     };
     const loose = emptyData({ grouped: { ...emptyData().grouped, extra: [bolt] } });
     const placed = emptyData({
@@ -119,7 +124,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:druid', 'Druide'), source('sub:moon', 'Zirkel des Mondes')],
-        slots: [{ level: 1, total: 4, used: 0 }], pact: null, manualSlots: false, extra: [], issues: [],
+        resources: [], extra: [], issues: [],
       },
     });
 
@@ -132,7 +137,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:wizard', 'Magier'), feat],
-        slots: [{ level: 1, total: 4, used: 0 }], pact: null, manualSlots: false, extra: [], issues: [],
+        resources: [], extra: [], issues: [],
       },
     });
 
@@ -144,7 +149,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:wizard', 'Magier')],
-        slots: [{ level: 1, total: 4, used: 0 }], pact: null, manualSlots: false, extra: [], issues: [],
+        resources: [], extra: [], issues: [],
       },
     });
     const order = ids(d);
