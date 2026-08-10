@@ -26,8 +26,6 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Spell Slots': skip,
   'Prepared Spells': skip,
   Cantrips: skip,
-  // Beim Druiden trägt diese Spalte die Wildgestalt-Einsätze, nicht Zaubertricks — Open5e
-  // benennt sie falsch. Lieber weglassen als mit dem falschen Label drucken.
   'Cantrips Known': skip,
   'Proficiency Bonus': skip,
   'Weapon Mastery': skip,

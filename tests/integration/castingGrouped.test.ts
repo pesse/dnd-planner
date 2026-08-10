@@ -6,17 +6,18 @@
  *   npm run test -- castingGrouped
  */
 import { describe, expect, it } from 'vitest';
-import { type Character } from '../../src/lib/schemas/characterSchema';
+import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
 import { vaultCharacter } from '../support/vaultCharacter';
 import { groupedSpellcasting, type SpellQuotaGroup, type SpellSourceGroup } from '../../src/lib/services/spellcasting/grouped';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 
 
-const sourcesOf = async (name: string): Promise<SpellSourceGroup[]> => {
-  const c = vaultCharacter(name);
+const sourcesFor = async (c: Character): Promise<SpellSourceGroup[]> => {
   const { state, lookup } = await loadSpellcasting(c);
   return groupedSpellcasting(state, lookup).sources;
 };
+
+const sourcesOf = (name: string): Promise<SpellSourceGroup[]> => sourcesFor(vaultCharacter(name));
 
 const byFeature = (sources: SpellSourceGroup[], featureDe: string): SpellSourceGroup => {
   const hit = sources.find((s) => s.featureDe === featureDe || s.label === featureDe);
@@ -73,6 +74,28 @@ describe('gruppierte Sicht (Druide 3: Wirken aus fremder Ressource)', () => {
 
     expect(quota.spells.map((s) => s.label)).toEqual(['Vertrauten finden']);
     expect(quota.castNote).toBe('über eine Anwendung von Tiergestalt oder über Zauberplätze');
+  });
+});
+
+describe('gruppierte Sicht (Mönch 3: Weg des Schattens)', () => {
+  it('gibt jedem Zauber des Merkmals seinen eigenen Wirkweg', async () => {
+    const monk = characterSchema.parse({
+      name: 'Schattenmönch',
+      classes: [{
+        sourceKey: 'srd-2024_monk', name: 'Mönch',
+        subclassKey: 'phb-2024_way-of-shadow', subclassName: 'Weg des Schattens', level: 3,
+      }],
+      mods: { wis: 3 },
+      proficiencyBonus: 2,
+    });
+    const source = byFeature(await sourcesFor(monk), 'Schattenkünste');
+
+    expect(source.quotas.map((q) => [q.spells.map((s) => s.label).join(', '), q.castNote])).toEqual([
+      ['Einfache Illusion', 'beliebig oft'],
+      ['Dunkelheit', 'über 1 Fokuspunkt'],
+    ]);
+    // Der Mönch ist kein Zauberwirker; das Attribut steht am Merkmal.
+    expect(source.abilityDe).toBe('Weisheit');
   });
 });
 

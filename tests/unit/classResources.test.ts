@@ -19,7 +19,7 @@ describe('Ressourcen aus der Klassentabelle', () => {
 
   it('lässt weg, was schon anderswo auf dem Bogen steht', () => {
     const t = byColumn({
-      '1st': '4', '5th': '2', Cantrips: '3', 'Prepared Spells': '9',
+      '1st': '4', '5th': '2', Cantrips: '3', 'Cantrips Known': '3', 'Prepared Spells': '9',
       'Proficiency Bonus': '+3', 'Weapon Mastery': '3', 'Eldritch Invocations': '5',
       'Spell Slots': '2', 'Slot Level': '3',
     });
@@ -27,8 +27,10 @@ describe('Ressourcen aus der Klassentabelle', () => {
     expect(t).toEqual({});
   });
 
-  it('lässt die Wildgestalt-Spalte weg, weil die Quelle sie als Zaubertricks führt', () => {
-    expect(byColumn({ 'Cantrips Known': '2' })).toEqual({});
+  it('zählt die Wildgestalt-Einsätze des Druiden', () => {
+    expect(byColumn({ 'Wild Shape': '2' })['Wild Shape']).toMatchObject({
+      kind: 'count', max: 2, label: 'Tiergestalt',
+    });
   });
 
   it('übergeht eine unbekannte Spalte, statt zu werfen', () => {
