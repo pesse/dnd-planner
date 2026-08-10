@@ -30,8 +30,8 @@ describe('Charakterbogen-Bündel über den echten Vault', () => {
       classes: [{ sourceKey: 'srd-2024_sorcerer', name: 'Zauberer', level: 5 }],
     }));
 
-    expect(trackFor(data, 'Zauberpunkte')).toMatchObject({ kind: 'count', max: 5, spell: true });
-    // Der Vorrat steht am Kopf des Zauberblatts, nicht im allgemeinen Ressourcen-Kasten.
+    expect(trackFor(data, 'Zauberpunkte')).toMatchObject({ kind: 'count', max: 5 });
+    // Der Vorrat steht am Kopf des Zauberblatts, neben den Zauberplätzen.
     expect(html.split('class="sp-top"')[1]).toContain('<span class="btitle">Zauberpunkte</span>');
   });
 

@@ -1,9 +1,10 @@
 /**
- * Das Zauberblatt: oben der Vorrat (Plätze, Punkte, Metamagie), darunter ein Kasten je Satz
- * Zauberwerte — Quellen mit gleichem Attribut, gleicher SG und gleichem Angriffsbonus stehen
- * zusammen. Die Kästen nehmen die ganze Breite und spalten sich innen, damit die Grade
+ * Das Zauberblatt: oben der Vorrat (Plätze, Klassen-Ressourcen, Metamagie), darunter ein Kasten
+ * je Satz Zauberwerte — Quellen mit gleichem Attribut, gleicher SG und gleichem Angriffsbonus
+ * stehen zusammen. Die Kästen nehmen die ganze Breite und spalten sich innen, damit die Grade
  * beieinander bleiben.
  */
+import type { ResourceTrack } from '$lib/domain/classResources';
 import type { GroupedSpell, SpellQuotaGroup, SpellSourceGroup } from '$lib/services/spellcasting/grouped';
 import { sign } from '$lib/utils/num';
 import type { CharacterPrintData } from '../data';
@@ -193,24 +194,29 @@ function slotsBox(d: CharacterPrintData): string {
 }
 
 /** Zauberpunkte und Verwandte: die Klassenspalten, die als Zauber-Ressource deklariert sind. */
-function pointsBox(d: CharacterPrintData): string {
-  const tracks = d.resources.flatMap((cls) => cls.tracks.filter((t) => t.spell));
+function resourcesBox(d: CharacterPrintData): string {
+  const tracks = d.resources.flatMap((cls) => cls.tracks);
   if (!tracks.length) return '';
   const single = tracks.length === 1;
+  const value = (t: ResourceTrack): string => t.kind === 'count'
+    ? `${tickBoxes(t.max)}<span class="pick-help">max. ${t.max}</span>`
+    : `<span class="res-value">${esc(t.text)}</span>`;
   const body = tracks.map((t) => `<div class="sp-points">
       ${single ? '' : `<span class="sp-slot-lbl">${esc(t.label)}</span>`}
-      ${tickBoxes(t.max)}<span class="pick-help">max. ${t.max}</span>
+      ${value(t)}
     </div>`).join('');
-  return block(single ? tracks[0].label : 'Vorräte', body, { cls: 'sp-tight' });
+  const classes = [...new Set(d.resources.map((cls) => cls.className))];
+  return block(single ? tracks[0].label : 'Vorräte', body,
+    { cls: 'sp-tight', hint: classes.length === 1 ? classes[0] : '' });
 }
 
 /**
- * Der Kopf des Zauberblatts: was vor dem Wirken gezählt wird — Plätze, Punkte, Metamagie —
- * in einer Reihe, damit die Zauberlisten darunter ungestört stehen. Plätze und Punkte sind
- * Kreisreihen und schmal; die Options-Pools tragen Namen samt Regeltext und bekommen den Rest.
+ * Der Kopf des Zauberblatts: alles, was vor dem Wirken gezählt wird — Plätze, Klassen-Vorräte,
+ * Options-Pools — in einer Reihe, damit die Zauberlisten darunter ungestört stehen. Plätze und
+ * Vorräte sind Kreisreihen und schmal; die Pools tragen Namen samt Regeltext und den Rest.
  */
 export function renderSpellTop(d: CharacterPrintData): string {
-  const boxes = slotsBox(d) + pointsBox(d) + renderOptionPools(d, 'sp-grow');
+  const boxes = slotsBox(d) + resourcesBox(d) + renderOptionPools(d, 'sp-grow');
   return boxes ? `<div class="sp-top">${boxes}</div>` : '';
 }
 

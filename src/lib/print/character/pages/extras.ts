@@ -1,9 +1,8 @@
 /**
- * Die Blöcke neben dem festen Übersichtsblatt: Waffenmeisterschaft, Klassen-Vorräte,
- * Options-Pools, Ausrüstung samt Geldmitteln. Für die ersten drei hat der Taendler-Bogen
- * keinen Platz, die Ausrüstung führt er auf seinem zweiten Blatt.
+ * Die Blöcke neben dem festen Übersichtsblatt: Waffenmeisterschaft, Options-Pools, Ausrüstung
+ * samt Geldmitteln. Für die ersten beiden hat der Taendler-Bogen keinen Platz, die Ausrüstung
+ * führt er auf seinem zweiten Blatt.
  */
-import type { ResourceTrack } from '$lib/domain/classResources';
 import type { WeaponMastery } from '$lib/schemas/vocabulary';
 import { masteryLabel, masteryRuleDe } from '$lib/itemLabels';
 import { coversWeapon, weaponNameSet } from '$lib/services/weaponProficiency';
@@ -30,32 +29,6 @@ export function renderMasteries(d: CharacterPrintData): string {
   const open = Math.max(0, d.mastery.allowance - chosen.length);
   const rest = open ? `<div class="res-label">Offen</div>${writeLines(open)}` : '';
   return block('Waffenmeisterschaft', lines + rest, { hint: `max. ${d.mastery.allowance}` });
-}
-
-const resourceTrack = (t: ResourceTrack): string => `<div class="res">
-    <div class="res-label">${esc(t.label)}</div>
-    <div class="res-line">${t.kind === 'count'
-      ? `${tickBoxes(t.max)}<span class="pick-help">max. ${t.max}</span>`
-      : `<span class="res-value">${esc(t.text)}</span>`}</div>
-  </div>`;
-
-/** Zauberpunkte stehen auf dem Zauberblatt — hier bleibt, was am Tisch daneben gezählt wird. */
-export const sheetResources = (d: CharacterPrintData): { className: string; tracks: ResourceTrack[] }[] =>
-  d.resources
-    .map((cls) => ({ className: cls.className, tracks: cls.tracks.filter((t) => !t.spell) }))
-    .filter((cls) => cls.tracks.length > 0);
-
-/** Ein Kasten für alle Klassen — zwei Rahmen für je eine Zeile kosten mehr als sie sagen. */
-export function renderResources(d: CharacterPrintData): string {
-  const classes = sheetResources(d);
-  if (!classes.length) return '';
-  const single = classes.length === 1;
-  const body = classes.map((cls) => {
-    const lines = cls.tracks.map(resourceTrack).join('');
-    return single ? lines
-      : `<div class="res-class"><div class="res-group">${esc(cls.className)}</div>${lines}</div>`;
-  }).join('');
-  return block('Ressourcen', body, { hint: single ? classes[0].className : '' });
 }
 
 export function renderOptionPools(d: CharacterPrintData, cls = ''): string {

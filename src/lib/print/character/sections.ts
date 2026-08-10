@@ -6,7 +6,7 @@
  */
 import type { CharacterPrintData } from './data';
 import { renderOverview } from './pages/overview';
-import { renderInventory, renderMasteries, renderResources, sheetResources } from './pages/extras';
+import { renderInventory, renderMasteries } from './pages/extras';
 import {
   renderClassFeatures, renderFeats, renderFreetext, renderPersonal, renderPinnedFeatures,
   renderSpeciesFeatures,
@@ -29,7 +29,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
  */
 export const STATIC_SECTION_IDS = [
   'overview',
-  'masteries', 'resources', 'personal',
+  'masteries', 'personal',
   'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
   'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards',
 ] as const;
@@ -64,8 +64,6 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
 
   masteries:   { label: 'Waffenmeisterschaft', page: 'details', defaultOn: true,
                  available: (d) => !!renderMasteries(d), render: renderMasteries },
-  resources:   { label: 'Ressourcen',         page: 'details', defaultOn: true,
-                 available: (d) => sheetResources(d).length > 0, render: renderResources },
   personal:    { label: 'Persönliches',       page: 'details', defaultOn: true,
                  available: (d) => !!renderPersonal(d), render: renderPersonal },
   // Der Kasten steht immer: Leerzeilen und Münzkapseln sind die Fläche zum Nachtragen.
@@ -82,8 +80,8 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
   freetext:    { label: 'Notizen',            page: 'details', defaultOn: false,
                  available: (d) => hasText(d.freetext), render: renderFreetext },
 
-  // Der Kopf des Zauberblatts: Plätze, Punkte, Metamagie in einer Reihe.
-  spellTop:    { label: 'Vorrat: Plätze, Punkte, Metamagie', page: 'spells', defaultOn: true,
+  // Der Kopf des Zauberblatts: Plätze, Klassen-Ressourcen, Metamagie in einer Reihe.
+  spellTop:    { label: 'Vorrat: Plätze, Ressourcen, Metamagie', page: 'spells', defaultOn: true,
                  available: (d) => !!renderSpellTop(d), render: renderSpellTop },
   spellsExtra: { label: 'Weitere Zauber',     page: 'spells', defaultOn: true,
                  available: (d) => !!renderExtraSpells(d), render: renderExtraSpells },

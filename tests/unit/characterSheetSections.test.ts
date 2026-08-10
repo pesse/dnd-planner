@@ -44,14 +44,16 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       mastery: { allowance: 2, className: 'Kämpfer', meleeOnly: false, weapons: [] },
       pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, options: [] }],
-      resources: [{ className: 'Zauberer', tracks: [{ column: 'Rages', label: 'Kampfrausch', kind: 'count', max: 3, text: '3', spell: false }] }],
+      resources: [{ className: 'Barbar', tracks: [{ column: 'Rages', label: 'Kampfrausch', kind: 'count', max: 3, text: '3' }] }],
     });
 
     expect(ids(d)).toContain('masteries');
-    expect(ids(d)).toContain('resources');
     expect(ids(emptyData())).not.toContain('masteries');
-    // Die Options-Pools gehören zum Kopf des Zauberblatts, nicht zu einer eigenen Sektion.
+    // Options-Pools und Klassen-Vorräte gehören zum Kopf des Zauberblatts, nicht je zu einer
+    // eigenen Sektion: sie stehen in derselben Reihe wie die Zauberplätze.
     expect(render(d, 'spellTop')).toContain('Metamagie');
+    expect(render(d, 'spellTop')).toContain('Kampfrausch');
+    expect(ids(emptyData())).not.toContain('spellTop');
   });
 
   it('nimmt Volks- und Klassenmerkmale aus dem Freitext, nicht aus der Bibliothek', () => {

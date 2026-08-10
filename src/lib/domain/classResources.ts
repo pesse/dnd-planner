@@ -9,8 +9,7 @@ export type ResourceKind = 'skip' | 'count' | 'value';
 
 export type ResourceColumnDef =
   | { kind: 'skip' }
-  /** `spell`: gehört auf das Zauberblatt, nicht in den allgemeinen Ressourcen-Kasten. */
-  | { kind: 'count' | 'value'; labelDe: string; spell?: true };
+  | { kind: 'count' | 'value'; labelDe: string };
 
 const skip = { kind: 'skip' } as const;
 
@@ -32,7 +31,7 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Eldritch Invocations': skip,
 
   Rages: { kind: 'count', labelDe: 'Kampfrausch' },
-  'Sorcery Points': { kind: 'count', labelDe: 'Zauberpunkte', spell: true },
+  'Sorcery Points': { kind: 'count', labelDe: 'Zauberpunkte' },
   'Focus Points': { kind: 'count', labelDe: 'Fokuspunkte' },
   'Channel Divinity': { kind: 'count', labelDe: 'Göttlicher Kanal' },
   'Second Wind': { kind: 'count', labelDe: 'Zweiter Wind' },
@@ -51,8 +50,6 @@ export interface ResourceTrack {
   column: string;
   label: string;
   kind: 'count' | 'value';
-  /** Steht auf dem Zauberblatt (Zauberpunkte), nicht im Ressourcen-Kasten. */
-  spell: boolean;
   /** Zahl der Kästchen; bei `value` immer 0. */
   max: number;
   /** Der Spaltenwert in Bogen-Schreibweise: `1W6` statt `1d6`, Meter statt Fuß. */
@@ -78,9 +75,9 @@ export function resourceTracks(columns: Record<string, string>): ResourceTrack[]
     if (def.kind === 'count') {
       const max = firstInt(raw);
       if (max > 0)
-        tracks.push({ column, label: def.labelDe, kind: 'count', max, text: sheetValue(raw), spell: !!def.spell });
+        tracks.push({ column, label: def.labelDe, kind: 'count', max, text: sheetValue(raw) });
     } else {
-      tracks.push({ column, label: def.labelDe, kind: 'value', max: 0, text: sheetValue(raw), spell: !!def.spell });
+      tracks.push({ column, label: def.labelDe, kind: 'value', max: 0, text: sheetValue(raw) });
     }
   }
   return tracks;

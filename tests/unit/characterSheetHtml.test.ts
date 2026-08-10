@@ -100,22 +100,22 @@ describe('HTML-Charakterbogen', () => {
     expect(html).not.toContain('<script>');
   });
 
-  it('zeigt Zauberpunkte als Kästchen und den Hinterhältigen Angriff als Wert', () => {
+  it('zählt den Vorrat als Kästchen und den Hinterhältigen Angriff als Wert', () => {
     const d = dataFor(allProficienciesCharacter);
     d.resources = [{
       className: 'Zauberer',
       tracks: [
-        { column: 'Sorcery Points', label: 'Zauberpunkte', kind: 'count', max: 3, text: '3', spell: true },
-        { column: 'Sneak Attack', label: 'Hinterhältiger Angriff', kind: 'value', max: 0, text: '2d6', spell: false },
+        { column: 'Sorcery Points', label: 'Zauberpunkte', kind: 'count', max: 3, text: '3' },
+        { column: 'Sneak Attack', label: 'Hinterhältiger Angriff', kind: 'value', max: 0, text: '2d6' },
       ],
     }];
     const html = build(d);
-    // Ab dem Kopf des Zauberblatts: davor liegen die Kästchen der Übersicht.
+    // Alle Vorräte stehen am Kopf des Zauberblatts; davor liegen die Kästchen der Übersicht.
     const top = html.split('class="sp-top"')[1];
 
-    expect(top).toContain(title('Zauberpunkte'));
+    expect(top).toContain(title('Vorräte'));
     expect(top.match(/<i class="tick"><\/i>/g)).toHaveLength(3);
-    expect(html).toContain('<span class="res-value">2d6</span>');
+    expect(top).toContain('<span class="res-value">2d6</span>');
   });
 
   it('führt einen Zauber je Quelle einmal, mit dem Hinweis, der etwas sagt', () => {

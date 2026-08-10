@@ -5,13 +5,9 @@
 import { RULE_TEXT_PRINT_CSS } from '$lib/utils/printCss';
 
 export const BLOCK_CSS = `
-/* Ressourcen */
-.res + .res { margin-top: 1.2mm; padding-top: 1.2mm; border-top: 0.15mm dotted var(--rule-soft); }
+/* Offene Zeilen und Werte in Meisterschafts-, Pool- und Vorrat-Kästen */
 .res-label { font-size: 6.4pt; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-label); }
-.res-line { display: flex; align-items: center; gap: 1.5mm; flex-wrap: wrap; }
-.res-group { font-size: 6.4pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 .res-value { font-size: 9.5pt; font-weight: 700; }
-.res-class + .res-class { margin-top: 1.4mm; padding-top: 1.2mm; border-top: 0.25mm solid var(--rule-soft); }
 
 /* Optionen aus einem Pool (Metamagie, Anrufungen) */
 .pick { padding: 0.5mm 0; }
