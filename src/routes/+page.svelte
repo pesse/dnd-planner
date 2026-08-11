@@ -21,8 +21,11 @@
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent } from '$lib/stores/campaign';
   import { dragPanelWidth } from '$lib/utils/panelResize';
   import { onMount } from 'svelte';
-  import { marked } from 'marked';
+  import CampaignPrintDialog from '$lib/components/campaign/CampaignPrintDialog.svelte';
   import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
+  import { printHtmlDocument } from '$lib/utils/printFrame';
+  import { renderMarkdown } from '$lib/utils/markdown';
+  import { extractActTitle } from '$lib/utils/actExtract';
   import '$lib/components/toolbar.css';
 
   let isPdfCharacter = $derived(
@@ -43,32 +46,17 @@
   let contextActions = $derived(actionsFor($activeFile?.type));
   let activeContextAction = $state<ContextAction | null>(null);
 
-  function openMarkdownPrint() {
+  let showCampaignPrint = $state(false);
+
+  function openPrint() {
+    if ($activeFile?.type === 'campaign') { showCampaignPrint = true; return; }
     if (!$fileContent || !$activeFile) return;
     const campaign = $activeCampaign?.name ?? '';
-    const docName = (() => {
-      const match = $fileContent.match(/^#\s+(.+)$/m);
-      return match ? match[1].trim() : $activeFile!.name.replace('.md', '');
-    })();
-    const typeLabel: Partial<Record<string, string>> = { campaign: 'Kampagne', act: 'Akt', notes: 'Notiz' };
+    const docName = extractActTitle($fileContent, $activeFile.name.replace('.md', ''));
+    const typeLabel: Partial<Record<string, string>> = { act: 'Akt', notes: 'Notiz' };
     const label = typeLabel[$activeFile.type] ?? $activeFile.type;
-    const title = $activeFile.type === 'campaign'
-      ? `${campaign} – ${label}`
-      : `${campaign} – ${label}: ${docName}`;
-    const html = buildPrintHtmlMarkdown(title, marked($fileContent) as string);
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument!;
-    doc.open(); doc.write(html); doc.close();
-    setTimeout(() => {
-      const prev = document.title;
-      document.title = title;
-      iframe.contentWindow!.focus();
-      iframe.contentWindow!.print();
-      document.title = prev;
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    }, 0);
+    const title = `${campaign} – ${label}: ${docName}`;
+    printHtmlDocument(buildPrintHtmlMarkdown(title, renderMarkdown($fileContent)), title);
   }
 
   const MIN_W = 140;
@@ -142,7 +130,7 @@
           </button>
         {/each}
         {#if isMarkdownPrintable}
-          <button class="history-btn" onclick={openMarkdownPrint} title="Drucken / PDF">🖨</button>
+          <button class="history-btn" onclick={openPrint} title="Drucken / PDF">🖨</button>
         {/if}
         <button
           class="history-btn"
@@ -204,6 +192,13 @@
 <ConfirmDialog />
 {#if activeContextAction}
   <ContextActionModal action={activeContextAction} onclose={() => (activeContextAction = null)} />
+{/if}
+{#if showCampaignPrint && $activeCampaign}
+  <CampaignPrintDialog
+    campaignPath={$activeCampaign.path}
+    campaignName={$activeCampaign.name}
+    onclose={() => (showCampaignPrint = false)}
+  />
 {/if}
 
 <style>

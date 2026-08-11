@@ -69,6 +69,11 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
       return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
         .filter((e) => e.isDirectory() || e.name.endsWith('.json'))
         .map((e) => ({ name: e.name, is_dir: e.isDirectory() })) as unknown as T;
+    case 'list_entries':
+      return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
+        .filter((e) => !e.name.startsWith('.') && (e.isDirectory() || e.name.endsWith('.md')))
+        .map((e) => ({ name: e.name, is_dir: e.isDirectory() }))
+        .sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0)) as unknown as T;
     case 'read_file_content':
       return readFileSync(vaultPath(String(a.path)), 'utf8') as unknown as T;
     case 'load_spells_index': {

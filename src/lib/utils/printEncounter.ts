@@ -131,6 +131,7 @@ hr { border: none; border-top: 2px solid #8c6a1a; margin: 1.2rem 0; }
 table { border-collapse: collapse; width: 100%; margin-bottom: 0.8rem; font-size: 10pt; }
 th { background: #f0e0b8; color: #5c1a00; font-weight: 700; border: 1px solid #8c6a1a88; padding: 0.3rem 0.6rem; text-align: left; }
 td { border: 1px solid #8c6a1a55; padding: 0.25rem 0.6rem; vertical-align: top; }
+.part + .part { break-before: page; }
 </style>
 </head>
 <body>

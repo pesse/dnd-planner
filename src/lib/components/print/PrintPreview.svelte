@@ -1,17 +1,24 @@
 <script lang="ts">
   /**
    * Zeigt das Druck-HTML in einem sichtbaren Iframe. Die Umbruch-Hilfslinien liegen im
-   * Wrapper, nicht im Dokument — sonst würden sie mitgedruckt.
+   * Wrapper, nicht im Dokument — sonst würden sie mitgedruckt. `margin` (mm) muss dem
+   * `@page` des gezeigten Dokuments folgen, sonst liegen sie falsch.
    */
-  let { html, zoom }: { html: string; zoom: number } = $props();
+  let { html, zoom, margin = { x: 4, y: 5 } }: {
+    html: string;
+    zoom: number;
+    margin?: { x: number; y: number };
+  } = $props();
 
   /** A4 abzüglich der Ränder aus `@page`, bei 96 dpi. */
-  const PAGE_W = (210 - 2 * 4) * (96 / 25.4);
-  const PAGE_H = (297 - 2 * 5) * (96 / 25.4);
+  const PAGE_W = $derived((210 - 2 * margin.x) * (96 / 25.4));
+  const PAGE_H = $derived((297 - 2 * margin.y) * (96 / 25.4));
 
   let frame = $state<HTMLIFrameElement | null>(null);
-  let docHeight = $state(PAGE_H);
-  let docWidth = $state(PAGE_W);
+  let measured = $state({ w: 0, h: 0 });
+
+  const docHeight = $derived(Math.max(measured.h, PAGE_H));
+  const docWidth = $derived(Math.max(measured.w, PAGE_W));
 
   /**
    * Die Seitenzahl steht bei fließendem Inhalt erst nach dem Rendern fest. Auch die Breite
@@ -20,8 +27,7 @@
   function measure() {
     const body = frame?.contentDocument?.body;
     if (!body) return;
-    docHeight = Math.max(body.scrollHeight, PAGE_H);
-    docWidth = Math.max(body.scrollWidth, PAGE_W);
+    measured = { w: body.scrollWidth, h: body.scrollHeight };
   }
 
   const breaks = $derived(
