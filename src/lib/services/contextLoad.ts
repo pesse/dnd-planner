@@ -16,6 +16,7 @@ import type {
 import { crLabel } from './monsterFormat';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
 import { parseFrontmatter } from '../utils/frontmatter';
+import { listActDirs } from './actOrder';
 
 export function fetchCampaignContent(campaignPath: string): Promise<string> {
   return invoke<string>('read_file_content', {
@@ -139,10 +140,7 @@ export async function fetchEncounterSummaries(
 ): Promise<EncounterSummaryEntry[]> {
   const libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.challenge_rating }]));
   try {
-    const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-      path: `./vault/campaigns/${campaignPath}/acts`,
-    });
-    const actDirs = actEntries.filter((e) => e.is_dir).map((e) => e.name);
+    const actDirs = await listActDirs(`./vault/campaigns/${campaignPath}/acts`);
 
     const allEncounters: EncounterSummaryEntry[] = [];
     for (const actDirName of actDirs) {
@@ -227,10 +225,7 @@ export async function fetchEncounterMonsters(encounterContent: string, encounter
 
 export async function fetchActSummaries(campaignPath: string): Promise<ActSummaryEntry[]> {
   try {
-    const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
-      path: `./vault/campaigns/${campaignPath}/acts`,
-    });
-    const actDirs = actEntries.filter((e) => e.is_dir).map((e) => e.name);
+    const actDirs = await listActDirs(`./vault/campaigns/${campaignPath}/acts`);
     return await Promise.all(
       actDirs.map(async (dirName) => {
         const path = `./vault/campaigns/${campaignPath}/acts/${dirName}/index.md`;
