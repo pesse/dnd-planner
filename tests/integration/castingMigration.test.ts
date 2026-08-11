@@ -86,7 +86,8 @@ describe('Umzug der Altform', () => {
 
   it('nennt im Angebot die Zahl der Zauber und wiederholt sich nicht', async () => {
     const c = legacy('thromm');
-    expect((await offer(c))?.label).toBe('8 Zauber ins neue Format übernehmen');
+    // Sieben, nicht acht: „Vertrauten finden" gewährt der Wilde Gefährte, es zieht nichts um.
+    expect((await offer(c))?.label).toBe('7 Zauber ins neue Format übernehmen');
     await migrate(c);
     expect(await offer(c)).toBeUndefined();
   });
@@ -127,10 +128,9 @@ describe('Zauberbuch und Vorbereitung', () => {
     expect(source.picks.cantrips).toEqual(['srd-2024_fire-bolt']);
   });
 
-  it('übernimmt den Verbrauch der Plätze, nicht ihre Zahl', async () => {
+  it('übernimmt keine Zahl der Plätze — die Klassentabelle führt sie', async () => {
     const c = wizard();
     await migrate(c);
-    expect(c.spellcasting.pools.standard.used[0]).toBe(1);
     expect(c.spellcasting.manual?.slotTotals ?? []).toEqual([]);
   });
 });

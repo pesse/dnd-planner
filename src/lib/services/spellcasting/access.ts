@@ -9,7 +9,7 @@ import { SPELL_SCHOOLS, type SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveClass } from '$lib/spellLibrary';
 import { CLASS_NAME_DE_BY_SLUG } from '../classProgression';
 import { castingSourceOf } from './resolve';
-import { quotaContext, quotaViews } from './quota';
+import { NO_SCALE, NO_SLOTS, quotaContext, quotaViews } from './quota';
 import { spellAttackBonus, spellSaveDC } from './state';
 import { ledgerAnswers, pickAnswer, type LedgerAnswerEntry } from '../declaration/ledgerAnswers';
 import { declaredChoice } from '../declaredChoice';
@@ -101,7 +101,7 @@ export function spellAccessGrantOf(
   if (!source) return null;
 
   const viewsOf = (src: NonNullable<ReturnType<typeof sourceAt>>) =>
-    quotaViews(src, quotaContext(null, src.level, { standard: [], pact: [], casterLevel: 0 }, NO_SPELL_KEY));
+    quotaViews(src, quotaContext(null, src.level, NO_SLOTS, NO_SPELL_KEY, NO_SCALE));
   const views = viewsOf(source);
 
   // Was auf der Ausgangsstufe schon galt, ist keine neue Wahl: das Kontingent des Hervorrufers

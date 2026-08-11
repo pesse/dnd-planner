@@ -111,6 +111,7 @@
           ],
           "featCategory": "Origin",
           "count": 1,
+          "column": "string",
           "skills": [
             "Acrobatics"
           ],
@@ -198,6 +199,16 @@
                 "kind": "at-will"
               },
               {
+                "kind": "resource",
+                "resource": {
+                  "feature": "string",
+                  "pool": "string",
+                  "shared": "string"
+                },
+                "amount": 1,
+                "labelDe": "string"
+              },
+              {
                 "kind": "ritual",
                 "requiresPrepared": false
               }
@@ -262,6 +273,16 @@
                   "kind": "at-will"
                 },
                 {
+                  "kind": "resource",
+                  "resource": {
+                    "feature": "string",
+                    "pool": "string",
+                    "shared": "string"
+                  },
+                  "amount": 1,
+                  "labelDe": "string"
+                },
+                {
                   "kind": "ritual",
                   "requiresPrepared": false
                 }
@@ -273,6 +294,38 @@
           "spells": "none",
           "cantrips": "none"
         }
+      },
+      "grantsResource": {
+        "pools": [
+          {
+            "id": "string",
+            "labelDe": "string",
+            "since": 1,
+            "when": {
+              "<key>": "string"
+            },
+            "recharge": "long-rest",
+            "shared": "string",
+            "shape": {
+              "kind": "counter",
+              "max": {
+                "column": "string"
+              }
+            }
+          }
+        ],
+        "mods": [
+          {
+            "target": {
+              "feature": "string",
+              "pool": "string",
+              "shared": "string"
+            },
+            "addMax": {
+              "column": "string"
+            }
+          }
+        ]
       },
       "aiInterpretsRest": false
     }

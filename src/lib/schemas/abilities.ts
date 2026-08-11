@@ -1,8 +1,7 @@
 /**
  * Das EINE Attributs-Vokabular: der Schlüsselsatz ist zugleich die kleingeschriebene
- * SRD-Abkürzung (Bibliothek, Monster, NPC, Zauber, Charakter). Deutsch bleibt an zwei
- * Rändern: den Anzeigelabels hier (`ABILITY_ABBR_DE`, `ABILITY_LABEL`) und den
- * PDF-Feldnamen des Taendler-Bogens (`pdf/characterFields.ts`), die das Formular diktiert.
+ * SRD-Abkürzung (Bibliothek, Monster, NPC, Zauber, Charakter). Deutsch steht nur in den
+ * Anzeigelabels hier (`ABILITY_ABBR_DE`, `ABILITY_LABEL`).
  */
 import { z } from 'zod';
 
@@ -21,7 +20,7 @@ export const ABILITY_ABBR: Record<AbilityKey, string> = {
 };
 
 export const ABILITY_ABBR_DE: Record<AbilityKey, string> = {
-  str: 'STR', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
+  str: 'STÄ', dex: 'GES', con: 'KON', int: 'INT', wis: 'WEI', cha: 'CHA',
 };
 
 export const ABILITY_LABEL: Record<AbilityKey, string> = {

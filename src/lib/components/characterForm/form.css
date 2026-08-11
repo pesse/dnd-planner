@@ -384,6 +384,7 @@
 
 .edit-form .inv-line-col { text-align: right !important; }
 .edit-form .inv-line-cell { color: var(--ink-muted); }
+.edit-form .inv-flag-cell { text-align: center; width: 2.2rem; }
 .edit-form .inv-total-row td {
   border-top: 1px solid var(--surface);
   padding-top: 0.3rem;

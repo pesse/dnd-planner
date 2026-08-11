@@ -7,10 +7,10 @@ import { SKILL_DEFS } from '../domain/skills';
 import { ABILITY_KEYS, type AbilityFlags, type AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
-import { emptyPersonal, emptyProficiencies } from '../pdf/characterFields';
-import type {
-  Attack, Character, CharacterBackground, CharacterClass, CharacterSpecies,
-  PersonalData, ProficiencyFlags,
+import {
+  emptyPersonal, emptyProficiencies,
+  type Attack, type Character, type CharacterBackground, type CharacterClass,
+  type CharacterSpecies, type OptionPick, type PersonalData, type ProficiencyFlags,
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
@@ -55,6 +55,7 @@ export interface CharacterFormFields {
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
+  optionPicks: OptionPick[];
   portraitFile: string;
 }
 
@@ -67,9 +68,10 @@ export interface CharacterFormCarry {
 }
 
 // `uid` ist Identität, kein Formularfeld — stünde es hier, schriebe jeder Tastendruck
-// die Identität des Charakters mit dem Formularzustand über.
+// die Identität des Charakters mit dem Formularzustand über. `features` und `pinnedFeatures`
+// gehören der Merkmals-Seitenleiste, aus demselben Grund wie bei `formDraftPatch`.
 export type CharacterFormPatch =
-  Omit<Character, 'uid' | 'features' | '_version' | '_importedFrom' | '_importedAt'>
+  Omit<Character, 'uid' | 'features' | 'pinnedFeatures' | '_version' | '_importedFrom' | '_importedAt'>
   & { portraitFile: string | undefined };
 
 export const mod = (score: number) => Math.floor((score - 10) / 2);
@@ -169,6 +171,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
+    optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
   };
 }
@@ -183,8 +186,8 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
 
 /**
  * Schlüssel-Reihenfolge wie im Zod-Schema, sonst wirkt ein frisch geladener Charakter dirty.
- * `features` fehlt bewusst: stünde das Ledger hier, überschriebe der nächste Tastendruck
- * jede in der Merkmals-Seitenleiste getroffene Wahl.
+ * `features` und `pinnedFeatures` fehlen bewusst: stünden sie hier, überschriebe der nächste
+ * Tastendruck jede in der Merkmals-Seitenleiste getroffene Wahl.
  */
 export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry): CharacterFormPatch {
   const mods = abilityMods(f);
@@ -228,7 +231,14 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
       .filter((i) => i.name.trim() !== '')
       .map((i) => {
         const key = i.sourceKey?.trim();
-        return { name: i.name, ...(key ? { sourceKey: key } : {}), count: i.count, weight: i.weight };
+        return {
+          name: i.name,
+          ...(key ? { sourceKey: key } : {}),
+          count: i.count,
+          weight: i.weight,
+          ...(i.equipped ? { equipped: true } : {}),
+          ...(i.attuned ? { attuned: true } : {}),
+        };
       }),
     inventoryNotes: f.inventoryNotes,
     // Die Gesamtlast rechnet `inventoryWeight` live; das gespeicherte Feld ist Alt-Ballast.
@@ -239,6 +249,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     personal: { ...f.personal },
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
+    optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
   };
 }

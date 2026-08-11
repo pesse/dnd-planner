@@ -21,8 +21,8 @@ const SPELLCASTING: SheetSpellcasting = {
   }],
   levels: [
     { level: 0, slots: null, spells: [{ key: 'srd-2024_light', label: 'Licht', prepared: true, source: 'Paladin' }] },
-    { level: 1, slots: { total: 4, used: 0 }, spells: [{ key: 'srd-2024_divine-favor', label: 'Göttliche Gunst', prepared: true, source: 'Paladin' }] },
-    { level: 2, slots: { total: 2, used: 0 }, spells: [{ key: 'srd-2024_spiritual-weapon', label: 'Waffe des Glaubens', prepared: true, source: 'Paladin' }] },
+    { level: 1, slots: 4, spells: [{ key: 'srd-2024_divine-favor', label: 'Göttliche Gunst', prepared: true, source: 'Paladin' }] },
+    { level: 2, slots: 2, spells: [{ key: 'srd-2024_spiritual-weapon', label: 'Waffe des Glaubens', prepared: true, source: 'Paladin' }] },
   ],
   pact: null,
   hasContent: true,

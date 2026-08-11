@@ -1,0 +1,5 @@
+{
+  "feature": "string",
+  "pool": "string",
+  "shared": "string"
+}

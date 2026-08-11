@@ -12,6 +12,7 @@ the source.
 | Typecheck + lint | `npm run check` | WSL |
 | Unit + integration tests (LLM-free, no API key) | `npm run test` | WSL |
 | Browser-only dev server (UI work without Tauri commands) | `npm run dev` → `:1420` | WSL |
+| Charakterbögen aus dem Vault als HTML rendern und servieren (`:8899`) | `npm run sheets` | WSL |
 | Full app | `.\dev-windows.ps1` | Windows PowerShell |
 | Watch the running app | `tail -f /mnt/c/dev/privat/dnd-planner/tauri-dev.log` | WSL |
 | Install packages | `npm install` | Windows PowerShell |
@@ -53,12 +54,11 @@ Changes under `src-tauri/` need a full Rust recompile; hot-reload covers only th
 | Vault content fields (`nameDe`, descriptions, rule text) | German |
 | Code comments and commit messages | German |
 
-One legacy exception, at the PDF export boundary: parts of `character.*` carry German keys
-(`skills.MitTierenUmgehen`, `alleskoenner`, `currency.km`, `personal.*`) because they mirror the
-German Taendler character sheet. **Do not extend it** — new character fields get English names,
-the way `hpMax`, `saveProfs` and `proficiencies.lightArmor` already do. The PDF *field names*
-themselves (`Ges`, `GesMod`, `GesProf`) stay German — that edge is `PDF_ABILITY_FIELD`
-(`pdf/characterFields.ts`), the one table the Taendler form dictates.
+One legacy exception: parts of `character.*` carry German keys (`skills.MitTierenUmgehen`,
+`alleskoenner`, `currency.km`, `personal.*`) because they were named after the German Taendler
+sheet the export once filled. They stay because saved character files carry them. **Do not extend
+it** — new character fields get English names, the way `hpMax`, `saveProfs` and
+`proficiencies.lightArmor` already do.
 
 ### One file, one responsibility
 

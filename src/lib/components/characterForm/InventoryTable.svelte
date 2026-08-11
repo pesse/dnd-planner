@@ -137,7 +137,9 @@
 </script>
 
 <table class="inv-table">
-  <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th><th></th></tr></thead>
+  <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th>
+    <th title="Angelegt — nur dann wirken deklarierte Vorräte">An</th>
+    <th title="Eingestimmt">Ein</th><th></th></tr></thead>
   <tbody>
     {#each inventory as item, i}
       {@const invDir = !saved || !item.name.trim() ? 'none'
@@ -215,6 +217,10 @@
           <td><input bind:value={item.weight} placeholder="2" /></td>
         {/if}
         <td class="inv-line-cell num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) : '—'}</td>
+        <td class="inv-flag-cell"><input type="checkbox" checked={item.equipped ?? false}
+          onchange={(e) => { item.equipped = e.currentTarget.checked || undefined; }} /></td>
+        <td class="inv-flag-cell">{#if lib?.attunement}<input type="checkbox" checked={item.attuned ?? false}
+          onchange={(e) => { item.attuned = e.currentTarget.checked || undefined; }} />{/if}</td>
         <td><button class="remove-btn" onclick={() => { inventory.splice(i, 1); editingRow = -1; }}>✕</button></td>
       </tr>
     {/each}
@@ -224,7 +230,7 @@
       <tr class="inv-total-row">
         <td colspan="3">Gesamtlast</td>
         <td class="num"><strong>{totalWeight > 0 ? formatKg(totalWeight) + ' kg' : '—'}</strong></td>
-        <td></td>
+        <td colspan="3"></td>
       </tr>
     </tfoot>
   {/if}

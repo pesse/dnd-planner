@@ -13,6 +13,7 @@
   } from '$lib/featsLibrary';
   import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '$lib/services/featCreate';
   import type { FeatureLedger, LedgerRow } from '$lib/services/featureLedger';
+  import type { FeaturePins } from '$lib/services/featurePins';
   import { diffMark, type DiffDir } from '$lib/utils/diffHighlight';
   import { createSuggestNav } from '$lib/utils/suggestNav.svelte';
   import { dropdownPlacement } from '$lib/utils/dropdownPlacement';
@@ -22,12 +23,14 @@
   import Markdown from '../Markdown.svelte';
   import ChoiceSection from './ChoiceSection.svelte';
   import LooseChoice from './LooseChoice.svelte';
+  import PinToggle from './PinToggle.svelte';
   import type { ChoiceState } from './choiceState.svelte';
   import './featurePanel.css';
 
-  let { rows, ledger, choices, saved = null, onapply }: {
+  let { rows, ledger, pins, choices, saved = null, onapply }: {
     rows: LedgerRow[];
     ledger: FeatureLedger;
+    pins: FeaturePins;
     choices: ChoiceState;
     /** Baseline des Diff-Highlightings. */
     saved?: Character | null;
@@ -172,6 +175,7 @@
           {/if}
           {#if !slots.length}<LooseChoice rows={choices.looseOf(e.sourceKey)} {ledger} />{/if}
           <span class="feat-row-actions">
+            <PinToggle {pins} featureKey={entry?.sourceKey || e.sourceKey} />
             <label class="feat-lvl" title="Charakterstufe, auf der das Talent erworben wurde (nur Herkunftsangabe, ohne Regelwirkung)">Stufe
               <input class="ref-level" type="number" min="1" max="20" value={e.gainedAt ?? ''}
                 oninput={(ev) => { const v = parseInt((ev.target as HTMLInputElement).value); ledger.update(i, { gainedAt: Number.isNaN(v) ? undefined : v }); }} />

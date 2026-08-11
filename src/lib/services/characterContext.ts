@@ -133,6 +133,7 @@ function proficienciesBlock(c: Character, s: SummaryValues): string | null {
     labelLine('Weapons', s.weapons),
     labelLine('Armor', s.armor),
     labelLine('Weapon Masteries', s.masteries),
+    labelLine('Feature Options', s.optionPicks),
     labelLine('Languages', s.languages),
     labelLine('Tools', s.tools),
     c.alleskoenner && '- Jack of all Trades: ja',

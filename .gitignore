@@ -26,3 +26,6 @@ evals/reports/
 
 /vault/
 /docs/release-notes/
+
+# Lokal gerenderte Charakterbögen (npm run sheets)
+.sheets/

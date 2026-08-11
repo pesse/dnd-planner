@@ -5,14 +5,14 @@
  */
 import type { AbilityBinding, Quota, SwapRule } from '$lib/schemas/casting';
 export type { AbilityBinding, CastOption, Quota, SpellPool, SwapRule } from '$lib/schemas/casting';
+import type { DeclarationIssue } from '../declaration/carriers';
+import { declarationIssue, originCountsClassLevel } from '../declaration/carriers';
 import type { FeatureSource } from '../declaredFeature';
 
 /** Bestimmt die Bezugsstufe und später die Bogen-Zeile; deckungsgleich mit `FeatureSource`. */
 export type CastingOrigin = FeatureSource;
 
-/** Klassen- und Subklassenmerkmale zählen nach Klassenstufe, Species/Feat nach Charakterstufe. */
-export const originCountsClassLevel = (origin: CastingOrigin): boolean =>
-  origin === 'class' || origin === 'subclass';
+export { originCountsClassLevel };
 
 export interface CastingSource {
   /** Merkmals-Key; nur eine WIEDERHOLTE Quelle (Eingeweihter der Magie ×2) trägt einen Zusatz. */
@@ -51,19 +51,13 @@ export type CastingIssueKind =
   | 'unknownBranchKey'
   | 'unknownSpell';
 
-export interface CastingIssue {
-  kind: CastingIssueKind;
-  /** Merkmals-Key der DEKLARIERENDEN Quelle; leer, wenn die Klasse selbst der Fehler ist. */
-  featureKey: string;
-  /** Was die Meldung benennbar macht — Klassenname, Key, Quota-Pfad. */
-  detail: string;
-}
+export type CastingIssue = DeclarationIssue<CastingIssueKind>;
 
 export const castingIssue = (
   kind: CastingIssueKind,
   featureKey: string,
   detail: string,
-): CastingIssue => ({ kind, featureKey, detail });
+): CastingIssue => declarationIssue(kind, featureKey, detail);
 
 /** Die Vorgabe der Quelle, von der Quota feldweise überschrieben. */
 export function quotaSwap(source: CastingSource, quota: Quota): SwapRule {

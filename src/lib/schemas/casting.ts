@@ -5,6 +5,8 @@
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
+import { amountSchema } from './amount';
+import { resourceRefSchema } from './resource';
 import { SPELL_SCHOOL_KEYS } from './vocabulary';
 
 const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
@@ -29,21 +31,24 @@ export type SwapRule = z.infer<typeof swapRuleSchema>;
 export const castOptionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('slots'),
-    pool: z.enum(['standard', 'pact']).describe('Paktmagie lädt bei Kurzer Rast und hat nur einen Grad.'),
+    // Ein Name, kein Vokabular: den Pool benennt, wer ihn deklariert (`grantsResource`).
+    pool: z.string().default('standard'),
   }),
   z.object({
     kind: z.literal('uses'),
     per: z.enum(['long-rest', 'short-rest']),
-    count: z
-      .union([
-        z.number().int().min(1),
-        z.literal('proficiency-bonus'),
-        z.object({ column: z.string() }).describe('Spalte der Klassentabelle ("Favored Enemy").'),
-        z.object({ abilityMod: z.enum(ABILITY_NAMES), min: z.number().int().min(0).default(1) }),
-      ])
-      .describe('Freie Wirkungen ohne Platz — Zahl, Übungsbonus, Tabellenspalte oder Attributsmodifikator.'),
+    count: amountSchema.describe('Freie Wirkungen ohne Platz.'),
   }),
   z.object({ kind: z.literal('at-will') }),
+  // Der Vorrat gehört einem ANDEREN Merkmal (Tiergestalt, Fokuspunkte) und wird dort gezählt.
+  // `resource` fehlt nur bei noch nicht nachgezogenen Einträgen — die Auflösung MELDET das,
+  // statt `labelDe` stillschweigend als Prosa durchzureichen.
+  z.object({
+    kind: z.literal('resource'),
+    resource: resourceRefSchema.optional(),
+    amount: z.number().int().min(1).default(1).describe('Kosten je Wirkung, aus dem Ziel-Vorrat.'),
+    labelDe: z.string().default('').describe('Leer = Label des Ziel-Vorrats.'),
+  }),
   z.object({
     kind: z.literal('ritual'),
     requiresPrepared: z
@@ -85,15 +90,6 @@ export const spellPoolSchema = z.object({
 });
 export type SpellPool = z.infer<typeof spellPoolSchema>;
 
-/** Aus der Stufentabelle oder als Formel `base + perLevel × (Stufe − 1)`. */
-export const quotaCountSchema = z.union([
-  z.object({ column: z.string().describe('Spaltenname der Klassentabelle ("Prepared Spells").') }),
-  z.object({
-    base: z.number().int().min(0),
-    perLevel: z.number().int().min(0).default(0),
-  }),
-]);
-
 /**
  * `'slotted'` und `'cantrip-or-slotted'` sind Zitate aus dem Regeltext („of a level for which you
  * have spell slots"), aufgelöst gegen den Platz-Pool DIESER Quota — deshalb trägt Mystic Arcanum
@@ -126,7 +122,7 @@ const quotaBaseSchema = z.object({
   levels: quotaLevelsSchema.optional().describe('Entfällt bei pool.names — der Grad steht am Zauber.'),
   // Entfällt bei festem Pool (`names`/`fromDescTable`): dort ist alles gewährt, eine Zahl
   // daneben wäre eine zweite, abweichbare Fassung der Listenlänge.
-  count: quotaCountSchema.optional(),
+  count: amountSchema.optional(),
   pool: spellPoolSchema,
   // Erwerb und Behälter sind zweierlei: „add them to your spellbook for free" gewährt die Wahl
   // HIER (eigenes count, eigene Schranken) und legt sie DORT ab, wo die Vorbereitung sie findet.

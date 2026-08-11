@@ -130,6 +130,17 @@ interface V2Feature {
   data_for_class_table?: { level: number; column_value: string }[];
 }
 
+/**
+ * Der Spaltenname ist der Merkmalsname — außer die Quelle widerspricht sich selbst: bei
+ * `srd-2024_druid_wild-shape-uses` heißt das Merkmal „Cantrips Known". Korrigiert an der
+ * Grenze, damit ein Re-Import die Spalte nicht wieder umbenennt.
+ */
+const COLUMN_BY_FEATURE_KEY: Record<string, string> = {
+  'srd-2024_druid_wild-shape-uses': 'Wild Shape',
+};
+
+const columnName = (f: V2Feature): string => COLUMN_BY_FEATURE_KEY[f.key ?? ''] ?? f.name ?? '';
+
 export function mapV2(raw: Record<string, unknown>): ClassProgression {
   const feats = (raw.features as V2Feature[]) ?? [];
   const hp = (raw.hit_points as Record<string, string>) ?? {};
@@ -140,7 +151,7 @@ export function mapV2(raw: Record<string, unknown>): ClassProgression {
   for (const f of columnFeats) {
     for (const row of f.data_for_class_table!) {
       const cols = levelMap.get(row.level) ?? {};
-      cols[f.name ?? ''] = row.column_value;
+      cols[columnName(f)] = row.column_value;
       levelMap.set(row.level, cols);
     }
   }

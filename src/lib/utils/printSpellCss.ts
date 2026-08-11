@@ -13,21 +13,19 @@ export const LINE_HEIGHT = '1.38';
 export const DESC_WIDTH = '69mm';
 export const DESC_PADDING = '1mm 5mm';
 
-export const CARD_CSS = `
-@page { size: A4 portrait; margin: 0; }
-* { box-sizing: border-box; margin: 0; padding: 0;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
-
-.page {
+/** Das 3×3-Raster einer Kartenseite — der Charakterbogen setzt es unter eigenem Klassennamen. */
+export const CARD_GRID_CSS = `
   width: 210mm; height: 297mm;
   display: grid;
   grid-template-columns: repeat(3, 70mm);
   grid-template-rows: repeat(3, 99mm);
-  page-break-after: always; break-after: page;
-}
-.page:last-child { page-break-after: auto; break-after: auto; }
+`;
 
+/**
+ * Nur das Kartenwerk, ohne Seitenrahmen und Dokument-Reset: der Charakterbogen bettet die
+ * Karten ein und darf dabei seine eigene `@page` und sein eigenes `.page` nicht verlieren.
+ */
+export const CARD_BODY_CSS = `
 .card {
   position: relative;
   width: 70mm; height: 99mm;
@@ -156,3 +154,16 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
 .cont-lbl { font-size: 5.5pt; color: #aaa; font-style: italic; }
 ${RULE_TEXT_PRINT_CSS}
 `;
+
+export const CARD_CSS = `
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00; }
+
+.page {
+  ${CARD_GRID_CSS}
+  page-break-after: always; break-after: page;
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+${CARD_BODY_CSS}`;

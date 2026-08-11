@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { namedRef } from './llmJson';
+import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 import { WEAPON_MASTERIES } from './vocabulary';
 
@@ -32,6 +33,11 @@ export const itemSchema = z.object({
     })
     .optional(),
   attunement: z.boolean().optional(),
+  // Vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen es — und beide
+  // dürfen es nicht verlieren.
+  grantsResource: resourceGrantSchema
+    .optional()
+    .describe('Eigene Ladungen des Gegenstands und Zuschläge auf fremde Vorräte.'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),

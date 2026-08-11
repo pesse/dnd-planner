@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
+import { resourceGrantSchema } from './resource';
 import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
 
 /**
@@ -23,8 +24,12 @@ import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
  *     Talent darf `isSpellcastingFeature` („dies ist das Klassen-Zauberwirken") nicht erfüllen.
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
  *     „Antwort bekannt, Wirkung offen".
+ *   - `optionPool` ist kein `optionList` mit `count > 1`, sondern ein eigener `kind` wegen des
+ *     ROUTINGS: ein Pool stellt nie eine Fragebogen-Frage und blockiert nie einen Aufstieg,
+ *     er wird wie die Waffenbeherrschung im Editor gepflegt. Als Flag an `optionList` trüge
+ *     jedes Prädikat davon eine Ausnahme.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'expertise', 'skillProficiency', 'languages', 'characterProperty'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'characterProperty'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -36,6 +41,7 @@ export const CLASS_TABLE_CHOICE_KINDS: readonly FeatureChoiceKind[] = [
   'weaponMastery',
   'featCategory',
   'spellcasting',
+  'optionPool',
 ];
 
 /** Ein Gradband eines deklarierten Zauber-Zugangs („zwei Zaubertricks" → level 0, count 2). */
@@ -75,7 +81,7 @@ export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
 
 export const featureChoiceGrantSchema = z.object({
   kind: z.enum(FEATURE_CHOICE_KINDS),
-  /** Nur bei `kind="optionList"`. Die FRAGE fehlt bewusst — sie ist für jede Zweigwahl dieselbe. */
+  /** Nur bei `kind="optionList"`/`"optionPool"`. Die FRAGE fehlt bewusst — sie ist für jede Zweigwahl dieselbe. */
   options: z.array(choiceOptionSchema).default([]),
   featCategory: z
     .enum(FEAT_CATEGORIES)
@@ -86,7 +92,13 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen; bei kind="optionPool": wie viele JE Vergabe-Stufe, das Kontingent summiert über alle erreichten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+  // kind="optionPool": die Spalte SCHLÄGT `gainedAt` × `count`, weil sie die Zahl direkt führt —
+  // die Anrufungen des Hexenmeisters kommen alle von EINER Vergabe-Stufe und wären sonst 1.
+  column: z
+    .string()
+    .default('')
+    .describe('Nur bei kind="optionPool": Spalte der Klassen-Stufentabelle, die das Kontingent führt ("Eldritch Invocations"). Leer = kumulativ aus gainedAt × count.'),
   skills: z
     .array(z.enum(SKILL_NAMES))
     .default([])
@@ -147,6 +159,9 @@ export const featureDeclarationFields = {
   grantsCasting: castingGrantSchema
     .optional()
     .describe('Zauberwirken des Merkmals: Kontingent, Pool, Tauschtakt, Wirk-Ressource.'),
+  grantsResource: resourceGrantSchema
+    .optional()
+    .describe('Vorräte des Merkmals — Einsätze, Punkte, Zauberplätze — und Zuschläge auf fremde.'),
   /** Die Ausnahme von „die Deklaration deckt das GANZE Merkmal ab"; ohne Default wie oben. */
   aiInterpretsRest: z
     .boolean()

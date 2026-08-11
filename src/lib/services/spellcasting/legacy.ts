@@ -4,6 +4,7 @@
  * (der Umzug dorthin ist `spellsFix` in `services/characterLegacyLinks.ts`).
  */
 import type { AbilityName } from '$lib/schemas/abilities';
+import { spellPools } from '../resources/project';
 import type { CharacterFeatureEntry, CharacterSpells } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import {
@@ -50,10 +51,7 @@ export function legacyFlatView(
     saveDC: (primary ? primary.saveDC : row?.saveDC) ?? 0,
     attackBonus: (primary ? primary.attackBonus : row?.attackBonus) ?? 0,
     autoCalc: true,
-    slots: Array.from({ length: 9 }, (_, i) => ({
-      total: state.pools.standard.total[i] ?? 0,
-      used: state.pools.standard.used[i] ?? 0,
-    })),
+    slots: spellPools(state.resources).standard.map((total) => ({ total, used: 0 })),
     cantrips: (view.levels.find((l) => l.level === 0)?.spells ?? []).map((s) => ({
       name: s.label,
       ...(s.key ? { sourceKey: s.key } : {}),
@@ -76,11 +74,7 @@ export function legacySpellcasting(
   const spells = c.spells;
   // Additiv über den gespeicherten Block: ein Aufstieg schreibt noch die Altform, und ein
   // „neue Form gewinnt" ließe seine Zauber verschwinden.
-  const stored: CharacterSpellcasting = c.spellcasting
-    ? cloneSpellcasting(c.spellcasting)
-    : { pools: { standard: { used: [] }, pact: { used: 0 } }, sources: {} };
-  if (!stored.pools.standard.used.some((n) => n > 0))
-    stored.pools.standard.used = (spells?.slots ?? []).map((s) => s.used);
+  const stored: CharacterSpellcasting = c.spellcasting ? cloneSpellcasting(c.spellcasting) : { sources: {} };
 
   // Nur wo die Progression nichts hergibt (unverlinkte Klasse).
   if (!derivedSlots.some((n) => n > 0) && (spells?.slots ?? []).some((s) => s.total > 0) && !stored.manual?.slotTotals.length)

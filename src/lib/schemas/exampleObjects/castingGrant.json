@@ -61,6 +61,16 @@
           "kind": "at-will"
         },
         {
+          "kind": "resource",
+          "resource": {
+            "feature": "string",
+            "pool": "string",
+            "shared": "string"
+          },
+          "amount": 1,
+          "labelDe": "string"
+        },
+        {
           "kind": "ritual",
           "requiresPrepared": false
         }
@@ -123,6 +133,16 @@
           },
           {
             "kind": "at-will"
+          },
+          {
+            "kind": "resource",
+            "resource": {
+              "feature": "string",
+              "pool": "string",
+              "shared": "string"
+            },
+            "amount": 1,
+            "labelDe": "string"
           },
           {
             "kind": "ritual",

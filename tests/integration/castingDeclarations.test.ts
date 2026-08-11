@@ -19,7 +19,7 @@ import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 import { libraryKey } from '../support/libraryKey';
 
 /** Stand der Inventur (Plan Stufe 1). */
-const DECLARATION_COUNT = 36;
+const DECLARATION_COUNT = 38;
 
 interface Declaration {
   key: string;
@@ -117,12 +117,23 @@ describe('grantsCasting im Vault', () => {
     for (const d of await declarations()) {
       const columns = d.table ? columnNames(d.table) : new Set<string>();
       const wanted = quotasOf(d).flatMap((q) => [
-        ...(q.count && 'column' in q.count ? [q.count.column] : []),
+        ...(typeof q.count === 'object' && 'column' in q.count ? [q.count.column] : []),
         ...q.cast.flatMap((c) =>
           c.kind === 'uses' && typeof c.count === 'object' && 'column' in c.count ? [c.count.column] : [],
         ),
       ]);
       for (const column of wanted) expect([...columns], d.key).toContain(column);
+    }
+  });
+
+  // Die Frage-Pfade (Wizard-Angebot, Merkmals-Zugang) rechnen mit `NO_SCALE`, haben also weder
+  // Übungsbonus noch Modifikatoren. Ein so skaliertes Kontingent käme dort als 0 heraus.
+  it('skaliert kein Kontingent am Übungsbonus oder an einem Attribut', async () => {
+    for (const d of await declarations()) {
+      for (const q of quotasOf(d)) {
+        const scaled = q.count === 'proficiency-bonus' || (typeof q.count === 'object' && 'abilityMod' in q.count);
+        expect(scaled, `${d.key}/${q.id}`).toBe(false);
+      }
     }
   });
 

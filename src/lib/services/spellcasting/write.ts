@@ -14,7 +14,7 @@ export const cloneSpellcasting = (block: CharacterSpellcasting): CharacterSpellc
 function sourceState(block: CharacterSpellcasting, sourceId: string): CastingSourceState {
   const existing = block.sources[sourceId];
   if (existing) return existing;
-  const fresh: CastingSourceState = { picks: {}, uses: {} };
+  const fresh: CastingSourceState = { picks: {} };
   block.sources[sourceId] = fresh;
   return fresh;
 }
@@ -46,20 +46,6 @@ export function addPick(block: CharacterSpellcasting, sourceId: string, quotaId:
   if (!list.includes(key)) picks[quotaId] = [...list, key];
 }
 
-export function setUses(block: CharacterSpellcasting, sourceId: string, quotaId: string, used: number): void {
-  sourceState(block, sourceId).uses[quotaId] = Math.max(0, used);
-}
-
-export function setSlotUsed(block: CharacterSpellcasting, level: number, used: number): void {
-  const arr = block.pools.standard.used;
-  while (arr.length < level) arr.push(0);
-  arr[level - 1] = Math.max(0, used);
-}
-
-export function setPactUsed(block: CharacterSpellcasting, used: number): void {
-  block.pools.pact.used = Math.max(0, used);
-}
-
 export function setSlotTotals(block: CharacterSpellcasting, totals: number[]): void {
   if (!totals.some((n) => n > 0)) {
     if (block.manual) block.manual.slotTotals = [];
@@ -89,14 +75,11 @@ export function pruneSpellcasting(block: CharacterSpellcasting): CharacterSpellc
   const sources: CharacterSpellcasting['sources'] = {};
   for (const [id, state] of Object.entries(block.sources)) {
     const picks = Object.fromEntries(Object.entries(state.picks).filter(([, keys]) => keys.length > 0));
-    const uses = Object.fromEntries(Object.entries(state.uses).filter(([, n]) => n > 0));
-    if (!Object.keys(picks).length && !Object.keys(uses).length) continue;
-    sources[id] = { picks, uses };
+    if (Object.keys(picks).length) sources[id] = { picks };
   }
   const manualBlock = block.manual;
   const keepManual = !!manualBlock && (manualBlock.slotTotals.some((n) => n > 0) || manualBlock.extra.length > 0);
   return {
-    pools: block.pools,
     sources,
     ...(keepManual ? { manual: manualBlock } : {}),
   };

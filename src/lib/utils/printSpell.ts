@@ -159,14 +159,26 @@ function cardsOf(spell: Spell, chunks: string[]): string[] {
   });
 }
 
-/** `title` ist bereits escaped. Angebrochene Seiten füllen Leerkarten auf (3×3-Raster). */
-function printDocument(title: string, cards: string[]): string {
+/** Angebrochene Seiten füllen Leerkarten auf (3×3-Raster). */
+function pagesOf(cards: string[], pageClass: string): string[] {
   const pages: string[] = [];
   for (let i = 0; i < cards.length; i += 9) {
     const batch = cards.slice(i, i + 9);
     while (batch.length < 9) batch.push(renderEmptyCard());
-    pages.push(`<div class="page">\n${batch.join('\n')}\n</div>`);
+    pages.push(`<div class="${pageClass}">\n${batch.join('\n')}\n</div>`);
   }
+  return pages;
+}
+
+const measuredCards = (spells: Spell[], doc: Document): string[] =>
+  spells.flatMap((spell) => {
+    const { firstH, contH } = measureDescHeights(spell, doc);
+    return cardsOf(spell, paginateDescription(spell, firstH, contH, doc));
+  });
+
+/** `title` ist bereits escaped. */
+function printDocument(title: string, cards: string[]): string {
+  const pages = pagesOf(cards, 'page');
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -187,15 +199,16 @@ export function buildSpellPrintHtml(spell: Spell, chunks: string[]): string {
 }
 
 export function prepareMultiSpellPrint(spells: Spell[], doc: Document): string {
-  const allCards: string[] = [];
-  for (const spell of spells) {
-    const { firstH, contH } = measureDescHeights(spell, doc);
-    allCards.push(...cardsOf(spell, paginateDescription(spell, firstH, contH, doc)));
-  }
-
   const title = spells[0] ? `${esc(spells[0].name)} u.a. – Zauberkarten` : 'Zauberkarten';
-  return printDocument(title, allCards);
+  return printDocument(title, measuredCards(spells, doc));
 }
+
+/**
+ * Kartenseiten ohne Dokumenthülle, für ein fremdes Stylesheet: der Charakterbogen hängt sie
+ * an und benennt das Raster selbst, weil sein `.page` etwas anderes ist.
+ */
+export const spellCardPages = (spells: Spell[], doc: Document, pageClass: string): string =>
+  pagesOf(measuredCards(spells, doc), pageClass).join('\n');
 
 export function prepareSpellPrint(spell: Spell, doc: Document): string {
   const { firstH, contH } = measureDescHeights(spell, doc);

@@ -663,8 +663,9 @@ describe('fest gewährte Sprache', () => {
 describe('die Senke des kind entscheidet, nicht der Träger', () => {
   // Der Editor leitet sein Dropdown aus dieser Liste ab. Stünde `spellAccess` darin, verlöre
   // „Eingeweihter der Magie" seinen Editor — und es ist der einzige Vault-Eintrag mit `kind`.
-  it('braucht nur die drei Stufentabellen-kinds die Klasse', () => {
-    expect([...CLASS_TABLE_CHOICE_KINDS].sort()).toEqual(['featCategory', 'spellcasting', 'weaponMastery']);
+  it('braucht nur die Stufentabellen-kinds die Klasse', () => {
+    expect([...CLASS_TABLE_CHOICE_KINDS].sort())
+      .toEqual(['featCategory', 'optionPool', 'spellcasting', 'weaponMastery']);
   });
 
   it('liest denselben Zauber-Zugang an Klassenmerkmal, Speziesmerkmal und Talent', () => {

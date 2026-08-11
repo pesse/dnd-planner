@@ -15,6 +15,7 @@
     "test:integration": "vitest run tests/integration",
     "test:watch": "vitest",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "sheets": "vite-node -c vitest.config.ts scripts/render-character-sheets.mts",
     "schema:examples": "node scripts/gen-schema-examples.mjs",
     "schema:examples:check": "node scripts/gen-schema-examples.mjs --check",
     "eval": "node evals/cli.mjs",
@@ -37,7 +38,6 @@
     "@tiptap/starter-kit": "^3.21.0",
     "marked": "^17.0.5",
     "minisearch": "^7.2.0",
-    "pdf-lib": "^1.17.1",
     "tiptap-markdown": "^0.9.0",
     "zod": "^4.0.0"
   },
@@ -51,6 +51,7 @@
     "svelte-check": "^4.0.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
+    "vite-node": "^3.0.0",
     "vitest": "^3.0.0"
   }
 }

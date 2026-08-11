@@ -60,7 +60,7 @@ export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
   const base = (a.baseDamage ?? '').trim();
   if (!base) return '';
   const m = attackAbilityMod(a, ctx) + (a.magicBonus ?? 0) + attackModifierTotals(a).damage;
-  return base + (m !== 0 ? sign(m) : '');
+  return formatDamageDice(base) + (m !== 0 ? sign(m) : '');
 }
 
 /** Plaintext fürs `title`-Attribut — das HTML-Tooltip-System liegt im Charakterbogen. */

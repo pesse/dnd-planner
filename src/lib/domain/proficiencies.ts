@@ -1,7 +1,7 @@
 /**
- * Die acht Übungsfelder des Bogens als EINE über `keyof ProficiencyFlags` totale Tabelle:
- * Bogen-Feld, Vokabular-Wert und PDF-Feldname. Ein neues Feld am Schema bricht damit den
- * Build, statt still ohne Anzeige, Grant-Abgleich und PDF-Häkchen zu bleiben.
+ * Die acht Übungsfelder des Bogens als EINE über `keyof ProficiencyFlags` totale Tabelle
+ * aus Bogen-Feld und Vokabular-Wert. Ein neues Feld am Schema bricht damit den Build,
+ * statt still ohne Anzeige und Grant-Abgleich zu bleiben.
  */
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { ArmorTraining, WeaponCategory } from '$lib/schemas/vocabulary';
@@ -27,23 +27,22 @@ export const ARMOR_LABEL_DE: Record<ArmorTraining, string> = {
  * `prose` der Freitext ohne mechanische Wirkung.
  */
 export type ProficiencyDef =
-  | { form: 'flag'; kind: 'weapons'; value: WeaponCategory; pdfField: string }
-  | { form: 'flag'; kind: 'armor'; value: ArmorTraining; pdfField: string }
+  | { form: 'flag'; kind: 'weapons'; value: WeaponCategory }
+  | { form: 'flag'; kind: 'armor'; value: ArmorTraining }
   | { form: 'list' }
   | { form: 'prose' };
 
 export type ProficiencyFlagDef = Extract<ProficiencyDef, { form: 'flag' }>;
 
-// Die PDF-Feldnamen diktiert das Formular des Taendler-Bogens.
 export const PROFICIENCY_DEFS = {
-  simpleWeapons:     { form: 'flag', kind: 'weapons', value: 'Simple',  pdfField: 'EinfachWaffenProf' },
-  martialWeapons:    { form: 'flag', kind: 'weapons', value: 'Martial', pdfField: 'KriegswaffenProf' },
+  simpleWeapons:     { form: 'flag', kind: 'weapons', value: 'Simple' },
+  martialWeapons:    { form: 'flag', kind: 'weapons', value: 'Martial' },
   individualWeapons: { form: 'list' },
   otherWeapons:      { form: 'prose' },
-  lightArmor:        { form: 'flag', kind: 'armor',   value: 'Light',   pdfField: 'LeichteRüstungProf' },
-  mediumArmor:       { form: 'flag', kind: 'armor',   value: 'Medium',  pdfField: 'MittlereRüstungProf' },
-  heavyArmor:        { form: 'flag', kind: 'armor',   value: 'Heavy',   pdfField: 'SchwereRüstungProf' },
-  shields:           { form: 'flag', kind: 'armor',   value: 'Shields', pdfField: 'SchildeProf' },
+  lightArmor:        { form: 'flag', kind: 'armor',   value: 'Light' },
+  mediumArmor:       { form: 'flag', kind: 'armor',   value: 'Medium' },
+  heavyArmor:        { form: 'flag', kind: 'armor',   value: 'Heavy' },
+  shields:           { form: 'flag', kind: 'armor',   value: 'Shields' },
 } as const satisfies { [K in keyof ProficiencyFlags]: ProficiencyDef };
 
 /** Die Häkchen-Felder, aus der Tabelle abgeleitet statt von Hand ausgeschlossen. */
@@ -66,7 +65,7 @@ const setFlagLabels = (pf: ProficiencyFlags, kind: 'weapons' | 'armor'): string[
 
 /**
  * Kategorien, dann die einzeln erklärten Waffen. `withProse` hängt den Freitext an: Protokoll,
- * KI-Kontext und PDF führen ihn in derselben Aufzählung, der Bogen zeigt ihn getrennt.
+ * KI-Kontext und Druckbogen führen ihn in derselben Aufzählung, der Bogen zeigt ihn getrennt.
  */
 export function weaponProficiencyLabels(
   pf: ProficiencyFlags,

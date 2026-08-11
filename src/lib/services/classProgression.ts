@@ -77,17 +77,17 @@ export async function getProgressionByKey(key: string): Promise<ClassProgression
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);
 const clampLevel = (level: number): number => Math.min(20, Math.max(1, Math.floor(level)));
 
-const columnsAt = (prog: ClassProgression, level: number): Record<string, string> =>
+export const levelColumns = (prog: ClassProgression, level: number): Record<string, string> =>
   prog.levels.find((r) => r.level === clampLevel(level))?.columns ?? {};
 
 /** `column` ist der v2-Spaltenname, roh und offen: "Cantrips", "Rages", "Sneak Attack". */
 export function columnValue(prog: ClassProgression, column: string, level: number): string | undefined {
-  return columnsAt(prog, level)[column];
+  return levelColumns(prog, level)[column];
 }
 
 /** Index 0 = Grad 1 … 8 = Grad 9, auch für Pact Magic (Warlock) mit seiner einen Grad-Spalte. */
 export function spellSlotsAt(prog: ClassProgression, level: number): number[] {
-  const cols = columnsAt(prog, level);
+  const cols = levelColumns(prog, level);
   const ord = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
   const std = ord.map((c) => {
     const v = cols[c];

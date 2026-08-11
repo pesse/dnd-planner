@@ -1,7 +1,6 @@
 /**
  * Single Source of Truth für Charaktere: Zod-Schema → TS-Type + Runtime-Validator +
- * LLM-JSON-Schema. Label-Maps und der PDF-Parser leben in `pdf/characterFields.ts`,
- * das den Typ von hier re-exportiert.
+ * LLM-JSON-Schema.
  */
 import { z } from 'zod';
 import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
@@ -35,7 +34,7 @@ const attackSchema = z.object({
 });
 
 // Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu
-// gespeichert wurden, und ist die Transportform des PDF-Randes; Wahrheit ist `spellcasting`.
+// gespeichert wurden; Wahrheit ist `spellcasting`.
 const spellRefSchema = z.object({
   name: z.string(),
   sourceKey: z.string().optional(),
@@ -88,6 +87,11 @@ export const proficiencyFlagsSchema = z.object({
   shields: z.boolean().default(false),
 });
 
+export const emptyProficiencies = (): ProficiencyFlags => ({
+  simpleWeapons: false, martialWeapons: false, individualWeapons: [], otherWeapons: '',
+  lightArmor: false, mediumArmor: false, heavyArmor: false, shields: false,
+});
+
 /**
  * Ein Eintrag des Merkmals-Ledgers. Zwei Arten, unterschieden ALLEIN am `sourceKey`:
  * trifft er ein aus `classes[]`/`species`/`backgroundRef` abgeleitetes Merkmal, ANNOTIERT
@@ -118,6 +122,17 @@ const characterFeatureSchema = z.object({
   choiceId: z.string().default(''),
   gainedAt: z.number().int().optional(), // trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
   desc: z.string().default(''),
+});
+
+/**
+ * Eine Wahl aus einem Options-Pool. `value` ist das kanonische ENGLISCHE Label der Deklaration
+ * (`choiceOptionSchema.value`) und damit der Anker, `valueDe` das Zitat fürs Anzeigen —
+ * dieselbe Aufteilung wie `choice`/`choiceDe` im Ledger.
+ */
+const optionPickSchema = z.object({
+  sourceKey: z.string().default('').describe('Key des Merkmals, dessen Pool die Option stellt.'),
+  value: z.string().default(''),
+  valueDe: z.string().default(''),
 });
 
 const characterClassSchema = z.object({
@@ -165,6 +180,13 @@ const personalDataSchema = z.object({
   aussehen: z.string().default(''),
 });
 
+export const emptyPersonal = (): PersonalData => ({
+  rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '',
+  gesinnung: '', glaube: '', lebensstil: '', taeglicheKosten: '',
+  augenfarbe: '', haarfarbe: '', hautfarbe: '', gewicht: '',
+  koerpergroesse: '', aussehen: '',
+});
+
 const skillEntrySchema = z.object({
   value: z.number().int().default(0),
   prof: z.boolean().default(false),
@@ -176,7 +198,7 @@ export const characterSchema = z.object({
   // Nachgeschlagen wird über den Ordner; das Feld macht die Datei selbstbeschreibend.
   uid: z.string().default(''),
   // `classes`/`backgroundRef`/`species` sind die Source of Truth; `classLevel`/`background`/
-  // `race` daraus abgeleitete Anzeige-Strings für Header und PDF, nicht direkt editiert.
+  // `race` daraus abgeleitete Anzeige-Strings für Header und Bogen, nicht direkt editiert.
   name: z.string(),
   classes: z.array(characterClassSchema).default([]),
   classLevel: z.string().default(''),
@@ -220,6 +242,9 @@ export const characterSchema = z.object({
         sourceKey: z.string().optional(),
         count: z.string().default(''),
         weight: z.string().default(''),
+        /** Optional wie `sourceKey`: fehlt das Feld, wirkt der Gegenstand nicht. */
+        equipped: z.boolean().optional(),
+        attuned: z.boolean().optional(),
       }),
     )
     .default([]),
@@ -251,8 +276,25 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
-  // Merkmals-Ledger, additiv zum Freitext: NICHT im PDF, aber Berechnungsgrundlage.
+  /**
+   * EINE flache Liste für ALLE Pools, geschlüsselt am Merkmal — die Anrufungen des
+   * Hexenmeisters brauchen damit kein zweites Feld. Nicht ins Merkmals-Ledger: das trägt die
+   * Anker, nicht die Inhalte (Zauber stehen im Zauberblock, Waffen in `masteries`).
+   */
+  optionPicks: z
+    .array(optionPickSchema)
+    .default([])
+    .describe('Gewählte Optionen aus deklarierten Options-Pools (Metamagie), je Merkmal.'),
+  // Merkmals-Ledger, additiv zum Freitext: Berechnungsgrundlage, keine Anzeigequelle.
   features: z.array(characterFeatureSchema).default([]),
+  /**
+   * Reine Ausgabe-Auswahl, ohne Regelwirkung — deshalb nicht ins Merkmals-Ledger, das die
+   * Anker der Mechanik trägt. Ein Key ohne Merkmal (getauschter Klassen-Link) bleibt stehen.
+   */
+  pinnedFeatures: z
+    .array(z.string())
+    .default([])
+    .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
   // `_version` bewusst offener int, kein Literal-Union: eine von einer neueren App
   // geschriebene Datei soll in einer älteren trotzdem laden. Default nur für neu
@@ -264,6 +306,7 @@ export const characterSchema = z.object({
 });
 
 export type Character = z.infer<typeof characterSchema>;
+export type CharacterInventoryEntry = Character['inventory'][number];
 export type CharacterSpells = z.infer<typeof characterSpellsSchema>;
 export type Attack = z.infer<typeof attackSchema>;
 export type AttackModifier = z.infer<typeof attackModifierSchema>;
@@ -272,6 +315,7 @@ export type SpellRef = z.infer<typeof spellRefSchema>;
 export type ProficiencyFlags = z.infer<typeof proficiencyFlagsSchema>;
 export type PersonalData = z.infer<typeof personalDataSchema>;
 export type CharacterFeatureEntry = z.infer<typeof characterFeatureSchema>;
+export type OptionPick = z.infer<typeof optionPickSchema>;
 export type CharacterClass = z.infer<typeof characterClassSchema>;
 export type CharacterSpecies = z.infer<typeof characterSpeciesSchema>;
 export type CharacterBackground = z.infer<typeof characterBackgroundSchema>;

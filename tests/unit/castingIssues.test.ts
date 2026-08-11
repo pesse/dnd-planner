@@ -22,6 +22,7 @@ const KINDS: CastingIssueKind[] = [
 ];
 
 const LOOKUP: ProjectionLookup = {
+  resourceLabel: () => '',
   spell: () => undefined,
   spellByName: () => undefined,
   className: (key) => (key === 'srd-2024_cleric' ? 'Kleriker' : ''),

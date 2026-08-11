@@ -6,6 +6,7 @@
 import type { FeatureGrant, SpellGrant } from '$lib/schemas/grants';
 import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import type { CastingGrant } from '$lib/schemas/casting';
+import type { ResourceGrant } from '$lib/schemas/resource';
 import { isEmptyFeatureGrant } from './declaration/grants';
 
 /**
@@ -17,11 +18,12 @@ export interface DeclarableFeature {
   grantsChoice?: FeatureChoiceGrant[];
   grantsSpells?: SpellGrant;
   grantsCasting?: CastingGrant;
+  grantsResource?: ResourceGrant;
 }
 
 export interface DeclarationCoverage {
   total: number;
-  /** Mindestens eine der drei Deklarationen ist gesetzt — auch leer. */
+  /** Mindestens eine der Deklarationen ist gesetzt — auch leer. */
   redacted: number;
   withMechanics: number;
   undeclared: number;
@@ -31,12 +33,12 @@ export interface DeclarationCoverage {
 /** Angesehen und entschieden — unabhängig davon, ob dabei Mechanik herauskam. */
 export const isRedacted = (f: DeclarableFeature): boolean =>
   f.grants !== undefined || f.grantsChoice !== undefined || f.grantsSpells !== undefined
-  || f.grantsCasting !== undefined;
+  || f.grantsCasting !== undefined || f.grantsResource !== undefined;
 
 /** Trägt deterministisch anwendbare Mechanik oder eine deklarierte Wahl. */
 export const hasDeclaredMechanics = (f: DeclarableFeature): boolean =>
   f.grantsChoice !== undefined || f.grantsSpells !== undefined || f.grantsCasting !== undefined
-  || (f.grants !== undefined && !isEmptyFeatureGrant(f.grants));
+  || f.grantsResource !== undefined || (f.grants !== undefined && !isEmptyFeatureGrant(f.grants));
 
 export function declarationCoverage(features: readonly DeclarableFeature[]): DeclarationCoverage {
   const redactedList = features.filter(isRedacted);

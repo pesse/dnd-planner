@@ -11,23 +11,21 @@ import { applyChanges } from '../../src/lib/services/applyChanges';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
 import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import { loadSheetSpellcasting, loadSpellcasting, openSpellChoices } from '../../src/lib/services/spellcasting/project';
-import { addExtra, cloneSpellcasting, pickedKeys, setPicks, setSlotUsed } from '../../src/lib/services/spellcasting/write';
+import { addExtra, cloneSpellcasting, pickedKeys, setPicks } from '../../src/lib/services/spellcasting/write';
 
 
 const blank = (): Character => characterSchema.parse({ name: 'Prüfling' });
 
 describe('Formular-Rundlauf', () => {
-  it('trägt Auswahl, Bindung und Verbrauch zurück in die Datei', () => {
+  it('trägt Auswahl und quellenlosen Bestand zurück in die Datei', () => {
     const c = blank();
     const form = initialFormFields(c);
     setPicks(form.spellcasting, 'srd-2024_wizard_spellcasting', 'cantrips', ['srd-2024_light', 'srd-2024_fire-bolt']);
-    setSlotUsed(form.spellcasting, 1, 2);
     addExtra(form.spellcasting, 'srd-2024_find-familiar');
 
     const patch = formDraftPatch(form, initialFormCarry(c));
     expect(patch.spellcasting.sources['srd-2024_wizard_spellcasting'].picks.cantrips)
       .toEqual(['srd-2024_light', 'srd-2024_fire-bolt']);
-    expect(patch.spellcasting.pools.standard.used[0]).toBe(2);
     expect(patch.spellcasting.manual?.extra).toEqual(['srd-2024_find-familiar']);
     // Die Altform verschwindet mit dem Speichern.
     expect(patch.spells).toBeUndefined();
@@ -124,8 +122,8 @@ describe('die migrierten Charaktere', () => {
     const view = await loadSheetSpellcasting(c);
     const all = view.levels.flatMap((l) => l.spells);
     expect(all.find((s) => s.label === 'Sternenlichtfunke')?.source).toBe('Zauber des Zirkels des Mondes');
-    // Ein Magier-Zauber am Druiden hat keine Quota und bleibt quellenlos.
-    expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('');
+    // Seit der Wilde Gefährte deklariert ist, hängt „Vertrauten finden" an der Klasse.
+    expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('Druide');
   });
 
   it('behält Plätze und Zauber des unverlinkten Charakters', async () => {
@@ -145,7 +143,7 @@ describe('die migrierten Charaktere', () => {
     expect(flat.spellcastingAbility).toBe('Weisheit');
     expect(flat.slots[0].total).toBe(3);
     expect(flat.cantrips).toHaveLength(2);
-    expect(flat.byLevel['1']).toHaveLength(5);
+    expect(flat.byLevel['1']).toHaveLength(6);
   });
 });
 
@@ -157,9 +155,9 @@ describe('Reaktive Formulardaten', () => {
     expect(() => structuredClone(proxied)).toThrow();
 
     const copy = cloneSpellcasting(proxied);
-    setSlotUsed(copy, 1, 3);
-    expect(copy.pools.standard.used[0]).toBe(3);
-    expect(c.spellcasting.pools.standard.used[0] ?? 0).toBe(0);
+    setPicks(copy, 'srd-2024_druid_spellcasting', 'cantrips', ['srd-2024_guidance']);
+    expect(pickedKeys(copy, 'srd-2024_druid_spellcasting', 'cantrips')).toEqual(['srd-2024_guidance']);
+    expect(pickedKeys(c.spellcasting, 'srd-2024_druid_spellcasting', 'cantrips')).not.toContain('srd-2024_guidance');
 
     const view = await loadSheetSpellcasting({ ...c, spellcasting: proxied });
     expect(view.levels.flatMap((l) => l.spells).length).toBeGreaterThan(0);

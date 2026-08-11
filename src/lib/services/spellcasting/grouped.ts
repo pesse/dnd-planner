@@ -5,11 +5,12 @@
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
-import type { SwapCadence } from '$lib/schemas/casting';
+import type { CastOption, SwapCadence } from '$lib/schemas/casting';
+import type { ResourceRef } from '$lib/schemas/resource';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
+import type { ResolvedResource } from '../resources/resolve';
 import { sourceLabel, type ProjectionLookup } from './project';
-import type { CastingIssue, CastingIssueKind } from './source';
-import { poolQuotas, type QuotaState, type SpellcastingState } from './state';
+import { poolQuotas, type QuotaState, type SheetIssue, type SpellcastingState } from './state';
 
 export interface GroupedSpell {
   key: string;
@@ -21,6 +22,8 @@ export interface SpellQuotaGroup {
   sourceId: string;
   quotaId: string;
   label: string;
+  /** Die deklarierten Wirkwege — `castNote` ist ihre ausformulierte Fassung. */
+  cast: CastOption[];
   /** Wie diese Zauber gewirkt werden (`cast`). */
   castNote: string;
   /** Der Tauschtakt (`swap`); leer, wenn die Deklaration keinen nennt. */
@@ -36,6 +39,8 @@ export interface SpellQuotaGroup {
   /** `into` aufgelöst; null = die Auswahl gehört nirgendwo sonst hin. */
   into: QuotaPoolInto | null;
   count: number;
+  /** `prepared` heißt: die Auswahl gilt bis zur nächsten Langen Rast, `known` dauerhaft. */
+  tier: 'known' | 'prepared';
   /** true = gewährt, nichts zu wählen. */
   fixed: boolean;
   spells: GroupedSpell[];
@@ -74,23 +79,15 @@ export interface SpellSourceGroup {
   quotas: SpellQuotaGroup[];
 }
 
-export interface GroupedSlot {
-  level: number;
-  total: number;
-  used: number;
-}
-
 export interface GroupedIssue {
-  kind: CastingIssueKind;
+  kind: SheetIssue['kind'];
   text: string;
 }
 
 export interface GroupedSpellcasting {
   sources: SpellSourceGroup[];
-  slots: GroupedSlot[];
-  pact: GroupedSlot | null;
-  /** true = keine Progression im Vault, die Plätze stehen von Hand. */
-  manualSlots: boolean;
+  /** Alle Vorräte, Zauberplätze eingeschlossen — EIN Modell, eine Anzeige. */
+  resources: ResolvedResource[];
   extra: GroupedSpell[];
   /** Warum eine erwartete Quelle fehlt oder unvollständig ist — sonst schweigt der Fehlschlag. */
   issues: GroupedIssue[];
@@ -101,7 +98,7 @@ export interface GroupedSpellcasting {
  * von einem Deklarationsfehler zu sehen bekommt. Total getippt, damit eine neue Issue-Art hier
  * einen Compile-Fehler auslöst statt still zu verschwinden.
  */
-const ISSUE_TEXT: Record<CastingIssueKind, (issue: CastingIssue, className: (key: string) => string) => string> = {
+const ISSUE_TEXT: Record<SheetIssue['kind'], (issue: SheetIssue, className: (key: string) => string) => string> = {
   unlinkedClass: (i) =>
     `${i.detail || 'Eine Klasse'} ist nicht mit der Bibliothek verknüpft — ohne Link kennt die App ihr Zauberwirken nicht.`,
   unknownClassKey: (i) => `„${i.detail}" fehlt in der Bibliothek — Bibliothek aktualisieren.`,
@@ -121,9 +118,16 @@ const ISSUE_TEXT: Record<CastingIssueKind, (issue: CastingIssue, className: (key
   unknownBranchKey: (i) =>
     `Die Bibliothek stellt eine Bedingung, die diese App nicht kennt (${i.detail}) — das Kontingent bleibt aus.`,
   unknownSpell: (i) => `„${i.detail}" ist in der Zauber-Bibliothek nicht zu finden.`,
+  unresolvedResourceTarget: (i) =>
+    `Ein Zuschlag zielt auf einen Vorrat, den es nicht gibt (${i.detail}) — er bleibt aus.`,
+  undeclaredCastResource: (i) =>
+    `Ein Zauber wird aus einem Vorrat gewirkt, den kein Merkmal deklariert (${i.detail}) — er wird nirgends gezählt.`,
+  unknownResourceClass: (i) => `Ein Vorrat nennt eine Klasse, die dieser Charakter nicht hat (${i.detail}).`,
+  sharedPoolKindMismatch: (i) =>
+    `Zwei Merkmale speisen denselben Vorrat in unterschiedlicher Form (${i.detail}) — das zweite bleibt aus.`,
 };
 
-export const groupedIssue = (issue: CastingIssue, lookup: ProjectionLookup): GroupedIssue => ({
+export const groupedIssue = (issue: SheetIssue, lookup: ProjectionLookup): GroupedIssue => ({
   kind: issue.kind,
   text: ISSUE_TEXT[issue.kind](issue, lookup.className),
 });
@@ -147,7 +151,7 @@ export function quotaLabel(quota: QuotaState): string {
  * Wie gewirkt wird. Mehrere Möglichkeiten sind der Normalfall („1× gratis ODER über einen
  * Platz"), leeres `cast` heißt: das Kontingent ist Bestand, aus sich heraus nicht wirkbar.
  */
-export function castNote(quota: QuotaState, intoLabel = ''): string {
+export function castNote(quota: QuotaState, resourceLabel: (ref: ResourceRef) => string, intoLabel = ''): string {
   // Die aufgelöste Zahl gehört zur ERSTEN `uses`-Option (`state.ts`) — bei mehreren nennt die
   // Zeile keine, statt die falsche zu behaupten.
   const single = quota.view.cast.filter((c) => c.kind === 'uses').length === 1;
@@ -157,11 +161,19 @@ export function castNote(quota: QuotaState, intoLabel = ''): string {
         return option.pool === 'pact' ? 'über Pakt-Plätze' : 'über Zauberplätze';
       case 'uses': {
         const per = option.per === 'short-rest' ? 'Kurze Rast' : 'Lange Rast';
-        const n = single ? quota.uses?.max : undefined;
+        const n = single ? quota.uses : undefined;
         return `${n ? `${n}× ` : ''}ohne Zauberplatz pro ${per}`;
       }
       case 'at-will':
         return 'beliebig oft';
+      case 'resource': {
+        // Der deklarierte Wortlaut geht vor: „1 Fokuspunkt" ist die Kosten-Angabe des Merkmals,
+        // der Pool-Name („Fokuspunkte") nur sein Ziel.
+        if (option.labelDe.trim()) return `über ${option.labelDe.trim()}`;
+        const label = option.resource ? resourceLabel(option.resource) : '';
+        if (!label) return 'aus einem Vorrat';
+        return option.amount > 1 ? `über ${option.amount}× ${label}` : `über eine Anwendung von ${label}`;
+      }
       case 'ritual':
         return option.requiresPrepared ? 'als Ritual' : 'als Ritual, auch unvorbereitet';
     }
@@ -240,7 +252,8 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
           sourceId: source.source.id,
           quotaId: quota.view.quotaId,
           label: quotaLabel(quota),
-          castNote: castNote(quota, into?.label),
+          cast: [...quota.view.cast],
+          castNote: castNote(quota, (ref) => lookup.resourceLabel(ref, source.source.featureKey), into?.label),
           swapNote: swapNote(quota),
           levels: [...quota.view.levels],
           lists: [...quota.view.pool.lists],
@@ -248,6 +261,7 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
           from: poolFromOf(quota),
           into,
           count: quota.view.count,
+          tier: quota.view.tier,
           fixed: quota.view.fixed,
           spells: quota.spells.map((key) => spellOf(key, lookup)),
           open: quota.open,
@@ -256,20 +270,9 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
     };
   });
 
-  const slots: GroupedSlot[] = [];
-  state.pools.standard.total.forEach((total, i) => {
-    if (total > 0) slots.push({ level: i + 1, total, used: state.pools.standard.used[i] ?? 0 });
-  });
-  let pactLevel = 0;
-  state.pools.pact.total.forEach((n, i) => { if (n > 0) pactLevel = i + 1; });
-
   return {
     sources,
-    slots,
-    pact: pactLevel
-      ? { level: pactLevel, total: state.pools.pact.total[pactLevel - 1] ?? 0, used: state.pools.pact.used }
-      : null,
-    manualSlots: state.manualSlots,
+    resources: state.resources,
     extra: state.extra.map((key) => spellOf(key, lookup)),
     issues: state.issues.map((issue) => groupedIssue(issue, lookup)),
   };

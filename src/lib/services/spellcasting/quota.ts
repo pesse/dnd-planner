@@ -1,14 +1,13 @@
 /**
  * Eine Quota gegen die Stufe der Quelle: `since`, `when`, Kontingent, Grade und Pool.
  */
-import type { AbilityKey } from '$lib/schemas/abilities';
-import { abilityKeyOf } from '$lib/schemas/abilities';
+import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
-import { firstInt } from '$lib/utils/num';
+import { resolveAmount, type AmountContext } from '../resources/amount';
 import { columnValue } from '../classProgression';
 import { parseSpellGrantRows } from '../grantedSpells';
-import { slotLevels, type SpellPools } from './slots';
+import { slotLevels } from '../resources/slots';
 import {
   castingIssue,
   quotaSwap,
@@ -50,21 +49,42 @@ export interface QuotaContext {
   /** Spaltenwert der Stufentabelle der Quelle, auf ihrer Stufe. */
   column: (name: string) => string | undefined;
   /** Grade, für die der genannte Platz-Pool Plätze hergibt. */
-  slotLevels: (pool: 'standard' | 'pact') => number[];
+  slotLevels: (pool: string) => number[];
   /** Deklarierter Zaubername → `spell.key` (`resolveSpell` der Bibliothek). */
   spellKey: (name: string) => string | undefined;
+  /** Kontingente und freie Wirkungen zählen gleich — eine Auswertung für beide. */
+  amount: AmountContext;
 }
+
+/** Was eine Menge außer der Stufe skalieren kann. */
+export interface AmountScale {
+  profBonus: number;
+  mods: Record<AbilityKey, number>;
+}
+
+/**
+ * Für die Frage-Pfade (Wizard-Angebot, Merkmals-Zugang): sie fragen, WAS gewählt wird, und haben
+ * weder Übungsbonus noch Modifikatoren zur Hand. Ein Kontingent, das daran hinge, käme dort als 0
+ * heraus — im Bestand gibt es keins, und `castingDeclarations.test.ts` hält das fest.
+ */
+export const NO_SCALE: AmountScale = { profBonus: 0, mods: abilityRecordOf(() => 0) };
+
+/** Dieselben Pfade fragen ohne Charakter — ohne Plätze bleibt eine Gradschranke leer. */
+export const NO_SLOTS = (): number[] => [];
 
 export function quotaContext(
   prog: ClassProgression | null,
   level: number,
-  pools: SpellPools,
+  slotsOf: (pool: string) => number[],
   spellKey: (name: string) => string | undefined,
+  scale: AmountScale,
 ): QuotaContext {
+  const column = (name: string): string | undefined => (prog ? columnValue(prog, name, level) : undefined);
   return {
-    column: (name) => (prog ? columnValue(prog, name, level) : undefined),
-    slotLevels: (pool) => slotLevels(pool === 'pact' ? pools.pact : pools.standard),
+    column,
+    slotLevels: (pool) => slotLevels(slotsOf(pool)),
     spellKey,
+    amount: { level, profBonus: scale.profBonus, mods: scale.mods, column },
   };
 }
 
@@ -140,11 +160,8 @@ function quotaLevels(quota: Quota, ctx: QuotaContext): number[] {
   return quota.levels === 'cantrip-or-slotted' ? [0, ...slotted] : slotted;
 }
 
-function quotaCount(source: CastingSource, quota: Quota, keys: string[], ctx: QuotaContext): number {
-  const count = quota.count;
-  if (!count) return keys.length;
-  if ('column' in count) return firstInt(ctx.column(count.column));
-  return count.base + count.perLevel * Math.max(0, source.level - 1);
+function quotaCount(quota: Quota, keys: string[], ctx: QuotaContext): number {
+  return quota.count === undefined ? keys.length : resolveAmount(quota.count, ctx.amount);
 }
 
 export function quotaView(
@@ -161,8 +178,8 @@ export function quotaView(
     quotaId: quota.id,
     tier: quota.tier,
     levels: quotaLevels(quota, ctx),
-    count: quotaCount(source, quota, keys, ctx),
-    fixed: !quota.count && keys.length > 0,
+    count: quotaCount(quota, keys, ctx),
+    fixed: quota.count === undefined && keys.length > 0,
     pool: {
       lists: [...quota.pool.lists],
       listMode: quota.pool.listMode,
@@ -205,20 +222,7 @@ export function classQuotaRoles(quotas: QuotaView[]): ClassQuotaRoles {
   return { cantrips, spells, prepared };
 }
 
-export interface UsesContext {
-  profBonus: number;
-  mods: Record<AbilityKey, number>;
-  /** Stufentabelle der Quelle — „Favored Enemy" zählt die freien Wirkungen dort. */
-  column: (name: string) => string | undefined;
-}
-
 /** Freie Wirkungen einer `uses`-Option; `null` für jede andere Wirk-Art. */
-export function castUses(option: CastOption, ctx: UsesContext): number | null {
-  if (option.kind !== 'uses') return null;
-  const count = option.count;
-  if (typeof count === 'number') return count;
-  if (count === 'proficiency-bonus') return ctx.profBonus;
-  if ('column' in count) return firstInt(ctx.column(count.column));
-  const mod = ctx.mods[abilityKeyOf(count.abilityMod) ?? 'str'] ?? 0;
-  return Math.max(count.min, mod);
+export function castUses(option: CastOption, ctx: QuotaContext): number | null {
+  return option.kind === 'uses' ? resolveAmount(option.count, ctx.amount) : null;
 }

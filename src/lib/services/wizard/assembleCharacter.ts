@@ -216,6 +216,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   applyFeatureLedger(c, w);
   await applySpellPicks(c, w);
   c.masteries = [...w.masteries]; // Waffenmeisterschaft: im Wizard gewählt, nichts zu rechnen
+  c.optionPicks = w.optionPicks.map((p) => ({ ...p }));
   await applyFightingStyles(c, w);
   applyFeatureText(c, w, answerOf);
   await applyEquipment(c, w);

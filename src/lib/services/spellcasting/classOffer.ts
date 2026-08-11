@@ -6,9 +6,10 @@
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import type { AbilityName } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
-import { classQuotaRoles, quotaContext, quotaViews, type QuotaView } from './quota';
+import { classQuotaRoles, NO_SCALE, quotaContext, quotaViews, type QuotaView } from './quota';
 import { resolveCasting } from './resolve';
-import { spellPools } from './slots';
+import { slotLookup } from '../resources/project';
+import { resolveResources } from '../resources/resolve';
 
 /**
  * Das Zauberattribut der Klasse steht in ihrer Deklaration (`grantsCasting.ability.fixed`) —
@@ -44,26 +45,26 @@ export async function classCastingOffer(input: {
 }): Promise<ClassCastingOffer> {
   if (!input.classKey) return emptyClassCastingOffer(input.klasseName);
 
-  const [spellLib, resolution] = await Promise.all([
+  const classes = [{
+    sourceKey: input.classKey,
+    name: input.klasseName,
+    level: input.level,
+    ...(input.subclassKey ? { subclassKey: input.subclassKey, subclassName: input.subclassName } : {}),
+  }];
+  const [spellLib, resolution, resources] = await Promise.all([
     getSpellLibrary(),
-    resolveCasting({
-      classes: [{
-        sourceKey: input.classKey,
-        name: input.klasseName,
-        level: input.level,
-        ...(input.subclassKey ? { subclassKey: input.subclassKey, subclassName: input.subclassName } : {}),
-      }],
-    }),
+    resolveCasting({ classes }),
+    resolveResources({ classes }),
   ]);
 
   const prog = resolution.classes.find((c) => c.prog.key === input.classKey)?.prog ?? null;
-  const pools = spellPools(resolution.classes);
+  const slotsOf = slotLookup(resources.pools);
   const spellKey = (name: string): string | undefined => resolveSpell(spellLib, name, input.klasseName)?.key;
 
   const views = resolution.sources
     .filter((s) => s.origin === 'class' || s.origin === 'subclass')
     .flatMap((source) => {
-      const ctx = quotaContext(prog, source.level, pools, spellKey);
+      const ctx = quotaContext(prog, source.level, slotsOf, spellKey, NO_SCALE);
       return quotaViews(source, ctx).filter((v) => !v.fixed);
     });
 

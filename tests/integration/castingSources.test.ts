@@ -6,13 +6,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
-import { quotaContext, quotaViews, type QuotaView } from '../../src/lib/services/spellcasting/quota';
+import { NO_SCALE, quotaContext, quotaViews, type QuotaView } from '../../src/lib/services/spellcasting/quota';
 import {
   resolveCasting,
   type CastingCharacter,
   type CastingResolution,
 } from '../../src/lib/services/spellcasting/resolve';
-import { spellPools } from '../../src/lib/services/spellcasting/slots';
+import { slotLookup } from '../../src/lib/services/resources/project';
+import { resolveResources } from '../../src/lib/services/resources/resolve';
 import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 
 /** Sources + Pools + Quotas zusammensetzen wird `state.ts` (Stufe 2 des Plans). */
@@ -23,12 +24,13 @@ async function resolveViews(c: CastingCharacter): Promise<{
   const res = await resolveCasting(c);
   const lib = await getSpellLibrary();
   const spellKey = (name: string): string | undefined => resolveSpell(lib, name)?.key;
-  const pools = spellPools(res.classes);
+  const { pools } = await resolveResources(c);
+  const slotsOf = slotLookup(pools);
   const progOf = new Map(res.classes.map((k) => [k.prog.key, k.prog]));
   const views = new Map(
     res.sources.map((s) => [
       s.id,
-      quotaViews(s, quotaContext(progOf.get(s.classKey) ?? null, s.level, pools, spellKey)),
+      quotaViews(s, quotaContext(progOf.get(s.classKey) ?? null, s.level, slotsOf, spellKey, NO_SCALE)),
     ]),
   );
   return { res, views };

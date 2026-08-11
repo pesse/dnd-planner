@@ -19,7 +19,7 @@ import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import { isSpellAccessFeature } from '../declaration/casting';
-import { nextFeatSourceId } from '../spellcasting/resolve';
+import { nextFeatSourceId } from '../declaration/featInstances';
 import type { LevelUpDoc } from '../../schemas/levelUp';
 import { getSpellLibrary } from '../../spellLibrary';
 import { getFeats } from '../../featsLibrary';

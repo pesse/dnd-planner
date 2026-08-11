@@ -10,6 +10,7 @@
     spellcasting: { value: 'spellcasting', de: 'Zauberwirken' },
     spellAccess: { value: 'spellAccess', de: 'Zauber-Zugang' },
     optionList: { value: 'optionList', de: 'Optionsliste (Zweigwahl)' },
+    optionPool: { value: 'optionPool', de: 'Options-Pool (Editor-Wahl)' },
     expertise: { value: 'expertise', de: 'Expertise' },
     skillProficiency: { value: 'skillProficiency', de: 'Fertigkeitsübung' },
     languages: { value: 'languages', de: 'Sprachen' },
@@ -72,6 +73,8 @@
     if (value === 'fightingStyle')
       grant = newChoice({ kind: 'featCategory', featCategory: 'Fighting Style', count: prev.count });
     else if (value === 'optionList') grant = newChoice({ kind: 'optionList', options: prev.options });
+    else if (value === 'optionPool')
+      grant = newChoice({ kind: 'optionPool', options: prev.options, count: prev.count, column: prev.column });
     else if (value === 'characterProperty')
       grant = newChoice({
         kind: 'characterProperty',
@@ -119,6 +122,15 @@
       </span>
       <span class="note">Optionen zur Laufzeit: die noch NICHT geübten Fertigkeiten</span>
     {/if}
+    {#if kind === 'optionPool'}
+      <span class="lbl">Je Vergabe-Stufe
+        <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
+      </span>
+      <span class="lbl">Tabellenspalte
+        <input class="ef" type="text" placeholder="leer = kumulativ" bind:value={grant.column} oninput={mark} />
+      </span>
+      <span class="note">Gewählt wird im Charakter-Editor, nicht im Fragebogen</span>
+    {/if}
     {#if kind === 'languages'}
       <span class="lbl">Sprachen
         <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
@@ -128,7 +140,7 @@
     <button type="button" class="rm" onclick={onremove} title="Diese Wahl entfernen">×</button>
   </div>
 
-  {#if kind === 'optionList'}
+  {#if kind === 'optionList' || kind === 'optionPool'}
     <ChoiceOptionEditForm bind:options={grant.options} {scope} {onchange} />
   {/if}
 

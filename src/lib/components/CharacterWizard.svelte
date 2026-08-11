@@ -15,12 +15,14 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
+  import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
   import { wizardCastingInput } from '../services/wizard/castingDraft';
   import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FightingStylePicker from './FightingStylePicker.svelte';
+  import OptionPoolPicker from './OptionPoolPicker.svelte';
   import BasicsStep from './wizard/BasicsStep.svelte';
   import PointBuyBlock from './wizard/PointBuyBlock.svelte';
   import BackgroundAsiStep from './wizard/BackgroundAsiStep.svelte';
@@ -37,7 +39,7 @@
 
   // Schritte über eine ID, nicht über einen festen Index: optionale Schritte fallen weg
   // und verschöben sonst alle nachfolgenden Index-Prüfungen.
-  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'features' | 'spells' | 'equipment' | 'review';
+  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
     { id: 'basics', label: 'Grundwahl' },
     { id: 'abilities', label: 'Attribute' },
@@ -45,6 +47,7 @@
     { id: 'proficiencies', label: 'Übungen' },
     { id: 'mastery', label: 'Waffenbeherrschung' },
     { id: 'fighting-style', label: 'Kampfstil' },
+    { id: 'option-pool', label: 'Merkmals-Optionen' },
     { id: 'features', label: 'Merkmale' },
     { id: 'spells', label: 'Zauber' },
     { id: 'equipment', label: 'Ausrüstung' },
@@ -58,6 +61,7 @@
         s.id === currentStep ||
         ((s.id !== 'mastery' || masteryAvailable) &&
           (s.id !== 'fighting-style' || fightingStyleAvailable) &&
+          (s.id !== 'option-pool' || pools.length > 0) &&
           (s.id !== 'spells' || spellsAvailable)),
     ),
   );
@@ -174,6 +178,19 @@
     return () => { cancelled = true; };
   });
   const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
+
+  // Auf Stufe 1 leer, solange kein Merkmal einen Pool auf dieser Stufe vergibt (Metamagie
+  // beginnt auf Zaubererstufe 2) — der Schritt fällt dann weg.
+  let pools = $state<OptionPoolOffer[]>([]);
+  $effect(() => {
+    const key = w.klass.sourceKey;
+    if (!key) { pools = []; return; }
+    let cancelled = false;
+    void optionPoolOffers({ classes: [{ sourceKey: key, subclassKey: w.klass.subclassKey, name: w.klass.name, level: 1 }] })
+      .then((o) => { if (!cancelled) pools = o; })
+      .catch(() => { if (!cancelled) pools = []; });
+    return () => { cancelled = true; };
+  });
 
   // Die Zauberquellen des ENTSTEHENDEN Charakters, dieselbe Auflösung wie im Editor — kein
   // KI-Job. Der Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl
@@ -320,6 +337,12 @@
             }}
           />
         {/if}
+
+      {:else if currentStep === 'option-pool'}
+        <p class="hint">Wähle die Optionen deiner Merkmale — die Liste stammt aus der Klassen-Deklaration.</p>
+        {#each pools as pool (pool.featureKey)}
+          <OptionPoolPicker offer={pool} bind:picks={w.optionPicks} />
+        {/each}
 
       {:else if currentStep === 'features'}
         <FeatureChoiceStep {w} bind:answers={choiceAnswers} />

@@ -24,7 +24,6 @@ export interface CharacterEditor {
   readonly saved: Character | null;
   readonly pendingUpgrade: PendingCharacterUpgrade | null;
   readonly upgradeAccepted: boolean;
-  readonly pdfName: string;
   /**
    * Für Vorschauen (`changesWouldAlter`) — sie MÜSSEN denselben Kontext benutzen wie `apply`,
    * sonst simulieren sie einen Freitext-Schreib, den `resolveWeaponName` gar nicht ausführt.
@@ -121,7 +120,6 @@ export function createCharacterEditor(deps: {
     get saved() { return saved; },
     get pendingUpgrade() { return pendingUpgrade; },
     get upgradeAccepted() { return upgradeAccepted; },
-    get pdfName() { return card.draft?._importedFrom ?? ''; },
     get applyContext() { return context(); },
     acceptUpgrade() { upgradeAccepted = true; },
     discard() {

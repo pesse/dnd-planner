@@ -7,9 +7,11 @@ import type { Character, CharacterFeatureEntry, CharacterSpells } from '$lib/sch
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { getSpellLibrary, resolveSpell, type SpellInfo } from '$lib/spellLibrary';
 import { sign } from '$lib/utils/num';
+import type { ResourceRef } from '$lib/schemas/resource';
+import { spellPools } from '../resources/project';
+import { applyManualSlots, findResource, resolveResources } from '../resources/resolve';
 import { legacySpellcasting } from './legacy';
 import { resolveCasting } from './resolve';
-import { spellPools } from './slots';
 import type { ResolvedPool } from './quota';
 import { originCountsClassLevel, type CastingSource } from './source';
 import { spellcastingState, type SpellcastingState } from './state';
@@ -21,6 +23,8 @@ export interface ProjectionLookup {
   spellByName: (name: string) => SpellInfo | undefined;
   /** Klassen-Key → deutscher Klassenname. */
   className: (classKey: string) => string;
+  /** `cast.resource` → Label des Vorrats; leer, wenn keiner deklariert ist. */
+  resourceLabel: (ref: ResourceRef, featureKey: string) => string;
 }
 
 export interface SheetSpell {
@@ -35,7 +39,8 @@ export interface SheetSpell {
 export interface SheetLevel {
   /** 0 = Zaubertricks. */
   level: number;
-  slots: { total: number; used: number } | null;
+  /** Anzahl der Plätze dieses Grades; null = die Figur hat keine. */
+  slots: number | null;
   spells: SheetSpell[];
 }
 
@@ -55,7 +60,7 @@ export interface SheetSpellcasting {
   sources: SheetSourceRow[];
   levels: SheetLevel[];
   /** Pakt-Plätze; null = die Figur hat keine. */
-  pact: { level: number; total: number; used: number } | null;
+  pact: { level: number; total: number } | null;
   hasContent: boolean;
 }
 
@@ -144,18 +149,15 @@ export function sheetSpellcasting(
     put(spell.level, { key: spell.key, label: spell.label, prepared: spell.prepared, source: '' });
   }
 
+  const pools = spellPools(state.resources);
   let pactLevel = 0;
-  state.pools.pact.total.forEach((n, i) => { if (n > 0) pactLevel = i + 1; });
+  pools.pact.forEach((n, i) => { if (n > 0) pactLevel = i + 1; });
   const levels: SheetLevel[] = [];
   for (let level = 0; level <= 9; level++) {
     const spells = byLevel.get(level) ?? [];
-    const total = level === 0 ? 0 : (state.pools.standard.total[level - 1] ?? 0);
+    const total = level === 0 ? 0 : (pools.standard[level - 1] ?? 0);
     if (!spells.length && total === 0) continue;
-    levels.push({
-      level,
-      slots: total > 0 ? { total, used: state.pools.standard.used[level - 1] ?? 0 } : null,
-      spells,
-    });
+    levels.push({ level, slots: total > 0 ? total : null, spells });
   }
 
   const derived = sourceRows(state, lookup);
@@ -163,9 +165,7 @@ export function sheetSpellcasting(
   return {
     sources,
     levels,
-    pact: pactLevel > 0
-      ? { level: pactLevel, total: state.pools.pact.total[pactLevel - 1] ?? 0, used: state.pools.pact.used }
-      : null,
+    pact: pactLevel > 0 ? { level: pactLevel, total: pools.pact[pactLevel - 1] ?? 0 } : null,
     hasContent: sources.length > 0 || levels.length > 0,
   };
 }
@@ -183,9 +183,7 @@ export function contextLines(view: SheetSpellcasting): string[] {
     lines.push(`- Source: ${s.label}${bits.length ? ` — ${bits.join(', ')}` : ''}`);
   }
 
-  const slotLines = view.levels
-    .filter((l) => l.slots)
-    .map((l) => `  - Grad ${l.level}: ${l.slots!.total - l.slots!.used}/${l.slots!.total} frei`);
+  const slotLines = view.levels.filter((l) => l.slots).map((l) => `  - Grad ${l.level}: ${l.slots}`);
   if (slotLines.length) lines.push('- Slots:', ...slotLines);
   if (view.pact) lines.push(`- Pakt-Slots: ${view.pact.total} × Grad ${view.pact.level} (Kurze Rast)`);
 
@@ -251,18 +249,29 @@ export async function loadSpellcasting(
   const classNames = new Map(resolution.classes.map((k) => [k.prog.key, k.prog.nameDe || k.prog.name]));
   for (const cls of c.classes ?? []) if (cls.sourceKey && cls.name.trim()) classNames.set(cls.sourceKey, cls.name.trim());
 
+  const resources = await resolveResources(c);
+  const { pools } = resources;
   const lookup: ProjectionLookup = {
     spell: (key) => byKey.get(key),
     spellByName: (name) => resolveSpell(library, name) ?? undefined,
     className: (classKey) => classNames.get(classKey) ?? '',
+    resourceLabel: (ref, featureKey) => findResource(pools, ref, featureKey)?.labelDe ?? '',
   };
 
-  const legacy = legacySpellcasting({ ...c, spellcasting: stored ?? c.spellcasting }, spellPools(resolution.classes).standard, lookup);
+  const legacy = legacySpellcasting(
+    { ...c, spellcasting: stored ?? c.spellcasting },
+    spellPools(pools).standard,
+    lookup,
+  );
+  // Erst der Altform-Lauf weiß, ob er Plätze zu Handeinträgen hebt — und er braucht dafür die
+  // abgeleiteten. Deshalb faltet der Vorrat sie hier ein zweites Mal, statt vorher zu raten.
+  applyManualSlots(pools, legacy.stored.manual?.slotTotals ?? []);
   const state = spellcastingState({
     resolution,
     stored: legacy.stored,
     profBonus: c.proficiencyBonus,
     mods: c.mods,
+    resources,
     spellKey: (name) => resolveSpell(library, name)?.key,
   });
   return { state, lookup, legacy: legacy.sheet };

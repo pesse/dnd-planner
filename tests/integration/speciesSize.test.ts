@@ -59,6 +59,7 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     chosenSkills: [],
     masteries: [],
     fightingStyles: [],
+    optionPicks: [],
     spellcasting: emptySpellcasting(),
     featureSpellPicks: {},
     declaredAnswers: [],
