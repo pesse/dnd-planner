@@ -49,6 +49,9 @@ body {
   position: relative;
   break-inside: avoid;
   margin-bottom: 2.6mm;
+  /* Schmaler als die eigene Überschrift wird kein Kasten (--head-w aus html.ts); die Deckelung
+     hält ihn trotzdem in seiner Spalte, statt über deren Rand zu ragen. */
+  min-width: min(100%, var(--head-w, 0mm));
 }
 /* Etwas Luft nach oben: der Titel auf der Rahmenlinie greift sonst in den Kasten der
    vorangehenden Spalte. */
@@ -65,18 +68,21 @@ body {
 .block.long { break-inside: auto; }
 .tbl tr { break-inside: avoid; }
 
-/* Der Titel sitzt auf der Rahmenlinie: die Beschriftung deckt sie auf ihrer Breite ab, links
-   und rechts läuft sie weiter. Er bleibt dabei ganz im Rahmenband — was darüber hinausragt,
-   schneidet der Seitenrand ab, sobald der Kasten oben auf einer Folgeseite steht. */
-.bhead {
-  position: absolute; top: -${FRAME_WIDTH_MM}mm; left: 3mm; right: 3mm; line-height: 1;
+/* Titel oben, Hinweis unten — nebeneinander drängen sie sich im schmalen Kasten
+   („Zauberplätze" + „Lange Rast") gegenseitig aus dem Rahmenband. Beide bleiben ganz darin;
+   was darüber hinausragt, schneidet der Seitenrand ab, sobald der Kasten oben auf einer
+   Folgeseite steht. */
+.bhead, .bfoot {
+  position: absolute; left: 3mm; right: 3mm; line-height: 1;
   display: flex; align-items: baseline; justify-content: center;
 }
+.bhead { top: -${FRAME_WIDTH_MM}mm; }
+.bfoot { bottom: -${FRAME_WIDTH_MM}mm; }
 .btitle { font-size: 6.2pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; }
 .bhint  { font-size: 6.5pt; font-style: italic; color: var(--ink-label); }
-/* Ohne Lücke zwischen beiden: dazwischen käme die Rahmenlinie durch. */
-.btitle { background: var(--paper); padding: 0 0.8mm 0 1.4mm; }
-.bhint  { background: var(--paper); padding: 0 1.4mm 0 0.8mm; }
+/* Die Beschriftung deckt die Rahmenlinie auf ihrer Breite ab; umbrechen darf sie dabei nicht,
+   sonst steht die zweite Zeile im Kasten statt auf der Linie. */
+.btitle, .bhint { background: var(--paper); padding: 0 1.4mm; white-space: nowrap; }
 .bbody  { padding: 0.6mm 0.4mm 0.2mm; }
 
 /* Beschriftetes Wertfeld */

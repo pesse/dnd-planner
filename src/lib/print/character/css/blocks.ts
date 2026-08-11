@@ -42,9 +42,9 @@ export const BLOCK_CSS = `
    der Liste, nicht als break-after am Vorrat — sonst zöge ein Bogen ohne Zauber die gepinnten
    Merkmale mit. */
 .sp-top + .sp-list { break-before: avoid; page-break-before: avoid; }
-/* Plätze und Punkte sind so breit wie ihre Kreisreihe, der Options-Pool nimmt den Rest.
-   Unter 30 mm ragt „Zauberplätze" links aus dem Rahmen heraus. */
-.sp-top > .block { flex: 0 1 auto; min-width: 30mm; margin-bottom: 2mm;
+/* Plätze und Punkte sind so breit wie ihre Kreisreihe — mindestens aber so breit wie ihre
+   Überschrift, was .block selbst regelt. Der Options-Pool nimmt den Rest. */
+.sp-top > .block { flex: 0 1 auto; margin-bottom: 2mm;
                    display: flex; flex-direction: column; }
 .sp-top > .sp-grow { flex: 1 1 60mm; }
 /* Die Kästen stehen auf gleicher Höhe; die kurze Kreisreihe sitzt darin mittig. */

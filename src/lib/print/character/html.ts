@@ -63,19 +63,29 @@ export const row = (label: string, value: string): string =>
 export interface BlockOptions {
   /** Zusätzliche Klassen am Rahmen, z. B. für Spaltenbreite. */
   cls?: string;
-  /** Rechts neben dem Titel, etwa „max. 5". */
+  /** Auf der unteren Rahmenlinie, etwa „max. 5" oder „Lange Rast". */
   hint?: string;
 }
 
 /**
- * Ein gerahmter Abschnitt; der Titel liegt auf der oberen Rahmenlinie. `break-inside: avoid`
- * hängt an `.block` — ein Block wandert lieber ganz auf die nächste Seite, als mitten
- * durchgeschnitten zu werden.
+ * Titel und Hinweis liegen auf den Rahmenlinien und zählen für die Breite des Kastens damit
+ * nicht mit — ein schmaler Vorrat wäre sonst schmaler als sein eigenes „Zauberplätze".
+ * Geschätzt aus der Zeichenzahl: 6,2 pt Kapitälchen mit 0,09 em Sperrung ≈ 1,7 mm je Zeichen,
+ * die kursive Auszeichnung ≈ 1,2 mm; dazu die zweimal 3 mm Einzug der Bänder samt Polsterung.
+ */
+const headWidthMm = (title: string, hint: string): number =>
+  Math.max(title.length * 1.7, hint.length * 1.2) + 8.8;
+
+/**
+ * Ein gerahmter Abschnitt; der Titel liegt auf der oberen Rahmenlinie, der Hinweis auf der
+ * unteren. `break-inside: avoid` hängt an `.block` — ein Block wandert lieber ganz auf die
+ * nächste Seite, als mitten durchgeschnitten zu werden.
  */
 export function block(title: string, body: string, { cls = '', hint = '' }: BlockOptions = {}): string {
-  const head = `<div class="bhead"><span class="btitle">${esc(title)}</span>` +
-    (hint ? `<span class="bhint">${esc(hint)}</span>` : '') + '</div>';
-  return `<section class="block ${cls}">${head}<div class="bbody">${body}</div></section>`;
+  const head = `<div class="bhead"><span class="btitle">${esc(title)}</span></div>`;
+  const foot = hint ? `<div class="bfoot"><span class="bhint">${esc(hint)}</span></div>` : '';
+  return `<section class="block ${cls}" style="--head-w:${headWidthMm(title, hint).toFixed(1)}mm">` +
+    `${head}<div class="bbody">${body}</div>${foot}</section>`;
 }
 
 /**
