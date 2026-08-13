@@ -108,12 +108,14 @@ const monsterSpec: TranslationSpec<MonsterTranslation> = {
   instructions: `<input_format>
 JSON with any of these optional fields:
 - "name": string
-- "languages": string
-- "damage_resistances", "damage_immunities", "condition_immunities": arrays of strings
-- "traits", "actions", "reactions", "legendary_actions": arrays of objects with "name" and "description"
+- "armor_detail": string (e.g. "natural armor")
+- "languages": array of strings (language names)
+- "languages_desc", "defenses_desc": string
+- "traits", "actions": arrays of objects with "name" and "desc"
 </input_format>
 <rules>
 - Every field is translated IN PLACE: the output keeps the exact same keys and structure, only the text becomes German.
+- Distances in the rules text are metric in German: 5 feet = 1,5 Meter.
 </rules>`,
 };
 

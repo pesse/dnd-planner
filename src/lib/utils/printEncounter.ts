@@ -4,6 +4,10 @@ import { renderMarkdown, renderMarkdownInline } from './markdown';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
 import { mod } from '../domain/skills';
 import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
+import {
+  actionGroups, actionTitle, attackLine, conditionLine, crLabel, damageLine, languagesLine,
+  savesLine, sensesLine, skillsLine, speedLine,
+} from '../services/monsterFormat';
 import { sign } from './num';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
@@ -17,40 +21,47 @@ function renderStatBlock(pm: PrintMonster): string {
   const m = pm.monster;
 
   const statsHtml = ABILITY_KEYS.map((key) =>
-    `<div class="sb-stat"><div class="stat-lbl">${ABILITY_ABBR_DE[key]}</div><div class="stat-val">${m.stats[key]} (${sign(mod(m.stats[key]))})</div></div>`,
+    `<div class="sb-stat"><div class="stat-lbl">${ABILITY_ABBR_DE[key]}</div><div class="stat-val">${m.ability_scores[key]} (${sign(mod(m.ability_scores[key]))})</div></div>`,
   ).join('');
 
+  const prop = (label: string, value: string) =>
+    `<div class="sb-prop"><span class="lbl">${label}</span> ${esc(value)}</div>`;
+
   const props: string[] = [];
-  if (Object.keys(m.saving_throws ?? {}).length)
-    props.push(`<div class="sb-prop"><span class="lbl">Rettungswürfe</span> ${esc(Object.entries(m.saving_throws).map(([k, v]) => `${k} ${v}`).join(', '))}</div>`);
-  if (Object.keys(m.skills ?? {}).length)
-    props.push(`<div class="sb-prop"><span class="lbl">Fertigkeiten</span> ${esc(Object.entries(m.skills).map(([k, v]) => `${k} ${v}`).join(', '))}</div>`);
-  if (m.damage_resistances?.length)
-    props.push(`<div class="sb-prop"><span class="lbl">Schadensresistenzen</span> ${esc(m.damage_resistances.join(', '))}</div>`);
-  if (m.damage_immunities?.length)
-    props.push(`<div class="sb-prop"><span class="lbl">Schadensimmunitäten</span> ${esc(m.damage_immunities.join(', '))}</div>`);
-  if (m.condition_immunities?.length)
-    props.push(`<div class="sb-prop"><span class="lbl">Zustandsimmunitäten</span> ${esc(m.condition_immunities.join(', '))}</div>`);
-  props.push(`<div class="sb-prop"><span class="lbl">Sinne</span> ${esc(m.senses)}</div>`);
-  props.push(`<div class="sb-prop"><span class="lbl">Sprachen</span> ${esc(m.languages)}</div>`);
+  const saves = savesLine(m);
+  const skills = skillsLine(m);
+  if (saves) props.push(prop('Rettungswürfe', saves));
+  if (skills) props.push(prop('Fertigkeiten', skills));
+  if (m.damage_vulnerabilities.length) props.push(prop('Schadensanfälligkeiten', damageLine(m.damage_vulnerabilities)));
+  if (m.damage_resistances.length) props.push(prop('Schadensresistenzen', damageLine(m.damage_resistances)));
+  if (m.damage_immunities.length || m.defenses_desc)
+    props.push(prop('Schadensimmunitäten', damageLine(m.damage_immunities, m.defenses_desc)));
+  if (m.condition_immunities.length) props.push(prop('Zustandsimmunitäten', conditionLine(m.condition_immunities)));
+  props.push(prop('Sinne', sensesLine(m)));
+  props.push(prop('Sprachen', languagesLine(m)));
   if (pm.notes)
     props.push(`<hr class="thin"><div class="sb-prop notes"><span class="lbl">DM-Notizen</span> <span class="md md-inline">${renderMarkdownInline(pm.notes)}</span></div>`);
 
   // Beschreibungen als Inline-Markdown — der Text läuft in derselben Zeile wie
   // der Aktionsname weiter, ein Block-Element würde sie umbrechen.
-  const renderActions = (arr: Monster['actions']) =>
-    (arr ?? []).map(a =>
-      `<div class="sb-action"><span class="action-name">${esc(a.name)}.</span>${a.attack_bonus !== undefined ? ` Angriff +${a.attack_bonus}.` : ''}${a.damage?.length ? ` Schaden: ${esc(a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + '))}.` : ''} <span class="md md-inline">${renderMarkdownInline(a.description)}</span></div>`
-    ).join('');
-  const renderSimple = (arr: Monster['traits']) =>
-    (arr ?? []).map(t =>
-      `<div class="sb-action"><span class="action-name">${esc(t.name)}.</span> <span class="md md-inline">${renderMarkdownInline(t.description)}</span></div>`
-    ).join('');
+  const entry = (name: string, desc: string, extra = '') =>
+    `<div class="sb-action"><span class="action-name">${esc(name)}.</span> <span class="md md-inline">${renderMarkdownInline(desc)}</span>${extra}</div>`;
 
-  const traits = renderSimple(m.traits);
-  const actions = renderActions(m.actions);
-  const reactions = renderSimple(m.reactions);
-  const legendary = renderSimple(m.legendary_actions);
+  const traits = m.traits.map((t) => entry(t.name, t.desc)).join('');
+  const groups = actionGroups(m)
+    .map((group) => {
+      const rows = group.actions
+        .map((a) =>
+          entry(
+            actionTitle(a),
+            a.desc,
+            a.attacks.map((at) => `<div class="sb-attack">${esc(at.name)}: ${esc(attackLine(at))}</div>`).join(''),
+          ),
+        )
+        .join('');
+      return `<div class="section-title">${group.label}</div><hr class="thin">${rows}`;
+    })
+    .join('');
 
   const hpBoxes = Array.from({ length: pm.count }, (_, i) =>
     `<div class="track-box-wrap"><span class="track-num">${pm.count > 1 ? `#${i + 1}` : ''}</span><div class="track-box"></div></div>`
@@ -59,21 +70,19 @@ function renderStatBlock(pm: PrintMonster): string {
   return `<div class="stat-block">
   <div class="sb-name-row">
     <span class="sb-name">${pm.count > 1 ? `${pm.count}× ` : ''}${esc(m.name)}</span>
-    <span class="sb-cr">HG ${esc(m.cr)} (${m.xp} EP)</span>
+    <span class="sb-cr">HG ${crLabel(m.challenge_rating)} (${m.xp} EP)</span>
   </div>
   <div class="sb-type">${esc(monsterSizeLabel(m.size))}, ${esc(monsterTypeLabel(m.type))}, ${esc(monsterAlignmentLabel(m.alignment))}</div>
   <hr class="orange">
-  <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> ${m.ac.value}${m.ac.note ? ` (${esc(m.ac.note)})` : ''}</div>
-  <div class="sb-prop"><span class="lbl">Trefferpunkte</span> ${m.hp.average} (${esc(m.hp.formula)})</div>
-  <div class="sb-prop"><span class="lbl">Bewegungsrate</span> ${esc(m.speed)}</div>
+  <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> ${m.armor_class}${m.armor_detail ? ` (${esc(m.armor_detail)})` : ''}</div>
+  <div class="sb-prop"><span class="lbl">Trefferpunkte</span> ${m.hit_points}${m.hit_dice ? ` (${esc(m.hit_dice)})` : ''}</div>
+  <div class="sb-prop"><span class="lbl">Bewegungsrate</span> ${esc(speedLine(m.speed))}</div>
   <hr class="orange">
   <div class="sb-stats">${statsHtml}</div>
   <hr class="orange">
   ${props.join('')}
   ${traits ? `<hr class="orange">${traits}` : ''}
-  ${actions ? `<div class="section-title">Aktionen</div><hr class="thin">${actions}` : ''}
-  ${reactions ? `<div class="section-title">Reaktionen</div><hr class="thin">${reactions}` : ''}
-  ${legendary ? `<div class="section-title">Legendäre Aktionen</div><hr class="thin">${legendary}` : ''}
+  ${groups}
   <hr class="orange">
   <div class="track-row">
     <div class="track-group">
@@ -81,7 +90,7 @@ function renderStatBlock(pm: PrintMonster): string {
       <div class="track-box"></div>
     </div>
     <div class="track-group track-hp">
-      <span class="track-lbl">TP (${m.hp.average})</span>
+      <span class="track-lbl">TP (${m.hit_points})</span>
       <div class="track-boxes">${hpBoxes}</div>
     </div>
   </div>
@@ -180,6 +189,7 @@ hr.thin { border-top: 1px solid #8c6a1a66; }
 .section-title { font-size: 9pt; font-variant: small-caps; font-weight: 700; color: #5c1a00; margin-top: 0.3rem; margin-bottom: 0.05rem; }
 .sb-action { margin: 0.2rem 0; line-height: 1.4; }
 .action-name { font-weight: 700; font-style: italic; }
+.sb-attack { padding-left: 0.8rem; font-size: 8pt; }
 .missing { font-style: italic; color: #888; }
 .track-row { display: flex; gap: 0.6rem; align-items: flex-start; margin-top: 0.3rem; flex-wrap: wrap; }
 .track-group { display: flex; align-items: center; gap: 0.3rem; }

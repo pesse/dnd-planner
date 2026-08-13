@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Monster } from '../types';
   import MonsterHeaderFields from './monster/MonsterHeaderFields.svelte';
+  import MonsterMovementFields from './monster/MonsterMovementFields.svelte';
   import MonsterStatsGrid from './monster/MonsterStatsGrid.svelte';
   import MonsterDefensesSection from './monster/MonsterDefensesSection.svelte';
   import MonsterAbilityEditList from './monster/MonsterAbilityEditList.svelte';
@@ -21,29 +22,21 @@
 
   <div class="divider"></div>
 
+  <MonsterMovementFields {monster} {onchange} />
+
+  <div class="divider"></div>
+
   <MonsterStatsGrid {monster} {onchange} />
 
   <div class="divider"></div>
 
   <MonsterDefensesSection {monster} {onchange} />
 
-  {#if monster.traits.length || true}
-    <div class="divider"></div>
-    <MonsterAbilityEditList bind:items={monster.traits} placeholder="Eigenschaft" addLabel="Eigenschaft" {onchange} />
-  {/if}
+  <div class="divider"></div>
+  <MonsterAbilityEditList bind:items={monster.traits} heading="Eigenschaften" placeholder="Eigenschaft" addLabel="Eigenschaft" {onchange} />
 
   <div class="divider"></div>
   <MonsterActionEditList bind:items={monster.actions} {onchange} />
-
-  {#if monster.reactions.length || true}
-    <div class="divider"></div>
-    <MonsterAbilityEditList bind:items={monster.reactions} heading="Reaktionen" placeholder="Reaktion" addLabel="Reaktion" {onchange} />
-  {/if}
-
-  {#if monster.legendary_actions.length || true}
-    <div class="divider"></div>
-    <MonsterAbilityEditList bind:items={monster.legendary_actions} heading="Legendäre Aktionen" placeholder="Legendäre Aktion" addLabel="Legendäre Aktion" {onchange} />
-  {/if}
 </div>
 
 <style>

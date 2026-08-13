@@ -30,7 +30,7 @@ export function extractJsonBlocks(text: string): DetectedJson[] {
   while ((match = regex.exec(text)) !== null) {
     try {
       const data = JSON.parse(match[1]) as Record<string, unknown>;
-      if ('cr' in data && 'stats' in data) {
+      if ('challenge_rating' in data && 'ability_scores' in data) {
         results.push({ type: 'monster', data, raw: match[1] });
       } else if ('monsters' in data && 'difficulty' in data) {
         results.push({ type: 'encounter', data, raw: match[1] });

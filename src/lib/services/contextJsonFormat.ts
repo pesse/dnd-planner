@@ -3,6 +3,8 @@
  * Handgeschriebener Prompt-Text und damit Inhalt, nicht Kommentar.
  */
 import type { FileEntry } from '../types';
+import { monsterSchema } from '../schemas/monster';
+import { toLlmJsonSchema } from '../schemas/llmJson';
 
 const HEAD = [
   '\n## JSON Format for Generation',
@@ -37,32 +39,15 @@ const ENCOUNTER_SCHEMA =
   'The same slug may appear multiple times in the array (e.g. two separate waves of the same monster type). ' +
   '`read_aloud` is an optional atmospheric text for the DM to read aloud to players; use "" if not applicable.';
 
+// Generiert statt abgeschrieben: die frühere Handkopie stand drei Schemaänderungen hinterher.
 const MONSTER_SCHEMA =
-  '\n**Monster schema** (all fields required):\n```\n' +
-  '{\n' +
-  '  "name": string,\n' +
-  '  "size": string,\n' +
-  '  "type": string,\n' +
-  '  "alignment": string,\n' +
-  '  "ac": { "value": number, "note": string },\n' +
-  '  "hp": { "average": number, "formula": string },\n' +
-  '  "speed": string,\n' +
-  '  "stats": { "str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number },\n' +
-  '  "saving_throws": { [ability: string]: string },\n' +
-  '  "skills": { [skill: string]: string },\n' +
-  '  "damage_resistances": string[],\n' +
-  '  "damage_immunities": string[],\n' +
-  '  "condition_immunities": string[],\n' +
-  '  "senses": string,\n' +
-  '  "languages": string,\n' +
-  '  "cr": string,\n' +
-  '  "xp": number,\n' +
-  '  "traits": [ { "name": string, "description": string } ],\n' +
-  '  "actions": [ { "name": string, "description": string, "attack_bonus"?: number, "damage"?: string } ],\n' +
-  '  "reactions": [ { "name": string, "description": string } ],\n' +
-  '  "legendary_actions": [ { "name": string, "description": string } ],\n' +
-  '  "tags": string[]\n' +
-  '}\n```';
+  '\n**Monster schema** (JSON Schema):\n```json\n' +
+  JSON.stringify(toLlmJsonSchema(monsterSchema), null, 2) +
+  '\n```\n' +
+  'Notes: all distances (`speed.*`, `senses.*`, `attacks[].reach`/`range`/`long_range`) are integers in FEET. ' +
+  '`challenge_rating` is a number, not a string ("1/4" → 0.25). ' +
+  '`saving_throws`/`skill_bonuses` hold only proficient entries, keyed in English. ' +
+  '`name`/`desc` carry the German display text, `name_en`/`desc_en` the English original.';
 
 const NPC_SCHEMA =
   '\n**NPC schema** (all fields required):\n```\n' +

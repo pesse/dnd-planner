@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Monster } from '../../types';
   import { MONSTER_SIZES, MONSTER_TYPES, MONSTER_ALIGNMENTS } from '../../types';
+  import { crLabel, parseCr } from '../../services/monsterFormat';
   import './monsterEditForm.css';
 
   let { monster, onchange }: { monster: Monster; onchange: () => void } = $props();
@@ -8,6 +9,7 @@
 
 <div class="sb-header">
   <input class="ef sb-name" bind:value={monster.name} oninput={onchange} placeholder="Name" />
+  <input class="ef name-en" bind:value={monster.name_en} oninput={onchange} placeholder="Englischer Name" />
   <div class="meta-row">
     <select class="ef meta-sel" bind:value={monster.size} onchange={onchange}>
       {#each Object.entries(MONSTER_SIZES) as [key, label]}
@@ -32,17 +34,21 @@
 <div class="section">
   <div class="prop">
     <span class="lbl">Rüstungsklasse</span>
-    <input class="ef num" type="number" bind:value={monster.ac.value} oninput={onchange} />
-    <input class="ef note" bind:value={monster.ac.note} oninput={onchange} placeholder="(z.B. natürliche Rüstung)" />
+    <input class="ef num" type="number" bind:value={monster.armor_class} oninput={onchange} />
+    <input class="ef note" bind:value={monster.armor_detail} oninput={onchange} placeholder="(z.B. natürliche Rüstung)" />
   </div>
   <div class="prop">
     <span class="lbl">Trefferpunkte</span>
-    <input class="ef num" type="number" bind:value={monster.hp.average} oninput={onchange} />
-    <input class="ef note" bind:value={monster.hp.formula} oninput={onchange} placeholder="Formel" />
+    <input class="ef num" type="number" bind:value={monster.hit_points} oninput={onchange} />
+    <input class="ef note" bind:value={monster.hit_dice} oninput={onchange} placeholder="Trefferwürfel, z.B. 2d8 + 2" />
   </div>
   <div class="prop">
-    <span class="lbl">Bewegungsrate</span>
-    <input class="ef wide" bind:value={monster.speed} oninput={onchange} placeholder="9 m" />
+    <span class="lbl">HG</span>
+    <input class="ef cr" value={crLabel(monster.challenge_rating)}
+      onchange={(e) => { monster.challenge_rating = parseCr(e.currentTarget.value); onchange(); }} />
+    <span class="sep">(</span>
+    <input class="ef num" type="number" bind:value={monster.xp} oninput={onchange} />
+    <span class="sep"> EP)</span>
   </div>
 </div>
 
@@ -82,4 +88,15 @@
   .meta-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
 
   .note { min-width: 80px; color: var(--ink-soft); font-style: italic; }
+
+  .name-en {
+    width: 100%;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  .cr { width: 48px; text-align: center; }
+
+  .sep { color: var(--ink-soft); padding: 0 0.1rem; }
 </style>

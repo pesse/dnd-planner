@@ -40,9 +40,11 @@ function example(node, top = false) {
     if (node.properties) {
       return Object.fromEntries(Object.entries(node.properties).map(([k, v]) => [k, example(v)]));
     }
-    // z.record(): ein Beispiel-Eintrag zeigt die Wertform, der Schlüssel ist frei.
+    // z.record(): ein Beispiel-Eintrag zeigt die Wertform. Bei einem Enum-Schlüsselsatz
+    // (z.partialRecord) muss es ein echter Schlüssel sein, sonst fällt das Beispiel durch.
     const values = node.additionalProperties;
-    return values && typeof values === 'object' ? { '<key>': example(values) } : (node.default ?? {});
+    const key = node.propertyNames?.enum?.[0] ?? '<key>';
+    return values && typeof values === 'object' ? { [key]: example(values) } : (node.default ?? {});
   }
 
   if (type === 'array') {
@@ -84,6 +86,9 @@ ein Element, \`z.record()\` einen \`<key>\`-Eintrag, Unions alle Varianten.
 
 const server = await createServer({
   configFile: false,
+  // Ohne die Vite-Config gibt es keinen `$lib`-Alias; ein Schema, das über eine
+  // Zwischenstufe darauf trifft (monsterLegacyStrings → domain/skills), lädt sonst nicht.
+  resolve: { alias: { $lib: join(ROOT, 'src/lib') } },
   server: { middlewareMode: true },
   appType: 'custom',
   logLevel: 'error',

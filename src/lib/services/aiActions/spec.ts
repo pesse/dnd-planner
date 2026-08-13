@@ -62,7 +62,7 @@ export interface EntityActionSpec<T> extends ActionSpec<T> {
   buildEditPrompt: (parts: PromptParts) => string;
   nameHint?: (name: string) => string; // sonst Standard-Formulierung
   categoryHint?: (categoryKey: string) => string; // nur Item
-  /** Fehlen sie, greifen die DnD-API-Tools (Monster/Zauber). */
+  /** Fehlen sie, läuft die Aktion tool-frei (siehe `NO_TOOLS`). */
   anthropicTools?: Anthropic.Tool[];
   openAiTools?: unknown[];
   execute?: (name: string, args: Record<string, unknown>) => Promise<string>;

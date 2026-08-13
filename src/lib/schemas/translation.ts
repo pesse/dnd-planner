@@ -28,19 +28,19 @@ export const spellTranslationSchema = z.object({
 // Übersetzung „in place": dieselben Schlüssel wie im Input, nur deutscher Inhalt.
 const monsterEntryTranslationSchema = z.object({
   name: z.string().default('').describe('German name of the trait/action.'),
-  description: z.string().default('').describe('German rules text of the trait/action.'),
+  desc: z.string().default('').describe('German rules text of the trait/action.'),
 });
 
+// Schadensarten und Zustände fehlen bewusst: sie sind englische Vokabular-Schlüssel, deren
+// deutsche Labels aus `schemas/vocabulary.ts` kommen — übersetzt würden sie unlesbar.
 export const monsterTranslationSchema = z.object({
   name: z.string().default('').describe(`German monster name. ${ONLY_IF_PRESENT}`),
-  languages: z.string().default('').describe(`German languages line. ${ONLY_IF_PRESENT}`),
-  damage_resistances: z.array(z.string()).default([]).describe(`German damage resistances. ${SAME_LENGTH}`),
-  damage_immunities: z.array(z.string()).default([]).describe(`German damage immunities. ${SAME_LENGTH}`),
-  condition_immunities: z.array(z.string()).default([]).describe(`German condition immunities. ${SAME_LENGTH}`),
+  armor_detail: z.string().default('').describe(`German armor detail, e.g. "natürliche Rüstung". ${ONLY_IF_PRESENT}`),
+  languages: z.array(z.string()).default([]).describe(`German language names. ${SAME_LENGTH}`),
+  languages_desc: z.string().default('').describe(`German extra language note. ${ONLY_IF_PRESENT}`),
+  defenses_desc: z.string().default('').describe(`German note on resistances/immunities. ${ONLY_IF_PRESENT}`),
   traits: z.array(monsterEntryTranslationSchema).default([]).describe(`German traits. ${SAME_LENGTH}`),
   actions: z.array(monsterEntryTranslationSchema).default([]).describe(`German actions. ${SAME_LENGTH}`),
-  reactions: z.array(monsterEntryTranslationSchema).default([]).describe(`German reactions. ${SAME_LENGTH}`),
-  legendary_actions: z.array(monsterEntryTranslationSchema).default([]).describe(`German legendary actions. ${SAME_LENGTH}`),
 });
 
 // Eine Form für Klasse UND Spezies: beide Merkmalsarten sind dasselbe `{name, desc}`-Paar

@@ -9,7 +9,7 @@ import type { AbilityName } from '$lib/schemas/abilities';
 import type { ArmorTraining, SkillName, WeaponCategory } from '$lib/schemas/vocabulary';
 import type { ProficiencyGrant, SkillGrant } from '$lib/schemas/grants';
 import { isEmptyProficiencyGrant } from '$lib/schemas/grants';
-import { SKILL_DEFS } from '$lib/domain/skills';
+import { SKILL_DEFS, skillLabelDe } from '$lib/domain/skills';
 import { normName } from '$lib/utils/text';
 import type { ProficiencyFlags } from '$lib/schemas/characterSchema';
 import type { Change } from '$lib/schemas/levelUp';
@@ -19,16 +19,12 @@ import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 
-// Labels aus `SKILL_DEFS`, derselben Tabelle wie der Bogen-Schlüssel — sonst zeigen Karte,
-// Editor und Bogen früher oder später verschiedene Begriffe.
-const SKILL_LABEL_DE = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.label]));
-
 import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
 
 import { PROFICIENCY_FLAGS, WEAPON_LABEL_DE, ARMOR_LABEL_DE } from '$lib/domain/proficiencies';
 export { WEAPON_LABEL_DE, ARMOR_LABEL_DE };
+export { skillLabelDe };
 
-export const skillLabelDe = (en: string): string => SKILL_LABEL_DE.get(en as SkillName) ?? en;
 export const abilityLabelDe = (en: string): string => {
   const key = abilityKeyOf(en);
   return key ? ABILITY_LABEL[key] : en;

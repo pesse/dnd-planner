@@ -3,23 +3,31 @@
   import { monsterSizeLabel, monsterTypeLabel, monsterAlignmentLabel } from '../types';
   import { modStr } from '../domain/skills';
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
+  import {
+    actionGroups, actionTitle, attackLine, conditionLine, crLabel, damageLine, languagesLine,
+    savesLine, sensesLine, skillsLine, speedLine,
+  } from '../services/monsterFormat';
   import Markdown from './Markdown.svelte';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
+
+  const saves = $derived(savesLine(monster));
+  const skills = $derived(skillsLine(monster));
+  const groups = $derived(actionGroups(monster));
 </script>
 
 <div class="stat-block">
   <div class="sb-name-row">
     <span class="sb-name">{count > 1 ? `${count}× ` : ''}{monster.name}</span>
-    <span class="sb-cr">HG {monster.cr} ({monster.xp} EP)</span>
+    <span class="sb-cr">HG {crLabel(monster.challenge_rating)} ({monster.xp} EP)</span>
   </div>
   <div class="sb-type">{monsterSizeLabel(monster.size)}, {monsterTypeLabel(monster.type)}, {monsterAlignmentLabel(monster.alignment)}</div>
 
   <div class="sb-rule orange"></div>
 
-  <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> {monster.ac.value}{monster.ac.note ? ` (${monster.ac.note})` : ''}</div>
-  <div class="sb-prop"><span class="lbl">Trefferpunkte</span> {monster.hp.average} ({monster.hp.formula})</div>
-  <div class="sb-prop"><span class="lbl">Bewegungsrate</span> {monster.speed}</div>
+  <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> {monster.armor_class}{monster.armor_detail ? ` (${monster.armor_detail})` : ''}</div>
+  <div class="sb-prop"><span class="lbl">Trefferpunkte</span> {monster.hit_points}{monster.hit_dice ? ` (${monster.hit_dice})` : ''}</div>
+  <div class="sb-prop"><span class="lbl">Bewegungsrate</span> {speedLine(monster.speed)}</div>
 
   <div class="sb-rule orange"></div>
 
@@ -27,71 +35,59 @@
     {#each ABILITY_KEYS as key}
       <div class="sb-stat">
         <div class="sb-stat-lbl">{ABILITY_ABBR_DE[key]}</div>
-        <div class="sb-stat-val">{monster.stats[key]} ({modStr(monster.stats[key])})</div>
+        <div class="sb-stat-val">{monster.ability_scores[key]} ({modStr(monster.ability_scores[key])})</div>
       </div>
     {/each}
   </div>
 
   <div class="sb-rule orange"></div>
 
-  {#if Object.keys(monster.saving_throws ?? {}).length}
-    <div class="sb-prop"><span class="lbl">Rettungswürfe</span> {Object.entries(monster.saving_throws).map(([k, v]) => `${k} ${v}`).join(', ')}</div>
+  {#if saves}
+    <div class="sb-prop"><span class="lbl">Rettungswürfe</span> {saves}</div>
   {/if}
-  {#if Object.keys(monster.skills ?? {}).length}
-    <div class="sb-prop"><span class="lbl">Fertigkeiten</span> {Object.entries(monster.skills).map(([k, v]) => `${k} ${v}`).join(', ')}</div>
+  {#if skills}
+    <div class="sb-prop"><span class="lbl">Fertigkeiten</span> {skills}</div>
   {/if}
-  {#if monster.damage_resistances?.length}
-    <div class="sb-prop"><span class="lbl">Schadensresistenzen</span> {monster.damage_resistances.join(', ')}</div>
+  {#if monster.damage_vulnerabilities.length}
+    <div class="sb-prop"><span class="lbl">Schadensanfälligkeiten</span> {damageLine(monster.damage_vulnerabilities)}</div>
   {/if}
-  {#if monster.damage_immunities?.length}
-    <div class="sb-prop"><span class="lbl">Schadensimmunitäten</span> {monster.damage_immunities.join(', ')}</div>
+  {#if monster.damage_resistances.length}
+    <div class="sb-prop"><span class="lbl">Schadensresistenzen</span> {damageLine(monster.damage_resistances)}</div>
   {/if}
-  {#if monster.condition_immunities?.length}
-    <div class="sb-prop"><span class="lbl">Zustandsimmunitäten</span> {monster.condition_immunities.join(', ')}</div>
+  {#if monster.damage_immunities.length || monster.defenses_desc}
+    <div class="sb-prop"><span class="lbl">Schadensimmunitäten</span> {damageLine(monster.damage_immunities, monster.defenses_desc)}</div>
   {/if}
-  <div class="sb-prop"><span class="lbl">Sinne</span> {monster.senses}</div>
-  <div class="sb-prop"><span class="lbl">Sprachen</span> {monster.languages}</div>
+  {#if monster.condition_immunities.length}
+    <div class="sb-prop"><span class="lbl">Zustandsimmunitäten</span> {conditionLine(monster.condition_immunities)}</div>
+  {/if}
+  <div class="sb-prop"><span class="lbl">Sinne</span> {sensesLine(monster)}</div>
+  <div class="sb-prop"><span class="lbl">Sprachen</span> {languagesLine(monster)}</div>
 
   {#if notes}
     <div class="sb-rule thin"></div>
     <div class="sb-prop sb-notes"><span class="lbl">DM-Notizen</span> <Markdown source={notes} inline /></div>
   {/if}
 
-  {#if monster.traits?.length}
+  {#if monster.traits.length}
     <div class="sb-rule orange"></div>
     {#each monster.traits as t}
-      <div class="sb-action"><span class="sb-action-name">{t.name}.</span> <Markdown source={t.description} inline /></div>
+      <div class="sb-action"><span class="sb-action-name">{t.name}.</span> <Markdown source={t.desc} inline /></div>
     {/each}
   {/if}
 
-  {#if monster.actions?.length}
-    <div class="sb-section-title">Aktionen</div>
+  {#each groups as group}
+    <div class="sb-section-title">{group.label}</div>
     <div class="sb-rule thin"></div>
-    {#each monster.actions as a}
+    {#each group.actions as a}
       <div class="sb-action">
-        <span class="sb-action-name">{a.name}.</span>
-        {#if a.attack_bonus !== undefined} Angriffswurf: +{a.attack_bonus}.{/if}
-        {#if a.damage?.length} Schaden: {a.damage.map(d => d.type ? `${d.dice} ${d.type}` : d.dice).join(' + ')}.{/if}
-        <Markdown source={a.description} inline />
+        <span class="sb-action-name">{actionTitle(a)}.</span>
+        <Markdown source={a.desc} inline />
+        {#each a.attacks as attack}
+          <div class="sb-attack">{attack.name}: {attackLine(attack)}</div>
+        {/each}
       </div>
     {/each}
-  {/if}
-
-  {#if monster.reactions?.length}
-    <div class="sb-section-title">Reaktionen</div>
-    <div class="sb-rule thin"></div>
-    {#each monster.reactions as r}
-      <div class="sb-action"><span class="sb-action-name">{r.name}.</span> <Markdown source={r.description} inline /></div>
-    {/each}
-  {/if}
-
-  {#if monster.legendary_actions?.length}
-    <div class="sb-section-title">Legendäre Aktionen</div>
-    <div class="sb-rule thin"></div>
-    {#each monster.legendary_actions as la}
-      <div class="sb-action"><span class="sb-action-name">{la.name}.</span> <Markdown source={la.description} inline /></div>
-    {/each}
-  {/if}
+  {/each}
 </div>
 
 <style>
@@ -188,5 +184,10 @@
   .sb-action-name {
     font-weight: 700;
     font-style: italic;
+  }
+
+  .sb-attack {
+    padding-left: 0.9rem;
+    font-size: 0.78rem;
   }
 </style>

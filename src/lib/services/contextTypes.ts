@@ -18,7 +18,7 @@ export interface EncounterSummaryEntry {
 export interface MonsterLibraryEntry {
   slug: string;
   name: string;
-  cr: string;
+  challenge_rating: number;
   size: string;
   type: string;
   group: string;

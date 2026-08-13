@@ -5,41 +5,16 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Monster } from '../../types';
-import { normalizeMonster } from '../../utils/schemaValidation';
+import { normalizeMonster, parseMonster } from '../../utils/schemaValidation';
 import { toActLocalJson, toLibraryJson } from '../../utils/vaultJson';
 import { OWN_SOURCE } from '../../schemas/source';
 import { MONSTERS_PATH, globalMonsterCandidates, findGlobalMonsterPath } from '../../monsterLibrary';
 
-function validateMonster(m: unknown): string[] {
-  const obj = m as Record<string, unknown>;
-  const warns: string[] = [];
-  if (!obj || typeof obj !== 'object') return ['Kein Objekt'];
-
-  // ac
-  if (typeof obj['ac'] !== 'object' || obj['ac'] === null || !('value' in (obj['ac'] as object)))
-    warns.push('ac: erwartet { value, note }, gefunden: ' + JSON.stringify(obj['ac']));
-
-  // hp
-  if (typeof obj['hp'] !== 'object' || obj['hp'] === null || !('average' in (obj['hp'] as object)))
-    warns.push('hp: erwartet { average, formula }, gefunden: ' + JSON.stringify(obj['hp']));
-
-  // cr
-  if (typeof obj['cr'] !== 'string')
-    warns.push('cr: erwartet string, gefunden: ' + typeof obj['cr'] + ' (' + obj['cr'] + ')');
-
-  // saving_throws vs saves
-  if (!('saving_throws' in obj) && 'saves' in obj)
-    warns.push('saving_throws fehlt — heißt das Feld "saves"?');
-
-  // skills values should be strings
-  if (obj['skills'] && typeof obj['skills'] === 'object') {
-    const badSkills = Object.entries(obj['skills'] as Record<string, unknown>)
-      .filter(([, v]) => typeof v !== 'string').map(([k]) => k);
-    if (badSkills.length) warns.push('skills: Werte sollten Strings sein, nicht Zahlen (' + badSkills.join(', ') + ')');
-  }
-
-  return warns;
-}
+/** Was das Schema an der Datei beanstandet; die Karte zeigt es an, lädt aber trotzdem. */
+const schemaIssues = (raw: unknown): string[] => {
+  const parsed = parseMonster(raw);
+  return parsed.ok ? [] : parsed.errors;
+};
 
 // structuredClone cannot handle Svelte $state Proxies — use JSON round-trip instead
 function snap<T>(val: T): T { return JSON.parse(JSON.stringify(val)); }
@@ -86,7 +61,7 @@ export class MonsterMiniCardState {
         const content = await invoke<string>('read_file_content', { path: actPath });
         if (seq !== this.#loadSeq) return;
         const raw = JSON.parse(content);
-        this.schemaWarnings = validateMonster(raw);
+        this.schemaWarnings = schemaIssues(raw);
         const parsed = normalizeMonster(raw as Monster);
         this.saved = parsed;
         this.draft = structuredClone(parsed);
@@ -107,7 +82,7 @@ export class MonsterMiniCardState {
         const content = await invoke<string>('read_file_content', { path: globalPath });
         if (seq !== this.#loadSeq) return;
         const raw = JSON.parse(content);
-        this.schemaWarnings = validateMonster(raw);
+        this.schemaWarnings = schemaIssues(raw);
         const parsed = normalizeMonster(raw as Monster);
         this.saved = parsed;
         this.draft = structuredClone(parsed);
