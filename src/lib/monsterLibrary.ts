@@ -6,6 +6,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { parseMonster } from './utils/schemaValidation';
 import { scanJsonFolder } from './services/library/createLibrary';
+import { memoOnce } from './services/library/memo';
 import type { Monster } from './types';
 
 export const MONSTERS_PATH = './vault/monsters';
@@ -41,13 +42,6 @@ export interface MonsterLibraryHit {
   monster: Monster;
 }
 
-let cache: MonsterLibraryHit[] | null = null;
-
-/** Nach einer Bibliotheks- oder Dateiänderung; sonst bleibt ein neues Monster unsichtbar. */
-export const invalidateMonsterLibrary = (): void => {
-  cache = null;
-};
-
 /** Unlesbare und unparsebare Dateien fallen still weg; sichtbar bleiben sie in der Seitenleiste. */
 async function readMonsterFolder(dir: string): Promise<MonsterLibraryHit[]> {
   const hits = await scanJsonFolder<MonsterLibraryHit | null>(
@@ -61,16 +55,20 @@ async function readMonsterFolder(dir: string): Promise<MonsterLibraryHit[]> {
   return hits.filter((hit): hit is MonsterLibraryHit => hit !== null);
 }
 
-/** Alle Bibliotheksmonster, geparst und gecacht — flach und in den Typ-Unterordnern. */
-export async function getMonsterLibrary(): Promise<MonsterLibraryHit[]> {
-  if (cache) return cache;
+/** Flach und in den Typ-Unterordnern, ein Invoke je Ordner. */
+const library = memoOnce(async (): Promise<MonsterLibraryHit[]> => {
   const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', {
     path: MONSTERS_PATH,
   }).catch(() => [] as { name: string; is_dir: boolean }[]);
   const dirs = entries.filter((e) => e.is_dir).map((e) => `${MONSTERS_PATH}/${e.name}`);
-  cache = (await Promise.all([MONSTERS_PATH, ...dirs].map(readMonsterFolder))).flat();
-  return cache;
-}
+  return (await Promise.all([MONSTERS_PATH, ...dirs].map(readMonsterFolder))).flat();
+});
+
+/** Nach einer Bibliotheks- oder Dateiänderung; sonst bleibt ein neues Monster unsichtbar. */
+export const invalidateMonsterLibrary = library.invalidate;
+
+/** Alle Bibliotheksmonster, geparst und gecacht. */
+export const getMonsterLibrary = library.get;
 
 /** Sucht über deutschen und englischen Namen sowie den Slug. */
 export async function searchMonsterLibrary(query: string, limit = 8): Promise<MonsterLibraryHit[]> {

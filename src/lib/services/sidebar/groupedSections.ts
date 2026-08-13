@@ -3,7 +3,7 @@
  * (zweite Gruppierung nach Grad) und Gegenstände nach Kategorie.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { ITEMS_PATH, invalidateItemCache, listItemDirs } from '../../itemLibrary';
+import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { CATEGORY_LABELS, DIR_TO_CATEGORY, rarityColor } from '../../itemLabels';
 import { SCHOOL_COLORS } from '../../spellLibrary';
 import { MONSTERS_PATH } from '../../monsterLibrary';
@@ -194,28 +194,22 @@ function spellsByLevel(leaves: TreeLeaf[]): TreeGroup[] {
     }));
 }
 
+/** Über `getItemsByDir`, nicht per eigenem Scan: sonst liest und parst `items/weapon` (493
+ * Dateien) ein zweites Mal, was der Charakterbogen gerade geladen hat. */
 async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
-  const base = ({ path, filename }: FileContext) => ({
-    entryName: filename.replace('.json', ''),
-    path,
-    suffix: `/${dir}/${filename}`,
-    groupId: dir,
+  const leaves = (await getItemsByDir(dir)).map((item) => {
+    const filename = item.path.slice(item.path.lastIndexOf('/') + 1);
+    return {
+      entryName: filename.replace('.json', ''),
+      path: item.path,
+      suffix: `/${dir}/${filename}`,
+      groupId: dir,
+      label: item.name_de ?? item.name,
+      badge: { kind: 'rarity', color: rarityColor(item.rarity) } as TreeBadge,
+    };
   });
-  try {
-    const leaves = await scanJsonFolder<TreeLeaf>(
-      `${ITEMS_PATH}/${dir}`,
-      (data, ctx) => ({
-        ...base(ctx),
-        label: (data.name_de as string) ?? (data.name as string) ?? base(ctx).entryName,
-        badge: { kind: 'rarity', color: rarityColor(((data.rarity as { name?: string } | undefined)?.name) ?? '') },
-      }),
-      (ctx) => ({ ...base(ctx), label: base(ctx).entryName, badge: { kind: 'rarity', color: rarityColor('') } }),
-    );
-    leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    return leaves;
-  } catch {
-    return [];
-  }
+  leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  return leaves;
 }
 
 /** Anzeige-Label eines Item-Ordners; Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */

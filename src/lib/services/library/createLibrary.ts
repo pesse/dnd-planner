@@ -3,6 +3,7 @@
  * über den jeweiligen Karten-Editor, nie hier.
  */
 import { invoke } from '@tauri-apps/api/core';
+import { memoOnce } from './memo';
 
 export interface FileContext {
   path: string;
@@ -94,19 +95,17 @@ export function createLibrary<T extends LibraryEntry>(spec: LibrarySpec<T>): Lib
   const fallback = spec.fallback ?? (({ path, filename }: FileContext) =>
     ({ name: filename.replace('.json', ''), path }) as T);
 
-  let cache: T[] | null = null;
-
-  async function list(): Promise<T[]> {
-    if (cache) return cache;
+  const cache = memoOnce(async () => {
     try {
       const entries = await scanJsonFolder(spec.path, read, fallback);
       entries.sort((a, b) => display(a).localeCompare(display(b), 'de'));
-      cache = entries;
+      return entries;
     } catch {
-      cache = [];
+      return [] as T[];
     }
-    return cache;
-  }
+  });
+
+  const list = cache.get;
 
   function searchEntries(entries: T[], query: string, maxResults: number): T[] {
     if (!query.trim()) return [];
@@ -128,9 +127,7 @@ export function createLibrary<T extends LibraryEntry>(spec: LibrarySpec<T>): Lib
     path: spec.path,
     list,
 
-    invalidate() {
-      cache = null;
-    },
+    invalidate: cache.invalidate,
 
     async loadByKey(key, parse) {
       if (!key || !spec.key) return null;

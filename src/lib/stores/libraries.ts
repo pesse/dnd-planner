@@ -2,14 +2,7 @@ import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '../services/httpFetch';
 import { pushError, pushNotice } from './toasts';
-import { invalidateVault } from './campaign';
-import { invalidateSpellLibrary } from '../spellLibrary';
-import { invalidateClassCache } from '../classLibrary';
-import { invalidateSpeciesCache } from '../speciesLibrary';
-import { invalidateFeatsCache } from '../featsLibrary';
-import { invalidateBackgroundsCache } from '../backgroundsLibrary';
-import { invalidateItemCache } from '../itemLibrary';
-import { invalidateMonsterPaths } from '../services/contextLoad';
+import { invalidateLibraryCaches } from '../services/library/invalidate';
 
 export type InstallState = 'installed' | 'update' | 'available';
 
@@ -191,18 +184,6 @@ export async function installMany(ids: string[], adopt = false): Promise<BatchRe
 export async function forgetAccessCode(id: string): Promise<void> {
   await invoke('forget_access_code', { id });
   await refreshLibraries(false);
-}
-
-/** `invalidateVault` weckt zusätzlich die Sidebar-Listen. */
-function invalidateLibraryCaches(): void {
-  invalidateSpellLibrary();
-  invalidateClassCache();
-  invalidateSpeciesCache();
-  invalidateFeatsCache();
-  invalidateBackgroundsCache();
-  invalidateItemCache();
-  invalidateMonsterPaths();
-  invalidateVault();
 }
 
 function describeUpdates(list: Library[]): string {

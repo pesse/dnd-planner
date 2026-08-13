@@ -3,7 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import Modal from './ui/Modal.svelte';
   import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
-  import { invalidateVault } from '../stores/campaign';
+  import { invalidateLibraryCaches } from '../services/library/invalidate';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -177,7 +177,7 @@
       });
       const skipped = res.skipped > 0 ? `, ${res.skipped} übersprungen` : '';
       importResult = `${res.written} Datei(en) importiert${skipped}.`;
-      invalidateVault();
+      invalidateLibraryCaches();
     } catch (e) {
       importError = `Import fehlgeschlagen: ${e}`;
     } finally {

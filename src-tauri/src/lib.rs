@@ -106,6 +106,19 @@ pub struct EntryInfo {
     is_dir: bool,
 }
 
+/// Tauri führt jedes nicht-`async` Kommando auf dem Main-Thread aus: ein `Promise.all` über
+/// die 17 Item-Ordner serialisiert dort trotzdem und friert dabei die Oberfläche ein. Jedes
+/// dateisystemnahe Kommando geht deshalb hierüber. Ein blosses `async fn` genügt nicht — der
+/// blockierende `fs`-Aufruf belegte sonst einen Worker der Laufzeit, über die auch die
+/// LLM-Anfragen laufen.
+pub(crate) async fn blocking<T, F>(job: F) -> Result<T, String>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(job).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 fn get_current_dir() -> String {
     format!(
@@ -116,70 +129,79 @@ fn get_current_dir() -> String {
 }
 
 #[tauri::command]
-fn list_directory(path: String) -> Result<Vec<String>, String> {
-    let path = resolve_path(&path);
-    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    let mut files: Vec<String> = entries
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            let name = e.file_name();
-            let name_str = name.to_string_lossy();
-            e.path().is_file() && name_str.ends_with(".md")
-        })
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .collect();
-    files.sort();
-    Ok(files)
+async fn list_directory(path: String) -> Result<Vec<String>, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+        let mut files: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let name = e.file_name();
+                let name_str = name.to_string_lossy();
+                e.path().is_file() && name_str.ends_with(".md")
+            })
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        files.sort();
+        Ok(files)
+    })
+    .await
 }
 
 /// Listet Dateien (.md) UND Unterverzeichnisse — für die Charakterliste
 #[tauri::command]
-fn list_entries(path: String) -> Result<Vec<EntryInfo>, String> {
-    let path = resolve_path(&path);
-    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    let mut result: Vec<EntryInfo> = entries
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            if is_hidden(&name) {
-                return None;
-            }
-            let is_dir = e.path().is_dir();
-            let is_md = e.path().is_file() && name.ends_with(".md");
-            if is_dir || is_md {
-                Some(EntryInfo { name, is_dir })
-            } else {
-                None
-            }
-        })
-        .collect();
-    result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+async fn list_entries(path: String) -> Result<Vec<EntryInfo>, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+        let mut result: Vec<EntryInfo> = entries
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                if is_hidden(&name) {
+                    return None;
+                }
+                let is_dir = e.path().is_dir();
+                let is_md = e.path().is_file() && name.ends_with(".md");
+                if is_dir || is_md {
+                    Some(EntryInfo { name, is_dir })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        result.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(result)
+    })
+    .await
 }
 
 /// Listet .json-Dateien UND Unterverzeichnisse — für die Monster-Bibliothek
 #[tauri::command]
-fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
-    let path = resolve_path(&path);
-    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    let mut result: Vec<EntryInfo> = entries
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            if is_hidden(&name) {
-                return None;
-            }
-            let is_dir = e.path().is_dir();
-            let is_json = e.path().is_file() && name.ends_with(".json");
-            if is_dir || is_json {
-                Some(EntryInfo { name, is_dir })
-            } else {
-                None
-            }
-        })
-        .collect();
-    result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+async fn list_json_entries(path: String) -> Result<Vec<EntryInfo>, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+        let mut result: Vec<EntryInfo> = entries
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                if is_hidden(&name) {
+                    return None;
+                }
+                let is_dir = e.path().is_dir();
+                let is_json = e.path().is_file() && name.ends_with(".json");
+                if is_dir || is_json {
+                    Some(EntryInfo { name, is_dir })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        result.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(result)
+    })
+    .await
 }
 
 /// Gibt den absoluten Pfad eines (ggf. relativen) Vault-Pfades zurück.
@@ -189,28 +211,37 @@ fn get_absolute_path(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn read_file_content(path: String) -> Result<String, String> {
-    let path = resolve_path(&path);
-    fs::read_to_string(&path).map_err(|e| e.to_string())
+async fn read_file_content(path: String) -> Result<String, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        fs::read_to_string(&path).map_err(|e| e.to_string())
+    })
+    .await
 }
 
 /// Liest eine Binärdatei (z.B. PDF) als Base64-String
 #[tauri::command]
-fn read_file_base64(path: String) -> Result<String, String> {
-    let path = resolve_path(&path);
-    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
-    Ok(base64_encode(&bytes))
+async fn read_file_base64(path: String) -> Result<String, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+        Ok(base64_encode(&bytes))
+    })
+    .await
 }
 
 /// Schreibt eine Binärdatei aus einem Base64-String (z.B. exportiertes PDF)
 #[tauri::command]
-fn write_file_base64(path: String, data: String) -> Result<(), String> {
-    let path = resolve_path(&path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let bytes = base64_decode(&data).map_err(|e| e)?;
-    fs::write(&path, bytes).map_err(|e| e.to_string())
+async fn write_file_base64(path: String, data: String) -> Result<(), String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let bytes = base64_decode(&data)?;
+        fs::write(&path, bytes).map_err(|e| e.to_string())
+    })
+    .await
 }
 
 fn base64_decode(data: &str) -> Result<Vec<u8>, String> {
@@ -256,33 +287,39 @@ fn base64_encode(data: &[u8]) -> String {
 }
 
 #[tauri::command]
-fn write_file_content(path: String, content: String) -> Result<(), String> {
-    let path = resolve_path(&path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::write(&path, content).map_err(|e| e.to_string())
+async fn write_file_content(path: String, content: String) -> Result<(), String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::write(&path, content).map_err(|e| e.to_string())
+    })
+    .await
 }
 
 /// Listet .json-Dateien in einem Verzeichnis — für Monster- und Encounter-Bibliothek
 #[tauri::command]
-fn list_json_files(path: String) -> Result<Vec<String>, String> {
-    let path = resolve_path(&path);
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    let mut files: Vec<String> = entries
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            let name = e.file_name();
-            let name_str = name.to_string_lossy();
-            e.path().is_file() && name_str.ends_with(".json")
-        })
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .collect();
-    files.sort();
-    Ok(files)
+async fn list_json_files(path: String) -> Result<Vec<String>, String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        if !path.exists() {
+            return Ok(vec![]);
+        }
+        let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+        let mut files: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let name = e.file_name();
+                let name_str = name.to_string_lossy();
+                e.path().is_file() && name_str.ends_with(".json")
+            })
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        files.sort();
+        Ok(files)
+    })
+    .await
 }
 
 #[derive(Serialize)]
@@ -297,25 +334,28 @@ pub struct JsonFile {
 /// je Datei: `vault/items/weapon` allein hat ~500 Einträge, deren Einzel-Invokes die
 /// Seitenleiste sekundenlang auf „Laden…" hielten.
 #[tauri::command]
-fn read_json_folder(path: String) -> Result<Vec<JsonFile>, String> {
-    let dir = resolve_path(&path);
-    if !dir.exists() {
-        return Ok(vec![]);
-    }
-    let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
-    let mut files: Vec<JsonFile> = entries
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            if is_hidden(&name) || !name.ends_with(".json") || !e.path().is_file() {
-                return None;
-            }
-            let content = fs::read_to_string(e.path()).ok();
-            Some(JsonFile { name, content })
-        })
-        .collect();
-    files.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(files)
+async fn read_json_folder(path: String) -> Result<Vec<JsonFile>, String> {
+    blocking(move || {
+        let dir = resolve_path(&path);
+        if !dir.exists() {
+            return Ok(vec![]);
+        }
+        let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
+        let mut files: Vec<JsonFile> = entries
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                if is_hidden(&name) || !name.ends_with(".json") || !e.path().is_file() {
+                    return None;
+                }
+                let content = fs::read_to_string(e.path()).ok();
+                Some(JsonFile { name, content })
+            })
+            .collect();
+        files.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(files)
+    })
+    .await
 }
 
 #[derive(Serialize)]
@@ -331,12 +371,15 @@ pub struct SpellInfo {
 
 /// Lädt alle Zauber aus vault/spells/** als kompakten Index (Name, Stufe, Klassen).
 #[tauri::command]
-fn load_spells_index(path: String) -> Result<Vec<SpellInfo>, String> {
-    let base = resolve_path(&path);
-    let mut spells: Vec<SpellInfo> = Vec::new();
-    collect_spells(&base, &mut spells);
-    spells.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(spells)
+async fn load_spells_index(path: String) -> Result<Vec<SpellInfo>, String> {
+    blocking(move || {
+        let base = resolve_path(&path);
+        let mut spells: Vec<SpellInfo> = Vec::new();
+        collect_spells(&base, &mut spells);
+        spells.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(spells)
+    })
+    .await
 }
 
 fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
@@ -376,56 +419,71 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
 /// Löscht eine Datei oder ein Verzeichnis (rekursiv). Für Vault-Einträge inkl.
 /// ordnerbasierter Entitäten (Charaktere, Akte, Kampagnen).
 #[tauri::command]
-fn delete_path(path: String) -> Result<(), String> {
-    let path = resolve_path(&path);
-    if !path.exists() {
-        return Err(format!("Pfad existiert nicht: {}", path.display()));
-    }
-    if path.is_dir() {
-        fs::remove_dir_all(&path).map_err(|e| e.to_string())
-    } else {
-        fs::remove_file(&path).map_err(|e| e.to_string())
-    }
+async fn delete_path(path: String) -> Result<(), String> {
+    blocking(move || {
+        let path = resolve_path(&path);
+        if !path.exists() {
+            return Err(format!("Pfad existiert nicht: {}", path.display()));
+        }
+        if path.is_dir() {
+            fs::remove_dir_all(&path).map_err(|e| e.to_string())
+        } else {
+            fs::remove_file(&path).map_err(|e| e.to_string())
+        }
+    })
+    .await
 }
 
 #[tauri::command]
-fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
-    let old = resolve_path(&old_path);
-    let new = resolve_path(&new_path);
-    if let Some(parent) = new.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::rename(&old, &new).map_err(|e| e.to_string())
+async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    blocking(move || {
+        let old = resolve_path(&old_path);
+        let new = resolve_path(&new_path);
+        if let Some(parent) = new.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::rename(&old, &new).map_err(|e| e.to_string())
+    })
+    .await
 }
 
 /// Speichert einen API-Key im OS-Keychain (Windows Credential Manager / macOS Keychain / libsecret).
 /// `provider` ist der Service-Name, z.B. "anthropic" oder "groq".
 #[tauri::command]
-fn save_api_key(provider: String, key: String) -> Result<(), String> {
-    Entry::new("dnd-planner", &provider)
-        .map_err(|e| e.to_string())?
-        .set_password(&key)
-        .map_err(|e| e.to_string())
+async fn save_api_key(provider: String, key: String) -> Result<(), String> {
+    blocking(move || {
+        Entry::new("dnd-planner", &provider)
+            .map_err(|e| e.to_string())?
+            .set_password(&key)
+            .map_err(|e| e.to_string())
+    })
+    .await
 }
 
 /// Lädt einen API-Key aus dem OS-Keychain. Gibt None zurück wenn kein Key gespeichert ist.
 #[tauri::command]
-fn load_api_key(provider: String) -> Result<Option<String>, String> {
-    match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.get_password() {
-        Ok(key) => Ok(Some(key)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.to_string()),
-    }
+async fn load_api_key(provider: String) -> Result<Option<String>, String> {
+    blocking(move || {
+        match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.get_password() {
+            Ok(key) => Ok(Some(key)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
 }
 
 /// Löscht einen API-Key aus dem OS-Keychain.
 #[tauri::command]
-fn delete_api_key(provider: String) -> Result<(), String> {
-    match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.delete_password() {
-        Ok(_) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
+async fn delete_api_key(provider: String) -> Result<(), String> {
+    blocking(move || {
+        match Entry::new("dnd-planner", &provider).map_err(|e| e.to_string())?.delete_password() {
+            Ok(_) => Ok(()),
+            Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -572,7 +630,11 @@ fn collect_files(base: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) {
 
 /// Übersicht über die exportierbaren Inhalte des aktuellen Vaults.
 #[tauri::command]
-fn get_vault_overview() -> VaultContents {
+async fn get_vault_overview() -> Result<VaultContents, String> {
+    blocking(|| Ok(vault_overview())).await
+}
+
+fn vault_overview() -> VaultContents {
     let vault = project_root().join("vault");
     VaultContents {
         campaigns: subdirs(&vault.join("campaigns")),
@@ -589,7 +651,17 @@ fn get_vault_overview() -> VaultContents {
 
 /// Exportiert die gewählten Vault-Bereiche als ZIP nach `dest_path` (absoluter Pfad).
 #[tauri::command]
-fn export_vault(selection: TransferSelection, dest_path: String) -> Result<ExportSummary, String> {
+async fn export_vault(
+    selection: TransferSelection,
+    dest_path: String,
+) -> Result<ExportSummary, String> {
+    blocking(move || export_vault_inner(selection, dest_path)).await
+}
+
+fn export_vault_inner(
+    selection: TransferSelection,
+    dest_path: String,
+) -> Result<ExportSummary, String> {
     let vault = project_root().join("vault");
     let mut files: Vec<(PathBuf, String)> = Vec::new();
 
@@ -673,7 +745,11 @@ fn export_vault(selection: TransferSelection, dest_path: String) -> Result<Expor
 
 /// Liest ein Export-ZIP und meldet, welche Bereiche darin enthalten sind.
 #[tauri::command]
-fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
+async fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
+    blocking(move || inspect_import_zip_inner(zip_path)).await
+}
+
+fn inspect_import_zip_inner(zip_path: String) -> Result<VaultContents, String> {
     let file = fs::File::open(&zip_path).map_err(|e| e.to_string())?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Kein gültiges ZIP: {}", e))?;
@@ -736,7 +812,15 @@ fn inspect_import_zip(zip_path: String) -> Result<VaultContents, String> {
 /// Importiert die gewählten Bereiche aus einem Export-ZIP in den Vault.
 /// Vorhandene Dateien werden nur bei `overwrite == true` ersetzt.
 #[tauri::command]
-fn import_vault(
+async fn import_vault(
+    zip_path: String,
+    selection: TransferSelection,
+    overwrite: bool,
+) -> Result<ImportSummary, String> {
+    blocking(move || import_vault_inner(zip_path, selection, overwrite)).await
+}
+
+fn import_vault_inner(
     zip_path: String,
     selection: TransferSelection,
     overwrite: bool,
@@ -850,7 +934,11 @@ fn count_files(path: &Path) -> usize {
 /// vorhandene Daten werden nie überschrieben oder zur Migration angeboten.
 /// Bei mehreren Altordnern gewinnt der mit den meisten Dateien.
 #[tauri::command]
-fn find_legacy_vault(app: tauri::AppHandle) -> Result<Option<LegacyVault>, String> {
+async fn find_legacy_vault(app: tauri::AppHandle) -> Result<Option<LegacyVault>, String> {
+    blocking(move || find_legacy_vault_inner(app)).await
+}
+
+fn find_legacy_vault_inner(app: tauri::AppHandle) -> Result<Option<LegacyVault>, String> {
     let target = project_root().join("vault");
     if dir_has_files(&target) {
         return Ok(None);
@@ -899,16 +987,19 @@ fn find_legacy_vault(app: tauri::AppHandle) -> Result<Option<LegacyVault>, Strin
 /// Bereits vorhandene Dateien werden übersprungen (nicht überschrieben);
 /// die Quelle bleibt unverändert.
 #[tauri::command]
-fn migrate_legacy_vault(source: String) -> Result<MigrationSummary, String> {
-    let src = PathBuf::from(&source);
-    if !src.is_dir() {
-        return Err(format!("Quellordner existiert nicht: {}", src.display()));
-    }
-    let target = project_root().join("vault");
-    let mut copied = 0usize;
-    let mut skipped = 0usize;
-    copy_dir_recursive(&src, &target, &mut copied, &mut skipped)?;
-    Ok(MigrationSummary { copied, skipped })
+async fn migrate_legacy_vault(source: String) -> Result<MigrationSummary, String> {
+    blocking(move || {
+        let src = PathBuf::from(&source);
+        if !src.is_dir() {
+            return Err(format!("Quellordner existiert nicht: {}", src.display()));
+        }
+        let target = project_root().join("vault");
+        let mut copied = 0usize;
+        let mut skipped = 0usize;
+        copy_dir_recursive(&src, &target, &mut copied, &mut skipped)?;
+        Ok(MigrationSummary { copied, skipped })
+    })
+    .await
 }
 
 fn copy_dir_recursive(
@@ -954,6 +1045,10 @@ pub fn run() {
                     .app_local_data_dir()
                     .unwrap_or_else(|_| legacy_walk_up())
             };
+            // Bilder aus dem Vault gehen über das Asset-Protokoll statt als Base64 durch die
+            // IPC — ein Porträt sind schnell 3 MB. Der Scope kann nicht in der Konfiguration
+            // stehen: der Vault liegt im Dev-Build im Repo, im Release am Identifier.
+            let _ = app.asset_protocol_scope().allow_directory(base.join("vault"), true);
             let _ = VAULT_BASE.set(base);
             Ok(())
         })

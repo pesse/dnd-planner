@@ -3,7 +3,7 @@
    * Portrait des Charakters: Vorschau aus dem Charakter-Ordner, Datei wählen (wird in den
    * Ordner kopiert) und Verknüpfung lösen. Gespeichert wird nur der Dateiname.
    */
-  import { invoke } from '@tauri-apps/api/core';
+  import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import './form.css';
@@ -17,14 +17,14 @@
   let preview = $state('');
   let error = $state('');
   let busy = $state(false);
+  let previewToken = 0;
 
+  // Asset-Protokoll statt Base64 durch die IPC; `pick()` setzt die Vorschau danach direkt aus
+  // den gelesenen Bytes, weil es sie zum Schreiben ohnehin hat.
   $effect(() => {
     if (!portraitFile) { preview = ''; return; }
-    invoke<string>('read_file_base64', { path: `${dirPath}/${portraitFile}` })
-      .then((b64) => {
-        const mime = portraitFile.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-        preview = `data:${mime};base64,${b64}`;
-      })
+    invoke<string>('get_absolute_path', { path: `${dirPath}/${portraitFile}` })
+      .then((abs) => { preview = `${convertFileSrc(abs)}?v=${previewToken++}`; })
       .catch(() => { preview = ''; });
   });
 

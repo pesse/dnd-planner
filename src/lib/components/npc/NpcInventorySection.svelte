@@ -5,10 +5,10 @@
    */
   import { invoke } from '@tauri-apps/api/core';
   import {
-    getItemsByDir, searchItems, displayName, buildItemIndex, matchItem, structuralType,
+    getAllItemsByDir, searchItems, displayName, buildItemIndex, matchItem, structuralType,
     type ItemInfo, type ItemSuggestion,
   } from '../../itemLibrary';
-  import { CATEGORY_COLORS, DIR_TO_CATEGORY } from '../../itemLabels';
+  import { CATEGORY_COLORS } from '../../itemLabels';
   import { formatRarity, weaponDamageLine } from '../../itemFormat';
   import { openItemPage } from '../../services/vaultLinks';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
@@ -25,17 +25,7 @@
   let suggestions = $state<ItemSuggestion[]>([]);
   let itemLoadedByDir = $state<Record<string, ItemInfo[]>>({});
 
-  $effect(() => {
-    Promise.all(
-      Object.keys(DIR_TO_CATEGORY).map(dir =>
-        getItemsByDir(dir).then(items => ({ dir, items }))
-      )
-    ).then(results => {
-      const map: Record<string, ItemInfo[]> = {};
-      for (const { dir, items } of results) map[dir] = items;
-      itemLoadedByDir = map;
-    });
-  });
+  $effect(() => { getAllItemsByDir().then(x => { itemLoadedByDir = x; }); });
 
   const itemIndex = $derived(buildItemIndex(itemLoadedByDir));
 

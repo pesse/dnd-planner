@@ -12,6 +12,7 @@ import { itemKeyOf } from './schemas/item';
 import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
 import { scanJsonFolder } from './services/library/createLibrary';
+import { memoByKey } from './services/library/memo';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
 
 export const ITEMS_PATH = './vault/items';
@@ -96,7 +97,6 @@ export function toHomebrewCopy(item: Item): Item {
   return { ...item, source: OWN_SOURCE, key: '', index: undefined, document: { key: OWN_SOURCE, gamesystem: '' } };
 }
 
-let cache: Record<string, ItemInfo[]> = {};
 let knownDirs: string[] = [];
 
 export async function listItemDirs(): Promise<string[]> {
@@ -115,11 +115,7 @@ export function loadedItemDirs(): string[] {
 }
 
 export function invalidateItemCache(dir?: string) {
-  if (dir) {
-    delete cache[dir];
-  } else {
-    cache = {};
-  }
+  byDir.invalidate(dir);
 }
 
 /**
@@ -147,8 +143,7 @@ export async function getToolChoices(category: EquipmentChoiceCategory): Promise
   return tools.filter(match).sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
 }
 
-export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
-  if (cache[dir]) return cache[dir];
+const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
   try {
     const items = await scanJsonFolder<ItemInfo>(
       `${ITEMS_PATH}/${dir}`,
@@ -185,11 +180,22 @@ export async function getItemsByDir(dir: string): Promise<ItemInfo[]> {
       }),
     );
     items.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-    cache[dir] = items;
+    return items;
   } catch {
-    cache[dir] = [];
+    return [];
   }
-  return cache[dir];
+});
+
+export const getItemsByDir = byDir.get;
+
+/**
+ * Alle Gegenstände nach Ordner — die Eingabe für `buildItemIndex`. Über `listItemDirs`, nicht
+ * über `DIR_TO_CATEGORY`: die Kategorientabelle führt auch Ordner, die im Vault gar nicht
+ * liegen, und jeder davon kostete eine Leer-Anfrage.
+ */
+export async function getAllItemsByDir(): Promise<Record<string, ItemInfo[]>> {
+  const dirs = await listItemDirs();
+  return Object.fromEntries(await Promise.all(dirs.map(async (d) => [d, await getItemsByDir(d)] as const)));
 }
 
 export type ItemIndex = NameIndex<ItemInfo>;

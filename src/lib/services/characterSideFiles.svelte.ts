@@ -2,18 +2,20 @@
  * Alles im Charakterverzeichnis AUSSER `character.json`: GM-Notizen, Details und das
  * Portrait. Die beiden Markdown-Dateien speichern sich selbst (`AutosaveFile`).
  */
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { AutosaveFile, type SaveStatus } from '../utils/autosaveFile.svelte';
 
 const GM_NOTES_TEMPLATE_PATH = './vault/templates/character.md';
 const GM_NOTES_FALLBACK = `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
+
+let portraitToken = 0;
 
 export interface CharacterSideFiles {
   readonly gmNotes: string;
   readonly details: string;
   readonly gmNotesStatus: SaveStatus;
   readonly detailsStatus: SaveStatus;
-  /** Data-URL des Portraits; leer, wenn keines hinterlegt oder ladbar ist. */
+  /** Asset-URL des Portraits; leer, wenn keines hinterlegt oder ladbar ist. */
   readonly portraitUrl: string;
   onGmNotesChange(md: string): void;
   onDetailsChange(md: string): void;
@@ -39,15 +41,15 @@ export function createCharacterSideFiles(deps: {
     void load(dir);
   });
 
+  // Über das Asset-Protokoll statt als Base64 durch die IPC: ein Porträt sind schnell 3 MB,
+  // die als ~4 MB langer String über die Bridge gingen. `?v=` erzwingt frische Bytes — ein
+  // ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL.
   $effect(() => {
     const dir = deps.dirPath();
     const file = deps.portraitFile();
     if (!file) { portraitUrl = ''; return; }
-    invoke<string>('read_file_base64', { path: `${dir}/${file}` })
-      .then((b64) => {
-        const mime = file.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-        portraitUrl = `data:${mime};base64,${b64}`;
-      })
+    invoke<string>('get_absolute_path', { path: `${dir}/${file}` })
+      .then((abs) => { portraitUrl = `${convertFileSrc(abs)}?v=${portraitToken++}`; })
       .catch(() => { portraitUrl = ''; });
   });
 

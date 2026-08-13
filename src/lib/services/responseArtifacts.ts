@@ -3,7 +3,8 @@
  * und das Schreiben dieser Fundstücke in den Vault.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { invalidateVault, replaceContent } from '../stores/campaign';
+import { replaceContent } from '../stores/campaign';
+import { invalidateLibraryCaches } from './library/invalidate';
 import { loadEncounterContext } from '../stores/context';
 import { stripJsonFence } from './jsonFence';
 import { slugKeepUmlauts } from '../utils/text';
@@ -99,7 +100,8 @@ export function replaceWithResponse(content: string, file: FileEntry | null): vo
 
 export async function writeNewFile(path: string, content: string): Promise<void> {
   await invoke('write_file_content', { path, content });
-  invalidateVault();
+  // Der Pfad kommt aus der Antwort — welche Bibliothek getroffen ist, steht hier nicht fest.
+  invalidateLibraryCaches();
 }
 
 export async function saveJsonBlock(block: DetectedJson, campaign: Campaign): Promise<void> {
