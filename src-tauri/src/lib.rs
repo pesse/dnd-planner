@@ -286,6 +286,39 @@ fn list_json_files(path: String) -> Result<Vec<String>, String> {
 }
 
 #[derive(Serialize)]
+pub struct JsonFile {
+    name: String,
+    /// `None`, wenn die Datei nicht lesbar ist — der Aufrufer bildet daraus seinen
+    /// Ersatzeintrag, statt den Eintrag stillschweigend zu verlieren.
+    content: Option<String>,
+}
+
+/// Liest einen flachen .json-Ordner am Stück. Ein Aufruf je Ordner statt einer IPC-Runde
+/// je Datei: `vault/items/weapon` allein hat ~500 Einträge, deren Einzel-Invokes die
+/// Seitenleiste sekundenlang auf „Laden…" hielten.
+#[tauri::command]
+fn read_json_folder(path: String) -> Result<Vec<JsonFile>, String> {
+    let dir = resolve_path(&path);
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    let mut files: Vec<JsonFile> = entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if is_hidden(&name) || !name.ends_with(".json") || !e.path().is_file() {
+                return None;
+            }
+            let content = fs::read_to_string(e.path()).ok();
+            Some(JsonFile { name, content })
+        })
+        .collect();
+    files.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(files)
+}
+
+#[derive(Serialize)]
 pub struct SpellInfo {
     name: String,
     name_en: String,
@@ -934,6 +967,7 @@ pub fn run() {
             write_file_content,
             list_json_files,
             list_json_entries,
+            read_json_folder,
             rename_file,
             delete_path,
             write_file_base64,

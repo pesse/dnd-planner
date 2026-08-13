@@ -6,10 +6,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { ITEMS_PATH, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { CATEGORY_LABELS, DIR_TO_CATEGORY, rarityColor } from '../../itemLabels';
 import { SCHOOL_COLORS } from '../../spellLibrary';
-import { MONSTERS_PATH, allMonsterPaths } from '../../monsterLibrary';
+import { MONSTERS_PATH } from '../../monsterLibrary';
 import { crLabel } from '../monsterFormat';
 import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
+import { scanJsonFolder, type FileContext } from '../library/createLibrary';
 import type { CreateKind } from './createSpecs';
 
 const SPELLS_PATH = './vault/spells';
@@ -61,9 +62,6 @@ export interface GroupedSection {
 
 interface JsonEntry { name: string; is_dir: boolean }
 
-const readJson = async (path: string): Promise<Record<string, unknown>> =>
-  JSON.parse(await invoke<string>('read_file_content', { path }));
-
 const listDirs = async (path: string): Promise<string[]> => {
   const entries = await invoke<JsonEntry[]>('list_json_entries', { path });
   return entries.filter((e) => e.is_dir).map((e) => e.name).sort();
@@ -101,29 +99,43 @@ const levelBadge = (level: number, color: string, title?: string): TreeBadge => 
 /** Grad eines Zauber-Blattes; steckt im Badge-Text („Z" = Zaubertrick). */
 const leafLevel = (leaf: TreeLeaf): number => (leaf.badge?.text === 'Z' ? 0 : Number(leaf.badge?.text ?? 0));
 
-async function loadMonsterGroups(): Promise<TreeGroup[]> {
+/** `dir` leer = die flach im Wurzelordner liegenden Monster. */
+function monsterLeaves(dir: string): Promise<{ typeKey: string; leaf: TreeLeaf }[]> {
+  const folder = dir ? `${MONSTERS_PATH}/${dir}` : MONSTERS_PATH;
+  const base = ({ path, filename }: FileContext) => ({
+    entryName: filename.replace('.json', ''),
+    path,
+    suffix: dir ? `${dir}/${filename}` : filename,
+    groupId: '',
+  });
   /**
    * Eine unparsbare Datei behält ihr Blatt mit dem Dateinamen — sonst verschwindet sie aus
    * der Seitenleiste und ist nicht mehr zu öffnen, also auch nicht mehr zu reparieren.
    */
-  const toLeaf = async (path: string): Promise<{ typeKey: string; leaf: TreeLeaf }> => {
-    const suffix = path.slice(MONSTERS_PATH.length + 1);
-    const base = { entryName: suffix.replace(/^.*\//, '').replace('.json', ''), path, suffix, groupId: '' };
-    const parsed = parseMonster(await readJson(path).catch(() => null));
-    if (!parsed.ok) return { typeKey: '', leaf: { ...base, label: base.entryName } };
-    const cr = crLabel(parsed.data.challenge_rating);
-    return {
-      typeKey: parsed.data.type,
-      leaf: {
-        ...base,
-        label: parsed.data.name || base.entryName,
-        badge: { kind: 'cr', text: cr, title: `Herausforderungsgrad ${cr}` },
-      },
-    };
-  };
+  const fallback = (ctx: FileContext) => ({ typeKey: '', leaf: { ...base(ctx), label: base(ctx).entryName } });
+  return scanJsonFolder<{ typeKey: string; leaf: TreeLeaf }>(
+    folder,
+    (data, ctx) => {
+      const parsed = parseMonster(data);
+      if (!parsed.ok) return fallback(ctx);
+      const cr = crLabel(parsed.data.challenge_rating);
+      return {
+        typeKey: parsed.data.type,
+        leaf: {
+          ...base(ctx),
+          label: parsed.data.name || base(ctx).entryName,
+          badge: { kind: 'cr', text: cr, title: `Herausforderungsgrad ${cr}` },
+        },
+      };
+    },
+    fallback,
+  );
+}
 
+async function loadMonsterGroups(): Promise<TreeGroup[]> {
   try {
-    const all = await Promise.all((await allMonsterPaths()).map(toLeaf));
+    const dirs = await listDirs(MONSTERS_PATH);
+    const all = (await Promise.all([...dirs, ''].map(monsterLeaves))).flat();
 
     const byType: Record<string, TreeLeaf[]> = {};
     for (const { typeKey, leaf } of all) {
@@ -140,19 +152,22 @@ async function loadMonsterGroups(): Promise<TreeGroup[]> {
 
 async function loadSpellLeaves(school: string): Promise<TreeLeaf[]> {
   const color = schoolColor(school);
+  const base = ({ path, filename }: FileContext) => ({
+    entryName: filename.replace('.json', ''),
+    path,
+    suffix: `/${school}/${filename}`,
+    groupId: school,
+  });
   try {
-    const files = await invoke<string[]>('list_json_files', { path: `${SPELLS_PATH}/${school}` });
-    const leaves = await Promise.all(files.map(async (filename): Promise<TreeLeaf> => {
-      const path = `${SPELLS_PATH}/${school}/${filename}`;
-      const base = { entryName: filename.replace('.json', ''), path, suffix: `/${school}/${filename}`, groupId: school };
-      try {
-        const data = await readJson(path);
-        const level = (data.level as number) ?? 0;
-        return { ...base, label: (data.name as string) ?? base.entryName, badge: levelBadge(level, color) };
-      } catch {
-        return { ...base, label: base.entryName, badge: levelBadge(0, color) };
-      }
-    }));
+    const leaves = await scanJsonFolder<TreeLeaf>(
+      `${SPELLS_PATH}/${school}`,
+      (data, ctx) => ({
+        ...base(ctx),
+        label: (data.name as string) ?? base(ctx).entryName,
+        badge: levelBadge((data.level as number) ?? 0, color),
+      }),
+      (ctx) => ({ ...base(ctx), label: base(ctx).entryName, badge: levelBadge(0, color) }),
+    );
     leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
     return leaves;
   } catch {
@@ -180,23 +195,22 @@ function spellsByLevel(leaves: TreeLeaf[]): TreeGroup[] {
 }
 
 async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
+  const base = ({ path, filename }: FileContext) => ({
+    entryName: filename.replace('.json', ''),
+    path,
+    suffix: `/${dir}/${filename}`,
+    groupId: dir,
+  });
   try {
-    const files = await invoke<string[]>('list_json_files', { path: `${ITEMS_PATH}/${dir}` });
-    const leaves = await Promise.all(files.map(async (filename): Promise<TreeLeaf> => {
-      const path = `${ITEMS_PATH}/${dir}/${filename}`;
-      const base = { entryName: filename.replace('.json', ''), path, suffix: `/${dir}/${filename}`, groupId: dir };
-      try {
-        const data = await readJson(path);
-        const rarity = ((data.rarity as { name?: string } | undefined)?.name) ?? '';
-        return {
-          ...base,
-          label: (data.name_de as string) ?? (data.name as string) ?? base.entryName,
-          badge: { kind: 'rarity', color: rarityColor(rarity) },
-        };
-      } catch {
-        return { ...base, label: base.entryName, badge: { kind: 'rarity', color: rarityColor('') } };
-      }
-    }));
+    const leaves = await scanJsonFolder<TreeLeaf>(
+      `${ITEMS_PATH}/${dir}`,
+      (data, ctx) => ({
+        ...base(ctx),
+        label: (data.name_de as string) ?? (data.name as string) ?? base(ctx).entryName,
+        badge: { kind: 'rarity', color: rarityColor(((data.rarity as { name?: string } | undefined)?.name) ?? '') },
+      }),
+      (ctx) => ({ ...base(ctx), label: base(ctx).entryName, badge: { kind: 'rarity', color: rarityColor('') } }),
+    );
     leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
     return leaves;
   } catch {

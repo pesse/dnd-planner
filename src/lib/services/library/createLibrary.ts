@@ -9,26 +9,34 @@ export interface FileContext {
   filename: string;
 }
 
+interface JsonFile {
+  name: string;
+  /** `null` = nicht lesbar (siehe Rust `JsonFile`). */
+  content: string | null;
+}
+
 /**
  * Eine leere oder kaputte Bibliothek darf weder werfen noch einen Eintrag verschlucken:
  * fehlender Ordner → `[]`, unparsebare Datei → `fallback`.
+ *
+ * Der Ordner kommt über EINEN `read_json_folder`-Invoke; jeder Lese-Index der Oberfläche
+ * hängt hier, damit kein Aufrufer wieder per Datei invokt.
  */
 export async function scanJsonFolder<T>(
   dir: string,
   read: (data: Record<string, any>, ctx: FileContext) => T,
   fallback: (ctx: FileContext) => T,
 ): Promise<T[]> {
-  const files = await invoke<string[]>('list_json_files', { path: dir });
-  return Promise.all(
-    files.map(async (filename) => {
-      const ctx = { path: `${dir}/${filename}`, filename };
-      try {
-        return read(JSON.parse(await invoke<string>('read_file_content', { path: ctx.path })), ctx);
-      } catch {
-        return fallback(ctx);
-      }
-    }),
-  );
+  const files = await invoke<JsonFile[]>('read_json_folder', { path: dir });
+  return files.map(({ name, content }) => {
+    const ctx = { path: `${dir}/${name}`, filename: name };
+    try {
+      if (content === null) return fallback(ctx);
+      return read(JSON.parse(content), ctx);
+    } catch {
+      return fallback(ctx);
+    }
+  });
 }
 
 /** Gemeinsame Form der Lese-Indizes (Klassen, Spezies, Hintergründe): Anzeigename deutsch

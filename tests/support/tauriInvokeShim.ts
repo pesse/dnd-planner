@@ -76,6 +76,22 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
         .sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0)) as unknown as T;
     case 'read_file_content':
       return readFileSync(vaultPath(String(a.path)), 'utf8') as unknown as T;
+    case 'read_json_folder': {
+      const dir = vaultPath(String(a.path));
+      let names: string[];
+      try {
+        names = readdirSync(dir).filter((f) => !f.startsWith('.') && f.endsWith('.json')).sort();
+      } catch {
+        return [] as unknown as T;
+      }
+      return names.map((name) => {
+        let content: string | null = null;
+        try {
+          content = readFileSync(join(dir, name), 'utf8');
+        } catch { /* nicht lesbar → content bleibt null */ }
+        return { name, content };
+      }) as unknown as T;
+    }
     case 'load_spells_index': {
       // Für das Zauber-Grounding im featureEffects-Dreipass (getSpellLibrary → resolveSpell).
       const spells: SpellIndexEntry[] = [];
