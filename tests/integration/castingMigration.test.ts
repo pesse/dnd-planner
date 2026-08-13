@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
+import type { CharacterSpellcasting } from '../../src/lib/schemas/spellcasting';
 import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
 import { vaultCharacter } from '../support/vaultCharacter';
 import { spellsFix, type LegacyFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
@@ -33,6 +34,27 @@ async function migrate(c: Character): Promise<LegacyFix | undefined> {
   return fix;
 }
 
+/**
+ * Der Vault-Stand ist Live-Material: diese Zauber haben die Charaktere nach dem Umzug im Editor
+ * dazubekommen (Vault-Commit 77a617b). Die Altdatei kann sie nicht kennen — namentlich gelistet
+ * bleibt der Vergleich streng, statt zur Teilmengen-Prüfung zu verwässern.
+ */
+const ADDED_AFTER_MIGRATION: Record<string, string[]> = {
+  thromm: ['phb-2024_summon-beast'],
+  silvara: ['srd-2024_suggestion', 'srd-2024_darkvision'],
+};
+
+function vaultCasting(name: string, vaultName: string): CharacterSpellcasting {
+  const casting = structuredClone(vaultCharacter(vaultName).spellcasting);
+  const added = new Set(ADDED_AFTER_MIGRATION[name] ?? []);
+  for (const source of Object.values(casting.sources)) {
+    for (const [quota, keys] of Object.entries(source.picks)) {
+      source.picks[quota] = keys.filter((key) => !added.has(key));
+    }
+  }
+  return casting;
+}
+
 const sheetLabels = async (c: Character): Promise<string[]> =>
   (await loadSheetSpellcasting(c)).levels
     .flatMap((l) => l.spells.map((s) => s.label))
@@ -48,7 +70,7 @@ describe('Umzug der Altform', () => {
     ]) {
       const c = legacy(name);
       await migrate(c);
-      expect(c.spellcasting, name).toEqual(vaultCharacter(vaultName).spellcasting);
+      expect(c.spellcasting, name).toEqual(vaultCasting(name, vaultName));
       expect(c.spells, name).toBeUndefined();
     }
   });

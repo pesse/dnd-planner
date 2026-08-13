@@ -24,8 +24,12 @@ const asArray = (value: unknown): Raw[] =>
   Array.isArray(value) ? value.filter((e): e is Raw => !!e && typeof e === 'object') : [];
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+/** Fehlt der Wert, ist das `null` und nicht 0 — sonst verschluckt `??` den nächsten Kandidaten. */
 const int = (value: unknown): number | null => {
-  const n = typeof value === 'number' ? value : Number(str(value));
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.round(value) : null;
+  const text = str(value).trim();
+  if (!text) return null;
+  const n = Number(text);
   return Number.isFinite(n) ? Math.round(n) : null;
 };
 
