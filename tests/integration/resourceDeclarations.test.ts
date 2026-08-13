@@ -134,8 +134,8 @@ const CASTERS: [name: string, who: string, standard: number[]][] = [
   ['Bälgär', 'Magier 3', [4, 2]],
   ['Bölgör', 'Paladin 5', [4, 2]],
   ['Bulgur', 'Druide 2', [3]],
-  ['Silvara/Sivral', 'Zauberer 3', [4, 2]],
-  ['Thromm Flechtenstein', 'Druide 3', [4, 2]],
+  ['Prüfling Feenmagie', 'Zauberer 3', [4, 2]],
+  ['Prüfling Mondkreis', 'Druide 3', [4, 2]],
 ];
 
 describe('abgeleitete Zauberplätze', () => {

@@ -8,8 +8,8 @@ const slots = (...totals: number[]) =>
   Array.from({ length: 9 }, (_, i) => ({ total: totals[i] ?? 0, used: 0 }));
 
 export const LEGACY_CHARACTERS: Record<string, Record<string, unknown>> = {
-  thromm: {
-    name: 'Thromm Flechtenstein',
+  mondkreis: {
+    name: 'Prüfling Mondkreis',
     _version: 4,
     classLevel: 'Druide 3 (Zirkel des Mondes)',
     race: 'Zwerg',
@@ -98,8 +98,8 @@ export const LEGACY_CHARACTERS: Record<string, Record<string, unknown>> = {
       }
     }
   },
-  silvara: {
-    name: 'Silvara/Sivral',
+  feenmagie: {
+    name: 'Prüfling Feenmagie',
     _version: 6,
     classLevel: 'Zauberer 3 (Wildmagie-Zauberei)',
     race: 'Fee',

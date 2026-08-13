@@ -1,12 +1,15 @@
 /**
  * Der Umzug der Altform `spells` → `spellcasting`, gefahren gegen die Charakterdateien von
- * vor dem Umbau und gegen ihren heutigen Stand im Vault.
+ * vor dem Umbau und gegen ihren Stand im Vault.
+ *
+ * Die Vault-Seite sind die „Prüfling"-Charaktere, nicht die gespielten: an einem bespielten
+ * Charakter kommen Zauber dazu, die die Altdatei nicht kennen kann, und der Vergleich bricht
+ * nach der nächsten Sitzung.
  *
  *   npm run test -- castingMigration
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
-import type { CharacterSpellcasting } from '../../src/lib/schemas/spellcasting';
 import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
 import { vaultCharacter } from '../support/vaultCharacter';
 import { spellsFix, type LegacyFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
@@ -34,27 +37,6 @@ async function migrate(c: Character): Promise<LegacyFix | undefined> {
   return fix;
 }
 
-/**
- * Der Vault-Stand ist Live-Material: diese Zauber haben die Charaktere nach dem Umzug im Editor
- * dazubekommen (Vault-Commit 77a617b). Die Altdatei kann sie nicht kennen — namentlich gelistet
- * bleibt der Vergleich streng, statt zur Teilmengen-Prüfung zu verwässern.
- */
-const ADDED_AFTER_MIGRATION: Record<string, string[]> = {
-  thromm: ['phb-2024_summon-beast'],
-  silvara: ['srd-2024_suggestion', 'srd-2024_darkvision'],
-};
-
-function vaultCasting(name: string, vaultName: string): CharacterSpellcasting {
-  const casting = structuredClone(vaultCharacter(vaultName).spellcasting);
-  const added = new Set(ADDED_AFTER_MIGRATION[name] ?? []);
-  for (const source of Object.values(casting.sources)) {
-    for (const [quota, keys] of Object.entries(source.picks)) {
-      source.picks[quota] = keys.filter((key) => !added.has(key));
-    }
-  }
-  return casting;
-}
-
 const sheetLabels = async (c: Character): Promise<string[]> =>
   (await loadSheetSpellcasting(c)).levels
     .flatMap((l) => l.spells.map((s) => s.label))
@@ -63,20 +45,20 @@ const sheetLabels = async (c: Character): Promise<string[]> =>
 describe('Umzug der Altform', () => {
   it('stellt denselben Block her wie die Migration von Hand', async () => {
     for (const [name, vaultName] of [
-      ['thromm', 'Thromm Flechtenstein'],
-      ['silvara', 'Silvara/Sivral'],
+      ['mondkreis', 'Prüfling Mondkreis'],
+      ['feenmagie', 'Prüfling Feenmagie'],
       ['phoenix', 'Phönix'],
       ['carric', 'Carric Galanodel'],
     ]) {
       const c = legacy(name);
       await migrate(c);
-      expect(c.spellcasting, name).toEqual(vaultCasting(name, vaultName));
+      expect(c.spellcasting, name).toEqual(vaultCharacter(vaultName).spellcasting);
       expect(c.spells, name).toBeUndefined();
     }
   });
 
   it('lässt keinen Zauber vom Bogen verschwinden', async () => {
-    for (const name of ['thromm', 'silvara', 'phoenix', 'carric']) {
+    for (const name of ['mondkreis', 'feenmagie', 'phoenix', 'carric']) {
       const c = legacy(name);
       const before = await sheetLabels(c);
       await migrate(c);
@@ -85,7 +67,7 @@ describe('Umzug der Altform', () => {
   });
 
   it('legt gewährte Zauber nicht als Auswahl ab', async () => {
-    const c = legacy('silvara');
+    const c = legacy('feenmagie');
     await migrate(c);
     const picks = Object.values(c.spellcasting.sources).flatMap((s) => Object.values(s.picks).flat());
     expect(picks).not.toContain('srd-2024_druidcraft');
@@ -98,7 +80,7 @@ describe('Umzug der Altform', () => {
    * Auflösung liest es von dort. Eine Kopie in `spellcasting` liefe auseinander.
    */
   it('lässt das Attribut im Merkmals-Ledger stehen', async () => {
-    const c = legacy('silvara');
+    const c = legacy('feenmagie');
     await migrate(c);
     expect(c.features.map((f) => f.choice)).toContain('Charisma');
     const { state } = await loadSpellcasting(c);
@@ -107,7 +89,7 @@ describe('Umzug der Altform', () => {
   });
 
   it('nennt im Angebot die Zahl der Zauber und wiederholt sich nicht', async () => {
-    const c = legacy('thromm');
+    const c = legacy('mondkreis');
     // Sieben, nicht acht: „Vertrauten finden" gewährt der Wilde Gefährte, es zieht nichts um.
     expect((await offer(c))?.label).toBe('7 Zauber ins neue Format übernehmen');
     await migrate(c);
@@ -176,7 +158,7 @@ describe('Zauber ohne Bibliothekstreffer', () => {
 
 describe('Speichern ohne Umzug', () => {
   it('nimmt einem noch nicht umgezogenen Charakter die Zauber nicht weg', () => {
-    const c = legacy('thromm');
+    const c = legacy('mondkreis');
     Object.assign(c, formDraftPatch(initialFormFields(c), initialFormCarry(c)));
     expect(c.spells?.cantrips).toHaveLength(3);
     expect(c.spells?.byLevel['1']).toHaveLength(7);

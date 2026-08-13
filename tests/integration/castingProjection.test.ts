@@ -49,7 +49,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
-    const c = vaultCharacter('Thromm Flechtenstein');
+    const c = vaultCharacter('Prüfling Mondkreis');
     expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
@@ -57,7 +57,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('führt Spezies-Zauber an ihrer Quelle und nicht doppelt', async () => {
-    const view = await loadSheetSpellcasting(vaultCharacter('Silvara/Sivral'));
+    const view = await loadSheetSpellcasting(vaultCharacter('Prüfling Feenmagie'));
     const druidcraft = levelOf(view, 0).spells.filter((s) => s.label === 'Druidenkunst');
     expect(druidcraft).toHaveLength(1);
     expect(druidcraft[0].source).toBe('Feenmagie');
@@ -98,7 +98,7 @@ describe('KI-Kontext', () => {
   });
 
   it('meldet ein offenes Zauberattribut als offen', async () => {
-    const c = vaultCharacter('Silvara/Sivral');
+    const c = vaultCharacter('Prüfling Feenmagie');
     // Ohne Ledger-Antwort UND ohne gespeicherte Bindung bleibt die Wahl der Fee offen.
     const { state, lookup, legacy } = await loadSpellcasting({
       ...c,

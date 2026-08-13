@@ -70,7 +70,7 @@ describe('gruppierte Sicht (Paladin 5 mit Eingeweihter der Magie)', () => {
 
 describe('gruppierte Sicht (Druide 3: Wirken aus fremder Ressource)', () => {
   it('nennt die Ressource des anderen Merkmals als Wirkweg', async () => {
-    const quota = only(byFeature(await sourcesOf('Thromm Flechtenstein'), 'Wilder Gefährte'));
+    const quota = only(byFeature(await sourcesOf('Prüfling Mondkreis'), 'Wilder Gefährte'));
 
     expect(quota.spells.map((s) => s.label)).toEqual(['Vertrauten finden']);
     expect(quota.castNote).toBe('über eine Anwendung von Tiergestalt oder über Zauberplätze');

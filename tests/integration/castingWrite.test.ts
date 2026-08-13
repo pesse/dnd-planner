@@ -114,7 +114,7 @@ describe('die migrierten Charaktere', () => {
   });
 
   it('speichert gewährte Zauber nicht, zeigt sie aber auf dem Bogen', async () => {
-    const c = vaultCharacter('Thromm Flechtenstein');
+    const c = vaultCharacter('Prüfling Mondkreis');
     const stored = Object.values(c.spellcasting.sources).flatMap((s) => Object.values(s.picks).flat());
     expect(stored).not.toContain('phb-2024_starry-wisp');
     expect(stored).not.toContain('srd-2024_moonbeam');
