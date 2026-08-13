@@ -8,6 +8,8 @@ import { onMount } from 'svelte';
 import { activeCampaign, activeFile, setFileContent } from '../../../stores/campaign';
 import { confirmNavigation } from '../../../stores/navigationGuard';
 import { loadActSummaries, loadEncounterContext } from '../../../stores/context';
+import { listActDirs, moveAct } from '../../../services/actOrder';
+import { extractActTitle } from '../../../utils/actExtract';
 import type { Campaign, FileEntry } from '../../../types';
 import { slugKeepUmlauts, slugToName } from '../../../utils/text';
 
@@ -27,10 +29,11 @@ export const SECTIONS: CampaignSection[] = [
 
 export const sectionKeyOf = (campaignPath: string, section: CampaignSection): string => `${campaignPath}/${section.subdir}`;
 export const actKeyOf = (campaignPath: string, actDirName: string): string => `${campaignPath}/${actDirName}`;
+export const actsDirPath = (campaignPath: string): string => `${VAULT_BASE}/${campaignPath}/acts`;
 export const actIndexPath = (campaignPath: string, actDirName: string): string =>
-  `${VAULT_BASE}/${campaignPath}/acts/${actDirName}/index.md`;
+  `${actsDirPath(campaignPath)}/${actDirName}/index.md`;
 export const actDirPath = (campaignPath: string, actDirName: string): string =>
-  `${VAULT_BASE}/${campaignPath}/acts/${actDirName}`;
+  `${actsDirPath(campaignPath)}/${actDirName}`;
 export const encounterDirOf = (campaignPath: string, actDirName: string): string =>
   `${actDirPath(campaignPath, actDirName)}/encounters`;
 export const encounterPathOf = (campaignPath: string, actDirName: string, filename: string): string =>
@@ -201,15 +204,13 @@ export class CampaignTreeState {
     const key = sectionKeyOf(campaignPath, section);
     if (section.type === 'act') {
       try {
-        const entries = await invoke<EntryInfo[]>('list_entries', { path: `${VAULT_BASE}/${campaignPath}/acts` });
-        const actDirs = entries.filter((e) => e.is_dir).map((e) => e.name);
+        const actDirs = await listActDirs(actsDirPath(campaignPath));
         this.sectionFiles[key] = actDirs;
         for (const dirName of actDirs) {
           const indexPath = actIndexPath(campaignPath, dirName);
           try {
             const content = await invoke<string>('read_file_content', { path: indexPath });
-            const match = content.match(/^#\s+(.+)$/m);
-            this.fileTitles[indexPath] = match ? match[1].trim() : dirName;
+            this.fileTitles[indexPath] = extractActTitle(content, dirName);
           } catch {
             this.fileTitles[indexPath] = dirName;
           }
@@ -252,6 +253,19 @@ export class CampaignTreeState {
       } catch {
         this.sectionFiles[key] = [];
       }
+    }
+  }
+
+  /** Der KI-Kontext liest dieselbe Reihenfolge — ohne das Nachladen weicht der Prompt ab. */
+  async moveAct(campaignPath: string, section: CampaignSection, index: number, delta: number): Promise<void> {
+    const key = sectionKeyOf(campaignPath, section);
+    const dirs = this.sectionFiles[key];
+    if (!dirs) return;
+    try {
+      this.sectionFiles[key] = await moveAct(actsDirPath(campaignPath), dirs, index, delta);
+      loadActSummaries(campaignPath);
+    } catch (err) {
+      console.error('Akt-Reihenfolge konnte nicht gespeichert werden:', err);
     }
   }
 

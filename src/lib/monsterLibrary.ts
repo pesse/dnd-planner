@@ -5,6 +5,8 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { parseMonster } from './utils/schemaValidation';
+import { scanJsonFolder } from './services/library/createLibrary';
+import { memoOnce } from './services/library/memo';
 import type { Monster } from './types';
 
 export const MONSTERS_PATH = './vault/monsters';
@@ -40,43 +42,33 @@ export interface MonsterLibraryHit {
   monster: Monster;
 }
 
-let cache: MonsterLibraryHit[] | null = null;
+/** Unlesbare und unparsebare Dateien fallen still weg; sichtbar bleiben sie in der Seitenleiste. */
+async function readMonsterFolder(dir: string): Promise<MonsterLibraryHit[]> {
+  const hits = await scanJsonFolder<MonsterLibraryHit | null>(
+    dir,
+    (data, { path, filename }) => {
+      const parsed = parseMonster(data);
+      return parsed.ok ? { slug: filename.replace(/\.json$/, ''), path, monster: parsed.data } : null;
+    },
+    () => null,
+  ).catch(() => [] as (MonsterLibraryHit | null)[]);
+  return hits.filter((hit): hit is MonsterLibraryHit => hit !== null);
+}
+
+/** Flach und in den Typ-Unterordnern, ein Invoke je Ordner. */
+const library = memoOnce(async (): Promise<MonsterLibraryHit[]> => {
+  const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', {
+    path: MONSTERS_PATH,
+  }).catch(() => [] as { name: string; is_dir: boolean }[]);
+  const dirs = entries.filter((e) => e.is_dir).map((e) => `${MONSTERS_PATH}/${e.name}`);
+  return (await Promise.all([MONSTERS_PATH, ...dirs].map(readMonsterFolder))).flat();
+});
 
 /** Nach einer Bibliotheks- oder Dateiänderung; sonst bleibt ein neues Monster unsichtbar. */
-export const invalidateMonsterLibrary = (): void => {
-  cache = null;
-};
+export const invalidateMonsterLibrary = library.invalidate;
 
-/** Jede Monsterdatei des Vaults, flach und in den Typ-Unterordnern. */
-export async function allMonsterPaths(): Promise<string[]> {
-  const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: MONSTERS_PATH });
-  const paths = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => `${MONSTERS_PATH}/${e.name}`);
-  for (const dir of entries.filter((e) => e.is_dir)) {
-    const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${dir.name}` }).catch(
-      () => [] as string[],
-    );
-    paths.push(...files.map((f) => `${MONSTERS_PATH}/${dir.name}/${f}`));
-  }
-  return paths;
-}
-
-/** Alle Bibliotheksmonster, geparst und gecacht. Unlesbare Dateien fallen still weg. */
-export async function getMonsterLibrary(): Promise<MonsterLibraryHit[]> {
-  if (cache) return cache;
-  const loaded = await Promise.all(
-    (await allMonsterPaths()).map(async (path) => {
-      try {
-        const parsed = parseMonster(JSON.parse(await invoke<string>('read_file_content', { path })));
-        if (!parsed.ok) return null;
-        return { slug: path.split('/').pop()!.replace(/\.json$/, ''), path, monster: parsed.data };
-      } catch {
-        return null;
-      }
-    }),
-  );
-  cache = loaded.filter((hit): hit is MonsterLibraryHit => hit !== null);
-  return cache;
-}
+/** Alle Bibliotheksmonster, geparst und gecacht. */
+export const getMonsterLibrary = library.get;
 
 /** Sucht über deutschen und englischen Namen sowie den Slug. */
 export async function searchMonsterLibrary(query: string, limit = 8): Promise<MonsterLibraryHit[]> {

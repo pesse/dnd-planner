@@ -751,7 +751,11 @@ pub struct InstalledInfo {
 
 /// Lokal installierte Bibliotheken samt Version — ohne Netzzugriff.
 #[tauri::command]
-pub fn installed_libraries() -> Result<HashMap<String, InstalledInfo>, String> {
+pub async fn installed_libraries() -> Result<HashMap<String, InstalledInfo>, String> {
+    crate::blocking(installed_libraries_inner).await
+}
+
+fn installed_libraries_inner() -> Result<HashMap<String, InstalledInfo>, String> {
     let dir = state_dir();
     let mut out = HashMap::new();
     let entries = match fs::read_dir(&dir) {
@@ -781,12 +785,13 @@ pub fn installed_libraries() -> Result<HashMap<String, InstalledInfo>, String> {
 /// Entfernt einen gespeicherten Zugangscode. Bereits installierte Inhalte
 /// bleiben liegen — sie sind heruntergeladen und gehören dem Nutzer.
 #[tauri::command]
-pub fn forget_access_code(id: String) -> Result<(), String> {
-    match code_entry(&id)?.delete_password() {
+pub async fn forget_access_code(id: String) -> Result<(), String> {
+    crate::blocking(move || match code_entry(&id)?.delete_password() {
         Ok(_) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
-    }
+    })
+    .await
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

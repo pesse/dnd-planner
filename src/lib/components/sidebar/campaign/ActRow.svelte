@@ -7,12 +7,14 @@
   import type { Campaign } from '../../../types';
   import '../tree.css';
 
-  let { tree, campaign, section, filePath, filename }: {
+  let { tree, campaign, section, filePath, filename, index, count }: {
     tree: CampaignTreeState;
     campaign: Campaign;
     section: CampaignSection;
     filePath: string;
     filename: string;
+    index: number;
+    count: number;
   } = $props();
 
   const actEncKey = $derived(actKeyOf(campaign.path, filename));
@@ -28,6 +30,18 @@
   >
     {tree.fileTitles[filePath] ?? filename}
   </button>
+  <button
+    class="move-btn"
+    title="Nach oben"
+    disabled={index === 0}
+    onclick={(e) => { e.stopPropagation(); tree.moveAct(campaign.path, section, index, -1); }}
+  >▲</button>
+  <button
+    class="move-btn"
+    title="Nach unten"
+    disabled={index === count - 1}
+    onclick={(e) => { e.stopPropagation(); tree.moveAct(campaign.path, section, index, 1); }}
+  >▼</button>
   <button
     class="add-btn"
     title="Encounter hinzufügen"

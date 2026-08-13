@@ -168,6 +168,13 @@ async function classCarriers(
   into: Carrier[],
   issues: DeclarationIssue<CarrierIssueKind>[],
 ): Promise<CarrierClass[]> {
+  // Erst alle Progressionen anstoßen, dann der Reihe nach einsammeln: die Reihenfolge von
+  // `collect` bestimmt die Träger-IDs, das Laden darf trotzdem nebenläufig laufen.
+  await Promise.all(
+    classes.flatMap((c) => [c.sourceKey, c.subclassKey].filter((k): k is string => !!k))
+      .map((k) => getProgressionByKey(k)),
+  );
+
   const out: CarrierClass[] = [];
   for (const cls of classes) {
     if (!cls.sourceKey) {
@@ -202,8 +209,7 @@ async function speciesCarriers(
   into: Carrier[],
 ): Promise<void> {
   const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
-  for (const key of keys) {
-    const spec = await getSpeciesByKey(key);
+  for (const spec of await Promise.all(keys.map(getSpeciesByKey))) {
     if (!spec) continue;
     collect(spec.traits, { origin: 'species', level, classKey: '' }, answersOf, used, into);
   }
@@ -236,7 +242,25 @@ async function featCarriers(
   }
 }
 
-export async function walkCarriers(c: DeclaringCharacter): Promise<CarrierWalk> {
+const walks = new WeakMap<DeclaringCharacter, Promise<CarrierWalk>>();
+
+/**
+ * Schlüssel ist die Objektidentität: ein Entwurf ist nach jeder Änderung ein neues Objekt, also
+ * kann kein veralteter Treffer entstehen und es braucht keine Invalidierung. Ohne den Memo läuft
+ * der Walk sechsmal je Charakter-Öffnen.
+ *
+ * `resolveCasting` und `resolveResources` kopieren `carriers`/`issues`, bevor sie sie anfassen —
+ * wer das Ergebnis mutiert, braucht hier eine Kopie.
+ */
+export function walkCarriers(c: DeclaringCharacter): Promise<CarrierWalk> {
+  const hit = walks.get(c);
+  if (hit) return hit;
+  const walk = runWalk(c);
+  walks.set(c, walk);
+  return walk;
+}
+
+async function runWalk(c: DeclaringCharacter): Promise<CarrierWalk> {
   const level = characterLevel(c.classes);
   const ledger = c.features ?? [];
   const answersOf: AnswersOf = (key, gainedAt) => ({

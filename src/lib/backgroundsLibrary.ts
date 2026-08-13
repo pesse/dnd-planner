@@ -1,5 +1,6 @@
 /** Lese-Index der Hintergrund-Bibliothek (flach). */
 import { createLibrary } from './services/library/createLibrary';
+import { memoByKey } from './services/library/memo';
 import { parseBackground } from './utils/schemaValidation';
 import type { Background } from './schemas/background';
 
@@ -22,10 +23,21 @@ const library = createLibrary<BackgroundInfo>({
   key: (b) => b.key,
 });
 
+const fullByKey = memoByKey((key: string) =>
+  library.loadByKey(key, (data) => {
+    const r = parseBackground(data);
+    return r.ok ? r.data : null;
+  }),
+);
+
 export const getBackgroundsList = library.list;
-export const invalidateBackgroundsCache = library.invalidate;
 export const searchBackgrounds = library.search;
 export const searchBackgroundDrafts = library.searchWithParser;
+
+export function invalidateBackgroundsCache(): void {
+  library.invalidate();
+  fullByKey.invalidate();
+}
 
 /**
  * „Magic Initiate (Wizard)" → „Wizard": die Vorgabe, mit der der Hintergrund die Wahl seines
@@ -40,9 +52,4 @@ export function featSpecialisation(bg: Background | null | undefined): string {
 }
 
 /** Der volle Hintergrund (inkl. Vorteile) per Key; null = nicht lokal vorhanden/unparsebar. */
-export function getBackgroundByKey(key: string): Promise<Background | null> {
-  return library.loadByKey(key, (data) => {
-    const r = parseBackground(data);
-    return r.ok ? r.data : null;
-  });
-}
+export const getBackgroundByKey = fullByKey.get;

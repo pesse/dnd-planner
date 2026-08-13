@@ -3,32 +3,41 @@
  * über den jeweiligen Karten-Editor, nie hier.
  */
 import { invoke } from '@tauri-apps/api/core';
+import { memoOnce } from './memo';
 
 export interface FileContext {
   path: string;
   filename: string;
 }
 
+interface JsonFile {
+  name: string;
+  /** `null` = nicht lesbar (siehe Rust `JsonFile`). */
+  content: string | null;
+}
+
 /**
  * Eine leere oder kaputte Bibliothek darf weder werfen noch einen Eintrag verschlucken:
  * fehlender Ordner → `[]`, unparsebare Datei → `fallback`.
+ *
+ * Der Ordner kommt über EINEN `read_json_folder`-Invoke; jeder Lese-Index der Oberfläche
+ * hängt hier, damit kein Aufrufer wieder per Datei invokt.
  */
 export async function scanJsonFolder<T>(
   dir: string,
   read: (data: Record<string, any>, ctx: FileContext) => T,
   fallback: (ctx: FileContext) => T,
 ): Promise<T[]> {
-  const files = await invoke<string[]>('list_json_files', { path: dir });
-  return Promise.all(
-    files.map(async (filename) => {
-      const ctx = { path: `${dir}/${filename}`, filename };
-      try {
-        return read(JSON.parse(await invoke<string>('read_file_content', { path: ctx.path })), ctx);
-      } catch {
-        return fallback(ctx);
-      }
-    }),
-  );
+  const files = await invoke<JsonFile[]>('read_json_folder', { path: dir });
+  return files.map(({ name, content }) => {
+    const ctx = { path: `${dir}/${name}`, filename: name };
+    try {
+      if (content === null) return fallback(ctx);
+      return read(JSON.parse(content), ctx);
+    } catch {
+      return fallback(ctx);
+    }
+  });
 }
 
 /** Gemeinsame Form der Lese-Indizes (Klassen, Spezies, Hintergründe): Anzeigename deutsch
@@ -86,19 +95,17 @@ export function createLibrary<T extends LibraryEntry>(spec: LibrarySpec<T>): Lib
   const fallback = spec.fallback ?? (({ path, filename }: FileContext) =>
     ({ name: filename.replace('.json', ''), path }) as T);
 
-  let cache: T[] | null = null;
-
-  async function list(): Promise<T[]> {
-    if (cache) return cache;
+  const cache = memoOnce(async () => {
     try {
       const entries = await scanJsonFolder(spec.path, read, fallback);
       entries.sort((a, b) => display(a).localeCompare(display(b), 'de'));
-      cache = entries;
+      return entries;
     } catch {
-      cache = [];
+      return [] as T[];
     }
-    return cache;
-  }
+  });
+
+  const list = cache.get;
 
   function searchEntries(entries: T[], query: string, maxResults: number): T[] {
     if (!query.trim()) return [];
@@ -120,9 +127,7 @@ export function createLibrary<T extends LibraryEntry>(spec: LibrarySpec<T>): Lib
     path: spec.path,
     list,
 
-    invalidate() {
-      cache = null;
-    },
+    invalidate: cache.invalidate,
 
     async loadByKey(key, parse) {
       if (!key || !spec.key) return null;

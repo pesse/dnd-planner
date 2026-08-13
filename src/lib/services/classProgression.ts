@@ -11,6 +11,7 @@ import {
 } from '$lib/schemas/classProgression';
 import { getClass, DEFAULT_DOCUMENT } from './open5eClient';
 import { findClassByKey } from '$lib/classLibrary';
+import { memoByKey } from './library/memo';
 import { mapV2 } from './classTableParse';
 export { mapV2, parseCoreTraits, parseCoreTraitRows, parseSkillGrant } from './classTableParse';
 import { firstInt, numOr } from '$lib/utils/num';
@@ -37,9 +38,9 @@ const cache = new Map<string, ClassProgression | null>();
  * SRD-Dokument nicht kennt. Über den Migrator parsen — Altbestand trägt `savingThrows`
  * noch in deutschen App-Schlüsseln am Klassenkopf statt englisch im `proficiencyGrant`.
  */
-function getLocalProgression(key: string): Promise<ClassProgression | null> {
-  return findClassByKey(key, (data) => classProgressionSchema.safeParse(migrateClassLegacy(data)).data ?? null);
-}
+const localByKey = memoByKey((key: string) =>
+  findClassByKey(key, (data) => classProgressionSchema.safeParse(migrateClassLegacy(data)).data ?? null),
+);
 
 function keyFor(klasseDe: string, doc = DEFAULT_DOCUMENT): string | null {
   const slug = DE_TO_SLUG[CLASS_NAMES_DE.find((c) => fold(c) === fold(klasseDe.trim())) ?? ''];
@@ -68,10 +69,7 @@ export async function getProgression(klasseDe: string, doc = DEFAULT_DOCUMENT): 
  */
 export async function getProgressionByKey(key: string): Promise<ClassProgression | null> {
   if (!key) return null;
-  if (cache.has(key)) return cache.get(key)!;
-  const local = await getLocalProgression(key);
-  cache.set(key, local);
-  return local;
+  return localByKey.get(key);
 }
 
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);

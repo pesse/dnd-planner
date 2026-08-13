@@ -32,10 +32,10 @@
   {#if tree.expanded[key]}
     <div class="file-list">
       {#if tree.sectionFiles[key]?.length}
-        {#each tree.sectionFiles[key] as filename}
+        {#each tree.sectionFiles[key] as filename, i}
           {@const filePath = sectionEntryPath(campaign.path, section, filename)}
           {#if section.type === 'act'}
-            <ActRow {tree} {campaign} {section} {filePath} {filename} />
+            <ActRow {tree} {campaign} {section} {filePath} {filename} index={i} count={tree.sectionFiles[key].length} />
           {:else}
             <FileRow {tree} {campaign} {section} {filePath} {filename} />
           {/if}

@@ -129,8 +129,29 @@
 /* Akt-Zeile: kein Overlay wie .entry-row, weil noch der Encounter-Hinzufügen-Button
    danebensteht — beide teilen sich die Hover-Sichtbarkeit in normalem Fluss. */
 .sidebar .act-row:hover .entry-del,
+.sidebar .act-row:hover .move-btn,
 .sidebar .act-row:hover .add-btn {
   opacity: 1;
+}
+
+.sidebar .move-btn {
+  padding: 0 0.15rem;
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.6rem;
+  line-height: 1;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.1s;
+}
+.sidebar .move-btn:hover:not(:disabled) {
+  color: var(--arcane);
+}
+.sidebar .move-btn:disabled {
+  color: var(--border);
+  cursor: default;
 }
 
 .sidebar .monster-group-header {

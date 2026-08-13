@@ -10,7 +10,7 @@
   import { loadSpellCardPages } from '../../print/character/spellCards';
   import { loadSpellcasting } from '../../services/spellcasting/project';
   import Modal from '../ui/Modal.svelte';
-  import SheetPrintPreview from './SheetPrintPreview.svelte';
+  import PrintPreview from '../print/PrintPreview.svelte';
 
   let { input, onclose }: { input: PrintDataInput; onclose: () => void } = $props();
 
@@ -100,7 +100,7 @@
       {/if}
     </aside>
 
-    <SheetPrintPreview {html} {zoom} />
+    <PrintPreview {html} {zoom} />
   </div>
 
   <div class="print-bar">

@@ -17,7 +17,7 @@ export function extractActSummary(markdown: string): string {
 }
 
 /** Erste `#`-Zeile. */
-export function extractActTitle(markdown: string): string {
+export function extractActTitle(markdown: string, fallback = 'Unbekannter Akt'): string {
   const match = markdown.match(/^#\s+(.+)$/m);
-  return match ? match[1].trim() : 'Unbekannter Akt';
+  return match ? match[1].trim() : fallback;
 }

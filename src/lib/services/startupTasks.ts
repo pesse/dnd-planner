@@ -1,12 +1,14 @@
 /** Was einmalig beim App-Start läuft; zurück kommt der Teardown der Fehlerlauscher. */
 import { invoke } from '@tauri-apps/api/core';
 import { invalidateVault } from '../stores/campaign';
+import { invalidateLibraryCaches } from './library/invalidate';
 import { confirmAction } from '../stores/confirmDialog';
 import { pushError } from '../stores/toasts';
 import { checkLibrariesOnStartup } from '../stores/libraries';
 import { checkForUpdate } from '../stores/update';
 import { legacyCharacterDirs, migrateCharacterUids } from './migrateCharacterUids';
 import { getRulesIndex } from './rulesReference';
+import { onIdle, prefetchLibraries } from './prefetchLibraries';
 
 async function maybeMigrateLegacyVault(): Promise<void> {
   try {
@@ -28,7 +30,7 @@ async function maybeMigrateLegacyVault(): Promise<void> {
     const res = await invoke<{ copied: number; skipped: number }>('migrate_legacy_vault', {
       source: legacy.path,
     });
-    invalidateVault();
+    invalidateLibraryCaches();
 
     await confirmAction({
       title: 'Migration abgeschlossen',
@@ -95,9 +97,10 @@ export function runStartupTasks(): () => void {
   // Zugangscode brauchbar ist. Updates nie ungefragt — dafür Badge und Hinweis.
   void checkLibrariesOnStartup();
 
-  // Den Regel-Suchindex nach dem ersten Paint vorwärmen, sonst startet die erste
-  // `search_rules`-Abfrage im KI-Panel kalt.
-  setTimeout(() => getRulesIndex(), 0);
+  // Bibliotheken und Regel-Suchindex im Leerlauf vorwärmen. Nicht per `setTimeout(0)`: der
+  // Index über 810 Regel-Chunks lief genau dann, wenn die Oberfläche bedienbar werden soll.
+  prefetchLibraries();
+  onIdle(() => getRulesIndex());
 
   function onError(e: ErrorEvent) {
     pushError(e.message || String(e));

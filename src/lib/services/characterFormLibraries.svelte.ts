@@ -2,12 +2,11 @@
  * Die fünf Bibliotheken, die der Charakterbogen für Autocomplete, Tooltips und die
  * Altformat-Erkennung braucht. Einmal je Charakteransicht erzeugt, indiziert reaktiv.
  */
-import { getItemsByDir, buildItemIndex, type ItemInfo } from '../itemLibrary';
+import { getAllItemsByDir, buildItemIndex, type ItemInfo } from '../itemLibrary';
 import { getSpellLibrary, buildSpellIndex, type SpellInfo } from '../spellLibrary';
 import { getClasses, type ClassInfo } from '../classLibrary';
 import { getSpeciesList, type SpeciesInfo } from '../speciesLibrary';
 import { getBackgroundsList, type BackgroundInfo } from '../backgroundsLibrary';
-import { DIR_TO_CATEGORY } from '../itemLabels';
 
 export type FormLibraries = ReturnType<typeof createFormLibraries>;
 
@@ -18,15 +17,7 @@ export function createFormLibraries() {
   let species = $state<SpeciesInfo[]>([]);
   let backgrounds = $state<BackgroundInfo[]>([]);
 
-  $effect(() => {
-    Promise.all(
-      Object.keys(DIR_TO_CATEGORY).map((dir) => getItemsByDir(dir).then((items) => ({ dir, items }))),
-    ).then((results) => {
-      const map: Record<string, ItemInfo[]> = {};
-      for (const { dir, items } of results) map[dir] = items;
-      itemsByDir = map;
-    });
-  });
+  $effect(() => { getAllItemsByDir().then((x) => { itemsByDir = x; }); });
   $effect(() => { getSpellLibrary().then((x) => { spells = x; }); });
   $effect(() => { getClasses().then((x) => { classes = x; }); });
   $effect(() => { getSpeciesList().then((x) => { species = x; }); });

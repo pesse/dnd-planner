@@ -2,6 +2,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { normName, slugKeepUmlauts } from './utils/text';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
+import { memoOnce } from './services/library/memo';
 import { OWN_SOURCE } from './schemas/source';
 import type { Spell } from './types';
 
@@ -38,23 +39,12 @@ export const SCHOOL_COLORS: Record<string, string> = {
   transmutation: 'var(--copper)',
 };
 
-let cache: SpellInfo[] | null = null;
-let loading: Promise<SpellInfo[]> | null = null;
+const index = memoOnce(() =>
+  invoke<SpellInfo[]>('load_spells_index', { path: './vault/spells' }).catch(() => [] as SpellInfo[]),
+);
 
-export async function getSpellLibrary(): Promise<SpellInfo[]> {
-  if (cache) return cache;
-  if (!loading) {
-    loading = invoke<SpellInfo[]>('load_spells_index', { path: './vault/spells' })
-      .then(spells => { cache = spells; return spells; })
-      .catch(() => { loading = null; return []; });
-  }
-  return loading;
-}
-
-export function invalidateSpellLibrary(): void {
-  cache = null;
-  loading = null;
-}
+export const getSpellLibrary = index.get;
+export const invalidateSpellLibrary = index.invalidate;
 
 // school (englisch im JSON) → Ordnername (deutsch im Vault); auch in SpellCard.svelte.
 const SPELL_SCHOOL_DIR: Record<string, string> = {

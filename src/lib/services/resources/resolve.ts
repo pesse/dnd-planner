@@ -4,7 +4,7 @@
  */
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
-import { buildItemIndex, getItemsByDir, listItemDirs, matchItem, type ItemInfo } from '$lib/itemLibrary';
+import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib/itemLibrary';
 import type { ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
 import { columnValue, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf } from '../declaration/branch';
@@ -198,9 +198,7 @@ async function itemCarriers(inventory: CharacterInventoryEntry[]): Promise<Resou
   const worn = inventory.filter((e) => e.equipped);
   if (!worn.length) return [];
 
-  const dirs = await listItemDirs();
-  const byDir = Object.fromEntries(await Promise.all(dirs.map(async (d) => [d, await getItemsByDir(d)] as const)));
-  const index = buildItemIndex(byDir);
+  const index = buildItemIndex(await getAllItemsByDir());
 
   const out: ResourceCarrier[] = [];
   const seen = new Set<string>();
