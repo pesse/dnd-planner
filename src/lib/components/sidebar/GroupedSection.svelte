@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { deleteEntry } from '../../services/sidebar/deleteEntry';
@@ -30,12 +31,17 @@
   // Suche und zweite Gruppierung brauchen alle Blätter.
   $effect(() => {
     if (!(search.trim() || (expanded && altMode)) || !groups.length) return;
-    for (const g of groups) if (!leavesByGroup[g.id]) void loadLeaves(g.id);
+    untrack(() => {
+      for (const g of groups) if (!leavesByGroup[g.id]) void loadLeaves(g.id);
+    });
   });
 
+  // `untrack` ist Pflicht: `reload` liest `groups` und `loadGroups` weist es neu zu — verfolgt
+  // triggert der Effekt sich selbst endlos und wischt bei jedem Durchlauf `leavesByGroup`, sodass
+  // eine offene Gruppe dauerhaft auf „Laden…" stehen bleibt.
   $effect(() => {
     const _v = $vaultVersion;
-    if (section.live && expanded) void reload();
+    if (section.live && expanded) untrack(() => void reload());
   });
 
   async function loadGroups() {
