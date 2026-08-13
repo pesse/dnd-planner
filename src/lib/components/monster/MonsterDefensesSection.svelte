@@ -1,101 +1,132 @@
 <script lang="ts">
   import type { Monster } from '../../types';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS, type AbilityKey } from '../../schemas/abilities';
+  import { CONDITIONS, DAMAGE_TYPES, SKILL_NAMES, type SkillName } from '../../schemas/vocabulary';
+  import { DAMAGE_TYPE_LABELS } from '../../itemLabels';
+  import { skillLabelDe } from '../../domain/skills';
+  import VocabChips from './VocabChips.svelte';
   import './monsterEditForm.css';
 
   let { monster, onchange }: { monster: Monster; onchange: () => void } = $props();
 
-  function kvKeys(obj: Record<string, string>): string[] { return Object.keys(obj); }
-  function addKv(obj: Record<string, string>) { obj[`neu_${Date.now()}`] = ''; onchange(); }
-  function removeKv(obj: Record<string, string>, key: string) { delete obj[key]; onchange(); }
-  function renameKv(obj: Record<string, string>, oldKey: string, newKey: string) {
-    if (oldKey === newKey || newKey in obj) return;
-    const val = obj[oldKey];
-    const keys = Object.keys(obj);
-    const idx = keys.indexOf(oldKey);
-    const entries = keys.map(k => [k, obj[k]] as [string, string]);
-    entries[idx] = [newKey, val];
-    for (const k of Object.keys(obj)) delete obj[k];
-    for (const [k, v] of entries) obj[k] = v;
+  // Nur geübte Werte stehen in der Datei: ein leeres Feld löscht den Schlüssel, statt eine 0
+  // zu speichern — sonst zeigt der Statblock „STÄ +0" als Übung an.
+  function setNumber(record: Record<string, number>, key: string, raw: string) {
+    if (raw.trim() === '') delete record[key];
+    else record[key] = Number(raw);
+    onchange();
+  }
+
+  const SKILL_OPTIONS = Object.fromEntries(SKILL_NAMES.map((s) => [s, skillLabelDe(s)])) as Record<SkillName, string>;
+  const DAMAGE_OPTIONS = Object.fromEntries(DAMAGE_TYPES.map((t) => [t, DAMAGE_TYPE_LABELS[t]])) as Record<
+    (typeof DAMAGE_TYPES)[number],
+    string
+  >;
+
+  const chosenSkills = $derived(Object.keys(monster.skill_bonuses) as SkillName[]);
+  const remainingSkills = $derived(SKILL_NAMES.filter((s) => !chosenSkills.includes(s)));
+
+  function addSkill(skill: string) {
+    if (!skill) return;
+    monster.skill_bonuses[skill as SkillName] = 0;
     onchange();
   }
 </script>
 
 <div class="section">
-  <div class="kv-row">
+  <div class="prop">
     <span class="lbl">Rettungswürfe</span>
-    <div class="kv-list">
-      {#each kvKeys(monster.saving_throws) as key}
-        <span class="kv-pair">
-          <input class="ef kv-key" value={key} onblur={(e) => renameKv(monster.saving_throws, key, e.currentTarget.value)} />
-          <input class="ef kv-val" bind:value={monster.saving_throws[key]} oninput={onchange} />
-          <button class="kv-del" onclick={() => removeKv(monster.saving_throws, key)}>×</button>
-        </span>
+    <div class="save-grid">
+      {#each ABILITY_KEYS as key}
+        <label class="save-cell">
+          <span class="save-lbl">{ABILITY_ABBR_DE[key]}</span>
+          <input
+            class="ef num-sm"
+            type="number"
+            value={monster.saving_throws[key as AbilityKey] ?? ''}
+            oninput={(e) => setNumber(monster.saving_throws, key, e.currentTarget.value)}
+            placeholder="—"
+          />
+        </label>
       {/each}
-      <button class="kv-add" onclick={() => addKv(monster.saving_throws)}>+</button>
     </div>
   </div>
-  <div class="kv-row">
+
+  <div class="prop">
     <span class="lbl">Fertigkeiten</span>
-    <div class="kv-list">
-      {#each kvKeys(monster.skills) as key}
-        <span class="kv-pair">
-          <input class="ef kv-key" value={key} onblur={(e) => renameKv(monster.skills, key, e.currentTarget.value)} />
-          <input class="ef kv-val" bind:value={monster.skills[key]} oninput={onchange} />
-          <button class="kv-del" onclick={() => removeKv(monster.skills, key)}>×</button>
+    <div class="skill-list">
+      {#each chosenSkills as skill}
+        <span class="skill-pair">
+          <span class="skill-name">{skillLabelDe(skill)}</span>
+          <input
+            class="ef num-sm"
+            type="number"
+            value={monster.skill_bonuses[skill] ?? 0}
+            oninput={(e) => setNumber(monster.skill_bonuses, skill, e.currentTarget.value)}
+          />
+          <button class="kv-del" onclick={() => setNumber(monster.skill_bonuses, skill, '')}>×</button>
         </span>
       {/each}
-      <button class="kv-add" onclick={() => addKv(monster.skills)}>+</button>
+      {#if remainingSkills.length}
+        <select
+          class="ef add-sel"
+          value=""
+          onchange={(e) => { addSkill(e.currentTarget.value); e.currentTarget.value = ''; }}
+        >
+          <option value="">+</option>
+          {#each remainingSkills as skill}
+            <option value={skill}>{SKILL_OPTIONS[skill]}</option>
+          {/each}
+        </select>
+      {/if}
     </div>
   </div>
+
+  <VocabChips label="Anfälligkeiten" options={DAMAGE_OPTIONS} bind:selected={monster.damage_vulnerabilities} {onchange} />
+  <VocabChips label="Resistenzen" options={DAMAGE_OPTIONS} bind:selected={monster.damage_resistances} {onchange} />
+  <VocabChips label="Schadensimmunitäten" options={DAMAGE_OPTIONS} bind:selected={monster.damage_immunities} {onchange} />
+  <VocabChips label="Zustandsimmunitäten" options={CONDITIONS} bind:selected={monster.condition_immunities} {onchange} />
+
   <div class="prop">
-    <span class="lbl">Resistenzen</span>
-    <input class="ef wide" value={monster.damage_resistances.join(', ')}
-      oninput={(e) => { monster.damage_resistances = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); onchange(); }} />
-  </div>
-  <div class="prop">
-    <span class="lbl">Schadensimmunitäten</span>
-    <input class="ef wide" value={monster.damage_immunities.join(', ')}
-      oninput={(e) => { monster.damage_immunities = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); onchange(); }} />
-  </div>
-  <div class="prop">
-    <span class="lbl">Zustandsimmunitäten</span>
-    <input class="ef wide" value={monster.condition_immunities.join(', ')}
-      oninput={(e) => { monster.condition_immunities = e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean); onchange(); }} />
-  </div>
-  <div class="prop">
-    <span class="lbl">Sinne</span>
-    <input class="ef wide" bind:value={monster.senses} oninput={onchange} />
-  </div>
-  <div class="prop">
-    <span class="lbl">Sprachen</span>
-    <input class="ef wide" bind:value={monster.languages} oninput={onchange} />
-  </div>
-  <div class="prop">
-    <span class="lbl">HG</span>
-    <input class="ef cr" bind:value={monster.cr} oninput={onchange} />
-    <span class="sep">(</span>
-    <input class="ef num" type="number" bind:value={monster.xp} oninput={onchange} />
-    <span class="sep"> EP)</span>
+    <span class="lbl">Einschränkung</span>
+    <input class="ef wide" bind:value={monster.defenses_desc} oninput={onchange}
+      placeholder="z.B. nicht-magische Waffen" />
   </div>
 </div>
 
 <style>
-  .kv-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    line-height: 1.8;
+  .save-grid { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+  .save-cell { display: flex; align-items: center; gap: 0.15rem; }
+
+  .save-lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mef-accent, var(--danger));
+    opacity: 0.75;
   }
 
-  .kv-list { display: flex; flex-wrap: wrap; gap: 0.2rem; align-items: center; }
+  .skill-list { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
 
-  .kv-pair { display: flex; align-items: center; gap: 0.1rem; }
+  .skill-pair {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    font-size: 0.82rem;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 0.1rem 0 0.35rem;
+  }
 
-  .kv-key { width: 80px; font-size: 0.85rem; }
-  .kv-val { width: 44px; font-size: 0.85rem; color: var(--green); }
+  .skill-name { white-space: nowrap; }
 
-  .cr { width: 40px; text-align: center; }
+  .num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
 
-  .sep { color: var(--ink-soft); padding: 0 0.1rem; }
+  .add-sel {
+    font-size: 0.82rem;
+    background: var(--bg-panel);
+    cursor: pointer;
+    width: 2.2rem;
+  }
 </style>

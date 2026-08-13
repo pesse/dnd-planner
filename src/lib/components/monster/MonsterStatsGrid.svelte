@@ -11,8 +11,8 @@
   {#each ABILITY_KEYS as key}
     <div class="stat-cell">
       <span class="stat-lbl">{ABILITY_ABBR_DE[key]}</span>
-      <input class="ef stat-in" type="number" bind:value={monster.stats[key]} oninput={onchange} />
-      <span class="stat-mod">({modStr(monster.stats[key])})</span>
+      <input class="ef stat-in" type="number" bind:value={monster.ability_scores[key]} oninput={onchange} />
+      <span class="stat-mod">({modStr(monster.ability_scores[key])})</span>
     </div>
   {/each}
 </div>

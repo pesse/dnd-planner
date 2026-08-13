@@ -4,7 +4,8 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { Monster } from '../types';
-import { normalizeMonster, normalizeCharacter } from '../utils/schemaValidation';
+import { normalizeMonster, normalizeCharacter, parseMonster } from '../utils/schemaValidation';
+import { getMonsterLibrary, invalidateMonsterLibrary } from '../monsterLibrary';
 import { characterMinimum } from './characterContext';
 import type {
   ActSummaryEntry,
@@ -12,6 +13,7 @@ import type {
   EncounterSummaryEntry,
   MonsterLibraryEntry,
 } from './contextTypes';
+import { crLabel } from './monsterFormat';
 import { extractActSummary, extractActTitle } from '../utils/actExtract';
 import { parseFrontmatter } from '../utils/frontmatter';
 
@@ -42,47 +44,36 @@ export async function fetchCampaignParty(campaignMd: string): Promise<CharacterC
   return results.filter((c): c is CharacterCompact => c !== null);
 }
 
-async function readMonsterEntry(path: string, group: string, filename: string): Promise<MonsterLibraryEntry> {
-  const slug = filename.replace('.json', '');
-  try {
-    const content = await invoke<string>('read_file_content', { path });
-    const m = JSON.parse(content);
-    return { slug, name: m.name as string, cr: m.cr as string, size: m.size as string, type: m.type as string, group: m.type as string || group };
-  } catch {
-    return { slug, name: slug, cr: '?', size: '?', type: '?', group };
-  }
+/** Name + HG eines Monsters, wie die Encounter-Zeile es braucht. */
+interface MonsterSummary {
+  name: string;
+  cr: number;
 }
 
-/** Über alle Typ-Unterordner UND die flach abgelegten Root-Dateien. */
-export async function fetchMonsterLibrary(): Promise<MonsterLibraryEntry[]> {
-  try {
-    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: './vault/monsters' });
-    const groups = entries.filter((e) => e.is_dir).map((e) => e.name);
-    const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
+/** Der Ordner, in dem die Datei liegt — flach abgelegte Monster kommen unter „Sonstige". */
+function groupOfPath(path: string): string {
+  const dir = path.split('/').at(-2) ?? '';
+  return dir === 'monsters' ? 'Sonstige' : dir;
+}
 
-    const groupedEntries = await Promise.all(
-      groups.flatMap(async (group) => {
-        try {
-          const files = await invoke<string[]>('list_json_files', { path: `./vault/monsters/${group}` });
-          return Promise.all(files.map((f) => readMonsterEntry(`./vault/monsters/${group}/${f}`, group, f)));
-        } catch { return []; }
-      })
-    );
-    const rootEntries = await Promise.all(
-      rootFiles.map((f) => readMonsterEntry(`./vault/monsters/${f}`, 'Sonstige', f))
-    );
-    return [...groupedEntries.flat(), ...rootEntries];
-  } catch {
-    return [];
-  }
+/** Projektion der geparsten Bibliothek auf die Kontext-Zusammenfassung. */
+export async function fetchMonsterLibrary(): Promise<MonsterLibraryEntry[]> {
+  return (await getMonsterLibrary()).map(({ slug, path, monster }) => ({
+    slug,
+    name: monster.name,
+    challenge_rating: monster.challenge_rating,
+    size: monster.size,
+    type: monster.type,
+    group: monster.type || groupOfPath(path),
+  }));
 }
 
 /** Akt-lokale Monster überschreiben die globalen Einträge für diesen Akt. */
 async function actMonsterOverrides(
   campaignPath: string,
   actDirName: string,
-  libraryMap: Map<string, { name: string; cr: string }>,
-): Promise<Map<string, { name: string; cr: string }>> {
+  libraryMap: Map<string, MonsterSummary>,
+): Promise<Map<string, MonsterSummary>> {
   const actMap = new Map(libraryMap);
   try {
     const localFiles = await invoke<string[]>('list_json_files', {
@@ -95,8 +86,8 @@ async function actMonsterOverrides(
           const content = await invoke<string>('read_file_content', {
             path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters/${filename}`,
           });
-          const m = JSON.parse(content);
-          actMap.set(slug, { name: m.name as string, cr: m.cr as string });
+          const parsed = parseMonster(JSON.parse(content));
+          if (parsed.ok) actMap.set(slug, { name: parsed.data.name, cr: parsed.data.challenge_rating });
         } catch { /* ignorieren */ }
       })
     );
@@ -107,7 +98,7 @@ async function actMonsterOverrides(
 async function readActEncounters(
   campaignPath: string,
   actDirName: string,
-  actMap: Map<string, { name: string; cr: string }>,
+  actMap: Map<string, MonsterSummary>,
 ): Promise<EncounterSummaryEntry[]> {
   try {
     const files = await invoke<string[]>('list_json_files', {
@@ -121,7 +112,7 @@ async function readActEncounters(
         const monsterList = (enc.monsters as Array<{ count: number; slug: string }>)
           .map((m) => {
             const lib = actMap.get(m.slug);
-            const label = lib ? `${lib.name} (CR ${lib.cr})` : m.slug;
+            const label = lib ? `${lib.name} (HG ${crLabel(lib.cr)})` : m.slug;
             return `${m.count}× ${label}`;
           })
           .join(', ');
@@ -146,7 +137,7 @@ export async function fetchEncounterSummaries(
   campaignPath: string,
   library: MonsterLibraryEntry[],
 ): Promise<EncounterSummaryEntry[]> {
-  const libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.cr }]));
+  const libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.challenge_rating }]));
   try {
     const actEntries = await invoke<{ name: string; is_dir: boolean }[]>('list_entries', {
       path: `./vault/campaigns/${campaignPath}/acts`,
@@ -170,8 +161,10 @@ export async function fetchEncounterSummaries(
  */
 let monsterPathCache: Map<string, string> | null = null;
 
+/** Entwertet auch die geparste Bibliothek — beide beschreiben denselben Vault-Stand. */
 export function invalidateMonsterPaths(): void {
   monsterPathCache = null;
+  invalidateMonsterLibrary();
 }
 
 async function buildMonsterPathCache(): Promise<Map<string, string>> {

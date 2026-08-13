@@ -10,6 +10,7 @@ import { formatMinimumLine, type CharacterMinimum } from './characterContext';
 import { runAiAction, type RunOptions } from './aiActions/runner';
 import { createEncounterAction } from './aiActions/encounterAction';
 import { createMonsterAction } from './aiActions/monsterAction';
+import { crLabel } from './monsterFormat';
 import { toActLocalJson } from '../utils/vaultJson';
 import { slugKeepUmlauts, slugToName } from '../utils/text';
 
@@ -85,7 +86,7 @@ function buildPreamble(
 
   const selected = selectLibrary(library, libraryOptions);
   if (selected.length) {
-    const lines = selected.map((m) => `- ${m.slug} — ${m.name} (CR ${m.cr})`);
+    const lines = selected.map((m) => `- ${m.slug} — ${m.name} (CR ${crLabel(m.challenge_rating)})`);
     blocks.push(`## Available monsters (library — prefer reusing these; copy the slug exactly)\n${lines.join('\n')}`);
   }
 
@@ -97,7 +98,7 @@ function buildMonsterPrompt(slug: string, notes: string, enc: Encounter): string
     `Create the statblock for the monster "${slug}", which appears in the encounter "${enc.name}".`,
     notes ? `Role/tactics in this encounter: ${notes}` : '',
     enc.description ? `Encounter context: ${enc.description}` : '',
-    `Target level: party level ${enc.party_level}, encounter difficulty "${enc.difficulty}". Choose a fitting challenge rating (cr) with consistent values.`,
+    `Target level: party level ${enc.party_level}, encounter difficulty "${enc.difficulty}". Choose a fitting challenge_rating with consistent values.`,
   ];
   return parts.filter(Boolean).join('\n');
 }

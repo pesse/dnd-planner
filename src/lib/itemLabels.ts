@@ -2,7 +2,7 @@
  * Anzeige-Vokabular des Gegenstands-Bereichs: deutsche Labels, englische Schlüssel.
  * Kategorie-Schlüssel = Ordnername = Open5e-v2 `category.key` — ein Identity-Mapping.
  */
-import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
+import { WEAPON_MASTERIES, type DamageType, type WeaponMastery } from './schemas/vocabulary';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   'weapon':             'var(--danger)',
@@ -99,7 +99,8 @@ export function rarityColor(rarity?: string | { name?: string } | null): string 
   return (name && RARITY_COLORS[name]) || RARITY_COLORS.Common;
 }
 
-export const DAMAGE_TYPE_LABELS: Record<string, string> = {
+/** `DamageType` ist total abgedeckt; der String-Index bleibt für Fremdwerte der API offen. */
+export const DAMAGE_TYPE_LABELS: Record<DamageType, string> & Record<string, string> = {
   slashing:    'Hiebschaden',
   piercing:    'Stichschaden',
   bludgeoning: 'Wuchtschaden',

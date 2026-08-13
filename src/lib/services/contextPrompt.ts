@@ -8,6 +8,7 @@ import { monsterSizeLabel, monsterTypeLabel } from '../types';
 import { formatMinimumLine } from './characterContext';
 import { parseFrontmatter, stripFrontmatter } from '../utils/frontmatter';
 import { renderJsonFormat } from './contextJsonFormat';
+import { crLabel } from './monsterFormat';
 import type { ActSummaryEntry, CharacterCompact, ContextFlags, EncounterSummaryEntry, MonsterLibraryEntry, PinnedEntry } from './contextTypes';
 
 export interface SystemPromptInput {
@@ -134,7 +135,7 @@ export function renderMonsters(library: MonsterLibraryEntry[], encounterDefs: Mo
     const filtered = library.filter((m) => flags.monsterGroups.includes(m.group));
     if (filtered.length > 0) {
       const lines = filtered.map(
-        (m) => `- ${m.name} (CR ${m.cr}, ${monsterSizeLabel(m.size)} ${monsterTypeLabel(m.type)})`,
+        (m) => `- ${m.slug} — ${m.name} (CR ${crLabel(m.challenge_rating)}, ${monsterSizeLabel(m.size)} ${monsterTypeLabel(m.type)})`,
       );
       parts.push(`\n## Monster Library\n${lines.join('\n')}`);
     }

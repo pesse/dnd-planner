@@ -7,6 +7,7 @@
   import type { Encounter } from '../../schemas/encounter';
   import { monsterLibrary } from '../../stores/context';
   import { monsterTypeLabel } from '../../types';
+  import { crLabel } from '../../services/monsterFormat';
   import './encounterCard.css';
 
   let { encounter }: { encounter: Encounter } = $props();
@@ -68,7 +69,7 @@
         {#each pickerMonsters as entry}
           <button class="picker-monster-btn" onclick={() => addFromPicker(entry.slug)}>
             <span class="picker-mon-name">{entry.name}</span>
-            <span class="picker-mon-cr">CR {entry.cr}</span>
+            <span class="picker-mon-cr">HG {crLabel(entry.challenge_rating)}</span>
           </button>
         {:else}
           <span class="picker-empty">Keine Monster geladen</span>

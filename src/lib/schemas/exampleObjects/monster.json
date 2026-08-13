@@ -1,20 +1,18 @@
 {
-  "index": "string",
+  "key": "string",
   "source": "homebrew-sam",
   "name": "string",
+  "name_en": "string",
   "size": "Medium",
   "type": "humanoid",
   "alignment": "neutral",
-  "ac": {
-    "value": -9007199254740991,
-    "note": "string"
-  },
-  "hp": {
-    "average": -9007199254740991,
-    "formula": "string"
-  },
-  "speed": "string",
-  "stats": {
+  "challenge_rating": 0.25,
+  "xp": 0,
+  "armor_class": 10,
+  "armor_detail": "string",
+  "hit_points": 0,
+  "hit_dice": "string",
+  "ability_scores": {
     "str": -9007199254740991,
     "dex": -9007199254740991,
     "con": -9007199254740991,
@@ -23,74 +21,88 @@
     "cha": -9007199254740991
   },
   "saving_throws": {
-    "<key>": "string"
+    "str": -9007199254740991
   },
-  "skills": {
-    "<key>": "string"
+  "skill_bonuses": {
+    "Acrobatics": -9007199254740991
   },
-  "damage_resistances": [
+  "speed": {
+    "walk": 0,
+    "fly": 0,
+    "swim": 0,
+    "climb": 0,
+    "burrow": 0,
+    "hover": false
+  },
+  "senses": {
+    "darkvision": 0,
+    "blindsight": 0,
+    "tremorsense": 0,
+    "truesight": 0
+  },
+  "languages": [
     "string"
+  ],
+  "languages_desc": "string",
+  "damage_resistances": [
+    "acid"
   ],
   "damage_immunities": [
-    "string"
+    "acid"
+  ],
+  "damage_vulnerabilities": [
+    "acid"
   ],
   "condition_immunities": [
-    "string"
+    "blinded"
   ],
-  "senses": "string",
-  "languages": "string",
-  "cr": "1/4",
-  "xp": 0,
+  "defenses_desc": "string",
   "traits": [
     {
       "name": "string",
-      "description": "string",
-      "attack_bonus": -9007199254740991,
-      "damage": [
-        {
-          "dice": "string",
-          "type": "string"
-        }
-      ]
+      "name_en": "string",
+      "desc": "string",
+      "desc_en": "string"
     }
   ],
   "actions": [
     {
       "name": "string",
-      "description": "string",
-      "attack_bonus": -9007199254740991,
-      "damage": [
+      "name_en": "string",
+      "desc": "string",
+      "desc_en": "string",
+      "action_type": "ACTION",
+      "legendary_action_cost": 1,
+      "usage_limits": {
+        "type": "PER_DAY",
+        "param": 0
+      },
+      "attacks": [
         {
-          "dice": "string",
-          "type": "string"
+          "name": "string",
+          "attack_type": "WEAPON",
+          "to_hit_mod": 0,
+          "reach": -9007199254740991,
+          "range": -9007199254740991,
+          "long_range": -9007199254740991,
+          "target_creature_only": false,
+          "damage": {
+            "die_count": 0,
+            "die_type": "D4",
+            "bonus": 0,
+            "type": "acid"
+          },
+          "extra_damage": {
+            "die_count": 0,
+            "die_type": "D4",
+            "bonus": 0,
+            "type": "acid"
+          }
         }
       ]
     }
   ],
-  "reactions": [
-    {
-      "name": "string",
-      "description": "string",
-      "attack_bonus": -9007199254740991,
-      "damage": [
-        {
-          "dice": "string",
-          "type": "string"
-        }
-      ]
-    }
-  ],
-  "legendary_actions": [
-    {
-      "name": "string",
-      "description": "string",
-      "attack_bonus": -9007199254740991,
-      "damage": [
-        {
-          "dice": "string",
-          "type": "string"
-        }
-      ]
-    }
+  "tags": [
+    "string"
   ]
 }

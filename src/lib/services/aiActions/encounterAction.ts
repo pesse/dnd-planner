@@ -36,9 +36,9 @@ The user input contains context blocks: the act, the party, and a curated list o
 1. Read the act context and pick up its locations, factions, and mood. The encounter must fit the act thematically.
 2. Choose the monsters and their count to suit the party (copy \`party_size\`/\`party_level\` from the party block) and the requested \`difficulty\`.
 3. **Monster selection (IMPORTANT):**
-   - Prefer monsters from the provided library — copy their \`slug\` EXACTLY.
-   - If nothing fits, an SRD monster is fine: use \`search_dnd_api\` (category "monsters", English search term) and use its index as the \`slug\`. Do not pick monsters that do not actually exist.
-   - If you genuinely need a new, custom monster, assign a descriptive kebab-case \`slug\` (e.g. "faulty-guard-drone"). Do NOT invent stat values here — the statblock is created separately; put its role/tactics into the monster's \`notes\` field.
+   - Prefer monsters from the provided library — copy their \`slug\` EXACTLY. It is the campaign's own library and holds SRD and homebrew alike; there is no other catalogue to draw from.
+   - If nothing there fits, invent a new monster and assign a descriptive kebab-case \`slug\` (e.g. "faulty-guard-drone"). Do NOT invent stat values here — the statblock is created separately; put its role/tactics into the monster's \`notes\` field.
+   - Never guess a slug that is not in the library: an unknown one is treated as a new monster and gets generated from scratch.
    - The same \`slug\` may appear multiple times (e.g. two waves of the same monster type).
 4. Set \`xp_total\` plausibly relative to the monsters, \`location\` fitting the act, and write an atmospheric \`read_aloud\` text (German).
 5. \`notes\` for PC integration/consequences, \`status\` = "planned".
@@ -57,8 +57,8 @@ ${currentBlock}
 };
 
 /** „Encounter per KI anlegen" — Akt-Kontext/Party/Bibliothek kommen über den User-Input.
- *  Mit DnD-API-Tools: das Modell darf reale SRD-Monster nachschlagen (Erdung). Die
- *  Statblock-Erzeugung fehlender Monster erledigt die separate Monster-Phase in
- *  designEncounter. TPM-Spitzen fängt das Rate-Limit-Warten (retry.ts) ab. */
+ *  Bewusst tool-frei: die kuratierte Bibliotheksliste steckt schon im Prompt, ein Agent-Loop
+ *  würde sie nur ein zweites Mal holen. Nachschlagen darf die separate Monster-Phase in
+ *  designEncounter. */
 export const createEncounterAction = (opts: CreateActionOptions<Encounter> = {}) =>
   buildCreateAction(encounterSpec, opts);

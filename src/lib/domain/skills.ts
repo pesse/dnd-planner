@@ -53,6 +53,10 @@ void _skillDefsComplete;
 
 const SHEET_KEY_BY_EN = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.key]));
 const EN_BY_SHEET_KEY = new Map<string, SkillName>(SKILL_DEFS.map((d) => [d.key, d.en]));
+const LABEL_BY_EN = new Map<SkillName, string>(SKILL_DEFS.map((d) => [d.en, d.label]));
+
+/** Anzeigename zum englischen SRD-Namen; Fremdwerte kommen unverändert zurück. */
+export const skillLabelDe = (en: string): string => LABEL_BY_EN.get(en as SkillName) ?? en;
 
 /** `Acrobatics` → `Akrobatik`: die eine Richtung, in der Bibliotheks-Mechanik auf dem Bogen landet. */
 export const skillSheetKey = (en: SkillName): string => SHEET_KEY_BY_EN.get(en) ?? en;

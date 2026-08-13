@@ -1,5 +1,7 @@
 <script lang="ts">
-  import type { MonsterAction } from '../../types';
+  import type { MonsterAction, MonsterAttack } from '../../types';
+  import { ACTION_GROUP_LABELS } from '../../services/monsterFormat';
+  import MonsterAttackFields from './MonsterAttackFields.svelte';
   import './monsterEditForm.css';
 
   let {
@@ -10,15 +12,37 @@
     onchange: () => void;
   } = $props();
 
-  const DAMAGE_TYPE_DE: Record<string, string> = {
-    acid: 'Säure', bludgeoning: 'Wucht', cold: 'Kälte', fire: 'Feuer',
-    force: 'Energie', lightning: 'Blitz', necrotic: 'Nekrose', piercing: 'Stich',
-    poison: 'Gift', psychic: 'Psyche', radiant: 'Strahlung', slashing: 'Hieb',
-    thunder: 'Donner',
-  };
+  const USAGE_TYPES = [
+    { value: 'PER_DAY', label: 'pro Tag' },
+    { value: 'RECHARGE', label: 'Aufladung' },
+    { value: 'RECHARGE_ON_ROLL', label: 'Aufladung ab' },
+  ] as const;
 
-  function add() { items.push({ name: 'Neue Aktion', description: '' }); onchange(); }
-  function remove(i: number) { items.splice(i, 1); onchange(); }
+  const blankAttack = (name: string): MonsterAttack => ({
+    name,
+    attack_type: 'WEAPON',
+    to_hit_mod: 0,
+    target_creature_only: false,
+    reach: 5,
+  });
+
+  function add() {
+    items.push({
+      name: 'Neue Aktion',
+      name_en: '',
+      desc: '',
+      desc_en: '',
+      action_type: 'ACTION',
+      legendary_action_cost: 1,
+      attacks: [],
+    });
+    onchange();
+  }
+
+  function remove(i: number) {
+    items.splice(i, 1);
+    onchange();
+  }
 </script>
 
 <h3 class="section-title">Aktionen</h3>
@@ -27,54 +51,69 @@
     <div class="ability-block">
       <div class="ability-hdr">
         <input class="ef ability-name" bind:value={action.name} oninput={onchange} placeholder="Aktion" />
+        <select class="ef type-sel" bind:value={action.action_type} onchange={onchange}>
+          {#each Object.entries(ACTION_GROUP_LABELS) as [type, label]}
+            <option value={type}>{label}</option>
+          {/each}
+        </select>
         <button class="del-btn" onclick={() => remove(i)}>×</button>
       </div>
-      <div class="attack-row">
-        <span class="lbl-sm">Angriffsbonus</span>
-        <input class="ef num-sm" type="number"
-          value={action.attack_bonus ?? ''}
-          oninput={(e) => { action.attack_bonus = e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value); onchange(); }} />
-        {#each (action.damage ?? [{ dice: '', type: '' }]) as dmg, di}
-          <input class="ef num-sm" value={dmg.dice}
-            oninput={(e) => { if (!action.damage) action.damage = [{ dice: '', type: '' }]; action.damage[di].dice = e.currentTarget.value; onchange(); }}
-            placeholder="2W6+3" />
-          <select class="ef dmg-type-sel" value={dmg.type}
-            onchange={(e) => { if (!action.damage) action.damage = [{ dice: '', type: '' }]; action.damage[di].type = e.currentTarget.value; onchange(); }}>
-            <option value="">—</option>
-            {#each Object.values(DAMAGE_TYPE_DE) as label}
-              <option value={label}>{label}</option>
+
+      <div class="opt-row">
+        {#if action.usage_limits}
+          <select class="ef usage-sel" bind:value={action.usage_limits.type} onchange={onchange}>
+            {#each USAGE_TYPES as { value, label }}
+              <option {value}>{label}</option>
             {/each}
           </select>
-        {/each}
-        <button class="kv-add" onclick={() => { action.damage = [...(action.damage ?? []), { dice: '', type: '' }]; onchange(); }}>+</button>
-        {#if action.damage && action.damage.length > 1}
-          <button class="kv-del" onclick={() => { action.damage = action.damage!.slice(0, -1); onchange(); }}>×</button>
+          <input class="ef num-sm" type="number" bind:value={action.usage_limits.param} oninput={onchange} />
+          <button class="kv-del" onclick={() => { action.usage_limits = undefined; onchange(); }}>×</button>
+        {:else}
+          <button class="kv-add" onclick={() => { action.usage_limits = { type: 'RECHARGE_ON_ROLL', param: 5 }; onchange(); }}>
+            + Aufladung
+          </button>
+        {/if}
+        {#if action.action_type === 'LEGENDARY_ACTION'}
+          <span class="lbl-sm">Kosten</span>
+          <input class="ef num-sm" type="number" bind:value={action.legendary_action_cost} oninput={onchange} />
         {/if}
       </div>
-      <textarea class="ef ability-desc" bind:value={action.description} oninput={onchange} rows="2"></textarea>
+
+      <textarea class="ef ability-desc" bind:value={action.desc} oninput={onchange} rows="2"></textarea>
+
+      {#each action.attacks as _, ai}
+        <MonsterAttackFields
+          attack={action.attacks[ai]}
+          {onchange}
+          onremove={() => { action.attacks.splice(ai, 1); onchange(); }}
+        />
+      {/each}
+      <button class="kv-add self-start" onclick={() => { action.attacks.push(blankAttack(action.name)); onchange(); }}>
+        + Angriff
+      </button>
     </div>
   {/each}
   <button class="add-btn" onclick={add}>+ Aktion</button>
 </div>
 
 <style>
-  .attack-row { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+  .opt-row { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
 
-  .lbl-sm { font-weight: 700; color: var(--mef-accent, var(--danger)); opacity: 0.7; font-size: 0.78rem; white-space: nowrap; }
+  .lbl-sm {
+    font-weight: 700;
+    color: var(--mef-accent, var(--danger));
+    opacity: 0.7;
+    font-size: 0.75rem;
+  }
 
   .num-sm { width: 44px; text-align: center; font-size: 0.82rem; }
 
-  .dmg-type-sel {
-    font-style: normal;
-    color: var(--ink-soft);
-    font-size: 0.82rem;
+  .type-sel, .usage-sel {
+    font-size: 0.8rem;
     background: var(--bg-panel);
     cursor: pointer;
-    padding: 0.1rem 0.2rem;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    width: 80px;
+    color: var(--ink-soft);
   }
-  .dmg-type-sel:hover { border-color: var(--border); }
-  .dmg-type-sel:focus { border-color: var(--mef-accent, var(--danger)); outline: none; }
+
+  .self-start { align-self: flex-start; }
 </style>

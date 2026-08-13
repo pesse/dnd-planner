@@ -119,10 +119,15 @@ export async function listItems(limit = 500): Promise<Record<string, unknown>[]>
   return raw.results ?? [];
 }
 
-export interface Open5eItemSearchResult {
+/** Die Form, die `DndApiSearch` und `CreateCardModal` erwarten. */
+export interface ApiRef {
   index: string;
   name: string;
-  url: string; // = v2-Key, keine URL — die Form stammt aus `DndApiSearch`
+  url: string; // = v2-Key, keine URL — die Form stammt aus der früheren dnd5eapi-Anbindung
+  tag?: string;
+}
+
+export interface Open5eItemSearchResult extends ApiRef {
   tag: string; // 'ausrüstung' | 'magisch' | 'zauber'
 }
 

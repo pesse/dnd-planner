@@ -7,10 +7,10 @@ import type { AiAction } from '../aiActions/types';
 import { createItemAction } from '../aiActions/itemAction';
 import { createMonsterAction } from '../aiActions/monsterAction';
 import { createSpellAction } from '../aiActions/spellAction';
-import { searchMonsters, mapApiResourceToMonster, type DndApiRef } from '../dndApi';
 import {
   DEFAULT_DOCUMENT, getBackground as getBackgroundRaw, getClass, getOpen5eItem, getSpecies as getSpeciesRaw,
   getSpell, listBackgrounds, listClasses, listSpecies, searchOpen5eItems, searchOpen5eSpells,
+  type ApiRef,
 } from '../open5eClient';
 import { mapOpen5eItem } from '../open5eItemMapper';
 import { mapOpen5eSpell } from '../open5eSpellMapper';
@@ -25,7 +25,8 @@ import {
   blankItem, displayName as itemDisplayName, getItemsByDir, loadedItemDirs, searchItems, toHomebrewCopy,
 } from '../../itemLibrary';
 import { blankSpell, getSpellLibrary, loadSpellByPath, searchSpells as searchSpellLib } from '../../spellLibrary';
-import { parseBackground, parseClass, parseMonster, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
+import { parseBackground, parseClass, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
+import { searchMonsterLibrary } from '../../monsterLibrary';
 import { BACKGROUND_TEMPLATE, CLASS_TEMPLATE, MONSTER_TEMPLATE, SPECIES_TEMPLATE } from '../../types';
 import type { Background, ClassProgression, FileEntryType, Item, Monster, Species, Spell } from '../../types';
 
@@ -33,9 +34,9 @@ import type { Background, ClassProgression, FileEntryType, Item, Monster, Specie
 export interface CreateSpec<T> {
   type: FileEntryType;
   title: string;
-  searchApi: (q: string) => Promise<DndApiRef[]>;
-  mapApi?: (data: Record<string, unknown>) => T;
-  loadApi?: (ref: DndApiRef) => Promise<T>;
+  /** Fehlt → es gibt keine Online-Quelle, gesucht wird nur in der Bibliothek (Monster). */
+  searchApi?: (q: string) => Promise<ApiRef[]>;
+  loadApi?: (ref: ApiRef) => Promise<T>;
   searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
   blank: (name: string) => T;
   buildAction?: (opts: { name?: string; template?: T }) => AiAction<T>;
@@ -48,31 +49,14 @@ export interface CreateSpec<T> {
   };
 }
 
-const MONSTERS_PATH = './vault/monsters';
-
 const readJson = async (path: string): Promise<unknown> =>
   JSON.parse(await invoke<string>('read_file_content', { path }));
 
-// Alle Vault-Monster (Name + Loader) einmal einlesen und cachen.
-let monsterLibCache: { name: string; load: () => Promise<Monster> }[] | null = null;
-async function searchMonsterLibrary(q: string): Promise<{ name: string; load: () => Promise<Monster> }[]> {
-  if (!monsterLibCache) {
-    const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path: MONSTERS_PATH });
-    const paths = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => `${MONSTERS_PATH}/${e.name}`);
-    for (const d of entries.filter((e) => e.is_dir)) {
-      const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${d.name}` }).catch(() => [] as string[]);
-      paths.push(...files.map((f) => `${MONSTERS_PATH}/${d.name}/${f}`));
-    }
-    const loaded = await Promise.all(paths.map(async (path) => {
-      try {
-        const r = parseMonster(await readJson(path));
-        return r.ok ? { name: r.data.name, load: async () => r.data } : null;
-      } catch { return null; }
-    }));
-    monsterLibCache = loaded.filter((x): x is { name: string; load: () => Promise<Monster> } => x !== null);
-  }
-  const ql = q.toLowerCase();
-  return monsterLibCache.filter((h) => h.name.toLowerCase().includes(ql)).slice(0, 8);
+async function searchMonsterTemplates(q: string): Promise<{ name: string; load: () => Promise<Monster> }[]> {
+  return (await searchMonsterLibrary(q)).map((hit) => ({
+    name: hit.monster.name,
+    load: async () => hit.monster,
+  }));
 }
 
 async function searchSpellLibrary(q: string): Promise<{ name: string; load: () => Promise<Spell> }[]> {
@@ -104,7 +88,7 @@ function blankBackground(name: string): Background {
 }
 
 /** Open5e-v2-Suche über Basisklassen UND Subklassen. ref.url = v2-Key. */
-async function searchOpen5eClasses(q: string): Promise<DndApiRef[]> {
+async function searchOpen5eClasses(q: string): Promise<ApiRef[]> {
   const all = await listClasses();
   const ql = q.toLowerCase();
   return all
@@ -117,7 +101,7 @@ async function searchOpen5eClasses(q: string): Promise<DndApiRef[]> {
     .slice(0, 15);
 }
 
-async function searchOpen5eSpecies(q: string): Promise<DndApiRef[]> {
+async function searchOpen5eSpecies(q: string): Promise<ApiRef[]> {
   const all = await listSpecies();
   const ql = q.toLowerCase();
   return all
@@ -130,7 +114,7 @@ async function searchOpen5eSpecies(q: string): Promise<DndApiRef[]> {
  * Die 2024-Quellen zuerst: nur 4 der ~58 Einträge sind SRD 5.2, der Rest ist
  * 2014-/A5E-Material und landet beim Import als `homebrew-sam`.
  */
-async function searchOpen5eBackgrounds(q: string): Promise<DndApiRef[]> {
+async function searchOpen5eBackgrounds(q: string): Promise<ApiRef[]> {
   const all = await listBackgrounds();
   const ql = q.toLowerCase();
   return all
@@ -151,9 +135,7 @@ export const CREATE_SPECS = {
   monster: spec<Monster>({
     type: 'monster',
     title: 'Neues Monster',
-    searchApi: searchMonsters,
-    mapApi: mapApiResourceToMonster,
-    searchLibrary: searchMonsterLibrary,
+    searchLibrary: searchMonsterTemplates,
     blank: (name) => ({ ...MONSTER_TEMPLATE, name: name || MONSTER_TEMPLATE.name }),
     buildAction: createMonsterAction,
     nameOf: (m) => m.name || 'Monster',

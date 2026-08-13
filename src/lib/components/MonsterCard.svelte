@@ -8,14 +8,12 @@
   import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
-  import DndApiSearch from './DndApiSearch.svelte';
   import { translateMonster } from '../services/aiActions/translateAction';
   import type { MonsterTranslation } from '../schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { parseMonster, normalizeMonster, jsonParser } from '../utils/schemaValidation';
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
-  import { searchMonsters, getResource, mapApiResourceToMonster, type DndApiRef } from '../services/dndApi';
   import { slugKeepUmlauts } from '../utils/text';
   import { invalidateVault } from '../stores/campaign';
 
@@ -39,21 +37,10 @@
   });
 
   let showAi = $state(false);
-  let importError = $state('');
 
   /** Übernimmt das von der KI überarbeitete Monster in den Draft. */
   function applyAiResult(revised: Monster) {
     ed.draft = normalizeMonster(revised);
-  }
-
-  /** Lädt einen SRD-Statblock und übernimmt ihn als Draft. */
-  async function importFromApi(ref: DndApiRef) {
-    importError = '';
-    try {
-      ed.draft = normalizeMonster(mapApiResourceToMonster(await getResource(ref.url)));
-    } catch (e) {
-      importError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : e}`;
-    }
   }
 
   let showTranslate = $state(false);
@@ -64,31 +51,45 @@
     if (!m) return null;
     const toTranslate: Record<string, unknown> = {};
     if (m.name) toTranslate.name = m.name;
-    if (m.languages) toTranslate.languages = m.languages;
-    if (m.damage_resistances.length) toTranslate.damage_resistances = m.damage_resistances;
-    if (m.damage_immunities.length) toTranslate.damage_immunities = m.damage_immunities;
-    if (m.condition_immunities.length) toTranslate.condition_immunities = m.condition_immunities;
-    for (const key of ['traits', 'actions', 'reactions', 'legendary_actions'] as const) {
-      if (m[key].length > 0) toTranslate[key] = m[key].map((a) => ({ name: a.name, description: a.description }));
+    if (m.armor_detail) toTranslate.armor_detail = m.armor_detail;
+    if (m.languages.length) toTranslate.languages = m.languages;
+    if (m.languages_desc) toTranslate.languages_desc = m.languages_desc;
+    if (m.defenses_desc) toTranslate.defenses_desc = m.defenses_desc;
+    for (const key of ['traits', 'actions'] as const) {
+      if (m[key].length > 0) toTranslate[key] = m[key].map((a) => ({ name: a.name, desc: a.desc }));
     }
     if (Object.keys(toTranslate).length === 0) return null;
     return translateMonster(toTranslate);
   }
 
-  /** Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet. */
+  /**
+   * Übernimmt die Übersetzung; leere Felder bedeuten „nicht übersetzt" und bleiben unangetastet.
+   * Der englische Stand wandert in die `*_en`-Felder, sofern dort noch nichts steht — sonst
+   * verliert der Re-Import seinen Match-Schlüssel.
+   */
   function applyTranslation(t: MonsterTranslation) {
     const m = ed.draft;
     if (!m) return;
-    if (t.name) m.name = t.name;
-    if (t.languages) m.languages = t.languages;
-    if (t.damage_resistances.length) m.damage_resistances = t.damage_resistances;
-    if (t.damage_immunities.length) m.damage_immunities = t.damage_immunities;
-    if (t.condition_immunities.length) m.condition_immunities = t.condition_immunities;
-    for (const key of ['traits', 'actions', 'reactions', 'legendary_actions'] as const) {
+    if (t.name) {
+      m.name_en ||= m.name;
+      m.name = t.name;
+    }
+    if (t.armor_detail) m.armor_detail = t.armor_detail;
+    if (t.languages.length) m.languages = t.languages;
+    if (t.languages_desc) m.languages_desc = t.languages_desc;
+    if (t.defenses_desc) m.defenses_desc = t.defenses_desc;
+    for (const key of ['traits', 'actions'] as const) {
       t[key].forEach((x, i) => {
-        if (!m[key][i]) return;
-        if (x.name) m[key][i].name = x.name;
-        if (x.description) m[key][i].description = convertDistances(x.description);
+        const entry = m[key][i];
+        if (!entry) return;
+        if (x.name) {
+          entry.name_en ||= entry.name;
+          entry.name = x.name;
+        }
+        if (x.desc) {
+          entry.desc_en ||= entry.desc;
+          entry.desc = convertDistances(x.desc);
+        }
       });
     }
   }
@@ -122,10 +123,7 @@
           { label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) },
           { label: '✨ KI überarbeiten…', onclick: () => (showAi = true) },
         ]}
-      >
-        <DndApiSearch placeholder="SRD-Monster importieren…" onsearch={searchMonsters} onselect={importFromApi} />
-        {#if importError}<span class="import-error">{importError}</span>{/if}
-      </CardTools>
+      />
     {:else}
       <ParseError message="Ungültiges Monster-JSON." onjson={() => (ed.tab = 'json')} />
     {/if}
@@ -161,6 +159,4 @@
     font-size: 0.88rem;
     color: var(--ink);
   }
-
-  .import-error { color: var(--danger); font-size: 0.78rem; }
 </style>

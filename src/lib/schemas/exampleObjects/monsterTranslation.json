@@ -1,37 +1,21 @@
 {
   "name": "string",
-  "languages": "string",
-  "damage_resistances": [
+  "armor_detail": "string",
+  "languages": [
     "string"
   ],
-  "damage_immunities": [
-    "string"
-  ],
-  "condition_immunities": [
-    "string"
-  ],
+  "languages_desc": "string",
+  "defenses_desc": "string",
   "traits": [
     {
       "name": "string",
-      "description": "string"
+      "desc": "string"
     }
   ],
   "actions": [
     {
       "name": "string",
-      "description": "string"
-    }
-  ],
-  "reactions": [
-    {
-      "name": "string",
-      "description": "string"
-    }
-  ],
-  "legendary_actions": [
-    {
-      "name": "string",
-      "description": "string"
+      "desc": "string"
     }
   ]
 }

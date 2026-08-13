@@ -2,7 +2,9 @@
 // Label-Maps, Helper und Templates bleiben hier. normalize*/parse* leben in
 // utils/schemaValidation.ts.
 import type { Spell, SpellDamage } from './schemas/spell';
-import type { Monster, MonsterAction, MonsterDamage } from './schemas/monster';
+import type {
+  Monster, MonsterAction, MonsterAttack, MonsterDamageRoll, MonsterSenses, MonsterSpeed, MonsterTrait,
+} from './schemas/monster';
 import type { Item } from './schemas/item';
 import type { Encounter, EncounterMonster } from './schemas/encounter';
 import type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData } from './schemas/characterSchema';
@@ -25,7 +27,9 @@ import type {
   MonsterType,
   SpellSchool,
 } from './schemas/vocabulary';
-export type { Spell, SpellDamage, Monster, MonsterAction, MonsterDamage, Item, Encounter, EncounterMonster };
+export type { Spell, SpellDamage, Monster, MonsterAction, MonsterAttack, MonsterDamageRoll };
+export type { MonsterSenses, MonsterSpeed, MonsterTrait };
+export type { Item, Encounter, EncounterMonster };
 export type { Character, CharacterSpells, Attack, SpellEntry, ProficiencyFlags, PersonalData };
 export type { ClassProgression, ClassFeature, Species, Trait, Feat, Background, Benefit };
 
@@ -183,27 +187,51 @@ export function monsterAlignmentLabel(alignment: string): string {
 
 export const MONSTER_TEMPLATE: Monster = {
   name: 'Neues Monster',
+  name_en: '',
   source: OWN_SOURCE,
   size: 'Medium',
   type: 'humanoid',
   alignment: 'neutral',
-  ac: { value: 10, note: '' },
-  hp: { average: 11, formula: '2d8+2' },
-  speed: '9 m',
-  stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  challenge_rating: 0.25,
+  xp: 50,
+  armor_class: 10,
+  armor_detail: '',
+  hit_points: 11,
+  hit_dice: '2d8 + 2',
+  ability_scores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
   saving_throws: {},
-  skills: {},
+  skill_bonuses: {},
+  speed: { walk: 30, fly: 0, swim: 0, climb: 0, burrow: 0, hover: false },
+  senses: { darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 },
+  languages: [],
+  languages_desc: '',
   damage_resistances: [],
   damage_immunities: [],
+  damage_vulnerabilities: [],
   condition_immunities: [],
-  senses: 'passive Wahrnehmung 10',
-  languages: '—',
-  cr: '1/4',
-  xp: 50,
+  defenses_desc: '',
   traits: [],
-  actions: [{ name: 'Angriff', description: 'Nahkampfwaffenangriff: +2 zum Angriff, Reichweite 1,5 m, ein Ziel. Treffer: 3 (1W4+1) Stichschaden.' }],
-  reactions: [],
-  legendary_actions: [],
+  actions: [
+    {
+      name: 'Angriff',
+      name_en: '',
+      desc: 'Nahkampfangriff mit einer Waffe.',
+      desc_en: '',
+      action_type: 'ACTION',
+      legendary_action_cost: 1,
+      attacks: [
+        {
+          name: 'Angriff',
+          attack_type: 'WEAPON',
+          to_hit_mod: 2,
+          reach: 5,
+          target_creature_only: false,
+          damage: { die_count: 1, die_type: 'D4', bonus: 1, type: 'piercing' },
+        },
+      ],
+    },
+  ],
+  tags: [],
 };
 
 export const CLASS_TEMPLATE: ClassProgression = {

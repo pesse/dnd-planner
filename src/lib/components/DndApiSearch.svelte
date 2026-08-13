@@ -1,7 +1,7 @@
 <script lang="ts" generics="T extends { index: string; name: string; url: string; tag?: string }">
   let {
     placeholder = 'Name suchen…',
-    label = 'Aus DnD-API laden',
+    label = 'Aus Open5e laden',
     onsearch,
     onselect,
   }: {

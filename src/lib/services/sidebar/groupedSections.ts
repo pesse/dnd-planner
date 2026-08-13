@@ -6,10 +6,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { ITEMS_PATH, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { CATEGORY_LABELS, DIR_TO_CATEGORY, rarityColor } from '../../itemLabels';
 import { SCHOOL_COLORS } from '../../spellLibrary';
+import { MONSTERS_PATH, allMonsterPaths } from '../../monsterLibrary';
+import { crLabel } from '../monsterFormat';
+import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
 import type { CreateKind } from './createSpecs';
 
-const MONSTERS_PATH = './vault/monsters';
 const SPELLS_PATH = './vault/spells';
 
 export interface TreeBadge {
@@ -100,40 +102,28 @@ const levelBadge = (level: number, color: string, title?: string): TreeBadge => 
 const leafLevel = (leaf: TreeLeaf): number => (leaf.badge?.text === 'Z' ? 0 : Number(leaf.badge?.text ?? 0));
 
 async function loadMonsterGroups(): Promise<TreeGroup[]> {
-  const toLeaf = async (path: string, filename: string): Promise<{ typeKey: string; leaf: TreeLeaf }> => {
-    const base = {
-      entryName: filename.replace('.json', ''),
-      path,
-      suffix: filename,
-      groupId: '',
+  /**
+   * Eine unparsbare Datei behält ihr Blatt mit dem Dateinamen — sonst verschwindet sie aus
+   * der Seitenleiste und ist nicht mehr zu öffnen, also auch nicht mehr zu reparieren.
+   */
+  const toLeaf = async (path: string): Promise<{ typeKey: string; leaf: TreeLeaf }> => {
+    const suffix = path.slice(MONSTERS_PATH.length + 1);
+    const base = { entryName: suffix.replace(/^.*\//, '').replace('.json', ''), path, suffix, groupId: '' };
+    const parsed = parseMonster(await readJson(path).catch(() => null));
+    if (!parsed.ok) return { typeKey: '', leaf: { ...base, label: base.entryName } };
+    const cr = crLabel(parsed.data.challenge_rating);
+    return {
+      typeKey: parsed.data.type,
+      leaf: {
+        ...base,
+        label: parsed.data.name || base.entryName,
+        badge: { kind: 'cr', text: cr, title: `Herausforderungsgrad ${cr}` },
+      },
     };
-    try {
-      const data = await readJson(path);
-      const cr = ((data.cr as string | number | undefined) ?? '').toString().trim();
-      return {
-        typeKey: (data.type as string) ?? '',
-        leaf: {
-          ...base,
-          label: (data.name as string) ?? base.entryName,
-          badge: cr ? { kind: 'cr', text: cr, title: `Herausforderungsgrad ${cr}` } : undefined,
-        },
-      };
-    } catch {
-      return { typeKey: '', leaf: { ...base, label: base.entryName } };
-    }
   };
 
   try {
-    const entries = await invoke<JsonEntry[]>('list_json_entries', { path: MONSTERS_PATH });
-    const dirs = entries.filter((e) => e.is_dir).map((e) => e.name);
-    const rootFiles = entries.filter((e) => !e.is_dir && e.name.endsWith('.json')).map((e) => e.name);
-
-    const all: { typeKey: string; leaf: TreeLeaf }[] = [];
-    for (const dir of dirs) {
-      const files = await invoke<string[]>('list_json_files', { path: `${MONSTERS_PATH}/${dir}` }).catch(() => [] as string[]);
-      all.push(...await Promise.all(files.map((f) => toLeaf(`${MONSTERS_PATH}/${dir}/${f}`, `${dir}/${f}`))));
-    }
-    all.push(...await Promise.all(rootFiles.map((f) => toLeaf(`${MONSTERS_PATH}/${f}`, f))));
+    const all = await Promise.all((await allMonsterPaths()).map(toLeaf));
 
     const byType: Record<string, TreeLeaf[]> = {};
     for (const { typeKey, leaf } of all) {

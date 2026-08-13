@@ -51,11 +51,44 @@ export const MONSTER_SIZES = {
 export type MonsterSize = keyof typeof MONSTER_SIZES;
 export const MONSTER_SIZE_KEYS = Object.keys(MONSTER_SIZES) as [MonsterSize, ...MonsterSize[]];
 
+/** Schlüsselsatz zu `DAMAGE_TYPE_LABELS` (itemLabels.ts), das die deutschen Namen trägt. */
+export const DAMAGE_TYPES = [
+  'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic',
+  'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder',
+] as const;
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+/** Die Würfelgrößen, die Open5e an Kreaturen-Angriffen führt. */
+export const DAMAGE_DICE = ['D4', 'D6', 'D8', 'D10', 'D12'] as const;
+export type DamageDie = (typeof DAMAGE_DICE)[number];
+
+export const CONDITIONS = {
+  blinded:       'Geblendet',
+  charmed:       'Bezaubert',
+  deafened:      'Taub',
+  exhaustion:    'Erschöpfung',
+  frightened:    'Verängstigt',
+  grappled:      'Gepackt',
+  incapacitated: 'Handlungsunfähig',
+  invisible:     'Unsichtbar',
+  paralyzed:     'Gelähmt',
+  petrified:     'Versteinert',
+  poisoned:      'Vergiftet',
+  prone:         'Liegend',
+  restrained:    'Festgesetzt',
+  stunned:       'Betäubt',
+  unconscious:   'Bewusstlos',
+} as const;
+export type Condition = keyof typeof CONDITIONS;
+export const CONDITION_KEYS = Object.keys(CONDITIONS) as [Condition, ...Condition[]];
+
 /**
  * Ohne JEDES Leerzeichen, weil Open5es v2-Kerntabellen „Na ture" (Druide) und
- * „In sight" (Magier) enthalten — Leerzeichen mitten im Namen.
+ * „In sight" (Magier) enthalten — Leerzeichen mitten im Namen. Unterstrich und
+ * Bindestrich fallen mit: Kreaturen liefern `animal_handling`, die Vokabular-Endpunkte
+ * `animal-handling`.
  */
-const foldRuleName = (s: string): string => s.toLowerCase().replace(/\s+/g, '');
+const foldRuleName = (s: string): string => s.toLowerCase().replace(/[\s_-]+/g, '');
 
 function vocabularyLookup<T extends string>(values: readonly T[]): Map<string, T> {
   return new Map(values.map((v) => [foldRuleName(v), v]));
@@ -64,6 +97,8 @@ function vocabularyLookup<T extends string>(values: readonly T[]): Map<string, T
 const SKILL_LOOKUP = vocabularyLookup(SKILL_NAMES);
 const ABILITY_LOOKUP = vocabularyLookup(ABILITY_NAMES);
 const WEAPON_LOOKUP = vocabularyLookup(WEAPON_CATEGORIES);
+const DAMAGE_TYPE_LOOKUP = vocabularyLookup(DAMAGE_TYPES);
+const CONDITION_LOOKUP = vocabularyLookup(CONDITION_KEYS);
 // „Shield" (Singular) kommt in der Prosa ebenso vor wie „Shields".
 const ARMOR_LOOKUP = new Map([...vocabularyLookup(ARMOR_TRAININGS), ['shield', 'Shields' as ArmorTraining]]);
 
@@ -74,6 +109,12 @@ export const readAbilityName = (raw: string): AbilityName | null => ABILITY_LOOK
 
 export const readWeaponCategory = (raw: string): WeaponCategory | null =>
   WEAPON_LOOKUP.get(foldRuleName(raw.replace(/\bweapons?\b/gi, ''))) ?? null;
+
+export const readDamageType = (raw: string): DamageType | null =>
+  DAMAGE_TYPE_LOOKUP.get(foldRuleName(raw)) ?? null;
+
+export const readCondition = (raw: string): Condition | null =>
+  CONDITION_LOOKUP.get(foldRuleName(raw)) ?? null;
 
 export const readArmorTraining = (raw: string): ArmorTraining | null =>
   ARMOR_LOOKUP.get(foldRuleName(raw.replace(/\barmou?r\b/gi, '').replace(/\btraining\b/gi, ''))) ?? null;

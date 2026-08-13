@@ -3,6 +3,7 @@
   import { monsterSizeLabel, monsterTypeLabel } from '../../types';
   import { modStr } from '../../domain/skills';
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
+  import { crLabel, speedLine } from '../../services/monsterFormat';
   // `.source-badge`/`.source-act` bleiben dort: der Klassenname wird gebaut, ein
   // scoped Selektor fände ihn nicht.
   import './monsterMiniCard.css';
@@ -29,7 +30,7 @@
 <div class="compact">
   <div class="c-header">
     <span class="c-name">{monster.name}</span>
-    <span class="c-cr">HG {monster.cr}</span>
+    <span class="c-cr">HG {crLabel(monster.challenge_rating)}</span>
     <span class="source-badge source-{source}">{source === 'act' ? 'akt' : ''}</span>
   </div>
   <div class="c-meta">{monsterSizeLabel(monster.size)} {monsterTypeLabel(monster.type)}</div>
@@ -37,17 +38,17 @@
   <div class="c-divider"></div>
 
   <div class="c-props">
-    <span><span class="c-lbl">RK</span> {monster.ac.value}</span>
-    <span><span class="c-lbl">TP</span> {monster.hp.average}</span>
-    <span><span class="c-lbl">BW</span> {monster.speed}</span>
+    <span><span class="c-lbl">RK</span> {monster.armor_class}</span>
+    <span><span class="c-lbl">TP</span> {monster.hit_points}</span>
+    <span><span class="c-lbl">BW</span> {speedLine(monster.speed)}</span>
   </div>
 
   <div class="c-stats">
     {#each ABILITY_KEYS as key}
       <div class="c-stat">
         <span class="c-stat-lbl">{ABILITY_ABBR_DE[key]}</span>
-        <span class="c-stat-val">{monster.stats[key]}</span>
-        <span class="c-stat-mod">{modStr(monster.stats[key])}</span>
+        <span class="c-stat-val">{monster.ability_scores[key]}</span>
+        <span class="c-stat-mod">{modStr(monster.ability_scores[key])}</span>
       </div>
     {/each}
   </div>

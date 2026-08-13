@@ -1,22 +1,22 @@
 <script lang="ts">
-  import type { MonsterAction } from '../../types';
+  import type { MonsterTrait } from '../../types';
   import './monsterEditForm.css';
 
   let {
-    items = $bindable<MonsterAction[]>(),
+    items = $bindable<MonsterTrait[]>(),
     heading,
     placeholder,
     addLabel,
     onchange,
   }: {
-    items: MonsterAction[];
+    items: MonsterTrait[];
     heading?: string;
     placeholder: string;
     addLabel: string;
     onchange: () => void;
   } = $props();
 
-  function add() { items.push({ name: 'Neue Aktion', description: '' }); onchange(); }
+  function add() { items.push({ name: 'Neue Eigenschaft', name_en: '', desc: '', desc_en: '' }); onchange(); }
   function remove(i: number) { items.splice(i, 1); onchange(); }
 </script>
 
@@ -28,7 +28,7 @@
         <input class="ef ability-name" bind:value={item.name} oninput={onchange} placeholder={placeholder} />
         <button class="del-btn" onclick={() => remove(i)}>×</button>
       </div>
-      <textarea class="ef ability-desc" bind:value={item.description} oninput={onchange} rows="2"></textarea>
+      <textarea class="ef ability-desc" bind:value={item.desc} oninput={onchange} rows="2"></textarea>
     </div>
   {/each}
   <button class="add-btn" onclick={add}>+ {addLabel}</button>

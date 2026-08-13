@@ -6,7 +6,7 @@
   import { describeAiStep } from '../services/aiActions/describeStep';
   import { newCardDraft } from '../editor/cardEditor.svelte';
   import { activeFile } from '../stores/campaign';
-  import { getResource, type DndApiRef } from '../services/dndApi';
+  import type { ApiRef } from '../services/open5eClient';
   import Modal from './ui/Modal.svelte';
   import AiStatusBanner from './ui/AiStatusBanner.svelte';
   import LlmProviderSelect from './ui/LlmProviderSelect.svelte';
@@ -19,7 +19,6 @@
     type,
     title,
     searchApi,
-    mapApi,
     loadApi,
     searchLibrary,
     blank,
@@ -31,11 +30,9 @@
   }: {
     type: FileEntry['type'];
     title: string;
-    searchApi: (q: string) => Promise<DndApiRef[]>;
-    /** Rohe DnD-API-Ressource → Draft. Optional, wenn `loadApi` gesetzt ist. */
-    mapApi?: (data: Record<string, unknown>) => T;
-    /** Lädt einen Treffer selbst (Open5e v2) — hat Vorrang vor `mapApi`. */
-    loadApi?: (ref: DndApiRef) => Promise<T>;
+    /** Fehlt → es gibt keine Online-Quelle, gesucht wird nur in der Bibliothek (Monster). */
+    searchApi?: (q: string) => Promise<ApiRef[]>;
+    loadApi?: (ref: ApiRef) => Promise<T>;
     searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
     blank: (name: string) => T;
     /** Fehlt → der Dialog bietet keinen KI-Pfad an. */
@@ -113,15 +110,17 @@
         ? (await searchLibrary(q)).map((h) => ({ name: h.name, badge: 'Bibliothek', api: false, load: h.load }))
         : [];
       let apiHits: TemplateHit[] = [];
-      try {
-        apiHits = (await searchApi(q)).map((ref) => ({
-          name: ref.name,
-          badge: 'SRD',
-          api: true,
-          load: async () => (loadApi ? loadApi(ref) : mapApi!(await getResource(ref.url))),
-        }));
-      } catch (e) {
-        templateError = `DnD-API nicht erreichbar: ${e instanceof Error ? e.message : String(e)}`;
+      if (searchApi && loadApi) {
+        try {
+          apiHits = (await searchApi(q)).map((ref) => ({
+            name: ref.name,
+            badge: 'SRD',
+            api: true,
+            load: () => loadApi(ref),
+          }));
+        } catch (e) {
+          templateError = `Open5e nicht erreichbar: ${e instanceof Error ? e.message : String(e)}`;
+        }
       }
       templateResults = [...libHits, ...apiHits];
       if (!templateResults.length && !templateError) templateError = 'Keine Treffer.';
@@ -223,7 +222,7 @@
         <input
           class="input"
           bind:value={templateQuery}
-          placeholder={searchLibrary ? 'Vorlage suchen (Bibliothek + SRD)…' : 'SRD-Vorlage suchen (englisch)…'}
+          placeholder={!searchApi ? 'Vorlage in der Bibliothek suchen…' : searchLibrary ? 'Vorlage suchen (Bibliothek + SRD)…' : 'SRD-Vorlage suchen (englisch)…'}
           onkeydown={(e) => { if (e.key === 'Enter') searchTemplates(); }}
         />
         <button class="secondary-btn" onclick={searchTemplates} disabled={templateSearching || !templateQuery.trim()}>
@@ -254,7 +253,7 @@
       <LlmProviderSelect />
 
       {#if !canTools}
-        <p class="hint warn">Das gewählte Modell unterstützt keine Tools (DnD-API-Suche). Bitte ein Anthropic- oder Groq-Modell wählen.</p>
+        <p class="hint warn">Das gewählte Modell unterstützt keine Tools (Recherche in Bibliothek und SRD). Bitte ein Anthropic- oder Groq-Modell wählen.</p>
       {/if}
 
       <div class="row">
