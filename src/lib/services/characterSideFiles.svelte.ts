@@ -1,6 +1,6 @@
 /**
- * Alles im Charakterverzeichnis AUSSER `character.json`: GM-Notizen, Details und das
- * Portrait. Die beiden Markdown-Dateien speichern sich selbst (`AutosaveFile`).
+ * Alles im Charakterverzeichnis AUSSER `character.json`: GM-Notizen, Details und die Bilder.
+ * Die beiden Markdown-Dateien speichern sich selbst (`AutosaveFile`).
  */
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { AutosaveFile, type SaveStatus } from '../utils/autosaveFile.svelte';
@@ -8,7 +8,7 @@ import { AutosaveFile, type SaveStatus } from '../utils/autosaveFile.svelte';
 const GM_NOTES_TEMPLATE_PATH = './vault/templates/character.md';
 const GM_NOTES_FALLBACK = `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
 
-let portraitToken = 0;
+let imageToken = 0;
 
 export interface CharacterSideFiles {
   readonly gmNotes: string;
@@ -17,6 +17,8 @@ export interface CharacterSideFiles {
   readonly detailsStatus: SaveStatus;
   /** Asset-URL des Portraits; leer, wenn keines hinterlegt oder ladbar ist. */
   readonly portraitUrl: string;
+  /** Dasselbe für das Bild des Gefährten. */
+  readonly companionImageUrl: string;
   onGmNotesChange(md: string): void;
   onDetailsChange(md: string): void;
 }
@@ -26,10 +28,10 @@ export function createCharacterSideFiles(deps: {
   /** Nur für die Überschrift frisch angelegter GM-Notizen. */
   characterName: () => string;
   portraitFile: () => string | undefined;
+  companionImageFile: () => string | undefined;
 }): CharacterSideFiles {
   let gmNotes = $state('');
   let details = $state('');
-  let portraitUrl = $state('');
   const gmNotesSave = new AutosaveFile();
   const detailsSave = new AutosaveFile();
 
@@ -44,14 +46,21 @@ export function createCharacterSideFiles(deps: {
   // Über das Asset-Protokoll statt als Base64 durch die IPC: ein Porträt sind schnell 3 MB,
   // die als ~4 MB langer String über die Bridge gingen. `?v=` erzwingt frische Bytes — ein
   // ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL.
-  $effect(() => {
-    const dir = deps.dirPath();
-    const file = deps.portraitFile();
-    if (!file) { portraitUrl = ''; return; }
-    invoke<string>('get_absolute_path', { path: `${dir}/${file}` })
-      .then((abs) => { portraitUrl = `${convertFileSrc(abs)}?v=${portraitToken++}`; })
-      .catch(() => { portraitUrl = ''; });
-  });
+  function assetUrl(file: () => string | undefined): () => string {
+    let url = $state('');
+    $effect(() => {
+      const dir = deps.dirPath();
+      const name = file();
+      if (!name) { url = ''; return; }
+      invoke<string>('get_absolute_path', { path: `${dir}/${name}` })
+        .then((abs) => { url = `${convertFileSrc(abs)}?v=${imageToken++}`; })
+        .catch(() => { url = ''; });
+    });
+    return () => url;
+  }
+
+  const portraitUrl = assetUrl(deps.portraitFile);
+  const companionImageUrl = assetUrl(deps.companionImageFile);
 
   async function load(dir: string) {
     gmNotes = await readOrCreateGmNotes(`${dir}/gm-notes.md`, deps.characterName());
@@ -66,7 +75,8 @@ export function createCharacterSideFiles(deps: {
     get details() { return details; },
     get gmNotesStatus() { return gmNotesSave.status; },
     get detailsStatus() { return detailsSave.status; },
-    get portraitUrl() { return portraitUrl; },
+    get portraitUrl() { return portraitUrl(); },
+    get companionImageUrl() { return companionImageUrl(); },
 
     onGmNotesChange(md) {
       gmNotes = md;

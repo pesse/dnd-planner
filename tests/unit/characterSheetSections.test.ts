@@ -12,6 +12,7 @@ import type { CharacterPrintData } from '../../src/lib/print/character/data';
 const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData => ({
   character: characterSchema.parse({ name: 'Testfigur' }),
   portraitUrl: '',
+  companionImageUrl: '',
   freetext: '',
   attacks: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
@@ -72,6 +73,19 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(d)).toContain('featuresClass');
     expect(render(d, 'featuresClass')).toContain('Wildgestalt: 2× pro Rast');
     expect(render(d, 'overview')).not.toContain('Wildgestalt: 2× pro Rast');
+  });
+
+  it('bietet den Gefährten an, sobald Text ODER Bild gepflegt ist', () => {
+    const withText = emptyData({
+      character: characterSchema.parse({ name: 'Testfigur', companion: { text: 'Waldi, Wolf' } }),
+    });
+    const imageOnly = emptyData({ companionImageUrl: 'data:image/png;base64,AAA' });
+
+    expect(ids(emptyData())).not.toContain('companion');
+    expect(ids(withText)).toContain('companion');
+    expect(render(withText, 'companion')).toContain('Waldi, Wolf');
+    expect(ids(imageOnly)).toContain('companion');
+    expect(render(imageOnly, 'companion')).toContain('data:image/png;base64,AAA');
   });
 
   it('bietet gepinnte Merkmale erst an, wenn ein Pin auch ein Merkmal trifft', () => {

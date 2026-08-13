@@ -27,7 +27,7 @@
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
-  import PortraitField from './characterForm/PortraitField.svelte';
+  import ImageField from './characterForm/ImageField.svelte';
   import PersonalFields from './characterForm/PersonalFields.svelte';
   import TagEditor from './characterForm/TagEditor.svelte';
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
@@ -326,13 +326,27 @@
   <section>
     <h3>Persönliches</h3>
     <div class="personal-grid">
-      <PortraitField bind:portraitFile={form.portraitFile} {dirPath} diff={dirOf(saved?.portraitFile, form.portraitFile)} />
+      <ImageField bind:file={form.portraitFile} {dirPath} baseName="portrait" label="Portrait"
+        diff={dirOf(saved?.portraitFile, form.portraitFile)} />
       <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
     </div>
     <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>
       Aussehen
       <textarea class="ta-small" bind:value={form.personal.aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
     </label>
+  </section>
+
+  <section>
+    <h3>Gefährte</h3>
+    <div class="personal-grid companion-grid">
+      <ImageField bind:file={form.companion.imageFile} {dirPath} baseName="companion" label="Bild"
+        diff={dirOf(saved?.companion?.imageFile, form.companion.imageFile)} />
+      <label use:diffMark={dirOf(saved?.companion?.text, form.companion.text)}>
+        Gefährte, Vertrauter oder Reittier
+        <textarea bind:value={form.companion.text}
+          placeholder="Name, Art, Werte, Besonderheiten…"></textarea>
+      </label>
+    </div>
   </section>
 
   <section>

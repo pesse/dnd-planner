@@ -180,6 +180,11 @@ const personalDataSchema = z.object({
   aussehen: z.string().default(''),
 });
 
+const companionSchema = z.object({
+  text: z.string().default(''),
+  imageFile: z.string().optional(), // Dateiname im Charakter-Ordner, wie `portraitFile`
+});
+
 export const emptyPersonal = (): PersonalData => ({
   rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '',
   gesinnung: '', glaube: '', lebensstil: '', taeglicheKosten: '',
@@ -296,6 +301,12 @@ export const characterSchema = z.object({
     .default([])
     .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
+  /**
+   * Gefährte, Vertrauter oder Reittier als reiner Freitext samt Bild — bewusst ohne eigene
+   * Werte: was am Tisch würfelt, ist ein Monster der Bibliothek, kein zweites Charakterschema.
+   * Ganz weg, solange nichts gepflegt ist, damit keine Datei ein leeres Objekt gewinnt.
+   */
+  companion: companionSchema.optional(),
   // `_version` bewusst offener int, kein Literal-Union: eine von einer neueren App
   // geschriebene Datei soll in einer älteren trotzdem laden. Default nur für neu
   // ENTSTANDENE Charaktere (Blanko, Wizard) — der Lesepfad stempelt vor dem Parse

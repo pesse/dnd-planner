@@ -8,8 +8,8 @@ import type { CharacterPrintData } from './data';
 import { renderOverview } from './pages/overview';
 import { renderInventory, renderMasteries } from './pages/extras';
 import {
-  renderClassFeatures, renderFeats, renderFreetext, renderPersonal, renderPinnedFeatures,
-  renderSpeciesFeatures,
+  renderClassFeatures, renderCompanion, renderFeats, renderFreetext, renderPersonal,
+  renderPinnedFeatures, renderSpeciesFeatures,
 } from './pages/details';
 import { renderExtraSpells, renderSpellSource, renderSpellTop, spellSourceGroups } from './pages/spells';
 
@@ -29,7 +29,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
  */
 export const STATIC_SECTION_IDS = [
   'overview',
-  'masteries', 'personal',
+  'masteries', 'personal', 'companion',
   'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
   'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards',
 ] as const;
@@ -66,6 +66,8 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
                  available: (d) => !!renderMasteries(d), render: renderMasteries },
   personal:    { label: 'Persönliches',       page: 'details', defaultOn: true,
                  available: (d) => !!renderPersonal(d), render: renderPersonal },
+  companion:   { label: 'Gefährte',           page: 'details', defaultOn: true,
+                 available: (d) => !!renderCompanion(d), render: renderCompanion },
   // Der Kasten steht immer: Leerzeilen und Münzkapseln sind die Fläche zum Nachtragen.
   inventory:   { label: 'Ausrüstung & Geldmittel', page: 'details', defaultOn: true,
                  available: always, render: renderInventory },

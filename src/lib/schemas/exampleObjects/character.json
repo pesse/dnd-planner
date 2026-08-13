@@ -218,6 +218,10 @@
     "string"
   ],
   "portraitFile": "string",
+  "companion": {
+    "text": "string",
+    "imageFile": "string"
+  },
   "_version": 8,
   "_importedFrom": "string",
   "_importedAt": "string"

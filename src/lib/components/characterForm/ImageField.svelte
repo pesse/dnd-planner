@@ -1,16 +1,21 @@
 <script lang="ts">
   /**
-   * Portrait des Charakters: Vorschau aus dem Charakter-Ordner, Datei wählen (wird in den
-   * Ordner kopiert) und Verknüpfung lösen. Gespeichert wird nur der Dateiname.
+   * Ein Bild im Charakter-Ordner: Vorschau, Datei wählen (wird in den Ordner kopiert) und
+   * Verknüpfung lösen. Gespeichert wird nur der Dateiname — `baseName` bestimmt ihn, damit
+   * zwei Felder im selben Ordner sich nicht überschreiben.
    */
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import './form.css';
 
-  let { portraitFile = $bindable(), dirPath, diff }: {
-    portraitFile: string;
+  let { file = $bindable(), dirPath, baseName, label, diff }: {
+    file: string;
     dirPath: string;
+    /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
+    baseName: string;
+    /** Beschriftung des leeren Rahmens und des Bildes. */
+    label: string;
     diff: DiffDir;
   } = $props();
 
@@ -22,8 +27,8 @@
   // Asset-Protokoll statt Base64 durch die IPC; `pick()` setzt die Vorschau danach direkt aus
   // den gelesenen Bytes, weil es sie zum Schreiben ohnehin hat.
   $effect(() => {
-    if (!portraitFile) { preview = ''; return; }
-    invoke<string>('get_absolute_path', { path: `${dirPath}/${portraitFile}` })
+    if (!file) { preview = ''; return; }
+    invoke<string>('get_absolute_path', { path: `${dirPath}/${file}` })
       .then((abs) => { preview = `${convertFileSrc(abs)}?v=${previewToken++}`; })
       .catch(() => { preview = ''; });
   });
@@ -40,36 +45,36 @@
       const src = selected as string;
       const ext = src.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
       const b64 = await invoke<string>('read_file_base64', { path: src });
-      const targetName = `portrait.${ext}`;
+      const targetName = `${baseName}.${ext}`;
       await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
-      portraitFile = targetName;
+      file = targetName;
       const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
       preview = `data:${mime};base64,${b64}`;
     } catch (e) {
-      error = `Portrait konnte nicht geladen werden: ${e}`;
+      error = `${label} konnte nicht geladen werden: ${e}`;
     } finally {
       busy = false;
     }
   }
 
   function clear() {
-    portraitFile = '';
+    file = '';
     preview = '';
   }
 </script>
 
-<div class="portrait-block" use:diffMark={diff}>
+<div class="image-block" use:diffMark={diff}>
   {#if preview}
-    <img class="portrait-preview" src={preview} alt="Portrait" />
+    <img class="image-preview" src={preview} alt={label} />
   {:else}
-    <div class="portrait-placeholder">Kein Portrait</div>
+    <div class="image-placeholder">Kein {label}</div>
   {/if}
-  <div class="portrait-actions">
+  <div class="image-actions">
     <button class="btn-add" onclick={pick} disabled={busy}>
-      {busy ? '…' : (portraitFile ? 'Ersetzen' : 'Bild wählen')}
+      {busy ? '…' : (file ? 'Ersetzen' : 'Bild wählen')}
     </button>
-    {#if portraitFile}
-      <button class="remove-btn" onclick={clear} title="Portrait-Verknüpfung entfernen">✕</button>
+    {#if file}
+      <button class="remove-btn" onclick={clear} title="Bild-Verknüpfung entfernen">✕</button>
     {/if}
   </div>
   {#if error}<div class="error-sm">{error}</div>{/if}

@@ -69,6 +69,7 @@
     dirPath: () => dirPath,
     characterName: () => character?.name ?? '',
     portraitFile: () => character?.portraitFile,
+    companionImageFile: () => character?.companion?.imageFile,
   });
 
   const feats = createFeaturePanelLayout();
@@ -88,6 +89,7 @@
         input={{
           character,
           portraitUrl: side.portraitUrl,
+          companionImageUrl: side.companionImageUrl,
           freetext: side.details,
           masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
           loaded: spellcasting,
@@ -115,7 +117,7 @@
       >
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
-            {spellcasting} {masteryOf} {masteryChips} />
+            {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl} />
         {/snippet}
 
         {#snippet bearbeiten()}

@@ -45,7 +45,7 @@ const read = (path: string): string | null => {
   }
 };
 
-function portraitUrl(dir: string, file: string | undefined): string {
+function imageUrl(dir: string, file: string | undefined): string {
   if (!file) return '';
   try {
     const b64 = readFileSync(join(dir, file)).toString('base64');
@@ -73,7 +73,8 @@ async function renderSheet(uid: string): Promise<{ file: string; label: string }
   const character = characterSchema.parse(upgradeCharacter(raw).data);
   const data = await loadCharacterPrintData({
     character,
-    portraitUrl: portraitUrl(dir, character.portraitFile),
+    portraitUrl: imageUrl(dir, character.portraitFile),
+    companionImageUrl: imageUrl(dir, character.companion?.imageFile),
     freetext: read(`${dir}/details.md`) ?? read(`${dir}/freitext.md`) ?? '',
     masteryOf: await masteryResolver(character),
   });

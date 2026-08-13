@@ -23,6 +23,13 @@ export const BLOCK_CSS = `
 .feat-choice { font-size: 7.4pt; color: var(--ink-soft); }
 .feat-desc { margin-top: 0.3mm; }
 
+/* Gefährte: Bild links, Freitext daneben — der Text umfließt es nicht, sonst franst die
+   letzte Zeile unter dem Bild aus. */
+.block.comp > .bbody { display: flex; gap: 0 2.5mm; align-items: flex-start; }
+.comp-img { flex: 0 0 auto; width: 24mm; height: 30mm; object-fit: cover;
+            border: 0.25mm solid var(--rule); border-radius: 1.2mm; }
+.block.comp .prose { flex: 1; min-width: 0; }
+
 /* Ausrüstung: drei Tabellen nebeneinander, die Münzen als schmale Spalte am rechten Rand */
 .block.inv > .bbody { display: flex; gap: 0 2.5mm; align-items: stretch; }
 .inv-wrap { flex: 1; min-width: 0; }

@@ -33,6 +33,8 @@ export interface CharacterPrintData {
   character: Character;
   /** Bereits `data:`-URL; leer = kein Portrait. */
   portraitUrl: string;
+  /** Dasselbe für das Bild des Gefährten. */
+  companionImageUrl: string;
   /** Freitext des Details-Tabs, als Markdown. */
   freetext: string;
   attacks: PrintAttack[];
@@ -54,6 +56,7 @@ export interface CharacterPrintData {
 export interface PrintDataInput {
   character: Character;
   portraitUrl?: string;
+  companionImageUrl?: string;
   freetext?: string;
   /** Derselbe Resolver, der die Meisterschaft auf dem Bildschirm-Bogen zeichnet. */
   masteryOf?: (attackName: string) => string | undefined;
@@ -114,6 +117,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   return {
     character: c,
     portraitUrl: input.portraitUrl ?? '',
+    companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',
     attacks: printAttacks(c, input.masteryOf),
     features,

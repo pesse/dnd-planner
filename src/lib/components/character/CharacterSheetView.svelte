@@ -14,13 +14,15 @@
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
-  let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips }: {
+  let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
+        companionImageUrl }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
     spellcasting: LoadedSpellcasting | null;
     masteryOf: (name: string) => WeaponMastery | undefined;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
+    companionImageUrl: string;
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -109,6 +111,20 @@
     {/if}
   {/if}
 
+  {#if character.companion?.text || companionImageUrl}
+    <div class="section companion">
+      <h3>Gefährte</h3>
+      <div class="companion-body">
+        {#if companionImageUrl}
+          <img class="companion-img" src={companionImageUrl} alt="Gefährte von {character.name}" />
+        {/if}
+        {#if character.companion?.text}
+          <p class="preformatted">{character.companion.text}</p>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
   <!-- Merkmale stehen in der rechten Seitenleiste (CharacterFeaturePanel) — auf
        jedem Tab sichtbar und dort auch änderbar. -->
 
@@ -154,6 +170,20 @@
   .skill-row.expertise .skill-val { color: var(--steel); }
   .skill-name { color: var(--ink-soft); }
   .skill-val { font-weight: 600; }
+
+  .companion-body {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .companion-img {
+    width: 120px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
 
   .personal-stats {
     display: grid;

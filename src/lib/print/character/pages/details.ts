@@ -1,7 +1,7 @@
 /**
  * Die Detailseite: Volks- und Klassenmerkmale als Freitext, Talente und gepinnte Merkmale im
- * Volltext, Persönliches, Freitext. Die Textkästen nehmen die ganze Breite und spalten sich
- * innen (`cols`).
+ * Volltext, Persönliches, Gefährte, Freitext. Die Textkästen nehmen die ganze Breite und
+ * spalten sich innen (`cols`).
  */
 import { renderMarkdown, ruleText } from '$lib/utils/markdown';
 import type { ResolvedFeature } from '$lib/services/characterFeatures';
@@ -63,6 +63,15 @@ export function renderPersonal(d: CharacterPrintData): string {
     ? `<div class="feat"><div class="feat-name">Aussehen</div><div class="prose">${escLines(p.aussehen)}</div></div>` : '';
   const body = rows + appearance;
   return body ? block('Persönliches', body) : '';
+}
+
+/** Freitext und Bild des Gefährten; jedes von beidem steht auch allein. */
+export function renderCompanion(d: CharacterPrintData): string {
+  const text = d.character.companion?.text?.trim() ?? '';
+  const image = d.companionImageUrl
+    ? `<img class="comp-img" src="${esc(d.companionImageUrl)}" alt="">` : '';
+  if (!text && !image) return '';
+  return block('Gefährte', `${image}<div class="prose">${escLines(text)}</div>`, { cls: 'comp' });
 }
 
 export function renderFreetext(d: CharacterPrintData): string {

@@ -57,6 +57,13 @@ export interface CharacterFormFields {
   masteries: string[];
   optionPicks: OptionPick[];
   portraitFile: string;
+  companion: CompanionFields;
+}
+
+/** Im Formular immer beide Felder, in der Datei zusammen nichts oder ein Objekt. */
+export interface CompanionFields {
+  text: string;
+  imageFile: string;
 }
 
 /** Einmalig beim Anlegen erfasst, damit der Rückschreib-Effekt sie NICHT reaktiv liest. */
@@ -173,6 +180,10 @@ export function initialFormFields(character: Character): CharacterFormFields {
     masteries: [...(character.masteries ?? [])],
     optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
+    companion: {
+      text: character.companion?.text ?? '',
+      imageFile: character.companion?.imageFile ?? '',
+    },
   };
 }
 
@@ -251,5 +262,11 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     masteries: [...f.masteries],
     optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
+    companion: companionForSave(f.companion),
   };
 }
+
+const companionForSave = (c: CompanionFields): Character['companion'] =>
+  c.text.trim() || c.imageFile
+    ? { text: c.text, ...(c.imageFile ? { imageFile: c.imageFile } : {}) }
+    : undefined;
