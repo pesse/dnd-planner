@@ -29,9 +29,15 @@ export interface FeatureNotesRunOptions {
   noRetry?: boolean;
 }
 
-/** QM-only, weil der Pfad Guided Output über ein eigenes JSON-Schema braucht. */
+/**
+ * QM-only, weil der Pfad Guided Output über ein eigenes JSON-Schema braucht. Als Prädikat
+ * exportiert, damit der Aufstieg den Ausfall vor den Spielerentscheidungen ankündigen kann
+ * statt ihn danach als Fehler zu melden — die Provider-Kenntnis bleibt in dieser Datei.
+ */
+export const canSummarizeFeatureNotes = (config: LlmConfig): boolean => config.provider === 'qualityminds';
+
 function guardQualityMinds(config: LlmConfig): void {
-  if (config.provider !== 'qualityminds')
+  if (!canSummarizeFeatureNotes(config))
     throw new Error(
       'Merkmals-Notizen laufen nur über den QualityMinds-Pfad (Structured Output). ' +
         'Bitte ein QualityMinds-Modell wählen.',
