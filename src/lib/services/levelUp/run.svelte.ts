@@ -48,7 +48,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
   const clock = createRunClock(() => st.run.kind === 'running');
   let abort: AbortController | null = null;
-  let userAborted = false;
   let runToken = 0;
 
   const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -87,14 +86,16 @@ export function createLevelUpRun(ctx: { character: Character }) {
   /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard, Uhr und Fehler-Rücksprung. */
   async function runSegment(resume: StepId, body: (alive: () => boolean) => Promise<void>) {
     if (st.run.kind === 'running') return;
-    userAborted = false; st.reachedStep = resume;
+    st.reachedStep = resume;
+    // Der Token trägt die Abbruch-Erkennung allein: `skipAi` zählt ihn hoch, bevor es einen
+    // neuen Lauf startet, also fällt das verspätete Settle des alten hier stumm durch.
     const myToken = ++runToken;
     abort = new AbortController(); clock.start();
     st.run = { kind: 'running', step: resume };
     try {
       await body(() => myToken === runToken);
     } catch (e) {
-      if (myToken === runToken && !userAborted) st.run = { kind: 'error', at: resume, message: msg(e) };
+      if (myToken === runToken) st.run = { kind: 'error', at: resume, message: msg(e) };
     } finally {
       if (myToken === runToken) { clock.stop(); abort = null; }
     }
@@ -111,8 +112,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
     };
   }
 
-  async function pipelineBody(from: StepId, alive: () => boolean) {
-    let step = advance(from, advCtx());
+  /** `rerun`: `from` läuft selbst noch einmal — so nimmt ein abgebrochener KI-Pass seine Ersatzfassung. */
+  async function pipelineBody(from: StepId, alive: () => boolean, rerun = false) {
+    let step = rerun ? from : advance(from, advCtx());
     while (!isCheckpoint(step)) {
       await runStep(step, alive);
       if (!alive()) return;
@@ -252,7 +254,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.featAccess = []; st.featRiders = []; st.flagged = [];
-      st.hpPerLevelSources = []; st.narrativeSummary = ''; st.featuresText = '';
+      st.hpPerLevelSources = []; st.narrativeSummary = ''; st.featuresText = ''; st.aiSkipped = false;
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();
 
@@ -274,6 +276,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
           return;
         }
         pushStep(`Delta: ${summarizeDelta(d)}`);
+        steps.announceNoteAvailability();
         await pipelineBody('choose-class', alive);
       });
     },
@@ -292,16 +295,26 @@ export function createLevelUpRun(ctx: { character: Character }) {
     /** Derselbe Merge, aber auf dem handbearbeiteten Textfeld-Stand statt auf der Rohfassung. */
     rework() {
       if (!st.delta) return;
+      st.aiSkipped = false; // Der Knopf IST die Bitte um die KI — er hebt den Abbruch auf.
       runSegment('class-features', async (alive) => {
         await steps.mergeClassFeatures(alive, st.featuresText);
         st.run = { kind: 'paused', at: 'class-features' };
       });
     },
 
-    stop() {
-      userAborted = true; runToken++; abort?.abort(); clock.stop();
-      if (st.run.kind === 'running') st.run = { kind: 'paused', at: st.run.step };
-      abort = null;
+    /**
+     * Der Nutzer bricht die KI ab, nicht den Aufstieg: der laufende Schritt wiederholt sich
+     * ohne sie, danach läuft die Strecke bis zum nächsten Checkpoint weiter. Ein bloßes
+     * Anhalten hätte auf einem Nicht-Checkpoint geendet, wo die Oberfläche keinen Knopf hat.
+     */
+    skipAi() {
+      if (st.run.kind !== 'running') return;
+      const step = st.run.step;
+      runToken++; abort?.abort(); abort = null; clock.stop();
+      st.aiSkipped = true;
+      st.run = { kind: 'paused', at: step };
+      pushStep('KI abgebrochen — der Aufstieg läuft ohne sie weiter.');
+      runSegment(step, (alive) => pipelineBody(step, alive, true));
     },
 
     destroy() { abort?.abort(); },

@@ -59,6 +59,12 @@ export interface LevelUpRunState {
   /** Bogenzeilen des Notiz-Passes, Basis- und Talentmerkmale in einem Satz. */
   notes: FeatureNote[];
   /**
+   * Der Nutzer hat die KI abgebrochen: die restlichen Pässe nehmen ihre deterministische
+   * Fassung, statt es erneut zu versuchen. Gilt für den ganzen Lauf — sonst müsste an jedem
+   * der vier Pässe erneut abgebrochen werden.
+   */
+  aiSkipped: boolean;
+  /**
    * Merkmale, deren Prosa eine Mechanik ankündigt, für die keine Deklaration steht — sie
    * fällt aus, und das darf nicht still passieren (`declarationGapLines`).
    */
@@ -101,6 +107,7 @@ export function emptyRunState(): LevelUpRunState {
     answers: {},
     baseAccess: [],
     notes: [],
+    aiSkipped: false,
     gaps: [],
     featsToPick: 0,
     chosenFeats: [],

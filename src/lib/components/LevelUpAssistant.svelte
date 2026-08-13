@@ -79,7 +79,7 @@
     <AiStatusBanner accent="arcane" text="{currentActivity || 'KI arbeitet…'} ({clock.elapsedSec}s)" />
   {/if}
   {#if clock.stalled}
-    <p class="hint warn">Seit {clock.stalledSec}s keine Antwort — du kannst abbrechen und neu starten.</p>
+    <p class="hint warn">Seit {clock.stalledSec}s keine Antwort — du kannst ohne KI weitermachen.</p>
   {/if}
 
   {#if isPausedAt(st.run, 'subclass-choice')}
@@ -118,7 +118,7 @@
 
   <div class="actions">
     {#if st.run.kind === 'running'}
-      <button class="secondary-btn" onclick={run.stop}>Abbrechen</button>
+      <button class="secondary-btn" onclick={run.skipAi}>Ohne KI weiter</button>
     {:else if isPausedAt(st.run, 'choose-class')}
       <button class="secondary-btn" onclick={onclose}>Schließen</button>
       <button class="primary-btn" onclick={() => ui.startFlow()}

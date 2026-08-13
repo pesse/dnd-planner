@@ -10,7 +10,7 @@ import { llmConfig } from '../../stores/llm';
 import { runAiAction } from '../aiActions/runner';
 import { buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary } from '../aiActions/levelUpAction';
 import { buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS } from '../aiActions/fieldSummaryAction';
-import { summarizeFeatureNotes } from '../aiActions/featureNotesAction';
+import { summarizeFeatureNotes, canSummarizeFeatureNotes } from '../aiActions/featureNotesAction';
 import type { GainedFeature, FeatureClassContext } from '../analysis/types';
 import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature } from '../perLevelEffects';
 import {
@@ -19,7 +19,7 @@ import {
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
 import { buildDecisions } from './questions';
-import { sheetNoteLines } from './answers';
+import { sheetNoteLines, fallbackSheetNotes } from './sheetNotes';
 import { expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageRiders } from '../declaration/languages';
@@ -132,6 +132,19 @@ export function createRunSteps(ctx: RunStepsDeps) {
         );
   }
 
+  /** Nach dem Abbruch durch den Nutzer nimmt jeder KI-Pass seine Ersatzfassung. */
+  const aiOff = (pass: string): boolean => {
+    if (!st.aiSkipped) return false;
+    pushStep(`${pass} ohne KI.`);
+    return true;
+  };
+
+  /** Vor den Spielerentscheidungen, damit der Ausfall nicht erst am Ende auffällt. */
+  function announceNoteAvailability() {
+    if (canSummarizeFeatureNotes(get(llmConfig))) return;
+    pushStep('KI-Formulierung nicht verfügbar — die Bogen-Notizen entstehen aus der Bibliothek.');
+  }
+
   /** Die deklarierten Wahlen der Basis-Merkmale leer vorbelegen — der Checkpoint folgt. */
   function runDeclaredChoices() {
     const declaredQs = [
@@ -200,6 +213,10 @@ export function createRunSteps(ctx: RunStepsDeps) {
    * Der EINZIGE Deutungs-Call der Merkmalsstrecke: je Merkmal eine Bogenzeile. Basis- und
    * Talentmerkmale in EINEM Call — erst hier stehen beide fest, und der Merge braucht sie
    * als Nächstes.
+   *
+   * Er ist OPTIONAL: er läuft ganz am Ende, hinter allen Spielerentscheidungen, und ein
+   * Fehlschlag hier würfe den fertigen Aufstieg weg. Statt zu blocken tritt die
+   * deterministische Ersatzfassung an.
    */
   async function runNotes(alive: () => boolean) {
     // Merkmale, deren gewählter Zweig nichts deklariert, kommen hier dazu: mechanisch ist
@@ -213,11 +230,21 @@ export function createRunSteps(ctx: RunStepsDeps) {
       pushStep('Keine Merkmale für eine Bogen-Notiz übrig.');
       return;
     }
+    if (aiOff('Bogen-Notizen')) {
+      st.notes = fallbackSheetNotes(features);
+      return;
+    }
     pushStep(`KI formuliert die Bogen-Notiz für ${features.length} Merkmal(e)…`);
-    const notes = await summarizeFeatureNotes(get(llmConfig),
-      { classContext: classContext(), features, terms: choiceTerms() }, runOpts());
-    if (!alive()) return;
-    st.notes = notes;
+    try {
+      const notes = await summarizeFeatureNotes(get(llmConfig),
+        { classContext: classContext(), features, terms: choiceTerms() }, runOpts());
+      if (!alive()) return;
+      st.notes = notes;
+    } catch (e) {
+      if (!alive()) return;
+      st.notes = fallbackSheetNotes(features);
+      pushStep(`Bogen-Notizen ohne KI: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   /**
@@ -232,6 +259,10 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   async function runNarrative(alive: () => boolean) {
+    if (aiOff('Narrativ')) {
+      st.narrativeSummary = fallbackSummary();
+      return;
+    }
     let n = { summary: '' };
     try {
       pushStep('KI formuliert das Narrativ…');
@@ -276,6 +307,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
   async function mergeClassFeatures(alive: () => boolean, currentText = seedFeaturesText()) {
     const notes = newSheetNotes();
     st.featuresText = currentText;
+    if (aiOff('Klassenmerkmale')) return;
     // Ohne neue Notizen den nutzergeschriebenen Text NICHT durch die KI schicken.
     if (!notes.length) {
       pushStep('Keine neuen Merkmale fürs Klassenmerkmale-Feld.');
@@ -364,7 +396,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   return {
-    initAnswers, initFeatureChoices,
+    initAnswers, initFeatureChoices, announceNoteAvailability,
     runDeclaredChoices, runRiders, runNotes, runNarrative,
     seedFeaturesText, mergeClassFeatures,
     resolveCharLevelSpells, detectHpPerLevel,

@@ -2,7 +2,7 @@
  * Zwei Projektionen derselben Antwort: `answerValues` (englisch, kanonisch) speist die KI und
  * den Charakter, `answerLabels` (deutsch) den Bogen.
  */
-import type { FeatureNote, LevelUpQuestion } from '../../schemas/levelUp';
+import type { LevelUpQuestion } from '../../schemas/levelUp';
 
 export function hasAnswer(value: string | string[] | undefined): boolean {
   return Array.isArray(value) ? value.length > 0 : (value ?? '').toString().trim() !== '';
@@ -33,12 +33,4 @@ export function answerValues(q: LevelUpQuestion, value: string | string[] | unde
 
 export function recordsChoice(q: LevelUpQuestion, answers: Record<string, string | string[]>): boolean {
   return !!q.featureKey && q.isBuildDecision && !!answerLabels(q, answers[q.id]);
-}
-
-/**
- * Welche Merkmale eine Bogen-Notiz bekommen, entscheidet der Notiz-Pass (leerer `sheetNote` =
- * keine) — nur er sieht, was der Bogen bereits anderswo führt.
- */
-export function sheetNoteLines(notes: FeatureNote[]): string[] {
-  return notes.map((n) => n.sheetNote.trim()).filter(Boolean);
 }
