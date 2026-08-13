@@ -32,14 +32,29 @@ const feat = async (sourceKey: string): Promise<GapCandidate> => {
 
 describe('Lückenmelder', () => {
   it('meldet eine undeklarierte Wahl genau einmal', async () => {
-    const invocations = await classFeature('srd-2024_warlock', 'srd-2024_warlock_eldritch-invocations');
-    const lines = declarationGapLines([invocations]);
+    const secrets = await classFeature('srd-2024_bard', 'srd-2024_bard_magical-secrets');
+    const lines = declarationGapLines([secrets]);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain('Schauerliche Anrufungen');
+    expect(lines[0]).toContain('Magische Geheimnisse');
     expect(lines[0]).toContain('eine Wahl');
     // Die Zeile muss sagen, was zu tun ist — sie steht im Schritt-Log und im Merkmalsfeld.
     expect(lines[0]).toContain('im Editor nachtragen');
+  });
+
+  /**
+   * Die Anrufungen sind als Pool deklariert, ihre Optionstexte wirken aber Zauber („cast
+   * *Mage Armor* … without expending a spell slot"), und ein Pool gewährt keine Mechanik.
+   * Die Meldung wechselt damit von `choice` auf `spells` — sie bleibt richtig.
+   */
+  it('meldet am deklarierten Pool die Zauber seiner Optionen', async () => {
+    const invocations = await classFeature('srd-2024_warlock', 'srd-2024_warlock_eldritch-invocations');
+    expect(invocations.grantsChoice, 'die Deklaration im Vault').toBeTruthy();
+
+    const lines = declarationGapLines([invocations]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('Schauerliche Anrufungen');
+    expect(lines[0]).toContain('Zauber an, die die Bibliothek nicht deklariert');
   });
 
   it('schweigt, wo die Bibliothek die Wahl deklariert', async () => {

@@ -11,6 +11,8 @@ import { optionPoolOffers } from '../../src/lib/services/declaration/optionPool'
 
 const SORCERER_KEY = 'srd-2024_sorcerer';
 const METAMAGIC_KEY = 'srd-2024_sorcerer_metamagic';
+const WARLOCK_KEY = 'srd-2024_warlock';
+const INVOCATIONS_KEY = 'srd-2024_warlock_eldritch-invocations';
 
 const sorcerer = (level: number) => ({
   classes: [{ sourceKey: SORCERER_KEY, name: 'Zauberer', level }],
@@ -41,5 +43,28 @@ describe('Metamagie als deklarierter Options-Pool', () => {
   it('stellt keinen Wahl-Platz in der Merkmalsleiste', async () => {
     const { slots } = await collectChoiceSlots(sorcerer(17));
     expect(slots.filter((s) => s.feature.key === METAMAGIC_KEY)).toEqual([]);
+  });
+});
+
+describe('Schauerliche Anrufungen als deklarierter Options-Pool', () => {
+  const invocationOffer = async (level: number) =>
+    (await optionPoolOffers({ classes: [{ sourceKey: WARLOCK_KEY, name: 'Hexenmeister', level }] })).find(
+      (o) => o.featureKey === INVOCATIONS_KEY,
+    );
+
+  /** Alle Anrufungen kommen von Stufe 1; die Zahl führt die Spalte „Eldritch Invocations". */
+  it('nimmt das Kontingent aus der Stufentabelle', async () => {
+    const allowances = await Promise.all(
+      [1, 2, 5, 9, 20].map(async (l) => (await invocationOffer(l))?.allowance ?? 0),
+    );
+    expect(allowances).toEqual([1, 3, 5, 7, 10]);
+  });
+
+  it('stellt die 28 SRD-Optionen mit deutschem Label bereit', async () => {
+    const offer = await invocationOffer(1);
+    expect(offer?.titleDe).toBe('Schauerliche Anrufungen');
+    expect(offer?.options).toHaveLength(28);
+    expect(offer?.options.map((o) => o.value)).toContain('Pact of the Blade');
+    expect(offer?.options.every((o) => o.labelDe.trim() && o.helpDe.trim())).toBe(true);
   });
 });
