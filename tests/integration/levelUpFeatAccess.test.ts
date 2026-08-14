@@ -224,6 +224,6 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
         expect(subclassFeaturesForAi([f]), `${f.key}: aus dem KI-Eingang`).toEqual([]);
       }
     }
-    expect(found).toEqual(['srd-2024_evoker :: Evocation Savant']);
+    expect(found).toEqual(['phb-2024_abjurer :: Abjuration Savant', 'srd-2024_evoker :: Evocation Savant']);
   });
 });
