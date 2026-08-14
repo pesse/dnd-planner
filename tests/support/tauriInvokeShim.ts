@@ -20,6 +20,7 @@ interface SpellIndexEntry {
   name: string;
   name_en: string;
   key: string;
+  source: string;
   level: number;
   classes: string[];
   school: string;
@@ -47,6 +48,7 @@ function collectSpells(dir: string, out: SpellIndexEntry[]): void {
           name,
           name_en: typeof v.name_en === 'string' ? v.name_en : '',
           key: typeof v.key === 'string' ? v.key : '',
+          source: typeof v.source === 'string' ? v.source : String((v.document as { key?: unknown })?.key ?? ''),
           level: typeof v.level === 'number' ? v.level : Number.parseInt(String(v.level), 10) || 0,
           classes: Array.isArray(v.classes) ? v.classes.filter((c): c is string => typeof c === 'string') : [],
           school: typeof v.school === 'string' ? v.school : '',

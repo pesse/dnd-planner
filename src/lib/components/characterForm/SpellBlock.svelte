@@ -244,7 +244,7 @@
     <input class="input" placeholder="Zauber suchen…" bind:value={extraQuery} />
     {#if extraMatches.length}
       <ul class="extra-list">
-        {#each extraMatches as match (match.key ?? match.name)}
+        {#each extraMatches as match (match.path)}
           <li><button type="button" onclick={() => addExtraSpell(match)}>{match.name}</button></li>
         {/each}
       </ul>

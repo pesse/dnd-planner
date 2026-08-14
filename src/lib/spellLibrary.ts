@@ -4,6 +4,7 @@ import { normName, slugKeepUmlauts } from './utils/text';
 import { buildNameIndex, matchByRef, type NameIndex } from './services/library/nameIndex';
 import { memoOnce } from './services/library/memo';
 import { OWN_SOURCE } from './schemas/source';
+import { spellKeyOf } from './schemas/spell';
 import type { Spell } from './types';
 
 export function blankSpell(name: string, level = 1, school = 'evocation', nameEn = ''): Spell {
@@ -20,8 +21,10 @@ export interface SpellInfo {
   name: string;
   /** Kanonischer englischer SRD-Name (für EN↔DE-Matching); leer, wenn nicht hinterlegt. */
   name_en?: string;
-  /** Bei Zaubern meist leer — die Identität ist der Name. */
+  /** Aus der Datei oder abgeleitet (`spellKeyOf`) — nur ohne Namen leer. */
   key?: string;
+  /** Key-Präfix; nur für die Ableitung nötig. */
+  source?: string;
   level: number;
   classes: string[];
   school: string;
@@ -39,8 +42,28 @@ export const SCHOOL_COLORS: Record<string, string> = {
   transmutation: 'var(--copper)',
 };
 
+/**
+ * Zwei Dateien mit demselben `key` (z. B. dasselbe Paket zweimal installiert) sind EIN Zauber —
+ * sonst hängen an einem Pick zwei Chips. Keylose Einträge bleiben alle stehen: ihr `key` ist `''`.
+ */
+export function dedupeSpellsByKey(spells: SpellInfo[]): SpellInfo[] {
+  const seen = new Set<string>();
+  return spells.filter((s) => {
+    if (!s.key) return true;
+    if (seen.has(s.key)) return false;
+    seen.add(s.key);
+    return true;
+  });
+}
+
+// Nicht `s.key`: eine Zauber-Datei ohne Key-Feld wäre sonst nicht verlinkbar — dieselbe
+// Ableitung wie beim Parsen, analog `itemKeyOf` im Item-Index.
+const withKey = (s: SpellInfo): SpellInfo => (s.key ? s : { ...s, key: spellKeyOf({ ...s }) });
+
 const index = memoOnce(() =>
-  invoke<SpellInfo[]>('load_spells_index', { path: './vault/spells' }).catch(() => [] as SpellInfo[]),
+  invoke<SpellInfo[]>('load_spells_index', { path: './vault/spells' })
+    .then((spells) => dedupeSpellsByKey(spells.map(withKey)))
+    .catch(() => [] as SpellInfo[]),
 );
 
 export const getSpellLibrary = index.get;

@@ -171,7 +171,9 @@
                 role="note"
               ><span class="chip-main">◆ {f.name}</span></span>
             {/each}
-            {#each sec.spells as s (s.key ?? s.name)}
+            <!-- Keyed nach `path`: `key` ist bei Zaubern aus älterem Vault-Bestand leer und
+                 wäre dann für jeden Eintrag derselbe (each_key_duplicate). -->
+            {#each sec.spells as s (s.path)}
               {@const val = s.key ?? ''}
               {@const picked = isPicked(s)}
               {@const from = known.get(val) ?? ''}

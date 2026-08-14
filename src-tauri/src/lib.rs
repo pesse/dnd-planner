@@ -363,6 +363,9 @@ pub struct SpellInfo {
     name: String,
     name_en: String,
     key: String,
+    /// Trägt die Datei keinen `key`, leitet ihn erst das Frontend ab (`spellKeyOf`) — dafür
+    /// braucht es die Herkunft, sie ist das Präfix.
+    source: String,
     level: u8,
     classes: Vec<String>,
     school: String,
@@ -398,6 +401,10 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                     if name.is_empty() { continue; }
                     let name_en = v["name_en"].as_str().unwrap_or("").to_string();
                     let key = v["key"].as_str().unwrap_or("").to_string();
+                    let source = v["source"].as_str()
+                        .or_else(|| v["document"]["key"].as_str())
+                        .unwrap_or("")
+                        .to_string();
                     let level = v["level"].as_u64()
                         .or_else(|| v["level"].as_str().and_then(|s| s.parse().ok()))
                         .unwrap_or(0) as u8;
@@ -409,7 +416,7 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                     let rel = path.strip_prefix(&project_root())
                         .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
                         .unwrap_or_else(|_| path.to_string_lossy().to_string());
-                    out.push(SpellInfo { name, name_en, key, level, classes, school, path: rel });
+                    out.push(SpellInfo { name, name_en, key, source, level, classes, school, path: rel });
                 }
             }
         }
