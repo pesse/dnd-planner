@@ -1,6 +1,6 @@
 /**
- * Mechanik-gebundene Merkmalswahlen und die drei Deklarationsfelder, die ein
- * Merkmal aus der KI-Deutung herausnehmen.
+ * Mechanik-gebundene Merkmalswahlen und die Deklarationsfelder, die ein Merkmal aus der
+ * KI-Deutung herausnehmen.
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';

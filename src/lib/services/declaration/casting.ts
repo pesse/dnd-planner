@@ -20,3 +20,11 @@ export function isSpellcastingFeature(f: ClassFeature): boolean {
 export function isSpellAccessFeature(f: DeclaredChoiceSource): boolean {
   return choiceGrants(f).some((g) => g.kind === 'spellAccess');
 }
+
+/**
+ * Ob das Merkmal sein Zauberwirken DEKLARIERT — Kontingent, Pool, Attribut und Tauschtakt
+ * kommen dann aus der Bibliothek, und die KI-Deutung schriebe daneben eine zweite Fassung
+ * derselben Mechanik. Trägt es Prosa ohne Senke, holt `aiInterpretsRest` es für die
+ * Bogen-Notiz zurück (`unredactedChoiceFeatures`).
+ */
+export const declaresCasting = (f: DeclaredChoiceSource): boolean => f.grantsCasting !== undefined;

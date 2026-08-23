@@ -126,6 +126,31 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(placed)).not.toContain('spellsExtra');
   });
 
+  // `requiresPrepared: false` hängt am Kontingent, nicht am Zauber — der einzige Weg, auf dem
+  // Ritual-Adept überhaupt auf den gedruckten Bogen kommt.
+  it('vermerkt am Zauberbuch nur das unvorbereitete Ritual', () => {
+    const book = (requiresPrepared: boolean, castNote: string) => ({
+      sourceId: 'cls:wizard', quotaId: 'book', label: 'Zauberbuch',
+      cast: [{ kind: 'ritual' as const, requiresPrepared }], castNote, swapNote: '',
+      levels: [], lists: [], schools: [], from: null, into: null,
+      count: 1, tier: 'known' as const, fixed: false,
+      spells: [{ key: 'identify', label: 'Identifizieren', level: 1 }], open: 0,
+    });
+    const sheet = (quota: ReturnType<typeof book>) =>
+      render(
+        emptyData({
+          grouped: {
+            ...emptyData().grouped,
+            sources: [{ ...source('cls:wizard', 'Magier'), quotas: [quota] }],
+          },
+        }),
+        'spells:cls:wizard',
+      );
+
+    expect(sheet(book(false, 'als Ritual, auch unvorbereitet'))).toContain('auch unvorbereitet');
+    expect(sheet(book(true, 'als Ritual'))).not.toContain('als Ritual');
+  });
+
   it('bietet die Volltext-Karten an, sobald es Zauber gibt, und hakt sie nicht vor', () => {
     const d = emptyData({ grouped: { ...emptyData().grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] } });
 

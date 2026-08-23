@@ -6,26 +6,20 @@ import { getProgressionByKey } from '../classProgression';
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
 import { withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
 import { isSpellAccessFeature } from '../declaration/casting';
+import { declarationOf, type DeclarationFields } from '../declaredFeature';
 import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpells';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import type { ClassFeature } from '../../schemas/classProgression';
-import type { FeatureChoiceGrant } from '../../schemas/featureChoice';
-import type { FeatureGrant, SpellGrant } from '../../schemas/grants';
-import type { CastingGrant } from '../../schemas/casting';
 import type { GainedFeature } from '../analysis/types';
 
 /** Englisch geführt, deutsche Fassung als Beilage — so deutet die KI. */
-export interface ChosenFeat {
+export interface ChosenFeat extends DeclarationFields {
   key: string;
   name: string;
   nameDe: string;
   gainedAt: number;
   desc: string;
   descDe?: string;
-  grantsChoice?: FeatureChoiceGrant[];
-  grants?: FeatureGrant;
-  grantsSpells?: SpellGrant;
-  grantsCasting?: CastingGrant;
 }
 
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {
@@ -40,11 +34,7 @@ function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLeve
     source,
     key: f.key ?? '',
     gainedAt: inSpan.length ? Math.min(...inSpan) : toLevel,
-    grants: f.grants,
-    grantsChoice: f.grantsChoice,
-    // Ohne `grantsCasting` bleibt ein Zauber-Zugang stumm: `grantsChoice` allein nimmt das
-    // Merkmal aus dem KI-Eingang, die Frage stellt aber erst die Kontingent-Deklaration.
-    grantsCasting: f.grantsCasting,
+    ...declarationOf(f),
   };
 }
 
@@ -56,13 +46,13 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
 
 /**
  * Der KI-Eingang der SUBKLASSEN-Merkmale, eine Regel für beide Aufrufer: deklarierte Wahlen,
- * immer-vorbereitete Zauberlisten und deklarierte Zauber-Zugänge fliegen raus — die drei
+ * deklariertes Zauberwirken und immer-vorbereitete Zauberlisten fliegen raus — die drei
  * beantwortet der Flow aus der Bibliothek, die Analyse stellte sie sonst ein zweites Mal.
  * Klassenmerkmale deckt `isFlowOwnedChoiceFeature` ab, das hier nicht laufen darf: seine
  * Namens-Fallbacks („Spellcasting") treffen an der Subklasse echte Mechanik.
  */
 export function subclassFeaturesForAi<T extends DeclaredChoiceSource & SpellGrantSource>(features: T[]): T[] {
-  return withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(features)).filter((f) => !isSpellAccessFeature(f));
+  return withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(features));
 }
 
 /**
@@ -119,16 +109,7 @@ export async function computeSubclassFeatures(subclassKey: string, from: number,
 }
 
 export function featToGainedFeature(
-  f: {
-    name: string;
-    nameDe?: string;
-    desc: string;
-    descDe?: string;
-    key?: string;
-    grants?: FeatureGrant;
-    grantsChoice?: FeatureChoiceGrant[];
-    grantsSpells?: SpellGrant;
-  },
+  f: DeclarationFields & { name: string; nameDe?: string; desc: string; descDe?: string; key?: string },
   gainedAt: number,
 ): GainedFeature {
   return {
@@ -138,9 +119,7 @@ export function featToGainedFeature(
     descDe: f.descDe,
     source: 'feat',
     gainedAt,
-    grants: f.grants,
-    grantsChoice: f.grantsChoice,
-    grantsSpells: f.grantsSpells,
+    ...declarationOf(f),
     ...(f.key ? { key: f.key } : {}),
   };
 }

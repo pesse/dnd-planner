@@ -31,7 +31,13 @@ drifted apart. A second call site is the mistake, not a missing feature.
 - **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is
   filtered out, Pass C writes no `sheetNote` for it — `optionListNoteLines` /
   `spellAccessNoteLines` are not decoration, they are the thing that keeps the choice from
-  vanishing off the character sheet.
+  vanishing off the character sheet. `grantsCasting` pays that debt through the spell block
+  (`sheetSpellcasting` renders a source row per casting source plus its spells). A declaration
+  that is patches only has no quota of its own and therefore no row — it pays through the quota
+  it patches, so check that the patched field renders in BOTH sinks: the app block
+  (`SheetSpellBlock.svelte`) and the print page (`print/character/pages/spells.ts`) show
+  different subsets. Where the patch reaches neither, `aiInterpretsRest: true` is the fallback,
+  same as for prose the declaration does not cover.
 - **The way OUT of the character is a table too.** `PROFICIENCY_DEFS` (`domain/proficiencies.ts`)
   is total over `keyof ProficiencyFlags` and carries the PDF field name; PDF export, sheet and
   form read it instead of listing the fields. Everything the protocol and the AI context say

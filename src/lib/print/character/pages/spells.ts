@@ -30,13 +30,20 @@ interface SheetSpell {
 /**
  * Der Normalweg bekommt keinen Hinweis: die Zauberplätze stehen als eigener Kasten, die
  * Ritualfähigkeit hängt am Zauber statt am Kontingent, und Zaubertricks gehen ohnehin beliebig
- * oft. Ein Kontingent ganz ohne Wirkweg schweigt nur, wenn ein anderes daraus schöpft (das
+ * oft. `requiresPrepared: false` hängt dagegen am Kontingent — es ist das Privileg eines
+ * Merkmals (Ritual-Adept), und ohne den Hinweis stünde es auf dem gedruckten Bogen nirgends.
+ * Ein Kontingent ganz ohne Wirkweg schweigt nur, wenn ein anderes daraus schöpft (das
  * Zauberbuch) — sonst ist „nicht wirkbar" die Nachricht.
  */
 const isOrdinaryCast = (q: SpellQuotaGroup, level: number, feeders: Set<string>): boolean =>
   q.cast.length === 0
     ? feeders.has(`${q.sourceId}::${q.quotaId}`)
-    : q.cast.every((o) => o.kind === 'slots' || o.kind === 'ritual' || (o.kind === 'at-will' && level === 0));
+    : q.cast.every(
+        (o) =>
+          o.kind === 'slots' ||
+          (o.kind === 'ritual' && o.requiresPrepared) ||
+          (o.kind === 'at-will' && level === 0),
+      );
 
 /**
  * Quellen mit gleichem Attribut, gleicher SG und gleichem Angriffsbonus. Mechanisch sind sie

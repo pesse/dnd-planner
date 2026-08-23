@@ -18,7 +18,7 @@ import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureClassContext, GainedFeature } from '../analysis/types';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
 import type { PerLevelFeature } from '../perLevelEffects';
-import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
+import { declarationOf, declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import { classCastingAbility } from '../spellcasting/classOffer';
 
@@ -46,16 +46,30 @@ export interface FeaturePrep {
   classContext: FeatureClassContext;
 }
 
+/**
+ * `aiInterpretsRest` ist die Rückfahrkarte: das Merkmal ist aus der Analyse gefiltert, seine
+ * undeklarierte Prosa braucht trotzdem eine Bogen-Zeile — im Aufstieg leistet das
+ * `unredactedChoiceFeatures`, hier die Ausnahme im Filter.
+ */
 function level1Features(p: ClassProgression | null, source: 'class' | 'subclass'): GainedFeature[] {
   if (!p) return [];
   return featuresUpTo(p, 1)
-    .filter((f) => !isFlowOwnedChoiceFeature(f))
-    .map((f) => ({ name: f.name || f.nameDe || '', nameDe: f.nameDe || f.name, desc: f.desc || f.descDe || '', descDe: f.descDe, source, gainedAt: 1, key: f.key, grants: f.grants, grantsChoice: f.grantsChoice, grantsSpells: f.grantsSpells }));
+    .filter((f) => !isFlowOwnedChoiceFeature(f) || f.aiInterpretsRest)
+    .map((f) => ({
+      name: f.name || f.nameDe || '',
+      nameDe: f.nameDe || f.name,
+      desc: f.desc || f.descDe || '',
+      descDe: f.descDe,
+      source,
+      gainedAt: 1,
+      key: f.key,
+      ...declarationOf(f),
+    }));
 }
 
 /**
  * Das Herkunftstalent kommt aus dem Hintergrund und nur über `gained` in die Listen — ohne
- * `grantsChoice`/`grantsSpells` hier wäre seine Deklaration unsichtbar.
+ * seine Deklaration hier wäre sie unsichtbar.
  */
 function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | null {
   if (!bg?.featKey) return null;
@@ -71,10 +85,7 @@ function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | 
     gainedAt: 1,
     key: bg.featKey,
     choice: specialisation || undefined,
-    grants: feat.grants,
-    grantsChoice: feat.grantsChoice,
-    grantsSpells: feat.grantsSpells,
-    grantsCasting: feat.grantsCasting,
+    ...declarationOf(feat),
   };
 }
 
@@ -117,12 +128,10 @@ function traitFeatures(traits: Trait[]): GainedFeature[] {
     nameDe: t.nameDe || t.name,
     desc: t.desc || t.descDe || '',
     descDe: t.descDe,
-    source: 'species',
+    source: 'species' as const,
     gainedAt: 1,
     key: t.key,
-    grants: t.grants,
-    grantsChoice: t.grantsChoice,
-    grantsSpells: t.grantsSpells,
+    ...declarationOf(t),
   }));
 }
 
