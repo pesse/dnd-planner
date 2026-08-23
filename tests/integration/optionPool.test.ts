@@ -7,6 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { collectChoiceSlots } from '../../src/lib/services/characterChoices';
+import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import { withoutDeclaredChoiceFeatures } from '../../src/lib/services/declaration/optionList';
 import { optionPoolOffers } from '../../src/lib/services/declaration/optionPool';
 
 const SORCERER_KEY = 'srd-2024_sorcerer';
@@ -66,5 +68,53 @@ describe('Schauerliche Anrufungen als deklarierter Options-Pool', () => {
     expect(offer?.options).toHaveLength(28);
     expect(offer?.options.map((o) => o.value)).toContain('Pact of the Blade');
     expect(offer?.options.every((o) => o.labelDe.trim() && o.helpDe.trim())).toBe(true);
+  });
+});
+
+/**
+ * Der Jäger ist der Fall, für den der Pool an der SUBKLASSE hängt und das Kontingent aus
+ * `gainedAt` × `count` kommt: eine Option je Merkmal, jederzeit tauschbar — die Regel erlaubt
+ * den Wechsel nach jeder Rast, und ein Fragebogen fragt nur einmal.
+ */
+describe('Beute des Jägers und Defensive Taktiken als Options-Pools', () => {
+  const RANGER_KEY = 'srd-2024_ranger';
+  const HUNTER_KEY = 'srd-2024_hunter';
+  const PREY_KEY = 'srd-2024_ranger_hunter_hunters-prey';
+  const TACTICS_KEY = 'srd-2024_ranger_hunter_defensive-tactics';
+
+  const hunter = (level: number) => ({
+    classes: [{ sourceKey: RANGER_KEY, subclassKey: HUNTER_KEY, name: 'Waldläufer', level }],
+  });
+
+  const offerAt = async (level: number, key: string) =>
+    (await optionPoolOffers(hunter(level))).find((o) => o.featureKey === key);
+
+  it('bietet je eine Option ab der Vergabe-Stufe an', async () => {
+    const prey = await Promise.all([2, 3, 20].map(async (l) => (await offerAt(l, PREY_KEY))?.allowance ?? 0));
+    const tactics = await Promise.all([6, 7, 20].map(async (l) => (await offerAt(l, TACTICS_KEY))?.allowance ?? 0));
+    expect(prey).toEqual([0, 1, 1]);
+    expect(tactics).toEqual([0, 1, 1]);
+  });
+
+  it('nennt beide Optionen mit deutschem Label und Konsequenz', async () => {
+    const offer = await offerAt(3, PREY_KEY);
+    expect(offer?.titleDe).toBe('Beute des Jägers');
+    expect(offer?.className).toBe('Waldläufer');
+    expect(offer?.options.map((o) => o.value)).toEqual(['Colossus Slayer', 'Horde Breaker']);
+    expect(offer?.options.map((o) => o.labelDe)).toEqual(['Kolossbezwinger', 'Meutebrecher']);
+    expect(offer?.options.every((o) => o.helpDe.trim())).toBe(true);
+  });
+
+  it('stellt keinen Wahl-Platz mehr in der Merkmalsleiste', async () => {
+    const { slots } = await collectChoiceSlots(hunter(7));
+    expect(slots.filter((s) => s.feature.key === PREY_KEY || s.feature.key === TACTICS_KEY)).toEqual([]);
+  });
+
+  /** Sonst beschriebe Pass C beide Optionen ein zweites Mal, neben dem Pool-Kasten des Bogens. */
+  it('hält die Merkmale aus dem KI-Notiz-Eingang heraus', async () => {
+    const prog = await getProgressionByKey(HUNTER_KEY);
+    const pooled = prog!.features.filter((f) => f.key === PREY_KEY || f.key === TACTICS_KEY);
+    expect(pooled, 'beide Merkmale im Vault').toHaveLength(2);
+    expect(withoutDeclaredChoiceFeatures(pooled)).toEqual([]);
   });
 });

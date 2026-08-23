@@ -164,6 +164,8 @@
     species: form.species,
     backgroundRef: form.backgroundRef,
     inventory: form.inventory,
+    features: character.features,
+    optionPicks: form.optionPicks,
     spells: character.spells,
     dropSpells: () => { delete character.spells; },
     spellcasting: form.spellcasting,
@@ -173,7 +175,7 @@
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
-    items: libs.itemIndex, casting: casting.current,
+    items: libs.itemIndex, casting: casting.current, pools,
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);

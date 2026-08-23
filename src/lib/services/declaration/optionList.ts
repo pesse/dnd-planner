@@ -20,6 +20,7 @@ import { isEmptyFeatureGrant, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
 import { isSkillProficiencyRef } from './skillProficiency';
 import { isLanguagesRef } from './languages';
+import { isOptionPoolFeature } from './optionPool';
 
 
 /** Ohne Optionen gibt es nichts zu fragen — die Deklaration ist dann unvollständig. */
@@ -82,9 +83,13 @@ export const isDeclaredChoiceFeature = (f: DeclaredChoiceSource): boolean => dec
  * Der KI-Eingang, EINE Regel für Wizard und Aufstieg — ein zweiter Filter liefe auseinander
  * und das Merkmal würde auf einem der beiden Wege doppelt gefragt. Deckt die Wege, die
  * `isFlowOwnedChoiceFeature` nicht sieht: Spezies- und nachgeladene Subklassen-Merkmale.
+ *
+ * Der Pool steht NEBEN `isDeclaredChoiceFeature`, nicht darin: seine Wahl landet im Editor
+ * statt im Ledger, seine gewählte Option steht aber bereits als eigener Kasten auf dem Bogen
+ * — ein Notiz-Pass beschriebe hier beide Optionen ein zweites Mal.
  */
 export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(features: T[]): T[] {
-  return features.filter((f) => !isDeclaredChoiceFeature(f) && !declaresCasting(f));
+  return features.filter((f) => !isDeclaredChoiceFeature(f) && !isOptionPoolFeature(f) && !declaresCasting(f));
 }
 
 /**

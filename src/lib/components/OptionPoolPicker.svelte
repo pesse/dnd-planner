@@ -31,7 +31,9 @@
 
 <div class="pool-panel" class:diff-up={diff === 'up'} class:diff-down={diff === 'down'}>
   <div class="head">
-    <span class="title">{offer.titleDe} — {offer.className}: {offer.allowance} Optionen</span>
+    <span class="title">
+      {offer.titleDe} — {offer.className}: {offer.allowance} {offer.allowance === 1 ? 'Option' : 'Optionen'}
+    </span>
     <span class="count" class:full={mine.length >= offer.allowance}>
       {mine.length} von {offer.allowance} belegt
     </span>

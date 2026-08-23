@@ -12,6 +12,7 @@ import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText
 import { normName } from '$lib/utils/text';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
+import { poolPicks, type OptionPoolOffer } from './declaration/optionPool';
 import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
 import type { LoadedSpellcasting } from './spellcasting/project';
 import {
@@ -21,11 +22,11 @@ import {
   planIsEmpty,
   reduceFlatSpells,
 } from './spellcasting/migrate';
-import { type Attack, type Character, type CharacterClass, type CharacterSpecies, type CharacterBackground, type CharacterSpells, type ProficiencyFlags } from '$lib/schemas/characterSchema';
+import { type Attack, type Character, type CharacterClass, type CharacterFeatureEntry, type CharacterSpecies, type CharacterBackground, type CharacterSpells, type OptionPick, type ProficiencyFlags } from '$lib/schemas/characterSchema';
 
 type InventoryLine = Character['inventory'][number];
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'optionPicks';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -41,6 +42,9 @@ export interface LegacyLinkTarget {
   species: CharacterSpecies;
   backgroundRef: CharacterBackground;
   inventory: InventoryLine[];
+  /** Das Merkmals-Ledger der Seitenleiste — `optionPicksFix` räumt daraus ab, sonst unberührt. */
+  features: CharacterFeatureEntry[];
+  optionPicks: OptionPick[];
   /** Die Altform am Draft; `dropSpells` löscht sie, sobald der Umzug sie leer zurücklässt. */
   spells: CharacterSpells | undefined;
   dropSpells: () => void;
@@ -59,6 +63,8 @@ export interface LegacyLinkLibraries {
   items: ItemIndex;
   /** Die aufgelösten Zauberquellen zum aktuellen Formularstand. */
   casting: LoadedSpellcasting | null;
+  /** Die Options-Pools zum aktuellen Formularstand, wie sie der Picker anbietet. */
+  pools: OptionPoolOffer[];
 }
 
 /** Exakt, deutsch oder englisch, nie Substring — ein falscher Link wäre schlimmer als keiner. */
@@ -248,6 +254,56 @@ export function weaponsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
   };
 }
 
+interface PooledLedgerChoice {
+  entry: CharacterFeatureEntry;
+  pick: OptionPick;
+}
+
+/**
+ * Ledger-Antworten auf Merkmale, die inzwischen einen Options-Pool stellen (Beute des Jägers).
+ * Der Altbestand trägt sein Label auch DEUTSCH (`choice` vor Upgrade-Schritt 6), deshalb
+ * trifft die Option über beide Sprachen — was die Bibliothek nicht bestätigt, bleibt liegen.
+ */
+function pooledLedgerChoices(target: LegacyLinkTarget, libs: LegacyLinkLibraries): PooledLedgerChoice[] {
+  const out: PooledLedgerChoice[] = [];
+  for (const offer of libs.pools)
+    for (const entry of target.features) {
+      if (entry.sourceKey !== offer.featureKey) continue;
+      const answers = [entry.choice, entry.choiceDe].map(normName).filter(Boolean);
+      if (!answers.length) continue;
+      const option = offer.options.find(
+        (o) => answers.includes(normName(o.value)) || answers.includes(normName(o.labelDe)),
+      );
+      if (!option) continue;
+      out.push({
+        entry,
+        pick: { sourceKey: offer.featureKey, value: option.value, valueDe: option.labelDe || option.value },
+      });
+    }
+  return out;
+}
+
+/**
+ * Der Ledger-Eintrag ANNOTIERT ein Merkmal, das seine Frage nicht mehr stellt — er geht auch
+ * dann, wenn seine Option längst im Pool steht: dann ist er die Dublette.
+ */
+export function optionPicksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const moves = pooledLedgerChoices(target, libs);
+  if (!moves.length) return undefined;
+  return {
+    kind: 'optionPicks',
+    label: `${moves.length} Merkmals-Wahl${moves.length === 1 ? '' : 'en'} in den Options-Pool übernehmen`,
+    apply: () => {
+      for (const { entry, pick } of pooledLedgerChoices(target, libs)) {
+        const mine = poolPicks(target.optionPicks, pick.sourceKey);
+        if (!mine.some((p) => p.value === pick.value)) target.optionPicks.push(pick);
+        const at = target.features.indexOf(entry);
+        if (at >= 0) target.features.splice(at, 1);
+      }
+    },
+  };
+}
+
 /** Leer heißt: vollständig verknüpft — oder die Bibliotheken sind noch nicht geladen. */
 export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix[] {
   return [
@@ -258,5 +314,6 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     spellsFix(target, libs),
     weaponsFix(target, libs),
     attacksFix(target, libs),
+    optionPicksFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);
 }
