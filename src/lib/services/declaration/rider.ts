@@ -15,5 +15,6 @@ export function emptyRider(f: { key?: string; name: string; source?: FeatureSour
     expertiseSkills: [],
     proficiencies: { skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] },
     abilityScoreIncrease: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+    abilityScoreMax: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
   };
 }

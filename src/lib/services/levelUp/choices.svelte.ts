@@ -9,6 +9,8 @@ import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
 import { skillProficiencyChoices } from '../declaration/skillProficiency';
 import { languageChoices } from '../declaration/languages';
+import { toolProficiencyChoices } from '../declaration/toolProficiency';
+import { abilityIncreaseChoices } from '../declaration/abilityIncrease';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
 import { sheetSkillProficiencies } from '../characterChoices';
@@ -65,6 +67,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // Gegenschnitt derselben Liste: gewählt wird, was noch nicht geübt ist.
   const baseSkillProfAnalysis = $derived(skillProficiencyChoices(baseDeclared, sheetSkills.prof));
   const baseLanguageAnalysis = $derived(languageChoices(baseDeclared));
+  const baseToolAnalysis = $derived(toolProficiencyChoices(baseDeclared));
+  const baseAbilityAnalysis = $derived(abilityIncreaseChoices(baseDeclared));
   // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren
   // Klassenfilter böte der Picker die ganze Bibliothek an.
   const accessAnalysis = (grants: SpellAccessGrant[]) =>
@@ -79,6 +83,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const baseExpertiseChoices = $derived(buildFeatureChoices(baseExpertiseAnalysis));
   const baseSkillProfChoices = $derived(buildFeatureChoices(baseSkillProfAnalysis));
   const baseLanguageChoices = $derived(buildFeatureChoices(baseLanguageAnalysis));
+  const baseToolChoices = $derived(buildFeatureChoices(baseToolAnalysis));
+  const baseAbilityChoices = $derived(buildFeatureChoices(baseAbilityAnalysis));
   const basePropertyChoices = $derived(buildFeatureChoices(basePropertyAnalysis));
   const baseAccessChoices = $derived(buildFeatureChoices(baseAccessAnalysis));
   const featAccessChoices = $derived(buildFeatureChoices(featAccessAnalysis));
@@ -88,7 +94,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...expertiseChoices(featDeclared, sheetSkills.prof, sheetSkills.exp),
     ...skillProficiencyChoices(featDeclared, sheetSkills.prof),
     ...languageChoices(featDeclared),
+    ...toolProficiencyChoices(featDeclared),
     ...characterPropertyChoices(featDeclared),
+    ...abilityIncreaseChoices(featDeclared),
   ]);
   const featDeclaredChoices = $derived(buildFeatureChoices(featDeclaredAnalysis));
 
@@ -97,7 +105,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...baseExpertiseChoices,
     ...baseSkillProfChoices,
     ...baseLanguageChoices,
+    ...baseToolChoices,
     ...basePropertyChoices,
+    ...baseAbilityChoices,
     ...baseAccessChoices,
   ]);
   const featChoiceQs = $derived([...featAccessChoices, ...featDeclaredChoices]);
@@ -110,7 +120,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
       ...baseExpertiseAnalysis,
       ...baseSkillProfAnalysis,
       ...baseLanguageAnalysis,
+      ...baseToolAnalysis,
       ...basePropertyAnalysis,
+      ...baseAbilityAnalysis,
       ...baseAccessAnalysis,
       ...featAccessAnalysis,
       ...featDeclaredAnalysis,
@@ -131,6 +143,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseExpertiseChoices() { return baseExpertiseChoices; },
     get baseSkillProfChoices() { return baseSkillProfChoices; },
     get baseLanguageChoices() { return baseLanguageChoices; },
+    get baseToolChoices() { return baseToolChoices; },
+    get baseAbilityChoices() { return baseAbilityChoices; },
     get baseAccessChoices() { return baseAccessChoices; },
     get featAccessChoices() { return featAccessChoices; },
     get baseChoiceQs() { return baseChoiceQs; },
@@ -143,7 +157,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     optionAnswer(id: string): string {
       const q = [
         ...baseOptionChoices, ...baseExpertiseChoices, ...baseSkillProfChoices, ...baseLanguageChoices,
-        ...basePropertyChoices, ...featDeclaredChoices,
+        ...baseToolChoices, ...basePropertyChoices, ...baseAbilityChoices, ...featDeclaredChoices,
       ].find((x) => x.id === id);
       return q ? answerValues(q, src.answers[id]) : '';
     },

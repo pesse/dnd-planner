@@ -20,6 +20,8 @@ import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
  *     die Regel eingrenzt (Magier „Gelehrter").
  *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
  *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
+ *     `toolProficiency` teilt diese Form — ein Werkzeug ist zwar eine Übung, hat aber ebenso
+ *     kein Vokabular („drei Handwerkszeuge deiner Wahl").
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein
  *     Talent darf `isSpellcastingFeature` („dies ist das Klassen-Zauberwirken") nicht erfüllen.
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
@@ -29,7 +31,7 @@ import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
  *     er wird wie die Waffenbeherrschung im Editor gepflegt. Als Flag an `optionList` trüge
  *     jedes Prädikat davon eine Ausnahme.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'characterProperty'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'toolProficiency', 'characterProperty', 'abilityIncrease'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -92,7 +94,7 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen; bei kind="optionPool": wie viele JE Vergabe-Stufe, das Kontingent summiert über alle erreichten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen; bei kind="toolProficiency": wie viele Werkzeuge; bei kind="abilityIncrease": wie viele VERSCHIEDENE Attribute je 1 Punkt steigen; bei kind="optionPool": wie viele JE Vergabe-Stufe, das Kontingent summiert über alle erreichten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
   // kind="optionPool": die Spalte SCHLÄGT `gainedAt` × `count`, weil sie die Zahl direkt führt —
   // die Anrufungen des Hexenmeisters kommen alle von EINER Vergabe-Stufe und wären sonst 1.
   column: z
@@ -118,6 +120,19 @@ export const featureChoiceGrantSchema = z.object({
     .array(spellPickGrantSchema)
     .default([])
     .describe('Nur bei kind="spellAccess": wie viele Zauber je Gradband gewählt werden.'),
+  // kind="abilityIncrease". Zweimal dasselbe Attribut ist keine Antwort, sondern eine zweite
+  // Wahl am selben Merkmal — so trägt das Talent „Attributswerterhöhung" beide Formen des
+  // Regeltexts (+2 auf eins = zweimal dieselbe Antwort, +1/+1 = zwei verschiedene).
+  abilities: z
+    .array(z.enum(ABILITY_NAMES))
+    .default([])
+    .describe('Nur bei kind="abilityIncrease": zulässige Attribute (englische SRD-Namen). Leer = alle sechs.'),
+  abilityMax: z
+    .number()
+    .int()
+    .min(1)
+    .default(20)
+    .describe('Nur bei kind="abilityIncrease": Obergrenze aus dem Regeltext (Epische Segen: 30).'),
   // kind="characterProperty". `propertyValues` ist `string[]` und kein Enum: was zulässig ist,
   // hängt an `property`, ein zweites Vokabular hier beantwortete die Frage doppelt. Geprüft
   // wird gegen `characterPropertyOptions`.

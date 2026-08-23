@@ -49,6 +49,11 @@ export const proficiencyGrantSchema = z.object({
     .default([])
     .describe('Waffen-Übungen außerhalb der zwei Kategorien, z.B. "Martial weapons that have the Light property".'),
   armor: z.array(z.enum(ARMOR_TRAININGS)).default([]),
+  /**
+   * Steht hier und nicht neben `languages`: in 2024 ist ein Werkzeug weiterhin eine Übung,
+   * eine Sprache nicht. Kein Vokabular, also der deutsche Name, den der Bogen zeigt.
+   */
+  tools: z.array(z.string()).default([]).describe('Fest gewährte Werkzeug-Übungen, deutsch („Schmiedewerkzeug", „Laute").'),
 });
 
 export const emptyProficiencyGrant = (): ProficiencyGrant => ({
@@ -57,6 +62,7 @@ export const emptyProficiencyGrant = (): ProficiencyGrant => ({
   weapons: [],
   weaponsOther: [],
   armor: [],
+  tools: [],
 });
 
 export type SkillGrant = z.infer<typeof skillGrantSchema>;
@@ -95,6 +101,18 @@ export const characterPropertiesSchema = z.object({
 export type CharacterProperties = z.infer<typeof characterPropertiesSchema>;
 
 /**
+ * Die Attributserhöhung EINES Merkmals — nicht die der Stufentabelle, die der Aufstieg selbst
+ * fragt. `max` gehört ans Merkmal und nicht ans Attribut: der Regeltext nennt die Grenze je
+ * Vorzug, und die Epischen Segen nennen 30, wo alles andere 20 nennt.
+ */
+export const abilityGrantSchema = z.object({
+  ability: z.enum(ABILITY_NAMES).describe('Welches Attribut steigt.'),
+  amount: z.number().int().min(1).default(1).describe('Um wie viele Punkte.'),
+  max: z.number().int().min(1).default(20).describe('Obergrenze aus dem Regeltext („to a maximum of 30").'),
+});
+export type AbilityGrant = z.infer<typeof abilityGrantSchema>;
+
+/**
  * An den drei Trägern OPTIONAL OHNE DEFAULT: fehlt das Feld, ist das Merkmal nicht redigiert
  * und läuft weiter über die KI-Kette, `{}` heißt „geprüft, gewährt nichts". Ohne diese
  * Unterscheidung verlöre ein importiertes Merkmal seine Mechanik unbemerkt.
@@ -112,6 +130,10 @@ export const featureGrantSchema = z.object({
    * Format, das `grantsChoice.kind = "languages"` den Spieler tippen lässt.
    */
   languages: z.array(z.string()).default([]).describe('Fest gewährte Sprachen, deutsch („Druidisch", „Diebessprache").'),
+  abilities: z
+    .array(abilityGrantSchema)
+    .default([])
+    .describe('Fest gewährte Attributserhöhungen. Steht das Attribut zur Wahl, gehört sie nach grantsChoice.kind="abilityIncrease".'),
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
@@ -134,6 +156,7 @@ export function isEmptyProficiencyGrant(g: ProficiencyGrant | undefined): boolea
     weapons: () => g.weapons.length > 0,
     weaponsOther: () => g.weaponsOther.length > 0,
     armor: () => g.armor.length > 0,
+    tools: () => g.tools.length > 0,
   };
   return !Object.values(filled).some((has) => has());
 }

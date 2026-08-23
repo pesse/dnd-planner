@@ -39,10 +39,20 @@
           ],
           "armor": [
             "Light"
+          ],
+          "tools": [
+            "string"
           ]
         },
         "languages": [
           "string"
+        ],
+        "abilities": [
+          {
+            "ability": "Strength",
+            "amount": 1,
+            "max": 20
+          }
         ],
         "extraCantrips": 0,
         "extraPreparedCount": 0,
@@ -84,10 +94,20 @@
                   ],
                   "armor": [
                     "Light"
+                  ],
+                  "tools": [
+                    "string"
                   ]
                 },
                 "languages": [
                   "string"
+                ],
+                "abilities": [
+                  {
+                    "ability": "Strength",
+                    "amount": 1,
+                    "max": 20
+                  }
                 ],
                 "extraCantrips": 0,
                 "extraPreparedCount": 0,
@@ -127,6 +147,10 @@
               "count": 1
             }
           ],
+          "abilities": [
+            "Strength"
+          ],
+          "abilityMax": 20,
           "property": "size",
           "propertyValues": [
             "string"

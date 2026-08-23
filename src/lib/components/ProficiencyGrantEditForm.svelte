@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * Editor der geschlossenen Übungs-Vokabulare, von allen vier Bibliotheks-Editoren
-   * benutzt. `scope="skills"` blendet alles außer den Fertigkeiten aus, weil
-   * Hintergrund, Merkmal und Talent im SRD 5.2 nur diese gewähren.
+   * benutzt. `scope="skills"` blendet alles außer Fertigkeiten und Werkzeugen aus, weil
+   * Hintergrund, Merkmal und Talent im SRD 5.2 nur diese beiden gewähren.
    */
   import { ABILITY_NAMES } from '$lib/schemas/abilities';
   import { ARMOR_TRAININGS, WEAPON_CATEGORIES } from '$lib/schemas/vocabulary';
@@ -45,11 +45,23 @@
     grant.weaponsOther = otherText.split(';').map((s) => s.trim()).filter(Boolean);
     onchange();
   }
+
+  // DEUTSCH, anders als die Waffenzeile darunter: der Wert steht so auf dem Bogen.
+  let toolsText = $state(grant.tools.join('; '));
+
+  function onToolsInput() {
+    grant.tools = toolsText.split(';').map((s) => s.trim()).filter(Boolean);
+    onchange();
+  }
 </script>
 
 <div class="grant-block">
   <div class="sub-title">Fertigkeiten</div>
   <SkillGrantEditForm bind:grant={grant.skills} {onchange} />
+
+  <label class="lbl-block">Werkzeuge (DE, Semikolon-getrennt)
+    <input class="ef" bind:value={toolsText} oninput={onToolsInput} placeholder="z.B. Schmiedewerkzeug; Laute" />
+  </label>
 
   {#if scope === 'full'}
     <div class="sub-title">Rettungswürfe</div>

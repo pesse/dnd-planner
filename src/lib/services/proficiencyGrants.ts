@@ -169,6 +169,10 @@ export function proficiencyGrantChanges(
     armor: () => {
       for (const value of g.armor) out.push(armorTrainingChange(value, meta));
     },
+    tools: () => {
+      for (const value of g.tools)
+        if (value.trim()) out.push({ target: 'toolProficiency', value, ...meta, label: `Werkzeug: ${value}` });
+    },
   };
   for (const [key, run] of Object.entries(routes) as [keyof ProficiencyGrant, () => void][])
     if (!skip.includes(key)) run();

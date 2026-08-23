@@ -18,6 +18,7 @@ import { applyChanges } from '../../src/lib/services/applyChanges';
 import { declaredFeatures as tagged } from '../../src/lib/services/declaredFeature';
 import { declaredGrantChanges } from '../../src/lib/services/declaration/grants';
 import { sizeTraitOf } from '../../src/lib/services/speciesSize';
+import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import {
   characterPropertyAnswerChanges,
   characterPropertyChanges,
@@ -128,7 +129,11 @@ describe('die Wahl einer Grundeigenschaft', () => {
   });
 
   it('stellt keine Frage, wo nichts zu wählen ist', () => {
-    const one = { key: 'homebrew_x', name: 'Size', grantsChoice: [{ kind: 'characterProperty' as const, property: 'size' as const, propertyValues: ['Medium'], options: [], count: 1, column: '', skills: [], spellLists: [], spellAbilities: [], spellPicks: [] }] };
+    const one = {
+      key: 'homebrew_x',
+      name: 'Size',
+      grantsChoice: [featureChoiceGrantSchema.parse({ kind: 'characterProperty', property: 'size', propertyValues: ['Medium'] })],
+    };
     expect(characterPropertyChoice(characterPropertyRefs(one)[0])).toBeNull();
     // Eine Zahl hat kein Wahl-Vokabular: die Bewegungsrate wird deklariert, nie gefragt.
     expect(characterPropertyPickers().map((p) => p.property)).toEqual(['size']);
