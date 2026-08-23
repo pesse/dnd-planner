@@ -8,10 +8,13 @@
 import { describe, expect, it } from 'vitest';
 import { classProgressionSchema, type ClassFeature } from '../../src/lib/schemas/classProgression';
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
-import type { OptionPick } from '../../src/lib/schemas/characterSchema';
+import type { CharacterFeatureEntry, OptionPick } from '../../src/lib/schemas/characterSchema';
 import {
   poolAllowanceFor, poolPicks, toggleOptionPick, type OptionPoolOffer,
 } from '../../src/lib/services/declaration/optionPool';
+import {
+  optionPicksFix, type LegacyLinkLibraries, type LegacyLinkTarget,
+} from '../../src/lib/services/characterLegacyLinks';
 
 const grant = (over: Record<string, unknown>) =>
   featureChoiceGrantSchema.parse({ kind: 'optionPool', options: [{ value: 'A' }], ...over });
@@ -81,5 +84,70 @@ describe('Tausch in der flachen Liste am Charakter', () => {
     const list = pick(pick([foreign], 0), 1);
     expect(poolPicks(list, offer.featureKey)).toHaveLength(2);
     expect(list).toContainEqual(foreign);
+  });
+});
+
+/**
+ * Der Umzug einer Wahl, die früher als Fragebogen-Antwort im Ledger stand (Beute des Jägers
+ * vor der Umstellung auf `optionPool`).
+ */
+describe('Altbestand: Ledger-Antwort in den Pool heben', () => {
+  const PREY_KEY = 'srd-2024_ranger_hunter_hunters-prey';
+  const offer: OptionPoolOffer = {
+    featureKey: PREY_KEY,
+    titleDe: 'Beute des Jägers',
+    className: 'Waldläufer',
+    allowance: 1,
+    options: [
+      { value: 'Colossus Slayer', labelDe: 'Kolossbezwinger', helpDe: '', spells: [] },
+      { value: 'Horde Breaker', labelDe: 'Meutebrecher', helpDe: '', spells: [] },
+    ],
+  };
+  const entry = (over: Partial<CharacterFeatureEntry>): CharacterFeatureEntry =>
+    ({ sourceKey: PREY_KEY, name: '', choice: '', choiceDe: '', choiceId: '', desc: '', ...over });
+
+  const setup = (features: CharacterFeatureEntry[], picks: OptionPick[] = []) => {
+    const target = { features, optionPicks: picks } as LegacyLinkTarget;
+    return { target, fix: optionPicksFix(target, { pools: [offer] } as LegacyLinkLibraries) };
+  };
+
+  it('nimmt den englischen Anker und räumt den Ledger-Eintrag ab', () => {
+    const { target, fix } = setup([entry({ choice: 'Horde Breaker', choiceDe: 'Meutebrecher' })]);
+    expect(fix?.label).toBe('1 Merkmals-Wahl in den Options-Pool übernehmen');
+    fix!.apply();
+    expect(target.optionPicks).toEqual([
+      { sourceKey: PREY_KEY, value: 'Horde Breaker', valueDe: 'Meutebrecher' },
+    ]);
+    expect(target.features).toEqual([]);
+    expect(optionPicksFix(target, { pools: [offer] } as LegacyLinkLibraries)).toBeUndefined();
+  });
+
+  /** Vor Upgrade-Schritt 6 stand das DEUTSCHE Label in `choice`. */
+  it('trifft die Option auch über das deutsche Label', () => {
+    const { target, fix } = setup([entry({ choice: 'Kolossbezwinger' })]);
+    fix!.apply();
+    expect(target.optionPicks.map((p) => p.value)).toEqual(['Colossus Slayer']);
+  });
+
+  it('lässt eine Antwort liegen, die die Deklaration nicht bestätigt', () => {
+    const { target, fix } = setup([entry({ choice: 'Giant Killer' })]);
+    expect(fix).toBeUndefined();
+    expect(target.features).toHaveLength(1);
+  });
+
+  /** Der Eintrag ist dann die Dublette — er geht, der Pool bleibt wie er ist. */
+  it('legt eine bereits gewählte Option kein zweites Mal ab', () => {
+    const picks: OptionPick[] = [{ sourceKey: PREY_KEY, value: 'Horde Breaker', valueDe: 'Meutebrecher' }];
+    const { target, fix } = setup([entry({ choice: 'Horde Breaker' })], picks);
+    fix!.apply();
+    expect(target.optionPicks).toEqual(picks);
+    expect(target.features).toEqual([]);
+  });
+
+  it('fasst Talent-Links und fremde Merkmale nicht an', () => {
+    const feat = entry({ sourceKey: 'srd-2024_healer', choice: '' });
+    const { target, fix } = setup([feat]);
+    expect(fix).toBeUndefined();
+    expect(target.features).toEqual([feat]);
   });
 });

@@ -64,8 +64,6 @@ describe('deklarierte Zweigwahlen', () => {
       // ihnen die FRAGE, die Prosa deutet weiterhin Pass C.
       'srd-2024_cleric_blessed-strikes',
       'srd-2024_druid_elemental-fury',
-      'srd-2024_ranger_hunter_defensive-tactics',
-      'srd-2024_ranger_hunter_hunters-prey',
       'srd-2024_sorcerer_draconic-sorcery_elemental-affinity',
     ].sort());
   });
