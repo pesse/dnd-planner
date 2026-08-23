@@ -40,9 +40,7 @@ const GAP_RULES: {
   },
   ability: {
     signal: /\bincrease (?:your|one) [^.]*\bscore\b/i,
-    // Für die Attributserhöhung gibt es noch keine Senke (Issue #31), also ist sie NIE
-    // deklariert. Wer sie bewusst der Bogen-Notiz überlässt, setzt `aiInterpretsRest`.
-    declared: () => false,
+    declared: (f) => f.grants !== undefined || f.grantsChoice !== undefined,
   },
   choice: {
     signal: /\bchoose\b|\bof your choice\b|\bexpertise\b/i,

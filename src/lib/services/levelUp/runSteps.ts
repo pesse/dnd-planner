@@ -23,6 +23,8 @@ import { sheetNoteLines, fallbackSheetNotes } from './sheetNotes';
 import { expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageRiders } from '../declaration/languages';
+import { toolProficiencyRiders } from '../declaration/toolProficiency';
+import { abilityIncreaseRiders } from '../declaration/abilityIncrease';
 import {
   optionListNoteLines, optionListRiders, optionSpellNames, unredactedChoiceFeatures,
   withoutDeclaredChoiceFeatures,
@@ -149,7 +151,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
   function runDeclaredChoices() {
     const declaredQs = [
       ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseSkillProfChoices,
-      ...choices.baseLanguageChoices, ...choices.baseAccessChoices,
+      ...choices.baseLanguageChoices, ...choices.baseToolChoices, ...choices.baseAbilityChoices,
+      ...choices.baseAccessChoices,
     ];
     initFeatureChoices(declaredQs);
     pushStep(declaredQs.length
@@ -177,6 +180,8 @@ export function createRunSteps(ctx: RunStepsDeps) {
       ...expertiseRiders(grantSources, answerOf),
       ...skillProficiencyRiders(grantSources, answerOf),
       ...languageRiders(grantSources, answerOf),
+      ...toolProficiencyRiders(grantSources, answerOf),
+      ...abilityIncreaseRiders(grantSources, answerOf),
     ];
     const validated = validateRiderSpells(riders, st.spellLib, st.delta!.klasseName);
     if (validated.flagged.length) st.flagged = [...new Set([...st.flagged, ...validated.flagged])];

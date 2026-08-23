@@ -116,6 +116,8 @@ export function parseCoreTraits(desc: string, context = 'Kerntabelle'): {
       weapons,
       weaponsOther,
       armor: parseArmor(rows['Armor Training'] ?? ''),
+      // Die Kerntabelle führt keine Werkzeugzeile — 2024 gewähren sie Hintergrund und Talent.
+      tools: [],
     },
     startingEquipment: rows['Starting Equipment'] ?? '',
   };

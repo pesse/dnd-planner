@@ -15,6 +15,7 @@ import { markProficiency, markSavingThrow } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 import { addExtra, addPick } from './spellcasting/write';
+import { cappedScore } from './declaration/abilityIncrease';
 
 export interface ApplyContext {
   /** Index der Klasse, an der `subclass` landet. */
@@ -92,7 +93,7 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   },
 
   ability: (c, next) => {
-    const score = next.abilities[c.ability] + c.value;
+    const score = cappedScore(next.abilities[c.ability], c.value, c.max);
     next.abilities[c.ability] = score;
     next.mods[c.ability] = mod(score);
   },

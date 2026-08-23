@@ -67,9 +67,7 @@ export const SHEET_NOTE_EN_MAX_CHARS = 135;
 /**
  * Was EIN Merkmal mechanisch gewährt — internes Transportformat, kein Modell-Output: gefüllt
  * wird es aus den Deklarationen des Vaults (`declaration/*`), und die Senken `riderGrantChanges`
- * / `abilityFromRiders` sind über seine Felder total. Zwei Felder haben derzeit KEINEN
- * Produzenten (`proficiencies.tools`, `abilityScoreIncrease`) — die Deklarationsform dafür fehlt
- * noch (#30, #31); sie stehen hier, damit deren Senke schon fertig ist.
+ * / `abilityIncreasesOf` sind über seine Felder total.
  */
 const featureRiderSchema = z.object({
   featureName: z.string().default(''),
@@ -81,6 +79,12 @@ const featureRiderSchema = z.object({
   expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]),
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
   abilityScoreIncrease: abilityModsSchema,
+  /**
+   * Je Attribut die Obergrenze, die der Regeltext DIESES Merkmals nennt (0 = keine). Sie reist
+   * neben der Erhöhung, weil erst die Senke den Bestandswert kennt — und die Epischen Segen
+   * deckeln auf 30, wo jedes andere Merkmal auf 20 deckelt.
+   */
+  abilityScoreMax: abilityModsSchema,
 });
 
 /**
@@ -141,7 +145,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   // dann bleibt es beim quellenlosen Bestand (`applyChanges.ts`).
   z.object({ target: z.literal('cantrip'), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), ...changeBase }),
   z.object({ target: z.literal('spellcastingClass'), value: z.string(), ...changeBase }),
-  z.object({ target: z.literal('ability'), ability: z.enum(ABILITY_KEYS), value: z.number().int(), ...changeBase }),
+  // `max` fehlt, wo die Quelle keine Grenze nennt (Stufentabellen-ASI) — dann deckelt nichts.
+  z.object({ target: z.literal('ability'), ability: z.enum(ABILITY_KEYS), value: z.number().int(), max: z.number().int().optional(), ...changeBase }),
   z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), prepared: z.boolean().default(true), ...changeBase }),
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.enum(SKILL_NAMES), ...changeBase }),

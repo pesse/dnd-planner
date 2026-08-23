@@ -8,6 +8,7 @@
    * kann. Diese Komponente bekommt immer ein vorhandenes Objekt.
    */
   import { MONSTER_SIZES, MONSTER_SIZE_KEYS, type MonsterSize } from '$lib/schemas/vocabulary';
+  import { ABILITY_LABEL_BY_NAME, ABILITY_NAMES, type AbilityName } from '$lib/schemas/abilities';
   import { type FeatureGrant } from '$lib/schemas/grants';
   import { characterPropertyLabelDe } from '$lib/services/characterProperties';
   import ProficiencyGrantEditForm from './ProficiencyGrantEditForm.svelte';
@@ -36,6 +37,26 @@
   function setSpeed(value: string) {
     const feet = parseInt(value, 10);
     grant.properties.speedFeet = Number.isFinite(feet) && feet > 0 ? feet : undefined;
+    onchange();
+  }
+
+  const amountOf = (ability: AbilityName): number =>
+    grant.abilities.find((a) => a.ability === ability)?.amount ?? 0;
+
+  // EINE Grenze für alle sechs: der Regeltext nennt sie je Merkmal, nicht je Attribut.
+  const abilityMax = $derived(grant.abilities[0]?.max ?? 20);
+
+  function setAmount(ability: AbilityName, value: string) {
+    const amount = Math.max(0, parseInt(value, 10) || 0);
+    const kept = grant.abilities.filter((a) => a.ability !== ability);
+    const next = amount ? [...kept, { ability, amount, max: abilityMax }] : kept;
+    grant.abilities = next.sort((a, b) => ABILITY_NAMES.indexOf(a.ability) - ABILITY_NAMES.indexOf(b.ability));
+    onchange();
+  }
+
+  function setAbilityMax(value: string) {
+    const max = Math.max(1, parseInt(value, 10) || 20);
+    grant.abilities = grant.abilities.map((a) => ({ ...a, max }));
     onchange();
   }
 </script>
@@ -70,6 +91,26 @@
         class="ef num" type="number" min="0" step="5"
         value={grant.properties.speedFeet ?? ''}
         oninput={(e) => setSpeed((e.target as HTMLInputElement).value)}
+      />
+    </label>
+  </div>
+
+  <div class="sub-title">Attributserhöhung</div>
+  <div class="num-row">
+    {#each ABILITY_NAMES as ability}
+      <label class="lbl-inline">{ABILITY_LABEL_BY_NAME[ability]} +
+        <input
+          class="ef num" type="number" min="0"
+          value={amountOf(ability)}
+          oninput={(e) => setAmount(ability, (e.target as HTMLInputElement).value)}
+        />
+      </label>
+    {/each}
+    <label class="lbl-inline" title="Obergrenze aus dem Regeltext; Epische Segen nennen 30.">Höchstens
+      <input
+        class="ef num" type="number" min="1"
+        value={abilityMax}
+        oninput={(e) => setAbilityMax((e.target as HTMLInputElement).value)}
       />
     </label>
   </div>

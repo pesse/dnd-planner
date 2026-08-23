@@ -6,6 +6,7 @@
 import type { CharacterBackground, CharacterClass, CharacterFeatureEntry, CharacterSpecies } from '$lib/schemas/characterSchema';
 import type { Change, FeatureRider } from '$lib/schemas/levelUp';
 import { SKILL_NAMES, type SkillName } from '$lib/schemas/vocabulary';
+import type { AbilityName } from '$lib/schemas/abilities';
 import { skillEnName } from '$lib/domain/skills';
 import { totalLevel } from '$lib/schemas/classLevelText';
 import type { SpellInfo } from '$lib/spellLibrary';
@@ -29,6 +30,12 @@ import {
   skillProficiencyChoice, skillProficiencyChoiceId, skillProficiencyRider,
 } from './declaration/skillProficiency';
 import { languageChoice, languageChoiceId, languageRider } from './declaration/languages';
+import {
+  toolProficiencyChoice, toolProficiencyChoiceId, toolProficiencyRider,
+} from './declaration/toolProficiency';
+import {
+  abilityIncreaseChoice, abilityIncreaseChoiceId, abilityIncreaseOptions, abilityIncreaseRider,
+} from './declaration/abilityIncrease';
 import {
   characterPropertyChange, characterPropertyChoice, characterPropertyOptions, propertyChoiceId,
 } from './characterProperties';
@@ -69,7 +76,9 @@ export function slotClaims(slot: ChoiceSlot, value: string): boolean {
  * Welche Wahl-Art dieser Platz stellt. EINE Verzweigung für Frage-id und Frage — liefen sie
  * auseinander, stempelte das Schreiben eine id, die das Lesen nie wiederfände.
  */
-type SlotKind = 'access' | 'expertise' | 'skillProficiency' | 'languages' | 'property' | 'optionList';
+type SlotKind =
+  | 'access' | 'expertise' | 'skillProficiency' | 'languages' | 'tools' | 'property'
+  | 'abilityIncrease' | 'optionList';
 
 function slotKind(slot: ChoiceSlot): SlotKind | null {
   if (slot.access) return 'access';
@@ -77,7 +86,9 @@ function slotKind(slot: ChoiceSlot): SlotKind | null {
     case 'expertise': return 'expertise';
     case 'skillProficiency': return 'skillProficiency';
     case 'languages': return 'languages';
+    case 'toolProficiency': return 'tools';
     case 'characterProperty': return 'property';
+    case 'abilityIncrease': return 'abilityIncrease';
     case 'optionList': return 'optionList';
     default: return null;
   }
@@ -96,8 +107,10 @@ export function slotOwnsValue(slot: ChoiceSlot, value: string): boolean {
     case 'access': return has(spellAccessOptions(slot.access!.grant, slot.access!.part));
     case 'expertise': case 'skillProficiency': return has(SKILL_NAMES);
     case 'property': return has(characterPropertyOptions(slot.declared!.grant));
+    case 'abilityIncrease': return has(abilityIncreaseOptions(slot.declared!.grant));
     case 'optionList': return has(slot.declared!.grant.options.map((o) => o.value));
-    // Sprachen: kein Vokabular, also nie über den Wert — sie greifen erst im Nachsichts-Lauf.
+    // Sprachen und Werkzeuge: kein Vokabular, also nie über den Wert — sie greifen erst im
+    // Nachsichts-Lauf.
     default: return false;
   }
 }
@@ -114,7 +127,9 @@ export function choiceIdOf(slot: ChoiceSlot): string {
     case 'expertise': return expertiseChoiceId(slot.declared!);
     case 'skillProficiency': return skillProficiencyChoiceId(slot.declared!);
     case 'languages': return languageChoiceId(slot.declared!);
+    case 'tools': return toolProficiencyChoiceId(slot.declared!);
     case 'property': return propertyChoiceId(slot.declared!);
+    case 'abilityIncrease': return abilityIncreaseChoiceId(slot.declared!);
     case 'optionList': return optionChoiceId(slot.declared!);
     default: return '';
   }
@@ -235,7 +250,10 @@ export function buildCharacterChoices(
   const answered = (e: CharacterFeatureEntry) => !!e.choice.trim();
   const asked = new Set(slots.map(choiceIdOf));
   const index = slots.map((_, si) => si);
-  const freeText = (si: number) => slotKind(slots[si]) === 'languages';
+  const freeText = (si: number) => {
+    const kind = slotKind(slots[si]);
+    return kind === 'languages' || kind === 'tools';
+  };
   const looseOrder = [...index].sort((a, b) => Number(!freeText(a)) - Number(!freeText(b)));
   for (const mode of ['id', 'value', 'loose'] as const)
     for (const exact of [true, false])
@@ -279,7 +297,9 @@ export function buildCharacterChoices(
         // ihren eigenen Optionen.
         case 'skillProficiency': return skillProficiencyChoice(slot.declared!, ctx.proficient, answer);
         case 'languages': return languageChoice(slot.declared!);
+        case 'tools': return toolProficiencyChoice(slot.declared!);
         case 'property': return characterPropertyChoice(slot.declared!);
+        case 'abilityIncrease': return abilityIncreaseChoice(slot.declared!);
         case 'optionList': return optionListChoice(slot.declared!);
         default: return null;
       }
@@ -311,8 +331,8 @@ export interface ChoiceGrants {
 
 /**
  * Antwort → `Change[]` über dieselbe Kette wie der Aufstieg; kein zweiter Wahl-Typ.
- * Gefahrlos wiederholbar: alle so erzeugten Ziele sind idempotent, und das einzige additive
- * Ziel (`ability`) kann hier nicht entstehen — `featureGrantSchema` hat kein Attributsfeld.
+ * Bis auf `abilityIncrease` sind alle Ziele idempotent und damit gefahrlos wiederholbar; dort
+ * zählt jedes „Übernehmen" erneut, weshalb die Frage es in ihrer Hilfszeile ansagt.
  */
 export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): ChoiceGrants {
   const ref = ch.slot.declared;
@@ -342,6 +362,13 @@ export function choiceGrantChanges(ch: CharacterChoice, library: SpellInfo[]): C
       // Freitext: es gibt kein Vokabular, an dem eine Antwort vorbeigehen könnte.
       case 'languages':
         return { rider: languageRider(ref, ch.answer), matched: ch.answer.length > 0 };
+      case 'toolProficiency':
+        return { rider: toolProficiencyRider(ref, ch.answer), matched: ch.answer.length > 0 };
+      case 'abilityIncrease':
+        return {
+          rider: abilityIncreaseRider(ref, ch.answer),
+          matched: ch.answer.some((a) => abilityIncreaseOptions(ref.grant).includes(a as AbilityName)),
+        };
       default:
         return {
           rider: optionListRider(ref, ch.answer[0] ?? '', ch.slot.level),

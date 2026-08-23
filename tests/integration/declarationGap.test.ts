@@ -2,9 +2,8 @@
  * Der Lückenmelder am ECHTEN Vault — OHNE LLM.
  *
  * Seit die KI keine Wahl und keine Zaubergewährung mehr deutet, fällt eine undeklarierte
- * Mechanik aus. Diese Datei ist die Zusicherung, dass sie dabei LAUT ist: die offenen Fälle
- * (Invokationen #25, Werkzeug-Wahl #30, Attributserhöhung #31) müssen gemeldet werden, ein
- * deklariertes Merkmal darf keine Zeile erzeugen.
+ * Mechanik aus. Diese Datei ist die Zusicherung, dass sie dabei LAUT ist: der offene Fall
+ * (Invokationen #25) muss gemeldet werden, ein deklariertes Merkmal darf keine Zeile erzeugen.
  *
  *   npm run test -- declarationGap
  */
@@ -72,22 +71,20 @@ describe('Lückenmelder', () => {
     expect(declarationGapLines([primalOrder])).toEqual([]);
   });
 
-  /** Die hingenommene Regression des KI-Schnitts: ohne Senke fällt der Wert aus. */
-  it('meldet die Talente, deren Mechanik keine Senke hat', async () => {
+  /** Die zwei Formen, die bis #30/#31 keine Senke hatten und deshalb gemeldet wurden. */
+  it('schweigt an den Talenten, die Attribut und Werkzeug jetzt deklarieren', async () => {
     const [grappler, boon, crafter] = await Promise.all([
       feat('srd-2024_grappler'),
       feat('srd-2024_boon-of-truesight'),
       feat('phb-2024_crafter'),
     ]);
 
-    expect(declarationGaps([grappler, boon]).map((g) => g.kind)).toEqual(['ability', 'ability']);
-    // „drei Werkzeuge deiner Wahl" ist eine Wahl ohne Deklarationsform (#30).
-    expect(declarationGaps([crafter]).map((g) => g.kind)).toEqual(['choice']);
+    expect(declarationGaps([grappler, boon, crafter])).toEqual([]);
   });
 
-  it('gibt einem Merkmal mit zwei Signalen nur eine Zeile', async () => {
+  it('gibt einem Merkmal mit zwei Signalen nur eine Zeile', () => {
     // „Increase one ability score of your choice" trifft `ability` UND `choice`.
-    const boon = await feat('srd-2024_boon-of-truesight');
+    const boon: GapCandidate = { name: 'Boon of Nothing', desc: 'Increase one ability score of your choice by 1.' };
     expect(declarationGapLines([boon])).toHaveLength(1);
     // Und dasselbe Merkmal zweimal im Bestand meldet auch nur einmal.
     expect(declarationGapLines([boon, boon])).toHaveLength(1);

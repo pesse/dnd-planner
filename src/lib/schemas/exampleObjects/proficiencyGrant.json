@@ -19,5 +19,8 @@
   ],
   "armor": [
     "Light"
+  ],
+  "tools": [
+    "string"
   ]
 }

@@ -14,7 +14,9 @@
     expertise: { value: 'expertise', de: 'Expertise' },
     skillProficiency: { value: 'skillProficiency', de: 'Fertigkeitsübung' },
     languages: { value: 'languages', de: 'Sprachen' },
+    toolProficiency: { value: 'toolProficiency', de: 'Werkzeug-Übung' },
     characterProperty: { value: 'characterProperty', de: 'Grundeigenschaft' },
+    abilityIncrease: { value: 'abilityIncrease', de: 'Attributserhöhung' },
   };
 
   /**
@@ -37,6 +39,7 @@
 
 <script lang="ts">
   /** EINE Wahl eines Merkmals; die Liste darüber führt `DeclarationEditForm`. */
+  import { ABILITY_LABEL_BY_NAME, ABILITY_NAMES, type AbilityName } from '$lib/schemas/abilities';
   import CharacterPropertyEditForm from './CharacterPropertyEditForm.svelte';
   import ChoiceOptionEditForm from './ChoiceOptionEditForm.svelte';
   import SpellAccessEditForm from './SpellAccessEditForm.svelte';
@@ -56,6 +59,11 @@
   } = $props();
 
   const mark = () => onchange();
+
+  function toggleAbility(value: AbilityName, checked: boolean) {
+    grant.abilities = checked ? [...grant.abilities, value] : grant.abilities.filter((v) => v !== value);
+    onchange();
+  }
 
   let kinds = $derived(kindOptions(carrier));
 
@@ -80,6 +88,13 @@
         kind: 'characterProperty',
         property: prev.property ?? 'size',
         propertyValues: prev.propertyValues,
+      });
+    else if (value === 'abilityIncrease')
+      grant = newChoice({
+        kind: 'abilityIncrease',
+        count: prev.count,
+        abilities: prev.abilities,
+        abilityMax: prev.abilityMax,
       });
     else if (value === 'spellAccess')
       grant = newChoice({
@@ -137,6 +152,21 @@
       </span>
       <span class="note">Freitext — Sprachen haben kein Vokabular</span>
     {/if}
+    {#if kind === 'toolProficiency'}
+      <span class="lbl">Werkzeuge
+        <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
+      </span>
+      <span class="note">Freitext — Werkzeuge haben kein Vokabular</span>
+    {/if}
+    {#if kind === 'abilityIncrease'}
+      <span class="lbl">Attribute
+        <input class="ef num" type="number" min="1" max="6" bind:value={grant.count} oninput={mark} />
+      </span>
+      <span class="lbl">Höchstens
+        <input class="ef num" type="number" min="1" bind:value={grant.abilityMax} oninput={mark} />
+      </span>
+      <span class="note">je +1; leere Auswahl = alle sechs Attribute</span>
+    {/if}
     <button type="button" class="rm" onclick={onremove} title="Diese Wahl entfernen">×</button>
   </div>
 
@@ -151,6 +181,21 @@
   {#if kind === 'characterProperty'}
     <CharacterPropertyEditForm bind:grant {onchange} />
   {/if}
+
+  {#if kind === 'abilityIncrease'}
+    <div class="flag-grid">
+      {#each ABILITY_NAMES as ability}
+        <label class="chk">
+          <input
+            type="checkbox"
+            checked={grant.abilities.includes(ability)}
+            onchange={(e) => toggleAbility(ability, (e.target as HTMLInputElement).checked)}
+          />
+          {ABILITY_LABEL_BY_NAME[ability]}
+        </label>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -161,6 +206,11 @@
     font-size: 0.8rem; color: var(--ink-soft);
   }
   .note { font-size: 0.75rem; color: var(--ink-soft); font-style: italic; }
+  .flag-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem 0.5rem; }
+  .chk {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.8rem; color: var(--ink-soft); cursor: pointer;
+  }
   .sel { font-size: 0.8rem; }
   .num { width: 56px; text-align: center; }
   .rm {

@@ -7,6 +7,7 @@ import type { Change, FeatureRider } from '../../schemas/levelUp';
 import { isEmptyProficiencyGrant, type FeatureGrant } from '../../schemas/grants';
 import { proficiencyGrantChanges } from '../proficiencyGrants';
 import { characterPropertyChanges, isEmptyCharacterProperties } from '../characterProperties';
+import { abilityRiderFields } from './abilityIncrease';
 import type { FeatureSource } from '../declaredFeature';
 import { featureIdOf } from '$lib/utils/text';
 import { emptyRider } from './rider';
@@ -30,7 +31,7 @@ export function declaredGrantChanges(
     seen.add(id);
     const source = { ...meta, source: f.key || meta.source };
     out.push(
-      ...proficiencyGrantChanges(f.grants.proficiencies, source, ['skills', 'savingThrows', 'weapons', 'armor']),
+      ...proficiencyGrantChanges(f.grants.proficiencies, source, ['skills', 'savingThrows', 'weapons', 'armor', 'tools']),
       // Nicht in der Ausschlussliste: Eigenschaften reisen nie über den Rider.
       ...characterPropertyChanges(f.grants.properties, source),
     );
@@ -49,6 +50,7 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     languages: () => g.languages.length > 0,
     extraCantrips: () => g.extraCantrips > 0,
     extraPreparedCount: () => g.extraPreparedCount > 0,
+    abilities: () => g.abilities.length > 0,
     perLevel: () => g.perLevel.hpMax !== 0,
     properties: () => !isEmptyCharacterProperties(g.properties),
   };
@@ -71,6 +73,7 @@ export interface DeclaredGrantSource {
 const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' } = {
   proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
   languages: 'rider',
+  abilities: 'rider',
   extraCantrips: 'rider',
   extraPreparedCount: 'rider',
   perLevel: 'perLevel',
@@ -89,12 +92,14 @@ export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRid
     ...rider,
     extraCantrips: grants.extraCantrips,
     extraPreparedCount: grants.extraPreparedCount,
+    ...abilityRiderFields(grants.abilities),
     proficiencies: {
       ...rider.proficiencies,
       skills: [...p.skills.fixed],
       weapons: [...p.weapons],
       armor: [...p.armor],
       savingThrows: [...p.savingThrows],
+      tools: [...p.tools],
       languages: [...grants.languages],
     },
   };

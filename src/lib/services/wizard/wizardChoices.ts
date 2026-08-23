@@ -6,6 +6,8 @@ import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '..
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyChoices, skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageChoices, languageRiders } from '../declaration/languages';
+import { toolProficiencyChoices, toolProficiencyRiders } from '../declaration/toolProficiency';
+import { abilityIncreaseChoices, abilityIncreaseRiders } from '../declaration/abilityIncrease';
 import { optionListChoices, optionListRiders } from '../declaration/optionList';
 import { declaredGrantRiders } from '../declaration/grants';
 import { characterPropertyChoices } from '../characterProperties';
@@ -38,12 +40,14 @@ export function wizardDeclaredChoices(params: {
   // Gegenschnitt; die andere Form (`skills.choose`) führt daneben der Fertigkeitsschritt.
   const skillProf = skillProficiencyChoices(declared, proficientSkills);
   const languages = languageChoices(declared);
+  const tools = toolProficiencyChoices(declared);
+  const abilities = abilityIncreaseChoices(declared);
   // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
   // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
   const properties = characterPropertyChoices(declared);
   return [
     ...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...expertise, ...skillProf,
-    ...languages, ...spells,
+    ...languages, ...tools, ...abilities, ...spells,
   ];
 }
 
@@ -65,5 +69,7 @@ export function wizardRiders(params: {
     ...expertiseRiders(declared, answerOf),
     ...skillProficiencyRiders(declared, answerOf),
     ...languageRiders(declared, answerOf),
+    ...toolProficiencyRiders(declared, answerOf),
+    ...abilityIncreaseRiders(declared, answerOf),
   ];
 }

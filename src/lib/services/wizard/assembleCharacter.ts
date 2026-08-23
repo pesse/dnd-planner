@@ -20,6 +20,7 @@ import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
 import { spellAccessNoteLines } from '../spellcasting/access';
 import { declaredGrantChanges } from '../declaration/grants';
+import { abilityIncreasesOf, cappedScore } from '../declaration/abilityIncrease';
 import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
@@ -56,12 +57,11 @@ function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: A
  * DANACH fallen, sonst rechnen sie mit einem veralteten KON-Mod.
  */
 function finalScores(w: CharacterWizard): AbilityScores {
-  const scores = draftScores(w);
-  const inc = w.riders.reduce<Record<AbilityKey, number>>(
-    (acc, r) => { for (const k of ABILITY_KEYS) acc[k] += r.abilityScoreIncrease[k] ?? 0; return acc; },
-    { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
-  );
-  return ABILITY_KEYS.reduce((s, k) => ({ ...s, [k]: s[k] + inc[k] }), scores);
+  const scores = { ...draftScores(w) };
+  // Dieselbe Senke wie im Aufstieg (`riderChanges` → `APPLY.ability`), Deckelung inklusive.
+  for (const inc of abilityIncreasesOf(w.riders))
+    scores[inc.ability] = cappedScore(scores[inc.ability], inc.value, inc.max || undefined);
+  return scores;
 }
 
 function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
@@ -101,6 +101,9 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
           weapons: grants.weapons.map((g) => g.value),
           weaponsOther: grants.weaponsOther.map((g) => g.value),
           armor: grants.armor.map((g) => g.value),
+          // Werkzeuge sammelt `collectGrants` nicht: sie stehen am MERKMAL und reisen
+          // deshalb über dessen Rider (`riderGrantChanges` weiter unten).
+          tools: [],
         },
         { step: 'wizard-links', source: 'library-link' },
       ),

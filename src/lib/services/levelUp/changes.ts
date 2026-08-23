@@ -5,6 +5,7 @@
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
 import { isFightingStyleFeature } from '../fightingStyle';
 import { declaredGrantChanges, type DeclaredGrantSource } from '../declaration/grants';
+import { abilityIncreasesOf } from '../declaration/abilityIncrease';
 import { type DeclaredChoiceSource } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import {
@@ -61,13 +62,6 @@ function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string 
   return abil;
 }
 
-/** Feste Boni der Merkmale — nicht spielergewählt, anders als `abilityFromAnswers`. */
-function abilityFromRiders(riders: FeatureRider[]): AbilityMap {
-  const abil = zeroAbil();
-  for (const r of riders) for (const k of ABILITY_KEYS) abil[k] += r.abilityScoreIncrease[k] ?? 0;
-  return abil;
-}
-
 export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[] {
   const step: BuilderStep = 'base-delta';
   const out: Change[] = [];
@@ -119,9 +113,13 @@ export function riderChanges(v: ValidatedRiders, step: 'feature-effects' | 'feat
     out.push({ target: 'cantrip', name, step, source: 'class-feature', label: `Zaubertrick: ${name}` });
   for (const p of v.grantedPrepared)
     out.push({ target: 'preparedSpell', level: p.level, name: p.name, prepared: true, step, source: 'class-feature', label: `Vorbereitet (Grad ${p.level}): ${p.name}` });
-  const abil = abilityFromRiders(v.riders);
-  for (const k of ABILITY_KEYS) if (abil[k])
-    out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'feature', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
+  // Je Merkmal ein Change statt einer Summe: nur so trägt jeder seine eigene Obergrenze.
+  for (const inc of abilityIncreasesOf(v.riders))
+    out.push({
+      target: 'ability', ability: inc.ability, value: inc.value, max: inc.max || undefined,
+      step, source: inc.featureKey || 'feature',
+      label: `${ABILITY_LABEL[inc.ability]} ${inc.value > 0 ? '+' : ''}${inc.value}`,
+    });
   out.push(...riderGrantChanges(v.riders, { step, source: 'class-feature' }));
   return out;
 }
