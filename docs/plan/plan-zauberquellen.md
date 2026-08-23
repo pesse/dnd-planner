@@ -440,8 +440,8 @@ Zwei Korrekturen, die die Umsetzung erzwungen hat:
 | `quotaSchema` | `quotaPatchSchema.set` leitet die Teilform jetzt von einer vorgabenfreien Basis ab — mit `.default('prepared')` auf `tier` schaltete der Ritual-Adept-Patch das Zauberbuch von `known` auf `prepared` |
 | `FeatEntry` (`featsLibrary.ts`) | der feldweise Lesepfad kannte das vierte Feld nicht und verwarf `grantsCasting` der Talente stumm |
 
-Offen: `declarationCoverage.ts` zählt `grantsCasting` nicht mit, also gelten die 15 Merkmale, die
-NUR es tragen, weiter als „nicht redigiert". Gehört zu Stufe 5, wo die alten Felder aufgehen.
+Erledigt in Stufe 5: `grantsCasting` zählt im Linter mit und filtert wie jede andere Deklaration
+(#33).
 
 ### Stufe 2 — Verifikation gegen den Bestand
 - [x] **`state.ts`, noch ohne Schreibpfad** (2026-08-04) — dazu `schemas/spellcasting.ts` mit
@@ -819,8 +819,19 @@ Teilschritte brauchen einen laufenden `.\dev-windows.ps1`, bevor sie als erledig
 - [x] `grantsCasting` an allen Zauber-Merkmalen (mit Stufe 1 vorgezogen, 35 Deklarationen)
 - [ ] `grantsChoice.kind='spellcasting'` und `'spellAccess'` sowie `grantsSpells` entfallen; sie
       gehen in `grantsCasting` auf
-- [ ] `declarationCoverage.ts` und die KI-Eingangsfilter kennen `grantsCasting` als vierte
-      Deklaration
+- [x] `declarationCoverage.ts` und die KI-Eingangsfilter kennen `grantsCasting` als vierte
+      Deklaration (2026-08-23, #33) — `declaresCasting` (`declaration/casting.ts`) speist
+      `isFlowOwnedDeclaration` und `withoutDeclaredChoiceFeatures`, damit greift derselbe Filter
+      auf beiden Wegen. Die handaufgezählten Feld-Kopien sind gegen `declarationOf` /
+      `parseDeclaration` (`declaredFeature.ts`) getauscht — total über die Schema-Feldgruppe,
+      also ist ein sechstes Deklarationsfeld ein Compile-Fehler statt eines stillen Verlusts.
+      Im Vault trägt jedes Merkmal mit Prosa ohne Senke jetzt `aiInterpretsRest: true` (sechs
+      Stück, darunter Magische Geheimnisse: der Patch weitet den Pool, und die Listen stehen nur
+      im App-Bogen, nicht im Druck). Ritual-Adept braucht es NICHT — sein Patch landet als
+      `castNote` am Zauberbuch, und `isOrdinaryCast` (`print/character/pages/spells.ts`) hält
+      jetzt nur noch das vorbereitete Ritual für den Normalweg. „Signature Spells" steht als
+      **zwei** Quotas mit je einem Zauber — „einmal je Kurze Rast" gilt je Zauber, nicht je
+      Kontingent.
 
 ## Risiken
 

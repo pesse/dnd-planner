@@ -15,6 +15,7 @@ import {
   type DeclaredChoiceRef, type DeclaredChoiceSource,
 } from './source';
 export type { DeclaredChoiceRef, DeclaredChoiceSource };
+import { declaresCasting } from './casting';
 import { isEmptyFeatureGrant, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
 import { isSkillProficiencyRef } from './skillProficiency';
@@ -58,12 +59,13 @@ export function optionListChoices(features: DeclaredChoiceSource[]): AnalysisCho
 }
 
 /**
- * Ob das Merkmal überhaupt eine Wahl DEKLARIERT — herkunftsfrei, denn jeder `kind` ist per
- * Definition flow-eigen: die Optionen kommen aus der Bibliothek, nie aus dem Modell. Nach
- * INHALT, nicht nach Anwesenheit: die leere Liste heißt „geprüft, gewährt keine Wahl", und
- * dann bleibt die Prosa des Merkmals Sache der KI-Kette.
+ * Ob das Merkmal seine Mechanik DEKLARIERT — herkunftsfrei, denn jeder `kind` ist per
+ * Definition flow-eigen: die Optionen kommen aus der Bibliothek, nie aus dem Modell, und die
+ * Zauber-Kontingente aus `grantsCasting`. Nach INHALT, nicht nach Anwesenheit: die leere Liste
+ * heißt „geprüft, gewährt keine Wahl", und dann bleibt die Prosa Sache der KI-Kette.
  */
-export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean => choiceGrants(f).length > 0;
+export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean =>
+  choiceGrants(f).length > 0 || declaresCasting(f);
 
 /** Ob der Flow diese Wahl selbst führt — Zweigwahl, Übung, Expertise, Sprache oder Eigenschaft. */
 export const isDeclaredChoiceRef = (r: DeclaredChoiceRef): boolean =>
@@ -82,7 +84,7 @@ export const isDeclaredChoiceFeature = (f: DeclaredChoiceSource): boolean => dec
  * `isFlowOwnedChoiceFeature` nicht sieht: Spezies- und nachgeladene Subklassen-Merkmale.
  */
 export function withoutDeclaredChoiceFeatures<T extends DeclaredChoiceSource>(features: T[]): T[] {
-  return features.filter((f) => !isDeclaredChoiceFeature(f));
+  return features.filter((f) => !isDeclaredChoiceFeature(f) && !declaresCasting(f));
 }
 
 /**

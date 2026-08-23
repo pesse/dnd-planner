@@ -178,14 +178,18 @@ describe('Zauberbuch des Magiers', () => {
     expect(mastery.cast).toEqual([{ kind: 'at-will' }]);
     expect(l18.views.has('srd-2024_wizard_signature-spells')).toBe(false);
 
+    // Zwei Quotas mit je einem Zauber: „einmal je Kurze Rast" gilt je ZAUBER, und ein
+    // Kontingent trägt seine Wirkungen nur als Ganzes.
     const l20 = await resolveViews(asClass('srd-2024_wizard', 20));
-    const signature = viewOf(l20.views.get('srd-2024_wizard_signature-spells'), 'signature');
-    expect(signature.count).toBe(2);
-    expect(signature.levels).toEqual([3]);
-    expect(signature.cast).toEqual([
-      { kind: 'uses', per: 'short-rest', count: 1 },
-      { kind: 'slots', pool: 'standard' },
-    ]);
+    for (const quotaId of ['signature1', 'signature2']) {
+      const signature = viewOf(l20.views.get('srd-2024_wizard_signature-spells'), quotaId);
+      expect(signature.count, quotaId).toBe(1);
+      expect(signature.levels, quotaId).toEqual([3]);
+      expect(signature.cast, quotaId).toEqual([
+        { kind: 'uses', per: 'short-rest', count: 1 },
+        { kind: 'slots', pool: 'standard' },
+      ]);
+    }
   });
 });
 

@@ -90,10 +90,21 @@
         "swap": { "spells": "none" },
         "quotas": [
           {
-            "id": "signature",
+            "id": "signature1",
             "tier": "prepared",
             "levels": [3],
-            "count": { "base": 2 },
+            "count": { "base": 1 },
+            "pool": { "from": { "feature": "srd-2024_wizard_spellcasting", "quota": "book" } },
+            "cast": [
+              { "kind": "uses", "per": "short-rest", "count": 1 },
+              { "kind": "slots", "pool": "standard" }
+            ]
+          },
+          {
+            "id": "signature2",
+            "tier": "prepared",
+            "levels": [3],
+            "count": { "base": 1 },
             "pool": { "from": { "feature": "srd-2024_wizard_spellcasting", "quota": "book" } },
             "cast": [
               { "kind": "uses", "per": "short-rest", "count": 1 },

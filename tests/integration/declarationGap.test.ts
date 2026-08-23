@@ -32,14 +32,23 @@ const feat = async (sourceKey: string): Promise<GapCandidate> => {
 
 describe('Lückenmelder', () => {
   it('meldet eine undeklarierte Wahl genau einmal', async () => {
-    const secrets = await classFeature('srd-2024_bard', 'srd-2024_bard_magical-secrets');
-    const lines = declarationGapLines([secrets]);
+    const sculpt = await classFeature('srd-2024_evoker', 'srd-2024_wizard_evoker_sculpt-spells');
+    const lines = declarationGapLines([sculpt]);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain('Magische Geheimnisse');
+    expect(lines[0]).toContain('Zauber formen');
     expect(lines[0]).toContain('eine Wahl');
     // Die Zeile muss sagen, was zu tun ist — sie steht im Schritt-Log und im Merkmalsfeld.
     expect(lines[0]).toContain('im Editor nachtragen');
+  });
+
+  // `aiInterpretsRest` ist die Entscheidung „Bogenzeile ja, Mechanik nein" — der Melder darf
+  // sie nicht als Lücke wiederholen. Magische Geheimnisse deklariert seinen weiteren Pool als
+  // Patch, also war die Meldung dort ohnehin falsch.
+  it('schweigt, wo `aiInterpretsRest` die Prosa der KI überlässt', async () => {
+    const secrets = await classFeature('srd-2024_bard', 'srd-2024_bard_magical-secrets');
+    expect(secrets.aiInterpretsRest, 'die Deklaration im Vault').toBe(true);
+    expect(declarationGapLines([secrets])).toEqual([]);
   });
 
   /**

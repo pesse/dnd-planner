@@ -10,10 +10,21 @@ import { describe, expect, it } from 'vitest';
 import { getClasses } from '../../src/lib/classLibrary';
 import { getFeats } from '../../src/lib/featsLibrary';
 import { castingGrantSchema, type CastingGrant, type Quota } from '../../src/lib/schemas/casting';
-import type { ClassProgression } from '../../src/lib/schemas/classProgression';
+import type { ClassFeature, ClassProgression } from '../../src/lib/schemas/classProgression';
 import type { FeatureChoiceGrant } from '../../src/lib/schemas/featureChoice';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import {
+  hasDeclaredMechanics,
+  isRedacted,
+  type DeclarableFeature,
+} from '../../src/lib/services/declarationCoverage';
+import {
+  unredactedChoiceFeatures,
+  withoutDeclaredChoiceFeatures,
+  type DeclaredChoiceSource,
+} from '../../src/lib/services/declaration/optionList';
 import { parseSpellGrantRows } from '../../src/lib/services/grantedSpells';
+import { isFlowOwnedChoiceFeature } from '../../src/lib/services/levelUp';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 import { libraryKey } from '../support/libraryKey';
@@ -28,6 +39,10 @@ interface Declaration {
   grantsCasting: CastingGrant;
   /** Nur bei Klassenmerkmalen: die Tabelle, aus der `count.column` liest. */
   table: ClassProgression | null;
+  /** Der rohe Eintrag — die Filter fragen mehr als `grantsCasting`. */
+  feature: DeclaredChoiceSource & DeclarableFeature;
+  /** Gesetzt nur beim Klassenmerkmal: `isFlowOwnedChoiceFeature` ist Klassen-Vokabular. */
+  classFeature: ClassFeature | null;
 }
 
 let cached: Declaration[] | null = null;
@@ -43,13 +58,29 @@ async function declarations(): Promise<Declaration[]> {
     const table = prog.subclassOf ? await getProgressionByKey(prog.subclassOf) : prog;
     for (const f of prog.features)
       if (f.grantsCasting)
-        out.push({ key: f.key, desc: f.desc, grantsChoice: f.grantsChoice, grantsCasting: f.grantsCasting, table });
+        out.push({
+          key: f.key,
+          desc: f.desc,
+          grantsChoice: f.grantsChoice,
+          grantsCasting: f.grantsCasting,
+          table,
+          feature: f,
+          classFeature: f,
+        });
   }
   for (const info of await getSpeciesList()) {
     const spec = await getSpeciesByKey(libraryKey(info));
     for (const t of spec?.traits ?? [])
       if (t.grantsCasting)
-        out.push({ key: t.key, desc: t.desc, grantsChoice: t.grantsChoice, grantsCasting: t.grantsCasting, table: null });
+        out.push({
+          key: t.key,
+          desc: t.desc,
+          grantsChoice: t.grantsChoice,
+          grantsCasting: t.grantsCasting,
+          table: null,
+          feature: t,
+          classFeature: null,
+        });
   }
   for (const feat of await getFeats())
     if (feat.grantsCasting)
@@ -59,6 +90,8 @@ async function declarations(): Promise<Declaration[]> {
         grantsChoice: feat.grantsChoice,
         grantsCasting: feat.grantsCasting,
         table: null,
+        feature: { ...feat, key: feat.sourceKey },
+        classFeature: null,
       });
 
   cached = out;
@@ -160,6 +193,40 @@ describe('grantsCasting im Vault', () => {
       const seen = quotasOf(d).map((q) => `${q.id}|${q.since ?? ''}|${JSON.stringify(q.when ?? {})}`);
       expect(new Set(seen).size, d.key).toBe(seen.length);
     }
+  });
+});
+
+describe('grantsCasting ist eine Deklaration wie jede andere', () => {
+  it('zählt kein deklariertes Merkmal als undeklariert', async () => {
+    for (const d of await declarations()) {
+      expect(isRedacted(d.feature), d.key).toBe(true);
+      expect(hasDeclaredMechanics(d.feature), d.key).toBe(true);
+    }
+  });
+
+  it('hält jedes deklarierte Merkmal aus dem KI-Eingang', async () => {
+    for (const d of await declarations()) {
+      expect(withoutDeclaredChoiceFeatures([d.feature]), d.key).toEqual([]);
+      if (d.classFeature) expect(isFlowOwnedChoiceFeature(d.classFeature), d.key).toBe(true);
+    }
+  });
+
+  // Der Gegenzug zum Filter: was daneben Prosa ohne Senke trägt, holt `aiInterpretsRest`
+  // in den Notiz-Pass zurück — sonst verschwände es vom Bogen.
+  it('gibt jedem `aiInterpretsRest` seine Bogen-Notiz zurück', async () => {
+    const all = await declarations();
+    const withRest = all.filter((d) => d.feature.aiInterpretsRest);
+    expect(withRest.map((d) => d.key).sort()).toEqual([
+      'phb-2024_druid_circle-of-the-moon_moonlight-step',
+      'phb-2024_monk_way-of-shadow_shadow-arts',
+      'srd-2024_bard_magical-secrets',
+      'srd-2024_bard_words-of-creation',
+      'srd-2024_sorcerer_draconic-sorcery_dragon-companion',
+      'srd-2024_warlock_contact-patron',
+      'srd-2024_wizard_spell-mastery',
+    ]);
+    for (const d of withRest)
+      expect(unredactedChoiceFeatures([d.feature], () => ''), d.key).toHaveLength(1);
   });
 });
 

@@ -5,11 +5,8 @@
 import { createLibrary } from './services/library/createLibrary';
 import { normName } from './utils/text';
 import { FEAT_CATEGORIES, type FeatCategory } from './schemas/vocabulary';
-import { castingGrantSchema, type CastingGrant } from './schemas/casting';
-import { featureChoiceGrantsSchema, type FeatureChoiceGrant } from './schemas/featureChoice';
-import { featureGrantSchema, spellGrantSchema, type FeatureGrant, type SpellGrant } from './schemas/grants';
 import { migrateFeatLegacy } from './schemas/feat';
-import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
+import { parseDeclaration, type DeclarationFields } from './services/declaredFeature';
 
 export const FEATS_PATH = './vault/feats';
 
@@ -21,7 +18,7 @@ export const FEAT_CATEGORY_DE: Record<FeatCategory, string> = {
   'Epic Boon': 'Epische Gabe',
 };
 
-export interface FeatEntry {
+export interface FeatEntry extends DeclarationFields {
   name: string;
   nameDe?: string;
   desc?: string;
@@ -31,12 +28,6 @@ export interface FeatEntry {
   prerequisiteDe?: string;
   category?: FeatCategory;
   sourceKey?: string;
-  /** Nur Bibliotheks-Talente können sie tragen. */
-  grantsChoice?: FeatureChoiceGrant[];
-  grantsSpells?: SpellGrant;
-  grants?: FeatureGrant;
-  grantsCasting?: CastingGrant;
-  grantsResource?: ResourceGrant;
   /** Bei inline erzeugten Talenten leer. */
   path?: string;
 }
@@ -72,11 +63,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
         : undefined,
       // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
       sourceKey: data.sourceKey ?? data.key,
-      grantsChoice: featureChoiceGrantsSchema.safeParse(data.grantsChoice).data,
-      grantsSpells: spellGrantSchema.safeParse(data.grantsSpells).data,
-      grants: featureGrantSchema.safeParse(data.grants).data,
-      grantsCasting: castingGrantSchema.safeParse(data.grantsCasting).data,
-      grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
+      ...parseDeclaration(data),
       path,
     };
   },
