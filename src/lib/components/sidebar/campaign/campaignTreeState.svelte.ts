@@ -306,10 +306,13 @@ export class CampaignTreeState {
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
     const isNpc = section.type === 'npc';
-    const ext = isNpc ? '.json' : '.md';
-    const fullPath = section.type === 'act'
+    const isAct = section.type === 'act';
+    // Ein Akt heißt wie sein Verzeichnis, die index.md steckt darin — so listet
+    // `loadSection` ihn auch, und `openFile` erwartet genau diesen Namen.
+    const entryName = isAct ? slug : `${slug}${isNpc ? '.json' : '.md'}`;
+    const fullPath = isAct
       ? actIndexPath(campaignPath, slug)
-      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${slug}${ext}`;
+      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${entryName}`;
 
     try {
       const tmpl = await loadTemplate(section.type);
@@ -325,7 +328,7 @@ export class CampaignTreeState {
       this.showNewFileInput[key] = false;
       this.newFileInput[key] = '';
       await this.loadSection(campaignPath, section);
-      await this.openFile(campaignPath, section, slug + ext);
+      await this.openFile(campaignPath, section, entryName);
       if (section.type === 'act') loadActSummaries(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
