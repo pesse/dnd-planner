@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
-import { activeFile, setFileContent, vaultVersion } from '../../stores/campaign';
+import { activeFile, vaultVersion } from '../../stores/campaign';
+import { closeActive } from '../navigation';
 import { confirmAction } from '../../stores/confirmDialog';
 import { pushError } from '../../stores/toasts';
 
@@ -32,10 +33,7 @@ export async function deleteEntry(
   }
   const af = get(activeFile);
   const affected = (p?: string) => !!p && (p === path || p.startsWith(path + '/'));
-  if (af && (affected(af.path) || affected(af.dirPath))) {
-    activeFile.set(null);
-    setFileContent('');
-  }
+  if (af && (affected(af.path) || affected(af.dirPath))) closeActive();
   await reload();
   vaultVersion.update((v) => v + 1);
 }

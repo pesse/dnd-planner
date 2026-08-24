@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { activeFile } from '../../stores/campaign';
-  import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { formatClassLevel } from '../../schemas/classLevelText';
   import { speciesDisplayName, searchSpecies, type SpeciesInfo } from '../../speciesLibrary';
   import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../../backgroundsLibrary';
@@ -35,8 +34,7 @@
 
   async function openLibraryPage(path: string | undefined, type: 'species' | 'background') {
     if (!path) return;
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type });
+    await navigateTo({ name: path.split('/').pop()!.replace('.json', ''), path, type });
   }
 
   function selectSpecies(info: SpeciesInfo) {

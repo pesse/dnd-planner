@@ -13,7 +13,7 @@
   import { translateBackground } from '$lib/services/aiActions/translateAction';
   import type { BackgroundTranslation } from '$lib/schemas/translation';
   import { createLibraryCardEditor } from '$lib/editor/libraryCard';
-  import { activeFile } from '$lib/stores/campaign';
+  import { navigateTo } from '$lib/services/navigation';
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
   import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
@@ -62,9 +62,9 @@
     draft?.featKey ? (featIndex.find((f) => f.sourceKey === draft!.featKey) ?? null) : null,
   );
 
-  function openFeatPage() {
+  async function openFeatPage() {
     if (!linkedFeat?.path) return;
-    activeFile.set({
+    await navigateTo({
       name: linkedFeat.path.split('/').pop()!.replace('.json', ''),
       path: linkedFeat.path,
       type: 'feat',

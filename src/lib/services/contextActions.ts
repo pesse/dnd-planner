@@ -5,7 +5,8 @@
  */
 import type { FileEntry, LlmConfig } from '../types';
 import type { AgentStep } from './vaultTools';
-import { activeFile, invalidateVault } from '../stores/campaign';
+import { invalidateVault } from '../stores/campaign';
+import { navigateTo } from './navigation';
 import { loadEncounterContext } from '../stores/context';
 import { invalidateMonsterPaths } from './contextLoad';
 import type { CharacterCompact, MonsterLibraryEntry } from './contextTypes';
@@ -83,7 +84,7 @@ const designEncounterAction: ContextAction = {
     invalidateMonsterPaths();
     invalidateVault();
     await loadEncounterContext(campaignPath);
-    activeFile.set({ name: result.filename.replace(/\.json$/, ''), path: result.path, type: 'encounter' });
+    await navigateTo({ name: result.filename.replace(/\.json$/, ''), path: result.path, type: 'encounter' });
 
     const parts = [`Encounter „${result.encounter.name}" angelegt`];
     if (result.generatedSlugs.length) parts.push(`${result.generatedSlugs.length} Monster generiert`);

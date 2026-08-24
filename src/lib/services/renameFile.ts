@@ -5,6 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
 import { activeCampaign, activeFile, invalidateVault } from '../stores/campaign';
+import { replaceActive } from './navigation';
 import { confirmAction } from '../stores/confirmDialog';
 import { pushError } from '../stores/toasts';
 import { invalidateItemCache } from '../itemLibrary';
@@ -32,7 +33,7 @@ export async function renameFile(file: FileEntry, value: string): Promise<void> 
     try {
       await invoke('rename_file', { oldPath: oldFolder, newPath: newFolder });
       activeCampaign.set({ ...campaign, path: newSlug, name: newName });
-      activeFile.set({ ...file, path: newFilePath });
+      replaceActive({ ...file, path: newFilePath });
       invalidateVault();
     } catch (e) {
       await confirmAction({
@@ -55,7 +56,7 @@ export async function renameFile(file: FileEntry, value: string): Promise<void> 
 
     try {
       await invoke('rename_file', { oldPath: file.path, newPath });
-      activeFile.set({ ...file, name: newName, path: newPath });
+      replaceActive({ ...file, name: newName, path: newPath });
       if (itemDir) invalidateItemCache(itemDir);
       invalidateVault();
     } catch (e) {
@@ -74,7 +75,7 @@ export async function renameFile(file: FileEntry, value: string): Promise<void> 
 
     try {
       await invoke('rename_file', { oldPath: oldActDir, newPath: newActDir });
-      activeFile.set({ ...file, name: newSlug, path: `${newActDir}/index.md` });
+      replaceActive({ ...file, name: newSlug, path: `${newActDir}/index.md` });
       invalidateVault();
     } catch (e) {
       console.error('Umbenennen fehlgeschlagen:', e);
@@ -90,7 +91,7 @@ export async function renameFile(file: FileEntry, value: string): Promise<void> 
 
   try {
     await invoke('rename_file', { oldPath: file.path, newPath });
-    activeFile.set({ ...file, name: newName, path: newPath });
+    replaceActive({ ...file, name: newName, path: newPath });
     invalidateVault();
   } catch (e) {
     console.error('Umbenennen fehlgeschlagen:', e);

@@ -7,6 +7,7 @@ import { onMount } from 'svelte';
 import { get, writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '$lib/stores/campaign';
+import { closeActive, replaceActive } from '$lib/services/navigation';
 import { preferredCardTab } from '$lib/stores/uiPrefs';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
 import { openSaveAs, type SaveAsBucket } from '$lib/editor/saveAs';
@@ -178,7 +179,7 @@ export class CardEditor<T> {
 
       await invoke('write_file_content', { path: targetPath, content });
       this.lastSavedContent = content;
-      if (moved) activeFile.set({ ...file, path: targetPath });
+      if (moved) replaceActive({ ...file, path: targetPath });
       setFileContent(content);
       this.saveError = '';
       this.captureBaseline();
@@ -214,7 +215,7 @@ export class CardEditor<T> {
     this.captureBaseline();
     this.saveError = '';
     this.#cfg.onSaved?.(path, { moved: false });
-    activeFile.set({ name: path.split('/').pop()!.replace(/\.json$/, ''), path, type: this.#cfg.type });
+    replaceActive({ name: path.split('/').pop()!.replace(/\.json$/, ''), path, type: this.#cfg.type });
   }
 
   discard() {
@@ -222,7 +223,7 @@ export class CardEditor<T> {
       this.isNew = false;
       this.draft = null;
       this.saveError = '';
-      activeFile.set(null);
+      closeActive();
       return;
     }
     const parsed = this.#cfg.parse(this.lastSavedContent);

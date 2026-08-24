@@ -5,8 +5,7 @@
    * Plätze, SG und Angriffsbonus stehen hier read-only, außer die Klasse hat keine
    * Progression im Vault.
    */
-  import { activeFile } from '../../stores/campaign';
-  import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { sign } from '../../utils/num';
   import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
   import { SCHOOL_COLORS, type SpellInfo } from '../../spellLibrary';
@@ -48,9 +47,8 @@
   async function openSpellPage(key: string) {
     const info = infoOf(key);
     if (!info?.path) return;
-    if (!(await confirmNavigation())) return;
     const name = info.path.split('/').pop()?.replace('.json', '') ?? key;
-    activeFile.set({ name, path: info.path, type: 'spell' });
+    await navigateTo({ name, path: info.path, type: 'spell' });
   }
 
   let picking = $state<SpellQuotaGroup | null>(null);

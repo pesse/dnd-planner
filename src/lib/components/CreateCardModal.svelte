@@ -5,7 +5,7 @@
   import { runAiAction } from '../services/aiActions/runner';
   import { describeAiStep } from '../services/aiActions/describeStep';
   import { newCardDraft } from '../editor/cardEditor.svelte';
-  import { activeFile } from '../stores/campaign';
+  import { navigateTo } from '../services/navigation';
   import type { ApiRef } from '../services/open5eClient';
   import Modal from './ui/Modal.svelte';
   import AiStatusBanner from './ui/AiStatusBanner.svelte';
@@ -71,7 +71,8 @@
     if (extraSelect && extraValue) extraSelect.apply(draft, extraValue);
     if (onCreated) onCreated(draft);
     else newCardDraft.set({ type, data: draft });
-    activeFile.set({ name: nameOf(draft), path: '', type });
+    // Ohne Pfad: der Verlauf überspringt den Entwurf später als unerreichbar.
+    void navigateTo({ name: nameOf(draft), path: '', type }, { guard: false });
     onclose();
   }
 

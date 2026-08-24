@@ -6,8 +6,7 @@
    */
   import './sheet.css';
   import { sign } from '../../utils/num';
-  import { activeFile } from '../../stores/campaign';
-  import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { matchSpell, SCHOOL_COLORS, type SpellIndex, type SpellInfo } from '../../spellLibrary';
   import { prepareMultiSpellPrint } from '../../utils/printSpell';
   import { createSpellHover, loadSpellCached } from '../spellHover.svelte';
@@ -75,9 +74,8 @@
   async function openSpellPage(s: CardSpell) {
     const info = infoOf(s);
     if (!info?.path) return;
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
     const name = info.path.split('/').pop()?.replace('.json', '') ?? s.label;
-    activeFile.set({ name, path: info.path, type: 'spell' });
+    await navigateTo({ name, path: info.path, type: 'spell' });
   }
 
   let printingSpells = $state(false);
