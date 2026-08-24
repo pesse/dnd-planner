@@ -8,6 +8,7 @@
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
   import DragonMark from '$lib/components/DragonMark.svelte';
+  import HistoryNav from '$lib/components/HistoryNav.svelte';
   import ToastStack from '$lib/components/ToastStack.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
   import RateLimitToast from '$lib/components/RateLimitToast.svelte';
@@ -110,6 +111,7 @@
 
   <div class="main">
     <div class="dragon-watermark"><DragonMark size={240} title="" /></div>
+    <HistoryNav />
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
     {:else if cardType}

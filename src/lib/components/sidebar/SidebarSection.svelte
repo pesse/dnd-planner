@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { deleteEntry } from '../../services/sidebar/deleteEntry';
   import type { LibraryEntry, LibrarySection } from '../../services/sidebar/librarySections';
   import SectionHeader from './SectionHeader.svelte';
@@ -29,8 +30,7 @@
   }
 
   async function open(path: string) {
-    if (!(await confirmNavigation())) return;
-    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: section.type });
+    await navigateTo({ name: path.split('/').pop()!.replace('.json', ''), path, type: section.type });
   }
 
   async function create() {

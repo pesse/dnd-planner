@@ -5,8 +5,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
 import { onMount } from 'svelte';
-import { activeCampaign, activeFile, setFileContent } from '../../../stores/campaign';
+import { activeCampaign } from '../../../stores/campaign';
 import { confirmNavigation } from '../../../stores/navigationGuard';
+import { closeActive, navigateTo } from '../../../services/navigation';
 import { loadActSummaries, loadEncounterContext } from '../../../stores/context';
 import { listActDirs, moveAct } from '../../../services/actOrder';
 import { extractActTitle } from '../../../utils/actExtract';
@@ -96,8 +97,7 @@ export class CampaignTreeState {
   async afterDeleteCampaign(campaignPath: string): Promise<void> {
     if (get(activeCampaign)?.path === campaignPath) {
       activeCampaign.set(null);
-      activeFile.set(null);
-      setFileContent('');
+      closeActive();
     }
     await this.loadCampaigns();
   }
@@ -121,8 +121,7 @@ export class CampaignTreeState {
       const newCampaign = this.campaigns.find((c) => c.path === slug);
       if (newCampaign) {
         activeCampaign.set(newCampaign);
-        activeFile.set({ name: 'campaign', path: campaignMd, type: 'campaign' });
-        setFileContent(template);
+        await navigateTo({ name: 'campaign', path: campaignMd, type: 'campaign' });
       }
     } catch (err) {
       console.error('Kampagne konnte nicht erstellt werden:', err);
@@ -155,10 +154,8 @@ export class CampaignTreeState {
   }
 
   async openEncounter(campaignPath: string, actDirName: string, filename: string): Promise<void> {
-    if (!(await confirmNavigation())) return;
     const path = encounterPathOf(campaignPath, actDirName, filename);
-    activeFile.set({ name: filename.replace('.json', ''), path, type: 'encounter' });
-    // Inhalt und Monster lädt die EncounterCard selbst.
+    await navigateTo({ name: filename.replace('.json', ''), path, type: 'encounter' });
   }
 
   async createActEncounter(campaignPath: string, actDirName: string, e: KeyboardEvent | MouseEvent): Promise<void> {
@@ -276,33 +273,22 @@ export class CampaignTreeState {
   }
 
   async openFile(campaignPath: string, section: CampaignSection, filenameOrDir: string): Promise<void> {
-    if (!(await confirmNavigation())) return;
     const fullPath = sectionEntryPath(campaignPath, section, filenameOrDir);
     const displayName = filenameOrDir.replace(/\.(md|json)$/, '');
-    activeFile.set({ name: displayName, path: fullPath, type: section.type });
-    try {
-      const content = await invoke<string>('read_file_content', { path: fullPath });
-      setFileContent(content);
-    } catch (e) {
-      setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
-    }
+    await navigateTo({ name: displayName, path: fullPath, type: section.type });
   }
 
   async selectCampaign(campaign: Campaign): Promise<void> {
+    // Guard hier statt in `openCampaignFile`: sonst zeigt `activeCampaign` schon
+    // woandershin, wenn der Nutzer abbricht.
     if (!(await confirmNavigation())) return;
     activeCampaign.set({ ...campaign });
-    this.openCampaignFile(campaign.path);
+    await this.openCampaignFile(campaign.path);
   }
 
   async openCampaignFile(campaignPath: string): Promise<void> {
     const fullPath = `${VAULT_BASE}/${campaignPath}/campaign.md`;
-    activeFile.set({ name: 'campaign', path: fullPath, type: 'campaign' });
-    try {
-      const content = await invoke<string>('read_file_content', { path: fullPath });
-      setFileContent(content);
-    } catch (e) {
-      setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
-    }
+    await navigateTo({ name: 'campaign', path: fullPath, type: 'campaign' }, { guard: false });
   }
 
   startNewFile(key: string): void {
@@ -320,10 +306,13 @@ export class CampaignTreeState {
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
     const isNpc = section.type === 'npc';
-    const ext = isNpc ? '.json' : '.md';
-    const fullPath = section.type === 'act'
+    const isAct = section.type === 'act';
+    // Ein Akt heißt wie sein Verzeichnis, die index.md steckt darin — so listet
+    // `loadSection` ihn auch, und `openFile` erwartet genau diesen Namen.
+    const entryName = isAct ? slug : `${slug}${isNpc ? '.json' : '.md'}`;
+    const fullPath = isAct
       ? actIndexPath(campaignPath, slug)
-      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${slug}${ext}`;
+      : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${entryName}`;
 
     try {
       const tmpl = await loadTemplate(section.type);
@@ -339,7 +328,7 @@ export class CampaignTreeState {
       this.showNewFileInput[key] = false;
       this.newFileInput[key] = '';
       await this.loadSection(campaignPath, section);
-      await this.openFile(campaignPath, section, slug + ext);
+      await this.openFile(campaignPath, section, entryName);
       if (section.type === 'act') loadActSummaries(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);

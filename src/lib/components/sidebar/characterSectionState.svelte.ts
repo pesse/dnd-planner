@@ -2,8 +2,7 @@
  * Ladezustand und Anlage-/Import-Flows der „Charaktere"-Sektion der Seitenleiste.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { activeFile, setFileContent } from '../../stores/campaign';
-import { confirmNavigation } from '../../stores/navigationGuard';
+import { navigateTo } from '../../services/navigation';
 import { deleteEntry } from '../../services/sidebar/deleteEntry';
 import { createBlankCharacter, createWizardCharacter } from '../../services/characterCreate';
 import {
@@ -101,28 +100,20 @@ export class CharacterSectionState {
   }
 
   async openCharacter(entry: EntryInfo): Promise<void> {
-    if (!(await confirmNavigation())) return;
-    if (entry.is_dir) {
-      const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
-      // `name` ist reine Anzeige (Kontextleiste, KI-Prompt); Identität ist `dirPath`.
-      const label = this.meta[entry.name]?.name ?? (await readCharacterName(entry.name)) ?? '';
-      activeFile.set({
-        name: characterLabel({ uid: entry.name, name: label }),
-        path: `${dirPath}/character.json`,
-        type: 'character',
-        dirPath,
-      });
-      setFileContent('');
-    } else {
+    if (!entry.is_dir) {
       const fullPath = `${CHARACTERS_PATH}/${entry.name}`;
-      activeFile.set({ name: entry.name.replace('.md', ''), path: fullPath, type: 'character' });
-      try {
-        const content = await invoke<string>('read_file_content', { path: fullPath });
-        setFileContent(content);
-      } catch (e) {
-        setFileContent(`# Fehler\n\nDatei konnte nicht geladen werden: ${e}`);
-      }
+      await navigateTo({ name: entry.name.replace('.md', ''), path: fullPath, type: 'character' });
+      return;
     }
+    const dirPath = `${CHARACTERS_PATH}/${entry.name}`;
+    // `name` ist reine Anzeige (Kontextleiste, KI-Prompt); Identität ist `dirPath`.
+    const label = this.meta[entry.name]?.name ?? (await readCharacterName(entry.name)) ?? '';
+    await navigateTo({
+      name: characterLabel({ uid: entry.name, name: label }),
+      path: `${dirPath}/character.json`,
+      type: 'character',
+      dirPath,
+    });
   }
 
   async createCharacter(e: KeyboardEvent | MouseEvent): Promise<void> {

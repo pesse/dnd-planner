@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { deleteEntry } from '../../services/sidebar/deleteEntry';
   import type { GroupedSection, TreeGroup, TreeLeaf } from '../../services/sidebar/groupedSections';
   import SectionHeader from './SectionHeader.svelte';
@@ -82,8 +83,7 @@
   }
 
   async function open(leaf: TreeLeaf) {
-    if (!(await confirmNavigation())) return;
-    activeFile.set({ name: leaf.entryName, path: leaf.path, type: section.type });
+    await navigateTo({ name: leaf.entryName, path: leaf.path, type: section.type });
   }
 
   async function create() {

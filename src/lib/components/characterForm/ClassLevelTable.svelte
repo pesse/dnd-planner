@@ -3,8 +3,7 @@
    * Klassen & Stufen: strukturierte Zeilen (multiclass-fähig) mit Bibliotheks-Link je
    * Grundklasse und Subklassen-Dropdown. Der Anzeige-String wird daraus abgeleitet.
    */
-  import { activeFile } from '../../stores/campaign';
-  import { confirmNavigation } from '../../stores/navigationGuard';
+  import { navigateTo } from '../../services/navigation';
   import { classDisplayName, searchClasses, type ClassInfo } from '../../classLibrary';
   import { formatClassLevel, totalLevel } from '../../schemas/classLevelText';
   import type { CharacterClass } from '../../schemas/characterSchema';
@@ -54,8 +53,7 @@
   async function openClassPage(cls: CharacterClass) {
     const path = classPath(cls);
     if (!path) return;
-    if (!(await confirmNavigation())) return; // ungespeicherte Charakter-Änderungen
-    activeFile.set({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
+    await navigateTo({ name: path.split('/').pop()!.replace('.json', ''), path, type: 'class' });
   }
 
   function subclassesFor(cls: CharacterClass): ClassInfo[] {
