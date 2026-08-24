@@ -27,7 +27,7 @@
     <button class="icon-btn print" onclick={onPrint}
             aria-label="Charakterbogen drucken" title="Charakterbogen drucken (Vorschau)">🖨</button>
     <button class="icon-btn levelup" onclick={onLevelUp}
-            aria-label="Stufenaufstieg" title="Stufenaufstieg (KI-gestützt)">⬆</button>
+            aria-label="Stufenaufstieg" title="Stufenaufstieg">⬆</button>
   </div>
 </div>
 
@@ -69,6 +69,7 @@
   .header-actions {
     display: flex;
     align-items: center;
+    align-self: center;
     gap: 0.5rem;
     margin-left: auto;
   }
@@ -81,8 +82,8 @@
     color: var(--ink);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.9rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 1.15rem;
     font-family: inherit;
     white-space: nowrap;
     cursor: pointer;
