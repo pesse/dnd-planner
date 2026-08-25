@@ -5,6 +5,7 @@
  * beieinander bleiben.
  */
 import { resourceViews } from '$lib/services/resources/project';
+import type { CastOption } from '$lib/schemas/casting';
 import type { GroupedSpell, SpellQuotaGroup, SpellSourceGroup } from '$lib/services/spellcasting/grouped';
 import { sign } from '$lib/utils/num';
 import type { CharacterPrintData } from '../data';
@@ -23,6 +24,7 @@ interface SheetSpell {
   label: string;
   level: number;
   note: string;
+  ritual: boolean;
   /** Aus einem `prepared`-Kontingent — das Häkchen ist gesetzt, nicht am Tisch zu setzen. */
   prepared: boolean;
 }
@@ -35,10 +37,12 @@ interface SheetSpell {
  * Ein Kontingent ganz ohne Wirkweg schweigt nur, wenn ein anderes daraus schöpft (das
  * Zauberbuch) — sonst ist „nicht wirkbar" die Nachricht.
  */
-const isOrdinaryCast = (q: SpellQuotaGroup, level: number, feeders: Set<string>): boolean =>
-  q.cast.length === 0
+const isOrdinaryCast = (
+  cast: CastOption[], q: SpellQuotaGroup, level: number, feeders: Set<string>,
+): boolean =>
+  cast.length === 0
     ? feeders.has(`${q.sourceId}::${q.quotaId}`)
-    : q.cast.every(
+    : cast.every(
         (o) =>
           o.kind === 'slots' ||
           (o.kind === 'ritual' && o.requiresPrepared) ||
@@ -90,6 +94,17 @@ function poolFeeders(quotas: SpellQuotaGroup[]): Set<string> {
 }
 
 /**
+ * Der Hinweis des Kontingents, soweit er DIESEM Zauber gilt: ein Ritual-Wirkweg zählt nur für
+ * Zauber mit Ritual-Merkmal — sonst trüge im Zauberbuch eines Ritual-Adepten jeder Zauber „als
+ * Ritual, auch unvorbereitet". Bleibt kein Wirkweg übrig, schweigt die Zeile.
+ */
+function castNoteFor(q: SpellQuotaGroup, s: GroupedSpell, feeders: Set<string>): string {
+  const cast = q.cast.filter((o) => o.kind !== 'ritual' || s.ritual);
+  if (!cast.length && q.cast.length) return '';
+  return isOrdinaryCast(cast, q, s.level, feeders) ? '' : q.castNote;
+}
+
+/**
  * Alle Kontingente einer Gruppe in EINE Liste. Derselbe Zauber steht in mehreren (Zauberbuch,
  * vorbereitet, Zaubermeisterschaft) — gedruckt wird er einmal, und zwar mit dem Hinweis, der
  * etwas sagt.
@@ -101,10 +116,10 @@ function mergedSpells(quotas: SpellQuotaGroup[]): SheetSpell[] {
     for (const s of q.spells) {
       // Aus welchem Kontingent er stammt, bleibt bewusst weg: am Tisch ändert allein der
       // Wirkweg etwas, und der steht im Kastenkopf oder hier.
-      const note = isOrdinaryCast(q, s.level, feeders) ? '' : q.castNote;
+      const note = castNoteFor(q, s, feeders);
       const seen = byKey.get(s.key);
       const prepared = q.tier === 'prepared';
-      if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note, prepared });
+      if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note, ritual: s.ritual, prepared });
       else {
         if (!seen.note) seen.note = note;
         seen.prepared ||= prepared;
@@ -115,7 +130,7 @@ function mergedSpells(quotas: SpellQuotaGroup[]): SheetSpell[] {
 }
 
 const asSheetSpells = (spells: GroupedSpell[]): SheetSpell[] =>
-  spells.map((s) => ({ label: s.label, level: s.level, note: '', prepared: false }));
+  spells.map((s) => ({ label: s.label, level: s.level, note: '', ritual: s.ritual, prepared: false }));
 
 function byLevel(spells: SheetSpell[]): [number, SheetSpell[]][] {
   const map = new Map<number, SheetSpell[]>();
@@ -129,7 +144,8 @@ function byLevel(spells: SheetSpell[]): [number, SheetSpell[]][] {
 
 /** Das Häkchen heißt „vorbereitet": beim Zauberbuch leer, bei der Vorbereitung gesetzt. */
 const spellLine = (s: SheetSpell): string =>
-  `<div class="spell">${checkbox(s.prepared)}<span class="sname">${esc(s.label)}</span>` +
+  `<div class="spell">${checkbox(s.prepared)}<span class="sname">${esc(s.label)}` +
+  (s.ritual ? '<span class="ritual-mark" title="Ritual">R</span>' : '') + '</span>' +
   (s.note ? `<span class="spell-note">${esc(s.note)}</span>` : '') + '</div>';
 
 /** Eine Zeile für eine Wahl, die noch offen ist — der einzige Platz, der beschrieben wird. */
@@ -181,9 +197,8 @@ export function renderSpellSource(d: CharacterPrintData, groupId: string): strin
   const quotas = group.sources.flatMap((s) => s.quotas);
   const ritual = quotas.some((q) => q.cast.some((o) => o.kind === 'ritual'));
   const head = castHead(group.sources[0]) +
-    // Kein Verweis auf ein gedrucktes Kennzeichen: `GroupedSpell` führt das Ritual-Flag nicht.
-    (ritual ? '<div class="cast-note full">Ritualwirken: Rituale dieser Liste gehen auch ohne ' +
-      'Zauberplatz (Wirkzeit +10 Minuten)</div>' : '');
+    (ritual ? '<div class="cast-note full">Ritualwirken: mit <b>R</b> markierte Zauber gehen auch ' +
+      'ohne Zauberplatz (Wirkzeit +10 Minuten)</div>' : '');
   const open = quotas.filter((q) => q.open > 0).map(openGroup).join('');
 
   const spells = mergedSpells(quotas);

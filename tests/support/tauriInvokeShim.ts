@@ -24,6 +24,7 @@ interface SpellIndexEntry {
   level: number;
   classes: string[];
   school: string;
+  ritual: boolean;
   path: string;
 }
 
@@ -52,6 +53,7 @@ function collectSpells(dir: string, out: SpellIndexEntry[]): void {
           level: typeof v.level === 'number' ? v.level : Number.parseInt(String(v.level), 10) || 0,
           classes: Array.isArray(v.classes) ? v.classes.filter((c): c is string => typeof c === 'string') : [],
           school: typeof v.school === 'string' ? v.school : '',
+          ritual: v.ritual === true,
           path: './' + relative(process.cwd(), full).replace(/\\/g, '/'),
         });
       } catch {

@@ -11,7 +11,7 @@ import {
   quotaGroupId,
 } from '../../src/lib/services/spellcasting/known';
 
-const spell = (key: string) => ({ key, label: key, level: 0 });
+const spell = (key: string) => ({ key, label: key, level: 0, ritual: false });
 
 const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   sourceId,

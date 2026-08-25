@@ -132,7 +132,7 @@ describe('HTML-Charakterbogen', () => {
       shared: '', kind: 'points', max: [2], additions: [],
     }];
     d.grouped = {
-      sources: [wizardSource([quota({ spells: [{ key: 'shield', label: 'Schild', level: 1 }] })])],
+      sources: [wizardSource([quota({ spells: [{ key: 'shield', label: 'Schild', level: 1, ritual: false }] })])],
       resources: [], extra: [], issues: [],
     };
     const html = build(d);
@@ -143,8 +143,8 @@ describe('HTML-Charakterbogen', () => {
   });
 
   it('füllt das Häkchen für vorbereitete Zauber und lässt das Zauberbuch leer', () => {
-    const bolt = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1 };
-    const shield = { key: 'shield', label: 'Schild', level: 1 };
+    const bolt = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false };
+    const shield = { key: 'shield', label: 'Schild', level: 1, ritual: false };
     const d = dataFor(allProficienciesCharacter);
     d.grouped = {
       sources: [wizardSource([
@@ -160,8 +160,8 @@ describe('HTML-Charakterbogen', () => {
   });
 
   it('führt einen Zauber je Quelle einmal, mit dem Hinweis, der etwas sagt', () => {
-    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0 };
-    const bolt2 = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1 };
+    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false };
+    const bolt2 = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false };
     const d = dataFor(allProficienciesCharacter);
     d.grouped = {
       sources: [wizardSource([
@@ -194,7 +194,7 @@ describe('HTML-Charakterbogen', () => {
     d.grouped = {
       ...d.grouped,
       sources: [wizardSource([
-        quota({ spells: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] }),
+        quota({ spells: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] }),
         quota({ quotaId: 'offen', label: 'Zaubertricks', open: 2 }),
       ])],
     };
@@ -284,7 +284,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('nimmt Karten und Karten-Stylesheet nur ins Dokument, wenn sie gewählt sind', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.grouped = { ...d.grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] };
+    d.grouped = { ...d.grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] };
     d.spellCards = '<div class="cards">EINE KARTE</div>';
 
     expect(build(d)).not.toContain('EINE KARTE');

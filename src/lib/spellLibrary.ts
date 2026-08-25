@@ -28,6 +28,8 @@ export interface SpellInfo {
   level: number;
   classes: string[];
   school: string;
+  /** Als Ritual wirkbar; fehlt bei Indizes, die vor dem Feld gebaut wurden. */
+  ritual?: boolean;
   path: string;
 }
 

@@ -121,7 +121,7 @@
     onkeydown={(e) => e.key === 'Enter' && openSpellPage(s)}
     onmouseenter={(e) => hover.show(e, s.label)}
     onmousemove={(e) => hover.move(e)}
-    onmouseleave={() => hover.hide()}>{s.label}</span>
+    onmouseleave={() => hover.hide()}>{s.label}{#if info?.ritual}<span class="ritual-badge" title="Ritual">R</span>{/if}</span>
 {/snippet}
 
 {#if hasContent && view}
@@ -258,6 +258,15 @@
   .spell-chip.linked { cursor: pointer; }
   .spell-chip:hover { background: var(--bg-raised); }
   .spell-chip.unprepared { opacity: 0.6; font-style: italic; }
+
+  .ritual-badge {
+    margin-left: 0.15rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    font-style: normal;
+    vertical-align: super;
+    opacity: 0.75;
+  }
 
   .slot-tag { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 

@@ -369,6 +369,7 @@ pub struct SpellInfo {
     level: u8,
     classes: Vec<String>,
     school: String,
+    ritual: bool,
     path: String,
 }
 
@@ -412,11 +413,12 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                         .map(|arr| arr.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect())
                         .unwrap_or_default();
                     let school = v["school"].as_str().unwrap_or("").to_string();
+                    let ritual = v["ritual"].as_bool().unwrap_or(false);
                     // Relativer Pfad ab Projekt-Root: ./vault/spells/...
                     let rel = path.strip_prefix(&project_root())
                         .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
                         .unwrap_or_else(|_| path.to_string_lossy().to_string());
-                    out.push(SpellInfo { name, name_en, key, source, level, classes, school, path: rel });
+                    out.push(SpellInfo { name, name_en, key, source, level, classes, school, ritual, path: rel });
                 }
             }
         }

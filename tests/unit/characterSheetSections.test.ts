@@ -108,7 +108,7 @@ describe('Sektionen des Charakterbogens', () => {
   });
 
   it('führt einen Zauber ohne Quelle nur, solange kein Kontingent ihn schon führt', () => {
-    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0 };
+    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false };
     const quota = {
       sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
       levels: [], lists: [], schools: [], from: null, into: null,
@@ -129,12 +129,12 @@ describe('Sektionen des Charakterbogens', () => {
   // `requiresPrepared: false` hängt am Kontingent, nicht am Zauber — der einzige Weg, auf dem
   // Ritual-Adept überhaupt auf den gedruckten Bogen kommt.
   it('vermerkt am Zauberbuch nur das unvorbereitete Ritual', () => {
-    const book = (requiresPrepared: boolean, castNote: string) => ({
+    const book = (requiresPrepared: boolean, castNote: string, ritual = true) => ({
       sourceId: 'cls:wizard', quotaId: 'book', label: 'Zauberbuch',
       cast: [{ kind: 'ritual' as const, requiresPrepared }], castNote, swapNote: '',
       levels: [], lists: [], schools: [], from: null, into: null,
       count: 1, tier: 'known' as const, fixed: false,
-      spells: [{ key: 'identify', label: 'Identifizieren', level: 1 }], open: 0,
+      spells: [{ key: 'identify', label: 'Identifizieren', level: 1, ritual }], open: 0,
     });
     const sheet = (quota: ReturnType<typeof book>) =>
       render(
@@ -149,10 +149,29 @@ describe('Sektionen des Charakterbogens', () => {
 
     expect(sheet(book(false, 'als Ritual, auch unvorbereitet'))).toContain('auch unvorbereitet');
     expect(sheet(book(true, 'als Ritual'))).not.toContain('als Ritual');
+    // Der Ritual-Wirkweg des Zauberbuchs gilt nur den Ritualen darin.
+    expect(sheet(book(false, 'als Ritual, auch unvorbereitet', false))).not.toContain('auch unvorbereitet');
+  });
+
+  it('kennzeichnet Rituale in der Zauberliste', () => {
+    const spells = (ritual: boolean) =>
+      render(
+        emptyData({
+          grouped: {
+            ...emptyData().grouped,
+            extra: [{ key: 'identify', label: 'Identifizieren', level: 1, ritual }],
+            sources: [source('cls:wizard', 'Magier')],
+          },
+        }),
+        'spellsExtra',
+      );
+
+    expect(spells(true)).toContain('ritual-mark');
+    expect(spells(false)).not.toContain('ritual-mark');
   });
 
   it('bietet die Volltext-Karten an, sobald es Zauber gibt, und hakt sie nicht vor', () => {
-    const d = emptyData({ grouped: { ...emptyData().grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0 }] } });
+    const d = emptyData({ grouped: { ...emptyData().grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] } });
 
     expect(ids(emptyData())).not.toContain('spellCards');
     expect(ids(d)).toContain('spellCards');

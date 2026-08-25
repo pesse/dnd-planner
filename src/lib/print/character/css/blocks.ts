@@ -84,6 +84,8 @@ export const BLOCK_CSS = `
 .sname.write { min-height: 3.4mm; }
 .lvl-note { text-transform: none; letter-spacing: 0; font-style: italic; }
 .spell-note { grid-column: 2; font-size: 6pt; font-style: italic; color: var(--ink-label); }
+.ritual-mark { margin-left: 0.7mm; font-size: 5.4pt; font-weight: 700; vertical-align: super;
+               color: var(--ink-label); }
 .cast-note { font-size: 6.6pt; color: var(--ink-label); font-style: italic; margin-bottom: 1.4mm; }
 
 ${RULE_TEXT_PRINT_CSS}

@@ -16,6 +16,8 @@ export interface GroupedSpell {
   key: string;
   label: string;
   level: number;
+  /** Ritual-Merkmal des Zaubers — ein Ritual-Wirkweg des Kontingents gilt nur für diese. */
+  ritual: boolean;
 }
 
 export interface SpellQuotaGroup {
@@ -202,7 +204,7 @@ export function swapNote(quota: QuotaState): string {
 
 const spellOf = (key: string, lookup: ProjectionLookup): GroupedSpell => {
   const info = lookup.spell(key);
-  return { key, label: info?.name ?? key, level: info?.level ?? 0 };
+  return { key, label: info?.name ?? key, level: info?.level ?? 0, ritual: info?.ritual ?? false };
 };
 
 export function groupedSpellcasting(state: SpellcastingState, lookup: ProjectionLookup): GroupedSpellcasting {
