@@ -33,11 +33,16 @@ export interface FormCasting {
   readonly error: string;
 }
 
-export function createFormCasting(input: () => Character): FormCasting {
+export function createFormCasting(input: () => Character | null): FormCasting {
   let current = $state<LoadedSpellcasting | null>(null);
   let error = $state('');
   $effect(() => {
     const c = input();
+    if (!c) {
+      current = null;
+      error = '';
+      return;
+    }
     let cancelled = false;
     void loadSpellcasting(c)
       .then((loaded) => { if (!cancelled) { current = loaded; error = ''; } })

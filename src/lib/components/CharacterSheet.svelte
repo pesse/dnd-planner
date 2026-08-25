@@ -6,7 +6,8 @@
   import { matchItem } from '../itemLibrary';
   import { masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
-  import { loadSpellcasting, type LoadedSpellcasting } from '../services/spellcasting/project';
+  import { createFormCasting } from '../services/characterFormCasting.svelte';
+  import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
   import EditorPanel from './EditorPanel.svelte';
@@ -32,15 +33,13 @@
   const ed = editor.card;
   const character = $derived(editor.character);
 
-  let spellcasting = $state<LoadedSpellcasting | null>(null);
-  $effect(() => {
-    const c = character;
-    if (!c) {
-      spellcasting = null;
-      return;
-    }
-    void (async () => { spellcasting = await loadSpellcasting(c); })();
-  });
+  /**
+   * Der Schnappschuss ist die Abhängigkeit: das Formular schreibt mit `Object.assign` IN den
+   * Draft, ein Lesen der bloßen Referenz bliebe damit auf dem Ladestand stehen — Karte und
+   * Druck zeigten die alte Zauberwahl bis zum Neuladen.
+   */
+  const casting = createFormCasting(() => (character ? ($state.snapshot(character) as Character) : null));
+  const spellcasting = $derived(casting.current);
 
   /**
    * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
