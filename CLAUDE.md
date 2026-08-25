@@ -169,7 +169,13 @@ banner with a one-click *Aktualisieren*. That button only marks the editor dirty
 
 ## Releases
 
-Push a tag `vX.Y.Z`; `.github/workflows/release.yml` derives the version, pushes it into
-`tauri.conf.json` / `package.json` / `package-lock.json`, and creates a **draft** release with the
-signed installer and `latest.json` for the auto-updater. **Never bump the version by hand.** The
-signing keys are set up as GitHub secrets — never commit the private key.
+The trigger is a **published** GitHub release, not a tag push: `.github/workflows/release.yml`
+hangs on `release: published`. A tag alone starts nothing, and neither does a draft. So: push the
+tag `vX.Y.Z`, create a release on it **and publish it**. The workflow builds the tagged commit,
+attaches the signed installer and `latest.json` to that same release, and afterwards commits the
+version into the default branch (`chore: Version X.Y.Z (Release-Bump)`).
+
+The tag is the only source of the version — **never bump it by hand** — and it has to sit above the
+last published one, or the auto-updater will not offer it. The release description becomes the
+`notes` field in `latest.json` and is what the app's update dialog shows: user-facing German, not a
+changelog dump. The signing keys are GitHub secrets — never commit the private key.
