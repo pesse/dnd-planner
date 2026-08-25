@@ -6,7 +6,7 @@
  */
 import type { CharacterPrintData } from './data';
 import { renderOverview } from './pages/overview';
-import { renderInventory, renderMasteries } from './pages/extras';
+import { renderInventory } from './pages/extras';
 import {
   renderClassFeatures, renderCompanion, renderFeats, renderFreetext, renderPersonal,
   renderPinnedFeatures, renderSpeciesFeatures,
@@ -29,7 +29,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
  */
 export const STATIC_SECTION_IDS = [
   'overview',
-  'masteries', 'personal', 'companion',
+  'personal', 'companion',
   'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
   'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards',
 ] as const;
@@ -62,8 +62,6 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
   overview:    { label: 'Kampfbogen (festes Blatt)', page: 'overview', defaultOn: true,
                  available: always, render: renderOverview },
 
-  masteries:   { label: 'Waffenmeisterschaft', page: 'details', defaultOn: true,
-                 available: (d) => !!renderMasteries(d), render: renderMasteries },
   personal:    { label: 'Persönliches',       page: 'details', defaultOn: true,
                  available: (d) => !!renderPersonal(d), render: renderPersonal },
   companion:   { label: 'Gefährte',           page: 'details', defaultOn: true,

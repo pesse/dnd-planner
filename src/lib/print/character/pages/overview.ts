@@ -1,10 +1,10 @@
 /**
  * Das Übersichtsblatt — ein festes Raster, kein Kastenkatalog: Attributssäule links,
- * Rettungswürfe und Fertigkeiten daneben, Kampfwerte, Persönlichkeit und Angriffe rechts.
+ * Fertigkeiten daneben, Trefferpunkte mit Rettungswürfen und die Angriffe rechts.
  * Aufteilung und Formensprache sind die des Taendler-Bogens, die sich am Tisch bewährt hat:
- * Schild für die Rüstungsklasse, Ovale für die Attributswerte. Gedruckt wird nur, was
- * gespeichert ist — freie Flächen gibt es allein für das, was im Spiel abgestrichen oder
- * nachgetragen wird (Trefferpunkte, Inspiration, Todesretter, Angriffe).
+ * Schild für die Rüstungsklasse, Ovale für die Attributswerte. Leer steht ein Kasten nur,
+ * wenn am Tisch in ihn hineingeschrieben wird — Trefferpunkte, Inspiration, Todesretter,
+ * Angriffe, Notizen und die Werte, die Rüstung und Zustände laufend ändern.
  */
 import { ABILITY_ABBR_DE, ABILITY_KEYS, ABILITY_LABEL } from '$lib/schemas/abilities';
 import { SKILL_DEFS } from '$lib/domain/skills';
@@ -12,7 +12,8 @@ import { PROFICIENCY_FLAGS, proficiencyLabel } from '$lib/domain/proficiencies';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { sign } from '$lib/utils/num';
 import type { CharacterPrintData } from '../data';
-import { chainCircles, esc, escLines } from '../html';
+import { chainCircles, esc } from '../html';
+import { renderMasteries } from './extras';
 
 /** Ein Kasten mit der Beschriftung auf der oberen Rahmenlinie, wie die Blöcke. */
 const frame = (caption: string, body: string, cls = ''): string =>
@@ -26,6 +27,20 @@ const profMark = (prof: boolean, exp: boolean): string =>
 const pill = (label: string, value: string, cls = ''): string =>
   `<div class="o-pill ${cls}"><span class="o-pill-val">${value}</span>` +
   `<span class="o-pill-lbl">${esc(label)}</span></div>`;
+
+/**
+ * Rüstungsklasse und Bewegungsrate im Kopfband. Sie stehen auch leer — im Spiel ändern sie
+ * sich (Rüstung, Zauber, Zustände), und dann wird der Kasten beschrieben.
+ */
+const vitalDiscs = (d: CharacterPrintData): string => {
+  const c = d.character;
+  const disc = (caption: string, value: string, cls = ''): string =>
+    `<div class="o-disc ${cls}"><span class="o-disc-val">${value}</span>` +
+    `<span class="tcap">${esc(caption)}</span></div>`;
+
+  return `<div class="o-discs">${disc('Rüstungsklasse', esc(c.ac), 'o-shield')}` +
+    `${disc('Bewegungsrate', esc(c.speed))}</div>`;
+};
 
 const identity = (d: CharacterPrintData): string => {
   const c = d.character;
@@ -49,6 +64,7 @@ const identity = (d: CharacterPrintData): string => {
 
   return `<header class="o-head${ids ? '' : ' o-head-solo'}">
     <div class="tf o-namebox">${name}</div>
+    ${vitalDiscs(d)}
     ${ids ? `<div class="tf o-idbox">${ids}</div>` : ''}
   </header>`;
 };
@@ -63,7 +79,6 @@ const abilityStrip = (d: CharacterPrintData): string => {
   return `<div class="o-attrs">${boxes}</div>`;
 };
 
-/** Die Zeilen verteilen sich über die Kastenhöhe, statt oben zu kleben. */
 const lines = (rows: string): string => `<div class="o-lines">${rows}</div>`;
 
 const savesBox = (d: CharacterPrintData): string => {
@@ -93,8 +108,9 @@ const headPills = (d: CharacterPrintData): string => {
   const alles = c.alleskoenner
     ? `<div class="o-alles">${profMark(true, false)}Alleskönner</div>`
     : '';
-  return pill('Inspiration', '') +
-    pill('Übungsbonus', sign(c.proficiencyBonus)) + alles;
+  // Die Initiative steht als Kapsel, nicht im Kopfband: dort nimmt sie dem Namen die Breite.
+  return pill('Inspiration', '') + pill('Übungsbonus', sign(c.proficiencyBonus)) +
+    pill('Initiative', esc(c.initiative)) + alles;
 };
 
 /** Eine Aufzählung als Text; ohne Inhalt fällt die Zeile weg, statt leer zu stehen. */
@@ -131,67 +147,51 @@ const capline = (label: string, value: string): string =>
       `<span class="o-capval">${value}</span></div>`
     : '';
 
+/**
+ * Die Trefferpunkte und was am selben Wurf hängt: Rettungswürfe und Todesretter stehen
+ * daneben, nicht in der Fertigkeitenspalte — die Abstreichflächen brauchen die Breite nicht,
+ * die sie über die ganze Bahn hätten.
+ */
 const vitalsBox = (d: CharacterPrintData): string => {
   const c = d.character;
-  const disc = (caption: string, value: string, cls = ''): string =>
-    value.trim()
-      ? `<div class="o-disc ${cls}"><span class="o-disc-val">${value}</span>` +
-        `<span class="tcap">${esc(caption)}</span></div>`
-      : '';
-
   // Der gespeicherte Stand wird mitgedruckt (wie bei den Zauberplätzen), die Fläche bleibt
   // trotzdem: am Tisch ändert sich genau dieser Wert dauernd.
   const write = (value: string): string =>
     `<span class="o-write">${value ? `<span class="o-write-val">${esc(value)}</span>` : ''}</span>`;
 
-  const hp = `${frame('Aktuelle Trefferpunkte',
-      capline('Trefferpunkte Maximum', esc(c.hpMax)) + write(c.hpCurrent), 'o-hp o-hp-cur')}
-    ${frame('Temporäre Trefferpunkte', write(c.hpTemp), 'o-hp o-hp-tmp')}`;
+  const hp = frame('Aktuelle Trefferpunkte',
+      capline('Trefferpunkte Maximum', esc(c.hpMax)) + write(c.hpCurrent), 'o-hp o-hp-cur') +
+    frame('Temporäre Trefferpunkte', write(c.hpTemp), 'o-hp o-hp-tmp') +
+    frame('Trefferwürfel',
+      (c.hitDice.trim() ? `<div class="o-dice">${esc(c.hitDice)}</div>` : '') + write(''),
+      'o-hp o-hp-dice');
 
-  const dice = frame('Trefferwürfel',
-    (c.hitDice.trim() ? `<div class="o-dice">${esc(c.hitDice)}</div>` : '') + write(''),
-    'o-hp o-hp-dice');
   const death = frame('Rettungswürfe gegen Tod',
     `<div class="o-death"><span class="o-plbl">Erfolge</span>${chainCircles(3)}</div>` +
     `<div class="o-death"><span class="o-plbl">Fehlschläge</span>${chainCircles(3)}</div>`, 'o-deathbox');
 
-  const discs = disc('Rüstungsklasse', esc(c.ac), 'o-shield') +
-    disc('Initiative', esc(c.initiative)) + disc('Bewegungsrate', esc(c.speed));
-
   return `<div class="o-vitals">
-    ${discs ? `<div class="o-discs">${discs}</div>` : ''}
-    ${hp}
-    <div class="o-duo">${dice}${death}</div>
+    <div class="o-hpcol">${hp}</div>
+    <div class="o-savecol">${savesBox(d)}${death}</div>
   </div>`;
-};
-
-const PERSON_ROWS: [string, keyof CharacterPrintData['character']][] = [
-  ['Persönlichkeitsmerkmale', 'traits'], ['Ideale', 'ideals'],
-  ['Bindungen', 'bonds'], ['Makel', 'flaws'],
-];
-
-/** Ein leerer Rahmen mit Beschriftung wäre ein Formularfeld — gedruckt wird, was da ist. */
-const personBox = (d: CharacterPrintData): string => {
-  const boxes = PERSON_ROWS.filter(([, key]) => String(d.character[key] ?? '').trim())
-    .map(([caption, key]) =>
-      frame(caption, `<div class="prose">${escLines(String(d.character[key] ?? ''))}</div>`, 'o-quote'))
-    .join('');
-  return boxes ? `<div class="o-person">${boxes}</div>` : '';
 };
 
 /** Der Rechner liefert die Zahl ohne Vorzeichen — auf dem Bogen ist sie ein Wurfbonus. */
 const withSign = (bonus: string): string => (/^\d/.test(bonus) ? `+${bonus}` : bonus);
 
-/** Am Tisch kommt eine Waffe dazu — der Kasten läuft mit Leerzeilen aus. */
-const ATTACK_WRITE_ROWS = 8;
+/**
+ * Der Kasten hält eine feste Zeilenzahl, die eingetragenen Angriffe füllen sie auf: sonst
+ * bestimmt die Zahl der Waffen, wie weit sich die Zeilen über die Kastenhöhe spreizen.
+ */
+const ATTACK_ROWS = 20;
 
 const attacksBox = (d: CharacterPrintData): string => {
-  if (!d.attacks.length) return '';
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
   const rows = d.attacks.map((a) => `<tr>${cell(esc(a.name))}${cell(esc(a.range), 'num')}` +
     `${cell(esc(withSign(a.bonus)), 'num')}${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
-  rows.push(...Array.from({ length: ATTACK_WRITE_ROWS }, () => writeRow));
+  const write = Math.max(4, ATTACK_ROWS - d.attacks.length);
+  rows.push(...Array.from({ length: write }, () => writeRow));
 
   const head = ['Angriff', 'Reichweite', 'Bonus', 'Schaden', 'Schadentyp']
     .map((h, i) => `<th class="${i > 0 && i < 4 ? 'num' : ''}">${esc(h)}</th>`).join('');
@@ -202,17 +202,18 @@ const attacksBox = (d: CharacterPrintData): string => {
 export function renderOverview(d: CharacterPrintData): string {
   const pp = d.character.passivePerception.trim();
   const passive = pp ? pill('Passive Wahrnehmung (10 + Wahrnehmung)', esc(pp)) : '';
-  const person = personBox(d);
 
   return `<section class="sheet">
     ${identity(d)}
     ${abilityStrip(d)}
     <div class="o-mid">${headPills(d)}
-      <div class="o-panel">${savesBox(d)}${skillsBox(d)}</div>
+      <div class="o-panel">${skillsBox(d)}</div>
     </div>
-    <div class="o-extra">${passive}${proficienciesBox(d)}</div>
+    <div class="o-extra">${passive}${proficienciesBox(d)}${renderMasteries(d)}
+      ${frame('Notizen', '<div class="o-ruled"></div>', 'o-notes')}
+    </div>
     <div class="o-main">
-      <div class="o-top${person ? '' : ' o-top-solo'}">${vitalsBox(d)}${person}</div>
+      ${vitalsBox(d)}
       ${attacksBox(d)}
     </div>
   </section>`;

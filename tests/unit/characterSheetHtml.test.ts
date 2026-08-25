@@ -202,8 +202,9 @@ describe('HTML-Charakterbogen', () => {
 
     // Angriffe: der eine eingetragene, dazu leere Zeilen zum Nachtragen, keine Beschreibungsfläche.
     const attacks = html.split('<table class="o-atk">')[1].split('</table>')[0];
-    expect(attacks.match(/<tr>/g)).toHaveLength(2 + 8);
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(8);
+    // Zwanzig Zeilen im Kasten: die Kopfzeile, der eingetragene Angriff, der Rest zum Nachtragen.
+    expect(attacks.match(/<tr>/g)).toHaveLength(1 + 20);
+    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(19);
     expect(attacks).not.toContain('Beschreibung');
     // Zauber: eine Zeile je gewähltem Zauber, plus eine je offener Wahl.
     expect(html.match(/<span class="sname write"><\/span>/g)).toHaveLength(2);
@@ -217,9 +218,13 @@ describe('HTML-Charakterbogen', () => {
     });
     const html = build(dataFor(bare));
 
-    for (const label of ['Rüstungsklasse', 'Initiative', 'Bewegungsrate', 'Passive Wahrnehmung',
-      'Spieler*in', 'Erfahrungspunkte', 'Klassenmerkmale']) {
+    for (const label of ['Passive Wahrnehmung', 'Spieler*in', 'Erfahrungspunkte',
+      'Klassenmerkmale']) {
       expect(html, label).not.toContain(`>${label}<`);
+    }
+    // Was sich im Spiel ändert, steht auch leer — der Kasten ist dann die Schreibfläche.
+    for (const label of ['Rüstungsklasse', 'Initiative', 'Bewegungsrate']) {
+      expect(html, label).toContain(`>${label}<`);
     }
     // Was im Spiel abgestrichen wird, bleibt: die Trefferpunkt-Fläche und die Todesretter.
     expect(html).toContain('>Aktuelle Trefferpunkte<');

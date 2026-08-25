@@ -42,7 +42,7 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(emptyData())).toEqual(['overview', 'inventory']);
   });
 
-  it('blendet Waffenmeisterschaft, Optionen und Ressourcen erst ein, wenn es sie gibt', () => {
+  it('blendet Optionen und Ressourcen erst ein, wenn es sie gibt — Waffenmeisterschaft steht auf dem festen Blatt', () => {
     const d = emptyData({
       mastery: { allowance: 2, className: 'Kämpfer', meleeOnly: false, weapons: [] },
       pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, options: [] }],
@@ -53,8 +53,10 @@ describe('Sektionen des Charakterbogens', () => {
       }],
     });
 
-    expect(ids(d)).toContain('masteries');
-    expect(ids(emptyData())).not.toContain('masteries');
+    // Die Waffenmeisterschaft gehört zu den Angriffen und ist keine abwählbare Sektion mehr.
+    expect(ids(d)).not.toContain('masteries');
+    expect(render(d, 'overview')).toContain('Waffenmeisterschaft');
+    expect(render(emptyData(), 'overview')).not.toContain('Waffenmeisterschaft');
     // Options-Pools und Klassen-Vorräte gehören zum Kopf des Zauberblatts, nicht je zu einer
     // eigenen Sektion: sie stehen in derselben Reihe wie die Zauberplätze.
     expect(render(d, 'spellTop')).toContain('Metamagie');

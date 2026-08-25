@@ -45,6 +45,11 @@ export function renderPinnedFeatures(d: CharacterPrintData): string {
   return block('Gepinnte Merkmale', entries.map(feature).join(''), { cls: 'wide cols' });
 }
 
+const PERSONALITY_ROWS: [string, keyof CharacterPrintData['character']][] = [
+  ['Persönlichkeitsmerkmale', 'traits'], ['Ideale', 'ideals'],
+  ['Bindungen', 'bonds'], ['Makel', 'flaws'],
+];
+
 const PERSONAL_ROWS: [string, keyof CharacterPrintData['character']['personal']][] = [
   ['Alter', 'alter'], ['Geschlecht', 'geschlecht'], ['Gesinnung', 'gesinnung'],
   ['Glaube', 'glaube'], ['Größe', 'sizeCat'], ['Körpergröße', 'koerpergroesse'],
@@ -52,16 +57,24 @@ const PERSONAL_ROWS: [string, keyof CharacterPrintData['character']['personal']]
   ['Haut', 'hautfarbe'], ['Lebensstil', 'lebensstil'], ['Tägl. Kosten', 'taeglicheKosten'],
 ];
 
+/** Ein Absatz mit Überschrift, wie ein Merkmal: Aussehen, Ideale, Makel. */
+const proseEntry = (label: string, text: string): string =>
+  text.trim()
+    ? `<div class="feat"><div class="feat-name">${esc(label)}</div>` +
+      `<div class="prose">${escLines(text)}</div></div>`
+    : '';
+
 export function renderPersonal(d: CharacterPrintData): string {
   const p = d.character.personal;
-  if (!p) return '';
   // Nur gefüllte Zeilen: zwölf Feldnamen für einen gepflegten Wert kosten ein halbes Blatt,
   // und der Bogen soll auf zwei Seiten bleiben.
-  const rows = PERSONAL_ROWS.filter(([, key]) => p[key]?.trim())
-    .map(([label, key]) => row(label, esc(p[key]))).join('');
-  const appearance = p.aussehen?.trim()
-    ? `<div class="feat"><div class="feat-name">Aussehen</div><div class="prose">${escLines(p.aussehen)}</div></div>` : '';
-  const body = rows + appearance;
+  const rows = p
+    ? PERSONAL_ROWS.filter(([, key]) => p[key]?.trim()).map(([label, key]) => row(label, esc(p[key]))).join('')
+    : '';
+  const appearance = proseEntry('Aussehen', p?.aussehen ?? '');
+  const personality = PERSONALITY_ROWS
+    .map(([label, key]) => proseEntry(label, String(d.character[key] ?? ''))).join('');
+  const body = rows + appearance + personality;
   return body ? block('Persönliches', body) : '';
 }
 
