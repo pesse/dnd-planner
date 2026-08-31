@@ -190,7 +190,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('druckt nur, was eingetragen ist — Zeilen zum Nachtragen gibt es nur für offene Wahlen', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.attacks = [{ name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m' }];
+    d.attacks = [{ name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m', note: '' }];
     d.grouped = {
       ...d.grouped,
       sources: [wizardSource([
@@ -208,6 +208,20 @@ describe('HTML-Charakterbogen', () => {
     expect(attacks).not.toContain('Beschreibung');
     // Zauber: eine Zeile je gewähltem Zauber, plus eine je offener Wahl.
     expect(html.match(/<span class="sname write"><\/span>/g)).toHaveLength(2);
+  });
+
+  it('hängt die Angriffsnotiz unter den Namen und rechnet sie als zweite Linie', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.attacks = [{
+      name: 'Flammenzunge', bonus: '8', damage: '1W8+5', type: 'Hieb', range: 'Nah',
+      note: '+1W6 jede lange Rast',
+    }];
+    const attacks = build(d).split('<table class="o-atk">')[1].split('</table>')[0];
+
+    expect(attacks).toContain('<span class="anote">+1W6 jede lange Rast</span>');
+    expect(attacks).toContain('<tr class="has-note">');
+    // Der Kasten hält seine zwanzig Linien: die Notiz belegt eine davon.
+    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(18);
   });
 
   it('druckt keinen beschrifteten Kasten ohne Wert', () => {

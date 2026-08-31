@@ -21,6 +21,7 @@ export interface PrintAttack {
   damage: string;
   type: string;
   range: string;
+  note: string;
 }
 
 /** Ein Werte-Block trägt seine Klasse, weil zwei Klassen gleichnamige Spalten führen. */
@@ -82,6 +83,7 @@ function printAttacks(c: Character, masteryOf?: (name: string) => string | undef
       damage: a.auto ? computeAttackDamage(a, ctx) : formatDamageDice(a.damage),
       type: a.type,
       range: a.range,
+      note: (a.note ?? '').trim(),
     };
   });
 }

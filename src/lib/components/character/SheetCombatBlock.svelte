@@ -39,6 +39,9 @@
               {#if atkMastery}
                 <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
               {/if}
+              {#if atk.note?.trim()}
+                <span class="attack-note">{atk.note}</span>
+              {/if}
             </td>
             <td class="has-tip">
               {atk.bonus}
@@ -70,6 +73,13 @@
     border-bottom: 1px solid var(--surface);
   }
   .attack-table td { padding: 0.15rem 0.3rem; color: var(--ink); }
+
+  .attack-note {
+    display: block;
+    font-size: 0.68rem;
+    font-style: italic;
+    color: var(--ink-muted);
+  }
 
   /* Waffenbeherrschung: kleine Pille hinter dem Angriffsnamen. */
   .mastery-tag {

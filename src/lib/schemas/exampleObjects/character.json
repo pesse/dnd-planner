@@ -84,7 +84,8 @@
           "attackBonus": 0,
           "damageBonus": 0
         }
-      ]
+      ],
+      "note": "string"
     }
   ],
   "classFeatures": "string",

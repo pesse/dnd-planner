@@ -31,6 +31,8 @@ const attackSchema = z.object({
   magicBonus: z.number().int().optional().describe('Magischer Bonus (+X) auf Angriff UND Schaden.'),
   modifiers: z.array(attackModifierSchema).optional()
     .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
+  note: z.string().optional()
+    .describe('Handnotiz zum Angriff, erscheint auch im Druckbogen, z.B. "+1W6 jede lange Rast".'),
 });
 
 // Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu

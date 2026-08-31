@@ -1,7 +1,7 @@
 /**
  * `withCurrentSorted`: deutsche Kollation statt Quell-Reihenfolge, ohne die
  * Altdaten-voranstellen-Invariante von `withCurrent` zu verlieren.
- * Dazu der Gefährte: im Formular immer zwei Felder, in der Datei nur bei Inhalt.
+ * Dazu der Gefährte und die Angriffs-Notiz: im Formular immer ein Feld, in der Datei nur bei Inhalt.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -30,11 +30,12 @@ describe('withCurrentSorted', () => {
   });
 });
 
+const patchOf = (raw: unknown) => {
+  const character = characterSchema.parse(raw);
+  return formDraftPatch(initialFormFields(character), initialFormCarry(character));
+};
+
 describe('Gefährte im Formular', () => {
-  const patchOf = (raw: unknown) => {
-    const character = characterSchema.parse(raw);
-    return formDraftPatch(initialFormFields(character), initialFormCarry(character));
-  };
 
   it('schreibt kein leeres Objekt in eine Datei ohne Gefährten', () => {
     expect(patchOf({ name: 'Testfigur' }).companion).toBeUndefined();
@@ -48,5 +49,23 @@ describe('Gefährte im Formular', () => {
   it('hält den Text auch ohne Bild', () => {
     expect(patchOf({ name: 'Testfigur', companion: { text: 'Waldi' } }).companion)
       .toEqual({ text: 'Waldi' });
+  });
+});
+
+describe('Angriffs-Notiz', () => {
+  const attacksOf = (notes: (string | undefined)[]) => patchOf({
+    name: 'Testfigur',
+    attacks: notes.map((note, i) => ({ name: `Waffe ${i}`, note })),
+  }).attacks;
+
+  it('schreibt eine leere Notiz nicht in die Datei', () => {
+    expect(attacksOf(['   ', undefined])).toEqual([
+      expect.not.objectContaining({ note: expect.anything() }),
+      expect.not.objectContaining({ note: expect.anything() }),
+    ]);
+  });
+
+  it('trägt eine gefüllte Notiz getrimmt zurück', () => {
+    expect(attacksOf([' +1W6 jede lange Rast '])[0].note).toBe('+1W6 jede lange Rast');
   });
 });

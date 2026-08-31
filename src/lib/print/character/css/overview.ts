@@ -163,5 +163,8 @@ export const OVERVIEW_CSS = `
             border-bottom: 0.25mm solid var(--rule-soft); }
 .o-atk td.num { text-align: right; }
 .o-atk th:first-child, .o-atk td:first-child { width: 34%; }
+/* Notizzeile hängt unter dem Namen; auf bottom stünden Bonus und Schaden neben ihr. */
+.o-atk tr.has-note td { vertical-align: top; }
+.o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
 
 `;

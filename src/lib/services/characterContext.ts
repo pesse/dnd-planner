@@ -149,6 +149,7 @@ function attacksBlock(c: Character): string | null {
         a.bonus.trim() && `Angriff ${a.bonus}`,
         a.damage.trim() && `Schaden ${a.damage}${a.type.trim() ? ` ${a.type}` : ''}`,
         a.range.trim() && `Reichweite ${a.range}`,
+        a.note?.trim(),
       ].filter(Boolean);
       return `- **${a.name}**${bits.length ? ` — ${bits.join(', ')}` : ''}`;
     });

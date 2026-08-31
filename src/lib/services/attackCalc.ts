@@ -84,13 +84,14 @@ export function attackDamageTip(a: Attack, ctx: AttackCalcContext): string {
 }
 
 /**
- * Zwei Angleichungen, ohne die eine Zeile nach dem Speichern dauerhaft grün bliebe:
- * leeres `modifiers` gilt wie keins, und im Auto-Modus trägt der State noch den Text
- * vom Anlegen, während in die Datei der berechnete Wert geht.
+ * Angleichungen, ohne die eine Zeile nach dem Speichern dauerhaft grün bliebe: leeres
+ * `modifiers` und leere `note` gelten wie keins, und im Auto-Modus trägt der State noch
+ * den Text vom Anlegen, während in die Datei der berechnete Wert geht.
  */
 export function attackForDiff(a: Attack, ctx: AttackCalcContext): Attack {
   const r = { ...a };
   if (!r.modifiers?.length) delete r.modifiers;
+  if (!r.note?.trim()) delete r.note;
   if (r.auto) {
     r.bonus = computeAttackBonus(r, ctx);
     r.damage = computeAttackDamage(r, ctx);
@@ -109,6 +110,8 @@ export function attackForSave(a: Attack, ctx: AttackCalcContext): Attack {
   // Stand für jede Waffe ohne Effekte dauerhaft „geändert".
   if (modifiers.length) out.modifiers = modifiers;
   else delete out.modifiers;
+  if (out.note?.trim()) out.note = out.note.trim();
+  else delete out.note;
   return out;
 }
 
@@ -116,6 +119,7 @@ export function blankAttack(): Attack {
   return {
     name: '', bonus: '', damage: '', type: '', range: '',
     auto: true, ability: 'str', proficient: false, baseDamage: '', magicBonus: 0, modifiers: [],
+    note: '',
   };
 }
 

@@ -28,7 +28,7 @@
       {@const atkDir = !saved || !atk.name.trim() ? 'none'
         : i >= (saved.attacks?.length ?? 0) ? 'up'
         : classifyChange(attackForDiff($state.snapshot(saved.attacks[i]), ctx), attackForDiff($state.snapshot(atk), ctx))}
-      <tr use:diffMark={atkDir}>
+      <tr class="attack-row" use:diffMark={atkDir}>
         <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
         {#if atk.auto}
           <td><span class="computed-cell" title={attackBonusTip(atk, ctx)}>{computeAttackBonus(atk, ctx)}</span></td>
@@ -96,6 +96,15 @@
           </td>
         </tr>
       {/if}
+      <tr class="attack-note-row">
+        <td colspan="7">
+          <div class="an-card" class:standalone={!atk.auto}>
+            <label class="ac-field an-note">Notiz
+              <input bind:value={atk.note} placeholder="+1W6 jede lange Rast" />
+            </label>
+          </div>
+        </td>
+      </tr>
     {/each}
   </tbody>
 </table>

@@ -11,7 +11,7 @@ import { SKILL_DEFS } from '$lib/domain/skills';
 import { PROFICIENCY_FLAGS, proficiencyLabel } from '$lib/domain/proficiencies';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { sign } from '$lib/utils/num';
-import type { CharacterPrintData } from '../data';
+import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
 import { renderMasteries } from './extras';
 
@@ -187,10 +187,15 @@ const ATTACK_ROWS = 20;
 
 const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
-  const rows = d.attacks.map((a) => `<tr>${cell(esc(a.name))}${cell(esc(a.range), 'num')}` +
-    `${cell(esc(withSign(a.bonus)), 'num')}${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
+  const name = (a: PrintAttack): string =>
+    esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '');
+  const rows = d.attacks.map((a) => `<tr${a.note ? ' class="has-note"' : ''}>${cell(name(a))}` +
+    `${cell(esc(a.range), 'num')}${cell(esc(withSign(a.bonus)), 'num')}` +
+    `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
-  const write = Math.max(4, ATTACK_ROWS - d.attacks.length);
+  // Eine Notiz belegt eine zweite Schreiblinie, zählt also doppelt.
+  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), 0);
+  const write = Math.max(4, ATTACK_ROWS - used);
   rows.push(...Array.from({ length: write }, () => writeRow));
 
   const head = ['Angriff', 'Reichweite', 'Bonus', 'Schaden', 'Schadentyp']
