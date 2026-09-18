@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Item } from '../types';
   import { structuralType } from '../itemLibrary';
-  import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel } from '../itemLabels';
+  import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel, rarityColor } from '../itemLabels';
   import { formatCost, formatRarity, formatDamageDice, ftToM } from '../itemFormat';
   import Markdown from './Markdown.svelte';
 
@@ -44,9 +44,12 @@
         · {WEAPON_RANGE_LABELS[item.weapon_range ?? ''] ?? item.weapon_range}
       {:else if kind === 'armor'}
         {ARMOR_CATEGORY_LABELS[item.armor_category ?? ''] ?? item.armor_category}
-      {:else if item.rarity}
-        {formatRarity(item.rarity)}{#if item.attunement_by} · für {item.attunement_by}{/if}
       {/if}
+      {#if item.rarity}
+        {#if kind === 'weapon' || kind === 'armor'} · {/if}
+        <span style="color:{rarityColor(item.rarity)}">{formatRarity(item.rarity)}</span>
+      {/if}
+      {#if item.attunement_by} · für {item.attunement_by}{/if}
     </div>
 
     {#if kind === 'weapon' && item.damage}
