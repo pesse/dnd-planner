@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { appLog } from '../services/appLog';
 
 /** Die Handlung, die den Hinweis erst brauchbar macht — z.B. den zuständigen Dialog öffnen. */
 export interface ToastAction {
@@ -22,6 +23,7 @@ function push(toast: Omit<Toast, 'id'>) {
 }
 
 export function pushError(message: string) {
+  appLog('error', message);
   push({ message, kind: 'error' });
 }
 

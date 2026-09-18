@@ -2,6 +2,8 @@
   import DragonMark from '../DragonMark.svelte';
   import { updateState, updateDialogOpen } from '../../stores/update';
   import { libraries, libraryManagerOpen, updateCount } from '../../stores/libraries';
+  import { revealLogDir } from '../../services/appLog';
+  import { pushError } from '../../stores/toasts';
 
   let { onReloadAll, onTransferClick }: {
     onReloadAll(): void;
@@ -30,6 +32,11 @@
       onclick={() => libraryManagerOpen.set(true)}
     >📚</button>
     <button class="header-btn" title="Vault importieren / exportieren" onclick={onTransferClick}>⇅</button>
+    <button
+      class="header-btn"
+      title="Fehlerprotokoll im Explorer zeigen"
+      onclick={() => revealLogDir().catch((e) => pushError(`Log-Ordner nicht gefunden: ${e}`))}
+    >🗒</button>
     <button class="reload-all-btn" title="Alles neu laden" onclick={onReloadAll}>↺</button>
   </div>
 </div>

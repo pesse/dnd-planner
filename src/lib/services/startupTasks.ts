@@ -1,5 +1,6 @@
 /** Was einmalig beim App-Start läuft; zurück kommt der Teardown der Fehlerlauscher. */
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
 import { invalidateVault } from '../stores/campaign';
 import { invalidateLibraryCaches } from './library/invalidate';
 import { confirmAction } from '../stores/confirmDialog';
@@ -9,6 +10,7 @@ import { checkForUpdate } from '../stores/update';
 import { legacyCharacterDirs, migrateCharacterUids } from './migrateCharacterUids';
 import { getRulesIndex } from './rulesReference';
 import { onIdle, prefetchLibraries } from './prefetchLibraries';
+import { appLog, captureConsole } from './appLog';
 
 async function maybeMigrateLegacyVault(): Promise<void> {
   try {
@@ -87,8 +89,13 @@ const isBenignAbortNoise = (msg: string): boolean =>
   msg === 'Request cancelled' || /the resource id \d+ is invalid/i.test(msg);
 
 export function runStartupTasks(): () => void {
+  // Vor allem anderen: was danach schiefgeht, soll schon im Logfile landen.
+  captureConsole();
+
   // Alles hier `void`: der Cleanup-Return wird synchron erwartet und darf nicht warten.
-  void invoke<string>('get_current_dir').then((cwd) => console.log('Tauri CWD:', cwd));
+  void Promise.all([getVersion(), invoke<string>('get_current_dir')]).then(([version, cwd]) =>
+    appLog('info', `DnD Planner ${version} gestartet, CWD ${cwd}`),
+  );
   // Reihenfolge zählt: die Legacy-Migration kann selbst noch namensbenannte Ordner einspielen.
   void maybeMigrateLegacyVault().then(maybeMigrateCharacterUids);
   void checkForUpdate();

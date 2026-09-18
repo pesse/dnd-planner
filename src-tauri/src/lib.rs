@@ -1044,6 +1044,25 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // Im Release ist die Webview-Konsole nicht zu öffnen; ohne diese Datei ist ein
+        // Fehlerbericht aus dem Feld nicht nachvollziehbar. Frontend-Meldungen kommen
+        // über services/appLog.ts hier an.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                // `targets` statt `target`: letzteres hängt an die Voreinstellung an, und die
+                // enthält Stdout und LogDir bereits — jede Zeile käme doppelt.
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("dnd-planner".into()),
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                ])
+                .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
+                .level(log::LevelFilter::Info)
+                // Voreinstellung sind 40 kB, das rotiert einen Fehlerbericht weg.
+                .max_file_size(2_000_000)
+                .build(),
+        )
         .setup(|app| {
             // Vault-Basis festlegen: Release am stabilen App-Identifier
             // (%LOCALAPPDATA%\de.developer-sam.dnd-planner), Dev am Repo.
