@@ -186,6 +186,19 @@
       "label": "string"
     },
     {
+      "target": "optionPicks",
+      "sourceKey": "string",
+      "values": [
+        {
+          "value": "string",
+          "valueDe": "string"
+        }
+      ],
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "note",
       "value": "string",
       "step": "string",

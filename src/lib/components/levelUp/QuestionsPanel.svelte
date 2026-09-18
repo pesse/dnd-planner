@@ -16,6 +16,7 @@
     {#if choice && (q.type === 'choice' || q.type === 'multiselect')}
       <FeatureChoicePicker
         {choice}
+        note={ui.choices.featureNoteOf(choice.featureKey, [...choice.options, ...choice.optionsDe])}
         answer={ui.answerList(q.id)}
         open={!hasAnswer(st.answers[q.id])}
         gainedAt={st.delta?.toLevel ?? 0}
@@ -23,9 +24,16 @@
         onapply={() => {}}
       />
     {:else}
+      {@const note = ui.choices.featureNoteOf(q.featureKey)}
       <div class="row">
         <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
         {#if q.help}<span class="field-hint">{q.help}</span>{/if}
+        {#if note}
+          <details class="q-note" open>
+            <summary>{note.titleDe}</summary>
+            <p>{note.text}</p>
+          </details>
+        {/if}
         {#if q.type === 'number'}
           <input class="input" type="number" min={q.min} max={q.max} value={st.answers[q.id] as string} oninput={(e) => ui.setIn(q.id, (e.target as HTMLInputElement).value)} />
         {:else if q.type === 'spell-picker'}
@@ -49,3 +57,9 @@
     {/if}
   {/each}
 </div>
+
+<style>
+  .q-note { font-size: 0.72rem; color: var(--ink-muted); margin: 0.2rem 0; }
+  .q-note summary { color: var(--copper); cursor: pointer; }
+  .q-note p { margin: 0.25rem 0 0; white-space: pre-line; }
+</style>

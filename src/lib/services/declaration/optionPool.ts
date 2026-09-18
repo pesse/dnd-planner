@@ -6,7 +6,7 @@
 import type { ChoiceOption } from '../../schemas/featureChoice';
 import type { OptionPick } from '../../schemas/characterSchema';
 import type { ClassFeature, ClassProgression } from '../../schemas/classProgression';
-import { featuresUpTo, columnValue, getProgressionByKey } from '../classProgression';
+import { featuresUpTo, columnValueIn, levelTables, getProgressionByKey } from '../classProgression';
 import { declaredChoicesOfKind, type DeclaredChoiceRef, type DeclaredChoiceSource } from './source';
 
 /** Ohne Optionen gibt es nichts anzubieten — die Deklaration ist dann unvollständig. */
@@ -23,13 +23,13 @@ export const isOptionPoolFeature = (f: DeclaredChoiceSource): boolean => optionP
  * die Klassentabelle eine Spalte, gilt SIE — dort steht die Zahl schon summiert.
  */
 export function poolAllowanceFor(
-  prog: ClassProgression,
+  tables: readonly ClassProgression[],
   feature: ClassFeature,
   grant: { count: number; column: string },
   level: number,
 ): number {
   if (grant.column.trim()) {
-    const raw = columnValue(prog, grant.column.trim(), level);
+    const raw = columnValueIn(tables, grant.column.trim(), level);
     return Number(String(raw ?? '').match(/(\d+)/)?.[1] ?? 0);
   }
   return feature.gainedAt.filter((l) => l <= level).length * grant.count;
@@ -43,6 +43,9 @@ export interface OptionPoolOffer {
   /** 0 = das Merkmal ist auf dieser Stufe noch nicht vergeben. */
   allowance: number;
   options: ChoiceOption[];
+  /** Regeltext des Merkmals — der Aufstieg stellt ihn neben den Picker (`featureNote`). */
+  desc: string;
+  descDe: string;
 }
 
 /** Ein `Character` erfüllt das strukturell (wie bei `MasteryInput`). */
@@ -50,11 +53,11 @@ export interface OptionPoolInput {
   classes?: { sourceKey?: string; subclassKey?: string; name?: string; level?: number }[];
 }
 
-function offersOf(prog: ClassProgression, className: string, level: number): OptionPoolOffer[] {
+function offersOf(tables: ClassProgression[], className: string, level: number): OptionPoolOffer[] {
   const out: OptionPoolOffer[] = [];
-  for (const feature of featuresUpTo(prog, level))
+  for (const feature of featuresUpTo(tables[0], level))
     for (const r of optionPoolRefs(feature)) {
-      const allowance = poolAllowanceFor(prog, feature, r.grant, level);
+      const allowance = poolAllowanceFor(tables, feature, r.grant, level);
       if (allowance <= 0 || !feature.key) continue;
       out.push({
         featureKey: feature.key,
@@ -62,6 +65,8 @@ function offersOf(prog: ClassProgression, className: string, level: number): Opt
         className,
         allowance,
         options: r.grant.options,
+        desc: feature.desc,
+        descDe: feature.descDe ?? '',
       });
     }
   return out;
@@ -83,8 +88,8 @@ export async function optionPoolOffers(input: OptionPoolInput): Promise<OptionPo
     ]);
     if (!prog) continue;
     const className = c.name?.trim() || prog.nameDe || prog.name;
-    out.push(...offersOf(prog, className, level));
-    if (subProg) out.push(...offersOf(subProg, className, level));
+    out.push(...offersOf(levelTables(prog), className, level));
+    if (subProg) out.push(...offersOf(levelTables(prog, subProg), className, level));
   }
   return out;
 }

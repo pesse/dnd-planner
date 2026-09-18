@@ -9,6 +9,7 @@
    */
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
   import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
+  import type { FeatureNote } from '../services/featureText';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {
@@ -19,6 +20,7 @@
     showLevel = false,
     pendingGrants = false,
     hint = '',
+    note = null,
     flagged = [],
     diff = 'none',
     onchange,
@@ -32,6 +34,8 @@
     showLevel?: boolean;
     pendingGrants?: boolean;
     hint?: string;
+    /** Das Merkmal, das die Wahl erzwingt — ohne seine Options-Absätze, die im Tooltip stehen. */
+    note?: FeatureNote | null;
     flagged?: string[];
     diff?: DiffDir;
     onchange: (next: string[]) => void;
@@ -66,6 +70,13 @@
       <span class="ch-count" class:full={answer.length >= choice.max}>{answer.length} von {choice.max}</span>
     {/if}
   </div>
+
+  {#if note}
+    <details class="ch-note" open>
+      <summary>{note.titleDe}</summary>
+      <p>{note.text}</p>
+    </details>
+  {/if}
 
   <div class="ch-body">
     <div class="ch-select">
@@ -113,6 +124,9 @@
     background: color-mix(in srgb, var(--gold) 8%, var(--bg-panel));
   }
   .ch-head { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .ch-note { font-size: 0.72rem; color: var(--ink-muted); }
+  .ch-note summary { color: var(--copper); cursor: pointer; }
+  .ch-note p { margin: 0.25rem 0 0; white-space: pre-line; }
   .ch-label { font-size: 0.74rem; color: var(--copper); }
   .choice.open .ch-label { color: var(--gold); }
   .ch-lvl, .ch-count { font-size: 0.7rem; color: var(--ink-muted); }

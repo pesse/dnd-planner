@@ -11,6 +11,8 @@ import { changesWouldAlter, type ApplyContext } from '$lib/services/applyChanges
 import type { CoverageBadge } from '$lib/services/declarationCoverage';
 import type { LedgerRow } from '$lib/services/featureLedger';
 import { getSpellLibrary, type SpellInfo } from '$lib/spellLibrary';
+import { getItemsByDir } from '$lib/itemLibrary';
+import type { ToolItem } from '$lib/services/declaration/toolProficiency';
 import { classifyChange, type DiffDir } from '$lib/utils/diffHighlight';
 
 /** `i` ist der Index in `ChoiceState.grants` — beide Listen sind index-gleich. */
@@ -54,10 +56,16 @@ export function createChoiceState(o: {
 }): ChoiceState {
   // Die Expertise-Optionen sind der LIVE-Übungsstand aus dem Draft, nicht aus dem Formular:
   // sonst bliebe die Wahl tot, solange das Bearbeiten-Formular nicht montiert ist.
+  // Vor dem Laden steht die Werkzeug-Wahl als Freitext da und wird zum Picker, sobald
+  // `items/tools/` da ist — dieselbe Nachreichung wie bei der Zauberbibliothek.
+  let toolLib = $state<ToolItem[]>([]);
+  $effect(() => { getItemsByDir('tools').then((t) => { toolLib = t; }).catch(() => {}); });
+
   const all = $derived(
     buildCharacterChoices(o.slots(), {
       proficient: sheetSkillProficiencies(o.character().skills).prof,
       ledger: o.character().features,
+      tools: toolLib,
     }),
   );
 
@@ -106,6 +114,7 @@ export function createChoiceState(o: {
     const list = buildCharacterChoices(o.slots(), {
       proficient: sheetSkillProficiencies(saved.skills).prof,
       ledger: saved.features,
+      tools: toolLib,
     });
     return new Map(list.map((ch) => [ch.slot, ch.answer.join(', ')]));
   });

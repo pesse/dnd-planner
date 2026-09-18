@@ -448,6 +448,7 @@ describe('deklarierte Fertigkeitsübung', () => {
     // Barbar „Urtümliches Wissen" gewährt daneben den STÄRKE-Wurf im Kampfrausch — deshalb
     // trägt es `aiInterpretsRest` (eigener Test unten), sonst fiele diese Hälfte still weg.
     expect(found.sort()).toEqual([
+      'phb-2024_fighter_battle-master_student-of-war',
       'srd-2024_barbarian_primal-knowledge',
       'srd-2024_college-of-lore_bonus-proficiencies',
     ]);

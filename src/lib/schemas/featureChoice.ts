@@ -8,6 +8,7 @@ import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
 import { resourceGrantSchema } from './resource';
 import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
+import { EQUIPMENT_CHOICE_CATEGORIES } from './wizardEquipment';
 
 /**
  * Die Optionen einer deklarierten Wahl löst der Flow aus der Bibliothek auf, NIE aus der KI —
@@ -20,16 +21,18 @@ import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
  *     die Regel eingrenzt (Magier „Gelehrter").
  *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
  *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
- *     `toolProficiency` teilt diese Form — ein Werkzeug ist zwar eine Übung, hat aber ebenso
- *     kein Vokabular („drei Handwerkszeuge deiner Wahl").
+ *     `toolProficiency` dagegen wählt aus `items/tools/` — ein Werkzeug IST ein Gegenstand der
+ *     Bibliothek, und `toolCategory` grenzt ein, welche Sorte der Regeltext meint.
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein
  *     Talent darf `isSpellcastingFeature` („dies ist das Klassen-Zauberwirken") nicht erfüllen.
  *   - `optionList` trägt die Konsequenz NEBEN jeder Option — das beseitigt den Zustand
  *     „Antwort bekannt, Wirkung offen".
- *   - `optionPool` ist kein `optionList` mit `count > 1`, sondern ein eigener `kind` wegen des
- *     ROUTINGS: ein Pool stellt nie eine Fragebogen-Frage und blockiert nie einen Aufstieg,
- *     er wird wie die Waffenbeherrschung im Editor gepflegt. Als Flag an `optionList` trüge
- *     jedes Prädikat davon eine Ausnahme.
+ *   - `optionPool` ist kein `optionList` mit `count > 1`, sondern ein eigener `kind` wegen der
+ *     KUMULATION: sein Kontingent wächst über mehrere Vergabe-Stufen (oder steht in einer
+ *     Tabellenspalte) und erlaubt dabei den Tausch, während eine `optionList`-Frage an der
+ *     EINEN Stufe hängt, auf der das Merkmal kam. Er ist deshalb nie Pflicht — ein Pool darf
+ *     offen bleiben und blockiert keinen Checkpoint. Als Flag an `optionList` trüge jedes
+ *     Prädikat davon eine Ausnahme.
  */
 export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'toolProficiency', 'characterProperty', 'abilityIncrease'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
@@ -105,6 +108,10 @@ export const featureChoiceGrantSchema = z.object({
     .array(z.enum(SKILL_NAMES))
     .default([])
     .describe('Nur bei kind="expertise"/"skillProficiency": Auswahl auf diese Fertigkeiten beschränken (englische SRD-Namen). Leer = keine Eingrenzung.'),
+  toolCategory: z
+    .enum(['', ...EQUIPMENT_CHOICE_CATEGORIES])
+    .default('')
+    .describe('Nur bei kind="toolProficiency": Sorte, die der Regeltext meint — "artisan-tools" für Handwerkszeug, "instrument" für Musikinstrument. Leer = jedes Werkzeug der Bibliothek.'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.

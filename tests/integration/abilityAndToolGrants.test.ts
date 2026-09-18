@@ -1,8 +1,9 @@
 /**
  * Werkzeug-Übung und Attributserhöhung eines Merkmals — OHNE LLM, über den ECHTEN Vault.
  *
- * Die zwei Eigenheiten, die sonst wieder auseinanderlaufen: die Werkzeugwahl hat wie die
- * Sprachwahl KEIN Vokabular (deutscher Freitext statt Optionsliste), und die
+ * Die zwei Eigenheiten, die sonst wieder auseinanderlaufen: die Werkzeugwahl hat kein
+ * ENGLISCHES Vokabular — ihre Optionen sind Gegenstände aus `items/tools/` und ihr Wert ist
+ * der deutsche Name, der unverändert auf dem Bogen landet. Und die
  * Attributserhöhung ist das einzige ADDITIVE Ziel — ihre Obergrenze reist deshalb je Merkmal
  * mit, weil ein Epischer Segen auf 30 deckelt, wo jedes andere Merkmal auf 20 deckelt.
  *
@@ -21,8 +22,9 @@ import { declaredFeatures as tagged, type DeclaredFeature } from '../../src/lib/
 import { declaredGrantRiders } from '../../src/lib/services/declaration/grants';
 import { riderChanges } from '../../src/lib/services/levelUp/changes';
 import {
-  isToolProficiencyFeature, toolProficiencyChoices, toolProficiencyRiders,
+  isToolProficiencyFeature, toolLabel, toolProficiencyChoices, toolProficiencyRiders,
 } from '../../src/lib/services/declaration/toolProficiency';
+import { getItemsByDir } from '../../src/lib/itemLibrary';
 import {
   abilityIncreaseChoiceId, abilityIncreaseChoices, abilityIncreaseRefs, abilityIncreaseRiders,
   isAbilityIncreaseFeature,
@@ -50,15 +52,45 @@ describe('deklarierte Werkzeug-Wahl', () => {
     expect(await declaringFeats(isToolProficiencyFeature)).toEqual(['phb-2024_crafter', 'phb-2024_musician']);
   });
 
-  it('fragt als Freitext, nicht als Optionsliste', async () => {
-    const [choice, ...rest] = toolProficiencyChoices([await feat('phb-2024_crafter')]);
+  const tools = () => getItemsByDir('tools');
+
+  it('bietet die Handwerkszeuge der Bibliothek an, keine Instrumente', async () => {
+    const [choice, ...rest] = toolProficiencyChoices([await feat('phb-2024_crafter')], await tools());
     expect(rest).toEqual([]);
     expect(choice.id).toBe(CRAFTER_ID);
-    expect(choice.type).toBe('text');
+    expect(choice.type).toBe('multiselect');
     expect(choice.max).toBe(3);
-    expect(choice.options, 'ohne Vokabular gibt es nichts anzubieten').toEqual([]);
-    expect(choice.questionDe).toContain('Handwerker');
-    // Der Fragebogen macht daraus ein Eingabefeld — als `choice` bliebe die Frage tot.
+    expect(choice.options).toContain('Schmiedewerkzeug');
+    expect(choice.options, '„Handwerkszeug deiner Wahl" meint keine Instrumente')
+      .not.toContain('Laute (Musikinstrument)');
+    expect(choice.options).toHaveLength(17);
+    expect(buildFeatureChoices([choice])[0].type).toBe('multiselect');
+  });
+
+  it('bietet dem Musiker die Instrumente an — und keine Handwerkszeuge', async () => {
+    const [choice] = toolProficiencyChoices([await feat('phb-2024_musician')], await tools());
+    expect(choice.options).toContain('Laute (Musikinstrument)');
+    expect(choice.options).not.toContain('Schmiedewerkzeug');
+    expect(choice.options).toHaveLength(10);
+  });
+
+  /**
+   * Die Antwortkodierung trennt mit Komma — „Musikinstrument, Laute" der Bibliothek wäre
+   * sonst zwei Übungen.
+   */
+  it('dreht die Familien-Namen der Bibliothek kommafrei', () => {
+    expect(toolLabel({ name: 'Musical Instrument, Lute', name_de: 'Musikinstrument, Laute' }))
+      .toBe('Laute (Musikinstrument)');
+    expect(toolLabel({ name: "Smith's Tools (20 GP)", name_de: 'Schmiedewerkzeug' }))
+      .toBe('Schmiedewerkzeug');
+    for (const o of toolProficiencyChoices([], [])) expect(o.options.join(' ')).not.toContain(',');
+  });
+
+  /** Ohne geladene Bibliothek bleibt die Frage stehen, statt optionslos zu verschwinden. */
+  it('fällt ohne Bibliothek auf Freitext zurück', async () => {
+    const [choice] = toolProficiencyChoices([await feat('phb-2024_crafter')]);
+    expect(choice.type).toBe('text');
+    expect(choice.options).toEqual([]);
     expect(buildFeatureChoices([choice])[0].type).toBe('text');
   });
 

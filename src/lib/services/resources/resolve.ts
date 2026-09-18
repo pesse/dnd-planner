@@ -6,7 +6,7 @@ import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib/itemLibrary';
 import type { ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
-import { columnValue, proficiencyBonus } from '../classProgression';
+import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf } from '../declaration/branch';
 import {
   declarationIssue,
@@ -82,12 +82,13 @@ function amountContext(
   profBonus: number,
   mods: Record<AbilityKey, number>,
 ): AmountContext {
-  const prog = classes.get(carrier.classKey)?.prog ?? null;
+  const cls = classes.get(carrier.classKey);
+  const tables = levelTables(cls?.prog, carrier.origin === 'subclass' ? cls?.sub : null);
   return {
     level: carrier.level,
     profBonus,
     mods,
-    column: (name) => (prog ? columnValue(prog, name, carrier.level) : undefined),
+    column: (name) => columnValueIn(tables, name, carrier.level),
   };
 }
 

@@ -23,6 +23,8 @@ import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLev
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { wizardDeclaredChoices, wizardRiders } from './wizardChoices';
+import { getItemsByDir } from '$lib/itemLibrary';
+import type { ToolItem } from '../declaration/toolProficiency';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { ClassFeature } from '$lib/schemas/classProgression';
 import type { LlmConfig } from '$lib/types';
@@ -99,6 +101,8 @@ export class CharacterWizard {
   grantedSkills = $state<string[]>([]);
   /** Antworten auf die deklarierten Wahlen — der einzige Antwort-Kanal des Wizards. */
   declaredAnswers = $state<DeclaredAnswer[]>([]);
+  /** Optionen der Werkzeug-Wahl, aus `items/tools/`; leer = Freitext. */
+  toolLib = $state<ToolItem[]>([]);
 
   classText = new Job<FieldSummary>();
   speciesText = new Job<FieldSummary>();
@@ -129,6 +133,7 @@ export class CharacterWizard {
       declared: this.declared,
       proficientSkills: this.proficientSkills,
       sizeChoice: this.sizeChoice,
+      tools: this.toolLib,
     });
   }
 
@@ -172,6 +177,8 @@ export class CharacterWizard {
 
     // Deklarierte Zauber-Zugänge: unabhängig vom Anbieter und vom KI-Status. Der Guard gegen
     // die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`.
+    if (!this.toolLib.length) void getItemsByDir('tools').then((t) => { this.toolLib = t; }, () => {});
+
     const pending = this.#prepare();
     void pending.then((prep) => {
       if (this.#prep !== pending) return;

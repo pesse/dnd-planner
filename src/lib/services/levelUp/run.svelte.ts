@@ -38,6 +38,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
     get skills() { return ctx.character.skills; },
+    get tools() { return st.toolLib; },
   });
 
   const knownSpells = createLevelUpKnownSpells({
@@ -107,7 +108,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
       featsToPick: st.delta ? countFeatsToPick(st.delta, st.answers) : 0,
       // Die deklarierten Wahlen zählen mit: sonst überspringt die Maschine den Checkpoint,
       // weil das Merkmal gar nicht mehr bei der KI war, und niemand wählt.
-      baseChoices: choices.baseChoiceQs.length,
+      // Die Pools zählen mit: sie stellen keine Frage, aber ohne sie hielte die Maschine
+      // nicht an und der Picker käme nie auf den Schirm.
+      baseChoices: choices.baseChoiceQs.length + st.optionPools.length,
       featChoices: choices.featChoiceQs.length,
     };
   }
@@ -162,7 +165,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
         reportUnreadableGrants();
         break;
       case 'declared-choices':
-        steps.runDeclaredChoices();
+        await steps.runDeclaredChoices();
         break;
       case 'feature-effects':
         await steps.runRiders('base', alive);
@@ -235,6 +238,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
       grantSources: choices.baseDeclared, choiceSources: choices.declaredSources, charLevelSpells: st.charLevelSpells,
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,
+      optionPools: st.optionPools, optionPicks: st.optionPicks,
+      optionPicksBefore: ctx.character.optionPicks ?? [],
       hpPerLevelSources: st.hpPerLevelSources, narrativeSummary: st.narrativeSummary, featuresText: st.featuresText,
       upTo: viewStep,
     });
@@ -251,6 +256,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
       if (st.run.kind === 'running') return;
       st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.riders = []; st.decisions = []; st.answers = {};
+      st.optionPools = []; st.optionPicks = []; st.toolLib = [];
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.featAccess = []; st.featRiders = []; st.flagged = [];

@@ -10,6 +10,8 @@ import { type DeclaredChoiceSource } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { SpellGrantSource } from '../grantedSpells';
+import type { OptionPoolOffer } from '../declaration/optionPool';
+import type { OptionPick } from '../../schemas/characterSchema';
 import { answerValues } from './answers';
 import { stepReached, type StepId } from './steps';
 import { declaredSpellChanges, type DeclaredSpells, type ValidatedRiders } from './spells';
@@ -21,6 +23,7 @@ import {
   featureChoiceChanges,
   featureSpellChanges,
   ongoingChanges,
+  optionPoolChanges,
   riderChanges,
   riderGrantChanges,
   subclassChanges,
@@ -60,6 +63,11 @@ export interface DocInput {
   choiceSources: DeclaredChoiceSource[];
   baseChoiceQs: LevelUpQuestion[];
   featChoiceQs: LevelUpQuestion[];
+  /** Die im Aufstieg GEZEIGTEN Pools; nur sie dürfen geschrieben werden. */
+  optionPools: OptionPoolOffer[];
+  optionPicks: OptionPick[];
+  /** Der Bestand am Charakter — ohne ihn wäre jede unveränderte Liste eine Änderung. */
+  optionPicksBefore: readonly OptionPick[];
   gainedFeatures: GainedFeature[];
   hpPerLevelSources: { feature: string; sourceKey?: string; amount: number }[];
   narrativeSummary: string;
@@ -86,6 +94,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
   const changes: Change[] = [
     ...baseDeltaChanges(p.delta, p.hitDice),
     ...subclassChanges(p.chosenSubclass, p.subFeatures),
+    ...optionPoolChanges(p.optionPools, p.optionPicks, p.optionPicksBefore),
     ...declaredSpellChanges(p.declaredSpells),
     ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),

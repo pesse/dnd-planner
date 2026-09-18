@@ -83,6 +83,29 @@ export function columnValue(prog: ClassProgression, column: string, level: numbe
   return levelColumns(prog, level)[column];
 }
 
+/**
+ * Die Tabellen eines Merkmals in Lesereihenfolge: die der SUBklasse, dann die der Grundklasse.
+ * Ein Drittel-Zauberwirker deklariert an der Subklasse und erbt die Plätze der Grundklasse —
+ * eine Subklasse mit eigener Tabelle (Kampfmeister) überschreibt dabei nichts, sie ergänzt.
+ */
+export const levelTables = (
+  prog: ClassProgression | null | undefined,
+  sub?: ClassProgression | null,
+): ClassProgression[] => [sub, prog].filter((p): p is ClassProgression => !!p);
+
+/** Der Spaltenwert aus der ersten Tabelle, die die Spalte führt. */
+export function columnValueIn(
+  tables: readonly ClassProgression[],
+  column: string,
+  level: number,
+): string | undefined {
+  for (const prog of tables) {
+    const value = columnValue(prog, column, level);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
 /** Index 0 = Grad 1 … 8 = Grad 9, auch für Pact Magic (Warlock) mit seiner einen Grad-Spalte. */
 export function spellSlotsAt(prog: ClassProgression, level: number): number[] {
   const cols = levelColumns(prog, level);

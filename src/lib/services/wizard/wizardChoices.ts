@@ -6,7 +6,7 @@ import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '..
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyChoices, skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageChoices, languageRiders } from '../declaration/languages';
-import { toolProficiencyChoices, toolProficiencyRiders } from '../declaration/toolProficiency';
+import { toolProficiencyChoices, toolProficiencyRiders, type ToolItem } from '../declaration/toolProficiency';
 import { abilityIncreaseChoices, abilityIncreaseRiders } from '../declaration/abilityIncrease';
 import { optionListChoices, optionListRiders } from '../declaration/optionList';
 import { declaredGrantRiders } from '../declaration/grants';
@@ -26,6 +26,8 @@ export function wizardDeclaredChoices(params: {
   declared: DeclaredFeature[];
   proficientSkills: string[];
   sizeChoice: AnalysisChoice | null;
+  /** Optionen der Werkzeug-Wahl, aus `items/tools/`; leer = Freitext. */
+  tools: ToolItem[];
 }): AnalysisChoice[] {
   const { spellAccess, declaredAnswers, declared, proficientSkills, sizeChoice } = params;
   const spells = spellAccess.flatMap((grant) => {
@@ -40,7 +42,7 @@ export function wizardDeclaredChoices(params: {
   // Gegenschnitt; die andere Form (`skills.choose`) führt daneben der Fertigkeitsschritt.
   const skillProf = skillProficiencyChoices(declared, proficientSkills);
   const languages = languageChoices(declared);
-  const tools = toolProficiencyChoices(declared);
+  const tools = toolProficiencyChoices(declared, params.tools);
   const abilities = abilityIncreaseChoices(declared);
   // Deklarierte Grundeigenschaften; `sizeChoice` daneben ist der Parser-Fallback für
   // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.

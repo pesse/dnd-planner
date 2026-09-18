@@ -177,6 +177,18 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
     else next.features = [...next.features, entry];
   },
 
+  /**
+   * SETZEND je Merkmal, anders als die übrigen Senken: der Change trägt den Endstand des
+   * Pools, damit der Tausch am gewachsenen Kontingent ankommt. Fremde Pools bleiben liegen.
+   */
+  optionPicks: (c, next) => {
+    if (!c.sourceKey) return;
+    next.optionPicks = [
+      ...next.optionPicks.filter((p) => p.sourceKey !== c.sourceKey),
+      ...c.values.map((v) => ({ sourceKey: c.sourceKey, value: v.value, valueDe: v.valueDe })),
+    ];
+  },
+
   // Kein Ziel am Charakter: Merkmale kommen aus dem Link, das Protokoll ist reine Info.
   featureGained: () => {},
   note: () => {},

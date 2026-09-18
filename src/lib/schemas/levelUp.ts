@@ -169,6 +169,16 @@ export const changeSchema = z.discriminatedUnion('target', [
   // Wahl weglassen. `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige,
   // `choiceId` = die Frage (`LevelUpQuestion.id`) und damit der Upsert-Schlüssel im Ledger.
   z.object({ target: z.literal('featureChoice'), sourceKey: z.string(), choiceId: z.string().default(''), choice: z.string(), choiceDe: z.string().default(''), gainedAt: z.number().int(), ...changeBase }),
+  /**
+   * Der Stand EINES Options-Pools als ganze Liste, nicht als Zugang: mit dem Kontingent wächst
+   * das Recht zu TAUSCHEN, und additiv ließe sich die abgewählte Option nicht entfernen.
+   */
+  z.object({
+    target: z.literal('optionPicks'),
+    sourceKey: z.string(),
+    values: z.array(z.object({ value: z.string(), valueDe: z.string().default('') })).default([]),
+    ...changeBase,
+  }),
   // Protokoll einer Antwort ohne eigenes Ziel am Charakter (TP-Methode, Würfelergebnis).
   z.object({ target: z.literal('note'), value: z.string(), ...changeBase }),
 ]);

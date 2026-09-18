@@ -19,6 +19,8 @@ import {
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
 import { buildDecisions } from './questions';
+import { levelUpPools } from './pools';
+import { getItemsByDir } from '../../itemLibrary';
 import { sheetNoteLines, fallbackSheetNotes } from './sheetNotes';
 import { expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyRiders } from '../declaration/skillProficiency';
@@ -147,8 +149,15 @@ export function createRunSteps(ctx: RunStepsDeps) {
     pushStep('KI-Formulierung nicht verfügbar — die Bogen-Notizen entstehen aus der Bibliothek.');
   }
 
-  /** Die deklarierten Wahlen der Basis-Merkmale leer vorbelegen — der Checkpoint folgt. */
-  function runDeclaredChoices() {
+  /**
+   * Die deklarierten Wahlen der Basis-Merkmale leer vorbelegen und die Options-Pools lesen —
+   * der Checkpoint folgt und zeigt beides. Die Pools hängen an der Subklasse, also erst hier:
+   * eine JETZT gewählte steht davor noch nicht am Charakter.
+   */
+  async function runDeclaredChoices() {
+    // VOR `initFeatureChoices`: die Werkzeug-Wahl ist mit Optionen ein `multiselect` und ohne
+    // ein Freitext — die Vorbelegung unterscheidet [] von ''.
+    if (!st.toolLib.length) st.toolLib = await getItemsByDir('tools').catch(() => []);
     const declaredQs = [
       ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseSkillProfChoices,
       ...choices.baseLanguageChoices, ...choices.baseToolChoices, ...choices.baseAbilityChoices,
@@ -158,6 +167,21 @@ export function createRunSteps(ctx: RunStepsDeps) {
     pushStep(declaredQs.length
       ? `${declaredQs.length} Wahl(en) aus der Bibliothek gelesen.`
       : 'Keine Wahl nötig.');
+
+    const d = st.delta!;
+    st.optionPicks = [...(ctx.character.optionPicks ?? [])];
+    st.optionPools = await levelUpPools(
+      {
+        sourceKey: d.sourceKey,
+        subclassKey: st.chosenSubclass?.key || d.subclassKey,
+        name: d.klasseName,
+      },
+      st.optionPicks,
+      d.fromLevel,
+      d.toLevel,
+    ).catch(() => []);
+    if (st.optionPools.length)
+      pushStep(`${st.optionPools.length} Options-Pool/Pools zur Auswahl (Kontingent aus der Stufentabelle).`);
   }
 
   /**

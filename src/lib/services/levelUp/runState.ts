@@ -6,8 +6,11 @@ import type { GainedFeature } from '../analysis/types';
 import type { PastChoice } from '../characterFeatures';
 import type { LevelUpDelta } from '../levelUp';
 import type { SpellAccessGrant } from '../spellcasting/access';
+import type { OptionPoolOffer } from '../declaration/optionPool';
+import type { OptionPick } from '../../schemas/characterSchema';
 import type { FeatureNote, FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import type { FeatEntry } from '../../featsLibrary';
+import type { ToolItem } from '../declaration/toolProficiency';
 import type { SpellInfo } from '../../spellLibrary';
 import type { ChosenFeat } from './features';
 import { noDeclaredSpells, type DeclaredSpells, type ValidatedRiders } from './spells';
@@ -54,6 +57,13 @@ export interface LevelUpRunState {
   validatedBase: ValidatedRiders;
   decisions: LevelUpQuestion[];
   answers: Record<string, string | string[]>;
+  /** Pools, die dieser Aufstieg wachsen lässt oder offen vorfindet — sonst leer. */
+  optionPools: OptionPoolOffer[];
+  /**
+   * Arbeitskopie der GANZEN Pool-Liste des Charakters, nicht nur der gezeigten: `poolPicks`
+   * schneidet daraus, und der Picker schreibt über denselben Weg wie am Bogen.
+   */
+  optionPicks: OptionPick[];
   /** Aus der Progression gelesen — damit fällt das Klassenmerkmal aus dem Notiz-Eingang. */
   baseAccess: SpellAccessGrant[];
   /** Bogenzeilen des Notiz-Passes, Basis- und Talentmerkmale in einem Satz. */
@@ -85,6 +95,8 @@ export interface LevelUpRunState {
   reachedStep: StepId;
   spellLib: SpellInfo[];
   featLib: FeatEntry[];
+  /** Die Optionen der Werkzeug-Wahl; leer lässt sie auf Freitext zurückfallen. */
+  toolLib: ToolItem[];
   // Wahlen früherer Stufen: die Zauberliste einer damals gewählten Option hängt daran
   // (`optionSpellNames`), und das Narrativ soll sie nicht als neu ausgeben.
   pastChoices: PastChoice[];
@@ -105,6 +117,8 @@ export function emptyRunState(): LevelUpRunState {
     validatedBase: emptyRiders(),
     decisions: [],
     answers: {},
+    optionPools: [],
+    optionPicks: [],
     baseAccess: [],
     notes: [],
     aiSkipped: false,
@@ -122,6 +136,7 @@ export function emptyRunState(): LevelUpRunState {
     reachedStep: 'choose-class',
     spellLib: [],
     featLib: [],
+    toolLib: [],
     pastChoices: [],
   };
 }

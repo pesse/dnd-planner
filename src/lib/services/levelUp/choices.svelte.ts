@@ -5,11 +5,12 @@
 import { buildFeatureChoices } from './questions';
 import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
+import { featureNote, type FeatureNote } from '../featureText';
 import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
 import { skillProficiencyChoices } from '../declaration/skillProficiency';
 import { languageChoices } from '../declaration/languages';
-import { toolProficiencyChoices } from '../declaration/toolProficiency';
+import { toolProficiencyChoices, type ToolItem } from '../declaration/toolProficiency';
 import { abilityIncreaseChoices } from '../declaration/abilityIncrease';
 import { isOptionListFeature, optionListChoices } from '../declaration/optionList';
 import { characterPropertyChoices } from '../characterProperties';
@@ -34,6 +35,8 @@ export interface ChoiceSources {
   featAccess: SpellAccessGrant[];
   answers: Record<string, string | string[]>;
   skills: Character['skills'];
+  /** Optionen der Werkzeug-Wahl, aus `items/tools/`. */
+  tools: ToolItem[];
 }
 
 export function createLevelUpChoices(src: ChoiceSources) {
@@ -67,7 +70,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // Gegenschnitt derselben Liste: gewählt wird, was noch nicht geübt ist.
   const baseSkillProfAnalysis = $derived(skillProficiencyChoices(baseDeclared, sheetSkills.prof));
   const baseLanguageAnalysis = $derived(languageChoices(baseDeclared));
-  const baseToolAnalysis = $derived(toolProficiencyChoices(baseDeclared));
+  const baseToolAnalysis = $derived(toolProficiencyChoices(baseDeclared, src.tools));
   const baseAbilityAnalysis = $derived(abilityIncreaseChoices(baseDeclared));
   // Reaktiv: die Zauber-Wahl entsteht erst mit der beantworteten Liste — ohne deren
   // Klassenfilter böte der Picker die ganze Bibliothek an.
@@ -94,7 +97,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...expertiseChoices(featDeclared, sheetSkills.prof, sheetSkills.exp),
     ...skillProficiencyChoices(featDeclared, sheetSkills.prof),
     ...languageChoices(featDeclared),
-    ...toolProficiencyChoices(featDeclared),
+    ...toolProficiencyChoices(featDeclared, src.tools),
     ...characterPropertyChoices(featDeclared),
     ...abilityIncreaseChoices(featDeclared),
   ]);
@@ -130,6 +133,10 @@ export function createLevelUpChoices(src: ChoiceSources) {
     return map;
   });
 
+  const featureByKey = $derived(
+    new Map(declaredSources.filter((f) => f.key).map((f) => [f.key!, f])),
+  );
+
   const isAnswered = (questions: LevelUpQuestion[]): boolean =>
     questions.every((q) => !q.required || hasAnswer(src.answers[q.id]));
 
@@ -150,6 +157,13 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseChoiceQs() { return baseChoiceQs; },
     get featChoiceQs() { return featChoiceQs; },
     get analysisById() { return analysisById; },
+    /**
+     * Das Merkmal hinter einer Frage, als Text neben der Frage. Die Optionslabels kommen vom
+     * Fragesteller, weil nur er weiß, welche Absätze des `desc` schon im Tooltip stehen.
+     */
+    featureNoteOf(featureKey: string, optionLabels: readonly string[] = []): FeatureNote | null {
+      return featureNote(featureByKey.get(featureKey), optionLabels);
+    },
     get allBaseAnswered() { return isAnswered(baseChoiceQs); },
     get allFeatAnswered() { return isAnswered(featChoiceQs); },
     isAnswered,

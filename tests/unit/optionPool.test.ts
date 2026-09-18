@@ -34,7 +34,7 @@ describe('Kontingent eines Options-Pools', () => {
   const twoEach = grant({ count: 2 });
 
   it('summiert über die ERREICHTEN Vergabe-Stufen', () => {
-    const at = (level: number) => poolAllowanceFor(prog([], []), metamagic, twoEach, level);
+    const at = (level: number) => poolAllowanceFor([prog([], [])], metamagic, twoEach, level);
     expect([at(1), at(2), at(9), at(10), at(16), at(17), at(20)]).toEqual([0, 2, 2, 4, 4, 6, 6]);
   });
 
@@ -46,8 +46,19 @@ describe('Kontingent eines Options-Pools', () => {
       [],
     );
     const declared = grant({ count: 2, column: 'Eldritch Invocations' });
-    expect(poolAllowanceFor(table, invocations, declared, 1)).toBe(1);
-    expect(poolAllowanceFor(table, invocations, declared, 2)).toBe(3);
+    expect(poolAllowanceFor([table], invocations, declared, 1)).toBe(1);
+    expect(poolAllowanceFor([table], invocations, declared, 2)).toBe(3);
+  });
+
+  /** Die Subklassentabelle steht vor der der Grundklasse — geerbte Spalten bleiben sichtbar. */
+  it('nimmt die erste Tabelle, die die Spalte führt', () => {
+    const pool = feature([3]);
+    const base = prog([{}, {}, { Erbe: '2' }], []);
+    const sub = prog([{}, {}, { Eigen: '5' }], []);
+    const declared = (column: string) => grant({ count: 1, column });
+    expect(poolAllowanceFor([sub, base], pool, declared('Eigen'), 3)).toBe(5);
+    expect(poolAllowanceFor([sub, base], pool, declared('Erbe'), 3)).toBe(2);
+    expect(poolAllowanceFor([base], pool, declared('Eigen'), 3)).toBe(0);
   });
 });
 
@@ -57,6 +68,7 @@ describe('Tausch in der flachen Liste am Charakter', () => {
     titleDe: 'Metamagie',
     className: 'Zauberer',
     allowance: 2,
+    desc: '', descDe: '',
     options: [
       { value: 'Careful Spell', labelDe: 'Bedachter Zauber', helpDe: '', spells: [] },
       { value: 'Subtle Spell', labelDe: 'Subtiler Zauber', helpDe: '', spells: [] },
@@ -98,6 +110,7 @@ describe('Altbestand: Ledger-Antwort in den Pool heben', () => {
     titleDe: 'Beute des Jägers',
     className: 'Waldläufer',
     allowance: 1,
+    desc: '', descDe: '',
     options: [
       { value: 'Colossus Slayer', labelDe: 'Kolossbezwinger', helpDe: '', spells: [] },
       { value: 'Horde Breaker', labelDe: 'Meutebrecher', helpDe: '', spells: [] },

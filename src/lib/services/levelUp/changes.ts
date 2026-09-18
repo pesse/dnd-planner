@@ -7,6 +7,7 @@ import { isFightingStyleFeature } from '../fightingStyle';
 import { declaredGrantChanges, type DeclaredGrantSource } from '../declaration/grants';
 import { abilityIncreasesOf } from '../declaration/abilityIncrease';
 import { type DeclaredChoiceSource } from '../declaration/optionList';
+import { poolPicks, type OptionPoolOffer } from '../declaration/optionPool';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import {
   skillLabelDe,
@@ -18,6 +19,7 @@ import {
 import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey, type AbilityName } from '../../schemas/abilities';
 import { readAbilityName } from '../../schemas/vocabulary';
 import type { FeatureGrant } from '../../schemas/grants';
+import type { OptionPick } from '../../schemas/characterSchema';
 import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '../../schemas/levelUp';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { SpellGrantSource } from '../grantedSpells';
@@ -41,7 +43,7 @@ function bumpHitDice(current: string, die: number, add: number, toLevel: number)
  * `classFeaturesText` 'replace' NACH allen übrigen stehen — `upsertStep` sortiert stabil hiernach.
  */
 export const STEP_ORDER = [
-  'base-delta', 'subclass-delta', 'feature-effects', 'assemble-decisions',
+  'base-delta', 'subclass-delta', 'declared-choices', 'feature-effects', 'assemble-decisions',
   'feat-links', 'feat-effects',
   'ongoing-effects', 'class-features',
 ] as const;
@@ -244,6 +246,34 @@ export function featureSpellChanges(
         out.push({ target: 'preparedSpell', level: info.level, name: info.name, key, ...target, prepared, step, source: q.featureKey || 'feature', label: `${prepared ? 'Vorbereitet' : 'Zauberbuch'} (Grad ${info.level}): ${info.name}` });
       }
     }
+  }
+  return out;
+}
+
+/**
+ * Ein Change je Pool, der sich geändert hat — und nur für die ANGEBOTENEN: ein Pool außerhalb
+ * dieser Liste wurde nicht gezeigt, sein Bestand darf hier also nicht geschrieben werden.
+ */
+export function optionPoolChanges(
+  pools: readonly OptionPoolOffer[],
+  picks: readonly OptionPick[],
+  before: readonly OptionPick[],
+): Change[] {
+  const step: BuilderStep = 'declared-choices';
+  const out: Change[] = [];
+  for (const pool of pools) {
+    const mine = poolPicks(picks, pool.featureKey);
+    const was = poolPicks(before, pool.featureKey);
+    const same = mine.length === was.length && mine.every((p) => was.some((w) => w.value === p.value));
+    if (same) continue;
+    out.push({
+      target: 'optionPicks',
+      sourceKey: pool.featureKey,
+      values: mine.map((p) => ({ value: p.value, valueDe: p.valueDe })),
+      step,
+      source: pool.featureKey,
+      label: `${pool.titleDe}: ${mine.map((p) => p.valueDe || p.value).join(', ') || '—'}`,
+    });
   }
   return out;
 }

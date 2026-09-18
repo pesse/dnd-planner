@@ -18,6 +18,7 @@
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
   import SubclassChoiceStep from './levelUp/SubclassChoiceStep.svelte';
   import QuestionsPanel from './levelUp/QuestionsPanel.svelte';
+  import OptionPoolPanel from './levelUp/OptionPoolPanel.svelte';
   import PlayerDecisionsPanel from './levelUp/PlayerDecisionsPanel.svelte';
   import FeatChoicePanel from './levelUp/FeatChoicePanel.svelte';
   import ClassFeaturesPanel from './levelUp/ClassFeaturesPanel.svelte';
@@ -88,7 +89,10 @@
 
   {#if isPausedAt(st.run, 'feature-choices')}
     <p class="hint">Wahl(en) der neuen Merkmale — Optionen und Wirkung stehen in der Bibliothek, hier wird nur ausgewählt.</p>
-    <QuestionsPanel {ui} list={ui.choices.baseChoiceQs} />
+    {#if ui.choices.baseChoiceQs.length}
+      <QuestionsPanel {ui} list={ui.choices.baseChoiceQs} />
+    {/if}
+    <OptionPoolPanel {ui} />
   {/if}
 
   {#if isPausedAt(st.run, 'feat-choices')}

@@ -62,6 +62,7 @@ export interface DeclaredFeature extends DeclarationFields {
   name: string;
   nameDe?: string;
   desc?: string;
+  descDe?: string;
   source: FeatureSource;
 }
 

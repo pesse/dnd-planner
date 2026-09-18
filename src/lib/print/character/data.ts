@@ -9,7 +9,7 @@ import { loadSpellcasting, type LoadedSpellcasting } from '$lib/services/spellca
 import { groupedSpellcasting, type GroupedSpellcasting } from '$lib/services/spellcasting/grouped';
 import { masteryOffer, type MasteryOffer } from '$lib/services/weaponMastery';
 import { optionPoolOffers, type OptionPoolOffer } from '$lib/services/declaration/optionPool';
-import { getProgressionByKey, levelColumns } from '$lib/services/classProgression';
+import { getProgressionByKey, levelColumns, levelTables } from '$lib/services/classProgression';
 import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
@@ -94,7 +94,10 @@ async function classValues(c: Character): Promise<ClassValues[]> {
     if (!cls.sourceKey) continue;
     const prog = await getProgressionByKey(cls.sourceKey).catch(() => null);
     if (!prog) continue;
-    const tracks = valueTracks(levelColumns(prog, cls.level));
+    const sub = cls.subclassKey ? await getProgressionByKey(cls.subclassKey).catch(() => null) : null;
+    // Späterer Eintrag gewinnt, die Kette steht spezifisch zuerst — deshalb rückwärts.
+    const columns = Object.assign({}, ...levelTables(prog, sub).reverse().map((p) => levelColumns(p, cls.level)));
+    const tracks = valueTracks(columns);
     if (tracks.length) out.push({ className: cls.name || prog.nameDe || prog.name, tracks });
   }
   return out;

@@ -28,6 +28,7 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Proficiency Bonus': skip,
   'Weapon Mastery': skip,
   'Eldritch Invocations': skip,
+  'Maneuvers Known': skip,
 
   Rages: { kind: 'count', labelDe: 'Kampfrausch' },
   'Sorcery Points': { kind: 'count', labelDe: 'Zauberpunkte' },
@@ -37,6 +38,7 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   // 2024 ist das die Zahl der Jägermal-Einsätze pro langer Rast, kein Gegnertyp.
   'Favored Enemy': { kind: 'count', labelDe: 'Erzfeind' },
   'Wild Shape': { kind: 'count', labelDe: 'Tiergestalt' },
+  'Superiority Dice': { kind: 'count', labelDe: 'Überlegenheitswürfel' },
 
   'Rage Damage': { kind: 'value', labelDe: 'Rauschschaden' },
   'Sneak Attack': { kind: 'value', labelDe: 'Hinterhältiger Angriff' },

@@ -131,16 +131,25 @@ export const ARTISAN_TOOL_INDEXES = [
 ] as const;
 
 /**
- * Für die Stellen, an denen die Regel keine Wahl trifft („Handwerkszeug deiner Wahl").
- * Instrumente hängen am `index`-Präfix, Handwerkszeuge an `ARTISAN_TOOL_INDEXES`.
+ * Der EINE Schnitt durch `items/tools/` — Startausrüstung und Werkzeug-Übung fragen dasselbe.
+ * Instrumente hängen am `index`-Präfix, Handwerkszeuge an `ARTISAN_TOOL_INDEXES`, und ohne
+ * Kategorie („ein Werkzeug deiner Wahl") steht der ganze Ordner zur Wahl.
  */
-export async function getToolChoices(category: EquipmentChoiceCategory): Promise<ItemInfo[]> {
-  const tools = await getItemsByDir('tools').catch(() => []);
-  const match = (i: ItemInfo) =>
+export function toolsOfCategory<T extends { index?: string }>(
+  tools: readonly T[],
+  category: '' | EquipmentChoiceCategory,
+): T[] {
+  if (!category) return [...tools];
+  return tools.filter((i) =>
     category === 'instrument'
       ? (i.index ?? '').startsWith('musical-instrument-')
-      : (ARTISAN_TOOL_INDEXES as readonly string[]).includes(i.index ?? '');
-  return tools.filter(match).sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
+      : (ARTISAN_TOOL_INDEXES as readonly string[]).includes(i.index ?? ''));
+}
+
+/** Für die Stellen, an denen die Regel keine Wahl trifft („Handwerkszeug deiner Wahl"). */
+export async function getToolChoices(category: '' | EquipmentChoiceCategory): Promise<ItemInfo[]> {
+  const tools = await getItemsByDir('tools').catch(() => []);
+  return toolsOfCategory(tools, category).sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
 }
 
 const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {

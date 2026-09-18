@@ -10,7 +10,7 @@ import { getFeats } from '../../src/lib/featsLibrary';
 import { CLASS_RESOURCE_COLUMNS } from '../../src/lib/domain/classResources';
 import type { ClassProgression } from '../../src/lib/schemas/classProgression';
 import type { ResourceGrant } from '../../src/lib/schemas/resource';
-import { getProgressionByKey } from '../../src/lib/services/classProgression';
+import { getProgressionByKey, levelTables } from '../../src/lib/services/classProgression';
 import { resolveResources } from '../../src/lib/services/resources/resolve';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { libraryKey } from '../support/libraryKey';
@@ -19,8 +19,8 @@ import { vaultCharacter } from '../support/vaultCharacter';
 interface Declaration {
   key: string;
   grantsResource: ResourceGrant;
-  /** Nur bei Klassenmerkmalen: die Tabelle, aus der `max.column` liest. */
-  table: ClassProgression | null;
+  /** Nur bei Klassenmerkmalen: die Tabellen, aus denen `max.column` liest. */
+  tables: ClassProgression[];
 }
 
 let cached: Declaration[] | null = null;
@@ -32,18 +32,19 @@ async function declarations(): Promise<Declaration[]> {
   for (const info of await getClasses()) {
     const prog = await getProgressionByKey(libraryKey(info));
     if (!prog) continue;
-    const table = prog.subclassOf ? await getProgressionByKey(prog.subclassOf) : prog;
+    const base = prog.subclassOf ? await getProgressionByKey(prog.subclassOf) : null;
+    const tables = prog.subclassOf ? levelTables(base, prog) : levelTables(prog);
     for (const f of prog.features)
-      if (f.grantsResource) out.push({ key: f.key, grantsResource: f.grantsResource, table });
+      if (f.grantsResource) out.push({ key: f.key, grantsResource: f.grantsResource, tables });
   }
   for (const info of await getSpeciesList()) {
     const spec = await getSpeciesByKey(libraryKey(info));
     for (const t of spec?.traits ?? [])
-      if (t.grantsResource) out.push({ key: t.key, grantsResource: t.grantsResource, table: null });
+      if (t.grantsResource) out.push({ key: t.key, grantsResource: t.grantsResource, tables: [] });
   }
   for (const feat of await getFeats())
     if (feat.grantsResource)
-      out.push({ key: feat.sourceKey ?? '', grantsResource: feat.grantsResource, table: null });
+      out.push({ key: feat.sourceKey ?? '', grantsResource: feat.grantsResource, tables: [] });
 
   cached = out;
   return out;
@@ -95,7 +96,7 @@ describe('grantsResource im Vault', () => {
 
   it('nennt nur Spalten, die die Klassentabelle führt', async () => {
     for (const d of await declarations()) {
-      const columns = d.table ? columnNames(d.table) : new Set<string>();
+      const columns = new Set(d.tables.flatMap((p) => [...columnNames(p)]));
       for (const pool of d.grantsResource.pools) {
         const wanted =
           pool.shape.kind === 'slots'
@@ -125,6 +126,32 @@ describe('grantsResource im Vault', () => {
         const owner = byKey.get(feature || d.key);
         expect(owner?.grantsResource.pools.map((p) => p.id) ?? [], `${d.key} → ${feature}/${pool}`).toContain(pool);
       }
+  });
+});
+
+/**
+ * Die Kette aus `levelTables`, am einzigen Vault-Fall: die Kämpfertabelle führt keine
+ * Überlegenheitswürfel, die des Kampfmeisters schon.
+ */
+describe('Stufentabelle einer Subklasse', () => {
+  const fighter = (level: number) =>
+    ({
+      classes: [{ sourceKey: 'srd-2024_fighter', subclassKey: 'phb-2024_battle-master', level }],
+    }) as Parameters<typeof resolveResources>[0];
+
+  it('speist den Vorrat ihres eigenen Merkmals', async () => {
+    for (const [level, max] of [[3, 4], [6, 4], [7, 5], [14, 5], [15, 6], [20, 6]]) {
+      const { pools, issues } = await resolveResources(fighter(level));
+      const dice = pools.find((p) => p.featureKey.endsWith('_combat-superiority'));
+      expect([level, dice?.max[0], dice?.recharge], `Stufe ${level}`).toEqual([level, max, 'short-rest']);
+      expect(issues, `Stufe ${level}`).toEqual([]);
+    }
+  });
+
+  it('lässt die geerbten Spalten der Grundklasse stehen', async () => {
+    const { pools } = await resolveResources(fighter(7));
+    const secondWind = pools.find((p) => p.featureKey.endsWith('_second-wind'));
+    expect(secondWind?.max[0]).toBe(3);
   });
 });
 

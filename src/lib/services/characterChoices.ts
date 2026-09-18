@@ -31,7 +31,7 @@ import {
 } from './declaration/skillProficiency';
 import { languageChoice, languageChoiceId, languageRider } from './declaration/languages';
 import {
-  toolProficiencyChoice, toolProficiencyChoiceId, toolProficiencyRider,
+  toolProficiencyChoice, toolProficiencyChoiceId, toolProficiencyRider, type ToolItem,
 } from './declaration/toolProficiency';
 import {
   abilityIncreaseChoice, abilityIncreaseChoiceId, abilityIncreaseOptions, abilityIncreaseRider,
@@ -239,7 +239,7 @@ export async function collectChoiceSlots(c: {
  */
 export function buildCharacterChoices(
   slots: ChoiceSlot[],
-  ctx: { proficient: readonly string[]; ledger: CharacterFeatureEntry[] },
+  ctx: { proficient: readonly string[]; ledger: CharacterFeatureEntry[]; tools?: readonly ToolItem[] },
 ): CharacterChoice[] {
   const used = new Set<number>();
   const entryOf = slots.map(() => -1);
@@ -297,7 +297,7 @@ export function buildCharacterChoices(
         // ihren eigenen Optionen.
         case 'skillProficiency': return skillProficiencyChoice(slot.declared!, ctx.proficient, answer);
         case 'languages': return languageChoice(slot.declared!);
-        case 'tools': return toolProficiencyChoice(slot.declared!);
+        case 'tools': return toolProficiencyChoice(slot.declared!, ctx.tools ?? []);
         case 'property': return characterPropertyChoice(slot.declared!);
         case 'abilityIncrease': return abilityIncreaseChoice(slot.declared!);
         case 'optionList': return optionListChoice(slot.declared!);

@@ -61,6 +61,8 @@ export const NO_ANSWERS: SourceAnswers = { values: [], specialisation: '' };
 
 export interface CarrierClass {
   prog: ClassProgression;
+  /** Die Subklasse desselben Eintrags — ihre Stufentabelle gilt vor der der Grundklasse. */
+  sub: ClassProgression | null;
   level: number;
   /** Aus der Klasse — bei Drittel-Zauberwirkern aus der SUBklasse (Arkaner Ritter). */
   casterType: string;
@@ -192,7 +194,7 @@ async function classCarriers(
 
     // Drittel-Zauberwirker deklarieren an der Subklasse; die Stufentabelle bleibt die der Grundklasse.
     const casterType = prog.casterType !== 'NONE' ? prog.casterType : (sub?.casterType ?? 'NONE');
-    out.push({ prog, level, casterType });
+    out.push({ prog, sub, level, casterType });
 
     const place = { level, classKey: cls.sourceKey };
     collect(featuresUpTo(prog, level), { ...place, origin: 'class' }, answersOf, used, into);
