@@ -15,9 +15,12 @@ import {
   declaredSpellGrants,
   isSpellGrantFeature,
   parseSpellGrantRows,
+  quotaReadsDescTable,
   unreadableSpellGrant,
   withoutSpellGrantFeatures,
 } from '../../src/lib/services/grantedSpells';
+import { resolveDeclaredSpells } from '../../src/lib/services/levelUp/spells';
+import { getSpellLibrary } from '../../src/lib/spellLibrary';
 import {
   CIRCLE_OF_LAND_KEY,
   EXPECTED_CIRCLE_SPELLS,
@@ -53,6 +56,28 @@ describe('deklarierte Zauberlisten (Kreissprüche & Co.)', () => {
     // gegen das Abschreiben ganzer Tabellen durch das Modell lief).
     const lvl3 = declaredSpellGrants(fs, 3);
     expect(TOO_HIGH_CIRCLE_SPELLS.filter((s) => lvl3.includes(s))).toEqual([]);
+  });
+
+  /**
+   * Dieselbe Tabelle wird zweimal gelesen: hier und von der Quota (`pool.fromDescTable`).
+   * Gewährt wird über die QUELLE — daneben gewährt, läge jeder Zauber ohne `sourceId` ein
+   * zweites Mal im quellenlosen Bestand.
+   */
+  it('überlässt die Gewährung der Quota, die dieselbe Tabelle liest', async () => {
+    const fs = await features(CIRCLE_OF_LAND_KEY);
+    const lib = await getSpellLibrary();
+    expect(fs.filter(quotaReadsDescTable).map((f) => f.key))
+      .toEqual(['srd-2024_druid_circle-of-the-land_spell-list']);
+
+    // Lesbar bleibt sie — sie gewährt nur nicht mehr hier.
+    expect(declaredSpellGrants(fs, 3)).toEqual(LAND_LEVEL3);
+    const covered = resolveDeclaredSpells(fs, 5, lib);
+    expect([...covered.cantrips, ...covered.prepared]).toEqual([]);
+
+    const withoutQuota = fs.map((f) => ({ ...f, grantsCasting: undefined }));
+    const granted = resolveDeclaredSpells(withoutQuota, 3, lib);
+    expect(granted.cantrips.length + granted.prepared.length).toBe(LAND_LEVEL3.length);
+    expect(granted.flagged).toEqual([]);
   });
 
   it('erkennt dieselbe Struktur bei Domäne, Eid, Patron und Drachenblut', async () => {

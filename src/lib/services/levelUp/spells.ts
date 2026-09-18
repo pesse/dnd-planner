@@ -7,6 +7,7 @@ import type { Change, FeatureRider } from '../../schemas/levelUp';
 import type { LevelUpDelta } from '../levelUp';
 import {
   declaredSpellGrants,
+  quotaReadsDescTable,
   unreadableSpellGrant,
   type SpellGrantSource,
 } from '../grantedSpells';
@@ -39,13 +40,17 @@ export function resolveDeclaredSpells(
   library: SpellInfo[],
   klasseName = '',
 ): DeclaredSpells {
+  // Liest eine Quota dieselbe Tabelle, gewährt die QUELLE — daneben gewährt, läge derselbe
+  // Zauber ohne `sourceId` ein zweites Mal im quellenlosen Bestand. Die Unlesbar-Meldung
+  // gehört dann ebenfalls dorthin (`castingIssue('unreadableSpellTable')`).
+  const own = features.filter((f) => !quotaReadsDescTable(f));
   const out = noDeclaredSpells();
-  for (const f of features) {
+  for (const f of own) {
     if (!unreadableSpellGrant(f)) continue;
     const label = f.nameDe?.trim() || f.name?.trim() || '';
     if (label && !out.unreadable.includes(label)) out.unreadable.push(label);
   }
-  return resolveSpellNames(declaredSpellGrants(features, classLevel), library, klasseName, out);
+  return resolveSpellNames(declaredSpellGrants(own, classLevel), library, klasseName, out);
 }
 
 /**

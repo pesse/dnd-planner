@@ -80,7 +80,11 @@ export const choiceOptionSchema = z.object({
   spells: z
     .array(optionSpellRowSchema)
     .default([])
-    .describe('Benannte Zauber dieser Option je Stufe (Elfenabstammung 1/3/5). Leer = die Option gewährt keine.'),
+    .describe(
+      'Benannte Zauber dieser Option je Stufe (Elfenabstammung 1/3/5). Leer = die Option gewährt keine. '
+      + 'Eine grantsCasting-Quota mit when.option gewährt dieselben Zauber besser (mit Zauberwerten und Wirkweg) '
+      + 'und hat Vorrang — dann bleibt dieses Feld wirkungslos.',
+    ),
 });
 export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
 

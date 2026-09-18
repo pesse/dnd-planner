@@ -713,8 +713,21 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
     expect(f.grantsChoice?.flatMap((g) => g.options).map((o) => o.value)).toEqual(['Drow', 'High Elf', 'Wood Elf']);
   });
 
-  it('staffelt die Zauber des gewählten Zweigs über die Stufen', async () => {
+  /**
+   * Die Abstammung deklariert ihre Zauber zweimal: als `options[].spells` und als Quota je
+   * Zweig. Die Quota gewinnt — sie gewährt mit Zauberwerten und Wirkweg, während der Rider
+   * sie ohne `sourceId` in den quellenlosen Bestand legte (beides zusammen = Dublette).
+   */
+  it('überlässt die Zauber der Quota, die der Zweig einschaltet', async () => {
     const f = await lineage();
+    expect(optionActivatesQuota(f, 'High Elf')).toBe(true);
+    expect(optionListRider(optionRef(f), 'High Elf', 5)?.grantedSpells ?? []).toEqual([]);
+    expect(optionSpellNames([f], () => 'Wood Elf', 5)).toEqual([]);
+  });
+
+  /** Ohne Quota bleibt der Options-Weg die Gewährung — gestaffelt wie die Tabelle im Regeltext. */
+  it('staffelt die Zauber des gewählten Zweigs über die Stufen, wo keine Quota sie führt', async () => {
+    const f = { ...(await lineage()), grantsCasting: undefined };
     expect(optionListRider(optionRef(f), 'High Elf', 1)?.grantedSpells).toEqual(['Prestidigitation']);
     expect(optionListRider(optionRef(f), 'High Elf', 3)?.grantedSpells).toEqual(['Prestidigitation', 'Detect Magic']);
     expect(optionListRider(optionRef(f), 'High Elf', 5)?.grantedSpells)
@@ -724,7 +737,7 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
   });
 
   it('liest die Stufen 3 und 5 später aus der gespeicherten Antwort', async () => {
-    const f = await lineage();
+    const f = { ...(await lineage()), grantsCasting: undefined };
     expect(optionSpellNames([f], () => 'Wood Elf', 1)).toEqual(['Druidcraft']);
     expect(optionSpellNames([f], () => 'Wood Elf', 5))
       .toEqual(['Druidcraft', 'Longstrider', 'Pass without Trace']);

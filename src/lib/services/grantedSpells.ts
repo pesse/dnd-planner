@@ -4,6 +4,7 @@
  * GELESEN statt in den Vault kopiert — eine zweite Fassung liefe beim Re-Import auseinander.
  */
 
+import type { CastingGrant } from '$lib/schemas/casting';
 import type { SpellGrant } from '$lib/schemas/grants';
 
 export interface SpellGrantRow {
@@ -48,6 +49,8 @@ export function parseSpellGrantRows(desc: string): SpellGrantRow[] {
 export interface SpellGrantSource {
   desc?: string;
   grantsSpells?: SpellGrant;
+  /** Nur zur Abgrenzung gelesen — `quotaReadsDescTable`. */
+  grantsCasting?: CastingGrant;
 }
 
 /**
@@ -66,6 +69,14 @@ export function unreadableSpellGrant(f: SpellGrantSource): boolean {
   if (!f.grantsSpells && !ALWAYS_PREPARED.test(desc)) return false;
   return parseSpellGrantRows(desc).length === 0;
 }
+
+/**
+ * Ob eine Quota DIESELBE Tabelle liest (`pool.fromDescTable`). Dann gewährt die Quelle die
+ * Zauber mit Werten und Wirkweg, und wer sie hier noch einmal gewährt, legt sie ohne
+ * `sourceId` ein zweites Mal in den quellenlosen Bestand (`applyChanges.addSpell`).
+ */
+export const quotaReadsDescTable = (f: SpellGrantSource): boolean =>
+  !!f.grantsCasting?.quotas.some((q) => q.pool.fromDescTable);
 
 /** Kumulativ: „für deine Stufe und niedriger", englisch und dedupliziert. */
 export function declaredSpellGrants(features: SpellGrantSource[], classLevel: number): string[] {

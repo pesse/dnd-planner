@@ -164,7 +164,7 @@ export function optionActivatesQuota(f: DeclaredChoiceSource, optionValue: strin
 /**
  * Die Quota ist die Senke der Zauber-Zahlen: schaltet die Option eine ein, zählt sie dort —
  * ein Rider daneben zählte dasselbe ein zweites Mal (`grantsCasting` ist erst nach dieser
- * Deklarationsart dazugekommen). Alles Übrige der Option bleibt.
+ * Deklarationsart dazugekommen). Alles Übrige der `grants` bleibt.
  */
 const withoutQuotaCounts = (grants: FeatureGrant): FeatureGrant =>
   ({ ...grants, extraCantrips: 0, extraPreparedCount: 0 });
@@ -177,7 +177,7 @@ const withoutQuotaCounts = (grants: FeatureGrant): FeatureGrant =>
 export function optionListRider(r: DeclaredChoiceRef, answer: string, level: number): FeatureRider | null {
   const option = chosenOptionOf(r, answer);
   if (!option) return null;
-  const spells = optionSpellsUpTo(option, level);
+  const spells = optionSpellsUpTo(r.feature, option, level);
   const grants =
     option.grants && optionActivatesQuota(r.feature, option.value) ? withoutQuotaCounts(option.grants) : option.grants;
   const declaresGrant = !!grants && !isEmptyFeatureGrant(grants);
@@ -189,8 +189,12 @@ export function optionListRider(r: DeclaredChoiceRef, answer: string, level: num
 /**
  * Kumulativ wie die Stufentabelle. Höhere Zeilen kommen beim Aufstieg dazu, deshalb liest
  * `optionSpellNames` sie später über die GESPEICHERTE Antwort noch einmal.
+ *
+ * Schaltet die Option eine Quota ein, gewährt die QUELLE die Zauber — mit Zauberwerten und
+ * Wirkweg. Hier gewährt, lägen sie ohne `sourceId` ein zweites Mal im quellenlosen Bestand.
  */
-function optionSpellsUpTo(option: ChoiceOption, level: number): string[] {
+function optionSpellsUpTo(f: DeclaredChoiceSource, option: ChoiceOption, level: number): string[] {
+  if (optionActivatesQuota(f, option.value)) return [];
   const out: string[] = [];
   for (const row of option.spells) {
     if (row.level > level) continue;
@@ -212,7 +216,7 @@ export function optionSpellNames(
   for (const f of features) {
     const option = chosenOption(f, answerOf(f));
     if (!option) continue;
-    for (const name of optionSpellsUpTo(option, level)) if (!out.includes(name)) out.push(name);
+    for (const name of optionSpellsUpTo(f, option, level)) if (!out.includes(name)) out.push(name);
   }
   return out;
 }
