@@ -31,6 +31,7 @@ function sanitize(node: unknown): unknown {
     delete obj['$schema'];
     for (const key of Object.keys(obj)) obj[key] = sanitize(obj[key]);
     collapseNullableAnyOf(obj);
+    dropIntegerRange(obj);
     if (obj.type === 'object' && obj.properties && obj.additionalProperties === undefined) {
       obj.additionalProperties = false;
     }
@@ -56,4 +57,17 @@ function collapseNullableAnyOf(obj: Record<string, unknown>): void {
   for (const [k, v] of Object.entries(other)) {
     if (k !== 'type' && obj[k] === undefined) obj[k] = v;
   }
+}
+
+/**
+ * `z.number().int().min(1)` ergibt `{ type: 'integer', minimum: 1 }` — Anthropics
+ * Structured-Outputs lehnt den Request damit mit 400 ab („For 'integer' type, properties
+ * maximum, minimum are not supported"). Die Schranke bleibt im Zod-Schema und greift beim
+ * Parsen der Antwort; nur die Ausgabe hierher verliert sie.
+ */
+function dropIntegerRange(obj: Record<string, unknown>): void {
+  const type = obj.type;
+  const isInteger = type === 'integer' || (Array.isArray(type) && type.includes('integer'));
+  if (!isInteger) return;
+  for (const key of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']) delete obj[key];
 }
