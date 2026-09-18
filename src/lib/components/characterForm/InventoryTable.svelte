@@ -134,6 +134,17 @@
     if (data) attacks.push(buildAttackFromWeapon(data, attackCtx));
   }
 
+  function removeLine(i: number) {
+    const lib = libItemOf(inventory[i]);
+    const stillOwned = lib && inventory.some((line, j) => j !== i && libItemOf(line)?.key === lib.key);
+    if (lib?.category === 'weapon' && !stillOwned) {
+      const at = attackIndexOf(attacks, attackRefOf(lib));
+      if (at >= 0) attacks.splice(at, 1);
+    }
+    inventory.splice(i, 1);
+    editingRow = -1;
+  }
+
 </script>
 
 <table class="inv-table">
@@ -221,7 +232,7 @@
           onchange={(e) => { item.equipped = e.currentTarget.checked || undefined; }} /></td>
         <td class="inv-flag-cell">{#if lib?.attunement}<input type="checkbox" checked={item.attuned ?? false}
           onchange={(e) => { item.attuned = e.currentTarget.checked || undefined; }} />{/if}</td>
-        <td><button class="remove-btn" onclick={() => { inventory.splice(i, 1); editingRow = -1; }}>✕</button></td>
+        <td><button class="remove-btn" onclick={() => removeLine(i)}>✕</button></td>
       </tr>
     {/each}
   </tbody>
