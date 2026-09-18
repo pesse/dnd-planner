@@ -1,7 +1,7 @@
 /**
  * Die Attributserhöhung EINES Merkmals: `grants.abilities` legt sie fest,
  * `grantsChoice.kind === 'abilityIncrease'` stellt das Attribut zur Wahl. Nicht gemeint ist die
- * Erhöhung der Stufentabelle — die fragt der Aufstieg selbst (`asi_ability*`).
+ * Erhöhung der Stufentabelle — die fragt der Aufstieg selbst (`levelUp/asi.ts`).
  *
  * Anders als jede andere Grant-Art ist das Ziel ADDITIV: die Obergrenze reist deshalb bis zur
  * Senke mit, und die Senke ist beide Male dieselbe Funktion (`abilityIncreasesOf`).

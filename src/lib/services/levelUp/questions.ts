@@ -12,6 +12,7 @@ import { optionLabel, type AnalysisChoice } from '../analysis/types';
 import type { SpellGrantSource } from '../grantedSpells';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { learnInfo } from './spells';
+import { ASI_ABILITY_MAX, ASI_FEAT_VALUE, asiQuestionId, readAsiPick } from './asi';
 
 const opt = (value: string, label: string) => ({ value, label });
 const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQuestion['type']; prompt: string }): LevelUpQuestion => ({
@@ -45,18 +46,10 @@ export function buildDecisions(
 
   for (let i = 1; i <= delta.asiCount; i++) {
     qs.push(baseQuestion({
-      id: `asi_or_feat_${i}`, type: 'choice',
-      prompt: delta.asiCount > 1 ? `Attributsverbesserung ${i}: Werte erhöhen oder Talent?` : 'Attributsverbesserung: Werte erhöhen oder Talent?',
-      options: [opt('asi', 'Attributswerte erhöhen'), opt('feat', 'Talent wählen')], defaultValue: 'asi',
-    }));
-    qs.push(baseQuestion({
-      id: `asi_ability1_${i}`, type: 'choice', prompt: 'Attribut A (bei „Werte erhöhen")',
-      help: 'Erhält +2 (wenn B leer) bzw. +1.', required: false,
-      options: ABILITY_KEYS.map((k) => opt(k, ABILITY_LABEL[k])), defaultValue: 'con',
-    }));
-    qs.push(baseQuestion({
-      id: `asi_ability2_${i}`, type: 'choice', prompt: 'Attribut B (optional, für +1/+1)', required: false,
-      options: [opt('none', '— (nur +2 auf A)'), ...ABILITY_KEYS.map((k) => opt(k, ABILITY_LABEL[k]))], defaultValue: 'none',
+      id: asiQuestionId(i), type: 'ability-boost',
+      prompt: delta.asiCount > 1 ? `Attributsverbesserung ${i}` : 'Attributsverbesserung',
+      help: `Höchstens ${ASI_ABILITY_MAX} je Attribut.`,
+      options: [opt(ASI_FEAT_VALUE, 'Talent'), ...ABILITY_KEYS.map((k) => opt(k, ABILITY_LABEL[k]))],
     }));
   }
 
@@ -122,6 +115,6 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
 
 export function countFeatsToPick(delta: LevelUpDelta, answers: Record<string, string | string[]>): number {
   let n = 0;
-  for (let i = 1; i <= delta.asiCount; i++) if (answers[`asi_or_feat_${i}`] === 'feat') n++;
+  for (let i = 1; i <= delta.asiCount; i++) if (readAsiPick(answers[asiQuestionId(i)])?.kind === 'feat') n++;
   return n;
 }

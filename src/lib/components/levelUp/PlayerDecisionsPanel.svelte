@@ -1,6 +1,7 @@
 <script lang="ts">
   import './levelUp.css';
   import SpellPickField from '../SpellPickField.svelte';
+  import AbilityBoostField from './AbilityBoostField.svelte';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
@@ -15,7 +16,9 @@
     <div class="row">
       <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
       {#if q.help}<span class="field-hint">{q.help}</span>{/if}
-      {#if q.type === 'choice'}
+      {#if q.type === 'ability-boost'}
+        <AbilityBoostField {ui} {q} />
+      {:else if q.type === 'choice'}
         <select class="select" value={st.answers[q.id] as string} onchange={(e) => ui.setIn(q.id, (e.target as HTMLSelectElement).value)}>
           {#each q.options as opt}<option value={opt.value}>{opt.label}</option>{/each}
         </select>

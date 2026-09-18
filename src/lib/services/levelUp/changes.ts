@@ -24,10 +24,9 @@ import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { SpellGrantSource } from '../grantedSpells';
 import { answerLabels, answerValues, recordsChoice } from './answers';
+import { ASI_ABILITY_MAX, asiIncrements, asiQuestionId } from './asi';
 import type { StepId } from './steps';
 import { declaredSpellChanges, learnInfo, type DeclaredSpells, type ValidatedRiders } from './spells';
-
-const isAbility = (v: unknown): v is AbilityKey => typeof v === 'string' && (ABILITY_KEYS as readonly string[]).includes(v);
 
 function bumpHitDice(current: string, die: number, add: number, toLevel: number): string {
   if (!die) return current;
@@ -54,13 +53,8 @@ const zeroAbil = (): AbilityMap => ({ str: 0, dex: 0, con: 0, int: 0, wis: 0, ch
 
 function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string | string[]>): AbilityMap {
   const abil = zeroAbil();
-  for (let i = 1; i <= delta.asiCount; i++) {
-    if (answers[`asi_or_feat_${i}`] !== 'asi') continue;
-    const a1 = answers[`asi_ability1_${i}`];
-    const a2 = answers[`asi_ability2_${i}`];
-    if (isAbility(a1) && isAbility(a2) && a2 !== a1) { abil[a1] += 1; abil[a2] += 1; }
-    else if (isAbility(a1)) abil[a1] += 2;
-  }
+  for (let i = 1; i <= delta.asiCount; i++)
+    for (const inc of asiIncrements(answers[asiQuestionId(i)])) abil[inc.ability] += inc.value;
   return abil;
 }
 
@@ -197,7 +191,7 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
 
   const abil = abilityFromAnswers(delta, answers);
   for (const k of ABILITY_KEYS) if (abil[k])
-    out.push({ target: 'ability', ability: k, value: abil[k], step, source: 'asi', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
+    out.push({ target: 'ability', ability: k, value: abil[k], max: ASI_ABILITY_MAX, step, source: 'asi', label: `${ABILITY_LABEL[k]} ${abil[k] > 0 ? '+' : ''}${abil[k]}` });
 
   const cantripTarget = delta.cantripTarget ?? {};
   for (const s of p.pickedCantrips)

@@ -11,6 +11,8 @@ import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrar
 import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '$lib/schemas/levelUp';
 import { searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import { type Character } from '$lib/schemas/characterSchema';
+import { type AbilityKey } from '$lib/schemas/abilities';
+import { cappedScore } from '$lib/services/declaration/abilityIncrease';
 import { SPELL_SCHOOLS } from '$lib/types';
 
 export const SCHOOL_KEYS = Object.keys(SPELL_SCHOOLS);
@@ -96,6 +98,22 @@ export class LevelUpAssistantUi {
     let nextArr = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
     if (max && nextArr.length > max) nextArr = nextArr.slice(nextArr.length - max);
     this.st.answers[id] = nextArr;
+  }
+
+  setList(id: string, values: string[]): void {
+    this.st.answers[id] = values;
+  }
+
+  /**
+   * Der Bogenwert plus allem, was dieser Aufstieg VOR der Tabellen-Verbesserung schon erhöht —
+   * sonst zeigte das Vorher/Nachher eine Erhöhung des Merkmals ein zweites Mal als offen an.
+   */
+  abilityBefore(ability: AbilityKey): number {
+    const base = this.#getCharacter().abilities[ability] ?? 10;
+    return this.#run.doc.changes.reduce(
+      (score, c) => (c.target === 'ability' && c.ability === ability && c.source !== 'asi' ? cappedScore(score, c.value, c.max) : score),
+      base,
+    );
   }
 
   answerList(id: string): string[] {

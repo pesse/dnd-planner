@@ -9,7 +9,7 @@ import { toLlmJsonSchema } from './llmJson';
 import { ABILITY_KEYS, ABILITY_NAMES, abilityModsSchema } from './abilities';
 import { ARMOR_TRAININGS, MONSTER_SIZE_KEYS, SKILL_NAMES, SPELL_SCHOOL_KEYS, WEAPON_CATEGORIES } from './vocabulary';
 
-export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll'] as const;
+export const QUESTION_TYPES = ['choice', 'multiselect', 'number', 'text', 'spell-picker', 'hp-roll', 'ability-boost'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 const questionOptionSchema = z.object({
@@ -18,7 +18,7 @@ const questionOptionSchema = z.object({
 });
 
 const questionSchema = z.object({
-  id: z.string().describe('Stable key, e.g. "subclass" | "hp_method" | "hp_roll" | "asi_or_feat" | "asi_dist" | "cantrips" | "q1".'),
+  id: z.string().describe('Stable key, e.g. "subclass" | "hp_method" | "hp_roll" | "asi_or_feat_1" | "cantrips" | "q1".'),
   type: z.enum(QUESTION_TYPES),
   prompt: z.string().describe('GERMAN, user-facing question.'),
   help: z.string().default('').describe('GERMAN, optional one-line explanation.'),
