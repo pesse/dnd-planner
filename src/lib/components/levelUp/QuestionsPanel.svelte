@@ -5,6 +5,7 @@
   import type { LevelUpAssistantUi } from './assistantState.svelte';
   import SpellPickField from '../SpellPickField.svelte';
   import FeatureChoicePicker from '../FeatureChoicePicker.svelte';
+  import Markdown from '../Markdown.svelte';
 
   let { ui, list }: { ui: LevelUpAssistantUi; list: LevelUpQuestion[] } = $props();
   const st = $derived(ui.st);
@@ -31,7 +32,7 @@
         {#if note}
           <details class="q-note" open>
             <summary>{note.titleDe}</summary>
-            <p>{note.text}</p>
+            <Markdown source={note.text} />
           </details>
         {/if}
         {#if q.type === 'number'}
@@ -61,5 +62,5 @@
 <style>
   .q-note { font-size: 0.72rem; color: var(--ink-muted); margin: 0.2rem 0; }
   .q-note summary { color: var(--copper); cursor: pointer; }
-  .q-note p { margin: 0.25rem 0 0; white-space: pre-line; }
+  .q-note :global(.md) { margin-top: 0.25rem; }
 </style>

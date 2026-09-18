@@ -8,6 +8,7 @@
    * blendet die Tönung selbst ein — eine `use:diffMark` des Aufrufers griffe hier nicht.
    */
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
+  import Markdown from './Markdown.svelte';
   import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
   import type { FeatureNote } from '../services/featureText';
   import type { DiffDir } from '../utils/diffHighlight';
@@ -74,7 +75,7 @@
   {#if note}
     <details class="ch-note" open>
       <summary>{note.titleDe}</summary>
-      <p>{note.text}</p>
+      <Markdown source={note.text} />
     </details>
   {/if}
 
@@ -126,7 +127,7 @@
   .ch-head { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
   .ch-note { font-size: 0.72rem; color: var(--ink-muted); }
   .ch-note summary { color: var(--copper); cursor: pointer; }
-  .ch-note p { margin: 0.25rem 0 0; white-space: pre-line; }
+  .ch-note :global(.md) { margin-top: 0.25rem; }
   .ch-label { font-size: 0.74rem; color: var(--copper); }
   .choice.open .ch-label { color: var(--gold); }
   .ch-lvl, .ch-count { font-size: 0.7rem; color: var(--ink-muted); }

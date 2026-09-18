@@ -8,6 +8,7 @@
   import { textWithoutOptions } from '$lib/services/featureText';
   import { poolPicks } from '$lib/services/declaration/optionPool';
   import OptionPoolPicker from '../OptionPoolPicker.svelte';
+  import Markdown from '../Markdown.svelte';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
@@ -31,7 +32,7 @@
         {#if note}
           <details class="p-note" {open}>
             <summary>Regeltext</summary>
-            <p>{note}</p>
+            <Markdown source={note} />
           </details>
         {/if}
       </div>
@@ -44,5 +45,5 @@
   .pool { display: flex; flex-direction: column; gap: 0.25rem; }
   .p-note { font-size: 0.72rem; color: var(--ink-muted); }
   .p-note summary { color: var(--copper); cursor: pointer; }
-  .p-note p { margin: 0.25rem 0 0; white-space: pre-line; }
+  .p-note :global(.md) { margin-top: 0.25rem; }
 </style>

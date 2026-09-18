@@ -7,6 +7,8 @@
    */
   import type { OptionPick } from '../schemas/characterSchema';
   import { poolPicks, toggleOptionPick, type OptionPoolOffer } from '../services/declaration/optionPool';
+  import { createHoverTip } from '../utils/hoverTip.svelte';
+  import TextTooltip from './TextTooltip.svelte';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {
@@ -20,6 +22,9 @@
   } = $props();
 
   const mine = $derived(poolPicks(picks, offer.featureKey));
+
+  // Eigener Schwebe-Tooltip statt `title`: die Optionshilfe ist Markdown, das Attribut kann nur Text.
+  const tip = createHoverTip<string>();
 
   // Gewähltes, das die Deklaration nicht mehr anbietet — ANGEZEIGT statt still gekappt.
   const overflow = $derived(mine.filter((p) => !offer.options.some((o) => o.value === p.value)));
@@ -47,8 +52,10 @@
         class="opt"
         class:picked
         disabled={!picked && mine.length >= offer.allowance}
-        title={o.helpDe}
-        onclick={() => (picks = toggleOptionPick(picks, offer, o))}
+        onmouseenter={(e) => tip.show(e, o.helpDe || null)}
+        onmousemove={tip.move}
+        onmouseleave={tip.hide}
+        onclick={() => { picks = toggleOptionPick(picks, offer, o); tip.hide(); }}
       >{o.labelDe || o.value}</button>
     {/each}
   </div>
@@ -64,6 +71,8 @@
     </div>
   {/if}
 </div>
+
+<TextTooltip text={tip.data} x={tip.x} y={tip.y} />
 
 <style>
   .pool-panel {

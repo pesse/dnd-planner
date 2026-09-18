@@ -13,6 +13,7 @@
    * `string[]`, damit der Aufrufer nur einen Typ kennt.
    */
   import { createHoverTip } from '../utils/hoverTip.svelte';
+  import TextTooltip from './TextTooltip.svelte';
 
   let {
     options,
@@ -33,12 +34,6 @@
 
   let open = $state(false);
   const tip = createHoverTip<string>();
-  let winW = $state(1280);
-  let winH = $state(800);
-  let tipW = $state(0);
-  let tipH = $state(0);
-  const tipLeft = $derived(tip.x + tipW > winW ? Math.max(8, tip.x - tipW - 28) : tip.x);
-  const tipTop = $derived(Math.max(8, Math.min(tip.y, winH - tipH - 8)));
 
   const labelOf = (value: string) => options.find((o) => o.value === value)?.label ?? value;
   const triggerText = $derived(
@@ -61,8 +56,6 @@
     }
   }
 </script>
-
-<svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
 
 <div class="dropdown">
   <button
@@ -95,9 +88,7 @@
   {/if}
 </div>
 
-{#if tip.data}
-  <div class="opt-tooltip" style="left:{tipLeft}px;top:{tipTop}px" bind:clientWidth={tipW} bind:clientHeight={tipH}>{tip.data}</div>
-{/if}
+<TextTooltip text={tip.data} x={tip.x} y={tip.y} />
 
 <style>
   .dropdown { position: relative; }
@@ -123,11 +114,4 @@
   .dd-opt:hover { background: var(--surface); }
   .dd-opt.sel { color: var(--arcane, var(--gold)); font-weight: 600; }
   .dd-check { flex: 0 0 auto; }
-  .opt-tooltip {
-    position: fixed; z-index: 9999; pointer-events: none;
-    background: var(--bg-panel); color: var(--ink);
-    border: 1px solid var(--border); border-left: 3px solid var(--gold);
-    border-radius: 6px; padding: 0.45rem 0.6rem; max-width: 300px;
-    box-shadow: 0 8px 24px rgba(20, 12, 2, 0.45); font-size: 0.8rem;
-  }
 </style>
