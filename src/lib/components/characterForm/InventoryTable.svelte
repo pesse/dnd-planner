@@ -2,7 +2,8 @@
   /**
    * Inventar: Zeilen mit Bibliotheks-Link (Autocomplete, Tooltip, Sprung zur Karte),
    * Gewicht je Stück aus der Bibliothek und die live gerechnete Gesamtlast. Waffenzeilen
-   * schalten ihren Eintrag in der Angriffstabelle um (⚔).
+   * schalten ihren Eintrag in der Angriffstabelle um (⚔), jede verlinkte Zeile ihre
+   * Volltext-Karte auf dem Ausdruck.
    */
   import { invoke } from '@tauri-apps/api/core';
   import { openItemPage } from '../../services/vaultLinks';
@@ -19,6 +20,7 @@
   import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
+  import PinButton from '../ui/PinButton.svelte';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import './form.css';
@@ -150,7 +152,8 @@
 <table class="inv-table">
   <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th>
     <th title="Angelegt — nur dann wirken deklarierte Vorräte">An</th>
-    <th title="Eingestimmt">Ein</th><th></th></tr></thead>
+    <th title="Eingestimmt">Ein</th>
+    <th></th></tr></thead>
   <tbody>
     {#each inventory as item, i}
       {@const invDir = !saved || !item.name.trim() ? 'none'
@@ -163,6 +166,10 @@
             <!-- Kein Eingabefeld: freies Tippen läuft über ✎, sonst löst jeder
                  Tastendruck in einer verlinkten Zeile den Link. -->
             <span class="inv-linked-name">
+              <!-- Nur an verlinkten Zeilen: die Karte druckt den Text der Bibliothek. -->
+              <PinButton on={item.printCard ?? false}
+                title={item.printCard ? 'Karte steht im Ausdruck — Klick nimmt sie heraus' : 'Volltext-Karte an den Ausdruck anhängen'}
+                onclick={() => { item.printCard = item.printCard ? undefined : true; }} />
               <span class="inv-dot" style="background:{CATEGORY_COLORS[lib.category] ?? 'var(--border-strong)'}"></span>
               {#if lib.category === 'weapon'}
                 {@const inAttacks = attackIndexOf(attacks, attackRefOf(lib)) >= 0}

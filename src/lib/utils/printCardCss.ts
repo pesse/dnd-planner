@@ -1,6 +1,6 @@
 /**
- * Geometrie und Stylesheet der gedruckten Zauberkarten (3×3 auf A4).
- * Die Maße teilt sich das Mess-Div der Pagination, siehe `printSpell.ts`.
+ * Geometrie und Stylesheet der gedruckten Karten (3×3 auf A4), für Zauber wie Gegenstände.
+ * Die Maße teilt sich das Mess-Div der Pagination, siehe `printCards.ts`.
  */
 import { RULE_TEXT_PRINT_CSS } from './printCss';
 
@@ -71,6 +71,14 @@ export const CARD_BODY_CSS = `
   font-size: 5.5pt; color: color-mix(in srgb, var(--c) 80%, #333);
   margin-top: 0.4mm; font-style: italic;
 }
+.subtype {
+  font-size: 5pt; color: #897149; margin-top: 0.3mm;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.attune {
+  font-size: 5pt; font-weight: 700; color: var(--c); margin-top: 0.4mm;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 .orndiv {
   display: flex; align-items: center; gap: 1.5mm;
@@ -109,6 +117,17 @@ export const CARD_BODY_CSS = `
   font-style: normal; font-variant: normal; display: inline;
 }
 .mat { color: #888; font-style: italic; }
+.plabel {
+  color: #897149; font-size: 5pt; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0;
+}
+.pills { display: flex; flex-wrap: wrap; gap: 0.6mm; }
+.pill {
+  background: color-mix(in srgb, var(--c) 12%, #fef8ec);
+  border: 0.2mm solid color-mix(in srgb, var(--c) 35%, transparent);
+  border-radius: 3mm; font-size: 5pt; padding: 0.1mm 1mm; color: #5a4a30;
+}
+.disadv { color: #a82a18; }
 
 .desc {
   flex: 1;

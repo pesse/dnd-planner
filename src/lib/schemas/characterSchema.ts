@@ -252,6 +252,8 @@ export const characterSchema = z.object({
         /** Optional wie `sourceKey`: fehlt das Feld, wirkt der Gegenstand nicht. */
         equipped: z.boolean().optional(),
         attuned: z.boolean().optional(),
+        printCard: z.boolean().optional()
+          .describe('true = Volltext-Karte des Bibliothekseintrags kommt auf den Ausdruck.'),
       }),
     )
     .default([]),

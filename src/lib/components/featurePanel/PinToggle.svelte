@@ -4,6 +4,7 @@
    * es nichts zu pinnen — ein unverlinktes Merkmal steht ohnehin nur im Freitext.
    */
   import type { FeaturePins } from '$lib/services/featurePins';
+  import PinButton from '../ui/PinButton.svelte';
 
   let { pins, featureKey }: { pins: FeaturePins; featureKey: string | undefined } = $props();
 
@@ -11,12 +12,9 @@
 </script>
 
 {#if featureKey?.trim()}
-  <button
-    type="button"
-    class="pin-btn"
-    class:on
-    aria-pressed={on}
+  <PinButton
+    {on}
     title={on ? 'Steht im Ausdruck — Klick nimmt es heraus' : 'Im Ausdruck als Volltext anhängen'}
     onclick={() => pins.toggle(featureKey)}
-  >📌</button>
+  />
 {/if}

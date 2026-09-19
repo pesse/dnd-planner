@@ -22,13 +22,15 @@ const isOn = (selection: SheetSelection, s: SheetSection): boolean => selection[
  * Ein Eintrag = ein Satz Blätter, jeder fängt vorne an. Merkmale und Zauber teilen sich einen:
  * getrennt bleibt von beiden je eine halbe Seite weiß.
  */
-const SHEET_GROUPS: SheetPageId[][] = [['overview'], ['details', 'spells', 'pinned'], ['spellCards']];
+const SHEET_GROUPS: SheetPageId[][] = [
+  ['overview'], ['details', 'spells', 'pinned'], ['spellCards'], ['itemCards'],
+];
 
 /**
- * Übersicht und Zauberkarten bringen ihr eigenes Seitenraster mit und werden nicht in den
+ * Übersicht und Kartenseiten bringen ihr eigenes Seitenraster mit und werden nicht in den
  * Spaltenfluss gewickelt — der Rest ist zweispaltiger Kastensatz.
  */
-const SELF_LAID: SheetPageId[] = ['overview', 'spellCards'];
+const SELF_LAID: SheetPageId[] = ['overview', 'spellCards', 'itemCards'];
 
 function renderGroup(d: CharacterPrintData, pages: SheetPageId[], sections: SheetSection[]): string {
   const body = pages
@@ -46,7 +48,7 @@ function renderGroup(d: CharacterPrintData, pages: SheetPageId[], sections: Shee
 export function buildCharacterSheetHtml(d: CharacterPrintData, selection: SheetSelection): string {
   const chosen = sheetSections(d).filter((s) => isOn(selection, s));
   const pages = SHEET_GROUPS.map((g) => renderGroup(d, g, chosen)).filter(Boolean).join('');
-  const cards = chosen.some((s) => s.page === 'spellCards') ? CARDS_CSS : '';
+  const cards = chosen.some((s) => s.page === 'spellCards' || s.page === 'itemCards') ? CARDS_CSS : '';
 
   return `<!DOCTYPE html>
 <html lang="de">

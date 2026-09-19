@@ -69,3 +69,19 @@ describe('Angriffs-Notiz', () => {
     expect(attacksOf([' +1W6 jede lange Rast '])[0].note).toBe('+1W6 jede lange Rast');
   });
 });
+
+describe('Karten-Häkchen am Inventar', () => {
+  const inventoryOf = (printCard: boolean | undefined) => patchOf({
+    name: 'Testfigur',
+    inventory: [{ name: 'Langschwert', sourceKey: 'srd-2024_longsword', count: '1', weight: '3', printCard }],
+  }).inventory;
+
+  it('schreibt das gesetzte Häkchen in die Datei zurück', () => {
+    expect(inventoryOf(true)[0].printCard).toBe(true);
+  });
+
+  it('lässt ein ungesetztes Häkchen weg statt false zu schreiben', () => {
+    expect(inventoryOf(false)[0]).not.toHaveProperty('printCard');
+    expect(inventoryOf(undefined)[0]).not.toHaveProperty('printCard');
+  });
+});

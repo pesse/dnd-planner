@@ -24,7 +24,9 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   pools: [],
   resources: [],
   values: [],
+  cardItems: [],
   spellCards: '',
+  itemCards: '',
 });
 
 const build = (d: CharacterPrintData, over: Record<string, boolean> = {}): string =>
@@ -309,5 +311,18 @@ describe('HTML-Charakterbogen', () => {
     expect(build(d)).not.toContain('EINE KARTE');
     expect(build(d, { spellCards: true })).toContain('EINE KARTE');
     expect(build(d, { spellCards: true })).toContain('@page cards');
+  });
+
+  it('hängt die Gegenstandskarten als eigenen Satz Blätter an, ohne Bogen-Kopfzeile', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.cardItems = [{ name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false }];
+    d.itemCards = '<div class="cards">GEGENSTANDSKARTE</div>';
+
+    expect(build(d, { itemCards: false })).not.toContain('GEGENSTANDSKARTE');
+    const html = build(d);
+    expect(html).toContain('GEGENSTANDSKARTE');
+    expect(html).toContain('@page cards');
+    // Das Kartenraster bringt seine eigene Seite mit: kein zusätzlicher Bogen-Kopf.
+    expect(html.split('page-head').length).toBe(build(d, { itemCards: false }).split('page-head').length);
   });
 });

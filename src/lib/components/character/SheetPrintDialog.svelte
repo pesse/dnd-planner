@@ -8,6 +8,7 @@
   import { buildCharacterSheetHtml } from '../../print/character/document';
   import { SHEET_PAGES, defaultSelection, sheetSections } from '../../print/character/sections';
   import { loadSpellCardPages } from '../../print/character/spellCards';
+  import { loadItemCardPages } from '../../print/character/itemCards';
   import { loadSpellcasting } from '../../services/spellcasting/project';
   import Modal from '../ui/Modal.svelte';
   import PrintPreview from '../print/PrintPreview.svelte';
@@ -19,7 +20,10 @@
   let selection = $state<Record<string, boolean>>({});
   let zoom = $state(0.6);
 
-  let cardsBusy = $state(false);
+  let pending = $state(0);
+  const cardsBusy = $derived(pending > 0);
+  /** Ein Abschnitt wird EINMAL geladen — ein leeres Ergebnis stieße den Effekt sonst erneut an. */
+  const requested = new Set<string>();
 
   void (async () => {
     try {
@@ -35,21 +39,36 @@
    * Die Volltext-Karten messen ihre Textmenge im DOM aus — das hält den Bogen auf und blendet
    * kurz fremde Stile ein, also passiert es erst, wenn sie wirklich gewählt sind.
    */
-  async function loadCards() {
-    if (!data || data.spellCards || cardsBusy) return;
-    cardsBusy = true;
+  async function loadCards(
+    id: string,
+    fill: (d: CharacterPrintData) => Promise<Partial<CharacterPrintData>>,
+  ) {
+    if (!data || requested.has(id)) return;
+    requested.add(id);
+    pending++;
     try {
-      const loaded = input.loaded ?? (await loadSpellcasting(input.character));
-      data = { ...data, spellCards: await loadSpellCardPages(data.grouped, loaded.lookup, document) };
+      const part = await fill(data);
+      if (data) data = { ...data, ...part };
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
-      cardsBusy = false;
+      pending--;
     }
   }
 
   $effect(() => {
-    if (selection.spellCards) void loadCards();
+    if (!data) return;
+    if (selection.spellCards) {
+      void loadCards('spellCards', async (d) => {
+        const loaded = input.loaded ?? (await loadSpellcasting(input.character));
+        return { spellCards: await loadSpellCardPages(d.grouped, loaded.lookup, document) };
+      });
+    }
+    if (selection.itemCards) {
+      void loadCards('itemCards', async (d) => ({
+        itemCards: await loadItemCardPages(d.cardItems, document),
+      }));
+    }
   });
 
   const sections = $derived(data ? sheetSections(data) : []);
@@ -92,7 +111,7 @@
               <label class="opt">
                 <input type="checkbox" bind:checked={selection[section.id]} />
                 <span>{section.label}</span>
-                {#if section.id === 'spellCards' && cardsBusy}<span class="busy">lädt…</span>{/if}
+                {#if (section.id === 'spellCards' || section.id === 'itemCards') && cardsBusy}<span class="busy">lädt…</span>{/if}
               </label>
             {/each}
           </div>

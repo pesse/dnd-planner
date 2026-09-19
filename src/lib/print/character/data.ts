@@ -1,7 +1,7 @@
 /**
  * Das eine Bündel, aus dem der Bogen gebaut wird. Nur hier wird geladen — jeder Renderer
  * darunter ist synchron, damit ein Häkchen im Vorschau-Dialog kein Nachladen auslöst. Einzige
- * Ausnahme sind die Zauberkarten: die messen im DOM und kommen erst beim Anhaken dazu.
+ * Ausnahme sind die Volltext-Karten: die messen im DOM und kommen erst beim Anhaken dazu.
  */
 import type { Character } from '$lib/schemas/characterSchema';
 import { resolveCharacterFeatures, type ResolvedCharacterFeatures } from '$lib/services/characterFeatures';
@@ -13,6 +13,8 @@ import { getProgressionByKey, levelColumns, levelTables } from '$lib/services/cl
 import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
+import type { ItemInfo } from '$lib/itemLibrary';
+import { cardItemInfos } from './itemCards';
 import { formatDamageDice } from '$lib/itemFormat';
 
 export interface PrintAttack {
@@ -47,11 +49,15 @@ export interface CharacterPrintData {
   resources: ResolvedResource[];
   /** Die skalierenden Spalten daneben: Rauschschaden, Hinterhältiger Angriff, Bardenwürfel. */
   values: ClassValues[];
+  /** Die im Inventar für eine Karte angehakten Gegenstände. */
+  cardItems: ItemInfo[];
   /**
    * Fertige Kartenseiten. Leer, bis der Dialog sie anfordert: die Karten messen ihren Text im
-   * DOM aus (`spellCards.ts`), und das darf nicht bei jedem Öffnen der Vorschau laufen.
+   * DOM aus (`spellCards.ts`, `itemCards.ts`), und das darf nicht bei jedem Öffnen der
+   * Vorschau laufen.
    */
   spellCards: string;
+  itemCards: string;
 }
 
 export interface PrintDataInput {
@@ -105,12 +111,13 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
     safe(optionPoolOffers(c), [] as OptionPoolOffer[]),
     safe(classValues(c), [] as ClassValues[]),
+    safe(cardItemInfos(c), [] as ItemInfo[]),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -131,6 +138,8 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     pools: pools.filter((p) => p.allowance > 0),
     resources: grouped.resources,
     values,
+    cardItems,
     spellCards: '',
+    itemCards: '',
   };
 }

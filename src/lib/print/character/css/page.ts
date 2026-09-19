@@ -2,7 +2,7 @@
  * Seitenrahmen, Palette und Typografie des Charakterbogens — angelehnt an den
  * Taendler-Bogen: gerahmte Kästen, Kapitälchen-Beschriftungen, Serifenschrift.
  */
-import { FONT_FAMILY } from '$lib/utils/printSpellCss';
+import { FONT_FAMILY } from '$lib/utils/printCardCss';
 import { FRAME_WIDTH_MM } from './frames';
 
 /** Das Iframe-Dokument sieht app.css nicht; die Werte stehen deshalb hier als Literale. */

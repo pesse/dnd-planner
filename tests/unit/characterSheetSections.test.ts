@@ -21,7 +21,9 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   pools: [],
   resources: [],
   values: [],
+  cardItems: [],
   spellCards: '',
+  itemCards: '',
   ...over,
 });
 
@@ -178,6 +180,15 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(emptyData())).not.toContain('spellCards');
     expect(ids(d)).toContain('spellCards');
     expect(defaultSelection(sheetSections(d)).spellCards).toBe(false);
+  });
+
+  it('bietet Gegenstandskarten an, sobald eine Inventarzeile angehakt ist — und hakt sie vor', () => {
+    // Anders als bei den Zaubern ist die Wahl schon getroffen: sie steht am Inventar.
+    const d = emptyData({ cardItems: [{ name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false }] });
+
+    expect(ids(emptyData())).not.toContain('itemCards');
+    expect(ids(d)).toContain('itemCards');
+    expect(defaultSelection(sheetSections(d)).itemCards).toBe(true);
   });
 
   it('legt Quellen mit denselben Zauberwerten in eine Sektion, die Herkunft ins Label', () => {

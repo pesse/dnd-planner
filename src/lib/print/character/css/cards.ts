@@ -3,7 +3,7 @@
  * nicht hat — deshalb ein benannter `@page`. Und das Kartenwerk steht verschachtelt, sonst
  * schlagen `.card`, `.head`, `.desc` und `.md` in die Bogenseiten aus.
  */
-import { CARD_BODY_CSS, CARD_GRID_CSS } from '$lib/utils/printSpellCss';
+import { CARD_BODY_CSS, CARD_GRID_CSS } from '$lib/utils/printCardCss';
 
 export const CARDS_CSS = `
 @page cards { margin: 0; }

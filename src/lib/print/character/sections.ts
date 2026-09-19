@@ -13,7 +13,7 @@ import {
 } from './pages/details';
 import { renderExtraSpells, renderSpellSource, renderSpellTop, spellSourceGroups } from './pages/spells';
 
-export type SheetPageId = 'overview' | 'details' | 'spells' | 'pinned' | 'spellCards';
+export type SheetPageId = 'overview' | 'details' | 'spells' | 'pinned' | 'spellCards' | 'itemCards';
 
 export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
   { id: 'overview', label: 'Übersicht' },
@@ -21,6 +21,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
   { id: 'spells', label: 'Zauber' },
   { id: 'pinned', label: 'Anhang' },
   { id: 'spellCards', label: 'Zauberkarten' },
+  { id: 'itemCards', label: 'Gegenstandskarten' },
 ];
 
 /**
@@ -31,7 +32,7 @@ export const STATIC_SECTION_IDS = [
   'overview',
   'personal', 'companion',
   'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
-  'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards',
+  'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards', 'itemCards',
 ] as const;
 
 export type StaticSectionId = (typeof STATIC_SECTION_IDS)[number];
@@ -90,6 +91,9 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
   // Neun Karten je Blatt — bei einem Magier sind das mehrere Seiten, deshalb nicht vorgewählt.
   spellCards:  { label: 'Volltext-Karten (3×3)', page: 'spellCards', defaultOn: false,
                  available: hasSpells, render: (d) => d.spellCards },
+  // Anders als bei den Zaubern ist die Auswahl schon im Inventar getroffen (`printCard`).
+  itemCards:   { label: 'Volltext-Karten (3×3)', page: 'itemCards', defaultOn: true,
+                 available: (d) => d.cardItems.length > 0, render: (d) => d.itemCards },
 };
 
 /** Ein Kasten je Satz Zauberwerte; die Id der ersten Quelle ist stabil über ein Neuladen. */

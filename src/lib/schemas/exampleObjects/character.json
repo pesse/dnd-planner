@@ -114,7 +114,8 @@
       "count": "string",
       "weight": "string",
       "equipped": false,
-      "attuned": false
+      "attuned": false,
+      "printCard": false
     }
   ],
   "inventoryNotes": "string",

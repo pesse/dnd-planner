@@ -249,6 +249,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
           weight: i.weight,
           ...(i.equipped ? { equipped: true } : {}),
           ...(i.attuned ? { attuned: true } : {}),
+          ...(i.printCard ? { printCard: true } : {}),
         };
       }),
     inventoryNotes: f.inventoryNotes,
