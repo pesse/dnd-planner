@@ -1,6 +1,7 @@
 <script lang="ts">
   import './ruleText.css';
   import { renderMarkdown, renderMarkdownInline, ruleText } from '../utils/markdown';
+  import { spellRefLinks } from './spellRefLinks.svelte';
 
   let {
     source = '',
@@ -17,7 +18,7 @@
 </script>
 
 {#if inline}
-  <span class="md md-inline">{@html html}</span>
+  <span class="md md-inline" use:spellRefLinks>{@html html}</span>
 {:else}
-  <div class="md">{@html html}</div>
+  <div class="md" use:spellRefLinks>{@html html}</div>
 {/if}

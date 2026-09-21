@@ -44,6 +44,19 @@
 
 .md a { color: var(--arcane); }
 
+.md a[href^="spell:"] {
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+  cursor: pointer;
+}
+
+.md a[href^="spell:"]:hover { border-bottom-style: solid; }
+
+/* Auf Papier führt der Verweis nirgendwohin. */
+@media print {
+  .md a[href^="spell:"] { color: inherit; border-bottom: none; }
+}
+
 .md blockquote {
   margin: 0.3rem 0;
   padding-left: 0.7rem;

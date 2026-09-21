@@ -3,10 +3,21 @@
 
 import { navigateTo } from './navigation';
 import { characterLabel, readCharacterName } from './characterDirectory';
+import { getSpellLibrary, spellInfoByKey } from '../spellLibrary';
 import type { FileEntry } from '../types';
+
+/**
+ * Zauberverweise im Regeltext stehen als `[Feuerball](spell:srd-2024_fireball)` im Vault —
+ * über den Key, nicht über den Pfad, weil der Dateiname dem deutschen Namen folgt.
+ */
+export const SPELL_REF_SCHEME = 'spell:';
 
 function isExternal(href: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#') || href.startsWith('//');
+}
+
+export function spellRefKey(href: string): string {
+  return href.startsWith(SPELL_REF_SCHEME) ? href.slice(SPELL_REF_SCHEME.length).trim() : '';
 }
 
 /** Ergebnis ist immer die `./vault/…`-Form, die die Tauri-Kommandos erwarten. */
@@ -63,11 +74,25 @@ function displayName(path: string, type: FileEntry['type']): string {
   return base.replace(/\.(md|json)$/i, '');
 }
 
+/** @returns false, wenn der Key in der Bibliothek fehlt — der Verweis bleibt dann toter Text. */
+export async function openSpellRef(key: string): Promise<boolean> {
+  const info = spellInfoByKey(await getSpellLibrary(), key);
+  if (!info?.path) return false;
+  await navigateTo({ name: displayName(info.path, 'spell'), path: info.path, type: 'spell' });
+  return true;
+}
+
 /**
  * @returns true = intern behandelt, auch wenn der Guard abbricht; false nur bei externen
  *          oder nicht auflösbaren Links, die der Aufrufer dann selbst öffnen darf.
  */
 export async function openVaultLink(href: string, fromFilePath: string): Promise<boolean> {
+  const spellKey = spellRefKey(href);
+  if (spellKey) {
+    // Auch ein unbekannter Key gilt als behandelt: extern geöffnet wäre `spell:` ein Fehler.
+    await openSpellRef(spellKey);
+    return true;
+  }
   if (!href || !fromFilePath || isExternal(href)) return false;
 
   let decoded = href;

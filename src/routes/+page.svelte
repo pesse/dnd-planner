@@ -16,6 +16,8 @@
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
+  import SpellTooltip from '$lib/components/SpellTooltip.svelte';
+  import { spellRefTip } from '$lib/components/spellRefLinks.svelte';
   import { cardTypeOf } from '$lib/components/cardRegistry';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { runStartupTasks } from '$lib/services/startupTasks';
@@ -186,6 +188,7 @@
   >{llmCollapsed ? '✦' : '›'}</button>
 </div>
 
+<SpellTooltip spell={spellRefTip.spell} x={spellRefTip.x} y={spellRefTip.y} />
 <ToastStack />
 <UpdateDialog />
 <RateLimitToast />
