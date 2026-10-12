@@ -11,6 +11,7 @@ import { mod } from '$lib/domain/skills';
 import { choiceLabelsDe, type AnalysisChoice } from '../analysis/types';
 import type { DeclaredAnswer } from '../declaredChoice';
 import { cloneSpellcasting } from '../spellcasting/write';
+import type { GrantInput } from '../proficiencyGrants';
 import { applyAsi, type AsiAllocation } from './backgroundAsi';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 
@@ -22,6 +23,7 @@ export interface WizardCastingSource {
   declaredChoices: AnalysisChoice[];
   declaredAnswers: DeclaredAnswer[];
   fightingStyles: string[];
+  traitFeats: Record<string, string[]>;
   scores: AbilityScores;
   asi: AsiAllocation;
   spellcasting: CharacterSpellcasting;
@@ -67,9 +69,17 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
   }
 }
 
-/** Ohne Anzeigenamen — den holt die Montage aus der Talent-Bibliothek. */
-export const fightingStyleLinks = (w: WizardCastingSource): CharacterFeatureEntry[] =>
-  w.fightingStyles.map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }));
+/** Kampfstile und Talente aus Speziesmerkmalen; ohne Anzeigenamen — den holt die Montage. */
+export const featLinks = (w: WizardCastingSource): CharacterFeatureEntry[] =>
+  [...w.fightingStyles, ...Object.values(w.traitFeats).flat()].map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }));
+
+/** Übungsschritt und Montage fragen dieselben Quellen — Talent-Links eingeschlossen (Begabt). */
+export const wizardGrantInput = (w: WizardCastingSource): GrantInput => ({
+  classes: [{ sourceKey: w.klass.sourceKey, name: w.klass.name, subclassKey: w.klass.subclassKey }],
+  species: { sourceKey: w.species.sourceKey, subspeciesKey: w.species.subspeciesKey },
+  backgroundRef: { sourceKey: w.background.sourceKey },
+  features: featLinks(w),
+});
 
 /** Point-Buy + Hintergrund-ASI; die Erhöhungen der Merkmals-Rider legt die Montage darauf. */
 export const draftScores = (w: WizardCastingSource): AbilityScores => applyAsi(w.scores, w.asi);
@@ -88,7 +98,7 @@ export function wizardCastingInput(w: WizardCastingSource): Character {
   const c = characterSchema.parse({ name: 'Entwurf' });
   applyLinks(c, w);
   applyFeatureLedger(c, w);
-  c.features.push(...fightingStyleLinks(w));
+  c.features.push(...featLinks(w));
   applyScores(c, draftScores(w));
   c.spellcasting = cloneSpellcasting(w.spellcasting);
   return c;

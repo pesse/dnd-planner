@@ -44,7 +44,6 @@ export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
  */
 export const CLASS_TABLE_CHOICE_KINDS: readonly FeatureChoiceKind[] = [
   'weaponMastery',
-  'featCategory',
   'spellcasting',
   'optionPool',
 ];

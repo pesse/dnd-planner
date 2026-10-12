@@ -25,7 +25,7 @@ import { optionListNoteLines } from '../declaration/optionList';
 import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
-import { applyFeatureLedger, applyLinks, applyScores, draftScores, fightingStyleLinks } from './castingDraft';
+import { applyFeatureLedger, applyLinks, applyScores, draftScores, featLinks, wizardGrantInput } from './castingDraft';
 import { equipmentIndex } from './startingEquipment';
 import { matchItem, matchWeaponName } from '$lib/itemLibrary';
 import { ftToMVal } from '$lib/itemFormat';
@@ -78,11 +78,7 @@ function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression
  */
 async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: AnswerLookup): Promise<void> {
   const [grants, items] = await Promise.all([
-    collectGrants({
-      classes: c.classes,
-      species: { sourceKey: w.species.sourceKey, subspeciesKey: w.species.subspeciesKey },
-      backgroundRef: { sourceKey: w.background.sourceKey },
-    }),
+    collectGrants(wizardGrantInput(w)),
     equipmentIndex(),
   ]);
   // Die Zeilen müssen VOR dem Applier stehen: der setzt Häkchen an bestehenden Zeilen,
@@ -154,11 +150,12 @@ async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> 
 }
 
 /**
- * Ein Kampfstil ist ein echtes Talent, also ein Link per `sourceKey` — NICHT ein bloßer Name
- * wie bei der Waffenbeherrschung. Die Mechanik löst der Bogen wie bei jedem Talent-Link auf.
+ * Kampfstil und Talent aus einem Speziesmerkmal sind echte Talente, also Links per
+ * `sourceKey` — NICHT bloße Namen wie bei der Waffenbeherrschung. Die Mechanik löst der Bogen
+ * wie bei jedem Talent-Link auf.
  */
-async function applyFightingStyles(c: Character, w: CharacterWizard): Promise<void> {
-  const links = fightingStyleLinks(w);
+async function applyFeatLinks(c: Character, w: CharacterWizard): Promise<void> {
+  const links = featLinks(w);
   if (!links.length) return;
   const feats = await getFeats();
   for (const link of links) {
@@ -220,7 +217,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   await applySpellPicks(c, w);
   c.masteries = [...w.masteries]; // Waffenmeisterschaft: im Wizard gewählt, nichts zu rechnen
   c.optionPicks = w.optionPicks.map((p) => ({ ...p }));
-  await applyFightingStyles(c, w);
+  await applyFeatLinks(c, w);
   applyFeatureText(c, w, answerOf);
   await applyEquipment(c, w);
 

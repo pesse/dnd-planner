@@ -1,20 +1,26 @@
 <script lang="ts">
   /**
-   * Gegenstück zum `WeaponMasteryPicker`: rein präsentierend, die Optionen kommen aus der
-   * Bibliothek, nie aus der KI. `selected` ist ein REINER Lesewert und die Änderung geht
+   * Talentwahl aus einer Kategorie (Kampfstil, Herkunftstalent), Gegenstück zum
+   * `WeaponMasteryPicker`: rein präsentierend, die Optionen kommen aus der Bibliothek, nie aus der KI. `selected` ist ein REINER Lesewert und die Änderung geht
    * über `onToggle` — so bleibt die Quelle des Aufrufers die einzige Wahrheit und es
    * entsteht kein zweiter, driftender Zustand.
    */
-  import type { FightingStyleOffer } from '../services/fightingStyle';
+  import type { FightingStyleOption } from '../services/fightingStyle';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {
     offer,
+    heading,
+    missingHint,
     selected,
     onToggle,
     diff = 'none',
   }: {
-    offer: FightingStyleOffer | null;
+    offer: { allowance: number; options: FightingStyleOption[] } | null;
+    /** Kopfzeile, z. B. „Kampfstil — Kämpfer: 1 Stil". */
+    heading: string;
+    /** Steht da, wenn die Bibliothek weniger Talente führt als das Kontingent. */
+    missingHint: string;
     selected: string[];
     onToggle: (sourceKey: string) => void;
     diff?: DiffDir;
@@ -35,10 +41,7 @@
 {#if offer && offer.allowance > 0}
   <div class="style-panel" class:diff-up={diff === 'up'} class:diff-down={diff === 'down'}>
     <div class="head">
-      <span class="title">
-        Kampfstil — {offer.className}: {offer.allowance}
-        {offer.allowance === 1 ? 'Stil' : 'Stile'}
-      </span>
+      <span class="title">{heading}</span>
       <span class="count" class:full={selected.length >= offer.allowance}>
         {selected.length} von {offer.allowance} belegt
       </span>
@@ -61,10 +64,7 @@
     {/if}
 
     {#if offer.options.length < offer.allowance}
-      <p class="warn">
-        Nur {offer.options.length} {offer.options.length === 1 ? 'Kampfstil' : 'Kampfstile'} in der Bibliothek —
-        Kampfstil-Talente brauchen die Kategorie „Kampfstil" (vault/feats).
-      </p>
+      <p class="warn">Nur {offer.options.length} in der Bibliothek — {missingHint}</p>
     {/if}
 
     {#if overflow.length}

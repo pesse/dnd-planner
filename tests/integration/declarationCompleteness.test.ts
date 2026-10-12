@@ -18,7 +18,6 @@ const UNDECLARED_BACKLOG: Record<string, string> = {
   'srd-2024_monk_unarmored-movement': 'Bewegungs-Bonus aus der Stufentabelle mit Rüstungsbedingung',
   'srd-2024_ranger_roving': 'Bewegungs-Bonus mit Rüstungsbedingung',
   'srd-2024_alert': 'Initiative-Bonus: keine Initiative-Berechnung',
-  'srd-2024_human_versatile': 'Herkunftstalent zur Wahl: der Wizard hat keinen Talent-Picker nach Kategorie',
   'srd-2024_druid_circle-of-the-land_natures-ward': 'Vault-Datenfehler: trägt den Text von Nature’s Sanctuary',
   'srd-2024_druid_circle-of-the-land_natures-sanctuary': 'Vault-Datenfehler: trägt den Text von Natural Recovery',
 };
@@ -28,7 +27,6 @@ const GAP_BACKLOG: Record<string, DeclarationGapKind> = {
   'srd-2024_paladin_fighting-style': 'spells',
   'srd-2024_ranger_fighting-style': 'spells',
   'srd-2024_druid_circle-of-the-land_natures-sanctuary': 'resource',
-  'srd-2024_human_versatile': 'choice',
 };
 
 describe('Deklarationen im Vault', () => {

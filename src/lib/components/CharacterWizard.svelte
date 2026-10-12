@@ -15,13 +15,15 @@
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
+  import { loadTraitFeatOffers, type TraitFeatOffer } from '../services/traitFeat';
+  import { FEAT_CATEGORY_DE } from '../featsLibrary';
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
-  import { wizardCastingInput } from '../services/wizard/castingDraft';
+  import { wizardCastingInput, wizardGrantInput } from '../services/wizard/castingDraft';
   import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
-  import FightingStylePicker from './FightingStylePicker.svelte';
+  import FeatPicker from './FeatPicker.svelte';
   import OptionPoolPicker from './OptionPoolPicker.svelte';
   import BasicsStep from './wizard/BasicsStep.svelte';
   import PointBuyBlock from './wizard/PointBuyBlock.svelte';
@@ -39,11 +41,12 @@
 
   // Schritte über eine ID, nicht über einen festen Index: optionale Schritte fallen weg
   // und verschöben sonst alle nachfolgenden Index-Prüfungen.
-  type StepId = 'basics' | 'abilities' | 'background' | 'proficiencies' | 'mastery' | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'review';
+  type StepId = 'basics' | 'abilities' | 'background' | 'trait-feat' | 'proficiencies' | 'mastery' | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
     { id: 'basics', label: 'Grundwahl' },
     { id: 'abilities', label: 'Attribute' },
     { id: 'background', label: 'Hintergrund-Bonus' },
+    { id: 'trait-feat', label: 'Volks-Talent' },
     { id: 'proficiencies', label: 'Übungen' },
     { id: 'mastery', label: 'Waffenbeherrschung' },
     { id: 'fighting-style', label: 'Kampfstil' },
@@ -61,6 +64,7 @@
         s.id === currentStep ||
         ((s.id !== 'mastery' || masteryAvailable) &&
           (s.id !== 'fighting-style' || fightingStyleAvailable) &&
+          (s.id !== 'trait-feat' || traitFeatOffers.length > 0) &&
           (s.id !== 'option-pool' || pools.length > 0) &&
           (s.id !== 'spells' || spellsAvailable)),
     ),
@@ -117,11 +121,7 @@
   }
 
   async function loadGrants() {
-    grants = await collectGrants({
-      classes: [{ sourceKey: w.klass.sourceKey, name: w.klass.name, subclassKey: w.klass.subclassKey }],
-      species: { sourceKey: w.species.sourceKey },
-      backgroundRef: { sourceKey: w.background.sourceKey },
-    });
+    grants = await collectGrants(wizardGrantInput(w));
     skillPicks = grants.choices.map(() => []);
     // Mit `chosenSkills` zusammen die Optionsliste der Expertise-Wahl im Merkmals-Schritt.
     w.grantedSkills = grants.skills.map((g) => g.value);
@@ -179,6 +179,22 @@
   });
   const fightingStyleAvailable = $derived((fightingStyle?.allowance ?? 0) > 0);
 
+  let traitFeatOffers = $state<TraitFeatOffer[]>([]);
+  $effect(() => {
+    const speciesKey = w.species.sourceKey;
+    const backgroundKey = w.background.sourceKey;
+    let cancelled = false;
+    void loadTraitFeatOffers(speciesKey, backgroundKey)
+      .then((o) => { if (!cancelled) traitFeatOffers = o; })
+      .catch(() => { if (!cancelled) traitFeatOffers = []; });
+    return () => { cancelled = true; };
+  });
+  const traitFeatsDone = $derived(
+    traitFeatOffers.every(
+      (o) => (w.traitFeats[o.featureKey]?.length ?? 0) >= Math.min(o.allowance, o.options.length),
+    ),
+  );
+
   // Auf Stufe 1 leer, solange kein Merkmal einen Pool auf dieser Stufe vergibt (Metamagie
   // beginnt auf Zaubererstufe 2) — der Schritt fällt dann weg.
   let pools = $state<OptionPoolOffer[]>([]);
@@ -234,6 +250,7 @@
       case 'basics': return w.basicsComplete && w.name.trim().length > 0;
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background': return asiValid;
+      case 'trait-feat': return traitFeatsDone;
       case 'proficiencies': return openChoicesDone;
       case 'features': return declaredChoicesDone;
       case 'spells': return spellValues.done;
@@ -327,8 +344,11 @@
           <p class="hint">Lade Kampfstile …</p>
         {:else}
           <p class="hint">Wähle deinen Kampfstil — die Optionen stammen aus der Talent-Bibliothek.</p>
-          <FightingStylePicker
+          <FeatPicker
             offer={fightingStyle}
+            heading="Kampfstil — {fightingStyle.className}: {fightingStyle.allowance} {fightingStyle.allowance === 1 ? 'Stil' : 'Stile'}"
+            missingHint="Kampfstil-Talente brauchen die Kategorie „Kampfstil“ (vault/feats)."
+
             selected={w.fightingStyles}
             onToggle={(key) => {
               w.fightingStyles = w.fightingStyles.includes(key)
@@ -337,6 +357,23 @@
             }}
           />
         {/if}
+
+      {:else if currentStep === 'trait-feat'}
+        <p class="hint">Ein Volksmerkmal gewährt ein Talent — die Optionen stammen aus der Talent-Bibliothek.</p>
+        {#each traitFeatOffers as offer (offer.featureKey)}
+          {@const picked = w.traitFeats[offer.featureKey] ?? []}
+          <FeatPicker
+            {offer}
+            heading="{offer.label} — Talent der Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“"
+            missingHint="Talente brauchen die Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“ (vault/feats)."
+            selected={picked}
+            onToggle={(key) => {
+              w.setTraitFeats(offer.featureKey, picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]);
+              // Das Talent kann Übungen wählen lassen (Begabt) — der Übungsschritt lädt neu.
+              grants = null;
+            }}
+          />
+        {/each}
 
       {:else if currentStep === 'option-pool'}
         <p class="hint">Wähle die Optionen deiner Merkmale — die Liste stammt aus der Klassen-Deklaration.</p>

@@ -666,7 +666,7 @@ describe('die Senke des kind entscheidet, nicht der Träger', () => {
   // „Eingeweihter der Magie" seinen Editor — und es ist der einzige Vault-Eintrag mit `kind`.
   it('braucht nur die Stufentabellen-kinds die Klasse', () => {
     expect([...CLASS_TABLE_CHOICE_KINDS].sort())
-      .toEqual(['featCategory', 'optionPool', 'spellcasting', 'weaponMastery']);
+      .toEqual(['optionPool', 'spellcasting', 'weaponMastery']);
   });
 
   it('liest denselben Zauber-Zugang an Klassenmerkmal, Speziesmerkmal und Talent', () => {

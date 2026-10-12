@@ -73,6 +73,8 @@ export class CharacterWizard {
   masteries = $state<string[]>([]);
   /** Kampfstile dagegen als Talent-`sourceKey` — das verlinkte Talent ist die Source of Truth. */
   fightingStyles = $state<string[]>([]);
+  /** Talent-Keys je wählendem Speziesmerkmal (Vielseitig) — Links wie die Kampfstile. */
+  traitFeats = $state<Record<string, string[]>>({});
   /** Options-Pools (Metamagie): dieselbe flache Liste wie am Charakter, über alle Pools. */
   optionPicks = $state<OptionPick[]>([]);
 
@@ -166,19 +168,19 @@ export class CharacterWizard {
 
   #prepare(): Promise<FeaturePrep> {
     if (!this.#prep) {
-      this.#prep = buildFeaturePrep({ species: this.species, klass: this.klass, background: this.background });
+      this.#prep = buildFeaturePrep({
+        species: this.species,
+        klass: this.klass,
+        background: this.background,
+        traitFeats: Object.values(this.traitFeats).flat(),
+      });
     }
     return this.#prep;
   }
 
-  kickoff(): void {
-    const cfg = this.#getConfig();
-    this.#prep = null; // frische Aufbereitung für die aktuelle Grundwahl
-
-    // Deklarierte Zauber-Zugänge: unabhängig vom Anbieter und vom KI-Status. Der Guard gegen
-    // die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`.
-    if (!this.toolLib.length) void getItemsByDir('tools').then((t) => { this.toolLib = t; }, () => {});
-
+  /** Der Guard gegen die eigene Prep-Promise verwirft ein verspätetes Settle nach `restart()`. */
+  #loadPrep(): void {
+    this.#prep = null;
     const pending = this.#prepare();
     void pending.then((prep) => {
       if (this.#prep !== pending) return;
@@ -187,6 +189,20 @@ export class CharacterWizard {
       this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
       this.declared = prep.declared;
     }, () => {});
+  }
+
+  /** Ein gewähltes Talent bringt eigene Deklarationen mit (Begabt: drei Fertigkeiten). */
+  setTraitFeats(featureKey: string, keys: string[]): void {
+    this.traitFeats = { ...this.traitFeats, [featureKey]: keys };
+    this.#loadPrep();
+  }
+
+  kickoff(): void {
+    const cfg = this.#getConfig();
+
+    // Deklarierte Zauber-Zugänge: unabhängig vom Anbieter und vom KI-Status.
+    if (!this.toolLib.length) void getItemsByDir('tools').then((t) => { this.toolLib = t; }, () => {});
+    this.#loadPrep();
 
     // classText/speciesText laufen BEWUSST NICHT hier, sondern erst in `summarizeFeatures()`.
 
@@ -222,6 +238,7 @@ export class CharacterWizard {
     this.toolPicks = {};
     this.masteries = [];
     this.fightingStyles = [];
+    this.traitFeats = {};
     this.optionPicks = [];
     this.spellcasting = emptySpellcasting();
     this.featureSpellPicks = {};
@@ -261,7 +278,8 @@ export class CharacterWizard {
       const prep = await this.#prepare();
       const features = prep.summaryClass.map((s, i) => withChoice(s, prep.gained[i]?.key));
       // Das Kampfstil-Merkmal ist flow-eigen und daher aus der KI-Analyse gefiltert; ohne
-      // diese Zeilen fehlte die getroffene Wahl im Klassenmerkmale-Text ganz.
+      // diese Zeilen fehlte die getroffene Wahl im Klassenmerkmale-Text ganz. Talente aus
+      // einem Speziesmerkmal stehen dagegen schon als `gained` in der Aufbereitung.
       if (this.fightingStyles.length) {
         const feats = await getFeats();
         for (const key of this.fightingStyles) {

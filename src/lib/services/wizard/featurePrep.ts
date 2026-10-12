@@ -26,6 +26,8 @@ export interface FeatureBasics {
   species: { sourceKey: string; name: string };
   klass: { sourceKey: string; name: string; subclassKey?: string; subclassName?: string };
   background: { sourceKey: string; name: string };
+  /** Talent-Keys, die ein Speziesmerkmal wählen ließ (`traitFeat.ts`). */
+  traitFeats?: string[];
 }
 
 export interface FeaturePrep {
@@ -68,14 +70,12 @@ function level1Features(p: ClassProgression | null, source: 'class' | 'subclass'
 }
 
 /**
- * Das Herkunftstalent kommt aus dem Hintergrund und nur über `gained` in die Listen — ohne
- * seine Deklaration hier wäre sie unsichtbar.
+ * Talente kommen aus Hintergrund und Speziesmerkmal und nur über `gained` in die Listen —
+ * ohne ihre Deklaration hier wäre sie unsichtbar.
  */
-function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | null {
-  if (!bg?.featKey) return null;
-  const feat = feats.find((f) => f.sourceKey === bg.featKey);
+function featGained(feats: FeatEntry[], key: string, choice = ''): GainedFeature | null {
+  const feat = feats.find((f) => f.sourceKey === key);
   if (!feat) return null;
-  const specialisation = featSpecialisation(bg);
   return {
     name: feat.name || featDisplayName(feat),
     nameDe: featDisplayName(feat),
@@ -83,11 +83,14 @@ function originFeat(bg: Background | null, feats: FeatEntry[]): GainedFeature | 
     descDe: feat.descDe,
     source: 'feat',
     gainedAt: 1,
-    key: bg.featKey,
-    choice: specialisation || undefined,
+    key,
+    choice: choice || undefined,
     ...declarationOf(feat),
   };
 }
+
+const originFeat = (bg: Background | null, feats: FeatEntry[]): GainedFeature | null =>
+  bg?.featKey ? featGained(feats, bg.featKey, featSpecialisation(bg)) : null;
 
 /**
  * Aus der ROHEN Progression, weil `gained` um die flow-eigenen Wahlen beschnitten ist;
@@ -171,6 +174,10 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   const gained: GainedFeature[] = [...level1Features(prog, 'class'), ...level1Features(sub, 'subclass')];
   const feat = originFeat(bg, feats);
   if (feat) gained.push(feat);
+  for (const key of basics.traitFeats ?? []) {
+    const picked = featGained(feats, key);
+    if (picked) gained.push(picked);
+  }
 
   const traits = spec?.traits ?? [];
   const declared = declaredSources(prog, sub, traits, gained);
@@ -182,7 +189,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     nameDe: g.nameDe,
     desc: g.desc,
     source: g.source === 'subclass' ? 'class' : g.source,
-    group: g.source === 'feat' ? background.name : klass.name,
+    group: g.source !== 'feat' ? klass.name : g.key === bg?.featKey ? background.name : species.name,
     gainedAt: g.gainedAt,
     choice: g.choice,
   });
