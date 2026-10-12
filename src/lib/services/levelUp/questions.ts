@@ -3,7 +3,8 @@
  * abgeleitet. Keine KI: was hier gefragt wird, steht in Regeln oder Bibliothek.
  */
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
-import { isFightingStyleFeature } from '../fightingStyle';
+import { FIGHTING_STYLE_CATEGORY, isFightingStyleFeature } from '../fightingStyle';
+import { choiceGrants } from '../declaration/source';
 import { skillLabelDe, abilityLabelDe } from '../proficiencyGrants';
 import { withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
 import { ABILITY_KEYS, ABILITY_LABEL } from '../../schemas/abilities';
@@ -113,8 +114,23 @@ export function buildFeatureChoices(choices: AnalysisChoice[]): LevelUpQuestion[
   );
 }
 
-export function countFeatsToPick(delta: LevelUpDelta, answers: Record<string, string | string[]>): number {
+/**
+ * Eine Talentkategorie außer Kampfstil (Epische Gabe) ist eine freie Talentwahl wie die der
+ * Attributswerterhöhung — der Regeltext erlaubt „or another feat of your choice". Der Kampfstil
+ * hat seinen eigenen Picker.
+ */
+function featCategoryPicks(delta: LevelUpDelta): number {
   let n = 0;
+  for (const f of [...delta.featuresGained, ...delta.subclassFeaturesGained]) {
+    const times = f.gainedAt.filter((l) => l > delta.fromLevel && l <= delta.toLevel).length;
+    for (const g of choiceGrants(f))
+      if (g.kind === 'featCategory' && g.featCategory !== FIGHTING_STYLE_CATEGORY) n += times * g.count;
+  }
+  return n;
+}
+
+export function countFeatsToPick(delta: LevelUpDelta, answers: Record<string, string | string[]>): number {
+  let n = featCategoryPicks(delta);
   for (let i = 1; i <= delta.asiCount; i++) if (readAsiPick(answers[asiQuestionId(i)])?.kind === 'feat') n++;
   return n;
 }

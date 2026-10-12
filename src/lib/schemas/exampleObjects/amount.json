@@ -3,6 +3,11 @@
     "column": "string"
   },
   {
+    "byLevel": {
+      "<key>": 0
+    }
+  },
+  {
     "abilityMod": "Strength",
     "min": 1
   },
@@ -11,5 +16,27 @@
     "perLevel": 0,
     "divide": 1,
     "round": "down"
+  },
+  {
+    "sum": [
+      {
+        "column": "string"
+      },
+      {
+        "byLevel": {
+          "<key>": 0
+        }
+      },
+      {
+        "abilityMod": "Strength",
+        "min": 1
+      },
+      {
+        "base": 0,
+        "perLevel": 0,
+        "divide": 1,
+        "round": "down"
+      }
+    ]
   }
 ]

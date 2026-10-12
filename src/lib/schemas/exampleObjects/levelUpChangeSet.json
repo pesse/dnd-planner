@@ -144,6 +144,12 @@
       "label": "string"
     },
     {
+      "target": "halfProficiencySkills",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "weaponProficiencyOther",
       "value": "string",
       "step": "string",

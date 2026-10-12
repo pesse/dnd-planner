@@ -4,7 +4,7 @@
  * unterscheiden.
  */
 import { z } from 'zod';
-import { amountSchema } from './amount';
+import { amountSchema, levelStepsOf } from './amount';
 
 export const RESOURCE_RECHARGE = ['long-rest', 'short-rest', 'dawn', 'none'] as const;
 export type ResourceRecharge = (typeof RESOURCE_RECHARGE)[number];
@@ -43,6 +43,13 @@ export const resourceShapeSchema = z.discriminatedUnion('kind', [
 ]);
 export type ResourceShape = z.infer<typeof resourceShapeSchema>;
 
+/** Welcher Würfel ein Einsatz ist — der Bogen druckt ihn neben die Kästchen. */
+export const resourceDieSchema = z.union([
+  z.object({ column: z.string().describe('Spalte der Klassen-Stufentabelle ("Bardic Die").') }),
+  z.object({ byLevel: levelStepsOf(z.string().regex(/^d\d+$/)) }),
+]);
+export type ResourceDie = z.infer<typeof resourceDieSchema>;
+
 export const resourcePoolSchema = z.object({
   id: z.string().describe('Nur innerhalb des Merkmals eindeutig.'),
   labelDe: z.string().default('').describe('Leer = nameDe des Merkmals.'),
@@ -63,6 +70,7 @@ export const resourcePoolSchema = z.object({
     .default('')
     .describe('Leer = eigener Vorrat des Merkmals. Gesetzt = alle speisenden Klassen teilen EINEN Pool.'),
   shape: resourceShapeSchema,
+  die: resourceDieSchema.optional(),
 });
 export type ResourcePool = z.infer<typeof resourcePoolSchema>;
 
@@ -70,6 +78,10 @@ export type ResourcePool = z.infer<typeof resourcePoolSchema>;
 export const resourceModSchema = z.object({
   target: resourceRefSchema,
   addMax: amountSchema.optional(),
+  recharge: z
+    .enum(RESOURCE_RECHARGE)
+    .optional()
+    .describe('Kürzere Auffüll-Rast für das Ziel; eine längere als die bestehende bleibt wirkungslos.'),
 });
 export type ResourceMod = z.infer<typeof resourceModSchema>;
 

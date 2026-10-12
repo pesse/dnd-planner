@@ -30,7 +30,7 @@ import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 import { libraryKey } from '../support/libraryKey';
 
 /** Stand der Inventur (Plan Stufe 1). */
-const DECLARATION_COUNT = 40;
+const DECLARATION_COUNT = 41;
 
 interface Declaration {
   key: string;

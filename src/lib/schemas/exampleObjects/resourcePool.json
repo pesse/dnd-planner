@@ -12,5 +12,8 @@
     "max": {
       "column": "string"
     }
+  },
+  "die": {
+    "column": "string"
   }
 }

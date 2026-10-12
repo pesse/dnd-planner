@@ -49,6 +49,19 @@ describe('Mengen', () => {
     expect(resolveAmount(parse('proficiency-bonus'), ctx({ profBonus: 6 }))).toBe(6);
   });
 
+  it('6 · Stufenschritte: der höchste erreichte Schlüssel gilt', () => {
+    const indomitable = parse({ byLevel: { 9: 1, 13: 2, 17: 3 } });
+    expect([8, 9, 12, 13, 20].map((level) => resolveAmount(indomitable, ctx({ level })))).toEqual([0, 1, 1, 2, 3]);
+  });
+
+  it('7 · Summe: Formel plus Modifikator', () => {
+    const ward = parse({ sum: [{ base: 2, perLevel: 2 }, { abilityMod: 'Intelligence', min: 0 }] });
+    expect(resolveAmount(ward, ctx({ level: 3, mods: abilityRecordOf(() => 3) }))).toBe(9);
+    // `min: 0` — ein negativer Modifikator zieht nichts ab.
+    expect(resolveAmount(ward, ctx({ level: 3, mods: abilityRecordOf(() => -1) }))).toBe(6);
+    expect(() => parse({ sum: [2] }), 'eine Summe braucht zwei Glieder').toThrow();
+  });
+
   it('nimmt `{}` nicht als Formel an — `base` ist Pflicht', () => {
     expect(() => parse({})).toThrow();
     expect(() => parse({ perLevel: 1 })).toThrow();

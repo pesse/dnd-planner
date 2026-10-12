@@ -27,13 +27,13 @@ describe('Werte aus der Klassentabelle', () => {
     expect(t).toEqual({});
   });
 
-  it('lässt die Zähler-Spalten den Vorräten', () => {
-    expect(byColumn({ Rages: '3', 'Wild Shape': '2', 'Sorcery Points': '5' })).toEqual({});
+  it('lässt die Zähler-Spalten und den Bardenwürfel den Vorräten', () => {
+    expect(byColumn({ Rages: '3', 'Wild Shape': '2', 'Sorcery Points': '5', 'Bardic Die': 'D8' })).toEqual({});
   });
 
   it('übergeht eine unbekannte Spalte, statt zu werfen', () => {
     expect(() => valueTracks({ 'Homebrew Punkte': '4' })).not.toThrow();
-    expect(byColumn({ 'Homebrew Punkte': '4', 'Bardic Die': '1d8' })).toHaveProperty('Bardic Die');
+    expect(byColumn({ 'Homebrew Punkte': '4', 'Sneak Attack': '1d6' })).toHaveProperty('Sneak Attack');
   });
 
   it('wertet Leerzeichen und Gedankenstrich als „gibt es auf dieser Stufe nicht"', () => {

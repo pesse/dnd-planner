@@ -50,7 +50,7 @@ describe('Sektionen des Charakterbogens', () => {
       pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, options: [], desc: '', descDe: '' }],
       resources: [{
         id: 'srd-2024_barbarian_rage/uses', featureKey: 'srd-2024_barbarian_rage', labelDe: 'Kampfrausch',
-        origin: 'class', classKey: 'srd-2024_barbarian', recharge: 'long-rest', shared: '', kind: 'counter',
+        origin: 'class', classKey: 'srd-2024_barbarian', recharge: 'long-rest', shared: '', kind: 'counter', die: '',
         max: [3], additions: [],
       }],
     });

@@ -47,6 +47,7 @@
         "perLevel": {
           "hpMax": 0
         },
+        "halfProficiencySkills": false,
         "properties": {
           "size": "Tiny",
           "speedFeet": 1

@@ -158,6 +158,7 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('language'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('sizeCategory'), value: z.enum(MONSTER_SIZE_KEYS), ...changeBase }),
   z.object({ target: z.literal('speedFeet'), value: z.number().int(), ...changeBase }),
+  z.object({ target: z.literal('halfProficiencySkills'), ...changeBase }),
   // „Martial weapons that have the Light property" — Text, kein Flag: das Vokabular kann
   // die Einschränkung nicht ausdrücken, der Bogen führt sie als Freitextzeile.
   z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),

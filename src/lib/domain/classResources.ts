@@ -44,7 +44,7 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Sneak Attack': { kind: 'value', labelDe: 'Hinterhältiger Angriff' },
   'Martial Arts': { kind: 'value', labelDe: 'Kampfkunst' },
   'Unarmoed Movement': { kind: 'value', labelDe: 'Bewegung ohne Rüstung' },
-  'Bardic Die': { kind: 'value', labelDe: 'Bardenwürfel' },
+  'Bardic Die': skip,
 };
 
 export interface ValueTrack {

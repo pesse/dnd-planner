@@ -110,6 +110,7 @@
         "perLevel": {
           "hpMax": 0
         },
+        "halfProficiencySkills": false,
         "properties": {
           "size": "Tiny",
           "speedFeet": 1
@@ -165,6 +166,7 @@
                 "perLevel": {
                   "hpMax": 0
                 },
+                "halfProficiencySkills": false,
                 "properties": {
                   "size": "Tiny",
                   "speedFeet": 1
@@ -387,6 +389,9 @@
               "max": {
                 "column": "string"
               }
+            },
+            "die": {
+              "column": "string"
             }
           }
         ],
@@ -399,7 +404,8 @@
             },
             "addMax": {
               "column": "string"
-            }
+            },
+            "recharge": "long-rest"
           }
         ]
       },

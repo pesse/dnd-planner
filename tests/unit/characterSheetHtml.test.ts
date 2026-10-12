@@ -109,7 +109,7 @@ describe('HTML-Charakterbogen', () => {
     d.resources = [{
       id: 'srd-2024_sorcerer_font-of-magic/points', featureKey: 'srd-2024_sorcerer_font-of-magic',
       labelDe: 'Zauberpunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest',
-      shared: '', kind: 'points', max: [3], additions: [],
+      shared: '', kind: 'points', die: '', max: [3], additions: [],
     }];
     d.values = [{
       className: 'Schurke',
@@ -131,7 +131,7 @@ describe('HTML-Charakterbogen', () => {
     d.resources = [{
       id: 'srd-2024_wizard_spellcasting/slots', featureKey: 'srd-2024_wizard_spellcasting',
       labelDe: 'Zauberplätze', origin: 'class', classKey: 'srd-2024_wizard', recharge: 'long-rest',
-      shared: '', kind: 'points', max: [2], additions: [],
+      shared: '', kind: 'points', die: '', max: [2], additions: [],
     }];
     d.grouped = {
       sources: [wizardSource([quota({ spells: [{ key: 'shield', label: 'Schild', level: 1, ritual: false }] })])],

@@ -47,7 +47,7 @@ export interface CharacterPrintData {
   pools: OptionPoolOffer[];
   /** Vorräte mit Maximum — Einsätze, Punkte, Zauberplätze. */
   resources: ResolvedResource[];
-  /** Die skalierenden Spalten daneben: Rauschschaden, Hinterhältiger Angriff, Bardenwürfel. */
+  /** Die skalierenden Spalten daneben: Rauschschaden, Hinterhältiger Angriff, Kampfkunst. */
   values: ClassValues[];
   /** Die im Inventar für eine Karte angehakten Gegenstände. */
   cardItems: ItemInfo[];

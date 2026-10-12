@@ -226,7 +226,7 @@ function resourcesBox(d: CharacterPrintData): string {
     .join('');
 }
 
-/** Die skalierenden Klassenspalten daneben: Rauschschaden, Hinterhältiger Angriff, Bardenwürfel. */
+/** Die skalierenden Klassenspalten daneben: Rauschschaden, Hinterhältiger Angriff, Kampfkunst. */
 function valuesBox(d: CharacterPrintData): string {
   const tracks = d.values.flatMap((cls) => cls.tracks);
   if (!tracks.length) return '';

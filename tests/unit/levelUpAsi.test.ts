@@ -12,7 +12,8 @@ import { countFeatsToPick } from '../../src/lib/services/levelUp/questions';
 import { decisionChanges } from '../../src/lib/services/levelUp/changes';
 import type { LevelUpDelta } from '../../src/lib/services/levelUp';
 
-const delta = (asiCount: number): LevelUpDelta => ({ asiCount, hitDie: 0 } as LevelUpDelta);
+const delta = (asiCount: number, over: Partial<LevelUpDelta> = {}): LevelUpDelta =>
+  ({ asiCount, hitDie: 0, fromLevel: 1, toLevel: 2, featuresGained: [], subclassFeaturesGained: [], ...over } as LevelUpDelta);
 const abilityChanges = (answers: Record<string, string | string[]>, asiCount = 1) =>
   decisionChanges({ delta: delta(asiCount), answers, conMod: 0, pickedCantrips: [], pickedLearned: [] })
     .filter((c) => c.target === 'ability');
@@ -44,6 +45,20 @@ describe('ASI-Senken', () => {
   it('zählt nur die Talent-Antworten', () => {
     const answers = { [asiQuestionId(1)]: ['feat'], [asiQuestionId(2)]: ['con', 'con'] };
     expect(countFeatsToPick(delta(2), answers)).toBe(1);
+  });
+
+  it('zählt die Epische Gabe als Talentwahl, den Kampfstil nicht', () => {
+    const feature = (featCategory: string, gainedAt: number[]) =>
+      ({ name: featCategory, gainedAt, grantsChoice: [{ kind: 'featCategory', featCategory, count: 1 }] });
+    const over = {
+      fromLevel: 18, toLevel: 19,
+      featuresGained: [feature('Epic Boon', [19]), feature('Fighting Style', [19])],
+    } as unknown as Partial<LevelUpDelta>;
+    expect(countFeatsToPick(delta(0, over), {})).toBe(1);
+    // Aufstieg über die Gabe hinweg, plus eine Talent-Antwort der Attributswerterhöhung.
+    expect(countFeatsToPick(delta(1, { ...over, fromLevel: 15 }), { [asiQuestionId(1)]: ['feat'] })).toBe(2);
+    // Vor Stufe 19 noch nicht.
+    expect(countFeatsToPick(delta(0, { ...over, toLevel: 18, fromLevel: 17 }), {})).toBe(0);
   });
 
   it('schreibt die Erhöhung mit der Obergrenze der Stufentabelle', () => {

@@ -31,11 +31,15 @@ const GAP_RULES: {
   [K in DeclarationGapKind]: { signal: RegExp; declared: (f: DeclarableFeature) => boolean };
 } = {
   spells: {
-    signal: /\byou (?:always have|know) the\b|\bcantrip\b/i,
+    // Gewährt, nicht erwähnt: „Add your Wisdom modifier to … any Cleric cantrip" ist keine Lücke.
+    signal: /\byou (?:always have|know|learn) (?:the|a|an|one|two|three)\b[^.]*?\b(?:spells?|cantrips?)\b|\bcantrips? of your choice\b/i,
     declared: (f) => f.grantsSpells !== undefined || f.grantsCasting !== undefined,
   },
   resource: {
-    signal: /\bexpended uses?\b|\bnumber of (?:times|uses)\b/i,
+    // Die einmal-pro-Rast-Formel („you can't use it again until you finish a Long Rest") nennt
+    // keine Zahl — sie ist trotzdem ein Vorrat mit Maximum 1. „Hit Points equal to" ist Heilung.
+    signal:
+      /\bexpended uses?\b|\bnumber of (?:times|uses)\b|\bcan[’']t (?:use|do) (?:it|this|so)\b[^.]*\bagain until\b|\bpool of\b|\b(?!hit\b)\w+ points equal to\b/i,
     declared: (f) => f.grantsResource !== undefined || f.grantsCasting !== undefined,
   },
   ability: {
@@ -44,7 +48,9 @@ const GAP_RULES: {
   },
   choice: {
     signal: /\bchoose\b|\bof your choice\b|\bexpertise\b/i,
-    declared: (f) => f.grantsChoice !== undefined,
+    // Auch Zauberwahl (`grantsCasting`) und offene Fertigkeitswahl (`skills.choose`) stellt der Flow.
+    declared: (f) =>
+      f.grantsChoice !== undefined || f.grantsCasting !== undefined || (f.grants?.proficiencies.skills.choose ?? 0) > 0,
   },
 };
 

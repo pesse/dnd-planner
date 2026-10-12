@@ -14,6 +14,9 @@
         "max": {
           "column": "string"
         }
+      },
+      "die": {
+        "column": "string"
       }
     }
   ],
@@ -26,7 +29,8 @@
       },
       "addMax": {
         "column": "string"
-      }
+      },
+      "recharge": "long-rest"
     }
   ]
 }

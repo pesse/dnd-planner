@@ -137,6 +137,10 @@ export const featureGrantSchema = z.object({
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
+  halfProficiencySkills: z
+    .boolean()
+    .default(false)
+    .describe('Halber Übungsbonus auf Fertigkeitswürfe ohne Übung (Alleskönner).'),
   /**
    * Die einzige Grant-Art, die NICHT über den Rider reist: der Rider ist das Ausgabevokabular
    * des Modells, eine Größe darin hieße, Pass C dürfte sie erfinden.

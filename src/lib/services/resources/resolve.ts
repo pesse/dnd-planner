@@ -5,7 +5,7 @@
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib/itemLibrary';
-import type { ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
+import type { ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
 import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf } from '../declaration/branch';
 import {
@@ -19,7 +19,7 @@ import {
   type DeclaringCharacter,
 } from '../declaration/carriers';
 import type { FeatureSource } from '../declaredFeature';
-import { resolveAmount, type AmountContext } from './amount';
+import { levelStep, resolveAmount, type AmountContext } from './amount';
 import { combineSlots, NINE, SLOT_POOL, type SlotFeeder } from './slots';
 
 export type ResourceIssueKind =
@@ -64,6 +64,8 @@ export interface ResolvedResource {
   recharge: ResourceRecharge;
   shared: string;
   kind: ResourceShape['kind'];
+  /** `d8`; leer, wo ein Einsatz kein Würfel ist. */
+  die: string;
   /** Zähler und Punkte führen einen Eintrag, Plätze neun — Index 0 = Grad 1. */
   max: number[];
   additions: ResourceAddition[];
@@ -104,7 +106,13 @@ function active(carrier: ResourceCarrier, pool: ResourcePool, branch: string, is
 const poolId = (carrier: ResourceCarrier, pool: ResourcePool): string =>
   pool.shared || `${carrier.instanceId}/${pool.id}`;
 
-function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[]): ResolvedResource {
+function resolveDie(die: ResourceDie | undefined, ctx: AmountContext): string {
+  if (!die) return '';
+  const raw = 'column' in die ? ctx.column(die.column) : levelStep(die.byLevel, ctx.level);
+  return raw?.trim().match(/^d\d+$/i)?.[0].toLowerCase() ?? '';
+}
+
+function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[], ctx: AmountContext): ResolvedResource {
   return {
     id: poolId(carrier, pool),
     featureKey: pool.shared ? '' : carrier.key,
@@ -114,6 +122,7 @@ function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[]): R
     recharge: pool.recharge,
     shared: pool.shared,
     kind: pool.shape.kind,
+    die: resolveDie(pool.die, ctx),
     max,
     additions: [],
   };
@@ -133,18 +142,25 @@ export function findResource(
 const refPath = (ownerKey: string, ref: ResourceRef): string =>
   ref.shared.trim() || `${ref.feature.trim() || ownerKey}/${ref.pool}`;
 
+/** Gleichrangige Rasten (Morgengrauen ~ lange Rast) tauschen nicht. */
+const RECHARGE_RANK: Record<ResourceRecharge, number> = { 'short-rest': 0, 'long-rest': 1, dawn: 1, none: 2 };
+
+interface PendingMod {
+  carrier: ResourceCarrier;
+  ref: ResourceRef;
+  amount: number;
+  recharge?: ResourceRecharge;
+}
+
 /** Läuft erst, wenn alle Pools stehen: ein Zuschlag darf vor seinem Ziel deklariert sein. */
-function applyMods(
-  pools: ResolvedResource[],
-  mods: { carrier: ResourceCarrier; ref: ResourceRef; amount: number }[],
-  issues: ResourceIssue[],
-): void {
-  for (const { carrier, ref, amount } of mods) {
+function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: ResourceIssue[]): void {
+  for (const { carrier, ref, amount, recharge } of mods) {
     const target = findResource(pools, ref, carrier.key);
     if (!target) {
       issues.push(declarationIssue('unresolvedResourceTarget', carrier.key, refPath(carrier.key, ref)));
       continue;
     }
+    if (recharge && RECHARGE_RANK[recharge] < RECHARGE_RANK[target.recharge]) target.recharge = recharge;
     if (!amount) continue;
     // Ein Zuschlag zählt am untersten Eintrag: eine weitere Anwendung, ein weiterer Platz Grad 1.
     target.max[0] = (target.max[0] ?? 0) + amount;
@@ -173,6 +189,7 @@ export function applyManualSlots(pools: ResolvedResource[], totals: number[]): v
     recharge: 'long-rest',
     shared: SLOT_POOL,
     kind: 'slots',
+    die: '',
     max: NINE(totals),
     additions: [],
   });
@@ -239,7 +256,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
 
   const pools: ResolvedResource[] = [];
   const slotFeeders = new Map<string, { pool: ResolvedResource; feeders: SlotFeeder[]; combine: 'caster-level' | 'highest' }>();
-  const pending: Parameters<typeof applyMods>[1] = [];
+  const pending: PendingMod[] = [];
 
   for (const carrier of carriers) {
     const grant = carrier.grantsResource;
@@ -255,7 +272,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
       if (pool.shape.kind !== 'slots') {
         const existing = pool.shared ? pools.find((p) => p.id === pool.shared) : undefined;
         const max = resolveAmount(pool.shape.max, ctx);
-        if (!existing) pools.push(ownPool(carrier, pool, [max]));
+        if (!existing) pools.push(ownPool(carrier, pool, [max], ctx));
         else if (existing.kind === pool.shape.kind) existing.max[0] += max;
         else issues.push(declarationIssue('sharedPoolKindMismatch', carrier.key, `${pool.shared}: ${existing.kind}`));
         continue;
@@ -271,14 +288,14 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
       const feeder: SlotFeeder = { ...cls, levels: pool.shape.levels };
       if (group) group.feeders.push(feeder);
       else {
-        const resolved = ownPool(carrier, pool, []);
+        const resolved = ownPool(carrier, pool, [], ctx);
         pools.push(resolved);
         slotFeeders.set(id, { pool: resolved, feeders: [feeder], combine: pool.shape.combine });
       }
     }
 
     for (const m of grant.mods)
-      pending.push({ carrier, ref: m.target, amount: m.addMax ? resolveAmount(m.addMax, ctx) : 0 });
+      pending.push({ carrier, ref: m.target, amount: m.addMax ? resolveAmount(m.addMax, ctx) : 0, recharge: m.recharge });
   }
 
   for (const { pool, feeders, combine } of slotFeeders.values()) pool.max = combineSlots(feeders, combine);

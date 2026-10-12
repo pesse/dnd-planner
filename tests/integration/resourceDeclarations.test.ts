@@ -12,6 +12,7 @@ import type { ClassProgression } from '../../src/lib/schemas/classProgression';
 import type { ResourceGrant } from '../../src/lib/schemas/resource';
 import { getProgressionByKey, levelTables } from '../../src/lib/services/classProgression';
 import { resolveResources } from '../../src/lib/services/resources/resolve';
+import { resourceViews } from '../../src/lib/services/resources/project';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { libraryKey } from '../support/libraryKey';
 import { vaultCharacter } from '../support/vaultCharacter';
@@ -173,5 +174,37 @@ describe('abgeleitete Zauberplätze', () => {
       expect(slots?.max, `${name} (${who})`).toEqual(Array.from({ length: 9 }, (_, i) => standard[i] ?? 0));
       expect(issues, name).toEqual([]);
     }
+  });
+});
+
+/** Die Vorräte, die die Redaktion ohne KI trägt — an Probe-Charakteren, nie an bespielten. */
+describe('redigierte Vorräte', () => {
+  const probe = (sourceKey: string, level: number, subclassKey?: string) =>
+    ({ classes: [{ sourceKey, subclassKey, level }] }) as Parameters<typeof resolveResources>[0];
+  const pool = async (c: Parameters<typeof resolveResources>[0], suffix: string) => {
+    const { pools, issues } = await resolveResources(c);
+    expect(issues, suffix).toEqual([]);
+    return pools.find((p) => p.featureKey.endsWith(suffix));
+  };
+
+  it('Bardische Inspiration trägt ihren Würfel, und Quell der Inspiration verkürzt die Rast', async () => {
+    const [low, high] = await Promise.all([
+      pool(probe('srd-2024_bard', 4), '_bardic-inspiration'),
+      pool(probe('srd-2024_bard', 5), '_bardic-inspiration'),
+    ]);
+    expect([low?.die, low?.recharge]).toEqual(['d6', 'long-rest']);
+    expect([high?.die, high?.recharge]).toEqual(['d8', 'short-rest']);
+    expect(resourceViews([high!])[0].label).toContain('(W8)');
+  });
+
+  it('der Überlegenheitswürfel wächst in Stufenschritten', async () => {
+    const dice = await Promise.all([3, 10, 18].map((l) => pool(probe('srd-2024_fighter', l, 'phb-2024_battle-master'), '_combat-superiority')));
+    expect(dice.map((d) => d?.die)).toEqual(['d8', 'd10', 'd12']);
+  });
+
+  it('Tatendrang zweimal ab Stufe 17, Handauflegen 5 je Stufe', async () => {
+    expect((await pool(probe('srd-2024_fighter', 16), '_action-surge'))?.max[0]).toBe(1);
+    expect((await pool(probe('srd-2024_fighter', 17), '_action-surge'))?.max[0]).toBe(2);
+    expect((await pool(probe('srd-2024_paladin', 7), '_lay-on-hands'))?.max[0]).toBe(35);
   });
 });

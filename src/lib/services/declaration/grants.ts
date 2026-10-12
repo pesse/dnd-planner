@@ -35,6 +35,8 @@ export function declaredGrantChanges(
       // Nicht in der Ausschlussliste: Eigenschaften reisen nie über den Rider.
       ...characterPropertyChanges(f.grants.properties, source),
     );
+    if (f.grants.halfProficiencySkills)
+      out.push({ target: 'halfProficiencySkills', ...source, label: 'Alleskönner: halber Übungsbonus auf ungeübte Fertigkeiten' });
   }
   return out;
 }
@@ -53,6 +55,7 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     abilities: () => g.abilities.length > 0,
     perLevel: () => g.perLevel.hpMax !== 0,
     properties: () => !isEmptyCharacterProperties(g.properties),
+    halfProficiencySkills: () => g.halfProficiencySkills,
   };
   return !Object.values(filled).some((has) => has());
 }
@@ -78,6 +81,7 @@ const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' 
   extraPreparedCount: 'rider',
   perLevel: 'perLevel',
   properties: 'change',
+  halfProficiencySkills: 'change',
 };
 void GRANT_SINKS;
 

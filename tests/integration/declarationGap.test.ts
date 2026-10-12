@@ -30,8 +30,12 @@ const feat = async (sourceKey: string): Promise<GapCandidate> => {
 };
 
 describe('Lückenmelder', () => {
-  it('meldet eine undeklarierte Wahl genau einmal', async () => {
-    const sculpt = await classFeature('srd-2024_evoker', 'srd-2024_wizard_evoker_sculpt-spells');
+  it('meldet eine undeklarierte Wahl genau einmal', () => {
+    const sculpt: GapCandidate = {
+      name: 'Sculpt Spells',
+      nameDe: 'Zauber formen',
+      desc: 'You can choose a number of them equal to 1 plus the spell’s level.',
+    };
     const lines = declarationGapLines([sculpt]);
 
     expect(lines).toHaveLength(1);
@@ -39,6 +43,23 @@ describe('Lückenmelder', () => {
     expect(lines[0]).toContain('eine Wahl');
     // Die Zeile muss sagen, was zu tun ist — sie steht im Schritt-Log und im Merkmalsfeld.
     expect(lines[0]).toContain('im Editor nachtragen');
+    // `grantsChoice: []` heißt „Wahl am Spieltisch, nicht im Flow" — geprüft, keine Lücke.
+    expect(declarationGapLines([{ ...sculpt, grantsChoice: [] }])).toEqual([]);
+  });
+
+  it('meldet die einmal-pro-Rast-Formel als Vorrat', () => {
+    const surge: GapCandidate = {
+      name: 'Action Surge',
+      desc: 'You can take one additional action. Once you do so, you can’t do so again until you finish a Short or Long Rest.',
+    };
+    expect(declarationGaps([surge])).toEqual([{ name: 'Action Surge', kind: 'resource' }]);
+    expect(declarationGaps([{ ...surge, grantsResource: { pools: [], mods: [] } }])).toEqual([]);
+  });
+
+  it('hält Heilung und erwähnte Zaubertricks für keine Lücke', () => {
+    const heal: GapCandidate = { name: 'Heal', desc: 'The creature regains Hit Points equal to your Wisdom modifier.' };
+    const blessed: GapCandidate = { name: 'Blessed', desc: 'Add your Wisdom modifier to the damage of any Cleric cantrip.' };
+    expect(declarationGaps([heal, blessed])).toEqual([]);
   });
 
   // `aiInterpretsRest` ist die Entscheidung „Bogenzeile ja, Mechanik nein" — der Melder darf

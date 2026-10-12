@@ -3,6 +3,7 @@
  * und Bogen.
  */
 import type { ResourceRecharge } from '$lib/schemas/resource';
+import { formatDamageDice } from '$lib/itemFormat';
 import type { ResolvedResource } from './resolve';
 import { NINE, PACT_POOL, SLOT_POOL } from './slots';
 
@@ -53,7 +54,7 @@ export function resourceViews(pools: ResolvedResource[]): ResourceView[] {
     .sort((a, b) => Number(b.kind === 'slots') - Number(a.kind === 'slots'))
     .map((pool) => ({
       id: pool.id,
-      label: pool.labelDe,
+      label: pool.die ? `${pool.labelDe} (${formatDamageDice(pool.die)})` : pool.labelDe,
       hint: [RECHARGE_DE[pool.recharge], ...pool.additions.map((a) => `+${a.amount} ${a.labelDe}`)]
         .filter(Boolean)
         .join(' · '),

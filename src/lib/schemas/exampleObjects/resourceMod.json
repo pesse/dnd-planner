@@ -6,5 +6,6 @@
   },
   "addMax": {
     "column": "string"
-  }
+  },
+  "recharge": "long-rest"
 }

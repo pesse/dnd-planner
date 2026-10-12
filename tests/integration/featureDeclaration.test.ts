@@ -645,11 +645,13 @@ describe('fest gewährte Sprache', () => {
       'feature-effects',
     ).filter((c) => c.target === 'language').map((c) => c.value);
 
-  it('bringt „Druidisch" auf den Bogen und lässt das Merkmal trotzdem im Notiz-Eingang', async () => {
+  it('bringt „Druidisch" auf den Bogen; ein reines `grants` lässt das Merkmal im Notiz-Eingang', async () => {
     const druidic = await classFeature('srd-2024_druid', 'srd-2024_druid_druidic');
     expect(languagesOf([druidic])).toEqual(['Druidisch']);
-    // Die Bogen-Notiz bleibt Sache des Modells — nur `grantsChoice` filtert.
-    expect(withoutDeclaredChoiceFeatures([druidic])).toEqual([druidic]);
+    // Den Eingang verlässt es erst über `grantsCasting` — die Zeile schreibt dann der Zauberblock.
+    expect(withoutDeclaredChoiceFeatures([druidic])).toEqual([]);
+    const languageOnly = { ...druidic, grantsCasting: undefined };
+    expect(withoutDeclaredChoiceFeatures([languageOnly])).toEqual([languageOnly]);
   });
 
   it('trägt bei „Diebessprache" feste und gewählte Sprache nebeneinander', async () => {

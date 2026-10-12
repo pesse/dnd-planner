@@ -1,14 +1,21 @@
 /**
  * Wie viel — eine Zählform für jede Menge, die aus Stufe, Attribut oder Klassentabelle folgt.
- * Sie deckt die fünf Regelfälle ab (Tabelle, = Stufe, Attributsmodifikator, Formel, feste Zahl).
+ * Sie deckt die Regelfälle ab (Tabelle, = Stufe, Attributsmodifikator, Formel, Stufensprung, feste Zahl, Summe).
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 
-export const amountSchema = z.union([
+/** Ab welcher Stufe welcher Wert gilt; der höchste erreichte Schlüssel gewinnt, darunter keiner. */
+export const levelStepsOf = <T extends z.ZodTypeAny>(value: T) =>
+  z
+    .record(z.string().regex(/^\d+$/), value)
+    .describe('Stufe → Wert ab dieser Stufe, z.B. {"2": 1, "17": 2}.');
+
+const termSchema = z.union([
   z.number().int().min(0).describe('Feste Anzahl.'),
   z.literal('proficiency-bonus'),
   z.object({ column: z.string().describe('Spalte der Klassen-Stufentabelle ("Rages").') }),
+  z.object({ byLevel: levelStepsOf(z.number().int().min(0)) }),
   z.object({
     abilityMod: z.enum(ABILITY_NAMES),
     min: z.number().int().min(0).default(1),
@@ -25,4 +32,14 @@ export const amountSchema = z.union([
     .describe('Formel: (base + perLevel × (Stufe − 1)) ÷ divide, gerundet.'),
 ]);
 
+// Die Summanden sind einfache Formen statt wieder `amountSchema`: rekursiv ließe sich das
+// JSON-Schema fürs LLM nicht mehr flach erzeugen.
+export const amountSchema = z.union([
+  ...termSchema.options,
+  z
+    .object({ sum: z.array(termSchema).min(2) })
+    .describe('Summe, z.B. doppelte Stufe plus Intelligenzmodifikator.'),
+]);
+
 export type Amount = z.infer<typeof amountSchema>;
+export type AmountTerm = z.infer<typeof termSchema>;

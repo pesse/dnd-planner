@@ -10,7 +10,7 @@ import { choiceGrants } from './declaration/source';
 import { featuresUpTo, getProgressionByKey } from './classProgression';
 import { getFeats, featDisplayName, featDesc, featPrereq } from '$lib/featsLibrary';
 
-const FIGHTING_STYLE_CATEGORY: FeatCategory = 'Fighting Style';
+export const FIGHTING_STYLE_CATEGORY: FeatCategory = 'Fighting Style';
 
 /** Rein deklarativ, damit Homebrew mit derselben Deklaration genauso behandelt wird. */
 export function isFightingStyleFeature(f: ClassFeature): boolean {

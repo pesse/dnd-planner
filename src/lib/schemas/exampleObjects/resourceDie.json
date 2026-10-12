@@ -1,0 +1,10 @@
+[
+  {
+    "column": "string"
+  },
+  {
+    "byLevel": {
+      "<key>": "string"
+    }
+  }
+]

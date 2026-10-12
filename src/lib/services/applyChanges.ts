@@ -141,6 +141,7 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   // Regelsprache (englische Größe, Fuß), der Bogen deutsch und metrisch.
   sizeCategory: (c, next) => { next.personal.sizeCat = MONSTER_SIZES[c.value]; },
   speedFeet: (c, next) => { next.speed = String(ftToMVal(c.value)).replace('.', ','); },
+  halfProficiencySkills: (_c, next) => { next.alleskoenner = true; },
 
   subclass: (c, next, env) => {
     const cls = env.ctx.isNewClass ? next.classes[next.classes.length - 1] : next.classes[env.ctx.classIndex];

@@ -90,8 +90,9 @@ describe('Umzug der Altform', () => {
 
   it('nennt im Angebot die Zahl der Zauber und wiederholt sich nicht', async () => {
     const c = legacy('mondkreis');
-    // Sieben, nicht acht: „Vertrauten finden" gewährt der Wilde Gefährte, es zieht nichts um.
-    expect((await offer(c))?.label).toBe('7 Zauber ins neue Format übernehmen');
+    // Sechs, nicht acht: „Vertrauten finden" gewährt der Wilde Gefährte, „Mit Tieren sprechen"
+    // Druidisch — beide ziehen nicht um.
+    expect((await offer(c))?.label).toBe('6 Zauber ins neue Format übernehmen');
     await migrate(c);
     expect(await offer(c)).toBeUndefined();
   });
