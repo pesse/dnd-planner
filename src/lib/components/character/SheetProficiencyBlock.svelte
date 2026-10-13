@@ -2,6 +2,7 @@
   import './sheet.css';
   import { sign } from '../../utils/num';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
+  import { textTip } from '../textTip.svelte';
   import { saveTip } from '../../services/characterSheetTips';
   import {
     armorProficiencyLabels,
@@ -66,7 +67,7 @@
     <div class="tag-list">
       {#each masteryChips as chip}
         {#if chip.mastery}
-          <span class="tag mastery-tag-full" title={MASTERY_INFO[chip.mastery].descDe}>
+          <span class="tag mastery-tag-full" use:textTip={MASTERY_INFO[chip.mastery].descDe}>
             {chip.name} <span class="mastery-prop">({masteryLabel(chip.mastery)})</span>
           </span>
         {:else}

@@ -8,6 +8,7 @@
   import { masteryName, type MasteryOffer } from '../services/weaponMastery';
   import { MASTERY_INFO, masteryLabel } from '../itemLabels';
   import type { DiffDir } from '../utils/diffHighlight';
+  import { textTip } from './textTip.svelte';
 
   let {
     offer,
@@ -57,7 +58,7 @@
             class="opt"
             class:picked
             disabled={!picked && masteries.length >= offer.allowance}
-            title={MASTERY_INFO[w.mastery].descDe}
+            use:textTip={MASTERY_INFO[w.mastery].descDe}
             onclick={() => toggle(name)}
           >{name} <span class="prop">({masteryLabel(w.mastery)})</span></button>
         {/each}

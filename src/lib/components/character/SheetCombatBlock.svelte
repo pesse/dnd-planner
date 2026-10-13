@@ -2,6 +2,7 @@
   import './sheet.css';
   import { sign } from '../../utils/num';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
+  import { textTip } from '../textTip.svelte';
   import { attackBonusTip, attackDamageTip } from '../../services/characterSheetTips';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
@@ -37,7 +38,7 @@
             <td>
               {atk.name}
               {#if atkMastery}
-                <span class="mastery-tag" title={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
+                <span class="mastery-tag" use:textTip={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
               {/if}
               {#if atk.note?.trim()}
                 <span class="attack-note">{atk.note}</span>

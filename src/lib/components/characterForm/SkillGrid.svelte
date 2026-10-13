@@ -4,6 +4,7 @@
   import { SKILL_DEFS } from '../../domain/skills';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import type { Character } from '../../schemas/characterSchema';
+  import { textTip } from '../textTip.svelte';
   import './form.css';
 
   let { skillFlags, alleskoenner = $bindable(), computed, grantMarks, saved, dirOf }: {
@@ -44,7 +45,7 @@
       />
       <span class="skill-name" class:proficient={flags.prof} class:expertise={flags.exp}>{def.label}</span>
       {#if grantMarks.has(def.key)}
-        <span class="grant-mark" title={grantMarks.get(def.key)!.join(' · ')}>◆</span>
+        <span class="grant-mark" use:textTip={grantMarks.get(def.key)!.join(' · ')}>◆</span>
       {/if}
       <span class="skill-val">{sign(computed[def.key].value)}</span>
     </div>

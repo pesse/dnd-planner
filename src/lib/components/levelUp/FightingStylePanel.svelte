@@ -1,7 +1,8 @@
 <script lang="ts">
   import './levelUp.css';
   import FeatPicker from '../FeatPicker.svelte';
-  import { pickableFeats } from '$lib/services/fightingStyle';
+  import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';
+  import { pickableFeats, type FightingStyleOption } from '$lib/services/fightingStyle';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
@@ -28,6 +29,11 @@
     pickableFeats(offer?.options ?? [], st.ownedFeats).filter(
       (o) => !st.chosenStyles.includes(o.sourceKey) && !st.styleSwaps.some((s, j) => j !== i && s.to === o.sourceKey),
     );
+
+  const asOptions = (empty: string, opts: FightingStyleOption[]): TooltipOption[] => [
+    { value: '', label: empty },
+    ...opts.map((o) => ({ value: o.sourceKey, label: o.name, tooltip: o.desc })),
+  ];
 </script>
 
 {#if offer}
@@ -45,19 +51,19 @@
     {@const swap = swapAt(i)}
     <div class="row">
       <span class="field-label">Kampfstil tauschen<span class="field-hint"> (optional)</span></span>
-      <select class="select" value={swap.from} onchange={(e) => setSwap(i, 'from', (e.target as HTMLSelectElement).value)}>
-        <option value="">— behalten —</option>
-        {#each offer.owned.filter((o) => o.sourceKey === swap.from || !st.styleSwaps.some((s) => s.from === o.sourceKey)) as o (o.sourceKey)}
-          <option value={o.sourceKey}>{o.name}</option>
-        {/each}
-      </select>
+      <TooltipSelect
+        options={asOptions('— behalten —', offer.owned.filter((o) => o.sourceKey === swap.from || !st.styleSwaps.some((s) => s.from === o.sourceKey)))}
+        selected={swap.from ? [swap.from] : []}
+        placeholder="— behalten —"
+        onchange={(next) => setSwap(i, 'from', next[0] ?? '')}
+      />
       {#if swap.from}
-        <select class="select" value={swap.to} onchange={(e) => setSwap(i, 'to', (e.target as HTMLSelectElement).value)}>
-          <option value="">— ersetzen durch —</option>
-          {#each freeTargets(i) as o (o.sourceKey)}
-            <option value={o.sourceKey} title={o.desc}>{o.name}</option>
-          {/each}
-        </select>
+        <TooltipSelect
+          options={asOptions('— ersetzen durch —', freeTargets(i))}
+          selected={swap.to ? [swap.to] : []}
+          placeholder="— ersetzen durch —"
+          onchange={(next) => setSwap(i, 'to', next[0] ?? '')}
+        />
       {/if}
     </div>
   {/each}

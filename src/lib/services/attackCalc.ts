@@ -63,7 +63,6 @@ export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
   return formatDamageDice(base) + (m !== 0 ? sign(m) : '');
 }
 
-/** Plaintext fürs `title`-Attribut — das HTML-Tooltip-System liegt im Charakterbogen. */
 export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
   const lines = [`${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
   if (a.proficient) lines.push(`geübt ${sign(ctx.proficiencyBonus)}`);

@@ -8,6 +8,7 @@
    * keiner Bibliothek, soll aber erklärbar sein.
    */
   import { diffMark } from '../../utils/diffHighlight';
+  import { textTip } from '../textTip.svelte';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import { dropdownPlacement } from '../../utils/dropdownPlacement';
   import './form.css';
@@ -54,7 +55,7 @@
 <div class="tag-editor">
   {#each values as value}
     {@const note = annotate?.(value)}
-    <span class="tag" title={note?.title}
+    <span class="tag" use:textTip={note?.title}
       use:diffMark={!savedValues ? 'none' : savedValues.includes(value) ? 'none' : 'up'}>
       {value}{#if note}<span class="tag-note"> ({note.suffix})</span>{/if}
       <button onclick={() => values.splice(values.indexOf(value), 1)}>✕</button>

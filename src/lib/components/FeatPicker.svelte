@@ -7,6 +7,7 @@
    */
   import { pickableFeats, type FightingStyleOption } from '../services/fightingStyle';
   import type { DiffDir } from '../utils/diffHighlight';
+  import { textTip } from './textTip.svelte';
 
   let {
     offer,
@@ -63,7 +64,7 @@
             class:picked
             class:owned={has}
             disabled={!picked && (!pickable.includes(o) || selected.length >= offer.allowance)}
-            title={has ? `${o.repeatable ? 'Schon vorhanden — mehrfach wählbar' : 'Schon vorhanden'}\n\n${o.desc}` : o.desc}
+            use:textTip={has ? `${o.repeatable ? 'Schon vorhanden — mehrfach wählbar' : 'Schon vorhanden'}\n\n${o.desc}` : o.desc}
             onclick={() => toggle(o.sourceKey)}
           >{o.name}{#if has}<span class="has">{o.repeatable ? ' ✓ +1' : ' ✓'}</span>{/if}</button>
         {/each}

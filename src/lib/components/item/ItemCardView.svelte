@@ -5,6 +5,7 @@
   import { formatCost, formatRarity, formatDamageDice, ftToM } from '$lib/itemFormat';
   import { sourceLabel } from '$lib/schemas/source';
   import Markdown from '../Markdown.svelte';
+  import { textTip } from '../textTip.svelte';
 
   let { item, color, parseError }: { item: Item | null; color: string; parseError: string | null } = $props();
 </script>
@@ -59,7 +60,7 @@
                statt stiller Leere, damit die Pflege-Lücke sichtbar bleibt. -->
           <div class="prop"><span class="plabel">Meisterschaft</span>
             {#if item.mastery}
-              <span class="pills"><span class="pill mastery-pill" title={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
+              <span class="pills"><span class="pill mastery-pill" use:textTip={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
             {:else}
               <span class="mastery-missing">— nicht gepflegt</span>
             {/if}

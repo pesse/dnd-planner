@@ -3,6 +3,7 @@
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
   import { optionLabel, type AnalysisChoice } from '../../services/analysis/types';
   import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';
+  import { textTip } from '../textTip.svelte';
 
   let { w, answers = $bindable() }: {
     w: CharacterWizard;
@@ -45,7 +46,7 @@
     <div class="field">
       <span>
         {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
-        {#if choice.helpDe}<span class="info" title={choice.helpDe}>ⓘ</span>{/if}
+        {#if choice.helpDe}<span class="info" use:textTip={choice.helpDe}>ⓘ</span>{/if}
       </span>
       {#if choice.type === 'text'}
         <input type="text" value={answerFor(choice.id)[0] ?? ''} oninput={(e) => setSingleAnswer(choice.id, e.currentTarget.value)} />

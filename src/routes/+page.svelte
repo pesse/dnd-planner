@@ -18,6 +18,8 @@
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
   import { spellRefTip } from '$lib/components/spellRefLinks.svelte';
+  import TextTooltip from '$lib/components/TextTooltip.svelte';
+  import { textTipState } from '$lib/components/textTip.svelte';
   import { cardTypeOf } from '$lib/components/cardRegistry';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { runStartupTasks } from '$lib/services/startupTasks';
@@ -189,6 +191,7 @@
 </div>
 
 <SpellTooltip spell={spellRefTip.spell} x={spellRefTip.x} y={spellRefTip.y} />
+<TextTooltip text={textTipState.text} x={textTipState.x} y={textTipState.y} />
 <ToastStack />
 <UpdateDialog />
 <RateLimitToast />

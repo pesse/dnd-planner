@@ -10,6 +10,7 @@
   } from '../../services/attackCalc';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
   import type { Attack, Character } from '../../schemas/characterSchema';
+  import { textTip } from '../textTip.svelte';
   import './form.css';
 
   let { attacks, ctx, saved, fixLabel, onfix }: {
@@ -31,8 +32,8 @@
       <tr class="attack-row" use:diffMark={atkDir}>
         <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
         {#if atk.auto}
-          <td><span class="computed-cell" title={attackBonusTip(atk, ctx)}>{computeAttackBonus(atk, ctx)}</span></td>
-          <td><span class="computed-cell" title={attackDamageTip(atk, ctx)}>{computeAttackDamage(atk, ctx) || '—'}</span></td>
+          <td><span class="computed-cell" use:textTip={attackBonusTip(atk, ctx)}>{computeAttackBonus(atk, ctx)}</span></td>
+          <td><span class="computed-cell" use:textTip={attackDamageTip(atk, ctx)}>{computeAttackDamage(atk, ctx) || '—'}</span></td>
         {:else}
           <td><input bind:value={atk.bonus} placeholder="+5" /></td>
           <td><input bind:value={atk.damage} placeholder="1W8+3" /></td>

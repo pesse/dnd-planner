@@ -9,6 +9,7 @@
   import { PROFICIENCY_FLAGS, proficiencyLabel } from '../../domain/proficiencies';
   import type { ProficiencyFlags } from '../../schemas/characterSchema';
   import TagEditor from './TagEditor.svelte';
+  import { textTip } from '../textTip.svelte';
   import './form.css';
 
   let { proficiencies, savedProficiencies, weaponItems, itemIndex, sourceOf, dirOf }: {
@@ -41,7 +42,7 @@
       <input type="checkbox" checked={proficiencies[field]}
         onchange={(e) => (proficiencies[field] = e.currentTarget.checked)} />
       <span class="check-label">{proficiencyLabel(def)}</span>
-      {#if source}<span class="grant-mark" title={source}>◆</span>{/if}
+      {#if source}<span class="grant-mark" use:textTip={source}>◆</span>{/if}
     </label>
   {/each}
 </div>

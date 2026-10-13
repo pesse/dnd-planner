@@ -8,6 +8,7 @@
   import { pickedKeys, setExtra, setPicks } from '../../services/spellcasting/write';
   import type { SpellInfo } from '../../spellLibrary';
   import SpellPickField from '../SpellPickField.svelte';
+  import { textTip } from '../textTip.svelte';
 
   let { w, library, v }: {
     w: CharacterWizard;
@@ -50,7 +51,7 @@
   <div class="field">
     <span>
       {row.source} · {row.label}
-      {#if row.hint}<span class="info" title={row.hint}>ⓘ</span>{/if}
+      {#if row.hint}<span class="info" use:textTip={row.hint}>ⓘ</span>{/if}
     </span>
     {#if row.fixed}
       <div class="granted-chips">
