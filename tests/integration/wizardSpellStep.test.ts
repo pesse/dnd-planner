@@ -28,6 +28,7 @@ const source = (over: Partial<WizardCastingSource> = {}): WizardCastingSource =>
   declaredAnswers: [],
   fightingStyles: [],
   traitFeats: {},
+  optionPicks: [],
   scores: pointBuyStart(),
   asi: {},
   spellcasting: emptySpellcasting(),

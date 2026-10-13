@@ -10,6 +10,7 @@ import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
 import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForAi } from './features';
 import { countFeatsToPick } from './questions';
+import { slotTotal } from './featUnlocks';
 import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
 import { createLevelUpKnownSpells } from './knownSpells.svelte';
@@ -105,7 +106,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
   function advCtx(): AdvanceCtx {
     return {
       delta: st.delta!,
-      featsToPick: st.delta ? countFeatsToPick(st.delta, st.answers) : 0,
+      featsToPick: st.delta ? countFeatsToPick(st.delta, st.answers, slotTotal(st.featSlots)) : 0,
+      styleWork: (st.styleOffer?.allowance ?? 0) + (st.styleOffer?.swaps ?? 0),
       // Die deklarierten Wahlen zählen mit: sonst überspringt die Maschine den Checkpoint,
       // weil das Merkmal gar nicht mehr bei der KI war, und niemand wählt.
       // Die Pools zählen mit: sie stellen keine Frage, aber ohne sie hielte die Maschine
@@ -207,14 +209,17 @@ export function createLevelUpRun(ctx: { character: Character }) {
         // Deklarationen des Talents halten am selben Checkpoint.
         steps.initFeatureChoices(choices.featChoiceQs);
         break;
-      // `assemble-decisions` fehlt hier absichtlich: das Dokument leitet diese Änderungen
-      // selbst aus dem Zustand ab.
+      // Die Änderungen leitet das Dokument selbst aus dem Zustand ab; hier fällt nur, welche
+      // Talentwahlen die Entscheidungen freischalten.
+      case 'assemble-decisions':
+        await steps.runFeatUnlocks();
+        break;
     }
   }
 
   function onEnterCheckpoint(step: StepId) {
     if (step === 'feat-choice') {
-      st.featsToPick = countFeatsToPick(st.delta!, st.answers);
+      st.featsToPick = countFeatsToPick(st.delta!, st.answers, slotTotal(st.featSlots));
       st.chosenFeats = [];
       getFeats().then((f) => { st.featLib = f; });
     } else if (step === 'class-features' && !st.featuresText.trim()) {
@@ -236,6 +241,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
+      styleOffer: st.styleOffer, chosenStyles: st.chosenStyles, styleSwaps: st.styleSwaps,
       grantSources: choices.baseDeclared, choiceSources: choices.declaredSources, charLevelSpells: st.charLevelSpells,
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,
       optionPools: st.optionPools, optionPicks: st.optionPicks,
@@ -259,7 +265,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.optionPools = []; st.optionPicks = []; st.toolLib = [];
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
       st.notes = []; st.gaps = [];
-      st.chosenFeats = []; st.featAccess = []; st.featRiders = []; st.flagged = [];
+      st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
+      st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
       st.hpPerLevelSources = []; st.narrativeSummary = ''; st.featuresText = ''; st.aiSkipped = false;
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();

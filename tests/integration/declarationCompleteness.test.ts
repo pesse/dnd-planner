@@ -23,9 +23,6 @@ const UNDECLARED_BACKLOG: Record<string, string> = {
 };
 
 const GAP_BACKLOG: Record<string, DeclarationGapKind> = {
-  'srd-2024_warlock_eldritch-invocations': 'spells',
-  'srd-2024_paladin_fighting-style': 'spells',
-  'srd-2024_ranger_fighting-style': 'spells',
   'srd-2024_druid_circle-of-the-land_natures-sanctuary': 'resource',
 };
 

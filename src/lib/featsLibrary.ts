@@ -27,6 +27,7 @@ export interface FeatEntry extends DeclarationFields {
   prerequisite?: string;
   prerequisiteDe?: string;
   category?: FeatCategory;
+  repeatable?: boolean;
   sourceKey?: string;
   /** Bei inline erzeugten Talenten leer. */
   path?: string;
@@ -58,6 +59,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
       descDe: data.descDe,
       prerequisite: data.prerequisite,
       prerequisiteDe: data.prerequisiteDe,
+      repeatable: data.repeatable === true,
       category: (FEAT_CATEGORIES as readonly string[]).includes(data.category)
         ? (data.category as FeatCategory)
         : undefined,

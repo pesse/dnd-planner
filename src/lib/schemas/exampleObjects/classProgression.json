@@ -183,6 +183,10 @@
             }
           ],
           "featCategory": "Origin",
+          "when": {
+            "<key>": "string"
+          },
+          "swap": "level-up-one",
           "count": 1,
           "column": "string",
           "skills": [
@@ -244,6 +248,7 @@
               "schools": [
                 "abjuration"
               ],
+              "ritual": false,
               "from": {
                 "feature": "string",
                 "quota": "string"
@@ -318,6 +323,7 @@
                 "schools": [
                   "abjuration"
                 ],
+                "ritual": false,
                 "from": {
                   "feature": "string",
                   "quota": "string"

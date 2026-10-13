@@ -18,6 +18,7 @@ export function castingInput(
     species: { ...form.species },
     backgroundRef: { ...form.backgroundRef },
     features: features.map((f) => ({ ...f })),
+    optionPicks: form.optionPicks.map((p) => ({ ...p })),
     proficiencyBonus: form.proficiencyBonus,
     abilities: { ...form.abilities },
     mods: abilityMods(form),

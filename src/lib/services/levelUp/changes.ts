@@ -3,7 +3,6 @@
  * `upsertStep` ersetzt damit bei einem erneuten Lauf nur die eigenen Einträge.
  */
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
-import { isFightingStyleFeature } from '../fightingStyle';
 import { declaredGrantChanges, type DeclaredGrantSource } from '../declaration/grants';
 import { abilityIncreasesOf } from '../declaration/abilityIncrease';
 import { type DeclaredChoiceSource } from '../declaration/optionList';
@@ -26,6 +25,7 @@ import type { SpellGrantSource } from '../grantedSpells';
 import { answerLabels, answerValues, recordsChoice } from './answers';
 import { ASI_ABILITY_MAX, asiIncrements, asiQuestionId } from './asi';
 import type { StepId } from './steps';
+import type { LevelUpStyleOffer } from './featUnlocks';
 import { declaredSpellChanges, learnInfo, type DeclaredSpells, type ValidatedRiders } from './spells';
 
 function bumpHitDice(current: string, die: number, add: number, toLevel: number): string {
@@ -76,15 +76,6 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
   // eine KI-Frage hier böte eine erfundene Waffenliste an.
   if (delta.masteryTo > delta.masteryFrom) {
     const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
-    out.push({ target: 'note', value, step, source: 'class-progression', label: value });
-  }
-  // Wie die Waffenbeherrschung nur ein HINWEIS: über `grantsChoice` als flow-eigene Wahl
-  // markiert, die eigentliche Wahl trifft der Bogen aus der Talent-Bibliothek.
-  const styleFeatures = [...delta.featuresGained, ...delta.subclassFeaturesGained].filter(isFightingStyleFeature);
-  if (styleFeatures.length) {
-    const value = styleFeatures.length > 1
-      ? `Kampfstil: ${styleFeatures.length} neue — im Charakterbogen wählbar`
-      : 'Kampfstil: im Charakterbogen wählbar';
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });
   }
   for (const f of delta.featuresGained)
@@ -268,6 +259,26 @@ export function optionPoolChanges(
       source: pool.featureKey,
       label: `${pool.titleDe}: ${mine.map((p) => p.valueDe || p.value).join(', ') || '—'}`,
     });
+  }
+  return out;
+}
+
+export function fightingStyleChanges(
+  offer: LevelUpStyleOffer | null,
+  chosen: readonly string[],
+  swaps: readonly { from: string; to: string }[],
+  gainedAt: number,
+): Change[] {
+  if (!offer) return [];
+  const step: BuilderStep = 'feat-links';
+  const nameOf = (key: string) => [...offer.options, ...offer.owned].find((o) => o.sourceKey === key)?.name ?? key;
+  const added = (key: string, label: string): Change =>
+    ({ target: 'feat', sourceKey: key, name: nameOf(key), gainedAt, step, source: key, label });
+  const out: Change[] = chosen.map((key) => added(key, `Kampfstil: ${nameOf(key)}`));
+  for (const s of swaps) {
+    if (!s.from || !s.to) continue;
+    const label = `Kampfstil getauscht: ${nameOf(s.from)} → ${nameOf(s.to)}`;
+    out.push({ target: 'featRemoved', sourceKey: s.from, step, source: s.from, label }, added(s.to, label));
   }
   return out;
 }

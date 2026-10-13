@@ -19,6 +19,11 @@ import {
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
 import { buildDecisions } from './questions';
+import { featureChoiceChanges } from './changes';
+import { featUnlocks } from './featUnlocks';
+import { fightingStyleOptions } from '../fightingStyle';
+import { featInstances } from '../declaration/featInstances';
+import { featuresUpTo, getProgressionByKey } from '../classProgression';
 import { levelUpPools } from './pools';
 import { getItemsByDir } from '../../itemLibrary';
 import { sheetNoteLines, fallbackSheetNotes } from './sheetNotes';
@@ -182,6 +187,47 @@ export function createRunSteps(ctx: RunStepsDeps) {
     ).catch(() => []);
     if (st.optionPools.length)
       pushStep(`${st.optionPools.length} Options-Pool/Pools zur Auswahl (Kontingent aus der Stufentabelle).`);
+  }
+
+  /**
+   * Nach den Merkmals-Wahlen und Pool-Wahlen: erst mit deren Antworten steht fest, welche
+   * bedingte Talentwahl greift. Gezählt über ALLE Merkmale bis zur Zielstufe, nicht nur die
+   * neuen — eine Pool-Wahl schaltet die Wahl eines längst vorhandenen Merkmals frei.
+   */
+  async function runFeatUnlocks() {
+    const d = st.delta!;
+    const subKey = st.chosenSubclass?.key || d.subclassKey;
+    const [prog, sub] = await Promise.all([
+      getProgressionByKey(d.sourceKey),
+      subKey ? getProgressionByKey(subKey) : Promise.resolve(null),
+    ]);
+    const features = [...(prog ? featuresUpTo(prog, d.toLevel) : []), ...(sub ? featuresUpTo(sub, d.toLevel) : [])];
+    const ledger = ctx.character.features ?? [];
+    // Die Antworten DIESES Laufs zuerst: `pickAnswer` nimmt die erste passende.
+    const answered = featureChoiceChanges(choices.baseChoiceQs, st.answers, new Map(), d.toLevel, 'assemble-decisions')
+      .flatMap((c) => (c.target === 'featureChoice' ? [{ sourceKey: c.sourceKey, choice: c.choice }] : []));
+    const unlocks = featUnlocks(
+      features,
+      d,
+      { ledger, picks: ctx.character.optionPicks ?? [] },
+      { ledger: [...answered, ...ledger], picks: st.optionPicks },
+    );
+    st.featSlots = unlocks.conditional;
+    st.ownedFeats = (await featInstances(ctx.character.features, ctx.character.backgroundRef)).map((i) => i.featureKey);
+    st.chosenStyles = [];
+    st.styleSwaps = [];
+    st.styleOffer = null;
+    if (!unlocks.fightingStyle && !unlocks.styleSwaps) return;
+    const all = await fightingStyleOptions();
+    const owned = all.filter((o) => st.ownedFeats.includes(o.sourceKey));
+    st.styleOffer = {
+      allowance: unlocks.fightingStyle,
+      swaps: owned.length ? unlocks.styleSwaps : 0,
+      options: all,
+      owned,
+    };
+    if (st.styleOffer.allowance || st.styleOffer.swaps)
+      pushStep(`Kampfstil: ${st.styleOffer.allowance} neu, ${st.styleOffer.swaps} tauschbar.`);
   }
 
   /**
@@ -426,7 +472,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
 
   return {
     initAnswers, initFeatureChoices, announceNoteAvailability,
-    runDeclaredChoices, runRiders, runNotes, runNarrative,
+    runDeclaredChoices, runFeatUnlocks, runRiders, runNotes, runNarrative,
     seedFeaturesText, mergeClassFeatures,
     resolveCharLevelSpells, detectHpPerLevel,
     gatherLearned, gatherCantrips, spellOf,

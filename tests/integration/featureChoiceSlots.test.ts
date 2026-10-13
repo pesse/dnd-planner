@@ -85,7 +85,8 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
 
   /**
    * Jeder Platz beansprucht nur seine EIGENE Antwort: die Abstammungswahl des Volksmerkmals
-   * („Blue") und das Zauberattribut des Talents liegen beide im Ledger, ohne sich zu kreuzen.
+   * („Blue") und das Zauberattribut des Talents liegen beide im Ledger, ohne sich zu kreuzen —
+   * und die offene Kampfstil-Zweigwahl des Paladins greift keine von beiden ab.
    */
   it('greift die Antwort eines anderen Merkmals nicht ab', async () => {
     const c = vaultCharacter('Bölgör');
@@ -93,6 +94,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
     const claimed = list.map((ch) => [ch.slot.feature.key, c.features[ch.entry]?.choice]);
 
     expect(claimed).toEqual([
+      ['srd-2024_paladin_fighting-style', undefined],
       ['srd-2024_dragonborn_draconic-ancestry', 'Blue'],
       [MAGIC_INITIATE_KEY, 'Charisma'],
     ]);

@@ -71,19 +71,11 @@ describe('Lückenmelder', () => {
     expect(declarationGapLines([secrets])).toEqual([]);
   });
 
-  /**
-   * Die Anrufungen sind als Pool deklariert, ihre Optionstexte wirken aber Zauber („cast
-   * *Mage Armor* … without expending a spell slot"), und ein Pool gewährt keine Mechanik.
-   * Die Meldung wechselt damit von `choice` auf `spells` — sie bleibt richtig.
-   */
-  it('meldet am deklarierten Pool die Zauber seiner Optionen', async () => {
+  /** Die Zauber der Anrufungen tragen Kontingente mit `when.pick` — der Pool ist damit gedeckt. */
+  it('schweigt am Pool, dessen Options-Zauber deklariert sind', async () => {
     const invocations = await classFeature('srd-2024_warlock', 'srd-2024_warlock_eldritch-invocations');
-    expect(invocations.grantsChoice, 'die Deklaration im Vault').toBeTruthy();
-
-    const lines = declarationGapLines([invocations]);
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain('Schauerliche Anrufungen');
-    expect(lines[0]).toContain('Zauber an, die die Bibliothek nicht deklariert');
+    expect(invocations.grantsCasting, 'die Deklaration im Vault').toBeTruthy();
+    expect(declarationGapLines([invocations])).toEqual([]);
   });
 
   it('schweigt, wo die Bibliothek die Wahl deklariert', async () => {

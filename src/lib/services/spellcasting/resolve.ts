@@ -14,6 +14,7 @@ import {
   type SourceAnswers,
 } from '../declaration/carriers';
 import { pickAnswer } from '../declaration/ledgerAnswers';
+import { branchOf, branchValues } from '../declaration/branch';
 import { castingIssue, type CastingIssue, type CastingOrigin, type CastingSource, type Quota } from './source';
 
 export type CastingCharacter = DeclaringCharacter;
@@ -36,12 +37,6 @@ export interface Placement {
 /** Vorgabe für `since`: ab welcher Stufe das Merkmal überhaupt gilt. */
 const firstGain = (gainedAt: number[]): number =>
   gainedAt.length ? Math.max(1, Math.min(...gainedAt)) : 1;
-
-/** Der einzige `when`-Schlüssel, den der Flow beantworten kann (`quota.ts::branchMatches`). */
-function branchOf(quotas: Quota[], values: readonly string[]): string {
-  const declared = quotas.map((q) => q.when?.option?.trim()).filter((v): v is string => !!v);
-  return declared.length ? (pickAnswer(values, declared) ?? '') : '';
-}
 
 /** Eine beantwortete Attributwahl IST eine Festlegung — danach fragt niemand mehr nach. */
 function bindAbility(binding: AbilityBinding | undefined, values: readonly string[]): AbilityBinding | undefined {
@@ -80,7 +75,8 @@ function toSource(carrier: Carrier, grant: CastingGrant): CastingSource {
     ability: bindAbility(grant.ability, a.values),
     swap: grant.swap ?? {},
     quotas,
-    branch: branchOf(quotas, a.values),
+    branch: branchOf(branchValues(quotas.map((q) => q.when)), a.values),
+    picks: a.picks,
   };
 }
 

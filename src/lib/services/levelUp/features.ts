@@ -11,6 +11,7 @@ import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpel
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import type { ClassFeature } from '../../schemas/classProgression';
 import type { GainedFeature } from '../analysis/types';
+import type { FeatCategory } from '../../schemas/vocabulary';
 
 /** Englisch geführt, deutsche Fassung als Beilage — so deutet die KI. */
 export interface ChosenFeat extends DeclarationFields {
@@ -20,6 +21,8 @@ export interface ChosenFeat extends DeclarationFields {
   gainedAt: number;
   desc: string;
   descDe?: string;
+  /** Gewählt in eine bedingte Talentwahl dieser Kategorie — sonst zählt es zu den freien. */
+  slot?: FeatCategory;
 }
 
 function featureToGained(f: ClassFeature, source: 'class' | 'subclass', fromLevel: number, toLevel: number): GainedFeature {

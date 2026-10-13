@@ -30,7 +30,7 @@ import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 import { libraryKey } from '../support/libraryKey';
 
 /** Stand der Inventur (Plan Stufe 1). */
-const DECLARATION_COUNT = 41;
+const DECLARATION_COUNT = 44;
 
 interface Declaration {
   key: string;
@@ -113,11 +113,13 @@ describe('grantsCasting im Vault', () => {
 
   it('bezieht jedes `when` auf eine Option desselben Merkmals', async () => {
     for (const d of await declarations()) {
-      const options = (d.grantsChoice ?? []).flatMap((g) => g.options).map((o) => o.value);
+      const optionsOf = (kind: 'optionList' | 'optionPool') =>
+        (d.grantsChoice ?? []).filter((g) => g.kind === kind).flatMap((g) => g.options).map((o) => o.value);
+      const allowed: Record<string, string[]> = { option: optionsOf('optionList'), pick: optionsOf('optionPool') };
       for (const quota of quotasOf(d)) {
         for (const [key, value] of Object.entries(quota.when ?? {})) {
-          expect(key, `${d.key}/${quota.id}`).toBe('option');
-          expect(options, `${d.key}/${quota.id}`).toContain(value);
+          expect(Object.keys(allowed), `${d.key}/${quota.id}`).toContain(key);
+          expect(allowed[key], `${d.key}/${quota.id}`).toContain(value);
         }
       }
     }

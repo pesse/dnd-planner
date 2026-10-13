@@ -8,6 +8,7 @@ import { ABILITY_NAMES } from './abilities';
 import { amountSchema } from './amount';
 import { resourceRefSchema } from './resource';
 import { SPELL_SCHOOL_KEYS } from './vocabulary';
+import { whenSchema } from './when';
 
 const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
 
@@ -76,6 +77,7 @@ export const spellPoolSchema = z.object({
     .default('union')
     .describe('choose-one = der Spieler legt EINE Liste je Quelle fest (Eingeweihter der Magie).'),
   schools: z.array(schoolEnum).default([]).describe('Schul-Filter; leer = alle.'),
+  ritual: z.boolean().default(false).describe('Nur Zauber mit Ritual-Tag (Pakt des Buches).'),
   from: quotaRefSchema.optional().describe('Der Pool IST eine andere Quota — das Zauberbuch.'),
   names: z
     .array(z.string())
@@ -114,10 +116,7 @@ const quotaBaseSchema = z.object({
     .max(20)
     .optional()
     .describe('Vorgabe: min(gainedAt). Nur nötig, wenn EIN Merkmal über mehrere Stufen Verschiedenes gibt.'),
-  when: z
-    .record(z.string(), z.string())
-    .optional()
-    .describe('Zweig-Bedingung auf dem grantsChoice.optionList DESSELBEN Merkmals, z.B. {"option":"High Elf"}.'),
+  when: whenSchema.optional(),
   tier: z.enum(['known', 'prepared']).describe('known = Bestand, nicht wirkbar (Zauberbuch).'),
   levels: quotaLevelsSchema.optional().describe('Entfällt bei pool.names — der Grad steht am Zauber.'),
   // Entfällt bei festem Pool (`names`/`fromDescTable`): dort ist alles gewährt, eine Zahl

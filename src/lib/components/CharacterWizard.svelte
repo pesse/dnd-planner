@@ -19,7 +19,7 @@
   import { FEAT_CATEGORY_DE } from '../featsLibrary';
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
-  import { wizardCastingInput, wizardGrantInput } from '../services/wizard/castingDraft';
+  import { featureLedger, wizardCastingInput, wizardGrantInput } from '../services/wizard/castingDraft';
   import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
@@ -49,9 +49,10 @@
     { id: 'trait-feat', label: 'Volks-Talent' },
     { id: 'proficiencies', label: 'Übungen' },
     { id: 'mastery', label: 'Waffenbeherrschung' },
-    { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'option-pool', label: 'Merkmals-Optionen' },
     { id: 'features', label: 'Merkmale' },
+    // Nach den Merkmalen: eine Talentwahl mit `when` hängt an deren Antwort.
+    { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'spells', label: 'Zauber' },
     { id: 'equipment', label: 'Ausrüstung' },
     { id: 'review', label: 'Überblick' },
@@ -169,11 +170,20 @@
   $effect(() => {
     const key = w.klass.sourceKey;
     if (!key) { fightingStyle = null; return; }
+    const features = featureLedger(w);
+    const optionPicks = $state.snapshot(w.optionPicks);
     let cancelled = false;
     void fightingStyleOffer({
       classes: [{ sourceKey: key, subclassKey: w.klass.subclassKey, name: w.klass.name, level: 1 }],
+      features,
+      optionPicks,
     })
-      .then((o) => { if (!cancelled) fightingStyle = o; })
+      .then((o) => {
+        if (cancelled) return;
+        fightingStyle = o;
+        // Ein Zweigwechsel kann das Kontingent senken; ein überzähliger Link würde sonst montiert.
+        if (w.fightingStyles.length > o.allowance) w.fightingStyles = w.fightingStyles.slice(0, o.allowance);
+      })
       .catch(() => { if (!cancelled) fightingStyle = null; });
     return () => { cancelled = true; };
   });

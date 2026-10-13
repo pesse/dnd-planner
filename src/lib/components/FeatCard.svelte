@@ -73,6 +73,7 @@
         {#snippet head()}
           <div class="badges">
             <span class="kategorie">{FEAT_CATEGORY_DE[draft!.category]}</span>
+            {#if draft!.repeatable}<span class="kategorie">mehrfach wählbar</span>{/if}
             <DeclarationBadge badge={declBadge} />
           </div>
           {#if prereq(draft!)}

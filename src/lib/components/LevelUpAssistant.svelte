@@ -21,6 +21,7 @@
   import OptionPoolPanel from './levelUp/OptionPoolPanel.svelte';
   import PlayerDecisionsPanel from './levelUp/PlayerDecisionsPanel.svelte';
   import FeatChoicePanel from './levelUp/FeatChoicePanel.svelte';
+  import FightingStylePanel from './levelUp/FightingStylePanel.svelte';
   import ClassFeaturesPanel from './levelUp/ClassFeaturesPanel.svelte';
   import SpellCreatorPanel from './levelUp/SpellCreatorPanel.svelte';
   import ReviewPanel from './levelUp/ReviewPanel.svelte';
@@ -105,7 +106,8 @@
   {/if}
 
   {#if isPausedAt(st.run, 'feat-choice')}
-    <FeatChoicePanel {ui} />
+    <FightingStylePanel {ui} />
+    {#if st.featsToPick > 0}<FeatChoicePanel {ui} />{/if}
   {/if}
 
   {#if isPausedAt(st.run, 'class-features')}
@@ -138,7 +140,7 @@
       <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!ui.allAnswered}>Weiter</button>
     {:else if isPausedAt(st.run, 'feat-choice')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={st.chosenFeats.length !== st.featsToPick}>Weiter</button>
+      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={!ui.featsDone || !ui.stylesDone}>Weiter</button>
     {:else if isPausedAt(st.run, 'feat-choices')}
       <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
       <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>

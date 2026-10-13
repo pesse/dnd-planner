@@ -7,7 +7,7 @@ import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib/itemLibrary';
 import type { ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
 import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
-import { branchMatch, branchOf } from '../declaration/branch';
+import { branchMatch, branchOf, branchValues, type BranchState } from '../declaration/branch';
 import {
   declarationIssue,
   walkCarriers,
@@ -94,10 +94,10 @@ function amountContext(
   };
 }
 
-function active(carrier: ResourceCarrier, pool: ResourcePool, branch: string, issues: ResourceIssue[]): boolean {
+function active(carrier: ResourceCarrier, pool: ResourcePool, state: BranchState, issues: ResourceIssue[]): boolean {
   const since = pool.since ?? (carrier.gainedAt.length ? Math.max(1, Math.min(...carrier.gainedAt)) : 1);
   if (since > carrier.level) return false;
-  const match = branchMatch(pool.when, branch);
+  const match = branchMatch(pool.when, state);
   if (match.unknown)
     issues.push(declarationIssue('unknownBranchKey', carrier.key, `${pool.id}: when.${match.unknown}`));
   return match.ok;
@@ -261,14 +261,14 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
   for (const carrier of carriers) {
     const grant = carrier.grantsResource;
     if (!grant) continue;
-    const branch = branchOf(
-      grant.pools.map((p) => p.when?.option),
-      carrier.answers.values,
-    );
+    const state = {
+      branch: branchOf(branchValues(grant.pools.map((p) => p.when)), carrier.answers.values),
+      picks: carrier.answers.picks,
+    };
     const ctx = amountContext(carrier, classes, profBonus, mods);
 
     for (const pool of grant.pools) {
-      if (!active(carrier, pool, branch, issues)) continue;
+      if (!active(carrier, pool, state, issues)) continue;
       if (pool.shape.kind !== 'slots') {
         const existing = pool.shared ? pools.find((p) => p.id === pool.shared) : undefined;
         const max = resolveAmount(pool.shape.max, ctx);

@@ -8,6 +8,7 @@ import { resolveAmount, type AmountContext } from '../resources/amount';
 import { columnValue } from '../classProgression';
 import { parseSpellGrantRows } from '../grantedSpells';
 import { slotLevels } from '../resources/slots';
+import { branchMatch } from '../declaration/branch';
 import {
   castingIssue,
   quotaSwap,
@@ -22,6 +23,7 @@ export interface ResolvedPool {
   lists: string[];
   listMode: 'union' | 'choose-one';
   schools: SpellSchool[];
+  ritual: boolean;
   /** Gewährte Zauber als `spell.key`. */
   keys: string[];
   /** Der Pool IST die Auswahl einer anderen Quota (Zauberbuch). */
@@ -89,18 +91,10 @@ export function quotaContext(
 }
 
 /** Der einzige `when`-Schlüssel, den der Flow beantworten kann. */
-const BRANCH_KEY = 'option';
-
 function branchMatches(source: CastingSource, quota: Quota, issues?: CastingIssue[]): boolean {
-  if (!quota.when) return true;
-  for (const [key, value] of Object.entries(quota.when)) {
-    if (key !== BRANCH_KEY) {
-      issues?.push(castingIssue('unknownBranchKey', source.featureKey, `${quota.id}: when.${key}`));
-      return false;
-    }
-    if (value.trim() !== source.branch.trim()) return false;
-  }
-  return true;
+  const match = branchMatch(quota.when, source);
+  if (match.unknown) issues?.push(castingIssue('unknownBranchKey', source.featureKey, `${quota.id}: when.${match.unknown}`));
+  return match.ok;
 }
 
 /**
@@ -184,6 +178,7 @@ export function quotaView(
       lists: [...quota.pool.lists],
       listMode: quota.pool.listMode,
       schools: [...quota.pool.schools],
+      ritual: quota.pool.ritual,
       keys,
       ...(from ? { from: { sourceId: from.feature || source.id, quotaId: from.quota } } : {}),
     },

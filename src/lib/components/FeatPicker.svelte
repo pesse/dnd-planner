@@ -5,7 +5,7 @@
    * über `onToggle` — so bleibt die Quelle des Aufrufers die einzige Wahrheit und es
    * entsteht kein zweiter, driftender Zustand.
    */
-  import type { FightingStyleOption } from '../services/fightingStyle';
+  import { pickableFeats, type FightingStyleOption } from '../services/fightingStyle';
   import type { DiffDir } from '../utils/diffHighlight';
 
   let {
@@ -14,6 +14,7 @@
     missingHint,
     selected,
     onToggle,
+    owned = [],
     diff = 'none',
   }: {
     offer: { allowance: number; options: FightingStyleOption[] } | null;
@@ -23,6 +24,8 @@
     missingHint: string;
     selected: string[];
     onToggle: (sourceKey: string) => void;
+    /** Talente, die der Charakter schon hat — markiert, wählbar nur wenn `repeatable`. */
+    owned?: readonly string[];
     diff?: DiffDir;
   } = $props();
 
@@ -36,6 +39,8 @@
   function toggle(key: string) {
     if (selected.includes(key) || selected.length < (offer?.allowance ?? 0)) onToggle(key);
   }
+
+  const pickable = $derived(offer ? pickableFeats(offer.options, owned) : []);
 </script>
 
 {#if offer && offer.allowance > 0}
@@ -51,20 +56,22 @@
       <div class="options">
         {#each offer.options as o (o.sourceKey)}
           {@const picked = selected.includes(o.sourceKey)}
+          {@const has = owned.includes(o.sourceKey)}
           <button
             type="button"
             class="opt"
             class:picked
-            disabled={!picked && selected.length >= offer.allowance}
-            title={o.desc}
+            class:owned={has}
+            disabled={!picked && (!pickable.includes(o) || selected.length >= offer.allowance)}
+            title={has ? `${o.repeatable ? 'Schon vorhanden — mehrfach wählbar' : 'Schon vorhanden'}\n\n${o.desc}` : o.desc}
             onclick={() => toggle(o.sourceKey)}
-          >{o.name}</button>
+          >{o.name}{#if has}<span class="has">{o.repeatable ? ' ✓ +1' : ' ✓'}</span>{/if}</button>
         {/each}
       </div>
     {/if}
 
-    {#if offer.options.length < offer.allowance}
-      <p class="warn">Nur {offer.options.length} in der Bibliothek — {missingHint}</p>
+    {#if pickable.length < offer.allowance}
+      <p class="warn">Nur {pickable.length} wählbar in der Bibliothek — {missingHint}</p>
     {/if}
 
     {#if overflow.length}
@@ -98,6 +105,8 @@
   .opt:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
   .opt.picked { background: color-mix(in srgb, var(--copper) 30%, var(--bg-panel)); color: var(--ink); border-color: var(--copper); }
   .opt:disabled { opacity: 0.45; cursor: not-allowed; }
+  .opt.owned { border-style: dashed; }
+  .has { color: var(--copper); }
   .opt.overflow { border-color: var(--danger); color: var(--danger); cursor: pointer; }
   .warn { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--danger); }
 </style>

@@ -6,30 +6,34 @@
 import type { ClassFeature, ClassProgression } from '$lib/schemas/classProgression';
 import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import type { FeatCategory } from '$lib/schemas/vocabulary';
+import type { OptionPick } from '$lib/schemas/characterSchema';
 import { choiceGrants } from './declaration/source';
+import { choiceActive, choiceBranchState, type BranchState } from './declaration/branch';
+import type { LedgerAnswerEntry } from './declaration/ledgerAnswers';
 import { featuresUpTo, getProgressionByKey } from './classProgression';
-import { getFeats, featDisplayName, featDesc, featPrereq } from '$lib/featsLibrary';
+import { getFeats, featDisplayName, featDesc, featPrereq, type FeatEntry } from '$lib/featsLibrary';
 
 export const FIGHTING_STYLE_CATEGORY: FeatCategory = 'Fighting Style';
 
-/** Rein deklarativ, damit Homebrew mit derselben Deklaration genauso behandelt wird. */
-export function isFightingStyleFeature(f: ClassFeature): boolean {
-  return fightingStyleGrants(f).length > 0;
-}
-
-const fightingStyleGrants = (f: ClassFeature): FeatureChoiceGrant[] =>
-  choiceGrants(f).filter((g) => g.kind === 'featCategory' && g.featCategory === FIGHTING_STYLE_CATEGORY);
+const fightingStyleGrants = (f: ClassFeature, state: BranchState): FeatureChoiceGrant[] =>
+  choiceGrants(f).filter(
+    (g) => g.kind === 'featCategory' && g.featCategory === FIGHTING_STYLE_CATEGORY && choiceActive(g, state),
+  );
 
 export interface FightingStyleOption {
   /** Landet als `sourceKey` im Merkmals-Ledger des Charakters. */
   sourceKey: string;
   name: string;
   desc: string;
+  repeatable: boolean;
 }
 
 /** Subklasse inklusive — der „Zusätzliche Kampfstil" des Champions ist ein Subklassen-Merkmal. */
 export interface FightingStyleInput {
   classes?: { sourceKey?: string; subclassKey?: string; name?: string; level?: number }[];
+  /** Merkmals-Ledger und Pool-Wahlen: eine Talentwahl mit `when` zählt erst nach ihrer Antwort. */
+  features?: readonly LedgerAnswerEntry[];
+  optionPicks?: readonly OptionPick[];
 }
 
 export interface FightingStyleOffer {
@@ -41,9 +45,9 @@ export interface FightingStyleOffer {
 
 const emptyOffer = (): FightingStyleOffer => ({ allowance: 0, className: '', options: [] });
 
-function styleCountUpTo(prog: ClassProgression, level: number): number {
+function styleCountUpTo(prog: ClassProgression, level: number, input: FightingStyleInput): number {
   return featuresUpTo(prog, level)
-    .flatMap(fightingStyleGrants)
+    .flatMap((f) => fightingStyleGrants(f, choiceBranchState(f, input.features ?? [], input.optionPicks ?? [])))
     .reduce((sum, g) => sum + g.count, 0);
 }
 
@@ -65,7 +69,7 @@ export async function fightingStyleOffer(input: FightingStyleInput): Promise<Fig
       c.subclassKey ? getProgressionByKey(c.subclassKey) : Promise.resolve(null),
     ]);
     if (!prog) continue;
-    const n = styleCountUpTo(prog, level) + (subProg ? styleCountUpTo(subProg, level) : 0);
+    const n = styleCountUpTo(prog, level, input) + (subProg ? styleCountUpTo(subProg, level, input) : 0);
     if (n > 0) {
       allowance += n;
       const label = c.name?.trim() || prog.nameDe || prog.name;
@@ -74,10 +78,19 @@ export async function fightingStyleOffer(input: FightingStyleInput): Promise<Fig
   }
   if (allowance <= 0) return emptyOffer();
 
-  const options: FightingStyleOption[] = (await getFeats())
-    .filter((f) => f.category === FIGHTING_STYLE_CATEGORY && f.sourceKey)
-    .map((f) => ({ sourceKey: f.sourceKey!, name: featDisplayName(f), desc: featDesc(f) || featPrereq(f) }))
+  return { allowance, className: classNames.join(' / '), options: await fightingStyleOptions() };
+}
+
+export const featCategoryOptions = (feats: readonly FeatEntry[], category: FeatCategory): FightingStyleOption[] =>
+  feats
+    .filter((f) => f.category === category && f.sourceKey)
+    .map((f) => ({ sourceKey: f.sourceKey!, name: featDisplayName(f), desc: featDesc(f) || featPrereq(f), repeatable: !!f.repeatable }))
     .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
-  return { allowance, className: classNames.join(' / '), options };
+/** Was ein Charakter mit `owned` noch nehmen darf: Neues und Wiederholbares. */
+export const pickableFeats = (options: readonly FightingStyleOption[], owned: readonly string[]): FightingStyleOption[] =>
+  options.filter((o) => o.repeatable || !owned.includes(o.sourceKey));
+
+export async function fightingStyleOptions(): Promise<FightingStyleOption[]> {
+  return featCategoryOptions(await getFeats(), FIGHTING_STYLE_CATEGORY);
 }

@@ -20,6 +20,7 @@ export const featSchema = z.object({
    */
   category: z.enum(FEAT_CATEGORIES).default('General').describe('Wann das Talent genommen werden darf.'),
   prerequisite: z.string().default(''),
+  repeatable: z.boolean().default(false).describe('Darf mehrfach genommen werden („You can take this feat more than once").'),
   prerequisiteDe: z.string().optional(),
   desc: z.string().default(''),
   descDe: z.string().optional(),

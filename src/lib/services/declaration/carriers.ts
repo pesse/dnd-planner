@@ -9,6 +9,7 @@ import type {
   CharacterClass,
   CharacterFeatureEntry,
   CharacterSpecies,
+  OptionPick,
 } from '$lib/schemas/characterSchema';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { ResourceGrant } from '$lib/schemas/resource';
@@ -17,6 +18,7 @@ import { featuresUpTo, getProgressionByKey } from '../classProgression';
 import type { FeatureSource } from '../declaredFeature';
 import { featInstances, instanceIdOf } from './featInstances';
 import { ledgerAnswers } from './ledgerAnswers';
+import { poolPicks } from './optionPool';
 
 /**
  * Deklarationsfehler des Vaults; ohne Meldung gewährt das Merkmal einfach nichts. Der Parameter
@@ -55,9 +57,11 @@ export interface SourceAnswers {
   values: readonly string[];
   /** Vorgabe der QUELLE des Merkmals („Magic Initiate (Wizard)"), englischer Klassenname. */
   specialisation: string;
+  /** Pool-Wahlen des Merkmals (`character.optionPicks`), englische Werte. */
+  picks: readonly string[];
 }
 
-export const NO_ANSWERS: SourceAnswers = { values: [], specialisation: '' };
+export const NO_ANSWERS: SourceAnswers = { values: [], specialisation: '', picks: [] };
 
 export interface CarrierClass {
   prog: ClassProgression;
@@ -101,6 +105,7 @@ export interface DeclaringCharacter {
   species?: CharacterSpecies;
   backgroundRef?: CharacterBackground;
   features?: CharacterFeatureEntry[];
+  optionPicks?: OptionPick[];
 }
 
 /** Altbestand ohne unterscheidbare Vergabe-Stufe: dann trennt nur noch die Position. */
@@ -268,6 +273,7 @@ async function runWalk(c: DeclaringCharacter): Promise<CarrierWalk> {
   const answersOf: AnswersOf = (key, gainedAt) => ({
     values: ledgerAnswers(ledger, key, gainedAt),
     specialisation: '',
+    picks: poolPicks(c.optionPicks ?? [], key).map((p) => p.value),
   });
   const used = new Set<string>();
   const carriers: Carrier[] = [];

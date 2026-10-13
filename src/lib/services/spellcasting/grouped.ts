@@ -36,6 +36,8 @@ export interface SpellQuotaGroup {
   lists: string[];
   /** Zauberschulen, auf die der Pool eingegrenzt ist; leer = alle. */
   schools: SpellSchool[];
+  /** Nur Zauber mit Ritual-Tag. */
+  ritual: boolean;
   /** `pool.from` aufgelöst; null = der Pool ist keine andere Quota. */
   from: QuotaPoolFrom | null;
   /** `into` aufgelöst; null = die Auswahl gehört nirgendwo sonst hin. */
@@ -260,6 +262,7 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
           levels: [...quota.view.levels],
           lists: [...quota.view.pool.lists],
           schools: [...quota.view.pool.schools],
+          ritual: quota.view.pool.ritual,
           from: poolFromOf(quota),
           into,
           count: quota.view.count,

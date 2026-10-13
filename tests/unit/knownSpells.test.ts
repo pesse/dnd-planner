@@ -24,6 +24,7 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   tier: 'known' as const,
   lists: [],
   schools: [],
+  ritual: false,
   from: null,
   into: null,
   count: keys.length,

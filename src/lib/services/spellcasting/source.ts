@@ -36,6 +36,8 @@ export interface CastingSource {
   quotas: Quota[];
   /** Antwort auf das `optionList` DESSELBEN Merkmals; `when` prüft dagegen. */
   branch: string;
+  /** Pool-Wahlen DESSELBEN Merkmals (`when.pick`). */
+  picks: readonly string[];
 }
 
 /** Deklarationsfehler im Vault; ohne Meldung gewährt das Merkmal einfach nichts. */

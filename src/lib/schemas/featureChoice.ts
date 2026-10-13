@@ -9,6 +9,7 @@ import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './gr
 import { resourceGrantSchema } from './resource';
 import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
 import { EQUIPMENT_CHOICE_CATEGORIES } from './wizardEquipment';
+import { whenSchema } from './when';
 
 /**
  * Die Optionen einer deklarierten Wahl löst der Flow aus der Bibliothek auf, NIE aus der KI —
@@ -95,6 +96,13 @@ export const featureChoiceGrantSchema = z.object({
     .enum(FEAT_CATEGORIES)
     .optional()
     .describe('Nur bei kind="featCategory": aus welcher Talent-Kategorie gewählt wird (z.B. "Fighting Style").'),
+  // Nur an der Talentwahl: ihre Senken (Kampfstil-Angebot, Talent-Kontingent des Aufstiegs)
+  // haben die Antworten zur Hand, die Fragen-Pfade der übrigen `kind`s nicht.
+  when: whenSchema.optional().describe('Nur bei kind="featCategory". ' + whenSchema.description),
+  swap: z
+    .enum(['level-up-one'])
+    .optional()
+    .describe('Nur bei kind="featCategory": mit jeder Stufe DIESER Klasse darf das gewählte Talent gegen ein anderes der Kategorie getauscht werden (Kämpfer-Kampfstil). Fehlt = fest.'),
   count: z
     .number()
     .int()

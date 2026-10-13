@@ -13,6 +13,7 @@ import type { FeatEntry } from '../../featsLibrary';
 import type { ToolItem } from '../declaration/toolProficiency';
 import type { SpellInfo } from '../../spellLibrary';
 import type { ChosenFeat } from './features';
+import type { CategorySlot, LevelUpStyleOffer } from './featUnlocks';
 import { noDeclaredSpells, type DeclaredSpells, type ValidatedRiders } from './spells';
 import type { StepId } from './steps';
 
@@ -80,7 +81,15 @@ export interface LevelUpRunState {
    */
   gaps: string[];
   featsToPick: number;
+  /** Auf eine Kategorie beschränkte Talentwahlen, die erst dieser Aufstieg freischaltet (`featUnlocks`); in `featsToPick` enthalten. */
+  featSlots: CategorySlot[];
   chosenFeats: ChosenFeat[];
+  /** Talent-Keys, die der Charakter vor dem Aufstieg hat (`featInstances`). */
+  ownedFeats: string[];
+  styleOffer: LevelUpStyleOffer | null;
+  /** Talent-Keys der neuen Kampfstile. */
+  chosenStyles: string[];
+  styleSwaps: { from: string; to: string }[];
   /** Aus der Bibliothek gelesen — damit fällt das Talent aus dem Notiz-Eingang. */
   featAccess: SpellAccessGrant[];
   featRiders: FeatureRider[];
@@ -124,7 +133,12 @@ export function emptyRunState(): LevelUpRunState {
     aiSkipped: false,
     gaps: [],
     featsToPick: 0,
+    featSlots: [],
     chosenFeats: [],
+    ownedFeats: [],
+    styleOffer: null,
+    chosenStyles: [],
+    styleSwaps: [],
     featAccess: [],
     featRiders: [],
     validatedFeats: emptyRiders(),

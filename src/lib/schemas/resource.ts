@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { amountSchema, levelStepsOf } from './amount';
+import { whenSchema } from './when';
 
 export const RESOURCE_RECHARGE = ['long-rest', 'short-rest', 'dawn', 'none'] as const;
 export type ResourceRecharge = (typeof RESOURCE_RECHARGE)[number];
@@ -60,10 +61,7 @@ export const resourcePoolSchema = z.object({
     .max(20)
     .optional()
     .describe('Vorgabe: min(gainedAt). Nur nötig, wenn EIN Merkmal über mehrere Stufen Verschiedenes gibt.'),
-  when: z
-    .record(z.string(), z.string())
-    .optional()
-    .describe('Zweig-Bedingung auf dem grantsChoice.optionList DESSELBEN Merkmals.'),
+  when: whenSchema.optional(),
   recharge: z.enum(RESOURCE_RECHARGE),
   shared: z
     .string()

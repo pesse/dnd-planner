@@ -138,6 +138,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       pickedLearned: [],
       spellOf: (key: string) => spells[key as keyof typeof spells],
       chosenFeats: [{ key: MAGIC_INITIATE_KEY, name: feat.nameDe ?? feat.name, gainedAt: TO_LEVEL }],
+      styleOffer: null, chosenStyles: [], styleSwaps: [],
       baseChoiceQs: [],
       optionPools: [], optionPicks: [], optionPicksBefore: [],
     featChoiceQs: questions,

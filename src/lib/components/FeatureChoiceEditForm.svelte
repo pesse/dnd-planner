@@ -74,6 +74,11 @@
     return kinds.some((k) => k.value === value) ? value : 'other';
   });
 
+  function setSwap(on: boolean) {
+    grant.swap = on ? 'level-up-one' : undefined;
+    onchange();
+  }
+
   function setKind(value: string) {
     const prev = grant;
     // Beim Wechsel Optionen bzw. Anzahl mitnehmen: ein Fehlgriff im Dropdown soll keine
@@ -124,6 +129,13 @@
       <span class="lbl">Anzahl
         <input class="ef num" type="number" min="1" bind:value={grant.count} oninput={mark} />
       </span>
+      <label class="lbl" title="Mit jeder Stufe dieser Klasse darf der gewählte Kampfstil getauscht werden (Kämpfer).">
+        <input type="checkbox" checked={grant.swap === 'level-up-one'} onchange={(e) => setSwap((e.target as HTMLInputElement).checked)} />
+        tauschbar je Klassenstufe
+      </label>
+    {/if}
+    {#if grant.when}
+      <span class="note">Nur wenn {Object.entries(grant.when).map(([k, v]) => `${k} = ${v}`).join(', ')} (im JSON)</span>
     {/if}
     {#if kind === 'expertise'}
       <span class="lbl">Fertigkeiten

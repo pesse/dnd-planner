@@ -60,6 +60,9 @@ describe('deklarierte Zweigwahlen', () => {
       // Zweigwahl MIT modellierter Wirkung (`options[].grants`)…
       'srd-2024_cleric_divine-order',
       'srd-2024_druid_primal-order',
+      // Zweigwahl, an der eine Talentwahl und ein Zauberkontingent mit `when.option` hängen.
+      'srd-2024_paladin_fighting-style',
+      'srd-2024_ranger_fighting-style',
       // …und die, deren Wirkung `featureGrantSchema` nicht ausdrückt: deterministisch ist bei
       // ihnen die FRAGE, die Prosa deutet weiterhin Pass C.
       'srd-2024_cleric_blessed-strikes',

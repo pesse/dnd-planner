@@ -3,11 +3,11 @@
  * wie `fightingStyle.ts`; gespeichert wird ein Talent-LINK in `character.features[]`.
  */
 import type { FeatCategory } from '$lib/schemas/vocabulary';
-import { getFeats, featDesc, featDisplayName, featPrereq, type FeatEntry } from '$lib/featsLibrary';
+import { getFeats, type FeatEntry } from '$lib/featsLibrary';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { choiceGrants, type DeclaredChoiceSource } from './declaration/source';
-import { FIGHTING_STYLE_CATEGORY, type FightingStyleOption } from './fightingStyle';
+import { FIGHTING_STYLE_CATEGORY, featCategoryOptions, type FightingStyleOption } from './fightingStyle';
 
 export interface TraitFeatOffer {
   featureKey: string;
@@ -21,8 +21,8 @@ export interface TraitFeatOffer {
 type TraitLike = DeclaredChoiceSource & { key?: string; name?: string; nameDe?: string };
 
 /**
- * `exclude` sind Talente, die der Charakter schon hat (das des Hintergrunds) — ein zweites
- * Mal träfe denselben Schlüssel im Merkmals-Ledger.
+ * `exclude` sind Talente, die der Charakter schon hat (das des Hintergrunds) — auch ein
+ * wiederholbares: beide Instanzen stünden auf Stufe 1 und teilten sich die Id (`instanceIdOf`).
  */
 export function traitFeatOffers(traits: readonly TraitLike[], feats: readonly FeatEntry[], exclude: readonly string[]): TraitFeatOffer[] {
   return traits.flatMap((t) =>
@@ -33,10 +33,7 @@ export function traitFeatOffers(traits: readonly TraitLike[], feats: readonly Fe
         label: t.nameDe || t.name || '',
         featCategory: g.featCategory!,
         allowance: g.count,
-        options: feats
-          .filter((f) => f.category === g.featCategory && f.sourceKey && !exclude.includes(f.sourceKey))
-          .map((f) => ({ sourceKey: f.sourceKey!, name: featDisplayName(f), desc: featDesc(f) || featPrereq(f) }))
-          .sort((a, b) => a.name.localeCompare(b.name, 'de')),
+        options: featCategoryOptions(feats, g.featCategory!).filter((o) => !exclude.includes(o.sourceKey)),
       })),
   );
 }

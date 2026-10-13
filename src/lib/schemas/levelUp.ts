@@ -149,6 +149,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('ability'), ability: z.enum(ABILITY_KEYS), value: z.number().int(), max: z.number().int().optional(), ...changeBase }),
   z.object({ target: z.literal('preparedSpell'), level: z.number().int(), name: z.string(), key: z.string().optional(), sourceId: z.string().optional(), quotaId: z.string().optional(), prepared: z.boolean().default(true), ...changeBase }),
   z.object({ target: z.literal('feat'), sourceKey: z.string().default(''), name: z.string(), gainedAt: z.number().int().default(1), ...changeBase }),
+  // Ein getauschter Kampfstil: der ALTE Link geht, der neue kommt als eigenes `feat`.
+  z.object({ target: z.literal('featRemoved'), sourceKey: z.string(), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.enum(SKILL_NAMES), ...changeBase }),
   z.object({ target: z.literal('proficiency'), skill: z.enum(SKILL_NAMES), ...changeBase }),
   z.object({ target: z.literal('weaponProficiency'), value: z.enum(WEAPON_CATEGORIES), ...changeBase }),

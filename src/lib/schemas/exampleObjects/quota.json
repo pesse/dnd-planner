@@ -19,6 +19,7 @@
     "schools": [
       "abjuration"
     ],
+    "ritual": false,
     "from": {
       "feature": "string",
       "quota": "string"

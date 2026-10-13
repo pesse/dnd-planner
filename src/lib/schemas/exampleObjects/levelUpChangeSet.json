@@ -81,6 +81,13 @@
       "label": "string"
     },
     {
+      "target": "featRemoved",
+      "sourceKey": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "expertise",
       "skill": "Acrobatics",
       "step": "string",

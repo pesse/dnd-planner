@@ -25,6 +25,7 @@ export function pickLibrary(quota: SpellQuotaGroup, library: SpellInfo[]): Spell
     const schools = quota.schools as string[];
     out = out.filter((s) => schools.includes(s.school));
   }
+  if (quota.ritual) out = out.filter((s) => s.ritual);
   return out;
 }
 

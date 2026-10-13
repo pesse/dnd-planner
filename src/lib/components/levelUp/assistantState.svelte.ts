@@ -10,6 +10,9 @@ import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary'
 import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrary';
 import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '$lib/schemas/levelUp';
 import { searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
+import type { FeatCategory } from '$lib/schemas/vocabulary';
+import { featCategoryOptions, pickableFeats, type FightingStyleOption } from '$lib/services/fightingStyle';
+import { slotTotal, type CategorySlot } from '$lib/services/levelUp/featUnlocks';
 import { type Character } from '$lib/schemas/characterSchema';
 import { type AbilityKey } from '$lib/schemas/abilities';
 import { cappedScore } from '$lib/services/declaration/abilityIncrease';
@@ -178,22 +181,68 @@ export class LevelUpAssistantUi {
     }
   }
 
+  /** Neue Kampfstile sind Pflicht, soweit die Bibliothek sie hergibt; ein Tausch braucht beide Seiten. */
+  get stylesDone(): boolean {
+    const offer = this.st.styleOffer;
+    if (!offer) return true;
+    const need = Math.min(offer.allowance, pickableFeats(offer.options, this.st.ownedFeats).length);
+    return this.st.chosenStyles.length === need && this.st.styleSwaps.every((s) => !s.from === !s.to);
+  }
+
+  /** Talentwahlen ohne Kategorie — die beschränkten (`featSlots`) wählt je ihr eigener Picker. */
+  get openFeats(): number {
+    return this.st.featsToPick - slotTotal(this.st.featSlots);
+  }
+
+  slotOffer(slot: CategorySlot): { allowance: number; options: FightingStyleOption[] } {
+    return { allowance: slot.count, options: featCategoryOptions(this.st.featLib, slot.category) };
+  }
+
+  slotChosen(category: FeatCategory): string[] {
+    return this.st.chosenFeats.filter((f) => f.slot === category).map((f) => f.key);
+  }
+
+  /** Eine beschränkte Wahl ist Pflicht, soweit die Bibliothek Talente der Kategorie führt. */
+  get featsDone(): boolean {
+    const chosen = this.st.chosenFeats;
+    return chosen.filter((f) => !f.slot).length === this.openFeats
+      && this.st.featSlots.every((s) =>
+        chosen.filter((f) => f.slot === s.category).length === Math.min(s.count, pickableFeats(this.slotOffer(s).options, this.st.ownedFeats).length));
+  }
+
+  /** `owned` (✓ vorhanden) oder `blocked` (vorhanden, nicht wiederholbar) — für die freie Suche. */
+  featMark(entry: FeatEntry): { owned: boolean; blocked: boolean } {
+    const owned = !!entry.sourceKey && this.st.ownedFeats.includes(entry.sourceKey);
+    return { owned, blocked: owned && !entry.repeatable };
+  }
+
   featResults(): FeatEntry[] {
     return this.featQuery.trim() ? searchFeats(this.st.featLib, this.featQuery, 8) : [];
   }
 
   toggleFeat(entry: FeatEntry): void {
+    if (this.#toggleChosen(entry, undefined, this.openFeats)) this.featQuery = '';
+  }
+
+  toggleSlotFeat(slot: CategorySlot, sourceKey: string): void {
+    const entry = this.st.featLib.find((f) => f.sourceKey === sourceKey);
+    if (entry) this.#toggleChosen(entry, slot.category, slot.count);
+  }
+
+  /** `true`, wenn das Talent neu dazukam. */
+  #toggleChosen(entry: FeatEntry, slot: FeatCategory | undefined, limit: number): boolean {
     const st = this.st;
     const key = entry.sourceKey ?? '';
     const nameDe = featDisplayName(entry);
     const name = entry.name || nameDe;
-    const idx = st.chosenFeats.findIndex((f) => f.name === name);
-    if (idx >= 0) { st.chosenFeats = st.chosenFeats.filter((_, i) => i !== idx); return; }
-    if (st.chosenFeats.length >= st.featsToPick) return;
+    const idx = st.chosenFeats.findIndex((f) => f.name === name && f.slot === slot);
+    if (idx >= 0) { st.chosenFeats = st.chosenFeats.filter((_, i) => i !== idx); return false; }
+    if (st.chosenFeats.filter((f) => f.slot === slot).length >= limit) return false;
+    if (!entry.repeatable && (this.featMark(entry).blocked || st.chosenFeats.some((f) => f.name === name))) return false;
     // `grantsChoice`/`grants` reisen mit — nur damit lesen `feat-links` Zauber-Zugang und
     // pro-Stufe-Effekte deterministisch aus der Bibliothek statt aus der KI.
-    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells, grantsCasting: entry.grantsCasting }];
-    this.featQuery = '';
+    st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells, grantsCasting: entry.grantsCasting, slot }];
+    return true;
   }
 
   confirmClassFeatures(): void {

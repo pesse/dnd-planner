@@ -5,7 +5,7 @@
  * (`services/characterFormCasting.svelte.ts`); die Montage baut denselben Charakter zu Ende.
  */
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
-import { characterSchema, type Character, type CharacterFeatureEntry } from '$lib/schemas/characterSchema';
+import { characterSchema, type Character, type CharacterFeatureEntry, type OptionPick } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { mod } from '$lib/domain/skills';
 import { choiceLabelsDe, type AnalysisChoice } from '../analysis/types';
@@ -24,6 +24,7 @@ export interface WizardCastingSource {
   declaredAnswers: DeclaredAnswer[];
   fightingStyles: string[];
   traitFeats: Record<string, string[]>;
+  optionPicks: OptionPick[];
   scores: AbilityScores;
   asi: AsiAllocation;
   spellcasting: CharacterSpellcasting;
@@ -51,13 +52,13 @@ export function applyLinks(c: Character, w: WizardCastingSource): void {
  * Zauber-Wahlen tragen `isBuildDecision: false` und fallen hier durch — sie stehen im
  * Zauber-Block, nicht im Merkmals-Ledger.
  */
-export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
+export function featureLedger(w: WizardCastingSource): CharacterFeatureEntry[] {
   const byId = new Map(w.declaredChoices.map((ch) => [ch.id, ch]));
-  for (const rc of w.declaredAnswers) {
+  return w.declaredAnswers.flatMap((rc) => {
     const ch = byId.get(rc.id);
-    if (!ch?.isBuildDecision || !ch.featureKey) continue;
+    if (!ch?.isBuildDecision || !ch.featureKey) return [];
     // `choice` englisch (Prompt-Kanal späterer Stufen), `choiceDe` als Anzeige.
-    c.features.push({
+    return [{
       sourceKey: ch.featureKey,
       name: '',
       choice: rc.choice,
@@ -65,8 +66,12 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
       choiceId: ch.id,
       gainedAt: 1,
       desc: '',
-    });
-  }
+    }];
+  });
+}
+
+export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
+  c.features.push(...featureLedger(w));
 }
 
 /** Kampfstile und Talente aus Speziesmerkmalen; ohne Anzeigenamen — den holt die Montage. */
@@ -99,6 +104,7 @@ export function wizardCastingInput(w: WizardCastingSource): Character {
   applyLinks(c, w);
   applyFeatureLedger(c, w);
   c.features.push(...featLinks(w));
+  c.optionPicks = w.optionPicks.map((p) => ({ ...p }));
   applyScores(c, draftScores(w));
   c.spellcasting = cloneSpellcasting(w.spellcasting);
   return c;

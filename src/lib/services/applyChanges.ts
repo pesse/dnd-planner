@@ -101,6 +101,11 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   feat: (c, next) => {
     next.features = [...next.features, { sourceKey: c.sourceKey, name: c.name, choice: '', choiceDe: '', choiceId: '', gainedAt: c.gainedAt, desc: '' }];
   },
+  // Nur der Talent-Link selbst, keine Wahl-Annotation unter demselben Key.
+  featRemoved: (c, next) => {
+    const i = next.features.findIndex((e) => e.sourceKey === c.sourceKey && !e.choice.trim());
+    if (i >= 0) next.features = next.features.filter((_, j) => j !== i);
+  },
 
   // Der Change trägt den ENGLISCHEN SRD-Namen, der Bogen ist deutsch geschlüsselt — hier
   // liegt die Übersetzung. Expertise setzt die Übung mit: ohne das Häkchen rechnet der Bogen

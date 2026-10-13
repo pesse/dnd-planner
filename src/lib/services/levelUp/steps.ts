@@ -59,7 +59,8 @@ export const isCheckpoint = (s: StepId): boolean => STEP_META[s].kind === 'check
 
 export interface AdvanceCtx {
   delta: LevelUpDelta;
-  featsToPick: number;  // countFeatsToPick(delta, answers)
+  featsToPick: number;  // countFeatsToPick(delta, answers, conditional)
+  styleWork: number;    // neue plus tauschbare Kampfstile
   baseChoices: number;  // deklarierte Wahlen der Klassen- und Subklassen-Merkmale
   featChoices: number;  // deklarierte Wahlen der gewählten Talente
 }
@@ -80,7 +81,7 @@ export function advance(from: StepId, ctx: AdvanceCtx): StepId {
     case 'feature-choices':    return 'feature-effects';
     case 'feature-effects':    return 'player-decisions';
     case 'player-decisions':   return 'assemble-decisions';
-    case 'assemble-decisions': return ctx.featsToPick > 0 ? 'feat-choice' : 'narrative';
+    case 'assemble-decisions': return ctx.featsToPick > 0 || ctx.styleWork > 0 ? 'feat-choice' : 'narrative';
     case 'feat-choice':        return 'feat-links';
     case 'feat-links':         return ctx.featChoices > 0 ? 'feat-choices' : 'feat-effects';
     case 'feat-choices':       return 'feat-effects';

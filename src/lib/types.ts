@@ -270,6 +270,7 @@ export const FEAT_TEMPLATE: Feat = {
   nameDe: 'Neues Talent',
   category: 'General',
   prerequisite: '',
+  repeatable: false,
   desc: '',
   document: { key: OWN_SOURCE, gamesystem: '5e-2024' },
 };

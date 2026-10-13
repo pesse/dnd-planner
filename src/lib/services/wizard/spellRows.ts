@@ -33,7 +33,7 @@ function rowOf(source: SpellSourceGroup, quota: SpellQuotaGroup): SpellStepRow {
     quota,
     source: source.featureDe ? `${source.label} · ${source.featureDe}` : source.label,
     label: quota.label,
-    hint: [quota.lists.length ? `${listLabel(quota.lists)}-Liste` : '', quota.castNote, quota.swapNote]
+    hint: [quota.lists.length ? `${listLabel(quota.lists)}-Liste` : '', quota.ritual ? 'nur Rituale' : '', quota.castNote, quota.swapNote]
       .filter(Boolean)
       .join(' · '),
     count: quota.count,

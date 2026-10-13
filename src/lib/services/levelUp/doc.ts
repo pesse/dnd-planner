@@ -14,12 +14,14 @@ import type { OptionPoolOffer } from '../declaration/optionPool';
 import type { OptionPick } from '../../schemas/characterSchema';
 import { answerValues } from './answers';
 import { stepReached, type StepId } from './steps';
+import type { LevelUpStyleOffer } from './featUnlocks';
 import { declaredSpellChanges, type DeclaredSpells, type ValidatedRiders } from './spells';
 import {
   baseDeltaChanges,
   classFeaturesChanges,
   decisionChanges,
   featChanges,
+  fightingStyleChanges,
   featureChoiceChanges,
   featureSpellChanges,
   ongoingChanges,
@@ -50,6 +52,9 @@ export interface DocInput {
   /** `spell.key` → Name + Grad, für Zauber-Antworten, die nur den Key tragen. */
   spellOf: (key: string) => { name: string; level: number } | undefined;
   chosenFeats: { key: string; name: string; gainedAt: number; grants?: FeatureGrant }[];
+  styleOffer: LevelUpStyleOffer | null;
+  chosenStyles: string[];
+  styleSwaps: { from: string; to: string }[];
   /**
    * Quelle der Grants, die der Rider nicht ausdrücken kann. Ungefiltert, also auch die
    * Merkmale, die aus dem KI-Eingang gefallen sind.
@@ -106,6 +111,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...characterPropertyAnswerChanges(p.choiceSources, answerOf, { step: 'assemble-decisions', source: 'feature' }),
     ...featureSpellChanges(p.baseChoiceQs, p.answers, 'assemble-decisions', p.spellOf),
     ...featChanges(p.chosenFeats),
+    ...fightingStyleChanges(p.styleOffer, p.chosenStyles, p.styleSwaps, p.delta.toLevel),
     ...riderChanges(p.validatedFeats, 'feat-effects'),
     ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects', nameOf),

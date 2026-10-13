@@ -29,6 +29,9 @@
         {/each}
       </select>
     </label>
+    <label class="lbl-inline">
+      <input type="checkbox" bind:checked={feat.repeatable} onchange={mark} /> mehrfach wählbar
+    </label>
     <label class="lbl-inline">Schlüssel
       <input class="ef key-input" bind:value={feat.key} oninput={mark} placeholder="z.B. srd-2024_alert" />
     </label>

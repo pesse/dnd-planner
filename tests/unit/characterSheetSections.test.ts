@@ -115,7 +115,7 @@ describe('Sektionen des Charakterbogens', () => {
     const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false };
     const quota = {
       sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
-      levels: [], lists: [], schools: [], from: null, into: null,
+      levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
       count: 0, tier: 'prepared' as const, fixed: false, spells: [bolt], open: 0,
     };
     const loose = emptyData({ grouped: { ...emptyData().grouped, extra: [bolt] } });
@@ -136,7 +136,7 @@ describe('Sektionen des Charakterbogens', () => {
     const book = (requiresPrepared: boolean, castNote: string, ritual = true) => ({
       sourceId: 'cls:wizard', quotaId: 'book', label: 'Zauberbuch',
       cast: [{ kind: 'ritual' as const, requiresPrepared }], castNote, swapNote: '',
-      levels: [], lists: [], schools: [], from: null, into: null,
+      levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
       count: 1, tier: 'known' as const, fixed: false,
       spells: [{ key: 'identify', label: 'Identifizieren', level: 1, ritual }], open: 0,
     });

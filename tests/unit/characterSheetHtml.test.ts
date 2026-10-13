@@ -39,7 +39,7 @@ const title = (label: string) => `<span class="btitle">${label}</span>`;
 
 const quota = (over: Partial<SpellQuotaGroup>): SpellQuotaGroup => ({
   sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
-  levels: [], lists: [], schools: [], from: null, into: null,
+  levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
   count: 0, tier: 'prepared', fixed: false, spells: [], open: 0, ...over,
 });
 

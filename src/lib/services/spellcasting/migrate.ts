@@ -51,6 +51,7 @@ function accepts(quota: QuotaState, spell: LooseSpell, info: SpellInfo | undefin
   if (pool.keys.length && !pool.keys.includes(spell.key)) return false;
   if (pool.lists.length && !(info?.classes ?? []).some((c) => pool.lists.includes(c))) return false;
   if (pool.schools.length && !(info && (pool.schools as string[]).includes(info.school))) return false;
+  if (pool.ritual && !info?.ritual) return false;
   return true;
 }
 
