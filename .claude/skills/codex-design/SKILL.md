@@ -17,10 +17,15 @@ geändert hat.
 |---|---|---|
 | Charakterporträt | `vault/characters/<id>` | `portrait.png` oder `.jpg` (das `ImageField` nimmt nur diese beiden), Hochformat wie die vorhandenen (~1150 × 1400) |
 | UI-Grafik (Logo, Hintergründe, Icons) | `static` → Laufzeitbild nach `branding/` | PNG/WebP mit Alpha, Größe nach Einsatzort |
+| Stimmungsbild im Charakter-Wizard (Klasse, Volk, Hintergrund, Kombi Volk×Klasse) | `design/art/<typ>` | Roh-PNG 1024 × 1536. Die App lädt WebP 640 × 960 aus `static/art/<typ>/<slug>.webp` (`slug` = Bibliotheks-Key ohne Quellpräfix, Kombi `<volk>-<klasse>`), Suche und Spiegelung in `services/wizard/originArt.ts`. Stilblock in `design/art/prompt.md` |
 | App-Icon | `static` → Quelle nach `branding/sources/` | 1024 × 1024-PNG mit Alpha. Die Größenvarianten erzeugt `npx tauri icon <quelle>` (unter Windows, über `powershell.exe`), nicht Codex. Danach die Ordner `android/`, `ios/` und `64x64.png` löschen, die `tauri.conf.json` nicht nutzt |
 
 `static/` landet vollständig im Installer. Rohbilder, Vorschauen und Icon-Quellen gehören
 nach dem Lauf nach `design/branding/`, in `static/branding/` bleibt nur, was die App lädt.
+`design/art/` ist gitignored (Hunderte MB Roh-PNGs), dort liegt nur die lokale Arbeitskopie.
+
+Ein Stimmungsbild, dessen Handlung **nach links** zeigt, gehört in `MIRRORED` in
+`originArt.ts`: Links sitzt im Wizard die Karte und verdeckt sie sonst.
 
 `vault/` ist ein eigenes Content-Repo mit eigenem `CLAUDE.md`. Vor einem Lauf dort lesen.
 Ein neues Porträt wird erst über `portraitFile` in der Charakterdatei sichtbar. Das trägt
@@ -41,7 +46,14 @@ der Nutzer im Editor ein (Bild wählen), oder Claude nach Rückfrage.
     selbst. Ausnahme: Der Nutzer will ausdrücklich ein vorhandenes Bild ersetzt haben.
   - **Was Codex zurückmelden soll**: „Antworte knapp mit den Dateipfaden und dem
     verwendeten Prompt."
+  - **Den Rückfall fürs Kopieren**, wörtlich: „If copying a generated image into the
+    directory fails, list at the end one line per file in the form
+    `<name>.png → <full raw path under generated_images>`." Siehe Abschnitt 3.
 - Keine Schrift im Bild, es sei denn, der Nutzer will sie ausdrücklich.
+- **Bei einer Serie** jedem Bild Pose, Effekt und Schauplatz einzeln vorgeben. Mit nur
+  „vary the poses" malt Codex 30 Mal denselben Ausfallschritt nach rechts. Die Figur sollte
+  nicht beiläufig auf ein Volk festgelegt werden: „human unless noted" ergab eine Reihe
+  aus lauter Menschen.
 
 ## 2. Starten und warten
 
@@ -54,6 +66,11 @@ starten (`run_in_background`) und auf die Benachrichtigung warten, nicht pollen:
   -i vault/characters/b3abde4e480b/portrait.png \
   "<Auftrag>"
 ```
+
+**Parallel** laufen mehrere Sitzungen, aber nie dieselbe Sitzung zweimal. Jedem
+Parallellauf einen eigenen Zielordner geben, sonst meldet der Wrapper die Dateien der
+anderen Läufe als `neu:` mit. Eine neue Sitzung kennt den Stil nur aus den `-i`-Vorlagen
+und dem wörtlich mitgegebenen Stilblock.
 
 Den Auftrag als **ein** Argument übergeben oder mit `-` über stdin. Lange Aufträge vorher
 in eine Datei schreiben und `codex.sh -C … - < auftrag.md` verwenden. Der Wrapper gibt
@@ -69,9 +86,20 @@ steht in `log.txt`) und die Änderungen im Zielordner:
   etwas geändert. **Nicht selbst zurücksetzen**, dem Nutzer zeigen. Die Datei kann seine
   laufende Arbeit enthalten.
 
+Steht in `result.md` „Copying failed …", sind die Bilder trotzdem fertig. Unter Windows
+kann Codex, vor allem bei parallelen Läufen, seinen Hilfsprozess nicht starten. Dann
+kopiert der Rückfall aus Abschnitt 1:
+
+```bash
+.claude/skills/codex-design/scripts/copy-raw.sh <out>/result.md <zielordner>          # legt nur neue Dateien an
+.claude/skills/codex-design/scripts/copy-raw.sh <out>/result.md <zielordner> --force  # wenn ersetzt werden soll
+```
+
 Danach jedes erzeugte Bild mit `Read` ansehen, neben einer Stilvorlage. Prüfen: Stil,
 Motiv gegen die Beschreibung, Bildgröße und Format (`file <bild>`). Bei Icons auch den
-Alphakanal prüfen.
+Alphakanal prüfen. Eine Serie über Übersichtsblätter prüfen statt Bild für Bild: WSL
+hat weder PIL noch ImageMagick, `sharp` per `npm i` in einen Scratch-Ordner tut es
+(Raster aus `resize` + `composite`). Damit entstehen auch die WebP-Fassungen.
 
 ## 4. Nachbessern
 

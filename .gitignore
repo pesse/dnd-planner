@@ -29,3 +29,6 @@ evals/reports/
 
 # Lokal gerenderte Charakterbögen (npm run sheets)
 .sheets/
+
+# Codex-Rohbilder; die App lädt die WebP-Fassungen aus static/art/
+/design/art/
