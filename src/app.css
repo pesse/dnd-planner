@@ -318,7 +318,6 @@ h1, h2, h3, .file-title {
 /*
  * Dezente Verzierungs-Helfer.
  * .ornament-top  — schmale Gold/Rot-Zierleiste am oberen Rand eines Panels.
- * .dragon-mark   — schwaches Drachen-Wasserzeichen (als ::after platzieren).
  */
 .ornament-top {
   position: relative;

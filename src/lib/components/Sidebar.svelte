@@ -69,7 +69,10 @@
   .sidebar {
     width: 100%;
     height: 100%;
-    background: var(--bg);
+    background:
+      linear-gradient(color-mix(in srgb, var(--bg) 55%, transparent)),
+      url('/branding/sidebar-v2.webp') bottom / 100% auto no-repeat,
+      var(--bg);
     color: var(--ink);
     display: flex;
     flex-direction: column;

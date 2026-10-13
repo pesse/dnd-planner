@@ -7,7 +7,6 @@
   import FileTitle from '$lib/components/FileTitle.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
   import StructureHint from '$lib/components/StructureHint.svelte';
-  import DragonMark from '$lib/components/DragonMark.svelte';
   import HistoryNav from '$lib/components/HistoryNav.svelte';
   import ToastStack from '$lib/components/ToastStack.svelte';
   import UpdateDialog from '$lib/components/UpdateDialog.svelte';
@@ -114,7 +113,7 @@
   ></div>
 
   <div class="main">
-    <div class="dragon-watermark"><DragonMark size={240} title="" /></div>
+    <div class="backdrop"></div>
     <HistoryNav />
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
@@ -302,15 +301,15 @@
     position: relative;
   }
 
-  /* Dezentes Drachen-Wasserzeichen unten rechts im Arbeitsbereich */
-  .dragon-watermark {
+  /* Über den Inhalten statt darunter: Bogen, Karten und Editor haben deckende Flächen. */
+  .backdrop {
     position: absolute;
-    right: 2.5rem;
-    bottom: 1.5rem;
-    color: var(--ink);
-    opacity: 0.05;
+    inset: 0;
+    background: url('/branding/background-color-v2.webp') center / cover no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.45;
     pointer-events: none;
-    z-index: 0;
+    z-index: 1;
   }
 
   .toolbar-sep {
