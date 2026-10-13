@@ -1,14 +1,12 @@
 <script lang="ts">
   import type { Species } from '$lib/types';
-  import type { Trait } from '$lib/schemas/species';
   import { parseSpecies } from '$lib/utils/schemaValidation';
   import SpeciesEditForm from './SpeciesEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import CardParseError from './ui/CardParseError.svelte';
-  import LibraryCardFrame from './ui/LibraryCardFrame.svelte';
+  import SpeciesCardView from './libraryView/SpeciesCardView.svelte';
   import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
-  import Markdown from './Markdown.svelte';
   import TranslateModal from './TranslateModal.svelte';
   import { translateRule } from '$lib/services/aiActions/translateAction';
   import type { RuleTranslation } from '$lib/schemas/translation';
@@ -27,9 +25,6 @@
   });
 
   let draft = $derived(ed.draft);
-
-  const traitName = (t: Trait): string => t.nameDe || t.name;
-  const traitDesc = (t: Trait): string => t.descDe || t.desc;
 
   let coverage = $derived(declarationCoverage(draft?.traits ?? []));
   let declBadge = $derived(coverageBadge(coverage));
@@ -73,30 +68,11 @@
     style="--ep-accent: var(--green)"
   >
     {#snippet karte()}
-      <LibraryCardFrame accent="var(--green)" name={draft!.name} nameDe={draft!.nameDe}>
-        {#snippet head()}
-          <div class="meta">
-            {#if draft!.size}Größe: {draft!.size}{/if}
-            {#if draft!.size && draft!.speed} · {/if}
-            {#if draft!.speed}Geschwindigkeit: {draft!.speed}{/if}
-          </div>
-          {#if coverage.total}
-            <DeclarationBadge badge={declBadge} />
-          {/if}
+      <SpeciesCardView species={draft!}>
+        {#snippet badge()}
+          {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
         {/snippet}
-        {#if draft!.traits.length}
-          <div class="features">
-            {#each draft!.traits as t}
-              <div class="feature">
-                <div class="feature-name">{traitName(t)}</div>
-                {#if traitDesc(t)}<div class="feature-desc"><Markdown source={traitDesc(t)} /></div>{/if}
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <p class="empty">Keine Merkmale.</p>
-        {/if}
-      </LibraryCardFrame>
+      </SpeciesCardView>
     {/snippet}
 
     {#snippet bearbeiten()}
@@ -120,12 +96,3 @@
     onclose={() => (showTranslate = false)}
   />
 {/if}
-
-<style>
-  .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--green) 70%, var(--ink)); margin-top: 0.2rem; }
-
-  .features { padding: 0.6rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
-  .feature-name { font-weight: 700; font-variant: small-caps; color: var(--green); }
-  .feature-desc { font-size: 0.85rem; line-height: 1.55; margin-top: 0.15rem; }
-  .empty { padding: 1rem; color: var(--ink-muted); font-style: italic; }
-</style>

@@ -1,17 +1,8 @@
 /**
- * Die Arbeitsschritte eines Aufstiegs — deterministische Auswertung der Deklarationen, drei
- * KI-Pässe am Ende und ihre Projektionen. Sie schreiben in den Lauf-Zustand, angetrieben von
- * `run.svelte.ts`.
+ * Die Arbeitsschritte eines Aufstiegs — deterministische Auswertung der Deklarationen und
+ * ihre Projektionen. Sie schreiben in den Lauf-Zustand, angetrieben von `run.svelte.ts`.
  */
-import { get } from 'svelte/store';
-import { mod } from '../../domain/skills';
-import { abilityRecordOf } from '../../schemas/abilities';
-import { llmConfig } from '../../stores/llm';
-import { runAiAction } from '../aiActions/runner';
-import { buildLevelUpNarrativeAction, buildNarrativeInput, type CharacterSummary } from '../aiActions/levelUpAction';
-import { buildFieldSummaryAction, buildFieldSummaryInput, SHEET_FIELDS } from '../aiActions/fieldSummaryAction';
-import { summarizeFeatureNotes, canSummarizeFeatureNotes } from '../aiActions/featureNotesAction';
-import type { GainedFeature, FeatureClassContext } from '../analysis/types';
+import type { GainedFeature } from '../analysis/types';
 import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature } from '../perLevelEffects';
 import {
   declaredSpeciesFeatures, resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks,
@@ -39,7 +30,7 @@ import {
 import { declaredGrantRiders } from '../declaration/grants';
 import { declarationGapLines, type GapCandidate } from '../declarationGap';
 import { spellAccessNoteLines, withoutSpellAccessFeatures } from '../spellcasting/access';
-import { parseLevelUpNarrative, parseFieldSummary, type FeatureRider, type LevelUpQuestion } from '../../schemas/levelUp';
+import type { FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import { spellInfoByKey, type SpellInfo } from '../../spellLibrary';
 import { totalLevel } from '../../schemas/classLevelText';
 import type { Character } from '../../schemas/characterSchema';
@@ -52,46 +43,14 @@ export interface RunStepsDeps {
   character: Character;
   /** Meldet eine Aktivität ins Schritt-Log und stupst die Uhr an. */
   pushStep: (text: string) => void;
-  runOpts: () => { onActivity: () => void; signal: AbortSignal };
   ensureSpellLib: () => Promise<SpellInfo[]>;
 }
 
 export function createRunSteps(ctx: RunStepsDeps) {
-  const { st, choices, pushStep, runOpts, ensureSpellLib } = ctx;
+  const { st, choices, pushStep, ensureSpellLib } = ctx;
 
   /** `spell.key` → Bibliotheks-Eintrag; erst nach `ensureSpellLib()` sinnvoll befüllt. */
   const spellOf = (key: string) => spellInfoByKey(st.spellLib, key);
-
-  function buildSummary(): CharacterSummary {
-    const c = ctx.character;
-    const classList = c.classes ?? [];
-    const abilities = { ...c.abilities };
-    const mods = abilityRecordOf((k) => mod(abilities[k]));
-    return {
-      name: c.name,
-      classes: classList.map((x) => ({ name: x.name, level: x.level, subclassName: x.subclassName ?? '' })),
-      totalLevel: classList.reduce((s, x) => s + (x.level || 0), 0),
-      abilities, mods,
-      hitDice: c.hitDice ?? '',
-      spellcasting: {
-        class: c.spells?.spellcastingClass ?? '',
-        ability: c.spells?.spellcastingAbility ?? '',
-        currentSlots: (c.spells?.slots ?? []).map((s) => s.total),
-      },
-    };
-  }
-
-  function classContext(): FeatureClassContext {
-    return {
-      klasseName: st.delta?.klasseName ?? '',
-      // In dieser Spanne gewählt (chosenSubclass) oder längst bekannt (Delta).
-      subclassName: st.chosenSubclass?.name ?? st.delta?.subclassName ?? '',
-      casterType: st.delta?.casterType ?? 'NONE',
-      casterKind: st.delta?.casterKind ?? 'none',
-      spellcastingAbility: ctx.character.spells?.spellcastingAbility ?? '',
-      toLevel: st.delta?.toLevel ?? 1,
-    };
-  }
 
   function maxSpellLevel(): number {
     let m = 0;
@@ -139,19 +98,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
       : withoutDeclaredChoiceFeatures(
           withoutSpellAccessFeatures(st.chosenFeats.map((f) => featToGainedFeature(f, st.delta!.toLevel)), st.featAccess),
         );
-  }
-
-  /** Nach dem Abbruch durch den Nutzer nimmt jeder KI-Pass seine Ersatzfassung. */
-  const aiOff = (pass: string): boolean => {
-    if (!st.aiSkipped) return false;
-    pushStep(`${pass} ohne KI.`);
-    return true;
-  };
-
-  /** Vor den Spielerentscheidungen, damit der Ausfall nicht erst am Ende auffällt. */
-  function announceNoteAvailability() {
-    if (canSummarizeFeatureNotes(get(llmConfig))) return;
-    pushStep('KI-Formulierung nicht verfügbar — die Bogen-Notizen entstehen aus der Bibliothek.');
   }
 
   /**
@@ -284,92 +230,28 @@ export function createRunSteps(ctx: RunStepsDeps) {
     for (const l of lines) pushStep(l);
   }
 
-  /**
-   * Der EINZIGE Deutungs-Call der Merkmalsstrecke: je Merkmal eine Bogenzeile. Basis- und
-   * Talentmerkmale in EINEM Call — erst hier stehen beide fest, und der Merge braucht sie
-   * als Nächstes.
-   *
-   * Er ist OPTIONAL: er läuft ganz am Ende, hinter allen Spielerentscheidungen, und ein
-   * Fehlschlag hier würfe den fertigen Aufstieg weg. Statt zu blocken tritt die
-   * deterministische Ersatzfassung an.
-   */
-  async function runNotes(alive: () => boolean) {
+  /** Je Merkmal eine Bogenzeile, rein aus der Bibliothek. */
+  function runNotes() {
     // Merkmale, deren gewählter Zweig nichts deklariert, kommen hier dazu: mechanisch ist
     // nichts von ihnen zu holen, ihre Prosa braucht trotzdem eine Zeile.
     const features = [
       ...featuresFor('base'), ...unredactedOf(choices.baseDeclared),
       ...featuresFor('feat'), ...unredactedOf(choices.featDeclared),
     ];
-    st.notes = [];
-    if (!features.length) {
-      pushStep('Keine Merkmale für eine Bogen-Notiz übrig.');
-      return;
-    }
-    if (aiOff('Bogen-Notizen')) {
-      st.notes = fallbackSheetNotes(features);
-      return;
-    }
-    pushStep(`KI formuliert die Bogen-Notiz für ${features.length} Merkmal(e)…`);
-    try {
-      const notes = await summarizeFeatureNotes(get(llmConfig),
-        { classContext: classContext(), features, terms: choiceTerms() }, runOpts());
-      if (!alive()) return;
-      st.notes = notes;
-    } catch (e) {
-      if (!alive()) return;
-      st.notes = fallbackSheetNotes(features);
-      pushStep(`Bogen-Notizen ohne KI: ${e instanceof Error ? e.message : String(e)}`);
-    }
+    st.notes = fallbackSheetNotes(features);
+    st.summaryLine = summaryLine();
   }
 
-  /**
-   * Die Options-Paare aller Wahlen als feste Begriffe für die Übersetzung: eine Notiz nennt
-   * die gewählte Option („Magic Initiate (Wizard)"), und ohne das Paar wird daraus
-   * „Zauberer" statt „Magier".
-   */
-  function choiceTerms(): { en: string; de: string }[] {
-    return [...choices.baseChoiceQs, ...choices.featChoiceQs]
-      .flatMap((q) => q.options.map((o) => ({ en: o.value, de: o.label })))
-      .filter((t) => t.de && t.de !== t.en);
-  }
-
-  async function runNarrative(alive: () => boolean) {
-    if (aiOff('Narrativ')) {
-      st.narrativeSummary = fallbackSummary();
-      return;
-    }
-    let n = { summary: '' };
-    try {
-      pushStep('KI formuliert das Narrativ…');
-      const raw = await runAiAction(get(llmConfig), buildLevelUpNarrativeAction(),
-        buildNarrativeInput({
-          summary: buildSummary(), delta: st.delta!, gainedFeatures: st.gainedFeatures, chosenSubclass: st.chosenSubclass,
-          chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe })),
-          riders: [...st.riders, ...st.featRiders], pastChoices: st.pastChoices,
-        }), runOpts());
-      if (!alive()) return;
-      n = parseLevelUpNarrative(raw) ?? n;
-    } catch { /* Narrativ ist optional → deterministischer Fallback */ }
-    st.narrativeSummary = n.summary || fallbackSummary();
-  }
-
-  function fallbackSummary(): string {
+  function summaryLine(): string {
     const names = [...st.gainedFeatures.map((f) => f.nameDe || f.name), ...st.chosenFeats.map((f) => f.nameDe)];
     const sub = st.chosenSubclass ? ` · Subklasse: ${st.chosenSubclass.name}` : '';
     return `${st.delta!.klasseName} Stufe ${st.delta!.fromLevel} → ${st.delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
 
-  const newSheetNotes = () => sheetNoteLines(st.notes);
-
-  /**
-   * Die Zeile eines deklarierten Zauber-Zugangs steht BEWUSST nur hier und nicht in
-   * `newSheetNotes`: sie ist fertiges Deutsch, und als „neue Notiz" löste sie den Merge-Call
-   * aus — ein Aufstieg mit nur einem solchen Talent fährt sonst wieder einen LLM-Call.
-   */
   const seedFeaturesText = () =>
     [
       ctx.character.classFeatures,
-      ...newSheetNotes(),
+      ...sheetNoteLines(st.notes),
       ...optionListNoteLines(choices.declaredOptionFeatures, (id) => choices.optionAnswer(id)),
       ...spellAccessNoteLines(choices.baseAccess, st.answers),
       ...spellAccessNoteLines(st.featAccess, st.answers),
@@ -377,35 +259,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
     ]
       .filter((s) => s?.trim())
       .join('\n');
-
-  /** Scheitert der Call, bleibt die rohe Saat stehen — der Aufstieg darf daran nicht hängen. */
-  async function mergeClassFeatures(alive: () => boolean, currentText = seedFeaturesText()) {
-    const notes = newSheetNotes();
-    st.featuresText = currentText;
-    if (aiOff('Klassenmerkmale')) return;
-    // Ohne neue Notizen den nutzergeschriebenen Text NICHT durch die KI schicken.
-    if (!notes.length) {
-      pushStep('Keine neuen Merkmale fürs Klassenmerkmale-Feld.');
-      return;
-    }
-    try {
-      pushStep('KI führt die Klassenmerkmale zusammen…');
-      const raw = await runAiAction(get(llmConfig), buildFieldSummaryAction(),
-        buildFieldSummaryInput({
-          target: SHEET_FIELDS.classFeatures,
-          currentText,
-          newNotes: notes,
-          otherFields: [{ label: SHEET_FIELDS.speciesTraits.label, text: ctx.character.personal?.rassenmerkmale ?? '' }],
-          chosenSubclass: st.chosenSubclass,
-        }), runOpts());
-      if (!alive()) return;
-      const r = parseFieldSummary(raw);
-      if (r && r.text.trim()) { st.featuresText = r.text; pushStep('Klassenmerkmale zusammengeführt.'); }
-      else pushStep('Keine Zusammenführung erhalten — Rohfassung bleibt stehen.');
-    } catch {
-      pushStep('Zusammenführung fehlgeschlagen — Rohfassung bleibt stehen.');
-    }
-  }
 
   /**
    * Eigener Aufruf neben `declaredSpells`, weil `declaredSpellGrants` genau EINE Stufe filtert:
@@ -471,9 +324,9 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   return {
-    initAnswers, initFeatureChoices, announceNoteAvailability,
-    runDeclaredChoices, runFeatUnlocks, runRiders, runNotes, runNarrative,
-    seedFeaturesText, mergeClassFeatures,
+    initAnswers, initFeatureChoices,
+    runDeclaredChoices, runFeatUnlocks, runRiders, runNotes,
+    seedFeaturesText,
     resolveCharLevelSpells, detectHpPerLevel,
     gatherLearned, gatherCantrips, spellOf,
   };

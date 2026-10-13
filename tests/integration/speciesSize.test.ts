@@ -47,10 +47,16 @@ const traitsOf = async (key: string) => (await getSpeciesByKey(key))?.traits ?? 
  * `assembleCharacter` importiert ohnehin nur den Typ.
  */
 function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
-  const noJob = { result: null, status: 'skipped' };
   return {
     name: 'Prüfling',
     playerName: '',
+    languages: [],
+    alignment: '',
+    appearance: '',
+    traits: '',
+    ideals: '',
+    bonds: '',
+    flaws: '',
     species: { sourceKey: 'srd-2024_gnome', name: 'Gnom' },
     klass: { sourceKey: 'srd-2024_sorcerer', name: 'Zauberer' },
     background: { sourceKey: 'srd-2024_sage', name: 'Weiser' },
@@ -71,8 +77,6 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     riders: [],
     declaredChoices: [],
     spellPickChoices: [],
-    classText: noJob,
-    speciesText: noJob,
     hpPerLevelBonus: () => 0,
     selectedEquipment: () => ({ items: [], goldPieces: 0 }),
     ...over,

@@ -21,7 +21,7 @@ import {
 } from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
-import { computeSubclassFeatures, featToGainedFeature, subclassFeaturesForAi } from '../../src/lib/services/levelUp/features';
+import { computeSubclassFeatures, featToGainedFeature, subclassFeaturesForFlow } from '../../src/lib/services/levelUp/features';
 import { declaredFeatures } from '../../src/lib/services/declaredFeature';
 import { noDeclaredSpells } from '../../src/lib/services/levelUp/spells';
 import type { Change } from '../../src/lib/schemas/levelUp';
@@ -87,7 +87,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     expect(picks.flatMap((c) => c.options)).toEqual([]);
   });
 
-  it('hält das Talent aus dem KI-Eingang', async () => {
+  it('hält das Talent aus der Merkmalsstrecke', async () => {
     const feat = await loadMagicInitiate();
     const grant = await grantOfMagicInitiate();
     const gained = [featAsGained(feat)];
@@ -144,7 +144,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     featChoiceQs: questions,
       gainedFeatures: [],
       hpPerLevelSources: [],
-      narrativeSummary: '',
+      summaryLine: '',
       featuresText: '',
     });
 
@@ -188,7 +188,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
   /**
    * Wird die Subklasse IM Aufstieg gewählt, kommen ihre Merkmale nicht aus dem Delta, sondern
    * nachgeladen (`computeSubclassFeatures`). Fällt dabei ein Deklarationsfeld weg, schweigt der
-   * Zugang doppelt: `grantsChoice` nimmt das Merkmal aus dem KI-Eingang, und ohne
+   * Zugang doppelt: `grantsChoice` nimmt das Merkmal aus der Merkmalsstrecke, und ohne
    * `grantsCasting` entsteht auch keine Frage.
    */
   it('trägt die Kontingent-Deklaration durch das Nachladen der Subklasse', async () => {
@@ -223,7 +223,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
         expect(grant, `${f.key}: Deklaration lesbar`).not.toBeNull();
         expect(grant!.picks.length, `${f.key}: Kontingent auf Stufe ${level}`).toBeGreaterThan(0);
         // Ohne diesen Filter stellt die KI-Deutung dieselbe Zauber-Wahl ein zweites Mal.
-        expect(subclassFeaturesForAi([f]), `${f.key}: aus dem KI-Eingang`).toEqual([]);
+        expect(subclassFeaturesForFlow([f]), `${f.key}: aus der Merkmalsstrecke`).toEqual([]);
       }
     }
     expect(found).toEqual(['phb-2024_abjurer :: Abjuration Savant', 'srd-2024_evoker :: Evocation Savant']);

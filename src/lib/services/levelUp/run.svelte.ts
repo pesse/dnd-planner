@@ -8,7 +8,7 @@ import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
-import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForAi } from './features';
+import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForFlow } from './features';
 import { countFeatsToPick } from './questions';
 import { slotTotal } from './featUnlocks';
 import { buildDoc } from './doc';
@@ -24,7 +24,6 @@ import { nextFeatSourceId } from '../declaration/featInstances';
 import type { LevelUpDoc } from '../../schemas/levelUp';
 import { getSpellLibrary } from '../../spellLibrary';
 import { getFeats } from '../../featsLibrary';
-import { createRunClock } from '../../utils/runClock.svelte';
 import type { Character } from '../../schemas/characterSchema';
 
 export function createLevelUpRun(ctx: { character: Character }) {
@@ -48,15 +47,12 @@ export function createLevelUpRun(ctx: { character: Character }) {
     answers: () => st.answers,
   });
 
-  const clock = createRunClock(() => st.run.kind === 'running');
-  let abort: AbortController | null = null;
   let runToken = 0;
 
   const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-  const runOpts = () => ({ onActivity: () => clock.touch(), signal: abort!.signal });
-  const pushStep = (text: string) => { st.steps = [...st.steps, text]; clock.touch(); };
+  const pushStep = (text: string) => { st.steps = [...st.steps, text]; };
 
-  /** Angekündigte Zauberliste, die der Parser nicht lesen konnte — sonst fiele sie stumm zur KI. */
+  /** Angekündigte Zauberliste, die der Parser nicht lesen konnte — sonst fiele sie stumm weg. */
   const reportUnreadableGrants = () => {
     for (const name of st.declaredSpells.unreadable)
       pushStep(`„${name}" kündigt eine Zauberliste an, die nicht als Tabelle lesbar ist — Zauber nicht automatisch übernommen.`);
@@ -68,12 +64,11 @@ export function createLevelUpRun(ctx: { character: Character }) {
   }
 
   const steps = createRunSteps({
-    st, choices, pushStep, runOpts, ensureSpellLib,
+    st, choices, pushStep, ensureSpellLib,
     get character() { return ctx.character; },
   });
 
   function summarizeDelta(d: LevelUpDelta): string {
-    if (d.isHomebrew) return `${d.klasseName || 'Klasse'} ${d.fromLevel} → ${d.toLevel} · Homebrew (KI fragt alles ab)`;
     const parts = [`${d.klasseName || 'Klasse'} ${d.fromLevel} → ${d.toLevel}`];
     if (d.profBonusTo !== d.profBonusFrom) parts.push(`Übungsbonus +${d.profBonusFrom}→+${d.profBonusTo}`);
     const slotGain = d.spellSlotDelta.reduce((a, b) => a + b, 0);
@@ -85,21 +80,17 @@ export function createLevelUpRun(ctx: { character: Character }) {
     return parts.join(' · ');
   }
 
-  /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard, Uhr und Fehler-Rücksprung. */
+  /** Kapselt einen (ggf. mehrteiligen) async-Lauf mit Token-Guard und Fehler-Rücksprung. */
   async function runSegment(resume: StepId, body: (alive: () => boolean) => Promise<void>) {
     if (st.run.kind === 'running') return;
     st.reachedStep = resume;
-    // Der Token trägt die Abbruch-Erkennung allein: `skipAi` zählt ihn hoch, bevor es einen
-    // neuen Lauf startet, also fällt das verspätete Settle des alten hier stumm durch.
+    // Ein Neustart zählt den Token hoch — das verspätete Settle des alten Laufs fällt stumm durch.
     const myToken = ++runToken;
-    abort = new AbortController(); clock.start();
     st.run = { kind: 'running', step: resume };
     try {
       await body(() => myToken === runToken);
     } catch (e) {
       if (myToken === runToken) st.run = { kind: 'error', at: resume, message: msg(e) };
-    } finally {
-      if (myToken === runToken) { clock.stop(); abort = null; }
     }
   }
 
@@ -108,8 +99,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
       delta: st.delta!,
       featsToPick: st.delta ? countFeatsToPick(st.delta, st.answers, slotTotal(st.featSlots)) : 0,
       styleWork: (st.styleOffer?.allowance ?? 0) + (st.styleOffer?.swaps ?? 0),
-      // Die deklarierten Wahlen zählen mit: sonst überspringt die Maschine den Checkpoint,
-      // weil das Merkmal gar nicht mehr bei der KI war, und niemand wählt.
       // Die Pools zählen mit: sie stellen keine Frage, aber ohne sie hielte die Maschine
       // nicht an und der Picker käme nie auf den Schirm.
       baseChoices: choices.baseChoiceQs.length + st.optionPools.length,
@@ -117,9 +106,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
     };
   }
 
-  /** `rerun`: `from` läuft selbst noch einmal — so nimmt ein abgebrochener KI-Pass seine Ersatzfassung. */
-  async function pipelineBody(from: StepId, alive: () => boolean, rerun = false) {
-    let step = rerun ? from : advance(from, advCtx());
+  async function pipelineBody(from: StepId, alive: () => boolean) {
+    let step = advance(from, advCtx());
     while (!isCheckpoint(step)) {
       await runStep(step, alive);
       if (!alive()) return;
@@ -144,8 +132,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
           await ensureSpellLib(),
           st.delta!.klasseName,
         );
-        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — dieselbe
-        // Warnung wie bei KI-Namen, damit er inline angelegt werden kann statt still zu fehlen.
+        // Ein Merkmalstext kann einen Zauber nennen, den die Bibliothek nicht führt — gemeldet,
+        // damit er inline angelegt werden kann statt still zu fehlen.
         if (st.declaredSpells.flagged.length) st.flagged = [...new Set([...st.flagged, ...st.declaredSpells.flagged])];
         reportUnreadableGrants();
         break;
@@ -153,9 +141,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
         pushStep(`Subklasse „${st.chosenSubclass?.name}" — Merkmale werden geladen…`);
         st.subFeatures = await computeSubclassFeatures(st.chosenSubclass!.key, st.delta!.fromLevel, st.delta!.toLevel);
         if (!alive()) return;
-        // `subFeatures` bleibt vollständig (Info-Einträge), der KI-Eingang nicht — derselbe
+        // `subFeatures` bleibt vollständig (Info-Einträge), die Merkmalsstrecke nicht — derselbe
         // Filter, den `gainedFeaturesFor` auf die Subklassen-Merkmale des Deltas legt.
-        st.gainedFeatures = [...gainedFeaturesFor(st.delta!), ...subclassFeaturesForAi(st.subFeatures)];
+        st.gainedFeatures = [...gainedFeaturesFor(st.delta!), ...subclassFeaturesForFlow(st.subFeatures)];
         st.baseAccess = await classAccessGrants(st.delta!, st.chosenSubclass!.key);
         st.declaredSpells = resolveDeclaredSpells(
           [...st.delta!.featuresGained, ...st.delta!.subclassFeaturesGained, ...st.subFeatures],
@@ -176,22 +164,15 @@ export function createLevelUpRun(ctx: { character: Character }) {
         await steps.runRiders('feat', alive);
         break;
       case 'feature-notes':
-        await steps.runNotes(alive);
-        break;
-      case 'narrative':
-        await steps.runNarrative(alive);
+        steps.runNotes();
         break;
       case 'ongoing-effects':
         await steps.detectHpPerLevel(alive);
         if (!alive()) return;
         await steps.resolveCharLevelSpells();
         break;
-      case 'class-features-merge':
-        await steps.mergeClassFeatures(alive);
-        break;
       case 'feat-links':
-        // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im
-        // Vault, also fragt der Flow sie ab statt die KI sie aus der Prosa zu deuten.
+        // Deklarierter Zauber-Zugang der Talente: Liste, Attribut und Kontingent stehen im Vault.
         // Die Instanz-Id kommt aus dem BESTAND — ein zweites Eingeweihter der Magie ist eine
         // eigene Quelle, und seine Zauber dürfen nicht in die Kontingente des ersten fallen.
         st.featAccess = (
@@ -222,8 +203,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.featsToPick = countFeatsToPick(st.delta!, st.answers, slotTotal(st.featSlots));
       st.chosenFeats = [];
       getFeats().then((f) => { st.featLib = f; });
-    } else if (step === 'class-features' && !st.featuresText.trim()) {
-      // Sicherheitsnetz: normalerweise hat `class-features-merge` den Text längst gesetzt.
+    } else if (step === 'class-features') {
       st.featuresText = steps.seedFeaturesText();
     }
   }
@@ -246,14 +226,13 @@ export function createLevelUpRun(ctx: { character: Character }) {
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,
       optionPools: st.optionPools, optionPicks: st.optionPicks,
       optionPicksBefore: ctx.character.optionPicks ?? [],
-      hpPerLevelSources: st.hpPerLevelSources, narrativeSummary: st.narrativeSummary, featuresText: st.featuresText,
+      hpPerLevelSources: st.hpPerLevelSources, summaryLine: st.summaryLine, featuresText: st.featuresText,
       upTo: viewStep,
     });
   });
 
   return {
     st,
-    clock,
     choices,
     knownSpells,
     get doc() { return doc; },
@@ -267,7 +246,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
       st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
-      st.hpPerLevelSources = []; st.narrativeSummary = ''; st.featuresText = ''; st.aiSkipped = false;
+      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = '';
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();
 
@@ -289,7 +268,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
           return;
         }
         pushStep(`Delta: ${summarizeDelta(d)}`);
-        steps.announceNoteAvailability();
         await pipelineBody('choose-class', alive);
       });
     },
@@ -305,32 +283,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
     },
 
-    /** Derselbe Merge, aber auf dem handbearbeiteten Textfeld-Stand statt auf der Rohfassung. */
-    rework() {
-      if (!st.delta) return;
-      st.aiSkipped = false; // Der Knopf IST die Bitte um die KI — er hebt den Abbruch auf.
-      runSegment('class-features', async (alive) => {
-        await steps.mergeClassFeatures(alive, st.featuresText);
-        st.run = { kind: 'paused', at: 'class-features' };
-      });
-    },
-
-    /**
-     * Der Nutzer bricht die KI ab, nicht den Aufstieg: der laufende Schritt wiederholt sich
-     * ohne sie, danach läuft die Strecke bis zum nächsten Checkpoint weiter. Ein bloßes
-     * Anhalten hätte auf einem Nicht-Checkpoint geendet, wo die Oberfläche keinen Knopf hat.
-     */
-    skipAi() {
-      if (st.run.kind !== 'running') return;
-      const step = st.run.step;
-      runToken++; abort?.abort(); abort = null; clock.stop();
-      st.aiSkipped = true;
-      st.run = { kind: 'paused', at: step };
-      pushStep('KI abgebrochen — der Aufstieg läuft ohne sie weiter.');
-      runSegment(step, (alive) => pipelineBody(step, alive, true));
-    },
-
-    destroy() { abort?.abort(); },
+    destroy() { runToken++; },
   };
 }
 

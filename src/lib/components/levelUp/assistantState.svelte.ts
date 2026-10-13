@@ -48,8 +48,6 @@ export class LevelUpAssistantUi {
 
   featQuery = $state('');
 
-  jsonCopied = $state(false);
-
   constructor(run: LevelUpRun, getCharacter: () => Character, onApply: (changeSet: LevelUpChangeSet, delta: LevelUpDelta) => void, onclose: () => void) {
     this.#run = run;
     this.#getCharacter = getCharacter;
@@ -143,7 +141,7 @@ export class LevelUpAssistantUi {
   openSpellCreator(name: string, levels: number[], targetQ: string | null): void {
     const lv = levels.length ? levels : [1];
     const trimmed = name.trim();
-    // Der auslösende Name ist oft der englische KI-Vorschlag — als `name_en` vormerken,
+    // Der auslösende Name stammt aus dem englischen Regeltext — als `name_en` vormerken,
     // damit künftige EN↔DE-Treffer greifen.
     this.spellCreator = { targetQ, name: trimmed, nameEn: trimmed, level: lv[0], school: 'evocation', levels: lv };
   }
@@ -240,7 +238,7 @@ export class LevelUpAssistantUi {
     if (st.chosenFeats.filter((f) => f.slot === slot).length >= limit) return false;
     if (!entry.repeatable && (this.featMark(entry).blocked || st.chosenFeats.some((f) => f.name === name))) return false;
     // `grantsChoice`/`grants` reisen mit — nur damit lesen `feat-links` Zauber-Zugang und
-    // pro-Stufe-Effekte deterministisch aus der Bibliothek statt aus der KI.
+    // pro-Stufe-Effekte aus der Bibliothek.
     st.chosenFeats = [...st.chosenFeats, { key, name, nameDe, gainedAt: st.delta!.toLevel, desc: entry.desc || featDesc(entry), descDe: entry.descDe, grantsChoice: entry.grantsChoice, grants: entry.grants, grantsSpells: entry.grantsSpells, grantsCasting: entry.grantsCasting, slot }];
     return true;
   }
@@ -285,15 +283,6 @@ export class LevelUpAssistantUi {
   });
 
   reviewLines = $derived.by(() => this.#run.doc.changes.map((c) => this.changeLine(c)));
-  docJson = $derived.by(() => JSON.stringify(this.#run.doc, null, 2));
-
-  async copyDoc(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.docJson);
-      this.jsonCopied = true;
-      setTimeout(() => (this.jsonCopied = false), 1500);
-    } catch { /* Clipboard nicht verfügbar → ignorieren */ }
-  }
 }
 
 export function createLevelUpAssistantUi(

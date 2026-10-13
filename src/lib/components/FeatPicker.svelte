@@ -16,6 +16,7 @@
     selected,
     onToggle,
     owned = [],
+    recommended = [],
     diff = 'none',
   }: {
     offer: { allowance: number; options: FightingStyleOption[] } | null;
@@ -27,6 +28,8 @@
     onToggle: (sourceKey: string) => void;
     /** Talente, die der Charakter schon hat — markiert, wählbar nur wenn `repeatable`. */
     owned?: readonly string[];
+    /** Talent-Keys, die der Regeltext empfiehlt — markiert, nicht vorausgewählt. */
+    recommended?: readonly string[];
     diff?: DiffDir;
   } = $props();
 
@@ -58,15 +61,19 @@
         {#each offer.options as o (o.sourceKey)}
           {@const picked = selected.includes(o.sourceKey)}
           {@const has = owned.includes(o.sourceKey)}
+          {@const rec = recommended.includes(o.sourceKey)}
           <button
             type="button"
             class="opt"
             class:picked
             class:owned={has}
+            class:rec
             disabled={!picked && (!pickable.includes(o) || selected.length >= offer.allowance)}
-            use:textTip={has ? `${o.repeatable ? 'Schon vorhanden — mehrfach wählbar' : 'Schon vorhanden'}\n\n${o.desc}` : o.desc}
+            use:textTip={has
+              ? `${o.repeatable ? 'Schon vorhanden — mehrfach wählbar' : 'Schon vorhanden'}\n\n${o.desc}`
+              : rec ? `Empfohlen\n\n${o.desc}` : o.desc}
             onclick={() => toggle(o.sourceKey)}
-          >{o.name}{#if has}<span class="has">{o.repeatable ? ' ✓ +1' : ' ✓'}</span>{/if}</button>
+          >{#if rec}<span class="star">★ </span>{/if}{o.name}{#if has}<span class="has">{o.repeatable ? ' ✓ +1' : ' ✓'}</span>{/if}</button>
         {/each}
       </div>
     {/if}
@@ -108,6 +115,8 @@
   .opt:disabled { opacity: 0.45; cursor: not-allowed; }
   .opt.owned { border-style: dashed; }
   .has { color: var(--copper); }
+  .opt.rec { border-color: color-mix(in srgb, var(--copper) 60%, var(--border)); }
+  .star { color: var(--copper); }
   .opt.overflow { border-color: var(--danger); color: var(--danger); cursor: pointer; }
   .warn { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--danger); }
 </style>

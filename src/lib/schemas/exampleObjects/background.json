@@ -48,5 +48,19 @@
       "desc": "string",
       "descDe": "string"
     }
+  ],
+  "startingEquipmentOptions": [
+    {
+      "label": "string",
+      "items": [
+        {
+          "itemKey": "string",
+          "count": 1,
+          "choiceFrom": "artisan-tools",
+          "noteDe": "string"
+        }
+      ],
+      "goldPieces": 0
+    }
   ]
 }

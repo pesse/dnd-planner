@@ -28,6 +28,7 @@ describe('Talentwahl aus einem Speziesmerkmal', () => {
 
     const origin = (await getFeats()).filter((f) => f.category === 'Origin').map((f) => f.sourceKey);
     expect(offer.options.map((o) => o.sourceKey)).toContain(SKILLED);
+    expect(offer.recommended, 'Vielseitig empfiehlt Begabt').toEqual([SKILLED]);
     expect(offer.options.map((o) => o.sourceKey), 'Weiser bringt Eingeweihter der Magie schon mit')
       .not.toContain('srd-2024_magic-initiate');
     expect(offer.options.every((o) => origin.includes(o.sourceKey))).toBe(true);

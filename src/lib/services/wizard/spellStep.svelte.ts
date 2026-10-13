@@ -13,7 +13,7 @@ import type { SpellInfo } from '../../spellLibrary';
 
 /**
  * Was kein Kontingent zählt: die Deklaration eines Merkmals gewinnt (`optionListRider`
- * streicht, was seine Quota schon führt), übrig bleibt die Deutung der KI.
+ * streicht, was seine Quota schon führt).
  */
 const uncoveredExtras = (riders: FeatureRider[]): number =>
   riders.reduce((n, r) => n + r.extraCantrips + r.extraPreparedCount, 0);
@@ -54,9 +54,8 @@ export function createSpellStepValues(
   const loose = $derived(w.spellPickChoices.filter((c) => !(c.sourceId && c.quotaId)));
 
   /**
-   * Nur die Kontingente und die offenen KI-Wahlen: `extraMax` wächst mit dem Effekt-Job, der
-   * beim Betreten womöglich noch läuft, und dürfte den Nutzer nicht blockieren. Eine
-   * fehlgeschlagene Auflösung hat keine Zeilen und hält den Wizard deshalb nicht an.
+   * Nur die Kontingente und die offenen Merkmals-Wahlen. Eine fehlgeschlagene Auflösung hat
+   * keine Zeilen und hält den Wizard deshalb nicht an.
    */
   const done = $derived(
     spellStepDone(rows) && loose.every((c) => (w.featureSpellPicks[c.id] ?? []).length >= c.max),

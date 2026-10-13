@@ -1,6 +1,6 @@
 /**
- * Zwei Projektionen derselben Antwort: `answerValues` (englisch, kanonisch) speist die KI und
- * den Charakter, `answerLabels` (deutsch) den Bogen.
+ * Zwei Projektionen derselben Antwort: `answerValues` (englisch, kanonisch) speist den
+ * Charakter, `answerLabels` (deutsch) den Bogen.
  */
 import type { LevelUpQuestion } from '../../schemas/levelUp';
 

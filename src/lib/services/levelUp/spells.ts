@@ -1,5 +1,5 @@
 /**
- * Zaubernamen aus KI-Ridern und Deklarationen gegen die lokale Bibliothek auflösen,
+ * Zaubernamen aus Ridern und Deklarationen gegen die lokale Bibliothek auflösen,
  * kanonisieren, nach Grad trennen. Ein Name ohne Treffer wird `flagged`, nie übernommen.
  */
 import { resolveSpell, type SpellInfo } from '../../spellLibrary';
@@ -15,7 +15,7 @@ import type { StepId } from './steps';
 
 export interface ValidatedRiders {
   riders: FeatureRider[];
-  flagged: string[]; // KI-Zaubernamen ohne Bibliothekstreffer
+  flagged: string[]; // Zaubernamen ohne Bibliothekstreffer
   grantedCantrips: string[]; // aufgelöste Grad-0-Zauber (kanonisch)
   grantedPrepared: { level: number; name: string }[]; // aufgelöste Grad-1+-Zauber (kanonisch)
 }
@@ -74,10 +74,6 @@ export function resolveSpellNames(
   return out;
 }
 
-/**
- * Am DETERMINISTISCHEN Subklassen-Schritt, nicht am KI-Schritt: ohne QM-Modell (Analyse
- * übersprungen) bekäme der Charakter seine Domänen-/Kreiszauber sonst überhaupt nicht.
- */
 export function declaredSpellChanges(g: DeclaredSpells, step: StepId = 'subclass-delta'): Change[] {
   return [
     ...g.cantrips.map((name): Change => ({

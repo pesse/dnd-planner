@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { sourceField, migrateSourceLegacy } from './source';
 import { proficiencyGrantSchema, skillGrantSchema, emptyProficiencyGrant, emptySkillGrant } from './grants';
 import { featureDeclarationFields } from './featureChoice';
-import { type AbilityName } from './abilities';
+import { ABILITY_NAMES, type AbilityName } from './abilities';
+import { startingEquipmentOptionSchema } from './startingEquipment';
 
 export const classLevelSchema = z.object({
   level: z.number().int().min(1).max(20),
@@ -26,6 +27,15 @@ export const classFeatureSchema = z.object({
   // Die drei Deklarationen (featureChoice.ts). Vom Vault gepflegt, NICHT aus Open5e importiert
   // (`mapV2` lässt sie leer) — ein Re-Import darf sie nicht überschreiben.
   ...featureDeclarationFields,
+});
+
+/** SRD-Tabelle „Klassenüberblick“ — die Orientierung für die Klassenwahl. */
+export const classOverviewSchema = z.object({
+  favoredDe: z.string().describe('Spalte „Vorliebe“, z.B. "Waffen".'),
+  primaryAbilities: z.array(z.enum(ABILITY_NAMES)).default([]),
+  /** „Stärke oder Geschicklichkeit“ vs. „Stärke und Charisma“ — die Tabelle unterscheidet beides. */
+  primaryJoin: z.enum(['or', 'and']).default('or'),
+  complexity: z.enum(['low', 'medium', 'high']),
 });
 
 export const classProgressionSchema = z.object({
@@ -48,13 +58,18 @@ export const classProgressionSchema = z.object({
    * wird im Vault gepflegt und muss einen Re-Import überleben.
    */
   skillGrantMulticlass: skillGrantSchema.default(emptySkillGrant),
-  /**
-   * Prosa statt Grant: die Kerntabelle nennt Pakete und Wahloptionen („Choose (A) … or (B)
-   * 155 GP"), kein einzelnes Item — ein Grant hätte kein Ziel. Die ENGLISCHE Fassung geht
-   * in den Wizard-Prompt, die deutsche ist reine Anzeige und darf fehlen.
-   */
+  /** Reine Anzeige; die Mechanik trägt `startingEquipmentOptions`. */
   startingEquipment: z.string().default(''),
   startingEquipmentDe: z.string().default(''),
+  /** Fehlt das Feld, zeigt der Wizard nur die Prosa und vergibt Gold 0. */
+  startingEquipmentOptions: z.array(startingEquipmentOptionSchema).optional(),
+  overview: classOverviewSchema.optional(),
+  /** SRD-Tabelle „Standardsatz nach Klassen“: 15/14/13/12/10/8 auf die Attribute verteilt. */
+  standardArray: z.object({
+    str: z.number().int(), dex: z.number().int(), con: z.number().int(),
+    int: z.number().int(), wis: z.number().int(), cha: z.number().int(),
+  }).optional(),
+  introDe: z.string().optional().describe('Einleitung für die Auswahl: Kurzporträt der Klasse bzw. SRD-Einleitung der Unterklasse.'),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),
@@ -65,6 +80,7 @@ export const classProgressionSchema = z.object({
 export type ClassLevel = z.infer<typeof classLevelSchema>;
 export type ClassFeature = z.infer<typeof classFeatureSchema>;
 export type ClassProgression = z.infer<typeof classProgressionSchema>;
+export type ClassOverview = z.infer<typeof classOverviewSchema>;
 
 /**
  * Vor-Schema-Kürzel dieses Altfelds — nicht die heutige `AbilityKey`-Schreibweise, die

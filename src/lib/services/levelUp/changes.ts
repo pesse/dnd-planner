@@ -72,8 +72,7 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
     out.push({ target: 'spellcastingClass', value: delta.klasseName, step, source: 'class-progression', label: `Zauberwirken: ${delta.klasseName}` });
   const hd = bumpHitDice(hitDice, delta.hitDie, delta.levelsGained, delta.toLevel);
   if (hd) out.push({ target: 'hitDice', value: hd, step, source: 'class-progression', label: 'Trefferwürfel' });
-  // Nur ein HINWEIS, keine Wahl: die Waffen kommen im Charakterbogen aus der Item-Bibliothek,
-  // eine KI-Frage hier böte eine erfundene Waffenliste an.
+  // Nur ein HINWEIS, keine Wahl: die Waffen kommen im Charakterbogen aus der Item-Bibliothek.
   if (delta.masteryTo > delta.masteryFrom) {
     const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });

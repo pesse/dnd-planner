@@ -1,27 +1,21 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
-  import type { Job } from '../../services/wizard/job.svelte';
   import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
   import { buildCharacterProtocol } from '../../services/characterProtocol';
   import { choiceLabelsDe } from '../../services/analysis/types';
   import { loadSheetSpellcasting, type SheetSpellcasting } from '../../services/spellcasting/project';
   import type { Character } from '../../schemas/characterSchema';
+  import type { FeatureSource } from '../../services/declaredFeature';
+  import FeatureList, { type FeatureListEntry } from '../FeatureList.svelte';
 
-  let { w, aiBusy, createError, statusText }: {
-    w: CharacterWizard;
-    aiBusy: boolean;
-    createError: string;
-    statusText: (job: Job<unknown>) => string;
-  } = $props();
+  let { w, createError }: { w: CharacterWizard; createError: string } = $props();
 
   // Genau wie beim Stufenaufstieg SICHTBAR machen, was der Charakter bekommt. Aus dem fertig
   // zusammengesetzten Charakter abgeleitet, damit die Vorschau exakt dem entspricht, was
   // gespeichert wird — nicht bloß den Ridern.
   let preview = $state<Character | null>(null);
   $effect(() => {
-    // Job-Status mitlesen, damit die Vorschau nachzieht, sobald KI-Schritte fertig werden.
-    void [w.classText.status, w.speciesText.status, w.equipment.status];
     let cancelled = false;
     buildWizardCharacter(w).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
     return () => { cancelled = true; };
@@ -49,6 +43,18 @@
     });
   });
 
+  const features = $derived.by<FeatureListEntry[]>(() => {
+    const sourceLabel: Record<FeatureSource, string> = {
+      class: w.klass.name, subclass: w.klass.subclassName ?? 'Unterklasse', species: w.species.name, feat: 'Talent',
+    };
+    return w.declared.map((f, i) => ({
+      id: f.key ?? `${f.source}-${i}`,
+      name: f.nameDe || f.name,
+      text: f.descDe || f.desc || '',
+      note: sourceLabel[f.source],
+    }));
+  });
+
   const protocolGroups = $derived(
     preview
       ? buildCharacterProtocol(preview, { decisions, ...(spellcasting ? { spellcasting } : {}) })
@@ -57,12 +63,19 @@
 </script>
 
 <div class="review">
-  <p><strong>{w.name}</strong> — {w.klass.name} 1, {w.species.name}, {w.background.name}</p>
+  <p><strong>{w.name.trim() || 'Noch ohne Namen'}</strong> — {w.klass.name} 1, {w.species.name}, {w.background.name}</p>
+
+  {#if features.length}
+    <div class="protocol">
+      <span class="section-label">Deine Merkmale</span>
+      <FeatureList entries={features} />
+    </div>
+  {/if}
 
   <div class="protocol">
     <span class="section-label">Das wird angelegt</span>
     {#if !preview}
-      <p class="hint">Charakter wird zusammengestellt …{#if aiBusy} (KI-Schritte laufen noch){/if}</p>
+      <p class="hint">Charakter wird zusammengestellt …</p>
     {:else}
       {#each protocolGroups as g}
         <div class="proto-group">
@@ -73,12 +86,7 @@
     {/if}
   </div>
 
-  <ul class="jobs">
-    <li>Klassenmerkmals-Text: {statusText(w.classText)}</li>
-    <li>Volksmerkmals-Text: {statusText(w.speciesText)}</li>
-    <li>Ausrüstung: {statusText(w.equipment)}</li>
-  </ul>
-  <p class="hint">Beim Erstellen wird kurz auf noch laufende KI-Schritte gewartet und ihr Ergebnis übernommen — was fehlschlägt, kannst du im Editor ergänzen.</p>
+  <p class="hint">Die Merkmalsfelder des Bogens kannst du später im Bearbeiten-Modus mit ✨ zusammenfassen lassen.</p>
   {#if createError}<p class="warn">{createError}</p>{/if}
 </div>
 
@@ -88,5 +96,4 @@
   .proto-group { border-left: 2px solid var(--border-strong); padding-left: 0.6rem; }
   .proto-heading { font-weight: 600; font-size: 0.86rem; color: var(--ink); }
   .proto-line { font-size: 0.84rem; color: var(--ink-soft); }
-  .jobs { list-style: none; padding: 0; margin: 0.5rem 0; font-size: 0.85rem; color: var(--ink-soft); display: flex; flex-direction: column; gap: 0.2rem; }
 </style>

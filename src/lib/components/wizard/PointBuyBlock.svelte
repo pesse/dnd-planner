@@ -3,12 +3,10 @@
   import { ABILITY_LABEL } from '$lib/schemas/abilities';
   import {
     ABILITY_KEYS,
-    STANDARD_ARRAY,
     POINT_BUY_BUDGET,
     remainingPoints,
     canAdjust,
     adjust,
-    pointBuyStart,
     type AbilityKey,
     type AbilityScores,
   } from '../../services/wizard/pointBuy';
@@ -17,11 +15,6 @@
 
   function bump(key: AbilityKey, delta: number) {
     if (canAdjust(scores, key, delta)) scores = adjust(scores, key, delta);
-  }
-  function useStandardArray() {
-    const s = { ...pointBuyStart() };
-    ABILITY_KEYS.forEach((k, i) => (s[k] = STANDARD_ARRAY[i]));
-    scores = s;
   }
 </script>
 
@@ -36,7 +29,6 @@
     </div>
   {/each}
 </div>
-<button class="secondary" onclick={useStandardArray}>Standard-Array (15,14,13,12,10,8)</button>
 
 <style>
   .pointbuy { display: flex; flex-direction: column; gap: 0.4rem; }

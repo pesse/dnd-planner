@@ -7,16 +7,17 @@
    */
   import { onDestroy } from 'svelte';
   import { createLevelUpRun } from '../services/levelUp/run.svelte';
-  import { isPausedAt } from '../services/levelUp/runState';
+  import { isPausedAt, stepOf } from '../services/levelUp/runState';
+  import { STEP_META, type StepId } from '../services/levelUp/steps';
   import { type LevelUpDelta } from '../services/levelUp';
   import { type LevelUpChangeSet } from '../schemas/levelUp';
   import { type Character } from '../schemas/characterSchema';
-  import Modal from './ui/Modal.svelte';
-  import AiStatusBanner from './ui/AiStatusBanner.svelte';
-  import LlmProviderSelect from './ui/LlmProviderSelect.svelte';
+  import FullscreenWizard from './ui/FullscreenWizard.svelte';
+  import SubclassDetail from './levelUp/SubclassDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
   import SubclassChoiceStep from './levelUp/SubclassChoiceStep.svelte';
+  import NewFeaturesPanel from './levelUp/NewFeaturesPanel.svelte';
   import QuestionsPanel from './levelUp/QuestionsPanel.svelte';
   import OptionPoolPanel from './levelUp/OptionPoolPanel.svelte';
   import PlayerDecisionsPanel from './levelUp/PlayerDecisionsPanel.svelte';
@@ -35,57 +36,98 @@
 
   const run = createLevelUpRun({ get character() { return character; } });
   const st = run.st;
-  const clock = run.clock;
   onDestroy(() => run.destroy());
 
   const ui = createLevelUpAssistantUi(run, () => character, (changeSet, delta) => onApply(changeSet, delta), () => onclose());
 
-  const currentActivity = $derived(st.steps.length ? st.steps[st.steps.length - 1] : '');
+  // Die Zustandsmaschine kennt ihre Checkpoints erst beim Erreichen — die Leiste zeigt die
+  // bisher besuchten, ohne Rücksprung.
+  let visited = $state<StepId[]>([]);
+  $effect(() => {
+    if (st.run.kind === 'running') return;
+    const at = stepOf(st.run);
+    if (at !== 'done' && !visited.includes(at)) visited = [...visited, at];
+  });
+  const steps = $derived(visited.map((id) => ({ id, label: STEP_META[id].label })));
+  const current = $derived(Math.max(0, visited.indexOf(stepOf(st.run))));
 </script>
 
-<Modal
+{#snippet progression()}
+  <span class="field-label">Was sich ändert</span>
+  {#if ui.progressionGroups.length}
+    <div class="facts">
+      {#each ui.progressionGroups as g}
+        <div class="proto-group">
+          <div class="proto-heading">{g.heading}</div>
+          {#each g.lines as l}<div class="fact">• {l}</div>{/each}
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <span class="field-hint">Noch keine Änderungen.</span>
+  {/if}
+{/snippet}
+
+{#snippet subclassDetail()}
+  <SubclassDetail {ui} />
+{/snippet}
+
+{#snippet actions()}
+  <div class="actions">
+    {#if isPausedAt(st.run, 'choose-class')}
+      <button class="secondary-btn" onclick={onclose}>Schließen</button>
+      <button class="primary-btn" onclick={() => ui.startFlow()}
+              disabled={(ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20)}>Weiter</button>
+    {:else if isPausedAt(st.run, 'subclass-choice')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
+    {:else if isPausedAt(st.run, 'new-features')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => run.resume('new-features')}>Weiter</button>
+    {:else if isPausedAt(st.run, 'feature-choices')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
+    {:else if isPausedAt(st.run, 'player-decisions')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!ui.allAnswered}>Weiter</button>
+    {:else if isPausedAt(st.run, 'feat-choice')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={!ui.featsDone || !ui.stylesDone}>Weiter</button>
+    {:else if isPausedAt(st.run, 'feat-choices')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
+    {:else if isPausedAt(st.run, 'class-features')}
+      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
+      <button class="primary-btn" onclick={() => ui.confirmClassFeatures()}>Weiter</button>
+    {:else if isPausedAt(st.run, 'review')}
+      <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
+      <button class="primary-btn" onclick={() => ui.apply()}>In den Entwurf übernehmen</button>
+    {/if}
+  </div>
+{/snippet}
+
+<FullscreenWizard
   title="⬆ Stufenaufstieg — {character.name}"
   label="Stufenaufstieg"
-  top={70}
-  width="min(940px, 96vw)"
-  maxHeight="88vh"
-  pad="1.3rem"
-  padBottom="1.3rem"
+  scope="lvlup"
+  {steps}
+  {current}
   {onclose}
+  detail={isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined}
+  preview={progression}
+  footer={actions}
 >
-  <LlmProviderSelect accent="arcane" />
-
-  <div class="body lvlup">
-  <aside class="protocol">
-    <span class="field-label">Progression</span>
-    {#if ui.progressionGroups.length}
-      <div class="facts">
-        {#each ui.progressionGroups as g}
-          <div class="proto-group">
-            <div class="proto-heading">{g.heading}</div>
-            {#each g.lines as l}<div class="fact">• {l}</div>{/each}
-          </div>
-        {/each}
-      </div>
-    {:else}
-      <span class="field-hint">Noch keine Änderungen.</span>
-    {/if}
-  </aside>
-
   <div class="main">
   {#if isPausedAt(st.run, 'choose-class')}
     <ChooseClassStep {ui} />
   {/if}
 
-  {#if st.run.kind === 'running'}
-    <AiStatusBanner accent="arcane" text="{currentActivity || 'KI arbeitet…'} ({clock.elapsedSec}s)" />
-  {/if}
-  {#if clock.stalled}
-    <p class="hint warn">Seit {clock.stalledSec}s keine Antwort — du kannst ohne KI weitermachen.</p>
-  {/if}
-
   {#if isPausedAt(st.run, 'subclass-choice')}
     <SubclassChoiceStep {ui} />
+  {/if}
+
+  {#if isPausedAt(st.run, 'new-features')}
+    <NewFeaturesPanel {ui} />
   {/if}
 
   {#if isPausedAt(st.run, 'feature-choices')}
@@ -122,73 +164,12 @@
 
   {#if st.run.kind === 'error'}<p class="hint err">{st.run.message}</p>{/if}
 
-  <div class="actions">
-    {#if st.run.kind === 'running'}
-      <button class="secondary-btn" onclick={run.skipAi}>Ohne KI weiter</button>
-    {:else if isPausedAt(st.run, 'choose-class')}
-      <button class="secondary-btn" onclick={onclose}>Schließen</button>
-      <button class="primary-btn" onclick={() => ui.startFlow()}
-              disabled={(ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20)}>Weiter</button>
-    {:else if isPausedAt(st.run, 'subclass-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feature-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'player-decisions')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!ui.allAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={!ui.featsDone || !ui.stylesDone}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'class-features')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => ui.confirmClassFeatures()}>Weiter</button>
-    {:else if isPausedAt(st.run, 'review')}
-      <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
-      <button class="primary-btn" onclick={() => ui.apply()}>In den Entwurf übernehmen</button>
-    {/if}
   </div>
-  </div><!-- .main -->
-  </div><!-- .body -->
-
-  {#if st.delta}
-    <details class="json-view">
-      <summary>
-        <span>JSON-Dokument</span>
-        <button type="button" class="link-btn json-copy" onclick={(e) => { e.preventDefault(); ui.copyDoc(); }}>{ui.jsonCopied ? 'Kopiert ✓' : 'Kopieren'}</button>
-      </summary>
-      <pre class="json">{ui.docJson}</pre>
-    </details>
-  {/if}
-</Modal>
+</FullscreenWizard>
 
 <style>
-  .body { display: flex; gap: 1rem; align-items: flex-start; }
-  .protocol {
-    flex: 0 0 220px; display: flex; flex-direction: column; gap: 0.45rem;
-    border-right: 1px solid var(--surface); padding-right: 0.9rem;
-    max-height: 66vh; overflow-y: auto;
-  }
-  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+  .main { display: flex; flex-direction: column; gap: 0.7rem; max-width: 60rem; }
+  .actions { flex: 1; }
   .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
   .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
-
-  .json-view { border-top: 1px solid var(--surface); padding-top: 0.5rem; }
-  .json-view summary {
-    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--ink-muted); cursor: pointer; user-select: none;
-  }
-  .json-view summary::-webkit-details-marker { display: none; }
-  .json-copy { font-size: 0.7rem; }
-  .json {
-    margin: 0.5rem 0 0; max-height: 30vh; overflow: auto; white-space: pre;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.72rem; line-height: 1.4; color: var(--ink-soft);
-    background: var(--surface); border-radius: 4px; padding: 0.7rem; tab-size: 2;
-  }
 </style>

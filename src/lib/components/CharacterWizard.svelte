@@ -1,17 +1,14 @@
 <script lang="ts">
-  import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
-  import { llmConfig } from '../stores/llm';
   import { CharacterWizard } from '../services/wizard/characterWizard.svelte';
-  import type { Job } from '../services/wizard/job.svelte';
   import { buildWizardCharacter } from '../services/wizard/assembleCharacter';
   import { isComplete as pointBuyComplete } from '../services/wizard/pointBuy';
   import { allowedKeys, isValidAllocation, type AsiAllocation } from '../services/wizard/backgroundAsi';
   import type { AbilityKey } from '../services/wizard/pointBuy';
   import { createSpellStepValues } from '../services/wizard/spellStep.svelte';
-  import { getClassTree, type ClassNode } from '../classLibrary';
-  import { getSpeciesList, type SpeciesInfo } from '../speciesLibrary';
-  import { getBackgroundsList, getBackgroundByKey, type BackgroundInfo } from '../backgroundsLibrary';
+  import { getBackgroundByKey } from '../backgroundsLibrary';
+  import { abilityKeyOf } from '../schemas/abilities';
+  import { loadOriginCatalog, type OriginCatalog, type OriginKind } from '../services/wizard/originCatalog';
+  import { STANDARD_LANGUAGE_PICKS } from '../services/wizard/personal';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
@@ -25,8 +22,14 @@
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FeatPicker from './FeatPicker.svelte';
   import OptionPoolPicker from './OptionPoolPicker.svelte';
-  import BasicsStep from './wizard/BasicsStep.svelte';
-  import PointBuyBlock from './wizard/PointBuyBlock.svelte';
+  import FullscreenWizard from './ui/FullscreenWizard.svelte';
+  import OriginStep from './wizard/OriginStep.svelte';
+  import OriginDetail from './wizard/OriginDetail.svelte';
+  import LanguageStep from './wizard/LanguageStep.svelte';
+  import AbilitiesStep from './wizard/AbilitiesStep.svelte';
+  import PersonalStep from './wizard/PersonalStep.svelte';
+  import CharacterPreview from './wizard/CharacterPreview.svelte';
+  import GlossaryTerm from './GlossaryTerm.svelte';
   import BackgroundAsiStep from './wizard/BackgroundAsiStep.svelte';
   import SkillPickStep from './wizard/SkillPickStep.svelte';
   import FeatureChoiceStep from './wizard/FeatureChoiceStep.svelte';
@@ -37,15 +40,20 @@
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
 
-  const w = new CharacterWizard(() => get(llmConfig));
+  const w = new CharacterWizard();
 
   // Schritte über eine ID, nicht über einen festen Index: optionale Schritte fallen weg
   // und verschöben sonst alle nachfolgenden Index-Prüfungen.
-  type StepId = 'basics' | 'abilities' | 'background' | 'trait-feat' | 'proficiencies' | 'mastery' | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'review';
+  type StepId =
+    | OriginKind | 'languages' | 'abilities' | 'background-asi' | 'trait-feat' | 'proficiencies' | 'mastery'
+    | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'personal' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
-    { id: 'basics', label: 'Grundwahl' },
+    { id: 'class', label: 'Klasse' },
+    { id: 'background', label: 'Hintergrund' },
+    { id: 'species', label: 'Volk' },
+    { id: 'languages', label: 'Sprachen' },
     { id: 'abilities', label: 'Attribute' },
-    { id: 'background', label: 'Hintergrund-Bonus' },
+    { id: 'background-asi', label: 'Attributsbonus' },
     { id: 'trait-feat', label: 'Volks-Talent' },
     { id: 'proficiencies', label: 'Übungen' },
     { id: 'mastery', label: 'Waffenbeherrschung' },
@@ -55,13 +63,14 @@
     { id: 'fighting-style', label: 'Kampfstil' },
     { id: 'spells', label: 'Zauber' },
     { id: 'equipment', label: 'Ausrüstung' },
+    { id: 'personal', label: 'Persönliches' },
     { id: 'review', label: 'Überblick' },
   ];
   const steps = $derived(
     ALL_STEPS.filter(
       (s) =>
         // Den Schritt, auf dem der Nutzer STEHT, nie herausfiltern — die Bedingungen
-        // kippen nachträglich (die Merkmals-Analyse landet spät).
+        // kippen nachträglich (die Angebote laden asynchron).
         s.id === currentStep ||
         ((s.id !== 'mastery' || masteryAvailable) &&
           (s.id !== 'fighting-style' || fightingStyleAvailable) &&
@@ -70,12 +79,13 @@
           (s.id !== 'spells' || spellsAvailable)),
     ),
   );
-  let currentStep = $state<StepId>('basics');
+  let currentStep = $state<StepId>('class');
   const stepIndex = $derived(Math.max(0, steps.findIndex((s) => s.id === currentStep)));
 
-  let classTree = $state<ClassNode[]>([]);
-  let speciesList = $state<SpeciesInfo[]>([]);
-  let backgroundList = $state<BackgroundInfo[]>([]);
+  const ORIGIN_STEPS: StepId[] = ['class', 'background', 'species'];
+  const isOrigin = $derived(ORIGIN_STEPS.includes(currentStep));
+
+  let catalog = $state<OriginCatalog | null>(null);
   let spellLib = $state<SpellInfo[]>([]);
 
   let grants = $state<CollectedGrants | null>(null);
@@ -85,40 +95,28 @@
   let creating = $state(false);
   let createError = $state('');
 
-  let kickedOff = false;
-  let lastBasicsSig = '';
+  let lastOriginSig = '';
 
-  const aiJobs = $derived([
-    { label: 'Klassenmerkmale-Text', job: w.classText },
-    { label: 'Volksmerkmale-Text', job: w.speciesText },
-    { label: 'Startausrüstung aufbereiten', job: w.equipment },
-  ]);
-  const runningJobs = $derived(aiJobs.filter((j) => j.job.status === 'running'));
-  const aiBusy = $derived(runningJobs.length > 0);
+  void loadOriginCatalog().then((c) => (catalog = c));
+  void getSpellLibrary().then((s) => (spellLib = s));
 
-  let nowMs = $state(0);
-  let busyStartMs = $state(0);
-  $effect(() => {
-    if (aiBusy && !busyStartMs) busyStartMs = performance.now();
-    else if (!aiBusy) busyStartMs = 0;
-  });
-  const elapsedSec = $derived(aiBusy && busyStartMs ? Math.floor((nowMs - busyStartMs) / 1000) : 0);
-  const stalled = $derived(aiBusy && w.lastActivityMs > 0 && nowMs - w.lastActivityMs > 50_000);
+  const selectedClass = $derived(catalog?.classes.find((c) => c.key === w.klass.sourceKey) ?? null);
+  const primaryAbilities = $derived(
+    (selectedClass?.overview?.primaryAbilities ?? []).map((a) => abilityKeyOf(a)).filter((k): k is AbilityKey => !!k),
+  );
 
-  onMount(() => {
-    getClassTree().then((t) => (classTree = t));
-    getSpeciesList().then((s) => (speciesList = s));
-    getBackgroundsList().then((b) => (backgroundList = b));
-    getSpellLibrary().then((s) => (spellLib = s));
-    const clock = setInterval(() => (nowMs = performance.now()), 500);
-    return () => { clearInterval(clock); w.dispose(); };
-  });
-
-  // Nur Grundklassen — die Unterklasse fällt erst ab Stufe 3 an.
-  const baseClasses = $derived(classTree.filter((n) => !n.subclassOf));
-
-  function basicsSig(): string {
+  function originSig(): string {
     return `${w.species.sourceKey}|${w.klass.sourceKey}|${w.background.sourceKey}`;
+  }
+
+  /** Nach dem letzten Herkunfts-Schritt: beim ersten Mal laden, nach einer Änderung neu aufsetzen. */
+  function syncOrigin() {
+    const sig = originSig();
+    if (sig === lastOriginSig) return;
+    if (!lastOriginSig) w.kickoff();
+    else { w.restart(); grants = null; choiceAnswers = {}; }
+    lastOriginSig = sig;
+    void loadAsi();
   }
 
   async function loadGrants() {
@@ -144,7 +142,7 @@
 
   const toolChoicesDone = $derived(w.pendingToolChoices() === 0);
 
-  // Kontingent und wählbare Waffen kommen aus der Bibliothek, nie aus der KI.
+  // Kontingent und wählbare Waffen kommen aus der Bibliothek.
   let mastery = $state<MasteryOffer | null>(null);
   const weaponProfs = $derived({
     simple: grants?.weapons.some((g) => g.value === 'Simple') ?? false,
@@ -218,9 +216,8 @@
     return () => { cancelled = true; };
   });
 
-  // Die Zauberquellen des ENTSTEHENDEN Charakters, dieselbe Auflösung wie im Editor — kein
-  // KI-Job. Der Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl
-  // erzwingt.
+  // Die Zauberquellen des ENTSTEHENDEN Charakters, dieselbe Auflösung wie im Editor. Der
+  // Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl erzwingt.
   const spellCasting = createFormCasting(() => wizardCastingInput(w));
   const spellValues = createSpellStepValues(w, spellCasting, () => spellLib);
   // Der Fehlschlag gehört mit in die Bedingung: sonst hätte er dieselbe Wirkung wie „wirkt
@@ -257,9 +254,13 @@
 
   const canProceed = $derived.by(() => {
     switch (currentStep) {
-      case 'basics': return w.basicsComplete && w.name.trim().length > 0;
+      case 'class': return !!w.klass.sourceKey;
+      case 'background': return !!w.background.sourceKey;
+      case 'species': return !!w.species.sourceKey;
+      case 'languages': return w.languages.length === STANDARD_LANGUAGE_PICKS;
+      // Der Standardsatz kostet genau die 27 Punkte — dieselbe Prüfung trägt beide Methoden.
       case 'abilities': return pointBuyComplete(w.scores);
-      case 'background': return asiValid;
+      case 'background-asi': return asiValid;
       case 'trait-feat': return traitFeatsDone;
       case 'proficiencies': return openChoicesDone;
       case 'features': return declaredChoicesDone;
@@ -271,17 +272,9 @@
 
   function next() {
     if (!canProceed) return;
-    if (currentStep === 'basics') {
-      const sig = basicsSig();
-      if (!kickedOff) { w.kickoff(); kickedOff = true; lastBasicsSig = sig; }
-      else if (sig !== lastBasicsSig) { w.restart(); lastBasicsSig = sig; grants = null; choiceAnswers = {}; }
-      loadAsi();
-    }
-    // Erst nach dem Wahl-Checkpoint, sonst trägt der Text einen Platzhalter
-    // („Resistenz gegen [Schadensart]") statt der getroffenen Wahl.
-    if (currentStep === 'features') { commitFeatureChoices(); w.summarizeFeatures(); }
-    if (currentStep === 'spells') commitFeatureChoices();
     const nextStep = steps[stepIndex + 1];
+    if (isOrigin && (!nextStep || !ORIGIN_STEPS.includes(nextStep.id))) syncOrigin();
+    if (currentStep === 'features' || currentStep === 'spells') commitFeatureChoices();
     if (!nextStep) return;
     if (nextStep.id === 'proficiencies' && !grants) loadGrants();
     currentStep = nextStep.id;
@@ -295,7 +288,6 @@
     creating = true;
     createError = '';
     try {
-      await w.awaitPending();
       const character = await buildWizardCharacter(w);
       onComplete(character);
     } catch (e) {
@@ -303,163 +295,131 @@
       creating = false;
     }
   }
-
-  function statusText(job: Job<unknown>): string {
-    switch (job.status) {
-      case 'running': return 'läuft …';
-      case 'done': return 'fertig';
-      case 'error': return `Fehler: ${job.error}`;
-      case 'skipped': return 'übersprungen';
-      default: return '—';
-    }
-  }
 </script>
 
-<div class="wizard-backdrop" role="dialog" aria-modal="true" aria-label="Charakter erstellen">
-  <div class="wizard">
-    <header>
-      <h2>Neuer Charakter</h2>
-      <button class="close" onclick={onCancel} aria-label="Abbrechen">✕</button>
-    </header>
+{#snippet originDetail()}
+  <OriginDetail kind={currentStep as OriginKind} {w} {catalog} />
+{/snippet}
 
-    <ol class="steps">
-      {#each steps as s, i}
-        <li class:active={i === stepIndex} class:done={i < stepIndex}>{s.label}</li>
-      {/each}
-    </ol>
+{#snippet characterPreview()}
+  <CharacterPreview {w} />
+{/snippet}
 
-    <div class="body">
-      {#if currentStep === 'basics'}
-        <BasicsStep {w} classes={baseClasses} {speciesList} {backgroundList} />
+{#snippet nameField()}
+  <input class="name-input" type="text" bind:value={w.name} placeholder="Name deines Charakters" aria-label="Charaktername" />
+{/snippet}
 
-      {:else if currentStep === 'abilities'}
-        <PointBuyBlock bind:scores={w.scores} />
+{#snippet footer()}
+  <button class="secondary" onclick={onCancel}>Abbrechen</button>
+  <div class="spacer"></div>
+  {#if stepIndex > 0}<button class="secondary" onclick={back} disabled={creating}>Zurück</button>{/if}
+  {#if stepIndex < steps.length - 1}
+    <button class="primary" onclick={next} disabled={!canProceed}>Weiter</button>
+  {:else}
+    {#if !w.name.trim()}<span class="hint">Trag oben noch einen Namen ein.</span>{/if}
+    <button class="primary" onclick={create} disabled={creating || !w.name.trim()}>{creating ? 'Erstelle …' : 'Charakter erstellen'}</button>
+  {/if}
+{/snippet}
 
-      {:else if currentStep === 'background'}
-        <BackgroundAsiStep allowed={asiAllowed} bind:asi={w.asi as AsiAllocation} />
+<FullscreenWizard
+  title="Neuer Charakter"
+  label="Charakter erstellen"
+  scope="wizard"
+  {steps}
+  current={stepIndex}
+  onstep={(i) => (currentStep = steps[i].id)}
+  onclose={onCancel}
+  headerExtra={nameField}
+  mainWidth="clamp(230px, 22vw, 360px)"
+  detail={isOrigin ? originDetail : undefined}
+  preview={characterPreview}
+  {footer}
+>
+  {#if isOrigin}
+    <OriginStep kind={currentStep as OriginKind} {w} {catalog} />
 
-      {:else if currentStep === 'proficiencies'}
-        <SkillPickStep {grants} bind:picks={skillPicks} onchange={syncChosenSkills} />
+  {:else if currentStep === 'languages'}
+    <LanguageStep {w} />
 
-      {:else if currentStep === 'mastery'}
-        {#if !mastery}
-          <p class="hint">Lade Waffenbeherrschung …</p>
-        {:else}
-          <p class="hint">Wähle die Waffenarten, deren Meisterschaftseigenschaft du nutzen darfst.</p>
-          <WeaponMasteryPicker offer={mastery} bind:masteries={w.masteries} />
-        {/if}
+  {:else if currentStep === 'abilities'}
+    <AbilitiesStep {w} klass={selectedClass} />
 
-      {:else if currentStep === 'fighting-style'}
-        {#if !fightingStyle}
-          <p class="hint">Lade Kampfstile …</p>
-        {:else}
-          <p class="hint">Wähle deinen Kampfstil — die Optionen stammen aus der Talent-Bibliothek.</p>
-          <FeatPicker
-            offer={fightingStyle}
-            heading="Kampfstil — {fightingStyle.className}: {fightingStyle.allowance} {fightingStyle.allowance === 1 ? 'Stil' : 'Stile'}"
-            missingHint="Kampfstil-Talente brauchen die Kategorie „Kampfstil“ (vault/feats)."
+  {:else if currentStep === 'background-asi'}
+    <BackgroundAsiStep allowed={asiAllowed} primary={primaryAbilities} scores={w.scores} bind:asi={w.asi as AsiAllocation} />
 
-            selected={w.fightingStyles}
-            onToggle={(key) => {
-              w.fightingStyles = w.fightingStyles.includes(key)
-                ? w.fightingStyles.filter((k) => k !== key)
-                : [...w.fightingStyles, key];
-            }}
-          />
-        {/if}
+  {:else if currentStep === 'proficiencies'}
+    <SkillPickStep {grants} bind:picks={skillPicks} onchange={syncChosenSkills} />
 
-      {:else if currentStep === 'trait-feat'}
-        <p class="hint">Ein Volksmerkmal gewährt ein Talent — die Optionen stammen aus der Talent-Bibliothek.</p>
-        {#each traitFeatOffers as offer (offer.featureKey)}
-          {@const picked = w.traitFeats[offer.featureKey] ?? []}
-          <FeatPicker
-            {offer}
-            heading="{offer.label} — Talent der Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“"
-            missingHint="Talente brauchen die Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“ (vault/feats)."
-            selected={picked}
-            onToggle={(key) => {
-              w.setTraitFeats(offer.featureKey, picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]);
-              // Das Talent kann Übungen wählen lassen (Begabt) — der Übungsschritt lädt neu.
-              grants = null;
-            }}
-          />
-        {/each}
-
-      {:else if currentStep === 'option-pool'}
-        <p class="hint">Wähle die Optionen deiner Merkmale — die Liste stammt aus der Klassen-Deklaration.</p>
-        {#each pools as pool (pool.featureKey)}
-          <OptionPoolPicker offer={pool} bind:picks={w.optionPicks} />
-        {/each}
-
-      {:else if currentStep === 'features'}
-        <FeatureChoiceStep {w} bind:answers={choiceAnswers} />
-
-      {:else if currentStep === 'spells'}
-        <SpellStep {w} library={spellLib} v={spellValues} />
-
-      {:else if currentStep === 'equipment'}
-        <EquipmentChoiceStep {w} {statusText} done={toolChoicesDone} />
-
-      {:else if currentStep === 'review'}
-        <ReviewStep {w} {aiBusy} {createError} {statusText} />
-      {/if}
-    </div>
-
-    {#if aiBusy}
-      <div class="ai-status">
-        <span class="spinner" aria-hidden="true"></span>
-        <span>KI arbeitet: {runningJobs.map((j) => j.label).join(', ')} ({elapsedSec}s)</span>
-      </div>
-      {#if stalled}<p class="ai-stall">Seit über 50 s keine Antwort — du kannst warten oder die Grundwahl neu treffen.</p>{/if}
+  {:else if currentStep === 'mastery'}
+    {#if !mastery}
+      <p class="hint">Lade Waffenbeherrschung …</p>
+    {:else}
+      <p class="hint">Wähle die Waffenarten, deren Meisterschaftseigenschaft du nutzen darfst (<GlossaryTerm term="Waffenbeherrschung" />).</p>
+      <WeaponMasteryPicker offer={mastery} bind:masteries={w.masteries} />
     {/if}
 
-    <footer>
-      <button class="secondary" onclick={onCancel}>Abbrechen</button>
-      <div class="spacer"></div>
-      {#if stepIndex > 0}<button class="secondary" onclick={back} disabled={creating}>Zurück</button>{/if}
-      {#if stepIndex < steps.length - 1}
-        <button class="primary" onclick={next} disabled={!canProceed}>Weiter</button>
-      {:else}
-        <button class="primary" onclick={create} disabled={creating}>{creating ? 'Erstelle …' : 'Charakter erstellen'}</button>
-      {/if}
-    </footer>
-  </div>
-</div>
+  {:else if currentStep === 'fighting-style'}
+    {#if !fightingStyle}
+      <p class="hint">Lade Kampfstile …</p>
+    {:else}
+      <p class="hint">Wähle deinen Kampfstil — die Optionen stammen aus der Talent-Bibliothek.</p>
+      <FeatPicker
+        offer={fightingStyle}
+        heading="Kampfstil — {fightingStyle.className}: {fightingStyle.allowance} {fightingStyle.allowance === 1 ? 'Stil' : 'Stile'}"
+        missingHint="Kampfstil-Talente brauchen die Kategorie „Kampfstil“ (vault/feats)."
+
+        selected={w.fightingStyles}
+        onToggle={(key) => {
+          w.fightingStyles = w.fightingStyles.includes(key)
+            ? w.fightingStyles.filter((k) => k !== key)
+            : [...w.fightingStyles, key];
+        }}
+      />
+    {/if}
+
+  {:else if currentStep === 'trait-feat'}
+    <p class="hint">Ein Volksmerkmal gewährt dir ein <GlossaryTerm term="Talent" />. Mit ★ markierte Talente empfiehlt das Regelwerk.</p>
+    {#each traitFeatOffers as offer (offer.featureKey)}
+      {@const picked = w.traitFeats[offer.featureKey] ?? []}
+      <FeatPicker
+        {offer}
+        heading="{offer.label} — Talent der Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“"
+        missingHint="Talente brauchen die Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“ (vault/feats)."
+        selected={picked}
+        recommended={offer.recommended}
+        onToggle={(key) => {
+          w.setTraitFeats(offer.featureKey, picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]);
+          // Das Talent kann Übungen wählen lassen (Begabt) — der Übungsschritt lädt neu.
+          grants = null;
+        }}
+      />
+    {/each}
+
+  {:else if currentStep === 'option-pool'}
+    <p class="hint">Wähle die Optionen deiner Merkmale — die Liste stammt aus der Klassen-Deklaration.</p>
+    {#each pools as pool (pool.featureKey)}
+      <OptionPoolPicker offer={pool} bind:picks={w.optionPicks} />
+    {/each}
+
+  {:else if currentStep === 'features'}
+    <FeatureChoiceStep {w} bind:answers={choiceAnswers} />
+
+  {:else if currentStep === 'spells'}
+    <SpellStep {w} library={spellLib} v={spellValues} />
+
+  {:else if currentStep === 'equipment'}
+    <EquipmentChoiceStep {w} done={toolChoicesDone} />
+
+  {:else if currentStep === 'personal'}
+    <PersonalStep {w} />
+
+  {:else if currentStep === 'review'}
+    <ReviewStep {w} {createError} />
+  {/if}
+</FullscreenWizard>
+
 
 <style>
-  .wizard-backdrop {
-    position: fixed; inset: 0; background: rgba(20, 12, 2, 0.45);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
-  }
-  .wizard {
-    background: var(--bg); color: var(--ink);
-    border: 1px solid var(--border-strong); border-radius: 10px;
-    /* Feste Mindesthöhe: ein geöffnetes Dropdown braucht Platz nach unten, sonst
-       scrollt der Body. */
-    width: min(760px, 92vw); min-height: min(600px, 86vh); max-height: 88vh;
-    display: flex; flex-direction: column;
-    box-shadow: 0 12px 40px rgba(20, 12, 2, 0.35);
-  }
-  header { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.1rem; border-bottom: 1px solid var(--border); }
-  header h2 { margin: 0; font-size: 1.15rem; font-family: var(--font-display, inherit); color: var(--ink); }
-  .close { background: none; border: none; color: var(--ink-muted); font-size: 1.25rem; line-height: 1; cursor: pointer; }
-  .steps { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0.6rem 1.1rem; font-size: 0.78rem; border-bottom: 1px solid var(--border); }
-  .steps li { color: var(--ink-muted); padding: 0.15rem 0.55rem; border-radius: 4px; }
-  .steps li.active { background: var(--arcane, var(--gold)); color: #fff; font-weight: 600; }
-  .steps li.done { color: var(--ink-soft); }
-  .ai-status {
-    display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 1.1rem 0;
-    padding: 0.4rem 0.6rem; font-size: 0.82rem; color: var(--ink-soft);
-    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 5px;
-  }
-  .spinner {
-    flex: 0 0 auto; width: 0.9rem; height: 0.9rem; border-radius: 50%;
-    border: 2px solid var(--border-strong); border-top-color: var(--arcane, var(--gold));
-    animation: wiz-spin 0.8s linear infinite;
-  }
-  @keyframes wiz-spin { to { transform: rotate(360deg); } }
-  .ai-stall { margin: 0.3rem 1.1rem 0; font-size: 0.78rem; color: var(--danger); }
-  .body { flex: 1 1 auto; min-height: 0; padding: 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.85rem; }
-  footer { display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1.1rem; border-top: 1px solid var(--border); }
   .spacer { flex: 1; }
+  .name-input { width: min(22rem, 100%); font-size: 1rem; }
 </style>

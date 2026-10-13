@@ -70,12 +70,6 @@ export interface LevelUpRunState {
   /** Bogenzeilen des Notiz-Passes, Basis- und Talentmerkmale in einem Satz. */
   notes: FeatureNote[];
   /**
-   * Der Nutzer hat die KI abgebrochen: die restlichen Pässe nehmen ihre deterministische
-   * Fassung, statt es erneut zu versuchen. Gilt für den ganzen Lauf — sonst müsste an jedem
-   * der vier Pässe erneut abgebrochen werden.
-   */
-  aiSkipped: boolean;
-  /**
    * Merkmale, deren Prosa eine Mechanik ankündigt, für die keine Deklaration steht — sie
    * fällt aus, und das darf nicht still passieren (`declarationGapLines`).
    */
@@ -96,18 +90,17 @@ export interface LevelUpRunState {
   validatedFeats: ValidatedRiders;
   flagged: string[];
   hpPerLevelSources: HpPerLevelSource[];
-  narrativeSummary: string;
-  featuresText: string; // editierbarer Volltext: KI-Merge plus Nachbearbeitung
+  summaryLine: string;
+  featuresText: string; // editierbarer Bogentext der Klassenmerkmale
   steps: string[];
-  // Pro Schritt hochgezählt, damit deterministische Teilschritte im Dokument erscheinen,
-  // BEVOR die nachfolgende KI-Aktion läuft.
+  // Pro Schritt hochgezählt, damit Teilschritte im Dokument erscheinen, bevor der Lauf endet.
   reachedStep: StepId;
   spellLib: SpellInfo[];
   featLib: FeatEntry[];
   /** Die Optionen der Werkzeug-Wahl; leer lässt sie auf Freitext zurückfallen. */
   toolLib: ToolItem[];
   // Wahlen früherer Stufen: die Zauberliste einer damals gewählten Option hängt daran
-  // (`optionSpellNames`), und das Narrativ soll sie nicht als neu ausgeben.
+  // (`optionSpellNames`).
   pastChoices: PastChoice[];
 }
 
@@ -130,7 +123,6 @@ export function emptyRunState(): LevelUpRunState {
     optionPicks: [],
     baseAccess: [],
     notes: [],
-    aiSkipped: false,
     gaps: [],
     featsToPick: 0,
     featSlots: [],
@@ -144,7 +136,7 @@ export function emptyRunState(): LevelUpRunState {
     validatedFeats: emptyRiders(),
     flagged: [],
     hpPerLevelSources: [],
-    narrativeSummary: '',
+    summaryLine: '',
     featuresText: '',
     steps: [],
     reachedStep: 'choose-class',

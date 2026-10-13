@@ -39,7 +39,6 @@
 
 .lvlup .roll { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .lvlup .roll-result { font-size: 0.82rem; color: var(--ink-soft); }
-.lvlup .rework-btn { align-self: flex-start; }
 .lvlup .ta-features { min-height: 12rem; }
 
 .lvlup .review { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }

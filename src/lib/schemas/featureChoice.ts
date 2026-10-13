@@ -8,7 +8,7 @@ import { castingGrantSchema } from './casting';
 import { CHARACTER_PROPERTIES, featureGrantSchema, spellGrantSchema } from './grants';
 import { resourceGrantSchema } from './resource';
 import { FEAT_CATEGORIES, SKILL_NAMES } from './vocabulary';
-import { EQUIPMENT_CHOICE_CATEGORIES } from './wizardEquipment';
+import { EQUIPMENT_CHOICE_CATEGORIES } from './startingEquipment';
 import { whenSchema } from './when';
 
 /**
@@ -99,6 +99,10 @@ export const featureChoiceGrantSchema = z.object({
   // Nur an der Talentwahl: ihre Senken (Kampfstil-Angebot, Talent-Kontingent des Aufstiegs)
   // haben die Antworten zur Hand, die Fragen-Pfade der übrigen `kind`s nicht.
   when: whenSchema.optional().describe('Nur bei kind="featCategory". ' + whenSchema.description),
+  recommended: z
+    .array(z.string())
+    .default([])
+    .describe('Nur bei kind="featCategory": Talent-Keys, die der Regeltext empfiehlt („Begabt wird empfohlen“).'),
   swap: z
     .enum(['level-up-one'])
     .optional()
@@ -122,7 +126,7 @@ export const featureChoiceGrantSchema = z.object({
   toolCategory: z
     .enum(['', ...EQUIPMENT_CHOICE_CATEGORIES])
     .default('')
-    .describe('Nur bei kind="toolProficiency": Sorte, die der Regeltext meint — "artisan-tools" für Handwerkszeug, "instrument" für Musikinstrument. Leer = jedes Werkzeug der Bibliothek.'),
+    .describe('Nur bei kind="toolProficiency": Sorte, die der Regeltext meint — "artisan-tools" für Handwerkszeug, "instrument" für Musikinstrument, "gaming-set" für Spielset. Leer = jedes Werkzeug der Bibliothek.'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.

@@ -2,7 +2,7 @@
 
 Test-Strecke, um die **Antwort-Qualität** der KI-Actions zu messen und Prompts zu
 optimieren, ohne dass die Qualität sinkt. Läuft headless (ohne Tauri) über den
-**echten Produktionspfad** (z.B. `summarizeFeatureNotes` samt Übersetzungs-Call); außerhalb
+**echten Produktionspfad** (z.B. `createSpellAction` samt Tools); außerhalb
 von Tauri fällt der HTTP-Transport via `src/lib/services/httpFetch.ts` auf das globale
 `fetch` zurück.
 
@@ -125,8 +125,8 @@ npm run eval:index
   via `step.run`, sonst `runAiAction`), prüft je Lauf die Assertions und aggregiert
   **Pass-Raten** (`runEval`).
 - `report.ts` — Capture der echten Requests/Responses + die vier Report-Artefakte.
-- `cases/` — **nur bei größeren Fällen**: die Assertions in einer eigenen Datei
-  (Muster: `../tests/fixtures/druid-l3-circle-of-land.ts` + `cases/featureNotes-druid-circle.ts`).
+- `cases/` — **nur bei größeren Fällen**: die Assertions in einer eigenen Datei, die Inputs
+  unter `../tests/fixtures/`.
 - `*.eval.test.ts` — eine Strecke je Datei. **Nur** diese Dateien laufen hier; was ohne LLM
   auskommt, gehört nach `tests/unit` bzw. `tests/integration` (`npm run test`).
 
@@ -137,11 +137,6 @@ Bestehende Strecken:
 - `spell.eval.test.ts` — Zauber anlegen/überarbeiten (einfacher Ein-Call-Prompt, alles in
   einer Datei) — die Vorlage zum Abschauen.
 - `promptLab.eval.test.ts` — roher Prompt ohne Action (Vorlage für Prompt-Entwürfe).
-- `featureNotes.eval.test.ts` — die Bogen-Notiz beim Stufenaufstieg, seit dem KI-Schnitt der
-  einzige Merkmals-Pass (Produktionspfad inkl. Übersetzung, Fall-Aufbau lädt Vault-Daten).
-  Zwei Strecken: Druide 2→3 („darf die Kreissprüche NICHT aufzählen") und Schurke 2→3
-  („muss je Merkmal eine Zeile schreiben") — getrennt, damit sich die beiden Quoten nicht
-  gegeneinander verrechnen.
 
 ## Neue Strecke in 5 Minuten
 
@@ -182,7 +177,7 @@ Dann `npm run eval -- --eval item --runs 3`. Regeln der Praxis:
   Prüfung: die KI soll **nur** das Gewünschte anfassen.
 - Braucht ein Fall mehrere verkettete Calls oder geladene Vault-Daten, statt
   `action`/`input` ein `run: (config) => Promise<T>` setzen und `cases` als (async)
-  Funktion übergeben — siehe `cases/featureNotes-druid-circle.ts`.
+  Funktion übergeben.
 
 ## Nur einen Prompt testen (ohne Action)
 
@@ -235,18 +230,18 @@ Entscheidung, dann die eigentliche Antwort — stellt `chatCase` die Turns frei
 zusammen (`user(…)`, `assistant(…)`, `reply(…)`):
 
 ```ts
-chatCase<FeatureNotes>({
-  label: 'Notiz auf vorgegebene Deutung nachgereicht',
+chatCase<Npc>({
+  label: 'Steckbrief auf vorgegebene Idee nachgereicht',
   system: SYSTEM,
-  schema: featureNotesSchema,
+  schema: npcSchema,
   structured: 'parse',
   turns: [
     user(INPUT),
     assistant(READING_FIXTURE),           // feste Antwort #1 — kein Call
-    user('Fasse das jetzt als Bogenzeile.'),
-    reply<FeatureNotes>({ label: 'notiz' }),  // ECHTE Antwort — das wird gemessen
+    user('Mach daraus jetzt den Steckbrief.'),
+    reply<Npc>({ label: 'steckbrief' }),  // ECHTE Antwort — das wird gemessen
   ],
-  core: { 'liefert eine Zeile': (n) => n.notes.length > 0 },
+  core: { 'Merkmale gesetzt': (n) => n.merkmale.length > 0 },
 });
 ```
 

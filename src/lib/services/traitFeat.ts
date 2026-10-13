@@ -16,6 +16,7 @@ export interface TraitFeatOffer {
   featCategory: FeatCategory;
   allowance: number;
   options: FightingStyleOption[];
+  recommended: string[];
 }
 
 type TraitLike = DeclaredChoiceSource & { key?: string; name?: string; nameDe?: string };
@@ -34,6 +35,7 @@ export function traitFeatOffers(traits: readonly TraitLike[], feats: readonly Fe
         featCategory: g.featCategory!,
         allowance: g.count,
         options: featCategoryOptions(feats, g.featCategory!).filter((o) => !exclude.includes(o.sourceKey)),
+        recommended: g.recommended,
       })),
   );
 }

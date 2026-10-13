@@ -51,3 +51,9 @@ export function isValid(scores: AbilityScores): boolean {
 export function isComplete(scores: AbilityScores): boolean {
   return isValid(scores) && remainingPoints(scores) === 0;
 }
+
+/** Jeder Wert des Standardsatzes genau einmal vergeben — ein Teilstand ist noch nicht fertig. */
+export function isStandardArray(scores: AbilityScores): boolean {
+  const sorted = ABILITY_KEYS.map((k) => scores[k]).sort((a, b) => b - a);
+  return sorted.every((v, i) => v === STANDARD_ARRAY[i]);
+}

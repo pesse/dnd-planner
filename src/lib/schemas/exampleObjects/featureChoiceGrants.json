@@ -68,6 +68,9 @@
     "when": {
       "<key>": "string"
     },
+    "recommended": [
+      "string"
+    ],
     "swap": "level-up-one",
     "count": 1,
     "column": "string",

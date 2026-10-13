@@ -38,6 +38,7 @@ export const speciesSchema = z.object({
   nameDe: z.string().optional(),
   size: z.string().default(''),
   speed: z.string().default(''),
+  introDe: z.string().optional().describe('Kurzporträt für die Auswahl.'),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

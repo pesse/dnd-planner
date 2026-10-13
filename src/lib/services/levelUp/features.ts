@@ -13,7 +13,7 @@ import type { ClassFeature } from '../../schemas/classProgression';
 import type { GainedFeature } from '../analysis/types';
 import type { FeatCategory } from '../../schemas/vocabulary';
 
-/** Englisch geführt, deutsche Fassung als Beilage — so deutet die KI. */
+/** Englisch geführt, deutsche Fassung als Beilage. */
 export interface ChosenFeat extends DeclarationFields {
   key: string;
   name: string;
@@ -48,18 +48,18 @@ function featuresBetween(features: ClassFeature[], from: number, to: number): Cl
 }
 
 /**
- * Der KI-Eingang der SUBKLASSEN-Merkmale, eine Regel für beide Aufrufer: deklarierte Wahlen,
+ * Die Merkmalsstrecke der SUBKLASSEN-Merkmale, eine Regel für beide Aufrufer: deklarierte Wahlen,
  * deklariertes Zauberwirken und immer-vorbereitete Zauberlisten fliegen raus — die drei
- * beantwortet der Flow aus der Bibliothek, die Analyse stellte sie sonst ein zweites Mal.
+ * beantworten eigene Flow-Schritte aus der Bibliothek.
  * Klassenmerkmale deckt `isFlowOwnedChoiceFeature` ab, das hier nicht laufen darf: seine
  * Namens-Fallbacks („Spellcasting") treffen an der Subklasse echte Mechanik.
  */
-export function subclassFeaturesForAi<T extends DeclaredChoiceSource & SpellGrantSource>(features: T[]): T[] {
+export function subclassFeaturesForFlow<T extends DeclaredChoiceSource & SpellGrantSource>(features: T[]): T[] {
   return withoutDeclaredChoiceFeatures(withoutSpellGrantFeatures(features));
 }
 
 /**
- * Was hier herausfliegt, fliegt aus dem KI-Eingang:
+ * Was hier herausfliegt, fliegt aus der Merkmalsstrecke:
  * - flow-eigene Wahlen (Subklasse, Attributsverbesserung) — die Analyse stellte sie sonst
  *   ein zweites Mal;
  * - immer-vorbereitete Zauberlisten, auch bei SUBKLASSEN-Merkmalen — sie werden aus der
@@ -69,7 +69,7 @@ export function gainedFeaturesFor(delta: LevelUpDelta): GainedFeature[] {
   return [
     ...withoutSpellGrantFeatures(delta.featuresGained.filter((f) => !isFlowOwnedChoiceFeature(f)))
       .map((f) => featureToGained(f, 'class', delta.fromLevel, delta.toLevel)),
-    ...subclassFeaturesForAi(delta.subclassFeaturesGained)
+    ...subclassFeaturesForFlow(delta.subclassFeaturesGained)
       .map((f) => featureToGained(f, 'subclass', delta.fromLevel, delta.toLevel)),
   ];
 }
@@ -103,7 +103,7 @@ export async function classAccessGrants(
 
 /**
  * Subklassen-Merkmale NACH der Wahl nachladen, VOLLSTÄNDIG: der Aufrufer braucht sie so für
- * Info-Einträge und deklarierte Wahlen und siebt für den KI-Eingang selbst.
+ * Info-Einträge und deklarierte Wahlen und siebt für die Merkmalsstrecke selbst.
  */
 export async function computeSubclassFeatures(subclassKey: string, from: number, to: number): Promise<GainedFeature[]> {
   const prog = await getProgressionByKey(subclassKey);

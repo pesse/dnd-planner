@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { toLlmJsonSchema } from '../../src/lib/schemas/llmJson';
-import { equipmentOptionsJsonSchema } from '../../src/lib/schemas/wizardEquipment';
 
 const walk = (node: unknown, hit: (obj: Record<string, unknown>) => void): void => {
   if (Array.isArray(node)) return node.forEach((n) => walk(n, hit));
@@ -47,9 +46,5 @@ describe('toLlmJsonSchema', () => {
     const schema = toLlmJsonSchema(z.object({ weight: z.number().min(0) }));
     const weight = (schema.properties as Record<string, Record<string, unknown>>).weight;
     expect(weight.minimum).toBe(0);
-  });
-
-  it('gibt die Startausrüstung ohne Schranke aus', () => {
-    expect(rangeKeys(equipmentOptionsJsonSchema)).toEqual([]);
   });
 });

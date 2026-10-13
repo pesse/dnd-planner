@@ -29,11 +29,7 @@ import {
 
 const features = async (key: string): Promise<ClassFeature[]> => (await getProgressionByKey(key))?.features ?? [];
 
-/**
- * Die zwölf Zauber der Stufe 3 aller vier Landarten — dieselbe Liste, gegen die vorher die
- * KI-Erdung gemessen wurde. Bewusst aus der Fixture importiert statt hier zweitgeschrieben:
- * es soll EINE Erwartung geben, egal wer sie erfüllt.
- */
+/** Die zwölf Zauber der Stufe 3 aller vier Landarten. */
 const LAND_LEVEL3 = EXPECTED_CIRCLE_SPELLS;
 
 describe('deklarierte Zauberlisten (Kreissprüche & Co.)', () => {

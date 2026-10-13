@@ -1,18 +1,17 @@
 <script lang="ts">
   import './wizard.css';
   import { CharacterWizard, toolPickKey } from '../../services/wizard/characterWizard.svelte';
-  import type { Job } from '../../services/wizard/job.svelte';
-  import { getToolChoices, displayName as itemDisplayName } from '../../itemLibrary';
-  import type { EquipmentChoiceCategory } from '../../schemas/wizardEquipment';
+  import { equipmentIndex, startingItemName } from '../../services/wizard/startingEquipment';
+  import { getToolChoices, displayName as itemDisplayName, type ItemIndex } from '../../itemLibrary';
+  import { EQUIPMENT_CHOICE_LABEL, type EquipmentChoiceCategory, type StartingItem } from '../../schemas/startingEquipment';
   import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';
 
-  let { w, statusText, done }: {
-    w: CharacterWizard;
-    statusText: (job: Job<unknown>) => string;
-    done: boolean;
-  } = $props();
+  let { w, done }: { w: CharacterWizard; done: boolean } = $props();
 
-  const groups = $derived(w.equipment.result?.groups ?? []);
+  const groups = $derived(w.equipmentGroups);
+
+  let index = $state<ItemIndex | null>(null);
+  $effect(() => { void equipmentIndex().then((i) => (index = i)).catch(() => {}); });
 
   function selectOption(groupIdx: number, optionIdx: number) {
     const next = [...w.equipmentSelection];
@@ -22,14 +21,11 @@
   function selected(groupIdx: number): number {
     return w.selectedOptionIndex(groupIdx);
   }
+  function itemLabel(item: StartingItem): string {
+    const name = item.choiceFrom ? EQUIPMENT_CHOICE_LABEL[item.choiceFrom] : startingItemName(index, item);
+    return item.count > 1 ? `${item.count}× ${name}` : name;
+  }
 
-  // Kategorie-Einträge („Handwerkszeug", „Musikinstrument") auflösen: die Regel nennt
-  // dort keine Sache, sondern eine Wahl — die Liste kommt aus der Bibliothek, nie aus
-  // der KI (dasselbe Prinzip wie bei der Waffenmeisterschaft).
-  const TOOL_CATEGORY_LABEL: Record<EquipmentChoiceCategory, string> = {
-    'artisan-tools': 'Handwerkszeug',
-    'instrument': 'Musikinstrument',
-  };
   let toolOptions = $state<Record<string, TooltipOption[]>>({});
   // Merker außerhalb der Runen: ein Lesen von `toolOptions` im Effekt würde ihn bei
   // jedem Nachladen erneut anstoßen.
@@ -40,11 +36,11 @@
     const items = await getToolChoices(category);
     toolOptions = {
       ...toolOptions,
-      [category]: items.map((i) => ({ value: itemDisplayName(i), label: itemDisplayName(i) })),
+      [category]: items.filter((i) => i.key).map((i) => ({ value: i.key!, label: itemDisplayName(i) })),
     };
   }
-  function pickTool(key: string, name: string) {
-    w.toolPicks = { ...w.toolPicks, [key]: name };
+  function pickTool(key: string, itemKey: string) {
+    w.toolPicks = { ...w.toolPicks, [key]: itemKey };
   }
   $effect(() => {
     for (const group of groups) {
@@ -55,46 +51,46 @@
   });
 </script>
 
-{#if w.equipment.status === 'running' && !groups.length}
-  <p class="hint">Die KI bereitet deine Startausrüstung als wählbare Optionen auf … ({statusText(w.equipment)})</p>
-{:else if w.equipment.status === 'error'}
-  <p class="warn">Ausrüstung konnte nicht aufbereitet werden ({w.equipment.error}). Du kannst sie später im Editor ergänzen.</p>
-{:else if !groups.length}
+{#if !groups.length}
   <p class="hint">Keine Startausrüstung zum Auswählen (kann im Editor ergänzt werden).</p>
 {:else}
   <p class="hint">Wähle je Herkunft eine Option. Die Gegenstände landen als Inventar im fertigen Charakter.</p>
   {#each groups as group, gi}
     <div class="field">
-      <span>{group.source || 'Ausrüstung'}</span>
-      <div class="eq-options">
-        {#each group.options as opt, oi}
-          <button
-            type="button"
-            class="eq-option"
-            class:sel={selected(gi) === oi}
-            onclick={() => selectOption(gi, oi)}
-          >
-            <span class="eq-badge">{opt.label || String.fromCharCode(65 + oi)}</span>
-            <span class="eq-desc">
-              {opt.description || opt.items.map((i) => (i.count > 1 ? `${i.count}× ${i.name}` : i.name)).join(', ')}
-              {#if opt.goldPieces > 0}<em> · {opt.goldPieces} GM</em>{/if}
-            </span>
-          </button>
+      <span>{group.source}</span>
+      {#if !group.options.length}
+        <p class="hint">{group.prose}</p>
+      {:else}
+        <div class="eq-options">
+          {#each group.options as opt, oi}
+            <button
+              type="button"
+              class="eq-option"
+              class:sel={selected(gi) === oi}
+              onclick={() => selectOption(gi, oi)}
+            >
+              <span class="eq-badge">{opt.label || String.fromCharCode(65 + oi)}</span>
+              <span class="eq-desc">
+                {opt.items.map(itemLabel).join(', ')}
+                {#if opt.goldPieces > 0}<em>{opt.items.length ? ' · ' : ''}{opt.goldPieces} GM</em>{/if}
+              </span>
+            </button>
+          {/each}
+        </div>
+        {#each group.options[selected(gi)]?.items ?? [] as item, ii}
+          {#if item.choiceFrom}
+            {@const key = toolPickKey(gi, selected(gi), ii)}
+            <div class="eq-choice">
+              <span class="eq-choice-label">{EQUIPMENT_CHOICE_LABEL[item.choiceFrom]} wählen</span>
+              <TooltipSelect
+                options={toolOptions[item.choiceFrom] ?? []}
+                selected={w.toolPicks[key] ? [w.toolPicks[key]] : []}
+                onchange={(sel) => pickTool(key, sel[0] ?? '')}
+              />
+            </div>
+          {/if}
         {/each}
-      </div>
-      {#each group.options[selected(gi)]?.items ?? [] as item, ii}
-        {#if item.choiceFrom}
-          {@const key = toolPickKey(gi, selected(gi), ii)}
-          <div class="eq-choice">
-            <span class="eq-choice-label">{TOOL_CATEGORY_LABEL[item.choiceFrom]} wählen</span>
-            <TooltipSelect
-              options={toolOptions[item.choiceFrom] ?? []}
-              selected={w.toolPicks[key] ? [w.toolPicks[key]] : []}
-              onchange={(sel) => pickTool(key, sel[0] ?? '')}
-            />
-          </div>
-        {/if}
-      {/each}
+      {/if}
     </div>
   {/each}
   {#if !done}

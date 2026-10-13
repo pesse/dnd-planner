@@ -7,7 +7,7 @@ import { normName } from './utils/text';
 import type { Item } from './types';
 import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
-import type { EquipmentChoiceCategory } from './schemas/wizardEquipment';
+import type { EquipmentChoiceCategory } from './schemas/startingEquipment';
 import { itemKeyOf } from './schemas/item';
 import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
@@ -132,7 +132,7 @@ export const ARTISAN_TOOL_INDEXES = [
 
 /**
  * Der EINE Schnitt durch `items/tools/` — Startausrüstung und Werkzeug-Übung fragen dasselbe.
- * Instrumente hängen am `index`-Präfix, Handwerkszeuge an `ARTISAN_TOOL_INDEXES`, und ohne
+ * Instrumente und Spielsets hängen am `index`-Präfix, Handwerkszeuge an `ARTISAN_TOOL_INDEXES`, und ohne
  * Kategorie („ein Werkzeug deiner Wahl") steht der ganze Ordner zur Wahl.
  */
 export function toolsOfCategory<T extends { index?: string }>(
@@ -140,10 +140,12 @@ export function toolsOfCategory<T extends { index?: string }>(
   category: '' | EquipmentChoiceCategory,
 ): T[] {
   if (!category) return [...tools];
-  return tools.filter((i) =>
-    category === 'instrument'
-      ? (i.index ?? '').startsWith('musical-instrument-')
-      : (ARTISAN_TOOL_INDEXES as readonly string[]).includes(i.index ?? ''));
+  return tools.filter((i) => {
+    const index = i.index ?? '';
+    if (category === 'instrument') return index.startsWith('musical-instrument-');
+    if (category === 'gaming-set') return index.startsWith('gaming-set-');
+    return (ARTISAN_TOOL_INDEXES as readonly string[]).includes(index);
+  });
 }
 
 /** Für die Stellen, an denen die Regel keine Wahl trifft („Handwerkszeug deiner Wahl"). */

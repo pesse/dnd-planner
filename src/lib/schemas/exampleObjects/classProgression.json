@@ -45,6 +45,37 @@
   },
   "startingEquipment": "string",
   "startingEquipmentDe": "string",
+  "startingEquipmentOptions": [
+    {
+      "label": "string",
+      "items": [
+        {
+          "itemKey": "string",
+          "count": 1,
+          "choiceFrom": "artisan-tools",
+          "noteDe": "string"
+        }
+      ],
+      "goldPieces": 0
+    }
+  ],
+  "overview": {
+    "favoredDe": "string",
+    "primaryAbilities": [
+      "Strength"
+    ],
+    "primaryJoin": "or",
+    "complexity": "low"
+  },
+  "standardArray": {
+    "str": -9007199254740991,
+    "dex": -9007199254740991,
+    "con": -9007199254740991,
+    "int": -9007199254740991,
+    "wis": -9007199254740991,
+    "cha": -9007199254740991
+  },
+  "introDe": "string",
   "document": {
     "key": "string",
     "gamesystem": "string"
@@ -186,6 +217,9 @@
           "when": {
             "<key>": "string"
           },
+          "recommended": [
+            "string"
+          ],
           "swap": "level-up-one",
           "count": 1,
           "column": "string",

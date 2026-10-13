@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { sourceField } from './source';
 import { proficiencyGrantSchema, emptyProficiencyGrant } from './grants';
+import { startingEquipmentOptionSchema } from './startingEquipment';
 
 /** Entspricht Open5es `benefits[].type`. */
 export const BENEFIT_TYPES = [
@@ -62,6 +63,7 @@ export const backgroundSchema = z.object({
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),
   benefits: z.array(benefitSchema).default([]),
+  startingEquipmentOptions: z.array(startingEquipmentOptionSchema).optional(),
 });
 
 export type Benefit = z.infer<typeof benefitSchema>;

@@ -38,3 +38,15 @@ export function applyAsi(base: AbilityScores, alloc: AsiAllocation): AbilityScor
   for (const k of ABILITY_KEYS) next[k] = base[k] + (alloc[k] ?? 0);
   return next;
 }
+
+/**
+ * Vorschlag: +2 auf das stärkste zulässige Hauptattribut, +1 auf den nächsthöchsten Wert —
+ * ohne zulässiges Hauptattribut +1/+1/+1.
+ */
+export function suggestAsi(allowed: AbilityKey[], primary: AbilityKey[], scores: AbilityScores): AsiAllocation {
+  const byScore = [...allowed].sort((a, b) => scores[b] - scores[a]);
+  const main = byScore.find((k) => primary.includes(k));
+  if (!main) return Object.fromEntries(allowed.slice(0, 3).map((k) => [k, 1]));
+  const second = byScore.find((k) => k !== main);
+  return second ? { [main]: 2, [second]: 1 } : { [main]: 2 };
+}

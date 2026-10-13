@@ -39,7 +39,7 @@ export interface FeaturePrep {
   effectFeatures: PerLevelFeature[];
   /**
    * Die eine Quelle jeder Deklarationsauswertung, bewusst UNGEFILTERT: ein Merkmal, das wegen
-   * seiner Wahl aus dem KI-Eingang fällt, gewährt sein `grants` trotzdem. Gefiltert wird an
+   * seiner Wahl aus der Merkmalsstrecke fällt, gewährt sein `grants` trotzdem. Gefiltert wird an
    * der Aufrufstelle nach Deklarationsart, nie nach Herkunft.
    */
   declared: DeclaredFeature[];

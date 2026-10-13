@@ -1,0 +1,8 @@
+{
+  "favoredDe": "string",
+  "primaryAbilities": [
+    "Strength"
+  ],
+  "primaryJoin": "or",
+  "complexity": "low"
+}

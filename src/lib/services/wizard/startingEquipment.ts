@@ -1,52 +1,55 @@
 /**
- * Startausrüstungs-PROSA aus Klasse und Hintergrund. Bewusst KEIN Prosa-Parser: der Nutzer
- * entscheidet an der angezeigten Prosa, das Matching gegen die Item-Bibliothek macht danach
- * `equipmentMatchAction.ts`.
+ * Startausrüstung aus Klasse und Hintergrund: je Herkunft eine Wahlgruppe aus der
+ * Deklaration `startingEquipmentOptions`, die Prosa nur als Anzeige daneben.
  */
 import { getProgressionByKey } from '../classProgression';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
-import { getItemsByDir, displayName as itemDisplayName, buildItemIndex, type ItemIndex } from '$lib/itemLibrary';
+import { getItemsByDir, buildItemIndex, displayName, type ItemIndex } from '$lib/itemLibrary';
+import type { StartingEquipmentOption, StartingItem } from '$lib/schemas/startingEquipment';
 
 const EQUIPMENT_CANDIDATE_DIRS = [
   'weapon', 'armor', 'shield', 'ammunition', 'adventuring-gear',
   'equipment-pack', 'tools', 'spellcasting-focus',
 ];
 
-export interface StartingEquipmentSources {
-  classProse: string;
-  backgroundProse: string;
+export interface EquipmentGroup {
+  source: 'Klasse' | 'Hintergrund';
+  prose: string;
+  /** Leer = die Herkunft deklariert nichts; der Wizard zeigt nur die Prosa. */
+  options: StartingEquipmentOption[];
 }
 
-/** Eine nicht auflösbare Quelle bleibt leer — der Wizard zeigt nur, was da ist, statt zu raten. */
-export async function gatherStartingEquipment(
-  classKey: string,
-  backgroundKey: string,
-): Promise<StartingEquipmentSources> {
+export async function gatherStartingEquipment(classKey: string, backgroundKey: string): Promise<EquipmentGroup[]> {
   const [prog, bg] = await Promise.all([
     classKey ? getProgressionByKey(classKey) : Promise.resolve(null),
     backgroundKey ? getBackgroundByKey(backgroundKey) : Promise.resolve(null),
   ]);
-  // Deutsche Fassung bevorzugen: sonst übersetzt die Matching-KI die englische Prosa
-  // erneut on-the-fly und trifft die Bibliotheks-Namen nicht (aus „Beil" würde „Wurfaxt").
   const bgEquip = bg?.benefits.find((b) => b.type === 'equipment');
-  return {
-    classProse: (prog?.startingEquipmentDe || prog?.startingEquipment || '').trim(),
-    backgroundProse: (bgEquip?.descDe || bgEquip?.desc || '').trim(),
-  };
-}
-
-export async function equipmentCandidateNames(): Promise<string[]> {
-  const lists = await loadCandidates();
-  return [...new Set(lists.flat().map((i) => itemDisplayName(i)))];
+  const groups: EquipmentGroup[] = [
+    {
+      source: 'Klasse',
+      prose: (prog?.startingEquipmentDe || prog?.startingEquipment || '').trim(),
+      options: prog?.startingEquipmentOptions ?? [],
+    },
+    {
+      source: 'Hintergrund',
+      prose: (bgEquip?.descDe || bgEquip?.desc || '').trim(),
+      options: bg?.startingEquipmentOptions ?? [],
+    },
+  ];
+  return groups.filter((g) => g.options.length || g.prose);
 }
 
 export async function equipmentIndex(): Promise<ItemIndex> {
-  const lists = await loadCandidates();
+  // Eine im Vault fehlende Kategorie bleibt leer statt zu werfen — `shield` etwa ist eine
+  // Open5e-Kategorie, die SRD-Schilde liegen unter `armor`.
+  const lists = await Promise.all(EQUIPMENT_CANDIDATE_DIRS.map((dir) => getItemsByDir(dir).catch(() => [])));
   return buildItemIndex(Object.fromEntries(EQUIPMENT_CANDIDATE_DIRS.map((dir, i) => [dir, lists[i]])));
 }
 
-// Eine im Vault fehlende Kategorie bleibt leer statt zu werfen — `shield` etwa ist eine
-// Open5e-Kategorie, die SRD-Schilde liegen unter `armor`.
-function loadCandidates() {
-  return Promise.all(EQUIPMENT_CANDIDATE_DIRS.map((dir) => getItemsByDir(dir).catch(() => [])));
+/** „Buch (Gebete)“ — fehlt der Gegenstand in der Bibliothek, steht der Key da. */
+export function startingItemName(index: ItemIndex | null, item: Pick<StartingItem, 'itemKey' | 'noteDe'>): string {
+  const lib = index?.byKey.get(item.itemKey);
+  const base = lib ? displayName(lib) : item.itemKey;
+  return item.noteDe ? `${base} (${item.noteDe})` : base;
 }

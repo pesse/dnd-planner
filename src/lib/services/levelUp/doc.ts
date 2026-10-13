@@ -57,7 +57,7 @@ export interface DocInput {
   styleSwaps: { from: string; to: string }[];
   /**
    * Quelle der Grants, die der Rider nicht ausdrücken kann. Ungefiltert, also auch die
-   * Merkmale, die aus dem KI-Eingang gefallen sind.
+   * Merkmale, die aus der Merkmalsstrecke gefallen sind.
    */
   grantSources: DeclaredGrantSource[];
   /**
@@ -75,7 +75,7 @@ export interface DocInput {
   optionPicksBefore: readonly OptionPick[];
   gainedFeatures: GainedFeature[];
   hpPerLevelSources: { feature: string; sourceKey?: string; amount: number }[];
-  narrativeSummary: string;
+  summaryLine: string;
   featuresText: string;
   upTo?: StepId; // aktueller Phasenstand: nur Änderungen bereits gelaufener Schritte aufnehmen
 }
@@ -120,6 +120,6 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...classFeaturesChanges(p.featuresText),
   ];
   const visible = p.upTo ? changes.filter((c) => stepReached(p.upTo!, c.step)) : changes;
-  return { fromLevel: p.delta.fromLevel, toLevel: p.delta.toLevel, klasse: p.delta.klasseName, summary: p.narrativeSummary, changes: visible };
+  return { fromLevel: p.delta.fromLevel, toLevel: p.delta.toLevel, klasse: p.delta.klasseName, summary: p.summaryLine, changes: visible };
 }
 

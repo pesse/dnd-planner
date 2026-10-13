@@ -1,6 +1,5 @@
 /**
- * Setzt aus dem Wizard-Zustand einen vollständigen `Character` zusammen — Schritt für
- * Schritt, deterministische Rechnung und fertige KI-Ergebnisse gemischt. Bewusst OHNE
+ * Setzt aus dem Wizard-Zustand einen vollständigen `Character` zusammen. Bewusst OHNE
  * Tauri/Dateizugriff: das Schreiben bleibt am Aufrufer, so bleibt das hier testbar.
  */
 import { characterSchema, type Character } from '$lib/schemas/characterSchema';
@@ -26,8 +25,9 @@ import { characterPropertyAnswerChanges } from '../characterProperties';
 import { forClassFeaturesField } from '../declaredFeature';
 import { resolveSizeCat, sizeChoiceId } from '../speciesSize';
 import { applyFeatureLedger, applyLinks, applyScores, draftScores, featLinks, wizardGrantInput } from './castingDraft';
-import { equipmentIndex } from './startingEquipment';
-import { matchItem, matchWeaponName } from '$lib/itemLibrary';
+import { equipmentIndex, startingItemName } from './startingEquipment';
+import { applyPersonal } from './personal';
+import { matchWeaponName } from '$lib/itemLibrary';
 import { ftToMVal } from '$lib/itemFormat';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
@@ -103,8 +103,6 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
         },
         { step: 'wizard-links', source: 'library-link' },
       ),
-      // Der GETTER, nicht das rohe Job-Ergebnis: er hängt die Rider der deklarierten
-      // Zweigwahlen an (Urtümlicher Orden → Kriegswaffen), die kein Modell geliefert hat.
       ...riderGrantChanges(w.riders, { step: 'wizard-features', source: 'class-feature' }),
       // Was die Deklaration gewährt, der Rider aber nicht tragen kann. Bewusst NACH
       // `applySpeciesSheetValues`: der deklarierte Wert überschreibt den geparsten.
@@ -129,7 +127,7 @@ function applySkillValues(c: Character, scores: AbilityScores): void {
 /**
  * Der Zauber-Block ENTSTEHT im Schritt „Zauber", Kontingent für Kontingent
  * (`wizard/spellRows.ts`) — hier wird er nur übernommen. Was keine Quota hat, ist
- * quellenloser Bestand: die gewährten Rider-Zauber und die Zauber einer KI-Wahl, der keine
+ * quellenloser Bestand: die gewährten Rider-Zauber und die Zauber einer Wahl, der keine
  * Deklaration eine Quota mitgibt.
  */
 async function applySpellPicks(c: Character, w: CharacterWizard): Promise<void> {
@@ -173,24 +171,18 @@ function applyFeatureText(c: Character, w: CharacterWizard, answerOf: AnswerLook
   );
   // `forClassFeaturesField` ist die EINZIGE Stelle, an der die Herkunft entscheidet.
   const branchNotes = optionListNoteLines(w.declared.filter(forClassFeaturesField), answerOf);
-  c.classFeatures = [w.classText.result?.text?.trim() ?? '', ...branchNotes, ...accessNotes]
-    .filter(Boolean)
-    .join('\n');
-  c.personal.rassenmerkmale = w.speciesText.result?.text?.trim() ?? '';
+  c.classFeatures = [...branchNotes, ...accessNotes].join('\n');
 }
 
 async function applyEquipment(c: Character, w: CharacterWizard): Promise<void> {
   const eq = w.selectedEquipment();
   if (!eq.items.length && eq.goldPieces <= 0) return;
-  // Verfehlt der KI-gelieferte Name die Bibliothek, bleibt die Zeile Freitext.
   const index = await equipmentIndex();
   c.inventory = eq.items.map((i) => {
-    const lib = matchItem(index, { name: i.name });
-    // Mehrdeutig → kein Link: welcher Gleichnamige gemeint ist, entscheidet der Nutzer.
-    const unique = !index.ambiguous.has(i.name.trim().toLowerCase());
+    const lib = index.byKey.get(i.itemKey);
     return {
-      name: i.name,
-      ...(lib?.key && unique ? { sourceKey: lib.key } : {}),
+      name: startingItemName(index, i),
+      ...(lib ? { sourceKey: i.itemKey } : {}),
       count: i.count > 1 ? String(i.count) : '',
       weight: typeof lib?.weight === 'number' ? String(lib.weight) : '',
     };
@@ -208,6 +200,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   const scores = finalScores(w);
 
   applyLinks(c, w);
+  applyPersonal(c, w);
   applySpeciesSheetValues(c, spec, answerOf);
   applyScores(c, scores);
   applyHitPoints(c, w, prog, scores);
