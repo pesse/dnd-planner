@@ -112,8 +112,8 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
 }
 
 /**
- * Das Herkunftstalent hängt hier als eigener Eintrag an: im Charakter steht es NICHT in
- * `features`, es kommt allein aus dem Hintergrund.
+ * Das Herkunftstalent ersetzt den `feat`-Vorteil des Hintergrunds, der nur den Namen führt: im
+ * Charakter steht es NICHT in `features`, es kommt allein aus dem Hintergrund.
  */
 export async function resolveBackground(background: CharacterBackground | undefined): Promise<ResolvedFeatureGroup | null> {
   if (!background || (!background.sourceKey && !background.name.trim())) return null;
@@ -122,24 +122,32 @@ export async function resolveBackground(background: CharacterBackground | undefi
   const title = background.name.trim() || base?.nameDe || base?.name || background.sourceKey;
   if (!base) return { title, sourceKey: background.sourceKey, unresolved: true, features: [] };
 
-  const features: ResolvedFeature[] = base.benefits.map((b) => ({
-    // Ohne eigenen Namen bleibt die Art des Vorteils die Überschrift.
-    name: b.nameDe || b.name || BENEFIT_TYPE_LABELS[b.type],
-    desc: b.descDe || b.desc,
-    key: b.key,
-  }));
-
-  if (base.featKey) {
-    const lib = await getFeats();
-    const entry = lib.find((f) => f.sourceKey === base.featKey);
+  const originFeat = base.featKey ? await resolveOriginFeat(base.featKey) : null;
+  const features: ResolvedFeature[] = [];
+  for (const b of base.benefits) {
+    if (originFeat && b.type === 'feat') continue;
     features.push({
-      name: `Herkunftstalent: ${entry ? featDisplayName(entry) : base.featKey}`,
-      desc: entry ? featDesc(entry) : '',
-      key: base.featKey,
+      // Ohne eigenen Namen bleibt die Art des Vorteils die Überschrift.
+      name: b.nameDe || b.name || BENEFIT_TYPE_LABELS[b.type],
+      desc: b.descDe || b.desc,
+      key: b.key,
     });
+  }
+  if (originFeat) {
+    const at = base.benefits.findIndex((b) => b.type === 'feat');
+    features.splice(at < 0 ? features.length : at, 0, originFeat);
   }
 
   return { title, sourceKey: background.sourceKey, unresolved: false, features };
+}
+
+async function resolveOriginFeat(featKey: string): Promise<ResolvedFeature> {
+  const entry = (await getFeats()).find((f) => f.sourceKey === featKey);
+  return {
+    name: `Herkunftstalent: ${entry ? featDisplayName(entry) : featKey}`,
+    desc: entry ? featDesc(entry) : '',
+    key: featKey,
+  };
 }
 
 /**
