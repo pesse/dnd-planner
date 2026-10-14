@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createCharacterEditor } from '../services/characterEditor.svelte';
   import { createCharacterSideFiles } from '../services/characterSideFiles.svelte';
+  import { createCharacterPortrait } from '../services/characterPortrait.svelte';
   import { createFormLibraries } from '../services/characterFormLibraries.svelte';
   import { createFeaturePanelLayout } from '../utils/featurePanelLayout.svelte';
   import { matchItem } from '../itemLibrary';
@@ -70,6 +71,7 @@
     portraitFile: () => character?.portraitFile,
     companionImageFile: () => character?.companion?.imageFile,
   });
+  const portraitUrl = createCharacterPortrait({ character: () => character, ownUrl: () => side.portraitUrl });
 
   const feats = createFeaturePanelLayout();
   let featBadge = $state<CoverageBadge | null>(null);
@@ -80,14 +82,14 @@
 
 <div class="sheet">
   {#if character}
-    <SheetHeader {character} portraitUrl={side.portraitUrl}
+    <SheetHeader {character} portraitUrl={portraitUrl()}
       onPrint={() => (showPrint = true)} onLevelUp={() => (showLevelUp = true)} />
 
     {#if showPrint}
       <SheetPrintDialog onclose={() => (showPrint = false)}
         input={{
           character,
-          portraitUrl: side.portraitUrl,
+          portraitUrl: portraitUrl(),
           companionImageUrl: side.companionImageUrl,
           freetext: side.details,
           masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
