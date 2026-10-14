@@ -1,0 +1,228 @@
+{
+  "uid": "1422dbd262d6",
+  "name": "Prüfling Altform",
+  "classes": [],
+  "classLevel": "",
+  "playerName": "",
+  "backgroundRef": {
+    "sourceKey": "",
+    "name": ""
+  },
+  "background": "",
+  "species": {
+    "sourceKey": "",
+    "name": ""
+  },
+  "race": "",
+  "xp": "",
+  "abilities": {
+    "str": 10,
+    "dex": 10,
+    "con": 10,
+    "int": 10,
+    "wis": 10,
+    "cha": 10
+  },
+  "mods": {
+    "str": 0,
+    "dex": 0,
+    "con": 0,
+    "int": 0,
+    "wis": 0,
+    "cha": 0
+  },
+  "ac": "",
+  "initiative": "",
+  "speed": "",
+  "hpMax": "",
+  "hpCurrent": "",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "",
+  "hitDice": "",
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": false,
+    "int": false,
+    "wis": false,
+    "cha": false
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [],
+  "classFeatures": "",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "",
+    "pm": ""
+  },
+  "inventory": [],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {},
+    "manual": {
+      "slotTotals": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "extra": [
+        "srd-2024_prestidigitation",
+        "srd-2024_ray-of-frost",
+        "phb-2024_blade-ward",
+        "srd-2024_minor-illusion",
+        "srd-2024_burning-hands",
+        "srd-2024_magic-missile",
+        "srd-2024_shield",
+        "srd-2024_sleep",
+        "srd-2024_feather-fall",
+        "srd-2024_chromatic-orb"
+      ]
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": false,
+    "martialWeapons": false,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [],
+  "features": [],
+  "_version": 8,
+  "_importedAt": "2026-03-30T15:11:32.988Z"
+}

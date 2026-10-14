@@ -1,0 +1,335 @@
+{
+  "uid": "cb1dd46d1928",
+  "name": "Prüfling Multiklasse",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_rogue",
+      "name": "Schurke",
+      "level": 2
+    },
+    {
+      "sourceKey": "srd-2024_monk",
+      "name": "Mönch",
+      "level": 1
+    }
+  ],
+  "classLevel": "Schurke 2 / Mönch 1",
+  "playerName": "Cedric",
+  "backgroundRef": {
+    "sourceKey": "",
+    "name": "Krimineller"
+  },
+  "background": "Krimineller",
+  "species": {
+    "sourceKey": "",
+    "name": "Waldelf"
+  },
+  "race": "Waldelf",
+  "xp": "300",
+  "abilities": {
+    "str": 10,
+    "dex": 17,
+    "con": 13,
+    "int": 8,
+    "wis": 13,
+    "cha": 14
+  },
+  "mods": {
+    "str": 0,
+    "dex": 3,
+    "con": 1,
+    "int": -1,
+    "wis": 1,
+    "cha": 2
+  },
+  "ac": "13/14",
+  "initiative": "3",
+  "speed": "10,5",
+  "hpMax": "17",
+  "hpCurrent": "",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "15",
+  "hitDice": "",
+  "saveProfs": {
+    "str": false,
+    "dex": true,
+    "con": false,
+    "int": true,
+    "wis": false,
+    "cha": false
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 7,
+      "prof": true,
+      "exp": true
+    },
+    "MitTierenUmgehen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 5,
+      "prof": true,
+      "exp": true
+    }
+  },
+  "attacks": [
+    {
+      "name": "Kurzschwert (leicht)",
+      "bonus": "5",
+      "damage": "1W6+3",
+      "type": "Stich",
+      "range": "1,5"
+    },
+    {
+      "name": "Dolch (leicht)",
+      "bonus": "5",
+      "damage": "1W4+3",
+      "type": "Stich",
+      "range": "1,5"
+    }
+  ],
+  "classFeatures": "Hinterhältiger Angriff: \rZusätzlich 1x pro Zug 1W6 Schaden (nur Finesse-Waffen + Fernkampf)\r- wenn im Vorteil\r- wenn nicht im Nachteil und ein anderer Zielgegner innerhalb Nahkampfreichweite kampfbereit ist\r\rRaffinierte Aktion:\r1x pro Zug Bonusaktion: Spurten, Rückzug oder Verstecken\r\r\r\n\nIch war früher Kopfgeldjäger.\r\rHaustier: Ratte Richard\rScharfer Geruchssinn. 1 Stichschaden. 1 TP, RK 10, Diebessprache, Dunkelsicht 9m",
+  "traits": "\"Ich brauche unglaublich lange, um Vertrauen zu fassen. Diejenigen, die am Nettesten wirken, haben oft am Meisten zu verbergen\"",
+  "ideals": "\"Ich bin meinen Freunden treu, nicht moralischen Maßstäben. Und jeder, der sich gegen die stellt, die mir wichtig sind, kann zum Styx fahren!\"",
+  "bonds": "\"Jemand, den ich liebte, starb wegen eines Fehlers, den ich gemacht habe. Das wird mir nie wieder passieren.\"",
+  "flaws": "\"Eine unschuldige Person ist für ein Verbrechen ins Gefängnis gekommen, das ich begangen habe. Mir macht das nichts aus.\"",
+  "languages": [
+    "Gemeinsprache",
+    "Elfisch",
+    "Diebessprache"
+  ],
+  "tools": [
+    "Diebeswerkzeug",
+    "Drachenschach",
+    "Fälschwerkzeug"
+  ],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "125",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Kurzschwert (1W6 Stich)",
+      "count": "2",
+      "weight": "2"
+    },
+    {
+      "name": "Lederrüstung",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Dolch (1W4 Stich)",
+      "count": "2",
+      "weight": "1"
+    },
+    {
+      "name": "Dunkle Kleidung m. Kapuze",
+      "count": "1",
+      "weight": "3"
+    },
+    {
+      "name": "Rucksack",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "Schlafsack",
+      "count": "1",
+      "weight": "7"
+    },
+    {
+      "name": "Reisegeschirr",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Zunderkästchen",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Fackel",
+      "count": "10",
+      "weight": "1"
+    },
+    {
+      "name": "Tagesration",
+      "count": "10",
+      "weight": "2"
+    },
+    {
+      "name": "Trinkschlauch",
+      "count": "1",
+      "weight": "0"
+    },
+    {
+      "name": "15m langes Seil",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Diebeswerkzeug",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Brechstange",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "Kurzschwert",
+      "count": "",
+      "weight": ""
+    },
+    {
+      "name": "Ring des Schutzes",
+      "count": "",
+      "weight": ""
+    }
+  ],
+  "inventoryNotes": "Handarmbr., Langschw., Rapiere, Kurzschw., Bögen",
+  "totalWeight": "81.50 lb",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {},
+    "manual": {
+      "slotTotals": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "extra": [
+        "srd-2024_ray-of-frost",
+        "srd-2024_fireball"
+      ]
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": false,
+    "martialWeapons": false,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [],
+  "features": [],
+  "_version": 8,
+  "_importedAt": "2026-03-31T13:56:25.528Z"
+}

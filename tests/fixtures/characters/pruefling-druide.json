@@ -1,0 +1,270 @@
+{
+  "name": "Prüfling Druide",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_druid",
+      "name": "Druide",
+      "level": 2
+    }
+  ],
+  "classLevel": "Druide 2",
+  "playerName": "",
+  "backgroundRef": {
+    "sourceKey": "phb-2024_guard",
+    "name": "Wache"
+  },
+  "background": "Wache",
+  "species": {
+    "sourceKey": "srd-2024_dwarf",
+    "name": "Zwerg"
+  },
+  "race": "Zwerg",
+  "xp": "",
+  "str": 16,
+  "ges": 14,
+  "kon": 13,
+  "int": 12,
+  "wei": 12,
+  "cha": 8,
+  "strMod": 3,
+  "gesMod": 2,
+  "konMod": 1,
+  "intMod": 1,
+  "weiMod": 1,
+  "chaMod": -1,
+  "ac": "",
+  "initiative": "",
+  "speed": "9",
+  "hpMax": "19",
+  "hpCurrent": "10",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "",
+  "hitDice": "2W8",
+  "strSaveProf": false,
+  "gesSaveProf": false,
+  "konSaveProf": false,
+  "intSaveProf": true,
+  "weiSaveProf": true,
+  "chaSaveProf": false,
+  "skills": {
+    "Akrobatik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    }
+  },
+  "attacks": [],
+  "classFeatures": "[Klassenmerkmale]\nDruidisch:\nGeheimsprache der Druiden. *Mit Tieren sprechen* ist immer als vorbereiteter Zauber verfügbar.\n\n[Eigenschaften]\nWachsam:\n+Übungsbonus auf den Überraschungswurf. Direkt nach dem Wurf kann die Initiative mit einem willigen Verbündeten getauscht werden (nicht möglich, wenn man selbst oder der Verbündete den Zustand Unfähig hat).\n\nUrtümlicher Orden: Wächter\nÜbung mit Kriegswaffen, mittlere Rüstung.\n\nWilder Gefährte:\nBonusaktion: *Vertrauten finden* (keine materialen Komponenten) mit Zauberplatz oder Wildgestalt-Anwendung wirken; Vertrauter ist Feenwesen, verschwindet nach Langer Rast.\n\nWildgestalt:\nBonusaktion: Verwandlung in Tiergestalt (Max. HG 1/4, keine Flugbewegungsrate). 2 Anwendungen; 1 zurück nach Kurzer Rast, alle nach Langer Rast. Erhalte TP gleich Druidenstufe.",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [
+    "Druidic"
+  ],
+  "tools": [
+    "Druidic"
+  ],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "59",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Lederrüstung",
+      "sourceKey": "srd-2024_leather-armor",
+      "count": "",
+      "weight": "10"
+    },
+    {
+      "name": "Schild",
+      "sourceKey": "srd-2024_shield",
+      "count": "",
+      "weight": "6"
+    },
+    {
+      "name": "Sichel",
+      "sourceKey": "srd-2024_sickle",
+      "count": "",
+      "weight": "2"
+    },
+    {
+      "name": "Druidischer Fokus (Kampfstab)",
+      "count": "",
+      "weight": ""
+    },
+    {
+      "name": "Entdeckerausrüstung",
+      "sourceKey": "srd-2024_explorers-pack",
+      "count": "",
+      "weight": "55"
+    },
+    {
+      "name": "Kräuterkundeausrüstung",
+      "sourceKey": "srd-2024_herbalism-kit",
+      "count": "",
+      "weight": "3"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "personal": {
+    "rassenmerkmale": "[Volksmerkmale]\nDunkelsicht 120 m\n\nZwergische Widerstandskraft:\nResistenz gegen Giftschaden, Vorteil auf RW gegen den Zustand Vergiftet.\n\nZwergische Zähigkeit:\nMaximale TP +1, +1 pro Stufe.\n\nSteinkunde:\nBonusaktion, erhält 10 Min. lang Erschauern (Reichweite 60 m) auf/über Stein. Anzahl der Verwendungen = Geschicklichkeitsbonus; alle wieder nach Langer Rast.",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "Mittelgroß",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": true,
+    "martialWeapons": true,
+    "otherWeapons": "",
+    "lightArmor": true,
+    "mediumArmor": true,
+    "heavyArmor": false,
+    "shields": true
+  },
+  "masteries": [],
+  "features": [
+    {
+      "sourceKey": "srd-2024_druid_primal-order",
+      "name": "",
+      "choice": "Warden",
+      "choiceDe": "Wächter",
+      "gainedAt": 1,
+      "desc": ""
+    }
+  ],
+  "_version": 6,
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "srd-2024_druid_spellcasting": {
+        "bindings": {
+          "list": ""
+        },
+        "picks": {
+          "cantrips": [
+            "srd-2024_produce-flame",
+            "phb-2024_thunderclap"
+          ],
+          "prepared": [
+            "srd-2024_detect-poison-and-disease",
+            "dndapi-2014_absorb-elements",
+            "srd-2024_animal-friendship",
+            "srd-2024_jump",
+            "srd-2024_speak-with-animals"
+          ]
+        },
+        "uses": {}
+      }
+    }
+  },
+  "uid": "3cd5863b7c9b"
+}

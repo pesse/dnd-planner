@@ -15,7 +15,7 @@ import { resolveResources } from '../../src/lib/services/resources/resolve';
 import { resourceViews } from '../../src/lib/services/resources/project';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { libraryKey } from '../support/libraryKey';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 
 interface Declaration {
   key: string;
@@ -156,12 +156,12 @@ describe('Stufentabelle einer Subklasse', () => {
   });
 });
 
-/** Die Zauberwirker des Vaults mit den Graden ihrer Klassentabelle. */
+/** Die Zauberwirker unter den Prüflingen mit den Graden ihrer Klassentabelle. */
 const CASTERS: [name: string, who: string, standard: number[]][] = [
-  ['Kläri', 'Kleriker 1', [2]],
-  ['Bälgär', 'Magier 3', [4, 2]],
-  ['Bölgör', 'Paladin 5', [4, 2]],
-  ['Bulgur', 'Druide 2', [3]],
+  ['Prüfling Kleriker', 'Kleriker 1', [2]],
+  ['Prüfling Magier', 'Magier 3', [4, 2]],
+  ['Prüfling Paladin', 'Paladin 5', [4, 2]],
+  ['Prüfling Druide', 'Druide 2', [3]],
   ['Prüfling Feenmagie', 'Zauberer 3', [4, 2]],
   ['Prüfling Mondkreis', 'Druide 3', [4, 2]],
 ];
@@ -169,7 +169,7 @@ const CASTERS: [name: string, who: string, standard: number[]][] = [
 describe('abgeleitete Zauberplätze', () => {
   it('stehen im Vorrat `standard`, wie die Klassentabelle sie führt', async () => {
     for (const [name, who, standard] of CASTERS) {
-      const { pools, issues } = await resolveResources(vaultCharacter(name));
+      const { pools, issues } = await resolveResources(testCharacter(name));
       const slots = pools.find((p) => p.shared === 'standard');
       expect(slots?.max, `${name} (${who})`).toEqual(Array.from({ length: 9 }, (_, i) => standard[i] ?? 0));
       expect(issues, name).toEqual([]);

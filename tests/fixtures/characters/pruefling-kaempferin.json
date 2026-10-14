@@ -1,0 +1,363 @@
+{
+  "name": "Prüfling Kämpferin",
+  "classes": [
+    {
+      "sourceKey": "",
+      "name": "Kämpferin",
+      "level": 2
+    }
+  ],
+  "classLevel": "Kämpferin 2",
+  "playerName": "Deborah",
+  "backgroundRef": {
+    "sourceKey": "",
+    "name": "Volksheld"
+  },
+  "background": "Volksheld",
+  "species": {
+    "sourceKey": "",
+    "name": "Waldelf"
+  },
+  "race": "Waldelf",
+  "xp": "300",
+  "str": 13,
+  "ges": 17,
+  "kon": 14,
+  "int": 10,
+  "wei": 13,
+  "cha": 8,
+  "strMod": 1,
+  "gesMod": 3,
+  "konMod": 2,
+  "intMod": 0,
+  "weiMod": 1,
+  "chaMod": -1,
+  "ac": "14",
+  "initiative": "3",
+  "speed": "10,5",
+  "hpMax": "22",
+  "hpCurrent": "",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "13",
+  "hitDice": "",
+  "strSaveProf": true,
+  "gesSaveProf": false,
+  "konSaveProf": true,
+  "intSaveProf": false,
+  "weiSaveProf": false,
+  "chaSaveProf": false,
+  "skills": {
+    "Akrobatik": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 2,
+      "prof": true,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    }
+  },
+  "attacks": [
+    {
+      "name": "Langbogen",
+      "bonus": "7",
+      "damage": "1W8+3",
+      "type": "Stich",
+      "range": "45m (180)"
+    },
+    {
+      "name": "Zweihandschwert",
+      "bonus": "3",
+      "damage": "2W6+1",
+      "type": "Hieb",
+      "range": "1,5m"
+    }
+  ],
+  "classFeatures": "Durchschnaufen:\rBonusaktion, mit der einmalig 1W10+Stufe Trefferpunkte wiederhergestellt werden können. Nach kurzer oder langer Rast erneut einsetzbar.\r\rKampfstil: Bogenschießen (+2 auf Angriffswürfe mit Fernkampfwaffen)\r\rTatendrang:\rEinmalig zusätzliche Aktion. Nach kurzer oder langer Rast erneut einsetzbar.\r\n\nHaustier: Dirk, der Dachs (warnt vor Gefahren)\rScharfer Geruchssinn. +2 ATK, 1 Stichschaden. 3 TP, RK 10, Dunkelsicht, 0.25 Rationen pro Tag",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [
+    "Gemeinsprache",
+    "Elfisch",
+    "Halblingisch",
+    "Zwergisch"
+  ],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "55",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Langbogen (1W8 Stich)",
+      "count": "1",
+      "weight": "2"
+    },
+    {
+      "name": "Pfeile",
+      "count": "15",
+      "weight": "0.05"
+    },
+    {
+      "name": "Zweihandschwert (2W6 Hieb)",
+      "count": "1",
+      "weight": "6"
+    },
+    {
+      "name": "Lederrüstung",
+      "sourceKey": "srd-2024_leather-armor",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Gewöhnliche Kleidung",
+      "count": "1",
+      "weight": "3"
+    },
+    {
+      "name": "Reisegeschirr",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Rucksack",
+      "sourceKey": "srd-2024_backpack",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "Schlafsack",
+      "sourceKey": "srd-2024_bedroll",
+      "count": "1",
+      "weight": "7"
+    },
+    {
+      "name": "Zunderkästchen",
+      "sourceKey": "srd-2024_tinderbox",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Fackeln",
+      "count": "10",
+      "weight": "1"
+    },
+    {
+      "name": "Tagesration",
+      "count": "10",
+      "weight": "2"
+    },
+    {
+      "name": "Trinkschlauch",
+      "sourceKey": "srd-2024_waterskin",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "15m langes Seil",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Schaufel",
+      "sourceKey": "srd-2024_shovel",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "Eisentopf",
+      "sourceKey": "srd-2024_pot-iron",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Beutel",
+      "sourceKey": "srd-2024_pouch",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Flasche Wein (10 GM)",
+      "count": "5",
+      "weight": "0.5"
+    },
+    {
+      "name": "Türkis",
+      "count": "1",
+      "weight": "0"
+    },
+    {
+      "name": "Kurzschwert",
+      "sourceKey": "srd-2024_shortsword",
+      "count": "",
+      "weight": "2"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "94.35 lb",
+  "spells": {
+    "spellcastingClass": "",
+    "spellcastingAbility": "",
+    "saveDC": 0,
+    "attackBonus": 0,
+    "autoCalc": true,
+    "slots": [
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      },
+      {
+        "total": 0,
+        "used": 0
+      }
+    ],
+    "cantrips": [],
+    "byLevel": {}
+  },
+  "personal": {
+    "rassenmerkmale": "",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": false,
+    "martialWeapons": false,
+    "otherWeapons": "",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [],
+  "features": [],
+  "_version": 5,
+  "_importedAt": "2026-03-31T14:01:32.354Z",
+  "uid": "d5f60f5790f6"
+}

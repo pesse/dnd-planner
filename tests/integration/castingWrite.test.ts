@@ -1,12 +1,12 @@
 /**
  * Der Schreibpfad der neuen Persistenz: Formular-Rundlauf, `applyChanges` und der Stand der
- * sechs migrierten Charaktere im Vault.
+ * migrierten Prüfling-Charaktere.
  *
  *   npm run test -- castingWrite
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 import { applyChanges } from '../../src/lib/services/applyChanges';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
 import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
@@ -90,7 +90,7 @@ describe('applyChanges', () => {
 
 describe('die migrierten Charaktere', () => {
   it('füllt beim Druiden die Kontingente vollständig', async () => {
-    const c = vaultCharacter('Bulgur');
+    const c = testCharacter('Prüfling Druide');
     const { state } = await loadSpellcasting(c);
     expect(openSpellChoices(state, (await loadSpellcasting(c)).lookup)).toEqual([]);
     const picks = c.spellcasting.sources['srd-2024_druid_spellcasting'].picks;
@@ -105,7 +105,7 @@ describe('die migrierten Charaktere', () => {
    * ohne dass der Wert irgendwo ein zweites Mal gespeichert wird.
    */
   it('liest Attribut und Liste des Herkunftstalents aus Ledger und Hintergrund', async () => {
-    const c = vaultCharacter('Bölgör');
+    const c = testCharacter('Prüfling Paladin');
     const { state } = await loadSpellcasting(c);
     const access = state.sources.find((s) => s.source.featureKey === 'srd-2024_magic-initiate');
     expect(access?.ability).toBe('Charisma');
@@ -114,7 +114,7 @@ describe('die migrierten Charaktere', () => {
   });
 
   it('speichert gewährte Zauber nicht, zeigt sie aber auf dem Bogen', async () => {
-    const c = vaultCharacter('Prüfling Mondkreis');
+    const c = testCharacter('Prüfling Mondkreis');
     const stored = Object.values(c.spellcasting.sources).flatMap((s) => Object.values(s.picks).flat());
     expect(stored).not.toContain('phb-2024_starry-wisp');
     expect(stored).not.toContain('srd-2024_moonbeam');
@@ -127,7 +127,7 @@ describe('die migrierten Charaktere', () => {
   });
 
   it('behält Plätze und Zauber des unverlinkten Charakters', async () => {
-    const c = vaultCharacter('Phönix');
+    const c = testCharacter('Prüfling Altform');
     expect(c.spellcasting.manual?.slotTotals[0]).toBe(2);
     expect(c.spellcasting.manual?.extra).toHaveLength(10);
 
@@ -136,7 +136,7 @@ describe('die migrierten Charaktere', () => {
   });
 
   it('speist den PDF-Export weiter aus der Projektion', async () => {
-    const c = vaultCharacter('Bulgur');
+    const c = testCharacter('Prüfling Druide');
     const { state, lookup, legacy } = await loadSpellcasting(c);
     const flat = legacyFlatView(state, lookup, legacy);
     expect(flat.spellcastingClass).toBe('Druide');
@@ -150,7 +150,7 @@ describe('die migrierten Charaktere', () => {
 describe('Reaktive Formulardaten', () => {
   /** Ein $state-Proxy erreicht den Schreibpfad genauso; `structuredClone` bricht daran ab. */
   it('kopiert einen Block hinter einem Proxy', async () => {
-    const c = vaultCharacter('Bulgur');
+    const c = testCharacter('Prüfling Druide');
     const proxied = new Proxy(c.spellcasting, {});
     expect(() => structuredClone(proxied)).toThrow();
 

@@ -1,0 +1,324 @@
+{
+  "uid": "47be8a971a34",
+  "name": "Prüfling Kleriker",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_cleric",
+      "name": "Kleriker",
+      "level": 1
+    }
+  ],
+  "classLevel": "Kleriker 1",
+  "playerName": "",
+  "backgroundRef": {
+    "sourceKey": "srd-2024_soldier",
+    "name": "Soldat"
+  },
+  "background": "Soldat",
+  "species": {
+    "sourceKey": "srd-2024_goliath",
+    "name": "Goliath"
+  },
+  "race": "Goliath",
+  "xp": "",
+  "abilities": {
+    "str": 16,
+    "dex": 14,
+    "con": 15,
+    "int": 12,
+    "wis": 10,
+    "cha": 8
+  },
+  "mods": {
+    "str": 3,
+    "dex": 2,
+    "con": 2,
+    "int": 1,
+    "wis": 0,
+    "cha": -1
+  },
+  "ac": "",
+  "initiative": "",
+  "speed": "10,5",
+  "hpMax": "10",
+  "hpCurrent": "10",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "",
+  "hitDice": "1W8",
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": false,
+    "int": false,
+    "wis": true,
+    "cha": true
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 1,
+      "prof": true,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 2,
+      "prof": true,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 2,
+      "prof": true,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [],
+  "classFeatures": "[Eigenschaften]\nWilder Angreifer:\nEinmal pro Zug, wenn du ein Ziel mit einer Waffe triffst, würfle den Schadenswürfel der Waffe zweimal und verwende eine der beiden Zahlen.\nGöttliche Ordnung: Thaumaturg — ein zusätzlicher Zaubertrick der Klerikerliste",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "21",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Kettenhemd",
+      "sourceKey": "srd-2024_chain-shirt",
+      "count": "",
+      "weight": "20"
+    },
+    {
+      "name": "Schild",
+      "sourceKey": "srd-2024_shield",
+      "count": "",
+      "weight": "6"
+    },
+    {
+      "name": "Streitkolben",
+      "sourceKey": "srd-2024_mace",
+      "count": "",
+      "weight": "4"
+    },
+    {
+      "name": "Glasbläserwerkzeug",
+      "sourceKey": "srd-2024_glassblowers-tools",
+      "count": "",
+      "weight": "5"
+    },
+    {
+      "name": "Priesterausrüstung",
+      "sourceKey": "srd-2024_priests-pack",
+      "count": "",
+      "weight": "29"
+    },
+    {
+      "name": "Speer",
+      "sourceKey": "srd-2024_spear",
+      "count": "",
+      "weight": "3"
+    },
+    {
+      "name": "Kurzbogen",
+      "sourceKey": "srd-2024_shortbow",
+      "count": "",
+      "weight": "2"
+    },
+    {
+      "name": "Pfeile (20)",
+      "sourceKey": "srd-2024_arrows-20",
+      "count": "",
+      "weight": "1"
+    },
+    {
+      "name": "Musikinstrument, Dudelsack",
+      "sourceKey": "srd-2024_musical-instrument-bagpipes",
+      "count": "",
+      "weight": "6"
+    },
+    {
+      "name": "Heilerausrüstung",
+      "sourceKey": "srd-2024_healers-kit",
+      "count": "",
+      "weight": "3"
+    },
+    {
+      "name": "Köcher",
+      "sourceKey": "srd-2024_quiver",
+      "count": "",
+      "weight": "1"
+    },
+    {
+      "name": "Reisekleidung",
+      "count": "",
+      "weight": ""
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "srd-2024_cleric_spellcasting": {
+        "picks": {
+          "cantrips": [
+            "phb-2024_toll-the-dead",
+            "srd-2024_spare-the-dying",
+            "srd-2024_sacred-flame"
+          ],
+          "prepared": [
+            "srd-2024_shield-of-faith",
+            "srd-2024_guiding-bolt",
+            "srd-2024_healing-word",
+            "srd-2024_bane"
+          ]
+        },
+        "uses": {}
+      },
+      "srd-2024_cleric_divine-order": {
+        "picks": {
+          "thaumaturgeCantrip": [
+            "srd-2024_guidance"
+          ]
+        },
+        "uses": {}
+      }
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "Riesenabstammung:\nEinmal pro Kurzer/Langer Rast 1d10 Feuerschaden bei einem Treffer mit einem Angriff.\n\nGroße Gestalt:\nBonusaktion, ab Stufe 5: Größe zu Groß ändern für 10 Minuten. Vorteil auf ST-Prüfungen, +10 ft Bewegung. 1x pro Langer Rast.\n\nKräftiger Körperbau:\nVorteil auf ST-Prüfungen, um den Zustand Gepackt zu beenden. Zählt als eine Größe größer für die Traglast.",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "Mittelgroß",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": true,
+    "martialWeapons": false,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": true,
+    "mediumArmor": true,
+    "heavyArmor": false,
+    "shields": true
+  },
+  "masteries": [],
+  "features": [
+    {
+      "sourceKey": "srd-2024_goliath_giant-ancestry",
+      "name": "",
+      "choice": "Fire's Burn",
+      "choiceDe": "Feuerbrand",
+      "choiceId": "optionlist_srd-2024-goliath-giant-ancestry",
+      "gainedAt": 1,
+      "desc": ""
+    },
+    {
+      "sourceKey": "srd-2024_cleric_divine-order",
+      "name": "",
+      "choice": "Thaumaturge",
+      "choiceDe": "Thaumaturg",
+      "choiceId": "",
+      "gainedAt": 1,
+      "desc": ""
+    }
+  ],
+  "_version": 8
+}

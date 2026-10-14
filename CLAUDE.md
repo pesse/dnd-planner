@@ -23,7 +23,9 @@ the source.
 process, `tests/integration` reads the **real vault** through the production load path via the
 `@tauri-apps/api/core` shim in `tests/support/tauriInvokeShim.ts`. `evals/` (config
 `vitest.evals.config.ts`, only `*.eval.test.ts`) makes real, paid LLM calls. Shared test data
-lives in `tests/fixtures/` and is used by both.
+lives in `tests/fixtures/` and is used by both. Characters a test reads are the „Prüfling …" files in
+`tests/fixtures/characters/` (`testCharacter()`), never a character from `vault/characters/` —
+those get played and drift.
 
 `npm run verify` is what verifies a change: `check` + `check:evals` (the eval track only
 typechecks, it never runs here) + `schema:examples:check` + `test`.

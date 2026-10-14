@@ -1,5 +1,5 @@
 /**
- * Die gruppierte Sicht (Editor UND Charakter-Karte) gegen echte Vault-Charaktere: sie muss
+ * Die gruppierte Sicht (Editor UND Charakter-Karte) gegen die Prüfling-Charaktere: sie muss
  * sagen, WELCHES Merkmal eine Quelle ist, WIE die Zauber gewirkt werden, WAS beim Tausch gilt
  * und WORAUS gewählt wird — vier Angaben, die sonst nur in der Deklaration stehen.
  *
@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 import { groupedSpellcasting, type SpellQuotaGroup, type SpellSourceGroup } from '../../src/lib/services/spellcasting/grouped';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 
@@ -17,7 +17,7 @@ const sourcesFor = async (c: Character): Promise<SpellSourceGroup[]> => {
   return groupedSpellcasting(state, lookup).sources;
 };
 
-const sourcesOf = (name: string): Promise<SpellSourceGroup[]> => sourcesFor(vaultCharacter(name));
+const sourcesOf = (name: string): Promise<SpellSourceGroup[]> => sourcesFor(testCharacter(name));
 
 const byFeature = (sources: SpellSourceGroup[], featureDe: string): SpellSourceGroup => {
   const hit = sources.find((s) => s.featureDe === featureDe || s.label === featureDe);
@@ -32,7 +32,7 @@ const only = (source: SpellSourceGroup): SpellQuotaGroup => {
 
 describe('gruppierte Sicht (Paladin 5 mit Eingeweihter der Magie)', () => {
   it('nennt das verantwortliche Merkmal, wo die Überschrift die Klasse zeigt', async () => {
-    const sources = await sourcesOf('Bölgör');
+    const sources = await sourcesOf('Prüfling Paladin');
     const classSources = sources.filter((s) => s.label === 'Paladin');
     // Drei Paladin-Quellen wären ohne das Merkmal nicht zu unterscheiden.
     expect(classSources.length).toBeGreaterThan(1);
@@ -45,7 +45,7 @@ describe('gruppierte Sicht (Paladin 5 mit Eingeweihter der Magie)', () => {
   });
 
   it('sagt je Kontingent, wie gewirkt wird', async () => {
-    const sources = await sourcesOf('Bölgör');
+    const sources = await sourcesOf('Prüfling Paladin');
     expect(only(byFeature(sources, 'Treues Reittier')).castNote).toBe(
       '1× ohne Zauberplatz pro Lange Rast oder über Zauberplätze',
     );
@@ -59,7 +59,7 @@ describe('gruppierte Sicht (Paladin 5 mit Eingeweihter der Magie)', () => {
   });
 
   it('sagt am wählbaren Kontingent, was beim Tausch gilt', async () => {
-    const sources = await sourcesOf('Bölgör');
+    const sources = await sourcesOf('Prüfling Paladin');
     expect(only(byFeature(sources, 'Zauberwirken')).swapNote).toBe('1 austauschen pro Lange Rast');
     expect(byFeature(sources, 'Eingeweihter der Magie').quotas.map((q) => q.swapNote)).toEqual([
       'nicht austauschbar',
@@ -101,7 +101,7 @@ describe('gruppierte Sicht (Mönch 3: Weg des Schattens)', () => {
 
 describe('gruppierte Sicht (Magier 1: Vorbereitung aus dem Zauberbuch)', () => {
   it('bindet den Pool der Vorbereitung an die Buch-Quota statt an die Klassenliste', async () => {
-    const source = byFeature(await sourcesOf('Bälgär'), 'Zauberwirken');
+    const source = byFeature(await sourcesOf('Prüfling Magier'), 'Zauberwirken');
     const book = source.quotas.find((q) => q.quotaId === 'book');
     const prepared = source.quotas.find((q) => q.quotaId === 'prepared');
 

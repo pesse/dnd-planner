@@ -1,0 +1,305 @@
+{
+  "uid": "154e3fc94753",
+  "name": "Prüfling Feenmagie",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_sorcerer",
+      "name": "Zauberer",
+      "subclassKey": "phb-2024_wild-magic-sorcery",
+      "subclassName": "Wildmagie-Zauberei",
+      "level": 3
+    }
+  ],
+  "classLevel": "Zauberer 3 (Wildmagie-Zauberei)",
+  "playerName": "Cedric",
+  "backgroundRef": {
+    "sourceKey": "phb-2024_entertainer",
+    "name": "Unterhaltungskünstler"
+  },
+  "background": "Unterhaltungskünstler",
+  "species": {
+    "sourceKey": "phb-2024_fairy",
+    "name": "Fee"
+  },
+  "race": "Fee",
+  "xp": "",
+  "abilities": {
+    "str": 8,
+    "dex": 12,
+    "con": 13,
+    "int": 15,
+    "wis": 12,
+    "cha": 17
+  },
+  "mods": {
+    "str": -1,
+    "dex": 1,
+    "con": 1,
+    "int": 2,
+    "wis": 1,
+    "cha": 3
+  },
+  "ac": "11",
+  "initiative": "+1",
+  "speed": "9m",
+  "hpMax": "17",
+  "hpCurrent": "",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "11",
+  "hitDice": "",
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": true,
+    "int": false,
+    "wis": false,
+    "cha": true
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [
+    {
+      "name": "Kampfstab",
+      "bonus": "-1",
+      "damage": "1d6-1",
+      "type": "Wucht",
+      "range": "Nah"
+    },
+    {
+      "name": "Dolch",
+      "bonus": "+1",
+      "damage": "1d4+1",
+      "type": "Stich",
+      "range": "Nah (Wurf 6/18 m)"
+    }
+  ],
+  "classFeatures": "Einmal pro Zug wenn Zauber des 1. oder höheren Grades gewirkt wurde auf die Tabelle Woge der wilden Magie würfeln. Falls das Ergebnis ein Zauber ist muss man sich nicht darauf konzentrieren und er hält seine gesamte Dauer.\n\n1 Mal pro lange Rast Vorteil auf einen Angriffs-,Attributs-oder Rettungswurf. Wenn auf die Tabelle gewürfelt wurde erhält man die Fähigkeit zurück.\n\nDu besitzt im Moment 3 Zaubereipunkte.\n🔲🔲🔲\n\n\nAls Bonusaktion kannst du Zaubereipunkte in Zauberplätze und andersrum.\nGrad 1=2 Punkte\nGrad 2=3 Punkte\nGrad 3=5 Punkte\nGrad 4=6 Punkte\nGrad 5=7 Punkte\nAlle vebrauchten Zaubereipunkte stehen dir nach Beenden einer langen Rast wieder zur Verfügung aber alle Zauberplätze die dir Aufgrund dieses Merkmals zur Verfügung stehen verschwinden nach Beenden einer langen Rast.\n \nDu erlangst die Fähigkeit deine Zauber zu verändern. Du erhälst zwei Verschiedene Fähigkeiten und erhälst auf der 10 und 17 Stufe je eine weitere. Du kannst nur eine Option pro Zauber benutzen außer es steht in der Beschreibung anders geschrieben.\n",
+  "traits": "Ich habe eine gespaltene Persönlichkeit und wechsele manchmal zwischen ihnen.",
+  "ideals": "Kunst sollte die Seele wiederspiegeln. Sie sollte aus dem tiefsten Inneren kommen und enthüllen wer wir wirklich sind.",
+  "bonds": "Ich möchte dass endlich Frieden in der Welt herrscht und würde alles dafür tun.",
+  "flaws": "Ich achte immer auf mein Aussehen und raste aus wenn mein Outfit zerstört wird.",
+  "languages": [
+    "Gemeinsprache",
+    "Sylvanisch",
+    "Elfisch"
+  ],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "45",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Kampfstab",
+      "sourceKey": "srd-2024_quarterstaff",
+      "count": "1",
+      "weight": "4"
+    },
+    {
+      "name": "Materialkomponentenbeutel",
+      "sourceKey": "srd-2024_component-pouch",
+      "count": "1",
+      "weight": "2"
+    },
+    {
+      "name": "Dolch",
+      "sourceKey": "srd-2024_dagger",
+      "count": "2",
+      "weight": "1"
+    },
+    {
+      "name": "Kleidung (fein)",
+      "count": "1",
+      "weight": "6"
+    },
+    {
+      "name": "Rucksack",
+      "sourceKey": "srd-2024_backpack",
+      "count": "1",
+      "weight": "5"
+    },
+    {
+      "name": "Tagesration",
+      "count": "5",
+      "weight": "2"
+    },
+    {
+      "name": "Trinkschlauch",
+      "sourceKey": "srd-2024_waterskin",
+      "count": "1",
+      "weight": "5"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "29.90 lb",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "srd-2024_sorcerer_spellcasting": {
+        "picks": {
+          "cantrips": [
+            "phb-2024_friends",
+            "srd-2024_minor-illusion",
+            "srd-2024_ray-of-frost",
+            "srd-2024_prestidigitation"
+          ],
+          "prepared": [
+            "srd-2024_magic-missile",
+            "srd-2024_shield",
+            "srd-2024_disguise-self",
+            "srd-2024_mirror-image"
+          ]
+        },
+        "uses": {}
+      }
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "Du bist eine Fee (Fey), kein Humanoid. Das macht dich immun gegen Zauber, die nur auf Humanoide wirken (wie Person bezaubern oder Person festhalten).\r\n\r\nDu kannst durch extrem enge Spalten (bis zu 2,5 cm) hindurchschlüpfen.\r\n\r\nDu kennst den Zaubertrick Druidenzauber (Druidcraft). Ab Stufe 3 kannst du einmal pro langer Rast Feenfeuer (Faerie Fire) wirken (Attribut:Charisma).\r\n\r\nDu kannst 9m fliegen.",
+    "alter": "117",
+    "geschlecht": "Beides",
+    "sizeCat": "",
+    "gesinnung": "Neutral Gut",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "grün",
+    "haarfarbe": "blond",
+    "hautfarbe": "grünlich",
+    "gewicht": "24",
+    "koerpergroesse": "35cm",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": false,
+    "martialWeapons": false,
+    "individualWeapons": [],
+    "otherWeapons": "Dolche,Wurfpfeile,Schleudern,Kampfstäbe,leichte Armbrüste",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [],
+  "features": [
+    {
+      "sourceKey": "phb-2024_fairy_size",
+      "name": "",
+      "choice": "Klein",
+      "choiceDe": "Klein",
+      "desc": ""
+    },
+    {
+      "sourceKey": "phb-2024_fairy_fairy-magic",
+      "name": "",
+      "choice": "Charisma",
+      "choiceDe": "Charisma",
+      "desc": ""
+    }
+  ],
+  "portraitFile": "portrait.png",
+  "_version": 8,
+  "_importedAt": "2026-06-07T13:22:18.836Z"
+}

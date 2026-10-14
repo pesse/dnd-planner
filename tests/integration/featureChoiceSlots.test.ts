@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { type Character, type CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 import {
   buildCharacterChoices, choiceGrantChanges, choiceIdOf, collectChoiceSlots, withChoiceAnswer,
   type CharacterChoice, type ChoiceFact, type ChoiceSlot,
@@ -57,13 +57,13 @@ const link = (sourceKey: string, gainedAt: number): CharacterFeatureEntry => ({
   sourceKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '', gainedAt,
 });
 
-describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
+describe('Zauber-Wahlen am Herkunftstalent (Prüfling Paladin)', () => {
   /**
    * Der Live-Befund: das Auswahlfeld gehört ans Herkunftsmerkmal. Die LISTE fragt niemand —
    * „Weiser" legt sie fest —, das ATTRIBUT hängt am Talent und ist beantwortet.
    */
   it('stellt genau die Attributwahl, und zwar am Talent-Key', async () => {
-    const c = vaultCharacter('Bölgör');
+    const c = testCharacter('Prüfling Paladin');
     const rows = shape(await choicesOf(c)).filter((r) => r.key === MAGIC_INITIATE_KEY);
 
     expect(rows).toEqual([
@@ -76,7 +76,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
    * Magier-Liste unsichtbar, und der Zauber-Picker filterte scheinbar grundlos.
    */
   it('nennt die vom Hintergrund festgelegte Liste als Feststellung', async () => {
-    const facts = (await factsOf(vaultCharacter('Bölgör'))).filter((f) => f.featureKey === MAGIC_INITIATE_KEY);
+    const facts = (await factsOf(testCharacter('Prüfling Paladin'))).filter((f) => f.featureKey === MAGIC_INITIATE_KEY);
 
     expect(facts).toEqual([
       { part: 'list', labelDe: 'Zauberliste', valueDe: 'Magier', fromSource: true, featureKey: MAGIC_INITIATE_KEY, gainedAt: 1 },
@@ -89,7 +89,7 @@ describe('Zauber-Wahlen am Herkunftstalent (Bölgör aus dem Vault)', () => {
    * und die offene Kampfstil-Zweigwahl des Paladins greift keine von beiden ab.
    */
   it('greift die Antwort eines anderen Merkmals nicht ab', async () => {
-    const c = vaultCharacter('Bölgör');
+    const c = testCharacter('Prüfling Paladin');
     const list = await choicesOf(c);
     const claimed = list.map((ch) => [ch.slot.feature.key, c.features[ch.entry]?.choice]);
 
@@ -182,7 +182,7 @@ describe('Der Anker einer Antwort', () => {
   });
 
   /**
-   * Bölgörs Volksmerkmal zeigt die andere Hälfte: eine von der KI gedeutete Antwort steht
+   * Das Volksmerkmal des Prüflings Paladin zeigt die andere Hälfte: eine von der KI gedeutete Antwort steht
    * ungestempelt am selben Key. Sie darf den Platz nicht besetzen, nur weil sie im Ledger
    * vorn steht.
    */

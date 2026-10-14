@@ -1,0 +1,341 @@
+{
+  "name": "Prüfling Paladin",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_paladin",
+      "name": "Paladin",
+      "subclassKey": "srd-2024_oath-of-devotion",
+      "subclassName": "Schwur der Hingabe",
+      "level": 5
+    }
+  ],
+  "classLevel": "Paladin 5 (Schwur der Hingabe)",
+  "playerName": "",
+  "backgroundRef": {
+    "sourceKey": "srd-2024_sage",
+    "name": "Weiser"
+  },
+  "background": "Weiser",
+  "species": {
+    "sourceKey": "srd-2024_dragonborn",
+    "name": "Drachenblütiger"
+  },
+  "race": "Drachenblütiger",
+  "xp": "",
+  "str": 15,
+  "ges": 14,
+  "kon": 16,
+  "int": 12,
+  "wei": 12,
+  "cha": 8,
+  "strMod": 2,
+  "gesMod": 2,
+  "konMod": 3,
+  "intMod": 1,
+  "weiMod": 1,
+  "chaMod": -1,
+  "ac": "",
+  "initiative": "",
+  "speed": "9",
+  "hpMax": "44",
+  "hpCurrent": "12",
+  "hpTemp": "",
+  "proficiencyBonus": 3,
+  "passivePerception": "",
+  "hitDice": "5W10",
+  "strSaveProf": false,
+  "gesSaveProf": false,
+  "konSaveProf": false,
+  "intSaveProf": false,
+  "weiSaveProf": true,
+  "chaSaveProf": true,
+  "skills": {
+    "Akrobatik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [
+    {
+      "name": "Langschwert",
+      "sourceKey": "srd-2024_longsword",
+      "bonus": "+5",
+      "damage": "1d8+2",
+      "type": "Hieb",
+      "range": "Nah",
+      "auto": true,
+      "ability": "str",
+      "proficient": true,
+      "baseDamage": "1d8",
+      "magicBonus": 0
+    }
+  ],
+  "classFeatures": "[Klassenmerkmale]\nHandauflegen:\nBonusaktion, berührt ein Wesen (auch sich selbst) und stellt TP wieder her. Poolgröße: 5 × Paladinstufe. 5 TP aus dem Pool entfernen den Zustand Vergiftet.\n\nSchwur der Hingabe:\nSchwurverpflichtungen: Keine Rüstung aus Erz tragen, keine Waffen aus Erz verwenden. Keine Magie wirken, die den Zustand Besessenheit verursacht. Keine Magie wirken, die den Zustand Unhold oder Untot erschafft oder beschwört. Keine Magie wirken, die den Zustand Vergiftung verursacht.\n\nGöttliches Niederstrecken: Hat *Göttliches Niederstrecken* stets vorbereitet. Einmal pro Langer Rast ohne Zauberplatz wirken.\n\nGöttliche Macht fokussieren: 2 Anwendungen. 1 nach Kurzer Rast, alle nach Langer Rast. Göttliches Gespür: Bonusaktion, spürt Celestische Wesen, Unholde, Untote innerhalb 18 m für 10 min auf.\n\nZusätzlicher Angriff: Zweimal angreifen statt einmal bei der Angriffsaktion.\n\nTreues Reittier: Hat *Reittier finden* stets vorbereitet. Einmal pro Langer Rast ohne Zauberplatz wirken.\n\nHeilige Waffe: Göttliche Macht fokussieren: Anwendung aufwenden, um Cha-Mod zu Angriffswürfen und Gleißenden Schaden bei Nahkampfwaffe für 10 min zu addieren. Strahlt Licht aus.",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "17",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Kettenpanzer",
+      "sourceKey": "srd-2024_chain-mail",
+      "count": "",
+      "weight": "55"
+    },
+    {
+      "name": "Schild",
+      "sourceKey": "srd-2024_shield",
+      "count": "",
+      "weight": "6"
+    },
+    {
+      "name": "Langschwert",
+      "sourceKey": "srd-2024_longsword",
+      "count": "",
+      "weight": "3"
+    },
+    {
+      "name": "Wurfspeer",
+      "sourceKey": "srd-2024_javelin",
+      "count": "6",
+      "weight": "2"
+    },
+    {
+      "name": "Heiliges Symbol",
+      "count": "",
+      "weight": ""
+    },
+    {
+      "name": "Priesterausrüstung",
+      "sourceKey": "srd-2024_priests-pack",
+      "count": "",
+      "weight": "29"
+    },
+    {
+      "name": "Kampfstab",
+      "sourceKey": "srd-2024_quarterstaff",
+      "count": "",
+      "weight": "4"
+    },
+    {
+      "name": "Kalligrafiewerkzeug",
+      "sourceKey": "srd-2024_calligraphers-supplies",
+      "count": "",
+      "weight": "5"
+    },
+    {
+      "name": "Buch",
+      "sourceKey": "srd-2024_book",
+      "count": "",
+      "weight": "5"
+    },
+    {
+      "name": "Pergament",
+      "sourceKey": "srd-2024_parchment",
+      "count": "8",
+      "weight": ""
+    },
+    {
+      "name": "Robe",
+      "sourceKey": "srd-2024_robe",
+      "count": "",
+      "weight": "4"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "srd-2024_paladin_spellcasting": {
+        "picks": {
+          "prepared": [
+            "srd-2024_command",
+            "phb-2024_thunderous-smite",
+            "phb-2024_compelled-duel",
+            "srd-2024_detect-poison-and-disease",
+            "srd-2024_aid",
+            "srd-2024_shining-smite"
+          ]
+        },
+        "uses": {}
+      },
+      "srd-2024_magic-initiate": {
+        "picks": {
+          "cantrips": [
+            "srd-2024_mending",
+            "srd-2024_message"
+          ],
+          "spell1": [
+            "srd-2024_alarm"
+          ]
+        },
+        "uses": {}
+      }
+    },
+    "manual": {
+      "slotTotals": [],
+      "extra": [
+        "srd-2024_protection-from-evil-and-good",
+        "srd-2024_shield-of-faith",
+        "srd-2024_aid",
+        "srd-2024_zone-of-truth",
+        "srd-2024_divine-smite",
+        "srd-2024_find-steed"
+      ]
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "[Volksmerkmale]\nDrakonische Abstammung: Blau\n\nOdemwaffe:\nBei der Angriff-Aktion kann ein Angriff durch Ausatmen ersetzt werden (15-Ft-Kegel oder 30-Ft-Linie, 5-Ft breit). RW Geschickigkeit (SG 8 + Kon-Mod + Profizienzbonus); bei Fehlschlag 1W10 Blitzschaden, bei Erfolg halber Schaden. Schaden steigt auf 2W10 (Stufe 5), 3W10 (Stufe 11), 4W10 (Stufe 17). Nutzungen = Profizienzbonus; alle nach Langer Rast wiederhergestellt.\n\nSchadensresistenz: Blitz\n\nDunkelsicht 60 m\n\nDrakonischer Flug:\nAb Stufe 5. Bonusaktion, um spektrale Flügel für 10 Minuten zu entfalten (Fluggeschw. = Bewegungsrate). Einmal pro Langer Rast.",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "Mittelgroß",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": true,
+    "martialWeapons": true,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": true,
+    "mediumArmor": true,
+    "heavyArmor": true,
+    "shields": true
+  },
+  "masteries": [
+    "Peitsche",
+    "Pike"
+  ],
+  "features": [
+    {
+      "sourceKey": "srd-2024_dragonborn_draconic-ancestry",
+      "name": "",
+      "choice": "Blue",
+      "choiceDe": "Blau",
+      "gainedAt": 1,
+      "desc": ""
+    },
+    {
+      "sourceKey": "srd-2024_magic-initiate",
+      "name": "",
+      "choice": "Charisma",
+      "choiceDe": "Charisma",
+      "gainedAt": 1,
+      "desc": ""
+    }
+  ],
+  "_version": 7,
+  "uid": "34e635775007"
+}

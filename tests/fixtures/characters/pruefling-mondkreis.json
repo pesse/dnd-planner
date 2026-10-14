@@ -1,0 +1,305 @@
+{
+  "uid": "4d091eeebfac",
+  "name": "Prüfling Mondkreis",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_druid",
+      "name": "Druide",
+      "subclassKey": "phb-2024_circle-of-the-moon",
+      "subclassName": "Zirkel des Mondes",
+      "level": 3
+    }
+  ],
+  "classLevel": "Druide 3 (Zirkel des Mondes)",
+  "playerName": "Samuel",
+  "backgroundRef": {
+    "sourceKey": "phb-2024_hermit",
+    "name": "Einsiedler"
+  },
+  "background": "Einsiedler",
+  "species": {
+    "sourceKey": "srd-2024_dwarf",
+    "name": "Zwerg"
+  },
+  "race": "Zwerg",
+  "xp": "",
+  "abilities": {
+    "str": 12,
+    "dex": 11,
+    "con": 15,
+    "int": 9,
+    "wis": 16,
+    "cha": 13
+  },
+  "mods": {
+    "str": 1,
+    "dex": 0,
+    "con": 2,
+    "int": -1,
+    "wis": 3,
+    "cha": 1
+  },
+  "ac": "11 (13)",
+  "initiative": "+0",
+  "speed": "9m",
+  "hpMax": "27",
+  "hpCurrent": "19",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "",
+  "hitDice": "3W8",
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": false,
+    "int": true,
+    "wis": true,
+    "cha": false
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Heilkunde": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": -1,
+      "prof": false,
+      "exp": false
+    },
+    "Religion": {
+      "value": 1,
+      "prof": true,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 3,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 5,
+      "prof": true,
+      "exp": false
+    }
+  },
+  "attacks": [
+    {
+      "name": "Steinhammer",
+      "bonus": "+3",
+      "damage": "1W4+1",
+      "type": "Wucht",
+      "range": "Nah",
+      "auto": true,
+      "ability": "str",
+      "proficient": true,
+      "baseDamage": "1W4",
+      "magicBonus": 0
+    },
+    {
+      "name": "Kriegshammer (Obsidian)",
+      "bonus": "+3",
+      "damage": "1W8+1",
+      "type": "Wucht",
+      "range": "Nah",
+      "auto": true,
+      "ability": "str",
+      "proficient": true,
+      "baseDamage": "1W8",
+      "magicBonus": 0
+    }
+  ],
+  "classFeatures": "Mit Tieren sprechen\" ist immer vorbereitet.\n\nDruidische Nachricht: Du kannst eine druidische Nachricht für andere der druidischen Sprache mächtigen Wesen hinterlassen. Andere können mit SW 15 Nachforschungen die Nachricht sehen, aber ohne Magie nicht entschlüsseln\n\nWild Companion: Für einen Magieslot oder Wild Shape use kannst du \"Vertrauten finden\" ohne Materialkosten wirken\n\nPrimal Order: Warden (Urordnung: Hüter)\n\n(Ich habe aktuell kein Healer's Kit)\nBattle Medic. As a Utilize action, you can expend one use of a Healer's Kit to tend to a creature within 5 feet of yourself. That creature can expend one of its HP Dice, and you then roll that die. The creature regains a number of HP equal to the roll +2.\n\nHealing Rerolls. Whenever you roll a die to determine the number of HP you restore with a spell or with this feat's Battle Medic benefit, you can reroll the die if it rolls a 1, and you must use the new roll.\n\nWildgestalt: RK 13+Weisheit (falls höher als Bestie), temp. TP = 3x Stufe, max CR = Stufe/3\nImmer vorbereitet: Cure Wounds, Moonbeam, Starry Wisp; in Wildgestalt wirkbar",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [
+    "Druidisch",
+    "Zwergisch",
+    "Gnomisch"
+  ],
+  "tools": [
+    "Kräuterwerkzeugkasten",
+    "Ausgrabungswerkzeug"
+  ],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "50",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Shield",
+      "count": "1",
+      "weight": "6"
+    },
+    {
+      "name": "Dagger",
+      "count": "1",
+      "weight": "1"
+    },
+    {
+      "name": "Herbalism Kit",
+      "count": "1",
+      "weight": "3"
+    },
+    {
+      "name": "Leather Armor",
+      "count": "1",
+      "weight": "10"
+    },
+    {
+      "name": "Light hammer",
+      "count": "2",
+      "weight": "2"
+    },
+    {
+      "name": "Moosbewachsener Stein mit Zwergenrunen",
+      "count": "1",
+      "weight": "2"
+    },
+    {
+      "name": "Warhammer",
+      "count": "1",
+      "weight": "2"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "spellcasting": {
+    "pools": {
+      "standard": {
+        "used": []
+      },
+      "pact": {
+        "used": 0
+      }
+    },
+    "sources": {
+      "srd-2024_druid_spellcasting": {
+        "picks": {
+          "cantrips": [
+            "phb-2024_thunderclap",
+            "srd-2024_druidcraft"
+          ],
+          "prepared": [
+            "srd-2024_animal-friendship",
+            "dndapi-2014_earth-tremor",
+            "srd-2024_entangle",
+            "srd-2024_jump"
+          ]
+        },
+        "uses": {}
+      }
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "Zwergische Widerstandskraft: Widerstand gegen Gift. Vorteil auf RW gegen Gift\n\nStonecunning (Tremorsense): Für 10 Minuten kannst du innerhalb von 18m kleinste Erschütterungen wahrnehmen. Du musst dich auf Steinoberfläche befinden oder eine solche berüheren. 2x pro langer Rast.\n\nDunkelsicht 36m",
+    "alter": "92",
+    "geschlecht": "männlich",
+    "sizeCat": "Mittelgroß",
+    "gesinnung": "chaotisch gut",
+    "glaube": "Moradin",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "braun",
+    "haarfarbe": "blond",
+    "hautfarbe": "hell",
+    "gewicht": "73kg",
+    "koerpergroesse": "1,35m",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": true,
+    "martialWeapons": true,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": true,
+    "mediumArmor": true,
+    "heavyArmor": false,
+    "shields": true
+  },
+  "masteries": [],
+  "features": [
+    {
+      "sourceKey": "srd-2024_druid_primal-order",
+      "name": "",
+      "choice": "Wächter",
+      "choiceDe": "Wächter",
+      "gainedAt": 1,
+      "desc": ""
+    }
+  ],
+  "portraitFile": "portrait.png",
+  "_version": 8,
+  "_importedAt": "2026-06-24T10:45:15.698Z"
+}

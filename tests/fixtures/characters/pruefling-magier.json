@@ -1,0 +1,324 @@
+{
+  "uid": "e9b5e5fa60a0",
+  "name": "Prüfling Magier",
+  "classes": [
+    {
+      "sourceKey": "srd-2024_wizard",
+      "name": "Magier",
+      "subclassKey": "srd-2024_evoker",
+      "subclassName": "Hervorrufer",
+      "level": 3
+    }
+  ],
+  "classLevel": "Magier 3 (Hervorrufer)",
+  "playerName": "",
+  "backgroundRef": {
+    "sourceKey": "phb-2024_charlatan",
+    "name": "Scharlatan"
+  },
+  "background": "Scharlatan",
+  "species": {
+    "sourceKey": "srd-2024_gnome",
+    "name": "Gnom"
+  },
+  "race": "Gnom",
+  "xp": "",
+  "abilities": {
+    "str": 15,
+    "dex": 14,
+    "con": 14,
+    "int": 12,
+    "wis": 10,
+    "cha": 10
+  },
+  "mods": {
+    "str": 2,
+    "dex": 2,
+    "con": 2,
+    "int": 1,
+    "wis": 0,
+    "cha": 0
+  },
+  "ac": "",
+  "initiative": "",
+  "speed": "9",
+  "hpMax": "20",
+  "hpCurrent": "8",
+  "hpTemp": "",
+  "proficiencyBonus": 2,
+  "passivePerception": "",
+  "hitDice": "3W6",
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": false,
+    "int": true,
+    "wis": true,
+    "cha": false
+  },
+  "skills": {
+    "Akrobatik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "ArkaneKunde": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Athletik": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "Auftreten": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Einschüchtern": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Fingerfertigkeit": {
+      "value": 4,
+      "prof": true,
+      "exp": false
+    },
+    "Geschichte": {
+      "value": 5,
+      "prof": true,
+      "exp": true
+    },
+    "Heilkunde": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Heimlichkeit": {
+      "value": 2,
+      "prof": false,
+      "exp": false
+    },
+    "MitTierenUmgehen": {
+      "value": 2,
+      "prof": true,
+      "exp": false
+    },
+    "MotivErkennen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Nachforschungen": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "Naturkunde": {
+      "value": 3,
+      "prof": true,
+      "exp": false
+    },
+    "Religion": {
+      "value": 1,
+      "prof": false,
+      "exp": false
+    },
+    "Täuschen": {
+      "value": 2,
+      "prof": true,
+      "exp": false
+    },
+    "Überlebenskunst": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Überzeugen": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    },
+    "Wahrnehmung": {
+      "value": 0,
+      "prof": false,
+      "exp": false
+    }
+  },
+  "attacks": [],
+  "classFeatures": "Arkane Erholung:\nNach Kurzer Rast verlorene Zauberplätze wiederherstellen. Gesamtstufe max. ½ der Zaubererstufe (aufgerundet), keine Stufe 6+. Einmal pro Langer Rast nutzbar.\n\nRitual-Adept:\nKann jeden Zauber mit dem Ritual-Merkmal als Ritual wirken, wenn er im Zauberbuch steht. Muss nicht vorbereitet sein, muss aber aus dem Buch gelesen werden.\n\nBegabt:\nFertigkeits- oder Werkzeugbeherrschung in drei freien Wahlen: Akrobatik, Täuschung, Athletik.\n\nKraftvoller Zaubertrick:\nSchadens-Zaubertricks verursachen bei fehlendem RW oder Trefferwurf halben Schaden, ohne Nebeneffekte.",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "languages": [],
+  "tools": [],
+  "alleskoenner": false,
+  "currency": {
+    "km": "",
+    "sm": "",
+    "em": "",
+    "gm": "20",
+    "pm": ""
+  },
+  "inventory": [
+    {
+      "name": "Dolch",
+      "sourceKey": "srd-2024_dagger",
+      "count": "2",
+      "weight": "1"
+    },
+    {
+      "name": "Arkaner Fokus (Kampfstab)",
+      "count": "",
+      "weight": ""
+    },
+    {
+      "name": "Robe",
+      "sourceKey": "srd-2024_robe",
+      "count": "",
+      "weight": "4"
+    },
+    {
+      "name": "Zauberbuch",
+      "sourceKey": "srd-2024_spellbook",
+      "count": "",
+      "weight": "3"
+    },
+    {
+      "name": "Gelehrtenausrüstung",
+      "sourceKey": "srd-2024_scholars-pack",
+      "count": "",
+      "weight": "22"
+    },
+    {
+      "name": "Fälscherausrüstung",
+      "sourceKey": "srd-2024_forgery-kit",
+      "count": "",
+      "weight": "5"
+    },
+    {
+      "name": "Kostüm",
+      "sourceKey": "srd-2024_costume",
+      "count": "",
+      "weight": "4"
+    },
+    {
+      "name": "Kleidung, fein",
+      "sourceKey": "srd-2024_clothes-fine",
+      "count": "",
+      "weight": "6"
+    }
+  ],
+  "inventoryNotes": "",
+  "totalWeight": "",
+  "spellcasting": {
+    "sources": {
+      "srd-2024_wizard_spellcasting": {
+        "picks": {
+          "cantrips": [
+            "srd-2024_message",
+            "srd-2024_fire-bolt",
+            "srd-2024_chill-touch"
+          ],
+          "book": [
+            "dndapi-2014_earth-tremor",
+            "phb-2024_witch-bolt",
+            "srd-2024_longstrider",
+            "srd-2024_grease",
+            "srd-2024_charm-person",
+            "srd-2024_detect-magic",
+            "srd-2024_false-life",
+            "srd-2024_flaming-sphere",
+            "srd-2024_phantasmal-force",
+            "srd-2024_locate-object"
+          ],
+          "prepared": [
+            "srd-2024_grease",
+            "srd-2024_charm-person",
+            "srd-2024_longstrider"
+          ]
+        }
+      },
+      "srd-2024_wizard_evoker_evocation-savant": {
+        "picks": {
+          "evocation-book": [
+            "srd-2024_continual-flame",
+            "srd-2024_thunderwave"
+          ]
+        }
+      }
+    }
+  },
+  "personal": {
+    "rassenmerkmale": "Dunkelsicht 60 m\n\nGnomische Gerissenheit:\nVorteil auf RW auf Int, Wiss und Char.\n\nGnomische Abstammung (Felsgnom):\nKanntrips: Mending, Prestidigitation.\nKann immer Speak with Animals vorbereiten; wirkt es ohne Slots so oft wie die Bonusaktion, alle nach Langer Rast wieder.\nKann mit Prestidigitation ein winziges Uhrwerkwerkzeug (AC 5, 1 TP) erschaffen; es reagiert auf Bonusaktion (Berührung) mit einem Effekt von Prestidigitation; max. 3 zur gleichen Zeit.",
+    "alter": "",
+    "geschlecht": "",
+    "sizeCat": "Klein",
+    "gesinnung": "",
+    "glaube": "",
+    "lebensstil": "",
+    "taeglicheKosten": "",
+    "augenfarbe": "",
+    "haarfarbe": "",
+    "hautfarbe": "",
+    "gewicht": "",
+    "koerpergroesse": "",
+    "aussehen": ""
+  },
+  "proficiencies": {
+    "simpleWeapons": true,
+    "martialWeapons": false,
+    "individualWeapons": [],
+    "otherWeapons": "",
+    "lightArmor": false,
+    "mediumArmor": false,
+    "heavyArmor": false,
+    "shields": false
+  },
+  "masteries": [],
+  "optionPicks": [],
+  "features": [
+    {
+      "sourceKey": "srd-2024_skilled",
+      "name": "",
+      "choice": "Acrobatics, Deception, Athletics",
+      "choiceDe": "Akrobatik, Täuschung, Athletik",
+      "choiceId": "",
+      "gainedAt": 1,
+      "desc": ""
+    },
+    {
+      "sourceKey": "srd-2024_gnome_gnomish-lineage",
+      "name": "",
+      "choice": "Rock Gnome",
+      "choiceDe": "Felsgnom",
+      "choiceId": "",
+      "gainedAt": 1,
+      "desc": ""
+    },
+    {
+      "sourceKey": "srd-2024_gnome_gnomish-lineage",
+      "name": "",
+      "choice": "Intelligence",
+      "choiceDe": "Intelligenz",
+      "choiceId": "",
+      "gainedAt": 1,
+      "desc": ""
+    },
+    {
+      "sourceKey": "srd-2024_wizard_scholar",
+      "name": "",
+      "choice": "History",
+      "choiceDe": "Geschichte",
+      "choiceId": "expertise_srd-2024-wizard-scholar",
+      "gainedAt": 3,
+      "desc": ""
+    }
+  ],
+  "pinnedFeatures": [],
+  "_version": 8
+}

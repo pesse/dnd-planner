@@ -1,12 +1,12 @@
 /**
- * Die Bogen- und Kontext-Projektion gegen die Charaktere im echten Vault, samt der
+ * Die Bogen- und Kontext-Projektion gegen die Prüfling-Charaktere, samt der
  * Übergangsbrücke: was heute im gespeicherten `spells`-Block steht, muss weiter erscheinen.
  *
  *   npm run test -- castingProjection
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import {
   contextLines,
@@ -30,7 +30,7 @@ const labels = (view: SheetSpellcasting, level: number): string[] =>
 
 describe('Bogen-Projektion', () => {
   it('zeigt Klasse, Attribut und die gespeicherten Zauber eines Druiden', async () => {
-    const c = vaultCharacter('Bulgur');
+    const c = testCharacter('Prüfling Druide');
     const view = await loadSheetSpellcasting(c);
 
     expect(view.hasContent).toBe(true);
@@ -49,7 +49,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('rechnet Attribut und Werte, statt sie zu speichern', async () => {
-    const c = vaultCharacter('Prüfling Mondkreis');
+    const c = testCharacter('Prüfling Mondkreis');
     expect(Object.keys(c.spellcasting.sources['srd-2024_druid_spellcasting'] ?? {})).toEqual(['picks']);
     const view = await loadSheetSpellcasting(c);
     expect(view.sources.find((s) => s.kind === 'class')?.abilityDe).toBe('Weisheit');
@@ -57,7 +57,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('führt Spezies-Zauber an ihrer Quelle und nicht doppelt', async () => {
-    const view = await loadSheetSpellcasting(vaultCharacter('Prüfling Feenmagie'));
+    const view = await loadSheetSpellcasting(testCharacter('Prüfling Feenmagie'));
     const druidcraft = levelOf(view, 0).spells.filter((s) => s.label === 'Druidenkunst');
     expect(druidcraft).toHaveLength(1);
     expect(druidcraft[0].source).toBe('Feenmagie');
@@ -69,7 +69,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('behält Slots und Zauber eines Charakters ohne Klassen-Verlinkung', async () => {
-    const c = vaultCharacter('Phönix');
+    const c = testCharacter('Prüfling Altform');
     expect(c.classes).toEqual([]);
     const view = await loadSheetSpellcasting(c);
 
@@ -80,7 +80,7 @@ describe('Bogen-Projektion', () => {
   });
 
   it('lässt einen Charakter ohne Zauber leer', async () => {
-    const view = await loadSheetSpellcasting(vaultCharacter('Falbala'));
+    const view = await loadSheetSpellcasting(testCharacter('Prüfling Kämpferin'));
     expect(view.hasContent).toBe(false);
     expect(view.levels).toEqual([]);
     expect(view.sources).toEqual([]);
@@ -89,7 +89,7 @@ describe('Bogen-Projektion', () => {
 
 describe('KI-Kontext', () => {
   it('nennt Quelle, Werte, Slots und Zauber je Grad', async () => {
-    const lines = contextLines(await loadSheetSpellcasting(vaultCharacter('Bulgur')));
+    const lines = contextLines(await loadSheetSpellcasting(testCharacter('Prüfling Druide')));
     expect(lines[0]).toMatch(/^- Source: Druide — Ability: Weisheit, Save DC: \d+, Attack Bonus: [+-]\d+$/);
     expect(lines).toContain('- Slots:');
     expect(lines.some((l) => l === '  - Grad 1: 3')).toBe(true);
@@ -98,7 +98,7 @@ describe('KI-Kontext', () => {
   });
 
   it('meldet ein offenes Zauberattribut als offen', async () => {
-    const c = vaultCharacter('Prüfling Feenmagie');
+    const c = testCharacter('Prüfling Feenmagie');
     // Ohne Ledger-Antwort UND ohne gespeicherte Bindung bleibt die Wahl der Fee offen.
     const { state, lookup, legacy } = await loadSpellcasting({
       ...c,
@@ -115,7 +115,7 @@ describe('KI-Kontext', () => {
 
 describe('Übergang zum PDF-Export', () => {
   it('liefert die flache Alt-Form aus der primären Klassen-Quelle', async () => {
-    const c = vaultCharacter('Bulgur');
+    const c = testCharacter('Prüfling Druide');
     const { state, lookup, legacy } = await loadSpellcasting(c);
     const flat = legacyFlatView(state, lookup, legacy);
 

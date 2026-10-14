@@ -1,17 +1,13 @@
 /**
  * Der Umzug der Altform `spells` → `spellcasting`, gefahren gegen die Charakterdateien von
- * vor dem Umbau und gegen ihren Stand im Vault.
- *
- * Die Vault-Seite sind die „Prüfling"-Charaktere, nicht die gespielten: an einem bespielten
- * Charakter kommen Zauber dazu, die die Altdatei nicht kennen kann, und der Vergleich bricht
- * nach der nächsten Sitzung.
+ * vor dem Umbau und gegen ihren migrierten Stand in `tests/fixtures/characters/`.
  *
  *   npm run test -- castingMigration
  */
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
 import { upgradeCharacter } from '../../src/lib/schemas/characterUpgrades';
-import { vaultCharacter } from '../support/vaultCharacter';
+import { testCharacter } from '../support/testCharacter';
 import { spellsFix, type LegacyFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
 import { loadSheetSpellcasting, loadSpellcasting } from '../../src/lib/services/spellcasting/project';
@@ -47,12 +43,12 @@ describe('Umzug der Altform', () => {
     for (const [name, vaultName] of [
       ['mondkreis', 'Prüfling Mondkreis'],
       ['feenmagie', 'Prüfling Feenmagie'],
-      ['phoenix', 'Phönix'],
-      ['carric', 'Carric Galanodel'],
+      ['phoenix', 'Prüfling Altform'],
+      ['carric', 'Prüfling Multiklasse'],
     ]) {
       const c = legacy(name);
       await migrate(c);
-      expect(c.spellcasting, name).toEqual(vaultCharacter(vaultName).spellcasting);
+      expect(c.spellcasting, name).toEqual(testCharacter(vaultName).spellcasting);
       expect(c.spells, name).toBeUndefined();
     }
   });
