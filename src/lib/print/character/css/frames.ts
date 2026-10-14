@@ -25,50 +25,73 @@ const INNER_W = 1.2;
 const PIVOT = 17;
 const radius = (offset: number): number => PIVOT - offset;
 
-/** Viertelbogen bis zur Diagonale, wo die gespiegelte Hälfte ansetzt. */
-const arc = (offset: number): string => {
-  const r = radius(offset);
-  const end = (PIVOT - Math.SQRT1_2 * r).toFixed(2);
-  return `A ${r} ${r} 0 0 0 ${end} ${end}`;
+const fmt = (n: number): string => n.toFixed(2);
+
+/**
+ * Viertelbogen von oben bis zur Diagonale, wo die gespiegelte Hälfte ansetzt — als gefülltes
+ * Ringstück der Breite `width`.
+ */
+const arcBand = (offset: number, width: number): string => {
+  const outer = radius(offset) + width / 2;
+  const inner = radius(offset) - width / 2;
+  const diag = (r: number): string => fmt(PIVOT - Math.SQRT1_2 * r);
+  return `<path d="M ${PIVOT} ${fmt(PIVOT - outer)} A ${outer} ${outer} 0 0 0 ${diag(outer)} ${diag(outer)}`
+    + ` L ${diag(inner)} ${diag(inner)} A ${inner} ${inner} 0 0 1 ${PIVOT} ${fmt(PIVOT - inner)} Z" />`;
+};
+
+const bar = (x: number, y: number, w: number, h: number): string =>
+  `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(w)}" height="${fmt(h)}" />`;
+
+/** Waagrechte Linie von `x1` bis `x2` auf Höhe `y`. */
+const hLine = (x1: number, x2: number, y: number, width: number): string =>
+  bar(x1, y - width / 2, x2 - x1, width);
+
+/** Halbkreis-Häkchen nach innen, unten mit runder Kappe. */
+const HOOK_X = 21.5;
+const HOOK_R = 2.2;
+const hook = (): string => {
+  const w = OUTER_W / 2;
+  const cy = OUTER + HOOK_R;
+  const [ro, ri] = [HOOK_R + w, HOOK_R - w];
+  return `<path d="M ${HOOK_X} ${fmt(cy - ro)} A ${ro} ${ro} 0 0 0 ${HOOK_X} ${fmt(cy + ro)}`
+    + ` A ${w} ${w} 0 0 0 ${HOOK_X} ${fmt(cy + ri)}`
+    + ` A ${ri} ${ri} 0 0 1 ${HOOK_X} ${fmt(cy - ri)} Z" />`;
 };
 
 /** Der Punkt sitzt auf der Diagonale, mittig zwischen den Bögen. */
-const DOT = (PIVOT - Math.SQRT1_2 * (radius(OUTER) + radius(INNER)) / 2).toFixed(2);
+const DOT = fmt(PIVOT - Math.SQRT1_2 * (radius(OUTER) + radius(INNER)) / 2);
 
 /**
  * Die obere Hälfte der Ecke oben links: gerade Linie von der Kante, Häkchen nach innen, Lücke,
  * Viertelbogen bis zur Diagonale. Die linke Hälfte ist dieselbe Zeichnung an der Diagonale
  * gespiegelt, die drei anderen Ecken sind gespiegelte Kopien des Ganzen.
  */
-const HALF_CORNER = `
-  <path d="M ${CORNER + 0.5} ${OUTER} H 21.5" />
-  <path d="M 21.5 ${OUTER} a 2.2 2.2 0 0 0 0 4.4" stroke-linecap="round" />
-  <path d="M ${PIVOT} ${OUTER} ${arc(OUTER)}" />
-  <path d="M ${CORNER + 0.5} ${INNER} H ${PIVOT} ${arc(INNER)}" stroke-width="${INNER_W}" />
-`;
+const HALF_CORNER = hLine(HOOK_X, CORNER + 0.5, OUTER, OUTER_W) + hook() + arcBand(OUTER, OUTER_W)
+  + hLine(PIVOT, CORNER + 0.5, INNER, INNER_W) + arcBand(INNER, INNER_W);
 
 /** Die vier Kantenfelder einer Linie; sie überlappen die Eckkacheln, sonst klafft die Naht. */
-const edges = (offset: number): string => {
+const edges = (offset: number, width: number): string => {
   const far = SIDE - offset;
   const from = CORNER - 0.5;
   const to = SIDE - CORNER + 0.5;
-  return `M ${from} ${offset} H ${to} M ${from} ${far} H ${to}`
-    + ` M ${offset} ${from} V ${to} M ${far} ${from} V ${to}`;
+  return hLine(from, to, offset, width) + hLine(from, to, far, width)
+    + bar(offset - width / 2, from, width, to - from) + bar(far - width / 2, from, width, to - from);
 };
 
+/**
+ * Nur gefüllte Flächen, kein einziger Strich: Druckertreiber skalieren eine Strichstärke beim
+ * Strecken und Spiegeln falsch — Kanten und Ecken liefen sonst zu schwarzen Balken zusammen.
+ */
 const FRAME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIDE}" height="${SIDE}"`
-  + ` viewBox="0 0 ${SIDE} ${SIDE}" fill="none" stroke="INK" stroke-width="${OUTER_W}">`
+  + ` viewBox="0 0 ${SIDE} ${SIDE}" fill="INK" stroke="none">`
   + `<defs><g id="h">${HALF_CORNER}</g>`
   + `<g id="c"><use href="#h" /><use href="#h" transform="matrix(0 1 1 0 0 0)" />`
-  + `<circle cx="${DOT}" cy="${DOT}" r="1.5" stroke="none" fill="INK" /></g></defs>`
+  + `<circle cx="${DOT}" cy="${DOT}" r="1.5" /></g></defs>`
   + `<use href="#c" />`
   + `<use href="#c" transform="translate(${SIDE} 0) scale(-1 1)" />`
   + `<use href="#c" transform="translate(0 ${SIDE}) scale(1 -1)" />`
   + `<use href="#c" transform="translate(${SIDE} ${SIDE}) scale(-1 -1)" />`
-  // In den Kantenfeldern nur gerade Linien mit stumpfen Enden: sie werden auf die Kastenbreite
-  // gestreckt, eine runde Kappe würde dabei zum Klecks.
-  + `<path d="${edges(OUTER)}" />`
-  + `<path d="${edges(INNER)}" stroke-width="${INNER_W}" />`
+  + edges(OUTER, OUTER_W) + edges(INNER, INNER_W)
   + `</svg>`;
 
 /** Die Palette lebt in CSS-Variablen, die eine Data-URL nicht sieht — die Tinte kommt als Wert. */
