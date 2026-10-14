@@ -1,6 +1,6 @@
 /**
  * Sprachen und persönliche Angaben aus dem Wizard. Sprachen sind deutscher Freitext (keine
- * Übung, kein Vokabular) — die Listen sind die Tabellen „Standardsprachen“/„Gesinnung“ des SRD.
+ * Übung, kein Vokabular) — die Listen sind die Tabellen „Standardsprachen“/„Seltene Sprachen“/„Gesinnung“ des SRD.
  */
 import type { Character } from '$lib/schemas/characterSchema';
 
@@ -10,6 +10,12 @@ export const STANDARD_LANGUAGE_PICKS = 2;
 export const STANDARD_LANGUAGES = [
   'Drakonisch', 'Elfisch', 'Gebärden-Gemeinsprache', 'Gnomisch', 'Goblinisch',
   'Halblingisch', 'Orkisch', 'Riesisch', 'Zwergisch',
+] as const;
+
+/** Regulär nur über Merkmale erlernbar; im Wizard als Ausnahme nach Absprache mit der SL. */
+export const RARE_LANGUAGES = [
+  'Abyssisch', 'Celestisch', 'Diebessprache', 'Druidisch', 'Gemeinsprache der Unterreiche',
+  'Infernalisch', 'Sylvanisch', 'Tiefensprache', 'Urtümlich',
 ] as const;
 
 export const ALIGNMENTS: { label: string; hint: string }[] = [
