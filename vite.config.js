@@ -24,8 +24,8 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // design/: Codex schreibt dort Bilder; eine gesperrte Datei bringt den Watcher unter Windows zum Absturz.
+      ignored: ["**/src-tauri/**", "**/design/**"],
     },
   },
 }));
