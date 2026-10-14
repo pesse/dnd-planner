@@ -8,12 +8,26 @@ export function printHtmlDocument(html: string, title: string): void {
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument!;
   doc.open(); doc.write(html); doc.close();
-  setTimeout(() => {
+  void imagesSettled(doc).then(() => {
     const prev = document.title;
     document.title = title;
     iframe.contentWindow!.focus();
     iframe.contentWindow!.print();
     document.title = prev;
     setTimeout(() => document.body.removeChild(iframe), 2000);
-  }, 0);
+  });
+}
+
+// Sonst druckt der Dialog, bevor Kartenbilder und Porträt geladen sind.
+function imagesSettled(doc: Document): Promise<unknown> {
+  return Promise.all(
+    Array.from(doc.images, (img) =>
+      img.complete
+        ? null
+        : new Promise((resolve) => {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+          }),
+    ),
+  );
 }

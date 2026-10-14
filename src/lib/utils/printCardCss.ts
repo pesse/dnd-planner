@@ -57,6 +57,18 @@ export const CARD_BODY_CSS = `
     color-mix(in srgb, var(--c) 55%, #fef8ec) 0%,
     color-mix(in srgb, var(--c) 10%, #fef8ec) 100%);
 }
+.head-art { position: relative; padding-left: 12mm; padding-right: 12mm; }
+.head-art .art {
+  position: absolute; left: 2.5mm; top: 50%; transform: translateY(-50%);
+  width: 8.5mm; height: 8.5mm; padding: 0.5mm;
+  border: 0.25mm solid #9a7a3a; border-radius: 1.5mm;
+  background: radial-gradient(circle at 50% 42%,
+    color-mix(in srgb, var(--c) 35%, white) 0%,
+    color-mix(in srgb, var(--c) 75%, white) 55%,
+    var(--c) 100%);
+  box-shadow: inset 0 0 0 0.35mm #fef8ec;
+}
+.head-art .art img { display: block; width: 100%; height: 100%; }
 .name {
   font-size: 8.5pt; font-weight: 700; font-variant: small-caps;
   color: #1a0a00; line-height: 1.2; letter-spacing: 0.02em;
