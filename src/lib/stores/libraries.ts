@@ -97,17 +97,19 @@ export function updateCount(list: Library[]): number {
 }
 
 /** Beim Start bewusst still: ohne Netz soll die App trotzdem normal starten. */
-export async function refreshLibraries(silent = true): Promise<void> {
-  if (!isTauri()) return;
+export async function refreshLibraries(silent = true): Promise<boolean> {
+  if (!isTauri()) return false;
   librariesLoading.set(true);
   try {
     libraries.set((await invoke<RawLibraryStatus[]>('fetch_library_index')).map(toLibrary));
+    return true;
   } catch (e) {
     if (silent) {
       console.warn('Bibliotheksverzeichnis nicht erreichbar:', e);
     } else {
       pushError(`Bibliotheken konnten nicht geladen werden: ${e}`);
     }
+    return false;
   } finally {
     librariesLoading.set(false);
   }
@@ -186,7 +188,7 @@ export async function forgetAccessCode(id: string): Promise<void> {
   await refreshLibraries(false);
 }
 
-function describeUpdates(list: Library[]): string {
+export function describeUpdates(list: Library[]): string {
   if (list.length === 1) {
     const [lib] = list;
     return `Neue Fassung von „${lib.name}“ verfügbar (${lib.installedVersion} → ${lib.version}).`;

@@ -2,6 +2,7 @@
   import { updateState, updateDialogOpen } from '../../stores/update';
   import { libraries, libraryManagerOpen, updateCount } from '../../stores/libraries';
   import { revealLogDir } from '../../services/appLog';
+  import { checkForNews, checkingForNews } from '../../services/checkForNews';
   import { pushError } from '../../stores/toasts';
 
   let { onReloadAll, onTransferClick }: {
@@ -21,6 +22,14 @@
         title={`Update auf v${$updateState.version} verfügbar`}
         onclick={() => updateDialogOpen.set(true)}
       ><img src="/branding/icons/update.png" alt="" /></button>
+    {:else}
+      <button
+        class="header-btn"
+        class:checking={$checkingForNews}
+        disabled={$checkingForNews}
+        title={$checkingForNews ? 'Suche nach Neuerungen…' : 'Auf Neuerungen prüfen'}
+        onclick={() => checkForNews()}
+      ><img src="/branding/icons/reload.png" alt="" /></button>
     {/if}
     <button
       class="header-btn"
@@ -98,5 +107,8 @@
   }
 
   .sidebar-header .update-btn { opacity: 1; }
+  .header-btn.checking { cursor: progress; }
+  .header-btn.checking img { animation: checking-pulse 1s ease-in-out infinite alternate; }
+  @keyframes checking-pulse { to { opacity: 0.3; } }
   .header-btn.library-update { opacity: 1; filter: drop-shadow(0 0 3px var(--gold)); }
 </style>

@@ -19,15 +19,22 @@ export const updateDialogOpen = writable<boolean>(false);
 /** Hält das vom Plugin gelieferte Update-Objekt zwischen Prüfung und Installation. */
 let pending: import('@tauri-apps/plugin-updater').Update | null = null;
 
+/** Wirft bei Netz-/Manifest-Fehlern; `true`, wenn ein Update bereitliegt. */
+export async function findUpdate(): Promise<boolean> {
+  // Der Dev-Build hinkt nach jedem Release bis zum Pull des Release-Bumps hinterher — ohne
+  // diese Sperre böte er an, den Installer über die Entwicklungsumgebung zu ziehen.
+  if (!isTauri() || import.meta.env.DEV) return false;
+  const { check } = await import('@tauri-apps/plugin-updater');
+  const update = await check();
+  if (!update) return false;
+  pending = update;
+  updateState.set({ status: 'available', version: update.version, notes: update.body });
+  return true;
+}
+
 export async function checkForUpdate(): Promise<void> {
-  if (!isTauri()) return;
   try {
-    const { check } = await import('@tauri-apps/plugin-updater');
-    const update = await check();
-    if (update) {
-      pending = update;
-      updateState.set({ status: 'available', version: update.version, notes: update.body });
-    }
+    await findUpdate();
   } catch (e) {
     // Beim Start nicht aufdringlich: Netz-/Manifest-Fehler nur in die Konsole.
     console.warn('Update-Prüfung fehlgeschlagen:', e);
