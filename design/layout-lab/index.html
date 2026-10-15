@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wizard-Bilder · Layout-Labor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f6ecd4; --bg-panel: #ece0c2; --bg-deep: #e4d5b0; --bg-raised: #f1e7cf; --surface: #e7d9b4;
+    --border: #cdb784; --border-strong: #b89f6a;
+    --ink: #2f2110; --ink-soft: #5a4a30; --ink-muted: #897149;
+    --red: #8a2012; --gold: #786012; --copper: #9a4e16; --teal: #205c50; --arcane: #6d3b8e; --green: #356a28;
+    --font-display: 'Cinzel', Georgia, serif; --font-ui: Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #3a2c18; font-family: var(--font-ui); color: var(--ink); }
+
+  /* ── Labor-Leiste (gehört nicht zum Entwurf) ── */
+  .lab {
+    position: fixed; z-index: 50; left: 50%; bottom: 14px; transform: translateX(-50%);
+    display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(30, 20, 8, 0.88);
+    box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: 12px;
+  }
+  .lab button { border: 0; border-radius: 999px; padding: 6px 12px; background: transparent; color: #e9dcbc; cursor: pointer; font: inherit; }
+  .lab button.on { background: #e9dcbc; color: #2f2110; font-weight: 600; }
+  .lab-note {
+    position: fixed; z-index: 50; right: 14px; bottom: 62px; max-width: 340px; padding: 10px 14px;
+    background: rgba(30, 20, 8, 0.88); color: #e9dcbc; border-radius: 10px; font-size: 12.5px; line-height: 1.45;
+  }
+  .lab-note b { color: #fff; }
+
+  /* ── Rahmen wie FullscreenWizard ── */
+  .fw { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+  header { position: relative; z-index: 3; display: flex; align-items: center; gap: 1rem; padding: .7rem 1.4rem; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 88%, transparent); }
+  header h2 { margin: 0; font: 600 1.2rem var(--font-display); }
+  header input { width: min(22rem, 100%); font: inherit; font-size: 1rem; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 5px; padding: .4rem .55rem; color: var(--ink); }
+  header .x { margin-left: auto; color: var(--ink-muted); font-size: 1.3rem; }
+  .steps { position: relative; z-index: 3; display: flex; gap: .35rem; margin: 0; padding: .5rem 1.4rem; list-style: none; font-size: .8rem; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 88%, transparent); }
+  .steps li { padding: .18rem .6rem; border-radius: 4px; color: var(--ink-muted); cursor: pointer; }
+  .steps li.on { background: var(--arcane); color: #fff; font-weight: 600; }
+  .body { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr) 270px; }
+  .col { position: relative; min-height: 0; overflow-y: auto; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .8rem; }
+  .col > * { flex-shrink: 0; }
+  .main { z-index: 2; }
+  .preview { border-left: 1px solid var(--border); z-index: 2; background: color-mix(in srgb, var(--bg) 80%, transparent); }
+  footer { position: relative; z-index: 3; display: flex; gap: .5rem; padding: .7rem 1.4rem; border-top: 1px solid var(--border); background: var(--bg); }
+  footer .sp { flex: 1; }
+  .btn { border-radius: 5px; padding: .45rem .9rem; font: inherit; border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); }
+  .btn.p { background: var(--arcane); border: 0; color: #fff; font-weight: 600; }
+
+  .hint { font-size: .8rem; color: var(--ink-soft); margin: 0; }
+  .tiles { display: flex; flex-direction: column; gap: .3rem; }
+  .tile { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: .38rem .55rem; cursor: pointer; font: inherit; color: var(--ink); }
+  .tile.sel { border-color: var(--arcane); box-shadow: inset 0 0 0 1px var(--arcane); }
+  .tile b { display: block; font-size: .88rem; }
+  .tile span { font-size: .72rem; color: var(--ink-soft); }
+
+  .card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; }
+  .card h3 { margin: 0; font: 700 1.35rem var(--font-display); color: var(--copper); }
+  .card .meta { font-size: .78rem; color: var(--copper); margin: .2rem 0 .6rem; }
+  .card p { font-size: .86rem; line-height: 1.55; margin: .4rem 0; }
+  .card .feat { margin-top: .6rem; }
+  .card .feat b { font-variant: small-caps; color: var(--copper); }
+  .card details { border-top: 1px solid var(--border); padding-top: .35rem; margin-top: .5rem; font-size: .84rem; }
+  .card summary { cursor: pointer; color: var(--ink-soft); }
+  .stat { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; }
+  .stat div { border: 1px solid var(--border); border-radius: 6px; text-align: center; padding: .25rem 0; background: var(--surface); font-size: .7rem; color: var(--ink-muted); }
+  .stat div b { display: block; font-size: 1rem; color: var(--ink); }
+  .placeholder-tag { position: absolute; z-index: 4; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; background: rgba(30,20,8,.7); color: #e9dcbc; padding: 2px 6px; border-radius: 3px; }
+
+  /* Gemeinsame Bildebene: zwei Layer für Überblendung */
+  .art { position: absolute; pointer-events: none; }
+  .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; opacity: 0; transition: opacity .7s ease, transform 7s ease-out; }
+  .art img.show { opacity: 1; }
+
+  /* ═══ A · Bühne: Bild füllt die Detailspalte, Karte schwebt auf Pergament-Glas ═══ */
+  .v-buehne .detail { padding: 0; overflow: hidden; }
+  .v-buehne .art { inset: 0; -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 85%); mask-image: linear-gradient(90deg, #000 45%, transparent 85%); }
+  .v-buehne .art img.show { transform: scale(1.06); }
+  .v-buehne .art img { transform: scale(1); }
+  .v-buehne .detail-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 2rem 1.6rem 2rem 46%; }
+  .v-buehne .card { background: color-mix(in srgb, var(--bg-raised) 82%, transparent); backdrop-filter: blur(6px); box-shadow: 0 10px 40px rgba(40, 25, 5, .25); }
+
+  /* ═══ B · Ausbruch: Figur sprengt die Spaltengrenze, löst sich in Pergament auf ═══ */
+  .v-ausbruch .body { grid-template-columns: 250px minmax(0, 1fr) 270px; }
+  .v-ausbruch .art { top: 0; bottom: 0; right: calc(270px - 30px); width: min(44vw, 560px); z-index: 1;
+    -webkit-mask-image: radial-gradient(ellipse 47% 54% at 50% 44%, #000 45%, transparent 100%);
+    mask-image: radial-gradient(ellipse 47% 54% at 50% 44%, #000 45%, transparent 100%); }
+  /* Die Figur blickt zur Karte: wer im Bild nach rechts schaut, wird gespiegelt. */
+  .v-ausbruch .art img { --fx: 1; transform: translateX(30px) rotate(1.5deg) scaleX(var(--fx)); }
+  .v-ausbruch .art img.flip { --fx: -1; }
+  .v-ausbruch .art img.show { transform: translateX(0) rotate(0) scaleX(var(--fx)); transition: opacity .6s ease, transform .9s cubic-bezier(.2,.8,.2,1); }
+  .v-ausbruch .detail { padding-right: calc(min(44vw, 560px) - var(--overlap, 250px)); z-index: 2; }
+  .v-ausbruch .card {
+    background: color-mix(in srgb, var(--bg-raised) 68%, transparent); backdrop-filter: blur(2px);
+    box-shadow: 18px 0 40px -10px rgba(40,25,5,.2);
+  }
+  .v-ausbruch .preview { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+
+  /* ═══ C · Kartenfächer: die Wahl als Hand aus Bildkarten, wächst Schritt für Schritt ═══ */
+  .v-faecher .detail { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+  .v-faecher .hand { position: sticky; top: .5rem; height: calc(100vh - 12rem); }
+  .v-faecher .pc { position: absolute; left: 50%; top: 4%; width: 68%; aspect-ratio: 2 / 3; border-radius: 12px; overflow: hidden;
+    border: 6px solid var(--bg-raised); box-shadow: 0 12px 30px rgba(40,25,5,.35); transform-origin: 50% 120%;
+    transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .4s, filter .4s; }
+  .v-faecher > .detail > .card, .v-faecher .detail .card { position: relative; z-index: 10; }
+  .v-faecher .pc img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; display: block; }
+  .v-faecher .pc .lbl { position: absolute; left: 0; right: 0; bottom: 0; padding: 1.4rem .6rem .5rem; font: 600 .9rem var(--font-display); color: #fff; text-align: center; background: linear-gradient(transparent, rgba(30,20,8,.75)); }
+  .v-faecher .pc.empty { background: repeating-linear-gradient(45deg, var(--bg-deep), var(--bg-deep) 8px, var(--bg-panel) 8px, var(--bg-panel) 16px); display: grid; place-items: center; color: var(--ink-muted); font: 600 .85rem var(--font-display); }
+
+  /* ═══ D · Atmosphäre: das Bild färbt den ganzen Raum, scharf nur im Banner ═══ */
+  .v-atmo .ambient { position: absolute; inset: -40px; z-index: 0; pointer-events: none; }
+  .v-atmo .ambient img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(28px) sepia(.5) saturate(1.2); opacity: 0; transition: opacity 1s; }
+  .v-atmo .ambient img.show { opacity: .32; }
+  .v-atmo .fw { background: var(--bg); }
+  .v-atmo .body, .v-atmo header, .v-atmo .steps, .v-atmo footer { background: transparent; }
+  .v-atmo .detail { z-index: 1; }
+  .v-atmo .banner { position: relative; height: 300px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 34px rgba(40,25,5,.3); }
+  .v-atmo .banner .art { inset: 0; }
+  .v-atmo .banner .art img { object-position: 50% 22%; transform: scale(1.12) translateY(10px); }
+  .v-atmo .banner .art img.show { transform: scale(1.02) translateY(0); }
+  .v-atmo .banner h3 { position: absolute; left: 1.2rem; bottom: .8rem; margin: 0; font: 700 2rem var(--font-display); color: #fff8e6; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+  .v-atmo .card { background: color-mix(in srgb, var(--bg-raised) 88%, transparent); }
+  .v-atmo .card h3 { display: none; }
+
+  /* ═══ E · Leisten-Akkordeon: die Auswahl selbst ist das Bild ═══ */
+  .v-leisten .body { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 270px; }
+  .v-leisten .main .tiles { display: none; }
+  .v-leisten .strips { display: flex; height: calc(100vh - 13.5rem); min-height: 380px; gap: 4px; }
+  .v-leisten .strip { position: relative; flex: 1 1 0; min-width: 0; border-radius: 8px; overflow: hidden; cursor: pointer; transition: flex-grow .55s cubic-bezier(.2,.8,.2,1), filter .3s; filter: saturate(.55) brightness(.92); }
+  .v-leisten .strip:hover { filter: saturate(.85); }
+  .v-leisten .strip.sel { flex-grow: 7; filter: none; }
+  .v-leisten .strip img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+  .v-leisten .strip .name { position: absolute; left: 50%; bottom: .8rem; transform: translateX(-50%) rotate(180deg); writing-mode: vertical-rl; white-space: nowrap; font: 600 .85rem var(--font-display); color: #fff8e6; text-shadow: 0 1px 6px rgba(0,0,0,.8); transition: transform .4s, bottom .4s; }
+  .v-leisten .strip.sel .name { transform: translateX(-50%); writing-mode: horizontal-tb; bottom: 1rem; font-size: 1.5rem; }
+  .v-leisten .strip::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 55%, rgba(30,20,8,.55)); }
+  .v-leisten .strip .name { z-index: 1; }
+  .v-leisten .detail { border-left: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<nav class="lab" id="lab"></nav>
+<div class="lab-note" id="note"></div>
+
+<script>
+  // Bisher gibt es zwei Bilder; die übrigen Einträge zeigen sie als Platzhalter.
+  const IMG = { wizard: '../art/classes/wizard.png', dwarf: '../art/species/dwarf.png' };
+  // Blickrichtung je Bild — später als Metadatum je Datei, hier von Hand bestimmt.
+  const CLS = (id) => `../../static/art/classes/${id}.webp`;
+  // Die ganze Klassen-Serie blickt nach rechts.
+  const FACES = new Proxy({}, { get: () => 'right' });
+  let mirror = true;
+  const OVERLAPS = [250, 120, 0];
+  let overlap = 250;
+  const DATA = {
+    class: [
+      { id: 'wizard', name: 'Magier', sub: 'Intelligenz · Anspruchsvoll', img: CLS('wizard'), real: true,
+        intro: 'Magier sind Gelehrte der Arkanen Künste. Ihr Zauberbuch ist ihr Schatz — jede neue Seite eröffnet eine neue Möglichkeit, das Gefüge der Welt zu biegen.',
+        feats: [['Zauberwirken', 'Du hast ein Zauberbuch mit sechs Zaubern des 1. Grades.'], ['Rituelle Meisterschaft', 'Rituale aus deinem Buch wirkst du, ohne sie vorzubereiten.']] },
+      { id: 'fighter', name: 'Kämpfer', sub: 'Stärke oder Geschick · Einfach', img: CLS('fighter'), real: true,
+        intro: 'Kämpfer beherrschen jede Waffe und jede Rüstung. Wo andere zögern, stehen sie in der ersten Reihe.',
+        feats: [['Kampfstil', 'Wähle eine Spezialisierung, etwa Verteidigung oder Großwaffenkampf.'], ['Durchschnaufen', 'Als Bonusaktion erhältst du 1W10 + Stufe TP zurück.']] },
+      { id: 'cleric', name: 'Kleriker', sub: 'Weisheit · Mittel', img: CLS('cleric'), real: true,
+        intro: 'Kleriker tragen die Macht ihrer Gottheit in die Welt — heilend, schützend, strafend.',
+        feats: [['Zauberwirken', 'Göttliche Magie über deine Weisheit.'], ['Göttliche Ordnung', 'Beschützer oder Thaumaturg.']] },
+      { id: 'rogue', name: 'Schurke', sub: 'Geschick · Einfach', img: CLS('rogue'), real: true,
+        intro: 'Schurken verlassen sich auf List und Präzision. Ein gezielter Stich aus dem Schatten wiegt mehr als zehn Hiebe.',
+        feats: [['Hinterhältiger Angriff', '+1W6 Schaden, wenn du im Vorteil bist.'], ['Diebessprache', 'Geheime Zeichen und Jargon.']] },
+      { id: 'barbarian', name: 'Barbar', sub: 'Stärke · Einfach', img: CLS('barbarian'), real: true,
+        intro: 'Barbaren schöpfen Kraft aus urtümlichem Zorn — eine Naturgewalt in Menschengestalt.',
+        feats: [['Kampfrausch', 'Bonus auf Nahkampfschaden, Resistenz gegen Wuchtschaden.'], ['Ungerüstete Verteidigung', 'RK 10 + GES + KON.']] },
+    ],
+    background: [
+      { id: 'sage', name: 'Weiser', sub: 'Arkane Kunde · Geschichte', img: IMG.wizard,
+        intro: 'Jahre zwischen Folianten und Sternkarten haben dich gelehrt, dass Wissen die schärfste Klinge ist.',
+        feats: [['Herkunftstalent', 'Eingeweihter der Magie (Magier).'], ['Ausrüstung', 'Kampfstab, Kalligrafiewerkzeug, Buch, 8 GM.']] },
+      { id: 'soldier', name: 'Soldat', sub: 'Athletik · Einschüchtern', img: IMG.dwarf,
+        intro: 'Du hast in Reih und Glied gestanden, als der Schildwall brach — und überlebt.',
+        feats: [['Herkunftstalent', 'Wilder Angreifer.'], ['Ausrüstung', 'Speer, Kurzbogen, 20 Pfeile, Spielset.']] },
+      { id: 'acolyte', name: 'Akolyth', sub: 'Motiv erkennen · Religion', img: IMG.wizard,
+        intro: 'Im Tempel aufgewachsen, kennst du die Riten und die Stimmen der Götter.',
+        feats: [['Herkunftstalent', 'Eingeweihter der Magie (Kleriker).']] },
+    ],
+    species: [
+      { id: 'dwarf', name: 'Zwerg', sub: 'Mittelgroß · 9 m', img: IMG.dwarf, real: true,
+        intro: 'Zwerge sind aus Stein und Ausdauer gemacht. Ihre Hallen reichen tief in die Berge, ihr Gedächtnis noch tiefer.',
+        feats: [['Dunkelsicht', '36 m.'], ['Zwergische Unverwüstlichkeit', 'Resistenz gegen Giftschaden, +1 TP pro Stufe.'], ['Steingespür', 'Erschütterungssinn auf Stein, 18 m.']] },
+      { id: 'elf', name: 'Elf', sub: 'Mittelgroß · 9 m', img: IMG.wizard,
+        intro: 'Elfen tragen den Atem der Feenwildnis in sich — anmutig, langlebig, unergründlich.',
+        feats: [['Elfische Abstammung', 'Hochelf, Waldelf oder Drow.'], ['Trance', 'Vier Stunden Meditation statt Schlaf.']] },
+      { id: 'halfling', name: 'Halbling', sub: 'Klein · 9 m', img: IMG.dwarf,
+        intro: 'Halblinge sind unscheinbar, bis sie es nicht mehr sind — Glück folgt ihnen wie ein treuer Hund.',
+        feats: [['Glück', 'Eine 1 auf dem W20 darfst du neu würfeln.'], ['Behändigkeit', 'Du bewegst dich durch größere Kreaturen hindurch.']] },
+    ],
+  };
+  const STEPS = [['class', 'Klasse'], ['background', 'Hintergrund'], ['species', 'Volk'], ['', 'Sprachen'], ['', 'Attribute'], ['', 'Persönliches']];
+  const VARIANTS = {
+    buehne: ['A · Bühne', '<b>Bühne.</b> Das Bild füllt die ganze Detailspalte und läuft nach rechts in Pergament aus; die Karte liegt auf mattiertem Glas darüber. Beim Wechsel überblenden die Bilder mit langsamem Zoom.'],
+    ausbruch: ['B · Ausbruch', '<b>Ausbruch.</b> Karte links, Figur rechts — sie sitzt über der Grenze zur Vorschau und löst sich oval in Pergament auf. Bilder, deren Figur nach rechts blickt, werden gespiegelt, damit sie zur Karte zeigt. Neue Wahl gleitet mit leichter Drehung herein.'],
+    faecher: ['C · Kartenfächer', '<b>Kartenfächer.</b> Klasse, Hintergrund und Volk werden zu einer Hand aus Bildkarten, die mit jedem Schritt wächst. Die aktive Karte liegt vorn — so sieht man die Kombination entstehen.'],
+    atmo: ['D · Atmosphäre', '<b>Atmosphäre.</b> Das Bild färbt unscharf den ganzen Raum (auch Vorschau und Auswahl), scharf nur als Panorama-Banner mit dem Namen. Wirkt wie ein Stimmungslicht, kostet keinen Platz.'],
+    leisten: ['E · Bild-Leisten', '<b>Bild-Leisten.</b> Die Auswahl selbst ist das Bild: schmale Leisten nebeneinander, die gewählte klappt breit auf. Ersetzt die Kachelliste ganz — links bleibt nur noch der Hinweistext.'],
+  };
+
+  let variant = 'ausbruch', step = 'class';
+  const sel = { class: 'wizard', background: 'sage', species: 'dwarf' };
+  const stepsDone = new Set(['class']);
+  const current = () => DATA[step].find((e) => e.id === sel[step]);
+
+  function cardHtml(e, withTitle = true) {
+    return `<div class="card">${withTitle ? `<h3>${e.name}</h3>` : ''}<div class="meta">${e.sub}</div><p>${e.intro}</p>
+      ${e.feats.map(([n, t]) => `<div class="feat"><b>${n}</b><p>${t}</p></div>`).join('')}
+      ${step === 'class' ? '<details><summary>Stufe 2 · Arkane Erholung</summary><p>Platzhaltertext.</p></details><details><summary>Stufe 3 · Unterklasse</summary><p>Platzhaltertext.</p></details>' : ''}</div>`;
+  }
+  const tag = (e) => e.real ? '' : '<span class="placeholder-tag" style="left:12px;top:12px">Platzhalterbild</span>';
+  const artLayers = (e) => `<img class="${variant === 'ausbruch' && mirror && FACES[e.img] === 'right' ? 'flip' : ''}" src="${e.img}" alt="">`;
+
+  function detailHtml(e) {
+    switch (variant) {
+      case 'buehne': return `<div class="art">${artLayers(e)}</div>${tag(e)}<div class="detail-scroll">${cardHtml(e)}</div>`;
+      case 'ausbruch': return cardHtml(e);
+      case 'faecher': {
+        const order = ['class', 'background', 'species'];
+        const cards = order.map((k, i) => {
+          const en = DATA[k].find((x) => x.id === sel[k]);
+          const visible = stepsDone.has(k);
+          const active = k === step;
+          const rot = (i - 1) * 9, dx = (i - 1) * 22;
+          const z = active ? 5 : 3 - Math.abs(i - order.indexOf(step));
+          const t = active ? `translateX(-50%) translateY(-12px) rotate(${rot / 3}deg) scale(1.04)` : `translateX(calc(-50% + ${dx}%)) rotate(${rot}deg) scale(.92)`;
+          return visible
+            ? `<div class="pc" style="transform:${t};z-index:${z};filter:${active ? 'none' : 'saturate(.6) brightness(.9)'}"><img src="${en.img}" alt=""><div class="lbl">${en.name}</div></div>`
+            : `<div class="pc empty" style="transform:translateX(calc(-50% + ${dx}%)) rotate(${rot}deg) scale(.92);z-index:0;opacity:.6">${['Klasse', 'Hintergrund', 'Volk'][i]}</div>`;
+        }).join('');
+        return `<div class="hand">${cards}</div>${cardHtml(e)}`;
+      }
+      case 'atmo': return `<div class="banner"><div class="art">${artLayers(e)}</div>${tag(e)}<h3>${e.name}</h3></div>${cardHtml(e, false)}`;
+      case 'leisten': return cardHtml(e);
+    }
+  }
+
+  function render() {
+    const e = current();
+    document.getElementById('root').innerHTML = `
+      <div class="v-${variant}" style="height:100%;--overlap:${overlap}px">
+      <div class="fw">
+        ${variant === 'atmo' ? `<div class="ambient"><img src="${e.img}" alt=""></div>` : ''}
+        <header><h2>Neuer Charakter</h2><input placeholder="Name deines Charakters" value="Thorgrim"><span class="x">✕</span></header>
+        <ol class="steps">${STEPS.map(([k, l]) => `<li class="${k === step ? 'on' : ''}" data-step="${k}">${l}</li>`).join('')}</ol>
+        <div class="body">
+          ${variant === 'ausbruch' ? `<div class="art">${artLayers(e)}</div>` : ''}
+          <section class="col main">
+            <p class="hint">${{ class: 'Deine Klasse bestimmt, was dein Charakter am besten kann. Neu dabei? „Einfach“ ist ein guter Start.', background: 'Was warst du, bevor das Abenteuer begann?', species: 'Dein Volk bringt angeborene Merkmale mit.' }[step]}</p>
+            ${variant === 'leisten'
+              ? `<div class="strips">${DATA[step].map((x) => `<div class="strip ${x.id === sel[step] ? 'sel' : ''}" data-id="${x.id}"><img src="${x.img}" alt=""><span class="name">${x.name}</span></div>`).join('')}</div>`
+              : `<div class="tiles">${DATA[step].map((x) => `<button class="tile ${x.id === sel[step] ? 'sel' : ''}" data-id="${x.id}"><b>${x.name}</b><span>${x.sub}</span></button>`).join('')}</div>`}
+          </section>
+          <section class="col detail">${detailHtml(e)}</section>
+          <aside class="col preview">
+            <b style="font-family:var(--font-display)">Dein Charakter</b>
+            <div class="stat">${['STR', 'GES', 'KON', 'INT', 'WEI', 'CHA'].map((a, i) => `<div>${a}<b>${['+0', '+2', '+2', '+3', '+1', '-1'][i]}</b></div>`).join('')}</div>
+            <p class="hint">Trefferpunkte 8 · Übungsbonus +2 · Bewegung 9 m</p>
+          </aside>
+        </div>
+        <footer><button class="btn">Abbrechen</button><span class="sp"></span><button class="btn">Zurück</button><button class="btn p" data-next>Weiter</button></footer>
+      </div></div>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('.art img, .ambient img').forEach((i) => i.classList.add('show'))));
+    document.getElementById('note').innerHTML = VARIANTS[variant][1];
+    document.getElementById('lab').innerHTML = Object.entries(VARIANTS).map(([k, [l]]) => `<button data-v="${k}" class="${k === variant ? 'on' : ''}">${l}</button>`).join('')
+      + (variant === 'ausbruch' ? `<button data-mirror class="${mirror ? 'on' : ''}">⇋ Spiegeln</button><button data-overlap>Überlappung ${overlap}px</button>` : '');
+  }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('[data-v],[data-id],[data-step],[data-next],[data-mirror],[data-overlap]');
+    if (!t) return;
+    if ('mirror' in t.dataset) mirror = !mirror;
+    else if ('overlap' in t.dataset) overlap = OVERLAPS[(OVERLAPS.indexOf(overlap) + 1) % OVERLAPS.length];
+    else if (t.dataset.v) variant = t.dataset.v;
+    else if (t.dataset.id) sel[step] = t.dataset.id;
+    else if (t.dataset.step) { if (!t.dataset.step) return; step = t.dataset.step; stepsDone.add(step); }
+    else if ('next' in t.dataset) { const order = ['class', 'background', 'species']; step = order[(order.indexOf(step) + 1) % 3]; stepsDone.add(step); }
+    render();
+  });
+  render();
+</script>
+</body>
+</html>

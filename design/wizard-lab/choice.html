@@ -1,0 +1,99 @@
+<!doctype html><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>:root {
+  /* ---- Pergament-Hintergründe (hell → dunkler = tieferliegend) ---- */
+  --bg:          #f6ecd4; /* Haupt-Inhaltsfläche */
+  --bg-panel:    #ece0c2; /* Sidebar / Toolbar / Panels */
+  --bg-deep:     #e4d5b0; /* tiefste Einlassungen, Wells */
+  --bg-raised:   #f1e7cf; /* leicht erhabene Flächen */
+  --surface:     #e7d9b4; /* Buttons / Badges (dezenter Untergrund) */
+
+  /* ---- Ränder ---- */
+  --border:        #cdb784; /* Standard-Rand */
+  --border-strong: #b89f6a; /* kräftigere Trennlinie */
+
+  /* ---- Tinte (Text) ---- */
+  --ink:        #2f2110; /* Haupttext */
+  --ink-soft:   #5a4a30; /* Sekundärtext */
+  --ink-muted:  #897149; /* gedämpft / Platzhalter */
+  --ink-faint:  #9c855a; /* schwächste Schrift */
+
+  /* ---- Heraldische Akzente ----
+     Alle Werte sind so dunkel gewählt, dass sie als TEXT auf Pergament
+     (--bg / --bg-panel) den WCAG-AA-Kontrast (≥4.5:1) erreichen — die
+     Kategorie-/Zauberfarben werden auch als farbiger Text verwendet. */
+  --red:         #8a2012; /* PRIMÄR-Akzent: interaktiv, Links, Überschriften */
+  --red-bright:  #9c2a18; /* Hover / Betonung */
+  --gold:        #786012; /* Gold-Verzierung / Akzent (antik, textlesbar) */
+  --gold-bright: #735b0d; /* zweiter Goldton (Transmutation), textlesbar */
+  --green:       #356a28; /* Erfolg / Anfügen */
+  --copper:      #9a4e16; /* Item / Peach */
+  --steel:       #2c6483; /* Encounter / Sky */
+  --teal:        #205c50;
+  --arcane:      #6d3b8e; /* NPC / Zauber / Charakter (Mauve) */
+  --magenta:     #9c3a74; /* Pink */
+  --danger:      #a32114; /* Löschen / Fehler */
+
+  /* Text auf gesättigten Akzent-Flächen (= Pergamentton) */
+  --on-accent:  #f6ecd4;
+
+  /* ---- Typografie ---- */
+  --font-display: 'Cinzel', 'Trajan Pro', 'Palatino Linotype', Georgia, serif;
+  --font-ui: Inter, system-ui, sans-serif;
+} body{background:var(--bg);font-family:var(--font-ui);color:var(--ink);margin:0;padding:20px;} .col{width:340px} .hint{font-size:.82rem;color:var(--ink-soft);margin:0} 
+  .option {
+    display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) 1.7rem; align-items: center; gap: 0.6rem;
+    width: 100%; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+    padding: 0.25rem 0.5rem 0.25rem 0.3rem; border-radius: 6px;
+    border: 1px solid var(--border);
+    background: linear-gradient(100deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 140%);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+  }
+  .option:hover { transform: translateX(3px); border-color: var(--border-strong); box-shadow: 0 2px 10px -4px rgba(60, 35, 5, 0.35); }
+  .option:focus-visible { outline: 2px solid var(--arcane); outline-offset: 2px; }
+  .option.sel {
+    border-color: var(--gold);
+    background: linear-gradient(100deg, color-mix(in srgb, var(--arcane) 10%, var(--bg)) 0%, var(--surface) 140%);
+    box-shadow: inset 0 0 0 1px var(--gold), 0 3px 14px -6px color-mix(in srgb, var(--arcane) 70%, transparent);
+  }
+
+  .portrait {
+    width: 2.6rem; height: 3.1rem; overflow: hidden; display: grid; place-items: center;
+    border-radius: 1.3rem 1.3rem 4px 4px; border: 2px solid var(--border-strong);
+    background: radial-gradient(circle at 50% 35%, var(--bg) 0%, var(--surface) 100%);
+    transition: border-color 0.15s ease;
+  }
+  .sel .portrait { border-color: var(--gold); }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; transform: scale(1.8); transform-origin: 50% 22%; }
+  .portrait img.mirrored { transform: scale(1.35) scaleX(-1); }
+  .initial { font-family: var(--font-display); font-size: 1.3rem; color: var(--ink-muted); }
+
+  .text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .title { font-family: var(--font-display); font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em; }
+  .sel .title { color: var(--arcane); }
+  .sub, .tags { font-size: 0.74rem; color: var(--ink-soft); line-height: 1.3; }
+  .tags { display: flex; flex-wrap: wrap; gap: 0 0.3rem; color: var(--ink-muted); }
+  .dot { font-size: 0.5rem; align-self: center; color: var(--gold); }
+  .easy { color: var(--green, var(--ink)); font-weight: 600; }
+
+  .gem {
+    width: 1.7rem; height: 1.7rem; background: url('/design/branding/wizard/gem-off.png') center / contain no-repeat;
+    transition: transform 0.2s ease, filter 0.2s ease;
+  }
+  .option:hover .gem { filter: brightness(1.12); }
+  .sel .gem { background-image: url('/design/branding/wizard/gem-on.png'); animation: gem-pop 0.35s ease-out; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--arcane) 65%, transparent)); }
+  @keyframes gem-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+ 
+  .heading {
+    font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gold); text-align: center; margin: 0.9rem 0 0.45rem; padding-bottom: 0.55rem;
+    background: url('/design/branding/wizard/divider.png') center bottom / 100% 0.7rem no-repeat;
+  }
+  .options { display: flex; flex-direction: column; gap: 0.35rem; }
+</style>
+<div class="col"><p class="hint">Dein Volk bringt angeborene Merkmale mit, etwa Dunkelsicht oder besondere Widerstände.</p>
+<h3 class="heading">Äußeres</h3><div class="options">
+<button class="option"><span class="portrait"><img src="/static/art/figures/elf-feminine/species.webp" alt=""></span><span class="text"><span class="title">Feminin</span></span><span class="gem"></span></button><button class="option sel"><span class="portrait"><img src="/static/art/figures/elf-androgynous/species.webp" alt=""></span><span class="text"><span class="title">Androgyn</span></span><span class="gem"></span></button><button class="option"><span class="portrait"><img src="/static/art/figures/elf-masculine/species.webp" alt=""></span><span class="text"><span class="title">Maskulin</span></span><span class="gem"></span></button></div>
+<h3 class="heading">Volk</h3><div class="options">
+<button class="option"><span class="portrait"><img src="/static/art/figures/dragonborn-androgynous/species.webp" alt=""></span><span class="text"><span class="title">Drachenblütiger</span><span class="sub">Mittelgroß · 9 m</span></span><span class="gem"></span></button><button class="option sel"><span class="portrait"><img src="/static/art/figures/elf-androgynous/species.webp" alt=""></span><span class="text"><span class="title">Elf</span><span class="sub">Mittelgroß · 9 m</span></span><span class="gem"></span></button><button class="option"><span class="portrait"><img src="/static/art/figures/fairy-androgynous/species.webp" alt=""></span><span class="text"><span class="title">Fee</span><span class="sub">Klein · 9 m</span></span><span class="gem"></span></button><button class="option"><span class="portrait"><img src="/static/art/figures/dwarf-androgynous/species.webp" alt=""></span><span class="text"><span class="title">Zwerg</span><span class="sub">Mittelgroß · 9 m</span></span><span class="gem"></span></button></div>
+<h3 class="heading">Klasse</h3><div class="options">
+<button class="option"><span class="portrait"><img src="/static/art/figures/elf-androgynous/classes/barbarian.webp" alt=""></span><span class="text"><span class="title">Barbar</span><span class="sub">Nahkampf</span><span class="tags"><span>Stärke</span><span class="dot">◆</span><span class="easy">Einfach</span></span></span><span class="gem"></span></button><button class="option sel"><span class="portrait"><img src="/static/art/figures/elf-androgynous/classes/bard.webp" alt=""></span><span class="text"><span class="title">Barde</span><span class="sub">Unterstützung</span><span class="tags"><span>Charisma</span><span class="dot">◆</span><span>Mittel</span></span></span><span class="gem"></span></button><button class="option"><span class="portrait"><span class="initial">M</span></span><span class="text"><span class="title">Magier</span><span class="sub">Zauber</span><span class="tags"><span>Intelligenz</span><span class="dot">◆</span><span>Komplex</span></span></span><span class="gem"></span></button></div></div>

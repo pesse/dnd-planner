@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bild-Werkbank</title>
+<style>
+  :root {
+    --bg: #f3ead8; --surface: #fbf6ea; --ink: #2b2118; --ink-soft: #6b5a48; --border: #d8c7a6;
+    --accent: #8a4b1f; --sel: #b8742f; --missing: #e9dcc2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  h1 { font-size: 16px; margin: 0 8px 0 0; }
+  nav button, .chip { background: none; border: 1px solid var(--border); border-radius: 999px; padding: 3px 12px; font: inherit; cursor: pointer; color: var(--ink); }
+  nav button.on, .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .controls label { color: var(--ink-soft); font-size: 12px; }
+  select { font: inherit; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  main { padding: 12px 16px 120px; }
+  .stat { color: var(--ink-soft); font-size: 12px; }
+
+  /* Matrix */
+  .matrix { border-collapse: collapse; }
+  .matrix th { font-size: 11px; font-weight: 600; color: var(--ink-soft); padding: 2px; white-space: nowrap; }
+  .matrix thead th { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; height: 90px; }
+  .matrix thead th.sep, .matrix td.sep { border-left: 2px solid var(--border); }
+  .matrix tbody th { text-align: right; padding-right: 8px; }
+  .matrix td { padding: 1px; }
+  .cell { width: var(--cw, 48px); height: calc(var(--cw, 48px) * 1.5); display: block; border-radius: 3px; object-fit: cover; cursor: zoom-in; }
+  .cell.missing { background: var(--missing); cursor: default; }
+  tr.look-start th, tr.look-start td { border-top: 6px solid transparent; }
+
+  /* Kachel-Raster */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tw, 180px), 1fr)); gap: 10px; }
+  .tile { position: relative; margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .tile img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; cursor: zoom-in; }
+  .tile .ph { width: 100%; aspect-ratio: 2 / 3; background: var(--missing); display: grid; place-items: center; color: var(--ink-soft); font-size: 12px; }
+  .tile figcaption { padding: 4px 8px; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+  .tile.picked { outline: 3px solid var(--sel); }
+  .tile.redo, .cell.redo { outline: 3px solid #b3261e; outline-offset: -3px; }
+  .tile.suggested, .cell.suggested { outline: 3px dashed #d9822b; outline-offset: -3px; }
+  .tile.redo.claude, .cell.redo.claude { outline-color: #6d3b8e; }
+  .tile.planned, .cell.planned { outline-style: double; outline-width: 6px; }
+  .tile.redrawn, .cell.redrawn { outline: 3px solid #1f6fb3; }
+  .tile { position: relative; }
+  .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(40, 25, 10, 0.78); color: #fff; pointer-events: none; }
+  .badge.redrawn { background: #1f6fb3; }
+  .legend { font-size: 12px; color: var(--ink-soft); display: flex; gap: 14px; align-items: center; }
+  .legend i { display: inline-block; width: 14px; height: 10px; margin-right: 4px; vertical-align: -1px; border: 3px solid #b3261e; }
+  .legend i.claude { border-color: #6d3b8e; }
+  .legend i.suggested { border: 3px dashed #d9822b; }
+  .legend i.planned { border: 5px double #b3261e; }
+  .legend i.redrawn { border-color: #1f6fb3; }
+  .pick { border: 1px solid var(--border); background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 0 6px; }
+  .tile.picked .pick { background: var(--sel); color: #fff; border-color: var(--sel); }
+  h2 { font-size: 14px; margin: 18px 0 8px; color: var(--accent); }
+  .legacy { opacity: 0.85; }
+  .stale img, .cell.stale { opacity: 0.35; filter: grayscale(0.6); }
+  .status-final { color: #2e7d32; }
+  .status-running { color: var(--ink-soft); }
+  .legacy figcaption { font-style: italic; }
+
+  /* Vergleich */
+  .compare { display: flex; gap: 10px; overflow-x: auto; height: calc(100vh - 140px); }
+  .compare figure { margin: 0; height: 100%; display: flex; flex-direction: column; flex: 0 0 auto; }
+  .compare img { height: calc(100% - 26px); aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; }
+  .compare figcaption { font-size: 12px; display: flex; justify-content: space-between; gap: 6px; padding-top: 4px; }
+
+  /* Ablage */
+  #tray { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 6px 16px; display: flex; gap: 6px; align-items: center; overflow-x: auto; z-index: 6; }
+  #tray img { height: 64px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 3px; cursor: pointer; }
+  #tray:empty { display: none; }
+
+  /* Leuchtkasten */
+  #box { position: fixed; inset: 0; background: rgba(20, 14, 8, 0.92); display: none; z-index: 10; color: #f3ead8; }
+  #box.open { display: grid; grid-template-rows: 1fr auto; }
+  #box img { max-width: 100vw; max-height: calc(100vh - 48px); margin: auto; display: block; align-self: center; }
+  #box img.mirrored { transform: scaleX(-1); }
+  #box .bar { display: flex; gap: 12px; justify-content: center; align-items: center; padding: 8px; font-size: 13px; }
+  #box .bar button { background: none; border: 1px solid #a08b6a; color: inherit; border-radius: 6px; padding: 2px 10px; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bild-Werkbank</h1>
+  <button id="reload" class="chip" title="Bilder und Markierungen neu einlesen, ohne die Seite neu zu laden">↻ Aktualisieren</button>
+  <nav id="tabs"></nav>
+  <div class="controls" id="controls"></div>
+  <span class="stat" id="stat"></span>
+  <span class="legend"><span><i></i>deine</span><span><i class="claude"></i>von Claude, bestätigt</span><span><i class="suggested"></i>Vorschlag von Claude</span><span><i class="planned"></i>neu malen eingeplant</span><span><i class="redrawn"></i>neu gemalt – prüfen</span></span>
+</header>
+<main id="main"></main>
+<div id="tray"></div>
+<div id="box">
+  <img alt="" />
+  <div class="bar">
+    <button data-act="prev">← zurück</button>
+    <span id="box-cap"></span>
+    <button data-act="pick">+ Vergleich (V)</button>
+    <button data-act="redo">⚑ Neu malen (R)</button>
+    <button data-act="dismiss">✗ Vorschlag verwerfen (X)</button>
+    <button data-act="mirror">Spiegeln (M)</button>
+    <button data-act="next">weiter →</button>
+    <button data-act="close">schließen (Esc)</button>
+  </div>
+</div>
+<script>
+const LOOK_DE = { feminine: 'feminin', androgynous: 'neutral', masculine: 'maskulin' };
+const TABS = [
+  ['matrix', 'Matrix'], ['figure', 'Figur'], ['column', 'Quervergleich'], ['raw', 'Rohbilder & Experimente'], ['compare', 'Vergleich'], ['redo', 'Neu malen'],
+];
+
+const saved = (() => { try { return JSON.parse(localStorage.getItem('art-lab') || '{}'); } catch { return {}; } })();
+const state = Object.assign(
+  { tab: 'matrix', looks: ['feminine', 'androgynous', 'masculine'], species: '', figure: 'dwarf-feminine', column: 'species', cols: 'all', legacy: true, size: 48, tray: [] },
+  saved,
+);
+const persist = () => { try { localStorage.setItem('art-lab', JSON.stringify(state)); } catch {} };
+
+let M = null;
+// Hängt an jede Bild-URL, damit ein Aktualisieren neu gemalte Bilder unter derselben URL nachlädt.
+let rev = 0;
+const src = (url) => (rev ? `${url}?r=${rev}` : url);
+let boxList = [];
+let boxIdx = 0;
+
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null) n.append(c);
+  return n;
+};
+const spDe = (s) => M.species.find((x) => x.slug === s)?.de ?? s;
+const figLabel = (key) => { const i = key.lastIndexOf('-'); return `${spDe(key.slice(0, i))} · ${LOOK_DE[key.slice(i + 1)]}`; };
+const STATUS_MARK = { final: '✓ final', running: '◐ in Arbeit', old: '' };
+const statusOf = (key) => M.figures[key].status;
+/** Variantenbild aus einem älteren Lauf, das die Queue noch ersetzen wird. */
+const isStale = (key, url) => url !== M.figures[key].species && !M.figures[key].fresh.includes(url);
+
+/** Alle Spalten einer Figur: Volk, Klassen, Hintergründe. */
+function columns() {
+  const out = [];
+  if (state.cols !== 'backgrounds') out.push({ id: 'species', de: 'Volk', kind: 'species' });
+  if (state.cols !== 'backgrounds') for (const c of M.classes) out.push({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug });
+  if (state.cols !== 'classes') for (const b of M.backgrounds) out.push({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug });
+  return out;
+}
+const imgOf = (fig, col) => (col.kind === 'species' ? fig.species : fig[col.kind][col.slug]) ?? null;
+function legacyOf(species, col) {
+  if (col.kind === 'classes') return M.legacy.combos[`${species}-${col.slug}`] ?? M.legacy.classes[col.slug] ?? null;
+  if (col.kind === 'backgrounds') return M.legacy.backgrounds[col.slug] ?? null;
+  return null;
+}
+function figureKeys() {
+  return M.species
+    .filter((s) => !state.species || s.slug === state.species)
+    .flatMap((s) => state.looks.map((l) => `${s.slug}-${l}`));
+}
+
+function tile(url, caption, list, { legacy = false, stale = false } = {}) {
+  const picked = url && state.tray.some((t) => t.url === url);
+  return el('figure', { class: `tile${legacy ? ' legacy' : ''}${stale ? ' stale' : ''}${picked ? ' picked' : ''}${url ? flagClasses(url) : ''}`, title: stale ? 'alter Lauf – wird noch ersetzt' : false },
+    url ? el('img', { src: src(url), loading: 'lazy', onclick: () => openBox(list, list.findIndex((x) => x.url === url)) }) : el('div', { class: 'ph' }, 'fehlt'),
+    url && isPlanned(url) ? el('span', { class: 'badge' }, '⟳ eingeplant') : null,
+    url && isRedrawn(url) ? el('span', { class: 'badge redrawn' }, 'neu gemalt') : null,
+    el('figcaption', {}, el('span', {}, caption), url ? el('button', { class: 'pick', title: 'in den Vergleich', onclick: () => togglePick({ url, caption }) }, picked ? '✓' : '+') : null),
+  );
+}
+
+const VIEWS = {
+  matrix() {
+    const cols = columns();
+    const keys = figureKeys().filter((k) => !state.onlyFinal || statusOf(k) === 'final');
+    const list = [];
+    const head = el('tr', {}, el('th'), cols.map((c, i) => el('th', { class: i > 0 && c.kind !== cols[i - 1].kind ? 'sep' : false }, c.de)));
+    const rows = keys.map((k, ri) => {
+      const fig = M.figures[k];
+      const first = ri > 0 && k.split('-')[0] !== keys[ri - 1].split('-')[0];
+      return el('tr', { class: first ? 'look-start' : false }, el('th', {}, figLabel(k), ' ', el('span', { class: `status-${statusOf(k)}` }, STATUS_MARK[statusOf(k)])), cols.map((c, i) => {
+        const url = imgOf(fig, c);
+        const sep = i > 0 && c.kind !== cols[i - 1].kind ? 'sep' : false;
+        if (!url) return el('td', { class: sep }, el('span', { class: 'cell missing', title: `${figLabel(k)} – ${c.de}` }));
+        const item = { url, caption: `${figLabel(k)} – ${c.de}` };
+        list.push(item);
+        return el('td', { class: sep }, el('img', { class: `cell${flagClasses(url)}${isStale(k, url) ? ' stale' : ''}`, src: src(url), loading: 'lazy', title: item.caption, onclick: () => openBox(list, list.indexOf(item)) }));
+      }));
+    });
+    const done = list.length;
+    const total = keys.length * cols.length;
+    document.getElementById('stat').textContent = `${done} / ${total} Bilder vorhanden`;
+    return el('table', { class: 'matrix', style: `--cw:${state.size}px` }, el('thead', {}, head), el('tbody', {}, rows));
+  },
+
+  figure() {
+    const fig = M.figures[state.figure];
+    const species = state.figure.slice(0, state.figure.lastIndexOf('-'));
+    const sections = [
+      ['Volk', [{ id: 'species', de: 'Volk', kind: 'species' }]],
+      ['Klassen', M.classes.map((c) => ({ id: c.slug, de: c.de, kind: 'classes', slug: c.slug }))],
+      ['Hintergründe', M.backgrounds.map((b) => ({ id: b.slug, de: b.de, kind: 'backgrounds', slug: b.slug }))],
+    ];
+    const list = [];
+    const out = [];
+    for (const [title, cols] of sections) {
+      const tiles = [];
+      for (const c of cols) {
+        const url = imgOf(fig, c);
+        if (url) list.push({ url, caption: `${figLabel(state.figure)} – ${c.de}` });
+        const stale = url && isStale(state.figure, url);
+        tiles.push(tile(url, stale ? `${c.de} (alt)` : c.de, list, { stale }));
+        const old = state.legacy ? legacyOf(species, c) : null;
+        if (old) { list.push({ url: old, caption: `alt – ${c.de}` }); tiles.push(tile(old, `alt: ${c.de}`, list, { legacy: true })); }
+      }
+      out.push(el('h2', {}, title), el('div', { class: 'grid', style: `--tw:${state.size * 3.5}px` }, tiles));
+    }
+    const count = [fig.species, ...Object.values(fig.classes), ...Object.values(fig.backgrounds)].filter(Boolean).length;
+    const st = { final: 'final – bewertbar', running: `in Arbeit – ${fig.fresh.length} / ${M.classes.length + M.backgrounds.length} neu`, old: 'noch nicht neu gemalt' }[fig.status];
+    document.getElementById('stat').textContent = `${count} / ${1 + M.classes.length + M.backgrounds.length} Bilder · ${st}`;
+    return el('div', {}, out);
+  },
+
+  column() {
+    const col = [{ id: 'species', de: 'Volk', kind: 'species' },
+      ...M.classes.map((c) => ({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug })),
+      ...M.backgrounds.map((b) => ({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug }))].find((c) => c.id === state.column);
+    const list = [];
+    const out = [];
+    for (const look of state.looks) {
+      const tiles = M.species.filter((s) => !state.species || s.slug === state.species).map((s) => {
+        const key = `${s.slug}-${look}`;
+        const url = imgOf(M.figures[key], col);
+        if (url) list.push({ url, caption: `${s.de} · ${LOOK_DE[look]} – ${col.de}` });
+        const stale = url && isStale(key, url);
+        return tile(url, stale ? `${s.de} (alt)` : s.de, list, { stale });
+      });
+      out.push(el('h2', {}, `${col.de} · ${LOOK_DE[look]}`), el('div', { class: 'grid', style: `--tw:${state.size * 3}px` }, tiles));
+    }
+    document.getElementById('stat').textContent = `${list.length} Bilder`;
+    return el('div', {}, out);
+  },
+
+  raw() {
+    const out = [];
+    let n = 0;
+    for (const g of M.raw) {
+      if (!g.files.length) continue;
+      const list = g.files.map((f) => ({ url: f.url, caption: `${g.group}/${f.name}` }));
+      n += list.length;
+      out.push(el('h2', {}, g.group), el('div', { class: 'grid', style: `--tw:${state.size * 3}px` }, g.files.map((f) => tile(f.url, f.name, list))));
+    }
+    if (M.notes.length) out.push(el('h2', {}, 'Prompts / Identitäten'), el('p', {}, M.notes.map((u) => [el('a', { href: u, target: '_blank' }, u.split('/').pop()), ' '])));
+    document.getElementById('stat').textContent = `${n} Rohbilder`;
+    return el('div', {}, out);
+  },
+
+  redo() {
+    const suggested = redo.filter((r) => r.by === 'claude' && !r.confirmed && !r.dismissed);
+    const confirmed = redo.filter((r) => (r.by !== 'claude' || r.confirmed) && !r.dismissed);
+    const redrawn = confirmed.filter((r) => r.redrawn);
+    const planned = confirmed.filter((r) => r.planned && !r.redrawn);
+    const open = confirmed.filter((r) => !r.planned && !r.redrawn);
+    document.getElementById('stat').textContent = `${suggested.length} Vorschläge · ${open.length} offen · ${planned.length} eingeplant · ${redrawn.length} neu gemalt`;
+    const grid = (list, cls, buttons) => el('div', { class: 'grid', style: `--tw:${state.size * 3.5}px` }, list.map((r, i) => el('figure', { class: `tile${flagClasses(r.url)}` },
+      el('img', { src: src(r.url), onclick: () => openBox(list, i) }),
+      el('figcaption', {}, el('span', {}, r.caption, r.note ? el('br') : null, r.note ? el('em', {}, r.note) : null), buttons(r)),
+    )));
+    const out = [];
+    if (suggested.length) out.push(el('h2', {}, `Vorschläge von Claude — prüfen (${suggested.length})`), grid(suggested, 'suggested', (r) => el('span', {},
+      el('button', { class: 'pick', title: 'bestätigen', onclick: () => toggleRedo(r) }, '✓'), ' ',
+      el('button', { class: 'pick', title: 'verwerfen', onclick: () => dismissSuggestion(r) }, '✗'))));
+    if (redrawn.length) out.push(el('h2', {}, `Neu gemalt — prüfen (${redrawn.length})`), grid(redrawn, '', (r) => el('span', {},
+      el('button', { class: 'pick', title: 'passt – Markierung entfernen', onclick: () => dismissSuggestion(r) }, '✓'), ' ',
+      el('button', { class: 'pick', title: 'nochmal neu malen', onclick: () => toggleRedo(r) }, '⚑'))));
+    out.push(el('h2', {}, `Neu malen — noch nicht eingeplant (${open.length})`));
+    out.push(open.length ? grid(open, '', (r) => el('button', { class: 'pick', onclick: () => toggleRedo(r) }, 'entfernen'))
+      : el('p', {}, 'Nichts offen — im Leuchtkasten R drücken.'));
+    if (planned.length) out.push(el('h2', {}, `Eingeplant (${planned.length})`), grid(planned, '', () => null));
+    return el('div', {}, out);
+  },
+
+  compare() {
+    document.getElementById('stat').textContent = `${state.tray.length} im Vergleich`;
+    if (!state.tray.length) return el('p', {}, 'Noch nichts ausgewählt — „+“ an einem Bild oder V im Leuchtkasten.');
+    const list = state.tray;
+    return el('div', { class: 'compare' }, list.map((t, i) => el('figure', {},
+      el('img', { src: src(t.url), onclick: () => openBox(list, i) }),
+      el('figcaption', {}, el('span', {}, t.caption), el('button', { class: 'pick', onclick: () => togglePick(t) }, 'entfernen')),
+    )));
+  },
+};
+
+function controls() {
+  const c = [];
+  const lookChips = () => [el('label', {}, 'Äußeres'), M.looks.map((l) => el('button', {
+    class: `chip${state.looks.includes(l) ? ' on' : ''}`,
+    onclick: () => { state.looks = state.looks.includes(l) ? state.looks.filter((x) => x !== l) : M.looks.filter((x) => x === l || state.looks.includes(x)); render(); },
+  }, LOOK_DE[l]))];
+  const speciesSel = () => [el('label', {}, 'Volk'), el('select', { onchange: (e) => { state.species = e.target.value; render(); } },
+    el('option', { value: '' }, 'alle'), M.species.map((s) => el('option', { value: s.slug, selected: s.slug === state.species }, s.de)))];
+  const size = () => [el('label', {}, 'Größe'), el('input', { type: 'range', min: 28, max: 120, value: state.size, oninput: (e) => { state.size = +e.target.value; renderMain(); } })];
+
+  if (state.tab === 'matrix') {
+    c.push(...lookChips(), ...speciesSel(), el('label', {}, 'Spalten'),
+      el('select', { onchange: (e) => { state.cols = e.target.value; render(); } },
+        [['all', 'alle'], ['classes', 'Volk + Klassen'], ['backgrounds', 'Hintergründe']].map(([v, t]) => el('option', { value: v, selected: v === state.cols }, t))),
+      el('button', { class: `chip${state.onlyFinal ? ' on' : ''}`, onclick: () => { state.onlyFinal = !state.onlyFinal; render(); } }, 'nur finale'),
+      ...size());
+  } else if (state.tab === 'figure') {
+    c.push(el('label', {}, 'Figur'), el('select', { onchange: (e) => { state.figure = e.target.value; render(); } },
+      M.species.flatMap((s) => M.looks.map((l) => {
+        const k = `${s.slug}-${l}`;
+        return el('option', { value: k, selected: k === state.figure }, `${{ final: '✓ ', running: '◐ ', old: '' }[statusOf(k)]}${figLabel(k)}${M.figures[k].species ? '' : ' (fehlt)'}`);
+      }))),
+      el('button', { class: `chip${state.legacy ? ' on' : ''}`, onclick: () => { state.legacy = !state.legacy; render(); } }, 'alte Bilder daneben'),
+      ...size());
+  } else if (state.tab === 'column') {
+    c.push(el('label', {}, 'Bild'), el('select', { onchange: (e) => { state.column = e.target.value; render(); } },
+      el('option', { value: 'species', selected: state.column === 'species' }, 'Volk (Basisfigur)'),
+      el('optgroup', { label: 'Klassen' }, M.classes.map((x) => el('option', { value: `c:${x.slug}`, selected: state.column === `c:${x.slug}` }, x.de))),
+      el('optgroup', { label: 'Hintergründe' }, M.backgrounds.map((x) => el('option', { value: `b:${x.slug}`, selected: state.column === `b:${x.slug}` }, x.de)))),
+    ...lookChips(), ...speciesSel(), ...size());
+  } else if (state.tab === 'raw') {
+    c.push(...size());
+  } else if (state.tab === 'compare' && state.tray.length) {
+    c.push(el('button', { class: 'chip', onclick: () => { state.tray = []; render(); } }, 'leeren'));
+  }
+  return c;
+}
+
+let redo = [];
+const flagOf = (url) => redo.find((r) => r.url === url && !r.dismissed);
+const isRedo = (url) => { const f = flagOf(url); return !!f && (f.by !== 'claude' || !!f.confirmed); };
+const isSuggested = (url) => { const f = flagOf(url); return f?.by === 'claude' && !f.confirmed; };
+const isClaude = (url) => flagOf(url)?.by === 'claude';
+const isRedrawn = (url) => !!flagOf(url)?.redrawn;
+const isPlanned = (url) => { const f = flagOf(url); return !!f?.planned && !f.redrawn; };
+// Neu gemalt verdrängt die Herkunft: `.redo.claude` ist spezifischer und würde das Blau überdecken.
+const flagClasses = (url) => (isRedrawn(url) ? ' redrawn' : [isRedo(url) && 'redo', isClaude(url) && 'claude', isSuggested(url) && 'suggested', isPlanned(url) && 'planned']
+  .filter(Boolean).map((c) => ` ${c}`).join(''));
+async function postRedo(change) {
+  const res = await fetch('/redo.json', { method: 'POST', body: JSON.stringify(change) });
+  redo = await res.json();
+  render();
+}
+/** Vorschlag → bestätigen (Notiz editierbar), eigene Markierung → entfernen, sonst neu markieren. */
+async function toggleRedo(item) {
+  const flag = flagOf(item.url);
+  if (flag?.redrawn) {
+    const note = prompt(`Neu gemalt: ${item.caption}\nPasst noch nicht? Was stimmt nicht?`, flag.note ?? '');
+    if (note === null) return;
+    return postRedo({ add: { url: item.url, caption: item.caption, note: note.trim(), by: 'user', at: new Date().toISOString() } });
+  }
+  if (flag?.by === 'claude' && !flag.confirmed) {
+    const note = prompt(`Vorschlag bestätigen: ${flag.caption}`, flag.note ?? '');
+    if (note === null) return;
+    return postRedo({ confirm: item.url, add: { note: note.trim() } });
+  }
+  if (flag) return postRedo({ remove: item.url });
+  const note = prompt(`Neu malen: ${item.caption}\nWas stimmt nicht? (optional)`);
+  if (note === null) return;
+  return postRedo({ add: { url: item.url, caption: item.caption, note: note.trim(), by: 'user', at: new Date().toISOString() } });
+}
+async function dismissSuggestion(item) {
+  if (isSuggested(item.url)) await postRedo({ dismiss: item.url });
+  else if (isRedrawn(item.url)) await postRedo({ remove: item.url });
+}
+
+function togglePick(item) {
+  state.tray = state.tray.some((t) => t.url === item.url) ? state.tray.filter((t) => t.url !== item.url) : [...state.tray, item];
+  render();
+}
+
+function renderTray() {
+  const tray = document.getElementById('tray');
+  tray.replaceChildren();
+  if (!state.tray.length || state.tab === 'compare') return;
+  tray.append(el('button', { class: 'chip on', onclick: () => { state.tab = 'compare'; render(); } }, `Vergleichen (${state.tray.length})`),
+    ...state.tray.map((t) => el('img', { src: src(t.url), title: `${t.caption} — klicken entfernt`, onclick: () => togglePick(t) })));
+}
+
+function render() {
+  document.getElementById('tabs').replaceChildren(...TABS.map(([id, t]) => el('button', { class: state.tab === id ? 'on' : false, onclick: () => { state.tab = id; render(); } }, t)));
+  document.getElementById('controls').replaceChildren(...controls().flat());
+  renderMain();
+  renderTray();
+}
+// Ohne Kopfzeile: der Schieberegler darf beim Ziehen nicht neu erzeugt werden.
+function renderMain() {
+  persist();
+  document.getElementById('main').replaceChildren(VIEWS[state.tab]());
+}
+
+const box = document.getElementById('box');
+const boxImg = box.querySelector('img');
+function openBox(list, i) { boxList = list; boxIdx = Math.max(0, i); showBox(); box.classList.add('open'); }
+function showBox() {
+  const it = boxList[boxIdx];
+  boxImg.src = src(it.url);
+  boxImg.classList.remove('mirrored');
+  const picked = state.tray.some((t) => t.url === it.url);
+  const flag = flagOf(it.url);
+  const label = isRedrawn(it.url) ? 'neu gemalt (R: nochmal, X: passt)' : isPlanned(it.url) ? 'eingeplant' : isSuggested(it.url) ? 'Vorschlag' : 'neu malen';
+  document.getElementById('box-cap').textContent = `${it.caption}  (${boxIdx + 1}/${boxList.length})${picked ? '  ✓ im Vergleich' : ''}${flag ? `  ⚑ ${label}${flag.note ? `: ${flag.note}` : ''}` : ''}`;
+}
+const step = (d) => { boxIdx = (boxIdx + d + boxList.length) % boxList.length; showBox(); };
+const boxAct = {
+  prev: () => step(-1), next: () => step(1), close: () => box.classList.remove('open'),
+  mirror: () => boxImg.classList.toggle('mirrored'),
+  pick: () => { togglePick(boxList[boxIdx]); showBox(); },
+  redo: async () => { await toggleRedo(boxList[boxIdx]); showBox(); },
+  dismiss: async () => { await dismissSuggestion(boxList[boxIdx]); showBox(); },
+};
+box.addEventListener('click', (e) => { const a = e.target.dataset?.act; if (a) boxAct[a](); else if (e.target === box) boxAct.close(); });
+document.addEventListener('keydown', (e) => {
+  if (!box.classList.contains('open')) return;
+  const k = { ArrowLeft: 'prev', ArrowRight: 'next', Escape: 'close', m: 'mirror', v: 'pick', r: 'redo', x: 'dismiss' }[e.key];
+  if (k) { e.preventDefault(); boxAct[k](); }
+});
+
+async function load() {
+  const [m, r] = await Promise.all([fetch('/manifest.json').then((x) => x.json()), fetch('/redo.json').then((x) => x.json())]);
+  M = m;
+  redo = r;
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y);
+}
+const reloadBtn = document.getElementById('reload');
+reloadBtn.addEventListener('click', async () => {
+  reloadBtn.disabled = true;
+  rev = Date.now();
+  await load();
+  reloadBtn.disabled = false;
+});
+load();
+</script>
+</body>
+</html>

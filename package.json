@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "sheets": "vite-node -c vitest.config.ts scripts/render-character-sheets.mts",
+    "artlab": "node design/art-lab/serve.mjs",
     "schema:examples": "node scripts/gen-schema-examples.mjs",
     "schema:examples:check": "node scripts/gen-schema-examples.mjs --check",
     "eval": "node evals/cli.mjs",
