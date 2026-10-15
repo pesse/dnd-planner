@@ -220,6 +220,7 @@
     "string"
   ],
   "portraitFile": "string",
+  "presentation": "feminine",
   "companion": {
     "text": "string",
     "imageFile": "string"

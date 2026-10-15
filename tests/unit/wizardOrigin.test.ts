@@ -60,7 +60,18 @@ describe('Stimmungsbild der Herkunfts-Schritte', () => {
     expect(originArtCandidates('class', keys)).toEqual([
       '/art/combos/dwarf-wizard.webp', '/art/classes/wizard.webp', '/art/species/dwarf.webp',
     ]);
-    expect(originArtCandidates('species', keys)[1]).toBe('/art/species/dwarf.webp');
+    expect(originArtCandidates('species', keys)[0]).toBe('/art/species/dwarf.webp');
+  });
+
+  it('nimmt mit Äußerem zuerst die Figur', () => {
+    const fig = { ...keys, presentation: 'feminine' as const };
+    expect(originArtCandidates('species', fig)[0]).toBe('/art/figures/dwarf-feminine/species.webp');
+    expect(originArtCandidates('background', fig).slice(0, 2)).toEqual([
+      '/art/figures/dwarf-feminine/backgrounds/sage.webp', '/art/backgrounds/sage.webp',
+    ]);
+    expect(originArtCandidates('class', fig).slice(0, 2)).toEqual([
+      '/art/figures/dwarf-feminine/classes/wizard.webp', '/art/combos/dwarf-wizard.webp',
+    ]);
   });
 
   it('zeigt im Hintergrund-Schritt zuerst den Hintergrund', () => {

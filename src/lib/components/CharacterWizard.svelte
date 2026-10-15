@@ -8,6 +8,7 @@
   import { getBackgroundByKey } from '../backgroundsLibrary';
   import { abilityKeyOf } from '../schemas/abilities';
   import { loadOriginCatalog, type OriginCatalog, type OriginKind } from '../services/wizard/originCatalog';
+  import { preloadSpeciesArt } from '../services/wizard/originArt';
   import { STANDARD_LANGUAGE_PICKS } from '../services/wizard/personal';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
@@ -36,6 +37,7 @@
   import SpellStep from './wizard/SpellStep.svelte';
   import EquipmentChoiceStep from './wizard/EquipmentChoiceStep.svelte';
   import ReviewStep from './wizard/ReviewStep.svelte';
+  import WizardLoading from './wizard/WizardLoading.svelte';
   import './wizard/wizard.css';
 
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
@@ -48,9 +50,9 @@
     | OriginKind | 'languages' | 'abilities' | 'background-asi' | 'trait-feat' | 'proficiencies' | 'mastery'
     | 'fighting-style' | 'option-pool' | 'features' | 'spells' | 'equipment' | 'personal' | 'review';
   const ALL_STEPS: { id: StepId; label: string }[] = [
-    { id: 'class', label: 'Klasse' },
-    { id: 'background', label: 'Hintergrund' },
     { id: 'species', label: 'Volk' },
+    { id: 'background', label: 'Hintergrund' },
+    { id: 'class', label: 'Klasse' },
     { id: 'languages', label: 'Sprachen' },
     { id: 'abilities', label: 'Attribute' },
     { id: 'background-asi', label: 'Attributsbonus' },
@@ -79,10 +81,10 @@
           (s.id !== 'spells' || spellsAvailable)),
     ),
   );
-  let currentStep = $state<StepId>('class');
+  let currentStep = $state<StepId>('species');
   const stepIndex = $derived(Math.max(0, steps.findIndex((s) => s.id === currentStep)));
 
-  const ORIGIN_STEPS: StepId[] = ['class', 'background', 'species'];
+  const ORIGIN_STEPS: StepId[] = ['species', 'background', 'class'];
   const isOrigin = $derived(ORIGIN_STEPS.includes(currentStep));
 
   let catalog = $state<OriginCatalog | null>(null);
@@ -97,7 +99,24 @@
 
   let lastOriginSig = '';
 
-  void loadOriginCatalog().then((c) => (catalog = c));
+  let ready = $state(false);
+  let artProgress = $state(0);
+  // Eine langsame Platte darf den Wizard nicht festhalten: Fehlendes zieht der Schritt selbst nach.
+  const PRELOAD_LIMIT_MS = 6000;
+  // Aus dem Cache wäre die Ladeansicht sonst nur ein Flackern.
+  const PRELOAD_MIN_MS = 700;
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  void Promise.all([
+    Promise.race([
+      loadOriginCatalog().then((c) => {
+        catalog = c;
+        return preloadSpeciesArt(c.species.map((s) => s.key), (share) => (artProgress = share));
+      }),
+      wait(PRELOAD_LIMIT_MS),
+    ]),
+    wait(PRELOAD_MIN_MS),
+  ]).finally(() => (ready = true));
   void getSpellLibrary().then((s) => (spellLib = s));
 
   const selectedClass = $derived(catalog?.classes.find((c) => c.key === w.klass.sourceKey) ?? null);
@@ -256,7 +275,7 @@
     switch (currentStep) {
       case 'class': return !!w.klass.sourceKey;
       case 'background': return !!w.background.sourceKey;
-      case 'species': return !!w.species.sourceKey;
+      case 'species': return !!w.species.sourceKey && !!w.presentation;
       case 'languages': return w.languages.length === STANDARD_LANGUAGE_PICKS;
       // Der Standardsatz kostet genau die 27 Punkte — dieselbe Prüfung trägt beide Methoden.
       case 'abilities': return pointBuyComplete(w.scores);
@@ -321,6 +340,9 @@
   {/if}
 {/snippet}
 
+{#if !ready}
+  <WizardLoading progress={artProgress} />
+{:else}
 <FullscreenWizard
   title="Neuer Charakter"
   label="Charakter erstellen"
@@ -417,6 +439,7 @@
     <ReviewStep {w} {createError} />
   {/if}
 </FullscreenWizard>
+{/if}
 
 
 <style>

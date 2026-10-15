@@ -6,6 +6,9 @@
   import { speciesFacts } from '../libraryView/speciesView';
   import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
+  import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
+  import { originArtCandidates } from '../../services/wizard/originArt';
+  import ChoiceOption from './ChoiceOption.svelte';
 
   let { kind, w, catalog }: { kind: OriginKind; w: CharacterWizard; catalog: OriginCatalog | null } = $props();
 
@@ -53,6 +56,30 @@
     else w.background = link;
   }
 
+  const PRESENTATION_LABEL: Record<Presentation, string> = {
+    feminine: 'Feminin', androgynous: 'Neutral', masculine: 'Maskulin',
+  };
+
+  const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
+
+  /** Nur Bilder dieser Option selbst — ein Rückfall aufs Volksbild sähe in jeder Zeile gleich aus. */
+  function tileArt(key: string): string[] {
+    const keys = {
+      speciesKey: kind === 'species' ? key : w.species.sourceKey,
+      classKey: kind === 'class' ? key : '',
+      backgroundKey: kind === 'background' ? key : '',
+      presentation: w.presentation || undefined,
+    };
+    return originArtCandidates(kind, keys).filter((u) => u.includes(slugOf(key)));
+  }
+
+  const presentationArt = (p: Presentation): string[] =>
+    w.species.sourceKey
+      ? originArtCandidates('species', { speciesKey: w.species.sourceKey, classKey: '', backgroundKey: '', presentation: p }).slice(0, 1)
+      : [];
+
+  const HEADING: Record<OriginKind, string> = { species: 'Volk', background: 'Hintergrund', class: 'Klasse' };
+
   const HINTS: Record<OriginKind, string> = {
     class: 'Deine Klasse bestimmt, was dein Charakter im Abenteuer am besten kann. Neu dabei? Klassen mit „Einfach“ sind ein guter Start.',
     background: 'Dein Hintergrund erzählt, was du vor dem Abenteuer warst — er gibt dir Attributsboni, Fertigkeiten, ein Herkunftstalent und Ausrüstung.',
@@ -61,39 +88,32 @@
 </script>
 
 <p class="hint">{HINTS[kind]}</p>
+{#if kind === 'species'}
+  <h3 class="heading">Äußeres</h3>
+  <div class="options" role="radiogroup" aria-label="Äußeres">
+    {#each PRESENTATIONS as p (p)}
+      <ChoiceOption title={PRESENTATION_LABEL[p]} selected={w.presentation === p} art={presentationArt(p)}
+        onselect={() => (w.presentation = p)} />
+    {/each}
+  </div>
+{/if}
+<h3 class="heading">{HEADING[kind]}</h3>
 {#if !catalog}
   <p class="hint">Lade Bibliothek …</p>
 {:else}
-  <div class="tiles">
+  <div class="options" role="radiogroup" aria-label={HEADING[kind]}>
     {#each tiles as t (t.key)}
-      <button type="button" class="tile" class:sel={t.key === selectedKey} onclick={() => select(t)}>
-        <span class="tile-title">{t.title}</span>
-        {#if t.subtitle}<span class="tile-sub">{t.subtitle}</span>{/if}
-        {#if t.tags.length}
-          <span class="tile-tags">
-            {#each t.tags as tag}<span class="tag" class:easy={tag.easy}>{tag.label}</span>{/each}
-          </span>
-        {/if}
-      </button>
+      <ChoiceOption title={t.title} subtitle={t.subtitle} tags={t.tags} selected={t.key === selectedKey}
+        art={tileArt(t.key)} onselect={() => select(t)} />
     {/each}
   </div>
 {/if}
 
 <style>
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem; }
-  .tile {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left;
-    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
-    padding: 0.4rem 0.55rem; cursor: pointer; font: inherit;
+  .heading {
+    font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gold); text-align: center; margin: 0.9rem 0 0.45rem; padding-bottom: 0.55rem;
+    background: url('/branding/wizard/divider.png') center bottom / 100% 0.7rem no-repeat;
   }
-  .tile:hover { border-color: var(--border-strong); }
-  .tile.sel { border-color: var(--arcane, var(--gold)); box-shadow: inset 0 0 0 1px var(--arcane, var(--gold)); }
-  .tile-title { font-weight: 700; font-size: 0.9rem; }
-  .tile-sub { font-size: 0.74rem; color: var(--ink-soft); line-height: 1.3; }
-  .tile-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-  .tag {
-    font-size: 0.7rem; color: var(--ink-muted); border: 1px solid var(--border);
-    border-radius: 999px; padding: 0 0.45rem;
-  }
-  .tag.easy { color: var(--green, var(--ink)); border-color: var(--green, var(--border-strong)); }
+  .options { display: flex; flex-direction: column; gap: 0.3rem; }
 </style>

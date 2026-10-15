@@ -18,6 +18,7 @@ geändert hat.
 | Charakterporträt | `vault/characters/<id>` | `portrait.png` oder `.jpg` (das `ImageField` nimmt nur diese beiden), Hochformat wie die vorhandenen (~1150 × 1400) |
 | UI-Grafik (Logo, Hintergründe, Icons) | `static` → Laufzeitbild nach `branding/` | PNG/WebP mit Alpha, Größe nach Einsatzort |
 | Stimmungsbild im Charakter-Wizard (Klasse, Volk, Hintergrund, Kombi Volk×Klasse) | `design/art/<typ>` | Roh-PNG 1024 × 1536. Die App lädt WebP 640 × 960 aus `static/art/<typ>/<slug>.webp` (`slug` = Bibliotheks-Key ohne Quellpräfix, Kombi `<volk>-<klasse>`), Suche und Spiegelung in `services/wizard/originArt.ts`. Stilblock in `design/art/prompt.md` |
+| Figur je Volk × Äußeres (feminine/androgynous/masculine) und ihre Varianten je Klasse und Hintergrund | `design/art/figures-…` | Roh-PNG 1024 × 1536. Die App lädt `static/art/figures/<volk>-<äußeres>/species.webp`, `…/classes/<klasse>.webp` und `…/backgrounds/<hintergrund>.webp`; jede Variante bekommt das `species`-Bild der Figur als `-i`, damit es dieselbe Person bleibt |
 | App-Icon | `static` → Quelle nach `branding/sources/` | 1024 × 1024-PNG mit Alpha. Die Größenvarianten erzeugt `npx tauri icon <quelle>` (unter Windows, über `powershell.exe`), nicht Codex. Danach die Ordner `android/`, `ios/` und `64x64.png` löschen, die `tauri.conf.json` nicht nutzt |
 
 `static/` landet vollständig im Installer. Rohbilder, Vorschauen und Icon-Quellen gehören

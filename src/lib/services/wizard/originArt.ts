@@ -1,8 +1,9 @@
 /**
- * Stimmungsbilder der Herkunfts-Schritte aus `static/art/`: `classes/<klasse>`, `species/<volk>`,
- * `backgrounds/<hintergrund>` und `combos/<volk>-<klasse>`, je `.webp`; der Name ist der
- * Bibliotheks-Key ohne Quellen-Präfix.
+ * Stimmungsbilder aus `static/art/` (`.webp`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
+ * je Volk und Äußerem unter `figures/<volk>-<äußeres>/{species,classes/<k>,backgrounds/<h>}`; für
+ * Charaktere ohne Äußeres und noch ungemalte Figuren `classes/`, `species/`, `backgrounds/`, `combos/`.
  */
+import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
 import type { OriginKind } from './originCatalog';
 
 /** `srd-2024_dwarf` → `dwarf` */
@@ -14,6 +15,7 @@ export interface OriginArtKeys {
   classKey: string;
   speciesKey: string;
   backgroundKey: string;
+  presentation?: Presentation;
 }
 
 /** Das spezifischste zuerst, dann was im aktuellen Schritt im Vordergrund steht. */
@@ -22,10 +24,14 @@ export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[
   const spc = k.speciesKey && `species/${slugOf(k.speciesKey)}`;
   const bg = k.backgroundKey && `backgrounds/${slugOf(k.backgroundKey)}`;
   const combo = k.classKey && k.speciesKey && `combos/${slugOf(k.speciesKey)}-${slugOf(k.classKey)}`;
+  const fig = k.speciesKey && k.presentation && `figures/${slugOf(k.speciesKey)}-${k.presentation}`;
+  const figSpc = fig && `${fig}/species`;
+  const figCls = fig && k.classKey && `${fig}/classes/${slugOf(k.classKey)}`;
+  const figBg = fig && k.backgroundKey && `${fig}/backgrounds/${slugOf(k.backgroundKey)}`;
   const order = {
-    class: [combo, cls, spc],
-    species: [combo, spc, cls],
-    background: [bg, combo, cls, spc],
+    species: [figSpc, spc, combo, cls],
+    background: [figBg, bg, figSpc, combo, spc],
+    class: [figCls, combo, cls, figSpc, spc],
   }[kind];
   return order.filter((n): n is string => !!n).map(artUrl);
 }
@@ -64,4 +70,20 @@ export const isMirroredArt = (url: string): boolean => MIRRORED.has(url);
 export async function resolveOriginArt(candidates: string[]): Promise<string | null> {
   for (const url of candidates) if (await probe(url)) return url;
   return null;
+}
+
+/**
+ * Lädt das Bild jedes Volks in jedem Äußeren vor, damit der Volk-Schritt nicht Bild für Bild
+ * nachzieht. `onprogress` erhält den Anteil 0…1.
+ */
+export async function preloadSpeciesArt(speciesKeys: string[], onprogress?: (share: number) => void): Promise<void> {
+  const looks: (Presentation | undefined)[] = [...PRESENTATIONS, undefined];
+  const lists = speciesKeys.flatMap((speciesKey) =>
+    looks.map((presentation) => originArtCandidates('species', { speciesKey, presentation, classKey: '', backgroundKey: '' })),
+  );
+  let done = 0;
+  await Promise.all(lists.map(async (list) => {
+    await resolveOriginArt(list);
+    onprogress?.(++done / lists.length);
+  }));
 }

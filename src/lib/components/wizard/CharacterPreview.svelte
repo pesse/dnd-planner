@@ -26,7 +26,7 @@
       cs: w.chosenSkills, gs: w.grantedSkills, m: w.masteries, fs: w.fightingStyles, tf: w.traitFeats,
       op: w.optionPicks, sp: w.spellcasting, da: w.declaredAnswers, d: w.declared.length,
     }));
-    if (!w.klass.sourceKey) { incomplete = true; sections = []; return; }
+    if (!w.species.sourceKey) { incomplete = true; sections = []; return; }
     let cancelled = false;
     const timer = setTimeout(() => {
       void buildWizardCharacter(w).then(
@@ -40,13 +40,15 @@
 
   const abilities = $derived(sections.find((s) => s.id === 'abilities')?.values ?? []);
   const rest = $derived(sections.filter((s) => HEADINGS[s.id] && s.values.length));
+  const pending = $derived([!w.background.sourceKey && 'Hintergrund', !w.klass.sourceKey && 'Klasse'].filter(Boolean).join(' und '));
 </script>
 
 <div class="preview">
   <h3>Dein Charakter</h3>
   {#if incomplete}
-    <p class="muted">Noch unvollständig — wähle zuerst eine Klasse.</p>
+    <p class="muted">Noch unvollständig — wähle zuerst ein Volk.</p>
   {:else}
+    {#if pending}<p class="muted">Zwischenstand — noch offen: {pending}.</p>{/if}
     <div class="abilities">
       {#each abilities as a}
         <div class="ability" class:save={!!a.note}>

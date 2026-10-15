@@ -165,6 +165,9 @@ const characterBackgroundSchema = z
   })
   .default({ sourceKey: '', name: '' });
 
+export const PRESENTATIONS = ['feminine', 'androgynous', 'masculine'] as const;
+export type Presentation = (typeof PRESENTATIONS)[number];
+
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
   alter: z.string().default(''),
@@ -305,6 +308,10 @@ export const characterSchema = z.object({
     .default([])
     .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
+  presentation: z
+    .enum(PRESENTATIONS)
+    .optional()
+    .describe('Äußeres der Figur auf den Stimmungsbildern (Wizard, Bogen ohne eigenes Portrait).'),
   /**
    * Gefährte, Vertrauter oder Reittier als reiner Freitext samt Bild — bewusst ohne eigene
    * Werte: was am Tisch würfelt, ist ein Monster der Bibliothek, kein zweites Charakterschema.

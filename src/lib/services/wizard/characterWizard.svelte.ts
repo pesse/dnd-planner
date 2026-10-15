@@ -7,7 +7,7 @@ import type { DeclaredAnswer } from '../declaredChoice';
 import type { SpellAccessGrant } from '../spellcasting/access';
 import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
-import type { OptionPick } from '$lib/schemas/characterSchema';
+import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
@@ -49,6 +49,7 @@ export class CharacterWizard {
   abilityMethod = $state<'standard' | 'pointBuy'>('standard');
 
   species: WizardLink & { subspeciesKey?: string; subspeciesName?: string } = $state({ sourceKey: '', name: '' });
+  presentation = $state<Presentation | ''>('');
   klass: WizardLink & { subclassKey?: string; subclassName?: string } = $state({ sourceKey: '', name: '' });
   background: WizardLink = $state({ sourceKey: '', name: '' });
 

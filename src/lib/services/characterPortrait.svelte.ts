@@ -16,6 +16,7 @@ export function createCharacterPortrait(deps: {
       classKey: c.classes[0]?.sourceKey ?? '',
       speciesKey: c.species.sourceKey,
       backgroundKey: '',
+      presentation: c.presentation,
     });
   });
   // Als String, damit nicht jede Bearbeitung am Charakter das Bild neu auflöst und flackert.

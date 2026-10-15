@@ -196,4 +196,15 @@ describe('Größenkategorie der Spezies', () => {
     const unanswered = await buildWizardCharacter(wizardStub({ species: humanSpecies, declared }));
     expect(unanswered.personal.sizeCat).toBe('');
   });
+
+  it('baut schon nach der Volkswahl, ohne Hintergrund und Klasse', async () => {
+    // Der Wizard fragt das Volk zuerst ab, und die Vorschau zeigt ab da den Zwischenstand.
+    const gnome = await buildWizardCharacter(wizardStub({
+      klass: { sourceKey: '', name: '' },
+      background: { sourceKey: '', name: '' },
+    }));
+    expect(gnome.personal.sizeCat).toBe('Klein');
+    expect(gnome.speed).toBe('9');
+    expect(gnome.hpMax).toBe('');
+  });
 });
