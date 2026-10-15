@@ -1,0 +1,11 @@
+node_modules/
+out/
+out2/
+codex-ui/
+fixes/
+*.bak*
+*.log
+*.txt
+*.jpg
+review/*.json
+review/prompt-*.md
