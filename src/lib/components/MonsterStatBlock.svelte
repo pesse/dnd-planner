@@ -8,6 +8,8 @@
     savesLine, sensesLine, skillsLine, speedLine,
   } from '../services/monsterFormat';
   import Markdown from './Markdown.svelte';
+  import ArtFrame from './ui/ArtFrame.svelte';
+  import { monsterArtUrl } from '../libraryArt';
 
   let { monster, count = 1, notes = '' }: { monster: Monster; count?: number; notes?: string } = $props();
 
@@ -17,11 +19,16 @@
 </script>
 
 <div class="stat-block">
-  <div class="sb-name-row">
-    <span class="sb-name">{count > 1 ? `${count}× ` : ''}{monster.name}</span>
-    <span class="sb-cr">HG {crLabel(monster.challenge_rating)} ({monster.xp} EP)</span>
+  <div class="sb-head">
+    <ArtFrame src={monsterArtUrl(monster)} color="var(--red)" size={64} />
+    <div class="sb-title">
+      <div class="sb-name-row">
+        <span class="sb-name">{count > 1 ? `${count}× ` : ''}{monster.name}</span>
+        <span class="sb-cr">HG {crLabel(monster.challenge_rating)} ({monster.xp} EP)</span>
+      </div>
+      <div class="sb-type">{monsterSizeLabel(monster.size)}, {monsterTypeLabel(monster.type)}, {monsterAlignmentLabel(monster.alignment)}</div>
+    </div>
   </div>
-  <div class="sb-type">{monsterSizeLabel(monster.size)}, {monsterTypeLabel(monster.type)}, {monsterAlignmentLabel(monster.alignment)}</div>
 
   <div class="sb-rule orange"></div>
 
@@ -103,6 +110,14 @@
     width: 100%;
     box-sizing: border-box;
   }
+
+  .sb-head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.2rem;
+  }
+  .sb-title { flex: 1; min-width: 0; }
 
   .sb-name-row {
     display: flex;

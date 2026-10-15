@@ -5,6 +5,7 @@
 import type { Item } from '../types';
 import { itemCardFacts, type ItemCardFacts } from './itemCardFacts';
 import { embeddedCardPages, type CardShell } from './printCards';
+import { printArtHtml } from './printArt';
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -15,7 +16,8 @@ const ORNDIV = `<div class="orndiv"><div class="ol"></div><span class="og">◆</
 function renderFirstCard(f: ItemCardFacts, descHtml: string): string {
   return `<div class="card" style="--c:${f.color}">
 
-  <div class="head">
+  <div class="head head-art">
+    ${printArtHtml(f.art)}
     <div class="name">${esc(f.title)}</div>
     ${f.meta ? `<div class="meta">${esc(f.meta)}</div>` : ''}
     ${f.subtype ? `<div class="subtype">${esc(f.subtype)}</div>` : ''}

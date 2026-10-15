@@ -5,7 +5,8 @@
 import type { Spell } from '../types';
 import { spellComponents, spellDesc, spellHigherLevel, spellLevelLabel, spellSchoolLabel } from '../types';
 import { renderMarkdownInline } from './markdown';
-import { spellArtUrl } from '../spellArt';
+import { spellArtUrl } from '../libraryArt';
+import { printArtHtml } from './printArt';
 import { cardDocument, embeddedCardPages, measuredCards, type CardShell } from './printCards';
 
 const SCHOOL_COLORS: Record<string, string> = {
@@ -52,12 +53,6 @@ function higherHtmlOf(spell: Spell): string {
   return `\n<div class="higher"><span class="higher-lbl">Auf höheren Graden.</span> <span class="md md-inline">${renderMarkdownInline(higherLvl)}</span></div>`;
 }
 
-// Fehlt das Bild (eigene Zauber), räumt es sich selbst ab, statt ein kaputtes Symbol zu drucken.
-function artHtmlOf(spell: Spell): string {
-  const url = spellArtUrl(spell);
-  return url ? `<div class="art"><img src="${url}" alt="" onerror="this.parentElement.remove()"></div>` : '';
-}
-
 function renderFirstCard(spell: Spell, descHtml: string, isLast: boolean): string {
   const color  = SCHOOL_COLORS[spell.school] ?? '#888';
   const comps  = spellComponents(spell);
@@ -69,7 +64,7 @@ function renderFirstCard(spell: Spell, descHtml: string, isLast: boolean): strin
   return `<div class="card" style="--c:${color}">
 
   <div class="head head-art">
-    ${artHtmlOf(spell)}
+    ${printArtHtml(spellArtUrl(spell))}
     <div class="name">${esc(spell.name)}${spell.ritual ? ' <span class="ritual">Ritual</span>' : ''}</div>
     <div class="meta">${esc(levelLabel(spell.level))} · ${esc(spellSchoolLabel(spell.school))}</div>
   </div>

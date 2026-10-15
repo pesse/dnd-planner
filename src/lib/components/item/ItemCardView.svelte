@@ -6,6 +6,8 @@
   import { sourceLabel } from '$lib/schemas/source';
   import Markdown from '../Markdown.svelte';
   import { textTip } from '../textTip.svelte';
+  import { itemArtUrl } from '$lib/libraryArt';
+  import CardArt from '../ui/CardArt.svelte';
 
   let { item, color, parseError }: { item: Item | null; color: string; parseError: string | null } = $props();
 </script>
@@ -16,6 +18,7 @@
   <div class="cards-wrap">
     <div class="item-card-view" style="--c: {color}">
       <div class="head">
+        <CardArt src={itemArtUrl(item)} {color} />
         <div class="name">{item.name_de ?? item.name}</div>
         {#if item.name_de}<div class="name-en">{item.name}</div>{/if}
         <div class="meta">

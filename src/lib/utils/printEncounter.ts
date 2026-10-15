@@ -9,6 +9,8 @@ import {
   savesLine, sensesLine, skillsLine, speedLine,
 } from '../services/monsterFormat';
 import { sign } from './num';
+import { printArtHtml, PRINT_ART_CSS } from './printArt';
+import { monsterArtUrl } from '../libraryArt';
 
 export interface PrintMonster { monster: Monster | null; count: number; notes: string; slug: string; }
 
@@ -68,11 +70,16 @@ function renderStatBlock(pm: PrintMonster): string {
   ).join('');
 
   return `<div class="stat-block">
-  <div class="sb-name-row">
-    <span class="sb-name">${pm.count > 1 ? `${pm.count}× ` : ''}${esc(m.name)}</span>
-    <span class="sb-cr">HG ${crLabel(m.challenge_rating)} (${m.xp} EP)</span>
+  <div class="sb-head">
+    ${printArtHtml(monsterArtUrl(m))}
+    <div class="sb-title">
+      <div class="sb-name-row">
+        <span class="sb-name">${pm.count > 1 ? `${pm.count}× ` : ''}${esc(m.name)}</span>
+        <span class="sb-cr">HG ${crLabel(m.challenge_rating)} (${m.xp} EP)</span>
+      </div>
+      <div class="sb-type">${esc(monsterSizeLabel(m.size))}, ${esc(monsterTypeLabel(m.type))}, ${esc(monsterAlignmentLabel(m.alignment))}</div>
+    </div>
   </div>
-  <div class="sb-type">${esc(monsterSizeLabel(m.size))}, ${esc(monsterTypeLabel(m.type))}, ${esc(monsterAlignmentLabel(m.alignment))}</div>
   <hr class="orange">
   <div class="sb-prop"><span class="lbl">Rüstungsklasse</span> ${m.armor_class}${m.armor_detail ? ` (${esc(m.armor_detail)})` : ''}</div>
   <div class="sb-prop"><span class="lbl">Trefferpunkte</span> ${m.hit_points}${m.hit_dice ? ` (${esc(m.hit_dice)})` : ''}</div>
@@ -173,7 +180,10 @@ h1 { font-size: 18pt; font-variant: small-caps; color: #5c1a00; margin: 0; }
 .mon-notes { color: #3a2000; font-style: italic; vertical-align: top; padding: 0.15rem 0; }
 .statblocks-title { font-size: 13pt; font-weight: 700; font-variant: small-caps; color: #5c1a00; border-top: 3px solid #8c6a1a; margin-top: 1.2rem; padding-top: 0.5rem; margin-bottom: 0.8rem; }
 .statblocks { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; align-items: start; }
-.stat-block { background: #fdf1dc; border: 2px solid #8c6a1a; border-radius: 4px; padding: 0.6rem 0.75rem; font-size: 8.5pt; break-inside: avoid; }
+.stat-block { --c: #8a2012; background: #fdf1dc; border: 2px solid #8c6a1a; border-radius: 4px; padding: 0.6rem 0.75rem; font-size: 8.5pt; break-inside: avoid; }
+.sb-head { display: flex; align-items: center; gap: 2mm; }
+.sb-head .print-art { width: 10mm; height: 10mm; flex-shrink: 0; }
+.sb-title { flex: 1; min-width: 0; }
 .sb-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
 .sb-name { font-size: 11pt; font-weight: 700; color: #5c1a00; font-variant: small-caps; }
 .sb-cr { font-size: 8pt; color: #5c1a00; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
@@ -200,6 +210,7 @@ hr.thin { border-top: 1px solid #8c6a1a66; }
 .track-box-wrap { display: flex; align-items: center; gap: 0.15rem; }
 .track-num { font-size: 6.5pt; color: #8c6a1a; }
 .track-box { width: 2cm; height: 0.55cm; border: 1.5px solid #8c6a1a; border-radius: 2px; background: white; }
+${PRINT_ART_CSS}
 ${RULE_TEXT_PRINT_CSS}
 </style>
 </head>

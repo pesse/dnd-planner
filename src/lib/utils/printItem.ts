@@ -5,6 +5,7 @@ import type { Item } from '../types';
 import { renderMarkdown } from './markdown';
 import { itemCardFacts } from './itemCardFacts';
 import { RULE_TEXT_PRINT_CSS } from './printCss';
+import { printArtHtml, PRINT_ART_CSS } from './printArt';
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -44,6 +45,8 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00;
     color-mix(in srgb, var(--c) 50%, #fef8ec) 0%,
     color-mix(in srgb, var(--c) 9%, #fef8ec) 100%);
 }
+.head { position: relative; padding-left: 24mm; padding-right: 24mm; }
+.head .print-art { position: absolute; left: 5mm; top: 50%; transform: translateY(-50%); width: 16mm; height: 16mm; }
 .name { font-size: 14pt; font-weight: 700; font-variant: small-caps; line-height: 1.2; letter-spacing: 0.02em; }
 .name-en { font-size: 8.5pt; font-style: italic; color: #6a5a3a; margin-top: 0.5mm; }
 .meta { font-size: 8.5pt; color: color-mix(in srgb, var(--c) 75%, #333); margin-top: 1mm; font-style: italic; }
@@ -65,6 +68,7 @@ body { font-family: ${FONT_FAMILY}; background: white; color: #1a0a00;
 
 .desc { padding: 3mm 6mm; font-size: 9.5pt; line-height: 1.6; }
 .desc.muted { color: #b8a777; }
+${PRINT_ART_CSS}
 ${RULE_TEXT_PRINT_CSS}
 
 .foot {
@@ -94,6 +98,7 @@ export function prepareItemPrint(item: Item, _doc: Document): string {
 <body>
   <div class="card" style="--c:${f.color}">
     <div class="head">
+      ${printArtHtml(f.art)}
       <div class="name">${esc(f.title)}</div>
       ${f.nameEn ? `<div class="name-en">${esc(f.nameEn)}</div>` : ''}
       <div class="meta">${esc(f.meta)}</div>

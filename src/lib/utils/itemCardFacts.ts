@@ -11,6 +11,7 @@ import {
 } from '../itemLabels';
 import { formatCost, formatDamageDice, formatRarity, ftToM } from '../itemFormat';
 import { ruleText } from './markdown';
+import { itemArtUrl } from '../libraryArt';
 
 // Helle Hex-Farben pro Seltenheit (im Druck-Iframe gibt es keine Theme-Variablen).
 // Pastellig gehalten wie die Zauber-Schulfarben, damit der getönte Karten-Hintergrund hell bleibt.
@@ -39,6 +40,7 @@ export interface ItemCardFacts {
   /** Quelle und Preis/Gewicht für den Kartenfuß. */
   source: string;
   price: string;
+  art: string | null;
   /** Seltenheitsfarbe für `--c`. */
   color: string;
 }
@@ -118,6 +120,7 @@ export function itemCardFacts(item: Item, compact = false): ItemCardFacts {
     source: item.source,
     price: [item.cost ? formatCost(item.cost) : '', item.weight != null ? `${item.weight} Pfd.` : '']
       .filter(Boolean).join(' · '),
+    art: itemArtUrl(item),
     color: (item.rarity?.name && RARITY_PRINT_COLORS[item.rarity.name]) || RARITY_PRINT_COLORS.Common,
   };
 }

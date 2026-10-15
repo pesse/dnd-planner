@@ -4,7 +4,8 @@
   import { prepareSpellPrint } from '$lib/utils/printSpell';
   import { printHtmlDocument } from '$lib/utils/printFrame';
   import { SCHOOL_COLORS } from '$lib/spellLibrary';
-  import { spellArtUrl } from '$lib/spellArt';
+  import { spellArtUrl } from '$lib/libraryArt';
+  import CardArt from './ui/CardArt.svelte';
   import { parseSpell as _parseSpell, jsonParser } from '$lib/utils/schemaValidation';
   import SpellEditForm from './SpellEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
@@ -120,15 +121,10 @@
       {@const higherLevel = spellHigherLevel(draft!)}
       {@const comps = spellComponents(draft!)}
       {@const pc = SCHOOL_COLORS[draft!.school] ?? 'var(--ink-muted)'}
-      {@const art = spellArtUrl(draft!)}
       <div class="card-wrap">
         <div class="spell-card" style="--c: {pc}">
           <div class="head">
-            {#if art}
-              {#key art}
-                <img class="art" src={art} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />
-              {/key}
-            {/if}
+            <CardArt src={spellArtUrl(draft!)} color={pc} />
             <div class="name">
               {draft!.name}{#if draft!.ritual} <span class="ritual">Ritual</span>{/if}
             </div>
@@ -241,14 +237,6 @@
       color-mix(in srgb, var(--c) 55%, var(--bg)) 0%,
       color-mix(in srgb, var(--c) 10%, var(--bg)) 100%);
   }
-  .art {
-    display: block;
-    width: 112px;
-    height: 112px;
-    margin: -0.2rem auto 0.35rem;
-    filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--c) 45%, transparent));
-  }
-  .art[hidden] { display: none; }
   .name {
     font-size: 1.05rem;
     font-weight: 700;

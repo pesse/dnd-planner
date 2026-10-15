@@ -4,6 +4,8 @@
   import { modStr } from '../../domain/skills';
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
   import { crLabel, speedLine } from '../../services/monsterFormat';
+  import { monsterArtUrl } from '../../libraryArt';
+  import ArtFrame from '../ui/ArtFrame.svelte';
   // `.source-badge`/`.source-act` bleiben dort: der Klassenname wird gebaut, ein
   // scoped Selektor fände ihn nicht.
   import './monsterMiniCard.css';
@@ -28,12 +30,17 @@
 </script>
 
 <div class="compact">
-  <div class="c-header">
-    <span class="c-name">{monster.name}</span>
-    <span class="c-cr">HG {crLabel(monster.challenge_rating)}</span>
-    <span class="source-badge source-{source}">{source === 'act' ? 'akt' : ''}</span>
+  <div class="c-head">
+    <ArtFrame src={monsterArtUrl(monster)} color="var(--danger)" size={48} />
+    <div class="c-title">
+      <div class="c-header">
+        <span class="c-name">{monster.name}</span>
+        <span class="c-cr">HG {crLabel(monster.challenge_rating)}</span>
+        <span class="source-badge source-{source}">{source === 'act' ? 'akt' : ''}</span>
+      </div>
+      <div class="c-meta">{monsterSizeLabel(monster.size)} {monsterTypeLabel(monster.type)}</div>
+    </div>
   </div>
-  <div class="c-meta">{monsterSizeLabel(monster.size)} {monsterTypeLabel(monster.type)}</div>
 
   <div class="c-divider"></div>
 
@@ -92,6 +99,13 @@
     flex-direction: column;
     gap: 0.25rem;
   }
+
+  .c-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .c-title { flex: 1; min-width: 0; }
 
   .c-header {
     display: flex;

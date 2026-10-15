@@ -4,6 +4,8 @@
   import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel, rarityColor } from '../itemLabels';
   import { formatCost, formatRarity, formatDamageDice, ftToM } from '../itemFormat';
   import Markdown from './Markdown.svelte';
+  import ArtFrame from './ui/ArtFrame.svelte';
+  import { itemArtUrl } from '../libraryArt';
 
   let { item, x, y }: { item: Item | null; x: number; y: number } = $props();
 
@@ -32,24 +34,28 @@
     bind:clientWidth={boxW}
     bind:clientHeight={boxH}
   >
-    <div class="tt-name">
-      {item.name_de ?? item.name}
-      {#if item.name_de}<span class="tt-name-en">{item.name}</span>{/if}
-      {#if item.attunement}<span class="tt-badge tt-attune">Einstellung</span>{/if}
-    </div>
-
-    <div class="tt-meta">
-      {#if kind === 'weapon'}
-        {WEAPON_CATEGORY_LABELS[item.weapon_category ?? ''] ?? item.weapon_category}
-        · {WEAPON_RANGE_LABELS[item.weapon_range ?? ''] ?? item.weapon_range}
-      {:else if kind === 'armor'}
-        {ARMOR_CATEGORY_LABELS[item.armor_category ?? ''] ?? item.armor_category}
-      {/if}
-      {#if item.rarity}
-        {#if kind === 'weapon' || kind === 'armor'} · {/if}
-        <span style="color:{rarityColor(item.rarity)}">{formatRarity(item.rarity)}</span>
-      {/if}
-      {#if item.attunement_by} · für {item.attunement_by}{/if}
+    <div class="tt-head">
+      <div class="tt-title">
+        <div class="tt-name">
+          {item.name_de ?? item.name}
+          {#if item.name_de}<span class="tt-name-en">{item.name}</span>{/if}
+          {#if item.attunement}<span class="tt-badge tt-attune">Einstellung</span>{/if}
+        </div>
+        <div class="tt-meta">
+          {#if kind === 'weapon'}
+            {WEAPON_CATEGORY_LABELS[item.weapon_category ?? ''] ?? item.weapon_category}
+            · {WEAPON_RANGE_LABELS[item.weapon_range ?? ''] ?? item.weapon_range}
+          {:else if kind === 'armor'}
+            {ARMOR_CATEGORY_LABELS[item.armor_category ?? ''] ?? item.armor_category}
+          {/if}
+          {#if item.rarity}
+            {#if kind === 'weapon' || kind === 'armor'} · {/if}
+            <span style="color:{rarityColor(item.rarity)}">{formatRarity(item.rarity)}</span>
+          {/if}
+          {#if item.attunement_by} · für {item.attunement_by}{/if}
+        </div>
+      </div>
+      <ArtFrame src={itemArtUrl(item)} color={rarityColor(item.rarity)} />
     </div>
 
     {#if kind === 'weapon' && item.damage}
@@ -130,6 +136,13 @@
     font-size: 0.8rem;
     color: var(--ink);
   }
+  .tt-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .tt-title { flex: 1; min-width: 0; }
+
   .tt-name {
     font-weight: 600;
     font-size: 0.88rem;

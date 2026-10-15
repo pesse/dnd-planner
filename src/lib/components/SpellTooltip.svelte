@@ -2,8 +2,9 @@
   import type { Spell } from '../types';
   import { SPELL_SCHOOLS, spellLevelLabel, spellDesc, spellHigherLevel, spellComponents } from '../types';
   import { SCHOOL_COLORS } from '../spellLibrary';
-  import { spellArtUrl } from '../spellArt';
+  import { spellArtUrl } from '../libraryArt';
   import Markdown from './Markdown.svelte';
+  import ArtFrame from './ui/ArtFrame.svelte';
 
   let { spell, x, y }: { spell: Spell | null; x: number; y: number } = $props();
 
@@ -41,13 +42,7 @@
         </div>
         <div class="tt-meta">{spellLevelLabel(spell.level)} · {SPELL_SCHOOLS[spell.school] ?? spell.school}</div>
       </div>
-      {#if art}
-        {#key art}
-          <div class="tt-art">
-            <img src={art} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).parentElement!.hidden = true)} />
-          </div>
-        {/key}
-      {/if}
+      <ArtFrame src={art} color={color} />
     </div>
 
     <div class="tt-props">
@@ -93,33 +88,6 @@
     gap: 0.6rem;
   }
   .tt-title { flex: 1; min-width: 0; }
-  .tt-art {
-    width: 60px;
-    height: 60px;
-    flex-shrink: 0;
-    margin: -0.1rem -0.1rem 0 0;
-    padding: 4px;
-    box-sizing: border-box;
-    border-radius: 10px;
-    border: 1px solid var(--gold);
-    background:
-      radial-gradient(circle at 50% 42%,
-        color-mix(in srgb, var(--sc) 35%, white) 0%,
-        color-mix(in srgb, var(--sc) 75%, white) 55%,
-        var(--sc) 100%);
-    box-shadow:
-      inset 0 0 0 2px var(--bg-panel),
-      inset 0 0 0 3px color-mix(in srgb, var(--gold) 70%, transparent),
-      inset 0 0 10px rgba(0, 0, 0, 0.25),
-      0 2px 6px rgba(0, 0, 0, 0.35);
-  }
-  .tt-art[hidden] { display: none; }
-  .tt-art img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
-  }
 
   .tt-name {
     font-weight: 600;

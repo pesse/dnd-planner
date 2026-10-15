@@ -3,6 +3,7 @@
  * Die Maße teilt sich das Mess-Div der Pagination, siehe `printCards.ts`.
  */
 import { RULE_TEXT_PRINT_CSS } from './printCss';
+import { PRINT_ART_CSS } from './printArt';
 
 export const FONT_FAMILY = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 export const FONT_SIZE = '7pt';
@@ -58,17 +59,10 @@ export const CARD_BODY_CSS = `
     color-mix(in srgb, var(--c) 10%, #fef8ec) 100%);
 }
 .head-art { position: relative; padding-left: 12mm; padding-right: 12mm; }
-.head-art .art {
+.head-art .print-art {
   position: absolute; left: 2.5mm; top: 50%; transform: translateY(-50%);
-  width: 8.5mm; height: 8.5mm; padding: 0.5mm;
-  border: 0.25mm solid #9a7a3a; border-radius: 1.5mm;
-  background: radial-gradient(circle at 50% 42%,
-    color-mix(in srgb, var(--c) 35%, white) 0%,
-    color-mix(in srgb, var(--c) 75%, white) 55%,
-    var(--c) 100%);
-  box-shadow: inset 0 0 0 0.35mm #fef8ec;
+  width: 8.5mm; height: 8.5mm;
 }
-.head-art .art img { display: block; width: 100%; height: 100%; }
 .name {
   font-size: 8.5pt; font-weight: 700; font-variant: small-caps;
   color: #1a0a00; line-height: 1.2; letter-spacing: 0.02em;
@@ -183,6 +177,7 @@ export const CARD_BODY_CSS = `
   font-size: 7.5pt; font-weight: 700; font-variant: small-caps; color: #1a0a00;
 }
 .cont-lbl { font-size: 5.5pt; color: #aaa; font-style: italic; }
+${PRINT_ART_CSS}
 ${RULE_TEXT_PRINT_CSS}
 `;
 
