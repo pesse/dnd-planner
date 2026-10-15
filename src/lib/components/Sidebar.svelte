@@ -14,38 +14,19 @@
 
   let createModal = $state<CreateKind | null>(null);
   let showTransferModal = $state(false);
-
-  type Reloadable = { reload: () => Promise<void> };
-  let globalSections: (Reloadable | undefined)[] = $state([]);
-  let campaignTree: Reloadable | undefined = $state();
-  let characterSection: Reloadable | undefined = $state();
-
-  async function reloadAll() {
-    await campaignTree?.reload();
-    await characterSection?.reload();
-    for (const section of globalSections) await section?.reload();
-  }
 </script>
 
 <aside class="sidebar">
-  <SidebarHeader onReloadAll={reloadAll} onTransferClick={() => (showTransferModal = true)} />
+  <SidebarHeader onTransferClick={() => (showTransferModal = true)} />
 
-  <CharacterSection bind:this={characterSection} />
+  <CharacterSection />
 
-  {#each GROUPED_SECTIONS as section, i}
-    <GroupedSectionView
-      {section}
-      oncreate={() => (createModal = section.kind)}
-      bind:this={globalSections[i]}
-    />
+  {#each GROUPED_SECTIONS as section}
+    <GroupedSectionView {section} oncreate={() => (createModal = section.kind)} />
   {/each}
 
-  {#each LIBRARY_SECTIONS as section, i}
-    <SidebarSection
-      {section}
-      oncreate={() => (createModal = section.kind)}
-      bind:this={globalSections[GROUPED_SECTIONS.length + i]}
-    />
+  {#each LIBRARY_SECTIONS as section}
+    <SidebarSection {section} oncreate={() => (createModal = section.kind)} />
   {/each}
 
   {#if $libraryManagerOpen}
@@ -62,7 +43,7 @@
 
   <div class="divider"></div>
 
-  <CampaignTree bind:this={campaignTree} />
+  <CampaignTree />
 </aside>
 
 <style>

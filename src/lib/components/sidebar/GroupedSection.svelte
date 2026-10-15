@@ -42,7 +42,7 @@
   // eine offene Gruppe dauerhaft auf „Laden…" stehen bleibt.
   $effect(() => {
     const _v = $vaultVersion;
-    if (section.live && expanded) untrack(() => void reload());
+    untrack(() => { if (expanded) void reload(); });
   });
 
   async function loadGroups() {
@@ -56,7 +56,7 @@
   }
 
   /** Verwirft alle Blätter und liest die offenen Gruppen neu ein. */
-  export async function reload() {
+  async function reload() {
     if (!expanded) return;
     for (const g of groups) section.invalidate?.(g.id);
     leavesByGroup = {};
@@ -89,7 +89,7 @@
   async function create() {
     if (!(await confirmNavigation())) return;
     expanded = true;
-    if (section.live) await loadGroups();
+    await loadGroups();
     oncreate();
   }
 </script>

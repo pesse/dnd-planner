@@ -20,10 +20,6 @@
     if (expanded) void load();
   });
 
-  export async function reload() {
-    if (expanded) await load();
-  }
-
   async function toggle() {
     expanded = !expanded;
     if (expanded) await load();

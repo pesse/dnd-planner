@@ -5,10 +5,7 @@
   import { checkForNews, checkingForNews } from '../../services/checkForNews';
   import { pushError } from '../../stores/toasts';
 
-  let { onReloadAll, onTransferClick }: {
-    onReloadAll(): void;
-    onTransferClick(): void;
-  } = $props();
+  let { onTransferClick }: { onTransferClick(): void } = $props();
 
   let libUpdates = $derived(updateCount($libraries));
 </script>
@@ -45,7 +42,6 @@
       title="Fehlerprotokoll im Explorer zeigen"
       onclick={() => revealLogDir().catch((e) => pushError(`Log-Ordner nicht gefunden: ${e}`))}
     ><img src="/branding/icons/log.png" alt="" /></button>
-    <button class="reload-all-btn" title="Alles neu laden" onclick={onReloadAll}><img src="/branding/icons/reload.png" alt="" /></button>
   </div>
 </div>
 
@@ -80,7 +76,6 @@
     gap: 0.1rem;
   }
 
-  .reload-all-btn,
   .header-btn {
     background: none;
     border: none;
@@ -89,19 +84,16 @@
     opacity: 0.5;
     transition: opacity 0.1s, filter 0.1s;
   }
-  .reload-all-btn img,
   .header-btn img {
     display: block;
     width: 1.25rem;
     height: 1.25rem;
   }
 
-  .sidebar-header:hover .reload-all-btn,
   .sidebar-header:hover .header-btn {
     opacity: 1;
   }
 
-  .reload-all-btn:hover,
   .header-btn:hover {
     filter: brightness(1.25) drop-shadow(0 0 2px var(--gold));
   }

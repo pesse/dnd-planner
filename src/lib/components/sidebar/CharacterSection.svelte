@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { activeFile } from '../../stores/campaign';
+  import { activeFile, vaultVersion } from '../../stores/campaign';
   import CharacterWizard from '../CharacterWizard.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import { createCharacterSectionState, CHARACTERS_PATH } from './characterSectionState.svelte';
@@ -17,9 +17,10 @@
     });
   });
 
-  export async function reload() {
-    await state.reload();
-  }
+  $effect(() => {
+    const _v = $vaultVersion;
+    untrack(() => void state.reload());
+  });
 </script>
 
 <div class="top-section">

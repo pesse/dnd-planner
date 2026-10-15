@@ -4,7 +4,6 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
-import { onMount } from 'svelte';
 import { activeCampaign } from '../../../stores/campaign';
 import { confirmNavigation } from '../../../stores/navigationGuard';
 import { closeActive, navigateTo } from '../../../services/navigation';
@@ -68,10 +67,6 @@ export class CampaignTreeState {
   showNewActEncounterInput: Record<string, boolean> = $state({});
   newActEncounterInput: Record<string, string> = $state({});
 
-  constructor() {
-    onMount(() => { this.loadCampaigns(); });
-  }
-
   async loadCampaigns(): Promise<void> {
     try {
       const entries = await invoke<EntryInfo[]>('list_entries', { path: VAULT_BASE });
@@ -80,16 +75,6 @@ export class CampaignTreeState {
         .map((e, i) => ({ id: String(i), name: slugToName(e.name), path: e.name }));
     } catch {
       this.campaigns = [];
-    }
-  }
-
-  async reload(): Promise<void> {
-    await this.loadCampaigns();
-    const campaign = get(activeCampaign);
-    if (!campaign) return;
-    for (const section of SECTIONS) {
-      const key = sectionKeyOf(campaign.path, section);
-      if (this.expanded[key]) await this.loadSection(campaign.path, section);
     }
   }
 

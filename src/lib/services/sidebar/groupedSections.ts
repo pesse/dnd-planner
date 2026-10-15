@@ -52,8 +52,6 @@ export interface GroupedSection {
   searchable?: boolean;
   /** Zweite Gruppierung über die geladenen Blätter. */
   altMode?: { primaryLabel: string; label: string; build: (leaves: TreeLeaf[]) => TreeGroup[] };
-  /** Hängt an `vaultVersion` und lädt vor dem Anlege-Dialog. */
-  live?: boolean;
   loadGroups: () => Promise<TreeGroup[]>;
   /** Fehlt bei Bäumen, die schon in `loadGroups` alles lesen. */
   loadLeaves?: (groupId: string) => Promise<TreeLeaf[]>;
@@ -235,7 +233,7 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
   },
   {
     kind: 'item', type: 'item', label: 'Gegenstände', addTitle: 'Neuer Gegenstand',
-    emptyLabel: 'Keine Gegenstände', searchable: true, live: true,
+    emptyLabel: 'Keine Gegenstände', searchable: true,
     headerClass: 'item-group-header',
     loadGroups: async () => (await listItemDirs()).map((dir) => ({ id: dir, label: itemDirLabel(dir) })),
     loadLeaves: loadItemLeaves,

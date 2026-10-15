@@ -9,10 +9,6 @@
 
   const tree = createCampaignTreeState();
 
-  export async function reload() {
-    await tree.reload();
-  }
-
   // Am Store, nicht am Aufrufer: sonst fehlt der Kontext nach HMR-Store-Reset und auf
   // Pfaden, die `activeCampaign.set()` ohne eigenen Lade-Call benutzen.
   $effect(() => {
@@ -22,6 +18,11 @@
       loadActSummaries(campaign.path);
       loadEncounterContext(campaign.path);
     }
+  });
+
+  $effect(() => {
+    const _v = $vaultVersion;
+    untrack(() => void tree.loadCampaigns());
   });
 
   $effect(() => {
