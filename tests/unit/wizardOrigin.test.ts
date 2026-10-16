@@ -58,28 +58,28 @@ describe('Stimmungsbild der Herkunfts-Schritte', () => {
 
   it('nimmt die Kombination vor dem Bild des Schritts', () => {
     expect(originArtCandidates('class', keys)).toEqual([
-      '/art/combos/dwarf-wizard.webp', '/art/classes/wizard.webp', '/art/species/dwarf.webp',
+      '/art/combos/dwarf-wizard.avif', '/art/classes/wizard.avif', '/art/species/dwarf.avif',
     ]);
-    expect(originArtCandidates('species', keys)[0]).toBe('/art/species/dwarf.webp');
+    expect(originArtCandidates('species', keys)[0]).toBe('/art/species/dwarf.avif');
   });
 
   it('nimmt mit Äußerem zuerst die Figur', () => {
     const fig = { ...keys, presentation: 'feminine' as const };
-    expect(originArtCandidates('species', fig)[0]).toBe('/art/figures/dwarf-feminine/species.webp');
+    expect(originArtCandidates('species', fig)[0]).toBe('/art/figures/dwarf-feminine/species.avif');
     expect(originArtCandidates('background', fig).slice(0, 2)).toEqual([
-      '/art/figures/dwarf-feminine/backgrounds/sage.webp', '/art/backgrounds/sage.webp',
+      '/art/figures/dwarf-feminine/backgrounds/sage.avif', '/art/backgrounds/sage.avif',
     ]);
     expect(originArtCandidates('class', fig).slice(0, 2)).toEqual([
-      '/art/figures/dwarf-feminine/classes/wizard.webp', '/art/combos/dwarf-wizard.webp',
+      '/art/figures/dwarf-feminine/classes/wizard.avif', '/art/combos/dwarf-wizard.avif',
     ]);
   });
 
   it('zeigt im Hintergrund-Schritt zuerst den Hintergrund', () => {
-    expect(originArtCandidates('background', keys)[0]).toBe('/art/backgrounds/sage.webp');
+    expect(originArtCandidates('background', keys)[0]).toBe('/art/backgrounds/sage.avif');
   });
 
   it('fragt ohne Volk keine Kombination an', () => {
-    expect(originArtCandidates('class', { ...keys, speciesKey: '' })).toEqual(['/art/classes/wizard.webp']);
+    expect(originArtCandidates('class', { ...keys, speciesKey: '' })).toEqual(['/art/classes/wizard.avif']);
   });
 
   it('spiegelt nur die nach links blickenden Bilder', () => {

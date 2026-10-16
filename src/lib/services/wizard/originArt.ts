@@ -1,5 +1,5 @@
 /**
- * Stimmungsbilder aus `static/art/` (`.webp`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
+ * Stimmungsbilder aus `static/art/` (`.avif`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
  * je Volk und Äußerem unter `figures/<volk>-<äußeres>/{species,classes/<k>,backgrounds/<h>}`; für
  * Charaktere ohne Äußeres und noch ungemalte Figuren `classes/`, `species/`, `backgrounds/`, `combos/`.
  */
@@ -9,7 +9,7 @@ import type { OriginKind } from './originCatalog';
 /** `srd-2024_dwarf` → `dwarf` */
 const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
 
-const artUrl = (name: string): string => `/art/${name}.webp`;
+const artUrl = (name: string): string => `/art/${name}.avif`;
 
 export interface OriginArtKeys {
   classKey: string;

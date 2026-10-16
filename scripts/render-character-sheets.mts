@@ -34,7 +34,7 @@ const uids = args.filter((a) => !a.startsWith('--'));
 
 const MIME: Record<string, string> = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp', '.gif': 'image/gif', '.html': 'text/html; charset=utf-8',
+  '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.html': 'text/html; charset=utf-8',
 };
 
 const read = (path: string): string | null => {

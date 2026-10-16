@@ -4,11 +4,11 @@ import { itemKeyOf, type Item } from './schemas/item';
 import { keySlug, slugAscii } from './utils/text';
 
 /**
- * Bilder der Bibliothek unter `static/art/<art>/<slug>.webp`, Slug = Key ohne Quellen-Präfix
+ * Bilder der Bibliothek unter `static/art/<art>/<slug>.avif`, Slug = Key ohne Quellen-Präfix
  * (`srd-2024_fireball` → `fireball`). Ob es das Bild gibt, entscheidet erst das `<img>` —
  * nicht jeder Eintrag hat eins.
  */
-const artUrl = (kind: string, slug: string): string | null => (slug ? `/art/${kind}/${slug}.webp` : null);
+const artUrl = (kind: string, slug: string): string | null => (slug ? `/art/${kind}/${slug}.avif` : null);
 
 export const spellArtUrl = (spell: Spell): string | null =>
   artUrl('spells', keySlug(spellKeyOf(spell as unknown as Record<string, unknown>)));

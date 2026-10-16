@@ -11,7 +11,7 @@ const open = redo.filter((r) => !r.dismissed && (r.by !== 'claude' || r.confirme
 const groups = new Map();
 const skipped = [];
 for (const r of open) {
-  const m = r.url.match(/^\/static\/art\/figures\/([a-z]+-[a-z]+)\/(classes|backgrounds)\/([a-z]+)\.webp$/);
+  const m = r.url.match(/^\/static\/art\/figures\/([a-z]+-[a-z]+)\/(classes|backgrounds)\/([a-z]+)\.avif$/);
   if (!m) { skipped.push(`${r.url} (kein Varianten-Bild)`); continue; }
   if ((process.env.SKIP ?? '').split(',').includes(r.url)) { skipped.push(`${r.url} (zurückgestellt)`); continue; }
   const [, fig, , role] = m;

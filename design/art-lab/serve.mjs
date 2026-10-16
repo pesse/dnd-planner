@@ -9,7 +9,7 @@ const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8898);
 const REDO = join(ROOT, 'design/art/figures/redo.json');
 const LOOKS = ['feminine', 'androgynous', 'masculine'];
-const TYPES = { '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.md': 'text/plain; charset=utf-8', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png', '.jpg': 'image/jpeg', '.md': 'text/plain; charset=utf-8', '.json': 'application/json' };
 
 const ls = (dir) => (existsSync(join(ROOT, dir)) ? readdirSync(join(ROOT, dir)) : []);
 const slugsIn = (dir, ext) => ls(dir).filter((f) => f.endsWith(ext)).map((f) => f.slice(0, -ext.length));
@@ -27,7 +27,7 @@ function vaultNames(dir) {
 
 function imageMap(dir) {
   const out = {};
-  for (const slug of slugsIn(dir, '.webp')) out[slug] = `/${dir}/${slug}.webp`;
+  for (const slug of slugsIn(dir, '.avif')) out[slug] = `/${dir}/${slug}.avif`;
   return out;
 }
 
@@ -36,7 +36,7 @@ function manifest() {
   const classDe = vaultNames('classes');
   const backgroundDe = vaultNames('backgrounds');
   // Grundklassen = die mit eigenem Klassenbild; Unterklassen liegen im selben Vault-Ordner.
-  const classes = slugsIn('static/art/classes', '.webp');
+  const classes = slugsIn('static/art/classes', '.avif');
 
   const figures = {};
   const variantCount = classes.length + Object.keys(backgroundDe).length;
@@ -49,11 +49,11 @@ function manifest() {
       for (const part of ['ca', 'cb', 'ba', 'bb']) {
         const kind = part[0] === 'c' ? 'classes' : 'backgrounds';
         for (const slug of slugsIn(`design/art/figures-var2/${key}-${part}`, '.png')) {
-          if (existsSync(join(ROOT, base, kind, `${slug}.webp`))) fresh.push(`/${base}/${kind}/${slug}.webp`);
+          if (existsSync(join(ROOT, base, kind, `${slug}.avif`))) fresh.push(`/${base}/${kind}/${slug}.avif`);
         }
       }
       figures[key] = {
-        species: existsSync(join(ROOT, base, 'species.webp')) ? `/${base}/species.webp` : null,
+        species: existsSync(join(ROOT, base, 'species.avif')) ? `/${base}/species.avif` : null,
         classes: imageMap(`${base}/classes`),
         backgrounds: imageMap(`${base}/backgrounds`),
         fresh,
