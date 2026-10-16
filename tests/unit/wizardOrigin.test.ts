@@ -58,9 +58,9 @@ describe('Stimmungsbild der Herkunfts-Schritte', () => {
 
   it('nimmt die Kombination vor dem Bild des Schritts', () => {
     expect(originArtCandidates('class', keys)).toEqual([
-      '/art/combos/dwarf-wizard.avif', '/art/classes/wizard.avif', '/art/species/dwarf.avif',
+      '/art/combos/dwarf-wizard.avif', '/art/classes/wizard.avif',
     ]);
-    expect(originArtCandidates('species', keys)[0]).toBe('/art/species/dwarf.avif');
+    expect(originArtCandidates('species', keys)[0]).toBe('/art/combos/dwarf-wizard.avif');
   });
 
   it('nimmt mit Äußerem zuerst die Figur', () => {

@@ -1,7 +1,7 @@
 /**
  * Stimmungsbilder aus `static/art/` (`.avif`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
  * je Volk und Äußerem unter `figures/<volk>-<äußeres>/{species,classes/<k>,backgrounds/<h>}`; für
- * Charaktere ohne Äußeres und noch ungemalte Figuren `classes/`, `species/`, `backgrounds/`, `combos/`.
+ * Charaktere ohne Äußeres `classes/`, `backgrounds/`, `combos/`.
  */
 import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
 import type { OriginKind } from './originCatalog';
@@ -21,7 +21,6 @@ export interface OriginArtKeys {
 /** Das spezifischste zuerst, dann was im aktuellen Schritt im Vordergrund steht. */
 export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[] {
   const cls = k.classKey && `classes/${slugOf(k.classKey)}`;
-  const spc = k.speciesKey && `species/${slugOf(k.speciesKey)}`;
   const bg = k.backgroundKey && `backgrounds/${slugOf(k.backgroundKey)}`;
   const combo = k.classKey && k.speciesKey && `combos/${slugOf(k.speciesKey)}-${slugOf(k.classKey)}`;
   const fig = k.speciesKey && k.presentation && `figures/${slugOf(k.speciesKey)}-${k.presentation}`;
@@ -29,9 +28,9 @@ export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[
   const figCls = fig && k.classKey && `${fig}/classes/${slugOf(k.classKey)}`;
   const figBg = fig && k.backgroundKey && `${fig}/backgrounds/${slugOf(k.backgroundKey)}`;
   const order = {
-    species: [figSpc, spc, combo, cls],
-    background: [figBg, bg, figSpc, combo, spc],
-    class: [figCls, combo, cls, figSpc, spc],
+    species: [figSpc, combo, cls],
+    background: [figBg, bg, figSpc, combo],
+    class: [figCls, combo, cls, figSpc],
   }[kind];
   return order.filter((n): n is string => !!n).map(artUrl);
 }
@@ -77,9 +76,8 @@ export async function resolveOriginArt(candidates: string[]): Promise<string | n
  * nachzieht. `onprogress` erhält den Anteil 0…1.
  */
 export async function preloadSpeciesArt(speciesKeys: string[], onprogress?: (share: number) => void): Promise<void> {
-  const looks: (Presentation | undefined)[] = [...PRESENTATIONS, undefined];
   const lists = speciesKeys.flatMap((speciesKey) =>
-    looks.map((presentation) => originArtCandidates('species', { speciesKey, presentation, classKey: '', backgroundKey: '' })),
+    PRESENTATIONS.map((presentation) => originArtCandidates('species', { speciesKey, presentation, classKey: '', backgroundKey: '' })),
   );
   let done = 0;
   await Promise.all(lists.map(async (list) => {
