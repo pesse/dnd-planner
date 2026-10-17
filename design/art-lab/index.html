@@ -142,12 +142,14 @@ const statusOf = (key) => M.figures[key].status;
 /** Variantenbild aus einem älteren Lauf, das die Queue noch ersetzen wird. */
 const isStale = (key, url) => url !== M.figures[key].species && !M.figures[key].fresh.includes(url);
 
-/** Alle Spalten einer Figur: Volk, Klassen, Hintergründe. */
+const subCol = (s) => ({ id: `s:${s.slug}`, de: s.de, kind: 'subclasses', slug: s.slug });
+/** Alle Spalten einer Figur: Volk, Klassen, Hintergründe, Subklassen. */
 function columns() {
   const out = [];
-  if (state.cols !== 'backgrounds') out.push({ id: 'species', de: 'Volk', kind: 'species' });
-  if (state.cols !== 'backgrounds') for (const c of M.classes) out.push({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug });
-  if (state.cols !== 'classes') for (const b of M.backgrounds) out.push({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug });
+  if (state.cols !== 'backgrounds' && state.cols !== 'subclasses') out.push({ id: 'species', de: 'Volk', kind: 'species' });
+  if (state.cols !== 'backgrounds' && state.cols !== 'subclasses') for (const c of M.classes) out.push({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug });
+  if (state.cols !== 'classes' && state.cols !== 'subclasses') for (const b of M.backgrounds) out.push({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug });
+  if (state.cols === 'all' || state.cols === 'subclasses') for (const s of M.subclasses) out.push(subCol(s));
   return out;
 }
 const imgOf = (fig, col) => (col.kind === 'species' ? fig.species : fig[col.kind][col.slug]) ?? null;
@@ -203,6 +205,7 @@ const VIEWS = {
       ['Volk', [{ id: 'species', de: 'Volk', kind: 'species' }]],
       ['Klassen', M.classes.map((c) => ({ id: c.slug, de: c.de, kind: 'classes', slug: c.slug }))],
       ['Hintergründe', M.backgrounds.map((b) => ({ id: b.slug, de: b.de, kind: 'backgrounds', slug: b.slug }))],
+      ['Subklassen', M.subclasses.map(subCol)],
     ];
     const list = [];
     const out = [];
@@ -227,7 +230,8 @@ const VIEWS = {
   column() {
     const col = [{ id: 'species', de: 'Volk', kind: 'species' },
       ...M.classes.map((c) => ({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug })),
-      ...M.backgrounds.map((b) => ({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug }))].find((c) => c.id === state.column);
+      ...M.backgrounds.map((b) => ({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug })),
+      ...M.subclasses.map(subCol)].find((c) => c.id === state.column);
     const list = [];
     const out = [];
     for (const look of state.looks) {
@@ -248,12 +252,12 @@ const VIEWS = {
     const out = [];
     let n = 0;
     for (const g of M.raw) {
-      if (!g.files.length) continue;
+      if (!g.files.length || (state.rawGroup && g.group !== state.rawGroup)) continue;
       const list = g.files.map((f) => ({ url: f.url, caption: `${g.group}/${f.name}` }));
       n += list.length;
       out.push(el('h2', {}, g.group), el('div', { class: 'grid', style: `--tw:${state.size * 3}px` }, g.files.map((f) => tile(f.url, f.name, list))));
     }
-    if (M.notes.length) out.push(el('h2', {}, 'Prompts / Identitäten'), el('p', {}, M.notes.map((u) => [el('a', { href: u, target: '_blank' }, u.split('/').pop()), ' '])));
+    if (M.notes.length && !state.rawGroup) out.push(el('h2', {}, 'Prompts / Identitäten'), el('p', {}, M.notes.map((u) => [el('a', { href: u, target: '_blank' }, u.split('/').pop()), ' '])));
     document.getElementById('stat').textContent = `${n} Rohbilder`;
     return el('div', {}, out);
   },
@@ -307,7 +311,7 @@ function controls() {
   if (state.tab === 'matrix') {
     c.push(...lookChips(), ...speciesSel(), el('label', {}, 'Spalten'),
       el('select', { onchange: (e) => { state.cols = e.target.value; render(); } },
-        [['all', 'alle'], ['classes', 'Volk + Klassen'], ['backgrounds', 'Hintergründe']].map(([v, t]) => el('option', { value: v, selected: v === state.cols }, t))),
+        [['all', 'alle'], ['classes', 'Volk + Klassen'], ['backgrounds', 'Hintergründe'], ['subclasses', 'Subklassen']].map(([v, t]) => el('option', { value: v, selected: v === state.cols }, t))),
       el('button', { class: `chip${state.onlyFinal ? ' on' : ''}`, onclick: () => { state.onlyFinal = !state.onlyFinal; render(); } }, 'nur finale'),
       ...size());
   } else if (state.tab === 'figure') {
@@ -322,10 +326,13 @@ function controls() {
     c.push(el('label', {}, 'Bild'), el('select', { onchange: (e) => { state.column = e.target.value; render(); } },
       el('option', { value: 'species', selected: state.column === 'species' }, 'Volk (Basisfigur)'),
       el('optgroup', { label: 'Klassen' }, M.classes.map((x) => el('option', { value: `c:${x.slug}`, selected: state.column === `c:${x.slug}` }, x.de))),
-      el('optgroup', { label: 'Hintergründe' }, M.backgrounds.map((x) => el('option', { value: `b:${x.slug}`, selected: state.column === `b:${x.slug}` }, x.de)))),
+      el('optgroup', { label: 'Hintergründe' }, M.backgrounds.map((x) => el('option', { value: `b:${x.slug}`, selected: state.column === `b:${x.slug}` }, x.de))),
+      el('optgroup', { label: 'Subklassen' }, M.subclasses.map((x) => el('option', { value: `s:${x.slug}`, selected: state.column === `s:${x.slug}` }, x.de)))),
     ...lookChips(), ...speciesSel(), ...size());
   } else if (state.tab === 'raw') {
-    c.push(...size());
+    c.push(el('label', {}, 'Gruppe'), el('select', { onchange: (e) => { state.rawGroup = e.target.value; render(); } },
+      el('option', { value: '' }, 'alle'), M.raw.filter((g) => g.files.length).map((g) => el('option', { value: g.group, selected: g.group === state.rawGroup }, g.group))),
+    ...size());
   } else if (state.tab === 'compare' && state.tray.length) {
     c.push(el('button', { class: 'chip', onclick: () => { state.tray = []; render(); } }, 'leeren'));
   }

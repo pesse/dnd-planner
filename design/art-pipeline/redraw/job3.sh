@@ -26,28 +26,10 @@ publish() { for n in $names; do
 done; }
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi
 
-idx=$(awk -F'\t' -v f=$fig '$1==f{print NR-1}' $V/figures.tsv)
-base=$(awk -F'\t' -v f=$fig '$1==f{print $2}' $V/figures.tsv)
-identity=$(awk -F'\t' -v f=$fig '$1==f{print $3}' $V/figures.tsv)
-case $species in
-  dragonborn) sp='Dragonborn: tall draconic humanoid with a scaled reptilian head and short snout, no tail, no wings.' ;;
-  dwarf) sp='Dwarf: 4–5 feet tall, stout and broad-shouldered with short legs.' ;;
-  elf) sp='Elf: tall and slender with long pointed ears.' ;;
-  fairy) sp='Fairy: small fey folk 3–4 feet tall with insect-like wings; uses flight naturally — hovers or flies in most scenes (shooting from the air, working while hovering).' ;;
-  gnome) sp='Gnome: 3–4 feet tall, small and nimble, large expressive eyes, slightly pointed ears.' ;;
-  goliath) sp='Goliath: 7–8 feet tall, massive giant-kin with grey stone-like skin and markings.' ;;
-  halfling) sp='Halfling: about 3 feet tall, small and nimble, barefoot with hairy feet.' ;;
-  human) sp='Human: average height.' ;;
-  orc) sp='Orc: tall, broad and powerful with prominent lower tusks.' ;;
-  tiefling) sp='Tiefling: human-like with horns, a long tail and solid-coloured eyes.' ;;
-esac
-extra=''
-[ $look = androgynous ] && extra='
-This person is ANDROGYNOUS: a viewer must not be able to tell whether they are a man or a woman. Image models drift toward a pretty feminine face — counter-steer. Add verbatim to every Subject block: "androgynous; no long eyelashes, no makeup look, no full or glossy lips, no high delicate cheekbones, no small pointed chin, no arched brows, no flowing glamorous hair, no hourglass figure; equally no beard, no stubble, no bulky muscle." Never use the words man, woman, he, she, male or female. Choose role clothing that is equally unisex.
-'
+source $V/figure.sh
 # Nach einem Abbruch nur die fehlenden Rollen beauftragen — fertige Bilder bleiben unangetastet.
 keep=$(sed 's/ *$//; s/ /|/g' <<<"$todo")
-{ sed -e "s|__IDENTITY__|$identity|" -e "s|__SPECIES__|$sp|" $V/head.md | awk -v e="$extra" '{ if ($0=="__EXTRA__") print e; else print }'
+{ figure_head
   REROLL=$(awk -F'\t' '$3=="reroll"{printf "%s,", $1}' $fixes) node $V/roles.mjs $fig $part $idx | grep -E "^[^-]|^$|^- ($keep)\.png"
   echo
   echo "CORRECTIONS: an earlier version of these images was rejected by the art director. Their notes (German) say what was wrong — fix exactly that while following everything above:"

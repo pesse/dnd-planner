@@ -9,3 +9,5 @@ fixes/
 *.jpg
 review/*.json
 review/prompt-*.md
+review/sub/*.json
+review/sub/prompt-*.md

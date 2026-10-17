@@ -37,6 +37,9 @@ function manifest() {
   const backgroundDe = vaultNames('backgrounds');
   // Grundklassen = die mit eigenem Klassenbild; Unterklassen liegen im selben Vault-Ordner.
   const classes = slugsIn('static/art/classes', '.avif');
+  const subclasses = slugsIn('vault/classes', '.json').filter((slug) => {
+    try { return !!JSON.parse(readFileSync(join(ROOT, 'vault/classes', `${slug}.json`), 'utf8')).subclassOf; } catch { return false; }
+  });
 
   const figures = {};
   const variantCount = classes.length + Object.keys(backgroundDe).length;
@@ -52,11 +55,19 @@ function manifest() {
           if (existsSync(join(ROOT, base, kind, `${slug}.avif`))) fresh.push(`/${base}/${kind}/${slug}.avif`);
         }
       }
+      // Subklassen zählen nicht zum Status — der bewertet die Klassen-/Hintergrund-Serie.
+      const freshSub = [];
+      for (const part of ['sa', 'sb', 'sc']) {
+        for (const slug of slugsIn(`design/art/figures-sub/${key}-${part}`, '.png')) {
+          if (existsSync(join(ROOT, base, 'subclasses', `${slug}.avif`))) freshSub.push(`/${base}/subclasses/${slug}.avif`);
+        }
+      }
       figures[key] = {
         species: existsSync(join(ROOT, base, 'species.avif')) ? `/${base}/species.avif` : null,
         classes: imageMap(`${base}/classes`),
         backgrounds: imageMap(`${base}/backgrounds`),
-        fresh,
+        subclasses: imageMap(`${base}/subclasses`),
+        fresh: [...fresh, ...freshSub],
         status: fresh.length >= variantCount ? 'final' : fresh.length ? 'running' : 'old',
       };
     }
@@ -64,7 +75,7 @@ function manifest() {
 
   // Rohbilder der Läufe und Experimente, je Ordner eine Gruppe.
   const raw = [];
-  for (const parent of ['design/art/figures-base', 'design/art/figures-var']) {
+  for (const parent of ['design/art/figures-base', 'design/art/figures-var', 'design/art/figures-sub']) {
     for (const group of ls(parent)) {
       const dir = `${parent}/${group}`;
       if (!statSync(join(ROOT, dir)).isDirectory()) continue;
@@ -78,6 +89,7 @@ function manifest() {
     species: Object.entries(speciesDe).map(([slug, de]) => ({ slug, de })),
     classes: classes.map((slug) => ({ slug, de: classDe[slug] ?? slug })),
     backgrounds: Object.entries(backgroundDe).map(([slug, de]) => ({ slug, de })),
+    subclasses: subclasses.map((slug) => ({ slug, de: classDe[slug] ?? slug })),
     figures,
     legacy: {
       combos: imageMap('static/art/combos'),
