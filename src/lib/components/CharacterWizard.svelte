@@ -23,7 +23,7 @@
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FeatPicker from './FeatPicker.svelte';
   import OptionPoolPicker from './OptionPoolPicker.svelte';
-  import FullscreenWizard from './ui/FullscreenWizard.svelte';
+  import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import OriginStep from './wizard/OriginStep.svelte';
   import OriginDetail from './wizard/OriginDetail.svelte';
   import LanguageStep from './wizard/LanguageStep.svelte';
@@ -352,7 +352,7 @@
   onstep={(i) => (currentStep = steps[i].id)}
   onclose={onCancel}
   headerExtra={nameField}
-  mainWidth="clamp(230px, 22vw, 360px)"
+  mainWidth={CHOICE_LIST_WIDTH}
   detail={isOrigin ? originDetail : undefined}
   preview={characterPreview}
   {footer}

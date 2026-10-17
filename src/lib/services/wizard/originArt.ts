@@ -7,9 +7,9 @@ import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
 import type { OriginKind } from './originCatalog';
 
 /** `srd-2024_dwarf` → `dwarf` */
-const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
+export const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
 
-const artUrl = (name: string): string => `/art/${name}.avif`;
+export const artUrl = (name: string): string => `/art/${name}.avif`;
 
 export interface OriginArtKeys {
   classKey: string;

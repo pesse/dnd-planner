@@ -8,6 +8,7 @@
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
   import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
   import { originArtCandidates } from '../../services/wizard/originArt';
+  import ChoiceGroup from './ChoiceGroup.svelte';
   import ChoiceOption from './ChoiceOption.svelte';
 
   let { kind, w, catalog }: { kind: OriginKind; w: CharacterWizard; catalog: OriginCatalog | null } = $props();
@@ -89,31 +90,17 @@
 
 <p class="hint">{HINTS[kind]}</p>
 {#if kind === 'species'}
-  <h3 class="heading">Äußeres</h3>
-  <div class="options" role="radiogroup" aria-label="Äußeres">
+  <ChoiceGroup heading="Äußeres">
     {#each PRESENTATIONS as p (p)}
       <ChoiceOption title={PRESENTATION_LABEL[p]} selected={w.presentation === p} art={presentationArt(p)}
         onselect={() => (w.presentation = p)} />
     {/each}
-  </div>
+  </ChoiceGroup>
 {/if}
-<h3 class="heading">{HEADING[kind]}</h3>
-{#if !catalog}
-  <p class="hint">Lade Bibliothek …</p>
-{:else}
-  <div class="options" role="radiogroup" aria-label={HEADING[kind]}>
-    {#each tiles as t (t.key)}
-      <ChoiceOption title={t.title} subtitle={t.subtitle} tags={t.tags} selected={t.key === selectedKey}
-        art={tileArt(t.key)} onselect={() => select(t)} />
-    {/each}
-  </div>
-{/if}
-
-<style>
-  .heading {
-    font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--gold); text-align: center; margin: 0.9rem 0 0.45rem; padding-bottom: 0.55rem;
-    background: url('/branding/wizard/divider.png') center bottom / 100% 0.7rem no-repeat;
-  }
-  .options { display: flex; flex-direction: column; gap: 0.3rem; }
-</style>
+<ChoiceGroup heading={HEADING[kind]}>
+  {#if !catalog}<p class="hint">Lade Bibliothek …</p>{/if}
+  {#each tiles as t (t.key)}
+    <ChoiceOption title={t.title} subtitle={t.subtitle} tags={t.tags} selected={t.key === selectedKey}
+      art={tileArt(t.key)} onselect={() => select(t)} />
+  {/each}
+</ChoiceGroup>

@@ -3,7 +3,9 @@
   import type { ClassProgression } from '$lib/types';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
   import { getProgressionByKey } from '../../services/classProgression';
+  import { subclassArtCandidates } from '../../services/levelUp/subclassArt';
   import { classFeatureEntries } from '../libraryView/classView';
+  import ArtStage from '../ui/ArtStage.svelte';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
   import FeatureList from '../FeatureList.svelte';
@@ -20,19 +22,27 @@
     void getProgressionByKey(key).then((p) => { if (!cancelled) sub = p; }, () => {});
     return () => { cancelled = true; };
   });
+
+  const candidates = $derived(st.chosenSubclass && st.delta
+    ? subclassArtCandidates(st.chosenSubclass.key, {
+      classKey: st.delta.sourceKey, speciesKey: ui.character.species.sourceKey, presentation: ui.character.presentation,
+    })
+    : []);
 </script>
 
-{#if !st.chosenSubclass}
-  <p class="field-hint">Wähle links eine Unterklasse — hier erscheinen ihre Beschreibung und alle Merkmale.</p>
-{:else if sub}
-  <LibraryCardFrame accent="var(--copper)" name={sub.name} nameDe={sub.nameDe}>
-    {#if sub.introDe}<div class="intro"><Markdown source={sub.introDe} /></div>{/if}
-    <div class="features">
-      <FeatureList entries={classFeatureEntries(sub.features)} openUpTo={st.delta?.toLevel ?? 1} />
-    </div>
-  </LibraryCardFrame>
-  <p class="field-hint">Merkmale späterer Stufen erhältst du beim nächsten Aufstieg — klappe sie auf, um vorauszuschauen.</p>
-{/if}
+<ArtStage {candidates}>
+  {#if !st.chosenSubclass}
+    <p class="field-hint">Wähle links eine Unterklasse — hier erscheinen ihre Beschreibung und alle Merkmale.</p>
+  {:else if sub}
+    <LibraryCardFrame accent="var(--copper)" name={sub.name} nameDe={sub.nameDe}>
+      {#if sub.introDe}<div class="intro"><Markdown source={sub.introDe} /></div>{/if}
+      <div class="features">
+        <FeatureList entries={classFeatureEntries(sub.features)} openUpTo={st.delta?.toLevel ?? 1} />
+      </div>
+    </LibraryCardFrame>
+    <p class="field-hint">Merkmale späterer Stufen erhältst du beim nächsten Aufstieg — klappe sie auf, um vorauszuschauen.</p>
+  {/if}
+</ArtStage>
 
 <style>
   .intro { padding: 0.7rem 1.2rem 0; font-size: 0.88rem; line-height: 1.55; }

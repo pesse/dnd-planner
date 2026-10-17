@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** Hauptbereich als schmale Auswahlliste neben einer großen Bild-Detailspalte. */
+  export const CHOICE_LIST_WIDTH = 'clamp(230px, 22vw, 360px)';
+</script>
+
 <script lang="ts">
   /**
    * Vollbild-Rahmen beider Assistenten: Kopf, Schrittleiste, bis zu drei Spalten

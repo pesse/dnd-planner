@@ -61,6 +61,7 @@ export class LevelUpAssistantUi {
     });
   }
 
+  get character() { return this.#getCharacter(); }
   get st() { return this.#run.st; }
   get choices() { return this.#run.choices; }
   get run() { return this.#run; }

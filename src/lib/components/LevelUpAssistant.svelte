@@ -12,7 +12,7 @@
   import { type LevelUpDelta } from '../services/levelUp';
   import { type LevelUpChangeSet } from '../schemas/levelUp';
   import { type Character } from '../schemas/characterSchema';
-  import FullscreenWizard from './ui/FullscreenWizard.svelte';
+  import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
@@ -113,6 +113,7 @@
   {steps}
   {current}
   {onclose}
+  mainWidth={isPausedAt(st.run, 'subclass-choice') ? CHOICE_LIST_WIDTH : undefined}
   detail={isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined}
   preview={progression}
   footer={actions}
