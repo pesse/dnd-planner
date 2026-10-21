@@ -8,7 +8,12 @@
    * Vollbild-Rahmen beider Assistenten: Kopf, Schrittleiste, bis zu drei Spalten
    * (Hauptbereich · Detail · Vorschau) und Fußzeile. Inhalt und Steuerung kommen per Snippet.
    */
-  import type { Snippet } from 'svelte';
+  import { onDestroy, type Snippet } from 'svelte';
+  import { interceptNavigation } from '../../services/entryPeek';
+  import { navigateTo } from '../../services/navigation';
+  import { confirmAction } from '../../stores/confirmDialog';
+  import type { FileEntry } from '../../types';
+  import EntryPeekModal from './EntryPeekModal.svelte';
 
   let { title, label, scope = '', mainWidth, steps = [], current = 0, onstep, onclose, children, headerExtra, detail, preview, footer }: {
     title: string;
@@ -31,6 +36,22 @@
   } = $props();
 
   let previewOpen = $state(true);
+
+  let peeked = $state<FileEntry | null>(null);
+  onDestroy(interceptNavigation((entry) => (peeked = entry)));
+
+  async function leave(entry: FileEntry) {
+    const ok = await confirmAction({
+      title: 'Assistent verlassen?',
+      message: `„${entry.name}" öffnet sich als eigene Seite. Der Assistent wird geschlossen — alle bisherigen Wahlen gehen verloren.`,
+      confirmLabel: 'Verlassen',
+      danger: true,
+    });
+    if (!ok) return;
+    peeked = null;
+    onclose();
+    await navigateTo(entry, { leavePeek: true });
+  }
 </script>
 
 <div class="fw {scope}" role="dialog" aria-modal="true" aria-label={label}>
@@ -68,6 +89,11 @@
   </div>
 
   <footer>{@render footer()}</footer>
+
+  {#if peeked}
+    {@const entry = peeked}
+    <EntryPeekModal {entry} onclose={() => (peeked = null)} onleave={() => leave(entry)} />
+  {/if}
 </div>
 
 <style>
