@@ -5,7 +5,9 @@
 import { type StepId, STEP_META } from '$lib/services/levelUp/steps';
 import { stepOf } from '$lib/services/levelUp/runState';
 import type { LevelUpRun } from '$lib/services/levelUp/run.svelte';
-import { type LevelUpDelta } from '$lib/services/levelUp';
+import { computeLevelUpDelta, type LevelUpDelta } from '$lib/services/levelUp';
+import { baseDeltaChanges, decisionChanges } from '$lib/services/levelUp/changes';
+import { mod } from '$lib/domain/skills';
 import { loadBaseClasses } from '$lib/services/wizard/originCatalog';
 import type { ClassProgression } from '$lib/types';
 import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrary';
@@ -46,6 +48,9 @@ export class LevelUpAssistantUi {
 
   hpRolls = $state<Record<string, number[]>>({});
 
+  /** Das Delta der aktuellen Klassen- und Stufenwahl, bevor „Weiter" den Lauf startet. */
+  classPreview = $state<LevelUpDelta | null>(null);
+
   spellCreator = $state<SpellCreatorState | null>(null);
   creatingSpell = $state(false);
 
@@ -59,6 +64,19 @@ export class LevelUpAssistantUi {
     this.classChoice = (getCharacter().classes ?? []).length ? '0' : 'new';
 
     $effect(() => { loadBaseClasses().then((cs) => { this.baseClasses = cs; }); });
+    $effect(() => {
+      const newClass = this.isNewClass && this.newClassKey ? { sourceKey: this.newClassKey, name: this.newClassName } : undefined;
+      if ((this.isNewClass && !newClass) || (!this.isNewClass && !this.hasClasses)) {
+        this.classPreview = null;
+        return;
+      }
+      let cancelled = false;
+      computeLevelUpDelta(this.#getCharacter(), this.classIndex, this.targetLevel, newClass).then(
+        (d) => { if (!cancelled) this.classPreview = d.atLevelCap || d.isHomebrew ? null : d; },
+        () => { if (!cancelled) this.classPreview = null; },
+      );
+      return () => { cancelled = true; };
+    });
     $effect(() => {
       if (this.targetLevel <= this.effectiveFrom || this.targetLevel > 20) this.targetLevel = Math.min(20, this.effectiveFrom + 1);
     });
@@ -257,13 +275,30 @@ export class LevelUpAssistantUi {
     this.#onclose();
   }
 
+  #atClassChoice = $derived(stepOf(this.st.run) === 'choose-class');
+
+  /** An der Klassenwahl zeigt die Seitenleiste den Entwurf, danach das Dokument des Laufs. */
+  shownDelta = $derived(this.#atClassChoice ? this.classPreview : this.st.delta);
+
+  shownChanges = $derived.by<Change[]>(() => {
+    if (!this.#atClassChoice) return this.#run.doc.changes;
+    const d = this.classPreview;
+    if (!d) return [];
+    const c = this.#getCharacter();
+    return [
+      ...baseDeltaChanges(d, c.hitDice ?? ''),
+      // Ohne Antworten: Trefferpunkte nach Durchschnitt, bis die Entscheidung fällt.
+      ...decisionChanges({ delta: d, answers: {}, conMod: mod(c.abilities.con), pickedCantrips: [], pickedLearned: [] }),
+    ];
+  });
+
   /**
    * Die neuen Merkmale dieses Aufstiegs, deutsch. `subclassFeaturesGained` (Subklasse schon
    * gewählt) und `subFeatures` (in diesem Aufstieg gewählt) schließen sich aus — der Schlüssel
    * fängt nur Dubletten im Vault.
    */
   newFeatures = $derived.by<NewFeature[]>(() => {
-    const d = this.st.delta;
+    const d = this.shownDelta;
     if (!d) return [];
     const seen = new Set<string>();
     const out: NewFeature[] = [];
@@ -275,7 +310,7 @@ export class LevelUpAssistantUi {
     };
     d.featuresGained.forEach((f) => add(f, false));
     d.subclassFeaturesGained.forEach((f) => add(f, true));
-    this.st.subFeatures.forEach((f) => add(f, true));
+    if (!this.#atClassChoice) this.st.subFeatures.forEach((f) => add(f, true));
     return out;
   });
 
@@ -291,11 +326,11 @@ export class LevelUpAssistantUi {
     }
   }
 
-  // `doc.changes` steht bereits in kanonischer Schritt-Reihenfolge — kein Sortieren nötig.
+  // `shownChanges` steht bereits in kanonischer Schritt-Reihenfolge — kein Sortieren nötig.
   progressionGroups = $derived.by<{ heading: string; changes: Change[] }[]>(() => {
     const groups: { heading: string; changes: Change[] }[] = [];
     const idx = new Map<string, number>();
-    for (const c of this.#run.doc.changes) {
+    for (const c of this.shownChanges) {
       let i = idx.get(c.step);
       if (i === undefined) {
         i = groups.length;

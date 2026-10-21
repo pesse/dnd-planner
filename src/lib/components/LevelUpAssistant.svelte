@@ -99,11 +99,10 @@
     isPausedAt(st.run, 'choose-class') ? classDetail : isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined,
   );
 
-  // Nach einem Rücksprung zur Klassenwahl steht das alte Delta noch — es gilt erst nach „Weiter".
-  const previewDelta = $derived(stepOf(st.run) === 'choose-class' ? null : st.delta);
+  const previewDelta = $derived(ui.shownDelta);
   const baseline = $derived($state.snapshot(character) as Character);
   const previewCharacter = $derived(
-    previewDelta ? characterWithChanges(baseline, run.doc.changes, applyContext, previewDelta) : baseline,
+    previewDelta ? characterWithChanges(baseline, ui.shownChanges, applyContext, previewDelta) : baseline,
   );
 </script>
 
