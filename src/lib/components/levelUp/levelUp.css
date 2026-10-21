@@ -15,8 +15,36 @@
 .lvlup .result:hover { border-color: var(--arcane, var(--gold)); color: var(--ink); }
 .lvlup .result:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.lvlup .roll { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.lvlup .roll-result { font-size: 0.82rem; color: var(--ink-soft); }
+.lvlup .decision {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.85rem 0.85rem;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: linear-gradient(160deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 130%);
+}
+.lvlup .decision > h3 {
+  margin: 0; font-family: var(--font-display); font-size: 0.88rem; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--gold);
+}
+.lvlup .decision > h3 .hint { text-transform: none; letter-spacing: 0; font-family: inherit; }
+
+.lvlup .tiles { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 0.4rem; }
+.lvlup .tile {
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.5rem 0.4rem;
+  font: inherit; color: var(--ink); cursor: pointer; border: 1px solid var(--border); border-radius: 6px;
+  background: linear-gradient(100deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 140%);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.lvlup .tile:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--border-strong); }
+.lvlup .tile:focus-visible { outline: 2px solid var(--arcane); outline-offset: 2px; }
+.lvlup .tile.sel {
+  border-color: var(--gold);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--arcane) 10%, var(--bg)) 0%, var(--surface) 140%);
+  box-shadow: inset 0 0 0 1px var(--gold), 0 3px 14px -6px color-mix(in srgb, var(--arcane) 70%, transparent);
+}
+.lvlup .tile:disabled { opacity: 0.45; cursor: not-allowed; }
+.lvlup .tile-label { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; color: var(--ink-soft); }
+.lvlup .tile.sel .tile-label { color: var(--arcane); }
+.lvlup .tile-value { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.lvlup .tile-sub { font-size: 0.72rem; color: var(--ink-soft); text-align: center; }
 
 
 .lvlup .flagged { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }

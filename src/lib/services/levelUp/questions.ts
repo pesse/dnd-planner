@@ -30,17 +30,16 @@ export function buildDecisions(
 ): LevelUpQuestion[] {
   const qs: LevelUpQuestion[] = [];
 
-  // Bei „Würfeln" wird tatsächlich gewürfelt (Roll-Button), nicht getippt.
+  // Bei „Würfeln" wird tatsächlich gewürfelt, nicht getippt; die Karte zeigt beides als Kacheln.
   if (delta.hitDie > 0) {
     qs.push(baseQuestion({
       id: 'hp_method', type: 'choice', prompt: 'Trefferpunkte bestimmen',
-      help: `Durchschnitt = ${Math.floor(delta.hitDie / 2) + 1} pro Stufe (+ KON).`,
       options: [opt('average', 'Durchschnitt'), opt('roll', 'Würfeln')], defaultValue: 'average',
     }));
     qs.push(baseQuestion({
       id: 'hp_roll', type: 'hp-roll',
       prompt: delta.levelsGained > 1 ? `Trefferwürfel auswürfeln (${delta.levelsGained}×W${delta.hitDie})` : `Trefferwürfel auswürfeln (W${delta.hitDie})`,
-      help: 'Nur bei „Würfeln" — klicke zum Auswürfeln.', required: false,
+      required: false,
       dieSides: delta.hitDie, rollCount: delta.levelsGained,
     }));
   }
