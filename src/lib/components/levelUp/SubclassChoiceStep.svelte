@@ -23,7 +23,7 @@
   <ChoiceGroup heading="Subklasse für {st.delta.klasseName}">
     {#each st.delta.subclassOptions as sc (sc.key)}
       <ChoiceOption title={sc.name} selected={st.chosenSubclass?.key === sc.key} art={optionArt(sc.key)}
-        onselect={() => (st.chosenSubclass = { key: sc.key, name: sc.name })} />
+        onselect={() => ui.run.previewSubclass(sc.key, sc.name)} />
     {/each}
   </ChoiceGroup>
   {#if !st.delta.subclassOptions.length}<span class="hint">Keine Subklassen gefunden.</span>{/if}

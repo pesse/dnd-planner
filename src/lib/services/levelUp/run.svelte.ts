@@ -15,7 +15,7 @@ import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
 import { createLevelUpKnownSpells } from './knownSpells.svelte';
 import { createRunSteps } from './runSteps';
-import { emptyRiders, emptyRunState, stepOf, type LevelUpRunState } from './runState';
+import { emptyRiders, emptyRunState, isPausedAt, stepOf, type LevelUpRunState } from './runState';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
@@ -211,7 +211,12 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
   // Während eines Laufs der zuletzt ABGESCHLOSSENE Schritt — so erscheinen fertige
   // Teilschritte im Dokument, ohne Vorgriff auf den noch laufenden.
-  const viewStep = $derived<StepId>(st.run.kind === 'running' ? st.reachedStep : stepOf(st.run));
+  // An der Subklassenwahl zeigt die getroffene Wahl ihre Merkmale schon vor „Weiter".
+  const viewStep = $derived<StepId>(
+    st.run.kind === 'running' ? st.reachedStep
+    : isPausedAt(st.run, 'subclass-choice') && st.chosenSubclass ? 'subclass-delta'
+    : stepOf(st.run),
+  );
   const doc = $derived.by<LevelUpDoc>(() => {
     if (!st.delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
     return buildDoc({
@@ -277,6 +282,16 @@ export function createLevelUpRun(ctx: { character: Character }) {
     resume(from: StepId): Promise<void> {
       if (!st.delta) return Promise.resolve();
       return runSegment(from, (alive) => pipelineBody(from, alive));
+    },
+
+    /** Die Wahl links, noch ohne „Weiter" — lädt nur die Merkmale für „Was sich ändert". */
+    previewSubclass(key: string, name: string) {
+      if (!st.delta) return;
+      st.chosenSubclass = { key, name };
+      st.subFeatures = [];
+      void computeSubclassFeatures(key, st.delta.fromLevel, st.delta.toLevel).then((f) => {
+        if (st.chosenSubclass?.key === key) st.subFeatures = f;
+      });
     },
 
     chooseSubclass(key: string, name: string) {
