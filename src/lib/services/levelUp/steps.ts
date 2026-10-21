@@ -106,6 +106,20 @@ const TIMELINE: StepId[] = [
   'feature-notes', 'class-features', 'review', 'done',
 ];
 
+export const timelineIndex = (step: StepId): number => TIMELINE.indexOf(step);
+
+/**
+ * Die Checkpoints, die `advance` mit dem heutigen Wissen ansteuert. Ein Zähler steht vor
+ * seinem Schritt oft noch auf 0 — der Weg kann also wachsen, sobald ein Schritt gelaufen ist.
+ */
+export function plannedCheckpoints(ctx: AdvanceCtx): StepId[] {
+  const out: StepId[] = ['choose-class'];
+  for (let s = advance('choose-class', ctx); s !== 'done'; s = advance(s, ctx)) {
+    if (isCheckpoint(s)) out.push(s);
+  }
+  return out;
+}
+
 export function stepReached(current: StepId, step: string): boolean {
   const ci = TIMELINE.indexOf(current);
   const si = TIMELINE.indexOf(step as StepId);

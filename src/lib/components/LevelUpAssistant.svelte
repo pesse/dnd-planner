@@ -8,7 +8,7 @@
   import { onDestroy } from 'svelte';
   import { createLevelUpRun } from '../services/levelUp/run.svelte';
   import { isPausedAt, stepOf } from '../services/levelUp/runState';
-  import { STEP_META, type StepId } from '../services/levelUp/steps';
+  import { STEP_META, timelineIndex, type StepId } from '../services/levelUp/steps';
   import { type LevelUpDelta } from '../services/levelUp';
   import { type LevelUpChangeSet } from '../schemas/levelUp';
   import { type Character } from '../schemas/characterSchema';
@@ -46,16 +46,26 @@
 
   const ui = createLevelUpAssistantUi(run, () => character, (changeSet, delta) => onApply(changeSet, delta), () => onclose());
 
-  // Die Zustandsmaschine kennt ihre Checkpoints erst beim Erreichen — die Leiste zeigt die
-  // bisher besuchten, ohne Rücksprung.
+  // Der geplante Weg plus alles schon Besuchte: ein Zähler kann nach dem Besuch wieder auf 0
+  // fallen, der Schritt bleibt trotzdem in der Leiste.
   let visited = $state<StepId[]>([]);
   $effect(() => {
     if (st.run.kind === 'running') return;
     const at = stepOf(st.run);
     if (at !== 'done' && !visited.includes(at)) visited = [...visited, at];
   });
-  const steps = $derived(visited.map((id) => ({ id, label: STEP_META[id].label })));
-  const current = $derived(Math.max(0, visited.indexOf(stepOf(st.run))));
+  const stepIds = $derived(
+    [...new Set([...visited, ...run.plannedSteps])].sort((a, b) => timelineIndex(a) - timelineIndex(b)),
+  );
+  const steps = $derived(stepIds.map((id) => ({ id, label: STEP_META[id].label })));
+  const current = $derived(Math.max(0, stepIds.indexOf(stepOf(st.run))));
+  const idle = $derived(st.run.kind !== 'running');
+
+  function goBack(i: number) {
+    const target = stepIds[i];
+    visited = visited.filter((s) => timelineIndex(s) <= timelineIndex(target));
+    run.backTo(target);
+  }
 
   // Während eines Laufs fehlt „Weiter" — der nächste Checkpoint steht noch nicht fest.
   const forward = $derived.by<{ label: string; disabled: boolean; go: () => void } | null>(() => {
@@ -82,14 +92,16 @@
     isPausedAt(st.run, 'choose-class') ? classDetail : isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined,
   );
 
+  // Nach einem Rücksprung zur Klassenwahl steht das alte Delta noch — es gilt erst nach „Weiter".
+  const previewDelta = $derived(stepOf(st.run) === 'choose-class' ? null : st.delta);
   const baseline = $derived($state.snapshot(character) as Character);
   const previewCharacter = $derived(
-    st.delta ? characterWithChanges(baseline, run.doc.changes, applyContext, st.delta) : baseline,
+    previewDelta ? characterWithChanges(baseline, run.doc.changes, applyContext, previewDelta) : baseline,
   );
 </script>
 
 {#snippet progression()}
-  <CharacterPreview character={previewCharacter} baseline={st.delta ? baseline : null} emptyText="">
+  <CharacterPreview character={previewCharacter} baseline={previewDelta ? baseline : null} emptyText="">
     {#if ui.progressionGroups.length}
       <div class="facts">
         <h3>Was sich ändert</h3>
@@ -115,6 +127,7 @@
 {#snippet footer()}
   <button class="secondary" onclick={onclose}>{stepOf(st.run) === 'review' ? 'Verwerfen' : 'Abbrechen'}</button>
   <div class="spacer"></div>
+  {#if current > 0 && idle}<button class="secondary" onclick={() => goBack(current - 1)}>Zurück</button>{/if}
   {#if forward}
     <button class="primary" onclick={forward.go} disabled={forward.disabled}>{forward.label}</button>
   {/if}
@@ -126,6 +139,7 @@
   scope="wizard lvlup"
   {steps}
   {current}
+  onstep={idle ? goBack : undefined}
   {onclose}
   mainWidth={choiceDetail ? CHOICE_LIST_WIDTH : undefined}
   detail={choiceDetail}

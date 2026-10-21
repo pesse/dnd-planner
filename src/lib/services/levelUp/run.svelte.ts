@@ -6,7 +6,7 @@
 import { mod } from '../../domain/skills';
 import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
-import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
+import { type StepId, type AdvanceCtx, isCheckpoint, advance, plannedCheckpoints } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
 import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForFlow } from './features';
 import { countFeatsToPick } from './questions';
@@ -236,6 +236,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     choices,
     knownSpells,
     get doc() { return doc; },
+    get plannedSteps(): StepId[] { return st.delta ? plannedCheckpoints(advCtx()) : ['choose-class']; },
     ensureSpellLib,
 
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
@@ -281,6 +282,16 @@ export function createLevelUpRun(ctx: { character: Character }) {
       if (!st.delta) return;
       st.chosenSubclass = { key, name };
       runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
+    },
+
+    /**
+     * Zurück zu einem früheren Checkpoint. Der Zustand bleibt stehen — „Weiter" rechnet die
+     * folgenden Schritte neu, und wo ein Schritt seine Wahl neu aufsetzt, ist sie dann weg.
+     */
+    backTo(step: StepId) {
+      if (st.run.kind === 'running' || !isCheckpoint(step)) return;
+      st.reachedStep = step;
+      st.run = { kind: 'paused', at: step };
     },
 
     destroy() { runToken++; },
