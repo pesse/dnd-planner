@@ -30,6 +30,8 @@ export interface SpellCreatorState {
   levels: number[];
 }
 
+export interface NewFeature { id: string; key: string; name: string; text: string; subclass: boolean }
+
 export class LevelUpAssistantUi {
   #run: LevelUpRun;
   #getCharacter: () => Character;
@@ -247,9 +249,6 @@ export class LevelUpAssistantUi {
     return true;
   }
 
-  confirmClassFeatures(): void {
-    this.st.run = { kind: 'paused', at: 'review' };
-  }
 
   apply(): void {
     const st = this.st;
@@ -257,6 +256,28 @@ export class LevelUpAssistantUi {
     st.run = { kind: 'paused', at: 'done' };
     this.#onclose();
   }
+
+  /**
+   * Die neuen Merkmale dieses Aufstiegs, deutsch. `subclassFeaturesGained` (Subklasse schon
+   * gewählt) und `subFeatures` (in diesem Aufstieg gewählt) schließen sich aus — der Schlüssel
+   * fängt nur Dubletten im Vault.
+   */
+  newFeatures = $derived.by<NewFeature[]>(() => {
+    const d = this.st.delta;
+    if (!d) return [];
+    const seen = new Set<string>();
+    const out: NewFeature[] = [];
+    const add = (f: { key?: string; name: string; nameDe?: string; desc?: string; descDe?: string }, subclass: boolean) => {
+      const id = f.key || f.name;
+      if (seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, key: f.key ?? '', name: f.nameDe || f.name, text: f.descDe || f.desc || '', subclass });
+    };
+    d.featuresGained.forEach((f) => add(f, false));
+    d.subclassFeaturesGained.forEach((f) => add(f, true));
+    this.st.subFeatures.forEach((f) => add(f, true));
+    return out;
+  });
 
   changeLine(c: Change): string {
     switch (c.target) {
@@ -271,22 +292,21 @@ export class LevelUpAssistantUi {
   }
 
   // `doc.changes` steht bereits in kanonischer Schritt-Reihenfolge — kein Sortieren nötig.
-  progressionGroups = $derived.by<{ heading: string; lines: string[] }[]>(() => {
-    const groups: { heading: string; lines: string[] }[] = [];
+  progressionGroups = $derived.by<{ heading: string; changes: Change[] }[]>(() => {
+    const groups: { heading: string; changes: Change[] }[] = [];
     const idx = new Map<string, number>();
     for (const c of this.#run.doc.changes) {
       let i = idx.get(c.step);
       if (i === undefined) {
         i = groups.length;
         idx.set(c.step, i);
-        groups.push({ heading: STEP_META[c.step as StepId]?.label ?? c.step, lines: [] });
+        groups.push({ heading: STEP_META[c.step as StepId]?.label ?? c.step, changes: [] });
       }
-      groups[i].lines.push(this.changeLine(c));
+      groups[i].changes.push(c);
     }
     return groups;
   });
 
-  reviewLines = $derived.by(() => this.#run.doc.changes.map((c) => this.changeLine(c)));
 }
 
 export function createLevelUpAssistantUi(

@@ -78,7 +78,7 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });
   }
   for (const f of delta.featuresGained)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: delta.sourceKey, label: `Neues Merkmal: ${f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: delta.sourceKey, label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 
@@ -88,7 +88,7 @@ export function subclassChanges(subclass: { key: string; name: string } | null, 
   if (subclass?.key)
     out.push({ target: 'subclass', key: subclass.key, name: subclass.name, step, source: subclass.key, label: `Subklasse: ${subclass.name}` });
   for (const f of subFeatures)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 
@@ -331,5 +331,5 @@ export function ongoingChanges(sources: { feature: string; sourceKey?: string; a
 
 export function classFeaturesChanges(text: string): Change[] {
   if (!text?.trim()) return [];
-  return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Klassenmerkmale (überarbeitet)' }];
+  return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Bogentext der Klassenmerkmale ergänzt' }];
 }

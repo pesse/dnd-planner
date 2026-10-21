@@ -7,25 +7,6 @@
   const st = $derived(ui.st);
   const d = $derived(st.delta!);
 
-  interface Shown { id: string; name: string; text: string; subclass: boolean }
-
-  // `subclassFeaturesGained` (Subklasse schon gewählt) und `subFeatures` (in diesem Aufstieg
-  // gewählt) schließen sich aus — der Schlüssel fängt nur Dubletten im Vault.
-  const features = $derived.by<Shown[]>(() => {
-    const seen = new Set<string>();
-    const out: Shown[] = [];
-    const add = (f: { key?: string; name: string; nameDe?: string; desc?: string; descDe?: string }, subclass: boolean) => {
-      const id = f.key || f.name;
-      if (seen.has(id)) return;
-      seen.add(id);
-      out.push({ id, name: f.nameDe || f.name, text: f.descDe || f.desc || '', subclass });
-    };
-    d.featuresGained.forEach((f) => add(f, false));
-    d.subclassFeaturesGained.forEach((f) => add(f, true));
-    st.subFeatures.forEach((f) => add(f, true));
-    return out;
-  });
-
   const numbers = $derived.by<string[]>(() => {
     const lines: string[] = [];
     if (d.hitDie) lines.push(`Trefferpunkte: +1W${d.hitDie} + KON-Modifikator pro Stufe`);
@@ -45,9 +26,9 @@
       {#each numbers as l}<div class="fact">• {l}</div>{/each}
     </div>
   {/if}
-  {#if features.length}
+  {#if ui.newFeatures.length}
     <div class="new-features">
-      {#each features as f (f.id)}
+      {#each ui.newFeatures as f (f.id)}
         <article class="new-feature">
           <h4>{f.name}{#if f.subclass}<span class="badge">Unterklasse</span>{/if}</h4>
           {#if f.text}<Markdown source={f.text} />{/if}

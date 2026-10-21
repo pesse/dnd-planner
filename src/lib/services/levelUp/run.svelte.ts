@@ -166,6 +166,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
       case 'feature-notes':
         steps.runNotes();
         break;
+      case 'class-features':
+        st.featuresText = steps.seedFeaturesText();
+        break;
       case 'ongoing-effects':
         await steps.detectHpPerLevel(alive);
         if (!alive()) return;
@@ -203,8 +206,6 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.featsToPick = countFeatsToPick(st.delta!, st.answers, slotTotal(st.featSlots));
       st.chosenFeats = [];
       getFeats().then((f) => { st.featLib = f; });
-    } else if (step === 'class-features') {
-      st.featuresText = steps.seedFeaturesText();
     }
   }
 
@@ -273,9 +274,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
       });
     },
 
-    resume(from: StepId) {
-      if (!st.delta) return;
-      runSegment(from, (alive) => pipelineBody(from, alive));
+    resume(from: StepId): Promise<void> {
+      if (!st.delta) return Promise.resolve();
+      return runSegment(from, (alive) => pipelineBody(from, alive));
     },
 
     chooseSubclass(key: string, name: string) {

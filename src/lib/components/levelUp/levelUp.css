@@ -17,11 +17,7 @@
 
 .lvlup .roll { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .lvlup .roll-result { font-size: 0.82rem; color: var(--ink-soft); }
-.lvlup .ta-features { min-height: 12rem; }
 
-.lvlup .review { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }
-.lvlup .review-line { font-size: 0.82rem; color: var(--ink-soft); }
-.lvlup .review-line.muted { color: var(--ink-muted); }
 
 .lvlup .flagged { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }
 .lvlup .flagged-line { font-size: 0.8rem; color: var(--gold); }

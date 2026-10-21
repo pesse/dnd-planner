@@ -27,9 +27,8 @@
   import PlayerDecisionsPanel from './levelUp/PlayerDecisionsPanel.svelte';
   import FeatChoicePanel from './levelUp/FeatChoicePanel.svelte';
   import FightingStylePanel from './levelUp/FightingStylePanel.svelte';
-  import ClassFeaturesPanel from './levelUp/ClassFeaturesPanel.svelte';
   import SpellCreatorPanel from './levelUp/SpellCreatorPanel.svelte';
-  import ReviewPanel from './levelUp/ReviewPanel.svelte';
+  import ChangeList from './levelUp/ChangeList.svelte';
   import './wizard/wizard.css';
   import './levelUp/levelUp.css';
 
@@ -68,9 +67,9 @@
   }
 
   // Während eines Laufs fehlt „Weiter" — der nächste Checkpoint steht noch nicht fest.
-  const forward = $derived.by<{ label: string; disabled: boolean; go: () => void } | null>(() => {
+  const forward = $derived.by<{ label: string; disabled: boolean; go: () => unknown } | null>(() => {
     if (st.run.kind === 'running') return null;
-    const step = (disabled: boolean, go: () => void) => ({ label: 'Weiter', disabled, go });
+    const step = (disabled: boolean, go: () => unknown) => ({ label: 'Weiter', disabled, go });
     switch (stepOf(st.run)) {
       case 'choose-class':
         return step((ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20), () => ui.startFlow());
@@ -81,11 +80,19 @@
       case 'player-decisions': return step(!ui.allAnswered, () => run.resume('player-decisions'));
       case 'feat-choice': return step(!ui.featsDone || !ui.stylesDone, () => run.resume('feat-choice'));
       case 'feat-choices': return step(!run.choices.allFeatAnswered, () => run.resume('feat-choices'));
-      case 'class-features': return step(false, () => ui.confirmClassFeatures());
-      case 'review': return { label: 'In den Entwurf übernehmen', disabled: false, go: () => ui.apply() };
       default: return null;
     }
   });
+
+  // Am letzten Checkpoint übernimmt „Weiter" gleich: die Seitenleiste zeigt längst alles,
+  // die übrigen Schritte rechnen nur noch.
+  const isLast = $derived(
+    !!st.delta && !['choose-class', 'subclass-choice'].includes(stepOf(st.run)) && stepIds.at(-1) === stepOf(st.run),
+  );
+  async function finish(go: () => unknown) {
+    await go();
+    if (isPausedAt(st.run, 'done')) ui.apply();
+  }
 
   // Auswahl-Schritte zeigen wie die Herkunft im Erstell-Wizard eine Liste neben der Detailkarte.
   const choiceDetail = $derived(
@@ -102,17 +109,7 @@
 
 {#snippet progression()}
   <CharacterPreview character={previewCharacter} baseline={previewDelta ? baseline : null} emptyText="">
-    {#if ui.progressionGroups.length}
-      <div class="facts">
-        <h3>Was sich ändert</h3>
-        {#each ui.progressionGroups as g}
-          <div class="proto-group">
-            <div class="proto-heading">{g.heading}</div>
-            {#each g.lines as l}<div class="fact">• {l}</div>{/each}
-          </div>
-        {/each}
-      </div>
-    {/if}
+    <ChangeList {ui} />
   </CharacterPreview>
 {/snippet}
 
@@ -125,11 +122,16 @@
 {/snippet}
 
 {#snippet footer()}
-  <button class="secondary" onclick={onclose}>{stepOf(st.run) === 'review' ? 'Verwerfen' : 'Abbrechen'}</button>
+  <button class="secondary" onclick={onclose}>Abbrechen</button>
   <div class="spacer"></div>
   {#if current > 0 && idle}<button class="secondary" onclick={() => goBack(current - 1)}>Zurück</button>{/if}
   {#if forward}
-    <button class="primary" onclick={forward.go} disabled={forward.disabled}>{forward.label}</button>
+    {@const go = forward.go}
+    {#if isLast}
+      <button class="primary" onclick={() => finish(go)} disabled={forward.disabled}>In den Entwurf übernehmen</button>
+    {:else}
+      <button class="primary" onclick={go} disabled={forward.disabled}>{forward.label}</button>
+    {/if}
   {/if}
 {/snippet}
 
@@ -181,15 +183,7 @@
     {#if st.featsToPick > 0}<FeatChoicePanel {ui} />{/if}
   {/if}
 
-  {#if isPausedAt(st.run, 'class-features')}
-    <ClassFeaturesPanel {ui} />
-  {/if}
-
   <SpellCreatorPanel {ui} />
-
-  {#if isPausedAt(st.run, 'review')}
-    <ReviewPanel {ui} />
-  {/if}
 
   {#if st.run.kind === 'error'}<p class="warn">{st.run.message}</p>{/if}
 
@@ -199,7 +193,4 @@
 <style>
   .main { display: flex; flex-direction: column; gap: 0.7rem; max-width: 60rem; }
   .spacer { flex: 1; }
-  .facts h3 { margin: 0; font-size: 0.95rem; font-family: var(--font-display, inherit); }
-  .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
-  .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
 </style>

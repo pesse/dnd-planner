@@ -27,7 +27,7 @@ export type StepId =
   | 'feat-effects'        // Rider der Talent-Deklarationen
   | 'ongoing-effects'
   | 'feature-notes'       // je Merkmal eine Bogenzeile
-  | 'class-features'      // Checkpoint: der Bogentext zum Nachbearbeiten
+  | 'class-features'      // Bogentext der Klassenmerkmale aus den Notizen
   | 'review'
   | 'done';
 
@@ -48,8 +48,8 @@ export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
   'feat-effects':      { kind: 'deterministic', label: 'Talent-Effekte' },
   'ongoing-effects':   { kind: 'deterministic', label: 'Fortlaufende Effekte' },
   'feature-notes':     { kind: 'deterministic', label: 'Merkmals-Notizen' },
-  'class-features':    { kind: 'checkpoint',    label: 'Klassenmerkmale' },
-  'review':            { kind: 'checkpoint',    label: 'Überprüfung' },
+  'class-features':    { kind: 'deterministic', label: 'Klassenmerkmale' },
+  'review':            { kind: 'deterministic', label: 'Überprüfung' },
   'done':              { kind: 'checkpoint',    label: 'Fertig' },
 };
 

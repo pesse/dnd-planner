@@ -19,7 +19,7 @@ const checkpointsAfterStart = (c: AdvanceCtx): StepId[] => plannedCheckpoints(c)
 
 describe('Checkpoint „Neue Merkmale"', () => {
   it('folgt direkt auf das Grund-Delta', () => {
-    expect(checkpointsAfterStart(ctx({}))).toEqual(['new-features', 'player-decisions', 'class-features', 'review']);
+    expect(checkpointsAfterStart(ctx({}))).toEqual(['new-features', 'player-decisions']);
   });
 
   it('folgt bei einer Unterklassenwahl erst auf deren Delta', () => {
