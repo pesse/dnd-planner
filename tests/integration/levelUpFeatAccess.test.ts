@@ -125,6 +125,7 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     const doc = buildDoc({
       delta,
       hitDice: '3W10',
+      pins: [],
       chosenSubclass: null,
       subFeatures: [],
       declaredSpells: noDeclaredSpells(),

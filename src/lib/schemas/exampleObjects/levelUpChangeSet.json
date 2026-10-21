@@ -183,6 +183,7 @@
       "target": "featureGained",
       "name": "string",
       "sourceKey": "string",
+      "pinned": false,
       "step": "string",
       "source": "string",
       "label": "string"

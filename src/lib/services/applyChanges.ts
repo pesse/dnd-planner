@@ -16,6 +16,7 @@ import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 import { addExtra, addPick } from './spellcasting/write';
 import { cappedScore } from './declaration/abilityIncrease';
+import { createFeaturePins } from './featurePins';
 
 export interface ApplyContext {
   /** Index der Klasse, an der `subclass` landet. */
@@ -195,8 +196,10 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
     ];
   },
 
-  // Kein Ziel am Charakter: Merkmale kommen aus dem Link, das Protokoll ist reine Info.
-  featureGained: () => {},
+  featureGained: (c, next) => {
+    const pins = createFeaturePins(() => next);
+    if (c.pinned && c.sourceKey && !pins.has(c.sourceKey)) pins.toggle(c.sourceKey);
+  },
   note: () => {},
 };
 

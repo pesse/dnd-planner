@@ -166,8 +166,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('weaponProficiencyOther'), value: z.string(), ...changeBase }),
   z.object({ target: z.literal('subclass'), key: z.string(), name: z.string(), ...changeBase }),
   z.object({ target: z.literal('classFeaturesText'), mode: z.enum(['replace', 'append']), value: z.string(), ...changeBase }),
-  // Reines Feedback, keine Anwendung am Charakter.
-  z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), ...changeBase }),
+  // Das Merkmal selbst kommt aus dem Link; `pinned` hängt nur seinen Key an `pinnedFeatures`.
+  z.object({ target: z.literal('featureGained'), name: z.string(), sourceKey: z.string().default(''), pinned: z.boolean().default(false), ...changeBase }),
   // Landet strukturiert in `character.features[]` — deshalb darf der Klassenmerkmale-Freitext die
   // Wahl weglassen. `choice` = englisches kanonisches Label (Prompt-Kanal), `choiceDe` = Anzeige,
   // `choiceId` = die Frage (`LevelUpQuestion.id`) und damit der Upsert-Schlüssel im Ledger.

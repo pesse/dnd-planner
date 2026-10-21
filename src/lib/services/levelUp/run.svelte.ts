@@ -227,7 +227,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,
       optionPools: st.optionPools, optionPicks: st.optionPicks,
       optionPicksBefore: ctx.character.optionPicks ?? [],
-      hpPerLevelSources: st.hpPerLevelSources, summaryLine: st.summaryLine, featuresText: st.featuresText,
+      hpPerLevelSources: st.hpPerLevelSources, summaryLine: st.summaryLine, featuresText: st.featuresText, pins: st.pins,
       upTo: viewStep,
     });
   });
@@ -248,7 +248,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
       st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
-      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = '';
+      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = ''; st.pins = [];
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();
 

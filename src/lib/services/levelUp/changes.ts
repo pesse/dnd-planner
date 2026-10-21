@@ -58,7 +58,7 @@ function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string 
   return abil;
 }
 
-export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[] {
+export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string, pins: ReadonlySet<string> = new Set()): Change[] {
   const step: BuilderStep = 'base-delta';
   const out: Change[] = [];
   if (delta.profBonusTo !== delta.profBonusFrom)
@@ -78,17 +78,17 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
     out.push({ target: 'note', value, step, source: 'class-progression', label: value });
   }
   for (const f of delta.featuresGained)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: delta.sourceKey, label: `Neues Merkmal: ${f.nameDe || f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', pinned: pins.has(f.key ?? ''), step, source: delta.sourceKey, label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 
-export function subclassChanges(subclass: { key: string; name: string } | null, subFeatures: GainedFeature[]): Change[] {
+export function subclassChanges(subclass: { key: string; name: string } | null, subFeatures: GainedFeature[], pins: ReadonlySet<string> = new Set()): Change[] {
   const step: BuilderStep = 'subclass-delta';
   const out: Change[] = [];
   if (subclass?.key)
     out.push({ target: 'subclass', key: subclass.key, name: subclass.name, step, source: subclass.key, label: `Subklasse: ${subclass.name}` });
   for (const f of subFeatures)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.nameDe || f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', pinned: pins.has(f.key ?? ''), step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 

@@ -29,7 +29,7 @@
 {#snippet line(c: Change)}
   {#if c.target === 'featureGained' && featureOf(c.sourceKey || c.name)}
     {@const f = featureOf(c.sourceKey || c.name)!}
-    <div class="fact">• {prefixOf(c.label, f.name)}<button type="button" class="ref" use:textTip={f.text} onclick={() => (shownFeature = f)}>{f.name}</button></div>
+    <div class="fact">• {prefixOf(c.label, f.name)}<button type="button" class="ref" use:textTip={f.text} onclick={() => (shownFeature = f)}>{f.name}</button>{#if c.pinned}<span class="pinned" title="Wird im Ausdruck als Volltext angehängt"> 📌</span>{/if}</div>
   {:else if c.target === 'feat' && featOf(c.sourceKey)?.path}
     {@const feat = featOf(c.sourceKey)!}
     <div class="fact">• {prefixOf(c.label, c.name)}<button type="button" class="ref" use:textTip={featDesc(feat)}
@@ -77,5 +77,6 @@
     background: none; border: none; padding: 0; font: inherit; color: var(--arcane, var(--gold)); cursor: pointer;
     text-decoration: underline dotted; text-underline-offset: 2px;
   }
+  .pinned { font-size: 0.72rem; }
   .feature-text { font-size: 0.85rem; line-height: 1.55; }
 </style>
