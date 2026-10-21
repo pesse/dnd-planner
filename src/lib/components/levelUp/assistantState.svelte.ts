@@ -6,7 +6,8 @@ import { type StepId, STEP_META } from '$lib/services/levelUp/steps';
 import { stepOf } from '$lib/services/levelUp/runState';
 import type { LevelUpRun } from '$lib/services/levelUp/run.svelte';
 import { type LevelUpDelta } from '$lib/services/levelUp';
-import { getClasses, classDisplayName, type ClassInfo } from '$lib/classLibrary';
+import { loadBaseClasses } from '$lib/services/wizard/originCatalog';
+import type { ClassProgression } from '$lib/types';
 import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrary';
 import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '$lib/schemas/levelUp';
 import { searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
@@ -36,7 +37,7 @@ export class LevelUpAssistantUi {
   #onclose: () => void;
 
   classChoice = $state('');
-  libClasses = $state<ClassInfo[]>([]);
+  baseClasses = $state<ClassProgression[]>([]);
   newClassKey = $state('');
   newClassName = $state('');
   targetLevel = $state(1);
@@ -55,7 +56,7 @@ export class LevelUpAssistantUi {
     this.#onclose = onclose;
     this.classChoice = (getCharacter().classes ?? []).length ? '0' : 'new';
 
-    $effect(() => { getClasses().then((cs) => { this.libClasses = cs.filter((c) => c.key && !c.subclassOf); }); });
+    $effect(() => { loadBaseClasses().then((cs) => { this.baseClasses = cs; }); });
     $effect(() => {
       if (this.targetLevel <= this.effectiveFrom || this.targetLevel > 20) this.targetLevel = Math.min(20, this.effectiveFrom + 1);
     });
@@ -70,14 +71,16 @@ export class LevelUpAssistantUi {
   hasClasses = $derived(this.classList.length > 0);
   isNewClass = $derived(this.classChoice === 'new');
   classIndex = $derived(this.isNewClass ? this.classList.length : Number(this.classChoice));
+  /** Bibliotheks-Key der Klasse, die aufsteigt — Detailspalte und Bild hängen daran. */
+  selectedClassKey = $derived(this.isNewClass ? this.newClassKey : (this.classList[this.classIndex]?.sourceKey ?? ''));
   effectiveFrom = $derived(this.isNewClass ? 0 : (this.classList[this.classIndex]?.level ?? 1));
 
   allAnswered = $derived.by(() => this.#run.choices.isAnswered(this.st.decisions));
 
   selectNewClass(key: string) {
     this.newClassKey = key;
-    const found = this.libClasses.find((c) => c.key === key);
-    this.newClassName = found ? classDisplayName(found) : '';
+    const found = this.baseClasses.find((c) => c.key === key);
+    this.newClassName = found ? found.nameDe || found.name : '';
   }
 
   startFlow() {

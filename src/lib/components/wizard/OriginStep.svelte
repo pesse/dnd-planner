@@ -2,12 +2,12 @@
   import './wizard.css';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
   import type { OriginCatalog, OriginKind } from '../../services/wizard/originCatalog';
-  import { COMPLEXITY_LABELS, primaryAbilityText } from '../libraryView/classView';
+  import { classTileFacts } from '../libraryView/classView';
   import { speciesFacts } from '../libraryView/speciesView';
   import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
   import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
-  import { originArtCandidates } from '../../services/wizard/originArt';
+  import { originArtCandidates, slugOf } from '../../services/wizard/originArt';
   import ChoiceGroup from './ChoiceGroup.svelte';
   import ChoiceOption from './ChoiceOption.svelte';
 
@@ -20,17 +20,7 @@
   const tiles = $derived.by<Tile[]>(() => {
     if (!catalog) return [];
     if (kind === 'class') {
-      return catalog.classes.map((c) => ({
-        key: c.key,
-        title: displayName(c),
-        subtitle: c.overview?.favoredDe ?? '',
-        tags: c.overview
-          ? [
-              { label: primaryAbilityText(c.overview) },
-              { label: COMPLEXITY_LABELS[c.overview.complexity], easy: c.overview.complexity === 'low' },
-            ]
-          : [],
-      }));
+      return catalog.classes.map((c) => ({ key: c.key, title: displayName(c), ...classTileFacts(c) }));
     }
     if (kind === 'species') {
       return catalog.species.map((s) => {
@@ -60,8 +50,6 @@
   const PRESENTATION_LABEL: Record<Presentation, string> = {
     feminine: 'Feminin', androgynous: 'Neutral', masculine: 'Maskulin',
   };
-
-  const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
 
   /** Nur Bilder dieser Option selbst — ein Rückfall aufs Volksbild sähe in jeder Zeile gleich aus. */
   function tileArt(key: string): string[] {

@@ -23,13 +23,18 @@ async function loadAll<T>(keys: (string | undefined)[], load: (key: string) => P
   return entries.filter((e): e is T => e !== null);
 }
 
+/** Nur Grundklassen — die Unterklasse fällt erst ab Stufe 3 an. */
+export async function loadBaseClasses(): Promise<ClassProgression[]> {
+  const tree = await getClassTree();
+  return (await loadAll(tree.filter((n) => !n.subclassOf).map((n) => n.key), getProgressionByKey)).sort(byNameDe);
+}
+
 export async function loadOriginCatalog(): Promise<OriginCatalog> {
-  const [tree, speciesList, backgroundList] = await Promise.all([getClassTree(), getSpeciesList(), getBackgroundsList()]);
-  // Nur Grundklassen — die Unterklasse fällt erst ab Stufe 3 an.
+  const [speciesList, backgroundList] = await Promise.all([getSpeciesList(), getBackgroundsList()]);
   const [classes, species, backgrounds] = await Promise.all([
-    loadAll(tree.filter((n) => !n.subclassOf).map((n) => n.key), getProgressionByKey),
+    loadBaseClasses(),
     loadAll(speciesList.map((s) => s.key), getSpeciesByKey),
     loadAll(backgroundList.map((b) => b.key), getBackgroundByKey),
   ]);
-  return { classes: classes.sort(byNameDe), species: species.sort(byNameDe), backgrounds: backgrounds.sort(byNameDe) };
+  return { classes, species: species.sort(byNameDe), backgrounds: backgrounds.sort(byNameDe) };
 }

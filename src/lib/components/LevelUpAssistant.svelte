@@ -19,6 +19,7 @@
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
+  import ChooseClassDetail from './levelUp/ChooseClassDetail.svelte';
   import SubclassChoiceStep from './levelUp/SubclassChoiceStep.svelte';
   import NewFeaturesPanel from './levelUp/NewFeaturesPanel.svelte';
   import QuestionsPanel from './levelUp/QuestionsPanel.svelte';
@@ -76,6 +77,11 @@
     }
   });
 
+  // Auswahl-Schritte zeigen wie die Herkunft im Erstell-Wizard eine Liste neben der Detailkarte.
+  const choiceDetail = $derived(
+    isPausedAt(st.run, 'choose-class') ? classDetail : isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined,
+  );
+
   const baseline = $derived($state.snapshot(character) as Character);
   const previewCharacter = $derived(
     st.delta ? characterWithChanges(baseline, run.doc.changes, applyContext, st.delta) : baseline,
@@ -102,6 +108,10 @@
   <SubclassDetail {ui} />
 {/snippet}
 
+{#snippet classDetail()}
+  <ChooseClassDetail {ui} />
+{/snippet}
+
 {#snippet footer()}
   <button class="secondary" onclick={onclose}>{stepOf(st.run) === 'review' ? 'Verwerfen' : 'Abbrechen'}</button>
   <div class="spacer"></div>
@@ -117,8 +127,8 @@
   {steps}
   {current}
   {onclose}
-  mainWidth={isPausedAt(st.run, 'subclass-choice') ? CHOICE_LIST_WIDTH : undefined}
-  detail={isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined}
+  mainWidth={choiceDetail ? CHOICE_LIST_WIDTH : undefined}
+  detail={choiceDetail}
   preview={progression}
   {footer}
 >

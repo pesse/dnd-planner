@@ -1,32 +1,46 @@
 <script lang="ts">
+  import '../wizard/wizard.css';
   import './levelUp.css';
-  import { classDisplayName } from '$lib/classLibrary';
+  import { classTileFacts } from '../libraryView/classView';
+  import { originArtCandidates, slugOf } from '../../services/wizard/originArt';
+  import ChoiceGroup from '../wizard/ChoiceGroup.svelte';
+  import ChoiceOption from '../wizard/ChoiceOption.svelte';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
+
+  /** Nur das Bild dieser Klasse — der Rückfall aufs Volksbild sähe in jeder Zeile gleich aus. */
+  const classArt = (classKey: string): string[] =>
+    classKey
+      ? originArtCandidates('class', {
+          classKey, speciesKey: ui.character.species.sourceKey, backgroundKey: '', presentation: ui.character.presentation,
+        }).filter((u) => u.includes(slugOf(classKey)))
+      : [];
+
+  const owned = $derived(new Set(ui.classList.map((c) => c.sourceKey)));
+  const newClasses = $derived(ui.baseClasses.filter((c) => !owned.has(c.key)));
 </script>
 
-<div class="field">
-  <span>Welche Klasse steigt auf?</span>
-  <select value={ui.classChoice} onchange={(e) => (ui.classChoice = (e.target as HTMLSelectElement).value)}>
-    {#each ui.classList as c, i}
-      <option value={String(i)}>{c.name} {c.level}{c.subclassName ? ` (${c.subclassName})` : ''}</option>
-    {/each}
-    <option value="new">➕ Neue Klasse (Multiclassing)</option>
-  </select>
-</div>
+<p class="hint">Wähle die Klasse, die eine Stufe aufsteigt — oder nimm eine neue hinzu (Multiclassing).</p>
+
+<ChoiceGroup heading="Klasse">
+  {#each ui.classList as c, i}
+    <ChoiceOption title={c.name} subtitle="Stufe {c.level}{c.subclassName ? ` · ${c.subclassName}` : ''}"
+      selected={ui.classChoice === String(i)} art={classArt(c.sourceKey ?? '')}
+      onselect={() => (ui.classChoice = String(i))} />
+  {/each}
+  <ChoiceOption title="Neue Klasse" subtitle="Multiclassing" selected={ui.isNewClass} onselect={() => (ui.classChoice = 'new')} />
+</ChoiceGroup>
 
 {#if ui.isNewClass}
-  <div class="field">
-    <span>Neue Klasse</span>
-    <select value={ui.newClassKey} onchange={(e) => ui.selectNewClass((e.target as HTMLSelectElement).value)}>
-      <option value="">— Klasse wählen —</option>
-      {#each ui.libClasses as lc}
-        <option value={lc.key}>{classDisplayName(lc)}</option>
-      {/each}
-    </select>
-    {#if !ui.libClasses.length}<span class="hint">Klassen-Bibliothek wird geladen…</span>{/if}
-  </div>
+  <ChoiceGroup heading="Neue Klasse">
+    {#if !ui.baseClasses.length}<p class="hint">Lade Bibliothek …</p>{/if}
+    {#each newClasses as c (c.key)}
+      {@const facts = classTileFacts(c)}
+      <ChoiceOption title={c.nameDe || c.name} subtitle={facts.subtitle} tags={facts.tags}
+        selected={ui.newClassKey === c.key} art={classArt(c.key)} onselect={() => ui.selectNewClass(c.key)} />
+    {/each}
+  </ChoiceGroup>
 {/if}
 
 <div class="field">
@@ -36,10 +50,10 @@
   {:else}
     <input type="number" min={ui.effectiveFrom + 1} max="20" value={ui.targetLevel}
            oninput={(e) => (ui.targetLevel = Number((e.target as HTMLInputElement).value))} />
-    <span class="hint">
+    <p class="hint">
       {ui.isNewClass
         ? `Neue Klasse startet auf Stufe ${ui.targetLevel}`
         : `von Stufe ${ui.effectiveFrom} → ${ui.targetLevel} (${ui.targetLevel - ui.effectiveFrom === 1 ? 'eine Stufe' : `${Math.max(0, ui.targetLevel - ui.effectiveFrom)} Stufen`})`}
-    </span>
+    </p>
   {/if}
 </div>
