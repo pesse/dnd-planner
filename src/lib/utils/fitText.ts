@@ -11,7 +11,16 @@ export function fitText(node: HTMLElement, opts: { min?: number; text?: string }
     }
   }
 
-  const ro = new ResizeObserver(fit);
+  // Nur auf Breitenänderungen und außerhalb des Callbacks: die neue Schriftgröße ändert die
+  // Höhe, das meldete der Observer sonst sofort wieder („ResizeObserver loop …"-Fehler).
+  let width = -1;
+  let frame = 0;
+  const ro = new ResizeObserver(([entry]) => {
+    if (entry.contentRect.width === width) return;
+    width = entry.contentRect.width;
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(fit);
+  });
   ro.observe(node);
   // Cinzel lädt per Webfont nach — gemessen mit der Fallback-Schrift passte es sonst nur zufällig.
   void document.fonts.ready.then(fit);
@@ -21,6 +30,9 @@ export function fitText(node: HTMLElement, opts: { min?: number; text?: string }
       min = next.min ?? 0.6;
       queueMicrotask(fit);
     },
-    destroy: () => ro.disconnect(),
+    destroy() {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    },
   };
 }
