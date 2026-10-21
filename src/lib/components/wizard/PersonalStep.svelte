@@ -51,8 +51,4 @@
   }
   .align span { color: var(--ink-soft); font-size: 0.74rem; }
   .align.sel { border-color: var(--arcane, var(--gold)); box-shadow: inset 0 0 0 1px var(--arcane, var(--gold)); }
-  textarea {
-    background: var(--bg-raised); color: var(--ink); border: 1px solid var(--border);
-    border-radius: 5px; padding: 0.45rem 0.55rem; font: inherit; resize: vertical;
-  }
 </style>

@@ -15,7 +15,7 @@
 </div>
 {#if st.flagged.length}
   <div class="flagged">
-    <span class="field-label warn">Nicht in der Bibliothek gefunden</span>
+    <p class="warn">Nicht in der Bibliothek gefunden</p>
     {#each st.flagged as f}
       <div class="flagged-line">⚠ {f}
         <button type="button" class="link-btn" onclick={() => ui.openSpellCreator(f, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], null)}>anlegen</button>
@@ -23,4 +23,4 @@
     {/each}
   </div>
 {/if}
-<p class="field-hint">Die Änderungen werden additiv in den Entwurf übernommen (bestehende Item-Boni bleiben erhalten) und farblich hervorgehoben. Speichern/Verwerfen wie gewohnt.</p>
+<p class="hint">Die Änderungen werden additiv in den Entwurf übernommen (bestehende Item-Boni bleiben erhalten) und farblich hervorgehoben. Speichern/Verwerfen wie gewohnt.</p>

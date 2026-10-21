@@ -1,19 +1,27 @@
-/* Formularsprache des Erstell-Assistenten. Global unter `.wizard`, damit die Schritt-
-   Komponenten dieselben Feld-, Chip- und Knopf-Regeln benutzen wie der Rahmen. */
+/* Formularsprache beider Assistenten (Erstellung und Stufenaufstieg). Global unter `.wizard`,
+   damit die Schritt-Komponenten dieselben Feld-, Chip- und Knopf-Regeln benutzen wie der Rahmen. */
 
 .wizard .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .wizard .field > span { font-size: 0.82rem; color: var(--ink-soft); }
 .wizard .info { cursor: help; color: var(--arcane, var(--gold)); font-size: 0.8rem; margin-left: 0.15rem; }
 
 .wizard input[type='text'],
+.wizard input[type='number'],
+.wizard textarea,
 .wizard select {
   background: var(--bg-raised); color: var(--ink); border: 1px solid var(--border);
   border-radius: 5px; padding: 0.45rem 0.55rem; font: inherit;
 }
-.wizard input[type='text']::placeholder { color: var(--ink-muted); }
+.wizard input[type='text']::placeholder,
+.wizard textarea::placeholder { color: var(--ink-muted); }
 .wizard input[type='text']:focus,
+.wizard input[type='number']:focus,
+.wizard textarea:focus,
 .wizard select:focus { outline: none; border-color: var(--border-strong); }
 .wizard select { cursor: pointer; }
+.wizard textarea { resize: vertical; }
+.wizard .pair { display: flex; gap: 0.5rem; }
+.wizard .pair > * { flex: 1; min-width: 0; }
 
 .wizard .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .wizard .chip {

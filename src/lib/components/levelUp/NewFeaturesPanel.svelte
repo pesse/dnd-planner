@@ -38,8 +38,8 @@
   });
 </script>
 
-<div class="row">
-  <span class="field-label">Das bekommst du auf Stufe {d.toLevel}</span>
+<div class="field">
+  <span>Das bekommst du auf Stufe {d.toLevel}</span>
   {#if numbers.length}
     <div class="facts">
       {#each numbers as l}<div class="fact">• {l}</div>{/each}
@@ -55,7 +55,7 @@
       {/each}
     </div>
   {:else}
-    <span class="field-hint">Auf dieser Stufe kommen keine neuen Merkmale hinzu.</span>
+    <span class="hint">Auf dieser Stufe kommen keine neuen Merkmale hinzu.</span>
   {/if}
 </div>
 

@@ -20,23 +20,23 @@
 {/each}
 
 {#if st.delta && ui.openFeats > 0}
-  <div class="row">
-    <span class="field-label">{ui.openFeats} Talent(e) wählen</span>
+  <div class="field">
+    <span>{ui.openFeats} Talent(e) wählen</span>
     <div class="chips">
       {#each st.chosenFeats.filter((f) => !f.slot) as f}
         <span class="pick">{f.nameDe}<button type="button" onclick={() => (st.chosenFeats = st.chosenFeats.filter((x) => x !== f))}>×</button></span>
       {/each}
     </div>
-    <input class="input" placeholder="Talent suchen…" value={ui.featQuery} oninput={(e) => (ui.featQuery = (e.target as HTMLInputElement).value)} />
+    <input type="text" placeholder="Talent suchen…" value={ui.featQuery} oninput={(e) => (ui.featQuery = (e.target as HTMLInputElement).value)} />
     {#if ui.featQuery.trim()}
       <div class="results">
         {#each ui.featResults() as entry}
           {@const mark = ui.featMark(entry)}
           <button type="button" class="result" title={mark.owned ? (mark.blocked ? 'Schon vorhanden' : 'Schon vorhanden — mehrfach wählbar') : undefined} onclick={() => ui.toggleFeat(entry)} disabled={mark.blocked || st.chosenFeats.filter((f) => !f.slot).length >= ui.openFeats && !st.chosenFeats.some((f) => !f.slot && f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}{#if mark.owned}{mark.blocked ? ' ✓' : ' ✓ +1'}{/if}</button>
         {/each}
-        {#if !ui.featResults().length}<span class="field-hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
+        {#if !ui.featResults().length}<span class="hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
       </div>
     {/if}
-    <span class="field-hint">{st.chosenFeats.filter((f) => !f.slot).length} / {ui.openFeats} gewählt</span>
+    <span class="hint">{st.chosenFeats.filter((f) => !f.slot).length} / {ui.openFeats} gewählt</span>
   </div>
 {/if}

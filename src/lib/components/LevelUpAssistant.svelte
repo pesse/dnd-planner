@@ -29,6 +29,7 @@
   import ClassFeaturesPanel from './levelUp/ClassFeaturesPanel.svelte';
   import SpellCreatorPanel from './levelUp/SpellCreatorPanel.svelte';
   import ReviewPanel from './levelUp/ReviewPanel.svelte';
+  import './wizard/wizard.css';
   import './levelUp/levelUp.css';
 
   let { character, applyContext, onApply, onclose }: {
@@ -54,6 +55,26 @@
   });
   const steps = $derived(visited.map((id) => ({ id, label: STEP_META[id].label })));
   const current = $derived(Math.max(0, visited.indexOf(stepOf(st.run))));
+
+  // Während eines Laufs fehlt „Weiter" — der nächste Checkpoint steht noch nicht fest.
+  const forward = $derived.by<{ label: string; disabled: boolean; go: () => void } | null>(() => {
+    if (st.run.kind === 'running') return null;
+    const step = (disabled: boolean, go: () => void) => ({ label: 'Weiter', disabled, go });
+    switch (stepOf(st.run)) {
+      case 'choose-class':
+        return step((ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20), () => ui.startFlow());
+      case 'subclass-choice':
+        return step(!st.chosenSubclass, () => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name));
+      case 'new-features': return step(false, () => run.resume('new-features'));
+      case 'feature-choices': return step(!run.choices.allBaseAnswered, () => run.resume('feature-choices'));
+      case 'player-decisions': return step(!ui.allAnswered, () => run.resume('player-decisions'));
+      case 'feat-choice': return step(!ui.featsDone || !ui.stylesDone, () => run.resume('feat-choice'));
+      case 'feat-choices': return step(!run.choices.allFeatAnswered, () => run.resume('feat-choices'));
+      case 'class-features': return step(false, () => ui.confirmClassFeatures());
+      case 'review': return { label: 'In den Entwurf übernehmen', disabled: false, go: () => ui.apply() };
+      default: return null;
+    }
+  });
 
   const baseline = $derived($state.snapshot(character) as Character);
   const previewCharacter = $derived(
@@ -81,51 +102,25 @@
   <SubclassDetail {ui} />
 {/snippet}
 
-{#snippet actions()}
-  <div class="actions">
-    {#if isPausedAt(st.run, 'choose-class')}
-      <button class="secondary-btn" onclick={onclose}>Schließen</button>
-      <button class="primary-btn" onclick={() => ui.startFlow()}
-              disabled={(ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20)}>Weiter</button>
-    {:else if isPausedAt(st.run, 'subclass-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
-    {:else if isPausedAt(st.run, 'new-features')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('new-features')}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feature-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'player-decisions')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!ui.allAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={!ui.featsDone || !ui.stylesDone}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'class-features')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => ui.confirmClassFeatures()}>Weiter</button>
-    {:else if isPausedAt(st.run, 'review')}
-      <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
-      <button class="primary-btn" onclick={() => ui.apply()}>In den Entwurf übernehmen</button>
-    {/if}
-  </div>
+{#snippet footer()}
+  <button class="secondary" onclick={onclose}>{stepOf(st.run) === 'review' ? 'Verwerfen' : 'Abbrechen'}</button>
+  <div class="spacer"></div>
+  {#if forward}
+    <button class="primary" onclick={forward.go} disabled={forward.disabled}>{forward.label}</button>
+  {/if}
 {/snippet}
 
 <FullscreenWizard
   title="⬆ Stufenaufstieg — {character.name}"
   label="Stufenaufstieg"
-  scope="lvlup"
+  scope="wizard lvlup"
   {steps}
   {current}
   {onclose}
   mainWidth={isPausedAt(st.run, 'subclass-choice') ? CHOICE_LIST_WIDTH : undefined}
   detail={isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined}
   preview={progression}
-  footer={actions}
+  {footer}
 >
   <div class="main">
   {#if isPausedAt(st.run, 'choose-class')}
@@ -172,14 +167,14 @@
     <ReviewPanel {ui} />
   {/if}
 
-  {#if st.run.kind === 'error'}<p class="hint err">{st.run.message}</p>{/if}
+  {#if st.run.kind === 'error'}<p class="warn">{st.run.message}</p>{/if}
 
   </div>
 </FullscreenWizard>
 
 <style>
   .main { display: flex; flex-direction: column; gap: 0.7rem; max-width: 60rem; }
-  .actions { flex: 1; }
+  .spacer { flex: 1; }
   .facts h3 { margin: 0; font-size: 0.95rem; font-family: var(--font-display, inherit); }
   .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
   .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }

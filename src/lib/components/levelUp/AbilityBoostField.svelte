@@ -65,29 +65,29 @@
 </script>
 
 <div class="boost">
-  <div class="group-chips">
+  <div class="chips">
     {#each MODES as m}
-      <button type="button" class="group-chip" class:on={mode === m.value} onclick={() => setMode(m.value)}>{m.label}</button>
+      <button type="button" class="chip" class:sel={mode === m.value} onclick={() => setMode(m.value)}>{m.label}</button>
     {/each}
   </div>
 
   {#if mode === 'feat'}
-    <span class="field-hint">Das Talent wählst du im nächsten Schritt aus der Bibliothek; die Attribute bleiben unverändert.</span>
+    <span class="hint">Das Talent wählst du im nächsten Schritt aus der Bibliothek; die Attribute bleiben unverändert.</span>
   {:else if mode}
-    <div class="row two">
-      <select class="select" value={first} onchange={(e) => setFirst((e.target as HTMLSelectElement).value)}>
+    <div class="pair">
+      <select value={first} onchange={(e) => setFirst((e.target as HTMLSelectElement).value)}>
         <option value="">— Attribut wählen —</option>
         {#each ABILITY_KEYS as k}<option value={k}>{ABILITY_LABEL[k]}</option>{/each}
       </select>
       {#if mode === 'split'}
-        <select class="select" value={second} disabled={!first} onchange={(e) => setSecond((e.target as HTMLSelectElement).value)}>
+        <select value={second} disabled={!first} onchange={(e) => setSecond((e.target as HTMLSelectElement).value)}>
           <option value="">— zweites Attribut —</option>
           {#each ABILITY_KEYS.filter((k) => k !== first) as k}<option value={k}>{ABILITY_LABEL[k]}</option>{/each}
         </select>
       {/if}
     </div>
     {#each lines as l}
-      <span class="result" class:capped={l.capped}>
+      <span class="outcome" class:capped={l.capped}>
         {l.label} +{l.value}: {l.before} → <strong>{l.after}</strong>{#if l.capped} (Maximum {ASI_ABILITY_MAX}){/if}
       </span>
     {/each}
@@ -96,6 +96,6 @@
 
 <style>
   .boost { display: flex; flex-direction: column; gap: 0.4rem; }
-  .result { font-size: 0.82rem; color: var(--ink-soft); }
-  .result.capped { color: var(--gold, #c89b3c); }
+  .outcome { font-size: 0.82rem; color: var(--ink-soft); }
+  .outcome.capped { color: var(--gold, #c89b3c); }
 </style>

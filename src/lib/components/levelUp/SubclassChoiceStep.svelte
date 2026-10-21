@@ -16,7 +16,7 @@
 </script>
 
 {#if st.delta}
-  <span class="field-hint">
+  <span class="hint">
     Mit der Unterklasse spezialisierst du deine Klasse: Sie bringt jetzt und auf späteren Stufen eigene Merkmale.
     Die Wahl ist dauerhaft — rechts siehst du, was jede Unterklasse dir gibt.
   </span>
@@ -26,5 +26,5 @@
         onselect={() => (st.chosenSubclass = { key: sc.key, name: sc.name })} />
     {/each}
   </ChoiceGroup>
-  {#if !st.delta.subclassOptions.length}<span class="field-hint">Keine Subklassen gefunden.</span>{/if}
+  {#if !st.delta.subclassOptions.length}<span class="hint">Keine Subklassen gefunden.</span>{/if}
 {/if}
