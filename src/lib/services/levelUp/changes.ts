@@ -72,11 +72,13 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string, pins: Rea
     out.push({ target: 'spellcastingClass', value: delta.klasseName, step, source: 'class-progression', label: `Zauberwirken: ${delta.klasseName}` });
   const hd = bumpHitDice(hitDice, delta.hitDie, delta.levelsGained, delta.toLevel);
   if (hd) out.push({ target: 'hitDice', value: hd, step, source: 'class-progression', label: 'Trefferwürfel' });
-  // Nur ein HINWEIS, keine Wahl: die Waffen kommen im Charakterbogen aus der Item-Bibliothek.
-  if (delta.masteryTo > delta.masteryFrom) {
-    const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
-    out.push({ target: 'note', value, step, source: 'class-progression', label: value });
-  }
+  // Nur HINWEISE: die Zauber wählt der Spieler unter „Entscheidungen", die Waffen im
+  // Charakterbogen aus der Item-Bibliothek.
+  const note = (value: string) => out.push({ target: 'note', value, step, source: 'class-progression', label: value });
+  if (delta.cantripDelta > 0) note(`Zaubertricks: +${delta.cantripDelta}`);
+  if (delta.preparedDelta > 0)
+    note(`${delta.casterKind === 'known' ? 'Bekannte' : 'Vorbereitete'} Zauber: ${delta.preparedFrom} → ${delta.preparedTo}`);
+  if (delta.masteryTo > delta.masteryFrom) note(`Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`);
   for (const f of delta.featuresGained)
     out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', pinned: pins.has(f.key ?? ''), step, source: delta.sourceKey, label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;

@@ -7,32 +7,14 @@
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
   const st = $derived(ui.st);
-  const d = $derived(st.delta!);
 
   const pins: FeaturePins = {
     has: (key) => !!key && st.pins.includes(key),
     toggle: (key) => { st.pins = st.pins.includes(key) ? st.pins.filter((k) => k !== key) : [...st.pins, key]; },
   };
-
-  const numbers = $derived.by<string[]>(() => {
-    const lines: string[] = [];
-    if (d.hitDie) lines.push(`Trefferpunkte: +1W${d.hitDie} + KON-Modifikator pro Stufe`);
-    if (d.profBonusTo > d.profBonusFrom) lines.push(`Übungsbonus: +${d.profBonusFrom} → +${d.profBonusTo}`);
-    if (d.cantripDelta > 0) lines.push(`Zaubertricks: +${d.cantripDelta}`);
-    if (d.preparedDelta > 0) lines.push(`Vorbereitete Zauber: ${d.preparedFrom} → ${d.preparedTo}`);
-    d.spellSlotDelta.forEach((n, i) => { if (n > 0) lines.push(`Zauberplätze Grad ${i + 1}: +${n}`); });
-    if (d.masteryTo > d.masteryFrom) lines.push(`Waffenbeherrschung: ${d.masteryFrom} → ${d.masteryTo}`);
-    return lines;
-  });
 </script>
 
 <div class="field">
-  <span>Das bekommst du auf Stufe {d.toLevel}</span>
-  {#if numbers.length}
-    <div class="facts">
-      {#each numbers as l}<div class="fact">• {l}</div>{/each}
-    </div>
-  {/if}
   {#if ui.newFeatures.length}
     <div class="new-features">
       {#each ui.newFeatures as f (f.id)}
