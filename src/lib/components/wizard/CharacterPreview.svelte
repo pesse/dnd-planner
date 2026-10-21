@@ -1,9 +1,16 @@
 <script lang="ts">
-  import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
-  import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
-  import { characterSummary, type SummarySection, type SummarySectionId } from '../../services/characterSummary';
+  import type { Snippet } from 'svelte';
+  import type { Character } from '../../schemas/characterSchema';
+  import { characterSummary, type SummarySectionId, type SummaryValue } from '../../services/characterSummary';
 
-  let { w }: { w: CharacterWizard } = $props();
+  let { character, baseline = null, emptyText, note = '', children }: {
+    character: Character | null;
+    /** Stand vor dem Assistenten — mit ihm markiert die Vorschau, was neu ist oder sich ändert. */
+    baseline?: Character | null;
+    emptyText: string;
+    note?: string;
+    children?: Snippet;
+  } = $props();
 
   const HEADINGS: Partial<Record<SummarySectionId, string>> = {
     coreValues: 'Grundwerte',
@@ -15,46 +22,36 @@
     languages: 'Sprachen',
   };
 
-  let sections = $state<SummarySection[]>([]);
-  let incomplete = $state(true);
-
-  // Die Signatur liest jedes Feld, das die Assembly liest — so läuft der Neubau bei jeder
-  // Wahl, aber gebündelt statt je Tastendruck.
-  $effect(() => {
-    const sig = JSON.stringify($state.snapshot({
-      k: w.klass, s: w.species, b: w.background, sc: w.scores, asi: w.asi, l: w.languages,
-      cs: w.chosenSkills, gs: w.grantedSkills, m: w.masteries, fs: w.fightingStyles, tf: w.traitFeats,
-      op: w.optionPicks, sp: w.spellcasting, da: w.declaredAnswers, d: w.declared.length,
-    }));
-    if (!w.species.sourceKey) { incomplete = true; sections = []; return; }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void buildWizardCharacter(w).then(
-        (c) => { if (!cancelled) { sections = characterSummary(c); incomplete = false; } },
-        () => { if (!cancelled) incomplete = true; },
-      );
-    }, 250);
-    void sig;
-    return () => { cancelled = true; clearTimeout(timer); };
+  const sections = $derived(character ? characterSummary(character) : []);
+  const before = $derived.by(() => {
+    if (!baseline) return null;
+    return new Map(characterSummary(baseline).map((s) => [s.id, new Map(s.values.map((v) => [v.label, v]))]));
   });
+
+  /** `null` ohne Vergleichsstand; sonst `undefined` für neu, den alten Wert bei geändertem. */
+  function previous(id: SummarySectionId, v: SummaryValue): SummaryValue | null | undefined {
+    if (!before) return null;
+    return before.get(id)?.get(v.label);
+  }
+  const changed = (a: SummaryValue, b: SummaryValue) => a.detail !== b.detail || a.score !== b.score || a.note !== b.note;
 
   const abilities = $derived(sections.find((s) => s.id === 'abilities')?.values ?? []);
   const rest = $derived(sections.filter((s) => HEADINGS[s.id] && s.values.length));
-  const pending = $derived([!w.background.sourceKey && 'Hintergrund', !w.klass.sourceKey && 'Klasse'].filter(Boolean).join(' und '));
 </script>
 
 <div class="preview">
   <h3>Dein Charakter</h3>
-  {#if incomplete}
-    <p class="muted">Noch unvollständig — wähle zuerst ein Volk.</p>
+  {#if !character}
+    <p class="muted">{emptyText}</p>
   {:else}
-    {#if pending}<p class="muted">Zwischenstand — noch offen: {pending}.</p>{/if}
+    {#if note}<p class="muted">{note}</p>{/if}
     <div class="abilities">
       {#each abilities as a}
-        <div class="ability" class:save={!!a.note}>
+        {@const old = previous('abilities', a)}
+        <div class="ability" class:save={!!a.note} class:changed={!!old && changed(old, a)}>
           <span class="short">{a.short}</span>
           <span class="mod">{a.detail}</span>
-          <span class="score">{a.score}</span>
+          <span class="score">{#if old && old.score !== a.score}{old.score} → {/if}{a.score}</span>
         </div>
       {/each}
     </div>
@@ -62,11 +59,16 @@
       <div class="section">
         <div class="heading">{HEADINGS[s.id]}</div>
         {#each s.values as v}
-          <div class="row"><span>{v.label}</span>{#if v.detail}<span class="val">{v.detail}</span>{/if}</div>
+          {@const old = previous(s.id, v)}
+          <div class="row" class:new={old === undefined} class:changed={!!old && changed(old, v)}>
+            <span>{v.label}</span>
+            {#if v.detail}<span class="val">{#if old && old.detail !== v.detail}<s>{old.detail}</s> {/if}{v.detail}</span>{/if}
+          </div>
         {/each}
       </div>
     {/each}
   {/if}
+  {@render children?.()}
 </div>
 
 <style>
@@ -79,10 +81,14 @@
     border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
   }
   .ability.save { border-color: var(--arcane, var(--gold)); }
+  .ability.changed { box-shadow: inset 0 0 0 1px var(--gold); }
   .short { font-size: 0.7rem; color: var(--ink-muted); letter-spacing: 0.05em; }
   .mod { font-size: 1.05rem; font-weight: 700; }
   .score { font-size: 0.72rem; color: var(--ink-soft); }
   .heading { font-variant: small-caps; font-weight: 700; color: var(--ink-soft); margin-bottom: 0.1rem; }
-  .row { display: flex; justify-content: space-between; gap: 0.5rem; }
+  .row { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0 0.25rem; border-radius: 3px; }
+  .row.new, .row.changed { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+  .row.new > span:first-child::before { content: '+ '; color: var(--gold); font-weight: 700; }
   .val { font-variant-numeric: tabular-nums; color: var(--ink); }
+  s { color: var(--ink-muted); }
 </style>

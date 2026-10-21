@@ -5,6 +5,7 @@
   import { allowedKeys, isValidAllocation, type AsiAllocation } from '../services/wizard/backgroundAsi';
   import type { AbilityKey } from '../services/wizard/pointBuy';
   import { createSpellStepValues } from '../services/wizard/spellStep.svelte';
+  import { createWizardPreview } from '../services/wizard/wizardPreview.svelte';
   import { getBackgroundByKey } from '../backgroundsLibrary';
   import { abilityKeyOf } from '../schemas/abilities';
   import { loadOriginCatalog, type OriginCatalog, type OriginKind } from '../services/wizard/originCatalog';
@@ -43,6 +44,7 @@
   let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
 
   const w = new CharacterWizard();
+  const preview = createWizardPreview(w);
 
   // Schritte über eine ID, nicht über einen festen Index: optionale Schritte fallen weg
   // und verschöben sonst alle nachfolgenden Index-Prüfungen.
@@ -321,7 +323,11 @@
 {/snippet}
 
 {#snippet characterPreview()}
-  <CharacterPreview {w} />
+  <CharacterPreview
+    character={preview.character}
+    emptyText="Noch unvollständig — wähle zuerst ein Volk."
+    note={preview.pending ? `Zwischenstand — noch offen: ${preview.pending}.` : ''}
+  />
 {/snippet}
 
 {#snippet nameField()}

@@ -12,6 +12,9 @@
   import { type LevelUpDelta } from '../services/levelUp';
   import { type LevelUpChangeSet } from '../schemas/levelUp';
   import { type Character } from '../schemas/characterSchema';
+  import { type ApplyContext } from '../services/applyChanges';
+  import { characterWithChanges } from '../services/characterWithChanges';
+  import CharacterPreview from './wizard/CharacterPreview.svelte';
   import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
@@ -28,8 +31,9 @@
   import ReviewPanel from './levelUp/ReviewPanel.svelte';
   import './levelUp/levelUp.css';
 
-  let { character, onApply, onclose }: {
+  let { character, applyContext, onApply, onclose }: {
     character: Character;
+    applyContext: ApplyContext;
     onApply: (changeSet: LevelUpChangeSet, delta: LevelUpDelta) => void;
     onclose: () => void;
   } = $props();
@@ -50,22 +54,27 @@
   });
   const steps = $derived(visited.map((id) => ({ id, label: STEP_META[id].label })));
   const current = $derived(Math.max(0, visited.indexOf(stepOf(st.run))));
+
+  const baseline = $derived($state.snapshot(character) as Character);
+  const previewCharacter = $derived(
+    st.delta ? characterWithChanges(baseline, run.doc.changes, applyContext, st.delta) : baseline,
+  );
 </script>
 
 {#snippet progression()}
-  <span class="field-label">Was sich ändert</span>
-  {#if ui.progressionGroups.length}
-    <div class="facts">
-      {#each ui.progressionGroups as g}
-        <div class="proto-group">
-          <div class="proto-heading">{g.heading}</div>
-          {#each g.lines as l}<div class="fact">• {l}</div>{/each}
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <span class="field-hint">Noch keine Änderungen.</span>
-  {/if}
+  <CharacterPreview character={previewCharacter} baseline={st.delta ? baseline : null} emptyText="">
+    {#if ui.progressionGroups.length}
+      <div class="facts">
+        <h3>Was sich ändert</h3>
+        {#each ui.progressionGroups as g}
+          <div class="proto-group">
+            <div class="proto-heading">{g.heading}</div>
+            {#each g.lines as l}<div class="fact">• {l}</div>{/each}
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </CharacterPreview>
 {/snippet}
 
 {#snippet subclassDetail()}
@@ -171,6 +180,7 @@
 <style>
   .main { display: flex; flex-direction: column; gap: 0.7rem; max-width: 60rem; }
   .actions { flex: 1; }
+  .facts h3 { margin: 0; font-size: 0.95rem; font-family: var(--font-display, inherit); }
   .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
   .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
 </style>
