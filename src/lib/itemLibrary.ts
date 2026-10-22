@@ -8,7 +8,7 @@ import type { Item } from './types';
 import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 import type { EquipmentChoiceCategory } from './schemas/startingEquipment';
-import { itemKeyOf } from './schemas/item';
+import { itemKeyOf, itemSchema } from './schemas/item';
 import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
 import { scanJsonFolder } from './services/library/createLibrary';
@@ -39,6 +39,7 @@ export interface ItemInfo {
   magic_bonus?: Item['magic_bonus'];
   attunement?: boolean;
   grantsResource?: ResourceGrant;
+  abilityEffects?: Item['abilityEffects'];
   range?: Item['range'];
   throw_range?: Item['throw_range'];
 }
@@ -179,6 +180,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         magic_bonus: data.magic_bonus,
         attunement: data.attunement === true,
         grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
+        abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
         range: data.range,
         throw_range: data.throw_range,
       }),

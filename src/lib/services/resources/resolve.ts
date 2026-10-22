@@ -4,7 +4,6 @@
  */
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
-import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib/itemLibrary';
 import type { ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
 import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf, branchValues, type BranchState } from '../declaration/branch';
@@ -19,6 +18,7 @@ import {
   type DeclaringCharacter,
 } from '../declaration/carriers';
 import type { FeatureSource } from '../declaredFeature';
+import { wornItems } from '../wornItems';
 import { levelStep, resolveAmount, type AmountContext } from './amount';
 import { combineSlots, NINE, SLOT_POOL, type SlotFeeder } from './slots';
 
@@ -208,28 +208,11 @@ function reportCastResources(carriers: ResourceCarrier[], pools: ResolvedResourc
   }
 }
 
-/**
- * Ein angelegter Gegenstand ist ein Träger wie ein Merkmal — mit dem Unterschied, dass seine
- * Deklaration am Anlegen hängt: eingestimmt nur, wo der Gegenstand Einstimmung verlangt.
- */
+/** Ein wirkender Gegenstand (`wornItems`) ist ein Träger wie ein Merkmal. */
 async function itemCarriers(inventory: CharacterInventoryEntry[]): Promise<ResourceCarrier[]> {
-  const worn = inventory.filter((e) => e.equipped);
-  if (!worn.length) return [];
-
-  const index = buildItemIndex(await getAllItemsByDir());
-
-  const out: ResourceCarrier[] = [];
-  const seen = new Set<string>();
-  for (const entry of worn) {
-    const item: ItemInfo | undefined = matchItem(index, { sourceKey: entry.sourceKey, name: entry.name }) ?? undefined;
-    if (!item?.grantsResource) continue;
-    if (item.attunement && !entry.attuned) continue;
-    // Zwei Zeilen desselben Gegenstands sind Buchhaltung des Inventars, kein zweiter Zuschlag —
-    // sonst zählte `count: 2` anders als zwei Zeilen.
-    const id = item.key ?? entry.name;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push({
+  return (await wornItems(inventory))
+    .filter(({ item }) => item.grantsResource)
+    .map(({ id, item }) => ({
       key: id,
       instanceId: id,
       name: item.name,
@@ -241,9 +224,7 @@ async function itemCarriers(inventory: CharacterInventoryEntry[]): Promise<Resou
       classKey: '',
       answers: NO_ANSWERS,
       grantsResource: item.grantsResource,
-    });
-  }
-  return out;
+    }));
 }
 
 export async function resolveResources(c: ResourceCharacter): Promise<ResourceResolution> {

@@ -7,6 +7,7 @@ import type { PastChoice } from '../characterFeatures';
 import type { LevelUpDelta } from '../levelUp';
 import type { SpellAccessGrant } from '../spellcasting/access';
 import type { OptionPoolOffer } from '../declaration/optionPool';
+import type { WornAbilityEffect } from '../effectiveAbilities';
 import type { OptionPick } from '../../schemas/characterSchema';
 import type { FeatureNote, FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import type { FeatEntry } from '../../featsLibrary';
@@ -111,6 +112,8 @@ export interface LevelUpRunState {
   // Wahlen früherer Stufen: die Zauberliste einer damals gewählten Option hängt daran
   // (`optionSpellNames`).
   pastChoices: PastChoice[];
+  /** Leer, bis die Gegenstands-Bibliothek gelesen ist — bis dahin gilt der Grundwert. */
+  abilityEffects: WornAbilityEffect[];
 }
 
 export const emptyRiders = (): ValidatedRiders => ({ riders: [], flagged: [], grantedCantrips: [], grantedPrepared: [] });
@@ -155,5 +158,6 @@ export function emptyRunState(): LevelUpRunState {
     featLib: [],
     toolLib: [],
     pastChoices: [],
+    abilityEffects: [],
   };
 }

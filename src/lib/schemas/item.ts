@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
+import { ABILITY_KEYS } from './abilities';
 import { namedRef } from './llmJson';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
@@ -13,6 +14,27 @@ const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
   damage_type: namedRef(),
 });
+
+const score = () => z.number().int().min(1).max(30);
+
+export const abilityEffectSchema = z.discriminatedUnion('kind', [
+  z
+    .object({ kind: z.literal('set'), ability: z.enum(ABILITY_KEYS), value: score() })
+    .describe('„Deine Konstitution beträgt 19": wirksam ist max(Grundwert, value).'),
+  z
+    .object({
+      kind: z.literal('add'),
+      ability: z.enum(ABILITY_KEYS),
+      value: z.number().int(),
+      max: score().optional(),
+      onSetBy: z
+        .array(z.string())
+        .default([])
+        .describe('Item-Keys: wirkt nur auf einen Wert, den einer dieser Gegenstände gesetzt hat. Leer = auf jeden Wert.'),
+    })
+    .describe('Zuschlag nach allen `set`, gedeckelt auf `max`.'),
+]);
+export type AbilityEffect = z.infer<typeof abilityEffectSchema>;
 
 export const itemSchema = z.object({
   key: z.string().default('').describe('Identität ({source}_{slug}, z.B. "srd-2024_battleaxe"), leer bei Neuanlage.'),
@@ -33,11 +55,15 @@ export const itemSchema = z.object({
     })
     .optional(),
   attunement: z.boolean().optional(),
-  // Vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen es — und beide
-  // dürfen es nicht verlieren.
+  // Beide vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen sie — und
+  // beide dürfen sie nicht verlieren.
   grantsResource: resourceGrantSchema
     .optional()
     .describe('Eigene Ladungen des Gegenstands und Zuschläge auf fremde Vorräte.'),
+  abilityEffects: z
+    .array(abilityEffectSchema)
+    .optional()
+    .describe('Wirkung auf Attributswerte, solange der Gegenstand angelegt (und, falls verlangt, eingestimmt) ist.'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),

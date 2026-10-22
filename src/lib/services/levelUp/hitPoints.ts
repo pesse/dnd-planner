@@ -7,11 +7,13 @@ import type { Change } from '../../schemas/levelUp';
 import type { Character } from '../../schemas/characterSchema';
 import { mod } from '../../domain/skills';
 import { cappedScore } from '../declaration/abilityIncrease';
+import { effectiveScore, type WornAbilityEffect } from '../effectiveAbilities';
 import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from '../hitPoints';
 import type { HpPerLevelSource } from './runState';
 
 export interface HpBefore extends Pick<Character, 'hpMax' | 'hpDiceTotal'> {
   conScore: number;
+  abilityEffects?: readonly WornAbilityEffect[];
   maxDice?: number;
 }
 
@@ -40,7 +42,7 @@ function conAfter(conScore: number, others: readonly Change[]): number {
 
 /**
  * Eine unmögliche Rückrechnung wird nicht festgeschrieben: dann trägt das Maximum etwas, das die
- * Formel nicht kennt (ein KON setzender Gegenstand, #55), und der Aufstieg addiert nur.
+ * Formel nicht kennt, und der Aufstieg addiert nur.
  */
 function diceTotalBefore(p: HitPointParams, conMod: number, level: number): number | null {
   if (level <= 0) return 0;
@@ -56,9 +58,11 @@ export function hitPointChanges(p: HitPointParams): Change[] {
   if (delta.hitDie <= 0) return [];
   const levelAfter = delta.newTotalLevel;
   const levelBefore = levelAfter - delta.levelsGained;
-  const conModBefore = mod(p.before.conScore);
+  const { conScore, abilityEffects = [] } = p.before;
+  const conModBefore = mod(effectiveScore(conScore, abilityEffects, 'con'));
   const gain = diceGain(delta, p.answers);
-  const conPart = mod(conAfter(p.before.conScore, p.others)) * levelAfter - conModBefore * levelBefore;
+  const conModAfter = mod(effectiveScore(conAfter(conScore, p.others), abilityEffects, 'con'));
+  const conPart = conModAfter * levelAfter - conModBefore * levelBefore;
 
   const out: Change[] = [{ target: 'hpMax', value: gain, step: 'assemble-decisions', source: 'hit-dice', label: 'Trefferpunkte (Würfel)' }];
   if (conPart) out.push({ target: 'hpMax', value: conPart, step: 'assemble-decisions', source: 'con', label: 'Trefferpunkte (KON)' });
