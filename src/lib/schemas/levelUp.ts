@@ -139,6 +139,7 @@ const changeBase = { step: z.string().default(''), source: z.string().default(''
 export const changeSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('hpMax'), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('hitDice'), value: z.string(), ...changeBase }),
+  z.object({ target: z.literal('hpDiceTotal'), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('proficiencyBonus'), value: z.number().int(), ...changeBase }),
   z.object({ target: z.literal('spellSlot'), level: z.number().int(), value: z.number().int(), ...changeBase }),
   // `key`/`sourceId`/`quotaId` fehlen, wenn der Aufrufer sie nicht kennt (KI-Rider, Stufentabelle) —

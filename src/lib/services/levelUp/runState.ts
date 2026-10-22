@@ -17,7 +17,13 @@ import type { CategorySlot, LevelUpStyleOffer } from './featUnlocks';
 import { noDeclaredSpells, type DeclaredSpells, type ValidatedRiders } from './spells';
 import type { StepId } from './steps';
 
-export interface HpPerLevelSource { feature: string; sourceKey: string; amount: number }
+export interface HpPerLevelSource {
+  feature: string;
+  sourceKey: string;
+  amount: number;
+  /** Trug der Charakter schon vor dem Aufstieg — dann deckt das TP-Maximum die alten Stufen ab. */
+  owned: boolean;
+}
 
 /** `running` und `error` tragen den Schritt selbst — dorthin fällt ein Abbruch oder Fehler zurück. */
 export type RunPhase =
@@ -90,6 +96,8 @@ export interface LevelUpRunState {
   validatedFeats: ValidatedRiders;
   flagged: string[];
   hpPerLevelSources: HpPerLevelSource[];
+  /** Höchste Würfelsumme der Klassenstufen VOR dem Aufstieg (`maxDiceTotal`). */
+  hpMaxDiceBefore: number | undefined;
   summaryLine: string;
   featuresText: string; // Bogentext der Klassenmerkmale
   pins: string[];
@@ -137,6 +145,7 @@ export function emptyRunState(): LevelUpRunState {
     validatedFeats: emptyRiders(),
     flagged: [],
     hpPerLevelSources: [],
+    hpMaxDiceBefore: undefined,
     summaryLine: '',
     featuresText: '',
     pins: [],

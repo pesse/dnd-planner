@@ -1,0 +1,74 @@
+/**
+ * Die TP-Änderungen eines Aufstiegs: Würfel der neuen Stufen plus alles, was rückwirkend
+ * wirkt — ein höherer KON-Mod und ein neu gewonnener Bonus je Stufe zählen für ALLE Stufen.
+ */
+import type { LevelUpDelta } from '../levelUp';
+import type { Change } from '../../schemas/levelUp';
+import type { Character } from '../../schemas/characterSchema';
+import { mod } from '../../domain/skills';
+import { cappedScore } from '../declaration/abilityIncrease';
+import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from '../hitPoints';
+import type { HpPerLevelSource } from './runState';
+
+export interface HpBefore extends Pick<Character, 'hpMax' | 'hpDiceTotal'> {
+  conScore: number;
+  maxDice?: number;
+}
+
+export interface HitPointParams {
+  delta: LevelUpDelta;
+  answers: Record<string, string | string[]>;
+  before: HpBefore;
+  sources: readonly HpPerLevelSource[];
+  /** Die übrigen Änderungen des Aufstiegs — ihre KON-Erhöhungen bestimmen den neuen Mod. */
+  others: readonly Change[];
+}
+
+/** Beim Würfeln ist `hp_roll` bereits die SUMME aller neuen Stufen. */
+function diceGain(delta: LevelUpDelta, answers: Record<string, string | string[]>): number {
+  const rolled = Number(answers['hp_roll']);
+  if (answers['hp_method'] === 'roll' && rolled > 0) return rolled;
+  return (Math.floor(delta.hitDie / 2) + 1) * delta.levelsGained;
+}
+
+function conAfter(conScore: number, others: readonly Change[]): number {
+  return others.reduce(
+    (score, c) => (c.target === 'ability' && c.ability === 'con' ? cappedScore(score, c.value, c.max) : score),
+    conScore,
+  );
+}
+
+/**
+ * Eine unmögliche Rückrechnung wird nicht festgeschrieben: dann trägt das Maximum etwas, das die
+ * Formel nicht kennt (ein KON setzender Gegenstand, #55), und der Aufstieg addiert nur.
+ */
+function diceTotalBefore(p: HitPointParams, conMod: number, level: number): number | null {
+  if (level <= 0) return 0;
+  if (p.before.hpDiceTotal !== undefined) return p.before.hpDiceTotal;
+  const perLevel = p.sources.filter((s) => s.owned).reduce((n, s) => n + s.amount, 0);
+  const basis: HpBasis = { conMod, level, perLevel, maxDice: p.before.maxDice };
+  const total = hpDiceTotalOf(p.before, basis);
+  return total !== null && plausibleDiceTotal(total, basis) ? total : null;
+}
+
+export function hitPointChanges(p: HitPointParams): Change[] {
+  const { delta } = p;
+  if (delta.hitDie <= 0) return [];
+  const levelAfter = delta.newTotalLevel;
+  const levelBefore = levelAfter - delta.levelsGained;
+  const conModBefore = mod(p.before.conScore);
+  const gain = diceGain(delta, p.answers);
+  const conPart = mod(conAfter(p.before.conScore, p.others)) * levelAfter - conModBefore * levelBefore;
+
+  const out: Change[] = [{ target: 'hpMax', value: gain, step: 'assemble-decisions', source: 'hit-dice', label: 'Trefferpunkte (Würfel)' }];
+  if (conPart) out.push({ target: 'hpMax', value: conPart, step: 'assemble-decisions', source: 'con', label: 'Trefferpunkte (KON)' });
+  for (const s of p.sources) {
+    const value = s.amount * (s.owned ? delta.levelsGained : levelAfter);
+    if (value) out.push({ target: 'hpMax', value, step: 'ongoing-effects', source: s.sourceKey || s.feature, label: s.feature });
+  }
+
+  const diceBefore = diceTotalBefore(p, conModBefore, levelBefore);
+  if (diceBefore !== null)
+    out.push({ target: 'hpDiceTotal', value: diceBefore + gain, step: 'assemble-decisions', source: 'hit-dice', label: 'Summe der Trefferwürfel' });
+  return out;
+}

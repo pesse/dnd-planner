@@ -24,12 +24,14 @@ import {
   fightingStyleChanges,
   featureChoiceChanges,
   featureSpellChanges,
-  ongoingChanges,
   optionPoolChanges,
   riderChanges,
   riderGrantChanges,
   subclassChanges,
+  STEP_ORDER,
 } from './changes';
+import { hitPointChanges, type HpBefore } from './hitPoints';
+import type { HpPerLevelSource } from './runState';
 
 export interface DocInput {
   delta: LevelUpDelta;
@@ -46,7 +48,7 @@ export interface DocInput {
   validatedBase: ValidatedRiders;
   validatedFeats: ValidatedRiders;
   answers: Record<string, string | string[]>;
-  conMod: number;
+  hpBefore: HpBefore;
   pickedCantrips: { key: string; name: string }[];
   pickedLearned: { key: string; name: string; level: number }[];
   /** `spell.key` → Name + Grad, für Zauber-Antworten, die nur den Key tragen. */
@@ -74,12 +76,22 @@ export interface DocInput {
   /** Der Bestand am Charakter — ohne ihn wäre jede unveränderte Liste eine Änderung. */
   optionPicksBefore: readonly OptionPick[];
   gainedFeatures: GainedFeature[];
-  hpPerLevelSources: { feature: string; sourceKey?: string; amount: number }[];
+  hpPerLevelSources: HpPerLevelSource[];
   summaryLine: string;
   featuresText: string;
   /** Keys neuer Merkmale, die auf den Bogen sollen. */
   pins: readonly string[];
   upTo?: StepId; // aktueller Phasenstand: nur Änderungen bereits gelaufener Schritte aufnehmen
+}
+
+const stepIndex = (step: string): number => (STEP_ORDER as readonly string[]).indexOf(step);
+
+/** Vor den ersten Eintrag eines späteren Schritts, damit die Reihenfolge-Invariante hält. */
+function insertByStep(changes: Change[], extra: readonly Change[]): void {
+  for (const c of extra) {
+    const at = changes.findIndex((x) => stepIndex(x.step) > stepIndex(c.step));
+    changes.splice(at < 0 ? changes.length : at, 0, c);
+  }
 }
 
 /**
@@ -107,7 +119,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),
     ...riderChanges(p.validatedBase, 'feature-effects'),
     ...declaredGrantChanges(p.grantSources, { step: 'feature-effects', source: 'class-feature' }),
-    ...decisionChanges({ delta: p.delta, answers: p.answers, conMod: p.conMod, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned }),
+    ...decisionChanges({ delta: p.delta, answers: p.answers, pickedCantrips: p.pickedCantrips, pickedLearned: p.pickedLearned }),
     ...featureChoiceChanges(p.baseChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'assemble-decisions', nameOf),
     // Grundeigenschaften: der einzige Wahl-Typ ohne Rider, also braucht er hier seine eigene
     // Zeile. Beide Checkpoints in einem Aufruf — die Antwort-id trennt sie ohnehin.
@@ -119,9 +131,10 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects', nameOf),
     ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects', p.spellOf),
-    ...ongoingChanges(p.hpPerLevelSources, p.delta.levelsGained),
     ...classFeaturesChanges(p.featuresText),
   ];
+  // Die TP brauchen den KON-Endstand, also alle übrigen Änderungen.
+  insertByStep(changes, hitPointChanges({ delta: p.delta, answers: p.answers, before: p.hpBefore, sources: p.hpPerLevelSources, others: changes }));
   const visible = p.upTo ? changes.filter((c) => stepReached(p.upTo!, c.step)) : changes;
   return { fromLevel: p.delta.fromLevel, toLevel: p.delta.toLevel, klasse: p.delta.klasseName, summary: p.summaryLine, changes: visible };
 }

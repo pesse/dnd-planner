@@ -15,7 +15,7 @@ import type { LevelUpDelta } from '../../src/lib/services/levelUp';
 const delta = (asiCount: number, over: Partial<LevelUpDelta> = {}): LevelUpDelta =>
   ({ asiCount, hitDie: 0, fromLevel: 1, toLevel: 2, featuresGained: [], subclassFeaturesGained: [], ...over } as LevelUpDelta);
 const abilityChanges = (answers: Record<string, string | string[]>, asiCount = 1) =>
-  decisionChanges({ delta: delta(asiCount), answers, conMod: 0, pickedCantrips: [], pickedLearned: [] })
+  decisionChanges({ delta: delta(asiCount), answers, pickedCantrips: [], pickedLearned: [] })
     .filter((c) => c.target === 'ability');
 
 describe('ASI-Antwort', () => {

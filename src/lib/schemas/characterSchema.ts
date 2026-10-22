@@ -230,6 +230,8 @@ export const characterSchema = z.object({
   proficiencyBonus: z.number().int().default(2),
   passivePerception: z.string().default(''),
   hitDice: z.string().default(''),
+  // Ohne Default: fehlt das Feld, ist die Summe noch nie festgestellt worden (`hpDiceTotalOf`).
+  hpDiceTotal: z.number().int().optional().describe('Summe der Trefferwürfel aller Stufen, Stufe 1 mit Maximum — ohne KON und Boni je Stufe.'),
   saveProfs: abilityFlagsSchema,
   skills: z.record(z.string(), skillEntrySchema).default({}),
   attacks: z.array(attackSchema).default([]),

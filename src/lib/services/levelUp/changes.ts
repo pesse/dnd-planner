@@ -161,7 +161,6 @@ export function riderGrantChanges(
 export interface DecisionChangesParams {
   delta: LevelUpDelta;
   answers: Record<string, string | string[]>;
-  conMod: number;
   pickedCantrips: { key: string; name: string }[];
   pickedLearned: { key: string; name: string; level: number }[];
 }
@@ -170,16 +169,6 @@ export function decisionChanges(p: DecisionChangesParams): Change[] {
   const step: BuilderStep = 'assemble-decisions';
   const { delta, answers } = p;
   const out: Change[] = [];
-
-  // Beim Würfeln ist `hp_roll` bereits die SUMME aller Stufen; KON zählt je Stufe.
-  if (delta.hitDie > 0) {
-    const avg = Math.floor(delta.hitDie / 2) + 1;
-    const rolled = Number(answers['hp_roll']);
-    const hpGain = answers['hp_method'] === 'roll' && rolled > 0
-      ? rolled + p.conMod * delta.levelsGained
-      : (avg + p.conMod) * delta.levelsGained;
-    if (hpGain) out.push({ target: 'hpMax', value: hpGain, step, source: 'hit-dice+kon', label: 'Trefferpunkte (Würfel + KON)' });
-  }
 
   const abil = abilityFromAnswers(delta, answers);
   for (const k of ABILITY_KEYS) if (abil[k])
@@ -322,13 +311,6 @@ export function featureChoiceChanges(
     });
   }
   return out;
-}
-
-export function ongoingChanges(sources: { feature: string; sourceKey?: string; amount: number }[], levelsGained: number): Change[] {
-  const step: BuilderStep = 'ongoing-effects';
-  return sources
-    .map((s) => ({ target: 'hpMax' as const, value: s.amount * levelsGained, step, source: s.sourceKey || s.feature, label: s.feature }))
-    .filter((c) => c.value);
 }
 
 export function classFeaturesChanges(text: string): Change[] {

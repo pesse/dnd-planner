@@ -50,6 +50,7 @@
   "proficiencyBonus": 2,
   "passivePerception": "string",
   "hitDice": "string",
+  "hpDiceTotal": -9007199254740991,
   "saveProfs": {
     "str": false,
     "dex": false,

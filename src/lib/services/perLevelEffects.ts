@@ -1,7 +1,7 @@
 /**
  * Fortlaufende, PRO STUFE wirkende TP-Effekte, deterministisch aus `grants.perLevel`.
- * Der Einmal-Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist bewusst NICHT
- * modelliert — kein Flow wendet ihn an.
+ * Der Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist derselbe Betrag rückwirkend —
+ * `levelUp/hitPoints.ts` rechnet ein neues Merkmal über alle Stufen.
  */
 import type { FeatureGrant } from '../schemas/grants';
 import { featureIdOf } from '$lib/utils/text';
@@ -35,7 +35,6 @@ export function hpPerLevelSources(features: PerLevelFeature[]): PerLevelSource[]
   return out;
 }
 
-/** Summe der pro-Stufe-Beiträge (× gewonnene Stufen wendet der Aufrufer an). */
 export function hpPerLevelSum(sources: PerLevelSource[]): number {
   return sources.reduce((sum, s) => sum + s.amount, 0);
 }
