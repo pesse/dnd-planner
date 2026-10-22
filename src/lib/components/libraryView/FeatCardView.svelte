@@ -1,20 +1,19 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { Feat } from '$lib/types';
-  import { FEAT_CATEGORY_DE } from '$lib/featsLibrary';
+  import { FEAT_CATEGORY_DE, featDesc, featPrereq, type FeatEntry } from '$lib/featsLibrary';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
 
-  let { feat, badges }: { feat: Feat; badges?: Snippet } = $props();
+  let { feat, badges }: { feat: FeatEntry; badges?: Snippet } = $props();
 
-  const prereq = $derived(feat.prerequisiteDe || feat.prerequisite);
-  const desc = $derived(feat.descDe || feat.desc);
+  const prereq = $derived(featPrereq(feat));
+  const desc = $derived(featDesc(feat));
 </script>
 
 <LibraryCardFrame accent="var(--gold)" name={feat.name} nameDe={feat.nameDe}>
   {#snippet head()}
     <div class="badges">
-      <span class="kategorie">{FEAT_CATEGORY_DE[feat.category]}</span>
+      {#if feat.category}<span class="kategorie">{FEAT_CATEGORY_DE[feat.category]}</span>{/if}
       {#if feat.repeatable}<span class="kategorie">mehrfach wählbar</span>{/if}
       {@render badges?.()}
     </div>

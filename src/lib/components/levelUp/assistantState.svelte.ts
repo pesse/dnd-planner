@@ -12,7 +12,7 @@ import { loadBaseClasses } from '$lib/services/wizard/originCatalog';
 import type { ClassProgression } from '$lib/types';
 import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrary';
 import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '$lib/schemas/levelUp';
-import { searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
+import { FEAT_CATEGORY_DE, searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import type { FeatCategory } from '$lib/schemas/vocabulary';
 import { featCategoryOptions, pickableFeats, type FightingStyleOption } from '$lib/services/fightingStyle';
 import { slotTotal, type CategorySlot } from '$lib/services/levelUp/featUnlocks';
@@ -55,6 +55,9 @@ export class LevelUpAssistantUi {
   creatingSpell = $state(false);
 
   featQuery = $state('');
+  featCategory = $state<FeatCategory | ''>('');
+  /** Das Talent der Detailkarte — zuletzt angeklickt, gewählt oder nicht. */
+  focusedFeat = $state<FeatEntry | null>(null);
 
   constructor(run: LevelUpRun, getCharacter: () => Character, onApply: (changeSet: LevelUpChangeSet, delta: LevelUpDelta) => void, onclose: () => void) {
     this.#run = run;
@@ -238,12 +241,27 @@ export class LevelUpAssistantUi {
     return { owned, blocked: owned && !entry.repeatable };
   }
 
-  featResults(): FeatEntry[] {
-    return this.featQuery.trim() ? searchFeats(this.st.featLib, this.featQuery, 8) : [];
+  featCategories = $derived(
+    (Object.keys(FEAT_CATEGORY_DE) as FeatCategory[]).filter((c) => this.st.featLib.some((f) => f.category === c)),
+  );
+
+  featList = $derived.by<FeatEntry[]>(() => {
+    const pool = this.featCategory ? this.st.featLib.filter((f) => f.category === this.featCategory) : this.st.featLib;
+    const q = this.featQuery.trim();
+    return q ? searchFeats(pool, q, pool.length) : [...pool].sort((a, b) => featDisplayName(a).localeCompare(featDisplayName(b), 'de'));
+  });
+
+  isOpenFeatChosen(entry: FeatEntry): boolean {
+    const name = entry.name || featDisplayName(entry);
+    return this.st.chosenFeats.some((f) => !f.slot && f.name === name);
   }
 
-  toggleFeat(entry: FeatEntry): void {
-    if (this.#toggleChosen(entry, undefined, this.openFeats)) this.featQuery = '';
+  pickOpenFeat(entry: FeatEntry): void {
+    this.focusedFeat = entry;
+    // Bei genau einer Wahl tauscht der Klick die bisherige aus, statt am Maximum zu blockieren.
+    if (this.openFeats === 1 && !this.isOpenFeatChosen(entry) && !this.featMark(entry).blocked)
+      this.st.chosenFeats = this.st.chosenFeats.filter((f) => f.slot);
+    this.#toggleChosen(entry, undefined, this.openFeats);
   }
 
   toggleSlotFeat(slot: CategorySlot, sourceKey: string): void {

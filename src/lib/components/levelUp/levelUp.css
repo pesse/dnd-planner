@@ -10,10 +10,6 @@
 .lvlup .pick { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); }
 .lvlup .pick button { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; line-height: 1; }
 .lvlup .pick button:hover { color: var(--danger); }
-.lvlup .results { display: flex; flex-direction: column; gap: 0.15rem; max-height: 180px; overflow-y: auto; }
-.lvlup .result { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft); padding: 0.25rem 0.5rem; cursor: pointer; font-family: inherit; font-size: 0.78rem; }
-.lvlup .result:hover { border-color: var(--arcane, var(--gold)); color: var(--ink); }
-.lvlup .result:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .lvlup .decision {
   display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.85rem 0.85rem;

@@ -1,11 +1,14 @@
 <script lang="ts">
   import './levelUp.css';
-  import { FEAT_CATEGORY_DE, featDisplayName } from '$lib/featsLibrary';
+  import { FEAT_CATEGORY_DE, featDisplayName, featPrereq } from '$lib/featsLibrary';
   import FeatPicker from '../FeatPicker.svelte';
+  import ChoiceGroup from '../wizard/ChoiceGroup.svelte';
+  import ChoiceOption from '../wizard/ChoiceOption.svelte';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
   const st = $derived(ui.st);
+  const openChosen = $derived(st.chosenFeats.filter((f) => !f.slot).length);
 </script>
 
 {#each st.featSlots as slot (slot.category)}
@@ -20,23 +23,29 @@
 {/each}
 
 {#if st.delta && ui.openFeats > 0}
-  <div class="field">
-    <span>{ui.openFeats} Talent(e) wählen</span>
-    <div class="chips">
-      {#each st.chosenFeats.filter((f) => !f.slot) as f}
-        <span class="pick">{f.nameDe}<button type="button" onclick={() => (st.chosenFeats = st.chosenFeats.filter((x) => x !== f))}>×</button></span>
-      {/each}
-    </div>
-    <input type="text" placeholder="Talent suchen…" value={ui.featQuery} oninput={(e) => (ui.featQuery = (e.target as HTMLInputElement).value)} />
-    {#if ui.featQuery.trim()}
-      <div class="results">
-        {#each ui.featResults() as entry}
-          {@const mark = ui.featMark(entry)}
-          <button type="button" class="result" title={mark.owned ? (mark.blocked ? 'Schon vorhanden' : 'Schon vorhanden — mehrfach wählbar') : undefined} onclick={() => ui.toggleFeat(entry)} disabled={mark.blocked || st.chosenFeats.filter((f) => !f.slot).length >= ui.openFeats && !st.chosenFeats.some((f) => !f.slot && f.nameDe === featDisplayName(entry))}>{featDisplayName(entry)}{#if mark.owned}{mark.blocked ? ' ✓' : ' ✓ +1'}{/if}</button>
-        {/each}
-        {#if !ui.featResults().length}<span class="hint">Keine Treffer im Talent-Wörterbuch.</span>{/if}
-      </div>
-    {/if}
-    <span class="hint">{st.chosenFeats.filter((f) => !f.slot).length} / {ui.openFeats} gewählt</span>
+  <span class="hint">{openChosen} von {ui.openFeats} Talent{ui.openFeats > 1 ? 'en' : ''} gewählt — rechts steht, was das angeklickte Talent bewirkt.</span>
+  <input type="text" placeholder="Talent suchen…" value={ui.featQuery} oninput={(e) => (ui.featQuery = (e.target as HTMLInputElement).value)} />
+  <div class="chips">
+    <button type="button" class="chip" class:sel={!ui.featCategory} onclick={() => (ui.featCategory = '')}>Alle</button>
+    {#each ui.featCategories as c}
+      <button type="button" class="chip" class:sel={ui.featCategory === c} onclick={() => (ui.featCategory = c)}>{FEAT_CATEGORY_DE[c]}</button>
+    {/each}
   </div>
+  <ChoiceGroup heading="Talente ({ui.featList.length})">
+    {#each ui.featList as entry (entry.sourceKey || entry.name)}
+      {@const mark = ui.featMark(entry)}
+      <ChoiceOption
+        title={featDisplayName(entry)}
+        subtitle={featPrereq(entry) ? `Voraussetzung: ${featPrereq(entry)}` : ''}
+        tags={[
+          ...(entry.category ? [{ label: FEAT_CATEGORY_DE[entry.category] }] : []),
+          ...(entry.repeatable ? [{ label: 'mehrfach' }] : []),
+          ...(mark.owned ? [{ label: mark.blocked ? 'schon vorhanden' : 'vorhanden, +1 möglich' }] : []),
+        ]}
+        selected={ui.isOpenFeatChosen(entry)}
+        onselect={() => ui.pickOpenFeat(entry)}
+      />
+    {/each}
+  </ChoiceGroup>
+  {#if !ui.featList.length}<span class="hint">Keine Talente zu diesem Filter.</span>{/if}
 {/if}

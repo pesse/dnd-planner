@@ -17,6 +17,7 @@
   import CharacterPreview from './wizard/CharacterPreview.svelte';
   import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
+  import FeatChoiceDetail from './levelUp/FeatChoiceDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
   import ChooseClassDetail from './levelUp/ChooseClassDetail.svelte';
@@ -96,7 +97,10 @@
 
   // Auswahl-Schritte zeigen wie die Herkunft im Erstell-Wizard eine Liste neben der Detailkarte.
   const choiceDetail = $derived(
-    isPausedAt(st.run, 'choose-class') ? classDetail : isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined,
+    isPausedAt(st.run, 'choose-class') ? classDetail
+    : isPausedAt(st.run, 'subclass-choice') ? subclassDetail
+    : isPausedAt(st.run, 'feat-choice') && ui.openFeats > 0 ? featDetail
+    : undefined,
   );
 
   const previewDelta = $derived(ui.shownDelta);
@@ -114,6 +118,10 @@
 
 {#snippet subclassDetail()}
   <SubclassDetail {ui} />
+{/snippet}
+
+{#snippet featDetail()}
+  <FeatChoiceDetail {ui} />
 {/snippet}
 
 {#snippet classDetail()}
