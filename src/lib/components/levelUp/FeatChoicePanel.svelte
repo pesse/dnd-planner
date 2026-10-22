@@ -1,6 +1,7 @@
 <script lang="ts">
   import './levelUp.css';
   import { FEAT_CATEGORY_DE, featDisplayName, featPrereq } from '$lib/featsLibrary';
+  import { featArtUrl } from '$lib/libraryArt';
   import FeatPicker from '../FeatPicker.svelte';
   import ChoiceGroup from '../wizard/ChoiceGroup.svelte';
   import ChoiceOption from '../wizard/ChoiceOption.svelte';
@@ -42,6 +43,9 @@
           ...(entry.repeatable ? [{ label: 'mehrfach' }] : []),
           ...(mark.owned ? [{ label: mark.blocked ? 'schon vorhanden' : 'vorhanden, +1 möglich' }] : []),
         ]}
+        art={[featArtUrl(entry)].filter((u) => u !== null)}
+        icon
+        muted={mark.blocked}
         selected={ui.isOpenFeatChosen(entry)}
         onselect={() => ui.pickOpenFeat(entry)}
       />

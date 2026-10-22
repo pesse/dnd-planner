@@ -10,7 +10,7 @@ import { attackForSave, type AttackCalcContext } from './attackCalc';
 import {
   emptyPersonal, emptyProficiencies,
   type Attack, type Character, type CharacterBackground, type CharacterClass,
-  type CharacterSpecies, type OptionPick, type PersonalData, type ProficiencyFlags,
+  type CharacterSpecies, type OptionPick, type PersonalData, type Presentation, type ProficiencyFlags,
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
@@ -57,6 +57,7 @@ export interface CharacterFormFields {
   masteries: string[];
   optionPicks: OptionPick[];
   portraitFile: string;
+  presentation: Presentation | '';
   companion: CompanionFields;
 }
 
@@ -79,7 +80,7 @@ export interface CharacterFormCarry {
 // gehören der Merkmals-Seitenleiste, aus demselben Grund wie bei `formDraftPatch`.
 export type CharacterFormPatch =
   Omit<Character, 'uid' | 'features' | 'pinnedFeatures' | '_version' | '_importedFrom' | '_importedAt'>
-  & { portraitFile: string | undefined };
+  & { portraitFile: string | undefined; presentation: Presentation | undefined };
 
 export const mod = (score: number) => Math.floor((score - 10) / 2);
 
@@ -180,6 +181,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     masteries: [...(character.masteries ?? [])],
     optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
+    presentation: character.presentation ?? '',
     companion: {
       text: character.companion?.text ?? '',
       imageFile: character.companion?.imageFile ?? '',
@@ -263,6 +265,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     masteries: [...f.masteries],
     optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
+    presentation: f.presentation || undefined,
     companion: companionForSave(f.companion),
   };
 }

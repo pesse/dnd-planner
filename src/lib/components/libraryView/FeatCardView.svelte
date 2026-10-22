@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { FEAT_CATEGORY_DE, featDesc, featPrereq, type FeatEntry } from '$lib/featsLibrary';
+  import { featArtUrl } from '$lib/libraryArt';
+  import CardArt from '../ui/CardArt.svelte';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
 
@@ -11,6 +13,7 @@
 </script>
 
 <LibraryCardFrame accent="var(--gold)" name={feat.name} nameDe={feat.nameDe}>
+  {#snippet art()}<CardArt src={featArtUrl(feat)} color="var(--gold)" />{/snippet}
   {#snippet head()}
     <div class="badges">
       {#if feat.category}<span class="kategorie">{FEAT_CATEGORY_DE[feat.category]}</span>{/if}

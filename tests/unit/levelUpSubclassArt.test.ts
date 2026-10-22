@@ -11,7 +11,11 @@ describe('Stimmungsbild der Unterklasse', () => {
     ]);
   });
 
-  it('fragt ohne Äußeres keinen Subklassen-Ordner an', () => {
-    expect(subclassArtCandidates('phb-2024_battle-master', keys).some((u) => u.includes('/subclasses/'))).toBe(false);
+  it('probiert ohne Äußeres die Figuren des Volks der Reihe nach', () => {
+    expect(subclassArtCandidates('phb-2024_battle-master', keys).slice(0, 3)).toEqual([
+      '/art/figures/orc-androgynous/subclasses/battle-master.avif',
+      '/art/figures/orc-masculine/subclasses/battle-master.avif',
+      '/art/figures/orc-feminine/subclasses/battle-master.avif',
+    ]);
   });
 });

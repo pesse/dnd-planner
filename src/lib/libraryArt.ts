@@ -13,6 +13,10 @@ const artUrl = (kind: string, slug: string): string | null => (slug ? `/art/${ki
 export const spellArtUrl = (spell: Spell): string | null =>
   artUrl('spells', keySlug(spellKeyOf(spell as unknown as Record<string, unknown>)));
 
+/** `key` am Bibliothekstalent, `sourceKey` am Eintrag aus `featsLibrary`. */
+export const featArtUrl = (feat: { key?: string; sourceKey?: string }): string | null =>
+  artUrl('feats', keySlug(feat.sourceKey || feat.key));
+
 const UMLAUTS: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
 
 /** Eigene Monster ohne Key heißen nach ihrer Datei: „Goblin-Kämpfer" → `goblin-kaempfer`. */
