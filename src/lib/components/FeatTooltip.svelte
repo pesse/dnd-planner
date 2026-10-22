@@ -34,6 +34,7 @@
     border-radius: 6px;
     padding: 0.7rem 0.9rem;
     min-width: 220px;
+    width: max-content;
     max-width: 360px;
     max-height: 80vh;
     overflow: hidden;

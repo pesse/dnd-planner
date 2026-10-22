@@ -131,6 +131,7 @@
     border-radius: 6px;
     padding: 0.7rem 0.9rem;
     min-width: 200px;
+    width: max-content;
     max-width: 320px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     font-size: 0.8rem;
