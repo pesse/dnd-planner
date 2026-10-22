@@ -11,6 +11,8 @@ import { matchWeaponName, type ItemIndex } from '../itemLibrary';
 import { matchSpell, type SpellIndex } from '../spellLibrary';
 import { type ApplyContext } from './applyChanges';
 import { characterWithChanges } from './characterWithChanges';
+import { wornAbilityEffects } from './effectiveAbilities';
+import { wornItemsIn } from './wornItems';
 import type { Character } from '../schemas/characterSchema';
 import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
 import type { LevelUpDelta } from './levelUp';
@@ -90,6 +92,7 @@ export function createCharacterEditor(deps: {
       classIndex: 0,
       resolveSpellKey: (name) => matchSpell(deps.spellIndex(), { name })?.key,
       resolveWeaponName: (name) => matchWeaponName(deps.itemIndex(), name),
+      abilityEffects: wornAbilityEffects(wornItemsIn(deps.itemIndex(), card.draft?.inventory ?? [])),
     };
   }
 

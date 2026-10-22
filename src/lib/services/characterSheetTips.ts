@@ -3,6 +3,10 @@
  * (`tip-row`, `tip-total`, …) stylt `components/character/sheet.css`.
  */
 import { sign } from '../utils/num';
+import { esc } from '../print/character/html';
+import { mod } from '../domain/skills';
+import type { AbilityResolution } from './effectiveAbilities';
+import { abilityStepNotes, type HpDerivation } from './hitPointDerivation';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
 
@@ -11,15 +15,29 @@ function row(label: string, val: string | number): string {
   return `<span class="tip-row"><span class="tip-lbl">${label}</span><span class="tip-val">${v}</span></span>`;
 }
 function divider(): string { return `<span class="tip-div"></span>`; }
-function total(val: string | number): string {
+function total(val: string | number, label = ''): string {
   const v = typeof val === 'number' ? sign(val) : val;
-  return `<span class="tip-row tip-total"><span class="tip-lbl"></span><span class="tip-val">${v}</span></span>`;
+  return `<span class="tip-row tip-total"><span class="tip-lbl">${label}</span><span class="tip-val">${v}</span></span>`;
 }
 function step(label: string): string { return `<span class="tip-step">${label}</span>`; }
+const steps = (notes: readonly string[]): string => notes.map((n) => step(esc(n))).join('');
 
-export function attrModTip(attr: string, score: number): string {
-  const m = Math.floor((score - 10) / 2);
-  return row(attr, String(score)) + step('− 10') + step('÷ 2') + divider() + total(m);
+/** `storedMod` ist der Mod aus der Datei; weicht er ab, ist sie noch mit dem Grundwert gespeichert. */
+export function attrModTip(abbrDe: string, r: AbilityResolution, storedMod?: number): string {
+  const m = mod(r.score);
+  const items = r.steps.length ? row('Grundwert', String(r.base)) + steps(abilityStepNotes(abbrDe, r)) : '';
+  const stale = storedMod !== undefined && storedMod !== m ? steps([`gespeichert ${sign(storedMod)}: im Editor neu speichern`]) : '';
+  return items + row(abbrDe, String(r.score)) + step('− 10') + step('÷ 2') + divider() + total(m) + stale;
+}
+
+export function hpTip(d: HpDerivation): string {
+  const rows = d.rows.map((r, i) =>
+    row(esc(r.labelDe), i === 0 && d.diceKnown ? String(r.value) : r.value) + steps(r.notes)).join('');
+  const sum = d.total === null ? '' : divider() + total(String(d.total), 'TP-Maximum');
+  const off = d.total !== null && d.stored !== null && d.stored !== d.total
+    ? row('eingetragen', String(d.stored)) + row('Abweichung', d.stored - d.total)
+    : '';
+  return rows + sum + off + steps(d.notes);
 }
 
 export function saveTip(character: Character, key: AbilityKey, proficient: boolean): string {

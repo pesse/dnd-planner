@@ -9,13 +9,14 @@
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
+  import type { AbilityResolution } from '../../services/effectiveAbilities';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl }: {
+        companionImageUrl, abilities, hpTipHtml }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -23,6 +24,8 @@
     masteryOf: (name: string) => WeaponMastery | undefined;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
     companionImageUrl: string;
+    abilities: Record<AbilityKey, AbilityResolution>;
+    hpTipHtml: string;
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -38,15 +41,15 @@
         <div class="attr-label">{ABILITY_ABBR_DE[key]}</div>
         <div class="has-tip attr-mod">
           {sign(character.mods[key])}
-          <span class="tip">{@html attrModTip(ABILITY_ABBR_DE[key], character.abilities[key])}</span>
+          <span class="tip">{@html attrModTip(ABILITY_ABBR_DE[key], abilities[key], character.mods[key])}</span>
         </div>
-        <div class="attr-score">{character.abilities[key]}</div>
+        <div class="attr-score">{abilities[key].score}</div>
       </div>
     {/each}
   </div>
 
   <div class="two-col">
-    <SheetCombatBlock {character} {masteryOf} />
+    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} />
     <SheetProficiencyBlock {character} {masteryChips} />
   </div>
 

@@ -12,9 +12,12 @@
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { matchItem } from '../itemLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
-  import { createFormHpBasis } from '../services/characterFormHitPoints.svelte';
+  import { createHpBasis } from '../services/hitPointBasis.svelte';
+  import { hpDerivation } from '../services/hitPointDerivation';
+  import { hpTip } from '../services/characterSheetTips';
   import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
+  import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
@@ -52,16 +55,17 @@
     onAcceptUpgrade?: () => void;
   } = $props();
 
-  const mirror = createCharacterFormState(() => character);
+  const mirror = createCharacterFormState(() => character, () => abilities.loadedEffects);
   const form = mirror.fields;
 
-  const mods = $derived(abilityMods(form));
-  const skills = $derived(computeSkills(form));
+  const abilities = createCharacterAbilities(() => form, () => libs);
+  const mods = $derived(abilityMods(form, abilities.effects));
+  const skills = $derived(computeSkills(form, abilities.effects));
 
   // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
   // Inventarzeile — beide rechnen mit demselben Kontext.
   const weaponCtx = $derived({
-    ...attackContext(form),
+    ...attackContext(form, abilities.effects),
     proficiencies: form.proficiencies,
     weaponByName: (n: string) => matchItem(libs.itemIndex, { name: n }),
   });
@@ -154,10 +158,16 @@
     return () => { cancelled = true; };
   });
 
-  const hpBasis = createFormHpBasis(() => form, () => character.features);
+  const hpBasis = createHpBasis(
+    () => ({ species: form.species, classes: form.classes, features: character.features }),
+    () => abilities.resolved.con,
+  );
+  const hpTipHtml = $derived(
+    hpBasis.current ? hpTip(hpDerivation({ hpMax: form.hpMax, hpDiceTotal: character.hpDiceTotal }, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
+  );
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
-  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells));
+  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
 
   // Erkennung UND Verlinkung liegen in `services/characterLegacyLinks.ts`; hier bleiben
   // nur der mutierte Zustand und der UI-Nachlauf.
@@ -221,6 +231,7 @@
     <h3>Attribute</h3>
     <AttributeRow
       bind:abilities={form.abilities}
+      resolved={abilities.resolved}
       dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
     />
   </section>
@@ -231,7 +242,7 @@
       bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
       bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
       bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-      {saved} {dirOf}
+      {saved} {dirOf} {hpTipHtml}
     />
   </section>
 

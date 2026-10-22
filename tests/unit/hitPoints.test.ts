@@ -15,7 +15,7 @@ import type { HpPerLevelSource } from '../../src/lib/services/levelUp/runState';
 import type { Change } from '../../src/lib/schemas/levelUp';
 import type { WornAbilityEffect } from '../../src/lib/services/effectiveAbilities';
 
-const AMULET: WornAbilityEffect[] = [{ itemId: 'srd-2024_amulet-of-health', effect: { kind: 'set', ability: 'con', value: 19 } }];
+const AMULET: WornAbilityEffect[] = [{ itemId: 'srd-2024_amulet-of-health', labelDe: 'Amulett der Gesundheit', effect: { kind: 'set', ability: 'con', value: 19 } }];
 
 /** Paladin 2 → 3, KON 13: Bölgörs Stand (10 + 7 gewürfelt + 2×1 KON = 19). */
 const delta = (over: Partial<LevelUpDelta> = {}): LevelUpDelta =>

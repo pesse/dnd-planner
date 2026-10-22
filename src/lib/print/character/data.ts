@@ -14,6 +14,8 @@ import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import type { ItemInfo } from '$lib/itemLibrary';
+import type { AbilityScores } from '$lib/schemas/abilities';
+import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { cardItemInfos } from './itemCards';
 import { formatDamageDice } from '$lib/itemFormat';
 
@@ -34,6 +36,8 @@ export interface ClassValues {
 
 export interface CharacterPrintData {
   character: Character;
+  /** Wirksame Attributswerte, samt Gegenständen; `character.abilities` ist der Grundwert. */
+  scores: AbilityScores;
   /** Bereits `data:`-URL; leer = kein Portrait. */
   portraitUrl: string;
   /** Dasselbe für das Bild des Gefährten. */
@@ -111,13 +115,14 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems, abilityEffects] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
     safe(optionPoolOffers(c), [] as OptionPoolOffer[]),
     safe(classValues(c), [] as ClassValues[]),
     safe(cardItemInfos(c), [] as ItemInfo[]),
+    safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -128,6 +133,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
 
   return {
     character: c,
+    scores: effectiveScores(c.abilities, abilityEffects),
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',

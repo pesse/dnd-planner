@@ -23,7 +23,7 @@ describe('Formular-Rundlauf', () => {
     setPicks(form.spellcasting, 'srd-2024_wizard_spellcasting', 'cantrips', ['srd-2024_light', 'srd-2024_fire-bolt']);
     addExtra(form.spellcasting, 'srd-2024_find-familiar');
 
-    const patch = formDraftPatch(form, initialFormCarry(c));
+    const patch = formDraftPatch(form, initialFormCarry(c), []);
     expect(patch.spellcasting.sources['srd-2024_wizard_spellcasting'].picks.cantrips)
       .toEqual(['srd-2024_light', 'srd-2024_fire-bolt']);
     expect(patch.spellcasting.manual?.extra).toEqual(['srd-2024_find-familiar']);
@@ -35,7 +35,7 @@ describe('Formular-Rundlauf', () => {
     const c = blank();
     const form = initialFormFields(c);
     setPicks(form.spellcasting, 'srd-2024_bard_spellcasting', 'prepared', []);
-    expect(formDraftPatch(form, initialFormCarry(c)).spellcasting.sources).toEqual({});
+    expect(formDraftPatch(form, initialFormCarry(c), []).spellcasting.sources).toEqual({});
   });
 
   // Der Zauber-Picker im Editor liest seine offene Auswahl über `pickedKeys` — ein Leser, der

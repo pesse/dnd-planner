@@ -7,11 +7,13 @@ import type { Character, CharacterFeatureEntry, CharacterSpells } from '../schem
 import { loadSpellcasting, type LoadedSpellcasting } from './spellcasting/project';
 import { cloneSpellcasting } from './spellcasting/write';
 import { abilityMods, type CharacterFormFields } from './characterFormFields';
+import type { WornAbilityEffect } from './effectiveAbilities';
 
 export function castingInput(
   form: CharacterFormFields,
   features: CharacterFeatureEntry[],
   spells: CharacterSpells | undefined,
+  effects: readonly WornAbilityEffect[],
 ): Character {
   return {
     classes: form.classes.map((c) => ({ ...c })),
@@ -21,7 +23,7 @@ export function castingInput(
     optionPicks: form.optionPicks.map((p) => ({ ...p })),
     proficiencyBonus: form.proficiencyBonus,
     abilities: { ...form.abilities },
-    mods: abilityMods(form),
+    mods: abilityMods(form, effects),
     spellcasting: cloneSpellcasting(form.spellcasting),
     ...(spells ? { spells } : {}),
   } as Character;

@@ -16,6 +16,7 @@ import { addIndividualWeapon } from './weaponProficiency';
 import { int } from '$lib/utils/num';
 import { addExtra, addPick } from './spellcasting/write';
 import { cappedScore } from './declaration/abilityIncrease';
+import { effectiveScore, type WornAbilityEffect } from './effectiveAbilities';
 import { createFeaturePins } from './featurePins';
 
 export interface ApplyContext {
@@ -30,6 +31,8 @@ export interface ApplyContext {
    * sie, bleibt jeder Wert Freitext — die Übung fiele also aus, wo eine Waffe gemeint war.
    */
   resolveWeaponName?: (name: string) => string | undefined;
+  /** Die wirkenden Gegenstände: `mods` ist der wirksame Mod, nicht der des Grundwerts. */
+  abilityEffects?: readonly WornAbilityEffect[];
 }
 
 /**
@@ -94,10 +97,10 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
     addSpell(next, c, env);
   },
 
-  ability: (c, next) => {
+  ability: (c, next, env) => {
     const score = cappedScore(next.abilities[c.ability], c.value, c.max);
     next.abilities[c.ability] = score;
-    next.mods[c.ability] = mod(score);
+    next.mods[c.ability] = mod(effectiveScore(score, env.ctx.abilityEffects ?? [], c.ability));
   },
 
   feat: (c, next) => {
