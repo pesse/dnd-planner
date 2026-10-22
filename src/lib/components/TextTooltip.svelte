@@ -29,7 +29,7 @@
     position: fixed; z-index: 9999; pointer-events: none;
     background: var(--bg-panel); color: var(--ink);
     border: 1px solid var(--border); border-left: 3px solid var(--gold);
-    border-radius: 6px; padding: 0.45rem 0.6rem; max-width: 300px;
+    border-radius: 6px; padding: 0.45rem 0.6rem; width: max-content; max-width: 300px;
     box-shadow: 0 8px 24px rgba(20, 12, 2, 0.45); font-size: 0.8rem;
   }
 </style>

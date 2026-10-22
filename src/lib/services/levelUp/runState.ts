@@ -91,7 +91,8 @@ export interface LevelUpRunState {
   flagged: string[];
   hpPerLevelSources: HpPerLevelSource[];
   summaryLine: string;
-  featuresText: string; // editierbarer Bogentext der Klassenmerkmale
+  featuresText: string; // Bogentext der Klassenmerkmale
+  pins: string[];
   steps: string[];
   // Pro Schritt hochgezählt, damit Teilschritte im Dokument erscheinen, bevor der Lauf endet.
   reachedStep: StepId;
@@ -138,6 +139,7 @@ export function emptyRunState(): LevelUpRunState {
     hpPerLevelSources: [],
     summaryLine: '',
     featuresText: '',
+    pins: [],
     steps: [],
     reachedStep: 'choose-class',
     spellLib: [],

@@ -16,15 +16,15 @@
 </script>
 
 {#if st.delta}
-  <span class="field-hint">
+  <span class="hint">
     Mit der Unterklasse spezialisierst du deine Klasse: Sie bringt jetzt und auf späteren Stufen eigene Merkmale.
     Die Wahl ist dauerhaft — rechts siehst du, was jede Unterklasse dir gibt.
   </span>
   <ChoiceGroup heading="Subklasse für {st.delta.klasseName}">
     {#each st.delta.subclassOptions as sc (sc.key)}
       <ChoiceOption title={sc.name} selected={st.chosenSubclass?.key === sc.key} art={optionArt(sc.key)}
-        onselect={() => (st.chosenSubclass = { key: sc.key, name: sc.name })} />
+        onselect={() => ui.run.previewSubclass(sc.key, sc.name)} />
     {/each}
   </ChoiceGroup>
-  {#if !st.delta.subclassOptions.length}<span class="field-hint">Keine Subklassen gefunden.</span>{/if}
+  {#if !st.delta.subclassOptions.length}<span class="hint">Keine Subklassen gefunden.</span>{/if}
 {/if}

@@ -77,6 +77,8 @@ export interface DocInput {
   hpPerLevelSources: { feature: string; sourceKey?: string; amount: number }[];
   summaryLine: string;
   featuresText: string;
+  /** Keys neuer Merkmale, die auf den Bogen sollen. */
+  pins: readonly string[];
   upTo?: StepId; // aktueller Phasenstand: nur Änderungen bereits gelaufener Schritte aufnehmen
 }
 
@@ -92,13 +94,14 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     const q = [...p.baseChoiceQs, ...p.featChoiceQs].find((x) => x.id === id);
     return q ? answerValues(q, p.answers[id], nameOf) : '';
   };
+  const pins = new Set(p.pins);
   const gainedAtByKey = new Map<string, number>();
   for (const f of [...p.gainedFeatures, ...p.subFeatures]) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
   for (const f of p.chosenFeats) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
 
   const changes: Change[] = [
-    ...baseDeltaChanges(p.delta, p.hitDice),
-    ...subclassChanges(p.chosenSubclass, p.subFeatures),
+    ...baseDeltaChanges(p.delta, p.hitDice, pins),
+    ...subclassChanges(p.chosenSubclass, p.subFeatures, pins),
     ...optionPoolChanges(p.optionPools, p.optionPicks, p.optionPicksBefore),
     ...declaredSpellChanges(p.declaredSpells),
     ...declaredSpellChanges(p.charLevelSpells, 'ongoing-effects'),

@@ -6,12 +6,11 @@ import { tick } from 'svelte';
 import { createCardEditor, type CardEditor } from '../editor/cardEditor.svelte';
 import { parseCharacter } from '../utils/schemaValidation';
 import { pendingCharacterUpgrade, type PendingCharacterUpgrade } from '../schemas/characterUpgrades';
-import { formatClassLevel } from '../schemas/classLevelText';
 import { invalidateVault } from '../stores/campaign';
 import { matchWeaponName, type ItemIndex } from '../itemLibrary';
 import { matchSpell, type SpellIndex } from '../spellLibrary';
-import { applyChanges, type ApplyContext } from './applyChanges';
-import { proficiencyBonus } from './classProgression';
+import { type ApplyContext } from './applyChanges';
+import { characterWithChanges } from './characterWithChanges';
 import type { Character } from '../schemas/characterSchema';
 import type { Change, LevelUpChangeSet } from '../schemas/levelUp';
 import type { LevelUpDelta } from './levelUp';
@@ -86,10 +85,9 @@ export function createCharacterEditor(deps: {
   });
 
   /** Die Auflöser lesen die Bibliotheken bei jedem Aufruf — sie laden asynchron nach. */
-  function context(delta?: LevelUpDelta): ApplyContext {
+  function context(): ApplyContext {
     return {
-      classIndex: delta?.classIndex ?? 0,
-      isNewClass: delta?.isNewClass,
+      classIndex: 0,
       resolveSpellKey: (name) => matchSpell(deps.spellIndex(), { name })?.key,
       resolveWeaponName: (name) => matchWeaponName(deps.itemIndex(), name),
     };
@@ -104,14 +102,7 @@ export function createCharacterEditor(deps: {
   async function mutate(changes: Change[], delta?: LevelUpDelta): Promise<void> {
     if (!card.draft) return;
     await tick();
-    const next = structuredClone($state.snapshot(card.draft)) as Character;
-
-    if (delta) applyLevelStructure(next, delta);
-    applyChanges(next, changes, context(delta));
-    if (delta) next.classLevel = formatClassLevel(next.classes);
-
-    const r = parseCharacter(next);
-    card.draft = r.ok ? r.data : next;
+    card.draft = characterWithChanges($state.snapshot(card.draft) as Character, changes, context(), delta);
   }
 
   return {
@@ -134,16 +125,4 @@ export function createCharacterEditor(deps: {
       return mutate(changeSet.changes, delta);
     },
   };
-}
-
-/** Nicht additiv, anders als das `changeSet`: Klassenstufe und Multiclass sind Identität. */
-function applyLevelStructure(next: Character, delta: LevelUpDelta): void {
-  if (delta.isNewClass) {
-    next.classes.push({ sourceKey: delta.sourceKey, name: delta.klasseName, level: delta.toLevel });
-  } else {
-    const cls = next.classes[delta.classIndex];
-    if (cls) cls.level = delta.toLevel;
-  }
-  // Sicherheitsnetz; das `changeSet` setzt den Übungsbonus ebenso.
-  next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
 }

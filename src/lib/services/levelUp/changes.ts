@@ -58,7 +58,7 @@ function abilityFromAnswers(delta: LevelUpDelta, answers: Record<string, string 
   return abil;
 }
 
-export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[] {
+export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string, pins: ReadonlySet<string> = new Set()): Change[] {
   const step: BuilderStep = 'base-delta';
   const out: Change[] = [];
   if (delta.profBonusTo !== delta.profBonusFrom)
@@ -72,23 +72,25 @@ export function baseDeltaChanges(delta: LevelUpDelta, hitDice: string): Change[]
     out.push({ target: 'spellcastingClass', value: delta.klasseName, step, source: 'class-progression', label: `Zauberwirken: ${delta.klasseName}` });
   const hd = bumpHitDice(hitDice, delta.hitDie, delta.levelsGained, delta.toLevel);
   if (hd) out.push({ target: 'hitDice', value: hd, step, source: 'class-progression', label: 'Trefferwürfel' });
-  // Nur ein HINWEIS, keine Wahl: die Waffen kommen im Charakterbogen aus der Item-Bibliothek.
-  if (delta.masteryTo > delta.masteryFrom) {
-    const value = `Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`;
-    out.push({ target: 'note', value, step, source: 'class-progression', label: value });
-  }
+  // Nur HINWEISE: die Zauber wählt der Spieler unter „Entscheidungen", die Waffen im
+  // Charakterbogen aus der Item-Bibliothek.
+  const note = (value: string) => out.push({ target: 'note', value, step, source: 'class-progression', label: value });
+  if (delta.cantripDelta > 0) note(`Zaubertricks: +${delta.cantripDelta}`);
+  if (delta.preparedDelta > 0)
+    note(`${delta.casterKind === 'known' ? 'Bekannte' : 'Vorbereitete'} Zauber: ${delta.preparedFrom} → ${delta.preparedTo}`);
+  if (delta.masteryTo > delta.masteryFrom) note(`Waffenbeherrschung: jetzt ${delta.masteryTo} Waffen — im Charakterbogen wählbar`);
   for (const f of delta.featuresGained)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: delta.sourceKey, label: `Neues Merkmal: ${f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', pinned: pins.has(f.key ?? ''), step, source: delta.sourceKey, label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 
-export function subclassChanges(subclass: { key: string; name: string } | null, subFeatures: GainedFeature[]): Change[] {
+export function subclassChanges(subclass: { key: string; name: string } | null, subFeatures: GainedFeature[], pins: ReadonlySet<string> = new Set()): Change[] {
   const step: BuilderStep = 'subclass-delta';
   const out: Change[] = [];
   if (subclass?.key)
     out.push({ target: 'subclass', key: subclass.key, name: subclass.name, step, source: subclass.key, label: `Subklasse: ${subclass.name}` });
   for (const f of subFeatures)
-    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.name}` });
+    out.push({ target: 'featureGained', name: f.name, sourceKey: f.key ?? '', pinned: pins.has(f.key ?? ''), step, source: subclass?.key ?? '', label: `Neues Merkmal: ${f.nameDe || f.name}` });
   return out;
 }
 
@@ -331,5 +333,5 @@ export function ongoingChanges(sources: { feature: string; sourceKey?: string; a
 
 export function classFeaturesChanges(text: string): Change[] {
   if (!text?.trim()) return [];
-  return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Klassenmerkmale (überarbeitet)' }];
+  return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Bogentext der Klassenmerkmale ergänzt' }];
 }

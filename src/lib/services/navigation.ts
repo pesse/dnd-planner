@@ -13,6 +13,7 @@ import {
   replaceHistory,
   stepHistory,
 } from '../stores/navigationHistory';
+import { activePeek } from './entryPeek';
 import type { FileEntry } from '../types';
 
 const MARKDOWN_TYPES = new Set<FileEntry['type']>(['campaign', 'act', 'session', 'world', 'notes']);
@@ -43,9 +44,15 @@ async function apply(entry: FileEntry): Promise<void> {
 
 /**
  * @param guard `false`, wenn der Aufrufer `confirmNavigation` schon selbst geführt hat.
+ * @param leavePeek `true`, wenn der Nutzer das Verlassen eines Assistenten bestätigt hat.
  * @returns false, wenn der Guard abgebrochen hat — der Aufrufer bleibt dann stehen.
  */
-export async function navigateTo(entry: FileEntry, opts?: { guard?: boolean }): Promise<boolean> {
+export async function navigateTo(entry: FileEntry, opts?: { guard?: boolean; leavePeek?: boolean }): Promise<boolean> {
+  const peek = activePeek();
+  if (peek && !opts?.leavePeek) {
+    peek(entry);
+    return false;
+  }
   if (opts?.guard !== false && !(await confirmNavigation())) return false;
   pushHistory(entry);
   await apply(entry);

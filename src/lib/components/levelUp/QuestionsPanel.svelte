@@ -26,9 +26,9 @@
       />
     {:else}
       {@const note = ui.choices.featureNoteOf(q.featureKey)}
-      <div class="row">
-        <span class="field-label">{q.prompt}{#if !q.required}<span class="field-hint"> (optional)</span>{/if}</span>
-        {#if q.help}<span class="field-hint">{q.help}</span>{/if}
+      <div class="field">
+        <span>{q.prompt}{#if !q.required}<span class="hint"> (optional)</span>{/if}</span>
+        {#if q.help}<span class="hint">{q.help}</span>{/if}
         {#if note}
           <details class="q-note" open>
             <summary>{note.titleDe}</summary>
@@ -36,7 +36,7 @@
           </details>
         {/if}
         {#if q.type === 'number'}
-          <input class="input" type="number" min={q.min} max={q.max} value={st.answers[q.id] as string} oninput={(e) => ui.setIn(q.id, (e.target as HTMLInputElement).value)} />
+          <input type="number" min={q.min} max={q.max} value={st.answers[q.id] as string} oninput={(e) => ui.setIn(q.id, (e.target as HTMLInputElement).value)} />
         {:else if q.type === 'spell-picker'}
           {@const bind = ui.pickBinding(q.id)}
           <SpellPickField
@@ -52,7 +52,7 @@
             onCreate={(name, levels) => ui.openSpellCreator(name, levels, q.id)}
           />
         {:else}
-          <textarea class="textarea" rows="2" value={st.answers[q.id] as string} oninput={(e) => ui.setIn(q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
+          <textarea rows="2" value={st.answers[q.id] as string} oninput={(e) => ui.setIn(q.id, (e.target as HTMLTextAreaElement).value)}></textarea>
         {/if}
       </div>
     {/if}

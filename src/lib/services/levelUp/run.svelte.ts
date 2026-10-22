@@ -6,7 +6,7 @@
 import { mod } from '../../domain/skills';
 import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
-import { type StepId, type AdvanceCtx, isCheckpoint, advance } from './steps';
+import { type StepId, type AdvanceCtx, isCheckpoint, advance, plannedCheckpoints } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
 import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForFlow } from './features';
 import { countFeatsToPick } from './questions';
@@ -15,7 +15,7 @@ import { buildDoc } from './doc';
 import { createLevelUpChoices } from './choices.svelte';
 import { createLevelUpKnownSpells } from './knownSpells.svelte';
 import { createRunSteps } from './runSteps';
-import { emptyRiders, emptyRunState, stepOf, type LevelUpRunState } from './runState';
+import { emptyRiders, emptyRunState, isPausedAt, stepOf, type LevelUpRunState } from './runState';
 import { withoutSpellGrantFeatures } from '../grantedSpells';
 import { withoutDeclaredChoiceFeatures } from '../declaration/optionList';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
@@ -166,6 +166,9 @@ export function createLevelUpRun(ctx: { character: Character }) {
       case 'feature-notes':
         steps.runNotes();
         break;
+      case 'class-features':
+        st.featuresText = steps.seedFeaturesText();
+        break;
       case 'ongoing-effects':
         await steps.detectHpPerLevel(alive);
         if (!alive()) return;
@@ -203,14 +206,17 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.featsToPick = countFeatsToPick(st.delta!, st.answers, slotTotal(st.featSlots));
       st.chosenFeats = [];
       getFeats().then((f) => { st.featLib = f; });
-    } else if (step === 'class-features') {
-      st.featuresText = steps.seedFeaturesText();
     }
   }
 
   // Während eines Laufs der zuletzt ABGESCHLOSSENE Schritt — so erscheinen fertige
   // Teilschritte im Dokument, ohne Vorgriff auf den noch laufenden.
-  const viewStep = $derived<StepId>(st.run.kind === 'running' ? st.reachedStep : stepOf(st.run));
+  // An der Subklassenwahl zeigt die getroffene Wahl ihre Merkmale schon vor „Weiter".
+  const viewStep = $derived<StepId>(
+    st.run.kind === 'running' ? st.reachedStep
+    : isPausedAt(st.run, 'subclass-choice') && st.chosenSubclass ? 'subclass-delta'
+    : stepOf(st.run),
+  );
   const doc = $derived.by<LevelUpDoc>(() => {
     if (!st.delta) return { fromLevel: 0, toLevel: 0, klasse: '', summary: '', changes: [] };
     return buildDoc({
@@ -226,7 +232,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       baseChoiceQs: choices.baseChoiceQs, featChoiceQs: choices.featChoiceQs, gainedFeatures: st.gainedFeatures,
       optionPools: st.optionPools, optionPicks: st.optionPicks,
       optionPicksBefore: ctx.character.optionPicks ?? [],
-      hpPerLevelSources: st.hpPerLevelSources, summaryLine: st.summaryLine, featuresText: st.featuresText,
+      hpPerLevelSources: st.hpPerLevelSources, summaryLine: st.summaryLine, featuresText: st.featuresText, pins: st.pins,
       upTo: viewStep,
     });
   });
@@ -236,6 +242,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     choices,
     knownSpells,
     get doc() { return doc; },
+    get plannedSteps(): StepId[] { return st.delta ? plannedCheckpoints(advCtx()) : ['choose-class']; },
     ensureSpellLib,
 
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
@@ -246,7 +253,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
       st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
-      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = '';
+      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = ''; st.pins = [];
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();
 
@@ -272,15 +279,35 @@ export function createLevelUpRun(ctx: { character: Character }) {
       });
     },
 
-    resume(from: StepId) {
+    resume(from: StepId): Promise<void> {
+      if (!st.delta) return Promise.resolve();
+      return runSegment(from, (alive) => pipelineBody(from, alive));
+    },
+
+    /** Die Wahl links, noch ohne „Weiter" — lädt nur die Merkmale für „Was sich ändert". */
+    previewSubclass(key: string, name: string) {
       if (!st.delta) return;
-      runSegment(from, (alive) => pipelineBody(from, alive));
+      st.chosenSubclass = { key, name };
+      st.subFeatures = [];
+      void computeSubclassFeatures(key, st.delta.fromLevel, st.delta.toLevel).then((f) => {
+        if (st.chosenSubclass?.key === key) st.subFeatures = f;
+      });
     },
 
     chooseSubclass(key: string, name: string) {
       if (!st.delta) return;
       st.chosenSubclass = { key, name };
       runSegment('subclass-choice', (alive) => pipelineBody('subclass-choice', alive));
+    },
+
+    /**
+     * Zurück zu einem früheren Checkpoint. Der Zustand bleibt stehen — „Weiter" rechnet die
+     * folgenden Schritte neu, und wo ein Schritt seine Wahl neu aufsetzt, ist sie dann weg.
+     */
+    backTo(step: StepId) {
+      if (st.run.kind === 'running' || !isCheckpoint(step)) return;
+      st.reachedStep = step;
+      st.run = { kind: 'paused', at: step };
     },
 
     destroy() { runToken++; },

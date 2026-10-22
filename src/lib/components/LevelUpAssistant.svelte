@@ -8,14 +8,19 @@
   import { onDestroy } from 'svelte';
   import { createLevelUpRun } from '../services/levelUp/run.svelte';
   import { isPausedAt, stepOf } from '../services/levelUp/runState';
-  import { STEP_META, type StepId } from '../services/levelUp/steps';
+  import { STEP_META, timelineIndex, type StepId } from '../services/levelUp/steps';
   import { type LevelUpDelta } from '../services/levelUp';
   import { type LevelUpChangeSet } from '../schemas/levelUp';
   import { type Character } from '../schemas/characterSchema';
+  import { type ApplyContext } from '../services/applyChanges';
+  import { characterWithChanges } from '../services/characterWithChanges';
+  import CharacterPreview from './wizard/CharacterPreview.svelte';
   import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
+  import FeatChoiceDetail from './levelUp/FeatChoiceDetail.svelte';
   import { createLevelUpAssistantUi } from './levelUp/assistantState.svelte';
   import ChooseClassStep from './levelUp/ChooseClassStep.svelte';
+  import ChooseClassDetail from './levelUp/ChooseClassDetail.svelte';
   import SubclassChoiceStep from './levelUp/SubclassChoiceStep.svelte';
   import NewFeaturesPanel from './levelUp/NewFeaturesPanel.svelte';
   import QuestionsPanel from './levelUp/QuestionsPanel.svelte';
@@ -23,13 +28,14 @@
   import PlayerDecisionsPanel from './levelUp/PlayerDecisionsPanel.svelte';
   import FeatChoicePanel from './levelUp/FeatChoicePanel.svelte';
   import FightingStylePanel from './levelUp/FightingStylePanel.svelte';
-  import ClassFeaturesPanel from './levelUp/ClassFeaturesPanel.svelte';
   import SpellCreatorPanel from './levelUp/SpellCreatorPanel.svelte';
-  import ReviewPanel from './levelUp/ReviewPanel.svelte';
+  import ChangeList from './levelUp/ChangeList.svelte';
+  import './wizard/wizard.css';
   import './levelUp/levelUp.css';
 
-  let { character, onApply, onclose }: {
+  let { character, applyContext, onApply, onclose }: {
     character: Character;
+    applyContext: ApplyContext;
     onApply: (changeSet: LevelUpChangeSet, delta: LevelUpDelta) => void;
     onclose: () => void;
   } = $props();
@@ -40,83 +46,114 @@
 
   const ui = createLevelUpAssistantUi(run, () => character, (changeSet, delta) => onApply(changeSet, delta), () => onclose());
 
-  // Die Zustandsmaschine kennt ihre Checkpoints erst beim Erreichen — die Leiste zeigt die
-  // bisher besuchten, ohne Rücksprung.
+  // Der geplante Weg plus alles schon Besuchte: ein Zähler kann nach dem Besuch wieder auf 0
+  // fallen, der Schritt bleibt trotzdem in der Leiste.
   let visited = $state<StepId[]>([]);
   $effect(() => {
     if (st.run.kind === 'running') return;
     const at = stepOf(st.run);
     if (at !== 'done' && !visited.includes(at)) visited = [...visited, at];
   });
-  const steps = $derived(visited.map((id) => ({ id, label: STEP_META[id].label })));
-  const current = $derived(Math.max(0, visited.indexOf(stepOf(st.run))));
+  const stepIds = $derived(
+    [...new Set([...visited, ...run.plannedSteps])].sort((a, b) => timelineIndex(a) - timelineIndex(b)),
+  );
+  const steps = $derived(stepIds.map((id) => ({ id, label: STEP_META[id].label })));
+  const current = $derived(Math.max(0, stepIds.indexOf(stepOf(st.run))));
+  const idle = $derived(st.run.kind !== 'running');
+
+  function goBack(i: number) {
+    const target = stepIds[i];
+    visited = visited.filter((s) => timelineIndex(s) <= timelineIndex(target));
+    run.backTo(target);
+  }
+
+  // Während eines Laufs fehlt „Weiter" — der nächste Checkpoint steht noch nicht fest.
+  const forward = $derived.by<{ label: string; disabled: boolean; go: () => unknown } | null>(() => {
+    if (st.run.kind === 'running') return null;
+    const step = (disabled: boolean, go: () => unknown) => ({ label: 'Weiter', disabled, go });
+    switch (stepOf(st.run)) {
+      case 'choose-class':
+        return step((ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20), () => ui.startFlow());
+      case 'subclass-choice':
+        return step(!st.chosenSubclass, () => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name));
+      case 'new-features': return step(false, () => run.resume('new-features'));
+      case 'feature-choices': return step(!run.choices.allBaseAnswered, () => run.resume('feature-choices'));
+      case 'player-decisions': return step(!ui.allAnswered, () => run.resume('player-decisions'));
+      case 'feat-choice': return step(!ui.featsDone || !ui.stylesDone, () => run.resume('feat-choice'));
+      case 'feat-choices': return step(!run.choices.allFeatAnswered, () => run.resume('feat-choices'));
+      default: return null;
+    }
+  });
+
+  // Am letzten Checkpoint übernimmt „Weiter" gleich: die Seitenleiste zeigt längst alles,
+  // die übrigen Schritte rechnen nur noch.
+  const isLast = $derived(
+    !!st.delta && !['choose-class', 'subclass-choice'].includes(stepOf(st.run)) && stepIds.at(-1) === stepOf(st.run),
+  );
+  async function finish(go: () => unknown) {
+    await go();
+    if (isPausedAt(st.run, 'done')) ui.apply();
+  }
+
+  // Auswahl-Schritte zeigen wie die Herkunft im Erstell-Wizard eine Liste neben der Detailkarte.
+  const choiceDetail = $derived(
+    isPausedAt(st.run, 'choose-class') ? classDetail
+    : isPausedAt(st.run, 'subclass-choice') ? subclassDetail
+    : isPausedAt(st.run, 'feat-choice') && ui.openFeats > 0 ? featDetail
+    : undefined,
+  );
+
+  const previewDelta = $derived(ui.shownDelta);
+  const baseline = $derived($state.snapshot(character) as Character);
+  const previewCharacter = $derived(
+    previewDelta ? characterWithChanges(baseline, ui.shownChanges, applyContext, previewDelta) : baseline,
+  );
 </script>
 
 {#snippet progression()}
-  <span class="field-label">Was sich ändert</span>
-  {#if ui.progressionGroups.length}
-    <div class="facts">
-      {#each ui.progressionGroups as g}
-        <div class="proto-group">
-          <div class="proto-heading">{g.heading}</div>
-          {#each g.lines as l}<div class="fact">• {l}</div>{/each}
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <span class="field-hint">Noch keine Änderungen.</span>
-  {/if}
+  <CharacterPreview character={previewCharacter} baseline={previewDelta ? baseline : null} emptyText="">
+    <ChangeList {ui} />
+  </CharacterPreview>
 {/snippet}
 
 {#snippet subclassDetail()}
   <SubclassDetail {ui} />
 {/snippet}
 
-{#snippet actions()}
-  <div class="actions">
-    {#if isPausedAt(st.run, 'choose-class')}
-      <button class="secondary-btn" onclick={onclose}>Schließen</button>
-      <button class="primary-btn" onclick={() => ui.startFlow()}
-              disabled={(ui.isNewClass && !ui.newClassKey) || (!ui.isNewClass && ui.effectiveFrom >= 20)}>Weiter</button>
-    {:else if isPausedAt(st.run, 'subclass-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => st.chosenSubclass && run.chooseSubclass(st.chosenSubclass.key, st.chosenSubclass.name)} disabled={!st.chosenSubclass}>Weiter</button>
-    {:else if isPausedAt(st.run, 'new-features')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('new-features')}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feature-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feature-choices')} disabled={!run.choices.allBaseAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'player-decisions')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('player-decisions')} disabled={!ui.allAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choice')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choice')} disabled={!ui.featsDone || !ui.stylesDone}>Weiter</button>
-    {:else if isPausedAt(st.run, 'feat-choices')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => run.resume('feat-choices')} disabled={!run.choices.allFeatAnswered}>Weiter</button>
-    {:else if isPausedAt(st.run, 'class-features')}
-      <button class="secondary-btn" onclick={onclose}>Abbrechen</button>
-      <button class="primary-btn" onclick={() => ui.confirmClassFeatures()}>Weiter</button>
-    {:else if isPausedAt(st.run, 'review')}
-      <button class="secondary-btn" onclick={onclose}>Verwerfen</button>
-      <button class="primary-btn" onclick={() => ui.apply()}>In den Entwurf übernehmen</button>
+{#snippet featDetail()}
+  <FeatChoiceDetail {ui} />
+{/snippet}
+
+{#snippet classDetail()}
+  <ChooseClassDetail {ui} />
+{/snippet}
+
+{#snippet footer()}
+  <button class="secondary" onclick={onclose}>Abbrechen</button>
+  <div class="spacer"></div>
+  {#if current > 0 && idle}<button class="secondary" onclick={() => goBack(current - 1)}>Zurück</button>{/if}
+  {#if forward}
+    {@const go = forward.go}
+    {#if isLast}
+      <button class="primary" onclick={() => finish(go)} disabled={forward.disabled}>In den Entwurf übernehmen</button>
+    {:else}
+      <button class="primary" onclick={go} disabled={forward.disabled}>{forward.label}</button>
     {/if}
-  </div>
+  {/if}
 {/snippet}
 
 <FullscreenWizard
   title="⬆ Stufenaufstieg — {character.name}"
   label="Stufenaufstieg"
-  scope="lvlup"
+  scope="wizard lvlup"
   {steps}
   {current}
+  onstep={idle ? goBack : undefined}
   {onclose}
-  mainWidth={isPausedAt(st.run, 'subclass-choice') ? CHOICE_LIST_WIDTH : undefined}
-  detail={isPausedAt(st.run, 'subclass-choice') ? subclassDetail : undefined}
+  mainWidth={choiceDetail ? CHOICE_LIST_WIDTH : undefined}
+  detail={choiceDetail}
   preview={progression}
-  footer={actions}
+  {footer}
 >
   <div class="main">
   {#if isPausedAt(st.run, 'choose-class')}
@@ -153,24 +190,14 @@
     {#if st.featsToPick > 0}<FeatChoicePanel {ui} />{/if}
   {/if}
 
-  {#if isPausedAt(st.run, 'class-features')}
-    <ClassFeaturesPanel {ui} />
-  {/if}
-
   <SpellCreatorPanel {ui} />
 
-  {#if isPausedAt(st.run, 'review')}
-    <ReviewPanel {ui} />
-  {/if}
-
-  {#if st.run.kind === 'error'}<p class="hint err">{st.run.message}</p>{/if}
+  {#if st.run.kind === 'error'}<p class="warn">{st.run.message}</p>{/if}
 
   </div>
 </FullscreenWizard>
 
 <style>
   .main { display: flex; flex-direction: column; gap: 0.7rem; max-width: 60rem; }
-  .actions { flex: 1; }
-  .proto-group { display: flex; flex-direction: column; gap: 0.15rem; }
-  .proto-heading { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
+  .spacer { flex: 1; }
 </style>

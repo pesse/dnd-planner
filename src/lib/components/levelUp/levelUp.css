@@ -1,57 +1,47 @@
-/* Anzeigesprache der Stufenaufstieg-Schritte. Global unter `.lvlup`, weil die
-   Schritt-Panele eigene Komponenten sind und dieselben Frage-, Chip- und
-   Aktions-Regeln brauchen. Muster wie character/sheet.css. */
-
-.lvlup .row { display: flex; flex-direction: column; gap: 0.3rem; }
-.lvlup .row.two { flex-direction: row; gap: 0.5rem; }
-.lvlup .row.two > * { flex: 1; }
-.lvlup .field-label.warn { color: var(--gold, #c89b3c); }
-.lvlup .field-hint { text-transform: none; letter-spacing: 0; color: var(--ink-muted); font-size: 0.72rem; }
+/* Was nur der Stufenaufstieg braucht — Felder, Chips, Hinweise und Knöpfe kommen aus
+   wizard/wizard.css. Global unter `.lvlup`, weil die Schritt-Panele eigene Komponenten sind. */
 
 .lvlup .questions { display: flex; flex-direction: column; gap: 0.7rem; }
 
 .lvlup .facts { display: flex; flex-direction: column; gap: 0.5rem; }
 .lvlup .fact { font-size: 0.76rem; color: var(--ink-soft); }
 
-.lvlup .group-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.lvlup .group-chip {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  color: var(--ink-muted); padding: 0.18rem 0.6rem; cursor: pointer; font-family: inherit; font-size: 0.74rem; opacity: 0.6;
+.lvlup .creator { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface); }
+
+.lvlup .decision {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.85rem 0.85rem;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: linear-gradient(160deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 130%);
 }
-.lvlup .group-chip:hover { opacity: 0.85; }
-.lvlup .group-chip.on { border-color: var(--arcane, var(--red)); color: var(--ink); opacity: 1; }
-
-.lvlup .creator {
-  display: flex; flex-direction: column; gap: 0.35rem;
-  border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface);
+.lvlup .decision > h3 {
+  margin: 0; font-family: var(--font-display); font-size: 0.88rem; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--gold);
 }
-.lvlup .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.lvlup .pick { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); }
-.lvlup .pick button { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; line-height: 1; }
-.lvlup .pick button:hover { color: var(--danger); }
-.lvlup .results { display: flex; flex-direction: column; gap: 0.15rem; max-height: 180px; overflow-y: auto; }
-.lvlup .result { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft); padding: 0.25rem 0.5rem; cursor: pointer; font-family: inherit; font-size: 0.78rem; }
-.lvlup .result:hover { border-color: var(--arcane, var(--red)); color: var(--ink); }
-.lvlup .result:disabled { opacity: 0.4; cursor: not-allowed; }
+.lvlup .decision > h3 .hint { text-transform: none; letter-spacing: 0; font-family: inherit; }
 
-.lvlup .input:focus, .lvlup .select:focus, .lvlup .textarea:focus { border-color: var(--arcane, var(--red)); }
-.lvlup .textarea { resize: vertical; }
+.lvlup .tiles { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 0.4rem; }
+.lvlup .tile {
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.5rem 0.4rem;
+  font: inherit; color: var(--ink); cursor: pointer; border: 1px solid var(--border); border-radius: 6px;
+  background: linear-gradient(100deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 140%);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.lvlup .tile:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--border-strong); }
+.lvlup .tile:focus-visible { outline: 2px solid var(--arcane); outline-offset: 2px; }
+.lvlup .tile.sel {
+  border-color: var(--gold);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--arcane) 10%, var(--bg)) 0%, var(--surface) 140%);
+  box-shadow: inset 0 0 0 1px var(--gold), 0 3px 14px -6px color-mix(in srgb, var(--arcane) 70%, transparent);
+}
+.lvlup .tile:disabled { opacity: 0.45; cursor: not-allowed; }
+.lvlup .tile-label { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; color: var(--ink-soft); }
+.lvlup .tile.sel .tile-label { color: var(--arcane); }
+.lvlup .tile-value { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.lvlup .tile-sub { font-size: 0.72rem; color: var(--ink-soft); text-align: center; }
 
-.lvlup .roll { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.lvlup .roll-result { font-size: 0.82rem; color: var(--ink-soft); }
-.lvlup .ta-features { min-height: 12rem; }
-
-.lvlup .review { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }
-.lvlup .review-line { font-size: 0.82rem; color: var(--ink-soft); }
-.lvlup .review-line.muted { color: var(--ink-muted); }
 
 .lvlup .flagged { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0; }
-.lvlup .flagged-line { font-size: 0.8rem; color: var(--gold, #c89b3c); }
-.lvlup .link-btn { background: none; border: none; color: var(--arcane, var(--red)); cursor: pointer; font-family: inherit; font-size: 0.78rem; text-decoration: underline; padding: 0 0.2rem; }
+.lvlup .flagged-line { font-size: 0.8rem; color: var(--gold); }
+.lvlup .link-btn { background: none; border: none; color: var(--arcane, var(--gold)); cursor: pointer; font-family: inherit; font-size: 0.78rem; text-decoration: underline; padding: 0 0.2rem; }
 
 .lvlup .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-.lvlup .primary-btn { background: var(--arcane, var(--red)); }
-
-.lvlup .hint { font-size: 0.78rem; margin: 0; }
-.lvlup .hint.warn { color: var(--gold, #c89b3c); }
-.lvlup .hint.err { color: var(--danger); }

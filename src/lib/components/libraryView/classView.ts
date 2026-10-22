@@ -22,6 +22,16 @@ export function primaryAbilityText(o: ClassOverview): string {
   return o.primaryAbilities.map((a) => ABILITY_LABEL_BY_NAME[a]).join(o.primaryJoin === 'and' ? ' und ' : ' oder ');
 }
 
+/** Zeile einer Klassen-Auswahlliste: Lieblingsrolle als Untertitel, Hauptattribut und Schwierigkeit als Marken. */
+export function classTileFacts(klass: ClassProgression): { subtitle: string; tags: { label: string; easy?: boolean }[] } {
+  const o = klass.overview;
+  if (!o) return { subtitle: '', tags: [] };
+  return {
+    subtitle: o.favoredDe ?? '',
+    tags: [{ label: primaryAbilityText(o) }, { label: COMPLEXITY_LABELS[o.complexity], easy: o.complexity === 'low' }],
+  };
+}
+
 export function classCoreRows(klass: ClassProgression): CoreRow[] {
   const g = klass.proficiencyGrant;
   if (!g) return [];

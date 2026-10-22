@@ -98,7 +98,7 @@
     {/if}
 
     {#if showLevelUp && ed.draft}
-      <LevelUpAssistant character={ed.draft} onApply={editor.applyLevelUp} onclose={() => (showLevelUp = false)} />
+      <LevelUpAssistant character={ed.draft} applyContext={editor.applyContext} onApply={editor.applyLevelUp} onclose={() => (showLevelUp = false)} />
     {/if}
 
     <!-- Die Leiste liegt AUSSERHALB des {#key ed.draft} und übersteht damit den

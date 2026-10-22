@@ -27,7 +27,7 @@ export type StepId =
   | 'feat-effects'        // Rider der Talent-Deklarationen
   | 'ongoing-effects'
   | 'feature-notes'       // je Merkmal eine Bogenzeile
-  | 'class-features'      // Checkpoint: der Bogentext zum Nachbearbeiten
+  | 'class-features'      // Bogentext der Klassenmerkmale aus den Notizen
   | 'review'
   | 'done';
 
@@ -48,8 +48,8 @@ export const STEP_META: Record<StepId, { kind: StepKind; label: string }> = {
   'feat-effects':      { kind: 'deterministic', label: 'Talent-Effekte' },
   'ongoing-effects':   { kind: 'deterministic', label: 'Fortlaufende Effekte' },
   'feature-notes':     { kind: 'deterministic', label: 'Merkmals-Notizen' },
-  'class-features':    { kind: 'checkpoint',    label: 'Klassenmerkmale' },
-  'review':            { kind: 'checkpoint',    label: 'Überprüfung' },
+  'class-features':    { kind: 'deterministic', label: 'Klassenmerkmale' },
+  'review':            { kind: 'deterministic', label: 'Überprüfung' },
   'done':              { kind: 'checkpoint',    label: 'Fertig' },
 };
 
@@ -105,6 +105,20 @@ const TIMELINE: StepId[] = [
   'feat-choices', 'feat-effects', 'ongoing-effects',
   'feature-notes', 'class-features', 'review', 'done',
 ];
+
+export const timelineIndex = (step: StepId): number => TIMELINE.indexOf(step);
+
+/**
+ * Die Checkpoints, die `advance` mit dem heutigen Wissen ansteuert. Ein Zähler steht vor
+ * seinem Schritt oft noch auf 0 — der Weg kann also wachsen, sobald ein Schritt gelaufen ist.
+ */
+export function plannedCheckpoints(ctx: AdvanceCtx): StepId[] {
+  const out: StepId[] = ['choose-class'];
+  for (let s = advance('choose-class', ctx); s !== 'done'; s = advance(s, ctx)) {
+    if (isCheckpoint(s)) out.push(s);
+  }
+  return out;
+}
 
 export function stepReached(current: StepId, step: string): boolean {
   const ci = TIMELINE.indexOf(current);

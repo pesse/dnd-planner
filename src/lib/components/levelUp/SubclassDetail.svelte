@@ -32,7 +32,7 @@
 
 <ArtStage {candidates}>
   {#if !st.chosenSubclass}
-    <p class="field-hint">Wähle links eine Unterklasse — hier erscheinen ihre Beschreibung und alle Merkmale.</p>
+    <p class="hint">Wähle links eine Unterklasse — hier erscheinen ihre Beschreibung und alle Merkmale.</p>
   {:else if sub}
     <LibraryCardFrame accent="var(--copper)" name={sub.name} nameDe={sub.nameDe}>
       {#if sub.introDe}<div class="intro"><Markdown source={sub.introDe} /></div>{/if}
@@ -40,7 +40,7 @@
         <FeatureList entries={classFeatureEntries(sub.features)} openUpTo={st.delta?.toLevel ?? 1} />
       </div>
     </LibraryCardFrame>
-    <p class="field-hint">Merkmale späterer Stufen erhältst du beim nächsten Aufstieg — klappe sie auf, um vorauszuschauen.</p>
+    <p class="hint">Merkmale späterer Stufen erhältst du beim nächsten Aufstieg — klappe sie auf, um vorauszuschauen.</p>
   {/if}
 </ArtStage>
 

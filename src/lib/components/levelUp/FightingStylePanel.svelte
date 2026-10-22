@@ -49,8 +49,8 @@
   {/if}
   {#each Array.from({ length: offer.swaps }) as _, i}
     {@const swap = swapAt(i)}
-    <div class="row">
-      <span class="field-label">Kampfstil tauschen<span class="field-hint"> (optional)</span></span>
+    <div class="field">
+      <span>Kampfstil tauschen<span class="hint"> (optional)</span></span>
       <TooltipSelect
         options={asOptions('— behalten —', offer.owned.filter((o) => o.sourceKey === swap.from || !st.styleSwaps.some((s) => s.from === o.sourceKey)))}
         selected={swap.from ? [swap.from] : []}

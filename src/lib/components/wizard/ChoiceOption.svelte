@@ -4,8 +4,13 @@
 
   interface Tag { label: string; easy?: boolean }
 
-  let { title, subtitle = '', tags = [], selected, art: candidates = [], onselect }: {
-    title: string; subtitle?: string; tags?: Tag[]; selected: boolean; art?: string[]; onselect: () => void;
+  let { title, subtitle = '', tags = [], selected, art: candidates = [], icon = false, muted = false, onselect }: {
+    title: string; subtitle?: string; tags?: Tag[]; selected: boolean; art?: string[];
+    /** Freigestelltes Bibliotheksbild statt eines Figurenausschnitts. */
+    icon?: boolean;
+    /** Nicht wählbar, aber anklickbar — der Klick zeigt die Details. */
+    muted?: boolean;
+    onselect: () => void;
   } = $props();
 
   let art = $state<string | null>(null);
@@ -17,8 +22,8 @@
   });
 </script>
 
-<button type="button" role="radio" aria-checked={selected} class="option" class:sel={selected} onclick={onselect}>
-  <span class="portrait" aria-hidden="true">
+<button type="button" role="radio" aria-checked={selected} class="option" class:sel={selected} class:muted aria-disabled={muted} onclick={onselect}>
+  <span class="portrait" class:icon aria-hidden="true">
     {#if art}<img src={art} alt="" class:mirrored={isMirroredArt(art)} />{:else}<span class="initial">{title.slice(0, 1)}</span>{/if}
   </span>
   <span class="text">
@@ -40,7 +45,8 @@
     background: linear-gradient(100deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 140%);
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
   }
-  .option:hover { transform: translateX(3px); border-color: var(--border-strong); box-shadow: 0 2px 10px -4px rgba(60, 35, 5, 0.35); }
+  .option.muted { opacity: 0.45; }
+  .option:not(.muted):hover { transform: translateX(3px); border-color: var(--border-strong); box-shadow: 0 2px 10px -4px rgba(60, 35, 5, 0.35); }
   .option:focus-visible { outline: 2px solid var(--arcane); outline-offset: 2px; }
   .option.sel {
     border-color: var(--gold);
@@ -57,6 +63,7 @@
   .sel .portrait { border-color: var(--gold); }
   .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; transform: scale(1.8); transform-origin: 50% 22%; }
   .portrait img.mirrored { transform: scale(1.8) scaleX(-1); }
+  .portrait.icon img { transform: none; object-fit: contain; padding: 3px; box-sizing: border-box; }
   .initial { font-family: var(--font-display); font-size: 1.3rem; color: var(--ink-muted); }
 
   .text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
