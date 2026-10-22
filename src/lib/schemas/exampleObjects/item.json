@@ -48,6 +48,22 @@
       }
     ]
   },
+  "abilityEffects": [
+    {
+      "kind": "set",
+      "ability": "str",
+      "value": 1
+    },
+    {
+      "kind": "add",
+      "ability": "str",
+      "value": -9007199254740991,
+      "max": 1,
+      "onSetBy": [
+        "string"
+      ]
+    }
+  ],
   "attunement_by": "string",
   "variant": false,
   "variants": [
