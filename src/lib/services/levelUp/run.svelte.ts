@@ -3,7 +3,6 @@
  * selbst. Die Übergänge kommen aus `advance()` (steps.ts), das Dokument ist eine reine
  * Projektion des Zustands (`buildDoc`) — deterministische Schritte brauchen keine Aktion.
  */
-import { mod } from '../../domain/skills';
 import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance, plannedCheckpoints } from './steps';
@@ -223,7 +222,8 @@ export function createLevelUpRun(ctx: { character: Character }) {
       delta: st.delta, hitDice: ctx.character.hitDice ?? '',
       chosenSubclass: st.chosenSubclass, subFeatures: st.subFeatures, declaredSpells: st.declaredSpells,
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
-      answers: st.answers, conMod: mod(ctx.character.abilities.con),
+      answers: st.answers,
+      hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, conScore: ctx.character.abilities.con, maxDice: st.hpMaxDiceBefore },
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),
@@ -253,7 +253,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       st.notes = []; st.gaps = [];
       st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
       st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
-      st.hpPerLevelSources = []; st.summaryLine = ''; st.featuresText = ''; st.pins = [];
+      st.hpPerLevelSources = []; st.hpMaxDiceBefore = undefined; st.summaryLine = ''; st.featuresText = ''; st.pins = [];
       st.validatedBase = emptyRiders();
       st.validatedFeats = emptyRiders();
 

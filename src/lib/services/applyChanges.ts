@@ -75,6 +75,7 @@ type ChangeOf<T extends Change['target']> = Extract<Change, { target: T }>;
 const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: ApplyEnv) => void } = {
   hpMax: (c, next) => { next.hpMax = String(int(next.hpMax) + c.value); },
   hitDice: (c, next) => { next.hitDice = c.value; },
+  hpDiceTotal: (c, next) => { next.hpDiceTotal = c.value; },
   proficiencyBonus: (c, next) => { next.proficiencyBonus = c.value; },
 
   // Plätze sind abgeleitet; nur die Handeingabe für Klassen ohne Progression wächst mit.

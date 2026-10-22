@@ -53,7 +53,6 @@ describe('pro-Stufe-Effekte aus der Deklaration', () => {
     const sources = hpPerLevelSources(features);
     expect(sources.map((s) => s.sourceKey)).toEqual(['srd-2024_dwarf_dwarven-toughness', 'phb-2024_tough']);
     expect(hpPerLevelSum(sources)).toBe(3);
-    // Auf Stufe 5 wendet der Aufstieg die Summe × gewonnene Stufen an.
     expect(hpPerLevelSum(sources) * 5).toBe(15);
   });
 

@@ -12,6 +12,7 @@
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { matchItem } from '../itemLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
+  import { createFormHpBasis } from '../services/characterFormHitPoints.svelte';
   import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
@@ -153,6 +154,8 @@
     return () => { cancelled = true; };
   });
 
+  const hpBasis = createFormHpBasis(() => form, () => character.features);
+
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells));
 
@@ -172,10 +175,14 @@
     proficiencies: form.proficiencies,
     attacks: form.attacks,
     weaponCtx,
+    hpMax: form.hpMax,
+    hpDiceTotal: character.hpDiceTotal,
+    setHpDiceTotal: (total) => { character.hpDiceTotal = total; },
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
     items: libs.itemIndex, casting: casting.current, pools,
+    hpBasis: hpBasis.current,
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);

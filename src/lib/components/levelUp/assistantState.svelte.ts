@@ -6,8 +6,8 @@ import { type StepId, STEP_META } from '$lib/services/levelUp/steps';
 import { stepOf } from '$lib/services/levelUp/runState';
 import type { LevelUpRun } from '$lib/services/levelUp/run.svelte';
 import { computeLevelUpDelta, type LevelUpDelta } from '$lib/services/levelUp';
-import { baseDeltaChanges, decisionChanges } from '$lib/services/levelUp/changes';
-import { mod } from '$lib/domain/skills';
+import { baseDeltaChanges } from '$lib/services/levelUp/changes';
+import { hitPointChanges } from '$lib/services/levelUp/hitPoints';
 import { loadBaseClasses } from '$lib/services/wizard/originCatalog';
 import type { ClassProgression } from '$lib/types';
 import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrary';
@@ -325,7 +325,10 @@ export class LevelUpAssistantUi {
     return [
       ...baseDeltaChanges(d, c.hitDice ?? ''),
       // Ohne Antworten: Trefferpunkte nach Durchschnitt, bis die Entscheidung fällt.
-      ...decisionChanges({ delta: d, answers: {}, conMod: mod(c.abilities.con), pickedCantrips: [], pickedLearned: [] }),
+      ...hitPointChanges({
+        delta: d, answers: {}, sources: [], others: [],
+        before: { hpMax: c.hpMax, hpDiceTotal: c.hpDiceTotal, conScore: c.abilities.con },
+      }),
     ];
   });
 
@@ -355,8 +358,9 @@ export class LevelUpAssistantUi {
     switch (c.target) {
       case 'hpMax':
       case 'spellSlot':
-        return `${c.label}: +${c.value}`;
+        return `${c.label}: ${c.value < 0 ? '−' : '+'}${Math.abs(c.value)}`;
       case 'hitDice':
+      case 'hpDiceTotal':
         return `${c.label}: ${c.value}`;
       default:
         return c.label; // Label trägt Wert/Detail bereits (z.B. „Stärke +1", „Talent: X")

@@ -12,6 +12,7 @@ import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText
 import { normName } from '$lib/utils/text';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
+import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from './hitPoints';
 import { poolPicks, type OptionPoolOffer } from './declaration/optionPool';
 import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
 import type { LoadedSpellcasting } from './spellcasting/project';
@@ -26,7 +27,7 @@ import { type Attack, type Character, type CharacterClass, type CharacterFeature
 
 type InventoryLine = Character['inventory'][number];
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'optionPicks';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'optionPicks' | 'hitPoints';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -53,6 +54,9 @@ export interface LegacyLinkTarget {
   attacks: Attack[];
   /** Zum Nachrechnen von Bonus/Schaden, wenn `attacksFix` einen Alt-Angriff auf `auto` umstellt. */
   weaponCtx: WeaponAttackContext;
+  hpMax: string;
+  hpDiceTotal: number | undefined;
+  setHpDiceTotal: (total: number) => void;
 }
 
 /** Was noch lädt, wird schlicht nicht angeboten. */
@@ -65,6 +69,8 @@ export interface LegacyLinkLibraries {
   casting: LoadedSpellcasting | null;
   /** Die Options-Pools zum aktuellen Formularstand, wie sie der Picker anbietet. */
   pools: OptionPoolOffer[];
+  /** KON, Stufe und Boni je Stufe zum aktuellen Formularstand. */
+  hpBasis: HpBasis | null;
 }
 
 /** Exakt, deutsch oder englisch, nie Substring — ein falscher Link wäre schlimmer als keiner. */
@@ -304,6 +310,24 @@ export function optionPicksFix(target: LegacyLinkTarget, libs: LegacyLinkLibrari
   };
 }
 
+/**
+ * Die Würfelsumme aus dem TP-Maximum zurückrechnen. Erst wenn Klassen und Volk verlinkt sind —
+ * vorher fehlen ihre Boni je Stufe, und die Summe stünde dauerhaft um sie zu hoch.
+ */
+export function hitPointsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const basis = libs.hpBasis;
+  if (!basis || target.hpDiceTotal !== undefined) return undefined;
+  if (!target.classes.length || target.classes.some((c) => !c.sourceKey)) return undefined;
+  if (!target.species.sourceKey && target.species.name.trim()) return undefined;
+  const total = hpDiceTotalOf({ hpMax: target.hpMax, hpDiceTotal: undefined }, basis);
+  if (total === null || !plausibleDiceTotal(total, basis)) return undefined;
+  return {
+    kind: 'hitPoints',
+    label: `Trefferpunkte aufschlüsseln: Würfelsumme ${total} aus dem TP-Maximum ${target.hpMax.trim()}`,
+    apply: () => target.setHpDiceTotal(total),
+  };
+}
+
 /** Leer heißt: vollständig verknüpft — oder die Bibliotheken sind noch nicht geladen. */
 export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix[] {
   return [
@@ -315,5 +339,6 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     weaponsFix(target, libs),
     attacksFix(target, libs),
     optionPicksFix(target, libs),
+    hitPointsFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);
 }

@@ -4,9 +4,8 @@
  */
 import type { GainedFeature } from '../analysis/types';
 import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature } from '../perLevelEffects';
-import {
-  declaredSpeciesFeatures, resolveSpeciesTraits, resolveClassFeatures, resolveFeatLinks,
-} from '../characterFeatures';
+import { declaredSpeciesFeatures } from '../characterFeatures';
+import { maxDiceTotal, ownedPerLevelFeatures } from '../hitPoints';
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
 import { buildDecisions } from './questions';
@@ -282,26 +281,20 @@ export function createRunSteps(ctx: RunStepsDeps) {
   }
 
   // Über den GESAMTEN Merkmalsbestand, nicht nur den neuen: `grants.perLevel` wirkt
-  // rückwirkend auf alle Stufen. Die Dedup liegt im Service, damit Wizard und Aufstieg
-  // dieselbe Regel benutzen.
+  // rückwirkend auf alle Stufen. `owned` trennt, was die bisherigen Stufen schon abdeckt.
   async function detectHpPerLevel(alive: () => boolean) {
     st.hpPerLevelSources = [];
+    st.hpMaxDiceBefore = undefined;
     try {
-      const groups = [
-        ...((await resolveSpeciesTraits(ctx.character.species)) ?? []),
-        ...(await resolveClassFeatures(ctx.character.classes)),
-      ];
-      // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
-      // ihr Merkmal steckt schon in `groups`.
-      const featLinks = await resolveFeatLinks((ctx.character.features ?? []).filter((f) => !f.choice?.trim()));
-      const features: PerLevelFeature[] = [
-        ...groups.flatMap((g) => g.features),
-        ...featLinks,
-        ...st.gainedFeatures,
-        ...st.chosenFeats,
-      ].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
+      const owned = await ownedPerLevelFeatures(ctx.character);
+      const maxDice = await maxDiceTotal(ctx.character.classes);
+      const gained: PerLevelFeature[] = [...st.gainedFeatures, ...st.chosenFeats]
+        .map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
       if (!alive()) return;
-      st.hpPerLevelSources = computeHpPerLevel(features);
+      st.hpMaxDiceBefore = maxDice;
+      const ownedIds = new Set(computeHpPerLevel(owned).map((s) => s.sourceKey || s.feature));
+      st.hpPerLevelSources = computeHpPerLevel([...owned, ...gained])
+        .map((s) => ({ ...s, owned: ownedIds.has(s.sourceKey || s.feature) }));
       const perLevelSum = hpPerLevelSum(st.hpPerLevelSources);
       if (perLevelSum > 0)
         pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${st.hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
