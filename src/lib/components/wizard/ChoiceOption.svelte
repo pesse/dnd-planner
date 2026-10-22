@@ -4,10 +4,12 @@
 
   interface Tag { label: string; easy?: boolean }
 
-  let { title, subtitle = '', tags = [], selected, art: candidates = [], icon = false, onselect }: {
+  let { title, subtitle = '', tags = [], selected, art: candidates = [], icon = false, muted = false, onselect }: {
     title: string; subtitle?: string; tags?: Tag[]; selected: boolean; art?: string[];
     /** Freigestelltes Bibliotheksbild statt eines Figurenausschnitts. */
     icon?: boolean;
+    /** Nicht wählbar, aber anklickbar — der Klick zeigt die Details. */
+    muted?: boolean;
     onselect: () => void;
   } = $props();
 
@@ -20,7 +22,7 @@
   });
 </script>
 
-<button type="button" role="radio" aria-checked={selected} class="option" class:sel={selected} onclick={onselect}>
+<button type="button" role="radio" aria-checked={selected} class="option" class:sel={selected} class:muted aria-disabled={muted} onclick={onselect}>
   <span class="portrait" class:icon aria-hidden="true">
     {#if art}<img src={art} alt="" class:mirrored={isMirroredArt(art)} />{:else}<span class="initial">{title.slice(0, 1)}</span>{/if}
   </span>
@@ -43,7 +45,8 @@
     background: linear-gradient(100deg, var(--bg-raised, var(--bg)) 0%, var(--surface) 140%);
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
   }
-  .option:hover { transform: translateX(3px); border-color: var(--border-strong); box-shadow: 0 2px 10px -4px rgba(60, 35, 5, 0.35); }
+  .option.muted { opacity: 0.45; }
+  .option:not(.muted):hover { transform: translateX(3px); border-color: var(--border-strong); box-shadow: 0 2px 10px -4px rgba(60, 35, 5, 0.35); }
   .option:focus-visible { outline: 2px solid var(--arcane); outline-offset: 2px; }
   .option.sel {
     border-color: var(--gold);

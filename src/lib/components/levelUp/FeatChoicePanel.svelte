@@ -45,6 +45,7 @@
         ]}
         art={[featArtUrl(entry)].filter((u) => u !== null)}
         icon
+        muted={mark.blocked}
         selected={ui.isOpenFeatChosen(entry)}
         onselect={() => ui.pickOpenFeat(entry)}
       />
