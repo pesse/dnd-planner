@@ -17,12 +17,15 @@ geändert hat.
 |---|---|---|
 | Charakterporträt | `vault/characters/<id>` | `portrait.png` oder `.jpg` (das `ImageField` nimmt nur diese beiden), Hochformat wie die vorhandenen (~1150 × 1400) |
 | UI-Grafik (Logo, Hintergründe, Icons) | `static` → Laufzeitbild nach `branding/` | PNG/WebP mit Alpha, Größe nach Einsatzort |
-| Stimmungsbild im Charakter-Wizard (Klasse, Volk, Hintergrund, Kombi Volk×Klasse) | `design/art/<typ>` | Roh-PNG 1024 × 1536. Die App lädt WebP 640 × 960 aus `static/art/<typ>/<slug>.webp` (`slug` = Bibliotheks-Key ohne Quellpräfix, Kombi `<volk>-<klasse>`), Suche und Spiegelung in `services/wizard/originArt.ts`. Stilblock in `design/art/prompt.md` |
-| Figur je Volk × Äußeres (feminine/androgynous/masculine) und ihre Varianten je Klasse und Hintergrund | `design/art/figures-…` | Roh-PNG 1024 × 1536. Die App lädt `static/art/figures/<volk>-<äußeres>/species.webp`, `…/classes/<klasse>.webp` und `…/backgrounds/<hintergrund>.webp`; jede Variante bekommt das `species`-Bild der Figur als `-i`, damit es dieselbe Person bleibt |
+| Stimmungsbild im Charakter-Wizard (Klasse, Volk, Hintergrund, Kombi Volk×Klasse) | `design/art/<typ>` | Roh-PNG 1024 × 1536. Die App lädt AVIF 640 × 960 aus `static/art/<typ>/<slug>.avif` (`slug` = Bibliotheks-Key ohne Quellpräfix, Kombi `<volk>-<klasse>`), Suche und Spiegelung in `services/wizard/originArt.ts`. Stilblock in `design/art/prompt.md` |
+| Bibliotheks-Icon (Zauber, Monster, Gegenstand, Talent) | `design/art/<serie>-w<N>` | Quadratisch, echtes Alpha, ein Motiv ohne Kulisse. Die App lädt AVIF 512 × 512 aus `static/art/<serie>/<slug>.avif` (`libraryArt.ts`). Serienweise über `design/art-pipeline/icons/job.sh`, Stilblock in `icons/style.md` — **nicht** den Wizard-Stilblock nehmen |
+| Figur je Volk × Äußeres (feminine/androgynous/masculine) und ihre Varianten je Klasse und Hintergrund | `design/art/figures-…` | Roh-PNG 1024 × 1536. Die App lädt `static/art/figures/<volk>-<äußeres>/species.avif`, `…/classes/<klasse>.avif` und `…/backgrounds/<hintergrund>.avif`; jede Variante bekommt das `species`-Bild der Figur als `-i`, damit es dieselbe Person bleibt |
 | App-Icon | `static` → Quelle nach `branding/sources/` | 1024 × 1024-PNG mit Alpha. Die Größenvarianten erzeugt `npx tauri icon <quelle>` (unter Windows, über `powershell.exe`), nicht Codex. Danach die Ordner `android/`, `ios/` und `64x64.png` löschen, die `tauri.conf.json` nicht nutzt |
 
 `static/` landet vollständig im Installer. Rohbilder, Vorschauen und Icon-Quellen gehören
 nach dem Lauf nach `design/branding/`, in `static/branding/` bleibt nur, was die App lädt.
+Wie die Serien ablaufen (Icons, Wizard-Figuren) und welche Skripte dazugehören, steht in
+`design/art-pipeline/README.md`.
 `design/art/` ist gitignored (Hunderte MB Roh-PNGs), dort liegt nur die lokale Arbeitskopie.
 
 Ein Stimmungsbild, dessen Handlung **nach links** zeigt, gehört in `MIRRORED` in

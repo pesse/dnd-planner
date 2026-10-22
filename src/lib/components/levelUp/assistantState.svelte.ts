@@ -14,7 +14,8 @@ import { blankSpell, getSpellLibrary, createSpellInline } from '$lib/spellLibrar
 import { type Change, type LevelUpQuestion, type LevelUpChangeSet } from '$lib/schemas/levelUp';
 import { FEAT_CATEGORY_DE, searchFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
 import type { FeatCategory } from '$lib/schemas/vocabulary';
-import { featCategoryOptions, pickableFeats, type FightingStyleOption } from '$lib/services/fightingStyle';
+import { FIGHTING_STYLE_CATEGORY, featCategoryOptions, pickableFeats, type FightingStyleOption } from '$lib/services/fightingStyle';
+import { featPrereqMet, type FeatPrereqContext } from '$lib/services/featPrerequisites';
 import { slotTotal, type CategorySlot } from '$lib/services/levelUp/featUnlocks';
 import { type Character } from '$lib/schemas/characterSchema';
 import { type AbilityKey } from '$lib/schemas/abilities';
@@ -241,12 +242,30 @@ export class LevelUpAssistantUi {
     return { owned, blocked: owned && !entry.repeatable };
   }
 
+  #prereqContext = $derived.by<FeatPrereqContext>(() => {
+    const st = this.st;
+    const others = (this.#getCharacter().classes ?? []).filter((_, i) => i !== this.classIndex);
+    const casterOf = (key: string | undefined) => this.baseClasses.find((c) => c.key === key)?.casterType ?? 'NONE';
+    return {
+      level: st.delta?.newTotalLevel ?? 1,
+      ability: (k) => this.abilityBefore(k),
+      spellcasting: [st.delta?.casterType, ...others.map((c) => casterOf(c.sourceKey))].some((t) => t && t !== 'NONE'),
+      // Das Merkmal selbst steht nirgends; wer es hat, hat auch einen Kampfstil gewählt oder wählt jetzt einen.
+      fightingStyle: (st.styleOffer?.allowance ?? 0) > 0
+        || st.featLib.some((f) => f.category === FIGHTING_STYLE_CATEGORY && !!f.sourceKey && st.ownedFeats.includes(f.sourceKey)),
+    };
+  });
+
+  /** Die frei wählbaren Talente: Voraussetzungen erfüllt; was schon da ist, bleibt sichtbar. */
+  #allowedFeats = $derived(this.st.featLib.filter((f) => featPrereqMet(f.prerequisite, this.#prereqContext)));
+
   featCategories = $derived(
-    (Object.keys(FEAT_CATEGORY_DE) as FeatCategory[]).filter((c) => this.st.featLib.some((f) => f.category === c)),
+    (Object.keys(FEAT_CATEGORY_DE) as FeatCategory[]).filter((c) => this.#allowedFeats.some((f) => f.category === c)),
   );
 
   featList = $derived.by<FeatEntry[]>(() => {
-    const pool = this.featCategory ? this.st.featLib.filter((f) => f.category === this.featCategory) : this.st.featLib;
+    const allowed = this.#allowedFeats;
+    const pool = this.featCategory ? allowed.filter((f) => f.category === this.featCategory) : allowed;
     const q = this.featQuery.trim();
     return q ? searchFeats(pool, q, pool.length) : [...pool].sort((a, b) => featDisplayName(a).localeCompare(featDisplayName(b), 'de'));
   });

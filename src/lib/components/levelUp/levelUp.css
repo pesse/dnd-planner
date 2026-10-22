@@ -7,9 +7,6 @@
 .lvlup .fact { font-size: 0.76rem; color: var(--ink-soft); }
 
 .lvlup .creator { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface); }
-.lvlup .pick { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); }
-.lvlup .pick button { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; line-height: 1; }
-.lvlup .pick button:hover { color: var(--danger); }
 
 .lvlup .decision {
   display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.85rem 0.85rem;
