@@ -25,7 +25,8 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // design/: Codex schreibt dort Bilder; eine gesperrte Datei bringt den Watcher unter Windows zum Absturz.
-      ignored: ["**/src-tauri/**", "**/design/**"],
+      // .claude/: Worktrees sind volle Repo-Kopien samt node_modules und Vault.
+      ignored: ["**/src-tauri/**", "**/design/**", "**/.claude/**"],
     },
   },
 }));
