@@ -23,11 +23,13 @@ import { nextFeatSourceId } from '../declaration/featInstances';
 import type { LevelUpDoc } from '../../schemas/levelUp';
 import { getSpellLibrary } from '../../spellLibrary';
 import { getFeats } from '../../featsLibrary';
+import { loadWornAbilityEffects } from '../effectiveAbilities';
 import type { Character } from '../../schemas/characterSchema';
 
 export function createLevelUpRun(ctx: { character: Character }) {
   const st = $state<LevelUpRunState>(emptyRunState());
   $effect(() => { resolvePastChoices(ctx.character).then((p) => { st.pastChoices = p; }); });
+  $effect(() => { loadWornAbilityEffects(ctx.character.inventory ?? []).then((e) => { st.abilityEffects = e; }); });
 
   const choices = createLevelUpChoices({
     get delta() { return st.delta; },
@@ -223,7 +225,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       chosenSubclass: st.chosenSubclass, subFeatures: st.subFeatures, declaredSpells: st.declaredSpells,
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
       answers: st.answers,
-      hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, conScore: ctx.character.abilities.con, maxDice: st.hpMaxDiceBefore },
+      hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, conScore: ctx.character.abilities.con, abilityEffects: st.abilityEffects, maxDice: st.hpMaxDiceBefore },
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),

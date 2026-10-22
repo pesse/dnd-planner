@@ -13,6 +13,9 @@ import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import type { LevelUpDelta } from '../../src/lib/services/levelUp';
 import type { HpPerLevelSource } from '../../src/lib/services/levelUp/runState';
 import type { Change } from '../../src/lib/schemas/levelUp';
+import type { WornAbilityEffect } from '../../src/lib/services/effectiveAbilities';
+
+const AMULET: WornAbilityEffect[] = [{ itemId: 'srd-2024_amulet-of-health', effect: { kind: 'set', ability: 'con', value: 19 } }];
 
 /** Paladin 2 → 3, KON 13: Bölgörs Stand (10 + 7 gewürfelt + 2×1 KON = 19). */
 const delta = (over: Partial<LevelUpDelta> = {}): LevelUpDelta =>
@@ -83,13 +86,33 @@ describe('TP im Aufstieg', () => {
   });
 
   it('schreibt eine unmögliche Rückrechnung nicht fest, addiert aber weiter', () => {
-    // Parcival: Paladin 5, KON 13 in der Datei, 60 TP dank Amulett der Gesundheit (KON 19, #55).
+    // Parcival ohne bekanntes Amulett: Paladin 5, KON 13, 60 TP hieße eine Würfelsumme von 55.
     const changes = hitPointChanges(params({
       delta: delta({ fromLevel: 5, toLevel: 6, newTotalLevel: 6 }),
       before: { hpMax: '60', conScore: 13, maxDice: 50 },
     }));
     expect(diceTotal(changes)).toBeUndefined();
     expect(hpGain(changes)).toBe(6 + 1);
+  });
+
+  it('rechnet mit der KON, die ein wirkender Gegenstand setzt', () => {
+    // Parcival mit Amulett der Gesundheit: KON 19 statt 13, also 60 − 5 × 4 = 40.
+    const changes = hitPointChanges(params({
+      delta: delta({ fromLevel: 5, toLevel: 6, newTotalLevel: 6 }),
+      before: { hpMax: '60', conScore: 13, abilityEffects: AMULET, maxDice: 50 },
+    }));
+    expect(diceTotal(changes)).toBe(40 + 6);
+    expect(hpGain(changes)).toBe(6 + 4);
+  });
+
+  it('eine KON-Erhöhung unter dem gesetzten Wert ändert den Mod nicht', () => {
+    const asi: Change = { target: 'ability', ability: 'con', value: 1, max: 20, step: 'assemble-decisions', source: 'asi', label: '' };
+    const changes = hitPointChanges(params({
+      delta: delta({ fromLevel: 3, toLevel: 4, newTotalLevel: 4 }),
+      before: { hpMax: '37', conScore: 13, abilityEffects: AMULET },
+      others: [asi],
+    }));
+    expect(hpGain(changes)).toBe(6 + 4);
   });
 
   it('landet über die Senke als Summe UND als neues Maximum am Charakter', () => {

@@ -1,6 +1,8 @@
-/** KON, Stufe und Boni je Stufe zum aktuellen FORMULARSTAND — die Grundlage von `hitPointsFix`. */
+/** KON (samt wirkender Gegenstände), Stufe und Boni je Stufe zum aktuellen FORMULARSTAND — die Grundlage von `hitPointsFix`. */
 import type { CharacterFeatureEntry } from '../schemas/characterSchema';
-import { abilityMods, type CharacterFormFields } from './characterFormFields';
+import { mod } from '../domain/skills';
+import type { CharacterFormFields } from './characterFormFields';
+import { effectiveScore, loadWornAbilityEffects, type WornAbilityEffect } from './effectiveAbilities';
 import { characterLevel } from './declaration/carriers';
 import { maxDiceTotal, ownedHpPerLevel, type HpBasis } from './hitPoints';
 
@@ -10,25 +12,27 @@ export interface FormHpBasis {
 }
 
 export function createFormHpBasis(form: () => CharacterFormFields, features: () => CharacterFeatureEntry[]): FormHpBasis {
-  let resolved = $state<{ perLevel: number; maxDice?: number } | null>(null);
-  // Nur die Links sind Abhängigkeit; KON und Stufe rechnet `current` synchron dazu.
+  let resolved = $state<{ perLevel: number; maxDice?: number; effects: WornAbilityEffect[] } | null>(null);
+  // Nur Links und Inventar sind Abhängigkeit; KON und Stufe rechnet `current` synchron dazu.
   const input = $derived.by(() => ({
     species: { ...form().species },
     classes: form().classes.map((c) => ({ ...c })),
     features: features().map((f) => ({ ...f })),
+    inventory: form().inventory.map((i) => ({ ...i })),
   }));
   $effect(() => {
     const c = input;
     let cancelled = false;
-    void Promise.all([ownedHpPerLevel(c), maxDiceTotal(c.classes)])
-      .then(([perLevel, maxDice]) => { if (!cancelled) resolved = { perLevel, maxDice }; })
+    void Promise.all([ownedHpPerLevel(c), maxDiceTotal(c.classes), loadWornAbilityEffects(c.inventory)])
+      .then(([perLevel, maxDice, effects]) => { if (!cancelled) resolved = { perLevel, maxDice, effects }; })
       .catch(() => { if (!cancelled) resolved = null; });
     return () => { cancelled = true; };
   });
   return {
     get current() {
       if (!resolved) return null;
-      return { conMod: abilityMods(form()).con, level: characterLevel(form().classes), ...resolved };
+      const { effects, ...rest } = resolved;
+      return { conMod: mod(effectiveScore(form().abilities.con, effects, 'con')), level: characterLevel(form().classes), ...rest };
     },
   };
 }

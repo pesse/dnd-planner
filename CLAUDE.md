@@ -28,8 +28,8 @@ lives in `tests/fixtures/` and is used by both. Characters a test reads are the 
 those get played and drift.
 
 `npm run verify` is what verifies a change: `check` + `check:evals` (the eval track only
-typechecks, it never runs here) + `test`. `schema:examples:check` is out of the gate until #59
-(Vite timeout under WSL) — run it by hand after a schema change.
+typechecks, it never runs here) + `test`. `schema:examples` and `:check` are off until #59 (Vite
+timeout under WSL) — do not run them; `exampleObjects/*.json` may go stale until then.
 
 ## Environment: Windows runs the app, WSL edits it
 
@@ -111,7 +111,7 @@ Never hand-write a second interface or a hand-rolled JSON schema for a prompt.
 
 `schemas/exampleObjects/*.json` is a generated shape view (one example object per exported
 schema, `featSchema` → `feat.json`) — read it instead of skimming a whole schema file, but never
-edit it: after a schema change run `npm run schema:examples` (`:check` fails on a stale file).
+edit it. Regenerating it is suspended until #59 (see Commands).
 
 ## Architecture
 
