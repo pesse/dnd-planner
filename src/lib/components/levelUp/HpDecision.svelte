@@ -1,7 +1,7 @@
 <script lang="ts">
   /** `hp_method` und `hp_roll` als eine Karte: zwei Kacheln, der Wurf hängt an der zweiten. */
   import type { LevelUpQuestion } from '$lib/schemas/levelUp';
-  import Die from '../ui/Die.svelte';
+  import Die from '../ui/die/Die.svelte';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui, method, roll }: { ui: LevelUpAssistantUi; method: LevelUpQuestion; roll: LevelUpQuestion | undefined } = $props();
