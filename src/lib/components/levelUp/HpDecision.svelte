@@ -2,6 +2,7 @@
   /** `hp_method` und `hp_roll` als eine Karte: zwei Kacheln, der Wurf hängt an der zweiten. */
   import type { LevelUpQuestion } from '$lib/schemas/levelUp';
   import Die from '../ui/die/Die.svelte';
+  import { classColor } from '$lib/domain/classColors';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
   let { ui, method, roll }: { ui: LevelUpAssistantUi; method: LevelUpQuestion; roll: LevelUpQuestion | undefined } = $props();
@@ -42,7 +43,7 @@
 {#if chosen === 'roll' && roll && rolls.length}
   <div class="tray">
     <div class="dice">
-      {#each rolls as r, i (i)}<Die {sides} value={r} roll={throws} delay={i * 90} />{/each}
+      {#each rolls as r, i (i)}<Die {sides} value={r} roll={throws} delay={i * 90} color={classColor(ui.selectedClassKey)} />{/each}
     </div>
     <button type="button" class="secondary" onclick={rollDice}>Neu würfeln</button>
   </div>

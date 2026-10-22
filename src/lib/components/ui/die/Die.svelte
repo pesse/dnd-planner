@@ -3,11 +3,17 @@
   import * as THREE from 'three';
   import { buildDie, restingRotation, type DieFace } from './geometry';
 
-  let { sides, value, roll = 0, delay = 0 }: { sides: number; value: number; roll?: number; delay?: number } = $props();
+  let { sides, value, roll = 0, delay = 0, color }: {
+    sides: number; value: number; roll?: number; delay?: number;
+    /** Körperfarbe; ohne sie `--arcane`. */
+    color?: string;
+  } = $props();
 
   const DURATION = 900;
   const GLOW_FADE = 300;
-  const GLOW = 0.9;
+  const GLOW = 1;
+  /** Innenkante des Rahmens als Anteil des Wegs von der Ecke zur Flächenmitte. */
+  const RING = 0.2;
   const TILT = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.22, -0.18, 0));
 
   let canvas: HTMLCanvasElement;
@@ -50,14 +56,30 @@
     return mesh;
   }
 
-  /** Deckfläche in Gold über der Würfelfläche; sie leuchtet auf, wenn diese Fläche oben liegt. */
-  function glow(face: DieFace): THREE.Mesh {
+  /** Goldener Rahmen um die Fläche und eine leichte Aufhellung darin; sichtbar, wenn sie oben liegt. */
+  function glow(face: DieFace, body: THREE.Color): THREE.Mesh {
     const lift = face.normal.clone().multiplyScalar(0.001);
-    const pts = face.outline.map((v) => v.clone().add(lift));
-    const geo = new THREE.BufferGeometry().setFromPoints(pts.slice(1, -1).flatMap((v, i) => [pts[0], v, pts[i + 2]]));
-    geo.computeVertexNormals();
-    const color = new THREE.Color(css('--gold') || '#786012').lerp(new THREE.Color('#ffc93c'), 0.6);
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const outer = face.outline.map((v) => v.clone().add(lift));
+    const inner = outer.map((v) => v.clone().lerp(face.center.clone().add(lift), RING));
+    const gold = new THREE.Color(css('--gold') || '#786012').lerp(new THREE.Color('#ffc93c'), 0.6);
+    // Auf einem goldfarbenen Körper (Paladin) verschwände der Rahmen — dort ist er hell.
+    const hue = (c: THREE.Color) => c.getHSL({ h: 0, s: 0, l: 0 }).h;
+    const ring = Math.abs(hue(body) - hue(gold)) < 0.05 ? new THREE.Color('#fff3d0') : gold;
+    const pos: THREE.Vector3[] = [], col: number[] = [];
+    const tri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color, alpha: number) => {
+      pos.push(a, b, c);
+      for (let k = 0; k < 3; k++) col.push(color.r, color.g, color.b, alpha);
+    };
+    const white = new THREE.Color('#ffffff');
+    outer.forEach((o, i) => {
+      const j = (i + 1) % outer.length;
+      tri(o, outer[j], inner[j], ring, 1);
+      tri(o, inner[j], inner[i], ring, 1);
+      if (i > 0 && i < inner.length - 1) tri(inner[0], inner[i], inner[i + 1], white, 0.22);
+    });
+    const geo = new THREE.BufferGeometry().setFromPoints(pos);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+    const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.renderOrder = 1;
     return mesh;
@@ -78,11 +100,12 @@
 
     const { geometry, faces } = buildDie(sides);
     const die = new THREE.Group();
+    const body = new THREE.Color(color || css('--arcane') || '#6d3b8e');
     die.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-      color: css('--arcane') || '#6d3b8e', roughness: 0.42, metalness: 0.12, flatShading: true,
+      color: body, roughness: 0.42, metalness: 0.12, flatShading: true,
     })));
     die.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 10), new THREE.LineBasicMaterial({ color: css('--gold') || '#786012' })));
-    const glows = new Map(faces.map((f) => [f.value, glow(f)]));
+    const glows = new Map(faces.map((f) => [f.value, glow(f, body)]));
     for (const f of faces) die.add(glows.get(f.value)!, label(f));
     root.add(die);
     scene = { renderer, camera, root, die, faces, glows };
