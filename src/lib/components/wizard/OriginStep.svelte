@@ -7,6 +7,7 @@
   import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
   import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
+  import { PRESENTATION_LABEL } from '$lib/domain/presentation';
   import { originArtCandidates, slugOf } from '../../services/wizard/originArt';
   import ChoiceGroup from './ChoiceGroup.svelte';
   import ChoiceOption from './ChoiceOption.svelte';
@@ -46,10 +47,6 @@
     else if (kind === 'species') w.species = link;
     else w.background = link;
   }
-
-  const PRESENTATION_LABEL: Record<Presentation, string> = {
-    feminine: 'Feminin', androgynous: 'Neutral', masculine: 'Maskulin',
-  };
 
   /** Nur Bilder dieser Option selbst — ein Rückfall aufs Volksbild sähe in jeder Zeile gleich aus. */
   function tileArt(key: string): string[] {
