@@ -1,0 +1,34 @@
+{
+  "spells": {
+    "noun": "spell", "where": "next to the spell name in lists and on spell cards",
+    "series": "spell icons", "palette": "plus one accent color that fits the spell's magic",
+    "composition": "a single iconic motif centered and filling about 70% of the frame",
+    "isolation": "no figures' faces in detail, hands or objects are fine",
+    "heading": "Spells:",
+    "refs": ["design/art/classes/wizard.png", "design/art/spells/fireball.png", "design/art/spells/misty-step.png"]
+  },
+  "monsters": {
+    "noun": "monster", "where": "next to the monster name in lists, encounter tables and on monster cards",
+    "series": "monster icons (bestiary)", "palette": "with each creature in its own canonical colors",
+    "composition": "the single creature centered and filling about 80% of the frame, with dramatic warm side lighting",
+    "isolation": "the creature alone, no other figures, no opponents, no environment",
+    "heading": "Monsters:",
+    "refs": ["design/art/classes/wizard.png", "design/art/spells/fireball.png", "design/art/spells/animal-friendship.png"]
+  },
+  "items": {
+    "noun": "item", "where": "next to the item name in inventories, shop lists and on item cards",
+    "series": "item icons (inventory)", "palette": "with each object in its own material colors; magic shown with one fitting accent color",
+    "composition": "the single object centered and filling about 75% of the frame, warm side lighting",
+    "isolation": "the object alone, no hands, no people, no table or surface",
+    "heading": "Items:",
+    "refs": ["design/art/classes/wizard.png", "design/art/spells/fireball.png", "design/art/spells/misty-step.png"]
+  },
+  "feats": {
+    "noun": "feat", "where": "next to the feat name in lists and on feat cards",
+    "series": "feat icons", "palette": "plus one accent color that fits the feat",
+    "composition": "a single iconic motif centered and filling about 70% of the frame",
+    "isolation": "no figures' faces in detail, hands or objects are fine",
+    "heading": "Feats:",
+    "refs": ["design/art/classes/wizard.png", "design/art/spells/fireball.png", "design/art/items/defender-longsword.png"]
+  }
+}

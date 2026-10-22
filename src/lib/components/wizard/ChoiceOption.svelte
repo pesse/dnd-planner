@@ -4,8 +4,11 @@
 
   interface Tag { label: string; easy?: boolean }
 
-  let { title, subtitle = '', tags = [], selected, art: candidates = [], onselect }: {
-    title: string; subtitle?: string; tags?: Tag[]; selected: boolean; art?: string[]; onselect: () => void;
+  let { title, subtitle = '', tags = [], selected, art: candidates = [], icon = false, onselect }: {
+    title: string; subtitle?: string; tags?: Tag[]; selected: boolean; art?: string[];
+    /** Freigestelltes Bibliotheksbild statt eines Figurenausschnitts. */
+    icon?: boolean;
+    onselect: () => void;
   } = $props();
 
   let art = $state<string | null>(null);
@@ -18,7 +21,7 @@
 </script>
 
 <button type="button" role="radio" aria-checked={selected} class="option" class:sel={selected} onclick={onselect}>
-  <span class="portrait" aria-hidden="true">
+  <span class="portrait" class:icon aria-hidden="true">
     {#if art}<img src={art} alt="" class:mirrored={isMirroredArt(art)} />{:else}<span class="initial">{title.slice(0, 1)}</span>{/if}
   </span>
   <span class="text">
@@ -57,6 +60,7 @@
   .sel .portrait { border-color: var(--gold); }
   .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; transform: scale(1.8); transform-origin: 50% 22%; }
   .portrait img.mirrored { transform: scale(1.8) scaleX(-1); }
+  .portrait.icon img { transform: none; object-fit: contain; padding: 3px; box-sizing: border-box; }
   .initial { font-family: var(--font-display); font-size: 1.3rem; color: var(--ink-muted); }
 
   .text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }

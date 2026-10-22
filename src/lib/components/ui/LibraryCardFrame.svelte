@@ -5,10 +5,12 @@
    */
   import type { Snippet } from 'svelte';
 
-  let { accent, name = '', nameDe = '', head, children }: {
+  let { accent, name = '', nameDe = '', art, head, children }: {
     accent: string;
     name?: string;
     nameDe?: string;
+    /** Bild über dem Namen. */
+    art?: Snippet;
     /** Zusatzzeilen im Kopf, unter dem Namen. */
     head?: Snippet;
     children: Snippet;
@@ -17,6 +19,7 @@
 
 <div class="lib-card" style="--card-accent: {accent}">
   <div class="head">
+    {@render art?.()}
     <div class="name">{nameDe || name}</div>
     {#if nameDe && name && nameDe !== name}
       <div class="name-en">{name}</div>
