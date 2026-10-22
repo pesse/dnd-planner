@@ -7,9 +7,11 @@
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
 
-  let { character, masteryOf }: {
+  let { character, masteryOf, hpTipHtml }: {
     character: Character;
     masteryOf: (name: string) => WeaponMastery | undefined;
+    /** Leer, solange die Bibliotheken laden. */
+    hpTipHtml: string;
   } = $props();
 </script>
 
@@ -19,7 +21,10 @@
     <div class="stat"><span class="sl">RK</span><span class="sv">{character.ac}</span></div>
     <div class="stat"><span class="sl">Initiative</span><span class="sv">{character.initiative}</span></div>
     <div class="stat"><span class="sl">Bewegung</span><span class="sv">{character.speed}m</span></div>
-    <div class="stat"><span class="sl">TP max</span><span class="sv">{character.hpMax}</span></div>
+    <div class="stat" class:has-tip={hpTipHtml}>
+      <span class="sl">TP max</span><span class="sv">{character.hpMax}</span>
+      {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
+    </div>
     <div class="stat"><span class="sl">TP aktuell</span><span class="sv">{character.hpCurrent || '—'}</span></div>
     <div class="stat"><span class="sl">Temp. TP</span><span class="sv">{character.hpTemp || '—'}</span></div>
     <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>

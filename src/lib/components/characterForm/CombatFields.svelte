@@ -6,13 +6,15 @@
   let {
     ac = $bindable(), initiative = $bindable(), speed = $bindable(),
     hitDice = $bindable(), hpMax = $bindable(), hpCurrent = $bindable(), hpTemp = $bindable(),
-    proficiencyBonus = $bindable(), saved, dirOf,
+    proficiencyBonus = $bindable(), saved, dirOf, hpTipHtml = '',
   }: {
     ac: string; initiative: string; speed: string; hitDice: string;
     hpMax: string; hpCurrent: string; hpTemp: string;
     proficiencyBonus: number;
     saved?: Character | null;
     dirOf: (old: unknown, now: unknown) => DiffDir;
+    /** Leer, solange die Bibliotheken laden. */
+    hpTipHtml?: string;
   } = $props();
 
   /**
@@ -39,7 +41,9 @@
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder="9" />
   </label>
   <label use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
-  <label use:diffMark={dirOf(saved?.hpMax, hpMax)}>TP Maximum<input bind:value={hpMax} placeholder="45" /></label>
+  <label use:diffMark={dirOf(saved?.hpMax, hpMax)} class:has-tip={hpTipHtml}>TP Maximum<input bind:value={hpMax} placeholder="45" />
+    {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
+  </label>
   <label use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP Aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
   <label use:diffMark={dirOf(saved?.hpTemp, hpTemp)}>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
   <label use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus

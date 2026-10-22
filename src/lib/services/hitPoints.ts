@@ -4,7 +4,7 @@
  */
 import { resolveClassFeatures, resolveFeatLinks, resolveSpeciesTraits } from './characterFeatures';
 import { getProgressionByKey } from './classProgression';
-import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature } from './perLevelEffects';
+import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
 import type { Character } from '../schemas/characterSchema';
 
 export interface HpBasis {
@@ -42,8 +42,12 @@ export async function ownedPerLevelFeatures(c: Pick<Character, 'species' | 'clas
   return [...groups.flatMap((g) => g.features), ...featLinks].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
 }
 
+export async function ownedHpPerLevelSources(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<PerLevelSource[]> {
+  return hpPerLevelSources(await ownedPerLevelFeatures(c));
+}
+
 export async function ownedHpPerLevel(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<number> {
-  return hpPerLevelSum(hpPerLevelSources(await ownedPerLevelFeatures(c)));
+  return hpPerLevelSum(await ownedHpPerLevelSources(c));
 }
 
 export async function maxDiceTotal(classes: Character['classes']): Promise<number | undefined> {

@@ -8,6 +8,10 @@
   import { masteryLabel } from '../itemLabels';
   import { coversWeapon, weaponNameSet } from '../services/weaponProficiency';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
+  import { createCharacterAbilities } from '../services/characterAbilities.svelte';
+  import { createHpBasis } from '../services/hitPointBasis.svelte';
+  import { hpDerivation } from '../services/hitPointDerivation';
+  import { hpTip } from '../services/characterSheetTips';
   import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
@@ -41,6 +45,15 @@
    */
   const casting = createFormCasting(() => (character ? ($state.snapshot(character) as Character) : null));
   const spellcasting = $derived(casting.current);
+
+  const abilities = createCharacterAbilities(() => character ?? null, () => libs);
+  const hpBasis = createHpBasis(
+    () => character ?? { species: { sourceKey: '', name: '' }, classes: [], features: [] },
+    () => abilities.resolved.con,
+  );
+  const hpTipHtml = $derived(
+    character && hpBasis.current ? hpTip(hpDerivation(character, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
+  );
 
   /**
    * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
@@ -118,7 +131,8 @@
       >
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
-            {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl} />
+            {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
+            abilities={abilities.resolved} {hpTipHtml} />
         {/snippet}
 
         {#snippet bearbeiten()}

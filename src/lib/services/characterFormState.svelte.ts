@@ -6,6 +6,7 @@ import {
   formDraftPatch, initialFormCarry, initialFormFields, type CharacterFormFields,
 } from './characterFormFields';
 import type { Character } from '../schemas/characterSchema';
+import type { WornAbilityEffect } from './effectiveAbilities';
 
 export interface CharacterFormState {
   fields: CharacterFormFields;
@@ -17,7 +18,14 @@ export interface CharacterFormState {
  * um das Formular zu remounten — der Effekt muss dann auf das neue Objekt schreiben,
  * nicht auf das beim Anlegen erfasste.
  */
-export function createCharacterFormState(draft: () => Character): CharacterFormState {
+/**
+ * `effects` ist `null`, solange die Item-Bibliothek lädt: bis dahin schreibt der Effekt nicht,
+ * sonst stünden kurz die Mods des Grundwerts im Draft und der Charakter wirkte geändert.
+ */
+export function createCharacterFormState(
+  draft: () => Character,
+  effects: () => readonly WornAbilityEffect[] | null,
+): CharacterFormState {
   const initial = draft();
   const fields = $state(initialFormFields(initial));
   const carry = initialFormCarry(initial);
@@ -25,7 +33,8 @@ export function createCharacterFormState(draft: () => Character): CharacterFormS
   // Liest den Draft nur über `draft()` — kein reaktiver Read einzelner `character.*`,
   // sonst schlösse sich eine Schreib-/Lese-Schleife.
   $effect(() => {
-    Object.assign(draft(), formDraftPatch(fields, carry));
+    const worn = effects();
+    if (worn) Object.assign(draft(), formDraftPatch(fields, carry, worn));
   });
 
   return { fields, legacyClassLevel: carry.legacyClassLevel };

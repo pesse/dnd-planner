@@ -156,7 +156,7 @@ describe('Zauber ohne Bibliothekstreffer', () => {
 describe('Speichern ohne Umzug', () => {
   it('nimmt einem noch nicht umgezogenen Charakter die Zauber nicht weg', () => {
     const c = legacy('mondkreis');
-    Object.assign(c, formDraftPatch(initialFormFields(c), initialFormCarry(c)));
+    Object.assign(c, formDraftPatch(initialFormFields(c), initialFormCarry(c), []));
     expect(c.spells?.cantrips).toHaveLength(3);
     expect(c.spells?.byLevel['1']).toHaveLength(7);
   });

@@ -14,6 +14,7 @@ import { allProficienciesCharacter } from '../fixtures/character-all-proficienci
 
 const dataFor = (character: CharacterPrintData['character']): CharacterPrintData => ({
   character,
+  scores: character.abilities,
   portraitUrl: '',
   companionImageUrl: '',
   freetext: '',

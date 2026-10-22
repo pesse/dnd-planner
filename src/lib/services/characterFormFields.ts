@@ -4,9 +4,10 @@
  * ein neues Schema-Feld ist damit ein Compile-Fehler statt einer stillen Lücke.
  */
 import { SKILL_DEFS } from '../domain/skills';
-import { ABILITY_KEYS, type AbilityFlags, type AbilityScores } from '../schemas/abilities';
+import type { AbilityFlags, AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
+import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
 import {
   emptyPersonal, emptyProficiencies,
   type Attack, type Character, type CharacterBackground, type CharacterClass,
@@ -84,17 +85,17 @@ export type CharacterFormPatch =
 
 export const mod = (score: number) => Math.floor((score - 10) / 2);
 
-export function abilityMods(f: CharacterFormFields): AbilityScores {
-  return Object.fromEntries(ABILITY_KEYS.map((k) => [k, mod(f.abilities[k])])) as AbilityScores;
-}
+/** Wirksam, nicht aus dem Grundwert: `effects` sind die wirkenden Gegenstände der Formular-Inventarliste. */
+export const abilityMods = (f: CharacterFormFields, effects: readonly WornAbilityEffect[]): AbilityScores =>
+  effectiveMods(f.abilities, effects);
 
-export function attackContext(f: CharacterFormFields): AttackCalcContext {
-  const m = abilityMods(f);
+export function attackContext(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): AttackCalcContext {
+  const m = abilityMods(f, effects);
   return { strMod: m.str, dexMod: m.dex, proficiencyBonus: f.proficiencyBonus };
 }
 
-export function computeSkills(f: CharacterFormFields): Character['skills'] {
-  const mods = abilityMods(f);
+export function computeSkills(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): Character['skills'] {
+  const mods = abilityMods(f, effects);
   const result: Character['skills'] = {};
   for (const def of SKILL_DEFS) {
     const flags = f.skillFlags[def.key];
@@ -202,9 +203,13 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
  * `features` und `pinnedFeatures` fehlen bewusst: stünden sie hier, überschriebe der nächste
  * Tastendruck jede in der Merkmals-Seitenleiste getroffene Wahl.
  */
-export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry): CharacterFormPatch {
-  const mods = abilityMods(f);
-  const ctx = attackContext(f);
+export function formDraftPatch(
+  f: CharacterFormFields,
+  carry: CharacterFormCarry,
+  effects: readonly WornAbilityEffect[],
+): CharacterFormPatch {
+  const mods = abilityMods(f, effects);
+  const ctx = attackContext(f, effects);
   // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {
@@ -229,7 +234,7 @@ export function formDraftPatch(f: CharacterFormFields, carry: CharacterFormCarry
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
     saveProfs: { ...f.saveProfs },
-    skills: computeSkills(f),
+    skills: computeSkills(f, effects),
     attacks: f.attacks.filter((a) => a.name.trim() !== '').map((a) => attackForSave(a, ctx)),
     classFeatures: f.classFeatures,
     traits: f.traits,

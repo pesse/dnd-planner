@@ -11,6 +11,7 @@ import type { CharacterPrintData } from '../../src/lib/print/character/data';
 
 const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData => ({
   character: characterSchema.parse({ name: 'Testfigur' }),
+  scores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
   portraitUrl: '',
   companionImageUrl: '',
   freetext: '',

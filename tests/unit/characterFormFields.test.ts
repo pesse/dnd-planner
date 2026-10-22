@@ -32,7 +32,7 @@ describe('withCurrentSorted', () => {
 
 const patchOf = (raw: unknown) => {
   const character = characterSchema.parse(raw);
-  return formDraftPatch(initialFormFields(character), initialFormCarry(character));
+  return formDraftPatch(initialFormFields(character), initialFormCarry(character), []);
 };
 
 describe('Gefährte im Formular', () => {

@@ -74,7 +74,7 @@ const abilityStrip = (d: CharacterPrintData): string => {
   const boxes = ABILITY_KEYS.map((k) => `<div class="tf o-attr">
       <span class="tcap o-attr-name">${esc(ABILITY_LABEL[k])}</span>
       <span class="o-attr-mod">${sign(c.mods[k])}</span>
-      <span class="o-attr-score">${c.abilities[k]}</span>
+      <span class="o-attr-score">${d.scores[k]}</span>
     </div>`).join('');
   return `<div class="o-attrs">${boxes}</div>`;
 };

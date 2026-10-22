@@ -12,12 +12,13 @@ export type FormLibraries = ReturnType<typeof createFormLibraries>;
 
 export function createFormLibraries() {
   let itemsByDir = $state<Record<string, ItemInfo[]>>({});
+  let itemsLoaded = $state(false);
   let spells = $state<SpellInfo[]>([]);
   let classes = $state<ClassInfo[]>([]);
   let species = $state<SpeciesInfo[]>([]);
   let backgrounds = $state<BackgroundInfo[]>([]);
 
-  $effect(() => { getAllItemsByDir().then((x) => { itemsByDir = x; }); });
+  $effect(() => { getAllItemsByDir().then((x) => { itemsByDir = x; itemsLoaded = true; }); });
   $effect(() => { getSpellLibrary().then((x) => { spells = x; }); });
   $effect(() => { getClasses().then((x) => { classes = x; }); });
   $effect(() => { getSpeciesList().then((x) => { species = x; }); });
@@ -35,6 +36,8 @@ export function createFormLibraries() {
     get itemsByDir() { return itemsByDir; },
     get weapons() { return itemsByDir.weapon ?? []; },
     get itemIndex() { return itemIndex; },
+    /** Auch bei leerem Vault einmal `true` — `itemsByDir` allein unterschiede das nicht vom Laden. */
+    get itemsLoaded() { return itemsLoaded; },
     get spells() { return spells; },
     get spellIndex() { return spellIndex; },
     reloadSpells,
