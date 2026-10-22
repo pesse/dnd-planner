@@ -7,6 +7,7 @@
   import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
+  import Markdown from './Markdown.svelte';
   import SpellPickModal from './SpellPickModal.svelte';
   import { createSpellHover } from './spellHover.svelte';
 
@@ -51,6 +52,7 @@
   const complete = $derived(picks.length >= max && (!prepared || prepared.length >= preparedMax));
   const hover = createSpellHover(() => new Map(library.map((s) => [s.name, s])));
   const infoOf = (key: string) => spellInfoByKey(library, key);
+  const spellLink = (key: string, info: SpellInfo) => `[${info.name}](spell:${key})${info.level > 0 ? ` (Grad ${info.level})` : ''}`;
 </script>
 
 <div class="field-row">
@@ -73,13 +75,9 @@
         class:doubled={!!from}
         class:unprepared={prepared ? !prepared.includes(val) : false}
         title={from ? `Beherrschst du schon (${from}) — die zweite Wahl bringt nichts Neues.` : undefined}
-        onmouseenter={(e) => info && hover.show(e, info.name)}
-        onmousemove={(e) => hover.move(e)}
-        onmouseleave={() => hover.hide()}
-        role="note"
       >
         <!-- Nur Anzeige: geschaltet wird die Vorbereitung im Auswahl-Dialog. -->
-        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{#if from}◇ {/if}{info ? label(info.level, info.name) : val}
+        {#if prepared}{prepared.includes(val) ? '●' : '○'} {/if}{#if from}◇ {/if}{#if info}<Markdown inline source={spellLink(val, info)} />{:else}{val}{/if}
       </span>
     {/each}
     {#if !picks.length && !fixed.length}
@@ -120,14 +118,11 @@
 
 <style>
   .field-row { display: flex; align-items: flex-start; gap: 0.6rem; }
-  .chips { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-  .pick {
-    display: inline-flex; align-items: center; gap: 0.2rem;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-    padding: 0.12rem 0.5rem; font-size: 0.74rem; color: var(--ink); cursor: help;
-  }
-  .pick.granted { border-style: dashed; color: var(--ink-soft); }
-  .pick.doubled { border-style: dotted; color: var(--ink-muted); font-style: italic; }
+  .chips { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.45rem; align-items: baseline; }
+  .pick { font-size: 0.85rem; color: var(--ink); }
+  .pick + .pick::before { content: '·'; margin-right: 0.45rem; color: var(--ink-muted); }
+  .pick.granted { color: var(--ink-soft); cursor: help; }
+  .pick.doubled { color: var(--ink-muted); font-style: italic; }
   .pick.unprepared { color: var(--ink-muted); }
   .controls { flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; }
   .counter { font-size: 0.72rem; color: var(--ink-muted); white-space: nowrap; }
