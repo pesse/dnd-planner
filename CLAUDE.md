@@ -28,7 +28,8 @@ lives in `tests/fixtures/` and is used by both. Characters a test reads are the 
 those get played and drift.
 
 `npm run verify` is what verifies a change: `check` + `check:evals` (the eval track only
-typechecks, it never runs here) + `schema:examples:check` + `test`.
+typechecks, it never runs here) + `test`. `schema:examples:check` is out of the gate until #59
+(Vite timeout under WSL) — run it by hand after a schema change.
 
 ## Environment: Windows runs the app, WSL edits it
 
