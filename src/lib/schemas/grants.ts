@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
+import { armorClassEffectSchema } from './armorClass';
 import {
   ARMOR_TRAININGS,
   MONSTER_SIZE_KEYS,
@@ -146,6 +147,10 @@ export const featureGrantSchema = z.object({
    * des Modells, eine Größe darin hieße, Pass C dürfte sie erfinden.
    */
   properties: characterPropertiesSchema.default({}),
+  armorClass: z
+    .array(armorClassEffectSchema)
+    .default([])
+    .describe('Ungerüstete Verteidigung, Kampfstil Verteidigung: wirkt zur Laufzeit auf die berechnete RK.'),
 });
 
 /**

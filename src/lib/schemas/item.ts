@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { ABILITY_KEYS } from './abilities';
+import { armorClassEffectSchema } from './armorClass';
 import { namedRef } from './llmJson';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
@@ -55,7 +56,7 @@ export const itemSchema = z.object({
     })
     .optional(),
   attunement: z.boolean().optional(),
-  // Beide vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen sie — und
+  // Vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen sie — und
   // beide dürfen sie nicht verlieren.
   grantsResource: resourceGrantSchema
     .optional()
@@ -64,6 +65,10 @@ export const itemSchema = z.object({
     .array(abilityEffectSchema)
     .optional()
     .describe('Wirkung auf Attributswerte, solange der Gegenstand angelegt (und, falls verlangt, eingestimmt) ist.'),
+  armorClassEffects: z
+    .array(armorClassEffectSchema)
+    .optional()
+    .describe('Wirkung auf die RK über Rüstungswert und `magic_bonus` hinaus, solange der Gegenstand wirkt.'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),

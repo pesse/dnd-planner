@@ -65,11 +65,14 @@ async function fetchAllItems(): Promise<Record<string, unknown>[]> {
 }
 
 // ── 2. Deutsch-Erhalt-Index + alte Pfade ───────────────────────────────────────
+const CURATED_FIELDS = ['grantsResource', 'abilityEffects', 'armorClassEffects'] as const satisfies readonly (keyof Item)[];
+type CuratedField = (typeof CURATED_FIELDS)[number];
+
 interface OldEntry {
   name_de?: string;
   desc_de?: string[];
-  /** Handgepflegt: Open5e kennt das Feld nicht, der Re-Import darf es trotzdem nicht verlieren. */
-  grantsResource?: unknown;
+  /** Handgepflegt: Open5e kennt diese Felder nicht, der Re-Import darf sie trotzdem nicht verlieren. */
+  curated: Partial<Record<CuratedField, unknown>>;
   path: string;
   source: string;
 }
@@ -102,7 +105,7 @@ function buildOldIndex(): Map<string, OldEntry> {
     byName.set(key, {
       name_de: typeof data.name_de === 'string' ? data.name_de : undefined,
       desc_de: Array.isArray(data.desc_de) ? (data.desc_de as string[]) : undefined,
-      grantsResource: data.grantsResource,
+      curated: Object.fromEntries(CURATED_FIELDS.filter((f) => data[f] !== undefined).map((f) => [f, data[f]])),
       path,
       source,
     });
@@ -142,7 +145,7 @@ async function main(): Promise<void> {
     const match = oldByName.get(item.name.toLowerCase());
     if (match?.name_de) item.name_de = match.name_de;
     if (match?.desc_de?.length) item.desc_de = match.desc_de;
-    if (match?.grantsResource) item.grantsResource = match.grantsResource as Item['grantsResource'];
+    if (match) Object.assign(item, match.curated);
     if (item.mastery) withMastery++;
 
     const folder = item.equipment_category.index;

@@ -18,6 +18,7 @@
   import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
+  import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
@@ -166,6 +167,12 @@
     hpBasis.current ? hpTip(hpDerivation({ hpMax: form.hpMax, hpDiceTotal: character.hpDiceTotal }, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
   );
 
+  const acTip = createArmorClassTip(
+    () => ({ ac: form.ac, inventory: form.inventory, species: form.species, classes: form.classes, features: character.features }),
+    () => libs,
+    () => abilities.resolved,
+  );
+
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
 
@@ -242,7 +249,7 @@
       bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
       bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
       bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-      {saved} {dirOf} {hpTipHtml}
+      {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
     />
   </section>
 

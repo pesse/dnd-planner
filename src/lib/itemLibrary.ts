@@ -40,6 +40,9 @@ export interface ItemInfo {
   attunement?: boolean;
   grantsResource?: ResourceGrant;
   abilityEffects?: Item['abilityEffects'];
+  armorClassEffects?: Item['armorClassEffects'];
+  armor_category?: Item['armor_category'];
+  armor_class?: Item['armor_class'];
   range?: Item['range'];
   throw_range?: Item['throw_range'];
 }
@@ -181,6 +184,9 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         attunement: data.attunement === true,
         grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
         abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
+        armorClassEffects: itemSchema.shape.armorClassEffects.safeParse(data.armorClassEffects).data,
+        armor_category: data.armor_category,
+        armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,
         range: data.range,
         throw_range: data.throw_range,
       }),

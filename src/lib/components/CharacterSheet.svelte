@@ -10,6 +10,7 @@
   import { createFormCasting } from '../services/characterFormCasting.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
+  import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { hpDerivation } from '../services/hitPointDerivation';
   import { hpTip } from '../services/characterSheetTips';
   import type { Character } from '../schemas/characterSchema';
@@ -54,6 +55,8 @@
   const hpTipHtml = $derived(
     character && hpBasis.current ? hpTip(hpDerivation(character, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
   );
+
+  const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved);
 
   /**
    * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
@@ -132,7 +135,7 @@
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
-            abilities={abilities.resolved} {hpTipHtml} />
+            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} />
         {/snippet}
 
         {#snippet bearbeiten()}
