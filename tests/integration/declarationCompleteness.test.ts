@@ -11,9 +11,6 @@ import { vaultFeatures } from '../support/vaultFeatures';
 
 /** Undeklariert, mit Grund. Wer einen Eintrag deklariert, streicht ihn hier. */
 const UNDECLARED_BACKLOG: Record<string, string> = {
-  'srd-2024_barbarian_unarmored-defense': 'RK-Formel: keine RK-Berechnung',
-  'srd-2024_monk_unarmored-defense': 'RK-Formel: keine RK-Berechnung',
-  'srd-2024_defense': 'RK-Bonus: keine RK-Berechnung',
   'srd-2024_barbarian_fast-movement': 'Bewegungs-Bonus mit Rüstungsbedingung',
   'srd-2024_monk_unarmored-movement': 'Bewegungs-Bonus aus der Stufentabelle mit Rüstungsbedingung',
   'srd-2024_ranger_roving': 'Bewegungs-Bonus mit Rüstungsbedingung',

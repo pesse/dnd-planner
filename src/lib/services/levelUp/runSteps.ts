@@ -5,7 +5,7 @@
 import type { GainedFeature } from '../analysis/types';
 import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFeature } from '../perLevelEffects';
 import { declaredSpeciesFeatures } from '../characterFeatures';
-import { maxDiceTotal, ownedPerLevelFeatures } from '../hitPoints';
+import { maxDiceTotal, ownedGrantFeatures } from '../hitPoints';
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
 import { featToGainedFeature } from './features';
 import { buildDecisions } from './questions';
@@ -286,7 +286,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     st.hpPerLevelSources = [];
     st.hpMaxDiceBefore = undefined;
     try {
-      const owned = await ownedPerLevelFeatures(ctx.character);
+      const owned = await ownedGrantFeatures(ctx.character);
       const maxDice = await maxDiceTotal(ctx.character.classes);
       const gained: PerLevelFeature[] = [...st.gainedFeatures, ...st.chosenFeats]
         .map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));

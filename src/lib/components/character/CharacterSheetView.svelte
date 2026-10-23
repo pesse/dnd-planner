@@ -16,7 +16,7 @@
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, abilities, hpTipHtml }: {
+        companionImageUrl, abilities, hpTipHtml, acTipHtml }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -26,6 +26,7 @@
     companionImageUrl: string;
     abilities: Record<AbilityKey, AbilityResolution>;
     hpTipHtml: string;
+    acTipHtml: string;
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -49,7 +50,7 @@
   </div>
 
   <div class="two-col">
-    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} />
+    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} {acTipHtml} />
     <SheetProficiencyBlock {character} {masteryChips} />
   </div>
 

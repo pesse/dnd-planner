@@ -6,7 +6,7 @@
   let {
     ac = $bindable(), initiative = $bindable(), speed = $bindable(),
     hitDice = $bindable(), hpMax = $bindable(), hpCurrent = $bindable(), hpTemp = $bindable(),
-    proficiencyBonus = $bindable(), saved, dirOf, hpTipHtml = '',
+    proficiencyBonus = $bindable(), saved, dirOf, hpTipHtml = '', acTipHtml = '',
   }: {
     ac: string; initiative: string; speed: string; hitDice: string;
     hpMax: string; hpCurrent: string; hpTemp: string;
@@ -15,6 +15,8 @@
     dirOf: (old: unknown, now: unknown) => DiffDir;
     /** Leer, solange die Bibliotheken laden. */
     hpTipHtml?: string;
+    /** Leer, solange die Bibliotheken laden. */
+    acTipHtml?: string;
   } = $props();
 
   /**
@@ -35,7 +37,9 @@
 </script>
 
 <div class="grid-3">
-  <label use:diffMark={dirOf(saved?.ac, ac)}>RK<input bind:value={ac} placeholder="15" /></label>
+  <label use:diffMark={dirOf(saved?.ac, ac)} class:has-tip={acTipHtml}>RK<input bind:value={ac} placeholder="15" />
+    {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
+  </label>
   <label use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
   <label use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder="9" />

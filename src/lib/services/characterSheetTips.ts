@@ -7,6 +7,7 @@ import { esc } from '../print/character/html';
 import { mod } from '../domain/skills';
 import type { AbilityResolution } from './effectiveAbilities';
 import { abilityStepNotes, type HpDerivation } from './hitPointDerivation';
+import type { ArmorClassDerivation } from './armorClass';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
 
@@ -38,6 +39,12 @@ export function hpTip(d: HpDerivation): string {
     ? row('eingetragen', String(d.stored)) + row('Abweichung', d.stored - d.total)
     : '';
   return rows + sum + off + steps(d.notes);
+}
+
+export function acTip(d: ArmorClassDerivation): string {
+  const rows = d.rows.map((r, i) => row(esc(r.labelDe), i === 0 ? String(r.value) : r.value) + steps(r.notes)).join('');
+  const off = d.stored !== null && d.stored !== d.total ? row(`eingetragen ${d.stored} · Abweichung`, d.stored - d.total) : '';
+  return rows + divider() + total(String(d.total), 'RK') + off + steps(d.notes);
 }
 
 export function saveTip(character: Character, key: AbilityKey, proficient: boolean): string {

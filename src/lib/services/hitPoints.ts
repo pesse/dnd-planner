@@ -30,8 +30,13 @@ export function hpDiceTotalOf(c: Pick<Character, 'hpMax' | 'hpDiceTotal'>, b: Hp
 export const plausibleDiceTotal = (total: number, b: HpBasis): boolean =>
   total >= b.level && total <= (b.maxDice ?? b.level * 12);
 
+export interface OwnedGrantFeature extends PerLevelFeature {
+  /** Anzeigesprache, wie `ResolvedFeature.desc`. */
+  desc: string;
+}
+
 /** Die Merkmale, die der Charakter JETZT trägt: Volk, Klassen bis zur Stufe, Talent-Links. */
-export async function ownedPerLevelFeatures(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<PerLevelFeature[]> {
+export async function ownedGrantFeatures(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<OwnedGrantFeature[]> {
   const groups = [
     ...((await resolveSpeciesTraits(c.species)) ?? []),
     ...(await resolveClassFeatures(c.classes)),
@@ -39,11 +44,11 @@ export async function ownedPerLevelFeatures(c: Pick<Character, 'species' | 'clas
   // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
   // ihr Merkmal steckt schon in `groups`.
   const featLinks = await resolveFeatLinks((c.features ?? []).filter((f) => !f.choice?.trim()));
-  return [...groups.flatMap((g) => g.features), ...featLinks].map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
+  return [...groups.flatMap((g) => g.features), ...featLinks].map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants }));
 }
 
 export async function ownedHpPerLevelSources(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<PerLevelSource[]> {
-  return hpPerLevelSources(await ownedPerLevelFeatures(c));
+  return hpPerLevelSources(await ownedGrantFeatures(c));
 }
 
 export async function ownedHpPerLevel(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<number> {

@@ -7,18 +7,23 @@
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
 
-  let { character, masteryOf, hpTipHtml }: {
+  let { character, masteryOf, hpTipHtml, acTipHtml }: {
     character: Character;
     masteryOf: (name: string) => WeaponMastery | undefined;
     /** Leer, solange die Bibliotheken laden. */
     hpTipHtml: string;
+    /** Leer, solange die Bibliotheken laden. */
+    acTipHtml: string;
   } = $props();
 </script>
 
 <div class="section">
   <h3>Kampf</h3>
   <div class="stats-grid">
-    <div class="stat"><span class="sl">RK</span><span class="sv">{character.ac}</span></div>
+    <div class="stat" class:has-tip={acTipHtml}>
+      <span class="sl">RK</span><span class="sv">{character.ac}</span>
+      {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
+    </div>
     <div class="stat"><span class="sl">Initiative</span><span class="sv">{character.initiative}</span></div>
     <div class="stat"><span class="sl">Bewegung</span><span class="sv">{character.speed}m</span></div>
     <div class="stat" class:has-tip={hpTipHtml}>
