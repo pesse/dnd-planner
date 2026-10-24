@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { placeEquipment, slotsFor } from '../../src/lib/services/equipmentSlots';
+import { equipmentQuips } from '../../src/lib/services/equipmentQuips';
 import type { ItemInfo } from '../../src/lib/itemLibrary';
 import type { EquippedLine } from '../../src/lib/services/wornItems';
 import type { EquipmentSlot } from '../../src/lib/schemas/equipmentSlot';
@@ -78,11 +79,17 @@ describe('placeEquipment', () => {
     });
   });
 
-  it('vom zweiten Mantel trägt man keinen — der wird als Ersatz markiert', () => {
-    const fills = placeEquipment(lines(info('Cloak of Protection'), info('Cloak of Elvenkind')));
-    expect(fills.get('shoulders')?.items.map((p) => p.spare)).toEqual([false, true]);
+  it('lässt alles zu und kommentiert es nur', () => {
+    const cloaks = placeEquipment(lines(info('Cloak of Protection'), info('Cloak of Elvenkind')));
+    expect(cloaks.get('shoulders')?.items).toHaveLength(2);
+    expect(equipmentQuips(cloaks)).toEqual([
+      'Cloak of Protection und Cloak of Elvenkind flattern gemeinsam dramatisch im Wind. Der Barde ist neidisch, das Regelwerk lässt nur einen wirken.',
+    ]);
+    const d = weapon('Dagger', { index: 'dagger' });
+    expect(equipmentQuips(placeEquipment(lines(...Array.from({ length: 3 }, (): [ItemInfo, EquipmentSlot] => [d, 'boot'])))))
+      .toEqual(['3 Dolche im Stiefelschaft: Jeder Schritt ist eine kleine Mutprobe.']);
     const rings = Array.from({ length: 8 }, (_, i) => info(`Ring ${i}`, { category: 'ring' }));
-    expect(placeEquipment(lines(...rings)).get('ring')?.items.some((p) => p.spare)).toBe(false);
+    expect(equipmentQuips(placeEquipment(lines(...rings)))).toEqual([]);
   });
 
   it('gewählte Plätze gehen vor', () => {

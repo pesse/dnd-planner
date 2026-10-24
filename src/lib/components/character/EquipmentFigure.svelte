@@ -5,6 +5,7 @@
   import { openItemPage } from '../../services/vaultLinks';
   import { equippedLinesIn } from '../../services/wornItems';
   import { placeEquipment, type Placed } from '../../services/equipmentSlots';
+  import { equipmentQuips } from '../../services/equipmentQuips';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
@@ -32,20 +33,20 @@
    * Seite des Charakters liegt vom Betrachter aus links.
    */
   const SOCKETS: [slot: EquipmentSlot, x: number, y: number, stack?: boolean][] = [
-    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 76, 21, true],
-    ['body', 50, 36], ['arms', 14, 40, true], ['ring', 86, 40, true], ['waist', 50, 50],
-    ['hipRight', 30, 56, true], ['hipLeft', 70, 56, true], ['boot', 24, 88], ['feet', 50, 93],
+    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 80, 22, true],
+    ['body', 50, 36], ['arms', 14, 40, true], ['ring', 88, 50, true], ['waist', 50, 50],
+    ['hipRight', 32, 58, true], ['hipLeft', 68, 58, true], ['boot', 24, 88], ['feet', 50, 93],
   ];
 
   const others = $derived(fills.get('other')?.items ?? []);
-  const spares = $derived([...fills.values()].filter((f) => f.items.some((e) => e.spare)));
+  const quips = $derived(equipmentQuips(fills));
   let broken = $state(new Set<string>());
 </script>
 
 {#snippet icon(e: Placed)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  <button type="button" class="eq-icon" class:idle={!e.effective || e.spare}
-    title="{displayName(e.item)}{e.spare ? ' — man trägt nur eins zur Zeit' : e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
+  <button type="button" class="eq-icon" class:idle={!e.effective}
+    title="{displayName(e.item)}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
     {#if src && !broken.has(src)}
       <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
@@ -69,7 +70,7 @@
     {/if}
     {#each SOCKETS as [slot, x, y, stack]}
       {@const fill = fills.get(slot)}
-      <div class="eq-socket" class:empty={!fill} class:dense={(fill?.items.length ?? 0) > 2} class:stack
+      <div class="eq-socket" class:empty={!fill} class:dense={(fill?.items.length ?? 0) > 2} class:stack class:inward={stack && x > 50}
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>
         {#each fill?.items ?? [] as e (e.line)}{@render icon(e)}{/each}
       </div>
@@ -81,10 +82,7 @@
       {#each others as e (e.line)}{@render icon(e)}{/each}
     </div>
   {/if}
-  {#each spares as f}
-    <p class="eq-note">{SLOT_LABEL_DE[f.slot]}: {f.items.map((e) => displayName(e.item)).join(', ')} —
-      man trägt nur eins zur Zeit, {displayName(f.items[0].item)} ist angelegt</p>
-  {/each}
+  {#each quips as q}<p class="eq-note">{q}</p>{/each}
 </div>
 
 <style>
@@ -134,12 +132,20 @@
   }
   .eq-socket.stack {
     flex-direction: column;
-    max-height: 132px;
+    max-height: 140px;
     max-width: none;
+  }
+  .eq-socket.stack:not(.empty) {
+    transform: translate(-21px, -50%);
+  }
+  .eq-socket.inward:not(.empty) {
+    flex-wrap: wrap-reverse;
+    transform: translate(calc(21px - 100%), -50%);
   }
   .eq-socket.dense .eq-icon {
     width: 30px;
     height: 30px;
+    padding: 1px;
   }
   .painted .eq-socket.empty {
     min-width: 0;

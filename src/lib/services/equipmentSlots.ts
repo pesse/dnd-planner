@@ -2,7 +2,7 @@
  * Welcher angelegte Gegenstand an welchem Platz sitzt. Prüfung und Darstellung — was wirkt,
  * entscheidet weiter `wornItems.ts`.
  */
-import { SINGLE_WEAR, SLOT_ROOM, type EquipmentSlot } from '../schemas/equipmentSlot';
+import { SLOT_ROOM, type EquipmentSlot } from '../schemas/equipmentSlot';
 import type { ItemInfo } from '../itemLibrary';
 import type { EquippedLine } from './wornItems';
 
@@ -48,8 +48,6 @@ export function slotsFor(item: ItemInfo): EquipmentSlot[] {
 
 export interface Placed extends EquippedLine {
   slot: EquipmentSlot;
-  /** Liegt an einem Platz, von dem man nur ein Stück trägt, und ist nicht das erste. */
-  spare: boolean;
 }
 
 export interface SlotFill {
@@ -67,7 +65,7 @@ export function placeEquipment(lines: readonly EquippedLine[]): Map<EquipmentSlo
   const put = (l: EquippedLine, slot: EquipmentSlot) => {
     let f = fills.get(slot);
     if (!f) fills.set(slot, (f = { slot, items: [] }));
-    f.items.push({ ...l, slot, spare: SINGLE_WEAR.has(slot) && f.items.length > 0 });
+    f.items.push({ ...l, slot });
   };
   const roomiest = (options: EquipmentSlot[]) =>
     options.find((s) => used(s) < SLOT_ROOM[s])
