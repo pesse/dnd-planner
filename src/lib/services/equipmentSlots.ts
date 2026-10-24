@@ -49,6 +49,16 @@ export function slotsFor(item: ItemInfo): EquipmentSlot[] {
   return NAME_SLOTS.find(([re]) => re.test(item.name))?.[1] ?? ['other'];
 }
 
+/**
+ * Position der Fassung auf der Figur in Prozent (x, y), `stack` stapelt mehrere Stücke senkrecht.
+ * Die rechte Seite des Charakters liegt vom Betrachter aus links.
+ */
+export const FIGURE_SOCKETS: [slot: EquipmentSlot, x: number, y: number, stack?: boolean][] = [
+  ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 80, 22, true],
+  ['body', 50, 36], ['arms', 14, 40, true], ['ring', 88, 50, true], ['waist', 50, 50],
+  ['hipRight', 32, 58, true], ['hipLeft', 68, 58, true], ['boot', 24, 88], ['feet', 50, 93],
+];
+
 export interface Placed extends EquippedLine {
   slot: EquipmentSlot;
   /** Munition im Köcher oder Bolzenkasten. */

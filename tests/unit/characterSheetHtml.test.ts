@@ -26,6 +26,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   resources: [],
   values: [],
   cardItems: [],
+  figure: null,
   spellCards: '',
   itemCards: '',
 });

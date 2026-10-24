@@ -17,6 +17,7 @@ import type { ItemInfo } from '$lib/itemLibrary';
 import type { AbilityScores } from '$lib/schemas/abilities';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { cardItemInfos } from './itemCards';
+import { loadPrintFigure, type PrintFigure } from './pages/figure';
 import { formatDamageDice } from '$lib/itemFormat';
 
 export interface PrintAttack {
@@ -55,6 +56,8 @@ export interface CharacterPrintData {
   values: ClassValues[];
   /** Die im Inventar für eine Karte angehakten Gegenstände. */
   cardItems: ItemInfo[];
+  /** null = nichts angelegt. */
+  figure: PrintFigure | null;
   /**
    * Fertige Kartenseiten. Leer, bis der Dialog sie anfordert: die Karten messen ihren Text im
    * DOM aus (`spellCards.ts`, `itemCards.ts`), und das darf nicht bei jedem Öffnen der
@@ -115,7 +118,7 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems, abilityEffects] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, figure] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
@@ -123,6 +126,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(classValues(c), [] as ClassValues[]),
     safe(cardItemInfos(c), [] as ItemInfo[]),
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
+    safe(loadPrintFigure(c), null),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -145,6 +149,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     resources: grouped.resources,
     values,
     cardItems,
+    figure,
     spellCards: '',
     itemCards: '',
   };

@@ -3,9 +3,9 @@
   import { displayName, type ItemIndex } from '../../itemLibrary';
   import { itemKeyArtUrl } from '../../libraryArt';
   import { openItemPage } from '../../services/vaultLinks';
-  import { figureLinesIn, placeEquipment, type Placed } from '../../services/equipmentSlots';
+  import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed } from '../../services/equipmentSlots';
   import { equipmentQuips } from '../../services/equipmentQuips';
-  import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
+  import { SLOT_LABEL_DE } from '../../schemas/equipmentSlot';
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
 
@@ -26,16 +26,6 @@
   });
 
   const fills = $derived(placeEquipment(figureLinesIn(itemIndex, inventory)));
-
-  /**
-   * Position der Fassung in Prozent (x, y), `stack` stapelt mehrere Stücke senkrecht. Die rechte
-   * Seite des Charakters liegt vom Betrachter aus links.
-   */
-  const SOCKETS: [slot: EquipmentSlot, x: number, y: number, stack?: boolean][] = [
-    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 80, 22, true],
-    ['body', 50, 36], ['arms', 14, 40, true], ['ring', 88, 50, true], ['waist', 50, 50],
-    ['hipRight', 32, 58, true], ['hipLeft', 68, 58, true], ['boot', 24, 88], ['feet', 50, 93],
-  ];
 
   const others = $derived(fills.get('other')?.items ?? []);
   const quips = $derived(equipmentQuips(fills));
@@ -68,7 +58,7 @@
         L58 150 L54 96 L42 160 L35 160 Q27 158 28 150 L40 82 Q42 70 50 66 Z" />
     </svg>
     {/if}
-    {#each SOCKETS as [slot, x, y, stack]}
+    {#each FIGURE_SOCKETS as [slot, x, y, stack]}
       {@const fill = fills.get(slot)}
       <div class="eq-socket" class:empty={!fill} class:dense={(fill?.items.length ?? 0) > 2} class:stack class:inward={stack && x > 50}
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>

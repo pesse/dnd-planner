@@ -40,6 +40,27 @@ export const BLOCK_CSS = `
              padding-left: 2.5mm; border-left: 0.15mm dotted var(--rule-soft); }
 .inv-money .field { width: 100%; }
 .inv-money .fvalue { min-height: 3.6mm; }
+.block.fig-block > .bbody { display: flex; gap: 4mm; align-items: flex-start; }
+.fig { position: relative; flex: 0 0 48mm; height: 72mm; }
+.fig-doll { width: 100%; height: 100%; object-fit: cover; border-radius: 2mm;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 72%, transparent 100%); }
+.fig-socket { position: absolute; transform: translate(-50%, -50%); display: flex; flex-wrap: wrap;
+  justify-content: center; gap: 0.5mm; max-width: 20mm; }
+.fig-socket.stack { flex-direction: column; max-height: 22mm; max-width: none; transform: translate(-3.4mm, -50%); }
+.fig-socket.inward { flex-wrap: wrap-reverse; transform: translate(calc(3.4mm - 100%), -50%); }
+.fig-icon { display: flex; align-items: center; justify-content: center; width: 6.8mm; height: 6.8mm;
+  padding: 0.3mm; box-sizing: border-box; border: 0.2mm solid var(--rule); border-radius: 1.2mm; background: #fffaf0;
+  font-size: 7pt; font-weight: 700; color: var(--ink-soft); }
+.fig-socket.dense .fig-icon { width: 5.4mm; height: 5.4mm; }
+.fig-icon.idle { opacity: 0.5; border-style: dashed; }
+.fig-icon img { width: 100%; height: 100%; object-fit: contain; }
+.fig-mark { position: absolute; top: -1.4mm; right: -1.4mm; width: 3.2mm; height: 3.2mm; border-radius: 50%;
+  background: var(--ink); color: #fff; font-size: 5.5pt; font-weight: 700; line-height: 3.2mm; text-align: center; }
+.fig-mark.inline { position: static; display: inline-block; vertical-align: 0.2mm; }
+.fig-list { flex: 1; min-width: 0; }
+.fig-quips { margin-top: 1.6mm; padding-top: 1mm; border-top: 0.15mm dotted var(--rule-soft);
+  font-size: 7pt; font-style: italic; display: flex; flex-direction: column; gap: 0.6mm; }
 .tbl.inv tbody tr:last-child td { border-bottom: 0.15mm dotted var(--rule-soft); }
 
 /* Kopf des Zauberblatts: Plätze, Punkte und Metamagie in einer Reihe */

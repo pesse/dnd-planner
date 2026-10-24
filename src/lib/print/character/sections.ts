@@ -7,6 +7,7 @@
 import type { CharacterPrintData } from './data';
 import { renderOverview } from './pages/overview';
 import { renderInventory } from './pages/extras';
+import { renderFigure } from './pages/figure';
 import {
   renderClassFeatures, renderCompanion, renderFeats, renderFreetext, renderPersonal,
   renderPinnedFeatures, renderSpeciesFeatures,
@@ -31,7 +32,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
 export const STATIC_SECTION_IDS = [
   'overview',
   'personal', 'companion',
-  'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
+  'figure', 'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
   'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards', 'itemCards',
 ] as const;
 
@@ -67,6 +68,8 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
                  available: (d) => !!renderPersonal(d), render: renderPersonal },
   companion:   { label: 'Gefährte',           page: 'details', defaultOn: true,
                  available: (d) => !!renderCompanion(d), render: renderCompanion },
+  figure:      { label: 'Figur mit angelegten Gegenständen', page: 'details', defaultOn: false,
+                 available: (d) => !!d.figure, render: renderFigure },
   // Der Kasten steht immer: Leerzeilen und Münzkapseln sind die Fläche zum Nachtragen.
   inventory:   { label: 'Ausrüstung & Geldmittel', page: 'details', defaultOn: true,
                  available: always, render: renderInventory },
