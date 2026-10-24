@@ -35,6 +35,7 @@
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
   import ImageField from './characterForm/ImageField.svelte';
+  import { buildPortraitSubject } from '../services/imageGen/portraitPrompt';
   import PersonalFields from './characterForm/PersonalFields.svelte';
   import TagEditor from './characterForm/TagEditor.svelte';
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
@@ -364,7 +365,7 @@
     <h3>Persönliches</h3>
     <div class="personal-grid">
       <ImageField bind:file={form.portraitFile} {dirPath} baseName="portrait" label="Portrait"
-        diff={dirOf(saved?.portraitFile, form.portraitFile)} />
+        diff={dirOf(saved?.portraitFile, form.portraitFile)} prompt={() => buildPortraitSubject(form)} />
       <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
     </div>
     <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>

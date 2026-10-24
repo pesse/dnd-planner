@@ -2,6 +2,7 @@
   /** Formular für Anbieter, Modell, Key, Token- und Temperaturgrenzen der LLM-Konfiguration. */
   import { llmConfig, saveConfig, deleteApiKey, loadApiKeyForProvider } from '../../stores/llm';
   import { modelSupportsTemperature } from '../../services/anthropicService';
+  import ImageGenSettings from './ImageGenSettings.svelte';
   import { ANTHROPIC_MODELS, GROQ_MODELS, QUALITYMINDS_MODELS, defaultModelFor, defaultBaseUrlFor } from '../../llmModels';
 
   let { onclose }: { onclose: () => void } = $props();
@@ -132,6 +133,8 @@
     {/if}
     <button class="save-btn" onclick={saveSettings}>Speichern</button>
   </div>
+
+  <ImageGenSettings />
 </div>
 
 <style>

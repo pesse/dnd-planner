@@ -7,9 +7,10 @@
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
+  import ImageGenerator from './ImageGenerator.svelte';
   import './form.css';
 
-  let { file = $bindable(), dirPath, baseName, label, diff }: {
+  let { file = $bindable(), dirPath, baseName, label, diff, prompt }: {
     file: string;
     dirPath: string;
     /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
@@ -17,6 +18,8 @@
     /** Beschriftung des leeren Rahmens und des Bildes. */
     label: string;
     diff: DiffDir;
+    /** Vorschlag für die Bildgenerierung; ohne ihn gibt es nur die Datei-Wahl. */
+    prompt?: () => string;
   } = $props();
 
   let preview = $state('');
@@ -44,17 +47,19 @@
       busy = true;
       const src = selected as string;
       const ext = src.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
-      const b64 = await invoke<string>('read_file_base64', { path: src });
-      const targetName = `${baseName}.${ext}`;
-      await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
-      file = targetName;
-      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-      preview = `data:${mime};base64,${b64}`;
+      await store(await invoke<string>('read_file_base64', { path: src }), ext);
     } catch (e) {
       error = `${label} konnte nicht geladen werden: ${e}`;
     } finally {
       busy = false;
     }
+  }
+
+  async function store(b64: string, ext: 'png' | 'jpg') {
+    const targetName = `${baseName}.${ext}`;
+    await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
+    file = targetName;
+    preview = `data:${ext === 'png' ? 'image/png' : 'image/jpeg'};base64,${b64}`;
   }
 
   function clear() {
@@ -78,4 +83,7 @@
     {/if}
   </div>
   {#if error}<div class="error-sm">{error}</div>{/if}
+  {#if prompt}
+    <ImageGenerator {prompt} disabled={busy} onimage={(b64) => store(b64, 'jpg')} />
+  {/if}
 </div>
