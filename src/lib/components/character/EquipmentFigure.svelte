@@ -38,14 +38,14 @@
   ];
 
   const others = $derived(fills.get('other')?.items ?? []);
-  const overfull = $derived([...fills.values()].filter((f) => f.overfull));
+  const spares = $derived([...fills.values()].filter((f) => f.items.some((e) => e.spare)));
   let broken = $state(new Set<string>());
 </script>
 
 {#snippet icon(e: Placed)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  <button type="button" class="eq-icon" class:idle={!e.effective}
-    title="{displayName(e.item)}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
+  <button type="button" class="eq-icon" class:idle={!e.effective || e.spare}
+    title="{displayName(e.item)}{e.spare ? ' — man trägt nur eins zur Zeit' : e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
     {#if src && !broken.has(src)}
       <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
@@ -69,7 +69,7 @@
     {/if}
     {#each SOCKETS as [slot, x, y, stack]}
       {@const fill = fills.get(slot)}
-      <div class="eq-socket" class:empty={!fill} class:overfull={fill?.overfull} class:stack
+      <div class="eq-socket" class:empty={!fill} class:dense={(fill?.items.length ?? 0) > 2} class:stack
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>
         {#each fill?.items ?? [] as e (e.line)}{@render icon(e)}{/each}
       </div>
@@ -81,9 +81,9 @@
       {#each others as e (e.line)}{@render icon(e)}{/each}
     </div>
   {/if}
-  {#each overfull as f}
-    <p class="eq-warn">⚠ {SLOT_LABEL_DE[f.slot]}: {f.used} belegt, Platz für {f.capacity} —
-      {f.items.map((e) => displayName(e.item)).join(', ')}</p>
+  {#each spares as f}
+    <p class="eq-note">{SLOT_LABEL_DE[f.slot]}: {f.items.map((e) => displayName(e.item)).join(', ')} —
+      man trägt nur eins zur Zeit, {displayName(f.items[0].item)} ist angelegt</p>
   {/each}
 </div>
 
@@ -133,7 +133,13 @@
     background: color-mix(in srgb, var(--bg) 60%, transparent);
   }
   .eq-socket.stack {
-    max-width: 44px;
+    flex-direction: column;
+    max-height: 132px;
+    max-width: none;
+  }
+  .eq-socket.dense .eq-icon {
+    width: 30px;
+    height: 30px;
   }
   .painted .eq-socket.empty {
     min-width: 0;
@@ -143,10 +149,6 @@
     padding: 0;
     border: 1.5px solid color-mix(in srgb, var(--gold) 70%, transparent);
     background: color-mix(in srgb, var(--bg) 70%, transparent);
-  }
-  .eq-socket.overfull {
-    border-radius: 10px;
-    outline: 2px solid var(--danger);
   }
   .eq-icon {
     width: 38px;
@@ -186,9 +188,10 @@
     color: var(--ink-muted);
     margin-right: 0.3rem;
   }
-  .eq-warn {
+  .eq-note {
     margin: 0;
-    font-size: 0.82rem;
-    color: var(--danger);
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--ink-muted);
   }
 </style>
