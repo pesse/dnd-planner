@@ -8,9 +8,10 @@
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import ImageGenerator from './ImageGenerator.svelte';
+  import type { PortraitSource } from '../../services/imageGen/portraitPrompt';
   import './form.css';
 
-  let { file = $bindable(), dirPath, baseName, label, diff, prompt }: {
+  let { file = $bindable(), dirPath, baseName, label, diff, portrait }: {
     file: string;
     dirPath: string;
     /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
@@ -18,8 +19,8 @@
     /** Beschriftung des leeren Rahmens und des Bildes. */
     label: string;
     diff: DiffDir;
-    /** Vorschlag für die Bildgenerierung; ohne ihn gibt es nur die Datei-Wahl. */
-    prompt?: () => string;
+    /** Quelle fürs generierte Portrait; ohne sie gibt es nur die Datei-Wahl. */
+    portrait?: PortraitSource;
   } = $props();
 
   let preview = $state('');
@@ -81,9 +82,9 @@
     {#if file}
       <button class="remove-btn" onclick={clear} title="Bild-Verknüpfung entfernen">✕</button>
     {/if}
+    {#if portrait}
+      <ImageGenerator {portrait} disabled={busy} onimage={(img) => store(img.b64, img.ext)} />
+    {/if}
   </div>
   {#if error}<div class="error-sm">{error}</div>{/if}
-  {#if prompt}
-    <ImageGenerator {prompt} disabled={busy} onimage={(b64) => store(b64, 'jpg')} />
-  {/if}
 </div>

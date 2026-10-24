@@ -83,7 +83,6 @@ describe('buildCharacterContext', () => {
 
       ### Personal Details
       - Alter: 34
-      - Geschlecht: weiblich
       - Gesinnung: Rechtschaffen Gut
       - Größenkategorie: Mittelgroß
       - Körpergröße: 1,78 m

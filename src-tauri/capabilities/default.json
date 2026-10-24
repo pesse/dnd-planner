@@ -20,6 +20,7 @@
         { "url": "https://api.groq.com/**" },
         { "url": "https://api.x.ai/**" },
         { "url": "https://api.cloudflare.com/**" },
+        { "url": "https://api.openai.com/**" },
         { "url": "https://code.qualityminds.ai/**" }
       ]
     },

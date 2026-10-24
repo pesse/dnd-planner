@@ -1,6 +1,7 @@
 /** Deterministischer Bild-Prompt fürs Charakterportrait: Motiv aus dem Charakter, Stil wählbar. */
 import type { Character, Presentation } from '../../schemas/characterSchema';
 import { slugOf } from '../wizard/originArt';
+import type { PortraitTextKey, PortraitTranslation } from '../../schemas/portraitTranslation';
 
 export interface ArtStyle { id: string; label: string; prompt: string; }
 
@@ -10,38 +11,28 @@ export const ART_STYLES: readonly ArtStyle[] = [
     id: 'series',
     label: 'Gemälde (Serie)',
     prompt:
-      "Classic Dungeons & Dragons Player's Handbook book art: hand-painted fantasy illustration with an " +
-      'oil/gouache look, visible expressive brushwork, warm earthy colors (ochre, umber, muted terracotta, ' +
-      'restrained slate blue), dramatic but natural warm side lighting, soft atmospheric shadows. Heroic, ' +
-      'grounded, believable anatomy; painterly rather than photographic.',
+      "D&D Player's Handbook art, hand-painted oil/gouache, expressive brushwork, warm earthy palette " +
+      '(ochre, umber, terracotta, slate blue), warm side light, soft shadows, grounded and heroic.',
   },
   {
     id: 'ink',
     label: 'Tuschezeichnung',
-    prompt:
-      'Detailed pen-and-ink fantasy illustration with cross-hatching on aged parchment, sepia ink, ' +
-      'old adventure-module style, monochrome.',
+    prompt: 'Pen-and-ink illustration, cross-hatching, sepia ink on aged parchment, old adventure-module style.',
   },
   {
     id: 'watercolor',
     label: 'Aquarell',
-    prompt:
-      'Loose watercolor fantasy illustration, soft bleeding washes, light paper texture, gentle ' +
-      'natural colors, delicate pencil underdrawing.',
+    prompt: 'Loose watercolor, soft bleeding washes, paper texture, gentle natural colors, pencil underdrawing.',
   },
   {
     id: 'dark',
     label: 'Düster',
-    prompt:
-      'Dark fantasy digital painting, moody low-key lighting, deep shadows, muted desaturated ' +
-      'palette with a single warm accent light, gritty and grounded.',
+    prompt: 'Dark fantasy painting, low-key lighting, deep shadows, desaturated palette, one warm accent light.',
   },
   {
     id: 'photo',
     label: 'Fotorealistisch',
-    prompt:
-      'Photorealistic cinematic fantasy portrait, natural skin texture, shallow depth of field, ' +
-      'soft key light, film still.',
+    prompt: 'Photorealistic cinematic portrait, natural skin texture, shallow depth of field, soft key light.',
   },
   { id: 'none', label: 'Kein Stil', prompt: '' },
 ];
@@ -58,7 +49,7 @@ const linkedName = (sourceKey: string | undefined, name: string): string =>
   sourceKey ? slugOf(sourceKey).replace(/-/g, ' ') : name.trim();
 
 // Das Editor-Formular führt „kein Äußeres" als '' statt undefined.
-type PortraitSource = Pick<Character, 'classes' | 'species' | 'personal'> & { presentation?: Presentation | '' };
+export type PortraitSource = Pick<Character, 'classes' | 'species' | 'personal'> & { presentation?: Presentation | '' };
 
 function classPhrase(c: PortraitSource): string {
   return c.classes
@@ -71,30 +62,65 @@ function classPhrase(c: PortraitSource): string {
     .join(' / ');
 }
 
-/** Das Motiv ohne Stil. Freitext steht so, wie er im Bogen gepflegt ist — oft Deutsch. */
-export function buildPortraitSubject(c: PortraitSource): string {
-  const p = c.personal;
+type PersonalKey = keyof PortraitSource['personal'];
+
+/** Die Aussehensfelder in Dialog-Reihenfolge, deutsch beschriftet für den Dialog, englisch für den Prompt. */
+export const PORTRAIT_FIELDS: readonly { key: PersonalKey; label: string; promptLabel: string; textKey: PortraitTextKey }[] = [
+  { key: 'alter', label: 'Alter', promptLabel: 'Age', textKey: 'age' },
+  { key: 'koerpergroesse', label: 'Körpergröße', promptLabel: 'Height', textKey: 'height' },
+  { key: 'hautfarbe', label: 'Hautfarbe', promptLabel: 'Skin', textKey: 'skin' },
+  { key: 'haarfarbe', label: 'Haarfarbe', promptLabel: 'Hair', textKey: 'hair' },
+  { key: 'augenfarbe', label: 'Augenfarbe', promptLabel: 'Eyes', textKey: 'eyes' },
+  { key: 'aussehen', label: 'Aussehen', promptLabel: 'Appearance', textKey: 'appearance' },
+];
+
+/** Die deutschen Texte, die eine Übersetzung brauchen — Schlüssel wie in `PortraitTranslation`. */
+export function portraitTexts(c: PortraitSource, extra: string): PortraitTexts {
+  return {
+    ...Object.fromEntries(PORTRAIT_FIELDS.map((f) => [f.textKey, String(c.personal[f.key] ?? '').trim()])),
+    extra: extra.trim(),
+  };
+}
+
+const sentence = (text: string): string => (/[.!?]$/.test(text) ? text : `${text}.`);
+
+export type PortraitTexts = Partial<Record<PortraitTextKey, string>>;
+export interface TranslatedTexts { source: PortraitTexts; en: PortraitTranslation; }
+
+/** Je Feld die englische Fassung — nur solange der deutsche Text noch der übersetzte ist. */
+export function currentEnglish(texts: PortraitTexts, translation: TranslatedTexts | null): PortraitTexts {
+  if (!translation) return {};
+  return Object.fromEntries(
+    (Object.keys(texts) as PortraitTextKey[])
+      .filter((k) => texts[k] && translation.source[k] === texts[k] && translation.en[k].trim())
+      .map((k) => [k, translation.en[k].trim()]),
+  );
+}
+
+function traitLines(c: PortraitSource, english: PortraitTexts): string[] {
+  return PORTRAIT_FIELDS
+    .map((f) => [f.promptLabel, english[f.textKey] || String(c.personal[f.key] ?? '').trim()])
+    .filter(([, v]) => v)
+    .map(([label, v]) => sentence(`${label}: ${v}`));
+}
+
+/** Das Motiv ohne Stil. Ohne `english` steht Freitext so im Prompt, wie er im Bogen gepflegt ist. */
+export function buildPortraitSubject(
+  c: PortraitSource,
+  extra = '',
+  english: PortraitTexts = {},
+): string {
+  const extraText = english.extra || extra.trim();
   const subject = [
     c.presentation ?? '',
     linkedName(c.species.sourceKey, c.species.name),
     classPhrase(c) || 'adventurer',
   ].filter(Boolean).join(' ');
 
-  const details = [
-    ['Gender', c.presentation ? '' : p.geschlecht],
-    ['Age', p.alter],
-    ['Height', p.koerpergroesse],
-    ['Skin', p.hautfarbe],
-    ['Hair', p.haarfarbe],
-    ['Eyes', p.augenfarbe],
-    ['Appearance', p.aussehen],
-  ]
-    .filter(([, v]) => v.trim())
-    .map(([label, v]) => `${label}: ${v.trim()}.`);
-
   return [
-    `Head-and-shoulders portrait, face clearly visible. Subject: ${subject}.`,
-    ...details,
-    'No text, no lettering.',
-  ].join(' ');
+    `Head-and-shoulders portrait: ${subject}, face visible.`,
+    ...traitLines(c, english),
+    extraText && sentence(`Also: ${extraText}`),
+    'No text.',
+  ].filter(Boolean).join(' ');
 }

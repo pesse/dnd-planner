@@ -78,7 +78,6 @@ export const allProficienciesCharacter = characterSchema.parse({
   },
   personal: {
     alter: '34',
-    geschlecht: 'weiblich',
     gesinnung: 'Rechtschaffen Gut',
     sizeCat: 'Mittelgroß',
     koerpergroesse: '1,78 m',

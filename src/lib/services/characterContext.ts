@@ -194,7 +194,6 @@ function personalityBlock(c: Character): string | null {
 
 const PERSONAL_FIELDS: { key: keyof PersonalData; label: string }[] = [
   { key: 'alter', label: 'Alter' },
-  { key: 'geschlecht', label: 'Geschlecht' },
   { key: 'gesinnung', label: 'Gesinnung' },
   { key: 'glaube', label: 'Glaube' },
   { key: 'sizeCat', label: 'Größenkategorie' },

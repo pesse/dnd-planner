@@ -1,45 +1,69 @@
 <script lang="ts">
-  /** Zugang zur Bildgenerierung (Cloudflare Workers AI), unabhängig vom gewählten LLM-Provider. */
-  import { onMount } from 'svelte';
-  import { deleteCloudflareToken, hasCloudflareToken, saveCloudflareConfig, storedCloudflareAccountId } from '../../services/imageGen/cloudflare';
+  /** Zugang zur Bildgenerierung, unabhängig vom gewählten LLM-Provider. */
+  import {
+    IMAGE_PROVIDERS, activeImageProvider, deleteSecret, hasSecret, imageProvider, saveProviderSettings,
+    setActiveImageProvider, storedSettings,
+  } from '../../services/imageGen/providers';
 
-  let accountId = $state(storedCloudflareAccountId());
-  let token = $state('');
-  let hasToken = $state(false);
+  let providerId = $state(activeImageProvider());
+  const provider = $derived(imageProvider(providerId));
+  let settings = $state<Record<string, string>>({});
+  let secret = $state('');
+  let secretStored = $state(false);
   let status = $state('');
 
-  onMount(async () => {
-    hasToken = await hasCloudflareToken();
+  $effect(() => {
+    const p = provider;
+    settings = storedSettings(p);
+    secret = '';
+    status = '';
+    secretStored = false;
+    hasSecret(p).then((has) => { if (p === provider) secretStored = has; });
   });
 
+  function select(id: string) {
+    providerId = id;
+    setActiveImageProvider(id);
+  }
+
   async function save() {
-    await saveCloudflareConfig(accountId, token);
-    if (token.trim()) hasToken = true;
-    token = '';
+    await saveProviderSettings(provider, settings, secret);
+    if (secret.trim()) secretStored = true;
+    secret = '';
     status = 'Gespeichert';
   }
 
-  async function removeToken() {
-    await deleteCloudflareToken();
-    hasToken = false;
+  async function removeSecret() {
+    await deleteSecret(provider);
+    secretStored = false;
     status = 'Token gelöscht';
   }
 </script>
 
 <div class="imagegen">
-  <div class="title">Bildgenerierung · Cloudflare FLUX</div>
+  <div class="title">Bildgenerierung</div>
   <div class="settings-row">
-    <label for="cf-account">Account</label>
-    <input id="cf-account" type="text" bind:value={accountId} placeholder="Account-ID" />
+    <label for="img-provider">Anbieter</label>
+    <select id="img-provider" value={providerId} onchange={(e) => select(e.currentTarget.value)}>
+      {#each IMAGE_PROVIDERS as p (p.id)}<option value={p.id}>{p.label}</option>{/each}
+    </select>
   </div>
-  <div class="settings-row">
-    <label for="cf-token">Token</label>
-    <input id="cf-token" type="password" bind:value={token}
-      placeholder={hasToken ? '•••••• gespeichert' : 'API-Token (Workers AI: Read)'} />
-  </div>
+  {#each provider.fields as f (provider.id + f.key)}
+    <div class="settings-row">
+      <label for="img-{f.key}">{f.label}</label>
+      <input id="img-{f.key}" type="text" bind:value={settings[f.key]} placeholder={f.placeholder} />
+    </div>
+  {/each}
+  {#if provider.secret}
+    <div class="settings-row">
+      <label for="img-secret">Token</label>
+      <input id="img-secret" type="password" bind:value={secret}
+        placeholder={secretStored ? '•••••• gespeichert' : provider.secret.placeholder} />
+    </div>
+  {/if}
   <div class="footer">
     {#if status}<span class="status">{status}</span>{/if}
-    {#if hasToken}<button class="delete-btn" onclick={removeToken}>Token löschen</button>{/if}
+    {#if secretStored}<button class="delete-btn" onclick={removeSecret}>Token löschen</button>{/if}
     <button class="save-btn" onclick={save}>Speichern</button>
   </div>
 </div>
@@ -49,7 +73,7 @@
   .title { font-size: 0.7rem; font-weight: 700; color: var(--ink-muted); }
   .settings-row { display: flex; align-items: center; gap: 0.5rem; }
   .settings-row label { font-size: 0.7rem; color: var(--ink-muted); width: 52px; flex-shrink: 0; }
-  .settings-row input {
+  .settings-row input, .settings-row select {
     flex: 1;
     min-width: 0;
     background: var(--bg);

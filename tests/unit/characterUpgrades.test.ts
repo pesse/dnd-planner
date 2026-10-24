@@ -127,3 +127,27 @@ describe('Schritt 7: Attribute deutsch-flach → englisch-verschachtelt', () => 
     expect(twice).toEqual(once);
   });
 });
+
+describe('Schritt 9: Geschlecht → Äußeres', () => {
+  const step9 = CHARACTER_UPGRADES.find((s) => s.to === 9)!;
+  const run = (c: Record<string, unknown>) => { step9.apply(c); return c; };
+
+  it('übersetzt erkennbare Angaben ins Äußere und entfernt das Feld', () => {
+    expect(run({ personal: { geschlecht: 'männlich' } })).toEqual({ personal: {}, presentation: 'masculine' });
+    expect(run({ personal: { geschlecht: 'Beides' } })).toEqual({ personal: {}, presentation: 'androgynous' });
+  });
+
+  it('überschreibt ein gewähltes Äußeres nicht', () => {
+    expect(run({ personal: { geschlecht: 'weiblich' }, presentation: 'masculine' }).presentation).toBe('masculine');
+  });
+
+  it('rettet eine nicht zuordenbare Angabe ins Aussehen', () => {
+    const c = run({ personal: { geschlecht: 'Gestaltwandler', aussehen: 'Groß.' } });
+    expect(c).toEqual({ personal: { aussehen: 'Geschlecht: Gestaltwandler\nGroß.' } });
+  });
+
+  it('ist bei zweifacher Anwendung idempotent', () => {
+    const c = run({ personal: { geschlecht: 'Gestaltwandler' } });
+    expect(run(structuredClone(c))).toEqual(c);
+  });
+});

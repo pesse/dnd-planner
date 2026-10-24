@@ -18,7 +18,6 @@
 
 <div class="personal-fields">
   <label use:diffMark={dirOf(savedPersonal?.alter, personal.alter)}>Alter<input bind:value={personal.alter} placeholder="32" /></label>
-  <label use:diffMark={dirOf(savedPersonal?.geschlecht, personal.geschlecht)}>Geschlecht<input bind:value={personal.geschlecht} placeholder="männlich" /></label>
   <label use:diffMark={dirOf(savedPersonal?.gesinnung, personal.gesinnung)}>Gesinnung
     <select bind:value={personal.gesinnung}>
       <option value="">—</option>
