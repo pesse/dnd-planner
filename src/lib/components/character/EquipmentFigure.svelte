@@ -1,10 +1,10 @@
 <script lang="ts">
-  /** Silhouette mit den angelegten Gegenständen an ihrem Platz; die Häkchen im Inventar bleiben die Quelle. */
+  /** Figur mit den angelegten Gegenständen an ihrem Platz; die Häkchen im Inventar bleiben die Quelle. */
   import { displayName, type ItemIndex } from '../../itemLibrary';
   import { itemKeyArtUrl } from '../../libraryArt';
   import { openItemPage } from '../../services/vaultLinks';
-  import { equippedItemsIn, type WornItem } from '../../services/wornItems';
-  import { fillSlots } from '../../services/equipmentSlots';
+  import { equippedLinesIn } from '../../services/wornItems';
+  import { placeEquipment, type Placed } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
@@ -25,12 +25,13 @@
     return () => { live = false; };
   });
 
-  const fills = $derived(fillSlots(equippedItemsIn(itemIndex, inventory)));
+  const fills = $derived(placeEquipment(equippedLinesIn(itemIndex, inventory)));
 
-  /** Position der Fassung auf der Figur in Prozent (x, y). */
+  /** Position der Fassung auf der Figur in Prozent (x, y); die rechte Hand sitzt vom Betrachter aus links. */
   const SOCKETS: [EquipmentSlot, number, number][] = [
-    ['head', 50, 7], ['eyes', 72, 9], ['neck', 50, 24], ['shoulders', 24, 22], ['body', 50, 35],
-    ['arms', 16, 41], ['ring', 84, 46], ['waist', 50, 51], ['hands', 50, 66], ['feet', 50, 92],
+    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 76, 19],
+    ['body', 50, 36], ['arms', 14, 40], ['ring', 86, 40], ['waist', 50, 51],
+    ['mainHand', 14, 58], ['offHand', 86, 58], ['boot', 24, 88], ['feet', 50, 93],
   ];
 
   const others = $derived(fills.get('other')?.items ?? []);
@@ -38,13 +39,13 @@
   let broken = $state(new Set<string>());
 </script>
 
-{#snippet icon(e: WornItem & { effective: boolean })}
+{#snippet icon(e: Placed, ghost = false)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  <button type="button" class="eq-icon" class:idle={!e.effective}
-    title="{displayName(e.item)}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
+  <button type="button" class="eq-icon" class:idle={!e.effective} class:ghost
+    title="{displayName(e.item)}{ghost ? ' (zweihändig)' : e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
-    {#if src && !broken.has(e.id)}
-      <img {src} alt="" onerror={() => { broken.add(e.id); broken = new Set(broken); }} />
+    {#if src && !broken.has(src)}
+      <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
     {:else}
       <span class="eq-ph">{displayName(e.item).charAt(0)}</span>
     {/if}
@@ -65,21 +66,22 @@
     {/if}
     {#each SOCKETS as [slot, x, y]}
       {@const fill = fills.get(slot)}
-      <div class="eq-socket" class:empty={!fill} class:overfull={fill?.overfull}
+      <div class="eq-socket" class:empty={!fill} class:overfull={fill?.overfull} class:side={x < 25 || x > 75}
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>
-        {#each fill?.items ?? [] as e (e.id)}{@render icon(e)}{/each}
+        {#if fill?.blockedBy}{@render icon(fill.blockedBy, true)}{/if}
+        {#each fill?.items ?? [] as e (e.line)}{@render icon(e)}{/each}
       </div>
     {/each}
   </div>
   {#if others.length}
     <div class="eq-others">
       <span class="eq-others-label">{SLOT_LABEL_DE.other}</span>
-      {#each others as e (e.id)}{@render icon(e)}{/each}
+      {#each others as e (e.line)}{@render icon(e)}{/each}
     </div>
   {/if}
   {#each overfull as f}
     <p class="eq-warn">⚠ {SLOT_LABEL_DE[f.slot]}: {f.used} belegt, Platz für {f.capacity} —
-      {f.items.map((e) => displayName(e.item)).join(', ')}</p>
+      {[f.blockedBy, ...f.items].filter((e) => !!e).map((e) => displayName(e.item)).join(', ')}</p>
   {/each}
 </div>
 
@@ -115,6 +117,9 @@
     position: absolute;
     transform: translate(-50%, -50%);
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 88px;
     gap: 3px;
     min-width: 34px;
     min-height: 34px;
@@ -124,6 +129,9 @@
   .eq-socket.empty {
     border: 1.5px dashed var(--border-strong);
     background: color-mix(in srgb, var(--bg) 60%, transparent);
+  }
+  .eq-socket.side {
+    max-width: 44px;
   }
   .painted .eq-socket.empty {
     min-width: 0;
@@ -154,6 +162,9 @@
   .eq-icon.idle {
     opacity: 0.45;
     border-style: dashed;
+  }
+  .eq-icon.ghost {
+    opacity: 0.35;
   }
   .eq-icon img {
     width: 100%;

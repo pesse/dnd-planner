@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 import { CHARACTER_VERSION } from './characterUpgrades';
+import { EQUIPMENT_SLOTS } from './equipmentSlot';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -257,6 +258,8 @@ export const characterSchema = z.object({
         /** Optional wie `sourceKey`: fehlt das Feld, wirkt der Gegenstand nicht. */
         equipped: z.boolean().optional(),
         attuned: z.boolean().optional(),
+        slot: z.enum(EQUIPMENT_SLOTS).optional()
+          .describe('Gewählter Platz an der Figur; fehlt er, verteilt `placeEquipment`.'),
         printCard: z.boolean().optional()
           .describe('true = Volltext-Karte des Bibliothekseintrags kommt auf den Ausdruck.'),
       }),

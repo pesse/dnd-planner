@@ -14,6 +14,9 @@
   import {
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
+  import { equippedLinesIn } from '../../services/wornItems';
+  import { isTwoHanded, placeEquipment, slotsFor } from '../../services/equipmentSlots';
+  import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
@@ -49,6 +52,14 @@
   let editingRow = $state(-1);
 
   const totalWeight = $derived(totalWeightKg(inventory));
+
+  /** Wo jede angelegte Zeile an der Figur sitzt, gewählt oder verteilt. */
+  const placedSlot = $derived(new Map(
+    [...placeEquipment(equippedLinesIn(itemIndex, inventory)).values()]
+      .flatMap((f) => f.items.map((p) => [p.line, p.slot] as const)),
+  ));
+  const slotLabel = (lib: ItemInfo, slot: EquipmentSlot): string =>
+    slot === 'mainHand' && isTwoHanded(lib) ? 'Beide Hände' : SLOT_LABEL_DE[slot];
   const libItemOf = (line: InventoryLine): ItemInfo | undefined => matchItem(itemIndex, line);
 
   function onNameInput(i: number, value: string) {
@@ -152,6 +163,7 @@
 <table class="inv-table">
   <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew./St. (kg)</th><th class="inv-line-col">Zeile</th>
     <th title="Angelegt — nur dann wirken deklarierte Vorräte">An</th>
+    <th title="Platz an der Figur — ohne Wahl verteilt die App">Platz</th>
     <th title="Eingestimmt">Ein</th>
     <th></th></tr></thead>
   <tbody>
@@ -237,6 +249,17 @@
         <td class="inv-line-cell num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) : '—'}</td>
         <td class="inv-flag-cell"><input type="checkbox" checked={item.equipped ?? false}
           onchange={(e) => { item.equipped = e.currentTarget.checked || undefined; }} /></td>
+        <td class="inv-slot-cell">
+          {#if item.equipped && lib && slotsFor(lib).length > 1}
+            {@const auto = placedSlot.get(i)}
+            <select class="inv-slot" value={item.slot ?? ''}
+              title="Platz an der Figur"
+              onchange={(e) => { item.slot = (e.currentTarget.value || undefined) as EquipmentSlot | undefined; }}>
+              <option value="">{auto ? slotLabel(lib, auto) : 'automatisch'} (auto)</option>
+              {#each slotsFor(lib) as s}<option value={s}>{slotLabel(lib, s)}</option>{/each}
+            </select>
+          {/if}
+        </td>
         <td class="inv-flag-cell">{#if lib?.attunement}<input type="checkbox" checked={item.attuned ?? false}
           onchange={(e) => { item.attuned = e.currentTarget.checked || undefined; }} />{/if}</td>
         <td><button class="remove-btn" onclick={() => removeLine(i)}>✕</button></td>
@@ -248,7 +271,7 @@
       <tr class="inv-total-row">
         <td colspan="3">Gesamtlast</td>
         <td class="num"><strong>{totalWeight > 0 ? formatKg(totalWeight) + ' kg' : '—'}</strong></td>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
       </tr>
     </tfoot>
   {/if}

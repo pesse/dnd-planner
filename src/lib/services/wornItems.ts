@@ -16,6 +16,12 @@ export interface IdleItem {
   reason: 'unequipped' | 'unattuned';
 }
 
+/** Die eine Regel: wirkt eine angelegte Zeile, oder warum nicht. */
+function lineState(entry: CharacterInventoryEntry, item: ItemInfo): 'worn' | IdleItem['reason'] {
+  if (!entry.equipped) return 'unequipped';
+  return item.attunement && !entry.attuned ? 'unattuned' : 'worn';
+}
+
 function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): { worn: WornItem[]; idle: IdleItem[] } {
   const worn: WornItem[] = [];
   const idle: IdleItem[] = [];
@@ -23,8 +29,8 @@ function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): 
   for (const entry of inventory) {
     const item = matchItem(index, { sourceKey: entry.sourceKey, name: entry.name });
     if (!item) continue;
-    if (!entry.equipped) idle.push({ item, reason: 'unequipped' });
-    else if (item.attunement && !entry.attuned) idle.push({ item, reason: 'unattuned' });
+    const state = lineState(entry, item);
+    if (state !== 'worn') idle.push({ item, reason: state });
     else {
       // Zwei Zeilen desselben Gegenstands sind Buchhaltung des Inventars, keine zweite Wirkung —
       // sonst zählte `count: 2` anders als zwei Zeilen.
@@ -44,13 +50,20 @@ export const wornItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry
 export const idleItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry[]): IdleItem[] =>
   sortInventory(index, inventory).idle;
 
-/** Alles Angelegte, auch was mangels Einstimmung nicht wirkt — die Figur zeigt beides. */
-export function equippedItemsIn(index: ItemIndex, inventory: CharacterInventoryEntry[]): (WornItem & { effective: boolean })[] {
-  const { worn, idle } = sortInventory(index, inventory);
-  return [
-    ...worn.map((w) => ({ ...w, effective: true })),
-    ...idle.filter((i) => i.reason === 'unattuned').map(({ item }) => ({ id: item.key ?? item.name, item, effective: false })),
-  ];
+export interface EquippedLine {
+  /** Zeile im Inventar — jede angelegte Zeile ist ein Stück an der Figur, auch doppelte. */
+  line: number;
+  entry: CharacterInventoryEntry;
+  item: ItemInfo;
+  /** false = angelegt, aber mangels Einstimmung wirkungslos. */
+  effective: boolean;
+}
+
+export function equippedLinesIn(index: ItemIndex, inventory: CharacterInventoryEntry[]): EquippedLine[] {
+  return inventory.flatMap((entry, line) => {
+    const item = entry.equipped ? matchItem(index, { sourceKey: entry.sourceKey, name: entry.name }) : undefined;
+    return item ? [{ line, entry, item, effective: lineState(entry, item) === 'worn' }] : [];
+  });
 }
 
 export async function wornItems(inventory: CharacterInventoryEntry[]): Promise<WornItem[]> {
