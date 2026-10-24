@@ -2,11 +2,13 @@
 import { SINGLE_WEAR, SLOT_ROOM, type EquipmentSlot } from '../schemas/equipmentSlot';
 import type { SlotFill } from './equipmentSlots';
 
-const ONE_AT_A_TIME: Partial<Record<EquipmentSlot, string>> = {
-  head: 'Ein Turm von beachtlicher Statik. Laut Regelwerk wirkt nur eins davon.',
-  shoulders: 'Flattert dramatisch im Wind. Der Barde ist neidisch, das Regelwerk lässt nur einen wirken.',
-  body: 'Du schepperst wie eine Schmiede im Erdbeben. Für die RK zählt nur eine Rüstung.',
-  feet: 'Respekt vor der Logistik. Wirken tut nur ein Paar.',
+const ONE_AT_A_TIME: Partial<Record<EquipmentSlot, (n: number) => string>> = {
+  head: () => 'Ein Turm von beachtlicher Statik. Laut Regelwerk wirkt nur eins davon.',
+  shoulders: (n) => n > 2
+    ? 'Du siehst aus wie eine sehr elegante Zwiebel, und das Regelwerk lässt nur einen Umhang wirken.'
+    : 'Flattert dramatisch im Wind. Der Barde ist neidisch, das Regelwerk lässt nur einen wirken.',
+  body: () => 'Du schepperst wie eine Schmiede im Erdbeben. Für die RK zählt nur eine Rüstung.',
+  feet: () => 'Respekt vor der Logistik. Wirken tut nur ein Paar.',
 };
 
 const CROWDED: Partial<Record<EquipmentSlot, string>> = {
@@ -27,7 +29,7 @@ export function equipmentQuips(fills: ReadonlyMap<EquipmentSlot, SlotFill>): Map
   for (const f of fills.values()) {
     const n = f.items.length;
     const plenty = PLENTY[f.slot];
-    if (SINGLE_WEAR.has(f.slot) && n > 1) quips.set(f.slot, ONE_AT_A_TIME[f.slot]!);
+    if (SINGLE_WEAR.has(f.slot) && n > 1) quips.set(f.slot, ONE_AT_A_TIME[f.slot]!(n));
     else if (CROWDED[f.slot] && n > SLOT_ROOM[f.slot]) quips.set(f.slot, CROWDED[f.slot]!);
     else if (plenty && n > plenty[0]) quips.set(f.slot, plenty[1]);
   }
