@@ -57,6 +57,7 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     properties: () => !isEmptyCharacterProperties(g.properties),
     halfProficiencySkills: () => g.halfProficiencySkills,
     armorClass: () => g.armorClass.length > 0,
+    attack: () => g.attack.length > 0,
   };
   return !Object.values(filled).some((has) => has());
 }
@@ -74,7 +75,7 @@ export interface DeclaredGrantSource {
  * Die Aufzählung in `withGrant` ist von Hand und ignorierte ein neues Feld STILL. Diese
  * Tabelle ist über `keyof` total und bricht dann den Build.
  */
-const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' | 'armorClass' } = {
+const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' | 'runtime' } = {
   proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
   languages: 'rider',
   abilities: 'rider',
@@ -83,14 +84,15 @@ const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' 
   perLevel: 'perLevel',
   properties: 'change',
   halfProficiencySkills: 'change',
-  armorClass: 'armorClass',
+  armorClass: 'runtime',
+  attack: 'runtime',
 };
 void GRANT_SINKS;
 
 /**
  * GENAU die Felder, die `featureGrantSchema` ausdrücken kann; alles Übrige des Riders bleibt
- * stehen, weil die Deklaration darüber nichts sagt. `perLevel` und `armorClass` fehlen
- * absichtlich — sie wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`).
+ * stehen, weil die Deklaration darüber nichts sagt. `perLevel`, `armorClass` und `attack` fehlen
+ * absichtlich — sie wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`, `attackEffectRows`).
  */
 export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRider {
   const p = grants.proficiencies;

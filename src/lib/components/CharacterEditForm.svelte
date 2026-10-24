@@ -19,6 +19,8 @@
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
+  import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
+  import { declaredAttackEffects } from '../services/attackEffects';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
@@ -56,17 +58,23 @@
     onAcceptUpgrade?: () => void;
   } = $props();
 
-  const mirror = createCharacterFormState(() => character, () => abilities.loadedEffects);
+  const mirror = createCharacterFormState(() => character, () =>
+    abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared } : null);
   const form = mirror.fields;
 
   const abilities = createCharacterAbilities(() => form, () => libs);
+  const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features }));
+  // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
+  const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
+    ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
+    : null);
   const mods = $derived(abilityMods(form, abilities.effects));
   const skills = $derived(computeSkills(form, abilities.effects));
 
   // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
   // Inventarzeile — beide rechnen mit demselben Kontext.
   const weaponCtx = $derived({
-    ...attackContext(form, abilities.effects),
+    ...attackContext(form, abilities.effects, declared ?? undefined),
     proficiencies: form.proficiencies,
     weaponByName: (n: string) => matchItem(libs.itemIndex, { name: n }),
   });
@@ -168,9 +176,10 @@
   );
 
   const acTip = createArmorClassTip(
-    () => ({ ac: form.ac, inventory: form.inventory, species: form.species, classes: form.classes, features: character.features }),
+    () => ({ ac: form.ac, inventory: form.inventory }),
     () => libs,
     () => abilities.resolved,
+    () => owned.current,
   );
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
@@ -203,6 +212,7 @@
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
+  const attackFixes = $derived(legacyFixes.filter((f) => f.kind === 'attacks' || f.kind === 'attackMagic'));
 
   /** `race`/`background` sind abgeleitete Anzeige-Strings — auch fürs PDF. */
   function applyFix(fix: LegacyFix | undefined) {
@@ -302,8 +312,7 @@
   <section>
     <h3>Angriffe</h3>
     <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
-      fixLabel={fixOf('attacks')?.label}
-      onfix={() => applyFix(fixOf('attacks'))}
+      fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
     />
   </section>
 

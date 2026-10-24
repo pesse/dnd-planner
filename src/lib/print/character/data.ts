@@ -13,6 +13,7 @@ import { getProgressionByKey, levelColumns, levelTables } from '$lib/services/cl
 import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
+import { loadDeclaredAttackEffects, type DeclaredAttackEffects } from '$lib/services/attackEffects';
 import type { ItemInfo } from '$lib/itemLibrary';
 import type { AbilityScores } from '$lib/schemas/abilities';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
@@ -82,8 +83,12 @@ const EMPTY_FEATURES: ResolvedCharacterFeatures = {
 /** Ein Fehlschlag darf den Bogen nicht verhindern — er druckt dann weniger. */
 const safe = <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch(() => fallback);
 
-function printAttacks(c: Character, masteryOf?: (name: string) => string | undefined): PrintAttack[] {
-  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: c.proficiencyBonus };
+function printAttacks(
+  c: Character,
+  declared: DeclaredAttackEffects | undefined,
+  masteryOf?: (name: string) => string | undefined,
+): PrintAttack[] {
+  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: c.proficiencyBonus, declared };
   return (c.attacks ?? []).map((a) => {
     const mastery = masteryOf?.(a.name);
     return {
@@ -115,7 +120,7 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems, abilityEffects] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
@@ -123,6 +128,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(classValues(c), [] as ClassValues[]),
     safe(cardItemInfos(c), [] as ItemInfo[]),
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
+    safe(loadDeclaredAttackEffects(c), undefined),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -137,7 +143,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',
-    attacks: printAttacks(c, input.masteryOf),
+    attacks: printAttacks(c, declared, input.masteryOf),
     features,
     grouped,
     mastery,

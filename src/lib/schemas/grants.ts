@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
+import { attackEffectSchema } from './attackEffect';
 import {
   ARMOR_TRAININGS,
   MONSTER_SIZE_KEYS,
@@ -151,6 +152,10 @@ export const featureGrantSchema = z.object({
     .array(armorClassEffectSchema)
     .default([])
     .describe('Ungerüstete Verteidigung, Kampfstil Verteidigung: wirkt zur Laufzeit auf die berechnete RK.'),
+  attack: z
+    .array(attackEffectSchema)
+    .default([])
+    .describe('Kampfstil Bogenschießen: wirkt zur Laufzeit auf auto-berechnete Angriffe.'),
 });
 
 /**

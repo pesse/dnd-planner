@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { ABILITY_KEYS } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
+import { attackEffectSchema } from './attackEffect';
 import { namedRef } from './llmJson';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
@@ -69,6 +70,10 @@ export const itemSchema = z.object({
     .array(armorClassEffectSchema)
     .optional()
     .describe('Wirkung auf die RK über Rüstungswert und `magic_bonus` hinaus, solange der Gegenstand wirkt.'),
+  attackEffects: z
+    .array(attackEffectSchema)
+    .optional()
+    .describe('Wirkung auf Angriffe mit passenden Waffen (Armschienen des Bogenschützen), solange der Gegenstand wirkt; der Bonus einer Waffe auf sich selbst ist `magic_bonus`.'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),
