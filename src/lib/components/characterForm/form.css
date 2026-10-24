@@ -735,3 +735,4 @@
 .edit-form .inv-main { flex: 1; min-width: 28rem; }
 .edit-form .inv-slot-cell { min-width: 7.5rem; }
 .edit-form .inv-slot { width: 100%; font-size: 0.8rem; padding: 0.1rem 0.2rem; }
+.edit-form .inv-slot-fixed { font-size: 0.8rem; font-style: italic; color: var(--ink-muted); }

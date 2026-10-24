@@ -14,8 +14,7 @@
   import {
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
-  import { equippedLinesIn } from '../../services/wornItems';
-  import { placeEquipment, slotsFor } from '../../services/equipmentSlots';
+  import { figureLinesIn, placeEquipment, slotsFor, type Placed } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
@@ -54,9 +53,10 @@
   const totalWeight = $derived(totalWeightKg(inventory));
 
   /** Wo jede angelegte Zeile an der Figur sitzt, gewählt oder verteilt. */
-  const placedSlot = $derived(new Map(
-    [...placeEquipment(equippedLinesIn(itemIndex, inventory)).values()]
-      .flatMap((f) => f.items.map((p) => [p.line, p.slot] as const)),
+  const placed = $derived(new Map(
+    [...placeEquipment(figureLinesIn(itemIndex, inventory)).values()]
+      .flatMap((f) => f.items.flatMap((p): Placed[] => [p, ...(p.contents ?? [])]))
+      .map((p) => [p.line, p] as const),
   ));
 
   const libItemOf = (line: InventoryLine): ItemInfo | undefined => matchItem(itemIndex, line);
@@ -249,8 +249,10 @@
         <td class="inv-flag-cell"><input type="checkbox" checked={item.equipped ?? false}
           onchange={(e) => { item.equipped = e.currentTarget.checked || undefined; }} /></td>
         <td class="inv-slot-cell">
-          {#if item.equipped && lib && slotsFor(lib).length > 1}
-            {@const auto = placedSlot.get(i)}
+          {#if placed.get(i)?.holder}
+            <span class="inv-slot-fixed">im {displayName(placed.get(i)!.holder!.item)}</span>
+          {:else if item.equipped && lib && slotsFor(lib).length > 1}
+            {@const auto = placed.get(i)?.slot}
             <select class="inv-slot" value={item.slot ?? ''}
               title="Platz an der Figur"
               onchange={(e) => { item.slot = (e.currentTarget.value || undefined) as EquipmentSlot | undefined; }}>

@@ -72,11 +72,25 @@ describe('placeEquipment', () => {
     expect(placed.back).toEqual(['Shield', 'Greatsword', 'Longbow', 'Greataxe']);
   });
 
-  it('Munition landet beim Köcher, auch wenn er am Gürtel hängt', () => {
+  it('Pfeile stecken im Köcher, Bolzen im Bolzenkasten — auch ohne Häkchen', () => {
     const quiver = info('Quiver', { category: 'adventuring-gear' });
-    expect(where(lines(info('Arrows (20)', { category: 'ammunition' }), [quiver, 'hipLeft']))).toEqual({
-      hipLeft: ['Quiver', 'Arrows (20)'],
-    });
+    const boltCase = info('Case, Crossbow Bolt', { category: 'adventuring-gear' });
+    const arrows = info('Arrows (20)', { category: 'ammunition' });
+    const bolts = info('Bolts (20)', { category: 'ammunition' });
+    const ls = lines(quiver, boltCase, arrows, bolts);
+    ls[2].entry.equipped = undefined;
+    const fills = placeEquipment(ls);
+    const [q, c] = fills.get('back')!.items;
+    expect(q.contents?.map((p) => p.item.name)).toEqual(['Arrows (20)']);
+    expect(c.contents?.map((p) => p.item.name)).toEqual(['Bolts (20)']);
+    expect([...fills.values()].flatMap((f) => f.items).some((p) => p.item.category === 'ammunition')).toBe(false);
+  });
+
+  it('ohne Köcher hängt angelegte Munition am Gürtel, nicht angelegte gar nicht', () => {
+    const arrows = info('Arrows (20)', { category: 'ammunition' });
+    const ls = lines(arrows, arrows);
+    ls[1].entry.equipped = undefined;
+    expect(where(ls)).toEqual({ hipRight: ['Arrows (20)'] });
   });
 
   it('lässt alles zu und kommentiert es nur', () => {

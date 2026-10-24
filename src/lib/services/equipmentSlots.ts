@@ -3,8 +3,9 @@
  * entscheidet weiter `wornItems.ts`.
  */
 import { SLOT_ROOM, type EquipmentSlot } from '../schemas/equipmentSlot';
-import type { ItemInfo } from '../itemLibrary';
-import type { EquippedLine } from './wornItems';
+import { matchItem, type ItemIndex, type ItemInfo } from '../itemLibrary';
+import type { CharacterInventoryEntry } from '../schemas/characterSchema';
+import { equippedLinesIn, type EquippedLine } from './wornItems';
 
 const BODY_ARMOR = ['Light', 'Medium', 'Heavy'];
 const CARRIED = ['weapon', 'rod', 'wand', 'spellcasting-focus'];
@@ -33,6 +34,8 @@ const isLong = (item: ItemInfo): boolean =>
   LONG.includes(item.index ?? '') || (item.properties ?? []).some((p) => p.index === 'reach');
 const isDagger = (item: ItemInfo): boolean => item.index === 'dagger' || /\bdagger\b/i.test(item.name);
 const isAmmoHolder = (item: ItemInfo): boolean => NAME_SLOTS[0][0].test(item.name);
+const isAmmo = (item: ItemInfo): boolean => item.category === 'ammunition';
+const isBolts = (item: ItemInfo): boolean => /\bbolts?\b/i.test(item.name);
 
 /** Wohin der Gegenstand passt, das Naheliegende zuerst; mehr als ein Eintrag heißt: der Spieler wählt. */
 export function slotsFor(item: ItemInfo): EquipmentSlot[] {
@@ -48,6 +51,10 @@ export function slotsFor(item: ItemInfo): EquipmentSlot[] {
 
 export interface Placed extends EquippedLine {
   slot: EquipmentSlot;
+  /** Munition im Köcher oder Bolzenkasten. */
+  contents?: Placed[];
+  /** Der Köcher, in dem diese Munition steckt. */
+  holder?: Placed;
 }
 
 export interface SlotFill {
@@ -55,9 +62,19 @@ export interface SlotFill {
   items: Placed[];
 }
 
+/** Angelegtes plus Munition, die ungefragt in einen angelegten Köcher wandert. */
+export function figureLinesIn(index: ItemIndex, inventory: CharacterInventoryEntry[]): EquippedLine[] {
+  const stowed = inventory.flatMap((entry, line) => {
+    const item = entry.equipped ? undefined : matchItem(index, { sourceKey: entry.sourceKey, name: entry.name });
+    return item && isAmmo(item) ? [{ line, entry, item, effective: true }] : [];
+  });
+  return [...equippedLinesIn(index, inventory), ...stowed].sort((a, b) => a.line - b.line);
+}
+
 /**
  * Gewählte Plätze zuerst, dann der Rest in Inventar-Reihenfolge auf den ersten Platz mit Raum,
- * sonst den am wenigsten vollen. Munition landet beim Köcher, wo einer hängt.
+ * sonst den am wenigsten vollen. Munition steckt im Köcher, wo einer hängt — Bolzen bevorzugt im
+ * Bolzenkasten —, sonst hängt angelegte Munition am Gürtel.
  */
 export function placeEquipment(lines: readonly EquippedLine[]): Map<EquipmentSlot, SlotFill> {
   const fills = new Map<EquipmentSlot, SlotFill>();
@@ -71,11 +88,17 @@ export function placeEquipment(lines: readonly EquippedLine[]): Map<EquipmentSlo
     options.find((s) => used(s) < SLOT_ROOM[s])
       ?? options.reduce((a, b) => (used(b) / SLOT_ROOM[b] < used(a) / SLOT_ROOM[a] ? b : a));
 
+  const ammo = lines.filter((l) => isAmmo(l.item));
+  const rest = lines.filter((l) => !isAmmo(l.item));
   const chosen = (l: EquippedLine) => !!l.entry.slot && slotsFor(l.item).includes(l.entry.slot);
-  const ammo = (l: EquippedLine) => !chosen(l) && l.item.category === 'ammunition';
-  for (const l of lines.filter(chosen)) put(l, l.entry.slot!);
-  for (const l of lines.filter((l) => !chosen(l) && !ammo(l))) put(l, roomiest(slotsFor(l.item)));
-  const holder = [...fills.values()].flatMap((f) => f.items).find((p) => isAmmoHolder(p.item));
-  for (const l of lines.filter(ammo)) put(l, holder?.slot ?? roomiest(['hipRight', 'hipLeft']));
+  for (const l of rest.filter(chosen)) put(l, l.entry.slot!);
+  for (const l of rest.filter((l) => !chosen(l))) put(l, roomiest(slotsFor(l.item)));
+
+  const holders = [...fills.values()].flatMap((f) => f.items).filter((p) => isAmmoHolder(p.item));
+  for (const l of ammo) {
+    const holder = holders.find((h) => isBolts(l.item) === /\bcase\b/i.test(h.item.name)) ?? holders[0];
+    if (holder) (holder.contents ??= []).push({ ...l, slot: holder.slot, holder });
+    else if (l.entry.equipped) put(l, chosen(l) ? l.entry.slot! : roomiest(['hipRight', 'hipLeft']));
+  }
   return fills;
 }

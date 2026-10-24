@@ -3,8 +3,7 @@
   import { displayName, type ItemIndex } from '../../itemLibrary';
   import { itemKeyArtUrl } from '../../libraryArt';
   import { openItemPage } from '../../services/vaultLinks';
-  import { equippedLinesIn } from '../../services/wornItems';
-  import { placeEquipment, type Placed } from '../../services/equipmentSlots';
+  import { figureLinesIn, placeEquipment, type Placed } from '../../services/equipmentSlots';
   import { equipmentQuips } from '../../services/equipmentQuips';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
@@ -26,7 +25,7 @@
     return () => { live = false; };
   });
 
-  const fills = $derived(placeEquipment(equippedLinesIn(itemIndex, inventory)));
+  const fills = $derived(placeEquipment(figureLinesIn(itemIndex, inventory)));
 
   /**
    * Position der Fassung in Prozent (x, y), `stack` stapelt mehrere Stücke senkrecht. Die rechte
@@ -43,16 +42,22 @@
   let broken = $state(new Set<string>());
 </script>
 
-{#snippet icon(e: Placed)}
+{#snippet art(e: Placed)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
+  {#if src && !broken.has(src)}
+    <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
+  {:else}
+    <span class="eq-ph">{displayName(e.item).charAt(0)}</span>
+  {/if}
+{/snippet}
+
+{#snippet icon(e: Placed)}
+  {@const inside = e.contents?.map((c) => displayName(c.item)).join(', ')}
   <button type="button" class="eq-icon" class:idle={!e.effective}
-    title="{displayName(e.item)}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
+    title="{displayName(e.item)}{inside ? ` — darin: ${inside}` : ''}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
-    {#if src && !broken.has(src)}
-      <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
-    {:else}
-      <span class="eq-ph">{displayName(e.item).charAt(0)}</span>
-    {/if}
+    {@render art(e)}
+    {#each e.contents ?? [] as c (c.line)}<span class="eq-inside">{@render art(c)}</span>{/each}
   </button>
 {/snippet}
 
@@ -157,6 +162,7 @@
     background: color-mix(in srgb, var(--bg) 70%, transparent);
   }
   .eq-icon {
+    position: relative;
     width: 38px;
     height: 38px;
     padding: 2px;
@@ -172,6 +178,17 @@
   .eq-icon.idle {
     opacity: 0.45;
     border-style: dashed;
+  }
+  .eq-inside {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: var(--bg-raised);
+    overflow: hidden;
   }
   .eq-icon img {
     width: 100%;
