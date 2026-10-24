@@ -62,6 +62,12 @@ describe('armorClassDerivation', () => {
     expect(d.total).toBe(17);
   });
 
+  it('zwei angelegte Rüstungen: gezählt wird die stärkere, die Herleitung sagt es', () => {
+    const d = armorClassDerivation({ ac: '17', worn: [HALF_PLATE, CHAIN_MAIL], features: [], mods: mods({ dex: 4 }) });
+    expect(rows(d)).toEqual([['Plattenharnisch', 15], ['GES', 2]]);
+    expect(d.notes).toContain('2 Rüstungen angelegt, gezählt nur Plattenharnisch');
+  });
+
   it('Schild, Schutzring und Kampfstil Verteidigung kommen auf die Rüstung', () => {
     const d = armorClassDerivation({
       ac: '21', worn: [CHAIN_MAIL, SHIELD_1, RING], features: [DEFENSE], mods: mods({ dex: 1 }),

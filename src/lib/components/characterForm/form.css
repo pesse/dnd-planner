@@ -725,3 +725,11 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.2rem 0.5rem;
 }
+
+.edit-form .inv-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.edit-form .inv-main { flex: 1; min-width: 28rem; }

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { ABILITY_KEYS } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
+import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
@@ -69,6 +70,10 @@ export const itemSchema = z.object({
     .array(armorClassEffectSchema)
     .optional()
     .describe('Wirkung auf die RK über Rüstungswert und `magic_bonus` hinaus, solange der Gegenstand wirkt.'),
+  slot: z
+    .enum(EQUIPMENT_SLOTS)
+    .optional()
+    .describe('Platz am Körper, wo Kategorie und Name ihn nicht verraten (Wundersames: Stiefel, Umhang …).'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),

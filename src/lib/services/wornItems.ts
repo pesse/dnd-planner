@@ -44,6 +44,15 @@ export const wornItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry
 export const idleItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry[]): IdleItem[] =>
   sortInventory(index, inventory).idle;
 
+/** Alles Angelegte, auch was mangels Einstimmung nicht wirkt — die Figur zeigt beides. */
+export function equippedItemsIn(index: ItemIndex, inventory: CharacterInventoryEntry[]): (WornItem & { effective: boolean })[] {
+  const { worn, idle } = sortInventory(index, inventory);
+  return [
+    ...worn.map((w) => ({ ...w, effective: true })),
+    ...idle.filter((i) => i.reason === 'unattuned').map(({ item }) => ({ id: item.key ?? item.name, item, effective: false })),
+  ];
+}
+
 export async function wornItems(inventory: CharacterInventoryEntry[]): Promise<WornItem[]> {
   if (!inventory.some((e) => e.equipped)) return [];
   return wornItemsIn(buildItemIndex(await getAllItemsByDir()), inventory);

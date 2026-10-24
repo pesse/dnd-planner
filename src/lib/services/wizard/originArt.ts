@@ -35,6 +35,12 @@ export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[
   return order.filter((n): n is string => !!n).map(artUrl);
 }
 
+/** Frontale Figur fürs Ausrüstungsmodell, in derselben Pose für alle Völker; zuletzt die Gliederpuppe. */
+export const paperdollCandidates = (speciesKey: string, presentation: Presentation | undefined): string[] => [
+  ...(speciesKey && presentation ? [artUrl(`figures/${slugOf(speciesKey)}-${presentation}/paperdoll`)] : []),
+  artUrl('figures/paperdoll'),
+];
+
 // Welche Bilder es gibt, weiß erst der Server — die Serie wächst, ohne dass Code sie aufzählt.
 const exists = new Map<string, Promise<boolean>>();
 

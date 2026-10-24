@@ -38,6 +38,7 @@
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
   import CurrencyRow from './characterForm/CurrencyRow.svelte';
   import InventoryTable from './characterForm/InventoryTable.svelte';
+  import EquipmentFigure from './character/EquipmentFigure.svelte';
   import SpellBlock from './characterForm/SpellBlock.svelte';
   import './characterForm/form.css';
 
@@ -383,18 +384,24 @@
 
   <section>
     <h3>Inventar</h3>
-    <InventoryTable
-      inventory={form.inventory}
-      bind:inventoryNotes={form.inventoryNotes}
-      itemIndex={libs.itemIndex}
-      itemsByDir={libs.itemsByDir}
-      attacks={form.attacks}
-      attackCtx={weaponCtx}
-      {saved}
-      fixLabel={fixOf('inventory')?.label}
-      onfix={() => applyFix(fixOf('inventory'))}
-      {dirOf}
-    />
+    <div class="inv-layout">
+      <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
+        speciesKey={form.species.sourceKey} presentation={form.presentation || undefined} />
+      <div class="inv-main">
+        <InventoryTable
+          inventory={form.inventory}
+          bind:inventoryNotes={form.inventoryNotes}
+          itemIndex={libs.itemIndex}
+          itemsByDir={libs.itemsByDir}
+          attacks={form.attacks}
+          attackCtx={weaponCtx}
+          {saved}
+          fixLabel={fixOf('inventory')?.label}
+          onfix={() => applyFix(fixOf('inventory'))}
+          {dirOf}
+        />
+      </div>
+    </div>
   </section>
 
   <section>

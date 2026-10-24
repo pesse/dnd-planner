@@ -149,8 +149,10 @@ export function armorClassDerivation(input: {
   mods: AbilityScores;
 }): ArmorClassDerivation {
   const items = input.worn.map((w) => w.item).filter((i) => i.armor_class);
-  const armor = best(items.filter((i) => BODY_ARMOR.includes(i.armor_category ?? '')), (i) => rowSum(armorRows(i, input.mods.dex)));
-  const shield = best(items.filter((i) => i.armor_category === 'Shield'), itemAc);
+  const armors = items.filter((i) => BODY_ARMOR.includes(i.armor_category ?? ''));
+  const shields = items.filter((i) => i.armor_category === 'Shield');
+  const armor = best(armors, (i) => rowSum(armorRows(i, input.mods.dex)));
+  const shield = best(shields, itemAc);
   const sources = armorClassSources(input.worn, input.features);
   const formulas = sources.filter((s): s is { labelDe: string; effect: Unarmored } => s.effect.kind === 'unarmored');
   const bonuses = sources.filter((s): s is { labelDe: string; effect: Bonus } => s.effect.kind === 'bonus');
@@ -159,6 +161,8 @@ export function armorClassDerivation(input: {
   const rows = baseRows(armor, !!shield, formulas, input.mods);
   if (shield) rows.push({ labelDe: displayName(shield), value: itemAc(shield), notes: magicNotes(shield) });
   const notes: string[] = [];
+  if (armors.length > 1) notes.push(`${armors.length} Rüstungen angelegt, gezählt nur ${displayName(armor!)}`);
+  if (shields.length > 1) notes.push(`${shields.length} Schilde angelegt, gezählt nur ${displayName(shield!)}`);
   for (const b of bonuses) {
     if (conditionMet(b.effect.when, !!armor, !!shield)) rows.push({ labelDe: b.labelDe, value: b.effect.value, notes: [] });
     else notes.push(`${b.labelDe} ${sign(b.effect.value)}: ${CONDITION_DE[b.effect.when]}`);

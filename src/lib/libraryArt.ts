@@ -29,7 +29,8 @@ export const monsterArtUrl = (monster: Monster): string | null =>
  * Eigene Gegenstände leihen sich ihren Namen oft von einer SRD-Waffe (`homebrew-sam_warhammer`);
  * außerhalb des SRD trägt das Bild deshalb den ganzen Key.
  */
-export function itemArtUrl(item: Item): string | null {
-  const key = itemKeyOf(item as unknown as Record<string, unknown>);
-  return artUrl('items', key.startsWith('srd-2024_') ? keySlug(key) : key);
-}
+export const itemArtUrl = (item: Item): string | null =>
+  itemKeyArtUrl(itemKeyOf(item as unknown as Record<string, unknown>));
+
+export const itemKeyArtUrl = (key: string): string | null =>
+  artUrl('items', key.startsWith('srd-2024_') ? keySlug(key) : key);
