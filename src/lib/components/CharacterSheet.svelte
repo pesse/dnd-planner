@@ -11,6 +11,10 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
+  import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
+  import { declaredAttackEffects } from '../services/attackEffects';
+  import type { AttackCalcContext } from '../services/attackCalc';
+  import { mod } from '../domain/skills';
   import { hpDerivation } from '../services/hitPointDerivation';
   import { hpTip } from '../services/characterSheetTips';
   import type { Character } from '../schemas/characterSchema';
@@ -56,7 +60,14 @@
     character && hpBasis.current ? hpTip(hpDerivation(character, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
   );
 
-  const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved);
+  const owned = createOwnedGrantFeatures(() => character ?? null);
+  const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
+  const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
+    strMod: mod(abilities.resolved.str.score),
+    dexMod: mod(abilities.resolved.dex.score),
+    proficiencyBonus: character.proficiencyBonus,
+    declared: declaredAttackEffects(libs.itemIndex, character.inventory ?? [], owned.current),
+  } : null);
 
   /**
    * Die Eigenschaft hängt am Item, die Erlaubnis an `character.masteries`, aufgelöst über
@@ -135,7 +146,7 @@
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
-            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} />
+            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx} />
         {/snippet}
 
         {#snippet bearbeiten()}

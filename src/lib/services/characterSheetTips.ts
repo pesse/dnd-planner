@@ -8,6 +8,7 @@ import { mod } from '../domain/skills';
 import type { AbilityResolution } from './effectiveAbilities';
 import { abilityStepNotes, type HpDerivation } from './hitPointDerivation';
 import type { ArmorClassDerivation } from './armorClass';
+import type { AttackParts } from './attackCalc';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
 
@@ -76,4 +77,16 @@ export function attackBonusTip(bonus: string): string {
 
 export function attackDamageTip(damage: string, type: string): string {
   return row('Schaden', damage) + (type ? row('Typ', type) : '');
+}
+
+const partRows = (p: AttackParts): string => p.parts.map((x) => row(esc(x.labelDe), x.value)).join('');
+
+/** Herleitung eines auto-berechneten Angriffs; `attackBonusTip` bleibt für handeingetragene. */
+export function attackBonusPartsTip(p: AttackParts, bonus: string): string {
+  return partRows(p) + divider() + total(bonus, 'Angriff') + row('Angriffswurf', '1W20 ' + bonus) + steps(p.notes);
+}
+
+export function attackDamagePartsTip(p: AttackParts, dice: string, damage: string, type: string): string {
+  return row('Würfel', esc(dice)) + partRows(p) + divider() + total(esc(damage), 'Schaden')
+    + (type ? row('Typ', esc(type)) : '') + steps(p.notes);
 }

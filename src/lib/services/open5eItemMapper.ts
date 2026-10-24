@@ -54,6 +54,12 @@ function magicBonusFromName(name: string): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
+/** Benannte Waffen (Berserkeraxt, Heiliger Rächer) tragen den Bonus nur im Regeltext. */
+function magicBonusFromDesc(desc: readonly string[] | undefined): number | undefined {
+  const m = (desc ?? []).join(' ').match(/\+([123]) bonus to attack (?:rolls )?and damage rolls made with (?:this|it)\b/);
+  return m ? Number(m[1]) : undefined;
+}
+
 function applyWeapon(item: Item, w: Open5eWeapon): void {
   const wc = w.is_martial ? 'Martial' : w.is_simple ? 'Simple' : undefined;
   if (wc) item.weapon_category = wc;
@@ -133,7 +139,7 @@ export function mapOpen5eItem(raw: Record<string, unknown>): Item {
   if (rarity?.name) item.rarity = { name: rarity.name, rank: rarity.rank };
   if ('requires_attunement' in raw) item.attunement = Boolean(raw.requires_attunement);
   if (raw.attunement_detail) item.attunement_by = String(raw.attunement_detail);
-  const bonus = magicBonusFromName(item.name);
+  const bonus = magicBonusFromName(item.name) ?? magicBonusFromDesc(item.desc);
   if (bonus) item.magic_bonus = bonus;
 
   if (weapon) applyWeapon(item, weapon);

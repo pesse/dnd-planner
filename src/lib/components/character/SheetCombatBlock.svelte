@@ -3,17 +3,24 @@
   import { sign } from '../../utils/num';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
   import { textTip } from '../textTip.svelte';
-  import { attackBonusTip, attackDamageTip } from '../../services/characterSheetTips';
+  import {
+    attackBonusPartsTip, attackBonusTip, attackDamagePartsTip, attackDamageTip,
+  } from '../../services/characterSheetTips';
+  import {
+    attackBonusParts, attackDamageParts, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
+  } from '../../services/attackCalc';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
 
-  let { character, masteryOf, hpTipHtml, acTipHtml }: {
+  let { character, masteryOf, hpTipHtml, acTipHtml, attackCtx }: {
     character: Character;
     masteryOf: (name: string) => WeaponMastery | undefined;
     /** Leer, solange die Bibliotheken laden. */
     hpTipHtml: string;
     /** Leer, solange die Bibliotheken laden. */
     acTipHtml: string;
+    /** null, solange Bibliotheken und Merkmale laden — dann stehen die gespeicherten Werte. */
+    attackCtx: AttackCalcContext | null;
   } = $props();
 </script>
 
@@ -44,6 +51,9 @@
       <tbody>
         {#each character.attacks as atk}
           {@const atkMastery = masteryOf(atk.name)}
+          {@const calc = atk.auto && attackCtx}
+          {@const bonus = calc ? computeAttackBonus(atk, calc) : atk.bonus}
+          {@const damage = calc ? computeAttackDamage(atk, calc) : atk.damage}
           <tr>
             <td>
               {atk.name}
@@ -55,12 +65,16 @@
               {/if}
             </td>
             <td class="has-tip">
-              {atk.bonus}
-              <span class="tip tip-left">{@html attackBonusTip(atk.bonus)}</span>
+              {bonus}
+              <span class="tip tip-left">{@html calc
+                ? attackBonusPartsTip(attackBonusParts(atk, calc), bonus)
+                : attackBonusTip(atk.bonus)}</span>
             </td>
             <td class="has-tip">
-              {atk.damage} {atk.type}
-              <span class="tip tip-left">{@html attackDamageTip(atk.damage, atk.type)}</span>
+              {damage} {atk.type}
+              <span class="tip tip-left">{@html calc && atk.baseDamage?.trim()
+                ? attackDamagePartsTip(attackDamageParts(atk, calc), atk.baseDamage, damage, atk.type)
+                : attackDamageTip(damage, atk.type)}</span>
             </td>
             <td>{atk.range || '—'}</td>
           </tr>
