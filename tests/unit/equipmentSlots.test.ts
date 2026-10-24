@@ -97,11 +97,11 @@ describe('placeEquipment', () => {
     const cloaks = placeEquipment(lines(info('Cloak of Protection'), info('Cloak of Elvenkind')));
     expect(cloaks.get('shoulders')?.items).toHaveLength(2);
     expect([...equipmentQuips(cloaks).values()]).toEqual([
-      'Cloak of Protection und Cloak of Elvenkind flattern gemeinsam dramatisch im Wind. Der Barde ist neidisch, das Regelwerk lässt nur einen wirken.',
+      'Flattert dramatisch im Wind. Der Barde ist neidisch, das Regelwerk lässt nur einen wirken.',
     ]);
     const d = weapon('Dagger', { index: 'dagger' });
     expect([...equipmentQuips(placeEquipment(lines(...Array.from({ length: 3 }, (): [ItemInfo, EquipmentSlot] => [d, 'boot'])))).values()])
-      .toEqual(['3 Dolche im Stiefelschaft: Jeder Schritt ist eine kleine Mutprobe.']);
+      .toEqual(['Jeder Schritt ist eine kleine Mutprobe.']);
     const rings = Array.from({ length: 8 }, (_, i) => info(`Ring ${i}`, { category: 'ring' }));
     expect(equipmentQuips(placeEquipment(lines(...rings))).size).toBe(0);
   });
