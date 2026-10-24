@@ -7,7 +7,7 @@ import type { ItemInfo } from '../itemLibrary';
 import type { EquippedLine } from './wornItems';
 
 const BODY_ARMOR = ['Light', 'Medium', 'Heavy'];
-const HELD = ['weapon', 'staff', 'rod', 'wand', 'spellcasting-focus'];
+const CARRIED = ['weapon', 'rod', 'wand', 'spellcasting-focus'];
 
 // Wundersames hat keine Kategorie, die den Platz verrät; der englische SRD-Name schon.
 // Ein deklariertes `slot` am Gegenstand geht vor.
@@ -22,18 +22,14 @@ const NAME_SLOTS: [RegExp, EquipmentSlot][] = [
 ];
 
 const isShield = (item: ItemInfo): boolean => item.armor_category === 'Shield' || item.category === 'shield';
-const isHeld = (item: ItemInfo): boolean => isShield(item) || HELD.includes(item.category);
-export const isTwoHanded = (item: ItemInfo): boolean => (item.properties ?? []).some((p) => p.index === 'two-handed');
+const isTwoHanded = (item: ItemInfo): boolean => (item.properties ?? []).some((p) => p.index === 'two-handed');
 const isDagger = (item: ItemInfo): boolean => item.index === 'dagger' || /\bdagger\b/i.test(item.name);
 
 /** Wohin der Gegenstand passt, das Naheliegende zuerst; mehr als ein Eintrag heißt: der Spieler wählt. */
 export function slotsFor(item: ItemInfo): EquipmentSlot[] {
   if (item.slot) return [item.slot];
-  if (isShield(item)) return ['offHand', 'mainHand', 'back'];
-  if (isHeld(item)) {
-    if (isTwoHanded(item)) return ['mainHand', 'back'];
-    return ['mainHand', 'offHand', ...(isDagger(item) ? ['boot' as const] : []), 'back'];
-  }
+  if (isShield(item) || item.category === 'staff' || (CARRIED.includes(item.category) && isTwoHanded(item))) return ['back'];
+  if (CARRIED.includes(item.category)) return ['hipRight', 'hipLeft', ...(isDagger(item) ? ['boot' as const] : []), 'back'];
   if (BODY_ARMOR.includes(item.armor_category ?? '') || item.category === 'armor') return ['body'];
   if (item.category === 'ring') return ['ring'];
   return [NAME_SLOTS.find(([re]) => re.test(item.name))?.[1] ?? 'other'];
@@ -46,8 +42,6 @@ export interface Placed extends EquippedLine {
 export interface SlotFill {
   slot: EquipmentSlot;
   items: Placed[];
-  /** Eine Zweihandwaffe in der rechten Hand belegt die linke mit. */
-  blockedBy?: Placed;
   used: number;
   capacity: number;
   overfull: boolean;
@@ -61,26 +55,18 @@ export function placeEquipment(lines: readonly EquippedLine[]): Map<EquipmentSlo
     if (!f) fills.set(slot, (f = { slot, items: [], used: 0, capacity: SLOT_CAPACITY[slot], overfull: false }));
     return f;
   };
-  const twoHandedInHand = (l: EquippedLine, slot: EquipmentSlot) => slot === 'mainHand' && isTwoHanded(l.item);
-  const free = (l: EquippedLine, slot: EquipmentSlot): boolean =>
-    (fills.get(slot)?.used ?? 0) < SLOT_CAPACITY[slot] && (!twoHandedInHand(l, slot) || !fills.get('offHand')?.used);
+  const free = (slot: EquipmentSlot): boolean => (fills.get(slot)?.used ?? 0) < SLOT_CAPACITY[slot];
   const put = (l: EquippedLine, slot: EquipmentSlot) => {
-    const placed = { ...l, slot };
     const f = fill(slot);
-    f.items.push(placed);
+    f.items.push({ ...l, slot });
     f.used++;
-    if (twoHandedInHand(l, slot)) {
-      const off = fill('offHand');
-      off.blockedBy = placed;
-      off.used++;
-    }
   };
 
   const chosen = lines.filter((l) => l.entry.slot && slotsFor(l.item).includes(l.entry.slot));
   for (const l of chosen) put(l, l.entry.slot!);
   for (const l of lines.filter((l) => !chosen.includes(l))) {
     const options = slotsFor(l.item);
-    put(l, options.find((s) => free(l, s)) ?? options[0]);
+    put(l, options.find(free) ?? options[0]);
   }
   for (const f of fills.values()) f.overfull = f.used > f.capacity;
   return fills;

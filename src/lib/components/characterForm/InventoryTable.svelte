@@ -15,7 +15,7 @@
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
   import { equippedLinesIn } from '../../services/wornItems';
-  import { isTwoHanded, placeEquipment, slotsFor } from '../../services/equipmentSlots';
+  import { placeEquipment, slotsFor } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
@@ -58,8 +58,7 @@
     [...placeEquipment(equippedLinesIn(itemIndex, inventory)).values()]
       .flatMap((f) => f.items.map((p) => [p.line, p.slot] as const)),
   ));
-  const slotLabel = (lib: ItemInfo, slot: EquipmentSlot): string =>
-    slot === 'mainHand' && isTwoHanded(lib) ? 'Beide Hände' : SLOT_LABEL_DE[slot];
+
   const libItemOf = (line: InventoryLine): ItemInfo | undefined => matchItem(itemIndex, line);
 
   function onNameInput(i: number, value: string) {
@@ -255,8 +254,8 @@
             <select class="inv-slot" value={item.slot ?? ''}
               title="Platz an der Figur"
               onchange={(e) => { item.slot = (e.currentTarget.value || undefined) as EquipmentSlot | undefined; }}>
-              <option value="">{auto ? slotLabel(lib, auto) : 'automatisch'} (auto)</option>
-              {#each slotsFor(lib) as s}<option value={s}>{slotLabel(lib, s)}</option>{/each}
+              <option value="">{auto ? SLOT_LABEL_DE[auto] : 'automatisch'} (auto)</option>
+              {#each slotsFor(lib) as s}<option value={s}>{SLOT_LABEL_DE[s]}</option>{/each}
             </select>
           {/if}
         </td>

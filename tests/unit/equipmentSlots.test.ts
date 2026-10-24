@@ -31,13 +31,13 @@ describe('slotsFor', () => {
   it('leitet den Platz aus Kategorie und Rüstungsart ab', () => {
     expect(slotsFor(info('Plate Armor', { category: 'armor', armor_category: 'Heavy' }))).toEqual(['body']);
     expect(slotsFor(info('Ring of Protection', { category: 'ring' }))).toEqual(['ring']);
-    expect(slotsFor(SHIELD)).toEqual(['offHand', 'mainHand', 'back']);
   });
 
-  it('Einhandwaffen in jede Hand oder auf den Rücken, Dolche auch in den Stiefel', () => {
-    expect(slotsFor(weapon('Longsword'))).toEqual(['mainHand', 'offHand', 'back']);
-    expect(slotsFor(weapon('Dagger', { index: 'dagger' }))).toEqual(['mainHand', 'offHand', 'boot', 'back']);
-    expect(slotsFor(weapon('Greatsword', { properties: TWO_HANDED }))).toEqual(['mainHand', 'back']);
+  it('Einhandwaffen an den Gürtel, Dolche auch in den Stiefel, Schild und Zweihänder auf den Rücken', () => {
+    expect(slotsFor(weapon('Longsword'))).toEqual(['hipRight', 'hipLeft', 'back']);
+    expect(slotsFor(weapon('Dagger', { index: 'dagger' }))).toEqual(['hipRight', 'hipLeft', 'boot', 'back']);
+    expect(slotsFor(weapon('Greatsword', { properties: TWO_HANDED }))).toEqual(['back']);
+    expect(slotsFor(SHIELD)).toEqual(['back']);
   });
 
   it('erkennt Wundersames am englischen Namen, ein deklarierter Platz geht vor', () => {
@@ -49,29 +49,24 @@ describe('slotsFor', () => {
 });
 
 describe('placeEquipment', () => {
-  it('verteilt Waffen auf rechte und linke Hand, dann Stiefel und Rücken', () => {
+  it('verteilt Waffen auf Gürtel rechts und links, dann Stiefel und Rücken', () => {
     const d = weapon('Dagger', { index: 'dagger' });
     expect(where(lines(weapon('Longsword'), d, d, d, weapon('Spear')))).toEqual({
-      mainHand: ['Longsword'], offHand: ['Dagger'], boot: ['Dagger', 'Dagger'], back: ['Spear'],
+      hipRight: ['Longsword'], hipLeft: ['Dagger'], boot: ['Dagger', 'Dagger'], back: ['Spear'],
     });
   });
 
-  it('Schild geht in die linke Hand; eine Zweihandwaffe daneben wandert auf den Rücken', () => {
+  it('Schild und Zweihandwaffe teilen sich den Rücken', () => {
     const greatsword = weapon('Greatsword', { properties: TWO_HANDED });
-    expect(where(lines(SHIELD, greatsword))).toEqual({ offHand: ['Shield'], back: ['Greatsword'] });
-  });
-
-  it('Zweihandwaffe in der Hand blockiert die linke Hand', () => {
-    const fills = placeEquipment(lines(weapon('Greatsword', { properties: TWO_HANDED })));
-    expect(fills.get('offHand')).toMatchObject({ used: 1, overfull: false, items: [] });
-    expect(fills.get('offHand')?.blockedBy?.item.name).toBe('Greatsword');
+    const fills = placeEquipment(lines(SHIELD, greatsword));
+    expect(fills.get('back')).toMatchObject({ used: 2, overfull: false });
   });
 
   it('gewählte Plätze gehen vor und melden Überbelegung', () => {
     const fills = placeEquipment(lines(
-      [weapon('Greatsword', { properties: TWO_HANDED }), 'mainHand'], [SHIELD, 'offHand'],
+      [weapon('Longsword'), 'hipLeft'], [weapon('Shortsword'), 'hipLeft'],
     ));
-    expect(fills.get('offHand')?.overfull).toBe(true);
+    expect(fills.get('hipLeft')?.overfull).toBe(true);
   });
 
   it('zwei Rüstungen sind eine Überbelegung, acht Ringe nicht', () => {

@@ -27,11 +27,14 @@
 
   const fills = $derived(placeEquipment(equippedLinesIn(itemIndex, inventory)));
 
-  /** Position der Fassung auf der Figur in Prozent (x, y); die rechte Hand sitzt vom Betrachter aus links. */
-  const SOCKETS: [EquipmentSlot, number, number][] = [
-    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 76, 19],
-    ['body', 50, 36], ['arms', 14, 40], ['ring', 86, 40], ['waist', 50, 51],
-    ['mainHand', 14, 58], ['offHand', 86, 58], ['boot', 24, 88], ['feet', 50, 93],
+  /**
+   * Position der Fassung in Prozent (x, y), `stack` stapelt mehrere Stücke senkrecht. Die rechte
+   * Seite des Charakters liegt vom Betrachter aus links.
+   */
+  const SOCKETS: [slot: EquipmentSlot, x: number, y: number, stack?: boolean][] = [
+    ['head', 50, 7], ['eyes', 70, 9], ['neck', 50, 24], ['shoulders', 26, 21], ['back', 76, 21, true],
+    ['body', 50, 36], ['arms', 14, 40, true], ['ring', 86, 40, true], ['waist', 50, 50],
+    ['hipRight', 30, 56, true], ['hipLeft', 70, 56, true], ['boot', 24, 88], ['feet', 50, 93],
   ];
 
   const others = $derived(fills.get('other')?.items ?? []);
@@ -39,10 +42,10 @@
   let broken = $state(new Set<string>());
 </script>
 
-{#snippet icon(e: Placed, ghost = false)}
+{#snippet icon(e: Placed)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  <button type="button" class="eq-icon" class:idle={!e.effective} class:ghost
-    title="{displayName(e.item)}{ghost ? ' (zweihändig)' : e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
+  <button type="button" class="eq-icon" class:idle={!e.effective}
+    title="{displayName(e.item)}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
     {#if src && !broken.has(src)}
       <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
@@ -64,11 +67,10 @@
         L58 150 L54 96 L42 160 L35 160 Q27 158 28 150 L40 82 Q42 70 50 66 Z" />
     </svg>
     {/if}
-    {#each SOCKETS as [slot, x, y]}
+    {#each SOCKETS as [slot, x, y, stack]}
       {@const fill = fills.get(slot)}
-      <div class="eq-socket" class:empty={!fill} class:overfull={fill?.overfull} class:side={x < 25 || x > 75}
+      <div class="eq-socket" class:empty={!fill} class:overfull={fill?.overfull} class:stack
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>
-        {#if fill?.blockedBy}{@render icon(fill.blockedBy, true)}{/if}
         {#each fill?.items ?? [] as e (e.line)}{@render icon(e)}{/each}
       </div>
     {/each}
@@ -81,7 +83,7 @@
   {/if}
   {#each overfull as f}
     <p class="eq-warn">⚠ {SLOT_LABEL_DE[f.slot]}: {f.used} belegt, Platz für {f.capacity} —
-      {[f.blockedBy, ...f.items].filter((e) => !!e).map((e) => displayName(e.item)).join(', ')}</p>
+      {f.items.map((e) => displayName(e.item)).join(', ')}</p>
   {/each}
 </div>
 
@@ -130,7 +132,7 @@
     border: 1.5px dashed var(--border-strong);
     background: color-mix(in srgb, var(--bg) 60%, transparent);
   }
-  .eq-socket.side {
+  .eq-socket.stack {
     max-width: 44px;
   }
   .painted .eq-socket.empty {
@@ -162,9 +164,6 @@
   .eq-icon.idle {
     opacity: 0.45;
     border-style: dashed;
-  }
-  .eq-icon.ghost {
-    opacity: 0.35;
   }
   .eq-icon img {
     width: 100%;
