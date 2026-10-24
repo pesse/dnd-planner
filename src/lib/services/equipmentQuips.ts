@@ -29,13 +29,15 @@ const PLENTY: Partial<Record<EquipmentSlot, [number, (n: number) => string]>> = 
   neck: [3, (n) => `${n} Ketten um den Hals: Ein Drache würde dich glatt für seinen Hort halten.`],
 };
 
-export function equipmentQuips(fills: ReadonlyMap<EquipmentSlot, SlotFill>): string[] {
-  return [...fills.values()].flatMap((f) => {
+/** Je Platz höchstens ein Kommentar. */
+export function equipmentQuips(fills: ReadonlyMap<EquipmentSlot, SlotFill>): Map<EquipmentSlot, string> {
+  const quips = new Map<EquipmentSlot, string>();
+  for (const f of fills.values()) {
     const n = f.items.length;
     const plenty = PLENTY[f.slot];
-    if (SINGLE_WEAR.has(f.slot) && n > 1) return [ONE_AT_A_TIME[f.slot]!(f)];
-    if (CROWDED[f.slot] && n > SLOT_ROOM[f.slot]) return [CROWDED[f.slot]!(n)];
-    if (plenty && n > plenty[0]) return [plenty[1](n)];
-    return [];
-  });
+    if (SINGLE_WEAR.has(f.slot) && n > 1) quips.set(f.slot, ONE_AT_A_TIME[f.slot]!(f));
+    else if (CROWDED[f.slot] && n > SLOT_ROOM[f.slot]) quips.set(f.slot, CROWDED[f.slot]!(n));
+    else if (plenty && n > plenty[0]) quips.set(f.slot, plenty[1](n));
+  }
+  return quips;
 }

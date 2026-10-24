@@ -42,22 +42,17 @@
   let broken = $state(new Set<string>());
 </script>
 
-{#snippet art(e: Placed)}
-  {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  {#if src && !broken.has(src)}
-    <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
-  {:else}
-    <span class="eq-ph">{displayName(e.item).charAt(0)}</span>
-  {/if}
-{/snippet}
-
 {#snippet icon(e: Placed)}
+  {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
   {@const inside = e.contents?.map((c) => displayName(c.item)).join(', ')}
   <button type="button" class="eq-icon" class:idle={!e.effective}
     title="{displayName(e.item)}{inside ? ` — darin: ${inside}` : ''}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
     onclick={() => openItemPage(e.item)}>
-    {@render art(e)}
-    {#each e.contents ?? [] as c (c.line)}<span class="eq-inside">{@render art(c)}</span>{/each}
+    {#if src && !broken.has(src)}
+      <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
+    {:else}
+      <span class="eq-ph">{displayName(e.item).charAt(0)}</span>
+    {/if}
   </button>
 {/snippet}
 
@@ -78,6 +73,11 @@
       <div class="eq-socket" class:empty={!fill} class:dense={(fill?.items.length ?? 0) > 2} class:stack class:inward={stack && x > 50}
         style="left:{x}%;top:{y}%" title={fill ? undefined : `${SLOT_LABEL_DE[slot]}: frei`}>
         {#each fill?.items ?? [] as e (e.line)}{@render icon(e)}{/each}
+        {#if quips.has(slot)}
+          <button type="button" class="eq-quip" class:left={x > 50} aria-label={quips.get(slot)}>!
+            <span class="eq-bubble">{quips.get(slot)}</span>
+          </button>
+        {/if}
       </div>
     {/each}
   </div>
@@ -87,7 +87,6 @@
       {#each others as e (e.line)}{@render icon(e)}{/each}
     </div>
   {/if}
-  {#each quips as q}<p class="eq-note">{q}</p>{/each}
 </div>
 
 <style>
@@ -179,17 +178,6 @@
     opacity: 0.45;
     border-style: dashed;
   }
-  .eq-inside {
-    position: absolute;
-    right: -6px;
-    bottom: -6px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 1px solid var(--gold);
-    background: var(--bg-raised);
-    overflow: hidden;
-  }
   .eq-icon img {
     width: 100%;
     height: 100%;
@@ -211,10 +199,54 @@
     color: var(--ink-muted);
     margin-right: 0.3rem;
   }
-  .eq-note {
-    margin: 0;
+  .eq-quip {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    z-index: 2;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--copper);
+    color: var(--bg);
+    font: 700 0.72rem/17px var(--font-display);
+    text-align: center;
+    cursor: help;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 35%, transparent);
+  }
+  .eq-bubble {
+    display: none;
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: 190px;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--gold);
+    background: var(--bg-raised);
+    color: var(--ink);
+    font-family: var(--font-ui);
     font-size: 0.8rem;
     font-style: italic;
-    color: var(--ink-muted);
+    font-weight: 400;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: normal;
+    text-align: left;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 30%, transparent);
+  }
+  .eq-quip.left .eq-bubble {
+    left: auto;
+    right: 0;
+  }
+  .eq-socket:has(.eq-quip:hover),
+  .eq-socket:has(.eq-quip:focus) {
+    z-index: 5;
+  }
+  .eq-quip:hover .eq-bubble,
+  .eq-quip:focus .eq-bubble {
+    display: block;
   }
 </style>
