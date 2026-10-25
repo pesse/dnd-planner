@@ -51,7 +51,7 @@ const PERSONALITY_ROWS: [string, keyof CharacterPrintData['character']][] = [
 ];
 
 const PERSONAL_ROWS: [string, keyof CharacterPrintData['character']['personal']][] = [
-  ['Alter', 'alter'], ['Geschlecht', 'geschlecht'], ['Gesinnung', 'gesinnung'],
+  ['Alter', 'alter'], ['Gesinnung', 'gesinnung'],
   ['Glaube', 'glaube'], ['Größe', 'sizeCat'], ['Körpergröße', 'koerpergroesse'],
   ['Gewicht', 'gewicht'], ['Augen', 'augenfarbe'], ['Haar', 'haarfarbe'],
   ['Haut', 'hautfarbe'], ['Lebensstil', 'lebensstil'], ['Tägl. Kosten', 'taeglicheKosten'],

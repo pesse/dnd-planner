@@ -5,7 +5,7 @@
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 
-export const CHARACTER_VERSION = 8;
+export const CHARACTER_VERSION = 9;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -36,6 +36,13 @@ function mergeAbilityFields(c: Record<string, unknown>, targetKey: string, field
   }
   if (Object.keys(merged).length) c[targetKey] = merged;
 }
+
+/** Freitext-Geschlecht → Äußeres; was hier nicht steht, ist kein Äußeres und bleibt Text. */
+const GENDER_TO_PRESENTATION: [RegExp, string][] = [
+  [/^(m|männlich|maennlich|mann|male|maskulin)$/i, 'masculine'],
+  [/^(w|weiblich|frau|female|feminin)$/i, 'feminine'],
+  [/^(d|divers|beides|neutral|androgyn|nicht-?binär|nonbinary)$/i, 'androgynous'],
+];
 
 // Ein neuer Schritt heißt: `CHARACTER_VERSION` erhöhen und GENAU EINEN Schritt mit dieser
 // `to` ergänzen. Sein `apply` muss idempotent UND inhaltlich abgesichert sein — Altbestand
@@ -202,6 +209,21 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       for (const atk of Array.isArray(c.attacks) ? (c.attacks as Record<string, unknown>[]) : []) {
         if (atk && typeof atk === 'object' && atk.ability === 'ges') atk.ability = 'dex';
       }
+    },
+  },
+  {
+    to: 9,
+    label: 'Geschlecht → Äußeres (das Freitextfeld entfällt)',
+    apply: (c) => {
+      const personal = c.personal as Record<string, unknown> | undefined;
+      if (!personal || typeof personal !== 'object' || !('geschlecht' in personal)) return;
+      const gender = String(personal.geschlecht ?? '').trim();
+      delete personal.geschlecht;
+      if (!gender) return;
+      const look = GENDER_TO_PRESENTATION.find(([re]) => re.test(gender))?.[1];
+      if (look && !c.presentation) c.presentation = look;
+      // Ohne passendes Äußeres ginge der Wert sonst verloren — er wandert ins Aussehen.
+      else if (!look) personal.aussehen = [`Geschlecht: ${gender}`, String(personal.aussehen ?? '').trim()].filter(Boolean).join('\n');
     },
   },
 ];

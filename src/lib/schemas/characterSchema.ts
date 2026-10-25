@@ -172,7 +172,6 @@ export type Presentation = (typeof PRESENTATIONS)[number];
 const personalDataSchema = z.object({
   rassenmerkmale: z.string().default(''),
   alter: z.string().default(''),
-  geschlecht: z.string().default(''),
   sizeCat: z.string().default(''),
   gesinnung: z.string().default(''),
   glaube: z.string().default(''),
@@ -192,7 +191,7 @@ const companionSchema = z.object({
 });
 
 export const emptyPersonal = (): PersonalData => ({
-  rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '',
+  rassenmerkmale: '', alter: '', sizeCat: '',
   gesinnung: '', glaube: '', lebensstil: '', taeglicheKosten: '',
   augenfarbe: '', haarfarbe: '', hautfarbe: '', gewicht: '',
   koerpergroesse: '', aussehen: '',
@@ -274,7 +273,7 @@ export const characterSchema = z.object({
    */
   spells: characterSpellsSchema.optional(),
   personal: personalDataSchema.default({
-    rassenmerkmale: '', alter: '', geschlecht: '', sizeCat: '', gesinnung: '', glaube: '',
+    rassenmerkmale: '', alter: '', sizeCat: '', gesinnung: '', glaube: '',
     lebensstil: '', taeglicheKosten: '', augenfarbe: '', haarfarbe: '', hautfarbe: '',
     gewicht: '', koerpergroesse: '', aussehen: '',
   }),

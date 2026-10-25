@@ -364,7 +364,7 @@
     <h3>Persönliches</h3>
     <div class="personal-grid">
       <ImageField bind:file={form.portraitFile} {dirPath} baseName="portrait" label="Portrait"
-        diff={dirOf(saved?.portraitFile, form.portraitFile)} />
+        diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
       <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
     </div>
     <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>

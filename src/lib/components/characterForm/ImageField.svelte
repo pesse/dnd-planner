@@ -7,9 +7,11 @@
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
+  import ImageGenerator from './ImageGenerator.svelte';
+  import type { PortraitSource } from '../../services/imageGen/portraitPrompt';
   import './form.css';
 
-  let { file = $bindable(), dirPath, baseName, label, diff }: {
+  let { file = $bindable(), dirPath, baseName, label, diff, portrait }: {
     file: string;
     dirPath: string;
     /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
@@ -17,6 +19,8 @@
     /** Beschriftung des leeren Rahmens und des Bildes. */
     label: string;
     diff: DiffDir;
+    /** Quelle fürs generierte Portrait; ohne sie gibt es nur die Datei-Wahl. */
+    portrait?: PortraitSource;
   } = $props();
 
   let preview = $state('');
@@ -44,17 +48,19 @@
       busy = true;
       const src = selected as string;
       const ext = src.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
-      const b64 = await invoke<string>('read_file_base64', { path: src });
-      const targetName = `${baseName}.${ext}`;
-      await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
-      file = targetName;
-      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-      preview = `data:${mime};base64,${b64}`;
+      await store(await invoke<string>('read_file_base64', { path: src }), ext);
     } catch (e) {
       error = `${label} konnte nicht geladen werden: ${e}`;
     } finally {
       busy = false;
     }
+  }
+
+  async function store(b64: string, ext: 'png' | 'jpg') {
+    const targetName = `${baseName}.${ext}`;
+    await invoke('write_file_base64', { path: `${dirPath}/${targetName}`, data: b64 });
+    file = targetName;
+    preview = `data:${ext === 'png' ? 'image/png' : 'image/jpeg'};base64,${b64}`;
   }
 
   function clear() {
@@ -75,6 +81,9 @@
     </button>
     {#if file}
       <button class="remove-btn" onclick={clear} title="Bild-Verknüpfung entfernen">✕</button>
+    {/if}
+    {#if portrait}
+      <ImageGenerator {portrait} disabled={busy} onimage={(img) => store(img.b64, img.ext)} />
     {/if}
   </div>
   {#if error}<div class="error-sm">{error}</div>{/if}
