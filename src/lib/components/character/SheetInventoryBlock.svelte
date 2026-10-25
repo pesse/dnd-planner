@@ -7,6 +7,7 @@
   import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
   import { createItemHover } from '../itemHover.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
+  import EquipmentFigure from './EquipmentFigure.svelte';
   import type { Character } from '../../schemas/characterSchema';
 
   let { character, itemIndex }: { character: Character; itemIndex: ItemIndex } = $props();
@@ -33,41 +34,49 @@
   </div>
 
   {#if character.inventory.length}
-    <table class="inv-table">
-      <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
-      <tbody>
-        {#each character.inventory as item}
-          {@const libItem = libOf(item)}
-          {@const fullItem = libItem ? hover.data(libItem.path) : null}
-          <tr
-            class:inv-linked={!!libItem}
-            onclick={() => libItem && openItemPage(libItem)}
-            onmouseenter={(e) => libItem && hover.show(e, libItem.path)}
-            onmousemove={(e) => hover.move(e)}
-            onmouseleave={() => hover.hide()}
-          >
-            <td>
-              {#if libItem}
-                <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
-              {/if}
-              {libItem ? displayName(libItem) : item.name}
-              {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
-                <span class="inv-weapon-info">{weaponDamageLine(fullItem, true)}</span>
-              {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
-                <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
-              {:else if fullItem?.rarity}
-                <span class="inv-weapon-info">{formatRarity(fullItem.rarity)}</span>
-              {/if}
-            </td>
-            <td class="num">{item.count || '—'}</td>
-            <td class="num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) + ' kg' : '—'}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-    {#if totalWeightKg(character.inventory) > 0}
-      <div class="weight-total">Gesamtlast: <strong>{formatKg(totalWeightKg(character.inventory))} kg</strong></div>
-    {/if}
+    <div class="inv-layout">
+      {#if character.inventory.some((i) => i.equipped)}
+        <EquipmentFigure inventory={character.inventory} {itemIndex}
+          speciesKey={character.species.sourceKey} presentation={character.presentation} />
+      {/if}
+      <div class="inv-main">
+        <table class="inv-table">
+          <thead><tr><th>Gegenstand</th><th>Anz.</th><th>Gew.</th></tr></thead>
+          <tbody>
+            {#each character.inventory as item}
+              {@const libItem = libOf(item)}
+              {@const fullItem = libItem ? hover.data(libItem.path) : null}
+              <tr
+                class:inv-linked={!!libItem}
+                onclick={() => libItem && openItemPage(libItem)}
+                onmouseenter={(e) => libItem && hover.show(e, libItem.path)}
+                onmousemove={(e) => hover.move(e)}
+                onmouseleave={() => hover.hide()}
+              >
+                <td>
+                  {#if libItem}
+                    <span class="inv-dot" style="background:{CATEGORY_COLORS[libItem.category] ?? 'var(--border-strong)'}"></span>
+                  {/if}
+                  {libItem ? displayName(libItem) : item.name}
+                  {#if fullItem && structuralType(fullItem) === 'weapon' && fullItem.damage}
+                    <span class="inv-weapon-info">{weaponDamageLine(fullItem, true)}</span>
+                  {:else if fullItem && structuralType(fullItem) === 'armor' && fullItem.armor_class}
+                    <span class="inv-weapon-info">RK {fullItem.armor_class.base}{fullItem.armor_class.dex_bonus ? '+GES' : ''}</span>
+                  {:else if fullItem?.rarity}
+                    <span class="inv-weapon-info">{formatRarity(fullItem.rarity)}</span>
+                  {/if}
+                </td>
+                <td class="num">{item.count || '—'}</td>
+                <td class="num">{lineWeightKg(item) > 0 ? formatKg(lineWeightKg(item)) + ' kg' : '—'}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        {#if totalWeightKg(character.inventory) > 0}
+          <div class="weight-total">Gesamtlast: <strong>{formatKg(totalWeightKg(character.inventory))} kg</strong></div>
+        {/if}
+      </div>
+    </div>
   {:else}
     <span class="empty-hint">Kein Inventar eingetragen</span>
   {/if}
@@ -97,6 +106,14 @@
   .coin.empty { opacity: 0.4; }
   .coin-val { display: block; font-weight: 700; font-size: 0.95rem; color: var(--gold); }
   .coin-lbl { display: block; font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; }
+
+  .inv-layout {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .inv-main { flex: 1; min-width: 20rem; }
 
   .inv-table {
     width: 100%;

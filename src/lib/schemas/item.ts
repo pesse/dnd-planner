@@ -7,6 +7,7 @@ import { slugAscii } from '../utils/text';
 import { ABILITY_KEYS } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
+import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
@@ -74,6 +75,10 @@ export const itemSchema = z.object({
     .array(attackEffectSchema)
     .optional()
     .describe('Wirkung auf Angriffe mit passenden Waffen (Armschienen des Bogenschützen), solange der Gegenstand wirkt; der Bonus einer Waffe auf sich selbst ist `magic_bonus`.'),
+  slot: z
+    .enum(EQUIPMENT_SLOTS)
+    .optional()
+    .describe('Platz am Körper, wo Kategorie und Name ihn nicht verraten (Wundersames: Stiefel, Umhang …).'),
   attunement_by: z.string().nullable().optional(),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),

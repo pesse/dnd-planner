@@ -16,6 +16,12 @@ export interface IdleItem {
   reason: 'unequipped' | 'unattuned';
 }
 
+/** Die eine Regel: wirkt eine angelegte Zeile, oder warum nicht. */
+function lineState(entry: CharacterInventoryEntry, item: ItemInfo): 'worn' | IdleItem['reason'] {
+  if (!entry.equipped) return 'unequipped';
+  return item.attunement && !entry.attuned ? 'unattuned' : 'worn';
+}
+
 function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): { worn: WornItem[]; idle: IdleItem[] } {
   const worn: WornItem[] = [];
   const idle: IdleItem[] = [];
@@ -23,8 +29,8 @@ function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): 
   for (const entry of inventory) {
     const item = matchItem(index, { sourceKey: entry.sourceKey, name: entry.name });
     if (!item) continue;
-    if (!entry.equipped) idle.push({ item, reason: 'unequipped' });
-    else if (item.attunement && !entry.attuned) idle.push({ item, reason: 'unattuned' });
+    const state = lineState(entry, item);
+    if (state !== 'worn') idle.push({ item, reason: state });
     else {
       // Zwei Zeilen desselben Gegenstands sind Buchhaltung des Inventars, keine zweite Wirkung —
       // sonst zählte `count: 2` anders als zwei Zeilen.
@@ -43,6 +49,22 @@ export const wornItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry
 /** Was im Inventar liegt, aber nicht wirkt — damit eine Herleitung sagen kann, warum. */
 export const idleItemsIn = (index: ItemIndex, inventory: CharacterInventoryEntry[]): IdleItem[] =>
   sortInventory(index, inventory).idle;
+
+export interface EquippedLine {
+  /** Zeile im Inventar — jede angelegte Zeile ist ein Stück an der Figur, auch doppelte. */
+  line: number;
+  entry: CharacterInventoryEntry;
+  item: ItemInfo;
+  /** false = angelegt, aber mangels Einstimmung wirkungslos. */
+  effective: boolean;
+}
+
+export function equippedLinesIn(index: ItemIndex, inventory: CharacterInventoryEntry[]): EquippedLine[] {
+  return inventory.flatMap((entry, line) => {
+    const item = entry.equipped ? matchItem(index, { sourceKey: entry.sourceKey, name: entry.name }) : undefined;
+    return item ? [{ line, entry, item, effective: lineState(entry, item) === 'worn' }] : [];
+  });
+}
 
 export async function wornItems(inventory: CharacterInventoryEntry[]): Promise<WornItem[]> {
   if (!inventory.some((e) => e.equipped)) return [];

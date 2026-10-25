@@ -65,7 +65,7 @@ async function fetchAllItems(): Promise<Record<string, unknown>[]> {
 }
 
 // ── 2. Deutsch-Erhalt-Index + alte Pfade ───────────────────────────────────────
-const CURATED_FIELDS = ['grantsResource', 'abilityEffects', 'armorClassEffects', 'attackEffects'] as const satisfies readonly (keyof Item)[];
+const CURATED_FIELDS = ['grantsResource', 'abilityEffects', 'armorClassEffects', 'attackEffects', 'slot'] as const satisfies readonly (keyof Item)[];
 type CuratedField = (typeof CURATED_FIELDS)[number];
 
 interface OldEntry {

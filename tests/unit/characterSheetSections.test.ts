@@ -23,6 +23,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   resources: [],
   values: [],
   cardItems: [],
+  figure: null,
   spellCards: '',
   itemCards: '',
   ...over,
@@ -190,6 +191,22 @@ describe('Sektionen des Charakterbogens', () => {
     expect(ids(emptyData())).not.toContain('itemCards');
     expect(ids(d)).toContain('itemCards');
     expect(defaultSelection(sheetSections(d)).itemCards).toBe(true);
+  });
+
+  it('bietet die Figur an, wenn etwas angelegt ist — nicht vorgewählt, Kommentare ausgeschrieben', () => {
+    const cloak = (name: string, line: number) => ({
+      line, slot: 'shoulders' as const, effective: true,
+      item: { name, category: 'wondrous-item', rarity: '', path: 'x', magic: true },
+      entry: { name, count: '', weight: '', equipped: true },
+    });
+    const fills = new Map([['shoulders' as const, { slot: 'shoulders' as const, items: [cloak('Umhang A', 0), cloak('Umhang B', 1)] }]]);
+    const d = emptyData({ figure: { dollUrl: '', fills, art: new Map(), quips: new Map([['shoulders', 'Flattert dramatisch.']]) } });
+
+    expect(ids(emptyData())).not.toContain('figure');
+    expect(defaultSelection(sheetSections(d)).figure).toBe(false);
+    const html = sheetSections(d).find((s) => s.id === 'figure')!.render(d);
+    expect(html).toContain('Umhang A, Umhang B');
+    expect(html).toContain('Flattert dramatisch.');
   });
 
   it('legt Quellen mit denselben Zauberwerten in eine Sektion, die Herkunft ins Label', () => {

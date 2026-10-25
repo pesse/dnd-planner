@@ -262,6 +262,7 @@ export function formDraftPatch(
           weight: i.weight,
           ...(i.equipped ? { equipped: true } : {}),
           ...(i.attuned ? { attuned: true } : {}),
+          ...(i.equipped && i.slot ? { slot: i.slot } : {}),
           ...(i.printCard ? { printCard: true } : {}),
         };
       }),
