@@ -1,7 +1,8 @@
 /**
- * Solange ein Vollbild-Assistent offen ist, öffnet ein Verweis eine Vorschau statt die Seite
- * zu wechseln — `navigateTo` würde den Assistenten samt allen Wahlen schließen.
+ * Vorschau eines Eintrags als Popup statt Seitenwechsel: global per `peekEntry`, und
+ * solange ein Vollbild-Assistent offen ist, auch für jeden Verweis, der `navigateTo` ruft.
  */
+import { writable } from 'svelte/store';
 import type { FileEntry } from '../types';
 
 type Peek = (entry: FileEntry) => void;
@@ -18,3 +19,12 @@ export function interceptNavigation(peek: Peek): () => void {
 }
 
 export const activePeek = (): Peek | undefined => peeks.at(-1);
+
+export const peekedEntry = writable<FileEntry | null>(null);
+
+/** Klick auf ein Icon: die Karte zeigen, die aktuelle Seite bleibt stehen. */
+export function peekEntry(entry: FileEntry): void {
+  const peek = activePeek();
+  if (peek) peek(entry);
+  else peekedEntry.set(entry);
+}

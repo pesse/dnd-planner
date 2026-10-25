@@ -14,6 +14,7 @@
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import EntryPeekHost from '$lib/components/EntryPeekHost.svelte';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
   import { spellRefTip } from '$lib/components/spellRefLinks.svelte';
@@ -194,6 +195,7 @@
 <ToastStack />
 <UpdateDialog />
 <RateLimitToast />
+<EntryPeekHost />
 <UnsavedChangesDialog />
 <SaveAsDialog />
 <ConfirmDialog />

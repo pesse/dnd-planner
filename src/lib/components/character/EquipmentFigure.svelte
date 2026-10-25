@@ -2,7 +2,8 @@
   /** Figur mit den angelegten Gegenständen an ihrem Platz; die Häkchen im Inventar bleiben die Quelle. */
   import { displayName, type ItemIndex } from '../../itemLibrary';
   import { itemKeyArtUrl } from '../../libraryArt';
-  import { openItemPage } from '../../services/vaultLinks';
+  import { itemEntry } from '../../services/vaultLinks';
+  import { peekEntry } from '../../services/entryPeek';
   import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed } from '../../services/equipmentSlots';
   import { equipmentQuips } from '../../services/equipmentQuips';
   import { SLOT_LABEL_DE } from '../../schemas/equipmentSlot';
@@ -37,7 +38,7 @@
   {@const inside = e.contents?.map((c) => displayName(c.item)).join(', ')}
   <button type="button" class="eq-icon" class:idle={!e.effective}
     title="{displayName(e.item)}{inside ? ` — darin: ${inside}` : ''}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
-    onclick={() => openItemPage(e.item)}>
+    onclick={() => peekEntry(itemEntry(e.item))}>
     {#if src && !broken.has(src)}
       <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
     {:else}

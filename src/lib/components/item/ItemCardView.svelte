@@ -15,97 +15,95 @@
 {#if item}
   {@const stype = structuralType(item)}
   {@const cat = dirOf(item)}
-  <div class="cards-wrap">
-    <div class="item-card-view" style="--c: {color}">
-      <div class="head">
-        <CardArt src={itemArtUrl(item)} {color} />
-        <div class="name">{item.name_de ?? item.name}</div>
-        {#if item.name_de}<div class="name-en">{item.name}</div>{/if}
-        <div class="meta">
-          {#if item.rarity}{formatRarity(item.rarity)} · {/if}{CATEGORY_LABELS[cat] ?? item.equipment_category?.name ?? ''}
-        </div>
-        {#if stype === 'weapon' && (item.weapon_category || item.weapon_range)}
-          <div class="subtype">
-            {#if item.weapon_category}{WEAPON_CATEGORY_LABELS[item.weapon_category] ?? item.weapon_category}{/if}{#if item.weapon_category && item.weapon_range} · {/if}{#if item.weapon_range}{WEAPON_RANGE_LABELS[item.weapon_range] ?? item.weapon_range}{/if}
-          </div>
-        {:else if stype === 'armor' && item.armor_category}
-          <div class="subtype">{ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category}</div>
-        {/if}
-        {#if item.attunement}
-          <div class="attune">Einstimmung erforderlich{item.attunement_by ? ` (${item.attunement_by})` : ''}</div>
-        {/if}
+  <div class="item-card-view" style="--c: {color}">
+    <div class="head">
+      <CardArt src={itemArtUrl(item)} {color} />
+      <div class="name">{item.name_de ?? item.name}</div>
+      {#if item.name_de}<div class="name-en">{item.name}</div>{/if}
+      <div class="meta">
+        {#if item.rarity}{formatRarity(item.rarity)} · {/if}{CATEGORY_LABELS[cat] ?? item.equipment_category?.name ?? ''}
       </div>
+      {#if stype === 'weapon' && (item.weapon_category || item.weapon_range)}
+        <div class="subtype">
+          {#if item.weapon_category}{WEAPON_CATEGORY_LABELS[item.weapon_category] ?? item.weapon_category}{/if}{#if item.weapon_category && item.weapon_range} · {/if}{#if item.weapon_range}{WEAPON_RANGE_LABELS[item.weapon_range] ?? item.weapon_range}{/if}
+        </div>
+      {:else if stype === 'armor' && item.armor_category}
+        <div class="subtype">{ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category}</div>
+      {/if}
+      {#if item.attunement}
+        <div class="attune">Einstimmung erforderlich{item.attunement_by ? ` (${item.attunement_by})` : ''}</div>
+      {/if}
+    </div>
 
+    <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
+
+    {#if stype === 'weapon'}
+      <div class="props">
+        {#if item.damage}
+          <div class="prop"><span class="plabel">Schaden</span>
+            <span>{formatDamageDice(item.damage.damage_dice)} {DAMAGE_TYPE_LABELS[item.damage.damage_type.index] ?? item.damage.damage_type.name}{#if item.two_handed_damage} · {formatDamageDice(item.two_handed_damage.damage_dice)} (zweih.){/if}</span>
+          </div>
+        {/if}
+        {#if item.range}
+          <div class="prop"><span class="plabel">Reichweite</span><span>{ftToM(item.range.normal)}{item.range.long ? ` / ${ftToM(item.range.long)}` : ''}</span></div>
+        {/if}
+        {#if item.throw_range}
+          <div class="prop"><span class="plabel">Wurfweite</span><span>{ftToM(item.throw_range.normal)} / {ftToM(item.throw_range.long)}</span></div>
+        {/if}
+        {#if item.magic_bonus}
+          <div class="prop"><span class="plabel">Bonus</span><span>+{item.magic_bonus} auf Angriff &amp; Schaden</span></div>
+        {/if}
+        {#if item.properties?.length}
+          <div class="prop"><span class="plabel">Eigensch.</span>
+            <span class="pills">{#each item.properties as prop}<span class="pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>{/each}</span>
+          </div>
+        {/if}
+        <!-- Meisterschaft: bei Waffen IMMER eine Zeile — ohne Eintrag ein Hinweis
+             statt stiller Leere, damit die Pflege-Lücke sichtbar bleibt. -->
+        <div class="prop"><span class="plabel">Meisterschaft</span>
+          {#if item.mastery}
+            <span class="pills"><span class="pill mastery-pill" use:textTip={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
+          {:else}
+            <span class="mastery-missing">— nicht gepflegt</span>
+          {/if}
+        </div>
+      </div>
       <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
-      {#if stype === 'weapon'}
-        <div class="props">
-          {#if item.damage}
-            <div class="prop"><span class="plabel">Schaden</span>
-              <span>{formatDamageDice(item.damage.damage_dice)} {DAMAGE_TYPE_LABELS[item.damage.damage_type.index] ?? item.damage.damage_type.name}{#if item.two_handed_damage} · {formatDamageDice(item.two_handed_damage.damage_dice)} (zweih.){/if}</span>
-            </div>
-          {/if}
-          {#if item.range}
-            <div class="prop"><span class="plabel">Reichweite</span><span>{ftToM(item.range.normal)}{item.range.long ? ` / ${ftToM(item.range.long)}` : ''}</span></div>
-          {/if}
-          {#if item.throw_range}
-            <div class="prop"><span class="plabel">Wurfweite</span><span>{ftToM(item.throw_range.normal)} / {ftToM(item.throw_range.long)}</span></div>
-          {/if}
-          {#if item.magic_bonus}
-            <div class="prop"><span class="plabel">Bonus</span><span>+{item.magic_bonus} auf Angriff &amp; Schaden</span></div>
-          {/if}
-          {#if item.properties?.length}
-            <div class="prop"><span class="plabel">Eigensch.</span>
-              <span class="pills">{#each item.properties as prop}<span class="pill">{PROPERTY_LABELS[prop.index] ?? prop.name}</span>{/each}</span>
-            </div>
-          {/if}
-          <!-- Meisterschaft: bei Waffen IMMER eine Zeile — ohne Eintrag ein Hinweis
-               statt stiller Leere, damit die Pflege-Lücke sichtbar bleibt. -->
-          <div class="prop"><span class="plabel">Meisterschaft</span>
-            {#if item.mastery}
-              <span class="pills"><span class="pill mastery-pill" use:textTip={MASTERY_INFO[item.mastery].descDe}>{masteryLabel(item.mastery)}</span></span>
-            {:else}
-              <span class="mastery-missing">— nicht gepflegt</span>
-            {/if}
-          </div>
-        </div>
-        <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
-
-      {:else if stype === 'armor' && (item.armor_class || item.str_minimum || item.stealth_disadvantage)}
-        <div class="props">
-          {#if item.armor_class}
-            <div class="prop"><span class="plabel">RK</span><span>{item.armor_class.base}{#if item.armor_class.dex_bonus} + GES-Mod{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}{/if}</span></div>
-          {/if}
-          {#if item.str_minimum}
-            <div class="prop"><span class="plabel">Stärke</span><span>mind. {item.str_minimum}</span></div>
-          {/if}
-          {#if item.stealth_disadvantage}
-            <div class="prop"><span class="plabel">Heimlichkeit</span><span class="disadv">Nachteil</span></div>
-          {/if}
-        </div>
-        <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
-      {/if}
-
-      {#if item.desc_de?.length}
-        <div class="desc"><Markdown source={item.desc_de} /></div>
-        {#if item.desc?.length}
-          <details class="desc-orig">
-            <summary>Original (Englisch)</summary>
-            <div class="desc-orig-body"><Markdown source={item.desc} /></div>
-          </details>
+    {:else if stype === 'armor' && (item.armor_class || item.str_minimum || item.stealth_disadvantage)}
+      <div class="props">
+        {#if item.armor_class}
+          <div class="prop"><span class="plabel">RK</span><span>{item.armor_class.base}{#if item.armor_class.dex_bonus} + GES-Mod{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}{/if}</span></div>
         {/if}
-      {:else if item.desc?.length}
-        <div class="desc"><Markdown source={item.desc} /></div>
-      {:else}
-        <div class="desc muted">—</div>
-      {/if}
-
-      <div class="foot">
-        <span class="src">{sourceLabel(item.source)}</span>
-        <span class="foot-right">
-          {#if item.cost}{formatCost(item.cost)}{/if}{#if item.cost && item.weight != null} · {/if}{#if item.weight != null}{item.weight} Pfd.{/if}
-        </span>
+        {#if item.str_minimum}
+          <div class="prop"><span class="plabel">Stärke</span><span>mind. {item.str_minimum}</span></div>
+        {/if}
+        {#if item.stealth_disadvantage}
+          <div class="prop"><span class="plabel">Heimlichkeit</span><span class="disadv">Nachteil</span></div>
+        {/if}
       </div>
+      <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
+    {/if}
+
+    {#if item.desc_de?.length}
+      <div class="desc"><Markdown source={item.desc_de} /></div>
+      {#if item.desc?.length}
+        <details class="desc-orig">
+          <summary>Original (Englisch)</summary>
+          <div class="desc-orig-body"><Markdown source={item.desc} /></div>
+        </details>
+      {/if}
+    {:else if item.desc?.length}
+      <div class="desc"><Markdown source={item.desc} /></div>
+    {:else}
+      <div class="desc muted">—</div>
+    {/if}
+
+    <div class="foot">
+      <span class="src">{sourceLabel(item.source)}</span>
+      <span class="foot-right">
+        {#if item.cost}{formatCost(item.cost)}{/if}{#if item.cost && item.weight != null} · {/if}{#if item.weight != null}{item.weight} Pfd.{/if}
+      </span>
     </div>
   </div>
 {:else if parseError}
@@ -118,11 +116,10 @@
 {/if}
 
 <style>
-  .cards-wrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
-
   .item-card-view {
     width: 100%;
     max-width: 420px;
+    margin: 0 auto;
     background: var(--bg);
     border: 1.5px solid var(--c);
     border-radius: 8px;

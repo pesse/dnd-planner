@@ -58,9 +58,13 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   return null;
 }
 
-export async function openItemPage(item: { name: string; path: string }): Promise<void> {
+export function itemEntry(item: { name: string; path: string }): FileEntry {
   const name = item.path.split('/').pop()?.replace('.json', '') ?? item.name;
-  await navigateTo({ name, path: item.path, type: 'item' });
+  return { name, path: item.path, type: 'item' };
+}
+
+export async function openItemPage(item: { name: string; path: string }): Promise<void> {
+  await navigateTo(itemEntry(item));
 }
 
 /** Muss dem Sidebar-Öffnen gleichen: beim Akt der Verzeichnis-Slug, sonst der Dateiname. */
