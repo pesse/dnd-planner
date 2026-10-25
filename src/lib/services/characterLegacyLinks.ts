@@ -7,14 +7,16 @@
 import { classDisplayName, type ClassInfo } from '$lib/classLibrary';
 import { speciesDisplayName, type SpeciesInfo } from '$lib/speciesLibrary';
 import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibrary';
-import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
+import { displayName, matchItem, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
 import { normName } from '$lib/utils/text';
+import { sign } from '$lib/utils/num';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
 import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from './hitPoints';
 import { poolPicks, type OptionPoolOffer } from './declaration/optionPool';
 import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
+import { staleMagicBonus } from './attackEffects';
 import type { LoadedSpellcasting } from './spellcasting/project';
 import {
   applyFlatSpellPlan,
@@ -27,7 +29,7 @@ import { type Attack, type Character, type CharacterClass, type CharacterFeature
 
 type InventoryLine = Character['inventory'][number];
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'optionPicks' | 'hitPoints';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'attackMagic' | 'optionPicks' | 'hitPoints';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -201,6 +203,25 @@ export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
   };
 }
 
+/** Verknüpfte Angriffe, deren Waffe in der Bibliothek inzwischen einen anderen `magic_bonus` trägt. */
+export function attackMagicFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const rows = target.attacks.flatMap((a) => {
+    if (!a.auto || !a.sourceKey?.trim()) return [];
+    const weapon = matchItem(libs.items, { sourceKey: a.sourceKey, name: a.name });
+    const bonus = staleMagicBonus(a, weapon);
+    return bonus === undefined ? [] : [{ a, bonus }];
+  });
+  if (!rows.length) return undefined;
+  const named = rows.map(({ a, bonus }) => `${a.name} ${sign(bonus)}`).join(', ');
+  return {
+    kind: 'attackMagic',
+    label: `Magie-Bonus aus der Bibliothek übernehmen: ${named}`,
+    apply: () => {
+      for (const { a, bonus } of rows) a.magicBonus = bonus;
+    },
+  };
+}
+
 /**
  * Der Umzug der Altform in `spellcasting`. Ohne aufgelöste Quellen wird nichts angeboten:
  * welches Kontingent einen Zauber trägt, weiß erst die Bibliothek.
@@ -338,6 +359,7 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     spellsFix(target, libs),
     weaponsFix(target, libs),
     attacksFix(target, libs),
+    attackMagicFix(target, libs),
     optionPicksFix(target, libs),
     hitPointsFix(target, libs),
   ].filter((f): f is LegacyFix => !!f);

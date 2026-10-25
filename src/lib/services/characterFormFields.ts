@@ -7,6 +7,7 @@ import { SKILL_DEFS } from '../domain/skills';
 import type { AbilityFlags, AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
+import type { DeclaredAttackEffects } from './attackEffects';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
 import {
   emptyPersonal, emptyProficiencies,
@@ -89,9 +90,13 @@ export const mod = (score: number) => Math.floor((score - 10) / 2);
 export const abilityMods = (f: CharacterFormFields, effects: readonly WornAbilityEffect[]): AbilityScores =>
   effectiveMods(f.abilities, effects);
 
-export function attackContext(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): AttackCalcContext {
+export function attackContext(
+  f: CharacterFormFields,
+  effects: readonly WornAbilityEffect[],
+  declared?: DeclaredAttackEffects,
+): AttackCalcContext {
   const m = abilityMods(f, effects);
-  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: f.proficiencyBonus };
+  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: f.proficiencyBonus, declared };
 }
 
 export function computeSkills(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): Character['skills'] {
@@ -207,9 +212,10 @@ export function formDraftPatch(
   f: CharacterFormFields,
   carry: CharacterFormCarry,
   effects: readonly WornAbilityEffect[],
+  declared?: DeclaredAttackEffects,
 ): CharacterFormPatch {
   const mods = abilityMods(f, effects);
-  const ctx = attackContext(f, effects);
+  const ctx = attackContext(f, effects, declared);
   // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {

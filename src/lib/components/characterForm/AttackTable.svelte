@@ -8,17 +8,17 @@
     attackBonusTip, attackDamageTip, attackForDiff, blankAttack,
     computeAttackBonus, computeAttackDamage, toggleAttackMode, type WeaponAttackContext,
   } from '../../services/attackCalc';
+  import { staleMagicBonus } from '../../services/attackEffects';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import { textTip } from '../textTip.svelte';
   import './form.css';
 
-  let { attacks, ctx, saved, fixLabel, onfix }: {
+  let { attacks, ctx, saved, fixes = [] }: {
     attacks: Attack[];
     ctx: WeaponAttackContext;
     saved?: Character | null;
-    fixLabel?: string;
-    onfix?: () => void;
+    fixes?: { label: string; onfix: () => void }[];
   } = $props();
 </script>
 
@@ -29,6 +29,7 @@
       {@const atkDir = !saved || !atk.name.trim() ? 'none'
         : i >= (saved.attacks?.length ?? 0) ? 'up'
         : classifyChange(attackForDiff($state.snapshot(saved.attacks[i]), ctx), attackForDiff($state.snapshot(atk), ctx))}
+      {@const libMagic = staleMagicBonus(atk, ctx.declared?.weaponOf(atk))}
       <tr class="attack-row" use:diffMark={atkDir}>
         <td><input bind:value={atk.name} placeholder="Langschwert" /></td>
         {#if atk.auto}
@@ -64,7 +65,8 @@
               <label class="ac-field">Würfel
                 <input class="ac-dice" bind:value={atk.baseDamage} placeholder="1W8" />
               </label>
-              <label class="ac-field">Magie
+              <label class="ac-field" class:stale={libMagic !== undefined}
+                title={libMagic !== undefined ? `Laut Bibliothek ${sign(libMagic)}` : undefined}>Magie
                 <input class="ac-magic" type="number" step="1"
                   value={atk.magicBonus ?? 0}
                   oninput={(e) => (atk.magicBonus = parseInt(e.currentTarget.value) || 0)} />
@@ -111,10 +113,9 @@
 </table>
 <div class="inv-actions">
   <button class="btn-add" onclick={() => attacks.push(blankAttack())}>+ Angriff</button>
-  {#if fixLabel}
-    <button class="btn-link-all" onclick={onfix}
-      title="Setzt bei diesen Zeilen den Bibliotheks-Link und rechnet Bonus/Schaden reaktiv. Wird beim Speichern übernommen.">
-      🔗 {fixLabel}
+  {#each fixes as fix (fix.label)}
+    <button class="btn-link-all" onclick={fix.onfix} title="Wird beim Speichern übernommen.">
+      🔗 {fix.label}
     </button>
-  {/if}
+  {/each}
 </div>

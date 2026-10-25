@@ -307,6 +307,8 @@
 .edit-form .ac-check input { width: auto; }
 .edit-form .ac-dice { width: 5rem !important; }
 .edit-form .ac-magic { width: 3.5rem !important; }
+.edit-form .ac-field.stale { color: var(--copper); cursor: help; }
+.edit-form .ac-field.stale .ac-magic { border-color: var(--copper); }
 
 .edit-form .attack-mods {
   display: flex;

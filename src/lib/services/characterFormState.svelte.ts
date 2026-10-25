@@ -7,24 +7,29 @@ import {
 } from './characterFormFields';
 import type { Character } from '../schemas/characterSchema';
 import type { WornAbilityEffect } from './effectiveAbilities';
+import type { DeclaredAttackEffects } from './attackEffects';
 
 export interface CharacterFormState {
   fields: CharacterFormFields;
   legacyClassLevel: string;
 }
 
+export interface FormRuntimeInputs {
+  worn: readonly WornAbilityEffect[];
+  declared: DeclaredAttackEffects;
+}
+
 /**
  * `draft` ist ein Getter, kein Wert: der Stufenaufstieg tauscht die Draft-REFERENZ aus,
  * um das Formular zu remounten — der Effekt muss dann auf das neue Objekt schreiben,
  * nicht auf das beim Anlegen erfasste.
- */
-/**
- * `effects` ist `null`, solange die Item-Bibliothek lädt: bis dahin schreibt der Effekt nicht,
- * sonst stünden kurz die Mods des Grundwerts im Draft und der Charakter wirkte geändert.
+ *
+ * `inputs` ist `null`, solange Item-Bibliothek und Merkmale laden: bis dahin schreibt der Effekt
+ * nicht, sonst stünden kurz Mods und Angriffe ohne Gegenstände im Draft und der Charakter wirkte geändert.
  */
 export function createCharacterFormState(
   draft: () => Character,
-  effects: () => readonly WornAbilityEffect[] | null,
+  inputs: () => FormRuntimeInputs | null,
 ): CharacterFormState {
   const initial = draft();
   const fields = $state(initialFormFields(initial));
@@ -33,8 +38,8 @@ export function createCharacterFormState(
   // Liest den Draft nur über `draft()` — kein reaktiver Read einzelner `character.*`,
   // sonst schlösse sich eine Schreib-/Lese-Schleife.
   $effect(() => {
-    const worn = effects();
-    if (worn) Object.assign(draft(), formDraftPatch(fields, carry, worn));
+    const now = inputs();
+    if (now) Object.assign(draft(), formDraftPatch(fields, carry, now.worn, now.declared));
   });
 
   return { fields, legacyClassLevel: carry.legacyClassLevel };
