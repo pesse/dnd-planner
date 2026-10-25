@@ -10,13 +10,14 @@
   import type { Character } from '../../schemas/characterSchema';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import type { AbilityResolution } from '../../services/effectiveAbilities';
+  import type { AttackCalcContext } from '../../services/attackCalc';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, abilities, hpTipHtml, acTipHtml }: {
+        companionImageUrl, abilities, hpTipHtml, acTipHtml, attackCtx }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -27,6 +28,7 @@
     abilities: Record<AbilityKey, AbilityResolution>;
     hpTipHtml: string;
     acTipHtml: string;
+    attackCtx: AttackCalcContext | null;
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -50,7 +52,7 @@
   </div>
 
   <div class="two-col">
-    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} {acTipHtml} />
+    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} {acTipHtml} {attackCtx} />
     <SheetProficiencyBlock {character} {masteryChips} />
   </div>
 

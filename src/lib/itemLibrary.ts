@@ -41,6 +41,7 @@ export interface ItemInfo {
   grantsResource?: ResourceGrant;
   abilityEffects?: Item['abilityEffects'];
   armorClassEffects?: Item['armorClassEffects'];
+  attackEffects?: Item['attackEffects'];
   armor_category?: Item['armor_category'];
   slot?: Item['slot'];
   armor_class?: Item['armor_class'];
@@ -186,6 +187,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
         abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
         armorClassEffects: itemSchema.shape.armorClassEffects.safeParse(data.armorClassEffects).data,
+        attackEffects: itemSchema.shape.attackEffects.safeParse(data.attackEffects).data,
         armor_category: data.armor_category,
         slot: itemSchema.shape.slot.safeParse(data.slot).data,
         armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,

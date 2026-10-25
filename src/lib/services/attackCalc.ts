@@ -11,6 +11,7 @@ import { itemKeyOf } from '../schemas/item';
 import { ABILITY_ABBR_DE } from '../schemas/abilities';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
+import { attackEffectRows, type DeclaredAttackEffects } from './attackEffects';
 
 /**
  * Erfüllt von `Item` (voll geladen) und `ItemInfo` (Index-Projektion) — beide tragen dieselben
@@ -25,12 +26,24 @@ export interface AttackCalcContext {
   strMod: number;
   dexMod: number;
   proficiencyBonus: number;
+  /** Fehlt, solange Merkmale und Inventar nicht aufgelöst sind — dann zählt nur, was am Angriff steht. */
+  declared?: DeclaredAttackEffects;
 }
 
 export interface WeaponAttackContext extends AttackCalcContext {
   proficiencies: WeaponProficiencies;
   /** Löst einen erklärten Waffennamen zur Waffenart auf, damit auch magische Stücke greifen. */
   weaponByName?: (name: string) => { index?: string } | undefined;
+}
+
+export interface AttackPart {
+  labelDe: string;
+  value: number;
+}
+
+export interface AttackParts {
+  parts: AttackPart[];
+  notes: string[];
 }
 
 const ATTACK_ABILITY_LABEL: Record<string, string> = { ...ABILITY_ABBR_DE, finesse: 'Finesse' };
@@ -41,45 +54,47 @@ export function attackAbilityMod(a: Pick<Attack, 'ability'>, ctx: AttackCalcCont
   return ctx.strMod;
 }
 
-export function attackModifierTotals(a: Attack): { attack: number; damage: number } {
-  let attack = 0, damage = 0;
+function partsFor(a: Attack, ctx: AttackCalcContext, roll: 'attack' | 'damage'): AttackParts {
+  const parts: AttackPart[] = [{ labelDe: ATTACK_ABILITY_LABEL[a.ability ?? 'str'], value: attackAbilityMod(a, ctx) }];
+  // Der Übungsbonus zählt nur beim Angriffswurf.
+  if (roll === 'attack' && a.proficient) parts.push({ labelDe: 'geübt', value: ctx.proficiencyBonus });
+  if (a.magicBonus) parts.push({ labelDe: 'Magie', value: a.magicBonus });
   for (const m of a.modifiers ?? []) {
-    attack += m.attackBonus || 0;
-    damage += m.damageBonus || 0;
+    const value = (roll === 'attack' ? m.attackBonus : m.damageBonus) || 0;
+    if (value) parts.push({ labelDe: m.label.trim() || 'Effekt', value });
   }
-  return { attack, damage };
+  const declared = attackEffectRows(a, ctx.declared);
+  for (const r of declared.rows) if (r[roll]) parts.push({ labelDe: r.labelDe, value: r[roll] });
+  return { parts, notes: roll === 'attack' ? declared.attackNotes : declared.damageNotes };
 }
+
+export const attackBonusParts = (a: Attack, ctx: AttackCalcContext): AttackParts => partsFor(a, ctx, 'attack');
+export const attackDamageParts = (a: Attack, ctx: AttackCalcContext): AttackParts => partsFor(a, ctx, 'damage');
+
+const partSum = (p: AttackParts): number => p.parts.reduce((n, x) => n + x.value, 0);
 
 export function computeAttackBonus(a: Attack, ctx: AttackCalcContext): string {
-  return sign(attackAbilityMod(a, ctx) + (a.proficient ? ctx.proficiencyBonus : 0)
-    + (a.magicBonus ?? 0) + attackModifierTotals(a).attack);
+  return sign(partSum(attackBonusParts(a, ctx)));
 }
 
-/** Der Übungsbonus zählt hier NICHT mit — nur beim Angriffswurf. */
 export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
   const base = (a.baseDamage ?? '').trim();
   if (!base) return '';
-  const m = attackAbilityMod(a, ctx) + (a.magicBonus ?? 0) + attackModifierTotals(a).damage;
+  const m = partSum(attackDamageParts(a, ctx));
   return formatDamageDice(base) + (m !== 0 ? sign(m) : '');
 }
 
+const tipLines = (p: AttackParts): string[] =>
+  [...p.parts.map((x) => `${x.labelDe} ${sign(x.value)}`), ...p.notes.map((n) => `· ${n}`)];
+
 export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
-  const lines = [`${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
-  if (a.proficient) lines.push(`geübt ${sign(ctx.proficiencyBonus)}`);
-  if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
-  for (const m of a.modifiers ?? [])
-    if (m.attackBonus) lines.push(`${m.label.trim() || 'Effekt'} ${sign(m.attackBonus)}`);
-  return [...lines, `= ${computeAttackBonus(a, ctx)}`].join('\n');
+  return [...tipLines(attackBonusParts(a, ctx)), `= ${computeAttackBonus(a, ctx)}`].join('\n');
 }
 
 export function attackDamageTip(a: Attack, ctx: AttackCalcContext): string {
   const base = (a.baseDamage ?? '').trim();
   if (!base) return 'Kein Schadenswürfel eingetragen';
-  const lines = [`Würfel ${base}`, `${ATTACK_ABILITY_LABEL[a.ability ?? 'str']} ${sign(attackAbilityMod(a, ctx))}`];
-  if (a.magicBonus) lines.push(`Magie ${sign(a.magicBonus)}`);
-  for (const m of a.modifiers ?? [])
-    if (m.damageBonus) lines.push(`${m.label.trim() || 'Effekt'} ${sign(m.damageBonus)}`);
-  return [...lines, `= ${computeAttackDamage(a, ctx)}`].join('\n');
+  return [`Würfel ${base}`, ...tipLines(attackDamageParts(a, ctx)), `= ${computeAttackDamage(a, ctx)}`].join('\n');
 }
 
 /**
