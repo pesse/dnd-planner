@@ -1,7 +1,7 @@
 /**
  * `withCurrentSorted`: deutsche Kollation statt Quell-Reihenfolge, ohne die
  * Altdaten-voranstellen-Invariante von `withCurrent` zu verlieren.
- * Dazu der Gefährte und die Angriffs-Notiz: im Formular immer ein Feld, in der Datei nur bei Inhalt.
+ * Dazu Gefährte, eigene Figur und Angriffs-Notiz: im Formular immer ein Feld, in der Datei nur bei Inhalt.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -49,6 +49,13 @@ describe('Gefährte im Formular', () => {
   it('hält den Text auch ohne Bild', () => {
     expect(patchOf({ name: 'Testfigur', companion: { text: 'Waldi' } }).companion)
       .toEqual({ text: 'Waldi' });
+  });
+});
+
+describe('Eigene Figur im Formular', () => {
+  it('trägt die Bilddatei zurück und schreibt ohne sie kein Feld', () => {
+    expect(patchOf({ name: 'Testfigur', figureFile: 'figure.jpg' }).figureFile).toBe('figure.jpg');
+    expect(patchOf({ name: 'Testfigur' }).figureFile).toBeUndefined();
   });
 });
 

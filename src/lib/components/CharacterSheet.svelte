@@ -97,6 +97,7 @@
     characterName: () => character?.name ?? '',
     portraitFile: () => character?.portraitFile,
     companionImageFile: () => character?.companion?.imageFile,
+    figureFile: () => character?.figureFile,
   });
   const portraitUrl = createCharacterPortrait({ character: () => character, ownUrl: () => side.portraitUrl });
 
@@ -118,6 +119,7 @@
           character,
           portraitUrl: portraitUrl(),
           companionImageUrl: side.companionImageUrl,
+          figureUrl: side.figureUrl,
           freetext: side.details,
           masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
           loaded: spellcasting,
@@ -146,6 +148,7 @@
         {#snippet karte()}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
+            figureUrl={side.figureUrl}
             abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx} />
         {/snippet}
 

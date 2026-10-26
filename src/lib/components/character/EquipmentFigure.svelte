@@ -10,21 +10,24 @@
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
 
-  let { inventory, itemIndex, speciesKey, presentation }: {
+  let { inventory, itemIndex, speciesKey, presentation, ownSrc }: {
     inventory: CharacterInventoryEntry[];
     itemIndex: ItemIndex;
     speciesKey: string;
     presentation: Presentation | undefined;
+    /** Die eigene Figur des Charakters; `''`, solange sie lädt — dann blitzt keine Puppe auf. */
+    ownSrc?: string;
   } = $props();
 
-  let dollSrc = $state<string | null>(null);
+  let paperdoll = $state<string | null>(null);
   $effect(() => {
     let live = true;
     void resolveOriginArt(paperdollCandidates(speciesKey, presentation)).then((url) => {
-      if (live) dollSrc = url;
+      if (live) paperdoll = url;
     });
     return () => { live = false; };
   });
+  const dollSrc = $derived(ownSrc === undefined ? paperdoll : ownSrc || null);
 
   const fills = $derived(placeEquipment(figureLinesIn(itemIndex, inventory)));
 

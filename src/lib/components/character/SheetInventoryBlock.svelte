@@ -10,7 +10,7 @@
   import EquipmentFigure from './EquipmentFigure.svelte';
   import type { Character } from '../../schemas/characterSchema';
 
-  let { character, itemIndex }: { character: Character; itemIndex: ItemIndex } = $props();
+  let { character, itemIndex, figureUrl }: { character: Character; itemIndex: ItemIndex; figureUrl: string } = $props();
 
   const libOf = (line: { name: string; sourceKey?: string }) => matchItem(itemIndex, line);
 
@@ -37,7 +37,8 @@
     <div class="inv-layout">
       {#if character.inventory.some((i) => i.equipped)}
         <EquipmentFigure inventory={character.inventory} {itemIndex}
-          speciesKey={character.species.sourceKey} presentation={character.presentation} />
+          speciesKey={character.species.sourceKey} presentation={character.presentation}
+          ownSrc={character.figureFile ? figureUrl : undefined} />
       {/if}
       <div class="inv-main">
         <table class="inv-table">

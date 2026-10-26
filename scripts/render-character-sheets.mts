@@ -75,6 +75,7 @@ async function renderSheet(uid: string): Promise<{ file: string; label: string }
     character,
     portraitUrl: imageUrl(dir, character.portraitFile),
     companionImageUrl: imageUrl(dir, character.companion?.imageFile),
+    figureUrl: imageUrl(dir, character.figureFile),
     freetext: read(`${dir}/details.md`) ?? read(`${dir}/freitext.md`) ?? '',
     masteryOf: await masteryResolver(character),
   });

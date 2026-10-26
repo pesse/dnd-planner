@@ -10,6 +10,22 @@ const GM_NOTES_FALLBACK = `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbin
 
 let imageToken = 0;
 
+// Über das Asset-Protokoll statt als Base64 durch die IPC: ein Porträt sind schnell 3 MB,
+// die als ~4 MB langer String über die Bridge gingen. `?v=` erzwingt frische Bytes — ein
+// ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL.
+export function characterAssetUrl(dirPath: () => string, file: () => string | undefined): () => string {
+  let url = $state('');
+  $effect(() => {
+    const dir = dirPath();
+    const name = file();
+    if (!name) { url = ''; return; }
+    invoke<string>('get_absolute_path', { path: `${dir}/${name}` })
+      .then((abs) => { url = `${convertFileSrc(abs)}?v=${imageToken++}`; })
+      .catch(() => { url = ''; });
+  });
+  return () => url;
+}
+
 export interface CharacterSideFiles {
   readonly gmNotes: string;
   readonly details: string;
@@ -19,6 +35,7 @@ export interface CharacterSideFiles {
   readonly portraitUrl: string;
   /** Dasselbe für das Bild des Gefährten. */
   readonly companionImageUrl: string;
+  readonly figureUrl: string;
   onGmNotesChange(md: string): void;
   onDetailsChange(md: string): void;
 }
@@ -29,6 +46,7 @@ export function createCharacterSideFiles(deps: {
   characterName: () => string;
   portraitFile: () => string | undefined;
   companionImageFile: () => string | undefined;
+  figureFile: () => string | undefined;
 }): CharacterSideFiles {
   let gmNotes = $state('');
   let details = $state('');
@@ -43,24 +61,9 @@ export function createCharacterSideFiles(deps: {
     void load(dir);
   });
 
-  // Über das Asset-Protokoll statt als Base64 durch die IPC: ein Porträt sind schnell 3 MB,
-  // die als ~4 MB langer String über die Bridge gingen. `?v=` erzwingt frische Bytes — ein
-  // ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL.
-  function assetUrl(file: () => string | undefined): () => string {
-    let url = $state('');
-    $effect(() => {
-      const dir = deps.dirPath();
-      const name = file();
-      if (!name) { url = ''; return; }
-      invoke<string>('get_absolute_path', { path: `${dir}/${name}` })
-        .then((abs) => { url = `${convertFileSrc(abs)}?v=${imageToken++}`; })
-        .catch(() => { url = ''; });
-    });
-    return () => url;
-  }
-
-  const portraitUrl = assetUrl(deps.portraitFile);
-  const companionImageUrl = assetUrl(deps.companionImageFile);
+  const portraitUrl = characterAssetUrl(deps.dirPath, deps.portraitFile);
+  const companionImageUrl = characterAssetUrl(deps.dirPath, deps.companionImageFile);
+  const figureUrl = characterAssetUrl(deps.dirPath, deps.figureFile);
 
   async function load(dir: string) {
     gmNotes = await readOrCreateGmNotes(`${dir}/gm-notes.md`, deps.characterName());
@@ -77,6 +80,7 @@ export function createCharacterSideFiles(deps: {
     get detailsStatus() { return detailsSave.status; },
     get portraitUrl() { return portraitUrl(); },
     get companionImageUrl() { return companionImageUrl(); },
+    get figureUrl() { return figureUrl(); },
 
     onGmNotesChange(md) {
       gmNotes = md;
