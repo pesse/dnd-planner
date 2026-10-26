@@ -1,6 +1,7 @@
 /** Die Bild-Anbieter und ihre Einstellungen: Felder im localStorage, Tokens im OS-Keychain. */
 import { invoke } from '@tauri-apps/api/core';
-import type { GeneratedImage, ImageProvider } from './types';
+import { logDebug } from '../../stores/debug';
+import type { GeneratedImage, ImageOptions, ImageProvider } from './types';
 import { cloudflare } from './providers/cloudflare';
 import { openai } from './providers/openai';
 import { local } from './providers/local';
@@ -54,7 +55,11 @@ export function promptLimitError(p: ImageProvider, prompt: string): string | nul
     : null;
 }
 
-export interface ReadyProvider { generate(prompt: string): Promise<GeneratedImage>; }
+export interface ReadyProvider {
+  /** Ohne `maxReferences` sind Referenzbilder in `options` wirkungslos — der Aufrufer prüft das vorher. */
+  provider: ImageProvider;
+  generate(prompt: string, options?: ImageOptions, label?: string): Promise<GeneratedImage>;
+}
 
 /** `null`, solange ein Pflichtfeld oder der Token fehlt. */
 export async function readyProvider(p: ImageProvider): Promise<ReadyProvider | null> {
@@ -64,9 +69,31 @@ export async function readyProvider(p: ImageProvider): Promise<ReadyProvider | n
   const secret = await loadSecret(p);
   if (p.secret && !secret) return null;
   return {
-    generate: (prompt) => {
+    provider: p,
+    generate: (prompt, options, label = 'Portrait') => {
       const tooLong = promptLimitError(p, prompt);
-      return tooLong ? Promise.reject(new Error(tooLong)) : p.generate(settings, secret, prompt);
+      return tooLong ? Promise.reject(new Error(tooLong)) : loggedGenerate(p, settings, secret, prompt, options, label);
     },
   };
+}
+
+/** Das Bild selbst bleibt aus dem Log — der Store hält 100 Einträge, Base64 wären Megabytes. */
+async function loggedGenerate(
+  p: ImageProvider, settings: Record<string, string>, secret: string | null, prompt: string,
+  options: ImageOptions | undefined, label: string,
+): Promise<GeneratedImage> {
+  const meta = { provider: p.label, label };
+  const start = Date.now();
+  logDebug({ ...meta, type: 'request', data: p.request(settings, prompt, options) });
+  try {
+    const image = await p.generate(settings, secret, prompt, options);
+    logDebug({
+      ...meta, type: 'response', durationMs: Date.now() - start,
+      data: { ext: image.ext, kb: Math.round((image.b64.length * 3) / 4 / 1024), ...image.usage },
+    });
+    return image;
+  } catch (e) {
+    logDebug({ ...meta, type: 'error', data: String(e), durationMs: Date.now() - start });
+    throw e;
+  }
 }
