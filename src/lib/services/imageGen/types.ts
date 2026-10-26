@@ -1,4 +1,6 @@
 /** Gemeinsame Form der Bild-Anbieter; jeder liefert ein fertiges Bild als Base64. */
+import type { HelpTopicId } from '../../help/topics';
+
 export interface GeneratedImage {
   b64: string;
   ext: 'png' | 'jpg';
@@ -34,6 +36,8 @@ export interface ImageProvider {
   maxPromptChars?: number;
   /** Versteht deutsche Prompts selbst — dann braucht es keine Übersetzung vorab. */
   understandsGerman?: boolean;
+  /** Anleitung zum Einrichten des Zugangs. */
+  help?: HelpTopicId;
   /** Ohne Wert nimmt der Anbieter keine Referenzbilder, `ImageOptions.references` fällt weg. */
   maxReferences?: number;
   /** Was `generate` abschickt — das Debug-Log zeigt genau das, ohne Token und ohne Bilddaten. */

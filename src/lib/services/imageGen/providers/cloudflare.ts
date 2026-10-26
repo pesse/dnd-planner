@@ -31,6 +31,7 @@ export const cloudflare: ImageProvider = {
   secret: { keychain: 'cloudflare', placeholder: 'API-Token (Workers AI)' },
   maxPromptChars: 2048,
   maxReferences: 4,
+  help: 'cloudflarePortrait',
   request: (settings, prompt, options = {}) => ({
     url: `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(settings.accountId)}/ai/run/${MODEL}`,
     body: { prompt, width: options.width ?? WIDTH, height: options.height ?? HEIGHT },

@@ -27,6 +27,7 @@
   import type { PortraitTextKey } from '../../schemas/portraitTranslation';
   import { PRESENTATION_LABEL } from '../../domain/presentation';
   import { PRESENTATIONS } from '../../schemas/characterSchema';
+  import HelpButton from '../help/HelpButton.svelte';
   import PromptEditor from './PromptEditor.svelte';
 
   let { portrait, dirPath, portraitFile, disabled, onimage, onfigure }: {
@@ -249,6 +250,7 @@
         <select value={providerId} disabled={busy} onchange={(e) => selectProvider(e.currentTarget.value)}>
           {#each IMAGE_PROVIDERS as p (p.id)}<option value={p.id}>{p.label}</option>{/each}
         </select>
+        {#if provider.help}<HelpButton topic={provider.help} />{/if}
       </label>
     </div>
 
@@ -312,7 +314,10 @@
   {/if}
 
   {#if ready === null}
-    <div class="error-sm">{provider.label} ist nicht eingerichtet – in den KI-Einstellungen hinterlegen.</div>
+    <div class="error-sm">
+      {provider.label} ist nicht eingerichtet – in den KI-Einstellungen hinterlegen.
+      {#if provider.help}<HelpButton topic={provider.help} label="Anleitung" />{/if}
+    </div>
   {/if}
   {#if tab === 'figure' && !figureProvider}
     <div class="error-sm">{provider.label} kann keine Vorlagenbilder verarbeiten – für die Figur Cloudflare wählen.</div>

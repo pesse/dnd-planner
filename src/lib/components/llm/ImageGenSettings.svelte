@@ -4,6 +4,7 @@
     IMAGE_PROVIDERS, activeImageProvider, deleteSecret, hasSecret, imageProvider, saveProviderSettings,
     setActiveImageProvider, storedSettings,
   } from '../../services/imageGen/providers';
+  import HelpButton from '../help/HelpButton.svelte';
 
   let providerId = $state(activeImageProvider());
   const provider = $derived(imageProvider(providerId));
@@ -47,6 +48,7 @@
     <select id="img-provider" value={providerId} onchange={(e) => select(e.currentTarget.value)}>
       {#each IMAGE_PROVIDERS as p (p.id)}<option value={p.id}>{p.label}</option>{/each}
     </select>
+    {#if provider.help}<HelpButton topic={provider.help} />{/if}
   </div>
   {#each provider.fields as f (provider.id + f.key)}
     <div class="settings-row">
