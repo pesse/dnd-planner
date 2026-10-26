@@ -708,6 +708,13 @@
   gap: 0.3rem;
   align-items: center;
 }
+.edit-form .figure-note {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
 .edit-form .companion-grid textarea { height: 100%; min-height: 200px; }
 .edit-form .personal-fields {
   display: grid;

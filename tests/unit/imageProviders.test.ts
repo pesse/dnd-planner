@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { imageProvider, promptLimitError, readyProvider } from '../../src/lib/services/imageGen/providers';
 import { kleinNeurons } from '../../src/lib/services/imageGen/providers/cloudflare';
+import { defaultCrop } from '../../src/lib/services/imageGen/figureFromPortrait';
 
 function memoryStorage(): Storage {
   const m = new Map<string, string>();
@@ -98,6 +99,13 @@ describe('Anbieter-APIs', () => {
     expect(img).toEqual({ b64: 'JPEG', ext: 'jpg' });
     const init = fetch.mock.calls[0][1];
     expect(JSON.parse(init.body as string)).toMatchObject({ model: 'gpt-image-1', output_format: 'jpeg' });
+  });
+});
+
+describe('defaultCrop', () => {
+  it('nimmt ein Hochformat ganz, ein Querformat mittig als Quadrat in voller Höhe', () => {
+    expect(defaultCrop(1122, 1402)).toEqual({ x: 0, y: 0, width: 1122, height: 1402 });
+    expect(defaultCrop(1600, 1000)).toEqual({ x: 300, y: 0, width: 1000, height: 1000 });
   });
 });
 

@@ -5,14 +5,18 @@
    * zwei Felder im selben Ordner sich nicht überschreiben.
    */
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+  import { tick } from 'svelte';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import ImageGenerator from './ImageGenerator.svelte';
   import type { PortraitSource } from '../../services/imageGen/portraitPrompt';
+  import type { GeneratedImage } from '../../services/imageGen/types';
   import './form.css';
 
-  let { file = $bindable(), dirPath, baseName, label, diff, portrait }: {
+  let { file = $bindable(), figureFile = $bindable(), dirPath, baseName, label, diff, portrait }: {
     file: string;
+    /** Die aus dem Portrait gemalte Ganzkörperfigur; nur mit `portrait`. */
+    figureFile?: string;
     dirPath: string;
     /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
     baseName: string;
@@ -63,6 +67,15 @@
     preview = `data:${ext === 'png' ? 'image/png' : 'image/jpeg'};base64,${b64}`;
   }
 
+  async function storeFigure(img: GeneratedImage) {
+    const name = `figure.${img.ext}`;
+    await invoke('write_file_base64', { path: `${dirPath}/${name}`, data: img.b64 });
+    // Derselbe Name wie vorher lädt sonst die alte Figur nicht neu (`characterAssetUrl`).
+    figureFile = '';
+    await tick();
+    figureFile = name;
+  }
+
   function clear() {
     file = '';
     preview = '';
@@ -83,8 +96,15 @@
       <button class="remove-btn" onclick={clear} title="Bild-Verknüpfung entfernen">✕</button>
     {/if}
     {#if portrait}
-      <ImageGenerator {portrait} disabled={busy} onimage={(img) => store(img.b64, img.ext)} />
+      <ImageGenerator {portrait} {dirPath} portraitFile={file} disabled={busy}
+        onimage={(img) => store(img.b64, img.ext)} onfigure={storeFigure} />
     {/if}
   </div>
+  {#if figureFile}
+    <div class="figure-note">
+      Eigene Figur im Inventar
+      <button class="remove-btn" onclick={() => { figureFile = ''; }} title="Wieder die Gliederpuppe zeigen">✕</button>
+    </div>
+  {/if}
   {#if error}<div class="error-sm">{error}</div>{/if}
 </div>
