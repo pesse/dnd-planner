@@ -17,7 +17,7 @@
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, abilities, hpTipHtml, acTipHtml, attackCtx }: {
+        companionImageUrl, figureUrl, abilities, hpTipHtml, acTipHtml, attackCtx }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -25,6 +25,7 @@
     masteryOf: (name: string) => WeaponMastery | undefined;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
     companionImageUrl: string;
+    figureUrl: string;
     abilities: Record<AbilityKey, AbilityResolution>;
     hpTipHtml: string;
     acTipHtml: string;
@@ -133,7 +134,7 @@
   <!-- Merkmale stehen in der rechten Seitenleiste (CharacterFeaturePanel) — auf
        jedem Tab sichtbar und dort auch änderbar. -->
 
-  <SheetInventoryBlock {character} {itemIndex} />
+  <SheetInventoryBlock {character} {itemIndex} {figureUrl} />
   <SheetSpellBlock characterName={character.name} casting={spellcasting} {spellIndex} />
 </div>
 

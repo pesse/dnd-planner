@@ -72,6 +72,7 @@ export interface PrintDataInput {
   character: Character;
   portraitUrl?: string;
   companionImageUrl?: string;
+  figureUrl?: string;
   freetext?: string;
   /** Derselbe Resolver, der die Meisterschaft auf dem Bildschirm-Bogen zeichnet. */
   masteryOf?: (attackName: string) => string | undefined;
@@ -132,7 +133,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(cardItemInfos(c), [] as ItemInfo[]),
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
     safe(loadDeclaredAttackEffects(c), undefined),
-    safe(loadPrintFigure(c), null),
+    safe(loadPrintFigure(c, input.figureUrl), null),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe

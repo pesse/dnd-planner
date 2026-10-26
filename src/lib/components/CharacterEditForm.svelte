@@ -17,6 +17,7 @@
   import { hpTip } from '../services/characterSheetTips';
   import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
+  import { characterAssetUrl } from '../services/characterSideFiles.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
@@ -62,6 +63,7 @@
   const mirror = createCharacterFormState(() => character, () =>
     abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared } : null);
   const form = mirror.fields;
+  const figureUrl = characterAssetUrl(() => dirPath, () => form.figureFile);
 
   const abilities = createCharacterAbilities(() => form, () => libs);
   const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features }));
@@ -363,7 +365,7 @@
   <section>
     <h3>Persönliches</h3>
     <div class="personal-grid">
-      <ImageField bind:file={form.portraitFile} {dirPath} baseName="portrait" label="Portrait"
+      <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} {dirPath} baseName="portrait" label="Portrait"
         diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
       <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
     </div>
@@ -395,7 +397,8 @@
     <h3>Inventar</h3>
     <div class="inv-layout">
       <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
-        speciesKey={form.species.sourceKey} presentation={form.presentation || undefined} />
+        speciesKey={form.species.sourceKey} presentation={form.presentation || undefined}
+        ownSrc={form.figureFile ? figureUrl() : undefined} />
       <div class="inv-main">
         <InventoryTable
           inventory={form.inventory}

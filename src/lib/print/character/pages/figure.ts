@@ -20,13 +20,13 @@ export interface PrintFigure {
   quips: Map<EquipmentSlot, string>;
 }
 
-export async function loadPrintFigure(c: Character): Promise<PrintFigure | null> {
+export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintFigure | null> {
   if (!c.inventory?.some((e) => e.equipped)) return null;
   const fills = placeEquipment(figureLinesIn(buildItemIndex(await getAllItemsByDir()), c.inventory));
   const keys = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => p.item.key ?? '')).filter(Boolean))];
   const found = await Promise.all(keys.map(async (k) => [k, await resolveOriginArt([itemKeyArtUrl(k) ?? ''])] as const));
   return {
-    dollUrl: (await resolveOriginArt(paperdollCandidates(c.species.sourceKey, c.presentation))) ?? '',
+    dollUrl: ownUrl || ((await resolveOriginArt(paperdollCandidates(c.species.sourceKey, c.presentation))) ?? ''),
     fills,
     art: new Map(found.filter((e): e is [string, string] => !!e[1])),
     quips: equipmentQuips(fills),

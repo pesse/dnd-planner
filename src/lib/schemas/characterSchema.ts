@@ -312,6 +312,7 @@ export const characterSchema = z.object({
     .default([])
     .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
+  figureFile: z.string().optional().describe('Eigene Ganzkörperfigur im Charakter-Ordner; ersetzt die Gliederpuppe im Inventar.'),
   presentation: z
     .enum(PRESENTATIONS)
     .optional()
