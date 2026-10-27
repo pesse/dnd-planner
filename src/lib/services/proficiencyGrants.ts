@@ -230,6 +230,8 @@ async function addSpeciesGrants(out: CollectedGrants, keys: (string | undefined)
     const spec = await getSpeciesByKey(key);
     if (!spec) continue;
     const specName = spec.nameDe || spec.name || key;
+    // Ungegatet: `GrantInput` trägt keine Charakterstufe. Wirkungslos, solange kein Trait mit
+    // `gainedAt` auch `grants.proficiencies` deklariert — sonst gälte die Übung ab Stufe 1.
     for (const trait of spec.traits)
       addGrant(out, trait.grants?.proficiencies, {
         label: `${specName}: ${trait.nameDe || trait.name}`,

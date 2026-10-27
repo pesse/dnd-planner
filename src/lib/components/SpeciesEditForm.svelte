@@ -28,6 +28,11 @@
     onchange();
   }
 
+  function setGainedAt(trait: Trait, raw: string) {
+    const n = parseInt(raw);
+    trait.gainedAt = Number.isNaN(n) || n <= 1 ? undefined : Math.min(n, 20);
+    onchange();
+  }
 </script>
 
 <!-- Grunddaten -->
@@ -51,6 +56,16 @@
     <FeatureRow bind:nameDe={trait.nameDe} bind:name={trait.name}
       namePlaceholder="Merkmal (DE)" removeTitle="Merkmal entfernen"
       onchange={mark} onremove={() => removeTrait(i)}>
+      {#snippet trail()}
+        <input
+          class="ef feat-levels"
+          type="number" min="1" max="20"
+          value={trait.gainedAt ?? ''}
+          oninput={(e) => setGainedAt(trait, (e.target as HTMLInputElement).value)}
+          placeholder="ab Stufe"
+          title="Charakterstufe, ab der das Merkmal gilt — leer = ab Stufe 1"
+        />
+      {/snippet}
       <textarea class="ef feat-desc" rows={3} bind:value={trait.descDe} oninput={mark} placeholder="Beschreibung (DE)"></textarea>
       {#if trait.desc}
         <OriginalText text={trait.desc} />
@@ -65,4 +80,5 @@
 
 <style>
   .med { width: 130px; }
+  .feat-levels { width: 80px; text-align: center; font-size: 0.8rem; }
 </style>

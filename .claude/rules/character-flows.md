@@ -26,6 +26,13 @@ drifted apart. A second call site is the mistake, not a missing feature.
   CLASS level, trait/feat → CHARACTER level (the elf lineage table 1/3/5 hangs on it). In a
   multiclass those differ, which is why `declaredSpellGrants` is called twice
   (`declaredSpells` vs `charLevelSpells`) instead of over one merged list.
+- **A species trait can be gated by CHARACTER level** (`traitSchema.gainedAt`, Draconic Flight
+  at 5). Every read that decides what a character HAS goes through `traitsUpTo`/`traitsBetween`
+  (`services/traitLevel.ts`) — which is why `resolveSpeciesTraits` and
+  `declaredSpeciesFeatures` take a required `charLevel`. The level-up picks newly reached traits
+  up in `base-delta`; their sheet line goes to `personal.rassenmerkmale` via `speciesTraitsText`,
+  split off by `forClassFeaturesField` — never into the class features text.
+  `proficiencyGrants.collectGrants` is still ungated (no level in `GrantInput`).
 - **Both flows carry ONE tagged list** (`FeaturePrep.declared`, `declaredSources`) and filter it
   by declaration kind, never by origin.
 - **A declaration that leaves the AI input owes the sheet its line.** The moment a feature is

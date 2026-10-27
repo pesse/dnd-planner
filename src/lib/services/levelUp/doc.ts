@@ -12,6 +12,7 @@ import type { FeatureGrant } from '../../schemas/grants';
 import type { SpellGrantSource } from '../grantedSpells';
 import type { OptionPoolOffer } from '../declaration/optionPool';
 import type { OptionPick } from '../../schemas/characterSchema';
+import type { Trait } from '../../schemas/species';
 import { answerValues } from './answers';
 import { stepReached, type StepId } from './steps';
 import type { LevelUpStyleOffer } from './featUnlocks';
@@ -28,6 +29,8 @@ import {
   riderChanges,
   riderGrantChanges,
   subclassChanges,
+  speciesTraitChanges,
+  speciesTraitsTextChanges,
   STEP_ORDER,
 } from './changes';
 import { hitPointChanges, type HpBefore } from './hitPoints';
@@ -38,6 +41,10 @@ export interface DocInput {
   hitDice: string;
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];            // NUR die Subklassen-Merkmale (für Info-Einträge)
+  /** Speziesmerkmale, deren Charakterstufe dieser Aufstieg erreicht. */
+  speciesTraits: Trait[];
+  /** Ihre Bogenzeilen — sie gehen in die Volksmerkmale, nicht in `featuresText`. */
+  speciesNotes: string[];
   /** Deterministisch gelesene, immer-vorbereitete Zauberlisten (Kreissprüche, Domäne …). */
   declaredSpells: DeclaredSpells;
   /**
@@ -110,9 +117,11 @@ export function buildDoc(p: DocInput): LevelUpDoc {
   const gainedAtByKey = new Map<string, number>();
   for (const f of [...p.gainedFeatures, ...p.subFeatures]) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
   for (const f of p.chosenFeats) if (f.key) gainedAtByKey.set(f.key, f.gainedAt);
+  for (const t of p.speciesTraits) if (t.key) gainedAtByKey.set(t.key, t.gainedAt ?? 1);
 
   const changes: Change[] = [
     ...baseDeltaChanges(p.delta, p.hitDice, pins),
+    ...speciesTraitChanges(p.speciesTraits, pins),
     ...subclassChanges(p.chosenSubclass, p.subFeatures, pins),
     ...optionPoolChanges(p.optionPools, p.optionPicks, p.optionPicksBefore),
     ...declaredSpellChanges(p.declaredSpells),
@@ -131,6 +140,7 @@ export function buildDoc(p: DocInput): LevelUpDoc {
     ...declaredGrantChanges(p.chosenFeats, { step: 'feat-effects', source: 'feat' }),
     ...featureChoiceChanges(p.featChoiceQs, p.answers, gainedAtByKey, p.delta.toLevel, 'feat-effects', nameOf),
     ...featureSpellChanges(p.featChoiceQs, p.answers, 'feat-effects', p.spellOf),
+    ...speciesTraitsTextChanges(p.speciesNotes),
     ...classFeaturesChanges(p.featuresText),
   ];
   // Die TP brauchen den KON-Endstand, also alle übrigen Änderungen.

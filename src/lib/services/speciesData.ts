@@ -30,7 +30,8 @@ export function mapV2Species(raw: Record<string, unknown>): Species {
   // Open5e liefert keine Trait-Keys; ohne einen deterministischen wären Merkmale nicht
   // stabil referenzierbar (pro-Stufe-Effekte, Deklarationen).
   const traits: Trait[] = rawTraits.map((t) => {
-    // Nur die Fertigkeitsübung ist aus der Prosa modellierbar, der Rest bleibt Text.
+    // Nur die Fertigkeitsübung ist aus der Prosa modellierbar, der Rest bleibt Text. Auch
+    // `gainedAt` fehlt in v2 — ein Re-Import muss es aus dem Vault erhalten (Drachenflug 5).
     const skills = parseProseSkillGrant(t.desc ?? '');
     return {
       key: t.key || (specKey && t.name ? `${specKey}_${slugAscii(t.name)}` : ''),

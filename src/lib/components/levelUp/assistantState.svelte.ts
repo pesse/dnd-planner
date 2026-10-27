@@ -33,7 +33,7 @@ export interface SpellCreatorState {
   levels: number[];
 }
 
-export interface NewFeature { id: string; key: string; name: string; text: string; subclass: boolean }
+export interface NewFeature { id: string; key: string; name: string; text: string; badge: '' | 'Unterklasse' | 'Volk' }
 
 export class LevelUpAssistantUi {
   #run: LevelUpRun;
@@ -342,15 +342,18 @@ export class LevelUpAssistantUi {
     if (!d) return [];
     const seen = new Set<string>();
     const out: NewFeature[] = [];
-    const add = (f: { key?: string; name: string; nameDe?: string; desc?: string; descDe?: string }, subclass: boolean) => {
+    const add = (f: { key?: string; name: string; nameDe?: string; desc?: string; descDe?: string }, badge: NewFeature['badge']) => {
       const id = f.key || f.name;
       if (seen.has(id)) return;
       seen.add(id);
-      out.push({ id, key: f.key ?? '', name: f.nameDe || f.name, text: f.descDe || f.desc || '', subclass });
+      out.push({ id, key: f.key ?? '', name: f.nameDe || f.name, text: f.descDe || f.desc || '', badge });
     };
-    d.featuresGained.forEach((f) => add(f, false));
-    d.subclassFeaturesGained.forEach((f) => add(f, true));
-    if (!this.#atClassChoice) this.st.subFeatures.forEach((f) => add(f, true));
+    d.featuresGained.forEach((f) => add(f, ''));
+    d.subclassFeaturesGained.forEach((f) => add(f, 'Unterklasse'));
+    if (!this.#atClassChoice) {
+      this.st.subFeatures.forEach((f) => add(f, 'Unterklasse'));
+      this.st.speciesTraits.forEach((t) => add(t, 'Volk'));
+    }
     return out;
   });
 

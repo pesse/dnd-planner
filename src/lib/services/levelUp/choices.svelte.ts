@@ -6,7 +6,7 @@ import { buildFeatureChoices } from './questions';
 import type { ChosenFeat } from './features';
 import { answerValues, hasAnswer } from './answers';
 import { featureNote, type FeatureNote } from '../featureText';
-import { declaredFeatures, type DeclaredFeature } from '../declaredFeature';
+import { declaredFeatures, forClassFeaturesField, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
 import { skillProficiencyChoices } from '../declaration/skillProficiency';
 import { languageChoices } from '../declaration/languages';
@@ -19,6 +19,7 @@ import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '..
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { LevelUpDelta } from '../levelUp';
 import type { Character } from '../../schemas/characterSchema';
+import type { Trait } from '../../schemas/species';
 import type { LevelUpQuestion } from '../../schemas/levelUp';
 
 export interface ChoiceSources {
@@ -26,6 +27,8 @@ export interface ChoiceSources {
   /** Nachgeladene Subklassen-Merkmale einer JETZT getroffenen Subklassen-Wahl. */
   subFeatures: GainedFeature[];
   chosenFeats: ChosenFeat[];
+  /** Speziesmerkmale, die erst dieser Aufstieg freischaltet. */
+  speciesTraits: Trait[];
   /**
    * Geladen statt abgeleitet, beide Seiten gleich: der Zugang eines Klassenmerkmals hängt an
    * der ganzen Progression (auch längst erworbene Kontingente wachsen), der eines Talents am
@@ -44,13 +47,15 @@ export function createLevelUpChoices(src: ChoiceSources) {
    * Alle Merkmale dieses Aufstiegs mit Herkunft — die eine Quelle jeder Deklaration.
    * `subFeatures` gehört dazu, weil bei einer JETZT getroffenen Subklassen-Wahl nur dort
    * Merkmale stehen (`delta.subclassFeaturesGained` ist dann leer); überschneiden können sich
-   * die beiden nicht. Speziesmerkmale NICHT: ihre Wahl ist im Wizard gefallen.
+   * die beiden nicht. Speziesmerkmale nur, soweit sie erst jetzt einsetzen — die übrigen
+   * hat der Wizard abgearbeitet.
    */
   const declaredSources = $derived<DeclaredFeature[]>(
     src.delta
       ? [
           ...declaredFeatures('class', src.delta.featuresGained),
           ...declaredFeatures('subclass', [...src.delta.subclassFeaturesGained, ...src.subFeatures]),
+          ...declaredFeatures('species', src.speciesTraits),
           ...declaredFeatures('feat', src.chosenFeats),
         ]
       : [],
@@ -61,6 +66,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const featDeclared = $derived(declaredSources.filter((f) => f.source === 'feat'));
 
   const declaredOptionFeatures = $derived(baseDeclared.filter(isOptionListFeature));
+  /** Die Bogenzeilen der Zweigwahlen fürs Klassenmerkmale-Feld — ohne Speziesmerkmale. */
+  const classOptionFeatures = $derived(declaredOptionFeatures.filter(forClassFeaturesField));
   const baseOptionAnalysis = $derived(optionListChoices(declaredOptionFeatures));
 
   // Die Expertise-Optionen kommen aus dem BOGEN (deutsche Schlüssel → englische SRD-Namen),
@@ -78,8 +85,8 @@ export function createLevelUpChoices(src: ChoiceSources) {
     grants.flatMap((g) => spellAccessChoices(g, (src.answers[spellListChoiceId(g)] as string) ?? ''));
   const baseAccessAnalysis = $derived.by(() => accessAnalysis(src.baseAccess));
   const featAccessAnalysis = $derived.by(() => accessAnalysis(src.featAccess));
-  // Heute ohne Vault-Fall (die Spezies steht auf Stufe 1 fest), trotzdem aus derselben Liste:
-  // ein Talent, das eine Grundeigenschaft zur Wahl stellt, verlöre sie sonst still.
+  // Heute ohne Vault-Fall, trotzdem aus derselben Liste: ein Talent oder spätes Speziesmerkmal,
+  // das eine Grundeigenschaft zur Wahl stellt, verlöre sie sonst still.
   const basePropertyAnalysis = $derived(characterPropertyChoices(baseDeclared));
 
   const baseOptionChoices = $derived(buildFeatureChoices(baseOptionAnalysis));
@@ -145,6 +152,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseDeclared() { return baseDeclared; },
     get featDeclared() { return featDeclared; },
     get declaredOptionFeatures() { return declaredOptionFeatures; },
+    get classOptionFeatures() { return classOptionFeatures; },
     get baseAccess() { return src.baseAccess; },
     get baseOptionChoices() { return baseOptionChoices; },
     get baseExpertiseChoices() { return baseExpertiseChoices; },

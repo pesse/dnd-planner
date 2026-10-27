@@ -4,6 +4,7 @@
  * Aufbau sonst abschreiben — und würde vom echten Wizard-Eingang wegdriften.
  */
 import { getProgressionByKey, featuresUpTo } from '../classProgression';
+import { traitsUpTo } from '../traitLevel';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import type { Trait } from '$lib/schemas/species';
@@ -179,7 +180,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     if (picked) gained.push(picked);
   }
 
-  const traits = spec?.traits ?? [];
+  const traits = traitsUpTo(spec?.traits ?? [], 1);
   const declared = declaredSources(prog, sub, traits, gained);
   const spellAccess = spellAccessGrants(declared, bg);
   const speciesFeatures = traitFeatures(traits);

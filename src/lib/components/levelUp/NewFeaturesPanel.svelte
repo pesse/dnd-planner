@@ -19,7 +19,7 @@
     <div class="new-features">
       {#each ui.newFeatures as f (f.id)}
         <article class="new-feature">
-          <h4>{f.name}{#if f.subclass}<span class="badge">Unterklasse</span>{/if}<span class="pin"><PinToggle {pins} featureKey={f.key} /></span></h4>
+          <h4>{f.name}{#if f.badge}<span class="badge">{f.badge}</span>{/if}<span class="pin"><PinToggle {pins} featureKey={f.key} /></span></h4>
           {#if f.text}<Markdown source={f.text} />{/if}
         </article>
       {/each}

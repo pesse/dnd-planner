@@ -7,9 +7,10 @@ import { hpPerLevelSources as computeHpPerLevel, hpPerLevelSum, type PerLevelFea
 import { declaredSpeciesFeatures } from '../characterFeatures';
 import { maxDiceTotal, ownedGrantFeatures } from '../hitPoints';
 import { validateRiderSpells, resolveDeclaredSpells, resolveSpellNames } from './spells';
-import { featToGainedFeature } from './features';
+import { featToGainedFeature, speciesNoteFeatures } from './features';
 import { buildDecisions } from './questions';
 import { featureChoiceChanges } from './changes';
+import { forClassFeaturesField } from '../declaredFeature';
 import { featUnlocks } from './featUnlocks';
 import { fightingStyleOptions } from '../fightingStyle';
 import { featInstances } from '../declaration/featInstances';
@@ -233,16 +234,24 @@ export function createRunSteps(ctx: RunStepsDeps) {
   function runNotes() {
     // Merkmale, deren gewählter Zweig nichts deklariert, kommen hier dazu: mechanisch ist
     // nichts von ihnen zu holen, ihre Prosa braucht trotzdem eine Zeile.
+    const unredacted = unredactedOf(choices.baseDeclared);
     const features = [
-      ...featuresFor('base'), ...unredactedOf(choices.baseDeclared),
+      ...featuresFor('base'), ...unredacted.filter(forClassFeaturesField),
       ...featuresFor('feat'), ...unredactedOf(choices.featDeclared),
     ];
     st.notes = fallbackSheetNotes(features);
+    st.speciesNotes = fallbackSheetNotes([
+      ...speciesNoteFeatures(st.speciesTraits), ...unredacted.filter((f) => !forClassFeaturesField(f)),
+    ]);
     st.summaryLine = summaryLine();
   }
 
   function summaryLine(): string {
-    const names = [...st.gainedFeatures.map((f) => f.nameDe || f.name), ...st.chosenFeats.map((f) => f.nameDe)];
+    const names = [
+      ...st.gainedFeatures.map((f) => f.nameDe || f.name),
+      ...st.speciesTraits.map((t) => t.nameDe || t.name),
+      ...st.chosenFeats.map((f) => f.nameDe),
+    ];
     const sub = st.chosenSubclass ? ` · Subklasse: ${st.chosenSubclass.name}` : '';
     return `${st.delta!.klasseName} Stufe ${st.delta!.fromLevel} → ${st.delta!.toLevel}${sub}${names.length ? ` · ${names.join(', ')}` : ''}`;
   }
@@ -251,7 +260,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     [
       ctx.character.classFeatures,
       ...sheetNoteLines(st.notes),
-      ...optionListNoteLines(choices.declaredOptionFeatures, (id) => choices.optionAnswer(id)),
+      ...optionListNoteLines(choices.classOptionFeatures, (id) => choices.optionAnswer(id)),
       ...spellAccessNoteLines(choices.baseAccess, st.answers),
       ...spellAccessNoteLines(st.featAccess, st.answers),
       ...st.gaps,
@@ -266,7 +275,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
    */
   async function resolveCharLevelSpells() {
     const charLevel = newCharLevel();
-    const species = await declaredSpeciesFeatures(ctx.character.species);
+    const species = await declaredSpeciesFeatures(ctx.character.species, charLevel);
     const sources = [...species, ...choices.featDeclared];
     const lib = await ensureSpellLib();
     // Dazu die Zeilen einer bei der ERSCHAFFUNG getroffenen Zweigwahl (Elfenabstammung 3/5):
@@ -288,7 +297,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     try {
       const owned = await ownedGrantFeatures(ctx.character);
       const maxDice = await maxDiceTotal(ctx.character.classes);
-      const gained: PerLevelFeature[] = [...st.gainedFeatures, ...st.chosenFeats]
+      const gained: PerLevelFeature[] = [...st.gainedFeatures, ...st.speciesTraits, ...st.chosenFeats]
         .map((f) => ({ key: f.key ?? '', name: f.name, grants: f.grants }));
       if (!alive()) return;
       st.hpMaxDiceBefore = maxDice;

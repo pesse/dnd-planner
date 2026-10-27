@@ -178,15 +178,15 @@ export async function collectChoiceSlots(c: {
   const charLevel = totalLevel(c.classes ?? []) || 1;
   const [cls, species, feats] = await Promise.all([
     declaredClassFeatures(c.classes ?? []),
-    declaredSpeciesFeatures(c.species),
+    declaredSpeciesFeatures(c.species, charLevel),
     declaredFeatFeatures(c.features, c.backgroundRef, charLevel),
   ]);
   const speciesGroup = c.species?.name?.trim() || 'Volk';
   const sources: DeclaredSlotSource[] = [
     ...cls,
-    // Ein Volksmerkmal wird auf Stufe 1 erlangt und liest seine Zauber-Zeilen an der
-    // CHARAKTERstufe (Elfenabstammung 1/3/5) — nicht an der einer Klasse.
-    ...species.map((feature) => ({ feature, group: speciesGroup, gainedAt: [1], level: charLevel })),
+    // Ein Volksmerkmal liest Vergabe- und Zauber-Stufe an der CHARAKTERstufe
+    // (Elfenabstammung 1/3/5) — nicht an der einer Klasse.
+    ...species.map((feature) => ({ feature, group: speciesGroup, gainedAt: [feature.gainedAt ?? 1], level: charLevel })),
     ...feats,
   ];
 

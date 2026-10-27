@@ -19,6 +19,7 @@ import { ABILITY_KEYS, ABILITY_LABEL, type AbilityKey, type AbilityName } from '
 import { readAbilityName } from '../../schemas/vocabulary';
 import type { FeatureGrant } from '../../schemas/grants';
 import type { OptionPick } from '../../schemas/characterSchema';
+import type { Trait } from '../../schemas/species';
 import type { Change, FeatureRider, LevelUpQuestion, RiderProficiencies } from '../../schemas/levelUp';
 import type { AnalysisChoice, GainedFeature } from '../analysis/types';
 import type { SpellGrantSource } from '../grantedSpells';
@@ -316,4 +317,17 @@ export function featureChoiceChanges(
 export function classFeaturesChanges(text: string): Change[] {
   if (!text?.trim()) return [];
   return [{ target: 'classFeaturesText', mode: 'replace', value: text, step: 'class-features', source: 'ai', label: 'Bogentext der Klassenmerkmale ergänzt' }];
+}
+
+/** Neue Speziesmerkmale als Merkmal-Link, damit sie wie Klassenmerkmale angeheftet werden können. */
+export function speciesTraitChanges(traits: readonly Trait[], pins: ReadonlySet<string> = new Set()): Change[] {
+  return traits.map((t) => ({
+    target: 'featureGained', name: t.name, sourceKey: t.key, pinned: pins.has(t.key),
+    step: 'base-delta', source: 'species', label: `Neues Volksmerkmal: ${t.nameDe || t.name}`,
+  }));
+}
+
+export function speciesTraitsTextChanges(lines: readonly string[]): Change[] {
+  if (!lines.length) return [];
+  return [{ target: 'speciesTraitsText', value: lines.join('\n'), step: 'class-features', source: 'species', label: 'Bogentext der Volksmerkmale ergänzt' }];
 }

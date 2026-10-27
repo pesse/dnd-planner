@@ -26,6 +26,9 @@ export const traitSchema = z.object({
   desc: z.string().default(''),
   descDe: z.string().optional(),
   sheetValue: z.enum(SHEET_VALUE_TRAITS).optional().describe('Reiner Bogenwert — geht nicht in die Deutung.'),
+  gainedAt: z
+    .number().int().min(1).max(20).optional()
+    .describe('CHARAKTERstufe, ab der das Merkmal gilt; fehlt = ab Stufe 1. Ein skalierendes Merkmal (Odemwaffe) trägt es nicht.'),
   // Die Abstammungen (Gnom, Elf, Drache) sind bewusst NICHT redigiert: zweite Wahl in
   // derselben Prosa bzw. Eingang für den Text anderer Merkmale.
   ...featureDeclarationFields,

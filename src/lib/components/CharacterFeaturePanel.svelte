@@ -14,6 +14,7 @@
     type ResolvedFeatureGroup,
   } from '../services/characterFeatures';
   import { createFeatureLedger, featLinkRows } from '../services/featureLedger';
+  import { characterLevel } from '../services/declaration/carriers';
   import { createFeaturePins } from '../services/featurePins';
   import type { CoverageBadge } from '../services/declarationCoverage';
   import { createCollapsibleSections } from '../utils/collapsibleSections.svelte';
@@ -70,7 +71,7 @@
     void (async () => {
       const [cls, spec, bg, declared] = await Promise.all([
         resolveClassFeatures(c.classes ?? []),
-        resolveSpeciesTraits(c.species),
+        resolveSpeciesTraits(c.species, characterLevel(c.classes)),
         resolveBackground(c.backgroundRef),
         collectChoiceSlots(c),
       ]);

@@ -10,6 +10,11 @@ import { declarationOf, type DeclarationFields } from '../declaredFeature';
 import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpells';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import type { ClassFeature } from '../../schemas/classProgression';
+import type { CharacterSpecies } from '../../schemas/characterSchema';
+import type { Trait } from '../../schemas/species';
+import { getSpeciesByKey } from '../../speciesLibrary';
+import { traitsBetween } from '../traitLevel';
+import { withoutSheetValueTraits } from '../sheetValueTraits';
 import type { GainedFeature } from '../analysis/types';
 import type { FeatCategory } from '../../schemas/vocabulary';
 
@@ -125,4 +130,32 @@ export function featToGainedFeature(
     ...declarationOf(f),
     ...(f.key ? { key: f.key } : {}),
   };
+}
+
+/** Volk und Unter-Volk, halboffen `(fromCharLevel, toCharLevel]` — CHARAKTER-, nicht Klassenstufe. */
+export async function speciesTraitsGained(
+  species: CharacterSpecies | undefined,
+  fromCharLevel: number,
+  toCharLevel: number,
+): Promise<Trait[]> {
+  const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
+  const specs = await Promise.all(keys.map((k) => getSpeciesByKey(k)));
+  return specs.flatMap((spec) => (spec ? traitsBetween(spec.traits, fromCharLevel, toCharLevel) : []));
+}
+
+/**
+ * Der Notiz-Eingang der Speziesmerkmale: ohne Bogenwerte und ohne deklarierte Wahlen — wie
+ * im Wizard, dessen Volksmerkmale-Text dieselben Merkmale auslässt.
+ */
+export function speciesNoteFeatures(traits: readonly Trait[]): GainedFeature[] {
+  return withoutDeclaredChoiceFeatures(withoutSheetValueTraits([...traits])).map((t) => ({
+    name: t.name || t.nameDe || '',
+    nameDe: t.nameDe || t.name,
+    desc: t.desc || t.descDe || '',
+    descDe: t.descDe,
+    source: 'species',
+    key: t.key,
+    gainedAt: t.gainedAt ?? 1,
+    ...declarationOf(t),
+  }));
 }

@@ -164,6 +164,12 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
       : [next.classFeatures, c.value].filter((s) => s && s.trim()).join('\n');
   },
 
+  speciesTraitsText: (c, next) => {
+    const have = next.personal.rassenmerkmale.split('\n').map((l) => l.trim());
+    const fresh = c.value.split('\n').map((l) => l.trim()).filter((l) => l && !have.includes(l));
+    next.personal.rassenmerkmale = [next.personal.rassenmerkmale, ...fresh].filter((s) => s.trim()).join('\n');
+  },
+
   /**
    * Upsert über (Merkmal, Stufe, FRAGE): dieselbe Stufe erneut zu durchlaufen ersetzt den
    * Eintrag, eine zweite Vergabe desselben Merkmals (Expertise 1 und 6) und eine zweite Frage

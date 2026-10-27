@@ -7,10 +7,14 @@ import { computeLevelUpDelta, type LevelUpDelta } from '../levelUp';
 import { resolvePastChoices } from '../characterFeatures';
 import { type StepId, type AdvanceCtx, isCheckpoint, advance, plannedCheckpoints } from './steps';
 import { resolveDeclaredSpells, noDeclaredSpells } from './spells';
-import { classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForFlow } from './features';
+import {
+  classAccessGrants, gainedFeaturesFor, computeSubclassFeatures, subclassFeaturesForFlow, speciesTraitsGained,
+} from './features';
+import { totalLevel } from '../../schemas/classLevelText';
 import { countFeatsToPick } from './questions';
 import { slotTotal } from './featUnlocks';
 import { buildDoc } from './doc';
+import { sheetNoteLines } from './sheetNotes';
 import { createLevelUpChoices } from './choices.svelte';
 import { createLevelUpKnownSpells } from './knownSpells.svelte';
 import { createRunSteps } from './runSteps';
@@ -35,6 +39,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get delta() { return st.delta; },
     get subFeatures() { return st.subFeatures; },
     get chosenFeats() { return st.chosenFeats; },
+    get speciesTraits() { return st.speciesTraits; },
     get baseAccess() { return st.baseAccess; },
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
@@ -68,6 +73,12 @@ export function createLevelUpRun(ctx: { character: Character }) {
     st, choices, pushStep, ensureSpellLib,
     get character() { return ctx.character; },
   });
+
+  /** Die CHARAKTERstufe vor und nach dem Aufstieg — an ihr hängen die Speziesmerkmale. */
+  function charLevelSpan(d: LevelUpDelta): [number, number] {
+    const from = totalLevel(ctx.character.classes);
+    return [from, from + (d.toLevel - d.fromLevel)];
+  }
 
   function summarizeDelta(d: LevelUpDelta): string {
     const parts = [`${d.klasseName || 'Klasse'} ${d.fromLevel} → ${d.toLevel}`];
@@ -125,6 +136,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       case 'base-delta':
         st.gainedFeatures = gainedFeaturesFor(st.delta!);
         st.baseAccess = await classAccessGrants(st.delta!);
+        st.speciesTraits = await speciesTraitsGained(ctx.character.species, ...charLevelSpan(st.delta!));
         // Schon bekannte Subklasse: ihre Merkmale stehen bereits im Delta. Wird die Subklasse
         // erst in diesem Aufstieg gewählt, ergänzt `subclass-delta` unten.
         st.declaredSpells = resolveDeclaredSpells(
@@ -223,6 +235,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     return buildDoc({
       delta: st.delta, hitDice: ctx.character.hitDice ?? '',
       chosenSubclass: st.chosenSubclass, subFeatures: st.subFeatures, declaredSpells: st.declaredSpells,
+      speciesTraits: st.speciesTraits, speciesNotes: sheetNoteLines(st.speciesNotes),
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
       answers: st.answers,
       hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, conScore: ctx.character.abilities.con, abilityEffects: st.abilityEffects, maxDice: st.hpMaxDiceBefore },
@@ -249,10 +262,10 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
     start(classIndex: number, targetLevel: number, newClass?: { sourceKey: string; name: string }) {
       if (st.run.kind === 'running') return;
-      st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.riders = []; st.decisions = []; st.answers = {};
+      st.chosenSubclass = null; st.subFeatures = []; st.gainedFeatures = []; st.speciesTraits = []; st.riders = []; st.decisions = []; st.answers = {};
       st.optionPools = []; st.optionPicks = []; st.toolLib = [];
       st.declaredSpells = noDeclaredSpells(); st.charLevelSpells = noDeclaredSpells();
-      st.notes = []; st.gaps = [];
+      st.notes = []; st.speciesNotes = []; st.gaps = [];
       st.chosenFeats = []; st.ownedFeats = []; st.featAccess = []; st.featSlots = [];
       st.styleOffer = null; st.chosenStyles = []; st.styleSwaps = []; st.featRiders = []; st.flagged = [];
       st.hpPerLevelSources = []; st.hpMaxDiceBefore = undefined; st.summaryLine = ''; st.featuresText = ''; st.pins = [];

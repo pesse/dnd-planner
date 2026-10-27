@@ -4,6 +4,7 @@
  */
 import { resolveClassFeatures, resolveFeatLinks, resolveSpeciesTraits } from './characterFeatures';
 import { getProgressionByKey } from './classProgression';
+import { characterLevel } from './declaration/carriers';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
 import type { Character } from '../schemas/characterSchema';
 
@@ -38,7 +39,7 @@ export interface OwnedGrantFeature extends PerLevelFeature {
 /** Die Merkmale, die der Charakter JETZT trägt: Volk, Klassen bis zur Stufe, Talent-Links. */
 export async function ownedGrantFeatures(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<OwnedGrantFeature[]> {
   const groups = [
-    ...((await resolveSpeciesTraits(c.species)) ?? []),
+    ...((await resolveSpeciesTraits(c.species, characterLevel(c.classes))) ?? []),
     ...(await resolveClassFeatures(c.classes)),
   ];
   // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,

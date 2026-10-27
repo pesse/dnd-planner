@@ -9,6 +9,7 @@ import type { SpellAccessGrant } from '../spellcasting/access';
 import type { OptionPoolOffer } from '../declaration/optionPool';
 import type { WornAbilityEffect } from '../effectiveAbilities';
 import type { OptionPick } from '../../schemas/characterSchema';
+import type { Trait } from '../../schemas/species';
 import type { FeatureNote, FeatureRider, LevelUpQuestion } from '../../schemas/levelUp';
 import type { FeatEntry } from '../../featsLibrary';
 import type { ToolItem } from '../declaration/toolProficiency';
@@ -54,6 +55,8 @@ export interface LevelUpRunState {
   chosenSubclass: { key: string; name: string } | null;
   subFeatures: GainedFeature[];    // NUR Subklassen-Merkmale (Info-Einträge im Dokument)
   gainedFeatures: GainedFeature[]; // Klassen- + Subklassen-Merkmale (Notiz-Eingang + UI-Liste)
+  /** Speziesmerkmale, deren CHARAKTERstufe dieser Aufstieg erreicht (Drachenflug auf 5). */
+  speciesTraits: Trait[];
   /**
    * Immer-vorbereitete Zauber aus Merkmalstabellen — nicht in `validatedBase`, weil sie am
    * Subklassen-Schritt hängen.
@@ -76,6 +79,8 @@ export interface LevelUpRunState {
   baseAccess: SpellAccessGrant[];
   /** Bogenzeilen des Notiz-Passes, Basis- und Talentmerkmale in einem Satz. */
   notes: FeatureNote[];
+  /** Getrennt von `notes`: sie gehen in die Volksmerkmale, nicht ins Klassenmerkmale-Feld. */
+  speciesNotes: FeatureNote[];
   /**
    * Merkmale, deren Prosa eine Mechanik ankündigt, für die keine Deklaration steht — sie
    * fällt aus, und das darf nicht still passieren (`declarationGapLines`).
@@ -125,6 +130,7 @@ export function emptyRunState(): LevelUpRunState {
     chosenSubclass: null,
     subFeatures: [],
     gainedFeatures: [],
+    speciesTraits: [],
     declaredSpells: noDeclaredSpells(),
     charLevelSpells: noDeclaredSpells(),
     riders: [],
@@ -135,6 +141,7 @@ export function emptyRunState(): LevelUpRunState {
     optionPicks: [],
     baseAccess: [],
     notes: [],
+    speciesNotes: [],
     gaps: [],
     featsToPick: 0,
     featSlots: [],

@@ -10,7 +10,13 @@
 
   const facts = $derived(speciesFacts(species));
   const traits = $derived(
-    species.traits.map((t, i) => ({ id: t.key || `${t.name}-${i}`, name: t.nameDe || t.name, text: t.descDe || t.desc })),
+    species.traits.map((t, i) => ({
+      id: t.key || `${t.name}-${i}`,
+      name: t.nameDe || t.name,
+      text: t.descDe || t.desc,
+      level: t.gainedAt,
+      note: t.gainedAt ? `ab Charakterstufe ${t.gainedAt}` : undefined,
+    })),
   );
 </script>
 

@@ -5,6 +5,7 @@
  */
 import { getProgressionByKey, featuresUpTo } from './classProgression';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
+import { traitsUpTo, type LeveledTrait } from './traitLevel';
 import { getFeats, featDesc, featDisplayName, matchFeatEntry } from '$lib/featsLibrary';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 import { BENEFIT_TYPE_LABELS } from '$lib/schemas/background';
@@ -14,6 +15,7 @@ import { featInstances } from './declaration/featInstances';
 import type { AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';
+import type { Trait } from '$lib/schemas/species';
 import { declaredFeatures, type DeclaredFeature, type FeatureSource } from './declaredFeature';
 
 /** Name und Beschreibung DE-bevorzugt — das ist die Anzeigeform, nicht die KI-Eingabe. */
@@ -85,18 +87,25 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
   return groups;
 }
 
-export async function resolveSpeciesTraits(species: CharacterSpecies | undefined): Promise<ResolvedFeatureGroup[] | null> {
+/** Nur die Merkmale bis `charLevel` — Drachenflug kommt erst mit Charakterstufe 5. */
+export async function resolveSpeciesTraits(
+  species: CharacterSpecies | undefined,
+  charLevel: number,
+): Promise<ResolvedFeatureGroup[] | null> {
   if (!species || (!species.sourceKey && !species.name.trim())) return null;
   const groups: ResolvedFeatureGroup[] = [];
+  const shown = (traits: Trait[]): ResolvedFeature[] =>
+    traitsUpTo(traits, charLevel).map((t) => ({
+      name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants,
+      ...(t.gainedAt ? { gainedAt: t.gainedAt } : {}),
+    }));
 
   const base = species.sourceKey ? await getSpeciesByKey(species.sourceKey) : null;
   groups.push({
     title: species.name.trim() || base?.nameDe || base?.name || species.sourceKey,
     sourceKey: species.sourceKey,
     unresolved: !base,
-    features: base
-      ? base.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants }))
-      : [],
+    features: base ? shown(base.traits) : [],
   });
 
   if (species.subspeciesKey) {
@@ -105,7 +114,7 @@ export async function resolveSpeciesTraits(species: CharacterSpecies | undefined
       title: species.subspeciesName?.trim() || sub?.nameDe || sub?.name || species.subspeciesKey,
       sourceKey: species.subspeciesKey,
       unresolved: !sub,
-      features: sub ? sub.traits.map((t) => ({ name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants })) : [],
+      features: sub ? shown(sub.traits) : [],
     });
   }
   return groups;
@@ -243,7 +252,7 @@ export async function resolveCharacterFeatures(c: {
 }): Promise<ResolvedCharacterFeatures> {
   const [cls, spec, bg] = await Promise.all([
     resolveClassFeatures(c.classes ?? []),
-    resolveSpeciesTraits(c.species),
+    resolveSpeciesTraits(c.species, characterLevel(c.classes)),
     resolveBackground(c.backgroundRef),
   ]);
   const groups = [...cls, ...(spec ?? []), ...(bg ? [bg] : [])];
@@ -313,7 +322,7 @@ export async function resolvePastChoices(c: {
 
   const [cls, spec, bg] = await Promise.all([
     resolveClassFeatures(c.classes ?? []),
-    resolveSpeciesTraits(c.species),
+    resolveSpeciesTraits(c.species, characterLevel(c.classes)),
     resolveBackground(c.backgroundRef),
   ]);
   const nameByKey = new Map<string, string>();
@@ -341,10 +350,14 @@ export function isOrphanChoice(f: ResolvedFeature): boolean {
  */
 export async function declaredSpeciesFeatures(
   species: CharacterSpecies | undefined,
-): Promise<DeclaredFeature[]> {
+  charLevel: number,
+): Promise<(DeclaredFeature & LeveledTrait)[]> {
   const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
   const specs = await Promise.all(keys.map((k) => getSpeciesByKey(k)));
-  return specs.flatMap((spec) => (spec ? declaredFeatures('species', spec.traits) : []));
+  // `declaredFeatures` spreizt das Trait, `gainedAt` reist also mit — nur der Typ verliert es.
+  return specs.flatMap((spec) =>
+    spec ? (declaredFeatures('species', traitsUpTo(spec.traits, charLevel)) as (DeclaredFeature & LeveledTrait)[]) : [],
+  );
 }
 
 /**

@@ -128,6 +128,8 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
       pins: [],
       chosenSubclass: null,
       subFeatures: [],
+      speciesTraits: [],
+      speciesNotes: [],
       declaredSpells: noDeclaredSpells(),
       charLevelSpells: noDeclaredSpells(),
       grantSources: [], choiceSources: [],

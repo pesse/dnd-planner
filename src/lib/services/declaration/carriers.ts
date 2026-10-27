@@ -15,6 +15,7 @@ import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { ResourceGrant } from '$lib/schemas/resource';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import { featuresUpTo, getProgressionByKey } from '../classProgression';
+import { traitsUpTo } from '../traitLevel';
 import type { FeatureSource } from '../declaredFeature';
 import { featInstances, instanceIdOf } from './featInstances';
 import { ledgerAnswers } from './ledgerAnswers';
@@ -218,7 +219,9 @@ async function speciesCarriers(
   const keys = [species?.sourceKey, species?.subspeciesKey].filter((k): k is string => !!k?.trim());
   for (const spec of await Promise.all(keys.map(getSpeciesByKey))) {
     if (!spec) continue;
-    collect(spec.traits, { origin: 'species', level, classKey: '' }, answersOf, used, into);
+    // Trait-`gainedAt` ist ein Skalar (Charakterstufe), der Träger führt eine Liste.
+    const traits = traitsUpTo(spec.traits, level).map((t) => ({ ...t, gainedAt: t.gainedAt ? [t.gainedAt] : undefined }));
+    collect(traits, { origin: 'species', level, classKey: '' }, answersOf, used, into);
   }
 }
 
