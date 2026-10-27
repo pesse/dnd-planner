@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { isRedacted } from '../../src/lib/services/declarationCoverage';
-import { declarationGaps, type DeclarationGapKind } from '../../src/lib/services/declarationGap';
+import { declarationGapKinds, type DeclarationGapKind } from '../../src/lib/services/declarationGap';
 import { vaultFeatures } from '../support/vaultFeatures';
 
 /** Undeklariert, mit Grund. Wer einen Eintrag deklariert, streicht ihn hier. */
@@ -19,8 +19,9 @@ const UNDECLARED_BACKLOG: Record<string, string> = {
   'srd-2024_druid_circle-of-the-land_natures-sanctuary': 'Vault-Datenfehler: trägt den Text von Natural Recovery',
 };
 
-const GAP_BACKLOG: Record<string, DeclarationGapKind> = {
-  'srd-2024_druid_circle-of-the-land_natures-sanctuary': 'resource',
+/** ALLE offenen Arten je Merkmal — die Anzeige zeigt nur die erste, die zweite bliebe sonst verdeckt. */
+const GAP_BACKLOG: Record<string, DeclarationGapKind[]> = {
+  'srd-2024_druid_circle-of-the-land_natures-sanctuary': ['resource', 'choice'],
 };
 
 describe('Deklarationen im Vault', () => {
@@ -37,9 +38,9 @@ describe('Deklarationen im Vault', () => {
 
   it('meldet keine Lücke außerhalb des Rückstands', async () => {
     const gaps = Object.fromEntries(
-      (await vaultFeatures()).flatMap((v) => declarationGaps([v.feature]).map((g) => [v.id, g.kind] as const)),
+      (await vaultFeatures()).map((v) => [v.id, declarationGapKinds(v.feature)] as const).filter(([, kinds]) => kinds.length),
     );
-    const fresh = Object.entries(gaps).filter(([id, kind]) => GAP_BACKLOG[id] !== kind);
+    const fresh = Object.entries(gaps).filter(([id, kinds]) => kinds.join() !== GAP_BACKLOG[id]?.join());
     expect(fresh, 'neue Lücke').toEqual([]);
     expect(Object.keys(GAP_BACKLOG).filter((id) => !(id in gaps)), 'erledigt — aus dem Rückstand streichen').toEqual([]);
   });

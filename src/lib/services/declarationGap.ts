@@ -54,6 +54,17 @@ const GAP_RULES: {
   },
 };
 
+/** Alle offenen Arten eines Merkmals, in Regel-Reihenfolge — für den Linter, nicht die Anzeige. */
+export function declarationGapKinds(f: GapCandidate): DeclarationGapKind[] {
+  const desc = f.desc ?? '';
+  // `aiInterpretsRest` heißt ausdrücklich „die Prosa bekommt eine Bogenzeile, sonst nichts" —
+  // das ist eine Entscheidung, keine Lücke.
+  if (!desc.trim() || f.aiInterpretsRest) return [];
+  return (Object.keys(GAP_RULES) as DeclarationGapKind[]).filter(
+    (k) => GAP_RULES[k].signal.test(desc) && !GAP_RULES[k].declared(f),
+  );
+}
+
 /**
  * EINE Meldung je Merkmal, die der ersten passenden Regel: die Zeile schickt zum Editor, und
  * dort steht das ganze Merkmal — zwei Zeilen darüber lasen sich wie zwei Probleme („Increase one
@@ -64,15 +75,9 @@ export function declarationGaps(features: readonly GapCandidate[]): DeclarationG
   // Dasselbe Merkmal erreicht den Flow aus mehreren Richtungen — ohne Guard doppelt gemeldet.
   const seen = new Set<string>();
   for (const f of features) {
-    const desc = f.desc ?? '';
-    // `aiInterpretsRest` heißt ausdrücklich „die Prosa bekommt eine Bogenzeile, sonst nichts" —
-    // das ist eine Entscheidung, keine Lücke.
-    if (!desc.trim() || f.aiInterpretsRest) continue;
     const name = f.nameDe || f.name;
     if (seen.has(name)) continue;
-    const kind = (Object.keys(GAP_RULES) as DeclarationGapKind[]).find(
-      (k) => GAP_RULES[k].signal.test(desc) && !GAP_RULES[k].declared(f),
-    );
+    const [kind] = declarationGapKinds(f);
     if (!kind) continue;
     seen.add(name);
     out.push({ name, kind });
