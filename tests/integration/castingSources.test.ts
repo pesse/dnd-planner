@@ -93,6 +93,8 @@ const CLASS_CASTING = [
     key: 'srd-2024_wizard',
     feature: 'srd-2024_wizard_spellcasting',
     swap: { spells: 'long-rest-all', cantrips: 'long-rest-one' },
+    // Zauber auswendig lernen patcht die Vorbereitung um den Takt der Kurzen Rast.
+    swapFrom: { level: 5, swap: { spells: ['long-rest-all', 'short-rest-one'], cantrips: 'long-rest-one' } },
     counts: { 1: { cantrips: 3, book: 6, prepared: 4 }, 5: { cantrips: 4, book: 14, prepared: 9 }, 11: { cantrips: 5, book: 26, prepared: 16 }, 20: { cantrips: 5, book: 44, prepared: 25 } },
   },
   {
@@ -118,7 +120,8 @@ describe('Zauberquellen der Klassen', () => {
         expect(res.issues).toEqual([]);
         const own = views.get(entry.feature);
         expect(countsOf(own ?? [])).toEqual(counts);
-        expect(viewOf(own, 'prepared').swap).toEqual(entry.swap);
+        const swap = 'swapFrom' in entry && Number(level) >= entry.swapFrom.level ? entry.swapFrom.swap : entry.swap;
+        expect(viewOf(own, 'prepared').swap).toEqual(swap);
         if ('cantrips' in counts) {
           expect(viewOf(own, 'cantrips').cast).toEqual([{ kind: 'at-will' }]);
           expect(viewOf(own, 'cantrips').levels).toEqual([0]);

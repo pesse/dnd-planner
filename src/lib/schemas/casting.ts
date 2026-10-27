@@ -16,14 +16,21 @@ const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
  * Die Anzahl steckt im Wert, auch beim Zaubertrick: jede Tauschregel im Regelwerk nennt sie
  * („you can replace **one** of your cantrips").
  */
-export const SWAP_CADENCES = ['none', 'level-up-one', 'long-rest-one', 'long-rest-all'] as const;
+export const SWAP_CADENCES = ['none', 'level-up-one', 'short-rest-one', 'long-rest-one', 'long-rest-all'] as const;
 export type SwapCadence = (typeof SWAP_CADENCES)[number];
 
+// Eine Liste, wenn ein Merkmal einen Takt ERGÄNZT: Zauber auswendig lernen (Kurze Rast) tritt
+// neben die freie Neuwahl nach der Langen Rast, statt sie zu ersetzen.
+const swapCadenceSchema = z.union([z.enum(SWAP_CADENCES), z.array(z.enum(SWAP_CADENCES)).min(1)]);
+
 export const swapRuleSchema = z.object({
-  spells: z.enum(SWAP_CADENCES).optional().describe('Tauschtakt für Zauber ab Grad 1.'),
-  cantrips: z.enum(SWAP_CADENCES).optional().describe('Tauschtakt für Zaubertricks.'),
+  spells: swapCadenceSchema.optional().describe('Tauschtakt für Zauber ab Grad 1.'),
+  cantrips: swapCadenceSchema.optional().describe('Tauschtakt für Zaubertricks.'),
 });
 export type SwapRule = z.infer<typeof swapRuleSchema>;
+
+export const swapCadences = (value: SwapRule['spells']): SwapCadence[] =>
+  value === undefined ? [] : Array.isArray(value) ? value : [value];
 
 /**
  * Womit gewirkt wird. Mehrere je Quota sind der Normalfall — ein Spezies-Zauber geht gratis

@@ -5,7 +5,7 @@
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
-import type { CastOption, SwapCadence } from '$lib/schemas/casting';
+import { swapCadences, type CastOption, type SwapCadence, type SwapRule } from '$lib/schemas/casting';
 import type { ResourceRef } from '$lib/schemas/resource';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import type { ResolvedResource } from '../resources/resolve';
@@ -189,17 +189,21 @@ export function castNote(quota: QuotaState, resourceLabel: (ref: ResourceRef) =>
 const CADENCE_DE: Record<SwapCadence, string> = {
   none: 'nicht austauschbar',
   'level-up-one': '1 austauschen je Stufenaufstieg',
+  'short-rest-one': '1 austauschen pro Kurze Rast',
   'long-rest-one': '1 austauschen pro Lange Rast',
   'long-rest-all': 'nach jeder Langen Rast frei neu wählen',
 };
+
+const cadenceDe = (value: SwapRule['spells']): string =>
+  swapCadences(value).map((c) => CADENCE_DE[c]).join(', ');
 
 /** Der Tauschtakt; beide Grade werden nur benannt, wenn die Quota beide führt. */
 export function swapNote(quota: QuotaState): string {
   const { levels, swap } = quota.view;
   const anyLevel = levels.length === 0;
   const parts: string[] = [];
-  if ((anyLevel || levels.some((l) => l > 0)) && swap.spells) parts.push(CADENCE_DE[swap.spells]);
-  if ((anyLevel || levels.includes(0)) && swap.cantrips) parts.push(CADENCE_DE[swap.cantrips]);
+  if ((anyLevel || levels.some((l) => l > 0)) && swap.spells) parts.push(cadenceDe(swap.spells));
+  if ((anyLevel || levels.includes(0)) && swap.cantrips) parts.push(cadenceDe(swap.cantrips));
   if (parts.length < 2) return parts[0] ?? '';
   return `Zauber: ${parts[0]} · Zaubertricks: ${parts[1]}`;
 }

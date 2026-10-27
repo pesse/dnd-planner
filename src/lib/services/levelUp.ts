@@ -13,6 +13,7 @@ import {
 } from './classProgression';
 import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
+import { swapCadences } from '../schemas/casting';
 import { isSpellcastingFeature } from './declaration/casting';
 import { classCastingOffer, emptyClassCastingOffer, type ClassCastingOffer } from './spellcasting/classOffer';
 import { isFlowOwnedDeclaration } from './declaration/optionList';
@@ -197,7 +198,7 @@ async function spellcastingDelta(prog: ClassProgression, span: LevelSpan): Promi
   // „known" heißt hier: die Auswahl bleibt zwischen Ruhen bestehen (Zauberbuch, feste Liste),
   // nicht die Klassentabellen-Spaltenüberschrift — `long-rest-all` (Kleriker/Druide) ist die
   // einzige Regel-Familie ohne einen zu lernenden Bestand.
-  const known = !!(to.spells && to.spells.swap.spells !== 'long-rest-all');
+  const known = !!(to.spells && !swapCadences(to.spells.swap.spells).includes('long-rest-all'));
   // Neu ist Zauberwirken nur ohne JEDE Spur davon auf fromLevel — sonst bekäme ein längst
   // zaubernder Charakter (Druide 2→3) bei jedem Aufstieg einen neuen Eintrag.
   const hadCasting = fromLevel > 0 && (slotsFrom.some((n) => n > 0) || from.isCaster);
