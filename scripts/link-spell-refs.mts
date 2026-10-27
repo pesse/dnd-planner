@@ -99,6 +99,8 @@ function linkFirst(text: string, spell: SpellRef): string | null {
     const rest = text.slice(at + spell.de.length);
     // In `[… ] (spell:…)` oder direkt vor `](` steckt der Name schon in einem Verweis.
     if (/^[^[\]]*\]\(spell:/.test(rest)) continue;
+    // Im Key selbst (`spell:srd-2024_geas`), wenn der Name dem Slug gleicht.
+    if (/\(spell:[^)\s]*$/.test(text.slice(0, at))) continue;
     return text.slice(0, at) + `[${text.substr(at, spell.de.length)}](spell:${spell.key})` + rest;
   }
   return null;
