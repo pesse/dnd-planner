@@ -67,10 +67,6 @@ export interface LevelUpDelta {
   atLevelCap: boolean;
 }
 
-const SUBCLASS_HINTS = [
-  'subclass', 'archetype', 'circle', 'oath', 'domain', 'patron', 'college',
-  'origin', 'tradition', 'path', 'conclave', 'school', 'bloodline', 'mystery',
-];
 const ASI_HINTS = ['ability score', 'asi', 'attributswert'];
 
 function matches(f: ClassFeature, hints: string[]): boolean {
@@ -84,13 +80,12 @@ function matches(f: ClassFeature, hints: string[]): boolean {
  * böte bei Waffenbeherrschung/Kampfstil/Zauberwirken eine ERFUNDENE Options-Liste an.
  *
  * Nur `isFlowOwnedDeclaration` gilt für jede Herkunft — die Namensheuristiken darunter sind
- * KLASSEN-Vokabular und würden auf Traits oder Talenten fehlzünden. „subclass" ist bewusst ENG
- * gebunden statt an `SUBCLASS_HINTS`, dessen weiche Begriffe „Contact Patron" mit treffen.
+ * KLASSEN-Vokabular und würden auf Traits oder Talenten fehlzünden.
  */
 export function isFlowOwnedChoiceFeature(f: ClassFeature): boolean {
   return (
     isFlowOwnedDeclaration(f) ||
-    /\bsubclass(es)?\b/i.test(f.name) ||
+    f.grantsSubclass === true ||
     matches(f, ASI_HINTS) ||
     isWeaponMasteryFeature(f) ||
     isSpellcastingFeature(f)
@@ -257,7 +252,7 @@ async function subclassDelta(span: LevelSpan, featuresGained: ClassFeature[]): P
     /* lokale Bibliothek nicht lesbar → keine Optionen, kein Blocker */
   }
   const subclassOptions = [...options.values()];
-  const gainsSubclassFeature = featuresGained.some((f) => matches(f, SUBCLASS_HINTS));
+  const gainsSubclassFeature = featuresGained.some((f) => f.grantsSubclass);
   return {
     ...empty,
     subclassOptions,

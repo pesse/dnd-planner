@@ -48,9 +48,11 @@ const GAP_RULES: {
   },
   choice: {
     signal: /\bchoose\b|\bof your choice\b|\bexpertise\b/i,
-    // Auch Zauberwahl (`grantsCasting`) und offene Fertigkeitswahl (`skills.choose`) stellt der Flow.
+    // Auch Zauberwahl (`grantsCasting`), offene Fertigkeitswahl (`skills.choose`) und
+    // Unterklassenwahl (`grantsSubclass`) stellt der Flow.
     declared: (f) =>
-      f.grantsChoice !== undefined || f.grantsCasting !== undefined || (f.grants?.proficiencies.skills.choose ?? 0) > 0,
+      f.grantsChoice !== undefined || f.grantsCasting !== undefined || f.grantsSubclass !== undefined
+      || (f.grants?.proficiencies.skills.choose ?? 0) > 0,
   },
 };
 

@@ -199,6 +199,10 @@ export const featureDeclarationFields = {
   grantsResource: resourceGrantSchema
     .optional()
     .describe('Vorräte des Merkmals — Einsätze, Punkte, Zauberplätze — und Zuschläge auf fremde.'),
+  grantsSubclass: z
+    .literal(true)
+    .optional()
+    .describe('Nur am Klassenmerkmal: das Merkmal IST die Unterklassenwahl. Sie stellt der Subklassen-Schritt, nie grantsChoice.'),
   /** Die Ausnahme von „die Deklaration deckt das GANZE Merkmal ab"; ohne Default wie oben. */
   aiInterpretsRest: z
     .boolean()

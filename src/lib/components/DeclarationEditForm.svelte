@@ -7,6 +7,7 @@
     grants?: FeatureGrant;
     grantsChoice?: FeatureChoiceGrant[];
     grantsSpells?: SpellGrant;
+    grantsSubclass?: true;
   }
 </script>
 
@@ -58,6 +59,10 @@
     feature.grantsSpells = on ? spellGrantSchema.parse({ kind: 'levelTable' }) : undefined;
     onchange();
   };
+  const toggleSubclass = (on: boolean) => {
+    feature.grantsSubclass = on || undefined;
+    onchange();
+  };
 </script>
 
 <div class="decl">
@@ -97,6 +102,12 @@
     </label>
     {#if feature.grantsSpells}
       <span class="note">Die Zaubernamen stehen als Stufentabelle im Regeltext</span>
+    {/if}
+    {#if carrier === 'class'}
+      <label class="lbl" class:off={!feature.grantsSubclass}>
+        <input type="checkbox" checked={!!feature.grantsSubclass} onchange={(e) => toggleSubclass((e.target as HTMLInputElement).checked)} />
+        Ist die Unterklassenwahl
+      </label>
     {/if}
   </div>
 

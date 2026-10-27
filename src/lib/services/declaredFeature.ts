@@ -21,6 +21,7 @@ const GRANT_FIELDS: Record<keyof GrantFields, true> = {
   grantsSpells: true,
   grantsCasting: true,
   grantsResource: true,
+  grantsSubclass: true,
 };
 
 export const GRANT_KEYS = Object.keys(GRANT_FIELDS) as (keyof GrantFields)[];
