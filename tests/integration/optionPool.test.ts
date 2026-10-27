@@ -101,7 +101,7 @@ describe('Beute des Jägers und Defensive Taktiken als Options-Pools', () => {
     expect(offer?.titleDe).toBe('Beute des Jägers');
     expect(offer?.className).toBe('Waldläufer');
     expect(offer?.options.map((o) => o.value)).toEqual(['Colossus Slayer', 'Horde Breaker']);
-    expect(offer?.options.map((o) => o.labelDe)).toEqual(['Kolossbezwinger', 'Meutebrecher']);
+    expect(offer?.options.map((o) => o.labelDe)).toEqual(['Kolossschlächter', 'Hordenbrecher']);
     expect(offer?.options.every((o) => o.helpDe.trim())).toBe(true);
   });
 

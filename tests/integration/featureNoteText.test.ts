@@ -49,9 +49,9 @@ describe('Notiz am Merkmal', () => {
 
   it('Beute des Jägers: die Einleitung bleibt, die zwei Optionen gehen', async () => {
     const note = await noteOf('srd-2024_hunter', 'srd-2024_ranger_hunter_hunters-prey');
-    expect(note?.text).toContain('eine der folgenden Merkmalsoptionen');
-    expect(note?.text).not.toContain('Kolossbezwinger');
-    expect(note?.text).not.toContain('Meutebrecher');
+    expect(note?.text).toContain('eine der folgenden Merkmal-Optionen');
+    expect(note?.text).not.toContain('Kolossschlächter');
+    expect(note?.text).not.toContain('Hordenbrecher');
   });
 
   it('Urtümliche Ordnung: dieselbe Grenze bei einer Grundklasse', async () => {
