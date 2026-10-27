@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import { getFeats } from '../../src/lib/featsLibrary';
+import { vaultFeatures } from '../support/vaultFeatures';
 import {
   declarationGapLines,
   declarationGaps,
@@ -21,6 +22,14 @@ const classFeature = async (classKey: string, featureKey: string): Promise<GapCa
   const f = prog?.features.find((x) => x.key === featureKey);
   expect(f, `${featureKey} im Vault — Shim aktiv?`).toBeTruthy();
   return f as GapCandidate;
+};
+
+/** Nur die Prosa — so prüft der Test das SIGNAL, das die Deklarationen im Vault sonst überdecken. */
+const signalOf = async (id: string) => {
+  const v = (await vaultFeatures()).find((x) => x.id === id);
+  expect(v, `${id} im Vault — Shim aktiv?`).toBeTruthy();
+  const { name, nameDe, desc } = v!.feature;
+  return declarationGaps([{ name, nameDe, desc }])[0]?.kind;
 };
 
 const feat = async (sourceKey: string): Promise<GapCandidate> => {
@@ -115,5 +124,39 @@ describe('Lückenmelder', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('Elfen-Abstammung');
     expect(lines[0]).toContain('die gewählte Option deklariert keine Wirkung');
+  });
+
+  // #50: Prosa, die Zaubertricks VERÄNDERT oder „the location of" kennt, ist keine Gewährung.
+  it.each([
+    'srd-2024_cleric_blessed-strikes',
+    'srd-2024_cleric_improved-blessed-strikes',
+    'srd-2024_druid_elemental-fury',
+    'srd-2024_druid_improved-elemental-fury',
+    'srd-2024_wizard_evoker_potent-cantrip',
+    'srd-2024_rogue_thief_use-magic-device',
+    'srd-2024_paladin_channel-divinity',
+  ])('hält %s für keine Zaubergewährung', async (id) => {
+    expect(await signalOf(id)).not.toBe('spells');
+  });
+
+  // Die Gegenprobe: ein geschärftes Signal darf die echten Fälle nicht still verlieren.
+  it.each([
+    ['srd-2024_druid_druidic', 'spells'],
+    ['srd-2024_paladin_fighting-style', 'spells'],
+    ['srd-2024_ranger_fighting-style', 'spells'],
+    ['srd-2024_college-of-lore_magical-discoveries', 'spells'],
+    ['phb-2024_fairy_fairy-magic', 'spells'],
+    ['srd-2024_warlock_mystic-arcanum', 'choice'],
+    ['srd-2024_wizard_signature-spells', 'choice'],
+  ])('erkennt %s ohne Deklaration als %s', async (id, kind) => {
+    expect(await signalOf(id)).toBe(kind);
+  });
+
+  // `skills.choose` ist eine Fertigkeitswahl, die der Flow stellt — kein `grantsChoice` nötig.
+  it.each(['srd-2024_human_skillful', 'srd-2024_skilled'])('zählt die offene Fertigkeitswahl von %s als deklariert', async (id) => {
+    const v = (await vaultFeatures()).find((x) => x.id === id)!;
+    expect(v.feature.grantsChoice, 'die Probe braucht ein Merkmal OHNE grantsChoice').toBeUndefined();
+    expect(await signalOf(id)).toBe('choice');
+    expect(declarationGaps([v.feature])).toEqual([]);
   });
 });
