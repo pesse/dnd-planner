@@ -10,35 +10,20 @@ import {
   type FieldSummary,
 } from '../../schemas/levelUp';
 
-/**
- * Die gemeinsame Doktrin in drei Bausteinen, weil sie drei Leser hat:
- *   `SHEET_NOTE_CONTENT`     WAS eine Zeile verdient → dieser Prompt + Merkmals-Deutung
- *   `SHEET_NOTE_EXAMPLE_EN`  derselbe Maßstab englisch → nur die Merkmals-Deutung
- *   `SHEET_NOTE_GERMAN_FORM` WIE die deutsche Zeile aussieht → dieser Prompt + Übersetzer
- * Zusammengelegt optimiert man zwei Fassungen derselben Regel. Dieser Prompt schreibt direkt
- * Deutsch und bekommt daher kein englisches Beispiel — das brächte ihn auf Fuß statt Meter.
- */
+/** Kein englisches Beispiel dazu — das brächte das Modell auf Fuß statt Meter. */
 export const SHEET_NOTE_CONTENT = `An entry names the feature and says what it does at the table: \`Feature name: effect\`.
 WRITE an entry for whatever the player has to remember while playing: an ability they actively use (with its action type and how often it recharges), numbers that live nowhere else (sneak attack dice, rage, ki points, wild shape limits), the ongoing effect of an option they picked, a companion and its stats.
 LEAVE OUT pure flavour with no effect at the table, and what the sheet already records elsewhere (granted spells, proficiencies and expertise, ability increases, spell slots, proficiency bonus, hit dice).
 DEPTH: complete enough to play from, short enough to scan. One line where one is enough, two or three where dice, action type or recharge need saying. Numbers and keywords over full sentences, no rules quotes, no filler like "You can" — but never cut the mechanic itself to save space.`;
 
 /**
- * Derselbe Maßstab in ENGLISCH, für den Pass, der englisch schreibt (Merkmals-Deutung).
- * Wörtlich aus der Bibliothek (fighter.json, dwarf.json) — selbst formulierter Wortlaut
- * schleppt 2014er-Begriffe ein. Ohne das Beispiel fiel „Dunkelsicht 18 m" weg (2026-07-29).
- */
-export const SHEET_NOTE_EXAMPLE_EN = `This is the depth that works — a sense with a range DOES earn its line, size and speed do NOT:
-Second Wind: bonus action, regain 1d10+fighter level HP. 2 uses; 1 back on a Short Rest, all on a Long Rest.
-Action Surge: one extra action (not Magic) once per Short/Long Rest.
-Darkvision 120 ft
-Dwarven Resilience: Resistance to Poison damage, Advantage on saves against the Poisoned condition.`;
-
-/**
  * Wortlaut, Abkürzungen, Layout. Das Beispiel ist der Maßstab, nicht die Prosa darüber —
  * es hält die Zusammenfassung davon ab, die Mechanik wegzukürzen (Feedback 2026-07-28).
+ * Der Umrechnungsfaktor ist der von `ftToMVal` (`itemFormat.ts`), sonst widerspricht die
+ * Notiz der Waffenreichweite auf demselben Bogen.
  */
 export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
+DISTANCES: the English source measures in feet; the German sheet uses metres. Convert every distance (range, radius, speed, sense) at 1 ft = 0.3 m with a decimal comma: 5 ft → 1,5 m, 10 ft → 3 m, 30 ft → 9 m, 60 ft → 18 m, 120 ft → 36 m. Never keep the feet number with a metre unit ("Darkvision 60 ft" is "Dunkelsicht 18 m", not "60 m"). A sense or speed comes first, its range after: "Dunkelsicht 18 m". Dice, TP, uses and levels are not distances and stay as they are.
 This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
 [Klassenmerkmale]
 Zweiter Wind:
