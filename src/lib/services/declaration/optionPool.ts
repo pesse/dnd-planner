@@ -42,6 +42,8 @@ export interface OptionPoolOffer {
   className: string;
   /** 0 = das Merkmal ist auf dieser Stufe noch nicht vergeben. */
   allowance: number;
+  /** Stufe der tragenden Klasse — Maßstab für `prerequisite.level`. */
+  level: number;
   options: ChoiceOption[];
   /** Regeltext des Merkmals — der Aufstieg stellt ihn neben den Picker (`featureNote`). */
   desc: string;
@@ -64,6 +66,7 @@ function offersOf(tables: ClassProgression[], className: string, level: number):
         titleDe: feature.nameDe || feature.name,
         className,
         allowance,
+        level,
         options: r.grant.options,
         desc: feature.desc,
         descDe: feature.descDe ?? '',
@@ -98,6 +101,28 @@ export const poolPicks = (picks: readonly OptionPick[], featureKey: string): Opt
   picks.filter((p) => p.sourceKey === featureKey);
 
 /**
+ * Warum die Option nicht wählbar ist, deutsch fürs Anzeigen — `null` = erfüllt. Eine schon
+ * gewählte Option kann es nachträglich verlieren (Stufe gesenkt, Pakt abgewählt).
+ */
+export function unmetPrerequisite(
+  picks: readonly OptionPick[],
+  offer: OptionPoolOffer,
+  option: ChoiceOption,
+): string | null {
+  const req = option.prerequisite;
+  if (!req) return null;
+  const missing: string[] = [];
+  if (offer.level < req.level) missing.push(`ab Stufe ${req.level}`);
+  const mine = poolPicks(picks, offer.featureKey);
+  for (const value of req.options) {
+    if (mine.some((p) => p.value === value)) continue;
+    const o = offer.options.find((x) => x.value === value);
+    missing.push(`erfordert ${o?.labelDe || value}`);
+  }
+  return missing.length ? missing.join(', ') : null;
+}
+
+/**
  * Am Maximum BLOCKIEREN statt die älteste Wahl herauszuschieben — der Tausch soll bewusst
  * sein. Zurückzunehmen ist dabei nichts: eine Pool-Option gewährt keine Mechanik, die am
  * Bogen stünde.
@@ -110,7 +135,7 @@ export function toggleOptionPick(
   const mine = poolPicks(picks, offer.featureKey);
   if (mine.some((p) => p.value === option.value))
     return picks.filter((p) => p.sourceKey !== offer.featureKey || p.value !== option.value);
-  if (mine.length >= offer.allowance) return [...picks];
+  if (mine.length >= offer.allowance || unmetPrerequisite(picks, offer, option)) return [...picks];
   return [
     ...picks,
     { sourceKey: offer.featureKey, value: option.value, valueDe: option.labelDe || option.value },

@@ -10,7 +10,7 @@ import { classProgressionSchema, type ClassFeature } from '../../src/lib/schemas
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import type { CharacterFeatureEntry, OptionPick } from '../../src/lib/schemas/characterSchema';
 import {
-  poolAllowanceFor, poolPicks, toggleOptionPick, type OptionPoolOffer,
+  poolAllowanceFor, poolPicks, toggleOptionPick, unmetPrerequisite, type OptionPoolOffer,
 } from '../../src/lib/services/declaration/optionPool';
 import {
   optionPicksFix, type LegacyLinkLibraries, type LegacyLinkTarget,
@@ -68,6 +68,7 @@ describe('Tausch in der flachen Liste am Charakter', () => {
     titleDe: 'Metamagie',
     className: 'Zauberer',
     allowance: 2,
+    level: 2,
     desc: '', descDe: '',
     options: [
       { value: 'Careful Spell', labelDe: 'Bedachter Zauber', helpDe: '', spells: [] },
@@ -99,6 +100,51 @@ describe('Tausch in der flachen Liste am Charakter', () => {
   });
 });
 
+describe('Voraussetzungen einer Pool-Option', () => {
+  const INVOCATIONS = 'srd-2024_warlock_eldritch-invocations';
+  const offer = (level: number): OptionPoolOffer => ({
+    featureKey: INVOCATIONS,
+    titleDe: 'Schauerliche Anrufungen',
+    className: 'Hexenmeister',
+    allowance: 5,
+    level,
+    desc: '', descDe: '',
+    options: [
+      { value: 'Pact of the Blade', labelDe: 'Pakt der Klinge', helpDe: '', spells: [] },
+      { value: 'Thirsting Blade', labelDe: 'Dürstende Klinge', helpDe: '', spells: [],
+        prerequisite: { level: 5, options: ['Pact of the Blade'] } },
+      { value: 'Eldritch Mind', labelDe: 'Schauerlicher Verstand', helpDe: '', spells: [] },
+    ],
+  });
+  const [blade, thirsting, mind] = offer(5).options;
+  const picked = (...values: string[]): OptionPick[] =>
+    values.map((value) => ({ sourceKey: INVOCATIONS, value, valueDe: '' }));
+
+  it('lässt Optionen ohne Feld jederzeit zu', () => {
+    expect(unmetPrerequisite([], offer(1), mind)).toBeNull();
+    expect(toggleOptionPick([], offer(1), blade)).toHaveLength(1);
+  });
+
+  it('nennt Stufe und fehlende Schwester-Option deutsch', () => {
+    expect(unmetPrerequisite([], offer(2), thirsting)).toBe('ab Stufe 5, erfordert Pakt der Klinge');
+    expect(unmetPrerequisite(picked('Pact of the Blade'), offer(2), thirsting)).toBe('ab Stufe 5');
+    expect(unmetPrerequisite(picked('Pact of the Blade'), offer(5), thirsting)).toBeNull();
+  });
+
+  /** Die Schwester muss im SELBEN Pool liegen — ein gleichnamiger Eintrag woanders zählt nicht. */
+  it('zählt nur Wahlen desselben Pools', () => {
+    const foreign: OptionPick = { sourceKey: 'other_pool', value: 'Pact of the Blade', valueDe: '' };
+    expect(unmetPrerequisite([foreign], offer(5), thirsting)).toBe('erfordert Pakt der Klinge');
+  });
+
+  it('blockiert das Wählen, nicht das Abwählen', () => {
+    expect(toggleOptionPick([], offer(5), thirsting)).toEqual([]);
+    // Pakt abgewählt: die abhängige Wahl bleibt stehen und lässt sich trotzdem lösen.
+    const orphaned = picked('Thirsting Blade');
+    expect(toggleOptionPick(orphaned, offer(5), thirsting)).toEqual([]);
+  });
+});
+
 /**
  * Der Umzug einer Wahl, die früher als Fragebogen-Antwort im Ledger stand (Beute des Jägers
  * vor der Umstellung auf `optionPool`).
@@ -110,6 +156,7 @@ describe('Altbestand: Ledger-Antwort in den Pool heben', () => {
     titleDe: 'Beute des Jägers',
     className: 'Waldläufer',
     allowance: 1,
+    level: 3,
     desc: '', descDe: '',
     options: [
       { value: 'Colossus Slayer', labelDe: 'Kolossbezwinger', helpDe: '', spells: [] },

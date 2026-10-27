@@ -66,6 +66,22 @@ export const optionSpellRowSchema = z.object({
 });
 export type OptionSpellRow = z.infer<typeof optionSpellRowSchema>;
 
+/** Ein Pakt ist in 2024 selbst eine Anrufung — darum reichen Stufe und Schwester-Option. */
+export const optionPrerequisiteSchema = z.object({
+  level: z
+    .number()
+    .int()
+    .min(1)
+    .max(20)
+    .default(1)
+    .describe('Mindeststufe der Klasse, die die Wahl trägt („Level 5+ Warlock" → 5).'),
+  options: z
+    .array(z.string())
+    .default([])
+    .describe('`value`s anderer Optionen DERSELBEN Wahl, die schon gewählt sein müssen ("Pact of the Blade").'),
+});
+export type OptionPrerequisite = z.infer<typeof optionPrerequisiteSchema>;
+
 /**
  * `value` ist der stabile Schlüssel, auf den die gespeicherte Antwort matcht und der als
  * `<past_choices>` zurückgeht. `labelDe` ist ein ZITAT aus `descDe`, keine Übersetzung.
@@ -75,6 +91,9 @@ export const choiceOptionSchema = z.object({
   labelDe: z.string().default('').describe('Deutsches Anzeige-Label — Zitat aus descDe ("Wächter"). Leer = englisch anzeigen.'),
   helpDe: z.string().default('').describe('Konsequenz DIESER Option, kurz (Richtwert 60 Zeichen).'),
   grants: featureGrantSchema.optional().describe('Was diese Option gewährt. Fehlt = ohne mechanische Wirkung.'),
+  prerequisite: optionPrerequisiteSchema
+    .optional()
+    .describe('Nur bei kind="optionPool": was erfüllt sein muss, um die Option zu wählen. Fehlt = jederzeit wählbar. Nicht prüfbare Voraussetzungen („ein Schadens-Zaubertrick") bleiben Prosa in helpDe.'),
   // WÖRTLICHE Namen, nicht `grantsSpells`: das zeigt auf EINE Tabelle im `desc` des Trägers,
   // also bekäme jeder Zweig die Zauber aller Zweige.
   spells: z

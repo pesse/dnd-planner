@@ -767,3 +767,27 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
     expect(unredactedChoiceFeatures([redacted], () => 'Drow')).toEqual([]);
   });
 });
+
+/**
+ * Eine Voraussetzung nennt ihre Schwester per `value` — ein Tippfehler machte die Option still
+ * unwählbar. Ausgewertet wird sie nur am Pool; an einer `optionList` wäre sie wirkungslos.
+ */
+describe('Voraussetzungen an Optionen', () => {
+  it('zeigen nur auf Optionen derselben Pool-Wahl', async () => {
+    let checked = 0;
+    for (const info of await getClasses()) {
+      for (const feature of (await getProgressionByKey(libraryKey(info)))?.features ?? []) {
+        for (const grant of feature.grantsChoice ?? []) {
+          const values = new Set(grant.options.map((o) => o.value));
+          for (const o of grant.options.filter((x) => x.prerequisite)) {
+            const where = `${feature.key} / ${o.value}`;
+            expect(grant.kind, where).toBe('optionPool');
+            for (const v of o.prerequisite!.options) expect(values.has(v), `${where} → ${v}`).toBe(true);
+            checked++;
+          }
+        }
+      }
+    }
+    expect(checked, 'Hexenmeister-Anrufungen tragen Voraussetzungen').toBeGreaterThanOrEqual(23);
+  });
+});

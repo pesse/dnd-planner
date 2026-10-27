@@ -15,7 +15,7 @@ const MANEUVERS = 'phb-2024_fighter_battle-master_combat-superiority';
 
 const offer = (over: Partial<OptionPoolOffer> = {}): OptionPoolOffer => ({
   featureKey: MANEUVERS, titleDe: 'Kampfüberlegenheit', className: 'Kämpfer',
-  allowance: 5, options: [], desc: '', descDe: '', ...over,
+  allowance: 5, level: 3, options: [], desc: '', descDe: '', ...over,
 });
 
 const pick = (value: string, valueDe = '', sourceKey = MANEUVERS): OptionPick =>

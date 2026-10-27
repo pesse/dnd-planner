@@ -49,7 +49,7 @@ describe('Sektionen des Charakterbogens', () => {
   it('blendet Optionen und Ressourcen erst ein, wenn es sie gibt — Waffenmeisterschaft steht auf dem festen Blatt', () => {
     const d = emptyData({
       mastery: { allowance: 2, className: 'Kämpfer', meleeOnly: false, weapons: [] },
-      pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, options: [], desc: '', descDe: '' }],
+      pools: [{ featureKey: 'srd-2024_sorcerer_metamagic', titleDe: 'Metamagie', className: 'Zauberer', allowance: 2, level: 2, options: [], desc: '', descDe: '' }],
       resources: [{
         id: 'srd-2024_barbarian_rage/uses', featureKey: 'srd-2024_barbarian_rage', labelDe: 'Kampfrausch',
         origin: 'class', classKey: 'srd-2024_barbarian', recharge: 'long-rest', shared: '', kind: 'counter', die: '',

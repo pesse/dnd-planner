@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { collectChoiceSlots } from '../../src/lib/services/characterChoices';
 import { getProgressionByKey } from '../../src/lib/services/classProgression';
 import { withoutDeclaredChoiceFeatures } from '../../src/lib/services/declaration/optionList';
-import { optionPoolOffers } from '../../src/lib/services/declaration/optionPool';
+import { optionPoolOffers, unmetPrerequisite } from '../../src/lib/services/declaration/optionPool';
 
 const SORCERER_KEY = 'srd-2024_sorcerer';
 const METAMAGIC_KEY = 'srd-2024_sorcerer_metamagic';
@@ -68,6 +68,21 @@ describe('Schauerliche Anrufungen als deklarierter Options-Pool', () => {
     expect(offer?.options).toHaveLength(28);
     expect(offer?.options.map((o) => o.value)).toContain('Pact of the Blade');
     expect(offer?.options.every((o) => o.labelDe.trim() && o.helpDe.trim())).toBe(true);
+  });
+
+  /** Auf Stufe 1 lässt das SRD nur die drei Pakte und die zwei Anrufungen ohne Stufe zu. */
+  it('lässt auf Stufe 1 nur die Optionen ohne Voraussetzung zu', async () => {
+    const offer = (await invocationOffer(1))!;
+    const open = offer.options.filter((o) => !unmetPrerequisite([], offer, o)).map((o) => o.value);
+    expect(open).toEqual(['Armor of Shadows', 'Eldritch Mind', 'Pact of the Blade', 'Pact of the Chain', 'Pact of the Tome']);
+  });
+
+  it('verlangt für Verschlingende Klinge Stufe 12 und Dürstende Klinge', async () => {
+    const offer = (await invocationOffer(12))!;
+    const devouring = offer.options.find((o) => o.value === 'Devouring Blade')!;
+    const picks = (...values: string[]) => values.map((value) => ({ sourceKey: INVOCATIONS_KEY, value, valueDe: '' }));
+    expect(unmetPrerequisite(picks('Pact of the Blade'), offer, devouring)).toBe('erfordert Dürstende Klinge');
+    expect(unmetPrerequisite(picks('Pact of the Blade', 'Thirsting Blade'), offer, devouring)).toBeNull();
   });
 });
 

@@ -6,7 +6,7 @@
    * diesen Pool macht `poolPicks`, damit es nur einen Schreibweg gibt.
    */
   import type { OptionPick } from '../schemas/characterSchema';
-  import { poolPicks, toggleOptionPick, type OptionPoolOffer } from '../services/declaration/optionPool';
+  import { poolPicks, toggleOptionPick, unmetPrerequisite, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { createHoverTip } from '../utils/hoverTip.svelte';
   import TextTooltip from './TextTooltip.svelte';
   import type { DiffDir } from '../utils/diffHighlight';
@@ -47,12 +47,14 @@
   <div class="options">
     {#each offer.options as o (o.value)}
       {@const picked = mine.some((p) => p.value === o.value)}
+      {@const unmet = unmetPrerequisite(picks, offer, o)}
       <button
         type="button"
         class="opt"
         class:picked
-        disabled={!picked && mine.length >= offer.allowance}
-        onmouseenter={(e) => tip.show(e, o.helpDe || null)}
+        class:unmet={picked && !!unmet}
+        disabled={!picked && (!!unmet || mine.length >= offer.allowance)}
+        onmouseenter={(e) => tip.show(e, unmet ? `**Voraussetzung fehlt:** ${unmet}\n\n${o.helpDe}` : o.helpDe || null)}
         onmousemove={tip.move}
         onmouseleave={tip.hide}
         onclick={() => { picks = toggleOptionPick(picks, offer, o); tip.hide(); }}
@@ -97,6 +99,7 @@
     color: var(--ink); border-color: var(--arcane, var(--gold));
   }
   .opt:disabled { opacity: 0.45; cursor: not-allowed; }
+  .opt.picked.unmet { border-color: var(--danger); color: var(--danger); }
   .opt.overflow { border-color: var(--danger); color: var(--danger); cursor: pointer; }
   .warn { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--danger); }
 </style>
