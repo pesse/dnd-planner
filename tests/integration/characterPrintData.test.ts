@@ -28,15 +28,15 @@ const valueFor = (data: Sheet, label: string) =>
   data.values.flatMap((r) => r.tracks).find((t) => t.label === label);
 
 describe('Charakterbogen-Bündel über den echten Vault', () => {
-  it('zieht die Zauberpunkte des Zauberers als Kästchen-Vorrat aus der Klassentabelle', async () => {
+  it('zieht die Zaubereipunkte des Zauberers als Kästchen-Vorrat aus der Klassentabelle', async () => {
     const { data, html } = await sheetOf(characterSchema.parse({
       name: 'Nyx Funkenhand',
       classes: [{ sourceKey: 'srd-2024_sorcerer', name: 'Zauberer', level: 5 }],
     }));
 
-    expect(poolFor(data, 'Zauberpunkte')).toMatchObject({ kind: 'points', max: [5] });
+    expect(poolFor(data, 'Zaubereipunkte')).toMatchObject({ kind: 'points', max: [5] });
     // Der Vorrat steht am Kopf des Zauberblatts, neben den Zauberplätzen.
-    expect(html.split('class="sp-top"')[1]).toContain('<span class="btitle">Zauberpunkte</span>');
+    expect(html.split('class="sp-top"')[1]).toContain('<span class="btitle">Zaubereipunkte</span>');
   });
 
   it('bietet dem Zauberer seinen Metamagie-Pool an', async () => {

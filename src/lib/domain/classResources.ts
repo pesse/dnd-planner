@@ -31,10 +31,10 @@ export const CLASS_RESOURCE_COLUMNS: Record<string, ResourceColumnDef> = {
   'Maneuvers Known': skip,
 
   Rages: { kind: 'count', labelDe: 'Kampfrausch' },
-  'Sorcery Points': { kind: 'count', labelDe: 'Zauberpunkte' },
+  'Sorcery Points': { kind: 'count', labelDe: 'Zaubereipunkte' },
   'Focus Points': { kind: 'count', labelDe: 'Fokuspunkte' },
-  'Channel Divinity': { kind: 'count', labelDe: 'Göttlicher Kanal' },
-  'Second Wind': { kind: 'count', labelDe: 'Zweiter Wind' },
+  'Channel Divinity': { kind: 'count', labelDe: 'Göttliche Macht fokussieren' },
+  'Second Wind': { kind: 'count', labelDe: 'Durchschnaufen' },
   // 2024 ist das die Zahl der Jägermal-Einsätze pro langer Rast, kein Gegnertyp.
   'Favored Enemy': { kind: 'count', labelDe: 'Erzfeind' },
   'Wild Shape': { kind: 'count', labelDe: 'Tiergestalt' },

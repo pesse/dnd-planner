@@ -22,22 +22,22 @@ DEPTH: complete enough to play from, short enough to scan. One line where one is
  * Der Umrechnungsfaktor ist der von `ftToMVal` (`itemFormat.ts`), sonst widerspricht die
  * Notiz der Waffenreichweite auf demselben Bogen.
  */
-export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never fall back on 2014 wording ("Zweiter Wind", not "Durchschnaufen"; "Aktionsschub", not "Tatendrang"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
+export const SHEET_NOTE_GERMAN_FORM = `WORDING: write GERMAN. Take every feature name VERBATIM from the input — those are the current German 5.2.1 names. Never substitute a translation you know from elsewhere ("Durchschnaufen", not "Zweiter Wind"; "Tatendrang", not "Aktionsschub"). Abbreviate the recurring terms: TP (Trefferpunkte), RW (Rettungswurf), RK (Rüstungsklasse), SG (Schwierigkeitsgrad), dice as 1W10 — feature names themselves are never abbreviated. Avoid filler like "Du kannst".
 DISTANCES: the English source measures in feet; the German sheet uses metres. Convert every distance (range, radius, speed, sense) at 1 ft = 0.3 m with a decimal comma: 5 ft → 1,5 m, 10 ft → 3 m, 30 ft → 9 m, 60 ft → 18 m, 120 ft → 36 m. Never keep the feet number with a metre unit ("Darkvision 60 ft" is "Dunkelsicht 18 m", not "60 m"). A sense or speed comes first, its range after: "Dunkelsicht 18 m". Dice, TP, uses and levels are not distances and stay as they are.
 This is the depth and shape that works (name on its own line where the description needs one, blank line between entries):
 [Klassenmerkmale]
-Zweiter Wind:
+Durchschnaufen:
 Bonusaktion, stellt 1W10+Kämpferstufe TP wieder her. 2 Anwendungen; 1 zurück nach Kurzer Rast, alle nach Langer Rast.
 
 Kampfstil: Bogenschießen (+2 auf Angriffswürfe mit Fernkampfwaffen)
 
-Aktionsschub:
+Tatendrang:
 Einmal pro Kurzer/Langer Rast eine zusätzliche Aktion (nicht die Aktion Magie).
 
 [Volksmerkmale]
 Dunkelsicht 36 m
 
-Zwergische Widerstandskraft:
+Zwergische Unverwüstlichkeit:
 Resistenz gegen Giftschaden, Vorteil auf RW gegen den Zustand Vergiftet.`;
 
 // Der EINE Call, der DEUTSCH schreibt, obwohl die Merkmals-Strecke sonst englisch reasont:

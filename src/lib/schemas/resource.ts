@@ -1,5 +1,5 @@
 /**
- * Was ein Merkmal oder ein Gegenstand an VORRAT gewährt: Kampfrausch-Einsätze, Zauberpunkte,
+ * Was ein Merkmal oder ein Gegenstand an VORRAT gewährt: Kampfrausch-Einsätze, Zaubereipunkte,
  * Tiergestalt-Anwendungen — und Zauberplätze, die sich davon nur in der Form des Maximums
  * unterscheiden.
  */

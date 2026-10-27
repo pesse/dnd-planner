@@ -9,7 +9,7 @@ import type { GainedFeature } from '../../src/lib/services/analysis/types';
 
 const feature = (over: Partial<GainedFeature> = {}): GainedFeature => ({
   name: 'Second Wind',
-  nameDe: 'Zweiter Wind',
+  nameDe: 'Durchschnaufen',
   desc: 'You have a limited well of physical and mental stamina. On your turn you can use a Bonus Action to regain Hit Points.',
   descDe: 'Du verfügst über einen begrenzten Vorrat an Ausdauer. Als Bonusaktion kannst du 1W10 + Kämpferstufe Trefferpunkte zurückgewinnen. Du kannst dies zweimal einsetzen.',
   source: 'class',
@@ -21,14 +21,14 @@ const feature = (over: Partial<GainedFeature> = {}): GainedFeature => ({
 describe('fallbackSheetNotes', () => {
   it('nimmt den deutschen Namen und den ersten Satz der deutschen Prosa', () => {
     const [note] = fallbackSheetNotes([feature()]);
-    expect(note.sheetNote).toBe('Zweiter Wind: Du verfügst über einen begrenzten Vorrat an Ausdauer.');
+    expect(note.sheetNote).toBe('Durchschnaufen: Du verfügst über einen begrenzten Vorrat an Ausdauer.');
     expect(note.featureKey).toBe('srd-2024_fighter_second-wind');
     expect(note.featureName).toBe('Second Wind');
   });
 
   it('fällt ohne deutsche Prosa auf den englischen Text zurück', () => {
     const [note] = fallbackSheetNotes([feature({ descDe: undefined })]);
-    expect(note.sheetNote).toBe('Zweiter Wind: You have a limited well of physical and mental stamina.');
+    expect(note.sheetNote).toBe('Durchschnaufen: You have a limited well of physical and mental stamina.');
   });
 
   it('hält das Zeichenbudget und schneidet an der Wortgrenze', () => {
@@ -41,7 +41,7 @@ describe('fallbackSheetNotes', () => {
 
   it('trägt den Namen allein, wenn kein Merkmalstext vorliegt', () => {
     const [note] = fallbackSheetNotes([feature({ desc: '', descDe: '' })]);
-    expect(note.sheetNote).toBe('Zweiter Wind');
+    expect(note.sheetNote).toBe('Durchschnaufen');
   });
 
   it('führt ein Merkmal, das der Eingang doppelt enthält, nur einmal', () => {

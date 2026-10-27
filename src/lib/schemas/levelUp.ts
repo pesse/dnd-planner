@@ -95,7 +95,7 @@ const featureRiderSchema = z.object({
 const featureNoteSchema = z.object({
   featureName: z.string().default('').describe('Which feature this note belongs to — its ENGLISH name, verbatim from the input.'),
   // Anker für den deutschen Anzeigenamen aus der Bibliothek; aus dem Modell kämen
-  // 2014er-Begriffe („Durchschnaufen" statt „Zweiter Wind").
+  // fremde Übersetzungen („Zweiter Wind" statt „Durchschnaufen").
   featureKey: z.string().default('').describe('Library key of the feature, copied verbatim from <gained_features>[].key. Empty only if it carries none.'),
   sheetNote: z.string().default('').describe(
     `ENGLISH single-line note for the character sheet: "<feature name>: <what it does>", max ~${SHEET_NOTE_EN_MAX_CHARS} chars ` +

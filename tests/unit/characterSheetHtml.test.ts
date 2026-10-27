@@ -110,7 +110,7 @@ describe('HTML-Charakterbogen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.resources = [{
       id: 'srd-2024_sorcerer_font-of-magic/points', featureKey: 'srd-2024_sorcerer_font-of-magic',
-      labelDe: 'Zauberpunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest',
+      labelDe: 'Zaubereipunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest',
       shared: '', kind: 'points', die: '', max: [3], additions: [],
     }];
     d.values = [{
@@ -121,7 +121,7 @@ describe('HTML-Charakterbogen', () => {
     // Alle Vorräte stehen am Kopf des Zauberblatts; davor liegen die Kästchen der Übersicht.
     const top = html.split('class="sp-top"')[1];
 
-    expect(top).toContain(title('Zauberpunkte'));
+    expect(top).toContain(title('Zaubereipunkte'));
     expect(top).toContain('Lange Rast');
     expect(top.match(/<i class="tick"><\/i>/g)).toHaveLength(3);
     expect(top).toContain(title('Werte'));
