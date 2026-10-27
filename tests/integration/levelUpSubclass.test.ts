@@ -21,6 +21,11 @@ describe('Unterklassenwahl im Aufstieg', () => {
     expect(isFlowOwnedChoiceFeature(marker!)).toBe(true);
   });
 
+  it('stellt sie auch beim Barden, dessen Merkmal in Open5e fehlt', async () => {
+    const bard = characterSchema.parse({ name: 'Testfigur', classes: [{ sourceKey: 'srd-2024_bard', name: 'Barde', level: 1 }] });
+    expect((await computeLevelUpDelta(bard, 0, 3)).triggersSubclassChoice).toBe(true);
+  });
+
   it('stellt sie vor Stufe 3 nicht', async () => {
     expect((await computeLevelUpDelta(fighterAt(1), 0, 2)).triggersSubclassChoice).toBe(false);
   });

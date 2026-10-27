@@ -27,9 +27,6 @@ const GAP_BACKLOG: Record<string, DeclarationGapKind[]> = {
   'srd-2024_druid_circle-of-the-land_natures-sanctuary': ['resource', 'choice'],
 };
 
-/** Grundklassen ohne Unterklassen-Merkmal — Open5e führt „Bard Subclass" nicht. */
-const SUBCLASS_FEATURE_BACKLOG = ['srd-2024_bard'];
-
 describe('Deklarationen im Vault', () => {
   it('liest alle Merkmale', async () => {
     // Ein still verlorener Ladepfad ließe die Proben unten grün, ohne etwas gesehen zu haben.
@@ -60,6 +57,6 @@ describe('Deklarationen im Vault', () => {
       return [libraryKey(c), prog?.features.filter((f) => f.grantsSubclass).length ?? 0] as const;
     }));
     expect(marked.length, 'Klassen mit Unterklassen gelesen').toBeGreaterThan(10);
-    expect(marked.filter(([key, n]) => n !== (SUBCLASS_FEATURE_BACKLOG.includes(key) ? 0 : 1))).toEqual([]);
+    expect(marked.filter(([, n]) => n !== 1)).toEqual([]);
   });
 });
