@@ -117,7 +117,7 @@ describe('Zwei Wahlen an EINEM Merkmal', () => {
     );
 
     expect(rows).toEqual([
-      { key: ELF_LINEAGE_KEY, part: '', frage: 'Elfenabstammung: Wähle eine Option', antwort: 'High Elf', optionen: 3 },
+      { key: ELF_LINEAGE_KEY, part: '', frage: 'Elfische Abstammung: Wähle eine Option', antwort: 'High Elf', optionen: 3 },
       { key: ELF_LINEAGE_KEY, part: 'ability', frage: 'Zauberattribut', antwort: 'Intelligence', optionen: 3 },
     ]);
   });
