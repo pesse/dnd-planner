@@ -56,7 +56,7 @@ export const LEGACY_CHARACTERS: Record<string, Record<string, unknown>> = {
       cantrips: [
         'Donnerschlag',
         'Druidenkunst',
-        'Sternenlichtfunke'
+        'Sternenfunke'
       ],
       byLevel: {
         '1': [
