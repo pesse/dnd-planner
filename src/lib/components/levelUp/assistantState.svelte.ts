@@ -6,7 +6,10 @@ import { type StepId, STEP_META } from '$lib/services/levelUp/steps';
 import { stepOf } from '$lib/services/levelUp/runState';
 import type { LevelUpRun } from '$lib/services/levelUp/run.svelte';
 import { computeLevelUpDelta, type LevelUpDelta } from '$lib/services/levelUp';
-import { baseDeltaChanges } from '$lib/services/levelUp/changes';
+import { baseDeltaChanges, speciesTraitChanges } from '$lib/services/levelUp/changes';
+import { speciesTraitsGained } from '$lib/services/levelUp/features';
+import { totalLevel } from '$lib/schemas/classLevelText';
+import type { Trait } from '$lib/schemas/species';
 import { hitPointChanges } from '$lib/services/levelUp/hitPoints';
 import { loadBaseClasses } from '$lib/services/wizard/originCatalog';
 import type { ClassProgression } from '$lib/types';
@@ -51,6 +54,8 @@ export class LevelUpAssistantUi {
 
   /** Das Delta der aktuellen Klassen- und Stufenwahl, bevor „Weiter" den Lauf startet. */
   classPreview = $state<LevelUpDelta | null>(null);
+  /** Die Speziesmerkmale, die diese Wahl freischalten würde — der Lauf rechnet sie erst nach „Weiter". */
+  previewSpeciesTraits = $state<Trait[]>([]);
 
   spellCreator = $state<SpellCreatorState | null>(null);
   creatingSpell = $state(false);
@@ -72,13 +77,24 @@ export class LevelUpAssistantUi {
       const newClass = this.isNewClass && this.newClassKey ? { sourceKey: this.newClassKey, name: this.newClassName } : undefined;
       if ((this.isNewClass && !newClass) || (!this.isNewClass && !this.hasClasses)) {
         this.classPreview = null;
+        this.previewSpeciesTraits = [];
         return;
       }
       let cancelled = false;
-      computeLevelUpDelta(this.#getCharacter(), this.classIndex, this.targetLevel, newClass).then(
-        (d) => { if (!cancelled) this.classPreview = d.atLevelCap || d.isHomebrew ? null : d; },
-        () => { if (!cancelled) this.classPreview = null; },
-      );
+      const c = this.#getCharacter();
+      computeLevelUpDelta(c, this.classIndex, this.targetLevel, newClass)
+        .then(async (d) => {
+          const from = totalLevel(c.classes);
+          const traits = await speciesTraitsGained(c.species, from, from + (d.toLevel - d.fromLevel));
+          if (cancelled) return;
+          this.classPreview = d.atLevelCap || d.isHomebrew ? null : d;
+          this.previewSpeciesTraits = this.classPreview ? traits : [];
+        })
+        .catch(() => {
+          if (cancelled) return;
+          this.classPreview = null;
+          this.previewSpeciesTraits = [];
+        });
       return () => { cancelled = true; };
     });
     $effect(() => {
@@ -324,6 +340,7 @@ export class LevelUpAssistantUi {
     const c = this.#getCharacter();
     return [
       ...baseDeltaChanges(d, c.hitDice ?? ''),
+      ...speciesTraitChanges(this.previewSpeciesTraits),
       // Ohne Antworten: Trefferpunkte nach Durchschnitt, bis die Entscheidung fällt.
       ...hitPointChanges({
         delta: d, answers: {}, sources: [], others: [],
@@ -350,10 +367,8 @@ export class LevelUpAssistantUi {
     };
     d.featuresGained.forEach((f) => add(f, ''));
     d.subclassFeaturesGained.forEach((f) => add(f, 'Unterklasse'));
-    if (!this.#atClassChoice) {
-      this.st.subFeatures.forEach((f) => add(f, 'Unterklasse'));
-      this.st.speciesTraits.forEach((t) => add(t, 'Volk'));
-    }
+    if (!this.#atClassChoice) this.st.subFeatures.forEach((f) => add(f, 'Unterklasse'));
+    (this.#atClassChoice ? this.previewSpeciesTraits : this.st.speciesTraits).forEach((t) => add(t, 'Volk'));
     return out;
   });
 
