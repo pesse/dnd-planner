@@ -113,6 +113,18 @@ describe('Deklarierte Angriffswirkungen', () => {
     expect(attackBonusParts(attack(LONGSWORD), c).notes).toEqual([]);
   });
 
+  it('ein Hinweis trifft nur Waffen mit der verlangten Eigenschaft und steht beim Angriff', () => {
+    const roots: AttackEffectFeature = {
+      key: 'homebrew_roots', name: 'Schlagende Wurzeln',
+      grants: grants([{ kind: 'note', condition: 'reach', conditionDe: 'Reichweite +3 m', range: 'melee', properties: ['heavy', 'versatile'] }]),
+    };
+    const versatile = { ...LONGSWORD, properties: [{ index: 'versatile', name: 'Versatile' }] };
+    const c = { ...ctx([], [roots]), declared: { sources: attackEffectSources([], [roots]), weaponOf: () => versatile } };
+    expect(attackBonusParts(attack(versatile), c).notes).toEqual(['Schlagende Wurzeln: Reichweite +3 m']);
+    expect(attackBonusParts(attack(LONGSWORD), ctx([], [roots])).notes).toEqual([]);
+    expect(attackFootnotes([roots])).toEqual(['Schlagende Wurzeln: Reichweite +3 m (Nahkampf; Schwer oder Vielseitig)']);
+  });
+
   it('Zusatzwürfel wachsen mit der Stufe des Merkmals und stehen beim Schaden', () => {
     const strikes = (level: number): AttackEffectFeature => ({
       key: 'homebrew_strikes', name: 'Schreckliche Schläge', level,

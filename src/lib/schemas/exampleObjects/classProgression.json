@@ -175,6 +175,9 @@
             "range": "any",
             "weapons": [
               "string"
+            ],
+            "properties": [
+              "ammunition"
             ]
           },
           {
@@ -186,6 +189,9 @@
             "range": "any",
             "weapons": [
               "string"
+            ],
+            "properties": [
+              "ammunition"
             ]
           },
           {
@@ -197,6 +203,21 @@
             "range": "any",
             "weapons": [
               "string"
+            ],
+            "properties": [
+              "ammunition"
+            ]
+          },
+          {
+            "kind": "note",
+            "condition": "string",
+            "conditionDe": "string",
+            "range": "any",
+            "weapons": [
+              "string"
+            ],
+            "properties": [
+              "ammunition"
             ]
           }
         ],
@@ -393,6 +414,9 @@
                     "range": "any",
                     "weapons": [
                       "string"
+                    ],
+                    "properties": [
+                      "ammunition"
                     ]
                   },
                   {
@@ -404,6 +428,9 @@
                     "range": "any",
                     "weapons": [
                       "string"
+                    ],
+                    "properties": [
+                      "ammunition"
                     ]
                   },
                   {
@@ -415,6 +442,21 @@
                     "range": "any",
                     "weapons": [
                       "string"
+                    ],
+                    "properties": [
+                      "ammunition"
+                    ]
+                  },
+                  {
+                    "kind": "note",
+                    "condition": "string",
+                    "conditionDe": "string",
+                    "range": "any",
+                    "weapons": [
+                      "string"
+                    ],
+                    "properties": [
+                      "ammunition"
                     ]
                   }
                 ],

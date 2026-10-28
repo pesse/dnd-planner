@@ -27,6 +27,12 @@ export type ArmorTraining = (typeof ARMOR_TRAININGS)[number];
 export const WEAPON_MASTERIES = ['Cleave', 'Graze', 'Nick', 'Push', 'Sap', 'Slow', 'Topple', 'Vex'] as const;
 export type WeaponMastery = (typeof WEAPON_MASTERIES)[number];
 
+/** Die `index`-Werte der Waffeneigenschaften am Gegenstand; deutsch in `PROPERTY_LABELS` (itemLabels.ts). */
+export const WEAPON_PROPERTIES = [
+  'ammunition', 'finesse', 'heavy', 'light', 'loading', 'reach', 'thrown', 'two-handed', 'versatile',
+] as const;
+export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
+
 /**
  * Entscheidet, WANN ein Talent genommen werden darf: Origin beim Hintergrund, General ab
  * Stufe 4, Fighting Style nur mit dem gleichnamigen Klassenmerkmal, Epic Boon ab 19.

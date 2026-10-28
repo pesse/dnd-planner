@@ -7,7 +7,7 @@ import type { FeatureGrant } from '../schemas/grants';
 import { situationalLabelDe } from '../schemas/situationalBonus';
 import { buildItemIndex, displayName, getAllItemsByDir, matchItem, type ItemIndex, type ItemInfo } from '../itemLibrary';
 import { featureIdOf, normName } from '../utils/text';
-import { DAMAGE_TYPE_LABELS } from '../itemLabels';
+import { DAMAGE_TYPE_LABELS, PROPERTY_LABELS, WEAPON_RANGE_LABELS } from '../itemLabels';
 import { formatDamageDice } from '../itemFormat';
 import { levelStep } from './resources/amount';
 import { sign } from '../utils/num';
@@ -96,11 +96,12 @@ export function criticalRange(features: readonly AttackEffectFeature[]): Critica
 
 export const criticalRangeDe = (c: CriticalRange): string => `Kritischer Treffer bei ${c.minRoll}–20 (${c.labelDe})`;
 
-const filtered = (e: AttackEffect): boolean => e.range !== 'any' || !!e.weapons?.length;
+const filtered = (e: AttackEffect): boolean => e.range !== 'any' || !!e.weapons?.length || !!e.properties?.length;
 
 function weaponMatches(e: AttackEffect, weapon: ItemInfo): boolean {
   if (e.range === 'melee' && weapon.weapon_range !== 'Melee') return false;
   if (e.range === 'ranged' && weapon.weapon_range !== 'Ranged') return false;
+  if (e.properties?.length && !weapon.properties?.some((p) => (e.properties as readonly string[]).includes(p.index))) return false;
   return !e.weapons?.length || e.weapons.includes(weapon.index ?? '');
 }
 
@@ -111,6 +112,7 @@ const enteredByHand = (a: Attack, labelDe: string): boolean =>
 const touches = (e: AttackEffect): { attack: boolean; damage: boolean } =>
   e.kind === 'bonus' ? { attack: e.attack !== 0, damage: e.damage !== 0 }
   : e.kind === 'dice' ? { attack: false, damage: true }
+  : e.kind === 'note' ? { attack: true, damage: false }
   : { attack: e.roll === 'attack', damage: e.roll === 'damage' };
 
 type DiceEffect = Extract<AttackEffect, { kind: 'dice' }>;
@@ -123,7 +125,21 @@ function diceNote(labelDe: string, e: DiceEffect, level: number): string | null 
   return `${labelDe} +${formatDamageDice(dice)}${type}: ${situationalLabelDe(e)}`;
 }
 
-const RANGE_DE: Record<AttackEffect['range'], string> = { any: '', melee: ' (Nahkampf)', ranged: ' (Fernkampf)' };
+/** „ (Nahkampf; Schwer oder Vielseitig)" — für wen die Zeile unter der Tabelle gilt. */
+function filterDe(e: AttackEffect): string {
+  const parts = [
+    e.range === 'melee' ? WEAPON_RANGE_LABELS.Melee : e.range === 'ranged' ? WEAPON_RANGE_LABELS.Ranged : '',
+    (e.properties ?? []).map((p) => PROPERTY_LABELS[p] ?? p).join(' oder '),
+  ].filter(Boolean);
+  return parts.length ? ` (${parts.join('; ')})` : '';
+}
+
+function footnote(labelDe: string, e: AttackEffect, level: number): string | null {
+  if (e.kind === 'note') return `${labelDe}: ${situationalLabelDe(e)}${filterDe(e)}`;
+  if (e.kind !== 'dice') return null;
+  const text = diceNote(labelDe, e, level);
+  return text && text + filterDe(e);
+}
 
 /**
  * Was für alle Angriffe gilt, als Zeilen unter der Angriffstabelle: kritischer Bereich und
@@ -131,12 +147,11 @@ const RANGE_DE: Record<AttackEffect['range'], string> = { any: '', melee: ' (Nah
  */
 export function attackFootnotes(features: readonly AttackEffectFeature[]): string[] {
   const range = criticalRange(features);
-  const dice = attackEffectSources([], features).flatMap(({ labelDe, effect, level }) => {
-    if (effect.kind !== 'dice') return [];
-    const text = diceNote(labelDe, effect, level ?? 1);
-    return text ? [text + RANGE_DE[effect.range]] : [];
+  const lines = attackEffectSources([], features).flatMap(({ labelDe, effect, level }) => {
+    const text = footnote(labelDe, effect, level ?? 1);
+    return text ? [text] : [];
   });
-  return [...(range ? [criticalRangeDe(range)] : []), ...dice];
+  return [...(range ? [criticalRangeDe(range)] : []), ...lines];
 }
 
 /** Der Bonus der Bibliothek, wo der Angriff einen anderen trägt — er wurde beim Anlegen kopiert. */
@@ -172,7 +187,8 @@ export function attackEffectRows(a: Attack, declared: DeclaredAttackEffects | un
     else if (effect.kind === 'dice') {
       const text = diceNote(labelDe, effect, level ?? 1);
       if (text) note(effect, text);
-    } else note(effect, `${labelDe} ${sign(effect.value)}: ${situationalLabelDe(effect)}`);
+    } else if (effect.kind === 'note') note(effect, `${labelDe}: ${situationalLabelDe(effect)}`);
+    else note(effect, `${labelDe} ${sign(effect.value)}: ${situationalLabelDe(effect)}`);
   }
 
   const libraryMagic = staleMagicBonus(a, weapon);

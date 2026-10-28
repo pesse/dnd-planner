@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { situationalBonusSchema } from './situationalBonus';
 import { levelStepsOf } from './amount';
-import { DAMAGE_TYPES } from './vocabulary';
+import { DAMAGE_TYPES, WEAPON_PROPERTIES } from './vocabulary';
 
 export const ATTACK_WEAPON_RANGES = ['any', 'melee', 'ranged'] as const;
 export type AttackWeaponRange = (typeof ATTACK_WEAPON_RANGES)[number];
@@ -13,6 +13,10 @@ const weaponFilter = {
     .array(z.string())
     .optional()
     .describe('Nur diese Waffenarten als Item-`index` ("longbow"); ein magisches Stück zählt über seine Grundwaffe.'),
+  properties: z
+    .array(z.enum(WEAPON_PROPERTIES))
+    .optional()
+    .describe('Nur Waffen mit mindestens einer dieser Eigenschaften ("heavy", "versatile").'),
 };
 
 const diceSchema = z.string().regex(/^\d+d\d+$/).describe('Würfel wie "1d4"; `byLevel` nach Klassenstufe, bei Trait und Talent nach Charakterstufe.');
@@ -44,5 +48,13 @@ export const attackEffectSchema = z.discriminatedUnion('kind', [
       ...weaponFilter,
     })
     .describe('Zusätzliche Schadenswürfel, die der Spieler selbst wirft (Schreckliche Schläge: +1W4 psychisch einmal pro Zug).'),
+  z
+    .object({
+      kind: z.literal('note'),
+      condition: situationalBonusSchema.shape.condition,
+      conditionDe: situationalBonusSchema.shape.conditionDe,
+      ...weaponFilter,
+    })
+    .describe('Wirkung ohne Zahl, die der Angriff nennen soll (Schlagende Wurzeln: Reichweite +3 m in deinem Zug).'),
 ]);
 export type AttackEffect = z.infer<typeof attackEffectSchema>;

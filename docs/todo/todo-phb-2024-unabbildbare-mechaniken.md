@@ -59,7 +59,8 @@ Bemerkenswerter Athlet, Fürchterlicher Lauerjäger), der erweiterte Bereich fü
 in `grants.criticalHit`, Zuschläge und Vorteil auf Fertigkeitswürfe in `grants.checks`. Zusätzliche
 Schadenswürfel stehen als `grants.attack` der Art `dice` unter der Angriffstabelle (Schreckliche
 Schläge, Gleißende Schläge, Göttlicher Schlag, Urschlag, Brutaler Hieb, Mondgestalt,
-Kolossschlächter, Fürchterlicher Lauerjäger). Offen: der Würfel des Hinterhältigen Angriffs steht in
+Kolossschlächter, Fürchterlicher Lauerjäger), Wirkungen ohne Zahl als Art `note` (Schlagende Wurzeln
+mit Filter auf Schwer/Vielseitig, Elementare Einstimmung). Offen: der Würfel des Hinterhältigen Angriffs steht in
 der Klassentabelle, `dice` liest keine Spalte.
 
 | Merkmal | Mechanik |
@@ -68,8 +69,6 @@ der Klassentabelle, `dice` liest keine Spalte.
 | `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
 | `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt |
 | `bard_college-of-dance_dazzling-footwork` | waffenlose Angriffe mit GES + BI-Würfel (Vorteil auf Auftreten ist deklariert) |
-| `barbarian_path-of-the-world-tree_battering-roots` | +10 ft Reichweite; Stoßen/Umstoßen als zusätzliche Meisterschaft |
-| `monk_warrior-of-the-elements_elemental-attunement` | +10 ft Reichweite, wählbare Schadensart (aktiv) |
 | `monk_way-of-shadow_cloak-of-shadows` | unsichtbar, durch Kreaturen bewegen (aktiv) |
 | `rogue_soulknife_psychic-blades` | manifestierte Waffe als eigener Angriff |
 | `ranger_beast-master_primal-companion` | Begleiter-Werteblock |

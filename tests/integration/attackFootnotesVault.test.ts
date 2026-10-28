@@ -31,4 +31,9 @@ describe('Zusatzwürfel aus dem Vault', () => {
     ]);
     expect(await footnotes(cleric('Potent Spellcasting', 'Verstärkte Zaubertricks'))).toEqual([]);
   });
+
+  it('Schlagende Wurzeln nennen Reichweite und die Waffen, für die sie gilt', async () => {
+    const barbarian = { classes: [{ sourceKey: 'srd-2024_barbarian', subclassKey: 'phb-2024_path-of-the-world-tree', name: 'Barbar', level: 10 }] };
+    expect(await footnotes(barbarian)).toContainEqual(expect.stringMatching(/^Schlagende Wurzeln: in deinem Zug Reichweite \+3 m.*\(Nahkampf; Schwer oder Vielseitig\)$/));
+  });
 });
