@@ -121,7 +121,7 @@ describe('die migrierten Charaktere', () => {
 
     const view = await loadSheetSpellcasting(c);
     const all = view.levels.flatMap((l) => l.spells);
-    expect(all.find((s) => s.label === 'Sternenfunke')?.source).toBe('Zauber des Zirkels des Mondes');
+    expect(all.find((s) => s.label === 'Sternenfunke')?.source).toBe('Zirkelzauber des Mondes');
     // Seit der Wilde Gefährte deklariert ist, hängt „Vertrauten finden" an der Klasse.
     expect(all.find((s) => s.label === 'Vertrauten finden')?.source).toBe('Druide');
   });

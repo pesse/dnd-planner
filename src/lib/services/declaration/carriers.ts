@@ -69,7 +69,7 @@ export interface CarrierClass {
   /** Die Subklasse desselben Eintrags — ihre Stufentabelle gilt vor der der Grundklasse. */
   sub: ClassProgression | null;
   level: number;
-  /** Aus der Klasse — bei Drittel-Zauberwirkern aus der SUBklasse (Arkaner Ritter). */
+  /** Aus der Klasse — bei Drittel-Zauberwirkern aus der SUBklasse (Mystischer Ritter). */
   casterType: string;
 }
 

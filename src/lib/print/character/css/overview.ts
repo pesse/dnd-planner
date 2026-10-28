@@ -48,7 +48,7 @@ export const OVERVIEW_CSS = `
 .o-name { font-size: 17pt; font-weight: 700; line-height: 1.1; }
 .o-idbox { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5mm 2mm;
            align-content: center; padding: 2mm 2.4mm; }
-/* „Zauberer 3 (Wildmagie-Zauberei)" bricht in der halben Kastenbreite um. */
+/* „Zauberer 3 (Wilde-Magie-Zauberei)" bricht in der halben Kastenbreite um. */
 .o-id:first-child { grid-column: 1 / -1; }
 .o-id { border-bottom: 0.25mm solid var(--rule); padding: 0 0.6mm; min-width: 0; }
 .o-id-val { display: block; font-size: 8.6pt; font-weight: 600; line-height: 1.15; }
