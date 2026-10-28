@@ -24,29 +24,28 @@
     z-index: 2;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
-    padding: 0.35rem 0;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
   .section-tab {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 999px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     color: var(--ink-muted);
     cursor: pointer;
     font: inherit;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.75rem;
+    font-size: 0.82rem;
+    padding: 0.4rem 0.85rem;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    transition: color 0.1s, border-color 0.1s;
   }
   .section-tab:hover { color: var(--ink); }
   .section-tab.active {
-    color: var(--bg);
-    background: var(--arcane, var(--red));
-    border-color: var(--arcane, var(--red));
+    color: var(--ep-accent, var(--red));
+    border-bottom-color: var(--ep-accent, var(--red));
   }
   .changed-dot {
     width: 0.45rem;
