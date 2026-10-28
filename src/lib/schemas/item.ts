@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { slugAscii } from '../utils/text';
 import { ABILITY_KEYS } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
+import { savingThrowEffectSchema } from './savingThrow';
 import { attackEffectSchema } from './attackEffect';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
@@ -75,6 +76,10 @@ export const itemSchema = z.object({
     .array(attackEffectSchema)
     .optional()
     .describe('Wirkung auf Angriffe mit passenden Waffen (Armschienen des Bogenschützen), solange der Gegenstand wirkt; der Bonus einer Waffe auf sich selbst ist `magic_bonus`.'),
+  savingThrowEffects: z
+    .array(savingThrowEffectSchema)
+    .optional()
+    .describe('Wirkung auf Rettungswürfe (Mantel des Schutzes +1), solange der Gegenstand wirkt.'),
   slot: z
     .enum(EQUIPMENT_SLOTS)
     .optional()

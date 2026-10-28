@@ -9,12 +9,14 @@
     hasAnyProficiency,
     weaponProficiencyLabels,
   } from '../../domain/proficiencies';
-  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS, type AbilityKey } from '../../schemas/abilities';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
+  import type { SavingThrowDerivation } from '../../services/savingThrows';
 
-  let { character, masteryChips }: {
+  let { character, saves, masteryChips }: {
     character: Character;
+    saves: Record<AbilityKey, SavingThrowDerivation>;
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
   } = $props();
 </script>
@@ -24,12 +26,11 @@
   <div class="save-list">
     {#each ABILITY_KEYS as key}
       {@const proficient = character.saveProfs[key]}
-      {@const value = character.mods[key] + (proficient ? character.proficiencyBonus : 0)}
       <div class="save-row has-tip" class:proficient>
         <span class="prof-dot">{proficient ? '●' : '○'}</span>
         <span class="save-label">{ABILITY_ABBR_DE[key]}</span>
-        <span class="save-val">{sign(value)}</span>
-        <span class="tip tip-left">{@html saveTip(character, key, proficient)}</span>
+        <span class="save-val">{sign(saves[key].total)}</span>
+        <span class="tip tip-left">{@html saveTip(saves[key])}</span>
       </div>
     {/each}
   </div>

@@ -9,6 +9,7 @@ import type { AbilityResolution } from './effectiveAbilities';
 import { abilityStepNotes, type HpDerivation } from './hitPointDerivation';
 import type { ArmorClassDerivation } from './armorClass';
 import type { AttackParts } from './attackCalc';
+import type { SavingThrowDerivation } from './savingThrows';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
 
@@ -48,12 +49,8 @@ export function acTip(d: ArmorClassDerivation): string {
   return rows + divider() + total(String(d.total), 'RK') + off + steps(d.notes);
 }
 
-export function saveTip(character: Character, key: AbilityKey, proficient: boolean): string {
-  const attrLabel = ABILITY_ABBR_DE[key];
-  const attrMod = character.mods[key];
-  const pb = character.proficiencyBonus;
-  if (proficient) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(attrMod + pb);
-  return row(`${attrLabel}-Mod`, attrMod) + divider() + total(attrMod);
+export function saveTip(d: SavingThrowDerivation): string {
+  return d.rows.map((r) => row(esc(r.labelDe), r.value)).join('') + divider() + total(d.total) + steps(d.notes);
 }
 
 export function skillTip(

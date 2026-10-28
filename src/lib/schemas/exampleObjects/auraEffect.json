@@ -1,0 +1,10 @@
+{
+  "aura": "string",
+  "radiusFeet": 1,
+  "savingThrows": -9007199254740991,
+  "conditionImmunities": [
+    "blinded"
+  ],
+  "effect": "string",
+  "effectDe": "string"
+}

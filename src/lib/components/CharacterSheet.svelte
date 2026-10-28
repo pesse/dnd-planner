@@ -11,6 +11,7 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
+  import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
   import type { AttackCalcContext } from '../services/attackCalc';
@@ -62,6 +63,7 @@
 
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
+  const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
     strMod: mod(abilities.resolved.str.score),
     dexMod: mod(abilities.resolved.dex.score),
@@ -146,10 +148,13 @@
         style="--ep-accent: var(--arcane)"
       >
         {#snippet karte()}
+          {#if saving.saves}
           <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
-            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx} />
+            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
+            saves={saving.saves} auras={saving.auras} />
+          {/if}
         {/snippet}
 
         {#snippet bearbeiten()}

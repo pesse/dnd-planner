@@ -1,5 +1,5 @@
 /**
- * Die Blöcke neben dem festen Übersichtsblatt: Waffenmeisterschaft, Options-Pools, Ausrüstung
+ * Die Blöcke neben dem festen Übersichtsblatt: Waffenmeisterschaft, Auren, Options-Pools, Ausrüstung
  * samt Geldmitteln. Für die ersten beiden hat der Taendler-Bogen keinen Platz, die Ausrüstung
  * führt er auf seinem zweiten Blatt.
  */
@@ -8,6 +8,8 @@ import { masteryLabel, masteryRuleDe } from '$lib/itemLabels';
 import { coversWeapon, weaponNameSet } from '$lib/services/weaponProficiency';
 import { formatKg, formatTotalWeight, lineWeightKg } from '$lib/utils/inventoryWeight';
 import { poolPicks } from '$lib/services/declaration/optionPool';
+import { auraLinesDe } from '$lib/services/auras';
+import { ftToM } from '$lib/itemFormat';
 import type { CharacterPrintData } from '../data';
 import { block, esc, escLines, field, table, tickBoxes, writeLines } from '../html';
 
@@ -29,6 +31,13 @@ export function renderMasteries(d: CharacterPrintData): string {
   const open = Math.max(0, d.mastery.allowance - chosen.length);
   const rest = open ? `<div class="res-label">Offen</div>${writeLines(open)}` : '';
   return block('Waffenmeisterschaft', lines + rest, { hint: `max. ${d.mastery.allowance}` });
+}
+
+export function renderAuras(d: CharacterPrintData): string {
+  const lines = d.auras.map((a) =>
+    `<div class="pick"><span class="pick-name">${esc(a.nameDe)}${a.radiusFeet ? ` · ${esc(ftToM(a.radiusFeet))}` : ''}</span>` +
+    ` <span class="pick-help">— ${esc(auraLinesDe(a).join('; '))}</span></div>`).join('');
+  return lines ? block('Auren', lines, { hint: 'du und Verbündete darin' }) : '';
 }
 
 export function renderOptionPools(d: CharacterPrintData, cls = ''): string {

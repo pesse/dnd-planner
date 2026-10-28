@@ -8,14 +8,19 @@ import {
   defaultSelection, sheetSections, SHEET_PAGES, STATIC_SECTION_IDS,
 } from '../../src/lib/print/character/sections';
 import type { CharacterPrintData } from '../../src/lib/print/character/data';
+import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
+
+const testfigur = characterSchema.parse({ name: 'Testfigur' });
 
 const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData => ({
-  character: characterSchema.parse({ name: 'Testfigur' }),
+  character: testfigur,
   scores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
   portraitUrl: '',
   companionImageUrl: '',
   freetext: '',
   attacks: [],
+  saves: savingThrowDerivations({ mods: testfigur.mods, profBonus: testfigur.proficiencyBonus, saveProfs: testfigur.saveProfs, sources: [] }),
+  auras: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },

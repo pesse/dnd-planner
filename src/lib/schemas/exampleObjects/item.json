@@ -107,6 +107,32 @@
       ]
     }
   ],
+  "savingThrowEffects": [
+    {
+      "kind": "bonus",
+      "value": -9007199254740991,
+      "abilities": [
+        "str"
+      ]
+    },
+    {
+      "kind": "situational",
+      "value": -9007199254740991,
+      "condition": "string",
+      "conditionDe": "string",
+      "abilities": [
+        "str"
+      ]
+    },
+    {
+      "kind": "advantage",
+      "abilities": [
+        "str"
+      ],
+      "condition": "string",
+      "conditionDe": "string"
+    }
+  ],
   "slot": "head",
   "attunement_by": "string",
   "variant": false,

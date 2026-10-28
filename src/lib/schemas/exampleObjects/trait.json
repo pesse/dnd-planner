@@ -95,6 +95,44 @@
           "string"
         ]
       }
+    ],
+    "savingThrow": [
+      {
+        "kind": "bonus",
+        "value": -9007199254740991,
+        "abilities": [
+          "str"
+        ]
+      },
+      {
+        "kind": "situational",
+        "value": -9007199254740991,
+        "condition": "string",
+        "conditionDe": "string",
+        "abilities": [
+          "str"
+        ]
+      },
+      {
+        "kind": "advantage",
+        "abilities": [
+          "str"
+        ],
+        "condition": "string",
+        "conditionDe": "string"
+      }
+    ],
+    "aura": [
+      {
+        "aura": "string",
+        "radiusFeet": 1,
+        "savingThrows": -9007199254740991,
+        "conditionImmunities": [
+          "blinded"
+        ],
+        "effect": "string",
+        "effectDe": "string"
+      }
     ]
   },
   "grantsChoice": [
@@ -193,6 +231,44 @@
                 "weapons": [
                   "string"
                 ]
+              }
+            ],
+            "savingThrow": [
+              {
+                "kind": "bonus",
+                "value": -9007199254740991,
+                "abilities": [
+                  "str"
+                ]
+              },
+              {
+                "kind": "situational",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string",
+                "abilities": [
+                  "str"
+                ]
+              },
+              {
+                "kind": "advantage",
+                "abilities": [
+                  "str"
+                ],
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "aura": [
+              {
+                "aura": "string",
+                "radiusFeet": 1,
+                "savingThrows": -9007199254740991,
+                "conditionImmunities": [
+                  "blinded"
+                ],
+                "effect": "string",
+                "effectDe": "string"
               }
             ]
           },

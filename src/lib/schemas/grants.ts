@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
+import { auraEffectSchema } from './aura';
+import { savingThrowEffectSchema } from './savingThrow';
 import {
   ARMOR_TRAININGS,
   MONSTER_SIZE_KEYS,
@@ -156,6 +158,14 @@ export const featureGrantSchema = z.object({
     .array(attackEffectSchema)
     .default([])
     .describe('Kampfstil Bogenschießen: wirkt zur Laufzeit auf auto-berechnete Angriffe.'),
+  savingThrow: z
+    .array(savingThrowEffectSchema)
+    .default([])
+    .describe('Zuschläge und Vorteil auf die EIGENEN Rettungswürfe; eine Aura, die auch Verbündete betrifft, gehört nach `aura`.'),
+  aura: z
+    .array(auraEffectSchema)
+    .default([])
+    .describe('Aura des Paladins und ihre Erweiterungen; ihr Rettungswurf-Bonus zählt auch für dich selbst.'),
 });
 
 /**

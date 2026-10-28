@@ -15,7 +15,12 @@ import { resolveResources, type ResolvedResource } from '$lib/services/resources
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import { loadDeclaredAttackEffects, type DeclaredAttackEffects } from '$lib/services/attackEffects';
 import type { ItemInfo } from '$lib/itemLibrary';
-import type { AbilityScores } from '$lib/schemas/abilities';
+import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
+import { mod } from '$lib/domain/skills';
+import { characterAuras, type CharacterAura } from '$lib/services/auras';
+import {
+  loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
+} from '$lib/services/savingThrows';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { cardItemInfos } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
@@ -47,6 +52,8 @@ export interface CharacterPrintData {
   /** Freitext des Details-Tabs, als Markdown. */
   freetext: string;
   attacks: PrintAttack[];
+  saves: Record<AbilityKey, SavingThrowDerivation>;
+  auras: CharacterAura[];
   features: ResolvedCharacterFeatures;
   grouped: GroupedSpellcasting;
   mastery: MasteryOffer;
@@ -124,7 +131,7 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared, figure] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
@@ -134,6 +141,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
     safe(loadDeclaredAttackEffects(c), undefined),
     safe(loadPrintFigure(c, input.figureUrl), null),
+    safe(loadSavingThrowInputs(c), { worn: [], idle: [], features: [] }),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -142,13 +150,25 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     ? groupedSpellcasting(loaded.state, loaded.lookup)
     : { sources: [], resources: [], extra: [], issues: [] };
 
+  const scores = effectiveScores(c.abilities, abilityEffects);
+  const mods = abilityRecordOf((k) => mod(scores[k]));
+  const auras = characterAuras(saveInputs.features, { mods, profBonus: c.proficiencyBonus });
+  const saves = savingThrowDerivations({
+    mods,
+    profBonus: c.proficiencyBonus,
+    saveProfs: c.saveProfs,
+    sources: savingThrowSources(saveInputs.worn, saveInputs.features, auras),
+  });
+
   return {
     character: c,
-    scores: effectiveScores(c.abilities, abilityEffects),
+    scores,
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',
     attacks: printAttacks(c, declared, input.masteryOf),
+    saves,
+    auras,
     features,
     grouped,
     mastery,

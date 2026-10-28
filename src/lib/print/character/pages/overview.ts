@@ -13,7 +13,7 @@ import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { sign } from '$lib/utils/num';
 import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
-import { renderMasteries } from './extras';
+import { renderAuras, renderMasteries } from './extras';
 
 /** Ein Kasten mit der Beschriftung auf der oberen Rahmenlinie, wie die Blöcke. */
 const frame = (caption: string, body: string, cls = ''): string =>
@@ -84,9 +84,8 @@ const lines = (rows: string): string => `<div class="o-lines">${rows}</div>`;
 const savesBox = (d: CharacterPrintData): string => {
   const c = d.character;
   const rows = ABILITY_KEYS.map((k) => {
-    const value = c.mods[k] + (c.saveProfs[k] ? c.proficiencyBonus : 0);
     return `<div class="o-line">${profMark(c.saveProfs[k], false)}` +
-      `<span class="o-val">${sign(value)}</span>` +
+      `<span class="o-val">${sign(d.saves[k].total)}</span>` +
       `<span class="o-lbl">${esc(ABILITY_LABEL[k])}</span></div>`;
   }).join('');
   return frame('Rettungswürfe', lines(rows));
@@ -214,7 +213,7 @@ export function renderOverview(d: CharacterPrintData): string {
     <div class="o-mid">${headPills(d)}
       <div class="o-panel">${skillsBox(d)}</div>
     </div>
-    <div class="o-extra">${passive}${proficienciesBox(d)}${renderMasteries(d)}
+    <div class="o-extra">${passive}${proficienciesBox(d)}${renderMasteries(d)}${renderAuras(d)}
       ${frame('Notizen', '<div class="o-ruled"></div>', 'o-notes')}
     </div>
     <div class="o-main">

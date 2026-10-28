@@ -9,6 +9,7 @@ import { characterSchema } from '../../src/lib/schemas/characterSchema';
 import { buildCharacterSheetHtml } from '../../src/lib/print/character/document';
 import { defaultSelection, sheetSections } from '../../src/lib/print/character/sections';
 import type { CharacterPrintData } from '../../src/lib/print/character/data';
+import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
 import type { SpellQuotaGroup } from '../../src/lib/services/spellcasting/grouped';
 import { allProficienciesCharacter } from '../fixtures/character-all-proficiencies';
 
@@ -19,6 +20,8 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   companionImageUrl: '',
   freetext: '',
   attacks: [],
+  saves: savingThrowDerivations({ mods: character.mods, profBonus: character.proficiencyBonus, saveProfs: character.saveProfs, sources: [] }),
+  auras: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },

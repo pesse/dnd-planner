@@ -11,15 +11,17 @@ export const levelStepsOf = <T extends z.ZodTypeAny>(value: T) =>
     .record(z.string().regex(/^\d+$/), value)
     .describe('Stufe → Wert ab dieser Stufe, z.B. {"2": 1, "17": 2}.');
 
+export const abilityModTermSchema = z.object({
+  abilityMod: z.enum(ABILITY_NAMES),
+  min: z.number().int().min(0).default(1),
+});
+
 const termSchema = z.union([
   z.number().int().min(0).describe('Feste Anzahl.'),
   z.literal('proficiency-bonus'),
   z.object({ column: z.string().describe('Spalte der Klassen-Stufentabelle ("Rages").') }),
   z.object({ byLevel: levelStepsOf(z.number().int().min(0)) }),
-  z.object({
-    abilityMod: z.enum(ABILITY_NAMES),
-    min: z.number().int().min(0).default(1),
-  }),
+  abilityModTermSchema,
   // `base` ist PFLICHT, obwohl 0 sinnvoll wäre: mit Vorgabe träfe diese Variante auch `{}` und
   // schluckte jeden Tippfehler als 0.
   z

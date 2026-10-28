@@ -42,6 +42,7 @@ export interface ItemInfo {
   abilityEffects?: Item['abilityEffects'];
   armorClassEffects?: Item['armorClassEffects'];
   attackEffects?: Item['attackEffects'];
+  savingThrowEffects?: Item['savingThrowEffects'];
   armor_category?: Item['armor_category'];
   slot?: Item['slot'];
   armor_class?: Item['armor_class'];
@@ -188,6 +189,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
         armorClassEffects: itemSchema.shape.armorClassEffects.safeParse(data.armorClassEffects).data,
         attackEffects: itemSchema.shape.attackEffects.safeParse(data.attackEffects).data,
+        savingThrowEffects: itemSchema.shape.savingThrowEffects.safeParse(data.savingThrowEffects).data,
         armor_category: data.armor_category,
         slot: itemSchema.shape.slot.safeParse(data.slot).data,
         armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,
