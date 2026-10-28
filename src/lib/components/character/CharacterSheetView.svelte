@@ -14,16 +14,18 @@
   import type { SavingThrowDerivation } from '../../services/savingThrows';
   import type { CharacterAura } from '../../services/auras';
   import type { CharacterDefense } from '../../services/defenses';
+  import type { MovementLine } from '../../services/movement';
   import type { CombatTips } from '../../services/characterSheetTips';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetAuraBlock from './SheetAuraBlock.svelte';
   import SheetDefenseBlock from './SheetDefenseBlock.svelte';
+  import SheetMovementBlock from './SheetMovementBlock.svelte';
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses }: {
+        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses, movement }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -40,6 +42,7 @@
     saves: Record<AbilityKey, SavingThrowDerivation>;
     auras: CharacterAura[];
     defenses: CharacterDefense[];
+    movement: MovementLine[];
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -67,6 +70,7 @@
     <SheetProficiencyBlock {character} {saves} {masteryChips} />
   </div>
 
+  {#if movement.length}<SheetMovementBlock lines={movement} />{/if}
   {#if defenses.length}<SheetDefenseBlock {defenses} />{/if}
   {#if auras.length}<SheetAuraBlock {auras} />{/if}
 

@@ -8,6 +8,7 @@ import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
 import { auraEffectSchema } from './aura';
 import { defenseEffectSchema } from './defense';
+import { senseEffectSchema, speedEffectSchema } from './movement';
 import { savingThrowEffectSchema } from './savingThrow';
 import {
   ARMOR_TRAININGS,
@@ -171,6 +172,11 @@ export const featureGrantSchema = z.object({
     .array(defenseEffectSchema)
     .default([])
     .describe('Eigene Resistenzen und Immunitäten; was auch Verbündete schützt, gehört nach `aura`.'),
+  speeds: z
+    .array(speedEffectSchema)
+    .default([])
+    .describe('Zusätzliche Bewegungsarten und Erhöhungen; die Grundbewegungsrate steht in `properties.speedFeet`.'),
+  senses: z.array(senseEffectSchema).default([]).describe('Dunkelsicht, Blindsicht, Erschütterungssinn, Wahre Sicht.'),
 });
 
 /**

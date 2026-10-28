@@ -244,6 +244,25 @@
             "condition": "string",
             "conditionDe": "string"
           }
+        ],
+        "speeds": [
+          {
+            "mode": "walk",
+            "feet": 1,
+            "bonus": false,
+            "hover": false,
+            "condition": "string",
+            "conditionDe": "string"
+          }
+        ],
+        "senses": [
+          {
+            "sense": "darkvision",
+            "feet": 1,
+            "stacks": false,
+            "condition": "string",
+            "conditionDe": "string"
+          }
         ]
       },
       "grantsChoice": [
@@ -396,6 +415,25 @@
                     "conditionImmunities": [
                       "blinded"
                     ],
+                    "condition": "string",
+                    "conditionDe": "string"
+                  }
+                ],
+                "speeds": [
+                  {
+                    "mode": "walk",
+                    "feet": 1,
+                    "bonus": false,
+                    "hover": false,
+                    "condition": "string",
+                    "conditionDe": "string"
+                  }
+                ],
+                "senses": [
+                  {
+                    "sense": "darkvision",
+                    "feet": 1,
+                    "stacks": false,
                     "condition": "string",
                     "conditionDe": "string"
                   }

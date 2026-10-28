@@ -753,9 +753,10 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
 
   it('bleibt für die Prosa-Mechanik im Eingang von Pass C', async () => {
     const f = await lineage();
-    const passed = unredactedChoiceFeatures([f], () => 'Drow');
+    const passed = unredactedChoiceFeatures([f], () => 'High Elf');
     expect(passed).toHaveLength(1);
-    expect(passed[0].choice, 'die Antwort reist als FINAL mit').toBe('Drow');
+    expect(passed[0].choice, 'die Antwort reist als FINAL mit').toBe('High Elf');
+    expect(unredactedChoiceFeatures([f], () => 'Drow'), 'Drow deklariert seine Dunkelsicht').toEqual([]);
 
     // Sobald der Zweig seine Mechanik deklariert — auch als geprüft-und-leer — gibt es
     // nichts zu deuten und der Call fällt weg.
@@ -763,10 +764,10 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
       ...f,
       grantsChoice: [featureChoiceGrantSchema.parse({
         kind: 'optionList',
-        options: [{ value: 'Drow', grants: {} }],
+        options: [{ value: 'High Elf', grants: {} }],
       })],
     };
-    expect(unredactedChoiceFeatures([redacted], () => 'Drow')).toEqual([]);
+    expect(unredactedChoiceFeatures([redacted], () => 'High Elf')).toEqual([]);
   });
 });
 

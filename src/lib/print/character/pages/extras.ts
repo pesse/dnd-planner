@@ -41,6 +41,15 @@ export function renderAuras(d: CharacterPrintData): string {
   return lines ? block('Auren', lines, { hint: 'du und Verbündete darin' }) : '';
 }
 
+export function renderMovement(d: CharacterPrintData): string {
+  const lines = d.movement.map((l) => {
+    const sources = l.sourcesDe.join(', ');
+    return `<div class="pick"><span class="pick-name">${esc(`${l.labelDe} ${l.valueDe}`)}</span>` +
+      ` <span class="pick-help">— ${esc(l.whenDe ? `${l.whenDe} (${sources})` : sources)}</span></div>`;
+  }).join('');
+  return lines ? block('Bewegung & Sinne', lines) : '';
+}
+
 export function renderDefenses(d: CharacterPrintData): string {
   const lines = d.defenses.map(({ labelDe, effect }) => {
     const when = defenseWhenDe(effect);

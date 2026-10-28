@@ -19,6 +19,8 @@ import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schem
 import { mod } from '$lib/domain/skills';
 import { characterAuras, type CharacterAura } from '$lib/services/auras';
 import { characterDefenses, type CharacterDefense } from '$lib/services/defenses';
+import { characterMovement, type MovementLine } from '$lib/services/movement';
+import { declaredSpeed } from '$lib/services/characterProperties';
 import {
   loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
 } from '$lib/services/savingThrows';
@@ -57,6 +59,7 @@ export interface CharacterPrintData {
   saves: Record<AbilityKey, SavingThrowDerivation>;
   auras: CharacterAura[];
   defenses: CharacterDefense[];
+  movement: MovementLine[];
   features: ResolvedCharacterFeatures;
   grouped: GroupedSpellcasting;
   mastery: MasteryOffer;
@@ -174,6 +177,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     saves,
     auras,
     defenses: characterDefenses(saveInputs.features),
+    movement: characterMovement(saveInputs.features, declaredSpeed(saveInputs.features)?.feet ?? null),
     features,
     grouped,
     mastery,

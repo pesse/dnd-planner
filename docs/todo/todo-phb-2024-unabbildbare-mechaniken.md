@@ -25,28 +25,19 @@ Feste, an eine Lage gebundene und per Option gewählte Resistenzen stehen in `gr
 
 ## Bewegungsraten und Sinne
 
-`properties.speedFeet` setzt nur die Grundbewegungsrate. Eine Erhöhung, Schwimm-, Kletter- oder
-Flugbewegungsrate gibt es nicht. Dunkelsicht ist eine Bogen-Notiz, keine Eigenschaft.
+Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in `grants.speeds` /
+`grants.senses` (Abschnitt „Bewegung & Sinne" auf Bogen und Druck). Offen:
 
-| Merkmal | Mechanik | Bedingung |
+| Merkmal | Mechanik | Was fehlt |
 |---|---|---|
-| `druid_circle-of-the-sea_aquatic-affinity` | Schwimmen = Bewegungsrate | dauerhaft |
-| `barbarian_path-of-the-wild-heart_aspect-of-the-wilds` | Eule: Dunkelsicht · Panther: Klettern · Lachs: Schwimmen | Wahl (als `optionList` ohne `grants`) |
-| `srd-2024_rogue_thief_second-story-work` | Klettern; Sprungweite aus GES | dauerhaft |
-| `paladin_oath-of-glory_aura-of-alacrity` | +10 ft | dauerhaft |
-| `ranger_gloom-stalker_dread-ambusher` | +10 ft in der ersten Runde | erste Runde |
-| `ranger_gloom-stalker_umbral-sight` | Dunkelsicht | dauerhaft |
-| `monk_way-of-shadow_shadow-arts` | Dunkelsicht (über `aiInterpretsRest`) | dauerhaft |
-| `wizard_diviner_the-third-eye` | Dunkelsicht oder Unsichtbares sehen | Wahl bis zur Rast |
-| `druid_circle-of-the-sea_stormborn` | Fliegen = Bewegungsrate | Zorn des Meeres aktiv |
-| `druid_circle-of-the-stars_twinkling-constellations` | Fliegen 20 ft, Schweben | Drache aktiv |
-| `barbarian_path-of-the-wild-heart_power-of-the-wilds` | Fliegen (Falke) | Kampfrausch, ohne Rüstung |
-| `barbarian_path-of-the-zealot_rage-of-the-gods` | Fliegen, Schweben | Form |
-| `paladin_oath-of-vengeance_avenging-angel` | Fliegen 60 ft, Schweben | Form |
+| `srd-2024_monk_unarmored-movement` | +10 bis +30 ft nach Mönchsstufe | die Laufzeit-Senke kennt die Klassenstufe nicht |
+| `srd-2024_rogue_thief_second-story-work` | Sprungweite aus GES | kein Feld für Sprungweite (Klettern ist deklariert) |
+| `wizard_diviner_the-third-eye` | Dunkelsicht oder Unsichtbares sehen | Wahl bis zur Rast (flüchtig) |
+| `barbarian_path-of-the-wild-heart_power-of-the-wilds` | Fliegen (Falke) | Wahl je Kampfrausch (flüchtig) |
 | `fighter_psi-warrior_telekinetic-adept` | Fliegen | ein Zug |
-| `monk_warrior-of-the-elements_stride-of-the-elements` | Fliegen, Schwimmen | Einstimmung aktiv |
-| `monk_warrior-of-the-elements_elemental-epitome` | +20 ft | Einstimmung aktiv |
-| `sorcerer_aberrant-sorcery_revelation-in-flesh` | Schwimmen, Fliegen, Unsichtbares sehen | auf Zeit |
+| `monk_warrior-of-the-elements_elemental-epitome` | +20 ft | ein Zug nach Schritt des Windes |
+| `sorcerer_aberrant-sorcery_revelation-in-flesh` | Schwimmen, Fliegen, Unsichtbares sehen | Wahl bei jeder Anwendung (flüchtig) |
+| Bewegungsrate im Kampfblock | dauerhafte Erhöhungen (Aura der Behändigkeit) | stehen als eigene Zeile, nicht in der eingetragenen Bewegungsrate |
 
 ## Ressourcen
 

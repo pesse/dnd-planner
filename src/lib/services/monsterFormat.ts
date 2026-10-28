@@ -28,7 +28,7 @@ export function parseCr(raw: string): number {
   return Number(s) || 0;
 }
 
-const MOVEMENT_LABELS: Record<Exclude<keyof Monster['speed'], 'walk' | 'hover'>, string> = {
+export const MOVEMENT_LABELS: Record<Exclude<keyof Monster['speed'], 'walk' | 'hover'>, string> = {
   fly: 'Fliegen',
   swim: 'Schwimmen',
   climb: 'Klettern',
@@ -44,7 +44,7 @@ export function speedLine(speed: Monster['speed']): string {
   return parts.join(', ') || '—';
 }
 
-const SENSE_LABELS: Record<keyof Monster['senses'], string> = {
+export const SENSE_LABELS: Record<keyof Monster['senses'], string> = {
   darkvision: 'Dunkelsicht',
   blindsight: 'Blindsicht',
   tremorsense: 'Erschütterungssinn',

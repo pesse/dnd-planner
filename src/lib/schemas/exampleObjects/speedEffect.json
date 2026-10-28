@@ -1,0 +1,8 @@
+{
+  "mode": "walk",
+  "feet": 1,
+  "bonus": false,
+  "hover": false,
+  "condition": "string",
+  "conditionDe": "string"
+}

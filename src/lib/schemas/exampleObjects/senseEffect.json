@@ -1,0 +1,7 @@
+{
+  "sense": "darkvision",
+  "feet": 1,
+  "stacks": false,
+  "condition": "string",
+  "conditionDe": "string"
+}
