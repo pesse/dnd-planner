@@ -24,6 +24,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   attacks: [],
   saves: savingThrowDerivations({ mods: testfigur.mods, profBonus: effectiveProficiencyBonus(testfigur), saveProfs: testfigur.saveProfs, sources: [] }),
   auras: [],
+  defenses: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },

@@ -12,26 +12,18 @@
 
 ## Schadensresistenz und Zustandsimmunität
 
-Das Schema hat kein Feld für Resistenzen. Zustandsimmunität gibt es nur in `aura`.
+Feste und an eine Lage gebundene Resistenzen stehen in `grants.defenses` (Auren: `aura.resistances`).
+Offen sind die, deren Schadensart erst eine Wahl festlegt, und Schaden, der keine Schadensart ist.
 
-| Merkmal | Mechanik | Bedingung |
+| Merkmal | Mechanik | Was fehlt |
 |---|---|---|
-| `cleric_war-domain_avatar-of-battle` | Hieb, Stich, Wucht | dauerhaft |
-| `fighter_psi-warrior_guarded-mind` | psychisch | dauerhaft |
-| `sorcerer_aberrant-sorcery_psychic-defenses` | psychisch | dauerhaft |
-| `warlock_celestial-patron_radiant-soul` | gleißend | dauerhaft |
-| `warlock_great-old-one-patron_thought-shield` | psychisch | dauerhaft |
-| `wizard_abjurer_spell-resistance` | Schaden durch Zauber | dauerhaft |
-| `warlock_archfey-patron_beguiling-defenses` | Immunität Bezaubert | dauerhaft |
-| `srd-2024_druid_circle-of-the-land_natures-ward` | Immunität Vergiftet, Resistenz je Land | Land-Wahl |
-| `srd-2024_sorcerer_draconic-sorcery_elemental-affinity` | gewählte Art (nur als `helpDe`) | Wahl |
-| `srd-2024_warlock_fiend-patron_fiendish-resilience` | gewählte Art | neu je Rast |
-| `paladin_oath-of-the-ancients_aura-of-warding` | nekrotisch, psychisch, gleißend | Aura (nur `aura.effect`-Text) |
-| `barbarian_path-of-the-wild-heart_rage-of-the-wilds` | Bär: alles außer Energie, nekrotisch, psychisch, gleißend | Kampfrausch |
-| `barbarian_path-of-the-zealot_rage-of-the-gods` | nekrotisch, psychisch, gleißend | Form |
-| `druid_circle-of-the-sea_stormborn` | Kälte, Blitz, Schall | Zorn des Meeres aktiv |
-| `druid_circle-of-the-stars_full-of-stars` | Hieb, Stich, Wucht | Sternengestalt |
-| `monk_warrior-of-the-elements_elemental-epitome` | gewählte Art, jede Runde wechselbar | Einstimmung aktiv |
+| `wizard_abjurer_spell-resistance` | Schaden durch Zauber | keine Schadensart |
+| `srd-2024_druid_circle-of-the-land_natures-ward` | Resistenz je Land | Land wechselt je Lange Rast (Immunität Vergiftet ist deklariert) |
+| `srd-2024_sorcerer_draconic-sorcery_elemental-affinity` | gewählte Art (nur als `helpDe`) | Optionswahl wirkt nicht zur Laufzeit |
+| `srd-2024_dragonborn_damage-resistance`, `srd-2024_tiefling_fiendish-legacy` | Art aus der Abstammung | dito |
+| `srd-2024_warlock_fiend-patron_fiendish-resilience` | gewählte Art | neu je Rast (flüchtig) |
+| `barbarian_path-of-the-wild-heart_rage-of-the-wilds` | Bär: alles außer Energie, nekrotisch, psychisch, gleißend | Wahl je Kampfrausch (flüchtig) |
+| `monk_warrior-of-the-elements_elemental-epitome` | gewählte Art, jede Runde wechselbar | flüchtig |
 
 ## Bewegungsraten und Sinne
 

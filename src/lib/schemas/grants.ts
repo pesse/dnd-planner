@@ -7,6 +7,7 @@ import { ABILITY_NAMES } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
 import { auraEffectSchema } from './aura';
+import { defenseEffectSchema } from './defense';
 import { savingThrowEffectSchema } from './savingThrow';
 import {
   ARMOR_TRAININGS,
@@ -166,6 +167,10 @@ export const featureGrantSchema = z.object({
     .array(auraEffectSchema)
     .default([])
     .describe('Aura des Paladins und ihre Erweiterungen; ihr Rettungswurf-Bonus zählt auch für dich selbst.'),
+  defenses: z
+    .array(defenseEffectSchema)
+    .default([])
+    .describe('Eigene Resistenzen und Immunitäten; was auch Verbündete schützt, gehört nach `aura`.'),
 });
 
 /**

@@ -16,6 +16,7 @@
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
+  import { characterDefenses } from '../services/defenses';
   import type { AttackCalcContext } from '../services/attackCalc';
   import { mod } from '../domain/skills';
   import { hpDerivation } from '../services/hitPointDerivation';
@@ -71,6 +72,7 @@
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
+  const defenses = $derived(owned.current ? characterDefenses(owned.current) : []);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
     strMod: mod(abilities.resolved.str.score),
@@ -162,7 +164,7 @@
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
             abilities={abilities.resolved} combatTips={tips} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
-            saves={saving.saves} auras={saving.auras} />
+            saves={saving.saves} auras={saving.auras} {defenses} />
           {/if}
         {/snippet}
 

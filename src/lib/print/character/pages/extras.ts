@@ -9,6 +9,7 @@ import { coversWeapon, weaponNameSet } from '$lib/services/weaponProficiency';
 import { formatKg, formatTotalWeight, lineWeightKg } from '$lib/utils/inventoryWeight';
 import { poolPicks } from '$lib/services/declaration/optionPool';
 import { auraLinesDe } from '$lib/services/auras';
+import { defenseTextDe, defenseWhenDe } from '$lib/services/defenses';
 import { ftToM } from '$lib/itemFormat';
 import type { CharacterPrintData } from '../data';
 import { block, esc, escLines, field, table, tickBoxes, writeLines } from '../html';
@@ -38,6 +39,15 @@ export function renderAuras(d: CharacterPrintData): string {
     `<div class="pick"><span class="pick-name">${esc(a.nameDe)}${a.radiusFeet ? ` · ${esc(ftToM(a.radiusFeet))}` : ''}</span>` +
     ` <span class="pick-help">— ${esc(auraLinesDe(a).join('; '))}</span></div>`).join('');
   return lines ? block('Auren', lines, { hint: 'du und Verbündete darin' }) : '';
+}
+
+export function renderDefenses(d: CharacterPrintData): string {
+  const lines = d.defenses.map(({ labelDe, effect }) => {
+    const when = defenseWhenDe(effect);
+    return `<div class="pick"><span class="pick-name">${esc(defenseTextDe(effect))}</span>` +
+      ` <span class="pick-help">— ${esc(when ? `${when} (${labelDe})` : labelDe)}</span></div>`;
+  }).join('');
+  return lines ? block('Resistenzen & Immunitäten', lines) : '';
 }
 
 export function renderOptionPools(d: CharacterPrintData, cls = ''): string {

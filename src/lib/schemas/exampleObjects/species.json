@@ -140,11 +140,29 @@
             "aura": "string",
             "radiusFeet": 1,
             "savingThrows": -9007199254740991,
+            "resistances": [
+              "acid"
+            ],
             "conditionImmunities": [
               "blinded"
             ],
             "effect": "string",
             "effectDe": "string"
+          }
+        ],
+        "defenses": [
+          {
+            "resistances": [
+              "acid"
+            ],
+            "immunities": [
+              "acid"
+            ],
+            "conditionImmunities": [
+              "blinded"
+            ],
+            "condition": "string",
+            "conditionDe": "string"
           }
         ]
       },
@@ -277,11 +295,29 @@
                     "aura": "string",
                     "radiusFeet": 1,
                     "savingThrows": -9007199254740991,
+                    "resistances": [
+                      "acid"
+                    ],
                     "conditionImmunities": [
                       "blinded"
                     ],
                     "effect": "string",
                     "effectDe": "string"
+                  }
+                ],
+                "defenses": [
+                  {
+                    "resistances": [
+                      "acid"
+                    ],
+                    "immunities": [
+                      "acid"
+                    ],
+                    "conditionImmunities": [
+                      "blinded"
+                    ],
+                    "condition": "string",
+                    "conditionDe": "string"
                   }
                 ]
               },

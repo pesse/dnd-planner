@@ -13,15 +13,17 @@
   import type { AttackCalcContext } from '../../services/attackCalc';
   import type { SavingThrowDerivation } from '../../services/savingThrows';
   import type { CharacterAura } from '../../services/auras';
+  import type { CharacterDefense } from '../../services/defenses';
   import type { CombatTips } from '../../services/characterSheetTips';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetAuraBlock from './SheetAuraBlock.svelte';
+  import SheetDefenseBlock from './SheetDefenseBlock.svelte';
   import SheetInventoryBlock from './SheetInventoryBlock.svelte';
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras }: {
+        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -37,6 +39,7 @@
     attackCtx: AttackCalcContext | null;
     saves: Record<AbilityKey, SavingThrowDerivation>;
     auras: CharacterAura[];
+    defenses: CharacterDefense[];
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
@@ -64,6 +67,7 @@
     <SheetProficiencyBlock {character} {saves} {masteryChips} />
   </div>
 
+  {#if defenses.length}<SheetDefenseBlock {defenses} />{/if}
   {#if auras.length}<SheetAuraBlock {auras} />{/if}
 
   <div class="section">

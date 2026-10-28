@@ -1,0 +1,13 @@
+{
+  "resistances": [
+    "acid"
+  ],
+  "immunities": [
+    "acid"
+  ],
+  "conditionImmunities": [
+    "blinded"
+  ],
+  "condition": "string",
+  "conditionDe": "string"
+}

@@ -23,6 +23,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   attacks: [],
   saves: savingThrowDerivations({ mods: character.mods, profBonus: effectiveProficiencyBonus(character), saveProfs: character.saveProfs, sources: [] }),
   auras: [],
+  defenses: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },

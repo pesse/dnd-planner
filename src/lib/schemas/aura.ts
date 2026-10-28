@@ -3,7 +3,7 @@
  * betrifft. Beiträge mit demselben `aura` bilden EINE Aura (Aura des Schutzes + Tapferkeit + Ausdehnung).
  */
 import { z } from 'zod';
-import { CONDITION_KEYS } from './vocabulary';
+import { CONDITION_KEYS, DAMAGE_TYPES } from './vocabulary';
 import { saveBonusValueSchema } from './savingThrow';
 
 export const auraEffectSchema = z.object({
@@ -17,6 +17,10 @@ export const auraEffectSchema = z.object({
   savingThrows: saveBonusValueSchema
     .optional()
     .describe('Bonus auf alle Rettungswürfe für dich und Verbündete in der Aura.'),
+  resistances: z
+    .array(z.enum(DAMAGE_TYPES))
+    .default([])
+    .describe('Schadensresistenzen für dich und Verbündete in der Aura.'),
   conditionImmunities: z
     .array(z.enum(CONDITION_KEYS))
     .default([])

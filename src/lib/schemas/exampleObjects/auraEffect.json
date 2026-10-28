@@ -2,6 +2,9 @@
   "aura": "string",
   "radiusFeet": 1,
   "savingThrows": -9007199254740991,
+  "resistances": [
+    "acid"
+  ],
   "conditionImmunities": [
     "blinded"
   ],

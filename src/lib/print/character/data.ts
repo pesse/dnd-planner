@@ -18,6 +18,7 @@ import type { ItemInfo } from '$lib/itemLibrary';
 import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
 import { mod } from '$lib/domain/skills';
 import { characterAuras, type CharacterAura } from '$lib/services/auras';
+import { characterDefenses, type CharacterDefense } from '$lib/services/defenses';
 import {
   loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
 } from '$lib/services/savingThrows';
@@ -55,6 +56,7 @@ export interface CharacterPrintData {
   attacks: PrintAttack[];
   saves: Record<AbilityKey, SavingThrowDerivation>;
   auras: CharacterAura[];
+  defenses: CharacterDefense[];
   features: ResolvedCharacterFeatures;
   grouped: GroupedSpellcasting;
   mastery: MasteryOffer;
@@ -171,6 +173,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     attacks: printAttacks(shown, declared, input.masteryOf),
     saves,
     auras,
+    defenses: characterDefenses(saveInputs.features),
     features,
     grouped,
     mastery,

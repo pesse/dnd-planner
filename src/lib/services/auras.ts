@@ -1,7 +1,8 @@
 /** Die Auren eines Charakters, aus den `grants.aura`-Beiträgen seiner Merkmale zusammengeführt. */
 import type { AbilityScores } from '../schemas/abilities';
 import type { FeatureGrant } from '../schemas/grants';
-import { CONDITIONS, type Condition } from '../schemas/vocabulary';
+import { CONDITIONS, type Condition, type DamageType } from '../schemas/vocabulary';
+import { DAMAGE_TYPE_LABELS } from '../itemLabels';
 import { featureIdOf } from '../utils/text';
 import { sign } from '../utils/num';
 import { resolveSaveBonus } from './savingThrows';
@@ -18,6 +19,7 @@ export interface CharacterAura {
   nameDe: string;
   radiusFeet?: number;
   saveBonus?: number;
+  resistances: DamageType[];
   conditionImmunities: Condition[];
   effects: { labelDe: string; text: string }[];
 }
@@ -33,7 +35,7 @@ export function characterAuras(
     if (seen.has(fid)) continue;
     seen.add(fid);
     for (const part of f.grants?.aura ?? []) {
-      const aura = byId.get(part.aura) ?? { id: part.aura, nameDe: f.name, conditionImmunities: [], effects: [] };
+      const aura = byId.get(part.aura) ?? { id: part.aura, nameDe: f.name, resistances: [], conditionImmunities: [], effects: [] };
       byId.set(part.aura, aura);
       if (f.key === part.aura) aura.nameDe = f.name;
       if (part.radiusFeet !== undefined) aura.radiusFeet = Math.max(aura.radiusFeet ?? 0, part.radiusFeet);
@@ -41,6 +43,8 @@ export function characterAuras(
         const bonus = resolveSaveBonus(part.savingThrows, ctx.mods, ctx.profBonus);
         aura.saveBonus = Math.max(aura.saveBonus ?? bonus, bonus);
       }
+      for (const t of part.resistances)
+        if (!aura.resistances.includes(t)) aura.resistances.push(t);
       for (const c of part.conditionImmunities)
         if (!aura.conditionImmunities.includes(c)) aura.conditionImmunities.push(c);
       const text = part.effectDe?.trim() || part.effect?.trim();
@@ -54,6 +58,7 @@ export function characterAuras(
 export function auraLinesDe(aura: CharacterAura): string[] {
   return [
     ...(aura.saveBonus !== undefined ? [`${sign(aura.saveBonus)} auf alle Rettungswürfe`] : []),
+    ...(aura.resistances.length ? [`Resistenz gegen ${aura.resistances.map((t) => DAMAGE_TYPE_LABELS[t]).join(', ')}`] : []),
     ...(aura.conditionImmunities.length ? [`immun gegen ${aura.conditionImmunities.map((c) => CONDITIONS[c]).join(', ')}`] : []),
     ...aura.effects.map((e) => `${e.text} (${e.labelDe})`),
   ];

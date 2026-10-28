@@ -14,7 +14,7 @@ import { sign } from '$lib/utils/num';
 import { effectiveProficiencyBonus } from '$lib/services/classProgression';
 import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
-import { renderAuras, renderMasteries } from './extras';
+import { renderAuras, renderDefenses, renderMasteries } from './extras';
 
 /** Ein Kasten mit der Beschriftung auf der oberen Rahmenlinie, wie die Blöcke. */
 const frame = (caption: string, body: string, cls = ''): string =>
@@ -214,7 +214,7 @@ export function renderOverview(d: CharacterPrintData): string {
     <div class="o-mid">${headPills(d)}
       <div class="o-panel">${skillsBox(d)}</div>
     </div>
-    <div class="o-extra">${passive}${proficienciesBox(d)}${renderMasteries(d)}${renderAuras(d)}
+    <div class="o-extra">${passive}${proficienciesBox(d)}${renderMasteries(d)}${renderDefenses(d)}${renderAuras(d)}
       ${frame('Notizen', '<div class="o-ruled"></div>', 'o-notes')}
     </div>
     <div class="o-main">
