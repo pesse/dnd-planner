@@ -1,6 +1,6 @@
-# TODO: Unterklassen-Mechaniken ohne Senke
+# TODO: PHB-2024-Mechaniken ohne Senke
 
-> Entstanden beim Übertragen aller PHB-2024-Unterklassen in den Vault (2026-10-28).
+> Entstanden beim Übertragen der PHB-2024-Unterklassen, -Talente, -Hintergründe und -Zauber in den Vault (2026-10-28).
 > Diese Mechaniken stehen nur als Text im Merkmal, deklariert ist höchstens der Teil, den das
 > Schema schon kann. Keys ohne Präfix lesen sich als `phb-2024_<klasse>_<unterklasse>_<merkmal>`.
 
@@ -76,3 +76,53 @@ der Klassentabelle, `dice` liest keine Spalte.
 | `srd-2024_rogue_thief_use-magic-device` | Einstimmungslimit 4 |
 | `cleric_war-domain_war-gods-blessing` | ohne Konzentration, 1 Minute |
 | `paladin_oath-of-the-ancients_undying-sentinel` | kein magisches Altern (reine Erzählung) |
+
+## Talente
+
+Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
+
+| Talent | Mechanik | Was fehlt |
+|---|---|---|
+| `boon-of-fortitude` | TP-Maximum +40 | kein fester `hpMax`-Zuschlag |
+| `boon-of-energy-resistance` | zwei Resistenzen, je Lange Rast tauschbar | flüchtig; dass beide verschieden sind, prüft niemand |
+| `crafter` | Übung mit 3 aus 8 Handwerkerwerkzeugen | `toolCategory` bietet alle 17 an |
+| `unarmed-fighting`, `tavern-brawler` | Schaden waffenloser Schläge | kein Waffenfilter für waffenlose Angriffe |
+| `thrown-weapon-fighting` | Fernkampfangriff mit Wurfwaffe | Filter „Fernkampf UND Wurf“ |
+| `piercer`, `slasher`, `poisoner` | Schaden einer Schadensart | kein Schadensart-Filter |
+| `polearm-master` | Schwer UND Reichweite | Eigenschaftsfilter ist ODER, die Waffen stehen deshalb einzeln da |
+| `fey-touched`, `shadow-touched`, `ritual-caster`, `telekinetic`, `telepathic` | Zauberattribut = das erhöhte Attribut | Zauberattribut ist nicht an die Erhöhung gekoppelt |
+| `ritual-caster` | Rituale aus jeder Liste, Anzahl = Übungsbonus | heute `byLevel` als Behelf |
+| `keen-mind`, `observant` | Expertise, falls schon geübt, sonst Übung | Bedingung nicht ausdrückbar |
+| `elemental-adept` | gewählte Schadensart ignoriert Resistenz | Wahl hat keine Regelwirkung; Wiederholung mit anderer Art nicht erzwungen |
+| `heavy-armor-master` | Schadensreduktion = Übungsbonus | keine Senke |
+| `defensive-duelist` | RK + Übungsbonus als Reaktion | keine Senke |
+| `great-weapon-master` | Schaden + Übungsbonus | `dice` kennt keinen Übungsbonus |
+| `medium-armor-master` | GES-Obergrenze 3 | RK wird nicht berechnet |
+| `inspiring-leader` | temporäre TP | keine Senke |
+| `chef` | Leckerbissen, eine Stunde Zubereitung | keine Senke |
+| `durable` | Vorteil auf Todesrettungswürfe | `savingThrow`-Vorteil kennt keinen Todesrettungswurf |
+| `weapon-master` | Beherrschung einer Waffe, je Lange Rast tauschbar | Waffenbeherrschung nur aus Klassenmerkmalen |
+| `shield-master`, `speedy`, `spell-sniper` | Wirkung auf Gegner bzw. Zauberangriffe | keine Senke |
+
+## Hintergründe und Völker
+
+| Key | Mechanik | Was fehlt |
+|---|---|---|
+| `artisan`, `entertainer`, `guard`, `noble`, `soldier` | Werkzeug nach Wahl | `backgroundSchema` hat kein `grantsChoice`, die Wahl bleibt Prosa |
+| `phb-2024_aasimar_celestial-revelation` | Zusatzschaden = Übungsbonus, Aura mit SG | keine Senke |
+| `phb-2024_aasimar_healing-hands` | W4 je Übungsbonus | keine Senke |
+| `srd-2024_halfling_luck` | 1 neu würfeln | keine Senke |
+| `species/fairy.json` | — | als `phb-2024` markiert, steht aber nicht im PHB 2024 |
+
+## Zauber
+
+| Mechanik | Zauber | Was fehlt |
+|---|---|---|
+| zwei Schadensarten | Jallarzis Sturm des Lichtglanzes, Hunger Hadars, Zerstörerische Woge | `damage` hat eine Art |
+| Schadensart beim Wirken gewählt | Elementare Waffe | keine Senke |
+| bedingter Würfel (W8/W12) | Totenläuten | keine Senke |
+| Wirkung auf den Wirker | Quell des Mondlichts | keine Senke |
+| temporäre TP | Rüstung von Agathys | keine Senke |
+| Heilung über Trefferwürfel | Arkane Vitalität | keine Senke |
+| Werteblock der Herbeirufung | alle „… herbeirufen“ | kein Schemafeld, steht als Markdown in der Beschreibung |
+| Ausströmung als Fläche | mehrere | `area_of_effect` kennt keine Ausströmung |
