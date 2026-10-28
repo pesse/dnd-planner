@@ -7,6 +7,7 @@ import { getProgressionByKey } from './classProgression';
 import { characterLevel } from './declaration/carriers';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
 import type { Character } from '../schemas/characterSchema';
+import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 
 export interface HpBasis {
   conMod: number;
@@ -36,23 +37,29 @@ export interface OwnedGrantFeature extends PerLevelFeature {
   desc: string;
 }
 
-/** Die Merkmale, die der Charakter JETZT trägt: Volk, Klassen bis zur Stufe, Talent-Links. */
-export async function ownedGrantFeatures(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<OwnedGrantFeature[]> {
+export type OwnedLinks = Pick<Character, 'species' | 'classes' | 'features' | 'backgroundRef'>;
+
+/** Die Merkmale, die der Charakter JETZT trägt: Volk, Klassen bis zur Stufe, Talent-Links, Herkunftstalent. */
+export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeature[]> {
   const groups = [
     ...((await resolveSpeciesTraits(c.species, characterLevel(c.classes))) ?? []),
     ...(await resolveClassFeatures(c.classes)),
   ];
   // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
   // ihr Merkmal steckt schon in `groups`.
-  const featLinks = await resolveFeatLinks((c.features ?? []).filter((f) => !f.choice?.trim()));
+  const links = (c.features ?? []).filter((f) => !f.choice?.trim());
+  const originKey = c.backgroundRef?.sourceKey ? (await getBackgroundByKey(c.backgroundRef.sourceKey))?.featKey : '';
+  // Älterer Bestand führt das Herkunftstalent zusätzlich als Link — doppelt zählte es zweimal.
+  if (originKey && !links.some((f) => f.sourceKey === originKey)) links.push({ sourceKey: originKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '' });
+  const featLinks = await resolveFeatLinks(links);
   return [...groups.flatMap((g) => g.features), ...featLinks].map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants }));
 }
 
-export async function ownedHpPerLevelSources(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<PerLevelSource[]> {
+export async function ownedHpPerLevelSources(c: OwnedLinks): Promise<PerLevelSource[]> {
   return hpPerLevelSources(await ownedGrantFeatures(c));
 }
 
-export async function ownedHpPerLevel(c: Pick<Character, 'species' | 'classes' | 'features'>): Promise<number> {
+export async function ownedHpPerLevel(c: OwnedLinks): Promise<number> {
   return hpPerLevelSum(await ownedHpPerLevelSources(c));
 }
 

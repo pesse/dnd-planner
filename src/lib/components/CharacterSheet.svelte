@@ -57,7 +57,7 @@
 
   const abilities = createCharacterAbilities(() => character ?? null, () => libs);
   const hpBasis = createHpBasis(
-    () => character ?? { species: { sourceKey: '', name: '' }, classes: [], features: [] },
+    () => character ?? { species: { sourceKey: '', name: '' }, classes: [], features: [], backgroundRef: { sourceKey: '', name: '' } },
     () => abilities.resolved.con,
   );
   const hpTipHtml = $derived(
@@ -66,7 +66,9 @@
 
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
-  const fallbacks = $derived(character && combatFallbacks(character.classes, acTip.total, owned.current));
+  const fallbacks = $derived(character && combatFallbacks({
+    ...character, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+  }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);

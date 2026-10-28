@@ -12,7 +12,7 @@ import { featureIdOf } from '../utils/text';
 import { sign } from '../utils/num';
 import type { CharacterAura } from './auras';
 import type { DerivationRow } from './hitPointDerivation';
-import { ownedGrantFeatures, type OwnedGrantFeature } from './hitPoints';
+import { ownedGrantFeatures, type OwnedGrantFeature, type OwnedLinks } from './hitPoints';
 import { resolveAmount } from './resources/amount';
 import { idleItemsIn, wornItemsIn, type IdleItem, type WornItem } from './wornItems';
 
@@ -105,7 +105,7 @@ export function savingThrowDerivations(input: {
 
 /** Für Aufrufer ohne reaktive Bibliotheken (Druck). */
 export async function loadSavingThrowInputs(
-  c: Pick<Character, 'species' | 'classes' | 'features' | 'inventory'>,
+  c: OwnedLinks & Pick<Character, 'inventory'>,
 ): Promise<{ worn: WornItem[]; idle: IdleItem[]; features: OwnedGrantFeature[] }> {
   const [index, features] = await Promise.all([getAllItemsByDir().then(buildItemIndex), ownedGrantFeatures(c)]);
   return { worn: wornItemsIn(index, c.inventory ?? []), idle: idleItemsIn(index, c.inventory ?? []), features };

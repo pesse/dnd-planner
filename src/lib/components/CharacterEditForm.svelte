@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SKILL_DEFS, skillSheetKey } from '../domain/skills';
+  import { SKILL_DEFS, mod, skillSheetKey } from '../domain/skills';
   import type { Character } from '../schemas/characterSchema';
   import type { SkillName } from '../schemas/vocabulary';
   import type { PendingCharacterUpgrade } from '../schemas/characterUpgrades';
@@ -72,7 +72,7 @@
   const figureUrl = characterAssetUrl(() => dirPath, () => form.figureFile);
 
   const abilities = createCharacterAbilities(() => form, () => libs);
-  const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features }));
+  const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }));
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
   const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
     ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
@@ -176,7 +176,7 @@
   });
 
   const hpBasis = createHpBasis(
-    () => ({ species: form.species, classes: form.classes, features: character.features }),
+    () => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }),
     () => abilities.resolved.con,
   );
   const hpTipHtml = $derived(
@@ -189,7 +189,9 @@
     () => abilities.resolved,
     () => owned.current,
   );
-  const fallbacks = $derived(combatFallbacks(form.classes, acTip.total, owned.current));
+  const fallbacks = $derived(combatFallbacks({
+    ...form, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+  }));
   const tips = $derived(combatTips(form, fallbacks));
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.

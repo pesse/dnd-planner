@@ -1,11 +1,11 @@
 /**
  * Die Grundlage der Würfelsummen-Rückrechnung über den ECHTEN Vault: Boni je Stufe aus Volk,
- * Klassen und Talent-Links, die Obergrenze aus den Trefferwürfeln der Klassen.
+ * Klassen, Talent-Links und Herkunftstalent, die Obergrenze aus den Trefferwürfeln der Klassen.
  *
  *   npm run test -- hitPointBasis
  */
 import { describe, expect, it } from 'vitest';
-import { maxDiceTotal, ownedHpPerLevel, hpDiceTotalOf } from '../../src/lib/services/hitPoints';
+import { maxDiceTotal, ownedGrantFeatures, ownedHpPerLevel, hpDiceTotalOf } from '../../src/lib/services/hitPoints';
 import { mod } from '../../src/lib/domain/skills';
 import { testCharacter } from '../support/testCharacter';
 
@@ -20,6 +20,18 @@ describe('TP-Grundlage aus der Bibliothek', () => {
     const c = testCharacter('Prüfling Druide');
     c.features = [...c.features, { sourceKey: 'phb-2024_tough', name: 'Zäh', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }];
     expect(await ownedHpPerLevel(c)).toBe(3);
+  });
+
+  it('zählt das Zäh des Bauern-Hintergrunds, auch wenn es zusätzlich verlinkt ist, nur einmal', async () => {
+    const c = { ...testCharacter('Prüfling Druide'), backgroundRef: { sourceKey: 'phb-2024_farmer', name: 'Bauer' } };
+    expect(await ownedHpPerLevel(c)).toBe(3);
+    c.features = [...c.features, { sourceKey: 'phb-2024_tough', name: 'Zäh', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }];
+    expect(await ownedHpPerLevel(c)).toBe(3);
+  });
+
+  it('führt das Aufmerksam der Wache unter den Merkmalen', async () => {
+    const keys = (await ownedGrantFeatures(testCharacter('Prüfling Druide'))).map((f) => f.key);
+    expect(keys).toContain('srd-2024_alert');
   });
 
   it('rechnet die Würfelsumme des Prüflings in den möglichen Bereich zurück', async () => {

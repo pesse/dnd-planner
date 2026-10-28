@@ -45,7 +45,10 @@
   <label class="stat" use:diffMark={dirOf(saved?.ac, ac)} class:has-tip={acTipHtml}>RK<input bind:value={ac} placeholder={String(fallbacks.ac ?? '')} />
     {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
   </label>
-  <label class="stat" use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.initiative, initiative)} class:has-tip={tips.initiative}>Initiative
+    <input bind:value={initiative} placeholder={fallbacks.initiative} />
+    {#if tips.initiative}<span class="tip">{@html tips.initiative}</span>{/if}
+  </label>
   <label class="stat" use:diffMark={dirOf(saved?.speed, speed)} class:has-tip={tips.speed}>Bewegung (m)
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder={fallbacks.speed} />
     {#if tips.speed}<span class="tip">{@html tips.speed}</span>{/if}

@@ -10,7 +10,7 @@ import { featureIdOf, normName } from '../utils/text';
 import { sign } from '../utils/num';
 import type { Attack, Character, CharacterInventoryEntry } from '../schemas/characterSchema';
 import { wornItemsIn, type WornItem } from './wornItems';
-import { ownedGrantFeatures } from './hitPoints';
+import { ownedGrantFeatures, type OwnedLinks } from './hitPoints';
 
 export interface AttackEffectSource {
   labelDe: string;
@@ -67,7 +67,7 @@ export function declaredAttackEffects(
 
 /** Für Aufrufer ohne reaktive Bibliotheken (Druck). */
 export async function loadDeclaredAttackEffects(
-  c: Pick<Character, 'species' | 'classes' | 'features' | 'inventory'>,
+  c: OwnedLinks & Pick<Character, 'inventory'>,
 ): Promise<DeclaredAttackEffects> {
   const [index, features] = await Promise.all([getAllItemsByDir().then(buildItemIndex), ownedGrantFeatures(c)]);
   return declaredAttackEffects(index, c.inventory ?? [], features);

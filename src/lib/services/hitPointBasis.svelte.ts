@@ -1,9 +1,8 @@
 /** KON, Stufe und Boni je Stufe zum aktuellen Stand — für `hitPointsFix` und die TP-Herleitung, in Editor und Bogen. */
-import type { Character } from '../schemas/characterSchema';
 import { mod } from '../domain/skills';
 import { characterLevel } from './declaration/carriers';
 import type { AbilityResolution } from './effectiveAbilities';
-import { maxDiceTotal, ownedHpPerLevelSources, type HpBasis } from './hitPoints';
+import { maxDiceTotal, ownedHpPerLevelSources, type HpBasis, type OwnedLinks } from './hitPoints';
 import { hpPerLevelSum, type PerLevelSource } from './perLevelEffects';
 
 export interface CharacterHpBasis {
@@ -13,7 +12,7 @@ export interface CharacterHpBasis {
 }
 
 export function createHpBasis(
-  links: () => Pick<Character, 'species' | 'classes' | 'features'>,
+  links: () => OwnedLinks,
   con: () => AbilityResolution,
 ): CharacterHpBasis {
   let resolved = $state<{ sources: PerLevelSource[]; maxDice?: number } | null>(null);
@@ -24,6 +23,7 @@ export function createHpBasis(
       species: { ...c.species },
       classes: c.classes.map((k) => ({ ...k })),
       features: (c.features ?? []).map((f) => ({ ...f })),
+      backgroundRef: { ...c.backgroundRef },
     };
   });
   $effect(() => {

@@ -1,8 +1,5 @@
-/** Die Merkmale des aktuellen Stands, nachgeladen, sobald sich Volk, Klassen oder Talent-Links ändern. */
-import type { Character } from '../schemas/characterSchema';
-import { ownedGrantFeatures, type OwnedGrantFeature } from './hitPoints';
-
-type Links = Pick<Character, 'species' | 'classes' | 'features'>;
+/** Die Merkmale des aktuellen Stands, nachgeladen, sobald sich Volk, Klassen, Hintergrund oder Talent-Links ändern. */
+import { ownedGrantFeatures, type OwnedGrantFeature, type OwnedLinks as Links } from './hitPoints';
 
 export interface OwnedGrantFeatures {
   /** null bis zum ersten Laden; beim Nachladen bleibt der alte Stand stehen. */
@@ -20,6 +17,7 @@ export function createOwnedGrantFeatures(input: () => Links | null): OwnedGrantF
       species: { ...c.species },
       classes: c.classes.map((k) => ({ ...k })),
       features: (c.features ?? []).map((f) => ({ ...f })),
+      backgroundRef: { ...c.backgroundRef },
     };
   });
   $effect(() => {

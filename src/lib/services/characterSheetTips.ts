@@ -46,22 +46,26 @@ export function hpTip(d: HpDerivation): string {
 }
 
 export interface CombatTips {
+  initiative: string;
   speed: string;
   proficiencyBonus: string;
   hpCurrent: string;
 }
 
-export const NO_COMBAT_TIPS: CombatTips = { speed: '', proficiencyBonus: '', hpCurrent: '' };
+export const NO_COMBAT_TIPS: CombatTips = { initiative: '', speed: '', proficiencyBonus: '', hpCurrent: '' };
 
 /** Die Herleitung der gerechneten Kampfwerte; eine Abweichung des eingetragenen Werts steht darunter. */
 export function combatTips(
-  c: { speed: string; hpCurrent: string; hpMax: string; proficiencyBonus?: number | null },
+  c: { initiative: string; speed: string; hpCurrent: string; hpMax: string; proficiencyBonus?: number | null },
   fb: CombatFallbacks,
 ): CombatTips {
   const speed = c.speed.trim();
   const src = fb.speedSource;
   const pb = c.proficiencyBonus;
+  const initiative = c.initiative.trim();
   return {
+    initiative: fb.initiativeRows.map((r) => row(esc(r.labelDe), r.value)).join('') + divider() + total(fb.initiative, 'Initiative')
+      + (initiative && initiative !== fb.initiative ? steps([`eingetragen ${esc(initiative)}`]) : ''),
     speed: src
       ? row(esc(src.labelDe), `${src.feet} Fuß`) + divider() + total(`${fb.speed} m`, 'Bewegung')
         + (speed && speed !== fb.speed ? steps([`eingetragen ${speed} m`]) : '')
