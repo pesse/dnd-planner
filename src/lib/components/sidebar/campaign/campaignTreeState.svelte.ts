@@ -12,6 +12,8 @@ import { listActDirs, moveAct } from '../../../services/actOrder';
 import { extractActTitle } from '../../../utils/actExtract';
 import type { Campaign, FileEntry } from '../../../types';
 import { slugKeepUmlauts, slugToName } from '../../../utils/text';
+import { npcSchema } from '../../../schemas/npc';
+import { DOCUMENT_TEMPLATES } from '../../../templates';
 
 interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -41,15 +43,6 @@ export const encounterPathOf = (campaignPath: string, actDirName: string, filena
 export const sectionEntryPath = (campaignPath: string, section: CampaignSection, filename: string): string =>
   section.type === 'act' ? actIndexPath(campaignPath, filename) : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
 export const campaignDirPath = (campaignPath: string): string => `${VAULT_BASE}/${campaignPath}`;
-
-async function loadTemplate(type: string): Promise<string | null> {
-  const ext = type === 'npc' ? 'json' : 'md';
-  try {
-    return await invoke<string>('read_file_content', { path: `./vault/templates/${type}.${ext}` });
-  } catch {
-    return null;
-  }
-}
 
 export class CampaignTreeState {
   campaigns = $state<Campaign[]>([]);
@@ -96,8 +89,7 @@ export class CampaignTreeState {
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
     const campaignMd = `${VAULT_BASE}/${slug}/campaign.md`;
 
-    const tmpl = await loadTemplate('campaign');
-    const template = `# ${name}\n\n` + (tmpl ?? `## Beschreibung\n\n\n## Hintergrund\n\n\n## Hauptziele\n\n\n## Wichtige Orte\n\n\n## Notizen\n\n`);
+    const template = `# ${name}\n\n` + DOCUMENT_TEMPLATES.campaign;
     try {
       await invoke('write_file_content', { path: campaignMd, content: template });
       this.showNewCampaignInput = false;
@@ -300,15 +292,9 @@ export class CampaignTreeState {
       : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${entryName}`;
 
     try {
-      const tmpl = await loadTemplate(section.type);
-      let sectionTemplate: string;
-      if (isNpc) {
-        const obj = tmpl ? JSON.parse(tmpl) : {};
-        obj.name = title;
-        sectionTemplate = JSON.stringify(obj, null, 2);
-      } else {
-        sectionTemplate = `# ${title}\n\n` + (tmpl ?? '');
-      }
+      const sectionTemplate = isNpc
+        ? JSON.stringify(npcSchema.parse({ name: title }), null, 2)
+        : `# ${title}\n\n` + (DOCUMENT_TEMPLATES[section.type] ?? '');
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       this.showNewFileInput[key] = false;
       this.newFileInput[key] = '';

@@ -4,9 +4,7 @@
  */
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { AutosaveFile, type SaveStatus } from '../utils/autosaveFile.svelte';
-
-const GM_NOTES_TEMPLATE_PATH = './vault/templates/character.md';
-const GM_NOTES_FALLBACK = `## Hintergrund\n\n## Geheimnisse & Hooks\n\n## Verbindungen\n\n## Entwicklung\n\n## DM-Notizen\n`;
+import { GM_NOTES_TEMPLATE } from '../templates';
 
 let imageToken = 0;
 
@@ -104,8 +102,7 @@ async function readFile(path: string): Promise<string | null> {
 async function readOrCreateGmNotes(path: string, characterName: string): Promise<string> {
   const existing = await readFile(path);
   if (existing != null) return existing;
-  const tmpl = await readFile(GM_NOTES_TEMPLATE_PATH);
-  const content = `# GM-Notizen: ${characterName}\n\n` + (tmpl || GM_NOTES_FALLBACK);
+  const content = `# GM-Notizen: ${characterName}\n\n` + GM_NOTES_TEMPLATE;
   await invoke('write_file_content', { path, content });
   return content;
 }

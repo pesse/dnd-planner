@@ -1,0 +1,5 @@
+---
+characters:
+  - charakter_slug
+---
+
