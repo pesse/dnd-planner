@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # job.sh <figur> <teil: sa|sb|sc> — ein Codex-Lauf für die fehlenden Subklassen-Bilder, danach veröffentlichen
 set -u
-V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp
+# Rohbilder und Codex im Test-Klon (Windows-Pfade, Werkbank); die AVIF-Fassungen in den Klon, aus dem das Skript stammt.
+V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp APP=$(cd "$V/../../../.." && pwd)
 cd /mnt/c/dev/privat/dnd-planner
 fig=$1 part=$2 species=${1%-*} look=${1##*-}
 dir=design/art/figures-sub/$fig-$part out=$V/out/$fig-$part
@@ -12,7 +13,7 @@ mkdir -p $dir $out
 todo=$(missing | tr '\n' ' ')
 flips=" $(node -e "import('$V/scenes.mjs').then(m => console.log(Object.keys(m.SCENES).filter((k) => m.SCENES[k].flip).join(' ')))") "
 publish() { for n in $names; do
-  w=static/art/figures/$fig/subclasses/$n.avif f=
+  w=$APP/static/art/figures/$fig/subclasses/$n.avif f=
   [[ $flips == *" $n "* ]] && f=flip
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w $f
 done; }

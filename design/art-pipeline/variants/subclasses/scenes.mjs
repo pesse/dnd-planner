@@ -1,6 +1,6 @@
 // Je Subklasse EINE feste Szene für alle Figuren. Gegner nur, wo die Subklasse ohne sie nicht lesbar ist,
 // und dann groß und nicht-humanoid — Maßstab und Blickziel gegen Menschen waren die häufigsten Nachmal-Gründe.
-// status: 'frozen' → Kalibrierung an den Prüffiguren; 'frozen' → Massenlauf.
+// status: 'draft' → Kalibrierung an den Prüffiguren; 'frozen' → Massenlauf.
 export const SCENES = {
   'path-of-the-berserker': {
     cls: 'barbarian', status: 'frozen',
@@ -129,11 +129,223 @@ export const SCENES = {
     camera: 'Knee-up, eye level three-quarter view.',
     setting: 'A ruined stone hall, firelight and drifting ash.',
   },
+  'path-of-the-wild-heart': {
+    cls: 'barbarian', status: 'draft',
+    core: 'Barbarian (Path of the Wild Heart) — furs and hide over bare scarred arms, war paint, feathers and animal-tooth charms; a handaxe; kinship with the beasts.',
+    scene: 'Rage of the Wilds: standing on a rocky outcrop, head thrown back in a roaring war cry; the handaxe hangs low at the side in ONE hand, the other arm flung out to the right with an open hand. Three large translucent green-gold animal spirits — a bear, a wolf and an eagle — swirl around the barbarian in a rising spiral of wind and leaves, their heads turned toward the right. Wild, joyful fury.',
+    camera: 'Full figure, low three-quarter view.',
+    setting: 'A wind-torn mountain ridge under a thunderstorm at dusk.',
+  },
+  'path-of-the-world-tree': {
+    cls: 'barbarian', status: 'draft',
+    core: 'Barbarian (Path of the World Tree) — furs and hide over bare scarred arms, war paint, bark-like bracers; a greatclub of straight dark wood.',
+    scene: 'Battering Roots: striding forward to the right, the greatclub carried low at the side in ONE hand, the haft one straight rigid piece of wood. Glowing golden roots burst from the ground at the barbarian\'s feet and lash forward to the right, tripping and toppling a huge charging troll at the right edge of the frame. Fierce, steady determination, eyes on the troll.',
+    camera: 'Full figure, low three-quarter view.',
+    setting: 'A twilight plain; in the sky behind, the vast luminous silhouette of a cosmic tree whose branches hold the stars.',
+  },
+  'path-of-the-zealot': {
+    cls: 'barbarian', status: 'draft',
+    core: 'Barbarian (Path of the Zealot) — furs and hide over bare scarred arms, war paint, a string of plain prayer beads and a holy symbol without writing; a battleaxe.',
+    scene: 'Divine Fury: charging toward the right across a field of rubble, the battleaxe carried in ONE hand low at the side, its head wreathed in golden radiant fire; a pillar of golden light falls on the barbarian from the clouds, and the other fist is raised high. Mouth open in a fervent battle cry, eyes ahead to the right. No opponent visible.',
+    camera: 'Full figure in full stride, low three-quarter view.',
+    setting: 'A storm-darkened battlefield with a ruined temple, the sun breaking through the clouds.',
+  },
+  'college-of-dance': {
+    cls: 'bard', status: 'draft',
+    core: 'Bard (College of Dance) — light, flowing colourful performer clothes with ribbons, soft shoes, a lute slung on the back (never a fiddle or violin), no armour, no weapon.',
+    scene: 'Dazzling Footwork: a graceful leap in the middle of a whirling dance, both arms spread wide and relaxed, the ribbons and coat-tails flaring in a circle; golden sparkling trails follow the motion. A cheering festival crowd on the right claps along. Radiant, joyful smile, eyes on the crowd.',
+    camera: 'Full figure, eye level three-quarter view.',
+    setting: 'A village festival square at night, strings of lanterns and a bonfire.',
+  },
+  'college-of-glamour': {
+    cls: 'bard', status: 'draft',
+    core: 'Bard (College of Glamour) — splendid shimmering stage garments in jewel tones, a lute (never a fiddle or violin) held in one hand at the side; otherworldly fey charm.',
+    scene: 'Mantle of Majesty: standing on a stage of moss and flowers, one hand raised gracefully; an aura of shimmering silver-violet fey light and floating petals radiates from the bard. On the right, a small audience of four or five ordinary townsfolk gazes up, enraptured, some reaching out. Serene, captivating expression, eyes on the audience.',
+    camera: 'Knee-up, slightly low three-quarter view.',
+    setting: 'An enchanted Feywild glade at dusk, giant glowing flowers and fireflies.',
+  },
+  'college-of-valor': {
+    cls: 'bard', status: 'draft',
+    core: 'Bard (College of Valor) — a light chain shirt over colourful clothes, a bright sash, a lute strapped on the back (never a fiddle or violin), a straight rapier.',
+    scene: 'Leading the charge with song: standing on a low broken wall, the rapier raised high in ONE hand (blade dead straight, pointing up), singing out loud; golden ribbons of light and musical motes stream from the bard to a group of four armoured soldiers on the right, who surge forward inspired. Bold, exhilarated expression, eyes on the soldiers.',
+    camera: 'Full figure, low three-quarter view.',
+    setting: 'A battlefield at sunrise, smoke and banners without symbols.',
+  },
+  'light-domain': {
+    cls: 'cleric', status: 'draft',
+    core: 'Cleric (Light Domain) — chainmail with a golden sun-coloured tabard (plain disc symbol, no writing), a morningstar hanging at the belt (not in the hand), a holy symbol held high.',
+    scene: 'Radiance of the Dawn: standing in a dark crypt, the holy symbol thrust high in one hand, from which a blinding burst of golden sunlight flares outward in a wide ring; on the right, three gaunt shadowy undead (skeletal, human-sized, no gore) are caught in the light and crumble into drifting ash. Fierce, shining resolve, eyes on the undead.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'An ancient stone crypt, deep black shadows except for the radiance.',
+  },
+  'trickery-domain': {
+    cls: 'cleric', status: 'draft',
+    core: 'Cleric (Trickery Domain) — a dark hooded cloak (hood down) over light chainmail, a holy symbol on a cord, a straight dagger at the belt; a sly servant of a trickster god.',
+    scene: 'Invoke Duplicity: in a crowded night market, the cleric leans casually against a pillar with a sly wink, while to the right a translucent shimmering illusory duplicate of the cleric (same clothes, edges dissolving into sparkles) distracts a huge dozing ogre guard who stares at it in confusion. The real cleric holds the holy symbol in one hand, glowing faintly violet.',
+    camera: 'Knee-up, eye level three-quarter view.',
+    setting: 'A lantern-lit night market under awnings.',
+  },
+  'war-domain': {
+    cls: 'cleric', status: 'draft',
+    core: 'Cleric (War Domain) — heavy chainmail with a red-and-steel tabard (plain symbol, no writing), a morningstar in one hand, a holy symbol on the other wrist.',
+    scene: 'Guided Strike: advancing toward the right in a battle line, the morningstar carried low in ONE hand, its head glowing with golden divine light; the other hand raised with the holy symbol shining, a column of golden light guiding the next blow. A huge charging minotaur on the right edge of the frame. Grim, disciplined focus, eyes on the minotaur.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'A ruined fortress gate in the heat of battle, dust and smoke.',
+  },
+  'circle-of-the-sea': {
+    cls: 'druid', status: 'draft',
+    core: 'Druid (Circle of the Sea) — garments of hide, kelp and shells, coral and pearl charms; a STRAIGHT driftwood staff (the shaft straight and rigid).',
+    scene: 'Wrath of the Sea: standing on wave-washed rocks, the staff in one hand, the other hand thrust forward to the right; a swirling aura of sea spray and storm wind circles the druid, and a great crashing wave hurls a giant crab backward at the right edge of the frame. Fierce, commanding calm, eyes on the crab.',
+    camera: 'Full figure, low three-quarter view.',
+    setting: 'A rocky coast under a storm, lightning over the sea.',
+  },
+  'circle-of-the-stars': {
+    cls: 'druid', status: 'draft',
+    core: 'Druid (Circle of the Stars) — garments of dark blue cloth and hide sewn with tiny star-like beads, a rolled star chart at the belt (no writing).',
+    scene: 'Starry Form, the Archer: the druid\'s whole body shimmers with silver starlight, faint constellation lines traced along the limbs; they draw a bow made purely of light to the cheek and loose a luminous arrow of starlight up and to the right across the night sky. Serene concentration, eyes along the arrow.',
+    camera: 'Full figure, low three-quarter view.',
+    setting: 'A hilltop with a ruined stone observatory at night, the Milky Way overhead.',
+  },
+  'eldritch-knight': {
+    cls: 'fighter', status: 'draft', flip: true,
+    core: 'Fighter (Eldritch Knight) — heavy armour with faint arcane blue inlays (no writing), no shield. The only weapon is a longsword: one straight, unbroken, double-edged steel blade about as long as the arm, a plain cross-guard.',
+    scene: 'War Magic: the fighter faces LEFT; the longsword is carried low at the side in the hand away from the viewer, the blade pointing down and back; the arm nearer to the viewer is thrust forward toward the opponent, open palm, releasing a crackling bolt of blue arcane lightning that strikes a huge charging ogre on the LEFT side of the frame. Weight on the front foot, controlled power, eyes on the ogre.',
+    camera: 'Knee-up, eye level three-quarter view.',
+    setting: 'A ruined bridge in heavy rain at night, lit by the lightning.',
+  },
+  'psi-warrior': {
+    cls: 'fighter', status: 'draft', flip: true,
+    core: 'Fighter (Psi Warrior) — practical heavy armour, no shield; a faint violet psionic glow at the temples. The only weapon is a longsword: one straight, unbroken, double-edged steel blade about as long as the arm, a plain cross-guard.',
+    scene: 'Telekinetic Thrust: the fighter faces LEFT; the longsword is carried low at the side in the hand away from the viewer, the blade pointing down and back; the arm nearer to the viewer is raised with spread fingers, and a rippling wave of violet psionic force hurls a huge ogre off its feet backward on the LEFT side of the frame, gravel and dust lifted in the air. Intense mental focus, eyes on the ogre.',
+    camera: 'Knee-up, eye level three-quarter view.',
+    setting: 'A rocky canyon at dusk, dust in the air.',
+  },
+  'warrior-of-mercy': {
+    cls: 'monk', status: 'draft',
+    core: 'Monk (Warrior of Mercy) — simple dark belted wraps, a plain white half-mask pushed up onto the forehead so the face shows, a satchel of herbs, barefoot, no weapon.',
+    scene: 'Hand of Healing: kneeling beside a wounded traveller who sits against a well on the right (bandaged, no blood), one palm laid on the traveller\'s shoulder glowing with soft green-gold healing light that spreads into the body; the other hand rests on the knee, a faint dark-violet wisp coiling around it as a hint of the Hand of Harm. Calm, compassionate focus, eyes on the traveller.',
+    camera: 'Full figure kneeling, eye level three-quarter view.',
+    setting: 'A quiet village street at dusk, lanterns, light mist.',
+  },
+  'warrior-of-the-elements': {
+    cls: 'monk', status: 'draft',
+    core: 'Monk (Warrior of the Elements) — simple belted wraps in earthy colours, bandaged forearms, barefoot, no armour, no weapon.',
+    scene: 'Elemental Attunement: a straight punch toward the right, the fist with knuckles up in one line with the forearm; from the fist a long lash of swirling fire and wind extends far beyond the arm\'s reach and strikes a huge stone golem at the right edge of the frame, cracking its chest. The other arm is pulled back to the hip. Balanced, grounded stance, eyes on the golem.',
+    camera: 'Full figure, eye level three-quarter view.',
+    setting: 'A volcanic mountain plateau at dusk, embers and wind.',
+  },
+  'oath-of-glory': {
+    cls: 'paladin', status: 'draft',
+    core: 'Paladin (Oath of Glory) — polished plate with gold trim and laurel motifs (no writing), a crimson cloak, a longsword; a hero of legend.',
+    scene: 'The heroic charge: running up a broad flight of stone steps toward the right, the longsword carried low in ONE hand at the side, the blade straight; a golden aura of glory blazes around the paladin, and a group of soldiers behind on the left follows, cheering. Head high, radiant confidence, eyes ahead to the right.',
+    camera: 'Full figure in full stride, low three-quarter view.',
+    setting: 'The steps of a besieged citadel at sunrise, banners without symbols.',
+  },
+  'oath-of-the-ancients': {
+    cls: 'paladin', status: 'draft',
+    core: 'Paladin (Oath of the Ancients) — plate armour overgrown with leaves and small flowers, a deep green cloak, a longsword; a guardian of light and life.',
+    scene: 'Nature\'s Wrath: the longsword raised vertically before the face in both stacked hands (blade dead straight, point up), glowing with soft green light; spectral glowing vines burst from the ground on the right and wrap around a huge blighted, thorny beast of rot and darkness, holding it fast. Solemn, steadfast face, eyes on the beast.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'An ancient forest of giant trees in spring, blossoms and shafts of light.',
+  },
+  'oath-of-vengeance': {
+    cls: 'paladin', status: 'draft',
+    core: 'Paladin (Oath of Vengeance) — dark steel plate, a black cloak, a longsword; a relentless avenger.',
+    scene: 'Vow of Enmity: striding through the rain toward the right, the longsword carried low in ONE hand, the blade straight; the other arm stretched forward pointing at a huge troll fleeing on the right, above which hovers a burning red sigil-less mark of light. Cold, unrelenting fury, eyes fixed on the troll.',
+    camera: 'Full figure in stride, low three-quarter view.',
+    setting: 'A burned village at night in heavy rain, lit by fires.',
+  },
+  'beast-master': {
+    cls: 'ranger', status: 'draft',
+    core: 'Ranger (Beast Master) — hooded green-brown leathers (hood down), a longbow in one hand (not drawn), a quiver; with a primal beast companion.',
+    scene: 'Hunting together: running toward the right through tall grass, the other arm pointing ahead in a command; beside the ranger a large wolf with a faint green primal glow in its eyes and along its fur leaps ahead to the right. Eager, focused bond; eyes on the same point as the wolf.',
+    camera: 'Full figure in full stride, eye level three-quarter view.',
+    setting: 'A windswept grassland at a forest edge in golden evening light.',
+  },
+  'fey-wanderer': {
+    cls: 'ranger', status: 'draft',
+    core: 'Ranger (Fey Wanderer) — hooded green-brown leathers (hood down) with leaves and small flowers woven in, an otherworldly glimmer in the eyes, a longbow held loosely in one hand.',
+    scene: 'Between two worlds: stepping out of a ring of glowing mushrooms; behind the ranger the forest is the ordinary world, ahead on the right it turns into the vivid, impossible colours of the Feywild. Glowing butterflies and petals swirl around, the free hand raised with a disarming, charming smile toward a large curious stag of light on the right.',
+    camera: 'Full figure, eye level three-quarter view.',
+    setting: 'A forest at twilight where two worlds meet, mist and glimmer.',
+  },
+  'gloom-stalker': {
+    cls: 'ranger', status: 'draft',
+    core: 'Ranger (Gloom Stalker) — dark grey-black hooded leathers (hood down), a longbow, a quiver; a hunter in the dark.',
+    scene: 'Umbral Sight: standing almost invisible in deep darkness, only a faint rim light on the face, the longbow fully drawn to the cheek; the eyes glint faintly; the target is a huge hook horror (armoured beaked cave beast) lit by glowing fungi on the right, unaware of the ranger. Cold, patient focus, eyes along the arrow.',
+    camera: 'Knee-up, eye level three-quarter view.',
+    setting: 'A vast underground cavern, pitch black except for glowing fungi.',
+  },
+  'arcane-trickster': {
+    cls: 'rogue', status: 'draft',
+    core: 'Rogue (Arcane Trickster) — dark fitted leathers, hood pushed back so the face shows, a belt of lockpicks; a dash of arcane mischief.',
+    scene: 'Mage Hand Legerdemain: crouched on a balcony railing, one hand extended with fingers delicately moving; far to the right a glowing translucent spectral hand floats in the air and lifts a key ring from the belt of a huge ogre guard dozing on a stool. A sly, delighted grin, eyes on the spectral hand.',
+    camera: 'Full figure crouching, eye level three-quarter view.',
+    setting: 'A torch-lit castle courtyard at night.',
+  },
+  soulknife: {
+    cls: 'rogue', status: 'draft',
+    core: 'Rogue (Soulknife) — dark fitted leathers, hood pushed back so the face shows, no physical weapon; a faint violet glow at the temples.',
+    scene: 'Psychic Blades: on a rooftop, throwing toward the right a straight blade made purely of shimmering violet psychic energy, which streaks through the air toward a large stone gargoyle on the right; a second blade of violet light is just forming in the other hand, held low. Cold focus, eyes on the gargoyle.',
+    camera: 'Knee-up, slightly low three-quarter view.',
+    setting: 'City rooftops at night under a misty moon.',
+  },
+  'aberrant-sorcery': {
+    cls: 'sorcerer', status: 'draft',
+    core: 'Sorcerer (Aberrant Sorcery) — travelling robes; faint violet veins of alien power at the temples and along the hands.',
+    scene: 'Psionic surge: one hand pressed to the temple, the other hand open toward the right; a rippling wave of violet psychic force lifts rocks, crystals and rubble from the ground and spins them in the air around the sorcerer. The eyes glow faintly violet. Unsettling, intense concentration, eyes on the floating stones.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'A crystal cavern lit in violet and teal.',
+  },
+  'clockwork-sorcery': {
+    cls: 'sorcerer', status: 'draft',
+    core: 'Sorcerer (Clockwork Sorcery) — tidy travelling robes with brass buttons and fine geometric trim (no writing).',
+    scene: 'Restore Balance: one hand raised toward the right; translucent golden cogwheels and perfectly circular orbits of light turn around the sorcerer, and on the right a storm of chaotic swirling debris freezes in mid-air into neat, orderly rows. Calm, precise focus, eyes on the ordered debris.',
+    camera: 'Knee-up, eye level three-quarter view.',
+    setting: 'The interior of a great clocktower, huge gears and warm lamplight.',
+  },
+  'archfey-patron': {
+    cls: 'warlock', status: 'draft',
+    core: 'Warlock (Archfey Patron) — a dark layered coat embroidered with leaves and thorns, a pact amulet without symbols, flowers in the hair.',
+    scene: 'Misty Escape: stepping out of a swirl of silver mist and flower petals, one hand raised releasing a glittering wave of fey charm toward the right; behind, filling the background, the vast luminous silhouette of the archfey patron — a crowned figure of moonlight with antlers — leans over the warlock\'s shoulder. Enigmatic, playful smile, eyes ahead to the right.',
+    camera: 'Waist-up to knee-up, eye level three-quarter view.',
+    setting: 'A moonlit enchanted glade with giant mushrooms and will-o\'-wisps.',
+  },
+  'celestial-patron': {
+    cls: 'warlock', status: 'draft',
+    core: 'Warlock (Celestial Patron) — a light-coloured layered coat with golden trim, a pact amulet without symbols.',
+    scene: 'Healing Light: one hand extended toward the right sends a sphere of warm golden healing light to a wounded traveller sitting on the right (bandaged, no blood), whose wounds close in the glow; behind, filling the sky, the vast luminous silhouette of the celestial patron — a winged figure of pure light — watches over the warlock. Warm, devoted compassion, eyes on the traveller.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'A mountain path at sunrise above the clouds.',
+  },
+  'great-old-one-patron': {
+    cls: 'warlock', status: 'draft',
+    core: 'Warlock (Great Old One Patron) — a dark layered coat, a pact amulet without symbols; faintly glowing green eyes.',
+    scene: 'Awakened Mind: standing at a cliff edge, two fingers raised to the temple; thin glowing green tendrils of thought flow from the warlock\'s head toward the right across the sea. Behind, filling the starry sky, the vast shadowy silhouette of an unknowable being with many tentacles and many dim eyes looms over the warlock. Distant, unsettling calm, eyes ahead to the right.',
+    camera: 'Waist-up to knee-up, low three-quarter view.',
+    setting: 'A sea cliff at night under strange, wrong-coloured stars.',
+  },
+  diviner: {
+    cls: 'wizard', status: 'draft',
+    core: 'Wizard (Diviner) — scholar\'s robes, a spellbook (no writing) open on the table.',
+    scene: 'Portent: standing at a table, both hands cupped around a glowing crystal ball; above it, translucent shimmering visions of the future float in the air and drift to the right — a ship in a storm, a crowned figure, a dragon in flight, all small and luminous. Two small golden sparks of fate hover beside the wizard. Rapt, knowing focus, eyes on the visions.',
+    camera: 'Waist-up to knee-up, eye level three-quarter view.',
+    setting: 'A tower observatory at night, a brass telescope and star charts without writing.',
+  },
+  illusionist: {
+    cls: 'wizard', status: 'draft',
+    core: 'Wizard (Illusionist) — scholar\'s robes in shifting colours, a staff (dead straight, rigid) in one hand.',
+    scene: 'Illusory Creature: with a sweeping gesture of the free hand toward the right, the wizard conjures a huge illusory dragon of shimmering light and colour (slightly translucent, its edges dissolving into sparkles) that rears up with spread wings; on the right, a pack of gnolls (hyena-headed humanoids, human-sized) flees in panic. Amused, sly confidence, eyes on the fleeing gnolls.',
+    camera: 'Knee-up, low three-quarter view.',
+    setting: 'A mountain pass at dusk, rocks and pine trees.',
+  },
 };
 
 // Teile à 6 — ein Codex-Lauf malt einen Teil einer Figur (die Identität hält innerhalb eines Laufs am besten).
 const slugs = Object.keys(SCENES);
-export const PARTS = { sa: slugs.slice(0, 6), sb: slugs.slice(6, 12), sc: slugs.slice(12, 18) };
+export const PARTS = Object.fromEntries(
+  ['sa', 'sb', 'sc', 'sd', 'se', 'sf', 'sg', 'sh'].map((part, i) => [part, slugs.slice(i * 6, i * 6 + 6)]),
+);
 
 // Kalibrierung: klein, groß, geflügelt, Schwanz + Androgyn-Rezept.
 export const PROBE_FIGURES = ['halfling-feminine', 'goliath-masculine', 'fairy-androgynous', 'tiefling-androgynous'];
