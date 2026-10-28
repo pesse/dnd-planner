@@ -1,6 +1,7 @@
 import { spellKeyOf, type Spell } from './schemas/spell';
 import type { Monster } from './schemas/monster';
 import { itemKeyOf, type Item } from './schemas/item';
+import type { ItemInfo } from './itemLibrary';
 import { keySlug, slugAscii } from './utils/text';
 
 /**
@@ -30,7 +31,12 @@ export const monsterArtUrl = (monster: Monster): string | null =>
  * außerhalb des SRD trägt das Bild deshalb den ganzen Key.
  */
 export const itemArtUrl = (item: Item): string | null =>
-  itemKeyArtUrl(itemKeyOf(item as unknown as Record<string, unknown>));
+  itemKeyArtUrl(item.artKey || itemKeyOf(item as unknown as Record<string, unknown>));
 
-export const itemKeyArtUrl = (key: string): string | null =>
+export const itemInfoArtUrl = (item: ItemInfo): string | null => {
+  const key = item.artKey || item.key;
+  return key ? itemKeyArtUrl(key) : null;
+};
+
+const itemKeyArtUrl = (key: string): string | null =>
   artUrl('items', key.startsWith('srd-2024_') ? keySlug(key) : key);

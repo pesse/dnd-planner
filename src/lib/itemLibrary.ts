@@ -28,6 +28,7 @@ export interface ItemInfo {
   key?: string;
   /** Basis-Slug der Waffenart: „shortbow" trägt auch der Eidbogen (Kurzbogen). */
   index?: string;
+  artKey?: string;
   magic: boolean;
   // Der Index liest die Datei ohnehin ganz; diese Facetten mitzunehmen erspart
   // Waffenbeherrschung und Angriffstabelle ein zweites Laden jeder Waffendatei.
@@ -100,8 +101,11 @@ export function blankItem(name: string, dir: string): Item {
 
 export function toHomebrewCopy(item: Item): Item {
   // `key`/`index` leeren: die Kopie braucht eine EIGENE Identität, der Key wird beim
-  // Laden aus source+name backfilled.
-  return { ...item, source: OWN_SOURCE, key: '', index: undefined, document: { key: OWN_SOURCE, gamesystem: '' } };
+  // Laden aus source+name backfilled. Das Bild des Originals behält sie über `artKey`.
+  return {
+    ...item, source: OWN_SOURCE, key: '', index: undefined, document: { key: OWN_SOURCE, gamesystem: '' },
+    artKey: item.artKey || item.key || undefined,
+  };
 }
 
 let knownDirs: string[] = [];
@@ -175,6 +179,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         // Nicht `data.key`: Homebrew ohne Key wäre sonst nicht verlinkbar.
         key: itemKeyOf(data) || undefined,
         index: data.index,
+        artKey: typeof data.artKey === 'string' && data.artKey ? data.artKey : undefined,
         magic: isMagicItem(data as Item),
         weapon_category: data.weapon_category,
         weapon_range: data.weapon_range,

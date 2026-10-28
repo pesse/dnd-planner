@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Figur mit den angelegten Gegenständen an ihrem Platz; die Häkchen im Inventar bleiben die Quelle. */
   import { displayName, type ItemIndex, type ItemInfo } from '../../itemLibrary';
-  import { itemKeyArtUrl } from '../../libraryArt';
+  import { itemInfoArtUrl } from '../../libraryArt';
   import { itemEntry } from '../../services/vaultLinks';
   import { peekEntry } from '../../services/entryPeek';
   import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed } from '../../services/equipmentSlots';
@@ -51,7 +51,7 @@
 </script>
 
 {#snippet icon(e: Placed)}
-  {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
+  {@const src = itemInfoArtUrl(e.item)}
   <button type="button" class="eq-icon" class:idle={!e.effective} aria-label={displayName(e.item)}
     onmouseenter={(ev) => showTip(ev, e)} onmousemove={hover.move} onmouseleave={hover.hide}
     onclick={() => { hover.hide(); peekEntry(itemEntry(e.item)); }}>

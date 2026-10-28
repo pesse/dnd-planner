@@ -3,7 +3,7 @@
  * stehen als nummerierte Marke am Platz und darunter ausgeschrieben — Papier kennt kein Hover.
  */
 import { buildItemIndex, displayName, getAllItemsByDir } from '$lib/itemLibrary';
-import { itemKeyArtUrl } from '$lib/libraryArt';
+import { itemInfoArtUrl } from '$lib/libraryArt';
 import type { Character } from '$lib/schemas/characterSchema';
 import { SLOT_LABEL_DE, type EquipmentSlot } from '$lib/schemas/equipmentSlot';
 import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed, type SlotFill } from '$lib/services/equipmentSlots';
@@ -18,8 +18,8 @@ import { block, esc, row } from '../html';
 export interface PrintFigure {
   dollUrl: string;
   fills: Map<EquipmentSlot, SlotFill>;
-  /** Item-Key → Bild; fehlt der Eintrag, steht der Anfangsbuchstabe. */
-  art: Map<string, string>;
+  /** Item-Bilder, die es gibt; für die übrigen steht der Anfangsbuchstabe. */
+  art: Set<string>;
   quips: Map<EquipmentSlot, string>;
   /** Bibliothekspfad → Beschreibung; fehlt die Datei, steht nur der Name. */
   facts: Map<string, ItemCardFacts>;
@@ -28,22 +28,22 @@ export interface PrintFigure {
 export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintFigure | null> {
   if (!c.inventory?.some((e) => e.equipped)) return null;
   const fills = placeEquipment(figureLinesIn(buildItemIndex(await getAllItemsByDir()), c.inventory));
-  const keys = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => p.item.key ?? '')).filter(Boolean))];
-  const found = await Promise.all(keys.map(async (k) => [k, await resolveOriginArt([itemKeyArtUrl(k) ?? ''])] as const));
+  const urls = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => itemInfoArtUrl(p.item) ?? '')).filter(Boolean))];
+  const found = await Promise.all(urls.map((u) => resolveOriginArt([u])));
   const paths = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => p.item.path)))];
   const items = await Promise.all(paths.map(async (path) => [path, await loadItem(path)] as const));
   return {
     dollUrl: ownUrl || ((await resolveOriginArt(paperdollCandidates(c.species.sourceKey, c.presentation))) ?? ''),
     fills,
-    art: new Map(found.filter((e): e is [string, string] => !!e[1])),
+    art: new Set(found.filter((u): u is string => !!u)),
     quips: equipmentQuips(fills),
     facts: new Map(items.flatMap(([path, item]) => (item ? [[path, itemCardFacts(item, true)] as const] : []))),
   };
 }
 
 function icon(f: PrintFigure, p: Placed): string {
-  const src = p.item.key ? f.art.get(p.item.key) : undefined;
-  const inner = src ? `<img src="${esc(src)}" alt="">` : `<span>${esc(displayName(p.item).charAt(0))}</span>`;
+  const src = itemInfoArtUrl(p.item);
+  const inner = src && f.art.has(src) ? `<img src="${esc(src)}" alt="">` : `<span>${esc(displayName(p.item).charAt(0))}</span>`;
   return `<span class="fig-icon${p.effective ? '' : ' idle'}">${inner}</span>`;
 }
 
