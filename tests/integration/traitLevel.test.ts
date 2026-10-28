@@ -20,13 +20,13 @@ const dragonbornTraits = async () => (await getSpeciesByKey(DRAGONBORN))?.traits
 const keys = (traits: { key?: string }[]) => traits.map((t) => t.key);
 
 describe('Charakterstufen-Tor an Speziesmerkmalen', () => {
-  it('trägt genau Drachenflug und Große Gestalt, beide ab Stufe 5', async () => {
+  it('trägt genau Celestische Offenbarung ab Stufe 3, Drachenflug und Große Gestalt ab Stufe 5', async () => {
     const gated: string[] = [];
     for (const info of await getSpeciesList()) {
       const spec = await getSpeciesByKey(libraryKey(info));
       for (const t of spec?.traits ?? []) if (t.gainedAt) gated.push(`${t.key}@${t.gainedAt}`);
     }
-    expect(gated.sort()).toEqual([`${FLIGHT}@5`, 'srd-2024_goliath_large-form@5']);
+    expect(gated.sort()).toEqual(['phb-2024_aasimar_celestial-revelation@3', `${FLIGHT}@5`, 'srd-2024_goliath_large-form@5']);
   });
 
   it('lässt Drachenflug bis Stufe 4 weg und nimmt ihn ab 5 auf; die Odemwaffe gilt ab 1', async () => {

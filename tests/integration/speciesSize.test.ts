@@ -33,6 +33,7 @@ import { libraryKey } from '../support/libraryKey';
  * Reihenfolge im Merkmalstext: die Fee nennt „Small" zuerst, Mensch und Tiefling „Medium".
  */
 const CHOOSING_ORDER: Record<string, string[]> = {
+  'phb-2024_aasimar': ['Medium', 'Small'],
   'srd-2024_human': ['Medium', 'Small'],
   'srd-2024_tiefling': ['Medium', 'Small'],
   'phb-2024_fairy': ['Small', 'Medium'],

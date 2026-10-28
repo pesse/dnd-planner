@@ -37,6 +37,7 @@ import type { Trait } from '../../src/lib/schemas/species';
 
 /** Die Spezies, deren Größe eine Wahl ist — Wert = Reihenfolge im Regeltext. */
 const CHOOSING: Record<string, string[]> = {
+  'phb-2024_aasimar': ['Medium', 'Small'],
   'srd-2024_human': ['Medium', 'Small'],
   'srd-2024_tiefling': ['Medium', 'Small'],
   'phb-2024_fairy': ['Small', 'Medium'],

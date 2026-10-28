@@ -18,6 +18,7 @@ import {
   spellAccessGrantOf,
   spellListChoiceId,
   withoutSpellAccessFeatures,
+  anyListBySchool,
 } from '../../src/lib/services/spellcasting/access';
 import { buildDoc } from '../../src/lib/services/levelUp/doc';
 import { buildFeatureChoices } from '../../src/lib/services/levelUp/questions';
@@ -177,13 +178,13 @@ describe('deklarierter Zauber-Zugang im Aufstieg (Kämpfer 3→4 nimmt Eingeweih
     expect(feats.length, 'Vault-Shim aktiv?').toBeGreaterThan(10);
 
     const declared = feats.filter(isSpellAccessFeature);
-    expect(declared.map((f) => f.sourceKey)).toEqual([MAGIC_INITIATE_KEY]);
+    expect(declared.map((f) => f.sourceKey).sort()).toEqual(['phb-2024_fey-touched', 'phb-2024_shadow-touched', MAGIC_INITIATE_KEY]);
     for (const f of declared) {
       const grant = spellAccessGrantOf({ key: f.sourceKey, name: f.name, nameDe: f.nameDe, grantsChoice: f.grantsChoice, grantsCasting: f.grantsCasting });
       expect(grant, `${f.sourceKey}: Deklaration lesbar`).not.toBeNull();
       // Ohne Kontingent gäbe es keine Zauber-Wahl — das Talent wäre stumm.
       expect(grant!.picks.length, `${f.sourceKey}: Kontingent deklariert`).toBeGreaterThan(0);
-      expect(grant!.lists.length, `${f.sourceKey}: Zauberliste deklariert`).toBeGreaterThan(0);
+      expect(grant!.lists.length > 0 || anyListBySchool(grant!), `${f.sourceKey}: Zauberliste oder Schulschranke deklariert`).toBe(true);
       expect(grant!.abilities.length, `${f.sourceKey}: Zauberattribut deklariert`).toBeGreaterThan(0);
     }
   });

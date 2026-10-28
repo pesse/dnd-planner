@@ -30,7 +30,7 @@ import { getSpellLibrary, resolveSpell } from '../../src/lib/spellLibrary';
 import { libraryKey } from '../support/libraryKey';
 
 /** Stand der Inventur (Plan Stufe 1). */
-const DECLARATION_COUNT = 76;
+const DECLARATION_COUNT = 82;
 
 interface Declaration {
   key: string;
@@ -223,6 +223,8 @@ describe('grantsCasting ist eine Deklaration wie jede andere', () => {
       'phb-2024_druid_circle-of-the-stars_star-map',
       'phb-2024_monk_way-of-shadow_shadow-arts',
       'phb-2024_ranger_fey-wanderer_fey-reinforcements',
+      'phb-2024_telekinetic',
+      'phb-2024_telepathic',
       'srd-2024_bard_magical-secrets',
       'srd-2024_bard_words-of-creation',
       'srd-2024_sorcerer_draconic-sorcery_dragon-companion',

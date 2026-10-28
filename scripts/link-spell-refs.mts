@@ -56,8 +56,11 @@ function loadSpells(): { byEn: Map<string, SpellRef[]>; enNames: string[] } {
   return { byEn, enNames: [...byEn.keys()].sort((a, b) => b.length - a.length) };
 }
 
-/** Spielbegriffe, die einen Zaubernamen enthalten — „cast Bright Light" ist eine Laterne. */
-const FIXED_TERMS = [/\b(Bright|Dim)\s+$/];
+/**
+ * Spielbegriffe, die einen Zaubernamen enthalten — „cast Bright Light" ist eine Laterne, und
+ * „weapons or a Shield" ist der Schild, auch wenn im selben Satz „spells" steht.
+ */
+const FIXED_TERMS = [/\b(Bright|Dim)\s+$/, /\b(a|an)\s+$/];
 
 /** Steht der Treffer im englischen Text als Zauber da — oder ist es ein Alltagswort? */
 function spellContext(para: string, idx: number, len: number): boolean {

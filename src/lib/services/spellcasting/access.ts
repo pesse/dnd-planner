@@ -174,6 +174,13 @@ export function fixedList(grant: SpellAccessGrant): string {
   return grant.lists.length === 1 ? grant.lists[0] : '';
 }
 
+/**
+ * „Aus beliebiger Liste, aber nur diese Schulen" (Feenberührt): keine Liste zu wählen, und die
+ * Schul- und Gradschranke hält den Picker klein. Ohne Schulschranke bliebe er gesperrt.
+ */
+export const anyListBySchool = (grant: SpellAccessGrant): boolean =>
+  !grant.lists.length && grant.picks.length > 0 && grant.picks.every((p) => p.schools.length > 0);
+
 const emptyChoice = (grant: SpellAccessGrant, id: string): AnalysisChoice =>
   declaredChoice({ id, feature: grant.feature, featureDe: grant.featureDe, featureKey: grant.featureKey });
 
@@ -254,16 +261,16 @@ export function spellAccessFacts(grant: SpellAccessGrant): SpellAccessFact[] {
 
 /**
  * Reihenfolge ist Pflicht: Liste → Attribut → Zauber. Solange die Liste offen ist, entstehen
- * KEINE Zauber-Wahlen — ein Picker ohne Klassenfilter böte die ganze Bibliothek an.
+ * KEINE Zauber-Wahlen — ein Picker ohne Klassen- und Schulfilter böte die ganze Bibliothek an.
  */
 export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): AnalysisChoice[] {
   const choices = spellAccessParts(grant).map((part) => spellAccessPartChoice(grant, part));
 
   const list = fixedList(grant) || (answeredList.trim() ? resolveClass(answeredList) ?? '' : '');
-  if (list) {
+  if (list || anyListBySchool(grant)) {
     for (const pick of grant.picks) {
       choices.push({
-        ...emptyChoice(grant, spellPickChoiceId(grant, pick.level, list)),
+        ...emptyChoice(grant, spellPickChoiceId(grant, pick.level, list || 'any')),
         type: 'spell-pick',
         question: gradeLabel(pick),
         questionDe: gradeLabel(pick),
