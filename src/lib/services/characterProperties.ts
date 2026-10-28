@@ -61,10 +61,16 @@ export function characterPropertyChanges(props: CharacterProperties | undefined,
   return out;
 }
 
-/** Die Bewegungsrate der getragenen Merkmale im Format von `character.speed`; '' ohne Deklaration. */
-export function declaredSpeedMeters(features: readonly { grants?: FeatureGrant }[]): string {
-  const feet = Math.max(0, ...features.map((f) => f.grants?.properties?.speedFeet ?? 0));
-  return feet ? String(ftToMVal(feet)).replace('.', ',') : '';
+/** Die höchste Bewegungsrate der getragenen Merkmale; `meters` im Format von `character.speed`. */
+export function declaredSpeed(
+  features: readonly { name: string; grants?: FeatureGrant }[],
+): { feet: number; meters: string; labelDe: string } | null {
+  let best: { feet: number; labelDe: string } | null = null;
+  for (const f of features) {
+    const feet = f.grants?.properties?.speedFeet ?? 0;
+    if (feet > (best?.feet ?? 0)) best = { feet, labelDe: f.name };
+  }
+  return best && { ...best, meters: String(ftToMVal(best.feet)).replace('.', ',') };
 }
 
 export const isEmptyCharacterProperties = (p: CharacterProperties | undefined): boolean =>

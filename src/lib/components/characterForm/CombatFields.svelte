@@ -2,18 +2,20 @@
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import type { Character } from '../../schemas/characterSchema';
   import type { CombatFallbacks } from '../../services/combatFallbacks';
+  import type { CombatTips } from '../../services/characterSheetTips';
   import './form.css';
 
   let {
     ac = $bindable(), initiative = $bindable(), speed = $bindable(),
     hitDice = $bindable(), hpMax = $bindable(), hpCurrent = $bindable(), hpTemp = $bindable(),
-    proficiencyBonus = $bindable(), fallbacks, saved, dirOf, hpTipHtml = '', acTipHtml = '',
+    proficiencyBonus = $bindable(), fallbacks, tips, saved, dirOf, hpTipHtml = '', acTipHtml = '',
   }: {
     ac: string; initiative: string; speed: string; hitDice: string;
     hpMax: string; hpCurrent: string; hpTemp: string;
     proficiencyBonus: number | null;
     /** Stehen als Platzhalter in leeren Feldern; der Bogen zeigt sie an deren Stelle. */
     fallbacks: CombatFallbacks;
+    tips: CombatTips;
     saved?: Character | null;
     dirOf: (old: unknown, now: unknown) => DiffDir;
     /** Leer, solange die Bibliotheken laden. */
@@ -44,14 +46,18 @@
     {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
   </label>
   <label class="stat" use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
-  <label class="stat" use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)
+  <label class="stat" use:diffMark={dirOf(saved?.speed, speed)} class:has-tip={tips.speed}>Bewegung (m)
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder={fallbacks.speed} />
+    {#if tips.speed}<span class="tip">{@html tips.speed}</span>{/if}
   </label>
-  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus
+  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)} class:has-tip={tips.proficiencyBonus}>Übungsbonus
     <input type="number" bind:value={proficiencyBonus}
       placeholder={String(fallbacks.proficiencyBonus)} min="2" max="6" />
+    {#if tips.proficiencyBonus}<span class="tip">{@html tips.proficiencyBonus}</span>{/if}
   </label>
-  <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP aktuell<input bind:value={hpCurrent} placeholder={hpMax} /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)} class:has-tip={tips.hpCurrent}>TP aktuell<input bind:value={hpCurrent} placeholder={hpMax} />
+    {#if tips.hpCurrent}<span class="tip">{@html tips.hpCurrent}</span>{/if}
+  </label>
   <label class="stat" use:diffMark={dirOf(saved?.hpMax, hpMax)} class:has-tip={hpTipHtml}>TP max<input bind:value={hpMax} placeholder="45" />
     {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
   </label>

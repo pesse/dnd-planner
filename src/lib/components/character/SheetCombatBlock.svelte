@@ -12,9 +12,11 @@
   } from '../../services/attackCalc';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
+  import type { CombatTips } from '../../services/characterSheetTips';
 
-  let { character, masteryOf, hpTipHtml, acTipHtml, attackCtx }: {
+  let { character, tips, masteryOf, hpTipHtml, acTipHtml, attackCtx }: {
     character: Character;
+    tips: CombatTips;
     masteryOf: (name: string) => WeaponMastery | undefined;
     /** Leer, solange die Bibliotheken laden. */
     hpTipHtml: string;
@@ -25,6 +27,13 @@
   } = $props();
 </script>
 
+{#snippet stat(label: string, value: string, tipHtml: string)}
+  <div class="stat" class:has-tip={tipHtml}>
+    <span class="sl">{label}</span><span class="sv">{value}</span>
+    {#if tipHtml}<span class="tip">{@html tipHtml}</span>{/if}
+  </div>
+{/snippet}
+
 <div class="section">
   <h3>Kampf</h3>
   <div class="stats-grid">
@@ -33,15 +42,15 @@
       {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
     </div>
     <div class="stat"><span class="sl">Initiative</span><span class="sv">{character.initiative}</span></div>
-    <div class="stat"><span class="sl">Bewegung</span><span class="sv">{character.speed}m</span></div>
+    {@render stat('Bewegung', `${character.speed}m`, tips.speed)}
     <div class="stat" class:has-tip={hpTipHtml}>
       <span class="sl">TP max</span><span class="sv">{character.hpMax}</span>
       {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
     </div>
-    <div class="stat"><span class="sl">TP aktuell</span><span class="sv">{character.hpCurrent || '—'}</span></div>
+    {@render stat('TP aktuell', character.hpCurrent || '—', tips.hpCurrent)}
     <div class="stat"><span class="sl">Temp. TP</span><span class="sv">{character.hpTemp || '—'}</span></div>
     <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>
-    <div class="stat"><span class="sl">Übungsbonus</span><span class="sv">{sign(effectiveProficiencyBonus(character))}</span></div>
+    {@render stat('Übungsbonus', sign(effectiveProficiencyBonus(character)), tips.proficiencyBonus)}
     <div class="stat"><span class="sl">Passiv Wahr.</span><span class="sv">{character.passivePerception}</span></div>
   </div>
 

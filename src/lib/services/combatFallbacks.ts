@@ -8,7 +8,7 @@ import { abilityRecordOf, type AbilityScores } from '../schemas/abilities';
 import type { FeatureGrant } from '../schemas/grants';
 import { mod } from '../domain/skills';
 import { armorClassDerivation, type ArmorClassFeature } from './armorClass';
-import { declaredSpeedMeters } from './characterProperties';
+import { declaredSpeed } from './characterProperties';
 import { proficiencyBonus } from './classProgression';
 import { effectiveScores, loadWornAbilityEffects } from './effectiveAbilities';
 import { loadSavingThrowInputs } from './savingThrows';
@@ -19,18 +19,25 @@ export interface CombatFallbacks {
   ac: number | null;
   /** '' ohne Deklaration oder solange die Merkmale laden. */
   speed: string;
+  /** Das Merkmal, das die Bewegungsrate festlegt, samt Fußangabe. */
+  speedSource: { labelDe: string; feet: number } | null;
+  level: number;
   proficiencyBonus: number;
 }
 
 export function combatFallbacks(
   classes: readonly CharacterClass[],
   acTotal: number | null,
-  features: readonly { grants?: FeatureGrant }[] | null,
+  features: readonly { name: string; grants?: FeatureGrant }[] | null,
 ): CombatFallbacks {
+  const speed = features ? declaredSpeed(features) : null;
+  const level = totalLevel([...classes]);
   return {
     ac: acTotal,
-    speed: features ? declaredSpeedMeters(features) : '',
-    proficiencyBonus: proficiencyBonus(totalLevel([...classes])),
+    speed: speed?.meters ?? '',
+    speedSource: speed && { labelDe: speed.labelDe, feet: speed.feet },
+    level,
+    proficiencyBonus: proficiencyBonus(level),
   };
 }
 

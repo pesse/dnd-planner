@@ -13,6 +13,7 @@ import type { AttackParts } from './attackCalc';
 import type { SavingThrowDerivation } from './savingThrows';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
+import type { CombatFallbacks } from './combatFallbacks';
 
 function row(label: string, val: string | number): string {
   const v = typeof val === 'number' ? sign(val) : val;
@@ -42,6 +43,35 @@ export function hpTip(d: HpDerivation): string {
     ? row('eingetragen', String(d.stored)) + row('Abweichung', d.stored - d.total)
     : '';
   return rows + sum + off + steps(d.notes);
+}
+
+export interface CombatTips {
+  speed: string;
+  proficiencyBonus: string;
+  hpCurrent: string;
+}
+
+export const NO_COMBAT_TIPS: CombatTips = { speed: '', proficiencyBonus: '', hpCurrent: '' };
+
+/** Die Herleitung der gerechneten Kampfwerte; eine Abweichung des eingetragenen Werts steht darunter. */
+export function combatTips(
+  c: { speed: string; hpCurrent: string; hpMax: string; proficiencyBonus?: number | null },
+  fb: CombatFallbacks,
+): CombatTips {
+  const speed = c.speed.trim();
+  const src = fb.speedSource;
+  const pb = c.proficiencyBonus;
+  return {
+    speed: src
+      ? row(esc(src.labelDe), `${src.feet} Fuß`) + divider() + total(`${fb.speed} m`, 'Bewegung')
+        + (speed && speed !== fb.speed ? steps([`eingetragen ${speed} m`]) : '')
+      : '',
+    proficiencyBonus: row('Gesamtstufe', String(fb.level)) + divider() + total(fb.proficiencyBonus, 'Übungsbonus')
+      + (pb != null && pb !== fb.proficiencyBonus ? steps([`eingetragen ${sign(pb)}`]) : ''),
+    hpCurrent: c.hpCurrent.trim() || !c.hpMax.trim()
+      ? ''
+      : row('TP-Maximum', esc(c.hpMax.trim())) + steps(['keine aktuellen TP eingetragen']),
+  };
 }
 
 export function acTip(d: ArmorClassDerivation): string {

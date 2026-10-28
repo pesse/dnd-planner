@@ -14,7 +14,7 @@
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
   import { hpDerivation } from '../services/hitPointDerivation';
-  import { hpTip } from '../services/characterSheetTips';
+  import { combatTips, hpTip } from '../services/characterSheetTips';
   import { abilityKeyOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { characterAssetUrl } from '../services/characterSideFiles.svelte';
@@ -190,6 +190,7 @@
     () => owned.current,
   );
   const fallbacks = $derived(combatFallbacks(form.classes, acTip.total, owned.current));
+  const tips = $derived(combatTips(form, fallbacks));
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
@@ -282,7 +283,7 @@
           bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
           bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
           bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-          {fallbacks} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
+          {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
         />
       </section>
     </div>

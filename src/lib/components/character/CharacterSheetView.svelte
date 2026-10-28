@@ -13,6 +13,7 @@
   import type { AttackCalcContext } from '../../services/attackCalc';
   import type { SavingThrowDerivation } from '../../services/savingThrows';
   import type { CharacterAura } from '../../services/auras';
+  import type { CombatTips } from '../../services/characterSheetTips';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetAuraBlock from './SheetAuraBlock.svelte';
@@ -20,7 +21,7 @@
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, figureUrl, abilities, hpTipHtml, acTipHtml, attackCtx, saves, auras }: {
+        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -30,6 +31,7 @@
     companionImageUrl: string;
     figureUrl: string;
     abilities: Record<AbilityKey, AbilityResolution>;
+    combatTips: CombatTips;
     hpTipHtml: string;
     acTipHtml: string;
     attackCtx: AttackCalcContext | null;
@@ -58,7 +60,7 @@
   </div>
 
   <div class="two-col">
-    <SheetCombatBlock {character} {masteryOf} {hpTipHtml} {acTipHtml} {attackCtx} />
+    <SheetCombatBlock {character} tips={combatTips} {masteryOf} {hpTipHtml} {acTipHtml} {attackCtx} />
     <SheetProficiencyBlock {character} {saves} {masteryChips} />
   </div>
 

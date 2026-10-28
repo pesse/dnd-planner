@@ -19,7 +19,7 @@
   import type { AttackCalcContext } from '../services/attackCalc';
   import { mod } from '../domain/skills';
   import { hpDerivation } from '../services/hitPointDerivation';
-  import { hpTip } from '../services/characterSheetTips';
+  import { combatTips, hpTip, NO_COMBAT_TIPS } from '../services/characterSheetTips';
   import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
@@ -66,7 +66,9 @@
 
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
-  const shown = $derived(character && withCombatFallbacks(character, combatFallbacks(character.classes, acTip.total, owned.current)));
+  const fallbacks = $derived(character && combatFallbacks(character.classes, acTip.total, owned.current));
+  const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
+  const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
     strMod: mod(abilities.resolved.str.score),
@@ -157,7 +159,7 @@
           <CharacterSheetView character={shown} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
-            abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
+            abilities={abilities.resolved} combatTips={tips} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
             saves={saving.saves} auras={saving.auras} />
           {/if}
         {/snippet}
