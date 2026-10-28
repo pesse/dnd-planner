@@ -13,6 +13,7 @@
   import { CLASS_NAME_DE_BY_SLUG } from '../../services/classProgression';
   import { ABILITY_LABEL_BY_NAME } from '../../schemas/abilities';
   import { resourceViews } from '../../services/resources/project';
+  import ResourcePoolCards from './ResourcePoolCards.svelte';
   import { groupedSpellcasting } from '../../services/spellcasting/grouped';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import SpellTooltip from '../SpellTooltip.svelte';
@@ -190,16 +191,7 @@
       </div>
     {/if}
 
-    {#each resources as pool (pool.id)}
-      <div class="quota-row">
-        <span class="quota-label">{pool.label}{#if pool.hint}<span class="quota-cast">{pool.hint}</span>{/if}</span>
-        <div class="tag-list">
-          {#each pool.cells as cell (cell.label)}
-            <span class="tag slot-tag">{cell.label ? `${cell.label}: ` : ''}{cell.count}</span>
-          {/each}
-        </div>
-      </div>
-    {/each}
+    {#if resources.length}<ResourcePoolCards {resources} />{/if}
 
     {#if loose.length}
       <div class="quota-row">
@@ -267,8 +259,6 @@
     vertical-align: super;
     opacity: 0.75;
   }
-
-  .slot-tag { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 
   .section-head-row {
     display: flex;
