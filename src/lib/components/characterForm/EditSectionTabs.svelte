@@ -20,7 +20,7 @@
 <style>
   .section-tabs {
     position: sticky;
-    top: 0;
+    top: var(--ep-header-h, 0px);
     z-index: 2;
     display: flex;
     flex-wrap: wrap;

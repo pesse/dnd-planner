@@ -38,6 +38,8 @@
   } = $props();
 
   const isExtraTab = $derived(extraTabs.some((t) => t.id === tab));
+  // Eigene Sticky-Leisten im Inhalt kleben darunter (`top: var(--ep-header-h)`).
+  let headerHeight = $state(0);
 
   let rawJson  = $state('');
   let jsonError = $state('');
@@ -81,8 +83,8 @@
   }
 </script>
 
-<div class="editor-panel" {style}>
-  <div class="sticky-header">
+<div class="editor-panel" style="--ep-header-h: {headerHeight}px; {style}">
+  <div class="sticky-header" bind:offsetHeight={headerHeight}>
     <div class="tab-bar">
       <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>
       <button class="tab-btn" class:active={tab === 'bearbeiten'} onclick={() => switchTab('bearbeiten')}>Bearbeiten</button>
