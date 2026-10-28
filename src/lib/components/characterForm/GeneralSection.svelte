@@ -55,49 +55,51 @@
 </script>
 
 <section>
-  <div class="grid-2">
+  <div class="grid-3">
     <label use:diffMark={dirOf(saved?.name, form.name)}>Name<input bind:value={form.name} placeholder="Charaktername" /></label>
     <label use:diffMark={dirOf(saved?.playerName, form.playerName)}>Spieler<input bind:value={form.playerName} placeholder="Spielername" /></label>
     <label use:diffMark={dirOf(saved?.xp, form.xp)}>EP<input bind:value={form.xp} placeholder="0" /></label>
   </div>
 
-  <RefBlock
-    title="Hintergrund"
-    kindLabel="Hintergrund"
-    name={form.backgroundRef.name}
-    sourceKey={form.backgroundRef.sourceKey}
-    placeholder="z.B. Soldat"
-    editTitle="Hintergrund ändern"
-    diff={dirOf(saved?.background, form.background)}
-    hasFix={!!fixOf('background')}
-    onfix={() => onApplyFix(fixOf('background'))}
-    editing={editingBackground}
-    search={(q) => searchBackgrounds(libs.backgrounds, q, 8)}
-    label={backgroundDisplayName}
-    onopen={() => openLibraryPage(libs.backgrounds.find((b) => b.key === form.backgroundRef.sourceKey)?.path, 'background')}
-    oninput={(v) => { form.backgroundRef.name = v; form.background = v; form.backgroundRef.sourceKey = ''; }}
-    onselect={selectBackground}
-    onediting={(v) => (editingBackground = v)}
-  />
+  <div class="ref-pair">
+    <RefBlock
+      title="Hintergrund"
+      kindLabel="Hintergrund"
+      name={form.backgroundRef.name}
+      sourceKey={form.backgroundRef.sourceKey}
+      placeholder="z.B. Soldat"
+      editTitle="Hintergrund ändern"
+      diff={dirOf(saved?.background, form.background)}
+      hasFix={!!fixOf('background')}
+      onfix={() => onApplyFix(fixOf('background'))}
+      editing={editingBackground}
+      search={(q) => searchBackgrounds(libs.backgrounds, q, 8)}
+      label={backgroundDisplayName}
+      onopen={() => openLibraryPage(libs.backgrounds.find((b) => b.key === form.backgroundRef.sourceKey)?.path, 'background')}
+      oninput={(v) => { form.backgroundRef.name = v; form.background = v; form.backgroundRef.sourceKey = ''; }}
+      onselect={selectBackground}
+      onediting={(v) => (editingBackground = v)}
+    />
 
-  <RefBlock
-    title="Volk"
-    kindLabel="Volk"
-    name={form.species.name}
-    sourceKey={form.species.sourceKey}
-    placeholder="z.B. Zwerg"
-    editTitle="Volk ändern"
-    diff={dirOf(saved?.race, form.race)}
-    hasFix={!!fixOf('species')}
-    onfix={() => onApplyFix(fixOf('species'))}
-    editing={editingSpecies}
-    search={(q) => searchSpecies(libs.species, q, 8)}
-    label={speciesDisplayName}
-    onopen={() => openLibraryPage(libs.species.find((s) => s.key === form.species.sourceKey)?.path, 'species')}
-    oninput={(v) => { form.species.name = v; form.race = v; form.species.sourceKey = ''; }}
-    onselect={selectSpecies}
-    onediting={(v) => (editingSpecies = v)}
-  />
+    <RefBlock
+      title="Volk"
+      kindLabel="Volk"
+      name={form.species.name}
+      sourceKey={form.species.sourceKey}
+      placeholder="z.B. Zwerg"
+      editTitle="Volk ändern"
+      diff={dirOf(saved?.race, form.race)}
+      hasFix={!!fixOf('species')}
+      onfix={() => onApplyFix(fixOf('species'))}
+      editing={editingSpecies}
+      search={(q) => searchSpecies(libs.species, q, 8)}
+      label={speciesDisplayName}
+      onopen={() => openLibraryPage(libs.species.find((s) => s.key === form.species.sourceKey)?.path, 'species')}
+      oninput={(v) => { form.species.name = v; form.race = v; form.species.sourceKey = ''; }}
+      onselect={selectSpecies}
+      onediting={(v) => (editingSpecies = v)}
+    />
+  </div>
 
   <ClassLevelTable
     classes={form.classes}

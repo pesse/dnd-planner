@@ -36,21 +36,45 @@
   }
 </script>
 
-<div class="grid-3">
-  <label use:diffMark={dirOf(saved?.ac, ac)} class:has-tip={acTipHtml}>RK<input bind:value={ac} placeholder="15" />
+<div class="combat-grid">
+  <label class="stat" use:diffMark={dirOf(saved?.ac, ac)} class:has-tip={acTipHtml}>RK<input bind:value={ac} placeholder="15" />
     {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
   </label>
-  <label use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
-  <label use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)
+  <label class="stat" use:diffMark={dirOf(saved?.initiative, initiative)}>Initiative<input bind:value={initiative} placeholder="+2" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.speed, speed)}>Bewegung (m)
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder="9" />
   </label>
-  <label use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
-  <label use:diffMark={dirOf(saved?.hpMax, hpMax)} class:has-tip={hpTipHtml}>TP Maximum<input bind:value={hpMax} placeholder="45" />
-    {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
-  </label>
-  <label use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP Aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
-  <label use:diffMark={dirOf(saved?.hpTemp, hpTemp)}>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
-  <label use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus
+  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus
     <input type="number" bind:value={proficiencyBonus} min="2" max="6" />
   </label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP aktuell<input bind:value={hpCurrent} placeholder="45" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpMax, hpMax)} class:has-tip={hpTipHtml}>TP max<input bind:value={hpMax} placeholder="45" />
+    {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
+  </label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpTemp, hpTemp)}>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
 </div>
+
+<style>
+  .combat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(4.5rem, 6rem));
+    gap: 0.4rem;
+  }
+  .stat {
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 0.3rem 0.4rem 0.4rem;
+    align-items: center;
+    text-align: center;
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+  }
+  .stat input {
+    width: 100%;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--bg);
+  }
+</style>

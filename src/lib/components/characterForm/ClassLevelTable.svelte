@@ -5,7 +5,7 @@
    */
   import { navigateTo } from '../../services/navigation';
   import { classDisplayName, searchClasses, type ClassInfo } from '../../classLibrary';
-  import { formatClassLevel, totalLevel } from '../../schemas/classLevelText';
+  import { totalLevel } from '../../schemas/classLevelText';
   import type { CharacterClass } from '../../schemas/characterSchema';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import LibraryRefPicker from './LibraryRefPicker.svelte';
@@ -30,7 +30,6 @@
     oneditingRow: (row: number) => void;
   } = $props();
 
-  const preview = $derived(formatClassLevel(classes));
   const total = $derived(totalLevel(classes));
   // Nur Grundklassen (ohne subclassOf) sind vorschlagbar; Subklasse getrennt übers Dropdown.
   const baseClasses = $derived(classIndex.filter((c) => !c.subclassOf));
@@ -125,5 +124,4 @@
     </tbody>
   </table>
   <button class="btn-add" onclick={addClass}>+ Klasse</button>
-  {#if preview}<p class="class-preview">Anzeige: {preview}</p>{/if}
 </div>

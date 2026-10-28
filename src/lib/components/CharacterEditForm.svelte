@@ -29,9 +29,8 @@
   import OptionPoolPicker from './OptionPoolPicker.svelte';
   import UpgradeBanner from './characterForm/UpgradeBanner.svelte';
   import GeneralSection from './characterForm/GeneralSection.svelte';
-  import AttributeRow from './characterForm/AttributeRow.svelte';
+  import AbilityTable from './characterForm/AbilityTable.svelte';
   import CombatFields from './characterForm/CombatFields.svelte';
-  import SavingThrowGrid from './characterForm/SavingThrowGrid.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
@@ -258,38 +257,34 @@
       bind:editingClassRow bind:editingSpecies bind:editingBackground
     />
 
-    <section>
-      <h3>Attribute</h3>
-      <AttributeRow
-        bind:abilities={form.abilities}
-        resolved={abilities.resolved}
-        dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
-      />
-    </section>
+    <div class="stats-cols">
+      <section>
+        <h3>Attribute &amp; Rettungswürfe</h3>
+        <AbilityTable
+          bind:abilities={form.abilities}
+          bind:saveProfs={form.saveProfs}
+          resolved={abilities.resolved}
+          {mods}
+          proficiencyBonus={form.proficiencyBonus}
+          saveSourceOf={(key) => grantSourcesFor(
+            grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
+            key,
+          )}
+          scoreDirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
+          saveDirOf={(key, value) => dirOf(saved?.saveProfs?.[key], value)}
+        />
+      </section>
 
-    <section>
-      <h3>Kampfwerte</h3>
-      <CombatFields
-        bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
-        bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
-        bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-        {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
-      />
-    </section>
-
-    <section>
-      <h3>Rettungswürfe (Übungen)</h3>
-      <SavingThrowGrid
-        bind:saveProfs={form.saveProfs}
-        {mods}
-        proficiencyBonus={form.proficiencyBonus}
-        sourceOf={(key) => grantSourcesFor(
-          grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
-          key,
-        )}
-        dirOf={(field, value) => dirOf(saved?.saveProfs?.[field], value)}
-      />
-    </section>
+      <section>
+        <h3>Kampfwerte</h3>
+        <CombatFields
+          bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
+          bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
+          bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
+          {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
+        />
+      </section>
+    </div>
 
     <section>
       <h3>Fertigkeiten</h3>
@@ -303,13 +298,16 @@
       />
     </section>
 
-    <section>
-      <h3>Sprachen</h3>
-      <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
-
-      <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
-      <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
-    </section>
+    <div class="stats-cols">
+      <section>
+        <h3>Sprachen</h3>
+        <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
+      </section>
+      <section>
+        <h3>Werkzeuge &amp; Fahrzeuge</h3>
+        <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+      </section>
+    </div>
 
     <section>
       <h3>Übungen &amp; Rüstungsausbildung</h3>

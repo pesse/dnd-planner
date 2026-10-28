@@ -95,45 +95,26 @@
   gap: 0.5rem;
 }
 
-/* Attribute */
-.edit-form .attr-row {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.edit-form .ref-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin-top: 0.6rem;
 }
-.edit-form .attr-box {
+.edit-form .ref-pair .species-block {
+  max-width: none;
   background: var(--surface);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-  min-width: 58px;
-}
-.edit-form .attr-mod-display {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--arcane);
-}
-.edit-form .attr-label {
-  font-size: 0.65rem;
-  color: var(--ink-muted);
-  text-transform: uppercase;
-}
-.edit-form .attr-input {
-  width: 3rem !important;
-  text-align: center;
-  padding: 0.15rem;
+  margin-bottom: 0;
 }
 
-/* Rettungswürfe */
-.edit-form .save-checks {
+.edit-form .stats-cols {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.25rem 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0 1.5rem;
 }
+
 .edit-form .check-row {
   display: flex;
   flex-direction: row;
@@ -143,7 +124,6 @@
   color: var(--ink);
 }
 .edit-form .check-label { flex: 1; }
-.edit-form .check-val { font-weight: 600; min-width: 2rem; text-align: right; color: var(--ink-soft); }
 .edit-form .alleskoenner { margin-bottom: 0.5rem; }
 
 /* Fertigkeiten */
@@ -161,7 +141,7 @@
 .edit-form .skill-name { color: var(--ink-soft); }
 .edit-form .skill-name.proficient { color: var(--green); }
 .edit-form .skill-name.expertise { color: var(--steel); }
-.edit-form .skill-val { font-weight: 600; margin-left: auto; }
+.edit-form .skill-val { font-weight: 600; min-width: 1.8rem; text-align: right; }
 
 /* ◆-Herkunftsmarker an Fertigkeiten/Übungen (das aktive Grant-Panel wurde entfernt —
    Übungen ableiten gehört in Erstellung/Level-Up, nicht in den Editor). */
@@ -209,7 +189,6 @@
 .edit-form .upgrade-steps { margin: 0.25rem 0 0; padding-left: 1.2rem; list-style: '· '; }
 .edit-form .upgrade-done { flex-shrink: 0; font-size: 0.8rem; color: var(--green); }
 .edit-form .upgrade-failed { color: var(--red); list-style: none; margin-left: -1.2rem; }
-.edit-form .class-preview { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ink-muted); }
 .edit-form .species-block { max-width: 24rem; }
 .edit-form .species-picker { max-width: 18rem; }
 .edit-form .species-hint { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
