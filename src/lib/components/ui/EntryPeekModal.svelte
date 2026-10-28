@@ -95,7 +95,7 @@
     width: min(560px, 94vw); max-height: 90vh; display: flex; flex-direction: column; gap: 0.6rem;
   }
   .scroll {
-    overflow-y: auto; min-height: 0; border-radius: 8px; background: var(--bg);
+    position: relative; overflow-y: auto; min-height: 0; border-radius: 8px; background: var(--bg);
     box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
   }
   .scroll > :global(*) { max-width: none; }
