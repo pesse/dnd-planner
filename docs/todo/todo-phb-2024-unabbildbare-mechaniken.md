@@ -12,15 +12,13 @@
 
 ## Schadensresistenz und Zustandsimmunität
 
-Feste und an eine Lage gebundene Resistenzen stehen in `grants.defenses` (Auren: `aura.resistances`).
-Offen sind die, deren Schadensart erst eine Wahl festlegt, und Schaden, der keine Schadensart ist.
+Feste, an eine Lage gebundene und per Option gewählte Resistenzen stehen in `grants.defenses`
+(Auren: `aura.resistances`). Offen sind flüchtige Wahlen und Schaden, der keine Schadensart ist.
 
 | Merkmal | Mechanik | Was fehlt |
 |---|---|---|
 | `wizard_abjurer_spell-resistance` | Schaden durch Zauber | keine Schadensart |
 | `srd-2024_druid_circle-of-the-land_natures-ward` | Resistenz je Land | Land wechselt je Lange Rast (Immunität Vergiftet ist deklariert) |
-| `srd-2024_sorcerer_draconic-sorcery_elemental-affinity` | gewählte Art (nur als `helpDe`) | Optionswahl wirkt nicht zur Laufzeit |
-| `srd-2024_dragonborn_damage-resistance`, `srd-2024_tiefling_fiendish-legacy` | Art aus der Abstammung | dito |
 | `srd-2024_warlock_fiend-patron_fiendish-resilience` | gewählte Art | neu je Rast (flüchtig) |
 | `barbarian_path-of-the-wild-heart_rage-of-the-wilds` | Bär: alles außer Energie, nekrotisch, psychisch, gleißend | Wahl je Kampfrausch (flüchtig) |
 | `monk_warrior-of-the-elements_elemental-epitome` | gewählte Art, jede Runde wechselbar | flüchtig |

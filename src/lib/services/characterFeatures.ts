@@ -15,6 +15,7 @@ import { featInstances } from './declaration/featInstances';
 import type { AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterClass, CharacterSpecies, CharacterBackground, CharacterFeatureEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';
+import type { FeatureChoiceGrant } from '$lib/schemas/featureChoice';
 import type { Trait } from '$lib/schemas/species';
 import { declaredFeatures, type DeclaredFeature, type FeatureSource } from './declaredFeature';
 
@@ -27,6 +28,8 @@ export interface ResolvedFeature {
   choice?: string;
   /** Fehlt bei Altdaten; `{}` heißt dagegen „geprüft, gewährt nichts". */
   grants?: FeatureGrant;
+  /** Für die Laufzeit-Wirkung gewählter Optionen (`chosenOptionGrants`). */
+  grantsChoice?: FeatureChoiceGrant[];
   /** Kein Bibliothekstreffer — Name/Beschreibung stammen aus dem Charakter selbst. */
   unresolved?: boolean;
 }
@@ -62,6 +65,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
             gainedAt: firstGainedAt(f.gainedAt, level),
             key: f.key,
             grants: f.grants,
+            grantsChoice: f.grantsChoice,
           }))
         : [],
     });
@@ -79,6 +83,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
               gainedAt: firstGainedAt(f.gainedAt, level),
               key: f.key,
               grants: f.grants,
+              grantsChoice: f.grantsChoice,
             }))
           : [],
       });
@@ -96,7 +101,7 @@ export async function resolveSpeciesTraits(
   const groups: ResolvedFeatureGroup[] = [];
   const shown = (traits: Trait[]): ResolvedFeature[] =>
     traitsUpTo(traits, charLevel).map((t) => ({
-      name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants,
+      name: t.nameDe || t.name, desc: t.descDe || t.desc, key: t.key, grants: t.grants, grantsChoice: t.grantsChoice,
       ...(t.gainedAt ? { gainedAt: t.gainedAt } : {}),
     }));
 
@@ -225,6 +230,7 @@ export async function resolveFeatLinks(feats: CharacterFeatureEntry[] | undefine
       key: ref.sourceKey,
       choice: choiceDisplay(ref) || undefined,
       grants: entry?.grants,
+      grantsChoice: entry?.grantsChoice,
       unresolved: !entry,
     };
   });

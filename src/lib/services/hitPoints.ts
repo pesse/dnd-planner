@@ -2,7 +2,9 @@
  * Trefferpunkte als Würfelsumme plus Ableitung: TP-Maximum = Würfel + (KON-Mod + Boni je
  * Stufe) × Charakterstufe. Beide Boni gelten rückwirkend für alle Stufen.
  */
-import { resolveClassFeatures, resolveFeatLinks, resolveSpeciesTraits } from './characterFeatures';
+import { resolveClassFeatures, resolveFeatLinks, resolveSpeciesTraits, type ResolvedFeature } from './characterFeatures';
+import { chosenOption } from './declaration/optionList';
+import { ledgerAnswers } from './declaration/ledgerAnswers';
 import { getProgressionByKey } from './classProgression';
 import { characterLevel } from './declaration/carriers';
 import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
@@ -52,7 +54,30 @@ export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeatu
   // Älterer Bestand führt das Herkunftstalent zusätzlich als Link — doppelt zählte es zweimal.
   if (originKey && !links.some((f) => f.sourceKey === originKey)) links.push({ sourceKey: originKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '' });
   const featLinks = await resolveFeatLinks(links);
-  return [...groups.flatMap((g) => g.features), ...featLinks].map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants }));
+  const owned = [...groups.flatMap((g) => g.features), ...featLinks];
+  return [
+    ...owned.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants })),
+    ...chosenOptionGrants(owned, c.features ?? []),
+  ];
+}
+
+/**
+ * Was die gewählte Option gewährt, steht neben der Option statt am Merkmal (Drachenabstammung →
+ * Resistenz). Der Rider schreibt davon nur Übungen und Sprachen in die Datei; was zur Laufzeit
+ * wirkt, fehlte sonst.
+ */
+function chosenOptionGrants(features: readonly ResolvedFeature[], ledger: Character['features']): OwnedGrantFeature[] {
+  const out: OwnedGrantFeature[] = [];
+  for (const f of features) {
+    if (!f.key || !f.grantsChoice?.length) continue;
+    for (const answer of ledgerAnswers(ledger, f.key)) {
+      const option = chosenOption(f, answer);
+      const key = `${f.key}:${option?.value}`;
+      if (!option?.grants || out.some((o) => o.key === key)) continue;
+      out.push({ key, name: `${f.name} (${option.labelDe || option.value})`, desc: '', grants: option.grants });
+    }
+  }
+  return out;
 }
 
 export async function ownedHpPerLevelSources(c: OwnedLinks): Promise<PerLevelSource[]> {
