@@ -63,6 +63,13 @@
         ? 'Inhalt veraltet'
         : INSTALL_LABEL[lib.install];
 
+  const stateTone = (lib: Library): 'ok' | 'pending' | 'missing' | 'blocked' =>
+    lib.block
+      ? 'blocked'
+      : lib.contentOutdated || lib.install === 'update'
+        ? 'pending'
+        : lib.install === 'installed' ? 'ok' : 'missing';
+
   const LICENSE_LABEL: Record<string, string> = {
     'CC-BY-4.0': 'SRD 5.2, frei weitergebbar',
     own: 'Eigene Inhalte',
@@ -220,7 +227,7 @@
 
     <ul class="lib-list">
       {#each $libraries as lib (lib.id)}
-        <li class="lib" class:chosen={selected[lib.id]}>
+        <li class="lib {stateTone(lib)}" class:chosen={selected[lib.id]}>
           <label class="lib-row">
             <input
               type="checkbox"
@@ -234,13 +241,15 @@
                 {/if}
                 <span class="lib-name">{lib.name}</span>
                 {#if $installing.has(lib.id)}<span class="spinner">…</span>{/if}
+                <span class="state {stateTone(lib)}">
+                  {stateTone(lib) === 'ok' ? '✓ ' : ''}{stateLabel(lib)}
+                </span>
               </span>
               {#if lib.description}
                 <span class="lib-desc">{lib.description}</span>
               {/if}
               <span class="lib-meta">
-                {stateLabel(lib)}
-                · {lib.fileCount} Dateien · {kib(lib.size)}
+                {lib.fileCount} Dateien · {kib(lib.size)}
                 · {LICENSE_LABEL[lib.license] ?? lib.license}
                 {#if lib.installedVersion && lib.install === 'update'}
                   · <code>{lib.installedVersion}</code> → <code>{lib.version}</code>
@@ -330,14 +339,25 @@
     padding: 0.55rem 0.7rem;
     display: flex; flex-direction: column; gap: 0.4rem;
   }
+  .lib.ok { border-left: 3px solid var(--green); }
+  .lib.missing { border-style: dashed; }
   .lib.chosen { border-color: var(--red); }
 
   .lib-row { display: flex; align-items: flex-start; gap: 0.55rem; cursor: pointer; }
   .lib-row input { accent-color: var(--red); cursor: pointer; margin-top: 0.2rem; flex-shrink: 0; }
-  .lib-main { display: flex; flex-direction: column; min-width: 0; }
+  .lib-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
   .lib-title { display: flex; align-items: center; gap: 0.4rem; }
   .lib-name { font-size: 0.9rem; color: var(--ink); font-weight: 600; }
   .lock { font-size: 0.8rem; }
+  .state {
+    margin-left: auto; flex-shrink: 0; white-space: nowrap;
+    font-size: 0.68rem; font-weight: 600;
+    padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid currentColor;
+  }
+  .state.ok { color: var(--bg); background: var(--green); border-color: var(--green); }
+  .state.pending { color: var(--gold, #c89b3c); }
+  .state.missing { color: var(--ink-muted); }
+  .state.blocked { color: var(--danger); }
   .spinner { font-size: 0.8rem; color: var(--ink-muted); }
   .lib-desc { margin-top: 0.15rem; font-size: 0.78rem; color: var(--ink-soft); }
   .lib-meta { margin-top: 0.2rem; font-size: 0.72rem; color: var(--ink-muted); }
