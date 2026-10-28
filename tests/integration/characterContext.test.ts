@@ -116,4 +116,11 @@ describe('buildCharacterContext', () => {
 
     expect(md).not.toContain('### Proficiencies');
   });
+
+  it('füllt leere RK und TP aktuell mit gerechneten Werten', async () => {
+    const md = await buildCharacterContext({ ...allProficienciesCharacter, ac: '', hpCurrent: '' }, 'character');
+
+    expect(md).toMatch(/^- AC: \d+$/m);
+    expect(md).toContain('- HP: 44/44 (temp 5)');
+  });
 });

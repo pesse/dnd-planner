@@ -10,6 +10,7 @@
   import { createFormCasting } from '../services/characterFormCasting.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
+  import { combatFallbacks, withCombatFallbacks } from '../services/combatFallbacks';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
@@ -64,6 +65,7 @@
 
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
+  const shown = $derived(character && withCombatFallbacks(character, combatFallbacks(character.classes, acTip.total, owned.current)));
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
     strMod: mod(abilities.resolved.str.score),
@@ -150,8 +152,8 @@
         style="--ep-accent: var(--arcane)"
       >
         {#snippet karte()}
-          {#if saving.saves}
-          <CharacterSheetView {character} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
+          {#if saving.saves && shown}
+          <CharacterSheetView character={shown} itemIndex={libs.itemIndex} spellIndex={libs.spellIndex}
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
             abilities={abilities.resolved} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}

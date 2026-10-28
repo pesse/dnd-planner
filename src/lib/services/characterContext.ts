@@ -16,6 +16,7 @@ import {
   type ResolvedFeature,
 } from './characterFeatures';
 import { contextLines, loadSheetSpellcasting } from './spellcasting/project';
+import { loadCombatFallbacks, withCombatFallbacks } from './combatFallbacks';
 
 export type CharacterContextLevel = 'minimum' | 'character' | 'full';
 
@@ -266,12 +267,16 @@ function hasProse(md: string): boolean {
 }
 
 export async function buildCharacterContext(
-  c: Character,
+  stored: Character,
   level: CharacterContextLevel,
   notes?: CharacterNotes,
 ): Promise<string> {
-  const m = characterMinimum(c);
-  if (level === 'minimum') return headerBlock(m, c.xp);
+  const m = characterMinimum(stored);
+  if (level === 'minimum') return headerBlock(m, stored.xp);
+
+  const c = await loadCombatFallbacks(stored)
+    .then((fb) => withCombatFallbacks(stored, fb))
+    .catch(() => stored);
 
   const s = summaryValues(c);
   const parts: string[] = [headerBlock(m, c.xp)];

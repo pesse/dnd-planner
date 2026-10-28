@@ -22,6 +22,7 @@ import {
   loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
 } from '$lib/services/savingThrows';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
+import { combatFallbacksFrom, withCombatFallbacks } from '$lib/services/combatFallbacks';
 import { cardItemInfos } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
 import { formatDamageDice } from '$lib/itemFormat';
@@ -151,22 +152,23 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     : { sources: [], resources: [], extra: [], issues: [] };
 
   const scores = effectiveScores(c.abilities, abilityEffects);
+  const shown = withCombatFallbacks(c, combatFallbacksFrom(c, saveInputs, scores));
   const mods = abilityRecordOf((k) => mod(scores[k]));
-  const auras = characterAuras(saveInputs.features, { mods, profBonus: c.proficiencyBonus });
+  const auras = characterAuras(saveInputs.features, { mods, profBonus: shown.proficiencyBonus });
   const saves = savingThrowDerivations({
     mods,
-    profBonus: c.proficiencyBonus,
+    profBonus: shown.proficiencyBonus,
     saveProfs: c.saveProfs,
     sources: savingThrowSources(saveInputs.worn, saveInputs.features, auras),
   });
 
   return {
-    character: c,
+    character: shown,
     scores,
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',
-    attacks: printAttacks(c, declared, input.masteryOf),
+    attacks: printAttacks(shown, declared, input.masteryOf),
     saves,
     auras,
     features,

@@ -3,7 +3,8 @@
  * fest, `grantsChoice.kind === 'characterProperty'` stellt zur Wahl — beide enden im selben
  * `Change`. `speciesSize.ts` bleibt der Textparser-Fallback für undeklarierte Spezies.
  */
-import { CHARACTER_PROPERTIES, type CharacterProperties, type CharacterPropertyName } from '../schemas/grants';
+import { CHARACTER_PROPERTIES, type CharacterProperties, type CharacterPropertyName, type FeatureGrant } from '../schemas/grants';
+import { ftToMVal } from '../itemFormat';
 import { MONSTER_SIZES, MONSTER_SIZE_KEYS } from '../schemas/vocabulary';
 import { type FeatureChoiceGrant } from '../schemas/featureChoice';
 import type { Change } from '../schemas/levelUp';
@@ -58,6 +59,12 @@ export function characterPropertyChanges(props: CharacterProperties | undefined,
   if (props.size !== undefined) out.push(PROPERTY_ROUTES.size(props.size, meta));
   if (props.speedFeet !== undefined) out.push(PROPERTY_ROUTES.speedFeet(props.speedFeet, meta));
   return out;
+}
+
+/** Die Bewegungsrate der getragenen Merkmale im Format von `character.speed`; '' ohne Deklaration. */
+export function declaredSpeedMeters(features: readonly { grants?: FeatureGrant }[]): string {
+  const feet = Math.max(0, ...features.map((f) => f.grants?.properties?.speedFeet ?? 0));
+  return feet ? String(ftToMVal(feet)).replace('.', ',') : '';
 }
 
 export const isEmptyCharacterProperties = (p: CharacterProperties | undefined): boolean =>

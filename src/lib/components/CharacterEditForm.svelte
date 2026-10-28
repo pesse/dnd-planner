@@ -20,6 +20,7 @@
   import { characterAssetUrl } from '../services/characterSideFiles.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
+  import { combatFallbacks } from '../services/combatFallbacks';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
@@ -187,6 +188,7 @@
     () => abilities.resolved,
     () => owned.current,
   );
+  const fallbacks = $derived(combatFallbacks(form.classes, acTip.total, owned.current));
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
@@ -279,7 +281,7 @@
           bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
           bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
           bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-          {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
+          {fallbacks} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
         />
       </section>
     </div>

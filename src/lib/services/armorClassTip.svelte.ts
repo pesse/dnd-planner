@@ -16,20 +16,25 @@ export function createArmorClassTip(
   abilities: () => Record<AbilityKey, AbilityResolution>,
   /** `createOwnedGrantFeatures`; null, solange sie laden. */
   features: () => readonly ArmorClassFeature[] | null,
-): { readonly html: string } {
-  const html = $derived.by(() => {
+): { readonly html: string; readonly total: number | null } {
+  const derivation = $derived.by(() => {
     const c = input();
     const lib = items();
     const owned = features();
-    if (!c || !owned || !lib.itemsLoaded) return '';
+    if (!c || !owned || !lib.itemsLoaded) return null;
     const resolved = abilities();
-    return acTip(armorClassDerivation({
+    return armorClassDerivation({
       ac: c.ac,
       worn: wornItemsIn(lib.itemIndex, c.inventory ?? []),
       idle: idleItemsIn(lib.itemIndex, c.inventory ?? []),
       features: owned,
       mods: abilityRecordOf((k) => mod(resolved[k].score)),
-    }));
+    });
   });
-  return { get html() { return html; } };
+  const html = $derived(derivation ? acTip(derivation) : '');
+  return {
+    get html() { return html; },
+    /** null, solange Bibliotheken und Merkmale laden. */
+    get total() { return derivation?.total ?? null; },
+  };
 }
