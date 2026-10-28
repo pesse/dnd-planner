@@ -116,6 +116,7 @@
       "weight": "string",
       "equipped": false,
       "attuned": false,
+      "slot": "head",
       "printCard": false
     }
   ],
@@ -171,7 +172,6 @@
   "personal": {
     "rassenmerkmale": "string",
     "alter": "string",
-    "geschlecht": "string",
     "sizeCat": "string",
     "gesinnung": "string",
     "glaube": "string",
@@ -221,12 +221,13 @@
     "string"
   ],
   "portraitFile": "string",
+  "figureFile": "string",
   "presentation": "feminine",
   "companion": {
     "text": "string",
     "imageFile": "string"
   },
-  "_version": 8,
+  "_version": 9,
   "_importedFrom": "string",
   "_importedAt": "string"
 }

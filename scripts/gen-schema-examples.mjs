@@ -13,6 +13,9 @@ const SCHEMA_DIR = join(ROOT, 'src/lib/schemas');
 const OUT_DIR = join(SCHEMA_DIR, 'exampleObjects');
 const CHECK = process.argv.includes('--check');
 
+/** Gültige Werte für die Regex-Vorgaben der Schemas; ein neues Pattern meldet der Selbsttest. */
+const PATTERN_SAMPLES = { '^\\d+$': '1', '^d\\d+$': 'd6' };
+
 function unionBranches(node) {
   const branches = node?.anyOf || node?.oneOf;
   if (!Array.isArray(branches)) return null;
@@ -43,19 +46,21 @@ function example(node, top = false) {
     // z.record(): ein Beispiel-Eintrag zeigt die Wertform. Bei einem Enum-Schlüsselsatz
     // (z.partialRecord) muss es ein echter Schlüssel sein, sonst fällt das Beispiel durch.
     const values = node.additionalProperties;
-    const key = node.propertyNames?.enum?.[0] ?? '<key>';
+    const key = node.propertyNames?.enum?.[0] ?? PATTERN_SAMPLES[node.propertyNames?.pattern] ?? '<key>';
     return values && typeof values === 'object' ? { [key]: example(values) } : (node.default ?? {});
   }
 
   if (type === 'array') {
     // Array einer Objekt-Union: alle Varianten als Elemente — vollständig UND gültig.
     const objects = unionBranches(node.items);
-    return objects ? objects.map((b) => example(b)) : [example(node.items)];
+    const items = objects ? objects.map((b) => example(b)) : [example(node.items)];
+    while (items.length < (node.minItems ?? 0)) items.push(items[0]);
+    return items;
   }
 
   // Grenzen respektieren, sonst fällt das Beispiel durchs eigene Schema (z.B. `min(1)`).
   if (type === 'string') {
-    const value = node.default || 'string';
+    const value = node.default || PATTERN_SAMPLES[node.pattern] || 'string';
     return node.maxLength !== undefined && value.length > node.maxLength ? value.slice(0, node.maxLength) : value;
   }
   if (type === 'integer' || type === 'number') {
@@ -81,7 +86,8 @@ veraltete Dateien.
 Ein Beispiel-Objekt je exportiertem Schema (\`featSchema\` → \`feat.json\`), als scannbare
 Sicht auf die Form. Die Werte sind gültige Platzhalter, keine echten Inhalte: Defaults wo
 aussagekräftig, sonst \`"string"\` / \`0\` / \`false\`, bei Enums der erste Wert. Arrays zeigen
-ein Element, \`z.record()\` einen \`<key>\`-Eintrag, Unions alle Varianten.
+ein Element (oder so viele, wie \`min()\` verlangt), \`z.record()\` einen \`<key>\`-Eintrag,
+Unions alle Varianten.
 `;
 
 const server = await createServer({
@@ -102,6 +108,7 @@ const files = readdirSync(SCHEMA_DIR)
 
 /** @type {Map<string, {json: string, from: string}>} */
 const wanted = new Map();
+let invalid = 0;
 
 for (const file of files) {
   const source = readFileSync(join(SCHEMA_DIR, file), 'utf8');
@@ -119,6 +126,7 @@ for (const file of files) {
     for (const candidate of unionBranches(json) ? value : [value]) {
       const result = schema.safeParse(candidate);
       if (!result.success) {
+        invalid++;
         console.warn(`⚠ ${name} (${file}): Beispiel validiert nicht — ${result.error.issues[0]?.message}`);
       }
     }
@@ -174,8 +182,9 @@ if (!CHECK && (!existsSync(readmePath) || readFileSync(readmePath, 'utf8') !== R
 if (CHECK) {
   if (stale > 0) {
     console.error(`\n${stale} Datei(en) veraltet — bitte \`npm run schema:examples\` laufen lassen.`);
-    process.exit(1);
   }
+  if (invalid > 0) console.error(`\n${invalid} Beispiel(e) validieren nicht — Generator anpassen.`);
+  if (stale > 0 || invalid > 0) process.exit(1);
   console.log(`Aktuell: ${wanted.size} Beispiel-Objekt(e).`);
 } else {
   console.log(`\nFertig: ${written} von ${wanted.size} Datei(en) aktualisiert.`);

@@ -7,4 +7,5 @@ veraltete Dateien.
 Ein Beispiel-Objekt je exportiertem Schema (`featSchema` → `feat.json`), als scannbare
 Sicht auf die Form. Die Werte sind gültige Platzhalter, keine echten Inhalte: Defaults wo
 aussagekräftig, sonst `"string"` / `0` / `false`, bei Enums der erste Wert. Arrays zeigen
-ein Element, `z.record()` einen `<key>`-Eintrag, Unions alle Varianten.
+ein Element (oder so viele, wie `min()` verlangt), `z.record()` einen `<key>`-Eintrag,
+Unions alle Varianten.

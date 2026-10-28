@@ -5,6 +5,7 @@
   "desc": "string",
   "descDe": "string",
   "sheetValue": "size",
+  "gainedAt": 1,
   "grants": {
     "proficiencies": {
       "skills": {
@@ -51,7 +52,50 @@
     "properties": {
       "size": "Tiny",
       "speedFeet": 1
-    }
+    },
+    "armorClass": [
+      {
+        "kind": "unarmored",
+        "base": 10,
+        "abilities": [
+          "str"
+        ],
+        "shield": true
+      },
+      {
+        "kind": "bonus",
+        "value": -9007199254740991,
+        "when": "always"
+      },
+      {
+        "kind": "situational",
+        "value": -9007199254740991,
+        "condition": "string",
+        "conditionDe": "string"
+      }
+    ],
+    "attack": [
+      {
+        "kind": "bonus",
+        "attack": 0,
+        "damage": 0,
+        "range": "any",
+        "weapons": [
+          "string"
+        ]
+      },
+      {
+        "kind": "situational",
+        "roll": "attack",
+        "value": -9007199254740991,
+        "condition": "string",
+        "conditionDe": "string",
+        "range": "any",
+        "weapons": [
+          "string"
+        ]
+      }
+    ]
   },
   "grantsChoice": [
     {
@@ -107,7 +151,56 @@
             "properties": {
               "size": "Tiny",
               "speedFeet": 1
-            }
+            },
+            "armorClass": [
+              {
+                "kind": "unarmored",
+                "base": 10,
+                "abilities": [
+                  "str"
+                ],
+                "shield": true
+              },
+              {
+                "kind": "bonus",
+                "value": -9007199254740991,
+                "when": "always"
+              },
+              {
+                "kind": "situational",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "attack": [
+              {
+                "kind": "bonus",
+                "attack": 0,
+                "damage": 0,
+                "range": "any",
+                "weapons": [
+                  "string"
+                ]
+              },
+              {
+                "kind": "situational",
+                "roll": "attack",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string",
+                "range": "any",
+                "weapons": [
+                  "string"
+                ]
+              }
+            ]
+          },
+          "prerequisite": {
+            "level": 1,
+            "options": [
+              "string"
+            ]
           },
           "spells": [
             {
@@ -355,5 +448,6 @@
       }
     ]
   },
+  "grantsSubclass": true,
   "aiInterpretsRest": false
 }

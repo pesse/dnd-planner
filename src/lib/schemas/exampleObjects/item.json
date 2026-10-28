@@ -64,6 +64,50 @@
       ]
     }
   ],
+  "armorClassEffects": [
+    {
+      "kind": "unarmored",
+      "base": 10,
+      "abilities": [
+        "str"
+      ],
+      "shield": true
+    },
+    {
+      "kind": "bonus",
+      "value": -9007199254740991,
+      "when": "always"
+    },
+    {
+      "kind": "situational",
+      "value": -9007199254740991,
+      "condition": "string",
+      "conditionDe": "string"
+    }
+  ],
+  "attackEffects": [
+    {
+      "kind": "bonus",
+      "attack": 0,
+      "damage": 0,
+      "range": "any",
+      "weapons": [
+        "string"
+      ]
+    },
+    {
+      "kind": "situational",
+      "roll": "attack",
+      "value": -9007199254740991,
+      "condition": "string",
+      "conditionDe": "string",
+      "range": "any",
+      "weapons": [
+        "string"
+      ]
+    }
+  ],
+  "slot": "head",
   "attunement_by": "string",
   "variant": false,
   "variants": [

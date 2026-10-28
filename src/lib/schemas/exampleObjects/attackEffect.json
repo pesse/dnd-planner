@@ -1,0 +1,22 @@
+[
+  {
+    "kind": "bonus",
+    "attack": 0,
+    "damage": 0,
+    "range": "any",
+    "weapons": [
+      "string"
+    ]
+  },
+  {
+    "kind": "situational",
+    "roll": "attack",
+    "value": -9007199254740991,
+    "condition": "string",
+    "conditionDe": "string",
+    "range": "any",
+    "weapons": [
+      "string"
+    ]
+  }
+]

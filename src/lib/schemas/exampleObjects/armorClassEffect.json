@@ -1,0 +1,21 @@
+[
+  {
+    "kind": "unarmored",
+    "base": 10,
+    "abilities": [
+      "str"
+    ],
+    "shield": true
+  },
+  {
+    "kind": "bonus",
+    "value": -9007199254740991,
+    "when": "always"
+  },
+  {
+    "kind": "situational",
+    "value": -9007199254740991,
+    "condition": "string",
+    "conditionDe": "string"
+  }
+]

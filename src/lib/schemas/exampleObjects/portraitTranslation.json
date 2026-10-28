@@ -1,0 +1,9 @@
+{
+  "age": "string",
+  "height": "string",
+  "skin": "string",
+  "hair": "string",
+  "eyes": "string",
+  "appearance": "string",
+  "extra": "string"
+}

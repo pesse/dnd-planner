@@ -187,6 +187,13 @@
       "label": "string"
     },
     {
+      "target": "speciesTraitsText",
+      "value": "string",
+      "step": "string",
+      "source": "string",
+      "label": "string"
+    },
+    {
       "target": "featureGained",
       "name": "string",
       "sourceKey": "string",
