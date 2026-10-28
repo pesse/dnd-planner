@@ -182,6 +182,27 @@ fn write_state(id: &str, state: &InstalledState) -> Result<(), String> {
     fs::write(state_path(id), json).map_err(|e| e.to_string())
 }
 
+/// Umbenannte Library-IDs (alt → neu). Ohne Umzug stünde die Bibliothek nach dem
+/// Update als gesperrt da, und ihre Dateien gälten als fremd (`needsAdopt`).
+const RENAMED_LIBRARIES: &[(&str, &str)] = &[("erweitert", "phb")];
+
+fn adopt_renamed_libraries() {
+    for &(old, new) in RENAMED_LIBRARIES {
+        if !state_path(new).exists() && state_path(old).exists() {
+            let _ = fs::rename(state_path(old), state_path(new));
+        }
+        if load_code(new).is_none() {
+            if let Some((code, key_version)) = load_code(old) {
+                if store_code(new, &code, key_version).is_ok() {
+                    if let Ok(entry) = code_entry(old) {
+                        let _ = entry.delete_password();
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -480,6 +501,7 @@ fn is_allowed_entry(name: &str) -> bool {
 pub async fn fetch_library_index(app: tauri::AppHandle) -> Result<Vec<LibraryStatus>, String> {
     let gate = version_gate(&app);
     let entries = fetch_index().await?;
+    adopt_renamed_libraries();
     Ok(entries
         .into_iter()
         .map(|e| status_for(e, gate.as_deref()))
@@ -586,6 +608,7 @@ pub async fn install_library(
     adopt: bool,
 ) -> Result<InstallSummary, String> {
     let entries = fetch_index().await?;
+    adopt_renamed_libraries();
     let entry = entries
         .into_iter()
         .find(|e| e.id == id)
@@ -987,7 +1010,7 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
         assert!(!too_old_for(Some("0.3.0"), Some("0.3.0")));
         assert!(!too_old_for(Some("0.4.0"), Some("0.3.0")));
 
-        // Eine Bibliothek, die bewusst niedrig bleibt (`grundgeruest`), meldet nichts.
+        // Eine Bibliothek, die bewusst niedrig bleibt (`phb`), meldet nichts.
         assert!(!too_old_for(Some("0.2.1"), Some("0.2.1")));
 
         // Bestandsinstallation ohne Angabe: keine Schranke, statt sie zu raten.
