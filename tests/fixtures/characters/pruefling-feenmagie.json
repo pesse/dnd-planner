@@ -18,7 +18,7 @@
   },
   "background": "Unterhaltungskünstler",
   "species": {
-    "sourceKey": "phb-2024_fairy",
+    "sourceKey": "homebrew-sam_fairy",
     "name": "Fee"
   },
   "race": "Fee",
@@ -285,14 +285,14 @@
   "masteries": [],
   "features": [
     {
-      "sourceKey": "phb-2024_fairy_size",
+      "sourceKey": "homebrew-sam_fairy_size",
       "name": "",
       "choice": "Klein",
       "choiceDe": "Klein",
       "desc": ""
     },
     {
-      "sourceKey": "phb-2024_fairy_fairy-magic",
+      "sourceKey": "homebrew-sam_fairy_fairy-magic",
       "name": "",
       "choice": "Charisma",
       "choiceDe": "Charisma",

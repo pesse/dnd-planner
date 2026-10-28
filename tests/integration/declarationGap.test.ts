@@ -145,7 +145,7 @@ describe('Lückenmelder', () => {
     ['srd-2024_paladin_fighting-style', 'spells'],
     ['srd-2024_ranger_fighting-style', 'spells'],
     ['srd-2024_college-of-lore_magical-discoveries', 'spells'],
-    ['phb-2024_fairy_fairy-magic', 'spells'],
+    ['homebrew-sam_fairy_fairy-magic', 'spells'],
     ['srd-2024_warlock_mystic-arcanum', 'choice'],
     ['srd-2024_wizard_signature-spells', 'choice'],
   ])('erkennt %s ohne Deklaration als %s', async (id, kind) => {

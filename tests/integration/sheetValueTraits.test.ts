@@ -40,8 +40,8 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
     expect(traits.filter((t) => isSheetValueTrait(t.trait)).map(label).sort()).toEqual([
       // Die Fee kam mit dem Vault-Aufräumen dazu und wählt ihre Größe wie Mensch und Tiefling
       // („Small … or Medium …, chosen when you select this species") — nur die Rate ist fest.
+      'homebrew-sam_fairy :: Speed',
       'phb-2024_aasimar :: Speed',
-      'phb-2024_fairy :: Speed',
       'srd-2024_dragonborn :: Size',
       'srd-2024_dragonborn :: Speed',
       'srd-2024_dwarf :: Size',
@@ -106,8 +106,8 @@ describe('reine Bogenwerte (Größe, Bewegungsrate)', () => {
     expect(undeclared.map(label).filter((l) => !kept.has(l))).toEqual([]);
     // Und die Merkmale, um die es geht, sind wirklich draußen.
     expect([...kept].filter((l) => /:: (Size|Speed)$/.test(l)).sort()).toEqual([
+      'homebrew-sam_fairy :: Size',
       'phb-2024_aasimar :: Size',
-      'phb-2024_fairy :: Size',
       'srd-2024_human :: Size',
       'srd-2024_tiefling :: Size',
     ]);

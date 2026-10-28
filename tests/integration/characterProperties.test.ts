@@ -40,7 +40,7 @@ const CHOOSING: Record<string, string[]> = {
   'phb-2024_aasimar': ['Medium', 'Small'],
   'srd-2024_human': ['Medium', 'Small'],
   'srd-2024_tiefling': ['Medium', 'Small'],
-  'phb-2024_fairy': ['Small', 'Medium'],
+  'homebrew-sam_fairy': ['Small', 'Medium'],
 };
 
 const META = { step: 'test', source: 'test' };
@@ -82,7 +82,7 @@ describe('der Bestand deklariert seine Grundeigenschaften', () => {
 
 describe('die Wahl einer Grundeigenschaft', () => {
   it('baut Optionen und Labels aus dem Vokabular, nicht aus der Deklaration', async () => {
-    const fairy = await getSpeciesByKey('phb-2024_fairy');
+    const fairy = await getSpeciesByKey('homebrew-sam_fairy');
     const trait = tagged('species', [sizeTraitOf(fairy!.traits)!])[0];
     const ref = characterPropertyRefs(trait)[0];
     const choice = characterPropertyChoice(ref)!;
@@ -92,13 +92,13 @@ describe('die Wahl einer Grundeigenschaft', () => {
     expect(choice.optionsDe).toEqual(['Klein', 'Mittelgroß']);
     expect(choice.questionDe).toBe('Größenkategorie');
     expect(choice.id).toBe(propertyChoiceId(ref));
-    expect(choice.featureKey).toBe('phb-2024_fairy_size');
+    expect(choice.featureKey).toBe('homebrew-sam_fairy_size');
     // Die Antwort gehört ins Ledger — sonst wäre sie im Charakter-Editor nicht auffindbar.
     expect(choice.isBuildDecision).toBe(true);
   });
 
   it('wendet die Antwort an und verwirft, was nicht zum Vokabular gehört', async () => {
-    const fairy = await getSpeciesByKey('phb-2024_fairy');
+    const fairy = await getSpeciesByKey('homebrew-sam_fairy');
     const declared = tagged('species', [sizeTraitOf(fairy!.traits)!]);
     const answer = (choice: string) =>
       characterPropertyAnswerChanges(declared, () => choice, META);
@@ -116,17 +116,17 @@ describe('die Wahl einer Grundeigenschaft', () => {
   it('steht im echten Wizard-Eingang — genau einmal', async () => {
     const prep = await buildFeaturePrep({
       ...GNOME_SORCERER_BASICS,
-      species: { sourceKey: 'phb-2024_fairy', name: 'Feenwesen' },
+      species: { sourceKey: 'homebrew-sam_fairy', name: 'Feenwesen' },
     });
     const choices = characterPropertyChoices(prep.declared);
-    expect(choices.map((c) => c.featureKey)).toEqual(['phb-2024_fairy_size']);
+    expect(choices.map((c) => c.featureKey)).toEqual(['homebrew-sam_fairy_size']);
     // Der Parser-Fallback schweigt daneben, sonst stünde die Größenfrage zweimal.
     expect(prep.sizeChoice).toBeNull();
     // Und derselbe Filter hält das Merkmal aus dem Notiz-Eingang: die Wahl führt der Flow,
     // die Notiz wäre die zweite Fassung derselben Frage.
     const forNotes = withoutDeclaredChoiceFeatures(prep.speciesFeatures);
-    expect(forNotes.some((f) => f.key === 'phb-2024_fairy_size')).toBe(false);
-    expect(forNotes.some((f) => f.key === 'phb-2024_fairy_flight')).toBe(true);
+    expect(forNotes.some((f) => f.key === 'homebrew-sam_fairy_size')).toBe(false);
+    expect(forNotes.some((f) => f.key === 'homebrew-sam_fairy_flight')).toBe(true);
   });
 
   it('stellt keine Frage, wo nichts zu wählen ist', () => {

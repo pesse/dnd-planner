@@ -151,3 +151,26 @@ describe('Schritt 9: Geschlecht → Äußeres', () => {
     expect(run(structuredClone(c))).toEqual(c);
   });
 });
+
+describe('Schritt 10: Fee wechselt die Herkunft', () => {
+  const step10 = CHARACTER_UPGRADES.find((s) => s.to === 10)!;
+  const run = (c: Record<string, unknown>) => { step10.apply(c); return c; };
+
+  it('schreibt Volk und Merkmals-Links um, andere Keys bleiben', () => {
+    const c = run({
+      species: { sourceKey: 'phb-2024_fairy', name: 'Fee' },
+      backgroundRef: { sourceKey: 'phb-2024_entertainer' },
+      features: [{ sourceKey: 'phb-2024_fairy_fairy-magic', choice: 'Charisma' }, { sourceKey: 'phb-2024_fairy-touched' }],
+    });
+    expect(c).toEqual({
+      species: { sourceKey: 'homebrew-sam_fairy', name: 'Fee' },
+      backgroundRef: { sourceKey: 'phb-2024_entertainer' },
+      features: [{ sourceKey: 'homebrew-sam_fairy_fairy-magic', choice: 'Charisma' }, { sourceKey: 'phb-2024_fairy-touched' }],
+    });
+  });
+
+  it('ist bei zweifacher Anwendung idempotent', () => {
+    const c = run({ species: { sourceKey: 'phb-2024_fairy' } });
+    expect(run(structuredClone(c))).toEqual(c);
+  });
+});

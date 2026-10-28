@@ -109,7 +109,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `phb-2024_aasimar_celestial-revelation` | Zusatzschaden = Übungsbonus, Aura mit SG | keine Senke |
 | `phb-2024_aasimar_healing-hands` | W4 je Übungsbonus | keine Senke |
 | `srd-2024_halfling_luck` | 1 neu würfeln | keine Senke |
-| `species/fairy.json` | — | als `phb-2024` markiert, steht aber nicht im PHB 2024 |
 
 ## Zauber
 

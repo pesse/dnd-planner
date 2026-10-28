@@ -54,10 +54,10 @@ const quotaOf = (s: SourceState, quotaId: string): SourceState['quotas'][number]
 describe('Fee-Zauberer, Charakterstufe 5', () => {
   const character: CastingCharacter = {
     classes: [{ sourceKey: 'srd-2024_sorcerer', name: 'Zauberer', level: 5 }],
-    species: { sourceKey: 'phb-2024_fairy', name: 'Fee' },
+    species: { sourceKey: 'homebrew-sam_fairy', name: 'Fee' },
     // Die Attributwahl der Fee ist eine Antwort am Merkmal, keine Kopie im Zauber-Block.
     features: [
-      { sourceKey: 'phb-2024_fairy_fairy-magic', name: 'Feenmagie', choice: 'Charisma', choiceDe: 'Charisma', choiceId: '', desc: '' },
+      { sourceKey: 'homebrew-sam_fairy_fairy-magic', name: 'Feenmagie', choice: 'Charisma', choiceDe: 'Charisma', choiceId: '', desc: '' },
     ],
   };
 
@@ -80,7 +80,7 @@ describe('Fee-Zauberer, Charakterstufe 5', () => {
 
   it('speichert von der Fee nur die Attributwahl', async () => {
     const s = await state(character, 0);
-    const fairy = sourceOf(s, 'phb-2024_fairy_fairy-magic');
+    const fairy = sourceOf(s, 'homebrew-sam_fairy_fairy-magic');
     expect(fairy.ability).toBe('Charisma');
     expect(fairy.abilityOptions).toEqual([]);
     expect(fairy.quotas.map((q) => q.spells)).toEqual([

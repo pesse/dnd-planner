@@ -80,7 +80,7 @@ describe('Umzug der Altform', () => {
     await migrate(c);
     expect(c.features.map((f) => f.choice)).toContain('Charisma');
     const { state } = await loadSpellcasting(c);
-    const fairy = state.sources.find((s) => s.source.featureKey === 'phb-2024_fairy_fairy-magic');
+    const fairy = state.sources.find((s) => s.source.featureKey === 'homebrew-sam_fairy_fairy-magic');
     expect(fairy?.ability).toBe('Charisma');
   });
 

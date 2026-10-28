@@ -286,7 +286,7 @@
 
     {
       "_datei": "vault/species/fairy.json → traits[] \"Fairy Magic\" — levelRef ergibt sich aus der Herkunft (Trait → Charakterstufe)",
-      "key": "phb-2024_fairy_fairy-magic",
+      "key": "homebrew-sam_fairy_fairy-magic",
       "grantsCasting": {
         "ability": { "choose": ["Intelligence", "Wisdom", "Charisma"] },
         "swap": { "spells": "none", "cantrips": "none" },
@@ -502,7 +502,7 @@
               ]
             }
           },
-          "phb-2024_fairy_fairy-magic": {
+          "homebrew-sam_fairy_fairy-magic": {
             "uses": { "fairy3": 1 }
           }
         }

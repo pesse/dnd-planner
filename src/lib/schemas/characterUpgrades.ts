@@ -5,7 +5,7 @@
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 
-export const CHARACTER_VERSION = 9;
+export const CHARACTER_VERSION = 10;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -35,6 +35,23 @@ function mergeAbilityFields(c: Record<string, unknown>, targetKey: string, field
     delete c[oldField];
   }
   if (Object.keys(merged).length) c[targetKey] = merged;
+}
+
+/** Bibliotheks-Keys, deren Herkunft sich geändert hat: alter Präfix → neuer. */
+const MOVED_KEYS: [string, string][] = [['phb-2024_fairy', 'homebrew-sam_fairy']];
+
+const movedKey = (key: string): string => {
+  for (const [from, to] of MOVED_KEYS) if (key === from || key.startsWith(`${from}_`)) return to + key.slice(from.length);
+  return key;
+};
+
+/** Jedes `sourceKey` im Charakter, egal wie tief — Volk, Merkmals-Links, Wahlen. */
+function moveSourceKeys(node: unknown): void {
+  if (Array.isArray(node)) return node.forEach(moveSourceKeys);
+  if (!node || typeof node !== 'object') return;
+  const o = node as Record<string, unknown>;
+  if (typeof o.sourceKey === 'string') o.sourceKey = movedKey(o.sourceKey);
+  for (const v of Object.values(o)) moveSourceKeys(v);
 }
 
 /** Freitext-Geschlecht → Äußeres; was hier nicht steht, ist kein Äußeres und bleibt Text. */
@@ -225,6 +242,11 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       // Ohne passendes Äußeres ginge der Wert sonst verloren — er wandert ins Aussehen.
       else if (!look) personal.aussehen = [`Geschlecht: ${gender}`, String(personal.aussehen ?? '').trim()].filter(Boolean).join('\n');
     },
+  },
+  {
+    to: 10,
+    label: 'Fee: Bibliotheks-Key phb-2024_fairy → homebrew-sam_fairy (steht nicht im PHB 2024)',
+    apply: (c) => moveSourceKeys(c),
   },
 ];
 

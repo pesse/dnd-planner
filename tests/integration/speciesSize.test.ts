@@ -36,7 +36,7 @@ const CHOOSING_ORDER: Record<string, string[]> = {
   'phb-2024_aasimar': ['Medium', 'Small'],
   'srd-2024_human': ['Medium', 'Small'],
   'srd-2024_tiefling': ['Medium', 'Small'],
-  'phb-2024_fairy': ['Small', 'Medium'],
+  'homebrew-sam_fairy': ['Small', 'Medium'],
 };
 const CHOOSING = Object.keys(CHOOSING_ORDER);
 const SIZE_DE: Record<string, string> = { Medium: 'Mittelgroß', Small: 'Klein' };
@@ -116,7 +116,7 @@ describe('Größenkategorie der Spezies', () => {
     // Synthetisch, weil im Bestand keine Spezies mehr undeklariert ist: das ist genau der
     // Homebrew-Fall, für den es den Parser noch gibt.
     for (const key of CHOOSING) {
-      const desc = key === 'phb-2024_fairy'
+      const desc = key === 'homebrew-sam_fairy'
         ? 'Small (about 2–4 feet tall) or Medium (about 4–6 feet tall)'
         : 'Medium (about 4–7 feet tall) or Small (about 2–4 feet tall)';
       const spec = { key, traits: [{ key: `${key}_size`, name: 'Size', nameDe: 'Größe', desc }] };

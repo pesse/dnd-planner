@@ -296,18 +296,18 @@ describe('Quellen jenseits der Klasse', () => {
   it('indiziert Spezies-Zauber an der CHARAKTERstufe', async () => {
     const fairySorcerer: CastingCharacter = {
       classes: [{ sourceKey: 'srd-2024_sorcerer', name: '', level: 5 }],
-      species: { sourceKey: 'phb-2024_fairy', name: '' },
+      species: { sourceKey: 'homebrew-sam_fairy', name: '' },
     };
     const { res, views } = await resolveViews(fairySorcerer);
-    const fairy = views.get('phb-2024_fairy_fairy-magic');
+    const fairy = views.get('homebrew-sam_fairy_fairy-magic');
     expect(fairy?.map((v) => v.quotaId)).toEqual(['fairyCantrip', 'fairy3', 'fairy5']);
     expect(viewOf(fairy, 'fairy5').pool.keys).toEqual(['srd-2024_enlargereduce']);
-    const source = res.sources.find((s) => s.id === 'phb-2024_fairy_fairy-magic');
+    const source = res.sources.find((s) => s.id === 'homebrew-sam_fairy_fairy-magic');
     expect(source?.levelRef).toBe('character');
     expect(source?.ability?.choose).toEqual(['Intelligence', 'Wisdom', 'Charisma']);
 
     const l2 = await resolveViews({ ...fairySorcerer, classes: [{ sourceKey: 'srd-2024_sorcerer', name: '', level: 2 }] });
-    expect(l2.views.get('phb-2024_fairy_fairy-magic')?.map((v) => v.quotaId)).toEqual(['fairyCantrip']);
+    expect(l2.views.get('homebrew-sam_fairy_fairy-magic')?.map((v) => v.quotaId)).toEqual(['fairyCantrip']);
   });
 
   it('trennt die Zweige der Elfenabstammung über die Antwort im Ledger', async () => {

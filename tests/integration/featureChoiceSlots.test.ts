@@ -142,7 +142,7 @@ describe('Der Anker einer Antwort', () => {
         { sourceKey: 'srd-2024_rogue', name: '', level: 6 },
         { sourceKey: 'srd-2024_druid', name: '', level: 1 },
       ],
-      species: { sourceKey: 'phb-2024_fairy', name: '' },
+      species: { sourceKey: 'homebrew-sam_fairy', name: '' },
       features: [link(MAGIC_INITIATE_KEY, 4)],
     };
     const list = await choicesOf(c);

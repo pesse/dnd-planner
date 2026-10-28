@@ -316,7 +316,7 @@ Wortsuche gegen `MONSTER_SIZES`) und die Bewegungsrate aus deutscher Prosa
 
 | | fest | Wahl |
 |---|---|---|
-| `size` | 7 Spezies (`grants.properties.size`) | 3 (`phb-2024_fairy`, `srd-2024_human`, `srd-2024_tiefling`) |
+| `size` | 7 Spezies (`grants.properties.size`) | 3 (`homebrew-sam_fairy`, `srd-2024_human`, `srd-2024_tiefling`) |
 | `speedFeet` | 10 Spezies | 0 — bedingte Raten (Barbar, Mönch, Waldläufer) bleiben Prosa |
 
 **Warum ein eigener `kind` und nicht `optionList` mit `grants` je Option:** die Optionen sind
