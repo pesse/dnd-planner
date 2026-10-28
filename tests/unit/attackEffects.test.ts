@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  attackEffectSources, criticalRange, criticalRangeDe, type AttackEffectFeature, type DeclaredAttackEffects,
+  attackEffectSources, attackFootnotes, criticalRange, criticalRangeDe, type AttackEffectFeature, type DeclaredAttackEffects,
 } from '../../src/lib/services/attackEffects';
 import {
   attackBonusParts, attackDamageParts, blankAttack, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
@@ -123,6 +123,10 @@ describe('Deklarierte Angriffswirkungen', () => {
     expect(notes(11)).toEqual(['Schreckliche Schläge +1W6 Psychischer Schaden: einmal pro Zug']);
     expect(notes(2)).toEqual([]);
     expect(computeAttackDamage(attack(LONGSWORD), ctx([], [strikes(11)]))).toBe('1W8+1');
+    expect(attackFootnotes([strikes(3), { name: 'Verbesserter kritischer Treffer', grants: featureGrantSchema.parse({ criticalHit: 19 }) }])).toEqual([
+      'Kritischer Treffer bei 19–20 (Verbesserter kritischer Treffer)',
+      'Schreckliche Schläge +1W4 Psychischer Schaden: einmal pro Zug',
+    ]);
   });
 
   it('weicht der Magie-Bonus von der Bibliothek ab, nennt der Tooltip ihn', () => {

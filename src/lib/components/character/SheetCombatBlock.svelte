@@ -14,7 +14,7 @@
   import type { Character } from '../../schemas/characterSchema';
   import type { CombatTips } from '../../services/characterSheetTips';
 
-  let { character, tips, masteryOf, hpTipHtml, acTipHtml, attackCtx, criticalHit }: {
+  let { character, tips, masteryOf, hpTipHtml, acTipHtml, attackCtx, attackNotes }: {
     character: Character;
     tips: CombatTips;
     masteryOf: (name: string) => WeaponMastery | undefined;
@@ -25,7 +25,7 @@
     /** null, solange Bibliotheken und Merkmale laden — dann stehen die gespeicherten Werte. */
     attackCtx: AttackCalcContext | null;
     /** Leer ohne erweiterten Bereich. */
-    criticalHit: string;
+    attackNotes: string[];
   } = $props();
 </script>
 
@@ -93,7 +93,7 @@
         {/each}
       </tbody>
     </table>
-    {#if criticalHit}<p class="attack-crit">{criticalHit}</p>{/if}
+    {#each attackNotes as note (note)}<p class="attack-footnote">{note}</p>{/each}
   {/if}
 </div>
 
@@ -111,7 +111,7 @@
     border-bottom: 1px solid var(--surface);
   }
   .attack-table td { padding: 0.15rem 0.3rem; color: var(--ink); }
-  .attack-crit { margin: 0.3rem 0.3rem 0; font-size: 0.75rem; color: var(--ink-muted); }
+  .attack-footnote { margin: 0.3rem 0.3rem 0; font-size: 0.75rem; color: var(--ink-muted); }
 
   .attack-note {
     display: block;

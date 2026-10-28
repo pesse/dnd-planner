@@ -14,7 +14,7 @@ import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import {
-  criticalRange, criticalRangeDe, loadDeclaredAttackEffects, type AttackEffectFeature, type DeclaredAttackEffects,
+  attackFootnotes, loadDeclaredAttackEffects, type AttackEffectFeature, type DeclaredAttackEffects,
 } from '$lib/services/attackEffects';
 import { checkSources, skillCheckEffects } from '$lib/services/abilityChecks';
 import type { ItemInfo } from '$lib/itemLibrary';
@@ -62,7 +62,7 @@ export interface CharacterPrintData {
   saves: Record<AbilityKey, SavingThrowDerivation>;
   initiativeAdvantage: boolean;
   /** Leer ohne erweiterten Bereich. */
-  criticalHit: string;
+  attackNotes: string[];
   /** Bogen-Schlüssel der Fertigkeiten mit Vorteil ohne Bedingung. */
   skillAdvantage: string[];
   auras: CharacterAura[];
@@ -128,11 +128,6 @@ function printAttacks(
   });
 }
 
-function criticalText(features: readonly AttackEffectFeature[]): string {
-  const range = criticalRange(features);
-  return range ? criticalRangeDe(range) : '';
-}
-
 async function classValues(c: Character): Promise<ClassValues[]> {
   const out: ClassValues[] = [];
   for (const cls of c.classes ?? []) {
@@ -185,7 +180,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   return {
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
-    criticalHit: criticalText(saveInputs.features),
+    attackNotes: attackFootnotes(saveInputs.features),
     skillAdvantage: SKILL_DEFS
       .filter((def) => skillCheckEffects(def, checks, { mods, profBonus: effectiveProficiencyBonus(c) }).advantage)
       .map((def) => def.key),

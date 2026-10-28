@@ -123,6 +123,22 @@ function diceNote(labelDe: string, e: DiceEffect, level: number): string | null 
   return `${labelDe} +${formatDamageDice(dice)}${type}: ${situationalLabelDe(e)}`;
 }
 
+const RANGE_DE: Record<AttackEffect['range'], string> = { any: '', melee: ' (Nahkampf)', ranged: ' (Fernkampf)' };
+
+/**
+ * Was für alle Angriffe gilt, als Zeilen unter der Angriffstabelle: kritischer Bereich und
+ * Zusatzwürfel. Im Tooltip des Schadens fände sie niemand, und der Druck hat keinen.
+ */
+export function attackFootnotes(features: readonly AttackEffectFeature[]): string[] {
+  const range = criticalRange(features);
+  const dice = attackEffectSources([], features).flatMap(({ labelDe, effect, level }) => {
+    if (effect.kind !== 'dice') return [];
+    const text = diceNote(labelDe, effect, level ?? 1);
+    return text ? [text + RANGE_DE[effect.range]] : [];
+  });
+  return [...(range ? [criticalRangeDe(range)] : []), ...dice];
+}
+
 /** Der Bonus der Bibliothek, wo der Angriff einen anderen trägt — er wurde beim Anlegen kopiert. */
 export function staleMagicBonus(a: Pick<Attack, 'magicBonus'>, weapon: ItemInfo | undefined): number | undefined {
   if (!weapon) return undefined;
