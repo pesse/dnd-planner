@@ -37,14 +37,17 @@ export const plausibleDiceTotal = (total: number, b: HpBasis): boolean =>
 export interface OwnedGrantFeature extends PerLevelFeature {
   /** Anzeigesprache, wie `ResolvedFeature.desc`. */
   desc: string;
+  /** Klassenstufe bei Klassenmerkmalen, sonst Charakterstufe. */
+  level: number;
 }
 
 export type OwnedLinks = Pick<Character, 'species' | 'classes' | 'features' | 'backgroundRef'>;
 
 /** Die Merkmale, die der Charakter JETZT trägt: Volk, Klassen bis zur Stufe, Talent-Links, Herkunftstalent. */
 export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeature[]> {
+  const charLevel = characterLevel(c.classes);
   const groups = [
-    ...((await resolveSpeciesTraits(c.species, characterLevel(c.classes))) ?? []),
+    ...((await resolveSpeciesTraits(c.species, charLevel)) ?? []),
     ...(await resolveClassFeatures(c.classes)),
   ];
   // Nur die Talent-Links: Wahl-Annotationen bringen keinen eigenen Merkmalstext mit,
@@ -54,9 +57,12 @@ export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeatu
   // Älterer Bestand führt das Herkunftstalent zusätzlich als Link — doppelt zählte es zweimal.
   if (originKey && !links.some((f) => f.sourceKey === originKey)) links.push({ sourceKey: originKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '' });
   const featLinks = await resolveFeatLinks(links);
-  const owned = [...groups.flatMap((g) => g.features), ...featLinks];
+  const owned = [
+    ...groups.flatMap((g) => g.features.map((f) => ({ f, level: g.level ?? charLevel }))),
+    ...featLinks.map((f) => ({ f, level: charLevel })),
+  ];
   return [
-    ...owned.map((f) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants })),
+    ...owned.map(({ f, level }) => ({ key: f.key ?? '', name: f.name, desc: f.desc, grants: f.grants, level })),
     ...chosenOptionGrants(owned, c.features ?? []),
   ];
 }
@@ -66,15 +72,18 @@ export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeatu
  * Resistenz). Der Rider schreibt davon nur Übungen und Sprachen in die Datei; was zur Laufzeit
  * wirkt, fehlte sonst.
  */
-function chosenOptionGrants(features: readonly ResolvedFeature[], ledger: Character['features']): OwnedGrantFeature[] {
+function chosenOptionGrants(
+  features: readonly { f: ResolvedFeature; level: number }[],
+  ledger: Character['features'],
+): OwnedGrantFeature[] {
   const out: OwnedGrantFeature[] = [];
-  for (const f of features) {
+  for (const { f, level } of features) {
     if (!f.key || !f.grantsChoice?.length) continue;
     for (const answer of ledgerAnswers(ledger, f.key)) {
       const option = chosenOption(f, answer);
       const key = `${f.key}:${option?.value}`;
       if (!option?.grants || out.some((o) => o.key === key)) continue;
-      out.push({ key, name: `${f.name} (${option.labelDe || option.value})`, desc: '', grants: option.grants });
+      out.push({ key, name: `${f.name} (${option.labelDe || option.value})`, desc: '', grants: option.grants, level });
     }
   }
   return out;

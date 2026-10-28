@@ -8,4 +8,4 @@ export const situationalBonusSchema = z.object({
 });
 export type SituationalBonus = z.infer<typeof situationalBonusSchema>;
 
-export const situationalLabelDe = (b: SituationalBonus): string => b.conditionDe?.trim() || b.condition;
+export const situationalLabelDe = (b: Pick<SituationalBonus, 'condition' | 'conditionDe'>): string => b.conditionDe?.trim() || b.condition;

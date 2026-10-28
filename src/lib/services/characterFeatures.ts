@@ -39,6 +39,8 @@ export interface ResolvedFeatureGroup {
   sourceKey: string;
   unresolved: boolean;
   features: ResolvedFeature[];
+  /** Klassenstufe der Gruppe; Traits und Talente zählen nach Charakterstufe. */
+  level?: number;
 }
 
 function firstGainedAt(gainedAt: number[], level: number): number | undefined {
@@ -57,6 +59,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
     groups.push({
       title: cls.name.trim() || cls.sourceKey,
       sourceKey: cls.sourceKey,
+      level,
       unresolved: !prog,
       features: prog
         ? featuresUpTo(prog, level).map((f) => ({
@@ -75,6 +78,7 @@ export async function resolveClassFeatures(classes: CharacterClass[]): Promise<R
       groups.push({
         title: (cls.subclassName?.trim() || sub?.nameDe || sub?.name || cls.subclassKey),
         sourceKey: cls.subclassKey,
+        level,
         unresolved: !sub,
         features: sub
           ? featuresUpTo(sub, level).map((f) => ({

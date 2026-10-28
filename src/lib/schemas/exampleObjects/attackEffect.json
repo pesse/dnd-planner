@@ -18,5 +18,16 @@
     "weapons": [
       "string"
     ]
+  },
+  {
+    "kind": "dice",
+    "dice": "string",
+    "damageType": "acid",
+    "condition": "string",
+    "conditionDe": "string",
+    "range": "any",
+    "weapons": [
+      "string"
+    ]
   }
 ]

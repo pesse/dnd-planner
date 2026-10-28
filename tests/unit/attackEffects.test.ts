@@ -113,6 +113,18 @@ describe('Deklarierte Angriffswirkungen', () => {
     expect(attackBonusParts(attack(LONGSWORD), c).notes).toEqual([]);
   });
 
+  it('Zusatzwürfel wachsen mit der Stufe des Merkmals und stehen beim Schaden', () => {
+    const strikes = (level: number): AttackEffectFeature => ({
+      key: 'homebrew_strikes', name: 'Schreckliche Schläge', level,
+      grants: grants([{ kind: 'dice', dice: { byLevel: { '3': '1d4', '11': '1d6' } }, damageType: 'psychic', condition: 'once per turn', conditionDe: 'einmal pro Zug', range: 'any' }]),
+    });
+    const notes = (level: number) => attackDamageParts(attack(LONGSWORD), ctx([], [strikes(level)])).notes;
+    expect(notes(3)).toEqual(['Schreckliche Schläge +1W4 Psychischer Schaden: einmal pro Zug']);
+    expect(notes(11)).toEqual(['Schreckliche Schläge +1W6 Psychischer Schaden: einmal pro Zug']);
+    expect(notes(2)).toEqual([]);
+    expect(computeAttackDamage(attack(LONGSWORD), ctx([], [strikes(11)]))).toBe('1W8+1');
+  });
+
   it('weicht der Magie-Bonus von der Bibliothek ab, nennt der Tooltip ihn', () => {
     const parts = attackBonusParts(attack(BERSERKER, { magicBonus: 0 }), ctx([], []));
     expect(parts.notes).toEqual(['Berserker-Streitaxt: laut Bibliothek Magie +1']);

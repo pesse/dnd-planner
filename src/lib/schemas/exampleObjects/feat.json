@@ -97,6 +97,17 @@
         "weapons": [
           "string"
         ]
+      },
+      {
+        "kind": "dice",
+        "dice": "string",
+        "damageType": "acid",
+        "condition": "string",
+        "conditionDe": "string",
+        "range": "any",
+        "weapons": [
+          "string"
+        ]
       }
     ],
     "savingThrow": [
@@ -298,6 +309,17 @@
                 "kind": "situational",
                 "roll": "attack",
                 "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string",
+                "range": "any",
+                "weapons": [
+                  "string"
+                ]
+              },
+              {
+                "kind": "dice",
+                "dice": "string",
+                "damageType": "acid",
                 "condition": "string",
                 "conditionDe": "string",
                 "range": "any",

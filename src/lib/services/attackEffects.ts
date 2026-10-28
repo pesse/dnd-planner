@@ -7,6 +7,9 @@ import type { FeatureGrant } from '../schemas/grants';
 import { situationalLabelDe } from '../schemas/situationalBonus';
 import { buildItemIndex, displayName, getAllItemsByDir, matchItem, type ItemIndex, type ItemInfo } from '../itemLibrary';
 import { featureIdOf, normName } from '../utils/text';
+import { DAMAGE_TYPE_LABELS } from '../itemLabels';
+import { formatDamageDice } from '../itemFormat';
+import { levelStep } from './resources/amount';
 import { sign } from '../utils/num';
 import type { Attack, Character, CharacterInventoryEntry } from '../schemas/characterSchema';
 import { wornItemsIn, type WornItem } from './wornItems';
@@ -15,12 +18,15 @@ import { ownedGrantFeatures, type OwnedLinks } from './hitPoints';
 export interface AttackEffectSource {
   labelDe: string;
   effect: AttackEffect;
+  /** Stufe, nach der `dice.byLevel` greift. */
+  level?: number;
 }
 
 export interface AttackEffectFeature {
   key?: string;
   name: string;
   grants?: FeatureGrant;
+  level?: number;
 }
 
 export interface DeclaredAttackEffects {
@@ -49,7 +55,7 @@ export function attackEffectSources(worn: readonly WornItem[], features: readonl
     const id = featureIdOf(f);
     if (seen.has(id)) continue;
     seen.add(id);
-    fromFeatures.push(...(f.grants?.attack ?? []).map((effect) => ({ labelDe: f.name, effect })));
+    fromFeatures.push(...(f.grants?.attack ?? []).map((effect) => ({ labelDe: f.name, effect, level: f.level })));
   }
   return [...fromItems, ...fromFeatures];
 }
@@ -103,7 +109,19 @@ const enteredByHand = (a: Attack, labelDe: string): boolean =>
   (a.modifiers ?? []).some((m) => normName(m.label).includes(normName(labelDe)));
 
 const touches = (e: AttackEffect): { attack: boolean; damage: boolean } =>
-  e.kind === 'bonus' ? { attack: e.attack !== 0, damage: e.damage !== 0 } : { attack: e.roll === 'attack', damage: e.roll === 'damage' };
+  e.kind === 'bonus' ? { attack: e.attack !== 0, damage: e.damage !== 0 }
+  : e.kind === 'dice' ? { attack: false, damage: true }
+  : { attack: e.roll === 'attack', damage: e.roll === 'damage' };
+
+type DiceEffect = Extract<AttackEffect, { kind: 'dice' }>;
+
+/** „Schreckliche Schläge +1W4 Psychischer Schaden: einmal pro Zug"; leer unterhalb der ersten Stufe. */
+function diceNote(labelDe: string, e: DiceEffect, level: number): string | null {
+  const dice = typeof e.dice === 'string' ? e.dice : levelStep(e.dice.byLevel, level);
+  if (!dice) return null;
+  const type = e.damageType ? ` ${DAMAGE_TYPE_LABELS[e.damageType]}` : '';
+  return `${labelDe} +${formatDamageDice(dice)}${type}: ${situationalLabelDe(e)}`;
+}
 
 /** Der Bonus der Bibliothek, wo der Angriff einen anderen trägt — er wurde beim Anlegen kopiert. */
 export function staleMagicBonus(a: Pick<Attack, 'magicBonus'>, weapon: ItemInfo | undefined): number | undefined {
@@ -122,7 +140,7 @@ export function attackEffectRows(a: Attack, declared: DeclaredAttackEffects | un
     if (t.damage) out.damageNotes.push(text);
   };
 
-  for (const { labelDe, effect } of declared.sources) {
+  for (const { labelDe, effect, level } of declared.sources) {
     if (filtered(effect)) {
       if (!weapon) {
         note(effect, `${labelDe}: Waffe nicht mit der Bibliothek verknüpft`);
@@ -135,7 +153,10 @@ export function attackEffectRows(a: Attack, declared: DeclaredAttackEffects | un
       continue;
     }
     if (effect.kind === 'bonus') out.rows.push({ labelDe, attack: effect.attack, damage: effect.damage });
-    else note(effect, `${labelDe} ${sign(effect.value)}: ${situationalLabelDe(effect)}`);
+    else if (effect.kind === 'dice') {
+      const text = diceNote(labelDe, effect, level ?? 1);
+      if (text) note(effect, text);
+    } else note(effect, `${labelDe} ${sign(effect.value)}: ${situationalLabelDe(effect)}`);
   }
 
   const libraryMagic = staleMagicBonus(a, weapon);
