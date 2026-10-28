@@ -89,11 +89,9 @@
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
   const changed = $derived(changedSections(saved, $state.snapshot(character) as Character));
 
-  // Der offene Picker liegt in GeneralSection, nicht hier — `applyFix` schließt ihn
-  // über dieselben `$bindable`-Felder.
+  // Der offene Klassen-Picker liegt in GeneralSection, nicht hier — `applyFix` schließt ihn
+  // über dasselbe `$bindable`-Feld.
   let editingClassRow = $state(-1);
-  let editingSpecies = $state(!form.species.sourceKey && !form.species.name.trim());
-  let editingBackground = $state(!form.backgroundRef.sourceKey && !form.backgroundRef.name.trim());
 
   // Im Editor NUR Herkunfts-ANZEIGE (◆) — das aktive „Übernehmen" gehört in
   // Erstellung und Level-Up.
@@ -230,8 +228,8 @@
     fix.apply();
     switch (fix.kind) {
       case 'classes': editingClassRow = -1; break;
-      case 'species': form.race = form.species.name; editingSpecies = false; break;
-      case 'background': form.background = form.backgroundRef.name; editingBackground = false; break;
+      case 'species': form.race = form.species.name; break;
+      case 'background': form.background = form.backgroundRef.name; break;
       case 'spells': form.spellcasting = { ...form.spellcasting }; break;
     }
   }
@@ -254,7 +252,7 @@
   {#if section === 'general'}
     <GeneralSection
       {form} {saved} {dirOf} {libs} {fixOf} onApplyFix={applyFix}
-      bind:editingClassRow bind:editingSpecies bind:editingBackground
+      bind:editingClassRow
     />
 
     <div class="stats-cols">

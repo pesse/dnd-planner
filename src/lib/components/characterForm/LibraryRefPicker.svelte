@@ -14,7 +14,6 @@
     editing,
     placeholder,
     editTitle,
-    wide = false,
     search,
     label,
     onopen,
@@ -28,7 +27,6 @@
     editing: boolean;
     placeholder: string;
     editTitle: string;
-    wide?: boolean;
     search: (query: string) => T[];
     label: (hit: T) => string;
     onopen: () => void;
@@ -81,7 +79,7 @@
     <button type="button" class="link-edit" title={editTitle} onclick={() => onediting(true)}>✎</button>
   </div>
 {:else}
-  <div class="autocomplete-wrap" class:species-picker={wide}>
+  <div class="autocomplete-wrap">
     <input
       value={name}
       {placeholder}

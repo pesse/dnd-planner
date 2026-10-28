@@ -1,23 +1,21 @@
 <script lang="ts">
   import { navigateTo } from '../../services/navigation';
   import { formatClassLevel } from '../../schemas/classLevelText';
-  import { speciesDisplayName, searchSpecies, type SpeciesInfo } from '../../speciesLibrary';
-  import { backgroundDisplayName, searchBackgrounds, type BackgroundInfo } from '../../backgroundsLibrary';
+  import { speciesDisplayName, type SpeciesInfo } from '../../speciesLibrary';
+  import { backgroundDisplayName, type BackgroundInfo } from '../../backgroundsLibrary';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import type { CharacterFormFields } from '../../services/characterFormFields';
   import type { FormLibraries } from '../../services/characterFormLibraries.svelte';
   import type { LegacyFix, LegacyFixKind } from '../../services/characterLegacyLinks';
   import type { Character } from '../../schemas/characterSchema';
-  import RefBlock from './RefBlock.svelte';
+  import RefSelect from './RefSelect.svelte';
   import ClassLevelTable from './ClassLevelTable.svelte';
 
-  // Der offene Picker liegt hier, nicht im Eltern-Formular: `applyFix` von dort
-  // schließt ihn über dieselben `$bindable`-Felder.
+  // Der offene Klassen-Picker liegt hier, nicht im Eltern-Formular: `applyFix` von dort
+  // schließt ihn über dasselbe `$bindable`-Feld.
   let {
     form, saved, dirOf, libs, fixOf, onApplyFix,
     editingClassRow = $bindable(-1),
-    editingSpecies = $bindable(!form.species.sourceKey && !form.species.name.trim()),
-    editingBackground = $bindable(!form.backgroundRef.sourceKey && !form.backgroundRef.name.trim()),
   }: {
     form: CharacterFormFields;
     saved?: Character | null;
@@ -26,8 +24,6 @@
     fixOf(kind: LegacyFixKind): LegacyFix | undefined;
     onApplyFix(fix: LegacyFix | undefined): void;
     editingClassRow?: number;
-    editingSpecies?: boolean;
-    editingBackground?: boolean;
   } = $props();
 
   const classLevelPreview = $derived(formatClassLevel(form.classes));
@@ -37,20 +33,18 @@
     await navigateTo({ name: path.split('/').pop()!.replace('.json', ''), path, type });
   }
 
-  function selectSpecies(info: SpeciesInfo) {
-    form.species.name = speciesDisplayName(info);
-    form.species.sourceKey = info.key ?? '';
+  function selectSpecies(info: SpeciesInfo | null) {
+    form.species.name = info ? speciesDisplayName(info) : '';
+    form.species.sourceKey = info?.key ?? '';
     form.species.subspeciesKey = undefined;
     form.species.subspeciesName = undefined;
     form.race = form.species.name;
-    editingSpecies = false;
   }
 
-  function selectBackground(info: BackgroundInfo) {
-    form.backgroundRef.name = backgroundDisplayName(info);
-    form.backgroundRef.sourceKey = info.key ?? '';
+  function selectBackground(info: BackgroundInfo | null) {
+    form.backgroundRef.name = info ? backgroundDisplayName(info) : '';
+    form.backgroundRef.sourceKey = info?.key ?? '';
     form.background = form.backgroundRef.name;
-    editingBackground = false;
   }
 </script>
 
@@ -62,42 +56,29 @@
   </div>
 
   <div class="ref-pair">
-    <RefBlock
+    <RefSelect
       title="Hintergrund"
-      kindLabel="Hintergrund"
+      options={libs.backgrounds}
+      label={backgroundDisplayName}
       name={form.backgroundRef.name}
       sourceKey={form.backgroundRef.sourceKey}
-      placeholder="z.B. Soldat"
-      editTitle="Hintergrund ändern"
       diff={dirOf(saved?.background, form.background)}
       hasFix={!!fixOf('background')}
       onfix={() => onApplyFix(fixOf('background'))}
-      editing={editingBackground}
-      search={(q) => searchBackgrounds(libs.backgrounds, q, 8)}
-      label={backgroundDisplayName}
       onopen={() => openLibraryPage(libs.backgrounds.find((b) => b.key === form.backgroundRef.sourceKey)?.path, 'background')}
-      oninput={(v) => { form.backgroundRef.name = v; form.background = v; form.backgroundRef.sourceKey = ''; }}
       onselect={selectBackground}
-      onediting={(v) => (editingBackground = v)}
     />
-
-    <RefBlock
+    <RefSelect
       title="Volk"
-      kindLabel="Volk"
+      options={libs.species}
+      label={speciesDisplayName}
       name={form.species.name}
       sourceKey={form.species.sourceKey}
-      placeholder="z.B. Zwerg"
-      editTitle="Volk ändern"
       diff={dirOf(saved?.race, form.race)}
       hasFix={!!fixOf('species')}
       onfix={() => onApplyFix(fixOf('species'))}
-      editing={editingSpecies}
-      search={(q) => searchSpecies(libs.species, q, 8)}
-      label={speciesDisplayName}
       onopen={() => openLibraryPage(libs.species.find((s) => s.key === form.species.sourceKey)?.path, 'species')}
-      oninput={(v) => { form.species.name = v; form.race = v; form.species.sourceKey = ''; }}
       onselect={selectSpecies}
-      onediting={(v) => (editingSpecies = v)}
     />
   </div>
 
