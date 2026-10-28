@@ -43,14 +43,14 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 
 Die Teil-Auffüllung bei Kurzer Rast steht in `pool.shortRestRegain` (Kampfrausch, Tiergestalt,
 Durchatmen, Psionische Energiewürfel), der Rückgewinn gegen einen Zauberplatz oder einen anderen
-Vorrat in `pool.restoreBy` bzw. `mod.restoreBy` (Quelle der Inspiration, Wilde Wiederkehr).
+Vorrat in `pool.restoreBy` bzw. `mod.restoreBy` (Quelle der Inspiration, Wilde Wiederkehr). Was der
+Zähler nicht zählt, steht als Hinweis `noteDe` an Vorrat oder Zuschlag (Gratis-Erstnutzung des
+Psychischen Flüsterns, variable Kosten der Psionischen Zauberei).
 
 | Merkmal | Mechanik | Was fehlt |
 |---|---|---|
 | `barbarian_path-of-the-world-tree_travel-along-the-tree`, `barbarian_path-of-the-zealot_fanatical-focus` | einmal pro Kampfrausch | Recharge pro Kampfrausch |
 | `bard_college-of-glamour_mantle-of-majesty`, `fighter_psi-warrior_telekinetic-master` | Rückgewinn gegen Platz ≥ 3 bzw. Psi-Würfel | die freie Anwendung ist eine Wirk-Option (`grantsCasting`), kein Vorrat |
-| `rogue_soulknife_psionic-power` | erste Psychic Whispers je Lange Rast gratis | Gratis-Erstnutzung |
-| `sorcerer_aberrant-sorcery_psionic-sorcery` | Zaubereipunkte = Zaubergrad | variable Kosten (`amount` ist fest) |
 
 ## Angriff, Würfe, Sonstiges
 

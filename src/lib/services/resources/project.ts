@@ -60,6 +60,7 @@ export function resourceViews(pools: ResolvedResource[]): ResourceView[] {
         RECHARGE_DE[pool.recharge],
         pool.shortRestRegain ? `Kurze Rast: ${pool.shortRestRegain} zurück` : '',
         pool.restoreDe.length ? `zurück gegen ${pool.restoreDe.join(' oder ')}` : '',
+        ...pool.notesDe,
         ...pool.additions.map((a) => `${sign(a.amount)} ${a.labelDe}`),
       ]
         .filter(Boolean)

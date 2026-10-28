@@ -87,6 +87,10 @@ export const resourcePoolSchema = z.object({
     .default('')
     .describe('Leer = eigener Vorrat des Merkmals. Gesetzt = alle speisenden Klassen teilen EINEN Pool.'),
   restoreBy: z.array(resourceRestoreSchema).default([]),
+  noteDe: z
+    .string()
+    .optional()
+    .describe('Was der Zähler nicht zählt, als Bogentext ("1. Psionisches Flüstern je Lange Rast gratis").'),
   shape: resourceShapeSchema,
   die: resourceDieSchema.optional(),
 });
@@ -101,6 +105,10 @@ export const resourceModSchema = z.object({
     .optional()
     .describe('Kürzere Auffüll-Rast für das Ziel; eine längere als die bestehende bleibt wirkungslos.'),
   restoreBy: z.array(resourceRestoreSchema).default([]).describe('Weitere Wege, das Ziel zurückzuholen (Wilde Wiederkehr).'),
+  noteDe: z
+    .string()
+    .optional()
+    .describe('Was der Zähler nicht zählt, als Bogentext ("1. Psionisches Flüstern je Lange Rast gratis").'),
 });
 export type ResourceMod = z.infer<typeof resourceModSchema>;
 

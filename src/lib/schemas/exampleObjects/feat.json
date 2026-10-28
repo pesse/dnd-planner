@@ -726,6 +726,7 @@
             "amount": 1
           }
         ],
+        "noteDe": "string",
         "shape": {
           "kind": "counter",
           "max": {
@@ -764,7 +765,8 @@
             },
             "amount": 1
           }
-        ]
+        ],
+        "noteDe": "string"
       }
     ]
   },

@@ -66,7 +66,7 @@ describe('Sektionen des Charakterbogens', () => {
       resources: [{
         id: 'srd-2024_barbarian_rage/uses', featureKey: 'srd-2024_barbarian_rage', labelDe: 'Kampfrausch',
         origin: 'class', classKey: 'srd-2024_barbarian', recharge: 'long-rest', shortRestRegain: 0, shared: '', kind: 'counter', die: '',
-        max: [3], additions: [], restoreDe: [],
+        max: [3], additions: [], restoreDe: [], notesDe: [],
       }],
     });
 

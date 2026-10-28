@@ -76,6 +76,8 @@ export interface ResolvedResource {
   additions: ResourceAddition[];
   /** Was einen Einsatz außerhalb der Rast zurückholt, als Bogentext („Zauberplatz ab Grad 2"). */
   restoreDe: string[];
+  /** Deklarierte Hinweise von Vorrat und Zuschlägen (`noteDe`). */
+  notesDe: string[];
 }
 
 export interface ResourceResolution {
@@ -134,6 +136,7 @@ function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[], ct
     max,
     additions: [],
     restoreDe: [],
+    notesDe: pool.noteDe?.trim() ? [pool.noteDe.trim()] : [],
   };
 }
 
@@ -192,17 +195,19 @@ interface PendingMod {
   amount: number;
   recharge?: ResourceRecharge;
   restore: ResourceRestore[];
+  noteDe?: string;
 }
 
 /** Läuft erst, wenn alle Pools stehen: ein Zuschlag darf vor seinem Ziel deklariert sein. */
 function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: ResourceIssue[]): PendingRestore[] {
   const restores: PendingRestore[] = [];
-  for (const { carrier, ref, amount, recharge, restore } of mods) {
+  for (const { carrier, ref, amount, recharge, restore, noteDe } of mods) {
     const target = findResource(pools, ref, carrier.key);
     if (!target) {
       issues.push(declarationIssue('unresolvedResourceTarget', carrier.key, refPath(carrier.key, ref)));
       continue;
     }
+    if (noteDe?.trim() && !target.notesDe.includes(noteDe.trim())) target.notesDe.push(noteDe.trim());
     if (restore.length) restores.push({ carrier, pool: target, restore });
     if (recharge && RECHARGE_RANK[recharge] < RECHARGE_RANK[target.recharge]) {
       target.recharge = recharge;
@@ -259,6 +264,7 @@ export function applyManualSlots(pools: ResolvedResource[], totals: number[]): v
     max: NINE(totals),
     additions: [],
     restoreDe: [],
+    notesDe: [],
   });
 }
 
@@ -326,7 +332,10 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
           pools.push(own);
           if (pool.restoreBy.length) restores.push({ carrier, pool: own, restore: pool.restoreBy });
         }
-        else if (existing.kind === pool.shape.kind) existing.max[0] += max;
+        else if (existing.kind === pool.shape.kind) {
+          existing.max[0] += max;
+          if (pool.noteDe?.trim() && !existing.notesDe.includes(pool.noteDe.trim())) existing.notesDe.push(pool.noteDe.trim());
+        }
         else issues.push(declarationIssue('sharedPoolKindMismatch', carrier.key, `${pool.shared}: ${existing.kind}`));
         continue;
       }
@@ -350,6 +359,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
     for (const m of grant.mods)
       pending.push({
         carrier, ref: m.target, amount: m.addMax ? resolveAmount(m.addMax, ctx) : 0, recharge: m.recharge, restore: m.restoreBy,
+        noteDe: m.noteDe,
       });
   }
 

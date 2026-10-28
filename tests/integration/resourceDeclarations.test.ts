@@ -210,6 +210,13 @@ describe('redigierte Vorräte', () => {
     expect(resourceViews([inspiration!])[0].hint).toBe('Kurze Rast · zurück gegen Zauberplatz');
   });
 
+  it('nennt, was der Zähler nicht zählt — am eigenen Vorrat und per Zuschlag am fremden', async () => {
+    const dice = await pool(probe('srd-2024_rogue', 3, 'phb-2024_soulknife'), '_psionic-power');
+    expect(resourceViews([dice!])[0].hint).toContain('1. Psychisches Flüstern je Lange Rast ohne Würfel');
+    const points = await pool(probe('srd-2024_sorcerer', 6, 'phb-2024_aberrant-sorcery'), '_font-of-magic');
+    expect(points?.notesDe).toEqual(['Psionische Zauber: Zaubereipunkte in Höhe des Grades statt Zauberplatz']);
+  });
+
   it('der Überlegenheitswürfel wächst in Stufenschritten', async () => {
     const dice = await Promise.all([3, 10, 18].map((l) => pool(probe('srd-2024_fighter', l, 'phb-2024_battle-master'), '_combat-superiority')));
     expect(dice.map((d) => d?.die)).toEqual(['d8', 'd10', 'd12']);
