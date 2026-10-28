@@ -9,7 +9,10 @@ import { SLOT_LABEL_DE, type EquipmentSlot } from '$lib/schemas/equipmentSlot';
 import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed, type SlotFill } from '$lib/services/equipmentSlots';
 import { equipmentQuips } from '$lib/services/equipmentQuips';
 import { paperdollCandidates, resolveOriginArt } from '$lib/services/wizard/originArt';
+import { itemCardFacts, type ItemCardFacts } from '$lib/utils/itemCardFacts';
+import { renderMarkdown } from '$lib/utils/markdown';
 import type { CharacterPrintData } from '../data';
+import { loadItem } from '../itemCards';
 import { block, esc, row } from '../html';
 
 export interface PrintFigure {
@@ -18,6 +21,8 @@ export interface PrintFigure {
   /** Item-Key → Bild; fehlt der Eintrag, steht der Anfangsbuchstabe. */
   art: Map<string, string>;
   quips: Map<EquipmentSlot, string>;
+  /** Bibliothekspfad → Spielwerte und Beschreibung; fehlt die Datei, steht nur der Name. */
+  facts: Map<string, ItemCardFacts>;
 }
 
 export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintFigure | null> {
@@ -25,11 +30,14 @@ export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintF
   const fills = placeEquipment(figureLinesIn(buildItemIndex(await getAllItemsByDir()), c.inventory));
   const keys = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => p.item.key ?? '')).filter(Boolean))];
   const found = await Promise.all(keys.map(async (k) => [k, await resolveOriginArt([itemKeyArtUrl(k) ?? ''])] as const));
+  const paths = [...new Set([...fills.values()].flatMap((f) => f.items.map((p) => p.item.path)))];
+  const items = await Promise.all(paths.map(async (path) => [path, await loadItem(path)] as const));
   return {
     dollUrl: ownUrl || ((await resolveOriginArt(paperdollCandidates(c.species.sourceKey, c.presentation))) ?? ''),
     fills,
     art: new Map(found.filter((e): e is [string, string] => !!e[1])),
     quips: equipmentQuips(fills),
+    facts: new Map(items.flatMap(([path, item]) => (item ? [[path, itemCardFacts(item, true)] as const] : []))),
   };
 }
 
@@ -37,6 +45,15 @@ function icon(f: PrintFigure, p: Placed): string {
   const src = p.item.key ? f.art.get(p.item.key) : undefined;
   const inner = src ? `<img src="${esc(src)}" alt="">` : `<span>${esc(displayName(p.item).charAt(0))}</span>`;
   return `<span class="fig-icon${p.effective ? '' : ' idle'}">${inner}</span>`;
+}
+
+/** Nur magische Stücke mit Beschreibung — beim Langschwert stünde bloß „Ein Langschwert.". */
+function itemEntry(f: PrintFigure, p: Placed): string {
+  const inside = p.contents?.length ? ` (${p.contents.map((c) => displayName(c.item)).join(', ')})` : '';
+  const facts = f.facts.get(p.item.path);
+  const stats = facts?.rows.length ? `<div class="fig-stats">${facts.rows.join('')}</div>` : '';
+  const desc = p.item.magic && facts?.description ? `<div class="fig-desc md">${renderMarkdown(facts.description)}</div>` : '';
+  return `<div class="fig-item"><b>${esc(displayName(p.item) + inside)}</b>${stats}${desc}</div>`;
 }
 
 export function renderFigure(d: CharacterPrintData): string {
@@ -56,12 +73,8 @@ export function renderFigure(d: CharacterPrintData): string {
   const rows = [...FIGURE_SOCKETS.map(([slot]) => slot), 'other' as const]
     .filter((slot) => f.fills.get(slot)?.items.length)
     .map((slot) => {
-      const names = f.fills.get(slot)!.items.map((p) => {
-        const inside = p.contents?.length ? ` (${p.contents.map((c) => displayName(c.item)).join(', ')})` : '';
-        return esc(displayName(p.item) + inside);
-      });
       const mark = marks.has(slot) ? ` <span class="fig-mark inline">${marks.get(slot)}</span>` : '';
-      return row(SLOT_LABEL_DE[slot], names.join(', ') + mark);
+      return row(SLOT_LABEL_DE[slot], f.fills.get(slot)!.items.map((p) => itemEntry(f, p)).join('') + mark);
     }).join('');
   const quips = [...f.quips.entries()].map(([slot, text]) =>
     `<div class="fig-quip"><span class="fig-mark inline">${marks.get(slot)}</span> ${esc(text)}</div>`).join('');

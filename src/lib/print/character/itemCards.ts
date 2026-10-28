@@ -28,7 +28,7 @@ export async function cardItemInfos(c: Character): Promise<ItemInfo[]> {
   return out;
 }
 
-async function loadItem(path: string): Promise<Item | null> {
+export async function loadItem(path: string): Promise<Item | null> {
   try {
     return JSON.parse(await invoke<string>('read_file_content', { path })) as Item;
   } catch {

@@ -8,6 +8,8 @@ import {
   defaultSelection, sheetSections, SHEET_PAGES, STATIC_SECTION_IDS,
 } from '../../src/lib/print/character/sections';
 import type { CharacterPrintData } from '../../src/lib/print/character/data';
+import { itemCardFacts } from '../../src/lib/utils/itemCardFacts';
+import type { Item } from '../../src/lib/types';
 import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
 import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
 
@@ -199,19 +201,25 @@ describe('Sektionen des Charakterbogens', () => {
     expect(defaultSelection(sheetSections(d)).itemCards).toBe(true);
   });
 
-  it('bietet die Figur an, wenn etwas angelegt ist — nicht vorgewählt, Kommentare ausgeschrieben', () => {
+  it('bietet die Figur an, wenn etwas angelegt ist — nicht vorgewählt, Werte und Kommentare ausgeschrieben', () => {
     const cloak = (name: string, line: number) => ({
       line, slot: 'shoulders' as const, effective: true,
-      item: { name, category: 'wondrous-item', rarity: '', path: 'x', magic: true },
+      item: { name, category: 'wondrous-item', rarity: '', path: name, magic: true },
       entry: { name, count: '', weight: '', equipped: true },
     });
     const fills = new Map([['shoulders' as const, { slot: 'shoulders' as const, items: [cloak('Umhang A', 0), cloak('Umhang B', 1)] }]]);
-    const d = emptyData({ figure: { dollUrl: '', fills, art: new Map(), quips: new Map([['shoulders', 'Flattert dramatisch.']]) } });
+    const facts = new Map([['Umhang A', itemCardFacts({
+      name: 'Umhang A', equipment_category: { index: 'armor', name: 'Armor' }, armor_class: { base: 11 }, desc_de: ['Schützt vor **Regen**.'],
+    } as Item, true)]]);
+    const d = emptyData({ figure: { dollUrl: '', fills, art: new Map(), quips: new Map([['shoulders', 'Flattert dramatisch.']]), facts } });
 
     expect(ids(emptyData())).not.toContain('figure');
     expect(defaultSelection(sheetSections(d)).figure).toBe(false);
     const html = sheetSections(d).find((s) => s.id === 'figure')!.render(d);
-    expect(html).toContain('Umhang A, Umhang B');
+    expect(html).toContain('<b>Umhang A</b>');
+    expect(html).toContain('<b>Umhang B</b>');
+    expect(html).toContain('<span class="plabel">RK</span><span>11</span>');
+    expect(html).toContain('<strong>Regen</strong>');
     expect(html).toContain('Flattert dramatisch.');
   });
 
