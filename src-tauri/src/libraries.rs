@@ -182,8 +182,9 @@ fn write_state(id: &str, state: &InstalledState) -> Result<(), String> {
     fs::write(state_path(id), json).map_err(|e| e.to_string())
 }
 
-/// Umbenannte Library-IDs (alt → neu). Ohne Umzug stünde die Bibliothek nach dem
-/// Update als gesperrt da, und ihre Dateien gälten als fremd (`needsAdopt`).
+/// Umbenannte Library-IDs (alt → neu). Ohne Umzug gälten ihre Dateien als fremd
+/// (`needsAdopt`); ein mitgezogener Code einer älteren keyVersion meldet sich als
+/// `staleCode` statt als `locked`.
 const RENAMED_LIBRARIES: &[(&str, &str)] = &[("erweitert", "phb")];
 
 fn adopt_renamed_libraries() {
