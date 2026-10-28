@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSpeciesByKey, getSpeciesList } from '../../src/lib/speciesLibrary';
 import { getFeats } from '../../src/lib/featsLibrary';
-import { hpPerLevelSources, hpPerLevelSum } from '../../src/lib/services/perLevelEffects';
+import { hpFlatSum, hpPerLevelSources, hpPerLevelSum } from '../../src/lib/services/perLevelEffects';
 import { featureGrantSchema } from '../../src/lib/schemas/grants';
 import { libraryKey } from '../support/libraryKey';
 
@@ -54,6 +54,14 @@ describe('pro-Stufe-Effekte aus der Deklaration', () => {
     expect(sources.map((s) => s.sourceKey)).toEqual(['srd-2024_dwarf_dwarven-toughness', 'phb-2024_tough']);
     expect(hpPerLevelSum(sources)).toBe(3);
     expect(hpPerLevelSum(sources) * 5).toBe(15);
+  });
+
+  it('Gabe der Standhaftigkeit ist ein fester Zuschlag, kein Bonus je Stufe', async () => {
+    const boon = (await getFeats()).find((f) => f.sourceKey === 'phb-2024_boon-of-fortitude');
+    expect(boon, 'Vault-Eintrag vorhanden').toBeTruthy();
+    const sources = hpPerLevelSources([{ key: boon!.sourceKey ?? '', name: boon!.name, grants: boon!.grants }]);
+    expect(hpFlatSum(sources)).toBe(40);
+    expect(hpPerLevelSum(sources)).toBe(0);
   });
 
   it('zählt dasselbe Merkmal nicht doppelt, egal aus welcher Richtung es kommt', () => {

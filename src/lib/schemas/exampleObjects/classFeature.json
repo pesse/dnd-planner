@@ -50,6 +50,7 @@
     "perLevel": {
       "hpMax": 0
     },
+    "hpMaxBonus": 0,
     "halfProficiencySkills": false,
     "properties": {
       "size": "Tiny",
@@ -289,6 +290,7 @@
             "perLevel": {
               "hpMax": 0
             },
+            "hpMaxBonus": 0,
             "halfProficiencySkills": false,
             "properties": {
               "size": "Tiny",

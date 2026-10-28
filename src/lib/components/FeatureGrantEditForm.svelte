@@ -72,6 +72,9 @@
     <label class="lbl-inline" title="Zunahme des TP-Maximums JE Charakterstufe (Zwergische Zähigkeit +1, Zäh +2)">TP je Stufe +
       <input class="ef num" type="number" min="0" bind:value={grant.perLevel.hpMax} oninput={mark} />
     </label>
+    <label class="lbl-inline" title="Fester Zuschlag zum TP-Maximum, einmal statt je Stufe (Gabe der Standhaftigkeit +40)">TP +
+      <input class="ef num" type="number" min="0" bind:value={grant.hpMaxBonus} oninput={mark} />
+    </label>
     <label class="lbl-inline" title="Halber Übungsbonus auf Fertigkeitswürfe ohne Übung">
       <input type="checkbox" bind:checked={grant.halfProficiencySkills} onchange={mark} /> Alleskönner
     </label>

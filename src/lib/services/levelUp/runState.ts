@@ -18,11 +18,9 @@ import type { ChosenFeat } from './features';
 import type { CategorySlot, LevelUpStyleOffer } from './featUnlocks';
 import { noDeclaredSpells, type DeclaredSpells, type ValidatedRiders } from './spells';
 import type { StepId } from './steps';
+import type { PerLevelSource } from '../perLevelEffects';
 
-export interface HpPerLevelSource {
-  feature: string;
-  sourceKey: string;
-  amount: number;
+export interface HpPerLevelSource extends PerLevelSource {
   /** Trug der Charakter schon vor dem Aufstieg — dann deckt das TP-Maximum die alten Stufen ab. */
   owned: boolean;
 }

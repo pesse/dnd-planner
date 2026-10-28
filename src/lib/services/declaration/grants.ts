@@ -54,6 +54,7 @@ function filledGrantFields(g: FeatureGrant): (keyof FeatureGrant)[] {
     extraPreparedCount: () => g.extraPreparedCount > 0,
     abilities: () => g.abilities.length > 0,
     perLevel: () => g.perLevel.hpMax !== 0,
+    hpMaxBonus: () => g.hpMaxBonus !== 0,
     properties: () => !isEmptyCharacterProperties(g.properties),
     halfProficiencySkills: () => g.halfProficiencySkills,
     armorClass: () => g.armorClass.length > 0,
@@ -92,6 +93,7 @@ const GRANT_SINKS: { [K in keyof FeatureGrant]-?: 'rider' | 'change' | 'perLevel
   extraCantrips: 'rider',
   extraPreparedCount: 'rider',
   perLevel: 'perLevel',
+  hpMaxBonus: 'perLevel',
   properties: 'change',
   halfProficiencySkills: 'change',
   armorClass: 'runtime',
@@ -112,7 +114,7 @@ export const grantWritesCharacter = (g: FeatureGrant): boolean =>
 
 /**
  * GENAU die Felder, die `featureGrantSchema` ausdrücken kann; alles Übrige des Riders bleibt
- * stehen, weil die Deklaration darüber nichts sagt. `perLevel`, `armorClass`, `attack`,
+ * stehen, weil die Deklaration darüber nichts sagt. `perLevel`, `hpMaxBonus`, `armorClass`, `attack`,
  * `savingThrow`, `aura`, `defenses`, `speeds`, `senses`, `initiative`, `criticalHit` und `checks`
  * fehlen absichtlich — sie wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`,
  * `attackEffectRows`, `savingThrowDerivations`, `characterAuras`, `characterDefenses`,

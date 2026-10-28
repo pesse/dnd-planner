@@ -145,6 +145,11 @@ export const featureGrantSchema = z.object({
   extraCantrips: z.number().int().default(0).describe('Zusätzlich FREI wählbare Zaubertricks („einen zusätzlichen Zaubertrick aus der Druiden-Zauberliste").'),
   extraPreparedCount: z.number().int().default(0).describe('Zusätzlich vorbereitbare Zauber über die Stufentabelle hinaus.'),
   perLevel: perLevelGrantSchema.default(emptyPerLevelGrant),
+  hpMaxBonus: z
+    .number()
+    .int()
+    .default(0)
+    .describe('Fester Zuschlag zum TP-Maximum, einmal statt je Stufe (Gabe der Standhaftigkeit: 40).'),
   halfProficiencySkills: z
     .boolean()
     .default(false)

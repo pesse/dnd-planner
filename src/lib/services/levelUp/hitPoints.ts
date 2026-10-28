@@ -9,6 +9,7 @@ import { mod } from '../../domain/skills';
 import { cappedScore } from '../declaration/abilityIncrease';
 import { effectiveScore, type WornAbilityEffect } from '../effectiveAbilities';
 import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from '../hitPoints';
+import { hpFlatSum, hpPerLevelSum } from '../perLevelEffects';
 import type { HpPerLevelSource } from './runState';
 
 export interface HpBefore extends Pick<Character, 'hpMax' | 'hpDiceTotal'> {
@@ -47,8 +48,8 @@ function conAfter(conScore: number, others: readonly Change[]): number {
 function diceTotalBefore(p: HitPointParams, conMod: number, level: number): number | null {
   if (level <= 0) return 0;
   if (p.before.hpDiceTotal !== undefined) return p.before.hpDiceTotal;
-  const perLevel = p.sources.filter((s) => s.owned).reduce((n, s) => n + s.amount, 0);
-  const basis: HpBasis = { conMod, level, perLevel, maxDice: p.before.maxDice };
+  const owned = p.sources.filter((s) => s.owned);
+  const basis: HpBasis = { conMod, level, perLevel: hpPerLevelSum(owned), flat: hpFlatSum(owned), maxDice: p.before.maxDice };
   const total = hpDiceTotalOf(p.before, basis);
   return total !== null && plausibleDiceTotal(total, basis) ? total : null;
 }
@@ -67,7 +68,7 @@ export function hitPointChanges(p: HitPointParams): Change[] {
   const out: Change[] = [{ target: 'hpMax', value: gain, step: 'assemble-decisions', source: 'hit-dice', label: 'Trefferpunkte (Würfel)' }];
   if (conPart) out.push({ target: 'hpMax', value: conPart, step: 'assemble-decisions', source: 'con', label: 'Trefferpunkte (KON)' });
   for (const s of p.sources) {
-    const value = s.amount * (s.owned ? delta.levelsGained : levelAfter);
+    const value = !s.perLevel ? (s.owned ? 0 : s.amount) : s.amount * (s.owned ? delta.levelsGained : levelAfter);
     if (value) out.push({ target: 'hpMax', value, step: 'ongoing-effects', source: s.sourceKey || s.feature, label: s.feature });
   }
 

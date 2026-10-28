@@ -70,7 +70,7 @@ function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression
   if (hitDie <= 0) return;
   c.hitDice = `1W${hitDie}`;
   c.hpDiceTotal = hitDie;
-  c.hpMax = String(Math.max(1, hitDie + mod(scores.con) + w.hpPerLevelBonus()));
+  c.hpMax = String(Math.max(1, hitDie + mod(scores.con) + w.hpBonusAtLevelOne()));
   c.hpCurrent = c.hpMax;
 }
 

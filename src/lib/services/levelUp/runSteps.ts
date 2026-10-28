@@ -306,7 +306,9 @@ export function createRunSteps(ctx: RunStepsDeps) {
         .map((s) => ({ ...s, owned: ownedIds.has(s.sourceKey || s.feature) }));
       const perLevelSum = hpPerLevelSum(st.hpPerLevelSources);
       if (perLevelSum > 0)
-        pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${st.hpPerLevelSources.map((s) => s.feature).join(', ')}).`);
+        pushStep(`Fortlaufende TP: +${perLevelSum}/Stufe (${st.hpPerLevelSources.filter((s) => s.perLevel).map((s) => s.feature).join(', ')}).`);
+      for (const s of st.hpPerLevelSources.filter((s) => !s.perLevel && !s.owned))
+        pushStep(`TP-Maximum: +${s.amount} (${s.feature}).`);
     } catch {
       st.hpPerLevelSources = [];
     }

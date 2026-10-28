@@ -83,7 +83,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 
 | Talent | Mechanik | Was fehlt |
 |---|---|---|
-| `boon-of-fortitude` | TP-Maximum +40 | kein fester `hpMax`-Zuschlag |
 | `boon-of-energy-resistance` | zwei Resistenzen, je Lange Rast tauschbar | flüchtig; dass beide verschieden sind, prüft niemand |
 | `crafter` | Übung mit 3 aus 8 Handwerkerwerkzeugen | `toolCategory` bietet alle 17 an |
 | `unarmed-fighting`, `tavern-brawler` | Schaden waffenloser Schläge | kein Waffenfilter für waffenlose Angriffe |

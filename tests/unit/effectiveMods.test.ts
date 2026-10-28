@@ -110,7 +110,7 @@ describe('TP-Herleitung', () => {
   it('ein Bonus je Stufe ist ein eigener Posten', () => {
     const d = hpDerivation(
       { hpMax: '70', hpDiceTotal: 40 }, { ...basis, perLevel: 2 }, con,
-      [{ feature: 'Zäh', sourceKey: 'phb-2024_tough', amount: 2 }],
+      [{ feature: 'Zäh', sourceKey: 'phb-2024_tough', amount: 2, perLevel: true }],
     );
     expect(text(hpTip(d))).toEqual([
       'Trefferwürfel 40', 'KON +4 × Stufe 5 +20', 'Amulett der Gesundheit: KON 19', 'ohne Gegenstände: +1',

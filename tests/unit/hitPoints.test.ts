@@ -35,8 +35,9 @@ const hpGain = (changes: Change[]): number =>
 const diceTotal = (changes: Change[]): number | undefined =>
   changes.find((c): c is Extract<Change, { target: 'hpDiceTotal' }> => c.target === 'hpDiceTotal')?.value;
 
-const toughness = (owned: boolean): HpPerLevelSource => ({ feature: 'Zwergische Zähigkeit', sourceKey: 'srd-2024_dwarf_dwarven-toughness', amount: 1, owned });
-const tough = (owned: boolean): HpPerLevelSource => ({ feature: 'Zäh', sourceKey: 'phb-2024_tough', amount: 2, owned });
+const toughness = (owned: boolean): HpPerLevelSource => ({ feature: 'Zwergische Zähigkeit', sourceKey: 'srd-2024_dwarf_dwarven-toughness', amount: 1, perLevel: true, owned });
+const tough = (owned: boolean): HpPerLevelSource => ({ feature: 'Zäh', sourceKey: 'phb-2024_tough', amount: 2, perLevel: true, owned });
+const fortitude = (owned: boolean): HpPerLevelSource => ({ feature: 'Gabe der Standhaftigkeit', sourceKey: 'phb-2024_boon-of-fortitude', amount: 40, perLevel: false, owned });
 
 describe('TP im Aufstieg', () => {
   it('Durchschnitt plus KON, die Würfelsumme aus dem bisherigen Maximum zurückgerechnet', () => {
@@ -71,6 +72,17 @@ describe('TP im Aufstieg', () => {
     expect(hpGain(changes)).toBe(6 + 1 + 1 + 2 * 4);
     // 31 − 3 × (1 KON + 1 Zähigkeit) = 25; Zäh gehört NICHT in den Altbestand.
     expect(diceTotal(changes)).toBe(25 + 6);
+  });
+
+  it('zählt einen festen Zuschlag einmal beim Erwerb und danach nie wieder', () => {
+    const gained = hitPointChanges(params({ sources: [fortitude(false)] }));
+    expect(hpGain(gained)).toBe(6 + 1 + 40);
+    expect(diceTotal(gained)).toBe(17 + 6);
+
+    // 59 − 2 × 1 KON − 40 = 17: der vorhandene Zuschlag gehört nicht in die Würfelsumme.
+    const owned = hitPointChanges(params({ before: { hpMax: '59', conScore: 13 }, sources: [fortitude(true)] }));
+    expect(hpGain(owned)).toBe(6 + 1);
+    expect(diceTotal(owned)).toBe(17 + 6);
   });
 
   it('bevorzugt die gespeicherte Summe vor der Rückrechnung', () => {

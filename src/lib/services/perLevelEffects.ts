@@ -1,5 +1,5 @@
 /**
- * Fortlaufende, PRO STUFE wirkende TP-Effekte, deterministisch aus `grants.perLevel`.
+ * TP-Zuschläge aus Merkmalen, deterministisch aus `grants.perLevel` und `grants.hpMaxBonus`.
  * Der Schub beim Erwerb („Zäh": zweifache Charakterstufe) ist derselbe Betrag rückwirkend —
  * `levelUp/hitPoints.ts` rechnet ein neues Merkmal über alle Stufen.
  */
@@ -16,6 +16,8 @@ export interface PerLevelSource {
   feature: string;
   sourceKey: string;
   amount: number;
+  /** Sonst ein fester Zuschlag, der einmal zählt. */
+  perLevel: boolean;
 }
 
 /**
@@ -30,11 +32,17 @@ export function hpPerLevelSources(features: PerLevelFeature[]): PerLevelSource[]
     if (!id || seen.has(id)) continue;
     seen.add(id);
     const amount = f.grants?.perLevel?.hpMax ?? 0;
-    if (amount) out.push({ feature: f.name, sourceKey: f.key ?? '', amount });
+    if (amount) out.push({ feature: f.name, sourceKey: f.key ?? '', amount, perLevel: true });
+    const flat = f.grants?.hpMaxBonus ?? 0;
+    if (flat) out.push({ feature: f.name, sourceKey: f.key ?? '', amount: flat, perLevel: false });
   }
   return out;
 }
 
-export function hpPerLevelSum(sources: PerLevelSource[]): number {
-  return sources.reduce((sum, s) => sum + s.amount, 0);
+export function hpPerLevelSum(sources: readonly PerLevelSource[]): number {
+  return sources.reduce((sum, s) => (s.perLevel ? sum + s.amount : sum), 0);
+}
+
+export function hpFlatSum(sources: readonly PerLevelSource[]): number {
+  return sources.reduce((sum, s) => (s.perLevel ? sum : sum + s.amount), 0);
 }

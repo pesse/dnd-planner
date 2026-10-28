@@ -78,7 +78,7 @@ function wizardStub(over: Partial<CharacterWizard> = {}): CharacterWizard {
     riders: [],
     declaredChoices: [],
     spellPickChoices: [],
-    hpPerLevelBonus: () => 0,
+    hpBonusAtLevelOne: () => 0,
     selectedEquipment: () => ({ items: [], goldPieces: 0 }),
     ...over,
   } as unknown as CharacterWizard;

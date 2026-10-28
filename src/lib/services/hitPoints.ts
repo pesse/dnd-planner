@@ -1,6 +1,6 @@
 /**
  * Trefferpunkte als Würfelsumme plus Ableitung: TP-Maximum = Würfel + (KON-Mod + Boni je
- * Stufe) × Charakterstufe. Beide Boni gelten rückwirkend für alle Stufen.
+ * Stufe) × Charakterstufe + feste Zuschläge. Beide Boni je Stufe gelten rückwirkend für alle Stufen.
  */
 import { resolveClassFeatures, resolveFeatLinks, resolveSpeciesTraits, type ResolvedFeature } from './characterFeatures';
 import { chosenOption } from './declaration/optionList';
@@ -16,11 +16,13 @@ export interface HpBasis {
   level: number;
   /** Summe der `grants.perLevel.hpMax` (`hpPerLevelSum`). */
   perLevel: number;
+  /** Summe der `grants.hpMaxBonus` (`hpFlatSum`). */
+  flat?: number;
   /** Höchste Würfelsumme der Klassenstufen; fehlt, solange ein Trefferwürfel unbekannt ist. */
   maxDice?: number;
 }
 
-export const hpBonusTotal = (b: HpBasis): number => (b.conMod + b.perLevel) * b.level;
+export const hpBonusTotal = (b: HpBasis): number => (b.conMod + b.perLevel) * b.level + (b.flat ?? 0);
 
 /** Gespeichert oder aus dem TP-Maximum zurückgerechnet; `null`, wenn das keine Zahl ist. */
 export function hpDiceTotalOf(c: Pick<Character, 'hpMax' | 'hpDiceTotal'>, b: HpBasis): number | null {

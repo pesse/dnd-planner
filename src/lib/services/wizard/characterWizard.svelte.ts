@@ -9,7 +9,7 @@ import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
-import { hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
+import { hpFlatSum, hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { wizardDeclaredChoices, wizardRiders } from './wizardChoices';
@@ -236,7 +236,8 @@ export class CharacterWizard {
     }, 0);
   }
 
-  hpPerLevelBonus(): number {
-    return hpPerLevelSum(this.hpPerLevel);
+  /** Auf Stufe 1 zählt ein Bonus je Stufe genau einmal. */
+  hpBonusAtLevelOne(): number {
+    return hpPerLevelSum(this.hpPerLevel) + hpFlatSum(this.hpPerLevel);
   }
 }

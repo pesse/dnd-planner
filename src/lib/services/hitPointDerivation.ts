@@ -1,5 +1,5 @@
 /**
- * Die Herleitung des TP-Maximums als Posten: Würfel, KON × Stufe, Boni je Stufe. Daten, kein
+ * Die Herleitung des TP-Maximums als Posten: Würfel, KON × Stufe, Boni je Stufe, feste Zuschläge. Daten, kein
  * Markup — Editor und Bogen zeigen dieselben Zeilen (`characterSheetTips.hpTip`).
  */
 import type { Character } from '../schemas/characterSchema';
@@ -50,7 +50,9 @@ export function hpDerivation(
   const level = basis.level;
   const bonusRows: DerivationRow[] = [
     { labelDe: `KON ${sign(basis.conMod)} × Stufe ${level}`, value: basis.conMod * level, notes: conNotes(con) },
-    ...sources.map((s) => ({ labelDe: `${s.feature} ${sign(s.amount)} × Stufe ${level}`, value: s.amount * level, notes: [] })),
+    ...sources.map((s) => s.perLevel
+      ? { labelDe: `${s.feature} ${sign(s.amount)} × Stufe ${level}`, value: s.amount * level, notes: [] }
+      : { labelDe: s.feature, value: s.amount, notes: [] }),
   ];
 
   const dice = hpDiceTotalOf(c, basis);

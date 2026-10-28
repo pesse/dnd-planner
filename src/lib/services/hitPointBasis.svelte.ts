@@ -1,9 +1,9 @@
-/** KON, Stufe und Boni je Stufe zum aktuellen Stand — für `hitPointsFix` und die TP-Herleitung, in Editor und Bogen. */
+/** KON, Stufe und TP-Boni zum aktuellen Stand — für `hitPointsFix` und die TP-Herleitung, in Editor und Bogen. */
 import { mod } from '../domain/skills';
 import { characterLevel } from './declaration/carriers';
 import type { AbilityResolution } from './effectiveAbilities';
 import { maxDiceTotal, ownedHpPerLevelSources, type HpBasis, type OwnedLinks } from './hitPoints';
-import { hpPerLevelSum, type PerLevelSource } from './perLevelEffects';
+import { hpFlatSum, hpPerLevelSum, type PerLevelSource } from './perLevelEffects';
 
 export interface CharacterHpBasis {
   /** null, solange die Bibliothek lädt — oder wenn sie nicht geladen werden konnte. */
@@ -41,6 +41,7 @@ export function createHpBasis(
         conMod: mod(con().score),
         level: characterLevel(input.classes),
         perLevel: hpPerLevelSum(resolved.sources),
+        flat: hpFlatSum(resolved.sources),
         maxDice: resolved.maxDice,
       };
     },
