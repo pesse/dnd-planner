@@ -125,6 +125,19 @@
     }
   }
 
+  // Lädt erst beim Überfahren; wer weitergezogen ist, bevor die Datei da ist, bekommt keinen Tooltip.
+  let hoveredSuggestion = '';
+  async function showSuggestionTip(e: MouseEvent, path: string) {
+    hoveredSuggestion = path;
+    tip.at(e);
+    const data = await loadItem(path);
+    if (hoveredSuggestion === path && data) tip.data = data;
+  }
+  function hideSuggestionTip() {
+    hoveredSuggestion = '';
+    tip.hide();
+  }
+
   $effect(() => {
     for (const line of inventory) {
       const lib = libItemOf(line);
@@ -216,6 +229,7 @@
                 oninput={(e) => { item.name = e.currentTarget.value; onNameInput(i, item.name); }}
                 onkeydown={nav.onkeydown}
                 onblur={() => setTimeout(() => {
+                  hideSuggestionTip();
                   if (activeRow === i) { suggestions = []; activeRow = -1; }
                   if (editingRow === i) editingRow = -1;
                 }, 150)}
@@ -223,7 +237,11 @@
               {#if activeRow === i && suggestions.length > 0}
                 <ul class="suggestions" use:dropdownPlacement>
                   {#each suggestions as sug, si}
-                    <li class:active={si === nav.index} onmousedown={() => selectItem(i, sug)}>
+                    <li class:active={si === nav.index}
+                      onmousedown={() => { hideSuggestionTip(); selectItem(i, sug); }}
+                      onmouseenter={(e) => showSuggestionTip(e, sug.item.path)}
+                      onmousemove={tip.move}
+                      onmouseleave={hideSuggestionTip}>
                       <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
                       <span class="sug-cat">{sug.dir}</span>
                     </li>
