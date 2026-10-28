@@ -43,13 +43,18 @@
   import InventoryTable from './characterForm/InventoryTable.svelte';
   import EquipmentFigure from './character/EquipmentFigure.svelte';
   import SpellBlock from './characterForm/SpellBlock.svelte';
+  import ResourcePools from './characterForm/ResourcePools.svelte';
+  import EditSectionTabs from './characterForm/EditSectionTabs.svelte';
+  import { changedSections, type EditSectionId } from '../services/characterEditSections';
   import './characterForm/form.css';
 
   // `character.features` spiegelt das Formular NICHT zurück: das Ledger gehört der
   // Merkmals-Seitenleiste. Genau ein Schreiber — sonst überschriebe der nächste
   // Tastendruck hier jede Leisten-Änderung.
-  let { character = $bindable(), dirPath, libs, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
+  let { character = $bindable(), section = $bindable('general'), dirPath, libs, saved, pendingUpgrade, upgradeAccepted = false, onAcceptUpgrade }: {
     character: Character;
+    /** Vom Bogen gehalten: übersteht den Remount bei `editor.apply`. */
+    section?: EditSectionId;
     dirPath: string;
     /** Vom Bogen gehalten, nicht hier erzeugt: das Formular wird bei jedem Draft-Swap neu montiert. */
     libs: FormLibraries;
@@ -83,6 +88,7 @@
   });
 
   const dirOf = (o: unknown, n: unknown): DiffDir => (saved ? classifyChange(o, n) : 'none');
+  const changed = $derived(changedSections(saved, $state.snapshot(character) as Character));
 
   // Der offene Picker liegt in GeneralSection, nicht hier — `applyFix` schließt ihn
   // über dieselben `$bindable`-Felder.
@@ -244,191 +250,205 @@
 <div class="edit-form">
   <UpgradeBanner {pendingUpgrade} {upgradeAccepted} fixLabels={legacyFixes.map((f) => f.label)} onapply={applyAllFixes} />
 
-  <GeneralSection
-    {form} {saved} {dirOf} {libs} {fixOf} onApplyFix={applyFix}
-    bind:editingClassRow bind:editingSpecies bind:editingBackground
-  />
+  <EditSectionTabs bind:active={section} {changed} />
 
-  <section>
-    <h3>Attribute</h3>
-    <AttributeRow
-      bind:abilities={form.abilities}
-      resolved={abilities.resolved}
-      dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
+  {#if section === 'general'}
+    <GeneralSection
+      {form} {saved} {dirOf} {libs} {fixOf} onApplyFix={applyFix}
+      bind:editingClassRow bind:editingSpecies bind:editingBackground
     />
-  </section>
 
-  <section>
-    <h3>Kampfwerte</h3>
-    <CombatFields
-      bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
-      bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
-      bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-      {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
-    />
-  </section>
-
-  <section>
-    <h3>Rettungswürfe (Übungen)</h3>
-    <SavingThrowGrid
-      bind:saveProfs={form.saveProfs}
-      {mods}
-      proficiencyBonus={form.proficiencyBonus}
-      sourceOf={(key) => grantSourcesFor(
-        grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
-        key,
-      )}
-      dirOf={(field, value) => dirOf(saved?.saveProfs?.[field], value)}
-    />
-  </section>
-
-  <section>
-    <h3>Fertigkeiten</h3>
-    <SkillGrid
-      skillFlags={form.skillFlags}
-      bind:alleskoenner={form.alleskoenner}
-      computed={skills}
-      {grantMarks}
-      {saved}
-      {dirOf}
-    />
-  </section>
-
-  <section>
-    <h3>Sprachen</h3>
-    <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
-
-    <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
-    <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
-  </section>
-
-  <section>
-    <h3>Übungen &amp; Rüstungsausbildung</h3>
-    <ProficiencyFields
-      proficiencies={form.proficiencies}
-      savedProficiencies={saved?.proficiencies}
-      weaponItems={libs.weapons}
-      itemIndex={libs.itemIndex}
-      sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
-      {dirOf}
-    />
-  </section>
-
-  <section>
-    <h3>Angriffe</h3>
-    <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
-      fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
-    />
-  </section>
-
-  <!-- Direkt bei den Angriffen, weil die Wahl nach jeder langen Rast wechseln kann —
-       kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. -->
-  {#if mastery && mastery.allowance > 0}
     <section>
-      <WeaponMasteryPicker
-        offer={mastery}
-        bind:masteries={form.masteries}
-        diff={dirOf(saved?.masteries, $state.snapshot(form.masteries))}
+      <h3>Attribute</h3>
+      <AttributeRow
+        bind:abilities={form.abilities}
+        resolved={abilities.resolved}
+        dirOf={(key, value) => dirOf(saved?.abilities?.[key], value)}
       />
     </section>
-  {/if}
 
-  <!-- Wie die Waffenbeherrschung eine Wahl des Editors: der Anker (das Merkmal) steht fest,
-       tauschbar ist nur der Inhalt — bei Metamagie mit jeder Zaubererstufe. -->
-  {#each pools as pool (pool.featureKey)}
     <section>
-      <OptionPoolPicker
-        offer={pool}
-        bind:picks={form.optionPicks}
-        diff={dirOf(saved?.optionPicks, $state.snapshot(form.optionPicks))}
+      <h3>Kampfwerte</h3>
+      <CombatFields
+        bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
+        bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
+        bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
+        {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
       />
     </section>
-  {/each}
 
-  <section>
-    <FeatureTextFields
-      {character}
-      bind:classFeatures={form.classFeatures}
-      bind:speciesTraits={form.personal.rassenmerkmale}
-      {saved} {dirOf}
-    />
-  </section>
+    <section>
+      <h3>Rettungswürfe (Übungen)</h3>
+      <SavingThrowGrid
+        bind:saveProfs={form.saveProfs}
+        {mods}
+        proficiencyBonus={form.proficiencyBonus}
+        sourceOf={(key) => grantSourcesFor(
+          grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
+          key,
+        )}
+        dirOf={(field, value) => dirOf(saved?.saveProfs?.[field], value)}
+      />
+    </section>
 
-  <section>
-    <h3>Persönlichkeit</h3>
-    <div class="grid-2">
-      <label use:diffMark={dirOf(saved?.traits, form.traits)}>Persönlichkeitsmerkmale<textarea bind:value={form.traits}></textarea></label>
-      <label use:diffMark={dirOf(saved?.ideals, form.ideals)}>Ideale<textarea bind:value={form.ideals}></textarea></label>
-      <label use:diffMark={dirOf(saved?.bonds, form.bonds)}>Bindungen<textarea bind:value={form.bonds}></textarea></label>
-      <label use:diffMark={dirOf(saved?.flaws, form.flaws)}>Makel<textarea bind:value={form.flaws}></textarea></label>
-    </div>
-  </section>
+    <section>
+      <h3>Fertigkeiten</h3>
+      <SkillGrid
+        skillFlags={form.skillFlags}
+        bind:alleskoenner={form.alleskoenner}
+        computed={skills}
+        {grantMarks}
+        {saved}
+        {dirOf}
+      />
+    </section>
 
-  <section>
-    <h3>Persönliches</h3>
-    <div class="personal-grid">
-      <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} {dirPath} baseName="portrait" label="Portrait"
-        diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
-      <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
-    </div>
-    <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>
-      Aussehen
-      <textarea class="ta-small" bind:value={form.personal.aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
-    </label>
-  </section>
+    <section>
+      <h3>Sprachen</h3>
+      <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
 
-  <section>
-    <h3>Gefährte</h3>
-    <div class="personal-grid companion-grid">
-      <ImageField bind:file={form.companion.imageFile} {dirPath} baseName="companion" label="Bild"
-        diff={dirOf(saved?.companion?.imageFile, form.companion.imageFile)} />
-      <label use:diffMark={dirOf(saved?.companion?.text, form.companion.text)}>
-        Gefährte, Vertrauter oder Reittier
-        <textarea bind:value={form.companion.text}
-          placeholder="Name, Art, Werte, Besonderheiten…"></textarea>
-      </label>
-    </div>
-  </section>
+      <h3 style="margin-top:1rem">Werkzeuge &amp; Fahrzeuge</h3>
+      <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+    </section>
 
-  <section>
-    <h3>Währung</h3>
-    <CurrencyRow currency={form.currency} savedCurrency={saved?.currency} {dirOf} />
-  </section>
+    <section>
+      <h3>Übungen &amp; Rüstungsausbildung</h3>
+      <ProficiencyFields
+        proficiencies={form.proficiencies}
+        savedProficiencies={saved?.proficiencies}
+        weaponItems={libs.weapons}
+        itemIndex={libs.itemIndex}
+        sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
+        {dirOf}
+      />
+    </section>
 
-  <section>
-    <h3>Inventar</h3>
-    <div class="inv-layout">
-      <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
-        speciesKey={form.species.sourceKey} presentation={form.presentation || undefined}
-        ownSrc={form.figureFile ? figureUrl() : undefined} />
-      <div class="inv-main">
-        <InventoryTable
-          inventory={form.inventory}
-          bind:inventoryNotes={form.inventoryNotes}
-          itemIndex={libs.itemIndex}
-          itemsByDir={libs.itemsByDir}
-          attacks={form.attacks}
-          attackCtx={weaponCtx}
-          {saved}
-          fixLabel={inventoryFix?.label}
-          onfix={() => applyFix(inventoryFix)}
-          {dirOf}
+  {:else if section === 'attacks'}
+    <section>
+      <h3>Angriffe</h3>
+      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
+        fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
+      />
+    </section>
+
+    <!-- Direkt bei den Angriffen, weil die Wahl nach jeder langen Rast wechseln kann —
+         kein Vorschlag wie im Grant-Panel: das hier IST die Wahl. -->
+    {#if mastery && mastery.allowance > 0}
+      <section>
+        <WeaponMasteryPicker
+          offer={mastery}
+          bind:masteries={form.masteries}
+          diff={dirOf(saved?.masteries, $state.snapshot(form.masteries))}
         />
-      </div>
-    </div>
-  </section>
+      </section>
+    {/if}
 
-  <section>
-    <h3>Zauberwirken</h3>
-    <SpellBlock
-      {form}
-      casting={casting.current}
-      castingError={casting.error}
-      spellLibrary={libs.spells}
-      {saved}
-      fixLabel={fixOf('spells')?.label}
-      onfix={() => applyFix(fixOf('spells'))}
-      onlibraryreload={() => libs.reloadSpells()}
-    />
-  </section>
+  {:else if section === 'features'}
+    <!-- Wie die Waffenbeherrschung eine Wahl des Editors: der Anker (das Merkmal) steht fest,
+         tauschbar ist nur der Inhalt — bei Metamagie mit jeder Zaubererstufe. -->
+    {#each pools as pool (pool.featureKey)}
+      <section>
+        <OptionPoolPicker
+          offer={pool}
+          bind:picks={form.optionPicks}
+          diff={dirOf(saved?.optionPicks, $state.snapshot(form.optionPicks))}
+        />
+      </section>
+    {/each}
+
+    <section>
+      <FeatureTextFields
+        {character}
+        bind:classFeatures={form.classFeatures}
+        bind:speciesTraits={form.personal.rassenmerkmale}
+        {saved} {dirOf}
+      />
+    </section>
+
+  {:else if section === 'resources'}
+    <section>
+      <h3>Vorräte</h3>
+      <ResourcePools {form} casting={casting.current} />
+    </section>
+  {:else if section === 'spells'}
+    <section>
+      <h3>Zauberwirken</h3>
+      <SpellBlock
+        {form}
+        casting={casting.current}
+        castingError={casting.error}
+        spellLibrary={libs.spells}
+        {saved}
+        fixLabel={fixOf('spells')?.label}
+        onfix={() => applyFix(fixOf('spells'))}
+        onlibraryreload={() => libs.reloadSpells()}
+      />
+    </section>
+  {:else if section === 'inventory'}
+    <section>
+      <h3>Währung</h3>
+      <CurrencyRow currency={form.currency} savedCurrency={saved?.currency} {dirOf} />
+    </section>
+
+    <section>
+      <h3>Inventar</h3>
+      <div class="inv-layout">
+        <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
+          speciesKey={form.species.sourceKey} presentation={form.presentation || undefined}
+          ownSrc={form.figureFile ? figureUrl() : undefined} />
+        <div class="inv-main">
+          <InventoryTable
+            inventory={form.inventory}
+            bind:inventoryNotes={form.inventoryNotes}
+            itemIndex={libs.itemIndex}
+            itemsByDir={libs.itemsByDir}
+            attacks={form.attacks}
+            attackCtx={weaponCtx}
+            {saved}
+            fixLabel={inventoryFix?.label}
+            onfix={() => applyFix(inventoryFix)}
+            {dirOf}
+          />
+        </div>
+      </div>
+    </section>
+
+  {:else}
+    <section>
+      <h3>Persönlichkeit</h3>
+      <div class="grid-2">
+        <label use:diffMark={dirOf(saved?.traits, form.traits)}>Persönlichkeitsmerkmale<textarea bind:value={form.traits}></textarea></label>
+        <label use:diffMark={dirOf(saved?.ideals, form.ideals)}>Ideale<textarea bind:value={form.ideals}></textarea></label>
+        <label use:diffMark={dirOf(saved?.bonds, form.bonds)}>Bindungen<textarea bind:value={form.bonds}></textarea></label>
+        <label use:diffMark={dirOf(saved?.flaws, form.flaws)}>Makel<textarea bind:value={form.flaws}></textarea></label>
+      </div>
+    </section>
+
+    <section>
+      <h3>Persönliches</h3>
+      <div class="personal-grid">
+        <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} {dirPath} baseName="portrait" label="Portrait"
+          diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
+        <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
+      </div>
+      <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>
+        Aussehen
+        <textarea class="ta-small" bind:value={form.personal.aussehen} placeholder="Auffällige Merkmale, Kleidung, Statur…"></textarea>
+      </label>
+    </section>
+
+    <section>
+      <h3>Gefährte</h3>
+      <div class="personal-grid companion-grid">
+        <ImageField bind:file={form.companion.imageFile} {dirPath} baseName="companion" label="Bild"
+          diff={dirOf(saved?.companion?.imageFile, form.companion.imageFile)} />
+        <label use:diffMark={dirOf(saved?.companion?.text, form.companion.text)}>
+          Gefährte, Vertrauter oder Reittier
+          <textarea bind:value={form.companion.text}
+            placeholder="Name, Art, Werte, Besonderheiten…"></textarea>
+        </label>
+      </div>
+    </section>
+
+  {/if}
 </div>

@@ -21,6 +21,7 @@
   import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
+  import type { EditSectionId } from '../services/characterEditSections';
   import EditorPanel from './EditorPanel.svelte';
   import CharacterEditForm from './CharacterEditForm.svelte';
   import CharacterSheetView from './character/CharacterSheetView.svelte';
@@ -108,6 +109,7 @@
   let featOpenCount = $state(0);
   let showLevelUp = $state(false);
   let showPrint = $state(false);
+  let editSection = $state<EditSectionId>('general');
 </script>
 
 <div class="sheet">
@@ -163,7 +165,7 @@
           {#if ed.draft}
             {#key ed.draft}
               <div class="edit-wrapper" style="width:100%">
-                <CharacterEditForm bind:character={ed.draft} {dirPath} {libs} saved={editor.saved}
+                <CharacterEditForm bind:character={ed.draft} bind:section={editSection} {dirPath} {libs} saved={editor.saved}
                   pendingUpgrade={editor.pendingUpgrade} upgradeAccepted={editor.upgradeAccepted}
                   onAcceptUpgrade={editor.acceptUpgrade} />
               </div>
