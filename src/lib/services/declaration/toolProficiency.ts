@@ -43,7 +43,9 @@ export function toolLabel(item: ToolItem): string {
 }
 
 export const toolOptionsOf = (r: DeclaredChoiceRef, tools: readonly ToolItem[]): string[] =>
-  [...new Set(toolsOfCategory(tools, r.grant.toolCategory).map(toolLabel).filter(Boolean))]
+  [...new Set(toolsOfCategory(tools, r.grant.toolCategory)
+    .filter((t) => !r.grant.tools.length || r.grant.tools.includes(t.index ?? ''))
+    .map(toolLabel).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'de'));
 
 const CATEGORY_DE: Record<string, string> = {

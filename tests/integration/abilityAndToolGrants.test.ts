@@ -54,7 +54,7 @@ describe('deklarierte Werkzeug-Wahl', () => {
 
   const tools = () => getItemsByDir('tools');
 
-  it('bietet die Handwerkszeuge der Bibliothek an, keine Instrumente', async () => {
+  it('bietet die acht Handwerkszeuge der Tabelle „Flinkes Handwerk“ an, keine Instrumente', async () => {
     const [choice, ...rest] = toolProficiencyChoices([await feat('phb-2024_crafter')], await tools());
     expect(rest).toEqual([]);
     expect(choice.id).toBe(CRAFTER_ID);
@@ -63,7 +63,8 @@ describe('deklarierte Werkzeug-Wahl', () => {
     expect(choice.options).toContain('Schmiedewerkzeug');
     expect(choice.options, '„Handwerkszeug deiner Wahl" meint keine Instrumente')
       .not.toContain('Laute (Musikinstrument)');
-    expect(choice.options).toHaveLength(17);
+    expect(choice.options, 'steht nicht in der Tabelle').not.toContain('Alchemistenausrüstung');
+    expect(choice.options).toHaveLength(8);
     expect(buildFeatureChoices([choice])[0].type).toBe('multiselect');
   });
 

@@ -84,7 +84,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | Talent | Mechanik | Was fehlt |
 |---|---|---|
 | `boon-of-energy-resistance` | zwei Resistenzen, je Lange Rast tauschbar | flüchtig; dass beide verschieden sind, prüft niemand |
-| `crafter` | Übung mit 3 aus 8 Handwerkerwerkzeugen | `toolCategory` bietet alle 17 an |
 | `unarmed-fighting`, `tavern-brawler` | Schaden waffenloser Schläge | kein Waffenfilter für waffenlose Angriffe |
 | `thrown-weapon-fighting` | Fernkampfangriff mit Wurfwaffe | Filter „Fernkampf UND Wurf“ |
 | `piercer`, `slasher`, `poisoner` | Schaden einer Schadensart | kein Schadensart-Filter |

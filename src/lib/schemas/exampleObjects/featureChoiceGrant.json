@@ -267,6 +267,9 @@
     "Acrobatics"
   ],
   "toolCategory": "",
+  "tools": [
+    "string"
+  ],
   "spellLists": [
     "string"
   ],

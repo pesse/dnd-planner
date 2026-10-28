@@ -146,6 +146,10 @@ export const featureChoiceGrantSchema = z.object({
     .enum(['', ...EQUIPMENT_CHOICE_CATEGORIES])
     .default('')
     .describe('Nur bei kind="toolProficiency": Sorte, die der Regeltext meint — "artisan-tools" für Handwerkszeug, "instrument" für Musikinstrument, "gaming-set" für Spielset. Leer = jedes Werkzeug der Bibliothek.'),
+  tools: z
+    .array(z.string())
+    .default([])
+    .describe('Nur bei kind="toolProficiency": Auswahl auf diese Werkzeuge beschränken, als `index` aus items/tools ("smiths-tools"). Leer = die ganze Sorte.'),
   // kind="spellAccess", beide Listen: LÄNGE 1 = festgelegt, LÄNGE > 1 = protokollierte
   // Entscheidung. Die Deklaration sagt nicht „frag das ab", sondern was zulässig ist — ein
   // Hintergrund, der die Liste vorgibt, fällt so ohne Sonderfall auf „festgelegt" zurück.
