@@ -3,7 +3,7 @@
    Autocomplete-Regeln brauchen. Muster wie character/sheet.css. */
 
 .edit-form {
-  padding: 1rem 1.5rem;
+  padding: 0 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0;

@@ -7,8 +7,7 @@
   import type { CharacterFormFields } from '../../services/characterFormFields';
   import type { FormLibraries } from '../../services/characterFormLibraries.svelte';
   import type { LegacyFix, LegacyFixKind } from '../../services/characterLegacyLinks';
-  import { PRESENTATIONS, type Character } from '../../schemas/characterSchema';
-  import { PRESENTATION_LABEL } from '../../domain/presentation';
+  import type { Character } from '../../schemas/characterSchema';
   import RefBlock from './RefBlock.svelte';
   import ClassLevelTable from './ClassLevelTable.svelte';
 
@@ -56,17 +55,10 @@
 </script>
 
 <section>
-  <h3>Allgemein</h3>
   <div class="grid-2">
     <label use:diffMark={dirOf(saved?.name, form.name)}>Name<input bind:value={form.name} placeholder="Charaktername" /></label>
     <label use:diffMark={dirOf(saved?.playerName, form.playerName)}>Spieler<input bind:value={form.playerName} placeholder="Spielername" /></label>
     <label use:diffMark={dirOf(saved?.xp, form.xp)}>EP<input bind:value={form.xp} placeholder="0" /></label>
-    <label use:diffMark={dirOf(saved?.presentation ?? '', form.presentation)}>Äußeres
-      <select bind:value={form.presentation}>
-        <option value="">—</option>
-        {#each PRESENTATIONS as p (p)}<option value={p}>{PRESENTATION_LABEL[p]}</option>{/each}
-      </select>
-    </label>
   </div>
 
   <RefBlock

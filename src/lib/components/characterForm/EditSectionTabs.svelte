@@ -24,6 +24,7 @@
     z-index: 2;
     display: flex;
     flex-wrap: wrap;
+    margin-bottom: 0.75rem;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }

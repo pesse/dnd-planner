@@ -1,14 +1,17 @@
 <script lang="ts">
-  /** Persönliches: Alter, Gesinnung, Größe, Aussehen — die deutschen Bogen-Felder. */
+  /** Persönliches: Alter, Gesinnung, Größe, Äußeres — die deutschen Bogen-Felder plus `presentation`. */
   import { CHARACTER_ALIGNMENTS_DE, SIZE_CATEGORIES_DE } from '../../types';
   import { withCurrent } from '../../services/characterFormFields';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
-  import type { PersonalData } from '../../schemas/characterSchema';
+  import { PRESENTATIONS, type PersonalData, type Presentation } from '../../schemas/characterSchema';
+  import { PRESENTATION_LABEL } from '../../domain/presentation';
   import './form.css';
 
-  let { personal, savedPersonal, dirOf }: {
+  let { personal, savedPersonal, presentation = $bindable(), savedPresentation, dirOf }: {
     personal: PersonalData;
     savedPersonal?: PersonalData;
+    presentation: Presentation | '';
+    savedPresentation?: Presentation;
     dirOf: (old: unknown, now: unknown) => DiffDir;
   } = $props();
 
@@ -18,6 +21,12 @@
 
 <div class="personal-fields">
   <label use:diffMark={dirOf(savedPersonal?.alter, personal.alter)}>Alter<input bind:value={personal.alter} placeholder="32" /></label>
+  <label use:diffMark={dirOf(savedPresentation ?? '', presentation)}>Äußeres
+    <select bind:value={presentation}>
+      <option value="">—</option>
+      {#each PRESENTATIONS as p (p)}<option value={p}>{PRESENTATION_LABEL[p]}</option>{/each}
+    </select>
+  </label>
   <label use:diffMark={dirOf(savedPersonal?.gesinnung, personal.gesinnung)}>Gesinnung
     <select bind:value={personal.gesinnung}>
       <option value="">—</option>

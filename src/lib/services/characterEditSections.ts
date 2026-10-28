@@ -6,8 +6,7 @@ export const EDIT_SECTIONS = [
   { id: 'general', label: 'Allgemein' },
   { id: 'attacks', label: 'Angriffe' },
   { id: 'features', label: 'Merkmale' },
-  { id: 'resources', label: 'Ressourcen' },
-  { id: 'spells', label: 'Zauber' },
+  { id: 'spells', label: 'Zauber & Ressourcen' },
   { id: 'inventory', label: 'Inventar' },
   { id: 'personal', label: 'Persönliches' },
 ] as const;

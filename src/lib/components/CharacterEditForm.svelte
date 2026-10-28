@@ -365,11 +365,6 @@
       />
     </section>
 
-  {:else if section === 'resources'}
-    <section>
-      <h3>Vorräte</h3>
-      <ResourcePools {form} casting={casting.current} />
-    </section>
   {:else if section === 'spells'}
     <section>
       <h3>Zauberwirken</h3>
@@ -383,6 +378,11 @@
         onfix={() => applyFix(fixOf('spells'))}
         onlibraryreload={() => libs.reloadSpells()}
       />
+    </section>
+
+    <section>
+      <h3>Vorräte</h3>
+      <ResourcePools {form} casting={casting.current} />
     </section>
   {:else if section === 'inventory'}
     <section>
@@ -429,7 +429,8 @@
       <div class="personal-grid">
         <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} {dirPath} baseName="portrait" label="Portrait"
           diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
-        <PersonalFields personal={form.personal} savedPersonal={saved?.personal} {dirOf} />
+        <PersonalFields personal={form.personal} savedPersonal={saved?.personal}
+          bind:presentation={form.presentation} savedPresentation={saved?.presentation} {dirOf} />
       </div>
       <label class="block-label" use:diffMark={dirOf(saved?.personal?.aussehen, form.personal.aussehen)}>
         Aussehen
