@@ -36,6 +36,7 @@
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
+  import PinnedFeatureList from './characterForm/PinnedFeatureList.svelte';
   import ImageField from './characterForm/ImageField.svelte';
   import PersonalFields from './characterForm/PersonalFields.svelte';
   import TagEditor from './characterForm/TagEditor.svelte';
@@ -365,6 +366,10 @@
         bind:speciesTraits={form.personal.rassenmerkmale}
         {saved} {dirOf}
       />
+    </section>
+
+    <section>
+      <PinnedFeatureList {character} />
     </section>
 
   {:else if section === 'spells'}
