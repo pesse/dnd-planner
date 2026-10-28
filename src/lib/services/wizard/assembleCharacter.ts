@@ -99,9 +99,7 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
           weapons: grants.weapons.map((g) => g.value),
           weaponsOther: grants.weaponsOther.map((g) => g.value),
           armor: grants.armor.map((g) => g.value),
-          // Werkzeuge sammelt `collectGrants` nicht: sie stehen am MERKMAL und reisen
-          // deshalb über dessen Rider (`riderGrantChanges` weiter unten).
-          tools: [],
+          tools: grants.tools.map((g) => g.value),
         },
         { step: 'wizard-links', source: 'library-link' },
       ),

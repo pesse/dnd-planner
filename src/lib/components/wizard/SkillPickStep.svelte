@@ -46,6 +46,9 @@
     {#if grants.armor.length}
       <p><strong>Rüstung:</strong> {grants.armor.map((g) => ARMOR_LABEL_DE[g.value]).join(', ')}</p>
     {/if}
+    {#if grants.tools.length}
+      <p><strong>Werkzeug:</strong> {[...new Set(grants.tools.map((g) => g.value))].join(', ')}</p>
+    {/if}
   </div>
   {#each grants.choices as choice, ci}
     <div class="field">

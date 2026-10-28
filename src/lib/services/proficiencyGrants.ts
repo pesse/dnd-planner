@@ -66,6 +66,8 @@ export interface CollectedGrants {
   weapons: SourcedGrant<WeaponCategory>[];
   weaponsOther: SourcedGrant<string>[];
   armor: SourcedGrant<ArmorTraining>[];
+  /** Deutsch, wie deklariert („Kalligrafiewerkzeug"). */
+  tools: SourcedGrant<string>[];
 }
 
 /**
@@ -80,7 +82,7 @@ export interface GrantInput {
 }
 
 const emptyCollected = (): CollectedGrants => ({
-  skills: [], choices: [], savingThrows: [], weapons: [], weaponsOther: [], armor: [],
+  skills: [], choices: [], savingThrows: [], weapons: [], weaponsOther: [], armor: [], tools: [],
 });
 
 function addSkillGrant(out: CollectedGrants, grant: SkillGrant | undefined, source: GrantSource): void {
@@ -96,6 +98,7 @@ function addGrant(out: CollectedGrants, grant: ProficiencyGrant | undefined, sou
   for (const value of grant.weapons) out.weapons.push({ value, source });
   for (const value of grant.weaponsOther) out.weaponsOther.push({ value, source });
   for (const value of grant.armor) out.armor.push({ value, source });
+  for (const value of grant.tools) if (value.trim()) out.tools.push({ value, source });
 }
 
 /**
