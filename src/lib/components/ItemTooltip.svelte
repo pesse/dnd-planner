@@ -2,7 +2,7 @@
   import type { Item } from '../types';
   import { structuralType } from '../itemLibrary';
   import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel, rarityColor } from '../itemLabels';
-  import { formatCost, formatRarity, formatDamageDice, ftToM } from '../itemFormat';
+  import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText } from '../itemFormat';
   import Markdown from './Markdown.svelte';
   import ArtFrame from './ui/ArtFrame.svelte';
   import { itemArtUrl } from '../libraryArt';
@@ -66,6 +66,12 @@
           {#if item.two_handed_damage}· Zweihändig: {formatDamageDice(item.two_handed_damage.damage_dice)}{/if}
         </span>
       </div>
+      {#if magicBonusText(item, 'weapon')}
+        <div class="tt-section">
+          <span class="tt-label">Bonus</span>
+          <span class="tt-bonus">{magicBonusText(item, 'weapon')}</span>
+        </div>
+      {/if}
       {#if item.range}
         <div class="tt-section">
           <span class="tt-label">Reichweite</span>
@@ -95,6 +101,12 @@
         <span class="tt-label">Rüstungsklasse</span>
         <span>{item.armor_class.base}{item.armor_class.dex_bonus ? ' + GES-Mod' : ''}{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}</span>
       </div>
+      {#if magicBonusText(item, 'armor')}
+        <div class="tt-section">
+          <span class="tt-label">Bonus</span>
+          <span class="tt-bonus">{magicBonusText(item, 'armor')}</span>
+        </div>
+      {/if}
       {#if item.str_minimum}
         <div class="tt-section">
           <span class="tt-label">Mindest-STR</span>
@@ -192,6 +204,7 @@
   }
   .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
   .tt-sep { color: var(--border); }
+  .tt-bonus { color: var(--arcane); font-weight: 600; }
   .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
   .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
   .tt-desc {

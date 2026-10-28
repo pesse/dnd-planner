@@ -99,7 +99,7 @@ export const itemSchema = z.object({
     .number()
     .int()
     .optional()
-    .describe('Magischer Bonus auf Angriffs- UND Schadenswürfe (z.B. 1, 2, 3). Nur für magische Waffen; sonst weglassen.'),
+    .describe('Magischer Bonus (z.B. 1, 2, 3): bei Waffen auf Angriffs- UND Schadenswürfe, bei Rüstung und Schild auf die RK. Sonst weglassen.'),
   armor_category: z.string().optional().describe('Light | Medium | Heavy | Shield'),
   armor_class: z
     .object({ base: z.number().int(), dex_bonus: z.boolean(), max_bonus: z.number().int().nullable() })

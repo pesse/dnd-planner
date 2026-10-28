@@ -51,3 +51,10 @@ export function weaponDamageLine(
   if (twoHanded && item.two_handed_damage) out += ` / ${formatDamageDice(item.two_handed_damage.damage_dice)}`;
   return out;
 }
+
+/** Wirkung des `magic_bonus`: bei Waffen auf Angriff und Schaden, bei Rüstung und Schild auf die RK. */
+export function magicBonusText(item: { magic_bonus?: number }, kind: 'weapon' | 'armor'): string | null {
+  if (!item.magic_bonus) return null;
+  const sign = item.magic_bonus > 0 ? '+' : '−';
+  return `${sign}${Math.abs(item.magic_bonus)} ${kind === 'weapon' ? 'auf Angriff & Schaden' : 'auf die RK'}`;
+}

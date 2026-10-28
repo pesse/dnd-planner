@@ -9,7 +9,7 @@ import {
   ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS,
   WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, masteryLabel, masteryRuleDe,
 } from '../itemLabels';
-import { formatCost, formatDamageDice, formatRarity, ftToM } from '../itemFormat';
+import { formatCost, formatDamageDice, formatRarity, ftToM, magicBonusText } from '../itemFormat';
 import { ruleText } from './markdown';
 import { itemArtUrl } from '../libraryArt';
 
@@ -75,7 +75,8 @@ function weaponRows(item: Item, compact: boolean): string[] {
   }
   if (item.range) rows.push(row('Reichweite', esc(`${ftToM(item.range.normal)}${item.range.long ? ` / ${ftToM(item.range.long)}` : ''}`)));
   if (item.throw_range) rows.push(row('Wurfweite', esc(`${ftToM(item.throw_range.normal)} / ${ftToM(item.throw_range.long)}`)));
-  if (item.magic_bonus) rows.push(row('Bonus', `+${item.magic_bonus} auf Angriff &amp; Schaden`));
+  const bonus = magicBonusText(item, 'weapon');
+  if (bonus) rows.push(row('Bonus', esc(bonus)));
   if (item.properties?.length) {
     const pills = item.properties.map((p) => `<span class="pill">${esc(PROPERTY_LABELS[p.index] ?? p.name)}</span>`).join('');
     rows.push(`<div class="prop"><span class="plabel">Eigensch.</span><span class="pills">${pills}</span></div>`);
@@ -96,6 +97,8 @@ function armorRows(item: Item): string[] {
       ? ` + GES-Mod${item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}` : '';
     rows.push(row('RK', esc(`${item.armor_class.base}${dex}`)));
   }
+  const bonus = magicBonusText(item, 'armor');
+  if (bonus) rows.push(row('Bonus', esc(bonus)));
   if (item.str_minimum) rows.push(row('Stärke', esc(`mind. ${item.str_minimum}`)));
   if (item.stealth_disadvantage) rows.push(`<div class="prop"><span class="plabel">Heimlichkeit</span><span class="disadv">Nachteil</span></div>`);
   return rows;

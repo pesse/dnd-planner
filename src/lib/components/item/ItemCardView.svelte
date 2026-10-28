@@ -2,7 +2,7 @@
   import type { Item } from '$lib/types';
   import { dirOf, structuralType } from '$lib/itemLibrary';
   import { CATEGORY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS, MASTERY_INFO, masteryLabel, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS } from '$lib/itemLabels';
-  import { formatCost, formatRarity, formatDamageDice, ftToM } from '$lib/itemFormat';
+  import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText } from '$lib/itemFormat';
   import { sourceLabel } from '$lib/schemas/source';
   import Markdown from '../Markdown.svelte';
   import { textTip } from '../textTip.svelte';
@@ -50,8 +50,8 @@
         {#if item.throw_range}
           <div class="prop"><span class="plabel">Wurfweite</span><span>{ftToM(item.throw_range.normal)} / {ftToM(item.throw_range.long)}</span></div>
         {/if}
-        {#if item.magic_bonus}
-          <div class="prop"><span class="plabel">Bonus</span><span>+{item.magic_bonus} auf Angriff &amp; Schaden</span></div>
+        {#if magicBonusText(item, 'weapon')}
+          <div class="prop"><span class="plabel">Bonus</span><span>{magicBonusText(item, 'weapon')}</span></div>
         {/if}
         {#if item.properties?.length}
           <div class="prop"><span class="plabel">Eigensch.</span>
@@ -70,10 +70,13 @@
       </div>
       <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
 
-    {:else if stype === 'armor' && (item.armor_class || item.str_minimum || item.stealth_disadvantage)}
+    {:else if stype === 'armor' && (item.armor_class || item.magic_bonus || item.str_minimum || item.stealth_disadvantage)}
       <div class="props">
         {#if item.armor_class}
           <div class="prop"><span class="plabel">RK</span><span>{item.armor_class.base}{#if item.armor_class.dex_bonus} + GES-Mod{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}{/if}</span></div>
+        {/if}
+        {#if magicBonusText(item, 'armor')}
+          <div class="prop"><span class="plabel">Bonus</span><span>{magicBonusText(item, 'armor')}</span></div>
         {/if}
         {#if item.str_minimum}
           <div class="prop"><span class="plabel">Stärke</span><span>mind. {item.str_minimum}</span></div>
