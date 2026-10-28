@@ -1,0 +1,109 @@
+# TODO: Unterklassen-Mechaniken ohne Senke
+
+> Entstanden beim Übertragen aller PHB-2024-Unterklassen in den Vault (2026-10-28).
+> Diese Mechaniken stehen nur als Text im Merkmal, deklariert ist höchstens der Teil, den das
+> Schema schon kann. Keys ohne Präfix lesen sich als `phb-2024_<klasse>_<unterklasse>_<merkmal>`.
+
+## Fehler in der App (Daten sind richtig)
+
+- **Drittel-Zauberwirker ohne zweite Klasse bekommen 0 Zauberplätze.** `combineSlots` /
+  `slotsFromTable` (`src/lib/services/resources/slots.ts`) liest bei einer einzigen speisenden
+  Klasse nur die Tabelle der Grundklasse, nie die der Unterklasse; auch die Spalten in
+  `quotaContext` kommen nur von dort. Schurke 7 + Arkaner Betrüger ergibt `[0,…]` statt `[4,2]`,
+  die `slotted`-Quoten bleiben leer. Mit zweiter Klasse stimmt es über `casterLevel`.
+  Betrifft `fighter_eldritch-knight_spellcasting`, `rogue_arcane-trickster_spellcasting`.
+- **Folge davon:** `castingDeclarations` („nennt nur Spalten, die die Klassentabelle führt")
+  setzt voraus, dass Unterklassen keine Stufentabelle haben. Die Anzahl vorbereiteter Zauber
+  steht deshalb als `byLevel` statt als Spalte `Prepared Spells`.
+- **Zirkel des Landes:** Das Land wird nach jeder Langen Rast neu gewählt. `fromDescTable`
+  vereinigt alle vier Tabellen, damit gelten heute alle 16 Zauber als vorbereitet
+  (`srd-2024_druid_circle-of-the-land_spell-list`).
+
+## Schadensresistenz und Zustandsimmunität
+
+Das Schema hat kein Feld für Resistenzen. Zustandsimmunität gibt es nur in `aura`.
+
+| Merkmal | Mechanik | Bedingung |
+|---|---|---|
+| `cleric_war-domain_avatar-of-battle` | Hieb, Stich, Wucht | dauerhaft |
+| `fighter_psi-warrior_guarded-mind` | psychisch | dauerhaft |
+| `sorcerer_aberrant-sorcery_psychic-defenses` | psychisch | dauerhaft |
+| `warlock_celestial-patron_radiant-soul` | gleißend | dauerhaft |
+| `warlock_great-old-one-patron_thought-shield` | psychisch | dauerhaft |
+| `wizard_abjurer_spell-resistance` | Schaden durch Zauber | dauerhaft |
+| `warlock_archfey-patron_beguiling-defenses` | Immunität Bezaubert | dauerhaft |
+| `srd-2024_druid_circle-of-the-land_natures-ward` | Immunität Vergiftet, Resistenz je Land | Land-Wahl |
+| `srd-2024_sorcerer_draconic-sorcery_elemental-affinity` | gewählte Art (nur als `helpDe`) | Wahl |
+| `srd-2024_warlock_fiend-patron_fiendish-resilience` | gewählte Art | neu je Rast |
+| `paladin_oath-of-the-ancients_aura-of-warding` | nekrotisch, psychisch, gleißend | Aura (nur `aura.effect`-Text) |
+| `barbarian_path-of-the-wild-heart_rage-of-the-wilds` | Bär: alles außer Energie, nekrotisch, psychisch, gleißend | Kampfrausch |
+| `barbarian_path-of-the-zealot_rage-of-the-gods` | nekrotisch, psychisch, gleißend | Form |
+| `druid_circle-of-the-sea_stormborn` | Kälte, Blitz, Schall | Zorn des Meeres aktiv |
+| `druid_circle-of-the-stars_full-of-stars` | Hieb, Stich, Wucht | Sternengestalt |
+| `monk_warrior-of-the-elements_elemental-epitome` | gewählte Art, jede Runde wechselbar | Einstimmung aktiv |
+
+## Bewegungsraten und Sinne
+
+`properties.speedFeet` setzt nur die Grundbewegungsrate. Eine Erhöhung, Schwimm-, Kletter- oder
+Flugbewegungsrate gibt es nicht. Dunkelsicht ist eine Bogen-Notiz, keine Eigenschaft.
+
+| Merkmal | Mechanik | Bedingung |
+|---|---|---|
+| `druid_circle-of-the-sea_aquatic-affinity` | Schwimmen = Bewegungsrate | dauerhaft |
+| `barbarian_path-of-the-wild-heart_aspect-of-the-wilds` | Eule: Dunkelsicht · Panther: Klettern · Lachs: Schwimmen | Wahl (als `optionList` ohne `grants`) |
+| `srd-2024_rogue_thief_second-story-work` | Klettern; Sprungweite aus GES | dauerhaft |
+| `paladin_oath-of-glory_aura-of-alacrity` | +10 ft | dauerhaft |
+| `ranger_gloom-stalker_dread-ambusher` | +10 ft in der ersten Runde | erste Runde |
+| `ranger_gloom-stalker_umbral-sight` | Dunkelsicht | dauerhaft |
+| `monk_way-of-shadow_shadow-arts` | Dunkelsicht (über `aiInterpretsRest`) | dauerhaft |
+| `wizard_diviner_the-third-eye` | Dunkelsicht oder Unsichtbares sehen | Wahl bis zur Rast |
+| `druid_circle-of-the-sea_stormborn` | Fliegen = Bewegungsrate | Zorn des Meeres aktiv |
+| `druid_circle-of-the-stars_twinkling-constellations` | Fliegen 20 ft, Schweben | Drache aktiv |
+| `barbarian_path-of-the-wild-heart_power-of-the-wilds` | Fliegen (Falke) | Kampfrausch, ohne Rüstung |
+| `barbarian_path-of-the-zealot_rage-of-the-gods` | Fliegen, Schweben | Form |
+| `paladin_oath-of-vengeance_avenging-angel` | Fliegen 60 ft, Schweben | Form |
+| `fighter_psi-warrior_telekinetic-adept` | Fliegen | ein Zug |
+| `monk_warrior-of-the-elements_stride-of-the-elements` | Fliegen, Schwimmen | Einstimmung aktiv |
+| `monk_warrior-of-the-elements_elemental-epitome` | +20 ft | Einstimmung aktiv |
+| `sorcerer_aberrant-sorcery_revelation-in-flesh` | Schwimmen, Fliegen, Unsichtbares sehen | auf Zeit |
+
+## Ressourcen
+
+| Merkmal | Mechanik | Was fehlt |
+|---|---|---|
+| `fighter_psi-warrior_psionic-power`, `rogue_soulknife_psionic-power` | Kurze Rast gibt einen Würfel zurück | Teil-Auffüllung (heute `long-rest`) |
+| `phb-2024_fighter_battle-master_combat-superiority` | dito | dito |
+| `barbarian_path-of-the-world-tree_travel-along-the-tree`, `barbarian_path-of-the-zealot_fanatical-focus` | einmal pro Kampfrausch | Recharge pro Kampfrausch |
+| `barbarian_path-of-the-zealot_zealous-presence`, `srd-2024_barbarian_path-of-the-berserker_intimidating-presence` | Rückgewinn gegen Kampfrausch-Anwendung | Ressource A füllt Ressource B |
+| `bard_college-of-glamour_beguiling-magic` | Rückgewinn gegen Bardische Inspiration | dito |
+| `bard_college-of-glamour_mantle-of-majesty` | Rückgewinn gegen Platz ≥ 3 | dito |
+| `paladin_oath-of-glory_living-legend`, `paladin_oath-of-the-ancients_elder-champion`, `paladin_oath-of-vengeance_avenging-angel` | Rückgewinn gegen Platz 5. Grades | dito |
+| `druid_circle-of-the-moon_moonlight-step` | Rückgewinn gegen Platz ≥ 2 | dito |
+| `fighter_psi-warrior_*` (telekinetic-adept, bulwark-of-force, telekinetic-master), `fighter_battle-master_know-your-enemy` | Rückgewinn gegen Psi-/Überlegenheitswürfel | dito |
+| `rogue_soulknife_psychic-veil`, `rogue_soulknife_rend-mind` | Rückgewinn gegen Psi-Würfel | dito |
+| `rogue_soulknife_psionic-power` | erste Psychic Whispers je Lange Rast gratis | Gratis-Erstnutzung |
+| `sorcerer_aberrant-sorcery_psionic-sorcery` | Zaubereipunkte = Zaubergrad | variable Kosten (`amount` ist fest) |
+
+## Angriff, Würfe, Sonstiges
+
+| Merkmal | Mechanik |
+|---|---|
+| `srd-2024_fighter_champion_improved-critical`, `_superior-critical` | Kritischer Treffer bei 19–20 / 18–20 |
+| `srd-2024_fighter_champion_remarkable-athlete` | Vorteil auf Initiative und Athletik |
+| `srd-2024_fighter_champion_survivor` | Vorteil auf Todesrettungswürfe, Regeneration |
+| `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
+| `rogue_assassin_assassinate` | Vorteil auf Initiative |
+| `ranger_gloom-stalker_dread-ambusher` | WEI-Mod auf Initiative |
+| `ranger_fey-wanderer_otherworldly-glamour` | WEI-Mod auf Charismawürfe |
+| `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt |
+| `ranger_fey-wanderer_dreadful-strikes` | +1W4/1W6 psychisch (`attack.damage` nimmt keine Würfel) |
+| `bard_college-of-dance_dazzling-footwork` | Vorteil auf Auftreten; waffenlose Angriffe mit GES + BI-Würfel |
+| `barbarian_path-of-the-world-tree_battering-roots` | +10 ft Reichweite; Stoßen/Umstoßen als zusätzliche Meisterschaft |
+| `monk_warrior-of-the-elements_elemental-attunement` | +10 ft Reichweite, wählbare Schadensart (aktiv) |
+| `monk_way-of-shadow_cloak-of-shadows` | unsichtbar, durch Kreaturen bewegen (aktiv) |
+| `rogue_soulknife_psychic-blades` | manifestierte Waffe als eigener Angriff |
+| `ranger_beast-master_primal-companion` | Begleiter-Werteblock |
+| `fighter_eldritch-knight_war-bond` | Schutz vor Entwaffnen, Waffe herbeirufen |
+| `srd-2024_rogue_thief_use-magic-device` | Einstimmungslimit 4 |
+| `cleric_war-domain_war-gods-blessing` | ohne Konzentration, 1 Minute |
+| `paladin_oath-of-the-ancients_undying-sentinel` | kein magisches Altern (reine Erzählung) |

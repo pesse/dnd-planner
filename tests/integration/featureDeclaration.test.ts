@@ -68,6 +68,7 @@ describe('deklarierte Zweigwahlen', () => {
       'srd-2024_cleric_blessed-strikes',
       'srd-2024_druid_elemental-fury',
       'srd-2024_sorcerer_draconic-sorcery_elemental-affinity',
+      'phb-2024_barbarian_path-of-the-wild-heart_aspect-of-the-wilds',
     ].sort());
   });
 
@@ -452,6 +453,7 @@ describe('deklarierte Fertigkeitsübung', () => {
     // trägt es `aiInterpretsRest` (eigener Test unten), sonst fiele diese Hälfte still weg.
     expect(found.sort()).toEqual([
       'phb-2024_fighter_battle-master_student-of-war',
+      'phb-2024_ranger_fey-wanderer_otherworldly-glamour',
       'srd-2024_barbarian_primal-knowledge',
       'srd-2024_college-of-lore_bonus-proficiencies',
     ]);

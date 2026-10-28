@@ -104,7 +104,7 @@ describe('deklarierte Zauberlisten (Kreissprüche & Co.)', () => {
    * Deckung über den GANZEN Vault: fällt ein Fall heraus (Re-Import, neue Datei), wandert er
    * still zurück in den KI-Eingang. Dieser Test ist die einzige Stelle, die das bemerkt.
    */
-  it('deckt genau die sechs Vault-Merkmale ab, die eine Zauberliste tragen', async () => {
+  it('deckt genau die Vault-Merkmale ab, die eine Zauberliste tragen', async () => {
     const classes = await getClasses();
     expect(classes.length, 'Vault-Shim aktiv?').toBeGreaterThan(20);
 
@@ -128,8 +128,22 @@ describe('deklarierte Zauberlisten (Kreissprüche & Co.)', () => {
     }
 
     expect(recognised.sort()).toEqual([
-      // Der Mondzirkel steht nicht im SRD 5.2 — Provenienz phb-2024, gleiche Struktur.
+      // Die PHB-Unterklassen stehen nicht im SRD 5.2 — Provenienz phb-2024, gleiche Struktur.
+      'phb-2024_aberrant-sorcery :: Psionic Spells',
+      'phb-2024_archfey-patron :: Archfey Spells',
+      'phb-2024_celestial-patron :: Celestial Spells',
       'phb-2024_circle-of-the-moon :: Circle of the Moon Spells',
+      'phb-2024_circle-of-the-sea :: Circle of the Sea Spells',
+      'phb-2024_clockwork-sorcery :: Clockwork Spells',
+      'phb-2024_fey-wanderer :: Fey Wanderer Spells',
+      'phb-2024_gloom-stalker :: Gloom Stalker Spells',
+      'phb-2024_great-old-one-patron :: Great Old One Spells',
+      'phb-2024_light-domain :: Light Domain Spells',
+      'phb-2024_oath-of-glory :: Oath of Glory Spells',
+      'phb-2024_oath-of-the-ancients :: Oath of the Ancients Spells',
+      'phb-2024_oath-of-vengeance :: Oath of Vengeance Spells',
+      'phb-2024_trickery-domain :: Trickery Domain Spells',
+      'phb-2024_war-domain :: War Domain Spells',
       'srd-2024_circle-of-the-land :: Circle of the Land Spells',
       'srd-2024_draconic-sorcery :: Draconic Spells',
       'srd-2024_fiend-patron :: Fiend Spells',
