@@ -7,7 +7,7 @@
   import type { Character } from '../../schemas/characterSchema';
   import { resolveCharacterFeatures, type ResolvedCharacterFeatures } from '../../services/characterFeatures';
   import { createFeaturePins, pinnedFeatures } from '../../services/featurePins';
-  import { textTip } from '../textTip.svelte';
+  import Markdown from '../Markdown.svelte';
   import PinToggle from '../featurePanel/PinToggle.svelte';
   import './form.css';
 
@@ -41,28 +41,35 @@
 {#if !character.pinnedFeatures?.length}
   <p class="pin-empty">Nichts gepinnt — 📌 an einem Merkmal der Seitenleiste hängt es im Volltext an den Ausdruck.</p>
 {:else}
-  <ul class="pin-list">
+  <div class="pin-cards">
     {#each entries as f (f.key)}
-      <li>
-        <span class="pin-name" use:textTip={f.desc}>{f.name}</span>
-        {#if f.gainedAt}<span class="pin-lvl">Stufe {f.gainedAt}</span>{/if}
-        <PinToggle {pins} featureKey={f.key} />
-      </li>
+      <article class="pin-card">
+        <h4>
+          {f.name}
+          {#if f.gainedAt}<span class="pin-lvl">Stufe {f.gainedAt}</span>{/if}
+          <span class="pin"><PinToggle {pins} featureKey={f.key} /></span>
+        </h4>
+        {#if f.desc}<Markdown source={f.desc} />{/if}
+      </article>
     {/each}
     {#each stale as key (key)}
-      <li>
-        <span class="pin-name pin-stale" title="Kein Merkmal dieses Keys am Charakter — erscheint nicht im Ausdruck">⚠ {key}</span>
-        <PinToggle {pins} featureKey={key} />
-      </li>
+      <article class="pin-card stale">
+        <h4>⚠ {key}<span class="pin"><PinToggle {pins} featureKey={key} /></span></h4>
+        <p class="pin-empty">Kein Merkmal dieses Keys am Charakter — erscheint nicht im Ausdruck.</p>
+      </article>
     {/each}
-  </ul>
+  </div>
 {/if}
 
 <style>
   .pin-empty { font-size: 0.8rem; color: var(--ink-soft); font-style: italic; margin: 0; }
-  .pin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
-  .pin-list li { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; }
-  .pin-name { cursor: help; }
-  .pin-lvl { font-size: 0.72rem; color: var(--ink-soft); }
-  .pin-stale { color: var(--copper); }
+  .pin-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.6rem; align-items: start; }
+  .pin-card {
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+    padding: 0.6rem 0.8rem; font-size: 0.82rem; color: var(--ink-soft);
+  }
+  .pin-card.stale { border-color: var(--copper); }
+  h4 { margin: 0 0 0.3rem; font-size: 0.9rem; color: var(--ink); display: flex; align-items: baseline; gap: 0.4rem; }
+  .pin-lvl { font-size: 0.72rem; font-weight: normal; color: var(--ink-soft); }
+  .pin { margin-left: auto; }
 </style>
