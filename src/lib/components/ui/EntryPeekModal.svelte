@@ -88,8 +88,7 @@
 </div>
 
 <style>
-  /* Kein backdrop-filter: WebView2 ließ damit über dem Hauptbereich den Kartengrund weg. */
-  .backdrop { position: fixed; inset: 0; z-index: 1001; background: rgba(20, 12, 2, 0.55); }
+  .backdrop { position: fixed; inset: 0; z-index: 1001; background: rgba(20, 12, 2, 0.5); backdrop-filter: blur(2px); }
   .peek {
     position: fixed; z-index: 1002; left: 50%; top: 50%; translate: -50% -50%;
     width: min(560px, 94vw); max-height: 90vh; display: flex; flex-direction: column; gap: 0.6rem;
