@@ -63,6 +63,9 @@ export const resourcePoolSchema = z.object({
     .describe('Vorgabe: min(gainedAt). Nur nötig, wenn EIN Merkmal über mehrere Stufen Verschiedenes gibt.'),
   when: whenSchema.optional(),
   recharge: z.enum(RESOURCE_RECHARGE),
+  shortRestRegain: amountSchema
+    .optional()
+    .describe('Wie viele eine Kurze Rast zurückgibt, wo erst `recharge` alle zurückgibt („You regain one expended use when you finish a Short Rest").'),
   shared: z
     .string()
     .default('')

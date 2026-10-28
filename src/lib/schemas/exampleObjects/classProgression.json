@@ -731,6 +731,9 @@
               "<key>": "string"
             },
             "recharge": "long-rest",
+            "shortRestRegain": {
+              "column": "string"
+            },
             "shared": "string",
             "shape": {
               "kind": "counter",

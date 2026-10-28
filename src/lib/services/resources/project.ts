@@ -56,7 +56,11 @@ export function resourceViews(pools: ResolvedResource[]): ResourceView[] {
     .map((pool) => ({
       id: pool.id,
       label: pool.die ? `${pool.labelDe} (${formatDamageDice(pool.die)})` : pool.labelDe,
-      hint: [RECHARGE_DE[pool.recharge], ...pool.additions.map((a) => `${sign(a.amount)} ${a.labelDe}`)]
+      hint: [
+        RECHARGE_DE[pool.recharge],
+        pool.shortRestRegain ? `Kurze Rast: ${pool.shortRestRegain} zurück` : '',
+        ...pool.additions.map((a) => `${sign(a.amount)} ${a.labelDe}`),
+      ]
         .filter(Boolean)
         .join(' · '),
       cells:

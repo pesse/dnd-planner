@@ -41,10 +41,11 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 
 ## Ressourcen
 
+Die Teil-Auffüllung bei Kurzer Rast steht in `pool.shortRestRegain` (Kampfrausch, Tiergestalt,
+Durchatmen, Psionische Energiewürfel).
+
 | Merkmal | Mechanik | Was fehlt |
 |---|---|---|
-| `fighter_psi-warrior_psionic-power`, `rogue_soulknife_psionic-power` | Kurze Rast gibt einen Würfel zurück | Teil-Auffüllung (heute `long-rest`) |
-| `phb-2024_fighter_battle-master_combat-superiority` | dito | dito |
 | `barbarian_path-of-the-world-tree_travel-along-the-tree`, `barbarian_path-of-the-zealot_fanatical-focus` | einmal pro Kampfrausch | Recharge pro Kampfrausch |
 | `barbarian_path-of-the-zealot_zealous-presence`, `srd-2024_barbarian_path-of-the-berserker_intimidating-presence` | Rückgewinn gegen Kampfrausch-Anwendung | Ressource A füllt Ressource B |
 | `bard_college-of-glamour_beguiling-magic` | Rückgewinn gegen Bardische Inspiration | dito |

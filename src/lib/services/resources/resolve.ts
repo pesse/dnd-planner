@@ -65,6 +65,8 @@ export interface ResolvedResource {
   /** Klasse, deren Stufentabelle das Maximum speist; leer bei Trait, Talent und geteiltem Pool. */
   classKey: string;
   recharge: ResourceRecharge;
+  /** 0, wo die Kurze Rast nichts zurückgibt oder ohnehin alles. */
+  shortRestRegain: number;
   shared: string;
   kind: ResourceShape['kind'];
   /** `d8`; leer, wo ein Einsatz kein Würfel ist. */
@@ -123,6 +125,7 @@ function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[], ct
     origin: carrier.origin,
     classKey: pool.shared ? '' : carrier.classKey,
     recharge: pool.recharge,
+    shortRestRegain: pool.shortRestRegain ? resolveAmount(pool.shortRestRegain, ctx) : 0,
     shared: pool.shared,
     kind: pool.shape.kind,
     die: resolveDie(pool.die, ctx),
@@ -169,7 +172,10 @@ function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: Resour
       issues.push(declarationIssue('unresolvedResourceTarget', carrier.key, refPath(carrier.key, ref)));
       continue;
     }
-    if (recharge && RECHARGE_RANK[recharge] < RECHARGE_RANK[target.recharge]) target.recharge = recharge;
+    if (recharge && RECHARGE_RANK[recharge] < RECHARGE_RANK[target.recharge]) {
+      target.recharge = recharge;
+      if (recharge === 'short-rest') target.shortRestRegain = 0;
+    }
     if (!amount) continue;
     // Ein Zuschlag zählt am untersten Eintrag: eine weitere Anwendung, ein weiterer Platz Grad 1.
     target.max[0] = (target.max[0] ?? 0) + amount;
@@ -213,6 +219,7 @@ export function applyManualSlots(pools: ResolvedResource[], totals: number[]): v
     origin: 'manual',
     classKey: '',
     recharge: 'long-rest',
+    shortRestRegain: 0,
     shared: SLOT_POOL,
     kind: 'slots',
     die: '',

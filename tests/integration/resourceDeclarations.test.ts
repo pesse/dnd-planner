@@ -197,6 +197,12 @@ describe('redigierte Vorräte', () => {
     expect(resourceViews([high!])[0].label).toContain('(W8)');
   });
 
+  it('Kampfrausch gibt bei Kurzer Rast einen Einsatz zurück, und der Bogen nennt es', async () => {
+    const rage = await pool(probe('srd-2024_barbarian', 3), '_rage');
+    expect([rage?.recharge, rage?.shortRestRegain]).toEqual(['long-rest', 1]);
+    expect(resourceViews([rage!])[0].hint).toBe('Lange Rast · Kurze Rast: 1 zurück');
+  });
+
   it('der Überlegenheitswürfel wächst in Stufenschritten', async () => {
     const dice = await Promise.all([3, 10, 18].map((l) => pool(probe('srd-2024_fighter', l, 'phb-2024_battle-master'), '_combat-superiority')));
     expect(dice.map((d) => d?.die)).toEqual(['d8', 'd10', 'd12']);

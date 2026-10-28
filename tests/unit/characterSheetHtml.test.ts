@@ -119,7 +119,7 @@ describe('HTML-Charakterbogen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.resources = [{
       id: 'srd-2024_sorcerer_font-of-magic/points', featureKey: 'srd-2024_sorcerer_font-of-magic',
-      labelDe: 'Zaubereipunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest',
+      labelDe: 'Zaubereipunkte', origin: 'class', classKey: 'srd-2024_sorcerer', recharge: 'long-rest', shortRestRegain: 0,
       shared: '', kind: 'points', die: '', max: [3], additions: [],
     }];
     d.values = [{
@@ -141,7 +141,7 @@ describe('HTML-Charakterbogen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.resources = [{
       id: 'srd-2024_wizard_spellcasting/slots', featureKey: 'srd-2024_wizard_spellcasting',
-      labelDe: 'Zauberplätze', origin: 'class', classKey: 'srd-2024_wizard', recharge: 'long-rest',
+      labelDe: 'Zauberplätze', origin: 'class', classKey: 'srd-2024_wizard', recharge: 'long-rest', shortRestRegain: 0,
       shared: '', kind: 'points', die: '', max: [2], additions: [],
     }];
     d.grouped = {
