@@ -196,7 +196,7 @@
           },
           {
             "kind": "dice",
-            "dice": "string",
+            "dice": "1d4",
             "damageType": "acid",
             "condition": "string",
             "conditionDe": "string",
@@ -435,7 +435,7 @@
                   },
                   {
                     "kind": "dice",
-                    "dice": "string",
+                    "dice": "1d4",
                     "damageType": "acid",
                     "condition": "string",
                     "conditionDe": "string",

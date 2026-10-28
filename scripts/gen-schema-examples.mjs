@@ -14,7 +14,7 @@ const OUT_DIR = join(SCHEMA_DIR, 'exampleObjects');
 const CHECK = process.argv.includes('--check');
 
 /** Gültige Werte für die Regex-Vorgaben der Schemas; ein neues Pattern meldet der Selbsttest. */
-const PATTERN_SAMPLES = { '^\\d+$': '1', '^d\\d+$': 'd6' };
+const PATTERN_SAMPLES = { '^\\d+$': '1', '^d\\d+$': 'd6', '^\\d+d\\d+$': '1d4' };
 
 function unionBranches(node) {
   const branches = node?.anyOf || node?.oneOf;
