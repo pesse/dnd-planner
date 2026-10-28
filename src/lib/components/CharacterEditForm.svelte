@@ -40,6 +40,7 @@
   import ImageField from './characterForm/ImageField.svelte';
   import PersonalFields from './characterForm/PersonalFields.svelte';
   import TagEditor from './characterForm/TagEditor.svelte';
+  import { suggestLanguages, suggestTools, toolSuggestions } from '../services/characterTagSuggestions';
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
   import CurrencyRow from './characterForm/CurrencyRow.svelte';
   import InventoryTable from './characterForm/InventoryTable.svelte';
@@ -75,6 +76,7 @@
 
   const abilities = createCharacterAbilities(() => form, () => libs);
   const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }));
+  const toolTags = $derived(toolSuggestions(libs.itemsByDir.tools ?? []));
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
   const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
     ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
@@ -307,11 +309,13 @@
     <div class="stats-cols">
       <section>
         <h3>Sprachen</h3>
-        <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
+        <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages}
+          suggest={(q) => suggestLanguages(q)} />
       </section>
       <section>
         <h3>Werkzeuge &amp; Fahrzeuge</h3>
-        <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+        <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools}
+          suggest={(q) => suggestTools(toolTags, q)} />
       </section>
     </div>
 
