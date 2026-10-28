@@ -16,6 +16,19 @@ function parseNum(s: string | undefined | null): number {
   return parseFloat(cleaned);
 }
 
+/** Wie das deutsche SRD: Entdeckerausrüstung 55 lb → 27,5 kg. */
+const KG_PER_LB = 0.5;
+
+/** Das Pfund-Gewicht eines Bibliotheks-Gegenstands als kg-Wert einer Inventarzeile. */
+export function libraryWeightKg(lb: number | null | undefined): string {
+  return lb != null ? formatKg(lb * KG_PER_LB) : '';
+}
+
+/** Gespeichert, bevor `libraryWeightKg` umrechnete: die Zeile trägt noch die Pfundzahl. */
+export function holdsPoundWeight(line: InventoryLine, lb: number | null | undefined): boolean {
+  return lb != null && lb > 0 && parseNum(line.weight) === lb;
+}
+
 /** Leere oder ungültige Anzahl zählt als 1. */
 export function lineWeightKg(line: InventoryLine): number {
   const w = parseNum(line.weight);

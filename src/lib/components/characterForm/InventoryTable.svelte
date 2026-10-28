@@ -16,7 +16,7 @@
   } from '../../services/attackCalc';
   import { figureLinesIn, placeEquipment, slotsFor, type Placed } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
-  import { lineWeightKg, totalWeightKg, formatKg } from '../../utils/inventoryWeight';
+  import { lineWeightKg, totalWeightKg, formatKg, libraryWeightKg } from '../../utils/inventoryWeight';
   import { classifyChange, diffMark, type DiffDir } from '../../utils/diffHighlight';
   import { createSuggestNav } from '../../utils/suggestNav.svelte';
   import { dropdownPlacement } from '../../utils/dropdownPlacement';
@@ -76,7 +76,7 @@
     inventory[i].sourceKey = sug.item.key;
     // Überschreibt auch einen getippten Wert, und leert bei Items ohne Gewicht: „kein
     // Gewicht" ist eine Aussage der Bibliothek (Würfel), kein fehlender Wert.
-    inventory[i].weight = sug.item.weight != null ? String(sug.item.weight) : '';
+    inventory[i].weight = libraryWeightKg(sug.item.weight);
     suggestions = [];
     activeRow = -1;
     nav.reset();

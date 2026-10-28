@@ -10,6 +10,7 @@ import { backgroundDisplayName, type BackgroundInfo } from '$lib/backgroundsLibr
 import { displayName, matchItem, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import { parseClassLevelText, cleanClassName } from '$lib/schemas/classLevelText';
 import { normName } from '$lib/utils/text';
+import { holdsPoundWeight, libraryWeightKg } from '$lib/utils/inventoryWeight';
 import { sign } from '$lib/utils/num';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { addIndividualWeapon } from './weaponProficiency';
@@ -29,7 +30,7 @@ import { type Attack, type Character, type CharacterClass, type CharacterFeature
 
 type InventoryLine = Character['inventory'][number];
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'spells' | 'weapons' | 'attacks' | 'attackMagic' | 'optionPicks' | 'hitPoints';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'inventoryWeight' | 'spells' | 'weapons' | 'attacks' | 'attackMagic' | 'optionPicks' | 'hitPoints';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -172,7 +173,7 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
         line.sourceKey = hit.key;
         // Den Namen mitziehen, damit Anzeige, Datei und PDF dasselbe sagen.
         line.name = displayName(hit);
-        line.weight = hit.weight != null ? String(hit.weight) : '';
+        line.weight = libraryWeightKg(hit.weight);
       }
     },
   };
@@ -331,6 +332,19 @@ export function optionPicksFix(target: LegacyLinkTarget, libs: LegacyLinkLibrari
   };
 }
 
+export function inventoryWeightFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  const poundsOf = (line: InventoryLine) => (line.sourceKey ? libs.items.byKey.get(line.sourceKey)?.weight : undefined);
+  const rows = target.inventory.filter((line) => holdsPoundWeight(line, poundsOf(line)));
+  if (!rows.length) return undefined;
+  return {
+    kind: 'inventoryWeight',
+    label: `${rows.length} ${rows.length === 1 ? 'Gewicht' : 'Gewichte'} aus der Bibliothek von Pfund in kg umrechnen`,
+    apply: () => {
+      for (const line of rows) if (holdsPoundWeight(line, poundsOf(line))) line.weight = libraryWeightKg(poundsOf(line));
+    },
+  };
+}
+
 /**
  * Die Würfelsumme aus dem TP-Maximum zurückrechnen. Erst wenn Klassen und Volk verlinkt sind —
  * vorher fehlen ihre Boni je Stufe, und die Summe stünde dauerhaft um sie zu hoch.
@@ -356,6 +370,7 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     speciesFix(target, libs),
     backgroundFix(target, libs),
     inventoryFix(target, libs),
+    inventoryWeightFix(target, libs),
     spellsFix(target, libs),
     weaponsFix(target, libs),
     attacksFix(target, libs),

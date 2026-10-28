@@ -32,6 +32,7 @@ import { ftToMVal } from '$lib/itemFormat';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 import { keySlug } from '$lib/utils/text';
+import { libraryWeightKg } from '$lib/utils/inventoryWeight';
 
 type AnswerLookup = (id: string) => string;
 
@@ -185,7 +186,7 @@ async function applyEquipment(c: Character, w: CharacterWizard): Promise<void> {
       name: startingItemName(index, i),
       ...(lib ? { sourceKey: i.itemKey } : {}),
       count: i.count > 1 ? String(i.count) : '',
-      weight: typeof lib?.weight === 'number' ? String(lib.weight) : '',
+      weight: libraryWeightKg(lib?.weight),
     };
   });
   if (eq.goldPieces > 0) c.currency.gm = String(eq.goldPieces);

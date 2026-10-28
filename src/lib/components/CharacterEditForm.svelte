@@ -215,6 +215,8 @@
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
+  // Verknüpfen zuerst: es schreibt das Gewicht schon in kg, die Umrechnung bliebe dann leer.
+  const inventoryFix = $derived(fixOf('inventory') ?? fixOf('inventoryWeight'));
   const attackFixes = $derived(legacyFixes.filter((f) => f.kind === 'attacks' || f.kind === 'attackMagic'));
 
   /** `race`/`background` sind abgeleitete Anzeige-Strings — auch fürs PDF. */
@@ -408,8 +410,8 @@
           attacks={form.attacks}
           attackCtx={weaponCtx}
           {saved}
-          fixLabel={fixOf('inventory')?.label}
-          onfix={() => applyFix(fixOf('inventory'))}
+          fixLabel={inventoryFix?.label}
+          onfix={() => applyFix(inventoryFix)}
           {dirOf}
         />
       </div>
