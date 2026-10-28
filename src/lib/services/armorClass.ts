@@ -81,11 +81,18 @@ const magicNotes = (item: ItemInfo): string[] =>
 const best = <T>(list: readonly T[], value: (t: T) => number): T | undefined =>
   list.reduce<T | undefined>((a, b) => (a === undefined || value(b) > value(a) ? b : a), undefined);
 
+/** Was GES in dieser Rüstung zur RK beiträgt; null, wo die Rüstung GES gar nicht zählt. */
+export function armorDexBonus(item: Pick<ItemInfo, 'armor_class'>, dexMod: number): number | null {
+  const ac = item.armor_class;
+  if (!ac?.dex_bonus) return null;
+  return ac.max_bonus === null ? dexMod : Math.min(dexMod, ac.max_bonus);
+}
+
 function armorRows(item: ItemInfo, dexMod: number): DerivationRow[] {
   const rows: DerivationRow[] = [{ labelDe: displayName(item), value: itemAc(item), notes: magicNotes(item) }];
   const ac = item.armor_class;
-  if (!ac?.dex_bonus) return rows;
-  const capped = ac.max_bonus === null ? dexMod : Math.min(dexMod, ac.max_bonus);
+  const capped = armorDexBonus(item, dexMod);
+  if (!ac || capped === null) return rows;
   rows.push({ labelDe: 'GES', value: capped, notes: capped < dexMod ? [`${sign(dexMod)}, höchstens ${sign(ac.max_bonus!)}`] : [] });
   return rows;
 }

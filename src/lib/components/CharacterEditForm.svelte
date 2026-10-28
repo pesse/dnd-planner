@@ -43,6 +43,7 @@
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
   import CurrencyRow from './characterForm/CurrencyRow.svelte';
   import InventoryTable from './characterForm/InventoryTable.svelte';
+  import { itemTrainingNote } from '../services/itemProficiency';
   import EquipmentFigure from './character/EquipmentFigure.svelte';
   import SpellBlock from './characterForm/SpellBlock.svelte';
   import ResourcePools from './characterForm/ResourcePools.svelte';
@@ -402,7 +403,8 @@
       <div class="inv-layout">
         <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
           speciesKey={form.species.sourceKey} presentation={form.presentation || undefined}
-          ownSrc={form.figureFile ? figureUrl() : undefined} />
+          ownSrc={form.figureFile ? figureUrl() : undefined}
+          trainingOf={(lib) => itemTrainingNote(lib, form.proficiencies, weaponCtx.dexMod, weaponCtx.weaponByName)} />
         <div class="inv-main">
           <InventoryTable
             inventory={form.inventory}
@@ -411,6 +413,7 @@
             itemsByDir={libs.itemsByDir}
             attacks={form.attacks}
             attackCtx={weaponCtx}
+            proficiencies={form.proficiencies}
             {saved}
             fixLabel={inventoryFix?.label}
             onfix={() => applyFix(inventoryFix)}

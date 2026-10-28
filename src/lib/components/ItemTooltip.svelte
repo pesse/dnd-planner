@@ -6,11 +6,14 @@
   import Markdown from './Markdown.svelte';
   import ArtFrame from './ui/ArtFrame.svelte';
   import { itemArtUrl } from '../libraryArt';
+  import type { ItemTrainingNote } from '../services/itemProficiency';
 
-  let { item, x, y, note = '' }: {
+  let { item, x, y, note = '', training }: {
     item: Item | null; x: number; y: number;
     /** Zustand der Inventarzeile, nicht des Gegenstands: „darin: …“, „nicht eingestimmt“. */
     note?: string;
+    /** Übung des Charakters mit diesem Gegenstand; fehlt außerhalb eines Charakters. */
+    training?: ItemTrainingNote;
   } = $props();
 
   let winW = $state(1280);
@@ -22,6 +25,14 @@
   // am Viewport-Rand umklappen, sonst schneiden lange Magie-Beschreibungen ab.
   const left = $derived(x + boxW > winW ? Math.max(8, x - boxW - 28) : x);
   const top = $derived(Math.max(8, Math.min(y, winH - boxH - 8)));
+
+  // Mit Charakter steht der GES-Anteil als Zahl da, ohne nur die Regel.
+  function armorClassText(ac: NonNullable<Item['armor_class']>, dex: number | null | undefined): string {
+    const cap = ac.max_bonus != null ? `max. ${ac.max_bonus}` : '';
+    if (!ac.dex_bonus) return `${ac.base}`;
+    if (dex == null) return `${ac.base} + GES-Mod${cap ? ` (${cap})` : ''}`;
+    return `${ac.base} ${dex < 0 ? '−' : '+'} ${Math.abs(dex)} (GES${cap ? `, ${cap}` : ''})`;
+  }
 
   function properties(i: Item): string {
     return (i.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
@@ -52,6 +63,9 @@
           {:else if kind === 'armor'}
             {ARMOR_CATEGORY_LABELS[item.armor_category ?? ''] ?? item.armor_category}
           {/if}
+          {#if training}
+            <span class={training.proficient ? 'tt-trained' : 'tt-untrained'}>({training.proficient ? 'geübt' : 'nicht geübt'})</span>
+          {/if}
           {#if item.rarity}
             {#if kind === 'weapon' || kind === 'armor'} · {/if}
             <span style="color:{rarityColor(item.rarity)}">{formatRarity(item.rarity)}</span>
@@ -62,6 +76,7 @@
       <ArtFrame src={itemArtUrl(item)} color={rarityColor(item.rarity)} />
     </div>
     {#if note}<div class="tt-line-note">{note}</div>{/if}
+    {#if training?.untrainedDe}<div class="tt-note">Ohne Übung: {training.untrainedDe}</div>{/if}
 
     {#if kind === 'weapon' && item.damage}
       <div class="tt-section">
@@ -104,7 +119,7 @@
     {:else if kind === 'armor' && item.armor_class}
       <div class="tt-section">
         <span class="tt-label">Rüstungsklasse</span>
-        <span>{item.armor_class.base}{item.armor_class.dex_bonus ? ' + GES-Mod' : ''}{item.armor_class.max_bonus != null ? ` (max. ${item.armor_class.max_bonus})` : ''}</span>
+        <span>{armorClassText(item.armor_class, training?.dexBonus)}</span>
       </div>
       {#if magicBonusText(item, 'armor')}
         <div class="tt-section">
@@ -210,6 +225,8 @@
   .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
   .tt-sep { color: var(--border); }
   .tt-bonus { color: var(--arcane); font-weight: 600; }
+  .tt-trained { color: var(--green); }
+  .tt-untrained { color: var(--danger); font-weight: 600; }
   .tt-line-note { font-size: 0.74rem; font-style: italic; color: var(--ink-muted); margin-bottom: 0.2rem; }
   .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
   .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }

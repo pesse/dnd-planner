@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Figur mit den angelegten Gegenständen an ihrem Platz; die Häkchen im Inventar bleiben die Quelle. */
-  import { displayName, type ItemIndex } from '../../itemLibrary';
+  import { displayName, type ItemIndex, type ItemInfo } from '../../itemLibrary';
   import { itemKeyArtUrl } from '../../libraryArt';
   import { itemEntry } from '../../services/vaultLinks';
   import { peekEntry } from '../../services/entryPeek';
@@ -11,14 +11,16 @@
   import { createItemHover } from '../itemHover.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
+  import type { ItemTrainingNote } from '../../services/itemProficiency';
 
-  let { inventory, itemIndex, speciesKey, presentation, ownSrc }: {
+  let { inventory, itemIndex, speciesKey, presentation, ownSrc, trainingOf }: {
     inventory: CharacterInventoryEntry[];
     itemIndex: ItemIndex;
     speciesKey: string;
     presentation: Presentation | undefined;
     /** Die eigene Figur des Charakters; `''`, solange sie lädt — dann blitzt keine Puppe auf. */
     ownSrc?: string;
+    trainingOf?: (item: ItemInfo) => ItemTrainingNote | undefined;
   } = $props();
 
   let paperdoll = $state<string | null>(null);
@@ -39,7 +41,9 @@
 
   const hover = createItemHover(() => [...fills.values()].flatMap((f) => f.items.map((e) => e.item.path)));
   let hoverNote = $state('');
+  let hoverTraining = $state<ItemTrainingNote | undefined>();
   function showTip(ev: MouseEvent, e: Placed) {
+    hoverTraining = trainingOf?.(e.item);
     const inside = e.contents?.map((c) => displayName(c.item)).join(', ');
     hoverNote = [inside && `darin: ${inside}`, !e.effective && 'nicht eingestimmt, wirkt nicht'].filter(Boolean).join(' · ');
     hover.show(ev, e.item.path);
@@ -92,7 +96,7 @@
   {/if}
 </div>
 
-<ItemTooltip item={hover.item} x={hover.x} y={hover.y} note={hoverNote} />
+<ItemTooltip item={hover.item} x={hover.x} y={hover.y} note={hoverNote} training={hoverTraining} />
 
 <style>
   .eq-wrap {

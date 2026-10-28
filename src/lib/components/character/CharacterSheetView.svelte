@@ -143,7 +143,7 @@
   <!-- Merkmale stehen in der rechten Seitenleiste (CharacterFeaturePanel) — auf
        jedem Tab sichtbar und dort auch änderbar. -->
 
-  <SheetInventoryBlock {character} {itemIndex} {figureUrl} />
+  <SheetInventoryBlock {character} {itemIndex} {figureUrl} dexMod={attackCtx?.dexMod ?? character.mods.dex} />
   <SheetSpellBlock characterName={character.name} casting={spellcasting} {spellIndex} />
 </div>
 
