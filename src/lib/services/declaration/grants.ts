@@ -46,8 +46,8 @@ export function declaredGrantChanges(
  * neues Feld, das hier fehlte, ließe ein Merkmal, dessen einzige Mechanik es ist, komplett
  * ausfallen — noch bevor die geprüften Senken es zu sehen bekämen.
  */
-export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
-  const filled: { [K in keyof FeatureGrant]: () => boolean } = {
+function filledGrantFields(g: FeatureGrant): (keyof FeatureGrant)[] {
+  const filled: { [K in keyof FeatureGrant]-?: () => boolean } = {
     proficiencies: () => !isEmptyProficiencyGrant(g.proficiencies),
     languages: () => g.languages.length > 0,
     extraCantrips: () => g.extraCantrips > 0,
@@ -65,9 +65,12 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     senses: () => g.senses.length > 0,
     initiative: () => g.initiative.length > 0,
     criticalHit: () => g.criticalHit !== undefined,
+    checks: () => g.checks.length > 0,
   };
-  return !Object.values(filled).some((has) => has());
+  return (Object.keys(filled) as (keyof FeatureGrant)[]).filter((k) => filled[k]());
 }
+
+export const isEmptyFeatureGrant = (g: FeatureGrant): boolean => filledGrantFields(g).length === 0;
 
 /** Klassenmerkmal, Trait und Talent erfüllen das strukturell. */
 export interface DeclaredGrantSource {
@@ -82,7 +85,7 @@ export interface DeclaredGrantSource {
  * Die Aufzählung in `withGrant` ist von Hand und ignorierte ein neues Feld STILL. Diese
  * Tabelle ist über `keyof` total und bricht dann den Build.
  */
-const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' | 'runtime' } = {
+const GRANT_SINKS: { [K in keyof FeatureGrant]-?: 'rider' | 'change' | 'perLevel' | 'runtime' } = {
   proficiencies: 'rider', // `weaponsOther` daraus zusätzlich als Change
   languages: 'rider',
   abilities: 'rider',
@@ -100,16 +103,20 @@ const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' 
   senses: 'runtime',
   initiative: 'runtime',
   criticalHit: 'runtime',
+  checks: 'runtime',
 };
-void GRANT_SINKS;
+
+/** Ein Grant, der nur zur Laufzeit wirkt, schreibt nichts in den Charakter und braucht keinen Rider. */
+export const grantWritesCharacter = (g: FeatureGrant): boolean =>
+  filledGrantFields(g).some((k) => GRANT_SINKS[k] !== 'runtime');
 
 /**
  * GENAU die Felder, die `featureGrantSchema` ausdrücken kann; alles Übrige des Riders bleibt
  * stehen, weil die Deklaration darüber nichts sagt. `perLevel`, `armorClass`, `attack`,
- * `savingThrow`, `aura`, `defenses`, `speeds`, `senses`, `initiative` und `criticalHit` fehlen
- * absichtlich — sie wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`,
+ * `savingThrow`, `aura`, `defenses`, `speeds`, `senses`, `initiative`, `criticalHit` und `checks`
+ * fehlen absichtlich — sie wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`,
  * `attackEffectRows`, `savingThrowDerivations`, `characterAuras`, `characterDefenses`,
- * `characterMovement`, `combatFallbacks`, `criticalRange`).
+ * `characterMovement`, `combatFallbacks`, `criticalRange`, `skillCheckEffects`).
  */
 export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRider {
   const p = grants.proficiencies;

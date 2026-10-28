@@ -8,6 +8,7 @@ import {
 import type { Character } from '../schemas/characterSchema';
 import type { WornAbilityEffect } from './effectiveAbilities';
 import type { DeclaredAttackEffects } from './attackEffects';
+import type { CheckSource } from './abilityChecks';
 
 export interface CharacterFormState {
   fields: CharacterFormFields;
@@ -17,6 +18,7 @@ export interface CharacterFormState {
 export interface FormRuntimeInputs {
   worn: readonly WornAbilityEffect[];
   declared: DeclaredAttackEffects;
+  checks: readonly CheckSource[];
 }
 
 /**
@@ -39,7 +41,7 @@ export function createCharacterFormState(
   // sonst schlösse sich eine Schreib-/Lese-Schleife.
   $effect(() => {
     const now = inputs();
-    if (now) Object.assign(draft(), formDraftPatch(fields, carry, now.worn, now.declared));
+    if (now) Object.assign(draft(), formDraftPatch(fields, carry, now.worn, now.declared, now.checks));
   });
 
   return { fields, legacyClassLevel: carry.legacyClassLevel };

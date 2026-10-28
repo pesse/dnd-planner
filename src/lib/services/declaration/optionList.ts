@@ -16,7 +16,7 @@ import {
 } from './source';
 export type { DeclaredChoiceRef, DeclaredChoiceSource };
 import { declaresCasting } from './casting';
-import { isEmptyFeatureGrant, withGrant } from './grants';
+import { grantWritesCharacter, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
 import { isSkillProficiencyRef } from './skillProficiency';
 import { isLanguagesRef } from './languages';
@@ -180,7 +180,7 @@ export function optionListRider(r: DeclaredChoiceRef, answer: string, level: num
   const spells = optionSpellsUpTo(r.feature, option, level);
   const grants =
     option.grants && optionActivatesQuota(r.feature, option.value) ? withoutQuotaCounts(option.grants) : option.grants;
-  const declaresGrant = !!grants && !isEmptyFeatureGrant(grants);
+  const declaresGrant = !!grants && grantWritesCharacter(grants);
   if (!declaresGrant && !spells.length) return null;
   const base: FeatureRider = { ...emptyRider(r.feature), grantedSpells: spells };
   return declaresGrant ? withGrant(base, grants) : base;

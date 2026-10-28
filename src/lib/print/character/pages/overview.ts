@@ -97,7 +97,7 @@ const skillsBox = (d: CharacterPrintData): string => {
   const rows = SKILL_DEFS.map((def) => {
     const row = c.skills[def.key];
     return `<div class="o-line">${profMark(!!row?.prof, !!row?.exp)}` +
-      `<span class="o-val">${sign(row?.value ?? 0)}</span>` +
+      `<span class="o-val">${sign(row?.value ?? 0)}${d.skillAdvantage.includes(def.key) ? ' V' : ''}</span>` +
       `<span class="o-lbl">${esc(def.label)} <em>(${esc(ABILITY_ABBR_DE[def.attr])})</em></span></div>`;
   }).join('');
   return frame('Fertigkeiten', lines(rows), 'o-skills');

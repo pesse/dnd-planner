@@ -1,7 +1,9 @@
 <script lang="ts">
   import './sheet.css';
   import { sign } from '../../utils/num';
-  import { SKILL_DEFS } from '../../domain/skills';
+  import { SKILL_DEFS, type SkillDef } from '../../domain/skills';
+  import { skillCheckEffects, type CheckSource, type SkillCheckEffects } from '../../services/abilityChecks';
+  import { effectiveProficiencyBonus } from '../../services/classProgression';
   import { ABILITY_ABBR_DE, ABILITY_KEYS, type AbilityKey } from '../../schemas/abilities';
   import { attrModTip, skillTip } from '../../services/characterSheetTips';
   import type { ItemIndex } from '../../itemLibrary';
@@ -25,7 +27,7 @@
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses, movement, criticalHit }: {
+        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses, movement, criticalHit, checks }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -44,12 +46,16 @@
     defenses: CharacterDefense[];
     criticalHit: string;
     movement: MovementLine[];
+    checks: readonly CheckSource[];
   } = $props();
 
   // Bewusst `Map<string, …>`: die Schlüssel kommen aus `character.skills` (offener
   // Record) und können auch Fremd-/Altbestand enthalten.
-  const skillAttrMap = new Map<string, AbilityKey>(SKILL_DEFS.map((s) => [s.key, s.attr]));
-  const skillLabelMap = new Map<string, string>(SKILL_DEFS.map((s) => [s.key, s.label]));
+  const skillDefMap = new Map<string, SkillDef>(SKILL_DEFS.map((s) => [s.key, s]));
+  const checkEffectsOf = (name: string): SkillCheckEffects | undefined => {
+    const def = skillDefMap.get(name);
+    return def && skillCheckEffects(def, checks, { mods: character.mods, profBonus: effectiveProficiencyBonus(character) });
+  };
 </script>
 
 <div class="content">
@@ -79,11 +85,12 @@
     <h3>Fertigkeiten {character.alleskoenner ? '<small>(Alleskönner)</small>' : ''}</h3>
     <div class="skill-grid">
       {#each Object.entries(character.skills) as [name, skill]}
+        {@const fx = checkEffectsOf(name)}
         <div class="skill-row has-tip" class:proficient={skill.prof} class:expertise={skill.exp}>
           <span class="prof-dot">{skill.exp ? '★' : skill.prof ? '●' : '○'}</span>
-          <span class="skill-name">{skillLabelMap.get(name) ?? name}</span>
-          <span class="skill-val">{sign(skill.value)}</span>
-          <span class="tip">{@html skillTip(character, skillAttrMap.get(name), skill)}</span>
+          <span class="skill-name">{skillDefMap.get(name)?.label ?? name}</span>
+          <span class="skill-val">{sign(skill.value)}{fx?.advantage ? ' V' : ''}</span>
+          <span class="tip">{@html skillTip(character, skillDefMap.get(name)?.attr, skill, fx)}</span>
         </div>
       {/each}
     </div>

@@ -60,17 +60,15 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 
 Zuschläge und Vorteil auf Initiative stehen in `grants.initiative` (Aufmerksam, Attentat,
 Bemerkenswerter Athlet, Fürchterlicher Lauerjäger), der erweiterte Bereich für kritische Treffer
-in `grants.criticalHit`.
+in `grants.criticalHit`, Zuschläge und Vorteil auf Fertigkeitswürfe in `grants.checks`.
 
 | Merkmal | Mechanik |
 |---|---|
-| `srd-2024_fighter_champion_remarkable-athlete` | Vorteil auf Athletik (Initiative ist deklariert) |
 | `srd-2024_fighter_champion_survivor` | Vorteil auf Todesrettungswürfe, Regeneration |
 | `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
-| `ranger_fey-wanderer_otherworldly-glamour` | WEI-Mod auf Charismawürfe |
 | `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt |
 | `ranger_fey-wanderer_dreadful-strikes` | +1W4/1W6 psychisch (`attack.damage` nimmt keine Würfel) |
-| `bard_college-of-dance_dazzling-footwork` | Vorteil auf Auftreten; waffenlose Angriffe mit GES + BI-Würfel |
+| `bard_college-of-dance_dazzling-footwork` | waffenlose Angriffe mit GES + BI-Würfel (Vorteil auf Auftreten ist deklariert) |
 | `barbarian_path-of-the-world-tree_battering-roots` | +10 ft Reichweite; Stoßen/Umstoßen als zusätzliche Meisterschaft |
 | `monk_warrior-of-the-elements_elemental-attunement` | +10 ft Reichweite, wählbare Schadensart (aktiv) |
 | `monk_way-of-shadow_cloak-of-shadows` | unsichtbar, durch Kreaturen bewegen (aktiv) |

@@ -9,6 +9,7 @@ import { formatClassLevel } from '../schemas/classLevelText';
 import { effectiveProficiencyBonus } from './classProgression';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
 import type { DeclaredAttackEffects } from './attackEffects';
+import { skillCheckEffects, type CheckSource } from './abilityChecks';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
 import {
   emptyPersonal, emptyProficiencies,
@@ -104,17 +105,22 @@ export function attackContext(
   return { strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared };
 }
 
-export function computeSkills(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): Character['skills'] {
+export function computeSkills(
+  f: CharacterFormFields,
+  effects: readonly WornAbilityEffect[],
+  checks: readonly CheckSource[] = [],
+): Character['skills'] {
   const mods = abilityMods(f, effects);
+  const pb = effectiveProficiencyBonus(f);
   const result: Character['skills'] = {};
   for (const def of SKILL_DEFS) {
     const flags = f.skillFlags[def.key];
     const base = mods[def.attr] ?? 0;
-    const pb = effectiveProficiencyBonus(f);
     let value = base;
     if (flags.exp) value = base + pb * 2;
     else if (flags.prof) value = base + pb;
     else if (f.alleskoenner) value = base + Math.floor(pb / 2);
+    value += skillCheckEffects(def, checks, { mods, profBonus: pb }).rows.reduce((n, r) => n + r.value, 0);
     result[def.key] = { value, prof: flags.prof, exp: flags.exp };
   }
   return result;
@@ -222,6 +228,7 @@ export function formDraftPatch(
   carry: CharacterFormCarry,
   effects: readonly WornAbilityEffect[],
   declared?: DeclaredAttackEffects,
+  checks: readonly CheckSource[] = [],
 ): CharacterFormPatch {
   const mods = abilityMods(f, effects);
   const ctx = attackContext(f, effects, declared);
@@ -249,7 +256,7 @@ export function formDraftPatch(
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
     saveProfs: { ...f.saveProfs },
-    skills: computeSkills(f, effects),
+    skills: computeSkills(f, effects, checks),
     attacks: f.attacks.filter((a) => a.name.trim() !== '').map((a) => attackForSave(a, ctx)),
     classFeatures: f.classFeatures,
     traits: f.traits,

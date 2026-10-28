@@ -26,6 +26,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   defenses: [],
   initiativeAdvantage: false,
   criticalHit: '',
+  skillAdvantage: [],
   movement: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },

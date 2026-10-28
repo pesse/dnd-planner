@@ -16,9 +16,10 @@ import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCal
 import {
   criticalRange, criticalRangeDe, loadDeclaredAttackEffects, type AttackEffectFeature, type DeclaredAttackEffects,
 } from '$lib/services/attackEffects';
+import { checkSources, skillCheckEffects } from '$lib/services/abilityChecks';
 import type { ItemInfo } from '$lib/itemLibrary';
 import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
-import { mod } from '$lib/domain/skills';
+import { SKILL_DEFS, mod } from '$lib/domain/skills';
 import { characterAuras, type CharacterAura } from '$lib/services/auras';
 import { characterDefenses, type CharacterDefense } from '$lib/services/defenses';
 import { characterMovement, type MovementLine } from '$lib/services/movement';
@@ -62,6 +63,8 @@ export interface CharacterPrintData {
   initiativeAdvantage: boolean;
   /** Leer ohne erweiterten Bereich. */
   criticalHit: string;
+  /** Bogen-Schlüssel der Fertigkeiten mit Vorteil ohne Bedingung. */
+  skillAdvantage: string[];
   auras: CharacterAura[];
   defenses: CharacterDefense[];
   movement: MovementLine[];
@@ -171,6 +174,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   const shown = withCombatFallbacks(c, fallbacks);
   const mods = abilityRecordOf((k) => mod(scores[k]));
   const auras = characterAuras(saveInputs.features, { mods, profBonus: effectiveProficiencyBonus(c) });
+  const checks = checkSources(saveInputs.features);
   const saves = savingThrowDerivations({
     mods,
     profBonus: effectiveProficiencyBonus(c),
@@ -182,6 +186,9 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
     criticalHit: criticalText(saveInputs.features),
+    skillAdvantage: SKILL_DEFS
+      .filter((def) => skillCheckEffects(def, checks, { mods, profBonus: effectiveProficiencyBonus(c) }).advantage)
+      .map((def) => def.key),
     scores,
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',

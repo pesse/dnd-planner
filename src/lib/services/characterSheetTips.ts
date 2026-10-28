@@ -14,6 +14,7 @@ import type { SavingThrowDerivation } from './savingThrows';
 import { ABILITY_ABBR_DE, type AbilityKey } from '../schemas/abilities';
 import type { Character } from '../schemas/characterSchema';
 import type { CombatFallbacks } from './combatFallbacks';
+import type { SkillCheckEffects } from './abilityChecks';
 
 function row(label: string, val: string | number): string {
   const v = typeof val === 'number' ? sign(val) : val;
@@ -96,15 +97,19 @@ export function skillTip(
   character: Character,
   attr: AbilityKey | undefined,
   skill: { value: number; prof: boolean; exp: boolean },
+  fx: SkillCheckEffects = { rows: [], notes: [], advantage: false },
 ): string {
   if (!attr) return '';
   const attrLabel = ABILITY_ABBR_DE[attr];
   const attrMod = character.mods[attr];
   const pb = effectiveProficiencyBonus(character);
-  if (skill.exp) return row(`${attrLabel}-Mod`, attrMod) + row('2× Übungsbonus', pb * 2) + divider() + total(skill.value);
-  if (skill.prof) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(skill.value);
-  if (character.alleskoenner) return row(`${attrLabel}-Mod`, attrMod) + row('½ Übungsbonus', Math.floor(pb / 2)) + divider() + total(skill.value);
-  return row(`${attrLabel}-Mod`, attrMod) + divider() + total(attrMod);
+  const head = row(`${attrLabel}-Mod`, attrMod);
+  const declared = fx.rows.map((r) => row(esc(r.labelDe), r.value)).join('');
+  const tail = steps(fx.notes);
+  if (skill.exp) return head + row('2× Übungsbonus', pb * 2) + declared + divider() + total(skill.value) + tail;
+  if (skill.prof) return head + row('Übungsbonus', pb) + declared + divider() + total(skill.value) + tail;
+  if (character.alleskoenner) return head + row('½ Übungsbonus', Math.floor(pb / 2)) + declared + divider() + total(skill.value) + tail;
+  return head + declared + divider() + total(attrMod + fx.rows.reduce((n, r) => n + r.value, 0)) + tail;
 }
 
 export function attackBonusTip(bonus: string): string {

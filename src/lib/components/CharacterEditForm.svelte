@@ -24,6 +24,7 @@
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
+  import { checkSources } from '../services/abilityChecks';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
   import { classifyChange, diffMark, type DiffDir } from '../utils/diffHighlight';
@@ -68,7 +69,7 @@
   } = $props();
 
   const mirror = createCharacterFormState(() => character, () =>
-    abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared } : null);
+    abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared, checks } : null);
   const form = mirror.fields;
   const figureUrl = characterAssetUrl(() => dirPath, () => form.figureFile);
 
@@ -79,7 +80,8 @@
     ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
     : null);
   const mods = $derived(abilityMods(form, abilities.effects));
-  const skills = $derived(computeSkills(form, abilities.effects));
+  const checks = $derived(checkSources(owned.current ?? []));
+  const skills = $derived(computeSkills(form, abilities.effects, checks));
 
   // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
   // Inventarzeile — beide rechnen mit demselben Kontext.

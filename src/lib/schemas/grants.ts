@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { ABILITY_NAMES } from './abilities';
+import { checkEffectSchema } from './abilityCheck';
 import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
 import { auraEffectSchema } from './aura';
@@ -179,6 +180,7 @@ export const featureGrantSchema = z.object({
     .describe('Zusätzliche Bewegungsarten und Erhöhungen; die Grundbewegungsrate steht in `properties.speedFeet`.'),
   senses: z.array(senseEffectSchema).default([]).describe('Dunkelsicht, Blindsicht, Erschütterungssinn, Wahre Sicht.'),
   initiative: z.array(initiativeEffectSchema).default([]),
+  checks: z.array(checkEffectSchema).default([]).describe('Zuschläge und Vorteil auf Attributs- und Fertigkeitswürfe.'),
   criticalHit: z
     .number()
     .int()

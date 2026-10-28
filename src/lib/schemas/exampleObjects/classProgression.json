@@ -273,6 +273,29 @@
             "kind": "advantage"
           }
         ],
+        "checks": [
+          {
+            "kind": "bonus",
+            "value": -9007199254740991,
+            "abilities": [
+              "str"
+            ],
+            "skills": [
+              "Acrobatics"
+            ]
+          },
+          {
+            "kind": "advantage",
+            "abilities": [
+              "str"
+            ],
+            "skills": [
+              "Acrobatics"
+            ],
+            "condition": "string",
+            "conditionDe": "string"
+          }
+        ],
         "criticalHit": 2
       },
       "grantsChoice": [
@@ -455,6 +478,29 @@
                   },
                   {
                     "kind": "advantage"
+                  }
+                ],
+                "checks": [
+                  {
+                    "kind": "bonus",
+                    "value": -9007199254740991,
+                    "abilities": [
+                      "str"
+                    ],
+                    "skills": [
+                      "Acrobatics"
+                    ]
+                  },
+                  {
+                    "kind": "advantage",
+                    "abilities": [
+                      "str"
+                    ],
+                    "skills": [
+                      "Acrobatics"
+                    ],
+                    "condition": "string",
+                    "conditionDe": "string"
                   }
                 ],
                 "criticalHit": 2
