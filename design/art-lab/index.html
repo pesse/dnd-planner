@@ -18,6 +18,14 @@
   .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .controls label { color: var(--ink-soft); font-size: 12px; }
   select { font: inherit; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .picker { position: relative; }
+  .picker summary { list-style: none; cursor: pointer; padding: 2px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .picker .panel { position: absolute; z-index: 7; top: calc(100% + 4px); left: 0; width: min(900px, 90vw); max-height: 70vh; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; columns: 3 220px; box-shadow: 0 6px 18px rgba(40, 25, 10, 0.2); }
+  .picker .group { break-inside: avoid; margin-bottom: 8px; }
+  .picker .group b { display: block; font-size: 12px; color: var(--accent); cursor: pointer; }
+  .picker .group label { display: block; font-size: 13px; color: var(--ink); cursor: pointer; }
+  .picker .count { color: var(--ink-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .picker .count.none { color: #b04a2a; }
   main { padding: 12px 16px 120px; }
   .stat { color: var(--ink-soft); font-size: 12px; }
 
@@ -117,12 +125,11 @@ const state = Object.assign(
   { tab: 'matrix', looks: ['feminine', 'androgynous', 'masculine'], species: '', figure: 'dwarf-feminine', column: 'species', cols: 'all', legacy: true, size: 48, tray: [] },
   saved,
 );
+if (!state.columns) state.columns = [state.column];
 const persist = () => { try { localStorage.setItem('art-lab', JSON.stringify(state)); } catch {} };
 
 let M = null;
-// Hängt an jede Bild-URL, damit ein Aktualisieren neu gemalte Bilder unter derselben URL nachlädt.
-let rev = 0;
-const src = (url) => (rev ? `${url}?r=${rev}` : url);
+const src = (url) => (M.versions[url] ? `${url}?v=${M.versions[url]}` : url);
 let boxList = [];
 let boxIdx = 0;
 
@@ -143,6 +150,24 @@ const statusOf = (key) => M.figures[key].status;
 const isStale = (key, url) => url !== M.figures[key].species && !M.figures[key].fresh.includes(url);
 
 const subCol = (s) => ({ id: `s:${s.slug}`, de: s.de, kind: 'subclasses', slug: s.slug });
+/** Subklassen je Grundklasse: [Klassenname, Spalten]; der Server liefert sie schon sortiert. */
+function subclassGroups() {
+  const out = new Map();
+  for (const s of M.subclasses) {
+    const de = M.classes.find((c) => c.slug === s.cls)?.de ?? s.cls;
+    out.set(de, [...(out.get(de) ?? []), subCol(s)]);
+  }
+  return [...out];
+}
+/** Alle wählbaren Bilder des Quervergleichs, gruppiert. */
+function columnGroups() {
+  return [
+    ['Volk', [{ id: 'species', de: 'Volk (Basisfigur)', kind: 'species' }]],
+    ['Klassen', M.classes.map((c) => ({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug }))],
+    ['Hintergründe', M.backgrounds.map((b) => ({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug }))],
+    ...subclassGroups().map(([de, cols]) => [`Subklassen · ${de}`, cols]),
+  ];
+}
 /** Alle Spalten einer Figur: Volk, Klassen, Hintergründe, Subklassen. */
 function columns() {
   const out = [];
@@ -205,7 +230,7 @@ const VIEWS = {
       ['Volk', [{ id: 'species', de: 'Volk', kind: 'species' }]],
       ['Klassen', M.classes.map((c) => ({ id: c.slug, de: c.de, kind: 'classes', slug: c.slug }))],
       ['Hintergründe', M.backgrounds.map((b) => ({ id: b.slug, de: b.de, kind: 'backgrounds', slug: b.slug }))],
-      ['Subklassen', M.subclasses.map(subCol)],
+      ...subclassGroups().map(([de, cols]) => [`Subklassen · ${de}`, cols]),
     ];
     const list = [];
     const out = [];
@@ -228,12 +253,10 @@ const VIEWS = {
   },
 
   column() {
-    const col = [{ id: 'species', de: 'Volk', kind: 'species' },
-      ...M.classes.map((c) => ({ id: `c:${c.slug}`, de: c.de, kind: 'classes', slug: c.slug })),
-      ...M.backgrounds.map((b) => ({ id: `b:${b.slug}`, de: b.de, kind: 'backgrounds', slug: b.slug })),
-      ...M.subclasses.map(subCol)].find((c) => c.id === state.column);
+    const all = columnGroups().flatMap(([, cols]) => cols);
     const list = [];
     const out = [];
+    for (const col of all.filter((c) => state.columns.includes(c.id)))
     for (const look of state.looks) {
       const tiles = M.species.filter((s) => !state.species || s.slug === state.species).map((s) => {
         const key = `${s.slug}-${look}`;
@@ -298,6 +321,32 @@ const VIEWS = {
   },
 };
 
+/** Mehrfachauswahl der Bilder im Quervergleich; ein Klick auf die Gruppenüberschrift wählt die ganze Gruppe. */
+function columnPicker() {
+  const groups = columnGroups();
+  const set = (ids, on) => {
+    state.columns = on ? [...new Set([...state.columns, ...ids])] : state.columns.filter((id) => !ids.includes(id));
+    render();
+  };
+  const figs = Object.values(M.figures);
+  const have = (c) => figs.filter((f) => imgOf(f, c)).length;
+  const count = (n, total) => el('span', { class: `count${n ? '' : ' none'}` }, ` ${n}/${total}`);
+  const panel = el('div', { class: 'panel' }, groups.map(([title, cols]) => {
+    const ids = cols.map((c) => c.id);
+    const allOn = ids.every((id) => state.columns.includes(id));
+    const n = cols.map(have);
+    return el('div', { class: 'group' },
+      el('b', { title: allOn ? 'Gruppe abwählen' : 'ganze Gruppe wählen', onclick: () => set(ids, !allOn) }, title, count(n.reduce((a, b) => a + b, 0), cols.length * figs.length)),
+      cols.map((c, i) => el('label', {}, el('input', { type: 'checkbox', checked: state.columns.includes(c.id), onchange: (e) => set([c.id], e.target.checked) }), ' ', c.de, count(n[i], figs.length))));
+  }));
+  const names = groups.flatMap(([, cols]) => cols).filter((c) => state.columns.includes(c.id)).map((c) => c.de);
+  const label = names.length ? (names.length > 2 ? `${names.length} Bilder` : names.join(', ')) : 'keins gewählt';
+  return el('span', { class: 'controls' },
+    el('details', { class: 'picker', open: !!state.pickerOpen, ontoggle: (e) => { state.pickerOpen = e.target.open; persist(); } },
+      el('summary', {}, `${label} ▾`), panel),
+    names.length ? el('button', { class: 'chip', onclick: () => set(state.columns, false) }, 'keine') : null);
+}
+
 function controls() {
   const c = [];
   const lookChips = () => [el('label', {}, 'Äußeres'), M.looks.map((l) => el('button', {
@@ -323,12 +372,7 @@ function controls() {
       el('button', { class: `chip${state.legacy ? ' on' : ''}`, onclick: () => { state.legacy = !state.legacy; render(); } }, 'alte Bilder daneben'),
       ...size());
   } else if (state.tab === 'column') {
-    c.push(el('label', {}, 'Bild'), el('select', { onchange: (e) => { state.column = e.target.value; render(); } },
-      el('option', { value: 'species', selected: state.column === 'species' }, 'Volk (Basisfigur)'),
-      el('optgroup', { label: 'Klassen' }, M.classes.map((x) => el('option', { value: `c:${x.slug}`, selected: state.column === `c:${x.slug}` }, x.de))),
-      el('optgroup', { label: 'Hintergründe' }, M.backgrounds.map((x) => el('option', { value: `b:${x.slug}`, selected: state.column === `b:${x.slug}` }, x.de))),
-      el('optgroup', { label: 'Subklassen' }, M.subclasses.map((x) => el('option', { value: `s:${x.slug}`, selected: state.column === `s:${x.slug}` }, x.de)))),
-    ...lookChips(), ...speciesSel(), ...size());
+    c.push(el('label', {}, 'Bilder'), columnPicker(), ...lookChips(), ...speciesSel(), ...size());
   } else if (state.tab === 'raw') {
     c.push(el('label', {}, 'Gruppe'), el('select', { onchange: (e) => { state.rawGroup = e.target.value; render(); } },
       el('option', { value: '' }, 'alle'), M.raw.filter((g) => g.files.length).map((g) => el('option', { value: g.group, selected: g.group === state.rawGroup }, g.group))),
@@ -440,7 +484,6 @@ async function load() {
 const reloadBtn = document.getElementById('reload');
 reloadBtn.addEventListener('click', async () => {
   reloadBtn.disabled = true;
-  rev = Date.now();
   await load();
   reloadBtn.disabled = false;
 });

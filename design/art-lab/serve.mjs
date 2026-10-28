@@ -25,21 +25,34 @@ function vaultNames(dir) {
   return out;
 }
 
+// Änderungszeit je App-Bild: die Werkbank hängt sie an die URL, damit „Aktualisieren“ nur geänderte Bilder neu lädt.
+let versions = {};
+function versioned(file) {
+  const url = `/${file}`;
+  versions[url] = Math.round(statSync(join(ROOT, file)).mtimeMs);
+  return url;
+}
+
 function imageMap(dir) {
   const out = {};
-  for (const slug of slugsIn(dir, '.avif')) out[slug] = `/${dir}/${slug}.avif`;
+  for (const slug of slugsIn(dir, '.avif')) out[slug] = versioned(`${dir}/${slug}.avif`);
   return out;
 }
 
 function manifest() {
+  versions = {};
   const speciesDe = vaultNames('species');
   const classDe = vaultNames('classes');
   const backgroundDe = vaultNames('backgrounds');
   // Grundklassen = die mit eigenem Klassenbild; Unterklassen liegen im selben Vault-Ordner.
   const classes = slugsIn('static/art/classes', '.avif');
-  const subclasses = slugsIn('vault/classes', '.json').filter((slug) => {
-    try { return !!JSON.parse(readFileSync(join(ROOT, 'vault/classes', `${slug}.json`), 'utf8')).subclassOf; } catch { return false; }
-  });
+  // Je Subklasse die Grundklasse als Slug ohne Quellpräfix, sortiert nach Klasse, dann Name.
+  const subclasses = slugsIn('vault/classes', '.json').flatMap((slug) => {
+    try {
+      const of = JSON.parse(readFileSync(join(ROOT, 'vault/classes', `${slug}.json`), 'utf8')).subclassOf;
+      return of ? [{ slug, cls: of.replace(/^[^_]*_/, '') }] : [];
+    } catch { return []; }
+  }).sort((a, b) => a.cls.localeCompare(b.cls) || (classDe[a.slug] ?? a.slug).localeCompare(classDe[b.slug] ?? b.slug, 'de'));
 
   const figures = {};
   const variantCount = classes.length + Object.keys(backgroundDe).length;
@@ -57,13 +70,13 @@ function manifest() {
       }
       // Subklassen zählen nicht zum Status — der bewertet die Klassen-/Hintergrund-Serie.
       const freshSub = [];
-      for (const part of ['sa', 'sb', 'sc']) {
+      for (const part of ['sa', 'sb', 'sc', 'sd', 'se', 'sf', 'sg', 'sh']) {
         for (const slug of slugsIn(`design/art/figures-sub/${key}-${part}`, '.png')) {
           if (existsSync(join(ROOT, base, 'subclasses', `${slug}.avif`))) freshSub.push(`/${base}/subclasses/${slug}.avif`);
         }
       }
       figures[key] = {
-        species: existsSync(join(ROOT, base, 'species.avif')) ? `/${base}/species.avif` : null,
+        species: existsSync(join(ROOT, base, 'species.avif')) ? versioned(`${base}/species.avif`) : null,
         classes: imageMap(`${base}/classes`),
         backgrounds: imageMap(`${base}/backgrounds`),
         subclasses: imageMap(`${base}/subclasses`),
@@ -89,7 +102,7 @@ function manifest() {
     species: Object.entries(speciesDe).map(([slug, de]) => ({ slug, de })),
     classes: classes.map((slug) => ({ slug, de: classDe[slug] ?? slug })),
     backgrounds: Object.entries(backgroundDe).map(([slug, de]) => ({ slug, de })),
-    subclasses: subclasses.map((slug) => ({ slug, de: classDe[slug] ?? slug })),
+    subclasses: subclasses.map(({ slug, cls }) => ({ slug, cls, de: classDe[slug] ?? slug })),
     figures,
     legacy: {
       combos: imageMap('static/art/combos'),
@@ -98,6 +111,7 @@ function manifest() {
     },
     raw,
     notes,
+    versions,
   };
 }
 
@@ -143,6 +157,7 @@ createServer((req, res) => {
     res.writeHead(404);
     return res.end('nicht gefunden');
   }
-  res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
+  const cache = new URL(req.url, 'http://x').searchParams.has('v') ? 'max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': cache });
   createReadStream(file).pipe(res);
 }).listen(PORT, () => console.log(`Bild-Werkbank: http://localhost:${PORT}`));
