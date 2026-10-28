@@ -25,7 +25,7 @@
   import SheetSpellBlock from './SheetSpellBlock.svelte';
 
   let { character, itemIndex, spellIndex, spellcasting, masteryOf, masteryChips,
-        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses, movement }: {
+        companionImageUrl, figureUrl, abilities, combatTips, hpTipHtml, acTipHtml, attackCtx, saves, auras, defenses, movement, criticalHit }: {
     character: Character;
     itemIndex: ItemIndex;
     spellIndex: SpellIndex;
@@ -42,6 +42,7 @@
     saves: Record<AbilityKey, SavingThrowDerivation>;
     auras: CharacterAura[];
     defenses: CharacterDefense[];
+    criticalHit: string;
     movement: MovementLine[];
   } = $props();
 
@@ -66,7 +67,7 @@
   </div>
 
   <div class="two-col">
-    <SheetCombatBlock {character} tips={combatTips} {masteryOf} {hpTipHtml} {acTipHtml} {attackCtx} />
+    <SheetCombatBlock {character} tips={combatTips} {masteryOf} {hpTipHtml} {acTipHtml} {attackCtx} {criticalHit} />
     <SheetProficiencyBlock {character} {saves} {masteryChips} />
   </div>
 

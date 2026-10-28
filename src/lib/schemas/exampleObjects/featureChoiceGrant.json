@@ -178,7 +178,8 @@
           {
             "kind": "advantage"
           }
-        ]
+        ],
+        "criticalHit": 2
       },
       "prerequisite": {
         "level": 1,

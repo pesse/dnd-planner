@@ -73,6 +73,23 @@ export async function loadDeclaredAttackEffects(
   return declaredAttackEffects(index, c.inventory ?? [], features);
 }
 
+export interface CriticalRange {
+  minRoll: number;
+  labelDe: string;
+}
+
+/** Der weiteste Bereich zählt; der Champion trägt 19 und 18 gleichzeitig. */
+export function criticalRange(features: readonly AttackEffectFeature[]): CriticalRange | null {
+  let best: CriticalRange | null = null;
+  for (const f of features) {
+    const minRoll = f.grants?.criticalHit;
+    if (minRoll !== undefined && (!best || minRoll < best.minRoll)) best = { minRoll, labelDe: f.name };
+  }
+  return best;
+}
+
+export const criticalRangeDe = (c: CriticalRange): string => `Kritischer Treffer bei ${c.minRoll}–20 (${c.labelDe})`;
+
 const filtered = (e: AttackEffect): boolean => e.range !== 'any' || !!e.weapons?.length;
 
 function weaponMatches(e: AttackEffect, weapon: ItemInfo): boolean {

@@ -15,7 +15,7 @@
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
-  import { declaredAttackEffects } from '../services/attackEffects';
+  import { criticalRange, criticalRangeDe, declaredAttackEffects } from '../services/attackEffects';
   import { characterDefenses } from '../services/defenses';
   import { characterMovement } from '../services/movement';
   import { declaredSpeed } from '../services/characterProperties';
@@ -76,6 +76,7 @@
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
   const defenses = $derived(owned.current ? characterDefenses(owned.current) : []);
+  const critical = $derived(owned.current && criticalRange(owned.current));
   const movement = $derived(owned.current ? characterMovement(owned.current, declaredSpeed(owned.current)?.feet ?? null) : []);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
@@ -168,7 +169,8 @@
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
             abilities={abilities.resolved} combatTips={tips} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
-            saves={saving.saves} auras={saving.auras} {defenses} {movement} />
+            saves={saving.saves} auras={saving.auras} {defenses} {movement}
+            criticalHit={critical ? criticalRangeDe(critical) : ''} />
           {/if}
         {/snippet}
 

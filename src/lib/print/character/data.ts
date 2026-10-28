@@ -13,7 +13,9 @@ import { effectiveProficiencyBonus, getProgressionByKey, levelColumns, levelTabl
 import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
-import { loadDeclaredAttackEffects, type DeclaredAttackEffects } from '$lib/services/attackEffects';
+import {
+  criticalRange, criticalRangeDe, loadDeclaredAttackEffects, type AttackEffectFeature, type DeclaredAttackEffects,
+} from '$lib/services/attackEffects';
 import type { ItemInfo } from '$lib/itemLibrary';
 import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
 import { mod } from '$lib/domain/skills';
@@ -58,6 +60,8 @@ export interface CharacterPrintData {
   attacks: PrintAttack[];
   saves: Record<AbilityKey, SavingThrowDerivation>;
   initiativeAdvantage: boolean;
+  /** Leer ohne erweiterten Bereich. */
+  criticalHit: string;
   auras: CharacterAura[];
   defenses: CharacterDefense[];
   movement: MovementLine[];
@@ -121,6 +125,11 @@ function printAttacks(
   });
 }
 
+function criticalText(features: readonly AttackEffectFeature[]): string {
+  const range = criticalRange(features);
+  return range ? criticalRangeDe(range) : '';
+}
+
 async function classValues(c: Character): Promise<ClassValues[]> {
   const out: ClassValues[] = [];
   for (const cls of c.classes ?? []) {
@@ -172,6 +181,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   return {
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
+    criticalHit: criticalText(saveInputs.features),
     scores,
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',

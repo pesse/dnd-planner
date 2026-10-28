@@ -5,7 +5,9 @@
  *   npm run test -- attackEffects
  */
 import { describe, expect, it } from 'vitest';
-import { attackEffectSources, type AttackEffectFeature, type DeclaredAttackEffects } from '../../src/lib/services/attackEffects';
+import {
+  attackEffectSources, criticalRange, criticalRangeDe, type AttackEffectFeature, type DeclaredAttackEffects,
+} from '../../src/lib/services/attackEffects';
 import {
   attackBonusParts, attackDamageParts, blankAttack, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
 } from '../../src/lib/services/attackCalc';
@@ -123,5 +125,20 @@ describe('Deklarierte Angriffswirkungen', () => {
 
   it('ein Merkmal aus zwei Quellen wirkt einmal', () => {
     expect(computeAttackBonus(attack(LONGBOW), ctx([], [ARCHERY, ARCHERY]))).toBe('+7');
+  });
+});
+
+describe('criticalRange', () => {
+  const crit = (name: string, criticalHit?: number): AttackEffectFeature =>
+    ({ name, grants: featureGrantSchema.parse(criticalHit === undefined ? {} : { criticalHit }) });
+
+  it('nimmt den weitesten deklarierten Bereich', () => {
+    const range = criticalRange([crit('Verbesserter kritischer Treffer', 19), crit('Überlegener kritischer Treffer', 18), crit('Leer')]);
+    expect(range).toEqual({ minRoll: 18, labelDe: 'Überlegener kritischer Treffer' });
+    expect(criticalRangeDe(range!)).toBe('Kritischer Treffer bei 18–20 (Überlegener kritischer Treffer)');
+  });
+
+  it('bleibt ohne Deklaration leer', () => {
+    expect(criticalRange([crit('Leer'), { name: 'Ohne Grants' }])).toBeNull();
   });
 });

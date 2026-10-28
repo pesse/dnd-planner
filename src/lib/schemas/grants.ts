@@ -179,6 +179,13 @@ export const featureGrantSchema = z.object({
     .describe('Zusätzliche Bewegungsarten und Erhöhungen; die Grundbewegungsrate steht in `properties.speedFeet`.'),
   senses: z.array(senseEffectSchema).default([]).describe('Dunkelsicht, Blindsicht, Erschütterungssinn, Wahre Sicht.'),
   initiative: z.array(initiativeEffectSchema).default([]),
+  criticalHit: z
+    .number()
+    .int()
+    .min(2)
+    .max(19)
+    .optional()
+    .describe('Kleinster W20-Wurf, der bei Waffen- und waffenlosen Angriffen kritisch trifft (Verbesserter kritischer Treffer: 19).'),
 });
 
 /**

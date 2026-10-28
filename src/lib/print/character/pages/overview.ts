@@ -192,9 +192,10 @@ const attacksBox = (d: CharacterPrintData): string => {
   const rows = d.attacks.map((a) => `<tr${a.note ? ' class="has-note"' : ''}>${cell(name(a))}` +
     `${cell(esc(a.range), 'num')}${cell(esc(withSign(a.bonus)), 'num')}` +
     `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
+  if (d.criticalHit) rows.push(`<tr><td colspan="5"><span class="anote">${esc(d.criticalHit)}</span></td></tr>`);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
   // Eine Notiz belegt eine zweite Schreiblinie, zählt also doppelt.
-  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), 0);
+  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), d.criticalHit ? 1 : 0);
   const write = Math.max(4, ATTACK_ROWS - used);
   rows.push(...Array.from({ length: write }, () => writeRow));
 
