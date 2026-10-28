@@ -101,7 +101,7 @@ export function spellAccessGrantOf(
   if (!source) return null;
 
   const viewsOf = (src: NonNullable<ReturnType<typeof sourceAt>>) =>
-    quotaViews(src, quotaContext(null, src.level, NO_SLOTS, NO_SPELL_KEY, NO_SCALE));
+    quotaViews(src, quotaContext([], src.level, NO_SLOTS, NO_SPELL_KEY, NO_SCALE));
   const views = viewsOf(source);
 
   // Was auf der Ausgangsstufe schon galt, ist keine neue Wahl: das Kontingent des Hervorrufers

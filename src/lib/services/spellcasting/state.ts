@@ -5,7 +5,7 @@ import { abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/ab
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { ResolvedResource, ResourceIssue, ResourceResolution } from '../resources/resolve';
 import { slotLookup } from '../resources/project';
-import { castUses, quotaContext, quotaViews, type QuotaView } from './quota';
+import { castUses, quotaContext, quotaViews, sourceTables, type QuotaView } from './quota';
 import type { CastingResolution } from './resolve';
 import type { CastingIssue, CastingSource } from './source';
 import { pickedKeys } from './write';
@@ -93,14 +93,12 @@ function quotaState(view: QuotaView, stored: CharacterSpellcasting | undefined, 
 export function spellcastingState(input: SpellcastingInput): SpellcastingState {
   const { resolution, stored } = input;
   const slotsOf = slotLookup(input.resources.pools);
-  const progOf = new Map(resolution.classes.map((c) => [c.prog.key, c.prog]));
   const issues = [...resolution.issues];
 
   const abilities = new Map<string, AbilityName | null>();
   const sources: SourceState[] = [];
   for (const source of resolution.sources) {
-    const prog = progOf.get(source.classKey) ?? null;
-    const ctx = quotaContext(prog, source.level, slotsOf, input.spellKey, input);
+    const ctx = quotaContext(sourceTables(resolution.classes, source), source.level, slotsOf, input.spellKey, input);
     const ability = abilityOf(source, abilities);
     abilities.set(source.id, ability);
 

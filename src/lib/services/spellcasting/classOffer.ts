@@ -6,7 +6,7 @@
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import type { AbilityName } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
-import { classQuotaRoles, NO_SCALE, quotaContext, quotaViews, type QuotaView } from './quota';
+import { classQuotaRoles, NO_SCALE, quotaContext, quotaViews, sourceTables, type QuotaView } from './quota';
 import { resolveCasting } from './resolve';
 import { slotLookup } from '../resources/project';
 import { resolveResources } from '../resources/resolve';
@@ -64,7 +64,7 @@ export async function classCastingOffer(input: {
   const views = resolution.sources
     .filter((s) => s.origin === 'class' || s.origin === 'subclass')
     .flatMap((source) => {
-      const ctx = quotaContext(prog, source.level, slotsOf, spellKey, NO_SCALE);
+      const ctx = quotaContext(sourceTables(resolution.classes, source), source.level, slotsOf, spellKey, NO_SCALE);
       return quotaViews(source, ctx).filter((v) => !v.fixed);
     });
 

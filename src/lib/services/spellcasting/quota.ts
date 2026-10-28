@@ -5,7 +5,7 @@ import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveAmount, type AmountContext } from '../resources/amount';
-import { columnValue } from '../classProgression';
+import { columnValueIn, levelTables } from '../classProgression';
 import { parseSpellGrantRows } from '../grantedSpells';
 import { slotLevels } from '../resources/slots';
 import { branchMatch } from '../declaration/branch';
@@ -74,14 +74,24 @@ export const NO_SCALE: AmountScale = { profBonus: 0, mods: abilityRecordOf(() =>
 /** Dieselben Pfade fragen ohne Charakter — ohne Plätze bleibt eine Gradschranke leer. */
 export const NO_SLOTS = (): number[] => [];
 
+/** Eine Subklassen-Quelle liest zuerst ihre eigene Tabelle — nur dort stehen die Spalten eines Drittel-Zauberwirkers. */
+export function sourceTables(
+  classes: readonly { prog: ClassProgression; sub: ClassProgression | null }[],
+  source: Pick<CastingSource, 'classKey' | 'origin'>,
+): ClassProgression[] {
+  const cls = classes.find((c) => c.prog.key === source.classKey);
+  return levelTables(cls?.prog, source.origin === 'subclass' ? cls?.sub : null);
+}
+
 export function quotaContext(
-  prog: ClassProgression | null,
+  /** Die Tabellen der Quelle in Lesereihenfolge (`levelTables`); leer bei den Frage-Pfaden. */
+  tables: readonly ClassProgression[],
   level: number,
   slotsOf: (pool: string) => number[],
   spellKey: (name: string) => string | undefined,
   scale: AmountScale,
 ): QuotaContext {
-  const column = (name: string): string | undefined => (prog ? columnValue(prog, name, level) : undefined);
+  const column = (name: string): string | undefined => columnValueIn(tables, name, level);
   return {
     column,
     slotLevels: (pool) => slotLevels(slotsOf(pool)),

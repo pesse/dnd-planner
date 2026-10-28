@@ -6,15 +6,6 @@
 
 ## Fehler in der App (Daten sind richtig)
 
-- **Drittel-Zauberwirker ohne zweite Klasse bekommen 0 Zauberplätze.** `combineSlots` /
-  `slotsFromTable` (`src/lib/services/resources/slots.ts`) liest bei einer einzigen speisenden
-  Klasse nur die Tabelle der Grundklasse, nie die der Unterklasse; auch die Spalten in
-  `quotaContext` kommen nur von dort. Schurke 7 + Arkaner Betrüger ergibt `[0,…]` statt `[4,2]`,
-  die `slotted`-Quoten bleiben leer. Mit zweiter Klasse stimmt es über `casterLevel`.
-  Betrifft `fighter_eldritch-knight_spellcasting`, `rogue_arcane-trickster_spellcasting`.
-- **Folge davon:** `castingDeclarations` („nennt nur Spalten, die die Klassentabelle führt")
-  setzt voraus, dass Unterklassen keine Stufentabelle haben. Die Anzahl vorbereiteter Zauber
-  steht deshalb als `byLevel` statt als Spalte `Prepared Spells`.
 - **Zirkel des Landes:** Das Land wird nach jeder Langen Rast neu gewählt. `fromDescTable`
   vereinigt alle vier Tabellen, damit gelten heute alle 16 Zauber als vorbereitet
   (`srd-2024_druid_circle-of-the-land_spell-list`).

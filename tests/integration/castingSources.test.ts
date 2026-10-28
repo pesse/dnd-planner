@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { CharacterFeatureEntry } from '../../src/lib/schemas/characterSchema';
-import { NO_SCALE, quotaContext, quotaViews, type QuotaView } from '../../src/lib/services/spellcasting/quota';
+import { NO_SCALE, quotaContext, quotaViews, sourceTables, type QuotaView } from '../../src/lib/services/spellcasting/quota';
 import {
   resolveCasting,
   type CastingCharacter,
@@ -26,11 +26,10 @@ async function resolveViews(c: CastingCharacter): Promise<{
   const spellKey = (name: string): string | undefined => resolveSpell(lib, name)?.key;
   const { pools } = await resolveResources(c);
   const slotsOf = slotLookup(pools);
-  const progOf = new Map(res.classes.map((k) => [k.prog.key, k.prog]));
   const views = new Map(
     res.sources.map((s) => [
       s.id,
-      quotaViews(s, quotaContext(progOf.get(s.classKey) ?? null, s.level, slotsOf, spellKey, NO_SCALE)),
+      quotaViews(s, quotaContext(sourceTables(res.classes, s), s.level, slotsOf, spellKey, NO_SCALE)),
     ]),
   );
   return { res, views };
@@ -148,6 +147,21 @@ describe('Zauberquellen der Klassen', () => {
     expect(prepared.levels).toEqual([1, 2, 3]);
     expect(prepared.cast).toEqual([{ kind: 'slots', pool: 'pact' }]);
   });
+
+  // Ohne zweite Klasse gibt es keine Zauberwirkerstufe — Plätze und Anzahl stehen nur in der Subklassentabelle.
+  for (const [cls, sub] of [
+    ['srd-2024_rogue', 'phb-2024_arcane-trickster'],
+    ['srd-2024_fighter', 'phb-2024_eldritch-knight'],
+  ] as const) {
+    it(`gibt ${sub} auf Stufe 7 Plätze und Kontingent aus der Subklassentabelle`, async () => {
+      const c = asClass(cls, 7, sub);
+      const { pools } = await resolveResources(c);
+      expect(pools.find((p) => p.kind === 'slots')?.max.slice(0, 3)).toEqual([4, 2, 0]);
+      const { res, views } = await resolveViews(c);
+      const own = views.get(res.sources.find((s) => s.origin === 'subclass')!.id);
+      expect(viewOf(own, 'prepared')).toMatchObject({ count: 5, levels: [1, 2] });
+    });
+  }
 });
 
 describe('Zauberbuch des Magiers', () => {

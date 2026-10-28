@@ -5,7 +5,7 @@
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { SlotSource } from '$lib/schemas/resource';
 import { firstInt, numOr } from '$lib/utils/num';
-import { levelColumns } from '../classProgression';
+import { columnValueIn, levelTables } from '../classProgression';
 
 /** v2 `caster_type` → Teiler der Zauberwirkerstufe. Wer hier fehlt, trägt nichts bei. */
 const CASTER_DIVISOR: Record<string, number> = { FULL: 1, HALF: 2, THIRD: 3 };
@@ -38,17 +38,19 @@ export function casterLevelOf(c: { level: number; casterType: string }): number 
 /** Eine Klasse, die einen Platz-Vorrat speist — mit der Schreibweise, die ihre Tabelle führt. */
 export interface SlotFeeder {
   prog: ClassProgression;
+  /** Ein Drittel-Zauberwirker führt die Platzspalten nur in der Subklassentabelle. */
+  sub?: ClassProgression | null;
   level: number;
   casterType: string;
   levels: SlotSource;
 }
 
 /** Die neun Grade AUS der Klassentabelle, in der deklarierten Schreibweise. */
-export function slotsFromTable(prog: ClassProgression, level: number, src: SlotSource): number[] {
-  const cols = levelColumns(prog, level);
-  if ('columns' in src) return NINE(src.columns.map((c) => numOr(cols[c])));
-  const count = numOr(cols[src.countColumn]);
-  const grade = firstInt(cols[src.levelColumn]);
+export function slotsFromTable(tables: readonly ClassProgression[], level: number, src: SlotSource): number[] {
+  const col = (name: string): string | undefined => columnValueIn(tables, name, level);
+  if ('columns' in src) return NINE(src.columns.map((c) => numOr(col(c))));
+  const count = numOr(col(src.countColumn));
+  const grade = firstInt(col(src.levelColumn));
   return NINE(Array.from({ length: grade }, (_, i) => (i === grade - 1 && grade <= 9 ? count : 0)));
 }
 
@@ -58,7 +60,7 @@ export function slotsFromTable(prog: ClassProgression, level: number, src: SlotS
  * die Mehrklassen-Tabelle gäbe dem Paladin 2 drei Plätze, seine eigene sagt zwei.
  */
 export function combineSlots(feeders: SlotFeeder[], combine: 'caster-level' | 'highest'): number[] {
-  const own = (f: SlotFeeder): number[] => slotsFromTable(f.prog, f.level, f.levels);
+  const own = (f: SlotFeeder): number[] => slotsFromTable(levelTables(f.prog, f.sub), f.level, f.levels);
   if (combine === 'highest') {
     const top = [...feeders].sort((a, b) => b.level - a.level)[0];
     return top ? own(top) : NINE();
