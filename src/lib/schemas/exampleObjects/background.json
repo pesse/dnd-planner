@@ -35,6 +35,298 @@
       "string"
     ]
   },
+  "grantsChoice": [
+    {
+      "kind": "weaponMastery",
+      "options": [
+        {
+          "value": "string",
+          "labelDe": "string",
+          "helpDe": "string",
+          "grants": {
+            "proficiencies": {
+              "skills": {
+                "fixed": [
+                  "Acrobatics"
+                ],
+                "choose": 0,
+                "from": [
+                  "Acrobatics"
+                ]
+              },
+              "savingThrows": [
+                "Strength"
+              ],
+              "weapons": [
+                "Simple"
+              ],
+              "weaponsOther": [
+                "string"
+              ],
+              "armor": [
+                "Light"
+              ],
+              "tools": [
+                "string"
+              ]
+            },
+            "languages": [
+              "string"
+            ],
+            "abilities": [
+              {
+                "ability": "Strength",
+                "amount": 1,
+                "max": 20
+              }
+            ],
+            "extraCantrips": 0,
+            "extraPreparedCount": 0,
+            "perLevel": {
+              "hpMax": 0
+            },
+            "hpMaxBonus": 0,
+            "halfProficiencySkills": false,
+            "properties": {
+              "size": "Tiny",
+              "speedFeet": 1
+            },
+            "armorClass": [
+              {
+                "kind": "unarmored",
+                "base": 10,
+                "abilities": [
+                  "str"
+                ],
+                "shield": true
+              },
+              {
+                "kind": "bonus",
+                "value": -9007199254740991,
+                "when": "always"
+              },
+              {
+                "kind": "situational",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "attack": [
+              {
+                "kind": "bonus",
+                "attack": 0,
+                "damage": 0,
+                "range": "any",
+                "weapons": [
+                  "string"
+                ],
+                "properties": [
+                  "ammunition"
+                ]
+              },
+              {
+                "kind": "situational",
+                "roll": "attack",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string",
+                "range": "any",
+                "weapons": [
+                  "string"
+                ],
+                "properties": [
+                  "ammunition"
+                ]
+              },
+              {
+                "kind": "dice",
+                "dice": "1d4",
+                "damageType": "acid",
+                "condition": "string",
+                "conditionDe": "string",
+                "range": "any",
+                "weapons": [
+                  "string"
+                ],
+                "properties": [
+                  "ammunition"
+                ]
+              },
+              {
+                "kind": "note",
+                "condition": "string",
+                "conditionDe": "string",
+                "range": "any",
+                "weapons": [
+                  "string"
+                ],
+                "properties": [
+                  "ammunition"
+                ]
+              }
+            ],
+            "savingThrow": [
+              {
+                "kind": "bonus",
+                "value": -9007199254740991,
+                "abilities": [
+                  "str"
+                ]
+              },
+              {
+                "kind": "situational",
+                "value": -9007199254740991,
+                "condition": "string",
+                "conditionDe": "string",
+                "abilities": [
+                  "str"
+                ]
+              },
+              {
+                "kind": "advantage",
+                "abilities": [
+                  "str"
+                ],
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "aura": [
+              {
+                "aura": "string",
+                "radiusFeet": 1,
+                "savingThrows": -9007199254740991,
+                "resistances": [
+                  "acid"
+                ],
+                "conditionImmunities": [
+                  "blinded"
+                ],
+                "effect": "string",
+                "effectDe": "string"
+              }
+            ],
+            "defenses": [
+              {
+                "resistances": [
+                  "acid"
+                ],
+                "immunities": [
+                  "acid"
+                ],
+                "conditionImmunities": [
+                  "blinded"
+                ],
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "speeds": [
+              {
+                "mode": "walk",
+                "feet": 1,
+                "bonus": false,
+                "hover": false,
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "senses": [
+              {
+                "sense": "darkvision",
+                "feet": 1,
+                "stacks": false,
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "initiative": [
+              {
+                "kind": "bonus",
+                "value": -9007199254740991
+              },
+              {
+                "kind": "advantage"
+              }
+            ],
+            "checks": [
+              {
+                "kind": "bonus",
+                "value": -9007199254740991,
+                "abilities": [
+                  "str"
+                ],
+                "skills": [
+                  "Acrobatics"
+                ]
+              },
+              {
+                "kind": "advantage",
+                "abilities": [
+                  "str"
+                ],
+                "skills": [
+                  "Acrobatics"
+                ],
+                "condition": "string",
+                "conditionDe": "string"
+              }
+            ],
+            "criticalHit": 2
+          },
+          "prerequisite": {
+            "level": 1,
+            "options": [
+              "string"
+            ]
+          },
+          "spells": [
+            {
+              "level": 1,
+              "names": [
+                "string"
+              ]
+            }
+          ]
+        }
+      ],
+      "featCategory": "Origin",
+      "when": {
+        "<key>": "string"
+      },
+      "recommended": [
+        "string"
+      ],
+      "swap": "level-up-one",
+      "count": 1,
+      "column": "string",
+      "skills": [
+        "Acrobatics"
+      ],
+      "toolCategory": "",
+      "spellLists": [
+        "string"
+      ],
+      "spellAbilities": [
+        "Strength"
+      ],
+      "spellPicks": [
+        {
+          "level": 0,
+          "count": 1
+        }
+      ],
+      "abilities": [
+        "Strength"
+      ],
+      "abilityMax": 20,
+      "property": "size",
+      "propertyValues": [
+        "string"
+      ]
+    }
+  ],
   "document": {
     "key": "string",
     "gamesystem": "string"

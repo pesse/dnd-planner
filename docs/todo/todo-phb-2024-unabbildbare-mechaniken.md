@@ -107,7 +107,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 
 | Key | Mechanik | Was fehlt |
 |---|---|---|
-| `artisan`, `entertainer`, `guard`, `noble`, `soldier` | Werkzeug nach Wahl | `backgroundSchema` hat kein `grantsChoice`, die Wahl bleibt Prosa |
 | `phb-2024_aasimar_celestial-revelation` | Zusatzschaden = Übungsbonus, Aura mit SG | keine Senke |
 | `phb-2024_aasimar_healing-hands` | W4 je Übungsbonus | keine Senke |
 | `srd-2024_halfling_luck` | 1 neu würfeln | keine Senke |

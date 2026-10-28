@@ -72,7 +72,7 @@ export const SHEET_NOTE_EN_MAX_CHARS = 135;
 const featureRiderSchema = z.object({
   featureName: z.string().default(''),
   featureKey: z.string().default(''),
-  source: z.enum(['class', 'subclass', 'feat', 'species']).default('class'),
+  source: z.enum(['class', 'subclass', 'feat', 'species', 'background']).default('class'),
   grantedSpells: z.array(z.string()).default([]).describe('Immer-vorbereitete/gewährte Zauber, kanonische ENGLISCHE Namen.'),
   extraCantrips: z.number().int().default(0),
   extraPreparedCount: z.number().int().default(0),

@@ -45,7 +45,7 @@
 
   const features = $derived.by<FeatureListEntry[]>(() => {
     const sourceLabel: Record<FeatureSource, string> = {
-      class: w.klass.name, subclass: w.klass.subclassName ?? 'Unterklasse', species: w.species.name, feat: 'Talent',
+      class: w.klass.name, subclass: w.klass.subclassName ?? 'Unterklasse', species: w.species.name, feat: 'Talent', background: w.background.name,
     };
     return w.declared.map((f, i) => ({
       id: f.key ?? `${f.source}-${i}`,

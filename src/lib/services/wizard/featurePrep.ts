@@ -102,13 +102,28 @@ function declaredSources(
   sub: ClassProgression | null,
   traits: Trait[],
   gained: GainedFeature[],
+  bg: Background | null,
 ): DeclaredFeature[] {
   return [
     ...declaredFeatures('class', prog ? featuresUpTo(prog, 1) : []),
     ...declaredFeatures('subclass', sub ? featuresUpTo(sub, 1) : []),
     ...declaredFeatures('species', traits),
     ...declaredFeatures('feat', gained.filter((f) => f.source === 'feat')),
+    ...declaredFeatures('background', bg?.grantsChoice?.length ? [backgroundChoiceFeature(bg)] : []),
   ];
+}
+
+/** Als Text der Vorteil, um den es geht, nicht die Hintergrundgeschichte. */
+function backgroundChoiceFeature(bg: Background): Omit<DeclaredFeature, 'source'> {
+  const tool = bg.benefits.find((b) => b.type === 'tool_proficiency');
+  return {
+    key: bg.key,
+    name: bg.name,
+    nameDe: bg.nameDe,
+    desc: tool?.desc,
+    descDe: tool?.descDe,
+    grantsChoice: bg.grantsChoice,
+  };
 }
 
 /**
@@ -181,7 +196,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   }
 
   const traits = traitsUpTo(spec?.traits ?? [], 1);
-  const declared = declaredSources(prog, sub, traits, gained);
+  const declared = declaredSources(prog, sub, traits, gained, bg);
   const spellAccess = spellAccessGrants(declared, bg);
   const speciesFeatures = traitFeatures(traits);
 

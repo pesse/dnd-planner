@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { sourceField } from './source';
 import { proficiencyGrantSchema, emptyProficiencyGrant } from './grants';
 import { startingEquipmentOptionSchema } from './startingEquipment';
+import { featureDeclarationFields } from './featureChoice';
 
 /** Entspricht Open5es `benefits[].type`. */
 export const BENEFIT_TYPES = [
@@ -54,11 +55,10 @@ export const backgroundSchema = z.object({
     .string()
     .default('')
     .describe('Bibliotheks-Key des Herkunftstalents, z.B. "srd-2024_savage-attacker".'),
-  /**
-   * Alle 16 SRD-Hintergründe gewähren genau zwei FESTE Fertigkeiten. Werkzeugübungen
-   * bleiben Prosa im Vorteil — Werkzeuge sind kein Vokabular der App.
-   */
   proficiencyGrant: proficiencyGrantSchema.default(emptyProficiencyGrant),
+  grantsChoice: featureDeclarationFields.grantsChoice.describe(
+    'Wahl, die der Hintergrund selbst gewährt — „Wähle eine Art von Spielset aus" als kind="toolProficiency".',
+  ),
   document: z
     .object({ key: z.string().default(''), gamesystem: z.string().default('') })
     .default({ key: '', gamesystem: '' }),

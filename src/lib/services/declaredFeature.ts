@@ -51,7 +51,7 @@ export function parseDeclaration(raw: Record<string, unknown>): DeclarationField
   return out as DeclarationFields;
 }
 
-export type FeatureSource = 'class' | 'subclass' | 'species' | 'feat';
+export type FeatureSource = 'class' | 'subclass' | 'species' | 'feat' | 'background';
 
 /**
  * Die Mechanik fragt NIE nach `source` — es entscheidet allein über die Bogen-Zeile. `desc`
@@ -76,6 +76,6 @@ export function declaredFeatures<T extends Omit<DeclaredFeature, 'source'>>(
 
 /**
  * Die EINZIGE Stelle, an der die Herkunft entscheidet: ein Speziesmerkmal steht schon im
- * Volksmerkmale-Text, eine Zeile im Klassenfeld wäre die Dublette.
+ * Volksmerkmale-Text, ein Hintergrund im eigenen Feld, eine Zeile im Klassenfeld wäre die Dublette.
  */
-export const forClassFeaturesField = (f: DeclaredFeature): boolean => f.source !== 'species';
+export const forClassFeaturesField = (f: DeclaredFeature): boolean => f.source !== 'species' && f.source !== 'background';
