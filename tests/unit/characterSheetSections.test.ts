@@ -201,7 +201,7 @@ describe('Sektionen des Charakterbogens', () => {
     expect(defaultSelection(sheetSections(d)).itemCards).toBe(true);
   });
 
-  it('bietet die Figur an, wenn etwas angelegt ist — nicht vorgewählt, Werte und Kommentare ausgeschrieben', () => {
+  it('bietet die Figur an, wenn etwas angelegt ist — nicht vorgewählt, Beschreibung und Kommentare ausgeschrieben', () => {
     const cloak = (name: string, line: number) => ({
       line, slot: 'shoulders' as const, effective: true,
       item: { name, category: 'wondrous-item', rarity: '', path: name, magic: true },
@@ -218,7 +218,7 @@ describe('Sektionen des Charakterbogens', () => {
     const html = sheetSections(d).find((s) => s.id === 'figure')!.render(d);
     expect(html).toContain('<b>Umhang A</b>');
     expect(html).toContain('<b>Umhang B</b>');
-    expect(html).toContain('<span class="plabel">RK</span><span>11</span>');
+    expect(html).not.toContain('plabel');
     expect(html).toContain('<strong>Regen</strong>');
     expect(html).toContain('Flattert dramatisch.');
   });

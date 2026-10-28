@@ -21,7 +21,7 @@ export interface PrintFigure {
   /** Item-Key → Bild; fehlt der Eintrag, steht der Anfangsbuchstabe. */
   art: Map<string, string>;
   quips: Map<EquipmentSlot, string>;
-  /** Bibliothekspfad → Spielwerte und Beschreibung; fehlt die Datei, steht nur der Name. */
+  /** Bibliothekspfad → Beschreibung; fehlt die Datei, steht nur der Name. */
   facts: Map<string, ItemCardFacts>;
 }
 
@@ -51,9 +51,8 @@ function icon(f: PrintFigure, p: Placed): string {
 function itemEntry(f: PrintFigure, p: Placed): string {
   const inside = p.contents?.length ? ` (${p.contents.map((c) => displayName(c.item)).join(', ')})` : '';
   const facts = f.facts.get(p.item.path);
-  const stats = facts?.rows.length ? `<div class="fig-stats">${facts.rows.join('')}</div>` : '';
   const desc = p.item.magic && facts?.description ? `<div class="fig-desc md">${renderMarkdown(facts.description)}</div>` : '';
-  return `<div class="fig-item"><b>${esc(displayName(p.item) + inside)}</b>${stats}${desc}</div>`;
+  return `<div class="fig-item"><b>${esc(displayName(p.item) + inside)}</b>${desc}</div>`;
 }
 
 export function renderFigure(d: CharacterPrintData): string {

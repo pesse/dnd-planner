@@ -60,11 +60,6 @@ export const BLOCK_CSS = `
 .fig-mark.inline { position: static; display: inline-block; vertical-align: 0.2mm; }
 .fig-list { flex: 1; min-width: 0; }
 .fig-item + .fig-item { margin-top: 0.8mm; }
-.fig-stats { display: flex; flex-wrap: wrap; gap: 0 2.5mm; font-size: 7pt; font-weight: 400; }
-.fig-stats .prop { display: inline-flex; gap: 1mm; align-items: baseline; }
-.fig-stats .plabel { font-size: 5.8pt; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-label); }
-.fig-stats .pill + .pill::before { content: ', '; }
-.fig-stats .disadv { color: #a82a18; }
 .fig-desc { font-size: 6.8pt; font-weight: 400; line-height: 1.3; }
 .fig-desc p { margin: 0.3mm 0 0; }
 .fig-quips { margin-top: 1.6mm; padding-top: 1mm; border-top: 0.15mm dotted var(--rule-soft);
