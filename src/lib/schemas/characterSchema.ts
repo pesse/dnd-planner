@@ -7,6 +7,7 @@ import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './ab
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 import { CHARACTER_VERSION } from './characterUpgrades';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
+import { resourceAdjustmentSchema } from './resource';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -301,6 +302,10 @@ export const characterSchema = z.object({
     .array(optionPickSchema)
     .default([])
     .describe('Gewählte Optionen aus deklarierten Options-Pools (Metamagie), je Merkmal.'),
+  resourceAdjustments: z
+    .array(resourceAdjustmentSchema)
+    .optional()
+    .describe('Handeingetragene Zu- und Abschläge auf Vorräte, z. B. durch einen Spielleiter-Segen.'),
   // Merkmals-Ledger, additiv zum Freitext: Berechnungsgrundlage, keine Anzeigequelle.
   features: z.array(characterFeatureSchema).default([]),
   /**

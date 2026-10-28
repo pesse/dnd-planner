@@ -1,5 +1,7 @@
 <script lang="ts">
   import { resourceViews } from '../../services/resources/project';
+  import { findResource, refOf, type ResolvedResource } from '../../services/resources/resolve';
+  import type { ResourceAdjustment } from '../../schemas/resource';
   import { groupedSpellcasting } from '../../services/spellcasting/grouped';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import { setSlotTotals } from '../../services/spellcasting/write';
@@ -16,6 +18,23 @@
   const resources = $derived(resourceViews(pools));
   // Von Hand nur, wo keine Klassentabelle Plätze hergibt — sonst schlüge die Eingabe die Progression.
   const manualSlots = $derived(!pools.some((p) => p.kind === 'slots' && p.origin !== 'manual'));
+
+  const poolById = $derived(new Map(pools.map((p) => [p.id, p])));
+  const visible = $derived(new Set(resources.map((r) => r.id)));
+  const targetOf = (adj: ResourceAdjustment) => findResource(pools, adj.target, '');
+  const adjustmentsOf = (id: string) => form.resourceAdjustments.filter((a) => targetOf(a)?.id === id);
+  // Ohne sichtbare Karte (Ziel weg oder auf 0 gedrückt) brauchen sie trotzdem einen Ort zum Löschen.
+  const stray = $derived(form.resourceAdjustments.filter((a) => !visible.has(targetOf(a)?.id ?? '')));
+
+  function addAdjustment(pool: ResolvedResource) {
+    form.resourceAdjustments.push({
+      target: refOf(pool), amount: 1, reason: '',
+      ...(pool.kind === 'slots' ? { grade: pool.max.findIndex((n) => n > 0) + 1 || 1 } : {}),
+    });
+  }
+  function removeAdjustment(adj: ResourceAdjustment) {
+    form.resourceAdjustments.splice(form.resourceAdjustments.indexOf(adj), 1);
+  }
 
   function onSlotTotals(level: number, total: number) {
     const totals = Array.from({ length: 9 }, (_, i) => block.manual?.slotTotals[i] ?? 0);
@@ -44,9 +63,37 @@
           </span>
         {/each}
       </div>
+      {#each adjustmentsOf(pool.id) as adj}
+        {@render adjustmentRow(adj, poolById.get(pool.id)?.kind === 'slots')}
+      {/each}
+      {#if poolById.get(pool.id)}
+        <button type="button" class="adj-add" onclick={() => addAdjustment(poolById.get(pool.id)!)}>± Anpassen</button>
+      {/if}
     </div>
   {/each}
 </div>
+{#if stray.length}
+  <div class="stray">
+    {#each stray as adj}
+      {@const target = targetOf(adj)}
+      <span class="stray-label">{target ? target.labelDe : 'Unbekannter Vorrat'}</span>
+      {@render adjustmentRow(adj, target?.kind === 'slots')}
+    {/each}
+  </div>
+{/if}
+
+{#snippet adjustmentRow(adj: ResourceAdjustment, slots: boolean)}
+  <div class="adj-row">
+    <input class="adj-amount" type="number" step="1" bind:value={adj.amount} title="Zu- oder Abschlag" />
+    {#if slots}
+      <select bind:value={adj.grade} title="Grad">
+        {#each Array.from({ length: 9 }, (_, i) => i + 1) as g}<option value={g}>Grad {g}</option>{/each}
+      </select>
+    {/if}
+    <input class="adj-reason" bind:value={adj.reason} placeholder="Anlass, z. B. Segen" />
+    <button type="button" class="adj-remove" title="Anpassung entfernen" onclick={() => removeAdjustment(adj)}>✕</button>
+  </div>
+{/snippet}
 {#if manualSlots}
   <p class="auto-hint">Keine Progression in der Bibliothek — Plätze von Hand.</p>
   <div class="slot-edit-row">
@@ -89,4 +136,16 @@
   }
   .count { font-size: 1.05rem; font-weight: 700; color: var(--arcane); }
   .cell-label { font-size: 0.62rem; color: var(--ink-muted); }
+  .adj-row { display: flex; align-items: center; gap: 0.3rem; }
+  .adj-row input, .adj-row select { font-size: 0.75rem; padding: 0.1rem 0.25rem; }
+  .adj-amount { width: 3.2rem; text-align: center; }
+  .adj-reason { flex: 1; min-width: 6rem; }
+  .adj-add, .adj-remove {
+    background: none; border: none; cursor: pointer; padding: 0;
+    font-size: 0.7rem; color: var(--ink-muted);
+  }
+  .adj-add { align-self: flex-start; }
+  .adj-add:hover, .adj-remove:hover { color: var(--arcane); }
+  .stray { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+  .stray-label { font-size: 0.75rem; color: var(--ink-muted); }
 </style>

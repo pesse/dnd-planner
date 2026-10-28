@@ -1,0 +1,10 @@
+{
+  "target": {
+    "feature": "string",
+    "pool": "string",
+    "shared": "string"
+  },
+  "amount": -9007199254740991,
+  "grade": 1,
+  "reason": "string"
+}

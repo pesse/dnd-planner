@@ -15,6 +15,7 @@ import {
   type CharacterSpecies, type OptionPick, type PersonalData, type Presentation, type ProficiencyFlags,
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
+import type { ResourceAdjustment } from '../schemas/resource';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
 
 type InventoryLine = Character['inventory'][number];
@@ -54,6 +55,7 @@ export interface CharacterFormFields {
   inventory: InventoryLine[];
   inventoryNotes: string;
   spellcasting: CharacterSpellcasting;
+  resourceAdjustments: ResourceAdjustment[];
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
@@ -141,6 +143,8 @@ function withDefaults<T extends object>(base: T, given: Partial<T> | undefined):
 const copyProficiencies = (p: ProficiencyFlags): ProficiencyFlags =>
   ({ ...p, individualWeapons: [...p.individualWeapons] });
 
+const copyAdjustment = (a: ResourceAdjustment): ResourceAdjustment => ({ ...a, target: { ...a.target } });
+
 export function initialFormFields(character: Character): CharacterFormFields {
   return {
     name: character.name ?? '',
@@ -183,6 +187,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     inventory: character.inventory.map((i) => ({ ...i })),
     inventoryNotes: character.inventoryNotes ?? '',
     spellcasting: character.spellcasting ? cloneSpellcasting(character.spellcasting) : emptySpellcasting(),
+    resourceAdjustments: (character.resourceAdjustments ?? []).map(copyAdjustment),
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
@@ -272,6 +277,7 @@ export function formDraftPatch(
     // Die Gesamtlast rechnet `inventoryWeight` live; das gespeicherte Feld ist Alt-Ballast.
     totalWeight: carry.totalWeight,
     spellcasting: pruneSpellcasting(f.spellcasting),
+    resourceAdjustments: f.resourceAdjustments.length ? f.resourceAdjustments.map(copyAdjustment) : undefined,
     // `spells` steht bewusst nicht hier: die Altform gehört dem Draft, bis der Umzug
     // (`spellsFix`) sie übernommen hat — ein Speichern davor verlöre ihre Zauber.
     personal: { ...f.personal },

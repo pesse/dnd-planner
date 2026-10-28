@@ -25,6 +25,7 @@ export function castingInput(
     abilities: { ...form.abilities },
     mods: abilityMods(form, effects),
     spellcasting: cloneSpellcasting(form.spellcasting),
+    resourceAdjustments: $state.snapshot(form.resourceAdjustments),
     ...(spells ? { spells } : {}),
   } as Character;
 }

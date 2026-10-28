@@ -4,7 +4,9 @@
  */
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
-import type { ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape } from '$lib/schemas/resource';
+import type {
+  ResourceAdjustment, ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape,
+} from '$lib/schemas/resource';
 import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf, branchValues, type BranchState } from '../declaration/branch';
 import {
@@ -44,6 +46,7 @@ export interface ResourceCharacter extends DeclaringCharacter {
   inventory?: CharacterInventoryEntry[];
   /** Handeingetragene Zauberplätze — der eine Vorrat, den keine Stufentabelle hergibt. */
   spellcasting?: { manual?: { slotTotals: number[] } };
+  resourceAdjustments?: ResourceAdjustment[];
 }
 
 /** Ein Zuschlag von außen — der Bogen nennt ihn, damit eine krumme Zahl erklärt ist. */
@@ -139,6 +142,12 @@ export function findResource(
   return pools.find((p) => p.featureKey === feature && p.id.endsWith(`/${ref.pool}`));
 }
 
+/** Der Verweis, unter dem `findResource` diesen Vorrat wiederfindet — Merkmals-Key statt Instanz-Id. */
+export function refOf(pool: ResolvedResource): ResourceRef {
+  if (pool.shared) return { feature: '', pool: '', shared: pool.shared };
+  return { feature: pool.featureKey, pool: pool.id.slice(pool.id.lastIndexOf('/') + 1), shared: '' };
+}
+
 const refPath = (ownerKey: string, ref: ResourceRef): string =>
   ref.shared.trim() || `${ref.feature.trim() || ownerKey}/${ref.pool}`;
 
@@ -165,6 +174,23 @@ function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: Resour
     // Ein Zuschlag zählt am untersten Eintrag: eine weitere Anwendung, ein weiterer Platz Grad 1.
     target.max[0] = (target.max[0] ?? 0) + amount;
     target.additions.push({ labelDe: carrier.nameDe?.trim() || carrier.name, amount });
+  }
+}
+
+/**
+ * Läuft nach den Zuschlägen: ein Abschlag soll auch einen Gegenstands-Bonus aufzehren können.
+ * Ein Ziel, das es nicht (mehr) gibt, wirkt nicht — der Editor zeigt es als verwaist.
+ */
+function applyAdjustments(pools: ResolvedResource[], adjustments: ResourceAdjustment[]): void {
+  for (const adj of adjustments) {
+    const target = findResource(pools, adj.target, '');
+    if (!target || !adj.amount) continue;
+    const slots = target.kind === 'slots';
+    const i = slots ? (adj.grade ?? 1) - 1 : 0;
+    if (slots) target.max = NINE(target.max);
+    target.max[i] = Math.max(0, (target.max[i] ?? 0) + adj.amount);
+    const reason = adj.reason.trim() || 'Anpassung';
+    target.additions.push({ labelDe: slots ? `${reason} (Grad ${i + 1})` : reason, amount: adj.amount });
   }
 }
 
@@ -282,6 +308,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
   for (const { pool, feeders, combine } of slotFeeders.values()) pool.max = combineSlots(feeders, combine);
   applyManualSlots(pools, c.spellcasting?.manual?.slotTotals ?? []);
   applyMods(pools, pending, issues);
+  applyAdjustments(pools, c.resourceAdjustments ?? []);
   reportCastResources(carriers, pools, issues);
 
   return { pools, issues, characterLevel: walk.characterLevel };

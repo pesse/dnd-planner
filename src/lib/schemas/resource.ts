@@ -83,6 +83,15 @@ export const resourceModSchema = z.object({
 });
 export type ResourceMod = z.infer<typeof resourceModSchema>;
 
+/** Am Charakter statt in der Bibliothek: ein Spielleiter-Segen gehört genau dieser Figur. */
+export const resourceAdjustmentSchema = z.object({
+  target: resourceRefSchema,
+  amount: z.number().int().describe('Zu- oder Abschlag auf das Maximum.'),
+  grade: z.number().int().min(1).max(9).optional().describe('Nur bei Zauberplätzen: der betroffene Grad.'),
+  reason: z.string().default('').describe('Anlass, z. B. "Segen des Spielleiters"; steht am Vorrat.'),
+});
+export type ResourceAdjustment = z.infer<typeof resourceAdjustmentSchema>;
+
 export const resourceGrantSchema = z.object({
   pools: z.array(resourcePoolSchema).default([]),
   mods: z.array(resourceModSchema).default([]),

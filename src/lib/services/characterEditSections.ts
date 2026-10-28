@@ -26,19 +26,26 @@ const SECTION_OF: Record<keyof Character, EditSectionId | null> = {
   languages: 'general', tools: 'general', proficiencies: 'general',
   attacks: 'attacks', masteries: 'attacks',
   classFeatures: 'features', optionPicks: 'features', features: 'features', pinnedFeatures: 'features',
-  spellcasting: 'spells', spells: 'spells',
+  spellcasting: 'spells', spells: 'spells', resourceAdjustments: 'spells',
   currency: 'inventory', inventory: 'inventory', inventoryNotes: 'inventory', totalWeight: 'inventory',
   traits: 'personal', ideals: 'personal', bonds: 'personal', flaws: 'personal',
   personal: 'personal', portraitFile: 'personal', figureFile: 'personal', presentation: 'personal',
   companion: 'personal',
 };
 
+// Anders als beim Einfärben zählt ein Feld, das die Datei noch nicht kennt, sobald es Inhalt hat —
+// das Formular legt fehlende Felder leer an (`masteries: []`), das ist noch keine Änderung.
+const isBlank = (v: unknown): boolean =>
+  v == null || v === '' || v === false || (Array.isArray(v) && v.length === 0);
+const differs = (before: unknown, now: unknown): boolean =>
+  before === undefined ? !isBlank(now) : classifyChange(before, now) !== 'none';
+
 export function changedSections(saved: Character | null | undefined, draft: Character): Set<EditSectionId> {
   const changed = new Set<EditSectionId>();
   if (!saved) return changed;
   for (const key of Object.keys(SECTION_OF) as (keyof Character)[]) {
     const section = SECTION_OF[key];
-    if (section && !changed.has(section) && classifyChange(saved[key], draft[key]) !== 'none') changed.add(section);
+    if (section && !changed.has(section) && differs(saved[key], draft[key])) changed.add(section);
   }
   return changed;
 }
