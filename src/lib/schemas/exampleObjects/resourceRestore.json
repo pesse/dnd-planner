@@ -1,0 +1,17 @@
+[
+  {
+    "kind": "slot",
+    "level": 1,
+    "exactly": false,
+    "pact": false
+  },
+  {
+    "kind": "resource",
+    "target": {
+      "feature": "string",
+      "pool": "string",
+      "shared": "string"
+    },
+    "amount": 1
+  }
+]

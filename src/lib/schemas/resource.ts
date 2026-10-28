@@ -51,6 +51,22 @@ export const resourceDieSchema = z.union([
 ]);
 export type ResourceDie = z.infer<typeof resourceDieSchema>;
 
+/** Was einen verbrauchten Einsatz außerhalb der Rast zurückholt; die App nennt es, sie bucht nichts. */
+export const resourceRestoreSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('slot'),
+    level: z.number().int().min(1).max(9).default(1).describe('Mindestgrad („a level 2+ spell slot").'),
+    exactly: z.boolean().default(false).describe('Genau dieser Grad („a level 5 spell slot").'),
+    pact: z.boolean().default(false).describe('Nur ein Platz der Paktmagie.'),
+  }),
+  z.object({
+    kind: z.literal('resource'),
+    target: resourceRefSchema,
+    amount: z.number().int().min(1).default(1).describe('So viele Einsätze oder Punkte des Ziels.'),
+  }),
+]);
+export type ResourceRestore = z.infer<typeof resourceRestoreSchema>;
+
 export const resourcePoolSchema = z.object({
   id: z.string().describe('Nur innerhalb des Merkmals eindeutig.'),
   labelDe: z.string().default('').describe('Leer = nameDe des Merkmals.'),
@@ -70,6 +86,7 @@ export const resourcePoolSchema = z.object({
     .string()
     .default('')
     .describe('Leer = eigener Vorrat des Merkmals. Gesetzt = alle speisenden Klassen teilen EINEN Pool.'),
+  restoreBy: z.array(resourceRestoreSchema).default([]),
   shape: resourceShapeSchema,
   die: resourceDieSchema.optional(),
 });
@@ -83,6 +100,7 @@ export const resourceModSchema = z.object({
     .enum(RESOURCE_RECHARGE)
     .optional()
     .describe('Kürzere Auffüll-Rast für das Ziel; eine längere als die bestehende bleibt wirkungslos.'),
+  restoreBy: z.array(resourceRestoreSchema).default([]).describe('Weitere Wege, das Ziel zurückzuholen (Wilde Wiederkehr).'),
 });
 export type ResourceMod = z.infer<typeof resourceModSchema>;
 

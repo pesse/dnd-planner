@@ -42,18 +42,13 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 ## Ressourcen
 
 Die Teil-Auffüllung bei Kurzer Rast steht in `pool.shortRestRegain` (Kampfrausch, Tiergestalt,
-Durchatmen, Psionische Energiewürfel).
+Durchatmen, Psionische Energiewürfel), der Rückgewinn gegen einen Zauberplatz oder einen anderen
+Vorrat in `pool.restoreBy` bzw. `mod.restoreBy` (Quelle der Inspiration, Wilde Wiederkehr).
 
 | Merkmal | Mechanik | Was fehlt |
 |---|---|---|
 | `barbarian_path-of-the-world-tree_travel-along-the-tree`, `barbarian_path-of-the-zealot_fanatical-focus` | einmal pro Kampfrausch | Recharge pro Kampfrausch |
-| `barbarian_path-of-the-zealot_zealous-presence`, `srd-2024_barbarian_path-of-the-berserker_intimidating-presence` | Rückgewinn gegen Kampfrausch-Anwendung | Ressource A füllt Ressource B |
-| `bard_college-of-glamour_beguiling-magic` | Rückgewinn gegen Bardische Inspiration | dito |
-| `bard_college-of-glamour_mantle-of-majesty` | Rückgewinn gegen Platz ≥ 3 | dito |
-| `paladin_oath-of-glory_living-legend`, `paladin_oath-of-the-ancients_elder-champion`, `paladin_oath-of-vengeance_avenging-angel` | Rückgewinn gegen Platz 5. Grades | dito |
-| `druid_circle-of-the-moon_moonlight-step` | Rückgewinn gegen Platz ≥ 2 | dito |
-| `fighter_psi-warrior_*` (telekinetic-adept, bulwark-of-force, telekinetic-master), `fighter_battle-master_know-your-enemy` | Rückgewinn gegen Psi-/Überlegenheitswürfel | dito |
-| `rogue_soulknife_psychic-veil`, `rogue_soulknife_rend-mind` | Rückgewinn gegen Psi-Würfel | dito |
+| `bard_college-of-glamour_mantle-of-majesty`, `fighter_psi-warrior_telekinetic-master` | Rückgewinn gegen Platz ≥ 3 bzw. Psi-Würfel | die freie Anwendung ist eine Wirk-Option (`grantsCasting`), kein Vorrat |
 | `rogue_soulknife_psionic-power` | erste Psychic Whispers je Lange Rast gratis | Gratis-Erstnutzung |
 | `sorcerer_aberrant-sorcery_psionic-sorcery` | Zaubereipunkte = Zaubergrad | variable Kosten (`amount` ist fest) |
 

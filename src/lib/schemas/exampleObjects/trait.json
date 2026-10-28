@@ -642,6 +642,23 @@
           "column": "string"
         },
         "shared": "string",
+        "restoreBy": [
+          {
+            "kind": "slot",
+            "level": 1,
+            "exactly": false,
+            "pact": false
+          },
+          {
+            "kind": "resource",
+            "target": {
+              "feature": "string",
+              "pool": "string",
+              "shared": "string"
+            },
+            "amount": 1
+          }
+        ],
         "shape": {
           "kind": "counter",
           "max": {
@@ -663,7 +680,24 @@
         "addMax": {
           "column": "string"
         },
-        "recharge": "long-rest"
+        "recharge": "long-rest",
+        "restoreBy": [
+          {
+            "kind": "slot",
+            "level": 1,
+            "exactly": false,
+            "pact": false
+          },
+          {
+            "kind": "resource",
+            "target": {
+              "feature": "string",
+              "pool": "string",
+              "shared": "string"
+            },
+            "amount": 1
+          }
+        ]
       }
     ]
   },

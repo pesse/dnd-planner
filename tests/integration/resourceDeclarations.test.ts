@@ -203,6 +203,13 @@ describe('redigierte Vorräte', () => {
     expect(resourceViews([rage!])[0].hint).toBe('Lange Rast · Kurze Rast: 1 zurück');
   });
 
+  it('nennt, wogegen ein Einsatz außerhalb der Rast zurückkommt', async () => {
+    const rend = await pool(probe('srd-2024_rogue', 17, 'phb-2024_soulknife'), '_rend-mind');
+    expect(rend?.restoreDe).toEqual(['Psionische Energiewürfel (3)']);
+    const inspiration = await pool(probe('srd-2024_bard', 5), '_bardic-inspiration');
+    expect(resourceViews([inspiration!])[0].hint).toBe('Kurze Rast · zurück gegen Zauberplatz');
+  });
+
   it('der Überlegenheitswürfel wächst in Stufenschritten', async () => {
     const dice = await Promise.all([3, 10, 18].map((l) => pool(probe('srd-2024_fighter', l, 'phb-2024_battle-master'), '_combat-superiority')));
     expect(dice.map((d) => d?.die)).toEqual(['d8', 'd10', 'd12']);

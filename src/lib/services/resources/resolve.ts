@@ -5,7 +5,7 @@
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import type {
-  ResourceAdjustment, ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceShape,
+  ResourceAdjustment, ResourceDie, ResourcePool, ResourceRecharge, ResourceRef, ResourceRestore, ResourceShape,
 } from '$lib/schemas/resource';
 import { columnValueIn, levelTables, proficiencyBonus } from '../classProgression';
 import { branchMatch, branchOf, branchValues, type BranchState } from '../declaration/branch';
@@ -74,6 +74,8 @@ export interface ResolvedResource {
   /** Zähler und Punkte führen einen Eintrag, Plätze neun — Index 0 = Grad 1. */
   max: number[];
   additions: ResourceAddition[];
+  /** Was einen Einsatz außerhalb der Rast zurückholt, als Bogentext („Zauberplatz ab Grad 2"). */
+  restoreDe: string[];
 }
 
 export interface ResourceResolution {
@@ -131,6 +133,7 @@ function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[], ct
     die: resolveDie(pool.die, ctx),
     max,
     additions: [],
+    restoreDe: [],
   };
 }
 
@@ -157,21 +160,50 @@ const refPath = (ownerKey: string, ref: ResourceRef): string =>
 /** Gleichrangige Rasten (Morgengrauen ~ lange Rast) tauschen nicht. */
 const RECHARGE_RANK: Record<ResourceRecharge, number> = { 'short-rest': 0, 'long-rest': 1, dawn: 1, none: 2 };
 
+interface PendingRestore {
+  carrier: ResourceCarrier;
+  pool: ResolvedResource;
+  restore: ResourceRestore[];
+}
+
+function slotRestoreDe(r: Extract<ResourceRestore, { kind: 'slot' }>): string {
+  if (r.pact) return 'Platz der Paktmagie';
+  if (r.exactly) return `Zauberplatz des ${r.level}. Grades`;
+  return r.level > 1 ? `Zauberplatz ab Grad ${r.level}` : 'Zauberplatz';
+}
+
+/** Läuft wie `applyMods` erst, wenn alle Pools stehen: das Ziel darf später deklariert sein. */
+function applyRestores(pools: ResolvedResource[], pending: PendingRestore[], issues: ResourceIssue[]): void {
+  for (const { carrier, pool, restore } of pending)
+    for (const r of restore) {
+      const target = r.kind === 'resource' ? findResource(pools, r.target, carrier.key) : undefined;
+      if (r.kind === 'resource' && !target) {
+        issues.push(declarationIssue('unresolvedResourceTarget', carrier.key, refPath(carrier.key, r.target)));
+        continue;
+      }
+      const text = r.kind === 'slot' ? slotRestoreDe(r) : `${target!.labelDe} (${r.amount})`;
+      if (!pool.restoreDe.includes(text)) pool.restoreDe.push(text);
+    }
+}
+
 interface PendingMod {
   carrier: ResourceCarrier;
   ref: ResourceRef;
   amount: number;
   recharge?: ResourceRecharge;
+  restore: ResourceRestore[];
 }
 
 /** Läuft erst, wenn alle Pools stehen: ein Zuschlag darf vor seinem Ziel deklariert sein. */
-function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: ResourceIssue[]): void {
-  for (const { carrier, ref, amount, recharge } of mods) {
+function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: ResourceIssue[]): PendingRestore[] {
+  const restores: PendingRestore[] = [];
+  for (const { carrier, ref, amount, recharge, restore } of mods) {
     const target = findResource(pools, ref, carrier.key);
     if (!target) {
       issues.push(declarationIssue('unresolvedResourceTarget', carrier.key, refPath(carrier.key, ref)));
       continue;
     }
+    if (restore.length) restores.push({ carrier, pool: target, restore });
     if (recharge && RECHARGE_RANK[recharge] < RECHARGE_RANK[target.recharge]) {
       target.recharge = recharge;
       if (recharge === 'short-rest') target.shortRestRegain = 0;
@@ -181,6 +213,7 @@ function applyMods(pools: ResolvedResource[], mods: PendingMod[], issues: Resour
     target.max[0] = (target.max[0] ?? 0) + amount;
     target.additions.push({ labelDe: carrier.nameDe?.trim() || carrier.name, amount });
   }
+  return restores;
 }
 
 /**
@@ -225,6 +258,7 @@ export function applyManualSlots(pools: ResolvedResource[], totals: number[]): v
     die: '',
     max: NINE(totals),
     additions: [],
+    restoreDe: [],
   });
 }
 
@@ -271,6 +305,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
   const pools: ResolvedResource[] = [];
   const slotFeeders = new Map<string, { pool: ResolvedResource; feeders: SlotFeeder[]; combine: 'caster-level' | 'highest' }>();
   const pending: PendingMod[] = [];
+  const restores: PendingRestore[] = [];
 
   for (const carrier of carriers) {
     const grant = carrier.grantsResource;
@@ -286,7 +321,11 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
       if (pool.shape.kind !== 'slots') {
         const existing = pool.shared ? pools.find((p) => p.id === pool.shared) : undefined;
         const max = resolveAmount(pool.shape.max, ctx);
-        if (!existing) pools.push(ownPool(carrier, pool, [max], ctx));
+        if (!existing) {
+          const own = ownPool(carrier, pool, [max], ctx);
+          pools.push(own);
+          if (pool.restoreBy.length) restores.push({ carrier, pool: own, restore: pool.restoreBy });
+        }
         else if (existing.kind === pool.shape.kind) existing.max[0] += max;
         else issues.push(declarationIssue('sharedPoolKindMismatch', carrier.key, `${pool.shared}: ${existing.kind}`));
         continue;
@@ -309,12 +348,15 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
     }
 
     for (const m of grant.mods)
-      pending.push({ carrier, ref: m.target, amount: m.addMax ? resolveAmount(m.addMax, ctx) : 0, recharge: m.recharge });
+      pending.push({
+        carrier, ref: m.target, amount: m.addMax ? resolveAmount(m.addMax, ctx) : 0, recharge: m.recharge, restore: m.restoreBy,
+      });
   }
 
   for (const { pool, feeders, combine } of slotFeeders.values()) pool.max = combineSlots(feeders, combine);
   applyManualSlots(pools, c.spellcasting?.manual?.slotTotals ?? []);
-  applyMods(pools, pending, issues);
+  restores.push(...applyMods(pools, pending, issues));
+  applyRestores(pools, restores, issues);
   applyAdjustments(pools, c.resourceAdjustments ?? []);
   reportCastResources(carriers, pools, issues);
 
