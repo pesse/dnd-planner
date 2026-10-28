@@ -88,13 +88,14 @@
 </div>
 
 <style>
-  .backdrop { position: fixed; inset: 0; z-index: 1001; background: rgba(20, 12, 2, 0.5); backdrop-filter: blur(2px); }
+  /* Kein backdrop-filter: WebView2 ließ damit über dem Hauptbereich den Kartengrund weg. */
+  .backdrop { position: fixed; inset: 0; z-index: 1001; background: rgba(20, 12, 2, 0.55); }
   .peek {
     position: fixed; z-index: 1002; left: 50%; top: 50%; translate: -50% -50%;
     width: min(560px, 94vw); max-height: 90vh; display: flex; flex-direction: column; gap: 0.6rem;
   }
   .scroll {
-    overflow-y: auto; min-height: 0; border-radius: 8px;
+    overflow-y: auto; min-height: 0; border-radius: 8px; background: var(--bg);
     box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
   }
   .scroll > :global(*) { max-width: none; }

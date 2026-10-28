@@ -7,7 +7,11 @@
   import ArtFrame from './ui/ArtFrame.svelte';
   import { itemArtUrl } from '../libraryArt';
 
-  let { item, x, y }: { item: Item | null; x: number; y: number } = $props();
+  let { item, x, y, note = '' }: {
+    item: Item | null; x: number; y: number;
+    /** Zustand der Inventarzeile, nicht des Gegenstands: „darin: …“, „nicht eingestimmt“. */
+    note?: string;
+  } = $props();
 
   let winW = $state(1280);
   let winH = $state(800);
@@ -57,6 +61,7 @@
       </div>
       <ArtFrame src={itemArtUrl(item)} color={rarityColor(item.rarity)} />
     </div>
+    {#if note}<div class="tt-line-note">{note}</div>{/if}
 
     {#if kind === 'weapon' && item.damage}
       <div class="tt-section">
@@ -205,6 +210,7 @@
   .tt-footer { margin-top: 0.35rem; color: var(--ink-muted); flex-wrap: wrap; }
   .tt-sep { color: var(--border); }
   .tt-bonus { color: var(--arcane); font-weight: 600; }
+  .tt-line-note { font-size: 0.74rem; font-style: italic; color: var(--ink-muted); margin-bottom: 0.2rem; }
   .tt-note { font-size: 0.74rem; color: var(--danger); margin-bottom: 0.1rem; }
   .tt-divider { border-top: 1px solid var(--surface); margin: 0.45rem 0; }
   .tt-desc {

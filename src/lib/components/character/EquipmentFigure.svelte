@@ -8,6 +8,8 @@
   import { equipmentQuips } from '../../services/equipmentQuips';
   import { SLOT_LABEL_DE } from '../../schemas/equipmentSlot';
   import { paperdollCandidates, resolveOriginArt } from '../../services/wizard/originArt';
+  import { createItemHover } from '../itemHover.svelte';
+  import ItemTooltip from '../ItemTooltip.svelte';
   import type { CharacterInventoryEntry, Presentation } from '../../schemas/characterSchema';
 
   let { inventory, itemIndex, speciesKey, presentation, ownSrc }: {
@@ -34,14 +36,21 @@
   const others = $derived(fills.get('other')?.items ?? []);
   const quips = $derived(equipmentQuips(fills));
   let broken = $state(new Set<string>());
+
+  const hover = createItemHover(() => [...fills.values()].flatMap((f) => f.items.map((e) => e.item.path)));
+  let hoverNote = $state('');
+  function showTip(ev: MouseEvent, e: Placed) {
+    const inside = e.contents?.map((c) => displayName(c.item)).join(', ');
+    hoverNote = [inside && `darin: ${inside}`, !e.effective && 'nicht eingestimmt, wirkt nicht'].filter(Boolean).join(' · ');
+    hover.show(ev, e.item.path);
+  }
 </script>
 
 {#snippet icon(e: Placed)}
   {@const src = e.item.key ? itemKeyArtUrl(e.item.key) : null}
-  {@const inside = e.contents?.map((c) => displayName(c.item)).join(', ')}
-  <button type="button" class="eq-icon" class:idle={!e.effective}
-    title="{displayName(e.item)}{inside ? ` — darin: ${inside}` : ''}{e.effective ? '' : ' — nicht eingestimmt, wirkt nicht'}"
-    onclick={() => peekEntry(itemEntry(e.item))}>
+  <button type="button" class="eq-icon" class:idle={!e.effective} aria-label={displayName(e.item)}
+    onmouseenter={(ev) => showTip(ev, e)} onmousemove={hover.move} onmouseleave={hover.hide}
+    onclick={() => { hover.hide(); peekEntry(itemEntry(e.item)); }}>
     {#if src && !broken.has(src)}
       <img {src} alt="" onerror={() => { broken.add(src); broken = new Set(broken); }} />
     {:else}
@@ -82,6 +91,8 @@
     </div>
   {/if}
 </div>
+
+<ItemTooltip item={hover.item} x={hover.x} y={hover.y} note={hoverNote} />
 
 <style>
   .eq-wrap {
