@@ -41,7 +41,7 @@
       <span class="sl">RK</span><span class="sv">{character.ac}</span>
       {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
     </div>
-    {@render stat('Initiative', character.initiative, tips.initiative)}
+    {@render stat('Initiative', tips.initiativeAdvantage ? `${character.initiative} V` : character.initiative, tips.initiative)}
     {@render stat('Bewegung', `${character.speed}m`, tips.speed)}
     <div class="stat" class:has-tip={hpTipHtml}>
       <span class="sl">TP max</span><span class="sv">{character.hpMax}</span>

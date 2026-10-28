@@ -6,13 +6,15 @@ import type { Character, CharacterClass } from '../schemas/characterSchema';
 import { totalLevel } from '../schemas/classLevelText';
 import { abilityRecordOf, type AbilityScores } from '../schemas/abilities';
 import type { FeatureGrant } from '../schemas/grants';
+import type { InitiativeEffect } from '../schemas/initiative';
 import { mod } from '../domain/skills';
 import { armorClassDerivation, type ArmorClassFeature } from './armorClass';
 import { declaredSpeed } from './characterProperties';
 import { effectiveProficiencyBonus } from './classProgression';
 import { sign } from '../utils/num';
+import { featureIdOf } from '../utils/text';
 import { effectiveScores, loadWornAbilityEffects } from './effectiveAbilities';
-import { loadSavingThrowInputs } from './savingThrows';
+import { loadSavingThrowInputs, resolveSaveBonus } from './savingThrows';
 import type { IdleItem, WornItem } from './wornItems';
 
 export interface CombatFallbacks {
@@ -28,30 +30,41 @@ export interface CombatFallbacks {
   /** Mit Vorzeichen, wie `character.initiative` ihn führt. */
   initiative: string;
   initiativeRows: { labelDe: string; value: number }[];
+  /** Die Merkmale, die Vorteil auf Initiative geben. */
+  initiativeAdvantage: string[];
 }
 
 type FallbackFeature = { key?: string; name: string; grants?: FeatureGrant };
 
-/** Aufmerksam (Alert) hat keine Deklaration; der Key erkennt es wie `fallbackEffects` die Ungerüstete Verteidigung. */
-const isAlert = (f: FallbackFeature): boolean => /(^|_)alert$/.test(f.key ?? '');
+function initiativeEffects(features: readonly FallbackFeature[]): { labelDe: string; effect: InitiativeEffect }[] {
+  const seen = new Set<string>();
+  return features.flatMap((f) => {
+    const id = featureIdOf(f);
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return (f.grants?.initiative ?? []).map((effect) => ({ labelDe: f.name, effect }));
+  });
+}
 
 export function combatFallbacks(input: {
   classes: readonly CharacterClass[];
-  /** Der eingetragene; Aufmerksam addiert den wirksamen. */
+  /** Der eingetragene; ein Initiative-Zuschlag addiert den wirksamen. */
   proficiencyBonus?: number | null;
   acTotal: number | null;
   /** null, solange die Merkmale laden. */
   features: readonly FallbackFeature[] | null;
-  /** Wirksamer GES-Modifikator, samt Gegenständen. */
-  dexMod: number;
+  /** Wirksame Modifikatoren, samt Gegenständen. */
+  mods: AbilityScores;
 }): CombatFallbacks {
   const classes = [...input.classes];
   const speed = input.features ? declaredSpeed(input.features) : null;
   const level = totalLevel(classes);
-  const alert = input.features?.find(isAlert);
+  const effects = initiativeEffects(input.features ?? []);
+  const profBonus = effectiveProficiencyBonus({ ...input, classes });
   const initiativeRows = [
-    { labelDe: 'GES', value: input.dexMod },
-    ...(alert ? [{ labelDe: alert.name, value: effectiveProficiencyBonus({ ...input, classes }) }] : []),
+    { labelDe: 'GES', value: input.mods.dex },
+    ...effects.flatMap(({ labelDe, effect }) =>
+      effect.kind === 'bonus' ? [{ labelDe, value: resolveSaveBonus(effect.value, input.mods, profBonus) }] : []),
   ];
   return {
     ac: input.acTotal,
@@ -61,6 +74,7 @@ export function combatFallbacks(input: {
     proficiencyBonus: effectiveProficiencyBonus({ classes }),
     initiative: sign(initiativeRows.reduce((n, r) => n + r.value, 0)),
     initiativeRows,
+    initiativeAdvantage: effects.flatMap(({ labelDe, effect }) => effect.kind === 'advantage' ? [labelDe] : []),
   };
 }
 
@@ -70,8 +84,9 @@ export function combatFallbacksFrom(
   loaded: { worn: readonly WornItem[]; idle: readonly IdleItem[]; features: readonly ArmorClassFeature[] },
   scores: AbilityScores,
 ): CombatFallbacks {
-  const ac = armorClassDerivation({ ac: c.ac, ...loaded, mods: abilityRecordOf((k) => mod(scores[k])) });
-  return combatFallbacks({ ...c, acTotal: ac.total, features: loaded.features, dexMod: mod(scores.dex) });
+  const mods = abilityRecordOf((k) => mod(scores[k]));
+  const ac = armorClassDerivation({ ac: c.ac, ...loaded, mods });
+  return combatFallbacks({ ...c, acTotal: ac.total, features: loaded.features, mods });
 }
 
 export async function loadCombatFallbacks(c: Character): Promise<CombatFallbacks> {

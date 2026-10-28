@@ -15,7 +15,6 @@ import { vaultFeatures } from '../support/vaultFeatures';
 /** Undeklariert, mit Grund. Wer einen Eintrag deklariert, streicht ihn hier. */
 const UNDECLARED_BACKLOG: Record<string, string> = {
   'srd-2024_monk_unarmored-movement': 'Bewegungs-Bonus aus der Stufentabelle: die Laufzeit-Senke kennt die Klassenstufe nicht',
-  'srd-2024_alert': 'Initiative-Bonus: keine Initiative-Berechnung',
 };
 
 /** ALLE offenen Arten je Merkmal — die Anzeige zeigt nur die erste, die zweite bliebe sonst verdeckt. */

@@ -47,12 +47,14 @@ export function hpTip(d: HpDerivation): string {
 
 export interface CombatTips {
   initiative: string;
+  /** Steht neben dem Wert, nicht nur im Tooltip: auch der Druck zeigt ihn. */
+  initiativeAdvantage: boolean;
   speed: string;
   proficiencyBonus: string;
   hpCurrent: string;
 }
 
-export const NO_COMBAT_TIPS: CombatTips = { initiative: '', speed: '', proficiencyBonus: '', hpCurrent: '' };
+export const NO_COMBAT_TIPS: CombatTips = { initiative: '', initiativeAdvantage: false, speed: '', proficiencyBonus: '', hpCurrent: '' };
 
 /** Die Herleitung der gerechneten Kampfwerte; eine Abweichung des eingetragenen Werts steht darunter. */
 export function combatTips(
@@ -65,7 +67,9 @@ export function combatTips(
   const initiative = c.initiative.trim();
   return {
     initiative: fb.initiativeRows.map((r) => row(esc(r.labelDe), r.value)).join('') + divider() + total(fb.initiative, 'Initiative')
+      + steps(fb.initiativeAdvantage.map((l) => `Vorteil (${l})`))
       + (initiative && initiative !== fb.initiative ? steps([`eingetragen ${esc(initiative)}`]) : ''),
+    initiativeAdvantage: fb.initiativeAdvantage.length > 0,
     speed: src
       ? row(esc(src.labelDe), `${src.feet} Fuß`) + divider() + total(`${fb.speed} m`, 'Bewegung')
         + (speed && speed !== fb.speed ? steps([`eingetragen ${speed} m`]) : '')

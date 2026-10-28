@@ -21,6 +21,7 @@
   import { declaredSpeed } from '../services/characterProperties';
   import type { AttackCalcContext } from '../services/attackCalc';
   import { mod } from '../domain/skills';
+  import { abilityRecordOf } from '../schemas/abilities';
   import { hpDerivation } from '../services/hitPointDerivation';
   import { combatTips, hpTip, NO_COMBAT_TIPS } from '../services/characterSheetTips';
   import type { Character } from '../schemas/characterSchema';
@@ -70,7 +71,7 @@
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const fallbacks = $derived(character && combatFallbacks({
-    ...character, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+    ...character, acTotal: acTip.total, features: owned.current, mods: abilityRecordOf((k) => mod(abilities.resolved[k].score)),
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);

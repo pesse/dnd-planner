@@ -57,6 +57,7 @@ export interface CharacterPrintData {
   freetext: string;
   attacks: PrintAttack[];
   saves: Record<AbilityKey, SavingThrowDerivation>;
+  initiativeAdvantage: boolean;
   auras: CharacterAura[];
   defenses: CharacterDefense[];
   movement: MovementLine[];
@@ -157,7 +158,8 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     : { sources: [], resources: [], extra: [], issues: [] };
 
   const scores = effectiveScores(c.abilities, abilityEffects);
-  const shown = withCombatFallbacks(c, combatFallbacksFrom(c, saveInputs, scores));
+  const fallbacks = combatFallbacksFrom(c, saveInputs, scores);
+  const shown = withCombatFallbacks(c, fallbacks);
   const mods = abilityRecordOf((k) => mod(scores[k]));
   const auras = characterAuras(saveInputs.features, { mods, profBonus: effectiveProficiencyBonus(c) });
   const saves = savingThrowDerivations({
@@ -169,6 +171,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
 
   return {
     character: shown,
+    initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
     scores,
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',

@@ -8,6 +8,7 @@ import { armorClassEffectSchema } from './armorClass';
 import { attackEffectSchema } from './attackEffect';
 import { auraEffectSchema } from './aura';
 import { defenseEffectSchema } from './defense';
+import { initiativeEffectSchema } from './initiative';
 import { senseEffectSchema, speedEffectSchema } from './movement';
 import { savingThrowEffectSchema } from './savingThrow';
 import {
@@ -177,6 +178,7 @@ export const featureGrantSchema = z.object({
     .default([])
     .describe('Zusätzliche Bewegungsarten und Erhöhungen; die Grundbewegungsrate steht in `properties.speedFeet`.'),
   senses: z.array(senseEffectSchema).default([]).describe('Dunkelsicht, Blindsicht, Erschütterungssinn, Wahre Sicht.'),
+  initiative: z.array(initiativeEffectSchema).default([]),
 });
 
 /**

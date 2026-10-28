@@ -15,7 +15,7 @@
   import { createHpBasis } from '../services/hitPointBasis.svelte';
   import { hpDerivation } from '../services/hitPointDerivation';
   import { combatTips, hpTip } from '../services/characterSheetTips';
-  import { abilityKeyOf } from '../schemas/abilities';
+  import { abilityKeyOf, abilityRecordOf } from '../schemas/abilities';
   import { createCharacterFormState } from '../services/characterFormState.svelte';
   import { characterAssetUrl } from '../services/characterSideFiles.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
@@ -191,7 +191,7 @@
     () => owned.current,
   );
   const fallbacks = $derived(combatFallbacks({
-    ...form, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+    ...form, acTotal: acTip.total, features: owned.current, mods: abilityRecordOf((k) => mod(abilities.resolved[k].score)),
   }));
   const tips = $derived(combatTips(form, fallbacks));
 

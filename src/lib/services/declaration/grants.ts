@@ -63,6 +63,7 @@ export function isEmptyFeatureGrant(g: FeatureGrant): boolean {
     defenses: () => g.defenses.length > 0,
     speeds: () => g.speeds.length > 0,
     senses: () => g.senses.length > 0,
+    initiative: () => g.initiative.length > 0,
   };
   return !Object.values(filled).some((has) => has());
 }
@@ -96,15 +97,17 @@ const GRANT_SINKS: { [K in keyof FeatureGrant]: 'rider' | 'change' | 'perLevel' 
   defenses: 'runtime',
   speeds: 'runtime',
   senses: 'runtime',
+  initiative: 'runtime',
 };
 void GRANT_SINKS;
 
 /**
  * GENAU die Felder, die `featureGrantSchema` ausdrücken kann; alles Übrige des Riders bleibt
  * stehen, weil die Deklaration darüber nichts sagt. `perLevel`, `armorClass`, `attack`,
- * `savingThrow`, `aura`, `defenses`, `speeds` und `senses` fehlen absichtlich — sie wirken zur
- * Laufzeit (`hpPerLevelSources`, `armorClassDerivation`, `attackEffectRows`,
- * `savingThrowDerivations`, `characterAuras`, `characterDefenses`, `characterMovement`).
+ * `savingThrow`, `aura`, `defenses`, `speeds`, `senses` und `initiative` fehlen absichtlich — sie
+ * wirken zur Laufzeit (`hpPerLevelSources`, `armorClassDerivation`, `attackEffectRows`,
+ * `savingThrowDerivations`, `characterAuras`, `characterDefenses`, `characterMovement`,
+ * `combatFallbacks`).
  */
 export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRider {
   const p = grants.proficiencies;

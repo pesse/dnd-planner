@@ -1,6 +1,6 @@
 /**
  * Rückfallwerte für leere Kampfwerte: Bewegung aus den Merkmalen, Übungsbonus aus der Stufe,
- * Initiative aus GES und Aufmerksam.
+ * Initiative aus GES und deklarierten Zuschlägen.
  *
  *   npm run test -- combatFallbacks
  */
@@ -13,8 +13,10 @@ import { testCharacter } from '../support/testCharacter';
 import type { CharacterClass } from '../../src/lib/schemas/characterSchema';
 
 const cls = (level: number) => ({ sourceKey: 'srd-2024_fighter', name: 'Kämpfer', level }) as CharacterClass;
+const mods = (dex: number, wis = 0) => ({ str: 0, dex, con: 0, int: 0, wis, cha: 0 });
 const fb = (classes: CharacterClass[], acTotal: number | null, features: Parameters<typeof combatFallbacks>[0]['features'], dexMod = 0) =>
-  combatFallbacks({ classes, acTotal, features, dexMod });
+  combatFallbacks({ classes, acTotal, features, mods: mods(dexMod) });
+const initiativeFeature = (name: string, initiative: unknown[]) => ({ name, grants: featureGrantSchema.parse({ initiative }) });
 const speedFeature = (speedFeet: number, name = 'Volk') => ({ name, grants: featureGrantSchema.parse({ properties: { speedFeet } }) });
 
 describe('combatFallbacks', () => {
@@ -36,18 +38,27 @@ describe('combatFallbacks', () => {
     expect(fb([], null, null).proficiencyBonus).toBe(2);
   });
 
-  it('rechnet die Initiative aus GES, Aufmerksam addiert den wirksamen Übungsbonus', () => {
+  it('rechnet die Initiative aus GES, ein Übungsbonus-Zuschlag addiert den wirksamen', () => {
     expect(fb([cls(5)], null, [], 2).initiative).toBe('+2');
     expect(fb([cls(5)], null, [], -1).initiative).toBe('-1');
-    const alert = { key: 'srd-2024_alert', name: 'Aufmerksam' };
+    const alert = initiativeFeature('Aufmerksam', [{ kind: 'bonus', value: 'proficiency-bonus' }]);
     expect(fb([cls(5)], null, [alert], 2).initiative).toBe('+5');
-    expect(combatFallbacks({ classes: [cls(5)], proficiencyBonus: 4, acTotal: null, features: [alert], dexMod: 2 }).initiativeRows)
+    expect(combatFallbacks({ classes: [cls(5)], proficiencyBonus: 4, acTotal: null, features: [alert], mods: mods(2) }).initiativeRows)
       .toEqual([{ labelDe: 'GES', value: 2 }, { labelDe: 'Aufmerksam', value: 4 }]);
+  });
+
+  it('addiert einen Attributsmodifikator und sammelt Vorteil getrennt', () => {
+    const ambusher = initiativeFeature('Fürchterlicher Lauerjäger', [{ kind: 'bonus', value: { abilityMod: 'Wisdom', min: 0 } }]);
+    const assassin = initiativeFeature('Attentat', [{ kind: 'advantage' }]);
+    const r = combatFallbacks({ classes: [cls(3)], acTotal: null, features: [ambusher, assassin, assassin], mods: mods(3, 2) });
+    expect(r.initiative).toBe('+5');
+    expect(r.initiativeAdvantage).toEqual(['Attentat']);
+    expect(combatTips({ initiative: '', speed: '', hpCurrent: '', hpMax: '' }, r).initiative).toContain('Vorteil (Attentat)');
   });
 });
 
 describe('withCombatFallbacks', () => {
-  const stub = { ac: 15, speed: '9', speedSource: null, level: 5, proficiencyBonus: 3, initiative: '+2', initiativeRows: [] };
+  const stub = { ac: 15, speed: '9', speedSource: null, level: 5, proficiencyBonus: 3, initiative: '+2', initiativeRows: [], initiativeAdvantage: [] };
 
   it('füllt nur leere Felder', () => {
     const c = testCharacter('Prüfling Kämpferin');
@@ -74,7 +85,7 @@ describe('effectiveProficiencyBonus', () => {
 describe('combatTips', () => {
   const fb = {
     ac: 15, speed: '9', speedSource: { labelDe: 'Elf', feet: 30 }, level: 5, proficiencyBonus: 3,
-    initiative: '+5', initiativeRows: [{ labelDe: 'GES', value: 2 }, { labelDe: 'Aufmerksam', value: 3 }],
+    initiative: '+5', initiativeRows: [{ labelDe: 'GES', value: 2 }, { labelDe: 'Aufmerksam', value: 3 }], initiativeAdvantage: [],
   };
   const c = { initiative: '', speed: '', hpCurrent: '', hpMax: '40', proficiencyBonus: undefined };
 

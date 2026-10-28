@@ -58,14 +58,15 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 
 ## Angriff, Würfe, Sonstiges
 
+Zuschläge und Vorteil auf Initiative stehen in `grants.initiative` (Aufmerksam, Attentat,
+Bemerkenswerter Athlet, Fürchterlicher Lauerjäger).
+
 | Merkmal | Mechanik |
 |---|---|
 | `srd-2024_fighter_champion_improved-critical`, `_superior-critical` | Kritischer Treffer bei 19–20 / 18–20 |
-| `srd-2024_fighter_champion_remarkable-athlete` | Vorteil auf Initiative und Athletik |
+| `srd-2024_fighter_champion_remarkable-athlete` | Vorteil auf Athletik (Initiative ist deklariert) |
 | `srd-2024_fighter_champion_survivor` | Vorteil auf Todesrettungswürfe, Regeneration |
 | `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
-| `rogue_assassin_assassinate` | Vorteil auf Initiative |
-| `ranger_gloom-stalker_dread-ambusher` | WEI-Mod auf Initiative |
 | `ranger_fey-wanderer_otherworldly-glamour` | WEI-Mod auf Charismawürfe |
 | `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt |
 | `ranger_fey-wanderer_dreadful-strikes` | +1W4/1W6 psychisch (`attack.damage` nimmt keine Würfel) |

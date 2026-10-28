@@ -110,7 +110,7 @@ const headPills = (d: CharacterPrintData): string => {
     : '';
   // Die Initiative steht als Kapsel, nicht im Kopfband: dort nimmt sie dem Namen die Breite.
   return pill('Inspiration', '') + pill('Übungsbonus', sign(effectiveProficiencyBonus(c))) +
-    pill('Initiative', esc(c.initiative)) + alles;
+    pill('Initiative', esc(c.initiative) + (d.initiativeAdvantage ? ' V' : '')) + alles;
 };
 
 /** Eine Aufzählung als Text; ohne Inhalt fällt die Zeile weg, statt leer zu stehen. */

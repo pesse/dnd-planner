@@ -172,6 +172,15 @@
         "condition": "string",
         "conditionDe": "string"
       }
+    ],
+    "initiative": [
+      {
+        "kind": "bonus",
+        "value": -9007199254740991
+      },
+      {
+        "kind": "advantage"
+      }
     ]
   },
   "grantsChoice": [
@@ -345,6 +354,15 @@
                 "stacks": false,
                 "condition": "string",
                 "conditionDe": "string"
+              }
+            ],
+            "initiative": [
+              {
+                "kind": "bonus",
+                "value": -9007199254740991
+              },
+              {
+                "kind": "advantage"
               }
             ]
           },
