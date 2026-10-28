@@ -15,6 +15,8 @@ import { memoByKey } from './library/memo';
 import { mapV2 } from './classTableParse';
 export { mapV2, parseCoreTraits, parseCoreTraitRows, parseSkillGrant } from './classTableParse';
 import { firstInt, numOr } from '$lib/utils/num';
+import { totalLevel } from '$lib/schemas/classLevelText';
+import type { Character } from '$lib/schemas/characterSchema';
 
 const DE_TO_SLUG: Record<string, string> = {
   Barbar: 'barbarian', Barde: 'bard', Kleriker: 'cleric', Druide: 'druid',
@@ -73,6 +75,10 @@ export async function getProgressionByKey(key: string): Promise<ClassProgression
 }
 
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);
+
+/** `null` ist das geleerte Formularfeld. */
+export const effectiveProficiencyBonus = (c: { proficiencyBonus?: number | null; classes: Character['classes'] }): number =>
+  c.proficiencyBonus ?? proficiencyBonus(totalLevel(c.classes));
 const clampLevel = (level: number): number => Math.min(20, Math.max(1, Math.floor(level)));
 
 export const levelColumns = (prog: ClassProgression, level: number): Record<string, string> =>

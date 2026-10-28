@@ -3,6 +3,7 @@
  * (`tip-row`, `tip-total`, …) stylt `components/character/sheet.css`.
  */
 import { sign } from '../utils/num';
+import { effectiveProficiencyBonus } from './classProgression';
 import { esc } from '../print/character/html';
 import { mod } from '../domain/skills';
 import type { AbilityResolution } from './effectiveAbilities';
@@ -61,7 +62,7 @@ export function skillTip(
   if (!attr) return '';
   const attrLabel = ABILITY_ABBR_DE[attr];
   const attrMod = character.mods[attr];
-  const pb = character.proficiencyBonus;
+  const pb = effectiveProficiencyBonus(character);
   if (skill.exp) return row(`${attrLabel}-Mod`, attrMod) + row('2× Übungsbonus', pb * 2) + divider() + total(skill.value);
   if (skill.prof) return row(`${attrLabel}-Mod`, attrMod) + row('Übungsbonus', pb) + divider() + total(skill.value);
   if (character.alleskoenner) return row(`${attrLabel}-Mod`, attrMod) + row('½ Übungsbonus', Math.floor(pb / 2)) + divider() + total(skill.value);

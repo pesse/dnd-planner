@@ -12,6 +12,7 @@ import type { CharacterPrintData } from '../../src/lib/print/character/data';
 import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
 import type { SpellQuotaGroup } from '../../src/lib/services/spellcasting/grouped';
 import { allProficienciesCharacter } from '../fixtures/character-all-proficiencies';
+import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
 
 const dataFor = (character: CharacterPrintData['character']): CharacterPrintData => ({
   character,
@@ -20,7 +21,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   companionImageUrl: '',
   freetext: '',
   attacks: [],
-  saves: savingThrowDerivations({ mods: character.mods, profBonus: character.proficiencyBonus, saveProfs: character.saveProfs, sources: [] }),
+  saves: savingThrowDerivations({ mods: character.mods, profBonus: effectiveProficiencyBonus(character), saveProfs: character.saveProfs, sources: [] }),
   auras: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },

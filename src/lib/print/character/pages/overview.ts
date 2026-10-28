@@ -11,6 +11,7 @@ import { SKILL_DEFS } from '$lib/domain/skills';
 import { PROFICIENCY_FLAGS, proficiencyLabel } from '$lib/domain/proficiencies';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { sign } from '$lib/utils/num';
+import { effectiveProficiencyBonus } from '$lib/services/classProgression';
 import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
 import { renderAuras, renderMasteries } from './extras';
@@ -108,7 +109,7 @@ const headPills = (d: CharacterPrintData): string => {
     ? `<div class="o-alles">${profMark(true, false)}Alleskönner</div>`
     : '';
   // Die Initiative steht als Kapsel, nicht im Kopfband: dort nimmt sie dem Namen die Breite.
-  return pill('Inspiration', '') + pill('Übungsbonus', sign(c.proficiencyBonus)) +
+  return pill('Inspiration', '') + pill('Übungsbonus', sign(effectiveProficiencyBonus(c))) +
     pill('Initiative', esc(c.initiative)) + alles;
 };
 

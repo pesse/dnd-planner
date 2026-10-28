@@ -9,7 +9,7 @@ import { loadSpellcasting, type LoadedSpellcasting } from '$lib/services/spellca
 import { groupedSpellcasting, type GroupedSpellcasting } from '$lib/services/spellcasting/grouped';
 import { masteryOffer, type MasteryOffer } from '$lib/services/weaponMastery';
 import { optionPoolOffers, type OptionPoolOffer } from '$lib/services/declaration/optionPool';
-import { getProgressionByKey, levelColumns, levelTables } from '$lib/services/classProgression';
+import { effectiveProficiencyBonus, getProgressionByKey, levelColumns, levelTables } from '$lib/services/classProgression';
 import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
@@ -100,7 +100,7 @@ function printAttacks(
   declared: DeclaredAttackEffects | undefined,
   masteryOf?: (name: string) => string | undefined,
 ): PrintAttack[] {
-  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: c.proficiencyBonus, declared };
+  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: effectiveProficiencyBonus(c), declared };
   return (c.attacks ?? []).map((a) => {
     const mastery = masteryOf?.(a.name);
     return {
@@ -154,10 +154,10 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   const scores = effectiveScores(c.abilities, abilityEffects);
   const shown = withCombatFallbacks(c, combatFallbacksFrom(c, saveInputs, scores));
   const mods = abilityRecordOf((k) => mod(scores[k]));
-  const auras = characterAuras(saveInputs.features, { mods, profBonus: shown.proficiencyBonus });
+  const auras = characterAuras(saveInputs.features, { mods, profBonus: effectiveProficiencyBonus(c) });
   const saves = savingThrowDerivations({
     mods,
-    profBonus: shown.proficiencyBonus,
+    profBonus: effectiveProficiencyBonus(c),
     saveProfs: c.saveProfs,
     sources: savingThrowSources(saveInputs.worn, saveInputs.features, auras),
   });

@@ -12,6 +12,7 @@ import { sharedSlots } from '../../src/lib/services/resources/project';
 import { resolveCasting } from '../../src/lib/services/spellcasting/resolve';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 import { groupedSpellcasting } from '../../src/lib/services/spellcasting/grouped';
+import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
 
 const CLERIC = 'srd-2024_cleric';
 const LIFE_DOMAIN = 'srd-2024_life-domain';
@@ -110,8 +111,8 @@ describe('Kleriker-Zauberquellen', () => {
     const c = cleric({ level: 5 });
     const view = groupedSpellcasting(...(await two(c)));
     const source = view.sources.find((s) => s.id === `${CLERIC}_spellcasting`);
-    expect(source?.saveDC).toBe(8 + c.proficiencyBonus + c.mods.wis);
-    expect(source?.attackBonus).toBe(c.proficiencyBonus + c.mods.wis);
+    expect(source?.saveDC).toBe(8 + effectiveProficiencyBonus(c) + c.mods.wis);
+    expect(source?.attackBonus).toBe(effectiveProficiencyBonus(c) + c.mods.wis);
     expect(sharedSlots(view.resources, 'standard').slice(0, 4)).toEqual([4, 3, 2, 0]);
   });
 });

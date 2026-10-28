@@ -4,12 +4,13 @@ import type { Character } from '../schemas/characterSchema';
 import type { ItemIndex } from '../itemLibrary';
 import { mod } from '../domain/skills';
 import { characterAuras, type CharacterAura } from './auras';
+import { effectiveProficiencyBonus } from './classProgression';
 import type { AbilityResolution } from './effectiveAbilities';
 import type { OwnedGrantFeature } from './hitPoints';
 import { savingThrowDerivations, savingThrowSources, type SavingThrowDerivation } from './savingThrows';
 import { idleItemsIn, wornItemsIn } from './wornItems';
 
-type SaveInput = Pick<Character, 'saveProfs' | 'proficiencyBonus' | 'inventory'>;
+type SaveInput = Pick<Character, 'saveProfs' | 'proficiencyBonus' | 'classes' | 'inventory'>;
 
 export function createSavingThrows(
   input: () => SaveInput | null,
@@ -25,11 +26,11 @@ export function createSavingThrows(
     const mods = abilityRecordOf((k) => mod(resolved[k].score));
     const lib = items();
     const owned = features();
-    const auras = owned ? characterAuras(owned, { mods, profBonus: c.proficiencyBonus }) : [];
+    const auras = owned ? characterAuras(owned, { mods, profBonus: effectiveProficiencyBonus(c) }) : [];
     const ready = lib.itemsLoaded && !!owned;
     const saves = savingThrowDerivations({
       mods,
-      profBonus: c.proficiencyBonus,
+      profBonus: effectiveProficiencyBonus(c),
       saveProfs: c.saveProfs,
       sources: ready ? savingThrowSources(wornItemsIn(lib.itemIndex, c.inventory ?? []), owned, auras) : [],
       idle: ready ? idleItemsIn(lib.itemIndex, c.inventory ?? []) : [],

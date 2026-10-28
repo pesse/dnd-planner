@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { combatFallbacks, withCombatFallbacks } from '../../src/lib/services/combatFallbacks';
+import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
 import { featureGrantSchema } from '../../src/lib/schemas/grants';
 import { testCharacter } from '../support/testCharacter';
 import type { CharacterClass } from '../../src/lib/schemas/characterSchema';
@@ -45,5 +46,13 @@ describe('withCombatFallbacks', () => {
 
   it('lässt die RK leer, solange sie nicht berechnet ist', () => {
     expect(withCombatFallbacks({ ...testCharacter('Prüfling Kämpferin'), ac: '' }, { ...fb, ac: null }).ac).toBe('');
+  });
+});
+
+describe('effectiveProficiencyBonus', () => {
+  it('nimmt den eingetragenen Wert, sonst den der Stufe — auch für das geleerte Formularfeld', () => {
+    expect(effectiveProficiencyBonus({ proficiencyBonus: 4, classes: [cls(1)] })).toBe(4);
+    expect(effectiveProficiencyBonus({ classes: [cls(5)] })).toBe(3);
+    expect(effectiveProficiencyBonus({ proficiencyBonus: null, classes: [cls(9)] })).toBe(4);
   });
 });

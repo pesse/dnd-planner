@@ -228,7 +228,7 @@ export const characterSchema = z.object({
   hpMax: z.string().default(''),
   hpCurrent: z.string().default(''),
   hpTemp: z.string().default(''),
-  proficiencyBonus: z.number().int().default(2),
+  proficiencyBonus: z.number().int().optional().describe('Fehlt = aus der Gesamtstufe gerechnet.'),
   passivePerception: z.string().default(''),
   hitDice: z.string().default(''),
   // Ohne Default: fehlt das Feld, ist die Summe noch nie festgestellt worden (`hpDiceTotalOf`).

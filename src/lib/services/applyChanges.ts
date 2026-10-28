@@ -79,7 +79,8 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   hpMax: (c, next) => { next.hpMax = String(int(next.hpMax) + c.value); },
   hitDice: (c, next) => { next.hitDice = c.value; },
   hpDiceTotal: (c, next) => { next.hpDiceTotal = c.value; },
-  proficiencyBonus: (c, next) => { next.proficiencyBonus = c.value; },
+  // Ohne eingetragenen Wert rechnet sich der Bonus aus der Stufe — ein Eintrag hielte ihn fest.
+  proficiencyBonus: (c, next) => { if (next.proficiencyBonus !== undefined) next.proficiencyBonus = c.value; },
 
   // Plätze sind abgeleitet; nur die Handeingabe für Klassen ohne Progression wächst mit.
   spellSlot: (c, next) => {

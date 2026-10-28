@@ -10,7 +10,7 @@ import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
 import type { Species } from '$lib/schemas/species';
 import { getFeats, featDisplayName } from '$lib/featsLibrary';
-import { getProgressionByKey, spellSlotsAt } from '../classProgression';
+import { effectiveProficiencyBonus, getProgressionByKey, spellSlotsAt } from '../classProgression';
 import type { ClassProgression } from '$lib/schemas/classProgression';
 import { getSpellLibrary, resolveSpell } from '$lib/spellLibrary';
 import { validateRiderSpells } from '../levelUp/spells';
@@ -122,7 +122,7 @@ function applySkillValues(c: Character, scores: AbilityScores): void {
   for (const def of SKILL_DEFS) {
     const row = c.skills[def.key];
     const attrMod = mod(scores[def.attr]);
-    row.value = row.prof ? attrMod + c.proficiencyBonus * (row.exp ? 2 : 1) : attrMod;
+    row.value = row.prof ? attrMod + effectiveProficiencyBonus(c) * (row.exp ? 2 : 1) : attrMod;
   }
 }
 

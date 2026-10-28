@@ -8,6 +8,7 @@ import { type Character, type PersonalData } from '../schemas/characterSchema';
 import { formatSpecies, formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { normalizeCharacter } from '../utils/schemaValidation';
 import { sign } from '../utils/num';
+import { effectiveProficiencyBonus } from './classProgression';
 import { SKILL_DEFS } from '../domain/skills';
 import { characterSummary, type SummarySectionId, type SummaryValue } from './characterSummary';
 import {
@@ -113,7 +114,7 @@ function combatBlock(c: Character): string | null {
     (c.hpCurrent.trim() || c.hpMax.trim()) &&
       `- HP: ${c.hpCurrent.trim() || '?'}/${c.hpMax.trim() || '?'}${c.hpTemp.trim() ? ` (temp ${c.hpTemp.trim()})` : ''}`,
     c.hitDice.trim() && `- Hit Dice: ${c.hitDice}`,
-    `- Proficiency Bonus: ${sign(c.proficiencyBonus)}`,
+    `- Proficiency Bonus: ${sign(effectiveProficiencyBonus(c))}`,
     c.passivePerception.trim() && `- Passive Perception: ${c.passivePerception}`,
   ];
   return section('Combat', lines);

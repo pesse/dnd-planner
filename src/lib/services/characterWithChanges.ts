@@ -30,5 +30,5 @@ function applyLevelStructure(next: Character, delta: LevelUpDelta): void {
     if (cls) cls.level = delta.toLevel;
   }
   // Sicherheitsnetz; das `changeSet` setzt den Übungsbonus ebenso.
-  next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
+  if (next.proficiencyBonus !== undefined) next.proficiencyBonus = proficiencyBonus(delta.newTotalLevel);
 }

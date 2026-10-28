@@ -6,6 +6,7 @@
 import { SKILL_DEFS } from '../domain/skills';
 import type { AbilityFlags, AbilityScores } from '../schemas/abilities';
 import { formatClassLevel } from '../schemas/classLevelText';
+import { effectiveProficiencyBonus } from './classProgression';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
 import type { DeclaredAttackEffects } from './attackEffects';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
@@ -38,7 +39,8 @@ export interface CharacterFormFields {
   hpMax: string;
   hpCurrent: string;
   hpTemp: string;
-  proficiencyBonus: number;
+  /** null = aus der Stufe (`effectiveProficiencyBonus`). */
+  proficiencyBonus: number | null;
   hitDice: string;
   saveProfs: AbilityFlags;
   skillFlags: Record<string, SkillFlags>;
@@ -99,7 +101,7 @@ export function attackContext(
   declared?: DeclaredAttackEffects,
 ): AttackCalcContext {
   const m = abilityMods(f, effects);
-  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: f.proficiencyBonus, declared };
+  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared };
 }
 
 export function computeSkills(f: CharacterFormFields, effects: readonly WornAbilityEffect[]): Character['skills'] {
@@ -108,7 +110,7 @@ export function computeSkills(f: CharacterFormFields, effects: readonly WornAbil
   for (const def of SKILL_DEFS) {
     const flags = f.skillFlags[def.key];
     const base = mods[def.attr] ?? 0;
-    const pb = f.proficiencyBonus;
+    const pb = effectiveProficiencyBonus(f);
     let value = base;
     if (flags.exp) value = base + pb * 2;
     else if (flags.prof) value = base + pb;
@@ -164,7 +166,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     hpMax: character.hpMax ?? '',
     hpCurrent: character.hpCurrent ?? '',
     hpTemp: character.hpTemp ?? '',
-    proficiencyBonus: character.proficiencyBonus ?? 2,
+    proficiencyBonus: character.proficiencyBonus ?? null,
     hitDice: character.hitDice ?? '',
     saveProfs: { ...character.saveProfs },
     skillFlags: Object.fromEntries(SKILL_DEFS.map((s) => [s.key, {
@@ -243,7 +245,7 @@ export function formDraftPatch(
     hpMax: f.hpMax,
     hpCurrent: f.hpCurrent,
     hpTemp: f.hpTemp,
-    proficiencyBonus: f.proficiencyBonus,
+    proficiencyBonus: f.proficiencyBonus ?? undefined,
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
     saveProfs: { ...f.saveProfs },

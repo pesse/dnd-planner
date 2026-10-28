@@ -21,6 +21,7 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { combatFallbacks } from '../services/combatFallbacks';
+  import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
@@ -265,7 +266,7 @@
           bind:saveProfs={form.saveProfs}
           resolved={abilities.resolved}
           {mods}
-          proficiencyBonus={form.proficiencyBonus}
+          proficiencyBonus={effectiveProficiencyBonus(form)}
           saveSourceOf={(key) => grantSourcesFor(
             grants?.savingThrows?.map((g) => ({ ...g, value: abilityKeyOf(g.value) ?? g.value })),
             key,

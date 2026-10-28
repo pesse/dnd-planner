@@ -11,6 +11,7 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
   import { combatFallbacks, withCombatFallbacks } from '../services/combatFallbacks';
+  import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
@@ -70,7 +71,7 @@
   const attackCtx = $derived<AttackCalcContext | null>(character && libs.itemsLoaded && owned.current ? {
     strMod: mod(abilities.resolved.str.score),
     dexMod: mod(abilities.resolved.dex.score),
-    proficiencyBonus: character.proficiencyBonus,
+    proficiencyBonus: effectiveProficiencyBonus(character),
     declared: declaredAttackEffects(libs.itemIndex, character.inventory ?? [], owned.current),
   } : null);
 

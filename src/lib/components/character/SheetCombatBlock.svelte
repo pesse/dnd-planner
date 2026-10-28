@@ -1,6 +1,7 @@
 <script lang="ts">
   import './sheet.css';
   import { sign } from '../../utils/num';
+  import { effectiveProficiencyBonus } from '../../services/classProgression';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
   import { textTip } from '../textTip.svelte';
   import {
@@ -40,7 +41,7 @@
     <div class="stat"><span class="sl">TP aktuell</span><span class="sv">{character.hpCurrent || '—'}</span></div>
     <div class="stat"><span class="sl">Temp. TP</span><span class="sv">{character.hpTemp || '—'}</span></div>
     <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>
-    <div class="stat"><span class="sl">Übungsbonus</span><span class="sv">{sign(character.proficiencyBonus)}</span></div>
+    <div class="stat"><span class="sl">Übungsbonus</span><span class="sv">{sign(effectiveProficiencyBonus(character))}</span></div>
     <div class="stat"><span class="sl">Passiv Wahr.</span><span class="sv">{character.passivePerception}</span></div>
   </div>
 

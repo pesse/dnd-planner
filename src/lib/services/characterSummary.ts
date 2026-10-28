@@ -8,6 +8,7 @@ import { ABILITY_KEYS, ABILITY_LABEL } from '$lib/schemas/abilities';
 import { SKILL_DEFS } from '$lib/domain/skills';
 import { armorProficiencyLabels, weaponProficiencyLabels } from '$lib/domain/proficiencies';
 import { sign } from '$lib/utils/num';
+import { effectiveProficiencyBonus } from './classProgression';
 
 export type SummarySectionId =
   | 'abilities' | 'coreValues' | 'skills' | 'expertise' | 'savingThrows'
@@ -50,7 +51,7 @@ function coreValues(c: Character): SummaryValue[] {
     { label: 'Trefferpunkte', detail: c.hpMax },
     { label: 'Trefferwürfel', detail: c.hitDice },
     { label: 'Bewegungsrate', detail: c.speed },
-    { label: 'Übungsbonus', detail: sign(c.proficiencyBonus) },
+    { label: 'Übungsbonus', detail: sign(effectiveProficiencyBonus(c)) },
   ];
   return rows.filter((v) => v.detail?.trim());
 }

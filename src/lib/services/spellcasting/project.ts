@@ -7,6 +7,7 @@ import type { Character, CharacterFeatureEntry, CharacterSpells } from '$lib/sch
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import { getSpellLibrary, resolveSpell, type SpellInfo } from '$lib/spellLibrary';
 import { sign } from '$lib/utils/num';
+import { effectiveProficiencyBonus } from '../classProgression';
 import type { ResourceRef } from '$lib/schemas/resource';
 import { spellPools } from '../resources/project';
 import { applyManualSlots, findResource, resolveResources } from '../resources/resolve';
@@ -269,7 +270,7 @@ export async function loadSpellcasting(
   const state = spellcastingState({
     resolution,
     stored: legacy.stored,
-    profBonus: c.proficiencyBonus,
+    profBonus: effectiveProficiencyBonus(c),
     mods: c.mods,
     resources,
     spellKey: (name) => resolveSpell(library, name)?.key,

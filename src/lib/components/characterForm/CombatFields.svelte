@@ -11,7 +11,7 @@
   }: {
     ac: string; initiative: string; speed: string; hitDice: string;
     hpMax: string; hpCurrent: string; hpTemp: string;
-    proficiencyBonus: number;
+    proficiencyBonus: number | null;
     /** Stehen als Platzhalter in leeren Feldern; der Bogen zeigt sie an deren Stelle. */
     fallbacks: CombatFallbacks;
     saved?: Character | null;
@@ -37,10 +37,6 @@
     if (cleaned !== e.currentTarget.value) e.currentTarget.value = cleaned;
     speed = cleaned;
   }
-  // Ein leeres Zahlenfeld bindet `null` — der Übungsbonus ist aber eine Pflichtzahl der Datei.
-  function onProficiencyChange() {
-    if (proficiencyBonus == null) proficiencyBonus = fallbacks.proficiencyBonus;
-  }
 </script>
 
 <div class="combat-grid">
@@ -52,7 +48,7 @@
     <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder={fallbacks.speed} />
   </label>
   <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)}>Übungsbonus
-    <input type="number" bind:value={proficiencyBonus} onchange={onProficiencyChange}
+    <input type="number" bind:value={proficiencyBonus}
       placeholder={String(fallbacks.proficiencyBonus)} min="2" max="6" />
   </label>
   <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)}>TP aktuell<input bind:value={hpCurrent} placeholder={hpMax} /></label>

@@ -9,6 +9,7 @@ import {
 } from '../../src/lib/print/character/sections';
 import type { CharacterPrintData } from '../../src/lib/print/character/data';
 import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
+import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
 
 const testfigur = characterSchema.parse({ name: 'Testfigur' });
 
@@ -19,7 +20,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   companionImageUrl: '',
   freetext: '',
   attacks: [],
-  saves: savingThrowDerivations({ mods: testfigur.mods, profBonus: testfigur.proficiencyBonus, saveProfs: testfigur.saveProfs, sources: [] }),
+  saves: savingThrowDerivations({ mods: testfigur.mods, profBonus: effectiveProficiencyBonus(testfigur), saveProfs: testfigur.saveProfs, sources: [] }),
   auras: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
   grouped: { sources: [], resources: [], extra: [], issues: [] },

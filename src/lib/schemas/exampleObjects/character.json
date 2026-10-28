@@ -47,7 +47,7 @@
   "hpMax": "string",
   "hpCurrent": "string",
   "hpTemp": "string",
-  "proficiencyBonus": 2,
+  "proficiencyBonus": -9007199254740991,
   "passivePerception": "string",
   "hitDice": "string",
   "hpDiceTotal": -9007199254740991,
