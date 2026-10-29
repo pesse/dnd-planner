@@ -21,7 +21,7 @@ const SECTION_OF: Record<keyof Character, EditSectionId | null> = {
   backgroundRef: 'general', background: 'general', species: 'general', race: 'general', xp: 'general',
   abilities: 'general', mods: 'general', ac: 'general', initiative: 'general', speed: 'general',
   hpMax: 'general', hpCurrent: 'general', hpTemp: 'general', proficiencyBonus: 'general',
-  passivePerception: 'general', hitDice: 'general', hpDiceTotal: 'general',
+  passivePerception: 'general', hitDice: 'general', hpDiceTotal: 'general', combatAdjustments: 'general',
   saveProfs: 'general', skills: 'general', alleskoenner: 'general',
   languages: 'general', tools: 'general', proficiencies: 'general',
   attacks: 'attacks', masteries: 'attacks',

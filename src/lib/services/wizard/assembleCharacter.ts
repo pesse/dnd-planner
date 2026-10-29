@@ -28,7 +28,6 @@ import { applyFeatureLedger, applyLinks, applyScores, draftScores, featLinks, wi
 import { equipmentIndex, startingItemName } from './startingEquipment';
 import { applyPersonal } from './personal';
 import { matchWeaponName } from '$lib/itemLibrary';
-import { ftToMVal } from '$lib/itemFormat';
 import { ABILITY_KEYS, type AbilityScores } from './pointBuy';
 import type { CharacterWizard } from './characterWizard.svelte';
 import { keySlug } from '$lib/utils/text';
@@ -36,20 +35,7 @@ import { libraryWeightKg } from '$lib/utils/inventoryWeight';
 
 type AnswerLookup = (id: string) => string;
 
-/**
- * `character.speed` ist eine reine METERZAHL, das Speed-Merkmal liefert Prosa („9 Meter" /
- * „30 feet"). Die englische Fassung wird umgerechnet, sonst stünden 30 Fuß als 30 Meter da.
- */
-function metersFromSpeedText(de?: string, en?: string): string {
-  const deNum = (de ?? '').match(/\d+(?:[.,]\d+)?/)?.[0];
-  if (deNum) return deNum.replace('.', ',');
-  const feet = (en ?? '').match(/\d+(?:\.\d+)?/)?.[0];
-  return feet ? String(ftToMVal(parseFloat(feet))).replace('.', ',') : '';
-}
-
 function applySpeciesSheetValues(c: Character, spec: Species | null, answerOf: AnswerLookup): void {
-  const speedTrait = spec?.traits.find((t) => /(_speed$|^speed$)/i.test(t.key) || t.name.toLowerCase() === 'speed');
-  c.speed = metersFromSpeedText(speedTrait?.descDe, speedTrait?.desc || spec?.speed);
   c.personal.sizeCat = resolveSizeCat(spec?.traits ?? [], answerOf(sizeChoiceId(spec?.key ?? '')));
 }
 
@@ -65,13 +51,12 @@ function finalScores(w: CharacterWizard): AbilityScores {
   return scores;
 }
 
-function applyHitPoints(c: Character, w: CharacterWizard, prog: ClassProgression | null, scores: AbilityScores): void {
+/** Das Maximum rechnet sich aus der Würfelsumme; leere aktuelle TP heißen „voll". */
+function applyHitPoints(c: Character, prog: ClassProgression | null): void {
   const hitDie = prog?.hitDie ?? 0;
   if (hitDie <= 0) return;
   c.hitDice = `1W${hitDie}`;
   c.hpDiceTotal = hitDie;
-  c.hpMax = String(Math.max(1, hitDie + mod(scores.con) + w.hpPerLevelBonus()));
-  c.hpCurrent = c.hpMax;
 }
 
 /**
@@ -205,7 +190,7 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   applyPersonal(c, w);
   applySpeciesSheetValues(c, spec, answerOf);
   applyScores(c, scores);
-  applyHitPoints(c, w, prog, scores);
+  applyHitPoints(c, prog);
   await applyProficiencies(c, w, answerOf);
   applySkillValues(c, scores);
   applyFeatureLedger(c, w);

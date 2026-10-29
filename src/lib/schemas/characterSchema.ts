@@ -8,6 +8,7 @@ import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spell
 import { CHARACTER_VERSION } from './characterUpgrades';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { resourceAdjustmentSchema } from './resource';
+import { combatAdjustmentsSchema } from './combatAdjustment';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -222,6 +223,8 @@ export const characterSchema = z.object({
   abilities: abilityScoresSchema,
   // aus den Basiswerten berechnet
   mods: abilityModsSchema,
+  // ALTFELDER: gerechnet wird aus Bibliothek und `combatAdjustments`. Ein gefüllter Wert gewinnt
+  // noch, bis der Editor ihn umstellt (`services/combatOverrides.ts`); ein leerer wird nie gefüllt.
   ac: z.string().default(''),
   initiative: z.string().default(''),
   speed: z.string().default(''),
@@ -233,6 +236,9 @@ export const characterSchema = z.object({
   hitDice: z.string().default(''),
   // Ohne Default: fehlt das Feld, ist die Summe noch nie festgestellt worden (`hpDiceTotalOf`).
   hpDiceTotal: z.number().int().optional().describe('Summe der Trefferwürfel aller Stufen, Stufe 1 mit Maximum — ohne KON und Boni je Stufe.'),
+  combatAdjustments: combatAdjustmentsSchema
+    .optional()
+    .describe('Handeingetragene Zu- und Abschläge auf RK, TP-Maximum, Initiative und Bewegungsrate.'),
   saveProfs: abilityFlagsSchema,
   skills: z.record(z.string(), skillEntrySchema).default({}),
   attacks: z.array(attackSchema).default([]),

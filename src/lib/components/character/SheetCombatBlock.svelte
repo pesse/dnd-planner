@@ -38,13 +38,13 @@
   <h3>Kampf</h3>
   <div class="stats-grid">
     <div class="stat" class:has-tip={acTipHtml}>
-      <span class="sl">RK</span><span class="sv">{character.ac}</span>
+      <span class="sl">RK</span><span class="sv">{character.ac || '—'}</span>
       {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
     </div>
     {@render stat('Initiative', character.initiative, tips.initiative)}
-    {@render stat('Bewegung', `${character.speed}m`, tips.speed)}
+    {@render stat('Bewegung', character.speed ? `${character.speed} m` : '—', tips.speed)}
     <div class="stat" class:has-tip={hpTipHtml}>
-      <span class="sl">TP max</span><span class="sv">{character.hpMax}</span>
+      <span class="sl">TP max</span><span class="sv">{character.hpMax || '—'}</span>
       {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
     </div>
     {@render stat('TP aktuell', character.hpCurrent || '—', tips.hpCurrent)}

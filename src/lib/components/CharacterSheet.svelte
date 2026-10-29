@@ -10,6 +10,7 @@
   import { createFormCasting } from '../services/characterFormCasting.svelte';
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createHpBasis } from '../services/hitPointBasis.svelte';
+  import { hpMaxTotal } from '../services/hitPoints';
   import { combatFallbacks, withCombatFallbacks } from '../services/combatFallbacks';
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
@@ -67,7 +68,11 @@
   const owned = createOwnedGrantFeatures(() => character ?? null);
   const acTip = createArmorClassTip(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
   const fallbacks = $derived(character && combatFallbacks({
-    ...character, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+    ...character,
+    acTotal: acTip.total,
+    hpTotal: hpBasis.current && hpMaxTotal(character, hpBasis.current),
+    features: owned.current,
+    dexMod: mod(abilities.resolved.dex.score),
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);

@@ -4,14 +4,13 @@
  */
 import type { LevelUpDelta } from '../levelUp';
 import type { Change } from '../../schemas/levelUp';
-import type { Character } from '../../schemas/characterSchema';
 import { mod } from '../../domain/skills';
 import { cappedScore } from '../declaration/abilityIncrease';
 import { effectiveScore, type WornAbilityEffect } from '../effectiveAbilities';
-import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from '../hitPoints';
+import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis, type HpInput } from '../hitPoints';
 import type { HpPerLevelSource } from './runState';
 
-export interface HpBefore extends Pick<Character, 'hpMax' | 'hpDiceTotal'> {
+export interface HpBefore extends HpInput {
   conScore: number;
   abilityEffects?: readonly WornAbilityEffect[];
   maxDice?: number;

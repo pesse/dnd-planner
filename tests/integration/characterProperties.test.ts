@@ -70,12 +70,17 @@ describe('der Bestand deklariert seine Grundeigenschaften', () => {
 
   it('setzt feste Eigenschaften über dieselbe Senke wie jeden anderen Grant', async () => {
     const goliath = await getSpeciesByKey('srd-2024_goliath');
+    const changes = declaredGrantChanges(tagged('species', goliath!.traits), META);
     const c = characterSchema.parse({ name: 'Prüfling' });
-    applyChanges(c, declaredGrantChanges(tagged('species', goliath!.traits), META), { classIndex: 0 });
+    applyChanges(c, changes, { classIndex: 0 });
+    expect(c.personal.sizeCat).toBe('Mittelgroß');
+    // Ohne Altwert rechnet sich die Bewegungsrate aus `speedFeet`, die Datei bleibt leer.
+    expect(c.speed).toBe('');
 
     // Übersetzungsgrenze: Vault englisch/Fuß, Bogen deutsch/Meter (35 ft = 10,5 m).
-    expect(c.personal.sizeCat).toBe('Mittelgroß');
-    expect(c.speed).toBe('10,5');
+    const legacy = characterSchema.parse({ name: 'Prüfling', speed: '9' });
+    applyChanges(legacy, changes, { classIndex: 0 });
+    expect(legacy.speed).toBe('10,5');
   });
 });
 

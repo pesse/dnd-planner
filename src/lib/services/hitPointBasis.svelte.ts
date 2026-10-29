@@ -1,9 +1,8 @@
 /** KON, Stufe und Boni je Stufe zum aktuellen Stand — für `hitPointsFix` und die TP-Herleitung, in Editor und Bogen. */
 import { mod } from '../domain/skills';
-import { characterLevel } from './declaration/carriers';
 import type { AbilityResolution } from './effectiveAbilities';
-import { maxDiceTotal, ownedHpPerLevelSources, type HpBasis, type OwnedLinks } from './hitPoints';
-import { hpPerLevelSum, type PerLevelSource } from './perLevelEffects';
+import { hpBasisOf, loadHpLibraryParts, type HpBasis, type HpLibraryParts, type OwnedLinks } from './hitPoints';
+import type { PerLevelSource } from './perLevelEffects';
 
 export interface CharacterHpBasis {
   /** null, solange die Bibliothek lädt — oder wenn sie nicht geladen werden konnte. */
@@ -15,7 +14,7 @@ export function createHpBasis(
   links: () => OwnedLinks,
   con: () => AbilityResolution,
 ): CharacterHpBasis {
-  let resolved = $state<{ sources: PerLevelSource[]; maxDice?: number } | null>(null);
+  let resolved = $state<HpLibraryParts | null>(null);
   // Nur die Links sind Abhängigkeit; KON und Stufe rechnet `current` synchron dazu.
   const input = $derived.by(() => {
     const c = links();
@@ -29,20 +28,14 @@ export function createHpBasis(
   $effect(() => {
     const c = input;
     let cancelled = false;
-    void Promise.all([ownedHpPerLevelSources(c), maxDiceTotal(c.classes)])
-      .then(([sources, maxDice]) => { if (!cancelled) resolved = { sources, maxDice }; })
+    void loadHpLibraryParts(c)
+      .then((parts) => { if (!cancelled) resolved = parts; })
       .catch(() => { if (!cancelled) resolved = null; });
     return () => { cancelled = true; };
   });
   return {
     get current() {
-      if (!resolved) return null;
-      return {
-        conMod: mod(con().score),
-        level: characterLevel(input.classes),
-        perLevel: hpPerLevelSum(resolved.sources),
-        maxDice: resolved.maxDice,
-      };
+      return resolved && hpBasisOf(input.classes, mod(con().score), resolved);
     },
     get sources() { return resolved?.sources ?? []; },
   };

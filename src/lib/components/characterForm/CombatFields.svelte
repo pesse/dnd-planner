@@ -3,17 +3,11 @@
   import type { Character } from '../../schemas/characterSchema';
   import type { CombatFallbacks } from '../../services/combatFallbacks';
   import type { CombatTips } from '../../services/characterSheetTips';
+  import type { CharacterFormFields } from '../../services/characterFormFields';
   import './form.css';
 
-  let {
-    ac = $bindable(), initiative = $bindable(), speed = $bindable(),
-    hitDice = $bindable(), hpMax = $bindable(), hpCurrent = $bindable(), hpTemp = $bindable(),
-    proficiencyBonus = $bindable(), fallbacks, tips, saved, dirOf, hpTipHtml = '', acTipHtml = '',
-  }: {
-    ac: string; initiative: string; speed: string; hitDice: string;
-    hpMax: string; hpCurrent: string; hpTemp: string;
-    proficiencyBonus: number | null;
-    /** Stehen als Platzhalter in leeren Feldern; der Bogen zeigt sie an deren Stelle. */
+  let { form, fallbacks, tips, saved, dirOf, hpTipHtml = '', acTipHtml = '' }: {
+    form: CharacterFormFields;
     fallbacks: CombatFallbacks;
     tips: CombatTips;
     saved?: Character | null;
@@ -24,48 +18,38 @@
     acTipHtml?: string;
   } = $props();
 
-  /**
-   * Bewegungsrate ist eine Meterzahl, kein Freitext. Das Schema-Feld bleibt ein String
-   * (PDF-Grenze), die Eingabe wird auf Ziffern plus EIN Komma reduziert.
-   */
-  function cleanSpeed(raw: string): string {
-    const [head, ...rest] = raw.replace(/[^\d.,]/g, '').replace(/\./g, ',').split(',');
-    return rest.length ? `${head},${rest.join('')}` : head;
-  }
-  function onSpeedInput(e: Event & { currentTarget: HTMLInputElement }) {
-    const cleaned = cleanSpeed(e.currentTarget.value);
-    // Verwirft die Eingabe den getippten Rest, muss das DOM-Feld mitgezogen werden — der
-    // reaktive Wert allein ändert sich dabei nicht und Svelte würde nichts schreiben.
-    if (cleaned !== e.currentTarget.value) e.currentTarget.value = cleaned;
-    speed = cleaned;
-  }
+  const orDash = (n: number | null): string => (n === null ? '—' : String(n));
+  const hpMax = $derived(form.hpMax.trim() || orDash(fallbacks.hpMax));
+  const speed = $derived(form.speed.trim() || fallbacks.speed);
 </script>
 
+{#snippet computed(label: string, stored: string, value: string, tipHtml: string)}
+  <div class="stat" class:has-tip={tipHtml}>
+    {label}
+    <span class="value" class:legacy={stored.trim()}>{value}</span>
+    {#if tipHtml}<span class="tip">{@html tipHtml}</span>{/if}
+  </div>
+{/snippet}
+
 <div class="combat-grid">
-  <label class="stat" use:diffMark={dirOf(saved?.ac, ac)} class:has-tip={acTipHtml}>RK<input bind:value={ac} placeholder={String(fallbacks.ac ?? '')} />
-    {#if acTipHtml}<span class="tip">{@html acTipHtml}</span>{/if}
-  </label>
-  <label class="stat" use:diffMark={dirOf(saved?.initiative, initiative)} class:has-tip={tips.initiative}>Initiative
-    <input bind:value={initiative} placeholder={fallbacks.initiative} />
-    {#if tips.initiative}<span class="tip">{@html tips.initiative}</span>{/if}
-  </label>
-  <label class="stat" use:diffMark={dirOf(saved?.speed, speed)} class:has-tip={tips.speed}>Bewegung (m)
-    <input inputmode="decimal" value={speed} oninput={onSpeedInput} placeholder={fallbacks.speed} />
-    {#if tips.speed}<span class="tip">{@html tips.speed}</span>{/if}
-  </label>
-  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, proficiencyBonus)} class:has-tip={tips.proficiencyBonus}>Übungsbonus
-    <input type="number" bind:value={proficiencyBonus}
+  {@render computed('RK', form.ac, form.ac.trim() || orDash(fallbacks.ac), acTipHtml)}
+  {@render computed('Initiative', form.initiative, form.initiative.trim() || fallbacks.initiative, tips.initiative)}
+  {@render computed('Bewegung', form.speed, speed ? `${speed} m` : '—', tips.speed)}
+  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, form.proficiencyBonus)} class:has-tip={tips.proficiencyBonus}>Übungsbonus
+    <input type="number" bind:value={form.proficiencyBonus}
       placeholder={String(fallbacks.proficiencyBonus)} min="2" max="6" />
     {#if tips.proficiencyBonus}<span class="tip">{@html tips.proficiencyBonus}</span>{/if}
   </label>
-  <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, hpCurrent)} class:has-tip={tips.hpCurrent}>TP aktuell<input bind:value={hpCurrent} placeholder={hpMax} />
+  {@render computed('TP max', form.hpMax, hpMax, hpTipHtml)}
+  <label class="stat" use:diffMark={dirOf(saved?.hpDiceTotal, form.hpDiceTotal ?? undefined)}
+    title="Summe aller Trefferwürfel, Stufe 1 mit Maximum, ohne KON und Boni je Stufe">Würfelsumme
+    <input type="number" min="1" bind:value={form.hpDiceTotal} placeholder="—" />
+  </label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, form.hpCurrent)} class:has-tip={tips.hpCurrent}>TP aktuell<input bind:value={form.hpCurrent} placeholder={hpMax} />
     {#if tips.hpCurrent}<span class="tip">{@html tips.hpCurrent}</span>{/if}
   </label>
-  <label class="stat" use:diffMark={dirOf(saved?.hpMax, hpMax)} class:has-tip={hpTipHtml}>TP max<input bind:value={hpMax} placeholder="45" />
-    {#if hpTipHtml}<span class="tip">{@html hpTipHtml}</span>{/if}
-  </label>
-  <label class="stat" use:diffMark={dirOf(saved?.hpTemp, hpTemp)}>Temp. TP<input bind:value={hpTemp} placeholder="0" /></label>
-  <label class="stat" use:diffMark={dirOf(saved?.hitDice, hitDice)}>Trefferwürfel<input bind:value={hitDice} placeholder="5W10" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.hpTemp, form.hpTemp)}>Temp. TP<input bind:value={form.hpTemp} placeholder="0" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.hitDice, form.hitDice)}>Trefferwürfel<input bind:value={form.hitDice} placeholder="5W10" /></label>
 </div>
 
 <style>
@@ -75,6 +59,9 @@
     gap: 0.4rem;
   }
   .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
     background: var(--surface);
     border-radius: 6px;
     padding: 0.3rem 0.4rem 0.4rem;
@@ -90,4 +77,11 @@
     font-weight: 600;
     background: var(--bg);
   }
+  .value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--arcane);
+    padding: 0.25rem 0;
+  }
+  .value.legacy { color: var(--copper); }
 </style>

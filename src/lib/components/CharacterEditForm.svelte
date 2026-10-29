@@ -21,6 +21,8 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { combatFallbacks } from '../services/combatFallbacks';
+  import { armorClassHints, combatOverrides } from '../services/combatOverrides';
+  import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
@@ -33,6 +35,7 @@
   import GeneralSection from './characterForm/GeneralSection.svelte';
   import AbilityTable from './characterForm/AbilityTable.svelte';
   import CombatFields from './characterForm/CombatFields.svelte';
+  import CombatAdjustments from './characterForm/CombatAdjustments.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
@@ -183,20 +186,34 @@
     () => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }),
     () => abilities.resolved.con,
   );
+  const hpInput = $derived({ hpMax: form.hpMax, hpDiceTotal: form.hpDiceTotal ?? undefined, combatAdjustments: form.combatAdjustments });
   const hpTipHtml = $derived(
-    hpBasis.current ? hpTip(hpDerivation({ hpMax: form.hpMax, hpDiceTotal: character.hpDiceTotal }, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
+    hpBasis.current ? hpTip(hpDerivation(hpInput, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
   );
 
   const acTip = createArmorClassTip(
-    () => ({ ac: form.ac, inventory: form.inventory }),
+    () => ({ ac: form.ac, inventory: form.inventory, combatAdjustments: form.combatAdjustments }),
     () => libs,
     () => abilities.resolved,
     () => owned.current,
   );
   const fallbacks = $derived(combatFallbacks({
-    ...form, acTotal: acTip.total, features: owned.current, dexMod: mod(abilities.resolved.dex.score),
+    ...form,
+    acTotal: acTip.total,
+    hpTotal: hpBasis.current && hpMaxTotal(hpInput, hpBasis.current),
+    features: owned.current,
+    dexMod: mod(abilities.resolved.dex.score),
   }));
   const tips = $derived(combatTips(form, fallbacks));
+  // Erst mit allen Bibliotheken: ein halb gerechneter Wert böte die falsche Abweichung an.
+  const overrides = $derived(libs.itemsLoaded && owned.current && hpBasis.current
+    ? combatOverrides({
+      stored: { ac: form.ac, hpMax: form.hpMax, initiative: form.initiative, speed: form.speed },
+      fb: fallbacks,
+      hpDiceTotal: form.hpDiceTotal ?? undefined,
+      acHints: armorClassHints(libs.itemIndex, form.inventory),
+    })
+    : []);
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
@@ -218,8 +235,9 @@
     attacks: form.attacks,
     weaponCtx,
     hpMax: form.hpMax,
-    hpDiceTotal: character.hpDiceTotal,
-    setHpDiceTotal: (total) => { character.hpDiceTotal = total; },
+    hpDiceTotal: form.hpDiceTotal ?? undefined,
+    combatAdjustments: form.combatAdjustments,
+    splitHitPoints: (total) => { form.hpDiceTotal = total; form.hpMax = ''; },
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
@@ -285,12 +303,8 @@
 
       <section>
         <h3>Kampfwerte</h3>
-        <CombatFields
-          bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
-          bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
-          bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-          {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
-        />
+        <CombatFields {form} {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html} />
+        <CombatAdjustments {form} {overrides} {saved} {dirOf} />
       </section>
     </div>
 

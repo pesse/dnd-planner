@@ -23,6 +23,7 @@ import {
 } from '$lib/services/savingThrows';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { combatFallbacksFrom, withCombatFallbacks } from '$lib/services/combatFallbacks';
+import { loadHpLibraryParts } from '$lib/services/hitPoints';
 import { cardItemInfos } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
 import { formatDamageDice } from '$lib/itemFormat';
@@ -132,7 +133,7 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs] = await Promise.all([
+  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs, hpParts] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
@@ -143,6 +144,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(loadDeclaredAttackEffects(c), undefined),
     safe(loadPrintFigure(c, input.figureUrl), null),
     safe(loadSavingThrowInputs(c), { worn: [], idle: [], features: [] }),
+    safe(loadHpLibraryParts(c), null),
   ]);
 
   // Die Vorräte kommen aus demselben Lauf wie die Zauber: ein zweites `resolveResources` liefe
@@ -152,7 +154,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     : { sources: [], resources: [], extra: [], issues: [] };
 
   const scores = effectiveScores(c.abilities, abilityEffects);
-  const shown = withCombatFallbacks(c, combatFallbacksFrom(c, saveInputs, scores));
+  const shown = withCombatFallbacks(c, combatFallbacksFrom(c, saveInputs, scores, hpParts));
   const mods = abilityRecordOf((k) => mod(scores[k]));
   const auras = characterAuras(saveInputs.features, { mods, profBonus: effectiveProficiencyBonus(c) });
   const saves = savingThrowDerivations({

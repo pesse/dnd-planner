@@ -18,7 +18,6 @@ import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureClassContext, GainedFeature } from '../analysis/types';
 import type { SummaryFeature } from '../aiActions/fieldSummaryAction';
-import type { PerLevelFeature } from '../perLevelEffects';
 import { declarationOf, declaredFeatures, type DeclaredFeature } from '../declaredFeature';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
 import { classCastingAbility } from '../spellcasting/classOffer';
@@ -37,7 +36,6 @@ export interface FeaturePrep {
   sizeChoice: AnalysisChoice | null;
   /** Erzwungene Speziesmerkmals-Wahlen stecken hier, nicht in `gained` — sonst im Klassentext. */
   speciesFeatures: GainedFeature[];
-  effectFeatures: PerLevelFeature[];
   /**
    * Die eine Quelle jeder Deklarationsauswertung, bewusst UNGEFILTERT: ein Merkmal, das wegen
    * seiner Wahl aus der Merkmalsstrecke fällt, gewährt sein `grants` trotzdem. Gefiltert wird an
@@ -139,14 +137,6 @@ function traitFeatures(traits: Trait[]): GainedFeature[] {
   }));
 }
 
-function perLevelInput(gained: GainedFeature[], speciesFeatures: GainedFeature[]): PerLevelFeature[] {
-  return [...gained, ...speciesFeatures].map((f) => ({
-    key: f.key ?? '',
-    name: f.nameDe || f.name,
-    grants: f.grants,
-  }));
-}
-
 function classContextOf(klass: FeatureBasics['klass'], prog: ClassProgression | null): FeatureClassContext {
   const casterType = prog?.casterType ?? 'NONE';
   const ability = classCastingAbility(prog);
@@ -200,7 +190,6 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     spellAccess,
     sizeChoice: sizeChoiceOf(spec),
     speciesFeatures,
-    effectFeatures: perLevelInput(gained, speciesFeatures),
     declared,
     summaryClass: gained.map(toSummary),
     summarySpecies: speciesFeatures.map((f) => ({

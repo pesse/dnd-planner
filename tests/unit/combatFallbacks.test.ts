@@ -1,6 +1,6 @@
 /**
- * Rückfallwerte für leere Kampfwerte: Bewegung aus den Merkmalen, Übungsbonus aus der Stufe,
- * Initiative aus GES und Aufmerksam.
+ * Gerechnete Kampfwerte: Bewegung aus den Merkmalen, Übungsbonus aus der Stufe, Initiative aus
+ * GES und Aufmerksam, jeweils samt benannter Anpassungen.
  *
  *   npm run test -- combatFallbacks
  */
@@ -11,10 +11,13 @@ import { combatTips } from '../../src/lib/services/characterSheetTips';
 import { featureGrantSchema } from '../../src/lib/schemas/grants';
 import { testCharacter } from '../support/testCharacter';
 import type { CharacterClass } from '../../src/lib/schemas/characterSchema';
+import { emptyCombatAdjustments, type CombatAdjustments } from '../../src/lib/schemas/combatAdjustment';
 
 const cls = (level: number) => ({ sourceKey: 'srd-2024_fighter', name: 'Kämpfer', level }) as CharacterClass;
-const fb = (classes: CharacterClass[], acTotal: number | null, features: Parameters<typeof combatFallbacks>[0]['features'], dexMod = 0) =>
-  combatFallbacks({ classes, acTotal, features, dexMod });
+type Input = Parameters<typeof combatFallbacks>[0];
+const fb = (classes: CharacterClass[], acTotal: number | null, features: Input['features'], dexMod = 0, more: Partial<Input> = {}) =>
+  combatFallbacks({ classes, acTotal, hpTotal: null, features, dexMod, ...more });
+const adjustments = (over: Partial<CombatAdjustments>): CombatAdjustments => ({ ...emptyCombatAdjustments(), ...over });
 const speedFeature = (speedFeet: number, name = 'Volk') => ({ name, grants: featureGrantSchema.parse({ properties: { speedFeet } }) });
 
 describe('combatFallbacks', () => {
@@ -25,7 +28,7 @@ describe('combatFallbacks', () => {
 
   it('nimmt die höchste Deklaration und bleibt ohne leer', () => {
     expect(fb([cls(1)], null, [speedFeature(30), speedFeature(35, 'Flink'), { name: 'Leer' }]).speed).toBe('10,5');
-    expect(fb([cls(1)], null, [speedFeature(30), speedFeature(35, 'Flink')]).speedSource).toEqual({ labelDe: 'Flink', feet: 35 });
+    expect(fb([cls(1)], null, [speedFeature(30), speedFeature(35, 'Flink')]).speedRows).toEqual([{ labelDe: 'Flink', feet: 35 }]);
     expect(fb([cls(1)], null, [{ name: 'Leer' }]).speed).toBe('');
     expect(fb([cls(1)], null, null).speed).toBe('');
   });
@@ -41,25 +44,42 @@ describe('combatFallbacks', () => {
     expect(fb([cls(5)], null, [], -1).initiative).toBe('-1');
     const alert = { key: 'srd-2024_alert', name: 'Aufmerksam' };
     expect(fb([cls(5)], null, [alert], 2).initiative).toBe('+5');
-    expect(combatFallbacks({ classes: [cls(5)], proficiencyBonus: 4, acTotal: null, features: [alert], dexMod: 2 }).initiativeRows)
+    expect(fb([cls(5)], null, [alert], 2, { proficiencyBonus: 4 }).initiativeRows)
       .toEqual([{ labelDe: 'GES', value: 2 }, { labelDe: 'Aufmerksam', value: 4 }]);
+  });
+
+  it('zählt Anpassungen als eigene Posten auf Initiative und Bewegung', () => {
+    const adj = adjustments({
+      initiative: [{ amount: 1, reason: 'Segen des Spielleiters' }],
+      speed: [{ amount: 5, reason: '' }],
+    });
+    const out = fb([cls(5)], null, [speedFeature(30, 'Elf')], 2, { combatAdjustments: adj });
+    expect(out.initiative).toBe('+3');
+    expect(out.initiativeRows.at(-1)).toMatchObject({ labelDe: 'Segen des Spielleiters', value: 1 });
+    expect(out.speed).toBe('10,5');
+    expect(out.speedRows).toEqual([{ labelDe: 'Elf', feet: 30 }, { labelDe: 'Anpassung', feet: 5 }]);
+  });
+
+  it('lässt eine Bewegungs-Anpassung ohne Deklaration wirkungslos', () => {
+    expect(fb([cls(1)], null, [], 0, { combatAdjustments: adjustments({ speed: [{ amount: 5, reason: '' }] }) }).speed).toBe('');
   });
 });
 
 describe('withCombatFallbacks', () => {
-  const stub = { ac: 15, speed: '9', speedSource: null, level: 5, proficiencyBonus: 3, initiative: '+2', initiativeRows: [] };
+  const stub = { ac: 15, hpMax: 44, speed: '9', speedRows: [], level: 5, proficiencyBonus: 3, initiative: '+2', initiativeRows: [] };
 
-  it('füllt nur leere Felder', () => {
+  it('rechnet leere Felder, ein eingetragener Altwert gewinnt noch', () => {
     const c = testCharacter('Prüfling Kämpferin');
-    const empty = withCombatFallbacks({ ...c, ac: ' ', initiative: '', speed: '', hpCurrent: '', hpMax: '40' }, stub);
-    expect([empty.ac, empty.initiative, empty.speed, empty.hpCurrent]).toEqual(['15', '+2', '9', '40']);
+    const empty = withCombatFallbacks({ ...c, ac: ' ', initiative: '', speed: '', hpCurrent: '', hpMax: '' }, stub);
+    expect([empty.ac, empty.initiative, empty.speed, empty.hpMax, empty.hpCurrent]).toEqual(['15', '+2', '9', '44', '44']);
 
-    const kept = withCombatFallbacks({ ...c, ac: '18', initiative: '+4', speed: '7,5', hpCurrent: '12' }, stub);
-    expect([kept.ac, kept.initiative, kept.speed, kept.hpCurrent]).toEqual(['18', '+4', '7,5', '12']);
+    const kept = withCombatFallbacks({ ...c, ac: '18', initiative: '+4', speed: '7,5', hpMax: '40', hpCurrent: '12' }, stub);
+    expect([kept.ac, kept.initiative, kept.speed, kept.hpMax, kept.hpCurrent]).toEqual(['18', '+4', '7,5', '40', '12']);
   });
 
-  it('lässt die RK leer, solange sie nicht berechnet ist', () => {
-    expect(withCombatFallbacks({ ...testCharacter('Prüfling Kämpferin'), ac: '' }, { ...stub, ac: null }).ac).toBe('');
+  it('lässt RK und TP-Maximum leer, solange sie nicht berechnet sind', () => {
+    const out = withCombatFallbacks({ ...testCharacter('Prüfling Kämpferin'), ac: '', hpMax: '', hpCurrent: '' }, { ...stub, ac: null, hpMax: null });
+    expect([out.ac, out.hpMax, out.hpCurrent]).toEqual(['', '', '']);
   });
 });
 
@@ -73,10 +93,10 @@ describe('effectiveProficiencyBonus', () => {
 
 describe('combatTips', () => {
   const fb = {
-    ac: 15, speed: '9', speedSource: { labelDe: 'Elf', feet: 30 }, level: 5, proficiencyBonus: 3,
+    ac: 15, hpMax: 40, speed: '9', speedRows: [{ labelDe: 'Elf', feet: 30 }], level: 5, proficiencyBonus: 3,
     initiative: '+5', initiativeRows: [{ labelDe: 'GES', value: 2 }, { labelDe: 'Aufmerksam', value: 3 }],
   };
-  const c = { initiative: '', speed: '', hpCurrent: '', hpMax: '40', proficiencyBonus: undefined };
+  const c = { initiative: '', speed: '', hpCurrent: '', hpMax: '', proficiencyBonus: undefined };
 
   it('nennt die Herkunft und meldet abweichende Einträge', () => {
     const tips = combatTips(c, fb);
@@ -84,6 +104,7 @@ describe('combatTips', () => {
     expect(tips.speed).toContain('30 Fuß');
     expect(tips.proficiencyBonus).toContain('Gesamtstufe');
     expect(tips.hpCurrent).toContain('TP-Maximum');
+    expect(tips.hpCurrent).toContain('40');
     expect(tips.initiative).toContain('Aufmerksam');
 
     expect(combatTips({ ...c, initiative: '+5' }, fb).initiative).not.toContain('eingetragen');
@@ -96,6 +117,6 @@ describe('combatTips', () => {
   });
 
   it('zeigt ohne Deklaration keine Bewegungs-Herleitung', () => {
-    expect(combatTips(c, { ...fb, speedSource: null }).speed).toBe('');
+    expect(combatTips(c, { ...fb, speedRows: [] }).speed).toBe('');
   });
 });
