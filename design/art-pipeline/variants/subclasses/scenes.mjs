@@ -152,8 +152,8 @@ export const SCENES = {
   },
   'college-of-dance': {
     cls: 'bard', status: 'frozen',
-    core: 'Bard (College of Dance) — light, flowing colourful performer clothes with ribbons, soft shoes, a lute slung on the back (never a fiddle or violin), no armour, no weapon.',
-    scene: 'Dazzling Footwork: a graceful leap in the middle of a whirling dance, both arms spread wide and relaxed, the ribbons and coat-tails flaring in a circle; golden sparkling trails follow the motion. A cheering festival crowd on the right claps along. Radiant, joyful smile, eyes on the crowd.',
+    core: 'Bard (College of Dance) — light, flowing colourful performer clothes with ribbons, soft shoes, a small round tambourine with jingling metal discs in one hand; no other instrument, nothing slung on the back, no armour, no weapon.',
+    scene: 'Dazzling Footwork: a graceful leap in the middle of a whirling dance, the hand with the tambourine raised high and shaking it, the other arm spread wide and relaxed, the ribbons and coat-tails flaring in a circle; golden sparkling trails follow the motion. A cheering festival crowd on the right claps along. Radiant, joyful smile, eyes on the crowd.',
     camera: 'Full figure, eye level three-quarter view.',
     setting: 'A village festival square at night, strings of lanterns and a bonfire.',
   },
