@@ -202,7 +202,11 @@ fn write_state(id: &str, state: &InstalledState) -> Result<(), String> {
 /// Umbenannte oder aufgegangene Library-IDs (alt → neu). Ohne Umzug gälten ihre Dateien als
 /// fremd (`needsAdopt`), und das Update der neuen schriebe nichts, bis der Nutzer zustimmt; ein
 /// mitgezogener Code einer älteren keyVersion meldet sich als `staleCode` statt als `locked`.
-const RENAMED_LIBRARIES: &[(&str, &str)] = &[("erweitert", "phb"), ("srd-5.1", "dndapi-legacy")];
+const RENAMED_LIBRARIES: &[(&str, &str)] = &[
+    ("erweitert", "phb"),
+    ("srd-5.1", "srd-5.1-legacy"),
+    ("dndapi-legacy", "srd-5.1-legacy"),
+];
 
 /// Die Version des Ziels bleibt: sein nächstes Update räumt ab, was das Pack nicht mehr führt.
 fn merge_installed(into: &mut InstalledState, from: InstalledState) {
