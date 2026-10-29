@@ -9,7 +9,9 @@ import { SLOT_LABEL_DE, type EquipmentSlot } from '$lib/schemas/equipmentSlot';
 import { FIGURE_SOCKETS, figureLinesIn, placeEquipment, type Placed, type SlotFill } from '$lib/services/equipmentSlots';
 import { equipmentQuips } from '$lib/services/equipmentQuips';
 import { paperdollCandidates, resolveOriginArt } from '$lib/services/wizard/originArt';
-import { itemCardFacts, type ItemCardFacts } from '$lib/utils/itemCardFacts';
+import { itemCardFacts } from '$lib/utils/itemCardFacts';
+import { withChosenResistance } from '$lib/utils/chosenResistance';
+import type { Item } from '$lib/types';
 import { renderMarkdown } from '$lib/utils/markdown';
 import type { CharacterPrintData } from '../data';
 import { loadItem } from '../itemCards';
@@ -21,8 +23,8 @@ export interface PrintFigure {
   /** Item-Bilder, die es gibt; für die übrigen steht der Anfangsbuchstabe. */
   art: Set<string>;
   quips: Map<EquipmentSlot, string>;
-  /** Bibliothekspfad → Beschreibung; fehlt die Datei, steht nur der Name. */
-  facts: Map<string, ItemCardFacts>;
+  /** Bibliothekspfad → Eintrag; fehlt die Datei, steht nur der Name. */
+  items: Map<string, Item>;
 }
 
 export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintFigure | null> {
@@ -37,7 +39,7 @@ export async function loadPrintFigure(c: Character, ownUrl = ''): Promise<PrintF
     fills,
     art: new Set(found.filter((u): u is string => !!u)),
     quips: equipmentQuips(fills),
-    facts: new Map(items.flatMap(([path, item]) => (item ? [[path, itemCardFacts(item, true)] as const] : []))),
+    items: new Map(items.flatMap(([path, item]) => (item ? [[path, item] as const] : []))),
   };
 }
 
@@ -53,7 +55,8 @@ function icon(f: PrintFigure, p: Placed): string {
  */
 function itemEntry(f: PrintFigure, p: Placed): string {
   const inside = p.contents?.length ? ` (${p.contents.map((c) => displayName(c.item)).join(', ')})` : '';
-  const facts = f.facts.get(p.item.path);
+  const item = f.items.get(p.item.path);
+  const facts = item && itemCardFacts(withChosenResistance(item, p.entry.resistance), true);
   const desc = p.item.magic && !p.entry.printCard && facts?.description ? `<div class="fig-desc md">${renderMarkdown(facts.description)}</div>` : '';
   return `<div class="fig-item"><b>${esc(displayName(p.item) + inside)}</b>${desc}</div>`;
 }

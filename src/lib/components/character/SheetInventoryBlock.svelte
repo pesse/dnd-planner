@@ -61,7 +61,7 @@
                 onmouseenter={(e) => {
                   if (!libItem) return;
                   hoverTraining = trainingOf(libItem);
-                  hover.show(e, libItem.path);
+                  hover.show(e, libItem.path, item.resistance);
                 }}
                 onmousemove={(e) => hover.move(e)}
                 onmouseleave={() => hover.hide()}

@@ -30,7 +30,7 @@ import {
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { combatFallbacksFrom, withCombatFallbacks } from '$lib/services/combatFallbacks';
 import { loadHpLibraryParts } from '$lib/services/hitPoints';
-import { cardItemInfos } from './itemCards';
+import { cardItemInfos, type CardItem } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
 import type { PrintImage } from './imageCards';
 import { formatDamageDice } from '$lib/itemFormat';
@@ -80,7 +80,7 @@ export interface CharacterPrintData {
   /** Die skalierenden Spalten daneben: Rauschschaden, Hinterhältiger Angriff, Kampfkunst. */
   values: ClassValues[];
   /** Die im Inventar für eine Karte angehakten Gegenstände. */
-  cardItems: ItemInfo[];
+  cardItems: CardItem[];
   /** null = nichts angelegt. */
   figure: PrintFigure | null;
   /** Die im Bilder-Reiter zum Druck markierten Bilder. */
@@ -157,7 +157,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
     safe(optionPoolOffers(c), [] as OptionPoolOffer[]),
     safe(classValues(c), [] as ClassValues[]),
-    safe(cardItemInfos(c), [] as ItemInfo[]),
+    safe(cardItemInfos(c), [] as CardItem[]),
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
     safe(loadDeclaredAttackEffects(c), undefined),
     safe(loadPrintFigure(c, input.figureUrl), null),

@@ -201,7 +201,7 @@ describe('Sektionen des Charakterbogens', () => {
 
   it('bietet Gegenstandskarten an, sobald eine Inventarzeile angehakt ist — und hakt sie vor', () => {
     // Anders als bei den Zaubern ist die Wahl schon getroffen: sie steht am Inventar.
-    const d = emptyData({ cardItems: [{ name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false }] });
+    const d = emptyData({ cardItems: [{ info: { name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false } }] });
 
     expect(ids(emptyData())).not.toContain('itemCards');
     expect(ids(d)).toContain('itemCards');
@@ -215,10 +215,10 @@ describe('Sektionen des Charakterbogens', () => {
       entry: { name, count: '', weight: '', equipped: true },
     });
     const fills = new Map([['shoulders' as const, { slot: 'shoulders' as const, items: [cloak('Umhang A', 0), cloak('Umhang B', 1)] }]]);
-    const facts = new Map([['Umhang A', itemCardFacts({
+    const items = new Map([['Umhang A', {
       name: 'Umhang A', equipment_category: { index: 'armor', name: 'Armor' }, armor_class: { base: 11 }, desc_de: ['Schützt vor **Regen**.'],
-    } as Item, true)]]);
-    const d = emptyData({ figure: { dollUrl: '', fills, art: new Set(), quips: new Map([['shoulders', 'Flattert dramatisch.']]), facts } });
+    } as Item]]);
+    const d = emptyData({ figure: { dollUrl: '', fills, art: new Set(), quips: new Map([['shoulders', 'Flattert dramatisch.']]), items } });
 
     expect(ids(emptyData())).not.toContain('figure');
     expect(defaultSelection(sheetSections(d)).figure).toBe(false);

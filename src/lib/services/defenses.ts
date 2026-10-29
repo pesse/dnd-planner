@@ -39,7 +39,7 @@ export function characterDefenses(
 const NO_DEFENSE: DefenseEffect = { resistances: [], immunities: [], conditionImmunities: [] };
 
 function itemDefense({ item, resistance }: WornItem): CharacterDefense[] {
-  if (!item.resistanceChoice?.length) return [];
+  if (!item.resistanceChoice) return [];
   const labelDe = displayName(item);
   if (!resistance) return [{ labelDe, effect: NO_DEFENSE, textDe: 'Resistenz noch nicht gewählt' }];
   const effect = { ...NO_DEFENSE, resistances: [resistance] };

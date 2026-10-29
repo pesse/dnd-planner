@@ -328,7 +328,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('hängt die Gegenstandskarten als eigenen Satz Blätter an, ohne Bogen-Kopfzeile', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.cardItems = [{ name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false }];
+    d.cardItems = [{ info: { name: 'Longsword', category: 'weapon', rarity: '', path: 'x', magic: false } }];
     d.itemCards = '<div class="cards">GEGENSTANDSKARTE</div>';
 
     expect(build(d, { itemCards: false })).not.toContain('GEGENSTANDSKARTE');

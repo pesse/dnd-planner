@@ -297,6 +297,7 @@ export function formDraftPatch(
           ...(i.attuned ? { attuned: true } : {}),
           ...(i.equipped && i.slot ? { slot: i.slot } : {}),
           ...(i.printCard ? { printCard: true } : {}),
+          ...(i.resistance ? { resistance: i.resistance } : {}),
         };
       }),
     inventoryNotes: f.inventoryNotes,
