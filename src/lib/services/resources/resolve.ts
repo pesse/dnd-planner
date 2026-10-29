@@ -120,11 +120,19 @@ function resolveDie(die: ResourceDie | undefined, ctx: AmountContext): string {
   return raw?.trim().match(/^d\d+$/i)?.[0].toLowerCase() ?? '';
 }
 
+/** Ein Gegenstands-Vorrat heißt nach dem Gegenstand — „Ladungen" allein trägt jeder Stab. */
+function poolLabel(carrier: ResourceCarrier, pool: ResourcePool): string {
+  const owner = carrier.nameDe?.trim() || carrier.name;
+  const own = pool.labelDe.trim();
+  if (carrier.origin === 'item') return own ? `${owner}: ${own}` : owner;
+  return own || owner;
+}
+
 function ownPool(carrier: ResourceCarrier, pool: ResourcePool, max: number[], ctx: AmountContext): ResolvedResource {
   return {
     id: poolId(carrier, pool),
     featureKey: pool.shared ? '' : carrier.key,
-    labelDe: pool.labelDe.trim() || carrier.nameDe?.trim() || carrier.name,
+    labelDe: poolLabel(carrier, pool),
     origin: carrier.origin,
     classKey: pool.shared ? '' : carrier.classKey,
     recharge: pool.recharge,

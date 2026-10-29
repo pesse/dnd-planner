@@ -36,7 +36,10 @@ describe('Zauber aus dem Stab der Wälder', () => {
     expect(staff?.quotas.find((q) => q.view.quotaId === 'charges5')?.view.cast).toMatchObject([
       { kind: 'resource', resource: { feature: STAFF, pool: 'charges' }, amount: 5, labelDe: '5 Ladungen' },
     ]);
-    expect(state.resources.find((p) => p.featureKey === STAFF)?.max).toEqual([6]);
+    expect(state.resources.find((p) => p.featureKey === STAFF)).toMatchObject({
+      labelDe: 'Stab der Wälder: Ladungen',
+      max: [6],
+    });
   });
 
   it('nutzt den Zauber-SG des Druiden', async () => {
