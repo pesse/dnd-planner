@@ -4,7 +4,7 @@
  * `vault/spells`, und Deutsch kommt aus vorhandenen Tabellen statt aus einem Call.
  */
 import { ABILITY_LABEL, ABILITY_LABEL_BY_NAME, abilityKeyOf, type AbilityKey, type AbilityName } from '$lib/schemas/abilities';
-import type { CastingGrant } from '$lib/schemas/casting';
+import type { AbilityBinding, CastingGrant } from '$lib/schemas/casting';
 import { SPELL_SCHOOLS, type SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveClass } from '$lib/spellLibrary';
 import { CLASS_NAME_DE_BY_SLUG } from '../classProgression';
@@ -13,6 +13,7 @@ import { NO_SCALE, NO_SLOTS, quotaContext, quotaViews } from './quota';
 import { spellAttackBonus, spellSaveDC } from './state';
 import { ledgerAnswers, pickAnswer, type LedgerAnswerEntry } from '../declaration/ledgerAnswers';
 import { declaredChoice } from '../declaredChoice';
+import { abilityIncreaseChoiceId, abilityIncreaseRefs } from '../declaration/abilityIncrease';
 import type { AnalysisChoice } from '../analysis/types';
 import type { DeclaredChoiceSource } from '../declaration/optionList';
 
@@ -33,6 +34,8 @@ export interface SpellAccessGrant {
   listFromSource: boolean;
   /** Zulässige Zauberattribute; Länge 1 = festgelegt. */
   abilities: AbilityName[];
+  /** Gesetzt bei `ability.fromIncrease`: die Antwort-id der Attributserhöhung, die das Attribut festlegt. */
+  abilityAnswerId?: string;
   picks: SpellAccessPick[];
 }
 
@@ -73,6 +76,12 @@ export interface SpellAccessPlacement {
  * Zauber-Zugang bräuchte hier die echte Stufe statt der Vorgabe.
  */
 const NO_SPELL_KEY = (): undefined => undefined;
+
+function increaseAnswer(feature: SpellAccessSource, ability: AbilityBinding | undefined): { abilityAnswerId?: string } {
+  if (!ability?.fromIncrease || ability.fixed) return {};
+  const ref = abilityIncreaseRefs(feature)[0];
+  return ref ? { abilityAnswerId: abilityIncreaseChoiceId(ref) } : {};
+}
 
 /**
  * Die FRAGE, nicht die Antwort: bewusst ohne Ledger, damit eine getroffene Wahl noch alle
@@ -124,6 +133,7 @@ export function spellAccessGrantOf(
     lists,
     listFromSource: narrowed,
     abilities: source.ability?.fixed ? [source.ability.fixed] : [...(source.ability?.choose ?? [])],
+    ...increaseAnswer(feature, source.ability),
     // Ein FESTES Kontingent (Elfenabstammung: „you know the Prestidigitation cantrip") ist eine
     // Gewährung, keine Wahl — ein Picker darüber böte an, was schon dasteht.
     picks: views.filter((v) => !v.fixed).flatMap((v) => {
@@ -213,7 +223,8 @@ export function spellAccessOptions(grant: SpellAccessGrant, part: SpellAccessPar
 
 /** Welche der beiden noch offen sind; leer = die Deklaration legt beides fest. */
 export function spellAccessParts(grant: SpellAccessGrant): SpellAccessPart[] {
-  return SPELL_ACCESS_PARTS.filter((part) => spellAccessOptions(grant, part).length > 1);
+  return SPELL_ACCESS_PARTS.filter((part) =>
+    spellAccessOptions(grant, part).length > 1 && !(part === 'ability' && grant.abilityAnswerId));
 }
 
 export function spellAccessPartChoice(grant: SpellAccessGrant, part: SpellAccessPart): AnalysisChoice {
@@ -253,7 +264,7 @@ export function spellAccessFacts(grant: SpellAccessGrant): SpellAccessFact[] {
   const open = new Set<SpellAccessPart>(spellAccessParts(grant));
   return SPELL_ACCESS_PARTS.filter((part) => !open.has(part)).flatMap((part) => {
     const choice = spellAccessPartChoice(grant, part);
-    const valueDe = choice.optionsDe[0] ?? '';
+    const valueDe = part === 'ability' && grant.abilityAnswerId ? 'das erhöhte Attribut' : (choice.optionsDe[0] ?? '');
     if (!valueDe) return [];
     return [{ part, labelDe: choice.questionDe, valueDe, fromSource: part === 'list' && grant.listFromSource }];
   });
@@ -366,7 +377,7 @@ export function spellAccessNoteLines(
   const lines: string[] = [];
   for (const grant of grants) {
     const fixedAbility = grant.abilities.length === 1 ? grant.abilities[0] : '';
-    const ability = fixedAbility || answered(spellAbilityChoiceId(grant));
+    const ability = fixedAbility || answered(grant.abilityAnswerId ?? spellAbilityChoiceId(grant));
     const abilityKey = abilityKeyOf(ability);
     if (!abilityKey) continue;
 

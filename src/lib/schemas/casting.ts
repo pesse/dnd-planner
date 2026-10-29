@@ -165,6 +165,10 @@ export const abilityBindingSchema = z.object({
     .string()
     .default('')
     .describe('Merkmals-Key, dessen Attributwahl gilt — „uses the same spellcasting ability you use for …".'),
+  fromIncrease: z
+    .boolean()
+    .default(false)
+    .describe('Mit choose: es gilt das Attribut, das die Attributserhöhung desselben Merkmals wählt („the ability increased by this feat"); keine eigene Frage.'),
 });
 export type AbilityBinding = z.infer<typeof abilityBindingSchema>;
 

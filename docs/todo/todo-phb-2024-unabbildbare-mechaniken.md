@@ -82,7 +82,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `thrown-weapon-fighting` | Fernkampfangriff mit Wurfwaffe | Filter „Fernkampf UND Wurf“ |
 | `poisoner` | Giftschaden ignoriert Resistenz | keine Senke für das Durchbrechen von Resistenzen |
 | `polearm-master` | Schwer UND Reichweite | Eigenschaftsfilter ist ODER, die Waffen stehen deshalb einzeln da |
-| `fey-touched`, `shadow-touched`, `ritual-caster`, `telekinetic`, `telepathic` | Zauberattribut = das erhöhte Attribut | Zauberattribut ist nicht an die Erhöhung gekoppelt |
 | `ritual-caster` | Rituale aus jeder Liste, Anzahl = Übungsbonus | heute `byLevel` als Behelf |
 | `keen-mind`, `observant` | Expertise, falls schon geübt, sonst Übung | Bedingung nicht ausdrückbar |
 | `elemental-adept` | gewählte Schadensart ignoriert Resistenz | Wahl hat keine Regelwirkung; Wiederholung mit anderer Art nicht erzwungen |

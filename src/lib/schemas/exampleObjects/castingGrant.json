@@ -4,7 +4,8 @@
     "choose": [
       "Strength"
     ],
-    "sameAs": "string"
+    "sameAs": "string",
+    "fromIncrease": false
   },
   "quotas": [
     {
