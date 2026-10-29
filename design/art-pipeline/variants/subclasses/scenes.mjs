@@ -76,7 +76,7 @@ export const SCENES = {
   hunter: {
     cls: 'ranger', status: 'frozen',
     core: 'Ranger (Hunter) — hooded green-brown leathers (hood down), a longbow, a quiver; a hunter of great beasts.',
-    scene: 'The killing shot: kneeling on a mossy boulder, the longbow fully drawn to the cheek, aiming at a huge owlbear that bursts out of the undergrowth on the right at close range, at the same height as the ranger. Focused, steady, eyes along the arrow on the owlbear.',
+    scene: 'The killing shot: kneeling on a mossy boulder, the longbow held at full arm length in front of the body and drawn only to the collarbone, well below the chin, so the string never crosses or touches the face; the drawn string forms two perfectly straight lines from the drawing fingers to the two bow tips, a sharp symmetric V, each half meeting its tip at the correct angle, aiming at a huge owlbear that bursts out of the undergrowth on the right at close range, at the same height as the ranger. Focused, steady, eyes along the arrow on the owlbear.',
     camera: 'Full figure kneeling, eye level three-quarter view.',
     setting: 'A dense old forest in golden evening light.',
   },
@@ -202,7 +202,7 @@ export const SCENES = {
   'circle-of-the-stars': {
     cls: 'druid', status: 'frozen',
     core: 'Druid (Circle of the Stars) — garments of dark blue cloth and hide sewn with tiny star-like beads, a rolled star chart at the belt (no writing).',
-    scene: 'Starry Form, the Archer: the druid\'s whole body shimmers with silver starlight, faint constellation lines traced along the limbs; they draw a bow made purely of light, held vertically at full arm length well in front of the body, both limbs and the whole string clearly visible and never passing behind the head, and loose a luminous arrow of starlight forward to the right, only slightly upward. Serene concentration, eyes along the arrow.',
+    scene: 'Starry Form, the Archer: the druid\'s whole body shimmers with silver starlight, faint constellation lines traced along the limbs; they draw a bow made purely of light, held vertically at full arm length well in front of the body, drawn only to the collarbone, well below the chin, so the string never crosses or touches the face; the drawn string forms two perfectly straight lines from the drawing fingers to the two bow tips, a sharp symmetric V; and loose a luminous arrow of starlight forward to the right, only slightly upward. Serene concentration, eyes along the arrow.',
     camera: 'Full figure, low three-quarter view.',
     setting: 'A hilltop with a ruined stone observatory at night, the Milky Way overhead.',
   },
@@ -237,7 +237,7 @@ export const SCENES = {
   'oath-of-glory': {
     cls: 'paladin', status: 'frozen',
     core: 'Paladin (Oath of Glory) — polished plate with gold trim and laurel motifs (no writing), a crimson cloak, a longsword; a hero of legend.',
-    scene: 'The heroic charge: running up a broad flight of stone steps toward the right, the longsword carried low in ONE hand at the side, the blade straight; a golden aura of glory blazes around the paladin, and a group of soldiers behind on the left follows, cheering. Head high, radiant confidence, eyes ahead to the right.',
+    scene: 'The heroic charge: running up a broad flight of stone steps toward the right, the longsword carried low in ONE hand at the side: the fist closed around the grip with a straight wrist, and pommel, grip, cross-guard and blade form ONE rigid straight line pointing diagonally down — never bent or kinked at the hilt; a golden aura of glory blazes around the paladin, and a group of soldiers behind on the left follows, cheering. Head high, radiant confidence, eyes ahead to the right.',
     camera: 'Full figure in full stride, low three-quarter view.',
     setting: 'The steps of a besieged citadel at sunrise, banners without symbols.',
   },
@@ -257,14 +257,14 @@ export const SCENES = {
   },
   'beast-master': {
     cls: 'ranger', status: 'frozen',
-    core: 'Ranger (Beast Master) — hooded green-brown leathers (hood down), a longbow in one hand (not drawn), a quiver; with a primal beast companion.',
-    scene: 'Hunting together: running toward the right through tall grass, the other arm pointing ahead in a command; beside the ranger a large wolf with a faint green primal glow in its eyes and along its fur leaps ahead to the right. Eager, focused bond; eyes on the same point as the wolf.',
+    core: 'Ranger (Beast Master) — hooded green-brown leathers (hood down), a strung longbow slung diagonally across the back (no hand holds it), its relaxed string one thin straight line running diagonally across the chest from shoulder to hip, a quiver; with a primal beast companion.',
+    scene: 'Hunting together: running toward the right through tall grass, one arm pointing ahead in a command, the other swinging naturally with the run; beside the ranger a large wolf with a faint green primal glow in its eyes and along its fur leaps ahead to the right. Eager, focused bond; eyes on the same point as the wolf.',
     camera: 'Full figure in full stride, eye level three-quarter view.',
     setting: 'A windswept grassland at a forest edge in golden evening light.',
   },
   'fey-wanderer': {
     cls: 'ranger', status: 'frozen',
-    core: 'Ranger (Fey Wanderer) — hooded green-brown leathers (hood down) with leaves and small flowers woven in, an otherworldly glimmer in the eyes, a longbow held loosely in one hand.',
+    core: 'Ranger (Fey Wanderer) — hooded green-brown leathers (hood down) with leaves and small flowers woven in, an otherworldly glimmer in the eyes, a strung longbow slung diagonally across the back (no hand holds it), its relaxed string one thin straight line running diagonally across the chest from shoulder to hip.',
     scene: 'Between two worlds: stepping out of a ring of glowing mushrooms; behind the ranger the forest is the ordinary world, ahead on the right it turns into the vivid, impossible colours of the Feywild. Glowing butterflies and petals swirl around, the free hand raised with a disarming, charming smile toward a large curious stag of light on the right.',
     camera: 'Full figure, eye level three-quarter view.',
     setting: 'A forest at twilight where two worlds meet, mist and glimmer.',
@@ -272,7 +272,7 @@ export const SCENES = {
   'gloom-stalker': {
     cls: 'ranger', status: 'frozen',
     core: 'Ranger (Gloom Stalker) — dark grey-black hooded leathers (hood down), a longbow, a quiver; a hunter in the dark.',
-    scene: 'Umbral Sight: standing almost invisible in deep darkness, only a faint rim light on the face, the longbow fully drawn to the cheek; the eyes glint faintly; the target is a huge hook horror (armoured beaked cave beast) lit by glowing fungi on the right, unaware of the ranger. Cold, patient focus, eyes along the arrow.',
+    scene: 'Umbral Sight: standing almost invisible in deep darkness, only a faint rim light on the face, the longbow held at full arm length in front of the body and drawn only to the collarbone, well below the chin, so the string never crosses or touches the face; the drawn string forms two perfectly straight lines from the drawing fingers to the two bow tips, a sharp symmetric V, each half meeting its tip at the correct angle; the eyes glint faintly; the target is a huge hook horror (armoured beaked cave beast) lit by glowing fungi on the right, unaware of the ranger. Cold, patient focus, eyes along the arrow.',
     camera: 'Knee-up, eye level three-quarter view.',
     setting: 'A vast underground cavern, pitch black except for glowing fungi.',
   },
@@ -286,7 +286,7 @@ export const SCENES = {
   soulknife: {
     cls: 'rogue', status: 'frozen',
     core: 'Rogue (Soulknife) — dark fitted leathers, hood pushed back so the face shows, no physical weapon; a faint violet glow at the temples.',
-    scene: 'Psychic Blades: on a rooftop, throwing toward the right a straight blade made purely of shimmering violet psychic energy, which streaks through the air toward a large stone gargoyle on the right; a second blade of violet light is just forming in the other hand, held low. Cold focus, eyes on the gargoyle.',
+    scene: 'Psychic Blades: on a rooftop, the instant after an overhand throw toward the right: body turned toward the right in a firm, balanced stance, weight on the front foot; the throwing arm (the one nearer to the viewer) has just snapped forward and is extended toward the gargoyle at shoulder height, the hand open from the release. The thrown blade, straight and made purely of shimmering violet psychic energy, flies point-first exactly along the line of that arm and away from the rogue toward a large stone gargoyle on the right. The other arm, on the far side of the body, hangs low at the hip, its hand gripping a second violet blade that is just forming, point down; shoulders, arms and hips form one coherent throwing motion with natural anatomy and five fingers per hand. Cold focus, eyes on the gargoyle.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'City rooftops at night under a misty moon.',
   },
