@@ -95,7 +95,7 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `heavy-armor-master` | Schadensreduktion = Übungsbonus | keine Senke |
 | `defensive-duelist` | RK + Übungsbonus als Reaktion | keine Senke |
 | `great-weapon-master` | Schaden + Übungsbonus | `dice` kennt keinen Übungsbonus |
-| `medium-armor-master` | GES-Obergrenze 3 | RK wird nicht berechnet |
+| `medium-armor-master` | GES-Obergrenze 3 | `armorClass` kennt kein Anheben der GES-Obergrenze |
 | `inspiring-leader` | temporäre TP | keine Senke |
 | `chef` | Leckerbissen, eine Stunde Zubereitung | keine Senke |
 | `durable` | Vorteil auf Todesrettungswürfe | `savingThrow`-Vorteil kennt keinen Todesrettungswurf |
