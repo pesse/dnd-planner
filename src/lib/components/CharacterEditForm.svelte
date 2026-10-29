@@ -35,7 +35,7 @@
   import GeneralSection from './characterForm/GeneralSection.svelte';
   import AbilityTable from './characterForm/AbilityTable.svelte';
   import CombatFields from './characterForm/CombatFields.svelte';
-  import CombatAdjustments from './characterForm/CombatAdjustments.svelte';
+  import CombatOverrides from './characterForm/CombatOverrides.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
@@ -304,7 +304,7 @@
       <section>
         <h3>Kampfwerte</h3>
         <CombatFields {form} {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html} />
-        <CombatAdjustments {form} {overrides} {saved} {dirOf} />
+        <CombatOverrides {form} {overrides} {saved} {dirOf} />
       </section>
     </div>
 
