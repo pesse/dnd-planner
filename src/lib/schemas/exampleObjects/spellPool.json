@@ -14,5 +14,6 @@
   "names": [
     "string"
   ],
-  "fromDescTable": false
+  "fromDescTable": false,
+  "descTable": "string"
 }

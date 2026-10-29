@@ -63,6 +63,7 @@ describe('deklarierte Zweigwahlen', () => {
       // Zweigwahl, an der eine Talentwahl und ein Zauberkontingent mit `when.option` hängen.
       'srd-2024_paladin_fighting-style',
       'srd-2024_ranger_fighting-style',
+      'srd-2024_druid_circle-of-the-land_spell-list',
       // …und die, deren Wirkung `featureGrantSchema` nicht ausdrückt: deterministisch ist bei
       // ihnen die FRAGE, die Prosa deutet weiterhin Pass C.
       'srd-2024_cleric_blessed-strikes',

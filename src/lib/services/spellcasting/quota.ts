@@ -6,7 +6,7 @@ import type { ClassProgression } from '$lib/schemas/classProgression';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveAmount, type AmountContext } from '../resources/amount';
 import { columnValueIn, levelTables } from '../classProgression';
-import { parseSpellGrantRows } from '../grantedSpells';
+import { descTableSection, parseSpellGrantRows } from '../grantedSpells';
 import { slotLevels } from '../resources/slots';
 import { branchMatch } from '../declaration/branch';
 import {
@@ -123,10 +123,11 @@ export function activeQuotas(source: CastingSource, issues?: CastingIssue[]): Qu
 }
 
 /** Kumulativ: für die Stufe der Quelle und niedriger. */
-function descTableNames(source: CastingSource, issues?: CastingIssue[]): string[] {
-  const rows = parseSpellGrantRows(source.desc);
+function descTableNames(source: CastingSource, quota: Quota, issues?: CastingIssue[]): string[] {
+  const table = quota.pool.descTable;
+  const rows = parseSpellGrantRows(table ? descTableSection(source.desc, table) : source.desc);
   if (!rows.length) {
-    issues?.push(castingIssue('unreadableSpellTable', source.featureKey, 'pool.fromDescTable ohne Tabelle im desc'));
+    issues?.push(castingIssue('unreadableSpellTable', source.featureKey, `pool.fromDescTable ohne Tabelle im desc${table ? ` („${table}")` : ''}`));
     return [];
   }
   const out: string[] = [];
@@ -141,7 +142,7 @@ function descTableNames(source: CastingSource, issues?: CastingIssue[]): string[
 function poolKeys(source: CastingSource, quota: Quota, ctx: QuotaContext, issues?: CastingIssue[]): string[] {
   const names = [...quota.pool.names];
   if (quota.pool.fromDescTable)
-    for (const name of descTableNames(source, issues)) if (!names.includes(name)) names.push(name);
+    for (const name of descTableNames(source, quota, issues)) if (!names.includes(name)) names.push(name);
 
   const keys: string[] = [];
   for (const name of names) {

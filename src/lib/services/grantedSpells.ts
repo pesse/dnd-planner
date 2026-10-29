@@ -24,9 +24,17 @@ const ALWAYS_PREPARED = /always have the listed spells prepared|have the spells 
 const TABLE_ROW = /^\|\s*(\d{1,2})\s*\|\s*([^|]+?)\s*\|\s*$/gm;
 
 /**
- * Mehrere Tabellen im selben Merkmal werden VEREINIGT (Landzirkel: vier Landarten): die
- * Landart wird nach jeder Langen Rast neu gewählt, ist also keine Aufbau-Entscheidung.
+ * Der Abschnitt ab `Table: <title>` bis zur nächsten Tabellenüberschrift; leer, wo es ihn nicht
+ * gibt. Der Landzirkel trägt vier Tabellen, die gewählte Landart liest nur eine.
  */
+export function descTableSection(desc: string, title: string): string {
+  const heads = [...desc.matchAll(/^Table:\s*(.+?)\s*$/gm)];
+  const i = heads.findIndex((m) => m[1].toLowerCase() === title.trim().toLowerCase());
+  if (i < 0) return '';
+  return desc.slice(heads[i].index, heads[i + 1]?.index ?? desc.length);
+}
+
+/** Mehrere Tabellen im selben Text werden VEREINIGT; eine einzelne trennt `descTableSection` ab. */
 export function parseSpellGrantRows(desc: string): SpellGrantRow[] {
   const byLevel = new Map<number, string[]>();
   for (const m of desc.matchAll(TABLE_ROW)) {

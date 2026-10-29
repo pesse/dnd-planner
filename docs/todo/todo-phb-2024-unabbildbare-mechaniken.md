@@ -4,12 +4,6 @@
 > Diese Mechaniken stehen nur als Text im Merkmal, deklariert ist höchstens der Teil, den das
 > Schema schon kann. Keys ohne Präfix lesen sich als `phb-2024_<klasse>_<unterklasse>_<merkmal>`.
 
-## Fehler in der App (Daten sind richtig)
-
-- **Zirkel des Landes:** Das Land wird nach jeder Langen Rast neu gewählt. `fromDescTable`
-  vereinigt alle vier Tabellen, damit gelten heute alle 16 Zauber als vorbereitet
-  (`srd-2024_druid_circle-of-the-land_spell-list`).
-
 ## Schadensresistenz und Zustandsimmunität
 
 Feste, an eine Lage gebundene und per Option gewählte Resistenzen stehen in `grants.defenses`

@@ -265,20 +265,22 @@ describe('Zweigwahlen und Tabellen im Merkmalstext', () => {
     expect(cantrip.swap).toEqual({ cantrips: 'level-up-one' });
   });
 
-  it('liest die Kreiszauber kumulativ aus der Tabelle im desc', async () => {
-    const l3 = await resolveViews(asClass('srd-2024_druid', 3, 'srd-2024_circle-of-the-land'));
-    const at3 = viewOf(l3.views.get('srd-2024_druid_circle-of-the-land_spell-list'), 'circleSpells');
-    expect(at3.fixed).toBe(true);
-    // Alle vier Landarten vereinigt.
-    expect(at3.pool.keys).toContain('srd-2024_burning-hands');
-    expect(at3.pool.keys).toContain('srd-2024_fog-cloud');
-    expect(at3.pool.keys).not.toContain('srd-2024_fireball');
-    expect(at3.count).toBe(at3.pool.keys.length);
+  it('liest die Kreiszauber der gewählten Landart kumulativ aus ihrer Tabelle', async () => {
+    const LIST = 'srd-2024_druid_circle-of-the-land_spell-list';
+    const land = (level: number, choice?: string) => resolveViews({
+      ...asClass('srd-2024_druid', level, 'srd-2024_circle-of-the-land'),
+      features: choice ? [answer(LIST, choice)] : [],
+    });
+    expect((await land(3)).views.get(LIST)).toEqual([]);
 
-    const l5 = await resolveViews(asClass('srd-2024_druid', 5, 'srd-2024_circle-of-the-land'));
-    const at5 = viewOf(l5.views.get('srd-2024_druid_circle-of-the-land_spell-list'), 'circleSpells');
-    expect(at5.pool.keys).toContain('srd-2024_fireball');
-    expect(at5.count).toBeGreaterThan(at3.count);
+    const at3 = viewOf((await land(3, 'Arid')).views.get(LIST), 'circleSpells');
+    expect(at3.fixed).toBe(true);
+    expect(at3.pool.keys).toEqual(['srd-2024_blur', 'srd-2024_burning-hands', 'srd-2024_fire-bolt']);
+
+    const polar5 = viewOf((await land(5, 'Polar')).views.get(LIST), 'circleSpells');
+    expect(polar5.pool.keys).toContain('srd-2024_sleet-storm');
+    expect(polar5.pool.keys).not.toContain('srd-2024_fireball');
+    expect(polar5.count).toBe(4);
   });
 
   it('zählt freie Wirkungen aus der Klassentabelle', async () => {

@@ -600,7 +600,8 @@
           "names": [
             "string"
           ],
-          "fromDescTable": false
+          "fromDescTable": false,
+          "descTable": "string"
         },
         "into": {
           "feature": "string",
@@ -675,7 +676,8 @@
             "names": [
               "string"
             ],
-            "fromDescTable": false
+            "fromDescTable": false,
+            "descTable": "string"
           },
           "into": {
             "feature": "string",

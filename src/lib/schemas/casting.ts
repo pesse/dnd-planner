@@ -96,6 +96,10 @@ export const spellPoolSchema = z.object({
     .boolean()
     .default(false)
     .describe('Namen aus der Markdown-Tabelle im desc des Merkmals, je Zeile ab der genannten Stufe.'),
+  descTable: z
+    .string()
+    .optional()
+    .describe('Mit fromDescTable: nur die Tabelle unter „Table: <Titel>" ("Arid Land"); fehlt = alle vereinigt.'),
 });
 export type SpellPool = z.infer<typeof spellPoolSchema>;
 
