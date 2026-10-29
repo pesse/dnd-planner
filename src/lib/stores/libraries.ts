@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '../services/httpFetch';
 import { pushError, pushNotice } from './toasts';
 import { invalidateLibraryCaches } from '../services/library/invalidate';
@@ -87,6 +88,41 @@ export const libraryManagerOpen = writable(false);
 
 export const installing = writable<Set<string>>(new Set());
 
+/** `unpack` (Entschlüsseln, Prüfen) meldet keinen Zähler, `total` ist dort 0. */
+export interface InstallProgress {
+  phase: 'download' | 'unpack' | 'write';
+  done: number;
+  total: number;
+}
+
+/** Je laufender Installation; verschwindet, sobald sie fertig ist. */
+export const installProgress = writable<Record<string, InstallProgress>>({});
+
+let progressListener: Promise<unknown> | null = null;
+
+function listenToProgress(): Promise<unknown> {
+  progressListener ??= listen<InstallProgress & { id: string }>('library-install-progress', ({ payload }) => {
+    const { id, ...progress } = payload;
+    // Ein Event, das nach dem Abschluss eintrifft, ließe einen Balken stehen.
+    if (!get(installing).has(id)) return;
+    installProgress.update((all) => ({ ...all, [id]: progress }));
+  });
+  return progressListener;
+}
+
+/** Anteil 0…1 über alle Phasen; der Download dominiert, Schreiben ist der Rest. */
+export function progressShare(p: InstallProgress | undefined): number {
+  if (!p) return 0;
+  const share = p.total > 0 ? p.done / p.total : 0;
+  return p.phase === 'download' ? share * 0.8 : p.phase === 'unpack' ? 0.8 : 0.8 + share * 0.2;
+}
+
+export const PHASE_LABEL: Record<InstallProgress['phase'], string> = {
+  download: 'Lade herunter',
+  unpack: 'Entpacke',
+  write: 'Schreibe Dateien',
+};
+
 /** Was der Nutzer jetzt ziehen könnte — Badge und Start-Hinweis müssen dieselbe Menge meinen. */
 export function pendingUpdates(list: Library[]): Library[] {
   return list.filter((l) => l.install === 'update' && !l.block);
@@ -132,6 +168,7 @@ export async function redeemAccessCode(code: string): Promise<string[]> {
 export async function installLibrary(id: string, adopt = false): Promise<InstallSummary> {
   installing.update((s) => new Set(s).add(id));
   try {
+    await listenToProgress();
     const summary = await invoke<InstallSummary>('install_library', { id, adopt });
     if (summary.written > 0 || summary.removed > 0) {
       invalidateLibraryCaches();
@@ -142,6 +179,11 @@ export async function installLibrary(id: string, adopt = false): Promise<Install
     installing.update((s) => {
       const next = new Set(s);
       next.delete(id);
+      return next;
+    });
+    installProgress.update((all) => {
+      const next = { ...all };
+      delete next[id];
       return next;
     });
   }

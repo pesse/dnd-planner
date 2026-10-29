@@ -17,7 +17,7 @@ Look at EVERY image (Read tool on the PNG) and check:
 - Temper: civilian backgrounds peaceful; only guard/soldier martial; criminal tense but not violent.
 - Species: a fairy should use its wings/flight where natural; small peoples stay small.
 - Odd details: motion streaks against the movement, ropes ending in nowhere, nonsensical actions (pouring gold into water), tiny comical opponents.
-- Identity: clearly the same person as in /mnt/c/dev/privat/dnd-planner/static/art/figures/__FIG__/species.avif is NOT checkable by you if the image does not load — skip identity then.
+- Identity: clearly the same person as in /mnt/c/dev/privat/dnd-planner/vault/art/figures/__FIG__/species.avif is NOT checkable by you if the image does not load — skip identity then.
 
 Examples of notes the human wrote (match this style: short, German, concrete):
 "axt falsch herum", "krummer stock", "zwei geigenbögen", "blickrichtung", "ober/unterkörper passt nicht", "wo ist das rechte Bein?", "Grinsen passt nicht zur Situation", "keine Tänzerin – Seemann", "Händler: warum Streit? Friedlich.", "bogen ist für Kämpfer nicht typisch", "lebhafter, fröhlich" (dour entertainer just walking), "warum ist da Frodo im Hintergrund??", "schild wird falsch gehalten".

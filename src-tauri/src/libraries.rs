@@ -31,6 +31,7 @@ use hmac::{Hmac, Mac};
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tauri::Emitter;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -44,7 +45,7 @@ const RELEASE_BASE: &str =
 /// Verzeichnisse, in die ein Pack schreiben darf. Muss mit `roots` in
 /// `vault/libraries.yaml` übereinstimmen.
 const ALLOWED_ROOTS: &[&str] = &[
-    "spells", "classes", "species", "feats", "backgrounds", "items", "monsters", "templates",
+    "spells", "classes", "species", "feats", "backgrounds", "items", "monsters", "templates", "art",
 ];
 
 const MAGIC: &[u8; 6] = b"DNDLIB";
@@ -56,6 +57,8 @@ const NONCE_LEN: usize = 12;
 const HEADER_LEN: usize = 6 + 5 + SALT_LEN + VERIFIER_LEN + NONCE_LEN; // = 71
 
 const KEYRING_SERVICE: &str = "dnd-planner";
+
+const PROGRESS_EVENT: &str = "library-install-progress";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Datentypen
@@ -137,6 +140,20 @@ struct InstalledState {
     #[serde(rename = "installedAt")]
     installed_at: u64,
     files: Vec<InstalledFile>,
+}
+
+/// Fortschritt einer Installation für den Ladebalken. `phase`: `download` | `unpack` | `write`;
+/// `unpack` (Entschlüsseln, ZIP öffnen) hat keinen Zähler.
+#[derive(Clone, Serialize)]
+struct InstallProgress<'a> {
+    id: &'a str,
+    phase: &'static str,
+    done: u64,
+    total: u64,
+}
+
+fn emit_progress(app: &tauri::AppHandle, id: &str, phase: &'static str, done: u64, total: u64) {
+    let _ = app.emit(PROGRESS_EVENT, InstallProgress { id, phase, done, total });
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -451,9 +468,9 @@ async fn fetch_header(file: &str) -> Result<PackHeader, String> {
     parse_header(&bytes)
 }
 
-async fn fetch_pack(entry: &IndexEntry) -> Result<Vec<u8>, String> {
+async fn fetch_pack(app: &tauri::AppHandle, entry: &IndexEntry) -> Result<Vec<u8>, String> {
     let url = format!("{}/{}", RELEASE_BASE, entry.file);
-    let res = client()?
+    let mut res = client()?
         .get(&url)
         .send()
         .await
@@ -461,7 +478,22 @@ async fn fetch_pack(entry: &IndexEntry) -> Result<Vec<u8>, String> {
     if !res.status().is_success() {
         return Err(format!("Download: HTTP {}", res.status()));
     }
-    let bytes = res.bytes().await.map_err(|e| e.to_string())?.to_vec();
+    let total = res.content_length().unwrap_or(entry.size).max(1);
+    let mut bytes = Vec::with_capacity(total as usize);
+    let mut shown = u64::MAX;
+    while let Some(chunk) = res
+        .chunk()
+        .await
+        .map_err(|e| format!("Download abgebrochen: {}", e))?
+    {
+        bytes.extend_from_slice(&chunk);
+        // Je Prozentpunkt ein Event — jedes Netzpaket wäre eine Flut über die IPC.
+        let percent = bytes.len() as u64 * 100 / total;
+        if percent != shown {
+            shown = percent;
+            emit_progress(app, &entry.id, "download", bytes.len() as u64, total);
+        }
+    }
 
     let actual = sha256_hex(&bytes);
     if actual != entry.sha256 {
@@ -628,21 +660,34 @@ pub async fn install_library(
         ));
     }
 
-    let blob = fetch_pack(&entry).await?;
-    let zip_bytes = if entry.protected {
-        let (code, _) = load_code(&entry.id)
-            .ok_or_else(|| format!("Für '{}' ist kein Zugangscode hinterlegt.", entry.name))?;
-        decrypt_pack(&blob, &code)?
-    } else {
-        blob
-    };
-
-    extract_pack(&entry, &zip_bytes, adopt)
+    emit_progress(&app, &entry.id, "download", 0, entry.size.max(1));
+    let blob = fetch_pack(&app, &entry).await?;
+    emit_progress(&app, &entry.id, "unpack", 0, 0);
+    // Bild-Packs gehen in die Hunderte MB: Entschlüsseln und Schreiben belegten sonst einen
+    // Worker der Laufzeit, über die auch die LLM-Anfragen laufen.
+    crate::blocking(move || {
+        let zip_bytes = if entry.protected {
+            let (code, _) = load_code(&entry.id)
+                .ok_or_else(|| format!("Für '{}' ist kein Zugangscode hinterlegt.", entry.name))?;
+            decrypt_pack(&blob, &code)?
+        } else {
+            blob
+        };
+        extract_pack(&entry, &zip_bytes, adopt, &|done, total| {
+            emit_progress(&app, &entry.id, "write", done, total)
+        })
+    })
+    .await
 }
 
 /// Auspacken, Zustandsabgleich und Schreiben. Synchron gehalten — reines
 /// Dateisystem, kein Netz.
-fn extract_pack(entry: &IndexEntry, zip_bytes: &[u8], adopt: bool) -> Result<InstallSummary, String> {
+fn extract_pack(
+    entry: &IndexEntry,
+    zip_bytes: &[u8],
+    adopt: bool,
+    progress: &dyn Fn(u64, u64),
+) -> Result<InstallSummary, String> {
     let vault = vault();
     let previous = read_state(&entry.id);
     let known: HashMap<String, String> = previous
@@ -719,7 +764,13 @@ fn extract_pack(entry: &IndexEntry, zip_bytes: &[u8], adopt: bool) -> Result<Ins
     }
 
     let mut files = Vec::with_capacity(planned.len());
-    for (name, data, hash) in planned {
+    let total = planned.len() as u64;
+    let step = (total / 100).max(1);
+    for (i, (name, data, hash)) in planned.into_iter().enumerate() {
+        let done = i as u64 + 1;
+        if done % step == 0 || done == total {
+            progress(done, total);
+        }
         let target = vault.join(&name);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -830,6 +881,7 @@ mod tests {
     fn erlaubt_nur_bibliotheksverzeichnisse() {
         assert!(is_allowed_entry("spells/hervorrufung/aetzkugel.json"));
         assert!(is_allowed_entry("templates/monster.json"));
+        assert!(is_allowed_entry("art/figures/elf-feminine/subclasses/battle-master.avif"));
         assert!(is_allowed_entry("LICENSE-SRD.md"));
 
         // Nutzerinhalte sind tabu.

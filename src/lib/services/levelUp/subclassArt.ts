@@ -1,6 +1,7 @@
 /** Stimmungsbild der Subklasse: `figures/<volk>-<äußeres>/subclasses/<slug>`, sonst das Klassenbild. */
 import type { Presentation } from '$lib/schemas/characterSchema';
-import { artUrl, originArtNames, slugOf } from '../wizard/originArt';
+import { artUrl } from '$lib/artUrl';
+import { originArtNames, slugOf } from '../wizard/originArt';
 
 type SubclassArtKeys = { classKey: string; speciesKey: string; presentation?: Presentation };
 

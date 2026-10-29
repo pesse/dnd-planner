@@ -11,7 +11,7 @@ const figDe = `${M.species.find((s) => s.slug === fig.slice(0, i))?.de ?? fig} Â
 let n = 0;
 for (const f of found) {
   const kind = sub ? 'subclasses' : M.classes.some((c) => c.slug === f.role) ? 'classes' : 'backgrounds';
-  const url = `/static/art/figures/${fig}/${kind}/${f.role}.avif`;
+  const url = `/vault/art/figures/${fig}/${kind}/${f.role}.avif`;
   if (redo.some((r) => r.url === url)) continue;
   const roleDe = M[kind].find((x) => x.slug === f.role)?.de ?? f.role;
   await fetch(`${base}/redo.json`, { method: 'POST', body: JSON.stringify({ add: { url, caption: `${figDe} â€“ ${roleDe}`, note: f.note, by: 'claude', at: new Date().toISOString() } }) });

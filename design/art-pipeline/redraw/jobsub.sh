@@ -11,7 +11,7 @@ flips=" $(node -e "import('$V/scenes.mjs').then(m => console.log(Object.keys(m.S
 # Fehlend = gar nicht da oder älter als der Plan (nach einem Abbruch bleibt Neugemaltes stehen).
 missing() { for n in $names; do { [ ! -f "$dir/$n.png" ] || [ "$dir/$n.png" -ot $fixes ]; } && echo $n; done; }
 publish() { for n in $names; do
-  w=$APP/static/art/figures/$fig/subclasses/$n.avif f=
+  w=$APP/vault/art/figures/$fig/subclasses/$n.avif f=
   [[ $flips == *" $n "* ]] && f=flip
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w $f
 done; }
@@ -35,7 +35,7 @@ for n in $todo; do [ -f $dir/$n.png ] && mv $dir/$n.png $dir/old/$n-$(date +%s).
 
 publish
 for n in $names; do
-  [ -f $dir/$n.png ] && [ $dir/$n.png -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/static/art/figures/$fig/subclasses/$n.avif\"}" http://localhost:8898/redo.json
+  [ -f $dir/$n.png ] && [ $dir/$n.png -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/vault/art/figures/$fig/subclasses/$n.avif\"}" http://localhost:8898/redo.json
 done
 m=$(missing | tr '\n' ' ')
 q=$(grep -oP 'Kontingent.*' $out/run.log | head -1)

@@ -13,6 +13,7 @@ import { invalidateBackgroundsCache } from '../../backgroundsLibrary';
 import { invalidateItemCache } from '../../itemLibrary';
 import { invalidateMonsterPaths } from '../contextLoad';
 import { invalidateVault } from '../../stores/campaign';
+import { invalidateArtProbes } from '../wizard/originArt';
 
 /** `invalidateVault` weckt zusätzlich die Sidebar-Listen. */
 export function invalidateLibraryCaches(): void {
@@ -23,5 +24,6 @@ export function invalidateLibraryCaches(): void {
   invalidateBackgroundsCache();
   invalidateItemCache();
   invalidateMonsterPaths();
+  invalidateArtProbes();
   invalidateVault();
 }

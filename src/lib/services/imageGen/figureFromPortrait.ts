@@ -23,7 +23,7 @@ export const figureFacePrompt = (traits: string): string => [
   'and the painting style of image 2. No text.',
 ].filter(Boolean).join(' ');
 
-/** Maße der gemalten Puppen unter `static/art/figures/`. */
+/** Maße der gemalten Puppen unter `vault/art/figures/`. */
 const FIGURE_WIDTH = 640;
 const FIGURE_HEIGHT = 960;
 

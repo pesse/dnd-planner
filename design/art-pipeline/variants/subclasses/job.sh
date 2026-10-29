@@ -13,7 +13,7 @@ mkdir -p $dir $out
 todo=$(missing | tr '\n' ' ')
 flips=" $(node -e "import('$V/scenes.mjs').then(m => console.log(Object.keys(m.SCENES).filter((k) => m.SCENES[k].flip).join(' ')))") "
 publish() { for n in $names; do
-  w=$APP/static/art/figures/$fig/subclasses/$n.avif f=
+  w=$APP/vault/art/figures/$fig/subclasses/$n.avif f=
   [[ $flips == *" $n "* ]] && f=flip
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w $f
 done; }

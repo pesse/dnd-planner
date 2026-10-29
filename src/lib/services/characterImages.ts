@@ -1,7 +1,8 @@
 /** Die Bilder des Bilder-Reiters: je ein Stimmungsbild zu Volk, Hintergrund, Klassen und Unterklassen. */
 import type { Character } from '$lib/schemas/characterSchema';
 import { subclassArtNames } from './levelUp/subclassArt';
-import { artUrl, originArtNames, resolveOriginArt, slugOf, type OriginArtKeys } from './wizard/originArt';
+import { artUrl } from '$lib/artUrl';
+import { originArtNames, resolveOriginArt, slugOf, type OriginArtKeys } from './wizard/originArt';
 
 export interface ConceptArt {
   /** Bildname ohne Endung, z. B. `figures/dwarf-feminine/species` — überdauert einen Umzug der Bilder. */

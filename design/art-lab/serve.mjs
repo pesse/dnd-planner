@@ -45,7 +45,7 @@ function manifest() {
   const classDe = vaultNames('classes');
   const backgroundDe = vaultNames('backgrounds');
   // Grundklassen = die mit eigenem Klassenbild; Unterklassen liegen im selben Vault-Ordner.
-  const classes = slugsIn('static/art/classes', '.avif');
+  const classes = slugsIn('vault/art/classes', '.avif');
   // Je Subklasse die Grundklasse als Slug ohne Quellpräfix, sortiert nach Klasse, dann Name.
   const subclasses = slugsIn('vault/classes', '.json').flatMap((slug) => {
     try {
@@ -59,7 +59,7 @@ function manifest() {
   for (const species of Object.keys(speciesDe)) {
     for (const look of LOOKS) {
       const key = `${species}-${look}`;
-      const base = `static/art/figures/${key}`;
+      const base = `vault/art/figures/${key}`;
       // Bilder der aktuellen Queue (figures-var2) gelten als neu; was dort fehlt, stammt aus älteren Läufen.
       const fresh = [];
       for (const part of ['ca', 'cb', 'ba', 'bb']) {
@@ -105,9 +105,9 @@ function manifest() {
     subclasses: subclasses.map(({ slug, cls }) => ({ slug, cls, de: classDe[slug] ?? slug })),
     figures,
     legacy: {
-      combos: imageMap('static/art/combos'),
-      classes: imageMap('static/art/classes'),
-      backgrounds: imageMap('static/art/backgrounds'),
+      combos: imageMap('vault/art/combos'),
+      classes: imageMap('vault/art/classes'),
+      backgrounds: imageMap('vault/art/backgrounds'),
     },
     raw,
     notes,
@@ -152,7 +152,7 @@ createServer((req, res) => {
     return res.end(JSON.stringify(manifest()));
   }
   const file = path === '/' ? join(ROOT, 'design/art-lab/index.html') : resolve(ROOT, `.${path}`);
-  const allowed = [join(ROOT, 'static', 'art'), join(ROOT, 'design')].some((d) => file.startsWith(d + sep));
+  const allowed = [join(ROOT, 'vault', 'art'), join(ROOT, 'design')].some((d) => file.startsWith(d + sep));
   if ((path !== '/' && !allowed) || !existsSync(file) || !statSync(file).isFile()) {
     res.writeHead(404);
     return res.end('nicht gefunden');

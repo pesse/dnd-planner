@@ -5,6 +5,7 @@
     libraries,
     librariesLoading,
     installing,
+    installProgress,
     refreshLibraries,
     installMany,
     redeemAccessCode,
@@ -12,6 +13,7 @@
     type Library,
   } from '../stores/libraries';
   import { confirmAction } from '../stores/confirmDialog';
+  import InstallProgressBar from './library/InstallProgressBar.svelte';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -76,7 +78,8 @@
     proprietary: 'Geschützt',
   };
 
-  const kib = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KiB`;
+  const kib = (bytes: number) =>
+    bytes >= 1048576 ? `${Math.round(bytes / 1048576)} MiB` : `${Math.max(1, Math.round(bytes / 1024))} KiB`;
 
   const needsCode = (lib: Library) => lib.block === 'locked' || lib.block === 'staleCode';
 
@@ -240,7 +243,6 @@
                   <span class="lock" title={lockTitle(lib)}>{locked(lib) ? '🔒' : '🔓'}</span>
                 {/if}
                 <span class="lib-name">{lib.name}</span>
-                {#if $installing.has(lib.id)}<span class="spinner">…</span>{/if}
                 <span class="state {stateTone(lib)}">
                   {stateTone(lib) === 'ok' ? '✓ ' : ''}{stateLabel(lib)}
                 </span>
@@ -257,6 +259,10 @@
               </span>
             </span>
           </label>
+
+          {#if $installing.has(lib.id)}
+            <div class="progress-row"><InstallProgressBar progress={$installProgress[lib.id]} /></div>
+          {/if}
 
           {#if needsAppUpdate(lib)}
             <p class="hint small err">
@@ -358,7 +364,7 @@
   .state.pending { color: var(--gold, #c89b3c); }
   .state.missing { color: var(--ink-muted); }
   .state.blocked { color: var(--danger); }
-  .spinner { font-size: 0.8rem; color: var(--ink-muted); }
+  .progress-row { padding-left: 1.35rem; }
   .lib-desc { margin-top: 0.15rem; font-size: 0.78rem; color: var(--ink-soft); }
   .lib-meta { margin-top: 0.2rem; font-size: 0.72rem; color: var(--ink-muted); }
   .lib-meta code { font-size: 0.7rem; }

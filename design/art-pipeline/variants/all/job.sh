@@ -18,7 +18,7 @@ mkdir -p $dir $out
 todo=$(missing | tr '\n' ' ')
 # Auch übersprungene Teile veröffentlichen: ein Abbruch kann zwischen Malen und Umwandeln liegen.
 publish() { for n in $names; do
-  w=static/art/figures/$fig/$kind/$n.avif
+  w=vault/art/figures/$fig/$kind/$n.avif
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w
 done; }
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi

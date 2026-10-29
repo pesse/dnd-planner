@@ -1,8 +1,8 @@
-// node to-avif.mjs [--dry] — static/art/**/*.webp → .avif (q55), Quelle bevorzugt das Roh-PNG, wenn es nachweislich dasselbe Bild ist
+// node to-avif.mjs [--dry] — vault/art/**/*.webp → .avif (q55), Quelle bevorzugt das Roh-PNG, wenn es nachweislich dasselbe Bild ist
 import sharp from 'sharp';
 import { readdirSync, statSync, existsSync, unlinkSync } from 'node:fs';
 import { join, relative, basename, dirname } from 'node:path';
-const ROOT = '/mnt/c/dev/privat/dnd-planner', STATIC = join(ROOT, 'static/art'), RAW = join(ROOT, 'design/art');
+const ROOT = '/mnt/c/dev/privat/dnd-planner', STATIC = join(ROOT, 'vault/art'), RAW = join(ROOT, 'design/art');
 const PARTS = { ca: 'barbarian bard cleric druid fighter monk', cb: 'paladin ranger rogue sorcerer warlock wizard',
   ba: 'acolyte artisan charlatan criminal entertainer farmer guard guide', bb: 'hermit merchant noble sage sailor scribe soldier wayfarer' };
 const dry = process.argv.includes('--dry');

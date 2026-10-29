@@ -1,12 +1,12 @@
 # Bild-Workflows
 
-Alle Bilder malt Codex über `.claude/skills/codex-design/scripts/codex.sh` (Skill `codex-design`: Aufruf, Rückfall beim Kopieren, Verbrauchsmeldung). Roh-PNGs liegen ungetrackt unter `design/art/`, die App lädt komprimierte Fassungen aus `static/art/`. Einmalig `npm install` in `sharp/` (WSL).
+Alle Bilder malt Codex über `.claude/skills/codex-design/scripts/codex.sh` (Skill `codex-design`: Aufruf, Rückfall beim Kopieren, Verbrauchsmeldung). Roh-PNGs liegen ungetrackt unter `design/art/`, die App lädt komprimierte Fassungen aus `vault/art/`. Einmalig `npm install` in `sharp/` (WSL).
 
 | Workflow | Stil | Roh → App | Ablauf |
 |---|---|---|---|
-| Bibliotheks-Icons: Zauber, Monster, Gegenstände, Talente | kleines Einzelmotiv, freigestellt mit echtem Alpha | `design/art/<serie>/<slug>.png` (1254² RGBA) → `static/art/<serie>/<slug>.avif` (512², q55) | [Icons](#bibliotheks-icons) |
-| Stimmungsbilder im Charakter-Wizard: Klasse, Volk, Hintergrund, Volk×Klasse | Hochformat mit Handlung und Kulisse, deckend | `design/art/<typ>/<slug>.png` (1024×1536) → `static/art/<typ>/<slug>.avif` (640×960) | Stilblock `design/art/prompt.md`, Einzelläufe nach Skill |
-| Wizard-Figuren je Volk × Äußeres, mit Varianten je Klasse, Hintergrund und Subklasse | wie Stimmungsbilder, dieselbe Person über alle Varianten | `design/art/figures-…` → `static/art/figures/<volk>-<äußeres>/…` | [Figuren](#wizard-figuren) |
+| Bibliotheks-Icons: Zauber, Monster, Gegenstände, Talente | kleines Einzelmotiv, freigestellt mit echtem Alpha | `design/art/<serie>/<slug>.png` (1254² RGBA) → `vault/art/<serie>/<slug>.avif` (512², q55) | [Icons](#bibliotheks-icons) |
+| Stimmungsbilder im Charakter-Wizard: Klasse, Volk, Hintergrund, Volk×Klasse | Hochformat mit Handlung und Kulisse, deckend | `design/art/<typ>/<slug>.png` (1024×1536) → `vault/art/<typ>/<slug>.avif` (640×960) | Stilblock `design/art/prompt.md`, Einzelläufe nach Skill |
+| Wizard-Figuren je Volk × Äußeres, mit Varianten je Klasse, Hintergrund und Subklasse | wie Stimmungsbilder, dieselbe Person über alle Varianten | `design/art/figures-…` → `vault/art/figures/<volk>-<äußeres>/…` | [Figuren](#wizard-figuren) |
 | Porträts, UI-Grafik, App-Icon | je nach Einsatz | siehe Tabelle im Skill | Einzelläufe nach Skill |
 
 Die beiden Familien teilen nur die PHB-Malweise. Ein Icon ist kein Wizard-Bild in klein: kein Schauplatz, keine Figur in Aktion, kein Pergamentrand. Die App legt es selbst auf Karten und Listen.
@@ -27,7 +27,7 @@ Die App findet ein Icon über den Bibliotheks-Key ohne Quellpräfix (`srd-2024_f
    ```bash
    for w in 0 1 2 3; do bash design/art-pipeline/icons/job.sh feats $w 4 & sleep 5; done; wait
    ```
-   Zum Schluss wandelt `sharp/icon.mjs` jedes Bild nach `static/art/<serie>/` und schiebt die Roh-PNGs in `design/art/<serie>`. Das Protokoll mit Verbrauch und Kontingent je Paket steht in `icons/out/<serie>/run.log`.
+   Zum Schluss wandelt `sharp/icon.mjs` jedes Bild nach `vault/art/<serie>/` und schiebt die Roh-PNGs in `design/art/<serie>`. Das Protokoll mit Verbrauch und Kontingent je Paket steht in `icons/out/<serie>/run.log`.
 4. **Prüfen**: `node sharp/iconsheet.mjs <blatt.png> design/art/<serie>` legt ein Übersichtsblatt auf dunklem Grund an und meldet Bilder mit deckendem Rand. Bei diesen hat Codex den Hintergrund nicht freigestellt. Verworfene Bilder einzeln löschen, ebenso ihr `.avif`, und den Worker erneut starten.
 
 **Gegenstände mit Varianten** (`+1 Langschwert`, `Flammenzunge …`, `Gürtel der Riesenstärke (…)`) malt Codex nicht neu. Er bearbeitet das Bild des Grundgegenstands: gleiche Form, gleicher Ausschnitt, nur der Effekt kommt dazu. Dafür bekommt der Auftrag Gruppen aus Wurzel und Varianten, die Wurzel als `-i`, und eine Effektzeile je Familie. Der Abschnitt dazu ersetzt im Auftrag die Überschrift `Items:`:
@@ -36,7 +36,7 @@ Die App findet ein Icon über den Bibliotheks-Key ohne Quellpräfix (`srd-2024_f
 
 ## Wizard-Figuren
 
-Malt die Figuren (`static/art/figures/<volk>-<äußeres>/`) und bessert markierte Bilder nach. Erwartet den Symlink `~/dnd-art-queue` auf diesen Ordner, weil die Skripte mit absoluten Pfaden rechnen.
+Malt die Figuren (`vault/art/figures/<volk>-<äußeres>/`) und bessert markierte Bilder nach. Erwartet den Symlink `~/dnd-art-queue` auf diesen Ordner, weil die Skripte mit absoluten Pfaden rechnen.
 
 | Schritt | Befehl (aus dem Repo-Root) |
 |---|---|

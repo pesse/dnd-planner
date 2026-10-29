@@ -7,7 +7,7 @@ serie=$1 W=$2 N=$3 BATCH=${BATCH:-10} LIMIT=${LIMIT:-44} RUNS=${RUNS:-999}
 dir=design/art/$serie-w$W main=design/art/$serie run=$I/out/$serie log=$I/out/$serie/run.log
 mkdir -p $dir $main $run
 refs=$(node -e 'for (const r of require(process.argv[1])[process.argv[2]].refs) console.log("-i", r)' $I/series.json $serie)
-publish() { for p in $dir/*.png; do [ -f "$p" ] && node $SH/icon.mjs $p static/art/$serie/$(basename $p .png).avif; done; }
+publish() { for p in $dir/*.png; do [ -f "$p" ] && node $SH/icon.mjs $p vault/art/$serie/$(basename $p .png).avif; done; }
 n=0 empty=0
 while :; do
   [ $n -ge $RUNS ] && break

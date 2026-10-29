@@ -1,15 +1,14 @@
 /**
- * Stimmungsbilder aus `static/art/` (`.avif`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
+ * Stimmungsbilder aus `vault/art/` (`.avif`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
  * je Volk und Äußerem unter `figures/<volk>-<äußeres>/{species,classes/<k>,backgrounds/<h>}`; für
  * Charaktere ohne Äußeres `classes/`, `backgrounds/`, `combos/`.
  */
 import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
 import type { OriginKind } from './originCatalog';
+import { artUrl } from '$lib/artUrl';
 
 /** `srd-2024_dwarf` → `dwarf` */
 export const slugOf = (key: string): string => key.slice(key.indexOf('_') + 1);
-
-export const artUrl = (name: string): string => `/art/${name}.avif`;
 
 export interface OriginArtKeys {
   classKey: string;
@@ -38,14 +37,20 @@ export function originArtNames(kind: OriginKind, k: OriginArtKeys): string[] {
 export const originArtCandidates = (kind: OriginKind, k: OriginArtKeys): string[] =>
   originArtNames(kind, k).map(artUrl);
 
-/** Frontale Figur fürs Ausrüstungsmodell, in derselben Pose für alle Völker; zuletzt die Gliederpuppe. */
+/**
+ * Frontale Figur fürs Ausrüstungsmodell, in derselben Pose für alle Völker; zuletzt die
+ * Gliederpuppe, die als einziges Bild in der App liegt — das Modell braucht auch ohne Bild-Pack eine Figur.
+ */
 export const paperdollCandidates = (speciesKey: string, presentation: Presentation | undefined): string[] => [
   ...(speciesKey && presentation ? [artUrl(`figures/${slugOf(speciesKey)}-${presentation}/paperdoll`)] : []),
-  artUrl('figures/paperdoll'),
+  '/paperdoll.avif',
 ];
 
 // Welche Bilder es gibt, weiß erst der Server — die Serie wächst, ohne dass Code sie aufzählt.
 const exists = new Map<string, Promise<boolean>>();
+
+/** Nach einer Bibliotheks-Installation: vorher fehlende Bilder können jetzt da sein. */
+export const invalidateArtProbes = (): void => exists.clear();
 
 function probe(url: string): Promise<boolean> {
   let p = exists.get(url);
@@ -65,15 +70,14 @@ function probe(url: string): Promise<boolean> {
  * Bilder, deren Aktion links liegt — dort sitzt die Karte. Die Serie ist sonst nach rechts gemalt;
  * ein neues nach links blickendes Bild gehört hier hinein.
  */
-const MIRRORED = new Set(
-  [
-    'backgrounds/hermit', 'backgrounds/noble',
-    'combos/dragonborn-sorcerer', 'combos/tiefling-sorcerer', 'combos/orc-warlock',
-    'combos/fairy-wizard', 'combos/human-wizard', 'combos/orc-wizard', 'combos/human-monk',
-  ].map(artUrl),
-);
+const MIRRORED = [
+  'backgrounds/hermit', 'backgrounds/noble',
+  'combos/dragonborn-sorcerer', 'combos/tiefling-sorcerer', 'combos/orc-warlock',
+  'combos/fairy-wizard', 'combos/human-wizard', 'combos/orc-wizard', 'combos/human-monk',
+];
 
-export const isMirroredArt = (url: string): boolean => MIRRORED.has(url);
+// Erst beim Aufruf aufgelöst: beim Modul-Laden steht die Vault-Basis noch nicht fest.
+export const isMirroredArt = (url: string): boolean => MIRRORED.some((name) => artUrl(name) === url);
 
 export async function resolveOriginArt(candidates: string[]): Promise<string | null> {
   for (const url of candidates) if (await probe(url)) return url;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { updateState, updateDialogOpen } from '../../stores/update';
-  import { libraries, libraryManagerOpen, updateCount } from '../../stores/libraries';
+  import { libraries, libraryManagerOpen, updateCount, installing, installProgress } from '../../stores/libraries';
+  import InstallProgressBar from '../library/InstallProgressBar.svelte';
   import { revealLogDir } from '../../services/appLog';
   import { checkForNews, checkingForNews } from '../../services/checkForNews';
   import { pushError } from '../../stores/toasts';
@@ -8,6 +9,9 @@
   let { onTransferClick }: { onTransferClick(): void } = $props();
 
   let libUpdates = $derived(updateCount($libraries));
+  // Der Start installiert fehlende offene Bibliotheken ungefragt — ohne Balken hier liefe der
+  // Bild-Download unsichtbar.
+  let running = $derived([...$installing].map((id) => ({ id, name: $libraries.find((l) => l.id === id)?.name ?? id })));
 </script>
 
 <div class="sidebar-header ornament-top">
@@ -43,6 +47,12 @@
       onclick={() => revealLogDir().catch((e) => pushError(`Log-Ordner nicht gefunden: ${e}`))}
     ><img src="/branding/icons/log.png" alt="" /></button>
   </div>
+  {#each running as lib (lib.id)}
+    <button class="install-row" title="Bibliotheken öffnen" onclick={() => libraryManagerOpen.set(true)}>
+      <span class="install-name">{lib.name}</span>
+      <InstallProgressBar progress={$installProgress[lib.id]} compact />
+    </button>
+  {/each}
 </div>
 
 <style>
@@ -103,4 +113,11 @@
   .header-btn.checking img { animation: checking-pulse 1s ease-in-out infinite alternate; }
   @keyframes checking-pulse { to { opacity: 0.3; } }
   .header-btn.library-update { opacity: 1; filter: drop-shadow(0 0 3px var(--gold)); }
+
+  .install-row {
+    flex: 1 0 100%;
+    display: flex; flex-direction: column; gap: 0.15rem;
+    background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+  }
+  .install-name { font-size: 0.68rem; color: var(--ink-muted); }
 </style>
