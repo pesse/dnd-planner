@@ -199,15 +199,33 @@ fn write_state(id: &str, state: &InstalledState) -> Result<(), String> {
     fs::write(state_path(id), json).map_err(|e| e.to_string())
 }
 
-/// Umbenannte Library-IDs (alt → neu). Ohne Umzug gälten ihre Dateien als fremd
-/// (`needsAdopt`); ein mitgezogener Code einer älteren keyVersion meldet sich als
-/// `staleCode` statt als `locked`.
-const RENAMED_LIBRARIES: &[(&str, &str)] = &[("erweitert", "phb")];
+/// Umbenannte oder aufgegangene Library-IDs (alt → neu). Ohne Umzug gälten ihre Dateien als
+/// fremd (`needsAdopt`), und das Update der neuen schriebe nichts, bis der Nutzer zustimmt; ein
+/// mitgezogener Code einer älteren keyVersion meldet sich als `staleCode` statt als `locked`.
+const RENAMED_LIBRARIES: &[(&str, &str)] = &[("erweitert", "phb"), ("srd-5.1", "dndapi-legacy")];
+
+/// Die Version des Ziels bleibt: sein nächstes Update räumt ab, was das Pack nicht mehr führt.
+fn merge_installed(into: &mut InstalledState, from: InstalledState) {
+    for f in from.files {
+        if !into.files.iter().any(|g| g.path == f.path) {
+            into.files.push(f);
+        }
+    }
+}
 
 fn adopt_renamed_libraries() {
     for &(old, new) in RENAMED_LIBRARIES {
-        if !state_path(new).exists() && state_path(old).exists() {
-            let _ = fs::rename(state_path(old), state_path(new));
+        match (read_state(old), read_state(new)) {
+            (Some(_), None) => {
+                let _ = fs::rename(state_path(old), state_path(new));
+            }
+            (Some(from), Some(mut into)) => {
+                merge_installed(&mut into, from);
+                if write_state(new, &into).is_ok() {
+                    let _ = fs::remove_file(state_path(old));
+                }
+            }
+            _ => {}
         }
         if load_code(new).is_none() {
             if let Some((code, key_version)) = load_code(old) {
@@ -892,6 +910,31 @@ mod tests {
         assert!(!is_allowed_entry("beliebig/datei.json"));
         assert!(!is_allowed_entry("einzeldatei.json"));
         assert!(!is_allowed_entry(""));
+    }
+
+    fn state(version: &str, paths: &[&str]) -> InstalledState {
+        InstalledState {
+            version: version.into(),
+            key_version: None,
+            min_version: None,
+            installed_at: 0,
+            files: paths
+                .iter()
+                .map(|p| InstalledFile { path: (*p).into(), sha256: format!("{}#{}", version, p) })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn aufgegangene_bibliothek_vererbt_ihre_dateien() {
+        let mut into = state("neu", &["spells/a.json", "spells/b.json"]);
+        merge_installed(&mut into, state("alt", &["spells/b.json", "spells/c.json"]));
+
+        assert_eq!(into.version, "neu");
+        let paths: Vec<&str> = into.files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(paths, ["spells/a.json", "spells/b.json", "spells/c.json"]);
+        // Doppelt verzeichnet zählt der Hash des Ziels — den hat es selbst geschrieben.
+        assert_eq!(into.files[1].sha256, "neu#spells/b.json");
     }
 
     #[test]
