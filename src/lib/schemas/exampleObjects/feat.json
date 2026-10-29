@@ -18,7 +18,8 @@
         "choose": 0,
         "from": [
           "Acrobatics"
-        ]
+        ],
+        "orExpertise": false
       },
       "savingThrows": [
         "Strength"
@@ -270,7 +271,8 @@
                 "choose": 0,
                 "from": [
                   "Acrobatics"
-                ]
+                ],
+                "orExpertise": false
               },
               "savingThrows": [
                 "Strength"

@@ -129,6 +129,9 @@ export function markSavingThrow(flags: Record<AbilityKey, boolean>, ability: Abi
 export const skillProficiencyChange = (skill: SkillName, meta: { step: string; source: string }): Change =>
   ({ target: 'proficiency', skill, ...meta, label: `Übung: ${skillLabelDe(skill)}` });
 
+export const skillOrExpertiseChange = (skill: SkillName, meta: { step: string; source: string }): Change =>
+  ({ target: 'proficiency', skill, orExpertise: true, ...meta, label: `Übung, falls geübt Expertise: ${skillLabelDe(skill)}` });
+
 export const weaponProficiencyChange = (value: WeaponCategory, meta: { step: string; source: string }): Change =>
   ({ target: 'weaponProficiency', value, ...meta, label: `Übung: ${WEAPON_LABEL_DE[value]}` });
 
@@ -157,7 +160,8 @@ export function proficiencyGrantChanges(
   const out: Change[] = [];
   const routes: { [K in keyof ProficiencyGrant]: () => void } = {
     skills: () => {
-      for (const skill of g.skills.fixed) out.push(skillProficiencyChange(skill, meta));
+      const change = g.skills.orExpertise ? skillOrExpertiseChange : skillProficiencyChange;
+      for (const skill of g.skills.fixed) out.push(change(skill, meta));
     },
     savingThrows: () => {
       for (const value of g.savingThrows) out.push(savingThrowChange(value, meta));

@@ -127,9 +127,10 @@ export function withGrant(rider: FeatureRider, grants: FeatureGrant): FeatureRid
     extraCantrips: grants.extraCantrips,
     extraPreparedCount: grants.extraPreparedCount,
     ...abilityRiderFields(grants.abilities),
+    skillsOrExpertise: p.skills.orExpertise ? [...p.skills.fixed] : [],
     proficiencies: {
       ...rider.proficiencies,
-      skills: [...p.skills.fixed],
+      skills: p.skills.orExpertise ? [] : [...p.skills.fixed],
       weapons: [...p.weapons],
       armor: [...p.armor],
       savingThrows: [...p.savingThrows],

@@ -11,6 +11,7 @@ import { characterPropertyAnswerChanges } from '../characterProperties';
 import {
   skillLabelDe,
   skillProficiencyChange,
+  skillOrExpertiseChange,
   weaponProficiencyChange,
   armorTrainingChange,
   savingThrowChange,
@@ -156,6 +157,7 @@ export function riderGrantChanges(
   // Expertise steht außerhalb der Übungsform und damit außerhalb der Tabelle.
   for (const skill of values((r) => r.expertiseSkills))
     out.push({ target: 'expertise', skill, ...meta, label: `Expertise: ${skillLabelDe(skill)}` });
+  for (const skill of values((r) => r.skillsOrExpertise)) out.push(skillOrExpertiseChange(skill, meta));
   return out;
 }
 

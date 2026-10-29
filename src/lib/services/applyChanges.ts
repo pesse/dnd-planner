@@ -122,7 +122,9 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   },
   proficiency: (c, next) => {
     const row = next.skills[skillSheetKey(c.skill)];
-    if (row) row.prof = true;
+    if (!row) return;
+    if (c.orExpertise && row.prof) row.exp = true;
+    row.prof = true;
   },
   // Dieselbe Grenze; die Abbildung ist geteilt (proficiencyGrants.ts), nicht kopiert.
   weaponProficiency: (c, next) => markProficiency(next.proficiencies, 'weapons', c.value),

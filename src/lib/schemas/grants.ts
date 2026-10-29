@@ -39,6 +39,10 @@ export const skillGrantSchema = z.object({
   fixed: z.array(z.enum(SKILL_NAMES)).default([]).describe('Ohne Wahl gewährte Fertigkeiten.'),
   choose: z.number().int().min(0).default(0).describe('Wie viele Fertigkeiten frei gewählt werden.'),
   from: z.array(z.enum(SKILL_NAMES)).default([]).describe('Auswahlliste; leer = beliebige Fertigkeit.'),
+  orExpertise: z
+    .boolean()
+    .optional()
+    .describe('Für `fixed`: ist der Charakter schon geübt, erhält er Expertise statt Übung (Scharfer Verstand).'),
 });
 
 /** Default-Literal, damit `z.toJSONSchema` es inline auflöst — gilt für alle `empty*` hier. */

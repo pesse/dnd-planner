@@ -104,6 +104,7 @@
     {
       "target": "proficiency",
       "skill": "Acrobatics",
+      "orExpertise": false,
       "step": "string",
       "source": "string",
       "label": "string"

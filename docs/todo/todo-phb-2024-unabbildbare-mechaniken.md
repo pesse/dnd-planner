@@ -83,7 +83,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `poisoner` | Giftschaden ignoriert Resistenz | keine Senke für das Durchbrechen von Resistenzen |
 | `polearm-master` | Schwer UND Reichweite | Eigenschaftsfilter ist ODER, die Waffen stehen deshalb einzeln da |
 | `ritual-caster` | Rituale aus jeder Liste, Anzahl = Übungsbonus | heute `byLevel` als Behelf |
-| `keen-mind`, `observant` | Expertise, falls schon geübt, sonst Übung | Bedingung nicht ausdrückbar |
 | `elemental-adept` | gewählte Schadensart ignoriert Resistenz | Wahl hat keine Regelwirkung; Wiederholung mit anderer Art nicht erzwungen |
 | `heavy-armor-master` | Schadensreduktion = Übungsbonus | keine Senke |
 | `defensive-duelist` | RK + Übungsbonus als Reaktion | keine Senke |

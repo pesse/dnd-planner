@@ -77,6 +77,7 @@ const featureRiderSchema = z.object({
   extraCantrips: z.number().int().default(0),
   extraPreparedCount: z.number().int().default(0),
   expertiseSkills: z.array(z.enum(SKILL_NAMES)).default([]),
+  skillsOrExpertise: z.array(z.enum(SKILL_NAMES)).default([]),
   proficiencies: riderProficienciesSchema.default({ skills: [], tools: [], weapons: [], armor: [], languages: [], savingThrows: [] }),
   abilityScoreIncrease: abilityModsSchema,
   /**
@@ -153,7 +154,8 @@ export const changeSchema = z.discriminatedUnion('target', [
   // Ein getauschter Kampfstil: der ALTE Link geht, der neue kommt als eigenes `feat`.
   z.object({ target: z.literal('featRemoved'), sourceKey: z.string(), ...changeBase }),
   z.object({ target: z.literal('expertise'), skill: z.enum(SKILL_NAMES), ...changeBase }),
-  z.object({ target: z.literal('proficiency'), skill: z.enum(SKILL_NAMES), ...changeBase }),
+  // `orExpertise`: erst die Senke kennt den Übungsstand, gegen den die Regel entscheidet.
+  z.object({ target: z.literal('proficiency'), skill: z.enum(SKILL_NAMES), orExpertise: z.boolean().optional(), ...changeBase }),
   z.object({ target: z.literal('weaponProficiency'), value: z.enum(WEAPON_CATEGORIES), ...changeBase }),
   z.object({ target: z.literal('armorTraining'), value: z.enum(ARMOR_TRAININGS), ...changeBase }),
   z.object({ target: z.literal('savingThrow'), value: z.enum(ABILITY_NAMES), ...changeBase }),
