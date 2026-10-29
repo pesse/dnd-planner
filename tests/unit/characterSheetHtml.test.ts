@@ -37,6 +37,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   values: [],
   cardItems: [],
   figure: null,
+  images: [],
   spellCards: '',
   itemCards: '',
 });
@@ -336,5 +337,20 @@ describe('HTML-Charakterbogen', () => {
     expect(html).toContain('@page cards');
     // Das Kartenraster bringt seine eigene Seite mit: kein zusätzlicher Bogen-Kopf.
     expect(html.split('page-head').length).toBe(build(d, { itemCards: false }).split('page-head').length);
+  });
+
+  it('druckt markierte Bilder als Karten, die Unterschrift entwertet und nur wo vorhanden', () => {
+    const d = dataFor(allProficienciesCharacter);
+    expect(sheetSections(d).some((s) => s.id === 'imageCards')).toBe(false);
+
+    d.images = [{ url: 'asset://a.png', label: 'Drache <3' }, { url: '/art/x.avif', label: '' }];
+    const html = build(d);
+    expect(html).toContain('<img src="asset://a.png"');
+    expect(html).toContain('<div class="img-cap">Drache &lt;3</div>');
+    expect(html.split('img-cap').length - 1).toBe(1 + 1); // eine Unterschrift, eine CSS-Regel
+    expect(html).toContain('@page cards');
+    // Sieben Leerkarten füllen das 3×3-Blatt auf.
+    expect(html.split('card empty').length - 1).toBe(7);
+    expect(build(d, { imageCards: false })).not.toContain('img-card"');
   });
 });

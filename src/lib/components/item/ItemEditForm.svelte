@@ -8,6 +8,7 @@
   import WeaponFields from './WeaponFields.svelte';
   import ArmorFields from './ArmorFields.svelte';
   import CostWeightFields from './CostWeightFields.svelte';
+  import ArtKeyField from './ArtKeyField.svelte';
   import Open5eImportPanel from './Open5eImportPanel.svelte';
 
   let {
@@ -84,6 +85,7 @@
       {/if}
 
       <CostWeightFields bind:draft={draft} />
+      <ArtKeyField bind:draft={draft} />
     </div>
 
     <div class="card-divider"></div>

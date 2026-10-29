@@ -238,7 +238,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
       speciesTraits: st.speciesTraits, speciesNotes: sheetNoteLines(st.speciesNotes),
       validatedBase: st.validatedBase, validatedFeats: st.validatedFeats,
       answers: st.answers,
-      hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, conScore: ctx.character.abilities.con, abilityEffects: st.abilityEffects, maxDice: st.hpMaxDiceBefore },
+      hpBefore: { hpMax: ctx.character.hpMax, hpDiceTotal: ctx.character.hpDiceTotal, combatAdjustments: ctx.character.combatAdjustments, conScore: ctx.character.abilities.con, abilityEffects: st.abilityEffects, maxDice: st.hpMaxDiceBefore },
       pickedCantrips: steps.gatherCantrips(), pickedLearned: steps.gatherLearned(),
       spellOf: steps.spellOf,
       chosenFeats: st.chosenFeats.map((f) => ({ key: f.key, name: f.nameDe, gainedAt: f.gainedAt, grants: f.grants })),

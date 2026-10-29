@@ -15,6 +15,7 @@
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
   import { attunedCount, type AttunementLimit } from '../../services/wornItems';
+  import { itemTrainingNote, type ItemTrainingNote } from '../../services/itemProficiency';
   import { figureLinesIn, placeEquipment, slotsFor, type Placed } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { lineWeightKg, totalWeightKg, formatKg, libraryWeightKg } from '../../utils/inventoryWeight';
@@ -24,14 +25,14 @@
   import { createHoverTip } from '../../utils/hoverTip.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import PinButton from '../ui/PinButton.svelte';
-  import type { Attack, Character } from '../../schemas/characterSchema';
+  import type { Attack, Character, ProficiencyFlags } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import './form.css';
 
   type InventoryLine = Character['inventory'][number];
 
   let {
-    inventory, inventoryNotes = $bindable(), itemIndex, itemsByDir, attacks, attackCtx,
+    inventory, inventoryNotes = $bindable(), itemIndex, itemsByDir, attacks, attackCtx, proficiencies,
     attunement, saved, fixLabel, onfix, dirOf,
   }: {
     inventory: InventoryLine[];
@@ -40,6 +41,7 @@
     itemsByDir: Record<string, ItemInfo[]>;
     attacks: Attack[];
     attackCtx: WeaponAttackContext;
+    proficiencies: ProficiencyFlags;
     attunement: AttunementLimit;
     saved?: Character | null;
     fixLabel?: string;
@@ -114,6 +116,8 @@
   // Vorab laden, damit der Tooltip ohne Verzögerung erscheint.
   let dataByPath = $state(new Map<string, Item | null>());
   const tip = createHoverTip<Item>();
+  let tipTraining = $state<ItemTrainingNote | undefined>();
+  const trainingOf = (lib: ItemInfo) => itemTrainingNote(lib, proficiencies, attackCtx.dexMod, attackCtx.weaponByName);
 
   async function loadItem(path: string): Promise<Item | null> {
     const cached = dataByPath.get(path);
@@ -130,8 +134,10 @@
 
   // Lädt erst beim Überfahren; wer weitergezogen ist, bevor die Datei da ist, bekommt keinen Tooltip.
   let hoveredSuggestion = '';
-  async function showSuggestionTip(e: MouseEvent, path: string) {
+  async function showSuggestionTip(e: MouseEvent, lib: ItemInfo) {
+    const path = lib.path;
     hoveredSuggestion = path;
+    tipTraining = trainingOf(lib);
     tip.at(e);
     const data = await loadItem(path);
     if (hoveredSuggestion === path && data) tip.data = data;
@@ -209,7 +215,7 @@
                 class="inv-name-link"
                 title="Gegenstandskarte öffnen"
                 onclick={() => openItemPage(lib)}
-                onmouseenter={(e) => tip.show(e, dataByPath.get(lib.path) ?? null)}
+                onmouseenter={(e) => { tipTraining = trainingOf(lib); tip.show(e, dataByPath.get(lib.path) ?? null); }}
                 onmousemove={tip.move}
                 onmouseleave={tip.hide}
               >{item.name}</button>
@@ -242,7 +248,7 @@
                   {#each suggestions as sug, si}
                     <li class:active={si === nav.index}
                       onmousedown={() => { hideSuggestionTip(); selectItem(i, sug); }}
-                      onmouseenter={(e) => showSuggestionTip(e, sug.item.path)}
+                      onmouseenter={(e) => showSuggestionTip(e, sug.item)}
                       onmousemove={tip.move}
                       onmouseleave={hideSuggestionTip}>
                       <span style="color:{CATEGORY_COLORS[sug.item.category] ?? 'inherit'}">{displayName(sug.item)}</span>
@@ -322,7 +328,7 @@
   <textarea class="ta-small" bind:value={inventoryNotes}></textarea>
 </label>
 
-<ItemTooltip item={tip.data} x={tip.x} y={tip.y} />
+<ItemTooltip item={tip.data} x={tip.x} y={tip.y} training={tipTraining} />
 
 <style>
   .inv-over { color: var(--danger); font-weight: 600; }

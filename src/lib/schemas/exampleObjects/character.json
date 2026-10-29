@@ -51,6 +51,38 @@
   "passivePerception": "string",
   "hitDice": "string",
   "hpDiceTotal": -9007199254740991,
+  "combatAdjustments": {
+    "ac": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
+    ],
+    "hpMax": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
+    ],
+    "initiative": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
+    ],
+    "speed": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
+    ],
+    "proficiencyBonus": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
+    ]
+  },
   "saveProfs": {
     "str": false,
     "dex": false,
@@ -234,6 +266,15 @@
   ],
   "portraitFile": "string",
   "figureFile": "string",
+  "gallery": [
+    {
+      "file": "string",
+      "caption": "string"
+    }
+  ],
+  "printImages": [
+    "string"
+  ],
   "presentation": "feminine",
   "companion": {
     "text": "string",

@@ -10,6 +10,8 @@ import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/l
 import { applyChanges } from '../../src/lib/services/applyChanges';
 import { resolveScore, type WornAbilityEffect } from '../../src/lib/services/effectiveAbilities';
 import { hpDerivation } from '../../src/lib/services/hitPointDerivation';
+import { emptyCombatAdjustments } from '../../src/lib/schemas/combatAdjustment';
+import { hpDiceTotalOf } from '../../src/lib/services/hitPoints';
 import { attrModTip, hpTip } from '../../src/lib/services/characterSheetTips';
 import type { Change } from '../../src/lib/schemas/levelUp';
 
@@ -127,5 +129,23 @@ describe('TP-Herleitung', () => {
     const d = hpDerivation({ hpMax: '60', hpDiceTotal: undefined }, { ...basis, conMod: 1 }, resolveScore(13, [], 'con'), []);
     expect(d.total).toBeNull();
     expect(text(hpTip(d))).toEqual(['KON +1 × Stufe 5 +5', 'Würfelsumme 55 unmöglich (höchstens 50)']);
+  });
+
+  it('rechnet ohne eingetragenes Maximum aus der Würfelsumme, Anpassungen als Posten', () => {
+    const combatAdjustments = { ...emptyCombatAdjustments(), hpMax: [{ amount: 3, reason: 'Segen des Spielleiters' }] };
+    const d = hpDerivation({ hpMax: '', hpDiceTotal: 40, combatAdjustments }, basis, con, []);
+    expect(d.total).toBe(63);
+    expect(text(hpTip(d)).slice(-2)).toEqual(['Segen des Spielleiters +3', 'TP-Maximum 63']);
+  });
+
+  it('nennt die fehlende Würfelsumme, wenn weder sie noch ein Maximum eingetragen ist', () => {
+    const d = hpDerivation({ hpMax: '', hpDiceTotal: undefined }, basis, con, []);
+    expect(d.total).toBeNull();
+    expect(d.notes).toEqual(['keine Würfelsumme eingetragen']);
+  });
+
+  it('rechnet die Würfelsumme aus einem Altwert ohne die Anpassungen zurück', () => {
+    const combatAdjustments = { ...emptyCombatAdjustments(), hpMax: [{ amount: 5, reason: '' }] };
+    expect(hpDiceTotalOf({ hpMax: '65', hpDiceTotal: undefined, combatAdjustments }, basis)).toBe(40);
   });
 });

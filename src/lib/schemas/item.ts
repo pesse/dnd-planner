@@ -45,6 +45,10 @@ export const itemSchema = z.object({
   index: z.string().optional().describe('Open5e-v2-Basis-Slug (z.B. "warhammer"), leer bei freiem Homebrew.'),
   name: z.string().describe('Originalname (Englisch).'),
   name_de: z.string().optional().describe('Deutscher Name.'),
+  artKey: z
+    .string()
+    .optional()
+    .describe('Key eines anderen Bibliotheks-Items, dessen Bild dieser Gegenstand zeigt (z.B. "srd-2024_javelin"). Leer = eigenes Bild.'),
   equipment_category: namedRef().describe(
     'Kategorie als {index, name} im Open5e-v2-Format — die EINZIGE Typ-Quelle. ' +
       'index ist einer von: adventuring-gear, ammunition, armor, art, equipment-pack, gem, jewelry, ' +

@@ -1,6 +1,6 @@
 /**
- * Die RK aus angelegten Gegenständen und Merkmals-Deklarationen, als Posten wie die TP-Herleitung.
- * `character.ac` bleibt maßgeblich: die Rechnung erklärt den Wert und meldet eine Abweichung.
+ * Die RK aus angelegten Gegenständen, Merkmals-Deklarationen und `combatAdjustments.ac`, als
+ * Posten wie die TP-Herleitung. Ein eingetragenes `character.ac` erscheint als Abweichung.
  */
 import { ABILITY_ABBR_DE, ABILITY_KEYS, ABILITY_LABEL, ABILITY_NAMES, type AbilityKey, type AbilityScores } from '../schemas/abilities';
 import type { ArmorClassCondition, ArmorClassEffect } from '../schemas/armorClass';
@@ -9,7 +9,8 @@ import { situationalLabelDe } from '../schemas/situationalBonus';
 import { displayName, type ItemInfo } from '../itemLibrary';
 import { featureIdOf } from '../utils/text';
 import { sign } from '../utils/num';
-import type { DerivationRow } from './hitPointDerivation';
+import { adjustmentRows, type DerivationRow } from './hitPointDerivation';
+import type { CombatAdjustment } from '../schemas/combatAdjustment';
 import type { IdleItem, WornItem } from './wornItems';
 
 type Unarmored = Extract<ArmorClassEffect, { kind: 'unarmored' }>;
@@ -81,11 +82,18 @@ const magicNotes = (item: ItemInfo): string[] =>
 const best = <T>(list: readonly T[], value: (t: T) => number): T | undefined =>
   list.reduce<T | undefined>((a, b) => (a === undefined || value(b) > value(a) ? b : a), undefined);
 
+/** Was GES in dieser Rüstung zur RK beiträgt; null, wo die Rüstung GES gar nicht zählt. */
+export function armorDexBonus(item: Pick<ItemInfo, 'armor_class'>, dexMod: number): number | null {
+  const ac = item.armor_class;
+  if (!ac?.dex_bonus) return null;
+  return ac.max_bonus === null ? dexMod : Math.min(dexMod, ac.max_bonus);
+}
+
 function armorRows(item: ItemInfo, dexMod: number): DerivationRow[] {
   const rows: DerivationRow[] = [{ labelDe: displayName(item), value: itemAc(item), notes: magicNotes(item) }];
   const ac = item.armor_class;
-  if (!ac?.dex_bonus) return rows;
-  const capped = ac.max_bonus === null ? dexMod : Math.min(dexMod, ac.max_bonus);
+  const capped = armorDexBonus(item, dexMod);
+  if (!ac || capped === null) return rows;
   rows.push({ labelDe: 'GES', value: capped, notes: capped < dexMod ? [`${sign(dexMod)}, höchstens ${sign(ac.max_bonus!)}`] : [] });
   return rows;
 }
@@ -147,6 +155,7 @@ export function armorClassDerivation(input: {
   features: readonly ArmorClassFeature[];
   /** Wirksame Mods (`effectiveMods`). */
   mods: AbilityScores;
+  adjustments?: readonly CombatAdjustment[];
 }): ArmorClassDerivation {
   const items = input.worn.map((w) => w.item).filter((i) => i.armor_class);
   const armors = items.filter((i) => BODY_ARMOR.includes(i.armor_category ?? ''));
@@ -175,6 +184,8 @@ export function armorClassDerivation(input: {
     else notes.push(`${b.labelDe} ${line}`);
   }
 
+  rows.push(...adjustmentRows(input.adjustments));
+
   for (const { item, reason } of input.idle ?? [])
     if (item.armor_class || item.armorClassEffects?.length)
       notes.push(`${displayName(item)}: ${reason === 'unequipped' ? 'nicht angelegt' : 'nicht eingestimmt'}`);
@@ -182,6 +193,5 @@ export function armorClassDerivation(input: {
   // „18 (20)" heißt am Tisch: 18, mit Schild 20 — maßgeblich ist die erste Zahl.
   const lead = input.ac.trim().match(/^\d+/);
   const stored = lead ? Number(lead[0]) : null;
-  if (stored === null) notes.push('keine RK eingetragen');
   return { rows, total: rowSum(rows), stored, notes };
 }

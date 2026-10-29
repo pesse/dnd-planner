@@ -344,7 +344,7 @@ export class LevelUpAssistantUi {
       // Ohne Antworten: Trefferpunkte nach Durchschnitt, bis die Entscheidung fällt.
       ...hitPointChanges({
         delta: d, answers: {}, sources: [], others: [],
-        before: { hpMax: c.hpMax, hpDiceTotal: c.hpDiceTotal, conScore: c.abilities.con, abilityEffects: this.st.abilityEffects },
+        before: { hpMax: c.hpMax, hpDiceTotal: c.hpDiceTotal, combatAdjustments: c.combatAdjustments, conScore: c.abilities.con, abilityEffects: this.st.abilityEffects },
       }),
     ];
   });

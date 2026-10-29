@@ -9,7 +9,6 @@ import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
-import { hpFlatSum, hpPerLevelSources, hpPerLevelSum, type PerLevelSource } from '../perLevelEffects';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { wizardDeclaredChoices, wizardRiders } from './wizardChoices';
@@ -80,12 +79,11 @@ export class CharacterWizard {
   featureSpellPicks = $state<Record<string, string[]>>({});
 
   /**
-   * Die vier folgenden Felder kommen aus `buildFeaturePrep`;
+   * Die drei folgenden Felder kommen aus `buildFeaturePrep`;
    * `$state` statt Getter, weil die Aufbereitung async ist.
    */
   spellAccess = $state<SpellAccessGrant[]>([]);
   sizeChoice = $state<AnalysisChoice | null>(null);
-  hpPerLevel = $state<PerLevelSource[]>([]);
   /** ALLE Stufe-1-Merkmale; gefiltert wird nach Deklarationsart, nie nach Herkunft. */
   declared = $state<DeclaredFeature[]>([]);
   /**
@@ -162,7 +160,6 @@ export class CharacterWizard {
       if (this.#prep !== pending) return;
       this.spellAccess = prep.spellAccess;
       this.sizeChoice = prep.sizeChoice;
-      this.hpPerLevel = hpPerLevelSources(prep.effectFeatures);
       this.declared = prep.declared;
     }, () => {});
   }
@@ -234,10 +231,5 @@ export class CharacterWizard {
       if (!opt) return sum;
       return sum + opt.items.filter((it, ii) => it.choiceFrom && !this.toolPicks[toolPickKey(gi, oi, ii)]).length;
     }, 0);
-  }
-
-  /** Auf Stufe 1 zählt ein Bonus je Stufe genau einmal. */
-  hpBonusAtLevelOne(): number {
-    return hpPerLevelSum(this.hpPerLevel) + hpFlatSum(this.hpPerLevel);
   }
 }

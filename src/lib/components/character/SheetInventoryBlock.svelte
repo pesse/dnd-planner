@@ -8,9 +8,17 @@
   import { createItemHover } from '../itemHover.svelte';
   import ItemTooltip from '../ItemTooltip.svelte';
   import EquipmentFigure from './EquipmentFigure.svelte';
+  import { itemTrainingNote, type ItemTrainingNote } from '../../services/itemProficiency';
   import type { Character } from '../../schemas/characterSchema';
+  import type { ItemInfo } from '../../itemLibrary';
 
-  let { character, itemIndex, figureUrl }: { character: Character; itemIndex: ItemIndex; figureUrl: string } = $props();
+  let { character, itemIndex, figureUrl, dexMod }: {
+    character: Character; itemIndex: ItemIndex; figureUrl: string; dexMod: number;
+  } = $props();
+
+  const trainingOf = (lib: ItemInfo) =>
+    itemTrainingNote(lib, character.proficiencies, dexMod, (n) => matchItem(itemIndex, { name: n }));
+  let hoverTraining = $state<ItemTrainingNote | undefined>();
 
   const libOf = (line: { name: string; sourceKey?: string }) => matchItem(itemIndex, line);
 
@@ -38,7 +46,7 @@
       {#if character.inventory.some((i) => i.equipped)}
         <EquipmentFigure inventory={character.inventory} {itemIndex}
           speciesKey={character.species.sourceKey} presentation={character.presentation}
-          ownSrc={character.figureFile ? figureUrl : undefined} />
+          ownSrc={character.figureFile ? figureUrl : undefined} {trainingOf} />
       {/if}
       <div class="inv-main">
         <table class="inv-table">
@@ -50,7 +58,11 @@
               <tr
                 class:inv-linked={!!libItem}
                 onclick={() => libItem && openItemPage(libItem)}
-                onmouseenter={(e) => libItem && hover.show(e, libItem.path)}
+                onmouseenter={(e) => {
+                  if (!libItem) return;
+                  hoverTraining = trainingOf(libItem);
+                  hover.show(e, libItem.path);
+                }}
                 onmousemove={(e) => hover.move(e)}
                 onmouseleave={() => hover.hide()}
               >
@@ -87,7 +99,7 @@
   {/if}
 </div>
 
-<ItemTooltip item={hover.item} x={hover.x} y={hover.y} />
+<ItemTooltip item={hover.item} x={hover.x} y={hover.y} training={hoverTraining} />
 
 <style>
   .currency-row {

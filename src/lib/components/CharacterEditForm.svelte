@@ -22,6 +22,8 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { combatFallbacks } from '../services/combatFallbacks';
+  import { armorClassHints, combatOverrides, storedCombatValues } from '../services/combatOverrides';
+  import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
@@ -35,6 +37,7 @@
   import GeneralSection from './characterForm/GeneralSection.svelte';
   import AbilityTable from './characterForm/AbilityTable.svelte';
   import CombatFields from './characterForm/CombatFields.svelte';
+  import CombatOverrides from './characterForm/CombatOverrides.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
@@ -42,9 +45,11 @@
   import ImageField from './characterForm/ImageField.svelte';
   import PersonalFields from './characterForm/PersonalFields.svelte';
   import TagEditor from './characterForm/TagEditor.svelte';
+  import { suggestLanguages, suggestTools, toolSuggestions } from '../services/characterTagSuggestions';
   import ProficiencyFields from './characterForm/ProficiencyFields.svelte';
   import CurrencyRow from './characterForm/CurrencyRow.svelte';
   import InventoryTable from './characterForm/InventoryTable.svelte';
+  import { itemTrainingNote } from '../services/itemProficiency';
   import EquipmentFigure from './character/EquipmentFigure.svelte';
   import SpellBlock from './characterForm/SpellBlock.svelte';
   import ResourcePools from './characterForm/ResourcePools.svelte';
@@ -76,6 +81,7 @@
 
   const abilities = createCharacterAbilities(() => form, () => libs);
   const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }));
+  const toolTags = $derived(toolSuggestions(libs.itemsByDir.tools ?? []));
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
   const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
     ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
@@ -184,20 +190,34 @@
     () => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }),
     () => abilities.resolved.con,
   );
+  const hpInput = $derived({ hpMax: form.hpMax, hpDiceTotal: form.hpDiceTotal ?? undefined, combatAdjustments: form.combatAdjustments });
   const hpTipHtml = $derived(
-    hpBasis.current ? hpTip(hpDerivation({ hpMax: form.hpMax, hpDiceTotal: character.hpDiceTotal }, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
+    hpBasis.current ? hpTip(hpDerivation(hpInput, hpBasis.current, abilities.resolved.con, hpBasis.sources)) : '',
   );
 
   const acTip = createArmorClassTip(
-    () => ({ ac: form.ac, inventory: form.inventory }),
+    () => ({ ac: form.ac, inventory: form.inventory, combatAdjustments: form.combatAdjustments }),
     () => libs,
     () => abilities.resolved,
     () => owned.current,
   );
   const fallbacks = $derived(combatFallbacks({
-    ...form, acTotal: acTip.total, features: owned.current, mods: abilityRecordOf((k) => mod(abilities.resolved[k].score)),
+    ...form,
+    acTotal: acTip.total,
+    hpTotal: hpBasis.current && hpMaxTotal(hpInput, hpBasis.current),
+    features: owned.current,
+    mods: abilityRecordOf((k) => mod(abilities.resolved[k].score)),
   }));
   const tips = $derived(combatTips(form, fallbacks));
+  // Erst mit allen Bibliotheken: ein halb gerechneter Wert böte die falsche Abweichung an.
+  const overrides = $derived(libs.itemsLoaded && owned.current && hpBasis.current
+    ? combatOverrides({
+      stored: storedCombatValues(form),
+      fb: fallbacks,
+      hpDiceTotal: form.hpDiceTotal ?? undefined,
+      acHints: armorClassHints(libs.itemIndex, form.inventory),
+    })
+    : []);
 
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
@@ -219,8 +239,9 @@
     attacks: form.attacks,
     weaponCtx,
     hpMax: form.hpMax,
-    hpDiceTotal: character.hpDiceTotal,
-    setHpDiceTotal: (total) => { character.hpDiceTotal = total; },
+    hpDiceTotal: form.hpDiceTotal ?? undefined,
+    combatAdjustments: form.combatAdjustments,
+    splitHitPoints: (total) => { form.hpDiceTotal = total; form.hpMax = ''; },
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
@@ -286,12 +307,8 @@
 
       <section>
         <h3>Kampfwerte</h3>
-        <CombatFields
-          bind:ac={form.ac} bind:initiative={form.initiative} bind:speed={form.speed}
-          bind:hitDice={form.hitDice} bind:hpMax={form.hpMax} bind:hpCurrent={form.hpCurrent}
-          bind:hpTemp={form.hpTemp} bind:proficiencyBonus={form.proficiencyBonus}
-          {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html}
-        />
+        <CombatFields {form} {fallbacks} {tips} {saved} {dirOf} {hpTipHtml} acTipHtml={acTip.html} />
+        <CombatOverrides {form} {overrides} {saved} {dirOf} />
       </section>
     </div>
 
@@ -310,11 +327,13 @@
     <div class="stats-cols">
       <section>
         <h3>Sprachen</h3>
-        <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages} />
+        <TagEditor values={form.languages} placeholder="Sprache…" savedValues={saved?.languages}
+          suggest={(q) => suggestLanguages(q)} />
       </section>
       <section>
         <h3>Werkzeuge &amp; Fahrzeuge</h3>
-        <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools} />
+        <TagEditor values={form.tools} placeholder="Werkzeug…" savedValues={saved?.tools}
+          suggest={(q) => suggestTools(toolTags, q)} />
       </section>
     </div>
 
@@ -406,7 +425,8 @@
       <div class="inv-layout">
         <EquipmentFigure inventory={form.inventory} itemIndex={libs.itemIndex}
           speciesKey={form.species.sourceKey} presentation={form.presentation || undefined}
-          ownSrc={form.figureFile ? figureUrl() : undefined} />
+          ownSrc={form.figureFile ? figureUrl() : undefined}
+          trainingOf={(lib) => itemTrainingNote(lib, form.proficiencies, weaponCtx.dexMod, weaponCtx.weaponByName)} />
         <div class="inv-main">
           <InventoryTable
             inventory={form.inventory}
@@ -416,6 +436,7 @@
             attacks={form.attacks}
             attackCtx={weaponCtx}
             attunement={attunementLimit(owned.current ?? [])}
+            proficiencies={form.proficiencies}
             {saved}
             fixLabel={inventoryFix?.label}
             onfix={() => applyFix(inventoryFix)}

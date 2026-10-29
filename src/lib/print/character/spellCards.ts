@@ -7,9 +7,7 @@ import type { ProjectionLookup } from '$lib/services/spellcasting/project';
 import { loadSpellByPath } from '$lib/spellLibrary';
 import type { Spell } from '$lib/types';
 import { spellCardPages } from '$lib/utils/printSpell';
-
-/** Der Klassenname, unter dem `css/cards.ts` das 3×3-Raster setzt. */
-const CARDS_PAGE_CLASS = 'cards';
+import { CARDS_PAGE_CLASS } from './css/cards';
 
 /** Jeder Zauber des Bogens einmal, in derselben Ordnung wie die Liste: erst Grad, dann Name. */
 function orderedKeys(g: GroupedSpellcasting): string[] {

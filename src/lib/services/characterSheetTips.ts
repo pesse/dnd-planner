@@ -63,23 +63,25 @@ export function combatTips(
   fb: CombatFallbacks,
 ): CombatTips {
   const speed = c.speed.trim();
-  const src = fb.speedSource;
   const pb = c.proficiencyBonus;
   const initiative = c.initiative.trim();
+  const hpMax = c.hpMax.trim() || (fb.hpMax === null ? '' : String(fb.hpMax));
   return {
     initiative: fb.initiativeRows.map((r) => row(esc(r.labelDe), r.value)).join('') + divider() + total(fb.initiative, 'Initiative')
       + steps(fb.initiativeAdvantage.map((l) => `Vorteil (${l})`))
       + (initiative && initiative !== fb.initiative ? steps([`eingetragen ${esc(initiative)}`]) : ''),
     initiativeAdvantage: fb.initiativeAdvantage.length > 0,
-    speed: src
-      ? row(esc(src.labelDe), `${src.feet} Fuß`) + divider() + total(`${fb.speed} m`, 'Bewegung')
-        + (speed && speed !== fb.speed ? steps([`eingetragen ${speed} m`]) : '')
+    speed: fb.speedRows.length
+      ? fb.speedRows.map((r, i) => row(esc(r.labelDe), i === 0 ? `${r.feet} Fuß` : `${sign(r.feet)} Fuß`)).join('')
+        + divider() + total(`${fb.speed} m`, 'Bewegung')
+        + (speed && speed !== fb.speed ? steps([`eingetragen ${esc(speed)} m`]) : '')
       : '',
-    proficiencyBonus: row('Gesamtstufe', String(fb.level)) + divider() + total(fb.proficiencyBonus, 'Übungsbonus')
+    proficiencyBonus: fb.proficiencyBonusRows.map((r, i) => row(esc(r.labelDe), i === 0 ? sign(r.value) : r.value)).join('')
+      + divider() + total(sign(fb.proficiencyBonus), 'Übungsbonus')
       + (pb != null && pb !== fb.proficiencyBonus ? steps([`eingetragen ${sign(pb)}`]) : ''),
-    hpCurrent: c.hpCurrent.trim() || !c.hpMax.trim()
+    hpCurrent: c.hpCurrent.trim() || !hpMax
       ? ''
-      : row('TP-Maximum', esc(c.hpMax.trim())) + steps(['keine aktuellen TP eingetragen']),
+      : row('TP-Maximum', esc(hpMax)) + steps(['keine aktuellen TP eingetragen']),
   };
 }
 

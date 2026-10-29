@@ -1,6 +1,7 @@
 <script lang="ts">
   import './wizard.css';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
+  import { withShownCombatValues } from '../../services/combatFallbacks';
   import { buildWizardCharacter } from '../../services/wizard/assembleCharacter';
   import { buildCharacterProtocol } from '../../services/characterProtocol';
   import { choiceLabelsDe } from '../../services/analysis/types';
@@ -17,7 +18,7 @@
   let preview = $state<Character | null>(null);
   $effect(() => {
     let cancelled = false;
-    buildWizardCharacter(w).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
+    buildWizardCharacter(w).then(withShownCombatValues).then((c) => { if (!cancelled) preview = c; }).catch(() => {});
     return () => { cancelled = true; };
   });
 

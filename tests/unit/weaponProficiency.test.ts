@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   coversWeapon, isProficientWithWeapon, weaponNameSet,
 } from '../../src/lib/services/weaponProficiency';
+import { emptyCombatAdjustments } from '../../src/lib/schemas/combatAdjustment';
 import { weaponsFix, type LegacyLinkLibraries, type LegacyLinkTarget } from '../../src/lib/services/characterLegacyLinks';
 import { applyChanges, changesWouldAlter } from '../../src/lib/services/applyChanges';
 import { characterSchema, emptyProficiencies } from '../../src/lib/schemas/characterSchema';
@@ -73,7 +74,7 @@ function target(other: string, individual: string[] = []): LegacyLinkTarget {
     spells: undefined, dropSpells: () => {}, spellcasting: emptySpellcasting(),
     proficiencies: { ...emptyProficiencies(), individualWeapons: individual, otherWeapons: other },
     attacks: [], weaponCtx: { strMod: 0, dexMod: 0, proficiencyBonus: 0, proficiencies: emptyProficiencies() },
-    hpMax: '', hpDiceTotal: undefined, setHpDiceTotal: () => {},
+    hpMax: '', hpDiceTotal: undefined, combatAdjustments: emptyCombatAdjustments(), splitHitPoints: () => {},
   } as LegacyLinkTarget;
 }
 

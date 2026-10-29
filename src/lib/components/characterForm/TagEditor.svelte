@@ -29,10 +29,14 @@
   } = $props();
 
   let input = $state('');
+  let focused = $state(false);
   let suggestions = $state<Suggestion[]>([]);
 
   $effect(() => {
-    suggestions = suggest && input.trim() ? suggest(input) : [];
+    const taken = new Set(values.map((v) => v.toLowerCase()));
+    suggestions = suggest && (focused || input.trim())
+      ? suggest(input).filter((s) => !taken.has(s.value.toLowerCase()))
+      : [];
     nav.reset();
   });
 
@@ -62,7 +66,9 @@
     </span>
   {/each}
   <div class="autocomplete-wrap" class:tag-picker={!!suggest}>
-    <input class="tag-input" bind:value={input} {placeholder} onkeydown={nav.onkeydown} />
+    <input class="tag-input" bind:value={input} {placeholder} onkeydown={nav.onkeydown}
+      onfocus={() => (focused = true)}
+      onblur={() => setTimeout(() => { focused = false; }, 150)} />
     {#if suggestions.length}
       <ul class="suggestions" use:dropdownPlacement>
         {#each suggestions as sug, i}

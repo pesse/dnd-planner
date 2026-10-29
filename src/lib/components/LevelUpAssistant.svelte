@@ -14,6 +14,7 @@
   import { type Character } from '../schemas/characterSchema';
   import { type ApplyContext } from '../services/applyChanges';
   import { characterWithChanges } from '../services/characterWithChanges';
+  import { createShownCharacter } from '../services/shownCharacter.svelte';
   import CharacterPreview from './wizard/CharacterPreview.svelte';
   import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import SubclassDetail from './levelUp/SubclassDetail.svelte';
@@ -108,10 +109,12 @@
   const previewCharacter = $derived(
     previewDelta ? characterWithChanges(baseline, ui.shownChanges, applyContext, previewDelta) : baseline,
   );
+  const shownBaseline = createShownCharacter(() => baseline);
+  const shownPreview = createShownCharacter(() => previewCharacter);
 </script>
 
 {#snippet progression()}
-  <CharacterPreview character={previewCharacter} baseline={previewDelta ? baseline : null} emptyText="">
+  <CharacterPreview character={shownPreview.current} baseline={previewDelta ? shownBaseline.current : null} emptyText="">
     <ChangeList {ui} />
   </CharacterPreview>
 {/snippet}

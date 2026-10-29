@@ -9,7 +9,7 @@
 import type { Character } from '../schemas/characterSchema';
 import type { Change } from '../schemas/levelUp';
 import { MONSTER_SIZES } from '../schemas/vocabulary';
-import { ftToMVal } from '../itemFormat';
+import { speedMeters } from './characterProperties';
 import { mod, skillSheetKey } from '../domain/skills';
 import { markProficiency, markSavingThrow } from './proficiencyGrants';
 import { addIndividualWeapon } from './weaponProficiency';
@@ -76,10 +76,11 @@ type ChangeOf<T extends Change['target']> = Extract<Change, { target: T }>;
 
 /** Je `Change`-Variante eine Senke; eine neue Variante ohne Eintrag ist ein Compile-Fehler. */
 const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: ApplyEnv) => void } = {
-  hpMax: (c, next) => { next.hpMax = String(int(next.hpMax) + c.value); },
+  // TP-Maximum, Bewegungsrate und Übungsbonus rechnen sich ohne eingetragenen Wert selbst —
+  // nur ein noch nicht umgestellter Altwert zieht mit, sonst bliebe er stehen.
+  hpMax: (c, next) => { if (next.hpMax.trim()) next.hpMax = String(int(next.hpMax) + c.value); },
   hitDice: (c, next) => { next.hitDice = c.value; },
   hpDiceTotal: (c, next) => { next.hpDiceTotal = c.value; },
-  // Ohne eingetragenen Wert rechnet sich der Bonus aus der Stufe — ein Eintrag hielte ihn fest.
   proficiencyBonus: (c, next) => { if (next.proficiencyBonus !== undefined) next.proficiencyBonus = c.value; },
 
   // Plätze sind abgeleitet; nur die Handeingabe für Klassen ohne Progression wächst mit.
@@ -153,7 +154,7 @@ const APPLY: { [T in Change['target']]: (c: ChangeOf<T>, next: Character, env: A
   // Grundeigenschaften: SETZEND, nicht additiv. Zweite Übersetzungsgrenze — der Change trägt
   // Regelsprache (englische Größe, Fuß), der Bogen deutsch und metrisch.
   sizeCategory: (c, next) => { next.personal.sizeCat = MONSTER_SIZES[c.value]; },
-  speedFeet: (c, next) => { next.speed = String(ftToMVal(c.value)).replace('.', ','); },
+  speedFeet: (c, next) => { if (next.speed.trim()) next.speed = speedMeters(c.value); },
   halfProficiencySkills: (_c, next) => { next.alleskoenner = true; },
 
   subclass: (c, next, env) => {

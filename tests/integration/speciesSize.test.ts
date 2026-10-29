@@ -176,9 +176,8 @@ describe('Größenkategorie der Spezies', () => {
   it('schreibt den Wert beim Zusammenbau in personal.sizeCat', async () => {
     const gnome = await buildWizardCharacter(wizardStub());
     expect(gnome.personal.sizeCat).toBe('Klein');
-    // Die Bewegungsrate ist die Nachbarzeile — sie darf sich dabei nicht verschieben.
-    // Reine Meterzahl seit `metersFromSpeedText`: der Bogen hängt das „m" selbst an.
-    expect(gnome.speed).toBe('9');
+    // Die Bewegungsrate ist die Nachbarzeile: sie rechnet sich aus `speedFeet` und bleibt leer.
+    expect(gnome.speed).toBe('');
 
     const humanSpecies = { sourceKey: 'srd-2024_human', name: 'Mensch' };
     const human = await getSpeciesByKey('srd-2024_human');
@@ -205,7 +204,7 @@ describe('Größenkategorie der Spezies', () => {
       background: { sourceKey: '', name: '' },
     }));
     expect(gnome.personal.sizeCat).toBe('Klein');
-    expect(gnome.speed).toBe('9');
+    expect(gnome.speed).toBe('');
     expect(gnome.hpMax).toBe('');
   });
 });

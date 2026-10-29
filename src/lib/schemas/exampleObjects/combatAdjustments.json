@@ -1,0 +1,32 @@
+{
+  "ac": [
+    {
+      "amount": -9007199254740991,
+      "reason": "string"
+    }
+  ],
+  "hpMax": [
+    {
+      "amount": -9007199254740991,
+      "reason": "string"
+    }
+  ],
+  "initiative": [
+    {
+      "amount": -9007199254740991,
+      "reason": "string"
+    }
+  ],
+  "speed": [
+    {
+      "amount": -9007199254740991,
+      "reason": "string"
+    }
+  ],
+  "proficiencyBonus": [
+    {
+      "amount": -9007199254740991,
+      "reason": "string"
+    }
+  ]
+}

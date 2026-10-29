@@ -7,8 +7,9 @@ import { chosenOption } from './declaration/optionList';
 import { ledgerAnswers } from './declaration/ledgerAnswers';
 import { getProgressionByKey } from './classProgression';
 import { characterLevel } from './declaration/carriers';
-import { hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
+import { hpFlatSum, hpPerLevelSources, hpPerLevelSum, type PerLevelFeature, type PerLevelSource } from './perLevelEffects';
 import type { Character } from '../schemas/characterSchema';
+import { adjustmentSum } from '../schemas/combatAdjustment';
 import { getBackgroundByKey } from '$lib/backgroundsLibrary';
 
 export interface HpBasis {
@@ -24,17 +25,31 @@ export interface HpBasis {
 
 export const hpBonusTotal = (b: HpBasis): number => (b.conMod + b.perLevel) * b.level + (b.flat ?? 0);
 
-/** Gespeichert oder aus dem TP-Maximum zurückgerechnet; `null`, wenn das keine Zahl ist. */
-export function hpDiceTotalOf(c: Pick<Character, 'hpMax' | 'hpDiceTotal'>, b: HpBasis): number | null {
+export type HpInput = Pick<Character, 'hpMax' | 'hpDiceTotal' | 'combatAdjustments'>;
+
+/** Gespeichert oder aus dem eingetragenen TP-Maximum zurückgerechnet; `null`, wenn das keine Zahl ist. */
+export function hpDiceTotalOf(c: HpInput, b: HpBasis): number | null {
   if (c.hpDiceTotal !== undefined) return c.hpDiceTotal;
   const max = c.hpMax.trim();
   if (!/^\d+$/.test(max)) return null;
-  return Number(max) - hpBonusTotal(b);
+  return Number(max) - hpBonusTotal(b) - adjustmentSum(c.combatAdjustments?.hpMax);
 }
 
 /** Was kein Würfelergebnis sein kann, war ein von Hand gesetztes Maximum. */
 export const plausibleDiceTotal = (total: number, b: HpBasis): boolean =>
   total >= b.level && total <= (b.maxDice ?? b.level * 12);
+
+/** Die Würfelsumme, auf die sich eine Rechnung stützen darf; null, solange sie unbekannt ist. */
+export function knownDiceTotal(c: HpInput, b: HpBasis): number | null {
+  const dice = hpDiceTotalOf(c, b);
+  return dice !== null && (c.hpDiceTotal !== undefined || plausibleDiceTotal(dice, b)) ? dice : null;
+}
+
+/** Das gerechnete TP-Maximum samt Anpassungen; null, solange die Würfelsumme unbekannt ist. */
+export function hpMaxTotal(c: HpInput, b: HpBasis): number | null {
+  const dice = knownDiceTotal(c, b);
+  return dice === null ? null : dice + hpBonusTotal(b) + adjustmentSum(c.combatAdjustments?.hpMax);
+}
 
 export interface OwnedGrantFeature extends PerLevelFeature {
   /** Anzeigesprache, wie `ResolvedFeature.desc`. */
@@ -98,6 +113,25 @@ export async function ownedHpPerLevelSources(c: OwnedLinks): Promise<PerLevelSou
 export async function ownedHpPerLevel(c: OwnedLinks): Promise<number> {
   return hpPerLevelSum(await ownedHpPerLevelSources(c));
 }
+
+/** Was zur TP-Basis aus der Bibliothek kommt; KON und Stufe rechnet `hpBasisOf` dazu. */
+export interface HpLibraryParts {
+  sources: PerLevelSource[];
+  maxDice?: number;
+}
+
+export async function loadHpLibraryParts(c: OwnedLinks): Promise<HpLibraryParts> {
+  const [sources, maxDice] = await Promise.all([ownedHpPerLevelSources(c), maxDiceTotal(c.classes)]);
+  return { sources, maxDice };
+}
+
+export const hpBasisOf = (classes: Character['classes'], conMod: number, parts: HpLibraryParts): HpBasis => ({
+  conMod,
+  level: characterLevel(classes),
+  perLevel: hpPerLevelSum(parts.sources),
+  flat: hpFlatSum(parts.sources),
+  maxDice: parts.maxDice,
+});
 
 export async function maxDiceTotal(classes: Character['classes']): Promise<number | undefined> {
   let max = 0;

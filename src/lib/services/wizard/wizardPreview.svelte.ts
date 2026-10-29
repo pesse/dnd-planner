@@ -1,6 +1,7 @@
 /** Der entstehende Charakter für die Vorschau — dieselbe Assembly wie „Charakter erstellen". */
 import type { CharacterWizard } from './characterWizard.svelte';
 import { buildWizardCharacter } from './assembleCharacter';
+import { withShownCombatValues } from '../combatFallbacks';
 import type { Character } from '../../schemas/characterSchema';
 
 export function createWizardPreview(w: CharacterWizard) {
@@ -17,7 +18,7 @@ export function createWizardPreview(w: CharacterWizard) {
     if (!w.species.sourceKey) { character = null; return; }
     let cancelled = false;
     const timer = setTimeout(() => {
-      void buildWizardCharacter(w).then(
+      void buildWizardCharacter(w).then(withShownCombatValues).then(
         (c) => { if (!cancelled) character = c; },
         () => { if (!cancelled) character = null; },
       );

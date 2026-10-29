@@ -139,6 +139,15 @@ describe('armorClassDerivation', () => {
     };
     const d = armorClassDerivation({ ac: '', worn: [], features: [undeclared], mods: mods({ dex: 3, wis: 2 }) });
     expect(rows(d)).toEqual([['Ungerüstete Verteidigung', 10], ['GES', 3], ['WEI', 2]]);
-    expect(d.notes).toEqual(['keine RK eingetragen']);
+    expect(d.notes).toEqual([]);
+  });
+
+  it('zählt Anpassungen als eigene Posten', () => {
+    const d = armorClassDerivation({
+      ac: '', worn: [CHAIN_MAIL], features: [], mods: mods({}),
+      adjustments: [{ amount: 1, reason: 'Segen des Spielleiters' }, { amount: -2, reason: '' }],
+    });
+    expect(rows(d)).toEqual([['Kettenpanzer', 16], ['Segen des Spielleiters', 1], ['Anpassung', -2]]);
+    expect(d.total).toBe(15);
   });
 });

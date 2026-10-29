@@ -134,6 +134,13 @@ describe('TP im Aufstieg', () => {
     expect(c.hpDiceTotal).toBe(23);
     expect(hpDiceTotalOf({ hpMax: c.hpMax, hpDiceTotal: undefined }, { conMod: 1, level: 3, perLevel: 0 })).toBe(23);
   });
+
+  it('schreibt ohne eingetragenes Maximum nur die Würfelsumme — das Maximum rechnet sich', () => {
+    const c = characterSchema.parse({ name: 'Prüfling', hpDiceTotal: 17, abilities: { str: 10, dex: 10, con: 13, int: 10, wis: 10, cha: 10 } });
+    applyChanges(c, hitPointChanges(params({ before: { hpMax: '', hpDiceTotal: 17, conScore: 13 } })), { classIndex: 0 });
+    expect(c.hpMax).toBe('');
+    expect(c.hpDiceTotal).toBe(23);
+  });
 });
 
 /** Nur die Felder, die `hitPointsFix` liest. */
@@ -144,7 +151,7 @@ function target(over: Partial<LegacyLinkTarget> = {}): LegacyLinkTarget & { writ
     hpMax: '19',
     hpDiceTotal: undefined,
     written: undefined as number | undefined,
-    setHpDiceTotal: (n: number) => { t.written = n; t.hpDiceTotal = n as never; },
+    splitHitPoints: (n: number) => { t.written = n; t.hpDiceTotal = n as never; t.hpMax = ''; },
     ...over,
   };
   return t as unknown as LegacyLinkTarget & { written?: number };
@@ -160,6 +167,7 @@ describe('Würfelsumme für Bestandscharaktere', () => {
     expect(fix?.kind).toBe('hitPoints');
     fix!.apply();
     expect(t.written).toBe(17);
+    expect(t.hpMax).toBe('');
     expect(hitPointsFix(t, libs())).toBeUndefined();
   });
 

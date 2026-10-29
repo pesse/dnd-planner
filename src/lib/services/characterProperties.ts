@@ -70,8 +70,11 @@ export function declaredSpeed(
     const feet = f.grants?.properties?.speedFeet ?? 0;
     if (feet > (best?.feet ?? 0)) best = { feet, labelDe: f.name };
   }
-  return best && { ...best, meters: String(ftToMVal(best.feet)).replace('.', ',') };
+  return best && { ...best, meters: speedMeters(best.feet) };
 }
+
+/** Wie `character.speed` sie führt: Meter mit Dezimalkomma. */
+export const speedMeters = (feet: number): string => String(ftToMVal(feet)).replace('.', ',');
 
 export const isEmptyCharacterProperties = (p: CharacterProperties | undefined): boolean =>
   !p || CHARACTER_PROPERTIES.every((name) => p[name] === undefined);

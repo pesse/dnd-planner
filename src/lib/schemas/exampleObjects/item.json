@@ -3,6 +3,7 @@
   "index": "string",
   "name": "string",
   "name_de": "string",
+  "artKey": "string",
   "equipment_category": {
     "index": "string",
     "name": "string"

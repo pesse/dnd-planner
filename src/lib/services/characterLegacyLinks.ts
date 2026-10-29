@@ -13,6 +13,7 @@ import { normName } from '$lib/utils/text';
 import { holdsPoundWeight, libraryWeightKg } from '$lib/utils/inventoryWeight';
 import { sign } from '$lib/utils/num';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
+import type { CombatAdjustments } from '$lib/schemas/combatAdjustment';
 import { addIndividualWeapon } from './weaponProficiency';
 import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from './hitPoints';
 import { poolPicks, type OptionPoolOffer } from './declaration/optionPool';
@@ -59,7 +60,9 @@ export interface LegacyLinkTarget {
   weaponCtx: WeaponAttackContext;
   hpMax: string;
   hpDiceTotal: number | undefined;
-  setHpDiceTotal: (total: number) => void;
+  combatAdjustments: CombatAdjustments;
+  /** Setzt die Würfelsumme UND leert `hpMax` — die Rechnung ergibt danach denselben Wert. */
+  splitHitPoints: (diceTotal: number) => void;
 }
 
 /** Was noch lädt, wird schlicht nicht angeboten. */
@@ -354,12 +357,12 @@ export function hitPointsFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
   if (!basis || target.hpDiceTotal !== undefined) return undefined;
   if (!target.classes.length || target.classes.some((c) => !c.sourceKey)) return undefined;
   if (!target.species.sourceKey && target.species.name.trim()) return undefined;
-  const total = hpDiceTotalOf({ hpMax: target.hpMax, hpDiceTotal: undefined }, basis);
+  const total = hpDiceTotalOf({ hpMax: target.hpMax, hpDiceTotal: undefined, combatAdjustments: target.combatAdjustments }, basis);
   if (total === null || !plausibleDiceTotal(total, basis)) return undefined;
   return {
     kind: 'hitPoints',
-    label: `Trefferpunkte aufschlüsseln: Würfelsumme ${total} aus dem TP-Maximum ${target.hpMax.trim()}`,
-    apply: () => target.setHpDiceTotal(total),
+    label: `TP-Maximum ${target.hpMax.trim()} in Würfelsumme ${total} und Rechnung aufschlüsseln`,
+    apply: () => target.splitHitPoints(total),
   };
 }
 

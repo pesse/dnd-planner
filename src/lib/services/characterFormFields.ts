@@ -18,6 +18,7 @@ import {
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import type { ResourceAdjustment } from '../schemas/resource';
+import { COMBAT_STATS, emptyCombatAdjustments, type CombatAdjustments } from '../schemas/combatAdjustment';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
 
 type InventoryLine = Character['inventory'][number];
@@ -43,6 +44,9 @@ export interface CharacterFormFields {
   /** null = aus der Stufe (`effectiveProficiencyBonus`). */
   proficiencyBonus: number | null;
   hitDice: string;
+  /** null = noch nie festgestellt (`hpDiceTotalOf`). */
+  hpDiceTotal: number | null;
+  combatAdjustments: CombatAdjustments;
   saveProfs: AbilityFlags;
   skillFlags: Record<string, SkillFlags>;
   attacks: Attack[];
@@ -153,6 +157,15 @@ const copyProficiencies = (p: ProficiencyFlags): ProficiencyFlags =>
 
 const copyAdjustment = (a: ResourceAdjustment): ResourceAdjustment => ({ ...a, target: { ...a.target } });
 
+const copyCombatAdjustments = (a: CombatAdjustments | undefined): CombatAdjustments => {
+  const out = emptyCombatAdjustments();
+  for (const stat of COMBAT_STATS) out[stat] = (a?.[stat] ?? []).map((x) => ({ ...x }));
+  return out;
+};
+
+const combatAdjustmentsForSave = (a: CombatAdjustments): CombatAdjustments | undefined =>
+  COMBAT_STATS.some((stat) => a[stat].length) ? copyCombatAdjustments(a) : undefined;
+
 export function initialFormFields(character: Character): CharacterFormFields {
   return {
     name: character.name ?? '',
@@ -174,6 +187,8 @@ export function initialFormFields(character: Character): CharacterFormFields {
     hpTemp: character.hpTemp ?? '',
     proficiencyBonus: character.proficiencyBonus ?? null,
     hitDice: character.hitDice ?? '',
+    hpDiceTotal: character.hpDiceTotal ?? null,
+    combatAdjustments: copyCombatAdjustments(character.combatAdjustments),
     saveProfs: { ...character.saveProfs },
     skillFlags: Object.fromEntries(SKILL_DEFS.map((s) => [s.key, {
       prof: character.skills[s.key]?.prof ?? false,
@@ -255,6 +270,8 @@ export function formDraftPatch(
     proficiencyBonus: f.proficiencyBonus ?? undefined,
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
+    hpDiceTotal: f.hpDiceTotal ?? undefined,
+    combatAdjustments: combatAdjustmentsForSave(f.combatAdjustments),
     saveProfs: { ...f.saveProfs },
     skills: computeSkills(f, effects, checks),
     attacks: f.attacks.filter((a) => a.name.trim() !== '').map((a) => attackForSave(a, ctx)),

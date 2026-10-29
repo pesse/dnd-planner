@@ -38,6 +38,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   values: [],
   cardItems: [],
   figure: null,
+  images: [],
   spellCards: '',
   itemCards: '',
   ...over,
@@ -217,7 +218,7 @@ describe('Sektionen des Charakterbogens', () => {
     const facts = new Map([['Umhang A', itemCardFacts({
       name: 'Umhang A', equipment_category: { index: 'armor', name: 'Armor' }, armor_class: { base: 11 }, desc_de: ['Schützt vor **Regen**.'],
     } as Item, true)]]);
-    const d = emptyData({ figure: { dollUrl: '', fills, art: new Map(), quips: new Map([['shoulders', 'Flattert dramatisch.']]), facts } });
+    const d = emptyData({ figure: { dollUrl: '', fills, art: new Set(), quips: new Map([['shoulders', 'Flattert dramatisch.']]), facts } });
 
     expect(ids(emptyData())).not.toContain('figure');
     expect(defaultSelection(sheetSections(d)).figure).toBe(false);

@@ -7,9 +7,7 @@ import { buildItemIndex, getAllItemsByDir, matchItem, type ItemInfo } from '$lib
 import { invoke } from '@tauri-apps/api/core';
 import type { Item } from '$lib/types';
 import { itemCardPages } from '$lib/utils/printItemCard';
-
-/** Der Klassenname, unter dem `css/cards.ts` das 3×3-Raster setzt. */
-const CARDS_PAGE_CLASS = 'cards';
+import { CARDS_PAGE_CLASS } from './css/cards';
 
 /** Die angehakten Zeilen mit Bibliothekseintrag, in Inventar-Reihenfolge und jede Karte einmal. */
 export async function cardItemInfos(c: Character): Promise<ItemInfo[]> {

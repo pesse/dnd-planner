@@ -8,7 +8,7 @@ import { acTip } from './characterSheetTips';
 import type { AbilityResolution } from './effectiveAbilities';
 import { idleItemsIn, wornItemsIn } from './wornItems';
 
-type AcInput = Pick<Character, 'ac' | 'inventory'>;
+type AcInput = Pick<Character, 'ac' | 'inventory' | 'combatAdjustments'>;
 
 export function createArmorClassTip(
   input: () => AcInput | null,
@@ -29,6 +29,7 @@ export function createArmorClassTip(
       idle: idleItemsIn(lib.itemIndex, c.inventory ?? []),
       features: owned,
       mods: abilityRecordOf((k) => mod(resolved[k].score)),
+      adjustments: c.combatAdjustments?.ac,
     });
   });
   const html = $derived(derivation ? acTip(derivation) : '');

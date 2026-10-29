@@ -19,7 +19,7 @@ export interface OriginArtKeys {
 }
 
 /** Das spezifischste zuerst, dann was im aktuellen Schritt im Vordergrund steht. */
-export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[] {
+export function originArtNames(kind: OriginKind, k: OriginArtKeys): string[] {
   const cls = k.classKey && `classes/${slugOf(k.classKey)}`;
   const bg = k.backgroundKey && `backgrounds/${slugOf(k.backgroundKey)}`;
   const combo = k.classKey && k.speciesKey && `combos/${slugOf(k.speciesKey)}-${slugOf(k.classKey)}`;
@@ -32,8 +32,11 @@ export function originArtCandidates(kind: OriginKind, k: OriginArtKeys): string[
     background: [figBg, bg, figSpc, combo],
     class: [figCls, combo, cls, figSpc],
   }[kind];
-  return order.filter((n): n is string => !!n).map(artUrl);
+  return order.filter((n): n is string => !!n);
 }
+
+export const originArtCandidates = (kind: OriginKind, k: OriginArtKeys): string[] =>
+  originArtNames(kind, k).map(artUrl);
 
 /** Frontale Figur fürs Ausrüstungsmodell, in derselben Pose für alle Völker; zuletzt die Gliederpuppe. */
 export const paperdollCandidates = (speciesKey: string, presentation: Presentation | undefined): string[] => [

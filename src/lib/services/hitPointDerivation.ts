@@ -2,11 +2,11 @@
  * Die Herleitung des TP-Maximums als Posten: Würfel, KON × Stufe, Boni je Stufe, feste Zuschläge. Daten, kein
  * Markup — Editor und Bogen zeigen dieselben Zeilen (`characterSheetTips.hpTip`).
  */
-import type { Character } from '../schemas/characterSchema';
+import type { CombatAdjustment } from '../schemas/combatAdjustment';
 import { mod } from '../domain/skills';
 import { sign } from '../utils/num';
 import type { AbilityResolution, AbilityStep } from './effectiveAbilities';
-import { hpDiceTotalOf, plausibleDiceTotal, type HpBasis } from './hitPoints';
+import { hpDiceTotalOf, knownDiceTotal, type HpBasis, type HpInput } from './hitPoints';
 import type { PerLevelSource } from './perLevelEffects';
 
 /** `notes` erklären den Posten darüber, je eine Zeile. */
@@ -27,6 +27,9 @@ export interface HpDerivation {
   notes: string[];
 }
 
+export const adjustmentRows = (list: readonly CombatAdjustment[] | undefined): DerivationRow[] =>
+  (list ?? []).map((a) => ({ labelDe: a.reason.trim() || 'Anpassung', value: a.amount, notes: [] }));
+
 /** Je Gegenstand, der das Attribut betrifft, eine Zeile. */
 export const abilityStepNotes = (abbrDe: string, r: AbilityResolution): string[] =>
   r.steps.map((s: AbilityStep) =>
@@ -40,7 +43,7 @@ const conNotes = (r: AbilityResolution): string[] => [
 ];
 
 export function hpDerivation(
-  c: Pick<Character, 'hpMax' | 'hpDiceTotal'>,
+  c: HpInput,
   basis: HpBasis,
   con: AbilityResolution,
   sources: readonly PerLevelSource[],
@@ -53,15 +56,16 @@ export function hpDerivation(
     ...sources.map((s) => s.perLevel
       ? { labelDe: `${s.feature} ${sign(s.amount)} × Stufe ${level}`, value: s.amount * level, notes: [] }
       : { labelDe: s.feature, value: s.amount, notes: [] }),
+    ...adjustmentRows(c.combatAdjustments?.hpMax),
   ];
 
-  const dice = hpDiceTotalOf(c, basis);
-  const diceKnown = dice !== null && (c.hpDiceTotal !== undefined || plausibleDiceTotal(dice, basis));
+  const dice = knownDiceTotal(c, basis);
   const notes: string[] = [];
-  if (stored === null && c.hpDiceTotal === undefined) notes.push('kein TP-Maximum eingetragen');
-  else if (!diceKnown && dice !== null) notes.push(`Würfelsumme ${dice} unmöglich (höchstens ${basis.maxDice ?? level * 12})`);
+  const guessed = hpDiceTotalOf(c, basis);
+  if (guessed === null) notes.push('keine Würfelsumme eingetragen');
+  else if (dice === null) notes.push(`Würfelsumme ${guessed} unmöglich (höchstens ${basis.maxDice ?? level * 12})`);
 
-  if (!diceKnown || dice === null) return { rows: bonusRows, diceKnown: false, total: null, stored, notes };
+  if (dice === null) return { rows: bonusRows, diceKnown: false, total: null, stored, notes };
   const diceRow: DerivationRow = {
     labelDe: 'Trefferwürfel',
     value: dice,
