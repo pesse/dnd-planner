@@ -197,6 +197,12 @@ export const featureGrantSchema = z.object({
     .max(19)
     .optional()
     .describe('Kleinster W20-Wurf, der bei Waffen- und waffenlosen Angriffen kritisch trifft (Verbesserter kritischer Treffer: 19).'),
+  attunementLimit: z
+    .number()
+    .int()
+    .min(4)
+    .optional()
+    .describe('Wie viele magische Gegenstände du zugleich eingestimmt haben darfst, statt drei (Magische Geräte benutzen: 4).'),
 });
 
 /**

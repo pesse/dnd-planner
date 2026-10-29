@@ -351,7 +351,8 @@
             "conditionDe": "string"
           }
         ],
-        "criticalHit": 2
+        "criticalHit": 2,
+        "attunementLimit": 4
       },
       "grantsChoice": [
         {
@@ -611,7 +612,8 @@
                     "conditionDe": "string"
                   }
                 ],
-                "criticalHit": 2
+                "criticalHit": 2,
+                "attunementLimit": 4
               },
               "prerequisite": {
                 "level": 1,

@@ -65,7 +65,6 @@ Kolossschlächter, Fürchterlicher Lauerjäger, Hinterhältiger Angriff), Wirkun
 | `rogue_soulknife_psychic-blades` | manifestierte Waffe als eigener Angriff |
 | `ranger_beast-master_primal-companion` | Begleiter-Werteblock |
 | `fighter_eldritch-knight_war-bond` | Schutz vor Entwaffnen, Waffe herbeirufen |
-| `srd-2024_rogue_thief_use-magic-device` | Einstimmungslimit 4 |
 | `cleric_war-domain_war-gods-blessing` | ohne Konzentration, 1 Minute |
 | `paladin_oath-of-the-ancients_undying-sentinel` | kein magisches Altern (reine Erzählung) |
 
@@ -99,7 +98,7 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 
 | Mechanik | Zauber | Was fehlt |
 |---|---|---|
-| zwei Schadensarten | Jallarzis Sturm des Lichtglanzes, Hunger Hadars, Zerstörerische Woge | `damage` hat eine Art |
+| zwei Schadensarten | Jallarzis Sturm des Lichtglanzes, Hunger Hadars, Zerstörerische Woge | `damage` hat eine Art. Ohne Folge für den Bogen: `damage` liest nur der Zauber-Editor, Bogen und Druck geben die Beschreibung wieder (Flammenschlag und Eissturm aus dem SRD genauso) |
 | Schadensart beim Wirken gewählt | Elementare Waffe | keine Senke |
 | bedingter Würfel (W8/W12) | Totenläuten | keine Senke |
 | Wirkung auf den Wirker | Quell des Mondlichts | keine Senke |

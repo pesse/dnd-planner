@@ -14,6 +14,7 @@
   import {
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
+  import { attunedCount, type AttunementLimit } from '../../services/wornItems';
   import { figureLinesIn, placeEquipment, slotsFor, type Placed } from '../../services/equipmentSlots';
   import { SLOT_LABEL_DE, type EquipmentSlot } from '../../schemas/equipmentSlot';
   import { lineWeightKg, totalWeightKg, formatKg, libraryWeightKg } from '../../utils/inventoryWeight';
@@ -31,7 +32,7 @@
 
   let {
     inventory, inventoryNotes = $bindable(), itemIndex, itemsByDir, attacks, attackCtx,
-    saved, fixLabel, onfix, dirOf,
+    attunement, saved, fixLabel, onfix, dirOf,
   }: {
     inventory: InventoryLine[];
     inventoryNotes: string;
@@ -39,6 +40,7 @@
     itemsByDir: Record<string, ItemInfo[]>;
     attacks: Attack[];
     attackCtx: WeaponAttackContext;
+    attunement: AttunementLimit;
     saved?: Character | null;
     fixLabel?: string;
     onfix: () => void;
@@ -51,6 +53,7 @@
   let editingRow = $state(-1);
 
   const totalWeight = $derived(totalWeightKg(inventory));
+  const attuned = $derived(attunedCount(inventory));
 
   /** Wo jede angelegte Zeile an der Figur sitzt, gewählt oder verteilt. */
   const placed = $derived(new Map(
@@ -290,7 +293,11 @@
       <tr class="inv-total-row">
         <td colspan="3">Gesamtlast</td>
         <td class="num"><strong>{totalWeight > 0 ? formatKg(totalWeight) + ' kg' : '—'}</strong></td>
-        <td colspan="4"></td>
+        <td colspan="2"></td>
+        <td class="num" class:inv-over={attuned > attunement.max}
+          title={`Eingestimmt: ${attuned} von höchstens ${attunement.max}${attunement.labelDe ? ` (${attunement.labelDe})` : ''}`}>
+          {attuned}/{attunement.max}</td>
+        <td></td>
       </tr>
     </tfoot>
   {/if}
@@ -316,3 +323,7 @@
 </label>
 
 <ItemTooltip item={tip.data} x={tip.x} y={tip.y} />
+
+<style>
+  .inv-over { color: var(--danger); font-weight: 600; }
+</style>

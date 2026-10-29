@@ -9,6 +9,7 @@
   } from '../services/characterLegacyLinks';
   import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
+  import { attunementLimit } from '../services/wornItems';
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { matchItem } from '../itemLibrary';
   import { abilityMods, attackContext, computeSkills } from '../services/characterFormFields';
@@ -414,6 +415,7 @@
             itemsByDir={libs.itemsByDir}
             attacks={form.attacks}
             attackCtx={weaponCtx}
+            attunement={attunementLimit(owned.current ?? [])}
             {saved}
             fixLabel={inventoryFix?.label}
             onfix={() => applyFix(inventoryFix)}

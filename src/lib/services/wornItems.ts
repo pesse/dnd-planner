@@ -3,6 +3,7 @@
  * Die eine Regel für jede Gegenstands-Mechanik (Vorräte, Attributswerte, …).
  */
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
+import type { FeatureGrant } from '$lib/schemas/grants';
 import { buildItemIndex, getAllItemsByDir, matchItem, type ItemIndex, type ItemInfo } from '$lib/itemLibrary';
 
 export interface WornItem {
@@ -65,6 +66,24 @@ export function equippedLinesIn(index: ItemIndex, inventory: CharacterInventoryE
     return item ? [{ line, entry, item, effective: lineState(entry, item) === 'worn' }] : [];
   });
 }
+
+export interface AttunementLimit {
+  max: number;
+  /** Merkmal, das die Grenze über drei hebt. */
+  labelDe?: string;
+}
+
+export function attunementLimit(features: readonly { name: string; grants?: FeatureGrant }[]): AttunementLimit {
+  let best: AttunementLimit = { max: 3 };
+  for (const f of features) {
+    const max = f.grants?.attunementLimit;
+    if (max !== undefined && max > best.max) best = { max, labelDe: f.name };
+  }
+  return best;
+}
+
+export const attunedCount = (inventory: readonly CharacterInventoryEntry[]): number =>
+  inventory.filter((e) => e.attuned).length;
 
 export async function wornItems(inventory: CharacterInventoryEntry[]): Promise<WornItem[]> {
   if (!inventory.some((e) => e.equipped)) return [];

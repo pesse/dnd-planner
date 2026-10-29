@@ -248,5 +248,6 @@
       "conditionDe": "string"
     }
   ],
-  "criticalHit": 2
+  "criticalHit": 2,
+  "attunementLimit": 4
 }
