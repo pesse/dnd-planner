@@ -27,6 +27,8 @@
 
   let open = $state<CombatStat | null>(null);
   const toggle = (stat: CombatStat) => { open = open === stat ? null : stat; };
+  const legacy = (stat: CombatStat): boolean =>
+    stat === 'proficiencyBonus' ? form.proficiencyBonus !== null : !!form[stat].trim();
 </script>
 
 {#snippet computed(stat: CombatStat, label: string, value: string, tipHtml: string)}
@@ -37,7 +39,7 @@
       [$state.snapshot(list), stat === 'hpMax' ? form.hpDiceTotal ?? undefined : undefined],
     )}>
     {label}
-    <span class="value" class:legacy={form[stat].trim()}>{value}</span>
+    <span class="value" class:legacy={legacy(stat)}>{value}</span>
     <button type="button" class="adj-toggle" class:active={list.length}
       title="Anpassungen: Zu- und Abschläge mit Anlass" onclick={() => toggle(stat)}>
       {list.length ? `${sign(adjustmentSum(list))}${stat === 'speed' ? ' ft' : ''}` : '±'}
@@ -59,11 +61,7 @@
   {@render computed('ac', 'RK', form.ac.trim() || orDash(fallbacks.ac), acTipHtml)}
   {@render computed('initiative', 'Initiative', form.initiative.trim() || fallbacks.initiative, tips.initiative)}
   {@render computed('speed', 'Bewegung', speed ? `${speed} m` : '—', tips.speed)}
-  <label class="stat" use:diffMark={dirOf(saved?.proficiencyBonus, form.proficiencyBonus)} class:has-tip={tips.proficiencyBonus}>Übungsbonus
-    <input type="number" bind:value={form.proficiencyBonus}
-      placeholder={String(fallbacks.proficiencyBonus)} min="2" max="6" />
-    {#if tips.proficiencyBonus}<span class="tip">{@html tips.proficiencyBonus}</span>{/if}
-  </label>
+  {@render computed('proficiencyBonus', 'Übungsbonus', sign(form.proficiencyBonus ?? fallbacks.proficiencyBonus), tips.proficiencyBonus)}
   {@render computed('hpMax', 'TP max', hpMax, hpTipHtml)}
   <label class="stat" use:diffMark={dirOf(saved?.hpCurrent, form.hpCurrent)} class:has-tip={tips.hpCurrent}>TP aktuell<input bind:value={form.hpCurrent} placeholder={hpMax} />
     {#if tips.hpCurrent}<span class="tip">{@html tips.hpCurrent}</span>{/if}

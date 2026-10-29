@@ -10,7 +10,7 @@ import type { OwnedGrantFeature } from './hitPoints';
 import { savingThrowDerivations, savingThrowSources, type SavingThrowDerivation } from './savingThrows';
 import { idleItemsIn, wornItemsIn } from './wornItems';
 
-type SaveInput = Pick<Character, 'saveProfs' | 'proficiencyBonus' | 'classes' | 'inventory'>;
+type SaveInput = Pick<Character, 'saveProfs' | 'proficiencyBonus' | 'combatAdjustments' | 'classes' | 'inventory'>;
 
 export function createSavingThrows(
   input: () => SaveInput | null,

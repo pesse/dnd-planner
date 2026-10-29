@@ -22,7 +22,7 @@
       als Anpassung oder leere das Feld — gespeichert wird über die Speicherleiste.
     </p>
     {#each overrides as o (o.stat)}
-      <div class="override" use:diffMark={dirOf(saved?.[o.stat], form[o.stat])}>
+      <div class="override" use:diffMark={dirOf(saved?.[o.stat], form[o.stat] ?? undefined)}>
         <span class="ov-text">
           <strong>{COMBAT_STAT_LABEL_DE[o.stat]}</strong>
           eingetragen {o.stored} · gerechnet {o.computed ?? '—'}

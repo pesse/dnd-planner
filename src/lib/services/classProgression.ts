@@ -3,6 +3,7 @@
  * Zwischenartefakt). Deterministisch ist nur, was v2 strukturiert führt — Rüstungs- und
  * Waffenübungen stehen dort als Prosa und bleiben deshalb der LLM-Schicht überlassen.
  */
+import { adjustmentSum, type CombatAdjustments } from '../schemas/combatAdjustment';
 import {
   classProgressionSchema,
   migrateClassLegacy,
@@ -77,8 +78,11 @@ export async function getProgressionByKey(key: string): Promise<ClassProgression
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);
 
 /** `null` ist das geleerte Formularfeld. */
-export const effectiveProficiencyBonus = (c: { proficiencyBonus?: number | null; classes: Character['classes'] }): number =>
-  c.proficiencyBonus ?? proficiencyBonus(totalLevel(c.classes));
+export const effectiveProficiencyBonus = (c: {
+  proficiencyBonus?: number | null;
+  classes: Character['classes'];
+  combatAdjustments?: Pick<CombatAdjustments, 'proficiencyBonus'>;
+}): number => c.proficiencyBonus ?? proficiencyBonus(totalLevel(c.classes)) + adjustmentSum(c.combatAdjustments?.proficiencyBonus);
 const clampLevel = (level: number): number => Math.min(20, Math.max(1, Math.floor(level)));
 
 export const levelColumns = (prog: ClassProgression, level: number): Record<string, string> =>

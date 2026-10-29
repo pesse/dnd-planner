@@ -1,5 +1,5 @@
 /**
- * Eingetragene Altwerte von RK, TP-Maximum, Initiative und Bewegungsrate gegen den gerechneten
+ * Eingetragene Altwerte der Kampfwerte gegen den gerechneten
  * Wert. Der Editor stellt je Wert um: als benannte Anpassung übernehmen oder das Feld leeren.
  */
 import { COMBAT_STATS, type CombatAdjustments, type CombatStat } from '../schemas/combatAdjustment';
@@ -15,6 +15,7 @@ export const COMBAT_STAT_LABEL_DE: Record<CombatStat, string> = {
   hpMax: 'TP-Maximum',
   initiative: 'Initiative',
   speed: 'Bewegungsrate',
+  proficiencyBonus: 'Übungsbonus',
 };
 
 export interface CombatOverride {
@@ -28,7 +29,18 @@ export interface CombatOverride {
   hints: string[];
 }
 
-export type OverrideTarget = Record<CombatStat, string> & { combatAdjustments: CombatAdjustments };
+type TextStat = Exclude<CombatStat, 'proficiencyBonus'>;
+
+export type OverrideTarget = Record<TextStat, string> & {
+  proficiencyBonus: number | null;
+  combatAdjustments: CombatAdjustments;
+};
+
+/** Der Übungsbonus ist eine Zahl, die anderen Altwerte sind Text. */
+export const storedCombatValues = (t: OverrideTarget): Record<CombatStat, string> => ({
+  ac: t.ac, hpMax: t.hpMax, initiative: t.initiative, speed: t.speed,
+  proficiencyBonus: t.proficiencyBonus === null ? '' : String(t.proficiencyBonus),
+});
 
 const leadInt = (raw: string): number | null => {
   const m = raw.replace('−', '-').match(/^[+-]?\s*\d+/);
@@ -58,6 +70,7 @@ function computedOf(stat: CombatStat, fb: CombatFallbacks): { shown: string; val
     case 'ac': return fb.ac === null ? null : { shown: String(fb.ac), value: fb.ac };
     case 'hpMax': return fb.hpMax === null ? null : { shown: String(fb.hpMax), value: fb.hpMax };
     case 'initiative': return { shown: fb.initiative, value: Number(fb.initiative) };
+    case 'proficiencyBonus': return { shown: sign(fb.proficiencyBonus), value: fb.proficiencyBonus };
     case 'speed': return fb.speedRows.length
       ? { shown: `${fb.speed} m`, value: fb.speedRows.reduce((n, r) => n + r.feet, 0) }
       : null;
@@ -109,9 +122,10 @@ export const deltaLabel = (o: CombatOverride): string =>
 /** Hält den eingetragenen Wert als Posten der Herleitung. */
 export function adoptOverride(target: OverrideTarget, o: CombatOverride): void {
   if (o.delta) target.combatAdjustments[o.stat].push({ amount: o.delta, reason: 'aus dem eingetragenen Wert' });
-  target[o.stat] = '';
+  clearOverride(target, o);
 }
 
 export function clearOverride(target: OverrideTarget, o: CombatOverride): void {
-  target[o.stat] = '';
+  if (o.stat === 'proficiencyBonus') target.proficiencyBonus = null;
+  else target[o.stat] = '';
 }

@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 
-export const COMBAT_STATS = ['ac', 'hpMax', 'initiative', 'speed'] as const;
+export const COMBAT_STATS = ['ac', 'hpMax', 'initiative', 'speed', 'proficiencyBonus'] as const;
 export type CombatStat = (typeof COMBAT_STATS)[number];
 
 export const combatAdjustmentSchema = z.object({
@@ -18,10 +18,11 @@ export const combatAdjustmentsSchema = z.object({
   hpMax: z.array(combatAdjustmentSchema).default([]),
   initiative: z.array(combatAdjustmentSchema).default([]),
   speed: z.array(combatAdjustmentSchema).default([]),
+  proficiencyBonus: z.array(combatAdjustmentSchema).default([]),
 });
 export type CombatAdjustments = z.infer<typeof combatAdjustmentsSchema>;
 
-export const emptyCombatAdjustments = (): CombatAdjustments => ({ ac: [], hpMax: [], initiative: [], speed: [] });
+export const emptyCombatAdjustments = (): CombatAdjustments => ({ ac: [], hpMax: [], initiative: [], speed: [], proficiencyBonus: [] });
 
 export const adjustmentSum = (list: readonly CombatAdjustment[] | undefined): number =>
   (list ?? []).reduce((n, a) => n + a.amount, 0);

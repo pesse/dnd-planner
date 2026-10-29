@@ -10,7 +10,7 @@ import type { FeatureGrant } from '../schemas/grants';
 import { mod } from '../domain/skills';
 import { armorClassDerivation, type ArmorClassFeature } from './armorClass';
 import { declaredSpeed, speedMeters } from './characterProperties';
-import { effectiveProficiencyBonus } from './classProgression';
+import { effectiveProficiencyBonus, proficiencyBonus } from './classProgression';
 import { sign } from '../utils/num';
 import { effectiveScores, loadWornAbilityEffects } from './effectiveAbilities';
 import { adjustmentRows } from './hitPointDerivation';
@@ -28,8 +28,10 @@ export interface CombatFallbacks {
   /** Das Merkmal, das die Bewegungsrate festlegt, dann die Anpassungen; leer ohne Deklaration. */
   speedRows: { labelDe: string; feet: number }[];
   level: number;
-  /** Aus der Stufe, unabhängig vom eingetragenen Wert. */
+  /** Aus der Stufe samt Anpassungen, unabhängig vom eingetragenen Wert. */
   proficiencyBonus: number;
+  /** Der Wert der Stufe, dann die Anpassungen. */
+  proficiencyBonusRows: { labelDe: string; value: number }[];
   /** Mit Vorzeichen, wie `character.initiative` ihn führt. */
   initiative: string;
   initiativeRows: { labelDe: string; value: number }[];
@@ -73,7 +75,8 @@ export function combatFallbacks(input: {
     speed: declared ? speedMeters(declared.feet + adjustmentSum(adj?.speed)) : '',
     speedRows,
     level,
-    proficiencyBonus: effectiveProficiencyBonus({ classes }),
+    proficiencyBonus: effectiveProficiencyBonus({ classes, combatAdjustments: adj }),
+    proficiencyBonusRows: [{ labelDe: `Stufe ${level}`, value: proficiencyBonus(level) }, ...adjustmentRows(adj?.proficiencyBonus)],
     initiative: sign(initiativeRows.reduce((n, r) => n + r.value, 0)),
     initiativeRows,
   };

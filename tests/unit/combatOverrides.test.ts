@@ -14,11 +14,11 @@ import { buildItemIndex, type ItemInfo } from '../../src/lib/itemLibrary';
 
 const FB: CombatFallbacks = {
   ac: 13, hpMax: 44, speed: '9', speedRows: [{ labelDe: 'Elf', feet: 30 }],
-  level: 5, proficiencyBonus: 3, initiative: '+2', initiativeRows: [],
+  level: 5, proficiencyBonus: 3, proficiencyBonusRows: [], initiative: '+2', initiativeRows: [],
 };
 
-const stored = (over: Partial<Record<'ac' | 'hpMax' | 'initiative' | 'speed', string>>) =>
-  ({ ac: '', hpMax: '', initiative: '', speed: '', ...over });
+const stored = (over: Partial<Record<'ac' | 'hpMax' | 'initiative' | 'speed' | 'proficiencyBonus', string>>) =>
+  ({ ac: '', hpMax: '', initiative: '', speed: '', proficiencyBonus: '', ...over });
 
 const overrides = (over: Parameters<typeof stored>[0], more: Partial<Parameters<typeof combatOverrides>[0]> = {}) =>
   combatOverrides({ stored: stored(over), fb: FB, hpDiceTotal: 30, acHints: [], ...more });
@@ -58,6 +58,10 @@ describe('combatOverrides', () => {
     expect(o.hints).toEqual(['kein verlinktes Volk mit Bewegungsrate']);
   });
 
+  it('stellt einen eingetragenen Übungsbonus gegen den der Stufe', () => {
+    expect(overrides({ proficiencyBonus: '4' })[0]).toMatchObject({ stat: 'proficiencyBonus', computed: '+3', delta: 1 });
+  });
+
   it('hängt die RK-Hinweise an die RK', () => {
     const list = overrides({ ac: '16', initiative: '+2' }, { acHints: ['nicht verlinkt: Lederrüstung'] });
     expect(list.find((o) => o.stat === 'ac')?.hints).toEqual(['nicht verlinkt: Lederrüstung']);
@@ -67,7 +71,7 @@ describe('combatOverrides', () => {
 
 describe('Umstellen', () => {
   const target = (over: Partial<OverrideTarget> = {}): OverrideTarget =>
-    ({ ...stored({ ac: '14', speed: '10,5' }), combatAdjustments: emptyCombatAdjustments(), ...over });
+    ({ ...stored({ ac: '14', speed: '10,5' }), proficiencyBonus: null, combatAdjustments: emptyCombatAdjustments(), ...over });
 
   it('übernimmt die Abweichung als Anpassung und leert das Feld', () => {
     const t = target();
@@ -75,6 +79,13 @@ describe('Umstellen', () => {
     expect([t.ac, t.speed]).toEqual(['', '']);
     expect(t.combatAdjustments.ac).toEqual([{ amount: 1, reason: 'aus dem eingetragenen Wert' }]);
     expect(t.combatAdjustments.speed).toEqual([{ amount: 5, reason: 'aus dem eingetragenen Wert' }]);
+  });
+
+  it('leert den Übungsbonus auf null, die Stufe gilt wieder', () => {
+    const t = target({ proficiencyBonus: 4 });
+    adoptOverride(t, overrides({ proficiencyBonus: '4' })[0]);
+    expect(t.proficiencyBonus).toBeNull();
+    expect(t.combatAdjustments.proficiencyBonus).toEqual([{ amount: 1, reason: 'aus dem eingetragenen Wert' }]);
   });
 
   it('legt bei gleichem Wert keine Null-Anpassung an', () => {

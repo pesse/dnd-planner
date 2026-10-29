@@ -21,7 +21,7 @@
   import { createCharacterAbilities } from '../services/characterAbilities.svelte';
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { combatFallbacks } from '../services/combatFallbacks';
-  import { armorClassHints, combatOverrides } from '../services/combatOverrides';
+  import { armorClassHints, combatOverrides, storedCombatValues } from '../services/combatOverrides';
   import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
@@ -208,7 +208,7 @@
   // Erst mit allen Bibliotheken: ein halb gerechneter Wert böte die falsche Abweichung an.
   const overrides = $derived(libs.itemsLoaded && owned.current && hpBasis.current
     ? combatOverrides({
-      stored: { ac: form.ac, hpMax: form.hpMax, initiative: form.initiative, speed: form.speed },
+      stored: storedCombatValues(form),
       fb: fallbacks,
       hpDiceTotal: form.hpDiceTotal ?? undefined,
       acHints: armorClassHints(libs.itemIndex, form.inventory),

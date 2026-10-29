@@ -71,7 +71,8 @@ export function combatTips(
         + divider() + total(`${fb.speed} m`, 'Bewegung')
         + (speed && speed !== fb.speed ? steps([`eingetragen ${esc(speed)} m`]) : '')
       : '',
-    proficiencyBonus: row('Gesamtstufe', String(fb.level)) + divider() + total(fb.proficiencyBonus, 'Übungsbonus')
+    proficiencyBonus: fb.proficiencyBonusRows.map((r, i) => row(esc(r.labelDe), i === 0 ? sign(r.value) : r.value)).join('')
+      + divider() + total(sign(fb.proficiencyBonus), 'Übungsbonus')
       + (pb != null && pb !== fb.proficiencyBonus ? steps([`eingetragen ${sign(pb)}`]) : ''),
     hpCurrent: c.hpCurrent.trim() || !hpMax
       ? ''

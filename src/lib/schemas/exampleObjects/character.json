@@ -75,6 +75,12 @@
         "amount": -9007199254740991,
         "reason": "string"
       }
+    ],
+    "proficiencyBonus": [
+      {
+        "amount": -9007199254740991,
+        "reason": "string"
+      }
     ]
   },
   "saveProfs": {
