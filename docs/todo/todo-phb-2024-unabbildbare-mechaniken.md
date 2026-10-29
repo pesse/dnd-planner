@@ -52,9 +52,8 @@ Bemerkenswerter Athlet, Fürchterlicher Lauerjäger), der erweiterte Bereich fü
 in `grants.criticalHit`, Zuschläge und Vorteil auf Fertigkeitswürfe in `grants.checks`. Zusätzliche
 Schadenswürfel stehen als `grants.attack` der Art `dice` unter der Angriffstabelle (Schreckliche
 Schläge, Gleißende Schläge, Göttlicher Schlag, Urschlag, Brutaler Hieb, Mondgestalt,
-Kolossschlächter, Fürchterlicher Lauerjäger), Wirkungen ohne Zahl als Art `note` (Schlagende Wurzeln
-mit Filter auf Schwer/Vielseitig, Elementare Einstimmung). Offen: der Würfel des Hinterhältigen Angriffs steht in
-der Klassentabelle, `dice` liest keine Spalte.
+Kolossschlächter, Fürchterlicher Lauerjäger, Hinterhältiger Angriff), Wirkungen ohne Zahl als Art
+`note` (Schlagende Wurzeln mit Filter auf Schwer/Vielseitig, Elementare Einstimmung).
 
 | Merkmal | Mechanik |
 |---|---|

@@ -21,6 +21,12 @@ describe('Zusatzwürfel aus dem Vault', () => {
     expect(await footnotes(ranger(11))).toContainEqual(expect.stringContaining('+1W6 Psychischer Schaden'));
   });
 
+  it('Hinterhältiger Angriff folgt der Spalte der Schurkentabelle', async () => {
+    const rogue = (level: number) => ({ classes: [{ sourceKey: 'srd-2024_rogue', name: 'Schurke', level }] });
+    expect(await footnotes(rogue(1))).toContainEqual(expect.stringMatching(/^Hinterhältiger Angriff \+1W6: einmal pro Zug/));
+    expect(await footnotes(rogue(20))).toContainEqual(expect.stringMatching(/^Hinterhältiger Angriff \+10W6: /));
+  });
+
   it('Göttlicher Schlag steht nur bei gewählter Option', async () => {
     const cleric = (choice: string, choiceDe: string) => ({
       classes: [{ sourceKey: 'srd-2024_cleric', name: 'Kleriker', level: 14 }],
