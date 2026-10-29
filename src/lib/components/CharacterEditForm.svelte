@@ -145,6 +145,7 @@
 
   const masteryInput = $derived.by(() => ({
     classes: form.classes.map((c) => ({ sourceKey: c.sourceKey, name: c.name, level: c.level })),
+    features: character.features.map((f) => ({ sourceKey: f.sourceKey })),
     proficiencies: {
       simpleWeapons: form.proficiencies.simpleWeapons,
       martialWeapons: form.proficiencies.martialWeapons,

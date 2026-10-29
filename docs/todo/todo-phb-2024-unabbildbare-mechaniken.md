@@ -92,7 +92,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `inspiring-leader` | temporäre TP | keine Senke |
 | `chef` | Leckerbissen, eine Stunde Zubereitung | keine Senke |
 | `durable` | Vorteil auf Todesrettungswürfe | `savingThrow`-Vorteil kennt keinen Todesrettungswurf |
-| `weapon-master` | Beherrschung einer Waffe, je Lange Rast tauschbar | Waffenbeherrschung nur aus Klassenmerkmalen |
 | `shield-master`, `speedy`, `spell-sniper` | Wirkung auf Gegner bzw. Zauberangriffe | keine Senke |
 
 ## Hintergründe und Völker

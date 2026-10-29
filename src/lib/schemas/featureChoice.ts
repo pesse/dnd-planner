@@ -15,7 +15,8 @@ import { whenSchema } from './when';
  * Die Optionen einer deklarierten Wahl löst der Flow aus der Bibliothek auf, NIE aus der KI —
  * sie könnte hier nur einen erfundenen Kampfstil liefern. Deklarativ statt am Merkmalsnamen,
  * damit Homebrew dieselbe Wahl ohne Code-Änderung gewährt. Was die Feldnamen nicht sagen:
- *   - `weaponMastery`/`spellcasting` IGNORIEREN `count` — Kontingent aus der Stufentabelle.
+ *   - `weaponMastery` am Klassenmerkmal und `spellcasting` IGNORIEREN `count` — Kontingent aus
+ *     der Stufentabelle. Am Talent zählt `count` (Waffenmeister).
  *   - `expertise` und `skillProficiency` sind die zwei `kind`s, deren Optionen nicht im Vault
  *     stehen KÖNNEN: sie hängen am Übungsstand — Expertise wählt aus den geübten Fertigkeiten,
  *     `skillProficiency` aus den nicht geübten. Deklariert wird die Anzahl, plus `skills`, wo
@@ -131,7 +132,7 @@ export const featureChoiceGrantSchema = z.object({
     .int()
     .min(1)
     .default(1)
-    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen; bei kind="toolProficiency": wie viele Werkzeuge; bei kind="abilityIncrease": wie viele VERSCHIEDENE Attribute je 1 Punkt steigen; bei kind="optionPool": wie viele JE Vergabe-Stufe, das Kontingent summiert über alle erreichten). Bei kind="weaponMastery" ignoriert (Kontingent aus der Stufentabelle).'),
+    .describe('Wie viele Optionen dieses Merkmal gewährt (bei kind="expertise": wie viele Fertigkeiten Expertise erhalten; bei kind="skillProficiency": wie viele Übungen; bei kind="languages": wie viele Sprachen; bei kind="toolProficiency": wie viele Werkzeuge; bei kind="abilityIncrease": wie viele VERSCHIEDENE Attribute je 1 Punkt steigen; bei kind="optionPool": wie viele JE Vergabe-Stufe, das Kontingent summiert über alle erreichten). Bei kind="weaponMastery" nur am Talent gezählt, am Klassenmerkmal kommt das Kontingent aus der Stufentabelle.'),
   // kind="optionPool": die Spalte SCHLÄGT `gainedAt` × `count`, weil sie die Zahl direkt führt —
   // die Anrufungen des Hexenmeisters kommen alle von EINER Vergabe-Stufe und wären sonst 1.
   column: z

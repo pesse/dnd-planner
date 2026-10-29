@@ -9,6 +9,7 @@ import { columnValue, featuresUpTo, getProgressionByKey } from './classProgressi
 import { choiceGrants } from './declaration/source';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import { getItemsByDir, displayName, type ItemInfo } from '$lib/itemLibrary';
+import { getFeats } from '$lib/featsLibrary';
 
 /** Name der Tabellenspalte in Open5e v2 (Barbar/Kämpfer haben sie, die übrigen drei nicht). */
 const MASTERY_COLUMN = 'Weapon Mastery';
@@ -64,6 +65,7 @@ export const masteryName = (item: ItemInfo): string => displayName(item);
 /** Ein `Character` erfüllt das strukturell (wie bei `GrantInput`). */
 export interface MasteryInput {
   classes?: { sourceKey?: string; name?: string; level?: number }[];
+  features?: { sourceKey?: string }[];
   proficiencies?: WeaponProficiencies;
 }
 
@@ -77,6 +79,16 @@ export interface MasteryOffer {
 
 const emptyOffer = (): MasteryOffer => ({ allowance: 0, className: '', meleeOnly: false, weapons: [] });
 
+/** Am Talent zählt `count` — dort gibt es keine Stufentabelle (Waffenmeister). */
+async function featAllowance(features: MasteryInput['features']): Promise<number> {
+  const keys = new Set((features ?? []).map((f) => f.sourceKey).filter(Boolean));
+  if (!keys.size) return 0;
+  return (await getFeats())
+    .filter((f) => keys.has(f.sourceKey))
+    .flatMap((f) => choiceGrants(f).filter((g) => g.kind === 'weaponMastery'))
+    .reduce((n, g) => n + g.count, 0);
+}
+
 /**
  * **Nur `classes[0]` zählt** — bei Klassenkombination wird Waffenbeherrschung nicht erneut
  * gewährt. Gefiltert wird über die ÜBUNGEN des Charakters (`isProficientWithWeapon`), nicht
@@ -85,16 +97,16 @@ const emptyOffer = (): MasteryOffer => ({ allowance: 0, className: '', meleeOnly
  */
 export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
   const first = input.classes?.[0];
-  if (!first?.sourceKey) return emptyOffer();
-
-  const prog = await getProgressionByKey(first.sourceKey);
-  if (!prog) return emptyOffer();
-
-  const level = Math.min(20, Math.max(1, first.level ?? 1));
-  const allowance = masteryAllowanceFor(prog, level);
+  const prog = first?.sourceKey ? await getProgressionByKey(first.sourceKey) : undefined;
+  const level = Math.min(20, Math.max(1, first?.level ?? 1));
+  const fromClass = prog ? masteryAllowanceFor(prog, level) : 0;
+  const fromFeats = await featAllowance(input.features);
+  const allowance = fromClass + fromFeats;
   if (allowance <= 0) return emptyOffer();
 
-  const meleeOnly = isMeleeOnly(masteryFeatureUpTo(prog, level));
+  // Die Liste gilt für alle Plätze: die Barbaren-Schranke fiele sonst auch auf den
+  // Talent-Platz, und der darf jede geübte Waffe.
+  const meleeOnly = fromFeats === 0 && isMeleeOnly(prog ? masteryFeatureUpTo(prog, level) : undefined);
 
   const all = await getItemsByDir('weapon');
   const byName = (n: string): ItemInfo | undefined => {
@@ -115,7 +127,7 @@ export async function masteryOffer(input: MasteryInput): Promise<MasteryOffer> {
 
   return {
     allowance,
-    className: first.name?.trim() || prog.nameDe || prog.name,
+    className: first?.name?.trim() || prog?.nameDe || prog?.name || '',
     meleeOnly,
     weapons,
   };
