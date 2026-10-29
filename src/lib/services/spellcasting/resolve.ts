@@ -2,6 +2,7 @@
  * Die Zauber-Deklarationen aus dem gemeinsamen Träger-Durchlauf (`declaration/carriers.ts`)
  * → `CastingSource[]`; Deklarationsfehler des Vaults kommen als `issues` zurück.
  */
+import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import { resolveClass } from '$lib/spellLibrary';
 import type { AbilityBinding, CastingGrant, QuotaPatch, QuotaRef } from '$lib/schemas/casting';
 import {
@@ -13,11 +14,14 @@ import {
   type DeclaringCharacter,
   type SourceAnswers,
 } from '../declaration/carriers';
+import { itemCarriers } from '../declaration/itemCarriers';
 import { pickAnswer } from '../declaration/ledgerAnswers';
 import { branchOf, branchValues } from '../declaration/branch';
 import { castingIssue, type CastingIssue, type CastingOrigin, type CastingSource, type Quota } from './source';
 
-export type CastingCharacter = DeclaringCharacter;
+export interface CastingCharacter extends DeclaringCharacter {
+  inventory?: CharacterInventoryEntry[];
+}
 
 export interface CastingResolution {
   /** Quellen ohne eigene Quota fehlen hier: sie wirken allein über `patches`. */
@@ -195,7 +199,7 @@ export async function resolveCasting(c: CastingCharacter): Promise<CastingResolu
   const sources: CastingSource[] = [];
   const patches: { featureKey: string; patch: QuotaPatch }[] = [];
 
-  for (const carrier of walk.carriers) {
+  for (const carrier of [...walk.carriers, ...(await itemCarriers(c.inventory ?? []))]) {
     if (!carrier.grantsCasting) continue;
     sources.push(toSource(carrier, carrier.grantsCasting));
     for (const patch of carrier.grantsCasting.patches) patches.push({ featureKey: carrier.key, patch });

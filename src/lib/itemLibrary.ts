@@ -9,6 +9,7 @@ import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 import type { EquipmentChoiceCategory } from './schemas/startingEquipment';
 import { itemKeyOf, itemSchema } from './schemas/item';
+import { castingGrantSchema, type CastingGrant } from './schemas/casting';
 import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
 import { scanJsonFolder } from './services/library/createLibrary';
@@ -40,10 +41,12 @@ export interface ItemInfo {
   magic_bonus?: Item['magic_bonus'];
   attunement?: boolean;
   grantsResource?: ResourceGrant;
+  grantsCasting?: CastingGrant;
   abilityEffects?: Item['abilityEffects'];
   armorClassEffects?: Item['armorClassEffects'];
   attackEffects?: Item['attackEffects'];
   savingThrowEffects?: Item['savingThrowEffects'];
+  resistanceChoice?: Item['resistanceChoice'];
   armor_category?: Item['armor_category'];
   slot?: Item['slot'];
   armor_class?: Item['armor_class'];
@@ -191,10 +194,12 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         magic_bonus: data.magic_bonus,
         attunement: data.attunement === true,
         grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
+        grantsCasting: castingGrantSchema.safeParse(data.grantsCasting).data,
         abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
         armorClassEffects: itemSchema.shape.armorClassEffects.safeParse(data.armorClassEffects).data,
         attackEffects: itemSchema.shape.attackEffects.safeParse(data.attackEffects).data,
         savingThrowEffects: itemSchema.shape.savingThrowEffects.safeParse(data.savingThrowEffects).data,
+        resistanceChoice: itemSchema.shape.resistanceChoice.safeParse(data.resistanceChoice).data,
         armor_category: data.armor_category,
         slot: itemSchema.shape.slot.safeParse(data.slot).data,
         armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,

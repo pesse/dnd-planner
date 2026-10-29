@@ -47,11 +47,14 @@ function icon(f: PrintFigure, p: Placed): string {
   return `<span class="fig-icon${p.effective ? '' : ' idle'}">${inner}</span>`;
 }
 
-/** Nur magische Stücke mit Beschreibung — beim Langschwert stünde bloß „Ein Langschwert.". */
+/**
+ * Nur magische Stücke mit Beschreibung — beim Langschwert stünde bloß „Ein Langschwert.". Ein
+ * gepinntes Stück (`printCard`) bekommt seine Karte, hier stünde der Text doppelt.
+ */
 function itemEntry(f: PrintFigure, p: Placed): string {
   const inside = p.contents?.length ? ` (${p.contents.map((c) => displayName(c.item)).join(', ')})` : '';
   const facts = f.facts.get(p.item.path);
-  const desc = p.item.magic && facts?.description ? `<div class="fig-desc md">${renderMarkdown(facts.description)}</div>` : '';
+  const desc = p.item.magic && !p.entry.printCard && facts?.description ? `<div class="fig-desc md">${renderMarkdown(facts.description)}</div>` : '';
   return `<div class="fig-item"><b>${esc(displayName(p.item) + inside)}</b>${desc}</div>`;
 }
 

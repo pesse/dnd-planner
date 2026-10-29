@@ -224,10 +224,11 @@ export function createLevelUpRun(ctx: { character: Character }) {
 
   // Während eines Laufs der zuletzt ABGESCHLOSSENE Schritt — so erscheinen fertige
   // Teilschritte im Dokument, ohne Vorgriff auf den noch laufenden.
-  // An der Subklassenwahl zeigt die getroffene Wahl ihre Merkmale schon vor „Weiter".
+  // An Subklassenwahl und Entscheidungen wirkt die getroffene Wahl schon vor „Weiter".
   const viewStep = $derived<StepId>(
     st.run.kind === 'running' ? st.reachedStep
     : isPausedAt(st.run, 'subclass-choice') && st.chosenSubclass ? 'subclass-delta'
+    : isPausedAt(st.run, 'player-decisions') ? 'assemble-decisions'
     : stepOf(st.run),
   );
   const doc = $derived.by<LevelUpDoc>(() => {

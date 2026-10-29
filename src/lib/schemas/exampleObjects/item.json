@@ -88,6 +88,170 @@
       }
     ]
   },
+  "grantsCasting": {
+    "ability": {
+      "fixed": "Strength",
+      "choose": [
+        "Strength"
+      ],
+      "sameAs": "string",
+      "fromIncrease": false
+    },
+    "quotas": [
+      {
+        "id": "string",
+        "since": 1,
+        "when": {
+          "<key>": "string"
+        },
+        "tier": "prepared",
+        "levels": [
+          0
+        ],
+        "count": {
+          "column": "string"
+        },
+        "pool": {
+          "lists": [
+            "string"
+          ],
+          "listMode": "union",
+          "schools": [
+            "abjuration"
+          ],
+          "ritual": false,
+          "from": {
+            "feature": "string",
+            "quota": "string"
+          },
+          "names": [
+            "string"
+          ],
+          "fromDescTable": false,
+          "descTable": "string"
+        },
+        "into": {
+          "feature": "string",
+          "quota": "string"
+        },
+        "swap": {
+          "spells": "none",
+          "cantrips": "none"
+        },
+        "cast": [
+          {
+            "kind": "slots",
+            "pool": "standard"
+          },
+          {
+            "kind": "uses",
+            "per": "long-rest",
+            "count": {
+              "column": "string"
+            }
+          },
+          {
+            "kind": "at-will"
+          },
+          {
+            "kind": "resource",
+            "resource": {
+              "feature": "string",
+              "pool": "string",
+              "shared": "string"
+            },
+            "amount": 1,
+            "labelDe": "string"
+          },
+          {
+            "kind": "ritual",
+            "requiresPrepared": false
+          }
+        ]
+      }
+    ],
+    "patches": [
+      {
+        "feature": "string",
+        "quota": "string",
+        "set": {
+          "id": "string",
+          "since": 1,
+          "when": {
+            "<key>": "string"
+          },
+          "tier": "known",
+          "levels": [
+            0
+          ],
+          "count": {
+            "column": "string"
+          },
+          "pool": {
+            "lists": [
+              "string"
+            ],
+            "listMode": "union",
+            "schools": [
+              "abjuration"
+            ],
+            "ritual": false,
+            "from": {
+              "feature": "string",
+              "quota": "string"
+            },
+            "names": [
+              "string"
+            ],
+            "fromDescTable": false,
+            "descTable": "string"
+          },
+          "into": {
+            "feature": "string",
+            "quota": "string"
+          },
+          "swap": {
+            "spells": "none",
+            "cantrips": "none"
+          },
+          "cast": [
+            {
+              "kind": "slots",
+              "pool": "standard"
+            },
+            {
+              "kind": "uses",
+              "per": "long-rest",
+              "count": {
+                "column": "string"
+              }
+            },
+            {
+              "kind": "at-will"
+            },
+            {
+              "kind": "resource",
+              "resource": {
+                "feature": "string",
+                "pool": "string",
+                "shared": "string"
+              },
+              "amount": 1,
+              "labelDe": "string"
+            },
+            {
+              "kind": "ritual",
+              "requiresPrepared": false
+            }
+          ]
+        }
+      }
+    ],
+    "swap": {
+      "spells": "none",
+      "cantrips": "none"
+    }
+  },
   "abilityEffects": [
     {
       "kind": "set",
@@ -217,6 +381,9 @@
       "condition": "string",
       "conditionDe": "string"
     }
+  ],
+  "resistanceChoice": [
+    "acid"
   ],
   "slot": "head",
   "attunement_by": "string",

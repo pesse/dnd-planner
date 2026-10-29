@@ -6,11 +6,10 @@
 import type { AbilityBinding, Quota, SwapRule } from '$lib/schemas/casting';
 export type { AbilityBinding, CastOption, Quota, SpellPool, SwapRule } from '$lib/schemas/casting';
 import type { DeclarationIssue } from '../declaration/carriers';
-import { declarationIssue, originCountsClassLevel } from '../declaration/carriers';
-import type { FeatureSource } from '../declaredFeature';
+import { declarationIssue, originCountsClassLevel, type CarrierOrigin } from '../declaration/carriers';
 
-/** Bestimmt die Bezugsstufe und später die Bogen-Zeile; deckungsgleich mit `FeatureSource`. */
-export type CastingOrigin = FeatureSource;
+/** Bestimmt die Bezugsstufe und später die Bogen-Zeile. */
+export type CastingOrigin = CarrierOrigin;
 
 export { originCountsClassLevel };
 

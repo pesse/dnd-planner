@@ -1,9 +1,11 @@
-/** Resistenzen und Immunitäten eines Charakters, aus den `grants.defenses` seiner Merkmale. */
+/** Resistenzen und Immunitäten eines Charakters: `grants.defenses` seiner Merkmale und gewählte Resistenzen angelegter Gegenstände. */
 import type { DefenseEffect } from '../schemas/defense';
 import type { FeatureGrant } from '../schemas/grants';
 import { CONDITIONS } from '../schemas/vocabulary';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
+import { displayName } from '../itemLibrary';
 import { featureIdOf } from '../utils/text';
+import type { WornItem } from './wornItems';
 
 export interface DefenseFeature {
   key?: string;
@@ -18,7 +20,11 @@ export interface CharacterDefense {
   textDe: string;
 }
 
-export function characterDefenses(features: readonly DefenseFeature[], profBonus: number): CharacterDefense[] {
+export function characterDefenses(
+  features: readonly DefenseFeature[],
+  profBonus: number,
+  worn: readonly WornItem[] = [],
+): CharacterDefense[] {
   const seen = new Set<string>();
   const out: CharacterDefense[] = [];
   for (const f of features) {
@@ -27,7 +33,17 @@ export function characterDefenses(features: readonly DefenseFeature[], profBonus
     seen.add(id);
     out.push(...(f.grants?.defenses ?? []).map((effect) => ({ labelDe: f.name, effect, textDe: defenseTextDe(effect, profBonus) })));
   }
-  return out;
+  return [...out, ...worn.flatMap(itemDefense)];
+}
+
+const NO_DEFENSE: DefenseEffect = { resistances: [], immunities: [], conditionImmunities: [] };
+
+function itemDefense({ item, resistance }: WornItem): CharacterDefense[] {
+  if (!item.resistanceChoice?.length) return [];
+  const labelDe = displayName(item);
+  if (!resistance) return [{ labelDe, effect: NO_DEFENSE, textDe: 'Resistenz noch nicht gewählt' }];
+  const effect = { ...NO_DEFENSE, resistances: [resistance] };
+  return [{ labelDe, effect, textDe: defenseTextDe(effect, 0) }];
 }
 
 /** „Resistenz gegen Giftschaden; immun gegen den Zustand Vergiftet" — Bogen und Druck zeigen dieselbe Zeile. */

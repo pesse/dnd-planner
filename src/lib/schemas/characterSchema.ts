@@ -7,6 +7,7 @@ import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './ab
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 import { CHARACTER_VERSION } from './characterUpgrades';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
+import { DAMAGE_TYPES } from './vocabulary';
 import { resourceAdjustmentSchema } from './resource';
 import { combatAdjustmentsSchema } from './combatAdjustment';
 
@@ -275,6 +276,8 @@ export const characterSchema = z.object({
           .describe('Gewählter Platz an der Figur; fehlt er, verteilt `placeEquipment`.'),
         printCard: z.boolean().optional()
           .describe('true = Volltext-Karte des Bibliothekseintrags kommt auf den Ausdruck.'),
+        resistance: z.enum(DAMAGE_TYPES).optional()
+          .describe('Gewählte Resistenz eines Gegenstands mit `resistanceChoice`.'),
       }),
     )
     .default([]),

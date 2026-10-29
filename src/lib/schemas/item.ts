@@ -10,9 +10,10 @@ import { savingThrowEffectSchema } from './savingThrow';
 import { attackEffectSchema } from './attackEffect';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
+import { castingGrantSchema } from './casting';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
-import { WEAPON_MASTERIES } from './vocabulary';
+import { DAMAGE_TYPES, WEAPON_MASTERIES } from './vocabulary';
 
 const damageSchema = z.object({
   damage_dice: z.string().describe('z.B. "1d8".'),
@@ -68,6 +69,9 @@ export const itemSchema = z.object({
   grantsResource: resourceGrantSchema
     .optional()
     .describe('Eigene Ladungen des Gegenstands und Zuschläge auf fremde Vorräte.'),
+  grantsCasting: castingGrantSchema
+    .optional()
+    .describe('Zauber, die aus dem Gegenstand gewirkt werden — meist `cast: resource` auf die eigenen Ladungen.'),
   abilityEffects: z
     .array(abilityEffectSchema)
     .optional()
@@ -84,6 +88,11 @@ export const itemSchema = z.object({
     .array(savingThrowEffectSchema)
     .optional()
     .describe('Wirkung auf Rettungswürfe (Mantel des Schutzes +1), solange der Gegenstand wirkt.'),
+  resistanceChoice: z
+    .array(z.enum(DAMAGE_TYPES))
+    .min(1)
+    .optional()
+    .describe('Schadensarten, aus denen der Träger EINE Resistenz wählt (Rüstung der Resistenz); gewählt wird an der Inventarzeile.'),
   slot: z
     .enum(EQUIPMENT_SLOTS)
     .optional()
