@@ -2,7 +2,7 @@
 # job.sh <serie> <W> <N> — Worker W von N malt Pakete offener Motive, bis alles da ist, RUNS Pakete gemalt sind, das Kontingent LIMIT erreicht oder icons/out/<serie>/STOP existiert
 set -u
 I=$(cd "$(dirname "$0")" && pwd); SH=$I/../sharp
-cd /mnt/c/dev/privat/dnd-planner
+cd "$I/../../.."
 serie=$1 W=$2 N=$3 BATCH=${BATCH:-10} LIMIT=${LIMIT:-44} RUNS=${RUNS:-999}
 dir=design/art/$serie-w$W main=design/art/$serie run=$I/out/$serie log=$I/out/$serie/run.log
 mkdir -p $dir $main $run
