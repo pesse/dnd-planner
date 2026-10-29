@@ -59,7 +59,7 @@ Kolossschlächter, Fürchterlicher Lauerjäger, Hinterhältiger Angriff), Wirkun
 |---|---|
 | `srd-2024_fighter_champion_survivor` | 18–20 zählt als 20, Regeneration (Vorteil auf Todesrettungswürfe ist deklariert) |
 | `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
-| `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt — eine Frage abhängig vom Übungsstand kennt keine Deklaration; betrifft nur Waldläufer mit Belastbar (WEI) |
+| `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt — eine Frage abhängig vom Übungsstand kennt keine Deklaration; betrifft Belastbar (WEI) und Klassenkombinationen mit WEI-Rettungswürfen aus der ersten Klasse (#78) |
 | `bard_college-of-dance_dazzling-footwork` | waffenlose Angriffe mit GES + BI-Würfel (Vorteil auf Auftreten ist deklariert) |
 | `monk_way-of-shadow_cloak-of-shadows` | unsichtbar, durch Kreaturen bewegen (aktiv) |
 | `rogue_soulknife_psychic-blades` | manifestierte Waffe als eigener Angriff |
