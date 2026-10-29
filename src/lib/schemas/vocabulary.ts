@@ -193,7 +193,7 @@ export const MONSTER_ALIGNMENTS = {
   'lawful evil':              'Rechtschaffen Böse',
   'neutral evil':             'Neutral Böse',
   'chaotic evil':             'Chaotisch Böse',
-  'unaligned':                'Unausgerichtet',
+  'unaligned':                'Gesinnungslos',
   'any alignment':            'Beliebige Gesinnung',
   'any good alignment':       'Beliebige gute Gesinnung',
   'any evil alignment':       'Beliebige böse Gesinnung',
