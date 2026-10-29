@@ -12,15 +12,14 @@ import { branchMatch, branchOf, branchValues, type BranchState } from '../declar
 import {
   declarationIssue,
   walkCarriers,
-  NO_ANSWERS,
   type Carrier,
   type CarrierClass,
   type CarrierIssueKind,
+  type CarrierOrigin,
   type DeclarationIssue,
   type DeclaringCharacter,
 } from '../declaration/carriers';
-import type { FeatureSource } from '../declaredFeature';
-import { wornItems } from '../wornItems';
+import { itemCarriers } from '../declaration/itemCarriers';
 import { levelStep, resolveAmount, type AmountContext } from './amount';
 import { combineSlots, NINE, SLOT_POOL, type SlotFeeder } from './slots';
 
@@ -34,7 +33,7 @@ export type ResourceIssueKind =
 export type ResourceIssue = DeclarationIssue<ResourceIssueKind>;
 
 /** Gegenstand und Handeintrag sind Träger wie ein Merkmal — nur schreibt keiner eine Bogen-Notiz. */
-export type ResourceOrigin = FeatureSource | 'item' | 'manual';
+export type ResourceOrigin = CarrierOrigin | 'manual';
 
 interface ResourceCarrier extends Omit<Carrier, 'origin'> {
   origin: ResourceOrigin;
@@ -279,25 +278,6 @@ function reportCastResources(carriers: ResourceCarrier[], pools: ResolvedResourc
         issues.push(declarationIssue('undeclaredCastResource', carrier.key, detail));
       }
   }
-}
-
-/** Ein wirkender Gegenstand (`wornItems`) ist ein Träger wie ein Merkmal. */
-async function itemCarriers(inventory: CharacterInventoryEntry[]): Promise<ResourceCarrier[]> {
-  return (await wornItems(inventory))
-    .filter(({ item }) => item.grantsResource)
-    .map(({ id, item }) => ({
-      key: id,
-      instanceId: id,
-      name: item.name,
-      nameDe: item.name_de,
-      desc: '',
-      gainedAt: [1],
-      origin: 'item',
-      level: 1,
-      classKey: '',
-      answers: NO_ANSWERS,
-      grantsResource: item.grantsResource,
-    }));
 }
 
 export async function resolveResources(c: ResourceCharacter): Promise<ResourceResolution> {

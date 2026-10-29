@@ -10,6 +10,7 @@ import { savingThrowEffectSchema } from './savingThrow';
 import { attackEffectSchema } from './attackEffect';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
+import { castingGrantSchema } from './casting';
 import { resourceGrantSchema } from './resource';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
 import { WEAPON_MASTERIES } from './vocabulary';
@@ -68,6 +69,9 @@ export const itemSchema = z.object({
   grantsResource: resourceGrantSchema
     .optional()
     .describe('Eigene Ladungen des Gegenstands und Zuschläge auf fremde Vorräte.'),
+  grantsCasting: castingGrantSchema
+    .optional()
+    .describe('Zauber, die aus dem Gegenstand gewirkt werden — meist `cast: resource` auf die eigenen Ladungen.'),
   abilityEffects: z
     .array(abilityEffectSchema)
     .optional()

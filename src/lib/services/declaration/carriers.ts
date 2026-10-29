@@ -42,8 +42,11 @@ export const declarationIssue = <K extends string>(
 /** Was schon beim Einsammeln schiefgehen kann, vor jeder Deklarationsart. */
 export type CarrierIssueKind = 'unlinkedClass' | 'unknownClassKey';
 
+/** Ein angelegter Gegenstand deklariert wie ein Merkmal (`itemCarriers.ts`). */
+export type CarrierOrigin = FeatureSource | 'item';
+
 /** Klassen- und Subklassenmerkmale zählen nach Klassenstufe, Spezies/Talent nach Charakterstufe. */
-export const originCountsClassLevel = (origin: FeatureSource): boolean =>
+export const originCountsClassLevel = (origin: CarrierOrigin): boolean =>
   origin === 'class' || origin === 'subclass';
 
 export const characterLevel = (classes: CharacterClass[] | undefined): number =>
@@ -84,7 +87,7 @@ export interface Carrier {
   /** ENGLISCH — Deklarationen lesen Tabellen daraus. */
   desc: string;
   gainedAt: number[];
-  origin: FeatureSource;
+  origin: CarrierOrigin;
   /** Die maßgebliche Stufe, nach `origin` schon gewählt. */
   level: number;
   /** Klasse, deren Stufentabelle die Spalten speist; leer bei Trait und Talent. */

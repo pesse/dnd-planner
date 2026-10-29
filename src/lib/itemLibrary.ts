@@ -9,6 +9,7 @@ import { OWN_SOURCE } from './schemas/source';
 import { WEAPON_MASTERIES, type WeaponMastery } from './schemas/vocabulary';
 import type { EquipmentChoiceCategory } from './schemas/startingEquipment';
 import { itemKeyOf, itemSchema } from './schemas/item';
+import { castingGrantSchema, type CastingGrant } from './schemas/casting';
 import { resourceGrantSchema, type ResourceGrant } from './schemas/resource';
 import { API_CATEGORY_MAP, DIR_TO_CATEGORY } from './itemLabels';
 import { scanJsonFolder } from './services/library/createLibrary';
@@ -40,6 +41,7 @@ export interface ItemInfo {
   magic_bonus?: Item['magic_bonus'];
   attunement?: boolean;
   grantsResource?: ResourceGrant;
+  grantsCasting?: CastingGrant;
   abilityEffects?: Item['abilityEffects'];
   armorClassEffects?: Item['armorClassEffects'];
   attackEffects?: Item['attackEffects'];
@@ -191,6 +193,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         magic_bonus: data.magic_bonus,
         attunement: data.attunement === true,
         grantsResource: resourceGrantSchema.safeParse(data.grantsResource).data,
+        grantsCasting: castingGrantSchema.safeParse(data.grantsCasting).data,
         abilityEffects: itemSchema.shape.abilityEffects.safeParse(data.abilityEffects).data,
         armorClassEffects: itemSchema.shape.armorClassEffects.safeParse(data.armorClassEffects).data,
         attackEffects: itemSchema.shape.attackEffects.safeParse(data.attackEffects).data,
