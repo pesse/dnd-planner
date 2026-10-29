@@ -13,9 +13,7 @@ import { libraryKey } from '../support/libraryKey';
 import { vaultFeatures } from '../support/vaultFeatures';
 
 /** Undeklariert, mit Grund. Wer einen Eintrag deklariert, streicht ihn hier. */
-const UNDECLARED_BACKLOG: Record<string, string> = {
-  'srd-2024_monk_unarmored-movement': 'Bewegungs-Bonus aus der Stufentabelle: die Laufzeit-Senke kennt die Klassenstufe nicht',
-};
+const UNDECLARED_BACKLOG: Record<string, string> = {};
 
 /** ALLE offenen Arten je Merkmal — die Anzeige zeigt nur die erste, die zweite bliebe sonst verdeckt. */
 const GAP_BACKLOG: Record<string, DeclarationGapKind[]> = {};

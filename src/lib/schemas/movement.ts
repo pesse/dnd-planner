@@ -1,5 +1,6 @@
 /** Bewegungsraten und Sinne, die ein Merkmal dem Charakter selbst gibt — in FUSS wie der Regeltext. */
 import { z } from 'zod';
+import { levelStepsOf } from './amount';
 
 export const SPEED_MODES = ['walk', 'climb', 'swim', 'fly'] as const;
 export type SpeedMode = (typeof SPEED_MODES)[number];
@@ -15,8 +16,12 @@ const situation = {
 export const speedEffectSchema = z.object({
   mode: z.enum(SPEED_MODES),
   feet: z
-    .union([z.number().int().positive(), z.enum(['speed', 'double-speed'])])
-    .describe('In FUSS; "speed" = so hoch wie deine Bewegungsrate („a Swim Speed equal to your Speed").'),
+    .union([
+      z.number().int().positive(),
+      z.enum(['speed', 'double-speed']),
+      z.object({ byLevel: levelStepsOf(z.number().int().positive()) }),
+    ])
+    .describe('In FUSS; "speed" = so hoch wie deine Bewegungsrate („a Swim Speed equal to your Speed"); `byLevel` nach Klassenstufe, bei Trait und Talent nach Charakterstufe.'),
   bonus: z.boolean().default(false).describe('Erhöht die Rate um `feet`, statt sie festzulegen („Your Speed increases by 10 feet").'),
   hover: z.boolean().default(false).describe('Nur beim Fliegen: du kannst schweben.'),
   ...situation,

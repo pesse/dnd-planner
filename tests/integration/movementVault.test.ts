@@ -46,4 +46,15 @@ describe('Bewegung und Sinne aus dem Vault', () => {
       ['Bewegungsrate', '+3 m', 'sofern du keine schwere Rüstung trägst'],
     ]));
   });
+
+  it('Mönch: die Ungerüstete Bewegung wächst mit der Mönchsstufe', async () => {
+    const monk = (level: number) => movementOf({
+      species: { sourceKey: 'srd-2024_human', name: 'Mensch' },
+      classes: [{ sourceKey: 'srd-2024_monk', name: 'Mönch', level }],
+    });
+    const unarmored = (lines: string[][]) => lines.filter((l) => l[2] === 'sofern du weder Rüstung noch Schild trägst');
+    expect(unarmored((await monk(1)).lines)).toEqual([]);
+    expect(unarmored((await monk(6)).lines)).toEqual([['Bewegungsrate', '+4,5 m', 'sofern du weder Rüstung noch Schild trägst']]);
+    expect(unarmored((await monk(18)).lines)).toEqual([['Bewegungsrate', '+9 m', 'sofern du weder Rüstung noch Schild trägst']]);
+  });
 });

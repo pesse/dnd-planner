@@ -24,7 +24,6 @@ Feste und an eine Lage gebundene Bewegungsarten, Erhöhungen und Sinne stehen in
 
 | Merkmal | Mechanik | Was fehlt |
 |---|---|---|
-| `srd-2024_monk_unarmored-movement` | +10 bis +30 ft nach Mönchsstufe | die Laufzeit-Senke kennt die Klassenstufe nicht |
 | `srd-2024_rogue_thief_second-story-work` | Sprungweite aus GES | kein Feld für Sprungweite (Klettern ist deklariert) |
 | `wizard_diviner_the-third-eye` | Dunkelsicht oder Unsichtbares sehen | Wahl bis zur Rast (flüchtig) |
 | `barbarian_path-of-the-wild-heart_power-of-the-wilds` | Fliegen (Falke) | Wahl je Kampfrausch (flüchtig) |

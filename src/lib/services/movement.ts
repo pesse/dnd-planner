@@ -4,13 +4,18 @@ import type { SenseEffect, SenseKind, SpeedEffect, SpeedMode } from '../schemas/
 import { SENSE_KINDS, SPEED_MODES } from '../schemas/movement';
 import { ftToMVal } from '../itemFormat';
 import { featureIdOf } from '../utils/text';
+import { levelStep } from './resources/amount';
 import { MOVEMENT_LABELS, SENSE_LABELS } from './monsterFormat';
 
 export interface MovementFeature {
   key?: string;
   name: string;
   grants?: FeatureGrant;
+  /** Für `feet.byLevel`: Klassenstufe bei Klassenmerkmalen, sonst Charakterstufe. */
+  level?: number;
 }
+
+type LevelFreeSpeed = Omit<SpeedEffect, 'feet'> & { feet: number | 'speed' | 'double-speed' };
 
 export interface MovementLine {
   labelDe: string;
@@ -25,15 +30,25 @@ const MODE_DE: Record<SpeedMode, string> = { walk: 'Bewegungsrate', ...MOVEMENT_
 
 type Sourced<T> = { labelDe: string; effect: T };
 
-function collect(features: readonly MovementFeature[]): { speeds: Sourced<SpeedEffect>[]; senses: Sourced<SenseEffect>[] } {
+/** Unterhalb der ersten Stufe der Tabelle gibt das Merkmal noch nichts. */
+function atLevel(e: SpeedEffect, level: number): LevelFreeSpeed | null {
+  if (typeof e.feet !== 'object') return { ...e, feet: e.feet };
+  const feet = levelStep(e.feet.byLevel, level);
+  return feet === undefined ? null : { ...e, feet };
+}
+
+function collect(features: readonly MovementFeature[]): { speeds: Sourced<LevelFreeSpeed>[]; senses: Sourced<SenseEffect>[] } {
   const seen = new Set<string>();
-  const speeds: Sourced<SpeedEffect>[] = [];
+  const speeds: Sourced<LevelFreeSpeed>[] = [];
   const senses: Sourced<SenseEffect>[] = [];
   for (const f of features) {
     const id = featureIdOf(f);
     if (seen.has(id)) continue;
     seen.add(id);
-    speeds.push(...(f.grants?.speeds ?? []).map((effect) => ({ labelDe: f.name, effect })));
+    for (const e of f.grants?.speeds ?? []) {
+      const effect = atLevel(e, f.level ?? 1);
+      if (effect) speeds.push({ labelDe: f.name, effect });
+    }
     senses.push(...(f.grants?.senses ?? []).map((effect) => ({ labelDe: f.name, effect })));
   }
   return { speeds, senses };
@@ -45,20 +60,20 @@ const ftToM = (ft: number): string => `${String(ftToMVal(ft)).replace('.', ',')}
 const whenOf = (e: { condition?: string; conditionDe?: string }): string => e.conditionDe?.trim() || e.condition?.trim() || '';
 
 /** Ohne bekannte Bewegungsrate bleibt „wie Bewegungsrate" stehen statt einer erfundenen Zahl. */
-function speedValueDe(feet: SpeedEffect['feet'], walkFeet: number | null): { feet: number | null; text: string } {
+function speedValueDe(feet: LevelFreeSpeed['feet'], walkFeet: number | null): { feet: number | null; text: string } {
   if (typeof feet === 'number') return { feet, text: ftToM(feet) };
   const factor = feet === 'double-speed' ? 2 : 1;
   if (walkFeet === null) return { feet: null, text: factor === 2 ? 'doppelte Bewegungsrate' : 'wie Bewegungsrate' };
   return { feet: walkFeet * factor, text: ftToM(walkFeet * factor) };
 }
 
-function situationalSpeed({ labelDe, effect: e }: Sourced<SpeedEffect>, walkFeet: number | null): MovementLine {
+function situationalSpeed({ labelDe, effect: e }: Sourced<LevelFreeSpeed>, walkFeet: number | null): MovementLine {
   const value = e.bonus && typeof e.feet === 'number' ? `+${ftToM(e.feet)}` : speedValueDe(e.feet, walkFeet).text;
   return { labelDe: MODE_DE[e.mode], valueDe: value + (e.hover ? ' (schwebend)' : ''), sourcesDe: [labelDe], whenDe: whenOf(e) };
 }
 
 /** Feste Werte: der größte gilt, Erhöhungen zählen obendrauf. */
-function steadySpeed(mode: SpeedMode, parts: Sourced<SpeedEffect>[], walkFeet: number | null): MovementLine | null {
+function steadySpeed(mode: SpeedMode, parts: Sourced<LevelFreeSpeed>[], walkFeet: number | null): MovementLine | null {
   if (!parts.length) return null;
   const bonus = parts.filter((p) => p.effect.bonus && typeof p.effect.feet === 'number')
     .reduce((n, p) => n + (p.effect.feet as number), 0);
