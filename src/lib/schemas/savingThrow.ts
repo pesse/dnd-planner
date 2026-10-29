@@ -30,6 +30,7 @@ export const savingThrowEffectSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('advantage'),
       ...abilities,
+      deathSave: z.boolean().optional().describe('Gilt für Todesrettungswürfe statt für die Attributs-Rettungswürfe (Widerstandsfähig).'),
       condition: z.string().optional().describe('Die Lage aus dem Regeltext, englisch ("against spells"); fehlt = immer.'),
       conditionDe: z.string().optional().describe('Dieselbe Lage deutsch; so zeigt sie der Bogen.'),
     })

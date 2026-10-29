@@ -163,6 +163,7 @@
             "abilities": [
               "str"
             ],
+            "deathSave": false,
             "condition": "string",
             "conditionDe": "string"
           }

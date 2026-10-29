@@ -166,7 +166,7 @@ const vitalsBox = (d: CharacterPrintData): string => {
       (c.hitDice.trim() ? `<div class="o-dice">${esc(c.hitDice)}</div>` : '') + write(''),
       'o-hp o-hp-dice');
 
-  const death = frame('Rettungswürfe gegen Tod',
+  const death = frame(`Rettungswürfe gegen Tod${d.deathSaveAdvantage ? ' · Vorteil' : ''}`,
     `<div class="o-death"><span class="o-plbl">Erfolge</span>${chainCircles(3)}</div>` +
     `<div class="o-death"><span class="o-plbl">Fehlschläge</span>${chainCircles(3)}</div>`, 'o-deathbox');
 

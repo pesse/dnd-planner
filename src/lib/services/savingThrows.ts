@@ -59,7 +59,14 @@ export function savingThrowSources(
   return [...fromItems, ...fromFeatures, ...fromAuras];
 }
 
-const applies = (e: SavingThrowEffect, key: AbilityKey): boolean => !e.abilities.length || e.abilities.includes(key);
+const isDeathSave = (e: SavingThrowEffect): boolean => e.kind === 'advantage' && !!e.deathSave;
+
+const applies = (e: SavingThrowEffect, key: AbilityKey): boolean =>
+  !isDeathSave(e) && (!e.abilities.length || e.abilities.includes(key));
+
+/** Die Quellen, die Vorteil auf Todesrettungswürfe geben; leer = keiner. */
+export const deathSaveAdvantage = (sources: readonly SavingThrowSource[]): string[] =>
+  sources.filter((s) => isDeathSave(s.effect)).map((s) => s.labelDe);
 
 function noteOf(labelDe: string, e: SavingThrowEffect): string | null {
   if (e.kind === 'situational') return `${labelDe} ${sign(e.value)}: ${situationalLabelDe(e)}`;

@@ -59,9 +59,9 @@ der Klassentabelle, `dice` liest keine Spalte.
 
 | Merkmal | Mechanik |
 |---|---|
-| `srd-2024_fighter_champion_survivor` | Vorteil auf Todesrettungswürfe, Regeneration |
+| `srd-2024_fighter_champion_survivor` | 18–20 zählt als 20, Regeneration (Vorteil auf Todesrettungswürfe ist deklariert) |
 | `srd-2024_fighter_champion_heroic-warrior` | Heldische Inspiration |
-| `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt |
+| `ranger_gloom-stalker_iron-mind` | ersatzweise INT- oder CHA-Rettungswurf, wenn WEI schon geübt — eine Frage abhängig vom Übungsstand kennt keine Deklaration; betrifft nur Waldläufer mit Belastbar (WEI) |
 | `bard_college-of-dance_dazzling-footwork` | waffenlose Angriffe mit GES + BI-Würfel (Vorteil auf Auftreten ist deklariert) |
 | `monk_way-of-shadow_cloak-of-shadows` | unsichtbar, durch Kreaturen bewegen (aktiv) |
 | `rogue_soulknife_psychic-blades` | manifestierte Waffe als eigener Angriff |
@@ -90,7 +90,6 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | `medium-armor-master` | GES-Obergrenze 3 | `armorClass` kennt kein Anheben der GES-Obergrenze |
 | `inspiring-leader` | temporäre TP | keine Senke |
 | `chef` | Leckerbissen, eine Stunde Zubereitung | keine Senke |
-| `durable` | Vorteil auf Todesrettungswürfe | `savingThrow`-Vorteil kennt keinen Todesrettungswurf |
 | `shield-master`, `speedy`, `spell-sniper` | Wirkung auf Gegner bzw. Zauberangriffe | keine Senke |
 
 ## Hintergründe und Völker

@@ -171,7 +171,7 @@
             {spellcasting} {masteryOf} {masteryChips} companionImageUrl={side.companionImageUrl}
             figureUrl={side.figureUrl}
             abilities={abilities.resolved} combatTips={tips} {hpTipHtml} acTipHtml={acTip.html} {attackCtx}
-            saves={saving.saves} auras={saving.auras} {defenses} {movement}
+            saves={saving.saves} deathSaveAdvantage={saving.deathSaveAdvantage} auras={saving.auras} {defenses} {movement}
             {attackNotes} {checks} />
           {/if}
         {/snippet}

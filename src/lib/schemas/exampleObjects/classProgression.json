@@ -259,6 +259,7 @@
             "abilities": [
               "str"
             ],
+            "deathSave": false,
             "condition": "string",
             "conditionDe": "string"
           }
@@ -512,6 +513,7 @@
                     "abilities": [
                       "str"
                     ],
+                    "deathSave": false,
                     "condition": "string",
                     "conditionDe": "string"
                   }

@@ -14,9 +14,10 @@
   import type { Character } from '../../schemas/characterSchema';
   import type { SavingThrowDerivation } from '../../services/savingThrows';
 
-  let { character, saves, masteryChips }: {
+  let { character, saves, deathSaveAdvantage, masteryChips }: {
     character: Character;
     saves: Record<AbilityKey, SavingThrowDerivation>;
+    deathSaveAdvantage: string[];
     masteryChips: { name: string; mastery: WeaponMastery | undefined }[];
   } = $props();
 </script>
@@ -34,6 +35,9 @@
       </div>
     {/each}
   </div>
+  {#if deathSaveAdvantage.length}
+    <p class="prof-extra"><strong>Todesrettungswürfe:</strong> Vorteil ({deathSaveAdvantage.join(', ')})</p>
+  {/if}
 
   <h3>Sprachen</h3>
   <div class="tag-list">

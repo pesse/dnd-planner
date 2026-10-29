@@ -25,6 +25,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   auras: [],
   defenses: [],
   initiativeAdvantage: false,
+  deathSaveAdvantage: false,
   attackNotes: [],
   skillAdvantage: [],
   movement: [],

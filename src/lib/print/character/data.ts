@@ -25,7 +25,7 @@ import { characterDefenses, type CharacterDefense } from '$lib/services/defenses
 import { characterMovement, type MovementLine } from '$lib/services/movement';
 import { declaredSpeed } from '$lib/services/characterProperties';
 import {
-  loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
+  deathSaveAdvantage, loadSavingThrowInputs, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation,
 } from '$lib/services/savingThrows';
 import { effectiveScores, loadWornAbilityEffects, type WornAbilityEffect } from '$lib/services/effectiveAbilities';
 import { combatFallbacksFrom, withCombatFallbacks } from '$lib/services/combatFallbacks';
@@ -61,6 +61,7 @@ export interface CharacterPrintData {
   attacks: PrintAttack[];
   saves: Record<AbilityKey, SavingThrowDerivation>;
   initiativeAdvantage: boolean;
+  deathSaveAdvantage: boolean;
   /** Leer ohne erweiterten Bereich. */
   attackNotes: string[];
   /** Bogen-Schlüssel der Fertigkeiten mit Vorteil ohne Bedingung. */
@@ -170,16 +171,18 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   const mods = abilityRecordOf((k) => mod(scores[k]));
   const auras = characterAuras(saveInputs.features, { mods, profBonus: effectiveProficiencyBonus(c) });
   const checks = checkSources(saveInputs.features);
+  const saveSources = savingThrowSources(saveInputs.worn, saveInputs.features, auras);
   const saves = savingThrowDerivations({
     mods,
     profBonus: effectiveProficiencyBonus(c),
     saveProfs: c.saveProfs,
-    sources: savingThrowSources(saveInputs.worn, saveInputs.features, auras),
+    sources: saveSources,
   });
 
   return {
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
+    deathSaveAdvantage: deathSaveAdvantage(saveSources).length > 0,
     attackNotes: attackFootnotes(saveInputs.features),
     skillAdvantage: SKILL_DEFS
       .filter((def) => skillCheckEffects(def, checks, { mods, profBonus: effectiveProficiencyBonus(c) }).advantage)

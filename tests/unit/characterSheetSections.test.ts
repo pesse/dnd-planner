@@ -26,6 +26,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   auras: [],
   defenses: [],
   initiativeAdvantage: false,
+  deathSaveAdvantage: false,
   attackNotes: [],
   skillAdvantage: [],
   movement: [],

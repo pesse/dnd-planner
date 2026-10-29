@@ -7,7 +7,7 @@ import { characterAuras, type CharacterAura } from './auras';
 import { effectiveProficiencyBonus } from './classProgression';
 import type { AbilityResolution } from './effectiveAbilities';
 import type { OwnedGrantFeature } from './hitPoints';
-import { savingThrowDerivations, savingThrowSources, type SavingThrowDerivation } from './savingThrows';
+import { deathSaveAdvantage, savingThrowDerivations, savingThrowSources, type SavingThrowDerivation } from './savingThrows';
 import { idleItemsIn, wornItemsIn } from './wornItems';
 
 type SaveInput = Pick<Character, 'saveProfs' | 'proficiencyBonus' | 'classes' | 'inventory'>;
@@ -18,27 +18,33 @@ export function createSavingThrows(
   abilities: () => Record<AbilityKey, AbilityResolution>,
   /** `createOwnedGrantFeatures`; null, solange sie laden. */
   features: () => readonly OwnedGrantFeature[] | null,
-): { readonly saves: Record<AbilityKey, SavingThrowDerivation> | null; readonly auras: CharacterAura[] } {
+): {
+  readonly saves: Record<AbilityKey, SavingThrowDerivation> | null;
+  readonly auras: CharacterAura[];
+  readonly deathSaveAdvantage: string[];
+} {
   const result = $derived.by(() => {
     const c = input();
-    if (!c) return { saves: null, auras: [] };
+    if (!c) return { saves: null, auras: [], deathSaveAdvantage: [] };
     const resolved = abilities();
     const mods = abilityRecordOf((k) => mod(resolved[k].score));
     const lib = items();
     const owned = features();
     const auras = owned ? characterAuras(owned, { mods, profBonus: effectiveProficiencyBonus(c) }) : [];
     const ready = lib.itemsLoaded && !!owned;
+    const sources = ready ? savingThrowSources(wornItemsIn(lib.itemIndex, c.inventory ?? []), owned, auras) : [];
     const saves = savingThrowDerivations({
       mods,
       profBonus: effectiveProficiencyBonus(c),
       saveProfs: c.saveProfs,
-      sources: ready ? savingThrowSources(wornItemsIn(lib.itemIndex, c.inventory ?? []), owned, auras) : [],
+      sources,
       idle: ready ? idleItemsIn(lib.itemIndex, c.inventory ?? []) : [],
     });
-    return { saves, auras };
+    return { saves, auras, deathSaveAdvantage: deathSaveAdvantage(sources) };
   });
   return {
     get saves() { return result.saves; },
     get auras() { return result.auras; },
+    get deathSaveAdvantage() { return result.deathSaveAdvantage; },
   };
 }
