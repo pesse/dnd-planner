@@ -10,7 +10,7 @@
   import {
     searchItems, displayName, matchItem, type ItemIndex, type ItemInfo, type ItemSuggestion,
   } from '../../itemLibrary';
-  import { CATEGORY_COLORS } from '../../itemLabels';
+  import { CATEGORY_COLORS, DAMAGE_TYPE_LABELS } from '../../itemLabels';
   import {
     attackIndexOf, buildAttackFromWeapon, type WeaponAttackContext,
   } from '../../services/attackCalc';
@@ -27,6 +27,7 @@
   import PinButton from '../ui/PinButton.svelte';
   import type { Attack, Character, ProficiencyFlags } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
+  import type { DamageType } from '../../schemas/vocabulary';
   import './form.css';
 
   type InventoryLine = Character['inventory'][number];
@@ -229,6 +230,14 @@
                      der Hinweis statt eines automatischen Links. -->
                 <span class="inv-ambiguous" title="Mehrere Gegenstände dieses Namens — über ✎ den richtigen wählen">mehrdeutig</span>
               {/if}
+              {#if lib.resistanceChoice?.length}
+                <select class="inv-choice" class:inv-unchosen={!item.resistance} value={item.resistance ?? ''}
+                  title="Resistenz, die der Gegenstand angelegt gewährt"
+                  onchange={(e) => { item.resistance = (e.currentTarget.value || undefined) as DamageType | undefined; }}>
+                  <option value="">Resistenz wählen …</option>
+                  {#each lib.resistanceChoice as t}<option value={t}>{DAMAGE_TYPE_LABELS[t]}</option>{/each}
+                </select>
+              {/if}
             </span>
           {:else}
             <div class="autocomplete-wrap">
@@ -332,4 +341,6 @@
 
 <style>
   .inv-over { color: var(--danger); font-weight: 600; }
+  .inv-choice { width: auto; font-size: 0.8rem; padding: 0 0.2rem; }
+  .inv-unchosen { color: var(--danger); }
 </style>

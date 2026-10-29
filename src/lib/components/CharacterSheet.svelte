@@ -20,6 +20,7 @@
   import { attackFootnotes, declaredAttackEffects } from '../services/attackEffects';
   import { checkSources } from '../services/abilityChecks';
   import { characterDefenses } from '../services/defenses';
+  import { wornItemsIn } from '../services/wornItems';
   import { characterMovement } from '../services/movement';
   import { declaredSpeed } from '../services/characterProperties';
   import type { AttackCalcContext } from '../services/attackCalc';
@@ -83,7 +84,7 @@
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
-  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character)) : []);
+  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? [])) : []);
   const attackNotes = $derived(attackFootnotes(owned.current ?? []));
   const checks = $derived(checkSources(owned.current ?? []));
   const movement = $derived(owned.current ? characterMovement(owned.current, declaredSpeed(owned.current)?.feet ?? null) : []);

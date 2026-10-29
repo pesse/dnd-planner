@@ -4,12 +4,15 @@
  */
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import type { FeatureGrant } from '$lib/schemas/grants';
+import type { DamageType } from '$lib/schemas/vocabulary';
 import { buildItemIndex, getAllItemsByDir, matchItem, type ItemIndex, type ItemInfo } from '$lib/itemLibrary';
 
 export interface WornItem {
   /** `item.key`, ersatzweise der Inventarname. */
   id: string;
   item: ItemInfo;
+  /** Die an der Zeile gewählte Resistenz (`item.resistanceChoice`). */
+  resistance?: DamageType;
 }
 
 export interface IdleItem {
@@ -38,7 +41,7 @@ function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): 
       const id = item.key ?? entry.name;
       if (seen.has(id)) continue;
       seen.add(id);
-      worn.push({ id, item });
+      worn.push({ id, item, resistance: entry.resistance });
     }
   }
   return { worn, idle };

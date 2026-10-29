@@ -149,7 +149,8 @@
       "equipped": false,
       "attuned": false,
       "slot": "head",
-      "printCard": false
+      "printCard": false,
+      "resistance": "acid"
     }
   ],
   "inventoryNotes": "string",
