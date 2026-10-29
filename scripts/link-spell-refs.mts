@@ -6,9 +6,8 @@
  * gilt der deutsche Name im selben Absatz als Verweis. Reines Namens-Matching im Deutschen
  * träfe zu 86 % daneben — „hast du Vorteil", „Helles Licht", „|5|Blitz|" als Schadensart.
  *
- * Verlinkt wird nur das ERSTE Vorkommen je Absatz und Zauber; Wiederholungen bleiben Text.
- * Bereits verlinkte Stellen erkennt der Lauf, er ist also wiederholbar — nach jedem
- * Open5e-Import erneut fahren.
+ * Verlinkt wird jedes Vorkommen, denn der Link ist vor allem ein Tooltip. Bereits verlinkte
+ * Stellen erkennt der Lauf, er ist also wiederholbar — nach jedem Open5e-Import erneut fahren.
  *
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts          # Bericht
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts --apply  # schreiben
@@ -56,19 +55,21 @@ function loadSpells(): { byEn: Map<string, SpellRef[]>; enNames: string[] } {
   return { byEn, enNames: [...byEn.keys()].sort((a, b) => b.length - a.length) };
 }
 
-/**
- * Spielbegriffe, die einen Zaubernamen enthalten — „cast Bright Light" ist eine Laterne, und
- * „weapons or a Shield" ist der Schild, auch wenn im selben Satz „spells" steht.
- */
-const FIXED_TERMS = [/\b(Bright|Dim)\s+$/, /\b(a|an)\s+$/];
+/** Spielbegriffe, die einen Zaubernamen enthalten — „cast Bright Light" ist eine Laterne. */
+const FIXED_TERMS = /\b(Bright|Dim)\s+$/;
+/** „weapons or a Shield" ist der Schild, auch neben „spells" — außer „spell" folgt („a Wish spell"). */
+const ARTICLE = /\b(a|an)\s+$/;
 
 /** Steht der Treffer im englischen Text als Zauber da — oder ist es ein Alltagswort? */
 function spellContext(para: string, idx: number, len: number): boolean {
-  if (FIXED_TERMS.some((re) => re.test(para.slice(Math.max(0, idx - 20), idx)))) return false;
+  const near = para.slice(Math.max(0, idx - 20), idx);
+  const after = para.slice(idx + len, idx + len + 45);
+  if (FIXED_TERMS.test(near)) return false;
+  if (/^\W{0,3}spell\b/i.test(after)) return true;
+  if (ARTICLE.test(near)) return false;
   if (para.includes('|') && /\bspells?\b/i.test(para)) return true;
   const before = para.slice(Math.max(0, idx - 45), idx);
-  const after = para.slice(idx + len, idx + len + 45);
-  if (/\bspells?\b/i.test(before) || /^\W{0,3}spell\b/i.test(after)) return true;
+  if (/\bspells?\b/i.test(before)) return true;
   if (/\bcasts?\b|\bcasting\b/i.test(before)) return true;
   if (/\*$/.test(before) && /^\*/.test(after)) return true;
   if (/^[.,*]?\s*\(/.test(after) && /\bspells?\b/i.test(para.slice(0, idx))) return true;
@@ -93,8 +94,8 @@ function referencedSpells(para: string, spells: ReturnType<typeof loadSpells>): 
   return found;
 }
 
-/** Erstes freies Vorkommen des deutschen Namens — nicht in einem Link, nicht im Wortinneren. */
-function linkFirst(text: string, spell: SpellRef): string | null {
+/** Nächstes freies Vorkommen des deutschen Namens — nicht in einem Link, nicht im Wortinneren. */
+function linkNext(text: string, spell: SpellRef): string | null {
   const re = new RegExp('(^|[^\\p{L}\\]])(' + esc(spell.de) + ')($|[^\\p{L}])', 'giu');
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
@@ -155,15 +156,17 @@ function main(apply: boolean) {
         pair.en.forEach((enPara, i) => {
           if (next[i] === undefined) return;
           for (const spell of referencedSpells(enPara, spells)) {
-            const linked = linkFirst(next[i], spell);
-            if (!linked) continue;
-            const at = linked.indexOf(`](spell:${spell.key})`);
-            wraps.push({
-              file, field: pair.path, spell,
-              context: linked.slice(Math.max(0, at - 60), at + 20).replace(/\s+/g, ' '),
-            });
-            next[i] = linked;
-            touched = true;
+            let linked: string | null;
+            while ((linked = linkNext(next[i], spell))) {
+              let at = 0;
+              while (linked[at] === next[i][at]) at++;
+              wraps.push({
+                file, field: pair.path, spell,
+                context: linked.slice(Math.max(0, at - 60), at + 80).replace(/\s+/g, ' '),
+              });
+              next[i] = linked;
+              touched = true;
+            }
           }
         });
         if (touched) pair.set(next);
