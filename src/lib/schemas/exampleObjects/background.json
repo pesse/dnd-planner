@@ -233,6 +233,12 @@
                 "conditionImmunities": [
                   "blinded"
                 ],
+                "reduction": {
+                  "types": [
+                    "acid"
+                  ],
+                  "amount": 1
+                },
                 "condition": "string",
                 "conditionDe": "string"
               }

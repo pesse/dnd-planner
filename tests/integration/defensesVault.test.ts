@@ -4,14 +4,14 @@
  *   npm run test -- defensesVault
  */
 import { describe, expect, it } from 'vitest';
-import { characterDefenses, defenseTextDe } from '../../src/lib/services/defenses';
+import { characterDefenses } from '../../src/lib/services/defenses';
 import { ownedGrantFeatures } from '../../src/lib/services/hitPoints';
 import { characterSchema } from '../../src/lib/schemas/characterSchema';
 
 async function defensesOf(c: Record<string, unknown>) {
   const character = characterSchema.parse({ name: 'Prüfling', ...c });
-  return characterDefenses(await ownedGrantFeatures(character))
-    .map((d) => [d.labelDe, defenseTextDe(d.effect), d.effect.conditionDe ?? '']);
+  return characterDefenses(await ownedGrantFeatures(character), 2)
+    .map((d) => [d.labelDe, d.textDe, d.effect.conditionDe ?? '']);
 }
 
 describe('Resistenzen aus dem Vault', () => {

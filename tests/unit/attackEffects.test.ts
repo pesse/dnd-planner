@@ -113,6 +113,14 @@ describe('Deklarierte Angriffswirkungen', () => {
     expect(attackBonusParts(attack(LONGSWORD), c).notes).toEqual([]);
   });
 
+  it('ein Lage-Bonus in Höhe des Übungsbonus nennt die Zahl', () => {
+    const gwm: AttackEffectFeature = {
+      key: 'homebrew_gwm', name: 'Meister der Großwaffen',
+      grants: grants([{ kind: 'situational', roll: 'damage', value: 'proficiency-bonus', condition: 'on a hit', conditionDe: 'bei Treffer', range: 'any' }]),
+    };
+    expect(attackDamageParts(attack(LONGSWORD), ctx([], [gwm])).notes).toEqual(['Meister der Großwaffen +2: bei Treffer']);
+  });
+
   it('ein Hinweis trifft nur Waffen mit der verlangten Eigenschaft und steht beim Angriff', () => {
     const roots: AttackEffectFeature = {
       key: 'homebrew_roots', name: 'Schlagende Wurzeln',

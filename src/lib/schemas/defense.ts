@@ -6,6 +6,13 @@ export const defenseEffectSchema = z.object({
   resistances: z.array(z.enum(DAMAGE_TYPES)).default([]).describe('Schadensresistenzen.'),
   immunities: z.array(z.enum(DAMAGE_TYPES)).default([]).describe('Schadensimmunitäten.'),
   conditionImmunities: z.array(z.enum(CONDITION_KEYS)).default([]).describe('Zustandsimmunitäten.'),
+  reduction: z
+    .object({
+      types: z.array(z.enum(DAMAGE_TYPES)).min(1),
+      amount: z.union([z.number().int().min(1), z.literal('proficiency-bonus')]),
+    })
+    .optional()
+    .describe('Schaden dieser Arten sinkt um den Betrag (Meister der schweren Rüstung).'),
   condition: z
     .string()
     .optional()

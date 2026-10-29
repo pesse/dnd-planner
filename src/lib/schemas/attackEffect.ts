@@ -39,6 +39,7 @@ export const attackEffectSchema = z.discriminatedUnion('kind', [
       kind: z.literal('situational'),
       roll: z.enum(['attack', 'damage']),
       ...situationalBonusSchema.shape,
+      value: z.union([z.number().int(), z.literal('proficiency-bonus')]).describe('Zahl oder der Übungsbonus (Meister der Großwaffen).'),
       ...weaponFilter,
     })
     .describe('Zuschlag nur in einer Lage, die die App nicht kennt (Duellieren: +2 Schaden ohne zweite Waffe).'),

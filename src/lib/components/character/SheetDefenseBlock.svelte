@@ -1,6 +1,6 @@
 <script lang="ts">
   import './sheet.css';
-  import { defenseTextDe, defenseWhenDe, type CharacterDefense } from '../../services/defenses';
+  import { defenseWhenDe, type CharacterDefense } from '../../services/defenses';
 
   let { defenses }: { defenses: CharacterDefense[] } = $props();
 </script>
@@ -10,7 +10,7 @@
   <ul class="defenses">
     {#each defenses as d}
       <li>
-        {defenseTextDe(d.effect)}{#if defenseWhenDe(d.effect)}<span class="when"> – {defenseWhenDe(d.effect)}</span>{/if}
+        {d.textDe}{#if defenseWhenDe(d.effect)}<span class="when"> – {defenseWhenDe(d.effect)}</span>{/if}
         <span class="source">({d.labelDe})</span>
       </li>
     {/each}

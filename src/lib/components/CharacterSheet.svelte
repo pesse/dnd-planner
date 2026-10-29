@@ -76,7 +76,7 @@
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
-  const defenses = $derived(owned.current ? characterDefenses(owned.current) : []);
+  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character)) : []);
   const attackNotes = $derived(attackFootnotes(owned.current ?? []));
   const checks = $derived(checkSources(owned.current ?? []));
   const movement = $derived(owned.current ? characterMovement(owned.current, declaredSpeed(owned.current)?.feet ?? null) : []);

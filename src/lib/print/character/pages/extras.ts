@@ -9,7 +9,7 @@ import { coversWeapon, weaponNameSet } from '$lib/services/weaponProficiency';
 import { formatKg, formatTotalWeight, lineWeightKg } from '$lib/utils/inventoryWeight';
 import { poolPicks } from '$lib/services/declaration/optionPool';
 import { auraLinesDe } from '$lib/services/auras';
-import { defenseTextDe, defenseWhenDe } from '$lib/services/defenses';
+import { defenseWhenDe } from '$lib/services/defenses';
 import { ftToM } from '$lib/itemFormat';
 import type { CharacterPrintData } from '../data';
 import { block, esc, escLines, field, table, tickBoxes, writeLines } from '../html';
@@ -51,9 +51,9 @@ export function renderMovement(d: CharacterPrintData): string {
 }
 
 export function renderDefenses(d: CharacterPrintData): string {
-  const lines = d.defenses.map(({ labelDe, effect }) => {
+  const lines = d.defenses.map(({ labelDe, effect, textDe }) => {
     const when = defenseWhenDe(effect);
-    return `<div class="pick"><span class="pick-name">${esc(defenseTextDe(effect))}</span>` +
+    return `<div class="pick"><span class="pick-name">${esc(textDe)}</span>` +
       ` <span class="pick-help">— ${esc(when ? `${when} (${labelDe})` : labelDe)}</span></div>`;
   }).join('');
   return lines ? block('Resistenzen & Immunitäten', lines) : '';

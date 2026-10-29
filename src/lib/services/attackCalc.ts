@@ -63,7 +63,7 @@ function partsFor(a: Attack, ctx: AttackCalcContext, roll: 'attack' | 'damage'):
     const value = (roll === 'attack' ? m.attackBonus : m.damageBonus) || 0;
     if (value) parts.push({ labelDe: m.label.trim() || 'Effekt', value });
   }
-  const declared = attackEffectRows(a, ctx.declared);
+  const declared = attackEffectRows(a, ctx.declared, ctx.proficiencyBonus);
   for (const r of declared.rows) if (r[roll]) parts.push({ labelDe: r.labelDe, value: r[roll] });
   return { parts, notes: roll === 'attack' ? declared.attackNotes : declared.damageNotes };
 }

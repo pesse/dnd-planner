@@ -164,7 +164,11 @@ export function staleMagicBonus(a: Pick<Attack, 'magicBonus'>, weapon: ItemInfo 
   return lib !== (a.magicBonus ?? 0) ? lib : undefined;
 }
 
-export function attackEffectRows(a: Attack, declared: DeclaredAttackEffects | undefined): AppliedAttackEffects {
+export function attackEffectRows(
+  a: Attack,
+  declared: DeclaredAttackEffects | undefined,
+  profBonus: number,
+): AppliedAttackEffects {
   const out: AppliedAttackEffects = { rows: [], attackNotes: [], damageNotes: [] };
   if (!declared) return out;
   const weapon = declared.weaponOf(a);
@@ -191,7 +195,10 @@ export function attackEffectRows(a: Attack, declared: DeclaredAttackEffects | un
       const text = diceNote(labelDe, effect, level ?? 1);
       if (text) note(effect, text);
     } else if (effect.kind === 'note') note(effect, `${labelDe}: ${situationalLabelDe(effect)}`);
-    else note(effect, `${labelDe} ${sign(effect.value)}: ${situationalLabelDe(effect)}`);
+    else {
+      const value = effect.value === 'proficiency-bonus' ? profBonus : effect.value;
+      note(effect, `${labelDe} ${sign(value)}: ${situationalLabelDe(effect)}`);
+    }
   }
 
   const libraryMagic = staleMagicBonus(a, weapon);

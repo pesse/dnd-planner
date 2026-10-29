@@ -194,7 +194,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     attacks: printAttacks(shown, declared, input.masteryOf),
     saves,
     auras,
-    defenses: characterDefenses(saveInputs.features),
+    defenses: characterDefenses(saveInputs.features, effectiveProficiencyBonus(c)),
     movement: characterMovement(saveInputs.features, declaredSpeed(saveInputs.features)?.feet ?? null),
     features,
     grouped,
