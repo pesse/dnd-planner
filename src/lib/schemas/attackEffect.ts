@@ -17,6 +17,10 @@ const weaponFilter = {
     .array(z.enum(WEAPON_PROPERTIES))
     .optional()
     .describe('Nur Waffen mit mindestens einer dieser Eigenschaften ("heavy", "versatile").'),
+  damageTypes: z
+    .array(z.enum(DAMAGE_TYPES))
+    .optional()
+    .describe('Nur Waffen, deren Schaden eine dieser Arten hat (Durchbohrer: "piercing").'),
 };
 
 const diceSchema = z.string().regex(/^\d+d\d+$/).describe('Würfel wie "1d4"; `byLevel` nach Klassenstufe, bei Trait und Talent nach Charakterstufe.');

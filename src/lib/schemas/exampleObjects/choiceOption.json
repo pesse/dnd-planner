@@ -82,6 +82,9 @@
         ],
         "properties": [
           "ammunition"
+        ],
+        "damageTypes": [
+          "acid"
         ]
       },
       {
@@ -96,6 +99,9 @@
         ],
         "properties": [
           "ammunition"
+        ],
+        "damageTypes": [
+          "acid"
         ]
       },
       {
@@ -110,6 +116,9 @@
         ],
         "properties": [
           "ammunition"
+        ],
+        "damageTypes": [
+          "acid"
         ]
       },
       {
@@ -122,6 +131,9 @@
         ],
         "properties": [
           "ammunition"
+        ],
+        "damageTypes": [
+          "acid"
         ]
       }
     ],

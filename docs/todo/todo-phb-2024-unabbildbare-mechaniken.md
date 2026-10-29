@@ -84,9 +84,9 @@ Talent-Keys ohne Präfix lesen sich als `phb-2024_<talent>`.
 | Talent | Mechanik | Was fehlt |
 |---|---|---|
 | `boon-of-energy-resistance` | zwei Resistenzen, je Lange Rast tauschbar | flüchtig; dass beide verschieden sind, prüft niemand |
-| `unarmed-fighting`, `tavern-brawler` | Schaden waffenloser Schläge | kein Waffenfilter für waffenlose Angriffe |
+| `unarmed-fighting`, `tavern-brawler` | Schaden waffenloser Schläge | der waffenlose Schlag ist kein Bibliotheks-Gegenstand; ihn am Angriffsnamen zu erkennen wäre ein zweiter Matcher |
 | `thrown-weapon-fighting` | Fernkampfangriff mit Wurfwaffe | Filter „Fernkampf UND Wurf“ |
-| `piercer`, `slasher`, `poisoner` | Schaden einer Schadensart | kein Schadensart-Filter |
+| `poisoner` | Giftschaden ignoriert Resistenz | keine Senke für das Durchbrechen von Resistenzen |
 | `polearm-master` | Schwer UND Reichweite | Eigenschaftsfilter ist ODER, die Waffen stehen deshalb einzeln da |
 | `fey-touched`, `shadow-touched`, `ritual-caster`, `telekinetic`, `telepathic` | Zauberattribut = das erhöhte Attribut | Zauberattribut ist nicht an die Erhöhung gekoppelt |
 | `ritual-caster` | Rituale aus jeder Liste, Anzahl = Übungsbonus | heute `byLevel` als Behelf |

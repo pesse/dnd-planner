@@ -96,12 +96,14 @@ export function criticalRange(features: readonly AttackEffectFeature[]): Critica
 
 export const criticalRangeDe = (c: CriticalRange): string => `Kritischer Treffer bei ${c.minRoll}–20 (${c.labelDe})`;
 
-const filtered = (e: AttackEffect): boolean => e.range !== 'any' || !!e.weapons?.length || !!e.properties?.length;
+const filtered = (e: AttackEffect): boolean =>
+  e.range !== 'any' || !!e.weapons?.length || !!e.properties?.length || !!e.damageTypes?.length;
 
 function weaponMatches(e: AttackEffect, weapon: ItemInfo): boolean {
   if (e.range === 'melee' && weapon.weapon_range !== 'Melee') return false;
   if (e.range === 'ranged' && weapon.weapon_range !== 'Ranged') return false;
   if (e.properties?.length && !weapon.properties?.some((p) => (e.properties as readonly string[]).includes(p.index))) return false;
+  if (e.damageTypes?.length && !(e.damageTypes as readonly string[]).includes(weapon.damage?.damage_type.index ?? '')) return false;
   return !e.weapons?.length || e.weapons.includes(weapon.index ?? '');
 }
 
@@ -125,11 +127,12 @@ function diceNote(labelDe: string, e: DiceEffect, level: number): string | null 
   return `${labelDe} +${formatDamageDice(dice)}${type}: ${situationalLabelDe(e)}`;
 }
 
-/** „ (Nahkampf; Schwer oder Vielseitig)" — für wen die Zeile unter der Tabelle gilt. */
+/** „ (Nahkampf; Schwer oder Vielseitig; Stichschaden)" — für wen die Zeile unter der Tabelle gilt. */
 function filterDe(e: AttackEffect): string {
   const parts = [
     e.range === 'melee' ? WEAPON_RANGE_LABELS.Melee : e.range === 'ranged' ? WEAPON_RANGE_LABELS.Ranged : '',
     (e.properties ?? []).map((p) => PROPERTY_LABELS[p] ?? p).join(' oder '),
+    (e.damageTypes ?? []).map((t) => DAMAGE_TYPE_LABELS[t]).join(' oder '),
   ].filter(Boolean);
   return parts.length ? ` (${parts.join('; ')})` : '';
 }

@@ -125,6 +125,19 @@ describe('Deklarierte Angriffswirkungen', () => {
     expect(attackFootnotes([roots])).toEqual(['Schlagende Wurzeln: Reichweite +3 m (Nahkampf; Schwer oder Vielseitig)']);
   });
 
+  it('ein Hinweis mit Schadensart trifft nur Waffen dieser Art', () => {
+    const piercer: AttackEffectFeature = {
+      key: 'homebrew_piercer', name: 'Durchbohrer',
+      grants: grants([{ kind: 'note', condition: 'reroll', conditionDe: 'einen Schadenswürfel neu würfeln', range: 'any', damageTypes: ['piercing'] }]),
+    };
+    const typed = (w: ItemInfo, type: string) => ({ ...w, damage: { damage_dice: '1d8', damage_type: { index: type, name: type } } });
+    const notesWith = (w: ItemInfo) =>
+      attackBonusParts(attack(w), { ...ctx([], [piercer]), declared: { sources: attackEffectSources([], [piercer]), weaponOf: () => w } }).notes;
+    expect(notesWith(typed(LONGBOW, 'piercing'))).toEqual(['Durchbohrer: einen Schadenswürfel neu würfeln']);
+    expect(notesWith(typed(LONGSWORD, 'slashing'))).toEqual([]);
+    expect(attackFootnotes([piercer])).toEqual(['Durchbohrer: einen Schadenswürfel neu würfeln (Stichschaden)']);
+  });
+
   it('Zusatzwürfel wachsen mit der Stufe des Merkmals und stehen beim Schaden', () => {
     const strikes = (level: number): AttackEffectFeature => ({
       key: 'homebrew_strikes', name: 'Schreckliche Schläge', level,
