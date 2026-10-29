@@ -46,7 +46,7 @@
     hoverTraining = trainingOf?.(e.item);
     const inside = e.contents?.map((c) => displayName(c.item)).join(', ');
     hoverNote = [inside && `darin: ${inside}`, !e.effective && 'nicht eingestimmt, wirkt nicht'].filter(Boolean).join(' · ');
-    hover.show(ev, e.item.path);
+    hover.show(ev, e.item.path, e.entry.resistance);
   }
 </script>
 

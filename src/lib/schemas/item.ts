@@ -89,8 +89,12 @@ export const itemSchema = z.object({
     .optional()
     .describe('Wirkung auf Rettungswürfe (Mantel des Schutzes +1), solange der Gegenstand wirkt.'),
   resistanceChoice: z
-    .array(z.enum(DAMAGE_TYPES))
-    .min(1)
+    .object({
+      types: z.array(z.enum(DAMAGE_TYPES)).min(1),
+      descDe: z
+        .string()
+        .describe('Ersetzt desc_de, sobald gewählt ist; „{damage}" steht für die Schadensart („Feuerschaden").'),
+    })
     .optional()
     .describe('Schadensarten, aus denen der Träger EINE Resistenz wählt (Rüstung der Resistenz); gewählt wird an der Inventarzeile.'),
   slot: z

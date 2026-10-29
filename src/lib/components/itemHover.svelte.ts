@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createHoverTip } from '../utils/hoverTip.svelte';
 import type { Item } from '../types';
+import type { DamageType } from '../schemas/vocabulary';
+import { withChosenResistance } from '../utils/chosenResistance';
 
 /**
  * Gegenstandsdaten des Hover-Tooltips, MODUL-weit geteilt von Bogen und Formular. Anders
@@ -15,7 +17,8 @@ export interface ItemHover {
   readonly y: number;
   /** null, solange (oder falls) nichts kam. */
   data(path: string): Item | null;
-  show(e: MouseEvent, path: string): void;
+  /** `resistance`: die Wahl der Inventarzeile, falls der Gegenstand eine verlangt. */
+  show(e: MouseEvent, path: string, resistance?: DamageType): void;
   move(e: MouseEvent): void;
   hide(): void;
 }
@@ -57,8 +60,8 @@ export function createItemHover(paths: () => Iterable<string>): ItemHover {
     data(path: string) {
       return loaded[path] ?? null;
     },
-    show(e: MouseEvent, path: string) {
-      tip.show(e, loaded[path] ?? null);
+    show(e: MouseEvent, path: string, resistance?: DamageType) {
+      tip.show(e, withChosenResistance(loaded[path] ?? null, resistance));
     },
     move: tip.move,
     hide: tip.hide,

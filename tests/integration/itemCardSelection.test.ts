@@ -12,7 +12,7 @@ const withInventory = (inventory: Character['inventory']): Character =>
   characterSchema.parse({ name: 'Prüfling Kartendruck', inventory });
 
 const keys = async (inventory: Character['inventory']): Promise<(string | undefined)[]> =>
-  (await cardItemInfos(withInventory(inventory))).map((i) => i.key);
+  (await cardItemInfos(withInventory(inventory))).map((i) => i.info.key);
 
 describe('Auswahl der Gegenstandskarten', () => {
   it('nimmt nur angehakte Zeilen, in Inventar-Reihenfolge', async () => {

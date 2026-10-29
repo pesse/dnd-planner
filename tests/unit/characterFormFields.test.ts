@@ -92,3 +92,18 @@ describe('Karten-Häkchen am Inventar', () => {
     expect(inventoryOf(undefined)[0]).not.toHaveProperty('printCard');
   });
 });
+
+describe('Resistenz-Wahl am Inventar', () => {
+  const inventoryOf = (resistance: string | undefined) => patchOf({
+    name: 'Testfigur',
+    inventory: [{ name: 'Rüstung der Resistenz (Fellrüstung)', sourceKey: 'srd-2024_armor-of-resistance-hide-armor', count: '1', weight: '6', resistance }],
+  }).inventory;
+
+  it('schreibt die gewählte Resistenz in die Datei zurück', () => {
+    expect(inventoryOf('fire')[0].resistance).toBe('fire');
+  });
+
+  it('schreibt ohne Wahl kein Feld', () => {
+    expect(inventoryOf(undefined)[0]).not.toHaveProperty('resistance');
+  });
+});

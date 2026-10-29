@@ -28,6 +28,7 @@
   import type { Attack, Character, ProficiencyFlags } from '../../schemas/characterSchema';
   import type { Item } from '../../types';
   import type { DamageType } from '../../schemas/vocabulary';
+  import { withChosenResistance } from '../../utils/chosenResistance';
   import './form.css';
 
   type InventoryLine = Character['inventory'][number];
@@ -216,7 +217,7 @@
                 class="inv-name-link"
                 title="Gegenstandskarte öffnen"
                 onclick={() => openItemPage(lib)}
-                onmouseenter={(e) => { tipTraining = trainingOf(lib); tip.show(e, dataByPath.get(lib.path) ?? null); }}
+                onmouseenter={(e) => { tipTraining = trainingOf(lib); tip.show(e, withChosenResistance(dataByPath.get(lib.path) ?? null, item.resistance)); }}
                 onmousemove={tip.move}
                 onmouseleave={tip.hide}
               >{item.name}</button>
@@ -230,12 +231,12 @@
                      der Hinweis statt eines automatischen Links. -->
                 <span class="inv-ambiguous" title="Mehrere Gegenstände dieses Namens — über ✎ den richtigen wählen">mehrdeutig</span>
               {/if}
-              {#if lib.resistanceChoice?.length}
+              {#if lib.resistanceChoice}
                 <select class="inv-choice" class:inv-unchosen={!item.resistance} value={item.resistance ?? ''}
                   title="Resistenz, die der Gegenstand angelegt gewährt"
                   onchange={(e) => { item.resistance = (e.currentTarget.value || undefined) as DamageType | undefined; }}>
                   <option value="">Resistenz wählen …</option>
-                  {#each lib.resistanceChoice as t}<option value={t}>{DAMAGE_TYPE_LABELS[t]}</option>{/each}
+                  {#each lib.resistanceChoice.types as t}<option value={t}>{DAMAGE_TYPE_LABELS[t]}</option>{/each}
                 </select>
               {/if}
             </span>

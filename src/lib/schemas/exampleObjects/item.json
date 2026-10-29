@@ -382,9 +382,12 @@
       "conditionDe": "string"
     }
   ],
-  "resistanceChoice": [
-    "acid"
-  ],
+  "resistanceChoice": {
+    "types": [
+      "acid"
+    ],
+    "descDe": "string"
+  },
   "slot": "head",
   "attunement_by": "string",
   "variant": false,
