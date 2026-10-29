@@ -2,6 +2,7 @@
   import { createCharacterEditor } from '../services/characterEditor.svelte';
   import { createCharacterSideFiles } from '../services/characterSideFiles.svelte';
   import { createCharacterPortrait } from '../services/characterPortrait.svelte';
+  import { createCharacterGallery } from '../services/characterGallery.svelte';
   import { createFormLibraries } from '../services/characterFormLibraries.svelte';
   import { createFeaturePanelLayout } from '../utils/featurePanelLayout.svelte';
   import { matchItem } from '../itemLibrary';
@@ -31,6 +32,7 @@
   import SheetHeader from './character/SheetHeader.svelte';
   import SheetFeatureSidebar from './character/SheetFeatureSidebar.svelte';
   import SheetFreetextTab from './character/SheetFreetextTab.svelte';
+  import CharacterImagesTab from './character/CharacterImagesTab.svelte';
   import SheetPrintDialog from './character/SheetPrintDialog.svelte';
   import LevelUpAssistant from './LevelUpAssistant.svelte';
 
@@ -115,6 +117,7 @@
     figureFile: () => character?.figureFile,
   });
   const portraitUrl = createCharacterPortrait({ character: () => character, ownUrl: () => side.portraitUrl });
+  const gallery = createCharacterGallery({ dirPath: () => dirPath, character: () => ed.draft });
 
   const feats = createFeaturePanelLayout();
   let featBadge = $state<CoverageBadge | null>(null);
@@ -137,6 +140,7 @@
           companionImageUrl: side.companionImageUrl,
           figureUrl: side.figureUrl,
           freetext: side.details,
+          images: gallery.printed,
           masteryOf: (n) => { const m = masteryOf(n); return m ? masteryLabel(m) : undefined; },
           loaded: spellcasting,
         }} />
@@ -157,7 +161,7 @@
         ondiscard={editor.discard}
         onsavejson={(json) => ed.saveJson(json)}
         getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
-        extraTabs={[{ id: 'details', label: 'Details' }, { id: 'notes', label: 'GM-Notizen' }]}
+        extraTabs={[{ id: 'details', label: 'Details' }, { id: 'images', label: 'Bilder' }, { id: 'notes', label: 'GM-Notizen' }]}
         saveBarAllTabs
         style="--ep-accent: var(--arcane)"
       >
@@ -186,7 +190,9 @@
         {/snippet}
 
         {#snippet extra(id)}
-        {#if id === 'notes'}
+        {#if id === 'images'}
+        <CharacterImagesTab {gallery} />
+      {:else if id === 'notes'}
         <SheetFreetextTab value={side.gmNotes} onChange={side.onGmNotesChange} status={side.gmNotesStatus}
           hint="Nur für den Spielleiter — steht nicht auf dem Charakterbogen."
           placeholder="Hintergrund, Geheimnisse, Hooks, Verbindungen, DM-Notizen …" />

@@ -32,6 +32,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   values: [],
   cardItems: [],
   figure: null,
+  images: [],
   spellCards: '',
   itemCards: '',
   ...over,

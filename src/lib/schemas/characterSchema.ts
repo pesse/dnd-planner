@@ -187,10 +187,17 @@ const personalDataSchema = z.object({
   aussehen: z.string().default(''),
 });
 
+const galleryImageSchema = z.object({
+  file: z.string().describe('Pfad relativ zum Charakter-Ordner, z. B. `images/drache.png`.'),
+  caption: z.string().default(''),
+});
+
 const companionSchema = z.object({
   text: z.string().default(''),
   imageFile: z.string().optional(), // Dateiname im Charakter-Ordner, wie `portraitFile`
 });
+
+export type GalleryImage = z.infer<typeof galleryImageSchema>;
 
 export const emptyPersonal = (): PersonalData => ({
   rassenmerkmale: '', alter: '', sizeCat: '',
@@ -324,6 +331,11 @@ export const characterSchema = z.object({
     .describe('Keys der Merkmale, die im Ausdruck als Volltext angehängt werden.'),
   portraitFile: z.string().optional(), // Dateiname im Charakter-Ordner
   figureFile: z.string().optional().describe('Eigene Ganzkörperfigur im Charakter-Ordner; ersetzt die Gliederpuppe im Inventar.'),
+  gallery: z.array(galleryImageSchema).optional().describe('Eigene Bilder des Bilder-Reiters.'),
+  printImages: z
+    .array(z.string())
+    .optional()
+    .describe('Bilder, die als Karte mit dem Bogen gedruckt werden: `art:<name>` für Stimmungsbilder, sonst `gallery[].file`.'),
   presentation: z
     .enum(PRESENTATIONS)
     .optional()

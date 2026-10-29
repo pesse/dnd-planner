@@ -26,6 +26,7 @@ import { combatFallbacksFrom, withCombatFallbacks } from '$lib/services/combatFa
 import { loadHpLibraryParts } from '$lib/services/hitPoints';
 import { cardItemInfos } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
+import type { PrintImage } from './imageCards';
 import { formatDamageDice } from '$lib/itemFormat';
 
 export interface PrintAttack {
@@ -68,6 +69,8 @@ export interface CharacterPrintData {
   cardItems: ItemInfo[];
   /** null = nichts angelegt. */
   figure: PrintFigure | null;
+  /** Die im Bilder-Reiter zum Druck markierten Bilder. */
+  images: PrintImage[];
   /**
    * Fertige Kartenseiten. Leer, bis der Dialog sie anfordert: die Karten messen ihren Text im
    * DOM aus (`spellCards.ts`, `itemCards.ts`), und das darf nicht bei jedem Öffnen der
@@ -83,6 +86,7 @@ export interface PrintDataInput {
   companionImageUrl?: string;
   figureUrl?: string;
   freetext?: string;
+  images?: PrintImage[];
   /** Derselbe Resolver, der die Meisterschaft auf dem Bildschirm-Bogen zeichnet. */
   masteryOf?: (attackName: string) => string | undefined;
   /** Schon geladen (CharacterSheet hält es); sonst wird nachgeladen. */
@@ -181,6 +185,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     values,
     cardItems,
     figure,
+    images: input.images ?? [],
     spellCards: '',
     itemCards: '',
   };

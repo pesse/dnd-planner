@@ -12,9 +12,10 @@ import {
   renderClassFeatures, renderCompanion, renderFeats, renderFreetext, renderPersonal,
   renderPinnedFeatures, renderSpeciesFeatures,
 } from './pages/details';
+import { renderImageCards } from './imageCards';
 import { renderExtraSpells, renderSpellSource, renderSpellTop, spellSourceGroups } from './pages/spells';
 
-export type SheetPageId = 'overview' | 'details' | 'spells' | 'pinned' | 'spellCards' | 'itemCards';
+export type SheetPageId = 'overview' | 'details' | 'spells' | 'pinned' | 'spellCards' | 'itemCards' | 'imageCards';
 
 export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
   { id: 'overview', label: 'Übersicht' },
@@ -23,6 +24,7 @@ export const SHEET_PAGES: { id: SheetPageId; label: string }[] = [
   { id: 'pinned', label: 'Anhang' },
   { id: 'spellCards', label: 'Zauberkarten' },
   { id: 'itemCards', label: 'Gegenstandskarten' },
+  { id: 'imageCards', label: 'Bildkarten' },
 ];
 
 /**
@@ -33,7 +35,7 @@ export const STATIC_SECTION_IDS = [
   'overview',
   'personal', 'companion',
   'figure', 'inventory', 'featuresSpecies', 'featuresClass', 'featuresFeats', 'freetext',
-  'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards', 'itemCards',
+  'spellTop', 'spellsExtra', 'featuresPinned', 'spellCards', 'itemCards', 'imageCards',
 ] as const;
 
 export type StaticSectionId = (typeof STATIC_SECTION_IDS)[number];
@@ -97,6 +99,9 @@ const STATIC_SECTIONS: Record<StaticSectionId, SectionDef> = {
   // Anders als bei den Zaubern ist die Auswahl schon im Inventar getroffen (`printCard`).
   itemCards:   { label: 'Volltext-Karten (3×3)', page: 'itemCards', defaultOn: true,
                  available: (d) => d.cardItems.length > 0, render: (d) => d.itemCards },
+  // Wie bei den Gegenständen fällt die Auswahl vorher — im Bilder-Reiter.
+  imageCards:  { label: 'Markierte Bilder (3×3)', page: 'imageCards', defaultOn: true,
+                 available: (d) => d.images.length > 0, render: renderImageCards },
 };
 
 /** Ein Kasten je Satz Zauberwerte; die Id der ersten Quelle ist stabil über ein Neuladen. */

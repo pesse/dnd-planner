@@ -17,6 +17,7 @@ export type EditSectionId = (typeof EDIT_SECTIONS)[number]['id'];
 // Änderungspunkt, der nie erscheint. `null` = in keinem Tab sichtbar.
 const SECTION_OF: Record<keyof Character, EditSectionId | null> = {
   uid: null, _version: null, _importedFrom: null, _importedAt: null,
+  gallery: null, printImages: null,
   name: 'general', classes: 'general', classLevel: 'general', playerName: 'general',
   backgroundRef: 'general', background: 'general', species: 'general', race: 'general', xp: 'general',
   abilities: 'general', mods: 'general', ac: 'general', initiative: 'general', speed: 'general',
