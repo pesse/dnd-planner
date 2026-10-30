@@ -64,7 +64,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   'airborne-vehicle':   'Luftfahrzeug',
   'wondrous-item':      'Wundersamer Gegenstand',
   'ring':               'Ring',
-  'rod':                'Rute',
+  'rod':                'Zepter',
   'staff':              'Stab',
   'wand':               'Zauberstab',
   'scroll':             'Schriftrolle',
