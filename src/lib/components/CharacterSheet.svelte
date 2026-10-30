@@ -87,7 +87,7 @@
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
-  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? [])) : []);
+  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? []), character.manualDefenses) : []);
   const spellRiders = $derived(spellcasting ? spellRiderSources(spellcasting.state, libs.spellIndex, character?.attackRiderSpells ?? []) : []);
   const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
   const checks = $derived(checkSources(owned.current ?? []));

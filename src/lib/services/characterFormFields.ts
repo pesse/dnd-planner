@@ -19,6 +19,7 @@ import {
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import type { ResourceAdjustment } from '../schemas/resource';
+import type { ManualDefense } from '../schemas/defense';
 import { COMBAT_STATS, emptyCombatAdjustments, type CombatAdjustments } from '../schemas/combatAdjustment';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
 
@@ -68,6 +69,7 @@ export interface CharacterFormFields {
   proficiencies: ProficiencyFlags;
   masteries: string[];
   attackRiderSpells: string[];
+  manualDefenses: ManualDefense[];
   optionPicks: OptionPick[];
   portraitFile: string;
   figureFile: string;
@@ -161,6 +163,15 @@ function withDefaults<T extends object>(base: T, given: Partial<T> | undefined):
 const copyProficiencies = (p: ProficiencyFlags): ProficiencyFlags =>
   ({ ...p, individualWeapons: [...p.individualWeapons] });
 
+const copyDefense = (d: ManualDefense): ManualDefense => ({
+  labelDe: d.labelDe,
+  resistances: [...d.resistances],
+  immunities: [...d.immunities],
+  conditionImmunities: [...d.conditionImmunities],
+});
+const isBlankDefense = (d: ManualDefense): boolean =>
+  !d.labelDe.trim() && !d.resistances.length && !d.immunities.length && !d.conditionImmunities.length;
+
 const copyAdjustment = (a: ResourceAdjustment): ResourceAdjustment => ({ ...a, target: { ...a.target } });
 
 const copyCombatAdjustments = (a: CombatAdjustments | undefined): CombatAdjustments => {
@@ -221,6 +232,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
     attackRiderSpells: [...(character.attackRiderSpells ?? [])],
+    manualDefenses: (character.manualDefenses ?? []).map(copyDefense),
     optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
     figureFile: character.figureFile ?? '',
@@ -319,6 +331,7 @@ export function formDraftPatch(
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
     attackRiderSpells: [...f.attackRiderSpells],
+    manualDefenses: f.manualDefenses.filter((d) => !isBlankDefense(d)).map(copyDefense),
     optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
     figureFile: f.figureFile || undefined,

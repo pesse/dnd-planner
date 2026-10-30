@@ -42,4 +42,17 @@ describe('characterDefenses', () => {
     expect(characterDefenses([HEAVY_ARMOR], 3)[0].textDe)
       .toBe('Wuchtschaden, Stichschaden, Hiebschaden um 3 verringert');
   });
+
+  it('hängt Einträge von Hand an, ein leerer Eintrag erscheint nicht', () => {
+    const out = characterDefenses([RESILIENCE], 2, [], [
+      { labelDe: 'Trank', resistances: ['fire'], immunities: [], conditionImmunities: ['poisoned'] },
+      { labelDe: '', resistances: ['cold'], immunities: [], conditionImmunities: [] },
+      { labelDe: 'nur Titel', resistances: [], immunities: [], conditionImmunities: [] },
+    ]);
+    expect(out.map((d) => [d.labelDe, d.textDe])).toEqual([
+      ['Zwergische Unverwüstlichkeit', expect.any(String)],
+      ['Trank', 'Resistenz gegen Feuerschaden; immun gegen den Zustand Vergiftet'],
+      ['eigener Eintrag', 'Resistenz gegen Kälteschaden'],
+    ]);
+  });
 });

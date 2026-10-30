@@ -10,6 +10,7 @@ import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { DAMAGE_TYPES } from './vocabulary';
 import { resourceAdjustmentSchema } from './resource';
 import { combatAdjustmentsSchema } from './combatAdjustment';
+import { manualDefenseSchema } from './defense';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -321,6 +322,10 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Keys der Zauber, deren `attackEffects` (Fesselnder Schlag) im Angriffsteil stehen — per ⚔ am Zauber gewählt.'),
+  manualDefenses: z
+    .array(manualDefenseSchema)
+    .default([])
+    .describe('Von Hand eingetragene Resistenzen und Immunitäten; die aus Merkmalen und Gegenständen kommen hinzu.'),
   /**
    * EINE flache Liste für ALLE Pools, geschlüsselt am Merkmal — die Anrufungen des
    * Hexenmeisters brauchen damit kein zweites Feld. Nicht ins Merkmals-Ledger: das trägt die

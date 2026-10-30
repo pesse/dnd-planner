@@ -20,3 +20,9 @@ export const defenseEffectSchema = z.object({
   conditionDe: z.string().optional().describe('Dieselbe Lage deutsch („solange dein Kampfrausch aktiv ist"); so zeigt sie der Bogen.'),
 });
 export type DefenseEffect = z.infer<typeof defenseEffectSchema>;
+
+/** Was weder ein Merkmal noch ein Gegenstand der Bibliothek deklariert, trägt der Spieler am Charakter ein. */
+export const manualDefenseSchema = defenseEffectSchema
+  .pick({ resistances: true, immunities: true, conditionImmunities: true })
+  .extend({ labelDe: z.string().default('').describe('Woher sie kommt, frei („Segen der Flussgöttin").') });
+export type ManualDefense = z.infer<typeof manualDefenseSchema>;

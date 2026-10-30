@@ -25,6 +25,8 @@
   import { armorClassHints, combatOverrides, storedCombatValues } from '../services/combatOverrides';
   import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
+  import { characterDefenses } from '../services/defenses';
+  import { wornItemsIn } from '../services/wornItems';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { attackFootnoteLines, declaredAttackEffects } from '../services/attackEffects';
   import { spellAttackOptions, spellAttackSourceOf, spellRiderOptions, spellRiderSources } from '../services/spellAttacks';
@@ -41,6 +43,7 @@
   import CombatOverrides from './characterForm/CombatOverrides.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
+  import DefenseFields from './characterForm/DefenseFields.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
   import PinnedFeatureList from './characterForm/PinnedFeatureList.svelte';
   import ImageField from './characterForm/ImageField.svelte';
@@ -86,6 +89,7 @@
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
   const spellRiders = $derived(casting.current ? spellRiderSources(casting.current.state, libs.spellIndex, form.attackRiderSpells) : []);
+  const derivedDefenses = $derived(characterDefenses(owned.current ?? [], effectiveProficiencyBonus(form), wornItemsIn(libs.itemIndex, form.inventory)));
   const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
   const riderChoices = $derived(casting.current ? spellRiderOptions(casting.current.state, libs.spellIndex) : []);
   const spellAttackChoices = $derived(casting.current ? spellAttackOptions(casting.current.state, libs.spellIndex) : []);
@@ -353,6 +357,11 @@
         sourceOf={(kind, value) => grantSourcesFor(kind === 'weapons' ? grants?.weapons : grants?.armor, value)}
         {dirOf}
       />
+    </section>
+
+    <section>
+      <h3>Resistenzen &amp; Immunitäten</h3>
+      <DefenseFields derived={derivedDefenses} entries={form.manualDefenses} />
     </section>
 
   {:else if section === 'attacks'}

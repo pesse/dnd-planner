@@ -1,5 +1,5 @@
-/** Resistenzen und Immunitäten eines Charakters: `grants.defenses` seiner Merkmale und gewählte Resistenzen angelegter Gegenstände. */
-import type { DefenseEffect } from '../schemas/defense';
+/** Resistenzen und Immunitäten eines Charakters: `grants.defenses` seiner Merkmale, gewählte Resistenzen angelegter Gegenstände und Einträge von Hand. */
+import type { DefenseEffect, ManualDefense } from '../schemas/defense';
 import type { FeatureGrant } from '../schemas/grants';
 import { CONDITIONS } from '../schemas/vocabulary';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
@@ -24,6 +24,7 @@ export function characterDefenses(
   features: readonly DefenseFeature[],
   profBonus: number,
   worn: readonly WornItem[] = [],
+  manual: readonly ManualDefense[] = [],
 ): CharacterDefense[] {
   const seen = new Set<string>();
   const out: CharacterDefense[] = [];
@@ -33,7 +34,12 @@ export function characterDefenses(
     seen.add(id);
     out.push(...(f.grants?.defenses ?? []).map((effect) => ({ labelDe: f.name, effect, textDe: defenseTextDe(effect, profBonus) })));
   }
-  return [...out, ...worn.flatMap(itemDefense)];
+  return [...out, ...worn.flatMap(itemDefense), ...manual.flatMap((m) => manualDefense(m, profBonus))];
+}
+
+function manualDefense({ labelDe, ...lists }: ManualDefense, profBonus: number): CharacterDefense[] {
+  const textDe = defenseTextDe(lists, profBonus);
+  return textDe ? [{ labelDe: labelDe.trim() || 'eigener Eintrag', effect: lists, textDe }] : [];
 }
 
 const NO_DEFENSE: DefenseEffect = { resistances: [], immunities: [], conditionImmunities: [] };
