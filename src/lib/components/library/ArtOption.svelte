@@ -5,10 +5,12 @@
 
   let {
     art,
-    checked = $bindable(false),
+    // Ohne Fallback: Svelte verbietet `bind:` von `undefined` auf eine Prop mit Fallback, und eine
+    // erst nach dem Öffnen im Index aufgetauchte Library hat noch keinen Eintrag in `selected`.
+    checked = $bindable(),
     disabled,
     title,
-  }: { art: Library; checked: boolean; disabled: boolean; title?: string } = $props();
+  }: { art: Library; checked?: boolean; disabled: boolean; title?: string } = $props();
 </script>
 
 <div class="art">
