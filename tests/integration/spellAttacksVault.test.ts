@@ -4,7 +4,9 @@
  *
  *   npm run test -- spellAttacksVault
  */
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { itemSchema } from '../../src/lib/schemas/item';
 import { buildSpellIndex, getSpellLibrary } from '../../src/lib/spellLibrary';
 import { spellAttackSchema } from '../../src/lib/schemas/spellAttack';
 import { attackEffectSchema } from '../../src/lib/schemas/attackEffect';
@@ -26,6 +28,18 @@ describe('Auszeichnung im Vault', () => {
       return a && r ? [] : [s.name];
     });
     expect(bad).toEqual([]);
+  });
+
+  // Die Bibliothek verwirft eine ungültige Auszeichnung still (`safeParse`), deshalb hier laut.
+  it('jede Waffen-Auszeichnung parst', () => {
+    const dir = './vault/items/weapon';
+    const bad = readdirSync(dir).flatMap((f) => {
+      const raw = JSON.parse(readFileSync(`${dir}/${f}`, 'utf-8'));
+      return raw.attackEffects == null || itemSchema.shape.attackEffects.safeParse(raw.attackEffects).success ? [] : [f];
+    });
+    expect(bad).toEqual([]);
+    const flame = JSON.parse(readFileSync(`${dir}/flame-tongue-longsword.json`, 'utf-8'));
+    expect(flame.attackEffects).toEqual([expect.objectContaining({ kind: 'dice', dice: '2d6', damageType: 'fire', self: true })]);
   });
 
   it('die bekannten Fälle sind ausgezeichnet', async () => {
