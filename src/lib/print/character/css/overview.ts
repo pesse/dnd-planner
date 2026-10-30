@@ -169,6 +169,10 @@ export const OVERVIEW_CSS = `
 .o-atk .anote b { font-weight: 700; }
 .o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }
 .o-atk .atk-origin svg { display: block; }
-.o-atk tr.alegend td { border-bottom: none; font-size: 6pt; color: var(--ink-label); text-align: right; }
+/* Auf der oberen Rahmenlinie rechts, wie die Beschriftung — kostet keine Schreiblinie. */
+.tf > .tlegend { position: absolute; top: -${FRAME_WIDTH_MM}mm; right: 3mm; padding: 0 1mm; line-height: 1;
+                 background: var(--paper); white-space: nowrap; font-size: 5pt; color: var(--ink-label); }
+.tlegend .atk-origin { display: inline-block; width: 1em; margin: 0 0.4mm 0 1mm; vertical-align: -0.12em; }
+.tlegend .atk-origin svg { display: block; }
 
 `;

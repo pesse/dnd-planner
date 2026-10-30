@@ -202,15 +202,15 @@ const attacksBox = (d: CharacterPrintData): string => {
   ]);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
   // Jede Zeile unter dem Namen belegt eine weitere Schreiblinie.
-  const used = d.attacks.reduce((n, a) => n + lines(a), d.attackNotes.length + (legend ? 1 : 0));
+  const used = d.attacks.reduce((n, a) => n + lines(a), d.attackNotes.length);
   const write = Math.max(4, ATTACK_ROWS - used);
   rows.push(...Array.from({ length: write }, () => writeRow));
-  if (legend) rows.push(`<tr class="alegend"><td colspan="5">${legend}</td></tr>`);
 
   const head = ['Angriff', 'Reichweite', 'Bonus', 'Schaden', 'Schadentyp']
     .map((h, i) => `<th class="${i > 0 && i < 4 ? 'num' : ''}">${esc(h)}</th>`).join('');
   return frame('Waffen & Angriffszauber',
-    `<table class="o-atk"><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table>`, 'o-atkbox');
+    `<table class="o-atk"><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table>` +
+    (legend ? `<span class="tlegend">${legend}</span>` : ''), 'o-atkbox');
 };
 
 export function renderOverview(d: CharacterPrintData): string {

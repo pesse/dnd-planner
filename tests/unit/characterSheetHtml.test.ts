@@ -240,22 +240,23 @@ describe('HTML-Charakterbogen', () => {
     expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(18);
   });
 
-  it('kennzeichnet Herkunft von Zeilen und Fußnoten und legt die Legende unten in den Kasten', () => {
+  it('kennzeichnet Herkunft von Zeilen und Fußnoten, die Legende sitzt oben auf dem Rahmen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.attacks = [
       { origin: 'weapon', name: 'Langbogen', bonus: '7', damage: '1W8+3', type: 'Stich', range: '45/180 m', note: '', effects: [] },
       { origin: null, name: 'Handgetippt', bonus: '2', damage: '1W4', type: 'Wucht', range: 'Nah', note: '', effects: [] },
     ];
     d.attackNotes = [{ origin: 'spell', labelDe: 'Zeichen des Jägers', text: 'Zeichen des Jägers +1W6 Energieschaden: gegen das markierte Ziel' }];
-    const attacks = build(d).split('<table class="o-atk">')[1].split('</table>')[0];
+    const box = build(d).split('<table class="o-atk">')[1];
+    const attacks = box.split('</table>')[0];
 
-    expect(attacks.match(/atk-origin-weapon/g)).toHaveLength(2);
+    expect(box.match(/atk-origin-weapon/g)).toHaveLength(2);
     expect(attacks).toContain('<b>Zeichen des Jägers</b> +1W6 Energieschaden');
-    const legend = attacks.split('<tr class="alegend">')[1];
+    const legend = box.split('<span class="tlegend">')[1].split('</div>')[0];
     expect(legend).toMatch(/Waffe.*Zauber/);
     expect(legend).not.toContain('Merkmal');
-    // Fußnote und Legende belegen je eine der zwanzig Linien.
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(16);
+    // Die Fußnote belegt eine der zwanzig Linien, die Legende sitzt auf dem Rahmen.
+    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(17);
   });
 
   it('druckt keinen beschrifteten Kasten ohne Wert', () => {
