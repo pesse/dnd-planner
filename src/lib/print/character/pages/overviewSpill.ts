@@ -1,6 +1,7 @@
 /**
  * Passt die linke Spalte der Übersicht nicht aufs Blatt, wandern ihre Kästen von unten her auf
- * die nächste Seite, vor „Persönliches" & Co. Der Angriffskasten bleibt so immer auf Blatt 1.
+ * die nächste Seite, vor „Persönliches" & Co. Der Angriffskasten bleibt so immer auf Blatt 1 und
+ * behält nur die Schreiblinien, die ganz hineinpassen.
  */
 import { esc } from '../html';
 
@@ -11,7 +12,16 @@ export const spillPage = (name: string): string =>
 // Läuft im Druck-Iframe, nach dem Satz: nur dort steht die Höhe fest. Ein zweiter Lauf, wenn die
 // Schriften da sind — mit Ersatzschrift misst die Spalte anders. Er schiebt nur, was noch drüber ist.
 export const SPILL_SCRIPT = `(() => {
-  const run = () => {
+  const trimWriteRows = () => {
+    const fill = document.querySelector('.o-atkfill');
+    if (!fill) return;
+    const bottom = fill.getBoundingClientRect().bottom + 0.5;
+    for (const row of Array.from(fill.querySelectorAll('tr')).reverse()) {
+      if (row.getBoundingClientRect().bottom <= bottom) break;
+      row.remove();
+    }
+  };
+  const spill = () => {
     const sheet = document.querySelector('.sheet');
     const extra = sheet && sheet.querySelector('.o-extra');
     if (!extra) return;
@@ -35,6 +45,7 @@ export const SPILL_SCRIPT = `(() => {
       page.insertBefore(el, before);
     }
   };
+  const run = () => { spill(); trimWriteRows(); };
   run();
   if (document.fonts) document.fonts.ready.then(run);
 })();`;

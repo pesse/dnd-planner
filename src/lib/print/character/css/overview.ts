@@ -157,9 +157,11 @@ export const OVERVIEW_CSS = `
 .o-death { display: flex; align-items: center; justify-content: space-between; gap: 1.4mm;
            padding: 0.3mm 0; }
 .o-atkbox { flex: 1 1 auto; padding-left: 0.8mm; padding-right: 0.8mm; }
-/* Die Zeilen verteilen sich über die Kastenhöhe; der Wert sitzt auf seiner Linie. */
-.o-atk { width: 100%; height: 100%; table-layout: fixed;
-         border-collapse: separate; border-spacing: 0.8mm 0.5mm; }
+/* Eingetragenes hat seine Höhe; die Schreiblinien darunter füllen den Rest und werden am
+   Kastenrand abgeschnitten. Mit flex-basis 0 trägt die Füllung nichts zur Blatthöhe bei. */
+.o-atkfill { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.o-atk { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0.8mm 0.5mm; }
+.o-atk tbody tr { height: 6.4mm; }
 .o-atk th { font-size: 6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
             text-align: left; padding: 0 1mm 0.2mm; }
 .o-atk th.num { text-align: right; }
@@ -172,7 +174,7 @@ export const OVERVIEW_CSS = `
 /* Die Wirkung gehört zum Namen darüber: keine Linie dazwischen, Text oben an der Zeile. */
 .o-atk tr.has-effects td:first-child { border-bottom: none; }
 .o-atk tr.atk-effect td { vertical-align: top; padding-top: 0; }
-/* Höhe 0: die Resthöhe des Kastens geht an Angriffs- und Schreibzeilen, nicht an Fließtext. */
+/* Fließtext ist nur so hoch wie er selbst; die Schreiblinienhöhe gilt den Wertzeilen. */
 .o-atk tr.atk-effect, .o-atk tr.atk-note { height: 0; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
 .o-atk .anote b { font-weight: 700; }

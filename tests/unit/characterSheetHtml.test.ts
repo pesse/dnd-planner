@@ -227,15 +227,16 @@ describe('HTML-Charakterbogen', () => {
 
     // Angriffe: der eine eingetragene, dazu leere Zeilen zum Nachtragen, keine Beschreibungsfläche.
     const attacks = html.split('<table class="o-atk">')[1].split('</table>')[0];
-    // Zwanzig Zeilen im Kasten: die Kopfzeile, der eingetragene Angriff, der Rest zum Nachtragen.
-    expect(attacks.match(/<tr>/g)).toHaveLength(1 + 20);
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(19);
+    expect(attacks.match(/<tr>/g)).toHaveLength(1 + 1);
+    // Die Schreiblinien stehen in eigener Tabelle, die der Kastenrand abschneidet.
+    const fill = html.split('<div class="o-atkfill">')[1].split('</div>')[0];
+    expect(fill.match(/<span class="wcell"><\/span>/g)!.length).toBeGreaterThan(30);
     expect(attacks).not.toContain('Beschreibung');
     // Zauber: eine Zeile je gewähltem Zauber, plus eine je offener Wahl.
     expect(html.match(/<span class="sname write"><\/span>/g)).toHaveLength(2);
   });
 
-  it('hängt die Angriffsnotiz unter den Namen und rechnet sie als zweite Linie', () => {
+  it('hängt die Angriffsnotiz unter den Namen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.attacks = [{
       origin: null, name: 'Flammenzunge', bonus: '8', damage: '1W8+5', type: 'Hieb', range: 'Nah',
@@ -245,8 +246,7 @@ describe('HTML-Charakterbogen', () => {
 
     expect(attacks).toContain('<span class="anote">+1W6 jede lange Rast</span>');
     expect(attacks).toContain('<tr class="has-note">');
-    // Der Kasten hält seine zwanzig Linien: die Notiz belegt eine davon.
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(18);
+    expect(attacks).not.toContain('wcell');
   });
 
   it('kennzeichnet Herkunft von Zeilen und Fußnoten, die Legende sitzt oben auf dem Rahmen', () => {
@@ -264,8 +264,7 @@ describe('HTML-Charakterbogen', () => {
     const legend = box.split('<span class="tlegend">')[1].split('</div>')[0];
     expect(legend).toMatch(/Waffe.*Zauber/);
     expect(legend).not.toContain('Merkmal');
-    // Die Fußnote belegt eine der zwanzig Linien, die Legende sitzt auf dem Rahmen.
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(17);
+    expect(attacks).toContain('<tr class="atk-note">');
   });
 
   it('druckt keinen beschrifteten Kasten ohne Wert', () => {

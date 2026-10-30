@@ -182,11 +182,8 @@ const vitalsBox = (d: CharacterPrintData): string => {
 /** Der Rechner liefert die Zahl ohne Vorzeichen — auf dem Bogen ist sie ein Wurfbonus. */
 const withSign = (bonus: string): string => (/^\d/.test(bonus) ? `+${bonus}` : bonus);
 
-/**
- * Der Kasten hält eine feste Zeilenzahl, die eingetragenen Angriffe füllen sie auf: sonst
- * bestimmt die Zahl der Waffen, wie weit sich die Zeilen über die Kastenhöhe spreizen.
- */
-const ATTACK_ROWS = 20;
+/** Mehr, als der Kasten je fasst — `.o-atkfill` schneidet ab, was unter den Rand reicht. */
+const WRITE_ROWS = 40;
 
 const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
@@ -208,15 +205,13 @@ const attacksBox = (d: CharacterPrintData): string => {
     ...d.attackNotes.map((n) => n.origin),
   ]);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
-  // Notiz und Waffen-Wirkungen belegen je eine weitere Schreiblinie.
-  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1) + a.effects.length, d.attackNotes.length);
-  const write = Math.max(4, ATTACK_ROWS - used);
-  rows.push(...Array.from({ length: write }, () => writeRow));
+  const writeRows = Array.from({ length: WRITE_ROWS }, () => writeRow).join('');
 
   const head = ['Angriff', 'Reichweite', 'Bonus', 'Schaden', 'Schadentyp']
     .map((h, i) => `<th class="${i > 0 && i < 4 ? 'num' : ''}">${esc(h)}</th>`).join('');
   return frame('Waffen & Angriffszauber',
     `<table class="o-atk"><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table>` +
+    `<div class="o-atkfill"><table class="o-atk o-atkwrite"><tbody>${writeRows}</tbody></table></div>` +
     (legend ? `<span class="tlegend">${legend}</span>` : ''), 'o-atkbox');
 };
 
