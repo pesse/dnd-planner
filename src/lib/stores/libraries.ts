@@ -27,6 +27,8 @@ export interface Library {
   contentOutdated: boolean;
   installedVersion?: string;
   minVersion?: string;
+  /** Bilder-Library: id des Pakets, dessen optionaler Zusatz sie ist. */
+  artOf?: string;
 }
 
 /** Rohform von `fetch_library_index` — `status` ist dort die Rust-seitige Prioritätskette. */
@@ -43,6 +45,7 @@ interface RawLibraryStatus {
   contentOutdated: boolean;
   installedVersion?: string;
   minVersion?: string;
+  artOf?: string;
 }
 
 const BLOCK_REASONS: ReadonlySet<string> = new Set<BlockReason>(['locked', 'staleCode', 'appOutdated']);
@@ -72,6 +75,7 @@ function toLibrary(raw: RawLibraryStatus): Library {
     contentOutdated: raw.contentOutdated,
     installedVersion: raw.installedVersion,
     minVersion: raw.minVersion,
+    artOf: raw.artOf,
   };
 }
 

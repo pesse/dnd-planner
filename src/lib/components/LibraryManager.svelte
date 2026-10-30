@@ -14,6 +14,14 @@
   } from '../stores/libraries';
   import { confirmAction } from '../stores/confirmDialog';
   import InstallProgressBar from './library/InstallProgressBar.svelte';
+  import ArtOption from './library/ArtOption.svelte';
+  import {
+    kib,
+    needsAppUpdate,
+    needsCode,
+    stateLabel,
+    stateTone,
+  } from './library/libraryLabels';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -35,55 +43,42 @@
     const list = $libraries;
     if (initialized || !list.length) return;
     initialized = true;
+    // Veralteter Inhalt ist vorgewählt, obwohl er als „installiert" gilt — sonst müsste der
+    // Nutzer erst verstehen, dass Neuziehen die fehlende Mechanik nachliefert.
+    const wanted = (l: Library) =>
+      !l.block && (l.install === 'available' || l.install === 'update' || l.contentOutdated);
+    const base = Object.fromEntries(list.map((l) => [l.id, wanted(l)]));
     selected = Object.fromEntries(
-      // Veralteter Inhalt ist vorgewählt, obwohl er als „installiert" gilt — sonst müsste der
-      // Nutzer erst verstehen, dass Neuziehen die fehlende Mechanik nachliefert.
-      list.map((l) => [
-        l.id,
-        !l.block && (l.install === 'available' || l.install === 'update' || l.contentOutdated),
-      ]),
+      list.map((l) => {
+        const parent = l.artOf ? list.find((p) => p.id === l.artOf) : undefined;
+        return [l.id, base[l.id] && (!parent || base[parent.id] || hasInstalled(parent))];
+      }),
     );
   });
 
-  const INSTALL_LABEL: Record<Library['install'], string> = {
-    installed: 'Installiert',
-    update: 'Update verfügbar',
-    available: 'Nicht installiert',
-  };
+  const hasInstalled = (lib: Library) => lib.install !== 'available';
 
-  const BLOCK_LABEL: Record<NonNullable<Library['block']>, string> = {
-    locked: 'Zugangscode erforderlich',
-    staleCode: 'Zugangscode veraltet',
-    appOutdated: 'App-Update erforderlich',
-  };
+  // Bilder sind ein Zusatz ihres Pakets: ohne Paket in der Liste stehen sie für sich.
+  let artByBase = $derived(
+    new Map($libraries.filter((l) => l.artOf).map((l) => [l.artOf!, l])),
+  );
+  let topLevel = $derived(
+    $libraries.filter((l) => !l.artOf || !$libraries.some((p) => p.id === l.artOf)),
+  );
 
-  /** Ein Sperrgrund verdrängt die Anzeige des Installationsstands. */
-  const stateLabel = (lib: Library) =>
-    lib.block
-      ? BLOCK_LABEL[lib.block]
-      : lib.contentOutdated
-        ? 'Inhalt veraltet'
-        : INSTALL_LABEL[lib.install];
+  /** Bilder ohne ihr Paket ergeben nichts — ziehbar erst, wenn es installiert ist oder mitkommt. */
+  const artAllowed = (base: Library) => selected[base.id] || hasInstalled(base);
 
-  const stateTone = (lib: Library): 'ok' | 'pending' | 'missing' | 'blocked' =>
-    lib.block
-      ? 'blocked'
-      : lib.contentOutdated || lib.install === 'update'
-        ? 'pending'
-        : lib.install === 'installed' ? 'ok' : 'missing';
+  function onBaseToggle(base: Library) {
+    const art = artByBase.get(base.id);
+    if (art && !artAllowed(base)) selected = { ...selected, [art.id]: false };
+  }
 
   const LICENSE_LABEL: Record<string, string> = {
     'CC-BY-4.0': 'SRD 5.2, frei weitergebbar',
     own: 'Eigene Inhalte',
     proprietary: 'Geschützt',
   };
-
-  const kib = (bytes: number) =>
-    bytes >= 1048576 ? `${Math.round(bytes / 1048576)} MiB` : `${Math.max(1, Math.round(bytes / 1024))} KiB`;
-
-  const needsCode = (lib: Library) => lib.block === 'locked' || lib.block === 'staleCode';
-
-  const needsAppUpdate = (lib: Library) => lib.block === 'appOutdated';
 
   // Bei `appOutdated` verdeckt die Versionssperre, ob ein Code hinterlegt ist — das
   // Schloss bleibt dann zu, statt „entsperrt" zu behaupten.
@@ -201,6 +196,8 @@
     error = '';
     try {
       await forgetAccessCode(lib.id);
+      const art = artByBase.get(lib.id);
+      if (art) await forgetAccessCode(art.id);
       message = `Zugangscode für „${lib.name}“ entfernt.`;
     } catch (e) {
       error = `${e}`;
@@ -229,12 +226,14 @@
     </div>
 
     <ul class="lib-list">
-      {#each $libraries as lib (lib.id)}
+      {#each topLevel as lib (lib.id)}
+        {@const art = artByBase.get(lib.id)}
         <li class="lib {stateTone(lib)}" class:chosen={selected[lib.id]}>
           <label class="lib-row">
             <input
               type="checkbox"
               bind:checked={selected[lib.id]}
+              onchange={() => onBaseToggle(lib)}
               disabled={busy || needsAppUpdate(lib)}
             />
             <span class="lib-main">
@@ -276,7 +275,16 @@
             </p>
           {/if}
 
-          {#if selected[lib.id] && needsCode(lib)}
+          {#if art}
+            <ArtOption
+              {art}
+              bind:checked={selected[art.id]}
+              disabled={busy || needsAppUpdate(art) || !artAllowed(lib)}
+              title={artAllowed(lib) ? undefined : 'Erst die Bibliothek selbst wählen'}
+            />
+          {/if}
+
+          {#if (selected[lib.id] && needsCode(lib)) || (art && selected[art.id] && needsCode(art))}
             <div class="code-row">
               <input
                 class="code-input"

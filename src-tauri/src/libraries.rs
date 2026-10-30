@@ -85,6 +85,9 @@ pub struct IndexEntry {
     /// einem Build vor `schemaVersion` 2 — dann gilt keine Schranke.
     #[serde(rename = "minVersion", default)]
     pub min_version: Option<String>,
+    /// Bilder-Library: die id des Pakets, dessen Zusatz sie ist.
+    #[serde(rename = "artOf", default)]
+    pub art_of: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -117,6 +120,8 @@ pub struct LibraryStatus {
     /// benennt sie im Zustand `appOutdated`.
     #[serde(rename = "minVersion")]
     pub min_version: Option<String>,
+    #[serde(rename = "artOf")]
+    pub art_of: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -606,6 +611,7 @@ fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
         content_outdated,
         installed_version,
         min_version: entry.min_version,
+        art_of: entry.art_of,
     }
 }
 
@@ -1142,6 +1148,7 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
             description: None,
             key_version: Some(1),
             min_version: min_version.map(str::to_string),
+            art_of: None,
         }
     }
 
