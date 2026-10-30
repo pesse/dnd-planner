@@ -174,8 +174,6 @@ export const OVERVIEW_CSS = `
 /* Die Wirkung gehört zum Namen darüber: keine Linie dazwischen, Text oben an der Zeile. */
 .o-atk tr.has-effects td:first-child { border-bottom: none; }
 .o-atk tr.atk-effect td { vertical-align: top; padding-top: 0; }
-/* Fließtext ist nur so hoch wie er selbst; die Schreiblinienhöhe gilt den Wertzeilen. */
-.o-atk tr.atk-effect, .o-atk tr.atk-note { height: 0; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
 .o-atk .anote b { font-weight: 700; }
 .o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }
