@@ -198,12 +198,11 @@
 
   .item-card-view .props {
     padding: 0.55rem 1.2rem 0.2rem;
-    display: flex; flex-direction: column; gap: 0.3rem;
+    display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 0.75rem;
+    align-items: baseline;
     font-size: 0.84rem; line-height: 1.4;
   }
-  .item-card-view .prop {
-    display: grid; grid-template-columns: 6rem 1fr; gap: 0.5rem; align-items: baseline;
-  }
+  .item-card-view .prop { display: contents; }
   .item-card-view .plabel {
     color: var(--ink-muted); font-size: 0.72rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.04em;
