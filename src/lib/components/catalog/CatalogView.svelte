@@ -5,7 +5,7 @@
   import { peekEntry } from '../../services/entryPeek';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
-    catalogEntry, columnsFor, type CatalogGroup, type CatalogKind, type CatalogRow,
+    catalogEntry, columnsFor, facetOptions, type CatalogColumn, type CatalogGroup, type CatalogKind, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
   import '../toolbar.css';
 
@@ -46,7 +46,7 @@
   // Wechsel zwischen den Katalogen: die Sortierung des anderen passt nicht auf diese Spalten.
   $effect(() => {
     void kind;
-    untrack(() => { sortCol = 'name'; sortAsc = true; search = ''; loading = true; });
+    untrack(() => { sortCol = 'name'; sortAsc = true; search = ''; facetSel = {}; loading = true; });
   });
 
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
@@ -54,10 +54,28 @@
   let columnIds = $derived(columnsFor(spec, group));
   let activeSort = $derived(columnIds.includes(sortCol) ? sortCol : 'name');
 
+  /** Facette → gewählter Wert; fehlt der Schlüssel, filtert sie nicht. */
+  let facetSel = $state<Record<string, string>>({});
+  const ALL = '*';
+
+  let groupRows = $derived(group ? rows.filter((r) => r.group === group) : rows);
+
+  // Eine Facette mit nur einem Wert in dieser Gruppe filtert nichts und bleibt weg.
+  let facets = $derived(
+    Object.entries(spec.facets)
+      .map(([id, label]) => ({ id, label, options: facetOptions(groupRows, id) }))
+      .filter((f) => f.options.length > 1 || f.id in facetSel),
+  );
+
+  function setFacet(id: string, value: string) {
+    if (value === ALL) delete facetSel[id];
+    else facetSel[id] = value;
+  }
+
   let shown = $derived.by(() => {
     const q = search.trim().toLowerCase();
-    const filtered = rows.filter((r) =>
-      (!group || r.group === group)
+    const filtered = groupRows.filter((r) =>
+      Object.entries(facetSel).every(([id, value]) => r.facets[id].id === value)
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
@@ -84,8 +102,8 @@
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type });
 </script>
 
-{#snippet sortHead(label: string, col: string, numeric = false)}
-  <th class:numeric aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+{#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}
+  <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
     <button type="button" onclick={() => sortBy(col)}>
       {label}<span class="sort-mark">{activeSort === col ? (sortAsc ? '▲' : '▼') : ''}</span>
     </button>
@@ -106,6 +124,15 @@
         {#each groups as g}<option value={g.id}>{g.label}</option>{/each}
       </select>
     </label>
+    {#each facets as f (f.id)}
+      <label class="filter">
+        {f.label}
+        <select value={facetSel[f.id] ?? ALL} onchange={(e) => setFacet(f.id, e.currentTarget.value)}>
+          <option value={ALL}>Alle</option>
+          {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
+        </select>
+      </label>
+    {/each}
     <span class="count">{loading ? 'Laden…' : `${shown.length} von ${rows.length}`}</span>
   </div>
 
@@ -115,7 +142,7 @@
         <tr>
           <th class="icon-col"></th>
           {@render sortHead('Name', 'name')}
-          {#each columnIds as id}{@render sortHead(spec.columns[id].label, id, spec.columns[id].numeric)}{/each}
+          {#each columnIds as id}{@render sortHead(spec.columns[id].label, id, spec.columns[id])}{/each}
         </tr>
       </thead>
       <tbody>
@@ -143,6 +170,7 @@
               <td
                 class:numeric={spec.columns[id].numeric}
                 class:wrap={spec.columns[id].wrap}
+                class:center={spec.columns[id].center}
                 style={cell.color ? `color:${cell.color}` : undefined}
               >{cell.text}</td>
             {/each}
@@ -267,6 +295,8 @@
   }
   .numeric { text-align: right; font-variant-numeric: tabular-nums; }
   td.wrap { white-space: normal; min-width: 10rem; }
+  .center { text-align: center; }
+  td.center { font-weight: 700; }
 
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--bg-raised); }

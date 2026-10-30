@@ -14,6 +14,8 @@ export interface CatalogCell {
 export interface CatalogColumn {
   label: string;
   numeric?: boolean;
+  /** Für Symbol-Spalten (Haken). */
+  center?: boolean;
   /** Lange Werte (Eigenschaftslisten) dürfen umbrechen. */
   wrap?: boolean;
 }
@@ -30,6 +32,15 @@ export interface CatalogRow {
   iconColor: string;
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
+  /** Ein Wert je `CatalogSpec.facets`. */
+  facets: Record<string, CatalogFacetValue>;
+}
+
+export interface CatalogFacetValue {
+  id: string;
+  label: string;
+  /** Fehlt sie, ordnet das Label. */
+  order?: number;
 }
 
 export interface CatalogGroup {
@@ -46,13 +57,24 @@ export interface CatalogSpec {
   columns: Record<string, CatalogColumn>;
   /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
   columnSets: { '': string[] } & Record<string, string[]>;
+  /** Zusatzfilter neben der Gruppe: id → Label. */
+  facets: Record<string, string>;
   load: () => Promise<{ rows: CatalogRow[]; groups: CatalogGroup[] }>;
   invalidate: () => void;
 }
 
 export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
 
-export const sourceCell = (source: string | undefined): CatalogCell => ({ text: sourceLabel(source) || '—' });
+export const sourceFacet = (source: string | undefined): CatalogFacetValue =>
+  ({ id: source ?? '', label: sourceLabel(source) || 'Ohne Angabe' });
+
+/** Die Werte einer Facette über `rows`, in Anzeige-Reihenfolge. */
+export function facetOptions(rows: CatalogRow[], facet: string): CatalogFacetValue[] {
+  const byId = new Map<string, CatalogFacetValue>();
+  for (const row of rows) byId.set(row.facets[facet].id, row.facets[facet]);
+  return [...byId.values()].sort((a, b) =>
+    (a.order ?? 0) - (b.order ?? 0) || a.label.localeCompare(b.label, 'de'));
+}
 
 export function columnsFor(spec: CatalogSpec, group: string): string[] {
   return spec.columnSets[group] ?? spec.columnSets[''];

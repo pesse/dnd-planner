@@ -3,7 +3,7 @@ import { monsterArtUrl } from '../../libraryArt';
 import { monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
-import { byLabel, sourceCell, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, type CatalogSpec } from './catalogTypes';
 
 /** Der Typ ist der Filter; alle Typen teilen sich ein Spalten-Set. */
 export const monsterCatalog: CatalogSpec = {
@@ -16,9 +16,9 @@ export const monsterCatalog: CatalogSpec = {
     size: { label: 'Größe' },
     ac: { label: 'RK', numeric: true },
     hp: { label: 'TP', numeric: true },
-    source: { label: 'Quelle' },
   },
-  columnSets: { '': ['cr', 'size', 'ac', 'hp', 'source'] },
+  columnSets: { '': ['cr', 'size', 'ac', 'hp'] },
+  facets: { source: 'Quelle' },
   invalidate: invalidateMonsterLibrary,
   async load() {
     const hits = await getMonsterLibrary();
@@ -35,8 +35,8 @@ export const monsterCatalog: CatalogSpec = {
         size: { text: monsterSizeLabel(m.size), sort: MONSTER_SIZE_KEYS.indexOf(m.size) },
         ac: { text: String(m.armor_class), sort: m.armor_class },
         hp: { text: String(m.hit_points), sort: m.hit_points },
-        source: sourceCell(m.source),
       },
+      facets: { source: sourceFacet(m.source) },
     }));
     const types = [...new Set(rows.map((r) => r.group))];
     return { rows, groups: types.map((id) => ({ id, label: monsterTypeLabel(id) })).sort(byLabel) };

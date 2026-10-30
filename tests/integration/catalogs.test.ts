@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../../src/lib/services/catalog/catalogs';
-import { catalogEntry, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
+import { catalogEntry, facetOptions, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
 
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   it('jedes Spalten-Set nennt nur bekannte Spalten', () => {
@@ -20,6 +20,7 @@ describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
     const groupIds = new Set(groups.map((g) => g.id));
     for (const row of rows) {
       expect(Object.keys(row.cells).sort()).toEqual(Object.keys(spec.columns).sort());
+      expect(Object.keys(row.facets).sort()).toEqual(Object.keys(spec.facets).sort());
       expect(groupIds.has(row.group)).toBe(true);
     }
   });
@@ -37,7 +38,8 @@ describe('Katalog-Werte', () => {
     const longsword = rows.find((r) => r.altName === 'Longsword' && r.group === 'weapon');
     expect(longsword?.cells.cost).toEqual({ text: '15 GM', sort: 1500 });
     expect(longsword?.cells.damage.sort).toBe(4.5);
-    expect(longsword?.cells.mastery.text).not.toBe('');
+    expect(longsword?.cells.weaponCategory.text).toBe('Kriegswaffe');
+    expect(longsword?.cells.weaponRange.text).toBe('Nahkampf');
   });
 
   it('Rüstung: RK mit GES-Deckel', async () => {
@@ -46,9 +48,18 @@ describe('Katalog-Werte', () => {
     expect(breastplate?.cells.ac).toEqual({ text: '14 + GES (max. 2)', sort: 14 });
   });
 
-  it('DMG-Gegenstände nennen ihre Quelle', async () => {
+  it('Quelle und Seltenheit sind Filter, gewöhnliche Gegenstände zuerst', async () => {
     const { rows } = await CATALOGS.item.load();
-    expect(rows.some((r) => r.cells.source.text === 'DMG 2024')).toBe(true);
+    expect(facetOptions(rows, 'source').map((o) => o.label)).toContain('DMG 2024');
+    expect(facetOptions(rows, 'rarity').map((o) => o.id)).toEqual(
+      ['', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'],
+    );
+  });
+
+  it('Einstimmung als Haken', async () => {
+    const { rows } = await CATALOGS.item.load();
+    const attuned = rows.find((r) => r.altName === 'Gauntlets of Ogre Power');
+    expect(attuned?.cells.attunement.text).toBe('✓');
   });
 });
 

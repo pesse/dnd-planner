@@ -1,11 +1,11 @@
 import { getAllItemsByDir, invalidateItemCache, type ItemInfo } from '../../itemLibrary';
 import {
   ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, DIR_TO_CATEGORY, PROPERTY_LABELS, RARITY_LABELS,
-  WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, masteryLabel, rarityColor,
+  WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, rarityColor,
 } from '../../itemLabels';
 import { formatCost, weaponDamageLine } from '../../itemFormat';
 import { itemInfoArtUrl } from '../../libraryArt';
-import { byLabel, sourceCell, type CatalogCell, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, type CatalogCell, type CatalogSpec } from './catalogTypes';
 
 /** Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
 export const itemDirLabel = (dir: string): string => CATEGORY_LABELS[DIR_TO_CATEGORY[dir] ?? dir] ?? dir;
@@ -38,26 +38,21 @@ function armorClassCell(item: ItemInfo): CatalogCell {
 
 function itemCells(item: ItemInfo): Record<string, CatalogCell> {
   const rarity = rarityName(item.rarity);
-  const kind = [
-    WEAPON_CATEGORY_LABELS[item.weapon_category ?? ''] ?? '',
-    WEAPON_RANGE_LABELS[item.weapon_range ?? ''] ?? '',
-  ].filter(Boolean).join(', ');
   return {
     rarity: RARITY_LABELS[rarity]
       ? { text: RARITY_LABELS[rarity], sort: RARITY_ORDER.indexOf(rarity), color: rarityColor(rarity) }
       : EMPTY,
-    attunement: { text: item.attunement ? 'ja' : '', sort: item.attunement ? 1 : 0 },
+    attunement: item.attunement ? { text: '✓', sort: 1, color: 'var(--arcane)' } : { text: '', sort: 0 },
     cost: item.cost
       ? { text: formatCost(item.cost), sort: item.cost.quantity * (COPPER_PER_UNIT[item.cost.unit] ?? 1) }
       : EMPTY,
     weight: item.weight != null ? { text: `${item.weight} Pfd.`, sort: item.weight } : EMPTY,
-    source: sourceCell(item.source),
-    weaponKind: kind ? { text: kind } : EMPTY,
+    weaponCategory: { text: WEAPON_CATEGORY_LABELS[item.weapon_category ?? ''] ?? '' },
+    weaponRange: { text: WEAPON_RANGE_LABELS[item.weapon_range ?? ''] ?? '' },
     damage: item.damage
       ? { text: weaponDamageLine(item), sort: averageDamage(item.damage.damage_dice) }
       : EMPTY,
     properties: { text: (item.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ') },
-    mastery: { text: item.mastery ? masteryLabel(item.mastery) : '' },
     armorKind: item.armor_category
       ? { text: ARMOR_CATEGORY_LABELS[item.armor_category] ?? item.armor_category, sort: ARMOR_ORDER.indexOf(item.armor_category) }
       : EMPTY,
@@ -67,8 +62,16 @@ function itemCells(item: ItemInfo): Record<string, CatalogCell> {
   };
 }
 
-const MAGIC = ['rarity', 'attunement', 'source'];
-const MUNDANE = ['cost', 'weight', 'source'];
+/** Alltagsausrüstung trägt gar keine Seltenheit — anders als magische „Gewöhnlich"-Gegenstände. */
+const NO_RARITY = { id: '', label: 'Ohne Seltenheit', order: -1 };
+
+function rarityFacet(item: ItemInfo) {
+  const rarity = rarityName(item.rarity);
+  return RARITY_LABELS[rarity] ? { id: rarity, label: RARITY_LABELS[rarity], order: RARITY_ORDER.indexOf(rarity) } : NO_RARITY;
+}
+
+const MAGIC = ['rarity', 'attunement'];
+const MUNDANE = ['cost', 'weight'];
 
 export const itemCatalog: CatalogSpec = {
   kind: 'item',
@@ -77,27 +80,27 @@ export const itemCatalog: CatalogSpec = {
   groupLabel: 'Kategorie',
   columns: {
     rarity: { label: 'Seltenheit' },
-    attunement: { label: 'Einst.' },
+    attunement: { label: 'Einst.', center: true },
     cost: { label: 'Preis', numeric: true },
     weight: { label: 'Gewicht', numeric: true },
-    source: { label: 'Quelle' },
-    weaponKind: { label: 'Art' },
+    weaponCategory: { label: 'Art' },
+    weaponRange: { label: 'Kampf' },
     damage: { label: 'Schaden' },
     properties: { label: 'Eigenschaften', wrap: true },
-    mastery: { label: 'Meisterschaft' },
     armorKind: { label: 'Art' },
     ac: { label: 'RK' },
     strength: { label: 'Stärke' },
     stealth: { label: 'Heimlichkeit' },
   },
   columnSets: {
-    '': ['rarity', 'attunement', 'cost', 'weight', 'source'],
-    weapon: ['weaponKind', 'damage', 'properties', 'mastery', 'rarity', 'cost', 'weight', 'source'],
-    armor: ['armorKind', 'ac', 'strength', 'stealth', 'rarity', 'cost', 'weight', 'source'],
+    '': ['rarity', 'attunement', 'cost', 'weight'],
+    weapon: ['weaponCategory', 'weaponRange', 'damage', 'properties', 'rarity', 'cost', 'weight'],
+    armor: ['armorKind', 'ac', 'strength', 'stealth', 'rarity', 'cost', 'weight'],
     potion: MAGIC, ring: MAGIC, rod: MAGIC, scroll: MAGIC, staff: MAGIC, wand: MAGIC, 'wondrous-item': MAGIC,
     'adventuring-gear': MUNDANE, tools: MUNDANE, 'equipment-pack': MUNDANE, 'spellcasting-focus': MUNDANE,
     mount: MUNDANE, 'land-vehicle': MUNDANE, 'waterborne-vehicle': MUNDANE,
   },
+  facets: { rarity: 'Seltenheit', source: 'Quelle' },
   invalidate: () => invalidateItemCache(),
   async load() {
     const byDir = await getAllItemsByDir();
@@ -111,6 +114,7 @@ export const itemCatalog: CatalogSpec = {
         icon: itemInfoArtUrl(item),
         iconColor: rarityColor(item.rarity),
         cells: itemCells(item),
+        facets: { rarity: rarityFacet(item), source: sourceFacet(item.source) },
       })),
     );
     return { rows, groups: Object.keys(byDir).map((id) => ({ id, label: itemDirLabel(id) })).sort(byLabel) };
