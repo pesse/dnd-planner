@@ -32,8 +32,8 @@ export interface CatalogRow {
   iconColor: string;
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
-  /** Ein Wert je `CatalogSpec.facets`. */
-  facets: Record<string, CatalogFacetValue>;
+  /** Ein Wert je `CatalogSpec.facets`; ohne Wert bleibt die Zeile bei gesetztem Filter draußen. */
+  facets: Record<string, CatalogFacetValue | undefined>;
 }
 
 export interface CatalogFacetValue {
@@ -71,7 +71,10 @@ export const sourceFacet = (source: string | undefined): CatalogFacetValue =>
 /** Die Werte einer Facette über `rows`, in Anzeige-Reihenfolge. */
 export function facetOptions(rows: CatalogRow[], facet: string): CatalogFacetValue[] {
   const byId = new Map<string, CatalogFacetValue>();
-  for (const row of rows) byId.set(row.facets[facet].id, row.facets[facet]);
+  for (const row of rows) {
+    const value = row.facets[facet];
+    if (value) byId.set(value.id, value);
+  }
   return [...byId.values()].sort((a, b) =>
     (a.order ?? 0) - (b.order ?? 0) || a.label.localeCompare(b.label, 'de'));
 }

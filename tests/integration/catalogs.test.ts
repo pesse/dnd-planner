@@ -48,12 +48,24 @@ describe('Katalog-Werte', () => {
     expect(breastplate?.cells.ac).toEqual({ text: '14 + GES (max. 2)', sort: 14 });
   });
 
-  it('Quelle und Seltenheit sind Filter, gewöhnliche Gegenstände zuerst', async () => {
+  it('Quelle und Seltenheit sind Filter, „Variiert" zuletzt', async () => {
     const { rows } = await CATALOGS.item.load();
     expect(facetOptions(rows, 'source').map((o) => o.label)).toContain('DMG 2024');
     expect(facetOptions(rows, 'rarity').map((o) => o.id)).toEqual(
-      ['', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'],
+      ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact', 'varies'],
     );
+  });
+
+  it('Basiswaffe und Zaubergebundene Waffe trennen sich über Magie, nicht über die Seltenheit', async () => {
+    const { rows } = await CATALOGS.item.load();
+    const halberd = rows.find((r) => r.path.endsWith('/weapon/halberd.json'));
+    const enspelled = rows.find((r) => r.altName === 'Enspelled Weapon (Halberd)');
+    expect(halberd?.facets.magic?.id).toBe('mundane');
+    expect(halberd?.facets.rarity).toBeUndefined();
+    expect(halberd?.cells.rarity.text).toBe('');
+    expect(enspelled?.facets.magic?.id).toBe('magic');
+    expect(enspelled?.facets.rarity?.id).toBe('varies');
+    expect(enspelled?.cells.rarity.text).toBe('variiert');
   });
 
   it('Einstimmung als Haken', async () => {

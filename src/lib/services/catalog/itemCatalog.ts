@@ -5,7 +5,7 @@ import {
 } from '../../itemLabels';
 import { formatCost, weaponDamageLine } from '../../itemFormat';
 import { itemInfoArtUrl } from '../../libraryArt';
-import { byLabel, sourceFacet, type CatalogCell, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, type CatalogCell, type CatalogFacetValue, type CatalogSpec } from './catalogTypes';
 
 /** Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
 export const itemDirLabel = (dir: string): string => CATEGORY_LABELS[DIR_TO_CATEGORY[dir] ?? dir] ?? dir;
@@ -36,12 +36,32 @@ function armorClassCell(item: ItemInfo): CatalogCell {
   return { text: `${ac.base}${dex}`, sort: ac.base };
 }
 
-function itemCells(item: ItemInfo): Record<string, CatalogCell> {
+/**
+ * Ein magischer Gegenstand ohne Seltenheit hat keine feste: beim Zaubergebundenen hängt sie am
+ * eingebundenen Zauber. Nicht-Magisches hat gar keine — ein Wert hieße dort etwas Falsches.
+ */
+const VARIES: CatalogFacetValue = { id: 'varies', label: 'Variiert', order: RARITY_ORDER.length };
+
+function rarityFacet(item: ItemInfo): CatalogFacetValue | undefined {
   const rarity = rarityName(item.rarity);
+  if (RARITY_LABELS[rarity]) return { id: rarity, label: RARITY_LABELS[rarity], order: RARITY_ORDER.indexOf(rarity) };
+  return item.magic ? VARIES : undefined;
+}
+
+function rarityCell(item: ItemInfo): CatalogCell {
+  const facet = rarityFacet(item);
+  if (!facet) return { text: '', sort: -1 };
+  return facet === VARIES
+    ? { text: 'variiert', sort: facet.order, color: 'var(--ink-faint)' }
+    : { text: facet.label, sort: facet.order, color: rarityColor(facet.id) };
+}
+
+const MAGIC_FACET: CatalogFacetValue = { id: 'magic', label: 'Magisch' };
+const MUNDANE_FACET: CatalogFacetValue = { id: 'mundane', label: 'Nicht magisch', order: -1 };
+
+function itemCells(item: ItemInfo): Record<string, CatalogCell> {
   return {
-    rarity: RARITY_LABELS[rarity]
-      ? { text: RARITY_LABELS[rarity], sort: RARITY_ORDER.indexOf(rarity), color: rarityColor(rarity) }
-      : EMPTY,
+    rarity: rarityCell(item),
     attunement: item.attunement ? { text: '✓', sort: 1, color: 'var(--arcane)' } : { text: '', sort: 0 },
     cost: item.cost
       ? { text: formatCost(item.cost), sort: item.cost.quantity * (COPPER_PER_UNIT[item.cost.unit] ?? 1) }
@@ -60,14 +80,6 @@ function itemCells(item: ItemInfo): Record<string, CatalogCell> {
     strength: item.str_minimum ? { text: `mind. ${item.str_minimum}`, sort: item.str_minimum } : { text: '', sort: 0 },
     stealth: { text: item.stealth_disadvantage ? 'Nachteil' : '', sort: item.stealth_disadvantage ? 1 : 0 },
   };
-}
-
-/** Alltagsausrüstung trägt gar keine Seltenheit — anders als magische „Gewöhnlich"-Gegenstände. */
-const NO_RARITY = { id: '', label: 'Ohne Seltenheit', order: -1 };
-
-function rarityFacet(item: ItemInfo) {
-  const rarity = rarityName(item.rarity);
-  return RARITY_LABELS[rarity] ? { id: rarity, label: RARITY_LABELS[rarity], order: RARITY_ORDER.indexOf(rarity) } : NO_RARITY;
 }
 
 const MAGIC = ['rarity', 'attunement'];
@@ -100,7 +112,7 @@ export const itemCatalog: CatalogSpec = {
     'adventuring-gear': MUNDANE, tools: MUNDANE, 'equipment-pack': MUNDANE, 'spellcasting-focus': MUNDANE,
     mount: MUNDANE, 'land-vehicle': MUNDANE, 'waterborne-vehicle': MUNDANE,
   },
-  facets: { rarity: 'Seltenheit', source: 'Quelle' },
+  facets: { magic: 'Magie', rarity: 'Seltenheit', source: 'Quelle' },
   invalidate: () => invalidateItemCache(),
   async load() {
     const byDir = await getAllItemsByDir();
@@ -114,7 +126,11 @@ export const itemCatalog: CatalogSpec = {
         icon: itemInfoArtUrl(item),
         iconColor: rarityColor(item.rarity),
         cells: itemCells(item),
-        facets: { rarity: rarityFacet(item), source: sourceFacet(item.source) },
+        facets: {
+          magic: item.magic ? MAGIC_FACET : MUNDANE_FACET,
+          rarity: rarityFacet(item),
+          source: sourceFacet(item.source),
+        },
       })),
     );
     return { rows, groups: Object.keys(byDir).map((id) => ({ id, label: itemDirLabel(id) })).sort(byLabel) };

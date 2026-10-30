@@ -75,7 +75,7 @@
   let shown = $derived.by(() => {
     const q = search.trim().toLowerCase();
     const filtered = groupRows.filter((r) =>
-      Object.entries(facetSel).every(([id, value]) => r.facets[id].id === value)
+      Object.entries(facetSel).every(([id, value]) => r.facets[id]?.id === value)
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
