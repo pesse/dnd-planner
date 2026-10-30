@@ -5,6 +5,7 @@
   import EditorPanel from './EditorPanel.svelte';
   import CardParseError from './ui/CardParseError.svelte';
   import BackgroundCardView from './libraryView/BackgroundCardView.svelte';
+  import EntryArtTab from './libraryView/EntryArtTab.svelte';
   import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -72,6 +73,7 @@
     ondiscard={() => ed.discard()}
     onsavejson={(json) => ed.saveJson(json)}
     getJson={() => draft ? JSON.stringify(draft, null, 2) : ed.lastSavedContent}
+    extraTabs={[{ id: 'images', label: 'Bilder' }]}
     style="--ep-accent: var(--teal)"
   >
     {#snippet karte()}
@@ -85,6 +87,10 @@
         </CardEditWrap>
         <CardTools accent="var(--teal)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />
       {/if}
+    {/snippet}
+
+    {#snippet extra()}
+      <EntryArtTab kind="background" entryKey={draft!.key ?? ''} />
     {/snippet}
   </EditorPanel>
 {:else}
