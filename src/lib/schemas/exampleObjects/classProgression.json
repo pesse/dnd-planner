@@ -185,7 +185,8 @@
             ],
             "damageTypes": [
               "acid"
-            ]
+            ],
+            "spellAttacks": false
           },
           {
             "kind": "situational",
@@ -202,7 +203,8 @@
             ],
             "damageTypes": [
               "acid"
-            ]
+            ],
+            "spellAttacks": false
           },
           {
             "kind": "dice",
@@ -219,7 +221,8 @@
             ],
             "damageTypes": [
               "acid"
-            ]
+            ],
+            "spellAttacks": false
           },
           {
             "kind": "note",
@@ -234,7 +237,8 @@
             ],
             "damageTypes": [
               "acid"
-            ]
+            ],
+            "spellAttacks": false
           }
         ],
         "savingThrow": [
@@ -446,7 +450,8 @@
                     ],
                     "damageTypes": [
                       "acid"
-                    ]
+                    ],
+                    "spellAttacks": false
                   },
                   {
                     "kind": "situational",
@@ -463,7 +468,8 @@
                     ],
                     "damageTypes": [
                       "acid"
-                    ]
+                    ],
+                    "spellAttacks": false
                   },
                   {
                     "kind": "dice",
@@ -480,7 +486,8 @@
                     ],
                     "damageTypes": [
                       "acid"
-                    ]
+                    ],
+                    "spellAttacks": false
                   },
                   {
                     "kind": "note",
@@ -495,7 +502,8 @@
                     ],
                     "damageTypes": [
                       "acid"
-                    ]
+                    ],
+                    "spellAttacks": false
                   }
                 ],
                 "savingThrow": [

@@ -3,6 +3,7 @@
  * gefiltert über die verknüpfte Waffe. `attackCalc` rechnet damit.
  */
 import type { AttackEffect } from '../schemas/attackEffect';
+import type { SpellAttack } from '../schemas/spellAttack';
 import type { FeatureGrant } from '../schemas/grants';
 import { situationalLabelDe } from '../schemas/situationalBonus';
 import { buildItemIndex, displayName, getAllItemsByDir, matchItem, type ItemIndex, type ItemInfo } from '../itemLibrary';
@@ -29,6 +30,12 @@ export interface AttackEffectFeature {
   level?: number;
 }
 
+/** Ein Zauber des Charakters mit `attackEffects` — wirkt nur, solange er gewirkt ist, steht also als Hinweis. */
+export interface AttackEffectSpell {
+  name: string;
+  effects: readonly AttackEffect[];
+}
+
 export interface DeclaredAttackEffects {
   sources: readonly AttackEffectSource[];
   weaponOf: (a: Pick<Attack, 'sourceKey' | 'name'>) => ItemInfo | undefined;
@@ -46,7 +53,11 @@ export interface AppliedAttackEffects {
   damageNotes: string[];
 }
 
-export function attackEffectSources(worn: readonly WornItem[], features: readonly AttackEffectFeature[]): AttackEffectSource[] {
+export function attackEffectSources(
+  worn: readonly WornItem[],
+  features: readonly AttackEffectFeature[],
+  spells: readonly AttackEffectSpell[] = [],
+): AttackEffectSource[] {
   const fromItems = worn.flatMap(({ item }) =>
     (item.attackEffects ?? []).map((effect) => ({ labelDe: displayName(item), effect })));
   const seen = new Set<string>();
@@ -57,16 +68,18 @@ export function attackEffectSources(worn: readonly WornItem[], features: readonl
     seen.add(id);
     fromFeatures.push(...(f.grants?.attack ?? []).map((effect) => ({ labelDe: f.name, effect, level: f.level })));
   }
-  return [...fromItems, ...fromFeatures];
+  const fromSpells = spells.flatMap((sp) => sp.effects.map((effect) => ({ labelDe: sp.name, effect })));
+  return [...fromItems, ...fromFeatures, ...fromSpells];
 }
 
 export function declaredAttackEffects(
   index: ItemIndex,
   inventory: CharacterInventoryEntry[],
   features: readonly AttackEffectFeature[],
+  spells: readonly AttackEffectSpell[] = [],
 ): DeclaredAttackEffects {
   return {
-    sources: attackEffectSources(wornItemsIn(index, inventory), features),
+    sources: attackEffectSources(wornItemsIn(index, inventory), features, spells),
     weaponOf: (a) => matchItem(index, { sourceKey: a.sourceKey, name: a.name }),
   };
 }
@@ -74,9 +87,10 @@ export function declaredAttackEffects(
 /** Für Aufrufer ohne reaktive Bibliotheken (Druck). */
 export async function loadDeclaredAttackEffects(
   c: OwnedLinks & Pick<Character, 'inventory'>,
+  spells: readonly AttackEffectSpell[] = [],
 ): Promise<DeclaredAttackEffects> {
   const [index, features] = await Promise.all([getAllItemsByDir().then(buildItemIndex), ownedGrantFeatures(c)]);
-  return declaredAttackEffects(index, c.inventory ?? [], features);
+  return declaredAttackEffects(index, c.inventory ?? [], features, spells);
 }
 
 export interface CriticalRange {
@@ -98,6 +112,14 @@ export const criticalRangeDe = (c: CriticalRange): string => `Kritischer Treffer
 
 const filtered = (e: AttackEffect): boolean =>
   e.range !== 'any' || !!e.weapons?.length || !!e.properties?.length || !!e.damageTypes?.length;
+
+/** Zauberzeilen tragen nur, was ausdrücklich auch für Zauberangriffswürfe gilt. */
+function spellMatches(e: AttackEffect, spell: SpellAttack): boolean {
+  if (!e.spellAttacks || spell.roll !== 'attack') return false;
+  if (e.range !== 'any' && e.range !== spell.range) return false;
+  if (e.weapons?.length || e.properties?.length) return false;
+  return !e.damageTypes?.length || spell.damage.some((d) => !!d.type && (e.damageTypes as readonly string[]).includes(d.type));
+}
 
 function weaponMatches(e: AttackEffect, weapon: ItemInfo): boolean {
   if (e.range === 'melee' && weapon.weapon_range !== 'Melee') return false;
@@ -148,9 +170,12 @@ function footnote(labelDe: string, e: AttackEffect, level: number): string | nul
  * Was für alle Angriffe gilt, als Zeilen unter der Angriffstabelle: kritischer Bereich und
  * Zusatzwürfel. Im Tooltip des Schadens fände sie niemand, und der Druck hat keinen.
  */
-export function attackFootnotes(features: readonly AttackEffectFeature[]): string[] {
+export function attackFootnotes(
+  features: readonly AttackEffectFeature[],
+  spells: readonly AttackEffectSpell[] = [],
+): string[] {
   const range = criticalRange(features);
-  const lines = attackEffectSources([], features).flatMap(({ labelDe, effect, level }) => {
+  const lines = attackEffectSources([], features, spells).flatMap(({ labelDe, effect, level }) => {
     const text = footnote(labelDe, effect, level ?? 1);
     return text ? [text] : [];
   });
@@ -168,10 +193,11 @@ export function attackEffectRows(
   a: Attack,
   declared: DeclaredAttackEffects | undefined,
   profBonus: number,
+  spell?: SpellAttack,
 ): AppliedAttackEffects {
   const out: AppliedAttackEffects = { rows: [], attackNotes: [], damageNotes: [] };
   if (!declared) return out;
-  const weapon = declared.weaponOf(a);
+  const weapon = spell ? undefined : declared.weaponOf(a);
   const note = (e: AttackEffect, text: string) => {
     const t = touches(e);
     if (t.attack) out.attackNotes.push(text);
@@ -179,7 +205,9 @@ export function attackEffectRows(
   };
 
   for (const { labelDe, effect, level } of declared.sources) {
-    if (filtered(effect)) {
+    if (spell) {
+      if (!spellMatches(effect, spell)) continue;
+    } else if (filtered(effect)) {
       if (!weapon) {
         note(effect, `${labelDe}: Waffe nicht mit der Bibliothek verknüpft`);
         continue;

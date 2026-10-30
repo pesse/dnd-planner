@@ -20,6 +20,8 @@ import { poolPicks, type OptionPoolOffer } from './declaration/optionPool';
 import { buildAttackFromWeapon, type WeaponAttackContext } from './attackCalc';
 import { staleMagicBonus } from './attackEffects';
 import type { LoadedSpellcasting } from './spellcasting/project';
+import { buildAttackFromSpell, spellAttackOptions } from './spellAttacks';
+import type { SpellIndex } from '$lib/spellLibrary';
 import {
   applyFlatSpellPlan,
   hasFlatSpellContent,
@@ -31,7 +33,7 @@ import { type Attack, type Character, type CharacterClass, type CharacterFeature
 
 type InventoryLine = Character['inventory'][number];
 
-export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'inventoryWeight' | 'spells' | 'weapons' | 'attacks' | 'attackMagic' | 'optionPicks' | 'hitPoints';
+export type LegacyFixKind = 'classes' | 'species' | 'background' | 'inventory' | 'inventoryWeight' | 'spells' | 'weapons' | 'attacks' | 'attackMagic' | 'spellAttacks' | 'optionPicks' | 'hitPoints';
 
 export interface LegacyFix {
   kind: LegacyFixKind;
@@ -73,6 +75,7 @@ export interface LegacyLinkLibraries {
   items: ItemIndex;
   /** Die aufgelösten Zauberquellen zum aktuellen Formularstand. */
   casting: LoadedSpellcasting | null;
+  spells: SpellIndex;
   /** Die Options-Pools zum aktuellen Formularstand, wie sie der Picker anbietet. */
   pools: OptionPoolOffer[];
   /** KON, Stufe und Boni je Stufe zum aktuellen Formularstand. */
@@ -185,7 +188,7 @@ export function inventoryFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries
 /** Angriffe aus der Zeit vor dem `sourceKey`-Feld: Freitext, der eine Waffe der Bibliothek nennt. */
 export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
   const rows = target.attacks.filter((a) => {
-    if (a.sourceKey?.trim()) return false;
+    if (a.sourceKey?.trim() || a.spell) return false;
     const nm = normName(a.name);
     if (!nm || libs.items.ambiguous.has(nm)) return false;
     const hit = libs.items.byName.get(nm);
@@ -201,6 +204,34 @@ export function attacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries):
         if (!hit?.key || hit.category !== 'weapon') continue;
         const modifiers = a.modifiers;
         Object.assign(a, buildAttackFromWeapon(hit, target.weaponCtx));
+        if (modifiers?.length) a.modifiers = modifiers;
+      }
+    },
+  };
+}
+
+/** Von Hand eingetragene Angriffe, die ein Zauber des Charakters mit `attack`-Block sind. */
+export function spellAttacksFix(target: LegacyLinkTarget, libs: LegacyLinkLibraries): LegacyFix | undefined {
+  if (!libs.casting) return undefined;
+  const options = spellAttackOptions(libs.casting.state, libs.spells);
+  const optionOf = (a: Attack) => {
+    const nm = normName(a.name);
+    return nm ? options.find((o) => normName(o.info.name) === nm || normName(o.info.name_en) === nm) : undefined;
+  };
+  const rows = target.attacks.flatMap((a) => {
+    const o = !a.spell && !a.sourceKey?.trim() ? optionOf(a) : undefined;
+    return o ? [{ a, o }] : [];
+  });
+  if (!rows.length) return undefined;
+  return {
+    kind: 'spellAttacks',
+    label: `${rows.length} ${rows.length === 1 ? 'Angriff' : 'Angriffe'} mit der Zauber-Bibliothek verknüpfen`,
+    apply: () => {
+      for (const { a, o } of rows) {
+        if (a.spell) continue;
+        const { note, modifiers } = a;
+        Object.assign(a, buildAttackFromSpell(o.info, o.ability ?? 'int', target.weaponCtx));
+        if (note?.trim()) a.note = note;
         if (modifiers?.length) a.modifiers = modifiers;
       }
     },
@@ -377,6 +408,7 @@ export function collectLegacyFixes(target: LegacyLinkTarget, libs: LegacyLinkLib
     spellsFix(target, libs),
     weaponsFix(target, libs),
     attacksFix(target, libs),
+    spellAttacksFix(target, libs),
     attackMagicFix(target, libs),
     optionPicksFix(target, libs),
     hitPointsFix(target, libs),

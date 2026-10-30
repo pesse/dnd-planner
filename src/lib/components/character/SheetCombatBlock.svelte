@@ -8,7 +8,7 @@
     attackBonusPartsTip, attackBonusTip, attackDamagePartsTip, attackDamageTip,
   } from '../../services/characterSheetTips';
   import {
-    attackBonusParts, attackDamageParts, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
+    attackBaseDice, attackBonusParts, attackDamageParts, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
   } from '../../services/attackCalc';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
@@ -59,13 +59,14 @@
   {#if character.attacks.length}
     <h3>Angriffe</h3>
     <table class="attack-table">
-      <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
+      <thead><tr><th>Angriff</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
       <tbody>
         {#each character.attacks as atk}
           {@const atkMastery = masteryOf(atk.name)}
           {@const calc = atk.auto && attackCtx}
           {@const bonus = calc ? computeAttackBonus(atk, calc) : atk.bonus}
           {@const damage = calc ? computeAttackDamage(atk, calc) : atk.damage}
+          {@const dice = calc ? attackBaseDice(atk, calc) : ''}
           <tr>
             <td>
               {atk.name}
@@ -84,8 +85,8 @@
             </td>
             <td class="has-tip">
               {damage} {atk.type}
-              <span class="tip tip-left">{@html calc && atk.baseDamage?.trim()
-                ? attackDamagePartsTip(attackDamageParts(atk, calc), atk.baseDamage, damage, atk.type)
+              <span class="tip tip-left">{@html calc && dice
+                ? attackDamagePartsTip(attackDamageParts(atk, calc), dice, damage, atk.type)
                 : attackDamageTip(damage, atk.type)}</span>
             </td>
             <td>{atk.range || '—'}</td>

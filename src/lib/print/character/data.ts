@@ -34,6 +34,10 @@ import { cardItemInfos, type CardItem } from './itemCards';
 import { loadPrintFigure, type PrintFigure } from './pages/figure';
 import type { PrintImage } from './imageCards';
 import { formatDamageDice } from '$lib/itemFormat';
+import { buildSpellIndex, getSpellLibrary } from '$lib/spellLibrary';
+import { spellAttackSourceOf, spellRiderSources } from '$lib/services/spellAttacks';
+import type { SpellAttackContext } from '$lib/services/spellAttackCalc';
+import { totalLevel } from '$lib/schemas/classLevelText';
 
 export interface PrintAttack {
   name: string;
@@ -117,9 +121,10 @@ const safe = <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch(() => fallba
 function printAttacks(
   c: Character,
   declared: DeclaredAttackEffects | undefined,
+  spells: SpellAttackContext | undefined,
   masteryOf?: (name: string) => string | undefined,
 ): PrintAttack[] {
-  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: effectiveProficiencyBonus(c), declared };
+  const ctx = { strMod: c.mods.str, dexMod: c.mods.dex, proficiencyBonus: effectiveProficiencyBonus(c), declared, spells };
   return (c.attacks ?? []).map((a) => {
     const mastery = masteryOf?.(a.name);
     return {
@@ -151,15 +156,22 @@ async function classValues(c: Character): Promise<ClassValues[]> {
 
 export async function loadCharacterPrintData(input: PrintDataInput): Promise<CharacterPrintData> {
   const c = input.character;
-  const [features, loaded, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs, hpParts] = await Promise.all([
+  const loadedP = input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null);
+  const spellIndexP = safe(getSpellLibrary().then(buildSpellIndex), null);
+  // Zusatzwürfel aus Zaubern hängen am Zauberwirken — erst danach stehen die Angriffseffekte.
+  const riders = Promise.all([loadedP, spellIndexP])
+    .then(([l, idx]) => (l && idx ? spellRiderSources(l.state, idx) : []));
+  const [features, loaded, spellIndex, spellRiders, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs, hpParts] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
-    input.loaded ? Promise.resolve(input.loaded) : safe(loadSpellcasting(c), null),
+    loadedP,
+    spellIndexP,
+    riders,
     safe(masteryOffer(c), { allowance: 0, className: '', meleeOnly: false, weapons: [] } as MasteryOffer),
     safe(optionPoolOffers(c), [] as OptionPoolOffer[]),
     safe(classValues(c), [] as ClassValues[]),
     safe(cardItemInfos(c), [] as CardItem[]),
     safe(loadWornAbilityEffects(c.inventory ?? []), [] as WornAbilityEffect[]),
-    safe(loadDeclaredAttackEffects(c), undefined),
+    safe(riders.then((r) => loadDeclaredAttackEffects(c, r)), undefined),
     safe(loadPrintFigure(c, input.figureUrl), null),
     safe(loadSavingThrowInputs(c), { worn: [], idle: [], features: [] }),
     safe(loadHpLibraryParts(c), null),
@@ -189,7 +201,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
     deathSaveAdvantage: deathSaveAdvantage(saveSources).length > 0,
-    attackNotes: attackFootnotes(saveInputs.features),
+    attackNotes: attackFootnotes(saveInputs.features, spellRiders),
     skillAdvantage: SKILL_DEFS
       .filter((def) => skillCheckEffects(def, checks, { mods, profBonus: effectiveProficiencyBonus(c) }).advantage)
       .map((def) => def.key),
@@ -197,7 +209,9 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     portraitUrl: input.portraitUrl ?? '',
     companionImageUrl: input.companionImageUrl ?? '',
     freetext: input.freetext ?? '',
-    attacks: printAttacks(shown, declared, input.masteryOf),
+    attacks: printAttacks(shown, declared, spellIndex
+      ? { spellOf: spellAttackSourceOf(spellIndex), mods, characterLevel: totalLevel(c.classes ?? []) || 1 }
+      : undefined, input.masteryOf),
     saves,
     auras,
     defenses: characterDefenses(saveInputs.features, effectiveProficiencyBonus(c), saveInputs.worn),

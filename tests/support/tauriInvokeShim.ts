@@ -27,9 +27,12 @@ interface SpellIndexEntry {
   ritual: boolean;
   concentration: boolean;
   casting_time: string;
+  range: string;
   components: string;
   materials: string;
   path: string;
+  attack?: unknown;
+  attackEffects?: unknown;
 }
 
 function componentsOf(raw: unknown): { components: string; materials: string } {
@@ -66,8 +69,11 @@ function collectSpells(dir: string, out: SpellIndexEntry[]): void {
           ritual: v.ritual === true,
           concentration: v.concentration === true,
           casting_time: typeof v.casting_time === 'string' ? v.casting_time : '',
+          range: typeof v.range === 'string' ? v.range : '',
           ...componentsOf(v.components),
           path: './' + relative(process.cwd(), full).replace(/\\/g, '/'),
+          ...(v.attack != null ? { attack: v.attack } : {}),
+          ...(v.attackEffects != null ? { attackEffects: v.attackEffects } : {}),
         });
       } catch {
         /* defekte Datei überspringen */

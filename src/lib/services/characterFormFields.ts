@@ -5,9 +5,10 @@
  */
 import { SKILL_DEFS } from '../domain/skills';
 import type { AbilityFlags, AbilityScores } from '../schemas/abilities';
-import { formatClassLevel } from '../schemas/classLevelText';
+import { formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { effectiveProficiencyBonus } from './classProgression';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
+import type { SpellAttackContext } from './spellAttackCalc';
 import type { DeclaredAttackEffects } from './attackEffects';
 import { skillCheckEffects, type CheckSource } from './abilityChecks';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
@@ -104,9 +105,13 @@ export function attackContext(
   f: CharacterFormFields,
   effects: readonly WornAbilityEffect[],
   declared?: DeclaredAttackEffects,
+  spellOf?: SpellAttackContext['spellOf'],
 ): AttackCalcContext {
   const m = abilityMods(f, effects);
-  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared };
+  return {
+    strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared,
+    ...(spellOf ? { spells: { spellOf, mods: m, characterLevel: totalLevel(f.classes) || 1 } } : {}),
+  };
 }
 
 export function computeSkills(
@@ -244,9 +249,10 @@ export function formDraftPatch(
   effects: readonly WornAbilityEffect[],
   declared?: DeclaredAttackEffects,
   checks: readonly CheckSource[] = [],
+  spellOf?: SpellAttackContext['spellOf'],
 ): CharacterFormPatch {
   const mods = abilityMods(f, effects);
-  const ctx = attackContext(f, effects, declared);
+  const ctx = attackContext(f, effects, declared, spellOf);
   // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {

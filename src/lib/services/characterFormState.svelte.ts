@@ -9,6 +9,7 @@ import type { Character } from '../schemas/characterSchema';
 import type { WornAbilityEffect } from './effectiveAbilities';
 import type { DeclaredAttackEffects } from './attackEffects';
 import type { CheckSource } from './abilityChecks';
+import type { SpellAttackContext } from './spellAttackCalc';
 
 export interface CharacterFormState {
   fields: CharacterFormFields;
@@ -19,6 +20,7 @@ export interface FormRuntimeInputs {
   worn: readonly WornAbilityEffect[];
   declared: DeclaredAttackEffects;
   checks: readonly CheckSource[];
+  spellOf?: SpellAttackContext['spellOf'];
 }
 
 /**
@@ -41,7 +43,7 @@ export function createCharacterFormState(
   // sonst schlösse sich eine Schreib-/Lese-Schleife.
   $effect(() => {
     const now = inputs();
-    if (now) Object.assign(draft(), formDraftPatch(fields, carry, now.worn, now.declared, now.checks));
+    if (now) Object.assign(draft(), formDraftPatch(fields, carry, now.worn, now.declared, now.checks, now.spellOf));
   });
 
   return { fields, legacyClassLevel: carry.legacyClassLevel };

@@ -4,6 +4,8 @@ import { slugAscii } from '../utils/text';
 import { SPELL_SCHOOL_KEYS } from './vocabulary';
 import { namedRef } from './llmJson';
 import { sourceField, migrateSourceLegacy, OWN_SOURCE } from './source';
+import { spellAttackSchema } from './spellAttack';
+import { attackEffectSchema } from './attackEffect';
 
 const schoolEnum = z.enum(SPELL_SCHOOL_KEYS);
 
@@ -53,6 +55,13 @@ export const spellSchema = z.object({
       size: z.number().describe('in Fuß'),
     })
     .optional(),
+  attack: spellAttackSchema
+    .optional()
+    .describe('Fehlt bei Zaubern ohne eigenen Treffer; der Spieler kann ihn dann nicht als Angriff eintragen.'),
+  attackEffects: z
+    .array(attackEffectSchema)
+    .optional()
+    .describe('Wirkung auf die Angriffe des Wirkers, solange der Zauber wirkt (Zeichen des Jägers: +1d6 Energie gegen das markierte Ziel).'),
   source: sourceField(),
   document: z
     .object({ key: z.string(), gamesystem: z.string() })

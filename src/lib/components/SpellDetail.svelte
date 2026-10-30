@@ -6,6 +6,8 @@
   import { spellArtUrl } from '../libraryArt';
   import Markdown from './Markdown.svelte';
   import ArtFrame from './ui/ArtFrame.svelte';
+  import { spellAttackSummary } from '../services/spellAttackCalc';
+  import { attackFootnotes } from '../services/attackEffects';
 
   let { spell }: { spell: Spell } = $props();
 
@@ -13,6 +15,11 @@
   const desc = $derived(spellDesc(spell));
   const higher = $derived(spellHigherLevel(spell));
   const art = $derived(spellArtUrl(spell));
+  const attackLine = $derived(spell.attack ? spellAttackSummary(spell.level, spell.attack) : null);
+  const riderLines = $derived(
+    attackFootnotes([], [{ name: spell.name, effects: spell.attackEffects ?? [] }])
+      .map((l) => l.replace(`${spell.name} `, '')),
+  );
 </script>
 
 <div class="spell-detail" style="--sc:{color}">
@@ -33,6 +40,8 @@
     <span class="tt-label">Reichweite</span><span class="tt-pval">{spell.range}</span>
     <span class="tt-label">Komponenten</span><span class="tt-pval">{spellComponents(spell)}{spell.components.materials_needed ? ` (${spell.components.materials_needed})` : ''}</span>
     <span class="tt-label">Dauer</span><span class="tt-pval">{spell.duration}</span>
+    {#if attackLine}<span class="tt-label">Angriff</span><span class="tt-pval">{attackLine}</span>{/if}
+    {#each riderLines as line (line)}<span class="tt-label">Zusatz</span><span class="tt-pval">{line}</span>{/each}
   </div>
 
   {#if desc}

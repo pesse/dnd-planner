@@ -5,13 +5,17 @@
 import { sign } from '../utils/num';
 import { normName } from '../utils/text';
 import { formatDamageDice, ftToMVal } from '../itemFormat';
-import { DAMAGE_TYPE_LABELS } from '../itemLabels';
+import { DAMAGE_TYPE_LABELS, damageTypeShort } from '../itemLabels';
 import { isProficientWithWeapon, type WeaponProficiencies } from './weaponProficiency';
 import { itemKeyOf } from '../schemas/item';
 import { ABILITY_ABBR_DE } from '../schemas/abilities';
 import type { Attack } from '../schemas/characterSchema';
 import type { Item } from '../types';
 import { attackEffectRows, type DeclaredAttackEffects } from './attackEffects';
+import {
+  castLevel, spellBonusText, spellDamageText, spellHit, spellParts,
+  type SpellAttackContext, type SpellAttackSource,
+} from './spellAttackCalc';
 
 /**
  * Erfüllt von `Item` (voll geladen) und `ItemInfo` (Index-Projektion) — beide tragen dieselben
@@ -28,6 +32,8 @@ export interface AttackCalcContext {
   proficiencyBonus: number;
   /** Fehlt, solange Merkmale und Inventar nicht aufgelöst sind — dann zählt nur, was am Angriff steht. */
   declared?: DeclaredAttackEffects;
+  /** Fehlt, solange die Zauberbibliothek nicht geladen ist — dann stehen die gespeicherten Werte. */
+  spells?: SpellAttackContext;
 }
 
 export interface WeaponAttackContext extends AttackCalcContext {
@@ -54,7 +60,22 @@ export function attackAbilityMod(a: Pick<Attack, 'ability'>, ctx: AttackCalcCont
   return ctx.strMod;
 }
 
+type SpellRow = {
+  a: Attack & { spell: NonNullable<Attack['spell']> };
+  spell: SpellAttackSource;
+  ctx: AttackCalcContext & { spells: SpellAttackContext };
+};
+
+/** null für Waffen — und für Zauberzeilen, deren Zauber (noch) nicht auflösbar ist. */
+function spellRow(a: Attack, ctx: AttackCalcContext): SpellRow | null {
+  if (!a.spell || !ctx.spells) return null;
+  const spell = ctx.spells.spellOf(a.spell.key);
+  return spell ? { a: a as SpellRow['a'], spell, ctx: ctx as SpellRow['ctx'] } : null;
+}
+
 function partsFor(a: Attack, ctx: AttackCalcContext, roll: 'attack' | 'damage'): AttackParts {
+  const row = spellRow(a, ctx);
+  if (row) return spellParts(row.a, row.spell, row.ctx, roll);
   const parts: AttackPart[] = [{ labelDe: ATTACK_ABILITY_LABEL[a.ability ?? 'str'], value: attackAbilityMod(a, ctx) }];
   // Der Übungsbonus zählt nur beim Angriffswurf.
   if (roll === 'attack' && a.proficient) parts.push({ labelDe: 'geübt', value: ctx.proficiencyBonus });
@@ -74,10 +95,28 @@ export const attackDamageParts = (a: Attack, ctx: AttackCalcContext): AttackPart
 const partSum = (p: AttackParts): number => p.parts.reduce((n, x) => n + x.value, 0);
 
 export function computeAttackBonus(a: Attack, ctx: AttackCalcContext): string {
+  if (a.spell) {
+    const row = spellRow(a, ctx);
+    return row ? spellBonusText(row.spell.attack, attackBonusParts(a, ctx)) : a.bonus;
+  }
   return sign(partSum(attackBonusParts(a, ctx)));
 }
 
+/** Die Würfel vor allen Zuschlägen — bei Zaubern auf Stufe und Grad hochgerechnet. */
+export function attackBaseDice(a: Attack, ctx: AttackCalcContext): string {
+  const row = spellRow(a, ctx);
+  if (!row) return (a.baseDamage ?? '').trim();
+  const hit = spellHit(row.spell, row.ctx.spells.characterLevel, castLevel(a, row.spell));
+  return spellDamageText(hit, { parts: [], notes: [] });
+}
+
 export function computeAttackDamage(a: Attack, ctx: AttackCalcContext): string {
+  if (a.spell) {
+    const row = spellRow(a, ctx);
+    if (!row) return a.damage;
+    const hit = spellHit(row.spell, row.ctx.spells.characterLevel, castLevel(a, row.spell));
+    return spellDamageText(hit, attackDamageParts(a, ctx));
+  }
   const base = (a.baseDamage ?? '').trim();
   if (!base) return '';
   const m = partSum(attackDamageParts(a, ctx));
@@ -88,13 +127,15 @@ const tipLines = (p: AttackParts): string[] =>
   [...p.parts.map((x) => `${x.labelDe} ${sign(x.value)}`), ...p.notes.map((n) => `· ${n}`)];
 
 export function attackBonusTip(a: Attack, ctx: AttackCalcContext): string {
+  if (a.spell && !spellRow(a, ctx)) return 'Zauber nicht in der Bibliothek gefunden — gespeicherter Wert';
   return [...tipLines(attackBonusParts(a, ctx)), `= ${computeAttackBonus(a, ctx)}`].join('\n');
 }
 
 export function attackDamageTip(a: Attack, ctx: AttackCalcContext): string {
-  const base = (a.baseDamage ?? '').trim();
+  if (a.spell && !spellRow(a, ctx)) return 'Zauber nicht in der Bibliothek gefunden — gespeicherter Wert';
+  const base = attackBaseDice(a, ctx);
   if (!base) return 'Kein Schadenswürfel eingetragen';
-  return [`Würfel ${base}`, ...tipLines(attackDamageParts(a, ctx)), `= ${computeAttackDamage(a, ctx)}`].join('\n');
+  return [`Würfel ${formatDamageDice(base)}`, ...tipLines(attackDamageParts(a, ctx)), `= ${computeAttackDamage(a, ctx)}`].join('\n');
 }
 
 /**
@@ -164,8 +205,6 @@ export function buildAttackFromWeapon(item: WeaponAttackSource, ctx: WeaponAttac
 
   const damageTypeIdx = item.damage?.damage_type?.index ?? '';
   const damageTypeLabel = DAMAGE_TYPE_LABELS[damageTypeIdx] ?? item.damage?.damage_type?.name ?? '';
-  // Die PDF-Spalte ist schmal und will die Kurzform: „Hieb" statt „Hiebschaden".
-  const damageTypeShort = damageTypeLabel.replace(/schaden$/i, '').trim();
 
   let range = '';
   if (isRanged && item.range) {
@@ -182,7 +221,7 @@ export function buildAttackFromWeapon(item: WeaponAttackSource, ctx: WeaponAttac
 
   const atk: Attack = {
     name, sourceKey: itemKeyOf(item) || undefined,
-    bonus: '', damage: '', type: damageTypeShort, range,
+    bonus: '', damage: '', type: damageTypeShort(damageTypeLabel), range,
     auto: true, ability, proficient, baseDamage, magicBonus, modifiers: [],
   };
   atk.bonus = computeAttackBonus(atk, ctx);
@@ -197,6 +236,11 @@ export function toggleAttackMode(a: Attack, ctx: AttackCalcContext): void {
     a.bonus = computeAttackBonus(a, ctx);
     a.damage = computeAttackDamage(a, ctx);
     a.auto = false;
+    return;
+  }
+  if (a.spell) {
+    a.modifiers ??= [];
+    a.auto = true;
     return;
   }
   a.ability ??= 'str';

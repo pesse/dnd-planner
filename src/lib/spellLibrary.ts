@@ -33,10 +33,15 @@ export interface SpellInfo {
   concentration?: boolean;
   /** Wortlaut der Wirkzeit („Bonusaktion"). */
   casting_time?: string;
+  /** Wortlaut der Reichweite („36 Meter“). */
+  range?: string;
   /** Die Buchstaben der Komponenten, „VSM". */
   components?: string;
   materials?: string;
   path: string;
+  /** Ungeprüft aus der Datei — gelesen wird über `spellAttackOf`/`spellRidersOf`. */
+  attack?: unknown;
+  attackEffects?: unknown;
 }
 
 export const SCHOOL_COLORS: Record<string, string> = {

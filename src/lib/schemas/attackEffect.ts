@@ -21,6 +21,10 @@ const weaponFilter = {
     .array(z.enum(DAMAGE_TYPES))
     .optional()
     .describe('Nur Waffen, deren Schaden eine dieser Arten hat (Durchbohrer: "piercing").'),
+  spellAttacks: z
+    .boolean()
+    .optional()
+    .describe('true = gilt auch für Zauberangriffswürfe (Zeichen des Jägers); ohne Feld nur für Waffen.'),
 };
 
 const diceSchema = z.string().regex(/^\d+d\d+$/).describe('Würfel wie "1d4"; `byLevel` nach Klassenstufe, bei Trait und Talent nach Charakterstufe.');

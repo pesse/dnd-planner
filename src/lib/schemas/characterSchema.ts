@@ -3,7 +3,7 @@
  * LLM-JSON-Schema.
  */
 import { z } from 'zod';
-import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
+import { ABILITY_KEYS, abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 import { CHARACTER_VERSION } from './characterUpgrades';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
@@ -37,6 +37,14 @@ const attackSchema = z.object({
     .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
   note: z.string().optional()
     .describe('Handnotiz zum Angriff, erscheint auch im Druckbogen, z.B. "+1W6 jede lange Rast".'),
+  spell: z
+    .object({
+      key: z.string().describe('Bibliotheks-Link auf `spell.key`.'),
+      ability: z.enum(ABILITY_KEYS).describe('Zauberattribut der Quelle, aus der der Zauber kommt.'),
+      slotLevel: z.number().int().min(1).max(9).optional().describe('Gewirkt auf diesem Grad; fehlt = Grad des Zaubers.'),
+    })
+    .optional()
+    .describe('Zauberzeile: Bonus bzw. SG und Schaden kommen aus `spell.attack` der Bibliothek; ability/proficient/baseDamage gelten nicht.'),
 });
 
 // Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu

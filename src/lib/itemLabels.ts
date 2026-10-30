@@ -118,6 +118,10 @@ export const DAMAGE_TYPE_LABELS: Record<DamageType, string> & Record<string, str
   psychic:     'Psychischer Schaden',
 };
 
+/** Die schmale Spalte will „Hieb“ und „Nekrotisch“ statt „Hiebschaden“ und „Nekrotischer Schaden“. */
+export const damageTypeShort = (label: string): string =>
+  label.replace(/er Schaden$/, '').replace(/schaden$/i, '').trim();
+
 export const WEAPON_CATEGORY_LABELS: Record<string, string> = {
   Martial: 'Kriegswaffe',
   Simple:  'Einfache Waffe',

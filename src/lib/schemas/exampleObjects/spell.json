@@ -54,6 +54,94 @@
     "type": "string",
     "size": 0
   },
+  "attack": {
+    "roll": "attack",
+    "range": "melee",
+    "damage": [
+      {
+        "dice": "1d4",
+        "bonus": -9007199254740991,
+        "addMod": false,
+        "type": "acid"
+      }
+    ],
+    "count": 1,
+    "cantrip": "dice",
+    "upcast": {
+      "dice": "1d4",
+      "count": 1
+    }
+  },
+  "attackEffects": [
+    {
+      "kind": "bonus",
+      "attack": 0,
+      "damage": 0,
+      "range": "any",
+      "weapons": [
+        "string"
+      ],
+      "properties": [
+        "ammunition"
+      ],
+      "damageTypes": [
+        "acid"
+      ],
+      "spellAttacks": false
+    },
+    {
+      "kind": "situational",
+      "roll": "attack",
+      "value": -9007199254740991,
+      "condition": "string",
+      "conditionDe": "string",
+      "range": "any",
+      "weapons": [
+        "string"
+      ],
+      "properties": [
+        "ammunition"
+      ],
+      "damageTypes": [
+        "acid"
+      ],
+      "spellAttacks": false
+    },
+    {
+      "kind": "dice",
+      "dice": "1d4",
+      "damageType": "acid",
+      "condition": "string",
+      "conditionDe": "string",
+      "range": "any",
+      "weapons": [
+        "string"
+      ],
+      "properties": [
+        "ammunition"
+      ],
+      "damageTypes": [
+        "acid"
+      ],
+      "spellAttacks": false
+    },
+    {
+      "kind": "note",
+      "condition": "string",
+      "conditionDe": "string",
+      "range": "any",
+      "weapons": [
+        "string"
+      ],
+      "properties": [
+        "ammunition"
+      ],
+      "damageTypes": [
+        "acid"
+      ],
+      "spellAttacks": false
+    }
+  ],
   "source": "homebrew-sam",
   "document": {
     "key": "string",
