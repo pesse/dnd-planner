@@ -205,6 +205,12 @@ export const abilityBindingSchema = z.object({
     .boolean()
     .default(false)
     .describe('Mit choose: es gilt das Attribut, das die Attributserhöhung desselben Merkmals wählt („the ability increased by this feat"); keine eigene Frage.'),
+  own: z
+    .boolean()
+    .default(false)
+    .describe('„uses your spell save DC and spell attack modifier" (Gegenstände): das Attribut der Zauberquelle des Charakters mit dem höchsten SG.'),
+  fixedDc: z.number().int().optional().describe('Fester Rettungswurf-SG des Gegenstands („save DC 15"); gilt statt der Rechnung.'),
+  fixedAttack: z.number().int().optional().describe('Fester Zauberangriffsbonus des Gegenstands („+7 to hit"); gilt statt der Rechnung.'),
 });
 export type AbilityBinding = z.infer<typeof abilityBindingSchema>;
 

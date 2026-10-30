@@ -604,7 +604,10 @@
         "Strength"
       ],
       "sameAs": "string",
-      "fromIncrease": false
+      "fromIncrease": false,
+      "own": false,
+      "fixedDc": -9007199254740991,
+      "fixedAttack": -9007199254740991
     },
     "quotas": [
       {
