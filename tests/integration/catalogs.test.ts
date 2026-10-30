@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../../src/lib/services/catalog/catalogs';
-import { catalogEntry, facetOptions, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
+import { catalogEntry, facetOptions, facetValues, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
+import { rangeSortKey, timeCell, timeSortKey } from '../../src/lib/services/catalog/spellCatalog';
 
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   it('jedes Spalten-Set nennt nur bekannte Spalten', () => {
@@ -60,11 +61,11 @@ describe('Katalog-Werte', () => {
     const { rows } = await CATALOGS.item.load();
     const halberd = rows.find((r) => r.path.endsWith('/weapon/halberd.json'));
     const enspelled = rows.find((r) => r.altName === 'Enspelled Weapon (Halberd)');
-    expect(halberd?.facets.magic?.id).toBe('mundane');
+    expect(facetValues(halberd!, 'magic')[0]?.id).toBe('mundane');
     expect(halberd?.facets.rarity).toBeUndefined();
     expect(halberd?.cells.rarity.text).toBe('');
-    expect(enspelled?.facets.magic?.id).toBe('magic');
-    expect(enspelled?.facets.rarity?.id).toBe('varies');
+    expect(facetValues(enspelled!, 'magic')[0]?.id).toBe('magic');
+    expect(facetValues(enspelled!, 'rarity')[0]?.id).toBe('varies');
     expect(enspelled?.cells.rarity.text).toBe('variiert');
   });
 
@@ -76,7 +77,7 @@ describe('Katalog-Werte', () => {
     const { rows } = await CATALOGS.item.load();
     const row = rows.find((r) => r.altName === name);
     expect(row?.group).toBe(group);
-    expect(row?.facets.magic?.id).toBe('mundane');
+    expect(facetValues(row!, 'magic')[0]?.id).toBe('mundane');
   });
 
   it('Einstimmung als Haken', async () => {
@@ -103,6 +104,64 @@ describe('Katalog-Werte', () => {
     const { rows } = await CATALOGS.feat.load();
     expect(rows.find((r) => r.altName === 'Ability Score Improvement')?.cells.repeatable.text).toBe('✓');
   });
+
+  it('Zauber: Auslöser und „oder Ritual" fallen aus dem Zeitaufwand, bleiben im Tooltip', async () => {
+    const { rows } = await CATALOGS['spell-school'].load();
+    const shield = rows.find((r) => r.altName === 'Shield');
+    const detect = rows.find((r) => r.altName === 'Detect Magic');
+    expect(shield?.cells.castingTime.text).toBe('Reaktion');
+    expect(shield?.cells.castingTime.title).toMatch(/^Reaktion, die du ausführst/);
+    expect(detect?.cells.castingTime.text).toBe('Aktion');
+    expect(detect?.cells.duration.text).toBe('10 Minuten');
+    expect(detect?.cells.concentration.text).toBe('✓');
+    expect(detect?.cells.ritual.text).toBe('✓');
+  });
+
+  it('Zauber: eine Klasse filtert jeden Zauber, der sie unter mehreren nennt', async () => {
+    const { rows } = await CATALOGS['spell-level'].load();
+    const fireball = rows.find((r) => r.altName === 'Fireball');
+    expect(fireball?.group).toBe('3');
+    expect(fireball?.facets.school).toEqual({ id: 'hervorrufung', label: 'Hervorrufung' });
+    expect(facetValues(fireball!, 'class').map((v) => v.label)).toEqual(['Zauberer', 'Magier']);
+    expect(facetOptions(rows, 'class').map((o) => o.id)).toContain('cleric');
+  });
+
+  it('Zauber: Grade aufsteigend, Zaubertricks zuerst', async () => {
+    const { groups } = await CATALOGS['spell-level'].load();
+    expect(groups.map((g) => g.label)).toEqual(
+      ['Zaubertricks', ...Array.from({ length: 9 }, (_, i) => `Grad ${i + 1}`)],
+    );
+  });
+});
+
+describe('Zauber-Sortierung', () => {
+  it.each([
+    ['Reaktion, die du ausführst …', 'Bonusaktion'],
+    ['Bonusaktion', 'Aktion oder Ritual'],
+    ['Aktion', '1 Runde'],
+    ['Konzentration, bis zu 1 Minute', '10 Minuten'],
+    ['24 Stunden', '10 Tage'],
+    ['10 Tage', 'Bis der Zauber gebannt wird'],
+    ['Unmittelbar', 'Bis zu 1 Minute'],
+  ])('Zeit: %s vor %s', (a, b) => {
+    expect(timeSortKey(a)).toBeLessThan(timeSortKey(b));
+  });
+
+  it.each([
+    ['Selbst', 'Berührung'],
+    ['Berührung', '1,5 Meter'],
+    ['90 Meter', '1,6 Kilometer'],
+    ['800 km', 'Sicht'],
+    ['Unbegrenzt', 'Besonders'],
+  ])('Reichweite: %s vor %s', (a, b) => {
+    expect(rangeSortKey(a)).toBeLessThan(rangeSortKey(b));
+  });
+
+  it('kürzt Konzentration und führende „1" ab', () => {
+    expect(timeCell('1 Bonusaktion')).toMatchObject({ text: 'Bonusaktion', title: '1 Bonusaktion' });
+    expect(timeCell('Konzentration, bis zu 1 Stunde').text).toBe('1 Stunde');
+    expect(timeCell('1 Minute')).toEqual({ text: '1 Minute', sort: 60, title: undefined });
+  });
 });
 
 describe('Katalog-Pfad', () => {
@@ -112,5 +171,7 @@ describe('Katalog-Pfad', () => {
     expect(parseCatalogPath(entry.path)).toEqual({ kind: 'item', group: 'weapon' });
     expect(parseCatalogPath(catalogEntry('monster', 'Monster').path)).toEqual({ kind: 'monster', group: '' });
     expect(parseCatalogPath(catalogEntry('feat', 'Talente').path)).toEqual({ kind: 'feat', group: '' });
+    expect(parseCatalogPath('catalog:spell-level/3')).toEqual({ kind: 'spell-level', group: '3' });
+    expect(parseCatalogPath('catalog:spell')).toBeNull();
   });
 });

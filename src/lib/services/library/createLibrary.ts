@@ -16,6 +16,11 @@ interface JsonFile {
   content: string | null;
 }
 
+export async function listSubdirs(path: string): Promise<string[]> {
+  const entries = await invoke<{ name: string; is_dir: boolean }[]>('list_json_entries', { path });
+  return entries.filter((e) => e.is_dir).map((e) => e.name).sort();
+}
+
 /**
  * Eine leere oder kaputte Bibliothek darf weder werfen noch einen Eintrag verschlucken:
  * fehlender Ordner → `[]`, unparsebare Datei → `fallback`.

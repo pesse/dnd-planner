@@ -6,6 +6,7 @@
   import { catalogEntry } from '../../services/catalog/catalogTypes';
   import type { GroupedSection, TreeGroup, TreeLeaf } from '../../services/sidebar/groupedSections';
   import SectionHeader from './SectionHeader.svelte';
+  import SegmentedToggle from '../ui/SegmentedToggle.svelte';
   import './tree.css';
 
   let { section, oncreate }: { section: GroupedSection; oncreate: () => void } = $props();
@@ -81,8 +82,10 @@
     await navigateTo({ name: leaf.entryName, path: leaf.path, type: section.type });
   }
 
+  let catalogKind = $derived(altMode ? section.altMode?.catalog : section.catalog);
+
   const catalogOf = (group?: TreeGroup) =>
-    section.catalog ? catalogEntry(section.catalog, section.label, group) : null;
+    catalogKind ? catalogEntry(catalogKind, section.label, group) : null;
 
   function openCatalog(group?: TreeGroup) {
     const entry = catalogOf(group);
@@ -127,7 +130,7 @@
     label={section.label}
     {expanded}
     ontoggle={toggle}
-    onlabel={section.catalog ? () => openCatalog() : undefined}
+    onlabel={catalogKind ? () => openCatalog() : undefined}
     current={isCurrent()}
     top
   >
@@ -144,8 +147,11 @@
     {/if}
     {#if section.altMode}
       <div class="spell-group-toggle">
-        <button class:active={!altMode} onclick={() => (altMode = false)}>{section.altMode.primaryLabel}</button>
-        <button class:active={altMode} onclick={() => (altMode = true)}>{section.altMode.label}</button>
+        <SegmentedToggle
+          options={[{ id: 'primary', label: section.altMode.primaryLabel }, { id: 'alt', label: section.altMode.label }]}
+          value={altMode ? 'alt' : 'primary'}
+          onselect={(id) => (altMode = id === 'alt')}
+        />
       </div>
     {/if}
 
@@ -163,7 +169,7 @@
       {:else}
         {#each shownGroups as group}
           {@const leaves = group.leaves ?? leavesByGroup[group.id]}
-          {#if section.catalog && !altMode}
+          {#if catalogKind}
             <div
               class="monster-group-header split {section.headerClass ?? ''}"
               class:current={isCurrent(group)}
@@ -230,30 +236,8 @@
     color: var(--border);
   }
 
-  /* Umschalter Gruppierung Schule | Grad */
   .spell-group-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
     padding: 0 0.75rem 0.3rem;
     font-size: 0.72rem;
-  }
-  .spell-group-toggle button {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--ink-soft);
-    padding: 0.1rem 0.45rem;
-    font-size: 0.72rem;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .spell-group-toggle button:hover {
-    color: var(--ink);
-  }
-  .spell-group-toggle button.active {
-    background: var(--arcane);
-    border-color: var(--arcane);
-    color: var(--bg);
   }
 </style>

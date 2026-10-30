@@ -2,22 +2,22 @@
  * Die gruppierten Bäume der Seitenleiste: Monster nach Typ, Zauber nach Schule
  * (zweite Gruppierung nach Grad), Gegenstände und Talente nach Kategorie.
  */
-import { invoke } from '@tauri-apps/api/core';
 import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { rarityColor } from '../../itemLabels';
 import { itemDirLabel } from '../catalog/itemCatalog';
-import { SCHOOL_COLORS } from '../../spellLibrary';
+import { SPELLS_PATH } from '../../spellLibrary';
+import {
+  levelBadgeText, levelGroupLabel, levelLabel, schoolDirColor as schoolColor, schoolDirLabel, spellBadgeColor,
+} from '../spellBadge';
 import { MONSTERS_PATH } from '../../monsterLibrary';
 import { FEAT_CATEGORY_DE, featDisplayName, getFeats, invalidateFeatsCache } from '../../featsLibrary';
 import { FEAT_CATEGORIES } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
 import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
-import { scanJsonFolder, type FileContext } from '../library/createLibrary';
+import { listSubdirs, scanJsonFolder, type FileContext } from '../library/createLibrary';
 import type { CreateKind } from './createSpecs';
 import type { CatalogKind } from '../catalog/catalogTypes';
-
-const SPELLS_PATH = './vault/spells';
 
 export interface TreeBadge {
   kind: 'cr' | 'level' | 'rarity';
@@ -59,47 +59,18 @@ export interface GroupedSection {
   /** Gesetzt: Klick auf Sektion oder Gruppe öffnet die Tabellen-Übersicht statt aufzuklappen. */
   catalog?: CatalogKind;
   /** Zweite Gruppierung über die geladenen Blätter. */
-  altMode?: { primaryLabel: string; label: string; build: (leaves: TreeLeaf[]) => TreeGroup[] };
+  altMode?: { primaryLabel: string; label: string; build: (leaves: TreeLeaf[]) => TreeGroup[]; catalog?: CatalogKind };
   loadGroups: () => Promise<TreeGroup[]>;
   /** Fehlt bei Bäumen, die schon in `loadGroups` alles lesen. */
   loadLeaves?: (groupId: string) => Promise<TreeLeaf[]>;
   invalidate?: (groupId: string) => void;
 }
 
-interface JsonEntry { name: string; is_dir: boolean }
-
-const listDirs = async (path: string): Promise<string[]> => {
-  const entries = await invoke<JsonEntry[]>('list_json_entries', { path });
-  return entries.filter((e) => e.is_dir).map((e) => e.name).sort();
-};
-
-// Grad-Badge: Hue = Schulfarbe (Zugehörigkeit), Helligkeit = Grad (Intensität).
-// Grad 0 (Zaubertrick) leicht aufgehellt = schwächster, Grad 9 am dunkelsten = intensivster.
-const spellBadgeColor = (baseColor: string, level: number): string => {
-  if (level <= 0) return `color-mix(in srgb, ${baseColor} 78%, white)`;
-  const darken = Math.min((level - 1) * 6, 48); // 0 % (Grad 1) … 48 % Schwarz (Grad 9)
-  return `color-mix(in srgb, ${baseColor}, black ${darken}%)`;
-};
-
-// Ordnername → englischer Schulschlüssel (die Farbe hängt am Schlüssel).
-const SCHOOL_DIR_TO_KEY: Record<string, string> = {
-  'bannmagie':       'abjuration',
-  'beschwörung':     'conjuration',
-  'erkenntnismagie': 'divination',
-  'verzauberung':    'enchantment',
-  'hervorrufung':    'evocation',
-  'illusionsmagie':  'illusion',
-  'nekromantie':     'necromancy',
-  'verwandlung':     'transmutation',
-};
-
-const schoolColor = (school: string): string => SCHOOL_COLORS[SCHOOL_DIR_TO_KEY[school]] ?? 'var(--ink)';
-
 const levelBadge = (level: number, color: string, title?: string): TreeBadge => ({
   kind: 'level',
-  text: level === 0 ? 'Z' : String(level),
+  text: levelBadgeText(level),
   color: spellBadgeColor(color, level),
-  title: title ?? (level === 0 ? 'Zaubertrick' : `Grad ${level}`),
+  title: title ?? levelLabel(level),
 });
 
 /** Grad eines Zauber-Blattes; steckt im Badge-Text („Z" = Zaubertrick). */
@@ -141,7 +112,7 @@ function monsterLeaves(dir: string): Promise<{ typeKey: string; leaf: TreeLeaf }
 
 async function loadMonsterGroups(): Promise<TreeGroup[]> {
   try {
-    const dirs = await listDirs(MONSTERS_PATH);
+    const dirs = await listSubdirs(MONSTERS_PATH);
     const all = (await Promise.all([...dirs, ''].map(monsterLeaves))).flat();
 
     const byType: Record<string, TreeLeaf[]> = {};
@@ -192,7 +163,7 @@ function spellsByLevel(leaves: TreeLeaf[]): TreeGroup[] {
     .sort((a, b) => a - b)
     .map((level) => ({
       id: String(level),
-      label: level === 0 ? 'Zaubertricks' : `Grad ${level}`,
+      label: levelGroupLabel(level),
       badge: levelBadge(level, 'var(--ink-muted)', ''),
       leaves: byLevel[level]
         .slice()
@@ -247,12 +218,12 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
   },
   {
     kind: 'spell', type: 'spell', label: 'Zauber', addTitle: 'Neuer Zauber',
-    emptyLabel: 'Keine Zauber', searchable: true,
-    altMode: { primaryLabel: 'Schule', label: 'Grad', build: spellsByLevel },
+    emptyLabel: 'Keine Zauber', searchable: true, catalog: 'spell-school',
+    altMode: { primaryLabel: 'Schule', label: 'Grad', build: spellsByLevel, catalog: 'spell-level' },
     loadGroups: async () =>
-      (await listDirs(SPELLS_PATH).catch(() => [])).map((school) => ({
+      (await listSubdirs(SPELLS_PATH).catch(() => [])).map((school) => ({
         id: school,
-        label: school.charAt(0).toUpperCase() + school.slice(1),
+        label: schoolDirLabel(school),
         color: schoolColor(school),
       })),
     loadLeaves: loadSpellLeaves,

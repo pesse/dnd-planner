@@ -5,8 +5,10 @@
   import { peekEntry } from '../../services/entryPeek';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
-    catalogEntry, columnsFor, facetOptions, type CatalogColumn, type CatalogGroup, type CatalogKind, type CatalogRow,
+    catalogEntry, columnsFor, facetOptions, facetValues,
+    type CatalogColumn, type CatalogGroup, type CatalogKind, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
+  import SegmentedToggle from '../ui/SegmentedToggle.svelte';
   import '../toolbar.css';
 
   let { kind, group }: { kind: CatalogKind; group: string } = $props();
@@ -45,10 +47,21 @@
     });
   });
 
+  /** Vom Ansichtswechsel (`switchView`) für den nächsten Katalog hinterlegt. */
+  let carry: { facets: Record<string, string>; search: string } | null = null;
+
   // Wechsel zwischen den Katalogen: die Sortierung des anderen passt nicht auf diese Spalten.
+  // Nur ein Ansichtswechsel zeigt dieselben Zeilen und behält Suche und Sortierung.
   $effect(() => {
     void currentKind;
-    untrack(() => { sortCol = 'name'; sortAsc = true; search = ''; facetSel = {}; loading = true; });
+    untrack(() => {
+      const kept = carry;
+      carry = null;
+      if (!kept) { sortCol = 'name'; sortAsc = true; }
+      search = kept?.search ?? '';
+      facetSel = kept?.facets ?? {};
+      loading = true;
+    });
   });
 
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
@@ -77,7 +90,7 @@
   let shown = $derived.by(() => {
     const q = search.trim().toLowerCase();
     const filtered = groupRows.filter((r) =>
-      Object.entries(facetSel).every(([id, value]) => r.facets[id]?.id === value)
+      Object.entries(facetSel).every(([id, value]) => facetValues(r, id).some((v) => v.id === value))
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
@@ -101,12 +114,26 @@
     void navigateTo(catalogEntry(kind, spec.label, g));
   }
 
+  let viewOptions = $derived(spec.views?.kinds.map((k) => ({ id: k, label: CATALOGS[k].groupLabel })) ?? []);
+
+  /** Gruppe und `views.facet` tauschen die Rollen: „Hervorrufung + Grad 3" wird „Grad 3 + Hervorrufung". */
+  function switchView(target: CatalogKind) {
+    const views = spec.views;
+    const next = CATALOGS[target].views;
+    if (!views || !next || target === kind) return;
+    const { [views.facet]: nextGroupId, ...facets } = facetSel;
+    if (group) facets[next.facet] = group;
+    carry = { facets, search };
+    const nextGroup = nextGroupId ? facetOptions(rows, views.facet).find((o) => o.id === nextGroupId) : undefined;
+    void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup));
+  }
+
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type });
 </script>
 
 {#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}
   <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
-    <button type="button" onclick={() => sortBy(col)}>
+    <button type="button" title={def.title} onclick={() => sortBy(col)}>
       {label}<span class="sort-mark">{activeSort === col ? (sortAsc ? '▲' : '▼') : ''}</span>
     </button>
   </th>
@@ -118,6 +145,9 @@
 
 <div class="catalog">
   <div class="controls">
+    {#if viewOptions.length}
+      <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
+    {/if}
     <input class="search" type="search" placeholder="Suchen…" bind:value={search} />
     <label class="filter">
       {spec.groupLabel}
@@ -169,12 +199,18 @@
             </td>
             {#each columnIds as id}
               {@const cell = row.cells[id]}
+              {@const col = spec.columns[id]}
               <td
-                class:numeric={spec.columns[id].numeric}
-                class:wrap={spec.columns[id].wrap}
-                class:center={spec.columns[id].center}
-                style={cell.color ? `color:${cell.color}` : undefined}
-              >{cell.text}</td>
+                class:numeric={col.numeric}
+                class:wrap={col.wrap}
+                class:center={col.center}
+                title={cell.title}
+                style={cell.color && !col.badge ? `color:${cell.color}` : undefined}
+              >
+                {#if col.badge}
+                  <span class="badge" style:background={cell.color}>{cell.text}</span>
+                {:else}{cell.text}{/if}
+              </td>
             {/each}
           </tr>
         {:else}
@@ -210,6 +246,8 @@
     padding: 0.6rem 1rem;
     border-bottom: 1px solid var(--surface);
   }
+
+  .views { font-size: 0.8rem; }
 
   .search {
     flex: 0 1 18rem;
@@ -299,6 +337,18 @@
   td.wrap { white-space: normal; min-width: 10rem; }
   .center { text-align: center; }
   td.center { font-weight: 700; }
+
+  .badge {
+    display: inline-block;
+    min-width: 1.2rem;
+    padding: 0 0.35rem;
+    border-radius: 0.25rem;
+    color: var(--bg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25rem;
+  }
 
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--bg-raised); }

@@ -62,8 +62,10 @@ export function dedupeSpellsByKey(spells: SpellInfo[]): SpellInfo[] {
 // Ableitung wie beim Parsen, analog `itemKeyOf` im Item-Index.
 const withKey = (s: SpellInfo): SpellInfo => (s.key ? s : { ...s, key: spellKeyOf({ ...s }) });
 
+export const SPELLS_PATH = './vault/spells';
+
 const index = memoOnce(() =>
-  invoke<SpellInfo[]>('load_spells_index', { path: './vault/spells' })
+  invoke<SpellInfo[]>('load_spells_index', { path: SPELLS_PATH })
     .then((spells) => dedupeSpellsByKey(spells.map(withKey)))
     .catch(() => [] as SpellInfo[]),
 );
@@ -72,7 +74,7 @@ export const getSpellLibrary = index.get;
 export const invalidateSpellLibrary = index.invalidate;
 
 // school (englisch im JSON) → Ordnername (deutsch im Vault); auch in SpellCard.svelte.
-const SPELL_SCHOOL_DIR: Record<string, string> = {
+export const SPELL_SCHOOL_DIR: Record<string, string> = {
   abjuration: 'bannmagie', conjuration: 'beschwörung', divination: 'erkenntnismagie',
   enchantment: 'verzauberung', evocation: 'hervorrufung', illusion: 'illusionsmagie',
   necromancy: 'nekromantie', transmutation: 'verwandlung',
@@ -86,7 +88,7 @@ export async function createSpellInline(spell: Spell): Promise<string> {
   const dir = SPELL_SCHOOL_DIR[spell.school] ?? 'hervorrufung';
   const name = (spell.name || 'Neuer Zauber').trim();
   const slug = slugKeepUmlauts(name);
-  const path = `./vault/spells/${dir}/${slug}.json`;
+  const path = `${SPELLS_PATH}/${dir}/${slug}.json`;
   // Ohne `key` wäre der Zauber am Charakter nicht verlinkbar (Picks tragen nur Keys) — derselbe
   // Slug wie im Dateipfad, damit beide zusammen eindeutig bleiben.
   await invoke('write_file_content', { path, content: JSON.stringify({ ...spell, name, key: `${OWN_SOURCE}_${slug}` }, null, 2) });
