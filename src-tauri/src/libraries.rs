@@ -563,12 +563,37 @@ pub async fn fetch_library_index(app: tauri::AppHandle) -> Result<Vec<LibrarySta
     let entries = fetch_index().await?;
     adopt_renamed_libraries();
     Ok(entries
-        .into_iter()
-        .map(|e| status_for(e, gate.as_deref()))
+        .iter()
+        .map(|e| status_for(e.clone(), &entries, gate.as_deref()))
         .collect())
 }
 
-fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
+/// `locked`/`staleCode`, solange ein nötiger Code fehlt oder veraltet ist. Eine Bilder-Library
+/// ist unverschlüsselt, aber an den Code ihrer Basis (`art_of`) gebunden; fehlt die Basis im
+/// Index, bleibt sie gesperrt.
+fn access_block(entry: &IndexEntry, entries: &[IndexEntry]) -> Option<&'static str> {
+    let base = match &entry.art_of {
+        Some(id) => match entries.iter().find(|e| &e.id == id) {
+            Some(b) => Some(b),
+            None => return Some("locked"),
+        },
+        None => None,
+    };
+    for holder in std::iter::once(entry).chain(base) {
+        if !holder.protected {
+            continue;
+        }
+        match load_code(&holder.id) {
+            None => return Some("locked"),
+            // Passwort wurde rotiert — benennbar statt still scheiternd.
+            Some((_, stored)) if stored != holder.key_version.unwrap_or(1) => return Some("staleCode"),
+            Some(_) => {}
+        }
+    }
+    None
+}
+
+fn status_for(entry: IndexEntry, entries: &[IndexEntry], gate: Option<&str>) -> LibraryStatus {
     let state = read_state(&entry.id);
     let installed_version = state.as_ref().map(|s| s.version.clone());
     let content_outdated = too_old_for(
@@ -581,19 +606,8 @@ fn status_for(entry: IndexEntry, gate: Option<&str>) -> LibraryStatus {
     // vorhandenes Update bleibt damit sichtbar, aber unangeboten.
     let status = if too_old_for(gate, entry.min_version.as_deref()) {
         "appOutdated".to_string()
-    } else if entry.protected {
-        match load_code(&entry.id) {
-            None => "locked".to_string(),
-            Some((_, stored_version)) => {
-                let expected = entry.key_version.unwrap_or(1);
-                if stored_version != expected {
-                    // Passwort wurde rotiert — benennbar statt still scheiternd.
-                    "staleCode".to_string()
-                } else {
-                    installed_status(&entry, installed_version.as_deref())
-                }
-            }
-        }
+    } else if let Some(block) = access_block(&entry, entries) {
+        block.to_string()
     } else {
         installed_status(&entry, installed_version.as_deref())
     };
@@ -684,9 +698,13 @@ pub async fn install_library(
     let entries = fetch_index().await?;
     adopt_renamed_libraries();
     let entry = entries
-        .into_iter()
+        .iter()
         .find(|e| e.id == id)
+        .cloned()
         .ok_or_else(|| format!("Unbekannte Bibliothek '{}'.", id))?;
+    if access_block(&entry, &entries).is_some() {
+        return Err(format!("Für „{}“ fehlt der Zugangscode.", entry.name));
+    }
 
     // Zweite Sicherung neben dem Zustand `appOutdated`: hier endet der Weg auch
     // dann, wenn die Oberfläche die Sperre nicht beachtet.
@@ -1117,8 +1135,8 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
     fn ohne_minversion_keine_sperre() {
         assert!(!too_old_for(Some("0.1.0"), None));
         assert!(!too_old_for(None, Some("9.9.9")));
-        assert_ne!(status_for(test_entry(None), Some("0.1.0")).status, "appOutdated");
-        assert_ne!(status_for(test_entry(Some("9.9.9")), None).status, "appOutdated");
+        assert_ne!(status_for(test_entry(None), &[], Some("0.1.0")).status, "appOutdated");
+        assert_ne!(status_for(test_entry(Some("9.9.9")), &[], None).status, "appOutdated");
     }
 
     /// Dieselbe Schranke in der Gegenrichtung: die `minVersion` des installierten
@@ -1141,9 +1159,24 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
     #[test]
     fn zu_alte_app_schlaegt_jeden_anderen_zustand() {
         let entry = test_entry(Some("0.2.1"));
-        let status = status_for(entry, Some("0.2.0"));
+        let status = status_for(entry, &[], Some("0.2.0"));
         assert_eq!(status.status, "appOutdated");
         assert_eq!(status.min_version.as_deref(), Some("0.2.1"));
+    }
+
+    /// Bilder sind unverschlüsselt; gesperrt sind sie allein über ihre Basis.
+    #[test]
+    fn bilder_haengen_am_code_ihrer_basis() {
+        let art = |base: &str| IndexEntry {
+            id: "test-art".into(),
+            protected: false,
+            art_of: Some(base.into()),
+            ..test_entry(None)
+        };
+        let open_base = IndexEntry { protected: false, ..test_entry(None) };
+
+        assert_eq!(access_block(&art("fehlt-im-index"), &[]), Some("locked"));
+        assert_eq!(access_block(&art(&open_base.id), &[open_base.clone()]), None);
     }
 
     fn test_entry(min_version: Option<&str>) -> IndexEntry {
