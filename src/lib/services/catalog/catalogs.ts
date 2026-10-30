@@ -1,3 +1,4 @@
+import { characterCatalog } from './characterCatalog';
 import { featCatalog } from './featCatalog';
 import { itemCatalog } from './itemCatalog';
 import { monsterCatalog } from './monsterCatalog';
@@ -10,4 +11,5 @@ export const CATALOGS: Record<CatalogKind, CatalogSpec> = {
   feat: featCatalog,
   'spell-school': spellSchoolCatalog,
   'spell-level': spellLevelCatalog,
+  character: characterCatalog,
 };

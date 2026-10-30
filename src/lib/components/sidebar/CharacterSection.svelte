@@ -3,10 +3,13 @@
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import CharacterWizard from '../CharacterWizard.svelte';
   import SectionHeader from './SectionHeader.svelte';
+  import { navigateTo } from '../../services/navigation';
+  import { catalogEntry } from '../../services/catalog/catalogTypes';
   import { createCharacterSectionState, CHARACTERS_PATH } from './characterSectionState.svelte';
   import './tree.css';
 
   const state = createCharacterSectionState();
+  const catalog = catalogEntry('character', 'Charaktere');
 
   // `untrack` verhindert ein Re-Expandieren, wenn der Nutzer manuell zuklappt.
   $effect(() => {
@@ -24,7 +27,14 @@
 </script>
 
 <div class="top-section">
-  <SectionHeader label="Charaktere" expanded={state.expanded} ontoggle={() => state.toggle()} top>
+  <SectionHeader
+    label="Charaktere"
+    expanded={state.expanded}
+    ontoggle={() => state.toggle()}
+    onlabel={() => void navigateTo(catalog)}
+    current={$activeFile?.path === catalog.path}
+    top
+  >
     {#snippet actions()}
       <button class="add-btn" title="Neuer Charakter" onclick={() => (state.showWizard = true)}>
         +

@@ -2,7 +2,7 @@
 import type { FileEntry } from '../../types';
 import { sourceLabel } from '../../schemas/source';
 
-export const CATALOG_KINDS = ['monster', 'item', 'feat', 'spell-school', 'spell-level'] as const;
+export const CATALOG_KINDS = ['monster', 'item', 'feat', 'spell-school', 'spell-level', 'character'] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
 export interface CatalogCell {
@@ -29,6 +29,8 @@ export interface CatalogColumn {
 
 export interface CatalogRow {
   path: string;
+  /** Nur bei Charakteren, deren Identität ihr Ordner ist. */
+  dirPath?: string;
   /** Name des Eintrags in `activeFile` (Dateiname ohne Endung). */
   entryName: string;
   name: string;

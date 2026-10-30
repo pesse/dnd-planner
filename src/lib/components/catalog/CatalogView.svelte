@@ -128,7 +128,7 @@
     void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup));
   }
 
-  const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type });
+  const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type, dirPath: row.dirPath });
 </script>
 
 {#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}

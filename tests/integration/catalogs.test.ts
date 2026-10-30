@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../../src/lib/services/catalog/catalogs';
 import { catalogEntry, facetOptions, facetValues, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
 import { rangeSortKey, timeCell, timeSortKey } from '../../src/lib/services/catalog/spellCatalog';
+import { characterRow } from '../../src/lib/services/catalog/characterCatalog';
+import { testCharacter } from '../support/testCharacter';
 
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   it('jedes Spalten-Set nennt nur bekannte Spalten', () => {
@@ -15,7 +17,8 @@ describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
     }
   });
 
-  it('liefert Zeilen mit einer Zelle je Spalte und einer bekannten Gruppe', async () => {
+  // Die Charaktere im Vault werden bespielt; ihre Zeilen prüft der Prüfling weiter unten.
+  it.skipIf(spec.kind === 'character')('liefert Zeilen mit einer Zelle je Spalte und einer bekannten Gruppe', async () => {
     const { rows, groups } = await spec.load();
     expect(rows.length).toBeGreaterThan(50);
     const groupIds = new Set(groups.map((g) => g.id));
@@ -161,6 +164,19 @@ describe('Zauber-Sortierung', () => {
     expect(timeCell('1 Bonusaktion')).toMatchObject({ text: 'Bonusaktion', title: '1 Bonusaktion' });
     expect(timeCell('Konzentration, bis zu 1 Stunde').text).toBe('1 Stunde');
     expect(timeCell('1 Minute')).toEqual({ text: '1 Minute', sort: 60, title: undefined });
+  });
+});
+
+describe('Charakter-Katalog', () => {
+  it('Mehrklassen: Startklasse als Gruppe, jede Klasse als Facette, TP/RK sortieren numerisch', () => {
+    const row = characterRow('abc123', testCharacter('Prüfling Multiklasse'));
+    expect(Object.keys(row.cells).sort()).toEqual(Object.keys(CATALOGS.character.columns).sort());
+    expect(row.dirPath).toBe('./vault/characters/abc123');
+    expect(row.group).toBe('srd-2024_rogue');
+    expect(facetValues(row, 'class').map((v) => v.label)).toEqual(['Schurke', 'Mönch']);
+    expect(row.cells.level).toEqual({ text: '3', sort: 3 });
+    expect(row.cells.hp).toEqual({ text: '17', sort: 17 });
+    expect(row.cells.ac).toEqual({ text: '13/14', sort: 13 });
   });
 });
 
