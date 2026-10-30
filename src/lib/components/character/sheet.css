@@ -103,6 +103,18 @@
   transform: none;
 }
 
+/* Für die oberste Zeile der Karte: nach oben schnitte der Kartenrand den Tooltip ab. */
+.sheet .tip.tip-below {
+  bottom: auto;
+  top: calc(100% + 7px);
+}
+.sheet .tip.tip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--border);
+}
+
 .sheet .has-tip:hover > .tip {
   display: flex;
 }

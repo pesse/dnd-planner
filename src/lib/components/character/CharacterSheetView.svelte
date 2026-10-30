@@ -67,7 +67,7 @@
         <div class="attr-label">{ABILITY_ABBR_DE[key]}</div>
         <div class="has-tip attr-mod">
           {sign(character.mods[key])}
-          <span class="tip">{@html attrModTip(ABILITY_ABBR_DE[key], abilities[key], character.mods[key])}</span>
+          <span class="tip tip-below">{@html attrModTip(ABILITY_ABBR_DE[key], abilities[key], character.mods[key])}</span>
         </div>
         <div class="attr-score">{abilities[key].score}</div>
       </div>
