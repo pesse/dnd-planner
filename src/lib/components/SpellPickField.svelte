@@ -9,7 +9,7 @@
   import SpellTooltip from './SpellTooltip.svelte';
   import Markdown from './Markdown.svelte';
   import SpellPickModal from './SpellPickModal.svelte';
-  import { createSpellHover } from './spellHover.svelte';
+  import { createSpellHover, GRANTED_NOTE } from './spellHover.svelte';
 
   let {
     title,
@@ -60,7 +60,6 @@
     {#each fixed as f (f.name)}
       <span
         class="pick granted"
-        title="Von einem Merkmal gewährt — zählt nicht gegen dein Kontingent"
         onmouseenter={(e) => hover.show(e, f.name)}
         onmousemove={(e) => hover.move(e)}
         onmouseleave={() => hover.hide()}
@@ -114,7 +113,7 @@
   />
 {/if}
 
-<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
+<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} note={GRANTED_NOTE} />
 
 <style>
   .field-row { display: flex; align-items: flex-start; gap: 0.6rem; }

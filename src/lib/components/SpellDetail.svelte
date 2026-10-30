@@ -22,6 +22,7 @@
         {spell.name}
         {#if spell.ritual}<span class="tt-badge tt-ritual">Ritual</span>{/if}
       </div>
+      {#if spell.name_en && spell.name_en !== spell.name}<div class="tt-en">{spell.name_en}</div>{/if}
       <div class="tt-meta">{spellLevelLabel(spell.level)} · {SPELL_SCHOOLS[spell.school] ?? spell.school}</div>
     </div>
     <ArtFrame src={art} color={color} />
@@ -73,6 +74,11 @@
     background: color-mix(in srgb, var(--sc) 13%, transparent);
     color: var(--sc);
     border: 1px solid color-mix(in srgb, var(--sc) 25%, transparent);
+  }
+  .tt-en {
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+    margin: -0.15rem 0 0.15rem;
   }
   .tt-meta {
     font-size: 0.74rem;

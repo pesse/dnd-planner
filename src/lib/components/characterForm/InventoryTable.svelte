@@ -215,7 +215,6 @@
               <button
                 type="button"
                 class="inv-name-link"
-                title="Gegenstandskarte öffnen"
                 onclick={() => openItemPage(lib)}
                 onmouseenter={(e) => { tipTraining = trainingOf(lib); tip.show(e, withChosenResistance(dataByPath.get(lib.path) ?? null, item.resistance)); }}
                 onmousemove={tip.move}

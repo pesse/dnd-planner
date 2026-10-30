@@ -71,6 +71,7 @@
     ),
   );
   const hover = createSpellHover(() => byLabel, () => byLabel.keys());
+  let hoverNote = $state<string | undefined>();
 
   async function openSpellPage(s: CardSpell) {
     const info = infoOf(s);
@@ -117,12 +118,11 @@
   <span class="tag spell-chip" class:linked={!!info?.path} class:unprepared={!s.prepared}
     style="color:{colorOf(s) || 'inherit'}"
     role="button" tabindex="0"
-    title={s.prepared ? '' : 'nicht vorbereitet'}
     onclick={() => openSpellPage(s)}
     onkeydown={(e) => e.key === 'Enter' && openSpellPage(s)}
-    onmouseenter={(e) => hover.show(e, s.label)}
+    onmouseenter={(e) => { hoverNote = s.prepared ? undefined : 'Nicht vorbereitet'; hover.show(e, s.label); }}
     onmousemove={(e) => hover.move(e)}
-    onmouseleave={() => hover.hide()}>{s.label}{#if info?.ritual}<span class="ritual-badge" title="Ritual">R</span>{/if}</span>
+    onmouseleave={() => hover.hide()}>{s.label}{#if info?.ritual}<span class="ritual-badge">R</span>{/if}</span>
 {/snippet}
 
 {#if hasContent && view}
@@ -206,7 +206,7 @@
   </div>
 {/if}
 
-<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
+<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} note={hoverNote} />
 
 <style>
   .casting-issue {

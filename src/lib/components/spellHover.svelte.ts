@@ -17,6 +17,8 @@ export async function loadSpellCached(name: string, path: string): Promise<Spell
   return data;
 }
 
+export const GRANTED_NOTE = 'Von einem Merkmal gewährt — zählt nicht gegen dein Kontingent';
+
 export interface SpellHover {
   readonly spell: Spell | null;
   readonly x: number;

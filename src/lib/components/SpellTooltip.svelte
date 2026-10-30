@@ -3,7 +3,7 @@
   import { SCHOOL_COLORS } from '../spellLibrary';
   import SpellDetail from './SpellDetail.svelte';
 
-  let { spell, x, y }: { spell: Spell | null; x: number; y: number } = $props();
+  let { spell, x, y, note }: { spell: Spell | null; x: number; y: number; note?: string } = $props();
 
   let winW = $state(1280);
   let winH = $state(800);
@@ -28,6 +28,7 @@
     bind:clientWidth={boxW}
     bind:clientHeight={boxH}
   >
+    {#if note}<div class="note">{note}</div>{/if}
     <SpellDetail {spell} />
   </div>
 {/if}
@@ -51,5 +52,12 @@
     font-size: 0.8rem;
     color: var(--ink);
   }
-
+  .note {
+    font-size: 0.74rem;
+    font-style: italic;
+    color: var(--ink-muted);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
 </style>

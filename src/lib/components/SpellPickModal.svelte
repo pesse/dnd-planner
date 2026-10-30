@@ -9,7 +9,7 @@
   import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import SpellTooltip from './SpellTooltip.svelte';
-  import { createSpellHover } from './spellHover.svelte';
+  import { createSpellHover, GRANTED_NOTE } from './spellHover.svelte';
 
   let {
     title,
@@ -98,12 +98,9 @@
   const isPicked = (s: SpellInfo) => !!s.key && picks.includes(s.key);
   const doubled = $derived(picks.filter((k) => known.has(k)));
 
-  function chipTitle(s: SpellInfo, picked: boolean, from: string): string | undefined {
+  function chipNote(s: SpellInfo, picked: boolean, from: string): string | undefined {
     if (!picked && full) return 'Kontingent voll — entferne einen Zauber, um zu tauschen.';
-    const parts = [];
-    if (from) parts.push(`Beherrschst du schon (${from})`);
-    if (s.name_en && s.name_en !== s.name) parts.push(s.name_en);
-    return parts.join(' · ') || undefined;
+    return from ? `Beherrschst du schon (${from})` : undefined;
   }
 
   function toggle(s: SpellInfo) {
@@ -129,6 +126,7 @@
 
   const levelLabel = (level: number) => (level > 0 ? `Grad ${level}` : 'Zaubertricks');
   const hover = createSpellHover(() => new Map(library.map((s) => [s.name, s])));
+  let hoverNote = $state<string | undefined>();
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') onclose();
@@ -164,8 +162,7 @@
                    Tooltip, mit dem man den Zauber überhaupt nachlesen kann. -->
               <span
                 class="chip granted"
-                title="Von einem Merkmal gewährt — zählt nicht gegen dein Kontingent"
-                onmouseenter={(e) => hover.show(e, f.name)}
+                onmouseenter={(e) => { hoverNote = GRANTED_NOTE; hover.show(e, f.name); }}
                 onmousemove={(e) => hover.move(e)}
                 onmouseleave={() => hover.hide()}
                 role="note"
@@ -189,8 +186,7 @@
                   class="chip-main"
                   class:blocked={!picked && full}
                   aria-pressed={picked}
-                  title={chipTitle(s, picked, from)}
-                  onmouseenter={(e) => hover.show(e, s.name)}
+                  onmouseenter={(e) => { hoverNote = chipNote(s, picked, from); hover.show(e, s.name); }}
                   onmousemove={(e) => hover.move(e)}
                   onmouseleave={() => hover.hide()}
                   onclick={() => toggle(s)}
@@ -241,7 +237,7 @@
   </div>
 </div>
 
-<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
+<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} note={hoverNote} />
 
 <style>
   .backdrop {
