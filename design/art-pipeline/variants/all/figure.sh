@@ -4,6 +4,9 @@ idx=$(awk -F'\t' -v f=$fig '$1==f{print NR-1}' $FIG_DIR/figures.tsv)
 base=$(awk -F'\t' -v f=$fig '$1==f{print $2}' $FIG_DIR/figures.tsv)
 identity=$(awk -F'\t' -v f=$fig '$1==f{print $3}' $FIG_DIR/figures.tsv)
 case $species in
+  aasimar) sp='Aasimar: human-like with ordinary human height and proportions; softly glowing eyes without visible pupils and a faint inner luminous sheen on the skin. No wings, no halo, no feathers.'
+    # Subklassen sind ab Stufe 3, dann gibt es die Himmlische Offenbarung — Grund- und Wizard-Bilder bleiben dezent.
+    [ -n "${REVELATION:-}" ] && sp='Aasimar in CELESTIAL REVELATION (Heavenly Wings): human-like with ordinary human height; two large spectral wings of translucent golden light spread from the shoulder blades, and the eyes blaze with radiant light. The wings are luminous and semi-transparent, never solid feathered bird wings, and never hide the face, hands or the action. No halo.' ;;
   dragonborn) sp='Dragonborn: tall draconic humanoid with a scaled reptilian head and short snout, no tail, no wings.' ;;
   dwarf) sp='Dwarf: 4–5 feet tall, stout and broad-shouldered with short legs.' ;;
   elf) sp='Elf: tall and slender with long pointed ears.' ;;

@@ -71,6 +71,7 @@ const SETTINGS = [
 ];
 const TIMES = ['at dawn', 'in blazing noon light', 'in golden evening light', 'at night under moon or lanterns', 'in rain or storm', 'in snow or mist'];
 const CULTURE = {
+  aasimar: 'sunlit temple towns, hilltop shrines and pilgrim roads',
   dragonborn: 'ancient draconic highland temples and windswept ridges',
   dwarf: 'carved stone halls, forges and mountain holds',
   elf: 'ancient forests and graceful silver-white architecture',

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # job.sh <figur> <teil: ca|cb|ba|bb> — ein Codex-Lauf für die fehlenden Bilder, danach prüfen und veröffentlichen
 set -u
-V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp
+# Rohbilder und Codex im Test-Klon (Windows-Pfade, Werkbank); die AVIF-Fassungen in den Klon, aus dem das Skript stammt.
+V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp APP=${APP:-$(cd "$V/../../../.." && pwd)}
 cd /mnt/c/dev/privat/dnd-planner
 fig=$1 part=$2 species=${1%-*} look=${1##*-}
 kind=$([[ $part == c* ]] && echo classes || echo backgrounds)
@@ -18,7 +19,7 @@ mkdir -p $dir $out
 todo=$(missing | tr '\n' ' ')
 # Auch übersprungene Teile veröffentlichen: ein Abbruch kann zwischen Malen und Umwandeln liegen.
 publish() { for n in $names; do
-  w=vault/art/figures/$fig/$kind/$n.avif
+  w=$APP/vault/art/figures/$fig/$kind/$n.avif
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w
 done; }
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi

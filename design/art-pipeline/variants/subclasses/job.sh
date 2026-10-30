@@ -2,7 +2,7 @@
 # job.sh <figur> <teil: sa|sb|sc> — ein Codex-Lauf für die fehlenden Subklassen-Bilder, danach veröffentlichen
 set -u
 # Rohbilder und Codex im Test-Klon (Windows-Pfade, Werkbank); die AVIF-Fassungen in den Klon, aus dem das Skript stammt.
-V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp APP=$(cd "$V/../../../.." && pwd)
+V=$(cd "$(dirname "$0")" && pwd); SH=$V/../../sharp APP=${APP:-$(cd "$V/../../../.." && pwd)}
 cd /mnt/c/dev/privat/dnd-planner
 fig=$1 part=$2 species=${1%-*} look=${1##*-}
 dir=design/art/figures-sub/$fig-$part out=$V/out/$fig-$part
@@ -19,7 +19,7 @@ publish() { for n in $names; do
 done; }
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi
 
-source $V/../all/figure.sh
+REVELATION=1 source $V/../all/figure.sh
 keep=$(sed 's/ *$//; s/ /|/g' <<<"$todo")
 { figure_head
   node $V/brief.mjs $part | grep -E "^[^-]|^$|^- ($keep)\.png"; } > $out/brief.md
