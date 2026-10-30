@@ -22,7 +22,9 @@
   let searchResults = $derived.by(() => {
     const q = search.trim().toLowerCase();
     if (!q) return null;
-    return allLeaves.filter((leaf) => leaf.label.toLowerCase().includes(q));
+    return allLeaves.filter(
+      (leaf) => leaf.label.toLowerCase().includes(q) || !!leaf.nameEn?.toLowerCase().includes(q),
+    );
   });
 
   let shownGroups = $derived(

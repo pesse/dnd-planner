@@ -26,6 +26,8 @@ export interface TreeBadge {
 
 export interface TreeLeaf {
   label: string;
+  /** Englischer Originalname; die Suche trifft auch ihn. */
+  nameEn?: string;
   /** Name des Eintrags in `activeFile` (Dateiname ohne Endung). */
   entryName: string;
   path: string;
@@ -126,6 +128,7 @@ function monsterLeaves(dir: string): Promise<{ typeKey: string; leaf: TreeLeaf }
         leaf: {
           ...base(ctx),
           label: parsed.data.name || base(ctx).entryName,
+          nameEn: parsed.data.name_en,
           badge: { kind: 'cr', text: cr, title: `Herausforderungsgrad ${cr}` },
         },
       };
@@ -166,6 +169,7 @@ async function loadSpellLeaves(school: string): Promise<TreeLeaf[]> {
       (data, ctx) => ({
         ...base(ctx),
         label: (data.name as string) ?? base(ctx).entryName,
+        nameEn: data.name_en as string | undefined,
         badge: levelBadge((data.level as number) ?? 0, color),
       }),
       (ctx) => ({ ...base(ctx), label: base(ctx).entryName, badge: levelBadge(0, color) }),
@@ -207,6 +211,7 @@ async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
       suffix: `/${dir}/${filename}`,
       groupId: dir,
       label: item.name_de ?? item.name,
+      nameEn: item.name,
       badge: { kind: 'rarity', color: rarityColor(item.rarity) } as TreeBadge,
     };
   });
