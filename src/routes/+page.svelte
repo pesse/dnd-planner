@@ -3,6 +3,8 @@
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import CardHost from '$lib/components/CardHost.svelte';
+  import CatalogView from '$lib/components/catalog/CatalogView.svelte';
+  import { parseCatalogPath } from '$lib/services/catalog/catalogTypes';
   import CharacterBadgeBar from '$lib/components/CharacterBadgeBar.svelte';
   import FileTitle from '$lib/components/FileTitle.svelte';
   import LlmPanel from '$lib/components/LlmPanel.svelte';
@@ -42,6 +44,7 @@
   );
 
   let cardType = $derived(cardTypeOf($activeFile?.type));
+  let catalog = $derived($activeFile?.type === 'catalog' ? parseCatalogPath($activeFile.path) : null);
 
   let isMarkdownPrintable = $derived(
     $activeFile?.type === 'act' || $activeFile?.type === 'campaign' || $activeFile?.type === 'notes'
@@ -118,6 +121,8 @@
     <HistoryNav />
     {#if isPdfCharacter}
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
+    {:else if catalog}
+      <CatalogView kind={catalog.kind} group={catalog.group} />
     {:else if cardType}
       <CardHost type={cardType} />
     {:else}

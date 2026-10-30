@@ -4,7 +4,9 @@
   import { activeFile } from '$lib/stores/campaign';
 
   // Der Vault-Präfix steht an jedem Pfad und trägt nichts zur Unterscheidung bei.
-  const shown = $derived(($activeFile?.path ?? '').replace(/^\.\/vault\//, ''));
+  const shown = $derived(
+    $activeFile?.type === 'catalog' ? '' : ($activeFile?.path ?? '').replace(/^\.\/vault\//, ''),
+  );
 
   function onKeydown(e: KeyboardEvent) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;

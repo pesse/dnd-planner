@@ -24,6 +24,8 @@ export interface ItemInfo {
   category: string;
   rarity: string;
   weight?: number;
+  cost?: Item['cost'];
+  source?: string;
   path: string;
   /** Ziel von `inventory[].sourceKey`. */
   key?: string;
@@ -178,6 +180,8 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         category: data.category ?? DIR_TO_CATEGORY[dir] ?? 'other',
         rarity: data.rarity ?? '—',
         weight: typeof data.weight === 'number' ? data.weight : undefined,
+        cost: itemSchema.shape.cost.safeParse(data.cost).data,
+        source: typeof data.source === 'string' ? data.source : undefined,
         path,
         // Nicht `data.key`: Homebrew ohne Key wäre sonst nicht verlinkbar.
         key: itemKeyOf(data) || undefined,

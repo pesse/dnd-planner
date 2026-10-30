@@ -4,7 +4,8 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
-import { CATEGORY_LABELS, DIR_TO_CATEGORY, rarityColor } from '../../itemLabels';
+import { rarityColor } from '../../itemLabels';
+import { itemDirLabel } from '../catalog/catalogs';
 import { SCHOOL_COLORS } from '../../spellLibrary';
 import { MONSTERS_PATH } from '../../monsterLibrary';
 import { crLabel } from '../monsterFormat';
@@ -12,6 +13,7 @@ import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
 import { scanJsonFolder, type FileContext } from '../library/createLibrary';
 import type { CreateKind } from './createSpecs';
+import type { CatalogKind } from '../catalog/catalogTypes';
 
 const SPELLS_PATH = './vault/spells';
 
@@ -50,6 +52,8 @@ export interface GroupedSection {
   emptyLabel: string;
   headerClass?: string;
   searchable?: boolean;
+  /** Gesetzt: Klick auf Sektion oder Gruppe öffnet die Tabellen-Übersicht statt aufzuklappen. */
+  catalog?: CatalogKind;
   /** Zweite Gruppierung über die geladenen Blätter. */
   altMode?: { primaryLabel: string; label: string; build: (leaves: TreeLeaf[]) => TreeGroup[] };
   loadGroups: () => Promise<TreeGroup[]>;
@@ -210,13 +214,10 @@ async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
   return leaves;
 }
 
-/** Anzeige-Label eines Item-Ordners; Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
-const itemDirLabel = (dir: string): string => CATEGORY_LABELS[DIR_TO_CATEGORY[dir] ?? dir] ?? dir;
-
 export const GROUPED_SECTIONS: GroupedSection[] = [
   {
     kind: 'monster', type: 'monster', label: 'Monster', addTitle: 'Neues Monster',
-    emptyLabel: 'Keine Monster',
+    emptyLabel: 'Keine Monster', catalog: 'monster',
     loadGroups: loadMonsterGroups,
   },
   {
@@ -233,7 +234,7 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
   },
   {
     kind: 'item', type: 'item', label: 'Gegenstände', addTitle: 'Neuer Gegenstand',
-    emptyLabel: 'Keine Gegenstände', searchable: true,
+    emptyLabel: 'Keine Gegenstände', searchable: true, catalog: 'item',
     headerClass: 'item-group-header',
     loadGroups: async () => (await listItemDirs()).map((dir) => ({ id: dir, label: itemDirLabel(dir) })),
     loadLeaves: loadItemLeaves,

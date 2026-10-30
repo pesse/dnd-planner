@@ -73,6 +73,7 @@ export function closeActive(): void {
 }
 
 async function reachable(entry: FileEntry): Promise<boolean> {
+  if (entry.type === 'catalog') return true;
   if (!entry.path) return false;
   try {
     await invoke<string>('read_file_content', { path: entry.path });

@@ -140,7 +140,7 @@ export const contextSummary = derived(
       items.push(`${count} Monster`);
     }
     if ($encounterMonsterDefs.length > 0 && $contextFlags.encounterMonsters && $activeFile?.type === 'encounter') items.push(`${$encounterMonsterDefs.length} Mon↑`);
-    if ($activeFile && $contextFlags.activeFile && $activeFile.type !== 'notes') items.push($activeFile.name);
+    if ($activeFile && $contextFlags.activeFile && $activeFile.type !== 'notes' && $activeFile.type !== 'catalog') items.push($activeFile.name);
     for (const pin of $pinnedEntries) {
       const icon = pin.isCharacter ? '⚔' : '📌';
       const detail = pin.isCharacter ? ` (${CHARACTER_CONTEXT_LABELS[pin.detailLevel]})` : '';

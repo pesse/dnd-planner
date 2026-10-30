@@ -4,6 +4,7 @@
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { navigateTo } from '../../services/navigation';
   import { deleteEntry } from '../../services/sidebar/deleteEntry';
+  import { catalogEntry } from '../../services/catalog/catalogTypes';
   import type { GroupedSection, TreeGroup, TreeLeaf } from '../../services/sidebar/groupedSections';
   import SectionHeader from './SectionHeader.svelte';
   import './tree.css';
@@ -86,6 +87,16 @@
     await navigateTo({ name: leaf.entryName, path: leaf.path, type: section.type });
   }
 
+  const catalogOf = (group?: TreeGroup) =>
+    section.catalog ? catalogEntry(section.catalog, section.label, group) : null;
+
+  function openCatalog(group?: TreeGroup) {
+    const entry = catalogOf(group);
+    if (entry) void navigateTo(entry);
+  }
+
+  const isCurrent = (group?: TreeGroup) => !!$activeFile && $activeFile.path === catalogOf(group)?.path;
+
   async function create() {
     if (!(await confirmNavigation())) return;
     expanded = true;
@@ -125,7 +136,14 @@
 {/snippet}
 
 <div class="top-section">
-  <SectionHeader label={section.label} {expanded} ontoggle={toggle} top>
+  <SectionHeader
+    label={section.label}
+    {expanded}
+    ontoggle={toggle}
+    onlabel={section.catalog ? () => openCatalog() : undefined}
+    current={isCurrent()}
+    top
+  >
     {#snippet actions()}
       <button class="add-btn" title={section.addTitle} onclick={create}>+</button>
     {/snippet}
@@ -158,16 +176,33 @@
       {:else}
         {#each shownGroups as group}
           {@const leaves = group.leaves ?? leavesByGroup[group.id]}
-          <button
-            class="monster-group-header {section.headerClass ?? ''}"
-            style={group.color ? `color: ${group.color}` : undefined}
-            onclick={() => toggleGroup(group.id)}
-          >
-            <span class="arrow" class:open={openGroups[group.id]}>›</span>
-            {@render badgeMark(group.badge)}
-            {group.label}
-            {#if leaves}<span class="group-count">({leaves.length})</span>{/if}
-          </button>
+          {#if section.catalog && !altMode}
+            <div
+              class="monster-group-header split {section.headerClass ?? ''}"
+              class:current={isCurrent(group)}
+              style={group.color ? `color: ${group.color}` : undefined}
+            >
+              <button class="tree-arrow" onclick={() => toggleGroup(group.id)} aria-label="Aufklappen">
+                <span class="arrow" class:open={openGroups[group.id]}>›</span>
+              </button>
+              <button class="tree-label" onclick={() => openCatalog(group)}>
+                {@render badgeMark(group.badge)}
+                {group.label}
+                {#if leaves}<span class="group-count">({leaves.length})</span>{/if}
+              </button>
+            </div>
+          {:else}
+            <button
+              class="monster-group-header {section.headerClass ?? ''}"
+              style={group.color ? `color: ${group.color}` : undefined}
+              onclick={() => toggleGroup(group.id)}
+            >
+              <span class="arrow" class:open={openGroups[group.id]}>›</span>
+              {@render badgeMark(group.badge)}
+              {group.label}
+              {#if leaves}<span class="group-count">({leaves.length})</span>{/if}
+            </button>
+          {/if}
           {#if openGroups[group.id]}
             {#if leaves}
               {#each leaves as leaf}

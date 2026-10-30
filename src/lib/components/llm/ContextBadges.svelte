@@ -16,7 +16,7 @@
   } from '../../stores/context';
   import type { ContextFlags } from '../../services/contextTypes';
   import { CHARACTER_CONTEXT_LEVELS, CHARACTER_CONTEXT_LABELS, CHARACTER_CONTEXT_HINTS } from '../../services/characterContext';
-  import { monsterTypeLabel } from '../../types';
+  import { monsterTypeLabel, type FileEntryType } from '../../types';
   import { activeFile, fileContent } from '../../stores/campaign';
 
   let showPrompt = $state(false);
@@ -81,15 +81,15 @@
         onclick={() => toggleMonsterGroup(group)}
       >{monsterTypeLabel(group)} ({count})</button>
     {/each}
-    {#if $activeFile}
-      {@const fileLevelClass = {
+    {#if $activeFile && $activeFile.type !== 'catalog'}
+      {@const fileLevelClass = ({
         campaign: 'level-campaign', npc: 'level-campaign', world: 'level-campaign', character: 'level-campaign', notes: 'level-campaign',
         act: 'level-act',
         session: 'level-session',
         encounter: 'level-encounter',
         monster: 'level-library', spell: 'level-library', item: 'level-library',
         class: 'level-library', species: 'level-library', feat: 'level-library', background: 'level-library',
-      }[$activeFile.type] ?? 'level-campaign'}
+      } as Partial<Record<FileEntryType, string>>)[$activeFile.type] ?? 'level-campaign'}
       <button class="ctx-badge {fileLevelClass}" class:off={!$contextFlags.activeFile} onclick={() => toggleFlag('activeFile')}
         title={$activeFile.name}>
         📄 {$activeFile.name.length > 14 ? $activeFile.name.slice(0, 13) + '…' : $activeFile.name}
@@ -101,7 +101,7 @@
         {$encounterMonsterDefs.length > 0 ? $encounterMonsterDefs.length : '?'} Mon↑
       </button>
     {/if}
-    {#if $activeFile}
+    {#if $activeFile && $activeFile.type !== 'catalog'}
       <button class="ctx-badge pin-badge" onclick={handlePinActive} title="Anpinnen">+ Pin</button>
     {/if}
   </div>
