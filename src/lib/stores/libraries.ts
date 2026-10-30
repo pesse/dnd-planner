@@ -280,18 +280,52 @@ export async function checkLibrariesOnStartup(): Promise<void> {
     });
   }
 
-  const missing = get(libraries).filter((l) => !l.protected && !l.block && l.install === 'available');
+  // Der Entwicklungs-Vault ist das Inhalts-Repo: dort liegt alles schon als Datei, und ein
+  // Pack hineinzuschreiben hieße, Repo-Dateien zu übernehmen.
+  if (import.meta.env.DEV) return;
+
+  const missing = get(libraries).filter(
+    (l) => !l.protected && !l.block && l.install === 'available' && !adoptPendingFor(l),
+  );
+  const pending: Library[] = [];
   for (const lib of missing) {
     try {
       const summary = await installLibrary(lib.id, false);
       if (summary.needsAdopt > 0) {
-        console.info(
-          `Bibliothek "${lib.name}": ${summary.needsAdopt} vorhandene Datei(en) ` +
-            'ohne Verwaltung — Übernahme im Bibliotheks-Dialog bestätigen.',
-        );
+        markAdoptPending(lib);
+        pending.push(lib);
       }
     } catch (e) {
       console.warn(`Bibliothek "${lib.name}" nicht installierbar:`, e);
     }
   }
+  if (pending.length) {
+    pushNotice(
+      `${pending.map((l) => `„${l.name}"`).join(', ')}: Die Dateien liegen schon im Vault. ` +
+        'Im Bibliotheks-Dialog installieren und die Übernahme bestätigen.',
+      { label: 'Bibliotheken öffnen', run: () => libraryManagerOpen.set(true) },
+    );
+  }
+}
+
+/**
+ * Ohne Zustimmung schreibt eine Installation über Bestandsdateien nichts, auch keinen Stand —
+ * ohne diese Notiz lüde jeder Start das Pack erneut herunter und verwürfe es.
+ */
+const ADOPT_PENDING_KEY = 'library-adopt-pending';
+
+function readAdoptPending(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(ADOPT_PENDING_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+const adoptPendingFor = (lib: Library): boolean => readAdoptPending()[lib.id] === lib.version;
+
+function markAdoptPending(lib: Library) {
+  try {
+    localStorage.setItem(ADOPT_PENDING_KEY, JSON.stringify({ ...readAdoptPending(), [lib.id]: lib.version }));
+  } catch { /* ohne Speicher lädt der nächste Start erneut */ }
 }
