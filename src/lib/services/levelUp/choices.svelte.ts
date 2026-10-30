@@ -69,6 +69,14 @@ export function createLevelUpChoices(src: ChoiceSources) {
   /** Die Bogenzeilen der Zweigwahlen fürs Klassenmerkmale-Feld — ohne Speziesmerkmale. */
   const classOptionFeatures = $derived(declaredOptionFeatures.filter(forClassFeaturesField));
   const baseOptionAnalysis = $derived(optionListChoices(declaredOptionFeatures));
+  // Ein Zugang hinter einer Zweigwahl (Druidischer Krieger) gilt erst mit genau dieser Antwort.
+  const baseAccess = $derived(
+    src.baseAccess.filter((g) => {
+      if (!g.branch) return true;
+      const branchChoice = baseOptionAnalysis.find((c) => c.featureKey === g.featureKey);
+      return !!branchChoice && src.answers[branchChoice.id] === g.branch;
+    }),
+  );
 
   // Die Expertise-Optionen kommen aus dem BOGEN (deutsche Schlüssel → englische SRD-Namen),
   // nicht aus dem Vault: sie sind der Übungsstand dieses Charakters.
@@ -83,7 +91,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   // Klassenfilter böte der Picker die ganze Bibliothek an.
   const accessAnalysis = (grants: SpellAccessGrant[]) =>
     grants.flatMap((g) => spellAccessChoices(g, (src.answers[spellListChoiceId(g)] as string) ?? ''));
-  const baseAccessAnalysis = $derived.by(() => accessAnalysis(src.baseAccess));
+  const baseAccessAnalysis = $derived.by(() => accessAnalysis(baseAccess));
   const featAccessAnalysis = $derived.by(() => accessAnalysis(src.featAccess));
   // Heute ohne Vault-Fall, trotzdem aus derselben Liste: ein Talent oder spätes Speziesmerkmal,
   // das eine Grundeigenschaft zur Wahl stellt, verlöre sie sonst still.
@@ -153,7 +161,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get featDeclared() { return featDeclared; },
     get declaredOptionFeatures() { return declaredOptionFeatures; },
     get classOptionFeatures() { return classOptionFeatures; },
-    get baseAccess() { return src.baseAccess; },
+    get baseAccess() { return baseAccess; },
     get baseOptionChoices() { return baseOptionChoices; },
     get baseExpertiseChoices() { return baseExpertiseChoices; },
     get baseSkillProfChoices() { return baseSkillProfChoices; },

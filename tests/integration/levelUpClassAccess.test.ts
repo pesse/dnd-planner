@@ -57,3 +57,22 @@ describe('Zauber-Zugang eines Klassenmerkmals im Aufstieg (Magier/Hervorrufer)',
     expect(await classAccessGrants({ sourceKey: WIZARD, subclassKey: '', fromLevel: 4, toLevel: 5 })).toEqual([]);
   });
 });
+
+/** Der Zugang hängt an der Zweigwahl desselben Merkmals (`when.option`), nicht an `spellAccess`. */
+describe('Zauber-Zugang hinter einer Zweigwahl (Waldläufer/Druidischer Krieger)', () => {
+  const RANGER = 'srd-2024_ranger';
+  const STYLE = 'srd-2024_ranger_fighting-style';
+  const rangerSpan = (fromLevel: number, toLevel: number) =>
+    classAccessGrants({ sourceKey: RANGER, subclassKey: '', fromLevel, toLevel });
+
+  it('bietet beim Erwerb zwei Druiden-Zaubertricks an, gebunden an die Option', async () => {
+    const grants = await rangerSpan(1, 2);
+    expect(grants.map((g) => [g.featureKey, g.branch])).toEqual([[STYLE, 'Druidic Warrior']]);
+    expect(grants[0].lists).toEqual(['druid']);
+    expect(grants[0].picks).toEqual([expect.objectContaining({ levels: [0], count: 2, quotaId: 'druidicWarrior' })]);
+  });
+
+  it('fragt danach nicht mehr — die Zweigwahl ist längst getroffen', async () => {
+    expect(await rangerSpan(2, 3)).toEqual([]);
+  });
+});

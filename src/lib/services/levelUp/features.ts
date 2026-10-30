@@ -4,7 +4,7 @@
  */
 import { getProgressionByKey } from '../classProgression';
 import { isFlowOwnedChoiceFeature, type LevelUpDelta } from '../levelUp';
-import { withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
+import { quotaBranches, withoutDeclaredChoiceFeatures, type DeclaredChoiceSource } from '../declaration/optionList';
 import { isSpellAccessFeature } from '../declaration/casting';
 import { declarationOf, type DeclarationFields } from '../declaredFeature';
 import { withoutSpellGrantFeatures, type SpellGrantSource } from '../grantedSpells';
@@ -95,12 +95,18 @@ export async function classAccessGrants(
   const grants: SpellAccessGrant[] = [];
   for (const prog of progs) {
     for (const f of prog?.features ?? []) {
-      if (!isSpellAccessFeature(f) || !f.gainedAt.some((l) => l <= delta.toLevel)) continue;
-      const grant = spellAccessGrantOf(
-        { ...f, key: f.key },
-        { level: delta.toLevel, fromLevel: delta.fromLevel, gainedAt: Math.min(...f.gainedAt) },
-      );
-      if (grant?.picks.length) grants.push(grant);
+      if (!f.gainedAt.some((l) => l <= delta.toLevel)) continue;
+      const gainedAt = Math.min(...f.gainedAt);
+      // Erst in dieser Spanne gewonnen: alles ist Zuwachs, die Ausgangsstufe hatte nichts.
+      const fromLevel = gainedAt <= delta.fromLevel ? delta.fromLevel : undefined;
+      const place = { level: delta.toLevel, fromLevel, gainedAt };
+      // Die Zweigwahl wird nur im Aufstieg gefragt, der das Merkmal bringt — danach gibt es
+      // keine Antwort, gegen die ein `when.option`-Kontingent prüfen könnte.
+      const branches = isSpellAccessFeature(f) ? [''] : fromLevel === undefined ? quotaBranches(f) : [];
+      for (const branch of branches) {
+        const grant = spellAccessGrantOf({ ...f, key: f.key }, branch ? { ...place, branch } : place);
+        if (grant?.picks.length) grants.push(grant);
+      }
     }
   }
   return grants;

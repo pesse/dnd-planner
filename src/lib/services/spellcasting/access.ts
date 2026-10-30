@@ -9,6 +9,7 @@ import { SPELL_SCHOOLS, type SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveClass } from '$lib/spellLibrary';
 import { CLASS_NAME_DE_BY_SLUG } from '../classProgression';
 import { castingSourceOf } from './resolve';
+import { NO_ANSWERS } from '../declaration/carriers';
 import { NO_SCALE, NO_SLOTS, quotaContext, quotaViews } from './quota';
 import { spellAttackBonus, spellSaveDC } from './state';
 import { ledgerAnswers, pickAnswer, type LedgerAnswerEntry } from '../declaration/ledgerAnswers';
@@ -36,6 +37,8 @@ export interface SpellAccessGrant {
   abilities: AbilityName[];
   /** Gesetzt bei `ability.fromIncrease`: die Antwort-id der Attributserhöhung, die das Attribut festlegt. */
   abilityAnswerId?: string;
+  /** Gesetzt, wenn die Kontingente an einer Zweigwahl hängen (`when.option`): gilt nur mit dieser Antwort. */
+  branch?: string;
   picks: SpellAccessPick[];
 }
 
@@ -67,6 +70,8 @@ export interface SpellAccessPlacement {
   gainedAt?: number;
   /** Vorgabe ist der Merkmals-Key, also die früheste Vergabe. */
   sourceId?: string;
+  /** Angenommene Antwort der Zweigwahl — ohne sie fehlen alle `when.option`-Kontingente. */
+  branch?: string;
 }
 
 /**
@@ -104,7 +109,12 @@ export function spellAccessGrantOf(
   const sourceId = place.sourceId || featureKey;
   const declaration = { key: featureKey, name: feature.name, nameDe: feature.nameDe, grantsCasting: feature.grantsCasting };
   const sourceAt = (level: number) =>
-    castingSourceOf(declaration, { origin: 'feat', level, classKey: '' }, undefined, sourceId);
+    castingSourceOf(
+      declaration,
+      { origin: 'feat', level, classKey: '' },
+      place.branch ? { ...NO_ANSWERS, values: [place.branch] } : undefined,
+      sourceId,
+    );
 
   const source = sourceAt(place.level ?? 1);
   if (!source) return null;
@@ -134,6 +144,7 @@ export function spellAccessGrantOf(
     listFromSource: narrowed,
     abilities: source.ability?.fixed ? [source.ability.fixed] : [...(source.ability?.choose ?? [])],
     ...increaseAnswer(feature, source.ability),
+    ...(place.branch ? { branch: place.branch } : {}),
     // Ein FESTES Kontingent (Elfenabstammung: „you know the Prestidigitation cantrip") ist eine
     // Gewährung, keine Wahl — ein Picker darüber böte an, was schon dasteht.
     picks: views.filter((v) => !v.fixed).flatMap((v) => {

@@ -161,6 +161,12 @@ export function optionActivatesQuota(f: DeclaredChoiceSource, optionValue: strin
   return !!want && !!f.grantsCasting?.quotas.some((q) => q.when?.option?.trim() === want);
 }
 
+/** Die Optionen, die je ein Kontingent einschalten (Druidischer Krieger). */
+export function quotaBranches(f: DeclaredChoiceSource): string[] {
+  const values = (f.grantsCasting?.quotas ?? []).map((q) => q.when?.option?.trim() ?? '').filter(Boolean);
+  return [...new Set(values)];
+}
+
 /**
  * Die Quota ist die Senke der Zauber-Zahlen: schaltet die Option eine ein, zählt sie dort —
  * ein Rider daneben zählte dasselbe ein zweites Mal (`grantsCasting` ist erst nach dieser
