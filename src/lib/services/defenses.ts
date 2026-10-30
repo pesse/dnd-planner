@@ -6,6 +6,7 @@ import { DAMAGE_TYPE_LABELS } from '../itemLabels';
 import { displayName, type ItemInfo } from '../itemLibrary';
 import { featureIdOf } from '../utils/text';
 import type { WornItem } from './wornItems';
+import { branchMatch } from './declaration/branch';
 
 export interface DefenseFeature {
   key?: string;
@@ -44,9 +45,11 @@ function manualDefense({ labelDe, ...lists }: ManualDefense, profBonus: number):
 
 const NO_DEFENSE: DefenseEffect = { resistances: [], immunities: [], conditionImmunities: [] };
 
-function itemDefense({ item, resistance }: WornItem, profBonus: number): CharacterDefense[] {
+function itemDefense({ item, resistance, option }: WornItem, profBonus: number): CharacterDefense[] {
   const labelDe = displayName(item);
-  const fixed = (item.defenses ?? []).map((effect) => ({ labelDe, effect, textDe: defenseTextDe(effect, profBonus) }));
+  const fixed = (item.defenses ?? [])
+    .filter(({ when }) => branchMatch(when, { branch: option ?? '', picks: [] }).ok)
+    .map(({ when: _, ...effect }) => ({ labelDe, effect, textDe: defenseTextDe(effect, profBonus) }));
   return [...fixed, ...chosenDefense(labelDe, item.resistanceChoice, resistance)];
 }
 

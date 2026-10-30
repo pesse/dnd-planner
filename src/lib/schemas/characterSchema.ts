@@ -287,6 +287,10 @@ export const characterSchema = z.object({
           .describe('true = Volltext-Karte des Bibliothekseintrags kommt auf den Ausdruck.'),
         resistance: z.enum(DAMAGE_TYPES).optional()
           .describe('Gewählte Resistenz eines Gegenstands mit `resistanceChoice`.'),
+        option: z.string().optional()
+          .describe('Gewählte Ausprägung eines Gegenstands mit `optionChoice` (dessen englischer `value`).'),
+        rolled: z.record(z.string(), z.number().int().min(0)).optional()
+          .describe('Ausgewürfelte Maxima je Pool-Id eines Vorrats mit `rolled`.'),
       }),
     )
     .default([]),

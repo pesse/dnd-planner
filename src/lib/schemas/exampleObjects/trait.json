@@ -837,6 +837,7 @@
             "column": "string"
           }
         },
+        "rolled": "1d8+1",
         "die": {
           "column": "string"
         }

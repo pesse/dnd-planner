@@ -155,7 +155,11 @@
       "attuned": false,
       "slot": "head",
       "printCard": false,
-      "resistance": "acid"
+      "resistance": "acid",
+      "option": "string",
+      "rolled": {
+        "<key>": 0
+      }
     }
   ],
   "inventoryNotes": "string",

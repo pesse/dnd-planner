@@ -51,6 +51,7 @@
             "column": "string"
           }
         },
+        "rolled": "1d8+1",
         "die": {
           "column": "string"
         }
@@ -449,7 +450,10 @@
         "amount": 1
       },
       "condition": "string",
-      "conditionDe": "string"
+      "conditionDe": "string",
+      "when": {
+        "<key>": "string"
+      }
     }
   ],
   "resistanceChoice": {
@@ -457,6 +461,19 @@
       "acid"
     ],
     "descDe": "string"
+  },
+  "optionChoice": {
+    "labelDe": "string",
+    "options": [
+      {
+        "value": "string",
+        "labelDe": "string"
+      },
+      {
+        "value": "string",
+        "labelDe": "string"
+      }
+    ]
   },
   "slot": "head",
   "attunement_by": "string",

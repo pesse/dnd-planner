@@ -10,6 +10,7 @@ import { savingThrowEffectSchema } from './savingThrow';
 import { attackEffectSchema } from './attackEffect';
 import { defenseEffectSchema } from './defense';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
+import { whenSchema } from './when';
 import { namedRef } from './llmJson';
 import { castingGrantSchema } from './casting';
 import { resourceGrantSchema } from './resource';
@@ -89,7 +90,7 @@ export const itemSchema = z.object({
     .optional()
     .describe('Wirkung auf Rettungswürfe (Mantel des Schutzes +1), solange der Gegenstand wirkt.'),
   defenses: z
-    .array(defenseEffectSchema)
+    .array(defenseEffectSchema.extend({ when: whenSchema.optional() }))
     .optional()
     .describe('Feste Resistenzen und Immunitäten des Trägers (Frostbrand, Amulett gegen Gift), solange der Gegenstand wirkt; die Lage („solange du die Waffe hältst") in `conditionDe`.'),
   resistanceChoice: z
@@ -101,6 +102,15 @@ export const itemSchema = z.object({
     })
     .optional()
     .describe('Schadensarten, aus denen der Träger EINE Resistenz wählt (Rüstung der Resistenz); gewählt wird an der Inventarzeile.'),
+  optionChoice: z
+    .object({
+      labelDe: z.string().describe('Wonach gefragt wird („Elementarebene").'),
+      options: z
+        .array(z.object({ value: z.string().describe('Englisch, so wie `when.option` ihn nennt ("Air").'), labelDe: z.string() }))
+        .min(2),
+    })
+    .optional()
+    .describe('Ausprägung, die an der Inventarzeile gewählt wird (Ring der Elementarbeherrschung); Vorräte, Zauber und `defenses` grenzen per `when: {"option": …}` darauf ein.'),
   slot: z
     .enum(EQUIPMENT_SLOTS)
     .optional()

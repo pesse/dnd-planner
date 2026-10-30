@@ -314,7 +314,7 @@ export async function resolveResources(c: ResourceCharacter): Promise<ResourceRe
       if (!active(carrier, pool, state, issues)) continue;
       if (pool.shape.kind !== 'slots') {
         const existing = pool.shared ? pools.find((p) => p.id === pool.shared) : undefined;
-        const max = resolveAmount(pool.shape.max, ctx);
+        const max = (pool.rolled ? carrier.rolledMax?.[pool.id] : undefined) ?? resolveAmount(pool.shape.max, ctx);
         if (!existing) {
           const own = ownPool(carrier, pool, [max], ctx);
           pools.push(own);

@@ -92,6 +92,11 @@ export const resourcePoolSchema = z.object({
     .optional()
     .describe('Was der Zähler nicht zählt, als Bogentext ("1. Psionisches Flüstern je Lange Rast gratis").'),
   shape: resourceShapeSchema,
+  rolled: z
+    .string()
+    .regex(/^\d*d\d+([+-]\d+)?$/)
+    .optional()
+    .describe('Nur Gegenstände: das Maximum wird einmal ausgewürfelt („1d8+1") und an der Inventarzeile gespeichert; bis dahin gilt `shape.max`, das höchste Ergebnis.'),
   die: resourceDieSchema.optional(),
 });
 export type ResourcePool = z.infer<typeof resourcePoolSchema>;

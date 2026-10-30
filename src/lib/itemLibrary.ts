@@ -50,6 +50,7 @@ export interface ItemInfo {
   savingThrowEffects?: Item['savingThrowEffects'];
   defenses?: Item['defenses'];
   resistanceChoice?: Item['resistanceChoice'];
+  optionChoice?: Item['optionChoice'];
   armor_category?: Item['armor_category'];
   slot?: Item['slot'];
   armor_class?: Item['armor_class'];
@@ -208,6 +209,7 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         savingThrowEffects: itemSchema.shape.savingThrowEffects.safeParse(data.savingThrowEffects).data,
         defenses: itemSchema.shape.defenses.safeParse(data.defenses).data,
         resistanceChoice: itemSchema.shape.resistanceChoice.safeParse(data.resistanceChoice).data,
+        optionChoice: itemSchema.shape.optionChoice.safeParse(data.optionChoice).data,
         armor_category: data.armor_category,
         slot: itemSchema.shape.slot.safeParse(data.slot).data,
         armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,

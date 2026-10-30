@@ -6,7 +6,7 @@ import { NO_ANSWERS, type Carrier } from './carriers';
 export async function itemCarriers(inventory: CharacterInventoryEntry[]): Promise<Carrier[]> {
   return (await wornItems(inventory))
     .filter(({ item }) => item.grantsResource || item.grantsCasting)
-    .map(({ id, item }) => ({
+    .map(({ id, item, option, rolled }) => ({
       key: id,
       instanceId: id,
       name: item.name,
@@ -16,8 +16,9 @@ export async function itemCarriers(inventory: CharacterInventoryEntry[]): Promis
       origin: 'item',
       level: 1,
       classKey: '',
-      answers: NO_ANSWERS,
+      answers: option ? { ...NO_ANSWERS, values: [option] } : NO_ANSWERS,
       grantsResource: item.grantsResource,
       grantsCasting: item.grantsCasting,
+      rolledMax: rolled,
     }));
 }
