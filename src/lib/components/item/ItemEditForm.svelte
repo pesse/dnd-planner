@@ -3,13 +3,11 @@
   import { dirOf, structuralType, isMagicItem } from '$lib/itemLibrary';
   import { CATEGORY_LABELS, rarityColor } from '$lib/itemLabels';
   import { SOURCE_KEYS, SOURCE_LABELS } from '$lib/schemas/source';
-  import { activeFile } from '$lib/stores/campaign';
   import MagicFacetFields from './MagicFacetFields.svelte';
   import WeaponFields from './WeaponFields.svelte';
   import ArmorFields from './ArmorFields.svelte';
   import CostWeightFields from './CostWeightFields.svelte';
   import ArtKeyField from './ArtKeyField.svelte';
-  import Open5eImportPanel from './Open5eImportPanel.svelte';
 
   let {
     draft = $bindable(),
@@ -18,7 +16,6 @@
     draftDescDeText = $bindable(),
     draftPropsText = $bindable(),
     draftRarityName = $bindable(),
-    onimport,
     onOpenAi,
     onOpenTranslate,
   }: {
@@ -28,7 +25,6 @@
     draftDescDeText: string;
     draftPropsText: string;
     draftRarityName: string;
-    onimport: (item: Item) => void;
     onOpenAi: () => void;
     onOpenTranslate: () => void;
   } = $props();
@@ -113,12 +109,6 @@
         <button class="ai-btn" onclick={onOpenAi}>✨ KI überarbeiten…</button>
       </div>
     </div>
-
-    <div class="card-divider"></div>
-
-    {#key $activeFile?.path}
-      <Open5eImportPanel {onimport} />
-    {/key}
   </div>
 
 {:else}

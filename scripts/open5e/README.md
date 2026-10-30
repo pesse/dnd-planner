@@ -18,8 +18,7 @@ Damit wird die API direkt konsumiert; kein Zwischenartefakt zu pflegen.
 
 ## Codepfad
 
-- `src/lib/services/open5eApi.ts` — Transport (Tauri `http_request`, wie `dndApi.ts`):
-  `getClass(key)`, `listClasses()`, `getSubclasses(parentKey, allowedDocs)`.
+- `src/lib/services/open5eClient.ts` — Transport (Tauri `http_request`): `getClass(key)`.
 - `src/lib/services/classProgression.ts` — `mapV2()` bildet rohes v2 auf den offenen
   internen Zod-Typ ab; `getProgression(klasseDe)` holt+cached (In-Memory, pro Session);
   Reader `spellSlotsAt` / `columnValue` / `featuresGainedAt` / `proficiencyBonus`.

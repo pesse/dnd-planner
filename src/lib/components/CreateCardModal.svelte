@@ -6,7 +6,6 @@
   import { describeAiStep } from '../services/aiActions/describeStep';
   import { newCardDraft } from '../editor/cardEditor.svelte';
   import { navigateTo } from '../services/navigation';
-  import type { ApiRef } from '../services/open5eClient';
   import Modal from './ui/Modal.svelte';
   import AiStatusBanner from './ui/AiStatusBanner.svelte';
   import LlmProviderSelect from './ui/LlmProviderSelect.svelte';
@@ -18,8 +17,6 @@
   let {
     type,
     title,
-    searchApi,
-    loadApi,
     searchLibrary,
     blank,
     buildAction,
@@ -30,10 +27,7 @@
   }: {
     type: FileEntry['type'];
     title: string;
-    /** Fehlt → es gibt keine Online-Quelle, gesucht wird nur in der Bibliothek (Monster). */
-    searchApi?: (q: string) => Promise<ApiRef[]>;
-    loadApi?: (ref: ApiRef) => Promise<T>;
-    searchLibrary?: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
+    searchLibrary: (q: string) => Promise<{ name: string; load: () => Promise<T> }[]>;
     blank: (name: string) => T;
     /** Fehlt → der Dialog bietet keinen KI-Pfad an. */
     buildAction?: (opts: { name?: string; template?: T }) => AiAction<T>;
@@ -53,7 +47,7 @@
     onclose: () => void;
   } = $props();
 
-  type TemplateHit = { name: string; badge: string; api: boolean; load: () => Promise<T> };
+  type TemplateHit = { name: string; load: () => Promise<T> };
 
   let aiEnabled = $state(false);
 
@@ -94,7 +88,7 @@
     }
   }
 
-  // ── Vorlage (Bibliothek + DnD-API) ──────────────────────────────────────────
+  // ── Vorlage (Bibliothek) ──────────────────────────────────────────
   let templateQuery = $state('');
   let templateResults = $state<TemplateHit[]>([]);
   let templateSearching = $state(false);
@@ -107,24 +101,8 @@
     templateError = '';
     templateResults = [];
     try {
-      const libHits: TemplateHit[] = searchLibrary
-        ? (await searchLibrary(q)).map((h) => ({ name: h.name, badge: 'Bibliothek', api: false, load: h.load }))
-        : [];
-      let apiHits: TemplateHit[] = [];
-      if (searchApi && loadApi) {
-        try {
-          apiHits = (await searchApi(q)).map((ref) => ({
-            name: ref.name,
-            badge: 'SRD',
-            api: true,
-            load: () => loadApi(ref),
-          }));
-        } catch (e) {
-          templateError = `Open5e nicht erreichbar: ${e instanceof Error ? e.message : String(e)}`;
-        }
-      }
-      templateResults = [...libHits, ...apiHits];
-      if (!templateResults.length && !templateError) templateError = 'Keine Treffer.';
+      templateResults = await searchLibrary(q);
+      if (!templateResults.length) templateError = 'Keine Treffer.';
     } finally {
       templateSearching = false;
     }
@@ -215,7 +193,6 @@
     {#if selectedTemplate}
       <div class="tpl-selected">
         <span class="tpl-result-name">{selectedTemplate.name}</span>
-        <span class="tpl-result-badge" class:api={selectedTemplate.api}>{selectedTemplate.badge}</span>
         <button class="tpl-clear" onclick={clearTemplate} title="Vorlage entfernen">×</button>
       </div>
     {:else}
@@ -223,7 +200,7 @@
         <input
           class="input"
           bind:value={templateQuery}
-          placeholder={!searchApi ? 'Vorlage in der Bibliothek suchen…' : searchLibrary ? 'Vorlage suchen (Bibliothek + SRD)…' : 'SRD-Vorlage suchen (englisch)…'}
+          placeholder="Vorlage in der Bibliothek suchen…"
           onkeydown={(e) => { if (e.key === 'Enter') searchTemplates(); }}
         />
         <button class="secondary-btn" onclick={searchTemplates} disabled={templateSearching || !templateQuery.trim()}>
@@ -235,7 +212,6 @@
           {#each templateResults as hit}
             <button class="tpl-result" onclick={() => selectTemplate(hit)}>
               <span class="tpl-result-name">{hit.name}</span>
-              <span class="tpl-result-badge" class:api={hit.api}>{hit.badge}</span>
             </button>
           {/each}
         </div>
@@ -317,7 +293,6 @@
   }
   .tpl-result:hover { border-color: var(--red); color: var(--red); }
   .tpl-result-name { font-weight: 500; flex: 1; }
-  .tpl-result-badge { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--arcane); border: 1px solid var(--arcane); border-radius: 3px; padding: 0.05rem 0.35rem; flex-shrink: 0; }
 
   .tpl-selected { display: flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--red); border-radius: 4px; padding: 0.3rem 0.5rem 0.3rem 0.6rem; font-size: 0.82rem; color: var(--ink); }
   .tpl-selected .tpl-result-name { flex: 1; font-weight: 500; }

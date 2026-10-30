@@ -13,14 +13,11 @@
   import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
-  import DndApiSearch from './DndApiSearch.svelte';
   import { translateSpell } from '$lib/services/aiActions/translateAction';
   import type { SpellTranslation } from '$lib/schemas/translation';
   import { convertDistances } from '$lib/utils/distanceText';
   import { createCardEditor } from '$lib/editor/cardEditor.svelte';
   import { editSpellAction } from '$lib/services/aiActions/spellAction';
-  import { searchOpen5eSpells, getSpell, type Open5eItemSearchResult } from '$lib/services/open5eClient';
-  import { mapOpen5eSpell } from '$lib/services/open5eSpellMapper';
   import { slugKeepUmlauts } from '$lib/utils/text';
   import { invalidateVault } from '$lib/stores/campaign';
 
@@ -52,22 +49,10 @@
 
   let showAi = $state(false);
   let showTranslate = $state(false);
-  let importError = $state('');
 
   function applyAiResult(revised: Spell) {
     const r = _parseSpell(revised);
     ed.draft = r.ok ? r.data : revised;
-  }
-
-  async function importFromApi(result: Open5eItemSearchResult) {
-    importError = '';
-    try {
-      const mapped = mapOpen5eSpell(await getSpell(result.url));
-      const r = _parseSpell(mapped);
-      ed.draft = r.ok ? r.data : mapped;
-    } catch (e) {
-      importError = `Import fehlgeschlagen: ${e instanceof Error ? e.message : e}`;
-    }
   }
 
   function buildTranslationRun() {
@@ -131,10 +116,7 @@
             { label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) },
             { label: '✨ KI überarbeiten…', onclick: () => (showAi = true) },
           ]}
-        >
-          <DndApiSearch placeholder="SRD-Zauber importieren…" onsearch={searchOpen5eSpells} onselect={importFromApi} />
-          {#if importError}<span class="import-error">{importError}</span>{/if}
-        </CardTools>
+        />
       {/if}
     {/snippet}
   </EditorPanel>
@@ -161,7 +143,6 @@
 {/if}
 
 <style>
-  .import-error { color: var(--danger); font-size: 0.78rem; }
 
   .card-wrap {
     display: flex;

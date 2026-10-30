@@ -7,9 +7,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { FEAT_TEMPLATE, type Feat } from '$lib/types';
 import { getFeats, searchFeats, featDisplayName } from '$lib/featsLibrary';
 import { parseFeat } from '$lib/utils/schemaValidation';
-import { listFeats, getFeat as getFeatRaw } from './open5eClient';
-import { mapV2Feat } from './featData';
-import type { ApiRef } from './open5eClient';
 
 /** Leerer Talent-Entwurf mit gegebenem Namen. */
 export function blankFeat(name: string): Feat {
@@ -20,18 +17,6 @@ export function blankFeat(name: string): Feat {
 export function featDraftName(f: Feat): string {
   return f.nameDe || f.name || 'Talent';
 }
-
-/** Open5e-v2-Talent-Suche. `ref.url` = v2-Key (kein dnd5eapi.co-Pfad). */
-export async function searchOpen5eFeats(q: string): Promise<ApiRef[]> {
-  const all = await listFeats();
-  const ql = q.toLowerCase();
-  return all
-    .filter((f) => f.name.toLowerCase().includes(ql))
-    .map((f) => ({ index: f.key, name: f.name, url: f.key }))
-    .slice(0, 15);
-}
-
-export const loadOpen5eFeat = async (ref: ApiRef): Promise<Feat> => mapV2Feat(await getFeatRaw(ref.url));
 
 /** Bestehende Bibliotheks-Talente als Vorlage für ein neues. */
 export async function searchFeatLibrary(q: string): Promise<{ name: string; load: () => Promise<Feat> }[]> {

@@ -54,7 +54,6 @@
     bind:draftDescDeText={ic.draftDescDeText}
     bind:draftPropsText={ic.draftPropsText}
     bind:draftRarityName={ic.draftRarityName}
-    onimport={(imported) => ic.applyImport(imported)}
     onOpenAi={() => (showAiModal = true)}
     onOpenTranslate={() => (showTranslateModal = true)}
   />

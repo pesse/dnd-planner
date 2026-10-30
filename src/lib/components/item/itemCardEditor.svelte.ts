@@ -107,15 +107,6 @@ export class ItemCardEditor {
   item = $derived(this.saved.item);
   color = $derived(rarityColor(this.item?.rarity));
 
-  applyImport(imported: Item) {
-    if (!this.ed.draft) return;
-    Object.assign(this.ed.draft, imported);
-    this.draftDescText   = imported.desc.join('\n\n');
-    this.draftDescDeText = '';
-    this.draftPropsText  = (imported.properties ?? []).map((p) => PROPERTY_LABELS[p.index] ?? p.name).join(', ');
-    this.draftRarityName = imported.rarity?.name ?? '';
-  }
-
   buildTranslationRun() {
     if (!this.ed.draft) return null;
     const toTranslate: Record<string, unknown> = {};

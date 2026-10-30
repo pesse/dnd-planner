@@ -11,7 +11,7 @@
     getFeats, searchFeats, featDisplayName, featDesc, featPrereq, matchFeatEntry,
     FEAT_CATEGORY_DE, type FeatEntry,
   } from '$lib/featsLibrary';
-  import { blankFeat, featDraftName, searchOpen5eFeats, loadOpen5eFeat, searchFeatLibrary } from '$lib/services/featCreate';
+  import { blankFeat, featDraftName, searchFeatLibrary } from '$lib/services/featCreate';
   import type { FeatureLedger, LedgerRow } from '$lib/services/featureLedger';
   import type { FeaturePins } from '$lib/services/featurePins';
   import { diffMark, type DiffDir } from '$lib/utils/diffHighlight';
@@ -205,8 +205,6 @@
   <CreateCardModal
     type="feat"
     title="Neues Talent"
-    searchApi={searchOpen5eFeats}
-    loadApi={loadOpen5eFeat}
     searchLibrary={searchFeatLibrary}
     blank={blankFeat}
     nameOf={featDraftName}
