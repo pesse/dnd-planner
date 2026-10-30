@@ -217,7 +217,7 @@ async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
 export const GROUPED_SECTIONS: GroupedSection[] = [
   {
     kind: 'monster', type: 'monster', label: 'Monster', addTitle: 'Neues Monster',
-    emptyLabel: 'Keine Monster', catalog: 'monster',
+    emptyLabel: 'Keine Monster', searchable: true, catalog: 'monster',
     loadGroups: loadMonsterGroups,
   },
   {
