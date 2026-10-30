@@ -2,7 +2,8 @@
 import type { FileEntry } from '../../types';
 import { sourceLabel } from '../../schemas/source';
 
-export type CatalogKind = 'monster' | 'item';
+export const CATALOG_KINDS = ['monster', 'item', 'feat'] as const;
+export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
 export interface CatalogCell {
   text: string;
@@ -97,5 +98,5 @@ export function catalogEntry(kind: CatalogKind, label: string, group?: CatalogGr
 export function parseCatalogPath(path: string): { kind: CatalogKind; group: string } | null {
   if (!path.startsWith(PREFIX)) return null;
   const [kind, group = ''] = path.slice(PREFIX.length).split('/');
-  return kind === 'monster' || kind === 'item' ? { kind, group } : null;
+  return (CATALOG_KINDS as readonly string[]).includes(kind) ? { kind: kind as CatalogKind, group } : null;
 }

@@ -29,5 +29,14 @@ function clauseMet(clause: string, ctx: FeatPrereqContext): boolean {
   return true;
 }
 
+/** Die Mindeststufe aus der Voraussetzung; 0, wenn sie keine nennt. */
+export function featPrereqLevel(prerequisite: string | undefined): number {
+  for (const clause of (prerequisite ?? '').split(',')) {
+    const level = LEVEL_RE.exec(clause.trim().toLowerCase());
+    if (level) return Number(level[1]);
+  }
+  return 0;
+}
+
 export const featPrereqMet = (prerequisite: string | undefined, ctx: FeatPrereqContext): boolean =>
   (prerequisite ?? '').split(',').filter((c) => c.trim()).every((c) => clauseMet(c, ctx));

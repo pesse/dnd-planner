@@ -84,6 +84,25 @@ describe('Katalog-Werte', () => {
     const attuned = rows.find((r) => r.altName === 'Gauntlets of Ogre Power');
     expect(attuned?.cells.attunement.text).toBe('✓');
   });
+
+  it.each([
+    ['Athlete', 'General', '4', 'STÄ, GES'],
+    ['Resilient', 'General', '4', 'beliebig'],
+    ['Ability Score Improvement', 'General', '4', 'beliebig'],
+    ['Actor', 'General', '4', 'CHA'],
+    ['Alert', 'Origin', '', ''],
+  ])('Talent %s: Kategorie, Stufe und Attribut', async (name, group, level, abilities) => {
+    const { rows } = await CATALOGS.feat.load();
+    const row = rows.find((r) => r.altName === name);
+    expect(row?.group).toBe(group);
+    expect(row?.cells.level.text).toBe(level);
+    expect(row?.cells.abilities.text).toBe(abilities);
+  });
+
+  it('Talente: wiederholbar als Haken', async () => {
+    const { rows } = await CATALOGS.feat.load();
+    expect(rows.find((r) => r.altName === 'Ability Score Improvement')?.cells.repeatable.text).toBe('✓');
+  });
 });
 
 describe('Katalog-Pfad', () => {
@@ -92,5 +111,6 @@ describe('Katalog-Pfad', () => {
     expect(entry.name).toBe('Gegenstände · Waffen');
     expect(parseCatalogPath(entry.path)).toEqual({ kind: 'item', group: 'weapon' });
     expect(parseCatalogPath(catalogEntry('monster', 'Monster').path)).toEqual({ kind: 'monster', group: '' });
+    expect(parseCatalogPath(catalogEntry('feat', 'Talente').path)).toEqual({ kind: 'feat', group: '' });
   });
 });

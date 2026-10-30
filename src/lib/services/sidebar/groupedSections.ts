@@ -1,6 +1,6 @@
 /**
  * Die gruppierten Bäume der Seitenleiste: Monster nach Typ, Zauber nach Schule
- * (zweite Gruppierung nach Grad) und Gegenstände nach Kategorie.
+ * (zweite Gruppierung nach Grad), Gegenstände und Talente nach Kategorie.
  */
 import { invoke } from '@tauri-apps/api/core';
 import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
@@ -8,6 +8,8 @@ import { rarityColor } from '../../itemLabels';
 import { itemDirLabel } from '../catalog/itemCatalog';
 import { SCHOOL_COLORS } from '../../spellLibrary';
 import { MONSTERS_PATH } from '../../monsterLibrary';
+import { FEAT_CATEGORY_DE, featDisplayName, getFeats, invalidateFeatsCache } from '../../featsLibrary';
+import { FEAT_CATEGORIES } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
 import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
@@ -219,6 +221,24 @@ async function loadItemLeaves(dir: string): Promise<TreeLeaf[]> {
   return leaves;
 }
 
+async function loadFeatGroups(): Promise<TreeGroup[]> {
+  const leaves = (await getFeats()).map((feat) => {
+    const filename = feat.path.slice(feat.path.lastIndexOf('/') + 1);
+    return {
+      entryName: filename.replace('.json', ''),
+      path: feat.path,
+      suffix: `feats/${filename}`,
+      groupId: feat.category ?? 'General',
+      label: featDisplayName(feat),
+      nameEn: feat.name,
+    };
+  });
+  leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  return FEAT_CATEGORIES
+    .map((id) => ({ id, label: FEAT_CATEGORY_DE[id], leaves: leaves.filter((l) => l.groupId === id) }))
+    .filter((g) => g.leaves.length);
+}
+
 export const GROUPED_SECTIONS: GroupedSection[] = [
   {
     kind: 'monster', type: 'monster', label: 'Monster', addTitle: 'Neues Monster',
@@ -244,5 +264,11 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
     loadGroups: async () => (await listItemDirs()).map((dir) => ({ id: dir, label: itemDirLabel(dir) })),
     loadLeaves: loadItemLeaves,
     invalidate: invalidateItemCache,
+  },
+  {
+    kind: 'feat', type: 'feat', label: 'Talente', addTitle: 'Neues Talent',
+    emptyLabel: 'Keine Talente', searchable: true, catalog: 'feat',
+    loadGroups: loadFeatGroups,
+    invalidate: invalidateFeatsCache,
   },
 ];

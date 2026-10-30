@@ -29,6 +29,7 @@ export interface FeatEntry extends DeclarationFields {
   category?: FeatCategory;
   repeatable?: boolean;
   sourceKey?: string;
+  librarySource?: string;
   /** Bei inline erzeugten Talenten leer. */
   path?: string;
 }
@@ -65,6 +66,7 @@ const library = createLibrary<FeatEntry & { path: string }>({
         : undefined,
       // Bibliotheks-Talente führen ihre Identität als `key`; inline gespeicherte als `sourceKey`.
       sourceKey: data.sourceKey ?? data.key,
+      librarySource: data.source,
       ...parseDeclaration(data),
       path,
     };

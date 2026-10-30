@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { featPrereqMet, type FeatPrereqContext } from '$lib/services/featPrerequisites';
+import { featPrereqLevel, featPrereqMet, type FeatPrereqContext } from '$lib/services/featPrerequisites';
 
 const ctx = (over: Partial<FeatPrereqContext> = {}): FeatPrereqContext => ({
   level: 4,
@@ -33,5 +33,12 @@ describe('featPrereqMet', () => {
 
   it('sperrt unverständlichen Freitext nicht', () => {
     expect(featPrereqMet('Mitglied der Diebesgilde', ctx())).toBe(true);
+  });
+
+  it('liest die Mindeststufe, 0 ohne Stufenklausel', () => {
+    expect(featPrereqLevel('Level 4+, Strength or Dexterity 13+')).toBe(4);
+    expect(featPrereqLevel('Level 19+, Spellcasting Feature')).toBe(19);
+    expect(featPrereqLevel('Fighting Style Feature')).toBe(0);
+    expect(featPrereqLevel(undefined)).toBe(0);
   });
 });
