@@ -8,7 +8,7 @@ const open = redo.filter((r) => !r.dismissed && (r.by !== 'claude' || r.confirme
 const groups = new Map();
 const skipped = [];
 for (const r of open) {
-  const m = r.url.match(/^\/static\/art\/figures\/([a-z]+-[a-z]+)\/subclasses\/([a-z-]+)\.avif$/);
+  const m = r.url.match(/^\/vault\/art\/figures\/([a-z]+-[a-z]+)\/subclasses\/([a-z-]+)\.avif$/);
   if (!m) continue;
   const [, fig, slug] = m;
   const part = partOf(slug);

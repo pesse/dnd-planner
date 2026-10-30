@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # job3.sh <figur> <teil> — Neu-Mal-Lauf: markierte Bilder (redraw/fixes/<figur>-<teil>.tsv) beiseitelegen und mit der Notiz neu malen
 set -u
-R=$(cd "$(dirname "$0")" && pwd); V=$R/../variants/all; SH=$R/../sharp
+R=$(cd "$(dirname "$0")" && pwd); V=$R/../variants/all; SH=$R/../sharp APP=$(cd "$R/../../.." && pwd)
 cd /mnt/c/dev/privat/dnd-planner
 fig=$1 part=$2 species=${1%-*} look=${1##*-}
 kind=$([[ $part == c* ]] && echo classes || echo backgrounds)
@@ -21,7 +21,7 @@ mkdir -p $dir $out $dir/old
 todo=$(missing | tr '\n' ' ')
 # Auch übersprungene Teile veröffentlichen: ein Abbruch kann zwischen Malen und Umwandeln liegen.
 publish() { for n in $names; do
-  w=vault/art/figures/$fig/$kind/$n.avif
+  w=$APP/vault/art/figures/$fig/$kind/$n.avif
   [ -f $dir/$n.png ] && { [ ! -f $w ] || [ $dir/$n.png -nt $w ]; } && node $SH/convert.mjs $dir/$n.png $w
 done; }
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi
@@ -44,7 +44,7 @@ for n in $todo; do [ -f $dir/$n.png ] && mv $dir/$n.png $dir/old/$n-$(date +%s).
 
 publish
 cut -f1 $fixes | while read -r n; do
-  [ -f $dir/$n.png ] && [ $dir/$n.png -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/vault/art/figures/$fig/$kind/$n.avif\"}" http://localhost:8898/redo.json
+  [ $APP/vault/art/figures/$fig/$kind/$n.avif -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/vault/art/figures/$fig/$kind/$n.avif\"}" http://localhost:8898/redo.json
 done
 [ -f $out/result.md ] && cp $out/result.md design/art/figures/identities-$fig-$part-redo.md
 m=$(missing | tr '\n' ' ')

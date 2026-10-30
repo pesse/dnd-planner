@@ -19,7 +19,7 @@ mkdir -p $dir/old $out
 todo=$(missing | tr '\n' ' ')
 if [ -z "$todo" ]; then publish; echo "SKIP $fig $part"; exit 0; fi
 
-source $R/../variants/all/figure.sh
+REVELATION=1 source $R/../variants/all/figure.sh
 keep=$(sed 's/ *$//; s/ /|/g' <<<"$todo")
 { figure_head
   node $V/brief.mjs $part | grep -E "^[^-]|^$|^- ($keep)\.png"
@@ -35,7 +35,7 @@ for n in $todo; do [ -f $dir/$n.png ] && mv $dir/$n.png $dir/old/$n-$(date +%s).
 
 publish
 for n in $names; do
-  [ -f $dir/$n.png ] && [ $dir/$n.png -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/vault/art/figures/$fig/subclasses/$n.avif\"}" http://localhost:8898/redo.json
+  [ $APP/vault/art/figures/$fig/subclasses/$n.avif -nt $fixes ] && curl -s -o /dev/null -X POST --data "{\"redrawn\":\"/vault/art/figures/$fig/subclasses/$n.avif\"}" http://localhost:8898/redo.json
 done
 m=$(missing | tr '\n' ' ')
 q=$(grep -oP 'Kontingent.*' $out/run.log | head -1)
