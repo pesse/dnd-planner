@@ -12,6 +12,8 @@
   let { kind, group }: { kind: CatalogKind; group: string } = $props();
 
   const spec = $derived(CATALOGS[kind]);
+  /** Die Prop hängt am `catalog`-Objekt des Elternteils, das jeder Gruppenwechsel neu baut — erst das Memo hält die Effekte unten still. */
+  const currentKind = $derived(kind);
 
   /** Die Zeilen tragen ihren Katalog: nach einem Wechsel passen die alten nicht auf die neuen Spalten. */
   let loaded = $state<{ kind: CatalogKind; rows: CatalogRow[]; groups: CatalogGroup[] } | null>(null);
@@ -36,7 +38,7 @@
   let loadedVersion = -1;
   $effect(() => {
     const v = $vaultVersion;
-    void kind;
+    void currentKind;
     untrack(() => {
       void load(loadedVersion !== -1 && loadedVersion !== v);
       loadedVersion = v;
@@ -45,7 +47,7 @@
 
   // Wechsel zwischen den Katalogen: die Sortierung des anderen passt nicht auf diese Spalten.
   $effect(() => {
-    void kind;
+    void currentKind;
     untrack(() => { sortCol = 'name'; sortAsc = true; search = ''; facetSel = {}; loading = true; });
   });
 
