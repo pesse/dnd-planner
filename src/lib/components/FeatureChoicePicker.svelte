@@ -8,8 +8,10 @@
    * blendet die Tönung selbst ein — eine `use:diffMark` des Aufrufers griffe hier nicht.
    */
   import TooltipSelect, { type TooltipOption } from './TooltipSelect.svelte';
+  import LanguagePicker from './LanguagePicker.svelte';
   import Markdown from './Markdown.svelte';
   import { optionLabel, type AnalysisChoice } from '../services/analysis/types';
+  import { isLanguageChoice } from '../services/declaration/languages';
   import type { FeatureNote } from '../services/featureText';
   import type { DiffDir } from '../utils/diffHighlight';
 
@@ -22,6 +24,8 @@
     pendingGrants = false,
     hint = '',
     note = null,
+    title = '',
+    knownLanguages = [],
     flagged = [],
     diff = 'none',
     onchange,
@@ -37,6 +41,9 @@
     hint?: string;
     /** Das Merkmal, das die Wahl erzwingt — ohne seine Options-Absätze, die im Tooltip stehen. */
     note?: FeatureNote | null;
+    /** Ersetzt die Frage als Überschrift, etwa ohne den Merkmalsnamen, den der Aufrufer schon zeigt. */
+    title?: string;
+    knownLanguages?: readonly string[];
     flagged?: string[];
     diff?: DiffDir;
     onchange: (next: string[]) => void;
@@ -55,7 +62,8 @@
       tooltip: choice.optionHelpDe[value] || '',
     })),
   );
-  const label = $derived(choice.questionDe?.trim() || choice.question);
+  const languages = $derived(isLanguageChoice(choice));
+  const label = $derived(title || choice.questionDe?.trim() || choice.question);
   const help = $derived(choice.helpDe?.trim() ?? '');
 
   const splitText = (raw: string): string[] => raw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -67,7 +75,7 @@
     {#if showLevel}<span class="ch-lvl">Stufe {gainedAt}</span>{/if}
     {#if open}
       <span class="ch-open" title="Diese Wahl ist noch nicht getroffen">offen</span>
-    {:else if (multiple || freeText) && choice.max > 1}
+    {:else if (multiple || freeText) && choice.max > 1 && !languages}
       <span class="ch-count" class:full={answer.length >= choice.max}>{answer.length} von {choice.max}</span>
     {/if}
   </div>
@@ -81,7 +89,9 @@
 
   <div class="ch-body">
     <div class="ch-select">
-      {#if freeText}
+      {#if languages}
+        <LanguagePicker selected={answer} max={choice.max} known={knownLanguages} {onchange} />
+      {:else if freeText}
         <input
           class="input"
           type="text"

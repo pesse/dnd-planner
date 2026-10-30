@@ -20,8 +20,13 @@ export const languageRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoi
 
 export const isLanguagesFeature = (f: DeclaredChoiceSource): boolean => languageRefs(f).length > 0;
 
+const LANGUAGE_CHOICE_PREFIX = 'languages_';
+
 export const languageChoiceId = (r: DeclaredChoiceRef): string =>
-  `languages_${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
+  `${LANGUAGE_CHOICE_PREFIX}${featureIdPart(r.feature)}${choiceIdSuffix(r.ordinal)}`;
+
+export const isLanguageChoice = (c: Pick<AnalysisChoice, 'id' | 'type'>): boolean =>
+  c.type === 'text' && c.id.startsWith(LANGUAGE_CHOICE_PREFIX);
 
 /**
  * Mehrere Sprachen stehen kommagetrennt in EINER Antwort — nicht als `multiselect`, dem die
@@ -39,7 +44,7 @@ export function languageChoice(r: DeclaredChoiceRef): AnalysisChoice | null {
     max: count,
     question: `${f.name}: name ${count} language(s) of your choice`,
     questionDe: count > 1 ? `${nameDe}: Wähle ${count} Sprachen` : `${nameDe}: Wähle eine Sprache`,
-    helpDe: count > 1 ? 'Freitext, mehrere durch Komma trennen.' : 'Freitext.',
+    helpDe: '',
   };
 }
 

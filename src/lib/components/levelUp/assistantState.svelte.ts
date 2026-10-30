@@ -167,7 +167,7 @@ export class LevelUpAssistantUi {
   }
 
   setAnswerList(q: LevelUpQuestion, next: string[]): void {
-    this.st.answers[q.id] = q.type === 'multiselect' ? next : (next[0] ?? '');
+    this.st.answers[q.id] = q.type === 'multiselect' ? next : q.type === 'text' ? next.join(', ') : (next[0] ?? '');
   }
 
   pickBinding(id: string) {
