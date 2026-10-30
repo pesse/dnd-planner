@@ -52,6 +52,8 @@ export interface ItemInfo {
   armor_category?: Item['armor_category'];
   slot?: Item['slot'];
   armor_class?: Item['armor_class'];
+  str_minimum?: number;
+  stealth_disadvantage?: boolean;
   range?: Item['range'];
   throw_range?: Item['throw_range'];
 }
@@ -207,6 +209,8 @@ const byDir = memoByKey(async (dir: string): Promise<ItemInfo[]> => {
         armor_category: data.armor_category,
         slot: itemSchema.shape.slot.safeParse(data.slot).data,
         armor_class: itemSchema.shape.armor_class.safeParse(data.armor_class).data,
+        str_minimum: typeof data.str_minimum === 'number' ? data.str_minimum : undefined,
+        stealth_disadvantage: data.stealth_disadvantage === true,
         range: data.range,
         throw_range: data.throw_range,
       }),

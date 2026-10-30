@@ -5,7 +5,7 @@
   import { peekEntry } from '../../services/entryPeek';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
-    catalogEntry, parseCatalogPath, type CatalogGroup, type CatalogKind, type CatalogRow,
+    catalogEntry, columnsFor, type CatalogGroup, type CatalogKind, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
   import '../toolbar.css';
 
@@ -17,8 +17,8 @@
   let groups = $state<CatalogGroup[]>([]);
   let loading = $state(true);
   let search = $state('');
-  /** -1 = Namensspalte, sonst Index in `spec.columns`. */
-  let sortCol = $state(-1);
+  /** Spalten-ID oder `name`; überlebt den Filterwechsel, solange das neue Set die Spalte zeigt. */
+  let sortCol = $state('name');
   let sortAsc = $state(true);
   let failedIcons = $state<Record<string, true>>({});
 
@@ -43,10 +43,13 @@
   // Wechsel zwischen den Katalogen: die Sortierung des anderen passt nicht auf diese Spalten.
   $effect(() => {
     void kind;
-    untrack(() => { sortCol = -1; sortAsc = true; search = ''; loading = true; });
+    untrack(() => { sortCol = 'name'; sortAsc = true; search = ''; loading = true; });
   });
 
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
+
+  let columnIds = $derived(columnsFor(spec, group));
+  let activeSort = $derived(columnIds.includes(sortCol) ? sortCol : 'name');
 
   let shown = $derived.by(() => {
     const q = search.trim().toLowerCase();
@@ -54,7 +57,7 @@
       (!group || r.group === group)
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
-      sortCol < 0 ? r.name : (r.cells[sortCol].sort ?? r.cells[sortCol].text);
+      activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
     const dir = sortAsc ? 1 : -1;
     return filtered.sort((a, b) => {
       const ka = key(a), kb = key(b);
@@ -65,8 +68,8 @@
     });
   });
 
-  function sortBy(col: number) {
-    if (sortCol === col) sortAsc = !sortAsc;
+  function sortBy(col: string) {
+    if (activeSort === col) sortAsc = !sortAsc;
     else { sortCol = col; sortAsc = true; }
   }
 
@@ -78,10 +81,10 @@
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type });
 </script>
 
-{#snippet sortHead(label: string, col: number, numeric = false)}
-  <th class:numeric aria-sort={sortCol === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+{#snippet sortHead(label: string, col: string, numeric = false)}
+  <th class:numeric aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
     <button type="button" onclick={() => sortBy(col)}>
-      {label}<span class="sort-mark">{sortCol === col ? (sortAsc ? '▲' : '▼') : ''}</span>
+      {label}<span class="sort-mark">{activeSort === col ? (sortAsc ? '▲' : '▼') : ''}</span>
     </button>
   </th>
 {/snippet}
@@ -108,8 +111,8 @@
       <thead>
         <tr>
           <th class="icon-col"></th>
-          {@render sortHead('Name', -1)}
-          {#each spec.columns as col, i}{@render sortHead(col.label, i, col.numeric)}{/each}
+          {@render sortHead('Name', 'name')}
+          {#each columnIds as id}{@render sortHead(spec.columns[id].label, id, spec.columns[id].numeric)}{/each}
         </tr>
       </thead>
       <tbody>
@@ -132,15 +135,18 @@
               {row.name}
               {#if !group}<span class="group">{groupLabel(row.group)}</span>{/if}
             </td>
-            {#each row.cells as cell, i}
-              <td class:numeric={spec.columns[i].numeric} style={cell.color ? `color:${cell.color}` : undefined}>
-                {cell.text}
-              </td>
+            {#each columnIds as id}
+              {@const cell = row.cells[id]}
+              <td
+                class:numeric={spec.columns[id].numeric}
+                class:wrap={spec.columns[id].wrap}
+                style={cell.color ? `color:${cell.color}` : undefined}
+              >{cell.text}</td>
             {/each}
           </tr>
         {:else}
           {#if !loading}
-            <tr><td class="empty" colspan={spec.columns.length + 2}>Keine Treffer</td></tr>
+            <tr><td class="empty" colspan={columnIds.length + 2}>Keine Treffer</td></tr>
           {/if}
         {/each}
       </tbody>
@@ -257,6 +263,7 @@
     white-space: nowrap;
   }
   .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+  td.wrap { white-space: normal; min-width: 10rem; }
 
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--bg-raised); }

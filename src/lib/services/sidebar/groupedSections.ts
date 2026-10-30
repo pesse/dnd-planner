@@ -5,7 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { rarityColor } from '../../itemLabels';
-import { itemDirLabel } from '../catalog/catalogs';
+import { itemDirLabel } from '../catalog/itemCatalog';
 import { SCHOOL_COLORS } from '../../spellLibrary';
 import { MONSTERS_PATH } from '../../monsterLibrary';
 import { crLabel } from '../monsterFormat';

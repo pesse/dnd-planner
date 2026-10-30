@@ -8,12 +8,18 @@ import { CATALOGS } from '../../src/lib/services/catalog/catalogs';
 import { catalogEntry, parseCatalogPath } from '../../src/lib/services/catalog/catalogTypes';
 
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
+  it('jedes Spalten-Set nennt nur bekannte Spalten', () => {
+    for (const ids of Object.values(spec.columnSets)) {
+      for (const id of ids) expect(spec.columns).toHaveProperty(id);
+    }
+  });
+
   it('liefert Zeilen mit einer Zelle je Spalte und einer bekannten Gruppe', async () => {
     const { rows, groups } = await spec.load();
     expect(rows.length).toBeGreaterThan(50);
     const groupIds = new Set(groups.map((g) => g.id));
     for (const row of rows) {
-      expect(row.cells).toHaveLength(spec.columns.length);
+      expect(Object.keys(row.cells).sort()).toEqual(Object.keys(spec.columns).sort());
       expect(groupIds.has(row.group)).toBe(true);
     }
   });
@@ -22,14 +28,27 @@ describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
 describe('Katalog-Werte', () => {
   it('Monster: HG sortiert numerisch, Brüche als Text', async () => {
     const { rows } = await CATALOGS.monster.load();
-    const goblin = rows.find((r) => r.path.endsWith('/goblin-warrior.json') || r.altName === 'Goblin Warrior');
-    expect(goblin?.cells[0]).toEqual({ text: '1/4', sort: 0.25 });
+    const goblin = rows.find((r) => r.altName === 'Goblin Warrior');
+    expect(goblin?.cells.cr).toEqual({ text: '1/4', sort: 0.25 });
   });
 
-  it('Gegenstände: Preis sortiert in Kupfer', async () => {
+  it('Gegenstände: Preis in Kupfer, Schaden nach Durchschnitt', async () => {
     const { rows } = await CATALOGS.item.load();
     const longsword = rows.find((r) => r.altName === 'Longsword' && r.group === 'weapon');
-    expect(longsword?.cells[2]).toEqual({ text: '15 GM', sort: 1500 });
+    expect(longsword?.cells.cost).toEqual({ text: '15 GM', sort: 1500 });
+    expect(longsword?.cells.damage.sort).toBe(4.5);
+    expect(longsword?.cells.mastery.text).not.toBe('');
+  });
+
+  it('Rüstung: RK mit GES-Deckel', async () => {
+    const { rows } = await CATALOGS.item.load();
+    const breastplate = rows.find((r) => r.altName === 'Breastplate' && r.group === 'armor');
+    expect(breastplate?.cells.ac).toEqual({ text: '14 + GES (max. 2)', sort: 14 });
+  });
+
+  it('DMG-Gegenstände nennen ihre Quelle', async () => {
+    const { rows } = await CATALOGS.item.load();
+    expect(rows.some((r) => r.cells.source.text === 'DMG 2024')).toBe(true);
   });
 });
 

@@ -1,5 +1,6 @@
 /** Tabellen-Übersicht einer Bibliothek: Zeilen, Spalten und der Gruppenfilter aus der Seitenleiste. */
 import type { FileEntry } from '../../types';
+import { sourceLabel } from '../../schemas/source';
 
 export type CatalogKind = 'monster' | 'item';
 
@@ -13,6 +14,8 @@ export interface CatalogCell {
 export interface CatalogColumn {
   label: string;
   numeric?: boolean;
+  /** Lange Werte (Eigenschaftslisten) dürfen umbrechen. */
+  wrap?: boolean;
 }
 
 export interface CatalogRow {
@@ -25,8 +28,8 @@ export interface CatalogRow {
   group: string;
   icon: string | null;
   iconColor: string;
-  /** Eine Zelle je `CatalogSpec.columns`, gleiche Reihenfolge. */
-  cells: CatalogCell[];
+  /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
+  cells: Record<string, CatalogCell>;
 }
 
 export interface CatalogGroup {
@@ -40,9 +43,19 @@ export interface CatalogSpec {
   label: string;
   /** Benennt den Gruppenfilter („Typ", „Kategorie"). */
   groupLabel: string;
-  columns: CatalogColumn[];
+  columns: Record<string, CatalogColumn>;
+  /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
+  columnSets: { '': string[] } & Record<string, string[]>;
   load: () => Promise<{ rows: CatalogRow[]; groups: CatalogGroup[] }>;
   invalidate: () => void;
+}
+
+export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
+
+export const sourceCell = (source: string | undefined): CatalogCell => ({ text: sourceLabel(source) || '—' });
+
+export function columnsFor(spec: CatalogSpec, group: string): string[] {
+  return spec.columnSets[group] ?? spec.columnSets[''];
 }
 
 const PREFIX = 'catalog:';
