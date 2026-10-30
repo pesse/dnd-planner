@@ -3,6 +3,7 @@
  */
 import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import type { ClassProgression } from '$lib/schemas/classProgression';
+import type { CastableIn, ComponentWaiver } from '$lib/schemas/casting';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import { resolveAmount, type AmountContext } from '../resources/amount';
 import { columnValueIn, levelTables } from '../classProgression';
@@ -45,6 +46,8 @@ export interface QuotaView {
   into?: { sourceId: string; quotaId: string };
   swap: SwapRule;
   cast: CastOption[];
+  castableIn?: CastableIn;
+  waivers: ComponentWaiver[];
 }
 
 export interface QuotaContext {
@@ -196,6 +199,8 @@ export function quotaView(
     ...(into ? { into: { sourceId: into.feature || source.id, quotaId: into.quota } } : {}),
     swap: quotaSwap(source, quota),
     cast: quota.cast,
+    ...(quota.castableIn ? { castableIn: quota.castableIn } : {}),
+    waivers: quota.waiveComponents ?? [],
   };
 }
 

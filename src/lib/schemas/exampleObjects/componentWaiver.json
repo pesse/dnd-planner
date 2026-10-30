@@ -1,0 +1,10 @@
+{
+  "omit": [
+    "verbal"
+  ],
+  "keepCostlyMaterial": false,
+  "schools": [
+    "abjuration"
+  ],
+  "whenDe": "string"
+}

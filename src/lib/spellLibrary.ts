@@ -30,6 +30,12 @@ export interface SpellInfo {
   school: string;
   /** Als Ritual wirkbar; fehlt bei Indizes, die vor dem Feld gebaut wurden. */
   ritual?: boolean;
+  concentration?: boolean;
+  /** Wortlaut der Wirkzeit („Bonusaktion"). */
+  casting_time?: string;
+  /** Die Buchstaben der Komponenten, „VSM". */
+  components?: string;
+  materials?: string;
   path: string;
 }
 

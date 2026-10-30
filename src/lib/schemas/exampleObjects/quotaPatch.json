@@ -41,6 +41,22 @@
       "spells": "none",
       "cantrips": "none"
     },
+    "castableIn": {
+      "state": "wild-shape",
+      "exceptCostlyMaterial": false
+    },
+    "waiveComponents": [
+      {
+        "omit": [
+          "verbal"
+        ],
+        "keepCostlyMaterial": false,
+        "schools": [
+          "abjuration"
+        ],
+        "whenDe": "string"
+      }
+    ],
     "cast": [
       {
         "kind": "slots",

@@ -5,11 +5,20 @@
  */
 import type { AbilityName } from '$lib/schemas/abilities';
 import { ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
-import { swapCadences, type CastOption, type SwapCadence, type SwapRule } from '$lib/schemas/casting';
+import {
+  swapCadences,
+  type CastableIn,
+  type CastOption,
+  type ComponentWaiver,
+  type SwapCadence,
+  type SwapRule,
+} from '$lib/schemas/casting';
 import type { ResourceRef } from '$lib/schemas/resource';
 import type { SpellSchool } from '$lib/schemas/vocabulary';
 import type { ResolvedResource } from '../resources/resolve';
 import { sourceLabel, type ProjectionLookup } from './project';
+import type { BlockedState } from './resolve';
+import { castTimeOf, costlyMaterial, type CastTime } from './spellTraits';
 import { poolQuotas, type QuotaState, type SheetIssue, type SpellcastingState } from './state';
 
 export interface GroupedSpell {
@@ -18,6 +27,13 @@ export interface GroupedSpell {
   level: number;
   /** Ritual-Merkmal des Zaubers — ein Ritual-Wirkweg des Kontingents gilt nur für diese. */
   ritual: boolean;
+  concentration: boolean;
+  castTime: CastTime;
+  /** Die Buchstaben der Komponenten, „VSM". */
+  components: string;
+  costlyMaterial: boolean;
+  /** Leer, wenn der Bibliothekseintrag fehlt. */
+  school: string;
 }
 
 export interface SpellQuotaGroup {
@@ -26,6 +42,8 @@ export interface SpellQuotaGroup {
   label: string;
   /** Die deklarierten Wirkwege — `castNote` ist ihre ausformulierte Fassung. */
   cast: CastOption[];
+  castableIn: CastableIn | null;
+  waivers: ComponentWaiver[];
   /** Wie diese Zauber gewirkt werden (`cast`). */
   castNote: string;
   /** Der Tauschtakt (`swap`); leer, wenn die Deklaration keinen nennt. */
@@ -95,6 +113,7 @@ export interface GroupedSpellcasting {
   extra: GroupedSpell[];
   /** Warum eine erwartete Quelle fehlt oder unvollständig ist — sonst schweigt der Fehlschlag. */
   issues: GroupedIssue[];
+  blocks: BlockedState[];
 }
 
 /**
@@ -210,7 +229,17 @@ export function swapNote(quota: QuotaState): string {
 
 const spellOf = (key: string, lookup: ProjectionLookup): GroupedSpell => {
   const info = lookup.spell(key);
-  return { key, label: info?.name ?? key, level: info?.level ?? 0, ritual: info?.ritual ?? false };
+  return {
+    key,
+    label: info?.name ?? key,
+    level: info?.level ?? 0,
+    ritual: info?.ritual ?? false,
+    concentration: info?.concentration ?? false,
+    castTime: castTimeOf(info?.casting_time),
+    components: info?.components ?? '',
+    costlyMaterial: info ? costlyMaterial(info) : false,
+    school: info?.school ?? '',
+  };
 };
 
 export function groupedSpellcasting(state: SpellcastingState, lookup: ProjectionLookup): GroupedSpellcasting {
@@ -261,6 +290,8 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
           quotaId: quota.view.quotaId,
           label: quotaLabel(quota),
           cast: [...quota.view.cast],
+          castableIn: quota.view.castableIn ?? null,
+          waivers: [...quota.view.waivers],
           castNote: castNote(quota, (ref) => lookup.resourceLabel(ref, source.source.featureKey), into?.label),
           swapNote: swapNote(quota),
           levels: [...quota.view.levels],
@@ -284,5 +315,6 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
     resources: state.resources,
     extra: state.extra.map((key) => spellOf(key, lookup)),
     issues: state.issues.map((issue) => groupedIssue(issue, lookup)),
+    blocks: state.blocks,
   };
 }

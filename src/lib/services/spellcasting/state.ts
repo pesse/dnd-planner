@@ -6,7 +6,7 @@ import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { ResolvedResource, ResourceIssue, ResourceResolution } from '../resources/resolve';
 import { slotLookup } from '../resources/project';
 import { castUses, quotaContext, quotaViews, sourceTables, type QuotaView } from './quota';
-import type { CastingResolution } from './resolve';
+import type { BlockedState, CastingResolution } from './resolve';
 import type { CastingIssue, CastingSource } from './source';
 import { pickedKeys } from './write';
 
@@ -50,6 +50,7 @@ export interface SpellcastingState {
   issues: SheetIssue[];
   /** Zauber-Keys ohne Quelle (Homebrew). */
   extra: string[];
+  blocks: BlockedState[];
 }
 
 export interface SpellcastingInput {
@@ -123,6 +124,7 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
     sources,
     issues: [...issues, ...input.resources.issues],
     extra: stored?.manual?.extra ?? [],
+    blocks: resolution.blocks,
   };
 }
 

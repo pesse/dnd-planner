@@ -66,6 +66,40 @@ export const castOptionSchema = z.discriminatedUnion('kind', [
 ]);
 export type CastOption = z.infer<typeof castOptionSchema>;
 
+/** Zustände, in denen das Zaubern eigens geregelt ist. */
+export const CASTING_STATES = ['wild-shape', 'rage'] as const;
+export type CastingState = (typeof CASTING_STATES)[number];
+
+/** „You can't cast spells" — der Zustand sperrt das Zaubern, `castableIn` macht Ausnahmen. */
+export const castingBlockSchema = z.object({
+  state: z.enum(CASTING_STATES),
+  concentration: z.enum(['kept', 'ends']).describe('Was mit laufender Konzentration geschieht.'),
+});
+export type CastingBlock = z.infer<typeof castingBlockSchema>;
+
+export const castableInSchema = z.object({
+  state: z.enum(CASTING_STATES),
+  exceptCostlyMaterial: z
+    .boolean()
+    .default(false)
+    .describe('Nicht für Zauber, deren Materialkomponente einen Preis nennt oder verbraucht wird.'),
+});
+export type CastableIn = z.infer<typeof castableInSchema>;
+
+export const SPELL_COMPONENTS = ['verbal', 'somatic', 'material'] as const;
+export type SpellComponent = (typeof SPELL_COMPONENTS)[number];
+
+export const componentWaiverSchema = z.object({
+  omit: z.array(z.enum(SPELL_COMPONENTS)).min(1),
+  keepCostlyMaterial: z
+    .boolean()
+    .default(false)
+    .describe('Material mit Preis oder Verbrauch bleibt nötig („unless they are consumed or have a cost").'),
+  schools: z.array(schoolEnum).default([]).describe('Nur Zauber dieser Schulen; leer = alle.'),
+  whenDe: z.string().default('').describe('Bedingung, wie sie auf dem Bogen steht („über Zaubereipunkte"); leer = immer.'),
+});
+export type ComponentWaiver = z.infer<typeof componentWaiverSchema>;
+
 /** Zeigt auf eine Quota — `pool.from` zieht daraus, `into` legt hinein. */
 export const quotaRefSchema = z.object({
   feature: z.string().default('').describe('Merkmals-Key; leer = dasselbe Merkmal.'),
@@ -140,6 +174,8 @@ const quotaBaseSchema = z.object({
     .optional()
     .describe('Die gewählten Zauber gehören zusätzlich in dieses Kontingent (Zauberbuch).'),
   swap: swapRuleSchema.optional().describe('Überschreibt die Vorgabe der Quelle.'),
+  castableIn: castableInSchema.optional().describe('Auch in diesem Zustand wirkbar, obwohl er das Zaubern sperrt.'),
+  waiveComponents: z.array(componentWaiverSchema).optional(),
   // PFLICHT und ohne Vererbung: eine Quellen-Vorgabe wäre für Zaubertrick-Quotas immer falsch.
   // Leer ist zulässig und heißt „für sich nicht wirkbar" — das Zauberbuch vor Ritual Adept.
   cast: z.array(castOptionSchema),
@@ -182,5 +218,6 @@ export const castingGrantSchema = z.object({
   quotas: z.array(quotaSchema).default([]),
   patches: z.array(quotaPatchSchema).default([]),
   swap: swapRuleSchema.optional().describe('Vorgabe für alle Quotas dieses Merkmals.'),
+  blocks: z.array(castingBlockSchema).default([]),
 });
 export type CastingGrant = z.infer<typeof castingGrantSchema>;

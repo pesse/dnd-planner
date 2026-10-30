@@ -15,6 +15,7 @@
   import { resourceViews } from '../../services/resources/project';
   import ResourcePoolCards from './ResourcePoolCards.svelte';
   import { groupedSpellcasting } from '../../services/spellcasting/grouped';
+  import { castTimeOf } from '../../services/spellcasting/spellTraits';
   import type { LoadedSpellcasting } from '../../services/spellcasting/project';
   import SpellTooltip from '../SpellTooltip.svelte';
   import type { Spell } from '../../types';
@@ -122,7 +123,7 @@
     onkeydown={(e) => e.key === 'Enter' && openSpellPage(s)}
     onmouseenter={(e) => { hoverNote = s.prepared ? undefined : 'Nicht vorbereitet'; hover.show(e, s.label); }}
     onmousemove={(e) => hover.move(e)}
-    onmouseleave={() => hover.hide()}>{s.label}{#if info?.ritual}<span class="ritual-badge">R</span>{/if}</span>
+    onmouseleave={() => hover.hide()}>{s.label}{#if info?.concentration}<span class="spell-badge" title="Konzentration">K</span>{/if}{#if castTimeOf(info?.casting_time) === 'bonus'}<span class="spell-badge" title="Bonusaktion">B</span>{:else if castTimeOf(info?.casting_time) === 'reaction'}<span class="spell-badge" title="Reaktion">Re</span>{/if}{#if info?.ritual}<span class="spell-badge" title="Ritual">R</span>{/if}</span>
 {/snippet}
 
 {#if hasContent && view}
@@ -251,7 +252,7 @@
   .spell-chip:hover { background: var(--bg-raised); }
   .spell-chip.unprepared { opacity: 0.6; font-style: italic; }
 
-  .ritual-badge {
+  .spell-badge {
     margin-left: 0.15rem;
     font-size: 0.58rem;
     font-weight: 700;

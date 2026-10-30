@@ -25,7 +25,17 @@ interface SpellIndexEntry {
   classes: string[];
   school: string;
   ritual: boolean;
+  concentration: boolean;
+  casting_time: string;
+  components: string;
+  materials: string;
   path: string;
+}
+
+function componentsOf(raw: unknown): { components: string; materials: string } {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  const letters = (['verbal', 'somatic', 'material'] as const).filter((k) => c[k] === true).map((k) => k[0].toUpperCase());
+  return { components: letters.join(''), materials: typeof c.materials_needed === 'string' ? c.materials_needed : '' };
 }
 
 /** Rekursives Pendant zu Rusts `collect_spells`: liest alle Zauber-JSONs unter `dir`. */
@@ -54,6 +64,9 @@ function collectSpells(dir: string, out: SpellIndexEntry[]): void {
           classes: Array.isArray(v.classes) ? v.classes.filter((c): c is string => typeof c === 'string') : [],
           school: typeof v.school === 'string' ? v.school : '',
           ritual: v.ritual === true,
+          concentration: v.concentration === true,
+          casting_time: typeof v.casting_time === 'string' ? v.casting_time : '',
+          ...componentsOf(v.components),
           path: './' + relative(process.cwd(), full).replace(/\\/g, '/'),
         });
       } catch {

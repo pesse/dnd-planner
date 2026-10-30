@@ -13,6 +13,7 @@ import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
 import type { SpellQuotaGroup } from '../../src/lib/services/spellcasting/grouped';
 import { allProficienciesCharacter } from '../fixtures/character-all-proficiencies';
 import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
+import { groupedSpell } from '../support/groupedSpell';
 
 const dataFor = (character: CharacterPrintData['character']): CharacterPrintData => ({
   character,
@@ -30,7 +31,7 @@ const dataFor = (character: CharacterPrintData['character']): CharacterPrintData
   skillAdvantage: [],
   movement: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
-  grouped: { sources: [], resources: [], extra: [], issues: [] },
+  grouped: { sources: [], resources: [], extra: [], issues: [], blocks: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },
   pools: [],
   resources: [],
@@ -52,7 +53,7 @@ const title = (label: string) => `<span class="btitle">${label}</span>`;
 
 const quota = (over: Partial<SpellQuotaGroup>): SpellQuotaGroup => ({
   sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
-  levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
+  levels: [], lists: [], schools: [], ritual: false, from: null, into: null, castableIn: null, waivers: [],
   count: 0, tier: 'prepared', fixed: false, spells: [], open: 0, ...over,
 });
 
@@ -147,8 +148,8 @@ describe('HTML-Charakterbogen', () => {
       shared: '', kind: 'points', die: '', max: [2], additions: [], restoreDe: [], notesDe: [],
     }];
     d.grouped = {
-      sources: [wizardSource([quota({ spells: [{ key: 'shield', label: 'Schild', level: 1, ritual: false }] })])],
-      resources: [], extra: [], issues: [],
+      sources: [wizardSource([quota({ spells: [groupedSpell({ key: 'shield', label: 'Schild', level: 1, ritual: false })] })])],
+      resources: [], extra: [], issues: [], blocks: [],
     };
     const html = build(d);
 
@@ -158,15 +159,15 @@ describe('HTML-Charakterbogen', () => {
   });
 
   it('füllt das Häkchen für vorbereitete Zauber und lässt das Zauberbuch leer', () => {
-    const bolt = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false };
-    const shield = { key: 'shield', label: 'Schild', level: 1, ritual: false };
+    const bolt = groupedSpell({ key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false });
+    const shield = groupedSpell({ key: 'shield', label: 'Schild', level: 1, ritual: false });
     const d = dataFor(allProficienciesCharacter);
     d.grouped = {
       sources: [wizardSource([
         quota({ quotaId: 'book', label: 'Zauberbuch', tier: 'known', spells: [bolt, shield] }),
         quota({ quotaId: 'prepared', tier: 'prepared', spells: [bolt] }),
       ])],
-      resources: [], extra: [], issues: [],
+      resources: [], extra: [], issues: [], blocks: [],
     };
     const html = build(d);
 
@@ -175,8 +176,8 @@ describe('HTML-Charakterbogen', () => {
   });
 
   it('führt einen Zauber je Quelle einmal, mit dem Hinweis, der etwas sagt', () => {
-    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false };
-    const bolt2 = { key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false };
+    const bolt = groupedSpell({ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false });
+    const bolt2 = groupedSpell({ key: 'magic-missile', label: 'Magisches Geschoss', level: 1, ritual: false });
     const d = dataFor(allProficienciesCharacter);
     d.grouped = {
       sources: [wizardSource([
@@ -191,7 +192,7 @@ describe('HTML-Charakterbogen', () => {
           cast: [{ kind: 'uses', per: 'long-rest', count: 1 }], castNote: '1× ohne Zauberplatz pro Lange Rast',
         }),
       ])],
-      resources: [], extra: [], issues: [],
+      resources: [], extra: [], issues: [], blocks: [],
     };
     const html = build(d);
 
@@ -209,7 +210,7 @@ describe('HTML-Charakterbogen', () => {
     d.grouped = {
       ...d.grouped,
       sources: [wizardSource([
-        quota({ spells: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] }),
+        quota({ spells: [groupedSpell({ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false })] }),
         quota({ quotaId: 'offen', label: 'Zaubertricks', open: 2 }),
       ])],
     };
@@ -318,7 +319,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('nimmt Karten und Karten-Stylesheet nur ins Dokument, wenn sie gewählt sind', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.grouped = { ...d.grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] };
+    d.grouped = { ...d.grouped, extra: [groupedSpell({ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false })] };
     d.spellCards = '<div class="cards">EINE KARTE</div>';
 
     expect(build(d)).not.toContain('EINE KARTE');

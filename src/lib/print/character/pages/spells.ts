@@ -11,6 +11,7 @@ import { sign } from '$lib/utils/num';
 import type { CharacterPrintData } from '../data';
 import { block, checkbox, esc, slotCircles, tickBoxes } from '../html';
 import { renderOptionPools } from './extras';
+import { addRiders, boxMarks, noRiders, waiverNote, type BoxMarks, type SpellRiders } from './spellMarks';
 
 const LEVEL_LABEL = (level: number): string => (level === 0 ? 'Zaubertricks' : `Grad ${level}`);
 
@@ -21,12 +22,13 @@ const levelHead = (badge: string, name: string, note = ''): string =>
 
 /** Ein Zauber, wie er auf dem Bogen steht: einmal, mit dem Hinweis seines Kontingents. */
 interface SheetSpell {
-  label: string;
-  level: number;
+  spell: GroupedSpell;
   note: string;
-  ritual: boolean;
   /** Aus einem `prepared`-Kontingent — das Häkchen ist gesetzt, nicht am Tisch zu setzen. */
   prepared: boolean;
+  /** Aus einem festen `prepared`-Kontingent — zählt nicht gegen die Vorbereitung. */
+  always: boolean;
+  riders: SpellRiders;
 }
 
 /**
@@ -117,45 +119,58 @@ function mergedSpells(quotas: SpellQuotaGroup[]): SheetSpell[] {
       // Aus welchem Kontingent er stammt, bleibt bewusst weg: am Tisch ändert allein der
       // Wirkweg etwas, und der steht im Kastenkopf oder hier.
       const note = castNoteFor(q, s, feeders);
-      const seen = byKey.get(s.key);
       const prepared = q.tier === 'prepared';
-      if (!seen) byKey.set(s.key, { label: s.label, level: s.level, note, ritual: s.ritual, prepared });
-      else {
+      const always = prepared && q.fixed;
+      let seen = byKey.get(s.key);
+      if (!seen) {
+        seen = { spell: s, note, prepared, always, riders: noRiders() };
+        byKey.set(s.key, seen);
+      } else {
         if (!seen.note) seen.note = note;
         seen.prepared ||= prepared;
+        seen.always ||= always;
       }
+      addRiders(seen.riders, q, s);
     }
   }
   return [...byKey.values()];
 }
 
 const asSheetSpells = (spells: GroupedSpell[]): SheetSpell[] =>
-  spells.map((s) => ({ label: s.label, level: s.level, note: '', ritual: s.ritual, prepared: false }));
+  spells.map((spell) => ({ spell, note: '', prepared: false, always: false, riders: noRiders() }));
 
 function byLevel(spells: SheetSpell[]): [number, SheetSpell[]][] {
   const map = new Map<number, SheetSpell[]>();
-  for (const s of [...spells].sort((a, b) => a.label.localeCompare(b.label, 'de'))) {
-    const bucket = map.get(s.level);
+  for (const s of [...spells].sort((a, b) => a.spell.label.localeCompare(b.spell.label, 'de'))) {
+    const bucket = map.get(s.spell.level);
     if (bucket) bucket.push(s);
-    else map.set(s.level, [s]);
+    else map.set(s.spell.level, [s]);
   }
   return [...map].sort((a, b) => a[0] - b[0]);
 }
 
-/** Das Häkchen heißt „vorbereitet": beim Zauberbuch leer, bei der Vorbereitung gesetzt. */
-const spellLine = (s: SheetSpell): string =>
-  `<div class="spell">${checkbox(s.prepared)}<span class="sname">${esc(s.label)}` +
-  (s.ritual ? '<span class="ritual-mark" title="Ritual">R</span>' : '') + '</span>' +
-  (s.note ? `<span class="spell-note">${esc(s.note)}</span>` : '') + '</div>';
+/**
+ * Das Häkchen heißt „vorbereitet": beim Zauberbuch leer, bei der Vorbereitung gesetzt. Ein
+ * voller Kasten steht nur neben frei vorbereiteten Zaubern — allein unterscheidet er nichts.
+ */
+function spellLine(s: SheetSpell, marks: BoxMarks, showAlways: boolean): string {
+  const box = showAlways && s.always ? '<i class="cbox always"></i>' : checkbox(s.prepared);
+  const note = [s.note, waiverNote(s.spell, s.riders.waivers)].filter(Boolean).join(' · ');
+  return `<div class="spell">${box}<span class="sname">${esc(s.spell.label)}${marks.marksOf(s.spell)}</span>` +
+    (note ? `<span class="spell-note">${esc(note)}</span>` : '') + '</div>';
+}
 
 /** Eine Zeile für eine Wahl, die noch offen ist — der einzige Platz, der beschrieben wird. */
 const writeSpell = `<div class="spell">${checkbox(false)}<span class="sname write"></span></div>`;
 
-const spellList = (spells: SheetSpell[]): string =>
+const spellList = (spells: SheetSpell[], marks: BoxMarks, showAlways = false): string =>
   byLevel(spells).map(([level, list]) => `<div class="spell-level">
       ${levelHead(String(level), LEVEL_LABEL(level))}
-      ${list.map(spellLine).join('')}
+      ${list.map((s) => spellLine(s, marks, showAlways)).join('')}
     </div>`).join('');
+
+const legendLines = (marks: BoxMarks): string =>
+  marks.legend.map((line) => `<div class="cast-note full">${line}</div>`).join('');
 
 /**
  * Zwei Innenspalten erst, wenn es etwas zu verteilen gibt: eine einzelne Gradgruppe ist
@@ -202,8 +217,10 @@ export function renderSpellSource(d: CharacterPrintData, groupId: string): strin
   const open = quotas.filter((q) => q.open > 0).map(openGroup).join('');
 
   const spells = mergedSpells(quotas);
+  const showAlways = spells.some((s) => s.always) && quotas.some((q) => q.tier === 'prepared' && !q.fixed);
+  const marks = boxMarks(spells, d.grouped.blocks, showAlways);
   const groups = byLevel(spells).length + quotas.filter((q) => q.open > 0).length;
-  return block(group.label, head + spellList(spells) + open,
+  return block(group.label, head + legendLines(marks) + spellList(spells, marks, showAlways) + open,
     { cls: `sp-list ${listWidth(groups)}`, hint: group.hint });
 }
 
@@ -261,7 +278,8 @@ export function renderExtraSpells(d: CharacterPrintData): string {
   const spells = unplacedSpells(d);
   if (!spells.length) return '';
   // Ohne Quelle gibt es keine gerechneten Werte — der Kasten bleibt eine reine Liste.
-  return block('Weitere Zauber', spellList(asSheetSpells(spells)),
-    { cls: `sp-list ${listWidth(byLevel(asSheetSpells(spells)).length)}`,
-      hint: 'keiner Quelle zugeordnet' });
+  const rows = asSheetSpells(spells);
+  const marks = boxMarks(rows, [], false);
+  return block('Weitere Zauber', legendLines(marks) + spellList(rows, marks),
+    { cls: `sp-list ${listWidth(byLevel(rows).length)}`, hint: 'keiner Quelle zugeordnet' });
 }

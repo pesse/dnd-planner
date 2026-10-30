@@ -10,8 +10,9 @@ import {
   knownSpells,
   quotaGroupId,
 } from '../../src/lib/services/spellcasting/known';
+import { groupedSpell } from '../support/groupedSpell';
 
-const spell = (key: string) => ({ key, label: key, level: 0, ritual: false });
+const spell = (key: string) => groupedSpell({ key, label: key, level: 0 });
 
 const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   sourceId,
@@ -27,6 +28,8 @@ const quota = (sourceId: string, quotaId: string, keys: string[]) => ({
   ritual: false,
   from: null,
   into: null,
+  castableIn: null,
+  waivers: [],
   count: keys.length,
   fixed: false,
   spells: keys.map(spell),
@@ -59,6 +62,7 @@ const VIEW: GroupedSpellcasting = {
   resources: [],
   extra: [spell('guidance')],
   issues: [],
+  blocks: [],
 };
 
 describe('knownSpells', () => {

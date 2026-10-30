@@ -370,6 +370,11 @@ pub struct SpellInfo {
     classes: Vec<String>,
     school: String,
     ritual: bool,
+    concentration: bool,
+    casting_time: String,
+    /// Die Buchstaben der Komponenten („VSM"); `materials` ist der Wortlaut der Materialien.
+    components: String,
+    materials: String,
     path: String,
 }
 
@@ -414,11 +419,23 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                         .unwrap_or_default();
                     let school = v["school"].as_str().unwrap_or("").to_string();
                     let ritual = v["ritual"].as_bool().unwrap_or(false);
+                    let concentration = v["concentration"].as_bool().unwrap_or(false);
+                    let casting_time = v["casting_time"].as_str().unwrap_or("").to_string();
+                    let comp = &v["components"];
+                    let components: String = [("verbal", 'V'), ("somatic", 'S'), ("material", 'M')]
+                        .iter()
+                        .filter(|(k, _)| comp[*k].as_bool().unwrap_or(false))
+                        .map(|(_, c)| *c)
+                        .collect();
+                    let materials = comp["materials_needed"].as_str().unwrap_or("").to_string();
                     // Relativer Pfad ab Projekt-Root: ./vault/spells/...
                     let rel = path.strip_prefix(&project_root())
                         .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
                         .unwrap_or_else(|_| path.to_string_lossy().to_string());
-                    out.push(SpellInfo { name, name_en, key, source, level, classes, school, ritual, path: rel });
+                    out.push(SpellInfo {
+                        name, name_en, key, source, level, classes, school, ritual,
+                        concentration, casting_time, components, materials, path: rel,
+                    });
                 }
             }
         }

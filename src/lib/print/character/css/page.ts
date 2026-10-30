@@ -112,6 +112,7 @@ body {
 .cbox  { width: 3.2mm; height: 3.2mm; border: 0.3mm solid var(--rule); border-radius: 0.4mm;
          display: inline-block; vertical-align: -0.6mm; position: relative; }
 .cbox.on::after { content: ''; position: absolute; inset: 0.5mm; background: var(--ink-soft); border-radius: 0.2mm; }
+.cbox.always { background: var(--ink-soft); }
 
 /* Tabellen */
 .tbl { width: 100%; border-collapse: collapse; }

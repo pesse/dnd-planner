@@ -4,7 +4,7 @@
  */
 import type { CharacterInventoryEntry } from '$lib/schemas/characterSchema';
 import { resolveClass } from '$lib/spellLibrary';
-import type { AbilityBinding, CastingGrant, QuotaPatch, QuotaRef } from '$lib/schemas/casting';
+import type { AbilityBinding, CastingBlock, CastingGrant, QuotaPatch, QuotaRef } from '$lib/schemas/casting';
 import {
   NO_ANSWERS,
   originCountsClassLevel,
@@ -30,6 +30,12 @@ export interface CastingResolution {
   classes: CarrierClass[];
   issues: CastingIssue[];
   characterLevel: number;
+  /** Zustände, die das Zaubern sperren (Kampfrausch, Tiergestalt), samt sperrendem Merkmal. */
+  blocks: BlockedState[];
+}
+
+export interface BlockedState extends CastingBlock {
+  featureDe: string;
 }
 
 export interface Placement {
@@ -198,11 +204,15 @@ export async function resolveCasting(c: CastingCharacter): Promise<CastingResolu
   const issues: CastingIssue[] = [...walk.issues];
   const sources: CastingSource[] = [];
   const patches: { featureKey: string; patch: QuotaPatch }[] = [];
+  const blocks: BlockedState[] = [];
 
   for (const carrier of [...walk.carriers, ...(await itemCarriers(c.inventory ?? []))]) {
     if (!carrier.grantsCasting) continue;
     sources.push(toSource(carrier, carrier.grantsCasting));
     for (const patch of carrier.grantsCasting.patches) patches.push({ featureKey: carrier.key, patch });
+    for (const block of carrier.grantsCasting.blocks)
+      if (!blocks.some((b) => b.state === block.state))
+        blocks.push({ ...block, featureDe: carrier.nameDe?.trim() || carrier.name });
   }
 
   applyPatches(sources, patches, issues);
@@ -215,5 +225,6 @@ export async function resolveCasting(c: CastingCharacter): Promise<CastingResolu
     classes: walk.classes,
     issues,
     characterLevel: walk.characterLevel,
+    blocks,
   };
 }

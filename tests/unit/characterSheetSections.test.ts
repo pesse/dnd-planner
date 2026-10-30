@@ -12,6 +12,7 @@ import { itemCardFacts } from '../../src/lib/utils/itemCardFacts';
 import type { Item } from '../../src/lib/types';
 import { savingThrowDerivations } from '../../src/lib/services/savingThrows';
 import { effectiveProficiencyBonus } from '../../src/lib/services/classProgression';
+import { groupedSpell } from '../support/groupedSpell';
 
 const testfigur = characterSchema.parse({ name: 'Testfigur' });
 
@@ -31,7 +32,7 @@ const emptyData = (over: Partial<CharacterPrintData> = {}): CharacterPrintData =
   skillAdvantage: [],
   movement: [],
   features: { speciesGroups: [], classGroups: [], backgroundGroups: [], featEntries: [], orphanChoices: [] },
-  grouped: { sources: [], resources: [], extra: [], issues: [] },
+  grouped: { sources: [], resources: [], extra: [], issues: [], blocks: [] },
   mastery: { allowance: 0, className: '', meleeOnly: false, weapons: [] },
   pools: [],
   resources: [],
@@ -129,10 +130,10 @@ describe('Sektionen des Charakterbogens', () => {
   });
 
   it('führt einen Zauber ohne Quelle nur, solange kein Kontingent ihn schon führt', () => {
-    const bolt = { key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false };
+    const bolt = groupedSpell({ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false });
     const quota = {
       sourceId: 'cls:wizard', quotaId: 'q', label: 'Vorbereitet', cast: [], castNote: '', swapNote: '',
-      levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
+      levels: [], lists: [], schools: [], ritual: false, from: null, into: null, castableIn: null, waivers: [],
       count: 0, tier: 'prepared' as const, fixed: false, spells: [bolt], open: 0,
     };
     const loose = emptyData({ grouped: { ...emptyData().grouped, extra: [bolt] } });
@@ -153,9 +154,9 @@ describe('Sektionen des Charakterbogens', () => {
     const book = (requiresPrepared: boolean, castNote: string, ritual = true) => ({
       sourceId: 'cls:wizard', quotaId: 'book', label: 'Zauberbuch',
       cast: [{ kind: 'ritual' as const, requiresPrepared }], castNote, swapNote: '',
-      levels: [], lists: [], schools: [], ritual: false, from: null, into: null,
+      levels: [], lists: [], schools: [], ritual: false, from: null, into: null, castableIn: null, waivers: [],
       count: 1, tier: 'known' as const, fixed: false,
-      spells: [{ key: 'identify', label: 'Identifizieren', level: 1, ritual }], open: 0,
+      spells: [groupedSpell({ key: 'identify', label: 'Identifizieren', level: 1, ritual })], open: 0,
     });
     const sheet = (quota: ReturnType<typeof book>) =>
       render(
@@ -180,19 +181,19 @@ describe('Sektionen des Charakterbogens', () => {
         emptyData({
           grouped: {
             ...emptyData().grouped,
-            extra: [{ key: 'identify', label: 'Identifizieren', level: 1, ritual }],
+            extra: [groupedSpell({ key: 'identify', label: 'Identifizieren', level: 1, ritual })],
             sources: [source('cls:wizard', 'Magier')],
           },
         }),
         'spellsExtra',
       );
 
-    expect(spells(true)).toContain('ritual-mark');
-    expect(spells(false)).not.toContain('ritual-mark');
+    expect(spells(true)).toContain('title="Ritual"');
+    expect(spells(false)).not.toContain('title="Ritual"');
   });
 
   it('bietet die Volltext-Karten an, sobald es Zauber gibt, und hakt sie nicht vor', () => {
-    const d = emptyData({ grouped: { ...emptyData().grouped, extra: [{ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false }] } });
+    const d = emptyData({ grouped: { ...emptyData().grouped, extra: [groupedSpell({ key: 'fire-bolt', label: 'Feuerpfeil', level: 0, ritual: false })] } });
 
     expect(ids(emptyData())).not.toContain('spellCards');
     expect(ids(d)).toContain('spellCards');
@@ -234,7 +235,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:druid', 'Druide'), source('sub:moon', 'Zirkel des Mondes')],
-        resources: [], extra: [], issues: [],
+        resources: [], extra: [], issues: [], blocks: [],
       },
     });
 
@@ -247,7 +248,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:wizard', 'Magier'), feat],
-        resources: [], extra: [], issues: [],
+        resources: [], extra: [], issues: [], blocks: [],
       },
     });
 
@@ -259,7 +260,7 @@ describe('Sektionen des Charakterbogens', () => {
     const d = emptyData({
       grouped: {
         sources: [source('cls:wizard', 'Magier')],
-        resources: [], extra: [], issues: [],
+        resources: [], extra: [], issues: [], blocks: [],
       },
     });
     const order = ids(d);

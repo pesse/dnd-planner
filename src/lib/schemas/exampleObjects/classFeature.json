@@ -630,6 +630,22 @@
           "spells": "none",
           "cantrips": "none"
         },
+        "castableIn": {
+          "state": "wild-shape",
+          "exceptCostlyMaterial": false
+        },
+        "waiveComponents": [
+          {
+            "omit": [
+              "verbal"
+            ],
+            "keepCostlyMaterial": false,
+            "schools": [
+              "abjuration"
+            ],
+            "whenDe": "string"
+          }
+        ],
         "cast": [
           {
             "kind": "slots",
@@ -706,6 +722,22 @@
             "spells": "none",
             "cantrips": "none"
           },
+          "castableIn": {
+            "state": "wild-shape",
+            "exceptCostlyMaterial": false
+          },
+          "waiveComponents": [
+            {
+              "omit": [
+                "verbal"
+              ],
+              "keepCostlyMaterial": false,
+              "schools": [
+                "abjuration"
+              ],
+              "whenDe": "string"
+            }
+          ],
           "cast": [
             {
               "kind": "slots",
@@ -742,7 +774,13 @@
     "swap": {
       "spells": "none",
       "cantrips": "none"
-    }
+    },
+    "blocks": [
+      {
+        "state": "wild-shape",
+        "concentration": "kept"
+      }
+    ]
   },
   "grantsResource": {
     "pools": [

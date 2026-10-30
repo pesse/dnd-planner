@@ -169,7 +169,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   // ein zweites Mal durch Klassen, Talente und Gegenstandsbibliothek.
   const grouped = loaded
     ? groupedSpellcasting(loaded.state, loaded.lookup)
-    : { sources: [], resources: [], extra: [], issues: [] };
+    : { sources: [], resources: [], extra: [], issues: [], blocks: [] };
 
   const scores = effectiveScores(c.abilities, abilityEffects);
   const fallbacks = combatFallbacksFrom(c, saveInputs, scores, hpParts);
