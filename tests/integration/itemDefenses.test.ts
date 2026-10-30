@@ -1,5 +1,5 @@
 /**
- * Gewählte Resistenz eines Gegenstands: die Rüstung der Resistenz wirkt, sobald sie angelegt ist.
+ * Gewählte Resistenz eines Gegenstands: die Rüstung der Resistenz wirkt, sobald sie angelegt und eingestimmt ist.
  *
  *   npm run test -- itemDefenses
  */
@@ -25,19 +25,20 @@ describe('Resistenz aus der Rüstung der Resistenz', () => {
     expect(index.byKey.get(ARMOR)?.resistanceChoice?.types).toHaveLength(10);
   });
 
-  it('wirkt erst angelegt', async () => {
+  it('wirkt erst angelegt und eingestimmt', async () => {
     expect(await defensesOf({ resistance: 'fire' })).toEqual([]);
+    expect(await defensesOf({ equipped: true, resistance: 'fire' })).toEqual([]);
   });
 
   it('zeigt die gewählte Resistenz mit dem Gegenstand als Quelle', async () => {
-    const [d] = await defensesOf({ equipped: true, resistance: 'fire' });
+    const [d] = await defensesOf({ equipped: true, attuned: true, resistance: 'fire' });
     expect(d.textDe).toBe('Resistenz gegen Feuerschaden');
     expect(d.labelDe).toBe('Rüstung der Resistenz (Fellrüstung)');
     expect(d.effect.resistances).toEqual(['fire']);
   });
 
   it('meldet eine fehlende Wahl, statt still nichts zu gewähren', async () => {
-    const [d] = await defensesOf({ equipped: true });
+    const [d] = await defensesOf({ equipped: true, attuned: true });
     expect(d.textDe).toBe('Resistenz noch nicht gewählt');
     expect(d.effect.resistances).toEqual([]);
   });
@@ -47,7 +48,7 @@ describe('Resistenz aus der Rüstung der Resistenz', () => {
     const item = (await loadItem(index.byKey.get(ARMOR)!.path))!;
     expect(item.desc_de?.join()).toContain('1W10');
     expect(withChosenResistance(item, 'fire').desc_de)
-      .toEqual(['Während du diese Rüstung trägst, hast du Resistenz gegen Feuerschaden.']);
+      .toEqual(['Wenn du diese Rüstung trägst, bist du gegen Feuerschaden resistent.']);
     expect(withChosenResistance(item, undefined)).toBe(item);
   });
 });

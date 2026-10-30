@@ -10,6 +10,7 @@ export const SOURCE_KEYS = [
   'phb-2024',
   'efa-2025',
   'mm-2024',
+  'dmg-2024',
   'homebrew-sam',
   // Fremd-/Legacy-Herkünfte: Zauber, die Open5e-2024 nicht führt. `dndapi-2014` ist
   // Altbestand aus dem früheren dnd5eapi-Import, `deepm` Kobold Press, `a5e-ag` Level Up.
@@ -28,6 +29,7 @@ export const SOURCE_LABELS: Record<SourceKey, string> = {
   'phb-2024': 'PHB 2024',
   'efa-2025': 'Eberron 2025',
   'mm-2024': 'MM 2024',
+  'dmg-2024': 'DMG 2024',
   'homebrew-sam': 'Eigen',
   'dndapi-2014': 'D&D API 2014',
   'srd-2014': 'SRD 5.1',

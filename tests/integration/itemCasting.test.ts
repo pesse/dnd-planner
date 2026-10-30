@@ -1,5 +1,5 @@
 /**
- * Zauber aus einem Gegenstand: der Stab der Wälder wirkt seine Tabelle aus den eigenen Ladungen.
+ * Zauber aus einem Gegenstand: der Stab der Waldlande wirkt seine Tabelle aus den eigenen Ladungen.
  *
  *   npm run test -- itemCasting
  */
@@ -12,10 +12,10 @@ const STAFF = 'srd-2024_staff-of-the-woodlands';
 
 const druid = (staff: Partial<Character['inventory'][number]>): Character => {
   const c = testCharacter('Prüfling Druide');
-  return { ...c, inventory: [...c.inventory, { name: 'Stab der Wälder', sourceKey: STAFF, count: '1', weight: '4', ...staff }] };
+  return { ...c, inventory: [...c.inventory, { name: 'Stab der Waldlande', sourceKey: STAFF, count: '1', weight: '4', ...staff }] };
 };
 
-describe('Zauber aus dem Stab der Wälder', () => {
+describe('Zauber aus dem Stab der Waldlande', () => {
   it('wirkt erst angelegt UND eingestimmt', async () => {
     const { state } = await loadSpellcasting(druid({ equipped: true }));
     expect(state.sources.some((s) => s.source.featureKey === STAFF)).toBe(false);
@@ -37,7 +37,7 @@ describe('Zauber aus dem Stab der Wälder', () => {
       { kind: 'resource', resource: { feature: STAFF, pool: 'charges' }, amount: 5, labelDe: '5 Ladungen' },
     ]);
     expect(state.resources.find((p) => p.featureKey === STAFF)).toMatchObject({
-      labelDe: 'Stab der Wälder: Ladungen',
+      labelDe: 'Stab der Waldlande: Ladungen',
       max: [6],
     });
   });

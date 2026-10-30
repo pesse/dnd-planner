@@ -18,7 +18,7 @@ const worn = (name: string, attuned = true): CharacterInventoryEntry =>
 describe('Attributswerte aus dem Inventar', () => {
   it.each([
     ['Amulett der Gesundheit', { con: 19 }],
-    ['Handschuhe der Ogerstärke', { str: 19 }],
+    ['Panzerhandschuhe der Ogerkraft', { str: 19 }],
     ['Stirnband der Intelligenz', { int: 19 }],
     ['srd-2024_belt-of-giant-strength-hill', { str: 21 }],
     ['srd-2024_belt-of-giant-strength-frost-or-stone', { str: 23 }],
@@ -40,7 +40,7 @@ describe('Attributswerte aus dem Inventar', () => {
       const h = { ...worn(''), sourceKey: hammer };
       const belt = { ...worn(''), sourceKey: 'srd-2024_belt-of-giant-strength-fire' };
       expect((await effective([h, belt])).str).toBe(29);
-      expect((await effective([h, worn('Handschuhe der Ogerstärke')])).str).toBe(23);
+      expect((await effective([h, worn('Panzerhandschuhe der Ogerkraft')])).str).toBe(23);
       expect((await effective([h])).str).toBe(10);
     },
   );
