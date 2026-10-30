@@ -1,18 +1,22 @@
 <script lang="ts">
   import './levelUp.css';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
-  import { subclassArtCandidates } from '../../services/levelUp/subclassArt';
+  import { artUrl } from '$lib/artUrl';
+  import { subclassArtNames } from '../../services/levelUp/subclassArt';
   import ChoiceGroup from '../wizard/ChoiceGroup.svelte';
   import ChoiceOption from '../wizard/ChoiceOption.svelte';
 
   let { ui }: { ui: LevelUpAssistantUi } = $props();
   const st = $derived(ui.st);
 
-  /** Nur das Bild dieser Subklasse — der Rückfall aufs Klassenbild sähe in jeder Zeile gleich aus. */
+  /**
+   * Nur das Bild dieser Subklasse — der Rückfall aufs Klassenbild sähe in jeder Zeile gleich aus.
+   * Gefiltert wird auf den Namen: Tauris `convertFileSrc` kodiert die `/` der URL.
+   */
   const optionArt = (key: string): string[] =>
-    subclassArtCandidates(key, {
+    subclassArtNames(key, {
       classKey: st.delta?.sourceKey ?? '', speciesKey: ui.character.species.sourceKey, presentation: ui.character.presentation,
-    }).filter((u) => u.includes('/subclasses/'));
+    }).filter((n) => n.includes('/subclasses/')).map(artUrl);
 </script>
 
 {#if st.delta}
