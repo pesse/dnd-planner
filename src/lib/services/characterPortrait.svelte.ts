@@ -1,6 +1,21 @@
 /** Ohne eigenes Portrait zeigt der Charakter das Stimmungsbild seiner Klasse×Volk-Kombination. */
 import type { Character } from '../schemas/characterSchema';
 import { originArtCandidates, resolveOriginArt } from './wizard/originArt';
+import { characterAssetSrc } from './characterSideFiles.svelte';
+
+export const fallbackPortraitCandidates = (c: Character): string[] =>
+  originArtCandidates('class', {
+    classKey: c.classes[0]?.sourceKey ?? '',
+    speciesKey: c.species.sourceKey,
+    backgroundKey: '',
+    presentation: c.presentation,
+  });
+
+/** Ein Bild für Listen, die nicht reaktiv nachladen: eigenes Portrait, sonst das Stimmungsbild. */
+export async function resolveCharacterPortrait(c: Character, dirPath: string): Promise<string | null> {
+  if (c.portraitFile) return (await characterAssetSrc(dirPath, c.portraitFile)) || null;
+  return resolveOriginArt(fallbackPortraitCandidates(c));
+}
 
 export function createCharacterPortrait(deps: {
   character: () => Character | null | undefined;
@@ -12,12 +27,7 @@ export function createCharacterPortrait(deps: {
   const candidates = $derived.by(() => {
     const c = deps.character();
     if (!c || c.portraitFile) return [];
-    return originArtCandidates('class', {
-      classKey: c.classes[0]?.sourceKey ?? '',
-      speciesKey: c.species.sourceKey,
-      backgroundKey: '',
-      presentation: c.presentation,
-    });
+    return fallbackPortraitCandidates(c);
   });
   // Als String, damit nicht jede Bearbeitung am Charakter das Bild neu auflöst und flackert.
   const key = $derived(candidates.join('|'));

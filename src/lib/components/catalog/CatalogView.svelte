@@ -185,6 +185,7 @@
                 <button
                   type="button"
                   class="icon"
+                  class:portrait={spec.portraits}
                   style="--ic:{row.iconColor}"
                   title="Vorschau"
                   onclick={(e) => { e.stopPropagation(); peekEntry(entryOf(row)); }}
@@ -379,6 +380,13 @@
     filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ic) 45%, transparent));
   }
   .icon img { display: block; width: 100%; height: 100%; }
+  .icon.portrait { height: 40px; filter: none; }
+  .icon.portrait img {
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--ic);
+    box-sizing: border-box;
+  }
 
   .empty {
     text-align: center;

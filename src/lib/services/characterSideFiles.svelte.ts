@@ -10,16 +10,24 @@ let imageToken = 0;
 
 // Über das Asset-Protokoll statt als Base64 durch die IPC: ein Porträt sind schnell 3 MB,
 // die als ~4 MB langer String über die Bridge gingen. `?v=` erzwingt frische Bytes — ein
-// ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL.
+// ersetztes Bild behält seinen Dateinamen, und der Webview cacht nach URL. Leer, wenn die
+// Datei nicht auflösbar ist.
+export async function characterAssetSrc(dir: string, name: string): Promise<string> {
+  try {
+    const abs = await invoke<string>('get_absolute_path', { path: `${dir}/${name}` });
+    return `${convertFileSrc(abs)}?v=${imageToken++}`;
+  } catch {
+    return '';
+  }
+}
+
 export function characterAssetUrl(dirPath: () => string, file: () => string | undefined): () => string {
   let url = $state('');
   $effect(() => {
     const dir = dirPath();
     const name = file();
     if (!name) { url = ''; return; }
-    invoke<string>('get_absolute_path', { path: `${dir}/${name}` })
-      .then((abs) => { url = `${convertFileSrc(abs)}?v=${imageToken++}`; })
-      .catch(() => { url = ''; });
+    void characterAssetSrc(dir, name).then((src) => { url = src; });
   });
   return () => url;
 }

@@ -66,6 +66,8 @@ export interface CatalogSpec {
   label: string;
   /** Benennt den Gruppenfilter („Typ", „Kategorie"). */
   groupLabel: string;
+  /** `icon` ist ein Hochformat-Bild statt eines freigestellten Symbols. */
+  portraits?: boolean;
   columns: Record<string, CatalogColumn>;
   /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
   columnSets: { '': string[] } & Record<string, string[]>;

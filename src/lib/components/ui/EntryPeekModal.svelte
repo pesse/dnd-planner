@@ -1,8 +1,8 @@
 <script lang="ts">
-  /** Vorschau eines Bibliothekseintrags, statt dorthin zu wechseln. */
+  /** Vorschau eines Bibliothekseintrags oder Charakters, statt dorthin zu wechseln. */
   import { invoke } from '@tauri-apps/api/core';
   import { fade, scale } from 'svelte/transition';
-  import { parseBackground, parseClass, parseFeat, normalizeItem, parseMonster, parseSpecies, parseSpell, type ParseResult } from '../../utils/schemaValidation';
+  import { parseBackground, parseCharacter, parseClass, parseFeat, normalizeItem, parseMonster, parseSpecies, parseSpell, type ParseResult } from '../../utils/schemaValidation';
   import type { FileEntry, Item } from '../../types';
   import SpellCardView from '../libraryView/SpellCardView.svelte';
   import FeatCardView from '../libraryView/FeatCardView.svelte';
@@ -11,6 +11,7 @@
   import BackgroundCardView from '../libraryView/BackgroundCardView.svelte';
   import ItemCardView from '../item/ItemCardView.svelte';
   import MonsterStatBlock from '../MonsterStatBlock.svelte';
+  import CharacterPeekCard from '../character/CharacterPeekCard.svelte';
   import { rarityColor } from '../../itemLabels';
 
   let { entry, onclose, onleave }: {
@@ -22,6 +23,7 @@
 
   const PARSERS = {
     spell: parseSpell, monster: parseMonster, feat: parseFeat, class: parseClass, species: parseSpecies, background: parseBackground,
+    character: parseCharacter,
     // Wie die Gegenstandsseite tolerant: strikt fiele Homebrew mit `cost: null` durch.
     item: (raw: unknown): ParseResult<Item> => ({ ok: true, data: normalizeItem(raw) }),
   } as const;
@@ -35,7 +37,8 @@
     | { type: 'class'; data: ReturnType<typeof parseClass> }
     | { type: 'species'; data: ReturnType<typeof parseSpecies> }
     | { type: 'background'; data: ReturnType<typeof parseBackground> }
-    | { type: 'item'; data: ParseResult<Item> };
+    | { type: 'item'; data: ParseResult<Item> }
+    | { type: 'character'; data: ReturnType<typeof parseCharacter> };
 
   let loaded = $state<Loaded | null>(null);
   let failed = $state(false);
@@ -79,6 +82,7 @@
       {:else if loaded.type === 'background'}<BackgroundCardView background={loaded.data.data} />
       {:else if loaded.type === 'item'}
         <ItemCardView item={loaded.data.data} color={rarityColor(loaded.data.data.rarity)} parseError={null} />
+      {:else if loaded.type === 'character'}<CharacterPeekCard character={loaded.data.data} dirPath={entry.dirPath ?? ''} />
       {/if}
     {:else}
       <p class="muted">{failed ? 'Für diesen Eintrag gibt es hier keine Vorschau.' : 'Lade …'}</p>

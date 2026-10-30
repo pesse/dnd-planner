@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { CHARACTERS_PATH, characterLabel, listCharacterDirs } from '../characterDirectory';
 import { formatClassLevel, formatSpecies, totalLevel } from '../../schemas/classLevelText';
 import { parseCharacter } from '../../utils/schemaValidation';
+import { resolveCharacterPortrait } from '../characterPortrait.svelte';
 import type { Character } from '../../schemas/characterSchema';
 import { byLabel, type CatalogCell, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
 
@@ -16,7 +17,7 @@ function numberCell(text: string): CatalogCell {
 const classFacets = (c: Character): CatalogFacetValue[] =>
   c.classes.filter((k) => k.name.trim()).map((k) => ({ id: k.sourceKey || k.name.trim(), label: k.name.trim() }));
 
-export function characterRow(uid: string, c: Character): CatalogRow {
+export function characterRow(uid: string, c: Character, portrait: string | null = null): CatalogRow {
   const level = totalLevel(c.classes);
   const species = formatSpecies(c.species) || c.race;
   const primary = classFacets(c)[0] ?? NO_CLASS;
@@ -26,8 +27,8 @@ export function characterRow(uid: string, c: Character): CatalogRow {
     entryName: characterLabel({ uid, name: c.name.trim() }),
     name: characterLabel({ uid, name: c.name.trim() }),
     group: primary.id,
-    icon: null,
-    iconColor: 'var(--ink-muted)',
+    icon: portrait,
+    iconColor: 'var(--gold)',
     cells: {
       classLevel: { text: formatClassLevel(c.classes) || c.classLevel },
       level: level ? { text: String(level), sort: level } : { text: '', sort: 0 },
@@ -60,6 +61,7 @@ export const characterCatalog: CatalogSpec = {
   type: 'character',
   label: 'Charaktere',
   groupLabel: 'Startklasse',
+  portraits: true,
   columns: {
     classLevel: { label: 'Klasse', wrap: true },
     level: { label: 'Stufe', numeric: true },
@@ -74,8 +76,10 @@ export const characterCatalog: CatalogSpec = {
   invalidate: () => {},
   async load() {
     const uids = await listCharacterDirs();
-    const loaded = await Promise.all(uids.map(async (uid) => ({ uid, c: await readCharacter(uid) })));
-    const rows = loaded.flatMap(({ uid, c }) => (c ? [characterRow(uid, c)] : []));
+    const rows = (await Promise.all(uids.map(async (uid) => {
+      const c = await readCharacter(uid);
+      return c ? characterRow(uid, c, await resolveCharacterPortrait(c, `${CHARACTERS_PATH}/${uid}`)) : null;
+    }))).filter((r): r is CatalogRow => !!r);
     const groups = new Map(rows.map((r) => [r.group, (r.facets.class as CatalogFacetValue[])[0] ?? NO_CLASS]));
     return { rows, groups: [...groups.values()].sort(byLabel) };
   },
