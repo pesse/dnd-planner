@@ -8,18 +8,21 @@
     attackBonusTip, attackDamageTip, attackForDiff, blankAttack,
     computeAttackBonus, computeAttackDamage, toggleAttackMode, type WeaponAttackContext,
   } from '../../services/attackCalc';
-  import { staleMagicBonus } from '../../services/attackEffects';
+  import { ownWeaponNotes, staleMagicBonus, type AttackFootnote } from '../../services/attackEffects';
+  import { attackFootnoteHtml } from '../../services/attackOrigin';
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import { textTip } from '../textTip.svelte';
   import './form.css';
 
-  let { attacks, ctx, saved, fixes = [] }: {
+  let { attacks, ctx, saved, fixes = [], notes = [] }: {
     attacks: Attack[];
     ctx: WeaponAttackContext;
     saved?: Character | null;
     fixes?: { label: string; onfix: () => void }[];
+    /** Gilt für alle Angriffe: Merkmale und per ⚔ gewählte Zauber. */
+    notes?: AttackFootnote[];
   } = $props();
 
   const gradeLabel = (level: number): string => (level === 0 ? 'Zaubertrick' : `Grad ${level}`);
@@ -28,8 +31,9 @@
 {#snippet modifierRows(atk: Attack)}
 <!-- Nicht-magische Effekte (Kampfstil, Segen …). Gehören hierher und nicht
      ins Feld „Magie", sonst wandert Nicht-Magisches in die Gegenstands-Logik. -->
+{#if atk.modifiers?.length}
 <div class="attack-mods">
-  {#each atk.modifiers ?? [] as m, j}
+  {#each atk.modifiers as m, j}
     <div class="am-row">
       <input class="am-label" bind:value={m.label} placeholder="Kampfstil „Bogenschießen“" />
       <label class="ac-field">Angriff
@@ -46,9 +50,19 @@
         onclick={() => atk.modifiers?.splice(j, 1)}>✕</button>
     </div>
   {/each}
-  <button type="button" class="am-add"
-    onclick={() => (atk.modifiers = [...(atk.modifiers ?? []), { label: '', attackBonus: 0, damageBonus: 0 }])}>+ Effekt</button>
 </div>
+{/if}
+{#each ownWeaponNotes(atk, ctx.declared) as n (n.text)}
+  <p class="atk-fx">{@html attackFootnoteHtml(n)}</p>
+{/each}
+{/snippet}
+
+{#snippet noteAndAdd(atk: Attack)}
+<label class="ac-field an-note">Notiz
+  <input bind:value={atk.note} placeholder="+1W6 jede lange Rast" />
+</label>
+<button type="button" class="am-add"
+  onclick={() => (atk.modifiers = [...(atk.modifiers ?? []), { label: '', attackBonus: 0, damageBonus: 0 }])}>+ Effekt</button>
 {/snippet}
 
 <table class="attack-table">
@@ -116,6 +130,7 @@
                   value={atk.magicBonus ?? 0}
                   oninput={(e) => (atk.magicBonus = parseInt(e.currentTarget.value) || 0)} />
               </label>
+              {@render noteAndAdd(atk)}
             </div>
             {@render modifierRows(atk)}
           </td>
@@ -143,24 +158,27 @@
                   value={atk.magicBonus ?? 0}
                   oninput={(e) => (atk.magicBonus = parseInt(e.currentTarget.value) || 0)} />
               </label>
+              {@render noteAndAdd(atk)}
             </div>
-
+            {@render modifierRows(atk)}
+          </td>
+        </tr>
+      {:else}
+        <tr class="attack-auto-row">
+          <td colspan="7">
+            <div class="auto-controls">{@render noteAndAdd(atk)}</div>
             {@render modifierRows(atk)}
           </td>
         </tr>
       {/if}
-      <tr class="attack-note-row">
-        <td colspan="7">
-          <div class="an-card" class:standalone={!atk.auto}>
-            <label class="ac-field an-note">Notiz
-              <input bind:value={atk.note} placeholder="+1W6 jede lange Rast" />
-            </label>
-          </div>
-        </td>
-      </tr>
     {/each}
   </tbody>
 </table>
+{#if notes.length}
+  <div class="atk-notes">
+    {#each notes as n (n.text)}<p class="atk-fx">{@html attackFootnoteHtml(n)}</p>{/each}
+  </div>
+{/if}
 <div class="inv-actions">
   <button class="btn-add" onclick={() => attacks.push(blankAttack())}>+ Angriff</button>
   {#each fixes as fix (fix.label)}
@@ -174,4 +192,10 @@
   .spell-name { white-space: nowrap; }
   .spell-name input { width: calc(100% - 1.2rem); }
   .spell-tag { margin-left: 0.25rem; color: var(--copper); cursor: help; }
+  .atk-fx { margin: 0; font-size: 0.72rem; font-style: italic; color: var(--ink-muted); }
+  .atk-fx :global(.atk-origin) { display: inline-block; width: 1em; margin-right: 0.3rem; vertical-align: -0.12em; }
+  .atk-fx :global(.atk-origin svg) { display: block; }
+  .atk-fx :global(b) { color: var(--ink-soft); }
+  .attack-auto-row .atk-fx { background: var(--surface); padding: 0.1rem 0.5rem 0.3rem; }
+  .atk-notes { display: flex; flex-direction: column; gap: 0.15rem; margin: 0 0.2rem 0.5rem; }
 </style>

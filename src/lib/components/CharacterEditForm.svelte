@@ -26,7 +26,7 @@
   import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
-  import { declaredAttackEffects } from '../services/attackEffects';
+  import { attackFootnoteLines, declaredAttackEffects } from '../services/attackEffects';
   import { spellAttackOptions, spellAttackSourceOf, spellRiderOptions, spellRiderSources } from '../services/spellAttacks';
   import { checkSources } from '../services/abilityChecks';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
@@ -86,6 +86,7 @@
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
   const spellRiders = $derived(casting.current ? spellRiderSources(casting.current.state, libs.spellIndex, form.attackRiderSpells) : []);
+  const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
   const riderChoices = $derived(casting.current ? spellRiderOptions(casting.current.state, libs.spellIndex) : []);
   const spellAttackChoices = $derived(casting.current ? spellAttackOptions(casting.current.state, libs.spellIndex) : []);
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
@@ -357,7 +358,7 @@
   {:else if section === 'attacks'}
     <section>
       <h3>Angriffe</h3>
-      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
+      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved} notes={attackNotes}
         fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
       />
     </section>

@@ -228,41 +228,27 @@
 .edit-form .mode-btn:hover { opacity: 1; }
 .edit-form .mode-btn.active { opacity: 1; }
 
-/* Ein Angriff sind bis zu drei Zeilen: Trennlinie davor, und alles unter der Wertezeile
-   liegt in einer durchgehenden Fläche, die die Notizzeile unten schließt. */
+/* Ein Angriff sind zwei Zeilen: Trennlinie davor, darunter eine Fläche mit Steuerung, Notiz,
+   eigenen Effekten und den Wirkungen der Waffe. */
 .edit-form .attack-row > td {
   border-top: 1px solid var(--border);
-  padding-top: 0.4rem;
+  padding-top: 0.3rem;
 }
 .edit-form .attack-table tbody > .attack-row:first-child > td { border-top: none; }
 .edit-form .attack-auto-row td {
-  padding: 0 0.2rem;
+  padding: 0 0.2rem 0.4rem;
 }
-.edit-form .attack-note-row td {
-  padding: 0 0.2rem 0.5rem;
-}
-.edit-form .an-card {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 4px 4px;
-  padding: 0.35rem 0.5rem;
-}
-.edit-form .an-card.standalone {
-  border-top: none;
-  border-radius: 4px;
-  margin-top: -0.1rem;
-}
-.edit-form .an-note { flex: 1; }
+.edit-form .attack-auto-row td > :first-child { border-radius: 4px 4px 0 0; }
+.edit-form .attack-auto-row td > :last-child { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
+.edit-form .an-note { flex: 1; min-width: 12rem; }
 .edit-form .an-note input { flex: 1; }
 .edit-form .auto-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  gap: 0.4rem 0.75rem;
   background: var(--surface);
-  /* Unten eckig: `.attack-mods` schließt direkt an und rundet dort ab. */
-  border-radius: 4px 4px 0 0;
-  padding: 0.35rem 0.5rem;
+  padding: 0.25rem 0.5rem;
   margin-top: -0.1rem;
 }
 .edit-form .ac-field {
@@ -291,7 +277,7 @@
   gap: 0.3rem;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 0.35rem 0.5rem;
+  padding: 0.25rem 0.5rem;
 }
 .edit-form .am-row {
   display: flex;
@@ -301,7 +287,6 @@
 .edit-form .am-label { flex: 1; min-width: 8rem; }
 .edit-form .am-num { width: 3.5rem !important; }
 .edit-form .am-add {
-  align-self: flex-start;
   background: none;
   border: none;
   padding: 0;
