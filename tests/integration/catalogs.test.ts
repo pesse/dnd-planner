@@ -68,6 +68,17 @@ describe('Katalog-Werte', () => {
     expect(enspelled?.cells.rarity.text).toBe('variiert');
   });
 
+  it.each([
+    ['Antitoxin', 'adventuring-gear'],
+    ['Case, Map or Scroll', 'adventuring-gear'],
+    ['Airship', 'airborne-vehicle'],
+  ])('%s liegt als nicht-magischer Gegenstand in %s', async (name, group) => {
+    const { rows } = await CATALOGS.item.load();
+    const row = rows.find((r) => r.altName === name);
+    expect(row?.group).toBe(group);
+    expect(row?.facets.magic?.id).toBe('mundane');
+  });
+
   it('Einstimmung als Haken', async () => {
     const { rows } = await CATALOGS.item.load();
     const attuned = rows.find((r) => r.altName === 'Gauntlets of Ogre Power');

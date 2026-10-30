@@ -110,7 +110,7 @@ export const itemCatalog: CatalogSpec = {
     armor: ['armorKind', 'ac', 'strength', 'stealth', 'rarity', 'cost', 'weight'],
     potion: MAGIC, ring: MAGIC, rod: MAGIC, scroll: MAGIC, staff: MAGIC, wand: MAGIC, 'wondrous-item': MAGIC,
     'adventuring-gear': MUNDANE, tools: MUNDANE, 'equipment-pack': MUNDANE, 'spellcasting-focus': MUNDANE,
-    mount: MUNDANE, 'land-vehicle': MUNDANE, 'waterborne-vehicle': MUNDANE,
+    mount: MUNDANE, 'land-vehicle': MUNDANE, 'waterborne-vehicle': MUNDANE, 'airborne-vehicle': MUNDANE,
   },
   facets: { magic: 'Magie', rarity: 'Seltenheit', source: 'Quelle' },
   invalidate: () => invalidateItemCache(),

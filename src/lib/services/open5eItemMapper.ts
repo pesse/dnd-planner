@@ -108,6 +108,16 @@ function applyArmor(item: Item, a: Open5eArmor): void {
   item.stealth_disadvantage = Boolean(a.grants_stealth_disadvantage);
 }
 
+/**
+ * Open5e legt ein paar Alltagsgegenstände in Magie-Kategorien ab, wo sie als magisch gälten;
+ * das SRD 5.2 führt sie als Ausrüstung bzw. Fahrzeug. Ohne die Korrektur schöbe jeder Re-Import sie zurück.
+ */
+const CATEGORY_FIXES: Record<string, Item['equipment_category']> = {
+  'srd-2024_antitoxin': { index: 'adventuring-gear', name: 'Adventuring Gear' },
+  'srd-2024_case-map-or-scroll': { index: 'adventuring-gear', name: 'Adventuring Gear' },
+  'srd-2024_airship': { index: 'airborne-vehicle', name: 'Airborne Vehicle' },
+};
+
 /** `name_de`/`desc_de` bleiben ungesetzt — Open5e ist englisch, DE wird separat gepflegt. */
 export function mapOpen5eItem(raw: Record<string, unknown>): Item {
   const doc = raw.document as { key?: string; gamesystem?: { key?: string } } | undefined;
@@ -121,7 +131,7 @@ export function mapOpen5eItem(raw: Record<string, unknown>): Item {
     key,
     index: keySlug(baseKey),
     name: String(raw.name ?? ''),
-    equipment_category: {
+    equipment_category: CATEGORY_FIXES[key] ?? {
       index: String(category?.key ?? 'adventuring-gear'),
       name: String(category?.name ?? 'Adventuring Gear'),
     },

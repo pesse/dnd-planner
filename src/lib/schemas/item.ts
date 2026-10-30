@@ -53,7 +53,7 @@ export const itemSchema = z.object({
   equipment_category: namedRef().describe(
     'Kategorie als {index, name} im Open5e-v2-Format — die EINZIGE Typ-Quelle. ' +
       'index ist einer von: adventuring-gear, ammunition, armor, art, equipment-pack, gem, jewelry, ' +
-      'land-vehicle, mount, poison, potion, ring, rod, scroll, service, shield, spellcasting-focus, ' +
+      'airborne-vehicle, land-vehicle, mount, poison, potion, ring, rod, scroll, service, shield, spellcasting-focus, ' +
       'staff, tools, trade-good, wand, waterborne-vehicle, weapon, wondrous-item. ' +
       'Eine magische Waffe bleibt "weapon"; Magie wird über rarity/attunement/magic_bonus ausgedrückt, NICHT über die Kategorie.',
   ),
