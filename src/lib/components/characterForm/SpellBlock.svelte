@@ -19,10 +19,15 @@
   import SpellTooltip from '../SpellTooltip.svelte';
   import SpellPickModal from '../SpellPickModal.svelte';
   import SpellCreateModal from '../SpellCreateModal.svelte';
-  import type { Character } from '../../schemas/characterSchema';
+  import type { Attack, Character } from '../../schemas/characterSchema';
+  import type { WeaponAttackContext } from '../../services/attackCalc';
+  import { spellAttackIndexOf, toggleSpellAttack, type SpellAttackOption } from '../../services/spellAttacks';
   import './form.css';
 
-  let { form, casting, castingError = '', spellLibrary, saved, fixLabel, onfix, onlibraryreload }: {
+  let {
+    form, casting, castingError = '', spellLibrary, saved, fixLabel, onfix, onlibraryreload,
+    attacks, attackCtx, spellAttacks,
+  }: {
     form: CharacterFormFields;
     casting: LoadedSpellcasting | null;
     castingError?: string;
@@ -31,6 +36,10 @@
     fixLabel?: string;
     onfix: () => void;
     onlibraryreload: () => Promise<void> | void;
+    attacks: Attack[];
+    attackCtx: WeaponAttackContext;
+    /** Zauber des Charakters mit `attack`-Block; leer, solange das Zauberwirken lädt. */
+    spellAttacks: SpellAttackOption[];
   } = $props();
 
   const block = $derived(form.spellcasting);
@@ -56,8 +65,22 @@
   const modalKnown = $derived(view && picking ? pickerKnown(view, picking) : NO_KNOWN_SPELLS);
 
   function applyPicks(quota: SpellQuotaGroup, keys: string[]) {
+    const before = quotaPicks(quota);
     setPicks(block, quota.sourceId, quota.quotaId, keys);
     form.spellcasting = { ...block };
+    for (const key of before) if (!keys.includes(key)) dropAttackIfGone(key);
+  }
+
+  const attackOptionOf = (key: string): SpellAttackOption | undefined => spellAttacks.find((o) => o.key === key);
+
+  // Wie beim Inventar: wer den Zauber nicht mehr hat, verliert seine Angriffszeile.
+  // Feste Kontingente zählen mit, sie stehen nicht in `picks`.
+  function dropAttackIfGone(key: string) {
+    const stillOwned = Object.values(block.sources).some((s) => Object.values(s.picks).some((l) => l.includes(key)))
+      || (block.manual?.extra ?? []).includes(key)
+      || (view?.sources ?? []).some((s) => s.quotas.some((q) => q.fixed && q.spells.some((x) => x.key === key)));
+    const at = stillOwned ? -1 : spellAttackIndexOf(attacks, key);
+    if (at >= 0) attacks.splice(at, 1);
   }
 
   // Aus `block` und NICHT aus `quota.spells`: `picking` friert das Kontingent der damaligen
@@ -76,6 +99,7 @@
   function dropExtra(key: string) {
     removeExtra(block, key);
     form.spellcasting = { ...block };
+    dropAttackIfGone(key);
   }
 
   async function onSpellCreated(canonical: string) {
@@ -100,6 +124,16 @@
     ),
   );
 </script>
+
+{#snippet attackToggle(key: string)}
+  {@const option = attackOptionOf(key)}
+  {#if option}
+    {@const inAttacks = spellAttackIndexOf(attacks, key) >= 0}
+    <button type="button" class="atk-toggle" class:active={inAttacks}
+      title={inAttacks ? 'Aus der Angriffe-Tabelle entfernen' : 'In die Angriffe-Tabelle eintragen'}
+      onclick={() => toggleSpellAttack(attacks, option, attackCtx)}>⚔</button>
+  {/if}
+{/snippet}
 
 {#if fixLabel}
   <button class="btn-link-all" onclick={onfix}
@@ -156,6 +190,7 @@
             {#each quota.spells as spell (spell.key)}
               <span class="tag" style="color:{spellColor(spell.key) || 'inherit'}"
                 class:fresh={!savedKeys.has(spell.key) && !quota.fixed}>
+                {@render attackToggle(spell.key)}
                 <span class="spell-link" class:linked={!!infoOf(spell.key)?.path}
                   role="button" tabindex="0"
                   onclick={() => openSpellPage(spell.key)}
@@ -185,6 +220,7 @@
   <div class="tag-editor">
     {#each view.extra as spell (spell.key)}
       <span class="tag" style="color:{spellColor(spell.key) || 'inherit'}">
+        {@render attackToggle(spell.key)}
         <span class="spell-link" class:linked={!!infoOf(spell.key)?.path}
           role="button" tabindex="0"
           onclick={() => openSpellPage(spell.key)}
@@ -257,6 +293,9 @@
   .quota-cast { font-size: 0.7rem; color: var(--ink-faint); }
   .tag-editor { flex: 1 1 12rem; }
   .tag.fresh { outline: 1px solid var(--gold); }
+  .tag .atk-toggle { color: var(--ink-faint); border: 1px solid transparent; border-radius: 3px; padding: 0 0.15rem; font-size: 0.72rem; }
+  .tag .atk-toggle:hover { color: var(--ink-soft); border-color: var(--border); }
+  .tag .atk-toggle.active { color: var(--red); border-color: var(--border-strong); background: var(--bg-raised); }
   .extra-add { display: flex; flex-direction: column; gap: 0.25rem; max-width: 22rem; }
   .extra-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .extra-list button {

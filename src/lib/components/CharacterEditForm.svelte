@@ -356,7 +356,7 @@
   {:else if section === 'attacks'}
     <section>
       <h3>Angriffe</h3>
-      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved} spellOptions={spellAttackChoices}
+      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
         fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
       />
     </section>
@@ -411,6 +411,9 @@
         fixLabel={fixOf('spells')?.label}
         onfix={() => applyFix(fixOf('spells'))}
         onlibraryreload={() => libs.reloadSpells()}
+        attacks={form.attacks}
+        attackCtx={weaponCtx}
+        spellAttacks={spellAttackChoices}
       />
     </section>
 

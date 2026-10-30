@@ -9,36 +9,18 @@
     computeAttackBonus, computeAttackDamage, toggleAttackMode, type WeaponAttackContext,
   } from '../../services/attackCalc';
   import { staleMagicBonus } from '../../services/attackEffects';
-  import { buildAttackFromSpell, type SpellAttackOption } from '../../services/spellAttacks';
-  import { ABILITY_ABBR_DE, ABILITY_KEYS, type AbilityKey } from '../../schemas/abilities';
+  import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
   import { classifyChange, diffMark } from '../../utils/diffHighlight';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import { textTip } from '../textTip.svelte';
   import './form.css';
 
-  let { attacks, ctx, saved, fixes = [], spellOptions = [] }: {
+  let { attacks, ctx, saved, fixes = [] }: {
     attacks: Attack[];
     ctx: WeaponAttackContext;
     saved?: Character | null;
     fixes?: { label: string; onfix: () => void }[];
-    /** Zauber des Charakters mit `attack`-Block; leer, solange das Zauberwirken lädt. */
-    spellOptions?: SpellAttackOption[];
   } = $props();
-
-  const listed = $derived(new Set(attacks.flatMap((a) => (a.spell ? [a.spell.key] : []))));
-  const freeSpells = $derived(spellOptions.filter((o) => !listed.has(o.key)));
-
-  /** Ohne Quelle (Homebrew-Extra) das stärkste Zauberattribut — änderbar in der Zeile. */
-  function abilityFor(o: SpellAttackOption): AbilityKey {
-    if (o.ability) return o.ability;
-    const mods = ctx.spells?.mods;
-    return (['int', 'wis', 'cha'] as const).reduce((best, k) => ((mods?.[k] ?? 0) > (mods?.[best] ?? 0) ? k : best));
-  }
-
-  function addSpell(key: string) {
-    const o = spellOptions.find((x) => x.key === key);
-    if (o) attacks.push(buildAttackFromSpell(o.info, abilityFor(o), ctx));
-  }
 
   const gradeLabel = (level: number): string => (level === 0 ? 'Zaubertrick' : `Grad ${level}`);
 </script>
@@ -181,15 +163,6 @@
 </table>
 <div class="inv-actions">
   <button class="btn-add" onclick={() => attacks.push(blankAttack())}>+ Angriff</button>
-  {#if freeSpells.length}
-    <select class="spell-add" value=""
-      onchange={(e) => { addSpell(e.currentTarget.value); e.currentTarget.value = ''; }}>
-      <option value="" disabled>+ Zauber als Angriff …</option>
-      {#each freeSpells as o (o.key)}
-        <option value={o.key}>{o.info.name} ({gradeLabel(o.info.level)})</option>
-      {/each}
-    </select>
-  {/if}
   {#each fixes as fix (fix.label)}
     <button class="btn-link-all" onclick={fix.onfix} title="Wird beim Speichern übernommen.">
       🔗 {fix.label}
@@ -201,5 +174,4 @@
   .spell-name { white-space: nowrap; }
   .spell-name input { width: calc(100% - 1.2rem); }
   .spell-tag { margin-left: 0.25rem; color: var(--copper); cursor: help; }
-  .spell-add { width: auto; font-size: 0.8rem; }
 </style>

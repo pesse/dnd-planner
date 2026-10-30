@@ -100,3 +100,19 @@ export function buildAttackFromSpell(info: SpellInfo, ability: AbilityKey, ctx: 
   atk.damage = computeAttackDamage(atk, ctx);
   return atk;
 }
+
+export const spellAttackIndexOf = (attacks: Attack[], key: string): number =>
+  attacks.findIndex((a) => a.spell?.key === key);
+
+/** Ohne Quelle (Homebrew-Extra) das stärkste Zauberattribut — änderbar in der Zeile. */
+function abilityFor(o: SpellAttackOption, ctx: AttackCalcContext): AbilityKey {
+  if (o.ability) return o.ability;
+  const mods = ctx.spells?.mods;
+  return (['int', 'wis', 'cha'] as const).reduce((best, k) => ((mods?.[k] ?? 0) > (mods?.[best] ?? 0) ? k : best));
+}
+
+export function toggleSpellAttack(attacks: Attack[], o: SpellAttackOption, ctx: AttackCalcContext): void {
+  const at = spellAttackIndexOf(attacks, o.key);
+  if (at >= 0) attacks.splice(at, 1);
+  else attacks.push(buildAttackFromSpell(o.info, abilityFor(o, ctx), ctx));
+}

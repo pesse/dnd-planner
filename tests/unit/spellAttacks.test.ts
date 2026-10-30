@@ -9,7 +9,7 @@ import { attackEffectSources, attackFootnotes, type DeclaredAttackEffects } from
 import {
   attackBonusParts, attackDamageParts, blankAttack, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
 } from '../../src/lib/services/attackCalc';
-import { buildAttackFromSpell, spellAttackSourceOf, spellRidersOf } from '../../src/lib/services/spellAttacks';
+import { buildAttackFromSpell, spellAttackSourceOf, spellRidersOf, toggleSpellAttack } from '../../src/lib/services/spellAttacks';
 import { spellAttackSummary } from '../../src/lib/services/spellAttackCalc';
 import { buildSpellIndex, type SpellInfo } from '../../src/lib/spellLibrary';
 import type { Attack } from '../../src/lib/schemas/characterSchema';
@@ -142,6 +142,17 @@ describe('Zusatzwürfel aus Zaubern', () => {
   it('steht als Fußnote unter der Tabelle', () => {
     expect(attackFootnotes([], [{ name: HUNTERS_MARK.name, effects: spellRidersOf(HUNTERS_MARK) }]))
       .toEqual(['Zeichen des Jägers +1W6 Energieschaden: gegen das markierte Ziel']);
+  });
+});
+
+describe('⚔ am Zauber', () => {
+  it('trägt die Zeile ein und nimmt sie wieder heraus; ohne Quelle gilt das stärkste Zauberattribut', () => {
+    const attacks: Attack[] = [];
+    const option = { key: 'fire-bolt', ability: null, sourceLabel: 'Ohne Quelle', info: FIRE_BOLT };
+    toggleSpellAttack(attacks, option, ctx(5));
+    expect(attacks.map((a) => a.spell)).toEqual([{ key: 'fire-bolt', ability: 'int' }]);
+    toggleSpellAttack(attacks, option, ctx(5));
+    expect(attacks).toEqual([]);
   });
 });
 
