@@ -1,6 +1,6 @@
 import { getMonsterLibrary, invalidateMonsterLibrary } from '../../monsterLibrary';
 import { monsterArtUrl } from '../../libraryArt';
-import { monsterSizeLabel, monsterTypeLabel } from '../../types';
+import { monsterAlignmentLabel, monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
 import { byLabel, sourceFacet, type CatalogSpec } from './catalogTypes';
@@ -14,10 +14,11 @@ export const monsterCatalog: CatalogSpec = {
   columns: {
     cr: { label: 'HG', numeric: true },
     size: { label: 'Größe' },
+    alignment: { label: 'Gesinnung' },
     ac: { label: 'RK', numeric: true },
     hp: { label: 'TP', numeric: true },
   },
-  columnSets: { '': ['cr', 'size', 'ac', 'hp'] },
+  columnSets: { '': ['cr', 'size', 'alignment', 'ac', 'hp'] },
   facets: { source: 'Quelle' },
   invalidate: invalidateMonsterLibrary,
   async load() {
@@ -33,6 +34,7 @@ export const monsterCatalog: CatalogSpec = {
       cells: {
         cr: { text: crLabel(m.challenge_rating), sort: m.challenge_rating },
         size: { text: monsterSizeLabel(m.size), sort: MONSTER_SIZE_KEYS.indexOf(m.size) },
+        alignment: { text: monsterAlignmentLabel(m.alignment) },
         ac: { text: String(m.armor_class), sort: m.armor_class },
         hp: { text: String(m.hit_points), sort: m.hit_points },
       },
