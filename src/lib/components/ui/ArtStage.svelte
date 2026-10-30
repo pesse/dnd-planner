@@ -18,8 +18,8 @@
 <div class="stage" class:with-art={!!art}>
   {#if art}
     {#key art}
-      <figure class="art" in:fly={{ x: 40, duration: 800 }} out:fade={{ duration: 350 }}>
-        <img src={art} alt="" class:mirrored={isMirroredArt(art)} />
+      <figure class="art" out:fade={{ duration: 350 }}>
+        <img src={art} alt="" class:mirrored={isMirroredArt(art)} in:fly={{ x: 40, duration: 800 }} />
       </figure>
     {/key}
   {/if}
@@ -46,6 +46,8 @@
     grid-area: 1 / 2; position: sticky; top: 0; justify-self: center;
     margin: 0 calc(-1 * var(--fw-pad-x, 0px)) 0 0;
     width: min(var(--art-w), 100% + var(--fw-pad-x, 0px)); height: calc(100vh - 12rem); pointer-events: none;
+    /* Das Einfliegen des Bildes würde sonst die Spalte verbreitern: kurzer horizontaler Scrollbalken. */
+    overflow: clip;
     /* Links weich zur Karte hin, rechts kaum: Die Serie blickt nach rechts, dort sitzen die Gesichter. */
     mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 84%, transparent 100%),
       linear-gradient(to bottom, transparent 0%, #000 10%, #000 78%, transparent 100%);
