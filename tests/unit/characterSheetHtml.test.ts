@@ -110,12 +110,21 @@ describe('HTML-Charakterbogen', () => {
     expect(buildCharacterSheetHtml(d, withoutOverview).match(/<div class="page">/g)).toHaveLength(1);
   });
 
+  it('hält für Übersicht ohne Folgeseite eine verborgene Auffangseite bereit', () => {
+    const d = dataFor(allProficienciesCharacter);
+    const onlyOverview = Object.fromEntries(sheetSections(d).map((s) => [s.id, s.page === 'overview']));
+    const html = buildCharacterSheetHtml(d, onlyOverview);
+
+    expect(html).toMatch(/<\/section><div class="page o-spill" hidden>/);
+    expect(html).toContain('<script>');
+  });
+
   it('entwertet Zeichen, die sonst Markup wären', () => {
     const tricky = characterSchema.parse({ ...allProficienciesCharacter, name: 'Bob & <script>' });
 
     const html = build(dataFor(tricky));
     expect(html).toContain('Bob &amp; &lt;script&gt;');
-    expect(html).not.toContain('<script>');
+    expect(html.match(/<script>/g)).toHaveLength(1);
   });
 
   it('zählt den Vorrat als Kästchen und den Hinterhältigen Angriff als Wert', () => {

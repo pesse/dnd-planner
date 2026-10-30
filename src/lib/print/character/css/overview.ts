@@ -16,6 +16,8 @@ export const OVERVIEW_CSS = `
     "extra extra main";
   gap: 2mm;
   min-height: 285mm;
+  /* A4 − 2×4mm @page-Rand = 202mm. Fest, weil overviewSpill im Druck-Iframe misst — und das ist 0px breit. */
+  width: 202mm;
 }
 
 /* Kasten mit Beschriftung auf der oberen Rahmenlinie */
@@ -96,6 +98,9 @@ export const OVERVIEW_CSS = `
 /* Im Raster steht der Block als Kasten, nicht als Absatz im Spaltenfluss. */
 .o-extra .block { margin-bottom: 0; }
 .o-notes { flex: 1; min-height: 14mm; }
+/* Auf die Folgeseite gewandert (overviewSpill): Kasten im Spaltenfluss statt im Raster. */
+.o-spilled { break-inside: avoid; margin-bottom: 2.6mm; }
+.o-spilled.o-notes .o-ruled { height: 25mm; }
 .o-ruled { flex: 1; margin: 0.8mm 0.6mm 0;
            background-image: repeating-linear-gradient(var(--paper) 0 6.2mm,
              var(--rule-soft) 6.2mm 6.35mm); }

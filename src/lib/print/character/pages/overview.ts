@@ -17,6 +17,7 @@ import type { AttackFootnote } from '$lib/services/attackEffects';
 import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
 import { renderAuras, renderDefenses, renderMasteries, renderMovement } from './extras';
+import { spillPage } from './overviewSpill';
 
 /** Ein Kasten mit der Beschriftung auf der oberen Rahmenlinie, wie die Blöcke. */
 const frame = (caption: string, body: string, cls = ''): string =>
@@ -231,5 +232,5 @@ export function renderOverview(d: CharacterPrintData): string {
       ${vitalsBox(d)}
       ${attacksBox(d)}
     </div>
-  </section>`;
+  </section>${spillPage(d.character.name)}`;
 }

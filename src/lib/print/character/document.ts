@@ -11,6 +11,7 @@ import { OVERVIEW_CSS } from './css/overview';
 import { PAGE_CSS } from './css/page';
 import { esc } from './html';
 import { sheetSections, type SheetPageId, type SheetSection } from './sections';
+import { SPILL_SCRIPT } from './pages/overviewSpill';
 
 export interface SheetSelection {
   [sectionId: string]: boolean;
@@ -59,6 +60,6 @@ export function buildCharacterSheetHtml(d: CharacterPrintData, selection: SheetS
 <title>${esc(d.character.name)} – Charakterbogen</title>
 <style>${PAGE_CSS}${OVERVIEW_CSS}${BLOCK_CSS}${FRAME_CSS}${cards}</style>
 </head>
-<body>${pages}</body>
+<body>${pages}<script>${SPILL_SCRIPT}</script></body>
 </html>`;
 }
