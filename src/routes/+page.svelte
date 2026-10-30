@@ -25,6 +25,7 @@
   import { cardTypeOf } from '$lib/components/cardRegistry';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { runStartupTasks } from '$lib/services/startupTasks';
+  import { deleteActiveEntry } from '$lib/services/deleteEntry';
   import { fileContent, activeFile, activeCampaign, historyState, undoContent, redoContent } from '$lib/stores/campaign';
   import { dragPanelWidth } from '$lib/utils/panelResize';
   import { onMount } from 'svelte';
@@ -55,6 +56,13 @@
   let activeContextAction = $state<ContextAction | null>(null);
 
   let showCampaignPrint = $state(false);
+
+  let entryLabel = $derived.by(() => {
+    if (!$activeFile) return '';
+    if ($activeFile.type === 'campaign') return $activeCampaign?.name ?? '';
+    const name = $activeFile.name.replace('.md', '');
+    return $activeFile.type === 'act' ? extractActTitle($fileContent, name) : name;
+  });
 
   function openPrint() {
     if ($activeFile?.type === 'campaign') { showCampaignPrint = true; return; }
@@ -155,6 +163,9 @@
           disabled={!$historyState.canRedo}
           title="Wiederherstellen (Ctrl+Y)"
         >↪</button>
+        {#if $activeFile}
+          <button class="delete-entry" onclick={() => deleteActiveEntry(entryLabel)}>🗑 Löschen</button>
+        {/if}
       </div>
 
       {#if showCharBar}
@@ -317,10 +328,6 @@
     opacity: 0.45;
     pointer-events: none;
     z-index: 1;
-  }
-
-  .toolbar-sep {
-    flex: 1;
   }
 
   .history-btn {

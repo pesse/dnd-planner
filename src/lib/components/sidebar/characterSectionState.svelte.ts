@@ -3,7 +3,6 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { navigateTo } from '../../services/navigation';
-import { deleteEntry } from '../../services/sidebar/deleteEntry';
 import { createBlankCharacter, createWizardCharacter } from '../../services/characterCreate';
 import {
   CHARACTERS_PATH,
@@ -137,11 +136,6 @@ export class CharacterSectionState {
     this.expanded = true;
     await this.load();
     await this.openCharacter({ name: uid, is_dir: true });
-  }
-
-  deleteCharacter(entry: EntryInfo): void {
-    const label = this.meta[entry.name]?.name ?? entry.name.replace('.md', '');
-    deleteEntry(`${CHARACTERS_PATH}/${entry.name}`, label, entry.is_dir, () => this.load());
   }
 }
 

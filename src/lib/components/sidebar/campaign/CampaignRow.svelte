@@ -1,9 +1,7 @@
 <script lang="ts">
   import { activeCampaign } from '../../../stores/campaign';
-  import { deleteEntry } from '../../../services/sidebar/deleteEntry';
-  import DelButton from './DelButton.svelte';
   import SectionBlock from './SectionBlock.svelte';
-  import { campaignDirPath, SECTIONS, type CampaignTreeState } from './campaignTreeState.svelte';
+  import { SECTIONS, type CampaignTreeState } from './campaignTreeState.svelte';
   import type { Campaign } from '../../../types';
   import '../tree.css';
 
@@ -11,16 +9,13 @@
 </script>
 
 <div class="campaign-section">
-  <div class="entry-row">
-    <button
-      class="campaign-title"
-      class:active={$activeCampaign?.id === campaign.id}
-      onclick={() => tree.selectCampaign(campaign)}
-    >
-      {campaign.name}
-    </button>
-    <DelButton ondelete={() => deleteEntry(campaignDirPath(campaign.path), campaign.name, true, () => tree.afterDeleteCampaign(campaign.path))} />
-  </div>
+  <button
+    class="campaign-title"
+    class:active={$activeCampaign?.id === campaign.id}
+    onclick={() => tree.selectCampaign(campaign)}
+  >
+    {campaign.name}
+  </button>
 
   {#if $activeCampaign?.id === campaign.id}
     {#each SECTIONS as section}

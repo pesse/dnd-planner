@@ -2,7 +2,6 @@
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { navigateTo } from '../../services/navigation';
-  import { deleteEntry } from '../../services/sidebar/deleteEntry';
   import type { LibraryEntry, LibrarySection } from '../../services/sidebar/librarySections';
   import SectionHeader from './SectionHeader.svelte';
   import './tree.css';
@@ -47,39 +46,21 @@
     <div class="file-list">
       {#if entries.length}
         {#each entries as entry}
-          <div class="entry-row">
-            <button
-              class="file-entry lib-entry"
-              class:active={$activeFile?.path === entry.path}
-              onclick={() => entry.path && open(entry.path)}
-            >
-              {section.icon} {entry.name}
-            </button>
-            {#if entry.path}
-              <button
-                class="entry-del"
-                title="Löschen"
-                onclick={(e) => { e.stopPropagation(); deleteEntry(entry.path!, entry.name, false, load); }}
-              >🗑</button>
-            {/if}
-          </div>
+          <button
+            class="file-entry lib-entry"
+            class:active={$activeFile?.path === entry.path}
+            onclick={() => entry.path && open(entry.path)}
+          >
+            {section.icon} {entry.name}
+          </button>
           {#each entry.children ?? [] as sub}
-            <div class="entry-row">
-              <button
-                class="file-entry class-subentry"
-                class:active={$activeFile?.path === sub.path}
-                onclick={() => sub.path && open(sub.path)}
-              >
-                ↳ {sub.name}
-              </button>
-              {#if sub.path}
-                <button
-                  class="entry-del"
-                  title="Löschen"
-                  onclick={(e) => { e.stopPropagation(); deleteEntry(sub.path!, sub.name, false, load); }}
-                >🗑</button>
-              {/if}
-            </div>
+            <button
+              class="file-entry class-subentry"
+              class:active={$activeFile?.path === sub.path}
+              onclick={() => sub.path && open(sub.path)}
+            >
+              ↳ {sub.name}
+            </button>
           {/each}
         {/each}
       {:else}

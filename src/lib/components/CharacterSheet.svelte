@@ -28,6 +28,7 @@
   import { abilityRecordOf } from '../schemas/abilities';
   import { hpDerivation } from '../services/hitPointDerivation';
   import { combatTips, hpTip, NO_COMBAT_TIPS } from '../services/characterSheetTips';
+  import { deleteActiveEntry } from '../services/deleteEntry';
   import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
@@ -140,7 +141,8 @@
 <div class="sheet">
   {#if character}
     <SheetHeader {character} portraitUrl={portraitUrl()}
-      onPrint={() => (showPrint = true)} onLevelUp={() => (showLevelUp = true)} />
+      onPrint={() => (showPrint = true)} onLevelUp={() => (showLevelUp = true)}
+      onDelete={() => deleteActiveEntry(character!.name)} />
 
     {#if showPrint}
       <SheetPrintDialog onclose={() => (showPrint = false)}

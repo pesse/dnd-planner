@@ -3,10 +3,9 @@
  * Akt/Sessions/NPC/Welt/Notizen-Sektionen und die Encounter je Akt.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { get } from 'svelte/store';
 import { activeCampaign } from '../../../stores/campaign';
 import { confirmNavigation } from '../../../stores/navigationGuard';
-import { closeActive, navigateTo } from '../../../services/navigation';
+import { navigateTo } from '../../../services/navigation';
 import { loadActSummaries, loadEncounterContext } from '../../../stores/context';
 import { listActDirs, moveAct } from '../../../services/actOrder';
 import { extractActTitle } from '../../../utils/actExtract';
@@ -42,7 +41,6 @@ export const encounterPathOf = (campaignPath: string, actDirName: string, filena
   `${encounterDirOf(campaignPath, actDirName)}/${filename}`;
 export const sectionEntryPath = (campaignPath: string, section: CampaignSection, filename: string): string =>
   section.type === 'act' ? actIndexPath(campaignPath, filename) : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
-export const campaignDirPath = (campaignPath: string): string => `${VAULT_BASE}/${campaignPath}`;
 
 export class CampaignTreeState {
   campaigns = $state<Campaign[]>([]);
@@ -69,15 +67,6 @@ export class CampaignTreeState {
     } catch {
       this.campaigns = [];
     }
-  }
-
-  /** Aktive Kampagne räumen, wenn genau sie gelöscht wurde — sonst zeigt der Bogen ins Leere. */
-  async afterDeleteCampaign(campaignPath: string): Promise<void> {
-    if (get(activeCampaign)?.path === campaignPath) {
-      activeCampaign.set(null);
-      closeActive();
-    }
-    await this.loadCampaigns();
   }
 
   async createCampaign(e: KeyboardEvent | MouseEvent): Promise<void> {

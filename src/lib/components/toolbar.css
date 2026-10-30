@@ -39,3 +39,17 @@
   cursor: pointer;
   font-size: 0.85rem;
 }
+
+.main > .toolbar .toolbar-sep {
+  flex: 1;
+}
+
+.main > .toolbar button.delete-entry {
+  margin-left: 0.75rem;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.main > .toolbar button.delete-entry:hover {
+  background: var(--danger);
+  color: var(--bg);
+}

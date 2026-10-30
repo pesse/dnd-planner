@@ -3,7 +3,6 @@
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { navigateTo } from '../../services/navigation';
-  import { deleteEntry } from '../../services/sidebar/deleteEntry';
   import { catalogEntry } from '../../services/catalog/catalogTypes';
   import type { GroupedSection, TreeGroup, TreeLeaf } from '../../services/sidebar/groupedSections';
   import SectionHeader from './SectionHeader.svelte';
@@ -65,13 +64,6 @@
     for (const g of groups) if (openGroups[g.id]) await loadLeaves(g.id);
   }
 
-  async function reloadGroup(id: string) {
-    section.invalidate?.(id);
-    if (!section.loadLeaves) { await loadGroups(); return; }
-    delete leavesByGroup[id];
-    await loadLeaves(id);
-  }
-
   async function toggle() {
     expanded = !expanded;
     if (expanded) await loadGroups();
@@ -117,22 +109,15 @@
 
 <!-- `flat` = Suchtreffer oder zweite Gruppierung: dort nennt der Titel die Herkunftsgruppe. -->
 {#snippet leafRow(leaf: TreeLeaf, flat: boolean)}
-  <div class="entry-row">
-    <button
-      class="file-entry monster-subentry"
-      class:active={$activeFile?.path?.endsWith(leaf.suffix)}
-      onclick={() => open(leaf)}
-      title={flat ? leaf.groupId : undefined}
-    >
-      {@render badgeMark(leaf.badge)}
-      {leaf.label}
-    </button>
-    <button
-      class="entry-del"
-      title="Löschen"
-      onclick={(e) => { e.stopPropagation(); deleteEntry(leaf.path, leaf.label, false, () => reloadGroup(leaf.groupId)); }}
-    >🗑</button>
-  </div>
+  <button
+    class="file-entry monster-subentry"
+    class:active={$activeFile?.path?.endsWith(leaf.suffix)}
+    onclick={() => open(leaf)}
+    title={flat ? leaf.groupId : undefined}
+  >
+    {@render badgeMark(leaf.badge)}
+    {leaf.label}
+  </button>
 {/snippet}
 
 <div class="top-section">

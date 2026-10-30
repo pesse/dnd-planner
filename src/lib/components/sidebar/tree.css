@@ -94,41 +94,6 @@
   color: var(--arcane);
 }
 
-/* Zeile mit Hover-Löschbutton (.file-entry/.campaign-title + .entry-del) */
-.sidebar .entry-row {
-  position: relative;
-}
-.sidebar .entry-del {
-  padding: 0 0.6rem;
-  background: none;
-  border: none;
-  color: var(--ink-muted);
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  opacity: 0;
-  flex-shrink: 0;
-  transition: opacity 0.1s;
-}
-/* In Blatt-Zeilen den Button rechts über die Zeile legen (volle Hover-Breite). */
-.sidebar .entry-row > .entry-del {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-}
-.sidebar .entry-row:hover .entry-del {
-  opacity: 1;
-}
-.sidebar .entry-del:hover {
-  color: var(--danger);
-}
-
-/* Akt-Zeile: kein Overlay wie .entry-row, weil noch der Encounter-Hinzufügen-Button
-   danebensteht — beide teilen sich die Hover-Sichtbarkeit in normalem Fluss. */
-.sidebar .act-row:hover .entry-del,
 .sidebar .act-row:hover .move-btn,
 .sidebar .act-row:hover .add-btn {
   opacity: 1;

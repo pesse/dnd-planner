@@ -2,11 +2,12 @@
   import { formatSpecies } from '../../schemas/classLevelText';
   import type { Character } from '../../schemas/characterSchema';
 
-  let { character, portraitUrl, onPrint, onLevelUp }: {
+  let { character, portraitUrl, onPrint, onLevelUp, onDelete }: {
     character: Character;
     portraitUrl: string;
     onPrint(): void;
     onLevelUp(): void;
+    onDelete(): void;
   } = $props();
 </script>
 
@@ -28,6 +29,7 @@
             aria-label="Charakterbogen drucken" title="Charakterbogen drucken (Vorschau)">🖨</button>
     <button class="icon-btn levelup" onclick={onLevelUp}
             aria-label="Stufenaufstieg" title="Stufenaufstieg">⬆</button>
+    <button class="icon-btn delete" onclick={onDelete}>🗑 Löschen</button>
   </div>
 </div>
 
@@ -90,4 +92,6 @@
   }
   .icon-btn:hover { border-color: var(--arcane); color: var(--arcane); }
   .icon-btn.levelup { font-weight: 700; }
+  .icon-btn.delete { font-size: 0.85rem; border-color: var(--danger); color: var(--danger); }
+  .icon-btn.delete:hover { background: var(--danger); color: var(--bg); }
 </style>

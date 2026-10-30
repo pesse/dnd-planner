@@ -37,35 +37,28 @@
       {#if state.entries.length}
         {#each state.entries as entry}
           {@const meta = state.meta[entry.name]}
-          <div class="entry-row">
-            <button
-              class="file-entry"
-              class:char-entry={!!meta}
-              class:active={entry.is_dir
-                ? $activeFile?.dirPath === `${CHARACTERS_PATH}/${entry.name}`
-                : $activeFile?.path === `${CHARACTERS_PATH}/${entry.name}`}
-              onclick={() => state.openCharacter(entry)}
-            >
-              {#if meta}
-                <span class="char-classes">
-                  {#each meta.classes as cls}
-                    <span class="char-class-icon" title="{cls.label}{cls.level !== null ? ` ${cls.level}` : ''}">
-                      {cls.icon}
-                      {#if cls.level !== null}<span class="char-level-badge">{cls.level}</span>{/if}
-                    </span>
-                  {/each}
-                </span>
-                {meta.name}
-              {:else}
-                {entry.name.replace('.md', '')}
-              {/if}
-            </button>
-            <button
-              class="entry-del"
-              title="Löschen"
-              onclick={(e) => { e.stopPropagation(); state.deleteCharacter(entry); }}
-            >🗑</button>
-          </div>
+          <button
+            class="file-entry"
+            class:char-entry={!!meta}
+            class:active={entry.is_dir
+              ? $activeFile?.dirPath === `${CHARACTERS_PATH}/${entry.name}`
+              : $activeFile?.path === `${CHARACTERS_PATH}/${entry.name}`}
+            onclick={() => state.openCharacter(entry)}
+          >
+            {#if meta}
+              <span class="char-classes">
+                {#each meta.classes as cls}
+                  <span class="char-class-icon" title="{cls.label}{cls.level !== null ? ` ${cls.level}` : ''}">
+                    {cls.icon}
+                    {#if cls.level !== null}<span class="char-level-badge">{cls.level}</span>{/if}
+                  </span>
+                {/each}
+              </span>
+              {meta.name}
+            {:else}
+              {entry.name.replace('.md', '')}
+            {/if}
+          </button>
         {/each}
       {:else if !state.showNewInput}
         <span class="empty">Keine Charaktere</span>

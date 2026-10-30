@@ -1,9 +1,7 @@
 <script lang="ts">
   import { activeFile } from '../../../stores/campaign';
-  import { deleteEntry } from '../../../services/sidebar/deleteEntry';
-  import DelButton from './DelButton.svelte';
   import NewEntryRow from './NewEntryRow.svelte';
-  import { actDirPath, actKeyOf, encounterPathOf, type CampaignSection, type CampaignTreeState } from './campaignTreeState.svelte';
+  import { actKeyOf, encounterPathOf, type CampaignSection, type CampaignTreeState } from './campaignTreeState.svelte';
   import type { Campaign } from '../../../types';
   import '../tree.css';
 
@@ -47,23 +45,19 @@
     title="Encounter hinzufügen"
     onclick={() => { tree.showNewActEncounterInput[actEncKey] = true; tree.newActEncounterInput[actEncKey] = ''; }}
   >+</button>
-  <DelButton ondelete={() => deleteEntry(actDirPath(campaign.path, filename), tree.fileTitles[filePath] ?? filename, true, () => tree.loadSection(campaign.path, section))} />
 </div>
 
 {#each actEncs as encFilename}
   {@const encPath = encounterPathOf(campaign.path, filename, encFilename)}
   {@const encLabel = tree.encounterNames[`${actEncKey}/${encFilename}`] ?? encFilename.replace('.json', '')}
-  <div class="entry-row">
-    <button
-      class="file-entry encounter-entry act-enc-entry"
-      class:active={$activeFile?.path === encPath}
-      onclick={() => tree.openEncounter(campaign.path, filename, encFilename)}
-      title={encFilename.replace('.json', '')}
-    >
-      ⚡ {encLabel}
-    </button>
-    <DelButton ondelete={() => deleteEntry(encPath, encLabel, false, () => tree.loadEncountersForAct(campaign.path, filename))} />
-  </div>
+  <button
+    class="file-entry encounter-entry act-enc-entry"
+    class:active={$activeFile?.path === encPath}
+    onclick={() => tree.openEncounter(campaign.path, filename, encFilename)}
+    title={encFilename.replace('.json', '')}
+  >
+    ⚡ {encLabel}
+  </button>
 {/each}
 
 {#if tree.showNewActEncounterInput[actEncKey]}
