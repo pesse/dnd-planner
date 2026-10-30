@@ -14,8 +14,10 @@ import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import {
-  attackFootnotes, loadDeclaredAttackEffects, type AttackEffectFeature, type DeclaredAttackEffects,
+  attackFootnoteLines, loadDeclaredAttackEffects, type AttackEffectFeature, type AttackFootnote,
+  type DeclaredAttackEffects,
 } from '$lib/services/attackEffects';
+import { attackOriginOf, type AttackOrigin } from '$lib/services/attackOrigin';
 import { checkSources, skillCheckEffects } from '$lib/services/abilityChecks';
 import type { ItemInfo } from '$lib/itemLibrary';
 import { abilityRecordOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
@@ -40,6 +42,7 @@ import type { SpellAttackContext } from '$lib/services/spellAttackCalc';
 import { totalLevel } from '$lib/schemas/classLevelText';
 
 export interface PrintAttack {
+  origin: AttackOrigin | null;
   name: string;
   bonus: string;
   damage: string;
@@ -69,7 +72,7 @@ export interface CharacterPrintData {
   initiativeAdvantage: boolean;
   deathSaveAdvantage: boolean;
   /** Leer ohne erweiterten Bereich. */
-  attackNotes: string[];
+  attackNotes: AttackFootnote[];
   /** Bogen-Schlüssel der Fertigkeiten mit Vorteil ohne Bedingung. */
   skillAdvantage: string[];
   auras: CharacterAura[];
@@ -128,6 +131,7 @@ function printAttacks(
   return (c.attacks ?? []).map((a) => {
     const mastery = masteryOf?.(a.name);
     return {
+      origin: attackOriginOf(a),
       name: mastery ? `${a.name} (${mastery})` : a.name,
       bonus: a.auto ? computeAttackBonus(a, ctx) : a.bonus,
       // Handeingetragener Schaden steht oft als „1d8+2" in der Datei — der Bogen schreibt W.
@@ -201,7 +205,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
     character: shown,
     initiativeAdvantage: fallbacks.initiativeAdvantage.length > 0,
     deathSaveAdvantage: deathSaveAdvantage(saveSources).length > 0,
-    attackNotes: attackFootnotes(saveInputs.features, spellRiders),
+    attackNotes: attackFootnoteLines(saveInputs.features, spellRiders),
     skillAdvantage: SKILL_DEFS
       .filter((def) => skillCheckEffects(def, checks, { mods, profBonus: effectiveProficiencyBonus(c) }).advantage)
       .map((def) => def.key),

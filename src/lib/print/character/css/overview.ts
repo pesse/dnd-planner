@@ -166,5 +166,9 @@ export const OVERVIEW_CSS = `
 /* Notizzeile hängt unter dem Namen; auf bottom stünden Bonus und Schaden neben ihr. */
 .o-atk tr.has-note td { vertical-align: top; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
+.o-atk .anote b { font-weight: 700; }
+.o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }
+.o-atk .atk-origin svg { display: block; }
+.o-atk tr.alegend td { border-bottom: none; font-size: 6pt; color: var(--ink-label); text-align: right; }
 
 `;

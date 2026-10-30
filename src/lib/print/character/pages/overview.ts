@@ -12,6 +12,7 @@ import { PROFICIENCY_FLAGS, proficiencyLabel } from '$lib/domain/proficiencies';
 import { formatClassLevel, formatSpecies } from '$lib/schemas/classLevelText';
 import { sign } from '$lib/utils/num';
 import { effectiveProficiencyBonus } from '$lib/services/classProgression';
+import { attackFootnoteHtml, attackOriginIcon, attackOriginLegend } from '$lib/services/attackOrigin';
 import type { CharacterPrintData, PrintAttack } from '../data';
 import { chainCircles, esc } from '../html';
 import { renderAuras, renderDefenses, renderMasteries, renderMovement } from './extras';
@@ -187,17 +188,19 @@ const ATTACK_ROWS = 20;
 
 const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
-  const name = (a: PrintAttack): string =>
+  const name = (a: PrintAttack): string => (a.origin ? attackOriginIcon(a.origin) : '') +
     esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '');
   const rows = d.attacks.map((a) => `<tr${a.note ? ' class="has-note"' : ''}>${cell(name(a))}` +
     `${cell(esc(a.range), 'num')}${cell(esc(withSign(a.bonus)), 'num')}` +
     `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
-  rows.push(...d.attackNotes.map((n) => `<tr><td colspan="5"><span class="anote">${esc(n)}</span></td></tr>`));
+  rows.push(...d.attackNotes.map((n) => `<tr><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`));
+  const legend = attackOriginLegend([...d.attacks.map((a) => a.origin), ...d.attackNotes.map((n) => n.origin)]);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
   // Eine Notiz belegt eine zweite Schreiblinie, zählt also doppelt.
-  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), d.attackNotes.length);
+  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), d.attackNotes.length + (legend ? 1 : 0));
   const write = Math.max(4, ATTACK_ROWS - used);
   rows.push(...Array.from({ length: write }, () => writeRow));
+  if (legend) rows.push(`<tr class="alegend"><td colspan="5">${legend}</td></tr>`);
 
   const head = ['Angriff', 'Reichweite', 'Bonus', 'Schaden', 'Schadentyp']
     .map((h, i) => `<th class="${i > 0 && i < 4 ? 'num' : ''}">${esc(h)}</th>`).join('');

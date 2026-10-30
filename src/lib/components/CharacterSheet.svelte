@@ -17,7 +17,7 @@
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
-  import { attackFootnotes, declaredAttackEffects } from '../services/attackEffects';
+  import { attackFootnoteLines, declaredAttackEffects } from '../services/attackEffects';
   import { spellAttackSourceOf, spellRiderSources } from '../services/spellAttacks';
   import { totalLevel } from '../schemas/classLevelText';
   import { checkSources } from '../services/abilityChecks';
@@ -89,7 +89,7 @@
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
   const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? [])) : []);
   const spellRiders = $derived(spellcasting ? spellRiderSources(spellcasting.state, libs.spellIndex) : []);
-  const attackNotes = $derived(attackFootnotes(owned.current ?? [], spellRiders));
+  const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
   const checks = $derived(checkSources(owned.current ?? []));
   const movement = $derived(owned.current ? characterMovement(owned.current, declaredSpeed(owned.current)?.feet ?? null) : []);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);

@@ -18,6 +18,7 @@
   import type { CharacterDefense } from '../../services/defenses';
   import type { MovementLine } from '../../services/movement';
   import type { CombatTips } from '../../services/characterSheetTips';
+  import type { AttackFootnote } from '../../services/attackEffects';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetAuraBlock from './SheetAuraBlock.svelte';
@@ -45,7 +46,7 @@
     auras: CharacterAura[];
     deathSaveAdvantage: string[];
     defenses: CharacterDefense[];
-    attackNotes: string[];
+    attackNotes: AttackFootnote[];
     movement: MovementLine[];
     checks: readonly CheckSource[];
   } = $props();

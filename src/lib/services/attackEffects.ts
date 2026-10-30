@@ -16,8 +16,11 @@ import type { Attack, Character, CharacterInventoryEntry } from '../schemas/char
 import { wornItemsIn, type WornItem } from './wornItems';
 import { ownedGrantFeatures, type OwnedLinks } from './hitPoints';
 
+export type AttackEffectOrigin = 'item' | 'feature' | 'spell';
+
 export interface AttackEffectSource {
   labelDe: string;
+  origin: AttackEffectOrigin;
   effect: AttackEffect;
   /** Stufe, nach der `dice.byLevel` greift. */
   level?: number;
@@ -59,16 +62,16 @@ export function attackEffectSources(
   spells: readonly AttackEffectSpell[] = [],
 ): AttackEffectSource[] {
   const fromItems = worn.flatMap(({ item }) =>
-    (item.attackEffects ?? []).map((effect) => ({ labelDe: displayName(item), effect })));
+    (item.attackEffects ?? []).map((effect) => ({ labelDe: displayName(item), origin: 'item' as const, effect })));
   const seen = new Set<string>();
   const fromFeatures: AttackEffectSource[] = [];
   for (const f of features) {
     const id = featureIdOf(f);
     if (seen.has(id)) continue;
     seen.add(id);
-    fromFeatures.push(...(f.grants?.attack ?? []).map((effect) => ({ labelDe: f.name, effect, level: f.level })));
+    fromFeatures.push(...(f.grants?.attack ?? []).map((effect) => ({ labelDe: f.name, origin: 'feature' as const, effect, level: f.level })));
   }
-  const fromSpells = spells.flatMap((sp) => sp.effects.map((effect) => ({ labelDe: sp.name, effect })));
+  const fromSpells = spells.flatMap((sp) => sp.effects.map((effect) => ({ labelDe: sp.name, origin: 'spell' as const, effect })));
   return [...fromItems, ...fromFeatures, ...fromSpells];
 }
 
@@ -166,21 +169,33 @@ function footnote(labelDe: string, e: AttackEffect, level: number): string | nul
   return text && text + filterDe(e);
 }
 
+export interface AttackFootnote {
+  origin: AttackEffectOrigin;
+  /** Beginn von `text`; leer beim kritischen Bereich. */
+  labelDe: string;
+  text: string;
+}
+
 /**
  * Was für alle Angriffe gilt, als Zeilen unter der Angriffstabelle: kritischer Bereich und
  * Zusatzwürfel. Im Tooltip des Schadens fände sie niemand, und der Druck hat keinen.
  */
-export function attackFootnotes(
+export function attackFootnoteLines(
   features: readonly AttackEffectFeature[],
   spells: readonly AttackEffectSpell[] = [],
-): string[] {
+): AttackFootnote[] {
   const range = criticalRange(features);
-  const lines = attackEffectSources([], features, spells).flatMap(({ labelDe, effect, level }) => {
+  const lines = attackEffectSources([], features, spells).flatMap(({ labelDe, origin, effect, level }) => {
     const text = footnote(labelDe, effect, level ?? 1);
-    return text ? [text] : [];
+    return text ? [{ origin, labelDe, text }] : [];
   });
-  return [...(range ? [criticalRangeDe(range)] : []), ...lines];
+  return [...(range ? [{ origin: 'feature' as const, labelDe: '', text: criticalRangeDe(range) }] : []), ...lines];
 }
+
+export const attackFootnotes = (
+  features: readonly AttackEffectFeature[],
+  spells: readonly AttackEffectSpell[] = [],
+): string[] => attackFootnoteLines(features, spells).map((l) => l.text);
 
 /** Der Bonus der Bibliothek, wo der Angriff einen anderen trägt — er wurde beim Anlegen kopiert. */
 export function staleMagicBonus(a: Pick<Attack, 'magicBonus'>, weapon: ItemInfo | undefined): number | undefined {
