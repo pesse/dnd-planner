@@ -1,8 +1,4 @@
-/**
- * Deterministische Klassen-Progression, gespeist direkt aus Open5e v2 (kein gebündeltes
- * Zwischenartefakt). Deterministisch ist nur, was v2 strukturiert führt — Rüstungs- und
- * Waffenübungen stehen dort als Prosa und bleiben deshalb der LLM-Schicht überlassen.
- */
+/** Deterministische Klassen-Progression aus der Klassen-Bibliothek im Vault. */
 import { adjustmentSum, type CombatAdjustments } from '../schemas/combatAdjustment';
 import {
   classProgressionSchema,
@@ -10,10 +6,8 @@ import {
   type ClassProgression,
   type ClassFeature,
 } from '$lib/schemas/classProgression';
-import { getClass, DEFAULT_DOCUMENT } from './open5eClient';
 import { findClassByKey } from '$lib/classLibrary';
 import { memoByKey } from './library/memo';
-import { mapV2 } from './classTableParse';
 export { mapV2, parseCoreTraits, parseCoreTraitRows, parseSkillGrant } from './classTableParse';
 import { firstInt, numOr } from '$lib/utils/num';
 import { totalLevel } from '$lib/schemas/classLevelText';
@@ -31,11 +25,6 @@ export const CLASS_NAME_DE_BY_SLUG: Record<string, string> = Object.fromEntries(
   Object.entries(DE_TO_SLUG).map(([de, slug]) => [slug, de]),
 );
 
-const fold = (s: string): string =>
-  s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
-
-const cache = new Map<string, ClassProgression | null>();
-
 /**
  * Aus `vault/classes`, wo auch Homebrew und eigene Subklassen liegen, die das
  * SRD-Dokument nicht kennt. Über den Migrator parsen — Altbestand trägt `savingThrows`
@@ -45,31 +34,7 @@ const localByKey = memoByKey((key: string) =>
   findClassByKey(key, (data) => classProgressionSchema.safeParse(migrateClassLegacy(data)).data ?? null),
 );
 
-function keyFor(klasseDe: string, doc = DEFAULT_DOCUMENT): string | null {
-  const slug = DE_TO_SLUG[CLASS_NAMES_DE.find((c) => fold(c) === fold(klasseDe.trim())) ?? ''];
-  return slug ? `${doc}_${slug}` : null;
-}
-
-/** Jeder Fehlschlag wird zu `null` — der Aufrufer degradiert, statt falsche Zahlen zu zeigen. */
-export async function getProgression(klasseDe: string, doc = DEFAULT_DOCUMENT): Promise<ClassProgression | null> {
-  const key = keyFor(klasseDe, doc);
-  if (!key) return null;
-  if (cache.has(key)) return cache.get(key)!;
-  try {
-    const prog = mapV2(await getClass(key));
-    cache.set(key, prog);
-    return prog;
-  } catch {
-    cache.set(key, null);
-    return null;
-  }
-}
-
-/**
- * Der Weg über `classes[].sourceKey` am Charakter — und AUSSCHLIESSLICH aus der lokalen
- * Bibliothek, kein Open5e-Zugriff zur Laufzeit. Fehlt die Klasse dort, degradiert der
- * Aufrufer auf `null` (isHomebrew → die KI fragt ab).
- */
+/** Fehlt die Klasse in der Bibliothek, degradiert der Aufrufer auf `null` (isHomebrew → die KI fragt ab). */
 export async function getProgressionByKey(key: string): Promise<ClassProgression | null> {
   if (!key) return null;
   return localByKey.get(key);

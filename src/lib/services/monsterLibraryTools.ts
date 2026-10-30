@@ -1,5 +1,5 @@
 /**
- * Agent-Tools für die Monster-Bibliothek (analog `open5eSpellTools.ts`).
+ * Agent-Tools für die Monster-Bibliothek.
  * Beide Formate: OpenAI-Function-Calling (Groq) + Anthropic native.
  *
  * Die Bibliothek ist die EINZIGE Monsterquelle — es gibt keinen Laufzeit-Zugriff auf Open5e.
