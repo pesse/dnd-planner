@@ -2,6 +2,7 @@ import { spellKeyOf, type Spell } from './schemas/spell';
 import type { Monster } from './schemas/monster';
 import { itemKeyOf, type Item } from './schemas/item';
 import type { ItemInfo } from './itemLibrary';
+import type { SpellInfo } from './spellLibrary';
 import { keySlug, slugAscii } from './utils/text';
 import { artUrl as artFileUrl } from './artUrl';
 
@@ -14,6 +15,8 @@ const artUrl = (kind: string, slug: string): string | null => (slug ? artFileUrl
 
 export const spellArtUrl = (spell: Spell): string | null =>
   artUrl('spells', keySlug(spellKeyOf(spell as unknown as Record<string, unknown>)));
+
+export const spellInfoArtUrl = (spell: SpellInfo): string | null => artUrl('spells', keySlug(spell.key));
 
 /** `key` am Bibliothekstalent, `sourceKey` am Eintrag aus `featsLibrary`. */
 export const featArtUrl = (feat: { key?: string; sourceKey?: string }): string | null =>

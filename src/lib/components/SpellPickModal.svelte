@@ -8,6 +8,7 @@
   import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
   import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
+  import { spellInfoArtUrl } from '../libraryArt';
   import SpellTooltip from './SpellTooltip.svelte';
   import { createSpellHover, GRANTED_NOTE } from './spellHover.svelte';
 
@@ -125,7 +126,9 @@
   }
 
   const levelLabel = (level: number) => (level > 0 ? `Grad ${level}` : 'Zaubertricks');
-  const hover = createSpellHover(() => new Map(library.map((s) => [s.name, s])));
+  const byName = $derived(new Map(library.map((s) => [s.name, s])));
+  const hover = createSpellHover(() => byName);
+  let failedIcons = $state<Record<string, boolean>>({});
   let hoverNote = $state<string | undefined>();
 
   function onKey(e: KeyboardEvent) {
@@ -134,6 +137,13 @@
 </script>
 
 <svelte:window onkeydown={onKey} />
+
+{#snippet icon(s: SpellInfo | undefined)}
+  {@const src = s ? spellInfoArtUrl(s) : null}
+  {#if s && src && !failedIcons[s.path]}
+    <img class="chip-icon" {src} alt="" loading="lazy" onerror={() => (failedIcons[s.path] = true)} />
+  {/if}
+{/snippet}
 
 <!-- Flex-Zentrierung statt `translate(-50%,-50%)`: `SpellTooltip` ist ein `position: fixed`-Kind
      mit clientX/Y-Koordinaten und würde an einem transformierten Vorfahren falsch landen. -->
@@ -166,7 +176,7 @@
                 onmousemove={(e) => hover.move(e)}
                 onmouseleave={() => hover.hide()}
                 role="note"
-              ><span class="chip-main">◆ {f.name}</span></span>
+              ><span class="chip-main">{@render icon(byName.get(f.name))}◆ {f.name}</span></span>
             {/each}
             <!-- Keyed nach `path`: `key` ist bei Zaubern aus älterem Vault-Bestand leer und
                  wäre dann für jeden Eintrag derselbe (each_key_duplicate). -->
@@ -190,7 +200,7 @@
                   onmousemove={(e) => hover.move(e)}
                   onmouseleave={() => hover.hide()}
                   onclick={() => toggle(s)}
-                >{#if from}◇ {/if}{s.name}</button>
+                >{@render icon(s)}{#if from}◇ {/if}{s.name}</button>
                 {#if picked && prepared}
                   <button
                     type="button"
@@ -280,9 +290,13 @@
   .chip.known { border-style: dotted; background: none; }
   .chip.known .chip-main { color: var(--ink-muted); opacity: 0.55; font-style: italic; }
   .chip-main {
+    display: inline-flex; align-items: center; gap: 0.3rem;
     background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem;
     color: var(--ink-soft); padding: 0.25rem 0.65rem;
   }
+  .chip-main:has(.chip-icon) { padding-left: 0.2rem; }
+  .chip-icon { width: 1.25rem; height: 1.25rem; margin: -0.15rem 0; flex: none; }
+  .chip.known .chip-icon { filter: grayscale(1); }
   .chip-main.blocked { cursor: not-allowed; opacity: 0.4; }
   .chip.granted .chip-main { color: var(--ink-soft); opacity: 0.85; cursor: help; }
   .chip.sel.unprepared { opacity: 0.72; }
