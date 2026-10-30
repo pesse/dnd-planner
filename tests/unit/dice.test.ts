@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { diceDe, parseDice, throwDice } from '../../src/lib/utils/dice';
+import { buildDie } from '../../src/lib/components/ui/die/geometry';
 
 describe('Würfelformeln', () => {
   it('liest Anzahl, Seiten und Zuschlag', () => {
@@ -12,13 +13,17 @@ describe('Würfelformeln', () => {
 
   it('summiert die Würfel samt Zuschlag', () => {
     const t = throwDice({ count: 2, sides: 10, bonus: 1 }, () => 0.95);
-    expect(t.faces).toEqual([{ sides: 10, value: 10 }, { sides: 10, value: 10 }]);
+    expect(t.rolls).toEqual([10, 10]);
     expect(t.total).toBe(21);
   });
 
-  it('wirft den W3 als halbierten W6', () => {
+  it('wirft den W3 mit drei Seiten', () => {
     const t = throwDice({ count: 1, sides: 3, bonus: 0 }, () => 0.7);
-    expect(t.faces).toEqual([{ sides: 6, value: 5 }]);
+    expect(t.rolls).toEqual([3]);
     expect(t.total).toBe(3);
+  });
+
+  it('trägt auf dem W3-Körper jede Zahl zweimal', () => {
+    expect(buildDie(3).faces.map((f) => f.value).sort()).toEqual([1, 1, 2, 2, 3, 3]);
   });
 });

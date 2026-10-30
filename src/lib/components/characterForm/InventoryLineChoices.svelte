@@ -48,7 +48,7 @@
     <span class="inv-rolled" title="{p.labelDe}: {diceDe(p.formula)} ausgewürfelt">
       {#if throws[p.id]}
         <span class="inv-dice">
-          {#each throws[p.id].faces as d, i (i)}<Die sides={d.sides} value={d.value} roll={throws[p.id].n} delay={i * 90} />{/each}
+          {#each throws[p.id].rolls as r, i (i)}<Die sides={p.formula.sides} value={r} roll={throws[p.id].n} delay={i * 90} />{/each}
         </span>
       {/if}
       {p.labelDe}: <strong>{value}</strong>
