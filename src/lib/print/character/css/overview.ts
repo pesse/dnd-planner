@@ -169,6 +169,9 @@ export const OVERVIEW_CSS = `
 .o-atk th:first-child, .o-atk td:first-child { width: 34%; }
 /* Notizzeile hängt unter dem Namen; auf bottom stünden Bonus und Schaden neben ihr. */
 .o-atk tr.has-note td { vertical-align: top; }
+/* Die Wirkung gehört zum Namen darüber: keine Linie dazwischen, Text oben an der Zeile. */
+.o-atk tr.has-effects td:first-child { border-bottom: none; }
+.o-atk tr.atk-effect td { vertical-align: top; padding-top: 0; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
 .o-atk .anote b { font-weight: 700; }
 .o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }

@@ -192,12 +192,17 @@ const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
   const name = (a: PrintAttack): string => (a.origin ? attackOriginIcon(a.origin) : '') +
     esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '');
-  const noteRow = (n: AttackFootnote): string => `<tr><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`;
+  const noteRow = (n: AttackFootnote, cls = ''): string =>
+    `<tr${cls ? ` class="${cls}"` : ''}><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`;
+  const rowClass = (a: PrintAttack): string => {
+    const cls = [a.note && 'has-note', a.effects.length && 'has-effects'].filter(Boolean).join(' ');
+    return cls ? ` class="${cls}"` : '';
+  };
   // Was nur diese Waffe kann, steht als eigene Zeile darunter — in der Namensspalte bräche es um.
-  const rows = d.attacks.flatMap((a) => [`<tr${a.note ? ' class="has-note"' : ''}>${cell(name(a))}` +
+  const rows = d.attacks.flatMap((a) => [`<tr${rowClass(a)}>${cell(name(a))}` +
     `${cell(esc(a.range), 'num')}${cell(esc(withSign(a.bonus)), 'num')}` +
-    `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`, ...a.effects.map(noteRow)]);
-  rows.push(...d.attackNotes.map(noteRow));
+    `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`, ...a.effects.map((n) => noteRow(n, 'atk-effect'))]);
+  rows.push(...d.attackNotes.map((n) => noteRow(n)));
   const legend = attackOriginLegend([
     ...d.attacks.flatMap((a) => [a.origin, ...a.effects.map((n) => n.origin)]),
     ...d.attackNotes.map((n) => n.origin),
