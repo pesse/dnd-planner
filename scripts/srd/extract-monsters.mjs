@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
  * Zieht die deutschen Monster-Statblöcke aus dem deutschen SRD-PDF (Anhang „Monster von A–Z")
- * → scripts/srd/monsters-de.json. Gelesen wird die Datei von
- * `scripts/import-open5e-creatures.mts`, das damit `name`, `traits[]` und `actions[]` der
- * importierten Kreaturen auf Deutsch setzt.
+ * → scripts/srd/monsters-de.json. Gelesen wird die Datei von `scripts/migrate-monsters.mts`,
+ * das damit `name`, `traits[]` und `actions[]` englischer Kreaturen auf Deutsch setzt.
  *
  * Das SRD 5.2.1 liegt offiziell auf Deutsch vor — eine KI-Übersetzung derselben Texte wäre
  * schlechter UND teurer.

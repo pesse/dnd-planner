@@ -64,8 +64,7 @@ export const itemSchema = z.object({
     })
     .optional(),
   attunement: z.boolean().optional(),
-  // Vom Vault gepflegt: weder `open5eItemMapper` noch `migrateItemLegacy` setzen sie — und
-  // beide dürfen sie nicht verlieren.
+  // Vom Vault gepflegt: `migrateItemLegacy` setzt sie nicht und darf sie nicht verlieren.
   grantsResource: resourceGrantSchema
     .optional()
     .describe('Eigene Ladungen des Gegenstands und Zuschläge auf fremde Vorräte.'),

@@ -1,7 +1,6 @@
 /**
- * Rohe Open5e-v2-Kreatur → internes `Monster`-Schema. Wie die anderen Mapper ohne `invoke`,
- * damit `scripts/import-open5e-creatures.mts` ihn bündeln kann. Namen und Texte bleiben
- * englisch — das gepflegte Deutsch setzt der Importer per `name_en`-Match.
+ * Rohe Kreatur im Open5e-v2-Format → internes `Monster`-Schema. Ohne `invoke`, damit
+ * `scripts/import-mm-creatures.mts` ihn bündeln kann. Namen und Texte bleiben englisch.
  */
 import { MONSTER_ACTION_TYPES, type Monster, type MonsterAction, type MonsterAttack, type MonsterDamageRoll } from '../schemas/monster';
 import {

@@ -135,8 +135,7 @@ export function upgradeLegacyMonster(raw: Raw): Raw {
 
   out.name = str(raw.name);
   // Das alte `index` ist der einzige englische Handle der Bestandsdateien — als Name
-  // gerettet, sonst findet `import-open5e-creatures` das Monster nicht wieder und legt
-  // es unter englischem Slug ein zweites Mal an.
+  // gerettet, sonst findet der englische Namensabgleich (`migrate-monsters`) es nicht.
   out.name_en = str(raw.name_en) || titleFromSlug(str(raw.index));
   out.challenge_rating = parseLegacyCr(raw.cr ?? raw.challenge_rating);
 

@@ -7,8 +7,7 @@
  *     scripts/import-mm-creatures.mts --outfile=/tmp/import-mm.mjs \
  *   && node /tmp/import-mm.mjs <html-ordner> [--dry-run] [--fix-srd] [--report <srd-abgleich.json>]
  *
- * `--fix-srd` zieht die englische Seite der SRD-Monster auf den MM-Statblock nach (`mm/fixSrd.ts`)
- * — nach jedem `import-open5e-creatures` erneut fahren, der die Open5e-Fehler zurückbringt.
+ * `--fix-srd` zieht die englische Seite der SRD-Monster auf den MM-Statblock nach (`mm/fixSrd.ts`).
  */
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

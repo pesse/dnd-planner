@@ -7,8 +7,7 @@
  * SRD-Monster. Sie bekommen den offiziellen deutschen Text — zuerst über den vollen Zahlen-
  * schlüssel gegen `scripts/srd/monsters-de.json` (RK, TP, HG und alle sechs Attributswerte, denn
  * hier steht auch Homebrew in der Liste), danach über den englischen Namen gegen die schon
- * eingedeutschte Bibliothek unter `vault/monsters`. Runde B greift also erst, NACHDEM
- * `import-open5e-creatures.mts` gelaufen ist — dann diesen Lauf einfach wiederholen.
+ * eingedeutschte Bibliothek unter `vault/monsters`.
  *
  * Eine deutsch verfasste Datei bleibt unangetastet: sie braucht keine Übersetzung, und ihre Prosa
  * ist handgepflegtes Homebrew auf einem SRD-Statblock (`Wartungssalamander`).

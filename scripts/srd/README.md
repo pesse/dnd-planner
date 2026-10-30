@@ -32,7 +32,7 @@ node scripts/srd/extract-chunks.mjs "<DE-SRD.pdf>" 5 121
   lange Sektionen an Satzgrenzen gesplittet (~1400 Zeichen).
 - Seitenbereich 5–121 = Regeln/Charaktererstellung/Klassen/Ausrüstung +
   Spellcasting-Regeln. Zauberliste (ab 122), Monster und magische Gegenstände bleiben
-  draußen: die kommen als Bibliotheksinhalt aus Open5e (Stufe 3 für ihr Deutsch). Das
+  draußen: die liegen als Bibliotheksinhalt im Vault (Stufe 3 für das Deutsch der Monster). Das
   Regelglossar (Stufe 1) wird bewusst NICHT mit-indiziert (keine Duplikate).
 
 Beide Ausgaben werden vom Runtime-Modul `src/lib/services/rulesReference.ts`
@@ -53,6 +53,5 @@ node scripts/srd/extract-monsters.mjs "docs/srd/DE_SRD_CC_v5.2.1.pdf" 300-412 25
 - Diagnose erwartet: `Statblöcke: 331`, dazu genau zwei Warnungen (ein Attributswert des
   ausgewachsenen weißen Drachen ist nicht lesbar; die Riesenfliege hat auch im Original
   keine Aktionen).
-- Gelesen wird die Datei von `scripts/import-open5e-creatures.mts` und
-  `scripts/migrate-monsters.mts`; die Zuordnung zu den englischen Kreaturen macht
-  `scripts/srd/germanCreatures.ts` über die Zahlen des Statblocks, nicht über Namen.
+- Gelesen wird die Datei von `scripts/migrate-monsters.mts`; die Zuordnung zu den
+  englischen Kreaturen macht `scripts/srd/germanCreatures.ts` über die Zahlen des Statblocks, nicht über Namen.

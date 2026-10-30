@@ -7,7 +7,7 @@
  * träfe zu 86 % daneben — „hast du Vorteil", „Helles Licht", „|5|Blitz|" als Schadensart.
  *
  * Verlinkt wird jedes Vorkommen, denn der Link ist vor allem ein Tooltip. Bereits verlinkte
- * Stellen erkennt der Lauf, er ist also wiederholbar — nach jedem Open5e-Import erneut fahren.
+ * Stellen erkennt der Lauf, er ist also wiederholbar — nach neuen Texten erneut fahren.
  *
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts          # Bericht
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts --apply  # schreiben

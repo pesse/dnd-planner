@@ -1,5 +1,5 @@
 /**
- * Legt den deutschen SRD-Text aus `monsters-de.json` auf eine gemappte Open5e-Kreatur.
+ * Legt den deutschen SRD-Text aus `monsters-de.json` auf eine englische Kreatur.
  *
  * Zugeordnet wird über die sprachunabhängigen Zahlen — Namen taugen nicht, denn genau die sind
  * das Gesuchte. Erst (RK, TP, HG, sechs Attributswerte), dann für den Rest nur (RK, TP, HG):
