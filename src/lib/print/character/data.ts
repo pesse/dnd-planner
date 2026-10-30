@@ -14,7 +14,7 @@ import { valueTracks, type ValueTrack } from '$lib/domain/classResources';
 import { resolveResources, type ResolvedResource } from '$lib/services/resources/resolve';
 import { computeAttackBonus, computeAttackDamage } from '$lib/services/attackCalc';
 import {
-  attackFootnoteLines, loadDeclaredAttackEffects, type AttackEffectFeature, type AttackFootnote,
+  attackFootnoteLines, loadDeclaredAttackEffects, ownWeaponNotes, type AttackEffectFeature, type AttackFootnote,
   type DeclaredAttackEffects,
 } from '$lib/services/attackEffects';
 import { attackOriginOf, type AttackOrigin } from '$lib/services/attackOrigin';
@@ -49,6 +49,8 @@ export interface PrintAttack {
   type: string;
   range: string;
   note: string;
+  /** Was nur diese Waffe kann (`self`), als Zeilen unter dem Namen. */
+  effects: AttackFootnote[];
 }
 
 /** Ein Werte-Block trägt seine Klasse, weil zwei Klassen gleichnamige Spalten führen. */
@@ -139,6 +141,7 @@ function printAttacks(
       type: a.type,
       range: a.range,
       note: (a.note ?? '').trim(),
+      effects: ownWeaponNotes(a, declared),
     };
   });
 }

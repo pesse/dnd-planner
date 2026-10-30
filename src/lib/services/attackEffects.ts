@@ -62,7 +62,7 @@ export function attackEffectSources(
   spells: readonly AttackEffectSpell[] = [],
 ): AttackEffectSource[] {
   const fromItems = worn.flatMap(({ item }) =>
-    (item.attackEffects ?? []).map((effect) => ({ labelDe: displayName(item), origin: 'item' as const, effect })));
+    (item.attackEffects ?? []).filter((e) => !e.self).map((effect) => ({ labelDe: displayName(item), origin: 'item' as const, effect })));
   const seen = new Set<string>();
   const fromFeatures: AttackEffectSource[] = [];
   for (const f of features) {
@@ -197,6 +197,38 @@ export const attackFootnotes = (
   spells: readonly AttackEffectSpell[] = [],
 ): string[] => attackFootnoteLines(features, spells).map((l) => l.text);
 
+/** Was die Waffe nur für Angriffe mit sich selbst deklariert (`self`). */
+function ownEffectSources(weapon: ItemInfo | undefined): AttackEffectSource[] {
+  if (!weapon) return [];
+  const labelDe = displayName(weapon);
+  return (weapon.attackEffects ?? []).filter((e) => e.self).map((effect) => ({ labelDe, origin: 'item' as const, effect }));
+}
+
+/** Die Zeilen, die unter dem Namen einer Waffe stehen: was nur dieses Stück kann. */
+export function ownWeaponNotes(a: Pick<Attack, 'sourceKey' | 'name' | 'spell'>, declared: DeclaredAttackEffects | undefined): AttackFootnote[] {
+  if (a.spell || !declared) return [];
+  return ownEffectSources(declared.weaponOf(a)).flatMap(({ labelDe, origin, effect }) => {
+    const text = ownNote(effect);
+    return text ? [{ origin, labelDe, text }] : [];
+  });
+}
+
+/** Ohne den Namen davor — die Zeile steht schon unter der Waffe. */
+function ownNote(e: AttackEffect): string | null {
+  if (e.kind === 'note') return situationalLabelDe(e);
+  if (e.kind === 'dice') {
+    const dice = typeof e.dice === 'string' ? e.dice : null;
+    if (!dice) return null;
+    const type = e.damageType ? ` ${DAMAGE_TYPE_LABELS[e.damageType]}` : '';
+    return `+${formatDamageDice(dice)}${type}: ${situationalLabelDe(e)}`;
+  }
+  if (e.kind === 'situational') {
+    const value = e.value === 'proficiency-bonus' ? 'ÜB' : sign(e.value);
+    return `${e.roll === 'attack' ? 'Angriff' : 'Schaden'} ${value}: ${situationalLabelDe(e)}`;
+  }
+  return null;
+}
+
 /** Der Bonus der Bibliothek, wo der Angriff einen anderen trägt — er wurde beim Anlegen kopiert. */
 export function staleMagicBonus(a: Pick<Attack, 'magicBonus'>, weapon: ItemInfo | undefined): number | undefined {
   if (!weapon) return undefined;
@@ -219,10 +251,10 @@ export function attackEffectRows(
     if (t.damage) out.damageNotes.push(text);
   };
 
-  for (const { labelDe, effect, level } of declared.sources) {
+  for (const { labelDe, effect, level } of [...declared.sources, ...ownEffectSources(weapon)]) {
     if (spell) {
       if (!spellMatches(effect, spell)) continue;
-    } else if (filtered(effect)) {
+    } else if (!effect.self && filtered(effect)) {
       if (!weapon) {
         note(effect, `${labelDe}: Waffe nicht mit der Bibliothek verknüpft`);
         continue;

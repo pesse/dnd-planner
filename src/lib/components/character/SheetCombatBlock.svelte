@@ -13,7 +13,7 @@
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
   import type { CombatTips } from '../../services/characterSheetTips';
-  import type { AttackFootnote } from '../../services/attackEffects';
+  import { ownWeaponNotes, type AttackFootnote } from '../../services/attackEffects';
   import { attackFootnoteHtml, attackOriginIcon, attackOriginLegend, attackOriginOf } from '../../services/attackOrigin';
 
   let { character, tips, masteryOf, hpTipHtml, acTipHtml, attackCtx, attackNotes }: {
@@ -30,7 +30,12 @@
     attackNotes: AttackFootnote[];
   } = $props();
 
-  const legend = $derived(attackOriginLegend([...character.attacks.map(attackOriginOf), ...attackNotes.map((n) => n.origin)]));
+  const ownNotes = $derived(character.attacks.map((a) => ownWeaponNotes(a, attackCtx?.declared)));
+  const legend = $derived(attackOriginLegend([
+    ...character.attacks.map(attackOriginOf),
+    ...ownNotes.flat().map((n) => n.origin),
+    ...attackNotes.map((n) => n.origin),
+  ]));
 </script>
 
 {#snippet stat(label: string, value: string, tipHtml: string)}
@@ -65,7 +70,7 @@
     <table class="attack-table">
       <thead><tr><th>Angriff</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
       <tbody>
-        {#each character.attacks as atk}
+        {#each character.attacks as atk, i}
           {@const atkMastery = masteryOf(atk.name)}
           {@const calc = atk.auto && attackCtx}
           {@const bonus = calc ? computeAttackBonus(atk, calc) : atk.bonus}
@@ -81,6 +86,9 @@
               {#if atk.note?.trim()}
                 <span class="attack-note">{atk.note}</span>
               {/if}
+              {#each ownNotes[i] ?? [] as n (n.text)}
+                <span class="attack-note">{@html attackFootnoteHtml(n)}</span>
+              {/each}
             </td>
             <td class="has-tip">
               {bonus}

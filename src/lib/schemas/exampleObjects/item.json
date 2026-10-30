@@ -342,7 +342,8 @@
       "damageTypes": [
         "acid"
       ],
-      "spellAttacks": false
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "situational",
@@ -360,7 +361,8 @@
       "damageTypes": [
         "acid"
       ],
-      "spellAttacks": false
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "dice",
@@ -378,7 +380,8 @@
       "damageTypes": [
         "acid"
       ],
-      "spellAttacks": false
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "note",
@@ -394,7 +397,8 @@
       "damageTypes": [
         "acid"
       ],
-      "spellAttacks": false
+      "spellAttacks": false,
+      "self": false
     }
   ],
   "savingThrowEffects": [

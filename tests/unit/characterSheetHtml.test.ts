@@ -206,7 +206,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('druckt nur, was eingetragen ist — Zeilen zum Nachtragen gibt es nur für offene Wahlen', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.attacks = [{ origin: null, name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m', note: '' }];
+    d.attacks = [{ origin: null, name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m', note: '', effects: [] }];
     d.grouped = {
       ...d.grouped,
       sources: [wizardSource([
@@ -230,7 +230,7 @@ describe('HTML-Charakterbogen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.attacks = [{
       origin: null, name: 'Flammenzunge', bonus: '8', damage: '1W8+5', type: 'Hieb', range: 'Nah',
-      note: '+1W6 jede lange Rast',
+      note: '+1W6 jede lange Rast', effects: [],
     }];
     const attacks = build(d).split('<table class="o-atk">')[1].split('</table>')[0];
 
@@ -243,8 +243,8 @@ describe('HTML-Charakterbogen', () => {
   it('kennzeichnet Herkunft von Zeilen und Fußnoten und legt die Legende unten in den Kasten', () => {
     const d = dataFor(allProficienciesCharacter);
     d.attacks = [
-      { origin: 'weapon', name: 'Langbogen', bonus: '7', damage: '1W8+3', type: 'Stich', range: '45/180 m', note: '' },
-      { origin: null, name: 'Handgetippt', bonus: '2', damage: '1W4', type: 'Wucht', range: 'Nah', note: '' },
+      { origin: 'weapon', name: 'Langbogen', bonus: '7', damage: '1W8+3', type: 'Stich', range: '45/180 m', note: '', effects: [] },
+      { origin: null, name: 'Handgetippt', bonus: '2', damage: '1W4', type: 'Wucht', range: 'Nah', note: '', effects: [] },
     ];
     d.attackNotes = [{ origin: 'spell', labelDe: 'Zeichen des Jägers', text: 'Zeichen des Jägers +1W6 Energieschaden: gegen das markierte Ziel' }];
     const attacks = build(d).split('<table class="o-atk">')[1].split('</table>')[0];

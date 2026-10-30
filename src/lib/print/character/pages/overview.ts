@@ -189,15 +189,20 @@ const ATTACK_ROWS = 20;
 const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
   const name = (a: PrintAttack): string => (a.origin ? attackOriginIcon(a.origin) : '') +
-    esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '');
-  const rows = d.attacks.map((a) => `<tr${a.note ? ' class="has-note"' : ''}>${cell(name(a))}` +
+    esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '') +
+    a.effects.map((n) => `<span class="anote">${attackFootnoteHtml(n)}</span>`).join('');
+  const lines = (a: PrintAttack): number => 1 + (a.note ? 1 : 0) + a.effects.length;
+  const rows = d.attacks.map((a) => `<tr${lines(a) > 1 ? ' class="has-note"' : ''}>${cell(name(a))}` +
     `${cell(esc(a.range), 'num')}${cell(esc(withSign(a.bonus)), 'num')}` +
     `${cell(esc(a.damage), 'num')}${cell(esc(a.type))}</tr>`);
   rows.push(...d.attackNotes.map((n) => `<tr><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`));
-  const legend = attackOriginLegend([...d.attacks.map((a) => a.origin), ...d.attackNotes.map((n) => n.origin)]);
+  const legend = attackOriginLegend([
+    ...d.attacks.flatMap((a) => [a.origin, ...a.effects.map((n) => n.origin)]),
+    ...d.attackNotes.map((n) => n.origin),
+  ]);
   const writeRow = `<tr>${cell('<span class="wcell"></span>')}${'<td></td>'.repeat(4)}</tr>`;
-  // Eine Notiz belegt eine zweite Schreiblinie, zählt also doppelt.
-  const used = d.attacks.reduce((n, a) => n + (a.note ? 2 : 1), d.attackNotes.length + (legend ? 1 : 0));
+  // Jede Zeile unter dem Namen belegt eine weitere Schreiblinie.
+  const used = d.attacks.reduce((n, a) => n + lines(a), d.attackNotes.length + (legend ? 1 : 0));
   const write = Math.max(4, ATTACK_ROWS - used);
   rows.push(...Array.from({ length: write }, () => writeRow));
   if (legend) rows.push(`<tr class="alegend"><td colspan="5">${legend}</td></tr>`);
