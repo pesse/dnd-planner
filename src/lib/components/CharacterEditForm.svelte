@@ -27,7 +27,7 @@
   import { effectiveProficiencyBonus } from '../services/classProgression';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
   import { declaredAttackEffects } from '../services/attackEffects';
-  import { spellAttackOptions, spellAttackSourceOf, spellRiderSources } from '../services/spellAttacks';
+  import { spellAttackOptions, spellAttackSourceOf, spellRiderOptions, spellRiderSources } from '../services/spellAttacks';
   import { checkSources } from '../services/abilityChecks';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
@@ -85,7 +85,8 @@
   const toolTags = $derived(toolSuggestions(libs.itemsByDir.tools ?? []));
   // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
   const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
-  const spellRiders = $derived(casting.current ? spellRiderSources(casting.current.state, libs.spellIndex) : []);
+  const spellRiders = $derived(casting.current ? spellRiderSources(casting.current.state, libs.spellIndex, form.attackRiderSpells) : []);
+  const riderChoices = $derived(casting.current ? spellRiderOptions(casting.current.state, libs.spellIndex) : []);
   const spellAttackChoices = $derived(casting.current ? spellAttackOptions(casting.current.state, libs.spellIndex) : []);
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
   const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
@@ -414,6 +415,8 @@
         attacks={form.attacks}
         attackCtx={weaponCtx}
         spellAttacks={spellAttackChoices}
+        riderSpells={riderChoices}
+        bind:chosenRiders={form.attackRiderSpells}
       />
     </section>
 

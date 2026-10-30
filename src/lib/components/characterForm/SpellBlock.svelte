@@ -21,12 +21,12 @@
   import SpellCreateModal from '../SpellCreateModal.svelte';
   import type { Attack, Character } from '../../schemas/characterSchema';
   import type { WeaponAttackContext } from '../../services/attackCalc';
-  import { spellAttackIndexOf, toggleSpellAttack, type SpellAttackOption } from '../../services/spellAttacks';
+  import { spellAttackIndexOf, toggleRiderSpell, toggleSpellAttack, type SpellAttackOption } from '../../services/spellAttacks';
   import './form.css';
 
   let {
     form, casting, castingError = '', spellLibrary, saved, fixLabel, onfix, onlibraryreload,
-    attacks, attackCtx, spellAttacks,
+    attacks, attackCtx, spellAttacks, riderSpells, chosenRiders = $bindable(),
   }: {
     form: CharacterFormFields;
     casting: LoadedSpellcasting | null;
@@ -40,6 +40,9 @@
     attackCtx: WeaponAttackContext;
     /** Zauber des Charakters mit `attack`-Block; leer, solange das Zauberwirken lädt. */
     spellAttacks: SpellAttackOption[];
+    /** Zauber mit `attackEffects` (Fesselnder Schlag); ⚔ schaltet sie in `chosenRiders`. */
+    riderSpells: SpellAttackOption[];
+    chosenRiders: string[];
   } = $props();
 
   const block = $derived(form.spellcasting);
@@ -79,8 +82,10 @@
     const stillOwned = Object.values(block.sources).some((s) => Object.values(s.picks).some((l) => l.includes(key)))
       || (block.manual?.extra ?? []).includes(key)
       || (view?.sources ?? []).some((s) => s.quotas.some((q) => q.fixed && q.spells.some((x) => x.key === key)));
-    const at = stillOwned ? -1 : spellAttackIndexOf(attacks, key);
+    if (stillOwned) return;
+    const at = spellAttackIndexOf(attacks, key);
     if (at >= 0) attacks.splice(at, 1);
+    if (chosenRiders.includes(key)) toggleRiderSpell(chosenRiders, key);
   }
 
   // Aus `block` und NICHT aus `quota.spells`: `picking` friert das Kontingent der damaligen
@@ -132,6 +137,11 @@
     <button type="button" class="atk-toggle" class:active={inAttacks}
       title={inAttacks ? 'Aus der Angriffe-Tabelle entfernen' : 'In die Angriffe-Tabelle eintragen'}
       onclick={() => toggleSpellAttack(attacks, option, attackCtx)}>⚔</button>
+  {:else if riderSpells.some((o) => o.key === key)}
+    {@const shown = chosenRiders.includes(key)}
+    <button type="button" class="atk-toggle" class:active={shown}
+      title={shown ? 'Nicht mehr bei den Angriffen anzeigen' : 'Bei den Angriffen als Zusatz anzeigen'}
+      onclick={() => toggleRiderSpell(chosenRiders, key)}>⚔</button>
   {/if}
 {/snippet}
 

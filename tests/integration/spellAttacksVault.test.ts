@@ -10,7 +10,7 @@ import { spellAttackSchema } from '../../src/lib/schemas/spellAttack';
 import { attackEffectSchema } from '../../src/lib/schemas/attackEffect';
 import { loadSpellcasting } from '../../src/lib/services/spellcasting/project';
 import {
-  buildAttackFromSpell, spellAttackOptions, spellAttackSourceOf, spellRiderSources,
+  buildAttackFromSpell, spellAttackOptions, spellAttackSourceOf, spellRiderOptions, spellRiderSources,
 } from '../../src/lib/services/spellAttacks';
 import { attackFootnotes } from '../../src/lib/services/attackEffects';
 import type { AttackCalcContext } from '../../src/lib/services/attackCalc';
@@ -62,10 +62,13 @@ describe('Prüflinge', () => {
     expect(atk).toMatchObject({ bonus: 'SG 10 GES', damage: '1W8', type: 'Gleißend' });
   });
 
-  it('der Paladin bekommt seine Niederstrecken-Zauber als Fußnoten', async () => {
+  it('der Paladin bekommt seine Niederstrecken-Zauber als Fußnoten — nur die per ⚔ gewählten', async () => {
     const c = testCharacter('Prüfling Paladin');
     const { state } = await loadSpellcasting(c);
-    const notes = attackFootnotes([], spellRiderSources(state, await index()));
+    const idx = await index();
+    const all = spellRiderOptions(state, idx).map((o) => o.key);
+    expect(spellRiderSources(state, idx, [])).toEqual([]);
+    const notes = attackFootnotes([], spellRiderSources(state, idx, all));
     expect(notes).toEqual(expect.arrayContaining([
       expect.stringMatching(/^Strahlendes Niederstrecken \+2W6 Gleißender Schaden: nach einem Treffer/),
       expect.stringMatching(/\+2W6 Schallschaden: nach einem Treffer.*\(Nahkampf\)$/),

@@ -75,8 +75,16 @@ export function spellAttackOptions(state: SpellcastingState, index: SpellIndex):
     .sort((a, b) => a.info.level - b.info.level || a.info.name.localeCompare(b.info.name));
 }
 
-export function spellRiderSources(state: SpellcastingState, index: SpellIndex): AttackEffectSpell[] {
+export function spellRiderOptions(state: SpellcastingState, index: SpellIndex): SpellAttackOption[] {
   return ownedSpells(state).flatMap((o) => {
+    const info = index.byKey.get(o.key);
+    return info && spellRidersOf(info).length ? [{ ...o, info }] : [];
+  });
+}
+
+/** Nur die per ⚔ gewählten (`attackRiderSpells`) — sonst stünde jeder Zauber des Charakters im Angriffsteil. */
+export function spellRiderSources(state: SpellcastingState, index: SpellIndex, chosen: readonly string[]): AttackEffectSpell[] {
+  return ownedSpells(state).filter((o) => chosen.includes(o.key)).flatMap((o) => {
     const info = index.byKey.get(o.key);
     const effects = info ? spellRidersOf(info) : [];
     return info && effects.length ? [{ name: info.name, effects }] : [];
@@ -99,6 +107,12 @@ export function buildAttackFromSpell(info: SpellInfo, ability: AbilityKey, ctx: 
   atk.bonus = computeAttackBonus(atk, ctx);
   atk.damage = computeAttackDamage(atk, ctx);
   return atk;
+}
+
+export function toggleRiderSpell(chosen: string[], key: string): void {
+  const at = chosen.indexOf(key);
+  if (at >= 0) chosen.splice(at, 1);
+  else chosen.push(key);
 }
 
 export const spellAttackIndexOf = (attacks: Attack[], key: string): number =>

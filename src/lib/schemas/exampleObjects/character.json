@@ -237,6 +237,9 @@
   "masteries": [
     "string"
   ],
+  "attackRiderSpells": [
+    "string"
+  ],
   "optionPicks": [
     {
       "sourceKey": "string",

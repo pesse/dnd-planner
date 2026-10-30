@@ -25,7 +25,7 @@ const SECTION_OF: Record<keyof Character, EditSectionId | null> = {
   passivePerception: 'general', hitDice: 'general', hpDiceTotal: 'general', combatAdjustments: 'general',
   saveProfs: 'general', skills: 'general', alleskoenner: 'general',
   languages: 'general', tools: 'general', proficiencies: 'general',
-  attacks: 'attacks', masteries: 'attacks',
+  attacks: 'attacks', masteries: 'attacks', attackRiderSpells: 'attacks',
   classFeatures: 'features', optionPicks: 'features', features: 'features', pinnedFeatures: 'features',
   spellcasting: 'spells', spells: 'spells', resourceAdjustments: 'spells',
   currency: 'inventory', inventory: 'inventory', inventoryNotes: 'inventory', totalWeight: 'inventory',

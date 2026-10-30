@@ -317,6 +317,10 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
+  attackRiderSpells: z
+    .array(z.string())
+    .default([])
+    .describe('Keys der Zauber, deren `attackEffects` (Fesselnder Schlag) im Angriffsteil stehen — per ⚔ am Zauber gewählt.'),
   /**
    * EINE flache Liste für ALLE Pools, geschlüsselt am Merkmal — die Anrufungen des
    * Hexenmeisters brauchen damit kein zweites Feld. Nicht ins Merkmals-Ledger: das trägt die

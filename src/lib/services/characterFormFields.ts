@@ -67,6 +67,7 @@ export interface CharacterFormFields {
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
+  attackRiderSpells: string[];
   optionPicks: OptionPick[];
   portraitFile: string;
   figureFile: string;
@@ -219,6 +220,7 @@ export function initialFormFields(character: Character): CharacterFormFields {
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
+    attackRiderSpells: [...(character.attackRiderSpells ?? [])],
     optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
     figureFile: character.figureFile ?? '',
@@ -316,6 +318,7 @@ export function formDraftPatch(
     personal: { ...f.personal },
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
+    attackRiderSpells: [...f.attackRiderSpells],
     optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
     figureFile: f.figureFile || undefined,

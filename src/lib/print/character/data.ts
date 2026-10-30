@@ -167,7 +167,7 @@ export async function loadCharacterPrintData(input: PrintDataInput): Promise<Cha
   const spellIndexP = safe(getSpellLibrary().then(buildSpellIndex), null);
   // Zusatzwürfel aus Zaubern hängen am Zauberwirken — erst danach stehen die Angriffseffekte.
   const riders = Promise.all([loadedP, spellIndexP])
-    .then(([l, idx]) => (l && idx ? spellRiderSources(l.state, idx) : []));
+    .then(([l, idx]) => (l && idx ? spellRiderSources(l.state, idx, c.attackRiderSpells ?? []) : []));
   const [features, loaded, spellIndex, spellRiders, mastery, pools, values, cardItems, abilityEffects, declared, figure, saveInputs, hpParts] = await Promise.all([
     safe(resolveCharacterFeatures(c), EMPTY_FEATURES),
     loadedP,
