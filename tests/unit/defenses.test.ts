@@ -43,6 +43,16 @@ describe('characterDefenses', () => {
       .toBe('Wuchtschaden, Stichschaden, Hiebschaden um 3 verringert');
   });
 
+  it('führt die festen Resistenzen eines wirkenden Gegenstands mit seiner Lage', () => {
+    const item = {
+      name: 'Frost Brand (Glaive)', name_de: 'Frostbrand (Glefe)', category: 'weapon', rarity: 'Very Rare', path: '', magic: true,
+      defenses: [{ resistances: ['fire' as const], immunities: [], conditionImmunities: [], conditionDe: 'solange du die Waffe hältst' }],
+    };
+    const [frost] = characterDefenses([], 2, [{ id: 'frost', item }]);
+    expect([frost.labelDe, frost.textDe, defenseWhenDe(frost.effect)])
+      .toEqual(['Frostbrand (Glefe)', 'Resistenz gegen Feuerschaden', 'solange du die Waffe hältst']);
+  });
+
   it('hängt Einträge von Hand an, ein leerer Eintrag erscheint nicht', () => {
     const out = characterDefenses([RESILIENCE], 2, [], [
       { labelDe: 'Trank', resistances: ['fire'], immunities: [], conditionImmunities: ['poisoned'] },

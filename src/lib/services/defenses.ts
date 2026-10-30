@@ -1,9 +1,9 @@
-/** Resistenzen und Immunitäten eines Charakters: `grants.defenses` seiner Merkmale, gewählte Resistenzen angelegter Gegenstände und Einträge von Hand. */
+/** Resistenzen und Immunitäten eines Charakters: `grants.defenses` seiner Merkmale, die angelegter Gegenstände und Einträge von Hand. */
 import type { DefenseEffect, ManualDefense } from '../schemas/defense';
 import type { FeatureGrant } from '../schemas/grants';
 import { CONDITIONS } from '../schemas/vocabulary';
 import { DAMAGE_TYPE_LABELS } from '../itemLabels';
-import { displayName } from '../itemLibrary';
+import { displayName, type ItemInfo } from '../itemLibrary';
 import { featureIdOf } from '../utils/text';
 import type { WornItem } from './wornItems';
 
@@ -34,7 +34,7 @@ export function characterDefenses(
     seen.add(id);
     out.push(...(f.grants?.defenses ?? []).map((effect) => ({ labelDe: f.name, effect, textDe: defenseTextDe(effect, profBonus) })));
   }
-  return [...out, ...worn.flatMap(itemDefense), ...manual.flatMap((m) => manualDefense(m, profBonus))];
+  return [...out, ...worn.flatMap((w) => itemDefense(w, profBonus)), ...manual.flatMap((m) => manualDefense(m, profBonus))];
 }
 
 function manualDefense({ labelDe, ...lists }: ManualDefense, profBonus: number): CharacterDefense[] {
@@ -44,9 +44,14 @@ function manualDefense({ labelDe, ...lists }: ManualDefense, profBonus: number):
 
 const NO_DEFENSE: DefenseEffect = { resistances: [], immunities: [], conditionImmunities: [] };
 
-function itemDefense({ item, resistance }: WornItem): CharacterDefense[] {
-  if (!item.resistanceChoice) return [];
+function itemDefense({ item, resistance }: WornItem, profBonus: number): CharacterDefense[] {
   const labelDe = displayName(item);
+  const fixed = (item.defenses ?? []).map((effect) => ({ labelDe, effect, textDe: defenseTextDe(effect, profBonus) }));
+  return [...fixed, ...chosenDefense(labelDe, item.resistanceChoice, resistance)];
+}
+
+function chosenDefense(labelDe: string, choice: ItemInfo['resistanceChoice'], resistance: WornItem['resistance']): CharacterDefense[] {
+  if (!choice) return [];
   if (!resistance) return [{ labelDe, effect: NO_DEFENSE, textDe: 'Resistenz noch nicht gewählt' }];
   const effect = { ...NO_DEFENSE, resistances: [resistance] };
   return [{ labelDe, effect, textDe: defenseTextDe(effect, 0) }];

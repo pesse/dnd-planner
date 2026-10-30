@@ -8,6 +8,7 @@ import { ABILITY_KEYS } from './abilities';
 import { armorClassEffectSchema } from './armorClass';
 import { savingThrowEffectSchema } from './savingThrow';
 import { attackEffectSchema } from './attackEffect';
+import { defenseEffectSchema } from './defense';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { namedRef } from './llmJson';
 import { castingGrantSchema } from './casting';
@@ -87,6 +88,10 @@ export const itemSchema = z.object({
     .array(savingThrowEffectSchema)
     .optional()
     .describe('Wirkung auf Rettungswürfe (Mantel des Schutzes +1), solange der Gegenstand wirkt.'),
+  defenses: z
+    .array(defenseEffectSchema)
+    .optional()
+    .describe('Feste Resistenzen und Immunitäten des Trägers (Frostbrand, Amulett gegen Gift), solange der Gegenstand wirkt; die Lage („solange du die Waffe hältst") in `conditionDe`.'),
   resistanceChoice: z
     .object({
       types: z.array(z.enum(DAMAGE_TYPES)).min(1),

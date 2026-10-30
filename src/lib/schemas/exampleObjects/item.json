@@ -428,6 +428,27 @@
       "conditionDe": "string"
     }
   ],
+  "defenses": [
+    {
+      "resistances": [
+        "acid"
+      ],
+      "immunities": [
+        "acid"
+      ],
+      "conditionImmunities": [
+        "blinded"
+      ],
+      "reduction": {
+        "types": [
+          "acid"
+        ],
+        "amount": 1
+      },
+      "condition": "string",
+      "conditionDe": "string"
+    }
+  ],
   "resistanceChoice": {
     "types": [
       "acid"
