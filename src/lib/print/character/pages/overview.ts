@@ -192,8 +192,8 @@ const attacksBox = (d: CharacterPrintData): string => {
   const cell = (v: string, cls = ''): string => `<td class="${cls}">${v}</td>`;
   const name = (a: PrintAttack): string => (a.origin ? attackOriginIcon(a.origin) : '') +
     esc(a.name) + (a.note ? `<span class="anote">${esc(a.note)}</span>` : '');
-  const noteRow = (n: AttackFootnote, cls = ''): string =>
-    `<tr${cls ? ` class="${cls}"` : ''}><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`;
+  const noteRow = (n: AttackFootnote, cls = 'atk-note'): string =>
+    `<tr class="${cls}"><td colspan="5"><span class="anote">${attackFootnoteHtml(n)}</span></td></tr>`;
   const rowClass = (a: PrintAttack): string => {
     const cls = [a.note && 'has-note', a.effects.length && 'has-effects'].filter(Boolean).join(' ');
     return cls ? ` class="${cls}"` : '';

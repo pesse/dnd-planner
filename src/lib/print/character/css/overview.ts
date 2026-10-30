@@ -172,11 +172,15 @@ export const OVERVIEW_CSS = `
 /* Die Wirkung gehört zum Namen darüber: keine Linie dazwischen, Text oben an der Zeile. */
 .o-atk tr.has-effects td:first-child { border-bottom: none; }
 .o-atk tr.atk-effect td { vertical-align: top; padding-top: 0; }
+/* Höhe 0: die Resthöhe des Kastens geht an Angriffs- und Schreibzeilen, nicht an Fließtext. */
+.o-atk tr.atk-effect, .o-atk tr.atk-note { height: 0; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
 .o-atk .anote b { font-weight: 700; }
 .o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }
 .o-atk .atk-origin svg { display: block; }
-/* Auf der oberen Rahmenlinie rechts, wie die Beschriftung — kostet keine Schreiblinie. */
+/* Auf der oberen Rahmenlinie rechts, wie die Beschriftung — kostet keine Schreiblinie. Die
+   Beschriftung weicht nach links aus, mittig liefe sie in die Legende. */
+.tf:has(> .tlegend) > .tcap { left: 3mm; transform: none; }
 .tf > .tlegend { position: absolute; top: -${FRAME_WIDTH_MM}mm; right: 3mm; padding: 0 1mm; line-height: 1;
                  background: var(--paper); white-space: nowrap; font-size: 5pt; color: var(--ink-label); }
 .tlegend .atk-origin { display: inline-block; width: 1em; margin: 0 0.4mm 0 1mm; vertical-align: -0.12em; }
