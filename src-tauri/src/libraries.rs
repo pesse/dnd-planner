@@ -635,16 +635,29 @@ pub async fn try_access_code(code: String) -> Result<Vec<String>, String> {
         return Err("Kein Zugangscode eingegeben.".into());
     }
 
-    let entries = fetch_index().await?;
+    let protected: Vec<IndexEntry> = fetch_index()
+        .await?
+        .into_iter()
+        .filter(|e| e.protected)
+        .collect();
+    // Parallel: jeder Kopf-Abruf läuft über eine GitHub-Weiterleitung, nacheinander summiert sich das.
+    let headers: Vec<_> = protected
+        .iter()
+        .map(|e| {
+            let file = e.file.clone();
+            tauri::async_runtime::spawn(async move { fetch_header(&file).await })
+        })
+        .collect();
     let mut unlocked = Vec::new();
 
-    for entry in entries.iter().filter(|e| e.protected) {
-        let header = match fetch_header(&entry.file).await {
-            Ok(h) => h,
+    for (entry, header) in protected.iter().zip(headers) {
+        let header = match header.await {
+            Ok(Ok(h)) => h,
             // Ein unlesbarer Pack darf die Prüfung der anderen nicht abbrechen.
-            Err(_) => continue,
+            _ => continue,
         };
-        if code_matches(&header, &code)? {
+        let candidate = code.clone();
+        if crate::blocking(move || code_matches(&header, &candidate)).await? {
             store_code(&entry.id, &code, entry.key_version.unwrap_or(1))?;
             unlocked.push(entry.name.clone());
         }

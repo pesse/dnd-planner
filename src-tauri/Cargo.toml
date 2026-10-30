@@ -39,3 +39,20 @@ scrypt = { version = "0.11", default-features = false }
 hmac = "0.12"
 sha2 = "0.10"
 
+
+# Unoptimiert braucht scrypt (N=2^16, r=8) Sekunden je Pack, und die Codeprüfung probiert jeden
+# geschützten; AES-GCM entschlüsselt Bild-Packs von Hunderten MB.
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.salsa20]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.aes]
+opt-level = 3
+[profile.dev.package.aes-gcm]
+opt-level = 3
+[profile.dev.package.ghash]
+opt-level = 3
+[profile.dev.package.polyval]
+opt-level = 3
