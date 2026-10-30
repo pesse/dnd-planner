@@ -13,8 +13,10 @@
 
   const spec = $derived(CATALOGS[kind]);
 
-  let rows = $state<CatalogRow[]>([]);
-  let groups = $state<CatalogGroup[]>([]);
+  /** Die Zeilen tragen ihren Katalog: nach einem Wechsel passen die alten nicht auf die neuen Spalten. */
+  let loaded = $state<{ kind: CatalogKind; rows: CatalogRow[]; groups: CatalogGroup[] } | null>(null);
+  let rows = $derived(loaded?.kind === kind ? loaded.rows : []);
+  let groups = $derived(loaded?.kind === kind ? loaded.groups : []);
   let loading = $state(true);
   let search = $state('');
   /** Spalten-ID oder `name`; überlebt den Filterwechsel, solange das neue Set die Spalte zeigt. */
@@ -23,10 +25,11 @@
   let failedIcons = $state<Record<string, true>>({});
 
   async function load(fresh: boolean) {
+    const forKind = kind;
     if (fresh) spec.invalidate();
     const result = await spec.load();
-    rows = result.rows;
-    groups = result.groups;
+    if (forKind !== kind) return;
+    loaded = { kind: forKind, ...result };
     loading = false;
   }
 
