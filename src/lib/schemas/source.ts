@@ -21,12 +21,33 @@ export const SOURCE_KEYS = [
   'deepm',
   'a5e-ag',
 ] as const;
-export type SourceKey = (typeof SOURCE_KEYS)[number];
+type FixedSourceKey = (typeof SOURCE_KEYS)[number];
+
+/**
+ * Aus einem gekauften Buch importiert (D&D Beyond), z. B. `crooked-moon-import`. Liegt nur im
+ * lokalen Vault: `build_packs.py` überspringt die ganze Familie, sie wird nie gepackt.
+ */
+export type ImportSourceKey = `${string}-import`;
+export type SourceKey = FixedSourceKey | ImportSourceKey;
+
+export const IMPORT_SOURCE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*-import$/;
+export const isImportSource = (s: string): s is ImportSourceKey => IMPORT_SOURCE_RE.test(s);
+
+const TITLE_FILLER = new Set(['the', 'a', 'an', 'of', 'and', 'part', 'one', 'two', 'three']);
+
+/** „The Crooked Moon Part One: Player Options…" → `crooked-moon-import`. */
+export function importSourceFromTitle(title: string): ImportSourceKey {
+  const words = title.toLowerCase().split(/[:(]/)[0]
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+    .filter((w) => w && !TITLE_FILLER.has(w));
+  return `${words.slice(0, 3).join('-') || 'buch'}-import`;
+}
 
 /** Default für alles, was in der App neu entsteht. */
 export const OWN_SOURCE: SourceKey = 'homebrew-sam';
 
-export const SOURCE_LABELS: Record<SourceKey, string> = {
+export const SOURCE_LABELS: Record<FixedSourceKey, string> = {
   'srd-2024': 'SRD 5.2',
   'phb-2024': 'PHB 2024',
   'efa-2025': 'Eberron 2025',
@@ -42,16 +63,21 @@ export const SOURCE_LABELS: Record<SourceKey, string> = {
 
 /** Unbekannte Werte (Fremdimport) unverändert durchreichen. */
 export function sourceLabel(source: string | undefined): string {
-  return SOURCE_LABELS[source as SourceKey] ?? source ?? '';
+  if (source && isImportSource(source)) {
+    const name = source.slice(0, -'-import'.length).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+    return `${name} (Import)`;
+  }
+  return SOURCE_LABELS[source as FixedSourceKey] ?? source ?? '';
 }
 
 /**
- * `z.enum` statt Freitext: ein LLM kann keinen erfundenen Wert liefern, und ein falsch
- * gepflegter Editor fällt im Parse-Gate auf statt erst im Pack-Build. Altbestand fängt
- * `migrateSourceLegacy` ab, das vor jedem Parse läuft.
+ * Geschlossen statt Freitext: ein falsch gepflegter Editor fällt im Parse-Gate auf statt erst
+ * im Pack-Build. Erfindet ein LLM eine `*-import`-Herkunft, landet sie nur nie im Pack — die
+ * sichere Richtung. Altbestand fängt `migrateSourceLegacy` ab, das vor jedem Parse läuft.
  */
 export const sourceField = () =>
-  z.enum(SOURCE_KEYS).default(OWN_SOURCE).describe('Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.');
+  z.union([z.enum(SOURCE_KEYS), z.string().regex(IMPORT_SOURCE_RE) as unknown as z.ZodType<ImportSourceKey>])
+    .default(OWN_SOURCE).describe('Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.');
 
 // Altbestand: `source` führte eine eigene, uneinheitliche Liste neben `document.key`.
 const LEGACY_SOURCES: Record<string, SourceKey> = {
@@ -70,6 +96,7 @@ const LEGACY_SOURCES: Record<string, SourceKey> = {
 export function toSourceKey(raw: string | undefined | null): SourceKey {
   const s = raw ?? '';
   if (LEGACY_SOURCES[s]) return LEGACY_SOURCES[s];
+  if (isImportSource(s)) return s;
   return (SOURCE_KEYS as readonly string[]).includes(s) ? (s as SourceKey) : OWN_SOURCE;
 }
 

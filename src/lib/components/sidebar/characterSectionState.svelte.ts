@@ -69,6 +69,7 @@ export class CharacterSectionState {
   showNewInput = $state(false);
   newInput = $state('');
   showWizard = $state(false);
+  showImport = $state(false);
 
   async load(): Promise<void> {
     let loose: EntryInfo[] = [];
@@ -129,10 +130,11 @@ export class CharacterSectionState {
     if (e.key === 'Escape') { this.showNewInput = false; this.newInput = ''; }
   }
 
-  async createFromWizard(character: Character): Promise<void> {
-    const uid = await createWizardCharacter(character);
+  async createFromWizard(character: Character, details = ''): Promise<void> {
+    const uid = await createWizardCharacter(character, details);
     if (!uid) return;
     this.showWizard = false;
+    this.showImport = false;
     this.expanded = true;
     await this.load();
     await this.openCharacter({ name: uid, is_dir: true });

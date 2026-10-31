@@ -32,12 +32,15 @@ export async function createBlankCharacter(rawName: string): Promise<string | nu
   }
 }
 
-/** Übernimmt den vom Wizard fertig zusammengesetzten Charakter. */
-export async function createWizardCharacter(character: Character): Promise<string | null> {
+/** Übernimmt einen fertig zusammengesetzten Charakter (Wizard, Import); `details` → `details.md`. */
+export async function createWizardCharacter(character: Character, details = ''): Promise<string | null> {
   const raw = (character.name || 'Neuer Charakter').trim();
   try {
     const uid = await freshCharacterUid();
     await writeCharacter(uid, raw, character);
+    if (details.trim()) {
+      await invoke('write_file_content', { path: `${CHARACTERS_PATH}/${uid}/details.md`, content: details });
+    }
     return uid;
   } catch (err) {
     console.error('Charakter konnte nicht erstellt werden:', err);

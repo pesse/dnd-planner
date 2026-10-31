@@ -18,26 +18,40 @@ export interface NameIndexSpec<T> {
   names(entry: T): (string | undefined)[];
   /** Unterscheidet zwei Einträge; gleiche Identität ist keine Mehrdeutigkeit. */
   identity(entry: T): string;
+  /**
+   * Weitere Schreibweisen fremder Quellen. Sie füllen nur Plätze, die kein echter Name
+   * belegt — ein Alias darf einen bestehenden Treffer nie mehrdeutig machen.
+   */
+  aliases?(entry: T): (string | undefined)[];
 }
 
 export function buildNameIndex<T>(entries: Iterable<T>, spec: NameIndexSpec<T>): NameIndex<T> {
   const byKey = new Map<string, T>();
   const byName = new Map<string, T>();
   const ambiguous = new Set<string>();
+  const list = [...entries];
+  const aliasOwned = new Set<string>();
 
-  for (const entry of entries) {
+  const claim = (entry: T, raw: string | undefined, isAlias: boolean) => {
+    const name = normName(raw);
+    if (!name) return;
+    const seen = byName.get(name);
+    if (!seen) {
+      byName.set(name, entry);
+      if (isAlias) aliasOwned.add(name);
+      return;
+    }
+    if (isAlias && !aliasOwned.has(name)) return;
+    if (spec.identity(seen) !== spec.identity(entry)) ambiguous.add(name);
+  };
+
+  for (const entry of list) {
     const key = spec.key(entry);
     if (key) byKey.set(key, entry);
-    for (const raw of spec.names(entry)) {
-      const name = normName(raw);
-      if (!name) continue;
-      const seen = byName.get(name);
-      if (seen) {
-        if (spec.identity(seen) !== spec.identity(entry)) ambiguous.add(name);
-        continue;
-      }
-      byName.set(name, entry);
-    }
+    for (const raw of spec.names(entry)) claim(entry, raw, false);
+  }
+  if (spec.aliases) {
+    for (const entry of list) for (const raw of spec.aliases(entry)) claim(entry, raw, true);
   }
 
   return { byKey, byName, ambiguous };

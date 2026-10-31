@@ -252,7 +252,27 @@ export function buildItemIndex(loadedByDir: Record<string, ItemInfo[]>): ItemInd
     key: (i) => i.key,
     names: (i) => [i.name_de, i.name],
     identity: (i) => i.path,
+    aliases: (i) => itemNameVariants(i.name),
   });
+}
+
+/**
+ * Wie andere Quellen (D&D Beyond, Altbögen) denselben Gegenstand schreiben:
+ * „Weaver's Tools (1 GP)" → „Weaver's Tools", „Lantern, Bullseye" → „Bullseye Lantern",
+ * „Musical Instrument, Lute" → „Lute", „Leather Armor" → „Leather".
+ */
+export function itemNameVariants(name: string): string[] {
+  const base = name.replace(/\s*\(\d+(?:[.,]\d+)?\s*(?:CP|SP|EP|GP|PP)\)\s*$/i, '').trim();
+  const out = new Set<string>([base]);
+  const comma = base.match(/^([^,]+),\s*([^,]+)$/);
+  if (comma) {
+    out.add(`${comma[2]} ${comma[1]}`);
+    if (/^(musical instrument|gaming set)$/i.test(comma[1].trim())) out.add(comma[2]);
+  }
+  const armor = base.match(/^(.+?)\s+Armor$/i);
+  if (armor) out.add(armor[1]);
+  out.delete(name);
+  return [...out];
 }
 
 export const matchItem = matchByRef<ItemInfo>;

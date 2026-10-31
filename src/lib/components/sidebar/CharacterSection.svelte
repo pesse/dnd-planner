@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import CharacterWizard from '../CharacterWizard.svelte';
+  import DdbImportWizard from '../ddbImport/DdbImportWizard.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import { navigateTo } from '../../services/navigation';
   import { catalogEntry } from '../../services/catalog/catalogTypes';
@@ -35,6 +36,9 @@
     top
   >
     {#snippet actions()}
+      <button class="add-btn" title="Aus D&D Beyond importieren" onclick={() => (state.showImport = true)}>
+        ⇪
+      </button>
       <button class="add-btn" title="Neuer Charakter" onclick={() => (state.showWizard = true)}>
         +
       </button>
@@ -91,6 +95,10 @@
 
 {#if state.showWizard}
   <CharacterWizard onComplete={(c) => state.createFromWizard(c)} onCancel={() => (state.showWizard = false)} />
+{/if}
+
+{#if state.showImport}
+  <DdbImportWizard onComplete={(c, details) => state.createFromWizard(c, details)} onCancel={() => (state.showImport = false)} />
 {/if}
 
 <style>

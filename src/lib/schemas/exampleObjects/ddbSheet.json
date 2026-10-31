@@ -1,0 +1,172 @@
+{
+  "id": "string",
+  "name": "string",
+  "playerName": "string",
+  "classes": [
+    {
+      "name": "string",
+      "level": -9007199254740991,
+      "origin": {
+        "sourceId": -9007199254740991,
+        "homebrew": false,
+        "desc": "string"
+      },
+      "subclass": {
+        "name": "string",
+        "origin": {
+          "sourceId": -9007199254740991,
+          "homebrew": false,
+          "desc": "string"
+        }
+      }
+    }
+  ],
+  "species": {
+    "name": "string",
+    "origin": {
+      "sourceId": -9007199254740991,
+      "homebrew": false,
+      "desc": "string"
+    }
+  },
+  "background": {
+    "name": "string",
+    "origin": {
+      "sourceId": -9007199254740991,
+      "homebrew": false,
+      "desc": "string"
+    }
+  },
+  "xp": "string",
+  "abilities": {
+    "str": -9007199254740991,
+    "dex": -9007199254740991,
+    "con": -9007199254740991,
+    "int": -9007199254740991,
+    "wis": -9007199254740991,
+    "cha": -9007199254740991
+  },
+  "saveProfs": {
+    "str": false,
+    "dex": false,
+    "con": false,
+    "int": false,
+    "wis": false,
+    "cha": false
+  },
+  "skills": [
+    {
+      "name": "Acrobatics",
+      "value": -9007199254740991,
+      "mark": ""
+    }
+  ],
+  "ac": "string",
+  "initiative": "string",
+  "speedFt": 0,
+  "hpMax": "string",
+  "hitDice": "string",
+  "proficiencyBonus": -9007199254740991,
+  "heroicInspiration": false,
+  "passivePerception": "string",
+  "armor": [
+    "string"
+  ],
+  "weapons": [
+    "string"
+  ],
+  "tools": [
+    "string"
+  ],
+  "languages": [
+    "string"
+  ],
+  "features": [
+    {
+      "section": "string",
+      "name": "string",
+      "options": [
+        "string"
+      ],
+      "origin": {
+        "sourceId": -9007199254740991,
+        "homebrew": false,
+        "desc": "string"
+      }
+    }
+  ],
+  "inventory": [
+    {
+      "name": "string",
+      "qty": 0,
+      "totalWeightLb": 0,
+      "equipped": false,
+      "origin": {
+        "sourceId": -9007199254740991,
+        "homebrew": false,
+        "desc": "string"
+      },
+      "detail": {
+        "type": "string",
+        "filterType": "string",
+        "rarity": "string",
+        "magic": false,
+        "costGp": 0,
+        "weightLb": 0,
+        "armorClass": 0,
+        "armorTypeId": 0,
+        "stealthDisadvantage": false,
+        "strengthRequirement": 0,
+        "damage": "string",
+        "damageType": "string",
+        "weaponCategoryId": 0,
+        "ranged": false,
+        "properties": [
+          "string"
+        ],
+        "attunement": "string"
+      }
+    }
+  ],
+  "currency": {
+    "cp": "string",
+    "sp": "string",
+    "ep": "string",
+    "gp": "string",
+    "pp": "string"
+  },
+  "personal": {
+    "gender": "string",
+    "age": "string",
+    "size": "string",
+    "height": "string",
+    "weight": "string",
+    "alignment": "string",
+    "faith": "string",
+    "skin": "string",
+    "eyes": "string",
+    "hair": "string"
+  },
+  "traits": "string",
+  "ideals": "string",
+  "bonds": "string",
+  "flaws": "string",
+  "allies": "string",
+  "backstory": "string",
+  "notes": "string",
+  "spells": [
+    {
+      "name": "string",
+      "level": -9007199254740991,
+      "source": "string",
+      "origin": {
+        "sourceId": -9007199254740991,
+        "homebrew": false,
+        "desc": "string"
+      }
+    }
+  ],
+  "spellcastingClasses": [
+    "string"
+  ]
+}

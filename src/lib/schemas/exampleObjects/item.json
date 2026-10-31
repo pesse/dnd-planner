@@ -533,7 +533,7 @@
     "unit": "string"
   },
   "weight": 0,
-  "source": "homebrew-sam",
+  "source": "srd-2024",
   "document": {
     "key": "string",
     "gamesystem": "string"

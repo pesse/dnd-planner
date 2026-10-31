@@ -24,7 +24,9 @@
         { "url": "https://api.x.ai/**" },
         { "url": "https://api.cloudflare.com/**" },
         { "url": "https://api.openai.com/**" },
-        { "url": "https://code.qualityminds.ai/**" }
+        { "url": "https://code.qualityminds.ai/**" },
+        { "url": "https://character-service.dndbeyond.com/**" },
+        { "url": "https://www.dndbeyond.com/api/config/json" }
       ]
     },
     "http:allow-fetch-send",

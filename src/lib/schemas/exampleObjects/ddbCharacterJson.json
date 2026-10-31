@@ -1,0 +1,491 @@
+{
+  "id": 0,
+  "name": "string",
+  "username": "string",
+  "gender": "string",
+  "faith": "string",
+  "hair": "string",
+  "eyes": "string",
+  "skin": "string",
+  "height": "string",
+  "age": 0,
+  "weight": 0,
+  "alignmentId": 0,
+  "currentXp": 0,
+  "inspiration": false,
+  "baseHitPoints": 0,
+  "bonusHitPoints": 0,
+  "overrideHitPoints": 0,
+  "stats": [
+    {
+      "id": 0,
+      "value": 0
+    }
+  ],
+  "bonusStats": [
+    {
+      "id": 0,
+      "value": 0
+    }
+  ],
+  "overrideStats": [
+    {
+      "id": 0,
+      "value": 0
+    }
+  ],
+  "race": {
+    "description": "string",
+    "snippet": "string",
+    "isHomebrew": false,
+    "sourceId": 0,
+    "sources": [
+      {
+        "sourceId": 0
+      }
+    ],
+    "fullName": "string",
+    "sizeId": 0,
+    "weightSpeeds": {
+      "normal": {
+        "walk": 0
+      }
+    },
+    "racialTraits": [
+      {
+        "definition": {
+          "id": 0,
+          "name": "string",
+          "requiredLevel": 0
+        }
+      }
+    ]
+  },
+  "background": {
+    "definition": {
+      "description": "string",
+      "snippet": "string",
+      "isHomebrew": false,
+      "sourceId": 0,
+      "sources": [
+        {
+          "sourceId": 0
+        }
+      ],
+      "name": "string"
+    },
+    "customBackground": {
+      "name": "string"
+    }
+  },
+  "classes": [
+    {
+      "id": 0,
+      "level": 0,
+      "definition": {
+        "description": "string",
+        "snippet": "string",
+        "isHomebrew": false,
+        "sourceId": 0,
+        "sources": [
+          {
+            "sourceId": 0
+          }
+        ],
+        "name": "string",
+        "hitDice": 0,
+        "canCastSpells": false
+      },
+      "subclassDefinition": {
+        "description": "string",
+        "snippet": "string",
+        "isHomebrew": false,
+        "sourceId": 0,
+        "sources": [
+          {
+            "sourceId": 0
+          }
+        ],
+        "name": "string"
+      },
+      "classFeatures": [
+        {
+          "definition": {
+            "id": 0,
+            "name": "string",
+            "requiredLevel": 0
+          }
+        }
+      ]
+    }
+  ],
+  "feats": [
+    {
+      "componentId": 0,
+      "definition": {
+        "description": "string",
+        "snippet": "string",
+        "isHomebrew": false,
+        "sourceId": 0,
+        "sources": [
+          {
+            "sourceId": 0
+          }
+        ],
+        "id": 0,
+        "name": "string"
+      }
+    }
+  ],
+  "modifiers": {
+    "race": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ],
+    "class": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ],
+    "background": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ],
+    "item": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ],
+    "feat": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ],
+    "condition": [
+      {
+        "type": "string",
+        "subType": "string",
+        "value": 0,
+        "statId": 0,
+        "componentId": 0,
+        "entityTypeId": 0,
+        "friendlySubtypeName": "string"
+      }
+    ]
+  },
+  "choices": {
+    "race": [
+      {
+        "componentId": 0,
+        "componentTypeId": 0,
+        "type": 0,
+        "optionValue": 0,
+        "options": [
+          {
+            "id": 0,
+            "label": "string"
+          }
+        ]
+      }
+    ],
+    "class": [
+      {
+        "componentId": 0,
+        "componentTypeId": 0,
+        "type": 0,
+        "optionValue": 0,
+        "options": [
+          {
+            "id": 0,
+            "label": "string"
+          }
+        ]
+      }
+    ],
+    "background": [
+      {
+        "componentId": 0,
+        "componentTypeId": 0,
+        "type": 0,
+        "optionValue": 0,
+        "options": [
+          {
+            "id": 0,
+            "label": "string"
+          }
+        ]
+      }
+    ],
+    "feat": [
+      {
+        "componentId": 0,
+        "componentTypeId": 0,
+        "type": 0,
+        "optionValue": 0,
+        "options": [
+          {
+            "id": 0,
+            "label": "string"
+          }
+        ]
+      }
+    ],
+    "choiceDefinitions": [
+      {
+        "id": "string",
+        "options": [
+          {
+            "id": 0,
+            "label": "string"
+          }
+        ]
+      }
+    ]
+  },
+  "inventory": [
+    {
+      "equipped": false,
+      "isAttuned": false,
+      "quantity": 0,
+      "definition": {
+        "description": "string",
+        "snippet": "string",
+        "isHomebrew": false,
+        "sourceId": 0,
+        "sources": [
+          {
+            "sourceId": 0
+          }
+        ],
+        "id": 0,
+        "name": "string",
+        "type": "string",
+        "weight": 0,
+        "bundleSize": 0,
+        "cost": 0,
+        "rarity": "string",
+        "magic": false,
+        "armorClass": 0,
+        "armorTypeId": 0,
+        "stealthCheck": 0,
+        "strengthRequirement": 0,
+        "damage": {
+          "diceString": "string"
+        },
+        "damageType": "string",
+        "categoryId": 0,
+        "attackType": 0,
+        "properties": [
+          {
+            "name": "string"
+          }
+        ],
+        "filterType": "string",
+        "canAttune": false,
+        "attunementDescription": "string",
+        "grantedModifiers": [
+          {
+            "type": "string",
+            "subType": "string",
+            "value": 0,
+            "statId": 0,
+            "componentId": 0,
+            "entityTypeId": 0,
+            "friendlySubtypeName": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "customItems": [
+    {
+      "name": "string",
+      "description": "string",
+      "quantity": 0,
+      "weight": 0,
+      "cost": 0
+    }
+  ],
+  "currencies": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "traits": {
+    "personalityTraits": "string",
+    "ideals": "string",
+    "bonds": "string",
+    "flaws": "string",
+    "appearance": "string"
+  },
+  "notes": {
+    "allies": "string",
+    "organizations": "string",
+    "enemies": "string",
+    "backstory": "string",
+    "personalPossessions": "string",
+    "otherHoldings": "string",
+    "otherNotes": "string"
+  },
+  "spells": {
+    "race": [
+      {
+        "componentId": 0,
+        "prepared": false,
+        "alwaysPrepared": false,
+        "definition": {
+          "description": "string",
+          "snippet": "string",
+          "isHomebrew": false,
+          "sourceId": 0,
+          "sources": [
+            {
+              "sourceId": 0
+            }
+          ],
+          "name": "string",
+          "level": 0
+        }
+      }
+    ],
+    "class": [
+      {
+        "componentId": 0,
+        "prepared": false,
+        "alwaysPrepared": false,
+        "definition": {
+          "description": "string",
+          "snippet": "string",
+          "isHomebrew": false,
+          "sourceId": 0,
+          "sources": [
+            {
+              "sourceId": 0
+            }
+          ],
+          "name": "string",
+          "level": 0
+        }
+      }
+    ],
+    "feat": [
+      {
+        "componentId": 0,
+        "prepared": false,
+        "alwaysPrepared": false,
+        "definition": {
+          "description": "string",
+          "snippet": "string",
+          "isHomebrew": false,
+          "sourceId": 0,
+          "sources": [
+            {
+              "sourceId": 0
+            }
+          ],
+          "name": "string",
+          "level": 0
+        }
+      }
+    ],
+    "item": [
+      {
+        "componentId": 0,
+        "prepared": false,
+        "alwaysPrepared": false,
+        "definition": {
+          "description": "string",
+          "snippet": "string",
+          "isHomebrew": false,
+          "sourceId": 0,
+          "sources": [
+            {
+              "sourceId": 0
+            }
+          ],
+          "name": "string",
+          "level": 0
+        }
+      }
+    ],
+    "background": [
+      {
+        "componentId": 0,
+        "prepared": false,
+        "alwaysPrepared": false,
+        "definition": {
+          "description": "string",
+          "snippet": "string",
+          "isHomebrew": false,
+          "sourceId": 0,
+          "sources": [
+            {
+              "sourceId": 0
+            }
+          ],
+          "name": "string",
+          "level": 0
+        }
+      }
+    ]
+  },
+  "classSpells": [
+    {
+      "characterClassId": 0,
+      "spells": [
+        {
+          "componentId": 0,
+          "prepared": false,
+          "alwaysPrepared": false,
+          "definition": {
+            "description": "string",
+            "snippet": "string",
+            "isHomebrew": false,
+            "sourceId": 0,
+            "sources": [
+              {
+                "sourceId": 0
+              }
+            ],
+            "name": "string",
+            "level": 0
+          }
+        }
+      ]
+    }
+  ]
+}

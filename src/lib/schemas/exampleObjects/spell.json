@@ -146,7 +146,7 @@
       "self": false
     }
   ],
-  "source": "homebrew-sam",
+  "source": "srd-2024",
   "document": {
     "key": "string",
     "gamesystem": "string"
