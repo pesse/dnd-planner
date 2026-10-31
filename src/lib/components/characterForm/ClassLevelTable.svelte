@@ -6,6 +6,7 @@
   import { navigateTo } from '../../services/navigation';
   import { classDisplayName, searchClasses, type ClassInfo } from '../../classLibrary';
   import { totalLevel } from '../../schemas/classLevelText';
+  import { subclassLevel } from '../../services/classProgression';
   import type { CharacterClass } from '../../schemas/characterSchema';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import LibraryRefPicker from './LibraryRefPicker.svelte';
@@ -60,6 +61,15 @@
     return classIndex.filter((c) => c.subclassOf === cls.sourceKey);
   }
 
+  let subclassLevels = $state<Record<string, number | null>>({});
+  $effect(() => {
+    for (const { sourceKey } of classes) {
+      if (!sourceKey || sourceKey in subclassLevels) continue;
+      subclassLevels[sourceKey] = null;
+      void subclassLevel(sourceKey).then((lvl) => { subclassLevels[sourceKey] = lvl; });
+    }
+  });
+
   function setSubclass(i: number, key: string) {
     if (!key) { classes[i].subclassKey = undefined; classes[i].subclassName = undefined; return; }
     const info = classIndex.find((c) => c.key === key);
@@ -88,6 +98,7 @@
     <tbody>
       {#each classes as cls, i}
         {@const subs = subclassesFor(cls)}
+        {@const subLevel = subclassLevels[cls.sourceKey] ?? null}
         <tr>
           <td>
             <LibraryRefPicker
@@ -107,7 +118,9 @@
           <td><input class="ref-level" type="number" min="1" max="20" value={cls.level}
             oninput={(e) => { const v = parseInt((e.target as HTMLInputElement).value); cls.level = Number.isNaN(v) ? 1 : Math.min(20, Math.max(1, v)); }} /></td>
           <td>
-            {#if subs.length > 0}
+            {#if subLevel && cls.level < subLevel && !cls.subclassKey}
+              <span class="subclass-na">ab Stufe {subLevel}</span>
+            {:else if subs.length > 0}
               <select value={cls.subclassKey ?? ''} onchange={(e) => setSubclass(i, e.currentTarget.value)}>
                 <option value="">— keine —</option>
                 {#each subs as sub}

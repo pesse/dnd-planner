@@ -40,6 +40,12 @@ export async function getProgressionByKey(key: string): Promise<ClassProgression
   return localByKey.get(key);
 }
 
+/** Stufe, ab der die Klasse ihre Subklasse wählt (`grantsSubclass`); `null`, wenn sie keine deklariert. */
+export async function subclassLevel(key: string): Promise<number | null> {
+  const f = (await getProgressionByKey(key))?.features.find((x) => x.grantsSubclass);
+  return f?.gainedAt.length ? Math.min(...f.gainedAt) : null;
+}
+
 export const proficiencyBonus = (level: number): number => 2 + Math.floor((Math.max(1, level) - 1) / 4);
 
 /** `null` ist das geleerte Formularfeld. */
