@@ -52,7 +52,7 @@ const exists = new Map<string, Promise<boolean>>();
 /** Nach einer Bibliotheks-Installation: vorher fehlende Bilder können jetzt da sein. */
 export const invalidateArtProbes = (): void => exists.clear();
 
-function probe(url: string): Promise<boolean> {
+export function artExists(url: string): Promise<boolean> {
   let p = exists.get(url);
   if (!p) {
     p = new Promise((resolve) => {
@@ -80,7 +80,7 @@ const MIRRORED = [
 export const isMirroredArt = (url: string): boolean => MIRRORED.some((name) => artUrl(name) === url);
 
 export async function resolveOriginArt(candidates: string[]): Promise<string | null> {
-  for (const url of candidates) if (await probe(url)) return url;
+  for (const url of candidates) if (await artExists(url)) return url;
   return null;
 }
 

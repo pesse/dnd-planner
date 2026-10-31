@@ -1,14 +1,15 @@
 <script lang="ts">
   /**
-   * Ein Bild im Charakter-Ordner: Vorschau, Datei wählen (wird in den Ordner kopiert) und
+   * Ein Bild im Charakter-Ordner: Vorschau, Bild wählen und zuschneiden (landet im Ordner) und
    * Verknüpfung lösen. Gespeichert wird nur der Dateiname — `baseName` bestimmt ihn, damit
    * zwei Felder im selben Ordner sich nicht überschreiben.
    */
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { tick } from 'svelte';
-  import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import { diffMark, type DiffDir } from '../../utils/diffHighlight';
   import ImageGenerator from './ImageGenerator.svelte';
+  import PortraitPicker from './PortraitPicker.svelte';
+  import type { PortraitArtSource } from '../../services/portraitArt';
   import type { PortraitSource } from '../../services/imageGen/portraitPrompt';
   import type { GeneratedImage } from '../../services/imageGen/types';
   import './form.css';
@@ -23,8 +24,8 @@
     /** Beschriftung des leeren Rahmens und des Bildes. */
     label: string;
     diff: DiffDir;
-    /** Quelle fürs generierte Portrait; ohne sie gibt es nur die Datei-Wahl. */
-    portrait?: PortraitSource;
+    /** Quelle fürs generierte Portrait und die passenden Stimmungsbilder; ohne sie gibt es nur die Datei-Wahl. */
+    portrait?: PortraitSource & PortraitArtSource;
   } = $props();
 
   let preview = $state('');
@@ -32,7 +33,7 @@
   let busy = $state(false);
   let previewToken = 0;
 
-  // Asset-Protokoll statt Base64 durch die IPC; `pick()` setzt die Vorschau danach direkt aus
+  // Asset-Protokoll statt Base64 durch die IPC; `store()` setzt die Vorschau danach direkt aus
   // den gelesenen Bytes, weil es sie zum Schreiben ohnehin hat.
   $effect(() => {
     if (!file) { preview = ''; return; }
@@ -41,24 +42,7 @@
       .catch(() => { preview = ''; });
   });
 
-  async function pick() {
-    error = '';
-    try {
-      const selected = await openFileDialog({
-        multiple: false,
-        filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg'] }],
-      });
-      if (!selected || Array.isArray(selected)) return;
-      busy = true;
-      const src = selected as string;
-      const ext = src.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
-      await store(await invoke<string>('read_file_base64', { path: src }), ext);
-    } catch (e) {
-      error = `${label} konnte nicht geladen werden: ${e}`;
-    } finally {
-      busy = false;
-    }
-  }
+  let picking = $state(false);
 
   async function store(b64: string, ext: 'png' | 'jpg') {
     const targetName = `${baseName}.${ext}`;
@@ -89,7 +73,7 @@
     <div class="image-placeholder">Kein {label}</div>
   {/if}
   <div class="image-actions">
-    <button class="btn-add" onclick={pick} disabled={busy}>
+    <button class="btn-add" onclick={() => { picking = true; }} disabled={busy}>
       {busy ? '…' : (file ? 'Ersetzen' : 'Bild wählen')}
     </button>
     {#if file}
@@ -107,4 +91,7 @@
     </div>
   {/if}
   {#if error}<div class="error-sm">{error}</div>{/if}
+  {#if picking}
+    <PortraitPicker {label} source={portrait} onpick={(b64) => store(b64, 'jpg')} onclose={() => { picking = false; }} />
+  {/if}
 </div>

@@ -2,12 +2,14 @@
   /** Rahmen über einem Bild: verschieben per Ziehen, Größe an den Ecken. Maße in Bildpixeln. */
   import type { Crop } from '../../services/imageGen/figureFromPortrait';
 
-  let { src, width, height, crop = $bindable(), disabled }: {
+  let { src, width, height, crop = $bindable(), disabled, aspect }: {
     src: string;
     width: number;
     height: number;
     crop: Crop;
     disabled: boolean;
+    /** Breite/Höhe; gesetzt, hält das Ziehen an den Ecken dieses Verhältnis. */
+    aspect?: number;
   } = $props();
 
   const MIN_SIDE = 32;
@@ -39,6 +41,16 @@
     return [p, pos + size - p];
   }
 
+  /** Die gegenüberliegende Ecke bleibt stehen; die Breite folgt der Maus, die Höhe dem Verhältnis. */
+  function keepAspect(s: Crop, dx: number, corner: Corner, ratio: number): Crop {
+    const ax = corner.left ? s.x + s.width : s.x;
+    const ay = corner.top ? s.y + s.height : s.y;
+    const room = Math.min(corner.left ? ax : width - ax, (corner.top ? ay : height - ay) * ratio);
+    const w = clamp(s.width + (corner.left ? -dx : dx), Math.min(MIN_SIDE, room), room);
+    const h = w / ratio;
+    return { x: corner.left ? ax - w : ax, y: corner.top ? ay - h : ay, width: w, height: h };
+  }
+
   function move(e: PointerEvent) {
     if (!drag) return;
     e.stopPropagation();
@@ -49,6 +61,7 @@
       crop = { ...s, x: clamp(s.x + dx, 0, width - s.width), y: clamp(s.y + dy, 0, height - s.height) };
       return;
     }
+    if (aspect) { crop = keepAspect(s, dx, drag.corner, aspect); return; }
     const [x, w] = edge(s.x, s.width, dx, drag.corner.left, width);
     const [y, h] = edge(s.y, s.height, dy, drag.corner.top, height);
     crop = { x, y, width: w, height: h };

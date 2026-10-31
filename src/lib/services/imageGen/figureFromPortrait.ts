@@ -45,6 +45,12 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
   return img;
 }
 
+/** Größter Rahmen im Seitenverhältnis `aspect` (Breite/Höhe), mittig und oben bündig — dort sitzt das Gesicht. */
+export function aspectCrop(width: number, height: number, aspect: number): Crop {
+  const w = Math.min(width, height * aspect);
+  return { x: Math.round((width - w) / 2), y: 0, width: Math.round(w), height: Math.round(w / aspect) };
+}
+
 export async function toReference(src: string, crop?: Crop, maxSide = MAX_REFERENCE_SIDE): Promise<ReferenceImage> {
   const img = await loadImage(src);
   const area = crop ?? { x: 0, y: 0, width: img.naturalWidth, height: img.naturalHeight };
