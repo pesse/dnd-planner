@@ -3,13 +3,14 @@
  * LLM-JSON-Schema.
  */
 import { z } from 'zod';
-import { abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
+import { ABILITY_KEYS, abilityFlagsSchema, abilityModsSchema, abilityScoresSchema } from './abilities';
 import { characterSpellcastingSchema, emptyCharacterSpellcasting } from './spellcasting';
 import { CHARACTER_VERSION } from './characterUpgrades';
 import { EQUIPMENT_SLOTS } from './equipmentSlot';
 import { DAMAGE_TYPES } from './vocabulary';
 import { resourceAdjustmentSchema } from './resource';
 import { combatAdjustmentsSchema } from './combatAdjustment';
+import { manualDefenseSchema } from './defense';
 
 // Getrennte Boni für Angriff und Schaden, weil die Effekte genau so wirken: Kampfstil
 // „Bogenschießen" nur auf den Wurf, „Duellieren"/Wut nur auf den Schaden. Ein einzelner
@@ -37,6 +38,14 @@ const attackSchema = z.object({
     .describe('Benannte nicht-magische Zusatzeffekte im Auto-Modus (Kampfstil, Segen …), je mit eigenem Angriffs- und Schadensbonus. Magie gehört in magicBonus.'),
   note: z.string().optional()
     .describe('Handnotiz zum Angriff, erscheint auch im Druckbogen, z.B. "+1W6 jede lange Rast".'),
+  spell: z
+    .object({
+      key: z.string().describe('Bibliotheks-Link auf `spell.key`.'),
+      ability: z.enum(ABILITY_KEYS).describe('Zauberattribut der Quelle, aus der der Zauber kommt.'),
+      slotLevel: z.number().int().min(1).max(9).optional().describe('Gewirkt auf diesem Grad; fehlt = Grad des Zaubers.'),
+    })
+    .optional()
+    .describe('Zauberzeile: Bonus bzw. SG und Schaden kommen aus `spell.attack` der Bibliothek; ability/proficient/baseDamage gelten nicht.'),
 });
 
 // Altform des Zauber-Blocks: der NAME identifiziert. Sie steht noch in Dateien, die nie neu
@@ -280,6 +289,10 @@ export const characterSchema = z.object({
           .describe('true = Volltext-Karte des Bibliothekseintrags kommt auf den Ausdruck.'),
         resistance: z.enum(DAMAGE_TYPES).optional()
           .describe('Gewählte Resistenz eines Gegenstands mit `resistanceChoice`.'),
+        option: z.string().optional()
+          .describe('Gewählte Ausprägung eines Gegenstands mit `optionChoice` (dessen englischer `value`).'),
+        rolled: z.record(z.string(), z.number().int().min(0)).optional()
+          .describe('Ausgewürfelte Maxima je Pool-Id eines Vorrats mit `rolled`.'),
       }),
     )
     .default([]),
@@ -311,6 +324,14 @@ export const characterSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Namen der Waffen, deren Meisterschaftseigenschaft der Charakter nutzen darf.'),
+  attackRiderSpells: z
+    .array(z.string())
+    .default([])
+    .describe('Keys der Zauber, deren `attackEffects` (Fesselnder Schlag) im Angriffsteil stehen — per ⚔ am Zauber gewählt.'),
+  manualDefenses: z
+    .array(manualDefenseSchema)
+    .default([])
+    .describe('Von Hand eingetragene Resistenzen und Immunitäten; die aus Merkmalen und Gegenständen kommen hinzu.'),
   /**
    * EINE flache Liste für ALLE Pools, geschlüsselt am Merkmal — die Anrufungen des
    * Hexenmeisters brauchen damit kein zweites Feld. Nicht ins Merkmals-Ledger: das trägt die

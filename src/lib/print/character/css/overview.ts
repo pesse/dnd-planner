@@ -16,6 +16,8 @@ export const OVERVIEW_CSS = `
     "extra extra main";
   gap: 2mm;
   min-height: 285mm;
+  /* A4 − 2×4mm @page-Rand = 202mm. Fest, weil overviewSpill im Druck-Iframe misst — und das ist 0px breit. */
+  width: 202mm;
 }
 
 /* Kasten mit Beschriftung auf der oberen Rahmenlinie */
@@ -95,7 +97,9 @@ export const OVERVIEW_CSS = `
 .o-extra { grid-area: extra; display: flex; flex-direction: column; gap: 2mm; min-height: 0; }
 /* Im Raster steht der Block als Kasten, nicht als Absatz im Spaltenfluss. */
 .o-extra .block { margin-bottom: 0; }
-.o-notes { flex: 1; min-height: 14mm; }
+.o-notes { flex: 1; min-height: 30mm; }
+/* Auf die Folgeseite gewandert (overviewSpill): Kasten im Spaltenfluss statt im Raster. */
+.o-spilled { break-inside: avoid; margin-bottom: 2.6mm; }
 .o-ruled { flex: 1; margin: 0.8mm 0.6mm 0;
            background-image: repeating-linear-gradient(var(--paper) 0 6.2mm,
              var(--rule-soft) 6.2mm 6.35mm); }
@@ -153,9 +157,11 @@ export const OVERVIEW_CSS = `
 .o-death { display: flex; align-items: center; justify-content: space-between; gap: 1.4mm;
            padding: 0.3mm 0; }
 .o-atkbox { flex: 1 1 auto; padding-left: 0.8mm; padding-right: 0.8mm; }
-/* Die Zeilen verteilen sich über die Kastenhöhe; der Wert sitzt auf seiner Linie. */
-.o-atk { width: 100%; height: 100%; table-layout: fixed;
-         border-collapse: separate; border-spacing: 0.8mm 0.5mm; }
+/* Eingetragenes hat seine Höhe; die Schreiblinien darunter füllen den Rest und werden am
+   Kastenrand abgeschnitten. Mit flex-basis 0 trägt die Füllung nichts zur Blatthöhe bei. */
+.o-atkfill { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.o-atk { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0.8mm 0.5mm; }
+.o-atk tbody tr { height: 6.4mm; }
 .o-atk th { font-size: 6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
             text-align: left; padding: 0 1mm 0.2mm; }
 .o-atk th.num { text-align: right; }
@@ -165,6 +171,19 @@ export const OVERVIEW_CSS = `
 .o-atk th:first-child, .o-atk td:first-child { width: 34%; }
 /* Notizzeile hängt unter dem Namen; auf bottom stünden Bonus und Schaden neben ihr. */
 .o-atk tr.has-note td { vertical-align: top; }
+/* Die Wirkung gehört zum Namen darüber: keine Linie dazwischen, Text oben an der Zeile. */
+.o-atk tr.has-effects td:first-child { border-bottom: none; }
+.o-atk tr.atk-effect td { vertical-align: top; padding-top: 0; }
 .o-atk .anote { display: block; font-size: 6pt; font-style: italic; color: var(--ink-label); }
+.o-atk .anote b { font-weight: 700; }
+.o-atk .atk-origin { display: inline-block; width: 1em; margin-right: 0.8mm; vertical-align: -0.12em; color: var(--ink-label); }
+.o-atk .atk-origin svg { display: block; }
+/* Auf der oberen Rahmenlinie rechts, wie die Beschriftung — kostet keine Schreiblinie. Die
+   Beschriftung weicht nach links aus, mittig liefe sie in die Legende. */
+.tf:has(> .tlegend) > .tcap { left: 3mm; transform: none; }
+.tf > .tlegend { position: absolute; top: -${FRAME_WIDTH_MM}mm; right: 3mm; padding: 0 1mm; line-height: 1;
+                 background: var(--paper); white-space: nowrap; font-size: 5pt; color: var(--ink-label); }
+.tlegend .atk-origin { display: inline-block; width: 1em; margin: 0 0.4mm 0 1mm; vertical-align: -0.12em; }
+.tlegend .atk-origin svg { display: block; }
 
 `;

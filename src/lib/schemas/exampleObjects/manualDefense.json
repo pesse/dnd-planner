@@ -1,0 +1,12 @@
+{
+  "resistances": [
+    "acid"
+  ],
+  "immunities": [
+    "acid"
+  ],
+  "conditionImmunities": [
+    "blinded"
+  ],
+  "labelDe": "string"
+}

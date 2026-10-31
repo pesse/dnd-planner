@@ -25,8 +25,11 @@
   import { armorClassHints, combatOverrides, storedCombatValues } from '../services/combatOverrides';
   import { hpMaxTotal } from '../services/hitPoints';
   import { effectiveProficiencyBonus } from '../services/classProgression';
+  import { characterDefenses } from '../services/defenses';
+  import { wornItemsIn } from '../services/wornItems';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
-  import { declaredAttackEffects } from '../services/attackEffects';
+  import { attackFootnoteLines, declaredAttackEffects } from '../services/attackEffects';
+  import { spellAttackOptions, spellAttackSourceOf, spellRiderOptions, spellRiderSources } from '../services/spellAttacks';
   import { checkSources } from '../services/abilityChecks';
   import { castingInput, createFormCasting } from '../services/characterFormCasting.svelte';
   import type { FormLibraries } from '../services/characterFormLibraries.svelte';
@@ -40,6 +43,7 @@
   import CombatOverrides from './characterForm/CombatOverrides.svelte';
   import SkillGrid from './characterForm/SkillGrid.svelte';
   import AttackTable from './characterForm/AttackTable.svelte';
+  import DefenseFields from './characterForm/DefenseFields.svelte';
   import FeatureTextFields from './characterForm/FeatureTextFields.svelte';
   import PinnedFeatureList from './characterForm/PinnedFeatureList.svelte';
   import ImageField from './characterForm/ImageField.svelte';
@@ -75,17 +79,25 @@
   } = $props();
 
   const mirror = createCharacterFormState(() => character, () =>
-    abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared, checks } : null);
+    abilities.loadedEffects && declared ? { worn: abilities.loadedEffects, declared, checks, spellOf } : null);
   const form = mirror.fields;
   const figureUrl = characterAssetUrl(() => dirPath, () => form.figureFile);
 
   const abilities = createCharacterAbilities(() => form, () => libs);
   const owned = createOwnedGrantFeatures(() => ({ species: form.species, classes: form.classes, features: character.features, backgroundRef: form.backgroundRef }));
   const toolTags = $derived(toolSuggestions(libs.itemsByDir.tools ?? []));
+  // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
+  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
+  const spellRiders = $derived(casting.current ? spellRiderSources(casting.current.state, libs.spellIndex, form.attackRiderSpells) : []);
+  const derivedDefenses = $derived(characterDefenses(owned.current ?? [], effectiveProficiencyBonus(form), wornItemsIn(libs.itemIndex, form.inventory)));
+  const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
+  const riderChoices = $derived(casting.current ? spellRiderOptions(casting.current.state, libs.spellIndex) : []);
+  const spellAttackChoices = $derived(casting.current ? spellAttackOptions(casting.current.state, libs.spellIndex) : []);
   // Scheitert das Laden der Merkmale, rechnen die Angriffe ohne sie, statt den Draft nie zu füllen.
   const declared = $derived(libs.itemsLoaded && (owned.current || owned.failed)
-    ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [])
+    ? declaredAttackEffects(libs.itemIndex, form.inventory, owned.current ?? [], spellRiders)
     : null);
+  const spellOf = $derived(spellAttackSourceOf(libs.spellIndex));
   const mods = $derived(abilityMods(form, abilities.effects));
   const checks = $derived(checkSources(owned.current ?? []));
   const skills = $derived(computeSkills(form, abilities.effects, checks));
@@ -93,7 +105,7 @@
   // Angriffe entstehen an zwei Stellen: im Waffen-Picker der Angriffstabelle und am ⚔ einer
   // Inventarzeile — beide rechnen mit demselben Kontext.
   const weaponCtx = $derived({
-    ...attackContext(form, abilities.effects, declared ?? undefined),
+    ...attackContext(form, abilities.effects, declared ?? undefined, spellOf),
     proficiencies: form.proficiencies,
     weaponByName: (n: string) => matchItem(libs.itemIndex, { name: n }),
   });
@@ -219,8 +231,6 @@
     })
     : []);
 
-  // Der Zauberblock UND der Umzug der Altform lesen dieselbe Auflösung.
-  const casting = createFormCasting(() => castingInput(form, character.features ?? [], character.spells, abilities.effects));
 
   // Erkennung UND Verlinkung liegen in `services/characterLegacyLinks.ts`; hier bleiben
   // nur der mutierte Zustand und der UI-Nachlauf.
@@ -245,14 +255,14 @@
   });
   const legacyLibraries = $derived<LegacyLinkLibraries>({
     classes: libs.classes, species: libs.species, backgrounds: libs.backgrounds,
-    items: libs.itemIndex, casting: casting.current, pools,
+    items: libs.itemIndex, casting: casting.current, spells: libs.spellIndex, pools,
     hpBasis: hpBasis.current,
   });
   const legacyFixes = $derived(collectLegacyFixes(legacyTarget, legacyLibraries));
   const fixOf = (kind: LegacyFixKind) => legacyFixes.find((f) => f.kind === kind);
   // Verknüpfen zuerst: es schreibt das Gewicht schon in kg, die Umrechnung bliebe dann leer.
   const inventoryFix = $derived(fixOf('inventory') ?? fixOf('inventoryWeight'));
-  const attackFixes = $derived(legacyFixes.filter((f) => f.kind === 'attacks' || f.kind === 'attackMagic'));
+  const attackFixes = $derived(legacyFixes.filter((f) => f.kind === 'attacks' || f.kind === 'spellAttacks' || f.kind === 'attackMagic'));
 
   /** `race`/`background` sind abgeleitete Anzeige-Strings — auch fürs PDF. */
   function applyFix(fix: LegacyFix | undefined) {
@@ -349,10 +359,15 @@
       />
     </section>
 
+    <section>
+      <h3>Resistenzen &amp; Immunitäten</h3>
+      <DefenseFields derived={derivedDefenses} entries={form.manualDefenses} />
+    </section>
+
   {:else if section === 'attacks'}
     <section>
       <h3>Angriffe</h3>
-      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved}
+      <AttackTable attacks={form.attacks} ctx={weaponCtx} {saved} notes={attackNotes}
         fixes={attackFixes.map((f) => ({ label: f.label, onfix: () => applyFix(f) }))}
       />
     </section>
@@ -407,6 +422,11 @@
         fixLabel={fixOf('spells')?.label}
         onfix={() => applyFix(fixOf('spells'))}
         onlibraryreload={() => libs.reloadSpells()}
+        attacks={form.attacks}
+        attackCtx={weaponCtx}
+        spellAttacks={spellAttackChoices}
+        riderSpells={riderChoices}
+        bind:chosenRiders={form.attackRiderSpells}
       />
     </section>
 

@@ -126,6 +126,8 @@ const partRows = (p: AttackParts): string => p.parts.map((x) => row(esc(x.labelD
 
 /** Herleitung eines auto-berechneten Angriffs; `attackBonusTip` bleibt für handeingetragene. */
 export function attackBonusPartsTip(p: AttackParts, bonus: string): string {
+  // Zauberzeilen tragen „SG 15 WEI“ oder „trifft“ — dort gibt es keinen Angriffswurf.
+  if (!/^[+-]\d/.test(bonus)) return (p.parts.length ? partRows(p) + divider() : '') + total(esc(bonus)) + steps(p.notes);
   return partRows(p) + divider() + total(bonus, 'Angriff') + row('Angriffswurf', '1W20 ' + bonus) + steps(p.notes);
 }
 

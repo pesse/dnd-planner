@@ -13,6 +13,9 @@ export interface WornItem {
   item: ItemInfo;
   /** Die an der Zeile gewählte Resistenz (`item.resistanceChoice`). */
   resistance?: DamageType;
+  /** Die gewählte Ausprägung (`item.optionChoice`). */
+  option?: string;
+  rolled?: Readonly<Record<string, number>>;
 }
 
 export interface IdleItem {
@@ -41,7 +44,7 @@ function sortInventory(index: ItemIndex, inventory: CharacterInventoryEntry[]): 
       const id = item.key ?? entry.name;
       if (seen.has(id)) continue;
       seen.add(id);
-      worn.push({ id, item, resistance: entry.resistance });
+      worn.push({ id, item, resistance: entry.resistance, option: entry.option, rolled: entry.rolled });
     }
   }
   return { worn, idle };

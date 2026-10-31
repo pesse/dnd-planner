@@ -51,6 +51,7 @@
             "column": "string"
           }
         },
+        "rolled": "1d8+1",
         "die": {
           "column": "string"
         }
@@ -95,7 +96,10 @@
         "Strength"
       ],
       "sameAs": "string",
-      "fromIncrease": false
+      "fromIncrease": false,
+      "own": false,
+      "fixedDc": -9007199254740991,
+      "fixedAttack": -9007199254740991
     },
     "quotas": [
       {
@@ -341,7 +345,9 @@
       ],
       "damageTypes": [
         "acid"
-      ]
+      ],
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "situational",
@@ -358,7 +364,9 @@
       ],
       "damageTypes": [
         "acid"
-      ]
+      ],
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "dice",
@@ -375,7 +383,9 @@
       ],
       "damageTypes": [
         "acid"
-      ]
+      ],
+      "spellAttacks": false,
+      "self": false
     },
     {
       "kind": "note",
@@ -390,7 +400,9 @@
       ],
       "damageTypes": [
         "acid"
-      ]
+      ],
+      "spellAttacks": false,
+      "self": false
     }
   ],
   "savingThrowEffects": [
@@ -420,11 +432,48 @@
       "conditionDe": "string"
     }
   ],
+  "defenses": [
+    {
+      "resistances": [
+        "acid"
+      ],
+      "immunities": [
+        "acid"
+      ],
+      "conditionImmunities": [
+        "blinded"
+      ],
+      "reduction": {
+        "types": [
+          "acid"
+        ],
+        "amount": 1
+      },
+      "condition": "string",
+      "conditionDe": "string",
+      "when": {
+        "<key>": "string"
+      }
+    }
+  ],
   "resistanceChoice": {
     "types": [
       "acid"
     ],
     "descDe": "string"
+  },
+  "optionChoice": {
+    "labelDe": "string",
+    "options": [
+      {
+        "value": "string",
+        "labelDe": "string"
+      },
+      {
+        "value": "string",
+        "labelDe": "string"
+      }
+    ]
   },
   "slot": "head",
   "attunement_by": "string",

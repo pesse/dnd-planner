@@ -9,11 +9,13 @@
     attackBonusPartsTip, attackBonusTip, attackDamagePartsTip, attackDamageTip,
   } from '../../services/characterSheetTips';
   import {
-    attackBonusParts, attackDamageParts, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
+    attackBaseDice, attackBonusParts, attackDamageParts, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
   } from '../../services/attackCalc';
   import type { WeaponMastery } from '../../schemas/vocabulary';
   import type { Character } from '../../schemas/characterSchema';
   import type { CombatTips } from '../../services/characterSheetTips';
+  import { ownWeaponNotes, type AttackFootnote } from '../../services/attackEffects';
+  import { attackFootnoteHtml, attackOriginIcon, attackOriginLegend, attackOriginOf } from '../../services/attackOrigin';
 
   let { character, tips, masteryOf, hpTipHtml, acTipHtml, attackCtx, attackNotes }: {
     character: Character;
@@ -26,8 +28,15 @@
     /** null, solange Bibliotheken und Merkmale laden — dann stehen die gespeicherten Werte. */
     attackCtx: AttackCalcContext | null;
     /** Leer ohne erweiterten Bereich. */
-    attackNotes: string[];
+    attackNotes: AttackFootnote[];
   } = $props();
+
+  const ownNotes = $derived(character.attacks.map((a) => ownWeaponNotes(a, attackCtx?.declared)));
+  const legend = $derived(attackOriginLegend([
+    ...character.attacks.map(attackOriginOf),
+    ...ownNotes.flat().map((n) => n.origin),
+    ...attackNotes.map((n) => n.origin),
+  ]));
 </script>
 
 {#snippet stat(label: string, value: string, tipHtml: string)}
@@ -67,22 +76,27 @@
   {#if character.attacks.length}
     <h3>Angriffe</h3>
     <table class="attack-table">
-      <thead><tr><th>Waffe</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
+      <thead><tr><th>Angriff</th><th>Bonus</th><th>Schaden</th><th>RW</th></tr></thead>
       <tbody>
-        {#each character.attacks as atk}
+        {#each character.attacks as atk, i}
           {@const atkMastery = masteryOf(atk.name)}
           {@const calc = atk.auto && attackCtx}
           {@const bonus = calc ? computeAttackBonus(atk, calc) : atk.bonus}
           {@const damage = calc ? computeAttackDamage(atk, calc) : atk.damage}
+          {@const dice = calc ? attackBaseDice(atk, calc) : ''}
+          {@const origin = attackOriginOf(atk)}
           <tr>
             <td>
-              {atk.name}
+              {#if origin}{@html attackOriginIcon(origin)}{/if}{atk.name}
               {#if atkMastery}
                 <span class="mastery-tag" use:textTip={MASTERY_INFO[atkMastery].descDe}>{masteryLabel(atkMastery)}</span>
               {/if}
               {#if atk.note?.trim()}
                 <span class="attack-note">{atk.note}</span>
               {/if}
+              {#each ownNotes[i] ?? [] as n (n.text)}
+                <span class="attack-note">{@html attackFootnoteHtml(n)}</span>
+              {/each}
             </td>
             <td class="has-tip">
               {bonus}
@@ -92,8 +106,8 @@
             </td>
             <td class="has-tip">
               {damage} {atk.type}
-              <span class="tip tip-left">{@html calc && atk.baseDamage?.trim()
-                ? attackDamagePartsTip(attackDamageParts(atk, calc), atk.baseDamage, damage, atk.type)
+              <span class="tip tip-left">{@html calc && dice
+                ? attackDamagePartsTip(attackDamageParts(atk, calc), dice, damage, atk.type)
                 : attackDamageTip(damage, atk.type)}</span>
             </td>
             <td>{atk.range || '—'}</td>
@@ -101,7 +115,8 @@
         {/each}
       </tbody>
     </table>
-    {#each attackNotes as note (note)}<p class="attack-footnote">{note}</p>{/each}
+    {#each attackNotes as note (note.text)}<p class="attack-footnote">{@html attackFootnoteHtml(note)}</p>{/each}
+    {#if legend}<p class="attack-legend">{@html legend}</p>{/if}
   {/if}
 </div>
 
@@ -120,6 +135,11 @@
   }
   .attack-table td { padding: 0.15rem 0.3rem; color: var(--ink); }
   .attack-footnote { margin: 0.3rem 0.3rem 0; font-size: 0.75rem; color: var(--ink-muted); }
+  .attack-footnote :global(b) { color: var(--ink-soft); }
+  .attack-legend { margin: 0.4rem 0.3rem 0; font-size: 0.7rem; color: var(--ink-faint); text-align: right; }
+  .section :global(.atk-origin) { display: inline-block; width: 0.9em; margin-right: 0.3rem; vertical-align: -0.1em; color: var(--ink-muted); }
+  .section :global(.atk-origin svg) { display: block; }
+  .section :global(.atk-origin-spell) { color: var(--arcane); }
 
   .attack-note {
     display: block;

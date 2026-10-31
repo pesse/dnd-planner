@@ -80,6 +80,24 @@ function abilityOf(
   return binding.choose.length === 1 ? binding.choose[0] : null;
 }
 
+/** `own` leiht sich Attribut und Werte der besten eigenen Quelle, `fixedDc`/`fixedAttack` ersetzen die Rechnung. */
+function itemCastingValues(
+  s: SourceState,
+  all: readonly SourceState[],
+): Pick<SourceState, 'ability' | 'saveDC' | 'attackBonus'> {
+  const binding = s.source.ability;
+  let { ability, saveDC, attackBonus } = s;
+  if (binding?.own && !ability) {
+    const best = all
+      .filter((o) => o.ability && o.saveDC !== null && !o.source.ability?.own)
+      .reduce<SourceState | null>((a, o) => (!a || o.saveDC! > a.saveDC! ? o : a), null);
+    if (best) ({ ability, saveDC, attackBonus } = best);
+  }
+  if (binding?.fixedDc !== undefined) saveDC = binding.fixedDc;
+  if (binding?.fixedAttack !== undefined) attackBonus = binding.fixedAttack;
+  return { ability, saveDC, attackBonus };
+}
+
 function quotaState(view: QuotaView, stored: CharacterSpellcasting | undefined, uses: number | null): QuotaState {
   const picks = stored ? pickedKeys(stored, view.sourceId, view.quotaId) : [];
   const spells = view.fixed ? view.pool.keys : picks;
@@ -117,6 +135,8 @@ export function spellcastingState(input: SpellcastingInput): SpellcastingState {
       quotas,
     });
   }
+  // Erst nach der Schleife: die eigene Quelle des Charakters kann hinter dem Gegenstand stehen.
+  for (const s of sources) Object.assign(s, itemCastingValues(s, sources));
 
   return {
     characterLevel: resolution.characterLevel,

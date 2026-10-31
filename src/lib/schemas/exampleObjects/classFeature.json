@@ -92,7 +92,9 @@
         ],
         "damageTypes": [
           "acid"
-        ]
+        ],
+        "spellAttacks": false,
+        "self": false
       },
       {
         "kind": "situational",
@@ -109,7 +111,9 @@
         ],
         "damageTypes": [
           "acid"
-        ]
+        ],
+        "spellAttacks": false,
+        "self": false
       },
       {
         "kind": "dice",
@@ -126,7 +130,9 @@
         ],
         "damageTypes": [
           "acid"
-        ]
+        ],
+        "spellAttacks": false,
+        "self": false
       },
       {
         "kind": "note",
@@ -141,7 +147,9 @@
         ],
         "damageTypes": [
           "acid"
-        ]
+        ],
+        "spellAttacks": false,
+        "self": false
       }
     ],
     "savingThrow": [
@@ -353,7 +361,9 @@
                 ],
                 "damageTypes": [
                   "acid"
-                ]
+                ],
+                "spellAttacks": false,
+                "self": false
               },
               {
                 "kind": "situational",
@@ -370,7 +380,9 @@
                 ],
                 "damageTypes": [
                   "acid"
-                ]
+                ],
+                "spellAttacks": false,
+                "self": false
               },
               {
                 "kind": "dice",
@@ -387,7 +399,9 @@
                 ],
                 "damageTypes": [
                   "acid"
-                ]
+                ],
+                "spellAttacks": false,
+                "self": false
               },
               {
                 "kind": "note",
@@ -402,7 +416,9 @@
                 ],
                 "damageTypes": [
                   "acid"
-                ]
+                ],
+                "spellAttacks": false,
+                "self": false
               }
             ],
             "savingThrow": [
@@ -587,7 +603,10 @@
         "Strength"
       ],
       "sameAs": "string",
-      "fromIncrease": false
+      "fromIncrease": false,
+      "own": false,
+      "fixedDc": -9007199254740991,
+      "fixedAttack": -9007199254740991
     },
     "quotas": [
       {
@@ -820,6 +839,7 @@
             "column": "string"
           }
         },
+        "rolled": "1d8+1",
         "die": {
           "column": "string"
         }

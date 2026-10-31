@@ -1,0 +1,56 @@
+[
+  {
+    "roll": "attack",
+    "range": "melee",
+    "damage": [
+      {
+        "dice": "1d4",
+        "bonus": -9007199254740991,
+        "addMod": false,
+        "type": "acid"
+      }
+    ],
+    "count": 1,
+    "cantrip": "dice",
+    "upcast": {
+      "dice": "1d4",
+      "count": 1
+    }
+  },
+  {
+    "roll": "save",
+    "save": "str",
+    "onSave": "half",
+    "damage": [
+      {
+        "dice": "1d4",
+        "bonus": -9007199254740991,
+        "addMod": false,
+        "type": "acid"
+      }
+    ],
+    "count": 1,
+    "cantrip": "dice",
+    "upcast": {
+      "dice": "1d4",
+      "count": 1
+    }
+  },
+  {
+    "roll": "auto",
+    "damage": [
+      {
+        "dice": "1d4",
+        "bonus": -9007199254740991,
+        "addMod": false,
+        "type": "acid"
+      }
+    ],
+    "count": 1,
+    "cantrip": "dice",
+    "upcast": {
+      "dice": "1d4",
+      "count": 1
+    }
+  }
+]

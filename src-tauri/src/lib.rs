@@ -372,10 +372,17 @@ pub struct SpellInfo {
     ritual: bool,
     concentration: bool,
     casting_time: String,
+    range: String,
     /// Die Buchstaben der Komponenten („VSM"); `materials` ist der Wortlaut der Materialien.
     components: String,
     materials: String,
     path: String,
+    /// Roh durchgereicht, das Frontend prüft gegen `spellAttackSchema`: die Angriffstabelle
+    /// rechnet synchron und lädt keine einzelnen Zauberdateien nach.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attack: Option<serde_json::Value>,
+    #[serde(rename = "attackEffects", skip_serializing_if = "Option::is_none")]
+    attack_effects: Option<serde_json::Value>,
 }
 
 /// Lädt alle Zauber aus vault/spells/** als kompakten Index (Name, Stufe, Klassen).
@@ -421,6 +428,7 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                     let ritual = v["ritual"].as_bool().unwrap_or(false);
                     let concentration = v["concentration"].as_bool().unwrap_or(false);
                     let casting_time = v["casting_time"].as_str().unwrap_or("").to_string();
+                    let range = v["range"].as_str().unwrap_or("").to_string();
                     let comp = &v["components"];
                     let components: String = [("verbal", 'V'), ("somatic", 'S'), ("material", 'M')]
                         .iter()
@@ -432,9 +440,12 @@ fn collect_spells(dir: &std::path::Path, out: &mut Vec<SpellInfo>) {
                     let rel = path.strip_prefix(&project_root())
                         .map(|p| format!("./{}", p.to_string_lossy().replace('\\', "/")))
                         .unwrap_or_else(|_| path.to_string_lossy().to_string());
+                    let attack = v.get("attack").filter(|x| !x.is_null()).cloned();
+                    let attack_effects = v.get("attackEffects").filter(|x| !x.is_null()).cloned();
                     out.push(SpellInfo {
                         name, name_en, key, source, level, classes, school, ritual,
-                        concentration, casting_time, components, materials, path: rel,
+                        concentration, casting_time, range, components, materials, path: rel,
+                        attack, attack_effects,
                     });
                 }
             }

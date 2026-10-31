@@ -5,9 +5,10 @@
  */
 import { SKILL_DEFS } from '../domain/skills';
 import type { AbilityFlags, AbilityScores } from '../schemas/abilities';
-import { formatClassLevel } from '../schemas/classLevelText';
+import { formatClassLevel, totalLevel } from '../schemas/classLevelText';
 import { effectiveProficiencyBonus } from './classProgression';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
+import type { SpellAttackContext } from './spellAttackCalc';
 import type { DeclaredAttackEffects } from './attackEffects';
 import { skillCheckEffects, type CheckSource } from './abilityChecks';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
@@ -18,6 +19,7 @@ import {
 } from '../schemas/characterSchema';
 import type { CharacterSpellcasting } from '../schemas/spellcasting';
 import type { ResourceAdjustment } from '../schemas/resource';
+import type { ManualDefense } from '../schemas/defense';
 import { COMBAT_STATS, emptyCombatAdjustments, type CombatAdjustments } from '../schemas/combatAdjustment';
 import { cloneSpellcasting, emptySpellcasting, pruneSpellcasting } from './spellcasting/write';
 
@@ -68,6 +70,8 @@ export interface CharacterFormFields {
   personal: PersonalData;
   proficiencies: ProficiencyFlags;
   masteries: string[];
+  attackRiderSpells: string[];
+  manualDefenses: ManualDefense[];
   optionPicks: OptionPick[];
   portraitFile: string;
   figureFile: string;
@@ -106,9 +110,13 @@ export function attackContext(
   f: CharacterFormFields,
   effects: readonly WornAbilityEffect[],
   declared?: DeclaredAttackEffects,
+  spellOf?: SpellAttackContext['spellOf'],
 ): AttackCalcContext {
   const m = abilityMods(f, effects);
-  return { strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared };
+  return {
+    strMod: m.str, dexMod: m.dex, proficiencyBonus: effectiveProficiencyBonus(f), declared,
+    ...(spellOf ? { spells: { spellOf, mods: m, characterLevel: totalLevel(f.classes) || 1 } } : {}),
+  };
 }
 
 export function computeSkills(
@@ -156,6 +164,15 @@ function withDefaults<T extends object>(base: T, given: Partial<T> | undefined):
 /** `individualWeapons` ist die eine Liste darin — ein Spread allein teilte sie mit dem Draft. */
 const copyProficiencies = (p: ProficiencyFlags): ProficiencyFlags =>
   ({ ...p, individualWeapons: [...p.individualWeapons] });
+
+const copyDefense = (d: ManualDefense): ManualDefense => ({
+  labelDe: d.labelDe,
+  resistances: [...d.resistances],
+  immunities: [...d.immunities],
+  conditionImmunities: [...d.conditionImmunities],
+});
+const isBlankDefense = (d: ManualDefense): boolean =>
+  !d.labelDe.trim() && !d.resistances.length && !d.immunities.length && !d.conditionImmunities.length;
 
 const copyAdjustment = (a: ResourceAdjustment): ResourceAdjustment => ({ ...a, target: { ...a.target } });
 
@@ -218,6 +235,8 @@ export function initialFormFields(character: Character): CharacterFormFields {
     personal: withDefaults(emptyPersonal(), character.personal),
     proficiencies: copyProficiencies(withDefaults(emptyProficiencies(), character.proficiencies)),
     masteries: [...(character.masteries ?? [])],
+    attackRiderSpells: [...(character.attackRiderSpells ?? [])],
+    manualDefenses: (character.manualDefenses ?? []).map(copyDefense),
     optionPicks: (character.optionPicks ?? []).map((p) => ({ ...p })),
     portraitFile: character.portraitFile ?? '',
     figureFile: character.figureFile ?? '',
@@ -248,9 +267,10 @@ export function formDraftPatch(
   effects: readonly WornAbilityEffect[],
   declared?: DeclaredAttackEffects,
   checks: readonly CheckSource[] = [],
+  spellOf?: SpellAttackContext['spellOf'],
 ): CharacterFormPatch {
   const mods = abilityMods(f, effects);
-  const ctx = attackContext(f, effects, declared);
+  const ctx = attackContext(f, effects, declared, spellOf);
   // `classes` ist Source-of-Truth, `classLevel` nur der abgeleitete Anzeige-String.
   const cleanedClasses = f.classes.filter((c) => c.name.trim() !== '').map((c) => ({ ...c }));
   return {
@@ -316,6 +336,8 @@ export function formDraftPatch(
     personal: { ...f.personal },
     proficiencies: copyProficiencies(f.proficiencies),
     masteries: [...f.masteries],
+    attackRiderSpells: [...f.attackRiderSpells],
+    manualDefenses: f.manualDefenses.filter((d) => !isBlankDefense(d)).map(copyDefense),
     optionPicks: f.optionPicks.map((p) => ({ ...p })),
     portraitFile: f.portraitFile || undefined,
     figureFile: f.figureFile || undefined,

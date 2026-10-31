@@ -42,4 +42,27 @@ describe('characterDefenses', () => {
     expect(characterDefenses([HEAVY_ARMOR], 3)[0].textDe)
       .toBe('Wuchtschaden, Stichschaden, Hiebschaden um 3 verringert');
   });
+
+  it('führt die festen Resistenzen eines wirkenden Gegenstands mit seiner Lage', () => {
+    const item = {
+      name: 'Frost Brand (Glaive)', name_de: 'Frostbrand (Glefe)', category: 'weapon', rarity: 'Very Rare', path: '', magic: true,
+      defenses: [{ resistances: ['fire' as const], immunities: [], conditionImmunities: [], conditionDe: 'solange du die Waffe hältst' }],
+    };
+    const [frost] = characterDefenses([], 2, [{ id: 'frost', item }]);
+    expect([frost.labelDe, frost.textDe, defenseWhenDe(frost.effect)])
+      .toEqual(['Frostbrand (Glefe)', 'Resistenz gegen Feuerschaden', 'solange du die Waffe hältst']);
+  });
+
+  it('hängt Einträge von Hand an, ein leerer Eintrag erscheint nicht', () => {
+    const out = characterDefenses([RESILIENCE], 2, [], [
+      { labelDe: 'Trank', resistances: ['fire'], immunities: [], conditionImmunities: ['poisoned'] },
+      { labelDe: '', resistances: ['cold'], immunities: [], conditionImmunities: [] },
+      { labelDe: 'nur Titel', resistances: [], immunities: [], conditionImmunities: [] },
+    ]);
+    expect(out.map((d) => [d.labelDe, d.textDe])).toEqual([
+      ['Zwergische Unverwüstlichkeit', expect.any(String)],
+      ['Trank', 'Resistenz gegen Feuerschaden; immun gegen den Zustand Vergiftet'],
+      ['eigener Eintrag', 'Resistenz gegen Kälteschaden'],
+    ]);
+  });
 });

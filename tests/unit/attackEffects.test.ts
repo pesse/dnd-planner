@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  attackEffectSources, attackFootnotes, criticalRange, criticalRangeDe, type AttackEffectFeature, type DeclaredAttackEffects,
+  attackEffectSources, attackFootnotes, criticalRange, criticalRangeDe, ownWeaponNotes,
+  type AttackEffectFeature, type DeclaredAttackEffects,
 } from '../../src/lib/services/attackEffects';
 import {
   attackBonusParts, attackDamageParts, blankAttack, computeAttackBonus, computeAttackDamage, type AttackCalcContext,
@@ -24,7 +25,11 @@ const OATHBOW = info('oathbow', 'Eidbogen', { index: 'longbow', weapon_range: 'R
 const HAND_CROSSBOW = info('hand-crossbow', 'Handarmbrust', { index: 'hand-crossbow', weapon_range: 'Ranged' });
 const LONGSWORD = info('longsword', 'Langschwert', { index: 'longsword', weapon_range: 'Melee' });
 const BERSERKER = info('berserker-battleaxe', 'Berserker-Streitaxt', { index: 'battleaxe', weapon_range: 'Melee', magic_bonus: 1 });
-const WEAPONS = [LONGBOW, OATHBOW, HAND_CROSSBOW, LONGSWORD, BERSERKER];
+const FLAME_TONGUE = info('flame-tongue-longsword', 'Flammenzunge (Langschwert)', {
+  index: 'longsword', weapon_range: 'Melee', magic: true,
+  attackEffects: [{ kind: 'dice', dice: '2d6', damageType: 'fire', range: 'any', self: true, condition: 'while ablaze', conditionDe: 'solange die Klinge brennt' }],
+});
+const WEAPONS = [LONGBOW, OATHBOW, HAND_CROSSBOW, LONGSWORD, BERSERKER, FLAME_TONGUE];
 
 const BRACERS: WornItem = {
   id: 'bracers-of-archery',
@@ -189,5 +194,23 @@ describe('criticalRange', () => {
 
   it('bleibt ohne Deklaration leer', () => {
     expect(criticalRange([crit('Leer'), { name: 'Ohne Grants' }])).toBeNull();
+  });
+});
+
+describe('Wirkung nur der eigenen Waffe (`self`)', () => {
+  const flameTongue: WornItem = { id: 'flame', item: FLAME_TONGUE };
+
+  it('steht unter genau dieser Waffe, auch wenn sie nicht angelegt ist', () => {
+    const c = ctx([], []);
+    expect(ownWeaponNotes(attack(FLAME_TONGUE), c.declared)).toEqual([
+      { origin: 'item', labelDe: 'Flammenzunge (Langschwert)', text: '+2W6 Feuerschaden: solange die Klinge brennt' },
+    ]);
+    expect(attackDamageParts(attack(FLAME_TONGUE), c).notes.join()).toContain('+2W6 Feuerschaden');
+  });
+
+  it('springt nicht auf andere Waffen über, auch angelegt nicht', () => {
+    const c = ctx([flameTongue], []);
+    expect(ownWeaponNotes(attack(LONGSWORD), c.declared)).toEqual([]);
+    expect(attackDamageParts(attack(LONGSWORD), c).notes.join()).not.toContain('Feuer');
   });
 });

@@ -17,7 +17,9 @@
   import { createArmorClassTip } from '../services/armorClassTip.svelte';
   import { createSavingThrows } from '../services/savingThrows.svelte';
   import { createOwnedGrantFeatures } from '../services/ownedGrantFeatures.svelte';
-  import { attackFootnotes, declaredAttackEffects } from '../services/attackEffects';
+  import { attackFootnoteLines, declaredAttackEffects } from '../services/attackEffects';
+  import { spellAttackSourceOf, spellRiderSources } from '../services/spellAttacks';
+  import { totalLevel } from '../schemas/classLevelText';
   import { checkSources } from '../services/abilityChecks';
   import { characterDefenses } from '../services/defenses';
   import { wornItemsIn } from '../services/wornItems';
@@ -85,8 +87,9 @@
   }));
   const shown = $derived(character && fallbacks && withCombatFallbacks(character, fallbacks));
   const tips = $derived(character && fallbacks ? combatTips(character, fallbacks) : NO_COMBAT_TIPS);
-  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? [])) : []);
-  const attackNotes = $derived(attackFootnotes(owned.current ?? []));
+  const defenses = $derived(owned.current && character ? characterDefenses(owned.current, effectiveProficiencyBonus(character), wornItemsIn(libs.itemIndex, character.inventory ?? []), character.manualDefenses) : []);
+  const spellRiders = $derived(spellcasting ? spellRiderSources(spellcasting.state, libs.spellIndex, character?.attackRiderSpells ?? []) : []);
+  const attackNotes = $derived(attackFootnoteLines(owned.current ?? [], spellRiders));
   const checks = $derived(checkSources(owned.current ?? []));
   const movement = $derived(owned.current ? characterMovement(owned.current, declaredSpeed(owned.current)?.feet ?? null) : []);
   const saving = createSavingThrows(() => character ?? null, () => libs, () => abilities.resolved, () => owned.current);
@@ -94,7 +97,12 @@
     strMod: mod(abilities.resolved.str.score),
     dexMod: mod(abilities.resolved.dex.score),
     proficiencyBonus: effectiveProficiencyBonus(character),
-    declared: declaredAttackEffects(libs.itemIndex, character.inventory ?? [], owned.current),
+    declared: declaredAttackEffects(libs.itemIndex, character.inventory ?? [], owned.current, spellRiders),
+    spells: {
+      spellOf: spellAttackSourceOf(libs.spellIndex),
+      mods: abilityRecordOf((k) => mod(abilities.resolved[k].score)),
+      characterLevel: totalLevel(character.classes ?? []) || 1,
+    },
   } : null);
 
   /**

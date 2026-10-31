@@ -95,6 +95,8 @@ export interface Carrier {
   answers: SourceAnswers;
   grantsCasting?: CastingGrant;
   grantsResource?: ResourceGrant;
+  /** Nur Gegenstände: an der Inventarzeile ausgewürfelte Maxima je Pool-Id (`pool.rolled`). */
+  rolledMax?: Readonly<Record<string, number>>;
 }
 
 export interface CarrierWalk {

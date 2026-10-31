@@ -147,9 +147,9 @@
             <span class="source-label">{source.label}</span>
             {#if source.featureDe}<span class="source-feature">{source.featureDe}</span>{/if}
           </div>
-          {#if source.abilityDe}
+          {#if source.abilityDe || source.saveDC !== null}
             <span class="source-values">
-              {source.abilityDe}{#if source.saveDC !== null} · SG {source.saveDC}{/if}{#if source.attackBonus !== null} · Angriff {sign(source.attackBonus)}{/if}
+              {[source.abilityDe, source.saveDC !== null && `SG ${source.saveDC}`, source.attackBonus !== null && `Angriff ${sign(source.attackBonus)}`].filter(Boolean).join(' · ')}
             </span>
           {:else if source.abilityOptions.length}
             <span class="source-open">

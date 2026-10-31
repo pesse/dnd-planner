@@ -52,3 +52,26 @@ describe('Zauber aus dem Stab der Waldlande', () => {
     expect(state.issues).toEqual([]);
   });
 });
+
+describe('Zauberwerte aus dem Gegenstand', () => {
+  const withItem = (sourceKey: string, name: string): Character => {
+    const c = testCharacter('Prüfling Druide');
+    return { ...c, inventory: [...c.inventory, { name, sourceKey, count: '1', weight: '1', equipped: true, attuned: true }] };
+  };
+
+  it('„dein Zauber-SG" leiht sich die Werte der eigenen Zauberquelle', async () => {
+    const LYRE = 'dmg-2024_instrument-of-the-bards-cli-lyre';
+    const { state } = await loadSpellcasting(withItem(LYRE, 'Cli-Leier'));
+    const lyre = state.sources.find((s) => s.source.featureKey === LYRE);
+    const druidSource = state.sources.find((s) => s.source.featureKey === 'srd-2024_druid_spellcasting');
+
+    expect(lyre?.ability).toBe('Wisdom');
+    expect([lyre?.saveDC, lyre?.attackBonus]).toEqual([druidSource?.saveDC, druidSource?.attackBonus]);
+  });
+
+  it('ein fester SG gilt statt der Rechnung', async () => {
+    const EYES = 'srd-2024_eyes-of-charming';
+    const { state } = await loadSpellcasting(withItem(EYES, 'Augen der Bezauberung'));
+    expect(state.sources.find((s) => s.source.featureKey === EYES)?.saveDC).toBe(13);
+  });
+});

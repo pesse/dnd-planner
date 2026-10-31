@@ -18,6 +18,7 @@
   import type { CharacterDefense } from '../../services/defenses';
   import type { MovementLine } from '../../services/movement';
   import type { CombatTips } from '../../services/characterSheetTips';
+  import type { AttackFootnote } from '../../services/attackEffects';
   import SheetCombatBlock from './SheetCombatBlock.svelte';
   import SheetProficiencyBlock from './SheetProficiencyBlock.svelte';
   import SheetAuraBlock from './SheetAuraBlock.svelte';
@@ -45,7 +46,7 @@
     auras: CharacterAura[];
     deathSaveAdvantage: string[];
     defenses: CharacterDefense[];
-    attackNotes: string[];
+    attackNotes: AttackFootnote[];
     movement: MovementLine[];
     checks: readonly CheckSource[];
   } = $props();
@@ -66,7 +67,7 @@
         <div class="attr-label">{ABILITY_ABBR_DE[key]}</div>
         <div class="has-tip attr-mod">
           {sign(character.mods[key])}
-          <span class="tip">{@html attrModTip(ABILITY_ABBR_DE[key], abilities[key], character.mods[key])}</span>
+          <span class="tip tip-below">{@html attrModTip(ABILITY_ABBR_DE[key], abilities[key], character.mods[key])}</span>
         </div>
         <div class="attr-score">{abilities[key].score}</div>
       </div>

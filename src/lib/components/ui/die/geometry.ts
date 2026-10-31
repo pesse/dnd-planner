@@ -90,8 +90,9 @@ export function buildDie(sides: number): { geometry: THREE.BufferGeometry; faces
   const body = bodyGeometry(sides);
   const geometry = body.index ? body.toNonIndexed() : body;
   geometry.computeVertexNormals();
-  const faces = numberFaces(planarFaces(geometry).map((f) => describeFace(f.normal, f.verts)), sides);
-  return { geometry, faces };
+  const faces = numberFaces(planarFaces(geometry).map((f) => describeFace(f.normal, f.verts)), sides === 3 ? 6 : sides);
+  // Der W3 ist ein W6, der jede Zahl zweimal trägt.
+  return { geometry, faces: sides === 3 ? faces.map((f) => ({ ...f, value: ((f.value - 1) % 3) + 1 })) : faces };
 }
 
 /** Drehung, die `face` zur Kamera (+z) kehrt, die Zahl aufrecht. */

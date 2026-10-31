@@ -18,7 +18,7 @@
 
   let canvas: HTMLCanvasElement;
   let rolling = $state(false);
-  let scene: { renderer: THREE.WebGLRenderer; camera: THREE.Camera; root: THREE.Scene; die: THREE.Group; faces: DieFace[]; glows: Map<number, THREE.Mesh> } | null = $state.raw(null);
+  let scene: { renderer: THREE.WebGLRenderer; camera: THREE.Camera; root: THREE.Scene; die: THREE.Group; faces: DieFace[]; glows: Map<DieFace, THREE.Mesh> } | null = $state.raw(null);
 
   function css(name: string): string {
     return getComputedStyle(canvas).getPropertyValue(name).trim();
@@ -105,8 +105,8 @@
       color: body, roughness: 0.42, metalness: 0.12, flatShading: true,
     })));
     die.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 10), new THREE.LineBasicMaterial({ color: css('--gold') || '#786012' })));
-    const glows = new Map(faces.map((f) => [f.value, glow(f, body)]));
-    for (const f of faces) die.add(glows.get(f.value)!, label(f));
+    const glows = new Map(faces.map((f) => [f, glow(f, body)]));
+    for (const f of faces) die.add(glows.get(f)!, label(f));
     root.add(die);
     scene = { renderer, camera, root, die, faces, glows };
 
@@ -127,10 +127,11 @@
     void roll;
     const s = scene, final = value;
     if (!s) return;
-    const face = s.faces.find((f) => f.value === final) ?? s.faces[0];
+    const hits = s.faces.filter((f) => f.value === final);
+    const face = hits[Math.floor(Math.random() * hits.length)] ?? s.faces[0];
     const rest = TILT.clone().multiply(restingRotation(face));
     const render = () => s.renderer.render(s.root, s.camera);
-    const lit = s.glows.get(face.value)!.material as THREE.MeshBasicMaterial;
+    const lit = s.glows.get(face)!.material as THREE.MeshBasicMaterial;
     for (const g of s.glows.values()) (g.material as THREE.MeshBasicMaterial).opacity = 0;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       s.die.quaternion.copy(rest);

@@ -110,12 +110,21 @@ describe('HTML-Charakterbogen', () => {
     expect(buildCharacterSheetHtml(d, withoutOverview).match(/<div class="page">/g)).toHaveLength(1);
   });
 
+  it('hält für Übersicht ohne Folgeseite eine verborgene Auffangseite bereit', () => {
+    const d = dataFor(allProficienciesCharacter);
+    const onlyOverview = Object.fromEntries(sheetSections(d).map((s) => [s.id, s.page === 'overview']));
+    const html = buildCharacterSheetHtml(d, onlyOverview);
+
+    expect(html).toMatch(/<\/section><div class="page o-spill" hidden>/);
+    expect(html).toContain('<script>');
+  });
+
   it('entwertet Zeichen, die sonst Markup wären', () => {
     const tricky = characterSchema.parse({ ...allProficienciesCharacter, name: 'Bob & <script>' });
 
     const html = build(dataFor(tricky));
     expect(html).toContain('Bob &amp; &lt;script&gt;');
-    expect(html).not.toContain('<script>');
+    expect(html.match(/<script>/g)).toHaveLength(1);
   });
 
   it('zählt den Vorrat als Kästchen und den Hinterhältigen Angriff als Wert', () => {
@@ -206,7 +215,7 @@ describe('HTML-Charakterbogen', () => {
 
   it('druckt nur, was eingetragen ist — Zeilen zum Nachtragen gibt es nur für offene Wahlen', () => {
     const d = dataFor(allProficienciesCharacter);
-    d.attacks = [{ name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m', note: '' }];
+    d.attacks = [{ origin: null, name: 'Kurzschwert', bonus: '5', damage: '1W6+3', type: 'Stich', range: '1,5 m', note: '', effects: [] }];
     d.grouped = {
       ...d.grouped,
       sources: [wizardSource([
@@ -218,26 +227,44 @@ describe('HTML-Charakterbogen', () => {
 
     // Angriffe: der eine eingetragene, dazu leere Zeilen zum Nachtragen, keine Beschreibungsfläche.
     const attacks = html.split('<table class="o-atk">')[1].split('</table>')[0];
-    // Zwanzig Zeilen im Kasten: die Kopfzeile, der eingetragene Angriff, der Rest zum Nachtragen.
-    expect(attacks.match(/<tr>/g)).toHaveLength(1 + 20);
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(19);
+    expect(attacks.match(/<tr>/g)).toHaveLength(1 + 1);
+    // Die Schreiblinien stehen in eigener Tabelle, die der Kastenrand abschneidet.
+    const fill = html.split('<div class="o-atkfill">')[1].split('</div>')[0];
+    expect(fill.match(/<span class="wcell"><\/span>/g)!.length).toBeGreaterThan(30);
     expect(attacks).not.toContain('Beschreibung');
     // Zauber: eine Zeile je gewähltem Zauber, plus eine je offener Wahl.
     expect(html.match(/<span class="sname write"><\/span>/g)).toHaveLength(2);
   });
 
-  it('hängt die Angriffsnotiz unter den Namen und rechnet sie als zweite Linie', () => {
+  it('hängt die Angriffsnotiz unter den Namen', () => {
     const d = dataFor(allProficienciesCharacter);
     d.attacks = [{
-      name: 'Flammenzunge', bonus: '8', damage: '1W8+5', type: 'Hieb', range: 'Nah',
-      note: '+1W6 jede lange Rast',
+      origin: null, name: 'Flammenzunge', bonus: '8', damage: '1W8+5', type: 'Hieb', range: 'Nah',
+      note: '+1W6 jede lange Rast', effects: [],
     }];
     const attacks = build(d).split('<table class="o-atk">')[1].split('</table>')[0];
 
     expect(attacks).toContain('<span class="anote">+1W6 jede lange Rast</span>');
     expect(attacks).toContain('<tr class="has-note">');
-    // Der Kasten hält seine zwanzig Linien: die Notiz belegt eine davon.
-    expect(attacks.match(/<span class="wcell"><\/span>/g)).toHaveLength(18);
+    expect(attacks).not.toContain('wcell');
+  });
+
+  it('kennzeichnet Herkunft von Zeilen und Fußnoten, die Legende sitzt oben auf dem Rahmen', () => {
+    const d = dataFor(allProficienciesCharacter);
+    d.attacks = [
+      { origin: 'weapon', name: 'Langbogen', bonus: '7', damage: '1W8+3', type: 'Stich', range: '45/180 m', note: '', effects: [] },
+      { origin: null, name: 'Handgetippt', bonus: '2', damage: '1W4', type: 'Wucht', range: 'Nah', note: '', effects: [] },
+    ];
+    d.attackNotes = [{ origin: 'spell', labelDe: 'Zeichen des Jägers', text: 'Zeichen des Jägers +1W6 Energieschaden: gegen das markierte Ziel' }];
+    const box = build(d).split('<table class="o-atk">')[1];
+    const attacks = box.split('</table>')[0];
+
+    expect(box.match(/atk-origin-weapon/g)).toHaveLength(2);
+    expect(attacks).toContain('<b>Zeichen des Jägers</b> +1W6 Energieschaden');
+    const legend = box.split('<span class="tlegend">')[1].split('</div>')[0];
+    expect(legend).toMatch(/Waffe.*Zauber/);
+    expect(legend).not.toContain('Merkmal');
+    expect(attacks).toContain('<tr class="atk-note">');
   });
 
   it('druckt keinen beschrifteten Kasten ohne Wert', () => {
