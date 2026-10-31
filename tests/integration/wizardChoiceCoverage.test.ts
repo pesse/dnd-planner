@@ -48,6 +48,7 @@ describe('Wizard stellt jede Wahl, die die Merkmalsleiste erwartet', () => {
       spellAccess: prep.spellAccess,
       declared: prep.declared,
       proficientSkills: [],
+      proficientSaves: [],
       sizeChoice: prep.sizeChoice,
       tools: [],
     });

@@ -145,6 +145,7 @@
     skillPicks = grants.choices.map(() => []);
     // Mit `chosenSkills` zusammen die Optionsliste der Expertise-Wahl im Merkmals-Schritt.
     w.grantedSkills = grants.skills.map((g) => g.value);
+    w.grantedSaves = grants.savingThrows.map((g) => g.value);
     syncChosenSkills();
   }
   function syncChosenSkills() {

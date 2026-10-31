@@ -20,6 +20,7 @@ import { getItemsByDir } from '../../itemLibrary';
 import { sheetNoteLines, fallbackSheetNotes } from './sheetNotes';
 import { expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyRiders } from '../declaration/skillProficiency';
+import { savingThrowProficiencyRiders } from '../declaration/savingThrowProficiency';
 import { languageRiders } from '../declaration/languages';
 import { toolProficiencyRiders } from '../declaration/toolProficiency';
 import { abilityIncreaseRiders } from '../declaration/abilityIncrease';
@@ -111,7 +112,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     if (!st.toolLib.length) st.toolLib = await getItemsByDir('tools').catch(() => []);
     const declaredQs = [
       ...choices.baseOptionChoices, ...choices.baseExpertiseChoices, ...choices.baseSkillProfChoices,
-      ...choices.baseLanguageChoices, ...choices.baseToolChoices, ...choices.baseAbilityChoices,
+      ...choices.baseSaveProfChoices, ...choices.baseLanguageChoices, ...choices.baseToolChoices, ...choices.baseAbilityChoices,
       ...choices.baseAccessChoices,
     ];
     initFeatureChoices(declaredQs);
@@ -195,6 +196,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
       ...optionListRiders(grantSources, answerOf, optionLevel),
       ...expertiseRiders(grantSources, answerOf),
       ...skillProficiencyRiders(grantSources, answerOf),
+      ...savingThrowProficiencyRiders(grantSources, answerOf),
       ...languageRiders(grantSources, answerOf),
       ...toolProficiencyRiders(grantSources, answerOf),
       ...abilityIncreaseRiders(grantSources, answerOf),

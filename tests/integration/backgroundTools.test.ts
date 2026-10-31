@@ -28,7 +28,7 @@ describe('Werkzeug-Übung aus dem Hintergrund', () => {
 
     const tools = await getItemsByDir('tools');
     const choices = wizardDeclaredChoices({
-      spellAccess: [], declaredAnswers: [], declared: prep.declared, proficientSkills: [], sizeChoice: null, tools,
+      spellAccess: [], declaredAnswers: [], declared: prep.declared, proficientSkills: [], proficientSaves: [], sizeChoice: null, tools,
     }).filter((c) => c.featureKey === 'srd-2024_soldier');
     expect(choices).toHaveLength(1);
     expect(choices[0].type).toBe('multiselect');

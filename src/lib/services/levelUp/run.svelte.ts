@@ -44,6 +44,7 @@ export function createLevelUpRun(ctx: { character: Character }) {
     get featAccess() { return st.featAccess; },
     get answers() { return st.answers; },
     get skills() { return ctx.character.skills; },
+    get saveProfs() { return ctx.character.saveProfs; },
     get tools() { return st.toolLib; },
   });
 

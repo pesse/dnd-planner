@@ -92,6 +92,8 @@ export class CharacterWizard {
    * Übungsstand DIESES Charakters.
    */
   grantedSkills = $state<string[]>([]);
+  /** Fest gewährte Rettungswurf-Übungen aus `collectGrants` — Bedingung der Ersatz-Wahl. */
+  grantedSaves = $state<string[]>([]);
   /** Antworten auf die deklarierten Wahlen — der einzige Antwort-Kanal des Wizards. */
   declaredAnswers = $state<DeclaredAnswer[]>([]);
   /** Optionen der Werkzeug-Wahl, aus `items/tools/`; leer = Freitext. */
@@ -110,6 +112,7 @@ export class CharacterWizard {
       declaredAnswers: this.declaredAnswers,
       declared: this.declared,
       proficientSkills: this.proficientSkills,
+      proficientSaves: this.grantedSaves,
       sizeChoice: this.sizeChoice,
       tools: this.toolLib,
     });

@@ -9,6 +9,7 @@ import {
 import { isSpellAccessFeature } from '../declaration/casting';
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyChoices, skillProficiencyRiders } from '../declaration/skillProficiency';
+import { savingThrowProficiencyChoices, savingThrowProficiencyRiders } from '../declaration/savingThrowProficiency';
 import { languageChoices, languageRiders } from '../declaration/languages';
 import { toolProficiencyChoices, toolProficiencyRiders, type ToolItem } from '../declaration/toolProficiency';
 import { abilityIncreaseChoices, abilityIncreaseRiders } from '../declaration/abilityIncrease';
@@ -43,6 +44,8 @@ export function wizardDeclaredChoices(params: {
   declaredAnswers: DeclaredAnswer[];
   declared: DeclaredFeature[];
   proficientSkills: string[];
+  /** Fest gewährte Rettungswurf-Übungen (Klasse), englische SRD-Namen. */
+  proficientSaves: string[];
   sizeChoice: AnalysisChoice | null;
   /** Optionen der Werkzeug-Wahl, aus `items/tools/`; leer = Freitext. */
   tools: ToolItem[];
@@ -59,6 +62,7 @@ export function wizardDeclaredChoices(params: {
   const expertise = expertiseChoices(declared, proficientSkills, []);
   // Gegenschnitt; die andere Form (`skills.choose`) führt daneben der Fertigkeitsschritt.
   const skillProf = skillProficiencyChoices(declared, proficientSkills);
+  const saves = savingThrowProficiencyChoices(declared, params.proficientSaves);
   const languages = languageChoices(declared);
   const tools = toolProficiencyChoices(declared, params.tools);
   const abilities = abilityIncreaseChoices(declared);
@@ -67,7 +71,7 @@ export function wizardDeclaredChoices(params: {
   const properties = characterPropertyChoices(declared);
   return [
     ...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...castingPartChoices(declared),
-    ...expertise, ...skillProf, ...languages, ...tools, ...abilities, ...spells,
+    ...expertise, ...skillProf, ...saves, ...languages, ...tools, ...abilities, ...spells,
   ];
 }
 
@@ -88,6 +92,7 @@ export function wizardRiders(params: {
     ...optionListRiders(declared, answerOf, 1),
     ...expertiseRiders(declared, answerOf),
     ...skillProficiencyRiders(declared, answerOf),
+    ...savingThrowProficiencyRiders(declared, answerOf),
     ...languageRiders(declared, answerOf),
     ...toolProficiencyRiders(declared, answerOf),
     ...abilityIncreaseRiders(declared, answerOf),

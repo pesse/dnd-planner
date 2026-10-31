@@ -17,6 +17,7 @@
     toolProficiency: { value: 'toolProficiency', de: 'Werkzeug-Übung' },
     characterProperty: { value: 'characterProperty', de: 'Grundeigenschaft' },
     abilityIncrease: { value: 'abilityIncrease', de: 'Attributserhöhung' },
+    savingThrowProficiency: { value: 'savingThrowProficiency', de: 'Rettungswurf-Übung' },
   };
 
   /**
@@ -101,6 +102,8 @@
         abilities: prev.abilities,
         abilityMax: prev.abilityMax,
       });
+    else if (value === 'savingThrowProficiency')
+      grant = newChoice({ kind: 'savingThrowProficiency', count: prev.count, abilities: prev.abilities });
     else if (value === 'spellAccess')
       grant = newChoice({
         kind: 'spellAccess',
@@ -179,6 +182,20 @@
       </span>
       <span class="note">je +1; leere Auswahl = alle sechs Attribute</span>
     {/if}
+    {#if kind === 'savingThrowProficiency'}
+      <span class="lbl">Rettungswürfe
+        <input class="ef num" type="number" min="1" max="6" bind:value={grant.count} oninput={mark} />
+      </span>
+      <span class="lbl">nur wenn schon geübt in
+        <select class="ef sel" bind:value={grant.onlyIfProficient} onchange={mark}>
+          <option value={undefined}>— immer fragen —</option>
+          {#each ABILITY_NAMES as ability}
+            <option value={ability}>{ABILITY_LABEL_BY_NAME[ability]}</option>
+          {/each}
+        </select>
+      </span>
+      <span class="note">leere Auswahl = alle sechs; schon geübte fallen zur Laufzeit weg</span>
+    {/if}
     <button type="button" class="rm" onclick={onremove} title="Diese Wahl entfernen">×</button>
   </div>
 
@@ -194,7 +211,7 @@
     <CharacterPropertyEditForm bind:grant {onchange} />
   {/if}
 
-  {#if kind === 'abilityIncrease'}
+  {#if kind === 'abilityIncrease' || kind === 'savingThrowProficiency'}
     <div class="flag-grid">
       {#each ABILITY_NAMES as ability}
         <label class="chk">

@@ -36,7 +36,7 @@ import { whenSchema } from './when';
  *     offen bleiben und blockiert keinen Checkpoint. Als Flag an `optionList` trüge jedes
  *     Prädikat davon eine Ausnahme.
  */
-export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'toolProficiency', 'characterProperty', 'abilityIncrease'] as const;
+export const FEATURE_CHOICE_KINDS = ['weaponMastery', 'featCategory', 'spellcasting', 'spellAccess', 'optionList', 'optionPool', 'expertise', 'skillProficiency', 'languages', 'toolProficiency', 'characterProperty', 'abilityIncrease', 'savingThrowProficiency'] as const;
 export type FeatureChoiceKind = (typeof FEATURE_CHOICE_KINDS)[number];
 
 /**
@@ -172,7 +172,13 @@ export const featureChoiceGrantSchema = z.object({
   abilities: z
     .array(z.enum(ABILITY_NAMES))
     .default([])
-    .describe('Nur bei kind="abilityIncrease": zulässige Attribute (englische SRD-Namen). Leer = alle sechs.'),
+    .describe('Nur bei kind="abilityIncrease"/"savingThrowProficiency": zulässige Attribute (englische SRD-Namen). Leer = alle sechs.'),
+  // kind="savingThrowProficiency": der feste Grant am selben Merkmal bleibt stehen und läuft
+  // im Ersatzfall ins Leere (die Übung besteht schon) — darum braucht es kein „statt".
+  onlyIfProficient: z
+    .enum(ABILITY_NAMES)
+    .optional()
+    .describe('Nur bei kind="savingThrowProficiency": gefragt wird nur, wenn der Charakter VOR diesem Merkmal schon in diesem Rettungswurf geübt ist (Stählerner Verstand: "Wisdom"). Fehlt = immer.'),
   abilityMax: z
     .number()
     .int()

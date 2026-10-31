@@ -9,6 +9,7 @@ import { featureNote, type FeatureNote } from '../featureText';
 import { declaredFeatures, forClassFeaturesField, type DeclaredFeature } from '../declaredFeature';
 import { expertiseChoices } from '../declaration/expertise';
 import { skillProficiencyChoices } from '../declaration/skillProficiency';
+import { savingThrowProficiencyChoices, sheetSaveProficiencies } from '../declaration/savingThrowProficiency';
 import { languageChoices } from '../declaration/languages';
 import { toolProficiencyChoices, type ToolItem } from '../declaration/toolProficiency';
 import { abilityIncreaseChoices } from '../declaration/abilityIncrease';
@@ -38,6 +39,7 @@ export interface ChoiceSources {
   featAccess: SpellAccessGrant[];
   answers: Record<string, string | string[]>;
   skills: Character['skills'];
+  saveProfs: Character['saveProfs'];
   /** Optionen der Werkzeug-Wahl, aus `items/tools/`. */
   tools: ToolItem[];
 }
@@ -84,6 +86,9 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const baseExpertiseAnalysis = $derived(expertiseChoices(baseDeclared, sheetSkills.prof, sheetSkills.exp));
   // Gegenschnitt derselben Liste: gewählt wird, was noch nicht geübt ist.
   const baseSkillProfAnalysis = $derived(skillProficiencyChoices(baseDeclared, sheetSkills.prof));
+  // Der Bogen VOR dem Aufstieg: danach trüge er die Übung des festen Grants am selben Merkmal.
+  const sheetSaves = $derived(sheetSaveProficiencies(src.saveProfs));
+  const baseSaveProfAnalysis = $derived(savingThrowProficiencyChoices(baseDeclared, sheetSaves));
   const baseLanguageAnalysis = $derived(languageChoices(baseDeclared));
   const baseToolAnalysis = $derived(toolProficiencyChoices(baseDeclared, src.tools));
   const baseAbilityAnalysis = $derived(abilityIncreaseChoices(baseDeclared));
@@ -100,6 +105,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
   const baseOptionChoices = $derived(buildFeatureChoices(baseOptionAnalysis));
   const baseExpertiseChoices = $derived(buildFeatureChoices(baseExpertiseAnalysis));
   const baseSkillProfChoices = $derived(buildFeatureChoices(baseSkillProfAnalysis));
+  const baseSaveProfChoices = $derived(buildFeatureChoices(baseSaveProfAnalysis));
   const baseLanguageChoices = $derived(buildFeatureChoices(baseLanguageAnalysis));
   const baseToolChoices = $derived(buildFeatureChoices(baseToolAnalysis));
   const baseAbilityChoices = $derived(buildFeatureChoices(baseAbilityAnalysis));
@@ -111,6 +117,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...optionListChoices(featDeclared.filter(isOptionListFeature)),
     ...expertiseChoices(featDeclared, sheetSkills.prof, sheetSkills.exp),
     ...skillProficiencyChoices(featDeclared, sheetSkills.prof),
+    ...savingThrowProficiencyChoices(featDeclared, sheetSaves),
     ...languageChoices(featDeclared),
     ...toolProficiencyChoices(featDeclared, src.tools),
     ...characterPropertyChoices(featDeclared),
@@ -122,6 +129,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     ...baseOptionChoices,
     ...baseExpertiseChoices,
     ...baseSkillProfChoices,
+    ...baseSaveProfChoices,
     ...baseLanguageChoices,
     ...baseToolChoices,
     ...basePropertyChoices,
@@ -137,6 +145,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
       ...baseOptionAnalysis,
       ...baseExpertiseAnalysis,
       ...baseSkillProfAnalysis,
+      ...baseSaveProfAnalysis,
       ...baseLanguageAnalysis,
       ...baseToolAnalysis,
       ...basePropertyAnalysis,
@@ -165,6 +174,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     get baseOptionChoices() { return baseOptionChoices; },
     get baseExpertiseChoices() { return baseExpertiseChoices; },
     get baseSkillProfChoices() { return baseSkillProfChoices; },
+    get baseSaveProfChoices() { return baseSaveProfChoices; },
     get baseLanguageChoices() { return baseLanguageChoices; },
     get baseToolChoices() { return baseToolChoices; },
     get baseAbilityChoices() { return baseAbilityChoices; },
@@ -186,7 +196,7 @@ export function createLevelUpChoices(src: ChoiceSources) {
     /** Die KANONISCHE (englische) Antwort einer deklarierten Zweigwahl — der Options-Schlüssel. */
     optionAnswer(id: string): string {
       const q = [
-        ...baseOptionChoices, ...baseExpertiseChoices, ...baseSkillProfChoices, ...baseLanguageChoices,
+        ...baseOptionChoices, ...baseExpertiseChoices, ...baseSkillProfChoices, ...baseSaveProfChoices, ...baseLanguageChoices,
         ...baseToolChoices, ...basePropertyChoices, ...baseAbilityChoices, ...featDeclaredChoices,
       ].find((x) => x.id === id);
       return q ? answerValues(q, src.answers[id]) : '';

@@ -586,6 +586,7 @@
       "abilities": [
         "Strength"
       ],
+      "onlyIfProficient": "Strength",
       "abilityMax": 20,
       "property": "size",
       "propertyValues": [

@@ -19,6 +19,7 @@ import { declaresCasting } from './casting';
 import { grantWritesCharacter, withGrant } from './grants';
 import { isExpertiseRef } from './expertise';
 import { isSkillProficiencyRef } from './skillProficiency';
+import { isSavingThrowProficiencyRef } from './savingThrowProficiency';
 import { isLanguagesRef } from './languages';
 import { isToolProficiencyRef } from './toolProficiency';
 import { isAbilityIncreaseRef } from './abilityIncrease';
@@ -72,11 +73,12 @@ export const isFlowOwnedDeclaration = (f: DeclaredChoiceSource): boolean =>
 
 /**
  * Ob der Flow diese Wahl selbst führt — Zweigwahl, Übung, Expertise, Sprache, Werkzeug,
- * Eigenschaft oder Attributserhöhung.
+ * Eigenschaft, Attributserhöhung oder Rettungswurf-Übung.
  */
 export const isDeclaredChoiceRef = (r: DeclaredChoiceRef): boolean =>
   isOptionListRef(r) || isExpertiseRef(r) || isSkillProficiencyRef(r) || isLanguagesRef(r)
-  || isToolProficiencyRef(r) || isCharacterPropertyRef(r) || isAbilityIncreaseRef(r);
+  || isToolProficiencyRef(r) || isCharacterPropertyRef(r) || isAbilityIncreaseRef(r)
+  || isSavingThrowProficiencyRef(r);
 
 /** Die selbstgeführten Wahlen eines Merkmals, in Deklarationsreihenfolge. */
 export const declaredChoiceRefs = <T extends DeclaredChoiceSource>(f: T): DeclaredChoiceRef<T>[] =>
