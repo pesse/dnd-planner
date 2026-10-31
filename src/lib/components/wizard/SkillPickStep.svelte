@@ -19,6 +19,14 @@
     return from.length ? from : SKILL_NAMES;
   }
 
+  /** Fest gewährte oder in einer anderen Wahl genommene Fertigkeiten brächten nichts. */
+  function takenElsewhere(choiceIdx: number): Set<string> {
+    return new Set([
+      ...(grants?.skills.map((g) => g.value) ?? []),
+      ...picks.flatMap((p, i) => (i === choiceIdx ? [] : p)),
+    ]);
+  }
+
   function toggle(choiceIdx: number, skill: string, max: number) {
     const cur = picks[choiceIdx] ?? [];
     let next: string[];
@@ -51,6 +59,7 @@
     {/if}
   </div>
   {#each grants.choices as choice, ci}
+    {@const taken = takenElsewhere(ci)}
     <div class="field">
       <span>{choice.source.label}: wähle {choice.choose}</span>
       <div class="chips">
@@ -58,6 +67,8 @@
           <button
             class="chip"
             class:sel={(picks[ci] ?? []).includes(skill)}
+            disabled={taken.has(skill)}
+            title={taken.has(skill) ? 'Schon geübt' : undefined}
             onclick={() => toggle(ci, skill, choice.choose)}
           >{skillLabelDe(skill)}</button>
         {/each}

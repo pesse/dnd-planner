@@ -29,6 +29,7 @@
   border-radius: 999px; padding: 0.25rem 0.65rem; cursor: pointer; font: inherit; font-size: 0.82rem;
 }
 .wizard .chip:hover { border-color: var(--border-strong); }
+.wizard .chip:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
 .wizard .chip.sel { background: var(--arcane, var(--gold)); color: #fff; border-color: transparent; font-weight: 600; }
 
 .wizard .hint { font-size: 0.82rem; color: var(--ink-soft); margin: 0; }
