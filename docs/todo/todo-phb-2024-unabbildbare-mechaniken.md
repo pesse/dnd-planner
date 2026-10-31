@@ -47,7 +47,7 @@ Psychischen Flüsterns, variable Kosten der Psionischen Zauberei).
 
 ## Angriff, Würfe, Sonstiges
 
-Zuschläge und Vorteil auf Initiative stehen in `grants.initiative` (Aufmerksam, Attentat,
+Zuschläge und Vorteil auf Initiative stehen in `grants.initiative` (Aufmerksam, Attentat, Wilder Instinkt,
 Bemerkenswerter Athlet, Fürchterlicher Lauerjäger), der erweiterte Bereich für kritische Treffer
 in `grants.criticalHit`, Zuschläge und Vorteil auf Fertigkeitswürfe in `grants.checks`. Zusätzliche
 Schadenswürfel stehen als `grants.attack` der Art `dice` unter der Angriffstabelle (Schreckliche
