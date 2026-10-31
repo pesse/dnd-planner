@@ -8,6 +8,7 @@
   import { textTip } from '../textTip.svelte';
   import { itemArtUrl } from '$lib/libraryArt';
   import CardArt from '../ui/CardArt.svelte';
+  import ItemDeclarationList from './ItemDeclarationList.svelte';
 
   let { item, color, parseError }: { item: Item | null; color: string; parseError: string | null } = $props();
 </script>
@@ -87,6 +88,8 @@
       </div>
       <div class="orndiv"><div class="ol"></div><span class="og">◆</span><div class="ol"></div></div>
     {/if}
+
+    <ItemDeclarationList {item} />
 
     {#if item.desc_de?.length}
       <div class="desc"><Markdown source={item.desc_de} /></div>

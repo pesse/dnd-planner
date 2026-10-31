@@ -32,7 +32,7 @@ export const spellPools = (pools: ResolvedResource[]): SpellPools => ({
 });
 
 /** Auffüll-Rast: die App nennt sie, sie führt sie nicht aus. */
-const RECHARGE_DE: Record<ResourceRecharge, string> = {
+export const RECHARGE_DE: Record<ResourceRecharge, string> = {
   'long-rest': 'Lange Rast',
   'short-rest': 'Kurze Rast',
   dawn: 'Morgengrauen',

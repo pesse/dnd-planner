@@ -108,7 +108,7 @@ const formulaRows = (labelDe: string, f: Unarmored, mods: AbilityScores): Deriva
   ...f.abilities.map((k) => ({ labelDe: ABILITY_ABBR_DE[k], value: mods[k], notes: [] })),
 ];
 
-const CONDITION_DE: Record<ArmorClassCondition, string> = {
+export const CONDITION_DE: Record<ArmorClassCondition, string> = {
   always: '',
   armored: 'nur in Rüstung',
   unarmored: 'nur ohne Rüstung',

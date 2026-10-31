@@ -5,6 +5,7 @@
   import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText } from '../itemFormat';
   import Markdown from './Markdown.svelte';
   import ArtFrame from './ui/ArtFrame.svelte';
+  import ItemDeclarationList from './item/ItemDeclarationList.svelte';
   import { itemArtUrl } from '../libraryArt';
   import type { ItemTrainingNote } from '../services/itemProficiency';
 
@@ -137,6 +138,8 @@
         <div class="tt-note">Nachteil auf Heimlichkeit</div>
       {/if}
     {/if}
+
+    <ItemDeclarationList {item} variant="tooltip" />
 
     {#if item.cost || item.weight}
       <div class="tt-section tt-footer">

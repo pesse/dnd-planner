@@ -8,6 +8,7 @@
   import ArmorFields from './ArmorFields.svelte';
   import CostWeightFields from './CostWeightFields.svelte';
   import ArtKeyField from './ArtKeyField.svelte';
+  import ItemEffectsFields from './ItemEffectsFields.svelte';
 
   let {
     draft = $bindable(),
@@ -91,6 +92,10 @@
       <textarea class="edit-textarea" bind:value={draftDescDeText} rows={6}
         placeholder="Deutsche Beschreibung…"></textarea>
     </div>
+
+    <div class="card-divider"></div>
+
+    <ItemEffectsFields bind:draft={draft} />
 
     <div class="card-divider"></div>
 
@@ -203,12 +208,12 @@
 
   .edit-header-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
-  .edit-section-collapsible { cursor: default; }
-  .edit-section-collapsible summary { cursor: pointer; user-select: none; list-style: none; }
-  .edit-section-collapsible summary::before { content: '› '; color: var(--border); }
-  .edit-section-collapsible[open] summary::before { content: '▾ '; }
+  .item-card :global(.edit-section-collapsible) { cursor: default; }
+  .item-card :global(.edit-section-collapsible summary) { cursor: pointer; user-select: none; list-style: none; }
+  .item-card :global(.edit-section-collapsible summary::before) { content: '› '; color: var(--border); }
+  .item-card :global(.edit-section-collapsible[open] summary::before) { content: '▾ '; }
 
-  .edit-section-label {
+  .item-card :global(.edit-section-label) {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.05em; color: var(--ink-muted);
   }
