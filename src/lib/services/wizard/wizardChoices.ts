@@ -2,7 +2,11 @@
  * Deterministische Merkmalswahlen und ihre Rider — reine Ableitungen über den Wizard-Zustand,
  * frei von `$state` und damit unverändert aus reaktiven Gettern aufrufbar.
  */
-import { spellAccessChoices, spellListChoiceId, type SpellAccessGrant } from '../spellcasting/access';
+import {
+  spellAccessChoices, spellAccessGrantOf, spellAccessPartChoice, spellAccessParts, spellListChoiceId,
+  type SpellAccessGrant,
+} from '../spellcasting/access';
+import { isSpellAccessFeature } from '../declaration/casting';
 import { expertiseChoices, expertiseRiders } from '../declaration/expertise';
 import { skillProficiencyChoices, skillProficiencyRiders } from '../declaration/skillProficiency';
 import { languageChoices, languageRiders } from '../declaration/languages';
@@ -15,6 +19,20 @@ import type { AnalysisChoice } from '../analysis/types';
 import type { DeclaredAnswer } from '../declaredChoice';
 import type { DeclaredFeature } from '../declaredFeature';
 import type { FeatureRider } from '$lib/schemas/levelUp';
+
+/**
+ * Liste und Attribut eines Merkmals, das zaubern lässt, ohne Talent-Zugang zu sein
+ * (Elfen-, Gnomenabstammung). Dieselbe Herleitung wie die Plätze der Merkmalsleiste
+ * (`collectChoiceSlots`) — sonst bliebe dort nach dem Wizard eine Wahl offen.
+ */
+function castingPartChoices(declared: DeclaredFeature[]): AnalysisChoice[] {
+  return declared
+    .filter((f) => !isSpellAccessFeature(f))
+    .flatMap((f) => {
+      const grant = spellAccessGrantOf(f);
+      return grant ? spellAccessParts(grant).map((part) => spellAccessPartChoice(grant, part)) : [];
+    });
+}
 
 /**
  * Hängt reaktiv an `declaredAnswers`: erst die beantwortete Zauberliste macht aus dem
@@ -48,8 +66,8 @@ export function wizardDeclaredChoices(params: {
   // Spezies ohne Deklaration und liefert für eine redigierte nichts mehr.
   const properties = characterPropertyChoices(declared);
   return [
-    ...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...expertise, ...skillProf,
-    ...languages, ...tools, ...abilities, ...spells,
+    ...(sizeChoice ? [sizeChoice] : []), ...properties, ...branches, ...castingPartChoices(declared),
+    ...expertise, ...skillProf, ...languages, ...tools, ...abilities, ...spells,
   ];
 }
 
