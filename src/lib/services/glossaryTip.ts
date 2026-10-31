@@ -1,8 +1,9 @@
 /**
- * Erklärtext zu einem Regelbegriff für Tooltips: das deutsche SRD-Regelglossar zuerst,
- * eigene Einsteigertexte nur für Begriffe, die das Glossar nicht führt.
+ * Erklärtext zu einem Regelbegriff für Tooltips: die Regelbibliothek zuerst, eigene
+ * Einsteigertexte nur für Begriffe, die sie nicht führt.
  */
 import { lookupRule } from './rulesReference';
+import { ruleText } from '$lib/rulesLibrary';
 
 const BEGINNER_TIPS: Record<string, string> = {
   Übungsbonus:
@@ -21,8 +22,8 @@ const BEGINNER_TIPS: Record<string, string> = {
     'Das Attribut, auf das deine Klasse am meisten angewiesen ist — hier sollte dein höchster Wert landen.',
 };
 
-export function glossaryTip(term: string): string | null {
+export async function glossaryTip(term: string): Promise<string | null> {
   if (BEGINNER_TIPS[term]) return BEGINNER_TIPS[term];
-  const hit = lookupRule(term);
-  return hit.found && hit.matchType !== 'fuzzy' ? hit.entry!.definition : null;
+  const hit = await lookupRule(term);
+  return hit.found && hit.matchType !== 'fuzzy' ? ruleText(hit.entry!) : null;
 }

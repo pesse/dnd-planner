@@ -15,6 +15,7 @@ import { classProgressionSchema, migrateClassLegacy, type ClassProgression } fro
 import { speciesSchema, migrateSpeciesLegacy, type Species } from '../schemas/species';
 import { featSchema, migrateFeatLegacy, type Feat } from '../schemas/feat';
 import { backgroundSchema, type Background } from '../schemas/background';
+import { ruleSchema, type Rule } from '../schemas/rule';
 import { migrateSourceLegacy } from '../schemas/source';
 import type { ZodType } from 'zod';
 
@@ -81,3 +82,4 @@ export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse
 export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, migrateSpeciesLegacy, raw);
 export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, migrateFeatLegacy, raw);
 export const parseBackground = (raw: unknown): ParseResult<Background> => parse(backgroundSchema, libraryEntry, raw);
+export const normalizeRule = (raw: unknown): Rule => normalize(ruleSchema, libraryEntry, raw);

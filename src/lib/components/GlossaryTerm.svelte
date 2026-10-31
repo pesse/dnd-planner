@@ -9,7 +9,13 @@
     children?: Snippet;
   } = $props();
 
-  const tip = $derived(glossaryTip(term));
+  let tip = $state<string | null>(null);
+  $effect(() => {
+    const t = term;
+    let live = true;
+    void glossaryTip(t).then((text) => { if (live) tip = text; });
+    return () => { live = false; };
+  });
 </script>
 
 {#if tip}

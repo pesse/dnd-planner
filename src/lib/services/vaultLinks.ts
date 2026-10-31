@@ -12,6 +12,9 @@ import type { FileEntry } from '../types';
  */
 export const SPELL_REF_SCHEME = 'spell:';
 
+/** Regelbegriffe (`[Heldische Inspiration](rule:srd-2024_heroic-inspiration)`) sind nur Tooltip. */
+export const RULE_REF_SCHEME = 'rule:';
+
 function isExternal(href: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#') || href.startsWith('//');
 }
@@ -97,6 +100,7 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
     await openSpellRef(spellKey);
     return true;
   }
+  if (href.startsWith(RULE_REF_SCHEME)) return true;
   if (!href || !fromFilePath || isExternal(href)) return false;
 
   let decoded = href;

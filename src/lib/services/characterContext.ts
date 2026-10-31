@@ -113,6 +113,8 @@ function combatBlock(c: Character): string | null {
     c.speed.trim() && `- Speed: ${c.speed}`,
     (c.hpCurrent.trim() || c.hpMax.trim()) &&
       `- HP: ${c.hpCurrent.trim() || '?'}/${c.hpMax.trim() || '?'}${c.hpTemp.trim() ? ` (temp ${c.hpTemp.trim()})` : ''}`,
+    c.heroicInspiration && '- Has Heroic Inspiration',
+    c.exhaustion > 0 && `- Exhaustion level: ${c.exhaustion}`,
     c.hitDice.trim() && `- Hit Dice: ${c.hitDice}`,
     `- Proficiency Bonus: ${sign(effectiveProficiencyBonus(c))}`,
     c.passivePerception.trim() && `- Passive Perception: ${c.passivePerception}`,

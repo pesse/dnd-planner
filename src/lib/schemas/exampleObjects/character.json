@@ -47,6 +47,8 @@
   "hpMax": "string",
   "hpCurrent": "string",
   "hpTemp": "string",
+  "heroicInspiration": false,
+  "exhaustion": 0,
   "proficiencyBonus": -9007199254740991,
   "passivePerception": "string",
   "hitDice": "string",

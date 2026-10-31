@@ -109,7 +109,7 @@ const headPills = (d: CharacterPrintData): string => {
     ? `<div class="o-alles">${profMark(true, false)}Alleskönner</div>`
     : '';
   // Die Initiative steht als Kapsel, nicht im Kopfband: dort nimmt sie dem Namen die Breite.
-  return pill('Inspiration', '') + pill('Übungsbonus', sign(effectiveProficiencyBonus(c))) +
+  return pill('Inspiration', c.heroicInspiration ? '✦' : '') + pill('Übungsbonus', sign(effectiveProficiencyBonus(c))) +
     pill('Initiative', esc(c.initiative) + (d.initiativeAdvantage ? ' V' : '')) + alles;
 };
 

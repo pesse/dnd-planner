@@ -7,6 +7,7 @@
   import { adjustmentSum, type CombatStat } from '../../schemas/combatAdjustment';
   import { sign } from '../../utils/num';
   import AdjustmentPopover from './AdjustmentPopover.svelte';
+  import GlossaryTerm from '../GlossaryTerm.svelte';
   import './form.css';
 
   let { form, fallbacks, tips, saved, dirOf, hpTipHtml = '', acTipHtml = '' }: {
@@ -68,6 +69,16 @@
   </label>
   <label class="stat" use:diffMark={dirOf(saved?.hpTemp, form.hpTemp)}>Temp. TP<input bind:value={form.hpTemp} placeholder="0" /></label>
   <label class="stat" use:diffMark={dirOf(saved?.hitDice, form.hitDice)}>Trefferwürfel<input bind:value={form.hitDice} placeholder="5W10" /></label>
+  <label class="stat" use:diffMark={dirOf(saved?.heroicInspiration, form.heroicInspiration)}>
+    <GlossaryTerm term="Heldische Inspiration">Inspiration</GlossaryTerm>
+    <input type="checkbox" class="flag" bind:checked={form.heroicInspiration} />
+  </label>
+  <label class="stat" use:diffMark={dirOf(saved?.exhaustion, form.exhaustion)}>
+    <GlossaryTerm term="Erschöpfung" />
+    <select bind:value={form.exhaustion}>
+      {#each [0, 1, 2, 3, 4, 5, 6] as n (n)}<option value={n}>{n}</option>{/each}
+    </select>
+  </label>
 </div>
 
 <style>
@@ -96,6 +107,8 @@
     font-weight: 600;
     background: var(--bg);
   }
+  .stat input.flag { width: auto; margin: 0.3rem 0; }
+  .stat select { width: 100%; text-align: center; font-weight: 600; background: var(--bg); }
   .value {
     font-size: 0.95rem;
     font-weight: 600;

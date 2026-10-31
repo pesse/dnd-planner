@@ -8,6 +8,7 @@ import { getClasses } from '$lib/classLibrary';
 import { getSpeciesList } from '$lib/speciesLibrary';
 import { getBackgroundsList } from '$lib/backgroundsLibrary';
 import { getFeats } from '$lib/featsLibrary';
+import { getRules } from '$lib/rulesLibrary';
 import {
   parseCharacter,
   parseItem,
@@ -57,6 +58,7 @@ export function prefetchLibraries(): void {
     getSpeciesList,
     getBackgroundsList,
     getFeats,
+    getRules,
     async () => {
       for (const dir of await listItemDirs()) jobs.push(() => getItemsByDir(dir));
     },

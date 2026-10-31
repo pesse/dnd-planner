@@ -1,20 +1,12 @@
 /**
- * Regel-Nachschlagewerk (SRD 5.2.1 DE): `lookupRule` ist der autoritative Term-Lookup,
- * `searchRules` die unscharfe Volltextsuche darunter. Die Daten liegen gebündelt in
- * `src/lib/data/`, offline erzeugt von `scripts/srd/`.
+ * Regel-Nachschlagewerk: `lookupRule` ist der Term-Lookup über die Regelbibliothek
+ * (`vault/rules`, alle Quellen), `searchRules` die unscharfe Volltextsuche über die deutsche
+ * SRD-Prosa, gebündelt in `src/lib/data/` und offline erzeugt von `scripts/srd/`.
  */
 import MiniSearch from 'minisearch';
-import glossaryData from '$lib/data/rules-glossary.json';
 import chunkData from '$lib/data/rules-chunks.json';
+import { getRules, ruleDisplayName, type RuleInfo } from '$lib/rulesLibrary';
 
-export interface RuleEntry {
-  de: string;
-  en: string;
-  cat: string;
-  page: number;
-  definition: string;
-  seeAlso: string[];
-}
 interface Chunk {
   id: string;
   section: string;
@@ -23,27 +15,25 @@ interface Chunk {
   text: string;
 }
 
-const ENTRIES = glossaryData as RuleEntry[];
 const CHUNKS = chunkData as Chunk[];
-
-/** Alle deutschen Regelbegriffe — etwa um den Term-Index in einen Prompt zu pinnen. */
-export const RULES_TERMS: string[] = ENTRIES.map((e) => e.de);
 
 /** Faltung für Lookup-Keys UND MiniSearch-Terme — beide müssen dieselbe Form sehen. */
 const fold = (s: string): string =>
   s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
 const norm = (s: string): string => fold(s).replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 
+const lookupMaps = new WeakMap<RuleInfo[], Map<string, RuleInfo>>();
+
 /** Normalisiertes Deutsch, englischer Begriff als Alias — Deutsch gewinnt bei Kollision. */
-function buildLookupMap(): Map<string, RuleEntry> {
-  const map = new Map<string, RuleEntry>();
-  for (const e of ENTRIES) {
-    map.set(norm(e.de), e);
-    if (!map.has(norm(e.en))) map.set(norm(e.en), e);
-  }
+function lookupMapOf(rules: RuleInfo[]): Map<string, RuleInfo> {
+  const cached = lookupMaps.get(rules);
+  if (cached) return cached;
+  const map = new Map<string, RuleInfo>();
+  for (const r of rules) if (r.nameDe) map.set(norm(r.nameDe), r);
+  for (const r of rules) if (!map.has(norm(r.name))) map.set(norm(r.name), r);
+  lookupMaps.set(rules, map);
   return map;
 }
-const lookupMap = buildLookupMap();
 
 /** Levenshtein-Distanz (klein gehalten; nur für den Fuzzy-Fallback). */
 function editDistance(a: string, b: string): number {
@@ -67,21 +57,23 @@ function editDistance(a: string, b: string): number {
 export interface RuleLookup {
   found: boolean;
   matchType?: 'exact' | 'alias' | 'fuzzy';
-  entry?: RuleEntry;
-  /** Bei Miss: die 3 ähnlichsten deutschen Begriffe. */
+  entry?: RuleInfo;
+  /** Bei Miss: die 3 ähnlichsten Begriffe. */
   suggestions?: string[];
 }
 
 /** Deutsch oder englisch, tolerant gegen Tippfehler. */
-export function lookupRule(term: string): RuleLookup {
+export async function lookupRule(term: string): Promise<RuleLookup> {
   const key = norm(term);
   if (!key) return { found: false, suggestions: [] };
+  const rules = await getRules();
+  const lookupMap = lookupMapOf(rules);
 
   const hit = lookupMap.get(key);
-  if (hit) return { found: true, matchType: norm(hit.de) === key ? 'exact' : 'alias', entry: hit };
+  if (hit) return { found: true, matchType: norm(ruleDisplayName(hit)) === key ? 'exact' : 'alias', entry: hit };
 
   // Fuzzy: nächster Key innerhalb einer längenabhängigen Schwelle.
-  let best: RuleEntry | null = null;
+  let best: RuleInfo | null = null;
   let bestD = Infinity;
   for (const [k, e] of lookupMap) {
     const d = editDistance(key, k);
@@ -93,10 +85,11 @@ export function lookupRule(term: string): RuleLookup {
   const threshold = Math.max(2, Math.floor(key.length * 0.34));
   if (best && bestD <= threshold) return { found: true, matchType: 'fuzzy', entry: best };
 
-  const suggestions = ENTRIES.map((e) => ({ de: e.de, d: editDistance(key, norm(e.de)) }))
+  const suggestions = rules
+    .map((r) => ({ name: ruleDisplayName(r), d: editDistance(key, norm(ruleDisplayName(r))) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, 3)
-    .map((x) => x.de);
+    .map((x) => x.name);
   return { found: false, suggestions };
 }
 

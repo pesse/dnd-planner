@@ -7,19 +7,23 @@ Bedarf aus und committet die JSON-Ausgaben.
 **Voraussetzung:** poppler-utils (`pdftotext`, `pdftohtml`) im PATH.
 Die PDFs liegen unter `docs/srd/` (`DE_SRD_CC_v5.2.1.pdf`, dazu das englische Original).
 
-## Stufe 1 — Regelglossar (Term + Definition)
+## Stufe 1 — Regelglossar (Vault-Bibliothek `rules/`)
 
 ```bash
-node scripts/srd/extract-glossary.mjs "<DE-SRD.pdf>" 203 225
-# → src/lib/data/rules-glossary.json   (155 Einträge: {de,en,cat,page,definition,seeAlso})
+node scripts/srd/extract-rules.mjs [--dry-run]
+# → vault/rules/<slug>.json   (155 Einträge, EN + DE in einer Datei)
 ```
 
-- Headwords = GillSans-SemiBold, D&D-Rot `#8c2220`, Größe 17–20; Definition = der
-  Cambria-Fließtext dazwischen.
-- **A–Z-Schnitt + en/cat** entstehen durch JOIN mit `src/lib/data/glossary.json`
-  (autoritativ): nur die 155 Regelterme werden übernommen, Anhang-Kataloge
-  (Flüche/Krankheiten/Gifte/Gefahren) fallen weg.
-- Diagnose erwartet: `155/155`, keine FEHLEND-/LEERE-Warnungen.
+- Liest das Regelglossar beider PDFs (EN S. 176–193, DE S. 203–225). Stichwort =
+  GillSans-SemiBold in Kapitelrot, Größe 17–20; ein größerer Titel derselben Farbe beendet das
+  Glossar.
+- **EN↔DE-Paarung + A–Z-Schnitt** über `src/lib/data/glossary.json` (autoritativ): nur die 155
+  Regelterme werden übernommen, die Anhang-Kataloge fallen weg. Die Kategorie kommt aus dem
+  englischen Tag (`[Condition]`); im DE-PDF fehlt bei manchen Einstellungen das Tag.
+- Tabellen werden als Markdown-Tabellen übernommen. Nach jedem Lauf Stichproben ansehen:
+  `damage-types`, `carrying-capacity`, `study`, `breaking-objects`.
+- Danach `npx vite-node -c vitest.config.ts scripts/link-rule-refs.mts --apply`, da der Lauf die Verweise in `rules/` überschreibt.
+- Diagnose erwartet: `155/155 Regelbegriffe`.
 
 ## Stufe 2 — Regel-Prosa-Chunks (Volltextsuche)
 
@@ -35,8 +39,8 @@ node scripts/srd/extract-chunks.mjs "<DE-SRD.pdf>" 5 121
   draußen: die liegen als Bibliotheksinhalt im Vault (Stufe 3 für das Deutsch der Monster). Das
   Regelglossar (Stufe 1) wird bewusst NICHT mit-indiziert (keine Duplikate).
 
-Beide Ausgaben werden vom Runtime-Modul `src/lib/services/rulesReference.ts`
-geladen (Tier-1-Lookup + MiniSearch-Index).
+`src/lib/services/rulesReference.ts` lädt die Chunks als MiniSearch-Index; den Begriffs-Lookup
+liefert die Vault-Bibliothek `rules/`.
 
 ## Stufe 3 — Deutsche Monster-Statblöcke (Import-Quelle, nicht Laufzeit)
 

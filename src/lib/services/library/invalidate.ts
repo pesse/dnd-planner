@@ -11,6 +11,7 @@ import { invalidateSpeciesCache } from '../../speciesLibrary';
 import { invalidateFeatsCache } from '../../featsLibrary';
 import { invalidateBackgroundsCache } from '../../backgroundsLibrary';
 import { invalidateItemCache } from '../../itemLibrary';
+import { invalidateRulesCache } from '../../rulesLibrary';
 import { invalidateMonsterPaths } from '../contextLoad';
 import { invalidateVault } from '../../stores/campaign';
 import { invalidateArtProbes } from '../wizard/originArt';
@@ -23,6 +24,7 @@ export function invalidateLibraryCaches(): void {
   invalidateFeatsCache();
   invalidateBackgroundsCache();
   invalidateItemCache();
+  invalidateRulesCache();
   invalidateMonsterPaths();
   invalidateArtProbes();
   invalidateVault();

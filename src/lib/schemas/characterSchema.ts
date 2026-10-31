@@ -239,6 +239,8 @@ export const characterSchema = z.object({
   hpMax: z.string().default(''),
   hpCurrent: z.string().default(''),
   hpTemp: z.string().default(''),
+  heroicInspiration: z.boolean().default(false).describe('Spielstand: hat Heldische Inspiration (rule:srd-2024_heroic-inspiration).'),
+  exhaustion: z.number().int().min(0).max(6).default(0).describe('Spielstand: Erschöpfungsstufe 0–6 (rule:srd-2024_exhaustion).'),
   proficiencyBonus: z.number().int().optional().describe('Fehlt = aus der Gesamtstufe gerechnet.'),
   passivePerception: z.string().default(''),
   hitDice: z.string().default(''),

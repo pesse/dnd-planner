@@ -12,38 +12,14 @@
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts          # Bericht
  *   npx vite-node -c vitest.config.ts scripts/link-spell-refs.mts --apply  # schreiben
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { esc, runLinker, walk, type Ref } from './vaultRefLinks';
 
 const ROOTS = ['vault/items', 'vault/classes', 'vault/species', 'vault/feats', 'vault/backgrounds'];
 const SPELLS = 'vault/spells';
 
-interface SpellRef {
-  key: string;
-  de: string;
-  en: string;
-}
-
-interface Wrap {
-  file: string;
-  field: string;
-  spell: SpellRef;
-  context: string;
-}
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, e.name).replace(/\\/g, '/');
-    if (e.isDirectory()) walk(full, out);
-    else if (e.name.endsWith('.json')) out.push(full);
-  }
-  return out;
-}
-
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-function loadSpells(): { byEn: Map<string, SpellRef[]>; enNames: string[] } {
-  const byEn = new Map<string, SpellRef[]>();
+function loadSpells(): { byEn: Map<string, Ref[]>; enNames: string[] } {
+  const byEn = new Map<string, Ref[]>();
   for (const file of walk(SPELLS)) {
     const j = JSON.parse(readFileSync(file, 'utf8')) as { key?: string; name?: string; name_en?: string };
     if (!j.key || !j.name || !j.name_en) continue;
@@ -77,8 +53,8 @@ function spellContext(para: string, idx: number, len: number): boolean {
   return false;
 }
 
-function referencedSpells(para: string, spells: ReturnType<typeof loadSpells>): SpellRef[] {
-  const found: SpellRef[] = [];
+function referencedSpells(para: string, spells: ReturnType<typeof loadSpells>): Ref[] {
+  const found: Ref[] = [];
   let masked = para;
   for (const en of spells.enNames) {
     const re = new RegExp('\\b' + esc(en) + '\\b');
@@ -94,93 +70,11 @@ function referencedSpells(para: string, spells: ReturnType<typeof loadSpells>): 
   return found;
 }
 
-/** Nächstes freies Vorkommen des deutschen Namens — nicht in einem Link, nicht im Wortinneren. */
-function linkNext(text: string, spell: SpellRef): string | null {
-  const re = new RegExp('(^|[^\\p{L}\\]])(' + esc(spell.de) + ')($|[^\\p{L}])', 'giu');
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    const at = m.index + m[1].length;
-    const rest = text.slice(at + spell.de.length);
-    // In `[… ] (spell:…)` oder direkt vor `](` steckt der Name schon in einem Verweis.
-    if (/^[^[\]]*\]\(spell:/.test(rest)) continue;
-    // Im Key selbst (`spell:srd-2024_geas`), wenn der Name dem Slug gleicht.
-    if (/\(spell:[^)\s]*$/.test(text.slice(0, at))) continue;
-    return text.slice(0, at) + `[${text.substr(at, spell.de.length)}](spell:${spell.key})` + rest;
-  }
-  return null;
-}
-
-/** Deutsche Felder samt englischem Zwilling; der Zwilling entscheidet, was ein Verweis ist. */
-function fieldPairs(node: unknown, trail = '', out: { path: string; en: string[]; de: string[]; set: (v: string[]) => void }[] = []) {
-  if (Array.isArray(node)) {
-    node.forEach((v, i) => fieldPairs(v, `${trail}[${i}]`, out));
-    return out;
-  }
-  if (!node || typeof node !== 'object') return out;
-  const obj = node as Record<string, unknown>;
-  for (const [k, v] of Object.entries(obj)) {
-    if (/(_de|De)$/.test(k)) continue;
-    const deKey = `${k}_de` in obj ? `${k}_de` : `${k}De` in obj ? `${k}De` : null;
-    const flat = (x: unknown): string[] | null =>
-      typeof x === 'string' ? [x] : Array.isArray(x) && x.every((s) => typeof s === 'string') ? (x as string[]) : null;
-    const en = flat(v);
-    const de = deKey ? flat(obj[deKey]) : null;
-    if (en && de && deKey) {
-      const wasString = typeof obj[deKey] === 'string';
-      out.push({
-        path: `${trail}.${deKey}`,
-        en,
-        de,
-        set: (parts) => { obj[deKey] = wasString ? parts[0] : parts; },
-      });
-    } else if (v && typeof v === 'object') {
-      fieldPairs(v, `${trail}.${k}`, out);
-    }
-  }
-  return out;
-}
-
-function main(apply: boolean) {
-  const spells = loadSpells();
-  const wraps: Wrap[] = [];
-  let files = 0;
-
-  for (const root of ROOTS) {
-    for (const file of walk(root)) {
-      const raw = readFileSync(file, 'utf8');
-      const data = JSON.parse(raw) as unknown;
-      let touched = false;
-
-      for (const pair of fieldPairs(data)) {
-        const next = [...pair.de];
-        pair.en.forEach((enPara, i) => {
-          if (next[i] === undefined) return;
-          for (const spell of referencedSpells(enPara, spells)) {
-            let linked: string | null;
-            while ((linked = linkNext(next[i], spell))) {
-              let at = 0;
-              while (linked[at] === next[i][at]) at++;
-              wraps.push({
-                file, field: pair.path, spell,
-                context: linked.slice(Math.max(0, at - 60), at + 80).replace(/\s+/g, ' '),
-              });
-              next[i] = linked;
-              touched = true;
-            }
-          }
-        });
-        if (touched) pair.set(next);
-      }
-
-      if (touched) {
-        files++;
-        if (apply) writeFileSync(file, JSON.stringify(data, null, 2) + (raw.endsWith('\n') ? '\n' : ''), 'utf8');
-      }
-    }
-  }
-
-  for (const w of wraps) console.log(`${w.file} ${w.field}\n    ${w.spell.en} → ${w.spell.de}\n    …${w.context}…`);
-  console.log(`\n${apply ? 'Gesetzt' : 'Vorschlag'}: ${wraps.length} Verweise in ${files} Dateien`);
-}
-
-main(process.argv.includes('--apply'));
+const spells = loadSpells();
+runLinker({
+  roots: ROOTS,
+  scheme: 'spell:',
+  refsIn: (para) => referencedSpells(para, spells),
+  firstOnly: false,
+  apply: process.argv.includes('--apply'),
+});

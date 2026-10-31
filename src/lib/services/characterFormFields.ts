@@ -41,6 +41,8 @@ export interface CharacterFormFields {
   hpMax: string;
   hpCurrent: string;
   hpTemp: string;
+  heroicInspiration: boolean;
+  exhaustion: number;
   /** null = aus der Stufe (`effectiveProficiencyBonus`). */
   proficiencyBonus: number | null;
   hitDice: string;
@@ -185,6 +187,8 @@ export function initialFormFields(character: Character): CharacterFormFields {
     hpMax: character.hpMax ?? '',
     hpCurrent: character.hpCurrent ?? '',
     hpTemp: character.hpTemp ?? '',
+    heroicInspiration: character.heroicInspiration ?? false,
+    exhaustion: character.exhaustion ?? 0,
     proficiencyBonus: character.proficiencyBonus ?? null,
     hitDice: character.hitDice ?? '',
     hpDiceTotal: character.hpDiceTotal ?? null,
@@ -267,6 +271,8 @@ export function formDraftPatch(
     hpMax: f.hpMax,
     hpCurrent: f.hpCurrent,
     hpTemp: f.hpTemp,
+    heroicInspiration: f.heroicInspiration,
+    exhaustion: f.exhaustion,
     proficiencyBonus: f.proficiencyBonus ?? undefined,
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,

@@ -4,6 +4,7 @@
   import { effectiveProficiencyBonus } from '../../services/classProgression';
   import { MASTERY_INFO, masteryLabel } from '../../itemLabels';
   import { textTip } from '../textTip.svelte';
+  import GlossaryTerm from '../GlossaryTerm.svelte';
   import {
     attackBonusPartsTip, attackBonusTip, attackDamagePartsTip, attackDamageTip,
   } from '../../services/characterSheetTips';
@@ -54,6 +55,13 @@
     <div class="stat"><span class="sl">Trefferwürfel</span><span class="sv">{character.hitDice}</span></div>
     {@render stat('Übungsbonus', sign(effectiveProficiencyBonus(character)), tips.proficiencyBonus)}
     <div class="stat"><span class="sl">Passiv Wahr.</span><span class="sv">{character.passivePerception}</span></div>
+    <div class="stat">
+      <span class="sl"><GlossaryTerm term="Heldische Inspiration">Inspiration</GlossaryTerm></span>
+      <span class="sv">{character.heroicInspiration ? '✦' : '—'}</span>
+    </div>
+    {#if character.exhaustion > 0}
+      <div class="stat"><span class="sl"><GlossaryTerm term="Erschöpfung" /></span><span class="sv">{character.exhaustion}</span></div>
+    {/if}
   </div>
 
   {#if character.attacks.length}

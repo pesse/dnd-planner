@@ -5,15 +5,18 @@
  */
 import type { AgentToolset } from './vaultTools';
 import { lookupRule, searchRules } from './rulesReference';
+import { ruleDisplayName, ruleText } from '$lib/rulesLibrary';
+import { sourceLabel } from '$lib/schemas/source';
 import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [
   {
     name: 'lookup_rule',
     description:
-      'Look up an official German D&D 5e rules term in the Regelglossar (SRD 5.2.1). ' +
+      'Look up a D&D 5e rules term in the rules glossary library (SRD 5.2.1 plus installed ' +
+      'books and homebrew). ' +
       'Accepts a German OR English term (e.g. "Gelegenheitsangriff" or "Opportunity Attack"). ' +
-      'Returns the official German definition, category, cross-references (seeAlso) and page. ' +
+      'Returns the German definition, category and source. ' +
       'Use this FIRST for any rules-terminology question. On a miss it returns close suggestions.',
     params: {
       type: 'object',
@@ -44,26 +47,22 @@ const TOOL_LIST: ToolDef[] = [
 export const RULES_TOOLS_OPENAI = toolDefsToOpenAi(TOOL_LIST);
 export const RULES_TOOLS_ANTHROPIC = toolDefsToAnthropic(TOOL_LIST);
 
-const GLOSSARY_SOURCE = 'DE SRD 5.2.1 Regelglossar';
-
 export async function executeRulesTool(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
     case 'lookup_rule': {
-      const res = lookupRule(String(args.term ?? ''));
+      const res = await lookupRule(String(args.term ?? ''));
       if (!res.found || !res.entry) {
-        return JSON.stringify({ found: false, suggestions: res.suggestions ?? [], source: GLOSSARY_SOURCE });
+        return JSON.stringify({ found: false, suggestions: res.suggestions ?? [] });
       }
       const e = res.entry;
       return JSON.stringify({
         found: true,
         matchType: res.matchType,
-        term: e.de,
-        en: e.en,
-        category: e.cat,
-        definition: e.definition,
-        seeAlso: e.seeAlso,
-        page: e.page,
-        source: GLOSSARY_SOURCE,
+        term: ruleDisplayName(e),
+        en: e.name,
+        category: e.category,
+        definition: ruleText(e),
+        source: sourceLabel(e.source),
       });
     }
     case 'search_rules': {
