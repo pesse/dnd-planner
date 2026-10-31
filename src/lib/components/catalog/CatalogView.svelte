@@ -1,3 +1,9 @@
+<script module lang="ts">
+  type CatalogFilters = { facets: Record<string, string>; search: string; sortCol: string; sortAsc: boolean };
+  /** Überlebt das Abbauen der Ansicht, damit „Zurück" aus einem Eintrag die Filter wiederfindet. */
+  const remembered = new Map<string, CatalogFilters>();
+</script>
+
 <script lang="ts">
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
@@ -57,11 +63,17 @@
     untrack(() => {
       const kept = carry;
       carry = null;
-      if (!kept) { sortCol = 'name'; sortAsc = true; }
-      search = kept?.search ?? '';
-      facetSel = kept?.facets ?? {};
+      const back = kept ? undefined : remembered.get(currentKind);
+      sortCol = back?.sortCol ?? (kept ? sortCol : 'name');
+      sortAsc = back?.sortAsc ?? (kept ? sortAsc : true);
+      search = kept?.search ?? back?.search ?? '';
+      facetSel = { ...(kept?.facets ?? back?.facets ?? {}) };
       loading = true;
     });
+  });
+
+  $effect(() => {
+    remembered.set(untrack(() => currentKind), { facets: { ...facetSel }, search, sortCol, sortAsc });
   });
 
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
