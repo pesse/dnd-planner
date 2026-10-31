@@ -1,15 +1,20 @@
 <script lang="ts">
-  /** Bild wählen — eigene Datei oder ein passendes Stimmungsbild — und aufs Rahmenformat zuschneiden. */
-  import { invoke } from '@tauri-apps/api/core';
+  /** Bild wählen — eigenes Bild des Charakters oder ein passendes Stimmungsbild — und aufs Rahmenformat zuschneiden. */
+  import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
   import Modal from '../ui/Modal.svelte';
   import CropPicker from './CropPicker.svelte';
   import { aspectCrop, loadImage, toReference, type Crop } from '../../services/imageGen/figureFromPortrait';
   import { resolvePortraitArt, type PortraitArtSource } from '../../services/portraitArt';
+  import { GALLERY_EXTENSIONS, importGalleryImage } from '../../services/characterGallery.svelte';
+  import type { GalleryImage } from '../../schemas/characterSchema';
 
-  let { label, source, onpick, onclose }: {
+  let { label, dirPath, gallery = $bindable(), source, onpick, onclose }: {
     label: string;
-    /** Ohne Charakterdaten gibt es nur die eigene Datei. */
+    dirPath: string;
+    /** Die eigenen Bilder des Bilder-Reiters; ein Hochgeladenes landet dort mit. */
+    gallery: GalleryImage[] | undefined;
+    /** Ohne Charakterdaten gibt es keine Stimmungsbilder. */
     source?: PortraitArtSource;
     onpick: (b64: string) => Promise<void>;
     onclose: () => void;
@@ -25,6 +30,15 @@
   let crop = $state<Crop>({ x: 0, y: 0, width: 0, height: 0 });
   let busy = $state(false);
   let error = $state('');
+
+  let own = $state<{ file: string; caption: string; url: string }[]>([]);
+  $effect(() => {
+    const images = gallery ?? [];
+    void Promise.all(images.map(async (g) => {
+      const abs = await invoke<string>('get_absolute_path', { path: `${dirPath}/${g.file}` }).catch(() => '');
+      return { ...g, url: abs ? convertFileSrc(abs) : '' };
+    })).then((list) => { own = list.filter((g) => g.url); });
+  });
 
   $effect(() => {
     if (!source) { art = []; return; }
@@ -42,15 +56,13 @@
     }
   }
 
-  async function pickFile() {
-    const selected = await openFileDialog({
-      multiple: false,
-      filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp', 'avif'] }],
-    });
+  async function upload() {
+    const selected = await openFileDialog({ multiple: false, filters: [{ name: 'Bilder', extensions: GALLERY_EXTENSIONS }] });
     if (!selected || Array.isArray(selected)) return;
-    const ext = selected.toLowerCase().split('.').pop();
-    const mime = ext === 'jpg' ? 'jpeg' : ext;
-    await select(`data:image/${mime};base64,${await invoke<string>('read_file_base64', { path: selected })}`);
+    const added = await importGalleryImage(dirPath, selected, new Set((gallery ?? []).map((g) => g.file)));
+    gallery = [...(gallery ?? []), added];
+    const abs = await invoke<string>('get_absolute_path', { path: `${dirPath}/${added.file}` });
+    await select(convertFileSrc(abs));
   }
 
   const blobBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
@@ -87,7 +99,15 @@
       <button class="primary-btn" onclick={apply} disabled={busy}>{busy ? '…' : 'Übernehmen'}</button>
     </div>
   {:else}
-    <button class="btn-add" onclick={() => pickFile().catch((e) => { error = `${e}`; })}>Eigenes Bild …</button>
+    <h4>Eigene Bilder</h4>
+    <div class="gallery">
+      {#each own as g (g.file)}
+        <button class="thumb" title={g.caption || g.file} onclick={() => select(g.url)}><img src={g.url} alt={g.caption} loading="lazy" /></button>
+      {/each}
+      <button class="thumb add" onclick={() => upload().catch((e) => { error = `Bild konnte nicht übernommen werden: ${e}`; })}>
+        + Hochladen
+      </button>
+    </div>
     {#if source}
       <h4>Passende Bilder</h4>
       {#if art === null}
@@ -114,6 +134,7 @@
     background: var(--bg); cursor: pointer; aspect-ratio: 2 / 3;
   }
   .thumb:hover { border-color: var(--border-strong); }
+  .thumb.add { border-style: dashed; color: var(--ink-soft); font: inherit; font-size: 0.82rem; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .crop-wrap { max-width: 420px; margin: 0 auto; }
   .hint { font-size: 0.8rem; color: var(--ink-soft); margin: 0.4rem 0; }

@@ -28,7 +28,7 @@ export interface CharacterGallery {
 }
 
 const IMAGE_DIR = 'images';
-const EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+export const GALLERY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
 /** `C:\Bilder\Mein Drache.PNG` → `mein-drache` */
 function baseSlug(path: string): string {
@@ -41,6 +41,16 @@ function freeName(slug: string, ext: string, taken: Set<string>): string {
     const file = `${IMAGE_DIR}/${i === 1 ? slug : `${slug}-${i}`}.${ext}`;
     if (!taken.has(file)) return file;
   }
+}
+
+/** Kopiert eine Datei nach `images/` und liefert den Eintrag für `gallery`; `taken` bekommt den Namen dazu. */
+export async function importGalleryImage(dirPath: string, src: string, taken: Set<string>): Promise<GalleryImage> {
+  const ext = src.split('.').pop()!.toLowerCase().replace('jpeg', 'jpg');
+  const file = freeName(baseSlug(src), ext, taken);
+  const data = await invoke<string>('read_file_base64', { path: src });
+  await invoke('write_file_base64', { path: `${dirPath}/${file}`, data });
+  taken.add(file);
+  return { file, caption: '' };
 }
 
 export function createCharacterGallery(deps: {
@@ -111,18 +121,13 @@ export function createCharacterGallery(deps: {
 
     async add() {
       error = '';
-      const selected = await openFileDialog({ multiple: true, filters: [{ name: 'Bilder', extensions: EXTENSIONS }] });
+      const selected = await openFileDialog({ multiple: true, filters: [{ name: 'Bilder', extensions: GALLERY_EXTENSIONS }] });
       const paths = !selected ? [] : Array.isArray(selected) ? selected : [selected];
       const taken = new Set(gallery.map((g) => g.file));
       const added: GalleryImage[] = [];
       for (const src of paths) {
         try {
-          const ext = src.split('.').pop()!.toLowerCase().replace('jpeg', 'jpg');
-          const file = freeName(baseSlug(src), ext, taken);
-          const data = await invoke<string>('read_file_base64', { path: src });
-          await invoke('write_file_base64', { path: `${deps.dirPath()}/${file}`, data });
-          taken.add(file);
-          added.push({ file, caption: '' });
+          added.push(await importGalleryImage(deps.dirPath(), src, taken));
         } catch (e) {
           error = `Bild konnte nicht übernommen werden: ${e}`;
         }

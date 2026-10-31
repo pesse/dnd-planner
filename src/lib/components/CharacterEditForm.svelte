@@ -480,7 +480,7 @@
     <section>
       <h3>Persönliches</h3>
       <div class="personal-grid">
-        <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} {dirPath} baseName="portrait" label="Portrait"
+        <ImageField bind:file={form.portraitFile} bind:figureFile={form.figureFile} bind:gallery={character.gallery} {dirPath} baseName="portrait" label="Portrait"
           diff={dirOf(saved?.portraitFile, form.portraitFile)} portrait={form} />
         <PersonalFields personal={form.personal} savedPersonal={saved?.personal}
           bind:presentation={form.presentation} savedPresentation={saved?.presentation} {dirOf} />
@@ -494,7 +494,7 @@
     <section>
       <h3>Gefährte</h3>
       <div class="personal-grid companion-grid">
-        <ImageField bind:file={form.companion.imageFile} {dirPath} baseName="companion" label="Bild"
+        <ImageField bind:file={form.companion.imageFile} bind:gallery={character.gallery} {dirPath} baseName="companion" label="Bild"
           diff={dirOf(saved?.companion?.imageFile, form.companion.imageFile)} />
         <label use:diffMark={dirOf(saved?.companion?.text, form.companion.text)}>
           Gefährte, Vertrauter oder Reittier

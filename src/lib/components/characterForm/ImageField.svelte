@@ -12,12 +12,14 @@
   import type { PortraitArtSource } from '../../services/portraitArt';
   import type { PortraitSource } from '../../services/imageGen/portraitPrompt';
   import type { GeneratedImage } from '../../services/imageGen/types';
+  import type { GalleryImage } from '../../schemas/characterSchema';
   import './form.css';
 
-  let { file = $bindable(), figureFile = $bindable(), dirPath, baseName, label, diff, portrait }: {
+  let { file = $bindable(), figureFile = $bindable(), gallery = $bindable(), dirPath, baseName, label, diff, portrait }: {
     file: string;
     /** Die aus dem Portrait gemalte Ganzkörperfigur; nur mit `portrait`. */
     figureFile?: string;
+    gallery: GalleryImage[] | undefined;
     dirPath: string;
     /** Dateiname ohne Endung, z. B. `portrait` → `portrait.png`. */
     baseName: string;
@@ -92,6 +94,6 @@
   {/if}
   {#if error}<div class="error-sm">{error}</div>{/if}
   {#if picking}
-    <PortraitPicker {label} source={portrait} onpick={(b64) => store(b64, 'jpg')} onclose={() => { picking = false; }} />
+    <PortraitPicker {label} {dirPath} bind:gallery source={portrait} onpick={(b64) => store(b64, 'jpg')} onclose={() => { picking = false; }} />
   {/if}
 </div>
