@@ -7,6 +7,7 @@ Alle Bilder malt Codex über `.claude/skills/codex-design/scripts/codex.sh` (Ski
 | Bibliotheks-Icons: Zauber, Monster, Gegenstände, Talente | kleines Einzelmotiv, freigestellt mit echtem Alpha | `design/art/<serie>/<slug>.png` (1254² RGBA) → `vault/art/<serie>/<slug>.avif` (512², q55) | [Icons](#bibliotheks-icons) |
 | Stimmungsbilder im Charakter-Wizard: Klasse, Volk, Hintergrund, Volk×Klasse | Hochformat mit Handlung und Kulisse, deckend | `design/art/<typ>/<slug>.png` (1024×1536) → `vault/art/<typ>/<slug>.avif` (640×960) | Stilblock `design/art/prompt.md`, Einzelläufe nach Skill |
 | Wizard-Figuren je Volk × Äußeres, mit Varianten je Klasse, Hintergrund und Subklasse | wie Stimmungsbilder, dieselbe Person über alle Varianten | `design/art/figures-…` → `vault/art/figures/<volk>-<äußeres>/…` | [Figuren](#wizard-figuren) |
+| Monster-Szenen: ikonische Monster in Aktion, neben der Monsterkarte | wie Stimmungsbilder, Monster als Hauptfigur | `design/art/monster-scenes/<slug>.png` (1024×1536) → `vault/art/monster-scenes/<slug>.avif` (640×960) | [Monster-Szenen](#monster-szenen) |
 | Porträts, UI-Grafik, App-Icon | je nach Einsatz | siehe Tabelle im Skill | Einzelläufe nach Skill |
 
 Die beiden Familien teilen nur die PHB-Malweise. Ein Icon ist kein Wizard-Bild in klein: kein Schauplatz, keine Figur in Aktion, kein Pergamentrand. Die App legt es selbst auf Karten und Listen.
@@ -49,3 +50,20 @@ Malt die Figuren (`vault/art/figures/<volk>-<äußeres>/`) und bessert markierte
 | KI-Review einer Figur | Subagent mit `review/prompt.md`, Ergebnis `review/<figur>.json` → `node review/post.mjs <figur>` |
 
 Bildregeln stehen in `variants/all/head.md` (für alle), `variants/all/roles.mjs` (je Rolle, Szenen-Rotation, Gegner) und `variants/subclasses/scenes.mjs` (eine feste Szene je Subklasse — ein Fehler dort wird im Brief korrigiert, nicht mit einer anderen Szene umgangen). Figuren-Identität und Volksbeschreibung: `variants/all/figure.sh`. Eine Notiz mit „komplett neu“, „neu machen“ oder „andere Szene“ — oder drei verworfene Fassungen in `old/` — erzwingt eine neue Szene. Rohbilder liegen ungetrackt in `design/art/figures-var2/` und `design/art/figures-sub/`.
+
+## Monster-Szenen
+
+`monster-scenes/scenes.tsv` hat eine Zeile je Bild (`slug⇥englischer Name⇥Brief`) in Malreihenfolge, `head.md` den Stilblock. Der Bildfilter von OpenAI lehnt Bilder ab, in denen Personen getroffen werden — Briefs zeigen deshalb den Moment vor dem Zusammenstoß (Regel „NO HARM TO PEOPLE“ in `head.md`).
+
+| Schritt | Befehl (aus dem Repo-Root) |
+|---|---|
+| Malen, 4 Worker, je Codex-Lauf `BATCH` (4) Bilder, Stopp bei `LIMIT` % Kontingent oder `monster-scenes/out/STOP` | `for w in 0 1 2 3; do bash design/art-pipeline/monster-scenes/job.sh $w 4 & sleep 5; done` |
+| Sichten und markieren | `npm run artlab` → Reiter „Monster“ |
+| Markierte einplanen (altes PNG → `design/art/monster-scenes/old/`, Notiz in den Brief) | `node design/art-pipeline/monster-scenes/redo.mjs --apply`, danach die Worker wie oben starten |
+
+Neu gemalte Bilder meldet `job.sh` der Werkbank als „neu gemalt“. Protokoll mit Verbrauch und Kontingent je Paket: `monster-scenes/out/run.log`.
+
+## Werkbank
+
+`npm run artlab` (`design/art-lab/`) zeigt Vorschaubilder statt der vollen Dateien (`design/art/.thumbs`, beim Start im Hintergrund vorgewärmt) und meldet neue oder geänderte Bilder und Markierungen per Server-Sent Events: Die Seite aktualisiert sich selbst, der grüne Punkt neben dem Titel zeigt die Verbindung. Auf `/mnt/c` kommen keine Dateisystem-Meldungen an, dort prüft der Server alle 15 s.
+

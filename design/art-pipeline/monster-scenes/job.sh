@@ -27,5 +27,6 @@ while :; do
   if [ $((after-before)) -le 0 ]; then empty=$((empty+1)); [ $empty -ge 2 ] && { echo "w$W: STOPP leer, siehe $out.txt" | tee -a $log; break; }; else empty=0; fi
 done
 publish
+node $I/redrawn.mjs $dir
 mv -n $dir/*.png $main/ 2>/dev/null; rmdir $dir 2>/dev/null
 exit 0

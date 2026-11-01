@@ -4,8 +4,13 @@ const [W, N, B] = process.argv.slice(2);
 const here = new URL('.', import.meta.url).pathname, art = `${here}../../art/`;
 const have = new Set(['monster-scenes', `monster-scenes-w${W}`].filter((d) => existsSync(art + d))
   .flatMap((d) => readdirSync(art + d)).map((f) => f.replace(/\.png$/, '')));
+const notesFile = `${here}out/notes.tsv`;
+const notes = new Map(existsSync(notesFile) ? readFileSync(notesFile, 'utf8').trim().split('\n').filter(Boolean).map((l) => l.split('\t')) : []);
+// Eingeplante Neumal-Aufträge zuerst.
 const open = readFileSync(`${here}scenes.tsv`, 'utf8').trim().split('\n').map((l) => l.split('\t'))
-  .filter((_, i) => i % +N === +W).filter(([slug]) => !have.has(slug)).slice(0, +B);
+  .filter((_, i) => i % +N === +W).filter(([slug]) => !have.has(slug))
+  .sort(([a], [b]) => notes.has(b) - notes.has(a)).slice(0, +B);
 if (!open.length) process.exit(3);
 process.stdout.write(readFileSync(here + 'head.md', 'utf8')
-  + open.map(([slug, name, brief]) => `- ${slug}.png — ${name}: ${brief}`).join('\n') + '\n');
+  + open.map(([slug, name, brief]) => `- ${slug}.png — ${name}: ${brief}${notes.has(slug)
+    ? ` REDRAW: a previous version was rejected${notes.get(slug) ? ` because: ${notes.get(slug)}` : ''}. Fix this while keeping the brief.` : ''}`).join('\n') + '\n');

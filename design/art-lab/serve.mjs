@@ -1,15 +1,18 @@
-// Werkbank für die Wizard-Stimmungsbilder: `npm run artlab` → http://localhost:8898
-// Liest die Bildordner bei jedem Aufruf neu ein — neue Bilder erscheinen mit einem Reload.
+// Werkbank für die Wizard-Stimmungsbilder und Monster-Szenen: `npm run artlab` → http://localhost:8898
+// Neue und geänderte Bilder meldet `/events`; die Seite lädt sie selbst nach.
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync, createReadStream } from 'node:fs';
 import { join, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { monsterManifest } from './server/monsters.mjs';
+import { thumb, THUMB_WIDTHS } from './server/thumbs.mjs';
+import { startLive } from './server/live.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8898);
 const REDO = join(ROOT, 'design/art/figures/redo.json');
 const LOOKS = ['feminine', 'androgynous', 'masculine'];
-const TYPES = { '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png', '.jpg': 'image/jpeg', '.md': 'text/plain; charset=utf-8', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png', '.jpg': 'image/jpeg', '.md': 'text/plain; charset=utf-8', '.json': 'application/json', '.js': 'text/javascript; charset=utf-8', '.webp': 'image/webp' };
 
 const ls = (dir) => (existsSync(join(ROOT, dir)) ? readdirSync(join(ROOT, dir)) : []);
 const slugsIn = (dir, ext) => ls(dir).filter((f) => f.endsWith(ext)).map((f) => f.slice(0, -ext.length));
@@ -88,11 +91,11 @@ function manifest() {
 
   // Rohbilder der Läufe und Experimente, je Ordner eine Gruppe.
   const raw = [];
-  for (const parent of ['design/art/figures-base', 'design/art/figures-var', 'design/art/figures-sub']) {
+  for (const parent of ['design/art/figures-base', 'design/art/figures-var', 'design/art/figures-sub', 'design/art/monster-scenes']) {
     for (const group of ls(parent)) {
       const dir = `${parent}/${group}`;
       if (!statSync(join(ROOT, dir)).isDirectory()) continue;
-      raw.push({ group, files: slugsIn(dir, '.png').map((n) => ({ name: n, url: `/${dir}/${n}.png` })) });
+      raw.push({ group, files: slugsIn(dir, '.png').map((n) => ({ name: n, url: versioned(`${dir}/${n}.png`) })) });
     }
   }
   const notes = ls('design/art/figures').filter((f) => f.endsWith('.md')).map((f) => `/design/art/figures/${f}`);
@@ -109,14 +112,31 @@ function manifest() {
       classes: imageMap('vault/art/classes'),
       backgrounds: imageMap('vault/art/backgrounds'),
     },
+    monsters: monsterManifest(ROOT, (rel) => (existsSync(join(ROOT, rel)) ? versioned(rel) : null)),
     raw,
     notes,
     versions,
   };
 }
 
-createServer((req, res) => {
+const ART_DIRS = ['vault/art/figures', 'vault/art/classes', 'vault/art/combos', 'vault/art/backgrounds', 'vault/art/monster-scenes', 'vault/art/monsters',
+  'design/art/figures-base', 'design/art/figures-var', 'design/art/figures-var2', 'design/art/figures-sub', 'design/art/monster-scenes'];
+const events = startLive(ROOT, { dirs: ART_DIRS, files: ['design/art/figures/redo.json', 'design/art-pipeline/monster-scenes/scenes.tsv'] });
+const inArt = (file) => [join(ROOT, 'vault', 'art'), join(ROOT, 'design')].some((d) => file.startsWith(d + sep));
+
+createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (path === '/events') return events(req, res);
+  const t = path.match(/^\/thumb\/(\d+)\/(.+)$/);
+  if (t && THUMB_WIDTHS.includes(+t[1])) {
+    const file = resolve(ROOT, t[2]);
+    if (!inArt(file) || !existsSync(file)) { res.writeHead(404); return res.end('nicht gefunden'); }
+    try {
+      const out = await thumb(ROOT, t[2], +t[1]);
+      res.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'max-age=31536000, immutable' });
+      return createReadStream(out).pipe(res);
+    } catch (e) { res.writeHead(500); return res.end(String(e)); }
+  }
   if (path === '/redo.json' && req.method === 'POST') {
     let body = '';
     req.on('data', (c) => (body += c));
@@ -152,8 +172,7 @@ createServer((req, res) => {
     return res.end(JSON.stringify(manifest()));
   }
   const file = path === '/' ? join(ROOT, 'design/art-lab/index.html') : resolve(ROOT, `.${path}`);
-  const allowed = [join(ROOT, 'vault', 'art'), join(ROOT, 'design')].some((d) => file.startsWith(d + sep));
-  if ((path !== '/' && !allowed) || !existsSync(file) || !statSync(file).isFile()) {
+  if ((path !== '/' && !inArt(file)) || !existsSync(file) || !statSync(file).isFile()) {
     res.writeHead(404);
     return res.end('nicht gefunden');
   }
