@@ -1,11 +1,8 @@
-/** Die schwebenden Bilder der Startseite: Lebenslauf, Platzierung und Zeichnen eines Sprites. */
-
-export type SpriteKind = 'figure' | 'icon';
+/** Die schwebenden Figuren der Startseite: Lebenslauf, Platzierung und Zeichnen eines Sprites. */
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
 export interface Sprite {
-  kind: SpriteKind;
   source: CanvasImageSource;
   x: number;
   y: number;
@@ -43,18 +40,14 @@ const overlap = (a: Rect, b: Rect): number =>
 
 const boundsOf = (s: Pick<Sprite, 'x' | 'y' | 'w' | 'h'>): Rect => ({ x: s.x - s.w / 2, y: s.y - s.h / 2, w: s.w, h: s.h });
 
-/**
- * Bester von mehreren Zufallsplätzen: am wenigsten Deckung mit den schon sichtbaren Bildern.
- * Figuren dürfen hinter den Inhalt, Icons darauf wären Unruhe direkt unter dem Text.
- */
-function place(kind: SpriteKind, w: number, h: number, view: Rect, keepOut: Rect, others: Sprite[], rand: () => number) {
+/** Bester von mehreren Zufallsplätzen: am wenigsten Deckung mit dem Inhalt und den schon sichtbaren Figuren. */
+function place(w: number, h: number, view: Rect, keepOut: Rect, others: Sprite[], rand: () => number) {
   let best = { x: 0, y: 0, cost: Infinity };
   for (let i = 0; i < 18; i++) {
     const x = w * 0.3 + rand() * (view.w - w * 0.6);
     const y = h * 0.3 + rand() * (view.h - h * 0.6);
     const r = boundsOf({ x, y, w, h });
-    const cost = overlap(r, keepOut) * (kind === 'figure' ? 0.15 : 3) +
-      others.reduce((sum, o) => sum + overlap(r, boundsOf(o)) * (o.kind === kind ? 2 : 0.6), 0);
+    const cost = overlap(r, keepOut) * 0.15 + others.reduce((sum, o) => sum + overlap(r, boundsOf(o)), 0);
     if (cost < best.cost) best = { x, y, cost };
   }
   return best;
@@ -68,25 +61,25 @@ export interface SpawnContext {
   rand?: () => number;
 }
 
-export function spawnSprite(kind: SpriteKind, source: CanvasImageSource, aspect: number, ctx: SpawnContext): Sprite {
+export function spawnSprite(source: CanvasImageSource, aspect: number, ctx: SpawnContext): Sprite {
   const rand = ctx.rand ?? Math.random;
-  const depth = 0.25 + rand() * 0.75;
+  const depth = 0.1 + rand() * 0.9;
   const short = Math.min(ctx.view.w, ctx.view.h);
-  const h = kind === 'figure' ? short * (0.42 + depth * 0.4) : short * (0.07 + depth * 0.09);
+  const h = short * (0.3 + depth * 0.65);
   const w = h * aspect;
-  const { x, y } = place(kind, w, h, ctx.view, ctx.keepOut, ctx.others, rand);
-  const drift = (kind === 'figure' ? 110 : 160) * (0.4 + depth * 0.6);
+  const { x, y } = place(w, h, ctx.view, ctx.keepOut, ctx.others, rand);
+  const drift = 110 * (0.4 + depth * 0.6);
   const angle = rand() * Math.PI * 2;
   return {
-    kind, source, x, y, w, h, depth,
+    source, x, y, w, h, depth,
     born: ctx.now,
-    life: kind === 'figure' ? 8000 + rand() * 4000 : 6000 + rand() * 4000,
+    life: 8000 + rand() * 4000,
     dx: Math.cos(angle) * drift,
     dy: Math.sin(angle) * drift,
-    rot0: (rand() - 0.5) * (kind === 'icon' ? 0.5 : 0.08),
-    drot: (rand() - 0.5) * (kind === 'icon' ? 0.7 : 0.1),
+    rot0: (rand() - 0.5) * 0.08,
+    drot: (rand() - 0.5) * 0.1,
     bob: rand() * Math.PI * 2,
-    maxAlpha: kind === 'figure' ? 0.4 + depth * 0.35 : 0.35 + depth * 0.5,
+    maxAlpha: 0.4 + depth * 0.35,
   };
 }
 
@@ -97,12 +90,12 @@ export function drawSprite(g: CanvasRenderingContext2D, s: Sprite, now: number, 
   const t = Math.min(1, (now - s.born) / s.life);
   const ease = smooth(t);
   const parallax = 24 * s.depth;
-  const float = Math.sin(now / (s.kind === 'icon' ? 1100 : 1700) + s.bob) * (s.kind === 'icon' ? 12 : 7) * s.depth;
+  const float = Math.sin(now / 1700 + s.bob) * 7 * s.depth;
   const grow = smooth(Math.min(1, (now - s.born) / FADE_IN));
-  const scale = s.kind === 'figure' ? 0.92 + 0.08 * grow + 0.06 * ease : 0.8 + 0.2 * grow;
+  const scale = 0.92 + 0.08 * grow + 0.06 * ease;
   g.save();
   g.globalAlpha = alpha;
-  g.globalCompositeOperation = s.kind === 'figure' ? 'multiply' : 'source-over';
+  g.globalCompositeOperation = 'multiply';
   g.translate(s.x + s.dx * ease + pointer.x * parallax, s.y + s.dy * ease + float + pointer.y * parallax);
   g.rotate(s.rot0 + s.drot * ease);
   g.scale(scale, scale);

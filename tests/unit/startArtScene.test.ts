@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { isDead, spawnSprite, spriteAlpha, type Rect } from '../../src/lib/services/startArt/scene';
-import { sortArt } from '../../src/lib/services/startArt/artPool';
+import { figureArt } from '../../src/lib/services/startArt/artPool';
 
 const view: Rect = { x: 0, y: 0, w: 1600, h: 900 };
 const keepOut: Rect = { x: 550, y: 250, w: 500, h: 400 };
@@ -16,7 +16,7 @@ function seeded(seed: number): () => number {
 }
 
 describe('spriteAlpha', () => {
-  const s = spawnSprite('icon', source, 1, { view, keepOut, others: [], now: 1000, rand: seeded(7) });
+  const s = spawnSprite(source, 0.66, { view, keepOut, others: [], now: 1000, rand: seeded(7) });
 
   it('blendet ein, hält und blendet wieder aus', () => {
     expect(spriteAlpha(s, 1000)).toBe(0);
@@ -30,27 +30,22 @@ describe('spriteAlpha', () => {
 });
 
 describe('spawnSprite', () => {
-  it('legt Icons neben den Inhalt, solange Platz ist', () => {
+  it('hält Abstand zwischen den Figuren, solange Platz ist', () => {
     const rand = seeded(3);
-    for (let i = 0; i < 30; i++) {
-      const s = spawnSprite('icon', source, 1, { view, keepOut, others: [], now: 0, rand });
-      const inside = s.x > keepOut.x && s.x < keepOut.x + keepOut.w && s.y > keepOut.y && s.y < keepOut.y + keepOut.h;
-      expect(inside).toBe(false);
-    }
+    const others = [spawnSprite(source, 0.66, { view, keepOut, others: [], now: 0, rand })];
+    const next = spawnSprite(source, 0.66, { view, keepOut, others, now: 0, rand });
+    expect(Math.abs(next.x - others[0].x)).toBeGreaterThan(others[0].w / 2);
   });
 });
 
-describe('sortArt', () => {
-  it('trennt Figuren von Icons und lässt Fremdes und die Gliederpuppe weg', () => {
-    const pool = sortArt([
+describe('figureArt', () => {
+  it('nimmt nur Figuren-Szenen, ohne Gliederpuppe und Icons', () => {
+    expect(figureArt([
       'figures/elf-feminine/species',
       'figures/elf-feminine/paperdoll',
       'combos/human-wizard',
       'spells/fireball',
       'monsters/aboleth',
-      'something/else',
-    ]);
-    expect(pool.figures).toEqual(['/art/figures/elf-feminine/species.avif', '/art/combos/human-wizard.avif']);
-    expect(pool.icons).toEqual(['/art/spells/fireball.avif', '/art/monsters/aboleth.avif']);
+    ])).toEqual(['/art/figures/elf-feminine/species.avif', '/art/combos/human-wizard.avif']);
   });
 });

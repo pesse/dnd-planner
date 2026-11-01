@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { loadStartArtPool, type StartArtPool } from '$lib/services/startArt/artPool';
+  import { loadStartFigures } from '$lib/services/startArt/artPool';
   import { vaultVersion } from '$lib/stores/campaign';
   import {
-    drawSprite, featherFigure, isDead, spawnSprite, type Rect, type Sprite, type SpriteKind,
+    drawSprite, featherFigure, isDead, spawnSprite, type Rect, type Sprite,
   } from '$lib/services/startArt/scene';
 
   /** Der Bereich, den die Bilder meiden sollen, relativ zum Canvas. */
@@ -16,7 +16,7 @@
   const SPAWN_GAP = 450;
   const FIRST_GAP = 220;
 
-  async function load(url: string, kind: SpriteKind): Promise<Loaded | null> {
+  async function load(url: string): Promise<Loaded | null> {
     const img = new Image();
     img.src = url;
     try {
@@ -25,18 +25,18 @@
       return null;
     }
     const aspect = img.naturalWidth / img.naturalHeight;
-    return { source: kind === 'figure' ? featherFigure(img) : img, aspect };
+    return { source: featherFigure(img), aspect };
   }
 
   onMount(() => {
     const g = canvas.getContext('2d')!;
-    let pool: StartArtPool = { figures: [], icons: [] };
+    let urls: string[] = [];
     // Nach einer Pack-Installation sind neue Bilder da.
-    const unsubscribe = vaultVersion.subscribe(() => void loadStartArtPool().then((p) => (pool = p)));
+    const unsubscribe = vaultVersion.subscribe(() => void loadStartFigures().then((u) => (urls = u)));
 
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sprites: Sprite[] = [];
-    const loading = { figure: false, icon: false };
+    let loading = false;
     const recent: string[] = [];
     const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
     let view: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -53,7 +53,7 @@
     }
 
     /** Zufällig, aber nicht dasselbe Bild zweimal kurz hintereinander. */
-    function pick(urls: string[]): string | null {
+    function pick(): string | null {
       for (let i = 0; i < 8 && urls.length; i++) {
         const url = urls[Math.floor(Math.random() * urls.length)];
         if (!recent.includes(url)) return url;
@@ -61,20 +61,19 @@
       return null;
     }
 
-    async function request(kind: SpriteKind) {
-      const urls = kind === 'figure' ? pool.figures : pool.icons;
-      const url = pick(urls);
+    async function request() {
+      const url = pick();
       if (!url) return;
-      loading[kind] = true;
+      loading = true;
       recent.push(url);
       if (recent.length > 40) recent.shift();
-      const loaded = await load(url, kind);
-      loading[kind] = false;
+      const loaded = await load(url);
+      loading = false;
       if (!loaded) {
         urls.splice(urls.indexOf(url), 1);
         return;
       }
-      const s = spawnSprite(kind, loaded.source, loaded.aspect, {
+      const s = spawnSprite(loaded.source, loaded.aspect, {
         view, keepOut: keepOut() ?? { x: 0, y: 0, w: 0, h: 0 }, others: sprites, now: performance.now(),
       });
       if (still) { s.dx = 0; s.dy = 0; s.drot = 0; s.life *= 1.6; }
@@ -82,22 +81,13 @@
       spawned++;
     }
 
-    function wanted(kind: SpriteKind): number {
-      const area = view.w * view.h;
-      if (kind === 'figure') return Math.max(3, Math.min(6, Math.round(area / 260000)));
-      return Math.max(3, Math.min(7, Math.round(area / 220000)));
-    }
+    const wanted = (): number => Math.max(3, Math.min(6, Math.round((view.w * view.h) / 260000)));
 
     function tick(now: number) {
       for (let i = sprites.length - 1; i >= 0; i--) if (isDead(sprites[i], now)) sprites.splice(i, 1);
-      if (now - lastSpawn > (spawned < 8 ? FIRST_GAP : SPAWN_GAP)) {
-        const kinds = (['figure', 'icon'] as const).filter(
-          (k) => !loading[k] && sprites.filter((s) => s.kind === k).length < wanted(k),
-        );
-        if (kinds.length) {
-          lastSpawn = now;
-          void request(kinds[Math.floor(Math.random() * kinds.length)]);
-        }
+      if (!loading && sprites.length < wanted() && now - lastSpawn > (spawned < 3 ? FIRST_GAP : SPAWN_GAP)) {
+        lastSpawn = now;
+        void request();
       }
       pointer.x += (pointer.tx - pointer.x) * 0.04;
       pointer.y += (pointer.ty - pointer.y) * 0.04;
