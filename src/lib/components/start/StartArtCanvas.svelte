@@ -84,7 +84,7 @@
 
     function wanted(kind: SpriteKind): number {
       const area = view.w * view.h;
-      if (kind === 'figure') return Math.max(3, Math.min(8, Math.round(area / 200000)));
+      if (kind === 'figure') return Math.max(3, Math.min(6, Math.round(area / 260000)));
       return Math.max(3, Math.min(7, Math.round(area / 220000)));
     }
 

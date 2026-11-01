@@ -72,7 +72,7 @@ export function spawnSprite(kind: SpriteKind, source: CanvasImageSource, aspect:
   const rand = ctx.rand ?? Math.random;
   const depth = 0.25 + rand() * 0.75;
   const short = Math.min(ctx.view.w, ctx.view.h);
-  const h = kind === 'figure' ? short * (0.26 + depth * 0.32) : short * (0.07 + depth * 0.09);
+  const h = kind === 'figure' ? short * (0.42 + depth * 0.4) : short * (0.07 + depth * 0.09);
   const w = h * aspect;
   const { x, y } = place(kind, w, h, ctx.view, ctx.keepOut, ctx.others, rand);
   const drift = (kind === 'figure' ? 110 : 160) * (0.4 + depth * 0.6);
