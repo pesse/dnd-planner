@@ -58,3 +58,10 @@ export function magicBonusText(item: { magic_bonus?: number }, kind: 'weapon' | 
   const sign = item.magic_bonus > 0 ? '+' : '−';
   return `${sign}${Math.abs(item.magic_bonus)} ${kind === 'weapon' ? 'auf Angriff & Schaden' : 'auf die RK'}`;
 }
+
+/** „Einstimmung durch einen Paladin"; das englische `attunement_by` nur, solange die Übersetzung fehlt. */
+export function attunementText(item: { attunement?: boolean; attunement_by?: string | null; attunement_by_de?: string }): string {
+  if (!item.attunement) return '';
+  if (item.attunement_by_de) return `Einstimmung ${item.attunement_by_de}`;
+  return item.attunement_by ? `Einstimmung (${item.attunement_by})` : 'Einstimmung';
+}

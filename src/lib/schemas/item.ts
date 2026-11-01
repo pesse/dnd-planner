@@ -116,6 +116,10 @@ export const itemSchema = z.object({
     .optional()
     .describe('Platz am Körper, wo Kategorie und Name ihn nicht verraten (Wundersames: Stiefel, Umhang …).'),
   attunement_by: z.string().nullable().optional(),
+  attunement_by_de: z
+    .string()
+    .optional()
+    .describe('Deutsche Einstimmungs-Voraussetzung ab „durch" („durch einen Paladin"); die Anzeige stellt „Einstimmung" davor.'),
   variant: z.boolean().optional(),
   variants: z.array(z.string()).optional(),
   weapon_category: z.string().optional().describe('Simple | Martial'),

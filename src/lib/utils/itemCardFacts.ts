@@ -9,7 +9,7 @@ import {
   ARMOR_CATEGORY_LABELS, CATEGORY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS,
   WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, masteryLabel, masteryRuleDe,
 } from '../itemLabels';
-import { formatCost, formatDamageDice, formatRarity, ftToM, magicBonusText } from '../itemFormat';
+import { formatCost, formatDamageDice, formatRarity, ftToM, magicBonusText, attunementText } from '../itemFormat';
 import { ruleText } from './markdown';
 import { itemArtUrl } from '../libraryArt';
 
@@ -116,8 +116,7 @@ export function itemCardFacts(item: Item, compact = false): ItemCardFacts {
     meta: [item.rarity ? formatRarity(item.rarity) : '', CATEGORY_LABELS[dirOf(item)] ?? item.equipment_category?.name ?? '']
       .filter(Boolean).join(' · '),
     subtype: subtypeOf(item),
-    attune: item.attunement
-      ? `Einstimmung erforderlich${item.attunement_by ? ` (${item.attunement_by})` : ''}` : '',
+    attune: item.attunement ? `${attunementText(item)} erforderlich` : '',
     rows: stype === 'weapon' ? weaponRows(item, compact) : stype === 'armor' ? armorRows(item) : [],
     description: ruleText(descArr),
     source: item.source,

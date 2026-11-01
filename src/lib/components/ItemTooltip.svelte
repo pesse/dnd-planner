@@ -2,7 +2,7 @@
   import type { Item } from '../types';
   import { structuralType } from '../itemLibrary';
   import { PROPERTY_LABELS, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS, DAMAGE_TYPE_LABELS, masteryLabel, rarityColor } from '../itemLabels';
-  import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText } from '../itemFormat';
+  import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText, attunementText } from '../itemFormat';
   import Markdown from './Markdown.svelte';
   import ArtFrame from './ui/ArtFrame.svelte';
   import ItemDeclarationList from './item/ItemDeclarationList.svelte';
@@ -55,7 +55,7 @@
         <div class="tt-name">
           {item.name_de ?? item.name}
           {#if item.name_de}<span class="tt-name-en">{item.name}</span>{/if}
-          {#if item.attunement}<span class="tt-badge tt-attune">Einstellung</span>{/if}
+          {#if item.attunement}<span class="tt-badge tt-attune">Einstimmung</span>{/if}
         </div>
         <div class="tt-meta">
           {#if kind === 'weapon'}
@@ -71,7 +71,7 @@
             {#if kind === 'weapon' || kind === 'armor'} · {/if}
             <span style="color:{rarityColor(item.rarity)}">{formatRarity(item.rarity)}</span>
           {/if}
-          {#if item.attunement_by} · für {item.attunement_by}{/if}
+          {#if item.attunement_by_de || item.attunement_by} · {attunementText(item)}{/if}
         </div>
       </div>
       <ArtFrame src={itemArtUrl(item)} color={rarityColor(item.rarity)} />

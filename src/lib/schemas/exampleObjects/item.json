@@ -477,6 +477,7 @@
   },
   "slot": "head",
   "attunement_by": "string",
+  "attunement_by_de": "string",
   "variant": false,
   "variants": [
     "string"

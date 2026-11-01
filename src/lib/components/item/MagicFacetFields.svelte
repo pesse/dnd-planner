@@ -27,6 +27,10 @@
 {#if draft.attunement}
   <div class="prop-row">
     <span class="prop-label">Voraussetzung</span>
+    <input class="edit-input" bind:value={draft.attunement_by_de} placeholder="z.B. durch einen Magier" />
+  </div>
+  <div class="prop-row">
+    <span class="prop-label">Voraussetzung (EN)</span>
     <input class="edit-input" bind:value={draft.attunement_by} placeholder="z.B. by a wizard" />
   </div>
 {/if}
