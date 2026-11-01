@@ -27,4 +27,9 @@ describe('Bilder-Reiter der Bibliothekseinträge', () => {
     expect(bg[0].candidates[0].name).toBe('backgrounds/sage');
     expect(bg[1].candidates.map((c) => c.name)).not.toContain('combos/dwarf-sage');
   });
+
+  it('zeigt beim Monster Szene und Symbol, eigene Monster unter ihrem Namens-Slug', () => {
+    expect(names(entryArtCandidates('monster', 'srd-2024_owlbear', species))).toEqual([['', ['monster-scenes/owlbear', 'monsters/owlbear']]]);
+    expect(names(entryArtCandidates('monster', 'goblin-kaempfer', species))).toEqual([['', ['monster-scenes/goblin-kaempfer', 'monsters/goblin-kaempfer']]]);
+  });
 });

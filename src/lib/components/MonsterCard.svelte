@@ -5,6 +5,9 @@
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import ParseError from './ui/ParseError.svelte';
+  import ArtStage from './ui/ArtStage.svelte';
+  import EntryArtTab from './libraryView/EntryArtTab.svelte';
+  import { monsterArtSlug, monsterSceneUrl } from '../libraryArt';
   import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -103,13 +106,22 @@
   ondiscard={() => ed.discard()}
   onsavejson={(json) => ed.saveJson(json)}
   getJson={() => ed.draft ? JSON.stringify(ed.draft, null, 2) : ed.lastSavedContent}
+  extraTabs={[{ id: 'images', label: 'Bilder' }]}
   style="--ep-accent: var(--danger)"
 >
   {#snippet karte()}
     {#if ed.draft}
-      <MonsterStatBlock monster={ed.draft} />
+      <ArtStage candidates={[monsterSceneUrl(ed.draft)].filter((u) => u !== null)}>
+        <MonsterStatBlock monster={ed.draft} />
+      </ArtStage>
     {:else}
       <ParseError message="Kein gültiger Monster-Datensatz." onjson={() => (ed.tab = 'json')} />
+    {/if}
+  {/snippet}
+
+  {#snippet extra()}
+    {#if ed.draft}
+      <EntryArtTab kind="monster" entryKey={monsterArtSlug(ed.draft)} />
     {/if}
   {/snippet}
 

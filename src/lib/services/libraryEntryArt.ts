@@ -4,7 +4,7 @@ import { PRESENTATION_LABEL } from '$lib/domain/presentation';
 import { artUrl } from '$lib/artUrl';
 import { resolveOriginArt, slugOf } from './wizard/originArt';
 
-export type ArtEntryKind = 'species' | 'class' | 'subclass' | 'background';
+export type ArtEntryKind = 'species' | 'class' | 'subclass' | 'background' | 'monster';
 
 interface Candidate {
   name: string;
@@ -39,6 +39,9 @@ export function entryArtCandidates(
 ): ArtCandidateGroup[] {
   const slug = slugOf(key);
   if (kind === 'species') return [{ title: '', candidates: figures(slug, 'species') }];
+  if (kind === 'monster') {
+    return [{ title: '', candidates: [{ name: `monster-scenes/${slug}`, label: 'Szene' }, { name: `monsters/${slug}`, label: 'Symbol' }] }];
+  }
   const folder = FOLDER[kind];
   const general: ArtCandidateGroup[] = kind === 'subclass'
     ? []

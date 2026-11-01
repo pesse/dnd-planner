@@ -25,10 +25,15 @@ export const featArtUrl = (feat: { key?: string; sourceKey?: string }): string |
 const UMLAUTS: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
 
 /** Eigene Monster ohne Key heißen nach ihrer Datei: „Goblin-Kämpfer" → `goblin-kaempfer`. */
-export const monsterArtUrl = (monster: Monster): string | null =>
-  artUrl('monsters', monster.key
+export const monsterArtSlug = (monster: Monster): string =>
+  monster.key
     ? keySlug(monster.key)
-    : slugAscii(monster.name.toLowerCase().replace(/[äöüß]/g, (c) => UMLAUTS[c])));
+    : slugAscii(monster.name.toLowerCase().replace(/[äöüß]/g, (c) => UMLAUTS[c]));
+
+export const monsterArtUrl = (monster: Monster): string | null => artUrl('monsters', monsterArtSlug(monster));
+
+/** Das große Szenenbild neben der Monsterkarte; nur ikonische Monster haben eins. */
+export const monsterSceneUrl = (monster: Monster): string | null => artUrl('monster-scenes', monsterArtSlug(monster));
 
 /**
  * Eigene Gegenstände leihen sich ihren Namen oft von einer SRD-Waffe (`homebrew-sam_warhammer`);
