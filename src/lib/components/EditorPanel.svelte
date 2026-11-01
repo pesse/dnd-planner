@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { historyScroll } from '../utils/historyScroll';
 
   type Tab = 'karte' | 'bearbeiten' | 'json' | (string & {});
 
@@ -83,7 +84,7 @@
   }
 </script>
 
-<div class="editor-panel" style="--ep-header-h: {headerHeight}px; {style}">
+<div class="editor-panel" style="--ep-header-h: {headerHeight}px; {style}" use:historyScroll>
   <div class="sticky-header" bind:offsetHeight={headerHeight}>
     <div class="tab-bar">
       <button class="tab-btn" class:active={tab === 'karte'}      onclick={() => switchTab('karte')}>Karte</button>

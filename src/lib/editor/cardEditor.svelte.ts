@@ -8,8 +8,8 @@ import { get, writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { activeFile, setFileContent } from '$lib/stores/campaign';
 import { closeActive, replaceActive } from '$lib/services/navigation';
-import { preferredCardTab } from '$lib/stores/uiPrefs';
 import { registerEditorGuard } from '$lib/stores/navigationGuard';
+import { arrivalReader, registerViewState } from '$lib/services/viewState';
 import { openSaveAs, type SaveAsBucket } from '$lib/editor/saveAs';
 import { slugKeepUmlauts } from '$lib/utils/text';
 import { pushError } from '$lib/stores/toasts';
@@ -35,8 +35,6 @@ export interface CardEditorConfig<T> {
   parse: (content: string) => T | null;
   /** Default: `JSON.stringify(snapshot, null, 2)`. */
   serialize?: (draft: T) => string;
-  /** Überschreibt den übergreifend gemerkten Modus. */
-  defaultTab?: CardTab;
   /** Überschreiben, wenn zusätzlicher Komponenten-State zum Inhalt beiträgt. */
   snapshot?: (draft: T) => string;
   /** Default `() => draft != null`. */
@@ -50,7 +48,7 @@ export interface CardEditorConfig<T> {
 }
 
 export class CardEditor<T> {
-  tab = $state<CardTab>('bearbeiten');
+  tab = $state<CardTab>('karte');
   draft = $state<T | null>(null);
   saveError = $state('');
   lastSavedContent = $state('');
@@ -59,15 +57,10 @@ export class CardEditor<T> {
   #baseline = $state('');
 
   #cfg: CardEditorConfig<T>;
+  #readArrival = arrivalReader('cardTab');
 
   constructor(cfg: CardEditorConfig<T>) {
     this.#cfg = cfg;
-    this.tab = cfg.defaultTab ?? get(preferredCardTab);
-
-    // Übergreifend merken; `json` bewusst ausgenommen.
-    $effect(() => {
-      if (this.tab === 'karte' || this.tab === 'bearbeiten') preferredCardTab.set(this.tab as 'karte' | 'bearbeiten');
-    });
 
     onMount(() => {
       const initial = get(activeFile);
@@ -93,7 +86,9 @@ export class CardEditor<T> {
         discard: () => this.discard(),
       });
 
-      return () => { unsub(); unsubNew(); unguard(); };
+      const unview = registerViewState('cardTab', () => this.tab);
+
+      return () => { unsub(); unsubNew(); unguard(); unview(); };
     });
   }
 
@@ -119,12 +114,14 @@ export class CardEditor<T> {
     return this.#snapshot(this.draft) !== this.#baseline;
   });
 
+  /** Nur eine Navigation setzt den Modus; Umbenennen lädt neu und lässt ihn stehen. */
   async #load(path: string) {
+    const arrived = this.#readArrival();
     try {
       const content = await invoke<string>('read_file_content', { path });
       this.applyContent(content);
       this.isNew = false;
-      this.tab = this.#cfg.defaultTab ?? get(preferredCardTab);
+      if (arrived) this.tab = arrived.value ?? 'karte';
       this.#cfg.onLoad?.(content, path);
     } catch (e) {
       pushError(`${this.#cfg.label ?? 'Datensatz'} konnte nicht geladen werden: ${e instanceof Error ? e.message : e}`);

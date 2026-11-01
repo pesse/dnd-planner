@@ -31,6 +31,8 @@
   import { hpDerivation } from '../services/hitPointDerivation';
   import { combatTips, hpTip, NO_COMBAT_TIPS } from '../services/characterSheetTips';
   import { deleteActiveEntry } from '../services/deleteEntry';
+  import { arrivalReader, registerViewState } from '../services/viewState';
+  import { onMount, untrack } from 'svelte';
   import type { Character } from '../schemas/characterSchema';
   import type { WeaponMastery } from '../schemas/vocabulary';
   import type { CoverageBadge } from '../services/declarationCoverage';
@@ -144,6 +146,15 @@
   let showLevelUp = $state(false);
   let showPrint = $state(false);
   let editSection = $state<EditSectionId>('general');
+  const readSection = arrivalReader('characterSection');
+  onMount(() => registerViewState('characterSection', () => editSection));
+  $effect(() => {
+    void dirPath;
+    untrack(() => {
+      const arrived = readSection();
+      if (arrived) editSection = arrived.value ?? 'general';
+    });
+  });
 </script>
 
 <div class="sheet">
