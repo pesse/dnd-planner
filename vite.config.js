@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { createReadStream, statSync } from "node:fs";
+import { createReadStream, readdirSync, statSync } from "node:fs";
 import { resolve, sep } from "node:path";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -16,6 +16,13 @@ function vaultArt() {
   return {
     name: "vault-art",
     configureServer(server) {
+      server.middlewares.use("/art-list", (_req, res) => {
+        const names = readdirSync(VAULT_ART, { recursive: true, encoding: "utf8" })
+          .filter((f) => f.endsWith(".avif"))
+          .map((f) => f.slice(0, -".avif".length).split(sep).join("/"));
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(names));
+      });
       server.middlewares.use("/art", (req, res, next) => {
         const file = resolve(VAULT_ART, "." + decodeURIComponent((req.url ?? "").split("?")[0]));
         if (!file.startsWith(VAULT_ART + sep)) return next();

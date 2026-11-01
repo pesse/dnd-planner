@@ -44,19 +44,16 @@ const overlap = (a: Rect, b: Rect): number =>
 const boundsOf = (s: Pick<Sprite, 'x' | 'y' | 'w' | 'h'>): Rect => ({ x: s.x - s.w / 2, y: s.y - s.h / 2, w: s.w, h: s.h });
 
 /**
- * Bester von mehreren Zufallsplätzen: am wenigsten Deckung mit dem Inhalt und den schon
- * sichtbaren Bildern. Figuren bleiben an den Rändern, wo der Inhalt sie nicht verdeckt.
+ * Bester von mehreren Zufallsplätzen: am wenigsten Deckung mit den schon sichtbaren Bildern.
+ * Figuren dürfen hinter den Inhalt, Icons darauf wären Unruhe direkt unter dem Text.
  */
 function place(kind: SpriteKind, w: number, h: number, view: Rect, keepOut: Rect, others: Sprite[], rand: () => number) {
   let best = { x: 0, y: 0, cost: Infinity };
-  for (let i = 0; i < 14; i++) {
-    const left = rand() < 0.5;
-    const x = kind === 'figure'
-      ? (left ? view.w * (0.04 + rand() * 0.2) : view.w * (0.76 + rand() * 0.2))
-      : w / 2 + rand() * (view.w - w);
-    const y = kind === 'figure' ? view.h * (0.35 + rand() * 0.3) : h / 2 + rand() * (view.h - h);
+  for (let i = 0; i < 18; i++) {
+    const x = w * 0.3 + rand() * (view.w - w * 0.6);
+    const y = h * 0.3 + rand() * (view.h - h * 0.6);
     const r = boundsOf({ x, y, w, h });
-    const cost = overlap(r, keepOut) * (kind === 'figure' ? 0.4 : 3) +
+    const cost = overlap(r, keepOut) * (kind === 'figure' ? 0.15 : 3) +
       others.reduce((sum, o) => sum + overlap(r, boundsOf(o)) * (o.kind === kind ? 2 : 0.6), 0);
     if (cost < best.cost) best = { x, y, cost };
   }
@@ -73,23 +70,23 @@ export interface SpawnContext {
 
 export function spawnSprite(kind: SpriteKind, source: CanvasImageSource, aspect: number, ctx: SpawnContext): Sprite {
   const rand = ctx.rand ?? Math.random;
-  const depth = kind === 'figure' ? 0.55 + rand() * 0.35 : 0.25 + rand() * 0.75;
+  const depth = 0.25 + rand() * 0.75;
   const short = Math.min(ctx.view.w, ctx.view.h);
-  const h = kind === 'figure' ? short * (0.5 + depth * 0.3) : short * (0.07 + depth * 0.09);
+  const h = kind === 'figure' ? short * (0.26 + depth * 0.32) : short * (0.07 + depth * 0.09);
   const w = h * aspect;
   const { x, y } = place(kind, w, h, ctx.view, ctx.keepOut, ctx.others, rand);
-  const drift = (kind === 'figure' ? 30 : 70) * (0.4 + depth * 0.6);
+  const drift = (kind === 'figure' ? 110 : 160) * (0.4 + depth * 0.6);
   const angle = rand() * Math.PI * 2;
   return {
     kind, source, x, y, w, h, depth,
     born: ctx.now,
-    life: kind === 'figure' ? 11000 + rand() * 5000 : 7000 + rand() * 6000,
+    life: kind === 'figure' ? 8000 + rand() * 4000 : 6000 + rand() * 4000,
     dx: Math.cos(angle) * drift,
     dy: Math.sin(angle) * drift,
-    rot0: kind === 'icon' ? (rand() - 0.5) * 0.5 : 0,
-    drot: kind === 'icon' ? (rand() - 0.5) * 0.35 : 0,
+    rot0: (rand() - 0.5) * (kind === 'icon' ? 0.5 : 0.08),
+    drot: (rand() - 0.5) * (kind === 'icon' ? 0.7 : 0.1),
     bob: rand() * Math.PI * 2,
-    maxAlpha: kind === 'figure' ? 0.42 + depth * 0.2 : 0.35 + depth * 0.5,
+    maxAlpha: kind === 'figure' ? 0.4 + depth * 0.35 : 0.35 + depth * 0.5,
   };
 }
 
@@ -99,9 +96,10 @@ export function drawSprite(g: CanvasRenderingContext2D, s: Sprite, now: number, 
   if (alpha <= 0.002) return;
   const t = Math.min(1, (now - s.born) / s.life);
   const ease = smooth(t);
-  const parallax = 14 * s.depth;
-  const float = s.kind === 'icon' ? Math.sin(now / 1400 + s.bob) * 6 * s.depth : 0;
-  const scale = s.kind === 'figure' ? 1 + 0.06 * ease : 0.88 + 0.12 * smooth(Math.min(1, (now - s.born) / FADE_IN));
+  const parallax = 24 * s.depth;
+  const float = Math.sin(now / (s.kind === 'icon' ? 1100 : 1700) + s.bob) * (s.kind === 'icon' ? 12 : 7) * s.depth;
+  const grow = smooth(Math.min(1, (now - s.born) / FADE_IN));
+  const scale = s.kind === 'figure' ? 0.92 + 0.08 * grow + 0.06 * ease : 0.8 + 0.2 * grow;
   g.save();
   g.globalAlpha = alpha;
   g.globalCompositeOperation = s.kind === 'figure' ? 'multiply' : 'source-over';

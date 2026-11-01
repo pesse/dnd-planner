@@ -103,11 +103,11 @@
     flex-direction: column;
     align-items: center;
     gap: 1.25rem;
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    background: color-mix(in srgb, var(--bg) 62%, transparent);
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(47, 33, 16, 0.18);
-    backdrop-filter: blur(3px);
+    backdrop-filter: blur(2px);
   }
 
   .logo {

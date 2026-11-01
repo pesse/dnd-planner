@@ -668,6 +668,21 @@ fn collect_files(base: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) {
     }
 }
 
+/// Alle Bilder unter `vault/art` als Name ohne Endung (`figures/elf-feminine/species`) —
+/// das, was die installierten Bild-Packs gerade mitbringen.
+#[tauri::command]
+async fn list_art() -> Result<Vec<String>, String> {
+    blocking(|| {
+        let mut files = Vec::new();
+        collect_files(&resolve_path("./vault/art"), "", &mut files);
+        Ok(files
+            .into_iter()
+            .filter_map(|(_, name)| name.strip_suffix(".avif").map(str::to_string))
+            .collect())
+    })
+    .await
+}
+
 /// Übersicht über die exportierbaren Inhalte des aktuellen Vaults.
 #[tauri::command]
 async fn get_vault_overview() -> Result<VaultContents, String> {
@@ -1123,6 +1138,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_current_dir,
             get_absolute_path,
+            list_art,
             list_directory,
             list_entries,
             read_file_content,

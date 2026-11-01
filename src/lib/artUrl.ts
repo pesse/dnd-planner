@@ -12,3 +12,10 @@ export async function initArtBase(): Promise<void> {
 
 export const artUrl = (name: string): string =>
   vaultArtDir ? convertFileSrc(`${vaultArtDir}/${name}.avif`) : `/art/${name}.avif`;
+
+/** Was unter `vault/art/` liegt, als Namen für `artUrl` — je nach installierten Bild-Packs. */
+export async function listArt(): Promise<string[]> {
+  if (isTauri()) return invoke<string[]>('list_art');
+  const res = await fetch('/art-list');
+  return res.ok ? res.json() : [];
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fillStartArtPool, type StartArtPool } from '$lib/services/startArt/artPool';
+  import { loadStartArtPool, type StartArtPool } from '$lib/services/startArt/artPool';
+  import { vaultVersion } from '$lib/stores/campaign';
   import {
     drawSprite, featherFigure, isDead, spawnSprite, type Rect, type Sprite, type SpriteKind,
   } from '$lib/services/startArt/scene';
@@ -12,7 +13,7 @@
 
   interface Loaded { source: CanvasImageSource; aspect: number }
 
-  const SPAWN_GAP = 650;
+  const SPAWN_GAP = 450;
   const FIRST_GAP = 220;
 
   async function load(url: string, kind: SpriteKind): Promise<Loaded | null> {
@@ -29,8 +30,9 @@
 
   onMount(() => {
     const g = canvas.getContext('2d')!;
-    const pool: StartArtPool = { figures: [], icons: [] };
-    void fillStartArtPool(pool);
+    let pool: StartArtPool = { figures: [], icons: [] };
+    // Nach einer Pack-Installation sind neue Bilder da.
+    const unsubscribe = vaultVersion.subscribe(() => void loadStartArtPool().then((p) => (pool = p)));
 
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sprites: Sprite[] = [];
@@ -81,13 +83,14 @@
     }
 
     function wanted(kind: SpriteKind): number {
-      if (kind === 'figure') return view.w > 1800 ? 3 : 2;
-      return Math.max(5, Math.min(14, Math.round((view.w * view.h) / 85000)));
+      const area = view.w * view.h;
+      if (kind === 'figure') return Math.max(3, Math.min(8, Math.round(area / 200000)));
+      return Math.max(3, Math.min(7, Math.round(area / 220000)));
     }
 
     function tick(now: number) {
       for (let i = sprites.length - 1; i >= 0; i--) if (isDead(sprites[i], now)) sprites.splice(i, 1);
-      if (now - lastSpawn > (spawned < 6 ? FIRST_GAP : SPAWN_GAP)) {
+      if (now - lastSpawn > (spawned < 8 ? FIRST_GAP : SPAWN_GAP)) {
         const kinds = (['figure', 'icon'] as const).filter(
           (k) => !loading[k] && sprites.filter((s) => s.kind === k).length < wanted(k),
         );
@@ -116,6 +119,7 @@
     frame = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(frame);
+      unsubscribe();
       ro.disconnect();
       removeEventListener('pointermove', onPointer);
     };
