@@ -83,6 +83,16 @@ export interface CatalogSpec {
   invalidate: () => void;
 }
 
+/** Was die Tabelle über Gruppe und Ansicht hinaus einschränkt und ordnet. */
+export interface CatalogFilters {
+  /** Facette → gewählter Wert; fehlt der Schlüssel, filtert sie nicht. */
+  facets: Record<string, string>;
+  search: string;
+  /** Spalten-ID oder `name`. */
+  sortCol: string;
+  sortAsc: boolean;
+}
+
 export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
 
 export const sourceFacet = (source: string | undefined): CatalogFacetValue =>

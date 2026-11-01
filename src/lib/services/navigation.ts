@@ -9,12 +9,14 @@ import { confirmNavigation } from '../stores/navigationGuard';
 import { loadActSummaries } from '../stores/context';
 import {
   dropHistoryCurrent,
-  leaveHistoryCurrent,
   pushHistory,
   replaceHistory,
+  setHistoryState,
   stepHistory,
+  type HistoryItem,
 } from '../stores/navigationHistory';
 import { activePeek } from './entryPeek';
+import { arrive, captureViewState, type ViewState } from './viewState';
 import type { FileEntry } from '../types';
 
 const MARKDOWN_TYPES = new Set<FileEntry['type']>(['campaign', 'act', 'session', 'world', 'notes']);
@@ -24,8 +26,13 @@ function needsMarkdown(entry: FileEntry): boolean {
   return MARKDOWN_TYPES.has(entry.type) || (entry.type === 'character' && !entry.dirPath);
 }
 
-async function apply(entry: FileEntry): Promise<void> {
+async function apply({ file: entry, state }: HistoryItem): Promise<void> {
+  arrive(state ?? {});
   activeFile.set(entry);
+  if (!entry) {
+    setFileContent('');
+    return;
+  }
 
   if (needsMarkdown(entry)) {
     try {
@@ -46,17 +53,21 @@ async function apply(entry: FileEntry): Promise<void> {
 /**
  * @param guard `false`, wenn der Aufrufer `confirmNavigation` schon selbst geführt hat.
  * @param leavePeek `true`, wenn der Nutzer das Verlassen eines Assistenten bestätigt hat.
+ * @param state Zustand, mit dem das Ziel öffnet, statt seiner Vorgabe.
  * @returns false, wenn der Guard abgebrochen hat — der Aufrufer bleibt dann stehen.
  */
-export async function navigateTo(entry: FileEntry, opts?: { guard?: boolean; leavePeek?: boolean }): Promise<boolean> {
+export async function navigateTo(
+  entry: FileEntry,
+  opts?: { guard?: boolean; leavePeek?: boolean; state?: ViewState },
+): Promise<boolean> {
   const peek = activePeek();
   if (peek && !opts?.leavePeek) {
     peek(entry);
     return false;
   }
   if (opts?.guard !== false && !(await confirmNavigation())) return false;
-  pushHistory(entry);
-  await apply(entry);
+  setHistoryState(captureViewState());
+  await apply(pushHistory(entry, opts?.state));
   return true;
 }
 
@@ -66,22 +77,22 @@ export function replaceActive(entry: FileEntry): void {
   activeFile.set(entry);
 }
 
-/** Gelöscht oder Neuanlage verworfen: nichts mehr offen, der Zurück-Weg bleibt. */
+/** Gelöscht oder Neuanlage verworfen: die Startseite tritt an seine Stelle, der Zurück-Weg bleibt. */
 export function closeActive(): void {
   dropHistoryCurrent();
+  arrive({});
   activeFile.set(null);
   setFileContent('');
 }
 
 export async function navigateHome(): Promise<void> {
   if (!get(activeFile) || !(await confirmNavigation())) return;
-  leaveHistoryCurrent();
-  activeFile.set(null);
-  setFileContent('');
+  setHistoryState(captureViewState());
+  await apply(pushHistory(null));
 }
 
-async function reachable(entry: FileEntry): Promise<boolean> {
-  if (entry.type === 'catalog') return true;
+async function reachable(entry: FileEntry | null): Promise<boolean> {
+  if (!entry || entry.type === 'catalog') return true;
   if (!entry.path) return false;
   try {
     await invoke<string>('read_file_content', { path: entry.path });
@@ -93,6 +104,7 @@ async function reachable(entry: FileEntry): Promise<boolean> {
 
 async function step(dir: -1 | 1): Promise<void> {
   if (!(await confirmNavigation())) return;
+  setHistoryState(captureViewState());
   const target = await stepHistory(dir, reachable);
   if (target) await apply(target);
 }
