@@ -5,6 +5,8 @@
  *   npm run test -- itemDeclarations
  */
 import { describe, expect, it } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
+import type { Item } from '../../src/lib/types';
 import { getItemsByDir } from '../../src/lib/itemLibrary';
 import { itemDeclarationLines } from '../../src/lib/services/itemDeclarations';
 
@@ -32,5 +34,13 @@ describe('Kartenzeilen der Gegenstands-Deklarationen', () => {
       for (const item of await getItemsByDir(dir))
         for (const l of itemDeclarationLines(item))
           expect(l.text, `${item.key} · ${l.label}`).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('verträgt das rohe Datei-JSON von Karte und Tooltip, dem die Schema-Defaults fehlen', async () => {
+    for (const dir of ['wondrous-item', 'armor', 'weapon', 'ring', 'rod', 'staff', 'wand'])
+      for (const info of await getItemsByDir(dir)) {
+        const raw = JSON.parse(await invoke<string>('read_file_content', { path: info.path })) as Item;
+        expect(() => itemDeclarationLines(raw), info.key).not.toThrow();
+      }
   });
 });

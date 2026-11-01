@@ -1,7 +1,7 @@
 /** Die mechanischen Deklarationen eines Gegenstands als deutsche Kartenzeilen. */
 import type { Item } from '$lib/types';
 import { ABILITY_ABBR_DE, ABILITY_LABEL, abilityKeyOf, type AbilityKey } from '$lib/schemas/abilities';
-import type { AbilityEffect } from '$lib/schemas/item';
+import { itemSchema, type AbilityEffect } from '$lib/schemas/item';
 import type { ArmorClassEffect } from '$lib/schemas/armorClass';
 import type { SaveBonusValue, SavingThrowEffect } from '$lib/schemas/savingThrow';
 import type { AttackEffect } from '$lib/schemas/attackEffect';
@@ -21,6 +21,22 @@ export type DeclaringItem = Pick<
   | 'abilityEffects' | 'armorClassEffects' | 'savingThrowEffects' | 'attackEffects' | 'defenses'
   | 'resistanceChoice' | 'optionChoice' | 'grantsResource' | 'grantsCasting' | 'slot'
 >;
+
+const DECLARATION_FIELDS = [
+  'abilityEffects', 'armorClassEffects', 'savingThrowEffects', 'attackEffects', 'defenses',
+  'resistanceChoice', 'optionChoice', 'grantsResource', 'grantsCasting', 'slot',
+] as const satisfies readonly (keyof DeclaringItem)[];
+
+/**
+ * Karte und Tooltip reichen das rohe Datei-JSON herein, dem die Schema-Defaults fehlen
+ * (`grantsResource.mods`, `defenses[].resistances`). Je Feld, damit ein halb editiertes Feld
+ * im Karten-Editor nicht alle anderen Zeilen mitnimmt.
+ */
+function withDefaults(item: DeclaringItem): DeclaringItem {
+  return Object.fromEntries(
+    DECLARATION_FIELDS.map((k) => [k, itemSchema.shape[k].safeParse(item[k]).data]),
+  ) as DeclaringItem;
+}
 
 export interface DeclarationLine {
   label: string;
@@ -143,6 +159,7 @@ export function itemDeclarationLines(
   item: DeclaringItem,
   opts: { spellLabel?: (name: string) => string } = {},
 ): DeclarationLine[] {
+  item = withDefaults(item);
   const optionLabel = (v: string) => item.optionChoice?.options.find((o) => o.value === v)?.labelDe ?? v;
   return [
     ...(item.abilityEffects ?? []).map((e) => ({ label: 'Attribut', text: abilityEffectText(e) })),

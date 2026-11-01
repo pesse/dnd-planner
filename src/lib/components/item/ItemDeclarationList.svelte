@@ -7,14 +7,13 @@
   let { item, variant = 'card' }: { item: Item; variant?: 'card' | 'tooltip' } = $props();
 
   let spells = $state<SpellInfo[]>([]);
-  $effect(() => {
-    if (!item.grantsCasting?.quotas.length || spells.length) return;
-    getSpellLibrary().then((l) => { spells = l; }).catch(() => {});
-  });
-
   const lines = $derived(
     itemDeclarationLines(item, { spellLabel: (n) => (spells.length ? resolveSpell(spells, n)?.name : null) ?? n }),
   );
+  $effect(() => {
+    if (spells.length || !lines.some((l) => l.label === 'Zauber')) return;
+    getSpellLibrary().then((l) => { spells = l; }).catch(() => {});
+  });
 </script>
 
 {#if lines.length}
