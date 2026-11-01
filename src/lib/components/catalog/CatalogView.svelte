@@ -1,14 +1,10 @@
-<script module lang="ts">
-  type CatalogFilters = { facets: Record<string, string>; search: string; sortCol: string; sortAsc: boolean };
-  /** Überlebt das Abbauen der Ansicht, damit „Zurück" aus einem Eintrag die Filter wiederfindet. */
-  const remembered = new Map<string, CatalogFilters>();
-</script>
-
 <script lang="ts">
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { navigateTo } from '../../services/navigation';
   import { peekEntry } from '../../services/entryPeek';
+  import { historyScroll } from '../../utils/historyScroll';
+  import { CatalogFilterState } from './catalogFilterState.svelte';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
     catalogEntry, columnsFor, facetOptions, facetValues,
@@ -20,18 +16,15 @@
   let { kind, group }: { kind: CatalogKind; group: string } = $props();
 
   const spec = $derived(CATALOGS[kind]);
-  /** Die Prop hängt am `catalog`-Objekt des Elternteils, das jeder Gruppenwechsel neu baut — erst das Memo hält die Effekte unten still. */
+  /** Die Props hängen am `catalog`-Objekt des Elternteils, das jede Navigation neu baut — erst das Memo hält die Effekte unten still. */
   const currentKind = $derived(kind);
+  const currentGroup = $derived(group);
 
   /** Die Zeilen tragen ihren Katalog: nach einem Wechsel passen die alten nicht auf die neuen Spalten. */
   let loaded = $state<{ kind: CatalogKind; rows: CatalogRow[]; groups: CatalogGroup[] } | null>(null);
   let rows = $derived(loaded?.kind === kind ? loaded.rows : []);
   let groups = $derived(loaded?.kind === kind ? loaded.groups : []);
-  let loading = $state(true);
-  let search = $state('');
-  /** Spalten-ID oder `name`; überlebt den Filterwechsel, solange das neue Set die Spalte zeigt. */
-  let sortCol = $state('name');
-  let sortAsc = $state(true);
+  let loading = $derived(loaded?.kind !== kind);
   let failedIcons = $state<Record<string, true>>({});
 
   async function load(fresh: boolean) {
@@ -40,7 +33,6 @@
     const result = await spec.load();
     if (forKind !== kind) return;
     loaded = { kind: forKind, ...result };
-    loading = false;
   }
 
   let loadedVersion = -1;
@@ -53,36 +45,13 @@
     });
   });
 
-  /** Vom Ansichtswechsel (`switchView`) für den nächsten Katalog hinterlegt. */
-  let carry: { facets: Record<string, string>; search: string } | null = null;
-
-  // Wechsel zwischen den Katalogen: die Sortierung des anderen passt nicht auf diese Spalten.
-  // Nur ein Ansichtswechsel zeigt dieselben Zeilen und behält Suche und Sortierung.
-  $effect(() => {
-    void currentKind;
-    untrack(() => {
-      const kept = carry;
-      carry = null;
-      const back = kept ? undefined : remembered.get(currentKind);
-      sortCol = back?.sortCol ?? (kept ? sortCol : 'name');
-      sortAsc = back?.sortAsc ?? (kept ? sortAsc : true);
-      search = kept?.search ?? back?.search ?? '';
-      facetSel = { ...(kept?.facets ?? back?.facets ?? {}) };
-      loading = true;
-    });
-  });
-
-  $effect(() => {
-    remembered.set(untrack(() => currentKind), { facets: { ...facetSel }, search, sortCol, sortAsc });
-  });
+  const filt = new CatalogFilterState(() => currentKind, () => currentGroup);
 
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
 
   let columnIds = $derived(columnsFor(spec, group));
-  let activeSort = $derived(columnIds.includes(sortCol) ? sortCol : 'name');
+  let activeSort = $derived(columnIds.includes(filt.sortCol) ? filt.sortCol : 'name');
 
-  /** Facette → gewählter Wert; fehlt der Schlüssel, filtert sie nicht. */
-  let facetSel = $state<Record<string, string>>({});
   const ALL = '*';
 
   let groupRows = $derived(group ? rows.filter((r) => r.group === group) : rows);
@@ -91,22 +60,17 @@
   let facets = $derived(
     Object.entries(spec.facets)
       .map(([id, label]) => ({ id, label, options: facetOptions(groupRows, id) }))
-      .filter((f) => f.options.length > 1 || f.id in facetSel),
+      .filter((f) => f.options.length > 1 || f.id in filt.facets),
   );
 
-  function setFacet(id: string, value: string) {
-    if (value === ALL) delete facetSel[id];
-    else facetSel[id] = value;
-  }
-
   let shown = $derived.by(() => {
-    const q = search.trim().toLowerCase();
+    const q = filt.search.trim().toLowerCase();
     const filtered = groupRows.filter((r) =>
-      Object.entries(facetSel).every(([id, value]) => facetValues(r, id).some((v) => v.id === value))
+      Object.entries(filt.facets).every(([id, value]) => facetValues(r, id).some((v) => v.id === value))
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
-    const dir = sortAsc ? 1 : -1;
+    const dir = filt.sortAsc ? 1 : -1;
     return filtered.sort((a, b) => {
       const ka = key(a), kb = key(b);
       const c = typeof ka === 'number' && typeof kb === 'number'
@@ -115,11 +79,6 @@
       return c * dir || a.name.localeCompare(b.name, 'de');
     });
   });
-
-  function sortBy(col: string) {
-    if (activeSort === col) sortAsc = !sortAsc;
-    else { sortCol = col; sortAsc = true; }
-  }
 
   function setGroup(id: string) {
     const g = groups.find((x) => x.id === id);
@@ -133,20 +92,21 @@
     const views = spec.views;
     const next = CATALOGS[target].views;
     if (!views || !next || target === kind) return;
-    const { [views.facet]: nextGroupId, ...facets } = facetSel;
+    const { [views.facet]: nextGroupId, ...facets } = filt.facets;
     if (group) facets[next.facet] = group;
-    carry = { facets, search };
     const nextGroup = nextGroupId ? facetOptions(rows, views.facet).find((o) => o.id === nextGroupId) : undefined;
-    void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup));
+    void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup), {
+      state: { catalog: { ...filt.snapshot(), facets } },
+    });
   }
 
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type, dirPath: row.dirPath });
 </script>
 
 {#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}
-  <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
-    <button type="button" title={def.title} onclick={() => sortBy(col)}>
-      {label}<span class="sort-mark">{activeSort === col ? (sortAsc ? '▲' : '▼') : ''}</span>
+  <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (filt.sortAsc ? 'ascending' : 'descending') : 'none'}>
+    <button type="button" title={def.title} onclick={() => filt.sortBy(col, activeSort)}>
+      {label}<span class="sort-mark">{activeSort === col ? (filt.sortAsc ? '▲' : '▼') : ''}</span>
     </button>
   </th>
 {/snippet}
@@ -160,7 +120,7 @@
     {#if viewOptions.length}
       <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
     {/if}
-    <input class="search" type="search" placeholder="Suchen…" bind:value={search} />
+    <input class="search" type="search" placeholder="Suchen…" bind:value={filt.search} />
     <label class="filter">
       {spec.groupLabel}
       <select value={group} onchange={(e) => setGroup(e.currentTarget.value)}>
@@ -171,7 +131,7 @@
     {#each facets as f (f.id)}
       <label class="filter">
         {f.label}
-        <select value={facetSel[f.id] ?? ALL} onchange={(e) => setFacet(f.id, e.currentTarget.value)}>
+        <select value={filt.facets[f.id] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? null : e.currentTarget.value)}>
           <option value={ALL}>Alle</option>
           {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
         </select>
@@ -180,7 +140,7 @@
     <span class="count">{loading ? 'Laden…' : `${shown.length} von ${rows.length}`}</span>
   </div>
 
-  <div class="table-wrap">
+  <div class="table-wrap" use:historyScroll>
     <table>
       <thead>
         <tr>
