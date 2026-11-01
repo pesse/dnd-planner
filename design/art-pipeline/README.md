@@ -7,7 +7,7 @@ Alle Bilder malt Codex über `.claude/skills/codex-design/scripts/codex.sh` (Ski
 | Bibliotheks-Icons: Zauber, Monster, Gegenstände, Talente | kleines Einzelmotiv, freigestellt mit echtem Alpha | `design/art/<serie>/<slug>.png` (1254² RGBA) → `vault/art/<serie>/<slug>.avif` (512², q55) | [Icons](#bibliotheks-icons) |
 | Stimmungsbilder im Charakter-Wizard: Klasse, Volk, Hintergrund, Volk×Klasse | Hochformat mit Handlung und Kulisse, deckend | `design/art/<typ>/<slug>.png` (1024×1536) → `vault/art/<typ>/<slug>.avif` (640×960) | Stilblock `design/art/prompt.md`, Einzelläufe nach Skill |
 | Wizard-Figuren je Volk × Äußeres, mit Varianten je Klasse, Hintergrund und Subklasse | wie Stimmungsbilder, dieselbe Person über alle Varianten | `design/art/figures-…` → `vault/art/figures/<volk>-<äußeres>/…` | [Figuren](#wizard-figuren) |
-| Monster-Szenen: ikonische Monster in Aktion, neben der Monsterkarte | wie Stimmungsbilder, Monster als Hauptfigur | `design/art/monster-scenes/<slug>.png` (1024×1536) → `vault/art/monster-scenes/<slug>.avif` (640×960) | [Monster-Szenen](#monster-szenen) |
+| Monster-Szenen: jedes Bibliotheksmonster in Aktion, neben der Monsterkarte | wie Stimmungsbilder, Monster als Hauptfigur | `design/art/monster-scenes/<slug>.png` (1024×1536) → `vault/art/monster-scenes/<slug>.avif` (640×960) | [Monster-Szenen](#monster-szenen) |
 | Porträts, UI-Grafik, App-Icon | je nach Einsatz | siehe Tabelle im Skill | Einzelläufe nach Skill |
 
 Die beiden Familien teilen nur die PHB-Malweise. Ein Icon ist kein Wizard-Bild in klein: kein Schauplatz, keine Figur in Aktion, kein Pergamentrand. Die App legt es selbst auf Karten und Listen.

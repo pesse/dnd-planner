@@ -32,7 +32,7 @@ export const monsterArtSlug = (monster: Monster): string =>
 
 export const monsterArtUrl = (monster: Monster): string | null => artUrl('monsters', monsterArtSlug(monster));
 
-/** Das große Szenenbild neben der Monsterkarte; nur ikonische Monster haben eins. */
+/** Das große Szenenbild neben der Monsterkarte; eigene Monster haben keins. */
 export const monsterSceneUrl = (monster: Monster): string | null => artUrl('monster-scenes', monsterArtSlug(monster));
 
 /**

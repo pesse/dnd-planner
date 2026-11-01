@@ -16,6 +16,8 @@ while :; do
   [ $rc = 3 ] && { echo "w$W: FERTIG" | tee -a $log; break; }
   [ $rc != 0 ] && { echo "w$W: ABBRUCH Auftrag" | tee -a $log; exit 1; }
   n=$((n+1)) out=$run/w$W-$n before=$(ls $dir | wc -l)
+  # Ein früherer Lauf hinterlässt result.md; bricht Codex vorher ab, kopierte copy-raw.sh sonst dessen alte Bilder.
+  rm -rf $out
   .claude/skills/codex-design/scripts/codex.sh -C $dir --out $out $refs - < $run/brief-w$W.md > $out.txt 2>&1
   [ -f $out/result.md ] && grep -q '→' $out/result.md && .claude/skills/codex-design/scripts/copy-raw.sh $out/result.md $dir >> $out.txt 2>&1
   after=$(ls $dir | wc -l) k=$(grep -o 'Kontingent.*' $out.txt | head -1)
