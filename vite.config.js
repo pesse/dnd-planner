@@ -6,6 +6,7 @@ import { resolve, sep } from "node:path";
 const host = process.env.TAURI_DEV_HOST;
 
 const VAULT_ART = resolve("vault/art");
+const CLAUDE_DIR = resolve(".claude");
 
 /**
  * Im Browser ohne Tauri gibt es kein Asset-Protokoll — `artUrl` zeigt dann auf `/art/…`.
@@ -52,8 +53,9 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // design/: Codex schreibt dort Bilder; eine gesperrte Datei bringt den Watcher unter Windows zum Absturz.
-      // .claude/: Worktrees sind volle Repo-Kopien samt node_modules und Vault.
-      ignored: ["**/src-tauri/**", "**/design/**", "**/.claude/**"],
+      // .claude/: Worktrees sind volle Repo-Kopien samt node_modules und Vault. Nur das eigene,
+      // denn ein Worktree liegt selbst unter `.claude/` — `**/.claude/**` blendet dort alles aus.
+      ignored: ["**/src-tauri/**", "**/design/**", (/** @type {string} */ path) => resolve(path).startsWith(CLAUDE_DIR + sep)],
     },
   },
 }));
