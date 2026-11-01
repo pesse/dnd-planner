@@ -1,0 +1,32 @@
+.start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  background: var(--red);
+  color: var(--on-accent);
+  border: 1px solid var(--red-bright);
+  border-radius: 8px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+button.start-card:hover {
+  background: var(--red-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(138, 32, 18, 0.3);
+}
+
+.start-card-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.start-card-sub {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}

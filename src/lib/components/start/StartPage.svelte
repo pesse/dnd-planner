@@ -1,41 +1,33 @@
 <script lang="ts">
   import StartArtCanvas from './StartArtCanvas.svelte';
   import { characterSection } from '../sidebar/characterSectionState.svelte';
-  import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
+  import CampaignStartCard from './CampaignStartCard.svelte';
+  import './startCard.css';
   import { GROUPED_SECTIONS } from '$lib/services/sidebar/groupedSections';
   import { catalogEntry } from '$lib/services/catalog/catalogTypes';
   import { navigateTo } from '$lib/services/navigation';
   import { libraryManagerOpen } from '$lib/stores/libraries';
   import type { Rect } from '$lib/services/startArt/scene';
+  import { fade, scale } from 'svelte/transition';
 
   let root: HTMLDivElement;
-  let panel: HTMLDivElement;
+  let panel = $state<HTMLDivElement>();
 
   const catalogs = [
     catalogEntry('character', 'Charaktere'),
     ...GROUPED_SECTIONS.flatMap((s) => (s.catalog ? [catalogEntry(s.catalog, s.label)] : [])),
   ];
 
-  let naming = $state(false);
-  let campaignName = $state('');
-  let creating = $state(false);
+  const MINIMIZED_KEY = 'start-minimized';
+  let minimized = $state(localStorage.getItem(MINIMIZED_KEY) === '1');
 
-  async function createCampaign() {
-    creating = true;
-    if (await campaignTree.createNamedCampaign(campaignName)) {
-      naming = false;
-      campaignName = '';
-    }
-    creating = false;
-  }
-
-  function onNameKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') void createCampaign();
-    if (e.key === 'Escape') naming = false;
+  function setMinimized(value: boolean) {
+    minimized = value;
+    localStorage.setItem(MINIMIZED_KEY, value ? '1' : '0');
   }
 
   function keepOut(): Rect | null {
-    if (!root || !panel) return null;
+    if (minimized || !root || !panel) return null;
     const r = root.getBoundingClientRect();
     const p = panel.getBoundingClientRect();
     return { x: p.left - r.left, y: p.top - r.top, w: p.width, h: p.height };
@@ -45,42 +37,34 @@
 <div class="start" bind:this={root}>
   <StartArtCanvas {keepOut} />
 
-  <div class="panel" bind:this={panel}>
-    <img class="logo" src="/branding/logo.png" alt="DnD Planner" />
+  {#if minimized}
+    <button class="restore" title="Menü einblenden" onclick={() => setMinimized(false)} transition:fade={{ duration: 200 }}>
+      ☰ Menü
+    </button>
+  {:else}
+    <div class="panel" bind:this={panel} transition:scale={{ duration: 220, start: 0.94 }}>
+      <button class="minimize" title="Menü ausblenden, nur die Bilder zeigen" onclick={() => setMinimized(true)}>–</button>
+      <img class="logo" src="/branding/logo.png" alt="DnD Planner" />
 
-    <div class="primary">
-      <button class="big" onclick={() => (characterSection.showWizard = true)}>
-        <span class="big-title">Charakter erstellen</span>
-        <span class="big-sub">Schritt für Schritt zur Stufe 1</span>
-      </button>
-      {#if naming}
-        <div class="big naming">
-          <span class="big-title">Neue Kampagne</span>
-          <!-- svelte-ignore a11y_autofocus -->
-          <input bind:value={campaignName} placeholder="Name der Kampagne…" onkeydown={onNameKey} autofocus />
-          <div class="naming-actions">
-            <button class="ghost" onclick={() => (naming = false)}>Abbrechen</button>
-            <button class="confirm" disabled={!campaignName.trim() || creating} onclick={createCampaign}>Anlegen</button>
-          </div>
-        </div>
-      {:else}
-        <button class="big" onclick={() => (naming = true)}>
-          <span class="big-title">Kampagne erstellen</span>
-          <span class="big-sub">Akte, Sessions, NPCs und Welt</span>
+      <div class="primary">
+        <button class="start-card" onclick={() => (characterSection.showWizard = true)}>
+          <span class="start-card-title">Charakter erstellen</span>
+          <span class="start-card-sub">Schritt für Schritt zur Stufe 1</span>
         </button>
-      {/if}
-    </div>
+        <CampaignStartCard />
+      </div>
 
-    <h2>Bibliotheken</h2>
-    <div class="libraries">
-      {#each catalogs as entry (entry.path)}
-        <button class="lib" onclick={() => void navigateTo(entry)}>{entry.name}</button>
-      {/each}
-      <button class="lib manage" onclick={() => libraryManagerOpen.set(true)}>
-        <img src="/branding/icons/library.png" alt="" /> Verwalten
-      </button>
+      <h2>Bibliotheken</h2>
+      <div class="libraries">
+        {#each catalogs as entry (entry.path)}
+          <button class="lib" onclick={() => void navigateTo(entry)}>{entry.name}</button>
+        {/each}
+        <button class="lib manage" onclick={() => libraryManagerOpen.set(true)}>
+          <img src="/branding/icons/library.png" alt="" /> Verwalten
+        </button>
+      </div>
     </div>
-  </div>
+  {/if}
 </div>
 
 <style>
@@ -114,85 +98,52 @@
     width: min(16rem, 70%);
   }
 
+  .minimize {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.6rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--ink-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .minimize:hover {
+    color: var(--red);
+    border-color: var(--border);
+  }
+
+  .restore {
+    position: absolute;
+    top: 2.75rem;
+    right: 2.5rem;
+    padding: 0.4rem 0.8rem;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .restore:hover {
+    opacity: 1;
+    color: var(--red);
+    border-color: var(--red);
+  }
+
   .primary {
     width: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
-  }
-
-  .big {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
-    padding: 1rem 1.1rem;
-    background: var(--red);
-    color: var(--on-accent);
-    border: 1px solid var(--red-bright);
-    border-radius: 8px;
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
-  }
-  button.big:hover {
-    background: var(--red-bright);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(138, 32, 18, 0.3);
-  }
-
-  .big-title {
-    font-family: var(--font-display);
-    font-size: 0.95rem;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
-
-  .big-sub {
-    font-size: 0.78rem;
-    opacity: 0.85;
-  }
-
-  .naming {
-    cursor: default;
-    gap: 0.5rem;
-  }
-  .naming input {
-    width: 100%;
-    padding: 0.35rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg);
-    color: var(--ink);
-    font: inherit;
-    font-size: 0.85rem;
-  }
-  .naming-actions {
-    align-self: flex-end;
-    display: flex;
-    gap: 0.4rem;
-  }
-  .naming-actions button {
-    padding: 0.2rem 0.6rem;
-    border-radius: 4px;
-    font: inherit;
-    font-size: 0.78rem;
-    cursor: pointer;
-  }
-  .ghost {
-    background: transparent;
-    color: var(--on-accent);
-    border: 1px solid color-mix(in srgb, var(--on-accent) 50%, transparent);
-  }
-  .confirm {
-    background: var(--on-accent);
-    color: var(--red);
-    border: 1px solid var(--on-accent);
-  }
-  .confirm:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   h2 {
