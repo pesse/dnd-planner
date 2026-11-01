@@ -139,6 +139,5 @@ export class CharacterSectionState {
   }
 }
 
-export function createCharacterSectionState(): CharacterSectionState {
-  return new CharacterSectionState();
-}
+/** Geteilt, damit die Startseite denselben Wizard öffnet wie das „+" der Seitenleiste. */
+export const characterSection = new CharacterSectionState();

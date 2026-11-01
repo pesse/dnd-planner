@@ -4,6 +4,7 @@
   import CharacterSheet from '$lib/components/CharacterSheet.svelte';
   import CardHost from '$lib/components/CardHost.svelte';
   import CatalogView from '$lib/components/catalog/CatalogView.svelte';
+  import StartPage from '$lib/components/start/StartPage.svelte';
   import { parseCatalogPath } from '$lib/services/catalog/catalogTypes';
   import CharacterBadgeBar from '$lib/components/CharacterBadgeBar.svelte';
   import FileTitle from '$lib/components/FileTitle.svelte';
@@ -134,6 +135,8 @@
       <CatalogView kind={catalog.kind} group={catalog.group} />
     {:else if cardType}
       <CardHost type={cardType} />
+    {:else if !$activeFile}
+      <StartPage />
     {:else}
       <div class="toolbar">
         {#if $activeFile}

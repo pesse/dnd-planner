@@ -2,12 +2,11 @@
   import { untrack } from 'svelte';
   import { activeCampaign, activeFile, vaultVersion } from '../../stores/campaign';
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../../stores/context';
-  import { createCampaignTreeState, sectionKeyOf, VAULT_BASE, SECTIONS } from './campaign/campaignTreeState.svelte';
+  import { campaignTree as tree, sectionKeyOf, VAULT_BASE, SECTIONS } from './campaign/campaignTreeState.svelte';
   import CampaignRow from './campaign/CampaignRow.svelte';
   import NewEntryRow from './campaign/NewEntryRow.svelte';
   import './tree.css';
 
-  const tree = createCampaignTreeState();
 
   // Am Store, nicht am Aufrufer: sonst fehlt der Kontext nach HMR-Store-Reset und auf
   // Pfaden, die `activeCampaign.set()` ohne eigenen Lade-Call benutzen.

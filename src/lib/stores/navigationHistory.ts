@@ -42,6 +42,15 @@ export function dropHistoryCurrent(): void {
   sync();
 }
 
+/** Startseite: kein Ziel mehr offen, das bisherige landet auf dem Zurück-Stapel. */
+export function leaveHistoryCurrent(): void {
+  if (current) backStack.push(current);
+  if (backStack.length > LIMIT) backStack.shift();
+  forwardStack = [];
+  current = null;
+  sync();
+}
+
 /**
  * Nächstes erreichbares Ziel in Richtung `dir` (−1 zurück, +1 vor). Was `reachable`
  * ablehnt, fällt aus dem Verlauf, statt als Fehlerkarte zu landen.

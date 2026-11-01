@@ -9,6 +9,7 @@ import { confirmNavigation } from '../stores/navigationGuard';
 import { loadActSummaries } from '../stores/context';
 import {
   dropHistoryCurrent,
+  leaveHistoryCurrent,
   pushHistory,
   replaceHistory,
   stepHistory,
@@ -68,6 +69,13 @@ export function replaceActive(entry: FileEntry): void {
 /** Gelöscht oder Neuanlage verworfen: nichts mehr offen, der Zurück-Weg bleibt. */
 export function closeActive(): void {
   dropHistoryCurrent();
+  activeFile.set(null);
+  setFileContent('');
+}
+
+export async function navigateHome(): Promise<void> {
+  if (!get(activeFile) || !(await confirmNavigation())) return;
+  leaveHistoryCurrent();
   activeFile.set(null);
   setFileContent('');
 }

@@ -5,10 +5,9 @@
   import SectionHeader from './SectionHeader.svelte';
   import { navigateTo } from '../../services/navigation';
   import { catalogEntry } from '../../services/catalog/catalogTypes';
-  import { createCharacterSectionState, CHARACTERS_PATH } from './characterSectionState.svelte';
+  import { characterSection as state, CHARACTERS_PATH } from './characterSectionState.svelte';
   import './tree.css';
 
-  const state = createCharacterSectionState();
   const catalog = catalogEntry('character', 'Charaktere');
 
   // `untrack` verhindert ein Re-Expandieren, wenn der Nutzer manuell zuklappt.

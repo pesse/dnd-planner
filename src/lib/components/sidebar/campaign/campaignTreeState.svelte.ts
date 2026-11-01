@@ -71,8 +71,15 @@ export class CampaignTreeState {
 
   async createCampaign(e: KeyboardEvent | MouseEvent): Promise<void> {
     if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const raw = this.newCampaignInput.trim();
-    if (!raw) return;
+    if (!(await this.createNamedCampaign(this.newCampaignInput))) return;
+    this.showNewCampaignInput = false;
+    this.newCampaignInput = '';
+  }
+
+  /** @returns false, wenn der Name leer ist oder das Schreiben scheitert. */
+  async createNamedCampaign(input: string): Promise<boolean> {
+    const raw = input.trim();
+    if (!raw) return false;
 
     const slug = slugKeepUmlauts(raw);
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
@@ -81,17 +88,17 @@ export class CampaignTreeState {
     const template = `# ${name}\n\n` + DOCUMENT_TEMPLATES.campaign;
     try {
       await invoke('write_file_content', { path: campaignMd, content: template });
-      this.showNewCampaignInput = false;
-      this.newCampaignInput = '';
-      await this.loadCampaigns();
-      const newCampaign = this.campaigns.find((c) => c.path === slug);
-      if (newCampaign) {
-        activeCampaign.set(newCampaign);
-        await navigateTo({ name: 'campaign', path: campaignMd, type: 'campaign' });
-      }
     } catch (err) {
       console.error('Kampagne konnte nicht erstellt werden:', err);
+      return false;
     }
+    await this.loadCampaigns();
+    const newCampaign = this.campaigns.find((c) => c.path === slug);
+    if (newCampaign) {
+      activeCampaign.set(newCampaign);
+      await navigateTo({ name: 'campaign', path: campaignMd, type: 'campaign' });
+    }
+    return true;
   }
 
   cancelNewCampaign(e: KeyboardEvent): void {
@@ -300,6 +307,5 @@ export class CampaignTreeState {
   }
 }
 
-export function createCampaignTreeState(): CampaignTreeState {
-  return new CampaignTreeState();
-}
+/** Geteilt, damit die Startseite Kampagnen in denselben Baum anlegt. */
+export const campaignTree = new CampaignTreeState();

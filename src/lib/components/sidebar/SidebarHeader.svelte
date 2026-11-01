@@ -5,6 +5,7 @@
   import { revealLogDir } from '../../services/appLog';
   import { checkForNews, checkingForNews } from '../../services/checkForNews';
   import { pushError } from '../../stores/toasts';
+  import { navigateHome } from '../../services/navigation';
 
   let { onTransferClick }: { onTransferClick(): void } = $props();
 
@@ -15,7 +16,7 @@
 </script>
 
 <div class="sidebar-header ornament-top">
-  <h2><img class="logo" src="/branding/logo.png" alt="DnD Planner" /></h2>
+  <h2><button class="home" title="Startseite" onclick={() => void navigateHome()}><img class="logo" src="/branding/logo.png" alt="DnD Planner" /></button></h2>
   <div class="header-actions">
     {#if $updateState.status === 'available'}
       <button
@@ -71,6 +72,14 @@
     min-width: 0;
     display: flex;
     align-items: center;
+  }
+  .home {
+    display: flex;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
   }
   .logo {
     height: 1.9rem;
