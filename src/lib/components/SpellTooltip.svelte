@@ -2,6 +2,7 @@
   import type { Spell } from '../types';
   import { SCHOOL_COLORS } from '../spellLibrary';
   import SpellDetail from './SpellDetail.svelte';
+  import { tipWheel } from '../utils/tipWheel';
 
   let { spell, x, y, note }: { spell: Spell | null; x: number; y: number; note?: string } = $props();
 
@@ -27,6 +28,7 @@
     style="left:{left}px;top:{top}px;--sc:{color}"
     bind:clientWidth={boxW}
     bind:clientHeight={boxH}
+    use:tipWheel={spell}
   >
     {#if note}<div class="note">{note}</div>{/if}
     <SpellDetail {spell} />
@@ -46,8 +48,8 @@
     min-width: 220px;
     width: max-content;
     max-width: 360px;
-    max-height: 80vh;
-    overflow: hidden;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     font-size: 0.8rem;
     color: var(--ink);

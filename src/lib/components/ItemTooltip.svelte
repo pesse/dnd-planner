@@ -8,6 +8,7 @@
   import ItemDeclarationList from './item/ItemDeclarationList.svelte';
   import { itemArtUrl } from '../libraryArt';
   import type { ItemTrainingNote } from '../services/itemProficiency';
+  import { tipWheel } from '../utils/tipWheel';
 
   let { item, x, y, note = '', training }: {
     item: Item | null; x: number; y: number;
@@ -49,6 +50,7 @@
     style="left:{left}px;top:{top}px"
     bind:clientWidth={boxW}
     bind:clientHeight={boxH}
+    use:tipWheel={item}
   >
     <div class="tt-head">
       <div class="tt-title">
@@ -168,6 +170,8 @@
     min-width: 200px;
     width: max-content;
     max-width: 320px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     font-size: 0.8rem;
     color: var(--ink);

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { FeatEntry } from '../featsLibrary';
   import FeatDetail from './FeatDetail.svelte';
+  import { tipWheel } from '../utils/tipWheel';
 
   let { feat, x, y }: { feat: FeatEntry | null; x: number; y: number } = $props();
 
@@ -18,7 +19,7 @@
 <svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
 
 {#if feat}
-  <div class="feat-tooltip" style="left:{left}px;top:{top}px" bind:clientWidth={boxW} bind:clientHeight={boxH}>
+  <div class="feat-tooltip" style="left:{left}px;top:{top}px" bind:clientWidth={boxW} bind:clientHeight={boxH} use:tipWheel={feat}>
     <FeatDetail {feat} />
   </div>
 {/if}
@@ -36,8 +37,8 @@
     min-width: 220px;
     width: max-content;
     max-width: 360px;
-    max-height: 80vh;
-    overflow: hidden;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     font-size: 0.8rem;
     color: var(--ink);

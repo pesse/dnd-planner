@@ -4,6 +4,7 @@
    * Anker ist x/y (Cursor + Offset), am rechten/unteren Viewport-Rand klappt die Box um.
    */
   import Markdown from './Markdown.svelte';
+  import { tipWheel } from '../utils/tipWheel';
 
   let { text, x, y }: { text: string | null; x: number; y: number } = $props();
 
@@ -19,7 +20,7 @@
 <svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
 
 {#if text}
-  <div class="text-tooltip" style="left:{left}px;top:{top}px" bind:clientWidth={boxW} bind:clientHeight={boxH}>
+  <div class="text-tooltip" style="left:{left}px;top:{top}px" bind:clientWidth={boxW} bind:clientHeight={boxH} use:tipWheel={text}>
     <Markdown source={text} />
   </div>
 {/if}
@@ -30,6 +31,7 @@
     background: var(--bg-panel); color: var(--ink);
     border: 1px solid var(--border); border-left: 3px solid var(--gold);
     border-radius: 6px; padding: 0.45rem 0.6rem; width: max-content; max-width: 300px;
+    max-height: calc(100vh - 16px); overflow-y: auto;
     box-shadow: 0 8px 24px rgba(20, 12, 2, 0.45); font-size: 0.8rem;
   }
 </style>
