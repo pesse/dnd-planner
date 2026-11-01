@@ -107,3 +107,23 @@ describe('Resistenz-Wahl am Inventar', () => {
     expect(inventoryOf(undefined)[0]).not.toHaveProperty('resistance');
   });
 });
+
+describe('Ausprägung und ausgewürfelte Vorräte am Inventar', () => {
+  const lineOf = (extra: { option?: string; rolled?: Record<string, number> }) => patchOf({
+    name: 'Testfigur',
+    inventory: [{ name: 'Dieb der Neun Leben (Zweihandschwert)', sourceKey: 'srd-2024_nine-lives-stealer-greatsword', count: '1', weight: '3', ...extra }],
+  }).inventory[0];
+
+  it('schreibt das Würfelergebnis in die Datei zurück', () => {
+    expect(lineOf({ rolled: { charges: 7 } }).rolled).toEqual({ charges: 7 });
+  });
+
+  it('schreibt die gewählte Ausprägung in die Datei zurück', () => {
+    expect(lineOf({ option: 'fire' }).option).toBe('fire');
+  });
+
+  it('schreibt ohne Wurf und Wahl keine Felder', () => {
+    expect(lineOf({})).not.toHaveProperty('rolled');
+    expect(lineOf({})).not.toHaveProperty('option');
+  });
+});

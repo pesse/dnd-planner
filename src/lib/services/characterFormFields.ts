@@ -324,6 +324,8 @@ export function formDraftPatch(
           ...(i.equipped && i.slot ? { slot: i.slot } : {}),
           ...(i.printCard ? { printCard: true } : {}),
           ...(i.resistance ? { resistance: i.resistance } : {}),
+          ...(i.option ? { option: i.option } : {}),
+          ...(i.rolled && Object.keys(i.rolled).length ? { rolled: { ...i.rolled } } : {}),
         };
       }),
     inventoryNotes: f.inventoryNotes,
