@@ -75,6 +75,8 @@
   function onpointerdown(e: PointerEvent) {
     // Sonst landen die Werkzeug-Tasten im zuletzt benutzten Panel-Feld.
     (document.activeElement as HTMLElement | null)?.blur();
+    // Sonst startet der Browser auf Token-Namen eine Textauswahl samt eigenem Drag & Drop.
+    e.preventDefault();
     viewport!.setPointerCapture(e.pointerId);
     const p = imagePoint(e);
     if (e.button === 1 || e.button === 2) {
@@ -224,6 +226,8 @@
   {onpointerdown}
   {onpointermove}
   {onpointerup}
+  onpointercancel={onpointerup}
+  ondragstart={(e) => e.preventDefault()}
   onpointerleave={() => (hover = null)}
   {onwheel}
   oncontextmenu={(e) => e.preventDefault()}
@@ -288,6 +292,7 @@
     overflow: hidden;
     background: #1b1712;
     touch-action: none;
+    user-select: none;
     cursor: grab;
   }
   .viewport:not(.tool-select) {
