@@ -14,6 +14,7 @@ import { slugKeepUmlauts, slugToName } from '../../../utils/text';
 import { npcSchema } from '../../../schemas/npc';
 import { DOCUMENT_TEMPLATES } from '../../../templates';
 import { newBattleMap, serializeBattleMap } from '../../../services/battleMap/mapFiles';
+import { instantiateCampaignTemplate, type CampaignTemplateRef } from '../../../services/templates/templates';
 
 interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -97,13 +98,28 @@ export class CampaignTreeState {
       console.error('Kampagne konnte nicht erstellt werden:', err);
       return false;
     }
+    await this.openCreated(slug);
+    return true;
+  }
+
+  /** @returns false, wenn das Kopieren scheitert. */
+  async createFromTemplate(template: CampaignTemplateRef, withCharacters: boolean): Promise<boolean> {
+    try {
+      await this.openCreated(await instantiateCampaignTemplate(template, withCharacters));
+      return true;
+    } catch (err) {
+      console.error('Kampagne konnte nicht aus der Vorlage erstellt werden:', err);
+      return false;
+    }
+  }
+
+  private async openCreated(slug: string): Promise<void> {
     await this.loadCampaigns();
     const newCampaign = this.campaigns.find((c) => c.path === slug);
     if (newCampaign) {
       activeCampaign.set(newCampaign);
-      await navigateTo({ name: 'campaign', path: campaignMd, type: 'campaign' });
+      await navigateTo({ name: 'campaign', path: `${VAULT_BASE}/${slug}/campaign.md`, type: 'campaign' });
     }
-    return true;
   }
 
   cancelNewCampaign(e: KeyboardEvent): void {

@@ -484,6 +484,25 @@ async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     .await
 }
 
+/// Kopiert einen Ordner rekursiv; ein vorhandenes Ziel bleibt unangetastet, damit eine
+/// Vorlage nie einen gespielten Stand überschreibt.
+#[tauri::command]
+async fn copy_dir(from: String, to: String) -> Result<(), String> {
+    blocking(move || {
+        let src = resolve_path(&from);
+        let dst = resolve_path(&to);
+        if !src.is_dir() {
+            return Err(format!("{} ist kein Ordner", from));
+        }
+        if dst.exists() {
+            return Err(format!("{} existiert bereits", to));
+        }
+        let (mut copied, mut skipped) = (0usize, 0usize);
+        copy_dir_recursive(&src, &dst, &mut copied, &mut skipped)
+    })
+    .await
+}
+
 /// Speichert einen API-Key im OS-Keychain (Windows Credential Manager / macOS Keychain / libsecret).
 /// `provider` ist der Service-Name, z.B. "anthropic" oder "groq".
 #[tauri::command]
@@ -1149,6 +1168,7 @@ pub fn run() {
             list_json_entries,
             read_json_folder,
             rename_file,
+            copy_dir,
             delete_path,
             write_file_base64,
             load_spells_index,
