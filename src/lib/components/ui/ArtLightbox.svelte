@@ -1,12 +1,8 @@
 <script lang="ts">
   /** Bibliotheksbild groß über allem; Klick oder Escape schließt. */
-  let { src, color, onclose }: { src: string; color: string; onclose: () => void } = $props();
+  import { portal } from '../../utils/portal';
 
-  // An den Body gehängt: ein Vorfahr mit transform/overflow würde `position: fixed` einsperren.
-  function portal(node: HTMLElement) {
-    document.body.appendChild(node);
-    return { destroy: () => node.remove() };
-  }
+  let { src, color, onclose }: { src: string; color: string; onclose: () => void } = $props();
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />

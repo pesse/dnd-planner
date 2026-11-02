@@ -1,6 +1,7 @@
 <script lang="ts" generics="T extends { url: string; label: string }">
   import type { Snippet } from 'svelte';
   import Modal from './Modal.svelte';
+  import { portal } from '../../utils/portal';
 
   let { images, id, below }: {
     images: T[];
@@ -23,10 +24,14 @@
   {/each}
 </div>
 
+<svelte:window onkeydown={(e) => zoomed && e.key === 'Escape' && (zoomed = null)} />
+
 {#if zoomed}
-  <Modal title={zoomed.label} width="min(900px, 92vw)" maxHeight="92vh" onclose={() => (zoomed = null)}>
-    <img class="zoomed" src={zoomed.url} alt={zoomed.label} />
-  </Modal>
+  <div use:portal>
+    <Modal title={zoomed.label} draggable={false} width="min(900px, 92vw)" maxHeight="92vh" onclose={() => (zoomed = null)}>
+      <img class="zoomed" src={zoomed.url} alt={zoomed.label} />
+    </Modal>
+  </div>
 {/if}
 
 <style>
