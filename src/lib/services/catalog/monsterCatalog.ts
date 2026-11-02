@@ -1,6 +1,7 @@
 import { getMonsterLibrary, invalidateMonsterLibrary } from '../../monsterLibrary';
 import { availableArt } from '../../artUrl';
-import { monsterArtSlug, monsterArtUrl, monsterSceneUrl } from '../../libraryArt';
+import { monsterArtSlug, monsterArtUrl } from '../../libraryArt';
+import { presentEntryArt } from '../libraryEntryArt';
 import { monsterAlignmentLabel, monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
@@ -31,7 +32,7 @@ export const monsterCatalog: CatalogSpec = {
       altName: m.name_en,
       group: m.type,
       icon: monsterArtUrl(m),
-      art: art.has(`monster-scenes/${monsterArtSlug(m)}`) ? [monsterSceneUrl(m)].filter((u) => u !== null) : [],
+      art: presentEntryArt('monster', monsterArtSlug(m), [], art),
       iconColor: 'var(--red)',
       cells: {
         cr: { text: crLabel(m.challenge_rating), sort: m.challenge_rating },

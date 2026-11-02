@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Die Lese-Karte eines Bibliothekseintrags neben seinen Bildern, wie das Monster neben seiner Szene. */
+  /** Die Lese-Karte eines Bibliothekseintrags neben seinen Bildern, bei mehreren mit Picker. */
   import type { Snippet } from 'svelte';
   import { loadEntryArt, type ArtEntryKind } from '$lib/services/libraryEntryArt';
   import ArtStage from '../ui/ArtStage.svelte';

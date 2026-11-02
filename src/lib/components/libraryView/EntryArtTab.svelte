@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { availableArt } from '$lib/artUrl';
   import { artSpecies, entryArtCandidates, resolveEntryArt, type ArtEntryKind, type EntryArtGroup } from '$lib/services/libraryEntryArt';
   import ArtGallery from '../ui/ArtGallery.svelte';
 
@@ -11,7 +12,8 @@
     groups = null;
     let stale = false;
     (async () => {
-      const found = await resolveEntryArt(entryArtCandidates(k, key, await artSpecies()));
+      const [species, names] = await Promise.all([artSpecies(), availableArt()]);
+      const found = await resolveEntryArt(entryArtCandidates(k, key, species, names));
       if (!stale) groups = found;
     })();
     return () => { stale = true; };
