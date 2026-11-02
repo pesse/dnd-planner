@@ -7,6 +7,7 @@ import { battleMapSchema } from '$lib/schemas/battleMap';
 import { characterSchema } from '$lib/schemas/characterSchema';
 import { pendingCharacterUpgrade, upgradeCharacter } from '$lib/schemas/characterUpgrades';
 import { loadSpellcasting, openSpellChoices } from '$lib/services/spellcasting/project';
+import { buildCharacterChoices, choiceIdOf, collectChoiceSlots } from '$lib/services/characterChoices';
 
 const VAULT = 'vault';
 const TEMPLATES = join(VAULT, 'templates/campaigns');
@@ -71,5 +72,17 @@ describe.each(characterTemplates)('Charakter-Vorlage %s', (id) => {
     expect(openSpellChoices(state, lookup)).toEqual([]);
     expect(state.issues).toEqual([]);
     expect(c.spellcasting.manual?.extra ?? []).toEqual([]);
+  });
+
+  it('hat alle Merkmalswahlen getroffen', async () => {
+    const { slots } = await collectChoiceSlots(c);
+    const open = buildCharacterChoices(slots, { proficient: [], ledger: c.features }).filter((ch) => ch.open);
+    expect(open.map((ch) => choiceIdOf(ch.slot))).toEqual([]);
+  });
+
+  // Sonst bietet der Editor sofort „Alles umstellen" für die TP-Aufschlüsselung an.
+  it('führt die TP als Würfelsumme', () => {
+    expect(c.hpDiceTotal).toBeGreaterThan(0);
+    expect(c.hpMax).toBe('');
   });
 });
