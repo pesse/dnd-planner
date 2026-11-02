@@ -9,13 +9,12 @@ const base = {
 };
 
 describe('portraitArtNames', () => {
-  it('nimmt Subklasse, Klasse, Hintergrund und Volk der eigenen Figur, dann die Kombination', () => {
+  it('nimmt Subklasse, Klasse, Hintergrund und Volk der eigenen Figur', () => {
     expect(portraitArtNames({ ...base, presentation: 'feminine' })).toEqual([
       'figures/elf-feminine/subclasses/gloom-stalker',
       'figures/elf-feminine/classes/ranger',
       'figures/elf-feminine/backgrounds/sage',
       'figures/elf-feminine/species',
-      'combos/elf-ranger',
     ]);
   });
 

@@ -43,9 +43,9 @@ describe('figureArt', () => {
     expect(figureArt([
       'figures/elf-feminine/species',
       'figures/elf-feminine/paperdoll',
-      'combos/human-wizard',
+      'classes/wizard',
       'spells/fireball',
       'monsters/aboleth',
-    ])).toEqual(['/art/figures/elf-feminine/species.avif', '/art/combos/human-wizard.avif']);
+    ])).toEqual(['/art/figures/elf-feminine/species.avif', '/art/classes/wizard.avif']);
   });
 });

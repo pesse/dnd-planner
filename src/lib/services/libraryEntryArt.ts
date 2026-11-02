@@ -51,8 +51,7 @@ export function entryArtCandidates(
     ...general,
     ...species.map((s) => {
       const sp = slugOf(s.key);
-      const combo = kind === 'class' ? [{ name: `combos/${sp}-${slug}`, label: 'Szene' }] : [];
-      return { title: s.name, candidates: [...figures(sp, `${folder}/${slug}`), ...combo] };
+      return { title: s.name, candidates: figures(sp, `${folder}/${slug}`) };
     }),
   ];
 }

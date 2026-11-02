@@ -12,12 +12,12 @@ describe('Bilder-Reiter der Bibliothekseinträge', () => {
     ]);
   });
 
-  it('sammelt bei der Klasse Grundbild, Figuren und Szene je Volk', () => {
+  it('sammelt bei der Klasse Grundbild und Figuren je Volk', () => {
     const groups = entryArtCandidates('class', 'srd-2024_fighter', species);
     expect(groups[0]).toEqual({ title: 'Allgemein', candidates: [{ name: 'classes/fighter', label: 'Ohne Volk' }] });
     expect(names(groups)[2]).toEqual(['Ork', [
       'figures/orc-feminine/classes/fighter', 'figures/orc-androgynous/classes/fighter',
-      'figures/orc-masculine/classes/fighter', 'combos/orc-fighter',
+      'figures/orc-masculine/classes/fighter',
     ]]);
   });
 
@@ -25,7 +25,6 @@ describe('Bilder-Reiter der Bibliothekseinträge', () => {
     expect(names(entryArtCandidates('subclass', 'srd-2024_champion', species)).map(([t]) => t)).toEqual(['Zwerg', 'Ork']);
     const bg = entryArtCandidates('background', 'srd-2024_sage', species);
     expect(bg[0].candidates[0].name).toBe('backgrounds/sage');
-    expect(bg[1].candidates.map((c) => c.name)).not.toContain('combos/dwarf-sage');
   });
 
   it('zeigt beim Monster Szene und Symbol, eigene Monster unter ihrem Namens-Slug', () => {
