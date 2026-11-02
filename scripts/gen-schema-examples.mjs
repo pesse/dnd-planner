@@ -51,6 +51,7 @@ function example(node, top = false) {
   }
 
   if (type === 'array') {
+    if (node.prefixItems) return node.prefixItems.map((p) => example(p));
     // Array einer Objekt-Union: alle Varianten als Elemente — vollständig UND gültig.
     const objects = unionBranches(node.items);
     const items = objects ? objects.map((b) => example(b)) : [example(node.items)];
