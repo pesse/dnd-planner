@@ -6,10 +6,12 @@
   import { checkForNews, checkingForNews } from '../../services/checkForNews';
   import { pushError } from '../../stores/toasts';
   import { navigateHome } from '../../services/navigation';
+  import { imageMarks, imageMarksOpen } from '../../stores/imageMarks';
 
   let { onTransferClick }: { onTransferClick(): void } = $props();
 
   let libUpdates = $derived(updateCount($libraries));
+  let openMarks = $derived($imageMarks.filter((m) => m.status === 'open').length);
   // Der Start installiert fehlende offene Bibliotheken ungefragt — ohne Balken hier liefe der
   // Bild-Download unsichtbar.
   let running = $derived([...$installing].map((id) => ({ id, name: $libraries.find((l) => l.id === id)?.name ?? id })));
@@ -42,6 +44,14 @@
       onclick={() => libraryManagerOpen.set(true)}
     ><img src="/branding/icons/library.png" alt="" /></button>
     <button class="header-btn" title="Vault importieren / exportieren" onclick={onTransferClick}><img src="/branding/icons/transfer.png" alt="" /></button>
+    <button
+      class="header-btn marks-btn"
+      class:has-marks={openMarks > 0}
+      title={openMarks > 0
+        ? `${openMarks} offene Bild-Fehlermarkierung(en) — setzen mit Shift+M`
+        : 'Bild-Fehlermarkierungen — setzen mit Shift+M'}
+      onclick={() => imageMarksOpen.set(true)}
+    ><img src="/branding/icons/marks.png" alt="" />{#if openMarks > 0}<span class="marks-count">{openMarks}</span>{/if}</button>
     <button
       class="header-btn"
       title="Fehlerprotokoll im Explorer zeigen"
@@ -122,6 +132,22 @@
   .header-btn.checking img { animation: checking-pulse 1s ease-in-out infinite alternate; }
   @keyframes checking-pulse { to { opacity: 0.3; } }
   .header-btn.library-update { opacity: 1; filter: drop-shadow(0 0 3px var(--gold)); }
+
+  .marks-btn { position: relative; }
+  .sidebar-header .marks-btn.has-marks { opacity: 1; }
+  .marks-count {
+    position: absolute;
+    right: -0.1rem;
+    bottom: -0.2rem;
+    min-width: 0.85rem;
+    padding: 0 0.15rem;
+    border-radius: 0.5rem;
+    background: var(--danger);
+    color: var(--bg);
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 0.85rem;
+  }
 
   .install-row {
     flex: 1 0 100%;

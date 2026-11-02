@@ -1,0 +1,14 @@
+{
+  "id": "string",
+  "address": "string",
+  "url": "string",
+  "where": "string",
+  "x": 0,
+  "y": 0,
+  "width": 0,
+  "height": 0,
+  "text": "string",
+  "status": "open",
+  "fingerprint": "string",
+  "createdAt": "string"
+}
