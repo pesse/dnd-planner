@@ -53,6 +53,6 @@ export function classFeatureEntries(features: readonly ClassFeature[], note?: st
     name: f.nameDe || f.name,
     text: f.descDe || f.desc,
     level: f.gainedAt[0],
-    note: [f.gainedAt.length > 1 ? `Stufe ${f.gainedAt.join(', ')}` : '', note ?? ''].filter(Boolean).join(' · ') || undefined,
+    note: [f.gainedAt.length ? `Stufe ${f.gainedAt.join(', ')}` : '', note ?? ''].filter(Boolean).join(' · ') || undefined,
   }));
 }
