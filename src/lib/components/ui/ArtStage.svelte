@@ -2,31 +2,51 @@
   import type { Snippet } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { isMirroredArt, resolveOriginArt } from '../../services/wizard/originArt';
+  import ArtPicker from './ArtPicker.svelte';
 
-  /** Karte links, das erste vorhandene Stimmungsbild aus `candidates` rechts darüber hinaus. */
-  let { candidates, whole = false, children }: {
-    candidates: string[];
+  /**
+   * Karte links, ein Stimmungsbild rechts darüber hinaus: das erste vorhandene aus `candidates`,
+   * oder aus `images` (alle vorhanden) mit Picker.
+   */
+  let { candidates = [], images, whole = false, children }: {
+    candidates?: string[];
+    images?: string[];
     /** Das ganze Bild statt eines Ausschnitts: die Karte gibt Breite ab. Für Szenen ohne Figur am Rand. */
     whole?: boolean;
     children: Snippet;
   } = $props();
 
-  let art = $state<string | null>(null);
+  let probed = $state<string | null>(null);
   $effect(() => {
+    if (images) return;
     const list = candidates;
     let cancelled = false;
-    void resolveOriginArt(list).then((url) => { if (!cancelled) art = url; });
+    void resolveOriginArt(list).then((url) => { if (!cancelled) probed = url; });
     return () => { cancelled = true; };
   });
+
+  let shown = $state(0);
+  $effect.pre(() => {
+    void images;
+    shown = 0;
+  });
+  let art = $derived(images ? (images[shown] ?? null) : probed);
 </script>
 
 <div class="stage" class:with-art={!!art} class:whole>
   {#if art}
-    {#key art}
-      <figure class="art" out:fade={{ duration: 350 }}>
-        <img src={art} alt="" class:mirrored={isMirroredArt(art)} in:fly={{ x: 40, duration: 800 }} />
-      </figure>
-    {/key}
+    <div class="art-col">
+      {#if images && images.length > 1}
+        <div class="picker">
+          <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} />
+        </div>
+      {/if}
+      {#key art}
+        <figure class="art" out:fade={{ duration: 350 }}>
+          <img src={art} alt="" class:mirrored={isMirroredArt(art)} in:fly={{ x: 40, duration: 800 }} />
+        </figure>
+      {/key}
+    </div>
   {/if}
   <div class="card">{@render children()}</div>
 </div>
@@ -47,8 +67,13 @@
   }
   /* Zentriert zwischen Karte und Spaltenrand — das rechte Spalten-Padding zählt zur freien
      Fläche. Reicht der Platz nicht, schneidet `cover` links und rechts gleich viel ab. */
+  .art-col { grid-area: 1 / 2; position: sticky; top: 0; display: grid; min-width: 0; }
+  .picker {
+    grid-area: 1 / 1; z-index: 1; align-self: start; justify-self: center;
+    max-width: 100%; margin-top: 0.4rem; padding: 0 0.6rem;
+  }
   .art {
-    grid-area: 1 / 2; position: sticky; top: 0; justify-self: center;
+    grid-area: 1 / 1; justify-self: center;
     margin: 0 calc(-1 * var(--fw-pad-x, 0px)) 0 0;
     width: min(var(--art-w), 100% + var(--fw-pad-x, 0px)); height: calc(100vh - 12rem); pointer-events: none;
     /* Das Einfliegen des Bildes würde sonst die Spalte verbreitern: kurzer horizontaler Scrollbalken. */
@@ -68,7 +93,7 @@
   .whole .art img { object-fit: contain; object-position: center; }
   .art img.mirrored { transform: scaleX(-1); object-position: 38% center; }
   @media (max-width: 1100px) {
-    .art { display: none; }
+    .art-col { display: none; }
     .stage.with-art { grid-template-columns: minmax(0, 1fr); }
   }
 </style>

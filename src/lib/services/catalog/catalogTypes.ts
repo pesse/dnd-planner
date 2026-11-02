@@ -43,8 +43,8 @@ export interface CatalogRow {
   group: string;
   icon: string | null;
   iconColor: string;
-  /** Stimmungsbild oder Porträt; die Galerie zieht es `icon` vor und füllt damit die Kachel. */
-  art?: string | null;
+  /** Stimmungsbilder oder Porträt; die Galerie zieht sie `icon` vor, das erste füllt die Kachel. */
+  art?: string[];
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
   /**

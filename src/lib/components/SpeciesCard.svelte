@@ -6,6 +6,7 @@
   import CardParseError from './ui/CardParseError.svelte';
   import SpeciesCardView from './libraryView/SpeciesCardView.svelte';
   import EntryArtTab from './libraryView/EntryArtTab.svelte';
+  import EntryArtStage from './libraryView/EntryArtStage.svelte';
   import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -70,11 +71,13 @@
     style="--ep-accent: var(--green)"
   >
     {#snippet karte()}
-      <SpeciesCardView species={draft!}>
-        {#snippet badge()}
-          {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
-        {/snippet}
-      </SpeciesCardView>
+      <EntryArtStage kind="species" entryKey={draft!.key ?? ''}>
+        <SpeciesCardView species={draft!}>
+          {#snippet badge()}
+            {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
+          {/snippet}
+        </SpeciesCardView>
+      </EntryArtStage>
     {/snippet}
 
     {#snippet bearbeiten()}

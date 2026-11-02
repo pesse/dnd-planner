@@ -31,7 +31,7 @@ export const monsterCatalog: CatalogSpec = {
       altName: m.name_en,
       group: m.type,
       icon: monsterArtUrl(m),
-      art: art.has(`monster-scenes/${monsterArtSlug(m)}`) ? monsterSceneUrl(m) : null,
+      art: art.has(`monster-scenes/${monsterArtSlug(m)}`) ? [monsterSceneUrl(m)].filter((u) => u !== null) : [],
       iconColor: 'var(--red)',
       cells: {
         cr: { text: crLabel(m.challenge_rating), sort: m.challenge_rating },

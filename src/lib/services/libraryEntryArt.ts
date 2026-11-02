@@ -1,7 +1,8 @@
 /** Die Stimmungsbilder eines Bibliothekseintrags für seinen Bilder-Reiter, nach Volk gruppiert. */
 import { PRESENTATIONS } from '$lib/schemas/characterSchema';
 import { PRESENTATION_LABEL } from '$lib/domain/presentation';
-import { artUrl } from '$lib/artUrl';
+import { artUrl, availableArt } from '$lib/artUrl';
+import { getSpeciesList, speciesDisplayName } from '$lib/speciesLibrary';
 import { resolveOriginArt, slugOf } from './wizard/originArt';
 
 export type ArtEntryKind = 'species' | 'class' | 'subclass' | 'background' | 'monster';
@@ -54,6 +55,35 @@ export function entryArtCandidates(
       return { title: s.name, candidates: [...figures(sp, `${folder}/${slug}`), ...combo] };
     }),
   ];
+}
+
+/** Die Völker, nach denen `entryArtCandidates` gruppiert. */
+export async function artSpecies(): Promise<{ key: string; name: string }[]> {
+  return (await getSpeciesList())
+    .flatMap((s) => (s.key ? [{ key: s.key, name: speciesDisplayName(s) }] : []))
+    .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+/**
+ * Alle vorhandenen Bilder eines Eintrags als URLs, synchron gegen eine `availableArt`-Liste statt
+ * je Bild zu proben. Eine Unterklasse ohne eigene Figuren leiht sich das Bild ihrer Klasse.
+ */
+export function presentEntryArt(
+  kind: ArtEntryKind,
+  key: string,
+  species: { key: string; name: string }[],
+  names: Set<string>,
+  parentKey?: string,
+): string[] {
+  const urls = entryArtCandidates(kind, key, species)
+    .flatMap((g) => g.candidates.filter((c) => names.has(c.name)).map((c) => artUrl(c.name)));
+  const parent = parentKey && `${FOLDER.class}/${slugOf(parentKey)}`;
+  return !urls.length && parent && names.has(parent) ? [artUrl(parent)] : urls;
+}
+
+export async function loadEntryArt(kind: ArtEntryKind, key: string, parentKey?: string): Promise<string[]> {
+  const [species, names] = await Promise.all([artSpecies(), availableArt()]);
+  return presentEntryArt(kind, key, species, names, parentKey);
 }
 
 export async function resolveEntryArt(groups: ArtCandidateGroup[]): Promise<EntryArtGroup[]> {

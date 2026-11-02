@@ -6,6 +6,7 @@
   import CardParseError from './ui/CardParseError.svelte';
   import ClassCardView from './libraryView/ClassCardView.svelte';
   import EntryArtTab from './libraryView/EntryArtTab.svelte';
+  import EntryArtStage from './libraryView/EntryArtStage.svelte';
   import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -70,11 +71,13 @@
     style="--ep-accent: var(--copper)"
   >
     {#snippet karte()}
-      <ClassCardView klass={draft!}>
-        {#snippet badge()}
-          {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
-        {/snippet}
-      </ClassCardView>
+      <EntryArtStage kind={draft!.subclassOf ? 'subclass' : 'class'} entryKey={draft!.key} parentKey={draft!.subclassOf}>
+        <ClassCardView klass={draft!}>
+          {#snippet badge()}
+            {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
+          {/snippet}
+        </ClassCardView>
+      </EntryArtStage>
     {/snippet}
 
     {#snippet bearbeiten()}

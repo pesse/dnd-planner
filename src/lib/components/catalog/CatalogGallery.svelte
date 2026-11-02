@@ -19,15 +19,15 @@
   let failed = $state<Record<string, true>>({});
   let tiles: Record<string, HTMLElement> = {};
 
-  /** Stimmungsbild vor Symbol; was nicht lädt, fällt auf das nächste zurück. */
-  function imageOf(row: CatalogRow): GalleryImage | null {
-    if (row.art && !failed[row.art]) return { url: row.art, art: true };
-    if (row.icon && !failed[row.icon]) return { url: row.icon, art: false };
-    return null;
+  /** Stimmungsbilder vor Symbol; was nicht lädt, fällt weg. Die Kachel zeigt das erste. */
+  function imagesOf(row: CatalogRow): GalleryImage[] {
+    const art = (row.art ?? []).map((url) => ({ url, art: true }));
+    const icon = row.icon && !row.art?.includes(row.icon) ? [{ url: row.icon, art: false }] : [];
+    return [...art, ...icon].filter((img) => !failed[img.url]);
   }
 
   /** Hochformat-Kacheln, sobald der Katalog überhaupt Stimmungsbilder kennt — gemischte Höhen zerreißen das Raster. */
-  let tall = $derived(rows.some((r) => r.art));
+  let tall = $derived(rows.some((r) => r.art?.length));
 
   /** Am Pfad statt am Index: ein Filterwechsel darf die Auswahl nicht auf einen anderen Eintrag schieben. */
   let selected = $state<string | null>(null);
@@ -65,7 +65,7 @@
     t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || editable(e.target)) return;
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || editable(e.target)) return;
     // Ein anderer Dialog (Vorschau, Anlegen) hat die Tastatur.
     if (document.querySelector('[role="dialog"]:not(.spotlight)')) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -86,7 +86,7 @@
 <div class="gallery-wrap" use:historyScroll>
   <div class="grid" class:tall>
     {#each rows as row (row.path)}
-      {@const img = imageOf(row)}
+      {@const img = imagesOf(row)[0]}
       <button
         type="button"
         class="tile"
@@ -119,7 +119,7 @@
   <GallerySpotlight
     row={rows[index]}
     entry={entryOf(rows[index])}
-    image={imageOf(rows[index])}
+    images={imagesOf(rows[index])}
     position={`${index + 1} / ${rows.length}`}
     {origin}
     onclose={close}

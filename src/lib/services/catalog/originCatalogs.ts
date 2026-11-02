@@ -1,13 +1,12 @@
 /** Klassen, Spezies und Hintergründe als Kataloge: wenige Spalten, dafür ein Stimmungsbild. */
-import { artUrl, availableArt } from '../../artUrl';
+import { availableArt } from '../../artUrl';
+import { artSpecies, presentEntryArt } from '../libraryEntryArt';
 import { CLASSES_PATH } from '../../classLibrary';
 import { SPECIES_PATH } from '../../speciesLibrary';
 import { BACKGROUNDS_PATH } from '../../backgroundsLibrary';
 import { featDisplayName, getFeats } from '../../featsLibrary';
-import { PRESENTATIONS } from '../../schemas/characterSchema';
 import { sourceLabel } from '../../schemas/source';
 import { scanJsonFolder, type FileContext } from '../library/createLibrary';
-import { slugOf } from '../wizard/originArt';
 import { byLabel, sourceFacet, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
 
 type Raw = Record<string, any>;
@@ -24,15 +23,6 @@ async function scan(dir: string): Promise<Entry[]> {
     return [];
   }
 }
-
-const firstArt = (names: Set<string>, candidates: string[]): string | null => {
-  const hit = candidates.find((c) => names.has(c));
-  return hit ? artUrl(hit) : null;
-};
-
-/** Gemalte Figuren gibt es je Volk × Äußerem — die Galerie nimmt die erste vorhandene. */
-const figureCandidates = (names: Set<string>, leaf: string): string[] =>
-  [...names].filter((n) => n.startsWith('figures/') && n.endsWith(`/${leaf}`)).sort();
 
 function baseRow(e: Entry, iconColor: string): Omit<CatalogRow, 'group' | 'cells' | 'facets'> {
   const name = (e.data.nameDe as string) || (e.data.name as string) || e.ctx.filename.replace('.json', '');
@@ -67,20 +57,16 @@ export const classCatalog: CatalogSpec = {
   facets: { role: 'Art', source: 'Quelle' },
   invalidate: () => {},
   async load() {
-    const [entries, names] = await Promise.all([scan(CLASSES_PATH), availableArt()]);
+    const [entries, names, species] = await Promise.all([scan(CLASSES_PATH), availableArt(), artSpecies()]);
     const bases = entries.filter((e) => !e.data.subclassOf);
-    const baseArt = new Map(bases.map((e) => [e.data.key as string, `classes/${slugOf(e.data.key ?? '')}`]));
     const rows: CatalogRow[] = entries.map((e) => {
       const parent = e.data.subclassOf as string | undefined;
-      const slug = slugOf(e.data.key ?? '');
-      const art = parent
-        ? [...figureCandidates(names, `subclasses/${slug}`), baseArt.get(parent) ?? '']
-        : [`classes/${slug}`];
+      const art = presentEntryArt(parent ? 'subclass' : 'class', e.data.key ?? '', species, names, parent);
       const hitDie = Number(e.data.hitDie) || 0;
       return {
         ...baseRow(e, 'var(--gold)'),
         group: parent ?? e.data.key ?? '',
-        art: firstArt(names, art),
+        art,
         cells: {
           role: { text: parent ? SUBCLASS_ROLE.label : CLASS_ROLE.label, sort: parent ? 1 : 0 },
           hitDie: hitDie ? { text: `W${hitDie}`, sort: hitDie } : { text: '', sort: 0 },
@@ -106,11 +92,10 @@ export const speciesCatalog: CatalogSpec = {
   invalidate: () => {},
   async load() {
     const [entries, names] = await Promise.all([scan(SPECIES_PATH), availableArt()]);
-    const slug = (e: Entry) => slugOf(e.data.key ?? '');
     const rows: CatalogRow[] = entries.map((e) => ({
       ...baseRow(e, 'var(--gold)'),
       group: sourceFacet(e.data.source).id,
-      art: firstArt(names, PRESENTATIONS.map((p) => `figures/${slug(e)}-${p}/species`)),
+      art: presentEntryArt('species', e.data.key ?? '', [], names),
       cells: { source: sourceCell(e.data) },
       facets: {},
     }));
@@ -133,12 +118,13 @@ export const backgroundCatalog: CatalogSpec = {
   facets: {},
   invalidate: () => {},
   async load() {
-    const [entries, names, feats] = await Promise.all([scan(BACKGROUNDS_PATH), availableArt(), getFeats()]);
+    const [entries, names, feats, species] =
+      await Promise.all([scan(BACKGROUNDS_PATH), availableArt(), getFeats(), artSpecies()]);
     const featName = new Map(feats.map((f) => [f.sourceKey, featDisplayName(f)]));
     const rows: CatalogRow[] = entries.map((e) => ({
       ...baseRow(e, 'var(--gold)'),
       group: sourceFacet(e.data.source).id,
-      art: firstArt(names, [`backgrounds/${slugOf(e.data.key ?? '')}`]),
+      art: presentEntryArt('background', e.data.key ?? '', species, names),
       cells: { feat: { text: featName.get(e.data.featKey) ?? '' }, source: sourceCell(e.data) },
       facets: {},
     }));

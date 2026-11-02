@@ -9,13 +9,14 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import EntryCard from '../ui/EntryCard.svelte';
+  import ArtPicker from '../ui/ArtPicker.svelte';
   import type { CatalogRow } from '../../services/catalog/catalogTypes';
   import type { FileEntry } from '../../types';
 
-  let { row, entry, image, position, origin, onclose, onstep, onopen }: {
+  let { row, entry, images, position, origin, onclose, onstep, onopen }: {
     row: CatalogRow;
     entry: FileEntry;
-    image: GalleryImage | null;
+    images: GalleryImage[];
     /** „12 / 340" */
     position: string;
     /** Rahmen der Kachel, aus der das Bild herauswächst; `null` beim Blättern. */
@@ -26,10 +27,26 @@
   } = $props();
 
   let figure = $state<HTMLElement>();
+  let shown = $state(0);
+  /** Nach einem Bildwechsel blendet `{#key}` über, statt erneut aus der Kachel zu wachsen. */
+  let switched = $state(false);
+  $effect.pre(() => {
+    void row.path;
+    shown = 0;
+    switched = false;
+  });
+
+  function pick(i: number) {
+    shown = i;
+    switched = true;
+  }
+
+  let current = $derived(Math.min(shown, images.length - 1));
+  let image = $derived(images[current] ?? null);
 
   // Nur beim Öffnen: das Bild wächst aus seiner Kachel. Danach blendet `{#key}` beim Blättern über.
   $effect(() => {
-    if (!figure || !origin) return;
+    if (!figure || !origin || switched) return;
     const to = figure.getBoundingClientRect();
     if (!to.width || !to.height) return;
     const dx = origin.left + origin.width / 2 - (to.left + to.width / 2);
@@ -48,24 +65,31 @@
   <button type="button" class="nav prev" title="Vorheriges (←)" onclick={() => onstep(-1)}>‹</button>
 
   <div class="stage">
-    {#key row.path}
-      <button
-        type="button"
-        class="figure"
-        class:art={image?.art}
-        style="--ic:{row.iconColor}"
-        title="Öffnen"
-        bind:this={figure}
-        onclick={onopen}
-        in:fade={{ duration: origin ? 0 : 140 }}
-      >
-        {#if image}
-          <img src={image.url} alt="" />
-        {:else}
-          <span class="initial">{row.name.charAt(0)}</span>
-        {/if}
-      </button>
-    {/key}
+    <div class="figure-col">
+      {#if images.length > 1}
+        <div class="picker">
+          <ArtPicker count={images.length} index={current} onpick={pick} />
+        </div>
+      {/if}
+      {#key `${row.path}|${image?.url}`}
+        <button
+          type="button"
+          class="figure"
+          class:art={image?.art}
+          style="--ic:{row.iconColor}"
+          title="Öffnen"
+          bind:this={figure}
+          onclick={onopen}
+          in:fade={{ duration: origin && !switched ? 0 : 140 }}
+        >
+          {#if image}
+            <img src={image.url} alt="" />
+          {:else}
+            <span class="initial">{row.name.charAt(0)}</span>
+          {/if}
+        </button>
+      {/key}
+    </div>
 
     <aside class="info">
       <div class="card">
@@ -111,8 +135,23 @@
     min-height: 0;
   }
 
-  .figure {
+  .figure-col {
+    position: relative;
     flex: none;
+  }
+
+  .picker {
+    position: absolute;
+    z-index: 1;
+    top: 0.6rem;
+    left: 0.6rem;
+    right: 0.6rem;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .figure {
     display: grid;
     place-items: center;
     width: min(60vh, 42vw);
