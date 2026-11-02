@@ -28,8 +28,8 @@
     <dt>Ort</dt><dd>{draft.where}</dd>
     {#if earlier.length}<dt>Bisher</dt><dd>{earlier.length} offene Markierung(en) auf diesem Bild</dd>{/if}
   </dl>
-  <!-- svelte-ignore a11y_autofocus -->
-  <textarea bind:value={text} {onkeydown} rows="3" placeholder="Was stimmt an dieser Stelle nicht?" autofocus></textarea>
+  <!-- `autofocus` greift nicht: Svelte fokussiert nur, solange nichts anderes den Fokus hält (oft die Lightbox). -->
+  <textarea bind:value={text} {onkeydown} rows="3" placeholder="Was stimmt an dieser Stelle nicht?" {@attach (el) => el.focus()}></textarea>
   <div class="actions">
     <button class="cancel-btn" onclick={onclose}>Abbrechen</button>
     <button class="ok-btn" onclick={save}>Markierung speichern</button>
