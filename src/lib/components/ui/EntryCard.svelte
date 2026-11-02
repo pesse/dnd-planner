@@ -10,6 +10,7 @@
   import BackgroundCardView from '../libraryView/BackgroundCardView.svelte';
   import ItemCardView from '../item/ItemCardView.svelte';
   import MonsterStatBlock from '../MonsterStatBlock.svelte';
+  import MonsterLoreBlock from '../monster/MonsterLoreBlock.svelte';
   import CharacterPeekCard from '../character/CharacterPeekCard.svelte';
   import { rarityColor } from '../../itemLabels';
 
@@ -57,7 +58,7 @@
 
 {#if loaded?.data.ok}
   {#if loaded.type === 'spell'}<SpellCardView spell={loaded.data.data} />
-  {:else if loaded.type === 'monster'}<MonsterStatBlock monster={loaded.data.data} />
+  {:else if loaded.type === 'monster'}<MonsterStatBlock monster={loaded.data.data} /><MonsterLoreBlock path={entry.path ?? ''} />
   {:else if loaded.type === 'feat'}<FeatCardView feat={loaded.data.data} />
   {:else if loaded.type === 'class'}<ClassCardView klass={loaded.data.data} />
   {:else if loaded.type === 'species'}<SpeciesCardView species={loaded.data.data} />

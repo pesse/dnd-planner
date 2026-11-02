@@ -1,0 +1,21 @@
+{
+  "key": "string",
+  "source": "homebrew-sam",
+  "name": "string",
+  "nameDe": "string",
+  "tagline": "string",
+  "taglineDe": "string",
+  "habitat": "string",
+  "habitatDe": "string",
+  "treasure": "string",
+  "treasureDe": "string",
+  "intro": "string",
+  "introDe": "string",
+  "monsters": [
+    {
+      "slug": "string",
+      "intro": "string",
+      "introDe": "string"
+    }
+  ]
+}
