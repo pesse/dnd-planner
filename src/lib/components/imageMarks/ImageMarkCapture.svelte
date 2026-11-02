@@ -113,7 +113,7 @@
     top: 0.6rem;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 2001;
+    z-index: 20001;
     display: flex;
     align-items: center;
     gap: 0.8rem;
@@ -138,7 +138,7 @@
   .banner, .banner :global(*) { cursor: default !important; }
   .hover {
     position: fixed;
-    z-index: 2000;
+    z-index: 20000;
     pointer-events: none;
     outline: 2px dashed var(--danger);
     outline-offset: 2px;

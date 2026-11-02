@@ -20,7 +20,8 @@
   }
 </script>
 
-<Modal title="Fehler im Bild markieren" draggable={false} width="min(520px, 92vw)" {onclose}>
+<!-- Über der Bild-Lightbox (ArtLightbox), aus der heraus oft markiert wird. -->
+<Modal title="Fehler im Bild markieren" draggable={false} layer={20000} width="min(520px, 92vw)" {onclose}>
   <MarkedImage url={draft.url} width={draft.width} height={draft.height} pins={[...earlier, { ...point, current: true }]} maxHeight="18rem" onpick={(p) => (point = p)} />
   <dl class="facts">
     <dt>Bild</dt><dd class="mono">{draft.address}</dd>
