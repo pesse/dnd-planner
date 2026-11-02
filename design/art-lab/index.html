@@ -83,15 +83,15 @@
 
   /* Leuchtkasten */
   #box { position: fixed; inset: 0; background: rgba(20, 14, 8, 0.92); display: none; z-index: 10; color: #f3ead8; }
-  #box.open { display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+  #box.open { display: flex; justify-content: center; align-items: center; }
   #box-brief { margin: 0; font-size: 13px; line-height: 1.5; opacity: 0.9; overflow-y: auto; min-height: 0; }
   .tile .ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
   .tile img.ph-icon { width: 45%; aspect-ratio: 1; opacity: 0.45; cursor: default; }
   .tile img.mini { display: inline-block; width: 20px; height: 20px; aspect-ratio: 1; vertical-align: -5px; border-radius: 3px; cursor: default; }
   input[type=search] { font: inherit; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; }
-  #box img { max-width: 100%; max-height: 100vh; margin: auto; display: block; align-self: center; }
+  #box img { max-width: calc(100vw - 340px); max-height: 100vh; display: block; }
   #box img.mirrored { transform: scaleX(-1); }
-  #box .side { display: flex; flex-direction: column; gap: 12px; padding: 16px; height: 100vh; border-left: 1px solid #4a3a28; font-size: 13px; }
+  #box .side { flex: 0 0 340px; background: #1d150d; display: flex; flex-direction: column; gap: 12px; padding: 16px; height: 100vh; font-size: 13px; }
   #box .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #box .bar .wide { grid-column: span 2; }
   #box-cap { font-weight: 600; white-space: pre-wrap; }
