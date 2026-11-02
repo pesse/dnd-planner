@@ -35,7 +35,7 @@
 
 <div class="stage" class:with-art={!!art} class:whole>
   {#if art}
-    <div class="art-col">
+    <div class="art-col" class:picking={images && images.length > 1}>
       {#if images && images.length > 1}
         <div class="picker">
           <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} />
@@ -68,12 +68,9 @@
   /* Zentriert zwischen Karte und Spaltenrand — das rechte Spalten-Padding zählt zur freien
      Fläche. Reicht der Platz nicht, schneidet `cover` links und rechts gleich viel ab. */
   .art-col { grid-area: 1 / 2; position: sticky; top: 0; display: grid; min-width: 0; }
-  .picker {
-    grid-area: 1 / 1; z-index: 1; align-self: start; justify-self: center;
-    max-width: 100%; margin-top: 0.4rem; padding: 0 0.6rem;
-  }
+  .picker { grid-area: 1 / 1; justify-self: center; max-width: 100%; margin-bottom: 0.5rem; }
   .art {
-    grid-area: 1 / 1; justify-self: center;
+    grid-area: 2 / 1; justify-self: center;
     margin: 0 calc(-1 * var(--fw-pad-x, 0px)) 0 0;
     width: min(var(--art-w), 100% + var(--fw-pad-x, 0px)); height: calc(100vh - 12rem); pointer-events: none;
     /* Das Einfliegen des Bildes würde sonst die Spalte verbreitern: kurzer horizontaler Scrollbalken. */
@@ -84,6 +81,7 @@
     mask-composite: intersect;
   }
   .art img { width: 100%; height: 100%; object-fit: cover; object-position: 62% center; }
+  .picking .art { height: calc(100vh - 14.5rem); }
   .whole.with-art { grid-template-columns: minmax(24rem, 1fr) auto; }
   .whole .art {
     width: auto; aspect-ratio: 2 / 3; margin: 0;

@@ -142,10 +142,9 @@
 
   .picker {
     position: absolute;
-    z-index: 1;
-    top: 0.6rem;
-    left: 0.6rem;
-    right: 0.6rem;
+    bottom: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: center;
     pointer-events: none;
