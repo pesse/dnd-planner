@@ -13,7 +13,7 @@ export function portraitArtNames(c: PortraitArtSource): string[] {
   const classes = c.classes.filter((cl) => cl.sourceKey);
   const background = c.backgroundRef.sourceKey && slugOf(c.backgroundRef.sourceKey);
   const looks = c.presentation ? [c.presentation] : [...PRESENTATIONS];
-  const figures = species
+  return species
     ? looks.flatMap((look) => {
         const fig = `figures/${species}-${look}`;
         return [
@@ -26,8 +26,6 @@ export function portraitArtNames(c: PortraitArtSource): string[] {
         ];
       })
     : [];
-  const combos = species ? classes.map((cl) => `combos/${species}-${slugOf(cl.sourceKey)}`) : [];
-  return [...figures, ...combos];
 }
 
 export async function resolvePortraitArt(c: PortraitArtSource): Promise<string[]> {

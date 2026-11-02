@@ -17,6 +17,7 @@
     maxHeight = '84vh',
     pad = '1.1rem',
     padBottom = '1.2rem',
+    layer = 1000,
     onclose,
     children,
   }: {
@@ -30,6 +31,8 @@
     maxHeight?: string;
     pad?: string;
     padBottom?: string;
+    /** z-index des Dialogs, der Backdrop liegt eins darunter. */
+    layer?: number;
     onclose: () => void;
     children: Snippet;
   } = $props();
@@ -38,13 +41,13 @@
   const drag = untrack(() => (draggable ? createDragDialog(top) : null));
 
   const style = $derived(
-    `--modal-w: ${width}; --modal-max-h: ${maxHeight}; --modal-pad: ${pad}; --modal-pad-b: ${padBottom};` +
+    `--modal-z: ${layer}; --modal-w: ${width}; --modal-max-h: ${maxHeight}; --modal-pad: ${pad}; --modal-pad-b: ${padBottom};` +
       (drag ? ` left: ${drag.pos.x}px; top: ${drag.pos.y}px;` : ''),
   );
 </script>
 
 {#if !draggable}
-  <div class="backdrop" role="presentation" onclick={onclose}></div>
+  <div class="backdrop" role="presentation" style="z-index: {layer - 1};" onclick={onclose}></div>
 {/if}
 
 <div class="dialog {contentClass}" class:centered={!draggable} {style} role="dialog" aria-label={label}>
@@ -60,7 +63,6 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.45);
-    z-index: 999;
   }
 
   .dialog {
@@ -76,7 +78,7 @@
     flex-direction: column;
     gap: 0.7rem;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: var(--modal-z);
   }
   .dialog.centered {
     left: 50%;

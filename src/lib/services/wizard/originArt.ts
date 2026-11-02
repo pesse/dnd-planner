@@ -1,7 +1,7 @@
 /**
  * Stimmungsbilder aus `vault/art/` (`.avif`, Name = Bibliotheks-Key ohne Quellen-Präfix): die Figur
  * je Volk und Äußerem unter `figures/<volk>-<äußeres>/{species,classes/<k>,backgrounds/<h>}`; für
- * Charaktere ohne Äußeres `classes/`, `backgrounds/`, `combos/`.
+ * Charaktere ohne Äußeres `classes/`, `backgrounds/`.
  */
 import { PRESENTATIONS, type Presentation } from '$lib/schemas/characterSchema';
 import type { OriginKind } from './originCatalog';
@@ -21,15 +21,14 @@ export interface OriginArtKeys {
 export function originArtNames(kind: OriginKind, k: OriginArtKeys): string[] {
   const cls = k.classKey && `classes/${slugOf(k.classKey)}`;
   const bg = k.backgroundKey && `backgrounds/${slugOf(k.backgroundKey)}`;
-  const combo = k.classKey && k.speciesKey && `combos/${slugOf(k.speciesKey)}-${slugOf(k.classKey)}`;
   const fig = k.speciesKey && k.presentation && `figures/${slugOf(k.speciesKey)}-${k.presentation}`;
   const figSpc = fig && `${fig}/species`;
   const figCls = fig && k.classKey && `${fig}/classes/${slugOf(k.classKey)}`;
   const figBg = fig && k.backgroundKey && `${fig}/backgrounds/${slugOf(k.backgroundKey)}`;
   const order = {
-    species: [figSpc, combo, cls],
-    background: [figBg, bg, figSpc, combo],
-    class: [figCls, combo, cls, figSpc],
+    species: [figSpc, cls],
+    background: [figBg, bg, figSpc],
+    class: [figCls, cls, figSpc],
   }[kind];
   return order.filter((n): n is string => !!n);
 }
@@ -70,11 +69,7 @@ export function artExists(url: string): Promise<boolean> {
  * Bilder, deren Aktion links liegt — dort sitzt die Karte. Die Serie ist sonst nach rechts gemalt;
  * ein neues nach links blickendes Bild gehört hier hinein.
  */
-const MIRRORED = [
-  'backgrounds/hermit', 'backgrounds/noble',
-  'combos/dragonborn-sorcerer', 'combos/tiefling-sorcerer', 'combos/orc-warlock',
-  'combos/fairy-wizard', 'combos/human-wizard', 'combos/orc-wizard', 'combos/human-monk',
-];
+const MIRRORED = ['backgrounds/hermit', 'backgrounds/noble'];
 
 // Erst beim Aufruf aufgelöst: beim Modul-Laden steht die Vault-Basis noch nicht fest.
 export const isMirroredArt = (url: string): boolean => MIRRORED.some((name) => artUrl(name) === url);

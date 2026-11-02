@@ -65,14 +65,13 @@
     style="--ep-accent: var(--gold)"
   >
     {#snippet karte()}
-      <FeatCardView feat={draft!}>
-        {#snippet badges()}<DeclarationBadge badge={declBadge} />{/snippet}
-      </FeatCardView>
+      <FeatCardView feat={draft!} />
     {/snippet}
 
     {#snippet bearbeiten()}
       {#if ed.draft}
         <CardEditWrap accent="var(--gold)">
+          <DeclarationBadge badge={declBadge} hint />
           <FeatEditForm bind:feat={ed.draft} />
         </CardEditWrap>
         <CardTools accent="var(--gold)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />

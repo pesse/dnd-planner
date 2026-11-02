@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '../services/httpFetch';
 import { pushError, pushNotice } from './toasts';
 import { invalidateLibraryCaches } from '../services/library/invalidate';
+import { announceFixedImageMarks } from './imageMarks';
 
 export type InstallState = 'installed' | 'update' | 'available';
 
@@ -176,6 +177,7 @@ export async function installLibrary(id: string, adopt = false): Promise<Install
     const summary = await invoke<InstallSummary>('install_library', { id, adopt });
     if (summary.written > 0 || summary.removed > 0) {
       invalidateLibraryCaches();
+      void announceFixedImageMarks();
     }
     await refreshLibraries(false);
     return summary;

@@ -20,10 +20,12 @@
     accent?: string;
   } = $props();
 
-  const open = $derived(entries.filter((e) => (e.level ?? 0) <= openUpTo));
+  // Stabil: gleiche Stufe behält die Reihenfolge der Datei.
+  const sorted = $derived([...entries].sort((a, b) => (a.level ?? 0) - (b.level ?? 0)));
+  const open = $derived(sorted.filter((e) => (e.level ?? 0) <= openUpTo));
   const later = $derived.by(() => {
     const byLevel = new Map<number, FeatureListEntry[]>();
-    for (const e of entries) {
+    for (const e of sorted) {
       if ((e.level ?? 0) <= openUpTo) continue;
       byLevel.set(e.level!, [...(byLevel.get(e.level!) ?? []), e]);
     }

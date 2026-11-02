@@ -9,7 +9,7 @@ import {
   levelBadgeText, levelGroupLabel, levelLabel, schoolDirColor, schoolDirLabel, spellBadgeColor,
 } from '../spellBadge';
 import {
-  byLabel, sourceFacet, type CatalogCell, type CatalogFacetValue, type CatalogKind, type CatalogRow, type CatalogSpec,
+  byLabel, sourceFacet, SOURCE_FACET, type CatalogCell, type CatalogFacetValue, type CatalogKind, type CatalogRow, type CatalogSpec,
 } from './catalogTypes';
 
 interface LoadedSpell {
@@ -135,7 +135,7 @@ function spellCatalog(axis: Axis): CatalogSpec {
       classes: { label: 'Klassen', wrap: true },
     },
     columnSets: { '': [other, ...DETAIL_COLUMNS] },
-    facets: { [other]: AXES[other].groupLabel, class: 'Klasse', source: 'Quelle' },
+    facets: { [other]: { label: AXES[other].groupLabel }, class: { label: 'Klasse' }, source: SOURCE_FACET },
     views: { kinds: [AXES.school.kind, AXES.level.kind], facet: other },
     invalidate: library.invalidate,
     async load() {

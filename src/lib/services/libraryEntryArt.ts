@@ -1,7 +1,8 @@
 /** Die Stimmungsbilder eines Bibliothekseintrags für seinen Bilder-Reiter, nach Volk gruppiert. */
 import { PRESENTATIONS } from '$lib/schemas/characterSchema';
 import { PRESENTATION_LABEL } from '$lib/domain/presentation';
-import { artUrl } from '$lib/artUrl';
+import { artUrl, availableArt } from '$lib/artUrl';
+import { getSpeciesList, speciesDisplayName } from '$lib/speciesLibrary';
 import { resolveOriginArt, slugOf } from './wizard/originArt';
 
 export type ArtEntryKind = 'species' | 'class' | 'subclass' | 'background' | 'monster';
@@ -31,16 +32,30 @@ const FOLDER = { class: 'classes', subclass: 'subclasses', background: 'backgrou
 const figures = (speciesSlug: string, leaf: string): Candidate[] =>
   PRESENTATIONS.map((p) => ({ name: `figures/${speciesSlug}-${p}/${leaf}`, label: PRESENTATION_LABEL[p] }));
 
-/** Ein Volk zeigt nur seine drei Grundfiguren, nicht die Figuren in Klasse oder Hintergrund. */
+/** Weitere Szenen eines Monsters liegen im Ordner `monster-scenes/<slug>/` neben der ersten. */
+const monsterScenes = (slug: string, names: Set<string>): string[] => {
+  const first = `monster-scenes/${slug}`;
+  const more = [...names]
+    .filter((n) => n.startsWith(`${first}/`))
+    .sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+  return [first, ...more];
+};
+
+/**
+ * Ein Volk zeigt nur seine drei Grundfiguren, nicht die Figuren in Klasse oder Hintergrund.
+ * `names` braucht nur das Monster: die Zahl seiner Szenen steht erst im Bildbestand.
+ */
 export function entryArtCandidates(
   kind: ArtEntryKind,
   key: string,
   species: { key: string; name: string }[],
+  names: Set<string> = new Set(),
 ): ArtCandidateGroup[] {
   const slug = slugOf(key);
   if (kind === 'species') return [{ title: '', candidates: figures(slug, 'species') }];
   if (kind === 'monster') {
-    return [{ title: '', candidates: [{ name: `monster-scenes/${slug}`, label: 'Szene' }, { name: `monsters/${slug}`, label: 'Symbol' }] }];
+    const scenes = monsterScenes(slug, names).map((name, i) => ({ name, label: i ? `Szene ${i + 1}` : 'Szene' }));
+    return [{ title: '', candidates: [...scenes, { name: `monsters/${slug}`, label: 'Symbol' }] }];
   }
   const folder = FOLDER[kind];
   const general: ArtCandidateGroup[] = kind === 'subclass'
@@ -50,10 +65,40 @@ export function entryArtCandidates(
     ...general,
     ...species.map((s) => {
       const sp = slugOf(s.key);
-      const combo = kind === 'class' ? [{ name: `combos/${sp}-${slug}`, label: 'Szene' }] : [];
-      return { title: s.name, candidates: [...figures(sp, `${folder}/${slug}`), ...combo] };
+      return { title: s.name, candidates: figures(sp, `${folder}/${slug}`) };
     }),
   ];
+}
+
+/** Die Völker, nach denen `entryArtCandidates` gruppiert. */
+export async function artSpecies(): Promise<{ key: string; name: string }[]> {
+  return (await getSpeciesList())
+    .flatMap((s) => (s.key ? [{ key: s.key, name: speciesDisplayName(s) }] : []))
+    .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+/**
+ * Alle vorhandenen Bilder eines Eintrags als URLs, synchron gegen eine `availableArt`-Liste statt
+ * je Bild zu proben. Eine Unterklasse ohne eigene Figuren leiht sich das Bild ihrer Klasse; ein
+ * Monster zeigt nur seine Szenen, nicht sein Symbol.
+ */
+export function presentEntryArt(
+  kind: ArtEntryKind,
+  key: string,
+  species: { key: string; name: string }[],
+  names: Set<string>,
+  parentKey?: string,
+): string[] {
+  if (kind === 'monster') return monsterScenes(slugOf(key), names).filter((n) => names.has(n)).map(artUrl);
+  const urls = entryArtCandidates(kind, key, species)
+    .flatMap((g) => g.candidates.filter((c) => names.has(c.name)).map((c) => artUrl(c.name)));
+  const parent = parentKey && `${FOLDER.class}/${slugOf(parentKey)}`;
+  return !urls.length && parent && names.has(parent) ? [artUrl(parent)] : urls;
+}
+
+export async function loadEntryArt(kind: ArtEntryKind, key: string, parentKey?: string): Promise<string[]> {
+  const [species, names] = await Promise.all([artSpecies(), availableArt()]);
+  return presentEntryArt(kind, key, species, names, parentKey);
 }
 
 export async function resolveEntryArt(groups: ArtCandidateGroup[]): Promise<EntryArtGroup[]> {

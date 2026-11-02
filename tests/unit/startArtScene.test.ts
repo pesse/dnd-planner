@@ -39,13 +39,18 @@ describe('spawnSprite', () => {
 });
 
 describe('figureArt', () => {
-  it('nimmt nur Figuren-Szenen, ohne Gliederpuppe und Icons', () => {
+  it('nimmt Figuren- und Monster-Szenen, ohne Gliederpuppe und Icons', () => {
     expect(figureArt([
       'figures/elf-feminine/species',
       'figures/elf-feminine/paperdoll',
-      'combos/human-wizard',
+      'classes/wizard',
       'spells/fireball',
       'monsters/aboleth',
-    ])).toEqual(['/art/figures/elf-feminine/species.avif', '/art/combos/human-wizard.avif']);
+      'monster-scenes/aboleth',
+    ])).toEqual([
+      '/art/figures/elf-feminine/species.avif',
+      '/art/classes/wizard.avif',
+      '/art/monster-scenes/aboleth.avif',
+    ]);
   });
 });

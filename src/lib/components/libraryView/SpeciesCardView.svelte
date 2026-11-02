@@ -1,12 +1,11 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
   import type { Species } from '$lib/types';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
   import FeatureList from '../FeatureList.svelte';
   import { speciesFacts } from './speciesView';
 
-  let { species, badge }: { species: Species; badge?: Snippet } = $props();
+  let { species }: { species: Species } = $props();
 
   const facts = $derived(speciesFacts(species));
   const traits = $derived(
@@ -29,7 +28,6 @@
         {#if facts.speed}Bewegungsrate: {facts.speed}{/if}
       </div>
     {/if}
-    {@render badge?.()}
   {/snippet}
 
   {#if species.introDe}

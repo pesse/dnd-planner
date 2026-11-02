@@ -28,6 +28,7 @@ export function characterRow(uid: string, c: Character, portrait: string | null 
     name: characterLabel({ uid, name: c.name.trim() }),
     group: primary.id,
     icon: portrait,
+    art: portrait ? [portrait] : [],
     iconColor: 'var(--gold)',
     cells: {
       classLevel: { text: formatClassLevel(c.classes) || c.classLevel },
@@ -72,7 +73,7 @@ export const characterCatalog: CatalogSpec = {
     ac: { label: 'RK', numeric: true },
   },
   columnSets: { '': ['classLevel', 'level', 'species', 'background', 'player', 'hp', 'ac'] },
-  facets: { class: 'Klasse', species: 'Volk' },
+  facets: { class: { label: 'Klasse' }, species: { label: 'Volk' } },
   invalidate: () => {},
   async load() {
     const uids = await listCharacterDirs();

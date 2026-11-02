@@ -8,6 +8,7 @@ import { getSpeciesList, speciesDisplayName } from '../../speciesLibrary';
 import { getBackgroundsList, backgroundDisplayName } from '../../backgroundsLibrary';
 import type { FileEntry } from '../../types';
 import type { CreateKind } from './createSpecs';
+import type { CatalogKind } from '../catalog/catalogTypes';
 
 /** Ein Bibliothekseintrag; `children` trägt die Unterklassen einer Basisklasse. */
 export interface LibraryEntry {
@@ -23,13 +24,15 @@ export interface LibrarySection {
   addTitle: string;
   emptyLabel: string;
   icon: string;
+  /** Klick aufs Label öffnet die Katalog-Übersicht; der Pfeil klappt weiter auf. */
+  catalog: CatalogKind;
   load: () => Promise<LibraryEntry[]>;
 }
 
 export const LIBRARY_SECTIONS: LibrarySection[] = [
   {
     kind: 'class', type: 'class', label: 'Klassen', addTitle: 'Neue Klasse',
-    emptyLabel: 'Keine Klassen', icon: '📖',
+    emptyLabel: 'Keine Klassen', icon: '📖', catalog: 'class',
     load: async () =>
       (await getClassTree()).map((node) => ({
         name: classDisplayName(node),
@@ -39,13 +42,13 @@ export const LIBRARY_SECTIONS: LibrarySection[] = [
   },
   {
     kind: 'species', type: 'species', label: 'Spezies', addTitle: 'Neue Spezies',
-    emptyLabel: 'Keine Spezies', icon: '🧬',
+    emptyLabel: 'Keine Spezies', icon: '🧬', catalog: 'species',
     load: async () =>
       (await getSpeciesList()).map((info) => ({ name: speciesDisplayName(info), path: info.path })),
   },
   {
     kind: 'background', type: 'background', label: 'Hintergründe', addTitle: 'Neuer Hintergrund',
-    emptyLabel: 'Keine Hintergründe', icon: '🎭',
+    emptyLabel: 'Keine Hintergründe', icon: '🎭', catalog: 'background',
     load: async () =>
       (await getBackgroundsList()).map((info) => ({ name: backgroundDisplayName(info), path: info.path })),
   },

@@ -1,9 +1,11 @@
 import { getMonsterLibrary, invalidateMonsterLibrary } from '../../monsterLibrary';
-import { monsterArtUrl } from '../../libraryArt';
+import { availableArt } from '../../artUrl';
+import { monsterArtSlug, monsterArtUrl } from '../../libraryArt';
+import { presentEntryArt } from '../libraryEntryArt';
 import { monsterAlignmentLabel, monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
-import { byLabel, sourceFacet, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, SOURCE_FACET, type CatalogSpec } from './catalogTypes';
 
 /** Der Typ ist der Filter; alle Typen teilen sich ein Spalten-Set. */
 export const monsterCatalog: CatalogSpec = {
@@ -19,10 +21,10 @@ export const monsterCatalog: CatalogSpec = {
     hp: { label: 'TP', numeric: true },
   },
   columnSets: { '': ['cr', 'size', 'alignment', 'ac', 'hp'] },
-  facets: { source: 'Quelle' },
+  facets: { source: SOURCE_FACET },
   invalidate: invalidateMonsterLibrary,
   async load() {
-    const hits = await getMonsterLibrary();
+    const [hits, art] = await Promise.all([getMonsterLibrary(), availableArt()]);
     const rows = hits.map(({ slug, path, monster: m }) => ({
       path,
       entryName: slug,
@@ -30,6 +32,7 @@ export const monsterCatalog: CatalogSpec = {
       altName: m.name_en,
       group: m.type,
       icon: monsterArtUrl(m),
+      art: presentEntryArt('monster', monsterArtSlug(m), [], art),
       iconColor: 'var(--red)',
       cells: {
         cr: { text: crLabel(m.challenge_rating), sort: m.challenge_rating },

@@ -740,6 +740,7 @@ fn export_vault_inner(
     }
     if selection.monsters {
         collect_files(&vault.join("monsters"), "monsters", &mut files);
+        collect_files(&vault.join("monster-lore"), "monster-lore", &mut files);
     }
     if selection.spells {
         collect_files(&vault.join("spells"), "spells", &mut files);
@@ -844,7 +845,7 @@ fn inspect_import_zip_inner(zip_path: String) -> Result<VaultContents, String> {
                 characters.entry(uid).or_default();
             }
             ["items", ..] => items = true,
-            ["monsters", ..] => monsters = true,
+            ["monsters" | "monster-lore", ..] => monsters = true,
             ["spells", ..] => spells = true,
             ["classes", ..] => classes = true,
             ["species", ..] => species = true,
@@ -920,7 +921,7 @@ fn import_vault_inner(
             ["campaigns", slug, ..] => camp_set.contains(*slug),
             ["characters", slug, ..] => char_set.contains(*slug),
             ["items", ..] => selection.items,
-            ["monsters", ..] => selection.monsters,
+            ["monsters" | "monster-lore", ..] => selection.monsters,
             ["spells", ..] => selection.spells,
             ["classes", ..] => selection.classes,
             ["species", ..] => selection.species,

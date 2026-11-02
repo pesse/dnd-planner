@@ -18,6 +18,9 @@
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import EntryPeekHost from '$lib/components/EntryPeekHost.svelte';
+  import ImageMarkCapture from '$lib/components/imageMarks/ImageMarkCapture.svelte';
+  import ImageMarkOverview from '$lib/components/imageMarks/ImageMarkOverview.svelte';
+  import { imageMarksOpen } from '$lib/stores/imageMarks';
   import ContextActionModal from '$lib/components/ContextActionModal.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
   import { spellRefTip } from '$lib/components/spellRefLinks.svelte';
@@ -219,7 +222,11 @@
 <EntryPeekHost />
 <UnsavedChangesDialog />
 <SaveAsDialog />
+{#if $imageMarksOpen}
+  <ImageMarkOverview onclose={() => imageMarksOpen.set(false)} />
+{/if}
 <ConfirmDialog />
+<ImageMarkCapture />
 {#if activeContextAction}
   <ContextActionModal action={activeContextAction} onclose={() => (activeContextAction = null)} />
 {/if}

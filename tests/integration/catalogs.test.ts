@@ -10,6 +10,8 @@ import { rangeSortKey, timeCell, timeSortKey } from '../../src/lib/services/cata
 import { characterRow } from '../../src/lib/services/catalog/characterCatalog';
 import { testCharacter } from '../support/testCharacter';
 
+const SMALL = ['species', 'background'];
+
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   it('jedes Spalten-Set nennt nur bekannte Spalten', () => {
     for (const ids of Object.values(spec.columnSets)) {
@@ -20,7 +22,7 @@ describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   // Die Charaktere im Vault werden bespielt; ihre Zeilen prüft der Prüfling weiter unten.
   it.skipIf(spec.kind === 'character')('liefert Zeilen mit einer Zelle je Spalte und einer bekannten Gruppe', async () => {
     const { rows, groups } = await spec.load();
-    expect(rows.length).toBeGreaterThan(50);
+    expect(rows.length).toBeGreaterThan(SMALL.includes(spec.kind) ? 5 : 50);
     const groupIds = new Set(groups.map((g) => g.id));
     for (const row of rows) {
       expect(Object.keys(row.cells).sort()).toEqual(Object.keys(spec.columns).sort());
@@ -137,6 +139,26 @@ describe('Katalog-Werte', () => {
   });
 });
 
+describe('Herkunfts-Kataloge', () => {
+  it('Klassen: eine Basisklasse filtert sich selbst samt ihren Unterklassen', async () => {
+    const { rows, groups } = await CATALOGS.class.load();
+    const fighter = rows.filter((r) => r.group === 'srd-2024_fighter');
+    expect(groups.find((g) => g.id === 'srd-2024_fighter')?.label).toBe('Kämpfer');
+    expect(fighter.find((r) => r.altName === 'Fighter')?.cells).toMatchObject({
+      role: { text: 'Klasse' },
+      hitDie: { text: 'W10', sort: 10 },
+    });
+    expect(fighter.find((r) => r.altName === 'Champion')?.cells.role.text).toBe('Unterklasse');
+  });
+
+  it('Spezies und Hintergründe: deutscher Name, Herkunftstalent', async () => {
+    const species = (await CATALOGS.species.load()).rows.find((r) => r.altName === 'Dwarf');
+    const background = (await CATALOGS.background.load()).rows.find((r) => r.altName === 'Soldier');
+    expect(species?.name).toBe('Zwerg');
+    expect(background?.cells.feat.text).not.toBe('');
+  });
+});
+
 describe('Zauber-Sortierung', () => {
   it.each([
     ['Reaktion, die du ausführst …', 'Bonusaktion'],
@@ -188,6 +210,7 @@ describe('Katalog-Pfad', () => {
     expect(parseCatalogPath(catalogEntry('monster', 'Monster').path)).toEqual({ kind: 'monster', group: '' });
     expect(parseCatalogPath(catalogEntry('feat', 'Talente').path)).toEqual({ kind: 'feat', group: '' });
     expect(parseCatalogPath('catalog:spell-level/3')).toEqual({ kind: 'spell-level', group: '3' });
+    expect(parseCatalogPath('catalog:species')).toEqual({ kind: 'species', group: '' });
     expect(parseCatalogPath('catalog:spell')).toBeNull();
   });
 });

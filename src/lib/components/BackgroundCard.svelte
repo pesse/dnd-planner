@@ -6,6 +6,7 @@
   import CardParseError from './ui/CardParseError.svelte';
   import BackgroundCardView from './libraryView/BackgroundCardView.svelte';
   import EntryArtTab from './libraryView/EntryArtTab.svelte';
+  import EntryArtStage from './libraryView/EntryArtStage.svelte';
   import CardEditWrap from './ui/CardEditWrap.svelte';
   import CardTools from './ui/CardTools.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -77,7 +78,9 @@
     style="--ep-accent: var(--teal)"
   >
     {#snippet karte()}
-      <BackgroundCardView background={draft!} onOpenFeat={openFeatPage} />
+      <EntryArtStage kind="background" entryKey={draft!.key ?? ''}>
+        <BackgroundCardView background={draft!} onOpenFeat={openFeatPage} />
+      </EntryArtStage>
     {/snippet}
 
     {#snippet bearbeiten()}

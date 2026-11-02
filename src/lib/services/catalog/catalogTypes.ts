@@ -2,8 +2,12 @@
 import type { FileEntry } from '../../types';
 import { sourceLabel } from '../../schemas/source';
 
-export const CATALOG_KINDS = ['monster', 'item', 'feat', 'spell-school', 'spell-level', 'character'] as const;
+export const CATALOG_KINDS = [
+  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background',
+] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
+
+export type CatalogLayout = 'table' | 'gallery';
 
 export interface CatalogCell {
   text: string;
@@ -39,6 +43,8 @@ export interface CatalogRow {
   group: string;
   icon: string | null;
   iconColor: string;
+  /** Stimmungsbilder oder Porträt; die Galerie zieht sie `icon` vor, das erste füllt die Kachel. */
+  art?: string[];
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
   /**
@@ -53,6 +59,11 @@ export interface CatalogFacetValue {
   label: string;
   /** Fehlt sie, ordnet das Label. */
   order?: number;
+}
+
+export interface CatalogFacet {
+  label: string;
+  multi?: boolean;
 }
 
 export interface CatalogGroup {
@@ -71,29 +82,33 @@ export interface CatalogSpec {
   columns: Record<string, CatalogColumn>;
   /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
   columnSets: { '': string[] } & Record<string, string[]>;
-  /** Zusatzfilter neben der Gruppe: id → Label. */
-  facets: Record<string, string>;
+  /** Zusatzfilter neben der Gruppe. */
+  facets: Record<string, CatalogFacet>;
   /**
    * Dieselben Zeilen nach anderen Achsen gruppiert, in Umschalter-Reihenfolge. `facet` ist in
    * jeder Ansicht die Facette, deren Werte die Gruppen der anderen sind — beim Wechsel tauschen
    * Gruppe und Facette die Rollen.
    */
   views?: { kinds: CatalogKind[]; facet: string };
+  defaultLayout?: CatalogLayout;
   load: () => Promise<{ rows: CatalogRow[]; groups: CatalogGroup[] }>;
   invalidate: () => void;
 }
 
 /** Was die Tabelle über Gruppe und Ansicht hinaus einschränkt und ordnet. */
 export interface CatalogFilters {
-  /** Facette → gewählter Wert; fehlt der Schlüssel, filtert sie nicht. */
-  facets: Record<string, string>;
+  /** Facette → gewählte Werte, von denen einer passen muss; fehlt der Schlüssel, filtert sie nicht. */
+  facets: Record<string, string[]>;
   search: string;
   /** Spalten-ID oder `name`. */
   sortCol: string;
   sortAsc: boolean;
+  layout: CatalogLayout;
 }
 
 export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
+
+export const SOURCE_FACET: CatalogFacet = { label: 'Quelle', multi: true };
 
 export const sourceFacet = (source: string | undefined): CatalogFacetValue =>
   ({ id: source ?? '', label: sourceLabel(source) || 'Ohne Angabe' });

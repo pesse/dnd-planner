@@ -1,7 +1,7 @@
 /** Die Figuren der Startseite, aus dem, was gerade unter `vault/art/` liegt. */
 import { artUrl, listArt } from '$lib/artUrl';
 
-const FIGURE_DIRS = ['figures', 'combos', 'classes', 'backgrounds'];
+const FIGURE_DIRS = ['figures', 'classes', 'backgrounds', 'monster-scenes'];
 
 /** Die Gliederpuppe ist eine Ausrüstungsvorlage, keine Szene. */
 const isScene = (name: string): boolean => !name.endsWith('/paperdoll');

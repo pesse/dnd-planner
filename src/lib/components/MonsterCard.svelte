@@ -5,9 +5,10 @@
   import MonsterEditForm from './MonsterEditForm.svelte';
   import EditorPanel from './EditorPanel.svelte';
   import ParseError from './ui/ParseError.svelte';
-  import ArtStage from './ui/ArtStage.svelte';
+  import MonsterLoreBlock from './monster/MonsterLoreBlock.svelte';
   import EntryArtTab from './libraryView/EntryArtTab.svelte';
-  import { monsterArtSlug, monsterSceneUrl } from '../libraryArt';
+  import EntryArtStage from './libraryView/EntryArtStage.svelte';
+  import { monsterArtSlug } from '../libraryArt';
   import CardTools from './ui/CardTools.svelte';
   import AiEditModal from './AiEditModal.svelte';
   import TranslateModal from './TranslateModal.svelte';
@@ -18,7 +19,7 @@
   import { createCardEditor } from '../editor/cardEditor.svelte';
   import { editMonsterAction } from '../services/aiActions/monsterAction';
   import { slugKeepUmlauts } from '../utils/text';
-  import { invalidateVault } from '../stores/campaign';
+  import { activeFile, invalidateVault } from '../stores/campaign';
 
   const ed = createCardEditor<Monster>({
     type: 'monster',
@@ -111,9 +112,10 @@
 >
   {#snippet karte()}
     {#if ed.draft}
-      <ArtStage candidates={[monsterSceneUrl(ed.draft)].filter((u) => u !== null)}>
+      <EntryArtStage kind="monster" entryKey={monsterArtSlug(ed.draft)}>
         <MonsterStatBlock monster={ed.draft} />
-      </ArtStage>
+        {#if $activeFile?.path && !ed.isNew}<MonsterLoreBlock path={$activeFile.path} />{/if}
+      </EntryArtStage>
     {:else}
       <ParseError message="Kein gültiger Monster-Datensatz." onjson={() => (ed.tab = 'json')} />
     {/if}

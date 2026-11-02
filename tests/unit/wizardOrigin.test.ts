@@ -56,11 +56,9 @@ describe('Persönliches', () => {
 describe('Stimmungsbild der Herkunfts-Schritte', () => {
   const keys = { classKey: 'srd-2024_wizard', speciesKey: 'srd-2024_dwarf', backgroundKey: 'srd-2024_sage' };
 
-  it('nimmt die Kombination vor dem Bild des Schritts', () => {
-    expect(originArtCandidates('class', keys)).toEqual([
-      '/art/combos/dwarf-wizard.avif', '/art/classes/wizard.avif',
-    ]);
-    expect(originArtCandidates('species', keys)[0]).toBe('/art/combos/dwarf-wizard.avif');
+  it('nimmt ohne Äußeres das Bild der Klasse', () => {
+    expect(originArtCandidates('class', keys)).toEqual(['/art/classes/wizard.avif']);
+    expect(originArtCandidates('species', keys)).toEqual(['/art/classes/wizard.avif']);
   });
 
   it('nimmt mit Äußerem zuerst die Figur', () => {
@@ -70,7 +68,7 @@ describe('Stimmungsbild der Herkunfts-Schritte', () => {
       '/art/figures/dwarf-feminine/backgrounds/sage.avif', '/art/backgrounds/sage.avif',
     ]);
     expect(originArtCandidates('class', fig).slice(0, 2)).toEqual([
-      '/art/figures/dwarf-feminine/classes/wizard.avif', '/art/combos/dwarf-wizard.avif',
+      '/art/figures/dwarf-feminine/classes/wizard.avif', '/art/classes/wizard.avif',
     ]);
   });
 

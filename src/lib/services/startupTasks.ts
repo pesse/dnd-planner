@@ -11,6 +11,7 @@ import { legacyCharacterDirs, migrateCharacterUids } from './migrateCharacterUid
 import { getRulesIndex } from './rulesReference';
 import { onIdle, prefetchLibraries } from './prefetchLibraries';
 import { appLog, captureConsole } from './appLog';
+import { announceFixedImageMarks } from '../stores/imageMarks';
 
 async function maybeMigrateLegacyVault(): Promise<void> {
   try {
@@ -108,6 +109,8 @@ export function runStartupTasks(): () => void {
   // Index über 810 Regel-Chunks lief genau dann, wenn die Oberfläche bedienbar werden soll.
   prefetchLibraries();
   onIdle(() => getRulesIndex());
+  // Bilder kommen auch ohne Bibliotheks-Update neu in den Vault, etwa beim Entwickeln.
+  onIdle(() => void announceFixedImageMarks());
 
   function onError(e: ErrorEvent) {
     pushError(e.message || String(e));

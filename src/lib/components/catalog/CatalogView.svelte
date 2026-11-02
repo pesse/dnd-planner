@@ -2,15 +2,16 @@
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { navigateTo } from '../../services/navigation';
-  import { peekEntry } from '../../services/entryPeek';
-  import { historyScroll } from '../../utils/historyScroll';
   import { CatalogFilterState } from './catalogFilterState.svelte';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
     catalogEntry, columnsFor, facetOptions, facetValues,
-    type CatalogColumn, type CatalogGroup, type CatalogKind, type CatalogRow,
+    type CatalogGroup, type CatalogKind, type CatalogLayout, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
   import SegmentedToggle from '../ui/SegmentedToggle.svelte';
+  import MultiSelect from '../ui/MultiSelect.svelte';
+  import CatalogTable from './CatalogTable.svelte';
+  import CatalogGallery from './CatalogGallery.svelte';
   import '../toolbar.css';
 
   let { kind, group }: { kind: CatalogKind; group: string } = $props();
@@ -25,7 +26,6 @@
   let rows = $derived(loaded?.kind === kind ? loaded.rows : []);
   let groups = $derived(loaded?.kind === kind ? loaded.groups : []);
   let loading = $derived(loaded?.kind !== kind);
-  let failedIcons = $state<Record<string, true>>({});
 
   async function load(fresh: boolean) {
     const forKind = kind;
@@ -59,14 +59,14 @@
   // Eine Facette mit nur einem Wert in dieser Gruppe filtert nichts und bleibt weg.
   let facets = $derived(
     Object.entries(spec.facets)
-      .map(([id, label]) => ({ id, label, options: facetOptions(groupRows, id) }))
+      .map(([id, def]) => ({ id, ...def, options: facetOptions(groupRows, id) }))
       .filter((f) => f.options.length > 1 || f.id in filt.facets),
   );
 
   let shown = $derived.by(() => {
     const q = filt.search.trim().toLowerCase();
     const filtered = groupRows.filter((r) =>
-      Object.entries(filt.facets).every(([id, value]) => facetValues(r, id).some((v) => v.id === value))
+      Object.entries(filt.facets).every(([id, chosen]) => facetValues(r, id).some((v) => chosen.includes(v.id)))
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
@@ -92,8 +92,8 @@
     const views = spec.views;
     const next = CATALOGS[target].views;
     if (!views || !next || target === kind) return;
-    const { [views.facet]: nextGroupId, ...facets } = filt.facets;
-    if (group) facets[next.facet] = group;
+    const { [views.facet]: [nextGroupId] = [], ...facets } = filt.facets;
+    if (group) facets[next.facet] = [group];
     const nextGroup = nextGroupId ? facetOptions(rows, views.facet).find((o) => o.id === nextGroupId) : undefined;
     void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup), {
       state: { catalog: { ...filt.snapshot(), facets } },
@@ -101,15 +101,10 @@
   }
 
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type, dirPath: row.dirPath });
-</script>
+  const open = (row: CatalogRow) => void navigateTo(entryOf(row));
 
-{#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}
-  <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (filt.sortAsc ? 'ascending' : 'descending') : 'none'}>
-    <button type="button" title={def.title} onclick={() => filt.sortBy(col, activeSort)}>
-      {label}<span class="sort-mark">{activeSort === col ? (filt.sortAsc ? '▲' : '▼') : ''}</span>
-    </button>
-  </th>
-{/snippet}
+  const LAYOUTS: { id: CatalogLayout; label: string }[] = [{ id: 'table', label: 'Tabelle' }, { id: 'gallery', label: 'Galerie' }];
+</script>
 
 <div class="toolbar">
   <span class="catalog-title">{$activeFile?.name ?? spec.label}</span>
@@ -117,83 +112,68 @@
 
 <div class="catalog">
   <div class="controls">
+    <span class="views"><SegmentedToggle options={LAYOUTS} value={filt.layout} onselect={(l) => (filt.layout = l)} /></span>
     {#if viewOptions.length}
       <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
     {/if}
     <input class="search" type="search" placeholder="Suchen…" bind:value={filt.search} />
-    <label class="filter">
-      {spec.groupLabel}
-      <select value={group} onchange={(e) => setGroup(e.currentTarget.value)}>
-        <option value="">Alle</option>
-        {#each groups as g}<option value={g.id}>{g.label}</option>{/each}
-      </select>
-    </label>
-    {#each facets as f (f.id)}
+    {#if groups.length}
       <label class="filter">
-        {f.label}
-        <select value={filt.facets[f.id] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? null : e.currentTarget.value)}>
-          <option value={ALL}>Alle</option>
-          {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
+        {spec.groupLabel}
+        <select value={group} onchange={(e) => setGroup(e.currentTarget.value)}>
+          <option value="">Alle</option>
+          {#each groups as g}<option value={g.id}>{g.label}</option>{/each}
         </select>
       </label>
+    {/if}
+    {#each facets as f (f.id)}
+      {#if f.multi}
+        <span class="filter">
+          {f.label}
+          <MultiSelect options={f.options} selected={filt.facets[f.id] ?? []} onchange={(ids) => filt.setFacet(f.id, ids)} />
+        </span>
+      {:else}
+        <label class="filter">
+          {f.label}
+          <select value={filt.facets[f.id]?.[0] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? [] : [e.currentTarget.value])}>
+            <option value={ALL}>Alle</option>
+            {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
+          </select>
+        </label>
+      {/if}
     {/each}
+    {#if filt.layout === 'gallery'}
+      <label class="filter">
+        Sortierung
+        <select value={activeSort} onchange={(e) => { filt.sortCol = e.currentTarget.value; }}>
+          <option value="name">Name</option>
+          {#each columnIds as id}<option value={id}>{spec.columns[id].title ?? spec.columns[id].label}</option>{/each}
+        </select>
+        <button type="button" class="dir" title={filt.sortAsc ? 'Aufsteigend' : 'Absteigend'} onclick={() => (filt.sortAsc = !filt.sortAsc)}>
+          {filt.sortAsc ? '▲' : '▼'}
+        </button>
+      </label>
+    {/if}
     <span class="count">{loading ? 'Laden…' : `${shown.length} von ${rows.length}`}</span>
   </div>
 
-  <div class="table-wrap" use:historyScroll>
-    <table>
-      <thead>
-        <tr>
-          <th class="icon-col"></th>
-          {@render sortHead('Name', 'name')}
-          {#each columnIds as id}{@render sortHead(spec.columns[id].label, id, spec.columns[id])}{/each}
-        </tr>
-      </thead>
-      <tbody>
-        {#each shown as row (row.path)}
-          <tr class:active={$activeFile?.path === row.path} onclick={() => navigateTo(entryOf(row))}>
-            <td class="icon-col">
-              {#if row.icon && !failedIcons[row.path]}
-                <button
-                  type="button"
-                  class="icon"
-                  class:portrait={spec.portraits}
-                  style="--ic:{row.iconColor}"
-                  title="Vorschau"
-                  onclick={(e) => { e.stopPropagation(); peekEntry(entryOf(row)); }}
-                >
-                  <img src={row.icon} alt="" loading="lazy" onerror={() => (failedIcons[row.path] = true)} />
-                </button>
-              {/if}
-            </td>
-            <td class="name">
-              {row.name}
-              {#if !group}<span class="group">{groupLabel(row.group)}</span>{/if}
-            </td>
-            {#each columnIds as id}
-              {@const cell = row.cells[id]}
-              {@const col = spec.columns[id]}
-              <td
-                class:numeric={col.numeric}
-                class:wrap={col.wrap}
-                class:center={col.center}
-                title={cell.title}
-                style={cell.color && !col.badge ? `color:${cell.color}` : undefined}
-              >
-                {#if col.badge}
-                  <span class="badge" style:background={cell.color}>{cell.text}</span>
-                {:else}{cell.text}{/if}
-              </td>
-            {/each}
-          </tr>
-        {:else}
-          {#if !loading}
-            <tr><td class="empty" colspan={columnIds.length + 2}>Keine Treffer</td></tr>
-          {/if}
-        {/each}
-      </tbody>
-    </table>
-  </div>
+  {#if filt.layout === 'gallery'}
+    <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} />
+  {:else}
+    <CatalogTable
+      {spec}
+      rows={shown}
+      {columnIds}
+      showGroup={!group}
+      {groupLabel}
+      {activeSort}
+      sortAsc={filt.sortAsc}
+      {loading}
+      {entryOf}
+      onsort={(col) => filt.sortBy(col, activeSort)}
+      onopen={open}
+    />
+  {/if}
 </div>
 
 <style>
@@ -209,6 +189,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    position: relative;
     background: var(--bg);
   }
 
@@ -256,113 +237,13 @@
     color: var(--ink-muted);
   }
 
-  .table-wrap {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
-
-  thead th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-    padding: 0;
-  }
-  th button {
-    width: 100%;
+  .dir {
     background: none;
     border: none;
-    padding: 0.4rem 0.6rem;
-    font: inherit;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
     color: var(--ink-soft);
-    text-align: inherit;
     cursor: pointer;
-    white-space: nowrap;
+    font-size: 0.7rem;
+    padding: 0 0.2rem;
   }
-  th button:hover { color: var(--red); }
-  .sort-mark {
-    display: inline-block;
-    width: 1em;
-    font-size: 0.65rem;
-    margin-left: 0.2rem;
-  }
-
-  td {
-    padding: 0.2rem 0.6rem;
-    border-bottom: 1px solid var(--surface);
-    color: var(--ink-soft);
-    white-space: nowrap;
-  }
-  .numeric { text-align: right; font-variant-numeric: tabular-nums; }
-  td.wrap { white-space: normal; min-width: 10rem; }
-  .center { text-align: center; }
-  td.center { font-weight: 700; }
-
-  .badge {
-    display: inline-block;
-    min-width: 1.2rem;
-    padding: 0 0.35rem;
-    border-radius: 0.25rem;
-    color: var(--bg);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-align: center;
-    line-height: 1.25rem;
-  }
-
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: var(--bg-raised); }
-  tbody tr.active { background: var(--surface); }
-
-  td.name {
-    color: var(--ink);
-    font-weight: 500;
-    white-space: normal;
-    width: 100%;
-  }
-  .group {
-    margin-left: 0.5rem;
-    font-size: 0.72rem;
-    font-weight: 400;
-    color: var(--ink-faint);
-  }
-
-  .icon-col { width: 40px; padding: 0.15rem 0.3rem 0.15rem 0.8rem; }
-  .icon {
-    display: block;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    background: none;
-    cursor: zoom-in;
-    filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ic) 45%, transparent));
-  }
-  .icon img { display: block; width: 100%; height: 100%; }
-  .icon.portrait { height: 40px; filter: none; }
-  .icon.portrait img {
-    object-fit: cover;
-    border-radius: 4px;
-    border: 1px solid var(--ic);
-    box-sizing: border-box;
-  }
-
-  .empty {
-    text-align: center;
-    color: var(--ink-muted);
-    padding: 1.5rem;
-  }
+  .dir:hover { color: var(--red); }
 </style>

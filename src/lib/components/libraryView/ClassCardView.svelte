@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
   import type { ClassProgression } from '$lib/types';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
@@ -8,10 +7,8 @@
     CASTER_LABELS, COMPLEXITY_LABELS, primaryAbilityText, classCoreRows, classFeatureEntries,
   } from './classView';
 
-  let { klass, badge, openUpTo = 20, extraFeatures = [] }: {
+  let { klass, openUpTo = 20, extraFeatures = [] }: {
     klass: ClassProgression;
-    /** Zusatz im Kartenkopf, z.B. das Deklarations-Badge der Bibliothek. */
-    badge?: Snippet;
     openUpTo?: number;
     /** Weitere Merkmale, etwa die einer Unterklasse, in derselben Liste. */
     extraFeatures?: FeatureListEntry[];
@@ -36,7 +33,6 @@
         Hauptattribut: {primaryAbilityText(klass.overview)} · Komplexität: {COMPLEXITY_LABELS[klass.overview.complexity]}
       </div>
     {/if}
-    {@render badge?.()}
   {/snippet}
 
   {#if klass.introDe}

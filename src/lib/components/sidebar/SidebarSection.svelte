@@ -2,6 +2,7 @@
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { confirmNavigation } from '../../stores/navigationGuard';
   import { navigateTo } from '../../services/navigation';
+  import { catalogEntry } from '../../services/catalog/catalogTypes';
   import type { LibraryEntry, LibrarySection } from '../../services/sidebar/librarySections';
   import SectionHeader from './SectionHeader.svelte';
   import './tree.css';
@@ -28,6 +29,8 @@
     await navigateTo({ name: path.split('/').pop()!.replace('.json', ''), path, type: section.type });
   }
 
+  const catalog = $derived(catalogEntry(section.catalog, section.label));
+
   async function create() {
     if (!(await confirmNavigation())) return;
     expanded = true;
@@ -36,7 +39,14 @@
 </script>
 
 <div class="top-section">
-  <SectionHeader label={section.label} {expanded} ontoggle={toggle} top>
+  <SectionHeader
+    label={section.label}
+    {expanded}
+    ontoggle={toggle}
+    onlabel={() => void navigateTo(catalog)}
+    current={$activeFile?.path === catalog.path}
+    top
+  >
     {#snippet actions()}
       <button class="add-btn" title={section.addTitle} onclick={create}>+</button>
     {/snippet}

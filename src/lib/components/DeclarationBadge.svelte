@@ -1,14 +1,14 @@
 <script lang="ts">
   /**
-   * Abdeckungs-Badge einer Bibliothekskarte. Text und Titel kommen aus `coverageBadge`
-   * (services/declarationCoverage.ts) — hier steht nur die Darstellung.
+   * Abdeckung der Deklarationen: als Badge (Merkmals-Seitenleiste) oder als Hinweis über dem
+   * Bearbeiten-Formular einer Bibliothekskarte. Text und Titel kommen aus `coverageBadge`.
    */
   import type { CoverageBadge } from '$lib/services/declarationCoverage';
 
-  let { badge }: { badge: CoverageBadge } = $props();
+  let { badge, hint = false }: { badge: CoverageBadge; hint?: boolean } = $props();
 </script>
 
-<div class="declaration {badge.tone}" title={badge.title}>{badge.text}</div>
+<div class="declaration {badge.tone}" class:hint title={badge.title}>{badge.text}</div>
 
 <style>
   /* Gold = es liegt noch Redaktionsarbeit an, Grün = vollständig. */
@@ -24,5 +24,10 @@
   .declaration.done {
     color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--bg));
     background: var(--bg);
+  }
+  .declaration.hint {
+    display: block; margin: 0 0 0.9rem;
+    font-size: 0.8rem; text-transform: none; letter-spacing: 0;
+    border-width: 0 0 0 3px; border-radius: 0; padding: 0.3rem 0.6rem;
   }
 </style>

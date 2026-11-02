@@ -32,9 +32,6 @@ export const monsterArtSlug = (monster: Monster): string =>
 
 export const monsterArtUrl = (monster: Monster): string | null => artUrl('monsters', monsterArtSlug(monster));
 
-/** Das große Szenenbild neben der Monsterkarte; eigene Monster haben keins. */
-export const monsterSceneUrl = (monster: Monster): string | null => artUrl('monster-scenes', monsterArtSlug(monster));
-
 /**
  * Eigene Gegenstände leihen sich ihren Namen oft von einer SRD-Waffe (`homebrew-sam_warhammer`);
  * außerhalb des SRD trägt das Bild deshalb den ganzen Key.

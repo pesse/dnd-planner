@@ -19,3 +19,12 @@ export async function listArt(): Promise<string[]> {
   const res = await fetch('/art-list');
   return res.ok ? res.json() : [];
 }
+
+/** Leer, wenn die Liste nicht lesbar ist — dann zeigen die Übersichten eben Symbole statt Bilder. */
+export async function availableArt(): Promise<Set<string>> {
+  try {
+    return new Set(await listArt());
+  } catch {
+    return new Set();
+  }
+}

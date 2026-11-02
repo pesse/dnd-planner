@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getSpeciesList, speciesDisplayName } from '$lib/speciesLibrary';
-  import { entryArtCandidates, resolveEntryArt, type ArtEntryKind, type EntryArtGroup } from '$lib/services/libraryEntryArt';
+  import { availableArt } from '$lib/artUrl';
+  import { artSpecies, entryArtCandidates, resolveEntryArt, type ArtEntryKind, type EntryArtGroup } from '$lib/services/libraryEntryArt';
   import ArtGallery from '../ui/ArtGallery.svelte';
 
   let { kind, entryKey }: { kind: ArtEntryKind; entryKey: string } = $props();
@@ -12,10 +12,8 @@
     groups = null;
     let stale = false;
     (async () => {
-      const species = (await getSpeciesList())
-        .flatMap((s) => (s.key ? [{ key: s.key, name: speciesDisplayName(s) }] : []))
-        .sort((a, b) => a.name.localeCompare(b.name, 'de'));
-      const found = await resolveEntryArt(entryArtCandidates(k, key, species));
+      const [species, names] = await Promise.all([artSpecies(), availableArt()]);
+      const found = await resolveEntryArt(entryArtCandidates(k, key, species, names));
       if (!stale) groups = found;
     })();
     return () => { stale = true; };
