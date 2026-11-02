@@ -1,5 +1,6 @@
 import { getMonsterLibrary, invalidateMonsterLibrary } from '../../monsterLibrary';
-import { monsterArtUrl } from '../../libraryArt';
+import { availableArt } from '../../artUrl';
+import { monsterArtSlug, monsterArtUrl, monsterSceneUrl } from '../../libraryArt';
 import { monsterAlignmentLabel, monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
@@ -22,7 +23,7 @@ export const monsterCatalog: CatalogSpec = {
   facets: { source: 'Quelle' },
   invalidate: invalidateMonsterLibrary,
   async load() {
-    const hits = await getMonsterLibrary();
+    const [hits, art] = await Promise.all([getMonsterLibrary(), availableArt()]);
     const rows = hits.map(({ slug, path, monster: m }) => ({
       path,
       entryName: slug,
@@ -30,6 +31,7 @@ export const monsterCatalog: CatalogSpec = {
       altName: m.name_en,
       group: m.type,
       icon: monsterArtUrl(m),
+      art: art.has(`monster-scenes/${monsterArtSlug(m)}`) ? monsterSceneUrl(m) : null,
       iconColor: 'var(--red)',
       cells: {
         cr: { text: crLabel(m.challenge_rating), sort: m.challenge_rating },

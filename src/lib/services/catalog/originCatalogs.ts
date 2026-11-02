@@ -1,5 +1,5 @@
 /** Klassen, Spezies und Hintergründe als Kataloge: wenige Spalten, dafür Stimmungsbild und Einleitung. */
-import { artUrl, listArt } from '../../artUrl';
+import { artUrl, availableArt } from '../../artUrl';
 import { CLASSES_PATH } from '../../classLibrary';
 import { SPECIES_PATH } from '../../speciesLibrary';
 import { BACKGROUNDS_PATH } from '../../backgroundsLibrary';
@@ -23,15 +23,6 @@ async function scan(dir: string): Promise<Entry[]> {
     return await scanJsonFolder<Entry>(dir, (data, ctx) => ({ data, ctx }), (ctx) => ({ data: {}, ctx }));
   } catch {
     return [];
-  }
-}
-
-/** Ein Abfrage-Lauf über alles, was unter `vault/art/` liegt, statt je Eintrag ein `<img>` zu probieren. */
-async function artNames(): Promise<Set<string>> {
-  try {
-    return new Set(await listArt());
-  } catch {
-    return new Set();
   }
 }
 
@@ -77,7 +68,7 @@ export const classCatalog: CatalogSpec = {
   facets: { role: 'Art', source: 'Quelle' },
   invalidate: () => {},
   async load() {
-    const [entries, names] = await Promise.all([scan(CLASSES_PATH), artNames()]);
+    const [entries, names] = await Promise.all([scan(CLASSES_PATH), availableArt()]);
     const bases = entries.filter((e) => !e.data.subclassOf);
     const baseArt = new Map(bases.map((e) => [e.data.key as string, `classes/${slugOf(e.data.key ?? '')}`]));
     const rows: CatalogRow[] = entries.map((e) => {
@@ -116,7 +107,7 @@ export const speciesCatalog: CatalogSpec = {
   facets: {},
   invalidate: () => {},
   async load() {
-    const [entries, names] = await Promise.all([scan(SPECIES_PATH), artNames()]);
+    const [entries, names] = await Promise.all([scan(SPECIES_PATH), availableArt()]);
     const slug = (e: Entry) => slugOf(e.data.key ?? '');
     const rows: CatalogRow[] = entries.map((e) => ({
       ...baseRow(e, 'var(--gold)'),
@@ -145,7 +136,7 @@ export const backgroundCatalog: CatalogSpec = {
   facets: {},
   invalidate: () => {},
   async load() {
-    const [entries, names, feats] = await Promise.all([scan(BACKGROUNDS_PATH), artNames(), getFeats()]);
+    const [entries, names, feats] = await Promise.all([scan(BACKGROUNDS_PATH), availableArt(), getFeats()]);
     const featName = new Map(feats.map((f) => [f.sourceKey, featDisplayName(f)]));
     const rows: CatalogRow[] = entries.map((e) => ({
       ...baseRow(e, 'var(--gold)'),
